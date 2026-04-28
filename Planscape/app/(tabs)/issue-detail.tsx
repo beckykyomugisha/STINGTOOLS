@@ -45,6 +45,7 @@ import {
   getAttachmentThumbnailUrl,
   uploadIssueAttachment,
   listProjects,
+  listIssues,
   updateIssue,
   listProjectMembers,
 } from '@/api/endpoints';
@@ -203,30 +204,55 @@ export default function IssueDetailScreen() {
     let cancelled = false;
     (async () => {
       try {
-        const [meta, token, base] = await Promise.all([
+        // Phase 163 — fetch sibling issues alongside model meta so the embed
+        // pins every open issue on the same model. Project-wide listIssues
+        // is fine — typical projects sit in 10–500 issues, well within one
+        // page. We filter client-side because the server doesn't expose a
+        // `?modelId=` query param yet (cheap to add later if list size
+        // becomes a concern).
+        const [meta, token, base, allIssues] = await Promise.all([
           getModel(project.id, issue.modelId!),
           getToken(),
           modelFileUrl(project.id, issue.modelId!),
+          listIssues(project.id).catch((err) => {
+            console.warn('[issue-detail] sibling-issue fetch failed', err);
+            return [] as BimIssue[];
+          }),
         ]);
         if (cancelled) return;
         const url = token ? `${base}?access_token=${encodeURIComponent(token)}` : base;
         setViewerMeta(meta);
         setViewerModelUrl(url);
-        // Place a single pin at the issue's anchor coords when present.
-        // Falls back to no pin so the embed still renders model context
-        // for issues that link a model but were created outside the viewer.
+
+        // Build the pin list: the issue's own pin first (when anchored),
+        // followed by every other open issue on the same model that has
+        // anchor coords. Pin id == issue id matches the convention in
+        // app/models/[id].tsx so onPinTap can route by id directly.
+        const pins: ModelPin[] = [];
         const x = issue.modelX, y = issue.modelY, z = issue.modelZ;
         if (typeof x === 'number' && typeof y === 'number' && typeof z === 'number') {
-          // Pin id == issue id matches the convention in app/models/[id].tsx
-          // (ModelViewer's onPinTap uses the id as the issueId on the way back).
-          setViewerPins([{
+          pins.push({
             id: issue.id,
             x, y, z,
             priority: issue.priority as ModelPin['priority'],
-          }]);
-        } else {
-          setViewerPins([]);
+          });
         }
+        for (const sib of allIssues ?? []) {
+          if (sib.id === issue.id) continue;
+          if (sib.modelId !== issue.modelId) continue;
+          if (sib.status === 'CLOSED' || sib.status === 'RESOLVED') continue;
+          if (typeof sib.modelX !== 'number' ||
+              typeof sib.modelY !== 'number' ||
+              typeof sib.modelZ !== 'number') continue;
+          pins.push({
+            id: sib.id,
+            x: sib.modelX,
+            y: sib.modelY,
+            z: sib.modelZ,
+            priority: sib.priority as ModelPin['priority'],
+          });
+        }
+        setViewerPins(pins);
         setViewerError(null);
       } catch (err) {
         if (cancelled) return;
@@ -294,7 +320,16 @@ export default function IssueDetailScreen() {
     try {
       const base = await _getBaseUrl();
       const params = new URLSearchParams();
-      params.set('model', `${project.code}.xkt`);
+      // Phase 163 — when the issue is linked to a specific model, route
+      // the fullscreen viewer to that model's XKT. Falls back to the
+      // project default when no link is set. The XKT pipeline is
+      // operator-controlled (ViewerController serves *.xkt verbatim from
+      // disk), so per-model routing requires that XKT files happen to be
+      // named by model GUID — when they're not, the viewer 404s and the
+      // user sees the "Viewer unavailable" alert. The inline embed (which
+      // uses a different transport entirely) keeps working in that case.
+      const xktBase = issue.modelId ? issue.modelId : project.code;
+      params.set('model', `${xktBase}.xkt`);
       if (issue.modelElementGuid) params.set('element', issue.modelElementGuid);
       if (typeof issue.modelX === 'number' && typeof issue.modelY === 'number' && typeof issue.modelZ === 'number') {
         params.set('camera', `${issue.modelX},${issue.modelY},${issue.modelZ}`);
@@ -645,6 +680,15 @@ export default function IssueDetailScreen() {
                 modelUrl={viewerModelUrl}
                 pins={viewerPins}
                 onError={(err) => setViewerError(err)}
+                onPinTap={(e) => {
+                  // Phase 163 — tapping a sibling pin navigates to that
+                  // issue's detail screen. Tapping the current issue's own
+                  // pin is a no-op (router.push to the same id is harmless
+                  // but visually pointless), so we guard explicitly.
+                  if (e.issueId && e.issueId !== issue.id) {
+                    router.push(`/(tabs)/issue-detail?id=${e.issueId}&projectId=${project!.id}`);
+                  }
+                }}
               />
             </View>
             {viewerPins.length === 0 && (

@@ -8427,3 +8427,157 @@ screen had no `<ModelViewer>` consumer. All three closed in this phase.
    threading `?model=<modelId>.xkt` into the query string when
    `issue.modelId` is set. Deferred because the inline embed is now
    the primary 3D surface for linked issues.
+
+#### Completed (Phase 163 — Phase 162 caveat closures: anchor capture, sibling pins, per-model fullscreen routing)
+
+Closes the three caveats logged at the bottom of Phase 162. Each caveat
+turned out to be smaller than the entry made it sound, and one of them
+(the anchor-capture path) was actually fixing a pre-existing bug rather
+than adding a new feature — the viewer's "create issue here" gesture was
+pushing to a route (`/issues/new`) that doesn't exist anywhere in the
+mobile app, so every long-press on an element in `app/models/[id].tsx`
+silently navigated to a 404 screen. Phase 163 reroutes that push through
+the (tabs)/issues creation modal and threads the anchor coords through.
+
+1. **Anchor capture from the viewer's PlaceIssueEvent** (caveat 1).
+   `Planscape/app/models/[id].tsx:93` — the existing `onPlaceIssue`
+   handler used to push to `/issues/new` (a route that doesn't exist;
+   only `app/issues/[id].tsx` exists, and that's the legacy single-issue
+   detail screen, not a creation form). The push now goes to
+   `/(tabs)/issues` with `fromViewer=1` plus the five anchor params
+   (`modelId`, `modelElementGuid`, `modelX`, `modelY`, `modelZ`) and
+   the three element-metadata params (`tag`, `category`, `discipline`).
+   Same convention as scanner.tsx, meetings/index.tsx, the dashboard
+   tile — every other in-app deep-link to the issues tab uses
+   `pathname: '/(tabs)/issues'`.
+
+   `Planscape/app/(tabs)/issues.tsx` — `useLocalSearchParams<>` shape
+   gained the eight `fromViewer`/`modelId`/`modelElementGuid`/`modelX/Y/Z`/
+   `tag`/`category`/`discipline` fields and a new `viewerLinkHandled`
+   ref guard mirroring the `scannerLinkHandled` pattern. New effect on
+   `[params.fromViewer, params.modelId, ...activeProject]` parses the
+   params, validates `modelX/Y/Z` are finite numbers (NaN-safe via
+   `Number.isFinite`), pre-fills `newModelId` + `newModelElementGuid` +
+   `newModelXyz`, defaults the title to `Issue at <tag>` when present,
+   opens the create modal, and clears the router params (Phase 96
+   convention) so re-mounting the tab doesn't re-trigger the modal.
+
+   The `createIssue` payload gained three nullable fields:
+   `modelElementGuid`, `modelX`, `modelY`, `modelZ` — so the
+   already-extended Phase 162 server `CreateIssueRequest` actually
+   receives anchor data on viewer-deep-linked issues. Manual creation
+   paths (the FAB, the scanner) leave them undefined as before, so
+   plain RFI flows stay anchor-less.
+
+   `resetCreateForm` clears `newModelElementGuid` and `newModelXyz`
+   alongside the existing fields so closing-and-reopening the modal
+   doesn't carry stale anchor state from a prior viewer push.
+
+2. **Sibling pins on the embedded viewer** (caveat 2).
+   `Planscape/app/(tabs)/issue-detail.tsx` — the viewer-load effect
+   gained a fourth parallel call: `listIssues(project.id)`. Failures
+   are non-fatal (catch + console.warn + empty array) so a sibling-list
+   network error doesn't break the embed itself. Pin construction
+   loops over the result, skips the issue's own row, skips siblings
+   with mismatching `modelId`, skips closed/resolved siblings (they're
+   not actionable so polluting the model with their pins adds noise),
+   skips siblings without anchor coords, and emits a `ModelPin` with
+   `id == sib.id` so `onPinTap` can route by id.
+
+   The embedded `<ModelViewer onPinTap={...} />` handler navigates to
+   `/(tabs)/issue-detail?id=<sib.id>&projectId=<project.id>` when the
+   tapped pin's id is not the current issue (no-op self-tap guard).
+   Includes `projectId` per Phase 96's `paramProjectId` optimisation
+   to skip the O(n) project probe on the destination screen.
+
+3. **Fullscreen WebBrowser routing per `issue.modelId`** (caveat 3).
+   Two call sites updated: the IssueCard's "View in 3D" button on the
+   list screen and the openIn3D handler on the detail screen. Both now
+   build the XKT URL as `<modelId>.xkt` when the issue is linked, with
+   a fallback to `<projectCode>.xkt` for un-linked issues.
+
+   `Planscape/app/(tabs)/issues.tsx` — `openViewer(projectCode, modelId?)`
+   gained a second optional param. The IssueCard call site at
+   `:657` now passes `item.modelId`. When `modelId` is set, the URL is
+   `?model=<modelId>.xkt`; otherwise `?model=<projectCode>.xkt`.
+
+   `Planscape/app/(tabs)/issue-detail.tsx` — the `openIn3D` handler at
+   `:318` now derives `xktBase = issue.modelId ?? project.code` before
+   appending the `.xkt` suffix.
+
+   The XKT pipeline is operator-controlled: ViewerController serves
+   `*.xkt` verbatim from `{Storage:Path}/xkt/` with no enforced naming
+   convention (see Phase 93 commentary). Per-model routing therefore
+   only loads when the operator's XKT publishing pipeline happens to
+   name files by model GUID. When it doesn't, the WebBrowser flow 404s
+   and the user sees the existing "Viewer unavailable" alert path.
+   Acceptable because the inline embed (which uses a different
+   transport — the GLB endpoint via `modelFileUrl(...)`) keeps working
+   regardless, so coordinators with mismatched naming conventions still
+   get 3D context for linked issues.
+
+4. **Pin-tap navigation in `app/models/[id].tsx`** (incidental fix).
+   The standalone viewer screen's `onPinTap` previously routed to
+   `/issues/<id>` which lands on the legacy `app/issues/[id].tsx` detail
+   screen rather than the (tabs)/issue-detail screen every other deep
+   link uses. Updated to `/(tabs)/issue-detail?id=<id>` to match the
+   sibling-pin routing in caveat 2 and the rest of the app's deep-link
+   conventions.
+
+5. **`docs/ROADMAP.md`** Phase 9 row updated to record three delivery
+   paths instead of two — the Phase 163 closures explicitly listed so
+   future audits can grep for them without reading the whole entry.
+
+**Files**
+
+- `Planscape/app/(tabs)/issues.tsx` — viewer deep-link param shape (+8
+  fields), `viewerLinkHandled` ref guard, viewer deep-link effect (~40
+  lines), `openViewer(projectCode, modelId?)` second param, IssueCard
+  call site update, anchor-coord state cluster (`newModelElementGuid`,
+  `newModelXyz`), payload extension (3 fields), `resetCreateForm`
+  clear (~95 lines added).
+- `Planscape/app/(tabs)/issue-detail.tsx` — `listIssues` import,
+  sibling-pin construction loop (~30 lines), `onPinTap` handler with
+  self-tap guard, `openIn3D` per-model XKT routing (~10 lines added).
+- `Planscape/app/models/[id].tsx` — `onPlaceIssue` push retargeted from
+  the broken `/issues/new` route to `/(tabs)/issues?fromViewer=1`
+  (the actual (tabs) creation modal); `onPinTap` retargeted from the
+  legacy `/issues/<id>` to `/(tabs)/issue-detail?id=<id>` for deep-link
+  consistency.
+- `docs/ROADMAP.md` — Phase 9 row in the Cloud-Sync audit table.
+- `docs/CHANGELOG.md` — this entry.
+
+**Caveats**
+
+1. Built without `tsc` / `eslint` verification (Linux sandbox, no Node
+   toolchain). Brace balance verified on all three changed mobile
+   files (519/519, 382/382, 59/59). Every imported symbol resolves
+   against the existing API surface (`listIssues`, `ModelPin`,
+   `useLocalSearchParams`, `router.setParams`).
+2. Sibling-pin filter excludes `CLOSED` and `RESOLVED` issues. That
+   choice keeps the embed focused on actionable items — open RFIs,
+   NCRs, defects — but coordinators reviewing a historical incident
+   may want closed pins on too. A future toggle ("Show resolved
+   neighbours") would close that gap; out of scope for this caveat
+   pass since the consultancy estimate didn't budget the toggle.
+3. The `listIssues(projectId)` call is project-wide, no
+   server-side `?modelId=` filter. Acceptable for typical project
+   sizes (10–500 issues) but at 5K+ issues the response becomes
+   wasteful. The right server-side fix is a query parameter on the
+   existing list endpoint plus a covering index on `(ProjectId,
+   ModelId, Status)`. Deferred until real-world list sizes show
+   measurable latency — the issue-detail screen fetches this lazily
+   so it doesn't gate the initial render either way.
+4. Per-model XKT routing assumes the operator's XKT pipeline names
+   files by model GUID. When it doesn't, the WebBrowser fullscreen
+   flow 404s. The detail screen surfaces the alert via the existing
+   `try/catch` in `openIn3D`. A future enhancement could probe via
+   `HEAD /api/viewer/models/<modelId>.xkt` before opening the
+   browser and fall back to the project default on 404 — adds one
+   round-trip and one branch, deferred because the inline embed
+   already provides 3D context regardless of XKT availability.
+5. The deep-link effect doesn't preselect the issue Type from the
+   `category`/`discipline` params — those values often don't map to
+   the RFI/NCR/SI/TQ/CLASH/DEFECT enum cleanly (an architectural
+   element's discipline is "ARC", which doesn't match any Type
+   value). Defaulting to `RFI` matches the manual creation flow.

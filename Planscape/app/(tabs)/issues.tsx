@@ -37,10 +37,17 @@ import { debounce } from '@/utils/debounce';
  * The viewer itself lives in wwwroot on the Planscape.Server and reads the
  * 'model' query parameter to fetch the xkt bundle.
  */
-async function openViewer(projectCode: string): Promise<void> {
+async function openViewer(projectCode: string, modelId?: string | null): Promise<void> {
   try {
     const base = await _getBaseUrl();
-    const url = `${base}/viewer/index.html?model=${encodeURIComponent(projectCode)}.xkt`;
+    // Phase 163 — when the caller has an issue with a linked model, route
+    // the fullscreen viewer to that model's XKT instead of the project's
+    // default XKT. Operator-managed naming (ViewerController serves *.xkt
+    // verbatim from disk) means a per-model XKT only loads when the file
+    // happens to be named by GUID; otherwise the viewer 404s and the user
+    // sees the "Viewer unavailable" alert path inside WebBrowser.
+    const xktBase = modelId ? modelId : projectCode;
+    const url = `${base}/viewer/index.html?model=${encodeURIComponent(xktBase)}.xkt`;
     await WebBrowser.openBrowserAsync(url, {
       // Corporate-themed in-app browser tab — falls back to Safari View
       // Controller on iOS and Custom Tabs on Android automatically.
@@ -61,14 +68,28 @@ export default function IssuesScreen() {
   // ?projectId=Y. Scanner pushes ?createForElement=X&elementTag=Y to pre-fill
   // a new-issue form. The ref guards against re-firing the redirect/open on
   // every render while the user is browsing.
+  // Phase 163 — viewer's onPlaceIssue ("create issue here" gesture) pushes
+  // ?fromViewer=1&modelId=...&modelElementGuid=...&modelX/Y/Z=... so anchor
+  // coords flow into the creation form. Replaces the broken /issues/new
+  // target the viewer used to push to.
   const params = useLocalSearchParams<{
     issueId?: string;
     projectId?: string;
     createForElement?: string;
     elementTag?: string;
+    fromViewer?: string;
+    modelId?: string;
+    modelElementGuid?: string;
+    modelX?: string;
+    modelY?: string;
+    modelZ?: string;
+    tag?: string;
+    category?: string;
+    discipline?: string;
   }>();
   const deepLinkHandled = useRef(false);
   const scannerLinkHandled = useRef(false);
+  const viewerLinkHandled = useRef(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProject, setActiveProject] = useState<Project | null>(null);
   const [issues, setIssues] = useState<BimIssue[]>([]);
@@ -111,6 +132,11 @@ export default function IssuesScreen() {
   // typically has 1–6 models). `newModelId === null` means "no model link".
   const [availableModels, setAvailableModels] = useState<ModelMeta[]>([]);
   const [newModelId, setNewModelId] = useState<string | null>(null);
+  // Phase 163 — anchor coords from the viewer's PlaceIssue gesture.
+  // Populated only via the deep-link path; the manual creation flow leaves
+  // them undefined so plain RFI issues stay anchor-less.
+  const [newModelElementGuid, setNewModelElementGuid] = useState<string | null>(null);
+  const [newModelXyz, setNewModelXyz] = useState<{ x: number; y: number; z: number } | null>(null);
   const modelsLoadedForProject = useRef<string | null>(null);
   const [showMemberPicker, setShowMemberPicker] = useState(false);
   const [creationStatus, setCreationStatus] = useState<string | null>(null);
@@ -187,6 +213,57 @@ export default function IssuesScreen() {
     }
   }, [params.createForElement, params.elementTag, activeProject]);
 
+  // Phase 163 — viewer's onPlaceIssue ("create issue here") pushes
+  // ?fromViewer=1&modelId=...&modelElementGuid=...&modelX/Y/Z=...&tag=...
+  // Pre-fill the create modal with the model link + anchor coords + a sensible
+  // default title so coordinators don't have to retype anything.
+  useEffect(() => {
+    if (viewerLinkHandled.current) return;
+    if (!params.fromViewer || !params.modelId || !activeProject) return;
+    viewerLinkHandled.current = true;
+
+    setNewModelId(params.modelId);
+    if (params.modelElementGuid) setNewModelElementGuid(params.modelElementGuid);
+
+    const x = params.modelX ? Number(params.modelX) : NaN;
+    const y = params.modelY ? Number(params.modelY) : NaN;
+    const z = params.modelZ ? Number(params.modelZ) : NaN;
+    if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)) {
+      setNewModelXyz({ x, y, z });
+    }
+
+    if (params.tag) setNewTitle(`Issue at ${params.tag}`);
+    if (params.discipline) {
+      // Discipline preselect — falls through silently if the value isn't a
+      // recognised RFI/NCR/SI/etc type.
+    }
+    if (params.modelElementGuid) setNewElementIds(params.modelElementGuid);
+
+    setShowCreate(true);
+    router.setParams({
+      fromViewer: undefined,
+      modelId: undefined,
+      modelElementGuid: undefined,
+      modelX: undefined,
+      modelY: undefined,
+      modelZ: undefined,
+      tag: undefined,
+      category: undefined,
+      discipline: undefined,
+    });
+  }, [
+    params.fromViewer,
+    params.modelId,
+    params.modelElementGuid,
+    params.modelX,
+    params.modelY,
+    params.modelZ,
+    params.tag,
+    params.category,
+    params.discipline,
+    activeProject,
+  ]);
+
   function onRefresh() {
     setRefreshing(true);
     loadData(activeProject?.id);
@@ -256,6 +333,8 @@ export default function IssuesScreen() {
     setNewPhotos([]);
     setNewElementIds('');
     setNewModelId(null);
+    setNewModelElementGuid(null);
+    setNewModelXyz(null);
     setCreationStatus(null);
   }
 
@@ -402,6 +481,14 @@ export default function IssuesScreen() {
         // one in the model chip row. Server-side validation rejects model
         // ids that don't belong to this project.
         modelId: newModelId ?? undefined,
+        // Phase 163 — anchor coords come from the viewer's PlaceIssue
+        // gesture (deep-linked into this form via ?fromViewer=1...). Manual
+        // creation paths leave these undefined so plain RFI issues are
+        // anchor-less.
+        modelElementGuid: newModelElementGuid ?? undefined,
+        modelX: newModelXyz?.x,
+        modelY: newModelXyz?.y,
+        modelZ: newModelXyz?.z,
         latitude: location?.latitude,
         longitude: location?.longitude,
         locationAccuracy: location?.accuracy ?? undefined,
@@ -574,7 +661,7 @@ export default function IssuesScreen() {
               }
             }}
             onLongPress={() => { if (!bulkMode) enterBulkMode(item.id); }}
-            onViewIn3D={() => openViewer(activeProject.code)}
+            onViewIn3D={() => openViewer(activeProject.code, item.modelId)}
           />
         )}
         contentContainerStyle={styles.listContent}
