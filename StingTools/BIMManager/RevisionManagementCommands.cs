@@ -690,7 +690,7 @@ namespace StingTools.BIMManager
                             var issuesArr = BIMManagerEngine.LoadJsonArray(issuesPath);
                             int linked = 0;
                             string newRevId = prefix;
-                            foreach (var rec in SidecarVersioning.Records(issuesArr))
+                            foreach (var rec in SidecarMetaStamper.Records(issuesArr))
                             {
                                 string status = rec["status"]?.ToString() ?? "";
                                 string revOnIssue = rec["revision"]?.ToString() ?? "";

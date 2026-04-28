@@ -793,7 +793,7 @@ namespace StingTools.BIMManager
                 // future schema additions can detect older files and migrate.
                 // Non-blocking — meta failures are logged but never abort the main write.
                 string schema = Path.GetFileNameWithoutExtension(path);
-                SidecarVersioning.Stamp(path, schema);
+                SidecarMetaStamper.Stamp(path, schema);
 
                 StingLog.Info($"BIMManager: saved {Path.GetFileName(path)}");
             }

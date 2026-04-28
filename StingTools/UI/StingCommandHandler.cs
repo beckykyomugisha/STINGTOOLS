@@ -1874,12 +1874,16 @@ namespace StingTools.UI
                     case "MidpTracker": RunCommand<BIMManager.MidpTrackerCommand>(app); break;
                     case "FullComplianceDashboard": RunCommand<BIMManager.FullComplianceDashboardCommand>(app); break;
 
-                    // Phase 148 — surface for the new engines
+                    // Phase 148 — surface for the new engines.
+                    // ComplianceForecastReport uses the Phase 148 engine reading
+                    // compliance_trend.json (the legacy "ComplianceForecast" tag
+                    // at line ~1562 still maps to the GapFixCommands variant
+                    // reading compliance_log.jsonl — the two are complementary).
                     case "RunRebarSpacingCheck":           RunCommand<BIMManager.RunRebarSpacingCheckCommand>(app); break;
                     case "CreateMepCommissioningSchedules":RunCommand<BIMManager.CreateMepCommissioningSchedulesCommand>(app); break;
                     case "CheckScheduleFieldConsistency":  RunCommand<BIMManager.CheckScheduleFieldConsistencyCommand>(app); break;
                     case "TeamWorkloadReport":             RunCommand<BIMManager.TeamWorkloadReportCommand>(app); break;
-                    case "ComplianceForecast":             RunCommand<BIMManager.ComplianceForecastCommand>(app); break;
+                    case "ComplianceForecastReport":       RunCommand<BIMManager.ComplianceForecastReportCommand>(app); break;
                     case "DataDropStatus":                 RunCommand<BIMManager.DataDropStatusCommand>(app); break;
 
                     // 4D/5D Extended

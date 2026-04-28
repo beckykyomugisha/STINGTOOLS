@@ -7,7 +7,7 @@
 // engine and stay one-liners.
 //
 // Engines:
-//   * SidecarVersioning      (BIM-SIDECAR-VER-01)
+//   * SidecarMetaStamper      (BIM-SIDECAR-VER-01)
 //   * CrossLinkEngine        (BIM-CROSS-LINK-01)
 //   * TransmittalGate        (BIM-TRANSMIT-GATE-01)
 //   * TeamWorkloadEngine     (BIM-TEAM-WORKLOAD-01)
@@ -46,7 +46,7 @@ namespace StingTools.BIMManager
     /// compatibility migrations consult `ReadMeta(path)` and branch on
     /// `Version`.
     /// </summary>
-    internal static class SidecarVersioning
+    internal static class SidecarMetaStamper
     {
         public const string CurrentVersion = "1.1";
 
@@ -82,7 +82,7 @@ namespace StingTools.BIMManager
                 File.WriteAllText(tmp, JsonConvert.SerializeObject(meta, Formatting.Indented));
                 File.Move(tmp, metaPath, true);
             }
-            catch (Exception ex) { StingLog.Warn($"SidecarVersioning.Stamp {Path.GetFileName(sidecarPath)}: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"SidecarMetaStamper.Stamp {Path.GetFileName(sidecarPath)}: {ex.Message}"); }
         }
 
         /// <summary>Read the version stamp, returning "0.0" for any
@@ -98,7 +98,7 @@ namespace StingTools.BIMManager
             }
             catch (Exception ex)
             {
-                StingLog.Warn($"SidecarVersioning.ReadVersion: {ex.Message}");
+                StingLog.Warn($"SidecarMetaStamper.ReadVersion: {ex.Message}");
                 return "0.0";
             }
         }
@@ -175,21 +175,21 @@ namespace StingTools.BIMManager
                 if (issueQueue.Count > 0)
                 {
                     string id = issueQueue.Dequeue();
-                    var rec = SidecarVersioning.Records(issues)
+                    var rec = SidecarMetaStamper.Records(issues)
                         .FirstOrDefault(r => r["id"]?.ToString() == id);
                     if (rec != null && !bundle.Issues.Contains(rec)) { bundle.Issues.Add(rec); Hop(rec); }
                 }
                 else if (revQueue.Count > 0)
                 {
                     string id = revQueue.Dequeue();
-                    var rec = SidecarVersioning.Records(revisions)
+                    var rec = SidecarMetaStamper.Records(revisions)
                         .FirstOrDefault(r => r["id"]?.ToString() == id || r["code"]?.ToString() == id);
                     if (rec != null && !bundle.Revisions.Contains(rec)) { bundle.Revisions.Add(rec); Hop(rec); }
                 }
                 else
                 {
                     string id = txQueue.Dequeue();
-                    var rec = SidecarVersioning.Records(transmittals)
+                    var rec = SidecarMetaStamper.Records(transmittals)
                         .FirstOrDefault(r => r["id"]?.ToString() == id);
                     if (rec != null && !bundle.Transmittals.Contains(rec)) { bundle.Transmittals.Add(rec); Hop(rec); }
                 }
@@ -288,7 +288,7 @@ namespace StingTools.BIMManager
 
             foreach (string id in docIds)
             {
-                var docRec = SidecarVersioning.Records(register)
+                var docRec = SidecarMetaStamper.Records(register)
                     .FirstOrDefault(r => r["id"]?.ToString() == id || r["doc_number"]?.ToString() == id);
                 if (docRec == null)
                 {
@@ -346,7 +346,7 @@ namespace StingTools.BIMManager
             catch (Exception ex) { StingLog.Warn($"TeamWorkloadEngine: {ex.Message}"); return new List<WorkloadRow>(); }
 
             DateTime now = DateTime.UtcNow;
-            foreach (var rec in SidecarVersioning.Records(issues))
+            foreach (var rec in SidecarMetaStamper.Records(issues))
             {
                 string status = rec["status"]?.ToString() ?? "";
                 if (!string.Equals(status, "OPEN", StringComparison.OrdinalIgnoreCase)) continue;
@@ -428,7 +428,7 @@ namespace StingTools.BIMManager
             try
             {
                 var arr = JArray.Parse(File.ReadAllText(trendPath));
-                foreach (var rec in SidecarVersioning.Records(arr))
+                foreach (var rec in SidecarMetaStamper.Records(arr))
                 {
                     if (DateTime.TryParse(rec["date"]?.ToString(), out DateTime dt) &&
                         double.TryParse(rec["compliance_pct"]?.ToString(), out double pct))
@@ -563,7 +563,7 @@ namespace StingTools.BIMManager
             try
             {
                 var arr = JArray.Parse(File.ReadAllText(path));
-                return SidecarVersioning.Records(arr)
+                return SidecarMetaStamper.Records(arr)
                     .Select(o => o.ToObject<Milestone>())
                     .Where(m => m != null)
                     .ToList();
@@ -584,7 +584,9 @@ namespace StingTools.BIMManager
                 var arr = new JArray();
                 foreach (var m in milestones ?? new List<Milestone>())
                     arr.Add(JObject.FromObject(m));
-                arr = SidecarVersioning.EnsureArrayMeta(arr, "data_drops");
+                // Phase 148b: companion-file versioning replaced the in-array
+                // sentinel — SidecarMetaStamper.EnsureArrayMeta is gone.
+                // Write the array, then stamp the .meta.json companion.
                 string dir = Path.GetDirectoryName(path);
                 if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                     Directory.CreateDirectory(dir);
@@ -592,6 +594,7 @@ namespace StingTools.BIMManager
                 File.WriteAllText(tmp, arr.ToString(Formatting.Indented));
                 if (File.Exists(path)) File.Replace(tmp, path, path + ".bak");
                 else File.Move(tmp, path);
+                SidecarMetaStamper.Stamp(path, "data_drops");
                 return true;
             }
             catch (Exception ex)

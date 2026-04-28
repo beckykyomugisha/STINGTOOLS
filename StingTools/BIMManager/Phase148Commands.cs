@@ -108,11 +108,18 @@ namespace StingTools.BIMManager
         }
     }
 
-    // ── Compliance forecast ───────────────────────────────────────────
+    // ── Compliance forecast (Phase 148 engine variant) ────────────────
+    //
+    // Note: a `ComplianceForecastCommand` already exists in
+    // GapFixCommands.cs reading from compliance_log.jsonl via
+    // GapFixEngine.ForecastCompliance. The Phase 148 engine reads from
+    // compliance_trend.json and produces a richer caption — we expose
+    // it under a distinct command class + dispatch tag
+    // (`ComplianceForecastReport`) so both surfaces can coexist.
 
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
-    public class ComplianceForecastCommand : IExternalCommand
+    public class ComplianceForecastReportCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cd, ref string message, ElementSet elements)
         {
