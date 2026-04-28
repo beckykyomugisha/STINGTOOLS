@@ -4573,3 +4573,33 @@ review. Five systematic engine bugs found:
    rotate but the family won't attach to the wall/ceiling. Re-author
    the family as wall-hosted for proper attachment."*
 
+
+#### Completed (Phase 139.19 — PlacementDiagnoseCommand)
+
+User reported "nothing changed" across multiple consecutive fixes
+(139.16 → 139.18). Symptoms point at one of three root causes I
+can't disambiguate from screenshots alone:
+  - Build cache (user running an older .dll)
+  - Switch family is the wrong FamilyPlacementType (un-hosted instead
+    of OneLevelBasedHosted)
+  - Door instances have no FromRoom / ToRoom data
+
+New command: `Placement_Diagnose`. Walks the live document and
+prints every fact the placement engine sees:
+
+  - Build sanity: prints the engine's CurrentPhase static so the user
+    can verify they're on a current build (the field only exists from
+    Phase 139.12 onward).
+  - Active view + room counts (project-wide vs on active level).
+  - Every door: its Id, family, FromRoom name, ToRoom name, and host
+    type (Wall vs other). Counts how many doors have FromRoom/ToRoom
+    set vs missing.
+  - Every loaded FamilySymbol in Lighting Devices / Lighting Fixtures
+    / Electrical Fixtures / Plumbing Fixtures with its
+    `FamilyPlacementType` and active-state.
+  - Rule pack count by anchor type (wall-anchored, ceiling-anchored).
+
+Outputs to a TaskDialog preview + a CSV-style txt file on disk for
+copy-paste back to support.
+
+Registered as "Placement_Diagnose" tag in StingCommandHandler.
