@@ -50,6 +50,18 @@ public class SecurityController : ControllerBase
     /// can be filtered by classification later.
     /// </summary>
     [HttpPost("users/{userId}/revoke-tokens")]
+    // Phase 159 — backward-compat alias for the Phase 157 route on
+    // /api/admin/. Same action, same auth gate
+    // (SecurityOfficerOrAdmin), same body shape. Note the auth gate
+    // is laxer than the original Phase 157 route which sat under
+    // class-level Admin/Owner; this is intentional — Phase 158
+    // retired Admin/Owner-only access for SOC2 separation-of-duties.
+    // Old clients keep working through the deprecation window; the
+    // controller's audit-log entries record `via: "security_controller"`
+    // either way so operators can grep for stragglers via the absolute
+    // route. Drop this attribute once dashboards + CLI tooling have
+    // migrated.
+    [HttpPost("/api/admin/users/{userId}/revoke-tokens")]
     public async Task<ActionResult> RevokeTokens(Guid userId, [FromBody] RevokeTokensRequest? req = null)
     {
         var tenantId = GetTenantId();

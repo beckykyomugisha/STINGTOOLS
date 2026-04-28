@@ -5629,3 +5629,118 @@ real production hardening items.
    Phase 157, this phase) so removing it is safe; the SOC2
    audit migration path is explicit in the controller's class-
    level XML doc.
+
+#### Completed (Phase 159 — Phase 158 caveat closures: recommended audit categories endpoint, backward-compat revoke route alias)
+
+The two remaining caveats from Phase 158 were both production-readiness
+items rather than design questions: a missing operator-facing list of
+SOC2-friendly audit categories, and a hard cutover on the Phase 157
+revoke-tokens route that left no deprecation window for dashboards or
+CLI tooling. Both close in this phase.
+
+1. **Recommended audit categories endpoint, appsettings-backed**.
+   New `GET /api/audit/categories` controller exposes the canonical
+   SOC2 / ISO 27001 categories that the Phase 158 SecurityController
+   audit log entries embed. Behaviour:
+
+   - **Built-in fallback** — seven canonical entries
+     (`suspected_credential_leak`, `employee_offboarding`,
+     `scheduled_rotation`, `suspicious_activity`, `policy_change`,
+     `regulatory_request`, `unspecified`) ship in code so a fresh
+     deployment renders a usable dropdown without configuration.
+   - **Operator override** via `Audit:Categories` in `appsettings.json`.
+     Configured entries are merged with the built-ins (case-insensitive
+     dedupe so `REGULATORY_REQUEST` doesn't double-list with
+     `regulatory_request`); operator entries surface ahead of the
+     built-in tail so a tenant's preferred taxonomy renders at the top.
+   - **ETag / 304 negotiation** with content-stable SHA-256 hash and
+     `Cache-Control: private, max-age=3600` matching the role-buckets
+     endpoint pattern (Phase 156). Configured deployments produce
+     different ETags than vanilla ones so dashboards on the configured
+     host can't 304-cache the vanilla list.
+   - **Auth gate** is `[Authorize]` only (no policy) — any
+     authenticated user can fetch the list because it's advisory data,
+     not a security action. A coordinator filing an issue must be able
+     to see the same dropdown the SecurityOfficer sees.
+   - **Advisory note** in the response body explicitly states that
+     the revoke-tokens endpoint accepts any string in the category
+     field; this prevents a future engineer from mistakenly assuming
+     the list is enforced and shipping a schema migration based on
+     dashboard behaviour alone.
+
+   The category field on `POST /api/security/users/{id}/revoke-tokens`
+   stays free-form — operators submit any string they want, and the
+   audit log captures it verbatim. This endpoint is purely a "nudge"
+   surface: dashboards / mobile clients fetch it once per session and
+   render a dropdown that nudges operators toward the canonical
+   taxonomy without blocking emerging categories.
+
+2. **Backward-compat revoke route alias**. The Phase 158 caveat
+   noted that the old `/api/admin/users/{id}/revoke-tokens` route was
+   retired in the same window it was added, which left no deprecation
+   path. Phase 159 adds a leading-slash absolute attribute on the
+   `RevokeTokens` action:
+
+   ```csharp
+   [HttpPost("users/{userId}/revoke-tokens")]
+   [HttpPost("/api/admin/users/{userId}/revoke-tokens")]
+   public async Task<ActionResult> RevokeTokens(...)
+   ```
+
+   The leading slash overrides the class-level `[Route("api/security")]`
+   prefix so both routes hit the same handler with the same
+   `SecurityOfficerOrAdmin` policy gate. The audit log records
+   `via: "security_controller"` either way so operators can still grep
+   for stragglers that hit the legacy URL during the deprecation
+   window. The auth gate on the alias is laxer than the original
+   Phase 157 route (which was `Admin/Owner` only) — this is
+   intentional and matches the Phase 158 SOC2 separation-of-duties
+   redesign. Old clients keep working; new clients should prefer the
+   `/api/security/...` route.
+
+3. **Tests**. Two new test files:
+
+   - `AuditCategoriesControllerTests` (7 facts, no config) +
+     `AuditCategoriesConfiguredTests` (4 facts, sub-factory injects
+     `Audit:Categories`) covering: built-in fallback, advisory note,
+     ETag/Cache-Control headers, ETag stability, 304 short-circuit on
+     `If-None-Match`, 401 unauthenticated, 200 for member role,
+     configured + built-in merge, case-insensitive dedupe (single entry
+     for `REGULATORY_REQUEST` ∪ `regulatory_request`), configured
+     entries sort ahead of built-in tail, configured ETag differs from
+     vanilla ETag.
+   - `SecurityControllerRouteAliasTests` (7 facts) covering: new route
+     200, legacy route 200 (same payload shape), both routes share the
+     same SecurityOfficerOrAdmin policy gate, legacy route 404 on
+     non-existent user, legacy route 404 on cross-tenant user (no
+     tenant-isolation regression via the URL alias), legacy route 403
+     for Member role (alias is NOT laxer than the new route), legacy
+     route accepts a bare POST with no body so existing `curl -X POST`
+     scripts don't 415 on the upgrade.
+
+**Files**
+
+- `Planscape.Server/src/Planscape.API/Controllers/AuditCategoriesController.cs` (NEW, 99 lines).
+- `Planscape.Server/src/Planscape.API/Controllers/SecurityController.cs` (modified — added legacy route attribute, ~10-line block comment).
+- `Planscape.Server/tests/Planscape.Tests/AuditCategoriesControllerTests.cs` (NEW, 230 lines).
+- `Planscape.Server/tests/Planscape.Tests/SecurityControllerRouteAliasTests.cs` (NEW, 129 lines).
+- `docs/CHANGELOG.md` — this entry.
+- `Planscape.Server/docs/PLANSCAPE_GAPS.md` — added SRV-63 + SRV-64
+  rows, both Closed in Phase 159.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification (sandbox
+   has no .NET SDK).
+2. The recommended-categories endpoint is global to the deployment —
+   a single appsettings list applies to every tenant. A tenant-scoped
+   override (similar to the BIM-Manager keyword resolver) would let
+   each tenant author its own taxonomy; deferred to a future phase
+   because real-world SOC2 taxonomies tend to be platform-wide rather
+   than tenant-specific.
+3. The legacy route alias has no telemetry counter today, so we
+   can't measure how many clients still hit `/api/admin/...` vs
+   `/api/security/...`. The audit log's `via: "security_controller"`
+   marker is identical for both paths. A future enhancement could
+   stamp the request URL into the audit row so dashboards can
+   visualise the migration.
