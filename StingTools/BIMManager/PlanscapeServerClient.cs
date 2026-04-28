@@ -1040,6 +1040,27 @@ public sealed class TagElementPayload
     /// as a full refresh (INT-03).
     /// </summary>
     [JsonProperty("lastModifiedUtc")] public DateTime? LastModifiedUtc { get; set; }
+
+    // ─── Phase 165 — T4-T10 tier payload (tagging workflow repair) ───
+    // TAG7A-TAG7F mirror the per-section parameters written by WriteTag7All;
+    // T4-T10 are formatted summaries built by BuildTier4To10Summaries; paraDepth
+    // is the highest enabled PARA_STATE_N (cumulative); patternMode is the
+    // active T4-T10 payload selector (HANDOVER / DC / CUSTOM).
+    [JsonProperty("tag7a")]            public string? Tag7A            { get; set; }
+    [JsonProperty("tag7b")]            public string? Tag7B            { get; set; }
+    [JsonProperty("tag7c")]            public string? Tag7C            { get; set; }
+    [JsonProperty("tag7d")]            public string? Tag7D            { get; set; }
+    [JsonProperty("tag7e")]            public string? Tag7E            { get; set; }
+    [JsonProperty("tag7f")]            public string? Tag7F            { get; set; }
+    [JsonProperty("t4Commissioning")]  public string? T4Commissioning  { get; set; }
+    [JsonProperty("t5Cost")]           public string? T5Cost           { get; set; }
+    [JsonProperty("t6Carbon")]         public string? T6Carbon         { get; set; }
+    [JsonProperty("t7Fabrication")]    public string? T7Fabrication    { get; set; }
+    [JsonProperty("t8ClashTriage")]    public string? T8ClashTriage    { get; set; }
+    [JsonProperty("t9AsBuilt")]        public string? T9AsBuilt        { get; set; }
+    [JsonProperty("t10Compliance")]    public string? T10Compliance    { get; set; }
+    [JsonProperty("paraDepth")]        public int     ParaDepth        { get; set; }
+    [JsonProperty("patternMode")]      public string? PatternMode      { get; set; }
 }
 
 /// <summary>Legacy sync result (POST /api/tagsync/sync).</summary>

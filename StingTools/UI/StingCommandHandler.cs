@@ -1417,6 +1417,10 @@ namespace StingTools.UI
                     case "ApplyColorScheme": RunCommand<Tags.ApplyColorSchemeCommand>(app); break;
                     case "ClearColorScheme": RunCommand<Tags.ClearColorSchemeCommand>(app); break;
                     case "SetParagraphDepthExt": RunCommand<Tags.SetParagraphDepthExtCommand>(app); break;
+                    // Phase 165 — pattern mode toggles for T4-T10 payload sets
+                    case "SetPatternMode_Handover": SetPatternMode(app, "HANDOVER"); break;
+                    case "SetPatternMode_DC":       SetPatternMode(app, "DC");       break;
+                    case "SetPatternMode_Custom":   SetPatternMode(app, "CUSTOM");   break;
                     case "TagStyleReport": RunCommand<Tags.TagStyleReportCommand>(app); break;
                     case "SwitchTagStyleByDisc": RunCommand<Tags.SwitchTagStyleByDiscCommand>(app); break;
                     case "BatchApplyColorScheme": RunCommand<Tags.BatchApplyColorSchemeCommand>(app); break;
@@ -7997,6 +8001,99 @@ For live data, open BCC in Revit and re-export.</p></div>
             System.IO.File.WriteAllText(htmlPath, html);
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = htmlPath, UseShellExecute = true });
             TaskDialog.Show("STING — Planscape", $"HTML dashboard exported and opened:\n{htmlPath}\n\nShare this file with anyone — no login required.");
+        }
+
+        // ─── Phase 165 — Pattern mode toggle (T4-T10 payload selector) ───
+        // Sets exactly one of HANDOVER_MODE_HANDOVER_BOOL / HANDOVER_MODE_DC_BOOL /
+        // HANDOVER_MODE_CUSTOM_BOOL on selected element types. Mutually exclusive.
+        private static void SetPatternMode(UIApplication app, string mode)
+        {
+            UIDocument uidoc = app?.ActiveUIDocument;
+            Document doc = uidoc?.Document;
+            if (doc == null) { TaskDialog.Show("STING", "No document open."); return; }
+
+            var sel = uidoc.Selection.GetElementIds();
+            ICollection<ElementId> typeIds;
+            if (sel != null && sel.Count > 0)
+            {
+                var s = new HashSet<ElementId>();
+                foreach (ElementId id in sel)
+                {
+                    Element e = doc.GetElement(id);
+                    if (e == null) continue;
+                    ElementId tid = e.GetTypeId();
+                    if (tid != ElementId.InvalidElementId) s.Add(tid);
+                }
+                typeIds = s;
+            }
+            else
+            {
+                typeIds = new FilteredElementCollector(doc)
+                    .WhereElementIsElementType()
+                    .ToElementIds();
+            }
+
+            // Resolve target param names by mode.
+            string handover = StingTools.Core.ParamRegistry.MODE_HANDOVER;
+            string dc       = StingTools.Core.ParamRegistry.MODE_DC;
+            string custom   = StingTools.Core.ParamRegistry.MODE_CUSTOM;
+
+            string M = mode.ToUpperInvariant();
+            int updated = 0, missing = 0;
+
+            using (Transaction tx = new Transaction(doc, $"STING Set Pattern Mode {M}"))
+            {
+                tx.Start();
+                foreach (ElementId tid in typeIds)
+                {
+                    Element typeEl = doc.GetElement(tid);
+                    if (typeEl == null) continue;
+                    bool a = WriteModeBool(typeEl, handover, M == "HANDOVER");
+                    bool b = WriteModeBool(typeEl, dc,       M == "DC");
+                    bool c = WriteModeBool(typeEl, custom,   M == "CUSTOM");
+                    if (a || b || c) updated++;
+                    if (!a && !b && !c &&
+                        typeEl.LookupParameter(handover) == null &&
+                        typeEl.LookupParameter(dc) == null &&
+                        typeEl.LookupParameter(custom) == null)
+                        missing++;
+                }
+                tx.Commit();
+            }
+
+            string msg = $"Pattern mode set to {M}.\nElement types updated: {updated}";
+            if (missing > 0) msg += $"\nTypes missing the mode parameters (skipped): {missing}";
+            StingTools.Core.StingLog.Info($"SetPatternMode {M}: updated={updated}, missing={missing}");
+            TaskDialog.Show("STING — Pattern Mode", msg);
+        }
+
+        private static bool WriteModeBool(Element el, string paramName, bool target)
+        {
+            Parameter p = el.LookupParameter(paramName);
+            if (p == null || p.IsReadOnly) return false;
+            try
+            {
+                if (p.StorageType == StorageType.String)
+                {
+                    string want = target ? "Yes" : "No";
+                    string cur = p.AsString() ?? "";
+                    if (string.Equals(cur, want, StringComparison.OrdinalIgnoreCase)) return false;
+                    p.Set(want);
+                    return true;
+                }
+                if (p.StorageType == StorageType.Integer)
+                {
+                    int want = target ? 1 : 0;
+                    if (p.AsInteger() == want) return false;
+                    p.Set(want);
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"WriteModeBool {paramName} failed: {ex.Message}");
+            }
+            return false;
         }
     }
 }

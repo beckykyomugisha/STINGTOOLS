@@ -4530,6 +4530,32 @@ namespace StingTools.Core
 
             /// <summary>All 6 sections as an array (A-F), matching TAG7Sections order.</summary>
             public string[] AllSections => new[] { SectionA, SectionB, SectionC, SectionD, SectionE, SectionF };
+
+            // ─── T4-T10 tier summaries (Phase 165 — tagging workflow repair) ───
+            // Each is a single-line formatted summary built from the relevant
+            // shared parameters. Empty string means the element carries no data
+            // for that tier — the writer skips those tiers silently.
+
+            /// <summary>T4: Commissioning &amp; handover summary.</summary>
+            public string SectionT4 { get; set; } = "";
+            /// <summary>T5: Cost &amp; procurement summary (UGX/USD/install hrs/labour).</summary>
+            public string SectionT5 { get; set; } = "";
+            /// <summary>T6: Carbon &amp; sustainability summary (A1-A3, A4, B6, C-stages).</summary>
+            public string SectionT6 { get; set; } = "";
+            /// <summary>T7: Fabrication &amp; QC summary (spool / status / inspector).</summary>
+            public string SectionT7 { get; set; } = "";
+            /// <summary>T8: Clash triage &amp; resolution summary.</summary>
+            public string SectionT8 { get; set; } = "";
+            /// <summary>T9: As-built reconciliation &amp; model-health summary.</summary>
+            public string SectionT9 { get; set; } = "";
+            /// <summary>T10: Compliance / audit-trail summary (IFC PSet / ACC).</summary>
+            public string SectionT10 { get; set; } = "";
+
+            /// <summary>T4..T10 summaries indexed 0..6 (i.e. Tier4Summaries[0] == SectionT4).</summary>
+            public string[] Tier4Summaries => new[]
+            {
+                SectionT4, SectionT5, SectionT6, SectionT7, SectionT8, SectionT9, SectionT10
+            };
         }
 
         /// <summary>
@@ -5674,7 +5700,146 @@ namespace StingTools.Core
             result.PlainNarrative = plainParts.ToString();
             result.MarkedUpNarrative = markedParts.ToString();
 
+            // ─── T4-T10 tier summaries (Phase 165) ────────────────────────
+            // Read element data and build single-line summaries per tier. Each
+            // builder is independently try/catch wrapped — a failure in one
+            // tier never breaks TAG7A-TAG7F or the other tiers.
+            BuildTier4To10Summaries(el, result);
+
             return result;
+        }
+
+        /// <summary>
+        /// Phase 165 — assemble T4-T10 tier summaries from element parameters.
+        /// Each tier reads a small group of shared parameters and formats a
+        /// human-readable single-line summary. Empty tier → empty string
+        /// (callers skip silently).
+        /// </summary>
+        private static void BuildTier4To10Summaries(Element el, Tag7Result result)
+        {
+            if (el == null) return;
+
+            // T4 — Commissioning & handover (N-G16 QR workflow)
+            try
+            {
+                string state    = ParameterHelpers.GetString(el, ParamRegistry.COMM_STATE_TXT);
+                string date     = ParameterHelpers.GetString(el, ParamRegistry.COMM_DATE_TXT);
+                string oper     = ParameterHelpers.GetString(el, ParamRegistry.COMM_OPERATIVE_TXT);
+                string witness  = ParameterHelpers.GetString(el, ParamRegistry.COMM_WITNESS_TXT);
+                string notes    = ParameterHelpers.GetString(el, ParamRegistry.COMM_NOTES_TXT);
+                var parts = new List<string>();
+                if (!string.IsNullOrEmpty(state))   parts.Add(state);
+                if (!string.IsNullOrEmpty(date))    parts.Add(date);
+                if (!string.IsNullOrEmpty(oper))    parts.Add($"by {oper}");
+                if (!string.IsNullOrEmpty(witness)) parts.Add($"witness {witness}");
+                if (!string.IsNullOrEmpty(notes))   parts.Add(notes);
+                if (parts.Count > 0) result.SectionT4 = string.Join(" • ", parts);
+            }
+            catch (Exception ex) { StingLog.Warn("BuildTier4To10Summaries T4 failed: " + ex.Message); }
+
+            // T5 — Cost & procurement
+            try
+            {
+                string ugx      = ParameterHelpers.GetString(el, ParamRegistry.CST_UG_PRICE_UGX);
+                string usd      = ParameterHelpers.GetString(el, ParamRegistry.CST_INTL_PRICE_USD);
+                string quote    = ParameterHelpers.GetString(el, ParamRegistry.CST_QUOTE_REF_TXT);
+                string hrs      = ParameterHelpers.GetString(el, ParamRegistry.CST_INSTALL_HRS);
+                string crew     = ParameterHelpers.GetString(el, ParamRegistry.CST_LABOUR_CREW_TXT);
+                string rate     = ParameterHelpers.GetString(el, ParamRegistry.CST_LABOUR_RATE_GBP);
+                var parts = new List<string>();
+                if (!string.IsNullOrEmpty(ugx))   parts.Add($"UGX {ugx}");
+                if (!string.IsNullOrEmpty(usd))   parts.Add($"USD {usd}");
+                if (!string.IsNullOrEmpty(quote)) parts.Add($"quote {quote}");
+                if (!string.IsNullOrEmpty(hrs))   parts.Add($"{hrs} hrs install");
+                if (!string.IsNullOrEmpty(crew))  parts.Add($"crew {crew}");
+                if (!string.IsNullOrEmpty(rate))  parts.Add($"GBP {rate}/hr");
+                if (parts.Count > 0) result.SectionT5 = string.Join(" • ", parts);
+            }
+            catch (Exception ex) { StingLog.Warn("BuildTier4To10Summaries T5 failed: " + ex.Message); }
+
+            // T6 — Carbon & sustainability (BS EN 15978 lifecycle stages)
+            try
+            {
+                string a13   = ParameterHelpers.GetString(el, ParamRegistry.CBN_A1_A3_KG_CO2E);
+                string a4    = ParameterHelpers.GetString(el, ParamRegistry.CBN_A4_KG_CO2E);
+                string a5    = ParameterHelpers.GetString(el, ParamRegistry.CBN_A5_KG_CO2E);
+                string b6    = ParameterHelpers.GetString(el, ParamRegistry.CBN_B6_KG_CO2E_YR);
+                string c1    = ParameterHelpers.GetString(el, ParamRegistry.CBN_C1_KG_CO2E);
+                string c2    = ParameterHelpers.GetString(el, ParamRegistry.CBN_C2_KG_CO2E);
+                string c34   = ParameterHelpers.GetString(el, ParamRegistry.CBN_C3_C4_KG_CO2E);
+                var parts = new List<string>();
+                if (!string.IsNullOrEmpty(a13)) parts.Add($"A1-A3 {a13} kgCO2e");
+                if (!string.IsNullOrEmpty(a4))  parts.Add($"A4 {a4}");
+                if (!string.IsNullOrEmpty(a5))  parts.Add($"A5 {a5}");
+                if (!string.IsNullOrEmpty(b6))  parts.Add($"B6 {b6}/yr");
+                if (!string.IsNullOrEmpty(c1))  parts.Add($"C1 {c1}");
+                if (!string.IsNullOrEmpty(c2))  parts.Add($"C2 {c2}");
+                if (!string.IsNullOrEmpty(c34)) parts.Add($"C3-C4 {c34}");
+                if (parts.Count > 0) result.SectionT6 = string.Join(" • ", parts);
+            }
+            catch (Exception ex) { StingLog.Warn("BuildTier4To10Summaries T6 failed: " + ex.Message); }
+
+            // T7 — Fabrication & QC
+            try
+            {
+                string spool   = ParameterHelpers.GetString(el, ParamRegistry.ASS_SPOOL_NR_TXT);
+                string status  = ParameterHelpers.GetString(el, ParamRegistry.ASS_FAB_STATUS_TXT);
+                string insp    = ParameterHelpers.GetString(el, ParamRegistry.ASS_QC_INSPECTOR_TXT);
+                var parts = new List<string>();
+                if (!string.IsNullOrEmpty(spool))  parts.Add($"spool {spool}");
+                if (!string.IsNullOrEmpty(status)) parts.Add(status);
+                if (!string.IsNullOrEmpty(insp))   parts.Add($"insp {insp}");
+                if (parts.Count > 0) result.SectionT7 = string.Join(" • ", parts);
+            }
+            catch (Exception ex) { StingLog.Warn("BuildTier4To10Summaries T7 failed: " + ex.Message); }
+
+            // T8 — Clash triage & resolution
+            try
+            {
+                string sev     = ParameterHelpers.GetString(el, ParamRegistry.CLASH_TRIAGE_SEVERITY_NR);
+                string cat     = ParameterHelpers.GetString(el, ParamRegistry.CLASH_TRIAGE_CATEGORY_TXT);
+                string resStat = ParameterHelpers.GetString(el, ParamRegistry.CLASH_RESOLUTION_STATUS_TXT);
+                string score   = ParameterHelpers.GetString(el, ParamRegistry.CLASH_TRIAGE_SCORE);
+                string action  = ParameterHelpers.GetString(el, ParamRegistry.CLASH_RESOLUTION_ACTION_TXT);
+                var parts = new List<string>();
+                if (!string.IsNullOrEmpty(sev))     parts.Add($"sev {sev}");
+                if (!string.IsNullOrEmpty(cat))     parts.Add(cat);
+                if (!string.IsNullOrEmpty(resStat)) parts.Add(resStat);
+                if (!string.IsNullOrEmpty(score))   parts.Add($"score {score}");
+                if (!string.IsNullOrEmpty(action))  parts.Add($"action: {action}");
+                if (parts.Count > 0) result.SectionT8 = string.Join(" • ", parts);
+            }
+            catch (Exception ex) { StingLog.Warn("BuildTier4To10Summaries T8 failed: " + ex.Message); }
+
+            // T9 — As-built reconciliation & model health
+            try
+            {
+                string dev      = ParameterHelpers.GetString(el, ParamRegistry.ASBUILT_DEVIATION_MM);
+                string capDate  = ParameterHelpers.GetString(el, ParamRegistry.ASBUILT_CAPTURE_DATE_TXT);
+                string health   = ParameterHelpers.GetString(el, ParamRegistry.HEALTH_SCORE_LAST_NR);
+                string healthDt = ParameterHelpers.GetString(el, ParamRegistry.HEALTH_SCORE_DATE_TXT);
+                var parts = new List<string>();
+                if (!string.IsNullOrEmpty(dev))      parts.Add($"Δ {dev} mm");
+                if (!string.IsNullOrEmpty(capDate))  parts.Add($"captured {capDate}");
+                if (!string.IsNullOrEmpty(health))   parts.Add($"health {health}");
+                if (!string.IsNullOrEmpty(healthDt)) parts.Add($"on {healthDt}");
+                if (parts.Count > 0) result.SectionT9 = string.Join(" • ", parts);
+            }
+            catch (Exception ex) { StingLog.Warn("BuildTier4To10Summaries T9 failed: " + ex.Message); }
+
+            // T10 — Compliance / audit (IFC PSet + ACC round-trip)
+            try
+            {
+                string pset    = ParameterHelpers.GetString(el, ParamRegistry.IFC_PSET_OVERRIDE_TXT);
+                string accId   = ParameterHelpers.GetString(el, ParamRegistry.ACC_ISSUE_ID_TXT);
+                string accStat = ParameterHelpers.GetString(el, ParamRegistry.ACC_SYNC_STATUS_TXT);
+                var parts = new List<string>();
+                if (!string.IsNullOrEmpty(pset))    parts.Add($"IFC PSet: {pset}");
+                if (!string.IsNullOrEmpty(accId))   parts.Add($"ACC #{accId}");
+                if (!string.IsNullOrEmpty(accStat)) parts.Add($"sync {accStat}");
+                if (parts.Count > 0) result.SectionT10 = string.Join(" • ", parts);
+            }
+            catch (Exception ex) { StingLog.Warn("BuildTier4To10Summaries T10 failed: " + ex.Message); }
         }
 
         /// <summary>
@@ -5720,6 +5885,55 @@ namespace StingTools.Core
                 // skipping 1-2 SetString calls is not worth risking data loss.
             }
 
+            // ── T4-T10 tier appends (Phase 165 — tagging workflow repair) ──
+            // For each tier 4-10:
+            //  1. Read the corresponding TAG_PARA_STATE_N_BOOL (cumulative depth toggle)
+            //  2. If enabled AND tier summary is non-empty, append it to tag7Final.
+            // Pattern mode (HANDOVER / DC / CUSTOM) is read once and surfaced as
+            // a tag prefix once at least one tier 4+ payload is appended.
+            // Reads pull from the element-type first (depth lives on type per
+            // SetParagraphDepthCommand) then fall back to the instance.
+            try
+            {
+                Element typeEl = doc?.GetElement(el.GetTypeId());
+                bool[] enabled = new bool[7]; // index 0 = T4 .. 6 = T10
+                string[] paraNames = new[]
+                {
+                    ParamRegistry.PARA_STATE_4, ParamRegistry.PARA_STATE_5,
+                    ParamRegistry.PARA_STATE_6, ParamRegistry.PARA_STATE_7,
+                    ParamRegistry.PARA_STATE_8, ParamRegistry.PARA_STATE_9,
+                    ParamRegistry.PARA_STATE_10
+                };
+                for (int i = 0; i < paraNames.Length; i++)
+                {
+                    enabled[i] = ReadParaStateBool(typeEl, paraNames[i])
+                              || ReadParaStateBool(el,     paraNames[i]);
+                }
+
+                string[] tierStrings = tag7.Tier4Summaries; // T4..T10
+                bool anyTierAppended = false;
+                var tierAppend = new System.Text.StringBuilder();
+
+                for (int i = 0; i < tierStrings.Length; i++)
+                {
+                    if (!enabled[i] || string.IsNullOrEmpty(tierStrings[i])) continue;
+                    string label = $"T{i + 4}";
+                    tierAppend.Append(" | ").Append(label).Append(": ").Append(tierStrings[i]);
+                    anyTierAppended = true;
+                }
+
+                if (anyTierAppended)
+                {
+                    // Resolve active pattern mode for prefix; default to DC.
+                    string mode = ResolveActivePatternMode(typeEl, el);
+                    tag7Final = tag7Final + " | [" + mode + "]" + tierAppend.ToString();
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn("WriteTag7All T4-T10 append failed: " + ex.Message);
+            }
+
             // ── Warning parameter population (v5.6) ────────────────────────
             // EFF-07 (Phase 149d): combined warning evaluation. The previous
             // code called PopulateWarningParameters AND EvaluateElementWarnings,
@@ -5758,6 +5972,72 @@ namespace StingTools.Core
             }
 
             return written;
+        }
+
+        /// <summary>
+        /// Phase 165 — read a TAG_PARA_STATE_N_BOOL parameter. Mirrors the
+        /// Yes/No vs. integer storage handling in SetParagraphDepthCommand.
+        /// Treats missing parameter as false.
+        /// </summary>
+        public static bool ReadParaStateBool(Element host, string paramName)
+        {
+            if (host == null || string.IsNullOrEmpty(paramName)) return false;
+            Parameter p = host.LookupParameter(paramName);
+            if (p == null) return false;
+            try
+            {
+                if (p.StorageType == StorageType.String)
+                {
+                    string s = p.AsString();
+                    if (string.IsNullOrEmpty(s)) return false;
+                    return s.Equals("Yes", StringComparison.OrdinalIgnoreCase)
+                        || s.Equals("1", StringComparison.OrdinalIgnoreCase)
+                        || s.Equals("true", StringComparison.OrdinalIgnoreCase);
+                }
+                if (p.StorageType == StorageType.Integer) return p.AsInteger() != 0;
+            }
+            catch { }
+            return false;
+        }
+
+        /// <summary>
+        /// Phase 165 — resolve active pattern mode (HANDOVER / DC / CUSTOM) by
+        /// inspecting the type then instance. Defaults to DC if none set.
+        /// </summary>
+        public static string ResolveActivePatternMode(Element typeEl, Element instEl)
+        {
+            // Type takes precedence (matches paragraph-state location).
+            if (ReadParaStateBool(typeEl, ParamRegistry.MODE_HANDOVER)) return "HANDOVER";
+            if (ReadParaStateBool(typeEl, ParamRegistry.MODE_CUSTOM))   return "CUSTOM";
+            if (ReadParaStateBool(typeEl, ParamRegistry.MODE_DC))       return "DC";
+            if (ReadParaStateBool(instEl, ParamRegistry.MODE_HANDOVER)) return "HANDOVER";
+            if (ReadParaStateBool(instEl, ParamRegistry.MODE_CUSTOM))   return "CUSTOM";
+            if (ReadParaStateBool(instEl, ParamRegistry.MODE_DC))       return "DC";
+            return "DC"; // default per Phase 165 spec
+        }
+
+        /// <summary>
+        /// Phase 165 — read active paragraph depth (1-10) on an element type.
+        /// Returns the highest enabled PARA_STATE_N (cumulative scheme).
+        /// Defaults to 3 if no states are enabled (legacy "Comprehensive").
+        /// </summary>
+        public static int ReadActiveParagraphDepth(Element typeEl, Element instEl)
+        {
+            string[] paraNames = new[]
+            {
+                ParamRegistry.PARA_STATE_1, ParamRegistry.PARA_STATE_2, ParamRegistry.PARA_STATE_3,
+                ParamRegistry.PARA_STATE_4, ParamRegistry.PARA_STATE_5, ParamRegistry.PARA_STATE_6,
+                ParamRegistry.PARA_STATE_7, ParamRegistry.PARA_STATE_8, ParamRegistry.PARA_STATE_9,
+                ParamRegistry.PARA_STATE_10,
+            };
+            int max = 0;
+            for (int i = 0; i < paraNames.Length; i++)
+            {
+                if (ReadParaStateBool(typeEl, paraNames[i]) ||
+                    ReadParaStateBool(instEl, paraNames[i]))
+                    max = i + 1;
+            }
+            return max == 0 ? 3 : max;
         }
 
         /// <summary>

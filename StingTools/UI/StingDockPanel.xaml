@@ -1999,6 +1999,12 @@
                                 <WrapPanel>
                                     <Button Style="{StaticResource ActionBtn}" Content="Set Depth (1-10)" Tag="SetParagraphDepthExt" Click="Cmd_Click" ToolTip="Control TAG7 paragraph visibility tiers"/>
                                 </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="PATTERN MODE (T4-T10 PAYLOAD SET)"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Handover" Tag="SetPatternMode_Handover" Click="Cmd_Click" ToolTip="Switch active T4-T10 payload to handover pack"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="D&amp;C" Tag="SetPatternMode_DC" Click="Cmd_Click" ToolTip="Switch active T4-T10 payload to design &amp; construction pack (default)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Custom" Tag="SetPatternMode_Custom" Click="Cmd_Click" ToolTip="Switch active T4-T10 payload to project-custom pack"/>
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
 
