@@ -3,6 +3,7 @@
 // Revit API thread. Returned ClashMeshBuffer objects are plain managed memory and can be
 // consumed freely from any thread.
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -13,10 +14,49 @@ namespace StingTools.Core.Clash
 {
     public sealed class MeshExtractor
     {
+        // D1: Per-(doc, view) cache keyed by (doc UniqueId, view ElementId).
+        // Two invalidation strategies layered:
+        //   1. Hard invalidation on document Save / SyncWithCentral via
+        //      InvalidateCacheFor(doc).
+        //   2. Soft invalidation per-tick via signature: the count of
+        //      taggable elements in the view + the document's
+        //      ProjectInformation revision. Cheap to compute and catches
+        //      "user added one new wall and immediately re-ran clash".
+        // Cache hits skip the entire CustomExporter pass which dominates
+        // ClashRunCommand time on 50k-element models (5-30s saved).
+        internal sealed class CacheEntry
+        {
+            public string Signature;
+            public Dictionary<ClashElementKey, ClashMeshBuffer> Buffers;
+            public DateTime BuiltUtc;
+        }
+        private static readonly ConcurrentDictionary<string, CacheEntry> _cache =
+            new ConcurrentDictionary<string, CacheEntry>(StringComparer.Ordinal);
+
+        public static void InvalidateCacheFor(Document doc)
+        {
+            if (doc == null) return;
+            string key = doc.ProjectInformation?.UniqueId ?? doc.PathName ?? "host";
+            // Strip every entry whose key starts with the doc id — the view
+            // suffix means we may have multiple per doc.
+            foreach (var k in _cache.Keys.Where(k => k.StartsWith(key, StringComparison.Ordinal)).ToList())
+                _cache.TryRemove(k, out _);
+        }
+
         public static Dictionary<ClashElementKey, ClashMeshBuffer> Extract(Document doc, View3D view)
         {
             if (doc == null) throw new ArgumentNullException(nameof(doc));
             if (view == null) throw new ArgumentNullException(nameof(view));
+
+            string cacheKey = (doc.ProjectInformation?.UniqueId ?? doc.PathName ?? "host") + "|" + view.Id.Value;
+            string signature = ComputeSignature(doc, view);
+
+            if (_cache.TryGetValue(cacheKey, out var cached) &&
+                string.Equals(cached.Signature, signature, StringComparison.Ordinal))
+            {
+                StingLog.Info($"MeshExtractor: cache hit ({cached.Buffers.Count} elements, age {(DateTime.UtcNow - cached.BuiltUtc).TotalSeconds:F1}s)");
+                return cached.Buffers;
+            }
 
             var sw = Stopwatch.StartNew();
             // rec-5: Build a doc-guid → Document map ahead of time so
@@ -34,7 +74,54 @@ namespace StingTools.Core.Clash
             catch (Exception ex) { StingLog.Error("MeshExtractor.Export failed", ex); }
             sw.Stop();
             StingLog.Info($"MeshExtractor: {ctx.Buffers.Count} elements, {sw.ElapsedMilliseconds} ms, linkedDocs={docByGuid.Count - 1}");
+
+            _cache[cacheKey] = new CacheEntry
+            {
+                Signature = signature,
+                Buffers = ctx.Buffers,
+                BuiltUtc = DateTime.UtcNow,
+            };
             return ctx.Buffers;
+        }
+
+        /// <summary>
+        /// D1: Cheap soft-invalidation signature: element count in the view
+        /// (filter-aware via FilteredElementCollector) + the document's last-
+        /// modified revision. Add a wall, count changes, signature changes,
+        /// cache regenerates. Move a wall, count is the same — hard
+        /// invalidation via InvalidateCacheFor catches that path.
+        /// </summary>
+        private static string ComputeSignature(Document doc, View3D view)
+        {
+            try
+            {
+                int n = new FilteredElementCollector(doc, view.Id)
+                    .WhereElementIsNotElementType()
+                    .GetElementCount();
+                int rev = 0;
+                try
+                {
+                    var revs = new FilteredElementCollector(doc).OfClass(typeof(Revision)).Cast<Revision>().ToList();
+                    rev = revs.Count;
+                }
+                catch { /* ignore */ }
+                long viewBboxHash = 0;
+                try
+                {
+                    var bb = view.GetSectionBox();
+                    if (bb != null)
+                        viewBboxHash = HashCode.Combine((int)(bb.Min.X * 100), (int)(bb.Max.X * 100),
+                                                       (int)(bb.Min.Y * 100), (int)(bb.Max.Y * 100));
+                }
+                catch { /* not all views have section boxes */ }
+                return $"{n}|{rev}|{viewBboxHash}";
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"MeshExtractor.ComputeSignature: {ex.Message}");
+                // Force a cache miss on signature errors.
+                return Guid.NewGuid().ToString();
+            }
         }
 
         /// <summary>

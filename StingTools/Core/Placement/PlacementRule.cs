@@ -278,6 +278,58 @@ namespace StingTools.Core.Placement
         /// <summary>"FRONT_600"|"FRONT_1000"|"SIDES_300"|"TOP_900" — BS4422 / HTM clearance class.</summary>
         public string MaintenanceClearance { get; set; } = "";
 
+        // ── Phase 139.2 A1 — Manufacturer hint ──────────────────────
+
+        public string ManufacturerCode  { get; set; } = "";
+        public string CatalogueRef      { get; set; } = "";
+        public int    BoxDepthMm        { get; set; } = 0;
+        public double ModulePitchMm     { get; set; } = 0.0;
+        public int    GangCount         { get; set; } = 0;
+        public string MountType         { get; set; } = "";
+        public string InsertionOrigin   { get; set; } = "";
+
+        // ── Phase 139.2 A2 — Two-phase conduiting ───────────────────
+
+        public string ConstructionPhase  { get; set; } = "";
+        public string CompletionPhase    { get; set; } = "";
+        public string BoxFamilyTypeRegex { get; set; } = "";
+        public string BoxLocationIdParam { get; set; } = "";
+        public bool   TwoPhaseEnabled    { get; set; } = false;
+
+        // ── Phase 139.2 A3 — Compound cluster ───────────────────────
+
+        public bool   IsClusterMember     { get; set; } = false;
+        public string ClusterGroupId      { get; set; } = "";
+        public int    ClusterSlotIndex    { get; set; } = 0;
+        public int    ClusterTotalSlots   { get; set; } = 0;
+        public double ClusterFrameWidthMm { get; set; } = 0.0;
+
+        // ── Phase 139.2 A4 — Plaster / finish-face offset ───────────
+
+        public string PlasterOffsetMode    { get; set; } = "None";
+        public double PlasterOffsetFixedMm { get; set; } = 0.0;
+
+        // ── Phase 139.2 A5 — Ceiling tile snap ──────────────────────
+
+        public bool   CeilingTileSnap     { get; set; } = false;
+        public double TileGridSpacingXMm  { get; set; } = 0.0;
+        public double TileGridSpacingYMm  { get; set; } = 0.0;
+
+        // ── Phase 139.2 A6 — Structural fixing check ────────────────
+
+        public bool   StructuralFixingCheck { get; set; } = false;
+        public double JoistClearanceMm      { get; set; } = 0.0;
+        public bool   EmitNogginRequirement { get; set; } = false;
+
+        // ── Phase 139.2 A7 — BS 7671 wet zone exclusion ─────────────
+
+        public bool   WetZoneExclude { get; set; } = false;
+        public string WetZoneClass   { get; set; } = "";
+
+        // ── Phase 139.2 A8 — Standards aliases ──────────────────────
+
+        public string HeightStandardRef { get; set; } = "";
+
         // ── Methods ─────────────────────────────────────────────────
 
         /// <summary>Deep-copy the rule.</summary>
@@ -352,6 +404,34 @@ namespace StingTools.Core.Placement
                 RequiresCOBieFields  = this.RequiresCOBieFields,
                 RequiresIfcMapping   = this.RequiresIfcMapping,
                 MaintenanceClearance = this.MaintenanceClearance,
+                ManufacturerCode     = this.ManufacturerCode,
+                CatalogueRef         = this.CatalogueRef,
+                BoxDepthMm           = this.BoxDepthMm,
+                ModulePitchMm        = this.ModulePitchMm,
+                GangCount            = this.GangCount,
+                MountType            = this.MountType,
+                InsertionOrigin      = this.InsertionOrigin,
+                ConstructionPhase    = this.ConstructionPhase,
+                CompletionPhase      = this.CompletionPhase,
+                BoxFamilyTypeRegex   = this.BoxFamilyTypeRegex,
+                BoxLocationIdParam   = this.BoxLocationIdParam,
+                TwoPhaseEnabled      = this.TwoPhaseEnabled,
+                IsClusterMember      = this.IsClusterMember,
+                ClusterGroupId       = this.ClusterGroupId,
+                ClusterSlotIndex     = this.ClusterSlotIndex,
+                ClusterTotalSlots    = this.ClusterTotalSlots,
+                ClusterFrameWidthMm  = this.ClusterFrameWidthMm,
+                PlasterOffsetMode    = this.PlasterOffsetMode,
+                PlasterOffsetFixedMm = this.PlasterOffsetFixedMm,
+                CeilingTileSnap      = this.CeilingTileSnap,
+                TileGridSpacingXMm   = this.TileGridSpacingXMm,
+                TileGridSpacingYMm   = this.TileGridSpacingYMm,
+                StructuralFixingCheck = this.StructuralFixingCheck,
+                JoistClearanceMm     = this.JoistClearanceMm,
+                EmitNogginRequirement = this.EmitNogginRequirement,
+                WetZoneExclude       = this.WetZoneExclude,
+                WetZoneClass         = this.WetZoneClass,
+                HeightStandardRef    = this.HeightStandardRef,
             };
         }
 

@@ -679,6 +679,19 @@ namespace StingTools.UI
             return def;
         }
 
+        // Phase 139.7 — read a named RadioButton's IsChecked state.
+        private static bool RadState(DependencyObject root, string name, bool def)
+        {
+            if (root == null) return def;
+            try
+            {
+                var rb = FindVisualChild<System.Windows.Controls.RadioButton>(root, name);
+                if (rb != null) return rb.IsChecked == true;
+            }
+            catch { }
+            return def;
+        }
+
         private static bool RadioState(DependencyObject root, string name, bool def)
         {
             if (root == null) return def;
@@ -722,6 +735,17 @@ namespace StingTools.UI
                 StingTools.Commands.Placement.PlaceFixturesOptions.IncludePlumbingFixtures     = ChkState(root, "chkFxPlm",     true);
                 StingTools.Commands.Placement.PlaceFixturesOptions.IncludeAirTerminals         = ChkState(root, "chkFxHvac",    true);
                 StingTools.Commands.Placement.PlaceFixturesOptions.IncludeSprinklers           = ChkState(root, "chkFxSpr",     true);
+
+                // Phase 139.7 — Fixtures scope radios. Default to
+                // SelectedRooms so an unset state preserves historic
+                // behaviour. The radios are mutually exclusive
+                // (GroupName = "FxScope") so the first checked wins.
+                if (RadState(root, "rbFxScopeView", false))
+                    StingTools.Commands.Placement.PlaceFixturesOptions.ScopeMode = StingTools.Commands.Placement.PlaceFixturesOptions.FixtureScopeMode.ActiveView;
+                else if (RadState(root, "rbFxScopeAll", false))
+                    StingTools.Commands.Placement.PlaceFixturesOptions.ScopeMode = StingTools.Commands.Placement.PlaceFixturesOptions.FixtureScopeMode.AllRooms;
+                else
+                    StingTools.Commands.Placement.PlaceFixturesOptions.ScopeMode = StingTools.Commands.Placement.PlaceFixturesOptions.FixtureScopeMode.SelectedRooms;
 
                 StingTools.Commands.Placement.PlaceFixturesOptions.EnforceDocM    = ChkState(root, "chkFxDocM",    true);
                 StingTools.Commands.Placement.PlaceFixturesOptions.EnforceBS7671  = ChkState(root, "chkFxBS7671",  true);

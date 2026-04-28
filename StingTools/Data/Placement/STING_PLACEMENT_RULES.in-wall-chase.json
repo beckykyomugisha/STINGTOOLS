@@ -1,0 +1,71 @@
+{
+  "Version": "v4",
+  "Description": "Phase 139.3 — In-wall pipe chase rules. RoutingMode WALL_CHASE invokes InWallChaseRouter; RouteOffsetMm controls inset from room face (positive = into wall). Rejected automatically if compound-structure depth is insufficient.",
+  "Rules": [
+    {
+      "RuleId": "chase-cold-water-15",
+      "CategoryFilter": "Pipes",
+      "RoomFilter": "(?i)bathroom|kitchen|utility|en *suite|wc",
+      "AnchorType": "WALL_FACE_OFFSET", "MountingHeightMm": 600,
+      "RoutingMode": "WALL_CHASE", "RouteOffsetMm": 35, "RouteFace": "INTERIOR",
+      "RouteSegmentCategory": "Pipe",
+      "BoxDepthMm": 22, "ObstructionClearanceMm": 10,
+      "PlasterOffsetMode": "Auto",
+      "ApplicableStandards": ["BS 6700","BS EN 806"],
+      "Priority": 60, "StandardRef": "BS 6700:2006",
+      "Notes": "15mm cold-water chase, 35mm inset from finish face, reject if wall depth < 42mm."
+    },
+    {
+      "RuleId": "chase-hot-water-15",
+      "CategoryFilter": "Pipes",
+      "RoomFilter": "(?i)bathroom|kitchen|utility|en *suite",
+      "AnchorType": "WALL_FACE_OFFSET", "MountingHeightMm": 600,
+      "RoutingMode": "WALL_CHASE", "RouteOffsetMm": 35, "RouteFace": "INTERIOR",
+      "RouteSegmentCategory": "Pipe",
+      "BoxDepthMm": 22, "ObstructionClearanceMm": 13,
+      "PlasterOffsetMode": "Auto",
+      "ApplicableStandards": ["BS 6700","BS EN 806"],
+      "Priority": 60, "StandardRef": "BS 6700:2006 Table 4",
+      "Notes": "15mm hot-water chase with 13mm insulation per Part L."
+    },
+    {
+      "RuleId": "chase-radiator-feed-22",
+      "CategoryFilter": "Pipes",
+      "RoomFilter": "(?i)living|dining|bedroom|hall|study|office",
+      "AnchorType": "WALL_FACE_OFFSET", "MountingHeightMm": 200,
+      "RoutingMode": "WALL_CHASE", "RouteOffsetMm": 30, "RouteFace": "INTERIOR",
+      "RouteSegmentCategory": "Pipe",
+      "BoxDepthMm": 28, "ObstructionClearanceMm": 13,
+      "PlasterOffsetMode": "Auto",
+      "ApplicableStandards": ["BS EN 12828"],
+      "Priority": 60, "StandardRef": "BS EN 12828",
+      "Notes": "22mm radiator feed at skirting level."
+    },
+    {
+      "RuleId": "chase-waste-40",
+      "CategoryFilter": "Pipes",
+      "RoomFilter": "(?i)bathroom|kitchen|utility|wc",
+      "AnchorType": "WALL_FACE_OFFSET", "MountingHeightMm": 250,
+      "RoutingMode": "WALL_CHASE", "RouteOffsetMm": 50, "RouteFace": "INTERIOR",
+      "RouteSegmentCategory": "Pipe",
+      "BoxDepthMm": 42, "ObstructionClearanceMm": 5,
+      "PlasterOffsetMode": "Auto",
+      "ApplicableStandards": ["BS EN 12056"],
+      "Priority": 65, "StandardRef": "BS EN 12056-2",
+      "Notes": "40mm waste chase at min slope; rejects 100mm walls."
+    },
+    {
+      "RuleId": "chase-electrical-conduit-25",
+      "CategoryFilter": "Conduits",
+      "RoomFilter": "(?i).*",
+      "AnchorType": "WALL_FACE_OFFSET", "MountingHeightMm": 450,
+      "RoutingMode": "WALL_CHASE", "RouteOffsetMm": 30, "RouteFace": "INTERIOR",
+      "RouteSegmentCategory": "Conduit",
+      "BoxDepthMm": 25, "ObstructionClearanceMm": 5,
+      "PlasterOffsetMode": "Auto",
+      "ApplicableStandards": ["BS 7671","BS 4568"],
+      "Priority": 50, "StandardRef": "BS 7671",
+      "Notes": "25mm electrical conduit chase between socket positions."
+    }
+  ]
+}

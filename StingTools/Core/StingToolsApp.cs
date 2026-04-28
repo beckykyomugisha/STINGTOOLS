@@ -513,6 +513,18 @@ namespace StingTools.Core
                     StingLog.Warn($"AutoTagger state restore: {atEx.Message}");
                 }
 
+                // TAG-DEFERRED-OVERFLOW-01: Restore previously-dropped auto-tag elements
+                // from sidecar so a session that overflowed the deferred queue does not
+                // permanently lose those elements. The sidecar is rotated to .consumed
+                // after a successful load so we never replay it twice.
+                try
+                {
+                    int restored = StingAutoTagger.LoadDroppedElementsSidecar(e.Document);
+                    if (restored > 0)
+                        StingLog.Info($"DocumentOpened: re-queued {restored} previously-dropped auto-tag elements; will drain on next sync-to-central.");
+                }
+                catch (Exception drEx) { StingLog.Warn($"DocumentOpened deferred sidecar load: {drEx.Message}"); }
+
                 // AL-07: Notify user of auto-run workflow on open
                 try
                 {
@@ -601,10 +613,36 @@ namespace StingTools.Core
                     StingLog.Warn($"DocumentOpened offline-config reload: {ocEx.Message}");
                 }
 
+                // BIM-CDE-FOLDER-01: Bootstrap the ISO 19650 CDE folder structure
+                // (WIP / SHARED / PUBLISHED / ARCHIVE + per-discipline sub-folders)
+                // on every doc open, idempotent. Disabled via AUTO_CREATE_CDE_FOLDERS=false.
+                try
+                {
+                    if (TagConfig.AutoCreateCdeFolders && e.Document != null && !e.Document.IsFamilyDocument)
+                    {
+                        int created = ProjectFolderEngine.CreateFolderStructure(e.Document);
+                        if (created > 0)
+                            StingLog.Info($"DocumentOpened: created {created} CDE folders under {ProjectFolderEngine.GetRootPath(e.Document)}");
+                    }
+                }
+                catch (Exception cfEx) { StingLog.Warn($"DocumentOpened CDE folder bootstrap: {cfEx.Message}"); }
+
                 // Pack 8 — drip-feed a compliance refresh through the Idling
                 // scheduler so the dashboard is live within a second of open.
                 try { StingIdlingScheduler.Enqueue(new ComplianceRefreshJob()); }
                 catch (Exception schEx) { StingLog.Warn($"DocumentOpened Idling enqueue: {schEx.Message}"); }
+
+                // TAG-STALE-WARN-01: After the compliance refresh populates the cache,
+                // promote any pre-existing stale elements that exceed the threshold into
+                // a BIM issue so coordinators see the work outstanding from a previous
+                // session immediately on open. The job is single-shot and dedupes against
+                // any existing OPEN stale issue, so re-opening a model is a no-op.
+                try
+                {
+                    if (TagConfig.StaleWarningThreshold > 0)
+                        StingIdlingScheduler.Enqueue(new StaleWarningPromotionJob());
+                }
+                catch (Exception swEx) { StingLog.Warn($"DocumentOpened stale-warning enqueue: {swEx.Message}"); }
             }
             catch (Exception ex)
             {

@@ -106,43 +106,45 @@ namespace StingTools.Core.Clash
 
         public IEnumerable<(ClashMeshBuffer A, ClashMeshBuffer B)> CandidatePairs()
         {
-            // H5: HashSet<(ClashElementKey, ClashElementKey)> keyed on actual
-            //     element-key equality rather than on (GetHashCode, GetHashCode).
-            //     Prior long-packed-hash key had two collision vectors:
-            //       (a) two different ElementKeys with the same GetHashCode
-            //           pair-packed into the same 64-bit long → skipped as duplicate.
-            //       (b) on very large models (100k+ elements) 32-bit hash-space
-            //           birthday collisions become statistically real.
-            //     HashSet<ValueTuple> uses ClashElementKey.Equals + GetHashCode
-            //     together — collisions resolved by Equals check, not hash alone.
-            var yielded = new HashSet<(ClashElementKey, ClashElementKey)>();
+            // D4: Pair dedup encoded as `long` packed from per-key int handles.
+            //     Prior HashSet<(ClashElementKey, ClashElementKey)> allocated a
+            //     ValueTuple<ClashElementKey, ClashElementKey> per pair plus
+            //     the two ClashElementKey references — for 1M candidate pairs
+            //     that is ~50-200 MB of allocations and significant GC pressure
+            //     during the broad-phase loop.
+            //
+            //     New: assign each ClashElementKey an int id (sequence in
+            //     _byKey enumeration order) and encode the pair as
+            //     (uint hi << 32) | uint lo with hi < lo. HashSet<long> has
+            //     8 bytes per entry vs ~64 bytes for the tuple-based version.
+            //     The dedup-by-Equals semantics are preserved because each
+            //     ClashElementKey gets exactly one id.
+            //
+            //     Mid-loop key insertions are not supported by the broad-phase
+            //     contract (Build() runs before CandidatePairs()), so the id
+            //     mapping is stable for the duration of the call.
+            var idByKey = new Dictionary<ClashElementKey, int>(_byKey.Count);
+            int nextId = 0;
+            foreach (var k in _byKey.Keys) idByKey[k] = nextId++;
+            var yielded = new HashSet<long>();
+
             foreach (var item in _byKey.Values)
             {
                 var hits = _tree.Search(item.Envelope);
+                int idA = idByKey[item.Mesh.Key];
                 foreach (var h in hits)
                 {
                     if (ReferenceEquals(h, item)) continue;
                     // Z filter: RBush is 2D, so verify Z overlap explicitly.
                     if (h.Mesh.MinZ > item.Mesh.MaxZ || h.Mesh.MaxZ < item.Mesh.MinZ) continue;
-                    // Canonical ordering: smaller DocGuid+ElementId first so
-                    // (A,B) and (B,A) collapse to the same dedup key.
-                    var pair = CanonicalPair(item.Mesh.Key, h.Mesh.Key);
-                    if (!yielded.Add(pair)) continue;
+                    int idB = idByKey[h.Mesh.Key];
+                    int lo = idA < idB ? idA : idB;
+                    int hi = idA < idB ? idB : idA;
+                    long pairKey = ((long)(uint)hi << 32) | (uint)lo;
+                    if (!yielded.Add(pairKey)) continue;
                     yield return (item.Mesh, h.Mesh);
                 }
             }
-        }
-
-        /// <summary>
-        /// H5: Deterministic pair ordering — the pair (A,B) and (B,A) must map
-        /// to the same HashSet key so we only yield each unordered pair once.
-        /// </summary>
-        private static (ClashElementKey, ClashElementKey) CanonicalPair(ClashElementKey a, ClashElementKey b)
-        {
-            int cmp = string.CompareOrdinal(a.DocGuid ?? "", b.DocGuid ?? "");
-            if (cmp == 0) cmp = a.LinkInstanceElementId.CompareTo(b.LinkInstanceElementId);
-            if (cmp == 0) cmp = a.ElementId.CompareTo(b.ElementId);
-            return cmp <= 0 ? (a, b) : (b, a);
         }
     }
 }

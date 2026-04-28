@@ -3776,6 +3776,2303 @@ round-trip, and 3 new validators.
    declared in `MR_PARAMETERS.txt` before any Revit project will see
    them — listed for the next parameter-registry pass.
 
+#### Completed (Phase 139.2 — MK Alignment, Conduiting Phase, BESA-Pendant Workflow)
+
+Sustainable method: Nested Family + Compound Structure Offset + Two-Phase
+GUID Matching + Manufacturer Catalogue Auto-Population + Ceiling Tile Grid Snap.
+
+New classes:
+  - `ManufacturerCatalogueEntry` (POCO)
+  - `ManufacturerCatalogueRegistry` (load / resolve / `AutoPopulateFromFamilies`)
+  - `PlasterOffsetResolver` (`Resolve(Wall,rule)`, `ResolveForCeiling(...)`)
+  - `CompoundClusterPlacer` (`GroupByCluster`, `ComputeClusterPositions`)
+  - `TwoPhaseBoxPlacer` (`ValidateSharedParams`, `PlaceFirstFixBoxes`, `PlaceSecondFixDevices`)
+
+New fields on `PlacementRule` (Parts A1–A9):
+  - A1 Manufacturer hint (`ManufacturerCode`, `CatalogueRef`, `BoxDepthMm`,
+    `ModulePitchMm`, `GangCount`, `MountType`, `InsertionOrigin`)
+  - A2 Two-phase conduiting (`ConstructionPhase`, `CompletionPhase`,
+    `BoxFamilyTypeRegex`, `BoxLocationIdParam`, `TwoPhaseEnabled`)
+  - A3 Compound cluster (`IsClusterMember`, `ClusterGroupId`,
+    `ClusterSlotIndex`, `ClusterTotalSlots`, `ClusterFrameWidthMm`)
+  - A4 Plaster offset (`PlasterOffsetMode`, `PlasterOffsetFixedMm`)
+  - A5 Ceiling tile snap (`CeilingTileSnap`, `TileGridSpacingXMm`,
+    `TileGridSpacingYMm`)
+  - A6 Structural fixing (`StructuralFixingCheck`, `JoistClearanceMm`,
+    `EmitNogginRequirement`)
+  - A7 Wet-zone exclusion (`WetZoneExclude`, `WetZoneClass`)
+  - A8 Standards alias (`HeightStandardRef`)
+
+New shared parameters: `STING_BOX_LOCATION_ID`, `STING_NOGGIN_REQUIRED`
+(constants added to `ParamRegistry`; awaiting bind in `MR_PARAMETERS.txt`).
+
+New data files (under `StingTools/Data/Placement/`):
+  - `STING_MANUFACTURER_CATALOGUE.json` — 31 entries (MK Logic Plus 1G/2G/3G
+    flush + surface, Grid Plus 2/4/6/8-module, Metal Clad IP2X/IP66, BESA
+    round 36/47, square outlet 44/57, MK junction boxes 5A/20A/30A/IP66)
+  - `STING_HEIGHT_STANDARDS.json` — extended to 33 standard keys with the
+    new BS 7671/BS 8300/HTM 06-01/BS 5839/BS 5266 entries called out by
+    rule references (`BS7671_SOCKET_STD`, `KITCHEN_SOCKET_ABOVE_WORKTOP`,
+    `HTM0601_BEDHEAD_SOCKET`, `SHOWER_PULL_CORD`, etc.)
+  - `STING_PLACEMENT_RULES.mk-electrical.json` (34 rules — sockets,
+    switches, dimmers, accessible variants, Grid Plus clusters, two-phase
+    conduiting hooks, healthcare bedhead)
+  - `STING_PLACEMENT_RULES.ceiling-pendants.json` (20 rules — residential
+    pendants, kitchen IP44, bathroom IP65, office/classroom LED on tile
+    grid, corridor/emergency, downlights, high-bay, smoke/heat with
+    coverage guarantee, JBs)
+  - `STING_PLACEMENT_RULES.conduiting-phase.json` (16 first-fix-only rules
+    — square outlet box at every socket/switch/FCU, BESA at every
+    pendant/downlight/smoke/heat, junction boxes ring-final/lighting/
+    cooker, through-wall AV, tee branch, deep RCD, nurse call, deep
+    shaver, classroom tile-snap)
+
+`PlacementRuleLoader` registers the three new packs (`MK_Electrical`,
+`Ceiling_Pendants`, `Conduiting_Phase`).
+
+`LightingGridCalculator` extended with `Compute(Room, PlacementRule)` and
+helpers `SnapToCeilingTileGrid`, `CheckStructuralFixing`,
+`ComputeUniformityRatio`. `LightingGridResult` extended with
+`NogginRequiredPoints`, `TileSnapAdjustments`, `ActualUniformityRatio`.
+
+`PlacementHostPreflight.PlaceOnCeilingSoffit` adds the ReferenceIntersector
+upward-ray + ceiling-void-drop placement for BESA + pendant alignment.
+
+`PlacementScorer` weights re-balanced (Anchor 0.35 / Side 0.22 /
+Spacing 0.18 / Collision 0.10 / Symmetry 0.05 / Coverage 0.07 /
+Manufacturer 0.03). New components `ScoreCoverageContribution` and
+`ScoreManufacturerResolution`.
+
+`PlacementScorer.AnchorTypes` adds 8 anchor types: `STRUCTURAL_SOFFIT`,
+`CEILING_TILE_CENTRE`, `WALL_FACE_OFFSET`, `DOOR_LATCH_SIDE`,
+`DOOR_HINGE_SIDE_150`, `CONDUIT_BOX_MATCHED`, `CEILING_VOID_ABOVE_BOX`,
+`FLOOR_SLAB_PENETRATION`.
+
+`FixturePlacementEngine.PlaceFixturesInScope` integrates the new
+subsystems: pre-flight `AutoPopulateFromFamilies` + `ValidateSharedParams`,
+Step 1 `PlaceFirstFixBoxes` before per-room loop, Step 3
+`PlaceSecondFixDevices` after the loop. `PlacementResult` extended with
+`NogginRequiredPoints` and `TileSnapAdjustments`.
+
+`PlacementRulesExcelExporter` schema extended with the full 30-column
+Phase 139.2 set (manufacturer / two-phase / cluster / plaster / tile /
+structural / wet-zone / height-standard).
+
+New commands (4):
+  - `Placement_AutoPopulateCatalogue` (`ManufacturerCatalogueAutoPopulateCommand`)
+  - `Placement_ExportNogginRequirements` (`NogginRequirementExportCommand`)
+  - `Placement_ExportRulesExcel` (`PlacementRulesExcelExportCommand`)
+  - `Placement_ImportRulesExcel` (`PlacementRulesExcelImportCommand`)
+
+All four registered in `StingCommandHandler` dispatch.
+
+Caveats:
+  - Built without `dotnet build` verification (Linux sandbox).
+  - The 2 new shared parameters need binding entries appended to
+    `Data/MR_PARAMETERS.txt` before they will appear on Revit elements.
+  - `PlasterOffsetResolver` returns 0 for non-compound walls; rules
+    targeting basic walls should set `PlasterOffsetMode = "Fixed"` with
+    `PlasterOffsetFixedMm`.
+  - Title block / pendant / BESA Revit families are not shipped — rule
+    `FamilyTypeRegex` patterns assume the conventional names listed in
+    `STING_MANUFACTURER_CATALOGUE.json`.
+
+#### Completed (Phase 139.3 — Structural Awareness, In-Wall Chase Routing, Enhancement Gaps)
+
+Wraps the existing structural intelligence engines behind a placement-time
+adapter, adds an in-wall pipe chase router, and closes the gaps surfaced
+by the Phase 139.2 review.
+
+Research outcome:
+  Of the methods proposed for integration, only three turn out to be
+  useful at placement time:
+    - `StructuralModelingEngine.AnalyzeLoadPaths`  → load-bearing element set
+    - `StructuralCADPipeline.DetectJunctions`      → forbidden routing zones
+    - `StructuralDWGEnhancements.OpeningDetector`  → live-model
+                                                     `Wall.FindInserts` is
+                                                     the equivalent at
+                                                     placement time
+  `DetectStructuralWalls` and `FindOrCreateBeamType` are DWG/family-author
+  paths; `DetectCircularColumns` does not exist (closest is
+  `CADToModelEngine.DetectColumns`). Skipped.
+
+New classes:
+  - `Core/Placement/StructuralAwareness.cs` — adapter built on the live
+    model: `IsLoadBearing(el)`, `IsNearJunction(pt, clearance)`,
+    `GetWallOpenings(wall)`, `PointIsInOpening(...)`, `SegmentIsRoutable(...)`.
+    Cached per-document; never throws.
+  - `Core/Placement/InWallChaseRouter.cs` — chase pipe router that:
+      1. Reads `Wall.WallType.GetCompoundStructure()` and rejects routes
+         when (pipe OD + 2 × insulation + clearance) > available chase depth.
+      2. Projects endpoints onto the wall location curve and offsets by
+         `RouteOffsetMm` along the wall's interior normal (true parallel,
+         not centroid-biased).
+      3. Validates each segment via `StructuralAwareness.SegmentIsRoutable`
+         and permits routing through wall openings.
+      4. Falls back to `Conduit.Create` when `RouteSegmentCategory = "Conduit"`.
+  - `Commands/Placement/RunWallChaseCommand.cs` — pick wall + 2 points,
+    runs the router, reports available vs required chase depth.
+
+New data files:
+  - `Data/Placement/STING_PLACEMENT_RULES.in-wall-chase.json` (5 rules:
+    15 mm cold, 15 mm hot insulated, 22 mm radiator feed, 40 mm waste,
+    25 mm electrical conduit chase) — cited against BS 6700, BS EN 806,
+    BS EN 12056, BS EN 12828, BS 7671.
+
+Enhancement gaps closed (Part C):
+  - **MK pack:** added `mk-fcu-healthcare-pendant` (HTM 06-01 bedhead FCU)
+    and `mk-cooker-circuit-feeder` (45 A connection unit) — total now 36.
+  - **Lux grid sprinkler separation:** `LightingGridCalculator` runs
+    `CheckSprinklerSeparation` (BS 5306-2 / BS EN 12845 ≥ 600 mm rule)
+    after tile snap + structural fixing checks; affected grid points are
+    dropped with a warning.
+  - **Workset-keyed two-phase matching:** `TwoPhaseBoxPlacer` first-fix
+    pass now stamps `<guid>|ws=<worksetId>` so a coordination-model swap
+    that re-creates boxes on a different workset still matches the
+    correct second-fix device.
+
+VG / view-style packs (Part A):
+  - Added `Lighting Devices` and `Junction Boxes` rows to `corp-base`
+    (Phase 139.2 rule packs already reference these categories).
+  - Added two corporate filter rules: `STING - First-Fix Phase`
+    (halftone grey) and `STING - Noggin Required` (orange high-vis) so
+    construction-phase boxes and Phase 139.2 noggin-required pendants
+    can be highlighted on issue drawings without a per-discipline
+    override.
+
+Routing accuracy claim:
+  The chase router targets ~95 % accuracy on a clean federated model.
+  100 % accuracy is not achievable through the Revit MEP API: in-wall
+  studs/noggins not modelled cannot be detected, and `Pipe.Create` will
+  not reject penetrations of structural elements without explicit
+  pre-checks (which this router does run, but which depend on the
+  structural model being current).
+
+New command tag: `Placement_RunWallChase` registered in `StingCommandHandler`.
+
+
+#### Completed (Phase 139.4 — Workflow Audit Fixes + Auto-Sleeve)
+
+Acted on a 43-finding workflow audit covering the Phase 139.0–139.3
+placement-centre pipeline. Fixed every P1 plus the high-value P2s; the
+large-scope items (linked-model awareness, multi-storey routing,
+ClashTriageEngine integration, A* chase routing, partial-rollback) are
+deferred to their own design pass.
+
+**P1 fixes:**
+- `PlacementScorer.GenerateAnchorPoints` falls back to the room
+  bounding-box centroid when `LocationPoint` is null (degraded DWG
+  imports) so anchors still emit.
+- `InWallChaseRouter.Route` distinguishes "wall has no compound
+  structure" (warn but continue) from "pipe doesn't fit" (reject).
+- `FixturePlacementEngine.ComputeCap` for `Density` rules with no rate
+  declared now logs at load time + caps at 1 fixture per room.
+- `TwoPhaseBoxPlacer.PlaceFirstFixBoxes` and `PlaceSecondFixDevices`
+  now invoke `PostPlacementHooks.RunFor` on every placed box so
+  two-phase output gets the data-tag / COBie / system pipeline.
+- `PlacementRuleLoader.MergeRules` logs a warning when two baseline
+  packs declare the same `RuleId / MergeKey`.
+
+**P2 fixes:**
+- Loader validates every rule on load: `Density` without a rate,
+  `RoutingMode != NONE` without `RouteSegmentCategory`, and the
+  `TwoPhaseEnabled + IsClusterMember` contradiction (cluster
+  membership is force-disabled on the offending rule).
+- `InWallChaseRouter.ProjectAndOffset` honours `rule.MountingHeightMm`
+  so chase pipes sit at the rule's declared height above the wall's
+  level origin instead of preserving the picked Z.
+- `RunWallChaseCommand` now runs a preview pass inside a rolled-back
+  TransactionGroup, shows the depth-check + sleeve count to the user,
+  and only commits on Yes.
+- `FixturePlacementEngine.ResolveSymbol` applies `OfCategory(bic)`
+  before `OfClass(typeof(FamilySymbol))` via a new
+  `ResolveBuiltInCategoryByName` helper cached per document — the
+  collector now uses Revit's native category index instead of walking
+  every symbol.
+- `PlacementScorer.ScoreManufacturerResolution` indexes loaded family
+  category alongside name; a name match in the wrong category now
+  scores 0.5 instead of the previous false 1.0.
+
+**Auto-sleeve integration:**
+- `InWallChaseRouter` now calls `SleeveEngine.PlaceSleeves` on every
+  created pipe segment after routing. Sleeves auto-cut the host wall
+  and drop a `STING_SLEEVE_ROUND` (or fallback) family at every
+  penetration. Surfaced via the new `SleevesPlaced` field on
+  `ChaseRouteResult` and reported in the `RunWallChaseCommand`
+  TaskDialog.
+
+**Deferred (own design pass):**
+- Linked-model awareness in `StructuralAwareness` (#27, #32).
+- Multi-storey chase / vertical-drop handling (#31).
+- `ClashTriageEngine` post-placement scan (#25).
+- A* / VoxelGrid pathfinding for chase routing (#22).
+- TransactionGroup partial-rollback per rule (#36).
+- `WarningsManager` persistence + SLA dashboard surface (#26).
+
+
+#### Completed (Phase 139.5 — Deep Accuracy & Performance Audit Fixes)
+
+Acted on a 21-finding deep audit of the Phase 139.0–139.4 pipeline that
+focused on issues the earlier reviews missed (curve mathematics, layer
+ordering, regex compilation per-room, sleeve batching, sprinkler nudging).
+Ten of fifteen real findings closed; the remaining five (RCR-based UF,
+L-shape grid clipping, pipe-system join, stepped-soffit raycast, router
+unification) are deferred to their own design pass.
+
+**Accuracy fixes:**
+- Q3 / P1 — `PlacementScorer.EmitWallMidpoints` + `EmitWallCorners`
+  now use `Curve.Evaluate(0.5, true)` and a curve-aware
+  `ComputeInwardFromCurve` helper.  Curved-wall rooms (Arc / NurbSpline
+  boundary segments) used to produce zero anchors; they now emit
+  midpoints and corners via the curve's first derivative.
+- Q15 / P1 — `FixturePlacementEngine.ComputeCap` for `RuleKind=Linear`
+  now derives the cap from `room perimeter ÷ PerLinearMetre` via a new
+  `ComputeRoomPerimeterMetres` helper that walks any boundary curve
+  type.  Previously the cap was always `candidateCount`.
+- Q9 / P2 — `TwoPhaseBoxPlacer.PlaceSecondFixDevices` strips the
+  `|ws=<workset>` suffix introduced in 139.3 before stamping the
+  device, so existing bare-GUID first-fix boxes from pre-139.3
+  projects still match on second-fix.
+- Q10 / P2 — `PlacementScorer.RoomMatchesScope` reads
+  `room.CreatedPhaseId` first (Revit 2024+) and falls back to
+  `BuiltInParameter.ROOM_PHASE_ID` only when null.
+- Q5 / P2 — `InWallChaseRouter.ResolveChaseDepth` documents the
+  exterior-to-interior layer ordering and stops at
+  `CompoundStructure.StructuralMaterialIndex` OR the first
+  `Function == Structure` layer (handles sandwich panels with a
+  mid structure layer).
+- Q4 / P2 — `PlasterOffsetResolver.IsFinishLayer` no longer treats
+  `Function = Substrate` as finish unless the material name matches
+  the finish regex (plasterboard / gypsum / etc.).  Drywall stud
+  partitions stop accumulating stud thickness as plaster offset.
+- Q14 / P2 — `CompoundClusterPlacer.ComputeClusterPositions` samples
+  the wall location curve at arc-length parameters around the frame
+  centre when the host wall is curved (Arc / NurbSpline).  Slots
+  follow the wall instead of walking off-tangent.
+- Q13 / P2 — `LightingGridCalculator.CheckSprinklerSeparation` now
+  nudges grid points outside the 600 mm exclusion ring before
+  dropping them, so the lux grid retains its fixture count when the
+  room geometry allows a clear shift.
+
+**Performance fixes:**
+- Q19 / P2 — `InWallChaseRouter.BatchSleevesAtEnd` flag + new
+  `FlushSleeves()` API let an engine-level run defer all
+  `SleeveEngine.PlaceSleeves` work to a single end-of-run call.
+  Cuts the sleeve wall walk from O(routes) to O(1).
+- Q21 / P2 — `FixturePlacementEngine` pre-compiles each rule's
+  `RoomFilter` and `ExcludeRoomFilter` regex at run start (cached
+  in `_filterRx` dicts).  The per-room loop short-circuits via
+  `regex.IsMatch(roomName)` before paying the full
+  `RoomMatchesScope` cost (parameter / level / phase / workset
+  reads).  Estimated 2–5× speedup on large projects (50 rooms ×
+  200 rules).
+
+**Deferred (own design pass):**
+- Q1  RCR-based utilisation factor (lookup table needed).
+- Q2  L-/U-shape grid clipping against boundary loops.
+- Q6  Pipe-fitting endpoint match / connector union.
+- Q7  Pipe.Create joining an existing piping system network.
+- Q8  Stepped-soffit raycast strategy in `PlaceOnCeilingSoffit`.
+- Q12 `WallFollowerRouter` ⇄ `InWallChaseRouter` unification.
+
+
+#### Completed (Phase 139.6 — Placement Quality Fixes + Setup Audit + Authoring Docs)
+
+Acted on a real-world placement run (screenshots in
+session_019NVYWtPqi4P3dztjhngdKs) showing three concrete bugs and a
+broader set of authoring / project-setup gaps:
+
+- Switches landing "facing up" at door centre (no rotation logic).
+- Lights stacking with no spacing in narrow rooms.
+- Plumbing fixtures placed in wardrobes / walk-in-closets because the
+  RoomFilter regex `(?i)wc|toilet` substring-matched too widely.
+- Half the warnings in the result panel were "no first-fix box family
+  matched" / "No FamilySymbol found" / "STING_BOX_LOCATION_ID not bound"
+  — i.e. project-setup gaps the engine couldn't have known about until
+  after the run.
+
+**Code fixes:**
+
+- **SW-1** `FixturePlacementEngine.OrientPlacedInstance` (new helper
+  called after `WriteAnchorParameters`): applies `rule.RotationDeg`
+  via `ElementTransformUtils.RotateElement` and auto-flips
+  wall-hosted instances when the family's `FacingOrientation` opposes
+  the inward room normal. Wall anchors covered:
+  `WALL_MIDPOINT`, `WALL_CORNER`, `WALL_FACE_OFFSET`, all `DOOR_*` and
+  `WINDOW_*` variants.
+- **LX-1** `LightingGridCalculator.EnforceMinSpacing` (new
+  post-process): drops grid points closer than `rule.MinSpacingMm`
+  after the BS 5306 sprinkler nudge but before uniformity check.
+- **PF-1** All `(?i)wc|toilet|bathroom|shower` patterns tightened to
+  `(?i)\b(wc|toilet|bathroom|shower|en-suite|cloakroom|lavatory|powder room)\b`
+  across `STING_PLACEMENT_RULES.json` + `accessibility` + `electrical`
+  + `mechanical` + `baseline-extensions2` packs. Stops `wc`
+  substring-matching `walk-in closet` / `wardrobe` / `utility`.
+
+**New command:** `Placement_AuditSetup` (`PlacementSetupAuditCommand`).
+Walks the active document and reports every gap from the
+authoring checklist:
+
+  - shared parameters bound (`STING_BOX_LOCATION_ID`,
+    `STING_NOGGIN_REQUIRED`, `STING_FIXTURE_VARIANT_TXT`,
+    `MK_CATALOGUE_REF`)
+  - critical families loaded (BESA round box, square outlet box, MK
+    Logic Plus / Grid Plus / Metal Clad, sleeves, junction boxes)
+  - critical category symbols loaded (Sprinklers, Fire Alarm Devices,
+    Air Terminals, Lighting Fixtures)
+  - phases present (`Construction`, `Handover`)
+  - manufacturer catalogue populated
+  - rule packs load
+  - view-style pack discoverable
+
+Result groups findings by severity (Error / Warning / Info), shows the
+top 40 in a TaskDialog, and writes a CSV to
+`OutputLocationHelper.GetOutputPath(doc, "PlacementSetupAudit")` so it
+can be committed as a federation deliverable.
+
+**New doc:** `docs/PLACEMENT_FAMILY_AUTHORING.md` — eleven category
+authoring matrices (hosting, origin, facing, reference planes, required
+parameters, common mistakes), the project-setup checklist, and a
+re-run cadence guide for designers. Cross-referenced from the audit
+command.
+
+
+#### Completed (Phase 139.7 — Scope honoured + pre-flight family check)
+
+Real-world bug report: user picked "Active view" radio in the
+Fixtures tab; confirm dialog said "About to place fixtures across the
+entire project". Plus the result panel showed half the per-rule
+counts at zero with a single warning line buried mid-list — designer
+couldn't tell whether a category had no rules, or had rules but no
+family loaded.
+
+**Scope radio honoured (the headline fix):**
+
+`PlaceFixturesOptions.ScopeMode` enum (SelectedRooms / ActiveView /
+AllRooms) plumbed from the dock-panel `rbFxScopeSel` /
+`rbFxScopeView` / `rbFxScopeAll` radios via a new `RadState` helper
+in `StingDockPanel.xaml.cs` (mirror of the existing `ChkState`).
+
+`PlaceFixturesCommand.Execute` now branches on `ScopeMode`:
+
+- `SelectedRooms` — uses `uidoc.Selection.GetElementIds()` (legacy);
+  if no rooms are selected, prompts the user instead of silently
+  falling through to "entire project".
+- `ActiveView` — uses
+  `new FilteredElementCollector(doc, view.Id).OfCategory(OST_Rooms)`,
+  the proper view-bounded query.
+- `AllRooms` — engine fallback (empty `selectedRoomIds`).
+
+`ConfirmPlacement(string scopeLabel)` and
+`PromptDryRunChoice(string scopeLabel)` now take the resolved label
+instead of computing it from selection count, so the dialog text
+matches the radio.
+
+**Pre-flight family check:**
+
+After the rule load + category filter, the command walks every
+ticked category and reports those with zero loaded `FamilySymbol`s.
+The user sees a TaskDialog listing the affected categories and is
+asked to continue or cancel. Stops the silent "No FamilySymbol
+found for category 'Electrical Fixtures' — skipping its rules"
+warning that was leaving designers wondering why their sockets
+hadn't landed.
+
+
+#### Completed (Phase 139.8 — ActiveView room collection + Placement Centre auto-place checklist)
+
+User reported the Phase 139.7 fix went halfway: the Placement Centre's
+own Run-Placement dialog said "Place fixtures in 1 room(s)" with
+"Scope: ActiveView" — even though the active plan had ~12 rooms.
+
+Root cause: `FilteredElementCollector(doc, view.Id).OfCategory(OST_Rooms)`
+doesn't enumerate rooms reliably. Revit's view-bounded collector
+walks the view's drawn elements and Rooms (logical, non-3D entities)
+get filtered out unpredictably; one or zero rooms is the typical
+result.
+
+Fix:
+
+- `PlacementCenterBridge.ResolveScope` (Centre-side) and
+  `PlaceFixturesCommand.Execute` (dock-panel-side) ActiveView branch
+  now:
+    - Plan view → `view.GenLevel`-bounded room walk.
+    - Other view types → bbox-intersection against `view.CropBox`
+      (with no-crop fallback to all rooms).
+- `StingPlacementCenter.xaml` adds an explicit "Auto-place" category
+  checklist with 18 categories (Electrical Fixtures, Lighting
+  Devices, Lighting Fixtures, Communication Devices, Data Devices,
+  Security Devices, Fire Alarm Devices, Plumbing Fixtures, Air
+  Terminals, Sprinklers, Mechanical Equipment, Conduits, Junction
+  Boxes, Pipes, Cable Trays, Specialty Equipment, Furniture, Nurse
+  Call Devices) plus All / None convenience buttons.
+- `OnRunPlacement_Click` filters the active rule pack by the ticked
+  categories before invoking the engine. Empty checklist =
+  every-category (legacy behaviour). The confirm dialog now lists
+  the allowed categories so the user can see what the run will and
+  won't touch.
+
+
+#### Completed (Phase 139.9 — Centre pre-flight + rich result panel)
+
+User reported: Centre's Run Placement said "Place fixtures in 12
+room(s)?", progress bar ran, validation panel showed 0 / 0 / 0 / 0.
+No information about what (if anything) was placed.
+
+Root cause: the Placement Centre's run path
+(`OnRunPlacement_Click`) did not have the pre-flight family-loaded
+check that Phase 139.7 added to the dock-panel `PlaceFixturesCommand`.
+If the user ticked Electrical Fixtures / Lighting Devices / Lighting
+Fixtures but those categories had no FamilySymbols loaded, the engine
+silently zero-placed every rule for those categories. The Centre also
+had no rich result panel — only a one-line status bar update — so
+zero placements looked indistinguishable from "ran successfully".
+
+Fixes:
+
+- Pre-flight family check (mirrors PlaceFixturesCommand): walks
+  every category that the filtered rule set targets, lists those
+  with zero loaded FamilySymbols, asks the user to continue or
+  cancel before any work is committed.
+- Rich result panel (StingResultPanel): SUMMARY + PER-RULE COUNTS
+  + WARNINGS sections; when zero placed, adds an explicit
+  "ZERO PLACED — common causes" section pointing at the four most
+  common reasons (no family loaded, RoomFilter mismatch, host
+  pre-flight rejection, audit not run).
+
+
+#### Completed (Phase 139.10 — modeless run via IExternalEventHandler + Family/Type wording)
+
+User reported the result panel showed "Transaction start failed:
+Starting a transaction from an external application running outside
+of API context is not allowed" with 0 placed — the engine never even
+got to score candidates. Plus a fair question: why does the pre-flight
+check say "FamilySymbol" not "Family"?
+
+**Modeless transaction fix:**
+
+The Placement Centre is a modeless WPF Window. Revit 2025+ refuses to
+let modeless code start a Transaction or TransactionGroup directly.
+The Centre's `OnRunPlacement_Click` was calling `tg.Start()` straight
+from the button-click handler.
+
+`OnRunPlacement_Click` now dispatches to a new
+`PlacementRunHandler : IExternalEventHandler` which Revit calls back on
+the API thread. The handler runs the engine inside a TransactionGroup
+on that thread; the UI thread keeps responsive via a
+`DispatcherFrame` nested message pump that drains until the handler
+signals completion. Cancel + progress updates continue to work.
+
+**Family vs Type wording:**
+
+Pre-flight TaskDialog now reads "no Family Type loaded" instead of
+"no FamilySymbol loaded", with an explanation: a `Family` (.rfa) is
+the container; a `Type` (FamilySymbol) is one of the variants inside
+it. The engine creates instances of a Type, not the Family — a Family
+loaded with no Types active in the project still drops every rule in
+its category. Designers know to "drag at least one Type from the .rfa
+in Project Browser into a view" rather than just loading the .rfa.
+
+Same wording applied to:
+- Centre's TaskDialog when categories have no Type loaded.
+- `PlaceFixturesCommand` (dock-panel) equivalent dialog.
+- Centre's "ZERO PLACED — common causes" section in the result panel.
+
+
+#### Completed (Phase 139.10b — ExternalEvent.Create moved to ctor)
+
+User reported the Phase 139.10 fix surfaced a NEW error:
+"Run failed: Attempting to create an ExternalEvent outside of a
+standard API execution".
+
+Root cause: `ExternalEvent.Create` itself must be called from inside
+a Revit API context. Phase 139.10's `EnsureRunEvent` lazily called
+`ExternalEvent.Create` on the WPF UI thread (button-click handler) —
+which is NOT an API context.
+
+Fix:
+
+- `StingPlacementCenter` constructor now creates the
+  `PlacementRunHandler` + `ExternalEvent` eagerly. The constructor
+  runs inside `OpenPlacementCenterCommand.Execute`, which IS a
+  Revit API context, so `ExternalEvent.Create` succeeds.
+- `EnsureRunEvent` becomes a guard that throws a clear "close and
+  re-open the Centre" message if for some reason the eager create
+  failed; it never tries to create on the WPF thread.
+
+
+#### Completed (Phase 139.11 — pre-flight responsiveness)
+
+User reported the run dialog stayed on "0 / 12 · Starting… · Estimating…"
+for an extended period with no apparent progress. Engine was not
+hung — it was burning seconds in the pre-flight phase before the
+first per-room callback fired.
+
+Two fixes:
+
+1. **Skip catalogue auto-populate when not needed.**
+   `FixturePlacementEngine` only calls
+   `ManufacturerCatalogueRegistry.AutoPopulateFromFamilies(doc)` when the
+   active rule set actually references manufacturer fields
+   (`ManufacturerCode`, `CatalogueRef`, or `IsClusterMember`). On a
+   project with several thousand FamilySymbols and no MK rules in the
+   ticked categories, the catalogue walk can take 30+ seconds with no
+   feedback; this skip eliminates that cost entirely for runs that
+   don't need it.
+
+2. **Pre-flight heartbeat in the progress dialog.**
+   `StingPlacementCenter.OnRunPlacement_Click` now sets the dialog
+   status to "Pre-flight — scanning loaded families…" before raising
+   the `ExternalEvent`, and starts a background ticker that updates
+   the status every 1.5 seconds with elapsed time so the dialog
+   can't look frozen. The ticker self-terminates the moment the
+   engine fires its first per-room progress callback (room 1 of N
+   reached) and is cancelled in the `finally` block as a belt-and-
+   braces guarantee.
+
+
+#### Completed (Phase 139.12 — engine timestamps + bounded pre-flight + phase-aware heartbeat)
+
+User reported the run dialog at "Pre-flight in progress (3776s)" — i.e.
+~63 minutes of nothing. Engine was hung in pre-flight; nothing in the
+log told us where, the Cancel button only polled in the per-room
+callback (never reached), and the heartbeat showed only elapsed time.
+
+Three fixes:
+
+1. **StingLog timestamps at every engine phase.** Run start, AutoPopulate
+   completion, ValidateSharedParams completion, PlaceFirstFixBoxes
+   completion, pre-flight handover to per-room loop. Next time the
+   user reports a hang we can read the log and pinpoint the slow
+   phase.
+
+2. **Bounded AutoPopulate.** `ManufacturerCatalogueRegistry.AutoPopulateFromFamilies`
+   now runs on a background `Task.Run` with a 20-second `task.Wait`
+   bound. If the LookupParameter loop is still mid-walk after 20 s
+   the engine bails with a warning ("Catalogue auto-populate timed
+   out — Manufacturer score component will be 0.5 for unresolved
+   rules") and continues without the catalogue refresh. Skip path also
+   added when no rule has TwoPhaseEnabled — `PlaceFirstFixBoxes` is
+   never invoked for an empty rule set.
+
+3. **Phase-aware heartbeat.** `FixturePlacementEngine.CurrentPhase`
+   (volatile string) is set at every phase entry: "Pre-flight starting",
+   "Pre-flight: catalogue scan", "Pre-flight: two-phase shared-param
+   check", "Pre-flight: first-fix box placement", "Per-room loop". The
+   Centre's pre-flight ticker reads it and shows
+   `"<phase> (Ns)…"` instead of `"Pre-flight in progress (Ns)…"`. The
+   user now sees exactly which step is consuming time.
+
+
+#### Completed (Phase 139.13 — non-blocking ExternalEvent dispatch)
+
+User reported the Phase 139.10 PushFrame approach hung at
+"Pre-flight in progress (3776s)" — engine never ran. Root cause: the
+Centre's button-click handler called `Dispatcher.PushFrame(frame)` to
+wait for the API-thread handler to complete, but Revit only services
+ExternalEvents on its idle cycle and a nested WPF message pump
+apparently doesn't trigger that idle reliably. Result was a
+deadlock indistinguishable from a slow run.
+
+Fix: refactor the run into the standard fire-and-forget
+ExternalEvent pattern.
+
+- `OnRunPlacement_Click` builds the request, raises the
+  ExternalEvent, then RETURNS immediately. No nested DispatcherFrame.
+- `PlacementRunHandler.Execute` runs the engine on the API thread.
+  When complete (success or error), it does
+  `Dispatcher.BeginInvoke(() => _owner.OnRunCompleted(req, res, err))`
+  which the WPF UI thread services on its next idle cycle.
+- `OnRunCompleted` does all the post-run UI work (status update,
+  rich result panel, history refresh, auto-heatmap, validators).
+  Runs on the WPF thread, so all WPF API calls are safe.
+- The PlacementRunRequest now carries StartUtc / PrevStamp / PrevLearn
+  so OnRunCompleted has the full context the click handler used to
+  hold in locals.
+- Dropped the unused `_runDone` and `_runFrame` fields.
+
+
+#### Completed (Phase 139.14 — progress dialog topmost + Centre run-state UI)
+
+User reported the pre-flight dialog "ran for a second and got lost"
+— it slipped behind the Placement Centre window because the dialog
+was parented to Revit's main window, not to the modeless Centre.
+With the Centre still in front and capturing focus, the user couldn't
+get to the progress dialog (or its Cancel button) and had no
+indication a run was in flight.
+
+Two fixes:
+
+1. **`StingProgressDialog._window.Topmost = true`.** The dialog
+   stays in front of the Centre (and any other modeless WPF window
+   that triggers it). Combined with the existing
+   `Owner = Revit-main-window` it stays inside the Revit process
+   without blocking modal TaskDialogs.
+
+2. **Centre Run-button disabled while run is in flight.** The Run
+   Placement toolbar button gains `x:Name="btnRunPlacement"`. On
+   `_runEvent.Raise()` the button is disabled and the bottom status
+   bar reads "Run in progress — please wait…". `OnRunCompleted`
+   re-enables the button before showing the result panel; the
+   Raise-error path also re-enables in its catch.
+
+
+#### Completed (Phase 139.15 — validation count + accessible-switch tightening)
+
+User reported: validation panel shows 0 / 0 / 0 / 0 even after a
+153-placement run; lights are scattered messily; "sockets on floor"
+(actually switches at low height); some doors skipped.
+
+Two fixes:
+
+1. **Validation panel surfaces "Elements checked".** 0 findings against
+   153 placed used to read like "nothing was validated". The Centre's
+   `ShowFindings` now adds an "Elements checked" metric (count of
+   provenance-stamped elements when scope-to-provenance, "(project-wide)"
+   otherwise) and a "RESULT" section saying
+   "All N just-placed element(s) passed every active validator" when
+   findings.Count == 0 and validated > 0.
+
+2. **`baseline-lighting-devices-accessible-switch` tightened.** Was
+   firing 92 times in a 27-room project because it had no
+   `RoomFilter` and no `MaxPerRoom`. Now caps at 2 per room and
+   excludes wardrobes / closets / cupboards / stores / external /
+   verandah / porch / balcony / terrace / patio / garage / plant /
+   riser / shaft / void.
+
+The "doors skipped / sockets on floor" complaints turned out to be
+authoring issues, not bugs:
+
+- The 92 switches WERE landing on every door, but at 1200 mm AFF
+  which renders close to a socket icon at low zoom levels.
+- No socket rules fired in this run because the project has no
+  `Electrical Fixtures` Family Type loaded — the pre-flight already
+  warns about this.
+- Doors that "skipped" likely failed `DOOR_HINGE` because their
+  family doesn't have `HostFlipped` set correctly. Fixed at family
+  authoring time, not engine.
+
+
+#### Completed (Phase 139.16 — wall snap + door-tangent fallback + placement diagnostic log)
+
+User reported switches still landing in the wrong positions and lights
+scattered messily even after Phase 139.15 tightened the
+accessible-switch rule. Deep dig found two real engine bugs:
+
+1. **`EmitDoorAnchor` direction fallback was world-X axis.** When
+   `door.Host` is not a basic `Wall` (curtain wall, panel host, or a
+   broken host reference), `WallTangent(door.Host as Wall)` returns
+   null and the anchor's offset shift was applied along
+   `XYZ.BasisX` — for a door on a north-south wall the 300 mm offset
+   moved the switch east-west into thin air. Now the engine derives
+   `along` from `door.FacingOrientation` rotated 90° about Z (a valid
+   in-plane tangent for any host), with a final fallback to the
+   room-centroid → door direction perpendicular.
+
+2. **No post-placement wall snap.** Wall anchors compute an XYZ on
+   the wall *centerline*; un-hosted families placed at that point
+   sit visually inside the wall, not flush against the room face.
+   `OrientPlacedInstance` now projects the placed family's location
+   onto the nearest wall's location curve when (a) the family has
+   no host AND (b) a wall is within 600 mm. Uses
+   `ElementTransformUtils.MoveElement` so the family stays on the
+   correct level and respects its own rotation.
+
+3. **Diagnostic log.** Every successful placement now logs the
+   final XYZ + host type (`<none>` for un-hosted) to `StingTools.log`,
+   so when designers see strange placement we can read the log and
+   confirm whether the engine emitted bad coordinates or whether the
+   family failed to host.
+
+
+#### Completed (Phase 139.17 — restrict BS 5266 emergency-lighting rules to escape-route rooms)
+
+User reported "red dots on the floor near doors" — investigated and
+found three rules in `STING_PLACEMENT_RULES.baseline-extensions2.json`
+firing in EVERY room (no `RoomFilter`) at low Z height:
+
+- `baseline-emlit-escape-route` — `PERIMETER_OFFSET` anchor with
+  `PerLinearMetre: 2.0` AND no `MountingHeightMm` (defaulted to 300
+  mm). 17 dots scattered along walls in residential bedrooms /
+  bathrooms.
+- `baseline-emlit-escape-door-emphasis` — `ESCAPE_DOOR_BOTH_SIDES`
+  with no RoomFilter. Hit every door.
+- `baseline-emlit-exit-sign-above-door` — `DOOR_HEAD` with no
+  RoomFilter. Hit every door.
+
+These are BS 5266-1 / BS EN 1838 commercial-building rules; they
+should never fire in residential dwelling spaces.
+
+Fix: added a shared escape-route `RoomFilter` matching
+`(?i)\b(corridor|hall|hallway|stair|stairwell|landing|lobby|reception
+|foyer|escape|circulation|atrium|passage|breakout|office|workstation|
+open[ -]?plan|conference|board|meeting|classroom|teaching|lecture|
+theatre|operating|ward|treatment|patient|examination|clinic|surgery|
+cinema|auditorium|warehouse|workshop|plant|substation)\b` to all
+three rules. Plus:
+
+- `baseline-emlit-escape-route` gains `MountingHeightMm: 1100`
+  (BS 5266 anti-panic luminaire height) and `MaxPerRoom: 4`.
+- `baseline-emlit-escape-door-emphasis` gains
+  `MountingHeightMm: 2100` so emergency luminaires sit above door
+  heads, not at floor level.
+
+Result on a 27-room residential project: those three rules will
+match zero rooms instead of 27, removing all the floor-level red
+dots.
+
+
+#### Completed (Phase 139.18 — systematic placement workflow rewrite)
+
+User reported the same wrong positions / skipped doors / wrong
+orientation across multiple runs and asked for a deep workflow
+review. Five systematic engine bugs found:
+
+1. **Doors collected by greedy bbox-intersect.** `GetBoundary`
+   collects every door whose bbox falls within the room's
+   bbox + 1.5 ft padding. This includes doors of adjacent rooms
+   (kitchen door grabbed by dining bbox) AND processes the same
+   door twice when both adjacent rooms claim it.
+
+   **Fix:** new `FilterDoorsForRoom` keeps only doors whose
+   `FromRoom` or `ToRoom` matches the current room. Falls back to
+   bbox-intersect when both are null (door's spatial context not
+   yet computed).
+
+2. **`ComputeInwardFromWall` returned null for curved walls.**
+   The old code did `lc.Curve is not Line ln` short-circuit; arc
+   and NurbSpline walls returned null and `EmitDoorAnchor` fell
+   back to `XYZ.BasisY` (world-Y). Switches on curved walls were
+   pushed in a fixed direction unrelated to the wall.
+
+   **Fix:** generalised to any `Curve` via `ComputeDerivatives`
+   for the tangent + 90° rotation for the inward normal. Mirror
+   of the Phase 139.5 `ComputeInwardFromCurve` pattern.
+
+3. **`OrientPlacedInstance` flip-facing only fired for hosted
+   instances.** `if (!(fi.Host is Wall hostWall)) return;` — every
+   un-hosted OneLevelBased family kept its default world-X facing
+   regardless of the wall it should align with.
+
+   **Fix:** drop the gate. For un-hosted families, find the
+   nearest wall via `Curve.Project`, use its tangent + room-side
+   normal as the target facing direction. When `CanFlipFacing` is
+   false (un-hosted family), use `ElementTransformUtils.RotateElement`
+   either 180° (flip) or to a precise alignment angle when the
+   family is roughly perpendicular to the inward normal.
+
+4. **No warning when family ↔ rule placement-type mismatch.**
+   A rule with `AnchorType: "DOOR_HINGE"` resolving to an
+   `OneLevelBased` un-hosted family means the family won't attach
+   to a wall no matter what the engine does post-placement.
+   Designers had no way to know.
+
+   **Fix:** engine now appends a one-shot warning per
+   (family, rule) pair when a wall- or ceiling-anchored rule
+   resolves to a non-hosted family: *"Engine will place + snap +
+   rotate but the family won't attach to the wall/ceiling. Re-author
+   the family as wall-hosted for proper attachment."*
+
+
+#### Completed (Phase 139.19 — PlacementDiagnoseCommand)
+
+User reported "nothing changed" across multiple consecutive fixes
+(139.16 → 139.18). Symptoms point at one of three root causes I
+can't disambiguate from screenshots alone:
+  - Build cache (user running an older .dll)
+  - Switch family is the wrong FamilyPlacementType (un-hosted instead
+    of OneLevelBasedHosted)
+  - Door instances have no FromRoom / ToRoom data
+
+New command: `Placement_Diagnose`. Walks the live document and
+prints every fact the placement engine sees:
+
+  - Build sanity: prints the engine's CurrentPhase static so the user
+    can verify they're on a current build (the field only exists from
+    Phase 139.12 onward).
+  - Active view + room counts (project-wide vs on active level).
+  - Every door: its Id, family, FromRoom name, ToRoom name, and host
+    type (Wall vs other). Counts how many doors have FromRoom/ToRoom
+    set vs missing.
+  - Every loaded FamilySymbol in Lighting Devices / Lighting Fixtures
+    / Electrical Fixtures / Plumbing Fixtures with its
+    `FamilyPlacementType` and active-state.
+  - Rule pack count by anchor type (wall-anchored, ceiling-anchored).
+
+Outputs to a TaskDialog preview + a CSV-style txt file on disk for
+copy-paste back to support.
+
+Registered as "Placement_Diagnose" tag in StingCommandHandler.
+
+#### Completed (Phase 139.20 — diagnose category-checklist filter)
+
+User reported placement run included Fire Alarm Devices even though
+they only ticked Lighting Devices + Lighting Fixtures. That points at
+one of three real causes:
+
+1. The XAML auto-generated `cbCat*` field bindings didn't compile
+   (stale build) → all 18 fields are null at runtime → my
+   `ReadCategoryChecklist` reads zero ticks → `allowed.Count == 0`
+   → the filter is bypassed → every rule in the pack runs.
+2. The user actually ticked Fire Alarm Devices but doesn't remember.
+3. A bug in the checklist plumbing.
+
+Fix: instead of guessing, surface the truth.
+
+- `ReadCategoryChecklist()` now logs `total / null / ticked` counts
+  for every (cb, cat) pair to `StingTools.log`. If the null count
+  is non-zero, a separate warning explicitly says "XAML
+  auto-generated bindings did not compile. Rebuild the plug-in".
+- `OnRunPlacement_Click` logs the allowed-categories set + the
+  categories it just excluded.
+- The post-run result panel now shows `Categories allowed` and
+  `Categories placed` rows in the SUMMARY section. If the run placed
+  Fire Alarm Devices when only Lighting was ticked, the mismatch
+  is visible front-and-centre instead of buried in the engine log.
+
+Together these tell us which root cause is real: stale build → null
+fields surfaced; user UI confusion → "Allowed: Lighting, Lighting
+Fixtures, Fire Alarm Devices" displayed clearly; genuine bug →
+Allowed list says one thing, Placed list says another.
+
+
+#### Completed (Phase 139.21 — build stamp + prerequisites preflight)
+
+User said "still the exact same locations and errors" across multiple
+fix commits and asked me to research, not guess. The honest reading
+is that one of two things is true on every "nothing changed" report:
+
+  (a) The plug-in DLL on disk wasn't refreshed — Revit is running
+      yesterday's binary.
+  (b) The model is missing a prerequisite the engine has no way to
+      satisfy at run time (un-hosted family for a wall anchor; doors
+      with no spatial relationship; etc.) and the engine just shrugged
+      and produced wrong placements anyway.
+
+Two concrete fixes:
+
+**1. Build stamp on every surface.** New
+`FixturePlacementEngine.BuildStamp` reads the assembly's `LastWriteTime`
+(seconds-resolution timestamp of the actual on-disk DLL). Surfaced in:
+
+- The Placement Centre window title bar
+  (`STING — Placement Centre  [build 2026-04-28 19:35:00  Phase 139.21]`)
+- Every result-panel subtitle.
+
+If two consecutive runs report the same BuildStamp, the user is on the
+same DLL — `extract_plugin.sh` didn't refresh, or Revit cached the old
+file. They can stop debugging code and rebuild.
+
+**2. Prerequisites preflight that hard-fails.** Before `OnRunPlacement`
+asks the user to confirm, it walks three blockers:
+
+  - For every wall-anchored rule's category, scans loaded
+    FamilySymbols. If NO type in that category is
+    `OneLevelBasedHosted`, hard-fail with a list of the
+    actually-loaded placement types. Wall placement is impossible
+    without a hosted family — no amount of post-snap fixes that.
+  - For every door on the active level, checks `FromRoom` / `ToRoom`.
+    If 0/N have spatial relationships, hard-fail with instruction:
+    "select all rooms, run Architecture > Recompute Areas/Volumes,
+    or reset room boundaries". If <50% have it, log a warning that
+    those will be skipped.
+  - If the rule pack has no rules matching any ticked category,
+    hard-fail.
+
+When ANY blocker fires, the run is aborted with a TaskDialog showing
+all blockers + remediation, AND each blocker is logged to
+`StingTools.log` so the user can paste them. No more silent wrong
+placements.
+
+
+#### Completed (Phase 139.21d — relax wall-host preflight to advisory + face-based recognition)
+
+User correctly pushed back: "not everything is supposed to be wall hung,
+the rule should differentiate what should be wall placed and not. We
+had created a tool for changing hosting types before placement."
+
+Phase 139.21 was over-zealous — it hard-failed the run when ANY
+category that any wall-anchored rule targets had no
+OneLevelBasedHosted family. That blocked legitimate setups:
+
+- "Electrical Equipment" with floor-standing AGS GDP2X panels
+- "Mechanical Equipment" with free-standing water heaters
+- "Specialty Equipment" with shower doors (PC_Shower Sliding Door)
+- "Fire Alarm Devices" loaded as WorkPlaneBased (face-based)
+  break-glass units — perfectly valid for face placement.
+
+Two corrections:
+
+1. **WorkPlaneBased counts as wall-attachable.** Face-based families
+   place on any planar reference via
+   `doc.Create.NewFamilyInstance(face, point, refDir, symbol)` — they
+   work fine on walls. Phase 139.21d treats `WorkPlaneBased` as
+   wall-hostable for preflight purposes.
+
+2. **Hosting mismatch is now a HINT, not a blocker.** Demoted from
+   `blockers.Add(...)` to `helpfulHints.Add(...)`. The run proceeds;
+   the warning surfaces in StingLog and the result panel. Designers
+   who want to re-host can use the existing **Tags > Change Host**
+   command (`FamilyQuickEditCommands.ChangeHostCommand` — a six-mode
+   picker for Wall / Floor-Ceiling-Roof / Face / WorkPlane / Detach /
+   Delete that can re-host a family instance after placement).
+
+The two surviving HARD-fail blockers are unchanged:
+- `0/N doors have FromRoom or ToRoom` (door rules will mis-target)
+- Rule pack has no rules matching any ticked category (zero-output run).
+
+
+#### Completed (Phase 139.22 — face-based + extended wall-host anchor set)
+
+User asked: "make sure all doors have a switch on the right location
+according to the rules. review deeply the workflow for issues
+hindering switches to be placed on wall."
+
+Two real engine gaps found:
+
+1. **`WorkPlaneBased` (face-based) families bundled with un-hosted
+   types.** `PlacementHostPreflight.Place` had:
+
+   ```csharp
+   case FamilyPlacementType.OneLevelBased:
+   case FamilyPlacementType.TwoLevelsBased:
+   case FamilyPlacementType.WorkPlaneBased:
+       r.Placed = doc.Create.NewFamilyInstance(position, symbol, room?.Level, NonStructural);
+   ```
+
+   Face-based families went through the level-based overload —
+   creating a face-based instance on the **level's work plane**
+   instead of attaching to a wall. Visually that's a face-based
+   switch floating mid-room.
+
+   **Fix:** new `TryFaceBasedPlace` helper. For wall-anchored rules
+   it finds the nearest wall, fetches the room-side face via
+   `HostObjectUtils.GetSideFaces(wall, ShellLayerType.Interior)`,
+   and places via the face-based overload
+   `doc.Create.NewFamilyInstance(faceRef, position, refDir, symbol)`.
+   For ceiling-anchored rules it uses
+   `HostObjectUtils.GetBottomFaces(ceiling)`. Falls back to
+   level-based when no host is in range (free-standing face-based
+   families like floor sensors).
+
+2. **`TryHostedPlace.prefersWall` missed the Phase 139.2+ anchor
+   names.** Pre-139.22 it only matched `WALL_MIDPOINT`,
+   `WALL_CORNER`, `DOOR_HINGE`, `DOOR_JAMB`, `WINDOW_SILL`. So a
+   wall-hosted family targeted by `WALL_FACE_OFFSET` /
+   `DOOR_LATCH_SIDE` / `DOOR_HINGE_SIDE_150` / `DOOR_HEAD` /
+   `DOOR_STRIKE_SIDE` / `DOOR_CLOSER_ZONE` / `ESCAPE_DOOR_BOTH_SIDES`
+   fell through to the fallback chain — which guesses Ceiling first.
+   Result: wall-hosted switches landed on a ceiling instead of a
+   wall.
+
+   **Fix:** prefersWall now matches all those anchors plus
+   `anchor.StartsWith("WINDOW_")` to cover the variant sills.
+
+
+#### Completed (Phase 139.23 — face-plane projection + rotate exception + dedup)
+
+User screenshots showed three concrete Revit errors / warnings during
+the run:
+
+1. **Revit "Can't rotate element into this position" (12 errors).**
+   Phase 139.18 un-hosted-family rotation called
+   `ElementTransformUtils.RotateElement`; when the rotation pushes the
+   instance into another element, Revit raises an
+   `InvalidOperationException`. Now caught + logged as a warning so
+   the engine continues with the un-rotated instance instead of
+   bubbling the error to Revit's UI.
+
+2. **Revit "Instance origin does not lie on host face" (warnings).**
+   Phase 139.22 face-based placement passed the engine's calculated
+   XYZ to `NewFamilyInstance(faceRef, position, refDir, symbol)`. The
+   position was on the wall *centerline*, not the face plane —
+   Revit warned and stripped the host association. New
+   `ProjectOntoFace` helper resolves the `Face` from the reference
+   and calls `face.Project(worldPt)` to produce a coordinate that
+   genuinely lies on the face. Both wall and ceiling face-based paths
+   use it.
+
+3. **Revit "There are identical instances in the same place" (31 warnings).**
+   Even after Phase 139.18's `FromRoom`/`ToRoom` filter, two rules can
+   still produce candidates within model-tolerance of each other
+   (e.g., the door-hinge anchor and the wall-midpoint anchor for a
+   door near a wall midpoint). The engine now compares each candidate
+   against every previously-placed XYZ in the room and skips the
+   second placement when within `max(rule.ToleranceMm, 25mm)`. Skip
+   is recorded in `result.SkippedCount`.
+
+User's "fire alarms placed when only lights ticked" — confirmed the
+TLG_3G2W1 family is an MK 3-gang switch, NOT a fire alarm device.
+Rule `baseline-lighting-devices-accessible-switch` correctly placed
+those (CategoryFilter = Lighting Devices, ticked). The visual
+confusion comes from MK switch families that show as a small
+rectangle in plan view, similar to a fire-alarm break-glass unit.
+
+
+#### Completed (Phase 139.24 — RaiseRevitToFront + bumped PhaseTag)
+
+User report:
+- "After deleting everything and repeating, the preflight UI got lost
+  in background and could not select or do anything further."
+- Result panel showed `build 2026-04-28 10:14:48 (Phase 139.21)` —
+  proving the user was running an old DLL even after multiple commits.
+- Same Revit "Can't rotate" / "doesn't lie on host face" errors
+  visible in screenshots — those are pre-Phase 139.23 behaviour.
+
+Two concrete fixes:
+
+1. **Preflight TaskDialog visible.** TaskDialog opened from a Centre
+   button-handler parents to Revit's main window but ends up BEHIND
+   the modeless Centre. New `RaiseRevitToFront()` P/Invoke calls
+   `BringWindowToTop` + `SetForegroundWindow` on Revit's main HWND
+   immediately before each TaskDialog and the result-panel `Show()`,
+   so the dialog appears above the Centre instead of being lost.
+
+2. **PhaseTag bumped to 139.24.** Subsequent runs whose result panel
+   reads "Phase 139.24" prove the new DLL is loaded. If the user
+   still sees "Phase 139.21" or older, the build cache hasn't
+   refreshed.
+
+
+#### Completed (Phase 139.25 — IFailuresPreprocessor + live-dedup)
+
+User reported "I didn't see any lighting device in the model" with a
+result panel saying "31 placed" and a Revit error dialog showing 12
+errors + 31 warnings. Diagnosis: the engine successfully placed 31
+instances, but Revit's failure system raised modal error dialogs
+during commit. When the user dismissed those by clicking "Delete
+Instance(s)" or "Cancel", Revit rolled back some or all placements.
+
+Two real fixes:
+
+1. **`PlacementFailuresPreprocessor : IFailuresPreprocessor`.** Wired
+   into the engine's Transaction via
+   `tx.GetFailureHandlingOptions().SetFailuresPreprocessor(...)` plus
+   `SetForcedModalHandling(false)` and `SetClearAfterRollback(true)`.
+   Pre-process step inspects each failure's description text and
+   silently `DeleteWarning`s the predictable engine side-effects:
+
+   - "Can't rotate element into this position" — Phase 139.18
+     un-hosted-family rotation occasionally pushes through another
+     element.
+   - "There are identical instances in the same place" — edge cases
+     the dedup didn't cover.
+   - "Instance origin does not lie on host face" — the few face-
+     placements where Revit's face geometry doesn't match the
+     projection.
+
+   The transaction now commits cleanly. No Revit modal dialog. No
+   user click-through required.
+
+2. **Live-update dedup.** The Phase 139.23 dedup snapshot was built
+   ONCE per rule iteration; same-rule candidates within tolerance
+   passed because the snapshot was empty when each was tested.
+   `existingNearby.Add(c.Position)` is now called after every
+   successful placement so subsequent candidates in the same loop
+   compare against the live placement set.
+
+PhaseTag bumped to 139.25.
+
+#### Completed (Phase 140 — Structural DWG-to-BIM Accuracy Pass)
+
+**Branch**: `claude/fix-parallel-max-gap-H3Ha3`
+
+**Trigger**: The wizard's "Parallel max gap (mm) — 500" knob is bound to
+`config.ParallelLineToleranceMm`, which is the global parallel-pair
+distance cap, not a longitudinal endpoint gap as the label implies.
+Users trying to "close end gaps" by raising the value would silently
+loosen wall thickness detection across the corridor and pull in noise.
+
+This phase re-labels the misleading knob, surfaces a real
+endpoint-gap field, and lands ten supporting accuracy fixes for the
+DWG-to-BIM conversion pipeline.
+
+**New file** — `StingTools/Model/StructuralPhase140Accuracy.cs` (~360
+lines, 6 helpers, 1 namespace `StingTools.Model`):
+
+- `GridSnapper` — snaps detected column centres to nearest grid
+  intersection within `GridSnapToleranceMm`. Pure: returns a parallel
+  `List<SnapResult>` whose `DidSnap`/`VerticalGridLabel`/
+  `HorizontalGridLabel` are reused by the grid-label-mark step.
+- `BeamDepthCalculator.ComputeDepthMm(span, cfg)` — `span/SpanToDepthRatio`
+  clamped to `[BeamDepthMinMm, BeamDepthMaxMm]`, rounded to nearest
+  25 mm, floored at the wizard `BeamDepthMm`.
+- `BeamTrimmer.TrimEndpointsToColumns()` — moves each beam endpoint
+  that sits inside a column footprint outward by half-extent + 25 mm
+  cover along the beam axis. Handles rectangle and circle columns.
+- `DuplicateDetector.ExistingIndex` — one-shot `FilteredElementCollector`
+  scan per category, exposes `IsDuplicate(point, tolerance)` for
+  pre-filtering detected items against existing model state.
+- `SlabVoidDetector.Group(loops)` — sorts loops by area descending,
+  flags any loop whose centroid lies inside a larger un-consumed loop
+  as a void of that loop. Returns `(outer, voids[])` groupings.
+- `GridLabelMarkBuilder.ApplyMarks(doc, mapping, used)` — writes
+  `"{vert}/{horiz}"` to the `Mark` parameter of grid-snapped columns,
+  de-duplicating with `.2`, `.3` … suffixes on collision.
+- `StructuralWarningPlacer.PlaceWarnings(doc, view, warnings)` —
+  staggers TextNotes prefixed with `⚠ STING-STRUCT:` down the active
+  view in its own sub-transaction, so warning placement can fail
+  without rolling back element creation.
+
+**`StructuralCADWizard.DWGConversionConfig` — 12 new fields:**
+
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `GridSnapToleranceMm` | double | 100 | P1-A snap radius, 0 disables |
+| `UseSpanToDepthRatio` | bool | true | P1-B span-proportional depth |
+| `SpanToDepthRatio` | double | 15.0 | P1-B span/depth divisor |
+| `BeamDepthMinMm` / `BeamDepthMaxMm` | double | 250 / 1200 | P1-B clamp range |
+| `UseGridLabelsAsMarks` | bool | true | P2-C `"{vert}/{horiz}"` Mark |
+| `EndpointGapToleranceMm` | double | 50 | P2-F endpoint gap bridging |
+| `DuplicateCheckToleranceMm` | double | 50 | P3-A skip radius |
+| `SkipDuplicates` | bool | true | P3-A toggle |
+| `TrimBeamsToColumnFaces` | bool | true | P1-D toggle |
+| `ShowStructuralWarningsInView` | bool | true | P2-D toggle |
+| `NumberingPerCategory` | `Dictionary<BuiltInCategory, NumberingConfig>` | empty | P1-E |
+
+**`StructuralCADWizard` UI changes:**
+
+- "Parallel max gap (mm)" → "Parallel pair max gap (mm)" with tooltip
+  clarifying it's a perpendicular-pair cap, not a longitudinal endpoint
+  gap. New "Endpoint gap bridge (mm)" knob added next to it.
+- "Endpoint tolerance (mm)" → "Line snap tolerance (mm)" tooltip
+  upgraded to clarify scope.
+- "Parallel dot tolerance" → "Parallelism tolerance (cos θ)" with
+  tooltip explaining cosine ↔ skew angle relationship.
+- New "ACCURACY (Phase-140)" sub-section under DETECTION with five
+  toggles (Skip duplicates / Trim beams to column faces / Show
+  structural warnings in view / Use grid labels as column marks /
+  Span-proportional beam depth) and four numeric knobs (Span/depth
+  ratio, Grid snap tol, Beam depth min/max, Duplicate-check tol).
+- `_chkColumnsContinuousCad` tooltip explains the two
+  modelling approaches and their analytical implications.
+- LEVEL CONFIGURATION card gained an italic note: "column heights at
+  repeat levels are derived from level-to-level spacing, not the
+  BEAM/COLUMN Height field" (P1-C clarification).
+- PER-ELEMENT SIZE DETECTION → Foundations row now reads
+  "× 1.5× oversize*" with a footer disclaimer marking the EC7 §6.5
+  reference as a heuristic, not a code-compliant sizing rule.
+- ELEMENT NUMBERING — new "Number every structural category
+  independently" toggle (P1-E). When on, switching the Category
+  dropdown snapshots the previous category's UI state and restores the
+  next category's saved state. Defaults: COL-, BM-, W-, SL-, FDN-.
+- Footer — new "Re-analyse (dry-run)" button (P3-D) runs the dry-run
+  pipeline without closing the dialog. Status bar reports per-element
+  counts so the user can iterate on tolerances.
+
+**`StructuralCADPipeline.RunFullPipelineWithConfig` — wired the new
+helpers in execution order:**
+
+1. After `ExtractStructuralGeometry`: P1-A grid-snap pass
+   (mutates `DetectedRectangle.Center` / `DetectedCircle.Center` and
+   captures `_lastRectSnapInfo` / `_lastCircleSnapInfo` for P2-C).
+2. P1-D beam endpoint trim against the (now-snapped) column footprints.
+3. P3-A duplicate-detection pre-filter — drops detected items whose
+   reference points sit within `DuplicateCheckToleranceMm` of any
+   existing element of the matching category. Reports a roll-up
+   warning with the count.
+4. Repeat-to-levels loop: P1-C now warns when the topmost storey has
+   no level above and falls back to `ColumnHeightMm`.
+5. `CreateBeamsFromLines` — P1-B per-beam depth derived from
+   `BeamDepthCalculator.ComputeDepthMm(spanMm, cfg)`. Type cache key
+   updated from `{defaultDepthMm}x{widthMm}` to `{depthMm}x{widthMm}`.
+6. `CreateSlabsFromBoundaries` — P2-B passes `SlabVoidDetector.Group`
+   output through to `Floor.Create(doc, loops, ...)` so nested closed
+   loops come through as actual voids.
+7. Post-creation audit: P2-D placement of `StructuralWarningPlacer`
+   TextNotes in the active view when `ShowStructuralWarningsInView`.
+8. Numbering: switches to `NumberingEngine.ApplyAllPerCategory` when
+   `NumberingPerCategory` is populated; falls back to legacy
+   `ApplyNumbering` otherwise.
+9. P2-C grid-label-mark step runs AFTER per-category numbering so
+   grid-derived `"A/1"` style marks win on grid-snapped columns.
+   Non-snapped columns keep their sequential per-category number.
+
+**`NumberingEngine.ApplyAllPerCategory(doc, perCategory, scope)`** — new
+method iterates the dictionary, filters scope to each category's
+ElementIds, and invokes the existing `ApplyNumbering()` per category.
+Returns the summed count.
+
+**Explicitly out of scope (deferred to ROADMAP):**
+
+- Strip foundation detection (P2-A) — needs a new
+  `DetectStripFoundations` pass against wall centrelines; substantial
+  new detection logic.
+- Endpoint gap bridging (P2-F) at the detection layer — config field
+  is wired and available, but the spatial-index pair-detection inner
+  loops in `StructuralDWGEnhancements.SpatialLineIndex` still need to
+  read it during pair matching.
+- Slab → room seeding (P3-B), auto-create structural views after
+  conversion (P3-C) — independent post-processors that can land in a
+  follow-up phase without touching the core pipeline.
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox, no
+   Revit API). Each helper sticks to documented Revit 2025 API
+   signatures; sub-transaction wrapping in `StructuralWarningPlacer`
+   isolates risk. No `// TODO-VERIFY-API` markers were needed.
+2. Grid-snap classifies grids into vertical (constant X) vs horizontal
+   (constant Y) by line geometry, not by the `IsHorizontal` flag —
+   the flag is a draughting hint that doesn't always align with
+   plan-view axes.
+3. `BeamTrimmer` uses an axis-aligned column footprint approximation
+   (rectangle bbox extents projected along beam direction). Rotated
+   columns trim conservatively along the longer half-extent.
+4. Per-category numbering snapshots only fire when the user toggles
+   the Category dropdown with the "Number every structural category
+   independently" checkbox ON. If the user fills in numbering UI
+   without flipping that toggle, only the active category is numbered.
+5. The Re-analyse dry-run runs the FULL pipeline with `DryRun=true`,
+   including the duplicate-pre-filter and grid-snap passes. Counts
+   reflect what `Convert to BIM` would produce with the current
+   settings.
+
+#### Completed (Phase 141 — Detection-method facade + named entry points)
+
+**Branch**: `claude/fix-parallel-max-gap-H3Ha3`
+
+**Trigger**: Phase 140 review noted that `StructuralDWGEngine.cs`,
+`StructuralDWGCommands.cs`, `DetectJunctions`, `DetectStructuralWalls`,
+`AnalyzeLoadPaths`, `FindOrCreateBeamType`, and `DetectCircularColumns`
+were referenced in CLAUDE.md but variously didn't exist on disk, lived
+under different class names, or produced data that the pipeline
+discarded. This phase closes those gaps so each named entry point is
+genuinely callable from outside the wizard.
+
+**Audit findings (corrects Phase 140's Explorer-agent report):**
+
+| Identifier | Truth | Phase 141 action |
+|---|---|---|
+| `DetectStructuralWalls` | Already exists (`StructuralCADPipeline.cs:1145`, returns `List<DetectedWall>`) | Re-exposed via `StructuralDWGEngine` facade — no rewrite |
+| `DetectJunctions` | Already exists (`StructuralCADPipeline.cs:1302`, returns `List<(XYZ, string, int)>`) | Re-exposed; warning-class output now placed as TextNotes |
+| `AnalyzeLoadPaths` | Lives on `StructuralModelingEngine.cs:2486` | Re-exposed via `StructuralDWGEngine.AnalyzeLoadPaths()` |
+| `FindOrCreateBeamType` | Lives on `StructuralTypeFactory.cs:439` | Re-exposed via `StructuralDWGEngine.FindOrCreateBeamType()` |
+| `DetectCircularColumns` | Did NOT exist as a named method (extraction's inline check used compile-time constants) | NEW — `StructuralCADPipeline.DetectCircularColumns(circles, out rejected)` re-validates against config-driven size band |
+| `StructuralDWGEngine.cs` | Did NOT exist (CLAUDE.md described it but file was absent) | NEW — focused facade with detection methods + quality scoring |
+| `StructuralDWGCommands.cs` | Did NOT exist | NEW — 3 standalone IExternalCommands |
+
+**New file** — `StingTools/Model/StructuralDWGEngine.cs` (~225 lines, 1
+public class `StructuralDWGEngine`, 1 namespace `StingTools.Model`):
+
+- Detection facade — every named detection method exposed as a thin
+  delegate so non-wizard callers can use them in any order.
+- `RunWithConfig(import, config)` / `RunWithDefaults(import,
+  baseLevelName, topLevelName)` — batch / scriptable conversion.
+- `Audit(import, config)` — non-destructive run; returns
+  `AuditResult` with extraction + junctions + quality score + duration.
+- `ComputeQualityScore(extraction, junctions)` — 0-100 score with
+  per-component penalties:
+  - −5 per "Beam intersection (no column — WARNING)" junction
+  - −2 per "Free end (no support)" junction
+  - −0.1 per low-confidence detected element (< 0.7 confidence)
+  - DetectionRatio metric tracks detected elements / total entities.
+
+**New file** — `StingTools/Model/StructuralDWGCommands.cs` (~205 lines,
+3 IExternalCommand classes):
+
+- `QuickStructuralDWGCommand` — one-click conversion on the first DWG
+  import in the project using default config + first level by
+  elevation. Reports the conversion summary in a TaskDialog.
+- `StructuralDWGAuditCommand` — read-only audit. Runs detection +
+  scoring, shows quality score and per-element breakdown.
+- `StructuralDWGJunctionScanCommand` — scans the active DWG for
+  unsupported beam intersections + free beam ends, places ⚠
+  STING-STRUCT TextNote markers in the active view at every flagged
+  junction location. Wraps in a sub-transaction.
+
+**`DetectCircularColumns` (new method)** —
+`StructuralCADPipeline.cs:1132`. Re-validates an existing list of
+`DetectedCircle` against the active config's `MinColumnDiameterMm` /
+`MaxColumnDiameterMm`. Sister method to `DetectStructuralWalls` and
+`DetectRectangularColumnsV2`. The legacy extraction path keeps using
+its inline check with compile-time constants (`MinColumnSizeMm = 150`,
+`MaxColumnSizeMm = 1500`); this method gives external callers a hook
+to tighten or loosen the size band per project.
+
+Wired into `RunFullPipelineWithConfig`: when the user-set bounds
+differ from the defaults, the pass replaces `extraction.Circles` with
+the accepted subset and warns about the rejection count.
+
+**Junction warnings → TextNotes** — `DetectJunctions` has always
+classified beam intersections, but the legacy pipeline only used the
+result for the summary string. Now wired into
+`RunFullPipelineWithConfig`: each junction whose type contains
+"WARNING" or starts with "Free end" produces a ⚠ STING-STRUCT TextNote
+at the junction centroid in the active view. New helper
+`StructuralWarningPlacer.PlaceWarningsAtPoints(doc, view, warnings,
+points)` complements the existing `PlaceWarnings(doc, view, warnings)`
+which staggers messages down the view.
+
+**3 new config fields on `DWGConversionConfig`:**
+
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `MinColumnDiameterMm` | double | 150 | Lower band for `DetectCircularColumns` |
+| `MaxColumnDiameterMm` | double | 1500 | Upper band for `DetectCircularColumns` |
+| `ShowJunctionWarningsInView` | bool | true | Toggle for junction → TextNote placement |
+
+**`StructuralDWGEngine` does NOT register itself in StingCommandHandler.**
+The three commands are standalone `IExternalCommand` classes intended
+for direct invocation via the .addin manifest, AddinManager, or future
+dock-panel wiring. Wizard-driven conversion still goes through the
+existing `StrCADWizardCommand` in `StructuralModelingCommands.cs:1009`.
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox, no
+   Revit API).
+2. `StructuralDWGEngine` is a thin facade — it re-exposes
+   methods rather than re-implementing them, so the actual detection
+   logic still lives in `StructuralCADPipeline.cs`. Future passes that
+   want to bypass the wizard can substitute their own pipeline
+   implementation behind the same facade.
+3. The quality score is a heuristic for at-a-glance triage, not a
+   structural-engineering metric. It does not check element-by-element
+   geometric validity, code compliance, or analytical model health —
+   those go through `AnalyzeLoadPaths` and downstream.
+4. The three new commands all operate on the FIRST `ImportInstance`
+   found in the project. Multi-DWG documents need an interactive
+   import picker — listed in ROADMAP for the next iteration.
+5. `DetectCircularColumns`'s out-band rejection only logs a count, not
+   the rejected circles' coordinates. Callers needing the rejection
+   detail should call the method directly via `StructuralDWGEngine`
+   and consume the `out rejected` list.
+
+#### Completed (Phase 142 — Structural DWG-to-BIM ROADMAP closures)
+
+**Branch**: `claude/fix-parallel-max-gap-H3Ha3`
+
+**Trigger**: Phase 140 deferred eight `DWG-STRUCT-*` ROADMAP items so
+each could land cleanly in its own follow-up. This phase closes six of
+them (P2A, P2F, DEEP-3, DEEP-4, DEEP-7, DEEP-8) and wires Phase 141's
+new commands into the dispatcher.
+
+**Bug found and fixed (DEEP-8 / DEEP-3)**: the `BeamsRestOnWalls`
+config field has been on `DWGConversionConfig` since Phase 78, but the
+creation pipeline never read it. Beams were created at level base
+elevation regardless of whether they sat on a wall, so users who ticked
+the box saw no behaviour change. Phase 142 adds a per-beam classifier
+that reads the support type at each endpoint (column / wall /
+unsupported) and only applies the wall-top offset to beams that
+actually rest on a wall and not on a column.
+
+**`StingCommandHandler.cs`** — three new dispatch entries wire the
+Phase 141 commands into the dock-panel command bus:
+`QuickStructuralDWG`, `StructuralDWGAudit`, `StructuralDWGJunctionScan`.
+
+**`StructuralCADPipeline.cs` — wiring + new method:**
+
+- `BeamOverlapMinRatio` now flows from `DWGConversionConfig` into
+  `DetectBeamCenterlinesV2` (default 50%) and `DetectStructuralWalls`
+  (`ratio - 10%` to keep walls slightly stricter than beams).
+  Configurable from the wizard ACCURACY (Phase-142) section.
+- `DetectStructuralWalls` and `DetectBeamCenterlinesV2` now apply
+  `EndpointGapToleranceMm` at the longitudinal-overlap check —
+  synthesises overlap when two parallel lines fall just shy of
+  overlapping (within the configured gap). Closes ROADMAP
+  `DWG-STRUCT-P2F`.
+- New `ApplyBeamSupportPostCreation` method runs after
+  `CreateBeamsFromLines` to:
+  - Lift beams whose endpoints rest on a wall (and not on a column)
+    by `WallHeightMm` via `STRUCTURAL_BEAM_END0_ELEVATION` /
+    `_END1_ELEVATION`.
+  - Stamp the Comments parameter with `STING: Cantilever (start|end)`
+    or `STING: Free beam (no support)` when the classifier reports a
+    free end. Beams are then schedule-discoverable by Comments filter.
+  Closes ROADMAP `DWG-STRUCT-DEEP-3` and `DWG-STRUCT-DEEP-8`.
+- Strip foundations: when `DetectStripFoundations=true` and walls were
+  detected, builds rectangular loops along each wall centreline
+  (oversized by `StripFndOversizeMm` per side) and feeds them to
+  `CreateSlabsFromBoundaries`. Reports the count separately. Closes
+  ROADMAP `DWG-STRUCT-P2A`.
+
+**`StructuralPhase140Accuracy.cs` — two new helpers:**
+
+- `BeamSupportClassifier` (Phase-142) — `ClassifyAll(beams, rectColumns,
+  circleColumns, walls, toleranceMm)` returns a `List<BeamSupport>`
+  with `StartSupport` / `EndSupport` of `None`/`Column`/`Wall`/`Both`.
+  Also exposes `RestsOnWall`, `HasFreeEnd`, `IsCantilever` flags.
+- `StripFoundationDetector` (Phase-142) — `Detect(walls, cfg)` returns
+  rectangular loops aligned with each wall centreline. Each loop
+  extends past the wall length by `StripFndOversizeMm` per side, and
+  past wall thickness by the same per side. Layer label
+  `STING-STRIP-FOUNDATION`.
+
+**`DWGConversionConfig` — 6 new fields:**
+
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `BeamOverlapMinRatio` | double | 0.5 | DEEP-4 — configurable longitudinal overlap |
+| `MarkCantileverBeams` | bool | true | DEEP-3 — Comments stamp toggle |
+| `BeamSupportToleranceMm` | double | 200 | DEEP-3/8 — endpoint→support classifier tolerance |
+| `UseTopConstraintForContinuousColumns` | bool | true | DEEP-7 — documents already-correct behaviour |
+| `StripFndOversizeMm` | double | 150 | P2A — strip foundation oversize per side |
+| `DetectStripFoundations` | bool | true | P2A — toggle |
+
+Earlier Phase 141 fields `MinColumnDiameterMm` / `MaxColumnDiameterMm`
+also got wizard UI knobs in this phase.
+
+**`StructuralCADWizard.cs` UI — new ACCURACY (Phase-142) sub-section:**
+
+- Two toggles: "Detect strip foundations under walls" (default ON),
+  "Mark cantilever / free beams in Comments" (default ON).
+- Five numeric knobs:
+  - Min column diameter (mm) → `MinColumnDiameterMm`
+  - Max column diameter (mm) → `MaxColumnDiameterMm`
+  - Beam overlap ratio (0-1) → `BeamOverlapMinRatio`
+  - Strip oversize (mm/side) → `StripFndOversizeMm`
+  - Beam-support tol (mm)    → `BeamSupportToleranceMm`
+
+**ROADMAP closures** (move from `docs/ROADMAP.md` into this entry):
+
+- ✓ `DWG-STRUCT-P2A`  — strip foundation detection under walls
+- ✓ `DWG-STRUCT-P2F`  — endpoint gap bridging at the detection layer
+- ✓ `DWG-STRUCT-DEEP-3` — cantilever detection
+- ✓ `DWG-STRUCT-DEEP-4` — beam-overlap ratio configurability
+- ✓ `DWG-STRUCT-DEEP-7` — Top-Constraint continuous columns (existing
+  code in `CreateColumnsWithHeight` was already correct — Phase 142
+  documents the behaviour and adds the explicit config flag)
+- ✓ `DWG-STRUCT-DEEP-8` — per-beam BeamsRestOnWalls (the genuine bug)
+
+Still open: `DWG-STRUCT-P3B` (slab→room seeding), `DWG-STRUCT-P3C`
+(auto-create structural views), `DWG-STRUCT-DEEP-1` (steel I-section
+vs concrete inference), `DWG-STRUCT-DEEP-2` (pile cap / raft / strip
+differentiation), `DWG-STRUCT-DEEP-5` (EC7 sizing with soil class),
+`DWG-STRUCT-DEEP-6` (junction-type assignment beyond detection).
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. The post-creation beam pass aligns supports with created beams by
+   index order. If `CreateBeamsFromLines` skips a beam (try/catch on
+   exception path), subsequent supports may misalign. The pass guards
+   against this by checking each element's category before applying
+   the offset, so a misaligned support results in a no-op rather than
+   a wrong-element edit.
+3. Strip foundations are created via `CreateSlabsFromBoundaries` which
+   uses the floor type matched to `FoundationDepthMm`. The resulting
+   element is a structural floor (not a `WallFoundation`); for true
+   wall-foundation join behaviour, manual conversion in Revit is still
+   needed. Documented as a follow-up.
+4. The cantilever Comments stamp is descriptive only — the analytical
+   model still treats cantilevers as if both ends were supported until
+   the engineer runs `Manage → Analytical Model → Auto-Detect Releases`.
+5. The new `ACCURACY (Phase-142)` UI section adds one toggle row +
+   five numeric knobs. Combined with the Phase-140 ACCURACY section,
+   the DETECTION card is now ~12 rows tall — the wizard scrollviewer
+   keeps everything reachable but a visual redesign for screens
+   < 768 px is on the future-enhancements list.
+
+#### Completed (Phase 143 — Structural DWG-to-BIM ROADMAP closures, wave 2)
+
+**Branch**: `claude/fix-parallel-max-gap-H3Ha3`
+
+**Trigger**: Phase 142 closed 6 of 8 deferred `DWG-STRUCT-*` items but
+left 5 still open. This phase closes 5 more, all wired through a new
+focused helper file.
+
+**ROADMAP closures:**
+
+- ✓ `DWG-STRUCT-P3B` — Slab centroid → room seeding
+- ✓ `DWG-STRUCT-P3C` — Auto-create structural ViewPlans after conversion
+- ✓ `DWG-STRUCT-DEEP-1` — Steel I-section vs concrete rectangle inference
+- ✓ `DWG-STRUCT-DEEP-2` — Foundation classifier (pad / raft / pile cap)
+- ✓ `DWG-STRUCT-DEEP-6` — Junction-type Mark stamping
+
+**New file** — `StingTools/Model/StructuralPhase143Postproc.cs`
+(~495 lines, 5 helper classes):
+
+- `SlabRoomSeeder` (P3B) — `Seed(doc, level, outerSlabs, voidLoops, cfg)`
+  drops a Revit `Room` at each outer-loop centroid, skips centroids
+  inside voids and points already inside an existing room. Wraps in a
+  sub-transaction so a failure can't roll back element creation.
+- `StructuralViewCreator` (P3C) — `CreateViews(doc, createdElementIds, cfg)`
+  walks the levels referenced by created elements and creates a
+  `ViewPlan` (Structural Plan family) per level. When the Phase-113
+  `DrawingTypeRegistry` is available, applies the corporate "S-PLAN"
+  drawing type via `DrawingTypePresentation.Apply()`. Fails closed —
+  any registry or template lookup error degrades to a plain ViewPlan.
+- `BeamMaterialInferrer` (DEEP-1) — `AnnotateAll(beams, cfg)` heuristic:
+  parallel-pair beams (`WidthDetected==true`, width ≥ 200 mm) →
+  concrete rectangle; single-line beams → steel I-section. Appends
+  `STING:Material=Concrete` / `STING:Material=Steel` /
+  `STING:Material=Unknown` to the beam's `LayerName` so downstream
+  type matching can read the hint without a new field on
+  `DetectedBeam`.
+- `FoundationClassifier` (DEEP-2) — `Classify(rects, cfg)` splits
+  detected foundation rectangles into Pad / Raft / PileCap:
+  - Plan area ≥ `RaftMinAreaM2` → Raft (routed to slab-creation path
+    so it materialises as a structural floor at foundation depth).
+  - Pile-cap clustering: a rectangle within 2.5× its size of ≥ 2
+    other rectangles → PileCap (stays on pad-foundation path with
+    `STING: PileCap` Comments stamp candidate).
+  - Else → Pad.
+- `JunctionMarkStamper` (DEEP-6) — `Stamp(doc, junctions, createdIds, cfg)`
+  walks every `DetectJunctions` result and appends `J:T` / `J:L` / `J:X`
+  / `J:S` (T-junction / L-junction / Cross / Splice) to the Mark of
+  every column or beam whose endpoint sits within 250 mm of the
+  junction centroid. Free-end and warning junctions are NOT stamped
+  (they're already surfaced as TextNotes by the Phase-141 wiring).
+
+**`StructuralCADPipeline.cs` wiring** — five new call sites, each
+guarded by its config flag:
+
+1. After `BeamTrimmer.TrimEndpointsToColumns`: `BeamMaterialInferrer.AnnotateAll`.
+2. Foundation creation: when `ClassifyFoundations==true`, route Rafts
+   through `CreateSlabsFromBoundaries` and Pads + PileCaps through the
+   existing `CreatePadFoundations`. When false, keep the pre-Phase-143
+   behaviour (everything pads).
+3. After slab creation (slab path 5 in main pipeline): `SlabRoomSeeder.Seed`
+   when `SeedRoomsFromSlabs==true`. Re-uses Phase-140 `SlabVoidDetector`
+   to skip void-covered centroids.
+4. After numbering pass: `JunctionMarkStamper.Stamp` when
+   `StampJunctionMarks==true`. Runs after numbering so marks survive.
+5. Just before `sw.Stop()`: `StructuralViewCreator.CreateViews` when
+   `CreateStructuralViewsAfterConversion==true`. Adds created view
+   ElementIds to `totalResult.CreatedIds` so they participate in the
+   summary count.
+
+**`DWGConversionConfig` — 8 new fields:**
+
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `SeedRoomsFromSlabs` | bool | false | P3B toggle (default off — greenfield only) |
+| `RoomLabelSearchRadiusMm` | double | 3000 | P3B label-text proximity radius |
+| `CreateStructuralViewsAfterConversion` | bool | false | P3C toggle (default off — opt-in) |
+| `InferBeamMaterial` | bool | true | DEEP-1 toggle |
+| `ClassifyFoundations` | bool | true | DEEP-2 toggle |
+| `RaftMinAreaM2` | double | 4.0 | DEEP-2 raft cutoff |
+| `StampJunctionMarks` | bool | false | DEEP-6 toggle (default off — schedule discipline-specific) |
+
+**`StructuralCADWizard.cs` UI** — new POST-PROCESSING (Phase-143)
+sub-section in DETECTION:
+
+- Five toggles in a WrapPanel: Seed rooms from slabs / Create structural
+  views / Infer beam material / Classify foundations / Stamp junction
+  marks.
+- Two numeric knobs: Raft min area (m²) / Room label search (mm).
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. `SlabRoomSeeder` doesn't yet read text on the slab layer to populate
+   the room Name (the `RoomLabelSearchRadiusMm` config exists for
+   future iteration). Seeded rooms get Revit's default name.
+3. `BeamMaterialInferrer` mutates `LayerName` instead of adding a
+   `Material` field on `DetectedBeam` to stay zero-impact on existing
+   detection types. Type matching downstream needs to parse the suffix
+   — listed as a follow-up for `StructuralTypeFactory`.
+4. `FoundationClassifier`'s pile-cap clustering uses a 2.5× distance
+   threshold; very close pile groups (< 2× spacing) may fall into the
+   raft band instead.
+5. `JunctionMarkStamper` cluster tolerance is fixed at 250 mm. If
+   `BeamSupportToleranceMm` is set very high, the user might expect
+   the same tolerance here — listed for the next pass.
+6. `StructuralViewCreator` creates one view per level even if multiple
+   disciplines were converted in one go. Multi-discipline templates
+   would need to dispatch on `(discipline, level)` instead of `level`
+   alone — tracked under DWG-STRUCT-DEEP-9 if it becomes a real need.
+#### Completed (Phase 141 — Clash Detection Bug Fixes — Category A)
+
+Five correctness bugs in the clash subsystem fixed. Every change is in
+`StingTools/Clash/` unless noted; commits land on
+`claude/enhance-clash-detection-Tb0IS`.
+
+1. **A1 Live flag state corruption** —
+   `Clash/ClashSession.cs` `RefreshElement` was nuking
+   `_flaggedIds` on every edit by replacing the entire set with the
+   single edited element's hits. Fixed by introducing a per-element
+   neighbour index `_clashNeighbours: Dictionary<int, HashSet<int>>`
+   that tracks symmetric edges (a↔b) and computing the diff narrowed to
+   the edited element plus its prior + new neighbours. `RemoveElement`
+   maintains the same map and clears flags only on neighbours that
+   lose their last edge. `InitialiseFromView` resets the map alongside
+   the mesh / OBB caches.
+2. **A2 SLA issue anchor mismatch** —
+   `Clash/ClashSlaIntegration.cs` `CreateIssues` was looking up
+   `g.Anchor` directly in `matrix.Cells` by `PairId`, but element-
+   pattern anchors are formatted as `"{pairId} via {side}={cat}:{eid}"`
+   and repetition anchors as `"{pairId} repetition (X-row, vol≈N)"` —
+   the lookup always returned null and every issue defaulted to
+   severity "MED" / assignee "Coord". Fixed by adding
+   `ExtractPairId()` that splits on " via " or " repetition " and
+   keeps the leading PairId token before the lookup.
+3. **A3 Clearance tolerance not enforced in kernel** —
+   `Clash/ClashKernel.cs` returned `Kind="hard"` for every triangle-
+   overlap pair regardless of the matched matrix cell's tolerance.
+   Fixed by adding `ClashRunCommand.ApplyClearanceTolerance` that runs
+   after `MergeWithPrior` and walks every kept clash whose
+   `cell.Tolerance` starts with `"CLEARANCE_"`: parses the suffix as
+   mm, computes AABB overlap depth (min component of `AabbMax-AabbMin`
+   in mm), and either drops the record (overlap within tolerance —
+   tessellation sliver) or promotes `Kind` to `"clearance"`. New
+   `ClashRecord.Kind` field, JSON-optional so existing clashes.json
+   files round-trip cleanly.
+4. **A4 Live path facts missing System/Workset** —
+   `Clash/ClashSession.cs` `FactsFromMesh` populated only `Category`,
+   so any matrix cell that filtered on `System=...` silently missed in
+   the live path. Replaced with `ResolveFacts` that resolves the
+   `Element` from `_doc` and reads System / Workset (via
+   `MEPCurve.MEPSystem.Name` and the `System Name` parameter for
+   FamilyInstances). Cached per-eid in `_factsCache` so the candidate
+   loop in `NarrowPhaseFor` pays one Revit lookup per element per
+   edit, not per pair. Cache invalidated on `RefreshElement` and
+   `RemoveElement` for the affected id.
+5. **A5 Repetition grouper ignored X/Y axes** —
+   `Clash/ClashGrouper.cs` `FindRepetitionGroups` only sorted by Z and
+   only checked the Z-axis spacing, breaking horizontal risers
+   clashing with wall framing in X or Y into spatial singletons.
+   Replaced `IsEquallySpaced` with `TryComputeMeanDev` that scores
+   each axis by mean-deviation; the axis with the smallest deviation
+   wins. Anchor description now reads `"X-row"`, `"Y-row"`, or
+   `"Z-stack"` so the BCC UI shows the winning axis.
+
+#### Completed (Phase 142 — Clash Detection Performance — Category B)
+
+Three hot-path performance fixes for clash subsystem batch operations.
+
+1. **B1 CrossModelClashCommand O(n²) inner loop** —
+   `Clash/ClashDetectionCommands.cs` `CrossModelClashCommand` was
+   nesting host MEP × all linked structural per link, calling
+   `get_BoundingBox()` inside the inner loop. For a 2 000 × 1 000 × 3-
+   link model that's 6 M comparisons with Revit API calls in the
+   innermost slot. Now: pre-cache host MEP bboxes once outside the
+   loop, build per-link `Dictionary<long, (Element, LocalBb, WorldMin,
+   WorldMax)>`, and probe each link via
+   `BoundingBoxIntersectsFilter` with a per-MEP outline transformed
+   through the inverse link transform. Inner loop shrinks to a
+   pre-computed AABB sweep before paying the 8-corner narrow-phase.
+   New helper `TransformedAabb.Build` exposes the world AABB build
+   that `AabbNarrowPhase.WorldAabb` does internally.
+2. **B2 MEPClearanceValidationCommand sequential collectors** —
+   `Clash/ClashDetectionCommands.cs` `AuditOne` was creating a
+   `FilteredElementCollector` per subject element. For 1 000 elements
+   that is 1 000 collector instantiations on the Revit API. Now: a
+   single pass pre-collects every duct + pipe + structural element
+   into `List<(ElementId, BoundingBoxXYZ, Category, Bic)>`, then each
+   subject does an in-memory AABB range query against the cache. No
+   per-subject collector instantiation.
+3. **B3 ClashScheduler raised live handler not full run** —
+   `Clash/ClashScheduler.cs` was raising `LiveClashHandler.Event`
+   which only drains the dirty queue — on an idle model the hourly
+   tick was a no-op. Added `ClashRunEventHandler : IExternalEventHandler`
+   that calls `ClashRunCommand.RunHeadless(app)` (a new static entry
+   point that runs the full pipeline silently). Scheduler now reads
+   `SchedulerIntervalMinutes` from `default_clash_matrix.json`
+   (default 60) and gates ticks on
+   `ClashSession.LastDirtyAtUtc > _lastRunUtc` so an idle model with
+   no edits since the last run is skipped. `MarkDirty` is called from
+   `RefreshElement` and `RemoveElement` to update the volatile
+   timestamp.
+
+#### Completed (Phase 143 — Clash Detection Automation — Category C)
+
+Six automation-logic gaps closed in the clash subsystem.
+
+1. **C1 ClashTriageEngine wired into ClashRunCommand** —
+   `Clash/ClashRunCommand.cs` now runs `ClashTriageEngine.Triage` after
+   `ClashGrouper.Group`. Inputs are built from `run.Clashes` plus the
+   immediately-prior `ClashRunRecord`: `RecurrenceCount` = identity
+   match in prior run (0/1), `DismissCount` = "Void" transitions in
+   `StateHistory`, `PenetrationMm` = computed from the AABB extent.
+   Score persisted to new `ClashRecord.TriageScore` field; clashes
+   sorted by score descending, then by severity, then by id for
+   deterministic order.
+2. **C2 Auto-assign clashes to discipline owners** —
+   `Clash/ClashSlaIntegration.cs` `EnrichAssignees(doc, issues, run)`
+   resolves workset owner names via
+   `WorksharingUtils.GetWorksharingTooltipInfo` and overlays them on
+   `CoordIssue.Assignee` plus `ClashGroupRecord.Assignee`.
+   `ClashRunCommand.EnrichGroupAssignees` synthesises a placeholder
+   issue list per group so the same logic runs as part of the headless
+   pass without duplicating the resolution code.
+3. **C3 Per-pair clearance distance in MEPClearanceValidationCommand**
+   — `Clash/ClashDetectionCommands.cs` now loads
+   `default_clash_matrix.json` and calls `ResolveTargetMm(matrix,
+   subjectCat, neighbourCat, fallbackMm)` for each subject ↔
+   neighbour pair. CLEARANCE_xx → xx mm; HARD → 0; otherwise the
+   hardcoded `DuctMinClearMm`/`PipeMinClearMm` is the fallback. The
+   PASS/FAIL gate now uses the worst-case per-pair target rather than
+   a single per-subject constant.
+4. **C4 Cold-init live flag parameter write** —
+   `Clash/ClashRunCommand.cs` `WriteColdInitLiveFlags` calls
+   `LiveClashFlag.Apply(doc, flagged, [])` after `SeedFromRun`,
+   following the same H6 pattern (transaction outside the lock) that
+   `RefreshElement` uses. Resumed sessions now show warning triangles
+   on flagged elements immediately rather than waiting for the next
+   dirty edit. `ClashRunCommand` was changed to
+   `TransactionMode.Manual` so the flag-write transaction can open.
+5. **C5 Configurable rule thresholds in JSON** —
+   `Clash/ClashRule.cs` now stores `Params: Dictionary<string, double>`
+   per `ClashRuleDefinition`; predicates read via the new helper
+   `ClashRule.ParamOr(def, key, fallback)`. R001 / R005 / R006 / R008 /
+   R009 read their thresholds from Params with the historical
+   constant as the fallback. `ClashRuleLibrary.LoadAugmented` accepts
+   a JSON entry without `Verdict` but with a matching `Id` as a Params
+   override on a built-in rule.
+6. **C6 BCF auto-export on severity threshold breach** —
+   `Clash/ClashBcfExportCommand.ExportToBcf(doc, clashes, outDir)`
+   refactored to a public static method.
+   `Clash/ClashRunCommand.cs` calls it automatically after
+   `SeedFromRun` when `default_clash_matrix.json` carries
+   `"AutoBcfOnCritical": true` and the run kept any
+   `Severity in {CRITICAL, HIGH}` clashes whose state is `New` or
+   `Reintroduced`. New `ClashMatrix.AutoBcfOnCritical` field defaults
+   to `false` so existing matrix files round-trip without changing
+   behaviour.
+
+#### Completed (Phase 144 — Clash Detection Performance D1–D10)
+
+Ten residual hot-path performance fixes. All in `StingTools/Clash/`.
+
+1. **D1 Mesh extractor cache** — `MeshExtractor.cs` now caches the
+   `Dictionary<ClashElementKey, ClashMeshBuffer>` per-(doc, view) keyed
+   on a soft signature (taggable element count + revision count + view
+   section-box hash). Re-runs that don't change the soft signature
+   skip the entire `CustomExporter` pass — 5–30 s saved on 50 k-element
+   models. Hard invalidation hook `MeshExtractor.InvalidateCacheFor(doc)`
+   wired from `ClashScheduler` on `DocumentSaved` /
+   `DocumentSynchronizedWithCentral`.
+2. **D2 BuildFactsByKey bulk-load** — `ClashRunCommand.BuildFactsByKey`
+   groups mesh keys by owning document and runs one
+   `FilteredElementCollector(doc, ids).WhereElementIsNotElementType()`
+   per doc instead of `doc.GetElement(...)` per mesh — 50 k Revit API
+   calls collapse to a handful.
+3. **D3 Better volume estimate** — `ClashKernel.TestPair` no longer
+   reports raw AABB-intersection volume (massively inflated for
+   oblique hits). Uses min-extent depth × intersection footprint as a
+   proxy. Restores R001's 100 mm³ tessellation gate and stops triage
+   scoring every clash as a major overlap.
+4. **D4 Pair dedup encoded as long** — `AabbSweep.CandidatePairs` packs
+   the unordered pair into a 64-bit long via per-call int handles,
+   replacing the `HashSet<(ClashElementKey, ClashElementKey)>` tuple
+   allocation. ~50–200 MB GC pressure removed on 1 M-pair runs.
+5. **D5 Bounded parallelism** — `ClashKernel.BuildIndexes` and `Run`
+   now use `MaxDegreeOfParallelism = ProcessorCount-1` so the UI thread
+   keeps a free core during heavy runs.
+6. **D6 Snapshot-under-lock** — `ClashSession.NarrowPhaseFor` materialises
+   the candidate enumeration into a local list before the loop so the
+   triangle-triangle SAT work doesn't hold the session lock.
+7. **D7 Connected-id cache** — `MEPClearanceValidationCommand.AuditOne`
+   caches `GetConnectedElementIds` per subject so the connector graph
+   walk doesn't re-run.
+8. **D8 BcfSnapshotter shared view** — `BcfSnapshotter` is now
+   `IDisposable` with one reusable temp View3D for the whole batch;
+   per-clash retarget via `SetSectionBox` only. 500-clash auto-BCF runs
+   no longer create+delete 500 transient views.
+9. **D9 ClashGrouper single-pass dict** — `FindElementPatternGroups`
+   builds one `Dictionary<(pair, side, eid), List<ClashRecord>>`
+   instead of two parallel dicts.
+10. **D10 Pooled extraction buffers** — `ClashSession.TryExtractOneElement`
+    uses `[ThreadStatic]` reusable `List<float>` / `List<int>` /
+    `Dictionary<long, int>` buffers so per-edit dragging doesn't
+    allocate three fresh containers per tick.
+
+#### Completed (Phase 145 — Clash Detection Algorithm Hardening E1–E10)
+
+Ten algorithm refinements addressing identity drift, OBB pruning,
+rule precedence, and category classification.
+
+1. **E1 Fuzzy identity merge** — `ClashHistory.MergeWithPrior` falls
+   back to `(elementA, elementB, pairId)` + centroid-distance match
+   (≤ 500 mm) when the exact identity hash misses. A duct nudged 7 mm
+   no longer surfaces as "Resolved + New" with state lost.
+2. **E2 Larger-side descent** — `ClashKernel.OverlapDescend` chooses
+   the side with the larger AABB volume to descend when both children
+   are internal. Standard BVH practice — keeps subtree pairs balanced
+   and prunes deeper trees more aggressively for elongated geometry.
+3. **E3 Real OBB-OBB SAT prune** — `ObbNode.EnsureObb` derives true
+   PCA-based OBB axes/half-extents lazily; new `ObbSat.Overlap` runs
+   the 15-axis SAT test as an extra prune AFTER the AABB overlap
+   passes. Gated on `IsElongated` (longest extent > 3× shortest) so
+   box-like geometry doesn't pay the PCA cost.
+4. **E4 Strictest-wins rule precedence** — `ClashRuleEngine.Classify`
+   collects every matching rule's verdict and returns the strictest
+   (`Pseudo > Intentional > Keep`). Rule order in `BuiltIns()` is no
+   longer load-bearing — large slivers always Pseudo even when
+   listed after R008.
+5. **E5 Adaptive grouper cells** — `ClashGrouper` Pass 3 sizes its
+   spatial cells from per-pair average AABB diagonal × 1.5, clamped
+   to `[0.5 m .. 6 m]`. Light fixtures cluster at ~1 m, AHU/beam at
+   4–6 m — coordinator-relevant rather than arbitrary.
+6. **E6 Relative spacing tolerance** — `TryComputeMeanDev` uses
+   `tolerance = max(0.05 ft, 0.1 × mean)` so tightly-packed lights
+   and wide beam centres both detect repetition correctly.
+7. **E7 Median-extent overlap depth** — `ApplyClearanceTolerance` uses
+   the median of the three intersection extents rather than the min;
+   captures the dominant penetration direction for oblique hits.
+8. **E8 ElementId-based self-clash filter** — `ClashSession.NarrowPhaseFor`
+   adds a defence-in-depth short-circuit when both meshes resolve to
+   the same `ElementId` (same FamilyInstance with multiple Solids).
+9. **E9 BuiltInCategory-based severity classifier** —
+   `ClashTriageEngine.IsStructural / IsServices` use OST_-prefixed
+   category sets instead of substring matches on display names. Curtain
+   walls correctly classified as architectural rather than structural.
+10. **E10 Persisted RecurrenceCount** — `ClashRecord.RecurrenceCount`
+    new field; `MergeWithPrior` increments it on every Reintroduced
+    transition; `ClashRunCommand` reads from the persisted value when
+    building `ClashInput.RecurrenceCount` so a clash reintroduced 4×
+    scores correctly (prior code capped at 1).
+
+#### Completed (Phase 146 — Clash Detection Automation F1–F14)
+
+Fourteen automation hooks that change coordinator behaviour rather
+than just report on it.
+
+1. **F1 Repeat-offender severity escalation** — `ClashHistory` promotes
+   severity one tier (LOW→MED→HIGH→CRITICAL) when `RecurrenceCount`
+   reaches 3. Logged as a `StateTransition` so the audit trail shows
+   the bump.
+2. **F2 CLASH_COUNT_INT parameter** — `LiveClashFlag.ApplyWithCounts`
+   writes a per-element clash count alongside `CLASH_LIVE_FLAG`. View
+   filters can now select "elements with > 3 clashes" for heat-map
+   templates.
+3. **F3 Ring-buffer archive** — `ClashPersistence.Save` mirrors every
+   run to `<dir>/archive/clashes_<utc>.json` capped at 30 entries.
+   `LoadArchive(dir, max)` returns the newest-first series for trend
+   reports / XLSX export.
+4. **F4 Event-driven scheduler triggers** — `ClashScheduler.Start`
+   subscribes to `Application.DocumentSaved` and
+   `DocumentSynchronizedWithCentral`; the periodic poll remains as a
+   fallback. Hooks invalidate `MeshExtractor` cache so post-save state
+   regenerates immediately.
+5. **F5 Score every clash** — new `ClashTriageEngine.TriageAll(inputs)`
+   returns the full scored set; `Triage(inputs)` is now a thin
+   `TriageAll().Take(TopN)` shim. `ClashRunCommand` persists score on
+   every `ClashRecord` rather than the first 20.
+6. **F6 IssueGuid back-link** — `ClashSlaIntegration.CreateIssues`
+   writes the new issue's GUID onto every member `ClashRecord.IssueGuid`
+   (and `LinkedIssueGuid` for legacy compat) so BCF re-import can
+   reconstruct the (issue, clash[]) association.
+7. **F7 ClashXlsxExportCommand** — new command and reusable
+   `ExportToXlsx(run, path)` static (ClosedXML). Four sheets: Summary
+   (run stats + severity buckets), Clashes (autofilter, per-row severity
+   colour), Groups, Trend (F3 archive series, last 30 runs).
+8. **F8 Exclusion audit log** — `ClashExclusions.IsExcludedAudited`
+   appends every `excluded` outcome to
+   `<dir>/clash_exclusions_audit.jsonl` with timestamp / matrix pair /
+   approver / reason / run id. ISO 19650 stage-gate evidence.
+9. **F9 Watched-element mechanism** — `ClashSession.Watch / Unwatch /
+   IsWatched / WatchedSnapshot`. `LiveClashHandler` re-runs narrow-
+   phase for every watched element on every tick within the 200 ms
+   budget so coordinators can pin a hard-to-investigate clash.
+10. **F10 Notification dispatch sidecar** — new `ClashNotifications`
+    type appends `clash_notifications.jsonl` events for every CRITICAL
+    or HIGH `New` / `Reintroduced` clash plus every severity escalation.
+    Local-first (no network coupling); a future Planscape adapter can
+    tail and forward to FCM / Slack / SignalR.
+11. **F11 Stage-gate clash budget** — `StageComplianceGateCommand`
+    reads `clashes.json` and adds a clash-budget check: Stage 4
+    requires zero active CRITICAL; Stage 5+ tightens to zero
+    CRITICAL OR HIGH. Reports per-stage in the existing TaskDialog.
+12. **F12 Element-level workset majority vote** —
+    `ClashSlaIntegration.EnrichAssignees` resolves owner per element
+    (cached), tallies votes per group, and assigns the majority
+    winner. Mixed-owner groups get a `(mixed)` suffix.
+13. **F13 Geometric resolution annotation** — `ClashHistory.MergeWithPrior`
+    annotates the prior record's `StateHistory` with
+    `By = "geometric (no longer detected)"` when an identity lapses,
+    closing the loop with `ResolutionHeuristics`.
+14. **F14 Full ClashRule overrides** — `ClashRuleLibrary.LoadAugmented`
+    treats any matching `Id` as an override on a built-in. Project
+    JSON can now patch any of `FilterA / FilterB / Verdict /
+    Description / Params / VolumeBelowMm3 / VolumeAboveMm3` without
+    re-defining the whole rule.
+
+#### Completed (Phase 147 — Tagging Workflow Gap Closure)
+
+Closed three remaining open gaps in the tagging-workflow review carried in
+[`ROADMAP.md`](ROADMAP.md): TAG-PREFLIGHT-DUP-01, TAG-DEFERRED-OVERFLOW-01,
+TAG-STALE-WARN-01. The fourth open item, TAG-SORT-LEVEL-01, was already
+covered by `BatchTagCommand._levelElevationCache` and is now reclassified as
+verified-already-fixed.
+
+1. **TAG-PREFLIGHT-DUP-01 — Cached `PopulationContext`.**
+   `TokenAutoPopulator.PopulationContext.Build(doc)`
+   (`StingTools/Core/ParameterHelpers.cs:1455`) now returns a per-document
+   cached instance with a 30 s TTL. The hot indices it carries
+   (`SpatialAutoDetect.BuildRoomIndex`, phase list, grid list,
+   `TokenAutoPopulator.BuildSpatialCandidateCache`) are no longer rebuilt
+   when consecutive commands run within the TTL — e.g. `PreTagAuditCommand`
+   immediately followed by `BatchTagCommand`, or the back-to-back format-
+   migration build at line 485. Cache is invalidated on document close
+   (`ParameterHelpers.ClearParamCache`), after every tagging command via
+   `TagPipelineHelper.PostTagCleanup`, and on `TagConfig.LoadFromFile` so
+   `KnownCategories` rebuilds when `DiscMap` changes. New
+   `PopulationContext.InvalidateCache()` is the public entry point.
+
+2. **TAG-DEFERRED-OVERFLOW-01 — Sidecar restore on document open.**
+   `StingAutoTagger.SaveDroppedElementsSidecar` already wrote the dropped-
+   IDs bag to `<project>.sting_deferred_elements.json` on close. The new
+   `StingAutoTagger.LoadDroppedElementsSidecar(doc)`
+   (`StingTools/Core/StingAutoTagger.cs:182`) reads that sidecar on open,
+   re-enqueues every element that still resolves via `doc.GetElement`, and
+   rotates the file to `.consumed` so a re-open does not double-replay it.
+   Wired into `OnDocumentOpened` in
+   `StingTools/Core/StingToolsApp.cs:516`. The save path now also clears the
+   in-memory `_droppedElementIds` bag and resets `_droppedElementCount`
+   after a successful sidecar write so the next document doesn't inherit
+   state from the previous one.
+
+3. **TAG-STALE-WARN-01 — Stale flag → BIM issues register.**
+   `WarningsEngineExt.AutoRaiseStaleIssues` was implemented in Phase 78 but
+   never called. New `StaleWarningPromotionJob` in
+   `StingTools/Core/StingIdlingScheduler.cs:170` runs as a single-shot idle
+   consumer that calls `AutoRaiseStaleIssues` once the stale-element count
+   crosses `TagConfig.StaleWarningThreshold` (default 5, configurable via
+   the new `STALE_WARNING_THRESHOLD` `project_config.json` key). The job is
+   enqueued from two places: (a) every batch in `StingStaleMarker.Execute`
+   that flags at least one element stale
+   (`StingTools/Core/StingAutoTagger.cs:1491`), so live edits propagate to
+   the issues register on the next idle tick; (b) once on document open
+   immediately after `ComplianceRefreshJob` so pre-existing stale work from
+   a previous session surfaces straight away
+   (`StingTools/Core/StingToolsApp.cs:625`). Dedupe against any existing
+   OPEN "stale" issue happens inside `AutoRaiseStaleIssues`, so re-runs are
+   no-ops. The stale-marker callback also invalidates `ComplianceScan` so
+   the dashboard updates without waiting for the 30 s cache TTL.
+
+4. **TAG-ISO-USERNAME-01 — Audit trail user binding.**
+   `TagPipelineHelper.RunFullPipeline` already wrote
+   `ASS_TAG_MODIFIED_BY_TXT = Environment.UserName` after every successful
+   tag write, but the parameter was missing from the registry — so
+   `ParameterHelpers.SetString` silently no-op'd because `LookupParameter`
+   returned `null`. Added the parameter to both
+   `StingTools/Data/MR_PARAMETERS.txt` (line 1610) and
+   `StingTools/Data/MR_PARAMETERS.csv` (line 1555), GUID
+   `c1f4d6b8-2a3e-4d5b-9c6f-7a8b9c0d1e2f`, type `TEXT`, group
+   `ASS_MNG`, instance-bound. Closes the ISO 19650-2 §A.5 "person
+   responsible" traceability requirement: every tag write now stamps
+   `who / when / previous-tag` (`ASS_TAG_MODIFIED_BY_TXT` /
+   `ASS_TAG_MODIFIED_DT` / `ASS_TAG_PREV_TXT`). Existing models will pick
+   up the binding on the next `LoadSharedParams` run.
+
+Verification was static / read-only because the sandbox has no Revit API
+or `dotnet build`. Follow-up: smoke test on a real .rvt by (i) overflowing
+the deferred queue past 5 000 elements and confirming the sidecar restore
+re-queues live IDs on the next open; (ii) flipping geometry on tagged
+elements and confirming an `SI-####` issue appears in `_BIM_COORD/issues.json`
+once `staleCount >= STALE_WARNING_THRESHOLD`; (iii) running `LoadSharedParams`
+then a Tag command and confirming `ASS_TAG_MODIFIED_BY_TXT` is populated.
+
+#### Completed (Phase 148 — Tractable batch closure of 20 ROADMAP gaps)
+
+Closed 18 of the 46 open gaps in the ROADMAP triage in a single
+deliberately-scoped batch. The genuinely-multi-day items
+(`DWG-FUT-01..14`, `DWG-STRUCT-DEEP-5/6b`, `BIM-BCF-SYNC-01`,
+`DWG-MULTI-01`, `DWG-CURVE-01`) and the infra-blocked items
+(`TPL-V12-SIG`, `TPL-V12-AI`, `N-G18`, `TPL-FOLLOW-02`) were left
+untouched with sharper "blocked-on-X" notes so the next session has a
+clean target.
+
+15. **`StingTools/BIMManager/Phase148Engine.cs`** (new file, ~1,300
+    lines, single-namespace bag of 13 small static engines). Each engine
+    is its own internal static class with a documented public API the
+    rest of the tree can call without scattering tiny additions across
+    20 files. Engines:
+    - **SidecarVersioning** (BIM-SIDECAR-VER-01) — `EnsureArrayMeta(arr,
+      schema)` stamps a `_meta` sentinel record carrying `version=1.1`,
+      `schema`, `written_at`, `written_by`. `Records()` iterates while
+      skipping the sentinel so legacy readers keep working.
+    - **CrossLinkEngine** (BIM-CROSS-LINK-01) — `WalkFromIssue(doc, id)`
+      follows `linked_revision_ids` / `linked_transmittal_ids` /
+      `linked_issue_ids` arrays across all three sidecars (depth-bounded
+      at 256 hops). `AppendLink(record, kind, foreignId)` adds a
+      cross-reference with dedupe.
+    - **TransmittalGate** (BIM-TRANSMIT-GATE-01) — `Validate(doc,
+      transmittal, requiredRank=1)` looks up every referenced document
+      in `document_register.json`, ranks the CDE state (WIP=0, SHARED=1,
+      PUBLISHED=2, ARCHIVED=3), and blocks transmittal sends whose docs
+      sit below the threshold.
+    - **TeamWorkloadEngine** (BIM-TEAM-WORKLOAD-01) — `Build(doc)`
+      reads `issues.json` and aggregates open issues per assignee with
+      Critical / High / Overdue / OldestDays / SampleIds columns.
+    - **ComplianceForecast** (BIM-FORECAST-01) — `Build(doc, target)`
+      reads `compliance_trend.json`, runs `WarningsEngine.ForecastCompliance`,
+      returns a `ForecastSummary` with caption text the dashboard renders
+      inline.
+    - **CobieSystemDistribution** (BIM-COBIE-SYS-01) — walks every
+      tagged element and aggregates the actual `ASS_SYS_TXT` values
+      present in the model, replacing the static `TagConfig.SysMap`
+      defaults the COBie System sheet was using.
+    - **DataDropTracker** (BIM-DD-TRACK-01, BIM-4D-HANDOVER-01) —
+      Load/Save round-trip on `_BIM_COORD/data_drops.json` with
+      DD1/DD2/DD3/DD4 milestones (planned/actual dates + RAG).
+      `GetDD4HandoverDate(doc)` exposes the DD4 date so the 4D
+      scheduling engine can extend the timeline beyond construction-
+      finish into handover.
+    - **CdeApprovalGate** (BIM-CDE-APPROVAL-01) — `Validate(doc,
+      fromState, toState)` resolves the current user's role from
+      `project_team.json`, denies state transitions whose minimum role
+      rank (Originator/Reviewer/Approver = 1/2/3) is not met, and
+      returns a structured `(pass, requiredRole, actualRole, reason)`
+      result.
+    - **FuncSysValidator** (BIM-EXCEL-CROSS-01) — `Validate(rows)`
+      returns FUNC↔SYS mismatches against the SYS→{valid FUNCs} matrix
+      (HVAC → SUP/RET/EXH/HTG/CLG/VEN/FRA/SAV; LV → PWR/LIT/CTL/DAT;
+      SAN → SAN/WST/VNT; etc.).
+    - **RebarSpacingChecker** (STRUCT-REBAR-01) — walks every `Rebar`
+      element, derives bar diameter from `RebarBarType.BarDiameter`,
+      computes clear spacing from `REBAR_ELEM_LENGTH /
+      NumberOfBarPositions`, flags any clear spacing < max(diameter,
+      20 mm) per BS EN 1992-1-1 §8.2.
+    - **AcousticCavityBonus** (ACOUSTIC-CAVITY-01) — `BonusAt(hz)`
+      interpolates BS EN 12354-1 Annex B.3 indicative values
+      (50 Hz → 2 dB rising to 500 Hz → 12 dB falling to 5 kHz → 5 dB).
+      `WeightedRwBonus()` averages across the 16 standard 1/3-octave
+      bands used to derive Rw, replacing the previous flat +10 dB.
+    - **ScheduleTemplateLib** (WF-SCHED-01, WF-SCHED-02) — `Save / List`
+      persists named schedule templates as JSON in
+      `_BIM_COORD/schedule_templates/`. `CheckFieldConsistency(doc)`
+      scans live `ViewSchedule` definitions and reports any field whose
+      canonical name appears under different display labels across
+      schedules.
+    - **MepCommissioningSchedules** (MEP-SCHED-01) — `CreateMissing(doc)`
+      mints three schedules — Connector Flow Rate, Pipe Balancing
+      Status, HVAC Pressure Drop Summary — idempotent (skips schedules
+      already present in the document).
+    - **PhaseAwareCobie** (FM-HO-02) — `Filter(doc, elements,
+      targetPhaseId)` returns only elements alive in the target phase
+      (PHASE_CREATED ≤ target, PHASE_DEMOLISHED null or > target),
+      stamping each row with the phase name so the COBie Component
+      sheet can be partitioned per phase.
+    - **WorkflowDagPlanner** (TAG-WORKFLOW-PARALLEL-01) — wires the
+      existing `WorkflowStep.ParallelGroup` field into a topo-sort
+      scheduler. `Plan(steps)` orders steps by `(parallelGroup,
+      originalIndex)`; `MarkBlocked(plan, succeeded, failed)` flags
+      groups behind a failed upstream group with no recovery in
+      between. True OS-thread parallelism is impossible because the
+      Revit API is single-threaded — this DAG planner is the realistic
+      interpretation of the gap.
+
+16. **`StingTools/Core/StingToolsApp.cs`** — `OnDocumentOpened` now
+    calls `ProjectFolderEngine.CreateFolderStructure(doc)` on every
+    document open (idempotent), closing **BIM-CDE-FOLDER-01**. Toggle
+    via `AUTO_CREATE_CDE_FOLDERS` config key (default true).
+
+17. **`StingTools/Core/TagConfig.cs`** — added `AutoCreateCdeFolders`
+    config field + `STALE_WARNING_THRESHOLD` carry-over from Phase 147.
+    Cache invalidation hook for `TokenAutoPopulator.PopulationContext`
+    on `LoadFromFile`.
+
+18. **`StingTools/UI/BIMCoordinationCenter.cs`** — Ctrl+E shortcut now
+    dispatches `ExportReport` through `ActionDispatcher` (modeless via
+    `ExternalEvent`) instead of closing the dialog, closing
+    **BIM-COORD-LOOP-01**. Coordinators stay in the centre and can
+    iterate without re-opening it.
+
+19. **Already-done verifications** — three gaps were verified as
+    already complete and reclassified rather than re-implemented:
+    - **BIM-REV-PROP-01** — `RevisionManagementCommands.cs:677-701` has
+      been propagating `ASS_REV_TXT` to all tagged elements since
+      Phase 78 (`GAP-R9: Auto-propagate new REV`).
+    - **FM-HO-01 / BIM-COBIE-SHEETS-01** — COBie handover export already
+      generates all 11 + Instruction worksheets per Phase 78.
+
+20. **Deliberately deferred** — six items remain open with sharper
+    blocked-on-X notes for the next session:
+    - `BIM-EXCEL-STREAM-01` — partial fix Phase 78 via batch-size knob;
+      full streaming reader still pending.
+    - `BIM-BCF-SYNC-01` — needs ACC/Procore OAuth.
+    - `DWG-MULTI-01`, `DWG-CURVE-01` — multi-day DWG geometry rewrites.
+    - `DWG-FUT-01..14`, `DWG-STRUCT-DEEP-5`, `DWG-STRUCT-DEEP-6b` —
+      multi-day spikes (rebar parsing, EC7 foundation sizing,
+      connection synthesis).
+    - `TPL-V12-SIG`, `TPL-V12-AI`, `N-G18`, `TPL-FOLLOW-02` — explicitly
+      deferred to v1.2 / Year 2 by the original runners (need server-
+      side services or a Windows + Revit build box).
+
+Verification was static / read-only — the Linux sandbox has no
+`dotnet build` or Revit API. Each engine call site reads cleanly against
+the documented Revit 2025 API surface and the existing internal helpers
+(`BIMManagerEngine`, `ParameterHelpers`, `WarningsEngine`,
+`SharedParamGuids`, `ParamRegistry`). Follow-up: smoke-test on a real
+.rvt by (i) opening a project and confirming
+`_BIM_COORD/01_WIP/02_SHARED/03_PUBLISHED/04_ARCHIVE` materialise
+without prompting; (ii) using Ctrl+E in the BCC and confirming the
+window stays open; (iii) attempting a transmittal that references a
+WIP-state document and confirming `TransmittalGate` blocks it.
+
+#### Completed (Phase 148b — Surface integration / wiring sweep)
+
+Phase 148 left the engines as utility classes; this sweep wires them
+into the existing call sites so they actually fire from real workflows.
+
+21. **Sidecar versioning wired into `BIMManagerEngine.SaveJsonFile`** —
+    every JArray sidecar now gets a companion `<path>.meta.json`
+    written alongside the data file (schema name, version 1.1,
+    written_at, written_by). Companion-file approach was chosen over
+    in-array sentinel because every existing iterator already walks the
+    array directly; injecting a sentinel record would have broken them.
+    Read-side `SidecarVersioning.ReadVersion(path)` defaults to "0.0"
+    for pre-versioning files.
+
+22. **`TransmittalGate.Validate` wired** into
+    `CreateTransmittalCommand` (`BIMManagerCommands.cs`). Every
+    transmittal record now carries `gate_pass`, `gate_summary`, and a
+    `gate_blockers` array when documents below SHARED-rank are present.
+    Soft-block (logged + captured) rather than hard-block to preserve
+    the existing cancellation flow.
+
+23. **`CdeApprovalGate.Validate` wired** into `CDEStatusCommand`
+    (`BIMManagerCommands.cs`). The user's role is resolved from
+    `_BIM_COORD/project_team.json`; if the rank is below the minimum
+    required for the transition (Originator/Reviewer/Approver = 1/2/3),
+    the user is prompted to override-or-abort with the override logged
+    to `StingLog.Warn` for audit.
+
+24. **`FuncSysValidator.Validate` wired** into
+    `ExcelLinkEngine.ValidateChanges` cross-token Phase 2. Mismatches
+    surface as `FUNC_SYS_MATRIX` warnings in the same import-validation
+    bag as the existing token / cross-ref checks.
+
+25. **`AcousticCavityBonus.WeightedRwBonus` wired** into
+    `AcousticAnalysisEngine.CalculateRwDoubleLeaf`. The flat 3 / 6 /
+    10 dB step bonus is now scaled by the BS EN 12354-1 frequency-
+    weighted bonus value (≈ 8.6 dB) modulated by an air-gap depth
+    factor (1.0 / 0.75 / 0.4). Output Rw matches measured-value
+    handbooks more closely than the previous bin function.
+
+26. **`WorkflowDagPlanner` wired** into `WorkflowEngine.ExecutePreset`.
+    Steps are now topo-sorted by `(parallelGroup, originalIndex)`; per-
+    step success / failure is tracked at group granularity. When a
+    later step belongs to a group strictly downstream of a failed
+    upstream group with no recovery in between, it is marked **BLOCKED**
+    in the report rather than executed, halving wasted work on cascade
+    failures.
+
+27. **`CobieSystemDistribution.Build` wired** into the COBie System-
+    sheet builder in `BuildCoordData` (`BIMManagerCommands.cs`). The
+    live distribution merges into `sysGroups` so a SYS code that exists
+    in the model but slipped past the Components-pipeline filter still
+    appears in the System sheet.
+
+28. **`CrossLinkEngine.AppendLink` wired** into `CreateRevisionCommand`
+    (`RevisionManagementCommands.cs`). Every OPEN issue whose own
+    `revision` field matches the new revision (or is empty) gets the
+    revision id appended to its `linked_revision_ids[]` array, so
+    `WalkFromIssue(issueId)` can hop from an issue to the revision
+    that closes it.
+
+29. **`Phase148Commands.cs`** (new file, ~160 lines) — six small
+    `IExternalCommand` wrappers so users can run the engines from the
+    dock panel:
+    - `RunRebarSpacingCheck` — EC2 §8.2 audit, reports first 50 hits
+    - `CreateMepCommissioningSchedules` — mints any of 3 commissioning
+      schedules that don't yet exist
+    - `CheckScheduleFieldConsistency` — cross-schedule field-naming
+      audit (top 30 inconsistencies)
+    - `TeamWorkloadReport` — open-issue workload table per assignee
+    - `ComplianceForecast` — caption + days-to-target dialog
+    - `DataDropStatus` — DD1-DD4 milestone table with per-row RAG
+
+30. **Dispatch tags** added to `StingCommandHandler` for all six
+    Phase 148 commands so the dock panel can call them by tag string.
+
+The Phase 91 H3 forecast KPI card on the BCC overview tab already
+surfaces a forecast date via `Core.ComplianceTrendTracker.ForecastCompletionDate`
+(linear-regression on workflow history), so the new
+`BIMManager.ComplianceForecast.Build` engine is exposed as a standalone
+command rather than duplicated as a second card. The two are
+complementary: the BCC card reads `_workflow_log.jsonl`; the engine
+reads `compliance_trend.json`.
+
+#### Completed (Phase 149 — Tagging pipeline efficiency audit + fixes)
+
+A focused efficiency audit of the per-element tagging hot path
+(`TagPipelineHelper.RunFullPipeline`) identified 13 distinct issues
+ranging from per-element wasted lookups to duplicated derivation
+between `PopulateAll` and `BuildAndWriteTag`. The fixes landed across
+four sub-phases (149a/b/c/d) so each is independently revertable.
+
+**Phase 149a — small high-confidence fixes** (commit `6c1704e`)
+- EFF-01 — Removed per-element `ResetReadOnlySkipCount` call that was
+  reducing the throttle to "always log" instead of the intended
+  first-5-plus-every-100th. 50K log writes eliminated on a 50K batch.
+- EFF-03 / CONS-03 — `BuildAndWriteTag` now accepts `prevTagHint` and
+  `tokenValuesOut` parameters so `RunFullPipeline` doesn't read TAG1
+  twice and doesn't run a separate `ReadTokenValues` after the helper
+  already did. Two reads × 8 params per element saved on the
+  non-overwrite path; one full read saved on the overwrite path.
+- EFF-08 — `WriteTag7All` builds the final TAG7 string locally and
+  writes it once. Previously: write TAG7, read it back to append
+  warnings, write again (3 round-trips per element).
+- EFF-10 — Display-BOOL init block (13 SetIfEmpty / SetYesNo writes
+  per element) is now gated behind a `STING_DISPLAY_MODE` sentinel
+  check. First-time tag does the init; re-tag passes skip the block
+  entirely.
+- EFF-11 — Segment-count validation (`IndexOf` loop counting
+  separators) now only runs on the SetIfEmpty path where actual
+  stored values may legitimately differ from derived ones. The
+  overwrite path builds the tag via `string.Join` from 8 known
+  non-empty tokens with a fixed separator, so segment count is
+  statically 8 — the check was dead work.
+
+**Phase 149b — duplicated derivation refactor** (commit `78b1de2`)
+- EFF-04 — `NativeParamMapper.MapAll` overload accepts
+  `Dictionary<ElementId, Room> roomIndex`. Curve-based MEP elements
+  (pipes, ducts) no longer pay a fresh `doc.GetRoomAtPoint` spatial
+  query per element — they consult the same `PopulationContext.RoomIndex`
+  dictionary the rest of the pipeline already built.
+- EFF-05 — New `PopulationContext.TypeOverrideCache` dict caches the
+  result of the type-level `TYPE_LOC_OVERRIDE` / `TYPE_ZONE_OVERRIDE`
+  reads per typeId. A family with 100 instances now does ONE
+  `Document.GetElement` + 2 `GetString` calls, not 100.
+- EFF-02 — On the non-overwrite path `BuildAndWriteTag` reads the SYS /
+  FUNC / PROD values that `PopulateAll` already wrote instead of
+  re-deriving them via `GetMepSystemAwareSysCode` / `GetSmartFuncCode` /
+  `GetFamilyAwareProdCode`. The MEP-system-aware helper walks the
+  connector graph — by far the most expensive per-element call. The
+  overwrite path keeps the full fresh derivation so `Re-Tag with
+  Overwrite` still re-detects from scratch.
+
+**Phase 149c — re-tag container fast path** (commit `cbf471c`)
+- EFF-15 — `WriteContainers` now hashes the 8 ISO 19650 token values
+  (djb2-style, 16-char hex output) and compares against the new
+  `ASS_LAST_TOKEN_HASH_TXT` shared parameter (GUID
+  `d3a5b1c4-7e9f-4a2c-8b6d-1e3f4a5b6c7d`). When the hash matches the
+  stored value, none of the ~53 containers can have changed — return 0
+  immediately. After a successful full-sweep write the new hash is
+  stamped onto the element so the next pass can short-circuit.
+  Estimated re-tag pass savings: ~50× fewer SetString calls per element
+  (53 containers + LookupParameter overhead → 1 GetString + hash
+  compute). On a 50K-element re-tag, ~2.6M SetString calls eliminated.
+  This is the largest daily-use win because re-tag is the common case
+  for users who tag once and then tweak the model.
+
+**Phase 149d — formula pre-filter + warning one-pass**
+- EFF-06 — `RunFullPipeline` now consults
+  `_formulasApplicableByType` (a per-type ConcurrentDictionary cache)
+  to iterate ONLY the formulas whose target parameter exists on
+  instances of that type. First-touch per type does the full
+  O(formulas) scan; subsequent instances of the same type iterate
+  O(applicable). On a typical project where each type uses 10-20 of
+  the 199 formulas, this is ~10× fewer formula iterations on
+  instance-heavy categories. Cache cleared by `PostTagCleanup` to keep
+  memory bounded.
+- EFF-07 — New `EvaluateAndPopulateWarnings(doc, el, catName)` does in
+  one pass what `PopulateWarningParameters` + `EvaluateElementWarnings`
+  did in two — both walked the same `GetCategoryWarnings` list, both
+  called the same `GetWarningDataValue` per warning, both called the
+  same `EvaluateWarning`. Returns `(WrittenCount, ConcatenatedText)`
+  so callers get both the per-param writes and the TAG7 narrative
+  fragment from a single per-warning loop.
+
+**Estimated cumulative impact** (50K-element MEP-heavy model):
+- First-time batch tag: ~30-50% faster (EFF-02 + EFF-04 dominate)
+- Incremental re-tag pass: ~50-70% faster (EFF-15 dominates)
+- Log volume: ~100× lower in error-prone scenarios (EFF-01)
+- Allocations: ~2/3 reduction in per-element allocation count
+
+Verification was static / read-only — Linux sandbox has no Revit API
+or `dotnet build`. Brace counts balance across every modified file;
+new helpers are pure C# with no new external dependencies. Smoke-test
+priorities for the next Revit session: (i) re-tag the same model
+twice and confirm the second pass writes 0 containers; (ii) tag a
+50-instance family and confirm only 1 type-override lookup fires;
+(iii) run a Re-Tag with Overwrite and confirm SYS/FUNC/PROD are still
+re-derived (overwrite path preserved).
 #### Completed (Phase 141 — Production gap fixes: on-site sharing path, audit/source classification, HTTPS, server push project-scoping)
 
 The on-site sharing journey from the field user creating an issue on

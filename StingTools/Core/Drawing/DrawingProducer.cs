@@ -51,6 +51,104 @@ namespace StingTools.Core.Drawing
 
     public static class DrawingProducer
     {
+        // GAP-L: per-batch caches for the existing-view + existing-sheet
+        // lookups. ProduceAllViews repeatedly hits FilteredElementCollector
+        // to find idempotent matches; on a 1000-sheet model this dominates
+        // the runtime. The caches are populated lazily on first use within
+        // the batch, validated against the active doc on every read, and
+        // cleared by Reset() / the IDisposable scope returned by Prime().
+        [ThreadStatic] private static Dictionary<string, ElementId> _existingViewCache;
+        [ThreadStatic] private static Dictionary<string, ElementId> _existingSheetCache;
+        [ThreadStatic] private static Dictionary<string, int>       _packageSheetCount;
+        [ThreadStatic] private static string                        _cacheDocKey;
+
+        private static string CacheDocKey(Document doc)
+        {
+            if (doc == null) return "__null__";
+            try { return string.IsNullOrEmpty(doc.PathName) ? doc.Title : doc.PathName; }
+            catch { return "__unknown__"; }
+        }
+
+        private sealed class BatchCacheScope : IDisposable
+        {
+            public void Dispose() => DrawingProducer.ResetBatchCaches();
+        }
+
+        /// <summary>
+        /// GAP-L: prime the per-batch lookup caches and return an
+        /// IDisposable that resets them when the batch ends. Use with
+        /// <c>using (DrawingProducer.PrimeBatchScope(doc)) { ... }</c>
+        /// to guarantee the caches don't leak across commands.
+        /// </summary>
+        public static IDisposable PrimeBatchScope(Document doc)
+        {
+            PrimeBatchCaches(doc);
+            return new BatchCacheScope();
+        }
+
+        /// <summary>
+        /// GAP-L: prime the per-batch lookup caches. Call this once before
+        /// a batch generation so idempotent lookups inside
+        /// <see cref="ProduceAllViews"/> are O(1) instead of O(views).
+        /// Calling Reset() drops the caches; a fresh prime rebuilds them.
+        /// </summary>
+        public static void PrimeBatchCaches(Document doc)
+        {
+            ResetBatchCaches();
+            if (doc == null) return;
+            _cacheDocKey = CacheDocKey(doc);
+            try
+            {
+                var v = new Dictionary<string, ElementId>(StringComparer.Ordinal);
+                foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(View)))
+                {
+                    if (!(el is View view) || view.IsTemplate) continue;
+                    var dtId = StingTools.Core.ParameterHelpers.GetString(view, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID);
+                    if (string.IsNullOrEmpty(dtId)) continue;
+                    var ctxTag = StingTools.Core.ParameterHelpers.GetString(view, ParamRegistry.STING_VIEW_CONTEXT_TAG) ?? string.Empty;
+                    var ruleIdx = StingTools.Core.ParameterHelpers.GetInt(view, ParamRegistry.STING_PRODUCTION_RULE_IDX, -1);
+                    v[ViewKey(dtId, ctxTag, ruleIdx)] = view.Id;
+                }
+                _existingViewCache = v;
+
+                var s = new Dictionary<string, ElementId>(StringComparer.Ordinal);
+                var pkg = new Dictionary<string, int>(StringComparer.Ordinal);
+                foreach (var sheet in new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)).Cast<ViewSheet>())
+                {
+                    var dtId = StingTools.Core.ParameterHelpers.GetString(sheet, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID) ?? string.Empty;
+                    var pkgId = StingTools.Core.ParameterHelpers.GetString(sheet, DrawingTypeStamper.PARAM_DRAWING_PACKAGE_ID) ?? string.Empty;
+                    if (!string.IsNullOrEmpty(dtId)) s[SheetKey(dtId, pkgId)] = sheet.Id;
+                    if (pkg.TryGetValue(pkgId, out var n)) pkg[pkgId] = n + 1;
+                    else pkg[pkgId] = 1;
+                }
+                _existingSheetCache = s;
+                _packageSheetCount  = pkg;
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"DrawingProducer.PrimeBatchCaches: {ex.Message}");
+            }
+        }
+
+        public static void ResetBatchCaches()
+        {
+            _existingViewCache  = null;
+            _existingSheetCache = null;
+            _packageSheetCount  = null;
+            _cacheDocKey        = null;
+        }
+
+        // GAP-L: a cache slot only matches the doc it was primed against.
+        // Cross-doc consultation returns null so the slow path takes over.
+        private static bool CacheMatchesDoc(Document doc)
+            => _cacheDocKey != null && string.Equals(_cacheDocKey, CacheDocKey(doc), StringComparison.OrdinalIgnoreCase);
+
+        private static string ViewKey(string dtId, string ctxTag, int ruleIdx)
+            => (dtId ?? string.Empty) + "|" + (ctxTag ?? string.Empty) + "|" + ruleIdx;
+
+        private static string SheetKey(string dtId, string pkgId)
+            => (dtId ?? string.Empty) + "|" + (pkgId ?? string.Empty);
+
         public static ProduceResult ProduceView(Document doc, DrawingType dt, DrawingContext ctx, ProduceOptions opts)
             => ProduceAllViews(doc, dt, ctx, opts);
 
@@ -117,6 +215,29 @@ namespace StingTools.Core.Drawing
                     if (existing != null)
                     {
                         result.WasIdempotent = true;
+                        // GAP-H: re-apply the profile so a re-run after a
+                        // profile edit refreshes scale / template / pack /
+                        // stamps. SyncStyles flag (annotation off) avoids
+                        // re-tagging an already-tagged view. Returning the
+                        // raw id without Apply meant idempotent re-runs
+                        // were a permanent no-op even after pack edits.
+                        try
+                        {
+                            var refreshOpts = new DrawingTypePresentation.ApplyOptions
+                            {
+                                AnnotationOptions = new AnnotationRunOptions
+                                {
+                                    SkipAutoTag = true, SkipAutoDim = true,
+                                    SkipDecorative = true, SkipSpots = true
+                                }
+                            };
+                            var refreshed = DrawingTypePresentation.Apply(doc, existing, dt, refreshOpts);
+                            result.Warnings.AddRange(refreshed.Warnings);
+                        }
+                        catch (Exception ex)
+                        {
+                            result.Warnings.Add($"Idempotent refresh ({existing.Id}): {ex.Message}");
+                        }
                         return existing.Id;
                     }
                 }
@@ -293,6 +414,15 @@ namespace StingTools.Core.Drawing
             string effectivePackage = ctx.PackageId ?? dt.PackageId ?? "";
             try
             {
+                // GAP-L: per-batch cache hit, fall back to fresh collector.
+                if (_existingSheetCache != null
+                    && CacheMatchesDoc(doc)
+                    && _existingSheetCache.TryGetValue(SheetKey(dt.Id, effectivePackage), out var cachedSheetId))
+                {
+                    if (doc.GetElement(cachedSheetId) is ViewSheet vsCached && vsCached.IsValidObject)
+                        return vsCached.Id;
+                    _existingSheetCache.Remove(SheetKey(dt.Id, effectivePackage));
+                }
                 var existing = new FilteredElementCollector(doc)
                     .OfClass(typeof(ViewSheet))
                     .Cast<ViewSheet>()
@@ -337,16 +467,42 @@ namespace StingTools.Core.Drawing
             }
             catch (Exception ex) { result.Warnings.Add($"SheetName: {ex.Message}"); }
 
+            // FIX-6: lock check + stale-key clear + stamp + sequence + title-block
+            // params all go through the canonical ApplyToSheet plus the
+            // producer-specific sequence stamp. Avoids re-implementing the
+            // stamper / applier sequence in two places.
+            if (DrawingTypeStamper.IsLocked(sheet))
+            {
+                result.Warnings.Add($"Sheet {sheet.Id} style-locked; producer kept sheet but skipped stamp/apply.");
+                return sheet.Id;
+            }
             DrawingTypeStamper.Stamp(sheet, dt.Id);
             DrawingTypeStamper.StampPackage(sheet, effectivePackage);
 
             try
             {
-                int seq = new FilteredElementCollector(doc)
-                    .OfClass(typeof(ViewSheet))
-                    .Cast<ViewSheet>()
-                    .Count(s => string.Equals(StingTools.Core.ParameterHelpers.GetString(s, DrawingTypeStamper.PARAM_DRAWING_PACKAGE_ID) ?? "", effectivePackage, StringComparison.Ordinal));
+                // GAP-L: prefer the per-batch package count cache; bump it
+                // for the sheet we're about to stamp so successive sheets in
+                // the same package get monotonically increasing sequences
+                // without re-collecting the project's sheets.
+                int seq;
+                if (_packageSheetCount != null && CacheMatchesDoc(doc))
+                {
+                    _packageSheetCount.TryGetValue(effectivePackage, out var n);
+                    seq = n + 1;
+                    _packageSheetCount[effectivePackage] = seq;
+                }
+                else
+                {
+                    seq = new FilteredElementCollector(doc)
+                        .OfClass(typeof(ViewSheet))
+                        .Cast<ViewSheet>()
+                        .Count(s => string.Equals(StingTools.Core.ParameterHelpers.GetString(s, DrawingTypeStamper.PARAM_DRAWING_PACKAGE_ID) ?? "", effectivePackage, StringComparison.Ordinal));
+                }
                 DrawingTypeStamper.StampSheetSequence(sheet, seq);
+                // Newly-created sheet should be discoverable next time.
+                if (_existingSheetCache != null)
+                    _existingSheetCache[SheetKey(dt.Id, effectivePackage)] = sheet.Id;
             }
             catch { }
 
@@ -355,7 +511,9 @@ namespace StingTools.Core.Drawing
                 try
                 {
                     var tokens = BuildTokenDict(dt, ctx);
-                    TitleBlockParamApplier.Apply(doc, sheet, dt, tokens);
+                    var tbResult = TitleBlockParamApplier.Apply(doc, sheet, dt, tokens);
+                    foreach (var w in tbResult.Warnings)
+                        result.Warnings.Add("TitleBlockParams: " + w);
                 }
                 catch (Exception ex) { result.Warnings.Add($"TitleBlockParams: {ex.Message}"); }
             }
@@ -414,6 +572,17 @@ namespace StingTools.Core.Drawing
             try
             {
                 var ctxTag = BuildContextTag(ctx);
+                // GAP-L: O(1) hit when the per-batch index is primed for
+                // this document. Cross-doc consultation falls through.
+                if (_existingViewCache != null
+                    && CacheMatchesDoc(doc)
+                    && _existingViewCache.TryGetValue(ViewKey(dtId, ctxTag, ruleIdx), out var cachedId))
+                {
+                    if (doc.GetElement(cachedId) is View vCached
+                        && vCached.IsValidObject && !vCached.IsTemplate)
+                        return vCached;
+                    _existingViewCache.Remove(ViewKey(dtId, ctxTag, ruleIdx));
+                }
                 return new FilteredElementCollector(doc)
                     .OfClass(typeof(View))
                     .Cast<View>()
@@ -499,16 +668,19 @@ namespace StingTools.Core.Drawing
 
         private static Dictionary<string, string> BuildTokenDict(DrawingType dt, DrawingContext ctx)
         {
-            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["disc"] = dt?.Discipline ?? "",
-                ["discipline"] = dt?.Discipline ?? "",
-                ["lvl"] = ctx?.Level?.Name ?? "",
-                ["mark"] = ctx?.Tag ?? "",
-                ["spool"] = ctx?.Tag ?? "",
-                ["purpose"] = dt?.Purpose ?? "",
-                ["package"] = ctx?.PackageId ?? dt?.PackageId ?? ""
-            };
+            // INT-06: route through the canonical builder so SheetManager,
+            // ShopDrawingComposer and the production engine all feed the
+            // exact same token set into TitleBlockParamApplier.
+            var d = DrawingTokenContext.Build(
+                doc:        null,        // producer is invoked without a doc handle here
+                dt:         dt,
+                discCode:   dt?.Discipline,
+                discipline: dt?.Discipline,
+                levelCode:  ctx?.Level?.Name,
+                spool:      ctx?.Tag,
+                mark:       ctx?.Tag);
+            d["package"] = ctx?.PackageId ?? dt?.PackageId ?? string.Empty;
+            return d;
         }
     }
 }

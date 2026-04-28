@@ -155,33 +155,33 @@ Critical review of the tagging workflow identified the following logic, automati
 
 | ID | Gap | Priority | Description |
 |----|-----|----------|-------------|
-| FM-HO-01 | COBie Contact/Attribute/Job/Resource sheets | High | HandoverExportCommands.cs COBie export missing 4 of 11 COBie V2.4 required worksheets |
-| FM-HO-02 | Phase-aware COBie export | High | Multi-phase models cannot differentiate asset lifecycles per phase in COBie Component sheet |
-| WF-SCHED-01 | Schedule template library | Medium | No schedule template save/load/apply system for standardized schedule creation |
-| WF-SCHED-02 | Cross-schedule field consistency | Medium | No validation that different schedules using same field have consistent naming |
+| FM-HO-01 | COBie Contact/Attribute/Job/Resource sheets | High | **DONE** — verified Phase 78: COBie handover export already generates all 11 worksheets (Facility, Floor, Space, Type, Component, System, Zone, Contact, Attribute, Job, Resource + Instruction). |
+| FM-HO-02 | Phase-aware COBie export | High | **DONE** Phase 148: `PhaseAwareCobie.Filter` (`Phase148Engine.cs`) returns only elements alive in the requested phase using PHASE_CREATED / PHASE_DEMOLISHED, stamping each row with the phase name so the Component sheet can be partitioned per phase. |
+| WF-SCHED-01 | Schedule template library | Medium | **DONE** Phase 148: `ScheduleTemplateLib.Save / List` persists named templates as JSON in `_BIM_COORD/schedule_templates/`. |
+| WF-SCHED-02 | Cross-schedule field consistency | Medium | **DONE** Phase 148: `ScheduleTemplateLib.CheckFieldConsistency` walks every `ViewSchedule` and reports fields whose canonical name appears under different `ColumnHeading` labels. |
 | UI-DISP-01 | Dispatch registry pattern | Low | Refactor 1142-case switch to dispatch registry with per-module command registrations |
 | DOC-REG-01 | Drawing register ISO 19650-2 fields | Medium | Missing CDE status, suitability code, approval history in drawing register export |
 | DWG-MULTI-01 | Multi-layer wall detection | Medium | DWG wizard doesn't detect dual-layer wall encoding (exterior + interior leaf pairs) |
 | DWG-CURVE-01 | Curved wall support | Low | Arc segments in DWG wall layers not detected; only straight lines converted |
-| MEP-SCHED-01 | MEP commissioning schedules | Medium | Missing connector flow rate, balancing status, pressure drop summary schedules |
-| STRUCT-REBAR-01 | Rebar spacing validation | Medium | No pre-check that rebar spacing exceeds bar diameter before design output |
+| MEP-SCHED-01 | MEP commissioning schedules | Medium | **DONE** Phase 148: `MepCommissioningSchedules.CreateMissing(doc)` mints three commissioning schedules — Connector Flow Rate, Pipe Balancing Status, HVAC Pressure Drop Summary — idempotent (skips schedules already present). |
+| STRUCT-REBAR-01 | Rebar spacing validation | Medium | **DONE** Phase 148: `RebarSpacingChecker.Check(doc)` walks every `Rebar` element, derives bar diameter from `RebarBarType.BarDiameter`, computes clear spacing from `REBAR_ELEM_LENGTH / NumberOfBarPositions`, and reports any clear spacing < max(diameter, 20 mm) per EC2 §8.2. |
 | PERF-WARN-01 | Warning regex compilation | Medium | 150+ regex patterns evaluated linearly per warning; pre-compile into Regex[] array |
-| ACOUSTIC-CAVITY-01 | Frequency-dependent cavity bonus | Medium | Double-leaf acoustic calculation uses static 10dB cavity bonus instead of frequency-dependent lookup |
-| BIM-COBIE-SYS-01 | COBie System worksheet from actual SYS distribution | Critical | System worksheet uses TagConfig.SysMap defaults, not actual element SYS token distribution |
-| BIM-CDE-APPROVAL-01 | CDE approval workflow enforcement | Critical | CDE transitions allowed without required ISO 19650-2 §5.6 role-based approval hierarchy |
-| BIM-CROSS-LINK-01 | Issue↔Revision↔Transmittal cross-linking | Critical | Issues, revisions, transmittals stored as independent JSON silos with no foreign key references |
-| BIM-COORD-LOOP-01 | BIM Coordination Center keep-open loop | Critical | Dialog exits after single action instead of staying open for iterative BIM coordinator workflow |
-| BIM-EXCEL-STREAM-01 | Streaming Excel import for 10K+ rows | Critical | Excel import reads entire .xlsx into memory causing OOM on large models |
-| BIM-COBIE-SHEETS-01 | Missing COBie Contact/Facility/Floor/Space worksheets | High | Only 7 of 11 required COBie V2.4 worksheets generated |
-| BIM-DD-TRACK-01 | ISO 19650 data drop milestone tracker (DD1-DD4) | High | No deliverables tracker for DD1-DD4 milestones in coordination center |
-| BIM-REV-PROP-01 | Auto-propagate REV code on revision creation | High | Revision creation does not auto-update REV parameter on all tagged elements |
-| BIM-EXCEL-CROSS-01 | Excel import FUNC↔SYS cross-validation | High | Import allows invalid FUNC/SYS combinations (e.g., FUNC=PWR on SYS=HVAC) |
-| BIM-FORECAST-01 | Compliance trend forecasting to target date | High | Dashboard cannot project when compliance target will be reached |
-| BIM-CDE-FOLDER-01 | Auto-initialize CDE folder structure | High | Users must manually create WIP/SHARED/PUBLISHED/ARCHIVE folders per project |
-| BIM-BCF-SYNC-01 | BCF bidirectional sync from external tools | High | BCF export works but no import mechanism for changes from ACC/Procore |
-| BIM-4D-HANDOVER-01 | 4D schedule linked to document handover dates | Critical | Schedule shows "complete" on construction finish; ISO 19650 DD4 handover not tracked |
-| BIM-SIDECAR-VER-01 | Sidecar file versioning for forward compatibility | Medium | No version field in sidecar JSON files; future field additions break older files |
-| BIM-TRANSMIT-GATE-01 | Transmittal CDE state validation | Medium | Transmittals never validated for minimum CDE state before sending |
+| ACOUSTIC-CAVITY-01 | Frequency-dependent cavity bonus | Medium | **DONE** Phase 148: `AcousticCavityBonus.BonusAt(hz)` interpolates BS EN 12354-1 Annex B.3 indicative values; `WeightedRwBonus()` averages across the 16 standard 1/3-octave bands used to derive Rw. |
+| BIM-COBIE-SYS-01 | COBie System worksheet from actual SYS distribution | Critical | **DONE** Phase 148: `CobieSystemDistribution.Build(doc)` walks every tagged element and aggregates real `ASS_SYS_TXT` values + sample tag list, replacing the static `TagConfig.SysMap` defaults. |
+| BIM-CDE-APPROVAL-01 | CDE approval workflow enforcement | Critical | **DONE** Phase 148: `CdeApprovalGate.Validate(doc, fromState, toState)` resolves the current user's role from `_BIM_COORD/project_team.json` and denies transitions whose minimum role rank is not met (Originator/Reviewer/Approver). |
+| BIM-CROSS-LINK-01 | Issue↔Revision↔Transmittal cross-linking | Critical | **DONE** Phase 148: `CrossLinkEngine.WalkFromIssue` walks `linked_revision_ids` / `linked_transmittal_ids` / `linked_issue_ids` arrays across the three sidecars; `AppendLink` adds cross-references with dedupe. |
+| BIM-COORD-LOOP-01 | BIM Coordination Center keep-open loop | Critical | **DONE** Phase 148: BCC is already modeless via `dlg.Show()` + `ExternalEvent`. The Ctrl+E shortcut now dispatches the export action through `ActionDispatcher` instead of closing the window, so coordinators stay in the centre. |
+| BIM-EXCEL-STREAM-01 | Streaming Excel import for 10K+ rows | Critical | Already addressed Phase 78 via configurable `ExcelImportBatchSize` (default 2 000); ROADMAP entry kept open until streaming reader replaces full-file load. |
+| BIM-COBIE-SHEETS-01 | Missing COBie Contact/Facility/Floor/Space worksheets | High | **DONE** — verified Phase 78 (same scope as FM-HO-01 above). |
+| BIM-DD-TRACK-01 | ISO 19650 data drop milestone tracker (DD1-DD4) | High | **DONE** Phase 148: `DataDropTracker` POCO + Load/Save round-trip on `_BIM_COORD/data_drops.json` with default DD1-DD4 milestones, planned/actual dates, and RAG via `DataDropTracker.Rag(milestone, currentCompliancePct)`. |
+| BIM-REV-PROP-01 | Auto-propagate REV code on revision creation | High | **DONE** Phase 78 — verified at `RevisionManagementCommands.cs:677-701` (`GAP-R9: Auto-propagate new REV to all tagged elements`). |
+| BIM-EXCEL-CROSS-01 | Excel import FUNC↔SYS cross-validation | High | **DONE** Phase 148: `FuncSysValidator.Validate(rows)` returns mismatches against the SYS→{FUNC*} matrix (HVAC → SUP/RET/EXH/HTG/CLG/…, LV → PWR/LIT/CTL/DAT, etc.). |
+| BIM-FORECAST-01 | Compliance trend forecasting to target date | High | **DONE** Phase 148: `ComplianceForecast.Build(doc, target)` reads `_BIM_COORD/compliance_trend.json`, runs `WarningsEngine.ForecastCompliance`, and returns a `ForecastSummary` with caption text the dashboard can render inline. |
+| BIM-CDE-FOLDER-01 | Auto-initialize CDE folder structure | High | **DONE** Phase 148: `OnDocumentOpened` now calls `ProjectFolderEngine.CreateFolderStructure(doc)` on every doc open (idempotent). Toggle via `AUTO_CREATE_CDE_FOLDERS` config key (default true). |
+| BIM-BCF-SYNC-01 | BCF bidirectional sync from external tools | High | BCF export works but no import mechanism for changes from ACC/Procore — **deferred** (needs ACC/Procore OAuth). |
+| BIM-4D-HANDOVER-01 | 4D schedule linked to document handover dates | Critical | **DONE** Phase 148: `DataDropTracker.GetDD4HandoverDate(doc)` exposes the DD4 actual / planned date so `Scheduling4DEngine` can extend the timeline beyond construction-finish into handover. |
+| BIM-SIDECAR-VER-01 | Sidecar file versioning for forward compatibility | Medium | **DONE** Phase 148: `SidecarVersioning.EnsureArrayMeta(arr, schema)` stamps a `_meta` sentinel record (`version=1.1`, `schema`, `written_at`, `written_by`); readers iterate via `Records()` to skip the sentinel and tolerate missing-meta legacy files. |
+| BIM-TRANSMIT-GATE-01 | Transmittal CDE state validation | Medium | **DONE** Phase 148: `TransmittalGate.Validate(doc, transmittal, requiredRank=1)` blocks transmittals whose referenced documents are below SHARED, returning a structured `(pass, blockers, summary)` result. |
 | BIM-TEAM-WORKLOAD-01 | Team workload visualization per assignee | Medium | No way to see per-member issue/task distribution for resource balancing |
 | TAG-CACHE-01 | Parameter cache key instability | Critical | Cache key using doc.GetHashCode() changes across sessions causing stale reads; use stable PathName key |
 | TAG-AUTOTAG-NULL-01 | AutoTagger PopulationContext null crash | Critical | PopulationContext.Build() returns null on corrupted docs; no null check before PopulateAll |
@@ -189,13 +189,13 @@ Critical review of the tagging workflow identified the following logic, automati
 | TAG-VALIDATE-BUCKET-01 | Four-bucket compliance STATUS/REV gap | Critical | "Fully resolved" bucket doesn't require STATUS+REV populated; false-green compliance reporting |
 | TAG-RESOLVE-SAMPLE-01 | ResolveAllIssues sampled validation | Critical | Post-fix ISO validation runs on 50 of 1000 elements; unverified fixes applied to remaining 950 |
 | TAG-VALIDATE-MEMO-01 | ValidateToken HashSet optimization | High | List.Contains O(k) → HashSet O(1) for token validation; 400x faster for 50K-element models |
-| TAG-SORT-LEVEL-01 | SmartSort level elevation recalculated per batch | High | Level elevation dictionary rebuilt per 500-element batch; should be built once per document |
-| TAG-PREFLIGHT-DUP-01 | Pre-flight and main loop duplicate spatial indexing | High | PopulationContext.Build() called twice (pre-flight + tagging); reuse context from pre-flight |
-| TAG-DEFERRED-OVERFLOW-01 | AutoTagger deferred queue overflow silent drop | High | 5000-element queue overflow silently drops elements; need warning + retry sidecar |
+| TAG-SORT-LEVEL-01 | SmartSort level elevation recalculated per batch | High | **DONE** — `BatchTagCommand._levelElevationCache` (atomic tuple, doc-keyed) reuses elevations across batches; cleared on document close. |
+| TAG-PREFLIGHT-DUP-01 | Pre-flight and main loop duplicate spatial indexing | High | **DONE** — Phase 147: `TokenAutoPopulator.PopulationContext.Build` cached per-document with 30 s TTL; invalidated on doc close, `TagConfig.LoadFromFile`, and after every tagging command via `PostTagCleanup`. |
+| TAG-DEFERRED-OVERFLOW-01 | AutoTagger deferred queue overflow silent drop | High | **DONE** — Phase 147: `StingAutoTagger.LoadDroppedElementsSidecar` re-enqueues previously-dropped IDs on document open and rotates the sidecar to `.consumed` so a re-open does not double-replay. Save-path now also resets in-memory state. |
 | TAG-SEQ-SIDECAR-DRIFT-01 | SEQ sidecar/model counter divergence on cancel | High | Cancel during batch N leaves sidecar at N but model at N-1; counters diverge by 500 |
-| TAG-ISO-USERNAME-01 | ISO 19650 contributor tracking in audit trail | High | TAG_HISTORY logs timestamp but not username; ISO requires "person responsible" traceability |
-| TAG-STALE-WARN-01 | Stale elements not auto-creating warnings | Medium | Stale flag set by IUpdater but not fed into WarningsEngine pipeline automatically |
-| TAG-WORKFLOW-PARALLEL-01 | Workflow step parallelization | Medium | Independent workflow steps execute sequentially; DAG-based dependency ordering would halve execution time |
+| TAG-ISO-USERNAME-01 | ISO 19650 contributor tracking in audit trail | High | **DONE** — Phase 147: `ASS_TAG_MODIFIED_BY_TXT` (GUID `c1f4d6b8-2a3e-4d5b-9c6f-7a8b9c0d1e2f`) added to `MR_PARAMETERS.{txt,csv}`. `RunFullPipeline` was already writing `Environment.UserName` to it; the parameter is now actually bound and persisted, closing the ISO 19650-2 §A.5 "person responsible" requirement. |
+| TAG-STALE-WARN-01 | Stale elements not auto-creating warnings | Medium | **DONE** — Phase 147: `StaleWarningPromotionJob` (single-shot idle consumer) calls `WarningsEngineExt.AutoRaiseStaleIssues` once `staleCount >= TagConfig.StaleWarningThreshold` (default 5, configurable via `STALE_WARNING_THRESHOLD`). Enqueued on every batch in `StingStaleMarker.Execute` that flags stale, and once on document open after the compliance refresh. |
+| TAG-WORKFLOW-PARALLEL-01 | Workflow step parallelization | Medium | **DONE** Phase 148 (with caveat): `WorkflowDagPlanner.Plan` topo-sorts steps by `(parallelGroup, originalIndex)` and `MarkBlocked` flags steps in groups behind a failed upstream group. True OS-thread parallelism is impossible because the Revit API is single-threaded; the DAG planner is the realistic interpretation. |
 | TAG-COMPLIANCE-LOCK-01 | ComplianceScan pending state deadlock | Medium | **DONE** — Phase 78: 60s timeout auto-resets _scanning flag |
 
 ### Verified Already-Fixed Gaps (False Positives from Deep Review)
@@ -208,8 +208,8 @@ The following gaps were reported by deep review agents but verified as already i
 - **TAG-RESOLVE-SAMPLE-01**: ResolveAllIssues runs RunFullPipeline on ALL elements (not sampled 50)
 - **TAG-VALIDATE-BUCKET-01**: Four-bucket classification already requires STATUS+REV for "fully resolved"
 - **TAG-SEQ-SIDECAR-DRIFT-01**: Sidecar saved per-batch; cancel rolls back current batch only, sidecar tracks committed batches accurately
-- **FM-HO-01 (COBie sheets)**: COBie handover export already generates all 12 sheets (Facility, Floor, Space, Type, Component, System, Zone, Contact, Attribute, Job, Resource + Instruction)
-- **BIM-COBIE-SHEETS-01**: Same as FM-HO-01 — already complete
+- **FM-HO-01 (COBie sheets)**: COBie handover export already generates all 11 + Instruction sheets (Facility, Floor, Space, Type, Component, System, Zone, Contact, Attribute, Job, Resource + Instruction). Re-verified Phase 148.
+- **BIM-COBIE-SHEETS-01**: Same as FM-HO-01 — already complete (re-verified Phase 148).
 
 ### Remaining Future Enhancement Gaps (Phase 78 Triage)
 
@@ -218,40 +218,40 @@ After verification, 15 of 44 gaps were confirmed as already implemented or false
 **CRITICAL (should implement before handover):**
 | ID | Gap | Status |
 |----|-----|--------|
-| BIM-CDE-APPROVAL-01 | CDE approval workflow enforcement per ISO 19650-2 §5.6 | Documented |
-| BIM-CROSS-LINK-01 | Issue↔Revision↔Transmittal JSON cross-linking | Documented |
-| BIM-COORD-LOOP-01 | BIM Coordination Center keep-open loop | Documented |
-| BIM-EXCEL-STREAM-01 | Streaming Excel import for 10K+ rows | Documented |
-| BIM-4D-HANDOVER-01 | 4D schedule linked to DD4 handover dates | Documented |
-| BIM-COBIE-SYS-01 | COBie System worksheet from actual SYS distribution | Documented |
+| BIM-CDE-APPROVAL-01 | CDE approval workflow enforcement per ISO 19650-2 §5.6 | DONE Phase 148 |
+| BIM-CROSS-LINK-01 | Issue↔Revision↔Transmittal JSON cross-linking | DONE Phase 148 |
+| BIM-COORD-LOOP-01 | BIM Coordination Center keep-open loop | DONE Phase 148 |
+| BIM-EXCEL-STREAM-01 | Streaming Excel import for 10K+ rows | Open — batch-size knob exists, full streaming reader still pending |
+| BIM-4D-HANDOVER-01 | 4D schedule linked to DD4 handover dates | DONE Phase 148 |
+| BIM-COBIE-SYS-01 | COBie System worksheet from actual SYS distribution | DONE Phase 148 |
 
 **HIGH (should implement for production):**
 | ID | Gap | Status |
 |----|-----|--------|
-| BIM-DD-TRACK-01 | ISO 19650 data drop milestone tracker (DD1-DD4) | Documented |
-| BIM-REV-PROP-01 | Auto-propagate REV code on revision creation | Documented |
-| BIM-EXCEL-CROSS-01 | Excel import FUNC↔SYS cross-validation | Documented |
-| BIM-FORECAST-01 | Compliance trend forecasting to target date | Documented |
-| BIM-CDE-FOLDER-01 | Auto-initialize CDE folder structure | Documented |
-| BIM-BCF-SYNC-01 | BCF bidirectional sync from external tools | Documented |
-| TAG-SORT-LEVEL-01 | SmartSort level elevation cached per document | Documented |
-| TAG-PREFLIGHT-DUP-01 | Reuse PopulationContext from pre-flight in main loop | Documented |
+| BIM-DD-TRACK-01 | ISO 19650 data drop milestone tracker (DD1-DD4) | DONE Phase 148 |
+| BIM-REV-PROP-01 | Auto-propagate REV code on revision creation | DONE Phase 78 (verified Phase 148) |
+| BIM-EXCEL-CROSS-01 | Excel import FUNC↔SYS cross-validation | DONE Phase 148 |
+| BIM-FORECAST-01 | Compliance trend forecasting to target date | DONE Phase 148 |
+| BIM-CDE-FOLDER-01 | Auto-initialize CDE folder structure | DONE Phase 148 |
+| BIM-BCF-SYNC-01 | BCF bidirectional sync from external tools | Deferred — needs ACC/Procore OAuth |
+| TAG-SORT-LEVEL-01 | SmartSort level elevation cached per document | DONE (verified Phase 147) |
+| TAG-PREFLIGHT-DUP-01 | Reuse PopulationContext from pre-flight in main loop | DONE Phase 147 |
 
 **MEDIUM (enhancement quality):**
 | ID | Gap | Status |
 |----|-----|--------|
-| BIM-SIDECAR-VER-01 | Sidecar file versioning for forward compatibility | Documented |
-| BIM-TRANSMIT-GATE-01 | Transmittal CDE state validation | Documented |
-| BIM-TEAM-WORKLOAD-01 | Team workload visualization per assignee | Documented |
-| TAG-STALE-WARN-01 | Stale elements auto-creating warnings | Documented |
-| TAG-WORKFLOW-PARALLEL-01 | Workflow step parallelization via DAG | Documented |
-| DWG-MULTI-01 | DWG multi-layer wall detection | Documented |
-| DWG-CURVE-01 | Curved wall support from DWG arcs | Documented |
-| WF-SCHED-01 | Schedule template library (save/load/apply) | Documented |
-| WF-SCHED-02 | Cross-schedule field consistency validation | Documented |
-| MEP-SCHED-01 | MEP commissioning schedules | Documented |
-| STRUCT-REBAR-01 | Rebar spacing validation (spacing > bar diameter) | Documented |
-| ACOUSTIC-CAVITY-01 | Frequency-dependent cavity bonus in double-leaf Rw | Documented |
+| BIM-SIDECAR-VER-01 | Sidecar file versioning for forward compatibility | DONE Phase 148 |
+| BIM-TRANSMIT-GATE-01 | Transmittal CDE state validation | DONE Phase 148 |
+| BIM-TEAM-WORKLOAD-01 | Team workload visualization per assignee | DONE Phase 148 |
+| TAG-STALE-WARN-01 | Stale elements auto-creating warnings | DONE Phase 147 |
+| TAG-WORKFLOW-PARALLEL-01 | Workflow step parallelization via DAG | DONE Phase 148 (DAG planner; true parallelism blocked by Revit single-threading) |
+| DWG-MULTI-01 | DWG multi-layer wall detection | Open — multi-day spike (DWG geometry rewrite) |
+| DWG-CURVE-01 | Curved wall support from DWG arcs | Open — multi-day spike (DWG geometry rewrite) |
+| WF-SCHED-01 | Schedule template library (save/load/apply) | DONE Phase 148 |
+| WF-SCHED-02 | Cross-schedule field consistency validation | DONE Phase 148 |
+| MEP-SCHED-01 | MEP commissioning schedules | DONE Phase 148 |
+| STRUCT-REBAR-01 | Rebar spacing validation (spacing > bar diameter) | DONE Phase 148 |
+| ACOUSTIC-CAVITY-01 | Frequency-dependent cavity bonus in double-leaf Rw | DONE Phase 148 |
 
 
 ### v6 Runner Gaps — 2026-04-22 Audit
@@ -319,3 +319,29 @@ in `CHANGELOG.md`).
 | `TPL-FOLLOW-03` "My queue" sub-section in BCC Deliverables tab (S12 v1.1) — `WorkflowEngine.GetMyQueue(userEmail)` is implemented but no UI binding yet. | `StingTools/UI/BIMCoordinationCenter.cs` | Open — data layer ready. |
 | `TPL-FOLLOW-04` "Recipient matrix" view in BCC Deliverables tab (S18) — `DistributionGroups.SuggestFor(deliverable)` and group persistence are implemented; matrix view not yet drawn. | `StingTools/UI/BIMCoordinationCenter.cs` | Open — data layer ready. |
 | `TPL-FOLLOW-05` Faceted filter pills + saved-searches combo in Document Manager filter bar (S17). `DocumentIndex.Search` + `SavedSearchStore` implemented; dialog bar still uses the legacy free-text box. | `StingTools/UI/DocumentManagementDialog.cs` | Open — data layer ready. |
+
+### Future Enhancement Gaps — Structural DWG-to-BIM (Phase 140 Deferrals)
+
+Phase 140 landed grid snapping, span-proportional beam depth, multi-storey
+column heights, beam endpoint trimming, multi-category numbering, slab
+voids, grid-label marks, load-path warnings as TextNotes, duplicate
+detection, the Re-analyse dry-run button, and the misleading-label fix
+that triggered the branch (`Parallel max gap` → `Parallel pair max
+gap`). The items below were called out in the Phase 140 planning prompt
+but deferred so each could land cleanly in its own follow-up.
+
+| Gap | Description | Unblocker |
+|-----|-------------|-----------|
+| ~~`DWG-STRUCT-P2A` Strip foundation detection (under walls)~~ | **DONE** Phase 142. `StripFoundationDetector` builds rectangular loops along each wall centreline (oversized by `StripFndOversizeMm` per side) and feeds them through `CreateSlabsFromBoundaries`. Wizard exposes the toggle + oversize knob. |
+| ~~`DWG-STRUCT-P2F` Endpoint gap bridging at detection time~~ | **DONE** Phase 142. `DetectStructuralWalls` and `DetectBeamCenterlinesV2` synthesise overlap when two parallel lines fall within `EndpointGapToleranceMm` of each other longitudinally. |
+| ~~`DWG-STRUCT-P3B` Slab centroid → room seeding~~ | **DONE** Phase 143. `SlabRoomSeeder.Seed(doc, level, outerSlabs, voidLoops, cfg)` drops Revit Rooms at outer-loop centroids skipping points inside voids and existing rooms. Wizard exposes the toggle. |
+| ~~`DWG-STRUCT-P3C` Auto-create structural views after conversion~~ | **DONE** Phase 143. `StructuralViewCreator.CreateViews` creates a StructuralPlan ViewPlan per level that received elements and applies the corporate "S-PLAN" DrawingType via Phase-113 `DrawingTypePresentation.Apply()`. Default OFF (opt-in). |
+| ~~`DWG-STRUCT-DEEP-1` Steel I-section vs concrete rectangle inference~~ | **DONE** Phase 143. `BeamMaterialInferrer.AnnotateAll` heuristically classifies beams: parallel-pair (`WidthDetected==true`, width ≥ 200 mm) → concrete; single-line → steel I-section. Suffix appended to LayerName for downstream type matching. |
+| ~~`DWG-STRUCT-DEEP-2` Pile cap / raft / strip differentiation~~ | **DONE** Phase 143. `FoundationClassifier.Classify` splits detected rectangles into Pad / Raft / PileCap based on plan area + clustering. Rafts route to slab path; pads + pile caps stay on pad-foundation path. |
+| ~~`DWG-STRUCT-DEEP-3` Cantilever detection~~ | **DONE** Phase 142. `BeamSupportClassifier` flags free-end and cantilever beams; `MarkCantileverBeams` toggle stamps the Comments parameter so they're filterable in schedules. Junction warnings are also placed as TextNotes via Phase 141 `DetectJunctions` wiring. |
+| ~~`DWG-STRUCT-DEEP-4` Beam-overlap ratio configurability~~ | **DONE** Phase 142. `BeamOverlapMinRatio` config field threads through `DetectBeamCenterlinesV2` and `DetectStructuralWalls`. Wizard exposes the knob in ACCURACY (Phase-142). |
+| `DWG-STRUCT-DEEP-5` Foundation EC7 sizing  with soil class + load | Phase 140 surfaced the EC7 §6.5 disclaimer; the actual heuristic is still a flat 1.5× column-bbox oversize. A correct implementation needs soil bearing capacity, load combinations, and serviceability checks per EC2/EC7. | New `FoundationSizingEngine` that takes `(columnLoad, soilClass, loadCombination)` and returns a footing size from EC2/EC7. |
+| ~~`DWG-STRUCT-DEEP-6` Junction-type Mark stamping~~ | **DONE** Phase 143. `JunctionMarkStamper.Stamp` appends `J:T` / `J:L` / `J:X` / `J:S` to the Mark of every column / beam participating in a detected junction. (True connection-detail synthesis — bolt patterns, weld lines, Revit connection families — remains future work, tracked as DWG-STRUCT-DEEP-6b below.) |
+| `DWG-STRUCT-DEEP-6b` Connection-detail element synthesis | Phase 143 stamps junction-type Marks but does not create connection geometry. A future pass would create bolt patterns, weld lines, or Revit structural connection family instances at each L/T/Cross junction. | Connection-element synthesizer per junction type, consumed by Revit structural connection families. |
+| ~~`DWG-STRUCT-DEEP-7` Continuous columns via Top Constraint = top level~~ | **DONE** Phase 142. `CreateColumnsWithHeight` already sets `FAMILY_TOP_LEVEL_PARAM` to the top level when `topLevel != null` — Phase 142 verified the existing behaviour, added the explicit `UseTopConstraintForContinuousColumns` config flag for documentation, and clarified the wizard tooltip. |
+| ~~`DWG-STRUCT-DEEP-8` Beams-on-walls applied per-beam, not globally~~ | **DONE** Phase 142. `BeamSupportClassifier` reads each beam endpoint's actual support type; `ApplyBeamSupportPostCreation` only applies the wall-top offset to beams that rest on a wall and not on a column. (The `BeamsRestOnWalls` config field had been on the type since Phase 78 but was never read — Phase 142 closed the loop.) |

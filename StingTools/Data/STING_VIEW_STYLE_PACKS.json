@@ -22,7 +22,9 @@
         { "name": "New Construction",        "visible": true, "halftone": false, "projColor": "#000000", "projWeight": 7, "cutColor": "#000000", "cutWeight": 8, "transparency": 0  },
         { "name": "Demolished",              "visible": true, "halftone": false, "projColor": "#FF0000", "projWeight": 5, "cutColor": "#FF0000", "cutWeight": 5, "transparency": 50 },
         { "name": "Temporary",               "visible": true, "halftone": false, "projColor": "#FF8C00", "projWeight": 4, "cutColor": "#FF8C00", "cutWeight": 5, "transparency": 30 },
-        { "name": "Proposed - Planning",     "visible": true, "halftone": false, "projColor": "#4472C4", "projWeight": 5, "cutColor": "#4472C4", "cutWeight": 5, "transparency": 0  }
+        { "name": "Proposed - Planning",     "visible": true, "halftone": false, "projColor": "#4472C4", "projWeight": 5, "cutColor": "#4472C4", "cutWeight": 5, "transparency": 0  },
+        { "name": "STING - First-Fix Phase", "visible": true, "halftone": true,  "projColor": "#A0A0A0", "projWeight": 3, "cutColor": "#A0A0A0", "cutWeight": 3, "transparency": 30 },
+        { "name": "STING - Noggin Required", "visible": true, "halftone": false, "projColor": "#FF8C00", "projWeight": 6, "cutColor": "#FF8C00", "cutWeight": 6, "transparency": 0  }
       ],
       "vgOverrides": {
         "Walls":                    { "visible": true, "projColor": "#000000", "projWeight": 5, "cutColor": "#000000", "cutWeight": 6 },
@@ -72,6 +74,8 @@
         "Security Devices":         { "visible": true, "projColor": "#7030A0", "projWeight": 4, "cutColor": "#7030A0", "cutWeight": 5 },
         "Nurse Call Devices":       { "visible": true, "projColor": "#7030A0", "projWeight": 4, "cutColor": "#7030A0", "cutWeight": 5 },
         "Lighting Fixtures":        { "visible": true, "projColor": "#FFC000", "projWeight": 5, "cutColor": "#FFC000", "cutWeight": 6 },
+        "Lighting Devices":         { "visible": true, "projColor": "#FFC000", "projWeight": 4, "cutColor": "#FFC000", "cutWeight": 5 },
+        "Junction Boxes":           { "visible": true, "projColor": "#FFC000", "projWeight": 3, "cutColor": "#FFC000", "cutWeight": 4 },
         "Furniture":                { "visible": true, "projColor": "#000000", "projWeight": 2, "cutColor": "#000000", "cutWeight": 3 },
         "Furniture Systems":        { "visible": true, "projColor": "#000000", "projWeight": 2, "cutColor": "#000000", "cutWeight": 3 },
         "Casework":                 { "visible": true, "projColor": "#000000", "projWeight": 2, "cutColor": "#000000", "cutWeight": 3 },

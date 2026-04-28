@@ -674,6 +674,39 @@ namespace StingTools.BIMManager
                     catch (Exception wbEx) { StingLog.Warn($"Auto-save baseline on revision: {wbEx.Message}"); }
                 }
 
+                // BIM-CROSS-LINK-01: Stamp the new revision id onto every OPEN
+                // issue whose own `revision` field matches (or is empty) so
+                // CrossLinkEngine.WalkFromIssue can hop from an issue to the
+                // revision that closes it. Symmetric link is added on the
+                // revision sidecar by RevisionEngine.SaveRevisionRecord.
+                try
+                {
+                    string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
+                    if (!string.IsNullOrEmpty(bimDir))
+                    {
+                        string issuesPath = System.IO.Path.Combine(bimDir, "issues.json");
+                        if (System.IO.File.Exists(issuesPath))
+                        {
+                            var issuesArr = BIMManagerEngine.LoadJsonArray(issuesPath);
+                            int linked = 0;
+                            string newRevId = prefix;
+                            foreach (var rec in SidecarMetaStamper.Records(issuesArr))
+                            {
+                                string status = rec["status"]?.ToString() ?? "";
+                                string revOnIssue = rec["revision"]?.ToString() ?? "";
+                                if (!string.Equals(status, "OPEN", System.StringComparison.OrdinalIgnoreCase)) continue;
+                                if (!string.IsNullOrEmpty(revOnIssue)
+                                    && !string.Equals(revOnIssue, newRevId, System.StringComparison.OrdinalIgnoreCase))
+                                    continue;
+                                if (CrossLinkEngine.AppendLink(rec, "revision", newRevId)) linked++;
+                            }
+                            if (linked > 0) BIMManagerEngine.SaveJsonFile(issuesPath, issuesArr);
+                            StingLog.Info($"CrossLinkEngine: linked revision {newRevId} to {linked} OPEN issue(s)");
+                        }
+                    }
+                }
+                catch (Exception clEx) { StingLog.Warn($"CrossLinkEngine revision↔issue: {clEx.Message}"); }
+
                 // GAP-R9: Auto-propagate new REV to all tagged elements
                 // so tags reflect the current revision immediately
                 try

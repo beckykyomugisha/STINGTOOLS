@@ -63,7 +63,8 @@ namespace StingTools.Commands.Drawing
                 // Validation summary
                 int errors   = reports.Sum(r => r.Issues.Count(i => i.Severity == ValidationSeverity.Error));
                 int warnings = reports.Sum(r => r.Issues.Count(i => i.Severity == ValidationSeverity.Warning));
-                sb.AppendLine($"Validation: {errors} error(s), {warnings} warning(s)");
+                int infos    = reports.Sum(r => r.Issues.Count(i => i.Severity == ValidationSeverity.Info));
+                sb.AppendLine($"Validation: {errors} error(s), {warnings} warning(s), {infos} info");
 
                 // Drift summary (Week 4) — per-view check against profile
                 try
@@ -102,6 +103,28 @@ namespace StingTools.Commands.Drawing
                     sb.AppendLine($"  [{r.DrawingTypeId}]");
                     foreach (var i in r.Issues.Where(i => i.Severity != ValidationSeverity.Info))
                         sb.AppendLine($"    {i.Severity,-7} {i.Code}: {i.Message}");
+                }
+
+                // GAP-Q: surface Info-level issues (DT-050 / DT-057 / DT-061
+                // / DT-137-NOSLOTS) in a collapsed section so authors get
+                // a heads-up about non-blocking schema concerns without
+                // confusing them with errors / warnings.
+                var infoOnlyReports = reports
+                    .Where(r => !r.HasErrors && !r.HasWarnings
+                                && r.Issues.Any(i => i.Severity == ValidationSeverity.Info))
+                    .ToList();
+                if (infos > 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine($"Info ({infos} item{(infos == 1 ? "" : "s")} — non-blocking, profile-author hints):");
+                    foreach (var r in infoOnlyReports.Take(20))
+                    {
+                        sb.AppendLine($"  [{r.DrawingTypeId}]");
+                        foreach (var i in r.Issues.Where(i => i.Severity == ValidationSeverity.Info).Take(5))
+                            sb.AppendLine($"    Info    {i.Code}: {i.Message}");
+                    }
+                    if (infoOnlyReports.Count > 20)
+                        sb.AppendLine($"  …(+{infoOnlyReports.Count - 20} more)");
                 }
 
                 TaskDialog.Show("STING — Drawing Types", sb.ToString().Length > 10000
