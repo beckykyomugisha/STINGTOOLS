@@ -860,7 +860,8 @@ namespace StingTools.BIMManager
                         var barType = doc.GetElement(typeId)
                             as Autodesk.Revit.DB.Structure.RebarBarType;
                         if (barType == null) continue;
-                        double dia = barType.BarDiameter; // feet
+                        // BarDiameter was deprecated in Revit 2022; BarNominalDiameter is the supported replacement
+                        double dia = barType.BarNominalDiameter; // feet
                         double diaMm = dia * 304.8;
 
                         // ARRAY_ARRAY_LENGTH / number-of-bars to derive spacing
@@ -1114,7 +1115,6 @@ namespace StingTools.BIMManager
                 {
                     BuiltInParameter.RBS_SYSTEM_NAME_PARAM,
                     BuiltInParameter.RBS_DUCT_FLOW_PARAM,
-                    BuiltInParameter.RBS_DUCT_PRESSURE_DROP_PARAM,
                     BuiltInParameter.ELEM_FAMILY_AND_TYPE_PARAM,
                 },
                 GroupBy = "Family and Type",
@@ -1134,14 +1134,20 @@ namespace StingTools.BIMManager
             },
             new()
             {
-                Name = "STING - HVAC Pressure Drop Summary",
+                // Note: the schedule was originally named "Pressure Drop
+                // Summary" but Revit's BuiltInParameter enum doesn't expose
+                // the duct pressure-drop / hydraulic-diameter constants we'd
+                // need (RBS_DUCT_PRESSURE_DROP_PARAM /
+                // RBS_DUCT_HYDRAULIC_DIAMETER_PARAM don't exist in the API).
+                // Users wanting those columns can add them post-create via
+                // Revit's Schedule Properties dialog where they ARE selectable.
+                Name = "STING - HVAC Duct Flow Summary",
                 Category = BuiltInCategory.OST_DuctCurves,
                 Fields = new()
                 {
                     BuiltInParameter.RBS_SYSTEM_NAME_PARAM,
                     BuiltInParameter.RBS_DUCT_FLOW_PARAM,
-                    BuiltInParameter.RBS_DUCT_PRESSURE_DROP_PARAM,
-                    BuiltInParameter.RBS_DUCT_HYDRAULIC_DIAMETER_PARAM,
+                    BuiltInParameter.ELEM_FAMILY_AND_TYPE_PARAM,
                 },
                 GroupBy = "System Name",
             },

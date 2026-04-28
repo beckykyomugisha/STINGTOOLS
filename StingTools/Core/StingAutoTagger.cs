@@ -202,7 +202,9 @@ namespace StingTools.Core
                 int missing = 0;
                 foreach (var token in idArr)
                 {
-                    long raw = token.Value<long>();
+                    // CS7036 fix: JToken.Value<T>() requires a key when called on JObject;
+                    // for a JArray element we want the scalar conversion via cast / ToObject<T>().
+                    long raw = (long)token;
                     ElementId id = new ElementId(raw);
                     Element el = null;
                     try { el = doc.GetElement(id); } catch { /* ignore — id may belong to a deleted element */ }
