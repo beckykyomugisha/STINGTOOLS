@@ -4521,3 +4521,55 @@ Result on a 27-room residential project: those three rules will
 match zero rooms instead of 27, removing all the floor-level red
 dots.
 
+
+#### Completed (Phase 139.18 — systematic placement workflow rewrite)
+
+User reported the same wrong positions / skipped doors / wrong
+orientation across multiple runs and asked for a deep workflow
+review. Five systematic engine bugs found:
+
+1. **Doors collected by greedy bbox-intersect.** `GetBoundary`
+   collects every door whose bbox falls within the room's
+   bbox + 1.5 ft padding. This includes doors of adjacent rooms
+   (kitchen door grabbed by dining bbox) AND processes the same
+   door twice when both adjacent rooms claim it.
+
+   **Fix:** new `FilterDoorsForRoom` keeps only doors whose
+   `FromRoom` or `ToRoom` matches the current room. Falls back to
+   bbox-intersect when both are null (door's spatial context not
+   yet computed).
+
+2. **`ComputeInwardFromWall` returned null for curved walls.**
+   The old code did `lc.Curve is not Line ln` short-circuit; arc
+   and NurbSpline walls returned null and `EmitDoorAnchor` fell
+   back to `XYZ.BasisY` (world-Y). Switches on curved walls were
+   pushed in a fixed direction unrelated to the wall.
+
+   **Fix:** generalised to any `Curve` via `ComputeDerivatives`
+   for the tangent + 90° rotation for the inward normal. Mirror
+   of the Phase 139.5 `ComputeInwardFromCurve` pattern.
+
+3. **`OrientPlacedInstance` flip-facing only fired for hosted
+   instances.** `if (!(fi.Host is Wall hostWall)) return;` — every
+   un-hosted OneLevelBased family kept its default world-X facing
+   regardless of the wall it should align with.
+
+   **Fix:** drop the gate. For un-hosted families, find the
+   nearest wall via `Curve.Project`, use its tangent + room-side
+   normal as the target facing direction. When `CanFlipFacing` is
+   false (un-hosted family), use `ElementTransformUtils.RotateElement`
+   either 180° (flip) or to a precise alignment angle when the
+   family is roughly perpendicular to the inward normal.
+
+4. **No warning when family ↔ rule placement-type mismatch.**
+   A rule with `AnchorType: "DOOR_HINGE"` resolving to an
+   `OneLevelBased` un-hosted family means the family won't attach
+   to a wall no matter what the engine does post-placement.
+   Designers had no way to know.
+
+   **Fix:** engine now appends a one-shot warning per
+   (family, rule) pair when a wall- or ceiling-anchored rule
+   resolves to a non-hosted family: *"Engine will place + snap +
+   rotate but the family won't attach to the wall/ceiling. Re-author
+   the family as wall-hosted for proper attachment."*
+
