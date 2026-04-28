@@ -1405,6 +1405,13 @@ namespace StingTools.Core
             /// <summary>GAP-019: Configurable default REV (from project_config.json or "P01").</summary>
             public string DefaultRev { get; set; } = "P01";
 
+            /// <summary>EFF-05 (Phase 149b): per-batch memo of type-level LOC/ZONE
+            /// overrides so PopulateAll doesn't pay a Document.GetElement +
+            /// 2× GetString per instance when most types don't have overrides
+            /// set. Key is type ElementId; null tuple value means "no override".</summary>
+            public Dictionary<ElementId, (string Loc, string Zone)> TypeOverrideCache { get; set; }
+                = new Dictionary<ElementId, (string, string)>();
+
             /// <summary>Phase 39: Validate that the context has all required data for reliable token population.
             /// Returns true if all critical fields are initialized. Use after Build() to catch partial init
             /// on corrupted documents (missing levels, rooms, phases, etc.).</summary>
@@ -1720,17 +1727,30 @@ namespace StingTools.Core
                 if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc)) result.TokensSet++;
             }
 
-            // Phase 19: Type-level LOC/ZONE overrides — check before spatial detection
+            // Phase 19: Type-level LOC/ZONE overrides — check before spatial detection.
+            // EFF-05 (Phase 149b): cache per-type so a family with 100 instances
+            // does ONE Document.GetElement + 2 GetString calls, not 100.
             string typeLocOverride = null;
             string typeZoneOverride = null;
             ElementId popTypeId = el.GetTypeId();
             if (popTypeId != null && popTypeId != ElementId.InvalidElementId)
             {
-                Element popTypeEl = doc.GetElement(popTypeId);
-                if (popTypeEl != null)
+                if (ctx?.TypeOverrideCache != null
+                    && ctx.TypeOverrideCache.TryGetValue(popTypeId, out var cached))
                 {
-                    typeLocOverride = ParameterHelpers.GetString(popTypeEl, ParamRegistry.TYPE_LOC_OVERRIDE);
-                    typeZoneOverride = ParameterHelpers.GetString(popTypeEl, ParamRegistry.TYPE_ZONE_OVERRIDE);
+                    typeLocOverride = cached.Loc;
+                    typeZoneOverride = cached.Zone;
+                }
+                else
+                {
+                    Element popTypeEl = doc.GetElement(popTypeId);
+                    if (popTypeEl != null)
+                    {
+                        typeLocOverride = ParameterHelpers.GetString(popTypeEl, ParamRegistry.TYPE_LOC_OVERRIDE);
+                        typeZoneOverride = ParameterHelpers.GetString(popTypeEl, ParamRegistry.TYPE_ZONE_OVERRIDE);
+                    }
+                    if (ctx?.TypeOverrideCache != null)
+                        ctx.TypeOverrideCache[popTypeId] = (typeLocOverride, typeZoneOverride);
                 }
             }
 
@@ -2372,7 +2392,17 @@ namespace StingTools.Core
         /// Only writes to empty STING parameters (non-destructive).
         /// Returns the number of values written.
         /// </summary>
+        /// <summary>
+        /// EFF-04 (Phase 149b) overload: take a pre-built room index so we don't
+        /// pay a fresh GetRoomAtPoint spatial query per element. The legacy
+        /// signature (Document, Element) delegates here with a null index and
+        /// keeps the old behaviour for non-batch callers.
+        /// </summary>
         public static int MapAll(Document doc, Element el)
+            => MapAll(doc, el, null);
+
+        public static int MapAll(Document doc, Element el,
+            Dictionary<ElementId, Room> roomIndex)
         {
             int written = 0;
 
@@ -2429,7 +2459,20 @@ namespace StingTools.Core
                 written += SetIfEmptyInt(el, ParamRegistry.FAMILY_NAME, familyName);
 
             // ── Spatial / Room data ────────────────────────────────────────────
-            Room room = ParameterHelpers.GetRoomAtElement(doc, el);
+            // EFF-04 (Phase 149b): consult the pre-built room index when we have
+            // one. The cheap FamilyInstance.Room property is still tried first
+            // inside GetRoomAtElement; the index covers curve-based MEP elements
+            // that would otherwise force a fresh GetRoomAtPoint spatial query
+            // per element. ConnectorInherit / SpatialAutoDetect already share
+            // the same index from PopulationContext, so this just plugs the
+            // last per-element room lookup into the same shared cache.
+            Room room = null;
+            if (roomIndex != null)
+            {
+                if (el is FamilyInstance fiPre && fiPre.Room != null) room = fiPre.Room;
+                else if (roomIndex.TryGetValue(el.Id, out var indexed)) room = indexed;
+            }
+            if (room == null) room = ParameterHelpers.GetRoomAtElement(doc, el);
             if (room != null)
             {
                 written += SetIfEmptyInt(el, ParamRegistry.ROOM_NAME, room.Name ?? "");
@@ -3909,7 +3952,9 @@ namespace StingTools.Core
                 }
 
                 // P2: Bridge Revit native params → STING shared params
-                NativeParamMapper.MapAll(doc, el);
+                // EFF-04 (Phase 149b): pass the cached RoomIndex so MapAll's
+                // spatial lookup hits the same dictionary PopulateAll already used.
+                NativeParamMapper.MapAll(doc, el, ctx?.RoomIndex);
 
                 // P3: Evaluate formulas in dependency order
                 // FUT-18: Lazy formula evaluation — skip formulas whose target parameter

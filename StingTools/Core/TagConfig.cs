@@ -2682,29 +2682,52 @@ namespace StingTools.Core
             // Guaranteed LVL default: replace unresolved "XX"/"" with "L00" for levelless elements
             if (string.IsNullOrEmpty(lvl) || lvl == "XX") lvl = "L00";
 
-            // Intelligence Layer: MEP system-aware SYS/FUNC derivation
-            // 6-layer system detection: connector → sys param → circuit → family → room → category
-            string sys = GetMepSystemAwareSysCode(el, catName);
-
-            // Guaranteed SYS default: derive from discipline when MEP detection returns empty
+            // EFF-02 (Phase 149b): on the non-overwrite path we trust whatever
+            // PopulateAll already wrote — reading the element bypasses the
+            // expensive per-element MEP connector walk inside
+            // GetMepSystemAwareSysCode (and the Smart FUNC / family-aware PROD
+            // helpers). On the overwrite path we deliberately want fresh
+            // derivation so users can force a re-detect, so the legacy path
+            // still runs.
+            //
+            // Independent callers like BuildTagsCommand pass overwriteTokens=
+            // false but DON'T pre-populate the element first; for them, the
+            // GetString returns empty and we fall through to the same derivation
+            // that ran before — behaviour unchanged.
+            string sys = null;
+            if (!overwriteTokens) sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
             if (string.IsNullOrEmpty(sys))
-                sys = GetDiscDefaultSysCode(disc);
+            {
+                // Intelligence Layer: MEP system-aware SYS/FUNC derivation
+                // 6-layer system detection: connector → sys param → circuit → family → room → category
+                sys = GetMepSystemAwareSysCode(el, catName);
+                if (string.IsNullOrEmpty(sys))
+                    sys = GetDiscDefaultSysCode(disc);
+            }
 
             // Intelligence Layer: System-aware DISC correction for pipes
             // Pipes are mapped to "M" by default, but if the connected system is plumbing
             // (DCW, DHW, SAN, RWD, GAS), the DISC should be "P" (Plumbing).
             disc = GetSystemAwareDisc(disc, sys, catName);
 
-            // Smart FUNC: differentiates HVAC (SUP/RTN/EXH/FRA) and HWS (HTG/DHW) subsystems
-            string func = GetSmartFuncCode(el, sys);
-            // Guaranteed FUNC default: derive from SYS via FuncMap when smart detection is empty
+            string func = null;
+            if (!overwriteTokens) func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
             if (string.IsNullOrEmpty(func))
-                func = FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
+            {
+                // Smart FUNC: differentiates HVAC (SUP/RTN/EXH/FRA) and HWS (HTG/DHW) subsystems
+                func = GetSmartFuncCode(el, sys);
+                if (string.IsNullOrEmpty(func))
+                    func = FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
+            }
 
-            string prod = GetFamilyAwareProdCode(el, catName);
-            // Guaranteed PROD default: category map or GEN
+            string prod = null;
+            if (!overwriteTokens) prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
             if (string.IsNullOrEmpty(prod))
-                prod = ProdMap.TryGetValue(catName, out string cp) ? cp : "GEN";
+            {
+                prod = GetFamilyAwareProdCode(el, catName);
+                if (string.IsNullOrEmpty(prod))
+                    prod = ProdMap.TryGetValue(catName, out string cp) ? cp : "GEN";
+            }
 
             // PERF-R13: Throttle default-value warnings — record count, not per-element message.
             // Previously: 1000 elements with default ZONE → 1000 warning records with file I/O.
