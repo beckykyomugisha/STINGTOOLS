@@ -213,25 +213,29 @@ public class DeliverablesController : ControllerBase
         var actor = User.FindFirst("display_name")?.Value ?? "Unknown";
         Guid? actorId = Guid.TryParse(User.FindFirst("user_id")?.Value, out var uid) ? uid : null;
 
-        // Side-effects keyed by canonical state names; custom machines that
-        // reuse SUBMITTED / ACCEPTED / REJECTED inherit them, anything else
-        // gets a plain transition with no extra metadata writes.
-        switch (target)
+        // Phase 146 — side-effects keyed by the *semantic role* of the
+        // target state, not its name. Default ISO 19650 machine maps the
+        // canonical SUBMITTED / ACCEPTED / REJECTED states to
+        // submitting / accepting / rejecting; a custom machine can map
+        // bespoke names (e.g. UNDER_REVIEW → submitting) and inherit the
+        // same metadata writes.
+        switch (machine.RoleOf(target))
         {
-            case "SUBMITTED":
+            case "submitting":
                 d.SubmittedAt = DateTime.UtcNow;
                 d.SubmittedBy = actor;
                 d.SubmittedByUserId = actorId;
                 if (req.DocumentId.HasValue) d.DocumentId = req.DocumentId;
                 break;
-            case "ACCEPTED":
+            case "accepting":
                 d.AcceptedAt = DateTime.UtcNow;
                 d.AcceptedBy = actor;
                 d.RejectionReason = null;
                 break;
-            case "REJECTED":
+            case "rejecting":
                 d.RejectionReason = req.Reason;
                 break;
+            // initial / working / terminal / none — plain transition
         }
 
         await _db.SaveChangesAsync();
@@ -272,6 +276,10 @@ public class DeliverablesController : ControllerBase
             states = machine.States,
             initial = machine.InitialState,
             terminal = machine.TerminalStates,
+            // Phase 146 — semantic roles per state so the mobile client can
+            // surface badges like "this is the submission step" without
+            // string-matching on names.
+            roles = machine.SemanticRoles,
             transitions = machine.Transitions
                 .Select(t => new { from = t.From, to = t.To })
                 .OrderBy(t => t.from).ThenBy(t => t.to),

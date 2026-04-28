@@ -2126,7 +2126,7 @@ Planscape/
 │   ├── diary/                            # Daily site diary (Phase 142)
 │   ├── conflicts/                        # Sync-conflict triage (Phase 143)
 │   ├── heatmap/                          # Tag completeness heatmap (Phase 144, raw-SQL aggregator since Phase 145)
-│   ├── stages/                           # RIBA stage gates + MIDP deliverables (Phase 144) + criterion sign-off (Phase 145)
+│   ├── stages/                           # RIBA stage gates + MIDP deliverables (Phase 144) + criterion sign-off (Phase 145, normalised table since Phase 146)
 │   └── project-settings/                 # Project admin settings (Phase 144) + custom state machine (Phase 145)
 └── src/
     ├── api/

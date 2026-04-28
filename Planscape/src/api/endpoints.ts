@@ -791,6 +791,12 @@ export interface DeliverableStateMachine {
   states: string[];
   initial?: string | null;
   terminal: string[];
+  /**
+   * Phase 146 — per-state semantic role (initial / working / submitting /
+   * accepting / rejecting / terminal / none). Drives server-side metadata
+   * side-effects on transition; the mobile UI uses it to colour buttons.
+   */
+  roles?: Record<string, string>;
   transitions: Array<{ from: string; to: string }>;
 }
 

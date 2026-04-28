@@ -209,6 +209,18 @@ public class ComplianceController : ControllerBase
         var projectOk = await _db.Projects.AnyAsync(p => p.Id == projectId && p.TenantId == tenantId, ct);
         if (!projectOk) return NotFound("Project not found");
 
+        // Phase 146 — provider-aware dispatch. PostgreSQL gets the raw-SQL
+        // path with `COUNT(*) FILTER`; anything else (SQLite for tests,
+        // SQL Server, in-memory) falls back to a LINQ aggregation that
+        // matches the same response shape. Detection is one-shot off the
+        // EF Core provider name.
+        var providerName = _db.Database.ProviderName ?? "";
+        var isPostgres = providerName.Contains("Npgsql", StringComparison.OrdinalIgnoreCase);
+        if (!isPostgres)
+        {
+            return Ok(await ComputeHeatmapLinqAsync(projectId, ct));
+        }
+
         // Phase 145 — aggregate in the DB with `count(*) FILTER (WHERE …)` so
         // the response time stays flat as the project scales. The previous
         // app-tier implementation was fine for prototype data sets but on a
@@ -321,6 +333,84 @@ ORDER BY (CASE WHEN COALESCE(NULLIF(BTRIM(""Disc""), ''), '(unset)') = '(unset)'
         int ElementCount,
         int DiscN, int LocN, int ZoneN, int LvlN, int SysN, int FuncN, int ProdN, int SeqN,
         int StatusN, int RevN);
+
+    /// <summary>
+    /// Phase 146 — non-PostgreSQL heatmap path. Streams slim DTO rows via EF
+    /// Core then groups in app-tier. Slower at scale than the raw-SQL path
+    /// but works on SQLite (tests), SQL Server, and the in-memory provider.
+    /// Response shape is identical to <see cref="GetTagHeatmap"/>.
+    /// </summary>
+    private async Task<object> ComputeHeatmapLinqAsync(Guid projectId, CancellationToken ct)
+    {
+        var rows = await _db.TaggedElements.AsNoTracking()
+            .Where(e => e.ProjectId == projectId)
+            .Select(e => new
+            {
+                Disc = e.Disc,
+                Loc = e.Loc,
+                Zone = e.Zone,
+                Lvl = e.Lvl,
+                Sys = e.Sys,
+                Func = e.Func,
+                Prod = e.Prod,
+                Seq = e.Seq,
+                Status = e.Status ?? "",
+                Rev = e.Rev ?? "",
+            })
+            .ToListAsync(ct);
+
+        var tokens = new[] { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ", "STATUS", "REV" };
+        if (rows.Count == 0)
+        {
+            return new
+            {
+                projectId,
+                generatedAt = DateTime.UtcNow,
+                totalElements = 0,
+                tokens,
+                disciplines = Array.Empty<object>(),
+            };
+        }
+
+        const string UnsetBucket = "(unset)";
+        var groups = rows
+            .GroupBy(r => string.IsNullOrWhiteSpace(r.Disc) ? UnsetBucket : r.Disc)
+            .OrderBy(g => g.Key == UnsetBucket ? 1 : 0)
+            .ThenBy(g => g.Key)
+            .Select(g =>
+            {
+                var n = g.Count();
+                int Pct(int c) => n == 0 ? 0 : (int)Math.Round(100.0 * c / n);
+                return new
+                {
+                    discipline = g.Key,
+                    elementCount = n,
+                    cells = new
+                    {
+                        DISC = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Disc))),
+                        LOC = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Loc))),
+                        ZONE = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Zone))),
+                        LVL = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Lvl))),
+                        SYS = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Sys))),
+                        FUNC = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Func))),
+                        PROD = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Prod))),
+                        SEQ = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Seq))),
+                        STATUS = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Status))),
+                        REV = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Rev))),
+                    }
+                };
+            })
+            .ToList();
+
+        return new
+        {
+            projectId,
+            generatedAt = DateTime.UtcNow,
+            totalElements = rows.Count,
+            tokens,
+            disciplines = groups,
+        };
+    }
 
     private Guid GetTenantId() =>
         Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;

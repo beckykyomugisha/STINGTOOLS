@@ -75,6 +75,8 @@ public class PlanscapeDbContext : DbContext
     // Phase 144 — RIBA stage gates + MIDP / IE deliverables
     public DbSet<StageGate> StageGates => Set<StageGate>();
     public DbSet<InformationDeliverable> InformationDeliverables => Set<InformationDeliverable>();
+    // Phase 146 — normalised criterion rows for per-row sign-off at scale
+    public DbSet<StageGateCriterion> StageGateCriteria => Set<StageGateCriterion>();
 
     // Planscape MIM entities (loaded when MIM is enabled)
     public DbSet<MIM.Entities.Asset> Assets => Set<MIM.Entities.Asset>();
@@ -238,6 +240,21 @@ public class PlanscapeDbContext : DbContext
             e.Property(x => x.DecidedBy).HasMaxLength(200);
             e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
         });
+        // Phase 146 — normalised criterion rows
+        modelBuilder.Entity<StageGateCriterion>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.StageGateId);
+            e.HasIndex(x => new { x.StageGateId, x.Key }).IsUnique();
+            e.Property(x => x.Key).HasMaxLength(80);
+            e.Property(x => x.Label).HasMaxLength(400);
+            e.Property(x => x.Description).HasColumnType("text");
+            e.Property(x => x.Comment).HasColumnType("text");
+            e.Property(x => x.SignedBy).HasMaxLength(200);
+            e.HasOne(x => x.StageGate).WithMany().HasForeignKey(x => x.StageGateId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<InformationDeliverable>(e =>
         {
             e.HasKey(x => x.Id);

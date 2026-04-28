@@ -4424,3 +4424,104 @@ surface is internally consistent.
 5. The heatmap raw SQL is PostgreSQL-only (uses `BTRIM` + `FILTER`).
    Production deployments are all PG, so this is safe; if the test
    suite were to spin up SQLite the heatmap test would need a stub.
+
+#### Completed (Phase 146 — Phase 145 caveat closures: heatmap dialect fallback, RIBA 0–2 seeds, semantic-role side-effects, normalised criterion table)
+
+Closes the four caveats from Phase 145's commit message. Each was a real
+piece of engineering debt rather than a silent shortcut, so the fixes
+land here as one coherent BIM-Manager-surface clean-up phase.
+
+**1 — Heatmap dialect fallback**
+
+1. `Planscape.API/Controllers/ComplianceController.cs` — added a one-shot
+   provider check (`_db.Database.ProviderName.Contains("Npgsql")`) on
+   the heatmap path. PostgreSQL deployments keep the raw-SQL
+   `COUNT(*) FILTER (WHERE …)` aggregator; SQLite (test suite),
+   SQL Server, and the in-memory provider fall through to a new
+   `ComputeHeatmapLinqAsync` helper that streams slim DTO rows via EF
+   Core then groups in app-tier. Response shape is identical so mobile
+   doesn't notice. The PG path's `BTRIM` / `FILTER` are no longer a
+   portability blocker for tests.
+
+**2 — RIBA stages 0–2 default checklists**
+
+2. `Planscape/app/stages/criteria.tsx` — extended `ribaDefaults` with
+   built-in checklist templates for the three early RIBA stages that
+   were missing:
+     - RIBA-0 Strategic Definition (3 criteria — business case, brief,
+       initial appointments)
+     - RIBA-1 Preparation and Briefing (5 criteria — EIR, PIR,
+       pre-appointment BEP, outline MIDP, feasibility)
+     - RIBA-2 Concept Design (5 criteria — design options, post-
+       appointment BEP, LOIN matrix, outline specs, stage 2 cost plan)
+   Coverage is now stages 0–7. Templates are intentionally minimal
+   (3–5 items) so the BIM Manager can pull them in as a starter
+   checklist and add bespoke criteria from there.
+
+**3 — Custom-state side-effect coverage via semantic roles**
+
+3. `Planscape.Infrastructure/Workflow/DeliverableStateMachine.cs` —
+   added a `SemanticRoles` dictionary (state name → role string) plus
+   a `RoleOf(state)` resolver. Recognised roles:
+   `initial / working / submitting / accepting / rejecting / terminal /
+   none`. The default ISO 19650 machine seeds the canonical mapping so
+   nothing changes for existing projects.
+4. `LoadOrDefault` parses an optional `"roles": { "STATE": "submitting", … }`
+   block on the custom JSON. Unknown role values are silently dropped
+   (no 500), so a typo in the role name doesn't take down the project.
+   The `KnownRoles` whitelist gates entries.
+5. `Planscape.API/Controllers/DeliverablesController.cs` — `Transition`
+   now keys side-effect logic on `machine.RoleOf(target)` instead of
+   the literal canonical state names. A custom flow that maps
+   `UNDER_REVIEW → submitting` will now stamp `SubmittedAt` /
+   `SubmittedBy` / `DocumentId` exactly like the canonical
+   `SUBMITTED` state. Comment in the switch documents the contract.
+6. `GET /deliverables/state-machine` now exposes the `roles` map so
+   the mobile client can colour buttons or render badges by semantic
+   role instead of string-matching on canonical names.
+7. `Planscape/src/api/endpoints.ts` — added `roles` to
+   `DeliverableStateMachine` interface.
+
+**4 — Normalised StageGateCriterion table**
+
+8. New entity `Planscape.Core/Entities/StageGateCriterion.cs` — one row
+   per (gate, key). Holds the same field set as the legacy
+   `CriterionDto` plus `SortOrder`, `SignedByUserId`, `CreatedAt`,
+   `UpdatedAt`. Indexed on `(StageGateId, Key)` UNIQUE so the per-key
+   sign-off endpoint locates the row in O(1).
+9. `PlanscapeDbContext` — added `StageGateCriteria` DbSet + EF
+   configuration with the unique index and cascade-on-delete from
+   StageGate.
+10. New migration `20260427400000_AddStageGateCriteria` — creates the
+    table; the legacy `StageGate.CriteriaJson` column is preserved for
+    read-fallback during the transition.
+11. `Planscape.API/Controllers/StageGatesController.cs` —
+     - `GET /criteria` now reads through new
+       `LoadCriteriaAsync(gate)` helper. Prefers the normalised table;
+       falls back to the JSONB blob when the table is empty (older
+       projects).
+     - `PUT /criteria` writes to the table inside a transaction:
+       `RemoveRange(existing) + Add(new)` + `SaveChangesAsync` +
+       `tx.CommitAsync`. JSONB column kept in sync for read-fallback.
+     - `POST /criteria/{key}/signoff` writes the single row in O(1).
+       On first touch of a criterion that only exists in the JSONB
+       blob (legacy gate), the row is migrated into the table on the
+       fly so subsequent reads come from the normalised path.
+       Comment + evidence document FK + signedByUserId all persisted.
+   Per-criterion sign-off no longer rewrites the full criteria array;
+   200-criterion checklists scale linearly from here.
+
+**Caveats**
+
+1. Built without `dotnet build` / `expo build` verification.
+2. The legacy `StageGate.CriteriaJson` column is still kept in sync
+   on `PUT /criteria` so older mobile clients reading via the old
+   path see the latest data. Once the mobile cutover is complete the
+   column can be dropped in a follow-up phase.
+3. `RoleOf` is case-insensitive but currently uppercases on insert
+   into the `SemanticRoles` dictionary; mixed-case state names in the
+   custom JSON are normalised at parse time.
+4. Custom JSON without a `"roles"` block keeps Phase 145 behaviour
+   (no metadata side-effects on transition). Documented in the
+   `DeliverableStateMachine` class comment so a BIM Manager debugging
+   "why didn't `SubmittedAt` get stamped?" lands on the right answer.

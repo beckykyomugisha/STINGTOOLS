@@ -241,7 +241,11 @@ public class StageGatesController : ControllerBase
                                  && g.Project!.TenantId == tenantId);
         if (gate == null) return NotFound();
 
-        var criteria = ParseCriteriaJson(gate.CriteriaJson);
+        // Phase 146 — read from the normalised table when populated; fall
+        // back to the JSONB column for projects that haven't migrated yet.
+        // The controller never reads both — once the table has rows for
+        // this gate, the blob is ignored.
+        var criteria = await LoadCriteriaAsync(gate);
         return Ok(new
         {
             gateId,
@@ -261,6 +265,12 @@ public class StageGatesController : ControllerBase
     /// criteria template (e.g. RIBA Stage 3 default checks). The body is
     /// the full list; partial updates use the per-criterion sign-off
     /// endpoint below.
+    ///
+    /// Phase 146 — writes to the normalised <c>StageGateCriteria</c> table.
+    /// Existing rows for this gate are deleted in one round-trip and the new
+    /// rows are inserted. The legacy <c>StageGate.CriteriaJson</c> blob is
+    /// kept in sync for backwards-compat reads on older clients; once the
+    /// mobile cutover is complete it can be deprecated in a future phase.
     /// </summary>
     [HttpPut("{gateId}/criteria")]
     public async Task<ActionResult> ReplaceCriteria(Guid projectId, Guid gateId, [FromBody] List<CriterionDto> criteria)
@@ -279,9 +289,37 @@ public class StageGatesController : ControllerBase
         if (keys.Count != criteria.Count)
             return BadRequest("every criterion must have a non-empty key");
 
-        gate.CriteriaJson = SerializeCriteria(criteria);
-        gate.UpdatedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
+        // Drop existing rows + insert new ones in a single transaction so a
+        // failed insert can't leave the gate with partial criteria.
+        await using (var tx = await _db.Database.BeginTransactionAsync())
+        {
+            var existing = await _db.StageGateCriteria
+                .Where(c => c.StageGateId == gateId).ToListAsync();
+            if (existing.Count > 0) _db.StageGateCriteria.RemoveRange(existing);
+
+            int order = 0;
+            foreach (var dto in criteria)
+            {
+                _db.StageGateCriteria.Add(new StageGateCriterion
+                {
+                    StageGateId = gateId,
+                    Key = dto.Key.Trim(),
+                    Label = dto.Label,
+                    Description = dto.Description,
+                    SortOrder = order++,
+                    Met = dto.Met,
+                    EvidenceDocId = dto.EvidenceDocId,
+                    SignedBy = dto.SignedBy,
+                    SignedAt = dto.SignedAt,
+                    Comment = dto.Comment,
+                });
+            }
+            gate.CriteriaJson = SerializeCriteria(criteria);
+            gate.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+            await tx.CommitAsync();
+        }
+
         await _audit.LogAsync("REPLACE_CRITERIA", "StageGate", gate.Id.ToString());
         return Ok(new { gateId, criteria });
     }
@@ -302,34 +340,70 @@ public class StageGatesController : ControllerBase
                                  && g.Project!.TenantId == tenantId);
         if (gate == null) return NotFound();
 
-        var criteria = ParseCriteriaJson(gate.CriteriaJson);
-        var match = criteria.FirstOrDefault(c => string.Equals(c.Key, key, StringComparison.OrdinalIgnoreCase));
-        if (match == null) return NotFound(new { error = $"Criterion '{key}' not found on this gate" });
-
+        // Phase 146 — write the single row in O(1) instead of rewriting the
+        // whole array. If the criterion only exists in the legacy JSONB blob
+        // (project hasn't been migrated yet), upsert it into the table on
+        // first touch so future reads come from the normalised path.
         var actor = User.FindFirst("display_name")?.Value ?? "Unknown";
-        match.Met = req.Met;
-        match.Comment = req.Comment;
-        match.EvidenceDocId = req.EvidenceDocId;
+        Guid? actorId = Guid.TryParse(User.FindFirst("user_id")?.Value, out var uid) ? uid : null;
+        var keyTrimmed = (key ?? "").Trim();
+
+        var row = await _db.StageGateCriteria
+            .FirstOrDefaultAsync(c => c.StageGateId == gateId && c.Key == keyTrimmed);
+
+        if (row == null)
+        {
+            // Try the legacy JSONB blob and migrate the row on first touch.
+            var legacyAll = ParseCriteriaJson(gate.CriteriaJson);
+            var legacy = legacyAll.FirstOrDefault(c => string.Equals(c.Key, keyTrimmed, StringComparison.OrdinalIgnoreCase));
+            if (legacy == null)
+                return NotFound(new { error = $"Criterion '{keyTrimmed}' not found on this gate" });
+
+            row = new StageGateCriterion
+            {
+                StageGateId = gateId,
+                Key = legacy.Key,
+                Label = legacy.Label,
+                Description = legacy.Description,
+                SortOrder = legacyAll.IndexOf(legacy),
+                Met = legacy.Met,
+                EvidenceDocId = legacy.EvidenceDocId,
+                SignedBy = legacy.SignedBy,
+                SignedAt = legacy.SignedAt,
+                Comment = legacy.Comment,
+            };
+            _db.StageGateCriteria.Add(row);
+        }
+
+        row.Met = req.Met;
+        row.Comment = req.Comment;
+        row.EvidenceDocId = req.EvidenceDocId;
         if (req.Met)
         {
-            match.SignedBy = actor;
-            match.SignedAt = DateTime.UtcNow;
+            row.SignedBy = actor;
+            row.SignedByUserId = actorId;
+            row.SignedAt = DateTime.UtcNow;
         }
         else
         {
             // Clearing — strip the signoff so a future "met=true" gets a
             // fresh timestamp / signer rather than the old one.
-            match.SignedBy = null;
-            match.SignedAt = null;
+            row.SignedBy = null;
+            row.SignedByUserId = null;
+            row.SignedAt = null;
         }
-
-        gate.CriteriaJson = SerializeCriteria(criteria);
+        row.UpdatedAt = DateTime.UtcNow;
         gate.UpdatedAt = DateTime.UtcNow;
+
         await _db.SaveChangesAsync();
         await _audit.LogAsync(req.Met ? "SIGNOFF_CRITERION" : "UNSIGN_CRITERION",
-            "StageGate", $"{gate.Id}::{match.Key}",
-            System.Text.Json.JsonSerializer.Serialize(new { match.Key, match.Met }));
+            "StageGate", $"{gate.Id}::{row.Key}",
+            System.Text.Json.JsonSerializer.Serialize(new { row.Key, row.Met }));
 
+        // Return the full criteria list so the mobile UI can re-render
+        // without a follow-up GET. Read from the normalised table now that
+        // we've written to it.
+        var criteria = await LoadCriteriaAsync(gate);
         return Ok(new
         {
             gateId,
@@ -341,6 +415,36 @@ public class StageGatesController : ControllerBase
                 outstanding = criteria.Count(c => !c.Met),
             }
         });
+    }
+
+    /// <summary>
+    /// Phase 146 — resolve criteria for a gate. Prefers the normalised
+    /// <c>StageGateCriteria</c> table; falls back to the JSONB blob on
+    /// <see cref="StageGate.CriteriaJson"/> when the table has no rows so
+    /// projects whose criteria were authored before the migration still
+    /// render. Returns rows ordered by SortOrder + Label for stable display.
+    /// </summary>
+    private async Task<List<CriterionDto>> LoadCriteriaAsync(StageGate gate)
+    {
+        var rows = await _db.StageGateCriteria.AsNoTracking()
+            .Where(c => c.StageGateId == gate.Id)
+            .OrderBy(c => c.SortOrder).ThenBy(c => c.Label)
+            .ToListAsync();
+        if (rows.Count > 0)
+        {
+            return rows.Select(r => new CriterionDto
+            {
+                Key = r.Key,
+                Label = r.Label,
+                Description = r.Description,
+                Met = r.Met,
+                EvidenceDocId = r.EvidenceDocId,
+                SignedBy = r.SignedBy,
+                SignedAt = r.SignedAt,
+                Comment = r.Comment,
+            }).ToList();
+        }
+        return ParseCriteriaJson(gate.CriteriaJson);
     }
 
     private static List<CriterionDto> ParseCriteriaJson(string? json)

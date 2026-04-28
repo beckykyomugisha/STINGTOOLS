@@ -224,6 +224,28 @@ export default function CriteriaScreen() {
 function ribaDefaults(stageCode: string): StageCriterion[] {
   const code = (stageCode || '').toUpperCase();
   switch (code) {
+    case 'RIBA-0':
+      return [
+        { key: 'strategic_def_business_case', label: 'Strategic business case approved by client', met: false },
+        { key: 'strategic_def_brief', label: 'Statement of need / strategic brief signed off', met: false },
+        { key: 'strategic_def_appointments', label: 'Initial appointments confirmed (lead designer, BIM lead)', met: false },
+      ];
+    case 'RIBA-1':
+      return [
+        { key: 'preparation_eir', label: 'Exchange Information Requirements (EIR) issued', met: false },
+        { key: 'preparation_pir', label: 'Project Information Requirements (PIR) approved', met: false },
+        { key: 'preparation_bep_pre', label: 'Pre-appointment BEP submitted by appointed parties', met: false },
+        { key: 'preparation_midp_outline', label: 'Outline MIDP / TIDP drafted', met: false },
+        { key: 'preparation_feasibility', label: 'Feasibility studies complete', met: false },
+      ];
+    case 'RIBA-2':
+      return [
+        { key: 'concept_design_options', label: 'Design options reviewed and selected', met: false },
+        { key: 'concept_design_bep_post', label: 'Post-appointment BEP issued and accepted', met: false },
+        { key: 'concept_design_loi', label: 'LOIN matrix agreed for stage 3', met: false },
+        { key: 'concept_design_outline_specs', label: 'Outline specifications complete', met: false },
+        { key: 'concept_design_costplan', label: 'Stage 2 cost plan approved', met: false },
+      ];
     case 'RIBA-3':
       return [
         { key: 'spatial_coord_clash_zero', label: 'Federated model is clash-free at LOD 300', met: false },

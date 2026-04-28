@@ -3,8 +3,10 @@ using System.Text.Json;
 namespace Planscape.Infrastructure.Workflow;
 
 /// <summary>
-/// Phase 145 — per-project deliverable state machine.
-///
+/// Phase 145 — per-project deliverable state machine. Phase 146 added
+/// <see cref="SemanticRole"/> mapping so custom flows that rename
+/// SUBMITTED / ACCEPTED / REJECTED still get the metadata side-effects
+/// (timestamp, actor name, rejection reason).
 /// The canonical ISO 19650 flow is hard-coded in <see cref="Default"/>; a
 /// tenant can override it by setting <c>Project.CustomDeliverableStateMachineJson</c>
 /// to a JSON object of the shape:
@@ -34,6 +36,26 @@ public sealed class DeliverableStateMachine
     public IReadOnlySet<(string From, string To)> Transitions { get; init; } = new HashSet<(string, string)>();
     public IReadOnlyCollection<string> TerminalStates { get; init; } = Array.Empty<string>();
     public bool IsCustom { get; init; }
+
+    /// <summary>
+    /// Phase 146 — semantic role assigned to each state. Lets custom
+    /// machines that rename the canonical states (e.g. <c>UNDER_REVIEW</c>
+    /// instead of <c>SUBMITTED</c>) still trigger the metadata side-effects
+    /// inside <c>DeliverablesController.Transition</c>:
+    ///   • <c>submitting</c> → stamp SubmittedAt / SubmittedBy / DocumentId
+    ///   • <c>accepting</c>  → stamp AcceptedAt / AcceptedBy + clear rejection reason
+    ///   • <c>rejecting</c>  → capture rejection reason
+    ///   • <c>working</c> / <c>terminal</c> / <c>initial</c> / <c>none</c> → no side-effect
+    /// Roles are case-insensitive and read from the state name in
+    /// <see cref="Default"/>; in custom JSON they live under
+    /// <c>"roles": { "STATE_NAME": "submitting", … }</c>.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> SemanticRoles { get; init; } =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Resolve the semantic role for a state name, defaulting to "none".</summary>
+    public string RoleOf(string state) =>
+        SemanticRoles.TryGetValue(state?.ToUpperInvariant() ?? "", out var role) ? role : "none";
 
     public bool IsValidTransition(string current, string target) =>
         Transitions.Contains((current?.ToUpperInvariant() ?? "", target?.ToUpperInvariant() ?? ""));
@@ -66,6 +88,15 @@ public sealed class DeliverableStateMachine
             ("REJECTED", "IN_PROGRESS"),
             ("REJECTED", "WAIVED"),
             ("WAIVED", "PENDING"),
+        },
+        SemanticRoles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["PENDING"]     = "initial",
+            ["IN_PROGRESS"] = "working",
+            ["SUBMITTED"]   = "submitting",
+            ["ACCEPTED"]    = "accepting",
+            ["REJECTED"]    = "rejecting",
+            ["WAIVED"]      = "terminal",
         },
     };
 
@@ -107,6 +138,24 @@ public sealed class DeliverableStateMachine
             var initial = (root.TryGetProperty("initial", out var iEl) ? iEl.GetString() : null)?.ToUpperInvariant();
             var name = (root.TryGetProperty("name", out var nEl) ? nEl.GetString() : null) ?? "custom";
 
+            // Phase 146 — per-state semantic roles. Object form
+            // `{ "STATE_NAME": "submitting" }` maps custom names to the
+            // canonical side-effect categories. Unknown role values are
+            // ignored (no-op rather than 500). If the JSON omits "roles"
+            // entirely, the machine still works — every state just gets
+            // the default "none" role and side-effects are skipped.
+            var roles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (root.TryGetProperty("roles", out var rolesEl) && rolesEl.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var prop in rolesEl.EnumerateObject())
+                {
+                    if (prop.Value.ValueKind != JsonValueKind.String) continue;
+                    var role = (prop.Value.GetString() ?? "").Trim().ToLowerInvariant();
+                    if (KnownRoles.Contains(role))
+                        roles[prop.Name.ToUpperInvariant()] = role;
+                }
+            }
+
             return new DeliverableStateMachine
             {
                 Name = name,
@@ -114,6 +163,7 @@ public sealed class DeliverableStateMachine
                 InitialState = initial,
                 Transitions = transitions,
                 TerminalStates = terminal,
+                SemanticRoles = roles,
                 IsCustom = true,
             };
         }
@@ -125,6 +175,11 @@ public sealed class DeliverableStateMachine
             return Default;
         }
     }
+
+    private static readonly HashSet<string> KnownRoles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "initial", "working", "submitting", "accepting", "rejecting", "terminal", "none",
+    };
 
     private static string[] ReadStringArray(JsonElement obj, string key)
     {
