@@ -975,6 +975,17 @@ namespace StingTools.Core
         /// <summary>HC-003: Configurable batch size for ResolveAllIssues. Default 500.</summary>
         public static int ResolveBatchSize { get; internal set; } = 500;
 
+        /// <summary>TAG-STALE-WARN-01: Minimum stale-element count before the auto-warning
+        /// promotion job opens a BIM issue. 0 disables the auto-promotion. Default 5.</summary>
+        public static int StaleWarningThreshold { get; internal set; } = 5;
+
+        /// <summary>BIM-CDE-FOLDER-01: When true, the plugin runs
+        /// `ProjectFolderEngine.CreateFolderStructure(doc)` on every
+        /// DocumentOpened event so the WIP / SHARED / PUBLISHED / ARCHIVE
+        /// CDE folders exist before any export tries to write into them.
+        /// Idempotent — folders that already exist are skipped. Default true.</summary>
+        public static bool AutoCreateCdeFolders { get; internal set; } = true;
+
         /// <summary>Configurable batch size for streaming COBie export. Default 5000.</summary>
         public static int CobieStreamBatchSize { get; internal set; } = 5000;
 
@@ -1375,7 +1386,8 @@ namespace StingTools.Core
                     "AUTO_TAGGER_ENABLED","AUTO_TAGGER_VISUAL","AUTO_TAGGER_STALE_MARKER",
                     "CUSTOM_VALID_DISC","CUSTOM_VALID_SYS","CUSTOM_VALID_FUNC",
                     "CUSTOM_VALID_LOC","CUSTOM_VALID_ZONE",
-                    "PROXIMITY_RADIUS_FT","RESOLVE_BATCH_SIZE",
+                    "PROXIMITY_RADIUS_FT","RESOLVE_BATCH_SIZE","STALE_WARNING_THRESHOLD",
+                    "AUTO_CREATE_CDE_FOLDERS",
                     "COBIE_STREAM_BATCH_SIZE","PERF_TRACKING_ENABLED",
                     "COST_RATES_FILE","SHEET_NAMING_STRICT_MODE",
                     "COST_PRELIMINARIES_PCT","COST_CONTINGENCY_PCT","COST_OVERHEAD_PROFIT_PCT",
@@ -1569,6 +1581,24 @@ namespace StingTools.Core
                     if (ResolveBatchSize > 5000) ResolveBatchSize = 5000;
                 }
 
+                // TAG-STALE-WARN-01: Configurable threshold for auto-creating stale-element issues.
+                StaleWarningThreshold = 5; // default
+                if (data.TryGetValue("STALE_WARNING_THRESHOLD", out object swtObj))
+                {
+                    if (swtObj is long sl) StaleWarningThreshold = (int)sl;
+                    else if (int.TryParse(swtObj?.ToString(), out int si)) StaleWarningThreshold = si;
+                    if (StaleWarningThreshold < 0) StaleWarningThreshold = 0;
+                    if (StaleWarningThreshold > 100000) StaleWarningThreshold = 100000;
+                }
+
+                // BIM-CDE-FOLDER-01: Auto-bootstrap CDE folder structure on doc open.
+                AutoCreateCdeFolders = true;
+                if (data.TryGetValue("AUTO_CREATE_CDE_FOLDERS", out object accfObj))
+                {
+                    if (accfObj is bool b) AutoCreateCdeFolders = b;
+                    else if (bool.TryParse(accfObj?.ToString(), out bool bp)) AutoCreateCdeFolders = bp;
+                }
+
                 // Streaming COBie batch size
                 CobieStreamBatchSize = 5000; // default
                 if (data.TryGetValue("COBIE_STREAM_BATCH_SIZE", out object csObj))
@@ -1740,6 +1770,10 @@ namespace StingTools.Core
                 ISO19650Validator.InvalidateValidatorCaches(); // PERF-01: clear cached code sets after config reload
                 try { BIMManager.ExcelLinkEngine.InvalidateValidationCache(); } // DI-02: clear Excel validation caches on config reload
                 catch (Exception) { /* ExcelLinkEngine may not be loaded yet */ }
+                // TAG-PREFLIGHT-DUP-01: Drop the cached PopulationContext because
+                // KnownCategories is derived from DiscMap and may have changed.
+                try { TokenAutoPopulator.PopulationContext.InvalidateCache(); }
+                catch (Exception) { /* harmless if helper not yet initialised */ }
 
                 // Load category warnings and paragraph containers from LABEL_DEFINITIONS
                 LoadCategoryWarningsFromLabels();
@@ -2572,15 +2606,19 @@ namespace StingTools.Core
             TaggingStats stats = null,
             string cachedRev = null,
             List<Phase> cachedPhases = null,
-            ElementId lastPhaseId = null)
+            ElementId lastPhaseId = null,
+            string prevTagHint = null,
+            string[] tokenValuesOut = null)
         {
             string catName = ParameterHelpers.GetCategoryName(el);
             // F-14: Merge ContainsKey guard + TryGetValue into a single map lookup
             if (string.IsNullOrEmpty(catName) || !DiscMap.TryGetValue(catName, out string disc))
                 return false;
 
-            // Handle already-tagged elements based on collision mode
-            string existingTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+            // CONS-03 (Phase 149a): RunFullPipeline already read TAG1 once — accept
+            // the value via the new prevTagHint parameter to avoid a second read.
+            string existingTag = prevTagHint
+                ?? ParameterHelpers.GetString(el, ParamRegistry.TAG1);
             bool hasCompleteTag = TagIsComplete(existingTag);
 
             // A-9: idempotency guard — if the element's last-written tag equals
@@ -2644,29 +2682,52 @@ namespace StingTools.Core
             // Guaranteed LVL default: replace unresolved "XX"/"" with "L00" for levelless elements
             if (string.IsNullOrEmpty(lvl) || lvl == "XX") lvl = "L00";
 
-            // Intelligence Layer: MEP system-aware SYS/FUNC derivation
-            // 6-layer system detection: connector → sys param → circuit → family → room → category
-            string sys = GetMepSystemAwareSysCode(el, catName);
-
-            // Guaranteed SYS default: derive from discipline when MEP detection returns empty
+            // EFF-02 (Phase 149b): on the non-overwrite path we trust whatever
+            // PopulateAll already wrote — reading the element bypasses the
+            // expensive per-element MEP connector walk inside
+            // GetMepSystemAwareSysCode (and the Smart FUNC / family-aware PROD
+            // helpers). On the overwrite path we deliberately want fresh
+            // derivation so users can force a re-detect, so the legacy path
+            // still runs.
+            //
+            // Independent callers like BuildTagsCommand pass overwriteTokens=
+            // false but DON'T pre-populate the element first; for them, the
+            // GetString returns empty and we fall through to the same derivation
+            // that ran before — behaviour unchanged.
+            string sys = null;
+            if (!overwriteTokens) sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
             if (string.IsNullOrEmpty(sys))
-                sys = GetDiscDefaultSysCode(disc);
+            {
+                // Intelligence Layer: MEP system-aware SYS/FUNC derivation
+                // 6-layer system detection: connector → sys param → circuit → family → room → category
+                sys = GetMepSystemAwareSysCode(el, catName);
+                if (string.IsNullOrEmpty(sys))
+                    sys = GetDiscDefaultSysCode(disc);
+            }
 
             // Intelligence Layer: System-aware DISC correction for pipes
             // Pipes are mapped to "M" by default, but if the connected system is plumbing
             // (DCW, DHW, SAN, RWD, GAS), the DISC should be "P" (Plumbing).
             disc = GetSystemAwareDisc(disc, sys, catName);
 
-            // Smart FUNC: differentiates HVAC (SUP/RTN/EXH/FRA) and HWS (HTG/DHW) subsystems
-            string func = GetSmartFuncCode(el, sys);
-            // Guaranteed FUNC default: derive from SYS via FuncMap when smart detection is empty
+            string func = null;
+            if (!overwriteTokens) func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
             if (string.IsNullOrEmpty(func))
-                func = FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
+            {
+                // Smart FUNC: differentiates HVAC (SUP/RTN/EXH/FRA) and HWS (HTG/DHW) subsystems
+                func = GetSmartFuncCode(el, sys);
+                if (string.IsNullOrEmpty(func))
+                    func = FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
+            }
 
-            string prod = GetFamilyAwareProdCode(el, catName);
-            // Guaranteed PROD default: category map or GEN
+            string prod = null;
+            if (!overwriteTokens) prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
             if (string.IsNullOrEmpty(prod))
-                prod = ProdMap.TryGetValue(catName, out string cp) ? cp : "GEN";
+            {
+                prod = GetFamilyAwareProdCode(el, catName);
+                if (string.IsNullOrEmpty(prod))
+                    prod = ProdMap.TryGetValue(catName, out string cp) ? cp : "GEN";
+            }
 
             // PERF-R13: Throttle default-value warnings — record count, not per-element message.
             // Previously: 1000 elements with default ZONE → 1000 warning records with file I/O.
@@ -2805,6 +2866,12 @@ namespace StingTools.Core
                 ParameterHelpers.SetString(el, ParamRegistry.FUNC, func, overwrite: true);
                 ParameterHelpers.SetString(el, ParamRegistry.PROD, prod, overwrite: true);
                 ParameterHelpers.SetString(el, ParamRegistry.SEQ, seq, overwrite: true);
+
+                // EFF-03 (Phase 149a): we just wrote 8 known values — populate
+                // _cachedReadTokens from them so the container-write path below
+                // and the caller's tokenValuesOut don't trigger a fresh
+                // ReadTokenValues that would just read what we wrote.
+                _cachedReadTokens = new[] { disc, loc, zone, lvl, sys, func, prod, seq };
             }
             else
             {
@@ -2852,21 +2919,31 @@ namespace StingTools.Core
                 seq = actualTokens[7];
             }
 
-            // PERF-R11: Validate segment count by counting separators instead of allocating split array.
-            // Phase 86b: Use full separator string (not Separator[0] char) for multi-char separator support.
-            int sepCount = 0;
-            string sepStr = !string.IsNullOrEmpty(Separator) ? Separator : "-";
-            int sIdx = 0;
-            while ((sIdx = tag.IndexOf(sepStr, sIdx, StringComparison.Ordinal)) >= 0)
+            // EFF-11 (Phase 149a): segment-count validation only runs on the
+            // SetIfEmpty path where the actual stored tokens may legitimately
+            // differ from the freshly-derived ones (e.g. user manually edited
+            // ASS_DISCIPLINE_COD_TXT). On the overwrite path we just built the
+            // tag from 8 known non-empty tokens via string.Join with a fixed
+            // separator, so the segment count is statically 8 and the check is
+            // dead work. Skip it.
+            if (!overwriteTokens)
             {
-                sepCount++;
-                sIdx += sepStr.Length;
-            }
-            if (sepCount < 7) // 8 segments = 7 separators
-            {
-                StingLog.Warn($"Malformed tag for element {el.Id}: '{tag}' has {sepCount + 1} segments (expected 8)");
-                stats?.RecordWarning($"Element {el.Id}: malformed tag with {sepCount + 1} segments — skipped");
-                return false;
+                // PERF-R11: Validate segment count by counting separators instead of allocating split array.
+                // Phase 86b: Use full separator string (not Separator[0] char) for multi-char separator support.
+                int sepCount = 0;
+                string sepStr = !string.IsNullOrEmpty(Separator) ? Separator : "-";
+                int sIdx = 0;
+                while ((sIdx = tag.IndexOf(sepStr, sIdx, StringComparison.Ordinal)) >= 0)
+                {
+                    sepCount++;
+                    sIdx += sepStr.Length;
+                }
+                if (sepCount < 7) // 8 segments = 7 separators
+                {
+                    StingLog.Warn($"Malformed tag for element {el.Id}: '{tag}' has {sepCount + 1} segments (expected 8)");
+                    stats?.RecordWarning($"Element {el.Id}: malformed tag with {sepCount + 1} segments — skipped");
+                    return false;
+                }
             }
             bool tagWriteSucceeded = ParameterHelpers.SetString(el, ParamRegistry.TAG1, tag, overwrite: true);
 
@@ -2938,6 +3015,15 @@ namespace StingTools.Core
                     if (tokenVals[i] == null) tokenVals[i] = "";
                 }
                 ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: overwriteTokens);
+
+                // EFF-03 (Phase 149a): hand the freshly-built token array back to
+                // the caller so RunFullPipeline doesn't have to do its own
+                // ReadTokenValues a second time after we return.
+                if (tokenValuesOut != null && tokenValuesOut.Length >= 8)
+                {
+                    int copyLen = Math.Min(tokenValuesOut.Length, tokenVals.Length);
+                    for (int i = 0; i < copyLen; i++) tokenValuesOut[i] = tokenVals[i];
+                }
             }
             catch (Exception ex)
             {
@@ -2950,6 +3036,18 @@ namespace StingTools.Core
             // default visibility parameters. Without this, tag families using
             // paragraph depth or style matrix BOOLs would show blank labels.
             // Uses SetYesNo to handle YESNO (StorageType.Integer) parameters correctly.
+            //
+            // EFF-10 (Phase 149a): the display-mode sentinel is only empty on a
+            // first-ever tag; once it has any value the 13 init writes below are
+            // all overwriting current state with their default values, wasting a
+            // LookupParameter per call. Skip the block when STING_DISPLAY_MODE is
+            // already populated (sentinel covers the whole init group).
+            string displayModeSentinel = ParameterHelpers.GetString(el, "STING_DISPLAY_MODE");
+            if (!string.IsNullOrEmpty(displayModeSentinel))
+            {
+                stats?.RecordTagged(catName, disc, sys, lvl);
+                return true;
+            }
             try
             {
                 // LOG-08 FIX: Initialize DISPLAY_MODE so tag families show the correct
@@ -5592,12 +5690,11 @@ namespace StingTools.Core
             var tag7 = BuildTag7Sections(doc, el, categoryName, tokenValues);
             int written = 0;
 
-            // TAG7 gets the marked-up narrative (with «H»/«L»/«V»/«C» tokens)
-            if (!string.IsNullOrEmpty(tag7.MarkedUpNarrative))
-            {
-                if (ParameterHelpers.SetString(el, ParamRegistry.TAG7, tag7.MarkedUpNarrative, overwrite))
-                    written++;
-            }
+            // EFF-08 (Phase 149a): build the final TAG7 string locally before
+            // the single write so the post-write read-back can be eliminated.
+            // The previous code wrote TAG7, then re-read it just to append
+            // warnings — wasted LookupParameter + GetString per element.
+            string tag7Final = tag7.MarkedUpNarrative ?? "";
 
             // TAG7A-TAG7F get plain section text for tag family labels
             // PERF-R12: Track consecutive empties — once 4+ empty sections hit, skip rest.
@@ -5617,25 +5714,27 @@ namespace StingTools.Core
             }
 
             // ── Warning parameter population (v5.6) ────────────────────────
-            // Populate each individual WARN_ parameter with its evaluated text
-            // so tag family labels (gated by TAG_WARN_VISIBLE_BOOL) can display them.
-            int warnWritten = PopulateWarningParameters(doc, el, categoryName);
-            written += warnWritten;
-
-            // Also build concatenated warning text for TAG7 narrative append
-            string warningText = EvaluateElementWarnings(doc, el, categoryName);
-            if (!string.IsNullOrEmpty(warningText))
+            // EFF-07 (Phase 149d): combined warning evaluation. The previous
+            // code called PopulateWarningParameters AND EvaluateElementWarnings,
+            // each walking the same GetCategoryWarnings list, calling the same
+            // GetWarningDataValue per warning, calling the same EvaluateWarning.
+            // The new EvaluateAndPopulateWarnings does both in one pass and
+            // returns (writtenCount, concatenatedText).
+            var warnPass = EvaluateAndPopulateWarnings(doc, el, categoryName);
+            written += warnPass.WrittenCount;
+            string warningText = warnPass.ConcatenatedText;
+            if (!string.IsNullOrEmpty(warningText)
+                && !string.IsNullOrEmpty(tag7Final)
+                && !tag7Final.Contains(warningText))
             {
-                // Append warnings to TAG7 — but only once per unique warning text.
-                // In overwrite mode, TAG7 was freshly written above so append once.
-                // In non-overwrite mode, only append if the exact warning text is not already present.
-                string existingTag7 = ParameterHelpers.GetString(el, ParamRegistry.TAG7);
-                if (!string.IsNullOrEmpty(existingTag7) && !existingTag7.Contains(warningText))
-                {
-                    string withWarnings = existingTag7 + " | " + warningText;
-                    if (ParameterHelpers.SetString(el, ParamRegistry.TAG7, withWarnings, true))
-                        written++;
-                }
+                tag7Final = tag7Final + " | " + warningText;
+            }
+
+            // Single TAG7 write covers narrative + appended warnings.
+            if (!string.IsNullOrEmpty(tag7Final))
+            {
+                if (ParameterHelpers.SetString(el, ParamRegistry.TAG7, tag7Final, overwrite))
+                    written++;
             }
 
             // ── Paragraph container write (v5.5) ─────────────────────────
@@ -5659,6 +5758,66 @@ namespace StingTools.Core
         /// Returns a concatenated warning string, or null if no warnings triggered.
         /// Respects TAG_WARN_VISIBLE_BOOL and TAG_WARN_SEVERITY_FILTER_TXT.
         /// </summary>
+        /// <summary>EFF-07 (Phase 149d): one-pass replacement for the
+        /// PopulateWarningParameters + EvaluateElementWarnings combo. Both
+        /// legacy methods walked the same warning list and called the same
+        /// per-warning helpers; this method does it once, returning the
+        /// number of WARN_ params written and the concatenated narrative
+        /// fragment for the TAG7 append.</summary>
+        public static (int WrittenCount, string ConcatenatedText)
+            EvaluateAndPopulateWarnings(Document doc, Element el, string categoryName)
+        {
+            if (el == null || string.IsNullOrEmpty(categoryName))
+                return (0, null);
+
+            // Visibility gate (matches EvaluateElementWarnings).
+            string warnVisible = ParameterHelpers.GetString(el, ParamRegistry.WARN_VISIBLE);
+            bool visible = !(warnVisible == "No" || warnVisible == "0"
+                || warnVisible == "FALSE" || warnVisible == "false");
+
+            // Severity filter (matches EvaluateElementWarnings).
+            string severityFilter = ParameterHelpers.GetString(el, ParamRegistry.WARN_SEVERITY_FILTER);
+            if (string.IsNullOrEmpty(severityFilter)) severityFilter = "ALL";
+            int filterLevel = severityFilter == "ALL" ? 0 : SeverityLevel(severityFilter);
+
+            var warningParamNames = ParamRegistry.GetCategoryWarnings(categoryName);
+            if (warningParamNames == null || warningParamNames.Count == 0)
+                return (0, null);
+
+            int written = 0;
+            List<string> concat = null;
+
+            foreach (string warnParam in warningParamNames)
+            {
+                if (!ParamRegistry.WarningThresholds.TryGetValue(warnParam, out var def))
+                    continue;
+
+                string dataValue = GetWarningDataValue(el, warnParam, categoryName);
+                string evalResult = string.IsNullOrEmpty(dataValue)
+                    ? null : ParamRegistry.EvaluateWarning(def, dataValue);
+
+                // PopulateWarningParameters semantic — always overwrite to keep
+                // params current; clear when no violation so stale text doesn't
+                // linger.
+                string warnText = string.IsNullOrEmpty(evalResult) ? "" : evalResult;
+                if (ParameterHelpers.SetString(el, warnParam, warnText, overwrite: true))
+                    written++;
+
+                // EvaluateElementWarnings semantic — collect into concat string
+                // when visible AND severity passes the filter AND there's a
+                // violation to report.
+                if (visible
+                    && !string.IsNullOrEmpty(evalResult)
+                    && (filterLevel == 0 || SeverityLevel(def.Severity) >= filterLevel))
+                {
+                    if (concat == null) concat = new List<string>();
+                    concat.Add(evalResult);
+                }
+            }
+
+            return (written, concat == null ? null : string.Join(" ", concat));
+        }
+
         public static string EvaluateElementWarnings(Document doc, Element el, string categoryName)
         {
             // Check if warnings are enabled on this element

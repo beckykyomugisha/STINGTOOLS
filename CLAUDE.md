@@ -2052,22 +2052,34 @@ Planscape.Server/
 
 ### Plugin ↔ Server Sync Architecture
 
-> **CRITICAL NOTE**: Two parallel sync systems exist. Only one is actually used.
+> **NOTE**: Two HTTP layers coexist. Both are wired into the plugin; consolidating
+> them onto one client is INT-01 in `docs/ROADMAP.md`.
 
-| System | Location | Status | Mechanism |
+| System | Location | Role | Mechanism |
 |---|---|---|---|
-| `Planscape.PluginSync` | `Planscape.Server/src/Planscape.PluginSync/` | **DEAD CODE** — never referenced by StingTools | Automatic 5-min scheduler, file-backed offline queue |
-| `PlanscapeServerClient` | `StingTools/BIMManager/PlatformLinkCommands.cs` | **ACTUALLY USED** | Manual on-demand sync via BIM Coordination Center buttons |
+| `Planscape.PluginSync` | `Planscape.Server/src/Planscape.PluginSync/` | Background scheduler — wired to dock-panel sync chip and `PlatformSyncCommand` lazy-start (since Phase 90s); fires every 5 min once logged in | `SyncScheduler.SyncNow()` + `OfflineQueue` for store-and-forward |
+| `PlanscapeServerClient` | `StingTools/BIMManager/PlanscapeServerClient.cs` | Manual on-demand sync triggered by BIM Coordination Center buttons; thread-safe singleton | Direct HTTP POST/GET to specific endpoints |
 
-The `PlanscapeServerClient` (2,222 lines in `PlatformLinkCommands.cs`) provides:
+The `PlanscapeServerClient` (now ≈970 lines) covers:
 - JWT login/token refresh via `/api/auth/login` and `/api/auth/refresh`
 - Tag sync via `/api/tagsync/sync` (bulk POST)
 - Compliance push via `/api/projects/{id}/compliance` (POST snapshot)
-- Issue sync via `/api/projects/{id}/issues` (GET/POST)
-- Document register via `/api/projects/{id}/documents` (GET/POST)
+- Issue sync via `/api/projects/{id}/issues` (GET/POST + comments)
+- Document register via `/api/projects/{id}/documents` (GET/POST + CDE transition)
 - SEQ counter sync via `/api/projects/{id}/seq` (POST max-per-key merge)
+- Workflow run logging via `/api/projects/{id}/workflows` (POST — auto-pushed by `WorkflowEngine` after every preset run, Phase 141)
+- Warnings push via `/api/projects/{id}/warnings`
+- Transmittal create / send via `/api/projects/{id}/transmittals` + bulk via `/transmittals/bulk` (Phase 142)
+- Meeting create via `/api/projects/{id}/meetings` + bulk via `/meetings/bulk` (Phase 142)
+- MIM asset bulk push via `/api/projects/{id}/mim/assets/bulk` (Phase 141)
+- Model upload via `/api/projects/{id}/models`
+- Platform connection listing
+- All requests carry `X-Client-Type: plugin` for audit-source classification (Phase 141)
 
-Missing from `PlanscapeServerClient`: warnings sync, workflow run sync, meeting sync, transmittal sync, MIM asset sync, platform connections. See `PLANSCAPE_GAPS.md` INT-01 through INT-10 for details.
+Bulk transmittal + bulk meeting endpoints landed in Phase 142, so the
+batch sync paths the offline queue and workflow flush rely on are now
+all single-round-trip. See `PLANSCAPE_GAPS.md` for the up-to-date open
+list.
 
 ## Planscape Mobile App
 
@@ -2094,24 +2106,44 @@ Planscape/
 ├── package.json                          # Dependencies
 ├── tsconfig.json                         # TypeScript config
 ├── app/
-│   ├── _layout.tsx                       # Root layout with tab navigation
+│   ├── _layout.tsx                       # Root layout (root navigation, push register on auth)
 │   ├── login.tsx                         # Auth screen
-│   └── (tabs)/
-│       ├── _layout.tsx                   # Tab bar layout (5 tabs)
-│       ├── index.tsx                     # Dashboard tab
-│       ├── issues.tsx                    # Issues tab (list + create)
-│       ├── documents.tsx                 # Documents tab (list + CDE status)
-│       ├── scanner.tsx                   # QR/barcode scanner (828 lines)
-│       └── settings.tsx                  # Settings tab
+│   ├── accept-invitation.tsx             # Tenant invite accept flow
+│   ├── (tabs)/
+│   │   ├── _layout.tsx                   # Tab bar layout (6 primary tabs)
+│   │   ├── index.tsx                     # Dashboard (compliance gauge + sparkline)
+│   │   ├── issues.tsx                    # Issues list + create with photo/GPS/assignee picker
+│   │   ├── issue-detail.tsx              # Issue detail with comments, attachments, timeline
+│   │   ├── documents.tsx                 # Documents list + CDE status + version history
+│   │   ├── scanner.tsx                   # QR scanner — element lookup → issue pre-fill
+│   │   └── settings.tsx                  # Settings (push toggle, biometric lock, theme)
+│   ├── meetings/                         # Meeting list + agenda + actions
+│   ├── transmittals/                     # Transmittal list + create + send
+│   ├── warnings/                         # Warnings dashboard
+│   ├── workflows/                        # Workflow run history
+│   ├── models/                           # 3D model viewer (issue pin overlay)
+│   ├── inbox/                            # "My Actions" aggregator (Phase 142)
+│   ├── diary/                            # Daily site diary (Phase 142)
+│   ├── conflicts/                        # Sync-conflict triage (Phase 143)
+│   ├── heatmap/                          # Tag completeness heatmap (Phase 144, raw-SQL aggregator since Phase 145)
+│   ├── stages/                           # RIBA stage gates + MIDP deliverables (Phase 144) + criterion sign-off (Phase 145, normalised table since Phase 146)
+│   └── project-settings/                 # Project admin settings (Phase 144) + custom state machine (Phase 145)
 └── src/
     ├── api/
-    │   ├── client.ts                     # HTTP client with JWT auth (97 lines)
-    │   └── endpoints.ts                  # API endpoint constants (100 lines)
-    ├── components/                       # Reusable UI components
-    ├── hooks/                            # Custom React hooks
-    ├── types/                            # TypeScript type definitions
-    └── utils/
-        └── offlineQueue.ts              # AsyncStorage-backed offline queue (124 lines)
+    │   ├── client.ts                     # HTTP client (JWT, auto-refresh, X-Client-Type=mobile)
+    │   └── endpoints.ts                  # Typed endpoint wrappers
+    ├── components/                       # MemberPicker, TenantSwitcher, ErrorBoundary, …
+    ├── hooks/                            # useAuth, useOfflineQueue, useQrScan
+    ├── i18n/                             # FLEX-15 i18n loader
+    ├── services/                         # apiClient, biometricLock, crashReporter,
+    │                                     # documentCache, imageService, locationService,
+    │                                     # notificationService, notificationTapRouter,
+    │                                     # ocr, qrParser, realtimeClient (SignalR),
+    │                                     # secureStorage, offlineQueue
+    ├── stores/                           # Zustand: auth, issue, project, tenant, notification
+    ├── theme/                            # Theme constants
+    ├── types/                            # API DTO types
+    └── utils/                            # offlineQueue (legacy), connectivity, theme
 ```
 
 ### Mobile Offline Queue
@@ -2125,16 +2157,20 @@ Queue is persisted to `AsyncStorage` and flushed when connectivity is restored.
 
 ### Mobile Gap Summary
 
-The mobile app is at **prototype/demo stage** — NOT production-ready for on-site use. Key gaps documented in `PLANSCAPE_GAPS.md`:
-- No photo attachment support (MOB-01)
-- No GPS/location capture (MOB-02)
-- No offline-first data caching (MOB-03)
-- No push notification integration (MOB-04)
-- No document viewer/markup (MOB-06)
-- No compliance dashboard (MOB-09)
-- No meeting/transmittal screens (MOB-10, MOB-11)
+> **2026-04-27 update:** the previous "prototype/demo stage" framing is out of
+> date. The mobile app now ships production-grade implementations of every
+> on-site critical path — camera + GPS + offline queue + SignalR + push
+> notifications + biometric lock + image compression + document viewer +
+> dashboard + meetings + transmittals + warnings + 3D viewer. See
+> `Planscape.Server/docs/PLANSCAPE_GAPS.md` § 2.2 for the per-row status
+> table; only MOB-11 (dark mode) and a partial MOB-12 (accessibility audit)
+> remain open.
 
-Estimated effort to reach on-site production readiness: **12-16 weeks, £33K-£39K** (see `PLANSCAPE_GAPS.md` sections 5-6 for detailed breakdown).
+Phase 141 closed the last critical mobile gap: the Expo push token was
+retrieved but never POSTed to the server, so the `DevicePushToken` table
+stayed empty and pushes were dropped. `useAuth.login`, `useAuth.restoreSession`,
+and `_layout.checkAuth` now all call `notificationService.register()` so the
+token reaches the server on every cold start and after every login.
 
 ### Running Locally
 

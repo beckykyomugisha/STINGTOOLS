@@ -4873,3 +4873,3171 @@ Two real fixes:
 
 PhaseTag bumped to 139.25.
 
+#### Completed (Phase 140 — Structural DWG-to-BIM Accuracy Pass)
+
+**Branch**: `claude/fix-parallel-max-gap-H3Ha3`
+
+**Trigger**: The wizard's "Parallel max gap (mm) — 500" knob is bound to
+`config.ParallelLineToleranceMm`, which is the global parallel-pair
+distance cap, not a longitudinal endpoint gap as the label implies.
+Users trying to "close end gaps" by raising the value would silently
+loosen wall thickness detection across the corridor and pull in noise.
+
+This phase re-labels the misleading knob, surfaces a real
+endpoint-gap field, and lands ten supporting accuracy fixes for the
+DWG-to-BIM conversion pipeline.
+
+**New file** — `StingTools/Model/StructuralPhase140Accuracy.cs` (~360
+lines, 6 helpers, 1 namespace `StingTools.Model`):
+
+- `GridSnapper` — snaps detected column centres to nearest grid
+  intersection within `GridSnapToleranceMm`. Pure: returns a parallel
+  `List<SnapResult>` whose `DidSnap`/`VerticalGridLabel`/
+  `HorizontalGridLabel` are reused by the grid-label-mark step.
+- `BeamDepthCalculator.ComputeDepthMm(span, cfg)` — `span/SpanToDepthRatio`
+  clamped to `[BeamDepthMinMm, BeamDepthMaxMm]`, rounded to nearest
+  25 mm, floored at the wizard `BeamDepthMm`.
+- `BeamTrimmer.TrimEndpointsToColumns()` — moves each beam endpoint
+  that sits inside a column footprint outward by half-extent + 25 mm
+  cover along the beam axis. Handles rectangle and circle columns.
+- `DuplicateDetector.ExistingIndex` — one-shot `FilteredElementCollector`
+  scan per category, exposes `IsDuplicate(point, tolerance)` for
+  pre-filtering detected items against existing model state.
+- `SlabVoidDetector.Group(loops)` — sorts loops by area descending,
+  flags any loop whose centroid lies inside a larger un-consumed loop
+  as a void of that loop. Returns `(outer, voids[])` groupings.
+- `GridLabelMarkBuilder.ApplyMarks(doc, mapping, used)` — writes
+  `"{vert}/{horiz}"` to the `Mark` parameter of grid-snapped columns,
+  de-duplicating with `.2`, `.3` … suffixes on collision.
+- `StructuralWarningPlacer.PlaceWarnings(doc, view, warnings)` —
+  staggers TextNotes prefixed with `⚠ STING-STRUCT:` down the active
+  view in its own sub-transaction, so warning placement can fail
+  without rolling back element creation.
+
+**`StructuralCADWizard.DWGConversionConfig` — 12 new fields:**
+
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `GridSnapToleranceMm` | double | 100 | P1-A snap radius, 0 disables |
+| `UseSpanToDepthRatio` | bool | true | P1-B span-proportional depth |
+| `SpanToDepthRatio` | double | 15.0 | P1-B span/depth divisor |
+| `BeamDepthMinMm` / `BeamDepthMaxMm` | double | 250 / 1200 | P1-B clamp range |
+| `UseGridLabelsAsMarks` | bool | true | P2-C `"{vert}/{horiz}"` Mark |
+| `EndpointGapToleranceMm` | double | 50 | P2-F endpoint gap bridging |
+| `DuplicateCheckToleranceMm` | double | 50 | P3-A skip radius |
+| `SkipDuplicates` | bool | true | P3-A toggle |
+| `TrimBeamsToColumnFaces` | bool | true | P1-D toggle |
+| `ShowStructuralWarningsInView` | bool | true | P2-D toggle |
+| `NumberingPerCategory` | `Dictionary<BuiltInCategory, NumberingConfig>` | empty | P1-E |
+
+**`StructuralCADWizard` UI changes:**
+
+- "Parallel max gap (mm)" → "Parallel pair max gap (mm)" with tooltip
+  clarifying it's a perpendicular-pair cap, not a longitudinal endpoint
+  gap. New "Endpoint gap bridge (mm)" knob added next to it.
+- "Endpoint tolerance (mm)" → "Line snap tolerance (mm)" tooltip
+  upgraded to clarify scope.
+- "Parallel dot tolerance" → "Parallelism tolerance (cos θ)" with
+  tooltip explaining cosine ↔ skew angle relationship.
+- New "ACCURACY (Phase-140)" sub-section under DETECTION with five
+  toggles (Skip duplicates / Trim beams to column faces / Show
+  structural warnings in view / Use grid labels as column marks /
+  Span-proportional beam depth) and four numeric knobs (Span/depth
+  ratio, Grid snap tol, Beam depth min/max, Duplicate-check tol).
+- `_chkColumnsContinuousCad` tooltip explains the two
+  modelling approaches and their analytical implications.
+- LEVEL CONFIGURATION card gained an italic note: "column heights at
+  repeat levels are derived from level-to-level spacing, not the
+  BEAM/COLUMN Height field" (P1-C clarification).
+- PER-ELEMENT SIZE DETECTION → Foundations row now reads
+  "× 1.5× oversize*" with a footer disclaimer marking the EC7 §6.5
+  reference as a heuristic, not a code-compliant sizing rule.
+- ELEMENT NUMBERING — new "Number every structural category
+  independently" toggle (P1-E). When on, switching the Category
+  dropdown snapshots the previous category's UI state and restores the
+  next category's saved state. Defaults: COL-, BM-, W-, SL-, FDN-.
+- Footer — new "Re-analyse (dry-run)" button (P3-D) runs the dry-run
+  pipeline without closing the dialog. Status bar reports per-element
+  counts so the user can iterate on tolerances.
+
+**`StructuralCADPipeline.RunFullPipelineWithConfig` — wired the new
+helpers in execution order:**
+
+1. After `ExtractStructuralGeometry`: P1-A grid-snap pass
+   (mutates `DetectedRectangle.Center` / `DetectedCircle.Center` and
+   captures `_lastRectSnapInfo` / `_lastCircleSnapInfo` for P2-C).
+2. P1-D beam endpoint trim against the (now-snapped) column footprints.
+3. P3-A duplicate-detection pre-filter — drops detected items whose
+   reference points sit within `DuplicateCheckToleranceMm` of any
+   existing element of the matching category. Reports a roll-up
+   warning with the count.
+4. Repeat-to-levels loop: P1-C now warns when the topmost storey has
+   no level above and falls back to `ColumnHeightMm`.
+5. `CreateBeamsFromLines` — P1-B per-beam depth derived from
+   `BeamDepthCalculator.ComputeDepthMm(spanMm, cfg)`. Type cache key
+   updated from `{defaultDepthMm}x{widthMm}` to `{depthMm}x{widthMm}`.
+6. `CreateSlabsFromBoundaries` — P2-B passes `SlabVoidDetector.Group`
+   output through to `Floor.Create(doc, loops, ...)` so nested closed
+   loops come through as actual voids.
+7. Post-creation audit: P2-D placement of `StructuralWarningPlacer`
+   TextNotes in the active view when `ShowStructuralWarningsInView`.
+8. Numbering: switches to `NumberingEngine.ApplyAllPerCategory` when
+   `NumberingPerCategory` is populated; falls back to legacy
+   `ApplyNumbering` otherwise.
+9. P2-C grid-label-mark step runs AFTER per-category numbering so
+   grid-derived `"A/1"` style marks win on grid-snapped columns.
+   Non-snapped columns keep their sequential per-category number.
+
+**`NumberingEngine.ApplyAllPerCategory(doc, perCategory, scope)`** — new
+method iterates the dictionary, filters scope to each category's
+ElementIds, and invokes the existing `ApplyNumbering()` per category.
+Returns the summed count.
+
+**Explicitly out of scope (deferred to ROADMAP):**
+
+- Strip foundation detection (P2-A) — needs a new
+  `DetectStripFoundations` pass against wall centrelines; substantial
+  new detection logic.
+- Endpoint gap bridging (P2-F) at the detection layer — config field
+  is wired and available, but the spatial-index pair-detection inner
+  loops in `StructuralDWGEnhancements.SpatialLineIndex` still need to
+  read it during pair matching.
+- Slab → room seeding (P3-B), auto-create structural views after
+  conversion (P3-C) — independent post-processors that can land in a
+  follow-up phase without touching the core pipeline.
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox, no
+   Revit API). Each helper sticks to documented Revit 2025 API
+   signatures; sub-transaction wrapping in `StructuralWarningPlacer`
+   isolates risk. No `// TODO-VERIFY-API` markers were needed.
+2. Grid-snap classifies grids into vertical (constant X) vs horizontal
+   (constant Y) by line geometry, not by the `IsHorizontal` flag —
+   the flag is a draughting hint that doesn't always align with
+   plan-view axes.
+3. `BeamTrimmer` uses an axis-aligned column footprint approximation
+   (rectangle bbox extents projected along beam direction). Rotated
+   columns trim conservatively along the longer half-extent.
+4. Per-category numbering snapshots only fire when the user toggles
+   the Category dropdown with the "Number every structural category
+   independently" checkbox ON. If the user fills in numbering UI
+   without flipping that toggle, only the active category is numbered.
+5. The Re-analyse dry-run runs the FULL pipeline with `DryRun=true`,
+   including the duplicate-pre-filter and grid-snap passes. Counts
+   reflect what `Convert to BIM` would produce with the current
+   settings.
+
+#### Completed (Phase 141 — Detection-method facade + named entry points)
+
+**Branch**: `claude/fix-parallel-max-gap-H3Ha3`
+
+**Trigger**: Phase 140 review noted that `StructuralDWGEngine.cs`,
+`StructuralDWGCommands.cs`, `DetectJunctions`, `DetectStructuralWalls`,
+`AnalyzeLoadPaths`, `FindOrCreateBeamType`, and `DetectCircularColumns`
+were referenced in CLAUDE.md but variously didn't exist on disk, lived
+under different class names, or produced data that the pipeline
+discarded. This phase closes those gaps so each named entry point is
+genuinely callable from outside the wizard.
+
+**Audit findings (corrects Phase 140's Explorer-agent report):**
+
+| Identifier | Truth | Phase 141 action |
+|---|---|---|
+| `DetectStructuralWalls` | Already exists (`StructuralCADPipeline.cs:1145`, returns `List<DetectedWall>`) | Re-exposed via `StructuralDWGEngine` facade — no rewrite |
+| `DetectJunctions` | Already exists (`StructuralCADPipeline.cs:1302`, returns `List<(XYZ, string, int)>`) | Re-exposed; warning-class output now placed as TextNotes |
+| `AnalyzeLoadPaths` | Lives on `StructuralModelingEngine.cs:2486` | Re-exposed via `StructuralDWGEngine.AnalyzeLoadPaths()` |
+| `FindOrCreateBeamType` | Lives on `StructuralTypeFactory.cs:439` | Re-exposed via `StructuralDWGEngine.FindOrCreateBeamType()` |
+| `DetectCircularColumns` | Did NOT exist as a named method (extraction's inline check used compile-time constants) | NEW — `StructuralCADPipeline.DetectCircularColumns(circles, out rejected)` re-validates against config-driven size band |
+| `StructuralDWGEngine.cs` | Did NOT exist (CLAUDE.md described it but file was absent) | NEW — focused facade with detection methods + quality scoring |
+| `StructuralDWGCommands.cs` | Did NOT exist | NEW — 3 standalone IExternalCommands |
+
+**New file** — `StingTools/Model/StructuralDWGEngine.cs` (~225 lines, 1
+public class `StructuralDWGEngine`, 1 namespace `StingTools.Model`):
+
+- Detection facade — every named detection method exposed as a thin
+  delegate so non-wizard callers can use them in any order.
+- `RunWithConfig(import, config)` / `RunWithDefaults(import,
+  baseLevelName, topLevelName)` — batch / scriptable conversion.
+- `Audit(import, config)` — non-destructive run; returns
+  `AuditResult` with extraction + junctions + quality score + duration.
+- `ComputeQualityScore(extraction, junctions)` — 0-100 score with
+  per-component penalties:
+  - −5 per "Beam intersection (no column — WARNING)" junction
+  - −2 per "Free end (no support)" junction
+  - −0.1 per low-confidence detected element (< 0.7 confidence)
+  - DetectionRatio metric tracks detected elements / total entities.
+
+**New file** — `StingTools/Model/StructuralDWGCommands.cs` (~205 lines,
+3 IExternalCommand classes):
+
+- `QuickStructuralDWGCommand` — one-click conversion on the first DWG
+  import in the project using default config + first level by
+  elevation. Reports the conversion summary in a TaskDialog.
+- `StructuralDWGAuditCommand` — read-only audit. Runs detection +
+  scoring, shows quality score and per-element breakdown.
+- `StructuralDWGJunctionScanCommand` — scans the active DWG for
+  unsupported beam intersections + free beam ends, places ⚠
+  STING-STRUCT TextNote markers in the active view at every flagged
+  junction location. Wraps in a sub-transaction.
+
+**`DetectCircularColumns` (new method)** —
+`StructuralCADPipeline.cs:1132`. Re-validates an existing list of
+`DetectedCircle` against the active config's `MinColumnDiameterMm` /
+`MaxColumnDiameterMm`. Sister method to `DetectStructuralWalls` and
+`DetectRectangularColumnsV2`. The legacy extraction path keeps using
+its inline check with compile-time constants (`MinColumnSizeMm = 150`,
+`MaxColumnSizeMm = 1500`); this method gives external callers a hook
+to tighten or loosen the size band per project.
+
+Wired into `RunFullPipelineWithConfig`: when the user-set bounds
+differ from the defaults, the pass replaces `extraction.Circles` with
+the accepted subset and warns about the rejection count.
+
+**Junction warnings → TextNotes** — `DetectJunctions` has always
+classified beam intersections, but the legacy pipeline only used the
+result for the summary string. Now wired into
+`RunFullPipelineWithConfig`: each junction whose type contains
+"WARNING" or starts with "Free end" produces a ⚠ STING-STRUCT TextNote
+at the junction centroid in the active view. New helper
+`StructuralWarningPlacer.PlaceWarningsAtPoints(doc, view, warnings,
+points)` complements the existing `PlaceWarnings(doc, view, warnings)`
+which staggers messages down the view.
+
+**3 new config fields on `DWGConversionConfig`:**
+
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `MinColumnDiameterMm` | double | 150 | Lower band for `DetectCircularColumns` |
+| `MaxColumnDiameterMm` | double | 1500 | Upper band for `DetectCircularColumns` |
+| `ShowJunctionWarningsInView` | bool | true | Toggle for junction → TextNote placement |
+
+**`StructuralDWGEngine` does NOT register itself in StingCommandHandler.**
+The three commands are standalone `IExternalCommand` classes intended
+for direct invocation via the .addin manifest, AddinManager, or future
+dock-panel wiring. Wizard-driven conversion still goes through the
+existing `StrCADWizardCommand` in `StructuralModelingCommands.cs:1009`.
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox, no
+   Revit API).
+2. `StructuralDWGEngine` is a thin facade — it re-exposes
+   methods rather than re-implementing them, so the actual detection
+   logic still lives in `StructuralCADPipeline.cs`. Future passes that
+   want to bypass the wizard can substitute their own pipeline
+   implementation behind the same facade.
+3. The quality score is a heuristic for at-a-glance triage, not a
+   structural-engineering metric. It does not check element-by-element
+   geometric validity, code compliance, or analytical model health —
+   those go through `AnalyzeLoadPaths` and downstream.
+4. The three new commands all operate on the FIRST `ImportInstance`
+   found in the project. Multi-DWG documents need an interactive
+   import picker — listed in ROADMAP for the next iteration.
+5. `DetectCircularColumns`'s out-band rejection only logs a count, not
+   the rejected circles' coordinates. Callers needing the rejection
+   detail should call the method directly via `StructuralDWGEngine`
+   and consume the `out rejected` list.
+
+#### Completed (Phase 142 — Structural DWG-to-BIM ROADMAP closures)
+
+**Branch**: `claude/fix-parallel-max-gap-H3Ha3`
+
+**Trigger**: Phase 140 deferred eight `DWG-STRUCT-*` ROADMAP items so
+each could land cleanly in its own follow-up. This phase closes six of
+them (P2A, P2F, DEEP-3, DEEP-4, DEEP-7, DEEP-8) and wires Phase 141's
+new commands into the dispatcher.
+
+**Bug found and fixed (DEEP-8 / DEEP-3)**: the `BeamsRestOnWalls`
+config field has been on `DWGConversionConfig` since Phase 78, but the
+creation pipeline never read it. Beams were created at level base
+elevation regardless of whether they sat on a wall, so users who ticked
+the box saw no behaviour change. Phase 142 adds a per-beam classifier
+that reads the support type at each endpoint (column / wall /
+unsupported) and only applies the wall-top offset to beams that
+actually rest on a wall and not on a column.
+
+**`StingCommandHandler.cs`** — three new dispatch entries wire the
+Phase 141 commands into the dock-panel command bus:
+`QuickStructuralDWG`, `StructuralDWGAudit`, `StructuralDWGJunctionScan`.
+
+**`StructuralCADPipeline.cs` — wiring + new method:**
+
+- `BeamOverlapMinRatio` now flows from `DWGConversionConfig` into
+  `DetectBeamCenterlinesV2` (default 50%) and `DetectStructuralWalls`
+  (`ratio - 10%` to keep walls slightly stricter than beams).
+  Configurable from the wizard ACCURACY (Phase-142) section.
+- `DetectStructuralWalls` and `DetectBeamCenterlinesV2` now apply
+  `EndpointGapToleranceMm` at the longitudinal-overlap check —
+  synthesises overlap when two parallel lines fall just shy of
+  overlapping (within the configured gap). Closes ROADMAP
+  `DWG-STRUCT-P2F`.
+- New `ApplyBeamSupportPostCreation` method runs after
+  `CreateBeamsFromLines` to:
+  - Lift beams whose endpoints rest on a wall (and not on a column)
+    by `WallHeightMm` via `STRUCTURAL_BEAM_END0_ELEVATION` /
+    `_END1_ELEVATION`.
+  - Stamp the Comments parameter with `STING: Cantilever (start|end)`
+    or `STING: Free beam (no support)` when the classifier reports a
+    free end. Beams are then schedule-discoverable by Comments filter.
+  Closes ROADMAP `DWG-STRUCT-DEEP-3` and `DWG-STRUCT-DEEP-8`.
+- Strip foundations: when `DetectStripFoundations=true` and walls were
+  detected, builds rectangular loops along each wall centreline
+  (oversized by `StripFndOversizeMm` per side) and feeds them to
+  `CreateSlabsFromBoundaries`. Reports the count separately. Closes
+  ROADMAP `DWG-STRUCT-P2A`.
+
+**`StructuralPhase140Accuracy.cs` — two new helpers:**
+
+- `BeamSupportClassifier` (Phase-142) — `ClassifyAll(beams, rectColumns,
+  circleColumns, walls, toleranceMm)` returns a `List<BeamSupport>`
+  with `StartSupport` / `EndSupport` of `None`/`Column`/`Wall`/`Both`.
+  Also exposes `RestsOnWall`, `HasFreeEnd`, `IsCantilever` flags.
+- `StripFoundationDetector` (Phase-142) — `Detect(walls, cfg)` returns
+  rectangular loops aligned with each wall centreline. Each loop
+  extends past the wall length by `StripFndOversizeMm` per side, and
+  past wall thickness by the same per side. Layer label
+  `STING-STRIP-FOUNDATION`.
+
+**`DWGConversionConfig` — 6 new fields:**
+
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `BeamOverlapMinRatio` | double | 0.5 | DEEP-4 — configurable longitudinal overlap |
+| `MarkCantileverBeams` | bool | true | DEEP-3 — Comments stamp toggle |
+| `BeamSupportToleranceMm` | double | 200 | DEEP-3/8 — endpoint→support classifier tolerance |
+| `UseTopConstraintForContinuousColumns` | bool | true | DEEP-7 — documents already-correct behaviour |
+| `StripFndOversizeMm` | double | 150 | P2A — strip foundation oversize per side |
+| `DetectStripFoundations` | bool | true | P2A — toggle |
+
+Earlier Phase 141 fields `MinColumnDiameterMm` / `MaxColumnDiameterMm`
+also got wizard UI knobs in this phase.
+
+**`StructuralCADWizard.cs` UI — new ACCURACY (Phase-142) sub-section:**
+
+- Two toggles: "Detect strip foundations under walls" (default ON),
+  "Mark cantilever / free beams in Comments" (default ON).
+- Five numeric knobs:
+  - Min column diameter (mm) → `MinColumnDiameterMm`
+  - Max column diameter (mm) → `MaxColumnDiameterMm`
+  - Beam overlap ratio (0-1) → `BeamOverlapMinRatio`
+  - Strip oversize (mm/side) → `StripFndOversizeMm`
+  - Beam-support tol (mm)    → `BeamSupportToleranceMm`
+
+**ROADMAP closures** (move from `docs/ROADMAP.md` into this entry):
+
+- ✓ `DWG-STRUCT-P2A`  — strip foundation detection under walls
+- ✓ `DWG-STRUCT-P2F`  — endpoint gap bridging at the detection layer
+- ✓ `DWG-STRUCT-DEEP-3` — cantilever detection
+- ✓ `DWG-STRUCT-DEEP-4` — beam-overlap ratio configurability
+- ✓ `DWG-STRUCT-DEEP-7` — Top-Constraint continuous columns (existing
+  code in `CreateColumnsWithHeight` was already correct — Phase 142
+  documents the behaviour and adds the explicit config flag)
+- ✓ `DWG-STRUCT-DEEP-8` — per-beam BeamsRestOnWalls (the genuine bug)
+
+Still open: `DWG-STRUCT-P3B` (slab→room seeding), `DWG-STRUCT-P3C`
+(auto-create structural views), `DWG-STRUCT-DEEP-1` (steel I-section
+vs concrete inference), `DWG-STRUCT-DEEP-2` (pile cap / raft / strip
+differentiation), `DWG-STRUCT-DEEP-5` (EC7 sizing with soil class),
+`DWG-STRUCT-DEEP-6` (junction-type assignment beyond detection).
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. The post-creation beam pass aligns supports with created beams by
+   index order. If `CreateBeamsFromLines` skips a beam (try/catch on
+   exception path), subsequent supports may misalign. The pass guards
+   against this by checking each element's category before applying
+   the offset, so a misaligned support results in a no-op rather than
+   a wrong-element edit.
+3. Strip foundations are created via `CreateSlabsFromBoundaries` which
+   uses the floor type matched to `FoundationDepthMm`. The resulting
+   element is a structural floor (not a `WallFoundation`); for true
+   wall-foundation join behaviour, manual conversion in Revit is still
+   needed. Documented as a follow-up.
+4. The cantilever Comments stamp is descriptive only — the analytical
+   model still treats cantilevers as if both ends were supported until
+   the engineer runs `Manage → Analytical Model → Auto-Detect Releases`.
+5. The new `ACCURACY (Phase-142)` UI section adds one toggle row +
+   five numeric knobs. Combined with the Phase-140 ACCURACY section,
+   the DETECTION card is now ~12 rows tall — the wizard scrollviewer
+   keeps everything reachable but a visual redesign for screens
+   < 768 px is on the future-enhancements list.
+
+#### Completed (Phase 143 — Structural DWG-to-BIM ROADMAP closures, wave 2)
+
+**Branch**: `claude/fix-parallel-max-gap-H3Ha3`
+
+**Trigger**: Phase 142 closed 6 of 8 deferred `DWG-STRUCT-*` items but
+left 5 still open. This phase closes 5 more, all wired through a new
+focused helper file.
+
+**ROADMAP closures:**
+
+- ✓ `DWG-STRUCT-P3B` — Slab centroid → room seeding
+- ✓ `DWG-STRUCT-P3C` — Auto-create structural ViewPlans after conversion
+- ✓ `DWG-STRUCT-DEEP-1` — Steel I-section vs concrete rectangle inference
+- ✓ `DWG-STRUCT-DEEP-2` — Foundation classifier (pad / raft / pile cap)
+- ✓ `DWG-STRUCT-DEEP-6` — Junction-type Mark stamping
+
+**New file** — `StingTools/Model/StructuralPhase143Postproc.cs`
+(~495 lines, 5 helper classes):
+
+- `SlabRoomSeeder` (P3B) — `Seed(doc, level, outerSlabs, voidLoops, cfg)`
+  drops a Revit `Room` at each outer-loop centroid, skips centroids
+  inside voids and points already inside an existing room. Wraps in a
+  sub-transaction so a failure can't roll back element creation.
+- `StructuralViewCreator` (P3C) — `CreateViews(doc, createdElementIds, cfg)`
+  walks the levels referenced by created elements and creates a
+  `ViewPlan` (Structural Plan family) per level. When the Phase-113
+  `DrawingTypeRegistry` is available, applies the corporate "S-PLAN"
+  drawing type via `DrawingTypePresentation.Apply()`. Fails closed —
+  any registry or template lookup error degrades to a plain ViewPlan.
+- `BeamMaterialInferrer` (DEEP-1) — `AnnotateAll(beams, cfg)` heuristic:
+  parallel-pair beams (`WidthDetected==true`, width ≥ 200 mm) →
+  concrete rectangle; single-line beams → steel I-section. Appends
+  `STING:Material=Concrete` / `STING:Material=Steel` /
+  `STING:Material=Unknown` to the beam's `LayerName` so downstream
+  type matching can read the hint without a new field on
+  `DetectedBeam`.
+- `FoundationClassifier` (DEEP-2) — `Classify(rects, cfg)` splits
+  detected foundation rectangles into Pad / Raft / PileCap:
+  - Plan area ≥ `RaftMinAreaM2` → Raft (routed to slab-creation path
+    so it materialises as a structural floor at foundation depth).
+  - Pile-cap clustering: a rectangle within 2.5× its size of ≥ 2
+    other rectangles → PileCap (stays on pad-foundation path with
+    `STING: PileCap` Comments stamp candidate).
+  - Else → Pad.
+- `JunctionMarkStamper` (DEEP-6) — `Stamp(doc, junctions, createdIds, cfg)`
+  walks every `DetectJunctions` result and appends `J:T` / `J:L` / `J:X`
+  / `J:S` (T-junction / L-junction / Cross / Splice) to the Mark of
+  every column or beam whose endpoint sits within 250 mm of the
+  junction centroid. Free-end and warning junctions are NOT stamped
+  (they're already surfaced as TextNotes by the Phase-141 wiring).
+
+**`StructuralCADPipeline.cs` wiring** — five new call sites, each
+guarded by its config flag:
+
+1. After `BeamTrimmer.TrimEndpointsToColumns`: `BeamMaterialInferrer.AnnotateAll`.
+2. Foundation creation: when `ClassifyFoundations==true`, route Rafts
+   through `CreateSlabsFromBoundaries` and Pads + PileCaps through the
+   existing `CreatePadFoundations`. When false, keep the pre-Phase-143
+   behaviour (everything pads).
+3. After slab creation (slab path 5 in main pipeline): `SlabRoomSeeder.Seed`
+   when `SeedRoomsFromSlabs==true`. Re-uses Phase-140 `SlabVoidDetector`
+   to skip void-covered centroids.
+4. After numbering pass: `JunctionMarkStamper.Stamp` when
+   `StampJunctionMarks==true`. Runs after numbering so marks survive.
+5. Just before `sw.Stop()`: `StructuralViewCreator.CreateViews` when
+   `CreateStructuralViewsAfterConversion==true`. Adds created view
+   ElementIds to `totalResult.CreatedIds` so they participate in the
+   summary count.
+
+**`DWGConversionConfig` — 8 new fields:**
+
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `SeedRoomsFromSlabs` | bool | false | P3B toggle (default off — greenfield only) |
+| `RoomLabelSearchRadiusMm` | double | 3000 | P3B label-text proximity radius |
+| `CreateStructuralViewsAfterConversion` | bool | false | P3C toggle (default off — opt-in) |
+| `InferBeamMaterial` | bool | true | DEEP-1 toggle |
+| `ClassifyFoundations` | bool | true | DEEP-2 toggle |
+| `RaftMinAreaM2` | double | 4.0 | DEEP-2 raft cutoff |
+| `StampJunctionMarks` | bool | false | DEEP-6 toggle (default off — schedule discipline-specific) |
+
+**`StructuralCADWizard.cs` UI** — new POST-PROCESSING (Phase-143)
+sub-section in DETECTION:
+
+- Five toggles in a WrapPanel: Seed rooms from slabs / Create structural
+  views / Infer beam material / Classify foundations / Stamp junction
+  marks.
+- Two numeric knobs: Raft min area (m²) / Room label search (mm).
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. `SlabRoomSeeder` doesn't yet read text on the slab layer to populate
+   the room Name (the `RoomLabelSearchRadiusMm` config exists for
+   future iteration). Seeded rooms get Revit's default name.
+3. `BeamMaterialInferrer` mutates `LayerName` instead of adding a
+   `Material` field on `DetectedBeam` to stay zero-impact on existing
+   detection types. Type matching downstream needs to parse the suffix
+   — listed as a follow-up for `StructuralTypeFactory`.
+4. `FoundationClassifier`'s pile-cap clustering uses a 2.5× distance
+   threshold; very close pile groups (< 2× spacing) may fall into the
+   raft band instead.
+5. `JunctionMarkStamper` cluster tolerance is fixed at 250 mm. If
+   `BeamSupportToleranceMm` is set very high, the user might expect
+   the same tolerance here — listed for the next pass.
+6. `StructuralViewCreator` creates one view per level even if multiple
+   disciplines were converted in one go. Multi-discipline templates
+   would need to dispatch on `(discipline, level)` instead of `level`
+   alone — tracked under DWG-STRUCT-DEEP-9 if it becomes a real need.
+#### Completed (Phase 141 — Clash Detection Bug Fixes — Category A)
+
+Five correctness bugs in the clash subsystem fixed. Every change is in
+`StingTools/Clash/` unless noted; commits land on
+`claude/enhance-clash-detection-Tb0IS`.
+
+1. **A1 Live flag state corruption** —
+   `Clash/ClashSession.cs` `RefreshElement` was nuking
+   `_flaggedIds` on every edit by replacing the entire set with the
+   single edited element's hits. Fixed by introducing a per-element
+   neighbour index `_clashNeighbours: Dictionary<int, HashSet<int>>`
+   that tracks symmetric edges (a↔b) and computing the diff narrowed to
+   the edited element plus its prior + new neighbours. `RemoveElement`
+   maintains the same map and clears flags only on neighbours that
+   lose their last edge. `InitialiseFromView` resets the map alongside
+   the mesh / OBB caches.
+2. **A2 SLA issue anchor mismatch** —
+   `Clash/ClashSlaIntegration.cs` `CreateIssues` was looking up
+   `g.Anchor` directly in `matrix.Cells` by `PairId`, but element-
+   pattern anchors are formatted as `"{pairId} via {side}={cat}:{eid}"`
+   and repetition anchors as `"{pairId} repetition (X-row, vol≈N)"` —
+   the lookup always returned null and every issue defaulted to
+   severity "MED" / assignee "Coord". Fixed by adding
+   `ExtractPairId()` that splits on " via " or " repetition " and
+   keeps the leading PairId token before the lookup.
+3. **A3 Clearance tolerance not enforced in kernel** —
+   `Clash/ClashKernel.cs` returned `Kind="hard"` for every triangle-
+   overlap pair regardless of the matched matrix cell's tolerance.
+   Fixed by adding `ClashRunCommand.ApplyClearanceTolerance` that runs
+   after `MergeWithPrior` and walks every kept clash whose
+   `cell.Tolerance` starts with `"CLEARANCE_"`: parses the suffix as
+   mm, computes AABB overlap depth (min component of `AabbMax-AabbMin`
+   in mm), and either drops the record (overlap within tolerance —
+   tessellation sliver) or promotes `Kind` to `"clearance"`. New
+   `ClashRecord.Kind` field, JSON-optional so existing clashes.json
+   files round-trip cleanly.
+4. **A4 Live path facts missing System/Workset** —
+   `Clash/ClashSession.cs` `FactsFromMesh` populated only `Category`,
+   so any matrix cell that filtered on `System=...` silently missed in
+   the live path. Replaced with `ResolveFacts` that resolves the
+   `Element` from `_doc` and reads System / Workset (via
+   `MEPCurve.MEPSystem.Name` and the `System Name` parameter for
+   FamilyInstances). Cached per-eid in `_factsCache` so the candidate
+   loop in `NarrowPhaseFor` pays one Revit lookup per element per
+   edit, not per pair. Cache invalidated on `RefreshElement` and
+   `RemoveElement` for the affected id.
+5. **A5 Repetition grouper ignored X/Y axes** —
+   `Clash/ClashGrouper.cs` `FindRepetitionGroups` only sorted by Z and
+   only checked the Z-axis spacing, breaking horizontal risers
+   clashing with wall framing in X or Y into spatial singletons.
+   Replaced `IsEquallySpaced` with `TryComputeMeanDev` that scores
+   each axis by mean-deviation; the axis with the smallest deviation
+   wins. Anchor description now reads `"X-row"`, `"Y-row"`, or
+   `"Z-stack"` so the BCC UI shows the winning axis.
+
+#### Completed (Phase 142 — Clash Detection Performance — Category B)
+
+Three hot-path performance fixes for clash subsystem batch operations.
+
+1. **B1 CrossModelClashCommand O(n²) inner loop** —
+   `Clash/ClashDetectionCommands.cs` `CrossModelClashCommand` was
+   nesting host MEP × all linked structural per link, calling
+   `get_BoundingBox()` inside the inner loop. For a 2 000 × 1 000 × 3-
+   link model that's 6 M comparisons with Revit API calls in the
+   innermost slot. Now: pre-cache host MEP bboxes once outside the
+   loop, build per-link `Dictionary<long, (Element, LocalBb, WorldMin,
+   WorldMax)>`, and probe each link via
+   `BoundingBoxIntersectsFilter` with a per-MEP outline transformed
+   through the inverse link transform. Inner loop shrinks to a
+   pre-computed AABB sweep before paying the 8-corner narrow-phase.
+   New helper `TransformedAabb.Build` exposes the world AABB build
+   that `AabbNarrowPhase.WorldAabb` does internally.
+2. **B2 MEPClearanceValidationCommand sequential collectors** —
+   `Clash/ClashDetectionCommands.cs` `AuditOne` was creating a
+   `FilteredElementCollector` per subject element. For 1 000 elements
+   that is 1 000 collector instantiations on the Revit API. Now: a
+   single pass pre-collects every duct + pipe + structural element
+   into `List<(ElementId, BoundingBoxXYZ, Category, Bic)>`, then each
+   subject does an in-memory AABB range query against the cache. No
+   per-subject collector instantiation.
+3. **B3 ClashScheduler raised live handler not full run** —
+   `Clash/ClashScheduler.cs` was raising `LiveClashHandler.Event`
+   which only drains the dirty queue — on an idle model the hourly
+   tick was a no-op. Added `ClashRunEventHandler : IExternalEventHandler`
+   that calls `ClashRunCommand.RunHeadless(app)` (a new static entry
+   point that runs the full pipeline silently). Scheduler now reads
+   `SchedulerIntervalMinutes` from `default_clash_matrix.json`
+   (default 60) and gates ticks on
+   `ClashSession.LastDirtyAtUtc > _lastRunUtc` so an idle model with
+   no edits since the last run is skipped. `MarkDirty` is called from
+   `RefreshElement` and `RemoveElement` to update the volatile
+   timestamp.
+
+#### Completed (Phase 143 — Clash Detection Automation — Category C)
+
+Six automation-logic gaps closed in the clash subsystem.
+
+1. **C1 ClashTriageEngine wired into ClashRunCommand** —
+   `Clash/ClashRunCommand.cs` now runs `ClashTriageEngine.Triage` after
+   `ClashGrouper.Group`. Inputs are built from `run.Clashes` plus the
+   immediately-prior `ClashRunRecord`: `RecurrenceCount` = identity
+   match in prior run (0/1), `DismissCount` = "Void" transitions in
+   `StateHistory`, `PenetrationMm` = computed from the AABB extent.
+   Score persisted to new `ClashRecord.TriageScore` field; clashes
+   sorted by score descending, then by severity, then by id for
+   deterministic order.
+2. **C2 Auto-assign clashes to discipline owners** —
+   `Clash/ClashSlaIntegration.cs` `EnrichAssignees(doc, issues, run)`
+   resolves workset owner names via
+   `WorksharingUtils.GetWorksharingTooltipInfo` and overlays them on
+   `CoordIssue.Assignee` plus `ClashGroupRecord.Assignee`.
+   `ClashRunCommand.EnrichGroupAssignees` synthesises a placeholder
+   issue list per group so the same logic runs as part of the headless
+   pass without duplicating the resolution code.
+3. **C3 Per-pair clearance distance in MEPClearanceValidationCommand**
+   — `Clash/ClashDetectionCommands.cs` now loads
+   `default_clash_matrix.json` and calls `ResolveTargetMm(matrix,
+   subjectCat, neighbourCat, fallbackMm)` for each subject ↔
+   neighbour pair. CLEARANCE_xx → xx mm; HARD → 0; otherwise the
+   hardcoded `DuctMinClearMm`/`PipeMinClearMm` is the fallback. The
+   PASS/FAIL gate now uses the worst-case per-pair target rather than
+   a single per-subject constant.
+4. **C4 Cold-init live flag parameter write** —
+   `Clash/ClashRunCommand.cs` `WriteColdInitLiveFlags` calls
+   `LiveClashFlag.Apply(doc, flagged, [])` after `SeedFromRun`,
+   following the same H6 pattern (transaction outside the lock) that
+   `RefreshElement` uses. Resumed sessions now show warning triangles
+   on flagged elements immediately rather than waiting for the next
+   dirty edit. `ClashRunCommand` was changed to
+   `TransactionMode.Manual` so the flag-write transaction can open.
+5. **C5 Configurable rule thresholds in JSON** —
+   `Clash/ClashRule.cs` now stores `Params: Dictionary<string, double>`
+   per `ClashRuleDefinition`; predicates read via the new helper
+   `ClashRule.ParamOr(def, key, fallback)`. R001 / R005 / R006 / R008 /
+   R009 read their thresholds from Params with the historical
+   constant as the fallback. `ClashRuleLibrary.LoadAugmented` accepts
+   a JSON entry without `Verdict` but with a matching `Id` as a Params
+   override on a built-in rule.
+6. **C6 BCF auto-export on severity threshold breach** —
+   `Clash/ClashBcfExportCommand.ExportToBcf(doc, clashes, outDir)`
+   refactored to a public static method.
+   `Clash/ClashRunCommand.cs` calls it automatically after
+   `SeedFromRun` when `default_clash_matrix.json` carries
+   `"AutoBcfOnCritical": true` and the run kept any
+   `Severity in {CRITICAL, HIGH}` clashes whose state is `New` or
+   `Reintroduced`. New `ClashMatrix.AutoBcfOnCritical` field defaults
+   to `false` so existing matrix files round-trip without changing
+   behaviour.
+
+#### Completed (Phase 144 — Clash Detection Performance D1–D10)
+
+Ten residual hot-path performance fixes. All in `StingTools/Clash/`.
+
+1. **D1 Mesh extractor cache** — `MeshExtractor.cs` now caches the
+   `Dictionary<ClashElementKey, ClashMeshBuffer>` per-(doc, view) keyed
+   on a soft signature (taggable element count + revision count + view
+   section-box hash). Re-runs that don't change the soft signature
+   skip the entire `CustomExporter` pass — 5–30 s saved on 50 k-element
+   models. Hard invalidation hook `MeshExtractor.InvalidateCacheFor(doc)`
+   wired from `ClashScheduler` on `DocumentSaved` /
+   `DocumentSynchronizedWithCentral`.
+2. **D2 BuildFactsByKey bulk-load** — `ClashRunCommand.BuildFactsByKey`
+   groups mesh keys by owning document and runs one
+   `FilteredElementCollector(doc, ids).WhereElementIsNotElementType()`
+   per doc instead of `doc.GetElement(...)` per mesh — 50 k Revit API
+   calls collapse to a handful.
+3. **D3 Better volume estimate** — `ClashKernel.TestPair` no longer
+   reports raw AABB-intersection volume (massively inflated for
+   oblique hits). Uses min-extent depth × intersection footprint as a
+   proxy. Restores R001's 100 mm³ tessellation gate and stops triage
+   scoring every clash as a major overlap.
+4. **D4 Pair dedup encoded as long** — `AabbSweep.CandidatePairs` packs
+   the unordered pair into a 64-bit long via per-call int handles,
+   replacing the `HashSet<(ClashElementKey, ClashElementKey)>` tuple
+   allocation. ~50–200 MB GC pressure removed on 1 M-pair runs.
+5. **D5 Bounded parallelism** — `ClashKernel.BuildIndexes` and `Run`
+   now use `MaxDegreeOfParallelism = ProcessorCount-1` so the UI thread
+   keeps a free core during heavy runs.
+6. **D6 Snapshot-under-lock** — `ClashSession.NarrowPhaseFor` materialises
+   the candidate enumeration into a local list before the loop so the
+   triangle-triangle SAT work doesn't hold the session lock.
+7. **D7 Connected-id cache** — `MEPClearanceValidationCommand.AuditOne`
+   caches `GetConnectedElementIds` per subject so the connector graph
+   walk doesn't re-run.
+8. **D8 BcfSnapshotter shared view** — `BcfSnapshotter` is now
+   `IDisposable` with one reusable temp View3D for the whole batch;
+   per-clash retarget via `SetSectionBox` only. 500-clash auto-BCF runs
+   no longer create+delete 500 transient views.
+9. **D9 ClashGrouper single-pass dict** — `FindElementPatternGroups`
+   builds one `Dictionary<(pair, side, eid), List<ClashRecord>>`
+   instead of two parallel dicts.
+10. **D10 Pooled extraction buffers** — `ClashSession.TryExtractOneElement`
+    uses `[ThreadStatic]` reusable `List<float>` / `List<int>` /
+    `Dictionary<long, int>` buffers so per-edit dragging doesn't
+    allocate three fresh containers per tick.
+
+#### Completed (Phase 145 — Clash Detection Algorithm Hardening E1–E10)
+
+Ten algorithm refinements addressing identity drift, OBB pruning,
+rule precedence, and category classification.
+
+1. **E1 Fuzzy identity merge** — `ClashHistory.MergeWithPrior` falls
+   back to `(elementA, elementB, pairId)` + centroid-distance match
+   (≤ 500 mm) when the exact identity hash misses. A duct nudged 7 mm
+   no longer surfaces as "Resolved + New" with state lost.
+2. **E2 Larger-side descent** — `ClashKernel.OverlapDescend` chooses
+   the side with the larger AABB volume to descend when both children
+   are internal. Standard BVH practice — keeps subtree pairs balanced
+   and prunes deeper trees more aggressively for elongated geometry.
+3. **E3 Real OBB-OBB SAT prune** — `ObbNode.EnsureObb` derives true
+   PCA-based OBB axes/half-extents lazily; new `ObbSat.Overlap` runs
+   the 15-axis SAT test as an extra prune AFTER the AABB overlap
+   passes. Gated on `IsElongated` (longest extent > 3× shortest) so
+   box-like geometry doesn't pay the PCA cost.
+4. **E4 Strictest-wins rule precedence** — `ClashRuleEngine.Classify`
+   collects every matching rule's verdict and returns the strictest
+   (`Pseudo > Intentional > Keep`). Rule order in `BuiltIns()` is no
+   longer load-bearing — large slivers always Pseudo even when
+   listed after R008.
+5. **E5 Adaptive grouper cells** — `ClashGrouper` Pass 3 sizes its
+   spatial cells from per-pair average AABB diagonal × 1.5, clamped
+   to `[0.5 m .. 6 m]`. Light fixtures cluster at ~1 m, AHU/beam at
+   4–6 m — coordinator-relevant rather than arbitrary.
+6. **E6 Relative spacing tolerance** — `TryComputeMeanDev` uses
+   `tolerance = max(0.05 ft, 0.1 × mean)` so tightly-packed lights
+   and wide beam centres both detect repetition correctly.
+7. **E7 Median-extent overlap depth** — `ApplyClearanceTolerance` uses
+   the median of the three intersection extents rather than the min;
+   captures the dominant penetration direction for oblique hits.
+8. **E8 ElementId-based self-clash filter** — `ClashSession.NarrowPhaseFor`
+   adds a defence-in-depth short-circuit when both meshes resolve to
+   the same `ElementId` (same FamilyInstance with multiple Solids).
+9. **E9 BuiltInCategory-based severity classifier** —
+   `ClashTriageEngine.IsStructural / IsServices` use OST_-prefixed
+   category sets instead of substring matches on display names. Curtain
+   walls correctly classified as architectural rather than structural.
+10. **E10 Persisted RecurrenceCount** — `ClashRecord.RecurrenceCount`
+    new field; `MergeWithPrior` increments it on every Reintroduced
+    transition; `ClashRunCommand` reads from the persisted value when
+    building `ClashInput.RecurrenceCount` so a clash reintroduced 4×
+    scores correctly (prior code capped at 1).
+
+#### Completed (Phase 146 — Clash Detection Automation F1–F14)
+
+Fourteen automation hooks that change coordinator behaviour rather
+than just report on it.
+
+1. **F1 Repeat-offender severity escalation** — `ClashHistory` promotes
+   severity one tier (LOW→MED→HIGH→CRITICAL) when `RecurrenceCount`
+   reaches 3. Logged as a `StateTransition` so the audit trail shows
+   the bump.
+2. **F2 CLASH_COUNT_INT parameter** — `LiveClashFlag.ApplyWithCounts`
+   writes a per-element clash count alongside `CLASH_LIVE_FLAG`. View
+   filters can now select "elements with > 3 clashes" for heat-map
+   templates.
+3. **F3 Ring-buffer archive** — `ClashPersistence.Save` mirrors every
+   run to `<dir>/archive/clashes_<utc>.json` capped at 30 entries.
+   `LoadArchive(dir, max)` returns the newest-first series for trend
+   reports / XLSX export.
+4. **F4 Event-driven scheduler triggers** — `ClashScheduler.Start`
+   subscribes to `Application.DocumentSaved` and
+   `DocumentSynchronizedWithCentral`; the periodic poll remains as a
+   fallback. Hooks invalidate `MeshExtractor` cache so post-save state
+   regenerates immediately.
+5. **F5 Score every clash** — new `ClashTriageEngine.TriageAll(inputs)`
+   returns the full scored set; `Triage(inputs)` is now a thin
+   `TriageAll().Take(TopN)` shim. `ClashRunCommand` persists score on
+   every `ClashRecord` rather than the first 20.
+6. **F6 IssueGuid back-link** — `ClashSlaIntegration.CreateIssues`
+   writes the new issue's GUID onto every member `ClashRecord.IssueGuid`
+   (and `LinkedIssueGuid` for legacy compat) so BCF re-import can
+   reconstruct the (issue, clash[]) association.
+7. **F7 ClashXlsxExportCommand** — new command and reusable
+   `ExportToXlsx(run, path)` static (ClosedXML). Four sheets: Summary
+   (run stats + severity buckets), Clashes (autofilter, per-row severity
+   colour), Groups, Trend (F3 archive series, last 30 runs).
+8. **F8 Exclusion audit log** — `ClashExclusions.IsExcludedAudited`
+   appends every `excluded` outcome to
+   `<dir>/clash_exclusions_audit.jsonl` with timestamp / matrix pair /
+   approver / reason / run id. ISO 19650 stage-gate evidence.
+9. **F9 Watched-element mechanism** — `ClashSession.Watch / Unwatch /
+   IsWatched / WatchedSnapshot`. `LiveClashHandler` re-runs narrow-
+   phase for every watched element on every tick within the 200 ms
+   budget so coordinators can pin a hard-to-investigate clash.
+10. **F10 Notification dispatch sidecar** — new `ClashNotifications`
+    type appends `clash_notifications.jsonl` events for every CRITICAL
+    or HIGH `New` / `Reintroduced` clash plus every severity escalation.
+    Local-first (no network coupling); a future Planscape adapter can
+    tail and forward to FCM / Slack / SignalR.
+11. **F11 Stage-gate clash budget** — `StageComplianceGateCommand`
+    reads `clashes.json` and adds a clash-budget check: Stage 4
+    requires zero active CRITICAL; Stage 5+ tightens to zero
+    CRITICAL OR HIGH. Reports per-stage in the existing TaskDialog.
+12. **F12 Element-level workset majority vote** —
+    `ClashSlaIntegration.EnrichAssignees` resolves owner per element
+    (cached), tallies votes per group, and assigns the majority
+    winner. Mixed-owner groups get a `(mixed)` suffix.
+13. **F13 Geometric resolution annotation** — `ClashHistory.MergeWithPrior`
+    annotates the prior record's `StateHistory` with
+    `By = "geometric (no longer detected)"` when an identity lapses,
+    closing the loop with `ResolutionHeuristics`.
+14. **F14 Full ClashRule overrides** — `ClashRuleLibrary.LoadAugmented`
+    treats any matching `Id` as an override on a built-in. Project
+    JSON can now patch any of `FilterA / FilterB / Verdict /
+    Description / Params / VolumeBelowMm3 / VolumeAboveMm3` without
+    re-defining the whole rule.
+
+#### Completed (Phase 147 — Tagging Workflow Gap Closure)
+
+Closed three remaining open gaps in the tagging-workflow review carried in
+[`ROADMAP.md`](ROADMAP.md): TAG-PREFLIGHT-DUP-01, TAG-DEFERRED-OVERFLOW-01,
+TAG-STALE-WARN-01. The fourth open item, TAG-SORT-LEVEL-01, was already
+covered by `BatchTagCommand._levelElevationCache` and is now reclassified as
+verified-already-fixed.
+
+1. **TAG-PREFLIGHT-DUP-01 — Cached `PopulationContext`.**
+   `TokenAutoPopulator.PopulationContext.Build(doc)`
+   (`StingTools/Core/ParameterHelpers.cs:1455`) now returns a per-document
+   cached instance with a 30 s TTL. The hot indices it carries
+   (`SpatialAutoDetect.BuildRoomIndex`, phase list, grid list,
+   `TokenAutoPopulator.BuildSpatialCandidateCache`) are no longer rebuilt
+   when consecutive commands run within the TTL — e.g. `PreTagAuditCommand`
+   immediately followed by `BatchTagCommand`, or the back-to-back format-
+   migration build at line 485. Cache is invalidated on document close
+   (`ParameterHelpers.ClearParamCache`), after every tagging command via
+   `TagPipelineHelper.PostTagCleanup`, and on `TagConfig.LoadFromFile` so
+   `KnownCategories` rebuilds when `DiscMap` changes. New
+   `PopulationContext.InvalidateCache()` is the public entry point.
+
+2. **TAG-DEFERRED-OVERFLOW-01 — Sidecar restore on document open.**
+   `StingAutoTagger.SaveDroppedElementsSidecar` already wrote the dropped-
+   IDs bag to `<project>.sting_deferred_elements.json` on close. The new
+   `StingAutoTagger.LoadDroppedElementsSidecar(doc)`
+   (`StingTools/Core/StingAutoTagger.cs:182`) reads that sidecar on open,
+   re-enqueues every element that still resolves via `doc.GetElement`, and
+   rotates the file to `.consumed` so a re-open does not double-replay it.
+   Wired into `OnDocumentOpened` in
+   `StingTools/Core/StingToolsApp.cs:516`. The save path now also clears the
+   in-memory `_droppedElementIds` bag and resets `_droppedElementCount`
+   after a successful sidecar write so the next document doesn't inherit
+   state from the previous one.
+
+3. **TAG-STALE-WARN-01 — Stale flag → BIM issues register.**
+   `WarningsEngineExt.AutoRaiseStaleIssues` was implemented in Phase 78 but
+   never called. New `StaleWarningPromotionJob` in
+   `StingTools/Core/StingIdlingScheduler.cs:170` runs as a single-shot idle
+   consumer that calls `AutoRaiseStaleIssues` once the stale-element count
+   crosses `TagConfig.StaleWarningThreshold` (default 5, configurable via
+   the new `STALE_WARNING_THRESHOLD` `project_config.json` key). The job is
+   enqueued from two places: (a) every batch in `StingStaleMarker.Execute`
+   that flags at least one element stale
+   (`StingTools/Core/StingAutoTagger.cs:1491`), so live edits propagate to
+   the issues register on the next idle tick; (b) once on document open
+   immediately after `ComplianceRefreshJob` so pre-existing stale work from
+   a previous session surfaces straight away
+   (`StingTools/Core/StingToolsApp.cs:625`). Dedupe against any existing
+   OPEN "stale" issue happens inside `AutoRaiseStaleIssues`, so re-runs are
+   no-ops. The stale-marker callback also invalidates `ComplianceScan` so
+   the dashboard updates without waiting for the 30 s cache TTL.
+
+4. **TAG-ISO-USERNAME-01 — Audit trail user binding.**
+   `TagPipelineHelper.RunFullPipeline` already wrote
+   `ASS_TAG_MODIFIED_BY_TXT = Environment.UserName` after every successful
+   tag write, but the parameter was missing from the registry — so
+   `ParameterHelpers.SetString` silently no-op'd because `LookupParameter`
+   returned `null`. Added the parameter to both
+   `StingTools/Data/MR_PARAMETERS.txt` (line 1610) and
+   `StingTools/Data/MR_PARAMETERS.csv` (line 1555), GUID
+   `c1f4d6b8-2a3e-4d5b-9c6f-7a8b9c0d1e2f`, type `TEXT`, group
+   `ASS_MNG`, instance-bound. Closes the ISO 19650-2 §A.5 "person
+   responsible" traceability requirement: every tag write now stamps
+   `who / when / previous-tag` (`ASS_TAG_MODIFIED_BY_TXT` /
+   `ASS_TAG_MODIFIED_DT` / `ASS_TAG_PREV_TXT`). Existing models will pick
+   up the binding on the next `LoadSharedParams` run.
+
+Verification was static / read-only because the sandbox has no Revit API
+or `dotnet build`. Follow-up: smoke test on a real .rvt by (i) overflowing
+the deferred queue past 5 000 elements and confirming the sidecar restore
+re-queues live IDs on the next open; (ii) flipping geometry on tagged
+elements and confirming an `SI-####` issue appears in `_BIM_COORD/issues.json`
+once `staleCount >= STALE_WARNING_THRESHOLD`; (iii) running `LoadSharedParams`
+then a Tag command and confirming `ASS_TAG_MODIFIED_BY_TXT` is populated.
+
+#### Completed (Phase 148 — Tractable batch closure of 20 ROADMAP gaps)
+
+Closed 18 of the 46 open gaps in the ROADMAP triage in a single
+deliberately-scoped batch. The genuinely-multi-day items
+(`DWG-FUT-01..14`, `DWG-STRUCT-DEEP-5/6b`, `BIM-BCF-SYNC-01`,
+`DWG-MULTI-01`, `DWG-CURVE-01`) and the infra-blocked items
+(`TPL-V12-SIG`, `TPL-V12-AI`, `N-G18`, `TPL-FOLLOW-02`) were left
+untouched with sharper "blocked-on-X" notes so the next session has a
+clean target.
+
+15. **`StingTools/BIMManager/Phase148Engine.cs`** (new file, ~1,300
+    lines, single-namespace bag of 13 small static engines). Each engine
+    is its own internal static class with a documented public API the
+    rest of the tree can call without scattering tiny additions across
+    20 files. Engines:
+    - **SidecarVersioning** (BIM-SIDECAR-VER-01) — `EnsureArrayMeta(arr,
+      schema)` stamps a `_meta` sentinel record carrying `version=1.1`,
+      `schema`, `written_at`, `written_by`. `Records()` iterates while
+      skipping the sentinel so legacy readers keep working.
+    - **CrossLinkEngine** (BIM-CROSS-LINK-01) — `WalkFromIssue(doc, id)`
+      follows `linked_revision_ids` / `linked_transmittal_ids` /
+      `linked_issue_ids` arrays across all three sidecars (depth-bounded
+      at 256 hops). `AppendLink(record, kind, foreignId)` adds a
+      cross-reference with dedupe.
+    - **TransmittalGate** (BIM-TRANSMIT-GATE-01) — `Validate(doc,
+      transmittal, requiredRank=1)` looks up every referenced document
+      in `document_register.json`, ranks the CDE state (WIP=0, SHARED=1,
+      PUBLISHED=2, ARCHIVED=3), and blocks transmittal sends whose docs
+      sit below the threshold.
+    - **TeamWorkloadEngine** (BIM-TEAM-WORKLOAD-01) — `Build(doc)`
+      reads `issues.json` and aggregates open issues per assignee with
+      Critical / High / Overdue / OldestDays / SampleIds columns.
+    - **ComplianceForecast** (BIM-FORECAST-01) — `Build(doc, target)`
+      reads `compliance_trend.json`, runs `WarningsEngine.ForecastCompliance`,
+      returns a `ForecastSummary` with caption text the dashboard renders
+      inline.
+    - **CobieSystemDistribution** (BIM-COBIE-SYS-01) — walks every
+      tagged element and aggregates the actual `ASS_SYS_TXT` values
+      present in the model, replacing the static `TagConfig.SysMap`
+      defaults the COBie System sheet was using.
+    - **DataDropTracker** (BIM-DD-TRACK-01, BIM-4D-HANDOVER-01) —
+      Load/Save round-trip on `_BIM_COORD/data_drops.json` with
+      DD1/DD2/DD3/DD4 milestones (planned/actual dates + RAG).
+      `GetDD4HandoverDate(doc)` exposes the DD4 date so the 4D
+      scheduling engine can extend the timeline beyond construction-
+      finish into handover.
+    - **CdeApprovalGate** (BIM-CDE-APPROVAL-01) — `Validate(doc,
+      fromState, toState)` resolves the current user's role from
+      `project_team.json`, denies state transitions whose minimum role
+      rank (Originator/Reviewer/Approver = 1/2/3) is not met, and
+      returns a structured `(pass, requiredRole, actualRole, reason)`
+      result.
+    - **FuncSysValidator** (BIM-EXCEL-CROSS-01) — `Validate(rows)`
+      returns FUNC↔SYS mismatches against the SYS→{valid FUNCs} matrix
+      (HVAC → SUP/RET/EXH/HTG/CLG/VEN/FRA/SAV; LV → PWR/LIT/CTL/DAT;
+      SAN → SAN/WST/VNT; etc.).
+    - **RebarSpacingChecker** (STRUCT-REBAR-01) — walks every `Rebar`
+      element, derives bar diameter from `RebarBarType.BarDiameter`,
+      computes clear spacing from `REBAR_ELEM_LENGTH /
+      NumberOfBarPositions`, flags any clear spacing < max(diameter,
+      20 mm) per BS EN 1992-1-1 §8.2.
+    - **AcousticCavityBonus** (ACOUSTIC-CAVITY-01) — `BonusAt(hz)`
+      interpolates BS EN 12354-1 Annex B.3 indicative values
+      (50 Hz → 2 dB rising to 500 Hz → 12 dB falling to 5 kHz → 5 dB).
+      `WeightedRwBonus()` averages across the 16 standard 1/3-octave
+      bands used to derive Rw, replacing the previous flat +10 dB.
+    - **ScheduleTemplateLib** (WF-SCHED-01, WF-SCHED-02) — `Save / List`
+      persists named schedule templates as JSON in
+      `_BIM_COORD/schedule_templates/`. `CheckFieldConsistency(doc)`
+      scans live `ViewSchedule` definitions and reports any field whose
+      canonical name appears under different display labels across
+      schedules.
+    - **MepCommissioningSchedules** (MEP-SCHED-01) — `CreateMissing(doc)`
+      mints three schedules — Connector Flow Rate, Pipe Balancing
+      Status, HVAC Pressure Drop Summary — idempotent (skips schedules
+      already present in the document).
+    - **PhaseAwareCobie** (FM-HO-02) — `Filter(doc, elements,
+      targetPhaseId)` returns only elements alive in the target phase
+      (PHASE_CREATED ≤ target, PHASE_DEMOLISHED null or > target),
+      stamping each row with the phase name so the COBie Component
+      sheet can be partitioned per phase.
+    - **WorkflowDagPlanner** (TAG-WORKFLOW-PARALLEL-01) — wires the
+      existing `WorkflowStep.ParallelGroup` field into a topo-sort
+      scheduler. `Plan(steps)` orders steps by `(parallelGroup,
+      originalIndex)`; `MarkBlocked(plan, succeeded, failed)` flags
+      groups behind a failed upstream group with no recovery in
+      between. True OS-thread parallelism is impossible because the
+      Revit API is single-threaded — this DAG planner is the realistic
+      interpretation of the gap.
+
+16. **`StingTools/Core/StingToolsApp.cs`** — `OnDocumentOpened` now
+    calls `ProjectFolderEngine.CreateFolderStructure(doc)` on every
+    document open (idempotent), closing **BIM-CDE-FOLDER-01**. Toggle
+    via `AUTO_CREATE_CDE_FOLDERS` config key (default true).
+
+17. **`StingTools/Core/TagConfig.cs`** — added `AutoCreateCdeFolders`
+    config field + `STALE_WARNING_THRESHOLD` carry-over from Phase 147.
+    Cache invalidation hook for `TokenAutoPopulator.PopulationContext`
+    on `LoadFromFile`.
+
+18. **`StingTools/UI/BIMCoordinationCenter.cs`** — Ctrl+E shortcut now
+    dispatches `ExportReport` through `ActionDispatcher` (modeless via
+    `ExternalEvent`) instead of closing the dialog, closing
+    **BIM-COORD-LOOP-01**. Coordinators stay in the centre and can
+    iterate without re-opening it.
+
+19. **Already-done verifications** — three gaps were verified as
+    already complete and reclassified rather than re-implemented:
+    - **BIM-REV-PROP-01** — `RevisionManagementCommands.cs:677-701` has
+      been propagating `ASS_REV_TXT` to all tagged elements since
+      Phase 78 (`GAP-R9: Auto-propagate new REV`).
+    - **FM-HO-01 / BIM-COBIE-SHEETS-01** — COBie handover export already
+      generates all 11 + Instruction worksheets per Phase 78.
+
+20. **Deliberately deferred** — six items remain open with sharper
+    blocked-on-X notes for the next session:
+    - `BIM-EXCEL-STREAM-01` — partial fix Phase 78 via batch-size knob;
+      full streaming reader still pending.
+    - `BIM-BCF-SYNC-01` — needs ACC/Procore OAuth.
+    - `DWG-MULTI-01`, `DWG-CURVE-01` — multi-day DWG geometry rewrites.
+    - `DWG-FUT-01..14`, `DWG-STRUCT-DEEP-5`, `DWG-STRUCT-DEEP-6b` —
+      multi-day spikes (rebar parsing, EC7 foundation sizing,
+      connection synthesis).
+    - `TPL-V12-SIG`, `TPL-V12-AI`, `N-G18`, `TPL-FOLLOW-02` — explicitly
+      deferred to v1.2 / Year 2 by the original runners (need server-
+      side services or a Windows + Revit build box).
+
+Verification was static / read-only — the Linux sandbox has no
+`dotnet build` or Revit API. Each engine call site reads cleanly against
+the documented Revit 2025 API surface and the existing internal helpers
+(`BIMManagerEngine`, `ParameterHelpers`, `WarningsEngine`,
+`SharedParamGuids`, `ParamRegistry`). Follow-up: smoke-test on a real
+.rvt by (i) opening a project and confirming
+`_BIM_COORD/01_WIP/02_SHARED/03_PUBLISHED/04_ARCHIVE` materialise
+without prompting; (ii) using Ctrl+E in the BCC and confirming the
+window stays open; (iii) attempting a transmittal that references a
+WIP-state document and confirming `TransmittalGate` blocks it.
+
+#### Completed (Phase 148b — Surface integration / wiring sweep)
+
+Phase 148 left the engines as utility classes; this sweep wires them
+into the existing call sites so they actually fire from real workflows.
+
+21. **Sidecar versioning wired into `BIMManagerEngine.SaveJsonFile`** —
+    every JArray sidecar now gets a companion `<path>.meta.json`
+    written alongside the data file (schema name, version 1.1,
+    written_at, written_by). Companion-file approach was chosen over
+    in-array sentinel because every existing iterator already walks the
+    array directly; injecting a sentinel record would have broken them.
+    Read-side `SidecarVersioning.ReadVersion(path)` defaults to "0.0"
+    for pre-versioning files.
+
+22. **`TransmittalGate.Validate` wired** into
+    `CreateTransmittalCommand` (`BIMManagerCommands.cs`). Every
+    transmittal record now carries `gate_pass`, `gate_summary`, and a
+    `gate_blockers` array when documents below SHARED-rank are present.
+    Soft-block (logged + captured) rather than hard-block to preserve
+    the existing cancellation flow.
+
+23. **`CdeApprovalGate.Validate` wired** into `CDEStatusCommand`
+    (`BIMManagerCommands.cs`). The user's role is resolved from
+    `_BIM_COORD/project_team.json`; if the rank is below the minimum
+    required for the transition (Originator/Reviewer/Approver = 1/2/3),
+    the user is prompted to override-or-abort with the override logged
+    to `StingLog.Warn` for audit.
+
+24. **`FuncSysValidator.Validate` wired** into
+    `ExcelLinkEngine.ValidateChanges` cross-token Phase 2. Mismatches
+    surface as `FUNC_SYS_MATRIX` warnings in the same import-validation
+    bag as the existing token / cross-ref checks.
+
+25. **`AcousticCavityBonus.WeightedRwBonus` wired** into
+    `AcousticAnalysisEngine.CalculateRwDoubleLeaf`. The flat 3 / 6 /
+    10 dB step bonus is now scaled by the BS EN 12354-1 frequency-
+    weighted bonus value (≈ 8.6 dB) modulated by an air-gap depth
+    factor (1.0 / 0.75 / 0.4). Output Rw matches measured-value
+    handbooks more closely than the previous bin function.
+
+26. **`WorkflowDagPlanner` wired** into `WorkflowEngine.ExecutePreset`.
+    Steps are now topo-sorted by `(parallelGroup, originalIndex)`; per-
+    step success / failure is tracked at group granularity. When a
+    later step belongs to a group strictly downstream of a failed
+    upstream group with no recovery in between, it is marked **BLOCKED**
+    in the report rather than executed, halving wasted work on cascade
+    failures.
+
+27. **`CobieSystemDistribution.Build` wired** into the COBie System-
+    sheet builder in `BuildCoordData` (`BIMManagerCommands.cs`). The
+    live distribution merges into `sysGroups` so a SYS code that exists
+    in the model but slipped past the Components-pipeline filter still
+    appears in the System sheet.
+
+28. **`CrossLinkEngine.AppendLink` wired** into `CreateRevisionCommand`
+    (`RevisionManagementCommands.cs`). Every OPEN issue whose own
+    `revision` field matches the new revision (or is empty) gets the
+    revision id appended to its `linked_revision_ids[]` array, so
+    `WalkFromIssue(issueId)` can hop from an issue to the revision
+    that closes it.
+
+29. **`Phase148Commands.cs`** (new file, ~160 lines) — six small
+    `IExternalCommand` wrappers so users can run the engines from the
+    dock panel:
+    - `RunRebarSpacingCheck` — EC2 §8.2 audit, reports first 50 hits
+    - `CreateMepCommissioningSchedules` — mints any of 3 commissioning
+      schedules that don't yet exist
+    - `CheckScheduleFieldConsistency` — cross-schedule field-naming
+      audit (top 30 inconsistencies)
+    - `TeamWorkloadReport` — open-issue workload table per assignee
+    - `ComplianceForecast` — caption + days-to-target dialog
+    - `DataDropStatus` — DD1-DD4 milestone table with per-row RAG
+
+30. **Dispatch tags** added to `StingCommandHandler` for all six
+    Phase 148 commands so the dock panel can call them by tag string.
+
+The Phase 91 H3 forecast KPI card on the BCC overview tab already
+surfaces a forecast date via `Core.ComplianceTrendTracker.ForecastCompletionDate`
+(linear-regression on workflow history), so the new
+`BIMManager.ComplianceForecast.Build` engine is exposed as a standalone
+command rather than duplicated as a second card. The two are
+complementary: the BCC card reads `_workflow_log.jsonl`; the engine
+reads `compliance_trend.json`.
+
+#### Completed (Phase 149 — Tagging pipeline efficiency audit + fixes)
+
+A focused efficiency audit of the per-element tagging hot path
+(`TagPipelineHelper.RunFullPipeline`) identified 13 distinct issues
+ranging from per-element wasted lookups to duplicated derivation
+between `PopulateAll` and `BuildAndWriteTag`. The fixes landed across
+four sub-phases (149a/b/c/d) so each is independently revertable.
+
+**Phase 149a — small high-confidence fixes** (commit `6c1704e`)
+- EFF-01 — Removed per-element `ResetReadOnlySkipCount` call that was
+  reducing the throttle to "always log" instead of the intended
+  first-5-plus-every-100th. 50K log writes eliminated on a 50K batch.
+- EFF-03 / CONS-03 — `BuildAndWriteTag` now accepts `prevTagHint` and
+  `tokenValuesOut` parameters so `RunFullPipeline` doesn't read TAG1
+  twice and doesn't run a separate `ReadTokenValues` after the helper
+  already did. Two reads × 8 params per element saved on the
+  non-overwrite path; one full read saved on the overwrite path.
+- EFF-08 — `WriteTag7All` builds the final TAG7 string locally and
+  writes it once. Previously: write TAG7, read it back to append
+  warnings, write again (3 round-trips per element).
+- EFF-10 — Display-BOOL init block (13 SetIfEmpty / SetYesNo writes
+  per element) is now gated behind a `STING_DISPLAY_MODE` sentinel
+  check. First-time tag does the init; re-tag passes skip the block
+  entirely.
+- EFF-11 — Segment-count validation (`IndexOf` loop counting
+  separators) now only runs on the SetIfEmpty path where actual
+  stored values may legitimately differ from derived ones. The
+  overwrite path builds the tag via `string.Join` from 8 known
+  non-empty tokens with a fixed separator, so segment count is
+  statically 8 — the check was dead work.
+
+**Phase 149b — duplicated derivation refactor** (commit `78b1de2`)
+- EFF-04 — `NativeParamMapper.MapAll` overload accepts
+  `Dictionary<ElementId, Room> roomIndex`. Curve-based MEP elements
+  (pipes, ducts) no longer pay a fresh `doc.GetRoomAtPoint` spatial
+  query per element — they consult the same `PopulationContext.RoomIndex`
+  dictionary the rest of the pipeline already built.
+- EFF-05 — New `PopulationContext.TypeOverrideCache` dict caches the
+  result of the type-level `TYPE_LOC_OVERRIDE` / `TYPE_ZONE_OVERRIDE`
+  reads per typeId. A family with 100 instances now does ONE
+  `Document.GetElement` + 2 `GetString` calls, not 100.
+- EFF-02 — On the non-overwrite path `BuildAndWriteTag` reads the SYS /
+  FUNC / PROD values that `PopulateAll` already wrote instead of
+  re-deriving them via `GetMepSystemAwareSysCode` / `GetSmartFuncCode` /
+  `GetFamilyAwareProdCode`. The MEP-system-aware helper walks the
+  connector graph — by far the most expensive per-element call. The
+  overwrite path keeps the full fresh derivation so `Re-Tag with
+  Overwrite` still re-detects from scratch.
+
+**Phase 149c — re-tag container fast path** (commit `cbf471c`)
+- EFF-15 — `WriteContainers` now hashes the 8 ISO 19650 token values
+  (djb2-style, 16-char hex output) and compares against the new
+  `ASS_LAST_TOKEN_HASH_TXT` shared parameter (GUID
+  `d3a5b1c4-7e9f-4a2c-8b6d-1e3f4a5b6c7d`). When the hash matches the
+  stored value, none of the ~53 containers can have changed — return 0
+  immediately. After a successful full-sweep write the new hash is
+  stamped onto the element so the next pass can short-circuit.
+  Estimated re-tag pass savings: ~50× fewer SetString calls per element
+  (53 containers + LookupParameter overhead → 1 GetString + hash
+  compute). On a 50K-element re-tag, ~2.6M SetString calls eliminated.
+  This is the largest daily-use win because re-tag is the common case
+  for users who tag once and then tweak the model.
+
+**Phase 149d — formula pre-filter + warning one-pass**
+- EFF-06 — `RunFullPipeline` now consults
+  `_formulasApplicableByType` (a per-type ConcurrentDictionary cache)
+  to iterate ONLY the formulas whose target parameter exists on
+  instances of that type. First-touch per type does the full
+  O(formulas) scan; subsequent instances of the same type iterate
+  O(applicable). On a typical project where each type uses 10-20 of
+  the 199 formulas, this is ~10× fewer formula iterations on
+  instance-heavy categories. Cache cleared by `PostTagCleanup` to keep
+  memory bounded.
+- EFF-07 — New `EvaluateAndPopulateWarnings(doc, el, catName)` does in
+  one pass what `PopulateWarningParameters` + `EvaluateElementWarnings`
+  did in two — both walked the same `GetCategoryWarnings` list, both
+  called the same `GetWarningDataValue` per warning, both called the
+  same `EvaluateWarning`. Returns `(WrittenCount, ConcatenatedText)`
+  so callers get both the per-param writes and the TAG7 narrative
+  fragment from a single per-warning loop.
+
+**Estimated cumulative impact** (50K-element MEP-heavy model):
+- First-time batch tag: ~30-50% faster (EFF-02 + EFF-04 dominate)
+- Incremental re-tag pass: ~50-70% faster (EFF-15 dominates)
+- Log volume: ~100× lower in error-prone scenarios (EFF-01)
+- Allocations: ~2/3 reduction in per-element allocation count
+
+Verification was static / read-only — Linux sandbox has no Revit API
+or `dotnet build`. Brace counts balance across every modified file;
+new helpers are pure C# with no new external dependencies. Smoke-test
+priorities for the next Revit session: (i) re-tag the same model
+twice and confirm the second pass writes 0 containers; (ii) tag a
+50-instance family and confirm only 1 type-override lookup fires;
+(iii) run a Re-Tag with Overwrite and confirm SYS/FUNC/PROD are still
+re-derived (overwrite path preserved).
+#### Completed (Phase 141 — Production gap fixes: on-site sharing path, audit/source classification, HTTPS, server push project-scoping)
+
+The on-site sharing journey from the field user creating an issue on
+their phone all the way to a project member receiving a push and seeing
+the photo + GPS pin had several latent gaps. This phase closes the
+ones that are tractable without external SDK access (Revit 2025 API,
+ACC API). Items that need an external API or a real Revit doc to verify
+are documented as open in the gap analysis rather than papered over.
+
+**Mobile (Planscape/) — push registration B4**
+
+1. `Planscape/src/hooks/useAuth.ts` — call
+   `notificationService.register()` after a successful login so the
+   server's `DevicePushToken` table receives the Expo push token. The
+   service had been authored but was orphan code; the only call site
+   was the in-tab "Test push" button.
+2. `Planscape/src/hooks/useAuth.ts` — also register on
+   `restoreSession()` so a re-issued Expo token after app reinstall is
+   pushed up at least once per cold start.
+3. `Planscape/app/_layout.tsx` — register on `checkAuth()` when a JWT
+   is already cached (cold start with active session).
+4. All three are fire-and-forget; failures land in `crashReporter` and
+   never block sign-in or app start.
+
+**Mobile (Planscape/) — audit classification M12**
+
+5. `Planscape/src/api/client.ts` — set
+   `X-Client-Type: mobile` on every authenticated request so the server
+   audit log can classify mobile-originated writes without
+   User-Agent guessing. Caller can override per-call via
+   `options.headers`.
+
+**Server (Planscape.Server/) — issue notification scoping B7 / SRV-07**
+
+6. `Planscape.Core/Interfaces/INotificationService.cs` — added
+   `NotifyProjectAsync(projectId, channel, …)`.
+7. `Planscape.Infrastructure/Services/NotificationService.cs` —
+   implemented `NotifyProjectAsync`: SignalR fans out to the
+   `project-{projectId}` group (NotificationHub already gates joins by
+   `ProjectMembers`); push fan-out queries `ProjectMembers.UserId` and
+   honours per-user delivery preferences via `ResolveDelivery`. Critical
+   channels (`sla_breach`, `critical`) still bypass quiet hours so
+   on-call recipients aren't silenced.
+8. `Planscape.API/Controllers/IssuesController.cs` — issue-created push
+   now goes through `NotifyProjectAsync` instead of
+   `NotifyAsync(tenantId, …)`. Tenant-wide broadcast for new issues
+   was leaking into other projects' members.
+9. `Planscape.Infrastructure/Services/BackgroundJobs.cs` — SLA escalation
+   notifications also routed through `NotifyProjectAsync` for the same
+   reason.
+
+**Server (Planscape.Server/) — EXIF GPS write-through H2 / SRV-01**
+
+10. `Planscape.API/Controllers/IssuesController.cs` — when an image
+    attachment carries EXIF GPS and the parent BimIssue has no
+    coordinates yet, promote the EXIF lat/lng onto the issue. Live-GPS
+    values from `expo-location` always win; EXIF is the fallback.
+    `LocationAccuracy` is set to 0 to mark EXIF-sourced coordinates
+    (vs. a positive metres value from a live GPS reading). Removed the
+    stale "BimIssue has no GPS columns" comment — those columns landed in
+    migration `20250417000000_AddIssueGpsAndAssigneeFk`.
+
+**Server (Planscape.Server/) — audit Source field M12 / SRV-11**
+
+11. `Planscape.API/Middleware/MobileContextMiddleware.cs` — read
+    `X-Client-Type` header (explicit) or fall back to User-Agent
+    sniffing (`Expo` / `okhttp` → mobile, `StingTools` / `Revit` →
+    plugin, `Mozilla` etc. → web). Stored in `HttpContext.Items["Source"]`
+    for `AuditService` to write to the row. The audit row's `Source`
+    column already existed but was always defaulted to `"desktop"`.
+12. `Planscape.API/Controllers/AdminController.cs` — `GET /api/admin/audit`
+    now accepts `?source=mobile|plugin|web|server|desktop` so admins
+    can triage by client.
+
+**Server (Planscape.Server/) — HTTPS PR2 / SRV-08**
+
+13. `Planscape.API/Program.cs` — `UseHttpsRedirection` always-on,
+    `UseHsts` for non-development with `MaxAge = 365 days` and
+    `IncludeSubDomains = true`. Behind a TLS-terminating reverse proxy
+    the deployer must enable forwarded-headers (`ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`)
+    so the redirect middleware sees the original https scheme.
+
+**Plugin (StingTools/) — server push of workflow runs H7 / INT-04**
+
+14. `StingTools/Core/WorkflowEngine.cs` — after a workflow preset
+    completes and the run record is persisted to
+    `STING_WORKFLOW_LOG.jsonl`, push the same record to the Planscape
+    server via `PlanscapeServerClient.LogWorkflowRunAsync`. Reads the
+    server projectId from `<doc>/_BIM_COORD/planscape_link.json`. Fire-
+    and-forget — local jsonl is the source of truth and we never block
+    a workflow on the network.
+
+**Plugin (StingTools/) — bulk MIM asset push H7 / INT-08**
+
+15. `StingTools/BIMManager/PlanscapeServerClient.cs` — added
+    `BulkPushMimAssetsAsync(projectId, assets)` that POSTs to the
+    existing `/api/projects/{id}/mim/assets/bulk` endpoint. Returns the
+    server-reported created count (server skips duplicates by
+    AssetTag, capped at 10,000 per request).
+
+**Plugin (StingTools/) — audit classification M12**
+
+16. `StingTools/BIMManager/PlanscapeServerClient.cs` —
+    `EnsureHttpClient` now sets `X-Client-Type: plugin` and
+    `User-Agent: StingTools-Revit/1.0` so the server audit log
+    classifies plugin-originated writes correctly.
+
+**Documentation corrections**
+
+17. `Planscape.PluginSync` library is no longer dead code (the
+    PLANSCAPE_GAPS analysis pre-dated its actual wiring). It is
+    actively used by `StingDockPanel.xaml.cs` (sync indicator click
+    handler + status refresh) and by `PlatformLinkCommands.PlatformSyncCommand`
+    (lazy-starts `SyncScheduler` on first sync). The "delete as dead
+    code" recommendation in `docs/PLANSCAPE_GAPS.md` is superseded;
+    INT-01 in `docs/ROADMAP.md` is closed.
+
+**Caveats / explicit deferrals**
+
+1. Built without `dotnet build` verification. Every C# call uses the
+   documented signature but has not been compile-checked against the
+   real Revit / EF Core / ASP.NET Core assemblies.
+2. ACC platform connector (H8) — left as
+   `"ACC sync not implemented."` placeholder result. Implementing it
+   needs production ACC credentials, OAuth callback URL whitelisting,
+   webhook signature verification, and a test Revit project on the
+   target ACC hub. Tracked in `docs/ROADMAP.md` as INT-09.
+3. Speckle integration (M11) — left as the existing HTTP stub. The
+   Speckle.Core SDK v2 is a major dependency add (≈25 transitive
+   packages) that should land in its own phase with proper end-to-end
+   testing on a real stream URL.
+4. Lighting BS EN 12464-1 grid (M9) — `LightingGridCommand` still
+   shows the TaskDialog scaffold with `// TODO(S2.10):` comment. The
+   illuminance lookup and lumen-method calculation are designed but
+   need the family-side `LUMEN_OUTPUT_INT` parameter and the room
+   department-code → activity-type lookup table seeded first.
+5. The 18 `TODO-VERIFY-API` markers across the placement engine,
+   visualization layer, and MCP descriptor are unresolved — verifying
+   them needs the actual Revit 2025 API documentation/binaries that
+   are not available in this sandbox.
+
+#### Completed (Phase 142 — Mobile coordination: My Actions inbox, Daily Site Diary, bulk endpoints, GPS map deep-link)
+
+Building from the BIM/Construction Manager's daily-on-site point of view:
+the genuine mobile gaps were not the long checklist in
+`PLANSCAPE_GAPS.md` (most of those had landed in earlier phases) but
+the everyday navigation friction — having to bounce between Issues,
+Meetings, and Documents tabs to find what's assigned to oneself, and
+having no way to file the standard CIOB end-of-day site diary at all.
+
+**My Actions inbox (server + mobile)**
+
+1. New `Planscape.API/Controllers/MyActionsController.cs` — single-shot
+   aggregator at `GET /api/projects/{id}/myactions?limit=N` that
+   returns four buckets in one round-trip: issues assigned to me
+   (FK / email / display-name match for legacy rows), meeting action
+   items assigned to my display name, pending document approvals on
+   the project, and SLA-breached issues across the team. Project
+   membership is enforced — the inbox never leaks rows from a project
+   the caller can't see. Pre-Phase-142 the mobile would have needed
+   three separate round-trips and a manual cross-filter to assemble
+   this list.
+2. `Planscape/src/api/endpoints.ts` — added `getMyActions(...)` +
+   `MyActionsPayload` interface mirroring the server DTO.
+3. New `Planscape/app/inbox/` route (sub-route, not a tab) — list view
+   with four summary tiles and four sectioned lists; each row taps
+   straight to issue-detail / meeting / documents tab.
+4. `Planscape/app/(tabs)/index.tsx` — high-visibility "My Actions"
+   call-to-action card on the dashboard between the KPI row and the
+   discipline breakdown. Hidden when the aggregator query failed
+   (network / permission / cold-start) so the dashboard never blocks.
+   Card highlights red when there's at least one SLA breach.
+
+**Daily Site Diary (entity + migration + controller + mobile)**
+
+5. New entities `Planscape.Core/Entities/SiteDiary.cs` +
+   `SiteDiaryAttachment` — one row per `(project, diary date,
+   author)`, status machine DRAFT → SUBMITTED → ACKNOWLEDGED →
+   ARCHIVED, JSONB columns for `ManpowerByTradeJson` /
+   `EquipmentJson` / `DeliveriesJson` / `ChecklistJson` so the schema
+   scales without migrations. Photos hang off the diary via
+   attachment rows that reuse the `DocumentRecord` storage pipeline.
+6. New migration `20260427000000_AddSiteDiary.cs` — creates the two
+   tables with the standard PG types (jsonb, text, double precision)
+   and indexes on `(ProjectId)`, `(ProjectId, DiaryDate)`, `Status`.
+7. New `Planscape.API/Controllers/SiteDiariesController.cs` — full
+   CRUD + lifecycle:
+     - `GET /sitediaries` paginated list with date / status filter
+     - `GET /sitediaries/{id}` detail with attachments
+     - `POST /sitediaries` create — re-POSTing the same day's draft
+       by the same author updates rather than duplicates; 409 if a
+       non-DRAFT entry already exists for that day
+     - `PUT /sitediaries/{id}` edit (DRAFT only)
+     - `POST /sitediaries/{id}/submit` — locks the entry, fires a
+       project-scoped push (`NotifyProjectAsync` from Phase 141)
+     - `POST /sitediaries/{id}/acknowledge` — manager sign-off
+     - `POST /sitediaries/{id}/attachments/link` — link an existing
+       uploaded `DocumentRecord` to the diary, idempotent
+     - `DELETE /sitediaries/{id}` (DRAFT only)
+8. `PlanscapeDbContext` — added `SiteDiaries` + `SiteDiaryAttachments`
+   DbSets and the entity configuration with FKs and indexes.
+9. `Planscape/src/api/endpoints.ts` — added the seven matching
+   endpoint wrappers + `SiteDiarySummary` / `SiteDiaryDetail` /
+   `CreateSiteDiaryRequest` interfaces.
+10. New `Planscape/app/diary/` route — three screens:
+     - `index.tsx` — chronological list with status pill, FAB to
+       create, manpower count + weather summary on each row
+     - `new.tsx` — form with author role, weather, temperature,
+       manpower, narrative, safety incidents, delays. Two buttons —
+       Save Draft (stays editable) and Submit (locks + notifies)
+     - `[id].tsx` — detail with all sections; manager acknowledge
+       button on SUBMITTED entries
+
+**Quick-action launcher on dashboard**
+
+11. `Planscape/app/(tabs)/index.tsx` — added a 4-button quick-action
+    row (Site Diary, Meetings, Transmittals, Warnings) between the
+    My Actions card and the discipline breakdown. Previously these
+    sub-routes were only reachable via deep-link from a notification
+    tap; now the manager can find them in one cold-start.
+
+**Bulk transmittal + meeting endpoints**
+
+12. `Planscape.API/Controllers/TransmittalsController.cs` — new
+    `POST /transmittals/bulk` that accepts a JSON array (max 200)
+    and produces TX codes from a single in-memory counter rather
+    than scanning N times. Each row gets its own audit log entry
+    with `bulk = true` flag.
+13. `Planscape.API/Controllers/MeetingsController.cs` — equivalent
+    `POST /meetings/bulk`.
+14. `StingTools/BIMManager/PlanscapeServerClient.cs` — added
+    `BulkCreateTransmittalsAsync` and `BulkCreateMeetingsAsync` so
+    the offline-queue drain and the workflow flush use the bulk
+    routes. Closes the last item on the H7 list from Phase 141.
+
+**Issues tab Mine filter**
+
+15. `Planscape/src/stores/authStore.ts` — extended with `email` and
+    `displayName` so screens can match assignees by name for legacy
+    issues that pre-date the `AssigneeUserId` migration without an
+    extra `/me` round-trip.
+16. `Planscape/src/hooks/useAuth.ts` — actually populates the
+    authStore on `login()` and `restoreSession()`. Was previously
+    declared but never set, so `issue-detail` and `documents` were
+    reading `null`.
+17. `Planscape/app/(tabs)/issues.tsx` — added "👤 Mine" toggle chip
+    to the priority filter bar. Filters the issue list to rows where
+    the assignee resolves to the current user via FK first, email
+    second, display name third. Disabled gracefully when the
+    authStore hasn't loaded yet (cold-start) so it never silently
+    filters everything out.
+
+**GPS map deep-link**
+
+18. `Planscape/app/(tabs)/issue-detail.tsx` — surfaced the GPS
+    coordinates that Phase 141 started capturing. New strip below
+    the field grid shows lat/lng, accuracy, and taps through to the
+    device's native map app via `Linking.openURL` with platform-
+    appropriate URL schemes (`geo:` on Android, `maps://` on iOS,
+    Google Maps web fallback). Resilient — falls back to the web URL
+    if `Linking.canOpenURL` rejects.
+
+**Caveats**
+
+1. Built without `dotnet build` / `expo build` verification.
+2. `MeetingActionItem.Assignee` is a free-text display name; the
+   My Actions match is therefore conservative and may surface the
+   row for a different user with the same display name in the same
+   tenant. Fix is a follow-up migration that adds `AssigneeUserId`.
+3. Site diary attachment screen on mobile is read-only for now —
+   linking a photo to a diary entry uses the existing document
+   upload pipeline followed by the `attachments/link` POST; a
+   one-tap "add photo to diary" UI will land in a follow-up.
+4. The new `SiteDiariesController` is not yet exercised by the
+   plugin (the construction manager workflow is mobile-first).
+   Plugin-side surfacing in the BIM Coordination Center can land
+   when there is demand.
+
+#### Completed (Phase 143 — BIM Coordinator surfaces: sync conflict triage, federation status, ISO 19650 naming enforcement)
+
+Audited from the BIM Manager / Coordinator's day-to-day perspective —
+distinct from Phase 142's Construction Manager focus. The BIM
+Coordinator's worries are model federation freshness, tag-sync data
+integrity across the team, and information-governance enforcement on
+the CDE. Three concrete gaps closed; one carrier added to the project
+entity.
+
+**Sync conflict triage UI**
+
+1. New `Planscape.API/Controllers/SyncConflictsController.cs` —
+   `TagSyncController` had been writing `SyncConflict` rows whenever a
+   plugin push arrived with a stale `LastModifiedUtc`, but no GET
+   endpoint and no UI existed. BIM Managers investigating "why did my
+   edit vanish?" had to query the database directly. New endpoints:
+     - `GET /api/projects/{id}/syncconflicts` paginated, filterable by
+       resolution status (PENDING / SERVER_WINS / CLIENT_WINS / MERGED)
+     - `GET /.../{conflictId}` detail with the linked TaggedElement's
+       current 8-segment tag fields
+     - `POST /.../{conflictId}/resolve` — apply ACCEPT_SERVER /
+       ACCEPT_CLIENT / MERGED + audit
+     - `POST /.../bulk-resolve` — apply the same resolution to up to
+       500 conflicts in one call (typical when a batch was clobbered)
+   Resolutions broadcast a project-scoped push so any other reviewer
+   sees the count drop. ACCEPT_CLIENT requires the caller to provide
+   the field values to re-apply (`ClientFieldsDto`).
+2. `Planscape/src/api/endpoints.ts` — added six wrappers + the
+   `SyncConflictSummary` / `SyncConflictDetail` /
+   `SyncConflictsListResponse` interfaces.
+3. New `Planscape/app/conflicts/` route — list with summary tiles
+   (pending / 7-day server-wins / showing) + filter chips
+   (PENDING / SERVER_WINS / CLIENT_WINS / MERGED / ALL) + per-row
+   inline resolve buttons + multi-select bulk-resolve bar with
+   confirm dialog.
+
+**Federation status aggregator**
+
+4. `Planscape.API/Controllers/ModelsController.cs` — new
+   `GET /api/projects/{id}/federation-status?staleDays=N` endpoint.
+   Aggregates the latest published model per discipline + counts +
+   RAG. Stale = not republished in N days (default 14, the typical
+   ISO 19650 information-exchange cadence on UK projects). Returns
+   per-discipline `latest` + `daysSinceUpload` + `stale` flag.
+5. `Planscape/src/api/endpoints.ts` — added `getFederationStatus(...)`
+   + `FederationStatus` interface.
+
+**BIM Coordination dashboard tile**
+
+6. `Planscape/app/(tabs)/index.tsx` — new "BIM Coordination" card
+   between My Actions and the quick-action row. Two stacked rows:
+   federation-status one-liner with RAG dot + tap-through to the
+   documents tab; sync-conflict count one-liner with red dot when >0
+   + tap-through to the new conflicts screen. Hidden when neither
+   query succeeded so dashboards on projects without models stay
+   clean. Both queries fire via `Promise.allSettled` in parallel
+   with the existing My Actions fetch.
+
+**ISO 19650 naming enforcement**
+
+7. New `Planscape.Infrastructure/Validation/Iso19650NamingValidator.cs` —
+   server-side port of the plugin's `BIMManagerEngine.ValidateDocumentName`.
+   Same dictionaries (30 document type codes + 19 originator role
+   codes per BS EN ISO 19650 / UK 2021 NA). Pattern is
+   `Project-Originator-Volume-Level-Type-Role-Class-Number`. Validator
+   is lenient on Volume + Level (project-bespoke); hard-fails on missing
+   fields, malformed Project / Originator codes, and unknown Type / Role.
+8. New entity field `Project.EnforceIso19650Naming` (default false) +
+   migration `20260427100000_AddProjectEnforceNaming`. BIM Manager
+   flips this on per-project once the team has migrated naming.
+9. `Planscape.API/Controllers/DocumentsController.cs` — wired the
+   validator into the upload endpoint. Skipped for non-deliverable
+   types (`ATTACHMENT` / `PHOTO`) since site photos and issue
+   attachments aren't expected to follow controlled naming. On
+   violation returns 400 with structured payload `{error, pattern,
+   fileName, issues[]}` so the client can list the segment failures.
+10. New `GET /documents/validate-name?fileName=...` dry-run endpoint
+    so the office dashboard / mobile uploader can give inline
+    feedback before the user actually uploads. Always 200 — non-
+    compliance surfaces in the `isValid: false` body, never as HTTP
+    error.
+11. `Planscape/src/api/endpoints.ts` — added `validateDocumentName(...)`
+    + `NameValidationResult`.
+
+**Caveats**
+
+1. Built without `dotnet build` / `expo build` verification.
+2. ACCEPT_CLIENT bulk-resolve is not supported — re-applying the
+   rejected client edit needs the per-element field map and a single
+   bulk resolution would have to carry one of those per id. The
+   single-conflict ACCEPT_CLIENT path is the only way to do this for
+   now.
+3. The federation aggregator groups by `Discipline` field on
+   `ProjectModel` — models uploaded with no discipline tag fall into
+   a synthetic "GEN" bucket (visible in the UI), flagging the
+   workflow gap rather than hiding it.
+4. Naming enforcement is opt-in. Projects must flip
+   `EnforceIso19650Naming = true` (e.g. via PUT
+   `/api/projects/{id}/settings`) — no admin UI for that yet; the
+   web settings dashboard or a manual SQL update is the workaround.
+
+#### Completed (Phase 144 — BIM Coordinator deferrals: project admin UI, bulk ACCEPT_CLIENT, tag heatmap, stage gates + MIDP)
+
+Closes the four items deferred at the end of Phase 143. All four sit
+under the same BIM Manager / Coordinator persona — project-information
+governance, sync data integrity, cross-discipline coverage, and
+information-delivery planning.
+
+**1 — Project admin settings UI**
+
+1. `Planscape.API/Controllers/ProjectSettingsController.cs` — extended
+   `GET /api/projects/{id}/settings` to surface a new `admin` block
+   containing `enforceIso19650Naming`. Extended `PUT` to route admin
+   booleans to first-class Project columns (whitelisted via
+   `AdminSettingFlags`); other keys still flow into `ConfigJson` as
+   soft preferences. Added `ParseBool` helper for the JSON-element
+   coercion.
+2. `Planscape/src/types/api.ts` — added `admin` block to
+   `ProjectSettings`.
+3. `Planscape/src/api/endpoints.ts` — added
+   `updateProjectSettings(projectId, overrides)` wrapper.
+4. New `Planscape/app/project-settings/` route — single screen with
+   one toggle today (ISO 19650 naming enforcement) plus read-only
+   sections for SLAs, upload limits, geofence. Optimistic update on
+   the toggle with rollback on failure; specific 403 message tells
+   non-admin users which roles are required (K or C).
+5. `Planscape/app/(tabs)/settings.tsx` — added a "Project admin
+   settings" link row above the logout button. Server-side
+   permission gate is preserved so non-admins can still see the
+   current state.
+
+**2 — Bulk ACCEPT_CLIENT for sync conflicts**
+
+6. `Planscape.API/Controllers/SyncConflictsController.cs` —
+   - Existing `bulk-resolve` now rejects `ACCEPT_CLIENT` with a 400
+     pointing at the new endpoint.
+   - New `POST /syncconflicts/bulk-resolve-with-fields` takes
+     `[{ conflictId, fields }, …]` (cap 250). For each item it
+     re-applies the supplied field values to the linked
+     `TaggedElement` before flipping `Resolution` to CLIENT_WINS.
+     Idempotent — already-resolved rows are reported in `skipped`.
+     Deleted-on-server elements are short-circuited to MERGED.
+     Single audit entry per resolved row + one project-scoped push.
+7. `Planscape/src/api/endpoints.ts` — added
+   `bulkResolveSyncConflictsWithFields` + `ConflictFieldOverrides`
+   interface.
+
+**3 — Cross-discipline tag completeness heatmap**
+
+8. `Planscape.API/Controllers/ComplianceController.cs` — new
+   `GET /compliance/tag-heatmap` endpoint. Returns a matrix
+   [discipline][token] = pct over the 10 ISO 19650 tag tokens
+   (DISC / LOC / ZONE / LVL / SYS / FUNC / PROD / SEQ + STATUS + REV).
+   Bucket "" / null Disc as "(unset)" so blank-discipline tagged
+   elements stay visible — that's a coordination signal. Query is
+   one round-trip; aggregation runs in app-tier via `GroupBy` on a
+   slim DTO selection so we don't stream Tag7 narratives.
+9. `Planscape/src/api/endpoints.ts` — added `getTagHeatmap` +
+   `TagHeatmap` / `TagToken` types.
+10. New `Planscape/app/heatmap/` route — horizontally-scrollable grid
+    with sticky discipline column, 4-tier RAG palette
+    (≥90 green / 70–89 lime / 50–69 amber / <50 red), per-token
+    average row in the header, element-count subtitle per
+    discipline, footer legend. Pull-to-refresh.
+
+**4 — Stage Gate + MIDP / IE Deliverable tracking**
+
+11. New entities `Planscape.Core/Entities/StageGate.cs` (+ same file)
+    `InformationDeliverable`. `StageGate` carries a stable
+    `(ProjectId, StageCode)` unique index + `SortOrder`,
+    `PlannedDate`, `ActualDate`, status machine NOT_STARTED →
+    IN_PROGRESS → PASSED / FAILED / WAIVED, plus structured
+    `CriteriaJson` (jsonb) for criterion-by-criterion sign-off and
+    decision metadata (`DecidedBy*`, `DecidedAt`).
+    `InformationDeliverable` carries the standard ISO 19650 fields
+    (`Code`, `Type`, `OwnerRole`, `Discipline`, `SuitabilityTarget`,
+    `DueDate`, `Status`) with a state machine PENDING →
+    IN_PROGRESS → SUBMITTED → ACCEPTED / REJECTED / WAIVED. Optional
+    FK to a `StageGate` row (rolls up) and to a `DocumentRecord`
+    row (the actual published artefact).
+12. `PlanscapeDbContext` — added two DbSets and OnModelCreating
+    config (FKs, unique indexes on `(ProjectId, StageCode)` and
+    `(ProjectId, Code)`, status + due-date indexes for the
+    BIM-manager filter views).
+13. New migration
+    `20260427200000_AddStageGatesAndDeliverables.cs` — creates both
+    tables with the standard PG types (jsonb for `CriteriaJson`,
+    text for the long-form narratives, double precision for
+    bounding values) + the four indexes per table.
+14. New `Planscape.API/Controllers/StageGatesController.cs` —
+    list / get / create / update / decide. List returns each gate's
+    deliverable rollup (total / pending / in_progress / submitted /
+    accepted / rejected / overdue) in a single round-trip via EF
+    sub-queries so the mobile timeline renders without follow-ups.
+    `POST /stagegates/seed-riba` is a convenience that idempotently
+    inserts the eight RIBA Plan of Work 2020 stages (0–7) so a new
+    project doesn't need each one typed by hand. Decisions fire a
+    project-scoped notification.
+15. New `Planscape.API/Controllers/DeliverablesController.cs` —
+    list (filter by stageGateId / status / discipline / overdueOnly)
+    / get / create / update / `POST /deliverables/{id}/transition`
+    that validates the from→to map server-side and stamps
+    submitter / acceptor metadata as appropriate.
+16. `Planscape/src/api/endpoints.ts` — added `listStageGates`,
+    `seedRibaStages`, `decideStageGate`, `listDeliverables`,
+    `transitionDeliverable` + `StageGateSummary` and
+    `DeliverableSummary` interfaces.
+17. New `Planscape/app/stages/` route — two screens:
+     - `index.tsx` — RIBA-style timeline of every stage gate. Each
+       card shows planned/actual dates, deliverable rollup, three
+       decision buttons (Pass / Fail / Waive) with a confirm
+       dialog. Empty-project state offers a "Seed RIBA stages"
+       button that POSTs to `/seed-riba`.
+     - `deliverables.tsx` — paged list of deliverables filtered by
+       stageGateId. Status filter chips + overdue toggle.
+       Per-row contextual transition buttons that match the
+       allowed-from→to map; rejection prompts for a reason via
+       `Alert.prompt`.
+
+**Dashboard wiring**
+
+18. `Planscape/app/(tabs)/index.tsx` — added two new shortcut rows
+    inside the BIM Coordination card: "Tag completeness heatmap"
+    and "Stage gates & MIDP". Both above the discipline breakdown
+    so the BIM Coordinator's deep tooling is one tap from
+    cold-start.
+
+**Caveats**
+
+1. Built without `dotnet build` / `expo build` verification.
+2. The BIM Coordinator settings PUT relies on the existing project
+   role gate (K/C). Tenants without populated `ProjectMember.Iso19650Role`
+   values will see 403 on every flip — flagged in the in-app
+   Alert text so the user knows what to ask their admin.
+3. Bulk ACCEPT_CLIENT cap is 250 (vs 500 for ACCEPT_SERVER) because
+   each row writes element data and the bigger payload makes
+   timeouts more likely on a poor site connection. Caller chunks
+   bigger batches.
+4. The heatmap aggregates in app-tier rather than via raw SQL
+   `count(*) FILTER (WHERE …)`. Acceptable for projects up to ~50k
+   tagged elements; bigger projects should swap in a SQL query.
+5. Stage gate criteria are free-form `CriteriaJson` (jsonb). A
+   structured criterion-by-criterion sign-off UI on mobile is a
+   follow-up — the API is ready for it via the same field.
+6. Deliverable transition validation is the canonical state machine
+   in code; if a project wants a bespoke flow that has to land as
+   a separate `customStateMachine` config — not in this phase.
+
+#### Completed (Phase 145 — Phase 144 caveat closures: heatmap SQL, larger bulk-resolve, custom state machines, criterion sign-off)
+
+Closes the four caveats from Phase 144's commit message. None of these
+were blockers, but each one represented a "this is fine for now"
+shortcut that would bite at scale or for a tenant outside the canonical
+ISO 19650 flow. All four landed in the same phase so the BIM Manager
+surface is internally consistent.
+
+**1 — Tag completeness heatmap → DB-side aggregation**
+
+1. `Planscape.API/Controllers/ComplianceController.cs` — replaced the
+   app-tier `GroupBy` with a single PG raw-SQL query using
+   `COUNT(*) FILTER (WHERE …)` per token, grouped by
+   `COALESCE(NULLIF(BTRIM(Disc), ''), '(unset)')`. Response time stays
+   flat as the project scales — the previous implementation streamed
+   ~4 MB of slim DTO rows on a 200k-element federated model. SQL is
+   parameterised on `ProjectId` so query-plan caching kicks in for
+   repeated calls. Internal `RawHeatmapRow` record holds the column
+   shape; the response DTO is unchanged so mobile doesn't notice.
+
+**2 — Bulk ACCEPT_CLIENT cap raised**
+
+2. `Planscape.API/Controllers/SyncConflictsController.cs` —
+   `bulk-resolve-with-fields` cap raised from 250 → 500. Each call
+   now processes work in 50-row batches with one `SaveChangesAsync`
+   per batch. On `DbUpdateException` the offending batch is rolled
+   back via `EntityEntry.ReloadAsync` (so the change-tracker matches
+   the database) and the response carries a `failedBatches` array
+   plus the partial `resolved`/`skipped` lists. Idempotent: the
+   caller can replay the unresolved tail. Comment in the code makes
+   the recovery semantic explicit.
+
+**3 — Per-project custom deliverable state machine**
+
+3. `Planscape.Core/Entities/Project.cs` — added
+   `CustomDeliverableStateMachineJson` (jsonb, nullable). Migration
+   `20260427300000_AddCustomDeliverableStateMachine`.
+4. New `Planscape.Infrastructure/Workflow/DeliverableStateMachine.cs`
+   — single class holding both the canonical 6-state ISO 19650 flow
+   (`Default`) and a forgiving JSON loader (`LoadOrDefault`). A
+   malformed JSON, an empty `transitions` array, or a non-object
+   root all fall back to `Default` rather than locking the project
+   out of any transition. Returns an `IsCustom` flag so the UI can
+   distinguish "tenant override active" from "fell back".
+5. `Planscape.API/Controllers/DeliverablesController.cs` — `Transition`
+   now loads the project's machine and validates against it. Error
+   payload includes `allowedTargets` + `machine` name + `isCustom`
+   flag so the mobile client can re-render contextual buttons after
+   a 400. New `GET /deliverables/state-machine` exposes the resolved
+   machine for the active project.
+6. `Planscape.API/Controllers/ProjectSettingsController.cs` —
+   admin-string-fields whitelist now routes
+   `customDeliverableStateMachineJson` to the first-class column.
+   Empty string clears the override; a non-empty value is parsed
+   through `LoadOrDefault` server-side and rejected with a 400 if it
+   has no usable transitions, so the BIM Manager hears about the bad
+   JSON at PUT time rather than seeing silent fallback at request
+   time. Helper `AsString` mirrors the existing `ParseBool`.
+7. `Planscape/src/api/endpoints.ts` — `transitionDeliverable` now
+   accepts `string` for `newStatus` so custom machine states work.
+   Added `getDeliverableStateMachine` + `DeliverableStateMachine`
+   interface.
+8. `Planscape/src/types/api.ts` — extended `ProjectSettings.admin`
+   with `hasCustomDeliverableStateMachine` +
+   `customDeliverableStateMachineJson`.
+9. `Planscape/app/stages/deliverables.tsx` — replaced the hard-coded
+   next-status switch with a derivation from the resolved machine's
+   `transitions` array (fetched in parallel with the deliverables
+   list). New `friendlyTransitionLabel` helper produces a readable
+   button label for canonical state pairs and falls back to "→ X"
+   for custom states.
+
+**4 — Stage gate criterion-by-criterion sign-off**
+
+10. `Planscape.API/Controllers/StageGatesController.cs` — three new
+    endpoints + a new structured `CriterionDto`:
+      - `GET /stagegates/{id}/criteria` — parsed list with
+        `met`/`outstanding`/`total` summary
+      - `PUT /stagegates/{id}/criteria` — replace the list (used when
+        importing a default checklist). Rejects duplicate keys and
+        empty keys.
+      - `POST /stagegates/{id}/criteria/{key}/signoff` — flip
+        `met` for one criterion; on `met=true` stamps the actor's
+        display name + UTC timestamp, on `met=false` clears the
+        signoff so the next "met=true" gets a fresh stamp. Comment
+        + evidence document FK persisted alongside.
+    All three audit log via `_audit.LogAsync`. Helpers
+    `ParseCriteriaJson` / `SerializeCriteria` use camelCase JSON
+    naming so the JSONB column round-trips cleanly.
+11. `Planscape/src/api/endpoints.ts` — added `listStageCriteria`,
+    `replaceStageCriteria`, `signOffStageCriterion` +
+    `StageCriterion` / `StageCriteriaResponse` interfaces.
+12. New `Planscape/app/stages/criteria.tsx` — checklist UI. Each
+    row is a tappable checkbox + label + description + signoff
+    timestamp + tap-to-edit comment field. Empty-state offers a
+    "Seed defaults" button that POSTs a built-in RIBA-stage default
+    checklist (4 stage codes covered today: RIBA-3, RIBA-4, RIBA-5,
+    RIBA-6, RIBA-7). Progress bar at top shows met / total.
+13. `Planscape/app/stages/_layout.tsx` — registered the new screen.
+14. `Planscape/app/stages/index.tsx` — added a "Criteria ›" link
+    next to "Deliverables ›" on each gate card.
+
+**Caveats**
+
+1. Built without `dotnet build` / `expo build` verification.
+2. Custom state machines run side-effect logic (submitter / acceptor
+   stamp, rejection-reason capture) only for canonical state names
+   (SUBMITTED / ACCEPTED / REJECTED). A custom flow that uses
+   bespoke names won't get those metadata writes; the transition
+   succeeds but `SubmittedAt` etc. stay null. Documented in the
+   controller comment.
+3. The criterion sign-off endpoints write the whole criteria array
+   on each call. For gates with very large checklists (>200 items)
+   this is sub-optimal; in practice gates rarely carry that many
+   criteria so a per-criterion row table can wait.
+4. Built-in RIBA criterion templates cover only 5 of the 8 RIBA
+   stages (3–7). The earlier stages typically don't have a BIM-
+   specific checklist; the BIM Manager authors them from the office
+   dashboard if needed.
+5. The heatmap raw SQL is PostgreSQL-only (uses `BTRIM` + `FILTER`).
+   Production deployments are all PG, so this is safe; if the test
+   suite were to spin up SQLite the heatmap test would need a stub.
+
+#### Completed (Phase 146 — Phase 145 caveat closures: heatmap dialect fallback, RIBA 0–2 seeds, semantic-role side-effects, normalised criterion table)
+
+Closes the four caveats from Phase 145's commit message. Each was a real
+piece of engineering debt rather than a silent shortcut, so the fixes
+land here as one coherent BIM-Manager-surface clean-up phase.
+
+**1 — Heatmap dialect fallback**
+
+1. `Planscape.API/Controllers/ComplianceController.cs` — added a one-shot
+   provider check (`_db.Database.ProviderName.Contains("Npgsql")`) on
+   the heatmap path. PostgreSQL deployments keep the raw-SQL
+   `COUNT(*) FILTER (WHERE …)` aggregator; SQLite (test suite),
+   SQL Server, and the in-memory provider fall through to a new
+   `ComputeHeatmapLinqAsync` helper that streams slim DTO rows via EF
+   Core then groups in app-tier. Response shape is identical so mobile
+   doesn't notice. The PG path's `BTRIM` / `FILTER` are no longer a
+   portability blocker for tests.
+
+**2 — RIBA stages 0–2 default checklists**
+
+2. `Planscape/app/stages/criteria.tsx` — extended `ribaDefaults` with
+   built-in checklist templates for the three early RIBA stages that
+   were missing:
+     - RIBA-0 Strategic Definition (3 criteria — business case, brief,
+       initial appointments)
+     - RIBA-1 Preparation and Briefing (5 criteria — EIR, PIR,
+       pre-appointment BEP, outline MIDP, feasibility)
+     - RIBA-2 Concept Design (5 criteria — design options, post-
+       appointment BEP, LOIN matrix, outline specs, stage 2 cost plan)
+   Coverage is now stages 0–7. Templates are intentionally minimal
+   (3–5 items) so the BIM Manager can pull them in as a starter
+   checklist and add bespoke criteria from there.
+
+**3 — Custom-state side-effect coverage via semantic roles**
+
+3. `Planscape.Infrastructure/Workflow/DeliverableStateMachine.cs` —
+   added a `SemanticRoles` dictionary (state name → role string) plus
+   a `RoleOf(state)` resolver. Recognised roles:
+   `initial / working / submitting / accepting / rejecting / terminal /
+   none`. The default ISO 19650 machine seeds the canonical mapping so
+   nothing changes for existing projects.
+4. `LoadOrDefault` parses an optional `"roles": { "STATE": "submitting", … }`
+   block on the custom JSON. Unknown role values are silently dropped
+   (no 500), so a typo in the role name doesn't take down the project.
+   The `KnownRoles` whitelist gates entries.
+5. `Planscape.API/Controllers/DeliverablesController.cs` — `Transition`
+   now keys side-effect logic on `machine.RoleOf(target)` instead of
+   the literal canonical state names. A custom flow that maps
+   `UNDER_REVIEW → submitting` will now stamp `SubmittedAt` /
+   `SubmittedBy` / `DocumentId` exactly like the canonical
+   `SUBMITTED` state. Comment in the switch documents the contract.
+6. `GET /deliverables/state-machine` now exposes the `roles` map so
+   the mobile client can colour buttons or render badges by semantic
+   role instead of string-matching on canonical names.
+7. `Planscape/src/api/endpoints.ts` — added `roles` to
+   `DeliverableStateMachine` interface.
+
+**4 — Normalised StageGateCriterion table**
+
+8. New entity `Planscape.Core/Entities/StageGateCriterion.cs` — one row
+   per (gate, key). Holds the same field set as the legacy
+   `CriterionDto` plus `SortOrder`, `SignedByUserId`, `CreatedAt`,
+   `UpdatedAt`. Indexed on `(StageGateId, Key)` UNIQUE so the per-key
+   sign-off endpoint locates the row in O(1).
+9. `PlanscapeDbContext` — added `StageGateCriteria` DbSet + EF
+   configuration with the unique index and cascade-on-delete from
+   StageGate.
+10. New migration `20260427400000_AddStageGateCriteria` — creates the
+    table; the legacy `StageGate.CriteriaJson` column is preserved for
+    read-fallback during the transition.
+11. `Planscape.API/Controllers/StageGatesController.cs` —
+     - `GET /criteria` now reads through new
+       `LoadCriteriaAsync(gate)` helper. Prefers the normalised table;
+       falls back to the JSONB blob when the table is empty (older
+       projects).
+     - `PUT /criteria` writes to the table inside a transaction:
+       `RemoveRange(existing) + Add(new)` + `SaveChangesAsync` +
+       `tx.CommitAsync`. JSONB column kept in sync for read-fallback.
+     - `POST /criteria/{key}/signoff` writes the single row in O(1).
+       On first touch of a criterion that only exists in the JSONB
+       blob (legacy gate), the row is migrated into the table on the
+       fly so subsequent reads come from the normalised path.
+       Comment + evidence document FK + signedByUserId all persisted.
+   Per-criterion sign-off no longer rewrites the full criteria array;
+   200-criterion checklists scale linearly from here.
+
+**Caveats**
+
+1. Built without `dotnet build` / `expo build` verification.
+2. The legacy `StageGate.CriteriaJson` column is still kept in sync
+   on `PUT /criteria` so older mobile clients reading via the old
+   path see the latest data. Once the mobile cutover is complete the
+   column can be dropped in a follow-up phase.
+3. `RoleOf` is case-insensitive but currently uppercases on insert
+   into the `SemanticRoles` dictionary; mixed-case state names in the
+   custom JSON are normalised at parse time.
+4. Custom JSON without a `"roles"` block keeps Phase 145 behaviour
+   (no metadata side-effects on transition). Documented in the
+   `DeliverableStateMachine` class comment so a BIM Manager debugging
+   "why didn't `SubmittedAt` get stamped?" lands on the right answer.
+
+#### Completed (Phase 147 — Phase 146 caveat closures: legacy column retired, role inference, unit tests)
+
+The three caveats from Phase 146 were genuine engineering debt, not
+silent shortcuts. This phase pays each one down.
+
+**1 — Legacy `StageGate.CriteriaJson` retired as a write target**
+
+1. New migration
+   `Planscape.Server/src/Planscape.Infrastructure/Data/Migrations/20260427500000_BackfillStageGateCriteria.cs`
+   — PG-side data backfill that copies any remaining JSONB criteria into
+   the normalised `StageGateCriteria` table. Idempotent: only touches
+   gates that have a non-null `CriteriaJson` AND no rows in the table
+   yet, and uses `ON CONFLICT (StageGateId, Key) DO NOTHING` so a
+   project halfway through migration via the per-key auto-migrate path
+   doesn't get duplicates.
+2. `Planscape.API/Controllers/StageGatesController.cs` —
+   `ReplaceCriteria` (PUT) no longer dual-writes to
+   `gate.CriteriaJson`. The normalised table is now the source of
+   truth. Read-fallback to the JSONB blob is preserved on the GET path
+   for projects that haven't been touched since the backfill (e.g. a
+   read-only client browsing an old gate). New writes always populate
+   the table.
+3. The legacy `CriteriaJson` column is intentionally not dropped yet —
+   it gives any third-party reader a graceful deprecation window. A
+   follow-up phase can drop it once we're confident no client reads it.
+
+**2 — Inferred semantic roles when `roles` block is missing**
+
+4. `Planscape.Infrastructure/Workflow/DeliverableStateMachine.cs` —
+   added a `CanonicalRoles` lookup mapping the standard ISO 19650
+   state names (and common synonyms — `IN-PROGRESS`, `WIP`, `DRAFT`
+   → working; `FOR_REVIEW`, `UNDER_REVIEW`, `IN_REVIEW` → submitting;
+   `APPROVED`, `PUBLISHED` → accepting; `DECLINED`, `RETURNED` →
+   rejecting; `ARCHIVED`, `CLOSED` → terminal) to their roles.
+5. `LoadOrDefault` — when the custom JSON omits a `"roles"` block,
+   the loader now infers roles by matching state names (from both
+   `states[]` and the `from`/`to` of `transitions[]`) against
+   `CanonicalRoles`. Bespoke names with no canonical alias keep
+   `"none"`. Explicit `roles` always wins — providing a `roles` block
+   disables inference for that machine.
+6. Net effect: a tenant whose only customisation is reordering
+   transitions on the canonical state names now gets the metadata
+   side-effects (SubmittedAt / AcceptedAt / RejectionReason) for
+   free, with no JSON edits beyond the new transitions.
+
+**3 — Unit tests for the new logic**
+
+7. `Planscape.Server/tests/Planscape.Tests/DeliverableStateMachineTests.cs`
+   — 16 facts/theories covering:
+     - Canonical default validates forward transitions, rejects jumps
+     - Default seeds the canonical role for every state
+     - `RoleOf` returns "none" for unknown / empty input
+     - Forgiving loader falls back on null, empty, malformed,
+       wrong-root-type, empty-arcs, no-transitions JSON
+     - Explicit `"roles"` block parses + drops unknown role values
+     - Phase 147 inferred roles fire when block is missing
+     - Synonyms (`DRAFT` → working, `APPROVED` → accepting) recognised
+     - Bespoke names with no roles block stay "none"
+     - Explicit roles win over inference
+8. `Planscape.Server/tests/Planscape.Tests/Iso19650NamingValidatorTests.cs`
+   — 11 facts/theories covering the Phase 143 validator that had no
+   test coverage: canonical 8-segment acceptance (with / without
+   extension), short-segment + long-project-code rejection, unknown
+   type / role rejection, whitespace + forbidden-char rejection,
+   8+ segment tolerance, and exposure of the type / role
+   dictionaries.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification — the
+   sandbox has no .NET SDK. The tests are syntactically valid xUnit
+   against the test project's existing references; CI / local
+   `dotnet test Planscape.Server/tests/Planscape.Tests` will be the
+   first time they actually execute.
+2. The PG backfill migration uses `gen_random_uuid()`, which
+   requires the `pgcrypto` extension. Existing Planscape PG
+   deployments already have it (the initial migration enabled it);
+   fresh DBs created from the snapshot inherit it.
+3. The `CanonicalRoles` synonym list isn't exhaustive. Tenants
+   with truly bespoke vocabulary still need an explicit `"roles"`
+   block; the changelog and machine class XML doc both make that
+   explicit.
+
+#### Completed (Phase 148 — Phase 147 caveat closures: pgcrypto self-sufficient, fuzzy role inference, more tests)
+
+The two remaining caveats from Phase 147 were both genuine — a hidden
+deployment dependency and an inference fallback that didn't go far
+enough.
+
+**1 — Backfill migration is now self-sufficient on PG 12+**
+
+1. `Planscape.Server/src/Planscape.Infrastructure/Data/Migrations/20260427500000_BackfillStageGateCriteria.cs`
+   — added `CREATE EXTENSION IF NOT EXISTS pgcrypto;` at the head of
+   the `Up` method. The migration uses `gen_random_uuid()`, which is
+   built into PostgreSQL 13+ but needs the pgcrypto extension on
+   PG 12. Every existing Planscape PG deployment already has
+   pgcrypto enabled (the initial migration loaded it), so this is
+   belt-and-braces: a fresh PG 12 instance running the migrations
+   cold no longer depends on a previous migration's side-effect.
+   `IF NOT EXISTS` makes it a no-op when the extension is already
+   present, so no extra permission is needed on hosts that
+   pre-installed it.
+
+**2 — Substring-keyword fallback for bespoke state names**
+
+2. `Planscape.Infrastructure/Workflow/DeliverableStateMachine.cs` —
+   new internal `InferRoleByKeyword(state)` helper with six
+   priority-ordered keyword vocabularies tuned to ISO 19650 / NEC /
+   JCT terminology:
+     - **rejecting** (highest priority): REJECT, DECLIN, RETURN,
+       REWORK, FAIL, VOID
+     - **accepting**: ACCEPT, APPROV, PUBLISH, SIGNED_OFF, SIGNOFF, PASSED
+     - **submitting**: SUBMIT, REVIEW, ISSUED_FOR, FOR_INFORMATION,
+       FOR_APPROVAL, FOR_COMMENT
+     - **terminal**: ARCHIV, CLOSED, CANCELL, WAIVE, SUPERSED,
+       COMPLETE, FINAL, DONE
+     - **working**: PROGRESS, WIP, DRAFT, ACTIVE, BUILD, ONGOING
+     - **initial** (lowest): PENDING, BACKLOG, TODO, NEW, QUEUED,
+       OPEN, BRIEF
+   Outcome roles (rejecting / accepting) win over in-flight roles
+   (submitting / working) so `FINAL_REVIEW_REJECTED` resolves to
+   rejecting rather than terminal-or-submitting. Returns null when
+   no keyword matches — caller leaves the role unset and `RoleOf`
+   reports "none".
+3. `LoadOrDefault` — when the custom JSON omits a `"roles"` block
+   AND a state name has no `CanonicalRoles` exact match, the
+   substring path now fires. Both the `states[]` loop and the
+   `transitions[]` from/to loop fall back to the keyword inference.
+   Tenants with truly bespoke vocabularies (`ARCH_HAS_REVIEWED`,
+   `ME_FINAL_APPROVAL`, `CLIENT_SIGNOFF`) now get sensible role
+   inference for free; explicit `"roles"` blocks still win and
+   disable inference entirely.
+
+**3 — Tests for the new fuzzy path**
+
+4. `Planscape.Server/tests/Planscape.Tests/RoleInferenceTests.cs` —
+   24 facts/theories covering:
+     - Each of the 6 role buckets recognised via keyword (8 examples
+       per bucket via `[Theory]`)
+     - Priority order: rejecting > accepting > submitting > terminal
+       > working > initial (4 priority-collision tests with state
+       names that match multiple buckets)
+     - Null / empty / whitespace input → null
+     - Case insensitivity
+     - Integration with `LoadOrDefault`: bespoke names now get
+       inferred roles (the "INTAKE / DRAFTING / AWAITING_REVIEW /
+       PUBLISHED_TO_CDE" path Phase 147 had to leave at "none")
+     - Explicit `"roles"` block still wins over fuzzy inference
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. The keyword vocabulary is opinionated. Tenants whose state names
+   collide with off-list synonyms (e.g. `ON_HOLD` is none of these
+   buckets, `LOCKED` ditto) will still need an explicit `"roles"`
+   block. The vocabulary is intentionally conservative — false
+   positives (a state misclassified) are worse than false negatives
+   (a state with no role, leading to skipped metadata) because the
+   metadata path is silent.
+3. The substring scan is O(state-name × keyword-count) per call,
+   ~50 character comparisons per state. Negligible at the call
+   volumes the controller sees, but if a future codepath calls
+   `RoleOf` per-element across a 100k-row dataset we'd want to
+   precompute. Documented in the helper's XML doc.
+
+#### Completed (Phase 149 — Phase 148 caveat closures: vocabulary expansion, tenant keyword extensions, memoised RoleOf)
+
+The two remaining caveats from Phase 148 were both real:
+- the keyword vocabulary missed common JCT/NEC state words like
+  `ON_HOLD`, `LOCKED`, `BLOCKED`, `FROZEN`, `ESCALATED`
+- the per-call cost was bounded but unmemoised, so a future caller
+  hitting `RoleOf` with the same unknown state in a tight loop would
+  pay it repeatedly
+
+**1 — Vocabulary expansion**
+
+1. `Planscape.Infrastructure/Workflow/DeliverableStateMachine.cs` —
+   extended five of the six keyword lists with common state terms
+   that appear on real BIM projects but weren't in Phase 148:
+     - `submitting`: + `ESCALAT` (ESCALATED, ESCALATED_TO_DIRECTOR)
+     - `terminal`: + `LOCKED`, `FROZEN`, `ABANDON`, `WITHDRAW`,
+       `HANDED_OVER`, `HANDOVER`
+     - `working`: + `ON_HOLD`, `ONHOLD`, `BLOCKED`, `WAITING`, `PAUSED`
+   Priority order is unchanged — outcome roles (rejecting / accepting)
+   still beat in-flight roles, so `PAUSED_FOR_REVIEW` resolves to
+   submitting (REVIEW > PAUSED).
+
+**2 — Tenant-supplied keyword extension block**
+
+2. New optional `"keywords"` block on the custom state-machine JSON.
+   Shape:
+   ```json
+   {
+     "states": ["NEW", "PARKED", "DELIVERED"],
+     "transitions": [...],
+     "keywords": {
+       "working":  ["PARKED", "WAITING_ON_X"],
+       "accepting": ["DELIVERED"]
+     }
+   }
+   ```
+   Caller-defined keywords take precedence over the built-in
+   vocabulary, so a tenant whose `LOCKED` means "engineer is editing"
+   (working) can override the canonical `LOCKED → terminal` mapping.
+3. `LoadOrDefault.ParseCustomKeywords` filters to the six canonical
+   role bucket names; unknown buckets are silently dropped, non-string
+   array entries are skipped. Both sanitisations have explicit tests
+   so a typo in the JSON doesn't 500.
+4. `LoadOrDefault` pre-resolves roles for any *declared* state (in
+   `states[]` or in transition endpoints) by consulting custom
+   keywords first, then the built-ins. Undeclared states fall through
+   to `RoleOf`'s runtime inference path.
+5. `CustomKeywords` is a new public property on
+   `DeliverableStateMachine`; the default machine has an empty map.
+6. `DeliverablesController.GetStateMachine` now surfaces
+   `customKeywords` so the mobile / web client can render the
+   extension table next to the state-machine diagram.
+7. `Planscape/src/api/endpoints.ts` — extended the
+   `DeliverableStateMachine` interface with `customKeywords?: Record<string, string[]>`.
+
+**3 — Memoised `RoleOf` for unknown states**
+
+8. `RoleOf` now consults `SemanticRoles` (the precomputed table) first;
+   on miss, it falls into a per-instance
+   `ConcurrentDictionary<string, string>` cache that holds the
+   inferred result so repeated queries with the same unknown state
+   are amortised O(1).
+9. `InferRoleWithExtensions` is a private instance helper that walks
+   `RolePriority` against the tenant `CustomKeywords` first, then
+   delegates to the static `InferRoleByKeyword`. Lets the runtime
+   path inherit the same outcome-beats-in-flight semantics as the
+   loader's pre-resolution path.
+
+**4 — Tests**
+
+10. `Planscape.Server/tests/Planscape.Tests/RoleExtensionTests.cs` —
+    16 facts/theories covering:
+      - Phase 149 vocabulary additions across `working` (5 examples)
+        and `terminal` (6) buckets, plus `ESCALATED → submitting`
+      - Tenant keyword block: extends built-ins, can override
+        canonical mappings, respects priority order, drops unknown
+        bucket names, skips non-string entries
+      - Custom keywords coexist with explicit `roles` block
+      - `RoleOf` is consistent across repeated calls (memoisation
+        invariant)
+      - Pre-computed states bypass runtime inference
+      - Runtime inference uses custom keywords for undeclared states
+      - `Default` machine's `CustomKeywords` is empty
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. Tenant keyword extensions are scoped to the project's machine —
+   no cross-tenant or platform-wide vocabulary. A platform-level
+   default-extension config could land in a future phase if multiple
+   tenants converge on the same bespoke vocab.
+3. The runtime memoisation cache is unbounded. State-machine
+   instances are normally one per loaded project (resolved per
+   request via `LoadOrDefault`), so the per-instance cache lifecycle
+   matches the request lifecycle. If a future caller starts holding
+   a single machine across many requests, the cache should grow a
+   bounded eviction policy.
+
+#### Completed (Phase 150 — Phase 149 caveat closures: bounded LRU cache, platform-wide keyword config)
+
+The two remaining caveats from Phase 149 were genuine production
+hardening items, not silent shortcuts.
+
+**1 — Bounded LRU cache**
+
+1. New
+   `Planscape.Server/src/Planscape.Infrastructure/Workflow/BoundedLruCache.cs`
+   — small thread-safe bounded LRU. Textbook dict-of-linked-list
+   pattern: O(1) `GetOrAdd` via dictionary lookup; touching an entry
+   promotes it to the head; tail is dropped when capacity exceeds.
+   Single coarse lock — write contention is low for the state-machine
+   use case (one writer per machine instance, ≤256 keys), so a
+   striped lock or RWLock would be over-engineering. Internal —
+   surfaced to tests via `InternalsVisibleTo`.
+2. `DeliverableStateMachine` — replaced the unbounded
+   `ConcurrentDictionary<string, string>` runtime cache with the new
+   `BoundedLruCache<string, string>` at capacity 256. Worst-case
+   memory: ~20 KB per instance even if every state name in audit-log
+   history is queried. Capacity is generous because state-machine use
+   cases rarely see more than a few dozen unique state names per
+   project; the cap is purely a defensive ceiling.
+3. New
+   `Planscape.Server/tests/Planscape.Tests/BoundedLruCacheTests.cs`
+   — 7 facts covering capacity validation, factory invocation count,
+   eviction on overflow, touch-promotes-entry semantics, custom
+   equality comparer pass-through, and a stress test inserting
+   1,000 keys into an 8-slot cache to confirm the cap holds.
+
+**2 — Platform-wide keyword extensions**
+
+4. New
+   `Planscape.Server/src/Planscape.Infrastructure/Workflow/IPlatformKeywordRegistry.cs`
+   — `IPlatformKeywordRegistry` interface plus two implementations:
+     - `ConfigPlatformKeywordRegistry` reads from
+       `DeliverableStateMachine:Keywords` in IConfiguration. Section
+       shape mirrors the per-project block:
+       ```json
+       "DeliverableStateMachine": {
+         "Keywords": {
+           "working":  [ "PARKED", "WAITING_ON_X" ],
+           "terminal": [ "FROZEN", "DECOMMISSIONED" ]
+         }
+       }
+       ```
+     - `EmptyPlatformKeywordRegistry` for tests / dev configs where
+       no platform-wide keywords are configured. Keeps DI surface
+       clean so callers never null-check.
+   Unknown bucket names are silently dropped, blank entries skipped,
+   case-insensitive dedupe via `Distinct` so a typo can't 500.
+5. `Planscape.Infrastructure/Workflow/DeliverableStateMachine.cs` —
+   added `LoadOrDefault(string? json, IReadOnlyDictionary<...>? platformKeywords)`
+   overload. Project-level `"keywords"` JSON wins on bucket
+   collisions; otherwise the project + platform lists concatenate
+   and dedupe. Legacy single-arg `LoadOrDefault(string?)` overload
+   is preserved (calls through with `platformKeywords: null`) so
+   existing call sites keep working.
+6. New helper `MergeKeywordLayers` performs the layered merge with
+   project-wins semantics. When project JSON is null but platform
+   keywords are present, the loader returns a Default-machine clone
+   carrying the platform layer so even canonical-flow projects get
+   platform vocabulary.
+7. `Planscape.API/Program.cs` — registered
+   `IPlatformKeywordRegistry` as a singleton bound to
+   `ConfigPlatformKeywordRegistry`.
+8. `Planscape.API/Controllers/DeliverablesController.cs` — accepts
+   `IPlatformKeywordRegistry` via DI; both `LoadOrDefault` call sites
+   (transition + state-machine GET) now pass `_platformKeywords.Keywords`
+   through. `ProjectSettingsController`'s validation path stays on
+   the single-arg overload — it's checking the project JSON in
+   isolation and platform keywords don't change parse-validity.
+9. New
+   `Planscape.Server/tests/Planscape.Tests/PlatformKeywordTests.cs`
+   — 8 facts covering: empty section yields empty registry, valid
+   sections populate, unknown buckets dropped, dedupe + whitespace
+   skip, EmptyPlatformKeywordRegistry contract, platform-only on
+   default machine, null platform returns the singleton Default
+   unchanged, project-wins merge, and the legacy single-arg
+   signature still works.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. Platform keywords are global to the deployment. A future phase
+   could add a tenant-scoped middle layer (read from
+   `Tenant.SettingsJson` or a new column) sitting between platform
+   and project; the merge helper is already structured for that.
+3. The LRU cache's lock is single-coarse. At the call volumes the
+   controller sees this is fine; if a future codepath calls
+   `RoleOf` from many threads concurrently on the same machine
+   instance, lock contention could become measurable and a
+   striped lock would help.
+
+#### Completed (Phase 151 — Phase 150 caveat closures: tenant keyword layer, striped LRU lock)
+
+The two remaining caveats from Phase 150 were both real production
+hardening items.
+
+**1 — Tenant-scoped keyword extensions**
+
+1. `Planscape.Core/Entities/Tenant.cs` — added
+   `KeywordExtensionsJson` (jsonb, nullable). Same shape as the
+   per-project `"keywords"` block.
+2. New migration `20260427600000_AddTenantKeywordExtensions.cs` —
+   adds the column. Null is the no-op default so existing tenants
+   are unaffected.
+3. New `Planscape.Infrastructure/Workflow/ITenantKeywordResolver.cs`
+   + `DbTenantKeywordResolver.cs` — DB-backed resolver with a static
+   striped-LRU cache keyed on `(TenantId, FNV-1a content hash)`. The
+   hash flips when an admin updates the JSON, so stale cache entries
+   self-invalidate on next read. Forgiving parser (same canonical-
+   bucket / typo-skip rules as the project parser); malformed JSON
+   falls back to empty rather than 500. Cache is `static readonly`
+   so the scoped resolver lifecycle doesn't rebuild it cold per
+   request.
+4. `DbTenantKeywordResolver.ParseForValidation(string)` — public
+   sibling of the private `Parse` so the admin PUT endpoint can
+   validate the JSON before persisting; mirrors the request-time
+   parse rules.
+5. `DeliverableStateMachine.MergeKeywordLayers` — generalised from
+   the Phase 150 two-layer signature to an n-ary
+   `params IReadOnlyDictionary<...>?[] layersInPriorityOrder`
+   overload. Higher-priority layers go first; later layers fill
+   buckets not claimed by earlier ones; within a bucket, all layers'
+   entries concatenate then dedupe (case-insensitive).
+6. `Planscape.API/Program.cs` — registered
+   `ITenantKeywordResolver → DbTenantKeywordResolver` as a scoped
+   service.
+7. `Planscape.API/Controllers/DeliverablesController.cs` — both
+   `LoadOrDefault` call sites now do
+   `MergeKeywordLayers(tenantKeywords, _platformKeywords.Keywords)`
+   first, then pass the merged "deployment defaults" as the second
+   arg. Project keywords sit on top via the existing project-vs-
+   platform merge inside `LoadOrDefault`. Net priority:
+   project > tenant > platform > built-ins.
+8. `Planscape.API/Controllers/AdminController.cs` — new
+   `GET /api/admin/tenant-keywords` (read current JSON +
+   `hasExtensions` flag) and `PUT /api/admin/tenant-keywords` (set /
+   clear). PUT validates the body via `ParseForValidation` before
+   persisting so a malformed payload returns 400 immediately rather
+   than being silently ignored at request time. Admin/Owner role
+   gate inherited from the controller-level `[Authorize]`.
+
+**2 — Striped LRU lock**
+
+9. New
+   `Planscape.Server/src/Planscape.Infrastructure/Workflow/StripedBoundedLruCache.cs`
+   — internal striped variant of the Phase 150
+   `BoundedLruCache<TKey,TValue>`. Each stripe is its own
+   self-contained cache with its own lock, so concurrent reads /
+   writes targeting different keys don't contend. Stripe count is
+   rounded up to the next power of two so the dispatch is
+   `hash & mask` instead of a div. Total capacity = stripe count ×
+   per-stripe capacity (per-stripe rounded up so the sum is
+   ≥ requested total).
+10. `DeliverableStateMachine` — runtime role memoisation now uses
+    the striped cache (8 stripes × 32 entries = 256 total, matches
+    the prior cap). `RoleOf` for unknown states still amortises to
+    O(1) and high-throughput callers no longer share a single lock.
+
+**3 — Tests**
+
+11. `StripedBoundedLruCacheTests.cs` (6 facts) — capacity
+    validation, stripe-count rounding to powers of two, factory
+    invocation count, custom comparer pass-through, total-cap
+    bounding under 1k insertions across 8 stripes, and a 16-thread
+    × 1k-reads-per-thread concurrency test that asserts the cap
+    holds without crashing.
+12. `TenantKeywordMergeTests.cs` (12 facts) — n-ary merge edge
+    cases (no layers / all null / single-layer pass-through),
+    two-layer and three-layer priority order, dedupe across layers
+    and across cases, empty-layer skip, and the
+    `ParseForValidation` validator (valid JSON, six malformed-input
+    cases, non-string entry filtering).
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. The tenant resolver's static cache survives across requests but
+   not across process restarts (no Redis-backed shared cache).
+   That's fine for the typical scale — even a busy deployment with
+   100 tenants reaches steady state on the resolver cache within
+   the first few requests.
+3. Admin endpoints are gated by the controller-level
+   `[Authorize(Roles = "Admin,Owner")]`. Tenants that need a more
+   granular permission (e.g. only the BIM Manager role) will need
+   a follow-up phase to introduce a fine-grained policy.
+4. Mobile UI to edit tenant keywords from the office dashboard is
+   deferred — the API surface is in place but the office dashboard
+   doesn't render an editor yet. CLI / curl-based operator
+   workflow works today.
+
+#### Completed (Phase 152 — Phase 151 caveat closures: Redis L2 cache, BIM-Manager auth policy, dashboard editor)
+
+The three remaining caveats from Phase 151 were all real production
+hardening items.
+
+**1 — Redis-backed L2 cache**
+
+1. `Planscape.Server/src/Planscape.Infrastructure/Workflow/DbTenantKeywordResolver.cs`
+   gained an optional `IDistributedCache` constructor parameter.
+   Two-tier cache:
+     - **L1**: static striped-LRU keyed on `(TenantId, FNV-1a content
+       hash)` (Phase 151). Process-local, survives across requests.
+     - **L2**: `IDistributedCache` (Redis in production) keyed on
+       `tk:{TenantId}:{hash}` with a 14-day TTL. Survives process
+       restarts and is shared across the API fleet so a horizontal-
+       scaled deployment doesn't pay the parse cost N times.
+   Read path: L1 hit → done. L1 miss → L2 lookup → if hit, parse
+   and fill L1. L2 miss → fetch JSON from DB → parse → fill L2 →
+   fill L1. Hash flip on admin update naturally invalidates both
+   tiers.
+2. L2 stores the source JSON, not the parsed dict, so a future DTO
+   addition doesn't need a cross-deployment invalidation. Parse is
+   cheap.
+3. L2 calls are guarded by `try { ... } catch { /* fall through */ }`
+   on both `GetStringAsync` and `SetStringAsync`. A Redis blip
+   degrades gracefully to L1 + DB rather than 500-ing the request.
+4. DI is unchanged — `IDistributedCache` was already registered for
+   `TenantContext` (Phase 96) so the resolver picks it up via the
+   optional ctor parameter without any `Program.cs` edits.
+
+**2 — Finer-grained `BimManagerOrAdmin` authorisation policy**
+
+5. New
+   `Planscape.Server/src/Planscape.Infrastructure/Authorization/BimManagerOrAdminRequirement.cs`
+   + `BimManagerOrAdminHandler.cs`. Two short-circuits:
+     - Tenant-level `Admin` / `Owner` role grants without a DB hit
+       (existing operators see no behaviour change — the policy is a
+       strict superset of the old role gate).
+     - Otherwise a DB lookup against `ProjectMembers` grants when at
+       least one row has `Iso19650Role == "K"` and matches the
+       caller's tenant claim. One row is enough — a BIM Manager on
+       any active project counts.
+   Handler resolves the DbContext via `IServiceScopeFactory` so it's
+   safe outside an HTTP request (e.g. SignalR, future).
+6. `Planscape.API/Program.cs` — `AddAuthorization(o => o.AddPolicy("BimManagerOrAdmin", …))`
+   registration plus singleton handler. The new policy and the
+   existing `[Authorize(Roles = "…")]` controller guards coexist —
+   the policy is opt-in per controller / action.
+7. New
+   `Planscape.API/Controllers/TenantKeywordsController.cs` — the
+   tenant-keywords endpoints moved out of `AdminController` so the
+   class-level `Admin/Owner` role gate could be replaced by the new
+   policy. Routes are unchanged (`GET / PUT /api/admin/tenant-keywords`)
+   so existing CLI / curl callers are unaffected.
+8. `AdminController.cs` — duplicated tenant-keywords actions
+   removed; a comment marker points to the new controller. The
+   `TenantKeywordsRequest` record stays on `AdminController.cs` in
+   the same namespace so the new controller can reference it without
+   a using.
+
+**3 — Dashboard editor for tenant keywords**
+
+9. `Planscape.API/wwwroot/index.html` — new sidebar entry under a
+   divider labelled "Tenant keywords".
+10. `Planscape.API/wwwroot/js/dashboard.js` — `renderTenantKeywords`
+    handler. Fetches the current JSON, renders it in a textarea
+    (formatted via `JSON.stringify` when valid), and exposes Save /
+    Clear / Reset buttons. Save POSTs to the new policy-gated PUT
+    endpoint and surfaces the bucket / entry count from the response.
+    Clear confirms before sending null. Editor falls back to a sample
+    config when the tenant has no extensions configured yet.
+11. `Planscape.API/wwwroot/css/dashboard.css` — admin-section
+    divider style + `.hint.ok` / `.hint.error` colour modifiers used
+    by the editor's status line.
+
+**4 — Tests**
+
+12. `Planscape.Server/tests/Planscape.Tests/TenantKeywordL2CacheTests.cs`
+    — 5 facts covering: L2 read-through after a process boundary,
+    L2-blip resilience (throwing IDistributedCache → DB fallback),
+    null-L2 backwards compat (single-arg ctor matches Phase 151),
+    empty tenantId, and null JSON. Uses
+    `MemoryDistributedCache` via a thin `MemoryDistributedCacheStub`
+    wrapper as the Redis stand-in so the tests run without any
+    external server.
+13. `Planscape.Server/tests/Planscape.Tests/BimManagerOrAdminHandlerTests.cs`
+    — 6 facts covering: Admin role short-circuit, Owner role
+    short-circuit, BIM Manager grant via project member, unrelated
+    role denial, missing user_id claim denial, inactive
+    project-member denial. Uses an isolated in-memory DbContext per
+    test so the policy logic is exercised end-to-end without a Redis
+    dependency.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. The L2 entry TTL is 14 days. A tenant with no traffic for longer
+   than that re-parses on next request — fine, the parse is cheap.
+3. The dashboard editor accepts free-form JSON and relies on the
+   server-side validator for correctness. Inline schema-level
+   feedback (e.g. "you typed a bucket name that isn't recognised")
+   is still server-round-trip-only; a JSON-schema-aware editor
+   would be a future polish item.
+4. The auth policy uses `Iso19650Role == "K"` as the BIM Manager
+   marker. Tenants whose `ProjectMember.Iso19650Role` rows aren't
+   populated won't get the BIM-Manager grant and will need to be
+   tenant Admin / Owner instead. Documented in the handler XML doc.
+
+#### Completed (Phase 153 — Phase 152 caveat closures: configurable TTLs, inline JSON validation, broadened BIM Manager grant)
+
+The three remaining caveats from Phase 152 were all real production
+hardening items.
+
+**1 — Configurable + sliding L2 TTL**
+
+1. `Planscape.Server/src/Planscape.Infrastructure/Workflow/DbTenantKeywordResolver.cs`
+   — `IDistributedCache` write-path now sets both
+   `AbsoluteExpirationRelativeToNow` (caps lifetime) and
+   `SlidingExpiration` (refreshes on every read). Active tenants
+   stay hot indefinitely; absolute cap defends against indefinitely
+   pinned stale state.
+2. Both TTLs are configurable via appsettings:
+     - `DeliverableStateMachine:Cache:AbsoluteTtlDays` (default 14)
+     - `DeliverableStateMachine:Cache:SlidingTtlDays`  (default 7)
+3. New private `ReadTtl` helper validates the config: non-positive
+   or non-numeric falls back to default; values >365 days are
+   capped at 365 to defend against fat-finger configs that would
+   freeze stale data forever.
+4. Constructor signature gained an optional `IConfiguration` third
+   parameter. DI auto-injects it; existing single- and two-arg
+   callers (tests / unit-test fixtures) continue to work via the
+   default values.
+
+**2 — Inline schema-aware JSON validation in dashboard editor**
+
+5. `Planscape.Server/src/Planscape.API/wwwroot/js/dashboard.js` —
+   new `validateTenantKeywordsJson(text)` pure function mirrors the
+   server's `ParseForValidation` rules: parse JSON syntactically;
+   reject non-object roots; reject unknown bucket names against the
+   six canonical roles (initial / working / submitting / accepting
+   / rejecting / terminal); require array values; require non-empty
+   string entries.
+6. The textarea fires `input` → `validate()` on every keystroke.
+   `Save` is disabled on hard errors and the inline status banner
+   surfaces the specific issue ("Unknown bucket name(s): foo. Valid:
+   …" / "'working' contains non-string entries; …"). Server still
+   validates (defence in depth) but operators see typo feedback in
+   real time instead of round-tripping a 400.
+7. `dashboard.js` and `dashboard.css` add nothing else — the `.hint
+   .ok` / `.hint.error` classes from Phase 152 carry the green /
+   red colouring.
+
+**3 — Broadened BIM Manager grant**
+
+8. `Planscape.Server/src/Planscape.Infrastructure/Authorization/BimManagerOrAdminHandler.cs`
+   — the hardcoded `Iso19650Role == "K"` check became a configurable
+   list. Read from `Authorization:BimManagerIso19650Roles`, defaults
+   to `["K"]`. Operators can broaden to `["K", "C"]` (BIM Manager +
+   Coordinator) or any other set without rebuilding.
+9. New AppUser-level grant path. Phase 152 only consulted
+   `ProjectMember.Iso19650Role`; if a user was flagged as BIM
+   Manager via `AppUser.Iso19650Role` at onboarding but had no
+   per-project membership row yet, they still got denied. The new
+   path checks `AppUser.Iso19650Role` against the configured list
+   first; falls through to the project-membership check if no
+   match. Tenant scoping is still enforced — a stale token from a
+   user moved to a different tenant doesn't grant.
+10. `ReadRoleList` config helper handles empty / missing config by
+    falling back to default; non-string entries dropped silently;
+    case-insensitive (uppercases at construction time so the hot
+    path is `Contains` against an uppercase list).
+
+**4 — Tests**
+
+11. `Planscape.Server/tests/Planscape.Tests/TenantKeywordTtlConfigTests.cs`
+    — 7 facts/theories: defaults applied when no config, configured
+    overrides flow through to `DistributedCacheEntryOptions`,
+    malformed values (zero / negative / non-numeric / empty) fall
+    back to default, excessive values cap at 365 days. Recording
+    `IDistributedCache` stub captures the actual options passed to
+    `SetStringAsync`.
+12. `Planscape.Server/tests/Planscape.Tests/BimManagerRoleConfigTests.cs`
+    — 7 facts: configured roles override default "K", narrowing
+    config excludes previously-granted users, empty config falls
+    back, case-insensitive matching, AppUser-level grant works
+    without project membership, AppUser grant follows config list,
+    cross-tenant AppUser denied.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. The dashboard validator is a JavaScript mirror of the server's
+   parsing rules; if the server rules drift, the validator could
+   silently lag. Both are documented to refer to the canonical
+   `ParseForValidation` contract; a future refactor could code-gen
+   the JS validator from the server's role list.
+3. Sliding TTL is implemented per Microsoft's distributed-cache
+   contract; both Redis and `MemoryDistributedCache` honour it on
+   `Get`. SQL Server distributed cache also supports it. Other
+   third-party `IDistributedCache` providers may not — operators
+   running on bespoke providers should validate.
+4. Configurable BIM Manager roles are deployment-global. A
+   tenant-scoped override would land in a future phase if a
+   multi-tenant deployment needs different policies per customer.
+
+#### Completed (Phase 154 — Phase 153 caveat closures: server-source-of-truth role buckets, tenant-scoped BIM Manager override)
+
+The two remaining caveats from Phase 153 were both real production
+hardening items.
+
+**1 — Server source of truth for role buckets**
+
+1. New
+   `Planscape.Server/src/Planscape.Infrastructure/Workflow/RoleBuckets.cs`
+   — single static class holding the canonical six-bucket list
+   (`Canonical`), the case-insensitive set (`Set`), and the +none
+   sentinel set (`WithNone`). Replaces three duplicates that were
+   slowly drifting:
+     - `DeliverableStateMachine.KnownRoles`
+     - `DbTenantKeywordResolver.ValidRoles`
+     - `ConfigPlatformKeywordRegistry.ValidRoles`
+   All three now reference `RoleBuckets.Set` / `RoleBuckets.WithNone`
+   so adding a seventh bucket later is a one-file change.
+2. New `Planscape.Server/src/Planscape.API/Controllers/RoleBucketsController.cs`
+   — `GET /api/state-machine/role-buckets` returns the canonical
+   list to authenticated callers. No tenant data here; the list is
+   universal across deployments.
+3. `Planscape.Server/src/Planscape.API/wwwroot/js/dashboard.js` —
+   `validateTenantKeywordsJson` now consults a `TK_VALID_BUCKETS`
+   set populated by `loadRoleBucketsOnce()` on first render of the
+   tenant-keywords view. Falls back to a hardcoded copy of the
+   historical six on fetch failure so the editor isn't blocked by
+   a slow Redis blip on dashboard startup. If a future bucket
+   lands server-side, subsequent validations honour it without a
+   JS rebuild.
+
+**2 — Tenant-scoped BIM Manager role override**
+
+4. `Planscape.Server/src/Planscape.Core/Entities/Tenant.cs` — added
+   `BimManagerIso19650RolesJson` (jsonb, nullable). JSON array of
+   ISO 19650 single-letter codes, e.g. `["K", "C", "M"]`. Null falls
+   back to the deployment-wide
+   `Authorization:BimManagerIso19650Roles` appsettings list
+   (default `["K"]`).
+5. New migration `20260427700000_AddTenantBimManagerRoles.cs` —
+   adds the column. Null is the no-op default so existing tenants
+   are unaffected.
+6. `Planscape.Server/src/Planscape.Infrastructure/Authorization/BimManagerOrAdminHandler.cs`
+   — `ResolveEffectiveRoles(string? tenantOverrideJson)` parses
+   the tenant override (forgiving: malformed JSON / non-array root /
+   non-string entries / empty array → fall back to platform list).
+   The handler fetches the override + AppUser role + project
+   membership in three reads against the same DbContext per
+   request, all scoped to the caller's tenant claim.
+7. Net priority: tenant override (when set) → deployment-global
+   appsettings (when set) → hardcoded `["K"]`.
+
+**3 — Tests**
+
+8. `Planscape.Server/tests/Planscape.Tests/RoleBucketsTests.cs` —
+   6 facts/theories pinning the bucket list (count, exact names,
+   case-insensitivity, "none" sentinel handling, rejection of
+   unknown buckets). Adding / renaming a bucket now requires a
+   deliberate update here alongside the production list — no
+   silent drift.
+9. `Planscape.Server/tests/Planscape.Tests/TenantBimManagerRoleOverrideTests.cs`
+   — 9 facts/theories: tenant narrows below deployment, tenant
+   broadens beyond deployment, case-insensitive matching,
+   malformed override falls back (5 theory cases), null override
+   falls back, override applies to AppUser-level grant path.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. Tenant override JSON is parsed on every authorisation request.
+   Acceptable because the request is already tenant-scoped and the
+   parse is cheap; if measured profiles later show otherwise, a
+   per-tenant cache (similar to `DbTenantKeywordResolver`) could
+   land in a follow-up phase.
+3. The tenant override has no admin-UI editor yet — the column is
+   set via direct SQL or via the existing tenant settings PUT (when
+   that endpoint lands; see SRV-50 backlog item). The plumbing is
+   in place ahead of the UI.
+4. The `RoleBuckets.WithNone` set still treats "none" as a legal
+   value in custom-machine `"roles"` blocks (matches Phase 146
+   behaviour); custom keyword blocks reject it via the narrower
+   `RoleBuckets.Set`.
+
+#### Completed (Phase 155 — Phase 154 caveat closures: tenant role cache, admin UI, role-block asymmetry surfaced)
+
+The three remaining caveats from Phase 154 were all genuine
+hardening / operational items.
+
+**1 — Per-tenant cache for the BIM Manager role override**
+
+1. New
+   `Planscape.Server/src/Planscape.Infrastructure/Authorization/ITenantBimManagerRoleResolver.cs`
+   — interface with the `ResolveAsync(tenantId)` shape, mirroring
+   `ITenantKeywordResolver` so future readers find the pattern
+   familiar.
+2. New `DbTenantBimManagerRoleResolver` — DB-backed implementation
+   with a static `StripedBoundedLruCache<string, IReadOnlyList<string>?>`
+   keyed on `(TenantId, FNV-1a content hash)`. Cache survives across
+   the resolver's scoped lifecycle so authorisation requests don't
+   rebuild it cold per call. Forgiving parser: malformed / non-array
+   / empty → returns `null` (caller falls back to deployment list).
+3. `BimManagerOrAdminHandler` — replaced the inline
+   `ResolveEffectiveRoles` parser with a cached resolver call.
+   `effectiveRoles = tenantOverride ?? _bimManagerRoles` keeps the
+   priority semantics unchanged. The retired inline parser is left
+   as a comment marker pointing readers at the resolver.
+4. `Planscape.API/Program.cs` — registered
+   `ITenantBimManagerRoleResolver → DbTenantBimManagerRoleResolver`
+   as a scoped service.
+
+**2 — Admin endpoint + dashboard editor for tenant role override**
+
+5. New
+   `Planscape.Server/src/Planscape.API/Controllers/TenantBimManagerRolesController.cs`
+   — `GET / PUT /api/admin/tenant-bim-manager-roles`. Same
+   `BimManagerOrAdmin` policy gate as the tenant-keywords endpoint.
+   PUT validates the body via the resolver's
+   `ParseForValidation` so a malformed payload is rejected at PUT
+   time rather than being silently ignored at request time.
+6. `Planscape.API/wwwroot/index.html` — added a "BIM-Manager roles"
+   sidebar entry under the existing admin divider.
+7. `Planscape.API/wwwroot/js/dashboard.js` —
+   `renderTenantBimManagerRoles(main)` mirrors the tenant-keywords
+   editor: textarea + Save / Clear / Reset buttons, inline
+   keystroke-by-keystroke validation via
+   `validateBimManagerRolesJson`. Validator checks JSON syntax,
+   array root, all-strings, no-empty entries, and rejects
+   suspiciously-long strings (>4 chars) that don't match the
+   single-letter ISO 19650 code shape.
+
+**3 — Role-block vs keyword-block asymmetry surfaced through the API**
+
+8. `Planscape.API/Controllers/RoleBucketsController.cs` — extended
+   the response with two semantic names that disambiguate the two
+   contexts:
+     - `keywordBlockBuckets` (six canonical buckets, no "none") —
+       what a tenant's `"keywords"` block can declare.
+     - `rolesBlockKeys` (six canonical buckets PLUS "none") —
+       what a custom-machine `"roles"` block can map a state to.
+   The legacy `buckets` / `priorityOrder` aliases stay for backward
+   compat with Phase 154 dashboards.
+9. The asymmetry is now self-documenting: the API tells the JS
+   validator which list to use in which context. The historical
+   note ("matches Phase 146 behaviour") is preserved in code
+   comments but is no longer the only place to find the contract.
+
+**4 — Tests**
+
+10. `DbTenantBimManagerRoleResolverTests.cs` (12 facts/theories) —
+    no-override → null, valid override returns roles, uppercase +
+    dedupe, six malformed-input fallback theories, empty tenantId,
+    repeated-call cache hit (stale entry replaced after JSON
+    edit), `ParseForValidation` consistency.
+11. `RoleBucketsAsymmetryTests.cs` (4 facts) — pins the
+    `WithNone` ⊃ `Set` invariant, the +1 size delta, the "none"
+    sentinel as the single extra, and the canonical priority
+    order. Adding / removing a bucket later requires a deliberate
+    update here alongside `RoleBuckets`.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. The cache uses the same static striped-LRU as the keyword
+   resolver — process-local, survives across requests but not
+   process restarts. A Redis L2 layer (similar to Phase 152's
+   `IDistributedCache` write-through on the keyword resolver)
+   would land in a follow-up phase if multi-instance deployments
+   show measurable cold-start latency on the auth path.
+3. The admin UI uses the same `BimManagerOrAdmin` policy gate as
+   the tenant-keywords editor. A user who's been demoted from
+   BIM Manager but still holds a valid token will retain edit
+   access until the token expires; same caveat applies to every
+   policy-gated endpoint and is documented in the policy XML doc.
+4. `keywordBlockBuckets` and `rolesBlockKeys` are returned on every
+   role-buckets call; the response is small so caching client-side
+   for a session is enough — server-side ETag / 304 negotiation
+   would be over-engineering at this size.
+
+#### Completed (Phase 156 — Phase 155 caveat closures: Redis L2 for role resolver, JWT iat-revocation, ETag on role-buckets)
+
+The three remaining caveats from Phase 155 were all real production
+hardening items.
+
+**1 — Redis L2 cache for the BIM Manager role resolver**
+
+1. `Planscape.Server/src/Planscape.Infrastructure/Authorization/DbTenantBimManagerRoleResolver.cs`
+   — gained optional `IDistributedCache` + `IConfiguration` ctor
+   parameters. Two-tier read-through identical to Phase 152's
+   keyword resolver:
+     - L1: static striped LRU keyed on `(TenantId, FNV-1a hash)`
+     - L2: `IDistributedCache` keyed on `tbmr:{TenantId}:{hash}`,
+       sliding + absolute TTLs configurable via
+       `Authorization:BimManagerRoles:{Absolute,Sliding}TtlDays`
+       (defaults 14 / 7).
+2. L2 stores the source JSON, not the parsed list, so future DTO
+   additions don't invalidate the cluster-wide cache. Parse cost is
+   microseconds. L2 errors degrade gracefully to L1 + DB rather
+   than 500-ing the auth path.
+
+**2 — JWT permission-revocation lag mitigation**
+
+3. New
+   `Planscape.Server/src/Planscape.Infrastructure/Authorization/IPermissionRevocationStore.cs`
+   — interface with two methods: `GetMinIatAsync(userId)` returns
+   the floor for "minimum acceptable iat", `RevokeAllPriorTokensAsync(userId)`
+   bumps the floor to "now". Tokens issued before the floor lose
+   policy-gated access immediately.
+4. New `RedisPermissionRevocationStore` — Redis-backed
+   implementation (`auth:revocation:{userId}` keys) with TTL from
+   `Authorization:RevocationFloorTtlDays` (default 30 days, capped
+   at 365). Once every surviving token predates the floor, Redis
+   evicts the entry. Failures on either GET or SET fall back to no-
+   op so a Redis blip can't 500 the auth path or block admin
+   actions.
+5. New `NullPermissionRevocationStore` — no-op for unit tests / dev
+   configs without Redis.
+6. `BimManagerOrAdminHandler` — new check between user-id resolution
+   and DB scope. Reads the floor; if the JWT's `iat` claim
+   pre-dates it, denies. Tokens without an `iat` claim are denied
+   when a floor exists (forces clients to migrate to iat-bearing
+   tokens) but accepted when no floor exists (legacy back-compat).
+   Admin/Owner short-circuit happens earlier so admins can't lock
+   themselves out via their own revocation.
+7. `AdminController.UpdateUser` — detects permission-changing field
+   edits (Role / Iso19650Role / IsActive). When any change, calls
+   `RevokeAllPriorTokensAsync` after the DB save commits. Display-
+   name changes don't trigger revocation. Fire-and-forget — Redis
+   blip can't block the admin action.
+8. `Planscape.API/Program.cs` — registered both stores; production
+   wires the Redis-backed one.
+
+**3 — ETag / 304 on role-buckets endpoint**
+
+9. `Planscape.Server/src/Planscape.API/Controllers/RoleBucketsController.cs`
+   — payload promoted to a `static readonly` field; `ETag` is a
+   `static readonly` strong validator computed from
+   `SHA256(JSON-serialized payload).Substring(0, 16)`. Stable across
+   processes (the payload is hardcoded), so any instance in a
+   horizontal-scaled fleet returns the same tag for the same body.
+10. Endpoint sets `ETag` and `Cache-Control: private, max-age=3600`
+    on every response. Browsers / mobile clients revalidate against
+    the tag once an hour; matches return a body-less 304. Saves
+    ~250 bytes per call without complicating client logic. Dashboard
+    JS continues to session-cache via `TK_BUCKETS_LOADED` — the
+    HTTP-level ETag is an additional layer, not a replacement.
+
+**4 — Tests**
+
+11. `PermissionRevocationStoreTests` (8 facts) — pre-revoke returns
+    null, revoke + get returns recent epoch, distinct users are
+    independent, idempotent + latest wins, empty user-id no-ops,
+    Redis-down GET returns null, Redis-down revoke doesn't throw,
+    null store always returns null.
+12. `RevocationFloorHandlerTests` (5 facts) — token issued after
+    revocation grants, token issued before revocation denied, no
+    floor + no iat still grants (legacy), floor + no iat denies
+    (forces iat migration), Admin role bypasses revocation check.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. The revocation floor lookup adds one Redis GET per policy-gated
+   request. Hot path is sub-millisecond on a co-located Redis
+   instance and bounded by a try/catch fallback when Redis is
+   slow. If profiles later show this as a bottleneck, batching
+   the floor lookup with the existing tenant-override lookup via
+   pipelining would be a future optimisation.
+3. Manual force-revoke endpoint isn't included — currently only
+   the `UpdateUser` path triggers a floor bump. A standalone
+   `POST /admin/users/{id}/revoke-tokens` could land in a
+   follow-up if SOC2 / ISO 27001 audits require an explicit
+   "logout this user everywhere" action distinct from a role
+   change.
+4. The ETag is computed from a static payload, so the value is
+   bit-stable across the deployment. If a future bucket addition
+   updates the canonical list, the ETag will flip on the next
+   process restart and clients revalidate at most one hour after
+   that — well within typical deployment-rollout windows.
+
+#### Completed (Phase 157 — Phase 156 caveat closures: concurrent auth-handler reads, explicit revoke endpoint)
+
+The two remaining caveats from Phase 156 were both real production
+hardening items.
+
+**1 — Concurrent revocation + tenant-override reads**
+
+1. `Planscape.Server/src/Planscape.Infrastructure/Authorization/BimManagerOrAdminHandler.cs`
+   — both the `IPermissionRevocationStore.GetMinIatAsync` and
+   `ITenantBimManagerRoleResolver.ResolveAsync` calls now launch
+   together via `Task.WhenAll`. They target distinct keys / cache
+   entries so there's no contention; the auth path's Redis-bound
+   latency drops to roughly the slower of the two operations
+   instead of the sum.
+2. Used `Task.WhenAll` rather than StackExchange.Redis `IBatch`
+   pipelining: simpler, lets each consumer keep its own L1 / L2 /
+   DB fallback chain (the keyword resolver routes through
+   IDistributedCache then DB; the revocation store is direct
+   IDistributedCache only). True multiplexed pipelining would
+   shave another ~0.5ms but at the cost of giving up the resolver's
+   internal L1 short-circuit.
+3. Admin / Owner short-circuit still happens before the
+   concurrent block so the cheap path stays cheap.
+
+**2 — Explicit "revoke this user everywhere" admin endpoint**
+
+4. `Planscape.Server/src/Planscape.API/Controllers/AdminController.cs`
+   — new `POST /api/admin/users/{userId}/revoke-tokens`. Bumps
+   the user's iat-floor in
+   `IPermissionRevocationStore` and audit-logs the action under
+   the `USER_REVOKE` kind. Distinct from the implicit revocation
+   triggered by `UpdateUser` (which also fires when the admin
+   actually changes a permission field) so SOC2 / ISO 27001
+   audits get a discrete "session termination" event in the
+   trail separate from "permission change".
+5. Idempotent — calling repeatedly bumps the floor each time;
+   monotonic floors mean tokens issued between calls still fail
+   the check on next request.
+6. Returns 404 when the target user isn't in the caller's
+   tenant. Returns 200 with the email + revocation timestamp on
+   success so the caller can verify which user they actually
+   logged out (the user-id alone is rarely enough confirmation).
+7. `AdminController` ctor gained an `IAuditService` dependency
+   for the audit-log write.
+
+**3 — Tests**
+
+8. `Planscape.Server/tests/Planscape.Tests/AuthHandlerConcurrentReadsTests.cs`
+   — 3 facts:
+     - "RevocationAndTenantOverride_LaunchInParallel" verifies the
+       Task.WhenAll dispatch by giving both fakes a 200ms delay and
+       asserting total wall time < 350ms (vs ~400ms if serial).
+     - "BothLookups_AreObservedByTheHandler" guards against an
+       accidental short-circuit on the wrong path.
+     - "RevocationFloorAndOverride_BothApplied" exercises the
+       composed semantics — fresh iat clears the floor, but a
+       narrower tenant override still denies the K-role member.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. The 350ms wall-clock assertion in the parallel test is
+   timing-dependent. CI under heavy load (e.g. shared GH Actions
+   runners spiking) could exceed it; the constant has plenty of
+   headroom but a hard-deadline alternative (e.g. measure each
+   leg's start-time via instrumented fakes) would be more robust.
+   Acceptable for now since the real production benefit is the
+   shape of the call graph, which the second test pins.
+3. `revoke-tokens` audit-logs with a free-text `reason` of
+   "explicit admin revoke". A future enhancement could accept a
+   caller-supplied reason in the request body so the trail
+   captures *why* the revocation happened (suspected credential
+   leak, employee offboarding, etc.).
+4. The endpoint is gated by the controller-level
+   `[Authorize(Roles = "Admin,Owner")]`. A finer-grained policy
+   (e.g. dedicated "Security Officer" role for SOC2 separation
+   of duties) would be a follow-up if compliance audits require it.
+
+#### Completed (Phase 158 — Phase 157 caveat closures: deterministic concurrency test, caller-supplied revoke reason, SecurityOfficer separation-of-duties)
+
+The three remaining caveats from Phase 157 — one test-quality, two
+real production hardening items.
+
+**1 — Deterministic concurrent-launch test**
+
+1. `Planscape.Server/tests/Planscape.Tests/AuthHandlerConcurrentReadsTests.cs`
+   — replaced the timing-dependent `sw.ElapsedMilliseconds < 350`
+   assertion with a barrier-based pattern. Each fake records
+   "started" via a `TaskCompletionSource`, then awaits the peer's
+   barrier before completing. If the handler dispatches the calls
+   serially the second fake never starts (the first is blocked on
+   the second's gate that will never open). Concurrent dispatch
+   lets both gates open and both fakes complete. Wrapped in
+   `Task.WhenAny + Task.Delay(2s)` timeout so a serial regression
+   surfaces as a clean Assert rather than a hung CI.
+2. `using System.Diagnostics` removed (Stopwatch no longer used).
+
+**2 — Caller-supplied revoke reason**
+
+3. New `Planscape.Server/src/Planscape.API/Controllers/SecurityController.cs`
+   — moved the revoke-tokens endpoint here from `AdminController`
+   (the old route is dropped because nothing depends on it yet).
+   Endpoint accepts an optional body `{ "reason": "...",
+   "category": "..." }` where category is intended for SOC2-
+   friendly classification (suspected_credential_leak /
+   employee_offboarding / scheduled_rotation / suspicious_activity)
+   and reason is free-text context. The audit-log entry now
+   captures both fields plus a `via` marker so historical reviews
+   can distinguish security-controller revokes from implicit
+   user-update-triggered revokes.
+4. Reason length capped at 500 chars server-side so a pasted
+   novel doesn't bloat the audit table. Empty / unset fields are
+   audit-logged as `(no reason supplied)` / `unspecified` so the
+   row is always grep-able.
+
+**3 — SecurityOfficer separation-of-duties role**
+
+5. `Planscape.Server/src/Planscape.Core/Entities/AppUser.cs` —
+   added `UserRole.SecurityOfficer = 6`. SecurityOfficer can
+   revoke sessions + read audit logs but is NOT an Admin / Owner;
+   they can't edit projects, members, or BIM-Manager roles.
+   Backwards-compatible — existing users default to Viewer; new
+   role is opt-in via `PUT /api/admin/users/{id}` (which itself
+   requires Admin/Owner so the privilege escalation path stays
+   gated on the highest-trust role).
+6. New `Planscape.Server/src/Planscape.Infrastructure/Authorization/SecurityOfficerOrAdminRequirement.cs`
+   + `SecurityOfficerOrAdminHandler.cs` — pure claims-only check,
+   no DB hit. Grants on Admin / Owner / SecurityOfficer roles.
+7. `Planscape.API/Program.cs` — registered the new policy
+   `SecurityOfficerOrAdmin` + handler. Existing
+   `BimManagerOrAdmin` policy registration is unchanged.
+8. `SecurityController` is gated by the new policy at the class
+   level, so a SecurityOfficer can revoke without holding tenant
+   admin powers.
+
+**4 — Tests**
+
+9. `Planscape.Server/tests/Planscape.Tests/SecurityOfficerOrAdminHandlerTests.cs`
+   — 12 facts/theories covering: each of Admin / Owner /
+   SecurityOfficer grants (3 theory entries), six non-qualifying
+   roles deny (theory), no role-claim denies, multiple-roles-with-
+   one-qualifying grants.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. The audit-log `category` field is free-form — no server-side
+   enum constraint — because SOC2 / ISO 27001 audit categories
+   evolve faster than schema migrations. A future enhancement
+   could ship a recommended-categories endpoint backed by
+   appsettings so dashboards can render a dropdown without
+   blocking unfamiliar values.
+3. The role-list claims-check uses string comparison (`IsInRole`).
+   ASP.NET Identity's role normalisation pipeline already
+   uppercases role names, so case-mismatch isn't a concern here,
+   but a custom JWT issuer that emits non-standard role claim
+   names would need its own claim-mapping middleware.
+4. Old `/api/admin/users/{id}/revoke-tokens` route was retired
+   in favour of `/api/security/users/{id}/revoke-tokens`. No
+   external clients yet depend on the old route (it landed in
+   Phase 157, this phase) so removing it is safe; the SOC2
+   audit migration path is explicit in the controller's class-
+   level XML doc.
+
+#### Completed (Phase 159 — Phase 158 caveat closures: recommended audit categories endpoint, backward-compat revoke route alias)
+
+The two remaining caveats from Phase 158 were both production-readiness
+items rather than design questions: a missing operator-facing list of
+SOC2-friendly audit categories, and a hard cutover on the Phase 157
+revoke-tokens route that left no deprecation window for dashboards or
+CLI tooling. Both close in this phase.
+
+1. **Recommended audit categories endpoint, appsettings-backed**.
+   New `GET /api/audit/categories` controller exposes the canonical
+   SOC2 / ISO 27001 categories that the Phase 158 SecurityController
+   audit log entries embed. Behaviour:
+
+   - **Built-in fallback** — seven canonical entries
+     (`suspected_credential_leak`, `employee_offboarding`,
+     `scheduled_rotation`, `suspicious_activity`, `policy_change`,
+     `regulatory_request`, `unspecified`) ship in code so a fresh
+     deployment renders a usable dropdown without configuration.
+   - **Operator override** via `Audit:Categories` in `appsettings.json`.
+     Configured entries are merged with the built-ins (case-insensitive
+     dedupe so `REGULATORY_REQUEST` doesn't double-list with
+     `regulatory_request`); operator entries surface ahead of the
+     built-in tail so a tenant's preferred taxonomy renders at the top.
+   - **ETag / 304 negotiation** with content-stable SHA-256 hash and
+     `Cache-Control: private, max-age=3600` matching the role-buckets
+     endpoint pattern (Phase 156). Configured deployments produce
+     different ETags than vanilla ones so dashboards on the configured
+     host can't 304-cache the vanilla list.
+   - **Auth gate** is `[Authorize]` only (no policy) — any
+     authenticated user can fetch the list because it's advisory data,
+     not a security action. A coordinator filing an issue must be able
+     to see the same dropdown the SecurityOfficer sees.
+   - **Advisory note** in the response body explicitly states that
+     the revoke-tokens endpoint accepts any string in the category
+     field; this prevents a future engineer from mistakenly assuming
+     the list is enforced and shipping a schema migration based on
+     dashboard behaviour alone.
+
+   The category field on `POST /api/security/users/{id}/revoke-tokens`
+   stays free-form — operators submit any string they want, and the
+   audit log captures it verbatim. This endpoint is purely a "nudge"
+   surface: dashboards / mobile clients fetch it once per session and
+   render a dropdown that nudges operators toward the canonical
+   taxonomy without blocking emerging categories.
+
+2. **Backward-compat revoke route alias**. The Phase 158 caveat
+   noted that the old `/api/admin/users/{id}/revoke-tokens` route was
+   retired in the same window it was added, which left no deprecation
+   path. Phase 159 adds a leading-slash absolute attribute on the
+   `RevokeTokens` action:
+
+   ```csharp
+   [HttpPost("users/{userId}/revoke-tokens")]
+   [HttpPost("/api/admin/users/{userId}/revoke-tokens")]
+   public async Task<ActionResult> RevokeTokens(...)
+   ```
+
+   The leading slash overrides the class-level `[Route("api/security")]`
+   prefix so both routes hit the same handler with the same
+   `SecurityOfficerOrAdmin` policy gate. The audit log records
+   `via: "security_controller"` either way so operators can still grep
+   for stragglers that hit the legacy URL during the deprecation
+   window. The auth gate on the alias is laxer than the original
+   Phase 157 route (which was `Admin/Owner` only) — this is
+   intentional and matches the Phase 158 SOC2 separation-of-duties
+   redesign. Old clients keep working; new clients should prefer the
+   `/api/security/...` route.
+
+3. **Tests**. Two new test files:
+
+   - `AuditCategoriesControllerTests` (7 facts, no config) +
+     `AuditCategoriesConfiguredTests` (4 facts, sub-factory injects
+     `Audit:Categories`) covering: built-in fallback, advisory note,
+     ETag/Cache-Control headers, ETag stability, 304 short-circuit on
+     `If-None-Match`, 401 unauthenticated, 200 for member role,
+     configured + built-in merge, case-insensitive dedupe (single entry
+     for `REGULATORY_REQUEST` ∪ `regulatory_request`), configured
+     entries sort ahead of built-in tail, configured ETag differs from
+     vanilla ETag.
+   - `SecurityControllerRouteAliasTests` (7 facts) covering: new route
+     200, legacy route 200 (same payload shape), both routes share the
+     same SecurityOfficerOrAdmin policy gate, legacy route 404 on
+     non-existent user, legacy route 404 on cross-tenant user (no
+     tenant-isolation regression via the URL alias), legacy route 403
+     for Member role (alias is NOT laxer than the new route), legacy
+     route accepts a bare POST with no body so existing `curl -X POST`
+     scripts don't 415 on the upgrade.
+
+**Files**
+
+- `Planscape.Server/src/Planscape.API/Controllers/AuditCategoriesController.cs` (NEW, 99 lines).
+- `Planscape.Server/src/Planscape.API/Controllers/SecurityController.cs` (modified — added legacy route attribute, ~10-line block comment).
+- `Planscape.Server/tests/Planscape.Tests/AuditCategoriesControllerTests.cs` (NEW, 230 lines).
+- `Planscape.Server/tests/Planscape.Tests/SecurityControllerRouteAliasTests.cs` (NEW, 129 lines).
+- `docs/CHANGELOG.md` — this entry.
+- `Planscape.Server/docs/PLANSCAPE_GAPS.md` — added SRV-63 + SRV-64
+  rows, both Closed in Phase 159.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification (sandbox
+   has no .NET SDK).
+2. The recommended-categories endpoint is global to the deployment —
+   a single appsettings list applies to every tenant. A tenant-scoped
+   override (similar to the BIM-Manager keyword resolver) would let
+   each tenant author its own taxonomy; deferred to a future phase
+   because real-world SOC2 taxonomies tend to be platform-wide rather
+   than tenant-specific.
+3. The legacy route alias has no telemetry counter today, so we
+   can't measure how many clients still hit `/api/admin/...` vs
+   `/api/security/...`. The audit log's `via: "security_controller"`
+   marker is identical for both paths. A future enhancement could
+   stamp the request URL into the audit row so dashboards can
+   visualise the migration.

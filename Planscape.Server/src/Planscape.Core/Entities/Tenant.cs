@@ -21,6 +21,32 @@ public class Tenant
     public string? StripeCustomerId { get; set; }
     public string? StripeSubscriptionId { get; set; }
 
+    /// <summary>
+    /// Phase 151 — tenant-scoped keyword extensions for the deliverable
+    /// state machine. JSON shape mirrors the per-project block:
+    ///   { "working": ["PARKED"], "terminal": ["DECOMMISSIONED"] }
+    /// Sits between platform-wide keywords (deployment-global, in
+    /// appsettings) and project-level keywords (per-project JSON).
+    /// Project-level wins, then tenant, then platform, then built-ins.
+    /// Null/empty means "use platform + built-ins only" — same behaviour
+    /// as Phase 150.
+    /// </summary>
+    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "jsonb")]
+    public string? KeywordExtensionsJson { get; set; }
+
+    /// <summary>
+    /// Phase 154 — tenant-scoped override for the BIM-Manager grant
+    /// list used by <c>BimManagerOrAdminHandler</c>. JSON array of
+    /// ISO 19650 single-letter role codes, e.g. <c>["K", "C", "M"]</c>.
+    /// Null/empty falls back to the deployment-wide
+    /// <c>Authorization:BimManagerIso19650Roles</c> appsettings list,
+    /// which itself defaults to <c>["K"]</c>. Lets a multi-tenant
+    /// deployment grant tenant-coordinator (C) keyword-edit rights on
+    /// one tenant without affecting others.
+    /// </summary>
+    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "jsonb")]
+    public string? BimManagerIso19650RolesJson { get; set; }
+
     // Navigation
     public ICollection<Project> Projects { get; set; } = new List<Project>();
     public ICollection<AppUser> Users { get; set; } = new List<AppUser>();

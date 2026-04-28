@@ -114,8 +114,19 @@ namespace StingTools.Model
         {
             double rw1 = CalculateRwSingleLeaf(mass1KgM2);
             double rw2 = CalculateRwSingleLeaf(mass2KgM2);
-            // Double leaf improvement depends on cavity depth
-            double cavityBonus = airGapMm >= 100 ? 10.0 : airGapMm >= 50 ? 6.0 : 3.0;
+            // ACOUSTIC-CAVITY-01: Replace the flat air-gap-bin bonus with the
+            // BS EN 12354-1 Annex B.3 frequency-weighted Rw bonus, scaled by the
+            // air-gap depth. Below 50 mm the bonus is heavily reduced (mostly
+            // resonance lift); above 100 mm the bonus saturates near the
+            // weighted value. This matches measured-value handbooks better
+            // than the previous 3 / 6 / 10 dB step function.
+            double weightedBonus = StingTools.BIMManager.AcousticCavityBonus.WeightedRwBonus();
+            double depthScale = airGapMm <= 0
+                ? 0
+                : airGapMm >= 100 ? 1.0
+                : airGapMm >= 50  ? 0.75
+                : 0.4;
+            double cavityBonus = weightedBonus * depthScale;
             // Absorption in cavity adds ~5dB with mineral wool
             return rw1 + rw2 + cavityBonus - 6.0; // -6dB coupling correction
         }

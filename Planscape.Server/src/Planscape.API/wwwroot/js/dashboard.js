@@ -142,6 +142,11 @@
         case "models":       await renderModels(main); break;
         case "schedule":     await renderList(main, `Schedule`, `/api/projects/${state.projectId}/schedule`, scheduleColumns); break;
         case "cost":         await renderCost(main); break;
+        // Phase 152 — admin: tenant keyword extensions for the
+        // deliverable state machine. Doesn't depend on a project.
+        case "tenant-keywords": await renderTenantKeywords(main); break;
+        // Phase 155 — admin: tenant-scoped BIM-Manager role override.
+        case "tenant-bim-manager-roles": await renderTenantBimManagerRoles(main); break;
       }
     } catch (e) {
       main.innerHTML = `<div class="empty">Could not load: ${esc(String(e))}</div>`;
@@ -301,6 +306,360 @@
   }
   function esc(s) {
     return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  // ── Phase 152: Tenant keyword extensions editor ───────────────────────
+  // Admin / BIM Manager surface. The server caches the result via Redis +
+  // a striped LRU; PUT body is validated server-side so a malformed JSON
+  // returns 400 with a structured error instead of being silently
+  // ignored at request time.
+  async function renderTenantKeywords(main) {
+    // Phase 154 — fetch the canonical bucket list from the server in
+    // parallel with the tenant's current JSON so the JS validator
+    // doesn't drift if a 7th bucket lands server-side.
+    await loadRoleBucketsOnce();
+    let current;
+    try {
+      current = await api(`/api/admin/tenant-keywords`);
+    } catch (e) {
+      main.innerHTML = `<div class="empty">Could not load tenant keywords: ${esc(String(e))}</div>`;
+      return;
+    }
+    const sample = `{
+  "working":   ["PARKED", "WAITING_ON_X"],
+  "terminal":  ["FROZEN", "DECOMMISSIONED"],
+  "rejecting": ["BLOCKED_BY_QA"]
+}`;
+    const initial = current.json && current.json.length > 0
+      ? safeFormatJson(current.json)
+      : sample;
+
+    main.innerHTML = `
+      <h1>Tenant keyword extensions</h1>
+      <p class="hint">
+        Tenant-scoped vocabulary for the deliverable state-machine role
+        inferer. Sits between platform defaults and per-project keywords;
+        project keywords still win. Recognised role buckets:
+        <code>initial</code> · <code>working</code> · <code>submitting</code> ·
+        <code>accepting</code> · <code>rejecting</code> · <code>terminal</code>.
+        Other keys are ignored.
+      </p>
+      <div class="card" style="max-width:760px">
+        <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px">
+          <strong>Current configuration</strong>
+          <span class="chip ${current.hasExtensions ? 'green' : 'grey'}">
+            ${current.hasExtensions ? 'Active' : 'None set'}
+          </span>
+        </div>
+        <textarea id="tkJson" rows="14" spellcheck="false"
+                  style="width:100%;font-family:ui-monospace,monospace;font-size:13px"
+        >${esc(initial)}</textarea>
+        <!-- Phase 153 — inline schema-aware validator output. Updates
+             on every keystroke so a typo in a bucket name is flagged
+             before Save instead of round-tripping to the server. -->
+        <div id="tkValidate" class="hint" style="margin-top:6px;min-height:18px"></div>
+        <div class="row" style="gap:8px;margin-top:8px;align-items:center">
+          <button id="tkSave" class="primary">Save</button>
+          <button id="tkClear" class="ghost">Clear extensions</button>
+          <button id="tkReset" class="ghost">Reset editor</button>
+          <span id="tkStatus" class="hint" style="margin-left:auto"></span>
+        </div>
+      </div>
+    `;
+
+    // Phase 153 — wire the inline validator. Runs synchronously, no
+    // server round-trip. Disables the Save button on hard errors so
+    // the user can't push known-bad JSON. Server still validates
+    // (defence in depth) — this is purely a UX improvement.
+    const $json = document.getElementById("tkJson");
+    const $validate = document.getElementById("tkValidate");
+    const $save = document.getElementById("tkSave");
+
+    function validate() {
+      const text = ($json.value || "").trim();
+      if (text.length === 0) {
+        $validate.textContent = "(empty — Save will clear all extensions)";
+        $validate.className = "hint";
+        $save.disabled = false;
+        return true;
+      }
+      const result = validateTenantKeywordsJson(text);
+      $validate.textContent = result.message;
+      $validate.className = result.ok ? "hint ok" : "hint error";
+      $save.disabled = !result.ok;
+      return result.ok;
+    }
+    $json.addEventListener("input", validate);
+    validate(); // initial pass
+
+    document.getElementById("tkSave").onclick = async () => {
+      const body = document.getElementById("tkJson").value || "";
+      const status = document.getElementById("tkStatus");
+      status.textContent = "Saving…";
+      try {
+        const res = await api(`/api/admin/tenant-keywords`, {
+          method: "PUT",
+          body: JSON.stringify({ json: body }),
+        });
+        status.textContent = `Saved · ${res.buckets || 0} bucket(s) · ${res.entries || 0} keyword(s)`;
+        status.className = "hint ok";
+      } catch (e) {
+        status.textContent = `Save failed — ${esc(String(e))}`;
+        status.className = "hint error";
+      }
+    };
+
+    document.getElementById("tkClear").onclick = async () => {
+      if (!confirm("Clear all tenant keyword extensions? Projects fall back to platform + built-in vocabulary.")) return;
+      const status = document.getElementById("tkStatus");
+      status.textContent = "Clearing…";
+      try {
+        await api(`/api/admin/tenant-keywords`, {
+          method: "PUT",
+          body: JSON.stringify({ json: null }),
+        });
+        document.getElementById("tkJson").value = sample;
+        status.textContent = "Cleared.";
+        status.className = "hint ok";
+      } catch (e) {
+        status.textContent = `Clear failed — ${esc(String(e))}`;
+        status.className = "hint error";
+      }
+    };
+
+    document.getElementById("tkReset").onclick = () => {
+      document.getElementById("tkJson").value = initial;
+      const s = document.getElementById("tkStatus");
+      s.textContent = "Editor reset.";
+      s.className = "hint";
+    };
+  }
+
+  // Phase 153 — pure-Compute validator mirroring the server's
+  // ParseForValidation rules. Returns { ok, message } so the editor
+  // can disable Save on hard errors and surface a one-line hint.
+  //
+  // Phase 154 — the bucket list now comes from
+  // /api/state-machine/role-buckets (single source of truth). We
+  // fetch it lazily on first call and cache the resolved Set on the
+  // module. Until the fetch lands, fall back to the historical
+  // hardcoded six so the editor isn't blocked by a slow Redis blip
+  // on startup. If the server later returns a different list (e.g.
+  // a 7th bucket added), subsequent validations honour it without
+  // a JS rebuild.
+  let TK_VALID_BUCKETS = new Set([
+    "initial", "working", "submitting", "accepting", "rejecting", "terminal",
+  ]);
+  let TK_BUCKETS_LOADED = false;
+  async function loadRoleBucketsOnce() {
+    if (TK_BUCKETS_LOADED) return;
+    try {
+      const res = await api(`/api/state-machine/role-buckets`);
+      if (Array.isArray(res?.buckets) && res.buckets.length > 0) {
+        TK_VALID_BUCKETS = new Set(res.buckets.map(b => String(b).toLowerCase()));
+      }
+    } catch { /* fall back to hardcoded set; non-fatal */ }
+    TK_BUCKETS_LOADED = true;
+  }
+  function validateTenantKeywordsJson(text) {
+    let parsed;
+    try { parsed = JSON.parse(text); }
+    catch (e) { return { ok: false, message: `JSON syntax error — ${esc(String(e.message || e))}` }; }
+    if (parsed === null || Array.isArray(parsed) || typeof parsed !== "object") {
+      return { ok: false, message: "Body must be a JSON object: { \"working\": [\"PARKED\"], … }" };
+    }
+    const bucketNames = Object.keys(parsed);
+    if (bucketNames.length === 0) {
+      return { ok: false, message: "No buckets defined." };
+    }
+    const unknown = bucketNames.filter(k => !TK_VALID_BUCKETS.has(String(k).toLowerCase()));
+    if (unknown.length > 0) {
+      return {
+        ok: false,
+        message: `Unknown bucket name(s): ${unknown.map(esc).join(", ")}. ` +
+                 `Valid: ${[...TK_VALID_BUCKETS].join(", ")}.`,
+      };
+    }
+    let totalEntries = 0;
+    for (const [bucket, value] of Object.entries(parsed)) {
+      if (!Array.isArray(value)) {
+        return { ok: false, message: `"${esc(bucket)}" must be a JSON array of strings.` };
+      }
+      const nonStrings = value.filter(v => typeof v !== "string");
+      if (nonStrings.length > 0) {
+        return {
+          ok: false,
+          message: `"${esc(bucket)}" contains non-string entries; only quoted strings are accepted.`,
+        };
+      }
+      const empties = value.filter(v => !v || !v.trim());
+      if (empties.length > 0) {
+        return {
+          ok: false,
+          message: `"${esc(bucket)}" contains empty / whitespace strings; remove them or fill them in.`,
+        };
+      }
+      totalEntries += value.length;
+    }
+    if (totalEntries === 0) {
+      return { ok: false, message: "No keywords across any bucket — Save would clear extensions." };
+    }
+    return {
+      ok: true,
+      message: `Looks good — ${bucketNames.length} bucket${bucketNames.length === 1 ? "" : "s"}, ${totalEntries} keyword${totalEntries === 1 ? "" : "s"}.`,
+    };
+  }
+
+  // ── Phase 155: Tenant BIM-Manager role override editor ───────────────
+  // Same auth gate as tenant-keywords. The override is a JSON array of
+  // single-letter ISO 19650 codes; null clears so projects fall back
+  // to the deployment-global appsettings list (default ["K"]).
+  async function renderTenantBimManagerRoles(main) {
+    let current;
+    try {
+      current = await api(`/api/admin/tenant-bim-manager-roles`);
+    } catch (e) {
+      main.innerHTML = `<div class="empty">Could not load BIM-Manager roles: ${esc(String(e))}</div>`;
+      return;
+    }
+    const sample = `["K", "C"]`;
+    const initial = current.json && current.json.length > 0
+      ? safeFormatJson(current.json)
+      : sample;
+
+    main.innerHTML = `
+      <h1>Tenant BIM-Manager roles</h1>
+      <p class="hint">
+        Tenant-scoped override of the ISO 19650 role codes that grant
+        BIM-Manager permissions on the tenant-keywords editor (and any
+        other endpoint behind the <code>BimManagerOrAdmin</code>
+        authorisation policy). Null/empty falls back to the
+        deployment-wide list (default <code>["K"]</code>). Single-letter
+        codes only — e.g. <code>K</code> (BIM Manager), <code>C</code>
+        (Coordinator), <code>M</code> (Mechanical), <code>S</code>
+        (Structural).
+      </p>
+      <div class="card" style="max-width:760px">
+        <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px">
+          <strong>Current override</strong>
+          <span class="chip ${current.hasOverride ? 'green' : 'grey'}">
+            ${current.hasOverride ? 'Active' : 'Falls back to deployment'}
+          </span>
+        </div>
+        <textarea id="bmrJson" rows="6" spellcheck="false"
+                  style="width:100%;font-family:ui-monospace,monospace;font-size:13px"
+        >${esc(initial)}</textarea>
+        <div id="bmrValidate" class="hint" style="margin-top:6px;min-height:18px"></div>
+        <div class="row" style="gap:8px;margin-top:8px;align-items:center">
+          <button id="bmrSave" class="primary">Save</button>
+          <button id="bmrClear" class="ghost">Clear override</button>
+          <button id="bmrReset" class="ghost">Reset editor</button>
+          <span id="bmrStatus" class="hint" style="margin-left:auto"></span>
+        </div>
+      </div>
+    `;
+
+    const $json = document.getElementById("bmrJson");
+    const $validate = document.getElementById("bmrValidate");
+    const $save = document.getElementById("bmrSave");
+
+    function validate() {
+      const text = ($json.value || "").trim();
+      if (text.length === 0) {
+        $validate.textContent = "(empty — Save will clear the override)";
+        $validate.className = "hint";
+        $save.disabled = false;
+        return true;
+      }
+      const result = validateBimManagerRolesJson(text);
+      $validate.textContent = result.message;
+      $validate.className = result.ok ? "hint ok" : "hint error";
+      $save.disabled = !result.ok;
+      return result.ok;
+    }
+    $json.addEventListener("input", validate);
+    validate();
+
+    document.getElementById("bmrSave").onclick = async () => {
+      const body = $json.value || "";
+      const status = document.getElementById("bmrStatus");
+      status.textContent = "Saving…";
+      try {
+        const res = await api(`/api/admin/tenant-bim-manager-roles`, {
+          method: "PUT",
+          body: JSON.stringify({ json: body }),
+        });
+        const roles = (res.roles || []).map(esc).join(", ");
+        status.textContent = `Saved · roles: ${roles}`;
+        status.className = "hint ok";
+      } catch (e) {
+        status.textContent = `Save failed — ${esc(String(e))}`;
+        status.className = "hint error";
+      }
+    };
+
+    document.getElementById("bmrClear").onclick = async () => {
+      if (!confirm("Clear the tenant BIM-Manager role override? Tenant falls back to deployment defaults.")) return;
+      const status = document.getElementById("bmrStatus");
+      status.textContent = "Clearing…";
+      try {
+        await api(`/api/admin/tenant-bim-manager-roles`, {
+          method: "PUT",
+          body: JSON.stringify({ json: null }),
+        });
+        $json.value = sample;
+        status.textContent = "Cleared.";
+        status.className = "hint ok";
+      } catch (e) {
+        status.textContent = `Clear failed — ${esc(String(e))}`;
+        status.className = "hint error";
+      }
+    };
+
+    document.getElementById("bmrReset").onclick = () => {
+      $json.value = initial;
+      const s = document.getElementById("bmrStatus");
+      s.textContent = "Editor reset.";
+      s.className = "hint";
+    };
+  }
+
+  // Phase 155 — pure-Compute validator for the BIM-Manager role
+  // override JSON. Mirrors the server's
+  // DbTenantBimManagerRoleResolver.Parse rules: array of non-empty
+  // strings; trims + uppercases on the server side.
+  function validateBimManagerRolesJson(text) {
+    let parsed;
+    try { parsed = JSON.parse(text); }
+    catch (e) { return { ok: false, message: `JSON syntax error — ${esc(String(e.message || e))}` }; }
+    if (!Array.isArray(parsed)) {
+      return { ok: false, message: `Body must be a JSON array of strings: ["K", "C"]` };
+    }
+    if (parsed.length === 0) {
+      return { ok: false, message: "Empty array — Save would clear the override." };
+    }
+    const nonStrings = parsed.filter(v => typeof v !== "string");
+    if (nonStrings.length > 0) {
+      return { ok: false, message: "Array contains non-string entries; only quoted strings are accepted." };
+    }
+    const empties = parsed.filter(v => !v || !v.trim());
+    if (empties.length > 0) {
+      return { ok: false, message: "Array contains empty / whitespace strings; remove them." };
+    }
+    const tooLong = parsed.find(v => v.trim().length > 4);
+    if (tooLong) {
+      return { ok: false, message: `"${esc(tooLong)}" looks too long for an ISO 19650 single-letter code.` };
+    }
+    const unique = new Set(parsed.map(v => v.trim().toUpperCase()));
+    return {
+      ok: true,
+      message: `Looks good — ${unique.size} role${unique.size === 1 ? "" : "s"} (${[...unique].join(", ")}).`,
+    };
+  }
+
+  function safeFormatJson(s) {
+    try { return JSON.stringify(JSON.parse(s), null, 2); }
+    catch { return s; }
   }
   function fmtDate(v) { if (!v) return ""; try { return new Date(v).toLocaleDateString(); } catch { return v; } }
   function fmt(v, ccy) {

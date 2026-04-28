@@ -66,6 +66,47 @@ public class MeetingsController : ControllerBase
         return CreatedAtAction(nameof(GetMeetings), new { projectId }, meeting);
     }
 
+    /// <summary>
+    /// Phase 142 — bulk-create endpoint so the offline queue and the
+    /// plugin's PlanscapeServerClient can flush a backlog in one round-trip.
+    /// Caps at 200 per call.
+    /// </summary>
+    [HttpPost("bulk")]
+    public async Task<ActionResult> BulkCreate(Guid projectId, [FromBody] List<CreateMeetingRequest> reqs)
+    {
+        if (reqs == null) return BadRequest("Body must be a JSON array");
+        if (reqs.Count == 0) return Ok(new { created = 0, items = Array.Empty<object>() });
+        if (reqs.Count > 200) return BadRequest("Maximum 200 meetings per bulk operation");
+
+        var tenantId = GetTenantId();
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
+        if (project == null) return NotFound("Project not found");
+
+        var createdBy = User.FindFirst("display_name")?.Value ?? "Unknown";
+        var rows = new List<Meeting>(reqs.Count);
+        foreach (var req in reqs)
+        {
+            var m = new Meeting
+            {
+                ProjectId = projectId,
+                Title = req.Title,
+                MeetingType = req.MeetingType ?? "BIM Coordination",
+                ScheduledAt = req.ScheduledAt,
+                AgendaJson = req.AgendaJson,
+                AttendeesJson = req.AttendeesJson,
+                CreatedBy = createdBy
+            };
+            _db.Meetings.Add(m);
+            rows.Add(m);
+        }
+        await _db.SaveChangesAsync();
+        return Ok(new
+        {
+            created = rows.Count,
+            items = rows.Select(r => new { r.Id, r.Title, r.MeetingType, r.ScheduledAt })
+        });
+    }
+
     [HttpPut("{meetingId}/minutes")]
     public async Task<ActionResult> LogMinutes(Guid projectId, Guid meetingId, [FromBody] LogMinutesRequest req)
     {

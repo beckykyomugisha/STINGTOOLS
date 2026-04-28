@@ -165,11 +165,13 @@ public class SlaEscalationJob
                     "Issue {Code} escalated {From} -> {To} (due {DueDate:u})",
                     issue.IssueCode, previousPriority, issue.Priority, issue.DueDate);
 
-                // Send SLA breach notification to tenant
+                // SRV-07 — SLA breach goes to the issue's project members only,
+                // not the whole tenant. Critical channels still bypass quiet hours
+                // inside ResolveDelivery so on-call recipients still get paged.
                 var tenantId = issue.Project?.TenantId ?? Guid.Empty;
-                if (tenantId != Guid.Empty && notifications != null)
+                if (notifications != null)
                 {
-                    _ = notifications.NotifyAsync(tenantId, "sla_breach",
+                    _ = notifications.NotifyProjectAsync(issue.ProjectId, "sla_breach",
                         $"SLA Breach: {issue.IssueCode} escalated to {issue.Priority}",
                         $"{issue.Title} — was {previousPriority}, overdue since {issue.DueDate:u}",
                         new { issue.Id, issue.IssueCode, previousPriority, issue.Priority, issue.ProjectId },

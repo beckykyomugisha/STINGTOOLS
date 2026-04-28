@@ -26,6 +26,7 @@ import * as Application from 'expo-application';
 import * as Device from 'expo-device';
 import { crashReporter } from '@/services/crashReporter';
 import { useNotificationStore } from '@/stores/notificationStore';
+import { useAuthStore } from '@/stores/authStore';
 import { debounce } from '@/utils/debounce';
 
 /**
@@ -77,6 +78,13 @@ export default function IssuesScreen() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  // Phase 142 — "Mine" toggle. When on, the list narrows to issues where
+  // the assignee resolves to the current user (FK first, then email, then
+  // display name for legacy rows).
+  const [mineOnly, setMineOnly] = useState(false);
+  const me = useAuthStore((s) => ({
+    userId: s.userId, email: s.email, displayName: s.displayName,
+  }));
 
   // Phase 96 — debounce so the filter re-run doesn't fire on every keystroke.
   // 250ms is the point of diminishing returns — coordinators typing a tag
@@ -179,6 +187,22 @@ export default function IssuesScreen() {
   const filtered = issues.filter((issue) => {
     if (priorityFilter !== 'ALL' && issue.priority !== priorityFilter) return false;
     if (statusFilter !== 'ALL' && issue.status !== statusFilter) return false;
+    if (mineOnly) {
+      // Phase 142 — match assignee against the current user. FK wins;
+      // fall back to email then display name for issues that pre-date
+      // the AssigneeUserId migration so legacy rows still surface for
+      // the right person.
+      const issueAny = issue as unknown as {
+        assigneeUserId?: string | null;
+        assigneeEmail?: string | null;
+        assignee?: string | null;
+      };
+      const matched =
+        (me.userId && issueAny.assigneeUserId === me.userId) ||
+        (me.email && issueAny.assigneeEmail && issueAny.assigneeEmail.toLowerCase() === me.email.toLowerCase()) ||
+        (me.displayName && issueAny.assignee && issueAny.assignee === me.displayName);
+      if (!matched) return false;
+    }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       return (
@@ -449,6 +473,17 @@ export default function IssuesScreen() {
 
       {/* Priority filter chips */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterBar} contentContainerStyle={styles.filterBarContent}>
+        {/* Phase 142 — "Mine" toggle. Disabled when authStore has no userId
+            (cold-start before /me resolves) so we never silently filter
+            everything out. */}
+        <TouchableOpacity
+          style={[styles.filterChip, mineOnly && styles.filterChipActive]}
+          onPress={() => setMineOnly((v) => !v)}
+          disabled={!me.userId && !me.displayName}
+          accessibilityLabel={mineOnly ? 'Show all issues' : 'Show only my issues'}
+        >
+          <Text style={[styles.filterChipText, mineOnly && styles.filterChipTextActive]}>👤 Mine</Text>
+        </TouchableOpacity>
         {(['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as PriorityFilter[]).map((p) => (
           <TouchableOpacity
             key={p}

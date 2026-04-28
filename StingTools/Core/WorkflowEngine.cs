@@ -529,11 +529,59 @@ namespace StingTools.Core
             // Show progress dialog so user can see step progress and click Cancel
             var progress = StingProgressDialog.Show($"Workflow: {preset.Name}", preset.Steps.Count);
 
+            // TAG-WORKFLOW-PARALLEL-01: Topo-sort the step list by
+            // (parallelGroup, originalIndex) so independent groups stay
+            // contiguous and dependent groups follow their predecessors. The
+            // execution loop still runs sequentially because the Revit API is
+            // single-threaded — but ordering the groups lets MarkBlocked
+            // prune downstream steps when an upstream group fails.
+            List<WorkflowStep> orderedSteps = preset.Steps;
+            BIMManager.WorkflowDagPlanner.PlanEntry[] planArr = null;
+            HashSet<int> succeededGroups = null;
+            HashSet<int> failedGroups = null;
             try
             {
-                foreach (var step in preset.Steps)
+                var planList = BIMManager.WorkflowDagPlanner.Plan(preset.Steps);
+                if (planList.Count == preset.Steps.Count)
+                {
+                    orderedSteps = planList.Select(p => preset.Steps[p.OriginalIndex]).ToList();
+                    planArr = planList.ToArray();
+                    succeededGroups = new HashSet<int>();
+                    failedGroups = new HashSet<int>();
+                }
+            }
+            catch (Exception planEx) { StingLog.Warn($"WorkflowDagPlanner.Plan: {planEx.Message}"); }
+
+            try
+            {
+                int planIdx = 0;
+                foreach (var step in orderedSteps)
                 {
                     stepNum++;
+                    int currentGroup = planArr != null && planIdx < planArr.Length ? planArr[planIdx].Group : stepNum;
+                    planIdx++;
+
+                    // TAG-WORKFLOW-PARALLEL-01: If an upstream group failed and
+                    // no later group succeeded between it and the current group,
+                    // mark this step as blocked rather than running it. The
+                    // existing SkipIfPreviousSkipped flag handles the per-step
+                    // case; this handles the cross-group case.
+                    if (failedGroups != null && failedGroups.Count > 0)
+                    {
+                        int? lastFailed = failedGroups.OrderBy(g => g).Cast<int?>().LastOrDefault(g => g.HasValue && g.Value < currentGroup);
+                        if (lastFailed.HasValue && currentGroup > lastFailed.Value)
+                        {
+                            bool hasRecovery = succeededGroups != null
+                                && succeededGroups.Any(g => g >= lastFailed.Value && g < currentGroup);
+                            if (!hasRecovery && !step.Optional)
+                            {
+                                report.AppendLine($"  {stepNum,2}. {step.Label} — BLOCKED (upstream group {lastFailed.Value} failed)");
+                                stepResults.Add(new WorkflowStepResult { CommandTag = step.CommandTag, Label = step.Label, Status = "BLOCKED" });
+                                skipped++;
+                                continue;
+                            }
+                        }
+                    }
 
                     // Phase 74: Local helper — records skip with audit trail + cascade flag
                     void RecordSkip(string reason)
@@ -876,11 +924,17 @@ namespace StingTools.Core
                         });
 
                         if (stepResult == Result.Succeeded)
+                        {
                             passed++;
+                            succeededGroups?.Add(currentGroup);
+                        }
                         else if (step.Optional)
                             skipped++;
                         else
+                        {
                             failed++;
+                            failedGroups?.Add(currentGroup);
+                        }
 
                         // B03 FIX: Only set previousStepSkipped for actual skips, not failures.
                         // Failed steps should NOT trigger SkipIfPreviousSkipped cascade —
@@ -1092,6 +1146,36 @@ namespace StingTools.Core
                 SaveRunRecord(record, doc);
                 // GAP-09: Save data hash sidecar after workflow to mark data as processed
                 SaveDataHashSidecar(doc);
+
+                // INT-04 / H7 — push the run record to Planscape so the server
+                // workflow trend graph reflects local activity. Fire-and-forget;
+                // the local jsonl record is the source of truth and we never
+                // block a workflow on the network.
+                try
+                {
+                    string cfgPath = System.IO.Path.Combine(
+                        System.IO.Path.GetDirectoryName(doc.PathName) ?? "",
+                        "_BIM_COORD", "planscape_link.json");
+                    Guid serverProjectId = StingTools.BIMManager.PlatformSyncCommand.LoadPlanscapeProjectId(cfgPath);
+                    if (serverProjectId != Guid.Empty)
+                    {
+                        var client = StingTools.BIMManager.PlanscapeServerClient.Instance;
+                        _ = client.LogWorkflowRunAsync(
+                            serverProjectId,
+                            preset.Name ?? "",
+                            preset.Steps.Count,
+                            passed,
+                            failed,
+                            skipped,
+                            record.DurationSeconds,
+                            record.ComplianceBefore,
+                            record.ComplianceAfter);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"WorkflowEngine: server push skipped — {ex.Message}");
+                }
 
                 // Pack 122 / Gap B — stamp the last-run scalars onto ES so the
                 // morning briefing, dock panel, and Idling SLA scanner can read

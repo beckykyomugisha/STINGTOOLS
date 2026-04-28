@@ -820,7 +820,15 @@ namespace StingTools.UI
                     e.Handled = true;
                 }
                 if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.E)
-                { ResultAction = "ExportReport"; Close(); e.Handled = true; }
+                {
+                    // BIM-COORD-LOOP-01: dispatch the export action through
+                    // ActionDispatcher (modeless via ExternalEvent) instead of
+                    // closing the dialog. Coordinators stay in the centre and
+                    // can iterate without re-opening it.
+                    if (ActionDispatcher != null) ActionDispatcher("ExportReport");
+                    else { ResultAction = "ExportReport"; Close(); }
+                    e.Handled = true;
+                }
                 if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.Q)
                 { NavigateTo(TabQA); e.Handled = true; }
                 if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift) && e.Key == Key.S)

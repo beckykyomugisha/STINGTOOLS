@@ -10,28 +10,39 @@ namespace StingTools.Core.Clash
     public static class LiveClashFlag
     {
         public const string ParamName = "CLASH_LIVE_FLAG";
+        // F2: Per-element clash-count integer parameter. Lets view filters and
+        //     schedules pick "elements with > N clashes" — unlocks heat-map
+        //     view templates beyond the binary FLAG.
+        public const string CountParamName = "CLASH_COUNT_INT";
 
         public static void Apply(Document doc, IEnumerable<int> flaggedElementIds, IEnumerable<int> clearedElementIds)
+        {
+            // F2: Default to count=1 for newly-flagged, count=0 for cleared.
+            // ApplyWithCounts is the richer entry point.
+            var flagged = flaggedElementIds == null ? null : new List<int>(flaggedElementIds);
+            var cleared = clearedElementIds == null ? null : new List<int>(clearedElementIds);
+            Dictionary<int, int> counts = null;
+            if (flagged != null)
+            {
+                counts = new Dictionary<int, int>(flagged.Count);
+                foreach (var id in flagged) counts[id] = 1;
+            }
+            ApplyWithCounts(doc, flagged, cleared, counts);
+        }
+
+        /// <summary>
+        /// F2: Apply flag + per-element count atomically. CLASH_COUNT_INT
+        /// reflects the number of *active* clashes the element is part of.
+        /// Cleared elements get count=0.
+        /// </summary>
+        public static void ApplyWithCounts(Document doc,
+            IEnumerable<int> flaggedElementIds,
+            IEnumerable<int> clearedElementIds,
+            IDictionary<int, int> counts)
         {
             if (doc == null) return;
             try
             {
-                // rec-10: Plain Transaction — no TransactionGroup, no Assimilate().
-                //
-                // Prior implementation wrapped the write in TransactionGroup +
-                // Transaction + Assimilate(). Two problems:
-                //   1. STING repo convention (CLAUDE.md Phase 7 entry 44) explicitly
-                //      avoids TransactionGroup.Assimilate() after prior native crash
-                //      reports — assimilating from inside an IExternalEventHandler
-                //      tick after a user transaction just committed can trip
-                //      InvalidOperationException intermittently.
-                //   2. A TransactionGroup that only contains a single child
-                //      Transaction is semantically identical to the Transaction
-                //      alone once assimilated — the wrapper adds nothing.
-                //
-                // Single undo entry labeled "STING live clash flag" is acceptable
-                // UX: users expect to be able to undo their edit; the clash flag
-                // change that piggybacked on it goes with it.
                 using var t = new Transaction(doc, "STING live clash flag");
                 t.Start();
                 var opts = t.GetFailureHandlingOptions();
@@ -39,11 +50,26 @@ namespace StingTools.Core.Clash
                 opts.SetForcedModalHandling(false);
                 opts.SetFailuresPreprocessor(new SilentFlagFailurePreprocessor());
                 t.SetFailureHandlingOptions(opts);
-                foreach (var id in flaggedElementIds) SetParam(doc, id, true);
-                foreach (var id in clearedElementIds) SetParam(doc, id, false);
+                if (flaggedElementIds != null)
+                {
+                    foreach (var id in flaggedElementIds)
+                    {
+                        SetParam(doc, id, true);
+                        int cnt = (counts != null && counts.TryGetValue(id, out int c)) ? c : 1;
+                        SetCountParam(doc, id, cnt);
+                    }
+                }
+                if (clearedElementIds != null)
+                {
+                    foreach (var id in clearedElementIds)
+                    {
+                        SetParam(doc, id, false);
+                        SetCountParam(doc, id, 0);
+                    }
+                }
                 t.Commit();
             }
-            catch (Exception ex) { StingLog.Warn($"LiveClashFlag.Apply: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"LiveClashFlag.ApplyWithCounts: {ex.Message}"); }
         }
 
         /// <summary>
@@ -74,6 +100,22 @@ namespace StingTools.Core.Clash
                 p.Set(value ? 1 : 0);
             else if (p.StorageType == StorageType.String)
                 p.Set(value ? "1" : "0");
+        }
+
+        /// <summary>F2: Set CLASH_COUNT_INT on an element. Best-effort.</summary>
+        private static void SetCountParam(Document doc, int elementId, int count)
+        {
+            try
+            {
+                var el = doc.GetElement(new ElementId((long)elementId));
+                if (el == null) return;
+                var p = el.LookupParameter(CountParamName);
+                if (p == null || p.IsReadOnly) return;
+                if (p.StorageType == StorageType.Integer) p.Set(count);
+                else if (p.StorageType == StorageType.Double) p.Set((double)count);
+                else if (p.StorageType == StorageType.String) p.Set(count.ToString());
+            }
+            catch (Exception ex) { StingLog.Warn($"LiveClashFlag.SetCountParam({elementId}): {ex.Message}"); }
         }
     }
 }

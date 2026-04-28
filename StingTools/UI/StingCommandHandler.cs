@@ -1453,6 +1453,10 @@ namespace StingTools.UI
                     case "DWGInteractivePickWall": RunCommand<Model.DWGInteractivePickWallCommand>(app); break;
                     case "DWGInteractivePickColumn": RunCommand<Model.DWGInteractivePickColumnCommand>(app); break;
                     case "DWGInteractivePickBeam": RunCommand<Model.DWGInteractivePickBeamCommand>(app); break;
+                    // Phase-141 standalone DWG commands (StructuralDWGEngine facade)
+                    case "QuickStructuralDWG": RunCommand<Model.QuickStructuralDWGCommand>(app); break;
+                    case "StructuralDWGAudit": RunCommand<Model.StructuralDWGAuditCommand>(app); break;
+                    case "StructuralDWGJunctionScan": RunCommand<Model.StructuralDWGJunctionScanCommand>(app); break;
                     case "StrCheckPrerequisites": RunCommand<Model.StrCheckPrerequisitesCommand>(app); break;
                     case "StrBrowseTypeCatalog": RunCommand<Model.StrBrowseTypeCatalogCommand>(app); break;
                     case "StrAutoFoundations": RunCommand<Model.StrAutoFoundationsCommand>(app); break;
@@ -1885,6 +1889,18 @@ namespace StingTools.UI
                     // MIDP & Compliance
                     case "MidpTracker": RunCommand<BIMManager.MidpTrackerCommand>(app); break;
                     case "FullComplianceDashboard": RunCommand<BIMManager.FullComplianceDashboardCommand>(app); break;
+
+                    // Phase 148 — surface for the new engines.
+                    // ComplianceForecastReport uses the Phase 148 engine reading
+                    // compliance_trend.json (the legacy "ComplianceForecast" tag
+                    // at line ~1562 still maps to the GapFixCommands variant
+                    // reading compliance_log.jsonl — the two are complementary).
+                    case "RunRebarSpacingCheck":           RunCommand<BIMManager.RunRebarSpacingCheckCommand>(app); break;
+                    case "CreateMepCommissioningSchedules":RunCommand<BIMManager.CreateMepCommissioningSchedulesCommand>(app); break;
+                    case "CheckScheduleFieldConsistency":  RunCommand<BIMManager.CheckScheduleFieldConsistencyCommand>(app); break;
+                    case "TeamWorkloadReport":             RunCommand<BIMManager.TeamWorkloadReportCommand>(app); break;
+                    case "ComplianceForecastReport":       RunCommand<BIMManager.ComplianceForecastReportCommand>(app); break;
+                    case "DataDropStatus":                 RunCommand<BIMManager.DataDropStatusCommand>(app); break;
 
                     // 4D/5D Extended
                     case "Export4DTimeline": RunCommand<BIMManager.Export4DTimelineCommand>(app); break;

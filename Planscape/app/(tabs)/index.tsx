@@ -10,7 +10,14 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { theme, getRAGColor, getPriorityColor } from '@/utils/theme';
-import { listProjects, getProjectDashboard } from '@/api/endpoints';
+import {
+  listProjects,
+  getProjectDashboard,
+  getMyActions,
+  getFederationStatus,
+  listSyncConflicts,
+  type FederationStatus,
+} from '@/api/endpoints';
 import type { DashboardData, Project, BimIssue } from '@/types/api';
 import { useProjectStore } from '@/stores/projectStore';
 
@@ -28,6 +35,13 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Phase 142 — My Actions count, populated via the aggregator endpoint.
+  // Failure is non-fatal; the dashboard still renders without it.
+  const [myActionsTotal, setMyActionsTotal] = useState<number | null>(null);
+  const [slaCount, setSlaCount] = useState<number>(0);
+  // Phase 143 — BIM Coordinator surfaces. Both fetched best-effort.
+  const [federation, setFederation] = useState<FederationStatus | null>(null);
+  const [pendingConflicts, setPendingConflicts] = useState<number>(0);
 
   const loadData = useCallback(async (projectId?: string) => {
     try {
@@ -53,6 +67,30 @@ export default function DashboardScreen() {
       });
       const data = await getProjectDashboard(target.id);
       setDashboard(data);
+
+      // Phase 142 — fetch the My Actions count in parallel with the dashboard.
+      // Best-effort: a stale token, missing membership row, or 5xx silently
+      // leaves the badge null and the card hidden, never blocking the dashboard.
+      try {
+        const ma = await getMyActions(target.id, 1);
+        setMyActionsTotal(ma.counts.total);
+        setSlaCount(ma.counts.slaBreached);
+      } catch {
+        setMyActionsTotal(null);
+        setSlaCount(0);
+      }
+
+      // Phase 143 — BIM Coordinator surfaces. Same best-effort pattern.
+      // Federation + conflicts run in parallel since they hit independent
+      // tables and we want minimum latency on dashboard cold start.
+      const [fedRes, confRes] = await Promise.allSettled([
+        getFederationStatus(target.id, 14),
+        listSyncConflicts(target.id, { resolution: 'PENDING', pageSize: 1 }),
+      ]);
+      setFederation(fedRes.status === 'fulfilled' ? fedRes.value : null);
+      setPendingConflicts(
+        confRes.status === 'fulfilled' ? (confRes.value.summary.pending ?? 0) : 0,
+      );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to load dashboard';
       setError(msg);
@@ -164,6 +202,119 @@ export default function DashboardScreen() {
         />
       </View>
 
+      {/* Phase 142 — My Actions card. Single high-visibility CTA so a
+          BIM/Construction Manager landing on the dashboard sees what's on
+          their plate without scrolling through the issue list. Hidden when
+          the aggregator query failed (myActionsTotal === null). */}
+      {myActionsTotal !== null && (
+        <TouchableOpacity
+          style={[
+            styles.actionCard,
+            { borderLeftColor: slaCount > 0 ? theme.colors.danger : theme.colors.accent },
+          ]}
+          onPress={() => router.push('/inbox' as any)}
+          accessibilityLabel={`Open My Actions inbox — ${myActionsTotal} item${myActionsTotal === 1 ? '' : 's'}`}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={styles.actionTitle}>My Actions</Text>
+            <Text style={styles.actionSub}>
+              {myActionsTotal === 0
+                ? 'Nothing assigned to you right now.'
+                : `${myActionsTotal} item${myActionsTotal === 1 ? '' : 's'} waiting on you`}
+              {slaCount > 0 ? ` · ${slaCount} SLA breach${slaCount === 1 ? '' : 'es'}` : ''}
+            </Text>
+          </View>
+          <Text style={styles.actionArrow}>›</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Phase 143 — BIM Coordinator tile. Two stacked one-liners covering
+          model federation freshness + tag-sync conflict backlog. Hidden when
+          neither query succeeded so dashboards on projects without models
+          stay clean. RAG color is driven by the federation aggregator. */}
+      {(federation || pendingConflicts > 0) && (
+        <View style={styles.bimCard}>
+          <Text style={styles.bimTitle}>BIM Coordination</Text>
+          {federation && (
+            <TouchableOpacity
+              style={styles.bimRow}
+              onPress={() => router.push('/(tabs)/documents')}
+              accessibilityLabel={`Federation status — ${federation.rag}`}
+            >
+              <View style={[styles.ragDot, { backgroundColor: ragToColor(federation.rag) }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.bimRowTitle}>
+                  Federation: {federation.totals.models} model{federation.totals.models === 1 ? '' : 's'} across {federation.totals.disciplines} discipline{federation.totals.disciplines === 1 ? '' : 's'}
+                </Text>
+                <Text style={styles.bimRowSub}>
+                  {federation.totals.disciplinesWithStale > 0
+                    ? `${federation.totals.disciplinesWithStale} discipline${federation.totals.disciplinesWithStale === 1 ? '' : 's'} stale (>${federation.staleDays} days)`
+                    : federation.totals.staleModels > 0
+                    ? `${federation.totals.staleModels} stale model${federation.totals.staleModels === 1 ? '' : 's'}`
+                    : 'All models current'}
+                </Text>
+              </View>
+              <Text style={styles.bimArrow}>›</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={styles.bimRow}
+            onPress={() => router.push('/conflicts' as any)}
+            accessibilityLabel={`Sync conflicts — ${pendingConflicts} pending`}
+          >
+            <View style={[styles.ragDot, { backgroundColor: pendingConflicts > 0 ? theme.colors.danger : theme.colors.success }]} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.bimRowTitle}>
+                Sync conflicts: {pendingConflicts} pending
+              </Text>
+              <Text style={styles.bimRowSub}>
+                {pendingConflicts > 0
+                  ? 'Tap to triage stale-update collisions'
+                  : 'No outstanding stale-update collisions'}
+              </Text>
+            </View>
+            <Text style={styles.bimArrow}>›</Text>
+          </TouchableOpacity>
+          {/* Phase 144 — Tag heatmap shortcut. Always visible inside the BIM
+              Coordination card so the manager sees the full BIM-side menu. */}
+          <TouchableOpacity
+            style={styles.bimRow}
+            onPress={() => router.push('/heatmap' as any)}
+            accessibilityLabel="Open tag completeness heatmap"
+          >
+            <View style={[styles.ragDot, { backgroundColor: theme.colors.accent }]} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.bimRowTitle}>Tag completeness heatmap</Text>
+              <Text style={styles.bimRowSub}>Per-discipline × per-token completeness grid</Text>
+            </View>
+            <Text style={styles.bimArrow}>›</Text>
+          </TouchableOpacity>
+          {/* Phase 144 — Stage gates / MIDP shortcut. */}
+          <TouchableOpacity
+            style={styles.bimRow}
+            onPress={() => router.push('/stages' as any)}
+            accessibilityLabel="Open stage gate timeline"
+          >
+            <View style={[styles.ragDot, { backgroundColor: theme.colors.primary }]} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.bimRowTitle}>Stage gates & MIDP</Text>
+              <Text style={styles.bimRowSub}>RIBA timeline + information-exchange deliverables</Text>
+            </View>
+            <Text style={styles.bimArrow}>›</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Phase 142 — quick-action row for the manager's most-used routines.
+          Placed below My Actions and above the discipline breakdown so it's
+          one tap from cold-start. Add new entries by appending to the array. */}
+      <View style={styles.quickRow}>
+        <QuickAction label="Site Diary" emoji="📒" onPress={() => router.push('/diary' as any)} />
+        <QuickAction label="Meetings" emoji="📅" onPress={() => router.push('/meetings' as any)} />
+        <QuickAction label="Transmittals" emoji="📤" onPress={() => router.push('/transmittals' as any)} />
+        <QuickAction label="Warnings" emoji="⚠️" onPress={() => router.push('/warnings' as any)} />
+      </View>
+
       {/* Discipline breakdown */}
       {dashboard.compliance?.byDiscipline && Object.keys(dashboard.compliance.byDiscipline).length > 0 && (
         <View style={styles.sectionCard}>
@@ -203,6 +354,28 @@ function KPICard({ title, value, color, onPress }: { title: string; value: strin
     <TouchableOpacity style={styles.kpiCard} onPress={onPress} activeOpacity={0.7}>
       <Text style={[styles.kpiValue, { color }]}>{value}</Text>
       <Text style={styles.kpiTitle}>{title}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function ragToColor(rag: 'GREEN' | 'AMBER' | 'RED'): string {
+  switch (rag) {
+    case 'GREEN': return theme.colors.success;
+    case 'AMBER': return theme.colors.warning;
+    case 'RED': return theme.colors.danger;
+  }
+}
+
+function QuickAction({ label, emoji, onPress }: { label: string; emoji: string; onPress: () => void }) {
+  return (
+    <TouchableOpacity
+      style={styles.quickCard}
+      onPress={onPress}
+      activeOpacity={0.7}
+      accessibilityLabel={label}
+    >
+      <Text style={styles.quickEmoji}>{emoji}</Text>
+      <Text style={styles.quickLabel}>{label}</Text>
     </TouchableOpacity>
   );
 }
@@ -391,6 +564,84 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: theme.spacing.md,
     marginBottom: theme.spacing.md,
+  },
+  // Phase 142 — My Actions CTA
+  actionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
+    borderLeftWidth: 4,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  actionTitle: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  actionSub: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
+  },
+  actionArrow: {
+    fontSize: theme.fontSize.xl,
+    color: theme.colors.textSecondary,
+    paddingHorizontal: theme.spacing.sm,
+  },
+  // Phase 143 — BIM Coordinator tile
+  bimCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  bimTitle: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: theme.spacing.sm,
+  },
+  bimRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+  },
+  ragDot: { width: 10, height: 10, borderRadius: 5, marginRight: theme.spacing.sm },
+  bimRowTitle: { fontSize: theme.fontSize.sm, color: theme.colors.text, fontWeight: '600' },
+  bimRowSub: { fontSize: theme.fontSize.xs, color: theme.colors.textSecondary, marginTop: 2 },
+  bimArrow: { fontSize: theme.fontSize.xl, color: theme.colors.textSecondary, paddingHorizontal: theme.spacing.sm },
+
+  // Phase 142 — quick-action row (Site Diary / Meetings / Transmittals / Warnings)
+  quickRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+  },
+  quickCard: {
+    flex: 1,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.xs,
+    alignItems: 'center',
+  },
+  quickEmoji: { fontSize: 22 },
+  quickLabel: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.text,
+    marginTop: 4,
+    textAlign: 'center',
   },
   kpiCard: {
     flex: 1,

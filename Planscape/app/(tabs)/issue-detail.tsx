@@ -33,6 +33,8 @@ import {
   Alert,
   Platform,
   RefreshControl,
+  Linking,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
 import NetInfo from '@react-native-community/netinfo';
@@ -487,6 +489,31 @@ export default function IssueDetailScreen() {
           <Field label="Updated" value={formatDate(issue.updatedAt)} />
         </View>
 
+        {/* Phase 142 — GPS strip. We capture coords at create time but never
+            surfaced them; managers walking the site need a one-tap path to
+            their device's map app. Falls back to platform-appropriate URL
+            schemes (geo: on Android, maps:// on iOS, Google Maps web on web). */}
+        {(issue.latitude != null && issue.longitude != null) && (
+          <TouchableOpacity
+            style={styles.gpsStrip}
+            onPress={() => openInMaps(issue.latitude!, issue.longitude!, issue.issueCode)}
+            accessibilityLabel="Open issue location in maps"
+          >
+            <Text style={styles.gpsEmoji}>📍</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.gpsTitle}>
+                {issue.latitude!.toFixed(5)}, {issue.longitude!.toFixed(5)}
+              </Text>
+              <Text style={styles.gpsSub}>
+                {(issue.locationAccuracy ?? 0) > 0
+                  ? `±${Math.round(issue.locationAccuracy ?? 0)} m · tap to open in maps`
+                  : 'EXIF · tap to open in maps'}
+              </Text>
+            </View>
+            <Text style={styles.gpsArrow}>›</Text>
+          </TouchableOpacity>
+        )}
+
         {/* Phase 96 — status transition bar. Hidden on CLOSED unless the
             coordinator wants to re-open. Buttons disabled in-flight to
             prevent double-submit. Wifi-aware: the underlying transitionTo
@@ -618,6 +645,23 @@ function TransitionButton({
   );
 }
 
+// Phase 142 — open the issue's GPS in the device's native map app.
+// Android understands `geo:lat,lng?q=lat,lng(label)`; iOS Apple Maps
+// understands `maps://?ll=lat,lng&q=label`; everything else falls back to
+// Google Maps web. We never throw — a missing map app on a degoogled
+// Android still opens the URL handler chooser.
+function openInMaps(lat: number, lng: number, label?: string) {
+  const safeLabel = encodeURIComponent(label ?? 'Issue');
+  const url = Platform.select({
+    ios: `maps://?ll=${lat},${lng}&q=${safeLabel}`,
+    android: `geo:${lat},${lng}?q=${lat},${lng}(${safeLabel})`,
+    default: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`,
+  })!;
+  Linking.canOpenURL(url)
+    .then((ok) => Linking.openURL(ok ? url : `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`))
+    .catch(() => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`));
+}
+
 function formatDate(iso: string): string {
   if (!iso) return '—';
   try {
@@ -746,6 +790,23 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: theme.colors.text,
   },
+
+  // Phase 142 — GPS strip
+  gpsStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    borderLeftWidth: 4,
+    borderLeftColor: theme.colors.accent,
+  },
+  gpsEmoji: { fontSize: 22, marginRight: theme.spacing.sm },
+  gpsTitle: { fontSize: theme.fontSize.sm, color: theme.colors.text, fontWeight: '600' },
+  gpsSub: { fontSize: theme.fontSize.xs, color: theme.colors.textSecondary, marginTop: 2 },
+  gpsArrow: { fontSize: theme.fontSize.xl, color: theme.colors.textSecondary, paddingHorizontal: theme.spacing.sm },
 
   transitionBar: {
     paddingHorizontal: theme.spacing.md,
