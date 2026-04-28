@@ -115,9 +115,18 @@ builder.Services.AddAuthorization(options =>
     // so existing operators are unaffected.
     options.AddPolicy("BimManagerOrAdmin", policy =>
         policy.Requirements.Add(new Planscape.Infrastructure.Authorization.BimManagerOrAdminRequirement()));
+
+    // Phase 158 — separation-of-duties policy for security-sensitive
+    // endpoints (token revocation, future audit-log surfaces). Grants
+    // SecurityOfficer + Admin + Owner so a tenant can ship a dedicated
+    // SecurityOfficer persona without giving them tenant admin powers.
+    options.AddPolicy("SecurityOfficerOrAdmin", policy =>
+        policy.Requirements.Add(new Planscape.Infrastructure.Authorization.SecurityOfficerOrAdminRequirement()));
 });
 builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationHandler,
     Planscape.Infrastructure.Authorization.BimManagerOrAdminHandler>();
+builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationHandler,
+    Planscape.Infrastructure.Authorization.SecurityOfficerOrAdminHandler>();
 
 // ── Services ──
 builder.Services.AddHttpContextAccessor();

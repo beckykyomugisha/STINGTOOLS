@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
@@ -26,21 +25,30 @@ public class AuthHandlerConcurrentReadsTests
     [Fact]
     public async Task RevocationAndTenantOverride_LaunchInParallel()
     {
-        // Each fake adds a 200ms delay. If the handler awaited them
-        // serially, total wait would be ~400ms; in parallel it's
-        // ~200ms (whichever finishes last). We assert <350ms with
-        // a margin for CI noise.
-        var (handler, ctx) = await ArrangeAsync(
-            revocationDelay: TimeSpan.FromMilliseconds(200),
-            tenantResolverDelay: TimeSpan.FromMilliseconds(200));
+        // Phase 158 — deterministic concurrent-launch test (replaces
+        // the Phase 157 wall-clock assertion that was timing-
+        // dependent). We use two TaskCompletionSources as a barrier:
+        // each fake registers its start by setting one TCS, then
+        // awaits the *other* before completing. If the handler
+        // dispatches the calls serially, the second fake never
+        // starts (because the first is blocked waiting for the
+        // second's gate to open) and the test deadlocks. Concurrent
+        // dispatch lets both gates open and both fakes complete.
+        // Wrap in Task.WhenAny + a short Task.Delay timeout so a
+        // regression to serial dispatch surfaces as a clean Assert
+        // rather than a hung CI.
+        var revStarted = new TaskCompletionSource();
+        var tenStarted = new TaskCompletionSource();
+        var rev = new GatedRevocationStore(revStarted, tenStarted);
+        var ten = new GatedTenantResolver(tenStarted, revStarted);
 
-        var sw = Stopwatch.StartNew();
-        await handler.HandleAsync(ctx);
-        sw.Stop();
+        var (handler, ctx) = await ArrangeAsync(rev, ten);
 
-        Assert.True(sw.ElapsedMilliseconds < 350,
-            $"Expected parallel reads (≈200ms), got {sw.ElapsedMilliseconds}ms — likely serial");
-        // And the policy still grants on the K-role project member.
+        var handle = Task.Run(() => handler.HandleAsync(ctx));
+        var timeout = Task.Delay(TimeSpan.FromSeconds(2));
+        var winner = await Task.WhenAny(handle, timeout);
+        Assert.Same(handle, winner); // not the timeout — handler completed
+        await handle; // surface any exception
         Assert.True(ctx.HasSucceeded);
     }
 
@@ -125,6 +133,38 @@ public class AuthHandlerConcurrentReadsTests
         var ctx = new AuthorizationHandlerContext(
             new[] { new BimManagerOrAdminRequirement() }, user, resource: null);
         return (handler, ctx);
+    }
+
+    /// <summary>Phase 158 — gated fake for the deterministic
+    /// concurrency test. Marks "I started" by completing
+    /// <c>started</c>; then awaits <c>peerStarted</c> before
+    /// returning. Pair this with a peer that mirrors the gates
+    /// and the test deadlocks iff the handler dispatches the
+    /// calls serially.</summary>
+    private sealed class GatedRevocationStore : IPermissionRevocationStore
+    {
+        private readonly TaskCompletionSource _started, _peerStarted;
+        public GatedRevocationStore(TaskCompletionSource started, TaskCompletionSource peerStarted)
+        { _started = started; _peerStarted = peerStarted; }
+        public async Task<long?> GetMinIatAsync(Guid userId, CancellationToken ct = default)
+        {
+            _started.TrySetResult();
+            await _peerStarted.Task;
+            return null;
+        }
+        public Task RevokeAllPriorTokensAsync(Guid userId, CancellationToken ct = default) => Task.CompletedTask;
+    }
+    private sealed class GatedTenantResolver : ITenantBimManagerRoleResolver
+    {
+        private readonly TaskCompletionSource _started, _peerStarted;
+        public GatedTenantResolver(TaskCompletionSource started, TaskCompletionSource peerStarted)
+        { _started = started; _peerStarted = peerStarted; }
+        public async Task<IReadOnlyList<string>?> ResolveAsync(Guid tenantId, CancellationToken ct = default)
+        {
+            _started.TrySetResult();
+            await _peerStarted.Task;
+            return null;
+        }
     }
 
     private sealed class SlowRevocationStore : IPermissionRevocationStore

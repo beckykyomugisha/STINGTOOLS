@@ -5543,3 +5543,89 @@ hardening items.
    `[Authorize(Roles = "Admin,Owner")]`. A finer-grained policy
    (e.g. dedicated "Security Officer" role for SOC2 separation
    of duties) would be a follow-up if compliance audits require it.
+
+#### Completed (Phase 158 — Phase 157 caveat closures: deterministic concurrency test, caller-supplied revoke reason, SecurityOfficer separation-of-duties)
+
+The three remaining caveats from Phase 157 — one test-quality, two
+real production hardening items.
+
+**1 — Deterministic concurrent-launch test**
+
+1. `Planscape.Server/tests/Planscape.Tests/AuthHandlerConcurrentReadsTests.cs`
+   — replaced the timing-dependent `sw.ElapsedMilliseconds < 350`
+   assertion with a barrier-based pattern. Each fake records
+   "started" via a `TaskCompletionSource`, then awaits the peer's
+   barrier before completing. If the handler dispatches the calls
+   serially the second fake never starts (the first is blocked on
+   the second's gate that will never open). Concurrent dispatch
+   lets both gates open and both fakes complete. Wrapped in
+   `Task.WhenAny + Task.Delay(2s)` timeout so a serial regression
+   surfaces as a clean Assert rather than a hung CI.
+2. `using System.Diagnostics` removed (Stopwatch no longer used).
+
+**2 — Caller-supplied revoke reason**
+
+3. New `Planscape.Server/src/Planscape.API/Controllers/SecurityController.cs`
+   — moved the revoke-tokens endpoint here from `AdminController`
+   (the old route is dropped because nothing depends on it yet).
+   Endpoint accepts an optional body `{ "reason": "...",
+   "category": "..." }` where category is intended for SOC2-
+   friendly classification (suspected_credential_leak /
+   employee_offboarding / scheduled_rotation / suspicious_activity)
+   and reason is free-text context. The audit-log entry now
+   captures both fields plus a `via` marker so historical reviews
+   can distinguish security-controller revokes from implicit
+   user-update-triggered revokes.
+4. Reason length capped at 500 chars server-side so a pasted
+   novel doesn't bloat the audit table. Empty / unset fields are
+   audit-logged as `(no reason supplied)` / `unspecified` so the
+   row is always grep-able.
+
+**3 — SecurityOfficer separation-of-duties role**
+
+5. `Planscape.Server/src/Planscape.Core/Entities/AppUser.cs` —
+   added `UserRole.SecurityOfficer = 6`. SecurityOfficer can
+   revoke sessions + read audit logs but is NOT an Admin / Owner;
+   they can't edit projects, members, or BIM-Manager roles.
+   Backwards-compatible — existing users default to Viewer; new
+   role is opt-in via `PUT /api/admin/users/{id}` (which itself
+   requires Admin/Owner so the privilege escalation path stays
+   gated on the highest-trust role).
+6. New `Planscape.Server/src/Planscape.Infrastructure/Authorization/SecurityOfficerOrAdminRequirement.cs`
+   + `SecurityOfficerOrAdminHandler.cs` — pure claims-only check,
+   no DB hit. Grants on Admin / Owner / SecurityOfficer roles.
+7. `Planscape.API/Program.cs` — registered the new policy
+   `SecurityOfficerOrAdmin` + handler. Existing
+   `BimManagerOrAdmin` policy registration is unchanged.
+8. `SecurityController` is gated by the new policy at the class
+   level, so a SecurityOfficer can revoke without holding tenant
+   admin powers.
+
+**4 — Tests**
+
+9. `Planscape.Server/tests/Planscape.Tests/SecurityOfficerOrAdminHandlerTests.cs`
+   — 12 facts/theories covering: each of Admin / Owner /
+   SecurityOfficer grants (3 theory entries), six non-qualifying
+   roles deny (theory), no role-claim denies, multiple-roles-with-
+   one-qualifying grants.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. The audit-log `category` field is free-form — no server-side
+   enum constraint — because SOC2 / ISO 27001 audit categories
+   evolve faster than schema migrations. A future enhancement
+   could ship a recommended-categories endpoint backed by
+   appsettings so dashboards can render a dropdown without
+   blocking unfamiliar values.
+3. The role-list claims-check uses string comparison (`IsInRole`).
+   ASP.NET Identity's role normalisation pipeline already
+   uppercases role names, so case-mismatch isn't a concern here,
+   but a custom JWT issuer that emits non-standard role claim
+   names would need its own claim-mapping middleware.
+4. Old `/api/admin/users/{id}/revoke-tokens` route was retired
+   in favour of `/api/security/users/{id}/revoke-tokens`. No
+   external clients yet depend on the old route (it landed in
+   Phase 157, this phase) so removing it is safe; the SOC2
+   audit migration path is explicit in the controller's class-
+   level XML doc.
