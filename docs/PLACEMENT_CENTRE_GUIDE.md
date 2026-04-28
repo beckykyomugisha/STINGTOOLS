@@ -1141,3 +1141,352 @@ Opening an existing project in v2 is automatic and idempotent:
 
 *End of v2 update. v1 of this guide (sections 0 – 11) is the primary
 reference for everyday work; this v2 section is what changed.*
+
+---
+
+## 13. Phase 139 deeper dive — support engines
+
+Beyond the four headline algorithms in §12.4, the v2 release ships
+seven support engines that quietly back the Centre's behaviour. You
+do not call them directly; rules and the engine pick them up
+automatically based on rule fields. Knowing they exist makes the
+behaviour transparent rather than mysterious.
+
+### 13.1 LightingGridCalculator (BS EN 12464-1 lumen method)
+
+`Core/Placement/LightingGridCalculator.cs`. Triggered by any rule
+whose `AnchorType = LIGHTING_GRID`. Calculation basis:
+
+```
+N = (E_target × A) / (LUMENS × UF × MF)
+```
+
+| Symbol | Meaning |
+|---|---|
+| `E_target` | Target maintained lux from `LUX_TARGETS_EN12464.csv` (e.g. 500 lx for office, 750 lx for laboratory, 1000 lx for surgery) |
+| `A` | Room floor area in m² |
+| `LUMENS` | Lumen output of the resolved luminaire family symbol |
+| `UF` | Utilisation factor (room index + reflectance lookup) |
+| `MF` | Maintenance factor — `0.80` typical for a clean LED |
+| `N` | Required luminaire count (ceiled, snapped to grid) |
+
+The calculator classifies the room via `ROOM_TYPE_CLASSIFIER.csv`,
+picks the target lux, and returns a list of XYZ candidate points
+already aligned to the ceiling tile grid. Beautifully — no manual
+spacing tables.
+
+### 13.2 CeilingGridSnap
+
+`Core/Placement/CeilingGridSnap.cs`. Snaps any candidate XYZ to the
+nearest tile-grid intersection on the host ceiling, and orients
+rectangular luminaires (troffers) along the room's long axis so they
+line up with tile seams instead of cutting across them.
+
+Reads `Tile Width` / `Tile Height` from the host ceiling type
+parameters. Defaults to 600 × 600 mm if the ceiling type is
+non-modular (then snapping is effectively disabled). Long-axis
+orientation comes from a 2D oriented bounding box of the room's
+boundary curve loop — square-ish rooms preserve the existing XY.
+
+Triggered automatically when `MountingReference = CEILING` and the
+host ceiling has a `Tile Width` parameter. No rule field required.
+
+### 13.3 ObstructionIndex
+
+`Core/Placement/ObstructionIndex.cs`. A spatial index that lets
+candidates query "is there an obstruction within X mm of me?" in
+O(log n). Backs the `ObstructionClearanceMm` rule field.
+
+The index is built once per Run from every Furniture, Casework,
+Structural Column, Plumbing Fixture and Mechanical Equipment instance
+visible in scope. Candidates that fail the obstruction check are
+either rejected (default) or, if `GuaranteeCoverage = true`, accepted
+with a `CLEARANCE_BREACH` warning so the validator can flag them later.
+
+Exposes the `ExclusionRect` value-type used by `WetZoneExclusionChecker`
+and `CoverageGridGenerator`.
+
+### 13.4 PlacementHostPreflight
+
+`Core/Placement/PlacementHostPreflight.cs`. Bridges `AnchorType` to
+the family's `FamilyPlacementType`. Revit's `NewFamilyInstance`
+overloads are placement-type-specific — calling the wrong one either
+throws or places a free-standing instance whose Host is null
+(schedules then silently miss it).
+
+The pre-flight picks the right overload up front:
+
+| Family placement type | Overload picked |
+|---|---|
+| `OneLevelBased` / `OneLevelBasedHosted` | `(point, symbol, level, st)` |
+| `WorkPlaneBased` | `(reference, point, refDir, symbol)` |
+| `WallBased` | `(point, symbol, hostWall, level, st)` |
+| `CeilingBased` / `FloorBased` / `RoofBased` | `(point, symbol, hostElement, level, st)` |
+| `ViewBased` | rejected — out of engine scope |
+
+When a host is required, the pre-flight locates the nearest sensible
+candidate (nearest ceiling for `CeilingBased`, nearest wall for
+`WallBased`, …) at the placement point. If anchor intent and family
+template disagree (e.g. a `WALL_MIDPOINT` rule resolving to a
+`CeilingBased` family), it surfaces a clear warning rather than
+silently failing.
+
+### 13.5 PlacementParamReader
+
+`Core/Placement/PlacementParamReader.cs`. The single entry point for
+reading rule-friendly values off Revit elements. Wraps:
+
+- Type vs instance disambiguation (some rules want `LUMENS` from the
+  type; some want `OCCUPANT_COUNT` from the instance).
+- Unit conversion (every value comes back in **mm** for distances,
+  **m²** for areas, **lumens** for flux — so the engine never has
+  to think in feet).
+- Null safety (returns `0`, `""`, `false` defaults rather than
+  throwing on missing parameters).
+
+If a rule starts misbehaving and you suspect "the engine isn't
+seeing the parameter on the element", this is the file to put a
+breakpoint in.
+
+### 13.6 PostPlacementHooks (PC-17)
+
+`Core/Placement/PostPlacementHooks.cs`. Static toggles that fire
+side-effects after every placed instance commits *inside* the
+engine's transaction. Three hooks, each on/off via Run Options:
+
+| Hook | Toggle | What it does |
+|---|---|---|
+| `RunDataTagPipeline` | "Run data-tag pipeline on each placement" | Calls `TagPipelineHelper.RunFullPipeline` so the placed instance lands fully ISO-19650 8-segment tagged in the same transaction |
+| `SeedCobieComponent` | "Seed COBie component fields from the rule" | Copies `StandardRef` → `COBIE_COMPONENT_NAME` and `Notes` → `COBIE_COMPONENT_DESCRIPTION` so COBie export is non-empty |
+| `AssignMepSystem` | "Probe MEP connectors after placement" | Records a warning if the instance has unconnected connectors so `MEPSystemBuilder` can pick them up later (full system traversal pending) |
+
+Because hooks run inside the placement transaction, **a single Ctrl+Z
+reverts placement + hook side-effects atomically** — no half-tagged,
+half-untagged elements left behind on undo.
+
+### 13.7 GenerativeDesignBridge
+
+`Core/Placement/GenerativeDesignBridge.cs`. The runtime hook the
+`STING_FIXTURE_PLACEMENT.dyn` Dynamo / Generative Design study calls
+when iterating placement variants. Exposes:
+
+| Surface | What it does |
+|---|---|
+| `BridgeContext.LoadRules(scopeBox?)` | Reads Layer 1 → Layer 4 rules for the active project |
+| `BridgeContext.RunVariant(weightOverrides)` | Runs the engine with perturbed scoring weights, returns `(coverage, spacingVariance, clearanceViolations)` for the Pareto front |
+| `BridgeContext.CommitVariant(variantId)` | If GD picked a winner, applies it to the live model |
+
+You don't usually drive the bridge by hand; it's the integration
+point the `GD Study` toolbar button (§4.12) advertises.
+
+---
+
+## 14. Phase 139 deeper dive — the full v2 rule schema
+
+The PlacementRule POCO grew from ~30 to ~70 fields. Cheat-sheet so
+you know which field belongs in which group of the editor:
+
+### 14.1 Identity & filter (Rule Core / Scoping cards)
+
+| Field | Default | Plain English |
+|---|---|---|
+| `RuleId` | `""` | Stable identifier (use this in `DependsOn`, `CoPlaceWith`, `ConflictsWith`) |
+| `RuleKind` | `Point` | `Point` / `Density` / `Linear` |
+| `CategoryFilter` | `""` | Revit category name (must exist in active doc) |
+| `VariantHint` | `""` | Comma-separated FamilySymbol hint (`FLUSH,SURFACE`) or regex (`^IP6[5-7]$`) |
+| `FamilyTypeRegex` | `""` | Stricter regex on full Family.Symbol name |
+| `RoomFilter` | `""` | Case-insensitive regex on Room.Name |
+| `ExcludeRoomFilter` | `""` | Skip rooms matching this regex (negation overlay) |
+| `RoomDepartmentFilter` | `""` | Match Room.Department |
+| `MinAreaM2` / `MaxAreaM2` | `0` / `0` | Area gate (`0` = unbounded) |
+| `LevelFilter` / `PhaseFilter` / `WorksetFilter` | `""` | Scoping filters |
+
+### 14.2 Geometry & placement (Geometry card)
+
+| Field | Default | Plain English |
+|---|---|---|
+| `AnchorType` | `ROOM_CENTRE` | One of the 42 anchors (legacy + Phase 139) |
+| `MountingReference` | `FFL` | `FFL` / `SLAB` / `CEILING` / `SOFFIT` |
+| `OffsetXMm` / `OffsetYMm` / `OffsetZMm` | `0` | Anchor-local offsets (mm) |
+| `RotationDeg` | `0` | Spin about Z |
+| `ToleranceMm` | `25` | Acceptable XYZ wobble before re-scoring |
+| `MountingHeightMm` | `300` | Height above MountingReference |
+| `SideConstraint` | `EITHER` | `EITHER` / `LEFT` / `RIGHT` / `FRONT` / `BACK` / `HINGE_SIDE` / `LATCH_SIDE` |
+| `MinSpacingMm` | `1000` | Centre-to-centre minimum within rule |
+| `MaxSpacingMm` | `0` | NEW v2 — max spacing for uniformity (`0` = no cap) |
+| `MaxPerRoom` | `0` | Hard cap (`0` = unlimited) |
+
+### 14.3 Density & linear (Rule Kind card)
+
+| Field | Default | Plain English |
+|---|---|---|
+| `PerAreaM2` | `0` | "1 per X m²" |
+| `PerOccupant` | `0` | "1 per X occupants" — reads `STING_OCC_COUNT_INT` |
+| `PerLinearMetre` | `0` | "1 every X m of perimeter" |
+| `PerBed` | `0` | NEW v2 — healthcare ratio (1 per X beds) |
+| `PerWorkstation` | `0` | NEW v2 — office ratio |
+| `PerPupil` | `0` | NEW v2 — schools ratio |
+| `PerToiletCubicle` | `0` | NEW v2 — sanitary ratio (BS 6465) |
+| `OccupancyParamName` | `""` | NEW v2 — read occupancy from a custom param rather than `STING_OCC_COUNT_INT` |
+
+### 14.4 Dependencies (Dependencies card)
+
+| Field | Plain English |
+|---|---|
+| `DependsOn` | RuleId of predecessor (this rule fires only after that one placed ≥1) |
+| `RelativeTo` | `previous` / `first` / `self` |
+| `CoPlaceWith` | List of RuleIds to fire alongside |
+| `ConflictsWith` | List of RuleIds whose presence suppresses this rule |
+| `Priority` | 0–100, higher wins ties |
+
+### 14.5 Standards & profile (Standards card + project profile gate)
+
+| Field | Default | Plain English |
+|---|---|---|
+| `StandardRef` | `""` | Free-text citation (`BS 5266-1 §5`, `Approved Doc M`, `HTM 02-01`) |
+| `UniclassPr` | `""` | Uniclass 2015 product code |
+| `Notes` | `""` | Free-text comment |
+| `SourcePack` | `""` | NEW v2 — auto-populated from the JSON file the rule loaded from |
+| `BuildingType` | `""` | NEW v2 — building-type scope (`Office`, `Hospital`, `School`, …); empty = any |
+| `ApplicableStandards` | `[]` | NEW v2 — list of standard codes; project profile filters out non-matching rules |
+| `IpRatingMin` | `""` | NEW v2 — minimum IP rating on the family (e.g. `IP65`) |
+
+### 14.6 Coverage, clearance, accessibility (NEW v2 Coverage card)
+
+| Field | Default | Plain English |
+|---|---|---|
+| `CoverageRadiusMm` | `0` | Radius the fixture covers (smoke detector 7500, MCP 22500, lit grid 4500) |
+| `GuaranteeCoverage` | `false` | If true, accept candidates below score threshold rather than leave coverage gap |
+| `WallClearanceMm` | `0` | Min distance to nearest wall |
+| `ObstructionClearanceMm` | `0` | Min distance to nearest obstruction (queries `ObstructionIndex`) |
+| `WetZoneExclusion` | `NONE` | `NONE` / `Z0` / `Z1` / `Z2` per BS 7671 §701 |
+| `AccessibilityCheck` | `false` | If true, `AccessibilityAuditor` validates reach against `HeightStandardsTable` |
+| `HeightStandard` | `""` | Specific row from `STING_HEIGHT_STANDARDS.json` (`BS8300_LIGHT_SWITCH`, `DOC_M_SOCKET`, …) |
+| `MaintenanceClearance` | `""` | NEW v2 — string spec read by `MaintenanceAccessValidator` (`R600`, `1000x600x2000`) |
+
+### 14.7 Routing (NEW v2 Routing card)
+
+| Field | Default | Plain English |
+|---|---|---|
+| `RoutingMode` | `NONE` | `NONE` / `WALL_FOLLOWER` / `CEILING_PERIMETER` / `RISER` / `DROP` |
+| `RouteOffsetMm` | `0` | Offset from the routing surface (e.g. 50 mm above a perimeter trunking) |
+| `RouteFace` | `INTERIOR` | `INTERIOR` / `EXTERIOR` |
+| `RouteMinBendRadiusMm` | `0` | Rejects candidates that would require a tighter bend |
+| `RouteSegmentCategory` | `""` | Category used to draw the routing skeleton (Cable Tray, Conduit, Duct, Pipe) |
+
+### 14.8 Window/glazing (NEW v2 Window card)
+
+Used by the `windows-glazing` pack and any rule with `AnchorType = WINDOW_*`:
+
+| Field | Plain English |
+|---|---|
+| `SillHeightMm` | Sill above FFL |
+| `HeadHeightMm` | Head above FFL |
+| `CillToFloorMm` | NEW v2 — distance cill-to-floor for child-safety check |
+| `ToughenedGlazingRequired` | If true, validator checks Glazing.Type for "TGH" / "Toughened" |
+| `GlazingSpec` | Free-text glazing call-up (`6 mm TGH/12 Ar/6 mm TGH soft-coat`) |
+
+### 14.9 Post-placement audit (NEW v2 Audit card)
+
+| Field | Plain English |
+|---|---|
+| `PostAuditTag` | Free-text tag attached to every placement so the Audit panel can group them (e.g. `"Phase-2 emergency lighting Q3"`) |
+| `RequiresCOBieFields` | If true, validator confirms COBIE_* fields are populated before issue |
+| `RequiresIfcMapping` | If true, validator confirms IFC_* mapping fields are populated before IFC export |
+
+---
+
+## 15. Phase 139 deeper dive — three more walk-throughs
+
+### 15.1 *"Auto-route a perimeter cable tray around an office"*
+
+1. Centre ▸ search `perimeter cable tray`. Pick `route-cable-tray-perimeter-office`.
+2. Confirm:
+   - `RuleKind = Linear`
+   - `AnchorType = PERIMETER_OFFSET`
+   - `RoutingMode = WALL_FOLLOWER`
+   - `RouteOffsetMm = 50` (50 mm proud of the wall finish)
+   - `RouteSegmentCategory = "Cable Tray"`
+   - `RouteMinBendRadiusMm = 150`
+   - `MountingReference = SOFFIT`
+   - `MountingHeightMm = -100` (100 mm below the soffit)
+3. Run Options ▸ Scope = Active view.
+4. `Preview` → blue tray segments appear hugging every wall, breaking on doors and structural columns where the bend radius can't be honoured.
+5. `Run Placement` → cable tray segments + tees + crosses + reducers + bends materialise as real `CableTraySegment` / `CableTrayFitting` instances.
+6. `Validate` → `Connectivity` validator confirms every endpoint is joined; `Fill` validator confirms tray fill ≤ published BS 7671 capacity.
+
+### 15.2 *"Toughened glazing where the cill-to-floor is below 800 mm"*
+
+A pure post-placement audit, no new geometry:
+
+1. Centre ▸ search `toughened glazing`. Pick `glaze-tgh-low-cill-audit`.
+2. The rule has:
+   - `RuleKind = Point` (not for placement; the `AuditOnly` flag in
+     the JSON disables candidate generation)
+   - `CillToFloorMm = 800` (the trigger threshold)
+   - `ToughenedGlazingRequired = true`
+   - `GlazingSpec = "6 mm TGH/16 Ar/6 mm TGH soft-coat"`
+   - `PostAuditTag = "Approved Doc K Part N"`
+3. `Validate` (Run Options ▸ Validators ▸ `Spec` ticked).
+4. The `Spec` validator scans every Window in scope, reads its
+   `Glazing.Type`, and reports any window with cill < 800 mm whose
+   glazing is not toughened — citing Approved Doc K Part N.
+
+### 15.3 *"Hospital ward pack — bedhead trunking + outlets + nurse call"*
+
+A worked dependency chain across three packs:
+
+1. Set the project profile:
+   ```json
+   { "BuildingType": "Hospital",
+     "ApplicableStandards": ["HTM 02-01","HBN 04-01","BS 5839-1"] }
+   ```
+2. Open Centre. Status bar reports `~58 rules visible after profile filter`.
+3. Confirm rule chain:
+   ```
+   med-gas-bedhead-trunking-01      ← parent (anchor WALL_MIDPOINT)
+   med-gas-O2-outlet                ← CoPlaceWith=parent, OffsetX=0
+   med-gas-VAC-outlet               ← CoPlaceWith=parent, OffsetX=150
+   med-gas-N2O-outlet               ← CoPlaceWith=parent, OffsetX=300
+   nurse-call-handset-01            ← DependsOn=parent, RelativeTo=previous, OffsetX=-450
+   power-socket-bedhead-01          ← DependsOn=parent, RelativeTo=previous, OffsetX=-300, MountingHeightMm=300
+   ```
+4. Run Options ▸ Scope = Project; tick `Run validators after placement`.
+5. `Preview` shows one teal cluster per bed bay.
+6. `Run Placement`. Engine fires bedhead trunking first (~30 placements), then six co-placed/dependent rules in the same room — every bed gets its full bedhead kit in one transaction.
+7. Result panel: `Placed: 210 (35 bedhead × 6 kit items)`. Every placement carries `PostAuditTag = "HTM 02-01 §6"` for the FM team's audit pack.
+
+---
+
+## 16. Phase 139 deeper dive — extended cheat-sheet
+
+| Want to… | Click / set |
+|---|---|
+| See what's filtered by project profile | Status bar text — `260 rule(s); X hidden by profile` |
+| Filter rule grid to one pack | Search box: `pack:medical-gases` |
+| Filter to one standard | Search box: `std:BS 8300-2` |
+| Bulk-edit 50 rules' MinSpacing | Toolbar ▸ Export to Excel… → edit → Import from Excel… |
+| Run only the new validators | Run Options ▸ Validators ▸ untick everything except `Uniformity` + `Maintenance` |
+| Disable wet-zone gating temporarily | Set rule `WetZoneExclusion = NONE` (do not delete the field — the validator still surfaces it as a warning) |
+| Force coverage even if score is low | Set `GuaranteeCoverage = true` |
+| Surface obstruction breaches without rejecting | Set `GuaranteeCoverage = true` and let `MaintenanceAccessValidator` flag them later |
+| Run the engine inside a generative-design study | Toolbar ▸ GD Study ▸ open `STING_FIXTURE_PLACEMENT.dyn` |
+
+---
+
+## 17. Phase 139 deeper dive — common pitfalls
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| All rules suddenly hidden after editing the profile | `BuildingType` mismatch — your `Hospital` rule is hidden when project profile = `Office` | Either widen the rule's `BuildingTypes` list or change the project profile |
+| Coverage validator says 100 % but visually I see gaps | `CoverageRadiusMm` lower than the standard radius | Lift `CoverageRadiusMm`; the validator measures against the rule's value, not the standard |
+| Wet-zone exclusion fired in a non-wet room | The room name regex matched something unintended (e.g. `wash-up`) | Tighten the rule's `RoomFilter` |
+| Excel import shows `SourcePack` blank for every row | The export was edited and `SourcePack` column was removed | Re-export, edit, re-import — keep all hidden columns |
+| WallFollowerRouter fails on curved walls | Not yet implemented for arc walls | Use `LIGHTING_GRID` or `PERIMETER_OFFSET` instead, or split the arc wall into segments |
+| Lighting calculator picks the wrong fixture | `VariantHint` resolves to a non-luminaire family | Restrict `CategoryFilter = "Lighting Fixtures"` and add a tighter `FamilyTypeRegex` |
+| Post-placement hooks didn't fire | Toggles default OFF for performance; tick them in Run Options before Run | Run Options ▸ tick `Run data-tag pipeline on each placement` |
+
+---
+
+*v2 deep-dive complete. Sections 0–11 remain the everyday reference;
+12–17 cover what changed and how to use it.*
