@@ -79,7 +79,7 @@ namespace StingTools.Core.Placement
         }
 
         // Phase 139.21 — phase tag stable for grep / diagnostics.
-        public const string PhaseTag = "Phase 139.25";
+        public const string PhaseTag = "Phase 139.26";
 
         /// <summary>
         /// Entry point. If rules is null/empty, loads the default + project
@@ -361,6 +361,57 @@ namespace StingTools.Core.Placement
                 if (!dryRun)
                 {
                     tx.Commit();
+
+                    // Phase 139.26 — POST-COMMIT VERIFICATION.
+                    // The IFailuresPreprocessor catches predictable
+                    // warnings, but Revit can still silently roll back
+                    // individual placements during commit (e.g. failed
+                    // host association on regen).  Walk every PlacedId
+                    // and confirm doc.GetElement returns a live element.
+                    // Drop ghosts from PlacedIds and emit a per-category
+                    // audit so the user can verify what's actually in
+                    // the model versus what the engine THINKS it placed.
+                    try
+                    {
+                        var alive = new List<ElementId>();
+                        var rolledBack = 0;
+                        var perCategoryAlive = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var id in result.PlacedIds)
+                        {
+                            Element el = null;
+                            try { el = doc.GetElement(id); } catch { }
+                            if (el == null) { rolledBack++; continue; }
+                            alive.Add(id);
+                            string cat = "(uncategorised)";
+                            try { cat = el.Category?.Name ?? "(uncategorised)"; } catch { }
+                            perCategoryAlive[cat] = perCategoryAlive.TryGetValue(cat, out var n) ? n + 1 : 1;
+                        }
+                        if (rolledBack > 0)
+                        {
+                            result.Warnings.Add(
+                                $"POST-COMMIT VERIFICATION: {rolledBack} of {result.PlacedIds.Count} placements " +
+                                $"were silently rolled back by Revit during commit. The engine reported them " +
+                                $"as placed but they are NOT in the model. Add their failure description to " +
+                                $"PlacementFailuresPreprocessor.SuppressGuids if this recurs.");
+                            StingLog.Warn($"FixturePlacementEngine: {rolledBack}/{result.PlacedIds.Count} placements rolled back post-commit.");
+                        }
+                        result.PlacedIds.Clear();
+                        result.PlacedIds.AddRange(alive);
+                        // Audit summary so the user can compare what categories
+                        // they ticked vs. what categories actually landed.
+                        if (perCategoryAlive.Count > 0)
+                        {
+                            string audit = string.Join(", ",
+                                perCategoryAlive.OrderByDescending(kv => kv.Value)
+                                                .Select(kv => $"{kv.Key}={kv.Value}"));
+                            StingLog.Info($"FixturePlacementEngine: post-commit category audit — {audit}");
+                            result.Warnings.Add($"POST-COMMIT category audit: {audit}");
+                        }
+                    }
+                    catch (Exception vex)
+                    {
+                        StingLog.Warn($"FixturePlacementEngine post-commit verify: {vex.Message}");
+                    }
                 }
                 if (cancelled)
                     StingLog.Info($"FixturePlacementEngine: run cancelled after {processed}/{total} rooms.");

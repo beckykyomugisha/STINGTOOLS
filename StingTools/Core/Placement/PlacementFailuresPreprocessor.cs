@@ -47,7 +47,25 @@ namespace StingTools.Core.Placement
                     desc.IndexOf("Can't rotate element", System.StringComparison.OrdinalIgnoreCase) >= 0
                  || desc.IndexOf("identical instances",  System.StringComparison.OrdinalIgnoreCase) >= 0
                  || desc.IndexOf("does not lie on host face", System.StringComparison.OrdinalIgnoreCase) >= 0
-                 || desc.IndexOf("origin does not lie",  System.StringComparison.OrdinalIgnoreCase) >= 0;
+                 || desc.IndexOf("origin does not lie",  System.StringComparison.OrdinalIgnoreCase) >= 0
+                 // Phase 139.26 — additional patterns that were stripping
+                 // post-commit. Each one was observed in a user run where
+                 // Revit's modal blocked the engine's transaction.
+                 || desc.IndexOf("slightly off axis",    System.StringComparison.OrdinalIgnoreCase) >= 0
+                 || desc.IndexOf("off axis",              System.StringComparison.OrdinalIgnoreCase) >= 0
+                 || desc.IndexOf("does not have a host",  System.StringComparison.OrdinalIgnoreCase) >= 0
+                 || desc.IndexOf("hosted instance",       System.StringComparison.OrdinalIgnoreCase) >= 0
+                 || desc.IndexOf("would be moved off",    System.StringComparison.OrdinalIgnoreCase) >= 0
+                 || desc.IndexOf("lies outside its host", System.StringComparison.OrdinalIgnoreCase) >= 0
+                 || desc.IndexOf("offset from element",   System.StringComparison.OrdinalIgnoreCase) >= 0
+                 || desc.IndexOf("Cannot keep elements joined", System.StringComparison.OrdinalIgnoreCase) >= 0
+                 || desc.IndexOf("could not create work plane", System.StringComparison.OrdinalIgnoreCase) >= 0
+                 || desc.IndexOf("Element is partially or completely outside",  System.StringComparison.OrdinalIgnoreCase) >= 0
+                 || desc.IndexOf("would extend",          System.StringComparison.OrdinalIgnoreCase) >= 0
+                 || desc.IndexOf("not perpendicular",     System.StringComparison.OrdinalIgnoreCase) >= 0
+                 || desc.IndexOf("highlighted",           System.StringComparison.OrdinalIgnoreCase) >= 0
+                 || desc.IndexOf("Element extends below", System.StringComparison.OrdinalIgnoreCase) >= 0
+                 || desc.IndexOf("instance being created has", System.StringComparison.OrdinalIgnoreCase) >= 0;
                 if (suppress)
                 {
                     accessor.DeleteWarning(f);
