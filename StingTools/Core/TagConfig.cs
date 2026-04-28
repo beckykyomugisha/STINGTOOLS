@@ -5714,13 +5714,15 @@ namespace StingTools.Core
             }
 
             // ── Warning parameter population (v5.6) ────────────────────────
-            // Populate each individual WARN_ parameter with its evaluated text
-            // so tag family labels (gated by TAG_WARN_VISIBLE_BOOL) can display them.
-            int warnWritten = PopulateWarningParameters(doc, el, categoryName);
-            written += warnWritten;
-
-            // Also build concatenated warning text for TAG7 narrative append
-            string warningText = EvaluateElementWarnings(doc, el, categoryName);
+            // EFF-07 (Phase 149d): combined warning evaluation. The previous
+            // code called PopulateWarningParameters AND EvaluateElementWarnings,
+            // each walking the same GetCategoryWarnings list, calling the same
+            // GetWarningDataValue per warning, calling the same EvaluateWarning.
+            // The new EvaluateAndPopulateWarnings does both in one pass and
+            // returns (writtenCount, concatenatedText).
+            var warnPass = EvaluateAndPopulateWarnings(doc, el, categoryName);
+            written += warnPass.WrittenCount;
+            string warningText = warnPass.ConcatenatedText;
             if (!string.IsNullOrEmpty(warningText)
                 && !string.IsNullOrEmpty(tag7Final)
                 && !tag7Final.Contains(warningText))
@@ -5756,6 +5758,66 @@ namespace StingTools.Core
         /// Returns a concatenated warning string, or null if no warnings triggered.
         /// Respects TAG_WARN_VISIBLE_BOOL and TAG_WARN_SEVERITY_FILTER_TXT.
         /// </summary>
+        /// <summary>EFF-07 (Phase 149d): one-pass replacement for the
+        /// PopulateWarningParameters + EvaluateElementWarnings combo. Both
+        /// legacy methods walked the same warning list and called the same
+        /// per-warning helpers; this method does it once, returning the
+        /// number of WARN_ params written and the concatenated narrative
+        /// fragment for the TAG7 append.</summary>
+        public static (int WrittenCount, string ConcatenatedText)
+            EvaluateAndPopulateWarnings(Document doc, Element el, string categoryName)
+        {
+            if (el == null || string.IsNullOrEmpty(categoryName))
+                return (0, null);
+
+            // Visibility gate (matches EvaluateElementWarnings).
+            string warnVisible = ParameterHelpers.GetString(el, ParamRegistry.WARN_VISIBLE);
+            bool visible = !(warnVisible == "No" || warnVisible == "0"
+                || warnVisible == "FALSE" || warnVisible == "false");
+
+            // Severity filter (matches EvaluateElementWarnings).
+            string severityFilter = ParameterHelpers.GetString(el, ParamRegistry.WARN_SEVERITY_FILTER);
+            if (string.IsNullOrEmpty(severityFilter)) severityFilter = "ALL";
+            int filterLevel = severityFilter == "ALL" ? 0 : SeverityLevel(severityFilter);
+
+            var warningParamNames = ParamRegistry.GetCategoryWarnings(categoryName);
+            if (warningParamNames == null || warningParamNames.Count == 0)
+                return (0, null);
+
+            int written = 0;
+            List<string> concat = null;
+
+            foreach (string warnParam in warningParamNames)
+            {
+                if (!ParamRegistry.WarningThresholds.TryGetValue(warnParam, out var def))
+                    continue;
+
+                string dataValue = GetWarningDataValue(el, warnParam, categoryName);
+                string evalResult = string.IsNullOrEmpty(dataValue)
+                    ? null : ParamRegistry.EvaluateWarning(def, dataValue);
+
+                // PopulateWarningParameters semantic — always overwrite to keep
+                // params current; clear when no violation so stale text doesn't
+                // linger.
+                string warnText = string.IsNullOrEmpty(evalResult) ? "" : evalResult;
+                if (ParameterHelpers.SetString(el, warnParam, warnText, overwrite: true))
+                    written++;
+
+                // EvaluateElementWarnings semantic — collect into concat string
+                // when visible AND severity passes the filter AND there's a
+                // violation to report.
+                if (visible
+                    && !string.IsNullOrEmpty(evalResult)
+                    && (filterLevel == 0 || SeverityLevel(def.Severity) >= filterLevel))
+                {
+                    if (concat == null) concat = new List<string>();
+                    concat.Add(evalResult);
+                }
+            }
+
+            return (written, concat == null ? null : string.Join(" ", concat));
+        }
+
         public static string EvaluateElementWarnings(Document doc, Element el, string categoryName)
         {
             // Check if warnings are enabled on this element

@@ -3797,6 +3797,12 @@ namespace StingTools.Core
             // TAG-PREFLIGHT-DUP-01: Drop the cached PopulationContext so the next
             // tagging command sees fresh room / phase / grid data after writes.
             TokenAutoPopulator.PopulationContext.InvalidateCache();
+            // EFF-06 (Phase 149d): drop per-type formula-applicability cache.
+            // Surviving entries are still correct (parameter bindings don't
+            // typically vanish mid-session) but the cache grows linearly with
+            // unique types tagged across the project's lifetime; clearing at
+            // batch boundary keeps memory bounded.
+            ClearFormulaApplicabilityCache();
             // DIAG-01: Reset read-only skip counter at batch boundary so each operation
             // gets fresh diagnostic logging (first 5 warnings + every 100th).
             ParameterHelpers.ResetReadOnlySkipCount();
@@ -3957,17 +3963,18 @@ namespace StingTools.Core
                 NativeParamMapper.MapAll(doc, el, ctx?.RoomIndex);
 
                 // P3: Evaluate formulas in dependency order
-                // FUT-18: Lazy formula evaluation — skip formulas whose target parameter
-                // doesn't exist on this element's category (saves ~40% formula iterations)
+                // EFF-06 (Phase 149b): pre-filter to formulas whose target parameter
+                // actually exists on this element's TYPE. Once we know "Family X
+                // type T has 17 of the 199 formulas applicable", every subsequent
+                // instance of that type iterates 17, not 199. Cache lives in
+                // _formulasApplicableByType (per-type, per-formula-list-version).
                 if (formulas != null && formulas.Count > 0)
                 {
-                    foreach (var formula in formulas)
+                    var applicable = GetApplicableFormulas(el, formulas);
+                    foreach (var formula in applicable)
                     {
                         try
                         {
-                            // FUT-18: Early-exit skip — avoids expensive BuildContext
-                            // PERF: cached lookup so the same formula target on repeated types
-                            // doesn't rescan the element's parameter collection each time.
                             Parameter targetParam = ParameterHelpers.CachedLookup(el, formula.ParameterName);
                             if (targetParam == null || targetParam.IsReadOnly) continue;
 
@@ -4109,6 +4116,48 @@ namespace StingTools.Core
 
         // ── Finding-5: Throttle counter for locked token restoration logging ──
         private static int _lockedTokenRestoreCount;
+
+        // EFF-06 (Phase 149d): per-type formula applicability cache. Key is
+        // (typeId.Value, formulasIdentity), value is the subset of formulas
+        // whose target parameter exists on instances of that type. The
+        // formulasIdentity discriminator (RuntimeHelpers.GetHashCode of the
+        // shared list reference) lets us invalidate when the formula list is
+        // reloaded. Cleared by ClearFormulaApplicabilityCache.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<
+            (long typeId, int formulasId),
+            List<Temp.FormulaEngine.FormulaDefinition>> _formulasApplicableByType
+            = new System.Collections.Concurrent.ConcurrentDictionary<
+                (long, int), List<Temp.FormulaEngine.FormulaDefinition>>();
+
+        public static void ClearFormulaApplicabilityCache()
+        {
+            _formulasApplicableByType.Clear();
+        }
+
+        /// <summary>EFF-06: get the subset of formulas whose target parameter
+        /// actually exists on this element's type. First-touch per type does
+        /// the full O(formulas) scan; subsequent instances of the same type
+        /// hit the cache in O(applicable). Falls back to the full list when
+        /// the type lookup fails.</summary>
+        private static IEnumerable<Temp.FormulaEngine.FormulaDefinition> GetApplicableFormulas(
+            Element el, List<Temp.FormulaEngine.FormulaDefinition> formulas)
+        {
+            if (el == null || formulas == null || formulas.Count == 0) return formulas;
+            ElementId typeId = el.GetTypeId();
+            long key = (typeId == null || typeId == ElementId.InvalidElementId)
+                ? -1L : typeId.Value;
+            int formulasId = System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(formulas);
+            return _formulasApplicableByType.GetOrAdd((key, formulasId), _ =>
+            {
+                var subset = new List<Temp.FormulaEngine.FormulaDefinition>();
+                foreach (var f in formulas)
+                {
+                    var p = ParameterHelpers.CachedLookup(el, f.ParameterName);
+                    if (p != null && !p.IsReadOnly) subset.Add(f);
+                }
+                return subset;
+            });
+        }
 
         // ── Session caches for formulas and grid lines ──
         private static List<Temp.FormulaEngine.FormulaDefinition> _cachedFormulas;

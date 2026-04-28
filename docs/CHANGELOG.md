@@ -4880,3 +4880,99 @@ surfaces a forecast date via `Core.ComplianceTrendTracker.ForecastCompletionDate
 command rather than duplicated as a second card. The two are
 complementary: the BCC card reads `_workflow_log.jsonl`; the engine
 reads `compliance_trend.json`.
+
+#### Completed (Phase 149 — Tagging pipeline efficiency audit + fixes)
+
+A focused efficiency audit of the per-element tagging hot path
+(`TagPipelineHelper.RunFullPipeline`) identified 13 distinct issues
+ranging from per-element wasted lookups to duplicated derivation
+between `PopulateAll` and `BuildAndWriteTag`. The fixes landed across
+four sub-phases (149a/b/c/d) so each is independently revertable.
+
+**Phase 149a — small high-confidence fixes** (commit `6c1704e`)
+- EFF-01 — Removed per-element `ResetReadOnlySkipCount` call that was
+  reducing the throttle to "always log" instead of the intended
+  first-5-plus-every-100th. 50K log writes eliminated on a 50K batch.
+- EFF-03 / CONS-03 — `BuildAndWriteTag` now accepts `prevTagHint` and
+  `tokenValuesOut` parameters so `RunFullPipeline` doesn't read TAG1
+  twice and doesn't run a separate `ReadTokenValues` after the helper
+  already did. Two reads × 8 params per element saved on the
+  non-overwrite path; one full read saved on the overwrite path.
+- EFF-08 — `WriteTag7All` builds the final TAG7 string locally and
+  writes it once. Previously: write TAG7, read it back to append
+  warnings, write again (3 round-trips per element).
+- EFF-10 — Display-BOOL init block (13 SetIfEmpty / SetYesNo writes
+  per element) is now gated behind a `STING_DISPLAY_MODE` sentinel
+  check. First-time tag does the init; re-tag passes skip the block
+  entirely.
+- EFF-11 — Segment-count validation (`IndexOf` loop counting
+  separators) now only runs on the SetIfEmpty path where actual
+  stored values may legitimately differ from derived ones. The
+  overwrite path builds the tag via `string.Join` from 8 known
+  non-empty tokens with a fixed separator, so segment count is
+  statically 8 — the check was dead work.
+
+**Phase 149b — duplicated derivation refactor** (commit `78b1de2`)
+- EFF-04 — `NativeParamMapper.MapAll` overload accepts
+  `Dictionary<ElementId, Room> roomIndex`. Curve-based MEP elements
+  (pipes, ducts) no longer pay a fresh `doc.GetRoomAtPoint` spatial
+  query per element — they consult the same `PopulationContext.RoomIndex`
+  dictionary the rest of the pipeline already built.
+- EFF-05 — New `PopulationContext.TypeOverrideCache` dict caches the
+  result of the type-level `TYPE_LOC_OVERRIDE` / `TYPE_ZONE_OVERRIDE`
+  reads per typeId. A family with 100 instances now does ONE
+  `Document.GetElement` + 2 `GetString` calls, not 100.
+- EFF-02 — On the non-overwrite path `BuildAndWriteTag` reads the SYS /
+  FUNC / PROD values that `PopulateAll` already wrote instead of
+  re-deriving them via `GetMepSystemAwareSysCode` / `GetSmartFuncCode` /
+  `GetFamilyAwareProdCode`. The MEP-system-aware helper walks the
+  connector graph — by far the most expensive per-element call. The
+  overwrite path keeps the full fresh derivation so `Re-Tag with
+  Overwrite` still re-detects from scratch.
+
+**Phase 149c — re-tag container fast path** (commit `cbf471c`)
+- EFF-15 — `WriteContainers` now hashes the 8 ISO 19650 token values
+  (djb2-style, 16-char hex output) and compares against the new
+  `ASS_LAST_TOKEN_HASH_TXT` shared parameter (GUID
+  `d3a5b1c4-7e9f-4a2c-8b6d-1e3f4a5b6c7d`). When the hash matches the
+  stored value, none of the ~53 containers can have changed — return 0
+  immediately. After a successful full-sweep write the new hash is
+  stamped onto the element so the next pass can short-circuit.
+  Estimated re-tag pass savings: ~50× fewer SetString calls per element
+  (53 containers + LookupParameter overhead → 1 GetString + hash
+  compute). On a 50K-element re-tag, ~2.6M SetString calls eliminated.
+  This is the largest daily-use win because re-tag is the common case
+  for users who tag once and then tweak the model.
+
+**Phase 149d — formula pre-filter + warning one-pass**
+- EFF-06 — `RunFullPipeline` now consults
+  `_formulasApplicableByType` (a per-type ConcurrentDictionary cache)
+  to iterate ONLY the formulas whose target parameter exists on
+  instances of that type. First-touch per type does the full
+  O(formulas) scan; subsequent instances of the same type iterate
+  O(applicable). On a typical project where each type uses 10-20 of
+  the 199 formulas, this is ~10× fewer formula iterations on
+  instance-heavy categories. Cache cleared by `PostTagCleanup` to keep
+  memory bounded.
+- EFF-07 — New `EvaluateAndPopulateWarnings(doc, el, catName)` does in
+  one pass what `PopulateWarningParameters` + `EvaluateElementWarnings`
+  did in two — both walked the same `GetCategoryWarnings` list, both
+  called the same `GetWarningDataValue` per warning, both called the
+  same `EvaluateWarning`. Returns `(WrittenCount, ConcatenatedText)`
+  so callers get both the per-param writes and the TAG7 narrative
+  fragment from a single per-warning loop.
+
+**Estimated cumulative impact** (50K-element MEP-heavy model):
+- First-time batch tag: ~30-50% faster (EFF-02 + EFF-04 dominate)
+- Incremental re-tag pass: ~50-70% faster (EFF-15 dominates)
+- Log volume: ~100× lower in error-prone scenarios (EFF-01)
+- Allocations: ~2/3 reduction in per-element allocation count
+
+Verification was static / read-only — Linux sandbox has no Revit API
+or `dotnet build`. Brace counts balance across every modified file;
+new helpers are pure C# with no new external dependencies. Smoke-test
+priorities for the next Revit session: (i) re-tag the same model
+twice and confirm the second pass writes 0 containers; (ii) tag a
+50-instance family and confirm only 1 type-override lookup fires;
+(iii) run a Re-Tag with Overwrite and confirm SYS/FUNC/PROD are still
+re-derived (overwrite path preserved).
