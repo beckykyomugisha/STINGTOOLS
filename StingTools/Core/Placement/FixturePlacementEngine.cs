@@ -455,15 +455,15 @@ namespace StingTools.Core.Placement
             // as wall-hosted / ceiling-hosted for proper attachment.
             try
             {
-                string anchor = (rule.AnchorType ?? "").ToUpperInvariant();
-                bool wantsWallHost = anchor == "WALL_MIDPOINT" || anchor == "WALL_CORNER"
-                                  || anchor == "WALL_FACE_OFFSET"
-                                  || anchor.StartsWith("DOOR_")
-                                  || anchor.StartsWith("WINDOW_");
-                bool wantsCeilingHost = anchor == "CEILING_CENTRE"
-                                  || anchor == "CEILING_TILE_CENTRE"
-                                  || anchor == "LIGHTING_GRID"
-                                  || anchor == "LUX_GRID";
+                string anchorPt = (rule.AnchorType ?? "").ToUpperInvariant();
+                bool wantsWallHost = anchorPt == "WALL_MIDPOINT" || anchorPt == "WALL_CORNER"
+                                  || anchorPt == "WALL_FACE_OFFSET"
+                                  || anchorPt.StartsWith("DOOR_")
+                                  || anchorPt.StartsWith("WINDOW_");
+                bool wantsCeilingHost = anchorPt == "CEILING_CENTRE"
+                                  || anchorPt == "CEILING_TILE_CENTRE"
+                                  || anchorPt == "LIGHTING_GRID"
+                                  || anchorPt == "LUX_GRID";
                 var fpt = symbol.Family?.FamilyPlacementType ?? FamilyPlacementType.Invalid;
                 bool isHosted = fpt == FamilyPlacementType.OneLevelBasedHosted;
                 if ((wantsWallHost || wantsCeilingHost) && !isHosted)
@@ -472,7 +472,7 @@ namespace StingTools.Core.Placement
                     if (!result.Warnings.Any(w => w.Contains(warnKey)))
                     {
                         result.Warnings.Add(
-                            $"{warnKey} — rule '{rule.MergeKey}' uses {anchor} but the resolved family " +
+                            $"{warnKey} — rule '{rule.MergeKey}' uses {anchorPt} but the resolved family " +
                             $"'{symbol.Family?.Name}' is {fpt}, not OneLevelBasedHosted. Engine will place " +
                             $"+ snap + rotate but the family won't attach to the wall/ceiling. " +
                             $"Re-author the family as wall-hosted (or ceiling-hosted) for proper attachment.");

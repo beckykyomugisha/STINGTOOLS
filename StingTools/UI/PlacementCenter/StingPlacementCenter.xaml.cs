@@ -552,7 +552,6 @@ namespace StingTools.UI.PlacementCenter
             StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned   = VM.RunOpts.HonourLearned;
 
             DateTime startUtc = DateTime.UtcNow;
-            PlacementResult result = null;
             // Show a modeless progress dialog so the user can see per-room
             // progress and abort. The placement engine commits per-room
             // ProcessRoomRule writes inside its single Transaction, so the
