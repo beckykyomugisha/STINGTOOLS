@@ -968,7 +968,40 @@ namespace StingTools.Core.Placement
                 if (origin == null) continue;
                 var hostWall = door.Host as Wall;
                 XYZ along = WallTangent(hostWall);
-                if (along == null) along = XYZ.BasisX;
+                if (along == null)
+                {
+                    // Phase 139.16 — door.Host can be a curtain wall or a
+                    // panel rather than a basic Wall, in which case
+                    // WallTangent returns null. Fall back to the door's
+                    // own FacingOrientation rotated 90° about Z to get a
+                    // valid in-plane tangent — this matches the wall the
+                    // door is actually swinging against. Last-resort
+                    // fallback is room-centroid → door direction so the
+                    // 300 mm offset never goes into thin air.
+                    XYZ facing = null;
+                    try { facing = door.FacingOrientation; } catch { }
+                    if (facing != null && !facing.IsZeroLength())
+                    {
+                        along = new XYZ(-facing.Y, facing.X, 0);
+                        if (along.IsZeroLength()) along = XYZ.BasisX;
+                        else along = along.Normalize();
+                    }
+                    else
+                    {
+                        var bbRoom = room.get_BoundingBox(null);
+                        XYZ centroid = bbRoom != null ? (bbRoom.Min + bbRoom.Max) * 0.5 : origin;
+                        XYZ towardCentroid = (centroid - origin);
+                        if (!towardCentroid.IsZeroLength())
+                        {
+                            // Tangent is the cross of (toward-centroid) × Z.
+                            along = new XYZ(-towardCentroid.Y, towardCentroid.X, 0).Normalize();
+                        }
+                        else
+                        {
+                            along = XYZ.BasisX;
+                        }
+                    }
+                }
                 XYZ inward = ComputeInwardFromWall(hostWall, room) ?? XYZ.BasisY;
                 // Hinge side: place along the wall in the direction of FacingFlipped.
                 double hingeSign = hingeSide ? 1 : -1;
