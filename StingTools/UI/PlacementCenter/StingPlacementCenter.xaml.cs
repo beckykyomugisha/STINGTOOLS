@@ -775,13 +775,28 @@ namespace StingTools.UI.PlacementCenter
                 int warns = findings.Count(f => f.Severity == ValidationSeverity.Warning);
                 int infos = findings.Count(f => f.Severity == ValidationSeverity.Info);
 
+                // Phase 139.15 — surface the count of elements actually
+                // checked. 0 / 0 / 0 / 0 against 153 placed used to read
+                // as "nothing was checked"; it actually means "everything
+                // checked is compliant". Show the validated element count
+                // in the sub-title so the user can tell the difference.
+                int validatedCount = scopeToProvenance ? (_lastPlacedIds?.Count ?? 0) : -1;
+                string subtitle = headline + (validatedCount >= 0 ? $" · {validatedCount} element(s) checked" : "");
+
                 var panel = StingResultPanel.Create("STING — Placement Centre · Validation")
-                    .SetSubtitle(headline)
+                    .SetSubtitle(subtitle)
                     .AddSection("SUMMARY")
+                    .Metric("Elements checked", validatedCount >= 0 ? validatedCount.ToString() : "(project-wide)")
                     .Metric("Total findings", findings.Count.ToString())
                     .Metric("Errors",   errs.ToString())
                     .Metric("Warnings", warns.ToString())
                     .Metric("Info",     infos.ToString());
+
+                if (findings.Count == 0 && validatedCount > 0)
+                {
+                    panel.AddSection("RESULT")
+                         .Text($"All {validatedCount} just-placed element(s) passed every active validator. No issues found.");
+                }
 
                 if (findings.Count > 0)
                 {

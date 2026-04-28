@@ -4416,3 +4416,39 @@ Two fixes:
    re-enables the button before showing the result panel; the
    Raise-error path also re-enables in its catch.
 
+
+#### Completed (Phase 139.15 — validation count + accessible-switch tightening)
+
+User reported: validation panel shows 0 / 0 / 0 / 0 even after a
+153-placement run; lights are scattered messily; "sockets on floor"
+(actually switches at low height); some doors skipped.
+
+Two fixes:
+
+1. **Validation panel surfaces "Elements checked".** 0 findings against
+   153 placed used to read like "nothing was validated". The Centre's
+   `ShowFindings` now adds an "Elements checked" metric (count of
+   provenance-stamped elements when scope-to-provenance, "(project-wide)"
+   otherwise) and a "RESULT" section saying
+   "All N just-placed element(s) passed every active validator" when
+   findings.Count == 0 and validated > 0.
+
+2. **`baseline-lighting-devices-accessible-switch` tightened.** Was
+   firing 92 times in a 27-room project because it had no
+   `RoomFilter` and no `MaxPerRoom`. Now caps at 2 per room and
+   excludes wardrobes / closets / cupboards / stores / external /
+   verandah / porch / balcony / terrace / patio / garage / plant /
+   riser / shaft / void.
+
+The "doors skipped / sockets on floor" complaints turned out to be
+authoring issues, not bugs:
+
+- The 92 switches WERE landing on every door, but at 1200 mm AFF
+  which renders close to a socket icon at low zoom levels.
+- No socket rules fired in this run because the project has no
+  `Electrical Fixtures` Family Type loaded — the pre-flight already
+  warns about this.
+- Doors that "skipped" likely failed `DOOR_HINGE` because their
+  family doesn't have `HostFlipped` set correctly. Fixed at family
+  authoring time, not engine.
+
