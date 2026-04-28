@@ -2606,15 +2606,19 @@ namespace StingTools.Core
             TaggingStats stats = null,
             string cachedRev = null,
             List<Phase> cachedPhases = null,
-            ElementId lastPhaseId = null)
+            ElementId lastPhaseId = null,
+            string prevTagHint = null,
+            string[] tokenValuesOut = null)
         {
             string catName = ParameterHelpers.GetCategoryName(el);
             // F-14: Merge ContainsKey guard + TryGetValue into a single map lookup
             if (string.IsNullOrEmpty(catName) || !DiscMap.TryGetValue(catName, out string disc))
                 return false;
 
-            // Handle already-tagged elements based on collision mode
-            string existingTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+            // CONS-03 (Phase 149a): RunFullPipeline already read TAG1 once — accept
+            // the value via the new prevTagHint parameter to avoid a second read.
+            string existingTag = prevTagHint
+                ?? ParameterHelpers.GetString(el, ParamRegistry.TAG1);
             bool hasCompleteTag = TagIsComplete(existingTag);
 
             // A-9: idempotency guard — if the element's last-written tag equals
@@ -2839,6 +2843,12 @@ namespace StingTools.Core
                 ParameterHelpers.SetString(el, ParamRegistry.FUNC, func, overwrite: true);
                 ParameterHelpers.SetString(el, ParamRegistry.PROD, prod, overwrite: true);
                 ParameterHelpers.SetString(el, ParamRegistry.SEQ, seq, overwrite: true);
+
+                // EFF-03 (Phase 149a): we just wrote 8 known values — populate
+                // _cachedReadTokens from them so the container-write path below
+                // and the caller's tokenValuesOut don't trigger a fresh
+                // ReadTokenValues that would just read what we wrote.
+                _cachedReadTokens = new[] { disc, loc, zone, lvl, sys, func, prod, seq };
             }
             else
             {
@@ -2886,21 +2896,31 @@ namespace StingTools.Core
                 seq = actualTokens[7];
             }
 
-            // PERF-R11: Validate segment count by counting separators instead of allocating split array.
-            // Phase 86b: Use full separator string (not Separator[0] char) for multi-char separator support.
-            int sepCount = 0;
-            string sepStr = !string.IsNullOrEmpty(Separator) ? Separator : "-";
-            int sIdx = 0;
-            while ((sIdx = tag.IndexOf(sepStr, sIdx, StringComparison.Ordinal)) >= 0)
+            // EFF-11 (Phase 149a): segment-count validation only runs on the
+            // SetIfEmpty path where the actual stored tokens may legitimately
+            // differ from the freshly-derived ones (e.g. user manually edited
+            // ASS_DISCIPLINE_COD_TXT). On the overwrite path we just built the
+            // tag from 8 known non-empty tokens via string.Join with a fixed
+            // separator, so the segment count is statically 8 and the check is
+            // dead work. Skip it.
+            if (!overwriteTokens)
             {
-                sepCount++;
-                sIdx += sepStr.Length;
-            }
-            if (sepCount < 7) // 8 segments = 7 separators
-            {
-                StingLog.Warn($"Malformed tag for element {el.Id}: '{tag}' has {sepCount + 1} segments (expected 8)");
-                stats?.RecordWarning($"Element {el.Id}: malformed tag with {sepCount + 1} segments — skipped");
-                return false;
+                // PERF-R11: Validate segment count by counting separators instead of allocating split array.
+                // Phase 86b: Use full separator string (not Separator[0] char) for multi-char separator support.
+                int sepCount = 0;
+                string sepStr = !string.IsNullOrEmpty(Separator) ? Separator : "-";
+                int sIdx = 0;
+                while ((sIdx = tag.IndexOf(sepStr, sIdx, StringComparison.Ordinal)) >= 0)
+                {
+                    sepCount++;
+                    sIdx += sepStr.Length;
+                }
+                if (sepCount < 7) // 8 segments = 7 separators
+                {
+                    StingLog.Warn($"Malformed tag for element {el.Id}: '{tag}' has {sepCount + 1} segments (expected 8)");
+                    stats?.RecordWarning($"Element {el.Id}: malformed tag with {sepCount + 1} segments — skipped");
+                    return false;
+                }
             }
             bool tagWriteSucceeded = ParameterHelpers.SetString(el, ParamRegistry.TAG1, tag, overwrite: true);
 
@@ -2972,6 +2992,15 @@ namespace StingTools.Core
                     if (tokenVals[i] == null) tokenVals[i] = "";
                 }
                 ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: overwriteTokens);
+
+                // EFF-03 (Phase 149a): hand the freshly-built token array back to
+                // the caller so RunFullPipeline doesn't have to do its own
+                // ReadTokenValues a second time after we return.
+                if (tokenValuesOut != null && tokenValuesOut.Length >= 8)
+                {
+                    int copyLen = Math.Min(tokenValuesOut.Length, tokenVals.Length);
+                    for (int i = 0; i < copyLen; i++) tokenValuesOut[i] = tokenVals[i];
+                }
             }
             catch (Exception ex)
             {
@@ -2984,6 +3013,18 @@ namespace StingTools.Core
             // default visibility parameters. Without this, tag families using
             // paragraph depth or style matrix BOOLs would show blank labels.
             // Uses SetYesNo to handle YESNO (StorageType.Integer) parameters correctly.
+            //
+            // EFF-10 (Phase 149a): the display-mode sentinel is only empty on a
+            // first-ever tag; once it has any value the 13 init writes below are
+            // all overwriting current state with their default values, wasting a
+            // LookupParameter per call. Skip the block when STING_DISPLAY_MODE is
+            // already populated (sentinel covers the whole init group).
+            string displayModeSentinel = ParameterHelpers.GetString(el, "STING_DISPLAY_MODE");
+            if (!string.IsNullOrEmpty(displayModeSentinel))
+            {
+                stats?.RecordTagged(catName, disc, sys, lvl);
+                return true;
+            }
             try
             {
                 // LOG-08 FIX: Initialize DISPLAY_MODE so tag families show the correct
@@ -5626,12 +5667,11 @@ namespace StingTools.Core
             var tag7 = BuildTag7Sections(doc, el, categoryName, tokenValues);
             int written = 0;
 
-            // TAG7 gets the marked-up narrative (with «H»/«L»/«V»/«C» tokens)
-            if (!string.IsNullOrEmpty(tag7.MarkedUpNarrative))
-            {
-                if (ParameterHelpers.SetString(el, ParamRegistry.TAG7, tag7.MarkedUpNarrative, overwrite))
-                    written++;
-            }
+            // EFF-08 (Phase 149a): build the final TAG7 string locally before
+            // the single write so the post-write read-back can be eliminated.
+            // The previous code wrote TAG7, then re-read it just to append
+            // warnings — wasted LookupParameter + GetString per element.
+            string tag7Final = tag7.MarkedUpNarrative ?? "";
 
             // TAG7A-TAG7F get plain section text for tag family labels
             // PERF-R12: Track consecutive empties — once 4+ empty sections hit, skip rest.
@@ -5658,18 +5698,18 @@ namespace StingTools.Core
 
             // Also build concatenated warning text for TAG7 narrative append
             string warningText = EvaluateElementWarnings(doc, el, categoryName);
-            if (!string.IsNullOrEmpty(warningText))
+            if (!string.IsNullOrEmpty(warningText)
+                && !string.IsNullOrEmpty(tag7Final)
+                && !tag7Final.Contains(warningText))
             {
-                // Append warnings to TAG7 — but only once per unique warning text.
-                // In overwrite mode, TAG7 was freshly written above so append once.
-                // In non-overwrite mode, only append if the exact warning text is not already present.
-                string existingTag7 = ParameterHelpers.GetString(el, ParamRegistry.TAG7);
-                if (!string.IsNullOrEmpty(existingTag7) && !existingTag7.Contains(warningText))
-                {
-                    string withWarnings = existingTag7 + " | " + warningText;
-                    if (ParameterHelpers.SetString(el, ParamRegistry.TAG7, withWarnings, true))
-                        written++;
-                }
+                tag7Final = tag7Final + " | " + warningText;
+            }
+
+            // Single TAG7 write covers narrative + appended warnings.
+            if (!string.IsNullOrEmpty(tag7Final))
+            {
+                if (ParameterHelpers.SetString(el, ParamRegistry.TAG7, tag7Final, overwrite))
+                    written++;
             }
 
             // ── Paragraph container write (v5.5) ─────────────────────────

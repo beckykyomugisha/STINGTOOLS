@@ -3779,9 +3779,11 @@ namespace StingTools.Core
         {
             try
             {
-                // MEDIUM-09: Reset read-only skip counter at pipeline entry to prevent
-                // cross-batch counter leakage from [ThreadStatic] persistence
-                ParameterHelpers.ResetReadOnlySkipCount();
+                // EFF-01 (Phase 149a): per-element ResetReadOnlySkipCount removed.
+                // The throttle (`first 5 + every 100th`) is intentional batch-wide
+                // behaviour; resetting it per element forced the counter to ≤ 5
+                // for every element so any read-only param produced 50K log lines
+                // on a 50K batch. PostTagCleanup still resets at batch boundary.
 
                 string catName = ParameterHelpers.GetCategoryName(el);
                 if (string.IsNullOrEmpty(catName)) return false;
@@ -3949,6 +3951,11 @@ namespace StingTools.Core
                 }
 
                 // C-01 FIX: Check BuildAndWriteTag return value — skip containers/TAG7 on failure
+                // EFF-03 / CONS-03 (Phase 149a): pass _prevTag in so BuildAndWriteTag
+                // doesn't read TAG1 a second time, and pass tokenValuesOut so we get
+                // the freshly-built token array back instead of doing our own
+                // ReadTokenValues below. Two reads × 8 params per element saved.
+                string[] tokenVals = new string[8];
                 bool tagWriteOk = TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                     skipComplete: skipComplete,
                     existingTags: tagIndex,
@@ -3956,7 +3963,9 @@ namespace StingTools.Core
                     stats: stats,
                     cachedRev: ctx?.ProjectRev,
                     cachedPhases: ctx?.CachedPhases,
-                    lastPhaseId: ctx?.LastPhaseId);
+                    lastPhaseId: ctx?.LastPhaseId,
+                    prevTagHint: _prevTag,
+                    tokenValuesOut: tokenVals);
                 if (!tagWriteOk)
                 {
                     StingLog.Warn($"TagPipeline: BuildAndWriteTag failed for {el.Id} — skipping containers/TAG7");
@@ -3989,9 +3998,20 @@ namespace StingTools.Core
                 }
                 catch (Exception dtEx) { StingLog.Warn($"Tag audit trail write: {dtEx.Message}"); }
 
-                // C-02 FIX: Re-read token values AFTER BuildAndWriteTag (which applies overrides
-                // and SetIfEmpty) so container retry uses ACTUAL stored values, not stale pre-override values
-                string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                // EFF-03 (Phase 149a): tokenVals was filled by BuildAndWriteTag via
+                // tokenValuesOut. Verify it has at least one populated slot — if
+                // BuildAndWriteTag short-circuited (e.g. idempotency early-exit
+                // returned true), tokenVals will be all-null/empty and we need to
+                // fall back to a fresh read so downstream container/TAG7 writers
+                // see real data.
+                bool tokensFilled = false;
+                if (tokenVals != null)
+                {
+                    for (int i = 0; i < tokenVals.Length; i++)
+                        if (!string.IsNullOrEmpty(tokenVals[i])) { tokensFilled = true; break; }
+                }
+                if (!tokensFilled)
+                    tokenVals = ParamRegistry.ReadTokenValues(el);
 
                 // Read TAG1 once — reused for hook, container guard, and downstream checks
                 string tag1Check = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
