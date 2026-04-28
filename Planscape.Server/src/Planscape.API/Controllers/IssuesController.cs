@@ -62,6 +62,7 @@ public class IssuesController : ControllerBase
     [HttpGet]
     public async Task<ActionResult> GetIssues(Guid projectId,
         [FromQuery] string? status = null, [FromQuery] string? type = null,
+        [FromQuery] Guid? modelId = null,
         [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
         var tenantId = GetTenantId();
@@ -69,6 +70,10 @@ public class IssuesController : ControllerBase
 
         if (!string.IsNullOrEmpty(status)) query = query.Where(i => i.Status == status);
         if (!string.IsNullOrEmpty(type)) query = query.Where(i => i.Type == type);
+        // Phase 164 — modelId filter so the mobile sibling-pin loader can
+        // request only issues anchored to the active model. Backed by the
+        // existing single-column index on BimIssue.ModelId (PlanscapeDbContext.cs:136).
+        if (modelId.HasValue) query = query.Where(i => i.ModelId == modelId);
 
         var total = await query.CountAsync();
         var issues = await query
@@ -78,6 +83,12 @@ public class IssuesController : ControllerBase
             {
                 i.Id, i.IssueCode, i.Type, i.Title, i.Priority, i.Status,
                 i.Assignee, i.Discipline, i.Revision, i.CreatedBy, i.CreatedAt, i.DueDate, i.ResolvedAt,
+                // Phase 164 — model anchor fields. Without these the Phase 163
+                // mobile sibling-pin filter operated on fields the projection
+                // never returned, so pins never rendered. Adding them here is
+                // additive at the wire level (existing clients ignore unknown
+                // properties).
+                i.ModelId, i.ModelElementGuid, i.ModelX, i.ModelY, i.ModelZ,
                 IsOverdue = i.DueDate.HasValue && i.DueDate < DateTime.UtcNow && i.Status != "CLOSED" && i.Status != "RESOLVED",
                 DaysOpen = (int)(DateTime.UtcNow - i.CreatedAt).TotalDays
             })

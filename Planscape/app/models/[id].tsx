@@ -92,9 +92,14 @@ export default function ModelViewerScreen() {
 
   function onPlaceIssue(e: PlaceIssueEvent) {
     if (!projectId || !id) return;
+    // Phase 163 — pre-Phase-163 this pushed to "/issues/new", a route that
+    // doesn't exist. Now routes through the (tabs)/issues creation modal
+    // via ?fromViewer=1, which reads the anchor params and pre-fills the
+    // new-issue form (see app/(tabs)/issues.tsx Phase 163 deep-link effect).
     router.push({
-      pathname: "/issues/new",
+      pathname: "/(tabs)/issues",
       params: {
+        fromViewer: "1",
         modelId: id,
         modelElementGuid: e.guid,
         modelX: String(e.point[0]),
@@ -108,7 +113,11 @@ export default function ModelViewerScreen() {
   }
 
   function onPinTap(e: { issueId: string }) {
-    router.push(`/issues/${e.issueId}`);
+    // Phase 163 — pin tap routes through the (tabs)/issue-detail screen
+    // (which is what every other issue link uses) instead of "/issues/<id>"
+    // which only the legacy app/issues/[id].tsx legacy detail screen
+    // handles. Keeps deep-link conventions consistent across the app.
+    router.push(`/(tabs)/issue-detail?id=${e.issueId}`);
   }
 
   if (error) {
