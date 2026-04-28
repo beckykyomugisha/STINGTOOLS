@@ -77,7 +77,7 @@
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Save Project"     Click="OnSaveProject_Click"
                         ToolTip="Save valid rules to &lt;project&gt;/STING_PLACEMENT_RULES.project.json (Ctrl+S)."/>
                 <Separator Width="8" Visibility="Hidden"/>
-                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtn}"          Content="Run Placement"   Click="OnRunPlacement_Click" ToolTip="Alt+R"/>
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtn}"          x:Name="btnRunPlacement" Content="Run Placement"   Click="OnRunPlacement_Click" ToolTip="Alt+R"/>
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtn}"          Content="Preview"         Click="OnPreview_Click"      ToolTip="Alt+P"/>
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtn}"          Content="Validate"        Click="OnValidate_Click"     ToolTip="Alt+V"/>
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Undo last run"   Click="OnUndoLast_Click"

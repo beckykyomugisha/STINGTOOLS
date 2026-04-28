@@ -606,6 +606,9 @@ namespace StingTools.UI.PlacementCenter
             try
             {
                 EnsureRunEvent();
+                try { if (btnRunPlacement != null) btnRunPlacement.IsEnabled = false; } catch { }
+                VM.Status = "Run in progress — please wait…";
+                UpdateStatus();
                 _runEvent.Raise();
             }
             catch (Exception ex)
@@ -616,6 +619,7 @@ namespace StingTools.UI.PlacementCenter
                 try { progress?.Close(); } catch { }
                 StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance = prevStamp;
                 StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned   = prevLearn;
+                try { if (btnRunPlacement != null) btnRunPlacement.IsEnabled = true; } catch { }
                 return;
             }
             // Click-handler returns here. Engine runs on API thread; the
@@ -633,6 +637,7 @@ namespace StingTools.UI.PlacementCenter
             StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance = req?.PrevStamp ?? false;
             StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned   = req?.PrevLearn ?? false;
 
+            try { if (btnRunPlacement != null) btnRunPlacement.IsEnabled = true; } catch { }
             if (err != null)
             {
                 StingLog.Error("PlacementCenter.OnRunCompleted err", err);

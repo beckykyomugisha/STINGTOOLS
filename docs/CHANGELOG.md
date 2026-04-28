@@ -4391,3 +4391,28 @@ ExternalEvent pattern.
   hold in locals.
 - Dropped the unused `_runDone` and `_runFrame` fields.
 
+
+#### Completed (Phase 139.14 — progress dialog topmost + Centre run-state UI)
+
+User reported the pre-flight dialog "ran for a second and got lost"
+— it slipped behind the Placement Centre window because the dialog
+was parented to Revit's main window, not to the modeless Centre.
+With the Centre still in front and capturing focus, the user couldn't
+get to the progress dialog (or its Cancel button) and had no
+indication a run was in flight.
+
+Two fixes:
+
+1. **`StingProgressDialog._window.Topmost = true`.** The dialog
+   stays in front of the Centre (and any other modeless WPF window
+   that triggers it). Combined with the existing
+   `Owner = Revit-main-window` it stays inside the Revit process
+   without blocking modal TaskDialogs.
+
+2. **Centre Run-button disabled while run is in flight.** The Run
+   Placement toolbar button gains `x:Name="btnRunPlacement"`. On
+   `_runEvent.Raise()` the button is disabled and the bottom status
+   bar reads "Run in progress — please wait…". `OnRunCompleted`
+   re-enables the button before showing the result panel; the
+   Raise-error path also re-enables in its catch.
+
