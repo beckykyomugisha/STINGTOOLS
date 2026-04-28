@@ -34,6 +34,19 @@ public class Tenant
     [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "jsonb")]
     public string? KeywordExtensionsJson { get; set; }
 
+    /// <summary>
+    /// Phase 154 — tenant-scoped override for the BIM-Manager grant
+    /// list used by <c>BimManagerOrAdminHandler</c>. JSON array of
+    /// ISO 19650 single-letter role codes, e.g. <c>["K", "C", "M"]</c>.
+    /// Null/empty falls back to the deployment-wide
+    /// <c>Authorization:BimManagerIso19650Roles</c> appsettings list,
+    /// which itself defaults to <c>["K"]</c>. Lets a multi-tenant
+    /// deployment grant tenant-coordinator (C) keyword-edit rights on
+    /// one tenant without affecting others.
+    /// </summary>
+    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "jsonb")]
+    public string? BimManagerIso19650RolesJson { get; set; }
+
     // Navigation
     public ICollection<Project> Projects { get; set; } = new List<Project>();
     public ICollection<AppUser> Users { get; set; } = new List<AppUser>();

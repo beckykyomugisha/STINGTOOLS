@@ -36,10 +36,8 @@ public interface IPlatformKeywordRegistry
 /// </summary>
 public sealed class ConfigPlatformKeywordRegistry : IPlatformKeywordRegistry
 {
-    private static readonly HashSet<string> ValidRoles = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "initial", "working", "submitting", "accepting", "rejecting", "terminal",
-    };
+    // Phase 154 — single source of truth on RoleBuckets.Set.
+    private static IReadOnlySet<string> ValidRoles => RoleBuckets.Set;
 
     public IReadOnlyDictionary<string, IReadOnlyCollection<string>> Keywords { get; }
 

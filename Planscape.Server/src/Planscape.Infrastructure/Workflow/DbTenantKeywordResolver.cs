@@ -36,10 +36,8 @@ namespace Planscape.Infrastructure.Workflow;
 /// </summary>
 public sealed class DbTenantKeywordResolver : ITenantKeywordResolver
 {
-    private static readonly HashSet<string> ValidRoles = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "initial", "working", "submitting", "accepting", "rejecting", "terminal",
-    };
+    // Phase 154 — single source of truth on RoleBuckets.Set.
+    private static IReadOnlySet<string> ValidRoles => RoleBuckets.Set;
 
     // Cache keyed on (tenantId, contentHash) — the hash flips when an
     // admin updates the JSON, naturally invalidating stale entries.

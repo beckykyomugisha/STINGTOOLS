@@ -312,6 +312,10 @@
   // returns 400 with a structured error instead of being silently
   // ignored at request time.
   async function renderTenantKeywords(main) {
+    // Phase 154 — fetch the canonical bucket list from the server in
+    // parallel with the tenant's current JSON so the JS validator
+    // doesn't drift if a 7th bucket lands server-side.
+    await loadRoleBucketsOnce();
     let current;
     try {
       current = await api(`/api/admin/tenant-keywords`);
@@ -431,12 +435,30 @@
 
   // Phase 153 — pure-Compute validator mirroring the server's
   // ParseForValidation rules. Returns { ok, message } so the editor
-  // can disable Save on hard errors and surface a one-line hint. We
-  // accept the same six canonical buckets as the server; entries must
-  // be a JSON array of non-empty strings.
-  const TK_VALID_BUCKETS = new Set([
+  // can disable Save on hard errors and surface a one-line hint.
+  //
+  // Phase 154 — the bucket list now comes from
+  // /api/state-machine/role-buckets (single source of truth). We
+  // fetch it lazily on first call and cache the resolved Set on the
+  // module. Until the fetch lands, fall back to the historical
+  // hardcoded six so the editor isn't blocked by a slow Redis blip
+  // on startup. If the server later returns a different list (e.g.
+  // a 7th bucket added), subsequent validations honour it without
+  // a JS rebuild.
+  let TK_VALID_BUCKETS = new Set([
     "initial", "working", "submitting", "accepting", "rejecting", "terminal",
   ]);
+  let TK_BUCKETS_LOADED = false;
+  async function loadRoleBucketsOnce() {
+    if (TK_BUCKETS_LOADED) return;
+    try {
+      const res = await api(`/api/state-machine/role-buckets`);
+      if (Array.isArray(res?.buckets) && res.buckets.length > 0) {
+        TK_VALID_BUCKETS = new Set(res.buckets.map(b => String(b).toLowerCase()));
+      }
+    } catch { /* fall back to hardcoded set; non-fatal */ }
+    TK_BUCKETS_LOADED = true;
+  }
   function validateTenantKeywordsJson(text) {
     let parsed;
     try { parsed = JSON.parse(text); }

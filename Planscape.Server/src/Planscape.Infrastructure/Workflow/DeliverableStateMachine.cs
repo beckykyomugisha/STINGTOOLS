@@ -351,10 +351,10 @@ public sealed class DeliverableStateMachine
         }
     }
 
-    private static readonly HashSet<string> KnownRoles = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "initial", "working", "submitting", "accepting", "rejecting", "terminal", "none",
-    };
+    // Phase 154 — single source of truth on RoleBuckets.WithNone.
+    // Includes "none" because the role-block validator on the loader
+    // accepts "none" to explicitly suppress side-effects.
+    private static IReadOnlySet<string> KnownRoles => RoleBuckets.WithNone;
 
     /// <summary>
     /// Phase 147 — canonical state-name to role lookup used when a custom

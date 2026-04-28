@@ -5186,3 +5186,86 @@ hardening items.
 4. Configurable BIM Manager roles are deployment-global. A
    tenant-scoped override would land in a future phase if a
    multi-tenant deployment needs different policies per customer.
+
+#### Completed (Phase 154 — Phase 153 caveat closures: server-source-of-truth role buckets, tenant-scoped BIM Manager override)
+
+The two remaining caveats from Phase 153 were both real production
+hardening items.
+
+**1 — Server source of truth for role buckets**
+
+1. New
+   `Planscape.Server/src/Planscape.Infrastructure/Workflow/RoleBuckets.cs`
+   — single static class holding the canonical six-bucket list
+   (`Canonical`), the case-insensitive set (`Set`), and the +none
+   sentinel set (`WithNone`). Replaces three duplicates that were
+   slowly drifting:
+     - `DeliverableStateMachine.KnownRoles`
+     - `DbTenantKeywordResolver.ValidRoles`
+     - `ConfigPlatformKeywordRegistry.ValidRoles`
+   All three now reference `RoleBuckets.Set` / `RoleBuckets.WithNone`
+   so adding a seventh bucket later is a one-file change.
+2. New `Planscape.Server/src/Planscape.API/Controllers/RoleBucketsController.cs`
+   — `GET /api/state-machine/role-buckets` returns the canonical
+   list to authenticated callers. No tenant data here; the list is
+   universal across deployments.
+3. `Planscape.Server/src/Planscape.API/wwwroot/js/dashboard.js` —
+   `validateTenantKeywordsJson` now consults a `TK_VALID_BUCKETS`
+   set populated by `loadRoleBucketsOnce()` on first render of the
+   tenant-keywords view. Falls back to a hardcoded copy of the
+   historical six on fetch failure so the editor isn't blocked by
+   a slow Redis blip on dashboard startup. If a future bucket
+   lands server-side, subsequent validations honour it without a
+   JS rebuild.
+
+**2 — Tenant-scoped BIM Manager role override**
+
+4. `Planscape.Server/src/Planscape.Core/Entities/Tenant.cs` — added
+   `BimManagerIso19650RolesJson` (jsonb, nullable). JSON array of
+   ISO 19650 single-letter codes, e.g. `["K", "C", "M"]`. Null falls
+   back to the deployment-wide
+   `Authorization:BimManagerIso19650Roles` appsettings list
+   (default `["K"]`).
+5. New migration `20260427700000_AddTenantBimManagerRoles.cs` —
+   adds the column. Null is the no-op default so existing tenants
+   are unaffected.
+6. `Planscape.Server/src/Planscape.Infrastructure/Authorization/BimManagerOrAdminHandler.cs`
+   — `ResolveEffectiveRoles(string? tenantOverrideJson)` parses
+   the tenant override (forgiving: malformed JSON / non-array root /
+   non-string entries / empty array → fall back to platform list).
+   The handler fetches the override + AppUser role + project
+   membership in three reads against the same DbContext per
+   request, all scoped to the caller's tenant claim.
+7. Net priority: tenant override (when set) → deployment-global
+   appsettings (when set) → hardcoded `["K"]`.
+
+**3 — Tests**
+
+8. `Planscape.Server/tests/Planscape.Tests/RoleBucketsTests.cs` —
+   6 facts/theories pinning the bucket list (count, exact names,
+   case-insensitivity, "none" sentinel handling, rejection of
+   unknown buckets). Adding / renaming a bucket now requires a
+   deliberate update here alongside the production list — no
+   silent drift.
+9. `Planscape.Server/tests/Planscape.Tests/TenantBimManagerRoleOverrideTests.cs`
+   — 9 facts/theories: tenant narrows below deployment, tenant
+   broadens beyond deployment, case-insensitive matching,
+   malformed override falls back (5 theory cases), null override
+   falls back, override applies to AppUser-level grant path.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. Tenant override JSON is parsed on every authorisation request.
+   Acceptable because the request is already tenant-scoped and the
+   parse is cheap; if measured profiles later show otherwise, a
+   per-tenant cache (similar to `DbTenantKeywordResolver`) could
+   land in a follow-up phase.
+3. The tenant override has no admin-UI editor yet — the column is
+   set via direct SQL or via the existing tenant settings PUT (when
+   that endpoint lands; see SRV-50 backlog item). The plumbing is
+   in place ahead of the UI.
+4. The `RoleBuckets.WithNone` set still treats "none" as a legal
+   value in custom-machine `"roles"` blocks (matches Phase 146
+   behaviour); custom keyword blocks reject it via the narrower
+   `RoleBuckets.Set`.

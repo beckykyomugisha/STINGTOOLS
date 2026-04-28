@@ -66,6 +66,42 @@ public sealed class BimManagerOrAdminHandler : AuthorizationHandler<BimManagerOr
         return entries.Count > 0 ? entries : DefaultBimManagerRoles;
     }
 
+    /// <summary>
+    /// Phase 154 — resolve the effective BIM-Manager role list,
+    /// preferring the tenant's <c>BimManagerIso19650RolesJson</c>
+    /// override (if set + parseable) and falling back to the
+    /// platform-wide <see cref="_bimManagerRoles"/>.
+    ///
+    /// Forgiving parser: malformed JSON, non-array root, non-string
+    /// entries, or an empty array all collapse to the platform list.
+    /// One bad row in the DB doesn't lock the tenant out of admin
+    /// access — they keep the platform default.
+    /// </summary>
+    private IReadOnlyList<string> ResolveEffectiveRoles(string? tenantOverrideJson)
+    {
+        if (string.IsNullOrWhiteSpace(tenantOverrideJson)) return _bimManagerRoles;
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(tenantOverrideJson);
+            if (doc.RootElement.ValueKind != System.Text.Json.JsonValueKind.Array)
+                return _bimManagerRoles;
+            var entries = new List<string>();
+            foreach (var el in doc.RootElement.EnumerateArray())
+            {
+                if (el.ValueKind != System.Text.Json.JsonValueKind.String) continue;
+                var v = el.GetString();
+                if (!string.IsNullOrWhiteSpace(v))
+                    entries.Add(v!.Trim().ToUpperInvariant());
+            }
+            entries = entries.Distinct().ToList();
+            return entries.Count > 0 ? entries : _bimManagerRoles;
+        }
+        catch
+        {
+            return _bimManagerRoles;
+        }
+    }
+
     protected override async Task HandleRequirementAsync(
         AuthorizationHandlerContext context,
         BimManagerOrAdminRequirement requirement)
@@ -96,12 +132,21 @@ public sealed class BimManagerOrAdminHandler : AuthorizationHandler<BimManagerOr
         // membership row exists. Honour that signal so a BIM Manager
         // who's freshly invited can curate vocabulary on day one
         // without first being added to a project.
+        // Phase 154 — fetch tenant override + AppUser role in one
+        // round-trip; resolve the effective role list before the
+        // membership check.
+        var tenantContext = await db.Tenants.AsNoTracking()
+            .Where(t => t.Id == tenantId)
+            .Select(t => t.BimManagerIso19650RolesJson)
+            .FirstOrDefaultAsync();
+        var effectiveRoles = ResolveEffectiveRoles(tenantContext);
+
         var userIso = await db.Users.AsNoTracking()
             .Where(u => u.Id == userId && u.TenantId == tenantId)
             .Select(u => u.Iso19650Role)
             .FirstOrDefaultAsync();
         if (!string.IsNullOrWhiteSpace(userIso)
-            && _bimManagerRoles.Contains(userIso!.ToUpperInvariant()))
+            && effectiveRoles.Contains(userIso!.ToUpperInvariant()))
         {
             context.Succeed(requirement);
             return;
@@ -113,7 +158,7 @@ public sealed class BimManagerOrAdminHandler : AuthorizationHandler<BimManagerOr
         var hasBimManagerRow = await db.ProjectMembers
             .AsNoTracking()
             .Where(m => m.UserId == userId && m.IsActive)
-            .Where(m => _bimManagerRoles.Contains(m.Iso19650Role.ToUpper()))
+            .Where(m => effectiveRoles.Contains(m.Iso19650Role.ToUpper()))
             .Where(m => m.Project!.TenantId == tenantId)
             .AnyAsync();
 
