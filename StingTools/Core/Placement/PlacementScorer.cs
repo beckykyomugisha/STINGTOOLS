@@ -875,13 +875,39 @@ namespace StingTools.Core.Placement
                         new XYZ(bb.Min.X - pad, bb.Min.Y - pad, bb.Min.Z - pad),
                         new XYZ(bb.Max.X + pad, bb.Max.Y + pad, bb.Max.Z + pad));
                     var bbf = new BoundingBoxIntersectsFilter(outline);
-                    cache.Doors   = CollectInsts(_doc, BuiltInCategory.OST_Doors,   bbf);
+                    cache.Doors   = FilterDoorsForRoom(CollectInsts(_doc, BuiltInCategory.OST_Doors, bbf), room);
                     cache.Windows = CollectInsts(_doc, BuiltInCategory.OST_Windows, bbf);
                 }
             }
             catch (Exception ex) { StingLog.Warn($"PlacementScorer.GetBoundary {room.Id}: {ex.Message}"); }
             _boundaryCache[room.Id] = cache;
             return cache;
+        }
+
+        // Phase 139.18 — filter door instances to those that actually open
+        // into the supplied room. Revit's FamilyInstance.FromRoom /
+        // ToRoom expose the spatial relationship; the bbox-intersect
+        // collector is too greedy and grabs doors of adjacent rooms.
+        // Falls back to bbox-intersect when both FromRoom and ToRoom
+        // are null (door's spatial context not yet computed).
+        private static List<FamilyInstance> FilterDoorsForRoom(List<FamilyInstance> all, Room room)
+        {
+            if (all == null || room == null) return all ?? new List<FamilyInstance>();
+            var keep = new List<FamilyInstance>();
+            foreach (var fi in all)
+            {
+                if (fi == null) continue;
+                Room from = null, to = null;
+                try { from = fi.FromRoom; } catch { }
+                try { to = fi.ToRoom; } catch { }
+                if (from == null && to == null)
+                {
+                    keep.Add(fi); // unknown spatial context — keep, fall through
+                    continue;
+                }
+                if ((from?.Id == room.Id) || (to?.Id == room.Id)) keep.Add(fi);
+            }
+            return keep;
         }
 
         private static List<FamilyInstance> CollectInsts(Document doc, BuiltInCategory cat, ElementFilter bbf)
@@ -1041,13 +1067,24 @@ namespace StingTools.Core.Placement
         {
             try
             {
-                if (w == null || w.Location is not LocationCurve lc || lc.Curve is not Line ln) return null;
-                XYZ tangent = (ln.GetEndPoint(1) - ln.GetEndPoint(0)).Normalize();
+                if (w == null || !(w.Location is LocationCurve lc) || lc.Curve == null) return null;
+                // Phase 139.18 — generalised from `is Line` to any Curve.
+                // Arc / NurbSpline walls used to short-circuit and the door
+                // anchor fell back to world-Y → switches on curved walls
+                // were pushed in a fixed direction unrelated to geometry.
+                XYZ tangent;
+                try
+                {
+                    var deriv = lc.Curve.ComputeDerivatives(0.5, true);
+                    tangent = deriv?.BasisX ?? (lc.Curve.GetEndPoint(1) - lc.Curve.GetEndPoint(0));
+                }
+                catch { tangent = lc.Curve.GetEndPoint(1) - lc.Curve.GetEndPoint(0); }
+                if (tangent.GetLength() < 1e-9) return null;
+                tangent = tangent.Normalize();
                 XYZ normal = new XYZ(-tangent.Y, tangent.X, 0);
-                // Resolve direction: nudge a tiny amount along ±normal and pick the one inside the room bbox.
                 var bb = room.get_BoundingBox(null);
                 if (bb == null) return normal;
-                XYZ wallMid = ln.Evaluate(0.5, true);
+                XYZ wallMid = lc.Curve.Evaluate(0.5, true);
                 XYZ probe = wallMid + normal.Multiply(0.5);
                 if (probe.X >= bb.Min.X && probe.X <= bb.Max.X && probe.Y >= bb.Min.Y && probe.Y <= bb.Max.Y) return normal;
                 return normal.Negate();

@@ -448,6 +448,39 @@ namespace StingTools.Core.Placement
             FamilySymbol symbol = ResolveSymbol(doc, rule.CategoryFilter, rule, perCategorySymbol, result);
             if (symbol == null) return;
 
+            // Phase 139.18 — warn once per (rule, family) when a wall- or
+            // ceiling-anchored rule resolves to an un-hosted family. The
+            // engine still places it (post-placement wall-snap + rotation
+            // does its best), but designers should re-author the family
+            // as wall-hosted / ceiling-hosted for proper attachment.
+            try
+            {
+                string anchor = (rule.AnchorType ?? "").ToUpperInvariant();
+                bool wantsWallHost = anchor == "WALL_MIDPOINT" || anchor == "WALL_CORNER"
+                                  || anchor == "WALL_FACE_OFFSET"
+                                  || anchor.StartsWith("DOOR_")
+                                  || anchor.StartsWith("WINDOW_");
+                bool wantsCeilingHost = anchor == "CEILING_CENTRE"
+                                  || anchor == "CEILING_TILE_CENTRE"
+                                  || anchor == "LIGHTING_GRID"
+                                  || anchor == "LUX_GRID";
+                var fpt = symbol.Family?.FamilyPlacementType ?? FamilyPlacementType.Invalid;
+                bool isHosted = fpt == FamilyPlacementType.OneLevelBasedHosted;
+                if ((wantsWallHost || wantsCeilingHost) && !isHosted)
+                {
+                    string warnKey = "FamilyPlacementType:" + (symbol.Family?.Name ?? "?") + ":" + rule.MergeKey;
+                    if (!result.Warnings.Any(w => w.Contains(warnKey)))
+                    {
+                        result.Warnings.Add(
+                            $"{warnKey} — rule '{rule.MergeKey}' uses {anchor} but the resolved family " +
+                            $"'{symbol.Family?.Name}' is {fpt}, not OneLevelBasedHosted. Engine will place " +
+                            $"+ snap + rotate but the family won't attach to the wall/ceiling. " +
+                            $"Re-author the family as wall-hosted (or ceiling-hosted) for proper attachment.");
+                    }
+                }
+            }
+            catch { }
+
             if (!symbol.IsActive)
             {
                 try { symbol.Activate(); doc.Regenerate(); }
@@ -921,7 +954,40 @@ namespace StingTools.Core.Placement
                                || anchor == "DOOR_CLOSER_ZONE"
                                || anchor == "WINDOW_SILL" || anchor == "WINDOW_HEAD";
                 if (!wallAnchor) return;
-                if (!(fi.Host is Wall hostWall)) return;
+
+                // Phase 139.18 — drop the `fi.Host is Wall` gate. Un-hosted
+                // OneLevelBased families also need rotation: they default to
+                // world-X facing and end up wrong on north-south walls.
+                // For un-hosted families we resolve the wall via
+                // FilteredElementCollector below; for hosted families we
+                // keep using fi.Host directly.
+                Wall hostWall = fi.Host as Wall;
+                if (hostWall == null && fi.Location is LocationPoint lpForWall && lpForWall.Point != null)
+                {
+                    const double findRadiusFt = 600.0 / 304.8;
+                    double bestSq = findRadiusFt * findRadiusFt;
+                    var bbR = room?.get_BoundingBox(null);
+                    if (bbR != null)
+                    {
+                        var pad = findRadiusFt + 0.5;
+                        var outline = new Outline(
+                            new XYZ(bbR.Min.X - pad, bbR.Min.Y - pad, bbR.Min.Z - pad),
+                            new XYZ(bbR.Max.X + pad, bbR.Max.Y + pad, bbR.Max.Z + pad));
+                        var bbf = new BoundingBoxIntersectsFilter(outline);
+                        foreach (var el in new FilteredElementCollector(doc)
+                            .OfCategory(BuiltInCategory.OST_Walls)
+                            .WhereElementIsNotElementType()
+                            .WherePasses(bbf))
+                        {
+                            if (!(el is Wall w) || !(w.Location is LocationCurve lc2) || lc2.Curve == null) continue;
+                            var proj = lc2.Curve.Project(lpForWall.Point);
+                            if (proj == null) continue;
+                            double d = proj.Distance;
+                            if (d * d < bestSq) { bestSq = d * d; hostWall = w; }
+                        }
+                    }
+                }
+                if (hostWall == null) return;
 
                 // The family's current facing vs the inward room normal at the
                 // wall midpoint. Inward = wall.Orientation flipped if the room
@@ -955,7 +1021,51 @@ namespace StingTools.Core.Placement
                 if (familyFacing.DotProduct(inward) < -0.1)
                 {
                     if (fi.CanFlipFacing)
+                    {
                         fi.flipFacing();
+                    }
+                    else
+                    {
+                        // Phase 139.18 — un-hosted OneLevelBased families
+                        // can't flipFacing(); rotate 180° about Z at the
+                        // location point instead. ElementTransformUtils
+                        // rotation needs a line axis through the family
+                        // origin parallel to Z.
+                        XYZ origin = (fi.Location as LocationPoint)?.Point;
+                        if (origin != null)
+                        {
+                            try
+                            {
+                                var axis = Line.CreateBound(origin, origin + XYZ.BasisZ);
+                                ElementTransformUtils.RotateElement(doc, fi.Id, axis, Math.PI);
+                            }
+                            catch (Exception rotEx) { StingLog.Warn($"OrientPlacedInstance rotate-180: {rotEx.Message}"); }
+                        }
+                    }
+                }
+                else if (Math.Abs(familyFacing.DotProduct(inward)) < 0.5
+                         && fi.Host == null
+                         && fi.Location is LocationPoint lpRot && lpRot.Point != null)
+                {
+                    // Phase 139.18 — un-hosted family is roughly perpendicular
+                    // to the wall (e.g. a switch on a north-south wall facing
+                    // east-west). Rotate so its facing aligns with the inward
+                    // wall normal.
+                    try
+                    {
+                        double currentAngle = Math.Atan2(familyFacing.Y, familyFacing.X);
+                        double targetAngle  = Math.Atan2(inward.Y, inward.X);
+                        double delta = targetAngle - currentAngle;
+                        // Normalise to (-π, π]
+                        while (delta >  Math.PI) delta -= 2 * Math.PI;
+                        while (delta <= -Math.PI) delta += 2 * Math.PI;
+                        if (Math.Abs(delta) > 0.05)
+                        {
+                            var axis = Line.CreateBound(lpRot.Point, lpRot.Point + XYZ.BasisZ);
+                            ElementTransformUtils.RotateElement(doc, fi.Id, axis, delta);
+                        }
+                    }
+                    catch (Exception rotEx) { StingLog.Warn($"OrientPlacedInstance align-to-wall: {rotEx.Message}"); }
                 }
 
                 // Phase 139.16 — snap the family onto the nearest wall's
