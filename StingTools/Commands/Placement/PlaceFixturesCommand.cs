@@ -28,6 +28,15 @@ namespace StingTools.Commands.Placement
         public static bool DryRunPreference { get; set; } = true;
         public static bool SnapTo300mmGrid  { get; set; } = true;
 
+        // Phase 139.7 — scope radio plumbing. The Fixtures sub-tab has
+        // three radios (rbFxScopeSel / rbFxScopeView / rbFxScopeAll).
+        // The dock panel's checked-event handler writes this enum; the
+        // engine reads it on every Place run. Defaults to SelectedRooms
+        // to preserve the historic behaviour when the panel hasn't
+        // initialised the value yet.
+        public enum FixtureScopeMode { SelectedRooms, ActiveView, AllRooms }
+        public static FixtureScopeMode ScopeMode { get; set; } = FixtureScopeMode.SelectedRooms;
+
         // Category filters (from the Fixtures panel).
         public static bool IncludeElectricalFixtures  { get; set; } = true;
         public static bool IncludeLightingDevices     { get; set; } = true;
@@ -93,11 +102,81 @@ namespace StingTools.Commands.Placement
             var doc  = ctx.Doc;
             var uidoc = ctx.UIDoc;
 
-            // Scope: selected rooms → those; else all rooms in project.
+            // Phase 139.7 — honour the FxScope radio (Selected / Active view /
+            // All rooms). Pre-139.7 the engine only saw rooms in
+            // uidoc.Selection.GetElementIds() and silently fell through to
+            // "entire project" when none were selected, regardless of which
+            // radio the user picked. Now we explicitly collect rooms per mode.
             var selectedRoomIds = new List<ElementId>();
-            foreach (var id in uidoc.Selection.GetElementIds())
+            string scopeLabel;
+            switch (PlaceFixturesOptions.ScopeMode)
             {
-                if (doc.GetElement(id) is Room) selectedRoomIds.Add(id);
+                case PlaceFixturesOptions.FixtureScopeMode.ActiveView:
+                {
+                    var view = uidoc.ActiveView;
+                    if (view == null)
+                    {
+                        TaskDialog.Show("STING v4 — Place Fixtures",
+                            "Scope is Active view but no active view found. Open a plan view and try again.");
+                        return Result.Cancelled;
+                    }
+                    // Phase 139.8 — view-bounded room collection. Plan views
+                    // use GenLevel; sections / 3D / unknown fall back to
+                    // CropBox bbox-intersection. The view-id collector
+                    // (`new FilteredElementCollector(doc, view.Id)`) silently
+                    // returns one or zero rooms for non-3D Room entities.
+                    if (view is ViewPlan plan && plan.GenLevel != null)
+                    {
+                        var levelId = plan.GenLevel.Id;
+                        foreach (var el in new FilteredElementCollector(doc)
+                            .OfCategory(BuiltInCategory.OST_Rooms)
+                            .WhereElementIsNotElementType())
+                            if (el is Room r && r.Area > 0 && r.LevelId == levelId)
+                                selectedRoomIds.Add(r.Id);
+                    }
+                    else
+                    {
+                        BoundingBoxXYZ vb = null;
+                        try { vb = view.CropBox; } catch { }
+                        foreach (var el in new FilteredElementCollector(doc)
+                            .OfCategory(BuiltInCategory.OST_Rooms)
+                            .WhereElementIsNotElementType())
+                        {
+                            if (!(el is Room r) || r.Area <= 0) continue;
+                            var rb = r.get_BoundingBox(null);
+                            if (rb == null) continue;
+                            if (vb == null
+                                || (rb.Max.X >= vb.Min.X && rb.Min.X <= vb.Max.X
+                                 && rb.Max.Y >= vb.Min.Y && rb.Min.Y <= vb.Max.Y))
+                                selectedRoomIds.Add(r.Id);
+                        }
+                    }
+                    scopeLabel = $"Active view ({selectedRoomIds.Count} room(s))";
+                    break;
+                }
+                case PlaceFixturesOptions.FixtureScopeMode.AllRooms:
+                {
+                    scopeLabel = "All rooms (entire project)";
+                    // Leave selectedRoomIds empty — engine treats empty as "all rooms".
+                    break;
+                }
+                case PlaceFixturesOptions.FixtureScopeMode.SelectedRooms:
+                default:
+                {
+                    foreach (var id in uidoc.Selection.GetElementIds())
+                        if (doc.GetElement(id) is Room) selectedRoomIds.Add(id);
+                    scopeLabel = selectedRoomIds.Count > 0
+                        ? $"{selectedRoomIds.Count} selected room(s)"
+                        : "no rooms selected";
+                    if (selectedRoomIds.Count == 0)
+                    {
+                        TaskDialog.Show("STING v4 — Place Fixtures",
+                            "Scope is 'Selected rooms' but no rooms are selected. " +
+                            "Select rooms in the model or switch the scope to 'Active view' / 'All rooms' in the Fixtures tab.");
+                        return Result.Cancelled;
+                    }
+                    break;
+                }
             }
 
             // Fixtures sub-tab: "Dry-run preview first" checkbox decides
@@ -106,16 +185,16 @@ namespace StingTools.Commands.Placement
             bool dryRun;
             if (PlaceFixturesOptions.DryRunPreference)
             {
-                dryRun = PromptDryRunChoice(selectedRoomIds.Count);
+                dryRun = PromptDryRunChoice(scopeLabel);
             }
             else
             {
-                if (!ConfirmPlacement(selectedRoomIds.Count)) return Result.Cancelled;
+                if (!ConfirmPlacement(scopeLabel)) return Result.Cancelled;
                 dryRun = false;
             }
             if (dryRun == false
                 && PlaceFixturesOptions.DryRunPreference == false
-                && !ConfirmPlacement(selectedRoomIds.Count)) return Result.Cancelled;
+                && !ConfirmPlacement(scopeLabel)) return Result.Cancelled;
 
             // Category filter: discipline checkboxes from the Fixtures
             // panel restrict which PlacementRule.CategoryFilter values
@@ -157,6 +236,48 @@ namespace StingTools.Commands.Placement
                         "STING_PLACEMENT_RULES.json.");
                     return Result.Cancelled;
                 }
+
+                // Phase 139.7 — pre-flight: warn the user about checked
+                // categories that have ZERO loaded family symbols. Without
+                // this check the engine prints "No FamilySymbol found for
+                // category 'X' — skipping its rules" once and silently
+                // drops all rules in that category, leaving the designer
+                // wondering why no sockets / switches landed.
+                var emptyCats = new List<string>();
+                foreach (var cat in allowedCats)
+                {
+                    bool hasSymbol = false;
+                    try
+                    {
+                        foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)))
+                        {
+                            if (el is FamilySymbol fs && fs.Category != null
+                                && string.Equals(fs.Category.Name, cat, StringComparison.OrdinalIgnoreCase))
+                            { hasSymbol = true; break; }
+                        }
+                    }
+                    catch { }
+                    if (!hasSymbol) emptyCats.Add(cat);
+                }
+                if (emptyCats.Count > 0)
+                {
+                    var td2 = new TaskDialog("STING v4 — Categories without a placeable Type")
+                    {
+                        MainInstruction = $"{emptyCats.Count} ticked categor{(emptyCats.Count == 1 ? "y has" : "ies have")} no Family Type loaded",
+                        MainContent =
+                            "These categories have no Family Type (FamilySymbol) loaded into the project:\n  " +
+                            string.Join("\n  ", emptyCats.Take(15)) +
+                            (emptyCats.Count > 15 ? $"\n  + {emptyCats.Count - 15} more" : "") +
+                            "\n\nIn Revit a Family (.rfa) is the container; a Type (FamilySymbol) is one of the variants " +
+                            "inside it. The engine places instances of a Type, not the Family — a Family with none of its " +
+                            "Types loaded into the project drops every rule in its category.\n\n" +
+                            "Insert > Load Family, then drag at least one Type from the .rfa in Project Browser into a view, " +
+                            "and run Placement_AuditSetup for the full setup check. Continue anyway?",
+                        CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                        DefaultButton = TaskDialogResult.No,
+                    };
+                    if (td2.Show() != TaskDialogResult.Yes) return Result.Cancelled;
+                }
             }
 
             PlacementResult res;
@@ -187,12 +308,8 @@ namespace StingTools.Commands.Placement
             return Result.Succeeded;
         }
 
-        private bool PromptDryRunChoice(int selectedRoomCount)
+        private bool PromptDryRunChoice(string scopeLabel)
         {
-            string scope = selectedRoomCount > 0
-                ? $"{selectedRoomCount} selected room(s)"
-                : "ALL rooms in project";
-
             // Revit's TaskDialog.DefaultButton must refer to a button in CommonButtons —
             // it cannot point at a CommandLink. Leave DefaultButton unset so Revit picks
             // the first-added CommandLink as the default.
@@ -200,7 +317,7 @@ namespace StingTools.Commands.Placement
             {
                 MainInstruction = "Run preview first?",
                 MainContent =
-                    $"Scope: {scope}\n\n" +
+                    $"Scope: {scopeLabel}\n\n" +
                     "PREVIEW: score candidates and show the result without placing anything.\n" +
                     "PLACE: execute placement in a single transaction.",
                 CommonButtons = TaskDialogCommonButtons.Cancel,
@@ -211,14 +328,11 @@ namespace StingTools.Commands.Placement
             return r != TaskDialogResult.CommandLink2;
         }
 
-        private bool ConfirmPlacement(int selectedRoomCount)
+        private bool ConfirmPlacement(string scopeLabel)
         {
-            string scope = selectedRoomCount > 0
-                ? $"{selectedRoomCount} room(s)"
-                : "the entire project";
             var r = TaskDialog.Show(
                 "STING v4 — Confirm placement",
-                $"About to place fixtures across {scope}. Continue?",
+                $"About to place fixtures.\n\nScope: {scopeLabel}\n\nContinue?",
                 TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
                 TaskDialogResult.No);
             return r == TaskDialogResult.Yes;

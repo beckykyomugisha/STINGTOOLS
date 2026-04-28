@@ -3776,6 +3776,1103 @@ round-trip, and 3 new validators.
    declared in `MR_PARAMETERS.txt` before any Revit project will see
    them — listed for the next parameter-registry pass.
 
+#### Completed (Phase 139.2 — MK Alignment, Conduiting Phase, BESA-Pendant Workflow)
+
+Sustainable method: Nested Family + Compound Structure Offset + Two-Phase
+GUID Matching + Manufacturer Catalogue Auto-Population + Ceiling Tile Grid Snap.
+
+New classes:
+  - `ManufacturerCatalogueEntry` (POCO)
+  - `ManufacturerCatalogueRegistry` (load / resolve / `AutoPopulateFromFamilies`)
+  - `PlasterOffsetResolver` (`Resolve(Wall,rule)`, `ResolveForCeiling(...)`)
+  - `CompoundClusterPlacer` (`GroupByCluster`, `ComputeClusterPositions`)
+  - `TwoPhaseBoxPlacer` (`ValidateSharedParams`, `PlaceFirstFixBoxes`, `PlaceSecondFixDevices`)
+
+New fields on `PlacementRule` (Parts A1–A9):
+  - A1 Manufacturer hint (`ManufacturerCode`, `CatalogueRef`, `BoxDepthMm`,
+    `ModulePitchMm`, `GangCount`, `MountType`, `InsertionOrigin`)
+  - A2 Two-phase conduiting (`ConstructionPhase`, `CompletionPhase`,
+    `BoxFamilyTypeRegex`, `BoxLocationIdParam`, `TwoPhaseEnabled`)
+  - A3 Compound cluster (`IsClusterMember`, `ClusterGroupId`,
+    `ClusterSlotIndex`, `ClusterTotalSlots`, `ClusterFrameWidthMm`)
+  - A4 Plaster offset (`PlasterOffsetMode`, `PlasterOffsetFixedMm`)
+  - A5 Ceiling tile snap (`CeilingTileSnap`, `TileGridSpacingXMm`,
+    `TileGridSpacingYMm`)
+  - A6 Structural fixing (`StructuralFixingCheck`, `JoistClearanceMm`,
+    `EmitNogginRequirement`)
+  - A7 Wet-zone exclusion (`WetZoneExclude`, `WetZoneClass`)
+  - A8 Standards alias (`HeightStandardRef`)
+
+New shared parameters: `STING_BOX_LOCATION_ID`, `STING_NOGGIN_REQUIRED`
+(constants added to `ParamRegistry`; awaiting bind in `MR_PARAMETERS.txt`).
+
+New data files (under `StingTools/Data/Placement/`):
+  - `STING_MANUFACTURER_CATALOGUE.json` — 31 entries (MK Logic Plus 1G/2G/3G
+    flush + surface, Grid Plus 2/4/6/8-module, Metal Clad IP2X/IP66, BESA
+    round 36/47, square outlet 44/57, MK junction boxes 5A/20A/30A/IP66)
+  - `STING_HEIGHT_STANDARDS.json` — extended to 33 standard keys with the
+    new BS 7671/BS 8300/HTM 06-01/BS 5839/BS 5266 entries called out by
+    rule references (`BS7671_SOCKET_STD`, `KITCHEN_SOCKET_ABOVE_WORKTOP`,
+    `HTM0601_BEDHEAD_SOCKET`, `SHOWER_PULL_CORD`, etc.)
+  - `STING_PLACEMENT_RULES.mk-electrical.json` (34 rules — sockets,
+    switches, dimmers, accessible variants, Grid Plus clusters, two-phase
+    conduiting hooks, healthcare bedhead)
+  - `STING_PLACEMENT_RULES.ceiling-pendants.json` (20 rules — residential
+    pendants, kitchen IP44, bathroom IP65, office/classroom LED on tile
+    grid, corridor/emergency, downlights, high-bay, smoke/heat with
+    coverage guarantee, JBs)
+  - `STING_PLACEMENT_RULES.conduiting-phase.json` (16 first-fix-only rules
+    — square outlet box at every socket/switch/FCU, BESA at every
+    pendant/downlight/smoke/heat, junction boxes ring-final/lighting/
+    cooker, through-wall AV, tee branch, deep RCD, nurse call, deep
+    shaver, classroom tile-snap)
+
+`PlacementRuleLoader` registers the three new packs (`MK_Electrical`,
+`Ceiling_Pendants`, `Conduiting_Phase`).
+
+`LightingGridCalculator` extended with `Compute(Room, PlacementRule)` and
+helpers `SnapToCeilingTileGrid`, `CheckStructuralFixing`,
+`ComputeUniformityRatio`. `LightingGridResult` extended with
+`NogginRequiredPoints`, `TileSnapAdjustments`, `ActualUniformityRatio`.
+
+`PlacementHostPreflight.PlaceOnCeilingSoffit` adds the ReferenceIntersector
+upward-ray + ceiling-void-drop placement for BESA + pendant alignment.
+
+`PlacementScorer` weights re-balanced (Anchor 0.35 / Side 0.22 /
+Spacing 0.18 / Collision 0.10 / Symmetry 0.05 / Coverage 0.07 /
+Manufacturer 0.03). New components `ScoreCoverageContribution` and
+`ScoreManufacturerResolution`.
+
+`PlacementScorer.AnchorTypes` adds 8 anchor types: `STRUCTURAL_SOFFIT`,
+`CEILING_TILE_CENTRE`, `WALL_FACE_OFFSET`, `DOOR_LATCH_SIDE`,
+`DOOR_HINGE_SIDE_150`, `CONDUIT_BOX_MATCHED`, `CEILING_VOID_ABOVE_BOX`,
+`FLOOR_SLAB_PENETRATION`.
+
+`FixturePlacementEngine.PlaceFixturesInScope` integrates the new
+subsystems: pre-flight `AutoPopulateFromFamilies` + `ValidateSharedParams`,
+Step 1 `PlaceFirstFixBoxes` before per-room loop, Step 3
+`PlaceSecondFixDevices` after the loop. `PlacementResult` extended with
+`NogginRequiredPoints` and `TileSnapAdjustments`.
+
+`PlacementRulesExcelExporter` schema extended with the full 30-column
+Phase 139.2 set (manufacturer / two-phase / cluster / plaster / tile /
+structural / wet-zone / height-standard).
+
+New commands (4):
+  - `Placement_AutoPopulateCatalogue` (`ManufacturerCatalogueAutoPopulateCommand`)
+  - `Placement_ExportNogginRequirements` (`NogginRequirementExportCommand`)
+  - `Placement_ExportRulesExcel` (`PlacementRulesExcelExportCommand`)
+  - `Placement_ImportRulesExcel` (`PlacementRulesExcelImportCommand`)
+
+All four registered in `StingCommandHandler` dispatch.
+
+Caveats:
+  - Built without `dotnet build` verification (Linux sandbox).
+  - The 2 new shared parameters need binding entries appended to
+    `Data/MR_PARAMETERS.txt` before they will appear on Revit elements.
+  - `PlasterOffsetResolver` returns 0 for non-compound walls; rules
+    targeting basic walls should set `PlasterOffsetMode = "Fixed"` with
+    `PlasterOffsetFixedMm`.
+  - Title block / pendant / BESA Revit families are not shipped — rule
+    `FamilyTypeRegex` patterns assume the conventional names listed in
+    `STING_MANUFACTURER_CATALOGUE.json`.
+
+#### Completed (Phase 139.3 — Structural Awareness, In-Wall Chase Routing, Enhancement Gaps)
+
+Wraps the existing structural intelligence engines behind a placement-time
+adapter, adds an in-wall pipe chase router, and closes the gaps surfaced
+by the Phase 139.2 review.
+
+Research outcome:
+  Of the methods proposed for integration, only three turn out to be
+  useful at placement time:
+    - `StructuralModelingEngine.AnalyzeLoadPaths`  → load-bearing element set
+    - `StructuralCADPipeline.DetectJunctions`      → forbidden routing zones
+    - `StructuralDWGEnhancements.OpeningDetector`  → live-model
+                                                     `Wall.FindInserts` is
+                                                     the equivalent at
+                                                     placement time
+  `DetectStructuralWalls` and `FindOrCreateBeamType` are DWG/family-author
+  paths; `DetectCircularColumns` does not exist (closest is
+  `CADToModelEngine.DetectColumns`). Skipped.
+
+New classes:
+  - `Core/Placement/StructuralAwareness.cs` — adapter built on the live
+    model: `IsLoadBearing(el)`, `IsNearJunction(pt, clearance)`,
+    `GetWallOpenings(wall)`, `PointIsInOpening(...)`, `SegmentIsRoutable(...)`.
+    Cached per-document; never throws.
+  - `Core/Placement/InWallChaseRouter.cs` — chase pipe router that:
+      1. Reads `Wall.WallType.GetCompoundStructure()` and rejects routes
+         when (pipe OD + 2 × insulation + clearance) > available chase depth.
+      2. Projects endpoints onto the wall location curve and offsets by
+         `RouteOffsetMm` along the wall's interior normal (true parallel,
+         not centroid-biased).
+      3. Validates each segment via `StructuralAwareness.SegmentIsRoutable`
+         and permits routing through wall openings.
+      4. Falls back to `Conduit.Create` when `RouteSegmentCategory = "Conduit"`.
+  - `Commands/Placement/RunWallChaseCommand.cs` — pick wall + 2 points,
+    runs the router, reports available vs required chase depth.
+
+New data files:
+  - `Data/Placement/STING_PLACEMENT_RULES.in-wall-chase.json` (5 rules:
+    15 mm cold, 15 mm hot insulated, 22 mm radiator feed, 40 mm waste,
+    25 mm electrical conduit chase) — cited against BS 6700, BS EN 806,
+    BS EN 12056, BS EN 12828, BS 7671.
+
+Enhancement gaps closed (Part C):
+  - **MK pack:** added `mk-fcu-healthcare-pendant` (HTM 06-01 bedhead FCU)
+    and `mk-cooker-circuit-feeder` (45 A connection unit) — total now 36.
+  - **Lux grid sprinkler separation:** `LightingGridCalculator` runs
+    `CheckSprinklerSeparation` (BS 5306-2 / BS EN 12845 ≥ 600 mm rule)
+    after tile snap + structural fixing checks; affected grid points are
+    dropped with a warning.
+  - **Workset-keyed two-phase matching:** `TwoPhaseBoxPlacer` first-fix
+    pass now stamps `<guid>|ws=<worksetId>` so a coordination-model swap
+    that re-creates boxes on a different workset still matches the
+    correct second-fix device.
+
+VG / view-style packs (Part A):
+  - Added `Lighting Devices` and `Junction Boxes` rows to `corp-base`
+    (Phase 139.2 rule packs already reference these categories).
+  - Added two corporate filter rules: `STING - First-Fix Phase`
+    (halftone grey) and `STING - Noggin Required` (orange high-vis) so
+    construction-phase boxes and Phase 139.2 noggin-required pendants
+    can be highlighted on issue drawings without a per-discipline
+    override.
+
+Routing accuracy claim:
+  The chase router targets ~95 % accuracy on a clean federated model.
+  100 % accuracy is not achievable through the Revit MEP API: in-wall
+  studs/noggins not modelled cannot be detected, and `Pipe.Create` will
+  not reject penetrations of structural elements without explicit
+  pre-checks (which this router does run, but which depend on the
+  structural model being current).
+
+New command tag: `Placement_RunWallChase` registered in `StingCommandHandler`.
+
+
+#### Completed (Phase 139.4 — Workflow Audit Fixes + Auto-Sleeve)
+
+Acted on a 43-finding workflow audit covering the Phase 139.0–139.3
+placement-centre pipeline. Fixed every P1 plus the high-value P2s; the
+large-scope items (linked-model awareness, multi-storey routing,
+ClashTriageEngine integration, A* chase routing, partial-rollback) are
+deferred to their own design pass.
+
+**P1 fixes:**
+- `PlacementScorer.GenerateAnchorPoints` falls back to the room
+  bounding-box centroid when `LocationPoint` is null (degraded DWG
+  imports) so anchors still emit.
+- `InWallChaseRouter.Route` distinguishes "wall has no compound
+  structure" (warn but continue) from "pipe doesn't fit" (reject).
+- `FixturePlacementEngine.ComputeCap` for `Density` rules with no rate
+  declared now logs at load time + caps at 1 fixture per room.
+- `TwoPhaseBoxPlacer.PlaceFirstFixBoxes` and `PlaceSecondFixDevices`
+  now invoke `PostPlacementHooks.RunFor` on every placed box so
+  two-phase output gets the data-tag / COBie / system pipeline.
+- `PlacementRuleLoader.MergeRules` logs a warning when two baseline
+  packs declare the same `RuleId / MergeKey`.
+
+**P2 fixes:**
+- Loader validates every rule on load: `Density` without a rate,
+  `RoutingMode != NONE` without `RouteSegmentCategory`, and the
+  `TwoPhaseEnabled + IsClusterMember` contradiction (cluster
+  membership is force-disabled on the offending rule).
+- `InWallChaseRouter.ProjectAndOffset` honours `rule.MountingHeightMm`
+  so chase pipes sit at the rule's declared height above the wall's
+  level origin instead of preserving the picked Z.
+- `RunWallChaseCommand` now runs a preview pass inside a rolled-back
+  TransactionGroup, shows the depth-check + sleeve count to the user,
+  and only commits on Yes.
+- `FixturePlacementEngine.ResolveSymbol` applies `OfCategory(bic)`
+  before `OfClass(typeof(FamilySymbol))` via a new
+  `ResolveBuiltInCategoryByName` helper cached per document — the
+  collector now uses Revit's native category index instead of walking
+  every symbol.
+- `PlacementScorer.ScoreManufacturerResolution` indexes loaded family
+  category alongside name; a name match in the wrong category now
+  scores 0.5 instead of the previous false 1.0.
+
+**Auto-sleeve integration:**
+- `InWallChaseRouter` now calls `SleeveEngine.PlaceSleeves` on every
+  created pipe segment after routing. Sleeves auto-cut the host wall
+  and drop a `STING_SLEEVE_ROUND` (or fallback) family at every
+  penetration. Surfaced via the new `SleevesPlaced` field on
+  `ChaseRouteResult` and reported in the `RunWallChaseCommand`
+  TaskDialog.
+
+**Deferred (own design pass):**
+- Linked-model awareness in `StructuralAwareness` (#27, #32).
+- Multi-storey chase / vertical-drop handling (#31).
+- `ClashTriageEngine` post-placement scan (#25).
+- A* / VoxelGrid pathfinding for chase routing (#22).
+- TransactionGroup partial-rollback per rule (#36).
+- `WarningsManager` persistence + SLA dashboard surface (#26).
+
+
+#### Completed (Phase 139.5 — Deep Accuracy & Performance Audit Fixes)
+
+Acted on a 21-finding deep audit of the Phase 139.0–139.4 pipeline that
+focused on issues the earlier reviews missed (curve mathematics, layer
+ordering, regex compilation per-room, sleeve batching, sprinkler nudging).
+Ten of fifteen real findings closed; the remaining five (RCR-based UF,
+L-shape grid clipping, pipe-system join, stepped-soffit raycast, router
+unification) are deferred to their own design pass.
+
+**Accuracy fixes:**
+- Q3 / P1 — `PlacementScorer.EmitWallMidpoints` + `EmitWallCorners`
+  now use `Curve.Evaluate(0.5, true)` and a curve-aware
+  `ComputeInwardFromCurve` helper.  Curved-wall rooms (Arc / NurbSpline
+  boundary segments) used to produce zero anchors; they now emit
+  midpoints and corners via the curve's first derivative.
+- Q15 / P1 — `FixturePlacementEngine.ComputeCap` for `RuleKind=Linear`
+  now derives the cap from `room perimeter ÷ PerLinearMetre` via a new
+  `ComputeRoomPerimeterMetres` helper that walks any boundary curve
+  type.  Previously the cap was always `candidateCount`.
+- Q9 / P2 — `TwoPhaseBoxPlacer.PlaceSecondFixDevices` strips the
+  `|ws=<workset>` suffix introduced in 139.3 before stamping the
+  device, so existing bare-GUID first-fix boxes from pre-139.3
+  projects still match on second-fix.
+- Q10 / P2 — `PlacementScorer.RoomMatchesScope` reads
+  `room.CreatedPhaseId` first (Revit 2024+) and falls back to
+  `BuiltInParameter.ROOM_PHASE_ID` only when null.
+- Q5 / P2 — `InWallChaseRouter.ResolveChaseDepth` documents the
+  exterior-to-interior layer ordering and stops at
+  `CompoundStructure.StructuralMaterialIndex` OR the first
+  `Function == Structure` layer (handles sandwich panels with a
+  mid structure layer).
+- Q4 / P2 — `PlasterOffsetResolver.IsFinishLayer` no longer treats
+  `Function = Substrate` as finish unless the material name matches
+  the finish regex (plasterboard / gypsum / etc.).  Drywall stud
+  partitions stop accumulating stud thickness as plaster offset.
+- Q14 / P2 — `CompoundClusterPlacer.ComputeClusterPositions` samples
+  the wall location curve at arc-length parameters around the frame
+  centre when the host wall is curved (Arc / NurbSpline).  Slots
+  follow the wall instead of walking off-tangent.
+- Q13 / P2 — `LightingGridCalculator.CheckSprinklerSeparation` now
+  nudges grid points outside the 600 mm exclusion ring before
+  dropping them, so the lux grid retains its fixture count when the
+  room geometry allows a clear shift.
+
+**Performance fixes:**
+- Q19 / P2 — `InWallChaseRouter.BatchSleevesAtEnd` flag + new
+  `FlushSleeves()` API let an engine-level run defer all
+  `SleeveEngine.PlaceSleeves` work to a single end-of-run call.
+  Cuts the sleeve wall walk from O(routes) to O(1).
+- Q21 / P2 — `FixturePlacementEngine` pre-compiles each rule's
+  `RoomFilter` and `ExcludeRoomFilter` regex at run start (cached
+  in `_filterRx` dicts).  The per-room loop short-circuits via
+  `regex.IsMatch(roomName)` before paying the full
+  `RoomMatchesScope` cost (parameter / level / phase / workset
+  reads).  Estimated 2–5× speedup on large projects (50 rooms ×
+  200 rules).
+
+**Deferred (own design pass):**
+- Q1  RCR-based utilisation factor (lookup table needed).
+- Q2  L-/U-shape grid clipping against boundary loops.
+- Q6  Pipe-fitting endpoint match / connector union.
+- Q7  Pipe.Create joining an existing piping system network.
+- Q8  Stepped-soffit raycast strategy in `PlaceOnCeilingSoffit`.
+- Q12 `WallFollowerRouter` ⇄ `InWallChaseRouter` unification.
+
+
+#### Completed (Phase 139.6 — Placement Quality Fixes + Setup Audit + Authoring Docs)
+
+Acted on a real-world placement run (screenshots in
+session_019NVYWtPqi4P3dztjhngdKs) showing three concrete bugs and a
+broader set of authoring / project-setup gaps:
+
+- Switches landing "facing up" at door centre (no rotation logic).
+- Lights stacking with no spacing in narrow rooms.
+- Plumbing fixtures placed in wardrobes / walk-in-closets because the
+  RoomFilter regex `(?i)wc|toilet` substring-matched too widely.
+- Half the warnings in the result panel were "no first-fix box family
+  matched" / "No FamilySymbol found" / "STING_BOX_LOCATION_ID not bound"
+  — i.e. project-setup gaps the engine couldn't have known about until
+  after the run.
+
+**Code fixes:**
+
+- **SW-1** `FixturePlacementEngine.OrientPlacedInstance` (new helper
+  called after `WriteAnchorParameters`): applies `rule.RotationDeg`
+  via `ElementTransformUtils.RotateElement` and auto-flips
+  wall-hosted instances when the family's `FacingOrientation` opposes
+  the inward room normal. Wall anchors covered:
+  `WALL_MIDPOINT`, `WALL_CORNER`, `WALL_FACE_OFFSET`, all `DOOR_*` and
+  `WINDOW_*` variants.
+- **LX-1** `LightingGridCalculator.EnforceMinSpacing` (new
+  post-process): drops grid points closer than `rule.MinSpacingMm`
+  after the BS 5306 sprinkler nudge but before uniformity check.
+- **PF-1** All `(?i)wc|toilet|bathroom|shower` patterns tightened to
+  `(?i)\b(wc|toilet|bathroom|shower|en-suite|cloakroom|lavatory|powder room)\b`
+  across `STING_PLACEMENT_RULES.json` + `accessibility` + `electrical`
+  + `mechanical` + `baseline-extensions2` packs. Stops `wc`
+  substring-matching `walk-in closet` / `wardrobe` / `utility`.
+
+**New command:** `Placement_AuditSetup` (`PlacementSetupAuditCommand`).
+Walks the active document and reports every gap from the
+authoring checklist:
+
+  - shared parameters bound (`STING_BOX_LOCATION_ID`,
+    `STING_NOGGIN_REQUIRED`, `STING_FIXTURE_VARIANT_TXT`,
+    `MK_CATALOGUE_REF`)
+  - critical families loaded (BESA round box, square outlet box, MK
+    Logic Plus / Grid Plus / Metal Clad, sleeves, junction boxes)
+  - critical category symbols loaded (Sprinklers, Fire Alarm Devices,
+    Air Terminals, Lighting Fixtures)
+  - phases present (`Construction`, `Handover`)
+  - manufacturer catalogue populated
+  - rule packs load
+  - view-style pack discoverable
+
+Result groups findings by severity (Error / Warning / Info), shows the
+top 40 in a TaskDialog, and writes a CSV to
+`OutputLocationHelper.GetOutputPath(doc, "PlacementSetupAudit")` so it
+can be committed as a federation deliverable.
+
+**New doc:** `docs/PLACEMENT_FAMILY_AUTHORING.md` — eleven category
+authoring matrices (hosting, origin, facing, reference planes, required
+parameters, common mistakes), the project-setup checklist, and a
+re-run cadence guide for designers. Cross-referenced from the audit
+command.
+
+
+#### Completed (Phase 139.7 — Scope honoured + pre-flight family check)
+
+Real-world bug report: user picked "Active view" radio in the
+Fixtures tab; confirm dialog said "About to place fixtures across the
+entire project". Plus the result panel showed half the per-rule
+counts at zero with a single warning line buried mid-list — designer
+couldn't tell whether a category had no rules, or had rules but no
+family loaded.
+
+**Scope radio honoured (the headline fix):**
+
+`PlaceFixturesOptions.ScopeMode` enum (SelectedRooms / ActiveView /
+AllRooms) plumbed from the dock-panel `rbFxScopeSel` /
+`rbFxScopeView` / `rbFxScopeAll` radios via a new `RadState` helper
+in `StingDockPanel.xaml.cs` (mirror of the existing `ChkState`).
+
+`PlaceFixturesCommand.Execute` now branches on `ScopeMode`:
+
+- `SelectedRooms` — uses `uidoc.Selection.GetElementIds()` (legacy);
+  if no rooms are selected, prompts the user instead of silently
+  falling through to "entire project".
+- `ActiveView` — uses
+  `new FilteredElementCollector(doc, view.Id).OfCategory(OST_Rooms)`,
+  the proper view-bounded query.
+- `AllRooms` — engine fallback (empty `selectedRoomIds`).
+
+`ConfirmPlacement(string scopeLabel)` and
+`PromptDryRunChoice(string scopeLabel)` now take the resolved label
+instead of computing it from selection count, so the dialog text
+matches the radio.
+
+**Pre-flight family check:**
+
+After the rule load + category filter, the command walks every
+ticked category and reports those with zero loaded `FamilySymbol`s.
+The user sees a TaskDialog listing the affected categories and is
+asked to continue or cancel. Stops the silent "No FamilySymbol
+found for category 'Electrical Fixtures' — skipping its rules"
+warning that was leaving designers wondering why their sockets
+hadn't landed.
+
+
+#### Completed (Phase 139.8 — ActiveView room collection + Placement Centre auto-place checklist)
+
+User reported the Phase 139.7 fix went halfway: the Placement Centre's
+own Run-Placement dialog said "Place fixtures in 1 room(s)" with
+"Scope: ActiveView" — even though the active plan had ~12 rooms.
+
+Root cause: `FilteredElementCollector(doc, view.Id).OfCategory(OST_Rooms)`
+doesn't enumerate rooms reliably. Revit's view-bounded collector
+walks the view's drawn elements and Rooms (logical, non-3D entities)
+get filtered out unpredictably; one or zero rooms is the typical
+result.
+
+Fix:
+
+- `PlacementCenterBridge.ResolveScope` (Centre-side) and
+  `PlaceFixturesCommand.Execute` (dock-panel-side) ActiveView branch
+  now:
+    - Plan view → `view.GenLevel`-bounded room walk.
+    - Other view types → bbox-intersection against `view.CropBox`
+      (with no-crop fallback to all rooms).
+- `StingPlacementCenter.xaml` adds an explicit "Auto-place" category
+  checklist with 18 categories (Electrical Fixtures, Lighting
+  Devices, Lighting Fixtures, Communication Devices, Data Devices,
+  Security Devices, Fire Alarm Devices, Plumbing Fixtures, Air
+  Terminals, Sprinklers, Mechanical Equipment, Conduits, Junction
+  Boxes, Pipes, Cable Trays, Specialty Equipment, Furniture, Nurse
+  Call Devices) plus All / None convenience buttons.
+- `OnRunPlacement_Click` filters the active rule pack by the ticked
+  categories before invoking the engine. Empty checklist =
+  every-category (legacy behaviour). The confirm dialog now lists
+  the allowed categories so the user can see what the run will and
+  won't touch.
+
+
+#### Completed (Phase 139.9 — Centre pre-flight + rich result panel)
+
+User reported: Centre's Run Placement said "Place fixtures in 12
+room(s)?", progress bar ran, validation panel showed 0 / 0 / 0 / 0.
+No information about what (if anything) was placed.
+
+Root cause: the Placement Centre's run path
+(`OnRunPlacement_Click`) did not have the pre-flight family-loaded
+check that Phase 139.7 added to the dock-panel `PlaceFixturesCommand`.
+If the user ticked Electrical Fixtures / Lighting Devices / Lighting
+Fixtures but those categories had no FamilySymbols loaded, the engine
+silently zero-placed every rule for those categories. The Centre also
+had no rich result panel — only a one-line status bar update — so
+zero placements looked indistinguishable from "ran successfully".
+
+Fixes:
+
+- Pre-flight family check (mirrors PlaceFixturesCommand): walks
+  every category that the filtered rule set targets, lists those
+  with zero loaded FamilySymbols, asks the user to continue or
+  cancel before any work is committed.
+- Rich result panel (StingResultPanel): SUMMARY + PER-RULE COUNTS
+  + WARNINGS sections; when zero placed, adds an explicit
+  "ZERO PLACED — common causes" section pointing at the four most
+  common reasons (no family loaded, RoomFilter mismatch, host
+  pre-flight rejection, audit not run).
+
+
+#### Completed (Phase 139.10 — modeless run via IExternalEventHandler + Family/Type wording)
+
+User reported the result panel showed "Transaction start failed:
+Starting a transaction from an external application running outside
+of API context is not allowed" with 0 placed — the engine never even
+got to score candidates. Plus a fair question: why does the pre-flight
+check say "FamilySymbol" not "Family"?
+
+**Modeless transaction fix:**
+
+The Placement Centre is a modeless WPF Window. Revit 2025+ refuses to
+let modeless code start a Transaction or TransactionGroup directly.
+The Centre's `OnRunPlacement_Click` was calling `tg.Start()` straight
+from the button-click handler.
+
+`OnRunPlacement_Click` now dispatches to a new
+`PlacementRunHandler : IExternalEventHandler` which Revit calls back on
+the API thread. The handler runs the engine inside a TransactionGroup
+on that thread; the UI thread keeps responsive via a
+`DispatcherFrame` nested message pump that drains until the handler
+signals completion. Cancel + progress updates continue to work.
+
+**Family vs Type wording:**
+
+Pre-flight TaskDialog now reads "no Family Type loaded" instead of
+"no FamilySymbol loaded", with an explanation: a `Family` (.rfa) is
+the container; a `Type` (FamilySymbol) is one of the variants inside
+it. The engine creates instances of a Type, not the Family — a Family
+loaded with no Types active in the project still drops every rule in
+its category. Designers know to "drag at least one Type from the .rfa
+in Project Browser into a view" rather than just loading the .rfa.
+
+Same wording applied to:
+- Centre's TaskDialog when categories have no Type loaded.
+- `PlaceFixturesCommand` (dock-panel) equivalent dialog.
+- Centre's "ZERO PLACED — common causes" section in the result panel.
+
+
+#### Completed (Phase 139.10b — ExternalEvent.Create moved to ctor)
+
+User reported the Phase 139.10 fix surfaced a NEW error:
+"Run failed: Attempting to create an ExternalEvent outside of a
+standard API execution".
+
+Root cause: `ExternalEvent.Create` itself must be called from inside
+a Revit API context. Phase 139.10's `EnsureRunEvent` lazily called
+`ExternalEvent.Create` on the WPF UI thread (button-click handler) —
+which is NOT an API context.
+
+Fix:
+
+- `StingPlacementCenter` constructor now creates the
+  `PlacementRunHandler` + `ExternalEvent` eagerly. The constructor
+  runs inside `OpenPlacementCenterCommand.Execute`, which IS a
+  Revit API context, so `ExternalEvent.Create` succeeds.
+- `EnsureRunEvent` becomes a guard that throws a clear "close and
+  re-open the Centre" message if for some reason the eager create
+  failed; it never tries to create on the WPF thread.
+
+
+#### Completed (Phase 139.11 — pre-flight responsiveness)
+
+User reported the run dialog stayed on "0 / 12 · Starting… · Estimating…"
+for an extended period with no apparent progress. Engine was not
+hung — it was burning seconds in the pre-flight phase before the
+first per-room callback fired.
+
+Two fixes:
+
+1. **Skip catalogue auto-populate when not needed.**
+   `FixturePlacementEngine` only calls
+   `ManufacturerCatalogueRegistry.AutoPopulateFromFamilies(doc)` when the
+   active rule set actually references manufacturer fields
+   (`ManufacturerCode`, `CatalogueRef`, or `IsClusterMember`). On a
+   project with several thousand FamilySymbols and no MK rules in the
+   ticked categories, the catalogue walk can take 30+ seconds with no
+   feedback; this skip eliminates that cost entirely for runs that
+   don't need it.
+
+2. **Pre-flight heartbeat in the progress dialog.**
+   `StingPlacementCenter.OnRunPlacement_Click` now sets the dialog
+   status to "Pre-flight — scanning loaded families…" before raising
+   the `ExternalEvent`, and starts a background ticker that updates
+   the status every 1.5 seconds with elapsed time so the dialog
+   can't look frozen. The ticker self-terminates the moment the
+   engine fires its first per-room progress callback (room 1 of N
+   reached) and is cancelled in the `finally` block as a belt-and-
+   braces guarantee.
+
+
+#### Completed (Phase 139.12 — engine timestamps + bounded pre-flight + phase-aware heartbeat)
+
+User reported the run dialog at "Pre-flight in progress (3776s)" — i.e.
+~63 minutes of nothing. Engine was hung in pre-flight; nothing in the
+log told us where, the Cancel button only polled in the per-room
+callback (never reached), and the heartbeat showed only elapsed time.
+
+Three fixes:
+
+1. **StingLog timestamps at every engine phase.** Run start, AutoPopulate
+   completion, ValidateSharedParams completion, PlaceFirstFixBoxes
+   completion, pre-flight handover to per-room loop. Next time the
+   user reports a hang we can read the log and pinpoint the slow
+   phase.
+
+2. **Bounded AutoPopulate.** `ManufacturerCatalogueRegistry.AutoPopulateFromFamilies`
+   now runs on a background `Task.Run` with a 20-second `task.Wait`
+   bound. If the LookupParameter loop is still mid-walk after 20 s
+   the engine bails with a warning ("Catalogue auto-populate timed
+   out — Manufacturer score component will be 0.5 for unresolved
+   rules") and continues without the catalogue refresh. Skip path also
+   added when no rule has TwoPhaseEnabled — `PlaceFirstFixBoxes` is
+   never invoked for an empty rule set.
+
+3. **Phase-aware heartbeat.** `FixturePlacementEngine.CurrentPhase`
+   (volatile string) is set at every phase entry: "Pre-flight starting",
+   "Pre-flight: catalogue scan", "Pre-flight: two-phase shared-param
+   check", "Pre-flight: first-fix box placement", "Per-room loop". The
+   Centre's pre-flight ticker reads it and shows
+   `"<phase> (Ns)…"` instead of `"Pre-flight in progress (Ns)…"`. The
+   user now sees exactly which step is consuming time.
+
+
+#### Completed (Phase 139.13 — non-blocking ExternalEvent dispatch)
+
+User reported the Phase 139.10 PushFrame approach hung at
+"Pre-flight in progress (3776s)" — engine never ran. Root cause: the
+Centre's button-click handler called `Dispatcher.PushFrame(frame)` to
+wait for the API-thread handler to complete, but Revit only services
+ExternalEvents on its idle cycle and a nested WPF message pump
+apparently doesn't trigger that idle reliably. Result was a
+deadlock indistinguishable from a slow run.
+
+Fix: refactor the run into the standard fire-and-forget
+ExternalEvent pattern.
+
+- `OnRunPlacement_Click` builds the request, raises the
+  ExternalEvent, then RETURNS immediately. No nested DispatcherFrame.
+- `PlacementRunHandler.Execute` runs the engine on the API thread.
+  When complete (success or error), it does
+  `Dispatcher.BeginInvoke(() => _owner.OnRunCompleted(req, res, err))`
+  which the WPF UI thread services on its next idle cycle.
+- `OnRunCompleted` does all the post-run UI work (status update,
+  rich result panel, history refresh, auto-heatmap, validators).
+  Runs on the WPF thread, so all WPF API calls are safe.
+- The PlacementRunRequest now carries StartUtc / PrevStamp / PrevLearn
+  so OnRunCompleted has the full context the click handler used to
+  hold in locals.
+- Dropped the unused `_runDone` and `_runFrame` fields.
+
+
+#### Completed (Phase 139.14 — progress dialog topmost + Centre run-state UI)
+
+User reported the pre-flight dialog "ran for a second and got lost"
+— it slipped behind the Placement Centre window because the dialog
+was parented to Revit's main window, not to the modeless Centre.
+With the Centre still in front and capturing focus, the user couldn't
+get to the progress dialog (or its Cancel button) and had no
+indication a run was in flight.
+
+Two fixes:
+
+1. **`StingProgressDialog._window.Topmost = true`.** The dialog
+   stays in front of the Centre (and any other modeless WPF window
+   that triggers it). Combined with the existing
+   `Owner = Revit-main-window` it stays inside the Revit process
+   without blocking modal TaskDialogs.
+
+2. **Centre Run-button disabled while run is in flight.** The Run
+   Placement toolbar button gains `x:Name="btnRunPlacement"`. On
+   `_runEvent.Raise()` the button is disabled and the bottom status
+   bar reads "Run in progress — please wait…". `OnRunCompleted`
+   re-enables the button before showing the result panel; the
+   Raise-error path also re-enables in its catch.
+
+
+#### Completed (Phase 139.15 — validation count + accessible-switch tightening)
+
+User reported: validation panel shows 0 / 0 / 0 / 0 even after a
+153-placement run; lights are scattered messily; "sockets on floor"
+(actually switches at low height); some doors skipped.
+
+Two fixes:
+
+1. **Validation panel surfaces "Elements checked".** 0 findings against
+   153 placed used to read like "nothing was validated". The Centre's
+   `ShowFindings` now adds an "Elements checked" metric (count of
+   provenance-stamped elements when scope-to-provenance, "(project-wide)"
+   otherwise) and a "RESULT" section saying
+   "All N just-placed element(s) passed every active validator" when
+   findings.Count == 0 and validated > 0.
+
+2. **`baseline-lighting-devices-accessible-switch` tightened.** Was
+   firing 92 times in a 27-room project because it had no
+   `RoomFilter` and no `MaxPerRoom`. Now caps at 2 per room and
+   excludes wardrobes / closets / cupboards / stores / external /
+   verandah / porch / balcony / terrace / patio / garage / plant /
+   riser / shaft / void.
+
+The "doors skipped / sockets on floor" complaints turned out to be
+authoring issues, not bugs:
+
+- The 92 switches WERE landing on every door, but at 1200 mm AFF
+  which renders close to a socket icon at low zoom levels.
+- No socket rules fired in this run because the project has no
+  `Electrical Fixtures` Family Type loaded — the pre-flight already
+  warns about this.
+- Doors that "skipped" likely failed `DOOR_HINGE` because their
+  family doesn't have `HostFlipped` set correctly. Fixed at family
+  authoring time, not engine.
+
+
+#### Completed (Phase 139.16 — wall snap + door-tangent fallback + placement diagnostic log)
+
+User reported switches still landing in the wrong positions and lights
+scattered messily even after Phase 139.15 tightened the
+accessible-switch rule. Deep dig found two real engine bugs:
+
+1. **`EmitDoorAnchor` direction fallback was world-X axis.** When
+   `door.Host` is not a basic `Wall` (curtain wall, panel host, or a
+   broken host reference), `WallTangent(door.Host as Wall)` returns
+   null and the anchor's offset shift was applied along
+   `XYZ.BasisX` — for a door on a north-south wall the 300 mm offset
+   moved the switch east-west into thin air. Now the engine derives
+   `along` from `door.FacingOrientation` rotated 90° about Z (a valid
+   in-plane tangent for any host), with a final fallback to the
+   room-centroid → door direction perpendicular.
+
+2. **No post-placement wall snap.** Wall anchors compute an XYZ on
+   the wall *centerline*; un-hosted families placed at that point
+   sit visually inside the wall, not flush against the room face.
+   `OrientPlacedInstance` now projects the placed family's location
+   onto the nearest wall's location curve when (a) the family has
+   no host AND (b) a wall is within 600 mm. Uses
+   `ElementTransformUtils.MoveElement` so the family stays on the
+   correct level and respects its own rotation.
+
+3. **Diagnostic log.** Every successful placement now logs the
+   final XYZ + host type (`<none>` for un-hosted) to `StingTools.log`,
+   so when designers see strange placement we can read the log and
+   confirm whether the engine emitted bad coordinates or whether the
+   family failed to host.
+
+
+#### Completed (Phase 139.17 — restrict BS 5266 emergency-lighting rules to escape-route rooms)
+
+User reported "red dots on the floor near doors" — investigated and
+found three rules in `STING_PLACEMENT_RULES.baseline-extensions2.json`
+firing in EVERY room (no `RoomFilter`) at low Z height:
+
+- `baseline-emlit-escape-route` — `PERIMETER_OFFSET` anchor with
+  `PerLinearMetre: 2.0` AND no `MountingHeightMm` (defaulted to 300
+  mm). 17 dots scattered along walls in residential bedrooms /
+  bathrooms.
+- `baseline-emlit-escape-door-emphasis` — `ESCAPE_DOOR_BOTH_SIDES`
+  with no RoomFilter. Hit every door.
+- `baseline-emlit-exit-sign-above-door` — `DOOR_HEAD` with no
+  RoomFilter. Hit every door.
+
+These are BS 5266-1 / BS EN 1838 commercial-building rules; they
+should never fire in residential dwelling spaces.
+
+Fix: added a shared escape-route `RoomFilter` matching
+`(?i)\b(corridor|hall|hallway|stair|stairwell|landing|lobby|reception
+|foyer|escape|circulation|atrium|passage|breakout|office|workstation|
+open[ -]?plan|conference|board|meeting|classroom|teaching|lecture|
+theatre|operating|ward|treatment|patient|examination|clinic|surgery|
+cinema|auditorium|warehouse|workshop|plant|substation)\b` to all
+three rules. Plus:
+
+- `baseline-emlit-escape-route` gains `MountingHeightMm: 1100`
+  (BS 5266 anti-panic luminaire height) and `MaxPerRoom: 4`.
+- `baseline-emlit-escape-door-emphasis` gains
+  `MountingHeightMm: 2100` so emergency luminaires sit above door
+  heads, not at floor level.
+
+Result on a 27-room residential project: those three rules will
+match zero rooms instead of 27, removing all the floor-level red
+dots.
+
+
+#### Completed (Phase 139.18 — systematic placement workflow rewrite)
+
+User reported the same wrong positions / skipped doors / wrong
+orientation across multiple runs and asked for a deep workflow
+review. Five systematic engine bugs found:
+
+1. **Doors collected by greedy bbox-intersect.** `GetBoundary`
+   collects every door whose bbox falls within the room's
+   bbox + 1.5 ft padding. This includes doors of adjacent rooms
+   (kitchen door grabbed by dining bbox) AND processes the same
+   door twice when both adjacent rooms claim it.
+
+   **Fix:** new `FilterDoorsForRoom` keeps only doors whose
+   `FromRoom` or `ToRoom` matches the current room. Falls back to
+   bbox-intersect when both are null (door's spatial context not
+   yet computed).
+
+2. **`ComputeInwardFromWall` returned null for curved walls.**
+   The old code did `lc.Curve is not Line ln` short-circuit; arc
+   and NurbSpline walls returned null and `EmitDoorAnchor` fell
+   back to `XYZ.BasisY` (world-Y). Switches on curved walls were
+   pushed in a fixed direction unrelated to the wall.
+
+   **Fix:** generalised to any `Curve` via `ComputeDerivatives`
+   for the tangent + 90° rotation for the inward normal. Mirror
+   of the Phase 139.5 `ComputeInwardFromCurve` pattern.
+
+3. **`OrientPlacedInstance` flip-facing only fired for hosted
+   instances.** `if (!(fi.Host is Wall hostWall)) return;` — every
+   un-hosted OneLevelBased family kept its default world-X facing
+   regardless of the wall it should align with.
+
+   **Fix:** drop the gate. For un-hosted families, find the
+   nearest wall via `Curve.Project`, use its tangent + room-side
+   normal as the target facing direction. When `CanFlipFacing` is
+   false (un-hosted family), use `ElementTransformUtils.RotateElement`
+   either 180° (flip) or to a precise alignment angle when the
+   family is roughly perpendicular to the inward normal.
+
+4. **No warning when family ↔ rule placement-type mismatch.**
+   A rule with `AnchorType: "DOOR_HINGE"` resolving to an
+   `OneLevelBased` un-hosted family means the family won't attach
+   to a wall no matter what the engine does post-placement.
+   Designers had no way to know.
+
+   **Fix:** engine now appends a one-shot warning per
+   (family, rule) pair when a wall- or ceiling-anchored rule
+   resolves to a non-hosted family: *"Engine will place + snap +
+   rotate but the family won't attach to the wall/ceiling. Re-author
+   the family as wall-hosted for proper attachment."*
+
+
+#### Completed (Phase 139.19 — PlacementDiagnoseCommand)
+
+User reported "nothing changed" across multiple consecutive fixes
+(139.16 → 139.18). Symptoms point at one of three root causes I
+can't disambiguate from screenshots alone:
+  - Build cache (user running an older .dll)
+  - Switch family is the wrong FamilyPlacementType (un-hosted instead
+    of OneLevelBasedHosted)
+  - Door instances have no FromRoom / ToRoom data
+
+New command: `Placement_Diagnose`. Walks the live document and
+prints every fact the placement engine sees:
+
+  - Build sanity: prints the engine's CurrentPhase static so the user
+    can verify they're on a current build (the field only exists from
+    Phase 139.12 onward).
+  - Active view + room counts (project-wide vs on active level).
+  - Every door: its Id, family, FromRoom name, ToRoom name, and host
+    type (Wall vs other). Counts how many doors have FromRoom/ToRoom
+    set vs missing.
+  - Every loaded FamilySymbol in Lighting Devices / Lighting Fixtures
+    / Electrical Fixtures / Plumbing Fixtures with its
+    `FamilyPlacementType` and active-state.
+  - Rule pack count by anchor type (wall-anchored, ceiling-anchored).
+
+Outputs to a TaskDialog preview + a CSV-style txt file on disk for
+copy-paste back to support.
+
+Registered as "Placement_Diagnose" tag in StingCommandHandler.
+
+#### Completed (Phase 139.20 — diagnose category-checklist filter)
+
+User reported placement run included Fire Alarm Devices even though
+they only ticked Lighting Devices + Lighting Fixtures. That points at
+one of three real causes:
+
+1. The XAML auto-generated `cbCat*` field bindings didn't compile
+   (stale build) → all 18 fields are null at runtime → my
+   `ReadCategoryChecklist` reads zero ticks → `allowed.Count == 0`
+   → the filter is bypassed → every rule in the pack runs.
+2. The user actually ticked Fire Alarm Devices but doesn't remember.
+3. A bug in the checklist plumbing.
+
+Fix: instead of guessing, surface the truth.
+
+- `ReadCategoryChecklist()` now logs `total / null / ticked` counts
+  for every (cb, cat) pair to `StingTools.log`. If the null count
+  is non-zero, a separate warning explicitly says "XAML
+  auto-generated bindings did not compile. Rebuild the plug-in".
+- `OnRunPlacement_Click` logs the allowed-categories set + the
+  categories it just excluded.
+- The post-run result panel now shows `Categories allowed` and
+  `Categories placed` rows in the SUMMARY section. If the run placed
+  Fire Alarm Devices when only Lighting was ticked, the mismatch
+  is visible front-and-centre instead of buried in the engine log.
+
+Together these tell us which root cause is real: stale build → null
+fields surfaced; user UI confusion → "Allowed: Lighting, Lighting
+Fixtures, Fire Alarm Devices" displayed clearly; genuine bug →
+Allowed list says one thing, Placed list says another.
+
+
+#### Completed (Phase 139.21 — build stamp + prerequisites preflight)
+
+User said "still the exact same locations and errors" across multiple
+fix commits and asked me to research, not guess. The honest reading
+is that one of two things is true on every "nothing changed" report:
+
+  (a) The plug-in DLL on disk wasn't refreshed — Revit is running
+      yesterday's binary.
+  (b) The model is missing a prerequisite the engine has no way to
+      satisfy at run time (un-hosted family for a wall anchor; doors
+      with no spatial relationship; etc.) and the engine just shrugged
+      and produced wrong placements anyway.
+
+Two concrete fixes:
+
+**1. Build stamp on every surface.** New
+`FixturePlacementEngine.BuildStamp` reads the assembly's `LastWriteTime`
+(seconds-resolution timestamp of the actual on-disk DLL). Surfaced in:
+
+- The Placement Centre window title bar
+  (`STING — Placement Centre  [build 2026-04-28 19:35:00  Phase 139.21]`)
+- Every result-panel subtitle.
+
+If two consecutive runs report the same BuildStamp, the user is on the
+same DLL — `extract_plugin.sh` didn't refresh, or Revit cached the old
+file. They can stop debugging code and rebuild.
+
+**2. Prerequisites preflight that hard-fails.** Before `OnRunPlacement`
+asks the user to confirm, it walks three blockers:
+
+  - For every wall-anchored rule's category, scans loaded
+    FamilySymbols. If NO type in that category is
+    `OneLevelBasedHosted`, hard-fail with a list of the
+    actually-loaded placement types. Wall placement is impossible
+    without a hosted family — no amount of post-snap fixes that.
+  - For every door on the active level, checks `FromRoom` / `ToRoom`.
+    If 0/N have spatial relationships, hard-fail with instruction:
+    "select all rooms, run Architecture > Recompute Areas/Volumes,
+    or reset room boundaries". If <50% have it, log a warning that
+    those will be skipped.
+  - If the rule pack has no rules matching any ticked category,
+    hard-fail.
+
+When ANY blocker fires, the run is aborted with a TaskDialog showing
+all blockers + remediation, AND each blocker is logged to
+`StingTools.log` so the user can paste them. No more silent wrong
+placements.
+
+
+#### Completed (Phase 139.21d — relax wall-host preflight to advisory + face-based recognition)
+
+User correctly pushed back: "not everything is supposed to be wall hung,
+the rule should differentiate what should be wall placed and not. We
+had created a tool for changing hosting types before placement."
+
+Phase 139.21 was over-zealous — it hard-failed the run when ANY
+category that any wall-anchored rule targets had no
+OneLevelBasedHosted family. That blocked legitimate setups:
+
+- "Electrical Equipment" with floor-standing AGS GDP2X panels
+- "Mechanical Equipment" with free-standing water heaters
+- "Specialty Equipment" with shower doors (PC_Shower Sliding Door)
+- "Fire Alarm Devices" loaded as WorkPlaneBased (face-based)
+  break-glass units — perfectly valid for face placement.
+
+Two corrections:
+
+1. **WorkPlaneBased counts as wall-attachable.** Face-based families
+   place on any planar reference via
+   `doc.Create.NewFamilyInstance(face, point, refDir, symbol)` — they
+   work fine on walls. Phase 139.21d treats `WorkPlaneBased` as
+   wall-hostable for preflight purposes.
+
+2. **Hosting mismatch is now a HINT, not a blocker.** Demoted from
+   `blockers.Add(...)` to `helpfulHints.Add(...)`. The run proceeds;
+   the warning surfaces in StingLog and the result panel. Designers
+   who want to re-host can use the existing **Tags > Change Host**
+   command (`FamilyQuickEditCommands.ChangeHostCommand` — a six-mode
+   picker for Wall / Floor-Ceiling-Roof / Face / WorkPlane / Detach /
+   Delete that can re-host a family instance after placement).
+
+The two surviving HARD-fail blockers are unchanged:
+- `0/N doors have FromRoom or ToRoom` (door rules will mis-target)
+- Rule pack has no rules matching any ticked category (zero-output run).
+
+
+#### Completed (Phase 139.22 — face-based + extended wall-host anchor set)
+
+User asked: "make sure all doors have a switch on the right location
+according to the rules. review deeply the workflow for issues
+hindering switches to be placed on wall."
+
+Two real engine gaps found:
+
+1. **`WorkPlaneBased` (face-based) families bundled with un-hosted
+   types.** `PlacementHostPreflight.Place` had:
+
+   ```csharp
+   case FamilyPlacementType.OneLevelBased:
+   case FamilyPlacementType.TwoLevelsBased:
+   case FamilyPlacementType.WorkPlaneBased:
+       r.Placed = doc.Create.NewFamilyInstance(position, symbol, room?.Level, NonStructural);
+   ```
+
+   Face-based families went through the level-based overload —
+   creating a face-based instance on the **level's work plane**
+   instead of attaching to a wall. Visually that's a face-based
+   switch floating mid-room.
+
+   **Fix:** new `TryFaceBasedPlace` helper. For wall-anchored rules
+   it finds the nearest wall, fetches the room-side face via
+   `HostObjectUtils.GetSideFaces(wall, ShellLayerType.Interior)`,
+   and places via the face-based overload
+   `doc.Create.NewFamilyInstance(faceRef, position, refDir, symbol)`.
+   For ceiling-anchored rules it uses
+   `HostObjectUtils.GetBottomFaces(ceiling)`. Falls back to
+   level-based when no host is in range (free-standing face-based
+   families like floor sensors).
+
+2. **`TryHostedPlace.prefersWall` missed the Phase 139.2+ anchor
+   names.** Pre-139.22 it only matched `WALL_MIDPOINT`,
+   `WALL_CORNER`, `DOOR_HINGE`, `DOOR_JAMB`, `WINDOW_SILL`. So a
+   wall-hosted family targeted by `WALL_FACE_OFFSET` /
+   `DOOR_LATCH_SIDE` / `DOOR_HINGE_SIDE_150` / `DOOR_HEAD` /
+   `DOOR_STRIKE_SIDE` / `DOOR_CLOSER_ZONE` / `ESCAPE_DOOR_BOTH_SIDES`
+   fell through to the fallback chain — which guesses Ceiling first.
+   Result: wall-hosted switches landed on a ceiling instead of a
+   wall.
+
+   **Fix:** prefersWall now matches all those anchors plus
+   `anchor.StartsWith("WINDOW_")` to cover the variant sills.
+
+
+#### Completed (Phase 139.23 — face-plane projection + rotate exception + dedup)
+
+User screenshots showed three concrete Revit errors / warnings during
+the run:
+
+1. **Revit "Can't rotate element into this position" (12 errors).**
+   Phase 139.18 un-hosted-family rotation called
+   `ElementTransformUtils.RotateElement`; when the rotation pushes the
+   instance into another element, Revit raises an
+   `InvalidOperationException`. Now caught + logged as a warning so
+   the engine continues with the un-rotated instance instead of
+   bubbling the error to Revit's UI.
+
+2. **Revit "Instance origin does not lie on host face" (warnings).**
+   Phase 139.22 face-based placement passed the engine's calculated
+   XYZ to `NewFamilyInstance(faceRef, position, refDir, symbol)`. The
+   position was on the wall *centerline*, not the face plane —
+   Revit warned and stripped the host association. New
+   `ProjectOntoFace` helper resolves the `Face` from the reference
+   and calls `face.Project(worldPt)` to produce a coordinate that
+   genuinely lies on the face. Both wall and ceiling face-based paths
+   use it.
+
+3. **Revit "There are identical instances in the same place" (31 warnings).**
+   Even after Phase 139.18's `FromRoom`/`ToRoom` filter, two rules can
+   still produce candidates within model-tolerance of each other
+   (e.g., the door-hinge anchor and the wall-midpoint anchor for a
+   door near a wall midpoint). The engine now compares each candidate
+   against every previously-placed XYZ in the room and skips the
+   second placement when within `max(rule.ToleranceMm, 25mm)`. Skip
+   is recorded in `result.SkippedCount`.
+
+User's "fire alarms placed when only lights ticked" — confirmed the
+TLG_3G2W1 family is an MK 3-gang switch, NOT a fire alarm device.
+Rule `baseline-lighting-devices-accessible-switch` correctly placed
+those (CategoryFilter = Lighting Devices, ticked). The visual
+confusion comes from MK switch families that show as a small
+rectangle in plan view, similar to a fire-alarm break-glass unit.
+
+
+#### Completed (Phase 139.24 — RaiseRevitToFront + bumped PhaseTag)
+
+User report:
+- "After deleting everything and repeating, the preflight UI got lost
+  in background and could not select or do anything further."
+- Result panel showed `build 2026-04-28 10:14:48 (Phase 139.21)` —
+  proving the user was running an old DLL even after multiple commits.
+- Same Revit "Can't rotate" / "doesn't lie on host face" errors
+  visible in screenshots — those are pre-Phase 139.23 behaviour.
+
+Two concrete fixes:
+
+1. **Preflight TaskDialog visible.** TaskDialog opened from a Centre
+   button-handler parents to Revit's main window but ends up BEHIND
+   the modeless Centre. New `RaiseRevitToFront()` P/Invoke calls
+   `BringWindowToTop` + `SetForegroundWindow` on Revit's main HWND
+   immediately before each TaskDialog and the result-panel `Show()`,
+   so the dialog appears above the Centre instead of being lost.
+
+2. **PhaseTag bumped to 139.24.** Subsequent runs whose result panel
+   reads "Phase 139.24" prove the new DLL is loaded. If the user
+   still sees "Phase 139.21" or older, the build cache hasn't
+   refreshed.
+
+
+#### Completed (Phase 139.25 — IFailuresPreprocessor + live-dedup)
+
+User reported "I didn't see any lighting device in the model" with a
+result panel saying "31 placed" and a Revit error dialog showing 12
+errors + 31 warnings. Diagnosis: the engine successfully placed 31
+instances, but Revit's failure system raised modal error dialogs
+during commit. When the user dismissed those by clicking "Delete
+Instance(s)" or "Cancel", Revit rolled back some or all placements.
+
+Two real fixes:
+
+1. **`PlacementFailuresPreprocessor : IFailuresPreprocessor`.** Wired
+   into the engine's Transaction via
+   `tx.GetFailureHandlingOptions().SetFailuresPreprocessor(...)` plus
+   `SetForcedModalHandling(false)` and `SetClearAfterRollback(true)`.
+   Pre-process step inspects each failure's description text and
+   silently `DeleteWarning`s the predictable engine side-effects:
+
+   - "Can't rotate element into this position" — Phase 139.18
+     un-hosted-family rotation occasionally pushes through another
+     element.
+   - "There are identical instances in the same place" — edge cases
+     the dedup didn't cover.
+   - "Instance origin does not lie on host face" — the few face-
+     placements where Revit's face geometry doesn't match the
+     projection.
+
+   The transaction now commits cleanly. No Revit modal dialog. No
+   user click-through required.
+
+2. **Live-update dedup.** The Phase 139.23 dedup snapshot was built
+   ONCE per rule iteration; same-rule candidates within tolerance
+   passed because the snapshot was empty when each was tested.
+   `existingNearby.Add(c.Position)` is now called after every
+   successful placement so subsequent candidates in the same loop
+   compare against the live placement set.
+
+PhaseTag bumped to 139.25.
+
 #### Completed (Phase 140 — Structural DWG-to-BIM Accuracy Pass)
 
 **Branch**: `claude/fix-parallel-max-gap-H3Ha3`

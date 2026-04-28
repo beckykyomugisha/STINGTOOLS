@@ -142,6 +142,22 @@ namespace StingTools.UI
                     case "Placement_LightingGrid":  RunCommand<Commands.Placement.LightingGridCommand>(app); break;
                     case "Placement_Learn":         RunCommand<Commands.Placement.LearnPlacementV4Command>(app); break;
 
+                    // ── Phase 139.2 — placement centre additions ──
+                    case "Placement_AutoPopulateCatalogue":
+                        RunCommand<Commands.Placement.ManufacturerCatalogueAutoPopulateCommand>(app); break;
+                    case "Placement_ExportNogginRequirements":
+                        RunCommand<Commands.Placement.NogginRequirementExportCommand>(app); break;
+                    case "Placement_ExportRulesExcel":
+                        RunCommand<Commands.Placement.PlacementRulesExcelExportCommand>(app); break;
+                    case "Placement_ImportRulesExcel":
+                        RunCommand<Commands.Placement.PlacementRulesExcelImportCommand>(app); break;
+                    case "Placement_RunWallChase":
+                        RunCommand<Commands.Placement.RunWallChaseCommand>(app); break;
+                    case "Placement_AuditSetup":
+                        RunCommand<Commands.Placement.PlacementSetupAuditCommand>(app); break;
+                    case "Placement_Diagnose":
+                        RunCommand<Commands.Placement.PlacementDiagnoseCommand>(app); break;
+
                     // ── v4 MVP: auto-drop routing (Phase 3) ──
                     case "Routing_AutoDrop":         RunCommand<Commands.Routing.AutoDropCommand>(app); break;
                     case "Routing_GenerateLayout":   RunCommand<Commands.Routing.GenerateLayoutCommand>(app); break;

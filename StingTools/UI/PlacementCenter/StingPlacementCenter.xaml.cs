@@ -48,6 +48,119 @@ namespace StingTools.UI.PlacementCenter
         private DateTime? _lastRunUtc;
         private List<ElementId> _lastPlacedIds = new List<ElementId>();
 
+        // Phase 139.10 — modeless WPF can't open a Transaction directly
+        // under Revit 2025+. Dispatch the engine through an
+        // IExternalEventHandler that runs on the Revit API thread.
+        private ExternalEvent _runEvent;
+        private PlacementRunHandler _runHandler;
+        private PlacementRunRequest _runRequest;
+
+        // Phase 139.24 — bring Revit's main window to front before
+        // showing a TaskDialog from the Centre. Without this, the
+        // TaskDialog opens parented to Revit's main window but BEHIND
+        // the modeless Centre, where the user can't see or click it.
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool BringWindowToTop(IntPtr hWnd);
+
+        private void RaiseRevitToFront()
+        {
+            try
+            {
+                IntPtr hwnd = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+                if (hwnd != IntPtr.Zero)
+                {
+                    BringWindowToTop(hwnd);
+                    SetForegroundWindow(hwnd);
+                }
+            }
+            catch { }
+        }
+
+        private void EnsureRunEvent()
+        {
+            // Phase 139.10b — the ExternalEvent must be created in the
+            // ctor (Revit API context). If it's still null here we cannot
+            // recreate from the WPF UI thread without throwing
+            // "Attempting to create an ExternalEvent outside of a
+            // standard API execution". Surface a clear error.
+            if (_runEvent != null) return;
+            throw new InvalidOperationException(
+                "PlacementCenter run event is not initialised. " +
+                "Close and re-open the Placement Centre via the BIM ribbon to recreate the API-thread dispatcher.");
+        }
+
+        private class PlacementRunRequest
+        {
+            public Document Doc;
+            public IList<ElementId> RoomIds;
+            public IList<PlacementRule> Rules;
+            public StingProgressDialog Progress;
+            public System.Threading.CancellationTokenSource HeartbeatCts;
+            public PlacementResult Result;
+            public Exception Error;
+            public DateTime StartUtc;
+            public bool PrevStamp;
+            public bool PrevLearn;
+        }
+
+        private sealed class PlacementRunHandler : IExternalEventHandler
+        {
+            private readonly StingPlacementCenter _owner;
+            public PlacementRunHandler(StingPlacementCenter owner) { _owner = owner; }
+            public string GetName() => "STING Placement Centre Run";
+            public void Execute(UIApplication app)
+            {
+                var req = _owner._runRequest;
+                if (req == null) { Signal(); return; }
+                try
+                {
+                    using (var tg = new TransactionGroup(req.Doc, "STING Placement Centre — Run"))
+                    {
+                        tg.Start();
+                        req.Result = FixturePlacementEngine.PlaceFixturesInScope(
+                            req.Doc, req.RoomIds, req.Rules, dryRun: false,
+                            progress: (done, total) =>
+                            {
+                                try
+                                {
+                                    // Phase 139.11 — first room reached → kill the
+                                    // pre-flight heartbeat so the per-room status
+                                    // is visible and not overwritten.
+                                    try { req.HeartbeatCts?.Cancel(); } catch { }
+                                    req.Progress?.Increment($"Room {done} of {total}…");
+                                    return req.Progress?.IsCancelled == true;
+                                }
+                                catch { return false; }
+                            });
+                        tg.Assimilate();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    req.Error = ex;
+                    StingLog.Error("PlacementRunHandler.Execute", ex);
+                }
+                finally { Signal(); }
+            }
+            private void Signal()
+            {
+                try
+                {
+                    var req  = _owner._runRequest;
+                    var res  = req?.Result;
+                    var err  = req?.Error;
+                    _owner.Dispatcher.BeginInvoke(new System.Action(() =>
+                    {
+                        try { _owner.OnRunCompleted(req, res, err); }
+                        catch (Exception ex) { StingLog.Warn($"OnRunCompleted: {ex.Message}"); }
+                    }));
+                }
+                catch { }
+            }
+        }
+
         public StingPlacementCenter(UIApplication uiApp)
         {
             // Pre-register the IsDirty → "●" converter before InitializeComponent
@@ -56,7 +169,32 @@ namespace StingTools.UI.PlacementCenter
 
             InitializeComponent();
             ThemeManager.RegisterTarget(this);
+            // Phase 139.21 — surface the assembly's build stamp on the
+            // window title bar. If the user runs two consecutive
+            // sessions and the stamp doesn't change, the plug-in DLL
+            // wasn't refreshed (extract_plugin.sh skipped the copy or
+            // Revit cached the old DLL).
+            try
+            {
+                this.Title = $"STING — Placement Centre  [build {StingTools.Core.Placement.FixturePlacementEngine.BuildStamp}  {StingTools.Core.Placement.FixturePlacementEngine.PhaseTag}]";
+            }
+            catch { }
             ThemeManager.InitialiseResources();
+
+        // Phase 139.10b — ExternalEvent.Create must be called from a
+            // Revit API context. Constructor runs inside the
+            // OpenPlacementCenterCommand.Execute, which IS an API context;
+            // the button-click handler is NOT. Create the event eagerly
+            // here so it's ready for OnRunPlacement_Click later.
+            try
+            {
+                _runHandler = new PlacementRunHandler(this);
+                _runEvent   = ExternalEvent.Create(_runHandler);
+            }
+            catch (Exception evEx)
+            {
+                StingLog.Warn($"PlacementCenter: ExternalEvent.Create at ctor: {evEx.Message}");
+            }
 
             VM = new PlacementRulesViewModel();
             _uiApp = uiApp;
@@ -100,6 +238,10 @@ namespace StingTools.UI.PlacementCenter
             rbScopeView.Checked      += (_,__) => VM.RunOpts.Scope = "ActiveView";
             rbScopeSel.Checked       += (_,__) => VM.RunOpts.Scope = "Selection";
             rbScopeProj.Checked      += (_,__) => VM.RunOpts.Scope = "Project";
+
+            // Phase 139.8 — Auto-place category checklist toggles.
+            btnCatAll.Click  += (_,__) => SetAllCategoryChecks(true);
+            btnCatNone.Click += (_,__) => SetAllCategoryChecks(false);
 
             // Per-rule field handlers — wired manually so we can validate after each edit
             cmbCategory.LostFocus       += (_,__) => CommitField(() => VM.Selected.CategoryFilter   = (cmbCategory.Text ?? "").Trim());
@@ -279,7 +421,8 @@ namespace StingTools.UI.PlacementCenter
                     CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
                     DefaultButton = TaskDialogResult.No,
                 };
-                if (confirm.Show() != TaskDialogResult.Yes) return;
+                RaiseRevitToFront();
+            if (confirm.Show() != TaskDialogResult.Yes) return;
             }
             VM.ReloadDefaults();
             VM.AttachFilteredView();
@@ -342,6 +485,156 @@ namespace StingTools.UI.PlacementCenter
                 return;
             }
 
+            // Phase 139.8 — apply the explicit category checklist if any
+            // box is ticked. Empty checklist = "every category in the rule
+            // pack is allowed" (legacy behaviour).
+            // Phase 139.20 — also surface the filter outcome so the user
+            // sees what is and isn't ticked. Without this, a run that
+            // places fire-alarm devices when the user thought they only
+            // ticked "lights" looks like a bug — but is actually either
+            // (a) the checkbox really is ticked, or (b) all cb fields
+            // are null (stale XAML build).
+            // Read the category checklist once; preflight + filter both use it.
+            var allowed = ReadCategoryChecklist();
+
+            // Phase 139.21 — prerequisites preflight. Hard-fail the run
+            // when the model is missing setup that makes correct
+            // placement impossible. Up to now the engine ran in
+            // "best-effort" mode regardless of family-type / door-data
+            // problems, producing the silent wrong-position bug the
+            // user kept reporting.
+            try
+            {
+                var blockers = new List<string>();
+                var helpfulHints = new List<string>();
+
+                // 1. Wall-anchored rules vs family placement type.
+                //   Phase 139.21d — categories like Specialty Equipment, Mechanical
+                //   Equipment, Electrical Equipment legitimately ship with non-
+                //   wall-hosted families (free-standing tanks, generators, panels).
+                //   Don't HARD-FAIL the run; warn the user that wall-anchored rules
+                //   in those categories will not attach correctly and point them at
+                //   the existing FamilyQuickEdit > Change Host command which can
+                //   re-host a family interactively.  The engine still runs and
+                //   places non-wall stuff fine.
+                var wallRules = rules.Where(r =>
+                {
+                    var a = (r.AnchorType ?? "").ToUpperInvariant();
+                    return a == "WALL_MIDPOINT" || a == "WALL_CORNER" || a == "WALL_FACE_OFFSET"
+                        || a.StartsWith("DOOR_") || a.StartsWith("WINDOW_");
+                }).ToList();
+                var wallCats = wallRules.Select(r => r.CategoryFilter ?? "").Distinct().ToList();
+                foreach (var cat in wallCats)
+                {
+                    if (string.IsNullOrEmpty(cat)) continue;
+                    var symbols = new FilteredElementCollector(_doc).OfClass(typeof(FamilySymbol))
+                        .Cast<FamilySymbol>().Where(fs => fs.Category != null
+                            && string.Equals(fs.Category.Name, cat, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+                    if (symbols.Count == 0) continue;
+                    bool anyHosted = symbols.Any(fs => fs.Family?.FamilyPlacementType == FamilyPlacementType.OneLevelBasedHosted);
+                    bool anyFaceBased = symbols.Any(fs => fs.Family?.FamilyPlacementType == FamilyPlacementType.WorkPlaneBased);
+                    // Face-based / WorkPlaneBased families CAN be placed on a wall via
+                    // doc.Create.NewFamilyInstance(face, point, ref, symbol). They count
+                    // as "wall-attachable" too, so we only warn if NEITHER hosted nor
+                    // face-based is loaded.
+                    if (!anyHosted && !anyFaceBased)
+                    {
+                        var first = symbols.FirstOrDefault();
+                        helpfulHints.Add(
+                            $"Category '{cat}' has {symbols.Count} Family Type(s) loaded but none are wall-hostable " +
+                            $"(none are OneLevelBasedHosted and none are WorkPlaneBased; e.g. '{first?.Family?.Name}' is " +
+                            $"{first?.Family?.FamilyPlacementType}). Wall-anchored rules in this category will land but " +
+                            $"won't attach — fixtures will float at the calculated XYZ. Use Tags > Change Host to " +
+                            $"re-host one of these family instances after the run, or load a wall-hosted variant.");
+                    }
+                }
+
+                // 2. Doors without FromRoom / ToRoom on the active level.
+                var view = _doc.ActiveView;
+                if (view is ViewPlan vp && vp.GenLevel != null)
+                {
+                    int doorsTotal = 0, doorsWithSpatial = 0;
+                    foreach (var el in new FilteredElementCollector(_doc)
+                        .OfCategory(BuiltInCategory.OST_Doors)
+                        .WhereElementIsNotElementType())
+                    {
+                        if (!(el is FamilyInstance fi)) continue;
+                        if (fi.LevelId != vp.GenLevel.Id) continue;
+                        doorsTotal++;
+                        Autodesk.Revit.DB.Architecture.Room from = null, to = null;
+                        try { from = fi.FromRoom; } catch { }
+                        try { to = fi.ToRoom; } catch { }
+                        if (from != null || to != null) doorsWithSpatial++;
+                    }
+                    if (doorsTotal > 0 && doorsWithSpatial == 0)
+                    {
+                        blockers.Add($"• {doorsTotal} door(s) on the active level have no FromRoom or ToRoom set. Door-anchored rules will mis-target. Fix: select all rooms in the model, run \"Architecture > Recompute Areas / Volumes\" or reset the room boundaries so spatial relationships re-compute, then run again.");
+                    }
+                    else if (doorsTotal > 0 && doorsWithSpatial < doorsTotal / 2)
+                    {
+                        helpfulHints.Add($"~{doorsTotal - doorsWithSpatial} of {doorsTotal} doors have no FromRoom/ToRoom — those will be skipped by Phase 139.18 filter.");
+                    }
+                }
+
+                // 3. The actual rule pack must include category-checklist entries.
+                if (allowed.Count > 0)
+                {
+                    var rulesAllowed = rules.Where(r => allowed.Contains(r.CategoryFilter ?? "")).ToList();
+                    if (rulesAllowed.Count == 0)
+                    {
+                        blockers.Add($"• None of the {rules.Count} active rules match any ticked category. Untick something or load a rule pack covering: {string.Join(", ", allowed)}.");
+                    }
+                }
+
+                if (blockers.Count > 0)
+                {
+                    RaiseRevitToFront();
+                    var dlg = new TaskDialog("STING — Placement Centre · Prerequisites missing")
+                    {
+                        MainInstruction = $"{blockers.Count} prerequisite(s) failed — run aborted.",
+                        MainContent = string.Join("\n\n", blockers)
+                            + "\n\nPhase 139.21 hard-fails the run when these are present so we don't produce silently-wrong placements. "
+                            + (helpfulHints.Count > 0 ? "\n\nAlso noted:\n  " + string.Join("\n  ", helpfulHints) : ""),
+                        CommonButtons = TaskDialogCommonButtons.Close,
+                    };
+                    dlg.Show();
+                    StingLog.Warn($"PlacementCenter: prerequisites preflight failed — {blockers.Count} blocker(s). Run aborted.");
+                    foreach (var b in blockers) StingLog.Warn("  " + b);
+                    return;
+                }
+                if (helpfulHints.Count > 0)
+                    foreach (var h in helpfulHints) StingLog.Info("PlacementCenter preflight hint: " + h);
+            }
+            catch (Exception preEx) { StingLog.Warn($"PlacementCenter preflight: {preEx.Message}"); }
+            if (allowed.Count > 0)
+            {
+                int before = rules.Count;
+                var filteredOutCats = rules
+                    .Select(r => r.CategoryFilter ?? "")
+                    .Where(c => !allowed.Contains(c))
+                    .Distinct()
+                    .OrderBy(c => c)
+                    .ToList();
+                rules = rules.Where(r => allowed.Contains(r.CategoryFilter ?? "")).ToList();
+                StingLog.Info($"PlacementCenter: category filter kept {rules.Count} / {before} rules. " +
+                              $"Allowed: [{string.Join(", ", allowed.OrderBy(s => s))}]. " +
+                              $"Excluded categories: [{string.Join(", ", filteredOutCats)}].");
+                if (rules.Count == 0)
+                {
+                    TaskDialog.Show("STING — Placement Centre",
+                        "Category checklist filtered every rule out. Tick more categories or clear the checklist.");
+                    return;
+                }
+            }
+            else
+            {
+                // Empty checklist — report explicitly so the user can't
+                // misinterpret "everything placed" as "filter broken".
+                StingLog.Info("PlacementCenter: category checklist is EMPTY → all rule categories will run. " +
+                              "Tick boxes to restrict.");
+            }
+
             var roomIds = PlacementCenterBridge.ResolveScope(_uiDoc, VM.RunOpts.Scope);
             if (roomIds.Count == 0)
             {
@@ -350,11 +643,65 @@ namespace StingTools.UI.PlacementCenter
                 return;
             }
 
+            // Phase 139.9 — pre-flight: warn the user about ticked categories
+            // that have ZERO loaded FamilySymbols. Without this check the
+            // engine prints "No FamilySymbol found for category 'X' — skipping
+            // its rules" once per category and silently zeros that category's
+            // placements, leaving the run with 0 placed for an unticked
+            // reason. Mirrors the dock-panel PlaceFixturesCommand pre-flight.
+            try
+            {
+                var categoriesInUse = new System.Collections.Generic.HashSet<string>(
+                    rules.Select(r => r.CategoryFilter ?? "")
+                         .Where(s => !string.IsNullOrEmpty(s)),
+                    System.StringComparer.OrdinalIgnoreCase);
+                var emptyCats = new System.Collections.Generic.List<string>();
+                foreach (var cat in categoriesInUse)
+                {
+                    bool hasSymbol = false;
+                    foreach (var el in new FilteredElementCollector(_doc).OfClass(typeof(FamilySymbol)))
+                    {
+                        if (el is FamilySymbol fs && fs.Category != null
+                            && string.Equals(fs.Category.Name, cat, System.StringComparison.OrdinalIgnoreCase))
+                        { hasSymbol = true; break; }
+                    }
+                    if (!hasSymbol) emptyCats.Add(cat);
+                }
+                if (emptyCats.Count > 0)
+                {
+                    var td2 = new TaskDialog("STING — Placement Centre · Categories without a placeable Type")
+                    {
+                        MainInstruction = $"{emptyCats.Count} categor{(emptyCats.Count == 1 ? "y has" : "ies have")} no Family Type loaded",
+                        MainContent =
+                            "These categories have no Family Type (FamilySymbol) loaded into the project:\n  " +
+                            string.Join("\n  ", emptyCats.Take(15)) +
+                            (emptyCats.Count > 15 ? $"\n  + {emptyCats.Count - 15} more" : "") +
+                            "\n\nIn Revit a Family is the .rfa container; a Type (FamilySymbol) is one of the variants inside it. " +
+                            "The placement engine creates instances of a Type, not a Family — a Family without any of its Types " +
+                            "loaded into the project still drops every rule for its category.\n\n" +
+                            "Insert > Load Family, expand the .rfa in the Project Browser and drag at least one Type into a view, " +
+                            "or run Placement_AuditSetup for a full project setup check. Continue anyway?",
+                        CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                        DefaultButton = TaskDialogResult.No,
+                    };
+                    if (td2.Show() != TaskDialogResult.Yes)
+                    {
+                        VM.Status = "Run cancelled — categories with no families loaded.";
+                        UpdateStatus();
+                        return;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"PlacementCenter pre-flight family check: {ex.Message}"); }
+
             // Confirm with a summary so the run isn't silently destructive.
+            string catLine = allowed.Count == 0
+                ? "Categories: ALL (checklist empty)"
+                : "Categories: " + string.Join(", ", allowed);
             var confirm = new TaskDialog("STING — Run Placement")
             {
                 MainInstruction = $"Place fixtures in {roomIds.Count} room(s)?",
-                MainContent = $"Rules: {rules.Count}\nScope: {VM.RunOpts.Scope}\nValidators after: {VM.RunOpts.RunValidators}\n\nThe engine creates new FamilyInstance(s); use Undo or 'Undo last run' (Phase D) to revert.",
+                MainContent = $"Rules: {rules.Count}\nScope: {VM.RunOpts.Scope}\n{catLine}\nValidators after: {VM.RunOpts.RunValidators}\n\nThe engine creates new FamilyInstance(s); use Undo or 'Undo last run' (Phase D) to revert.",
                 CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
                 DefaultButton = TaskDialogResult.No,
             };
@@ -372,55 +719,102 @@ namespace StingTools.UI.PlacementCenter
             StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned   = VM.RunOpts.HonourLearned;
 
             DateTime startUtc = DateTime.UtcNow;
-            PlacementResult result = null;
             // Show a modeless progress dialog so the user can see per-room
             // progress and abort. The placement engine commits per-room
             // ProcessRoomRule writes inside its single Transaction, so the
             // outer TransactionGroup keeps everything undoable as one step.
             var progress = StingProgressDialog.Show(
                 "STING — Placement Centre · Run", roomIds.Count);
+            // Phase 139.11 — coarse heartbeat so the user sees activity
+            // during pre-flight (catalogue scan, two-phase shared-param
+            // check, first-fix box placement) which can each take many
+            // seconds before the first per-room progress increment fires.
+            try { progress.SetStatus("Pre-flight — scanning loaded families…"); } catch { }
+            // Background ticker so the dialog never looks frozen even when
+            // a pre-flight step pauses the API thread for a stretch.
+            var heartbeatCts = new System.Threading.CancellationTokenSource();
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                int n = 0;
+                while (!heartbeatCts.IsCancellationRequested)
+                {
+                    System.Threading.Thread.Sleep(1500);
+                    if (heartbeatCts.IsCancellationRequested) break;
+                    n++;
+                    string phase = StingTools.Core.Placement.FixturePlacementEngine.CurrentPhase ?? "";
+                    string label = string.IsNullOrEmpty(phase)
+                        ? $"Pre-flight in progress ({n * 1.5:F0}s)…"
+                        : $"{phase} ({n * 1.5:F0}s)…";
+                    try { progress.SetStatus(label); } catch { break; }
+                }
+            }, heartbeatCts.Token);
+            // Phase 139.13 — non-blocking ExternalEvent dispatch.  The
+            // previous PushFrame approach blocked the WPF thread waiting
+            // for Revit to service the event, but Revit only services
+            // ExternalEvents on its idle cycle and a nested WPF message
+            // pump apparently doesn't trigger that idle reliably (user
+            // saw "Pre-flight in progress (3776s)" with no engine
+            // activity). The standard pattern is fire-and-forget: the
+            // click handler returns immediately, the handler completes
+            // asynchronously, and the post-run UI work is dispatched
+            // back via Dispatcher.BeginInvoke.
+            _runRequest = new PlacementRunRequest
+            {
+                Doc          = _doc,
+                RoomIds      = roomIds,
+                Rules        = rules,
+                Progress     = progress,
+                HeartbeatCts = heartbeatCts,
+                StartUtc     = startUtc,
+                PrevStamp    = prevStamp,
+                PrevLearn    = prevLearn,
+            };
             try
             {
-                // FixturePlacementEngine opens its own Transaction inside the
-                // supplied document. Wrap it in a TransactionGroup so the run
-                // is undoable as a single step but DO NOT open another
-                // Transaction here — Revit forbids nested Transactions and
-                // the engine would silently fail with "Transaction start
-                // failed: …" in result.Warnings.
-                using (var tg = new TransactionGroup(_doc, "STING Placement Centre — Run"))
-                {
-                    tg.Start();
-                    result = FixturePlacementEngine.PlaceFixturesInScope(
-                        _doc, roomIds, rules, dryRun: false,
-                        progress: (done, total) =>
-                        {
-                            try
-                            {
-                                progress.Increment($"Room {done} of {total}…");
-                                return progress.IsCancelled;
-                            }
-                            catch { return false; }
-                        });
-                    tg.Assimilate();
-                }
+                EnsureRunEvent();
+                try { if (btnRunPlacement != null) btnRunPlacement.IsEnabled = false; } catch { }
+                VM.Status = "Run in progress — please wait…";
+                UpdateStatus();
+                _runEvent.Raise();
             }
             catch (Exception ex)
             {
-                StingLog.Error("PlacementCenter.OnRunPlacement", ex);
-                TaskDialog.Show("STING — Placement Centre", $"Run failed: {ex.Message}");
-                VM.Status = $"Run failed: {ex.Message}";
+                StingLog.Error("PlacementCenter.OnRunPlacement raise", ex);
+                TaskDialog.Show("STING — Placement Centre", $"Could not start run: {ex.Message}");
+                try { heartbeatCts.Cancel(); } catch { }
+                try { progress?.Close(); } catch { }
+                StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance = prevStamp;
+                StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned   = prevLearn;
+                try { if (btnRunPlacement != null) btnRunPlacement.IsEnabled = true; } catch { }
+                return;
+            }
+            // Click-handler returns here. Engine runs on API thread; the
+            // handler will invoke OnRunCompleted on the WPF thread when
+            // done.
+            return;
+        }
+
+        // Phase 139.13 — completion callback. Runs on the WPF thread
+        // (Dispatcher.BeginInvoke from the IExternalEventHandler).
+        private void OnRunCompleted(PlacementRunRequest req, PlacementResult result, Exception err)
+        {
+            try { req?.HeartbeatCts?.Cancel(); } catch { }
+            try { req?.Progress?.Close(); } catch { }
+            StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance = req?.PrevStamp ?? false;
+            StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned   = req?.PrevLearn ?? false;
+
+            try { if (btnRunPlacement != null) btnRunPlacement.IsEnabled = true; } catch { }
+            if (err != null)
+            {
+                StingLog.Error("PlacementCenter.OnRunCompleted err", err);
+                TaskDialog.Show("STING — Placement Centre", $"Run failed: {err.Message}");
+                VM.Status = $"Run failed: {err.Message}";
                 UpdateStatus();
                 return;
             }
-            finally
-            {
-                // Restore the option-bag so other entry points aren't affected.
-                StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance = prevStamp;
-                StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned   = prevLearn;
-                try { progress?.Close(); } catch { }
-            }
 
-            _lastRunUtc = startUtc;
+
+            _lastRunUtc = req.StartUtc;
             _lastPlacedIds = result?.PlacedIds?.ToList() ?? new List<ElementId>();
             int placed  = _lastPlacedIds.Count;
             int skipped = result?.SkippedCount ?? 0;
@@ -429,21 +823,74 @@ namespace StingTools.UI.PlacementCenter
             VM.Status = $"Placed {placed} · skipped {skipped} · warnings {warns}";
             UpdateStatus();
 
-            // History panel is the source of truth for "what just happened" —
-            // refresh it so the new bucket appears immediately, before any
-            // dialog steals focus.
+            try
+            {
+                var panel = StingResultPanel.Create("STING — Placement Centre · Run");
+                panel.SetSubtitle($"{placed} placed · {skipped} skipped · {warns} warning(s) · build {StingTools.Core.Placement.FixturePlacementEngine.BuildStamp} ({StingTools.Core.Placement.FixturePlacementEngine.PhaseTag})");
+
+                // Phase 139.20 — surface which categories were actually
+                // allowed by the checklist, alongside the categories that
+                // got placed. If "Fire Alarm Devices" appears in the
+                // placed-by-category list when the user thought they
+                // ticked only Lighting Devices + Lighting Fixtures, the
+                // mismatch is visible here rather than buried in StingLog.
+                var placedCats = (req.Rules ?? new List<PlacementRule>())
+                    .Where(r => result?.CountsByRule != null && result.CountsByRule.ContainsKey(r.MergeKey))
+                    .Select(r => r.CategoryFilter ?? "(none)")
+                    .Distinct()
+                    .OrderBy(c => c)
+                    .ToList();
+                var allowedCats = ReadCategoryChecklist();
+                string allowedTxt = allowedCats.Count == 0
+                    ? "(empty — every category allowed)"
+                    : string.Join(", ", allowedCats.OrderBy(s => s));
+
+                panel.AddSection("SUMMARY")
+                    .Metric("Rooms scoped",         (req.RoomIds?.Count ?? 0).ToString())
+                    .Metric("Rules considered",     (req.Rules?.Count ?? 0).ToString())
+                    .Metric("Categories allowed",   allowedTxt)
+                    .Metric("Categories placed",    placedCats.Count == 0 ? "(none)" : string.Join(", ", placedCats))
+                    .Metric("Candidates evaluated", (result?.CandidatesEvaluated ?? 0).ToString())
+                    .Metric("Placed",               placed.ToString())
+                    .Metric("Skipped",              skipped.ToString());
+
+                if (result?.CountsByRule != null && result.CountsByRule.Count > 0)
+                {
+                    panel.AddSection("PER-RULE COUNTS");
+                    foreach (var kv in result.CountsByRule.OrderByDescending(k => k.Value).Take(20))
+                        panel.Metric(kv.Key, kv.Value.ToString());
+                }
+
+                if (placed == 0)
+                {
+                    panel.AddSection("ZERO PLACED — common causes")
+                        .Text("• Ticked category has no Family Type loaded. A Family (.rfa) is the container; the engine needs at least one Type loaded into the project (drag one from the .rfa in Project Browser into a view).")
+                        .Text("• RoomFilter regex doesn't match the active rooms (check the rule's RoomFilter against the room name in Properties).")
+                        .Text("• PlacementHostPreflight rejected every candidate (hosted family but no host wall/ceiling element nearby).")
+                        .Text("• Run Placement_AuditSetup to confirm shared parameters bound + Types loaded.");
+                }
+
+                if (result?.Warnings != null && result.Warnings.Count > 0)
+                {
+                    panel.AddSection("WARNINGS");
+                    foreach (var w in result.Warnings.Take(30)) panel.Text(w);
+                    if (result.Warnings.Count > 30)
+                        panel.Text($"(+{result.Warnings.Count - 30} more — see StingLog)");
+                }
+                RaiseRevitToFront();
+                panel.Show();
+            }
+            catch (Exception pEx) { StingLog.Warn($"PlacementCenter post-run panel: {pEx.Message}"); }
+
             try { VM.SetHistory(HistoryBridge.ReadHistory(_doc)); }
             catch (Exception hEx) { StingLog.Warn($"PlacementCenter post-run history refresh: {hEx.Message}"); }
 
-            // Auto-paint the AVF compliance heat-map when the toggle is on so
-            // the user sees coverage immediately after the commit.
             if (VM.RunOpts.AutoHeatmap && placed > 0)
             {
-                try { OnHeatmap_Click(sender, e); }
+                try { OnHeatmap_Click(this, null); }
                 catch (Exception hmEx) { StingLog.Warn($"PlacementCenter auto-heatmap: {hmEx.Message}"); }
             }
 
-            // Optional: validators on what just happened
             if (VM.RunOpts.RunValidators)
                 ShowFindings(scopeToProvenance: true, headline: "Run + post-validation");
             else
@@ -515,13 +962,28 @@ namespace StingTools.UI.PlacementCenter
                 int warns = findings.Count(f => f.Severity == ValidationSeverity.Warning);
                 int infos = findings.Count(f => f.Severity == ValidationSeverity.Info);
 
+                // Phase 139.15 — surface the count of elements actually
+                // checked. 0 / 0 / 0 / 0 against 153 placed used to read
+                // as "nothing was checked"; it actually means "everything
+                // checked is compliant". Show the validated element count
+                // in the sub-title so the user can tell the difference.
+                int validatedCount = scopeToProvenance ? (_lastPlacedIds?.Count ?? 0) : -1;
+                string subtitle = headline + (validatedCount >= 0 ? $" · {validatedCount} element(s) checked" : "");
+
                 var panel = StingResultPanel.Create("STING — Placement Centre · Validation")
-                    .SetSubtitle(headline)
+                    .SetSubtitle(subtitle)
                     .AddSection("SUMMARY")
+                    .Metric("Elements checked", validatedCount >= 0 ? validatedCount.ToString() : "(project-wide)")
                     .Metric("Total findings", findings.Count.ToString())
                     .Metric("Errors",   errs.ToString())
                     .Metric("Warnings", warns.ToString())
                     .Metric("Info",     infos.ToString());
+
+                if (findings.Count == 0 && validatedCount > 0)
+                {
+                    panel.AddSection("RESULT")
+                         .Text($"All {validatedCount} just-placed element(s) passed every active validator. No issues found.");
+                }
 
                 if (findings.Count > 0)
                 {
@@ -1026,6 +1488,63 @@ namespace StingTools.UI.PlacementCenter
                 e.PropertyName == nameof(VM.DirtyCount) ||
                 e.PropertyName == nameof(VM.ProjectFilePath))
                 UpdateStatus();
+        }
+
+        // Phase 139.8 — checklist plumbing.
+        private (System.Windows.Controls.CheckBox cb, string cat)[] CategoryChecklist()
+            => new (System.Windows.Controls.CheckBox, string)[]
+            {
+                (cbCatElec,   "Electrical Fixtures"),
+                (cbCatLtgDev, "Lighting Devices"),
+                (cbCatLtgFix, "Lighting Fixtures"),
+                (cbCatComm,   "Communication Devices"),
+                (cbCatData,   "Data Devices"),
+                (cbCatSec,    "Security Devices"),
+                (cbCatFire,   "Fire Alarm Devices"),
+                (cbCatPlm,    "Plumbing Fixtures"),
+                (cbCatHvac,   "Air Terminals"),
+                (cbCatSpr,    "Sprinklers"),
+                (cbCatMech,   "Mechanical Equipment"),
+                (cbCatCond,   "Conduits"),
+                (cbCatJBox,   "Junction Boxes"),
+                (cbCatPipe,   "Pipes"),
+                (cbCatTray,   "Cable Trays"),
+                (cbCatSpec,   "Specialty Equipment"),
+                (cbCatFurn,   "Furniture"),
+                (cbCatNurse,  "Nurse Call Devices"),
+            };
+
+        private System.Collections.Generic.HashSet<string> ReadCategoryChecklist()
+        {
+            var s = new System.Collections.Generic.HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+            // Phase 139.20 — log every checkbox state + null-state. If
+            // many cb fields are null, the XAML auto-generated bindings
+            // didn't compile (stale build). If all fields exist but the
+            // user thinks they ticked one and we report unchecked, the
+            // problem is UI confusion not code. Either way the user can
+            // read the StingLog and we know which root cause to chase.
+            int totalCb = 0, nullCb = 0, checkedCb = 0;
+            var checkedNames = new System.Collections.Generic.List<string>();
+            var nullNames    = new System.Collections.Generic.List<string>();
+            foreach (var (cb, cat) in CategoryChecklist())
+            {
+                totalCb++;
+                if (cb == null) { nullCb++; nullNames.Add(cat); continue; }
+                if (cb.IsChecked == true) { checkedCb++; checkedNames.Add(cat); s.Add(cat); }
+            }
+            StingLog.Info($"PlacementCenter: category checklist read — {totalCb} controls, " +
+                          $"{nullCb} NULL ({(nullNames.Count > 0 ? string.Join(", ", nullNames) : "")}), " +
+                          $"{checkedCb} ticked ({(checkedNames.Count > 0 ? string.Join(", ", checkedNames) : "<none>")}).");
+            if (nullCb > 0)
+                StingLog.Warn($"PlacementCenter: {nullCb} of {totalCb} category checkboxes are NULL — " +
+                              "XAML auto-generated bindings did not compile. Rebuild the plug-in.");
+            return s;
+        }
+
+        private void SetAllCategoryChecks(bool on)
+        {
+            foreach (var (cb, _) in CategoryChecklist())
+                if (cb != null) cb.IsChecked = on;
         }
 
         private void UpdateStatus()

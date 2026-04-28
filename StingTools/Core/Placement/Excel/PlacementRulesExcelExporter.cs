@@ -56,6 +56,24 @@ namespace StingTools.Core.Placement.Excel
             nameof(PlacementRule.GlazingSpec),
             nameof(PlacementRule.PostAuditTag), nameof(PlacementRule.RequiresCOBieFields),
             nameof(PlacementRule.RequiresIfcMapping), nameof(PlacementRule.MaintenanceClearance),
+            // Phase 139.2 S — manufacturer + two-phase + cluster + plaster + tile + structural columns.
+            nameof(PlacementRule.ManufacturerCode), nameof(PlacementRule.CatalogueRef),
+            nameof(PlacementRule.BoxDepthMm), nameof(PlacementRule.GangCount),
+            nameof(PlacementRule.ModulePitchMm),
+            nameof(PlacementRule.MountType), nameof(PlacementRule.InsertionOrigin),
+            nameof(PlacementRule.PlasterOffsetMode), nameof(PlacementRule.PlasterOffsetFixedMm),
+            nameof(PlacementRule.TwoPhaseEnabled), nameof(PlacementRule.ConstructionPhase),
+            nameof(PlacementRule.CompletionPhase), nameof(PlacementRule.BoxFamilyTypeRegex),
+            nameof(PlacementRule.BoxLocationIdParam),
+            nameof(PlacementRule.IsClusterMember), nameof(PlacementRule.ClusterGroupId),
+            nameof(PlacementRule.ClusterSlotIndex), nameof(PlacementRule.ClusterTotalSlots),
+            nameof(PlacementRule.ClusterFrameWidthMm),
+            nameof(PlacementRule.CeilingTileSnap), nameof(PlacementRule.TileGridSpacingXMm),
+            nameof(PlacementRule.TileGridSpacingYMm),
+            nameof(PlacementRule.StructuralFixingCheck), nameof(PlacementRule.JoistClearanceMm),
+            nameof(PlacementRule.EmitNogginRequirement),
+            nameof(PlacementRule.WetZoneExclude), nameof(PlacementRule.WetZoneClass),
+            nameof(PlacementRule.HeightStandardRef),
         };
 
         public static void Export(List<PlacementRule> rules, string filePath)

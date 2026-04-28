@@ -43,6 +43,10 @@ namespace StingTools.Core.Placement
             ("STING_PLACEMENT_RULES.medical-gases.json",         "MedicalGases"),
             ("STING_PLACEMENT_RULES.accessibility.json",         "Accessibility"),
             ("STING_PLACEMENT_RULES.commissioning.json",         "Commissioning"),
+            ("STING_PLACEMENT_RULES.mk-electrical.json",         "MK_Electrical"),
+            ("STING_PLACEMENT_RULES.ceiling-pendants.json",      "Ceiling_Pendants"),
+            ("STING_PLACEMENT_RULES.conduiting-phase.json",      "Conduiting_Phase"),
+            ("STING_PLACEMENT_RULES.in-wall-chase.json",         "InWall_Chase"),
         };
 
         /// <summary>
@@ -180,6 +184,8 @@ namespace StingTools.Core.Placement
                 foreach (var rule in defaults)
                 {
                     if (rule == null) continue;
+                    if (result.ContainsKey(rule.MergeKey))
+                        StingLog.Warn($"PlacementRuleLoader: duplicate RuleId/MergeKey '{rule.MergeKey}' in baseline pack '{rule.SourcePack}' — later definition wins.");
                     result[rule.MergeKey] = rule.Clone();
                 }
             }
@@ -189,12 +195,61 @@ namespace StingTools.Core.Placement
                 foreach (var rule in overrides)
                 {
                     if (rule == null) continue;
-                    // Project override wins on same merge key.
+                    // Project override wins on same merge key — that's by design;
+                    // only log when the override is a strict duplicate of another override.
                     result[rule.MergeKey] = rule.Clone();
                 }
             }
 
+            ValidateRuleSet(result.Values);
             return new List<PlacementRule>(result.Values);
+        }
+
+        /// <summary>
+        /// Phase 139.4 — log warnings for misconfigured rules so they
+        /// surface at session start instead of failing silently inside
+        /// the engine. Validation never throws — degraded-mode load
+        /// still returns the rules.
+        /// </summary>
+        private static void ValidateRuleSet(IEnumerable<PlacementRule> rules)
+        {
+            if (rules == null) return;
+            foreach (var r in rules)
+            {
+                if (r == null) continue;
+
+                // Density rule must declare at least one rate.
+                if (r.RuleKind == PlacementRuleKind.Density
+                    && r.PerAreaM2 <= 0 && r.PerOccupant <= 0
+                    && r.PerBed <= 0 && r.PerWorkstation <= 0
+                    && r.PerPupil <= 0 && r.PerToiletCubicle <= 0)
+                {
+                    StingLog.Warn($"PlacementRuleLoader: rule '{r.MergeKey}' is RuleKind=Density but declares no PerAreaM2/PerOccupant/PerBed/PerWorkstation/PerPupil/PerToiletCubicle rate. Will place at most one fixture per room.");
+                }
+
+                // Routing rule must declare a segment category.
+                if (!string.IsNullOrEmpty(r.RoutingMode)
+                    && !string.Equals(r.RoutingMode, "NONE", StringComparison.OrdinalIgnoreCase)
+                    && string.IsNullOrEmpty(r.RouteSegmentCategory))
+                {
+                    StingLog.Warn($"PlacementRuleLoader: rule '{r.MergeKey}' has RoutingMode={r.RoutingMode} but no RouteSegmentCategory — defaulting to PIPE.");
+                }
+
+                // Two-phase + cluster contradiction (#43): cluster placement
+                // assumes a single XYZ for the whole frame, two-phase assumes
+                // per-rule first-fix boxes — they don't compose.
+                if (r.TwoPhaseEnabled && r.IsClusterMember)
+                {
+                    StingLog.Warn($"PlacementRuleLoader: rule '{r.MergeKey}' has both TwoPhaseEnabled and IsClusterMember — undefined behaviour. Disabling cluster membership for this rule.");
+                    r.IsClusterMember = false;
+                }
+
+                // Density rule with MaxPerRoom = 0 may runaway in big rooms.
+                if (r.RuleKind == PlacementRuleKind.Density && r.MaxPerRoom == 0)
+                {
+                    StingLog.Info($"PlacementRuleLoader: rule '{r.MergeKey}' is Density with MaxPerRoom=0 — placement count is bounded only by PerAreaM2/PerOccupant.");
+                }
+            }
         }
 
         /// <summary>

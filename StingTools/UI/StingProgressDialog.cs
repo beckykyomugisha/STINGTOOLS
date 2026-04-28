@@ -122,6 +122,11 @@ namespace StingTools.UI
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 ResizeMode = ResizeMode.NoResize,
                 ShowInTaskbar = false,
+                // Phase 139.14 — Topmost ensures the progress dialog
+                // stays in front when triggered from a modeless WPF
+                // window (Placement Centre, Sheet Manager, etc.) which
+                // would otherwise paint over the dialog.
+                Topmost = true,
                 Content = panel,
             };
 
