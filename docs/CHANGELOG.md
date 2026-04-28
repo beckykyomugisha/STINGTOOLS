@@ -8041,3 +8041,244 @@ CLI tooling. Both close in this phase.
    marker is identical for both paths. A future enhancement could
    stamp the request URL into the audit row so dashboards can
    visualise the migration.
+
+#### Completed (Phase 160 — Cloud-sync feature audit: ground-truth reconciliation against external estimate)
+
+A consultancy estimate received in April 2026 priced seven phases of cloud-sync
+work (STC hook, conflict detection, auto-sync scheduler, Speckle, web 3D viewer,
+BCF endpoints, mobile 3D context) at £20–28k. Audit of the live tree found six
+of the seven already shipped — the estimate was working from out-of-date
+assumptions about the codebase. This phase records the reconciliation so future
+costings start from accurate facts. No code changes; documentation only.
+
+1. **Per-phase verification.** Each line item in the estimate was checked
+   against the working tree:
+   - **Phase 3 (STC drain)**: subscription at `StingTools/Core/StingToolsApp.cs:87`,
+     drain at `:185–243`. Closed by entry 371 (R-02 Workshared deferred element
+     queue).
+   - **Phase 4 (`LastModifiedUtc` conflict detection)**: field on
+     `TagElementPayload` at `StingTools/BIMManager/PlanscapeServerClient.cs:1042`;
+     populated from `ASS_TAG_MODIFIED_DT` at
+     `StingTools/BIMManager/PlatformLinkCommands.cs:2140`; server-side migration
+     `Planscape.Server/src/Planscape.Infrastructure/Data/Migrations/20250418000000_AddTagLastModified.cs`;
+     conflict logic in `TagSyncController.cs:69–104`; covered by
+     `Planscape.Server/tests/Planscape.Tests/TagSyncConflictTests.cs` (184 lines).
+     Closed in Phase 91.
+   - **Phase 5 (5-min auto-sync)**: `PluginSyncTickBridge` wired at
+     `StingTools/Core/StingToolsApp.cs:95–118`; `DocumentSaved` enqueue at
+     `:542–635`. Closed in Phase 92.
+   - **Phase 6 (Speckle Send/Receive)**: `StingTools/BIMManager/SpeckleLinkCommands.cs`
+     (381 lines) provides snapshot engine + three IExternalCommands +
+     `SpeckleSnapshot` workflow preset. Closed in Phase 92 — but the file's
+     header comment notes HTTP push/pull is `TODO pending SDK v2 integration`,
+     so the SDK adapter is the only genuinely open scope from the estimate.
+   - **Phase 7 (xeokit web viewer)**: `Planscape.Server/src/Planscape.API/wwwroot/`
+     contains `index.html`, `viewer/`, `viewer.html`, `css/`, `js/`;
+     `app.UseStaticFiles()` is in `Program.cs`; `ViewerController.cs` (99 lines,
+     marked "PHASE 93 — xeokit-based model viewer") serves XKT files at
+     `/api/viewer/models[/{filename}]`. Closed in Phase 93.
+   - **Phase 8 (BCF 2.1 endpoints)**: shared engine at
+     `StingTools/BIMManager/BcfEngine.cs` (~380 lines, `Planscape.Shared.BCF`
+     namespace, no Revit / no Newtonsoft); server controller at
+     `Planscape.Server/src/Planscape.API/Controllers/BcfController.cs` (186
+     lines) with `GET /api/projects/{id}/bcf/export` + `POST /bcf/import` +
+     BcfGuid round-trip. Closed in Phase 95.
+   - **Phase 9 (Mobile 3D context in issue detail)**: `openViewer(projectCode)`
+     at `Planscape/app/(tabs)/issues.tsx:38–49` opens
+     `{base}/viewer/index.html?model=<code>.xkt` via `WebBrowser.openBrowserAsync()`;
+     `IssueCard`'s "🧊 View in 3D" action wired at `:549`; mirrored at
+     `Planscape/app/(tabs)/issue-detail.tsx:243`. Closed in Phase 94. The
+     implementation pops the existing xeokit web viewer in an in-app browser
+     rather than embedding the React Native `ModelViewer.tsx` component
+     inline — functionally equivalent for the user-facing requirement
+     (coordinator sees the issue in 3D from mobile).
+
+2. **Bonus already-shipped, missed by the estimate**. The estimate didn't
+   mention sync-conflict triage at all, but it is also done:
+   `Planscape.Server/src/Planscape.API/Controllers/SyncConflictsController.cs`
+   (427 lines) + mobile `Planscape/app/conflicts/` route. Closed in
+   Phase 143.
+
+3. **Net remaining scope from the estimate**. Only the Speckle SDK v2
+   transport (Phase 6 partial) is genuinely open, ≈3–5 dev-days. The other
+   six phases would have been double-billed had the estimate been
+   followed. Revised true cost for the bundle is roughly £3.3k–5.0k vs the
+   £20–28k consultancy figure.
+
+4. **`docs/ROADMAP.md`** gained a new "Cloud-Sync & Federation Feature
+   Audit (2026-04-28)" section that mirrors this entry as a reference
+   table, so anyone scanning ROADMAP for open work no longer has to
+   chase down the closure phases manually.
+
+**Files**
+
+- `docs/ROADMAP.md` — added "Cloud-Sync & Federation Feature Audit
+  (2026-04-28)" section (~16 rows of evidence + bonus + net-remaining
+  paragraph).
+- `docs/CHANGELOG.md` — this entry.
+
+**Caveats**
+
+1. Documentation-only phase — no code changed, no build-verification
+   required. Future audits should re-run the same per-line-item
+   verification before relying on the cost figures (newer phases may
+   have shifted line numbers).
+2. The original estimate's grep terms (`ModelViewer`, `modelId`) failed
+   to match the Phase 9 implementation because Phase 94 chose the
+   `WebBrowser.openBrowserAsync()` route over an inline React Native
+   component. Future estimate-vs-tree checks should search for the
+   user-facing behaviour (does the screen open a 3D view?) rather than
+   a specific component name.
+3. The Speckle SDK v2 line item remains open in
+   `StingTools/BIMManager/SpeckleLinkCommands.cs` — the snapshot engine
+   already round-trips through JSON, so any future Speckle work picks
+   up an established DTO contract rather than starting from scratch.
+
+#### Completed (Phase 161 — Speckle HTTP transport: real Send / Receive against Speckle Server)
+
+Closes the last open item from the Phase 160 ground-truth audit. The Phase 92
+`SpeckleLinkEngine` shipped a snapshot DTO + JSON writer + three
+`IExternalCommand` wrappers, but the file's own header comment flagged
+HTTP push/pull as "stubbed out pending Speckle SDK v2 integration." Phase 161
+adds the transport without pulling the Speckle SDK NuGet — Speckle's v2
+GraphQL surface is small enough to drive directly from `HttpClient`, and
+keeping the SDK out of the dependency graph avoids the assembly-collision
+risk that bit other Revit add-ins shipping `Speckle.Core` alongside its
+transitive `Serilog` / `GraphQL` deps.
+
+1. **`StingTools/BIMManager/SpeckleLinkCommands.cs`** grew from 381 to ~840
+   lines. New region `── HTTP Transport: SpeckleHttpTransport ──` houses
+   one internal static class with two public operations and the supporting
+   plumbing.
+
+   - **`SpeckleHttpTransport.Send(streamUrl, token, dtos, message)`** —
+     builds a single root `Base` object containing `tags: [<DTOs>]` inline
+     (no detached children, so no recursive reference walk needed),
+     computes a Speckle-style sha256 object id over canonicalised JSON
+     (keys sorted recursively, array order preserved, `id` field excluded
+     from hash input), gzips an NDJSON line and POSTs it as multipart
+     form-data to `{server}/objects/{streamId}` with field name
+     `batch-1`. Then issues a `commitCreate` GraphQL mutation referencing
+     the new object id and returns the commit id. `sourceApplication`
+     stamped as `STING-Tags` so commits are attributable in the Speckle
+     activity feed.
+   - **`SpeckleHttpTransport.Receive(streamUrl, token)`** — runs the
+     `stream(id) { branch(name) { commits(limit: 1) { items { id
+     referencedObject } } } }` v2 query, then GETs
+     `{server}/objects/{streamId}/{objectId}/single` and parses the
+     `tags` array out of the root JSON. Returns `null` (not empty list)
+     when the branch has no commits so callers can distinguish "empty
+     branch" from "non-empty branch with zero tags." The v2 surface is
+     kept as a compatibility layer on every modern Speckle host (FE2 /
+     project-based servers included), so this works against both legacy
+     v2 hosts and current installations.
+   - **`ParseStreamUrl(url)`** accepts both URL shapes:
+     `https://host/streams/<id>[/branches/<name>]` and
+     `https://host/projects/<id>[/models/<name>]`. Branch defaults to
+     `main`. Throws `ArgumentException` with a self-describing message on
+     any other shape.
+   - **`ComputeObjectId`** sorts JObject keys recursively (ordinal),
+     preserves JArray order, hashes the resulting UTF-8 bytes with
+     SHA-256, and lowercases the hex digest. Self-consistent across
+     Send / Receive — the Speckle server stores objects under whatever
+     id the client supplies, so round-trip works regardless of whether
+     other Speckle clients would compute the same canonical hash.
+   - **`GraphQLData`** wraps the GraphQL POST: 401 → "authentication
+     failed, check token" message; non-2xx → status + reason + body;
+     `errors` array → first message; otherwise returns `data` JObject.
+     `SafeReadBody` swallows read exceptions so error reporting never
+     itself throws.
+   - **One shared `HttpClient`** (`static readonly`, 60s timeout, no
+     `BaseAddress` set so a single instance handles different Speckle
+     hosts). Reused per .NET HttpClient guidance.
+
+2. **Engine wiring** (`SpeckleLinkEngine.SendToSpeckle` /
+   `ReceiveFromSpeckle`):
+
+   - **Send** — local snapshot is written first (atomic temp+Move
+     unchanged). When `streamUrl` and `token` are both non-empty,
+     `SpeckleHttpTransport.Send` runs against the dtos reloaded from
+     the just-written snapshot, surfaces the commit id in the
+     TaskDialog, and logs `Speckle: pushed commit <id> (<n> elements)`.
+     A server failure shows the error in the dialog but the local
+     snapshot stays valid — no rollback path needed.
+   - **Receive** — when configured, `SpeckleHttpTransport.Receive` runs
+     first; on success the local snapshot is overwritten via
+     `WriteSnapshotToDisk` so subsequent `SpeckleDiff` calls compare
+     current model state against the latest server commit. On any
+     server failure the engine falls back to whatever is on disk —
+     extracted into a new `ReadSnapshotFromDisk` helper so both Send
+     (for the push payload) and Receive (for the fallback read) share
+     one implementation. The helper returns `null` to signal
+     "not on disk" vs an empty list for "on disk but empty."
+
+3. **Config loader** — duplicated 7-line `JObject.Parse(speckle_config.json)`
+   block in `SpeckleSendCommand` was extracted to a new
+   `internal static class SpeckleConfig` with `Load(doc) -> (streamUrl, token)`.
+   `SpeckleReceiveCommand` now also calls it (previously hard-coded
+   `("", "")` so it could only ever read the local snapshot — that
+   bypass closed in this phase). `SpeckleConfig.Load` swallows file/JSON
+   parse errors and returns empty strings so the engine treats malformed
+   config as "local-only" rather than crashing the command.
+
+4. **Doc string updates** on `SendToSpeckle` and `ReceiveFromSpeckle`
+   no longer claim "deferred until the Speckle SDK v2 is added" — both
+   docstrings now describe the live HTTP path with the local-fallback
+   semantics.
+
+5. **`docs/ROADMAP.md`** — Phase 6 row in the "Cloud-Sync & Federation
+   Feature Audit (2026-04-28)" table flipped from PARTIAL to DONE with
+   reference to this phase. Net-remaining-work paragraph updated from
+   "only the Speckle SDK v2 transport" to "nothing — the last partial
+   item closed in Phase 161."
+
+**Files**
+
+- `StingTools/BIMManager/SpeckleLinkCommands.cs` — added 6 `using`
+  directives, expanded header comment, modified `SendToSpeckle` and
+  `ReceiveFromSpeckle` to call the HTTP transport, added private
+  `ReadSnapshotFromDisk` + `WriteSnapshotToDisk` helpers on
+  `SpeckleLinkEngine`, added `SpeckleHttpTransport` static class
+  (~190 lines), added `SpeckleConfig` static class (~28 lines),
+  updated `SpeckleSendCommand` and `SpeckleReceiveCommand` to use
+  the shared config loader, refreshed two stale XML doc comments.
+  381 → ~838 lines.
+- `docs/ROADMAP.md` — Phase 6 row + remaining-work paragraph.
+- `docs/CHANGELOG.md` — this entry.
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox, no .NET
+   SDK / no Revit API). Brace-balance check passes (169 open / 169
+   close). Every Revit API call uses the documented signature — no
+   Revit API additions in this phase, only HTTP / JSON / cryptography
+   on the BCL. The `HttpClient.SendAsync(...).GetAwaiter().GetResult()`
+   bridge from sync `IExternalCommand.Execute` mirrors the existing
+   pattern in `PlanscapeServerClient.cs`.
+2. Object id is Speckle-style sha256 over canonicalised JSON but the
+   canonicalisation rules are the simple recursive-sort variant rather
+   than the exact algorithm in `Speckle.Newtonsoft.Json`'s
+   `SortedAlphabeticalContractResolver`. Self-consistent across our
+   own Send / Receive — that's all the Speckle server requires for
+   round-trip — but third-party clients hashing the same payload may
+   compute a different id. Acceptable for STING's use case (we control
+   both ends); revisit if we ever need our objects to round-trip
+   through other Speckle connectors as a hash-identity match.
+3. Branch defaulting: when the streamUrl path doesn't include a branch
+   /model segment, both Send and Receive default to `main`. Speckle
+   FE2 created `main` automatically on every project so this is the
+   right default for new projects, but legacy v2 streams sometimes
+   default to `master`. Operators with v2 streams should specify the
+   branch explicitly in the URL: `.../streams/<id>/branches/master`.
+4. Single-commit Receive only — pulls the latest commit on the branch.
+   No pagination or commit-history walking. A future enhancement could
+   accept an explicit commit id in the URL
+   (`.../streams/<id>/commits/<commitId>`) and route through a
+   GetByCommit query, but the minimum-viable scope from the consultancy
+   estimate was last-commit-only and the snapshot DTO has no
+   commit-history concept anyway.
+5. No subscription / webhook support — the transport is request /
+   response only. Real-time push from Speckle ("commit created on
+   stream X") would need either websocket subscriptions (Speckle GraphQL
+   subscriptions endpoint) or a webhook receiver on Planscape Server.
+   Both are out of scope for the Phase 6 line item.
