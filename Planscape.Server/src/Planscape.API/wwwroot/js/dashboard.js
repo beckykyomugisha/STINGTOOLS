@@ -348,6 +348,10 @@
         <textarea id="tkJson" rows="14" spellcheck="false"
                   style="width:100%;font-family:ui-monospace,monospace;font-size:13px"
         >${esc(initial)}</textarea>
+        <!-- Phase 153 — inline schema-aware validator output. Updates
+             on every keystroke so a typo in a bucket name is flagged
+             before Save instead of round-tripping to the server. -->
+        <div id="tkValidate" class="hint" style="margin-top:6px;min-height:18px"></div>
         <div class="row" style="gap:8px;margin-top:8px;align-items:center">
           <button id="tkSave" class="primary">Save</button>
           <button id="tkClear" class="ghost">Clear extensions</button>
@@ -356,6 +360,31 @@
         </div>
       </div>
     `;
+
+    // Phase 153 — wire the inline validator. Runs synchronously, no
+    // server round-trip. Disables the Save button on hard errors so
+    // the user can't push known-bad JSON. Server still validates
+    // (defence in depth) — this is purely a UX improvement.
+    const $json = document.getElementById("tkJson");
+    const $validate = document.getElementById("tkValidate");
+    const $save = document.getElementById("tkSave");
+
+    function validate() {
+      const text = ($json.value || "").trim();
+      if (text.length === 0) {
+        $validate.textContent = "(empty — Save will clear all extensions)";
+        $validate.className = "hint";
+        $save.disabled = false;
+        return true;
+      }
+      const result = validateTenantKeywordsJson(text);
+      $validate.textContent = result.message;
+      $validate.className = result.ok ? "hint ok" : "hint error";
+      $save.disabled = !result.ok;
+      return result.ok;
+    }
+    $json.addEventListener("input", validate);
+    validate(); // initial pass
 
     document.getElementById("tkSave").onclick = async () => {
       const body = document.getElementById("tkJson").value || "";
@@ -397,6 +426,63 @@
       const s = document.getElementById("tkStatus");
       s.textContent = "Editor reset.";
       s.className = "hint";
+    };
+  }
+
+  // Phase 153 — pure-Compute validator mirroring the server's
+  // ParseForValidation rules. Returns { ok, message } so the editor
+  // can disable Save on hard errors and surface a one-line hint. We
+  // accept the same six canonical buckets as the server; entries must
+  // be a JSON array of non-empty strings.
+  const TK_VALID_BUCKETS = new Set([
+    "initial", "working", "submitting", "accepting", "rejecting", "terminal",
+  ]);
+  function validateTenantKeywordsJson(text) {
+    let parsed;
+    try { parsed = JSON.parse(text); }
+    catch (e) { return { ok: false, message: `JSON syntax error — ${esc(String(e.message || e))}` }; }
+    if (parsed === null || Array.isArray(parsed) || typeof parsed !== "object") {
+      return { ok: false, message: "Body must be a JSON object: { \"working\": [\"PARKED\"], … }" };
+    }
+    const bucketNames = Object.keys(parsed);
+    if (bucketNames.length === 0) {
+      return { ok: false, message: "No buckets defined." };
+    }
+    const unknown = bucketNames.filter(k => !TK_VALID_BUCKETS.has(String(k).toLowerCase()));
+    if (unknown.length > 0) {
+      return {
+        ok: false,
+        message: `Unknown bucket name(s): ${unknown.map(esc).join(", ")}. ` +
+                 `Valid: ${[...TK_VALID_BUCKETS].join(", ")}.`,
+      };
+    }
+    let totalEntries = 0;
+    for (const [bucket, value] of Object.entries(parsed)) {
+      if (!Array.isArray(value)) {
+        return { ok: false, message: `"${esc(bucket)}" must be a JSON array of strings.` };
+      }
+      const nonStrings = value.filter(v => typeof v !== "string");
+      if (nonStrings.length > 0) {
+        return {
+          ok: false,
+          message: `"${esc(bucket)}" contains non-string entries; only quoted strings are accepted.`,
+        };
+      }
+      const empties = value.filter(v => !v || !v.trim());
+      if (empties.length > 0) {
+        return {
+          ok: false,
+          message: `"${esc(bucket)}" contains empty / whitespace strings; remove them or fill them in.`,
+        };
+      }
+      totalEntries += value.length;
+    }
+    if (totalEntries === 0) {
+      return { ok: false, message: "No keywords across any bucket — Save would clear extensions." };
+    }
+    return {
+      ok: true,
+      message: `Looks good — ${bucketNames.length} bucket${bucketNames.length === 1 ? "" : "s"}, ${totalEntries} keyword${totalEntries === 1 ? "" : "s"}.`,
     };
   }
 

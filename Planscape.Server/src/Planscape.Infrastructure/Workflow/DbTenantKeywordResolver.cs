@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Configuration;
 using Planscape.Infrastructure.Data;
 
 namespace Planscape.Infrastructure.Workflow;
@@ -53,6 +54,8 @@ public sealed class DbTenantKeywordResolver : ITenantKeywordResolver
 
     private readonly PlanscapeDbContext _db;
     private readonly IDistributedCache? _l2;
+    private readonly TimeSpan _absoluteTtl;
+    private readonly TimeSpan _slidingTtl;
 
     /// <summary>
     /// Phase 152 — accept an optional <see cref="IDistributedCache"/> as
@@ -60,18 +63,40 @@ public sealed class DbTenantKeywordResolver : ITenantKeywordResolver
     /// the resolver can be constructed in unit tests / dev configs that
     /// don't wire Redis. Production DI passes the registered Redis
     /// instance through.
+    ///
+    /// Phase 153 — accept optional <see cref="IConfiguration"/> for
+    /// runtime-tunable TTLs:
+    ///   <c>DeliverableStateMachine:Cache:AbsoluteTtlDays</c> (default 14)
+    ///   <c>DeliverableStateMachine:Cache:SlidingTtlDays</c>  (default 7)
+    /// Sliding TTL refreshes on every read so an active tenant stays
+    /// hot indefinitely; absolute TTL is the upper bound that ensures
+    /// stale rows eventually clear even for tenants under continuous
+    /// load.
     /// </summary>
-    public DbTenantKeywordResolver(PlanscapeDbContext db, IDistributedCache? distributedCache = null)
+    public DbTenantKeywordResolver(
+        PlanscapeDbContext db,
+        IDistributedCache? distributedCache = null,
+        IConfiguration? config = null)
     {
         _db = db;
         _l2 = distributedCache;
+        _absoluteTtl = ReadTtl(config, "DeliverableStateMachine:Cache:AbsoluteTtlDays", defaultDays: 14);
+        _slidingTtl = ReadTtl(config, "DeliverableStateMachine:Cache:SlidingTtlDays",  defaultDays: 7);
     }
 
-    /// <summary>L2 entry TTL. The hash-based key invalidation already
-    /// handles content drift, but we also sweep stale rows so a tenant
-    /// that hasn't been queried in a fortnight doesn't squat on Redis
-    /// memory forever.</summary>
-    private static readonly TimeSpan L2Ttl = TimeSpan.FromDays(14);
+    /// <summary>Phase 153 — read a positive day-count from config, fall
+    /// back to <paramref name="defaultDays"/> on any parse failure or
+    /// non-positive value. Caps at 365 days to defend against
+    /// fat-finger configs that would freeze stale data forever.</summary>
+    private static TimeSpan ReadTtl(IConfiguration? config, string key, int defaultDays)
+    {
+        if (config == null) return TimeSpan.FromDays(defaultDays);
+        var raw = config[key];
+        if (string.IsNullOrWhiteSpace(raw)) return TimeSpan.FromDays(defaultDays);
+        if (!int.TryParse(raw, out var days) || days <= 0) return TimeSpan.FromDays(defaultDays);
+        if (days > 365) days = 365;
+        return TimeSpan.FromDays(days);
+    }
 
     public async Task<IReadOnlyDictionary<string, IReadOnlyCollection<string>>> ResolveAsync(
         Guid tenantId, CancellationToken ct = default)
@@ -118,8 +143,16 @@ public sealed class DbTenantKeywordResolver : ITenantKeywordResolver
                 // Store the source JSON, not the parsed dict, so the
                 // L2 entry survives schema additions to the DTO without
                 // needing an explicit migration. Parse is cheap.
+                // Phase 153 — sliding TTL refreshes on every read so
+                // active tenants stay hot indefinitely; absolute TTL
+                // caps the lifetime as a defence against indefinitely
+                // pinned stale state under continuous load.
                 await _l2.SetStringAsync(l2Key, json!,
-                    new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = L2Ttl }, ct);
+                    new DistributedCacheEntryOptions
+                    {
+                        AbsoluteExpirationRelativeToNow = _absoluteTtl,
+                        SlidingExpiration = _slidingTtl,
+                    }, ct);
             }
             catch { /* L2 unavailable — L1 still has the value */ }
             return parsed;

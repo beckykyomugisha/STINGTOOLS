@@ -5089,3 +5089,100 @@ hardening items.
    marker. Tenants whose `ProjectMember.Iso19650Role` rows aren't
    populated won't get the BIM-Manager grant and will need to be
    tenant Admin / Owner instead. Documented in the handler XML doc.
+
+#### Completed (Phase 153 — Phase 152 caveat closures: configurable TTLs, inline JSON validation, broadened BIM Manager grant)
+
+The three remaining caveats from Phase 152 were all real production
+hardening items.
+
+**1 — Configurable + sliding L2 TTL**
+
+1. `Planscape.Server/src/Planscape.Infrastructure/Workflow/DbTenantKeywordResolver.cs`
+   — `IDistributedCache` write-path now sets both
+   `AbsoluteExpirationRelativeToNow` (caps lifetime) and
+   `SlidingExpiration` (refreshes on every read). Active tenants
+   stay hot indefinitely; absolute cap defends against indefinitely
+   pinned stale state.
+2. Both TTLs are configurable via appsettings:
+     - `DeliverableStateMachine:Cache:AbsoluteTtlDays` (default 14)
+     - `DeliverableStateMachine:Cache:SlidingTtlDays`  (default 7)
+3. New private `ReadTtl` helper validates the config: non-positive
+   or non-numeric falls back to default; values >365 days are
+   capped at 365 to defend against fat-finger configs that would
+   freeze stale data forever.
+4. Constructor signature gained an optional `IConfiguration` third
+   parameter. DI auto-injects it; existing single- and two-arg
+   callers (tests / unit-test fixtures) continue to work via the
+   default values.
+
+**2 — Inline schema-aware JSON validation in dashboard editor**
+
+5. `Planscape.Server/src/Planscape.API/wwwroot/js/dashboard.js` —
+   new `validateTenantKeywordsJson(text)` pure function mirrors the
+   server's `ParseForValidation` rules: parse JSON syntactically;
+   reject non-object roots; reject unknown bucket names against the
+   six canonical roles (initial / working / submitting / accepting
+   / rejecting / terminal); require array values; require non-empty
+   string entries.
+6. The textarea fires `input` → `validate()` on every keystroke.
+   `Save` is disabled on hard errors and the inline status banner
+   surfaces the specific issue ("Unknown bucket name(s): foo. Valid:
+   …" / "'working' contains non-string entries; …"). Server still
+   validates (defence in depth) but operators see typo feedback in
+   real time instead of round-tripping a 400.
+7. `dashboard.js` and `dashboard.css` add nothing else — the `.hint
+   .ok` / `.hint.error` classes from Phase 152 carry the green /
+   red colouring.
+
+**3 — Broadened BIM Manager grant**
+
+8. `Planscape.Server/src/Planscape.Infrastructure/Authorization/BimManagerOrAdminHandler.cs`
+   — the hardcoded `Iso19650Role == "K"` check became a configurable
+   list. Read from `Authorization:BimManagerIso19650Roles`, defaults
+   to `["K"]`. Operators can broaden to `["K", "C"]` (BIM Manager +
+   Coordinator) or any other set without rebuilding.
+9. New AppUser-level grant path. Phase 152 only consulted
+   `ProjectMember.Iso19650Role`; if a user was flagged as BIM
+   Manager via `AppUser.Iso19650Role` at onboarding but had no
+   per-project membership row yet, they still got denied. The new
+   path checks `AppUser.Iso19650Role` against the configured list
+   first; falls through to the project-membership check if no
+   match. Tenant scoping is still enforced — a stale token from a
+   user moved to a different tenant doesn't grant.
+10. `ReadRoleList` config helper handles empty / missing config by
+    falling back to default; non-string entries dropped silently;
+    case-insensitive (uppercases at construction time so the hot
+    path is `Contains` against an uppercase list).
+
+**4 — Tests**
+
+11. `Planscape.Server/tests/Planscape.Tests/TenantKeywordTtlConfigTests.cs`
+    — 7 facts/theories: defaults applied when no config, configured
+    overrides flow through to `DistributedCacheEntryOptions`,
+    malformed values (zero / negative / non-numeric / empty) fall
+    back to default, excessive values cap at 365 days. Recording
+    `IDistributedCache` stub captures the actual options passed to
+    `SetStringAsync`.
+12. `Planscape.Server/tests/Planscape.Tests/BimManagerRoleConfigTests.cs`
+    — 7 facts: configured roles override default "K", narrowing
+    config excludes previously-granted users, empty config falls
+    back, case-insensitive matching, AppUser-level grant works
+    without project membership, AppUser grant follows config list,
+    cross-tenant AppUser denied.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. The dashboard validator is a JavaScript mirror of the server's
+   parsing rules; if the server rules drift, the validator could
+   silently lag. Both are documented to refer to the canonical
+   `ParseForValidation` contract; a future refactor could code-gen
+   the JS validator from the server's role list.
+3. Sliding TTL is implemented per Microsoft's distributed-cache
+   contract; both Redis and `MemoryDistributedCache` honour it on
+   `Get`. SQL Server distributed cache also supports it. Other
+   third-party `IDistributedCache` providers may not — operators
+   running on bespoke providers should validate.
+4. Configurable BIM Manager roles are deployment-global. A
+   tenant-scoped override would land in a future phase if a
+   multi-tenant deployment needs different policies per customer.
