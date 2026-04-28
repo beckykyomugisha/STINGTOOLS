@@ -21,6 +21,17 @@ public partial class BackfillStageGateCriteria : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
+        // Phase 148 — be self-sufficient. PostgreSQL 13+ has
+        // gen_random_uuid() built-in, but PG 12 still needs pgcrypto.
+        // Every current Planscape PG deployment already has pgcrypto
+        // enabled (the initial migration loaded it), so this is
+        // belt-and-braces: a fresh PG 12 instance running the
+        // migrations cold no longer depends on a previous migration's
+        // side-effect to succeed. IF NOT EXISTS makes it a no-op when
+        // the extension is already present, so no extra permission is
+        // needed on hosts that pre-installed it.
+        migrationBuilder.Sql("CREATE EXTENSION IF NOT EXISTS pgcrypto;");
+
         // PG-only — the test/dev SQLite path uses an empty fresh DB so
         // there's nothing to back-fill.
         migrationBuilder.Sql(@"

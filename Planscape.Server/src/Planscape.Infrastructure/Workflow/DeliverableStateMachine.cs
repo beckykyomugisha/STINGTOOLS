@@ -164,18 +164,37 @@ public sealed class DeliverableStateMachine
             }
             else
             {
+                // Phase 147 — exact-match against CanonicalRoles for known
+                // ISO 19650 names + common synonyms.
+                // Phase 148 — substring keyword match as a fallback so
+                // truly bespoke vocabularies (e.g. "ARCH_HAS_REVIEWED",
+                // "ME_FINAL_APPROVAL") still get inferred roles. The
+                // substring path runs only when the exact lookup misses.
                 foreach (var s in states)
                 {
                     if (CanonicalRoles.TryGetValue(s, out var canonical))
+                    {
                         roles[s] = canonical;
+                        continue;
+                    }
+                    var fuzzy = InferRoleByKeyword(s);
+                    if (fuzzy != null) roles[s] = fuzzy;
                 }
                 // Inferred initial / terminal roles too — the canonical
                 // dictionary covers them, but make sure we don't skip
                 // states that only appear in transitions[] not states[].
                 foreach (var (from, to) in transitions)
                 {
-                    if (!roles.ContainsKey(from) && CanonicalRoles.TryGetValue(from, out var rf)) roles[from] = rf;
-                    if (!roles.ContainsKey(to) && CanonicalRoles.TryGetValue(to, out var rt)) roles[to] = rt;
+                    if (!roles.ContainsKey(from))
+                    {
+                        if (CanonicalRoles.TryGetValue(from, out var rf)) roles[from] = rf;
+                        else { var f = InferRoleByKeyword(from); if (f != null) roles[from] = f; }
+                    }
+                    if (!roles.ContainsKey(to))
+                    {
+                        if (CanonicalRoles.TryGetValue(to, out var rt)) roles[to] = rt;
+                        else { var f = InferRoleByKeyword(to); if (f != null) roles[to] = f; }
+                    }
                 }
             }
 
@@ -234,6 +253,67 @@ public sealed class DeliverableStateMachine
         ["ARCHIVED"]    = "terminal",
         ["CLOSED"]      = "terminal",
     };
+
+    /// <summary>
+    /// Phase 148 — substring-keyword role inference for state names that
+    /// don't appear in <see cref="CanonicalRoles"/>. Used only when the
+    /// custom JSON omits a <c>"roles"</c> block AND the state name has no
+    /// canonical alias, so it never overrides explicit caller intent.
+    ///
+    /// Priority order is action-specific → generic. The "outcome" roles
+    /// (rejecting / accepting) win over "in-flight" roles (submitting /
+    /// working) so a name like <c>FINAL_REVIEW_REJECTED</c> resolves to
+    /// rejecting rather than submitting. Returns null when no keyword
+    /// matches — caller leaves the role unset and <see cref="RoleOf"/>
+    /// will report "none" for that state.
+    /// </summary>
+    internal static string? InferRoleByKeyword(string state)
+    {
+        if (string.IsNullOrWhiteSpace(state)) return null;
+        var s = state.ToUpperInvariant();
+
+        // 1. Rejecting — strongest "negative outcome" signal first.
+        foreach (var kw in RejectKeywords) if (s.Contains(kw)) return "rejecting";
+
+        // 2. Accepting — strongest "positive outcome" signal.
+        foreach (var kw in AcceptKeywords) if (s.Contains(kw)) return "accepting";
+
+        // 3. Submitting — "in review" / "for review" precedes acceptance.
+        foreach (var kw in SubmitKeywords) if (s.Contains(kw)) return "submitting";
+
+        // 4. Terminal — archival / closure verbs.
+        foreach (var kw in TerminalKeywords) if (s.Contains(kw)) return "terminal";
+
+        // 5. Working — broad "in progress" signal. Last among the
+        // "actively-doing-something" buckets so it doesn't shadow more
+        // specific outcomes.
+        foreach (var kw in WorkingKeywords) if (s.Contains(kw)) return "working";
+
+        // 6. Initial — broadest "queued / not started" signal. Last
+        // overall because words like "OPEN" can appear in compound names
+        // (e.g. RE-OPENED) where another bucket is more accurate.
+        foreach (var kw in InitialKeywords) if (s.Contains(kw)) return "initial";
+
+        return null;
+    }
+
+    // Phase 148 — keyword vocabularies tuned to common ISO 19650 / NEC /
+    // JCT terminology. Order within each list is most-specific → most-
+    // generic so the substring match doesn't fire on a less-meaningful
+    // prefix. All entries are uppercase; <see cref="InferRoleByKeyword"/>
+    // upper-cases the input once before the scan.
+    private static readonly string[] RejectKeywords =
+        { "REJECT", "DECLIN", "RETURN", "REWORK", "FAIL", "VOID" };
+    private static readonly string[] AcceptKeywords =
+        { "ACCEPT", "APPROV", "PUBLISH", "SIGNED_OFF", "SIGNOFF", "PASSED" };
+    private static readonly string[] SubmitKeywords =
+        { "SUBMIT", "REVIEW", "ISSUED_FOR", "FOR_INFORMATION", "FOR_APPROVAL", "FOR_COMMENT" };
+    private static readonly string[] TerminalKeywords =
+        { "ARCHIV", "CLOSED", "CANCELL", "WAIVE", "SUPERSED", "COMPLETE", "FINAL", "DONE" };
+    private static readonly string[] WorkingKeywords =
+        { "PROGRESS", "WIP", "DRAFT", "ACTIVE", "BUILD", "ONGOING" };
+    private static readonly string[] InitialKeywords =
+        { "PENDING", "BACKLOG", "TODO", "NEW", "QUEUED", "OPEN", "BRIEF" };
 
     private static string[] ReadStringArray(JsonElement obj, string key)
     {

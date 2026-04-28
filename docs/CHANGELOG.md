@@ -4608,3 +4608,85 @@ silent shortcuts. This phase pays each one down.
    with truly bespoke vocabulary still need an explicit `"roles"`
    block; the changelog and machine class XML doc both make that
    explicit.
+
+#### Completed (Phase 148 — Phase 147 caveat closures: pgcrypto self-sufficient, fuzzy role inference, more tests)
+
+The two remaining caveats from Phase 147 were both genuine — a hidden
+deployment dependency and an inference fallback that didn't go far
+enough.
+
+**1 — Backfill migration is now self-sufficient on PG 12+**
+
+1. `Planscape.Server/src/Planscape.Infrastructure/Data/Migrations/20260427500000_BackfillStageGateCriteria.cs`
+   — added `CREATE EXTENSION IF NOT EXISTS pgcrypto;` at the head of
+   the `Up` method. The migration uses `gen_random_uuid()`, which is
+   built into PostgreSQL 13+ but needs the pgcrypto extension on
+   PG 12. Every existing Planscape PG deployment already has
+   pgcrypto enabled (the initial migration loaded it), so this is
+   belt-and-braces: a fresh PG 12 instance running the migrations
+   cold no longer depends on a previous migration's side-effect.
+   `IF NOT EXISTS` makes it a no-op when the extension is already
+   present, so no extra permission is needed on hosts that
+   pre-installed it.
+
+**2 — Substring-keyword fallback for bespoke state names**
+
+2. `Planscape.Infrastructure/Workflow/DeliverableStateMachine.cs` —
+   new internal `InferRoleByKeyword(state)` helper with six
+   priority-ordered keyword vocabularies tuned to ISO 19650 / NEC /
+   JCT terminology:
+     - **rejecting** (highest priority): REJECT, DECLIN, RETURN,
+       REWORK, FAIL, VOID
+     - **accepting**: ACCEPT, APPROV, PUBLISH, SIGNED_OFF, SIGNOFF, PASSED
+     - **submitting**: SUBMIT, REVIEW, ISSUED_FOR, FOR_INFORMATION,
+       FOR_APPROVAL, FOR_COMMENT
+     - **terminal**: ARCHIV, CLOSED, CANCELL, WAIVE, SUPERSED,
+       COMPLETE, FINAL, DONE
+     - **working**: PROGRESS, WIP, DRAFT, ACTIVE, BUILD, ONGOING
+     - **initial** (lowest): PENDING, BACKLOG, TODO, NEW, QUEUED,
+       OPEN, BRIEF
+   Outcome roles (rejecting / accepting) win over in-flight roles
+   (submitting / working) so `FINAL_REVIEW_REJECTED` resolves to
+   rejecting rather than terminal-or-submitting. Returns null when
+   no keyword matches — caller leaves the role unset and `RoleOf`
+   reports "none".
+3. `LoadOrDefault` — when the custom JSON omits a `"roles"` block
+   AND a state name has no `CanonicalRoles` exact match, the
+   substring path now fires. Both the `states[]` loop and the
+   `transitions[]` from/to loop fall back to the keyword inference.
+   Tenants with truly bespoke vocabularies (`ARCH_HAS_REVIEWED`,
+   `ME_FINAL_APPROVAL`, `CLIENT_SIGNOFF`) now get sensible role
+   inference for free; explicit `"roles"` blocks still win and
+   disable inference entirely.
+
+**3 — Tests for the new fuzzy path**
+
+4. `Planscape.Server/tests/Planscape.Tests/RoleInferenceTests.cs` —
+   24 facts/theories covering:
+     - Each of the 6 role buckets recognised via keyword (8 examples
+       per bucket via `[Theory]`)
+     - Priority order: rejecting > accepting > submitting > terminal
+       > working > initial (4 priority-collision tests with state
+       names that match multiple buckets)
+     - Null / empty / whitespace input → null
+     - Case insensitivity
+     - Integration with `LoadOrDefault`: bespoke names now get
+       inferred roles (the "INTAKE / DRAFTING / AWAITING_REVIEW /
+       PUBLISHED_TO_CDE" path Phase 147 had to leave at "none")
+     - Explicit `"roles"` block still wins over fuzzy inference
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. The keyword vocabulary is opinionated. Tenants whose state names
+   collide with off-list synonyms (e.g. `ON_HOLD` is none of these
+   buckets, `LOCKED` ditto) will still need an explicit `"roles"`
+   block. The vocabulary is intentionally conservative — false
+   positives (a state misclassified) are worse than false negatives
+   (a state with no role, leading to skipped metadata) because the
+   metadata path is silent.
+3. The substring scan is O(state-name × keyword-count) per call,
+   ~50 character comparisons per state. Negligible at the call
+   volumes the controller sees, but if a future codepath calls
+   `RoleOf` per-element across a 100k-row dataset we'd want to
+   precompute. Documented in the helper's XML doc.
