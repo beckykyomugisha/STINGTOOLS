@@ -364,7 +364,7 @@ namespace StingTools.Model
                     filtered = scope
                         .Select(id => doc.GetElement(id))
                         .Where(el => el != null && el.Category != null
-                            && el.Category.Id.IntegerValue == (int)kvp.Key)
+                            && el.Category.Id.Value == (long)kvp.Key)
                         .Select(el => el.Id)
                         .ToList();
                     if (filtered.Count == 0) continue;
