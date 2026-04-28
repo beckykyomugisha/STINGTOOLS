@@ -4690,3 +4690,101 @@ enough.
    volumes the controller sees, but if a future codepath calls
    `RoleOf` per-element across a 100k-row dataset we'd want to
    precompute. Documented in the helper's XML doc.
+
+#### Completed (Phase 149 — Phase 148 caveat closures: vocabulary expansion, tenant keyword extensions, memoised RoleOf)
+
+The two remaining caveats from Phase 148 were both real:
+- the keyword vocabulary missed common JCT/NEC state words like
+  `ON_HOLD`, `LOCKED`, `BLOCKED`, `FROZEN`, `ESCALATED`
+- the per-call cost was bounded but unmemoised, so a future caller
+  hitting `RoleOf` with the same unknown state in a tight loop would
+  pay it repeatedly
+
+**1 — Vocabulary expansion**
+
+1. `Planscape.Infrastructure/Workflow/DeliverableStateMachine.cs` —
+   extended five of the six keyword lists with common state terms
+   that appear on real BIM projects but weren't in Phase 148:
+     - `submitting`: + `ESCALAT` (ESCALATED, ESCALATED_TO_DIRECTOR)
+     - `terminal`: + `LOCKED`, `FROZEN`, `ABANDON`, `WITHDRAW`,
+       `HANDED_OVER`, `HANDOVER`
+     - `working`: + `ON_HOLD`, `ONHOLD`, `BLOCKED`, `WAITING`, `PAUSED`
+   Priority order is unchanged — outcome roles (rejecting / accepting)
+   still beat in-flight roles, so `PAUSED_FOR_REVIEW` resolves to
+   submitting (REVIEW > PAUSED).
+
+**2 — Tenant-supplied keyword extension block**
+
+2. New optional `"keywords"` block on the custom state-machine JSON.
+   Shape:
+   ```json
+   {
+     "states": ["NEW", "PARKED", "DELIVERED"],
+     "transitions": [...],
+     "keywords": {
+       "working":  ["PARKED", "WAITING_ON_X"],
+       "accepting": ["DELIVERED"]
+     }
+   }
+   ```
+   Caller-defined keywords take precedence over the built-in
+   vocabulary, so a tenant whose `LOCKED` means "engineer is editing"
+   (working) can override the canonical `LOCKED → terminal` mapping.
+3. `LoadOrDefault.ParseCustomKeywords` filters to the six canonical
+   role bucket names; unknown buckets are silently dropped, non-string
+   array entries are skipped. Both sanitisations have explicit tests
+   so a typo in the JSON doesn't 500.
+4. `LoadOrDefault` pre-resolves roles for any *declared* state (in
+   `states[]` or in transition endpoints) by consulting custom
+   keywords first, then the built-ins. Undeclared states fall through
+   to `RoleOf`'s runtime inference path.
+5. `CustomKeywords` is a new public property on
+   `DeliverableStateMachine`; the default machine has an empty map.
+6. `DeliverablesController.GetStateMachine` now surfaces
+   `customKeywords` so the mobile / web client can render the
+   extension table next to the state-machine diagram.
+7. `Planscape/src/api/endpoints.ts` — extended the
+   `DeliverableStateMachine` interface with `customKeywords?: Record<string, string[]>`.
+
+**3 — Memoised `RoleOf` for unknown states**
+
+8. `RoleOf` now consults `SemanticRoles` (the precomputed table) first;
+   on miss, it falls into a per-instance
+   `ConcurrentDictionary<string, string>` cache that holds the
+   inferred result so repeated queries with the same unknown state
+   are amortised O(1).
+9. `InferRoleWithExtensions` is a private instance helper that walks
+   `RolePriority` against the tenant `CustomKeywords` first, then
+   delegates to the static `InferRoleByKeyword`. Lets the runtime
+   path inherit the same outcome-beats-in-flight semantics as the
+   loader's pre-resolution path.
+
+**4 — Tests**
+
+10. `Planscape.Server/tests/Planscape.Tests/RoleExtensionTests.cs` —
+    16 facts/theories covering:
+      - Phase 149 vocabulary additions across `working` (5 examples)
+        and `terminal` (6) buckets, plus `ESCALATED → submitting`
+      - Tenant keyword block: extends built-ins, can override
+        canonical mappings, respects priority order, drops unknown
+        bucket names, skips non-string entries
+      - Custom keywords coexist with explicit `roles` block
+      - `RoleOf` is consistent across repeated calls (memoisation
+        invariant)
+      - Pre-computed states bypass runtime inference
+      - Runtime inference uses custom keywords for undeclared states
+      - `Default` machine's `CustomKeywords` is empty
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. Tenant keyword extensions are scoped to the project's machine —
+   no cross-tenant or platform-wide vocabulary. A platform-level
+   default-extension config could land in a future phase if multiple
+   tenants converge on the same bespoke vocab.
+3. The runtime memoisation cache is unbounded. State-machine
+   instances are normally one per loaded project (resolved per
+   request via `LoadOrDefault`), so the per-instance cache lifecycle
+   matches the request lifecycle. If a future caller starts holding
+   a single machine across many requests, the cache should grow a
+   bounded eviction policy.

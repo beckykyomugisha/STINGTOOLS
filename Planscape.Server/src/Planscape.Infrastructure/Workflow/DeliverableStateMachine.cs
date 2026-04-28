@@ -53,9 +53,68 @@ public sealed class DeliverableStateMachine
     public IReadOnlyDictionary<string, string> SemanticRoles { get; init; } =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Resolve the semantic role for a state name, defaulting to "none".</summary>
-    public string RoleOf(string state) =>
-        SemanticRoles.TryGetValue(state?.ToUpperInvariant() ?? "", out var role) ? role : "none";
+    /// <summary>
+    /// Phase 149 — tenant-supplied keyword extensions of the role-
+    /// inference vocabulary. Shape: <c>{ "working": ["WAITING_ON_X", "PARKED"], … }</c>.
+    /// Caller-defined keywords take priority over the built-ins (so
+    /// <c>"working": ["LOCKED"]</c> can override the canonical
+    /// <c>LOCKED → terminal</c> mapping for a project that uses LOCKED
+    /// to mean "engineer has reserved this row for editing"). Built-in
+    /// vocabularies stay as the universal fallback.
+    /// </summary>
+    public IReadOnlyDictionary<string, IReadOnlyCollection<string>> CustomKeywords { get; init; } =
+        new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Resolve the semantic role for a state name. O(1) for any state
+    /// declared in the machine (loader pre-populates roles for every
+    /// state in <c>states[]</c> plus every endpoint of
+    /// <c>transitions[]</c>). Falls back to memoised inference for
+    /// unknown states.
+    /// </summary>
+    public string RoleOf(string state)
+    {
+        var key = state?.ToUpperInvariant() ?? "";
+        if (SemanticRoles.TryGetValue(key, out var role)) return role;
+        // Phase 149 — memoised on-demand inference for state names the
+        // caller didn't pre-declare. Keeps RoleOf O(1) amortised even
+        // when the controller queries an unknown state. Each machine
+        // instance carries its own cache so tenant CustomKeywords don't
+        // cross-pollinate across projects.
+        return _runtimeRoleCache.GetOrAdd(key, k => InferRoleWithExtensions(k) ?? "none");
+    }
+
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _runtimeRoleCache = new();
+
+    /// <summary>
+    /// Phase 149 — instance-level inference that consults caller-supplied
+    /// <see cref="CustomKeywords"/> first, then falls through to the
+    /// built-in priority-ordered vocabulary.
+    /// </summary>
+    private string? InferRoleWithExtensions(string state)
+    {
+        if (string.IsNullOrWhiteSpace(state)) return null;
+        var s = state.ToUpperInvariant();
+        // Custom keywords win — apply them in canonical priority order
+        // (rejecting > accepting > submitting > terminal > working >
+        // initial) so a tenant's bespoke vocab inherits the same
+        // outcome-beats-in-flight semantics as the built-in path.
+        foreach (var role in RolePriority)
+        {
+            if (CustomKeywords.TryGetValue(role, out var keywords))
+            {
+                foreach (var kw in keywords)
+                {
+                    if (string.IsNullOrWhiteSpace(kw)) continue;
+                    if (s.Contains(kw, StringComparison.OrdinalIgnoreCase)) return role;
+                }
+            }
+        }
+        return InferRoleByKeyword(s);
+    }
+
+    private static readonly string[] RolePriority =
+        { "rejecting", "accepting", "submitting", "terminal", "working", "initial" };
 
     public bool IsValidTransition(string current, string target) =>
         Transitions.Contains((current?.ToUpperInvariant() ?? "", target?.ToUpperInvariant() ?? ""));
@@ -198,6 +257,34 @@ public sealed class DeliverableStateMachine
                 }
             }
 
+            // Phase 149 — optional `keywords` block: tenant extensions of
+            // the built-in inference vocabulary. Shape:
+            //   { "keywords": { "working": ["WAITING_ON_X", "PARKED"], … } }
+            // Only the six canonical role buckets are recognised; anything
+            // else is silently ignored (so a typo doesn't 500). We don't
+            // re-run inference here — the loop above only had access to
+            // the built-in vocab, so tenants who relied on a custom
+            // keyword for a *declared* state must also include it in the
+            // explicit `roles` block. Custom keywords still fire via
+            // <see cref="RoleOf"/> for any state queried at runtime that
+            // isn't in the precomputed table.
+            var customKeywords = ParseCustomKeywords(root);
+            // If the loader didn't pre-resolve a role for a declared
+            // state but the tenant-supplied keywords would, do that
+            // resolution now so RoleOf for those states is the cheap
+            // dict lookup path.
+            if (customKeywords.Count > 0)
+            {
+                var allDeclared = new HashSet<string>(states, StringComparer.OrdinalIgnoreCase);
+                foreach (var (from, to) in transitions) { allDeclared.Add(from); allDeclared.Add(to); }
+                foreach (var declared in allDeclared)
+                {
+                    if (roles.ContainsKey(declared)) continue;
+                    var inferred = InferFromCustomKeywords(declared, customKeywords);
+                    if (inferred != null) roles[declared] = inferred;
+                }
+            }
+
             return new DeliverableStateMachine
             {
                 Name = name,
@@ -206,6 +293,7 @@ public sealed class DeliverableStateMachine
                 Transitions = transitions,
                 TerminalStates = terminal,
                 SemanticRoles = roles,
+                CustomKeywords = customKeywords,
                 IsCustom = true,
             };
         }
@@ -302,18 +390,83 @@ public sealed class DeliverableStateMachine
     // generic so the substring match doesn't fire on a less-meaningful
     // prefix. All entries are uppercase; <see cref="InferRoleByKeyword"/>
     // upper-cases the input once before the scan.
+    //
+    // Phase 149 — added the "states the team puts a deliverable into when
+    // they can't progress it but it's not finished" vocabulary
+    // (ON_HOLD / BLOCKED / WAITING / ESCALATED) to working/submitting,
+    // plus the "frozen / abandoned / withdrawn" vocabulary to terminal.
+    // These don't appear on canonical ISO 19650 flows but turn up
+    // routinely in JCT / NEC / corporate-bespoke vocabularies.
     private static readonly string[] RejectKeywords =
         { "REJECT", "DECLIN", "RETURN", "REWORK", "FAIL", "VOID" };
     private static readonly string[] AcceptKeywords =
         { "ACCEPT", "APPROV", "PUBLISH", "SIGNED_OFF", "SIGNOFF", "PASSED" };
     private static readonly string[] SubmitKeywords =
-        { "SUBMIT", "REVIEW", "ISSUED_FOR", "FOR_INFORMATION", "FOR_APPROVAL", "FOR_COMMENT" };
+        { "SUBMIT", "REVIEW", "ISSUED_FOR", "FOR_INFORMATION", "FOR_APPROVAL", "FOR_COMMENT", "ESCALAT" };
     private static readonly string[] TerminalKeywords =
-        { "ARCHIV", "CLOSED", "CANCELL", "WAIVE", "SUPERSED", "COMPLETE", "FINAL", "DONE" };
+        { "ARCHIV", "CLOSED", "CANCELL", "WAIVE", "SUPERSED", "COMPLETE", "FINAL", "DONE",
+          "LOCKED", "FROZEN", "ABANDON", "WITHDRAW", "HANDED_OVER", "HANDOVER" };
     private static readonly string[] WorkingKeywords =
-        { "PROGRESS", "WIP", "DRAFT", "ACTIVE", "BUILD", "ONGOING" };
+        { "PROGRESS", "WIP", "DRAFT", "ACTIVE", "BUILD", "ONGOING",
+          "ON_HOLD", "ONHOLD", "BLOCKED", "WAITING", "PAUSED" };
     private static readonly string[] InitialKeywords =
         { "PENDING", "BACKLOG", "TODO", "NEW", "QUEUED", "OPEN", "BRIEF" };
+
+    /// <summary>
+    /// Phase 149 — parse the optional <c>"keywords"</c> block. Filters
+    /// to the six canonical role bucket names; anything else is dropped
+    /// silently (typo doesn't 500). Each bucket's value must be a JSON
+    /// array of strings; non-strings within a bucket are skipped.
+    /// </summary>
+    private static IReadOnlyDictionary<string, IReadOnlyCollection<string>> ParseCustomKeywords(JsonElement root)
+    {
+        var result = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase);
+        if (!root.TryGetProperty("keywords", out var kwEl) || kwEl.ValueKind != JsonValueKind.Object)
+            return result;
+
+        foreach (var prop in kwEl.EnumerateObject())
+        {
+            var role = prop.Name.Trim().ToLowerInvariant();
+            if (!KnownRoles.Contains(role) || role == "none") continue;
+            if (prop.Value.ValueKind != JsonValueKind.Array) continue;
+
+            var entries = new List<string>();
+            foreach (var item in prop.Value.EnumerateArray())
+            {
+                if (item.ValueKind != JsonValueKind.String) continue;
+                var token = item.GetString();
+                if (!string.IsNullOrWhiteSpace(token))
+                    entries.Add(token!.Trim().ToUpperInvariant());
+            }
+            if (entries.Count > 0) result[role] = entries.AsReadOnly();
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Used during loader pre-resolution. Walks the role-priority order
+    /// against the tenant-supplied keyword map. Mirrors the runtime
+    /// <see cref="InferRoleWithExtensions"/> path but operates on a
+    /// caller-supplied dictionary so it can run before the
+    /// <see cref="DeliverableStateMachine"/> instance exists.
+    /// </summary>
+    private static string? InferFromCustomKeywords(
+        string state,
+        IReadOnlyDictionary<string, IReadOnlyCollection<string>> kw)
+    {
+        if (string.IsNullOrWhiteSpace(state)) return null;
+        var s = state.ToUpperInvariant();
+        foreach (var role in RolePriority)
+        {
+            if (!kw.TryGetValue(role, out var list)) continue;
+            foreach (var token in list)
+            {
+                if (string.IsNullOrWhiteSpace(token)) continue;
+                if (s.Contains(token, StringComparison.OrdinalIgnoreCase)) return role;
+            }
+        }
+        return null;
+    }
 
     private static string[] ReadStringArray(JsonElement obj, string key)
     {

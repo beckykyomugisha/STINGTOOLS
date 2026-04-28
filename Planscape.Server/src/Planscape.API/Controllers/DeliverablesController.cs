@@ -280,6 +280,10 @@ public class DeliverablesController : ControllerBase
             // surface badges like "this is the submission step" without
             // string-matching on names.
             roles = machine.SemanticRoles,
+            // Phase 149 — surface tenant-supplied keyword extensions so the
+            // mobile client can display them next to the state machine
+            // diagram. Empty dict for default / un-extended machines.
+            customKeywords = machine.CustomKeywords,
             transitions = machine.Transitions
                 .Select(t => new { from = t.From, to = t.To })
                 .OrderBy(t => t.from).ThenBy(t => t.to),

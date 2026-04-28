@@ -797,6 +797,15 @@ export interface DeliverableStateMachine {
    * side-effects on transition; the mobile UI uses it to colour buttons.
    */
   roles?: Record<string, string>;
+  /**
+   * Phase 149 — tenant-supplied substring keywords mapped to canonical
+   * roles, e.g. `{ "working": ["WAITING_ON_X", "PARKED"] }`. Anything in
+   * this map fires before the server's built-in vocabulary, so a project
+   * can override the canonical inference (e.g. LOCKED is "working" instead
+   * of "terminal" when the tenant uses LOCKED to mean "engineer is
+   * editing").
+   */
+  customKeywords?: Record<string, string[]>;
   transitions: Array<{ from: string; to: string }>;
 }
 
