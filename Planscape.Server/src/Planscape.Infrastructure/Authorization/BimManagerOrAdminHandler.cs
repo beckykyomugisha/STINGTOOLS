@@ -106,9 +106,22 @@ public sealed class BimManagerOrAdminHandler : AuthorizationHandler<BimManagerOr
         // rejected here even though its signature is still valid.
         // Admins (the short-circuit above) bypass this check so an
         // admin can't be locked out by their own action.
+        //
+        // Phase 157 — kick off the revocation read + tenant-override
+        // resolve concurrently. Both are Redis-backed in production
+        // and target distinct keys, so launching them together
+        // halves the auth-path Redis latency on cold L1.
+        // Task.WhenAll is the right granularity here: simpler than
+        // IBatch, lets each consumer handle its own L2 fallback
+        // chain, and avoids serialising the slowest operation
+        // behind the other.
         var revocations = scope.ServiceProvider.GetRequiredService<IPermissionRevocationStore>();
-        var minIat = await revocations.GetMinIatAsync(userId);
-        if (minIat is long floor)
+        var resolver = scope.ServiceProvider.GetRequiredService<ITenantBimManagerRoleResolver>();
+        var minIatTask = revocations.GetMinIatAsync(userId);
+        var tenantOverrideTask = resolver.ResolveAsync(tenantId);
+        await Task.WhenAll(minIatTask, tenantOverrideTask);
+
+        if (minIatTask.Result is long floor)
         {
             var iatClaim = context.User.FindFirst("iat")?.Value;
             if (long.TryParse(iatClaim, out var tokenIat) && tokenIat < floor)
@@ -130,14 +143,10 @@ public sealed class BimManagerOrAdminHandler : AuthorizationHandler<BimManagerOr
         // who's freshly invited can curate vocabulary on day one
         // without first being added to a project.
         // Phase 154 — read the tenant override before the membership
-        // check.
+        // check (concurrent with revocation since Phase 157).
         // Phase 155 — go through the cached resolver instead of
-        // re-fetching + re-parsing the JSON per request. The
-        // resolver short-circuits a malformed override to null so
-        // the caller falls back to the deployment list cleanly.
-        var resolver = scope.ServiceProvider.GetRequiredService<ITenantBimManagerRoleResolver>();
-        var tenantOverride = await resolver.ResolveAsync(tenantId);
-        var effectiveRoles = tenantOverride ?? _bimManagerRoles;
+        // re-fetching + re-parsing the JSON per request.
+        var effectiveRoles = tenantOverrideTask.Result ?? _bimManagerRoles;
 
         var userIso = await db.Users.AsNoTracking()
             .Where(u => u.Id == userId && u.TenantId == tenantId)

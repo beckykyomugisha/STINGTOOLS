@@ -5465,3 +5465,81 @@ hardening items.
    updates the canonical list, the ETag will flip on the next
    process restart and clients revalidate at most one hour after
    that — well within typical deployment-rollout windows.
+
+#### Completed (Phase 157 — Phase 156 caveat closures: concurrent auth-handler reads, explicit revoke endpoint)
+
+The two remaining caveats from Phase 156 were both real production
+hardening items.
+
+**1 — Concurrent revocation + tenant-override reads**
+
+1. `Planscape.Server/src/Planscape.Infrastructure/Authorization/BimManagerOrAdminHandler.cs`
+   — both the `IPermissionRevocationStore.GetMinIatAsync` and
+   `ITenantBimManagerRoleResolver.ResolveAsync` calls now launch
+   together via `Task.WhenAll`. They target distinct keys / cache
+   entries so there's no contention; the auth path's Redis-bound
+   latency drops to roughly the slower of the two operations
+   instead of the sum.
+2. Used `Task.WhenAll` rather than StackExchange.Redis `IBatch`
+   pipelining: simpler, lets each consumer keep its own L1 / L2 /
+   DB fallback chain (the keyword resolver routes through
+   IDistributedCache then DB; the revocation store is direct
+   IDistributedCache only). True multiplexed pipelining would
+   shave another ~0.5ms but at the cost of giving up the resolver's
+   internal L1 short-circuit.
+3. Admin / Owner short-circuit still happens before the
+   concurrent block so the cheap path stays cheap.
+
+**2 — Explicit "revoke this user everywhere" admin endpoint**
+
+4. `Planscape.Server/src/Planscape.API/Controllers/AdminController.cs`
+   — new `POST /api/admin/users/{userId}/revoke-tokens`. Bumps
+   the user's iat-floor in
+   `IPermissionRevocationStore` and audit-logs the action under
+   the `USER_REVOKE` kind. Distinct from the implicit revocation
+   triggered by `UpdateUser` (which also fires when the admin
+   actually changes a permission field) so SOC2 / ISO 27001
+   audits get a discrete "session termination" event in the
+   trail separate from "permission change".
+5. Idempotent — calling repeatedly bumps the floor each time;
+   monotonic floors mean tokens issued between calls still fail
+   the check on next request.
+6. Returns 404 when the target user isn't in the caller's
+   tenant. Returns 200 with the email + revocation timestamp on
+   success so the caller can verify which user they actually
+   logged out (the user-id alone is rarely enough confirmation).
+7. `AdminController` ctor gained an `IAuditService` dependency
+   for the audit-log write.
+
+**3 — Tests**
+
+8. `Planscape.Server/tests/Planscape.Tests/AuthHandlerConcurrentReadsTests.cs`
+   — 3 facts:
+     - "RevocationAndTenantOverride_LaunchInParallel" verifies the
+       Task.WhenAll dispatch by giving both fakes a 200ms delay and
+       asserting total wall time < 350ms (vs ~400ms if serial).
+     - "BothLookups_AreObservedByTheHandler" guards against an
+       accidental short-circuit on the wrong path.
+     - "RevocationFloorAndOverride_BothApplied" exercises the
+       composed semantics — fresh iat clears the floor, but a
+       narrower tenant override still denies the K-role member.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. The 350ms wall-clock assertion in the parallel test is
+   timing-dependent. CI under heavy load (e.g. shared GH Actions
+   runners spiking) could exceed it; the constant has plenty of
+   headroom but a hard-deadline alternative (e.g. measure each
+   leg's start-time via instrumented fakes) would be more robust.
+   Acceptable for now since the real production benefit is the
+   shape of the call graph, which the second test pins.
+3. `revoke-tokens` audit-logs with a free-text `reason` of
+   "explicit admin revoke". A future enhancement could accept a
+   caller-supplied reason in the request body so the trail
+   captures *why* the revocation happened (suspected credential
+   leak, employee offboarding, etc.).
+4. The endpoint is gated by the controller-level
+   `[Authorize(Roles = "Admin,Owner")]`. A finer-grained policy
+   (e.g. dedicated "Security Officer" role for SOC2 separation
+   of duties) would be a follow-up if compliance audits require it.
