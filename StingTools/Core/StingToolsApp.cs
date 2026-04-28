@@ -613,6 +613,20 @@ namespace StingTools.Core
                     StingLog.Warn($"DocumentOpened offline-config reload: {ocEx.Message}");
                 }
 
+                // BIM-CDE-FOLDER-01: Bootstrap the ISO 19650 CDE folder structure
+                // (WIP / SHARED / PUBLISHED / ARCHIVE + per-discipline sub-folders)
+                // on every doc open, idempotent. Disabled via AUTO_CREATE_CDE_FOLDERS=false.
+                try
+                {
+                    if (TagConfig.AutoCreateCdeFolders && e.Document != null && !e.Document.IsFamilyDocument)
+                    {
+                        int created = ProjectFolderEngine.CreateFolderStructure(e.Document);
+                        if (created > 0)
+                            StingLog.Info($"DocumentOpened: created {created} CDE folders under {ProjectFolderEngine.GetRootPath(e.Document)}");
+                    }
+                }
+                catch (Exception cfEx) { StingLog.Warn($"DocumentOpened CDE folder bootstrap: {cfEx.Message}"); }
+
                 // Pack 8 — drip-feed a compliance refresh through the Idling
                 // scheduler so the dashboard is live within a second of open.
                 try { StingIdlingScheduler.Enqueue(new ComplianceRefreshJob()); }

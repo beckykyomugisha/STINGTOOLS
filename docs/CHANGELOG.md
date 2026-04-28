@@ -4658,3 +4658,141 @@ re-queues live IDs on the next open; (ii) flipping geometry on tagged
 elements and confirming an `SI-####` issue appears in `_BIM_COORD/issues.json`
 once `staleCount >= STALE_WARNING_THRESHOLD`; (iii) running `LoadSharedParams`
 then a Tag command and confirming `ASS_TAG_MODIFIED_BY_TXT` is populated.
+
+#### Completed (Phase 148 — Tractable batch closure of 20 ROADMAP gaps)
+
+Closed 18 of the 46 open gaps in the ROADMAP triage in a single
+deliberately-scoped batch. The genuinely-multi-day items
+(`DWG-FUT-01..14`, `DWG-STRUCT-DEEP-5/6b`, `BIM-BCF-SYNC-01`,
+`DWG-MULTI-01`, `DWG-CURVE-01`) and the infra-blocked items
+(`TPL-V12-SIG`, `TPL-V12-AI`, `N-G18`, `TPL-FOLLOW-02`) were left
+untouched with sharper "blocked-on-X" notes so the next session has a
+clean target.
+
+15. **`StingTools/BIMManager/Phase148Engine.cs`** (new file, ~1,300
+    lines, single-namespace bag of 13 small static engines). Each engine
+    is its own internal static class with a documented public API the
+    rest of the tree can call without scattering tiny additions across
+    20 files. Engines:
+    - **SidecarVersioning** (BIM-SIDECAR-VER-01) — `EnsureArrayMeta(arr,
+      schema)` stamps a `_meta` sentinel record carrying `version=1.1`,
+      `schema`, `written_at`, `written_by`. `Records()` iterates while
+      skipping the sentinel so legacy readers keep working.
+    - **CrossLinkEngine** (BIM-CROSS-LINK-01) — `WalkFromIssue(doc, id)`
+      follows `linked_revision_ids` / `linked_transmittal_ids` /
+      `linked_issue_ids` arrays across all three sidecars (depth-bounded
+      at 256 hops). `AppendLink(record, kind, foreignId)` adds a
+      cross-reference with dedupe.
+    - **TransmittalGate** (BIM-TRANSMIT-GATE-01) — `Validate(doc,
+      transmittal, requiredRank=1)` looks up every referenced document
+      in `document_register.json`, ranks the CDE state (WIP=0, SHARED=1,
+      PUBLISHED=2, ARCHIVED=3), and blocks transmittal sends whose docs
+      sit below the threshold.
+    - **TeamWorkloadEngine** (BIM-TEAM-WORKLOAD-01) — `Build(doc)`
+      reads `issues.json` and aggregates open issues per assignee with
+      Critical / High / Overdue / OldestDays / SampleIds columns.
+    - **ComplianceForecast** (BIM-FORECAST-01) — `Build(doc, target)`
+      reads `compliance_trend.json`, runs `WarningsEngine.ForecastCompliance`,
+      returns a `ForecastSummary` with caption text the dashboard renders
+      inline.
+    - **CobieSystemDistribution** (BIM-COBIE-SYS-01) — walks every
+      tagged element and aggregates the actual `ASS_SYS_TXT` values
+      present in the model, replacing the static `TagConfig.SysMap`
+      defaults the COBie System sheet was using.
+    - **DataDropTracker** (BIM-DD-TRACK-01, BIM-4D-HANDOVER-01) —
+      Load/Save round-trip on `_BIM_COORD/data_drops.json` with
+      DD1/DD2/DD3/DD4 milestones (planned/actual dates + RAG).
+      `GetDD4HandoverDate(doc)` exposes the DD4 date so the 4D
+      scheduling engine can extend the timeline beyond construction-
+      finish into handover.
+    - **CdeApprovalGate** (BIM-CDE-APPROVAL-01) — `Validate(doc,
+      fromState, toState)` resolves the current user's role from
+      `project_team.json`, denies state transitions whose minimum role
+      rank (Originator/Reviewer/Approver = 1/2/3) is not met, and
+      returns a structured `(pass, requiredRole, actualRole, reason)`
+      result.
+    - **FuncSysValidator** (BIM-EXCEL-CROSS-01) — `Validate(rows)`
+      returns FUNC↔SYS mismatches against the SYS→{valid FUNCs} matrix
+      (HVAC → SUP/RET/EXH/HTG/CLG/VEN/FRA/SAV; LV → PWR/LIT/CTL/DAT;
+      SAN → SAN/WST/VNT; etc.).
+    - **RebarSpacingChecker** (STRUCT-REBAR-01) — walks every `Rebar`
+      element, derives bar diameter from `RebarBarType.BarDiameter`,
+      computes clear spacing from `REBAR_ELEM_LENGTH /
+      NumberOfBarPositions`, flags any clear spacing < max(diameter,
+      20 mm) per BS EN 1992-1-1 §8.2.
+    - **AcousticCavityBonus** (ACOUSTIC-CAVITY-01) — `BonusAt(hz)`
+      interpolates BS EN 12354-1 Annex B.3 indicative values
+      (50 Hz → 2 dB rising to 500 Hz → 12 dB falling to 5 kHz → 5 dB).
+      `WeightedRwBonus()` averages across the 16 standard 1/3-octave
+      bands used to derive Rw, replacing the previous flat +10 dB.
+    - **ScheduleTemplateLib** (WF-SCHED-01, WF-SCHED-02) — `Save / List`
+      persists named schedule templates as JSON in
+      `_BIM_COORD/schedule_templates/`. `CheckFieldConsistency(doc)`
+      scans live `ViewSchedule` definitions and reports any field whose
+      canonical name appears under different display labels across
+      schedules.
+    - **MepCommissioningSchedules** (MEP-SCHED-01) — `CreateMissing(doc)`
+      mints three schedules — Connector Flow Rate, Pipe Balancing
+      Status, HVAC Pressure Drop Summary — idempotent (skips schedules
+      already present in the document).
+    - **PhaseAwareCobie** (FM-HO-02) — `Filter(doc, elements,
+      targetPhaseId)` returns only elements alive in the target phase
+      (PHASE_CREATED ≤ target, PHASE_DEMOLISHED null or > target),
+      stamping each row with the phase name so the COBie Component
+      sheet can be partitioned per phase.
+    - **WorkflowDagPlanner** (TAG-WORKFLOW-PARALLEL-01) — wires the
+      existing `WorkflowStep.ParallelGroup` field into a topo-sort
+      scheduler. `Plan(steps)` orders steps by `(parallelGroup,
+      originalIndex)`; `MarkBlocked(plan, succeeded, failed)` flags
+      groups behind a failed upstream group with no recovery in
+      between. True OS-thread parallelism is impossible because the
+      Revit API is single-threaded — this DAG planner is the realistic
+      interpretation of the gap.
+
+16. **`StingTools/Core/StingToolsApp.cs`** — `OnDocumentOpened` now
+    calls `ProjectFolderEngine.CreateFolderStructure(doc)` on every
+    document open (idempotent), closing **BIM-CDE-FOLDER-01**. Toggle
+    via `AUTO_CREATE_CDE_FOLDERS` config key (default true).
+
+17. **`StingTools/Core/TagConfig.cs`** — added `AutoCreateCdeFolders`
+    config field + `STALE_WARNING_THRESHOLD` carry-over from Phase 147.
+    Cache invalidation hook for `TokenAutoPopulator.PopulationContext`
+    on `LoadFromFile`.
+
+18. **`StingTools/UI/BIMCoordinationCenter.cs`** — Ctrl+E shortcut now
+    dispatches `ExportReport` through `ActionDispatcher` (modeless via
+    `ExternalEvent`) instead of closing the dialog, closing
+    **BIM-COORD-LOOP-01**. Coordinators stay in the centre and can
+    iterate without re-opening it.
+
+19. **Already-done verifications** — three gaps were verified as
+    already complete and reclassified rather than re-implemented:
+    - **BIM-REV-PROP-01** — `RevisionManagementCommands.cs:677-701` has
+      been propagating `ASS_REV_TXT` to all tagged elements since
+      Phase 78 (`GAP-R9: Auto-propagate new REV`).
+    - **FM-HO-01 / BIM-COBIE-SHEETS-01** — COBie handover export already
+      generates all 11 + Instruction worksheets per Phase 78.
+
+20. **Deliberately deferred** — six items remain open with sharper
+    blocked-on-X notes for the next session:
+    - `BIM-EXCEL-STREAM-01` — partial fix Phase 78 via batch-size knob;
+      full streaming reader still pending.
+    - `BIM-BCF-SYNC-01` — needs ACC/Procore OAuth.
+    - `DWG-MULTI-01`, `DWG-CURVE-01` — multi-day DWG geometry rewrites.
+    - `DWG-FUT-01..14`, `DWG-STRUCT-DEEP-5`, `DWG-STRUCT-DEEP-6b` —
+      multi-day spikes (rebar parsing, EC7 foundation sizing,
+      connection synthesis).
+    - `TPL-V12-SIG`, `TPL-V12-AI`, `N-G18`, `TPL-FOLLOW-02` — explicitly
+      deferred to v1.2 / Year 2 by the original runners (need server-
+      side services or a Windows + Revit build box).
+
+Verification was static / read-only — the Linux sandbox has no
+`dotnet build` or Revit API. Each engine call site reads cleanly against
+the documented Revit 2025 API surface and the existing internal helpers
+(`BIMManagerEngine`, `ParameterHelpers`, `WarningsEngine`,
+`SharedParamGuids`, `ParamRegistry`). Follow-up: smoke-test on a real
+.rvt by (i) opening a project and confirming
+`_BIM_COORD/01_WIP/02_SHARED/03_PUBLISHED/04_ARCHIVE` materialise
+without prompting; (ii) using Ctrl+E in the BCC and confirming the
+window stays open; (iii) attempting a transmittal that references a
+WIP-state document and confirming `TransmittalGate` blocks it.

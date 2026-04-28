@@ -979,6 +979,13 @@ namespace StingTools.Core
         /// promotion job opens a BIM issue. 0 disables the auto-promotion. Default 5.</summary>
         public static int StaleWarningThreshold { get; internal set; } = 5;
 
+        /// <summary>BIM-CDE-FOLDER-01: When true, the plugin runs
+        /// `ProjectFolderEngine.CreateFolderStructure(doc)` on every
+        /// DocumentOpened event so the WIP / SHARED / PUBLISHED / ARCHIVE
+        /// CDE folders exist before any export tries to write into them.
+        /// Idempotent — folders that already exist are skipped. Default true.</summary>
+        public static bool AutoCreateCdeFolders { get; internal set; } = true;
+
         /// <summary>Configurable batch size for streaming COBie export. Default 5000.</summary>
         public static int CobieStreamBatchSize { get; internal set; } = 5000;
 
@@ -1380,6 +1387,7 @@ namespace StingTools.Core
                     "CUSTOM_VALID_DISC","CUSTOM_VALID_SYS","CUSTOM_VALID_FUNC",
                     "CUSTOM_VALID_LOC","CUSTOM_VALID_ZONE",
                     "PROXIMITY_RADIUS_FT","RESOLVE_BATCH_SIZE","STALE_WARNING_THRESHOLD",
+                    "AUTO_CREATE_CDE_FOLDERS",
                     "COBIE_STREAM_BATCH_SIZE","PERF_TRACKING_ENABLED",
                     "COST_RATES_FILE","SHEET_NAMING_STRICT_MODE",
                     "COST_PRELIMINARIES_PCT","COST_CONTINGENCY_PCT","COST_OVERHEAD_PROFIT_PCT",
@@ -1581,6 +1589,14 @@ namespace StingTools.Core
                     else if (int.TryParse(swtObj?.ToString(), out int si)) StaleWarningThreshold = si;
                     if (StaleWarningThreshold < 0) StaleWarningThreshold = 0;
                     if (StaleWarningThreshold > 100000) StaleWarningThreshold = 100000;
+                }
+
+                // BIM-CDE-FOLDER-01: Auto-bootstrap CDE folder structure on doc open.
+                AutoCreateCdeFolders = true;
+                if (data.TryGetValue("AUTO_CREATE_CDE_FOLDERS", out object accfObj))
+                {
+                    if (accfObj is bool b) AutoCreateCdeFolders = b;
+                    else if (bool.TryParse(accfObj?.ToString(), out bool bp)) AutoCreateCdeFolders = bp;
                 }
 
                 // Streaming COBie batch size
