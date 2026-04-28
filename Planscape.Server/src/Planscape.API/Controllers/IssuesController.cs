@@ -101,6 +101,19 @@ public class IssuesController : ControllerBase
             return BadRequest(new { error = "Type must be 2-6 uppercase letters (e.g. RFI, NCR, SI, TQ, CLASH, DEFECT)" });
         }
 
+        // MODEL-VIEWER — validate ModelId belongs to this project. Stops a
+        // malicious client linking an issue to a model in a different project
+        // (which would still upload but later 404 on the viewer file fetch).
+        // Soft-deleted models are rejected too — same `DeletedAt == null`
+        // gate as ModelsController.
+        if (req.ModelId.HasValue)
+        {
+            bool modelOwned = await _db.ProjectModels.AnyAsync(m =>
+                m.Id == req.ModelId.Value && m.ProjectId == projectId && m.DeletedAt == null);
+            if (!modelOwned)
+                return BadRequest(new { error = "ModelId does not belong to this project" });
+        }
+
         // NEW-LOGIC-08 — Validate lat/lng ranges before geofence check.
         // MobileContextMiddleware parses headers but never range-checks them.
         if (HttpContext.Items.TryGetValue("Latitude", out var latObj) &&
@@ -188,6 +201,12 @@ public class IssuesController : ControllerBase
             LocationAccuracy = req.LocationAccuracy,
             DeviceId = req.DeviceId ?? Request.Headers["X-Device-Id"].ToString(),
             Source = source,
+            // MODEL-VIEWER — pass through the 3D anchor when supplied.
+            ModelId = req.ModelId,
+            ModelElementGuid = req.ModelElementGuid,
+            ModelX = req.ModelX,
+            ModelY = req.ModelY,
+            ModelZ = req.ModelZ,
         };
 
         // NEW-LOGIC-01/02 — Save with retry on UNIQUE(ProjectId, IssueCode) collision.
@@ -776,6 +795,16 @@ public record CreateIssueRequest(
     double? Longitude,
     double? LocationAccuracy,
     string? DeviceId,
-    string? Source);
+    string? Source,
+    // MODEL-VIEWER — 3D anchor captured at creation time.
+    // ModelId comes from the mobile creation form's model picker.
+    // ModelElementGuid + ModelX/Y/Z come from "create issue here" gestures
+    // raised inside the viewer; both halves are nullable so plain RFI flows
+    // (no model linkage at all) keep working unchanged.
+    Guid? ModelId,
+    string? ModelElementGuid,
+    double? ModelX,
+    double? ModelY,
+    double? ModelZ);
 public record UpdateIssueRequest(string? Status, string? Priority, string? Assignee, string? Description);
 public record LinkAttachmentRequest(Guid DocumentId);

@@ -18,6 +18,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { theme, getPriorityColor } from '@/utils/theme';
 import { listProjects, listIssues, createIssue, uploadIssueAttachment, updateIssue, _getBaseUrl } from '@/api/endpoints';
+import { listModels } from '@/api/models';
+import type { ModelMeta } from '@/types/models';
 import type { BimIssue, Project, ProjectMember } from '@/types/api';
 import { imageService, CapturedImage } from '@/services/imageService';
 import { locationService } from '@/services/locationService';
@@ -104,6 +106,12 @@ export default function IssuesScreen() {
   const [newAssignee, setNewAssignee] = useState<ProjectMember | null>(null);
   const [newPhotos, setNewPhotos] = useState<CapturedImage[]>([]);
   const [newElementIds, setNewElementIds] = useState<string>('');
+  // MODEL-VIEWER — model picker. `availableModels` is lazy-loaded the first
+  // time the create modal opens for a given project (cheap GET, project
+  // typically has 1–6 models). `newModelId === null` means "no model link".
+  const [availableModels, setAvailableModels] = useState<ModelMeta[]>([]);
+  const [newModelId, setNewModelId] = useState<string | null>(null);
+  const modelsLoadedForProject = useRef<string | null>(null);
   const [showMemberPicker, setShowMemberPicker] = useState(false);
   const [creationStatus, setCreationStatus] = useState<string | null>(null);
 
@@ -247,8 +255,24 @@ export default function IssuesScreen() {
     setNewAssignee(null);
     setNewPhotos([]);
     setNewElementIds('');
+    setNewModelId(null);
     setCreationStatus(null);
   }
+
+  // MODEL-VIEWER — lazy-load the project's models the first time the create
+  // modal opens. Failures are non-fatal: the picker silently shows "(none)"
+  // only, so issue creation still works in offline / read-error scenarios.
+  useEffect(() => {
+    if (!showCreate || !activeProject) return;
+    if (modelsLoadedForProject.current === activeProject.id) return;
+    modelsLoadedForProject.current = activeProject.id;
+    listModels(activeProject.id)
+      .then((rows) => setAvailableModels(rows ?? []))
+      .catch((err) => {
+        console.warn('[issues.create] listModels failed', err);
+        setAvailableModels([]);
+      });
+  }, [showCreate, activeProject]);
 
   /**
    * Phase 96 — toggle an issue in/out of the bulk selection set. Clearing the
@@ -374,6 +398,10 @@ export default function IssuesScreen() {
         // Phase 96 — scanner-initiated issues carry elementIds through so the
         // server can later lookup "which elements does this issue touch".
         elementIds: newElementIds || undefined,
+        // MODEL-VIEWER — link the issue to a 3D model when the user picked
+        // one in the model chip row. Server-side validation rejects model
+        // ids that don't belong to this project.
+        modelId: newModelId ?? undefined,
         latitude: location?.latitude,
         longitude: location?.longitude,
         locationAccuracy: location?.accuracy ?? undefined,
@@ -615,6 +643,39 @@ export default function IssuesScreen() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
+
+            {/* MODEL-VIEWER — Linked model picker. Hidden when the project has
+                no published models; otherwise renders a "(none)" + per-model
+                chip row so coordinators can anchor an issue to a specific
+                federated model at creation time. The detail screen embeds the
+                3D viewer when this is set. */}
+            {availableModels.length > 0 && (
+              <>
+                <Text style={styles.inputLabel}>Linked model</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typeRow}>
+                  <TouchableOpacity
+                    key="__none__"
+                    style={[styles.typeChip, newModelId === null && styles.typeChipActive]}
+                    onPress={() => setNewModelId(null)}
+                  >
+                    <Text style={[styles.typeChipText, newModelId === null && styles.typeChipTextActive]}>
+                      (none)
+                    </Text>
+                  </TouchableOpacity>
+                  {availableModels.map((m) => (
+                    <TouchableOpacity
+                      key={m.id}
+                      style={[styles.typeChip, newModelId === m.id && styles.typeChipActive]}
+                      onPress={() => setNewModelId(m.id)}
+                    >
+                      <Text style={[styles.typeChipText, newModelId === m.id && styles.typeChipTextActive]} numberOfLines={1}>
+                        {m.name || m.fileName || m.id.slice(0, 8)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </>
+            )}
 
             <Text style={styles.inputLabel}>Priority</Text>
             <View style={styles.priorityRow}>

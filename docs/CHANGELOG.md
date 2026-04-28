@@ -8282,3 +8282,148 @@ transitive `Serilog` / `GraphQL` deps.
    stream X") would need either websocket subscriptions (Speckle GraphQL
    subscriptions endpoint) or a webhook receiver on Planscape Server.
    Both are out of scope for the Phase 6 line item.
+
+#### Completed (Phase 162 — Mobile issue ↔ model linkage: inline ModelViewer + creation-form picker)
+
+The Phase 160 audit closed Phase 9 of the consultancy estimate by recording
+the Phase 94 WebBrowser-based "Open in 3D" flow as a functional equivalent of
+the originally-spec'd inline embed. Phase 162 implements the originally-spec'd
+shape too: an inline `<ModelViewer>` in `issue-detail.tsx` that renders
+in-page when the issue is linked to a model, plus a "Linked model" picker
+in the creation form so coordinators can establish that link at issue-raise
+time. The WebBrowser path stays as the fullscreen / unlinked-issue
+fallback so neither flow regresses.
+
+The server scaffolding was already 80% in place — `BimIssue.ModelId` plus
+`ModelElementGuid` and `ModelX/Y/Z` columns landed in an earlier
+"MODEL-VIEWER" pass on the entity, and the mobile `BimIssue` type already
+declared the matching nullable fields. The missing wiring was on three
+edges: the server `CreateIssueRequest` record didn't expose those fields,
+the mobile creation form had no UI to capture a model link, and the detail
+screen had no `<ModelViewer>` consumer. All three closed in this phase.
+
+1. **Server `CreateIssueRequest`** (`Planscape.Server/src/Planscape.API/Controllers/IssuesController.cs:765`)
+   gained five trailing nullable parameters — `ModelId`, `ModelElementGuid`,
+   `ModelX`, `ModelY`, `ModelZ`. The `CreateIssue` handler now passes them
+   through to the `BimIssue` initialiser. Additive at the wire level: every
+   existing client that didn't send these fields keeps working unchanged
+   because the params are nullable. ASP.NET Core's `JsonSerializerDefaults.Web`
+   handles the camelCase→PascalCase mapping (`modelId` → `ModelId`)
+   automatically.
+2. **Server-side ownership validation**. New early-exit check between the
+   regex/Type validation and the geofence check rejects requests whose
+   `ModelId` doesn't belong to the target project (or points at a
+   soft-deleted model). Stops a malicious / buggy client linking an issue
+   to another project's model — the link would otherwise upload but later
+   404 on the viewer file fetch, leaving an orphan issue. Mirrors the
+   `ProjectId == projectId && DeletedAt == null` gate used everywhere in
+   `ModelsController`.
+3. **Mobile creation form** (`Planscape/app/(tabs)/issues.tsx`):
+   - New imports: `listModels` from `@/api/models` and `ModelMeta` from
+     `@/types/models`.
+   - New state: `availableModels: ModelMeta[]`, `newModelId: string | null`,
+     and a `modelsLoadedForProject: useRef<string | null>(null)` cache key
+     so re-opening the modal doesn't re-fetch (and switching projects
+     correctly invalidates the cache).
+   - New effect fires when `showCreate` flips true and `activeProject`
+     resolves: lazy-loads `listModels(activeProject.id)` and stashes the
+     result. Failures (network down, no models published) are non-fatal —
+     the picker silently shows "(none)" only.
+   - New chip row between "Type" and "Priority", hidden when
+     `availableModels.length === 0` so projects with no published models
+     show the modal exactly as before. The row leads with a "(none)" chip
+     (default selection) followed by one chip per model, captioned by
+     `m.name || m.fileName || m.id.slice(0, 8)` to handle every variant
+     of `ModelMeta` payload completeness.
+   - `createIssue` payload appends `modelId: newModelId ?? undefined` so
+     the field is omitted from the JSON when no model is linked.
+   - `resetCreateForm` clears `newModelId` alongside the existing fields.
+4. **Mobile detail screen** (`Planscape/app/(tabs)/issue-detail.tsx`):
+   - New imports: `getModel` and `modelFileUrl` from `@/api/models`,
+     `ModelViewer` from `@/components/ModelViewer`, `ModelMeta` and
+     `ModelPin` from `@/types/models`.
+   - New state cluster: `viewerMeta`, `viewerModelUrl`, `viewerPins`, and
+     `viewerError`.
+   - New effect (`[issue, project]` dependency) fires after the issue +
+     project pair resolves. When `issue.modelId` is set, runs three calls
+     in parallel — `getModel(...)`, `getToken()`, `modelFileUrl(...)` —
+     then sets `viewerModelUrl = base + '?access_token=<jwt>'`. The
+     WebView can't forward an Authorization header, so the JWT travels
+     in the query string; same pattern as the existing
+     `app/models/[id].tsx` viewer screen. When `(modelX, modelY, modelZ)`
+     are all set, builds a single `ModelPin` so the viewer renders the
+     issue's anchor; otherwise leaves `pins` empty and renders a hint
+     line ("Issue is linked to this model but has no anchor coordinates").
+     Cancellation flag prevents stale fetches from racing into stale
+     state when the user rapidly switches issues.
+   - New JSX block between the action bar and the photo gallery, gated
+     on `issue.modelId && viewerModelUrl`, embeds the `<ModelViewer>` in
+     a fixed-280px-tall container so the surrounding ScrollView keeps
+     working. Header reads `3D model — {meta.name}`. Hint line surfaces
+     for issues linked to a model but lacking anchor coordinates. Error
+     line surfaces any `onError` callback string from the viewer.
+   - The actionBar's "🧊 View in 3D" WebBrowser button stays in place so
+     un-linked issues still get the project-default fullscreen viewer
+     and linked issues get an "expand to fullscreen" alternative.
+5. **Style additions** in `issue-detail.tsx`'s StyleSheet: `viewerSection`,
+   `viewerHeader`, `viewerHost` (height 280, rounded, surface bg),
+   `viewerHint` (italic muted), `viewerError` (red). All keyed off the
+   existing `theme` object (`theme.colors.danger`,
+   `theme.borderRadius.md`, etc.) so dark-mode / theme-switch work
+   downstream pick them up automatically.
+6. **`docs/ROADMAP.md`** Phase 9 row updated to record both delivery
+   paths (Phase 94 WebBrowser fallback + Phase 162 inline embed).
+
+**Files**
+
+- `Planscape.Server/src/Planscape.API/Controllers/IssuesController.cs`
+  — `CreateIssueRequest` record + entity initialiser + ownership check
+  (~30 lines added).
+- `Planscape/app/(tabs)/issues.tsx` — imports, state cluster, lazy-load
+  effect, payload field, picker JSX, reset-form clear (~55 lines added).
+- `Planscape/app/(tabs)/issue-detail.tsx` — imports, state cluster, model
+  load effect, embedded viewer JSX, styles (~85 lines added).
+- `docs/ROADMAP.md` — Phase 9 row in the Cloud-Sync audit table.
+- `docs/CHANGELOG.md` — this entry.
+
+**Caveats**
+
+1. Built without `dotnet build` / `tsc` / `eslint` verification (Linux
+   sandbox, no Revit / .NET / Node toolchain). Brace balance verified
+   on all three changed files (servers + both mobile screens). Every
+   referenced symbol resolves: `theme.colors.danger` (not `error` —
+   theme.ts ships `danger` as the RAG-red token, that's the typo I
+   caught and fixed before commit), `ModelPin` minus the non-existent
+   `issueId` field (the existing convention is `id === issueId`, mirrored
+   from `app/models/[id].tsx:64`), and `ModelMeta.name` / `fileName`
+   both required (so the `||` fallback chain for the chip caption is
+   defensive but never strictly needed).
+2. Anchor capture (`ModelElementGuid` + `ModelX/Y/Z`) is wired through
+   the server but the creation form only captures `ModelId`. The
+   anchor coords come from the viewer's "create issue here" gesture
+   (`PlaceIssueEvent` in the existing `ModelViewer` API), which routes
+   through a different code path (the viewer screen pushes
+   `/issues?createForElement=...&modelX=...` deep links) — out of
+   scope for the originally-spec'd "add modelId to creation form."
+3. Single-pin embed only. When the issue's anchor is unset, the viewer
+   renders the model with no pins. A future enhancement could pin
+   sibling issues on the same model so coordinators see neighbouring
+   open issues without leaving the screen — deferred because the
+   detail screen's purpose is *this* issue's context, and surfacing
+   siblings risks visual noise.
+4. WebView ergonomics inside a vertical ScrollView: the 280px-tall
+   viewer is high enough for orbit-and-fit gestures but can fight the
+   parent scroll on touch-near-the-edge. The `<ModelViewer>` component
+   already nests its WebView in a sized container (`flex: 1` against
+   the parent), so the gesture handling is whatever `react-native-webview`
+   provides on each platform. Acceptable on iOS; Android may need
+   `nestedScrollEnabled` plumbing if real-world feedback shows
+   jankiness.
+5. The existing `WebBrowser.openBrowserAsync` button in the actionBar
+   still loads the project-default model (no per-issue `modelId`
+   parameter). When the issue is linked to a non-default model, the
+   inline embed shows the right one but the fullscreen button still
+   shows the default — minor inconsistency that could be closed by
+   threading `?model=<modelId>.xkt` into the query string when
+   `issue.modelId` is set. Deferred because the inline embed is now
+   the primary 3D surface for linked issues.
