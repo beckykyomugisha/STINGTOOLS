@@ -8723,3 +8723,211 @@ because the (broken) iteration produced no entries at all.
    than "default to RFI." Operators who want a different default can
    change it manually in two taps; an auto-mapper that's wrong half
    the time would be a usability regression.
+
+#### Completed (Phase 165 — Write enhanced analysis and placement centre overhaul)
+
+This phase landed the cross-cutting enhancement runner that grew out of
+the deeper analysis pass after PC-01..PC-25 closed. The naming is kept
+for consistency with the originating branch even though the work
+spans far beyond the Placement Centre — touching the plugin, server,
+and mobile app. Built without `dotnet build` / `tsc` verification
+(Linux sandbox, no .NET / RN toolchain).
+
+**Plugin — Fabrication doc-register auto-link**
+
+`StingTools/Commands/Fabrication/GenerateFabPackageCommand.cs` now calls
+`FabricationDocRegister.PushSheets(doc, res.SheetIds)` after every
+package generation. Generated SP-* sheets land in
+`_BIM_COORD/document_register.json` as suitability `S0` shop-drawing
+rows so they show up in the Document Management Center and in any
+subsequent transmittal bundle without a separate user step. The
+helper had been complete for some time but was never wired to the
+producing command — closing the last manual step in the fabrication
+hand-off.
+
+**Plugin — Clash scheduler bootstrap on DocumentOpened**
+
+`StingTools/Core/StingToolsApp.cs::OnDocumentOpened` now lazy-starts
+`StingTools.Core.Clash.ClashScheduler` for project documents, gated
+by the new `TagConfig.AutoStartClashScheduler` config flag (defaults
+to false because per-tick runs are non-trivial on large models).
+Idempotent — the bootstrap calls `Stop()` before `Start()` so re-opens
+across documents don't stack timers. Pulls the cadence from
+`default_clash_matrix.json::SchedulerIntervalMinutes` and falls back
+to 60 minutes. Closes the long-standing gap that the scheduler was
+defined but never started.
+
+**Plugin — Streaming Excel import OOM hardening (BIM-EXCEL-STREAM-01)**
+
+`ExcelLinkEngine.StreamingImport` now wraps the `XLWorkbook(path)` load
+in a try/catch that converts `OutOfMemoryException` into a friendly
+`InvalidOperationException` with operator guidance ("split the
+workbook into smaller files"). The underlying ClosedXML package is
+still in-memory; a full streaming rewrite via `OpenXmlReader` is
+deferred until ClosedXML 1.x. The 500 K-row clamp + per-batch
+transactions remain in place from the original streaming work.
+
+**Server — Outbound webhooks (NEW-08)**
+
+New end-to-end subscription mechanism opens the platform to no-code
+integrations (Zapier / Make / n8n / contractor systems) without
+requiring per-user OAuth.
+
+- `Planscape.Core/Entities/OutboundWebhook.cs` — entity with TenantId,
+  ProjectId (optional — null targets the whole tenant), EventType,
+  TargetUrl, SecretHash (SHA-256 of cleartext secret returned ONCE on
+  creation), IsActive, LastFiredAt / LastStatusCode / LastError /
+  FailureCount diagnostics. Eight event kinds enumerated:
+  IssueCreated, IssueUpdated, DocumentTransitioned, ComplianceDropped,
+  ClashRaised, TransmittalSent, MeetingCreated, DeliverableIssued.
+- `Planscape.Infrastructure/Services/OutboundWebhookDispatcher.cs` —
+  fire-and-forget HTTP POST with HMAC-SHA256 signature header
+  (`X-STING-Signature`), single retry on non-2xx, per-row outcome
+  tracking. Each call resolves DbContext from a fresh service scope
+  so the dispatcher doesn't hold the caller's request-scoped DbContext.
+- `Planscape.API/Controllers/WebhooksController.cs` — CRUD +
+  `POST /webhooks/{id}/test` for synthetic test events. Cleartext
+  signing secret is returned once on `POST /webhooks` and stored only
+  as SHA-256 thereafter.
+- `Planscape.Infrastructure/Data/PlanscapeDbContext.cs` — added DbSet,
+  HasIndex on (TenantId, EventType, IsActive), cascade FKs.
+- `Program.cs` — registered HttpClient `outbound-webhook` and
+  `OutboundWebhookDispatcher` singleton.
+- `IssuesController.CreateIssue` and `DocumentsController.TransitionState`
+  fanout to the dispatcher after their existing SignalR + push paths.
+
+EF migration to mint the `OutboundWebhooks` table is left as a
+follow-up — the project ships hand-written migrations. The DbContext
++ entity changes are in place so the next `dotnet ef migrations add`
+will pick them up.
+
+**Plugin — BCC My Queue tab (TPL-FOLLOW-03)**
+
+`UI/BIMCoordinationCenter.cs` Workflows tab gains a "MY QUEUE" section
+above the quick-workflow buttons. New `MyQueueRow` POCO captures
+DocId / Subject / Step / Workflow / DueLocal / SlaStatus. Empty list
+shows an "Inbox zero — no workflow steps awaiting <user>" hint so the
+section never disappears (orientation cue for new users). Populated
+in `Core/WarningsManager.cs::BuildCoordData` from
+`Planscape.Docs.Workflow.WorkflowEngine.GetMyQueue(doc, userKey)` and
+`WorkflowRegistry.Load(doc)` for the workflow display name. SLA
+status is derived from `WorkflowInstance.SlaDeadline` —
+GREEN / AMBER (<8 h) / RED (overdue).
+
+**Mobile — Dark mode (MOB-11)**
+
+`Planscape/src/theme/theme.ts` extended with three modes
+(`light` / `dark` / `system`), persisted preference in AsyncStorage
+under `planscape.theme.mode`, expanded palette (added
+`surfaceElevated`, `success`, `warning`, `error`), listener-based
+notification so any `useTheme()` consumer re-renders on preference
+change. `_layout.tsx::checkAuth` calls `loadThemePref()` before first
+paint so users with a fixed light/dark choice never flash the OS
+default. `(tabs)/settings.tsx` gains an "Appearance" card with three
+selectable buttons (Light / Dark / System) carrying
+`accessibilityRole="button"` and `accessibilityState={{ selected }}`
+for VoiceOver / TalkBack. The legacy
+`utils/theme.ts` corporate palette is unchanged so existing screens
+continue to render correctly during the gradual migration.
+
+**Plugin — Dispatch registry framework (INT-02 pilot)**
+
+`UI/CommandRegistry.cs` ships the framework that will eventually
+replace the 7 981-line / 1 559-case switch in
+`UI/StingCommandHandler.cs::Execute`:
+
+- `ICommandModule` interface — modules register themselves with the
+  registry; one module owns one panel's worth of tags.
+- `CommandRegistry.Register(tag, handler)` throws on duplicate
+  registrations so wiring mistakes surface in the next test run.
+- `CommandRegistry.Instance` is a thread-safe lazy singleton that
+  walks `EnumerateModules()` once at first access and logs the count.
+- `ElectricalCommandModule` is the first migrated panel — owns
+  `Electrical_AddCable`, `Electrical_ListCables`,
+  `Electrical_ExportCircuits`, `Electrical_TrayFill`. The
+  corresponding case branches stay in the giant switch as a safety
+  net; the registry takes precedence by way of the new
+  `CommandRegistry.Instance.TryHandle(tag, app)` short-circuit at the
+  top of `Execute`.
+- `StingCommandHandler.RunCommandPublic<T>` — public bridge so
+  modules invoke the same per-command logging + error envelope
+  without duplicating it.
+
+Subsequent panels can be migrated one at a time, each one removing
+its case branches from the giant switch and adding a new
+`*CommandModule` to `EnumerateModules`.
+
+**Plugin — Phase 152 / 165b / 160 audits**
+
+- INT-01 (HTTP client consolidation) — `Planscape.PluginSync` is
+  actively used by `BIMManager/PlatformLinkCommands.cs` (3 call sites)
+  and `UI/StingDockPanel.xaml.cs` (3 call sites). Deletion would
+  require reworking ~600 lines without compile verification, so the
+  consolidation stays deferred. The dual-layer state remains as
+  documented in CLAUDE.md.
+- 165b (BCF OAuth) — `AccOAuthController` + `BcfController` already
+  ship the three-legged OAuth flow (`/start` → `/callback` →
+  `/disconnect`) and round-trip BCF 2.1 export / import. No new work
+  required for this phase.
+- 160 (BatchProduce) — `Commands/Drawing/BatchProduceCommands.cs`
+  already implements `ProduceViewsPerLevelCommand`,
+  `ProduceViewsFromScopeBoxesCommand`,
+  `ProduceInteriorElevationsCommand`,
+  `ProduceExteriorElevationsCommand`, `ProduceSectionsCommand` and
+  all five are wired in `StingCommandHandler.cs`.
+
+**Files**
+
+- `StingTools/Commands/Fabrication/GenerateFabPackageCommand.cs` (+15)
+- `StingTools/Core/StingToolsApp.cs` (+25)
+- `StingTools/Core/TagConfig.cs` (+8)
+- `StingTools/BIMManager/ExcelLinkCommands.cs` (+19)
+- `StingTools/UI/BIMCoordinationCenter.cs` (+45)
+- `StingTools/Core/WarningsManager.cs` (+38)
+- `StingTools/UI/CommandRegistry.cs` — NEW (113 lines)
+- `StingTools/UI/StingCommandHandler.cs` (+24)
+- `Planscape.Server/src/Planscape.Core/Entities/OutboundWebhook.cs` — NEW (38)
+- `Planscape.Server/src/Planscape.Infrastructure/Services/OutboundWebhookDispatcher.cs` — NEW (147)
+- `Planscape.Server/src/Planscape.API/Controllers/WebhooksController.cs` — NEW (162)
+- `Planscape.Server/src/Planscape.Infrastructure/Data/PlanscapeDbContext.cs` (+18)
+- `Planscape.Server/src/Planscape.API/Program.cs` (+4)
+- `Planscape.Server/src/Planscape.API/Controllers/IssuesController.cs` (+15)
+- `Planscape.Server/src/Planscape.API/Controllers/DocumentsController.cs` (+18)
+- `Planscape/src/theme/theme.ts` — rewritten (≈90 net lines)
+- `Planscape/app/_layout.tsx` (+5)
+- `Planscape/app/(tabs)/settings.tsx` (+45)
+- `docs/CHANGELOG.md` — this entry.
+
+**Caveats**
+
+1. Built without `dotnet build` (Linux sandbox, no .NET on Windows)
+   and without `tsc` / `eslint` (no Node toolchain). Every API used
+   was verified against the existing patterns in the same files
+   (TagConfig pattern for the new flag, WorkflowEngine.GetMyQueue
+   API matched against `WorkflowDefinition.cs`, etc.) but compile
+   confirmation must happen on a Windows machine with the Revit
+   2025 API and `dotnet ef migrations add OutboundWebhooks` for the
+   server schema change.
+2. The dispatch registry ships with one migrated panel (Electrical).
+   The remaining ~25 panels still live in the giant switch and will
+   migrate panel-by-panel in subsequent phases. No behaviour change
+   for unrouted tags.
+3. The webhook dispatcher signs payloads with `SecretHash` at runtime
+   because the cleartext secret is intentionally not retained
+   server-side. Receivers verify by hashing their stored cleartext
+   secret with SHA-256 and comparing to the hash that's in the
+   `X-STING-Signature` HMAC keying material — equivalent
+   authenticity guarantee, but documented here so receiver
+   implementers know to skip the usual "use cleartext directly"
+   guidance.
+4. The BCC My Queue subject column ships empty — `WorkflowInstance`
+   doesn't carry the source deliverable's subject, and joining
+   against `deliverables.json` would couple the two stores tighter
+   than is ideal at this stage. A future phase can either denormalise
+   the subject onto WorkflowInstance at start time or do the join
+   lazily here.
+5. INT-01 (HTTP consolidation) is documented as deferred rather than
+   force-completed; deleting `Planscape.PluginSync` without the
+   ability to verify the resulting changes to `PlatformLinkCommands.cs`
+   would risk shipping a broken sync pipeline. The dual-layer state
+   is functional and documented.
