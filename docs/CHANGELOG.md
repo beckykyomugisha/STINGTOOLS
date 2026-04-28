@@ -4330,3 +4330,36 @@ Two fixes:
    reached) and is cancelled in the `finally` block as a belt-and-
    braces guarantee.
 
+
+#### Completed (Phase 139.12 — engine timestamps + bounded pre-flight + phase-aware heartbeat)
+
+User reported the run dialog at "Pre-flight in progress (3776s)" — i.e.
+~63 minutes of nothing. Engine was hung in pre-flight; nothing in the
+log told us where, the Cancel button only polled in the per-room
+callback (never reached), and the heartbeat showed only elapsed time.
+
+Three fixes:
+
+1. **StingLog timestamps at every engine phase.** Run start, AutoPopulate
+   completion, ValidateSharedParams completion, PlaceFirstFixBoxes
+   completion, pre-flight handover to per-room loop. Next time the
+   user reports a hang we can read the log and pinpoint the slow
+   phase.
+
+2. **Bounded AutoPopulate.** `ManufacturerCatalogueRegistry.AutoPopulateFromFamilies`
+   now runs on a background `Task.Run` with a 20-second `task.Wait`
+   bound. If the LookupParameter loop is still mid-walk after 20 s
+   the engine bails with a warning ("Catalogue auto-populate timed
+   out — Manufacturer score component will be 0.5 for unresolved
+   rules") and continues without the catalogue refresh. Skip path also
+   added when no rule has TwoPhaseEnabled — `PlaceFirstFixBoxes` is
+   never invoked for an empty rule set.
+
+3. **Phase-aware heartbeat.** `FixturePlacementEngine.CurrentPhase`
+   (volatile string) is set at every phase entry: "Pre-flight starting",
+   "Pre-flight: catalogue scan", "Pre-flight: two-phase shared-param
+   check", "Pre-flight: first-fix box placement", "Per-room loop". The
+   Centre's pre-flight ticker reads it and shows
+   `"<phase> (Ns)…"` instead of `"Pre-flight in progress (Ns)…"`. The
+   user now sees exactly which step is consuming time.
+

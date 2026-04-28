@@ -570,7 +570,11 @@ namespace StingTools.UI.PlacementCenter
                     System.Threading.Thread.Sleep(1500);
                     if (heartbeatCts.IsCancellationRequested) break;
                     n++;
-                    try { progress.SetStatus($"Pre-flight in progress ({n * 1.5:F0}s)…"); } catch { break; }
+                    string phase = StingTools.Core.Placement.FixturePlacementEngine.CurrentPhase ?? "";
+                    string label = string.IsNullOrEmpty(phase)
+                        ? $"Pre-flight in progress ({n * 1.5:F0}s)…"
+                        : $"{phase} ({n * 1.5:F0}s)…";
+                    try { progress.SetStatus(label); } catch { break; }
                 }
             }, heartbeatCts.Token);
             try
