@@ -310,6 +310,22 @@ namespace StingTools.Core.Placement
             }
         }
 
+        // Phase 139.23 — project a world XYZ onto a host's face plane so
+        // NewFamilyInstance(faceRef, point, refDir, symbol) doesn't warn
+        // "Instance origin does not lie on host face".
+        private static XYZ ProjectOntoFace(Element host, Reference faceRef, XYZ worldPt)
+        {
+            try
+            {
+                if (host == null || faceRef == null || worldPt == null) return null;
+                var geom = host.GetGeometryObjectFromReference(faceRef);
+                if (!(geom is Face face)) return null;
+                var proj = face.Project(worldPt);
+                return proj?.XYZPoint;
+            }
+            catch (Exception ex) { StingLog.Warn($"ProjectOntoFace: {ex.Message}"); return null; }
+        }
+
         // Phase 139.22 — face-based placement for WorkPlaneBased families.
         // Uses NewFamilyInstance(Reference, XYZ, XYZ, FamilySymbol) so the
         // family physically attaches to a wall's interior face (or the
@@ -349,9 +365,14 @@ namespace StingTools.Core.Placement
                             refDir = new XYZ(-refDir.Y, refDir.X, 0);
                             if (refDir.IsZeroLength()) refDir = XYZ.BasisX;
                             else refDir = refDir.Normalize();
+                            // Phase 139.23 — project the calculated position
+                            // onto the face plane. Without this, Revit warns
+                            // "Instance origin does not lie on host face" and
+                            // strips the host association on regen.
+                            XYZ placeAt = ProjectOntoFace(wall, faceRef, position) ?? position;
                             try
                             {
-                                r.Placed = doc.Create.NewFamilyInstance(faceRef, position, refDir, symbol);
+                                r.Placed = doc.Create.NewFamilyInstance(faceRef, placeAt, refDir, symbol);
                                 if (r.Placed != null) return r;
                             }
                             catch (Exception fex)
@@ -372,9 +393,10 @@ namespace StingTools.Core.Placement
                         if (faceRefs != null && faceRefs.Count > 0)
                         {
                             var faceRef = faceRefs[0];
+                            XYZ placeAt = ProjectOntoFace(ceiling, faceRef, position) ?? position;
                             try
                             {
-                                r.Placed = doc.Create.NewFamilyInstance(faceRef, position, XYZ.BasisX, symbol);
+                                r.Placed = doc.Create.NewFamilyInstance(faceRef, placeAt, XYZ.BasisX, symbol);
                                 if (r.Placed != null) return r;
                             }
                             catch (Exception fex)
