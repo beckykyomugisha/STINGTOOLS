@@ -22,11 +22,28 @@ public class RoleBucketsController : ControllerBase
     [HttpGet]
     public ActionResult Get() => Ok(new
     {
-        // Both forms — the lower-case canonical names that both the
-        // server validator and the JS validator accept, and the
-        // priority-ordered list used by the loader's inference path
-        // (most-specific outcome first).
-        buckets = RoleBuckets.Canonical,
-        priorityOrder = RoleBuckets.Canonical, // alias for clients
+        // Phase 155 — surface the role-block-vs-keyword-block
+        // asymmetry the JS validator needs to honour.
+        //
+        //   keywordBlockBuckets — what a tenant's `"keywords"` block
+        //     can declare. Six canonical buckets, no "none". Used by
+        //     the dashboard's keyword-extension validator.
+        //
+        //   rolesBlockKeys — what a custom-machine `"roles"` block
+        //     can map a state to. Six canonical buckets PLUS the
+        //     "none" sentinel meaning "this state has no semantic
+        //     role; skip metadata side-effects on transition".
+        //
+        // The legacy `buckets` / `priorityOrder` aliases are kept for
+        // backward compat with Phase 154 dashboards that read the
+        // canonical list under those keys.
+        keywordBlockBuckets = RoleBuckets.Canonical,
+        rolesBlockKeys = new[]
+        {
+            "rejecting", "accepting", "submitting", "terminal",
+            "working", "initial", "none",
+        },
+        buckets = RoleBuckets.Canonical,        // legacy alias (Phase 154)
+        priorityOrder = RoleBuckets.Canonical,  // legacy alias (Phase 154)
     });
 }

@@ -145,6 +145,8 @@
         // Phase 152 — admin: tenant keyword extensions for the
         // deliverable state machine. Doesn't depend on a project.
         case "tenant-keywords": await renderTenantKeywords(main); break;
+        // Phase 155 — admin: tenant-scoped BIM-Manager role override.
+        case "tenant-bim-manager-roles": await renderTenantBimManagerRoles(main); break;
       }
     } catch (e) {
       main.innerHTML = `<div class="empty">Could not load: ${esc(String(e))}</div>`;
@@ -505,6 +507,153 @@
     return {
       ok: true,
       message: `Looks good — ${bucketNames.length} bucket${bucketNames.length === 1 ? "" : "s"}, ${totalEntries} keyword${totalEntries === 1 ? "" : "s"}.`,
+    };
+  }
+
+  // ── Phase 155: Tenant BIM-Manager role override editor ───────────────
+  // Same auth gate as tenant-keywords. The override is a JSON array of
+  // single-letter ISO 19650 codes; null clears so projects fall back
+  // to the deployment-global appsettings list (default ["K"]).
+  async function renderTenantBimManagerRoles(main) {
+    let current;
+    try {
+      current = await api(`/api/admin/tenant-bim-manager-roles`);
+    } catch (e) {
+      main.innerHTML = `<div class="empty">Could not load BIM-Manager roles: ${esc(String(e))}</div>`;
+      return;
+    }
+    const sample = `["K", "C"]`;
+    const initial = current.json && current.json.length > 0
+      ? safeFormatJson(current.json)
+      : sample;
+
+    main.innerHTML = `
+      <h1>Tenant BIM-Manager roles</h1>
+      <p class="hint">
+        Tenant-scoped override of the ISO 19650 role codes that grant
+        BIM-Manager permissions on the tenant-keywords editor (and any
+        other endpoint behind the <code>BimManagerOrAdmin</code>
+        authorisation policy). Null/empty falls back to the
+        deployment-wide list (default <code>["K"]</code>). Single-letter
+        codes only — e.g. <code>K</code> (BIM Manager), <code>C</code>
+        (Coordinator), <code>M</code> (Mechanical), <code>S</code>
+        (Structural).
+      </p>
+      <div class="card" style="max-width:760px">
+        <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px">
+          <strong>Current override</strong>
+          <span class="chip ${current.hasOverride ? 'green' : 'grey'}">
+            ${current.hasOverride ? 'Active' : 'Falls back to deployment'}
+          </span>
+        </div>
+        <textarea id="bmrJson" rows="6" spellcheck="false"
+                  style="width:100%;font-family:ui-monospace,monospace;font-size:13px"
+        >${esc(initial)}</textarea>
+        <div id="bmrValidate" class="hint" style="margin-top:6px;min-height:18px"></div>
+        <div class="row" style="gap:8px;margin-top:8px;align-items:center">
+          <button id="bmrSave" class="primary">Save</button>
+          <button id="bmrClear" class="ghost">Clear override</button>
+          <button id="bmrReset" class="ghost">Reset editor</button>
+          <span id="bmrStatus" class="hint" style="margin-left:auto"></span>
+        </div>
+      </div>
+    `;
+
+    const $json = document.getElementById("bmrJson");
+    const $validate = document.getElementById("bmrValidate");
+    const $save = document.getElementById("bmrSave");
+
+    function validate() {
+      const text = ($json.value || "").trim();
+      if (text.length === 0) {
+        $validate.textContent = "(empty — Save will clear the override)";
+        $validate.className = "hint";
+        $save.disabled = false;
+        return true;
+      }
+      const result = validateBimManagerRolesJson(text);
+      $validate.textContent = result.message;
+      $validate.className = result.ok ? "hint ok" : "hint error";
+      $save.disabled = !result.ok;
+      return result.ok;
+    }
+    $json.addEventListener("input", validate);
+    validate();
+
+    document.getElementById("bmrSave").onclick = async () => {
+      const body = $json.value || "";
+      const status = document.getElementById("bmrStatus");
+      status.textContent = "Saving…";
+      try {
+        const res = await api(`/api/admin/tenant-bim-manager-roles`, {
+          method: "PUT",
+          body: JSON.stringify({ json: body }),
+        });
+        const roles = (res.roles || []).map(esc).join(", ");
+        status.textContent = `Saved · roles: ${roles}`;
+        status.className = "hint ok";
+      } catch (e) {
+        status.textContent = `Save failed — ${esc(String(e))}`;
+        status.className = "hint error";
+      }
+    };
+
+    document.getElementById("bmrClear").onclick = async () => {
+      if (!confirm("Clear the tenant BIM-Manager role override? Tenant falls back to deployment defaults.")) return;
+      const status = document.getElementById("bmrStatus");
+      status.textContent = "Clearing…";
+      try {
+        await api(`/api/admin/tenant-bim-manager-roles`, {
+          method: "PUT",
+          body: JSON.stringify({ json: null }),
+        });
+        $json.value = sample;
+        status.textContent = "Cleared.";
+        status.className = "hint ok";
+      } catch (e) {
+        status.textContent = `Clear failed — ${esc(String(e))}`;
+        status.className = "hint error";
+      }
+    };
+
+    document.getElementById("bmrReset").onclick = () => {
+      $json.value = initial;
+      const s = document.getElementById("bmrStatus");
+      s.textContent = "Editor reset.";
+      s.className = "hint";
+    };
+  }
+
+  // Phase 155 — pure-Compute validator for the BIM-Manager role
+  // override JSON. Mirrors the server's
+  // DbTenantBimManagerRoleResolver.Parse rules: array of non-empty
+  // strings; trims + uppercases on the server side.
+  function validateBimManagerRolesJson(text) {
+    let parsed;
+    try { parsed = JSON.parse(text); }
+    catch (e) { return { ok: false, message: `JSON syntax error — ${esc(String(e.message || e))}` }; }
+    if (!Array.isArray(parsed)) {
+      return { ok: false, message: `Body must be a JSON array of strings: ["K", "C"]` };
+    }
+    if (parsed.length === 0) {
+      return { ok: false, message: "Empty array — Save would clear the override." };
+    }
+    const nonStrings = parsed.filter(v => typeof v !== "string");
+    if (nonStrings.length > 0) {
+      return { ok: false, message: "Array contains non-string entries; only quoted strings are accepted." };
+    }
+    const empties = parsed.filter(v => !v || !v.trim());
+    if (empties.length > 0) {
+      return { ok: false, message: "Array contains empty / whitespace strings; remove them." };
+    }
+    const tooLong = parsed.find(v => v.trim().length > 4);
+    if (tooLong) {
+      return { ok: false, message: `"${esc(tooLong)}" looks too long for an ISO 19650 single-letter code.` };
+    }
+    const unique = new Set(parsed.map(v => v.trim().toUpperCase()));
+    return {
+      ok: true,
+      message: `Looks good — ${unique.size} role${unique.size === 1 ? "" : "s"} (${[...unique].join(", ")}).`,
     };
   }
 

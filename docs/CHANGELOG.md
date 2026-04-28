@@ -5269,3 +5269,98 @@ hardening items.
    value in custom-machine `"roles"` blocks (matches Phase 146
    behaviour); custom keyword blocks reject it via the narrower
    `RoleBuckets.Set`.
+
+#### Completed (Phase 155 — Phase 154 caveat closures: tenant role cache, admin UI, role-block asymmetry surfaced)
+
+The three remaining caveats from Phase 154 were all genuine
+hardening / operational items.
+
+**1 — Per-tenant cache for the BIM Manager role override**
+
+1. New
+   `Planscape.Server/src/Planscape.Infrastructure/Authorization/ITenantBimManagerRoleResolver.cs`
+   — interface with the `ResolveAsync(tenantId)` shape, mirroring
+   `ITenantKeywordResolver` so future readers find the pattern
+   familiar.
+2. New `DbTenantBimManagerRoleResolver` — DB-backed implementation
+   with a static `StripedBoundedLruCache<string, IReadOnlyList<string>?>`
+   keyed on `(TenantId, FNV-1a content hash)`. Cache survives across
+   the resolver's scoped lifecycle so authorisation requests don't
+   rebuild it cold per call. Forgiving parser: malformed / non-array
+   / empty → returns `null` (caller falls back to deployment list).
+3. `BimManagerOrAdminHandler` — replaced the inline
+   `ResolveEffectiveRoles` parser with a cached resolver call.
+   `effectiveRoles = tenantOverride ?? _bimManagerRoles` keeps the
+   priority semantics unchanged. The retired inline parser is left
+   as a comment marker pointing readers at the resolver.
+4. `Planscape.API/Program.cs` — registered
+   `ITenantBimManagerRoleResolver → DbTenantBimManagerRoleResolver`
+   as a scoped service.
+
+**2 — Admin endpoint + dashboard editor for tenant role override**
+
+5. New
+   `Planscape.Server/src/Planscape.API/Controllers/TenantBimManagerRolesController.cs`
+   — `GET / PUT /api/admin/tenant-bim-manager-roles`. Same
+   `BimManagerOrAdmin` policy gate as the tenant-keywords endpoint.
+   PUT validates the body via the resolver's
+   `ParseForValidation` so a malformed payload is rejected at PUT
+   time rather than being silently ignored at request time.
+6. `Planscape.API/wwwroot/index.html` — added a "BIM-Manager roles"
+   sidebar entry under the existing admin divider.
+7. `Planscape.API/wwwroot/js/dashboard.js` —
+   `renderTenantBimManagerRoles(main)` mirrors the tenant-keywords
+   editor: textarea + Save / Clear / Reset buttons, inline
+   keystroke-by-keystroke validation via
+   `validateBimManagerRolesJson`. Validator checks JSON syntax,
+   array root, all-strings, no-empty entries, and rejects
+   suspiciously-long strings (>4 chars) that don't match the
+   single-letter ISO 19650 code shape.
+
+**3 — Role-block vs keyword-block asymmetry surfaced through the API**
+
+8. `Planscape.API/Controllers/RoleBucketsController.cs` — extended
+   the response with two semantic names that disambiguate the two
+   contexts:
+     - `keywordBlockBuckets` (six canonical buckets, no "none") —
+       what a tenant's `"keywords"` block can declare.
+     - `rolesBlockKeys` (six canonical buckets PLUS "none") —
+       what a custom-machine `"roles"` block can map a state to.
+   The legacy `buckets` / `priorityOrder` aliases stay for backward
+   compat with Phase 154 dashboards.
+9. The asymmetry is now self-documenting: the API tells the JS
+   validator which list to use in which context. The historical
+   note ("matches Phase 146 behaviour") is preserved in code
+   comments but is no longer the only place to find the contract.
+
+**4 — Tests**
+
+10. `DbTenantBimManagerRoleResolverTests.cs` (12 facts/theories) —
+    no-override → null, valid override returns roles, uppercase +
+    dedupe, six malformed-input fallback theories, empty tenantId,
+    repeated-call cache hit (stale entry replaced after JSON
+    edit), `ParseForValidation` consistency.
+11. `RoleBucketsAsymmetryTests.cs` (4 facts) — pins the
+    `WithNone` ⊃ `Set` invariant, the +1 size delta, the "none"
+    sentinel as the single extra, and the canonical priority
+    order. Adding / removing a bucket later requires a deliberate
+    update here alongside `RoleBuckets`.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. The cache uses the same static striped-LRU as the keyword
+   resolver — process-local, survives across requests but not
+   process restarts. A Redis L2 layer (similar to Phase 152's
+   `IDistributedCache` write-through on the keyword resolver)
+   would land in a follow-up phase if multi-instance deployments
+   show measurable cold-start latency on the auth path.
+3. The admin UI uses the same `BimManagerOrAdmin` policy gate as
+   the tenant-keywords editor. A user who's been demoted from
+   BIM Manager but still holds a valid token will retain edit
+   access until the token expires; same caveat applies to every
+   policy-gated endpoint and is documented in the policy XML doc.
+4. `keywordBlockBuckets` and `rolesBlockKeys` are returned on every
+   role-buckets call; the response is small so caching client-side
+   for a session is enough — server-side ETag / 304 negotiation
+   would be over-engineering at this size.

@@ -143,6 +143,11 @@ builder.Services.AddSingleton<Planscape.Infrastructure.Workflow.IPlatformKeyword
 // holds the DbContext via the request scope when invoked.
 builder.Services.AddScoped<Planscape.Infrastructure.Workflow.ITenantKeywordResolver,
     Planscape.Infrastructure.Workflow.DbTenantKeywordResolver>();
+// Phase 155 — tenant-scoped BIM Manager role override resolver.
+// Same lifecycle / cache shape as the keyword resolver above so the
+// authorisation handler doesn't re-parse the JSON per request.
+builder.Services.AddScoped<Planscape.Infrastructure.Authorization.ITenantBimManagerRoleResolver,
+    Planscape.Infrastructure.Authorization.DbTenantBimManagerRoleResolver>();
 
 builder.Services.AddScoped<Planscape.Core.Interfaces.IGeofenceValidationService, Planscape.Infrastructure.Services.GeofenceValidationService>();
 builder.Services.AddScoped<Planscape.API.Services.IThumbnailService, Planscape.API.Services.ImageSharpThumbnailService>();
