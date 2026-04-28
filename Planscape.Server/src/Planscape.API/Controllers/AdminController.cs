@@ -150,6 +150,86 @@ public class AdminController : ControllerBase
         return Ok(keys);
     }
 
+    // ── Tenant keyword extensions (Phase 151) ────────────────────────
+
+    /// <summary>
+    /// Phase 151 — read the tenant's deliverable-state-machine keyword
+    /// extensions. Returns the raw JSON string + a parsed preview so
+    /// the office dashboard can show what's currently in effect. Empty
+    /// when the tenant has no extensions configured.
+    /// </summary>
+    [HttpGet("tenant-keywords")]
+    public async Task<ActionResult> GetTenantKeywords()
+    {
+        var tenantId = GetTenantId();
+        var json = await _db.Tenants.AsNoTracking()
+            .Where(t => t.Id == tenantId)
+            .Select(t => t.KeywordExtensionsJson)
+            .FirstOrDefaultAsync();
+        return Ok(new
+        {
+            tenantId,
+            hasExtensions = !string.IsNullOrWhiteSpace(json),
+            json,
+        });
+    }
+
+    /// <summary>
+    /// Phase 151 — replace the tenant's keyword extensions JSON. Empty
+    /// body / null clears the extensions. The body is validated by
+    /// parsing through the same canonical-bucket / typo-skip rules
+    /// applied at request time, so a malformed payload is rejected
+    /// here rather than silently ignored at runtime.
+    /// </summary>
+    [HttpPut("tenant-keywords")]
+    public async Task<ActionResult> SetTenantKeywords([FromBody] TenantKeywordsRequest req)
+    {
+        var tenantId = GetTenantId();
+        var tenant = await _db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId);
+        if (tenant == null) return NotFound();
+
+        if (string.IsNullOrWhiteSpace(req.Json))
+        {
+            tenant.KeywordExtensionsJson = null;
+            await _db.SaveChangesAsync();
+            return Ok(new { tenantId, cleared = true });
+        }
+
+        // Validate by parsing — if the JSON is malformed or has no
+        // recognised buckets, reject with 400 rather than silently
+        // storing it.
+        IReadOnlyDictionary<string, IReadOnlyCollection<string>> parsed;
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(req.Json);
+            if (doc.RootElement.ValueKind != System.Text.Json.JsonValueKind.Object)
+                return BadRequest(new { error = "Body must be a JSON object" });
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return BadRequest(new { error = "Body is not valid JSON" });
+        }
+        // The DbTenantKeywordResolver does the bucket-by-bucket parse.
+        // We invoke a one-shot static helper to validate without going
+        // through DbContext.
+        parsed = Planscape.Infrastructure.Workflow.DbTenantKeywordResolver.ParseForValidation(req.Json);
+        if (parsed.Count == 0)
+            return BadRequest(new
+            {
+                error = "JSON has no recognised keyword buckets",
+                hint = "Body shape: { \"working\": [\"PARKED\"], \"terminal\": [\"FROZEN\"] }",
+            });
+
+        tenant.KeywordExtensionsJson = req.Json;
+        await _db.SaveChangesAsync();
+        return Ok(new
+        {
+            tenantId,
+            buckets = parsed.Count,
+            entries = parsed.Sum(kv => kv.Value.Count),
+        });
+    }
+
     private Guid GetTenantId() =>
         Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;
 
@@ -159,3 +239,5 @@ public class AdminController : ControllerBase
 
 public record CreateUserRequest(string Email, string DisplayName, string Password, string? Role, string? Iso19650Role);
 public record UpdateUserRequest(string? DisplayName, string? Role, string? Iso19650Role, bool? IsActive);
+/// <summary>Phase 151 — body for PUT /admin/tenant-keywords. Null/empty Json clears.</summary>
+public record TenantKeywordsRequest(string? Json);

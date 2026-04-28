@@ -84,14 +84,16 @@ public sealed class DeliverableStateMachine
         return _runtimeRoleCache.GetOrAdd(key, k => InferRoleWithExtensions(k) ?? "none");
     }
 
-    // Phase 149 introduced runtime memoisation; Phase 150 makes it
-    // bounded. The cap is generous — state-machine use cases rarely see
-    // more than a few dozen unique state names per project, even with
-    // every misspelling in the audit log. 256 entries × ~80 bytes per
-    // entry = ~20 KB worst case per instance.
+    // Phase 149 introduced runtime memoisation; Phase 150 made it
+    // bounded. Phase 151 stripes it: 8 stripes × 32 entries each = 256
+    // total entries (matches the prior cap), but now concurrent
+    // GetOrAdd calls on different keys don't contend on the same lock.
+    // The cap is generous — state-machine use cases rarely see more
+    // than a few dozen unique state names per project.
     private const int RoleCacheCapacity = 256;
-    private readonly BoundedLruCache<string, string> _runtimeRoleCache =
-        new(RoleCacheCapacity, StringComparer.OrdinalIgnoreCase);
+    private const int RoleCacheStripes = 8;
+    private readonly StripedBoundedLruCache<string, string> _runtimeRoleCache =
+        new(RoleCacheCapacity, RoleCacheStripes, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Phase 149 — instance-level inference that consults caller-supplied
@@ -310,8 +312,8 @@ public sealed class DeliverableStateMachine
             // project's own. Project entries win on key collisions so
             // a tenant can still override a platform default.
             var customKeywords = MergeKeywordLayers(
-                projectLayer: ParseCustomKeywords(root),
-                platformLayer: platformKeywords);
+                ParseCustomKeywords(root),  // project — highest priority
+                platformKeywords);          // platform — fallback
             // If the loader didn't pre-resolve a role for a declared
             // state but the tenant-supplied keywords would, do that
             // resolution now so RoleOf for those states is the cheap
@@ -462,32 +464,48 @@ public sealed class DeliverableStateMachine
     /// array of strings; non-strings within a bucket are skipped.
     /// </summary>
     /// <summary>
-    /// Phase 150 — combine project-level keywords with platform-level
-    /// keywords. Project entries win on bucket collisions so tenants
-    /// can override platform defaults; otherwise the two layers are
-    /// concatenated and de-duped (case-insensitive). Either argument
-    /// can be null.
+    /// Phase 150 — n-ary merge of keyword-extension layers in priority
+    /// order. Layers are taken highest-priority-first; later layers
+    /// fill in roles the earlier layers didn't claim. Within a single
+    /// role bucket the entries from all layers concatenate then dedupe
+    /// (case-insensitive). Null / empty layers are skipped silently.
+    ///
+    /// Phase 151 — used to merge three layers (project > tenant >
+    /// platform) instead of two. Pass them in priority order; the
+    /// helper handles any non-collision intersection rules.
     /// </summary>
-    private static IReadOnlyDictionary<string, IReadOnlyCollection<string>> MergeKeywordLayers(
-        IReadOnlyDictionary<string, IReadOnlyCollection<string>>? projectLayer,
-        IReadOnlyDictionary<string, IReadOnlyCollection<string>>? platformLayer)
+    public static IReadOnlyDictionary<string, IReadOnlyCollection<string>> MergeKeywordLayers(
+        params IReadOnlyDictionary<string, IReadOnlyCollection<string>>?[] layersInPriorityOrder)
     {
-        if (platformLayer == null || platformLayer.Count == 0)
-            return projectLayer ?? new Dictionary<string, IReadOnlyCollection<string>>();
-        if (projectLayer == null || projectLayer.Count == 0)
-            return platformLayer;
+        if (layersInPriorityOrder == null || layersInPriorityOrder.Length == 0)
+            return new Dictionary<string, IReadOnlyCollection<string>>();
+
+        var nonEmpty = new List<IReadOnlyDictionary<string, IReadOnlyCollection<string>>>();
+        foreach (var layer in layersInPriorityOrder)
+        {
+            if (layer != null && layer.Count > 0) nonEmpty.Add(layer);
+        }
+        if (nonEmpty.Count == 0)
+            return new Dictionary<string, IReadOnlyCollection<string>>();
+        if (nonEmpty.Count == 1)
+            return nonEmpty[0];
 
         var merged = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase);
-        var allRoles = new HashSet<string>(projectLayer.Keys, StringComparer.OrdinalIgnoreCase);
-        foreach (var key in platformLayer.Keys) allRoles.Add(key);
+        var allRoles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var layer in nonEmpty)
+            foreach (var role in layer.Keys) allRoles.Add(role);
 
         foreach (var role in allRoles)
         {
             var combined = new List<string>();
-            // Project layer first so its order wins on equal keys after
-            // distinct-ing.
-            if (projectLayer.TryGetValue(role, out var proj)) combined.AddRange(proj);
-            if (platformLayer.TryGetValue(role, out var plat)) combined.AddRange(plat);
+            // Higher-priority layers contribute first so their entries
+            // sit at the head of the deduped list (priority is
+            // observable through enumeration order even though dedupe
+            // collapses equal strings).
+            foreach (var layer in nonEmpty)
+            {
+                if (layer.TryGetValue(role, out var entries)) combined.AddRange(entries);
+            }
             var deduped = combined
                 .Where(s => !string.IsNullOrWhiteSpace(s))
                 .Select(s => s.Trim().ToUpperInvariant())

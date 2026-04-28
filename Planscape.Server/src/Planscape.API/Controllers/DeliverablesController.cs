@@ -33,18 +33,21 @@ public class DeliverablesController : ControllerBase
     private readonly INotificationService _notifications;
     private readonly ILogger<DeliverablesController> _logger;
     private readonly Planscape.Infrastructure.Workflow.IPlatformKeywordRegistry _platformKeywords;
+    private readonly Planscape.Infrastructure.Workflow.ITenantKeywordResolver _tenantKeywords;
 
     public DeliverablesController(
         PlanscapeDbContext db,
         IAuditService audit,
         INotificationService notifications,
         ILogger<DeliverablesController> logger,
-        Planscape.Infrastructure.Workflow.IPlatformKeywordRegistry platformKeywords)
+        Planscape.Infrastructure.Workflow.IPlatformKeywordRegistry platformKeywords,
+        Planscape.Infrastructure.Workflow.ITenantKeywordResolver tenantKeywords)
     {
         _db = db;
         _audit = audit;
         _notifications = notifications;
         _platformKeywords = platformKeywords;
+        _tenantKeywords = tenantKeywords;
         _logger = logger;
     }
 
@@ -197,7 +200,15 @@ public class DeliverablesController : ControllerBase
             .FirstOrDefaultAsync(x => x.Id == deliverableId && x.ProjectId == projectId);
         if (d == null) return NotFound();
 
-        var machine = DeliverableStateMachine.LoadOrDefault(project.CustomDeliverableStateMachineJson, _platformKeywords.Keywords);
+        // Phase 151 — three-layer merge: tenant + platform happen before
+        // we hand to LoadOrDefault, project keywords are merged inside
+        // it. Net priority: project > tenant > platform > built-in.
+        var tenantKeywords = await _tenantKeywords.ResolveAsync(tenantId);
+        var deploymentKeywords = DeliverableStateMachine.MergeKeywordLayers(
+            tenantKeywords,
+            _platformKeywords.Keywords);
+        var machine = DeliverableStateMachine.LoadOrDefault(
+            project.CustomDeliverableStateMachineJson, deploymentKeywords);
         var target = (req.NewStatus ?? "").ToUpperInvariant();
         if (!machine.IsValidTransition(d.Status, target))
         {
@@ -267,7 +278,13 @@ public class DeliverablesController : ControllerBase
             .FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
 
-        var machine = DeliverableStateMachine.LoadOrDefault(project.CustomDeliverableStateMachineJson, _platformKeywords.Keywords);
+        // Phase 151 — three-layer merge: tenant + platform → loader → +project.
+        var tenantKeywords = await _tenantKeywords.ResolveAsync(tenantId);
+        var deploymentKeywords = DeliverableStateMachine.MergeKeywordLayers(
+            tenantKeywords,
+            _platformKeywords.Keywords);
+        var machine = DeliverableStateMachine.LoadOrDefault(
+            project.CustomDeliverableStateMachineJson, deploymentKeywords);
         // If the JSON column is non-empty but the loader fell back to Default,
         // surface that fact so the BIM Manager can fix the malformed config.
         var jsonProvided = !string.IsNullOrWhiteSpace(project.CustomDeliverableStateMachineJson);

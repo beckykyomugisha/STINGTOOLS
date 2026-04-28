@@ -127,6 +127,11 @@ else
 // absent so projects continue to use built-in vocabulary only.
 builder.Services.AddSingleton<Planscape.Infrastructure.Workflow.IPlatformKeywordRegistry,
     Planscape.Infrastructure.Workflow.ConfigPlatformKeywordRegistry>();
+// Phase 151 — tenant-scoped keyword extensions (read-through cache).
+// Singleton so the cache survives across requests; the resolver itself
+// holds the DbContext via the request scope when invoked.
+builder.Services.AddScoped<Planscape.Infrastructure.Workflow.ITenantKeywordResolver,
+    Planscape.Infrastructure.Workflow.DbTenantKeywordResolver>();
 
 builder.Services.AddScoped<Planscape.Core.Interfaces.IGeofenceValidationService, Planscape.Infrastructure.Services.GeofenceValidationService>();
 builder.Services.AddScoped<Planscape.API.Services.IThumbnailService, Planscape.API.Services.ImageSharpThumbnailService>();

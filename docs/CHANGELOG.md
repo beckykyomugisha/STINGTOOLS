@@ -4882,3 +4882,102 @@ hardening items, not silent shortcuts.
    `RoleOf` from many threads concurrently on the same machine
    instance, lock contention could become measurable and a
    striped lock would help.
+
+#### Completed (Phase 151 — Phase 150 caveat closures: tenant keyword layer, striped LRU lock)
+
+The two remaining caveats from Phase 150 were both real production
+hardening items.
+
+**1 — Tenant-scoped keyword extensions**
+
+1. `Planscape.Core/Entities/Tenant.cs` — added
+   `KeywordExtensionsJson` (jsonb, nullable). Same shape as the
+   per-project `"keywords"` block.
+2. New migration `20260427600000_AddTenantKeywordExtensions.cs` —
+   adds the column. Null is the no-op default so existing tenants
+   are unaffected.
+3. New `Planscape.Infrastructure/Workflow/ITenantKeywordResolver.cs`
+   + `DbTenantKeywordResolver.cs` — DB-backed resolver with a static
+   striped-LRU cache keyed on `(TenantId, FNV-1a content hash)`. The
+   hash flips when an admin updates the JSON, so stale cache entries
+   self-invalidate on next read. Forgiving parser (same canonical-
+   bucket / typo-skip rules as the project parser); malformed JSON
+   falls back to empty rather than 500. Cache is `static readonly`
+   so the scoped resolver lifecycle doesn't rebuild it cold per
+   request.
+4. `DbTenantKeywordResolver.ParseForValidation(string)` — public
+   sibling of the private `Parse` so the admin PUT endpoint can
+   validate the JSON before persisting; mirrors the request-time
+   parse rules.
+5. `DeliverableStateMachine.MergeKeywordLayers` — generalised from
+   the Phase 150 two-layer signature to an n-ary
+   `params IReadOnlyDictionary<...>?[] layersInPriorityOrder`
+   overload. Higher-priority layers go first; later layers fill
+   buckets not claimed by earlier ones; within a bucket, all layers'
+   entries concatenate then dedupe (case-insensitive).
+6. `Planscape.API/Program.cs` — registered
+   `ITenantKeywordResolver → DbTenantKeywordResolver` as a scoped
+   service.
+7. `Planscape.API/Controllers/DeliverablesController.cs` — both
+   `LoadOrDefault` call sites now do
+   `MergeKeywordLayers(tenantKeywords, _platformKeywords.Keywords)`
+   first, then pass the merged "deployment defaults" as the second
+   arg. Project keywords sit on top via the existing project-vs-
+   platform merge inside `LoadOrDefault`. Net priority:
+   project > tenant > platform > built-ins.
+8. `Planscape.API/Controllers/AdminController.cs` — new
+   `GET /api/admin/tenant-keywords` (read current JSON +
+   `hasExtensions` flag) and `PUT /api/admin/tenant-keywords` (set /
+   clear). PUT validates the body via `ParseForValidation` before
+   persisting so a malformed payload returns 400 immediately rather
+   than being silently ignored at request time. Admin/Owner role
+   gate inherited from the controller-level `[Authorize]`.
+
+**2 — Striped LRU lock**
+
+9. New
+   `Planscape.Server/src/Planscape.Infrastructure/Workflow/StripedBoundedLruCache.cs`
+   — internal striped variant of the Phase 150
+   `BoundedLruCache<TKey,TValue>`. Each stripe is its own
+   self-contained cache with its own lock, so concurrent reads /
+   writes targeting different keys don't contend. Stripe count is
+   rounded up to the next power of two so the dispatch is
+   `hash & mask` instead of a div. Total capacity = stripe count ×
+   per-stripe capacity (per-stripe rounded up so the sum is
+   ≥ requested total).
+10. `DeliverableStateMachine` — runtime role memoisation now uses
+    the striped cache (8 stripes × 32 entries = 256 total, matches
+    the prior cap). `RoleOf` for unknown states still amortises to
+    O(1) and high-throughput callers no longer share a single lock.
+
+**3 — Tests**
+
+11. `StripedBoundedLruCacheTests.cs` (6 facts) — capacity
+    validation, stripe-count rounding to powers of two, factory
+    invocation count, custom comparer pass-through, total-cap
+    bounding under 1k insertions across 8 stripes, and a 16-thread
+    × 1k-reads-per-thread concurrency test that asserts the cap
+    holds without crashing.
+12. `TenantKeywordMergeTests.cs` (12 facts) — n-ary merge edge
+    cases (no layers / all null / single-layer pass-through),
+    two-layer and three-layer priority order, dedupe across layers
+    and across cases, empty-layer skip, and the
+    `ParseForValidation` validator (valid JSON, six malformed-input
+    cases, non-string entry filtering).
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. The tenant resolver's static cache survives across requests but
+   not across process restarts (no Redis-backed shared cache).
+   That's fine for the typical scale — even a busy deployment with
+   100 tenants reaches steady state on the resolver cache within
+   the first few requests.
+3. Admin endpoints are gated by the controller-level
+   `[Authorize(Roles = "Admin,Owner")]`. Tenants that need a more
+   granular permission (e.g. only the BIM Manager role) will need
+   a follow-up phase to introduce a fine-grained policy.
+4. Mobile UI to edit tenant keywords from the office dashboard is
+   deferred — the API surface is in place but the office dashboard
+   doesn't render an editor yet. CLI / curl-based operator
+   workflow works today.

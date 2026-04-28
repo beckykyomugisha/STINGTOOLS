@@ -21,6 +21,19 @@ public class Tenant
     public string? StripeCustomerId { get; set; }
     public string? StripeSubscriptionId { get; set; }
 
+    /// <summary>
+    /// Phase 151 — tenant-scoped keyword extensions for the deliverable
+    /// state machine. JSON shape mirrors the per-project block:
+    ///   { "working": ["PARKED"], "terminal": ["DECOMMISSIONED"] }
+    /// Sits between platform-wide keywords (deployment-global, in
+    /// appsettings) and project-level keywords (per-project JSON).
+    /// Project-level wins, then tenant, then platform, then built-ins.
+    /// Null/empty means "use platform + built-ins only" — same behaviour
+    /// as Phase 150.
+    /// </summary>
+    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "jsonb")]
+    public string? KeywordExtensionsJson { get; set; }
+
     // Navigation
     public ICollection<Project> Projects { get; set; } = new List<Project>();
     public ICollection<AppUser> Users { get; set; } = new List<AppUser>();
