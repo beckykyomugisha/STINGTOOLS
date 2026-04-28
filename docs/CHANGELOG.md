@@ -4768,3 +4768,43 @@ Two real engine gaps found:
    **Fix:** prefersWall now matches all those anchors plus
    `anchor.StartsWith("WINDOW_")` to cover the variant sills.
 
+
+#### Completed (Phase 139.23 — face-plane projection + rotate exception + dedup)
+
+User screenshots showed three concrete Revit errors / warnings during
+the run:
+
+1. **Revit "Can't rotate element into this position" (12 errors).**
+   Phase 139.18 un-hosted-family rotation called
+   `ElementTransformUtils.RotateElement`; when the rotation pushes the
+   instance into another element, Revit raises an
+   `InvalidOperationException`. Now caught + logged as a warning so
+   the engine continues with the un-rotated instance instead of
+   bubbling the error to Revit's UI.
+
+2. **Revit "Instance origin does not lie on host face" (warnings).**
+   Phase 139.22 face-based placement passed the engine's calculated
+   XYZ to `NewFamilyInstance(faceRef, position, refDir, symbol)`. The
+   position was on the wall *centerline*, not the face plane —
+   Revit warned and stripped the host association. New
+   `ProjectOntoFace` helper resolves the `Face` from the reference
+   and calls `face.Project(worldPt)` to produce a coordinate that
+   genuinely lies on the face. Both wall and ceiling face-based paths
+   use it.
+
+3. **Revit "There are identical instances in the same place" (31 warnings).**
+   Even after Phase 139.18's `FromRoom`/`ToRoom` filter, two rules can
+   still produce candidates within model-tolerance of each other
+   (e.g., the door-hinge anchor and the wall-midpoint anchor for a
+   door near a wall midpoint). The engine now compares each candidate
+   against every previously-placed XYZ in the room and skips the
+   second placement when within `max(rule.ToleranceMm, 25mm)`. Skip
+   is recorded in `result.SkippedCount`.
+
+User's "fire alarms placed when only lights ticked" — confirmed the
+TLG_3G2W1 family is an MK 3-gang switch, NOT a fire alarm device.
+Rule `baseline-lighting-devices-accessible-switch` correctly placed
+those (CategoryFilter = Lighting Devices, ticked). The visual
+confusion comes from MK switch families that show as a small
+rectangle in plan view, similar to a fire-alarm break-glass unit.
+

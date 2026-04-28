@@ -522,8 +522,40 @@ namespace StingTools.Core.Placement
                 }
             }
 
+            // Phase 139.23 — dedup. Revit warns "There are identical instances
+            // in the same place" when two of the same symbol land within
+            // model-tolerance of each other. The per-room state already has
+            // every placement from this run; reject candidates whose XYZ
+            // is within rule.ToleranceMm of any existing placement (any
+            // rule's, not just this rule's) so adjacent-room overlaps and
+            // co-located rules don't double up.
+            var existingNearby = new List<XYZ>();
+            try
+            {
+                if (state?.PlacedByRule != null)
+                    foreach (var lst in state.PlacedByRule.Values)
+                        if (lst != null) existingNearby.AddRange(lst);
+            }
+            catch { }
+            double dedupFt = Math.Max(rule.ToleranceMm, 25.0) * MmToFt;
+            double dedupSq = dedupFt * dedupFt;
+
             foreach (var c in chosen)
             {
+                bool tooClose = false;
+                foreach (var ex in existingNearby)
+                {
+                    if (ex == null) continue;
+                    double dx = ex.X - c.Position.X;
+                    double dy = ex.Y - c.Position.Y;
+                    double dz = ex.Z - c.Position.Z;
+                    if (dx * dx + dy * dy + dz * dz < dedupSq) { tooClose = true; break; }
+                }
+                if (tooClose)
+                {
+                    result.SkippedCount++;
+                    continue;
+                }
                 try
                 {
                     // Pre-flight picks the right NewFamilyInstance overload
@@ -1059,9 +1091,11 @@ namespace StingTools.Core.Placement
                     {
                         // Phase 139.18 — un-hosted OneLevelBased families
                         // can't flipFacing(); rotate 180° about Z at the
-                        // location point instead. ElementTransformUtils
-                        // rotation needs a line axis through the family
-                        // origin parallel to Z.
+                        // location point instead. Phase 139.23 — when the
+                        // rotation would push the instance into another
+                        // element Revit raises "Can't rotate element into
+                        // this position". Catch + log; keep the instance
+                        // un-rotated rather than aborting the placement.
                         XYZ origin = (fi.Location as LocationPoint)?.Point;
                         if (origin != null)
                         {
@@ -1070,6 +1104,7 @@ namespace StingTools.Core.Placement
                                 var axis = Line.CreateBound(origin, origin + XYZ.BasisZ);
                                 ElementTransformUtils.RotateElement(doc, fi.Id, axis, Math.PI);
                             }
+                            catch (Autodesk.Revit.Exceptions.InvalidOperationException ioEx) { StingLog.Warn($"OrientPlacedInstance rotate-180 (cannot rotate at {origin}): {ioEx.Message}"); }
                             catch (Exception rotEx) { StingLog.Warn($"OrientPlacedInstance rotate-180: {rotEx.Message}"); }
                         }
                     }
