@@ -44,6 +44,12 @@ namespace StingTools.Core.Placement
     {
         private const double MmToFt = 1.0 / 304.8;
 
+        // Phase 139.12 — coarse phase reporter, polled by the WPF
+        // progress dialog so the heartbeat can show "Pre-flight: catalogue" /
+        // "Pre-flight: two-phase first-fix" / "Per-room loop" instead of
+        // an opaque elapsed-time counter.
+        public static volatile string CurrentPhase = "";
+
         /// <summary>
         /// Entry point. If rules is null/empty, loads the default + project
         /// override library. If dryRun is true, returns candidates without
@@ -148,11 +154,13 @@ namespace StingTools.Core.Placement
             }
 
             // Phase 139.2 G — Step 0: pre-flight subsystem hooks.
-            // Phase 139.11 — only run AutoPopulate when the active rule set
-            // actually references manufacturer / catalogue fields. The
-            // catalogue walk is O(loaded-families) × 14 LookupParameter
-            // calls; for a 5000-symbol project with no MK rules in the run,
-            // it added 30+ seconds of "0 / N rooms" silence to the run.
+            // Phase 139.12 — instrumented + bounded.  Each phase logs
+            // elapsed ms via StingLog and AutoPopulate now runs on a
+            // bounded background task so a hung Revit LookupParameter
+            // can no longer wedge the whole run.
+            CurrentPhase = "Pre-flight starting";
+            var swEngine = System.Diagnostics.Stopwatch.StartNew();
+            StingLog.Info($"FixturePlacementEngine: run start — {rooms.Count} rooms, {ordered.Count} rules.");
             try
             {
                 bool needsCatalogue = ordered.Any(r => r != null
@@ -160,14 +168,34 @@ namespace StingTools.Core.Placement
                         || !string.IsNullOrEmpty(r.CatalogueRef)
                         || r.IsClusterMember));
                 if (needsCatalogue)
-                    ManufacturerCatalogueRegistry.AutoPopulateFromFamilies(doc);
+                {
+                    CurrentPhase = "Pre-flight: catalogue scan";
+                    var swCat = System.Diagnostics.Stopwatch.StartNew();
+                    var task = System.Threading.Tasks.Task.Run(() =>
+                    {
+                        try { ManufacturerCatalogueRegistry.AutoPopulateFromFamilies(doc); }
+                        catch (Exception ex) { StingLog.Warn($"AutoPopulate inner: {ex.Message}"); }
+                    });
+                    if (!task.Wait(TimeSpan.FromSeconds(20)))
+                    {
+                        result.Warnings.Add("Catalogue auto-populate timed out after 20s — skipped. Manufacturer score component will be 0.5 for unresolved rules.");
+                        StingLog.Warn("FixturePlacementEngine: AutoPopulate timed out — proceeding without catalogue refresh.");
+                    }
+                    else
+                    {
+                        StingLog.Info($"FixturePlacementEngine: AutoPopulate done in {swCat.ElapsedMilliseconds} ms.");
+                    }
+                }
                 else
                     StingLog.Info("FixturePlacementEngine: skipping AutoPopulate — no rule references manufacturer fields.");
             }
             catch (Exception ex) { result.Warnings.Add($"Catalogue auto-populate: {ex.Message}"); }
             try
             {
+                CurrentPhase = "Pre-flight: two-phase shared-param check";
+                var swVal = System.Diagnostics.Stopwatch.StartNew();
                 TwoPhaseBoxPlacer.ValidateSharedParams(doc, ordered, result.Warnings);
+                StingLog.Info($"FixturePlacementEngine: ValidateSharedParams done in {swVal.ElapsedMilliseconds} ms.");
             }
             catch (Exception ex) { result.Warnings.Add($"Two-phase preflight: {ex.Message}"); }
 
@@ -177,8 +205,19 @@ namespace StingTools.Core.Placement
             Dictionary<string, XYZ> firstFixIndex = null;
             if (!dryRun)
             {
-                try { firstFixIndex = TwoPhaseBoxPlacer.PlaceFirstFixBoxes(doc, roomIds, ordered, result); }
-                catch (Exception ex) { result.Warnings.Add($"Two-phase first-fix: {ex.Message}"); }
+                bool anyTwoPhase = ordered.Any(r => r != null && r.TwoPhaseEnabled);
+                if (!anyTwoPhase)
+                {
+                    StingLog.Info("FixturePlacementEngine: no TwoPhaseEnabled rule — skipping first-fix pass.");
+                }
+                else
+                {
+                    CurrentPhase = "Pre-flight: first-fix box placement";
+                    var swFf = System.Diagnostics.Stopwatch.StartNew();
+                    try { firstFixIndex = TwoPhaseBoxPlacer.PlaceFirstFixBoxes(doc, roomIds, ordered, result); }
+                    catch (Exception ex) { result.Warnings.Add($"Two-phase first-fix: {ex.Message}"); }
+                    StingLog.Info($"FixturePlacementEngine: PlaceFirstFixBoxes done in {swFf.ElapsedMilliseconds} ms ({firstFixIndex?.Count ?? 0} boxes).");
+                }
             }
 
             try
@@ -186,6 +225,8 @@ namespace StingTools.Core.Placement
                 int processed = 0;
                 int total = rooms.Count;
                 bool cancelled = false;
+                StingLog.Info($"FixturePlacementEngine: pre-flight finished in {swEngine.ElapsedMilliseconds} ms — entering per-room loop ({total} rooms).");
+                CurrentPhase = "Per-room loop";
                 foreach (var room in rooms)
                 {
                     // PC-13 — per-room state so dependent rules see predecessors.
