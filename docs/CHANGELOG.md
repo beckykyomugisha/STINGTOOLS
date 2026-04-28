@@ -4808,3 +4808,28 @@ those (CategoryFilter = Lighting Devices, ticked). The visual
 confusion comes from MK switch families that show as a small
 rectangle in plan view, similar to a fire-alarm break-glass unit.
 
+
+#### Completed (Phase 139.24 — RaiseRevitToFront + bumped PhaseTag)
+
+User report:
+- "After deleting everything and repeating, the preflight UI got lost
+  in background and could not select or do anything further."
+- Result panel showed `build 2026-04-28 10:14:48 (Phase 139.21)` —
+  proving the user was running an old DLL even after multiple commits.
+- Same Revit "Can't rotate" / "doesn't lie on host face" errors
+  visible in screenshots — those are pre-Phase 139.23 behaviour.
+
+Two concrete fixes:
+
+1. **Preflight TaskDialog visible.** TaskDialog opened from a Centre
+   button-handler parents to Revit's main window but ends up BEHIND
+   the modeless Centre. New `RaiseRevitToFront()` P/Invoke calls
+   `BringWindowToTop` + `SetForegroundWindow` on Revit's main HWND
+   immediately before each TaskDialog and the result-panel `Show()`,
+   so the dialog appears above the Centre instead of being lost.
+
+2. **PhaseTag bumped to 139.24.** Subsequent runs whose result panel
+   reads "Phase 139.24" prove the new DLL is loaded. If the user
+   still sees "Phase 139.21" or older, the build cache hasn't
+   refreshed.
+
