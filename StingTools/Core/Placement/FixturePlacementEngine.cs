@@ -79,7 +79,7 @@ namespace StingTools.Core.Placement
         }
 
         // Phase 139.21 — phase tag stable for grep / diagnostics.
-        public const string PhaseTag = "Phase 139.24";
+        public const string PhaseTag = "Phase 139.25";
 
         /// <summary>
         /// Entry point. If rules is null/empty, loads the default + project
@@ -176,6 +176,21 @@ namespace StingTools.Core.Placement
             if (!dryRun)
             {
                 tx = new Transaction(doc, "STING v4 Place Fixtures");
+                // Phase 139.25 — install IFailuresPreprocessor so the
+                // engine's predictable failures (cannot-rotate, identical
+                // instances, origin-not-on-face) are dismissed in-process
+                // instead of bubbling to a modal Revit dialog that blocks
+                // the commit. Without this the transaction reports
+                // "31 placed" but zero appear in the model.
+                try
+                {
+                    var failOpts = tx.GetFailureHandlingOptions();
+                    failOpts.SetFailuresPreprocessor(new PlacementFailuresPreprocessor());
+                    failOpts.SetClearAfterRollback(true);
+                    failOpts.SetForcedModalHandling(false);
+                    tx.SetFailureHandlingOptions(failOpts);
+                }
+                catch (Exception fEx) { StingLog.Warn($"FailuresPreprocessor wire: {fEx.Message}"); }
                 try { tx.Start(); }
                 catch (Exception ex)
                 {
@@ -602,6 +617,7 @@ namespace StingTools.Core.Placement
                     result.CountsByRule[rule.MergeKey] = result.CountsByRule.TryGetValue(rule.MergeKey, out var n) ? n + 1 : 1;
                     result.CountsByRoom[roomKey] = result.CountsByRoom.TryGetValue(roomKey, out var m) ? m + 1 : 1;
                     placedPoints.Add(c.Position);
+                    existingNearby.Add(c.Position); // Phase 139.25 — live dedup
 
                     // PC-13 — record placement on per-room state for downstream rules.
                     if (state != null)

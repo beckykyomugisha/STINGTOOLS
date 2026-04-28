@@ -4833,3 +4833,43 @@ Two concrete fixes:
    still sees "Phase 139.21" or older, the build cache hasn't
    refreshed.
 
+
+#### Completed (Phase 139.25 — IFailuresPreprocessor + live-dedup)
+
+User reported "I didn't see any lighting device in the model" with a
+result panel saying "31 placed" and a Revit error dialog showing 12
+errors + 31 warnings. Diagnosis: the engine successfully placed 31
+instances, but Revit's failure system raised modal error dialogs
+during commit. When the user dismissed those by clicking "Delete
+Instance(s)" or "Cancel", Revit rolled back some or all placements.
+
+Two real fixes:
+
+1. **`PlacementFailuresPreprocessor : IFailuresPreprocessor`.** Wired
+   into the engine's Transaction via
+   `tx.GetFailureHandlingOptions().SetFailuresPreprocessor(...)` plus
+   `SetForcedModalHandling(false)` and `SetClearAfterRollback(true)`.
+   Pre-process step inspects each failure's description text and
+   silently `DeleteWarning`s the predictable engine side-effects:
+
+   - "Can't rotate element into this position" — Phase 139.18
+     un-hosted-family rotation occasionally pushes through another
+     element.
+   - "There are identical instances in the same place" — edge cases
+     the dedup didn't cover.
+   - "Instance origin does not lie on host face" — the few face-
+     placements where Revit's face geometry doesn't match the
+     projection.
+
+   The transaction now commits cleanly. No Revit modal dialog. No
+   user click-through required.
+
+2. **Live-update dedup.** The Phase 139.23 dedup snapshot was built
+   ONCE per rule iteration; same-rule candidates within tolerance
+   passed because the snapshot was empty when each was tested.
+   `existingNearby.Add(c.Position)` is now called after every
+   successful placement so subsequent candidates in the same loop
+   compare against the live placement set.
+
+PhaseTag bumped to 139.25.
+
