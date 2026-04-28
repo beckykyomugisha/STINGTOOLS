@@ -4484,3 +4484,40 @@ accessible-switch rule. Deep dig found two real engine bugs:
    confirm whether the engine emitted bad coordinates or whether the
    family failed to host.
 
+
+#### Completed (Phase 139.17 — restrict BS 5266 emergency-lighting rules to escape-route rooms)
+
+User reported "red dots on the floor near doors" — investigated and
+found three rules in `STING_PLACEMENT_RULES.baseline-extensions2.json`
+firing in EVERY room (no `RoomFilter`) at low Z height:
+
+- `baseline-emlit-escape-route` — `PERIMETER_OFFSET` anchor with
+  `PerLinearMetre: 2.0` AND no `MountingHeightMm` (defaulted to 300
+  mm). 17 dots scattered along walls in residential bedrooms /
+  bathrooms.
+- `baseline-emlit-escape-door-emphasis` — `ESCAPE_DOOR_BOTH_SIDES`
+  with no RoomFilter. Hit every door.
+- `baseline-emlit-exit-sign-above-door` — `DOOR_HEAD` with no
+  RoomFilter. Hit every door.
+
+These are BS 5266-1 / BS EN 1838 commercial-building rules; they
+should never fire in residential dwelling spaces.
+
+Fix: added a shared escape-route `RoomFilter` matching
+`(?i)\b(corridor|hall|hallway|stair|stairwell|landing|lobby|reception
+|foyer|escape|circulation|atrium|passage|breakout|office|workstation|
+open[ -]?plan|conference|board|meeting|classroom|teaching|lecture|
+theatre|operating|ward|treatment|patient|examination|clinic|surgery|
+cinema|auditorium|warehouse|workshop|plant|substation)\b` to all
+three rules. Plus:
+
+- `baseline-emlit-escape-route` gains `MountingHeightMm: 1100`
+  (BS 5266 anti-panic luminaire height) and `MaxPerRoom: 4`.
+- `baseline-emlit-escape-door-emphasis` gains
+  `MountingHeightMm: 2100` so emergency luminaires sit above door
+  heads, not at floor level.
+
+Result on a 27-room residential project: those three rules will
+match zero rooms instead of 27, removing all the floor-level red
+dots.
+
