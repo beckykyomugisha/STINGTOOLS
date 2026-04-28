@@ -485,6 +485,14 @@ namespace StingTools.UI.PlacementCenter
                 var helpfulHints = new List<string>();
 
                 // 1. Wall-anchored rules vs family placement type.
+                //   Phase 139.21d — categories like Specialty Equipment, Mechanical
+                //   Equipment, Electrical Equipment legitimately ship with non-
+                //   wall-hosted families (free-standing tanks, generators, panels).
+                //   Don't HARD-FAIL the run; warn the user that wall-anchored rules
+                //   in those categories will not attach correctly and point them at
+                //   the existing FamilyQuickEdit > Change Host command which can
+                //   re-host a family interactively.  The engine still runs and
+                //   places non-wall stuff fine.
                 var wallRules = rules.Where(r =>
                 {
                     var a = (r.AnchorType ?? "").ToUpperInvariant();
@@ -499,12 +507,22 @@ namespace StingTools.UI.PlacementCenter
                         .Cast<FamilySymbol>().Where(fs => fs.Category != null
                             && string.Equals(fs.Category.Name, cat, StringComparison.OrdinalIgnoreCase))
                         .ToList();
-                    if (symbols.Count == 0) continue; // separate "missing family" warning already covers
+                    if (symbols.Count == 0) continue;
                     bool anyHosted = symbols.Any(fs => fs.Family?.FamilyPlacementType == FamilyPlacementType.OneLevelBasedHosted);
-                    if (!anyHosted)
+                    bool anyFaceBased = symbols.Any(fs => fs.Family?.FamilyPlacementType == FamilyPlacementType.WorkPlaneBased);
+                    // Face-based / WorkPlaneBased families CAN be placed on a wall via
+                    // doc.Create.NewFamilyInstance(face, point, ref, symbol). They count
+                    // as "wall-attachable" too, so we only warn if NEITHER hosted nor
+                    // face-based is loaded.
+                    if (!anyHosted && !anyFaceBased)
                     {
                         var first = symbols.FirstOrDefault();
-                        blockers.Add($"• Category '{cat}' has {symbols.Count} Family Type(s) loaded but NONE is OneLevelBasedHosted (e.g. '{first?.Family?.Name}' is {first?.Family?.FamilyPlacementType}). Wall-anchored rules cannot attach to a wall — switches will float at the calculated XYZ instead of mounting. Re-author or load a wall-hosted variant.");
+                        helpfulHints.Add(
+                            $"Category '{cat}' has {symbols.Count} Family Type(s) loaded but none are wall-hostable " +
+                            $"(none are OneLevelBasedHosted and none are WorkPlaneBased; e.g. '{first?.Family?.Name}' is " +
+                            $"{first?.Family?.FamilyPlacementType}). Wall-anchored rules in this category will land but " +
+                            $"won't attach — fixtures will float at the calculated XYZ. Use Tags > Change Host to " +
+                            $"re-host one of these family instances after the run, or load a wall-hosted variant.");
                     }
                 }
 

@@ -4684,3 +4684,40 @@ all blockers + remediation, AND each blocker is logged to
 `StingTools.log` so the user can paste them. No more silent wrong
 placements.
 
+
+#### Completed (Phase 139.21d — relax wall-host preflight to advisory + face-based recognition)
+
+User correctly pushed back: "not everything is supposed to be wall hung,
+the rule should differentiate what should be wall placed and not. We
+had created a tool for changing hosting types before placement."
+
+Phase 139.21 was over-zealous — it hard-failed the run when ANY
+category that any wall-anchored rule targets had no
+OneLevelBasedHosted family. That blocked legitimate setups:
+
+- "Electrical Equipment" with floor-standing AGS GDP2X panels
+- "Mechanical Equipment" with free-standing water heaters
+- "Specialty Equipment" with shower doors (PC_Shower Sliding Door)
+- "Fire Alarm Devices" loaded as WorkPlaneBased (face-based)
+  break-glass units — perfectly valid for face placement.
+
+Two corrections:
+
+1. **WorkPlaneBased counts as wall-attachable.** Face-based families
+   place on any planar reference via
+   `doc.Create.NewFamilyInstance(face, point, refDir, symbol)` — they
+   work fine on walls. Phase 139.21d treats `WorkPlaneBased` as
+   wall-hostable for preflight purposes.
+
+2. **Hosting mismatch is now a HINT, not a blocker.** Demoted from
+   `blockers.Add(...)` to `helpfulHints.Add(...)`. The run proceeds;
+   the warning surfaces in StingLog and the result panel. Designers
+   who want to re-host can use the existing **Tags > Change Host**
+   command (`FamilyQuickEditCommands.ChangeHostCommand` — a six-mode
+   picker for Wall / Floor-Ceiling-Roof / Face / WorkPlane / Detach /
+   Delete that can re-host a family instance after placement).
+
+The two surviving HARD-fail blockers are unchanged:
+- `0/N doors have FromRoom or ToRoom` (door rules will mis-target)
+- Rule pack has no rules matching any ticked category (zero-output run).
+
