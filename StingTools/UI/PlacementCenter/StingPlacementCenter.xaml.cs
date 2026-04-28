@@ -527,7 +527,7 @@ namespace StingTools.UI.PlacementCenter
                     }
                     if (doorsTotal > 0 && doorsWithSpatial == 0)
                     {
-                        blockers.Add($"• {doorsTotal} door(s) on the active level have no FromRoom or ToRoom set. Door-anchored rules will mis-target. Fix: select all rooms in the model, run "Architecture > Recompute Areas / Volumes" or reset the room boundaries so spatial relationships re-compute, then run again.");
+                        blockers.Add($"• {doorsTotal} door(s) on the active level have no FromRoom or ToRoom set. Door-anchored rules will mis-target. Fix: select all rooms in the model, run \"Architecture > Recompute Areas / Volumes\" or reset the room boundaries so spatial relationships re-compute, then run again.");
                     }
                     else if (doorsTotal > 0 && doorsWithSpatial < doorsTotal / 2)
                     {
