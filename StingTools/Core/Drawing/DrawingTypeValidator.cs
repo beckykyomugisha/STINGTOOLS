@@ -138,7 +138,58 @@ namespace StingTools.Core.Drawing
             ValidatePhase137ProductionRules(dt, r);
             ValidatePhase137ManagedPack(doc, dt, r);
 
+            // ── ACC-03: crop strategy must be sensible for the view type ──
+            ValidateCropForPurpose(dt, r);
+
+            // ── ACC-04: every ${PRJ_ORG_xxx} referenced by TitleBlockParams
+            //   must already be bound on ProjectInformation; otherwise the
+            //   applier would silently substitute an empty string.
+            ValidateProjectInfoBindings(doc, dt, r);
+
+            // ── GAP-K: slot ViewType compatibility with profile.Purpose ──
+            ValidateSlotPurposeAlignment(dt, r);
+
             return r;
+        }
+
+        private static void ValidateCropForPurpose(DrawingType dt, ValidationReport r)
+        {
+            if (dt?.Crop == null) return;
+            var kind = (dt.Crop.Kind ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(kind)) return;
+            // RoomBoundary only makes sense on plan-style purposes — section,
+            // elevation, schedule, legend, and 3D have no rooms to bound.
+            if (string.Equals(kind, "RoomBoundary", StringComparison.OrdinalIgnoreCase))
+            {
+                bool isPlanLike =
+                    string.Equals(dt.Purpose, DrawingPurpose.Plan, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(dt.Purpose, DrawingPurpose.Rcp,  StringComparison.OrdinalIgnoreCase);
+                if (!isPlanLike)
+                    r.Add(ValidationSeverity.Warning, "DT-080",
+                        $"Crop kind 'RoomBoundary' on a {dt.Purpose} profile will silently fall back to TightBbox at runtime.",
+                        "Switch crop.kind to 'TightBbox' or 'ScopeBoxOrBbox' for non-plan profiles.");
+            }
+            // ScopeBox kind requires a name.
+            if (string.Equals(kind, "ScopeBox", StringComparison.OrdinalIgnoreCase)
+                && string.IsNullOrWhiteSpace(dt.Crop.ScopeBoxName))
+            {
+                r.Add(ValidationSeverity.Error, "DT-081",
+                    "Crop kind 'ScopeBox' requires crop.scopeBoxName; switch to 'ScopeBoxOrBbox' to allow fallback.");
+            }
+        }
+
+        private static void ValidateProjectInfoBindings(Document doc, DrawingType dt, ValidationReport r)
+        {
+            if (doc == null || dt?.TitleBlockParams == null) return;
+            try
+            {
+                var missing = TitleBlockParamApplier.FindMissingProjectInfoParams(doc, dt);
+                foreach (var name in missing)
+                    r.Add(ValidationSeverity.Warning, "DT-090",
+                        $"TitleBlockParams reference ${{ {name} }} but ProjectInformation has no parameter named '{name}'.",
+                        "Run Tags > Setup > Load Params, or update the project_info parameter name in the profile.");
+            }
+            catch { /* validator must never throw */ }
         }
 
         private static void ValidatePhase137Annotation(Document doc, DrawingType dt, ValidationReport r)
@@ -193,9 +244,13 @@ namespace StingTools.Core.Drawing
             catch { return; }
             if (pack == null || !pack.IsManaged) return;
 
+            // PERF-05: prefer the per-batch snapshot when ValidateAll is the
+            // caller; fall back to a fresh collector when Validate() is
+            // invoked individually.
             try
             {
-                bool anyStingSeed = new FilteredElementCollector(doc)
+                bool? snap = _snapshot?.AnyStingSeedTemplate;
+                bool anyStingSeed = snap ?? new FilteredElementCollector(doc)
                     .OfClass(typeof(View))
                     .Cast<View>()
                     .Any(v => v.IsTemplate && (v.Name ?? "").StartsWith("STING - ", StringComparison.Ordinal));
@@ -210,10 +265,14 @@ namespace StingTools.Core.Drawing
             {
                 try
                 {
-                    bool exists = new FilteredElementCollector(doc)
-                        .OfClass(typeof(PhaseFilter))
-                        .Cast<PhaseFilter>()
-                        .Any(p => string.Equals(p.Name, pack.PhaseFilter, StringComparison.OrdinalIgnoreCase));
+                    bool exists;
+                    if (_snapshot != null)
+                        exists = _snapshot.KnownPhaseFilters.Contains(pack.PhaseFilter);
+                    else
+                        exists = new FilteredElementCollector(doc)
+                            .OfClass(typeof(PhaseFilter))
+                            .Cast<PhaseFilter>()
+                            .Any(p => string.Equals(p.Name, pack.PhaseFilter, StringComparison.OrdinalIgnoreCase));
                     if (!exists)
                         r.Add(ValidationSeverity.Warning, "DT-137-MGD-PHASE",
                             $"Pack '{pack.Id}' references PhaseFilter '{pack.PhaseFilter}' which does not exist.",
@@ -243,9 +302,40 @@ namespace StingTools.Core.Drawing
         /// coverage. Useful for a one-click "does my project have the
         /// assets to honour every corporate drawing type" audit.
         /// </summary>
+        // PERF-05: a small shared snapshot built once per ValidateAll so the
+        // 40+ profiles don't each re-run "any STING- seed?" or "is phase
+        // filter X loaded?" via fresh FilteredElementCollectors.
+        [ThreadStatic] private static ValidationSnapshot _snapshot;
+
+        private sealed class ValidationSnapshot
+        {
+            public bool? AnyStingSeedTemplate;
+            public HashSet<string> KnownPhaseFilters
+                = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
         public static List<ValidationReport> ValidateAll(Document doc)
         {
+            // PERF-05: build the per-doc snapshot once.
+            _snapshot = new ValidationSnapshot();
+            try
+            {
+                _snapshot.AnyStingSeedTemplate = new FilteredElementCollector(doc)
+                    .OfClass(typeof(View))
+                    .Cast<View>()
+                    .Any(v => v.IsTemplate && (v.Name ?? "").StartsWith("STING - ", StringComparison.Ordinal));
+                foreach (var pf in new FilteredElementCollector(doc)
+                    .OfClass(typeof(PhaseFilter))
+                    .Cast<PhaseFilter>())
+                {
+                    if (!string.IsNullOrEmpty(pf.Name))
+                        _snapshot.KnownPhaseFilters.Add(pf.Name);
+                }
+            }
+            catch { /* validator never throws */ }
+
             var reports = DrawingTypeRegistry.ListAll(doc).Select(t => Validate(doc, t)).ToList();
+            _snapshot = null;
 
             // Routing coverage — flag routing rules pointing at
             // non-existent drawing types.
@@ -343,6 +433,54 @@ namespace StingTools.Core.Drawing
             if (s.NormX + s.NormW > 1.0001 || s.NormY + s.NormH > 1.0001)
                 r.Add(ValidationSeverity.Warning, "DT-056",
                     $"Slot '{s.Label}' extends beyond the drawable zone (normX+W={s.NormX + s.NormW:F2} normY+H={s.NormY + s.NormH:F2}).");
+        }
+
+        // GAP-K: profile.Purpose says "Plan" but a slot.ViewType is "Section",
+        // or vice versa, indicates a bookkeeping mistake in the JSON. The
+        // production engine would still produce the slotted view, but its
+        // purpose tag wouldn't match the slot type, so downstream filters
+        // (browser organizer, sheet packs) place it in surprising places.
+        private static void ValidateSlotPurposeAlignment(DrawingType dt, ValidationReport r)
+        {
+            if (dt?.Slots == null || dt.Slots.Count == 0) return;
+            var purpose = (dt.Purpose ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(purpose) ||
+                purpose.Equals(DrawingPurpose.Coordination, StringComparison.OrdinalIgnoreCase) ||
+                purpose.Equals(DrawingPurpose.Spool, StringComparison.OrdinalIgnoreCase))
+                return; // multi-view profiles inherently mix slot types
+            foreach (var s in dt.Slots)
+            {
+                if (s == null || string.IsNullOrEmpty(s.ViewType)) continue;
+                if (!s.ViewType.Equals(purpose, StringComparison.OrdinalIgnoreCase)
+                    && !IsCompatibleSlotViewType(purpose, s.ViewType))
+                {
+                    r.Add(ValidationSeverity.Info, "DT-057",
+                        $"Slot '{s.Label}' has ViewType '{s.ViewType}' on a {purpose} profile — confirm this is intentional.");
+                }
+            }
+        }
+
+        private static bool IsCompatibleSlotViewType(string purpose, string slotType)
+        {
+            // A small whitelist of "Plan profile may host an inset Schedule",
+            // "Section profile may host an inset Detail", etc. — common
+            // multi-view layouts that don't deserve a warning.
+            var p = purpose ?? string.Empty;
+            var s = slotType ?? string.Empty;
+            if (p.Equals(DrawingPurpose.Plan,      StringComparison.OrdinalIgnoreCase) &&
+                (s.Equals("Schedule", StringComparison.OrdinalIgnoreCase) ||
+                 s.Equals("Legend",   StringComparison.OrdinalIgnoreCase) ||
+                 s.Equals("RCP",      StringComparison.OrdinalIgnoreCase)))
+                return true;
+            if (p.Equals(DrawingPurpose.Section,   StringComparison.OrdinalIgnoreCase) &&
+                (s.Equals("Detail",   StringComparison.OrdinalIgnoreCase) ||
+                 s.Equals("Plan",     StringComparison.OrdinalIgnoreCase)))
+                return true;
+            if (p.Equals(DrawingPurpose.ThreeD,    StringComparison.OrdinalIgnoreCase) &&
+                (s.Equals("Plan",     StringComparison.OrdinalIgnoreCase) ||
+                 s.Equals("ISO",      StringComparison.OrdinalIgnoreCase)))
+                return true;
+            return false;
         }
     }
 }

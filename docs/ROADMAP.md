@@ -319,3 +319,29 @@ in `CHANGELOG.md`).
 | `TPL-FOLLOW-03` "My queue" sub-section in BCC Deliverables tab (S12 v1.1) — `WorkflowEngine.GetMyQueue(userEmail)` is implemented but no UI binding yet. | `StingTools/UI/BIMCoordinationCenter.cs` | Open — data layer ready. |
 | `TPL-FOLLOW-04` "Recipient matrix" view in BCC Deliverables tab (S18) — `DistributionGroups.SuggestFor(deliverable)` and group persistence are implemented; matrix view not yet drawn. | `StingTools/UI/BIMCoordinationCenter.cs` | Open — data layer ready. |
 | `TPL-FOLLOW-05` Faceted filter pills + saved-searches combo in Document Manager filter bar (S17). `DocumentIndex.Search` + `SavedSearchStore` implemented; dialog bar still uses the legacy free-text box. | `StingTools/UI/DocumentManagementDialog.cs` | Open — data layer ready. |
+
+### Future Enhancement Gaps — Structural DWG-to-BIM (Phase 140 Deferrals)
+
+Phase 140 landed grid snapping, span-proportional beam depth, multi-storey
+column heights, beam endpoint trimming, multi-category numbering, slab
+voids, grid-label marks, load-path warnings as TextNotes, duplicate
+detection, the Re-analyse dry-run button, and the misleading-label fix
+that triggered the branch (`Parallel max gap` → `Parallel pair max
+gap`). The items below were called out in the Phase 140 planning prompt
+but deferred so each could land cleanly in its own follow-up.
+
+| Gap | Description | Unblocker |
+|-----|-------------|-----------|
+| ~~`DWG-STRUCT-P2A` Strip foundation detection (under walls)~~ | **DONE** Phase 142. `StripFoundationDetector` builds rectangular loops along each wall centreline (oversized by `StripFndOversizeMm` per side) and feeds them through `CreateSlabsFromBoundaries`. Wizard exposes the toggle + oversize knob. |
+| ~~`DWG-STRUCT-P2F` Endpoint gap bridging at detection time~~ | **DONE** Phase 142. `DetectStructuralWalls` and `DetectBeamCenterlinesV2` synthesise overlap when two parallel lines fall within `EndpointGapToleranceMm` of each other longitudinally. |
+| ~~`DWG-STRUCT-P3B` Slab centroid → room seeding~~ | **DONE** Phase 143. `SlabRoomSeeder.Seed(doc, level, outerSlabs, voidLoops, cfg)` drops Revit Rooms at outer-loop centroids skipping points inside voids and existing rooms. Wizard exposes the toggle. |
+| ~~`DWG-STRUCT-P3C` Auto-create structural views after conversion~~ | **DONE** Phase 143. `StructuralViewCreator.CreateViews` creates a StructuralPlan ViewPlan per level that received elements and applies the corporate "S-PLAN" DrawingType via Phase-113 `DrawingTypePresentation.Apply()`. Default OFF (opt-in). |
+| ~~`DWG-STRUCT-DEEP-1` Steel I-section vs concrete rectangle inference~~ | **DONE** Phase 143. `BeamMaterialInferrer.AnnotateAll` heuristically classifies beams: parallel-pair (`WidthDetected==true`, width ≥ 200 mm) → concrete; single-line → steel I-section. Suffix appended to LayerName for downstream type matching. |
+| ~~`DWG-STRUCT-DEEP-2` Pile cap / raft / strip differentiation~~ | **DONE** Phase 143. `FoundationClassifier.Classify` splits detected rectangles into Pad / Raft / PileCap based on plan area + clustering. Rafts route to slab path; pads + pile caps stay on pad-foundation path. |
+| ~~`DWG-STRUCT-DEEP-3` Cantilever detection~~ | **DONE** Phase 142. `BeamSupportClassifier` flags free-end and cantilever beams; `MarkCantileverBeams` toggle stamps the Comments parameter so they're filterable in schedules. Junction warnings are also placed as TextNotes via Phase 141 `DetectJunctions` wiring. |
+| ~~`DWG-STRUCT-DEEP-4` Beam-overlap ratio configurability~~ | **DONE** Phase 142. `BeamOverlapMinRatio` config field threads through `DetectBeamCenterlinesV2` and `DetectStructuralWalls`. Wizard exposes the knob in ACCURACY (Phase-142). |
+| `DWG-STRUCT-DEEP-5` Foundation EC7 sizing  with soil class + load | Phase 140 surfaced the EC7 §6.5 disclaimer; the actual heuristic is still a flat 1.5× column-bbox oversize. A correct implementation needs soil bearing capacity, load combinations, and serviceability checks per EC2/EC7. | New `FoundationSizingEngine` that takes `(columnLoad, soilClass, loadCombination)` and returns a footing size from EC2/EC7. |
+| ~~`DWG-STRUCT-DEEP-6` Junction-type Mark stamping~~ | **DONE** Phase 143. `JunctionMarkStamper.Stamp` appends `J:T` / `J:L` / `J:X` / `J:S` to the Mark of every column / beam participating in a detected junction. (True connection-detail synthesis — bolt patterns, weld lines, Revit connection families — remains future work, tracked as DWG-STRUCT-DEEP-6b below.) |
+| `DWG-STRUCT-DEEP-6b` Connection-detail element synthesis | Phase 143 stamps junction-type Marks but does not create connection geometry. A future pass would create bolt patterns, weld lines, or Revit structural connection family instances at each L/T/Cross junction. | Connection-element synthesizer per junction type, consumed by Revit structural connection families. |
+| ~~`DWG-STRUCT-DEEP-7` Continuous columns via Top Constraint = top level~~ | **DONE** Phase 142. `CreateColumnsWithHeight` already sets `FAMILY_TOP_LEVEL_PARAM` to the top level when `topLevel != null` — Phase 142 verified the existing behaviour, added the explicit `UseTopConstraintForContinuousColumns` config flag for documentation, and clarified the wizard tooltip. |
+| ~~`DWG-STRUCT-DEEP-8` Beams-on-walls applied per-beam, not globally~~ | **DONE** Phase 142. `BeamSupportClassifier` reads each beam endpoint's actual support type; `ApplyBeamSupportPostCreation` only applies the wall-top offset to beams that rest on a wall and not on a column. (The `BeamsRestOnWalls` config field had been on the type since Phase 78 but was never read — Phase 142 closed the loop.) |

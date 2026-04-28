@@ -4873,3 +4873,809 @@ Two real fixes:
 
 PhaseTag bumped to 139.25.
 
+#### Completed (Phase 140 — Structural DWG-to-BIM Accuracy Pass)
+
+**Branch**: `claude/fix-parallel-max-gap-H3Ha3`
+
+**Trigger**: The wizard's "Parallel max gap (mm) — 500" knob is bound to
+`config.ParallelLineToleranceMm`, which is the global parallel-pair
+distance cap, not a longitudinal endpoint gap as the label implies.
+Users trying to "close end gaps" by raising the value would silently
+loosen wall thickness detection across the corridor and pull in noise.
+
+This phase re-labels the misleading knob, surfaces a real
+endpoint-gap field, and lands ten supporting accuracy fixes for the
+DWG-to-BIM conversion pipeline.
+
+**New file** — `StingTools/Model/StructuralPhase140Accuracy.cs` (~360
+lines, 6 helpers, 1 namespace `StingTools.Model`):
+
+- `GridSnapper` — snaps detected column centres to nearest grid
+  intersection within `GridSnapToleranceMm`. Pure: returns a parallel
+  `List<SnapResult>` whose `DidSnap`/`VerticalGridLabel`/
+  `HorizontalGridLabel` are reused by the grid-label-mark step.
+- `BeamDepthCalculator.ComputeDepthMm(span, cfg)` — `span/SpanToDepthRatio`
+  clamped to `[BeamDepthMinMm, BeamDepthMaxMm]`, rounded to nearest
+  25 mm, floored at the wizard `BeamDepthMm`.
+- `BeamTrimmer.TrimEndpointsToColumns()` — moves each beam endpoint
+  that sits inside a column footprint outward by half-extent + 25 mm
+  cover along the beam axis. Handles rectangle and circle columns.
+- `DuplicateDetector.ExistingIndex` — one-shot `FilteredElementCollector`
+  scan per category, exposes `IsDuplicate(point, tolerance)` for
+  pre-filtering detected items against existing model state.
+- `SlabVoidDetector.Group(loops)` — sorts loops by area descending,
+  flags any loop whose centroid lies inside a larger un-consumed loop
+  as a void of that loop. Returns `(outer, voids[])` groupings.
+- `GridLabelMarkBuilder.ApplyMarks(doc, mapping, used)` — writes
+  `"{vert}/{horiz}"` to the `Mark` parameter of grid-snapped columns,
+  de-duplicating with `.2`, `.3` … suffixes on collision.
+- `StructuralWarningPlacer.PlaceWarnings(doc, view, warnings)` —
+  staggers TextNotes prefixed with `⚠ STING-STRUCT:` down the active
+  view in its own sub-transaction, so warning placement can fail
+  without rolling back element creation.
+
+**`StructuralCADWizard.DWGConversionConfig` — 12 new fields:**
+
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `GridSnapToleranceMm` | double | 100 | P1-A snap radius, 0 disables |
+| `UseSpanToDepthRatio` | bool | true | P1-B span-proportional depth |
+| `SpanToDepthRatio` | double | 15.0 | P1-B span/depth divisor |
+| `BeamDepthMinMm` / `BeamDepthMaxMm` | double | 250 / 1200 | P1-B clamp range |
+| `UseGridLabelsAsMarks` | bool | true | P2-C `"{vert}/{horiz}"` Mark |
+| `EndpointGapToleranceMm` | double | 50 | P2-F endpoint gap bridging |
+| `DuplicateCheckToleranceMm` | double | 50 | P3-A skip radius |
+| `SkipDuplicates` | bool | true | P3-A toggle |
+| `TrimBeamsToColumnFaces` | bool | true | P1-D toggle |
+| `ShowStructuralWarningsInView` | bool | true | P2-D toggle |
+| `NumberingPerCategory` | `Dictionary<BuiltInCategory, NumberingConfig>` | empty | P1-E |
+
+**`StructuralCADWizard` UI changes:**
+
+- "Parallel max gap (mm)" → "Parallel pair max gap (mm)" with tooltip
+  clarifying it's a perpendicular-pair cap, not a longitudinal endpoint
+  gap. New "Endpoint gap bridge (mm)" knob added next to it.
+- "Endpoint tolerance (mm)" → "Line snap tolerance (mm)" tooltip
+  upgraded to clarify scope.
+- "Parallel dot tolerance" → "Parallelism tolerance (cos θ)" with
+  tooltip explaining cosine ↔ skew angle relationship.
+- New "ACCURACY (Phase-140)" sub-section under DETECTION with five
+  toggles (Skip duplicates / Trim beams to column faces / Show
+  structural warnings in view / Use grid labels as column marks /
+  Span-proportional beam depth) and four numeric knobs (Span/depth
+  ratio, Grid snap tol, Beam depth min/max, Duplicate-check tol).
+- `_chkColumnsContinuousCad` tooltip explains the two
+  modelling approaches and their analytical implications.
+- LEVEL CONFIGURATION card gained an italic note: "column heights at
+  repeat levels are derived from level-to-level spacing, not the
+  BEAM/COLUMN Height field" (P1-C clarification).
+- PER-ELEMENT SIZE DETECTION → Foundations row now reads
+  "× 1.5× oversize*" with a footer disclaimer marking the EC7 §6.5
+  reference as a heuristic, not a code-compliant sizing rule.
+- ELEMENT NUMBERING — new "Number every structural category
+  independently" toggle (P1-E). When on, switching the Category
+  dropdown snapshots the previous category's UI state and restores the
+  next category's saved state. Defaults: COL-, BM-, W-, SL-, FDN-.
+- Footer — new "Re-analyse (dry-run)" button (P3-D) runs the dry-run
+  pipeline without closing the dialog. Status bar reports per-element
+  counts so the user can iterate on tolerances.
+
+**`StructuralCADPipeline.RunFullPipelineWithConfig` — wired the new
+helpers in execution order:**
+
+1. After `ExtractStructuralGeometry`: P1-A grid-snap pass
+   (mutates `DetectedRectangle.Center` / `DetectedCircle.Center` and
+   captures `_lastRectSnapInfo` / `_lastCircleSnapInfo` for P2-C).
+2. P1-D beam endpoint trim against the (now-snapped) column footprints.
+3. P3-A duplicate-detection pre-filter — drops detected items whose
+   reference points sit within `DuplicateCheckToleranceMm` of any
+   existing element of the matching category. Reports a roll-up
+   warning with the count.
+4. Repeat-to-levels loop: P1-C now warns when the topmost storey has
+   no level above and falls back to `ColumnHeightMm`.
+5. `CreateBeamsFromLines` — P1-B per-beam depth derived from
+   `BeamDepthCalculator.ComputeDepthMm(spanMm, cfg)`. Type cache key
+   updated from `{defaultDepthMm}x{widthMm}` to `{depthMm}x{widthMm}`.
+6. `CreateSlabsFromBoundaries` — P2-B passes `SlabVoidDetector.Group`
+   output through to `Floor.Create(doc, loops, ...)` so nested closed
+   loops come through as actual voids.
+7. Post-creation audit: P2-D placement of `StructuralWarningPlacer`
+   TextNotes in the active view when `ShowStructuralWarningsInView`.
+8. Numbering: switches to `NumberingEngine.ApplyAllPerCategory` when
+   `NumberingPerCategory` is populated; falls back to legacy
+   `ApplyNumbering` otherwise.
+9. P2-C grid-label-mark step runs AFTER per-category numbering so
+   grid-derived `"A/1"` style marks win on grid-snapped columns.
+   Non-snapped columns keep their sequential per-category number.
+
+**`NumberingEngine.ApplyAllPerCategory(doc, perCategory, scope)`** — new
+method iterates the dictionary, filters scope to each category's
+ElementIds, and invokes the existing `ApplyNumbering()` per category.
+Returns the summed count.
+
+**Explicitly out of scope (deferred to ROADMAP):**
+
+- Strip foundation detection (P2-A) — needs a new
+  `DetectStripFoundations` pass against wall centrelines; substantial
+  new detection logic.
+- Endpoint gap bridging (P2-F) at the detection layer — config field
+  is wired and available, but the spatial-index pair-detection inner
+  loops in `StructuralDWGEnhancements.SpatialLineIndex` still need to
+  read it during pair matching.
+- Slab → room seeding (P3-B), auto-create structural views after
+  conversion (P3-C) — independent post-processors that can land in a
+  follow-up phase without touching the core pipeline.
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox, no
+   Revit API). Each helper sticks to documented Revit 2025 API
+   signatures; sub-transaction wrapping in `StructuralWarningPlacer`
+   isolates risk. No `// TODO-VERIFY-API` markers were needed.
+2. Grid-snap classifies grids into vertical (constant X) vs horizontal
+   (constant Y) by line geometry, not by the `IsHorizontal` flag —
+   the flag is a draughting hint that doesn't always align with
+   plan-view axes.
+3. `BeamTrimmer` uses an axis-aligned column footprint approximation
+   (rectangle bbox extents projected along beam direction). Rotated
+   columns trim conservatively along the longer half-extent.
+4. Per-category numbering snapshots only fire when the user toggles
+   the Category dropdown with the "Number every structural category
+   independently" checkbox ON. If the user fills in numbering UI
+   without flipping that toggle, only the active category is numbered.
+5. The Re-analyse dry-run runs the FULL pipeline with `DryRun=true`,
+   including the duplicate-pre-filter and grid-snap passes. Counts
+   reflect what `Convert to BIM` would produce with the current
+   settings.
+
+#### Completed (Phase 141 — Detection-method facade + named entry points)
+
+**Branch**: `claude/fix-parallel-max-gap-H3Ha3`
+
+**Trigger**: Phase 140 review noted that `StructuralDWGEngine.cs`,
+`StructuralDWGCommands.cs`, `DetectJunctions`, `DetectStructuralWalls`,
+`AnalyzeLoadPaths`, `FindOrCreateBeamType`, and `DetectCircularColumns`
+were referenced in CLAUDE.md but variously didn't exist on disk, lived
+under different class names, or produced data that the pipeline
+discarded. This phase closes those gaps so each named entry point is
+genuinely callable from outside the wizard.
+
+**Audit findings (corrects Phase 140's Explorer-agent report):**
+
+| Identifier | Truth | Phase 141 action |
+|---|---|---|
+| `DetectStructuralWalls` | Already exists (`StructuralCADPipeline.cs:1145`, returns `List<DetectedWall>`) | Re-exposed via `StructuralDWGEngine` facade — no rewrite |
+| `DetectJunctions` | Already exists (`StructuralCADPipeline.cs:1302`, returns `List<(XYZ, string, int)>`) | Re-exposed; warning-class output now placed as TextNotes |
+| `AnalyzeLoadPaths` | Lives on `StructuralModelingEngine.cs:2486` | Re-exposed via `StructuralDWGEngine.AnalyzeLoadPaths()` |
+| `FindOrCreateBeamType` | Lives on `StructuralTypeFactory.cs:439` | Re-exposed via `StructuralDWGEngine.FindOrCreateBeamType()` |
+| `DetectCircularColumns` | Did NOT exist as a named method (extraction's inline check used compile-time constants) | NEW — `StructuralCADPipeline.DetectCircularColumns(circles, out rejected)` re-validates against config-driven size band |
+| `StructuralDWGEngine.cs` | Did NOT exist (CLAUDE.md described it but file was absent) | NEW — focused facade with detection methods + quality scoring |
+| `StructuralDWGCommands.cs` | Did NOT exist | NEW — 3 standalone IExternalCommands |
+
+**New file** — `StingTools/Model/StructuralDWGEngine.cs` (~225 lines, 1
+public class `StructuralDWGEngine`, 1 namespace `StingTools.Model`):
+
+- Detection facade — every named detection method exposed as a thin
+  delegate so non-wizard callers can use them in any order.
+- `RunWithConfig(import, config)` / `RunWithDefaults(import,
+  baseLevelName, topLevelName)` — batch / scriptable conversion.
+- `Audit(import, config)` — non-destructive run; returns
+  `AuditResult` with extraction + junctions + quality score + duration.
+- `ComputeQualityScore(extraction, junctions)` — 0-100 score with
+  per-component penalties:
+  - −5 per "Beam intersection (no column — WARNING)" junction
+  - −2 per "Free end (no support)" junction
+  - −0.1 per low-confidence detected element (< 0.7 confidence)
+  - DetectionRatio metric tracks detected elements / total entities.
+
+**New file** — `StingTools/Model/StructuralDWGCommands.cs` (~205 lines,
+3 IExternalCommand classes):
+
+- `QuickStructuralDWGCommand` — one-click conversion on the first DWG
+  import in the project using default config + first level by
+  elevation. Reports the conversion summary in a TaskDialog.
+- `StructuralDWGAuditCommand` — read-only audit. Runs detection +
+  scoring, shows quality score and per-element breakdown.
+- `StructuralDWGJunctionScanCommand` — scans the active DWG for
+  unsupported beam intersections + free beam ends, places ⚠
+  STING-STRUCT TextNote markers in the active view at every flagged
+  junction location. Wraps in a sub-transaction.
+
+**`DetectCircularColumns` (new method)** —
+`StructuralCADPipeline.cs:1132`. Re-validates an existing list of
+`DetectedCircle` against the active config's `MinColumnDiameterMm` /
+`MaxColumnDiameterMm`. Sister method to `DetectStructuralWalls` and
+`DetectRectangularColumnsV2`. The legacy extraction path keeps using
+its inline check with compile-time constants (`MinColumnSizeMm = 150`,
+`MaxColumnSizeMm = 1500`); this method gives external callers a hook
+to tighten or loosen the size band per project.
+
+Wired into `RunFullPipelineWithConfig`: when the user-set bounds
+differ from the defaults, the pass replaces `extraction.Circles` with
+the accepted subset and warns about the rejection count.
+
+**Junction warnings → TextNotes** — `DetectJunctions` has always
+classified beam intersections, but the legacy pipeline only used the
+result for the summary string. Now wired into
+`RunFullPipelineWithConfig`: each junction whose type contains
+"WARNING" or starts with "Free end" produces a ⚠ STING-STRUCT TextNote
+at the junction centroid in the active view. New helper
+`StructuralWarningPlacer.PlaceWarningsAtPoints(doc, view, warnings,
+points)` complements the existing `PlaceWarnings(doc, view, warnings)`
+which staggers messages down the view.
+
+**3 new config fields on `DWGConversionConfig`:**
+
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `MinColumnDiameterMm` | double | 150 | Lower band for `DetectCircularColumns` |
+| `MaxColumnDiameterMm` | double | 1500 | Upper band for `DetectCircularColumns` |
+| `ShowJunctionWarningsInView` | bool | true | Toggle for junction → TextNote placement |
+
+**`StructuralDWGEngine` does NOT register itself in StingCommandHandler.**
+The three commands are standalone `IExternalCommand` classes intended
+for direct invocation via the .addin manifest, AddinManager, or future
+dock-panel wiring. Wizard-driven conversion still goes through the
+existing `StrCADWizardCommand` in `StructuralModelingCommands.cs:1009`.
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox, no
+   Revit API).
+2. `StructuralDWGEngine` is a thin facade — it re-exposes
+   methods rather than re-implementing them, so the actual detection
+   logic still lives in `StructuralCADPipeline.cs`. Future passes that
+   want to bypass the wizard can substitute their own pipeline
+   implementation behind the same facade.
+3. The quality score is a heuristic for at-a-glance triage, not a
+   structural-engineering metric. It does not check element-by-element
+   geometric validity, code compliance, or analytical model health —
+   those go through `AnalyzeLoadPaths` and downstream.
+4. The three new commands all operate on the FIRST `ImportInstance`
+   found in the project. Multi-DWG documents need an interactive
+   import picker — listed in ROADMAP for the next iteration.
+5. `DetectCircularColumns`'s out-band rejection only logs a count, not
+   the rejected circles' coordinates. Callers needing the rejection
+   detail should call the method directly via `StructuralDWGEngine`
+   and consume the `out rejected` list.
+
+#### Completed (Phase 142 — Structural DWG-to-BIM ROADMAP closures)
+
+**Branch**: `claude/fix-parallel-max-gap-H3Ha3`
+
+**Trigger**: Phase 140 deferred eight `DWG-STRUCT-*` ROADMAP items so
+each could land cleanly in its own follow-up. This phase closes six of
+them (P2A, P2F, DEEP-3, DEEP-4, DEEP-7, DEEP-8) and wires Phase 141's
+new commands into the dispatcher.
+
+**Bug found and fixed (DEEP-8 / DEEP-3)**: the `BeamsRestOnWalls`
+config field has been on `DWGConversionConfig` since Phase 78, but the
+creation pipeline never read it. Beams were created at level base
+elevation regardless of whether they sat on a wall, so users who ticked
+the box saw no behaviour change. Phase 142 adds a per-beam classifier
+that reads the support type at each endpoint (column / wall /
+unsupported) and only applies the wall-top offset to beams that
+actually rest on a wall and not on a column.
+
+**`StingCommandHandler.cs`** — three new dispatch entries wire the
+Phase 141 commands into the dock-panel command bus:
+`QuickStructuralDWG`, `StructuralDWGAudit`, `StructuralDWGJunctionScan`.
+
+**`StructuralCADPipeline.cs` — wiring + new method:**
+
+- `BeamOverlapMinRatio` now flows from `DWGConversionConfig` into
+  `DetectBeamCenterlinesV2` (default 50%) and `DetectStructuralWalls`
+  (`ratio - 10%` to keep walls slightly stricter than beams).
+  Configurable from the wizard ACCURACY (Phase-142) section.
+- `DetectStructuralWalls` and `DetectBeamCenterlinesV2` now apply
+  `EndpointGapToleranceMm` at the longitudinal-overlap check —
+  synthesises overlap when two parallel lines fall just shy of
+  overlapping (within the configured gap). Closes ROADMAP
+  `DWG-STRUCT-P2F`.
+- New `ApplyBeamSupportPostCreation` method runs after
+  `CreateBeamsFromLines` to:
+  - Lift beams whose endpoints rest on a wall (and not on a column)
+    by `WallHeightMm` via `STRUCTURAL_BEAM_END0_ELEVATION` /
+    `_END1_ELEVATION`.
+  - Stamp the Comments parameter with `STING: Cantilever (start|end)`
+    or `STING: Free beam (no support)` when the classifier reports a
+    free end. Beams are then schedule-discoverable by Comments filter.
+  Closes ROADMAP `DWG-STRUCT-DEEP-3` and `DWG-STRUCT-DEEP-8`.
+- Strip foundations: when `DetectStripFoundations=true` and walls were
+  detected, builds rectangular loops along each wall centreline
+  (oversized by `StripFndOversizeMm` per side) and feeds them to
+  `CreateSlabsFromBoundaries`. Reports the count separately. Closes
+  ROADMAP `DWG-STRUCT-P2A`.
+
+**`StructuralPhase140Accuracy.cs` — two new helpers:**
+
+- `BeamSupportClassifier` (Phase-142) — `ClassifyAll(beams, rectColumns,
+  circleColumns, walls, toleranceMm)` returns a `List<BeamSupport>`
+  with `StartSupport` / `EndSupport` of `None`/`Column`/`Wall`/`Both`.
+  Also exposes `RestsOnWall`, `HasFreeEnd`, `IsCantilever` flags.
+- `StripFoundationDetector` (Phase-142) — `Detect(walls, cfg)` returns
+  rectangular loops aligned with each wall centreline. Each loop
+  extends past the wall length by `StripFndOversizeMm` per side, and
+  past wall thickness by the same per side. Layer label
+  `STING-STRIP-FOUNDATION`.
+
+**`DWGConversionConfig` — 6 new fields:**
+
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `BeamOverlapMinRatio` | double | 0.5 | DEEP-4 — configurable longitudinal overlap |
+| `MarkCantileverBeams` | bool | true | DEEP-3 — Comments stamp toggle |
+| `BeamSupportToleranceMm` | double | 200 | DEEP-3/8 — endpoint→support classifier tolerance |
+| `UseTopConstraintForContinuousColumns` | bool | true | DEEP-7 — documents already-correct behaviour |
+| `StripFndOversizeMm` | double | 150 | P2A — strip foundation oversize per side |
+| `DetectStripFoundations` | bool | true | P2A — toggle |
+
+Earlier Phase 141 fields `MinColumnDiameterMm` / `MaxColumnDiameterMm`
+also got wizard UI knobs in this phase.
+
+**`StructuralCADWizard.cs` UI — new ACCURACY (Phase-142) sub-section:**
+
+- Two toggles: "Detect strip foundations under walls" (default ON),
+  "Mark cantilever / free beams in Comments" (default ON).
+- Five numeric knobs:
+  - Min column diameter (mm) → `MinColumnDiameterMm`
+  - Max column diameter (mm) → `MaxColumnDiameterMm`
+  - Beam overlap ratio (0-1) → `BeamOverlapMinRatio`
+  - Strip oversize (mm/side) → `StripFndOversizeMm`
+  - Beam-support tol (mm)    → `BeamSupportToleranceMm`
+
+**ROADMAP closures** (move from `docs/ROADMAP.md` into this entry):
+
+- ✓ `DWG-STRUCT-P2A`  — strip foundation detection under walls
+- ✓ `DWG-STRUCT-P2F`  — endpoint gap bridging at the detection layer
+- ✓ `DWG-STRUCT-DEEP-3` — cantilever detection
+- ✓ `DWG-STRUCT-DEEP-4` — beam-overlap ratio configurability
+- ✓ `DWG-STRUCT-DEEP-7` — Top-Constraint continuous columns (existing
+  code in `CreateColumnsWithHeight` was already correct — Phase 142
+  documents the behaviour and adds the explicit config flag)
+- ✓ `DWG-STRUCT-DEEP-8` — per-beam BeamsRestOnWalls (the genuine bug)
+
+Still open: `DWG-STRUCT-P3B` (slab→room seeding), `DWG-STRUCT-P3C`
+(auto-create structural views), `DWG-STRUCT-DEEP-1` (steel I-section
+vs concrete inference), `DWG-STRUCT-DEEP-2` (pile cap / raft / strip
+differentiation), `DWG-STRUCT-DEEP-5` (EC7 sizing with soil class),
+`DWG-STRUCT-DEEP-6` (junction-type assignment beyond detection).
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. The post-creation beam pass aligns supports with created beams by
+   index order. If `CreateBeamsFromLines` skips a beam (try/catch on
+   exception path), subsequent supports may misalign. The pass guards
+   against this by checking each element's category before applying
+   the offset, so a misaligned support results in a no-op rather than
+   a wrong-element edit.
+3. Strip foundations are created via `CreateSlabsFromBoundaries` which
+   uses the floor type matched to `FoundationDepthMm`. The resulting
+   element is a structural floor (not a `WallFoundation`); for true
+   wall-foundation join behaviour, manual conversion in Revit is still
+   needed. Documented as a follow-up.
+4. The cantilever Comments stamp is descriptive only — the analytical
+   model still treats cantilevers as if both ends were supported until
+   the engineer runs `Manage → Analytical Model → Auto-Detect Releases`.
+5. The new `ACCURACY (Phase-142)` UI section adds one toggle row +
+   five numeric knobs. Combined with the Phase-140 ACCURACY section,
+   the DETECTION card is now ~12 rows tall — the wizard scrollviewer
+   keeps everything reachable but a visual redesign for screens
+   < 768 px is on the future-enhancements list.
+
+#### Completed (Phase 143 — Structural DWG-to-BIM ROADMAP closures, wave 2)
+
+**Branch**: `claude/fix-parallel-max-gap-H3Ha3`
+
+**Trigger**: Phase 142 closed 6 of 8 deferred `DWG-STRUCT-*` items but
+left 5 still open. This phase closes 5 more, all wired through a new
+focused helper file.
+
+**ROADMAP closures:**
+
+- ✓ `DWG-STRUCT-P3B` — Slab centroid → room seeding
+- ✓ `DWG-STRUCT-P3C` — Auto-create structural ViewPlans after conversion
+- ✓ `DWG-STRUCT-DEEP-1` — Steel I-section vs concrete rectangle inference
+- ✓ `DWG-STRUCT-DEEP-2` — Foundation classifier (pad / raft / pile cap)
+- ✓ `DWG-STRUCT-DEEP-6` — Junction-type Mark stamping
+
+**New file** — `StingTools/Model/StructuralPhase143Postproc.cs`
+(~495 lines, 5 helper classes):
+
+- `SlabRoomSeeder` (P3B) — `Seed(doc, level, outerSlabs, voidLoops, cfg)`
+  drops a Revit `Room` at each outer-loop centroid, skips centroids
+  inside voids and points already inside an existing room. Wraps in a
+  sub-transaction so a failure can't roll back element creation.
+- `StructuralViewCreator` (P3C) — `CreateViews(doc, createdElementIds, cfg)`
+  walks the levels referenced by created elements and creates a
+  `ViewPlan` (Structural Plan family) per level. When the Phase-113
+  `DrawingTypeRegistry` is available, applies the corporate "S-PLAN"
+  drawing type via `DrawingTypePresentation.Apply()`. Fails closed —
+  any registry or template lookup error degrades to a plain ViewPlan.
+- `BeamMaterialInferrer` (DEEP-1) — `AnnotateAll(beams, cfg)` heuristic:
+  parallel-pair beams (`WidthDetected==true`, width ≥ 200 mm) →
+  concrete rectangle; single-line beams → steel I-section. Appends
+  `STING:Material=Concrete` / `STING:Material=Steel` /
+  `STING:Material=Unknown` to the beam's `LayerName` so downstream
+  type matching can read the hint without a new field on
+  `DetectedBeam`.
+- `FoundationClassifier` (DEEP-2) — `Classify(rects, cfg)` splits
+  detected foundation rectangles into Pad / Raft / PileCap:
+  - Plan area ≥ `RaftMinAreaM2` → Raft (routed to slab-creation path
+    so it materialises as a structural floor at foundation depth).
+  - Pile-cap clustering: a rectangle within 2.5× its size of ≥ 2
+    other rectangles → PileCap (stays on pad-foundation path with
+    `STING: PileCap` Comments stamp candidate).
+  - Else → Pad.
+- `JunctionMarkStamper` (DEEP-6) — `Stamp(doc, junctions, createdIds, cfg)`
+  walks every `DetectJunctions` result and appends `J:T` / `J:L` / `J:X`
+  / `J:S` (T-junction / L-junction / Cross / Splice) to the Mark of
+  every column or beam whose endpoint sits within 250 mm of the
+  junction centroid. Free-end and warning junctions are NOT stamped
+  (they're already surfaced as TextNotes by the Phase-141 wiring).
+
+**`StructuralCADPipeline.cs` wiring** — five new call sites, each
+guarded by its config flag:
+
+1. After `BeamTrimmer.TrimEndpointsToColumns`: `BeamMaterialInferrer.AnnotateAll`.
+2. Foundation creation: when `ClassifyFoundations==true`, route Rafts
+   through `CreateSlabsFromBoundaries` and Pads + PileCaps through the
+   existing `CreatePadFoundations`. When false, keep the pre-Phase-143
+   behaviour (everything pads).
+3. After slab creation (slab path 5 in main pipeline): `SlabRoomSeeder.Seed`
+   when `SeedRoomsFromSlabs==true`. Re-uses Phase-140 `SlabVoidDetector`
+   to skip void-covered centroids.
+4. After numbering pass: `JunctionMarkStamper.Stamp` when
+   `StampJunctionMarks==true`. Runs after numbering so marks survive.
+5. Just before `sw.Stop()`: `StructuralViewCreator.CreateViews` when
+   `CreateStructuralViewsAfterConversion==true`. Adds created view
+   ElementIds to `totalResult.CreatedIds` so they participate in the
+   summary count.
+
+**`DWGConversionConfig` — 8 new fields:**
+
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `SeedRoomsFromSlabs` | bool | false | P3B toggle (default off — greenfield only) |
+| `RoomLabelSearchRadiusMm` | double | 3000 | P3B label-text proximity radius |
+| `CreateStructuralViewsAfterConversion` | bool | false | P3C toggle (default off — opt-in) |
+| `InferBeamMaterial` | bool | true | DEEP-1 toggle |
+| `ClassifyFoundations` | bool | true | DEEP-2 toggle |
+| `RaftMinAreaM2` | double | 4.0 | DEEP-2 raft cutoff |
+| `StampJunctionMarks` | bool | false | DEEP-6 toggle (default off — schedule discipline-specific) |
+
+**`StructuralCADWizard.cs` UI** — new POST-PROCESSING (Phase-143)
+sub-section in DETECTION:
+
+- Five toggles in a WrapPanel: Seed rooms from slabs / Create structural
+  views / Infer beam material / Classify foundations / Stamp junction
+  marks.
+- Two numeric knobs: Raft min area (m²) / Room label search (mm).
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. `SlabRoomSeeder` doesn't yet read text on the slab layer to populate
+   the room Name (the `RoomLabelSearchRadiusMm` config exists for
+   future iteration). Seeded rooms get Revit's default name.
+3. `BeamMaterialInferrer` mutates `LayerName` instead of adding a
+   `Material` field on `DetectedBeam` to stay zero-impact on existing
+   detection types. Type matching downstream needs to parse the suffix
+   — listed as a follow-up for `StructuralTypeFactory`.
+4. `FoundationClassifier`'s pile-cap clustering uses a 2.5× distance
+   threshold; very close pile groups (< 2× spacing) may fall into the
+   raft band instead.
+5. `JunctionMarkStamper` cluster tolerance is fixed at 250 mm. If
+   `BeamSupportToleranceMm` is set very high, the user might expect
+   the same tolerance here — listed for the next pass.
+6. `StructuralViewCreator` creates one view per level even if multiple
+   disciplines were converted in one go. Multi-discipline templates
+   would need to dispatch on `(discipline, level)` instead of `level`
+   alone — tracked under DWG-STRUCT-DEEP-9 if it becomes a real need.
+#### Completed (Phase 141 — Clash Detection Bug Fixes — Category A)
+
+Five correctness bugs in the clash subsystem fixed. Every change is in
+`StingTools/Clash/` unless noted; commits land on
+`claude/enhance-clash-detection-Tb0IS`.
+
+1. **A1 Live flag state corruption** —
+   `Clash/ClashSession.cs` `RefreshElement` was nuking
+   `_flaggedIds` on every edit by replacing the entire set with the
+   single edited element's hits. Fixed by introducing a per-element
+   neighbour index `_clashNeighbours: Dictionary<int, HashSet<int>>`
+   that tracks symmetric edges (a↔b) and computing the diff narrowed to
+   the edited element plus its prior + new neighbours. `RemoveElement`
+   maintains the same map and clears flags only on neighbours that
+   lose their last edge. `InitialiseFromView` resets the map alongside
+   the mesh / OBB caches.
+2. **A2 SLA issue anchor mismatch** —
+   `Clash/ClashSlaIntegration.cs` `CreateIssues` was looking up
+   `g.Anchor` directly in `matrix.Cells` by `PairId`, but element-
+   pattern anchors are formatted as `"{pairId} via {side}={cat}:{eid}"`
+   and repetition anchors as `"{pairId} repetition (X-row, vol≈N)"` —
+   the lookup always returned null and every issue defaulted to
+   severity "MED" / assignee "Coord". Fixed by adding
+   `ExtractPairId()` that splits on " via " or " repetition " and
+   keeps the leading PairId token before the lookup.
+3. **A3 Clearance tolerance not enforced in kernel** —
+   `Clash/ClashKernel.cs` returned `Kind="hard"` for every triangle-
+   overlap pair regardless of the matched matrix cell's tolerance.
+   Fixed by adding `ClashRunCommand.ApplyClearanceTolerance` that runs
+   after `MergeWithPrior` and walks every kept clash whose
+   `cell.Tolerance` starts with `"CLEARANCE_"`: parses the suffix as
+   mm, computes AABB overlap depth (min component of `AabbMax-AabbMin`
+   in mm), and either drops the record (overlap within tolerance —
+   tessellation sliver) or promotes `Kind` to `"clearance"`. New
+   `ClashRecord.Kind` field, JSON-optional so existing clashes.json
+   files round-trip cleanly.
+4. **A4 Live path facts missing System/Workset** —
+   `Clash/ClashSession.cs` `FactsFromMesh` populated only `Category`,
+   so any matrix cell that filtered on `System=...` silently missed in
+   the live path. Replaced with `ResolveFacts` that resolves the
+   `Element` from `_doc` and reads System / Workset (via
+   `MEPCurve.MEPSystem.Name` and the `System Name` parameter for
+   FamilyInstances). Cached per-eid in `_factsCache` so the candidate
+   loop in `NarrowPhaseFor` pays one Revit lookup per element per
+   edit, not per pair. Cache invalidated on `RefreshElement` and
+   `RemoveElement` for the affected id.
+5. **A5 Repetition grouper ignored X/Y axes** —
+   `Clash/ClashGrouper.cs` `FindRepetitionGroups` only sorted by Z and
+   only checked the Z-axis spacing, breaking horizontal risers
+   clashing with wall framing in X or Y into spatial singletons.
+   Replaced `IsEquallySpaced` with `TryComputeMeanDev` that scores
+   each axis by mean-deviation; the axis with the smallest deviation
+   wins. Anchor description now reads `"X-row"`, `"Y-row"`, or
+   `"Z-stack"` so the BCC UI shows the winning axis.
+
+#### Completed (Phase 142 — Clash Detection Performance — Category B)
+
+Three hot-path performance fixes for clash subsystem batch operations.
+
+1. **B1 CrossModelClashCommand O(n²) inner loop** —
+   `Clash/ClashDetectionCommands.cs` `CrossModelClashCommand` was
+   nesting host MEP × all linked structural per link, calling
+   `get_BoundingBox()` inside the inner loop. For a 2 000 × 1 000 × 3-
+   link model that's 6 M comparisons with Revit API calls in the
+   innermost slot. Now: pre-cache host MEP bboxes once outside the
+   loop, build per-link `Dictionary<long, (Element, LocalBb, WorldMin,
+   WorldMax)>`, and probe each link via
+   `BoundingBoxIntersectsFilter` with a per-MEP outline transformed
+   through the inverse link transform. Inner loop shrinks to a
+   pre-computed AABB sweep before paying the 8-corner narrow-phase.
+   New helper `TransformedAabb.Build` exposes the world AABB build
+   that `AabbNarrowPhase.WorldAabb` does internally.
+2. **B2 MEPClearanceValidationCommand sequential collectors** —
+   `Clash/ClashDetectionCommands.cs` `AuditOne` was creating a
+   `FilteredElementCollector` per subject element. For 1 000 elements
+   that is 1 000 collector instantiations on the Revit API. Now: a
+   single pass pre-collects every duct + pipe + structural element
+   into `List<(ElementId, BoundingBoxXYZ, Category, Bic)>`, then each
+   subject does an in-memory AABB range query against the cache. No
+   per-subject collector instantiation.
+3. **B3 ClashScheduler raised live handler not full run** —
+   `Clash/ClashScheduler.cs` was raising `LiveClashHandler.Event`
+   which only drains the dirty queue — on an idle model the hourly
+   tick was a no-op. Added `ClashRunEventHandler : IExternalEventHandler`
+   that calls `ClashRunCommand.RunHeadless(app)` (a new static entry
+   point that runs the full pipeline silently). Scheduler now reads
+   `SchedulerIntervalMinutes` from `default_clash_matrix.json`
+   (default 60) and gates ticks on
+   `ClashSession.LastDirtyAtUtc > _lastRunUtc` so an idle model with
+   no edits since the last run is skipped. `MarkDirty` is called from
+   `RefreshElement` and `RemoveElement` to update the volatile
+   timestamp.
+
+#### Completed (Phase 143 — Clash Detection Automation — Category C)
+
+Six automation-logic gaps closed in the clash subsystem.
+
+1. **C1 ClashTriageEngine wired into ClashRunCommand** —
+   `Clash/ClashRunCommand.cs` now runs `ClashTriageEngine.Triage` after
+   `ClashGrouper.Group`. Inputs are built from `run.Clashes` plus the
+   immediately-prior `ClashRunRecord`: `RecurrenceCount` = identity
+   match in prior run (0/1), `DismissCount` = "Void" transitions in
+   `StateHistory`, `PenetrationMm` = computed from the AABB extent.
+   Score persisted to new `ClashRecord.TriageScore` field; clashes
+   sorted by score descending, then by severity, then by id for
+   deterministic order.
+2. **C2 Auto-assign clashes to discipline owners** —
+   `Clash/ClashSlaIntegration.cs` `EnrichAssignees(doc, issues, run)`
+   resolves workset owner names via
+   `WorksharingUtils.GetWorksharingTooltipInfo` and overlays them on
+   `CoordIssue.Assignee` plus `ClashGroupRecord.Assignee`.
+   `ClashRunCommand.EnrichGroupAssignees` synthesises a placeholder
+   issue list per group so the same logic runs as part of the headless
+   pass without duplicating the resolution code.
+3. **C3 Per-pair clearance distance in MEPClearanceValidationCommand**
+   — `Clash/ClashDetectionCommands.cs` now loads
+   `default_clash_matrix.json` and calls `ResolveTargetMm(matrix,
+   subjectCat, neighbourCat, fallbackMm)` for each subject ↔
+   neighbour pair. CLEARANCE_xx → xx mm; HARD → 0; otherwise the
+   hardcoded `DuctMinClearMm`/`PipeMinClearMm` is the fallback. The
+   PASS/FAIL gate now uses the worst-case per-pair target rather than
+   a single per-subject constant.
+4. **C4 Cold-init live flag parameter write** —
+   `Clash/ClashRunCommand.cs` `WriteColdInitLiveFlags` calls
+   `LiveClashFlag.Apply(doc, flagged, [])` after `SeedFromRun`,
+   following the same H6 pattern (transaction outside the lock) that
+   `RefreshElement` uses. Resumed sessions now show warning triangles
+   on flagged elements immediately rather than waiting for the next
+   dirty edit. `ClashRunCommand` was changed to
+   `TransactionMode.Manual` so the flag-write transaction can open.
+5. **C5 Configurable rule thresholds in JSON** —
+   `Clash/ClashRule.cs` now stores `Params: Dictionary<string, double>`
+   per `ClashRuleDefinition`; predicates read via the new helper
+   `ClashRule.ParamOr(def, key, fallback)`. R001 / R005 / R006 / R008 /
+   R009 read their thresholds from Params with the historical
+   constant as the fallback. `ClashRuleLibrary.LoadAugmented` accepts
+   a JSON entry without `Verdict` but with a matching `Id` as a Params
+   override on a built-in rule.
+6. **C6 BCF auto-export on severity threshold breach** —
+   `Clash/ClashBcfExportCommand.ExportToBcf(doc, clashes, outDir)`
+   refactored to a public static method.
+   `Clash/ClashRunCommand.cs` calls it automatically after
+   `SeedFromRun` when `default_clash_matrix.json` carries
+   `"AutoBcfOnCritical": true` and the run kept any
+   `Severity in {CRITICAL, HIGH}` clashes whose state is `New` or
+   `Reintroduced`. New `ClashMatrix.AutoBcfOnCritical` field defaults
+   to `false` so existing matrix files round-trip without changing
+   behaviour.
+
+#### Completed (Phase 144 — Clash Detection Performance D1–D10)
+
+Ten residual hot-path performance fixes. All in `StingTools/Clash/`.
+
+1. **D1 Mesh extractor cache** — `MeshExtractor.cs` now caches the
+   `Dictionary<ClashElementKey, ClashMeshBuffer>` per-(doc, view) keyed
+   on a soft signature (taggable element count + revision count + view
+   section-box hash). Re-runs that don't change the soft signature
+   skip the entire `CustomExporter` pass — 5–30 s saved on 50 k-element
+   models. Hard invalidation hook `MeshExtractor.InvalidateCacheFor(doc)`
+   wired from `ClashScheduler` on `DocumentSaved` /
+   `DocumentSynchronizedWithCentral`.
+2. **D2 BuildFactsByKey bulk-load** — `ClashRunCommand.BuildFactsByKey`
+   groups mesh keys by owning document and runs one
+   `FilteredElementCollector(doc, ids).WhereElementIsNotElementType()`
+   per doc instead of `doc.GetElement(...)` per mesh — 50 k Revit API
+   calls collapse to a handful.
+3. **D3 Better volume estimate** — `ClashKernel.TestPair` no longer
+   reports raw AABB-intersection volume (massively inflated for
+   oblique hits). Uses min-extent depth × intersection footprint as a
+   proxy. Restores R001's 100 mm³ tessellation gate and stops triage
+   scoring every clash as a major overlap.
+4. **D4 Pair dedup encoded as long** — `AabbSweep.CandidatePairs` packs
+   the unordered pair into a 64-bit long via per-call int handles,
+   replacing the `HashSet<(ClashElementKey, ClashElementKey)>` tuple
+   allocation. ~50–200 MB GC pressure removed on 1 M-pair runs.
+5. **D5 Bounded parallelism** — `ClashKernel.BuildIndexes` and `Run`
+   now use `MaxDegreeOfParallelism = ProcessorCount-1` so the UI thread
+   keeps a free core during heavy runs.
+6. **D6 Snapshot-under-lock** — `ClashSession.NarrowPhaseFor` materialises
+   the candidate enumeration into a local list before the loop so the
+   triangle-triangle SAT work doesn't hold the session lock.
+7. **D7 Connected-id cache** — `MEPClearanceValidationCommand.AuditOne`
+   caches `GetConnectedElementIds` per subject so the connector graph
+   walk doesn't re-run.
+8. **D8 BcfSnapshotter shared view** — `BcfSnapshotter` is now
+   `IDisposable` with one reusable temp View3D for the whole batch;
+   per-clash retarget via `SetSectionBox` only. 500-clash auto-BCF runs
+   no longer create+delete 500 transient views.
+9. **D9 ClashGrouper single-pass dict** — `FindElementPatternGroups`
+   builds one `Dictionary<(pair, side, eid), List<ClashRecord>>`
+   instead of two parallel dicts.
+10. **D10 Pooled extraction buffers** — `ClashSession.TryExtractOneElement`
+    uses `[ThreadStatic]` reusable `List<float>` / `List<int>` /
+    `Dictionary<long, int>` buffers so per-edit dragging doesn't
+    allocate three fresh containers per tick.
+
+#### Completed (Phase 145 — Clash Detection Algorithm Hardening E1–E10)
+
+Ten algorithm refinements addressing identity drift, OBB pruning,
+rule precedence, and category classification.
+
+1. **E1 Fuzzy identity merge** — `ClashHistory.MergeWithPrior` falls
+   back to `(elementA, elementB, pairId)` + centroid-distance match
+   (≤ 500 mm) when the exact identity hash misses. A duct nudged 7 mm
+   no longer surfaces as "Resolved + New" with state lost.
+2. **E2 Larger-side descent** — `ClashKernel.OverlapDescend` chooses
+   the side with the larger AABB volume to descend when both children
+   are internal. Standard BVH practice — keeps subtree pairs balanced
+   and prunes deeper trees more aggressively for elongated geometry.
+3. **E3 Real OBB-OBB SAT prune** — `ObbNode.EnsureObb` derives true
+   PCA-based OBB axes/half-extents lazily; new `ObbSat.Overlap` runs
+   the 15-axis SAT test as an extra prune AFTER the AABB overlap
+   passes. Gated on `IsElongated` (longest extent > 3× shortest) so
+   box-like geometry doesn't pay the PCA cost.
+4. **E4 Strictest-wins rule precedence** — `ClashRuleEngine.Classify`
+   collects every matching rule's verdict and returns the strictest
+   (`Pseudo > Intentional > Keep`). Rule order in `BuiltIns()` is no
+   longer load-bearing — large slivers always Pseudo even when
+   listed after R008.
+5. **E5 Adaptive grouper cells** — `ClashGrouper` Pass 3 sizes its
+   spatial cells from per-pair average AABB diagonal × 1.5, clamped
+   to `[0.5 m .. 6 m]`. Light fixtures cluster at ~1 m, AHU/beam at
+   4–6 m — coordinator-relevant rather than arbitrary.
+6. **E6 Relative spacing tolerance** — `TryComputeMeanDev` uses
+   `tolerance = max(0.05 ft, 0.1 × mean)` so tightly-packed lights
+   and wide beam centres both detect repetition correctly.
+7. **E7 Median-extent overlap depth** — `ApplyClearanceTolerance` uses
+   the median of the three intersection extents rather than the min;
+   captures the dominant penetration direction for oblique hits.
+8. **E8 ElementId-based self-clash filter** — `ClashSession.NarrowPhaseFor`
+   adds a defence-in-depth short-circuit when both meshes resolve to
+   the same `ElementId` (same FamilyInstance with multiple Solids).
+9. **E9 BuiltInCategory-based severity classifier** —
+   `ClashTriageEngine.IsStructural / IsServices` use OST_-prefixed
+   category sets instead of substring matches on display names. Curtain
+   walls correctly classified as architectural rather than structural.
+10. **E10 Persisted RecurrenceCount** — `ClashRecord.RecurrenceCount`
+    new field; `MergeWithPrior` increments it on every Reintroduced
+    transition; `ClashRunCommand` reads from the persisted value when
+    building `ClashInput.RecurrenceCount` so a clash reintroduced 4×
+    scores correctly (prior code capped at 1).
+
+#### Completed (Phase 146 — Clash Detection Automation F1–F14)
+
+Fourteen automation hooks that change coordinator behaviour rather
+than just report on it.
+
+1. **F1 Repeat-offender severity escalation** — `ClashHistory` promotes
+   severity one tier (LOW→MED→HIGH→CRITICAL) when `RecurrenceCount`
+   reaches 3. Logged as a `StateTransition` so the audit trail shows
+   the bump.
+2. **F2 CLASH_COUNT_INT parameter** — `LiveClashFlag.ApplyWithCounts`
+   writes a per-element clash count alongside `CLASH_LIVE_FLAG`. View
+   filters can now select "elements with > 3 clashes" for heat-map
+   templates.
+3. **F3 Ring-buffer archive** — `ClashPersistence.Save` mirrors every
+   run to `<dir>/archive/clashes_<utc>.json` capped at 30 entries.
+   `LoadArchive(dir, max)` returns the newest-first series for trend
+   reports / XLSX export.
+4. **F4 Event-driven scheduler triggers** — `ClashScheduler.Start`
+   subscribes to `Application.DocumentSaved` and
+   `DocumentSynchronizedWithCentral`; the periodic poll remains as a
+   fallback. Hooks invalidate `MeshExtractor` cache so post-save state
+   regenerates immediately.
+5. **F5 Score every clash** — new `ClashTriageEngine.TriageAll(inputs)`
+   returns the full scored set; `Triage(inputs)` is now a thin
+   `TriageAll().Take(TopN)` shim. `ClashRunCommand` persists score on
+   every `ClashRecord` rather than the first 20.
+6. **F6 IssueGuid back-link** — `ClashSlaIntegration.CreateIssues`
+   writes the new issue's GUID onto every member `ClashRecord.IssueGuid`
+   (and `LinkedIssueGuid` for legacy compat) so BCF re-import can
+   reconstruct the (issue, clash[]) association.
+7. **F7 ClashXlsxExportCommand** — new command and reusable
+   `ExportToXlsx(run, path)` static (ClosedXML). Four sheets: Summary
+   (run stats + severity buckets), Clashes (autofilter, per-row severity
+   colour), Groups, Trend (F3 archive series, last 30 runs).
+8. **F8 Exclusion audit log** — `ClashExclusions.IsExcludedAudited`
+   appends every `excluded` outcome to
+   `<dir>/clash_exclusions_audit.jsonl` with timestamp / matrix pair /
+   approver / reason / run id. ISO 19650 stage-gate evidence.
+9. **F9 Watched-element mechanism** — `ClashSession.Watch / Unwatch /
+   IsWatched / WatchedSnapshot`. `LiveClashHandler` re-runs narrow-
+   phase for every watched element on every tick within the 200 ms
+   budget so coordinators can pin a hard-to-investigate clash.
+10. **F10 Notification dispatch sidecar** — new `ClashNotifications`
+    type appends `clash_notifications.jsonl` events for every CRITICAL
+    or HIGH `New` / `Reintroduced` clash plus every severity escalation.
+    Local-first (no network coupling); a future Planscape adapter can
+    tail and forward to FCM / Slack / SignalR.
+11. **F11 Stage-gate clash budget** — `StageComplianceGateCommand`
+    reads `clashes.json` and adds a clash-budget check: Stage 4
+    requires zero active CRITICAL; Stage 5+ tightens to zero
+    CRITICAL OR HIGH. Reports per-stage in the existing TaskDialog.
+12. **F12 Element-level workset majority vote** —
+    `ClashSlaIntegration.EnrichAssignees` resolves owner per element
+    (cached), tallies votes per group, and assigns the majority
+    winner. Mixed-owner groups get a `(mixed)` suffix.
+13. **F13 Geometric resolution annotation** — `ClashHistory.MergeWithPrior`
+    annotates the prior record's `StateHistory` with
+    `By = "geometric (no longer detected)"` when an identity lapses,
+    closing the loop with `ResolutionHeuristics`.
+14. **F14 Full ClashRule overrides** — `ClashRuleLibrary.LoadAugmented`
+    treats any matching `Id` as an override on a built-in. Project
+    JSON can now patch any of `FilterA / FilterB / Verdict /
+    Description / Params / VolumeBelowMm3 / VolumeAboveMm3` without
+    re-defining the whole rule.

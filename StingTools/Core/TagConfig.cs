@@ -3059,15 +3059,19 @@ namespace StingTools.Core
             if (mode == 0) mode = ParamRegistry.DisplayModeDefault;
             string display = BuildDisplayTag(el, mode);
 
-            // ORPHAN-FIX: honour the Tokens & Depth TokenMask when the user is in
-            // full 8-segment mode. Other modes already display subsets.
+            // FG-04: honour TAG_SEG_MASK_TXT (per-element / view-stamped by
+            // TokenProfileApplier step 7.5) BEFORE the global TokenMask UX
+            // hint. Profile-driven mask wins over UI hint, both apply only
+            // in full 8-segment mode (mode 5 / 0).
             try
             {
                 if (mode == 5 || mode == 0)
                 {
-                    string mask = StingTools.UI.StingCommandHandler.GetExtraParam("TokenMask");
-                    if (!string.IsNullOrEmpty(mask) && mask.Length >= 8 && mask != "11111111")
-                        display = ApplySegmentMask(display, mask);
+                    string elMask = ParameterHelpers.GetString(el, ParamRegistry.TAG_SEG_MASK);
+                    if (string.IsNullOrEmpty(elMask))
+                        elMask = StingTools.UI.StingCommandHandler.GetExtraParam("TokenMask");
+                    if (!string.IsNullOrEmpty(elMask) && elMask.Length >= 8 && elMask != "11111111")
+                        display = ApplySegmentMask(display, elMask);
                 }
             }
             catch { /* mask is an optional UX hint — ignore failures */ }
@@ -5426,34 +5430,42 @@ namespace StingTools.Core
                 classMarked.Append($"\u00ABV\u00BB{typeComments}\u00AB/V\u00BB");
             }
 
-            // ISO reference always added with connecting language
-            // S02 defensive guards — trap upstream token corruption so the narrative stays readable
-            // even when a PROD/SYS/etc. writer accidentally concatenated multiple descriptors into
-            // one token slot, or when TagPrefix/TagSuffix already appears in the joined string.
-            string[] isoTokens = new string[tokenValues.Length];
-            for (int i = 0; i < tokenValues.Length; i++)
+            // FG-07: prefer ASS_TAG_1 (already assembled by BuildAndWriteTag,
+            // the single source of truth for tag composition) when it is
+            // populated. Falls back to inline re-assembly only when the
+            // canonical tag has not been built yet — avoids divergence
+            // between Section F and the assembled tag.
+            string fullTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+            if (string.IsNullOrEmpty(fullTag))
             {
-                string v = tokenValues[i];
-                if (!string.IsNullOrEmpty(v) && !string.IsNullOrEmpty(Separator) && v.Contains(Separator))
+                // S02 defensive guards — trap upstream token corruption so the narrative stays readable
+                // even when a PROD/SYS/etc. writer accidentally concatenated multiple descriptors into
+                // one token slot, or when TagPrefix/TagSuffix already appears in the joined string.
+                string[] isoTokens = new string[tokenValues.Length];
+                for (int i = 0; i < tokenValues.Length; i++)
                 {
-                    StingLog.Warn($"BuildTag7Sections: token[{i}]='{v}' contains separator '{Separator}'. " +
-                                  $"ElementId={el?.Id}. Truncating to first segment.");
-                    v = v.Split(new[] { Separator }, 2, StringSplitOptions.None)[0];
+                    string v = tokenValues[i];
+                    if (!string.IsNullOrEmpty(v) && !string.IsNullOrEmpty(Separator) && v.Contains(Separator))
+                    {
+                        StingLog.Warn($"BuildTag7Sections: token[{i}]='{v}' contains separator '{Separator}'. " +
+                                      $"ElementId={el?.Id}. Truncating to first segment.");
+                        v = v.Split(new[] { Separator }, 2, StringSplitOptions.None)[0];
+                    }
+                    isoTokens[i] = v;
                 }
-                isoTokens[i] = v;
-            }
-            string fullTag = string.Join(Separator, isoTokens);
-            if (!string.IsNullOrEmpty(TagPrefix) &&
-                !fullTag.StartsWith(TagPrefix + Separator, StringComparison.Ordinal) &&
-                !fullTag.StartsWith(TagPrefix, StringComparison.Ordinal))
-            {
-                fullTag = TagPrefix + Separator + fullTag;
-            }
-            if (!string.IsNullOrEmpty(TagSuffix) &&
-                !fullTag.EndsWith(Separator + TagSuffix, StringComparison.Ordinal) &&
-                !fullTag.EndsWith(TagSuffix, StringComparison.Ordinal))
-            {
-                fullTag = fullTag + Separator + TagSuffix;
+                fullTag = string.Join(Separator, isoTokens);
+                if (!string.IsNullOrEmpty(TagPrefix) &&
+                    !fullTag.StartsWith(TagPrefix + Separator, StringComparison.Ordinal) &&
+                    !fullTag.StartsWith(TagPrefix, StringComparison.Ordinal))
+                {
+                    fullTag = TagPrefix + Separator + fullTag;
+                }
+                if (!string.IsNullOrEmpty(TagSuffix) &&
+                    !fullTag.EndsWith(Separator + TagSuffix, StringComparison.Ordinal) &&
+                    !fullTag.EndsWith(TagSuffix, StringComparison.Ordinal))
+                {
+                    fullTag = fullTag + Separator + TagSuffix;
+                }
             }
             if (classPlain.Length > 0) { classPlain.Append(". Assigned "); classMarked.Append(". Assigned "); }
             classPlain.Append($"ISO 19650 tag {fullTag}");

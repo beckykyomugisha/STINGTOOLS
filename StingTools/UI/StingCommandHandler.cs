@@ -1453,6 +1453,10 @@ namespace StingTools.UI
                     case "DWGInteractivePickWall": RunCommand<Model.DWGInteractivePickWallCommand>(app); break;
                     case "DWGInteractivePickColumn": RunCommand<Model.DWGInteractivePickColumnCommand>(app); break;
                     case "DWGInteractivePickBeam": RunCommand<Model.DWGInteractivePickBeamCommand>(app); break;
+                    // Phase-141 standalone DWG commands (StructuralDWGEngine facade)
+                    case "QuickStructuralDWG": RunCommand<Model.QuickStructuralDWGCommand>(app); break;
+                    case "StructuralDWGAudit": RunCommand<Model.StructuralDWGAuditCommand>(app); break;
+                    case "StructuralDWGJunctionScan": RunCommand<Model.StructuralDWGJunctionScanCommand>(app); break;
                     case "StrCheckPrerequisites": RunCommand<Model.StrCheckPrerequisitesCommand>(app); break;
                     case "StrBrowseTypeCatalog": RunCommand<Model.StrBrowseTypeCatalogCommand>(app); break;
                     case "StrAutoFoundations": RunCommand<Model.StrAutoFoundationsCommand>(app); break;

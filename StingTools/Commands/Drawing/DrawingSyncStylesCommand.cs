@@ -121,4 +121,80 @@ namespace StingTools.Commands.Drawing
             return sb.ToString();
         }
     }
+
+    /// <summary>
+    /// FG-10 / INT-07: force-resync command. Re-applies every stamped
+    /// view's profile, including the views whose drifts are suppressed
+    /// because their currently-applied view template controls the
+    /// parameter. The applier still respects STING_STYLE_LOCKED_BOOL —
+    /// only the template-control suppression is overridden.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class DrawingForceResyncCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
+        {
+            try
+            {
+                var doc = data?.Application?.ActiveUIDocument?.Document;
+                if (doc == null) { msg = "No document open."; return Result.Failed; }
+
+                var reports = DrawingDriftDetector.Scan(doc)
+                    .Where(r => r.Any || r.AnySuppressed).ToList();
+                if (reports.Count == 0)
+                {
+                    TaskDialog.Show("STING — Force Resync",
+                        "No stamped views need re-syncing — every profile-controlled value matches the live state.");
+                    return Result.Succeeded;
+                }
+
+                var confirm = new TaskDialog("STING — Force Resync (Suppressed)")
+                {
+                    MainInstruction = $"{reports.Count} view(s) will be re-applied",
+                    MainContent =
+                        "Force-resync re-runs every stamped view's profile, including the ones whose " +
+                        "drift was previously suppressed because the view template controls the parameter. " +
+                        "Use this after editing a view template that intentionally diverges from the profile " +
+                        "but you want the profile back as the authority.\n\n" +
+                        "STING_STYLE_LOCKED views are still skipped.",
+                    CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel,
+                    DefaultButton = TaskDialogResult.Cancel,
+                };
+                if (confirm.Show() != TaskDialogResult.Ok) return Result.Cancelled;
+
+                int resynced = 0;
+                using (var tx = new Transaction(doc, "STING — Force Resync (Suppressed)"))
+                {
+                    tx.Start();
+                    foreach (var r in reports)
+                    {
+                        if (!(doc.GetElement(r.ViewId) is View v)) continue;
+                        var dt = DrawingTypeRegistry.Get(doc, r.DrawingTypeId);
+                        if (dt == null) continue;
+                        var applied = DrawingTypePresentation.Apply(doc, v, dt, new DrawingTypePresentation.ApplyOptions
+                        {
+                            AnnotationOptions = new AnnotationRunOptions
+                            {
+                                SkipAutoTag = true, SkipAutoDim = true, SkipDecorative = true, SkipSpots = true
+                            }
+                        });
+                        if (applied.ScaleApplied || applied.DetailLevelApplied
+                            || applied.TemplateApplied || applied.PackApplied
+                            || applied.TokenProfileApplied)
+                            resynced++;
+                    }
+                    tx.Commit();
+                }
+                TaskDialog.Show("STING — Force Resync", $"Re-applied profile on {resynced} view(s).");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("DrawingForceResync", ex);
+                msg = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
 }
