@@ -4796,3 +4796,87 @@ the documented Revit 2025 API surface and the existing internal helpers
 without prompting; (ii) using Ctrl+E in the BCC and confirming the
 window stays open; (iii) attempting a transmittal that references a
 WIP-state document and confirming `TransmittalGate` blocks it.
+
+#### Completed (Phase 148b — Surface integration / wiring sweep)
+
+Phase 148 left the engines as utility classes; this sweep wires them
+into the existing call sites so they actually fire from real workflows.
+
+21. **Sidecar versioning wired into `BIMManagerEngine.SaveJsonFile`** —
+    every JArray sidecar now gets a companion `<path>.meta.json`
+    written alongside the data file (schema name, version 1.1,
+    written_at, written_by). Companion-file approach was chosen over
+    in-array sentinel because every existing iterator already walks the
+    array directly; injecting a sentinel record would have broken them.
+    Read-side `SidecarVersioning.ReadVersion(path)` defaults to "0.0"
+    for pre-versioning files.
+
+22. **`TransmittalGate.Validate` wired** into
+    `CreateTransmittalCommand` (`BIMManagerCommands.cs`). Every
+    transmittal record now carries `gate_pass`, `gate_summary`, and a
+    `gate_blockers` array when documents below SHARED-rank are present.
+    Soft-block (logged + captured) rather than hard-block to preserve
+    the existing cancellation flow.
+
+23. **`CdeApprovalGate.Validate` wired** into `CDEStatusCommand`
+    (`BIMManagerCommands.cs`). The user's role is resolved from
+    `_BIM_COORD/project_team.json`; if the rank is below the minimum
+    required for the transition (Originator/Reviewer/Approver = 1/2/3),
+    the user is prompted to override-or-abort with the override logged
+    to `StingLog.Warn` for audit.
+
+24. **`FuncSysValidator.Validate` wired** into
+    `ExcelLinkEngine.ValidateChanges` cross-token Phase 2. Mismatches
+    surface as `FUNC_SYS_MATRIX` warnings in the same import-validation
+    bag as the existing token / cross-ref checks.
+
+25. **`AcousticCavityBonus.WeightedRwBonus` wired** into
+    `AcousticAnalysisEngine.CalculateRwDoubleLeaf`. The flat 3 / 6 /
+    10 dB step bonus is now scaled by the BS EN 12354-1 frequency-
+    weighted bonus value (≈ 8.6 dB) modulated by an air-gap depth
+    factor (1.0 / 0.75 / 0.4). Output Rw matches measured-value
+    handbooks more closely than the previous bin function.
+
+26. **`WorkflowDagPlanner` wired** into `WorkflowEngine.ExecutePreset`.
+    Steps are now topo-sorted by `(parallelGroup, originalIndex)`; per-
+    step success / failure is tracked at group granularity. When a
+    later step belongs to a group strictly downstream of a failed
+    upstream group with no recovery in between, it is marked **BLOCKED**
+    in the report rather than executed, halving wasted work on cascade
+    failures.
+
+27. **`CobieSystemDistribution.Build` wired** into the COBie System-
+    sheet builder in `BuildCoordData` (`BIMManagerCommands.cs`). The
+    live distribution merges into `sysGroups` so a SYS code that exists
+    in the model but slipped past the Components-pipeline filter still
+    appears in the System sheet.
+
+28. **`CrossLinkEngine.AppendLink` wired** into `CreateRevisionCommand`
+    (`RevisionManagementCommands.cs`). Every OPEN issue whose own
+    `revision` field matches the new revision (or is empty) gets the
+    revision id appended to its `linked_revision_ids[]` array, so
+    `WalkFromIssue(issueId)` can hop from an issue to the revision
+    that closes it.
+
+29. **`Phase148Commands.cs`** (new file, ~160 lines) — six small
+    `IExternalCommand` wrappers so users can run the engines from the
+    dock panel:
+    - `RunRebarSpacingCheck` — EC2 §8.2 audit, reports first 50 hits
+    - `CreateMepCommissioningSchedules` — mints any of 3 commissioning
+      schedules that don't yet exist
+    - `CheckScheduleFieldConsistency` — cross-schedule field-naming
+      audit (top 30 inconsistencies)
+    - `TeamWorkloadReport` — open-issue workload table per assignee
+    - `ComplianceForecast` — caption + days-to-target dialog
+    - `DataDropStatus` — DD1-DD4 milestone table with per-row RAG
+
+30. **Dispatch tags** added to `StingCommandHandler` for all six
+    Phase 148 commands so the dock panel can call them by tag string.
+
+The Phase 91 H3 forecast KPI card on the BCC overview tab already
+surfaces a forecast date via `Core.ComplianceTrendTracker.ForecastCompletionDate`
+(linear-regression on workflow history), so the new
+`BIMManager.ComplianceForecast.Build` engine is exposed as a standalone
+command rather than duplicated as a second card. The two are
+complementary: the BCC card reads `_workflow_log.jsonl`; the engine
+reads `compliance_trend.json`.

@@ -38,57 +38,82 @@ namespace StingTools.BIMManager
     // ═══════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Adds a `_meta` object (version / schema / written_at / written_by)
-    /// to sidecar JSONs so future field additions can detect older files
-    /// and migrate. Read-side helper handles missing-meta legacy files.
+    /// Versioning for sidecar JSON files. Rather than injecting a `_meta`
+    /// sentinel into the array (which would break every existing
+    /// iterator), each sidecar gets a companion `<name>.meta.json` file
+    /// carrying schema name, version, written_at, written_by. Readers
+    /// that don't care can ignore the meta file entirely. Forward-
+    /// compatibility migrations consult `ReadMeta(path)` and branch on
+    /// `Version`.
     /// </summary>
     internal static class SidecarVersioning
     {
         public const string CurrentVersion = "1.1";
 
-        /// <summary>Stamp an array sidecar with a version header. We wrap
-        /// the array under a synthetic root only when the existing file
-        /// already has one; otherwise we leave the array shape intact and
-        /// store metadata in a leading sentinel element with `_meta=true`.
-        /// Most STING sidecars are JArrays of records, so the sentinel
-        /// approach keeps every existing reader working unchanged.</summary>
-        public static JArray EnsureArrayMeta(JArray arr, string schema)
+        public class Meta
         {
-            if (arr == null) arr = new JArray();
-            // First record with `_meta` token is treated as header.
-            JObject head = arr.OfType<JObject>()
-                              .FirstOrDefault(o => o["_meta"] != null);
-            if (head == null)
+            [JsonProperty("schema")]     public string Schema { get; set; }
+            [JsonProperty("version")]    public string Version { get; set; }
+            [JsonProperty("written_at")] public string WrittenAt { get; set; }
+            [JsonProperty("written_by")] public string WrittenBy { get; set; }
+        }
+
+        public static string MetaPath(string sidecarPath)
+            => string.IsNullOrEmpty(sidecarPath) ? null : sidecarPath + ".meta.json";
+
+        /// <summary>Stamp the sidecar's companion `.meta.json` with the
+        /// current schema + version. Best-effort: failures are logged
+        /// and swallowed so a meta-write hiccup never blocks the main
+        /// sidecar write. The sidecar JSON itself is left untouched.</summary>
+        public static void Stamp(string sidecarPath, string schema)
+        {
+            string metaPath = MetaPath(sidecarPath);
+            if (metaPath == null) return;
+            try
             {
-                head = new JObject { ["_meta"] = true };
-                arr.Insert(0, head);
+                var meta = new Meta
+                {
+                    Schema = schema,
+                    Version = CurrentVersion,
+                    WrittenAt = DateTime.UtcNow.ToString("o"),
+                    WrittenBy = Environment.UserName,
+                };
+                string tmp = metaPath + ".tmp";
+                File.WriteAllText(tmp, JsonConvert.SerializeObject(meta, Formatting.Indented));
+                File.Move(tmp, metaPath, true);
             }
-            head["version"] = CurrentVersion;
-            head["schema"] = schema;
-            head["written_at"] = DateTime.UtcNow.ToString("o");
-            head["written_by"] = Environment.UserName;
-            return arr;
+            catch (Exception ex) { StingLog.Warn($"SidecarVersioning.Stamp {Path.GetFileName(sidecarPath)}: {ex.Message}"); }
         }
 
-        /// <summary>Read the version of a sidecar, returning "0.0" for any
-        /// pre-versioning file. Callers can branch on this to migrate.</summary>
-        public static string ReadVersion(JArray arr)
+        /// <summary>Read the version stamp, returning "0.0" for any
+        /// pre-versioning sidecar. Callers can branch on this to migrate.</summary>
+        public static string ReadVersion(string sidecarPath)
         {
-            if (arr == null) return "0.0";
-            JObject head = arr.OfType<JObject>()
-                              .FirstOrDefault(o => o["_meta"] != null);
-            return head?["version"]?.ToString() ?? "0.0";
+            string metaPath = MetaPath(sidecarPath);
+            if (metaPath == null || !File.Exists(metaPath)) return "0.0";
+            try
+            {
+                var meta = JsonConvert.DeserializeObject<Meta>(File.ReadAllText(metaPath));
+                return meta?.Version ?? "0.0";
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SidecarVersioning.ReadVersion: {ex.Message}");
+                return "0.0";
+            }
         }
 
-        /// <summary>Iterate records skipping any `_meta` sentinel.</summary>
+        /// <summary>Compatibility shim: existing CrossLinkEngine /
+        /// PhaseAwareCobie / etc. call Records(arr) to walk every record
+        /// in an array. With the sidecar-meta-file approach the array is
+        /// already pristine, so we just return its objects unchanged.
+        /// Kept as a method so we can re-introduce filtering without
+        /// chasing call sites.</summary>
         public static IEnumerable<JObject> Records(JArray arr)
         {
             if (arr == null) yield break;
             foreach (var t in arr)
-            {
-                if (t is JObject o && o["_meta"] == null)
-                    yield return o;
-            }
+                if (t is JObject o) yield return o;
         }
     }
 }

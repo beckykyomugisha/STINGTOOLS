@@ -1874,6 +1874,14 @@ namespace StingTools.UI
                     case "MidpTracker": RunCommand<BIMManager.MidpTrackerCommand>(app); break;
                     case "FullComplianceDashboard": RunCommand<BIMManager.FullComplianceDashboardCommand>(app); break;
 
+                    // Phase 148 — surface for the new engines
+                    case "RunRebarSpacingCheck":           RunCommand<BIMManager.RunRebarSpacingCheckCommand>(app); break;
+                    case "CreateMepCommissioningSchedules":RunCommand<BIMManager.CreateMepCommissioningSchedulesCommand>(app); break;
+                    case "CheckScheduleFieldConsistency":  RunCommand<BIMManager.CheckScheduleFieldConsistencyCommand>(app); break;
+                    case "TeamWorkloadReport":             RunCommand<BIMManager.TeamWorkloadReportCommand>(app); break;
+                    case "ComplianceForecast":             RunCommand<BIMManager.ComplianceForecastCommand>(app); break;
+                    case "DataDropStatus":                 RunCommand<BIMManager.DataDropStatusCommand>(app); break;
+
                     // 4D/5D Extended
                     case "Export4DTimeline": RunCommand<BIMManager.Export4DTimelineCommand>(app); break;
                     case "Export5DCostData": RunCommand<BIMManager.Export5DCostDataCommand>(app); break;
