@@ -2608,10 +2608,14 @@
                                 <WrapPanel>
                                     <Button Style="{StaticResource BlueBtn}" Content="Document Manager" Tag="DocumentManager" Click="Cmd_Click"
                                             ToolTip="Open Document Management Center — browse all project documents, issues, revisions, clashes and CDE status with tree navigator" FontWeight="Bold"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Create Folders" Tag="CreateFolders" Click="Cmd_Click"
-                                            ToolTip="Create ISO 19650 project folder structure (20 folders: WIP, Shared, Published, Models, Drawings, COBie, Issues, Clashes, Handover, etc.)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Open Project Folder" Tag="OpenProjectFolder" Click="Cmd_Click"
-                                            ToolTip="Open the STING project folder root in Windows Explorer"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="⚙ Folder Setup" Tag="CreateFolders" Click="Cmd_Click"
+                                            ToolTip="Configure project folder structure — choose template, disciplines, and naming convention"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="📁 Open Root" Tag="OpenProjectFolder" Click="Cmd_Click"
+                                            ToolTip="Open project root folder in Windows Explorer"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="📊 Folder Health" Tag="FolderHealth" Click="Cmd_Click"
+                                            ToolTip="View folder structure health and file counts (green=files, amber=empty, red=missing)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="🔄 Migrate Legacy" Tag="FolderMigrate" Click="Cmd_Click"
+                                            ToolTip="Consolidate old _BIM_COORD, STING_BIM_MANAGER, STING_Exports, STING_Project folders and .sting_*.json sidecars into the new unified structure"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Data Exchange" Tag="DataExchange" Click="Cmd_Click"
                                             ToolTip="Export/Import data — categories, parameters, CSV/Excel/JSON with column mapping"/>
                                 </WrapPanel>

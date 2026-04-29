@@ -1952,15 +1952,53 @@ namespace StingTools.UI
                     case "SetOutputDirectory": RunCommand<BIMManager.SetOutputDirectoryCommand>(app); break;
                     case "StageComplianceGate": RunCommand<BIMManager.StageComplianceGateCommand>(app); break;
 
-                    // Project Folder Structure
+                    // Project Folder Structure (Phase 167 — unified setup)
                     case "CreateFolders":
                     {
                         var cfDoc = app.ActiveUIDocument?.Document;
                         if (cfDoc != null)
                         {
-                            int created = Core.ProjectFolderEngine.CreateFolderStructure(cfDoc);
-                            Autodesk.Revit.UI.TaskDialog.Show("STING Folder Structure",
-                                $"Created {created} folders at:\n{Core.ProjectFolderEngine.GetRootPath(cfDoc)}");
+                            var existing = Core.ProjectFolderEngine.LoadOrDetectSetup(cfDoc);
+                            if (existing != null)
+                            {
+                                var td = new Autodesk.Revit.UI.TaskDialog("STING Folder Setup")
+                                {
+                                    MainInstruction = "Project folders are already configured.",
+                                    MainContent = $"Root: {existing.ResolveRootPath(cfDoc.PathName)}\n" +
+                                                  $"Mode: {existing.Mode}, {existing.CustomFolders?.Count ?? 0} folders",
+                                };
+                                td.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink1, "Run setup again", "Reconfigure folder structure");
+                                td.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink2, "Open folder in Explorer", "Browse files");
+                                td.CommonButtons = Autodesk.Revit.UI.TaskDialogCommonButtons.Cancel;
+                                var res = td.Show();
+                                if (res == Autodesk.Revit.UI.TaskDialogResult.CommandLink2)
+                                {
+                                    string root = existing.ResolveRootPath(cfDoc.PathName);
+                                    if (!string.IsNullOrEmpty(root) && System.IO.Directory.Exists(root))
+                                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", root) { UseShellExecute = true })?.Dispose();
+                                    break;
+                                }
+                                if (res != Autodesk.Revit.UI.TaskDialogResult.CommandLink1) break;
+                            }
+
+                            try
+                            {
+                                var dlg = new UI.ProjectFolderSetupDialog(app);
+                                if (dlg.ShowDialog() == true && dlg.Result != null)
+                                {
+                                    string root = dlg.Result.ResolveRootPath(cfDoc.PathName);
+                                    if (!string.IsNullOrEmpty(root) && System.IO.Directory.Exists(root))
+                                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", root) { UseShellExecute = true })?.Dispose();
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                StingTools.Core.StingLog.Warn($"CreateFolders: {ex.Message}");
+                                // Fall back to legacy direct creation
+                                int created = Core.ProjectFolderEngine.CreateFolderStructure(cfDoc);
+                                Autodesk.Revit.UI.TaskDialog.Show("STING Folder Structure",
+                                    $"Created {created} folders at:\n{Core.ProjectFolderEngine.GetRootPath(cfDoc)}");
+                            }
                         }
                         break;
                     }
@@ -1970,6 +2008,28 @@ namespace StingTools.UI
                         string root = Core.ProjectFolderEngine.GetRootPath(opDoc);
                         if (System.IO.Directory.Exists(root))
                             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", root) { UseShellExecute = true })?.Dispose();
+                        break;
+                    }
+                    case "FolderHealth":
+                    {
+                        try { UI.FolderHealthPanel.ShowDialog(app); }
+                        catch (Exception ex) { Autodesk.Revit.UI.TaskDialog.Show("STING", $"Folder Health failed: {ex.Message}"); }
+                        break;
+                    }
+                    case "FolderMigrate":
+                    {
+                        var fmDoc = app.ActiveUIDocument?.Document;
+                        if (fmDoc != null)
+                        {
+                            try
+                            {
+                                var rep = Core.ProjectFolderEngine.MigrateFromLegacy(fmDoc);
+                                Autodesk.Revit.UI.TaskDialog.Show("STING Migration",
+                                    $"Moved {rep.FilesMoved} files. Removed {rep.FoldersRemoved} legacy folders." +
+                                    (rep.Warnings.Count > 0 ? $"\n\nWarnings: {rep.Warnings.Count}" : ""));
+                            }
+                            catch (Exception ex) { Autodesk.Revit.UI.TaskDialog.Show("STING", $"Migration failed: {ex.Message}"); }
+                        }
                         break;
                     }
 
@@ -2082,9 +2142,13 @@ namespace StingTools.UI
                         {
                             try
                             {
-                                string logPath = System.IO.Path.Combine(
-                                    System.IO.Path.GetDirectoryName(d.PathName ?? "") ?? "",
-                                    ".sting_coord_log.json");
+                                string logPath = StingTools.Core.ProjectFolderEngine.GetDataPath(d, "coord_log.json");
+                                if (string.IsNullOrEmpty(logPath) || !System.IO.File.Exists(logPath))
+                                {
+                                    logPath = System.IO.Path.Combine(
+                                        System.IO.Path.GetDirectoryName(d.PathName ?? "") ?? "",
+                                        ".sting_coord_log.json");
+                                }
                                 if (System.IO.File.Exists(logPath))
                                 {
                                     string csvPath = logPath.Replace(".json", $"_{DateTime.Now:yyyyMMdd_HHmm}.csv");
@@ -2118,9 +2182,13 @@ namespace StingTools.UI
                             confirm.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
                             if (confirm.Show() == TaskDialogResult.Yes)
                             {
-                                string logPath = System.IO.Path.Combine(
-                                    System.IO.Path.GetDirectoryName(d.PathName ?? "") ?? "",
-                                    ".sting_coord_log.json");
+                                string logPath = StingTools.Core.ProjectFolderEngine.GetDataPath(d, "coord_log.json");
+                                if (string.IsNullOrEmpty(logPath) || !System.IO.File.Exists(logPath))
+                                {
+                                    logPath = System.IO.Path.Combine(
+                                        System.IO.Path.GetDirectoryName(d.PathName ?? "") ?? "",
+                                        ".sting_coord_log.json");
+                                }
                                 if (System.IO.File.Exists(logPath)) System.IO.File.Delete(logPath);
                                 TaskDialog.Show("STING", "Coordination log cleared.");
                             }

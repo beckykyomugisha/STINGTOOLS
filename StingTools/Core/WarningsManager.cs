@@ -1543,6 +1543,12 @@ namespace StingTools.Core
         {
             string docPath = doc?.PathName;
             if (string.IsNullOrEmpty(docPath)) return null;
+            try
+            {
+                string p = ProjectFolderEngine.GetDataPath(doc, "warnings_baseline.json");
+                if (!string.IsNullOrEmpty(p)) return p;
+            }
+            catch { }
             return Path.ChangeExtension(docPath, ".sting_warnings_baseline.json");
         }
 
@@ -2023,7 +2029,9 @@ namespace StingTools.Core
             {
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return;
                 // CRIT-06: JSONL append-only — avoids read/parse/rewrite on every call
-                string logPath = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", ".sting_coord_log.jsonl");
+                string logPath = ProjectFolderEngine.GetDataPath(doc, "coord_log.jsonl");
+                if (string.IsNullOrEmpty(logPath))
+                    logPath = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", ".sting_coord_log.jsonl");
 
                 var entry = new UI.BIMCoordinationCenter.CoordLogEntry
                 {
@@ -4155,8 +4163,12 @@ namespace StingTools.Core
                 // Phase 49: Load coordination log from sidecar
                 try
                 {
-                    string coordLogPath = Path.Combine(Path.GetDirectoryName(doc.PathName ?? "") ?? "",
-                        ".sting_coord_log.json");
+                    string coordLogPath = ProjectFolderEngine.GetDataPath(doc, "coord_log.json");
+                    if (string.IsNullOrEmpty(coordLogPath) || !File.Exists(coordLogPath))
+                    {
+                        coordLogPath = Path.Combine(Path.GetDirectoryName(doc.PathName ?? "") ?? "",
+                            ".sting_coord_log.json");
+                    }
                     if (File.Exists(coordLogPath))
                     {
                         var logEntries = Newtonsoft.Json.JsonConvert.DeserializeObject<List<UI.BIMCoordinationCenter.CoordLogEntry>>(

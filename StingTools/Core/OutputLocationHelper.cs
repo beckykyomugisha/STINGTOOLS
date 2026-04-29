@@ -44,6 +44,22 @@ namespace StingTools.Core
         /// </summary>
         public static string GetOutputDirectory(Document doc = null)
         {
+            // Phase 167: prefer the configured project folder structure when present
+            try
+            {
+                if (doc != null)
+                {
+                    var setup = ProjectFolderEngine.LoadOrDetectSetup(doc);
+                    if (setup != null)
+                    {
+                        string projRoot = ProjectFolderEngine.GetExportFolder(doc, "MISC");
+                        if (!string.IsNullOrEmpty(projRoot) && TryEnsureDirectory(projRoot))
+                            return projRoot;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"GetOutputDirectory setup lookup: {ex.Message}"); }
+
             // 1. User-preferred directory
             string dir = PreferredDirectory;
             if (!string.IsNullOrEmpty(dir) && TryEnsureDirectory(dir))
