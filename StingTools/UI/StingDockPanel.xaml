@@ -2005,6 +2005,19 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="D&amp;C" Tag="SetPatternMode_DC" Click="Cmd_Click" ToolTip="Switch active T4-T10 payload to design &amp; construction pack (default)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Custom" Tag="SetPatternMode_Custom" Click="Cmd_Click" ToolTip="Switch active T4-T10 payload to project-custom pack"/>
                                 </WrapPanel>
+                                <!-- Phase 165 — Issue #15. Direct System B tier-write buttons.
+                                     Each launches a focused write command for a single tier so
+                                     QA / commissioning teams can populate one tier at a time. -->
+                                <TextBlock Style="{StaticResource SubLabel}" Text="SYSTEM B TIER WRITERS (HANDOVER MODE)"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="T4 Comm"      Tag="WriteSystemBTier_4"  Click="Cmd_Click" ToolTip="Write T4 commissioning data (COMM_*) on selected elements"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="T5 Cost"      Tag="WriteSystemBTier_5"  Click="Cmd_Click" ToolTip="Write T5 cost data (CST_*) on selected elements"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="T6 Carbon"    Tag="WriteSystemBTier_6"  Click="Cmd_Click" ToolTip="Write T6 carbon data (CBN_*) on selected elements"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="T7 Fab"       Tag="WriteSystemBTier_7"  Click="Cmd_Click" ToolTip="Write T7 fabrication / QC data (FAB_/ASS_SPOOL_*) on selected elements"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="T8 Clash"     Tag="WriteSystemBTier_8"  Click="Cmd_Click" ToolTip="Write T8 clash triage data (CLH_/CLASH_*) on selected elements"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="T9 As-Built"  Tag="WriteSystemBTier_9"  Click="Cmd_Click" ToolTip="Write T9 as-built / health data (ASB_/ASBUILT_*) on selected elements"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="T10 Audit"    Tag="WriteSystemBTier_10" Click="Cmd_Click" ToolTip="Write T10 compliance / audit data (AUD_/IFC_/ACC_*) on selected elements"/>
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
 
@@ -3817,7 +3830,26 @@
                                                     <Slider Grid.Column="1" x:Name="sldParaDepth" Minimum="1" Maximum="10" Value="10" VerticalAlignment="Center" IsSnapToTickEnabled="True" TickFrequency="1"/>
                                                     <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldParaDepth, StringFormat={}{0:F0}}" FontSize="9" VerticalAlignment="Center"/>
                                                 </Grid>
-                                                <TextBlock Text="Full — all 10 data tiers. Each tier activates TAG_PARA_STATE_N_BOOL" FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                                <!-- Phase 165 — Issue #14. Mode-aware tier labels rendered as a 10-cell ruler under the slider.
+                                                     The code-behind (StingDockPanel.xaml.cs OnTagModeChanged) updates these labels when the user
+                                                     flips DC ↔ Handover ↔ Custom via the Pattern Mode buttons in the SELECT tab. -->
+                                                <Grid Margin="0,4,0,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
+                                                        <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock x:Name="lblParaTier1"  Grid.Column="0" FontSize="7" Foreground="#666" TextWrapping="Wrap" Text="T1 Identity"/>
+                                                    <TextBlock x:Name="lblParaTier2"  Grid.Column="1" FontSize="7" Foreground="#666" TextWrapping="Wrap" Text="T2 System"/>
+                                                    <TextBlock x:Name="lblParaTier3"  Grid.Column="2" FontSize="7" Foreground="#666" TextWrapping="Wrap" Text="T3 Spatial"/>
+                                                    <TextBlock x:Name="lblParaTier4"  Grid.Column="3" FontSize="7" Foreground="#666" TextWrapping="Wrap" Text="T4 Lifecycle"/>
+                                                    <TextBlock x:Name="lblParaTier5"  Grid.Column="4" FontSize="7" Foreground="#666" TextWrapping="Wrap" Text="T5 Technical"/>
+                                                    <TextBlock x:Name="lblParaTier6"  Grid.Column="5" FontSize="7" Foreground="#666" TextWrapping="Wrap" Text="T6 Class."/>
+                                                    <TextBlock x:Name="lblParaTier7"  Grid.Column="6" FontSize="7" Foreground="#666" TextWrapping="Wrap" Text="T7 —"/>
+                                                    <TextBlock x:Name="lblParaTier8"  Grid.Column="7" FontSize="7" Foreground="#666" TextWrapping="Wrap" Text="T8 —"/>
+                                                    <TextBlock x:Name="lblParaTier9"  Grid.Column="8" FontSize="7" Foreground="#666" TextWrapping="Wrap" Text="T9 —"/>
+                                                    <TextBlock x:Name="lblParaTier10" Grid.Column="9" FontSize="7" Foreground="#666" TextWrapping="Wrap" Text="T10 —"/>
+                                                </Grid>
+                                                <TextBlock x:Name="lblParaDepthHint" Text="Full — all 10 data tiers. Each tier activates TAG_PARA_STATE_N_BOOL" FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                             </StackPanel>
                                         </Border>
 

@@ -49,6 +49,10 @@ namespace StingTools.Tags
             int depth;
             string depthName;
 
+            // Phase 165 — Issue #19. Resolve active mode once so depth-label
+            // dialog text matches the tier surface the writer will persist.
+            ParamRegistry.TagMode activeMode = ParamRegistry.GetActiveTagMode(doc);
+
             // Path 1: depth supplied via dock-panel slider / extra param
             string paraExtra = StingCommandHandler.GetExtraParam("ParaDepth");
             if (!string.IsNullOrEmpty(paraExtra) &&
@@ -56,25 +60,33 @@ namespace StingTools.Tags
                 parsed >= 1 && parsed <= MaxTier)
             {
                 depth = parsed;
-                depthName = DepthDisplayName(depth);
+                depthName = DepthDisplayName(depth, activeMode);
             }
             else
             {
-                // Path 2: legacy TaskDialog — three-way Compact/Standard/Comprehensive.
+                // Path 2: legacy TaskDialog — three-way Compact/Standard/Comprehensive
+                // plus a 4th link to the full 1-10 picker. Mode-aware copy so the
+                // 4-10 link advertises the right tier set per Issue #19.
+                string deeperHint = activeMode == ParamRegistry.TagMode.DC
+                    ? "DC mode — covers Lifecycle (T4) / Technical Specs (T5) / Classification (T6)"
+                    : (activeMode == ParamRegistry.TagMode.Custom
+                        ? "Custom mode — project-defined T4-T10 payload"
+                        : "Handover mode — Commissioning / Cost / Carbon / Fab / Clash / As-Built / Audit");
+
                 TaskDialog td = new TaskDialog("Set Paragraph Depth");
-                td.MainInstruction = "Select paragraph depth for tag descriptions";
+                td.MainInstruction = $"Select paragraph depth (mode: {activeMode})";
                 td.MainContent =
                     "Controls how much detail is shown in Tag 7 paragraph containers.\n" +
                     "This sets Type parameters — all instances of the same type will be affected.\n\n" +
-                    "For tiers 4-10 use the depth slider in Tag Studio → Tokens & Depth.";
+                    "Switch DC ↔ Handover mode in Tag Studio → Pattern Mode buttons.";
                 td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                    "Compact (T1)", "Tier 1 only — basic identity and dimensions");
+                    DepthDisplayName(1, activeMode), "Tier 1 only — identity / dimensions");
                 td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                    "Standard (T1-T2)", "Tiers 1+2 — adds materials, thermal, acoustic data");
+                    DepthDisplayName(2, activeMode), "Tiers 1+2 — adds system & function");
                 td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                    "Comprehensive (T1-T3)", "Tiers 1+2+3 — full spec with regulatory, sustainability, QA");
+                    DepthDisplayName(3, activeMode), "Tiers 1+2+3 — adds spatial context");
                 td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                    "Pick depth 4-10...", "Open the full T4-T10 picker (commissioning → compliance)");
+                    "Pick depth 4-10...", deeperHint);
                 td.CommonButtons = TaskDialogCommonButtons.Cancel;
 
                 TaskDialogResult result = td.Show();
@@ -84,13 +96,13 @@ namespace StingTools.Tags
                     case TaskDialogResult.CommandLink2: depth = 2; break;
                     case TaskDialogResult.CommandLink3: depth = 3; break;
                     case TaskDialogResult.CommandLink4:
-                        int? picked = PickDepth4To10();
+                        int? picked = PickDepth4To10(activeMode);
                         if (picked == null) return Result.Cancelled;
                         depth = picked.Value;
                         break;
                     default: return Result.Cancelled;
                 }
-                depthName = DepthDisplayName(depth);
+                depthName = DepthDisplayName(depth, activeMode);
             }
 
             // Scope: if selection is non-empty use that; otherwise all element types.
@@ -181,26 +193,21 @@ namespace StingTools.Tags
         /// without slider access. Returns 1-10 or null on cancel.
         /// </summary>
         private static int? PickDepth4To10()
+            => PickDepth4To10(ParamRegistry.TagMode.DC);
+
+        // Phase 165 — Issue #12 / #19. Mode-aware list picker. Each row's
+        // descriptive label changes per mode so users see the right tier set.
+        private static int? PickDepth4To10(ParamRegistry.TagMode mode)
         {
-            var items = new List<string>
-            {
-                "1 — Compact (T1 — Identity only)",
-                "2 — Standard (T1-T2 — + System & dimensions)",
-                "3 — Comprehensive (T1-T3 — + Spatial / regulatory / QA)",
-                "4 — + Commissioning data (T4)",
-                "5 — + Cost & Procurement (T5)",
-                "6 — + Carbon & Sustainability (T6)",
-                "7 — + Fabrication & QC (T7)",
-                "8 — + Clash Triage (T8)",
-                "9 — + As-Built Record (T9)",
-                "10 — Full Specification (T1-T10 incl. compliance audit)",
-            };
+            var items = new List<string>();
+            for (int d = 1; d <= 10; d++)
+                items.Add($"{d} — {DepthDisplayName(d, mode)}");
 
             string picked = null;
             try
             {
                 picked = StingTools.Select.StingListPicker.Show(
-                    "Set Paragraph Depth",
+                    $"Set Paragraph Depth ({mode})",
                     "Choose how many tiers (T1-T10) of tag content are shown",
                     items);
             }
@@ -250,7 +257,71 @@ namespace StingTools.Tags
             return rangeStart + offset;
         }
 
+        /// <summary>
+        /// Phase 165 — Issue #19. Mode-aware depth-label resolver. T1-T3 are
+        /// shared between modes; T4-T10 differ:
+        ///
+        ///   DC mode    T4 = Lifecycle &amp; Status   (TAG7D)
+        ///              T5 = Technical Specs       (TAG7E)
+        ///              T6 = Classification        (TAG7F)
+        ///              T7-T10 = (not used in DC)
+        ///
+        ///   Handover   T4 = Commissioning         (COMM_*)
+        ///              T5 = Cost                  (CST_*)
+        ///              T6 = Carbon                (CBN_*)
+        ///              T7 = Fabrication           (FAB_*)
+        ///              T8 = Clash Triage          (CLH_*)
+        ///              T9 = As-Built              (ASB_*)
+        ///              T10 = Compliance / Audit   (AUD_*)
+        ///
+        /// Custom mode mirrors Handover labels but with a "Custom: " prefix
+        /// so projects know they're seeing project-defined payload.
+        /// </summary>
+        public static string DepthDisplayName(int depth, ParamRegistry.TagMode mode)
+        {
+            // T1-T3 shared.
+            switch (depth)
+            {
+                case 1: return "Compact (T1 — Identity)";
+                case 2: return "Standard (T1-T2 — + System & Function)";
+                case 3: return "Comprehensive (T1-T3 — + Spatial)";
+            }
+            if (mode == ParamRegistry.TagMode.DC)
+            {
+                switch (depth)
+                {
+                    case 4:  return "T4 — Lifecycle & Status";
+                    case 5:  return "T5 — Technical Specs";
+                    case 6:  return "T6 — Classification";
+                    case 7:
+                    case 8:
+                    case 9:
+                    case 10: return $"T{depth} — (not used in DC mode)";
+                }
+            }
+            else
+            {
+                string p = mode == ParamRegistry.TagMode.Custom ? "Custom: " : "";
+                switch (depth)
+                {
+                    case 4:  return $"{p}T4 — Commissioning";
+                    case 5:  return $"{p}T5 — Cost";
+                    case 6:  return $"{p}T6 — Carbon";
+                    case 7:  return $"{p}T7 — Fabrication";
+                    case 8:  return $"{p}T8 — Clash Triage";
+                    case 9:  return $"{p}T9 — As-Built";
+                    case 10: return $"{p}T10 — Compliance / Audit";
+                }
+            }
+            return $"Tier {depth}";
+        }
+
+        /// <summary>Backward-compatible overload — defaults to DC mode.</summary>
         private static string DepthDisplayName(int depth)
+            => DepthDisplayName(depth, ParamRegistry.TagMode.DC);
+
+        // Legacy switch retained below for cases not covered above (defensive).
+        private static string DepthDisplayNameLegacy(int depth)
         {
             switch (depth)
             {

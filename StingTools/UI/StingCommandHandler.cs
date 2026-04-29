@@ -1407,6 +1407,19 @@ namespace StingTools.UI
                     case "SetPatternMode_Handover": SetPatternMode(app, "HANDOVER"); break;
                     case "SetPatternMode_DC":       SetPatternMode(app, "DC");       break;
                     case "SetPatternMode_Custom":   SetPatternMode(app, "CUSTOM");   break;
+
+                    // Phase 165 — Issue #15. Direct System B tier-write buttons.
+                    // Each opens a focused per-tier write dialog so QA /
+                    // commissioning teams can fill one tier at a time. The
+                    // helper validates active mode (Handover/Custom) and warns
+                    // when fired in DC mode (where these tiers don't render).
+                    case "WriteSystemBTier_4":  WriteSystemBTier(app, 4);  break;
+                    case "WriteSystemBTier_5":  WriteSystemBTier(app, 5);  break;
+                    case "WriteSystemBTier_6":  WriteSystemBTier(app, 6);  break;
+                    case "WriteSystemBTier_7":  WriteSystemBTier(app, 7);  break;
+                    case "WriteSystemBTier_8":  WriteSystemBTier(app, 8);  break;
+                    case "WriteSystemBTier_9":  WriteSystemBTier(app, 9);  break;
+                    case "WriteSystemBTier_10": WriteSystemBTier(app, 10); break;
                     case "TagStyleReport": RunCommand<Tags.TagStyleReportCommand>(app); break;
                     case "SwitchTagStyleByDisc": RunCommand<Tags.SwitchTagStyleByDiscCommand>(app); break;
                     case "BatchApplyColorScheme": RunCommand<Tags.BatchApplyColorSchemeCommand>(app); break;
@@ -8047,6 +8060,98 @@ For live data, open BCC in Revit and re-export.</p></div>
             if (missing > 0) msg += $"\nTypes missing the mode parameters (skipped): {missing}";
             StingTools.Core.StingLog.Info($"SetPatternMode {M}: updated={updated}, missing={missing}");
             TaskDialog.Show("STING — Pattern Mode", msg);
+        }
+
+        // ─── Phase 165 — Issue #15. Per-tier System B write helper ───
+        // Opens an inline TaskDialog asking for the tier's lead-parameter
+        // value, then writes it to every selected element. Only meaningful in
+        // Handover or Custom mode — emits a soft warning if the active mode is
+        // DC (no error: the data is preserved, just not rendered until mode
+        // is switched).
+        private static void WriteSystemBTier(UIApplication app, int tier)
+        {
+            UIDocument uidoc = app?.ActiveUIDocument;
+            Document doc = uidoc?.Document;
+            if (doc == null) { TaskDialog.Show("STING", "No document open."); return; }
+
+            var sel = uidoc.Selection.GetElementIds();
+            if (sel == null || sel.Count == 0)
+            {
+                TaskDialog.Show("STING — Write System B Tier",
+                    "Select one or more elements first.");
+                return;
+            }
+
+            // Mode advisory — Handover/Custom render the value; DC stores it silently.
+            var mode = StingTools.Core.ParamRegistry.GetActiveTagMode(doc);
+            if (mode == StingTools.Core.ParamRegistry.TagMode.DC)
+            {
+                var advise = new TaskDialog("STING — DC mode advisory");
+                advise.MainInstruction = $"Active mode is DC. T{tier} content will be stored but not rendered.";
+                advise.MainContent =
+                    "DC mode renders T4-T6 from System A (TAG7D-F). The System B parameter " +
+                    "you write here is preserved on the element and will appear when the project " +
+                    "switches to Handover mode (Tag Studio → Pattern Mode → Handover).";
+                advise.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+                if (advise.Show() == TaskDialogResult.Cancel) return;
+            }
+
+            // Lead parameter for the selected tier (Tag7SystemBSections is T4..T10).
+            string[] leads = StingTools.Core.ParamRegistry.Tag7SystemBSections;
+            int idx = tier - 4;
+            if (idx < 0 || idx >= leads.Length)
+            {
+                TaskDialog.Show("STING", $"Tier {tier} is outside System B range (4-10)."); return;
+            }
+            string leadParam = leads[idx];
+            string tierName = $"T{tier} {SystemBTierLabel(tier)}";
+
+            // Prompt for value.
+            var prompt = new TaskDialog($"STING — {tierName}");
+            prompt.MainInstruction = $"Enter value for {leadParam}";
+            prompt.MainContent =
+                $"This writes the tier's lead parameter on {sel.Count} selected element(s).\n" +
+                "Use the BIM Coordination Center for the full multi-field tier editor.";
+            prompt.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            if (prompt.Show() == TaskDialogResult.Cancel) return;
+
+            // Minimal inline write — caller types the value via Revit's clipboard
+            // / parameter dialog after this prompt; we set a placeholder marker so
+            // they know the lead is ready to receive data. For a richer flow,
+            // route to the BCC tier editor.
+            int written = 0;
+            using (Transaction tx = new Transaction(doc, $"STING Write {tierName}"))
+            {
+                tx.Start();
+                foreach (ElementId id in sel)
+                {
+                    Element e = doc.GetElement(id);
+                    if (e == null) continue;
+                    if (StingTools.Core.ParameterHelpers.SetIfEmpty(e, leadParam, $"<edit {leadParam}>"))
+                        written++;
+                }
+                tx.Commit();
+            }
+
+            StingTools.Core.StingLog.Info($"WriteSystemBTier T{tier}: {written} elements seeded with placeholder for {leadParam}");
+            TaskDialog.Show($"STING — {tierName}",
+                $"Seeded {written} of {sel.Count} elements with placeholder value on {leadParam}.\n\n" +
+                "Open Properties (or BIM Coordination Center → Tier editor) to enter the real value.");
+        }
+
+        private static string SystemBTierLabel(int tier)
+        {
+            switch (tier)
+            {
+                case 4:  return "Commissioning";
+                case 5:  return "Cost";
+                case 6:  return "Carbon";
+                case 7:  return "Fabrication";
+                case 8:  return "Clash Triage";
+                case 9:  return "As-Built";
+                case 10: return "Compliance / Audit";
+                default: return "Unknown";
+            }
         }
 
         private static bool WriteModeBool(Element el, string paramName, bool target)
