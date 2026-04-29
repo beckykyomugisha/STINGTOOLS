@@ -12,6 +12,13 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 
+// Phase 165 follow-up — WPF/Revit type-name aliases. Autodesk.Revit.DB
+// ships its own Color and Visibility types that collide with the WPF
+// equivalents used throughout this dialog. Alias the WPF types so
+// unqualified Color / Visibility references compile.
+using Color      = System.Windows.Media.Color;
+using Visibility = System.Windows.Visibility;
+
 namespace StingTools.UI
 {
     /// <summary>
