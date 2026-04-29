@@ -4164,23 +4164,23 @@
                                             <StackPanel>
                                                 <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
                                                     <TextBlock Text="Ducts" FontSize="9" VerticalAlignment="Center"/>
-                                                    <Slider Grid.Column="1" Minimum="0.5" Maximum="3.0" Value="1.0" VerticalAlignment="Center"/>
-                                                    <TextBlock Grid.Column="2" Text="1.0x" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldMultDucts" Minimum="0.5" Maximum="3.0" Value="1.0" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldMultDucts, StringFormat={}{0:F1}x}" FontSize="9" VerticalAlignment="Center"/>
                                                 </Grid>
                                                 <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
                                                     <TextBlock Text="Pipes" FontSize="9" VerticalAlignment="Center"/>
-                                                    <Slider Grid.Column="1" Minimum="0.5" Maximum="3.0" Value="1.0" VerticalAlignment="Center"/>
-                                                    <TextBlock Grid.Column="2" Text="1.0x" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldMultPipes" Minimum="0.5" Maximum="3.0" Value="1.0" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldMultPipes, StringFormat={}{0:F1}x}" FontSize="9" VerticalAlignment="Center"/>
                                                 </Grid>
                                                 <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
                                                     <TextBlock Text="Equipment" FontSize="9" VerticalAlignment="Center"/>
-                                                    <Slider Grid.Column="1" Minimum="0.5" Maximum="3.0" Value="1.2" VerticalAlignment="Center"/>
-                                                    <TextBlock Grid.Column="2" Text="1.2x" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldMultEquipment" Minimum="0.5" Maximum="3.0" Value="1.2" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldMultEquipment, StringFormat={}{0:F1}x}" FontSize="9" VerticalAlignment="Center"/>
                                                 </Grid>
                                                 <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
                                                     <TextBlock Text="Fixtures" FontSize="9" VerticalAlignment="Center"/>
-                                                    <Slider Grid.Column="1" Minimum="0.5" Maximum="3.0" Value="0.8" VerticalAlignment="Center"/>
-                                                    <TextBlock Grid.Column="2" Text="0.8x" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldMultFixtures" Minimum="0.5" Maximum="3.0" Value="0.8" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldMultFixtures, StringFormat={}{0:F1}x}" FontSize="9" VerticalAlignment="Center"/>
                                                 </Grid>
                                             </StackPanel>
                                         </Border>

@@ -342,6 +342,19 @@ namespace StingTools.UI
                 StingCommandHandler.SetExtraParam("Scale500Mm",  (sldScale500?.Value  ?? 12.0).ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
                 StingCommandHandler.SetExtraParam("Scale1000Mm", (sldScale1000?.Value ?? 20.0).ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
                 StingCommandHandler.SetExtraParam("OffsetCapFt", (sldOffsetCap?.Value ?? 30.0).ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+
+                // Phase 165 — per-category scale multipliers (previously orphaned).
+                // Read by ApplyScaleTiersCommand and persisted to project_config.json
+                // under SCALE_CATEGORY_MULTIPLIERS so SmartTagPlacementCommand can
+                // multiply the base offset by the per-category factor at placement time.
+                if (FindName("sldMultDucts") is System.Windows.Controls.Slider mD)
+                    StingCommandHandler.SetExtraParam("MultDucts", mD.Value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                if (FindName("sldMultPipes") is System.Windows.Controls.Slider mP)
+                    StingCommandHandler.SetExtraParam("MultPipes", mP.Value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                if (FindName("sldMultEquipment") is System.Windows.Controls.Slider mE)
+                    StingCommandHandler.SetExtraParam("MultEquipment", mE.Value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                if (FindName("sldMultFixtures") is System.Windows.Controls.Slider mF)
+                    StingCommandHandler.SetExtraParam("MultFixtures", mF.Value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
             }
             catch (Exception ex) { StingLog.Warn($"Read Scale tab sliders failed: {ex.Message}"); }
         }
