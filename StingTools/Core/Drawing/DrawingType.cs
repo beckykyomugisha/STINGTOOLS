@@ -366,6 +366,26 @@ namespace StingTools.Core.Drawing
         /// </summary>
         [JsonProperty("displayMode", NullValueHandling = NullValueHandling.Ignore)]
         public int? DisplayMode { get; set; }
+
+        /// <summary>
+        /// Phase 165 — T4-T10 payload pattern mode. One of "HANDOVER" /
+        /// "DC" / "CUSTOM" (case-insensitive). Drives which payload set
+        /// renders for tier 4-10 by writing the
+        /// <c>HANDOVER_MODE_HANDOVER_BOOL</c> /
+        /// <c>HANDOVER_MODE_DC_BOOL</c> /
+        /// <c>HANDOVER_MODE_CUSTOM_BOOL</c> trio mutually exclusively on
+        /// every element type used in the view. DC is the default at the
+        /// pipeline level (TagConfig.ResolveActivePatternMode), so leaving
+        /// this null means "use whatever the project / type already says",
+        /// which is DC unless explicitly overridden elsewhere. Most
+        /// production drawings will pin "DC" here so the live design &amp;
+        /// construction T4-T10 payload is forced regardless of any leftover
+        /// HANDOVER toggles from prior workflows. Set to "HANDOVER" for
+        /// post-construction handover packages, "CUSTOM" for project-
+        /// specific tier content.
+        /// </summary>
+        [JsonProperty("patternMode", NullValueHandling = NullValueHandling.Ignore)]
+        public string PatternMode { get; set; }
     }
 
     // ─────────────────────────────────────────────────────────────────────
