@@ -9,6 +9,7 @@ import { notificationService } from '@/services/notificationService';
 import { initI18n } from '@/i18n';
 import { markBackgrounded, challengeIfDue } from '@/services/biometricLock';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { loadThemePref } from '@/theme/theme';
 
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
@@ -66,6 +67,9 @@ export default function RootLayout() {
     // FLEX-15 — load the user's preferred language before we render any screen.
     // initI18n is cheap (no network) and safe to call on every app start.
     try { await initI18n(); } catch { /* non-fatal */ }
+    // Phase 165 (MOB-11) — restore the user's theme preference before first paint
+    // so users with a fixed light or dark choice never flash the OS default.
+    try { await loadThemePref(); } catch { /* non-fatal */ }
     const token = await getToken();
     setIsAuthenticated(!!token);
     setIsReady(true);

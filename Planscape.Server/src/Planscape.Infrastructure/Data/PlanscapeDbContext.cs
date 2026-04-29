@@ -82,6 +82,9 @@ public class PlanscapeDbContext : DbContext
     public DbSet<MIM.Entities.Asset> Assets => Set<MIM.Entities.Asset>();
     public DbSet<MIM.Entities.MaintenanceTask> MaintenanceTasks => Set<MIM.Entities.MaintenanceTask>();
 
+    // Phase 165 (NEW-08) — outbound webhook subscriptions.
+    public DbSet<OutboundWebhook> OutboundWebhooks => Set<OutboundWebhook>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -519,6 +522,18 @@ public class PlanscapeDbContext : DbContext
         modelBuilder.Entity<MIM.Entities.MaintenanceTask>(e =>
         {
             e.HasKey(m => m.Id);
+        });
+
+        // ── OutboundWebhook (Phase 165 / NEW-08) ──
+        modelBuilder.Entity<OutboundWebhook>(e =>
+        {
+            e.HasKey(w => w.Id);
+            e.HasIndex(w => new { w.TenantId, w.EventType, w.IsActive });
+            e.HasIndex(w => w.ProjectId);
+            e.Property(w => w.TargetUrl).IsRequired().HasMaxLength(2048);
+            e.Property(w => w.SecretHash).IsRequired().HasMaxLength(128);
+            e.HasOne(w => w.Tenant).WithMany().HasForeignKey(w => w.TenantId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(w => w.Project).WithMany().HasForeignKey(w => w.ProjectId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

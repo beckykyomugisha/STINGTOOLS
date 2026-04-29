@@ -120,6 +120,21 @@ namespace StingTools.Commands.Fabrication
             }
 
             FabricationUndoManager.Record(res);
+
+            // Phase 165: auto-link the generated SP- sheets into the
+            // ISO 19650 document register so they appear in the Document
+            // Management Center and any subsequent transmittal bundles
+            // without a separate user step.
+            if (res.SheetIds.Count > 0)
+            {
+                try
+                {
+                    int added = FabricationDocRegister.PushSheets(doc, res.SheetIds);
+                    if (added > 0) StingLog.Info($"FabricationDocRegister: {added} sheet(s) added to document register.");
+                }
+                catch (Exception ex) { StingLog.Warn($"FabricationDocRegister.PushSheets failed: {ex.Message}"); }
+            }
+
             ShowResult(res);
 
             // Open first generated sheet for instant feedback
