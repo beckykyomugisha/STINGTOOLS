@@ -105,6 +105,10 @@
 <script src="./three.min.js"></script>
 <script src="./GLTFLoader.js"></script>
 <script src="./OrbitControls.js"></script>
+<!-- Optional: Draco + Meshopt decoders. Loaded best-effort — viewer keeps
+     working when the files are absent. -->
+<script src="./DRACOLoader.js" onerror="window.__noDraco=1"></script>
+<script src="./MeshoptDecoder.js" onerror="window.__noMeshopt=1"></script>
 
 <script>
 (() => {
@@ -181,6 +185,12 @@
   // ── Loading ─────────────────────────────────────────────────────────
   function loadModel(url) {
     const loader = new THREE.GLTFLoader();
+    // Hook optional Draco / Meshopt decoders if the extras module wired them up.
+    try {
+      const v = window.STING_VIEWER;
+      if (v && v.dracoLoader && loader.setDRACOLoader) loader.setDRACOLoader(v.dracoLoader);
+      if (v && v.meshoptDecoder && loader.setMeshoptDecoder) loader.setMeshoptDecoder(v.meshoptDecoder);
+    } catch (_) { /* graceful */ }
     setStatus('loading');
     document.getElementById('loading').style.display = 'flex';
 
@@ -469,9 +479,66 @@
     document.body.appendChild(el);
   }
 
+  // Expose a small host surface so viewer-extras.js (federation /
+  // walkthrough / oblique sections / area+volume measure / auto-LOD) can
+  // operate against the same scene without re-implementing setup.
+  window.STING_VIEWER = {
+    scene, camera, renderer, controls, bridge,
+    fitCamera, assignElementIds,
+    get modelRoot()        { return modelRoot; },
+    set modelRoot(v)       { modelRoot = v; },
+    get modelBounds()      { return modelBounds; },
+    set modelBounds(v)     { modelBounds = v; },
+    get highlightedMesh()  { return highlightedMesh; },
+    dracoLoader: null,
+    meshoptDecoder: null,
+  };
+
+  // Wire optional decoders onto a fresh GLTFLoader factory the extras can use.
+  try {
+    if (typeof THREE !== 'undefined' && THREE.DRACOLoader && !window.__noDraco) {
+      const dl = new THREE.DRACOLoader();
+      if (dl.setDecoderPath) dl.setDecoderPath('./');
+      window.STING_VIEWER.dracoLoader = dl;
+    }
+    if (typeof MeshoptDecoder !== 'undefined' && !window.__noMeshopt) {
+      window.STING_VIEWER.meshoptDecoder = MeshoptDecoder;
+    }
+  } catch (_) { /* graceful */ }
+
+  // Extras hook into commands they own. Defensive payload access — RN can
+  // post messages with missing/empty payloads while the viewer is still
+  // booting and we don't want a TypeError to take down the message loop.
+  const _origHandle = handleCommand;
+  handleCommand = function (cmd) {
+    const x = window.STING_VIEWER_EXTRAS;
+    const p = (cmd && cmd.payload) || {};
+    if (x) {
+      switch (cmd.type) {
+        case 'loadFederation':    return x.loadFederation(p.sources || []);
+        case 'setSectionPlane':   return x.setSectionPlane(p);
+        case 'setWalkthrough':    return x.setWalkthrough(!!p.enabled);
+        case 'startArea':         return x.startArea();
+        case 'addAreaPoint':      return p.point ? x.addAreaPoint(p.point) : undefined;
+        case 'finishArea':        return x.finishArea();
+        case 'measureVolume':     return x.measureSelectionVolume();
+      }
+    }
+    return _origHandle(cmd);
+  };
+
   // Tell RN we're ready to receive a `load` command.
   bridge.send('ready', { platform: 'webview' });
 })();
+</script>
+<script src="./viewer-extras.js"></script>
+<script>
+  // Drive the auto-LOD ticker from a low-frequency interval so it doesn't
+  // gate the render loop. The extras module owns the FPS sampling.
+  setInterval(() => {
+    const x = window.STING_VIEWER_EXTRAS;
+    if (x && typeof x.tickFps === 'function') x.tickFps();
+  }, 50);
 </script>
 </body>
 </html>

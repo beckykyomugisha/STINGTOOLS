@@ -14,6 +14,11 @@ services:
       - Jwt__Issuer=Planscape
       - Jwt__Audience=Planscape.Client
       - Redis__Connection=redis:6379
+      - ModelConverter__Provider=${MODEL_CONVERTER_PROVIDER:-null}
+      - ModelConverter__IfcConvertPath=/usr/local/bin/IfcConvert
+      - ModelConverter__ThumbnailProvider=${MODEL_THUMBNAIL_PROVIDER:-gltf-bounds}
+      - ModelConverter__Aps__ClientId=${APS_CLIENT_ID:-}
+      - ModelConverter__Aps__ClientSecret=${APS_CLIENT_SECRET:-}
     depends_on:
       postgres:
         condition: service_healthy

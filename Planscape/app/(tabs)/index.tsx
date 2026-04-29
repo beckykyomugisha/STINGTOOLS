@@ -238,7 +238,7 @@ export default function DashboardScreen() {
           {federation && (
             <TouchableOpacity
               style={styles.bimRow}
-              onPress={() => router.push('/(tabs)/documents')}
+              onPress={() => router.push('/(tabs)/models')}
               accessibilityLabel={`Federation status — ${federation.rag}`}
             >
               <View style={[styles.ragDot, { backgroundColor: ragToColor(federation.rag) }]} />

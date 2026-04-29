@@ -60,8 +60,8 @@ namespace StingTools.BIMManager
             var projectId = PickProject(client);
             if (projectId == Guid.Empty) return Result.Cancelled;
 
-            // ── Step 3: pick a geometry file ───────────────────────────
-            var modelPath = PromptForModelFile();
+            // ── Step 3: pick or export geometry ────────────────────────
+            var modelPath = PromptForModelFileOrExport(doc);
             if (string.IsNullOrEmpty(modelPath)) return Result.Cancelled;
 
             // ── Step 4: collect element map ────────────────────────────
@@ -145,6 +145,50 @@ namespace StingTools.BIMManager
         }
 
         // ── File picker ────────────────────────────────────────────────
+
+        private static string? PromptForModelFileOrExport(Document doc)
+        {
+            var dlg = new TaskDialog("Publish Model")
+            {
+                MainInstruction = "How do you want to provide the 3D geometry?",
+                CommonButtons = TaskDialogCommonButtons.Cancel,
+            };
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Export current 3D view to GLB",
+                "Uses the built-in STING glTF exporter. Active view must be a 3D view.");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Pick an existing file (.glb / .gltf / .ifc / .obj / .fbx)",
+                "Use a file produced by APS, SimLab, rvt2gltf, Dynamo, etc.");
+            var r = dlg.Show();
+            if (r == TaskDialogResult.CommandLink1) return ExportActiveView(doc);
+            if (r == TaskDialogResult.CommandLink2) return PromptForModelFile();
+            return null;
+        }
+
+        private static string? ExportActiveView(Document doc)
+        {
+            if (doc.ActiveView is not View3D v3d || v3d.IsTemplate)
+            {
+                TaskDialog.Show("Publish Model",
+                    "The active view is not a non-template 3D view. Open a 3D view first.");
+                return null;
+            }
+            var outPath = Path.Combine(
+                OutputLocationHelper.GetOutputDirectory(doc),
+                $"{Path.GetFileNameWithoutExtension(doc.PathName ?? doc.Title)}-{v3d.Name}.glb");
+            try
+            {
+                var result = RevitGltfExporter.Export(doc, v3d, outPath);
+                StingLog.Info($"Planscape: GLB exported ({result.ElementCount} elements, {result.FileSizeBytes:N0} bytes) → {outPath}");
+                return outPath;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Planscape: GLB export failed", ex);
+                TaskDialog.Show("Publish Model", $"GLB export failed: {ex.Message}");
+                return null;
+            }
+        }
 
         private static string? PromptForModelFile()
         {

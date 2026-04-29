@@ -80,3 +80,39 @@ strings back via `window.ReactNativeWebView.postMessage`.
 
 Edit `viewer.html` directly — no build step. Increment the version
 comment at the top if you want to bust the WebView cache on-device.
+
+## Optional decoders + extras (Phase: 3D-viewing review)
+
+`viewer.html` now gracefully wires Draco + Meshopt decoders if the matching
+loaders are present alongside it (silently skipped otherwise):
+
+```bash
+cd Planscape/assets/viewer
+
+# Draco geometry decoder (10–30× compression on indexed meshes)
+curl -fsSL -o DRACOLoader.js   https://unpkg.com/three@0.160.0/examples/js/loaders/DRACOLoader.js
+# Optional binary decoder runtime (loaded by DRACOLoader.setDecoderPath('./'))
+curl -fsSL -o draco_decoder.js https://www.gstatic.com/draco/versioned/decoders/1.5.6/draco_decoder.js
+curl -fsSL -o draco_decoder.wasm https://www.gstatic.com/draco/versioned/decoders/1.5.6/draco_decoder.wasm
+
+# Meshopt (EXT_meshopt_compression)
+curl -fsSL -o MeshoptDecoder.js https://unpkg.com/meshoptimizer@0.20.0/js/meshopt_decoder.js
+```
+
+`viewer-extras.js` (always shipped — no fetch required) adds:
+
+| Capability                       | RN → viewer command                                                  |
+|----------------------------------|----------------------------------------------------------------------|
+| Federation: load N GLBs at once  | `loadFederation` `{ sources: [{url, label, discipline}] }`           |
+| Oblique section plane            | `setSectionPlane` `{ enabled, normal: [x,y,z], offset: 0..1 }`       |
+| Walkthrough (WASD / joystick)    | `setWalkthrough` `{ enabled }`                                       |
+| Polygon area measure             | `startArea` / `addAreaPoint` / `finishArea`                          |
+| Volume of selected element       | `measureVolume`                                                      |
+
+| Viewer → RN event   | Payload                                                                 |
+|---------------------|-------------------------------------------------------------------------|
+| `measureArea`       | `{ area, points: [[x,y,z],...] }`                                       |
+| `measureVolume`     | `{ volume, size: [x,y,z], bounds: [minX..maxZ] }`                       |
+| `walkthrough`       | `{ active }`                                                            |
+| `lodChanged`        | `{ level: 0|1|2, avgFps }`  (auto-LOD ticker drops PR + meshes)         |
+| `federationError`   | `{ url, error }`                                                        |
