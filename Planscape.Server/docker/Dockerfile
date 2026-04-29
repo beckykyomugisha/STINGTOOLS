@@ -22,6 +22,19 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
+# P7 — IfcConvert (IfcOpenShell) for IFC→glTF derivatives. Opt-in: only used
+# when ModelConverter:Provider=ifcconvert. Pinned to a known-good release.
+ARG IFCCONVERT_VERSION=0.7.0
+RUN if [ "$IFCCONVERT_VERSION" != "skip" ]; then \
+        apt-get update && apt-get install -y --no-install-recommends \
+            ca-certificates wget unzip libxi6 libxrender1 libglu1-mesa && \
+        wget -q "https://s3.amazonaws.com/ifcopenshell-builds/IfcConvert-v${IFCCONVERT_VERSION}-linux64.zip" -O /tmp/ifcconvert.zip && \
+        unzip /tmp/ifcconvert.zip -d /usr/local/bin && \
+        chmod +x /usr/local/bin/IfcConvert && \
+        rm /tmp/ifcconvert.zip && \
+        rm -rf /var/lib/apt/lists/* ; \
+    fi
+
 COPY --from=build /app .
 
 ENV ASPNETCORE_URLS=http://+:8080

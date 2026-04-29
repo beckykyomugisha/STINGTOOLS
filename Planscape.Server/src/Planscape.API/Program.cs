@@ -278,10 +278,18 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.ModelDerivativeJob>
 var converterProvider = builder.Configuration["ModelConverter:Provider"];
 if (string.Equals(converterProvider, "ifcconvert", StringComparison.OrdinalIgnoreCase))
     builder.Services.AddSingleton<Planscape.Core.Interfaces.IModelConverter, Planscape.Infrastructure.Services.IfcConvertConverter>();
+else if (string.Equals(converterProvider, "aps", StringComparison.OrdinalIgnoreCase))
+    builder.Services.AddSingleton<Planscape.Core.Interfaces.IModelConverter, Planscape.Infrastructure.Services.ApsModelDerivativeConverter>();
 else
     builder.Services.AddSingleton<Planscape.Core.Interfaces.IModelConverter, Planscape.Infrastructure.Services.NullModelConverter>();
-builder.Services.AddSingleton<Planscape.Core.Interfaces.IModelThumbnailGenerator,
-    Planscape.Infrastructure.Services.NullThumbnailGenerator>();
+
+var thumbProvider = builder.Configuration["ModelConverter:ThumbnailProvider"];
+if (string.Equals(thumbProvider, "null", StringComparison.OrdinalIgnoreCase))
+    builder.Services.AddSingleton<Planscape.Core.Interfaces.IModelThumbnailGenerator,
+        Planscape.Infrastructure.Services.NullThumbnailGenerator>();
+else
+    builder.Services.AddSingleton<Planscape.Core.Interfaces.IModelThumbnailGenerator,
+        Planscape.Infrastructure.Services.GltfBoundsThumbnailGenerator>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
