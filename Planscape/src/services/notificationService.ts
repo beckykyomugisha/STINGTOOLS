@@ -40,8 +40,18 @@ async function deviceIdentifier(): Promise<string | null> {
   return null;
 }
 
+// M6 — guard against the multiple register() calls that fire on a
+// cold start (restoreSession + login both trigger). Without this, the
+// server takes 2-3 simultaneous POST /api/notifications/subscribe calls
+// which is wasteful and noisy in audit logs. A single in-flight promise
+// is sufficient because register() is idempotent — the *content* of
+// the subscribe is identical between calls.
+let _registerInFlight: Promise<string | null> | null = null;
+
 export const notificationService = {
   async register(): Promise<string | null> {
+    if (_registerInFlight) return _registerInFlight;
+    _registerInFlight = (async () => {
     if (!Device.isDevice) return null;
     const { status: existing } = await Notifications.getPermissionsAsync();
     let finalStatus = existing;
@@ -86,5 +96,7 @@ export const notificationService = {
       crashReporter.warn('notificationService.subscribe failed', { err: String(err) });
     }
     return token;
+    })().finally(() => { _registerInFlight = null; });
+    return _registerInFlight;
   },
 };

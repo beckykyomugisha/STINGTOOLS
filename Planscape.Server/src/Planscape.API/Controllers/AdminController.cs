@@ -151,6 +151,13 @@ public class AdminController : ControllerBase
         [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
         var tenantId = GetTenantId();
+        // S12 — refuse to query AuditLog with an empty tenant claim. Without
+        // this gate a misconfigured JWT would silently match nothing AND
+        // leave the predicate `TenantId == Guid.Empty` in place — which is
+        // accidentally safe today (no rows have an empty tenant) but
+        // brittle to future seed-data changes.
+        if (tenantId == Guid.Empty)
+            return BadRequest(new { error = "Missing tenant_id claim" });
         var query = _db.AuditLogs.Where(a => a.TenantId == tenantId);
 
         if (projectId.HasValue) query = query.Where(a => a.ProjectId == projectId);

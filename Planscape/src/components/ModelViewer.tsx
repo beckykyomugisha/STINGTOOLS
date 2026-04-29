@@ -199,12 +199,24 @@ export const ModelViewer = React.forwardRef<ModelViewerHandle, ModelViewerProps>
         <WebView
           ref={webRef}
           source={{ uri: localUri }}
-          // Android can't load file:// images from other file:// URLs without this.
+          // M12 — narrow originWhitelist from "*" to the schemes we actually
+          // load (file:// for the bundled viewer.html, https://localhost
+          // for dev). The previous wildcard let any model file containing
+          // an embedded URL drive a redirect to an arbitrary origin and
+          // exfiltrate session data via the bridged onMessage channel.
+          originWhitelist={["file://*", "https://localhost*"]}
+          // M12 — disable third-party content (fonts, images, scripts from
+          // remote origins). The bundled viewer is fully self-contained;
+          // any uploaded BIM file that tries to fetch external resources
+          // is denied at the network layer.
+          thirdPartyCookiesEnabled={false}
+          // Keep file-URL access for the bundled viewer.html → its sibling
+          // JS / CSS / textures, but document the trade-off. If we ever
+          // serve the viewer over HTTPS, both flags below should drop.
           allowFileAccessFromFileURLs
           allowUniversalAccessFromFileURLs
           allowsInlineMediaPlayback
           mediaPlaybackRequiresUserAction={false}
-          originWhitelist={["*"]}
           javaScriptEnabled
           domStorageEnabled
           onMessage={onMessage}

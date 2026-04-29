@@ -11,6 +11,10 @@ interface IssueState {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   getByProject: (projectId: string) => BimIssue[];
+  // M8 — full reset called on tenant switch / logout to prevent
+  // residual issue rows from one tenant being visible after switching
+  // to another.
+  clear: () => void;
 }
 
 export const useIssueStore = create<IssueState>((set, get) => ({
@@ -32,4 +36,5 @@ export const useIssueStore = create<IssueState>((set, get) => ({
   setError: (error) => set({ error }),
   getByProject: (projectId) =>
     Object.values(get().issues).filter(i => i.projectId === projectId),
+  clear: () => set({ issues: {}, loading: false, error: null }),
 }));

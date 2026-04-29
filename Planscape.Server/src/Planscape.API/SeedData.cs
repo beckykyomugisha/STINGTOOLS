@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
 
@@ -6,12 +7,25 @@ namespace Planscape.API;
 
 /// <summary>
 /// Seeds the development database with a demo tenant, admin user, and sample project.
-/// Idempotent — safe to run on every startup.
+/// Idempotent — safe to run on every startup. Refuses to run in Production.
 /// </summary>
 public static class SeedData
 {
-    public static async Task SeedAsync(PlanscapeDbContext db)
+    // S2 — defence-in-depth: refuse to seed in Production even if Program.cs's
+    // IsDevelopment() guard is bypassed. The demo admin (admin@planscape.demo /
+    // admin123) and Premium licence key were a back-door if Production ever
+    // started against an empty DB.
+    public static async Task SeedAsync(PlanscapeDbContext db, IHostEnvironment env)
     {
+        if (env.IsProduction())
+        {
+            // Allow explicit opt-in for staging / smoke runs via env var.
+            var allow = Environment.GetEnvironmentVariable("PLANSCAPE_ALLOW_DEMO_SEED");
+            if (!string.Equals(allow, "true", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+        }
         if (await db.Tenants.AnyAsync()) return; // Already seeded
 
         // ── Demo Tenant ──

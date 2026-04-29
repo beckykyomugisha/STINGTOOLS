@@ -4,12 +4,13 @@
     "appVersionSource": "remote"
   },
   "build": {
-    "_comment": "EAS-01 — Build profiles for development simulator, internal QA testing, and store production.",
+    "_comment": "EAS-01 — Build profiles for development simulator, internal QA testing, and store production. M2 — production host now config-driven via PLANSCAPE_HOST so app.config.js can derive every URL from one variable.",
     "development": {
       "developmentClient": true,
       "distribution": "internal",
       "channel": "development",
       "env": {
+        "PLANSCAPE_HOST": "planscape.local:5000",
         "EXPO_PUBLIC_API_BASE": "http://planscape.local:5000",
         "EXPO_PUBLIC_HUB_URL": "http://planscape.local:5000/hubs/notifications"
       },
@@ -20,8 +21,7 @@
       "distribution": "internal",
       "channel": "preview",
       "env": {
-        "EXPO_PUBLIC_API_BASE": "https://staging.planscape.example/api",
-        "EXPO_PUBLIC_HUB_URL": "https://staging.planscape.example/hubs/notifications"
+        "PLANSCAPE_HOST": "staging.planscape.io"
       },
       "ios": { "resourceClass": "m-medium" },
       "android": { "buildType": "apk" }
@@ -30,8 +30,8 @@
       "channel": "production",
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_BASE": "https://api.planscape.example",
-        "EXPO_PUBLIC_HUB_URL": "https://api.planscape.example/hubs/notifications"
+        "_comment": "M2 — set PLANSCAPE_HOST to the real domain before EAS build. Empty value will fail closed in app.config.js.",
+        "PLANSCAPE_HOST": ""
       },
       "ios": { "resourceClass": "m-medium" },
       "android": {
@@ -40,12 +40,8 @@
     }
   },
   "submit": {
+    "_comment": "M3 — store-submit credentials are read from EAS secrets at submit time, not committed to source. Set them with: eas secret:create --scope project --name APPLE_ID --value '...'  (and APPLE_ASC_APP_ID, APPLE_TEAM_ID). The production submit block below is intentionally absent — running `eas submit` without it falls back to an interactive prompt, which is safer than a placeholder that would otherwise mask 'I forgot to fill these in' as a real submit attempt.",
     "production": {
-      "ios": {
-        "appleId": "__APPLE_ID__",
-        "ascAppId": "__APP_STORE_CONNECT_ID__",
-        "appleTeamId": "__APPLE_TEAM_ID__"
-      },
       "android": {
         "serviceAccountKeyPath": "./secrets/play-service-account.json",
         "track": "internal"

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Planscape.API.Services;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
@@ -60,6 +61,7 @@ public class IssueCommentsController : ControllerBase
         CancellationToken ct)
     {
         if (!await IssueInTenant(projectId, issueId, ct)) return NotFound();
+        if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
         if (string.IsNullOrWhiteSpace(req.Body)) return BadRequest(new { error = "body_required" });
         if (req.Body.Length > 4000)              return BadRequest(new { error = "body_too_long", max = 4000 });
 
@@ -111,6 +113,7 @@ public class IssueCommentsController : ControllerBase
         CancellationToken ct)
     {
         if (!await IssueInTenant(projectId, issueId, ct)) return NotFound();
+        if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
         if (string.IsNullOrWhiteSpace(req.Body))              return BadRequest(new { error = "body_required" });
 
         var c = await _db.IssueComments
@@ -130,6 +133,7 @@ public class IssueCommentsController : ControllerBase
     public async Task<IActionResult> Delete(Guid projectId, Guid issueId, Guid commentId, CancellationToken ct)
     {
         if (!await IssueInTenant(projectId, issueId, ct)) return NotFound();
+        if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
         var c = await _db.IssueComments
             .FirstOrDefaultAsync(x => x.Id == commentId && x.IssueId == issueId && x.DeletedAt == null, ct);
         if (c == null) return NotFound();

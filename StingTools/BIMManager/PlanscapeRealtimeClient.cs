@@ -42,9 +42,18 @@ namespace StingTools.BIMManager
         public event EventHandler<RealtimeEvent>? IssueCreated;
         public event EventHandler<RealtimeEvent>? IssueUpdated;
         public event EventHandler<RealtimeEvent>? ComplianceChanged;
-        public event EventHandler<RealtimeEvent>? RevisionCreated;
+        // GAP-FIX-SIGNALR — RevisionCreated previously declared here but the
+        // server has no RevisionsController, so it never fired. The plugin's
+        // own RevisionEngine is local-only (writes to RVT, not the server).
+        // Keeping the event surface trimmed prevents new code from
+        // subscribing to a stillborn channel. Re-add when a server-side
+        // revisions feature ships.
         public event EventHandler<RealtimeEvent>? TransmittalUpdated;
         public event EventHandler<RealtimeEvent>? DocumentUpdated;
+        // GAP-FIX-SIGNALR — meeting events broadcast by MeetingsController
+        // on Create / BulkCreate / LogMinutes / AddActionItem / UpdateAction.
+        public event EventHandler<RealtimeEvent>? MeetingCreated;
+        public event EventHandler<RealtimeEvent>? MeetingUpdated;
         public event EventHandler<RealtimeEvent>? GenericNotification;
 
         /// <summary>Raised whenever the connection changes state. UI consumers wire this to a status chip.</summary>
@@ -184,9 +193,13 @@ namespace StingTools.BIMManager
             c.On<object>("IssueCreated",        p => Raise(IssueCreated,        p, "issue"));
             c.On<object>("IssueUpdated",        p => Raise(IssueUpdated,        p, "issue"));
             c.On<object>("ComplianceChanged",   p => Raise(ComplianceChanged,   p, "compliance"));
-            c.On<object>("RevisionCreated",     p => Raise(RevisionCreated,     p, "revision"));
             c.On<object>("TransmittalUpdated",  p => Raise(TransmittalUpdated,  p, "transmittal"));
             c.On<object>("DocumentUpdated",     p => Raise(DocumentUpdated,     p, "document"));
+            // GAP-FIX-SIGNALR — meeting events from MeetingsController.
+            c.On<object>("MeetingCreated",      p => Raise(MeetingCreated,      p, "meeting"));
+            c.On<object>("MeetingUpdated",      p => Raise(MeetingUpdated,      p, "meeting"));
+            // RevisionCreated subscription removed — the channel was orphaned;
+            // see comment on the event-declaration block above.
         }
 
         private void Raise(EventHandler<RealtimeEvent>? ev, object payload, string kind)

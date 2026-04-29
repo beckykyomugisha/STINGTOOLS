@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Planscape.Core.DTOs;
 using Planscape.Core.Entities;
+using Planscape.Infrastructure.Authorization;
 using Planscape.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using System.IdentityModel.Tokens.Jwt;
@@ -21,11 +22,15 @@ public class AuthController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
     private readonly IConfiguration _config;
+    private readonly IPermissionRevocationStore _revocations;
 
-    public AuthController(PlanscapeDbContext db, IConfiguration config)
+    public AuthController(PlanscapeDbContext db,
+                          IConfiguration config,
+                          IPermissionRevocationStore revocations)
     {
         _db = db;
         _config = config;
+        _revocations = revocations;
     }
 
     // ── Login ──────────────────────────────────────────────────────────────────
@@ -202,6 +207,12 @@ public class AuthController : ControllerBase
         user.RefreshToken          = null;
         user.RefreshTokenExpiresAt = null;
         await _db.SaveChangesAsync();
+
+        // S5 — bump the iat-floor so any access token issued before this
+        // call is rejected at the JwtBearer OnTokenValidated event below.
+        // Without this, a password change clears the refresh token but
+        // existing access tokens stay valid for up to 8 hours.
+        await _revocations.RevokeAllPriorTokensAsync(userId);
 
         return Ok(new { message = "Password changed. Please log in again." });
     }
@@ -434,9 +445,12 @@ public class AuthController : ControllerBase
         if (user == null)
             return Ok(new { message = "If that email exists, a reset link has been sent." });
 
-        // Generate a time-limited reset token (stored as refresh token with short expiry)
+        // S6 — generate the reset token, but persist only its hash. The
+        // user gets the cleartext via email; we never write it to the DB.
+        // A DB leak therefore can't be replayed against /reset-password.
         var resetToken = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
-        user.RefreshToken = $"RESET:{resetToken}";
+        var resetHash = HashResetToken(resetToken);
+        user.RefreshToken = $"RESET:{resetHash}";
         user.RefreshTokenExpiresAt = DateTime.UtcNow.AddHours(1);
         await _db.SaveChangesAsync();
 
@@ -452,6 +466,20 @@ public class AuthController : ControllerBase
         return Ok(new { message = "If that email exists, a reset link has been sent." });
     }
 
+    /// <summary>
+    /// S6 — SHA-256 hash for password-reset tokens. Reset tokens are
+    /// single-use and short-lived (1h), so SHA-256 is sufficient
+    /// (BCrypt's slow factor would make every redemption attempt
+    /// expensive without buying meaningful protection here, and would
+    /// break constant-time compare).
+    /// </summary>
+    private static string HashResetToken(string token)
+    {
+        var bytes = System.Text.Encoding.UTF8.GetBytes(token);
+        var hash = System.Security.Cryptography.SHA256.HashData(bytes);
+        return Convert.ToHexString(hash);
+    }
+
     // ── Reset Password (confirm reset) ────────────────────────────────────────
 
     /// <summary>Reset password using a token from the forgot-password email.</summary>
@@ -463,8 +491,11 @@ public class AuthController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult> ResetPassword([FromBody] ResetPasswordRequest req)
     {
+        // S6 — match against the hash, not the raw token. The token in
+        // the email never appears in the DB.
+        var hashed = $"RESET:{HashResetToken(req.Token)}";
         var user = await _db.Users
-            .FirstOrDefaultAsync(u => u.RefreshToken == $"RESET:{req.Token}"
+            .FirstOrDefaultAsync(u => u.RefreshToken == hashed
                 && u.RefreshTokenExpiresAt > DateTime.UtcNow
                 && u.IsActive);
 
@@ -479,6 +510,11 @@ public class AuthController : ControllerBase
         user.RefreshTokenExpiresAt = null;
         await _db.SaveChangesAsync();
 
+        // S6 / S5 — bump the iat-floor so any access token issued before
+        // the reset (including ones the attacker may have minted while
+        // they had the password) is rejected immediately.
+        await _revocations.RevokeAllPriorTokensAsync(user.Id);
+
         return Ok(new { message = "Password has been reset. Please log in." });
     }
 
@@ -487,16 +523,36 @@ public class AuthController : ControllerBase
         // P1 — tag newly issued tokens with kid=current so future rotations can
         // tell our tokens apart. KeyId matches the SecurityKey registered in
         // Program.cs ("current" vs "previous").
-        var jwtKey = _config["Jwt:Key"] ?? "Planscape-Dev-Secret-Key-Min32Chars!!";
+        // S1 — Program.cs already enforces that Jwt:Key is set in Production
+        // and is ≥32 chars. This branch only fires in Development/Test where
+        // the config might be missing during local runs.
+        var jwtKey = _config["Jwt:Key"];
+        if (string.IsNullOrWhiteSpace(jwtKey))
+        {
+            jwtKey = "Planscape-Dev-Secret-Key-Min32Chars!!";
+        }
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)) { KeyId = "current" };
         var creds = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
+        // S5 — emit iat as an explicit claim so the JwtBearer
+        // OnTokenValidated event can compare it against the per-user
+        // revocation floor stored in IPermissionRevocationStore. The
+        // JWT spec defines iat as seconds-since-epoch.
+        var nowSec = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+        // S18 — emit the tenant tier so the rate-limit policy in
+        // Program.cs can scale per-user budgets to the licence the
+        // tenant pays for. Stored on Tenant.Tier (LicenseTier enum).
+        var tierName = user.Tenant?.Tier.ToString() ?? "Starter";
         var claims = new[]
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new Claim("user_id", user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
+            new Claim(JwtRegisteredClaimNames.Iat, nowSec, ClaimValueTypes.Integer64),
+            new Claim("iat", nowSec, ClaimValueTypes.Integer64),
             new Claim("tenant_id", user.TenantId.ToString()),
             new Claim("tenant_slug", user.Tenant?.Slug ?? ""),
+            new Claim("tier", tierName),
             new Claim("role", user.Role.ToString()),
             new Claim("iso_role", user.Iso19650Role),
             new Claim("display_name", user.DisplayName)
