@@ -654,6 +654,17 @@ namespace StingTools.Core
             return _paragraphContainers.TryGetValue(categoryName, out string p) ? p : null;
         }
 
+        /// <summary>
+        /// Phase 165 — Issue #22. Distinct paragraph-container parameter names
+        /// across every category, used by WriteTag7All to clear stale entries
+        /// before writing the new narrative. Returns an empty enumerable if no
+        /// containers are registered.
+        /// </summary>
+        public static IEnumerable<string> AllParagraphContainers
+            => _paragraphContainers.Values
+                .Where(v => !string.IsNullOrEmpty(v))
+                .Distinct(StringComparer.Ordinal);
+
         /// <summary>All 10 paragraph state parameter names indexed by tier (1-based: index 0 = state 1).</summary>
         // PERF-010 FIX: Cache array to avoid per-access allocation in hot loops (WriteTag7All)
         private static string[] _allParaStates;
