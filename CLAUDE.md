@@ -287,13 +287,13 @@ Typo-prevention pass replaces free-text TextBoxes with dropdowns for fill patter
 4. `IUpdater`-based live style propagation (automatic re-apply when a profile / pack changes in-session) is not implemented — the manual `SyncStyles` command covers the same ground on demand. Runtime cost vs. always-on drift-zero trade-off means this stays deferred.
 5. `TitleBlockParamApplier` writes the first title-block instance found on a sheet. Sheets hosting multiple title blocks (unusual) only get the first one populated — the applier warns and moves on.
 
-### Phase 165 — AEC/FM Corporate Filter Library (199 filters)
+### Phase 166 — AEC/FM Corporate Filter Library (199 filters)
 
 A complete corporate-baseline `ParameterFilterElement` library for the
 Drawing Template Manager. Until this phase, `ViewStylePackApplier` could
 *reference* filters by name but couldn't *create* them — the only filter
 factory in the codebase was the hard-coded ~40-filter
-`TemplateCommands.CreateFiltersCommand`. Phase 165 adds a full
+`TemplateCommands.CreateFiltersCommand`. Phase 166 adds a full
 JSON-defined registry with 199 filter definitions covering every
 discipline an AEC/FM firm produces drawings for, plus matching
 `OverrideGraphicSettings` recipes per BS 1192 / ISO 19650 / Uniclass 2015 /
