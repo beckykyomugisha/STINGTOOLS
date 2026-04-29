@@ -65,6 +65,7 @@ public class DocumentsController : ControllerBase
     private readonly ILogger<DocumentsController> _logger;
     private readonly IAuditService _audit;
     private readonly IHubContext<NotificationHub> _hub;
+    private readonly Planscape.Infrastructure.Services.OutboundWebhookDispatcher? _webhooks;
 
     // Max file size: 100 MB
     private const long MaxFileSize = 100 * 1024 * 1024;
@@ -77,7 +78,8 @@ public class DocumentsController : ControllerBase
         IThumbnailService thumbnails,
         ILogger<DocumentsController> logger,
         IAuditService audit,
-        IHubContext<NotificationHub> hub)
+        IHubContext<NotificationHub> hub,
+        Planscape.Infrastructure.Services.OutboundWebhookDispatcher? webhooks = null)
     {
         _db = db;
         _storage = storage;
@@ -86,6 +88,7 @@ public class DocumentsController : ControllerBase
         _logger = logger;
         _audit = audit;
         _hub = hub;
+        _webhooks = webhooks;
     }
 
     [HttpGet]
@@ -501,6 +504,14 @@ public class DocumentsController : ControllerBase
             revision = doc.Revision,
             updatedAt = doc.UpdatedAt,
             kind = "cde_transition"
+        });
+
+        // Phase 165 (NEW-08) — outbound webhook fanout.
+        _webhooks?.FireAndForget(tenantId, projectId, WebhookEventType.DocumentTransitioned, new
+        {
+            documentId = doc.Id, doc.FileName, oldState, newState = doc.CdeStatus,
+            suitability = doc.SuitabilityCode, revision = doc.Revision,
+            transitionedAt = doc.UpdatedAt
         });
 
         return Ok(doc);

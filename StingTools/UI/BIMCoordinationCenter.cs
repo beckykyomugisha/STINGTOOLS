@@ -364,6 +364,10 @@ namespace StingTools.UI
             // Workflow history
             public List<WorkflowRunRow> WorkflowHistory = new();
 
+            // Phase 165 (TPL-FOLLOW-03) — My Queue: workflow instances awaiting
+            // the current user's action. Populated by BuildCoordData.
+            public List<MyQueueRow> MyQueue = new();
+
             // 4D/5D Scheduling
             public int ScheduledTasks { get; set; }
             public double TotalCostEstimate { get; set; }
@@ -664,6 +668,19 @@ namespace StingTools.UI
             public double CompBefore { get; set; }
             public double CompAfter { get; set; }
             public string User { get; set; }
+        }
+
+        /// <summary>Phase 165 (TPL-FOLLOW-03) — workflow instance awaiting the
+        /// current user's action. Sourced from
+        /// <see cref="Planscape.Docs.Workflow.WorkflowEngine.GetMyQueue"/>.</summary>
+        internal class MyQueueRow
+        {
+            public string DocId { get; set; }
+            public string Subject { get; set; }
+            public string Step { get; set; }
+            public string Workflow { get; set; }
+            public string DueLocal { get; set; }      // formatted local datetime
+            public string SlaStatus { get; set; }     // GREEN / AMBER / RED
         }
 
         /// <summary>Phase 77: Structured Revit warning row for inline Warnings tree.</summary>
@@ -4019,6 +4036,41 @@ namespace StingTools.UI
             kpiRow.Children.Add(MakeKPICard("HISTORY", _data.WorkflowHistory.Count.ToString(), Br(Color.FromRgb(0x45, 0x50, 0x6E)),
                 "Workflow execution records available for analysis"));
             stack.Children.Add(kpiRow);
+
+            // ── Phase 165 (TPL-FOLLOW-03) — My Queue ──
+            // Workflow instances that are sitting on the current user's desk.
+            // Empty list -> single-line muted "Inbox zero" hint so the section
+            // never disappears (orientation cue for new users).
+            stack.Children.Add(MakeSectionHeader("MY QUEUE"));
+            if (_data.MyQueue == null || _data.MyQueue.Count == 0)
+            {
+                stack.Children.Add(new TextBlock
+                {
+                    Text = $"Inbox zero — no workflow steps awaiting {Environment.UserName}.",
+                    FontSize = 11, Foreground = Brushes.Gray,
+                    Margin = new Thickness(0, 0, 0, 12)
+                });
+            }
+            else
+            {
+                var queueGrid = new DataGrid
+                {
+                    AutoGenerateColumns = false,
+                    IsReadOnly = true,
+                    HeadersVisibility = DataGridHeadersVisibility.Column,
+                    GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+                    Margin = new Thickness(0, 0, 0, 12),
+                    MaxHeight = 200,
+                    ItemsSource = _data.MyQueue,
+                };
+                queueGrid.Columns.Add(new DataGridTextColumn { Header = "Document",  Binding = new Binding(nameof(MyQueueRow.DocId)),    Width = new DataGridLength(160) });
+                queueGrid.Columns.Add(new DataGridTextColumn { Header = "Subject",   Binding = new Binding(nameof(MyQueueRow.Subject)),  Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                queueGrid.Columns.Add(new DataGridTextColumn { Header = "Workflow",  Binding = new Binding(nameof(MyQueueRow.Workflow)), Width = new DataGridLength(120) });
+                queueGrid.Columns.Add(new DataGridTextColumn { Header = "Step",      Binding = new Binding(nameof(MyQueueRow.Step)),     Width = new DataGridLength(120) });
+                queueGrid.Columns.Add(new DataGridTextColumn { Header = "Due",       Binding = new Binding(nameof(MyQueueRow.DueLocal)), Width = new DataGridLength(140) });
+                queueGrid.Columns.Add(new DataGridTextColumn { Header = "SLA",       Binding = new Binding(nameof(MyQueueRow.SlaStatus)),Width = new DataGridLength(60) });
+                stack.Children.Add(queueGrid);
+            }
 
             // ── Quick Workflow Buttons ──
             stack.Children.Add(MakeSectionHeader("QUICK WORKFLOWS"));

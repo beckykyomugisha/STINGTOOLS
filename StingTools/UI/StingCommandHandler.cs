@@ -113,6 +113,21 @@ namespace StingTools.UI
 
             try
             {
+                // Phase 165 (INT-02 framework) — try the new module-registered
+                // dispatch table first. Modules return true when they own the
+                // tag; everything else falls through to the historic switch
+                // below. This lets us migrate panels one at a time without a
+                // single high-risk big-bang refactor.
+                try
+                {
+                    if (CommandRegistry.Instance.TryHandle(tag, app))
+                        return;
+                }
+                catch (Exception regEx)
+                {
+                    StingLog.Warn($"CommandRegistry tag '{tag}' threw, falling back to switch: {regEx.Message}");
+                }
+
                 switch (tag)
                 {
                     // ════════════════════════════════════════════════════════
@@ -3421,6 +3436,12 @@ namespace StingTools.UI
         }
 
         // ── Generic command runner ────────────────────────────────────
+
+        /// <summary>Phase 165 (INT-02 framework) — public bridge so the new
+        /// CommandRegistry modules can invoke the same per-command pipeline
+        /// without duplicating its logging + error envelope.</summary>
+        public static void RunCommandPublic<T>(UIApplication app) where T : IExternalCommand, new()
+            => RunCommand<T>(app);
 
         private static void RunCommand<T>(UIApplication app) where T : IExternalCommand, new()
         {

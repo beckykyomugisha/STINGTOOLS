@@ -35,7 +35,24 @@ namespace StingTools.Core.Drawing
         [JsonProperty("dimensionStyle")]  public string DimensionStyle { get; set; }
         [JsonProperty("hatchPalette")]    public string HatchPalette { get; set; }
 
-        [JsonProperty("filters")] public List<StyleFilterRule> Filters { get; set; } = new List<StyleFilterRule>();
+        // Phase 139 — accept both "filters" and "filterRules" (corporate
+        // file uses filterRules; we expose Filters for runtime).
+        [JsonProperty("filters", NullValueHandling = NullValueHandling.Ignore)]
+        public List<StyleFilterRule> FiltersAlias
+        {
+            get => Filters;
+            set { if (value != null && value.Count > 0) Filters = value; }
+        }
+
+        [JsonProperty("filterRules", NullValueHandling = NullValueHandling.Ignore)]
+        public List<StyleFilterRule> FilterRulesAlias
+        {
+            get => null;
+            set { if (value != null && value.Count > 0) Filters = value; }
+        }
+
+        [JsonIgnore]
+        public List<StyleFilterRule> Filters { get; set; } = new List<StyleFilterRule>();
 
         /// <summary>
         /// Category-name → graphic override. Keys match Revit Category
@@ -157,14 +174,71 @@ namespace StingTools.Core.Drawing
 
     public sealed class StyleFilterRule
     {
-        [JsonProperty("filterName")]          public string FilterName { get; set; }
+        // Phase 139 — accept both schema variants. Long form (filterName /
+        // projectionLineColor / cutLineWeight / …) is the canonical POCO
+        // shape; short form (name / projColor / cutWeight / …) is the
+        // STING_VIEW_STYLE_PACKS.json corporate file convention. Wrapper
+        // setters route either into the underlying field.
+        [JsonProperty("filterName", NullValueHandling = NullValueHandling.Ignore)]
+        public string FilterNameLong { get => FilterName; set { if (!string.IsNullOrEmpty(value)) FilterName = value; } }
+        [JsonProperty("name", NullValueHandling = NullValueHandling.Ignore)]
+        public string FilterNameShort { get => null; set { if (!string.IsNullOrEmpty(value)) FilterName = value; } }
+        [JsonIgnore] public string FilterName { get; set; }
+
         [JsonProperty("visible")]             public bool Visible { get; set; } = true;
         [JsonProperty("halftone")]            public bool Halftone { get; set; } = false;
-        [JsonProperty("projectionLineColor",  NullValueHandling = NullValueHandling.Ignore)] public string ProjectionLineColor { get; set; }  // "#RRGGBB"
-        [JsonProperty("projectionLineWeight", NullValueHandling = NullValueHandling.Ignore)] public int?   ProjectionLineWeight { get; set; }
-        [JsonProperty("cutLineColor",         NullValueHandling = NullValueHandling.Ignore)] public string CutLineColor { get; set; }
-        [JsonProperty("cutLineWeight",        NullValueHandling = NullValueHandling.Ignore)] public int?   CutLineWeight { get; set; }
+
+        [JsonProperty("projectionLineColor",  NullValueHandling = NullValueHandling.Ignore)]
+        public string ProjLineColorLong { get => ProjectionLineColor; set { if (!string.IsNullOrEmpty(value)) ProjectionLineColor = value; } }
+        [JsonProperty("projColor", NullValueHandling = NullValueHandling.Ignore)]
+        public string ProjLineColorShort { get => null; set { if (!string.IsNullOrEmpty(value)) ProjectionLineColor = value; } }
+        [JsonIgnore] public string ProjectionLineColor { get; set; }
+
+        [JsonProperty("projectionLineWeight", NullValueHandling = NullValueHandling.Ignore)]
+        public int? ProjLineWeightLong { get => ProjectionLineWeight; set { if (value.HasValue) ProjectionLineWeight = value; } }
+        [JsonProperty("projWeight", NullValueHandling = NullValueHandling.Ignore)]
+        public int? ProjLineWeightShort { get => null; set { if (value.HasValue) ProjectionLineWeight = value; } }
+        [JsonIgnore] public int? ProjectionLineWeight { get; set; }
+
+        [JsonProperty("cutLineColor",         NullValueHandling = NullValueHandling.Ignore)]
+        public string CutLineColorLong { get => CutLineColor; set { if (!string.IsNullOrEmpty(value)) CutLineColor = value; } }
+        [JsonProperty("cutColor", NullValueHandling = NullValueHandling.Ignore)]
+        public string CutLineColorShort { get => null; set { if (!string.IsNullOrEmpty(value)) CutLineColor = value; } }
+        [JsonIgnore] public string CutLineColor { get; set; }
+
+        [JsonProperty("cutLineWeight",        NullValueHandling = NullValueHandling.Ignore)]
+        public int? CutLineWeightLong { get => CutLineWeight; set { if (value.HasValue) CutLineWeight = value; } }
+        [JsonProperty("cutWeight", NullValueHandling = NullValueHandling.Ignore)]
+        public int? CutLineWeightShort { get => null; set { if (value.HasValue) CutLineWeight = value; } }
+        [JsonIgnore] public int? CutLineWeight { get; set; }
+
         [JsonProperty("transparency",         NullValueHandling = NullValueHandling.Ignore)] public int?   Transparency { get; set; }  // 0..100
+
+        // ── Phase 139 — extended override fields ──
+        // Mirrors FilterDefaultOverride so packs can express surface fills,
+        // line patterns, and detail-level overrides for filter-driven rules
+        // (fire compartments, system colour washes, escape-route highlights).
+        [JsonProperty("projectionLinePattern", NullValueHandling = NullValueHandling.Ignore)] public string ProjectionLinePattern { get; set; }
+        [JsonProperty("cutLinePattern",        NullValueHandling = NullValueHandling.Ignore)] public string CutLinePattern { get; set; }
+        [JsonProperty("surfaceFgColor",        NullValueHandling = NullValueHandling.Ignore)] public string SurfaceFgColor { get; set; }
+        [JsonProperty("surfaceFgPattern",      NullValueHandling = NullValueHandling.Ignore)] public string SurfaceFgPattern { get; set; }
+        [JsonProperty("surfaceBgColor",        NullValueHandling = NullValueHandling.Ignore)] public string SurfaceBgColor { get; set; }
+        [JsonProperty("surfaceBgPattern",      NullValueHandling = NullValueHandling.Ignore)] public string SurfaceBgPattern { get; set; }
+        [JsonProperty("cutFgColor",            NullValueHandling = NullValueHandling.Ignore)] public string CutFgColor { get; set; }
+        [JsonProperty("cutFgPattern",          NullValueHandling = NullValueHandling.Ignore)] public string CutFgPattern { get; set; }
+        [JsonProperty("cutBgColor",            NullValueHandling = NullValueHandling.Ignore)] public string CutBgColor { get; set; }
+        [JsonProperty("cutBgPattern",          NullValueHandling = NullValueHandling.Ignore)] public string CutBgPattern { get; set; }
+        [JsonProperty("detailLevel",           NullValueHandling = NullValueHandling.Ignore)] public string DetailLevel { get; set; }
+
+        /// <summary>
+        /// When true, the applier merges defaults from
+        /// AecFilterRegistry.GetByName(filterName) before writing — useful
+        /// for packs that just say {"filterName":"STING - Fire 60 min Walls"}
+        /// and want the corporate-baseline override recipe applied.
+        /// Default true. Set false to leave Revit defaults in place where
+        /// this rule is silent.
+        /// </summary>
+        [JsonProperty("inheritDefaults", NullValueHandling = NullValueHandling.Ignore)] public bool? InheritDefaults { get; set; }
     }
 
     public sealed class StyleVgOverride
@@ -185,6 +259,25 @@ namespace StingTools.Core.Drawing
     public sealed class ViewStylePackLibrary
     {
         [JsonProperty("version")] public int Version { get; set; } = 1;
-        [JsonProperty("viewStylePacks")] public List<ViewStylePack> Packs { get; set; } = new List<ViewStylePack>();
+
+        // Phase 139 — accept both "stylePacks" (corporate file convention used
+        // by the editor + Excel round-trip) and "viewStylePacks" (legacy).
+        // Whichever key is present populates Packs via the wrapper setters.
+        [JsonProperty("viewStylePacks", NullValueHandling = NullValueHandling.Ignore)]
+        public List<ViewStylePack> ViewStylePacks
+        {
+            get => Packs;
+            set { if (value != null && value.Count > 0) Packs = value; }
+        }
+
+        [JsonProperty("stylePacks", NullValueHandling = NullValueHandling.Ignore)]
+        public List<ViewStylePack> StylePacks
+        {
+            get => null; // serialise via ViewStylePacks; this key is read-only
+            set { if (value != null && value.Count > 0) Packs = value; }
+        }
+
+        [JsonIgnore]
+        public List<ViewStylePack> Packs { get; set; } = new List<ViewStylePack>();
     }
 }

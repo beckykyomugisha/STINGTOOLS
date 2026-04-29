@@ -27,6 +27,7 @@ public class IssuesController : ControllerBase
     private readonly ILogger<IssuesController> _logger;
     private readonly IAuditService _audit;
     private readonly IHubContext<NotificationHub> _notifHub;
+    private readonly Planscape.Infrastructure.Services.OutboundWebhookDispatcher? _webhooks;
 
     private static readonly Dictionary<string, int> SLAHours = new()
     {
@@ -46,7 +47,8 @@ public class IssuesController : ControllerBase
         IThumbnailService thumbnails,
         ILogger<IssuesController> logger,
         IAuditService audit,
-        IHubContext<NotificationHub> notifHub)
+        IHubContext<NotificationHub> notifHub,
+        Planscape.Infrastructure.Services.OutboundWebhookDispatcher? webhooks = null)
     {
         _db = db;
         _notifications = notifications;
@@ -57,6 +59,7 @@ public class IssuesController : ControllerBase
         _logger = logger;
         _audit = audit;
         _notifHub = notifHub;
+        _webhooks = webhooks;
     }
 
     [HttpGet]
@@ -249,6 +252,13 @@ public class IssuesController : ControllerBase
             issue.Status, issue.Assignee, issue.AssigneeUserId, issue.Discipline,
             issue.CreatedBy, issue.CreatedAt, issue.DueDate,
             projectId
+        });
+
+        // Phase 165 (NEW-08) — outbound webhook fanout for tenant integrations.
+        _webhooks?.FireAndForget(tenantId, projectId, WebhookEventType.IssueCreated, new
+        {
+            issue.Id, issue.IssueCode, issue.Type, issue.Title, issue.Priority,
+            issue.Status, issue.Assignee, issue.Discipline, issue.CreatedBy, issue.CreatedAt, issue.DueDate,
         });
 
         // SRV-07 — issue creation push must reach project members only, not the whole tenant.

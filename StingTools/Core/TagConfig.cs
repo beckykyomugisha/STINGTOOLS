@@ -986,6 +986,13 @@ namespace StingTools.Core
         /// Idempotent — folders that already exist are skipped. Default true.</summary>
         public static bool AutoCreateCdeFolders { get; internal set; } = true;
 
+        /// <summary>Phase 165 (NEW-02): When true, ClashScheduler starts on
+        /// DocumentOpened with the cadence from default_clash_matrix.json
+        /// (SchedulerIntervalMinutes; default 60). Off keeps the scheduler
+        /// dormant until the user starts it from the Clash tab. Default false
+        /// because the per-tick run on a large model is non-trivial.</summary>
+        public static bool AutoStartClashScheduler { get; internal set; } = false;
+
         /// <summary>Configurable batch size for streaming COBie export. Default 5000.</summary>
         public static int CobieStreamBatchSize { get; internal set; } = 5000;
 
