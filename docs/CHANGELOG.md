@@ -8931,3 +8931,123 @@ its case branches from the giant switch and adding a new
    ability to verify the resulting changes to `PlatformLinkCommands.cs`
    would risk shipping a broken sync pipeline. The dual-layer state
    is functional and documented.
+
+#### Completed (Phase 166 — AEC/FM corporate filter library: 199 ParameterFilterElements with rule trees + override recipes)
+
+Comprehensive corporate-baseline filter library covering every
+discipline an AEC/FM firm produces drawings for, with
+matching `OverrideGraphicSettings` recipes per BS 1192 / ISO 19650 /
+Uniclass 2015 / BS 1710 / ASME A13.1 / GSA MEP / CIBSE-SDE / BS 9999 /
+BS 8300 / BIMForum LOD. Until now, `ViewStylePackApplier.ApplyFilterRules`
+warned "Filter '...' not found — create it first" because there was no
+JSON registry of filter *definitions*; only `TemplateCommands.CreateFiltersCommand`
+hard-coded ~40 filters. This phase fills the gap.
+
+**New files**
+
+| Path | Purpose | Lines |
+|---|---|---:|
+| `StingTools/Data/STING_AEC_FILTERS.json` | 199 filter definitions (categories + rule tree + default override + tags + standard refs) | 241 |
+| `StingTools/Core/Drawing/AecFilterDefinition.cs` | POCO + rule grammar (`leaf | compound`, `kind=builtin/shared/phase/workset/level`, 14 ops) | 122 |
+| `StingTools/Core/Drawing/AecFilterRegistry.cs` | Per-document loader, project override at `<project>/_BIM_COORD/aec_filters.json`, `Get`/`GetByName`/`ListAll`/`ListByTag`/`Reload` | 134 |
+| `StingTools/Core/Drawing/AecFilterFactory.cs` | JSON rule tree → `ElementFilter` (`LogicalAndFilter` / `LogicalOrFilter` / `ElementParameterFilter`) → `ParameterFilterElement.Create`. Resolves built-in / shared / phase / workset / level params; sniffs storage type via `Definition.GetDataType()` (Revit 2024+ ForgeTypeId) | 467 |
+| `StingTools/Commands/Drawing/AecFilterCommands.cs` | `AecFiltersCreate` (mint all into doc), `AecFiltersInspect` (read-only diagnostic with tag-group breakdown), `AecFiltersReload` (cache invalidate) | 159 |
+| `docs/AEC_FILTER_LIBRARY.md` | Reference doc — rule grammar, override recipe, lazy-create flow, standards table, per-drawing-type filter sets, caveats | 155 |
+
+**Modified files**
+
+| Path | Change |
+|---|---|
+| `StingTools/Core/Drawing/ViewStylePack.cs` | `StyleFilterRule` extended with 11 fields (`projectionLinePattern`, `cutLinePattern`, `surfaceFgColor/Pattern`, `surfaceBgColor/Pattern`, `cutFgColor/Pattern`, `cutBgColor/Pattern`, `detailLevel`, `inheritDefaults`). Aliases added so existing JSON short-form keys (`name`/`projColor`/`projWeight`/`cutColor`/`cutWeight`) deserialise alongside long-form (`filterName`/`projectionLineColor`/…). `ViewStylePackLibrary` extended to accept both `stylePacks` (corporate file convention) and `viewStylePacks` (legacy) — fixed a pre-existing schema-key drift that was silently dropping the corporate library. |
+| `StingTools/Core/Drawing/ViewStylePackApplier.cs` | `ApplyFilterRules` lazy-creates missing filters from `AecFilterRegistry` under the active transaction (eliminates the "create it first" warning); merges `FilterDefaultOverride` from registry with pack-level `StyleFilterRule` (pack wins); writes the new surface/cut foreground/background patterns + line patterns + detail-level overrides via `OverrideGraphicSettings` 2025 API. |
+| `StingTools/Data/STING_VIEW_STYLE_PACKS.json` | 4 packs (`corp-coordination`, `corp-standard-plan`, `corp-structural-plan`, `corp-demolition-phase`) curated with 64 filter references (21 / 19 / 20 / 4) using `inheritDefaults: true` so they pull the corporate-baseline override styling without redefinition. Total filterRules across the file: 76. |
+
+**Library breakdown — 199 filters**
+
+| Discipline | Count | Standards |
+|---|---:|---|
+| Architectural | 47 | BS 9999, BS 8300, ISO 13567 |
+| Mechanical / HVAC | 33 | GSA, CIBSE-SDE, BS 1710, SMACNA |
+| Structural | 31 | BS 4449, BS EN 1992 / 1993 / 5268 |
+| Fire | 30 | BS 9999, BS 9990, BS 5266, BS 5839, BS EN 12845 |
+| Electrical | 27 | BS 7671, BS EN 62305, GSA |
+| Plumbing | 18 | BS 1710 (UK), ASME A13.1 (US), BS EN 12056, BS EN 752 |
+| FM / COBie | 11 | COBie 2.4, SFG20, ISO 15686 |
+| ISO 19650 status | 8 | NA UK status codes S0–S7 / A1+ / B1+ |
+| Coordination / LOD | 8 | BIMForum LOD spec, workset / clash conventions |
+| Vertical transport | 5 | BS EN 81-72 firefighter, BS EN 81-76 evacuation |
+| QA | 5 | STING tag completeness flags |
+
+**Rule grammar**
+
+```jsonc
+// Leaf
+{ "param": "FIRE_RATING", "kind": "builtin", "op": "equals", "value": "60" }
+
+// Compound
+{ "logic": "or", "rules": [ { /* leaf */ }, { /* leaf */ } ] }
+```
+
+`kind` values resolve as: `builtin` → `BuiltInParameter` enum;
+`shared` → `SharedParameterElement.Lookup` by GUID, then by name from
+`ParamRegistry`, then project scan; `phase` → `PHASE_CREATED` / `PHASE_DEMOLISHED`
+with value resolved by phase name; `workset` → `ELEM_PARTITION_PARAM`
+(int rule, value from workset name); `level` → `LEVEL_PARAM`.
+
+`op` covers all 14 operators in `ParameterFilterRuleFactory` (equals,
+notEquals, greater, greaterOrEqual, less, lessOrEqual, contains,
+notContains, beginsWith, notBeginsWith, endsWith, notEndsWith, hasValue,
+hasNoValue) with automatic dispatch to string / int / double / ElementId
+factory methods based on a `type` hint or sniffed `Definition.GetDataType`.
+
+**Override merge semantics**
+
+`ViewStylePackApplier.ApplyFilterRules` field-by-field merge:
+
+1. Pack `StyleFilterRule` field set → use pack value
+2. Else `StyleFilterRule.InheritDefaults != false` → use registry `defaultOverride` value
+3. Else leave Revit default
+
+This means a pack can say `{"name": "STING - Fire 60 min Walls", "inheritDefaults": true}`
+and get fire-red cut foreground + weight-6 cut line + dark-red projection line for
+free — a single line of JSON expresses the full BS 9999 fire-rating recipe.
+
+**Lazy filter creation**
+
+When a pack references a filter that doesn't yet exist in the document,
+the applier calls `AecFilterFactory.FindOrCreate` to mint it under the
+active transaction. Idempotent — already-existing filters are returned
+as-is. This means a fresh model can apply `corp-coordination` and see
+all 22 referenced MEP / clash / insulation filters auto-created on
+first use without requiring a separate "create filters" step.
+
+**Commands wired**
+
+| Tag | Class | Purpose |
+|---|---|---|
+| `AecFiltersCreate`  | `AecFiltersCreateCommand`  | Mint every definition as a `ParameterFilterElement` (idempotent) |
+| `AecFiltersInspect` | `AecFiltersInspectCommand` | Read-only summary: total, present, missing, top tag groups |
+| `AecFiltersReload`  | `AecFiltersReloadCommand`  | Clear per-doc registry cache |
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox). Every Revit
+   API call uses the documented 2025/2026/2027 signature; `paramId.Value`
+   replaces deprecated `IntegerValue`; `Definition.GetDataType()` replaces
+   `ParameterType`. Verify in Revit before merge.
+2. `STRUCTURAL_MATERIAL_TYPE`, `WALL_STRUCTURAL_USAGE_PARAM`,
+   `FUNCTION_PARAM` integer values come from the underlying Revit enums
+   (`StructuralMaterialType` / `WallStructuralUsage` / `WallFunction`) —
+   stable across versions but worth re-verifying if compliance is critical.
+3. Categories that don't exist in the target Revit version are silently
+   dropped with a warning; if all drop, the filter creation is skipped
+   with an error logged.
+4. Shared parameters referenced by `kind: "shared"` must be bound on the
+   project before the filter can be created. The factory emits a warning
+   and skips the filter when a referenced shared param is unbound —
+   graceful degradation rather than batch failure.
+5. The pre-existing `stylePacks` ↔ `viewStylePacks` and `filterRules` ↔ `filters`
+   schema-key drift in `STING_VIEW_STYLE_PACKS.json` was a silent bug
+   (registry was falling through to hardcoded defaults). Now fixed via
+   alias setters on `ViewStylePackLibrary` / `ViewStylePack` / `StyleFilterRule`,
+   so the corporate file is actually loaded at runtime for the first time.
