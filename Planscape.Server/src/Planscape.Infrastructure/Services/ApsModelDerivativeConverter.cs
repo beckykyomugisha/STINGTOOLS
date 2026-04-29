@@ -72,7 +72,10 @@ public class ApsModelDerivativeConverter : IModelConverter
 
         try
         {
-            using var http = _httpFactory.CreateClient();
+            // IHttpClientFactory owns the underlying HttpMessageHandler lifetime
+            // — disposing the issued HttpClient closes the pooled handler. Keep
+            // the reference scoped to this method and let the factory clean up.
+            var http = _httpFactory.CreateClient();
             http.Timeout = TimeSpan.FromMilliseconds(_timeoutMs);
 
             var token = await AuthenticateAsync(http, ct);

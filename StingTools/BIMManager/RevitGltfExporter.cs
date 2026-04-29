@@ -74,7 +74,7 @@ namespace StingTools.BIMManager
             _current = new MeshNode
             {
                 UniqueId = _currentUniqueId,
-                Name = string.IsNullOrEmpty(_currentName) ? id.IntegerValue.ToString() : _currentName!,
+                Name = string.IsNullOrEmpty(_currentName) ? id.Value.ToString() : _currentName!,
                 Category = _currentCategory ?? "",
                 Rgb = _currentRgb,
             };
@@ -161,27 +161,14 @@ namespace StingTools.BIMManager
                 _current.Normals.Add((float)n.X);
                 _current.Normals.Add((float)n.Y);
                 _current.Normals.Add((float)n.Z);
-
-                if (_current.Positions.Count / 3 > 65000)
-                {
-                    _nodes.Add(_current);
-                    _current = new MeshNode
-                    {
-                        UniqueId = _currentUniqueId ?? "",
-                        Name = (_currentName ?? "") + "_split",
-                        Category = _currentCategory ?? "",
-                        Rgb = _currentRgb,
-                    };
-                    baseIdx = 0;
-                }
             }
 
             for (int f = 0; f < facets.Count; f++)
             {
                 var tri = facets[f];
-                _current.Indices.Add((ushort)(baseIdx + tri.V1));
-                _current.Indices.Add((ushort)(baseIdx + tri.V2));
-                _current.Indices.Add((ushort)(baseIdx + tri.V3));
+                _current.Indices.Add((uint)(baseIdx + tri.V1));
+                _current.Indices.Add((uint)(baseIdx + tri.V2));
+                _current.Indices.Add((uint)(baseIdx + tri.V3));
             }
         }
 
@@ -254,7 +241,7 @@ namespace StingTools.BIMManager
 
                 int idxAccIdx = accessors.Count;
                 accessors.Add(new JObject {
-                    ["bufferView"] = idxBvIdx, ["componentType"] = 5123,
+                    ["bufferView"] = idxBvIdx, ["componentType"] = 5125,
                     ["count"] = node.Indices.Count, ["type"] = "SCALAR",
                 });
                 int posAccIdx = accessors.Count;
@@ -394,7 +381,7 @@ namespace StingTools.BIMManager
             public int[]? Rgb;
             public List<float> Positions = new();
             public List<float> Normals = new();
-            public List<ushort> Indices = new();
+            public List<uint> Indices = new();
         }
 
         public class ExportResult

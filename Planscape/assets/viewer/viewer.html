@@ -506,17 +506,20 @@
     }
   } catch (_) { /* graceful */ }
 
-  // Extras hook into commands they own.
+  // Extras hook into commands they own. Defensive payload access — RN can
+  // post messages with missing/empty payloads while the viewer is still
+  // booting and we don't want a TypeError to take down the message loop.
   const _origHandle = handleCommand;
   handleCommand = function (cmd) {
     const x = window.STING_VIEWER_EXTRAS;
+    const p = (cmd && cmd.payload) || {};
     if (x) {
       switch (cmd.type) {
-        case 'loadFederation':    return x.loadFederation(cmd.payload.sources || []);
-        case 'setSectionPlane':   return x.setSectionPlane(cmd.payload || {});
-        case 'setWalkthrough':    return x.setWalkthrough(!!(cmd.payload && cmd.payload.enabled));
+        case 'loadFederation':    return x.loadFederation(p.sources || []);
+        case 'setSectionPlane':   return x.setSectionPlane(p);
+        case 'setWalkthrough':    return x.setWalkthrough(!!p.enabled);
         case 'startArea':         return x.startArea();
-        case 'addAreaPoint':      return x.addAreaPoint(cmd.payload.point);
+        case 'addAreaPoint':      return p.point ? x.addAreaPoint(p.point) : undefined;
         case 'finishArea':        return x.finishArea();
         case 'measureVolume':     return x.measureSelectionVolume();
       }

@@ -252,37 +252,56 @@
     group.add(new THREE.Line(g, m));
   }
 
-  // ── Auto-LOD: drop pixel ratio + antialias when fps sags ──────────────
-  let fpsSamples = []; let lastFrame = performance.now(); let lodLevel = 0;
-  ext.tickFps = function () {
-    const now = performance.now();
-    const dt = now - lastFrame; lastFrame = now;
-    if (dt <= 0 || dt > 1000) return;
-    const fps = 1000 / dt;
-    fpsSamples.push(fps);
-    if (fpsSamples.length > 60) fpsSamples.shift();
-    if (fpsSamples.length === 60) {
-      const avg = fpsSamples.reduce((s, x) => s + x, 0) / 60;
-      const h = host(); if (!h) return;
-      if (avg < 24 && lodLevel === 0) {
-        h.renderer.setPixelRatio(1);
-        lodLevel = 1;
-        h.bridge.send('lodChanged', { level: 1, avgFps: avg });
-      } else if (avg < 18 && lodLevel === 1) {
-        // Hide every Nth mesh to ease load.
-        let n = 0;
-        h.modelRoot && h.modelRoot.traverse((o) => { if (o.isMesh && (n++ % 3 === 2)) o.visible = false; });
-        lodLevel = 2;
-        h.bridge.send('lodChanged', { level: 2, avgFps: avg });
-      } else if (avg > 45 && lodLevel > 0) {
-        h.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-        h.modelRoot && h.modelRoot.traverse((o) => { if (o.isMesh) o.visible = true; });
-        lodLevel = 0;
-        h.bridge.send('lodChanged', { level: 0, avgFps: avg });
+  // ── Auto-LOD: drop pixel ratio + meshes when render fps sags ──────────
+  // Driven by rAF (the actual render loop), NOT setInterval — sampling the
+  // setInterval cadence reports the timer's own delay, not GPU/draw cost.
+  let frameCount = 0;
+  let windowStart = performance.now();
+  let lodLevel = 0;
+  let rafAttached = false;
+
+  function attachRafSampler() {
+    if (rafAttached) return;
+    rafAttached = true;
+    function step() {
+      frameCount++;
+      const now = performance.now();
+      const elapsed = now - windowStart;
+      // 1-second windows.
+      if (elapsed >= 1000) {
+        const avg = frameCount * 1000 / elapsed;
+        frameCount = 0;
+        windowStart = now;
+        evaluateLod(avg);
       }
-      fpsSamples = [];
+      requestAnimationFrame(step);
     }
-  };
+    requestAnimationFrame(step);
+  }
+
+  function evaluateLod(avg) {
+    const h = host(); if (!h) return;
+    if (avg < 24 && lodLevel === 0) {
+      h.renderer.setPixelRatio(1);
+      lodLevel = 1;
+      h.bridge.send('lodChanged', { level: 1, avgFps: avg });
+    } else if (avg < 18 && lodLevel === 1) {
+      let n = 0;
+      h.modelRoot && h.modelRoot.traverse((o) => { if (o.isMesh && (n++ % 3 === 2)) o.visible = false; });
+      lodLevel = 2;
+      h.bridge.send('lodChanged', { level: 2, avgFps: avg });
+    } else if (avg > 45 && lodLevel > 0) {
+      h.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      h.modelRoot && h.modelRoot.traverse((o) => { if (o.isMesh) o.visible = true; });
+      lodLevel = 0;
+      h.bridge.send('lodChanged', { level: 0, avgFps: avg });
+    }
+  }
+
+  // Kick the sampler once viewer.html has populated STING_VIEWER. The
+  // `tickFps` name is kept for backwards compat with the host page's
+  // bootstrap; calling it now just attaches the rAF loop on first call.
+  ext.tickFps = function () { attachRafSampler(); };
 
   function countMeshes(o) { let n = 0; o.traverse(x => { if (x.isMesh) n++; }); return n; }
   function bbToArray(b) { return [b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z]; }
