@@ -1698,13 +1698,18 @@ namespace StingTools.UI
                 "2 — PROD-SEQ",
                 "3 — DISC-SYS-SEQ",
                 "4 — DISC-PROD-SEQ",
-                "5 — Full 8-segment"
+                "5 — Full 8-segment",
+                "6 — TAG7 narrative (client prose)",
             };
             body.Children.Add(LabeledCombo("Display mode",
                 displayModes,
                 tp.DisplayMode.HasValue ? displayModes.FirstOrDefault(s => s.StartsWith(tp.DisplayMode.Value + " ")) ?? "" : "",
                 v => tp.DisplayMode = (!string.IsNullOrEmpty(v) && int.TryParse(v.Split(' ')[0], out var n)) ? (int?)n : null,
-                tooltip: "1=SEQ, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ, 5=Full 8-segment."));
+                tooltip: "1=SEQ, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ,\n" +
+                         "5=Full 8-segment, 6=TAG7 plain-language narrative.\n\n" +
+                         "Mode 6 reads the rich TAG7 narrative composed by WriteTag7All —\n" +
+                         "ideal for client-facing presentation drawings where prose reads\n" +
+                         "better than the technical 8-segment tag."));
 
             // Phase 165 — pattern mode (HANDOVER / DC / CUSTOM) for T4-T10 payload.
             // Empty = inherit project / type defaults (which are DC unless overridden).

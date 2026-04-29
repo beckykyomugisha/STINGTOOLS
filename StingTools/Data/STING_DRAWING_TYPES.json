@@ -3896,7 +3896,7 @@
         "tagColor": "GREY",
         "colorScheme": "Mono",
         "segmentMask": "00000101",
-        "displayMode": 2,
+        "displayMode": 6,
         "patternMode": "DC",
         "sectionVisibility": {
           "A": true,
@@ -3942,7 +3942,66 @@
         }
       ],
       "annotation": {
-        "rules": []
+        "rules": [
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_MechanicalEquipment",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_ElectricalEquipment",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_PlumbingFixtures",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_LightingFixtures",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_Furniture",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_Doors",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_Windows",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_Rooms",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          }
+        ],
+        "autoTag": true,
+        "denseUntilScale": 100
       },
       "print": {
         "colourScheme": "PresentationRich",
@@ -3993,7 +4052,7 @@
         "tagColor": "GREY",
         "colorScheme": "Mono",
         "segmentMask": "00000101",
-        "displayMode": 2,
+        "displayMode": 6,
         "patternMode": "DC",
         "sectionVisibility": {
           "A": true,
@@ -4031,7 +4090,66 @@
         }
       ],
       "annotation": {
-        "rules": []
+        "rules": [
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_MechanicalEquipment",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_ElectricalEquipment",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_PlumbingFixtures",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_LightingFixtures",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_Furniture",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_Doors",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_Windows",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_Rooms",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          }
+        ],
+        "autoTag": true,
+        "denseUntilScale": 100
       },
       "print": {
         "colourScheme": "PresentationRich",
@@ -5172,6 +5290,118 @@
       }
     },
     {
+      "id": "pres-narrative-A1",
+      "name": "Client Narrative \u2014 A1 (TAG7 prose)",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "*",
+      "phase": "PRESENTATION",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING_TB_SHEET_A1_PRES",
+      "scale": 100,
+      "detailLevel": "Coarse",
+      "viewTemplateName": "STING - Presentation Plan",
+      "viewportTypeName": "STING - Standard Viewport",
+      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-PR-{role}-{seq:D4}-{suit}-{rev}",
+      "sheetNamePattern": "CLIENT NARRATIVE \u2014 {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 200
+      },
+      "annotation": {
+        "autoTag": true,
+        "denseUntilScale": 100,
+        "rules": [
+          {
+            "ruleType": "AutoTag",
+            "category": "OST_MechanicalEquipment",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "AutoTag",
+            "category": "OST_ElectricalEquipment",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "AutoTag",
+            "category": "OST_PlumbingFixtures",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "AutoTag",
+            "category": "OST_LightingFixtures",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "AutoTag",
+            "category": "OST_Doors",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "AutoTag",
+            "category": "OST_Rooms",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "All"
+          }
+        ]
+      },
+      "print": {
+        "colourScheme": "PresentationRich",
+        "lineWeightScale": 0.6,
+        "halftoneLinks": true
+      },
+      "tokenProfile": {
+        "presentationMode": "Presentation",
+        "paraDepth": 3,
+        "tagSize": "3",
+        "tagStyle": "ITALIC",
+        "tagColor": "GREY",
+        "colorScheme": "Mono",
+        "segmentMask": "11111111",
+        "displayMode": 6,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": false,
+          "E": false,
+          "F": false
+        }
+      },
+      "slots": [
+        {
+          "label": "Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.55,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Narrative",
+          "viewType": "Legend",
+          "normX": 0.6,
+          "normY": 0.05,
+          "normW": 0.37,
+          "normH": 0.9
+        }
+      ]
+    },
+    {
       "id": "mep-plan-presentation",
       "name": "MEP Plan \u2014 Presentation (Phase 135)",
       "description": "Client-facing MEP plan. Shallow paragraph depth, only TAG7 sections A+B visible, soft Discipline colour scheme, segment mask hides LVL/ZONE for visual cleanliness.",
@@ -5490,7 +5720,7 @@
         "tagColor": "GREY",
         "colorScheme": "Mono",
         "segmentMask": "00000101",
-        "displayMode": 2,
+        "displayMode": 6,
         "patternMode": "DC",
         "sectionVisibility": {
           "A": true,
@@ -5522,7 +5752,66 @@
         }
       ],
       "annotation": {
-        "rules": []
+        "rules": [
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_MechanicalEquipment",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_ElectricalEquipment",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_PlumbingFixtures",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_LightingFixtures",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_Furniture",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_Doors",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_Windows",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_Rooms",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          }
+        ],
+        "autoTag": true,
+        "denseUntilScale": 100
       },
       "print": {
         "colourScheme": "PresentationRich",
@@ -5560,7 +5849,7 @@
         "tagColor": "GREY",
         "colorScheme": "Mono",
         "segmentMask": "00000101",
-        "displayMode": 2,
+        "displayMode": 6,
         "patternMode": "DC",
         "sectionVisibility": {
           "A": true,
@@ -5592,7 +5881,66 @@
         }
       ],
       "annotation": {
-        "rules": []
+        "rules": [
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_MechanicalEquipment",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_ElectricalEquipment",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_PlumbingFixtures",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_LightingFixtures",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_Furniture",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_Doors",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_Windows",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_Rooms",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          }
+        ],
+        "autoTag": true,
+        "denseUntilScale": 100
       },
       "print": {
         "colourScheme": "PresentationRich",
@@ -5628,7 +5976,7 @@
         "tagColor": "GREY",
         "colorScheme": "Mono",
         "segmentMask": "00000101",
-        "displayMode": 2,
+        "displayMode": 6,
         "patternMode": "DC",
         "sectionVisibility": {
           "A": true,
@@ -5690,7 +6038,66 @@
         }
       ],
       "annotation": {
-        "rules": []
+        "rules": [
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_MechanicalEquipment",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_ElectricalEquipment",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_PlumbingFixtures",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_LightingFixtures",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_Furniture",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_Doors",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_Windows",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          },
+          {
+            "ruleType": "Auto3DTag",
+            "category": "OST_Rooms",
+            "enabled": true,
+            "skipIfTagged": true,
+            "densityMode": "Heroes"
+          }
+        ],
+        "autoTag": true,
+        "denseUntilScale": 100
       },
       "print": {
         "colourScheme": "PresentationRich",
@@ -5700,6 +6107,12 @@
     }
   ],
   "routing": [
+    {
+      "disciplineMatches": ".*",
+      "phaseMatches": "PRESENTATION",
+      "docTypeMatches": "NARRATIVE",
+      "drawingTypeId": "pres-narrative-A1"
+    },
     {
       "discipline": "Architecture",
       "phase": "*",

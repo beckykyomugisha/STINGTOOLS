@@ -3110,11 +3110,27 @@ namespace StingTools.Core
         ///   3 = DISC-SYS-SEQ        (e.g. "M-HVAC-0042")
         ///   4 = DISC-PROD-SEQ       (e.g. "M-AHU-0042")
         ///   5 = Full 8-segment      (default — current behaviour)
+        ///   6 = TAG7 plain narrative (Phase 165 — client-facing prose
+        ///       e.g. "AHU-01 — primary supply unit serving Level 02. Located
+        ///       in plant room PR-02. Status: NEW.")
         /// Returns the full tag if mode is unrecognised.
         /// </summary>
         public static string BuildDisplayTag(Element el, int mode)
         {
             if (el == null) return "";
+
+            // Phase 165 — mode 6 reads the rich TAG7 narrative directly.
+            // The narrative is composed by WriteTag7All; if empty (element
+            // hasn't been tagged yet) we fall through to the technical tag
+            // so the display never goes blank on a partially-tagged model.
+            if (mode == 6)
+            {
+                string narrative = ParameterHelpers.GetString(el, ParamRegistry.TAG7);
+                if (!string.IsNullOrEmpty(narrative)) return narrative;
+                // Fallback: best plain-language hint we can build right now.
+                mode = 4; // DISC-PROD-SEQ — most readable compact form
+            }
+
             string[] tokens = ParamRegistry.ReadTokenValues(el);
             if (tokens == null || tokens.Length < 8) return "";
 
