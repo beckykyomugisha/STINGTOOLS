@@ -691,6 +691,35 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Phase 165 — Issue #21. Public alias for <see cref="InvalidateRoomIndex"/>
+        /// so post-batch callers can use the more descriptive name. Ensures the
+        /// next BuildRoomIndex call rebuilds the cache.
+        /// </summary>
+        public static void ForceRefresh() => InvalidateRoomIndex();
+
+        // Phase 165 — Issue #21. During an explicit PopulationContext session
+        // the TTL is bumped further (90s) so 500-element batches can't expire
+        // the cache mid-loop. PopulationContext.Build flips this on; the
+        // post-batch ForceRefresh / Invalidate flips it off.
+        private static volatile bool _batchSessionActive;
+        private static readonly TimeSpan _roomCacheBatchTtl = TimeSpan.FromSeconds(90);
+
+        /// <summary>
+        /// Phase 165 — Issue #21. Marks an active batch session so the room
+        /// index uses the longer TTL until <see cref="EndBatchSession"/> is
+        /// called. Idempotent — multiple BeginBatchSession calls without
+        /// matching End calls are safe.
+        /// </summary>
+        public static void BeginBatchSession() { _batchSessionActive = true; }
+
+        /// <summary>End an active batch session and force-refresh the cache.</summary>
+        public static void EndBatchSession()
+        {
+            _batchSessionActive = false;
+            ForceRefresh();
+        }
+
+        /// <summary>
         /// Pre-scan all rooms in the project and build a lookup by ElementId.
         /// Cached per-document with a 30-second TTL; use
         /// <see cref="InvalidateRoomIndex"/> to force a rebuild.
@@ -698,11 +727,15 @@ namespace StingTools.Core
         public static Dictionary<ElementId, Room> BuildRoomIndex(Document doc)
         {
             string key = doc?.PathName ?? doc?.Title ?? "";
+            // Phase 165 — Issue #21. Pick TTL based on whether a batch session
+            // is active. Outside a batch: 30 s (covers back-to-back commands).
+            // Inside a batch: 90 s so 500-element loops never expire mid-pass.
+            TimeSpan ttl = _batchSessionActive ? _roomCacheBatchTtl : _roomCacheTtl;
             lock (_roomCacheLock)
             {
                 if (_roomCacheIndex != null
                     && string.Equals(_roomCacheDocKey, key, StringComparison.Ordinal)
-                    && (DateTime.UtcNow - _roomCacheStamp) < _roomCacheTtl)
+                    && (DateTime.UtcNow - _roomCacheStamp) < ttl)
                 {
                     StingLog.RecordHit(StingLog.CacheKind.RoomIndex); // E-1
                     return _roomCacheIndex;
@@ -1445,6 +1478,18 @@ namespace StingTools.Core
             /// TAG-PREFLIGHT-DUP-01: Drop the cached PopulationContext. Call from
             /// PostTagCleanup, document close, and TagConfig reload paths.
             /// </summary>
+            /// <summary>
+            /// Phase 165 follow-up — explicit teardown helper. Ends the
+            /// SpatialAutoDetect batch session opened by <see cref="Build"/>
+            /// so the room-index TTL drops back to 30 s. Idempotent and
+            /// safe to call when no session is active.
+            ///
+            /// Usage pattern in batch commands:
+            ///   var ctx = TokenAutoPopulator.PopulationContext.Build(doc);
+            ///   try { ... } finally { TokenAutoPopulator.PopulationContext.EndSession(); }
+            /// </summary>
+            public static void EndSession() => SpatialAutoDetect.EndBatchSession();
+
             public static void InvalidateCache()
             {
                 lock (_cacheLock)
@@ -1461,6 +1506,12 @@ namespace StingTools.Core
             /// </summary>
             public static PopulationContext Build(Document doc)
             {
+                // Phase 165 — Issue #21. Mark the room-index cache as in an
+                // active batch session so a 500-element pipeline can't expire
+                // it mid-loop. Callers that finish a batch should call
+                // EndBatchSession (or ForceRefresh) on their tear-down path.
+                SpatialAutoDetect.BeginBatchSession();
+
                 // Match original behaviour: a null document is a programmer error and
                 // should fail fast in the collector below rather than be silently masked.
                 if (doc != null)

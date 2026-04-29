@@ -1698,15 +1698,34 @@ namespace StingTools.UI
                 "2 — PROD-SEQ",
                 "3 — DISC-SYS-SEQ",
                 "4 — DISC-PROD-SEQ",
-                "5 — Full 8-segment"
+                "5 — Full 8-segment",
+                "6 — TAG7 narrative (client prose)",
             };
             body.Children.Add(LabeledCombo("Display mode",
                 displayModes,
                 tp.DisplayMode.HasValue ? displayModes.FirstOrDefault(s => s.StartsWith(tp.DisplayMode.Value + " ")) ?? "" : "",
                 v => tp.DisplayMode = (!string.IsNullOrEmpty(v) && int.TryParse(v.Split(' ')[0], out var n)) ? (int?)n : null,
-                tooltip: "1=SEQ, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ, 5=Full 8-segment."));
+                tooltip: "1=SEQ, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ,\n" +
+                         "5=Full 8-segment, 6=TAG7 plain-language narrative.\n\n" +
+                         "Mode 6 reads the rich TAG7 narrative composed by WriteTag7All —\n" +
+                         "ideal for client-facing presentation drawings where prose reads\n" +
+                         "better than the technical 8-segment tag."));
+
+            // Phase 165 — pattern mode (HANDOVER / DC / CUSTOM) for T4-T10 payload.
+            // Empty = inherit project / type defaults (which are DC unless overridden).
+            string[] patternModes = new[] { "", "DC", "HANDOVER", "CUSTOM" };
+            body.Children.Add(LabeledCombo("T4-T10 pattern mode",
+                patternModes,
+                tp.PatternMode ?? "",
+                v => tp.PatternMode = string.IsNullOrWhiteSpace(v) ? null : v.Trim().ToUpperInvariant(),
+                tooltip: "Selects which T4-T10 payload pack renders.\n" +
+                         "  DC       — design & construction payload (default project mode)\n" +
+                         "  HANDOVER — post-construction handover payload\n" +
+                         "  CUSTOM   — project-specific payload\n" +
+                         "Empty = leave whatever the type already has set."));
 
             body.Children.Add(BuildSectionVisibilityGrid(tp));
+            body.Children.Add(BuildTierVisibilityGrid(tp));
             body.Children.Add(BuildCategoryDepthsGrid(tp));
 
             // Summary / collapse line
@@ -1783,6 +1802,42 @@ namespace StingTools.UI
                 var cb = new CheckBox {
                     Content = k, IsChecked = cur, Margin = new Thickness(0, 0, 12, 0),
                     Foreground = new SolidColorBrush(FgColor),
+                };
+                cb.Checked   += (s, e) => tp.SectionVisibility[k] = true;
+                cb.Unchecked += (s, e) => tp.SectionVisibility[k] = false;
+                row.Children.Add(cb);
+            }
+            host.Children.Add(row);
+            return host;
+        }
+
+        // Phase 165 — T4-T10 tier visibility checkboxes. Reuses the same
+        // SectionVisibility dictionary as A-F but with keys "T4".."T10".
+        // TokenProfileApplier writes these to TAG_PARA_STATE_4..10_BOOL on
+        // the element types referenced by the view, which gates the T4-T10
+        // payload appends in WriteTag7All. Pair this card with the
+        // "T4-T10 pattern mode" dropdown above to choose which payload set
+        // (HANDOVER / DC / CUSTOM) is active for the enabled tiers.
+        private UIElement BuildTierVisibilityGrid(AnnotationTokenProfile tp)
+        {
+            tp.SectionVisibility = tp.SectionVisibility ?? new Dictionary<string, bool>();
+            var host = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
+            host.Children.Add(new TextBlock {
+                Text = "TAG7 tier 4-10 visibility — T4: Commissioning · T5: Cost · T6: Carbon · " +
+                       "T7: Fabrication · T8: Clash · T9: As-built · T10: Compliance",
+                Foreground = new SolidColorBrush(SubtleColor),
+                FontSize = 11, TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 4) });
+
+            var row = new StackPanel { Orientation = Orientation.Horizontal };
+            string[] tierKeys = { "T4", "T5", "T6", "T7", "T8", "T9", "T10" };
+            foreach (var k in tierKeys)
+            {
+                bool cur = tp.SectionVisibility.TryGetValue(k, out var b) && b;
+                var cb = new CheckBox {
+                    Content = k, IsChecked = cur, Margin = new Thickness(0, 0, 10, 0),
+                    Foreground = new SolidColorBrush(FgColor),
+                    ToolTip = $"Enable {k} payload row. Requires PatternMode (above) to choose which T4-T10 pack populates the value."
                 };
                 cb.Checked   += (s, e) => tp.SectionVisibility[k] = true;
                 cb.Unchecked += (s, e) => tp.SectionVisibility[k] = false;
@@ -1884,10 +1939,24 @@ namespace StingTools.UI
             if (!string.IsNullOrWhiteSpace(tp.ColorScheme)) bits.Add($"scheme:{tp.ColorScheme}");
             if (!string.IsNullOrWhiteSpace(tp.SegmentMask)) bits.Add($"mask:{tp.SegmentMask}");
             if (tp.DisplayMode.HasValue) bits.Add($"disp:{tp.DisplayMode.Value}");
+            if (!string.IsNullOrWhiteSpace(tp.PatternMode)) bits.Add($"pattern:{tp.PatternMode}");
             if (tp.SectionVisibility != null && tp.SectionVisibility.Count > 0)
-                bits.Add("sect:" + string.Join("",
-                    tp.SectionVisibility.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase)
-                        .Select(k => k.Value ? k.Key : k.Key.ToLower())));
+            {
+                // A-F (single-letter) and T4..T10 (two-three char) summarised separately.
+                var letters = tp.SectionVisibility.Where(k => k.Key.Length == 1).ToList();
+                var tiers   = tp.SectionVisibility
+                    .Where(k => k.Key.StartsWith("T", StringComparison.OrdinalIgnoreCase) && k.Key.Length > 1)
+                    .ToList();
+                if (letters.Count > 0)
+                    bits.Add("sect:" + string.Join("",
+                        letters.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase)
+                               .Select(k => k.Value ? k.Key.ToUpperInvariant() : k.Key.ToLowerInvariant())));
+                if (tiers.Count > 0)
+                    bits.Add("tiers:" + string.Join(",",
+                        tiers.Where(k => k.Value)
+                             .OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase)
+                             .Select(k => k.Key.ToUpperInvariant())));
+            }
             if (tp.CategoryDepths != null && tp.CategoryDepths.Count > 0)
                 bits.Add($"cats:{tp.CategoryDepths.Count}");
             return bits.Count == 0

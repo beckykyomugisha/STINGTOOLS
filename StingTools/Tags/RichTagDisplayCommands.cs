@@ -151,6 +151,21 @@ namespace StingTools.Tags
             if (!string.IsNullOrEmpty(tag7.SectionD)) lines.Add(tag7.SectionD);
             if (!string.IsNullOrEmpty(tag7.SectionE)) lines.Add(tag7.SectionE);
             if (!string.IsNullOrEmpty(tag7.SectionF)) lines.Add(tag7.SectionF);
+
+            // ─── Phase 165 — T4-T10 tier appends ───
+            // Each tier renders only when its summary is non-empty.
+            // Note: Revit TextNote FormattedText cannot set colour — it supports
+            // Bold/Italic/Underline only. The tier label prefix ("T4:" / "T5:" …)
+            // is italic-styled by ApplyFormattedStyles. Distinct colours are
+            // honoured by HTML-export and WPF preview paths, not the Revit canvas.
+            if (!string.IsNullOrEmpty(tag7.SectionT4))  lines.Add("T4: " + tag7.SectionT4);
+            if (!string.IsNullOrEmpty(tag7.SectionT5))  lines.Add("T5: " + tag7.SectionT5);
+            if (!string.IsNullOrEmpty(tag7.SectionT6))  lines.Add("T6: " + tag7.SectionT6);
+            if (!string.IsNullOrEmpty(tag7.SectionT7))  lines.Add("T7: " + tag7.SectionT7);
+            if (!string.IsNullOrEmpty(tag7.SectionT8))  lines.Add("T8: " + tag7.SectionT8);
+            if (!string.IsNullOrEmpty(tag7.SectionT9))  lines.Add("T9: " + tag7.SectionT9);
+            if (!string.IsNullOrEmpty(tag7.SectionT10)) lines.Add("T10: " + tag7.SectionT10);
+
             return string.Join("\n", lines);
         }
 
@@ -262,6 +277,15 @@ namespace StingTools.Tags
                     }
                 }
 
+                // ─── Phase 165 — T4-T10 label styling (italic + bold prefix) ───
+                ApplyTierLabelStyle(ft, fullText, "T4: ");
+                ApplyTierLabelStyle(ft, fullText, "T5: ");
+                ApplyTierLabelStyle(ft, fullText, "T6: ");
+                ApplyTierLabelStyle(ft, fullText, "T7: ");
+                ApplyTierLabelStyle(ft, fullText, "T8: ");
+                ApplyTierLabelStyle(ft, fullText, "T9: ");
+                ApplyTierLabelStyle(ft, fullText, "T10: ");
+
                 note.SetFormattedText(ft);
             }
             catch (Exception ex)
@@ -271,6 +295,30 @@ namespace StingTools.Tags
         }
 
         /// <summary>Apply italic to specific label strings within a section.</summary>
+        /// <summary>
+        /// Phase 165 — italicise + bold every occurrence of a T4-T10 tier prefix
+        /// (e.g. "T4: ") in the full TextNote text. Idempotent — safe to call
+        /// even if the prefix is not present.
+        /// </summary>
+        private void ApplyTierLabelStyle(FormattedText ft, string fullText, string prefix)
+        {
+            if (string.IsNullOrEmpty(prefix) || string.IsNullOrEmpty(fullText)) return;
+            int from = 0;
+            while (true)
+            {
+                int idx = fullText.IndexOf(prefix, from, StringComparison.Ordinal);
+                if (idx < 0) break;
+                try
+                {
+                    var range = new TextRange(idx, prefix.Length);
+                    ft.SetBoldStatus(range, true);
+                    ft.SetItalicStatus(range, true);
+                }
+                catch { /* range out of bounds — skip */ }
+                from = idx + prefix.Length;
+            }
+        }
+
         private void ApplyItalicToLabels(FormattedText ft, string fullText, int sectionStart,
             string sectionText, string[] labels)
         {

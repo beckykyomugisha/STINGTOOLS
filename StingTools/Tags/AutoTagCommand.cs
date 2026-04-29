@@ -299,6 +299,9 @@ namespace StingTools.Tags
                 $"skipped={stats.TotalSkipped}, collisions={stats.TotalCollisions}, " +
                 $"mode={collisionMode}");
 
+            // Phase 165 follow-up — explicit batch teardown so the room-index
+            // TTL drops from 90s back to 30s now that this command is done.
+            TokenAutoPopulator.PopulationContext.EndSession();
             return Result.Succeeded;
         }
     }
@@ -511,6 +514,8 @@ namespace StingTools.Tags
             StingLog.Info($"TagNewOnly: tagged={stats.TotalTagged}, " +
                 $"collisions={stats.TotalCollisions}, elapsed={sw.Elapsed.TotalSeconds:F1}s");
 
+            // Phase 165 follow-up — explicit batch teardown.
+            TokenAutoPopulator.PopulationContext.EndSession();
             return Result.Succeeded;
         }
     }

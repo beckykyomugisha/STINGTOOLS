@@ -2633,3 +2633,6 @@ PARAM	a7c0b2e4-4d91-4a55-9c7e-aa0001000002	STING_DRAWING_PACKAGE_ID_TXT	TEXT		27
 PARAM	a7c0b2e4-4d91-4a55-9c7e-aa0001000003	STING_AUTO_PLACED_BOOL	YESNO		27	1	Flags views auto-placed onto sheets by the STING production engine [STING DT v137]	1
 PARAM	a7c0b2e4-4d91-4a55-9c7e-aa0001000004	STING_PRODUCTION_RULE_IDX_INT	INTEGER		27	1	ProductionRule index that produced this view [STING DT v137]	1
 PARAM	a7c0b2e4-4d91-4a55-9c7e-aa0001000005	STING_SHEET_SEQUENCE_INT	INTEGER		27	1	Production sheet sequence number [STING DT v137]	1
+PARAM	a8f3c1d2-4e56-7890-abcd-ef1234567801	HANDOVER_MODE_HANDOVER_BOOL	YESNO		25	1	Pattern selector — Handover / FM T4-T10 payload visible [STING Phase 165]	1
+PARAM	a8f3c1d2-4e56-7890-abcd-ef1234567802	HANDOVER_MODE_DC_BOOL	YESNO		25	1	Pattern selector — Design & Construction T4-T10 payload visible [STING Phase 165]	1
+PARAM	a8f3c1d2-4e56-7890-abcd-ef1234567803	HANDOVER_MODE_CUSTOM_BOOL	YESNO		25	1	Pattern selector — Custom (user-defined) T4-T10 payload visible [STING Phase 165]	1

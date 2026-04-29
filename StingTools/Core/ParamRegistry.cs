@@ -557,6 +557,16 @@ namespace StingTools.Core
         /// <summary>Pattern selector — Custom (user-defined) T4-T10 payload is visible.</summary>
         public static string MODE_CUSTOM { get; private set; } = "HANDOVER_MODE_CUSTOM_BOOL";
 
+        // Phase 165 — stable GUIDs for the three pattern-mode BOOLs so they can
+        // be registered as Revit shared parameters (Issue #16 in the tagging
+        // workflow audit). Without GUIDs, AddBindings can't bind these to
+        // ProjectInformation, and they cannot be written to elements as type
+        // params. Constants are named with the same _GUID suffix convention as
+        // the rest of the file.
+        public const string MODE_HANDOVER_GUID = "a8f3c1d2-4e56-7890-abcd-ef1234567801";
+        public const string MODE_DC_GUID       = "a8f3c1d2-4e56-7890-abcd-ef1234567802";
+        public const string MODE_CUSTOM_GUID   = "a8f3c1d2-4e56-7890-abcd-ef1234567803";
+
         // ── Warning threshold definitions (v5.5) ─────────────────────────
         // Loaded from warning_thresholds section of PARAMETER_REGISTRY.json.
         // Each entry defines a compliance check with threshold, unit, and severity.
@@ -643,6 +653,17 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(categoryName)) return null;
             return _paragraphContainers.TryGetValue(categoryName, out string p) ? p : null;
         }
+
+        /// <summary>
+        /// Phase 165 — Issue #22. Distinct paragraph-container parameter names
+        /// across every category, used by WriteTag7All to clear stale entries
+        /// before writing the new narrative. Returns an empty enumerable if no
+        /// containers are registered.
+        /// </summary>
+        public static IEnumerable<string> AllParagraphContainers
+            => _paragraphContainers.Values
+                .Where(v => !string.IsNullOrEmpty(v))
+                .Distinct(StringComparer.Ordinal);
 
         /// <summary>All 10 paragraph state parameter names indexed by tier (1-based: index 0 = state 1).</summary>
         // PERF-010 FIX: Cache array to avoid per-access allocation in hot loops (WriteTag7All)
@@ -875,6 +896,132 @@ namespace StingTools.Core
             return paramName == TAG7 || paramName == TAG7A || paramName == TAG7B ||
                    paramName == TAG7C || paramName == TAG7D || paramName == TAG7E ||
                    paramName == TAG7F;
+        }
+
+        // Phase 165 — Issue #10. Ordered lead parameter names for System B
+        // (Handover) tiers T4..T10. WriteTag7All in Handover mode picks the
+        // first non-empty parameter from each tier's group; this property
+        // surfaces the lead/canonical param of each tier so callers can
+        // iterate Tag7SystemBSections[i] alongside AllParaStates[i+3].
+        // Index 0 = T4, index 6 = T10.
+        private static string[] _tag7SystemBSections;
+        public static string[] Tag7SystemBSections => _tag7SystemBSections ??= new[]
+        {
+            COMM_STATE_TXT,             // T4 — Commissioning lead
+            CST_UG_PRICE_UGX,           // T5 — Cost lead
+            CBN_A1_A3_KG_CO2E,          // T6 — Carbon lead
+            ASS_SPOOL_NR_TXT,           // T7 — Fabrication lead
+            CLASH_TRIAGE_SEVERITY_NR,   // T8 — Clash triage lead
+            ASBUILT_DEVIATION_MM,       // T9 — As-built lead
+            IFC_PSET_OVERRIDE_TXT,      // T10 — Compliance lead
+        };
+
+        /// <summary>
+        /// Phase 165 — Issue #17. Active tag-mode enum used by WriteTag7All
+        /// branch selection, depth-label rendering and UI mode toggles.
+        /// </summary>
+        public enum TagMode
+        {
+            /// <summary>Design &amp; Construction (default). T4-T6 == TAG7D-F.</summary>
+            DC,
+            /// <summary>Handover / FM. T4-T10 == COMM_/CST_/CBN_/FAB_/CLH_/ASB_/AUD_ groups.</summary>
+            Handover,
+            /// <summary>Project-specific custom T4-T10 payload.</summary>
+            Custom,
+        }
+
+        /// <summary>
+        /// Phase 165 — Issue #17. Resolve the active tag mode from the document.
+        ///
+        /// Lookup order: <c>ProjectInformation</c> first (so the mode is a
+        /// project-wide setting), then <c>HANDOVER_MODE_HANDOVER_BOOL</c> /
+        /// <c>HANDOVER_MODE_CUSTOM_BOOL</c> on Project Information; <c>DC</c>
+        /// is the default when nothing is explicitly set.
+        ///
+        /// Per-element overrides (e.g. element-type level pattern flags) are
+        /// resolved separately by <c>TagConfig.ResolveActivePatternMode</c>;
+        /// this helper answers the project-default question.
+        /// </summary>
+        public static TagMode GetActiveTagMode(Document doc)
+        {
+            if (doc == null) return TagMode.DC;
+            try
+            {
+                var pi = doc.ProjectInformation;
+                if (pi == null) return TagMode.DC;
+                if (ReadBoolParam(pi, MODE_HANDOVER)) return TagMode.Handover;
+                if (ReadBoolParam(pi, MODE_CUSTOM))   return TagMode.Custom;
+                if (ReadBoolParam(pi, MODE_DC))       return TagMode.DC;
+                return TagMode.DC;
+            }
+            catch { return TagMode.DC; }
+        }
+
+        /// <summary>
+        /// Phase 165 — Issue #17. Set the active tag mode on
+        /// ProjectInformation, flipping the three HANDOVER_MODE_*_BOOL params
+        /// mutually exclusively. Caller must wrap the call in a Transaction.
+        /// </summary>
+        public static bool SetActiveTagMode(Document doc, TagMode mode)
+        {
+            if (doc == null) return false;
+            var pi = doc.ProjectInformation;
+            if (pi == null) return false;
+            bool a = WriteBoolParam(pi, MODE_DC,       mode == TagMode.DC);
+            bool b = WriteBoolParam(pi, MODE_HANDOVER, mode == TagMode.Handover);
+            bool c = WriteBoolParam(pi, MODE_CUSTOM,   mode == TagMode.Custom);
+            return a || b || c;
+        }
+
+        // Internal Yes/No helpers — match the storage convention used by
+        // SetParagraphDepthCommand (string "Yes"/"No" or integer 0/1) so the
+        // mode params behave identically to PARA_STATE_N_BOOL.
+        private static bool ReadBoolParam(Element host, string paramName)
+        {
+            if (host == null || string.IsNullOrEmpty(paramName)) return false;
+            try
+            {
+                var p = host.LookupParameter(paramName);
+                if (p == null) return false;
+                if (p.StorageType == StorageType.String)
+                {
+                    string s = p.AsString();
+                    if (string.IsNullOrEmpty(s)) return false;
+                    return s.Equals("Yes", StringComparison.OrdinalIgnoreCase)
+                        || s.Equals("1", StringComparison.OrdinalIgnoreCase)
+                        || s.Equals("true", StringComparison.OrdinalIgnoreCase);
+                }
+                if (p.StorageType == StorageType.Integer) return p.AsInteger() != 0;
+            }
+            catch { }
+            return false;
+        }
+
+        private static bool WriteBoolParam(Element host, string paramName, bool target)
+        {
+            if (host == null || string.IsNullOrEmpty(paramName)) return false;
+            try
+            {
+                var p = host.LookupParameter(paramName);
+                if (p == null || p.IsReadOnly) return false;
+                if (p.StorageType == StorageType.String)
+                {
+                    string want = target ? "Yes" : "No";
+                    string cur = p.AsString() ?? "";
+                    if (string.Equals(cur, want, StringComparison.OrdinalIgnoreCase)) return false;
+                    p.Set(want);
+                    return true;
+                }
+                if (p.StorageType == StorageType.Integer)
+                {
+                    int want = target ? 1 : 0;
+                    if (p.AsInteger() == want) return false;
+                    p.Set(want);
+                    return true;
+                }
+            }
+            catch { }
+            return false;
         }
 
         // ── Token presets (named token index arrays) ────────────────────
@@ -1677,6 +1824,24 @@ namespace StingTools.Core
                     _guidByName[wt.ParamName] = wg;
                     _nameByGuid[wg] = wt.ParamName;
                 }
+            }
+
+            // Phase 165 — register the three HANDOVER_MODE_*_BOOL GUIDs so
+            // ParamRegistry.AddBindings can bind them as ProjectInformation
+            // shared parameters and ParamRegistry.GetGuid resolves them.
+            // Issue #16 — without this, the mode toggles can't be written.
+            RegisterModeGuid(MODE_HANDOVER, MODE_HANDOVER_GUID);
+            RegisterModeGuid(MODE_DC,       MODE_DC_GUID);
+            RegisterModeGuid(MODE_CUSTOM,   MODE_CUSTOM_GUID);
+        }
+
+        private static void RegisterModeGuid(string name, string guidStr)
+        {
+            if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(guidStr)) return;
+            if (Guid.TryParse(guidStr, out Guid g))
+            {
+                _guidByName[name] = g;
+                _nameByGuid[g] = name;
             }
         }
 

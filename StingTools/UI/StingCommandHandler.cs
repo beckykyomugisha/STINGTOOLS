@@ -1014,6 +1014,7 @@ namespace StingTools.UI
                     case "ScheduleStats": RunCommand<Temp.ScheduleStatsCommand>(app); break;
                     case "ScheduleDelete": RunCommand<Temp.ScheduleDeleteCommand>(app); break;
                     case "ScheduleReport": RunCommand<Temp.ScheduleReportCommand>(app); break;
+                    case "ScheduleFieldRemapAudit": RunCommand<Temp.ScheduleFieldRemapAuditCommand>(app); break;
 
                     // ── Templates / Views ──
                     case "CreateFilters": RunCommand<Temp.CreateFiltersCommand>(app); break;
@@ -1417,6 +1418,23 @@ namespace StingTools.UI
                     case "ApplyColorScheme": RunCommand<Tags.ApplyColorSchemeCommand>(app); break;
                     case "ClearColorScheme": RunCommand<Tags.ClearColorSchemeCommand>(app); break;
                     case "SetParagraphDepthExt": RunCommand<Tags.SetParagraphDepthExtCommand>(app); break;
+                    // Phase 165 — pattern mode toggles for T4-T10 payload sets
+                    case "SetPatternMode_Handover": SetPatternMode(app, "HANDOVER"); break;
+                    case "SetPatternMode_DC":       SetPatternMode(app, "DC");       break;
+                    case "SetPatternMode_Custom":   SetPatternMode(app, "CUSTOM");   break;
+
+                    // Phase 165 — Issue #15. Direct System B tier-write buttons.
+                    // Each opens a focused per-tier write dialog so QA /
+                    // commissioning teams can fill one tier at a time. The
+                    // helper validates active mode (Handover/Custom) and warns
+                    // when fired in DC mode (where these tiers don't render).
+                    case "WriteSystemBTier_4":  WriteSystemBTier(app, 4);  break;
+                    case "WriteSystemBTier_5":  WriteSystemBTier(app, 5);  break;
+                    case "WriteSystemBTier_6":  WriteSystemBTier(app, 6);  break;
+                    case "WriteSystemBTier_7":  WriteSystemBTier(app, 7);  break;
+                    case "WriteSystemBTier_8":  WriteSystemBTier(app, 8);  break;
+                    case "WriteSystemBTier_9":  WriteSystemBTier(app, 9);  break;
+                    case "WriteSystemBTier_10": WriteSystemBTier(app, 10); break;
                     case "TagStyleReport": RunCommand<Tags.TagStyleReportCommand>(app); break;
                     case "SwitchTagStyleByDisc": RunCommand<Tags.SwitchTagStyleByDiscCommand>(app); break;
                     case "BatchApplyColorScheme": RunCommand<Tags.BatchApplyColorSchemeCommand>(app); break;
@@ -2395,6 +2413,8 @@ namespace StingTools.UI
                     case "COBieSpareParts": RunCommand<Temp.COBieSparePartsCommand>(app); break;
                     case "COBieDocTypes": RunCommand<Temp.COBieDocumentTypesCommand>(app); break;
                     case "COBieZoneTypes": RunCommand<Temp.COBieZoneTypesCommand>(app); break;
+                    case "COBieDocTypeAudit": RunCommand<Temp.COBieDocumentTypeAuditCommand>(app); break;
+                    case "COBieZoneTypeAudit": RunCommand<Temp.COBieZoneTypeAuditCommand>(app); break;
                     case "COBieAutoMatch": RunCommand<Temp.COBieAutoMatchCommand>(app); break;
                     case "COBieDataSummary": RunCommand<Temp.COBieDataSummaryCommand>(app); break;
 
@@ -7997,6 +8017,290 @@ For live data, open BCC in Revit and re-export.</p></div>
             System.IO.File.WriteAllText(htmlPath, html);
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = htmlPath, UseShellExecute = true });
             TaskDialog.Show("STING — Planscape", $"HTML dashboard exported and opened:\n{htmlPath}\n\nShare this file with anyone — no login required.");
+        }
+
+        // ─── Phase 165 — Pattern mode toggle (T4-T10 payload selector) ───
+        // Sets exactly one of HANDOVER_MODE_HANDOVER_BOOL / HANDOVER_MODE_DC_BOOL /
+        // HANDOVER_MODE_CUSTOM_BOOL on selected element types. Mutually exclusive.
+        private static void SetPatternMode(UIApplication app, string mode)
+        {
+            UIDocument uidoc = app?.ActiveUIDocument;
+            Document doc = uidoc?.Document;
+            if (doc == null) { TaskDialog.Show("STING", "No document open."); return; }
+
+            var sel = uidoc.Selection.GetElementIds();
+            ICollection<ElementId> typeIds;
+            if (sel != null && sel.Count > 0)
+            {
+                var s = new HashSet<ElementId>();
+                foreach (ElementId id in sel)
+                {
+                    Element e = doc.GetElement(id);
+                    if (e == null) continue;
+                    ElementId tid = e.GetTypeId();
+                    if (tid != ElementId.InvalidElementId) s.Add(tid);
+                }
+                typeIds = s;
+            }
+            else
+            {
+                typeIds = new FilteredElementCollector(doc)
+                    .WhereElementIsElementType()
+                    .ToElementIds();
+            }
+
+            // Resolve target param names by mode.
+            string handover = StingTools.Core.ParamRegistry.MODE_HANDOVER;
+            string dc       = StingTools.Core.ParamRegistry.MODE_DC;
+            string custom   = StingTools.Core.ParamRegistry.MODE_CUSTOM;
+
+            string M = mode.ToUpperInvariant();
+            int updated = 0, missing = 0;
+
+            using (Transaction tx = new Transaction(doc, $"STING Set Pattern Mode {M}"))
+            {
+                tx.Start();
+                foreach (ElementId tid in typeIds)
+                {
+                    Element typeEl = doc.GetElement(tid);
+                    if (typeEl == null) continue;
+                    bool a = WriteModeBool(typeEl, handover, M == "HANDOVER");
+                    bool b = WriteModeBool(typeEl, dc,       M == "DC");
+                    bool c = WriteModeBool(typeEl, custom,   M == "CUSTOM");
+                    if (a || b || c) updated++;
+                    if (!a && !b && !c &&
+                        typeEl.LookupParameter(handover) == null &&
+                        typeEl.LookupParameter(dc) == null &&
+                        typeEl.LookupParameter(custom) == null)
+                        missing++;
+                }
+                tx.Commit();
+            }
+
+            string msg = $"Pattern mode set to {M}.\nElement types updated: {updated}";
+            if (missing > 0) msg += $"\nTypes missing the mode parameters (skipped): {missing}";
+            StingTools.Core.StingLog.Info($"SetPatternMode {M}: updated={updated}, missing={missing}");
+            TaskDialog.Show("STING — Pattern Mode", msg);
+        }
+
+        // ─── Phase 165 — Issue #15. Per-tier System B write helper ───
+        // Opens an inline TaskDialog asking for the tier's lead-parameter
+        // value, then writes it to every selected element. Only meaningful in
+        // Handover or Custom mode — emits a soft warning if the active mode is
+        // DC (no error: the data is preserved, just not rendered until mode
+        // is switched).
+        private static void WriteSystemBTier(UIApplication app, int tier)
+        {
+            UIDocument uidoc = app?.ActiveUIDocument;
+            Document doc = uidoc?.Document;
+            if (doc == null) { TaskDialog.Show("STING", "No document open."); return; }
+
+            var sel = uidoc.Selection.GetElementIds();
+            if (sel == null || sel.Count == 0)
+            {
+                TaskDialog.Show("STING — Write System B Tier",
+                    "Select one or more elements first.");
+                return;
+            }
+
+            // Mode advisory — Handover/Custom render the value; DC stores it silently.
+            var mode = StingTools.Core.ParamRegistry.GetActiveTagMode(doc);
+            if (mode == StingTools.Core.ParamRegistry.TagMode.DC)
+            {
+                var advise = new TaskDialog("STING — DC mode advisory");
+                advise.MainInstruction = $"Active mode is DC. T{tier} content will be stored but not rendered.";
+                advise.MainContent =
+                    "DC mode renders T4-T6 from System A (TAG7D-F). The System B parameter " +
+                    "you write here is preserved on the element and will appear when the project " +
+                    "switches to Handover mode (Tag Studio → Pattern Mode → Handover).";
+                advise.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+                if (advise.Show() == TaskDialogResult.Cancel) return;
+            }
+
+            // Lead parameter for the selected tier (Tag7SystemBSections is T4..T10).
+            string[] leads = StingTools.Core.ParamRegistry.Tag7SystemBSections;
+            int idx = tier - 4;
+            if (idx < 0 || idx >= leads.Length)
+            {
+                TaskDialog.Show("STING", $"Tier {tier} is outside System B range (4-10)."); return;
+            }
+            string leadParam = leads[idx];
+            string tierName = $"T{tier} {SystemBTierLabel(tier)}";
+
+            // Phase 165 follow-up — inline WPF text input dialog. Reads the
+            // existing value of the lead param from the FIRST selected element
+            // so editing an existing tier is one keystroke away. Empty entry
+            // cancels; explicit "Clear" entry blanks the param.
+            string seedValue = StingTools.Core.ParameterHelpers.GetString(
+                doc.GetElement(sel.First()), leadParam) ?? "";
+            string entered = PromptForTierValue(tierName, leadParam, seedValue, sel.Count);
+            if (entered == null) return;                  // user cancelled
+            string valueToWrite = entered;
+            bool clearMode = string.Equals(entered, "<CLEAR>", StringComparison.Ordinal);
+            if (clearMode) valueToWrite = string.Empty;
+
+            int written = 0;
+            using (Transaction tx = new Transaction(doc, $"STING Write {tierName}"))
+            {
+                tx.Start();
+                foreach (ElementId id in sel)
+                {
+                    Element e = doc.GetElement(id);
+                    if (e == null) continue;
+                    // overwrite=true so re-running the command on already-set
+                    // elements updates the value. Inline dialog is the editor.
+                    if (StingTools.Core.ParameterHelpers.SetString(
+                            e, leadParam, valueToWrite, overwrite: true))
+                        written++;
+                }
+                tx.Commit();
+            }
+
+            string action = clearMode ? "cleared" : "wrote";
+            StingTools.Core.StingLog.Info(
+                $"WriteSystemBTier T{tier}: {action} {leadParam} on {written}/{sel.Count} elements");
+            TaskDialog.Show($"STING — {tierName}",
+                clearMode
+                    ? $"Cleared {leadParam} on {written} of {sel.Count} elements."
+                    : $"Wrote {leadParam} = '{valueToWrite}' on {written} of {sel.Count} elements.\n\n" +
+                      "For multi-field tiers (commissioning agent, witness, certificate ref…) " +
+                      "open BIM Coordination Center → Tier editor.");
+        }
+
+        /// <summary>
+        /// Phase 165 follow-up — inline single-field WPF text input for
+        /// <see cref="WriteSystemBTier"/>. Returns the typed value, the
+        /// sentinel "&lt;CLEAR&gt;" when the user clicks Clear, or null on
+        /// cancel. Created on the fly because StingTools doesn't ship a
+        /// generic WPF text-prompt yet.
+        /// </summary>
+        private static string PromptForTierValue(string tierName, string leadParam,
+            string seedValue, int selectionCount)
+        {
+            var w = new System.Windows.Window
+            {
+                Title = $"STING — {tierName}",
+                Width = 460, Height = 220,
+                WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
+                ResizeMode = System.Windows.ResizeMode.NoResize,
+                Background = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(245, 245, 245))
+            };
+            try { StingTools.UI.StingWindowHelper.ApplyOwner(w); } catch { /* defensive */ }
+
+            var grid = new System.Windows.Controls.Grid { Margin = new System.Windows.Thickness(12) };
+            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = System.Windows.GridLength.Auto });
+            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = System.Windows.GridLength.Auto });
+            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new System.Windows.GridLength(1, System.Windows.GridUnitType.Star) });
+            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = System.Windows.GridLength.Auto });
+
+            var label = new System.Windows.Controls.TextBlock
+            {
+                Text  = $"Enter value for {leadParam}",
+                FontWeight = System.Windows.FontWeights.SemiBold,
+                FontSize = 12,
+                Margin = new System.Windows.Thickness(0, 0, 0, 4),
+            };
+            System.Windows.Controls.Grid.SetRow(label, 0); grid.Children.Add(label);
+
+            var hint = new System.Windows.Controls.TextBlock
+            {
+                Text =
+                    $"Writes on {selectionCount} selected element(s). Empty value + Write = no change. " +
+                    "Click Clear to blank the parameter on the selection.",
+                FontSize = 10,
+                Foreground = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(100, 100, 100)),
+                TextWrapping = System.Windows.TextWrapping.Wrap,
+                Margin = new System.Windows.Thickness(0, 0, 0, 8),
+            };
+            System.Windows.Controls.Grid.SetRow(hint, 1); grid.Children.Add(hint);
+
+            var tb = new System.Windows.Controls.TextBox
+            {
+                Text = seedValue ?? "",
+                FontSize = 12,
+                AcceptsReturn = false,
+                VerticalContentAlignment = System.Windows.VerticalAlignment.Center,
+                Padding = new System.Windows.Thickness(6, 4, 6, 4),
+            };
+            System.Windows.Controls.Grid.SetRow(tb, 2); grid.Children.Add(tb);
+
+            var btnRow = new System.Windows.Controls.StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+                Margin = new System.Windows.Thickness(0, 8, 0, 0),
+            };
+            var btnCancel = new System.Windows.Controls.Button
+            { Content = "Cancel", Width = 80, Margin = new System.Windows.Thickness(0, 0, 6, 0), IsCancel = true };
+            var btnClear  = new System.Windows.Controls.Button
+            { Content = "Clear",  Width = 80, Margin = new System.Windows.Thickness(0, 0, 6, 0) };
+            var btnWrite  = new System.Windows.Controls.Button
+            { Content = "Write",  Width = 90, IsDefault = true,
+              Background = new System.Windows.Media.SolidColorBrush(
+                  System.Windows.Media.Color.FromRgb(28, 134, 90)),
+              Foreground = System.Windows.Media.Brushes.White };
+
+            string result = null;
+            btnCancel.Click += (s, e) => { result = null;       w.Close(); };
+            btnClear.Click  += (s, e) => { result = "<CLEAR>";  w.Close(); };
+            btnWrite.Click  += (s, e) => { result = tb.Text;    w.Close(); };
+
+            btnRow.Children.Add(btnCancel);
+            btnRow.Children.Add(btnClear);
+            btnRow.Children.Add(btnWrite);
+            System.Windows.Controls.Grid.SetRow(btnRow, 3); grid.Children.Add(btnRow);
+
+            w.Content = grid;
+            tb.Focus();
+            tb.SelectAll();
+            w.ShowDialog();
+            return result;
+        }
+
+        private static string SystemBTierLabel(int tier)
+        {
+            switch (tier)
+            {
+                case 4:  return "Commissioning";
+                case 5:  return "Cost";
+                case 6:  return "Carbon";
+                case 7:  return "Fabrication";
+                case 8:  return "Clash Triage";
+                case 9:  return "As-Built";
+                case 10: return "Compliance / Audit";
+                default: return "Unknown";
+            }
+        }
+
+        private static bool WriteModeBool(Element el, string paramName, bool target)
+        {
+            Parameter p = el.LookupParameter(paramName);
+            if (p == null || p.IsReadOnly) return false;
+            try
+            {
+                if (p.StorageType == StorageType.String)
+                {
+                    string want = target ? "Yes" : "No";
+                    string cur = p.AsString() ?? "";
+                    if (string.Equals(cur, want, StringComparison.OrdinalIgnoreCase)) return false;
+                    p.Set(want);
+                    return true;
+                }
+                if (p.StorageType == StorageType.Integer)
+                {
+                    int want = target ? 1 : 0;
+                    if (p.AsInteger() == want) return false;
+                    p.Set(want);
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"WriteModeBool {paramName} failed: {ex.Message}");
+            }
+            return false;
         }
     }
 }

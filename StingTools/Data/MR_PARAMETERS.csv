@@ -2562,3 +2562,6 @@ Views,STING_DRAWING_PACKAGE_ID_TXT,a7c0b2e4-4d91-4a55-9c7e-aa0001000002,TEXT,STI
 Views,STING_AUTO_PLACED_BOOL,a7c0b2e4-4d91-4a55-9c7e-aa0001000003,YESNO,STING_DRAWING,Instance,Flags views auto-placed onto sheets by the STING production engine [STING DT v137],False,,,MULTI,1,0
 Sheets,STING_PRODUCTION_RULE_IDX_INT,a7c0b2e4-4d91-4a55-9c7e-aa0001000004,INTEGER,STING_DRAWING,Instance,ProductionRule index that produced this view [STING DT v137],False,,,MULTI,1,0
 Sheets,STING_SHEET_SEQUENCE_INT,a7c0b2e4-4d91-4a55-9c7e-aa0001000005,INTEGER,STING_DRAWING,Instance,Production sheet sequence number [STING DT v137],False,,,MULTI,1,0
+Project Information,HANDOVER_MODE_HANDOVER_BOOL,a8f3c1d2-4e56-7890-abcd-ef1234567801,YESNO,COMMISSIONING,Instance,Pattern selector — Handover / FM T4-T10 payload visible [STING Phase 165],False,,,MULTI,1,0
+Project Information,HANDOVER_MODE_DC_BOOL,a8f3c1d2-4e56-7890-abcd-ef1234567802,YESNO,COMMISSIONING,Instance,Pattern selector — Design & Construction T4-T10 payload visible [STING Phase 165],False,,,MULTI,1,0
+Project Information,HANDOVER_MODE_CUSTOM_BOOL,a8f3c1d2-4e56-7890-abcd-ef1234567803,YESNO,COMMISSIONING,Instance,Pattern selector — Custom (user-defined) T4-T10 payload visible [STING Phase 165],False,,,MULTI,1,0

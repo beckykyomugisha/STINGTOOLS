@@ -65,7 +65,18 @@ namespace StingTools.Tags
                 });
             }
 
-            string written = ScaleTiers.SaveProjectOverride(doc, tiers, cap);
+            // Phase 165 — pull per-category multipliers from the Scale tab
+            // sliders. Slider values default to 1.0 / 1.0 / 1.2 / 0.8 mirroring
+            // the dock-panel UI defaults.
+            var multipliers = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["DUCTS"]     = ReadDouble("MultDucts",     1.0),
+                ["PIPES"]     = ReadDouble("MultPipes",     1.0),
+                ["EQUIPMENT"] = ReadDouble("MultEquipment", 1.2),
+                ["FIXTURES"]  = ReadDouble("MultFixtures",  0.8),
+            };
+
+            string written = ScaleTiers.SaveProjectOverride(doc, tiers, cap, multipliers);
             if (string.IsNullOrEmpty(written))
             {
                 TaskDialog.Show("Apply Scale Tiers",
@@ -75,13 +86,16 @@ namespace StingTools.Tags
 
             StingLog.Info($"ScaleTiers persisted to {written}: " +
                           $"[{string.Join(", ", offsets.Select(o => o.ToString("F1", CultureInfo.InvariantCulture)))}] mm, " +
-                          $"cap={cap:F1} ft");
+                          $"cap={cap:F1} ft, mult=[D:{multipliers["DUCTS"]:F2} P:{multipliers["PIPES"]:F2} " +
+                          $"E:{multipliers["EQUIPMENT"]:F2} F:{multipliers["FIXTURES"]:F2}]");
 
             if (string.IsNullOrEmpty(StingCommandHandler.GetExtraParam("SuppressDialog")))
             {
                 TaskDialog.Show("Scale Tiers Applied",
                     $"Offsets (mm): {string.Join(" · ", offsets.Select(o => o.ToString("F1", CultureInfo.InvariantCulture)))}\n" +
-                    $"Cap: {cap:F0} ft\n\n" +
+                    $"Cap: {cap:F0} ft\n" +
+                    $"Multipliers: Ducts {multipliers["DUCTS"]:F1}× · Pipes {multipliers["PIPES"]:F1}× · " +
+                    $"Equipment {multipliers["EQUIPMENT"]:F1}× · Fixtures {multipliers["FIXTURES"]:F1}×\n\n" +
                     "SmartTagPlacementCommand will use the new values on its next run.");
             }
             return Result.Succeeded;

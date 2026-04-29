@@ -187,6 +187,19 @@ namespace StingTools.UI
         {
             if (sender is Button btn && btn.Tag is string cmdTag)
             {
+                // Phase 165 — Issue #14. After a mode-switch button fires,
+                // refresh the depth-tier labels under the depth slider so
+                // the user sees the correct tier-set for the new active mode.
+                // Schedule the refresh via the dispatcher so it runs after
+                // the IExternalEvent finishes writing the mode params.
+                if (cmdTag == "SetPatternMode_DC" ||
+                    cmdTag == "SetPatternMode_Handover" ||
+                    cmdTag == "SetPatternMode_Custom")
+                {
+                    Dispatcher.BeginInvoke(new System.Action(RefreshParagraphTierLabels),
+                        System.Windows.Threading.DispatcherPriority.Background);
+                }
+
                 // SDP-MEDIUM-01: Pre-compute repeated string tests once to avoid duplicate scans
                 bool isPlaceCmd     = cmdTag.Contains("Place");
                 bool isSmartPlace   = isPlaceCmd && cmdTag.Contains("SmartPlace");
@@ -342,6 +355,19 @@ namespace StingTools.UI
                 StingCommandHandler.SetExtraParam("Scale500Mm",  (sldScale500?.Value  ?? 12.0).ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
                 StingCommandHandler.SetExtraParam("Scale1000Mm", (sldScale1000?.Value ?? 20.0).ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
                 StingCommandHandler.SetExtraParam("OffsetCapFt", (sldOffsetCap?.Value ?? 30.0).ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+
+                // Phase 165 — per-category scale multipliers (previously orphaned).
+                // Read by ApplyScaleTiersCommand and persisted to project_config.json
+                // under SCALE_CATEGORY_MULTIPLIERS so SmartTagPlacementCommand can
+                // multiply the base offset by the per-category factor at placement time.
+                if (FindName("sldMultDucts") is System.Windows.Controls.Slider mD)
+                    StingCommandHandler.SetExtraParam("MultDucts", mD.Value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                if (FindName("sldMultPipes") is System.Windows.Controls.Slider mP)
+                    StingCommandHandler.SetExtraParam("MultPipes", mP.Value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                if (FindName("sldMultEquipment") is System.Windows.Controls.Slider mE)
+                    StingCommandHandler.SetExtraParam("MultEquipment", mE.Value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                if (FindName("sldMultFixtures") is System.Windows.Controls.Slider mF)
+                    StingCommandHandler.SetExtraParam("MultFixtures", mF.Value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
             }
             catch (Exception ex) { StingLog.Warn($"Read Scale tab sliders failed: {ex.Message}"); }
         }
@@ -1803,6 +1829,81 @@ namespace StingTools.UI
                     UpdateStatus("Busy — warning mode not applied");
                 }
             }
+        }
+
+        // ─── Phase 165 — Issue #14. Mode-aware depth-tier labels ───
+        // Reads ParamRegistry.GetActiveTagMode() against the active document
+        // and updates the 10 lblParaTier{N} TextBlocks under the depth slider
+        // so the visible tier names match what WriteTag7All will persist.
+        private void RefreshParagraphTierLabels()
+        {
+            try
+            {
+                var app = StingCommandHandler.CurrentApp;
+                var doc = app?.ActiveUIDocument?.Document;
+                var mode = doc != null
+                    ? StingTools.Core.ParamRegistry.GetActiveTagMode(doc)
+                    : StingTools.Core.ParamRegistry.TagMode.DC;
+
+                string[] labels = new string[10];
+                if (mode == StingTools.Core.ParamRegistry.TagMode.DC)
+                {
+                    labels[0] = "T1 Identity";
+                    labels[1] = "T2 System";
+                    labels[2] = "T3 Spatial";
+                    labels[3] = "T4 Lifecycle";
+                    labels[4] = "T5 Technical";
+                    labels[5] = "T6 Class.";
+                    labels[6] = "T7 —";
+                    labels[7] = "T8 —";
+                    labels[8] = "T9 —";
+                    labels[9] = "T10 —";
+                }
+                else
+                {
+                    string p = mode == StingTools.Core.ParamRegistry.TagMode.Custom ? "C:" : "";
+                    labels[0] = "T1 Identity";
+                    labels[1] = "T2 System";
+                    labels[2] = "T3 Spatial";
+                    labels[3] = $"{p}T4 Comm.";
+                    labels[4] = $"{p}T5 Cost";
+                    labels[5] = $"{p}T6 Carbon";
+                    labels[6] = $"{p}T7 Fab";
+                    labels[7] = $"{p}T8 Clash";
+                    labels[8] = $"{p}T9 As-Built";
+                    labels[9] = $"{p}T10 Audit";
+                }
+
+                ApplyTierLabel("lblParaTier1",  labels[0]);
+                ApplyTierLabel("lblParaTier2",  labels[1]);
+                ApplyTierLabel("lblParaTier3",  labels[2]);
+                ApplyTierLabel("lblParaTier4",  labels[3]);
+                ApplyTierLabel("lblParaTier5",  labels[4]);
+                ApplyTierLabel("lblParaTier6",  labels[5]);
+                ApplyTierLabel("lblParaTier7",  labels[6]);
+                ApplyTierLabel("lblParaTier8",  labels[7]);
+                ApplyTierLabel("lblParaTier9",  labels[8]);
+                ApplyTierLabel("lblParaTier10", labels[9]);
+
+                if (FindName("lblParaDepthHint") is System.Windows.Controls.TextBlock hint)
+                {
+                    hint.Text = mode == StingTools.Core.ParamRegistry.TagMode.DC
+                        ? "DC mode — T4-T6 shows Lifecycle / Technical / Classification."
+                        : (mode == StingTools.Core.ParamRegistry.TagMode.Custom
+                            ? "Custom mode — project-defined T4-T10 payload (Custom: prefix)."
+                            : "Handover mode — T4-T10 shows Commissioning / Cost / Carbon / Fab / Clash / As-Built / Audit.");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                StingTools.Core.StingLog.Warn("RefreshParagraphTierLabels failed: " + ex.Message);
+            }
+        }
+
+        private void ApplyTierLabel(string controlName, string text)
+        {
+            if (FindName(controlName) is System.Windows.Controls.TextBlock tb)
+                tb.Text = text;
         }
     }
 }
