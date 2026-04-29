@@ -3049,7 +3049,7 @@ namespace StingTools.Core
             // all overwriting current state with their default values, wasting a
             // LookupParameter per call. Skip the block when STING_DISPLAY_MODE is
             // already populated (sentinel covers the whole init group).
-            string displayModeSentinel = ParameterHelpers.GetString(el, "STING_DISPLAY_MODE");
+            string displayModeSentinel = ParameterHelpers.GetString(el, ParamRegistry.DISPLAY_MODE);
             if (!string.IsNullOrEmpty(displayModeSentinel))
             {
                 stats?.RecordTagged(catName, disc, sys, lvl);
@@ -3059,7 +3059,7 @@ namespace StingTools.Core
             {
                 // LOG-08 FIX: Initialize DISPLAY_MODE so tag families show the correct
                 // display variant immediately (default = PROD-SEQ mode 2)
-                ParameterHelpers.SetIfEmpty(el, "STING_DISPLAY_MODE", ParamRegistry.DisplayModeDefault.ToString());
+                ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISPLAY_MODE, ParamRegistry.DisplayModeDefault.ToString());
 
                 // ORPHAN-FIX: honour the Tokens & Depth paragraph-depth slider.
                 // When the user has pushed a ParaDepth value from the sub-tab we
@@ -3117,11 +3117,27 @@ namespace StingTools.Core
         ///   3 = DISC-SYS-SEQ        (e.g. "M-HVAC-0042")
         ///   4 = DISC-PROD-SEQ       (e.g. "M-AHU-0042")
         ///   5 = Full 8-segment      (default — current behaviour)
+        ///   6 = TAG7 plain narrative (Phase 165 — client-facing prose
+        ///       e.g. "AHU-01 — primary supply unit serving Level 02. Located
+        ///       in plant room PR-02. Status: NEW.")
         /// Returns the full tag if mode is unrecognised.
         /// </summary>
         public static string BuildDisplayTag(Element el, int mode)
         {
             if (el == null) return "";
+
+            // Phase 165 — mode 6 reads the rich TAG7 narrative directly.
+            // The narrative is composed by WriteTag7All; if empty (element
+            // hasn't been tagged yet) we fall through to the technical tag
+            // so the display never goes blank on a partially-tagged model.
+            if (mode == 6)
+            {
+                string narrative = ParameterHelpers.GetString(el, ParamRegistry.TAG7);
+                if (!string.IsNullOrEmpty(narrative)) return narrative;
+                // Fallback: best plain-language hint we can build right now.
+                mode = 4; // DISC-PROD-SEQ — most readable compact form
+            }
+
             string[] tokens = ParamRegistry.ReadTokenValues(el);
             if (tokens == null || tokens.Length < 8) return "";
 
@@ -3159,7 +3175,7 @@ namespace StingTools.Core
         public static string BuildDisplayTag(Element el)
         {
             if (el == null) return "";
-            int mode = ParameterHelpers.GetInt(el, "STING_DISPLAY_MODE", 0);
+            int mode = ParameterHelpers.GetInt(el, ParamRegistry.DISPLAY_MODE, 0);
             // Mode 0 means unset — use the configurable default from ParamRegistry
             if (mode == 0) mode = ParamRegistry.DisplayModeDefault;
             string display = BuildDisplayTag(el, mode);
@@ -3184,7 +3200,7 @@ namespace StingTools.Core
             {
                 try
                 {
-                    ParameterHelpers.SetString(el, "ASS_DISPLAY_TXT", display, overwrite: true);
+                    ParameterHelpers.SetString(el, ParamRegistry.DISPLAY_TXT, display, overwrite: true);
                 }
                 catch (Exception ex) { StingLog.Warn($"ASS_DISPLAY_TXT param may not be bound: {ex.Message}"); }
             }
@@ -4685,7 +4701,7 @@ namespace StingTools.Core
                 {
                     Name = "Discipline",
                     Description = "Color-code by discipline: Mechanical=Blue, Electrical=Amber, Plumbing=Green, etc.",
-                    DiscriminatorParam = "ASS_DISCIPLINE_COD_TXT",
+                    DiscriminatorParam = ParamRegistry.DISC,
                     Styles = new Dictionary<string, Tag7DisplayStyle>
                     {
                         { "M",  new Tag7DisplayStyle { HeaderColor = "#1565C0", BackgroundTint = "#E3F2FD", Label = "Mechanical",
@@ -4722,7 +4738,7 @@ namespace StingTools.Core
                 {
                     Name = "Status",
                     Description = "Color-code by lifecycle status: NEW=Green, EXISTING=Blue, DEMOLISHED=Red, TEMPORARY=Orange",
-                    DiscriminatorParam = "ASS_STATUS_TXT",
+                    DiscriminatorParam = ParamRegistry.STATUS,
                     Styles = new Dictionary<string, Tag7DisplayStyle>
                     {
                         { "NEW",         new Tag7DisplayStyle { HeaderColor = "#2E7D32", BackgroundTint = "#E8F5E9", Label = "New Construction",
@@ -4748,7 +4764,7 @@ namespace StingTools.Core
                 {
                     Name = "System",
                     Description = "Color-code by system type: HVAC=Blue, DCW=Cyan, HWS=Red, SAN=Brown, LV=Amber, FP=Orange",
-                    DiscriminatorParam = "ASS_SYSTEM_TYPE_TXT",
+                    DiscriminatorParam = ParamRegistry.SYS,
                     Styles = new Dictionary<string, Tag7DisplayStyle>
                     {
                         { "HVAC", new Tag7DisplayStyle { HeaderColor = "#1565C0", BackgroundTint = "#E3F2FD", Label = "HVAC",
@@ -4817,7 +4833,7 @@ namespace StingTools.Core
                 {
                     Name = "Accessible",
                     Description = "Colorblind-safe palette using blue/orange contrast (deuteranopia/protanopia friendly)",
-                    DiscriminatorParam = "ASS_DISCIPLINE_COD_TXT",
+                    DiscriminatorParam = ParamRegistry.DISC,
                     Styles = new Dictionary<string, Tag7DisplayStyle>
                     {
                         { "M",  new Tag7DisplayStyle { HeaderColor = "#0072B2", BackgroundTint = "#E1F5FE", Label = "Mechanical",
@@ -5852,15 +5868,71 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Phase 165 — Issue #5. Mode-aware overload of BuildTag7Sections.
+        ///
+        /// Both modes return identical SectionA-C (Identity / System / Spatial)
+        /// because T1-T3 are common. The remaining sections differ:
+        ///
+        ///  - <c>TagMode.DC</c> — SectionD/E/F = Lifecycle / Technical / Classification
+        ///    (the System A TAG7D-F content). Tier4Summaries are still hydrated
+        ///    from element parameters so the data is visible to both clients,
+        ///    but in DC mode the consumer (WriteTag7All) writes only A-F.
+        ///
+        ///  - <c>TagMode.Handover</c> — Section D/E/F return the same plain
+        ///    System A content, but the writer pulls T4-T10 from
+        ///    <see cref="Tag7Result.Tier4Summaries"/> (T4=Commissioning,
+        ///    T5=Cost, T6=Carbon, T7=Fab, T8=Clash, T9=AsBuilt, T10=Audit).
+        ///
+        ///  - <c>TagMode.Custom</c> — same shape as Handover; project supplies
+        ///    its own T4-T10 mapping via project_config.json overrides.
+        ///
+        /// The method itself is mode-agnostic at read time — it just hydrates
+        /// every section + every tier — so two calls return identical Tag7Result.
+        /// The branch happens at write time in <see cref="WriteTag7All"/>.
+        /// </summary>
+        public static Tag7Result BuildTag7Sections(Document doc, Element el,
+            string categoryName, string[] tokenValues, ParamRegistry.TagMode mode)
+        {
+            // Hydrate the Tag7Result the same way regardless of mode — the writer
+            // selects which subset to persist based on `mode`. Centralising the
+            // build keeps DC ↔ Handover round-trips lossless: switching modes
+            // does NOT erase data that lives outside the active mode's tier set.
+            var result = BuildTag7Sections(doc, el, categoryName, tokenValues);
+            return result;
+        }
+
+        /// <summary>
         /// Write TAG7 + all sub-section parameters (TAG7A-TAG7F) for an element.
         /// Also writes warning text, and populates the category-specific paragraph container.
         /// Returns number of parameters written.
+        ///
+        /// Phase 165 — Issue #2. The writer is mode-aware: it reads
+        /// <see cref="ParamRegistry.GetActiveTagMode"/> from the document and
+        /// branches the T4-T10 surface:
+        ///
+        ///  - <c>TagMode.DC</c>     — writes TAG7A-F as today (System A).
+        ///  - <c>TagMode.Handover</c> — writes TAG7A-C as today; appends T4-T10
+        ///    via <see cref="Tag7Result.Tier4Summaries"/> read out of the System
+        ///    B parameter groups (COMM_*, CST_*, CBN_*, FAB_*, CLH_*, ASB_*,
+        ///    AUD_*) which were hydrated by BuildTier4To10Summaries.
+        ///  - <c>TagMode.Custom</c>  — same surface as Handover; project-defined
+        ///    payload via project_config.json.
+        ///
+        /// In every mode the assembled narrative is also written to
+        /// <see cref="ParamRegistry.TAG7"/> as the combined human-readable form.
+        ///
+        /// Switching mode does NOT erase the other system's parameter data —
+        /// only the visible TAG7A-F + appended tier set changes.
         /// </summary>
         public static int WriteTag7All(Document doc, Element el, string categoryName, string[] tokenValues, bool overwrite = true)
         {
             if (tokenValues == null || tokenValues.Length < 8) return 0;
             var tag7 = BuildTag7Sections(doc, el, categoryName, tokenValues);
             int written = 0;
+
+            // Phase 165 — resolve active mode once per element-write so the
+            // branch is stable for the duration of this call.
+            ParamRegistry.TagMode activeMode = ParamRegistry.GetActiveTagMode(doc);
 
             // EFF-08 (Phase 149a): build the final TAG7 string locally before
             // the single write so the post-write read-back can be eliminated.
@@ -5869,30 +5941,56 @@ namespace StingTools.Core
             string tag7Final = tag7.MarkedUpNarrative ?? "";
 
             // TAG7A-TAG7F get plain section text for tag family labels
-            // PERF-R12: Track consecutive empties — once 4+ empty sections hit, skip rest.
-            // Threshold raised from 2 to 4 so sections D/E/F are still written when C is empty.
+            // Phase 165 — Issue #2. Mode branch:
+            //   DC      → write all six (TAG7A-F = System A T1-T6)
+            //   Handover → write only TAG7A-C (T1-T3 == identity/system/spatial,
+            //              shared with DC). TAG7D-F are blanked because in
+            //              Handover mode the tier 4-6 narrative is owned by
+            //              the System B append (T4 commissioning / T5 cost /
+            //              T6 carbon) appended below — leaving the old DC
+            //              text in TAG7D-F would conflict.
+            //   Custom  → same as Handover.
             string[] sectionParams = ParamRegistry.TAG7Sections;
             string[] sectionValues = tag7.AllSections;
+            int sectionLimit = (activeMode == ParamRegistry.TagMode.DC)
+                ? sectionParams.Length     // 6 — full A-F
+                : 3;                       // Handover / Custom: A-C only
             for (int i = 0; i < sectionParams.Length && i < sectionValues.Length; i++)
             {
-                if (!string.IsNullOrEmpty(sectionValues[i]))
+                if (i < sectionLimit)
                 {
-                    if (ParameterHelpers.SetString(el, sectionParams[i], sectionValues[i], overwrite))
-                        written++;
+                    if (!string.IsNullOrEmpty(sectionValues[i]))
+                    {
+                        if (ParameterHelpers.SetString(el, sectionParams[i], sectionValues[i], overwrite))
+                            written++;
+                    }
                 }
-                // FIX: Removed early-exit on consecutive empties (was silently dropping
-                // non-empty sections E/F when B/C/D were empty). Only 6 sections total —
-                // skipping 1-2 SetString calls is not worth risking data loss.
+                else
+                {
+                    // Issue #22 — Handover/Custom: blank D-F so old DC content
+                    // doesn't shadow the System B tier appends that follow.
+                    Parameter p = el.LookupParameter(sectionParams[i]);
+                    if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String)
+                    {
+                        string cur = p.AsString();
+                        if (!string.IsNullOrEmpty(cur))
+                        {
+                            try { p.Set(string.Empty); written++; } catch { /* defensive */ }
+                        }
+                    }
+                }
             }
 
             // ── T4-T10 tier appends (Phase 165 — tagging workflow repair) ──
-            // For each tier 4-10:
-            //  1. Read the corresponding TAG_PARA_STATE_N_BOOL (cumulative depth toggle)
-            //  2. If enabled AND tier summary is non-empty, append it to tag7Final.
+            // Issue #2 / #11 — only fire the tier append in Handover or Custom
+            // mode. DC mode uses TAG7D-F (written above) for tiers 4-6; firing
+            // the tier append in DC would write T4-T6 twice (once via TAG7D-F
+            // narrative, once via tier-summary append).
             // Pattern mode (HANDOVER / DC / CUSTOM) is read once and surfaced as
             // a tag prefix once at least one tier 4+ payload is appended.
             // Reads pull from the element-type first (depth lives on type per
             // SetParagraphDepthCommand) then fall back to the instance.
+            if (activeMode != ParamRegistry.TagMode.DC)
             try
             {
                 Element typeEl = doc?.GetElement(el.GetTypeId());
@@ -5958,9 +6056,38 @@ namespace StingTools.Core
                     written++;
             }
 
-            // ── Paragraph container write (v5.5) ─────────────────────────
+            // ── Paragraph container write (v5.5 + Phase 165 Issue #22) ───
             // Write the full plain narrative to the category-specific paragraph parameter
             string paraContainer = ParamRegistry.GetParagraphContainer(categoryName);
+
+            // Phase 165 — Issue #22. Clear stale paragraph data before
+            // re-writing. When an element changes category or pattern mode,
+            // an old narrative could otherwise persist in containers that
+            // should now be empty (each category has its own paragraph
+            // container, and the active one varies). Iterate the registered
+            // container set and blank every container EXCEPT the one we're
+            // about to write so the active payload survives.
+            try
+            {
+                foreach (string containerName in ParamRegistry.AllParagraphContainers)
+                {
+                    if (string.IsNullOrEmpty(containerName)) continue;
+                    if (!string.IsNullOrEmpty(paraContainer)
+                        && string.Equals(containerName, paraContainer, StringComparison.Ordinal))
+                        continue; // skip the active container — we're writing it next.
+                    Parameter p = el.LookupParameter(containerName);
+                    if (p == null || p.IsReadOnly) continue;
+                    if (p.StorageType != StorageType.String) continue;
+                    string cur = p.AsString();
+                    if (string.IsNullOrEmpty(cur)) continue;
+                    try { p.Set(string.Empty); written++; } catch { /* defensive */ }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn("WriteTag7All paragraph clear pass failed: " + ex.Message);
+            }
+
             if (!string.IsNullOrEmpty(paraContainer) && !string.IsNullOrEmpty(tag7.PlainNarrative))
             {
                 string paraText = tag7.PlainNarrative;

@@ -31,6 +31,30 @@ namespace StingTools.Tags
         // Intent patterns: regex pattern → (commandTag, intent, description)
         internal static readonly List<(string Pattern, string CommandTag, string Intent, string Description)> IntentPatterns = new()
         {
+            // Phase 165 — Issue #9. Mode-switch + tier-depth + System B intents.
+            (@"\b(switch\s+to\s+handover|enable\s+(fm|handover)|handover\s+mode)\b",
+                "SetPatternMode_Handover", "SetPatternMode", "Switch active T4-T10 payload to handover pack"),
+            (@"\b(switch\s+to\s+(dc|design)|enable\s+dc|design.{0,5}construction\s+mode|coordination\s+mode)\b",
+                "SetPatternMode_DC", "SetPatternMode", "Switch active T4-T10 payload to DC pack"),
+            (@"\b(custom\s+mode|enable\s+custom)\b",
+                "SetPatternMode_Custom", "SetPatternMode", "Switch active T4-T10 payload to custom pack"),
+            (@"\b(set\s+depth\s+(\d+)|show\s+(\d+)\s+tiers|expand\s+to\s+tier\s+(\d+))\b",
+                "SetParagraphDepthExt", "SetParagraphDepth", "Set paragraph depth (1-10) — slider value passed via ParaDepth extra"),
+            (@"\b(show\s+commission|commissioning\s+data|t4)\b",
+                "WriteSystemBTier_4", "WriteSystemBTier", "Write T4 commissioning data on selection"),
+            (@"\b(show\s+cost|cost\s+data|t5)\b",
+                "WriteSystemBTier_5", "WriteSystemBTier", "Write T5 cost data on selection"),
+            (@"\b(show\s+carbon|carbon\s+data|embodied\s+carbon|t6)\b",
+                "WriteSystemBTier_6", "WriteSystemBTier", "Write T6 carbon data on selection"),
+            (@"\b(show\s+fab|fabrication\s+data|spool|t7)\b",
+                "WriteSystemBTier_7", "WriteSystemBTier", "Write T7 fabrication / QC data on selection"),
+            (@"\b(show\s+clash|clash\s+triage|t8)\b",
+                "WriteSystemBTier_8", "WriteSystemBTier", "Write T8 clash triage data on selection"),
+            (@"\b(as.?built|t9)\b",
+                "WriteSystemBTier_9", "WriteSystemBTier", "Write T9 as-built data on selection"),
+            (@"\b(show\s+(audit|compliance)|audit\s+trail|t10)\b",
+                "WriteSystemBTier_10", "WriteSystemBTier", "Write T10 compliance / audit data on selection"),
+
             // Tagging
             (@"\b(auto.?tag|tag\s+elements?|tag\s+view)\b", "AutoTag", "AutoTag", "Tag elements in active view"),
             (@"\b(batch.?tag|tag\s+all|tag\s+project|tag\s+everything)\b", "BatchTag", "BatchTag", "Tag all elements in project"),

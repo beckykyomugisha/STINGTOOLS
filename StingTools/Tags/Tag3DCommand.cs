@@ -20,6 +20,17 @@ namespace StingTools.Tags
     {
         private const string TAG_3D_LABEL = "ASS_TAG_3D_TXT";
 
+        /// <summary>
+        /// Phase 165 — result envelope for programmatic Tag3D runs.
+        /// </summary>
+        public sealed class Tag3DResult
+        {
+            public int Placed   { get; set; }
+            public int Enriched { get; set; }
+            public int Errors   { get; set; }
+            public List<string> Warnings { get; } = new List<string>();
+        }
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
@@ -28,21 +39,55 @@ namespace StingTools.Tags
             Document doc = ctx.Doc;
 
             View view = doc.ActiveView;
-            if (view == null || !(view is View3D))
+            if (view == null || !(view is View3D v3d))
             {
                 TaskDialog.Show("Tag 3D", "Active view must be a 3D view.");
                 return Result.Succeeded;
             }
 
-            // Find or load 3D tag family
+            var r = PlaceTagsInView(doc, v3d, useTag7Narrative: false);
+            string report = $"3D tags placed: {r.Placed}";
+            if (r.Enriched > 0) report += $"\nElements enriched via pipeline: {r.Enriched}";
+            if (r.Errors > 0)   report += $"\nErrors: {r.Errors}";
+            TaskDialog.Show("Tag 3D", report);
+            // Phase 165 follow-up — explicit batch teardown for the
+            // PopulationContext built inside PlaceTagsCore.
+            TokenAutoPopulator.PopulationContext.EndSession();
+            return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Phase 165 — programmatic entry point used by AnnotationRunner when a
+        /// DrawingType profile pack carries an <c>Auto3DTag</c> rule. Self-contained
+        /// transaction-managed run; safe to invoke from event handlers and rule
+        /// dispatch.
+        /// </summary>
+        /// <param name="useTag7Narrative">
+        /// When true, the placed 3D tag's <c>ASS_TAG_3D_TXT</c> label receives
+        /// the rich TAG7 plain-language narrative instead of the technical
+        /// 8-segment tag — matches DrawingType displayMode 6.
+        /// </param>
+        public static Tag3DResult PlaceTagsInView(Document doc, View3D view, bool useTag7Narrative)
+        {
+            var r = new Tag3DResult();
+            if (doc == null || view == null) return r;
+
             FamilySymbol tagSymbol = FindTagFamily(doc);
             if (tagSymbol == null)
             {
-                TaskDialog.Show("Tag 3D",
-                    "No 3D tag family found.\n\nLoad a Generic Model family with a '" +
-                    TAG_3D_LABEL + "' label parameter, or set 'tag3DFamilyPath' in project_config.json.");
-                return Result.Succeeded;
+                r.Warnings.Add("No 3D tag family found. Load a Generic Model family with " +
+                               $"a '{TAG_3D_LABEL}' label parameter, or set 'tag3DFamilyPath' " +
+                               "in project_config.json.");
+                StingLog.Warn(r.Warnings[r.Warnings.Count - 1]);
+                return r;
             }
+            PlaceTagsCore(doc, view, tagSymbol, useTag7Narrative, r);
+            return r;
+        }
+
+        private static void PlaceTagsCore(Document doc, View view, FamilySymbol tagSymbol,
+            bool useTag7Narrative, Tag3DResult result)
+        {
 
             // Collect taggable elements in view
             var catEnums = SharedParamGuids.AllCategoryEnums;
@@ -58,13 +103,9 @@ namespace StingTools.Tags
             var elList = viewElements.ToList();
             if (elList.Count == 0)
             {
-                TaskDialog.Show("Tag 3D", "No taggable elements found in the active 3D view.");
-                return Result.Succeeded;
+                StingLog.Info($"Tag3D: no taggable elements in view '{view.Name}'.");
+                return;
             }
-
-            int placed = 0;
-            int errors = 0;
-            int enriched = 0;
 
             // TAG-02: Build pipeline context once for enriching untagged elements
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
@@ -98,7 +139,7 @@ namespace StingTools.Tags
                                 if (ok)
                                 {
                                     tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                                    enriched++;
+                                    result.Enriched++;
                                 }
                             }
                             catch (Exception pipeEx)
@@ -120,18 +161,28 @@ namespace StingTools.Tags
                             tagPoint, tagSymbol, Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
                         if (fi == null) continue;
 
-                        // Write tag value to label parameter
-                        ParameterHelpers.SetString(fi, TAG_3D_LABEL, tag1, overwrite: true);
+                        // Phase 165 — when the active DrawingType profile asks for the
+                        // TAG7 narrative (displayMode 6), prefer the rich narrative as
+                        // the visible label. Falls back to the technical tag if the
+                        // narrative is empty (element not yet tagged with TAG7).
+                        string label = tag1;
+                        if (useTag7Narrative)
+                        {
+                            string narrative = ParameterHelpers.GetString(el, ParamRegistry.TAG7);
+                            if (!string.IsNullOrEmpty(narrative)) label = narrative;
+                        }
+
+                        ParameterHelpers.SetString(fi, TAG_3D_LABEL, label, overwrite: true);
 
                         // Note: Containers/TAG7 already written to source element (el) by
                         // RunFullPipeline above. The annotation instance (fi) is just a
                         // visual marker — it has no STING token parameters bound.
 
-                        placed++;
+                        result.Placed++;
                     }
                     catch (Exception ex)
                     {
-                        errors++;
+                        result.Errors++;
                         StingLog.Warn($"Tag3D placement for {el.Id}: {ex.Message}");
                     }
                 }
@@ -145,12 +196,6 @@ namespace StingTools.Tags
             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
             catch (Exception ssEx) { StingLog.Warn($"Tag3D SaveSeqSidecar: {ssEx.Message}"); }
             TagConfig.CheckComplianceGate(doc, "Tag3D");
-
-            string report = $"3D tags placed: {placed}";
-            if (enriched > 0) report += $"\nElements enriched via pipeline: {enriched}";
-            if (errors > 0) report += $"\nErrors: {errors}";
-            TaskDialog.Show("Tag 3D", report);
-            return Result.Succeeded;
         }
 
         /// <summary>
