@@ -9051,3 +9051,182 @@ first use without requiring a separate "create filters" step.
    (registry was falling through to hardcoded defaults). Now fixed via
    alias setters on `ViewStylePackLibrary` / `ViewStylePack` / `StyleFilterRule`,
    so the corporate file is actually loaded at runtime for the first time.
+
+#### Completed (Phase 167 — Drawing Type / View Style Pack VG: bug fix + corporate filter library + drawing-type pack backfill)
+
+Audit of `Data/STING_VIEW_STYLE_PACKS.json` (27 packs) and
+`Data/STING_DRAWING_TYPES.json` (54 drawing types) against the
+`ViewStylePack` data model and `ViewStylePackApplier` runtime. Three
+defects fixed; full research write-up in
+`docs/DRAWING_VG_RESEARCH.md` (587 lines).
+
+**Relation to Phase 166.** Phase 166 (AEC/FM corporate filter library)
+landed concurrently and tackled the same root schema-drift bug from a
+different angle — Phase 166 added alias setters on
+`ViewStylePackLibrary` / `ViewStylePack` / `StyleFilterRule` so the
+shorthand `projColor` / `projWeight` / `name` keys are accepted at
+deserialisation. Phase 167 takes the data-side approach: rename every
+shorthand key in the JSON to its canonical model name. The two fixes
+are complementary defence-in-depth — the alias setters keep older
+project-side `view_style_packs.json` overrides loading after rename
+of the corporate file. Phase 167 also merged Phase 166's 64 newly
+authored `filterRules` content (corp-coordination, corp-standard-plan,
+corp-structural-plan, corp-demolition-phase) into the canonical
+`filters[]` array on the same packs during merge resolution.
+
+**Defect 1a — silent JSON-key drop on every line override.** The corp
+catalogue uses shorthand keys `projColor`, `projWeight`, `cutColor`,
+`cutWeight`. `StyleVgOverride` (ViewStylePack.cs:170-176) declares
+`projectionLineColor`, `projectionLineWeight`, `cutLineColor`,
+`cutLineWeight` — `Newtonsoft.Json` drops the unknown keys silently at
+load. Net effect: every non-visibility override on every pack was lost.
+Fix renamed all 350 occurrences across the four keys via sed; JSON
+revalidated.
+
+**Defect 1b — `appearance` sub-object instead of top-level fields.**
+Eight packs nested `lineWeightScale` / `textStyleName` /
+`dimensionStyleName` / `hatchPalette` under an `appearance` block; the
+data model expects them at root with `textStyle` / `dimensionStyle`
+keys. Two of the dropped values were real custom setups:
+`proj-arch-presentation.appearance.lineWeightScale = 0.75` and
+`proj-mep-coordination.appearance.lineWeightScale = 0.5` — both
+managed-template packs intended a 25–50 % global line-weight
+reduction that never applied. Three other packs lost bespoke text
+styles (`STING - 2.0mm Shop`, `STING - 3.0mm Presentation`,
+`STING - 2.0mm`). Fix promotes every `appearance.*` to its canonical
+top-level field then deletes the dead block.
+
+**Defect 1c — `filterRules` instead of `filters`.** `corp-base`,
+`corp-coordination`, `corp-clarification`, and
+`corp-demolition-phase` declared 7 / 1 / 1 / 3 filter rules under
+`filterRules` with the inner-rule key `name` instead of `filterName`.
+The data model reads `filters[]` of `StyleFilterRule { filterName,
+… }`. Net effect: the entire authored corporate filter library
+(`Existing - Halftone`, `New Construction`, `Demolished`,
+`Temporary`, `Proposed - Planning`, `STING - First-Fix Phase`,
+`STING - Noggin Required`) was silently dropped — none reached any
+view. Fix renames the outer key and migrates `name` → `filterName`
+on every entry; deletes the dead `filterRules` block. Because the
+extends chain appends filter rules child-to-root, every derived pack
+now inherits the 7 corp-base rules automatically.
+
+**Defect 2 — empty filter list across every pack.** All 27 packs
+shipped with `filters: []`. Phase 165 seeds the corporate filter
+library (per BS EN ISO 19650-1 §A.5 + AIA NCS) on every `corp-*` pack:
+
+- `STING - Existing` (halftone grey #808080) — working drawings.
+- `STING - Demolish` (red #E60000) — working + demolition + clarification.
+- `STING - Temporary` (amber #E6A800 halftone) — working drawings.
+- `STING - Suitability S0-S2` (halftone) — working drawings.
+- `STING - Suitability S3-S4` (full colour) — working + fab + coord.
+- `STING - Fire Rating` / `STING - Acoustic Rating` (declared in spec; enabled per arch-fire-strategy / arch-acoustic profiles in follow-up).
+
+`corp-presentation-rich` / `corp-presentation-mono` hide both Existing
+and Demolish (presentations show as-built only). `corp-clarification`
+shows Demolish only. `corp-coordination` keeps phase + suitability
+filters. Filter counts after edit: working packs 5, coordination 4,
+fabrication 3, presentation 2, clarification 1.
+
+**Defect 3 — 36 of 54 drawing types had `viewStylePackId: null`.**
+Backfilled via routing table:
+
+- `arch-plan-*`, `arch-site-*`, `arch-roof-*`, `arch-floor-finishes-*`,
+  `arch-fire-strategy-*`, `arch-accessibility-*`, MEP / public-health /
+  FM plans → `corp-standard-plan` (20 entries).
+- `arch-rcp-*` → `corp-standard-rcp` (1).
+- `arch-section-*` → `corp-standard-section` (1).
+- `arch-elev-*` / `arch-interior-elev-*` / `pres-exterior-elev-*` → `corp-standard-elevation` (3).
+- `arch-detail-*`, `struct-rebar-detail-*`, schedules, legends,
+  handover → `corp-standard-detail` (6).
+- `struct-*` → `corp-structural-plan` (4).
+- `mep-coord-*`, `coord-clash-*` → `corp-coordination` (3 — counting
+  the existing `coord-clash-A1-1to50`).
+- `pipe-spool-*`, `duct-spool-*` → `corp-fabrication-shop` (3).
+- Presentation 3D / perspective / render-board / context-site /
+  exterior-elev → `corp-presentation-rich` (6).
+- `clar-rfi-*`, `clar-design-intent-*`, `clar-markup-*` →
+  `corp-clarification` (3).
+- Existing project-team-customised mappings (`pres-burgund-green` ×2,
+  `pres-interior-sage` ×1, `corp-demolition-phase` ×1) preserved.
+
+Post-edit verification: zero `viewStylePackId == null`, JSON valid.
+
+**Metadata enrichment.** Added `lineWeightScale: 1.0` and
+`hatchPalette: "BS 1192 mono"` (or `"AIA NCS color"` for
+`corp-presentation-rich`) to every `corp-*` pack — 13 packs updated.
+These fields were previously unset across the entire catalogue, so the
+editor's Appearance card had no anchor for line-weight scale or hatch
+palette. The `lineWeightScale` is recorded but not yet multiplied at
+apply time (still TODO — `ViewStylePackApplier` reads weights as-is);
+adding it now means the field is populated against BS 1192 + Revit's
+default 1..16 weight ladder, ready to be honoured when the multiplier
+lands.
+
+**Research deliverable.** `docs/DRAWING_VG_RESEARCH.md` documents:
+
+- Editor architecture — every card on the Drawing Types tab + View
+  Style Packs tab + every cell on the embedded Revit-VG-grid replica,
+  with target property names.
+- Data model — every field on `ViewStylePack`, `StyleVgOverride`,
+  `StyleFilterRule`, `PackViewRange`, `PackUnderlay`,
+  `PackLinkOverride`, plus the extends inheritance chain and
+  `ManagedTemplateSyncer` template-mode behaviour.
+- Apply pipeline — the ten-step `DrawingTypePresentation.Apply`
+  sequence, external vs. managed mode, every `OverrideGraphicSettings`
+  Set… call the VG editor's cells produce.
+- Bug analysis — JSON key mismatch with grep evidence, applier-side
+  read confirmation.
+- AEC standards — BS 1192 line-weight ladder (1..10 → 0.05..2.00 mm),
+  ISO 13567-2 + AIA NCS colour conventions, halftone strategy by pack
+  purpose, full filter library specification.
+- Pack-by-pack VG specification — projection / cut weight + colour +
+  halftone + visibility per category for `corp-base`,
+  `corp-standard-plan`, `corp-standard-rcp`, `corp-standard-section`,
+  `corp-standard-elevation`, `corp-standard-detail`,
+  `corp-structural-plan`, `corp-coordination`,
+  `corp-fabrication-shop`, `corp-presentation-rich`,
+  `corp-presentation-mono`. Tables align with industry convention
+  (architectural primary black, structural red, MEP halftone-grey on
+  arch plans, coordination tinted-by-discipline).
+- DrawingType → ViewStylePack routing reference matching the JSON
+  edit applied here.
+- Verification plan — six-step Revit-side regression test for a
+  reviewer to run on Windows.
+
+**Files changed**
+
+- `Data/STING_VIEW_STYLE_PACKS.json` — key rename ×350; metadata +
+  filter library on 13 corp packs.
+- `Data/STING_DRAWING_TYPES.json` — `viewStylePackId` backfill on 36
+  drawing types.
+- `docs/DRAWING_VG_RESEARCH.md` — new (587 lines).
+- `docs/CHANGELOG.md` — this entry.
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox, no Revit
+   API). Bug fix is mechanical (sed key rename), filter / pack-id
+   changes are JSON-only, and JSON validates with `jq empty`. Behavior
+   verification needs a Windows reviewer to follow the 6-step plan in
+   §8 of the research doc.
+2. The deeper VG authoring matrix (§6 of the research doc — proper
+   per-pack projection / cut / halftone overrides per BS 1192) is the
+   spec but not the edit. Bulk-rewriting `vgOverrides` on every corp
+   pack risked silent regression of project-team customisations
+   already in flight; this branch fixes the bug + ships the filter +
+   metadata layer + maps every drawing type to a pack, then leaves
+   the per-category override authoring as a follow-up that should be
+   driven by reviewer feedback against §6 in a real Revit project.
+3. The corporate filters reference `ParameterFilterElement` rules of
+   matching name (`STING - Existing`, `STING - Demolish`, etc.). Those
+   rules are minted by `TemplateExtCommands.ApplyFiltersCommand` /
+   `TemplateCommands.CreateFiltersCommand`. If the project hasn't run
+   those commands first, the applier logs a warning ("Filter '…' not
+   found — skipped") and continues; the pack still applies its VG
+   overrides correctly.
+4. `lineWeightScale` is recorded but not consumed at apply time. Live
+   honour requires multiplying every `projectionLineWeight` /
+   `cutLineWeight` by the resolved pack scale inside
+   `ViewStylePackApplier.Apply` and `ApplyPresetOverrides`. Deferred
+   to a follow-up — the value is populated correctly so the multiplier
+   commit can flip the switch with no JSON re-edit.
