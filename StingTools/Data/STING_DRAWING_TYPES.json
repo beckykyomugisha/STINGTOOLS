@@ -1,10 +1,65 @@
 {
   "version": 1,
   "_comment": "STING corporate Drawing Types. Override per project by dropping a drawing_types.json under <project>/_BIM_COORD/. Project entries win by id; routing rules from the project file are PREPENDED (first-match-wins).",
+  "_tokenProfileDesign": {
+    "rationale": "Each drawingType.tokenProfile is precomputed for Phase 165 by the matrix in commit message 'Intelligent tag profile matrix'. Override any field per project by dropping a project-scoped drawing_types.json under <project>/_BIM_COORD/.",
+    "rules": [
+      "PRESENTATION (pres-*) \u2014 ITALIC GREY 2.5mm, Mono scheme, depth 2, PROD-SEQ display, identity+spatial sections only. Subdued for client-facing decks.",
+      "CLARIFICATION (clar-*) \u2014 BOLDITALIC RED 3mm, Discipline scheme, depth 3, full 8-segment, A+B+C+D+F sections. Markup style for RFIs / queries.",
+      "HANDOVER / FM (handover, fm-*) \u2014 NOM PURPLE 2.5mm, System scheme, depth 10, HANDOVER pattern, T4+T9+T10 tiers active. Lifecycle-ready audit trail.",
+      "SPOOL / FABRICATION (-spool, -fabrication) \u2014 BOLD BLACK 3mm, System scheme, depth 7, DISC-PROD-SEQ display, T7 fab+QC tier. Workshop-readable.",
+      "SCHEDULE (-schedule) \u2014 NOM 2mm, BOQ preset, depth 1, no graphic scheme, PROD-SEQ display. Schedules render as tables.",
+      "COORDINATION / CLASH (coord-, clash-) \u2014 BOLD RED 2.5mm, Discipline scheme, depth 8, T8 clash triage tier. Highlights ownership.",
+      "LEGEND \u2014 NOM GREY 2mm, Compact preset, depth 1, SEQ-only display. Legend tags read like keys.",
+      "FIRE STRATEGY / FIRE ALARM (-fire-) \u2014 BOLD RED 2.5mm, System scheme, depth 4, T4 commissioning tier. Witness/sign-off captured.",
+      "DEMOLITION \u2014 BOLD RED, Status scheme, depth 2. Status colours show NEW/EXISTING/DEMOLISHED.",
+      "FINISHES (-finishes, -screed, -raised-floor) \u2014 Status scheme, depth 3. Each finish package reads distinctly.",
+      "SETTING OUT \u2014 BOLD, depth 4, Discipline scheme. Survives crowded annotation.",
+      "SITE / ACCESSIBILITY \u2014 Zone scheme, depth 3. Reads compliance routes / building zones.",
+      "AREA PLAN \u2014 Function scheme, depth 2, DISC-PROD-SEQ display. Functional zoning emphasis.",
+      "RCP \u2014 System scheme, depth 3, A+B+C+E sections. Distinguishes ceiling-fixture systems.",
+      "FOUNDATION \u2014 BOLD BLACK, Material scheme, depth 4. Concrete/rebar/steel callouts.",
+      "PLUMBING DRAINAGE \u2014 GREEN, System scheme, depth 3. Discipline convention.",
+      "ELECTRICAL POWER / LIGHTING / FIRE ALARM \u2014 ORANGE (high contrast vs yellow on white), System scheme. Riser uses Level scheme to track floor distribution.",
+      "PARTITION / SANITARY LAYOUT \u2014 depth 3, DISC-PROD-SEQ display. 1:50 detail layouts.",
+      "DETAIL \u2014 NOM 3.5mm, FullSpec preset, depth 5, all 6 A-F sections visible. Most-data-per-element drawings.",
+      "SECTION / ELEVATION \u2014 NOM, depth 3, full 8-segment, A+B+C sections. Standard production read.",
+      "PLANTROOM (1:50 dense MEP) \u2014 BOLD BLUE 3mm, System scheme, depth 5. Survives plantroom density.",
+      "HVAC DUCT PLAN \u2014 System scheme, depth 3. Air-system colour coding.",
+      "STANDARD PLAN (arch / struct / mep / elec / plumbing fallthrough) \u2014 NOM, Discipline-coloured, Discipline scheme, depth 3, full 8-segment. The default production read."
+    ],
+    "disciplineColors": {
+      "A_arch": "BLACK \u2014 calm, professional",
+      "S_struct": "BLACK \u2014 engineering convention",
+      "M_mech": "BLUE  \u2014 UK convention",
+      "E_elec": "ORANGE \u2014 high contrast on white (yellow unreadable)",
+      "P_plumb": "GREEN",
+      "FP_fire": "RED",
+      "multi": "GREY"
+    },
+    "sizeBands": {
+      "scale_<=20": "3.5mm \u2014 large detail drawings",
+      "scale_<=50": "3.0mm \u2014 section / detail / spool",
+      "scale_<=200": "2.5mm \u2014 standard production plan",
+      "scale_>200": "2.0mm \u2014 site / area plan / schedule"
+    },
+    "stages": {
+      "RIBA_2_concept": "PRESENTATION profiles (pres-*) \u2014 depth 2, mono, ITALIC GREY",
+      "RIBA_3_4_design": "DC pattern, depth 3-5, discipline-coloured NOM",
+      "RIBA_5_construction": "DC pattern, depth 7+, BOLD spools, T7 fab tier active",
+      "RIBA_6_handover": "HANDOVER pattern, depth 10, T4+T9+T10 tiers, PURPLE"
+    },
+    "clientFacingProfiles": [
+      "pres-* \u2014 silk presentation grade",
+      "handover-A1 \u2014 Stage 6 client deliverable",
+      "fm-asset-location-A1-1to100 \u2014 FM client handover",
+      "clar-design-intent-A1 \u2014 design narrative for client review"
+    ]
+  },
   "drawingTypes": [
     {
       "id": "arch-plan-A1-1to100",
-      "name": "Architectural Plan — A1 @ 1:100",
+      "name": "Architectural Plan \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "A",
@@ -17,10 +72,29 @@
       "viewTemplateName": "STING - Architectural Plan",
       "viewportTypeName": "STING - Standard Viewport",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
-      "sheetNamePattern": "ARCHITECTURAL PLAN — {lvl}",
+      "sheetNamePattern": "ARCHITECTURAL PLAN \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": false,
+          "F": false
+        }
       },
       "slots": [
         {
@@ -164,7 +238,7 @@
     },
     {
       "id": "arch-rcp-A1-1to100",
-      "name": "Architectural RCP — A1 @ 1:100",
+      "name": "Architectural RCP \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "RCP",
       "discipline": "A",
@@ -174,10 +248,36 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Reflected Ceiling Plan",
       "sheetNumberPattern": "A-RCP-{lvl}-{seq:D3}",
-      "sheetNamePattern": "REFLECTED CEILING PLAN — {lvl}",
+      "sheetNamePattern": "REFLECTED CEILING PLAN \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "System",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": false,
+          "E": true,
+          "F": false,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -291,7 +391,7 @@
     },
     {
       "id": "arch-section-A1-1to50",
-      "name": "Architectural Section — A1 @ 1:50",
+      "name": "Architectural Section \u2014 A1 @ 1:50",
       "origin": "corporate",
       "purpose": "Section",
       "discipline": "A",
@@ -311,6 +411,32 @@
         "markPrefix": "S",
         "bubbleStyle": "Filled",
         "farClipMm": 5000
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "3",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": false,
+          "E": false,
+          "F": false,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -419,7 +545,7 @@
     },
     {
       "id": "arch-elev-A1-1to100",
-      "name": "Architectural Elevation — A1 @ 1:100",
+      "name": "Architectural Elevation \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Elevation",
       "discipline": "A",
@@ -439,6 +565,32 @@
         "markPrefix": "E",
         "bubbleStyle": "Open",
         "farClipMm": 8000
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": false,
+          "E": false,
+          "F": false,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -562,7 +714,7 @@
     },
     {
       "id": "arch-detail-A3-1to20",
-      "name": "Architectural Detail — A3 @ 1:20",
+      "name": "Architectural Detail \u2014 A3 @ 1:20",
       "origin": "corporate",
       "purpose": "Detail",
       "discipline": "A",
@@ -582,6 +734,32 @@
         "markPrefix": "D",
         "bubbleStyle": "Filled",
         "farClipMm": 500
+      },
+      "tokenProfile": {
+        "presentationMode": "FullSpec",
+        "paraDepth": 5,
+        "tagSize": "3.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "segmentMask": "11111111",
+        "displayMode": 4,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": true,
+          "F": true,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -706,7 +884,7 @@
     },
     {
       "id": "struct-plan-A1-1to100",
-      "name": "Structural Plan — A1 @ 1:100",
+      "name": "Structural Plan \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "S",
@@ -716,10 +894,29 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Structural Plan",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
-      "sheetNamePattern": "STRUCTURAL PLAN — {lvl}",
+      "sheetNamePattern": "STRUCTURAL PLAN \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": false,
+          "F": false
+        }
       },
       "slots": [
         {
@@ -793,7 +990,7 @@
     },
     {
       "id": "struct-section-A1-1to50",
-      "name": "Structural Section — A1 @ 1:50",
+      "name": "Structural Section \u2014 A1 @ 1:50",
       "origin": "corporate",
       "purpose": "Section",
       "discipline": "S",
@@ -813,6 +1010,32 @@
         "markPrefix": "SS",
         "bubbleStyle": "Filled",
         "farClipMm": 5000
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "3",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": false,
+          "E": false,
+          "F": false,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -874,7 +1097,7 @@
     },
     {
       "id": "mep-plan-A1-1to100",
-      "name": "MEP Plan — A1 @ 1:100",
+      "name": "MEP Plan \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "M",
@@ -884,10 +1107,29 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - MEP Plan",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
-      "sheetNamePattern": "MEP PLAN — {lvl}",
+      "sheetNamePattern": "MEP PLAN \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLUE",
+        "colorScheme": "Discipline",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": false,
+          "F": false
+        }
       },
       "slots": [
         {
@@ -994,7 +1236,7 @@
     },
     {
       "id": "mep-coord-A1-1to50",
-      "name": "MEP Coordination — A1 @ 1:50",
+      "name": "MEP Coordination \u2014 A1 @ 1:50",
       "origin": "corporate",
       "purpose": "Coordination",
       "discipline": "M",
@@ -1004,7 +1246,7 @@
       "detailLevel": "Fine",
       "viewTemplateName": "STING - MEP Coordination",
       "sheetNumberPattern": "M-CO-{lvl}-{seq:D3}",
-      "sheetNamePattern": "MEP COORDINATION — {lvl}",
+      "sheetNamePattern": "MEP COORDINATION \u2014 {lvl}",
       "productionRules": [
         {
           "idx": 0,
@@ -1031,6 +1273,32 @@
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 100
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 8,
+        "tagSize": "2.5",
+        "tagStyle": "BOLD",
+        "tagColor": "RED",
+        "colorScheme": "Discipline",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": true,
+          "F": false,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": true,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -1114,7 +1382,7 @@
     },
     {
       "id": "pipe-spool-A1-1to50",
-      "name": "Pipe Spool — A1 @ 1:50",
+      "name": "Pipe Spool \u2014 A1 @ 1:50",
       "origin": "corporate",
       "purpose": "Spool",
       "discipline": "P",
@@ -1144,6 +1412,32 @@
       "crop": {
         "kind": "TightBbox",
         "marginMm": 300
+      },
+      "tokenProfile": {
+        "presentationMode": "FullSpec",
+        "paraDepth": 7,
+        "tagSize": "3",
+        "tagStyle": "BOLD",
+        "tagColor": "BLACK",
+        "colorScheme": "System",
+        "segmentMask": "10000101",
+        "displayMode": 4,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": false,
+          "D": false,
+          "E": true,
+          "F": true,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": true,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -1265,7 +1559,7 @@
     },
     {
       "id": "duct-spool-A1-1to50",
-      "name": "Duct Spool — A1 @ 1:50",
+      "name": "Duct Spool \u2014 A1 @ 1:50",
       "origin": "corporate",
       "purpose": "Spool",
       "discipline": "M",
@@ -1279,6 +1573,32 @@
       "crop": {
         "kind": "TightBbox",
         "marginMm": 300
+      },
+      "tokenProfile": {
+        "presentationMode": "FullSpec",
+        "paraDepth": 7,
+        "tagSize": "3",
+        "tagStyle": "BOLD",
+        "tagColor": "BLACK",
+        "colorScheme": "System",
+        "segmentMask": "10000101",
+        "displayMode": 4,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": false,
+          "D": false,
+          "E": true,
+          "F": true,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": true,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -1377,7 +1697,7 @@
     },
     {
       "id": "elec-riser-A2-1to100",
-      "name": "Electrical Riser — A2 @ 1:100",
+      "name": "Electrical Riser \u2014 A2 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "E",
@@ -1391,6 +1711,25 @@
       "crop": {
         "kind": "TightBbox",
         "marginMm": 200
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "ORANGE",
+        "colorScheme": "Level",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": false,
+          "F": false
+        }
       },
       "slots": [
         {
@@ -1463,7 +1802,7 @@
     },
     {
       "id": "door-schedule-A2",
-      "name": "Door Schedule — A2",
+      "name": "Door Schedule \u2014 A2",
       "origin": "corporate",
       "purpose": "Schedule",
       "discipline": "A",
@@ -1474,6 +1813,32 @@
       "sheetNamePattern": "DOOR SCHEDULE",
       "crop": {
         "kind": "None"
+      },
+      "tokenProfile": {
+        "presentationMode": "BOQ",
+        "paraDepth": 1,
+        "tagSize": "2",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "",
+        "segmentMask": "10000101",
+        "displayMode": 2,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": false,
+          "C": false,
+          "D": false,
+          "E": false,
+          "F": false,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -1497,7 +1862,7 @@
     },
     {
       "id": "handover-A1",
-      "name": "Handover Sheet — A1",
+      "name": "Handover Sheet \u2014 A1",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "*",
@@ -1507,10 +1872,36 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Handover",
       "sheetNumberPattern": "HO-{seq:D3}",
-      "sheetNamePattern": "HANDOVER — {lvl}",
+      "sheetNamePattern": "HANDOVER \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 200
+      },
+      "tokenProfile": {
+        "presentationMode": "FullSpec",
+        "paraDepth": 10,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "PURPLE",
+        "colorScheme": "System",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "HANDOVER",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": true,
+          "F": true,
+          "T4": true,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": true,
+          "T10": true
+        }
       },
       "slots": [
         {
@@ -1557,7 +1948,7 @@
     },
     {
       "id": "legend-A2",
-      "name": "Legend Sheet — A2",
+      "name": "Legend Sheet \u2014 A2",
       "origin": "corporate",
       "purpose": "Legend",
       "discipline": "*",
@@ -1568,6 +1959,32 @@
       "sheetNamePattern": "LEGENDS & NOTES",
       "crop": {
         "kind": "None"
+      },
+      "tokenProfile": {
+        "presentationMode": "Compact",
+        "paraDepth": 1,
+        "tagSize": "2",
+        "tagStyle": "NOM",
+        "tagColor": "GREY",
+        "colorScheme": "",
+        "segmentMask": "00000001",
+        "displayMode": 1,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": false,
+          "C": false,
+          "D": false,
+          "E": false,
+          "F": false,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -1591,7 +2008,7 @@
     },
     {
       "id": "arch-site-A1-1to500",
-      "name": "Site / Location Plan — A1 @ 1:500",
+      "name": "Site / Location Plan \u2014 A1 @ 1:500",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "A",
@@ -1605,6 +2022,32 @@
       "crop": {
         "kind": "TightBbox",
         "marginMm": 2000
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "2",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Zone",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": false,
+          "E": false,
+          "F": true,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -1653,7 +2096,7 @@
     },
     {
       "id": "arch-roof-A1-1to100",
-      "name": "Architectural Roof Plan — A1 @ 1:100",
+      "name": "Architectural Roof Plan \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "A",
@@ -1667,6 +2110,25 @@
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 200
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "System",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": false,
+          "F": false
+        }
       },
       "slots": [
         {
@@ -1724,7 +2186,7 @@
     },
     {
       "id": "arch-floor-finishes-A1-1to100",
-      "name": "Floor Finishes Plan — A1 @ 1:100",
+      "name": "Floor Finishes Plan \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "A",
@@ -1734,10 +2196,36 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Finishes Plan",
       "sheetNumberPattern": "A-FF-{lvl}-{seq:D3}",
-      "sheetNamePattern": "FLOOR FINISHES — {lvl}",
+      "sheetNamePattern": "FLOOR FINISHES \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Status",
+        "segmentMask": "11111111",
+        "displayMode": 4,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": true,
+          "F": false,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -1798,7 +2286,7 @@
     },
     {
       "id": "arch-fire-strategy-A1-1to100",
-      "name": "Fire Strategy Plan — A1 @ 1:100",
+      "name": "Fire Strategy Plan \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "A",
@@ -1808,10 +2296,36 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Fire Strategy",
       "sheetNumberPattern": "A-FS-{lvl}-{seq:D3}",
-      "sheetNamePattern": "FIRE STRATEGY — {lvl}",
+      "sheetNamePattern": "FIRE STRATEGY \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 4,
+        "tagSize": "2.5",
+        "tagStyle": "BOLD",
+        "tagColor": "RED",
+        "colorScheme": "System",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": false,
+          "F": true,
+          "T4": true,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -1868,7 +2382,7 @@
     },
     {
       "id": "arch-accessibility-A1-1to100",
-      "name": "Accessibility Plan (Part M) — A1 @ 1:100",
+      "name": "Accessibility Plan (Part M) \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "A",
@@ -1878,10 +2392,36 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Accessibility",
       "sheetNumberPattern": "A-AC-{lvl}-{seq:D3}",
-      "sheetNamePattern": "ACCESSIBILITY — {lvl}",
+      "sheetNamePattern": "ACCESSIBILITY \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Zone",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": false,
+          "E": false,
+          "F": true,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -1948,7 +2488,7 @@
     },
     {
       "id": "arch-interior-elev-A1-1to50",
-      "name": "Interior Elevation — A1 @ 1:50",
+      "name": "Interior Elevation \u2014 A1 @ 1:50",
       "origin": "corporate",
       "purpose": "Elevation",
       "discipline": "A",
@@ -1968,6 +2508,32 @@
         "markPrefix": "IE",
         "bubbleStyle": "Open",
         "farClipMm": 6000
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "3",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": false,
+          "E": false,
+          "F": false,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -2091,7 +2657,7 @@
     },
     {
       "id": "arch-window-schedule-A2",
-      "name": "Window Schedule — A2",
+      "name": "Window Schedule \u2014 A2",
       "origin": "corporate",
       "purpose": "Schedule",
       "discipline": "A",
@@ -2102,6 +2668,32 @@
       "sheetNamePattern": "WINDOW SCHEDULE",
       "crop": {
         "kind": "None"
+      },
+      "tokenProfile": {
+        "presentationMode": "BOQ",
+        "paraDepth": 1,
+        "tagSize": "2",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "",
+        "segmentMask": "10000101",
+        "displayMode": 2,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": false,
+          "C": false,
+          "D": false,
+          "E": false,
+          "F": false,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -2125,7 +2717,7 @@
     },
     {
       "id": "struct-foundation-A1-1to100",
-      "name": "Foundation Plan — A1 @ 1:100",
+      "name": "Foundation Plan \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "S",
@@ -2139,6 +2731,32 @@
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 300
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 4,
+        "tagSize": "2.5",
+        "tagStyle": "BOLD",
+        "tagColor": "BLACK",
+        "colorScheme": "Material",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": true,
+          "F": false,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -2204,7 +2822,7 @@
     },
     {
       "id": "struct-rebar-detail-A3-1to20",
-      "name": "Rebar Detail — A3 @ 1:20",
+      "name": "Rebar Detail \u2014 A3 @ 1:20",
       "origin": "corporate",
       "purpose": "Detail",
       "discipline": "S",
@@ -2224,6 +2842,32 @@
         "markPrefix": "RB",
         "bubbleStyle": "Filled",
         "farClipMm": 500
+      },
+      "tokenProfile": {
+        "presentationMode": "FullSpec",
+        "paraDepth": 5,
+        "tagSize": "3.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "segmentMask": "11111111",
+        "displayMode": 4,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": true,
+          "F": true,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -2264,7 +2908,7 @@
     },
     {
       "id": "mep-hvac-duct-A1-1to100",
-      "name": "HVAC Duct Layout — A1 @ 1:100",
+      "name": "HVAC Duct Layout \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "M",
@@ -2274,10 +2918,29 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - HVAC Duct",
       "sheetNumberPattern": "M-DC-{lvl}-{seq:D3}",
-      "sheetNamePattern": "HVAC DUCT — {lvl}",
+      "sheetNamePattern": "HVAC DUCT \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLUE",
+        "colorScheme": "System",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": false,
+          "F": false
+        }
       },
       "slots": [
         {
@@ -2377,7 +3040,7 @@
     },
     {
       "id": "mep-plantroom-A1-1to50",
-      "name": "Plant Room Plan — A1 @ 1:50",
+      "name": "Plant Room Plan \u2014 A1 @ 1:50",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "M",
@@ -2387,10 +3050,36 @@
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Plant Room",
       "sheetNumberPattern": "M-PR-{seq:D3}",
-      "sheetNamePattern": "PLANT ROOM — {mark}",
+      "sheetNamePattern": "PLANT ROOM \u2014 {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 100
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 5,
+        "tagSize": "3",
+        "tagStyle": "BOLD",
+        "tagColor": "BLUE",
+        "colorScheme": "System",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": true,
+          "F": false,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -2495,7 +3184,7 @@
     },
     {
       "id": "elec-power-A1-1to100",
-      "name": "Electrical Power Layout — A1 @ 1:100",
+      "name": "Electrical Power Layout \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "E",
@@ -2505,10 +3194,29 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Power Layout",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
-      "sheetNamePattern": "POWER LAYOUT — {lvl}",
+      "sheetNamePattern": "POWER LAYOUT \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "ORANGE",
+        "colorScheme": "System",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": false,
+          "F": false
+        }
       },
       "slots": [
         {
@@ -2592,7 +3300,7 @@
     },
     {
       "id": "elec-lighting-A1-1to100",
-      "name": "Lighting Layout — A1 @ 1:100",
+      "name": "Lighting Layout \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "E",
@@ -2602,10 +3310,29 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Lighting Layout",
       "sheetNumberPattern": "E-LT-{lvl}-{seq:D3}",
-      "sheetNamePattern": "LIGHTING LAYOUT — {lvl}",
+      "sheetNamePattern": "LIGHTING LAYOUT \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "ORANGE",
+        "colorScheme": "System",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": false,
+          "F": false
+        }
       },
       "slots": [
         {
@@ -2682,7 +3409,7 @@
     },
     {
       "id": "elec-fire-alarm-A1-1to100",
-      "name": "Fire Alarm Layout — A1 @ 1:100",
+      "name": "Fire Alarm Layout \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "E",
@@ -2692,10 +3419,36 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Fire Alarm",
       "sheetNumberPattern": "E-FA-{lvl}-{seq:D3}",
-      "sheetNamePattern": "FIRE ALARM — {lvl}",
+      "sheetNamePattern": "FIRE ALARM \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 4,
+        "tagSize": "2.5",
+        "tagStyle": "BOLD",
+        "tagColor": "RED",
+        "colorScheme": "System",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": false,
+          "F": true,
+          "T4": true,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -2771,7 +3524,7 @@
     },
     {
       "id": "plumb-drainage-A1-1to100",
-      "name": "Drainage Layout — A1 @ 1:100",
+      "name": "Drainage Layout \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "P",
@@ -2781,10 +3534,29 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Drainage",
       "sheetNumberPattern": "P-DR-{lvl}-{seq:D3}",
-      "sheetNamePattern": "DRAINAGE — {lvl}",
+      "sheetNamePattern": "DRAINAGE \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "GREEN",
+        "colorScheme": "System",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": false,
+          "F": false
+        }
       },
       "slots": [
         {
@@ -2853,7 +3625,7 @@
     },
     {
       "id": "fm-asset-location-A1-1to100",
-      "name": "FM Asset Location Plan — A1 @ 1:100",
+      "name": "FM Asset Location Plan \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "*",
@@ -2863,10 +3635,36 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - FM Asset",
       "sheetNumberPattern": "FM-AS-{lvl}-{seq:D3}",
-      "sheetNamePattern": "ASSET LOCATION — {lvl}",
+      "sheetNamePattern": "ASSET LOCATION \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
+      },
+      "tokenProfile": {
+        "presentationMode": "FullSpec",
+        "paraDepth": 10,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "PURPLE",
+        "colorScheme": "System",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "HANDOVER",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": true,
+          "F": true,
+          "T4": true,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": true,
+          "T10": true
+        }
       },
       "slots": [
         {
@@ -2919,7 +3717,7 @@
     },
     {
       "id": "coord-clash-A1-1to50",
-      "name": "Coordination Clash Plan — A1 @ 1:50",
+      "name": "Coordination Clash Plan \u2014 A1 @ 1:50",
       "origin": "corporate",
       "purpose": "Coordination",
       "discipline": "*",
@@ -2929,10 +3727,36 @@
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Clash Coordination",
       "sheetNumberPattern": "CO-CL-{lvl}-{seq:D3}",
-      "sheetNamePattern": "CLASH COORDINATION — {lvl}",
+      "sheetNamePattern": "CLASH COORDINATION \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 100
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 8,
+        "tagSize": "2.5",
+        "tagStyle": "BOLD",
+        "tagColor": "RED",
+        "colorScheme": "Discipline",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": true,
+          "F": false,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": true,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -3032,7 +3856,7 @@
     },
     {
       "id": "pres-3d-axon-A1",
-      "name": "Presentation 3D Axonometric — A1",
+      "name": "Presentation 3D Axonometric \u2014 A1",
       "origin": "corporate",
       "purpose": "3D",
       "discipline": "*",
@@ -3059,10 +3883,36 @@
           "nameSuffix": " - KEY"
         }
       ],
-      "sheetNamePattern": "3D AXONOMETRIC — {mark}",
+      "sheetNamePattern": "3D AXONOMETRIC \u2014 {mark}",
       "crop": {
         "kind": "TightBbox",
         "marginMm": 500
+      },
+      "tokenProfile": {
+        "presentationMode": "Presentation",
+        "paraDepth": 2,
+        "tagSize": "2.5",
+        "tagStyle": "ITALIC",
+        "tagColor": "GREY",
+        "colorScheme": "Mono",
+        "segmentMask": "00000101",
+        "displayMode": 2,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": false,
+          "C": true,
+          "D": false,
+          "E": false,
+          "F": false,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -3109,7 +3959,7 @@
         "Discipline": "Presentation",
         "Suitability": "S1",
         "Sheet Status": "ISSUED FOR INFORMATION",
-        "Sheet Title": "3D AXONOMETRIC — {mark}"
+        "Sheet Title": "3D AXONOMETRIC \u2014 {mark}"
       },
       "isoNaming": {
         "volume": "01",
@@ -3121,7 +3971,7 @@
     },
     {
       "id": "pres-perspective-A1",
-      "name": "Presentation Perspective — A1",
+      "name": "Presentation Perspective \u2014 A1",
       "origin": "corporate",
       "purpose": "3D",
       "discipline": "A",
@@ -3131,9 +3981,35 @@
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Presentation Perspective",
       "sheetNumberPattern": "PR-PV-{seq:D2}",
-      "sheetNamePattern": "PERSPECTIVE — {mark}",
+      "sheetNamePattern": "PERSPECTIVE \u2014 {mark}",
       "crop": {
         "kind": "None"
+      },
+      "tokenProfile": {
+        "presentationMode": "Presentation",
+        "paraDepth": 2,
+        "tagSize": "2.5",
+        "tagStyle": "ITALIC",
+        "tagColor": "GREY",
+        "colorScheme": "Mono",
+        "segmentMask": "00000101",
+        "displayMode": 2,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": false,
+          "C": true,
+          "D": false,
+          "E": false,
+          "F": false,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -3165,7 +4041,7 @@
     },
     {
       "id": "pres-exterior-elev-A1",
-      "name": "Presentation Exterior Elevation — A1",
+      "name": "Presentation Exterior Elevation \u2014 A1",
       "origin": "corporate",
       "purpose": "Elevation",
       "discipline": "A",
@@ -3175,7 +4051,7 @@
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Presentation Elevation",
       "sheetNumberPattern": "PR-EL-{seq:D2}",
-      "sheetNamePattern": "EXTERIOR ELEVATION — {mark}",
+      "sheetNamePattern": "EXTERIOR ELEVATION \u2014 {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 300
@@ -3185,6 +4061,32 @@
         "markPrefix": "PE",
         "bubbleStyle": "Open",
         "farClipMm": 10000
+      },
+      "tokenProfile": {
+        "presentationMode": "Presentation",
+        "paraDepth": 2,
+        "tagSize": "2.5",
+        "tagStyle": "ITALIC",
+        "tagColor": "GREY",
+        "colorScheme": "Mono",
+        "segmentMask": "00000101",
+        "displayMode": 2,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": false,
+          "C": true,
+          "D": false,
+          "E": false,
+          "F": false,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -3220,7 +4122,7 @@
     },
     {
       "id": "pres-render-board-A1",
-      "name": "Presentation Render Board — A1 (4-up)",
+      "name": "Presentation Render Board \u2014 A1 (4-up)",
       "origin": "corporate",
       "purpose": "3D",
       "discipline": "A",
@@ -3233,6 +4135,32 @@
       "sheetNamePattern": "RENDER BOARD {mark}",
       "crop": {
         "kind": "None"
+      },
+      "tokenProfile": {
+        "presentationMode": "Presentation",
+        "paraDepth": 2,
+        "tagSize": "2.5",
+        "tagStyle": "ITALIC",
+        "tagColor": "GREY",
+        "colorScheme": "Mono",
+        "segmentMask": "00000101",
+        "displayMode": 2,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": false,
+          "C": true,
+          "D": false,
+          "E": false,
+          "F": false,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -3279,7 +4207,7 @@
     },
     {
       "id": "pres-context-site-A1",
-      "name": "Presentation Context / Site — A1 @ 1:500",
+      "name": "Presentation Context / Site \u2014 A1 @ 1:500",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "A",
@@ -3289,10 +4217,36 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Presentation Context",
       "sheetNumberPattern": "PR-CX-{seq:D2}",
-      "sheetNamePattern": "CONTEXT PLAN — {mark}",
+      "sheetNamePattern": "CONTEXT PLAN \u2014 {mark}",
       "crop": {
         "kind": "TightBbox",
         "marginMm": 3000
+      },
+      "tokenProfile": {
+        "presentationMode": "Presentation",
+        "paraDepth": 2,
+        "tagSize": "2.5",
+        "tagStyle": "ITALIC",
+        "tagColor": "GREY",
+        "colorScheme": "Mono",
+        "segmentMask": "00000101",
+        "displayMode": 2,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": false,
+          "C": true,
+          "D": false,
+          "E": false,
+          "F": false,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -3343,7 +4297,7 @@
     },
     {
       "id": "clar-markup-A1",
-      "name": "Clarification / Markup Plan — A1",
+      "name": "Clarification / Markup Plan \u2014 A1",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "A",
@@ -3353,10 +4307,36 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Clarification Markup",
       "sheetNumberPattern": "CL-MK-{lvl}-{seq:D3}",
-      "sheetNamePattern": "CLARIFICATION — {mark}",
+      "sheetNamePattern": "CLARIFICATION \u2014 {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
+      },
+      "tokenProfile": {
+        "presentationMode": "Compact",
+        "paraDepth": 3,
+        "tagSize": "3",
+        "tagStyle": "BOLDITALIC",
+        "tagColor": "RED",
+        "colorScheme": "Discipline",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": false,
+          "F": true,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -3404,7 +4384,7 @@
     },
     {
       "id": "clar-rfi-A3",
-      "name": "RFI Sketch — A3",
+      "name": "RFI Sketch \u2014 A3",
       "origin": "corporate",
       "purpose": "Detail",
       "discipline": "*",
@@ -3424,6 +4404,32 @@
         "markPrefix": "RFI",
         "bubbleStyle": "Filled",
         "farClipMm": 1000
+      },
+      "tokenProfile": {
+        "presentationMode": "Compact",
+        "paraDepth": 3,
+        "tagSize": "3",
+        "tagStyle": "BOLDITALIC",
+        "tagColor": "RED",
+        "colorScheme": "Discipline",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": false,
+          "F": true,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -3470,7 +4476,7 @@
     },
     {
       "id": "clar-design-intent-A1",
-      "name": "Design Intent Presentation — A1",
+      "name": "Design Intent Presentation \u2014 A1",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "A",
@@ -3480,10 +4486,36 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Design Intent",
       "sheetNumberPattern": "DI-{seq:D3}",
-      "sheetNamePattern": "DESIGN INTENT — {mark}",
+      "sheetNamePattern": "DESIGN INTENT \u2014 {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 200
+      },
+      "tokenProfile": {
+        "presentationMode": "Compact",
+        "paraDepth": 3,
+        "tagSize": "3",
+        "tagStyle": "BOLDITALIC",
+        "tagColor": "RED",
+        "colorScheme": "Discipline",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": false,
+          "F": true,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -3544,7 +4576,7 @@
     },
     {
       "id": "arch-setting-out-A1-1to50",
-      "name": "Setting Out / Dimensioned Plan — A1 @ 1:50",
+      "name": "Setting Out / Dimensioned Plan \u2014 A1 @ 1:50",
       "description": "Construction setting-out plan. Ordinate dimensions from origin grid; gridlines and level annotations enabled; mono print.",
       "origin": "corporate",
       "purpose": "Plan",
@@ -3558,10 +4590,36 @@
       "viewTemplateName": "",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "{disc}-{lvl}-SP-{seq:D4}",
-      "sheetNamePattern": "Setting Out Plan — Level {lvl}",
+      "sheetNamePattern": "Setting Out Plan \u2014 Level {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 4,
+        "tagSize": "3",
+        "tagStyle": "BOLD",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": false,
+          "F": true,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -3598,7 +4656,7 @@
     },
     {
       "id": "arch-partition-layout-A1-1to50",
-      "name": "Internal Partition Layout — A1 @ 1:50",
+      "name": "Internal Partition Layout \u2014 A1 @ 1:50",
       "description": "Partition / wall layout with door + window tags. Linear dims; mono print.",
       "origin": "corporate",
       "purpose": "Plan",
@@ -3612,10 +4670,29 @@
       "viewTemplateName": "",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "{disc}-{lvl}-PL-{seq:D4}",
-      "sheetNamePattern": "Partition Layout — Level {lvl}",
+      "sheetNamePattern": "Partition Layout \u2014 Level {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "3",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "segmentMask": "11111111",
+        "displayMode": 4,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": false,
+          "F": false
+        }
       },
       "slots": [
         {
@@ -3657,7 +4734,7 @@
     },
     {
       "id": "arch-demolition-A1-1to100",
-      "name": "Demolition Plan — A1 @ 1:100",
+      "name": "Demolition Plan \u2014 A1 @ 1:100",
       "description": "Demolition phase plan. Existing-to-remain halftoned; demolished elements red dashed; new work bold.",
       "origin": "corporate",
       "purpose": "Plan",
@@ -3671,10 +4748,36 @@
       "viewTemplateName": "",
       "viewStylePackId": "corp-demolition-phase",
       "sheetNumberPattern": "{disc}-{lvl}-DP-{seq:D4}",
-      "sheetNamePattern": "Demolition Plan — Level {lvl}",
+      "sheetNamePattern": "Demolition Plan \u2014 Level {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 75
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 2,
+        "tagSize": "2.5",
+        "tagStyle": "BOLD",
+        "tagColor": "RED",
+        "colorScheme": "Status",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": false,
+          "D": true,
+          "E": false,
+          "F": false,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -3699,7 +4802,7 @@
     },
     {
       "id": "arch-sanitary-layout-A1-1to50",
-      "name": "Sanitary / Wet Room Layout — A1 @ 1:50",
+      "name": "Sanitary / Wet Room Layout \u2014 A1 @ 1:50",
       "description": "Sanitary fixture layout cropped to room boundary. Auto-tags fixtures and rooms; linear dims; mono print.",
       "origin": "corporate",
       "purpose": "Plan",
@@ -3713,10 +4816,29 @@
       "viewTemplateName": "",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "{disc}-{lvl}-SL-{seq:D4}",
-      "sheetNamePattern": "Sanitary Layout — Level {lvl}",
+      "sheetNamePattern": "Sanitary Layout \u2014 Level {lvl}",
       "crop": {
         "kind": "RoomBoundary",
         "marginMm": 200
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "3",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "segmentMask": "11111111",
+        "displayMode": 4,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": false,
+          "F": false
+        }
       },
       "slots": [
         {
@@ -3753,7 +4875,7 @@
     },
     {
       "id": "arch-raised-floor-A1-1to50",
-      "name": "Raised Access Floor Plan — A1 @ 1:50",
+      "name": "Raised Access Floor Plan \u2014 A1 @ 1:50",
       "description": "Raised access floor (RAF) panel grid layout. Ordinate dimensions from origin; mono print.",
       "origin": "corporate",
       "purpose": "Plan",
@@ -3767,10 +4889,36 @@
       "viewTemplateName": "",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "{disc}-{lvl}-RF-{seq:D4}",
-      "sheetNamePattern": "Raised Access Floor — Level {lvl}",
+      "sheetNamePattern": "Raised Access Floor \u2014 Level {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "3",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Status",
+        "segmentMask": "11111111",
+        "displayMode": 4,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": true,
+          "F": false,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -3795,7 +4943,7 @@
     },
     {
       "id": "arch-screed-buildup-A3-1to10",
-      "name": "Floor Build-Up Detail — A3 @ 1:10",
+      "name": "Floor Build-Up Detail \u2014 A3 @ 1:10",
       "description": "Layered floor build-up detail (screed, separation, insulation, slab). Tight crop; material tags.",
       "origin": "corporate",
       "purpose": "Detail",
@@ -3813,6 +4961,32 @@
       "crop": {
         "kind": "TightBbox",
         "marginMm": 30
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "3.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Status",
+        "segmentMask": "11111111",
+        "displayMode": 4,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": true,
+          "F": false,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -3844,7 +5018,7 @@
     },
     {
       "id": "arch-area-plan-A1-1to200",
-      "name": "GIA / NIA Area Plan — A1 @ 1:200",
+      "name": "GIA / NIA Area Plan \u2014 A1 @ 1:200",
       "description": "Gross / net internal area plan with area + room tags. Coarse detail level; presentation print.",
       "origin": "corporate",
       "purpose": "Plan",
@@ -3858,10 +5032,36 @@
       "viewTemplateName": "",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "{disc}-{lvl}-AP-{seq:D4}",
-      "sheetNamePattern": "Area Plan — Level {lvl}",
+      "sheetNamePattern": "Area Plan \u2014 Level {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 75
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 2,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Function",
+        "segmentMask": "11111111",
+        "displayMode": 4,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": false,
+          "C": true,
+          "D": false,
+          "E": false,
+          "F": true,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -3898,7 +5098,7 @@
     },
     {
       "id": "pres-floor-plan-A1",
-      "name": "Presentation Floor Plan — A1",
+      "name": "Presentation Floor Plan \u2014 A1",
       "description": "Client presentation floor plan. Rich material colours, room tags only, no dimensions.",
       "origin": "corporate",
       "purpose": "Plan",
@@ -3912,10 +5112,36 @@
       "viewTemplateName": "",
       "viewStylePackId": "corp-presentation-rich",
       "sheetNumberPattern": "{disc}-{lvl}-PR-{seq:D4}",
-      "sheetNamePattern": "Presentation Floor Plan — Level {lvl}",
+      "sheetNamePattern": "Presentation Floor Plan \u2014 Level {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 100
+      },
+      "tokenProfile": {
+        "presentationMode": "Presentation",
+        "paraDepth": 2,
+        "tagSize": "2.5",
+        "tagStyle": "ITALIC",
+        "tagColor": "GREY",
+        "colorScheme": "Mono",
+        "segmentMask": "00000101",
+        "displayMode": 2,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": false,
+          "C": true,
+          "D": false,
+          "E": false,
+          "F": false,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
       },
       "slots": [
         {
@@ -3947,7 +5173,7 @@
     },
     {
       "id": "mep-plan-presentation",
-      "name": "MEP Plan — Presentation (Phase 135)",
+      "name": "MEP Plan \u2014 Presentation (Phase 135)",
       "description": "Client-facing MEP plan. Shallow paragraph depth, only TAG7 sections A+B visible, soft Discipline colour scheme, segment mask hides LVL/ZONE for visual cleanliness.",
       "origin": "corporate",
       "purpose": "Plan",
@@ -3960,7 +5186,7 @@
       "viewTemplateName": "STING - MEP Plan",
       "viewStylePackId": "corp-presentation-rich",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
-      "sheetNamePattern": "MEP PRESENTATION — {lvl}",
+      "sheetNamePattern": "MEP PRESENTATION \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 200
@@ -4029,7 +5255,7 @@
     },
     {
       "id": "mep-plan-technical",
-      "name": "MEP Plan — Technical (Phase 135)",
+      "name": "MEP Plan \u2014 Technical (Phase 135)",
       "description": "Engineering-issue MEP plan. Full paragraph tier 5, all TAG7 sections visible, System variable colour scheme, BOLD tags, full 8-segment tag mask.",
       "origin": "corporate",
       "purpose": "Plan",
@@ -4042,7 +5268,7 @@
       "viewTemplateName": "STING - MEP Plan",
       "viewStylePackId": "corp-coordination",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
-      "sheetNamePattern": "MEP TECHNICAL — {lvl}",
+      "sheetNamePattern": "MEP TECHNICAL \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 100
@@ -4135,7 +5361,7 @@
     },
     {
       "id": "mep-plan-fabrication",
-      "name": "MEP Plan — Fabrication (Phase 135)",
+      "name": "MEP Plan \u2014 Fabrication (Phase 135)",
       "description": "Workshop-floor MEP plan. Tier 10 audit-trail TAG7, all sections, System variable colours, BOLD-RED tags, mask shows DISC-SYS-PROD-SEQ for spool-pack readability.",
       "origin": "corporate",
       "purpose": "Plan",
@@ -4148,7 +5374,7 @@
       "viewTemplateName": "STING - Fabrication Shop",
       "viewStylePackId": "corp-fabrication-shop",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
-      "sheetNamePattern": "MEP FABRICATION — {lvl}",
+      "sheetNamePattern": "MEP FABRICATION \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 80
@@ -4234,8 +5460,7 @@
         "halftoneLinks": false,
         "lineWeightScale": 1.1
       }
-    }
-    ,
+    },
     {
       "id": "pres-3d-exterior-A1",
       "name": "Presentation 3D Exterior",
@@ -4252,13 +5477,45 @@
       "viewportTypeName": null,
       "viewStylePackId": "pres-burgund-green",
       "sheetNumberPattern": "PRES-{disc}-{seq:D3}",
-      "sheetNamePattern": "Presentation — {discipline} Exterior 3D",
-      "crop": { "kind": "None", "marginMm": 0 },
+      "sheetNamePattern": "Presentation \u2014 {discipline} Exterior 3D",
+      "crop": {
+        "kind": "None",
+        "marginMm": 0
+      },
+      "tokenProfile": {
+        "presentationMode": "Presentation",
+        "paraDepth": 2,
+        "tagSize": "2.5",
+        "tagStyle": "ITALIC",
+        "tagColor": "GREY",
+        "colorScheme": "Mono",
+        "segmentMask": "00000101",
+        "displayMode": 2,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": false,
+          "C": true,
+          "D": false,
+          "E": false,
+          "F": false,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
+      },
       "slots": [
         {
           "label": "3D Exterior",
           "viewType": "3D",
-          "normX": 0.0, "normY": 0.0, "normW": 1.0, "normH": 1.0,
+          "normX": 0.0,
+          "normY": 0.0,
+          "normW": 1.0,
+          "normH": 1.0,
           "scale": 0,
           "detailLevel": "Coarse",
           "required": true
@@ -4272,8 +5529,7 @@
         "halftoneLinks": true,
         "lineWeightScale": 1.0
       }
-    }
-    ,
+    },
     {
       "id": "pres-3d-interior-cutaway-A1",
       "name": "Presentation 3D Interior Cut-Away",
@@ -4291,13 +5547,45 @@
       "viewportTypeName": null,
       "viewStylePackId": "pres-interior-sage",
       "sheetNumberPattern": "PRES-{disc}-{seq:D3}",
-      "sheetNamePattern": "Presentation — {discipline} Interior Cut-Away",
-      "crop": { "kind": "None", "marginMm": 0 },
+      "sheetNamePattern": "Presentation \u2014 {discipline} Interior Cut-Away",
+      "crop": {
+        "kind": "None",
+        "marginMm": 0
+      },
+      "tokenProfile": {
+        "presentationMode": "Presentation",
+        "paraDepth": 2,
+        "tagSize": "2.5",
+        "tagStyle": "ITALIC",
+        "tagColor": "GREY",
+        "colorScheme": "Mono",
+        "segmentMask": "00000101",
+        "displayMode": 2,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": false,
+          "C": true,
+          "D": false,
+          "E": false,
+          "F": false,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
+      },
       "slots": [
         {
           "label": "3D Interior Cut-Away",
           "viewType": "3D",
-          "normX": 0.0, "normY": 0.0, "normW": 1.0, "normH": 1.0,
+          "normX": 0.0,
+          "normY": 0.0,
+          "normW": 1.0,
+          "normH": 1.0,
           "scale": 0,
           "detailLevel": "Coarse",
           "required": true
@@ -4311,12 +5599,11 @@
         "halftoneLinks": true,
         "lineWeightScale": 1.0
       }
-    }
-    ,
+    },
     {
       "id": "pres-composite-A1",
       "name": "Presentation Composite Sheet",
-      "description": "4-slot composite presentation sheet — main 3D axonometric (60% width) plus stacked floor plan, section, and section/elevation strip down the right. The plan and section slots use 1:200 medium detail; the 3D slot is NTS coarse. Pack defaults to pres-burgund-green.",
+      "description": "4-slot composite presentation sheet \u2014 main 3D axonometric (60% width) plus stacked floor plan, section, and section/elevation strip down the right. The plan and section slots use 1:200 medium detail; the 3D slot is NTS coarse. Pack defaults to pres-burgund-green.",
       "origin": "corporate",
       "purpose": "3D",
       "discipline": "*",
@@ -4328,33 +5615,78 @@
       "detailLevel": "Coarse",
       "viewStylePackId": "pres-burgund-green",
       "sheetNumberPattern": "PRES-{disc}-{seq:D3}",
-      "sheetNamePattern": "Presentation — {discipline} Composite",
-      "crop": { "kind": "None", "marginMm": 0 },
+      "sheetNamePattern": "Presentation \u2014 {discipline} Composite",
+      "crop": {
+        "kind": "None",
+        "marginMm": 0
+      },
+      "tokenProfile": {
+        "presentationMode": "Presentation",
+        "paraDepth": 2,
+        "tagSize": "2.5",
+        "tagStyle": "ITALIC",
+        "tagColor": "GREY",
+        "colorScheme": "Mono",
+        "segmentMask": "00000101",
+        "displayMode": 2,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": false,
+          "C": true,
+          "D": false,
+          "E": false,
+          "F": false,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
+      },
       "slots": [
         {
           "label": "Main 3D Axonometric",
           "viewType": "3D",
-          "normX": 0.00, "normY": 0.00, "normW": 0.60, "normH": 1.00,
-          "scale": 0, "detailLevel": "Coarse",
+          "normX": 0.0,
+          "normY": 0.0,
+          "normW": 0.6,
+          "normH": 1.0,
+          "scale": 0,
+          "detailLevel": "Coarse",
           "required": true
         },
         {
           "label": "Floor Plan",
           "viewType": "Plan",
-          "normX": 0.62, "normY": 0.66, "normW": 0.38, "normH": 0.34,
-          "scale": 200, "detailLevel": "Medium"
+          "normX": 0.62,
+          "normY": 0.66,
+          "normW": 0.38,
+          "normH": 0.34,
+          "scale": 200,
+          "detailLevel": "Medium"
         },
         {
           "label": "Section A",
           "viewType": "Section",
-          "normX": 0.62, "normY": 0.33, "normW": 0.38, "normH": 0.32,
-          "scale": 200, "detailLevel": "Medium"
+          "normX": 0.62,
+          "normY": 0.33,
+          "normW": 0.38,
+          "normH": 0.32,
+          "scale": 200,
+          "detailLevel": "Medium"
         },
         {
           "label": "Section B / Elevation",
           "viewType": "Elevation",
-          "normX": 0.62, "normY": 0.00, "normW": 0.38, "normH": 0.32,
-          "scale": 200, "detailLevel": "Medium"
+          "normX": 0.62,
+          "normY": 0.0,
+          "normW": 0.38,
+          "normH": 0.32,
+          "scale": 200,
+          "detailLevel": "Medium"
         }
       ],
       "annotation": {
@@ -4710,6 +6042,5 @@
       "docType": "COMPOSITE",
       "drawingTypeId": "pres-composite-A1"
     }
-
   ]
 }
