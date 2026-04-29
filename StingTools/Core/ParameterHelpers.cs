@@ -1478,6 +1478,18 @@ namespace StingTools.Core
             /// TAG-PREFLIGHT-DUP-01: Drop the cached PopulationContext. Call from
             /// PostTagCleanup, document close, and TagConfig reload paths.
             /// </summary>
+            /// <summary>
+            /// Phase 165 follow-up — explicit teardown helper. Ends the
+            /// SpatialAutoDetect batch session opened by <see cref="Build"/>
+            /// so the room-index TTL drops back to 30 s. Idempotent and
+            /// safe to call when no session is active.
+            ///
+            /// Usage pattern in batch commands:
+            ///   var ctx = TokenAutoPopulator.PopulationContext.Build(doc);
+            ///   try { ... } finally { TokenAutoPopulator.PopulationContext.EndSession(); }
+            /// </summary>
+            public static void EndSession() => SpatialAutoDetect.EndBatchSession();
+
             public static void InvalidateCache()
             {
                 lock (_cacheLock)

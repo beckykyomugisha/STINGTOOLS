@@ -50,6 +50,9 @@ namespace StingTools.Tags
             if (r.Enriched > 0) report += $"\nElements enriched via pipeline: {r.Enriched}";
             if (r.Errors > 0)   report += $"\nErrors: {r.Errors}";
             TaskDialog.Show("Tag 3D", report);
+            // Phase 165 follow-up — explicit batch teardown for the
+            // PopulationContext built inside PlaceTagsCore.
+            TokenAutoPopulator.PopulationContext.EndSession();
             return Result.Succeeded;
         }
 

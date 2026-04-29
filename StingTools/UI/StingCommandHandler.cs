@@ -8106,19 +8106,18 @@ For live data, open BCC in Revit and re-export.</p></div>
             string leadParam = leads[idx];
             string tierName = $"T{tier} {SystemBTierLabel(tier)}";
 
-            // Prompt for value.
-            var prompt = new TaskDialog($"STING — {tierName}");
-            prompt.MainInstruction = $"Enter value for {leadParam}";
-            prompt.MainContent =
-                $"This writes the tier's lead parameter on {sel.Count} selected element(s).\n" +
-                "Use the BIM Coordination Center for the full multi-field tier editor.";
-            prompt.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
-            if (prompt.Show() == TaskDialogResult.Cancel) return;
+            // Phase 165 follow-up — inline WPF text input dialog. Reads the
+            // existing value of the lead param from the FIRST selected element
+            // so editing an existing tier is one keystroke away. Empty entry
+            // cancels; explicit "Clear" entry blanks the param.
+            string seedValue = StingTools.Core.ParameterHelpers.GetString(
+                doc.GetElement(sel.First()), leadParam) ?? "";
+            string entered = PromptForTierValue(tierName, leadParam, seedValue, sel.Count);
+            if (entered == null) return;                  // user cancelled
+            string valueToWrite = entered;
+            bool clearMode = string.Equals(entered, "<CLEAR>", StringComparison.Ordinal);
+            if (clearMode) valueToWrite = string.Empty;
 
-            // Minimal inline write — caller types the value via Revit's clipboard
-            // / parameter dialog after this prompt; we set a placeholder marker so
-            // they know the lead is ready to receive data. For a richer flow,
-            // route to the BCC tier editor.
             int written = 0;
             using (Transaction tx = new Transaction(doc, $"STING Write {tierName}"))
             {
@@ -8127,16 +8126,116 @@ For live data, open BCC in Revit and re-export.</p></div>
                 {
                     Element e = doc.GetElement(id);
                     if (e == null) continue;
-                    if (StingTools.Core.ParameterHelpers.SetIfEmpty(e, leadParam, $"<edit {leadParam}>"))
+                    // overwrite=true so re-running the command on already-set
+                    // elements updates the value. Inline dialog is the editor.
+                    if (StingTools.Core.ParameterHelpers.SetString(
+                            e, leadParam, valueToWrite, overwrite: true))
                         written++;
                 }
                 tx.Commit();
             }
 
-            StingTools.Core.StingLog.Info($"WriteSystemBTier T{tier}: {written} elements seeded with placeholder for {leadParam}");
+            string action = clearMode ? "cleared" : "wrote";
+            StingTools.Core.StingLog.Info(
+                $"WriteSystemBTier T{tier}: {action} {leadParam} on {written}/{sel.Count} elements");
             TaskDialog.Show($"STING — {tierName}",
-                $"Seeded {written} of {sel.Count} elements with placeholder value on {leadParam}.\n\n" +
-                "Open Properties (or BIM Coordination Center → Tier editor) to enter the real value.");
+                clearMode
+                    ? $"Cleared {leadParam} on {written} of {sel.Count} elements."
+                    : $"Wrote {leadParam} = '{valueToWrite}' on {written} of {sel.Count} elements.\n\n" +
+                      "For multi-field tiers (commissioning agent, witness, certificate ref…) " +
+                      "open BIM Coordination Center → Tier editor.");
+        }
+
+        /// <summary>
+        /// Phase 165 follow-up — inline single-field WPF text input for
+        /// <see cref="WriteSystemBTier"/>. Returns the typed value, the
+        /// sentinel "&lt;CLEAR&gt;" when the user clicks Clear, or null on
+        /// cancel. Created on the fly because StingTools doesn't ship a
+        /// generic WPF text-prompt yet.
+        /// </summary>
+        private static string PromptForTierValue(string tierName, string leadParam,
+            string seedValue, int selectionCount)
+        {
+            var w = new System.Windows.Window
+            {
+                Title = $"STING — {tierName}",
+                Width = 460, Height = 220,
+                WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
+                ResizeMode = System.Windows.ResizeMode.NoResize,
+                Background = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(245, 245, 245))
+            };
+            try { StingTools.UI.StingWindowHelper.ApplyOwner(w); } catch { /* defensive */ }
+
+            var grid = new System.Windows.Controls.Grid { Margin = new System.Windows.Thickness(12) };
+            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = System.Windows.GridLength.Auto });
+            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = System.Windows.GridLength.Auto });
+            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new System.Windows.GridLength(1, System.Windows.GridUnitType.Star) });
+            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = System.Windows.GridLength.Auto });
+
+            var label = new System.Windows.Controls.TextBlock
+            {
+                Text  = $"Enter value for {leadParam}",
+                FontWeight = System.Windows.FontWeights.SemiBold,
+                FontSize = 12,
+                Margin = new System.Windows.Thickness(0, 0, 0, 4),
+            };
+            System.Windows.Controls.Grid.SetRow(label, 0); grid.Children.Add(label);
+
+            var hint = new System.Windows.Controls.TextBlock
+            {
+                Text =
+                    $"Writes on {selectionCount} selected element(s). Empty value + Write = no change. " +
+                    "Click Clear to blank the parameter on the selection.",
+                FontSize = 10,
+                Foreground = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(100, 100, 100)),
+                TextWrapping = System.Windows.TextWrapping.Wrap,
+                Margin = new System.Windows.Thickness(0, 0, 0, 8),
+            };
+            System.Windows.Controls.Grid.SetRow(hint, 1); grid.Children.Add(hint);
+
+            var tb = new System.Windows.Controls.TextBox
+            {
+                Text = seedValue ?? "",
+                FontSize = 12,
+                AcceptsReturn = false,
+                VerticalContentAlignment = System.Windows.VerticalAlignment.Center,
+                Padding = new System.Windows.Thickness(6, 4, 6, 4),
+            };
+            System.Windows.Controls.Grid.SetRow(tb, 2); grid.Children.Add(tb);
+
+            var btnRow = new System.Windows.Controls.StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+                Margin = new System.Windows.Thickness(0, 8, 0, 0),
+            };
+            var btnCancel = new System.Windows.Controls.Button
+            { Content = "Cancel", Width = 80, Margin = new System.Windows.Thickness(0, 0, 6, 0), IsCancel = true };
+            var btnClear  = new System.Windows.Controls.Button
+            { Content = "Clear",  Width = 80, Margin = new System.Windows.Thickness(0, 0, 6, 0) };
+            var btnWrite  = new System.Windows.Controls.Button
+            { Content = "Write",  Width = 90, IsDefault = true,
+              Background = new System.Windows.Media.SolidColorBrush(
+                  System.Windows.Media.Color.FromRgb(28, 134, 90)),
+              Foreground = System.Windows.Media.Brushes.White };
+
+            string result = null;
+            btnCancel.Click += (s, e) => { result = null;       w.Close(); };
+            btnClear.Click  += (s, e) => { result = "<CLEAR>";  w.Close(); };
+            btnWrite.Click  += (s, e) => { result = tb.Text;    w.Close(); };
+
+            btnRow.Children.Add(btnCancel);
+            btnRow.Children.Add(btnClear);
+            btnRow.Children.Add(btnWrite);
+            System.Windows.Controls.Grid.SetRow(btnRow, 3); grid.Children.Add(btnRow);
+
+            w.Content = grid;
+            tb.Focus();
+            tb.SelectAll();
+            w.ShowDialog();
+            return result;
         }
 
         private static string SystemBTierLabel(int tier)
