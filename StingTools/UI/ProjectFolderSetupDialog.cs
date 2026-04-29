@@ -18,6 +18,12 @@ using StingTools.Core;
 // unqualified Color / Visibility references compile.
 using Color      = System.Windows.Media.Color;
 using Visibility = System.Windows.Visibility;
+// Autodesk.Revit.UI ships TextBox and ComboBox types that collide with
+// System.Windows.Controls equivalents used by this WPF dialog. Alias
+// the WPF types so the form's controls compile without per-call-site
+// full qualification.
+using TextBox    = System.Windows.Controls.TextBox;
+using ComboBox   = System.Windows.Controls.ComboBox;
 
 namespace StingTools.UI
 {
