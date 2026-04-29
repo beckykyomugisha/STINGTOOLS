@@ -382,3 +382,19 @@ ground truth so future estimates do not re-bid these line items.**
 | `INT-02` Dispatch registry framework | **PARTIAL** Phase 165: `UI/CommandRegistry.cs` ships the framework (ICommandModule + Register + TryHandle + lazy singleton); `ElectricalCommandModule` is the first migrated panel (4 tags). The `CommandRegistry.TryHandle` short-circuit at the top of `StingCommandHandler.Execute` lets new modules win over the giant switch. Remaining ~25 panels migrate panel-by-panel in subsequent phases. |
 | `INT-01` HTTP client consolidation | Deferred (Phase 165 audit): `Planscape.PluginSync` is actively used by `PlatformLinkCommands.cs` (3 sites) + `StingDockPanel.xaml.cs` (3 sites). Deletion would require reworking ~600 lines without compile verification. The dual-layer state remains as documented in CLAUDE.md. |
 | Fabrication doc-register auto-link | **DONE** Phase 165: `GenerateFabPackageCommand` now calls `FabricationDocRegister.PushSheets` so generated SP-* sheets land in `_BIM_COORD/document_register.json` automatically with suitability `S0`, status `WIP`. |
+
+### Phase 168 closures (Unified project folder system)
+
+| ID | Status |
+|---|---|
+| Messy folder structure (4 competing roots) | **DONE** Phase 168: `_BIM_COORD\`, `STING_BIM_MANAGER\`, `STING_Exports\`, `STING_Project\` consolidated into one `{ProjectCode}\` root with `_data\` subfolder for sidecar JSON. New `ProjectSetup` POCO + `FolderTemplateLibrary` (4 built-ins) + `ProjectFolderSetupDialog` (3-section WPF dialog) + `FolderHealthPanel` (per-folder status pills). `ProjectFolderEngine.MigrateFromLegacy(doc)` moves legacy folders + `.sting_*.json` sidecars into the new structure routed by extension. 10 sidecar callers redirected to `ProjectFolderEngine.GetDataPath(doc, "*.json")` with try/catch fallback. |
+
+### Future Enhancement Gaps — Project Folder System (Phase 168 follow-ups)
+
+| ID | Description | Priority |
+|---|---|---|
+| FOLDER-01 | Cloud sync mapping — extend `ProjectSetup` with `CloudRoot` + `CloudProvider` fields so the `{ProjectCode}\` tree can mirror to ACC / SharePoint / Dropbox / OneDrive automatically when files land in `02_SHARED` or `03_PUBLISHED`. | High |
+| FOLDER-02 | Free-text discipline entry — surface custom discipline names (beyond the fixed 8 A/E/M/P/S/FP/LV/Z list) in the setup dialog so projects can add bespoke discipline subfolders without hand-editing JSON. | Medium |
+| FOLDER-03 | Multi-model workspace — when two `.rvt` files (e.g. `TROKON FRIEND.rvt` + `TROKON FRIEND 2.rvt`) share one project code, both should resolve to the same `{ProjectCode}\` root deterministically; today's sibling-folder scan in `LoadOrDetectSetup` is best-effort. | Medium |
+| FOLDER-04 | Folder-watcher toggle — surface `ProjectFolderEngine.StartWatching` from the dockable panel so external Explorer drops auto-trigger CDE classification. | Low |
+| FOLDER-05 | Schema versioning — add `SchemaVersion` to `ProjectSetup` + migration step so future schema changes can read old `project_setup.json` and upgrade in place. | Low |

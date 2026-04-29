@@ -958,7 +958,10 @@ namespace StingTools.BIMManager
                     string linkPath = link.GetLinkDocument()?.PathName ?? "";
                     if (string.IsNullOrEmpty(linkPath)) continue;
 
-                    string sidecarPath = Path.ChangeExtension(linkPath, ".sting_linked_revision.json");
+                    string sidecarPath = StingTools.Core.ProjectFolderEngine.GetDataPath(
+                        doc, $"linked_revision_{Path.GetFileNameWithoutExtension(linkPath)}.json");
+                    if (string.IsNullOrEmpty(sidecarPath))
+                        sidecarPath = Path.ChangeExtension(linkPath, ".sting_linked_revision.json");
                     var sidecar = new JObject
                     {
                         ["source_project"] = doc.Title,
@@ -982,7 +985,9 @@ namespace StingTools.BIMManager
 
         internal static string ForecastCompliance(Document doc)
         {
-            string trendPath = Path.ChangeExtension(doc.PathName, ".sting_compliance_trend.json");
+            string trendPath = StingTools.Core.ProjectFolderEngine.GetDataPath(doc, "compliance_trend.json");
+            if (string.IsNullOrEmpty(trendPath) || !File.Exists(trendPath))
+                trendPath = Path.ChangeExtension(doc.PathName, ".sting_compliance_trend.json");
             if (!File.Exists(trendPath)) return "No compliance trend data. Run tagging workflows to build history.";
 
             var data = LoadJsonArray(trendPath);

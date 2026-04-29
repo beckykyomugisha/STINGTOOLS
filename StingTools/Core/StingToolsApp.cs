@@ -207,6 +207,9 @@ namespace StingTools.Core
                 ComplianceScan.InvalidateCache();
                 Temp.FormulaEngine.InvalidateFormulaCache();
                 UI.StingCommandHandler.ClearStaticState();
+                // Phase 167: Drop the per-doc ProjectSetup cache so reopens re-detect.
+                try { ProjectFolderEngine.InvalidateSetupCache(e.Document?.PathName); }
+                catch (Exception cEx) { StingLog.Warn($"Setup cache invalidate: {cEx.Message}"); }
                 // Phase 78: Save dropped element IDs to sidecar before clearing queue
                 StingAutoTagger.SaveDroppedElementsSidecar(e.Document);
                 // R-02: Clear deferred elements on document close
@@ -638,16 +641,23 @@ namespace StingTools.Core
                 }
                 catch (Exception csEx) { StingLog.Warn($"DocumentOpened ClashScheduler start: {csEx.Message}"); }
 
-                // BIM-CDE-FOLDER-01: Bootstrap the ISO 19650 CDE folder structure
-                // (WIP / SHARED / PUBLISHED / ARCHIVE + per-discipline sub-folders)
-                // on every doc open, idempotent. Disabled via AUTO_CREATE_CDE_FOLDERS=false.
+                // Phase 167: detect persisted ProjectSetup. Do NOT auto-create folders
+                // — that's an explicit user action via the Folder Setup dialog.
                 try
                 {
-                    if (TagConfig.AutoCreateCdeFolders && e.Document != null && !e.Document.IsFamilyDocument)
+                    if (e.Document != null && !e.Document.IsFamilyDocument)
                     {
-                        int created = ProjectFolderEngine.CreateFolderStructure(e.Document);
-                        if (created > 0)
-                            StingLog.Info($"DocumentOpened: created {created} CDE folders under {ProjectFolderEngine.GetRootPath(e.Document)}");
+                        var setup = ProjectFolderEngine.LoadOrDetectSetup(e.Document);
+                        if (setup != null)
+                        {
+                            string root = setup.ResolveRootPath(e.Document.PathName);
+                            StingLog.Info($"DocumentOpened: project setup loaded — root={root}, mode={setup.Mode}");
+                        }
+                        else if (TagConfig.AutoCreateCdeFolders && !string.IsNullOrEmpty(e.Document.PathName))
+                        {
+                            // Soft notification: log only. User runs Folder Setup explicitly.
+                            StingLog.Info("DocumentOpened: no ProjectSetup found. User can run Folder Setup from BIM tab.");
+                        }
                     }
                 }
                 catch (Exception cfEx) { StingLog.Warn($"DocumentOpened CDE folder bootstrap: {cfEx.Message}"); }

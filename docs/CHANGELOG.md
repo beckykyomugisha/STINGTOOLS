@@ -8931,3 +8931,422 @@ its case branches from the giant switch and adding a new
    ability to verify the resulting changes to `PlatformLinkCommands.cs`
    would risk shipping a broken sync pipeline. The dual-layer state
    is functional and documented.
+
+#### Completed (Phase 166 — AEC/FM corporate filter library: 199 ParameterFilterElements with rule trees + override recipes)
+
+Comprehensive corporate-baseline filter library covering every
+discipline an AEC/FM firm produces drawings for, with
+matching `OverrideGraphicSettings` recipes per BS 1192 / ISO 19650 /
+Uniclass 2015 / BS 1710 / ASME A13.1 / GSA MEP / CIBSE-SDE / BS 9999 /
+BS 8300 / BIMForum LOD. Until now, `ViewStylePackApplier.ApplyFilterRules`
+warned "Filter '...' not found — create it first" because there was no
+JSON registry of filter *definitions*; only `TemplateCommands.CreateFiltersCommand`
+hard-coded ~40 filters. This phase fills the gap.
+
+**New files**
+
+| Path | Purpose | Lines |
+|---|---|---:|
+| `StingTools/Data/STING_AEC_FILTERS.json` | 199 filter definitions (categories + rule tree + default override + tags + standard refs) | 241 |
+| `StingTools/Core/Drawing/AecFilterDefinition.cs` | POCO + rule grammar (`leaf | compound`, `kind=builtin/shared/phase/workset/level`, 14 ops) | 122 |
+| `StingTools/Core/Drawing/AecFilterRegistry.cs` | Per-document loader, project override at `<project>/_BIM_COORD/aec_filters.json`, `Get`/`GetByName`/`ListAll`/`ListByTag`/`Reload` | 134 |
+| `StingTools/Core/Drawing/AecFilterFactory.cs` | JSON rule tree → `ElementFilter` (`LogicalAndFilter` / `LogicalOrFilter` / `ElementParameterFilter`) → `ParameterFilterElement.Create`. Resolves built-in / shared / phase / workset / level params; sniffs storage type via `Definition.GetDataType()` (Revit 2024+ ForgeTypeId) | 467 |
+| `StingTools/Commands/Drawing/AecFilterCommands.cs` | `AecFiltersCreate` (mint all into doc), `AecFiltersInspect` (read-only diagnostic with tag-group breakdown), `AecFiltersReload` (cache invalidate) | 159 |
+| `docs/AEC_FILTER_LIBRARY.md` | Reference doc — rule grammar, override recipe, lazy-create flow, standards table, per-drawing-type filter sets, caveats | 155 |
+
+**Modified files**
+
+| Path | Change |
+|---|---|
+| `StingTools/Core/Drawing/ViewStylePack.cs` | `StyleFilterRule` extended with 11 fields (`projectionLinePattern`, `cutLinePattern`, `surfaceFgColor/Pattern`, `surfaceBgColor/Pattern`, `cutFgColor/Pattern`, `cutBgColor/Pattern`, `detailLevel`, `inheritDefaults`). Aliases added so existing JSON short-form keys (`name`/`projColor`/`projWeight`/`cutColor`/`cutWeight`) deserialise alongside long-form (`filterName`/`projectionLineColor`/…). `ViewStylePackLibrary` extended to accept both `stylePacks` (corporate file convention) and `viewStylePacks` (legacy) — fixed a pre-existing schema-key drift that was silently dropping the corporate library. |
+| `StingTools/Core/Drawing/ViewStylePackApplier.cs` | `ApplyFilterRules` lazy-creates missing filters from `AecFilterRegistry` under the active transaction (eliminates the "create it first" warning); merges `FilterDefaultOverride` from registry with pack-level `StyleFilterRule` (pack wins); writes the new surface/cut foreground/background patterns + line patterns + detail-level overrides via `OverrideGraphicSettings` 2025 API. |
+| `StingTools/Data/STING_VIEW_STYLE_PACKS.json` | 4 packs (`corp-coordination`, `corp-standard-plan`, `corp-structural-plan`, `corp-demolition-phase`) curated with 64 filter references (21 / 19 / 20 / 4) using `inheritDefaults: true` so they pull the corporate-baseline override styling without redefinition. Total filterRules across the file: 76. |
+
+**Library breakdown — 199 filters**
+
+| Discipline | Count | Standards |
+|---|---:|---|
+| Architectural | 47 | BS 9999, BS 8300, ISO 13567 |
+| Mechanical / HVAC | 33 | GSA, CIBSE-SDE, BS 1710, SMACNA |
+| Structural | 31 | BS 4449, BS EN 1992 / 1993 / 5268 |
+| Fire | 30 | BS 9999, BS 9990, BS 5266, BS 5839, BS EN 12845 |
+| Electrical | 27 | BS 7671, BS EN 62305, GSA |
+| Plumbing | 18 | BS 1710 (UK), ASME A13.1 (US), BS EN 12056, BS EN 752 |
+| FM / COBie | 11 | COBie 2.4, SFG20, ISO 15686 |
+| ISO 19650 status | 8 | NA UK status codes S0–S7 / A1+ / B1+ |
+| Coordination / LOD | 8 | BIMForum LOD spec, workset / clash conventions |
+| Vertical transport | 5 | BS EN 81-72 firefighter, BS EN 81-76 evacuation |
+| QA | 5 | STING tag completeness flags |
+
+**Rule grammar**
+
+```jsonc
+// Leaf
+{ "param": "FIRE_RATING", "kind": "builtin", "op": "equals", "value": "60" }
+
+// Compound
+{ "logic": "or", "rules": [ { /* leaf */ }, { /* leaf */ } ] }
+```
+
+`kind` values resolve as: `builtin` → `BuiltInParameter` enum;
+`shared` → `SharedParameterElement.Lookup` by GUID, then by name from
+`ParamRegistry`, then project scan; `phase` → `PHASE_CREATED` / `PHASE_DEMOLISHED`
+with value resolved by phase name; `workset` → `ELEM_PARTITION_PARAM`
+(int rule, value from workset name); `level` → `LEVEL_PARAM`.
+
+`op` covers all 14 operators in `ParameterFilterRuleFactory` (equals,
+notEquals, greater, greaterOrEqual, less, lessOrEqual, contains,
+notContains, beginsWith, notBeginsWith, endsWith, notEndsWith, hasValue,
+hasNoValue) with automatic dispatch to string / int / double / ElementId
+factory methods based on a `type` hint or sniffed `Definition.GetDataType`.
+
+**Override merge semantics**
+
+`ViewStylePackApplier.ApplyFilterRules` field-by-field merge:
+
+1. Pack `StyleFilterRule` field set → use pack value
+2. Else `StyleFilterRule.InheritDefaults != false` → use registry `defaultOverride` value
+3. Else leave Revit default
+
+This means a pack can say `{"name": "STING - Fire 60 min Walls", "inheritDefaults": true}`
+and get fire-red cut foreground + weight-6 cut line + dark-red projection line for
+free — a single line of JSON expresses the full BS 9999 fire-rating recipe.
+
+**Lazy filter creation**
+
+When a pack references a filter that doesn't yet exist in the document,
+the applier calls `AecFilterFactory.FindOrCreate` to mint it under the
+active transaction. Idempotent — already-existing filters are returned
+as-is. This means a fresh model can apply `corp-coordination` and see
+all 22 referenced MEP / clash / insulation filters auto-created on
+first use without requiring a separate "create filters" step.
+
+**Commands wired**
+
+| Tag | Class | Purpose |
+|---|---|---|
+| `AecFiltersCreate`  | `AecFiltersCreateCommand`  | Mint every definition as a `ParameterFilterElement` (idempotent) |
+| `AecFiltersInspect` | `AecFiltersInspectCommand` | Read-only summary: total, present, missing, top tag groups |
+| `AecFiltersReload`  | `AecFiltersReloadCommand`  | Clear per-doc registry cache |
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox). Every Revit
+   API call uses the documented 2025/2026/2027 signature; `paramId.Value`
+   replaces deprecated `IntegerValue`; `Definition.GetDataType()` replaces
+   `ParameterType`. Verify in Revit before merge.
+2. `STRUCTURAL_MATERIAL_TYPE`, `WALL_STRUCTURAL_USAGE_PARAM`,
+   `FUNCTION_PARAM` integer values come from the underlying Revit enums
+   (`StructuralMaterialType` / `WallStructuralUsage` / `WallFunction`) —
+   stable across versions but worth re-verifying if compliance is critical.
+3. Categories that don't exist in the target Revit version are silently
+   dropped with a warning; if all drop, the filter creation is skipped
+   with an error logged.
+4. Shared parameters referenced by `kind: "shared"` must be bound on the
+   project before the filter can be created. The factory emits a warning
+   and skips the filter when a referenced shared param is unbound —
+   graceful degradation rather than batch failure.
+5. The pre-existing `stylePacks` ↔ `viewStylePacks` and `filterRules` ↔ `filters`
+   schema-key drift in `STING_VIEW_STYLE_PACKS.json` was a silent bug
+   (registry was falling through to hardcoded defaults). Now fixed via
+   alias setters on `ViewStylePackLibrary` / `ViewStylePack` / `StyleFilterRule`,
+   so the corporate file is actually loaded at runtime for the first time.
+
+#### Completed (Phase 167 — Drawing Type / View Style Pack VG: bug fix + corporate filter library + drawing-type pack backfill)
+
+Audit of `Data/STING_VIEW_STYLE_PACKS.json` (27 packs) and
+`Data/STING_DRAWING_TYPES.json` (54 drawing types) against the
+`ViewStylePack` data model and `ViewStylePackApplier` runtime. Three
+defects fixed; full research write-up in
+`docs/DRAWING_VG_RESEARCH.md` (587 lines).
+
+**Relation to Phase 166.** Phase 166 (AEC/FM corporate filter library)
+landed concurrently and tackled the same root schema-drift bug from a
+different angle — Phase 166 added alias setters on
+`ViewStylePackLibrary` / `ViewStylePack` / `StyleFilterRule` so the
+shorthand `projColor` / `projWeight` / `name` keys are accepted at
+deserialisation. Phase 167 takes the data-side approach: rename every
+shorthand key in the JSON to its canonical model name. The two fixes
+are complementary defence-in-depth — the alias setters keep older
+project-side `view_style_packs.json` overrides loading after rename
+of the corporate file. Phase 167 also merged Phase 166's 64 newly
+authored `filterRules` content (corp-coordination, corp-standard-plan,
+corp-structural-plan, corp-demolition-phase) into the canonical
+`filters[]` array on the same packs during merge resolution.
+
+**Defect 1a — silent JSON-key drop on every line override.** The corp
+catalogue uses shorthand keys `projColor`, `projWeight`, `cutColor`,
+`cutWeight`. `StyleVgOverride` (ViewStylePack.cs:170-176) declares
+`projectionLineColor`, `projectionLineWeight`, `cutLineColor`,
+`cutLineWeight` — `Newtonsoft.Json` drops the unknown keys silently at
+load. Net effect: every non-visibility override on every pack was lost.
+Fix renamed all 350 occurrences across the four keys via sed; JSON
+revalidated.
+
+**Defect 1b — `appearance` sub-object instead of top-level fields.**
+Eight packs nested `lineWeightScale` / `textStyleName` /
+`dimensionStyleName` / `hatchPalette` under an `appearance` block; the
+data model expects them at root with `textStyle` / `dimensionStyle`
+keys. Two of the dropped values were real custom setups:
+`proj-arch-presentation.appearance.lineWeightScale = 0.75` and
+`proj-mep-coordination.appearance.lineWeightScale = 0.5` — both
+managed-template packs intended a 25–50 % global line-weight
+reduction that never applied. Three other packs lost bespoke text
+styles (`STING - 2.0mm Shop`, `STING - 3.0mm Presentation`,
+`STING - 2.0mm`). Fix promotes every `appearance.*` to its canonical
+top-level field then deletes the dead block.
+
+**Defect 1c — `filterRules` instead of `filters`.** `corp-base`,
+`corp-coordination`, `corp-clarification`, and
+`corp-demolition-phase` declared 7 / 1 / 1 / 3 filter rules under
+`filterRules` with the inner-rule key `name` instead of `filterName`.
+The data model reads `filters[]` of `StyleFilterRule { filterName,
+… }`. Net effect: the entire authored corporate filter library
+(`Existing - Halftone`, `New Construction`, `Demolished`,
+`Temporary`, `Proposed - Planning`, `STING - First-Fix Phase`,
+`STING - Noggin Required`) was silently dropped — none reached any
+view. Fix renames the outer key and migrates `name` → `filterName`
+on every entry; deletes the dead `filterRules` block. Because the
+extends chain appends filter rules child-to-root, every derived pack
+now inherits the 7 corp-base rules automatically.
+
+**Defect 2 — empty filter list across every pack.** All 27 packs
+shipped with `filters: []`. Phase 165 seeds the corporate filter
+library (per BS EN ISO 19650-1 §A.5 + AIA NCS) on every `corp-*` pack:
+
+- `STING - Existing` (halftone grey #808080) — working drawings.
+- `STING - Demolish` (red #E60000) — working + demolition + clarification.
+- `STING - Temporary` (amber #E6A800 halftone) — working drawings.
+- `STING - Suitability S0-S2` (halftone) — working drawings.
+- `STING - Suitability S3-S4` (full colour) — working + fab + coord.
+- `STING - Fire Rating` / `STING - Acoustic Rating` (declared in spec; enabled per arch-fire-strategy / arch-acoustic profiles in follow-up).
+
+`corp-presentation-rich` / `corp-presentation-mono` hide both Existing
+and Demolish (presentations show as-built only). `corp-clarification`
+shows Demolish only. `corp-coordination` keeps phase + suitability
+filters. Filter counts after edit: working packs 5, coordination 4,
+fabrication 3, presentation 2, clarification 1.
+
+**Defect 3 — 36 of 54 drawing types had `viewStylePackId: null`.**
+Backfilled via routing table:
+
+- `arch-plan-*`, `arch-site-*`, `arch-roof-*`, `arch-floor-finishes-*`,
+  `arch-fire-strategy-*`, `arch-accessibility-*`, MEP / public-health /
+  FM plans → `corp-standard-plan` (20 entries).
+- `arch-rcp-*` → `corp-standard-rcp` (1).
+- `arch-section-*` → `corp-standard-section` (1).
+- `arch-elev-*` / `arch-interior-elev-*` / `pres-exterior-elev-*` → `corp-standard-elevation` (3).
+- `arch-detail-*`, `struct-rebar-detail-*`, schedules, legends,
+  handover → `corp-standard-detail` (6).
+- `struct-*` → `corp-structural-plan` (4).
+- `mep-coord-*`, `coord-clash-*` → `corp-coordination` (3 — counting
+  the existing `coord-clash-A1-1to50`).
+- `pipe-spool-*`, `duct-spool-*` → `corp-fabrication-shop` (3).
+- Presentation 3D / perspective / render-board / context-site /
+  exterior-elev → `corp-presentation-rich` (6).
+- `clar-rfi-*`, `clar-design-intent-*`, `clar-markup-*` →
+  `corp-clarification` (3).
+- Existing project-team-customised mappings (`pres-burgund-green` ×2,
+  `pres-interior-sage` ×1, `corp-demolition-phase` ×1) preserved.
+
+Post-edit verification: zero `viewStylePackId == null`, JSON valid.
+
+**Metadata enrichment.** Added `lineWeightScale: 1.0` and
+`hatchPalette: "BS 1192 mono"` (or `"AIA NCS color"` for
+`corp-presentation-rich`) to every `corp-*` pack — 13 packs updated.
+These fields were previously unset across the entire catalogue, so the
+editor's Appearance card had no anchor for line-weight scale or hatch
+palette. The `lineWeightScale` is recorded but not yet multiplied at
+apply time (still TODO — `ViewStylePackApplier` reads weights as-is);
+adding it now means the field is populated against BS 1192 + Revit's
+default 1..16 weight ladder, ready to be honoured when the multiplier
+lands.
+
+**Research deliverable.** `docs/DRAWING_VG_RESEARCH.md` documents:
+
+- Editor architecture — every card on the Drawing Types tab + View
+  Style Packs tab + every cell on the embedded Revit-VG-grid replica,
+  with target property names.
+- Data model — every field on `ViewStylePack`, `StyleVgOverride`,
+  `StyleFilterRule`, `PackViewRange`, `PackUnderlay`,
+  `PackLinkOverride`, plus the extends inheritance chain and
+  `ManagedTemplateSyncer` template-mode behaviour.
+- Apply pipeline — the ten-step `DrawingTypePresentation.Apply`
+  sequence, external vs. managed mode, every `OverrideGraphicSettings`
+  Set… call the VG editor's cells produce.
+- Bug analysis — JSON key mismatch with grep evidence, applier-side
+  read confirmation.
+- AEC standards — BS 1192 line-weight ladder (1..10 → 0.05..2.00 mm),
+  ISO 13567-2 + AIA NCS colour conventions, halftone strategy by pack
+  purpose, full filter library specification.
+- Pack-by-pack VG specification — projection / cut weight + colour +
+  halftone + visibility per category for `corp-base`,
+  `corp-standard-plan`, `corp-standard-rcp`, `corp-standard-section`,
+  `corp-standard-elevation`, `corp-standard-detail`,
+  `corp-structural-plan`, `corp-coordination`,
+  `corp-fabrication-shop`, `corp-presentation-rich`,
+  `corp-presentation-mono`. Tables align with industry convention
+  (architectural primary black, structural red, MEP halftone-grey on
+  arch plans, coordination tinted-by-discipline).
+- DrawingType → ViewStylePack routing reference matching the JSON
+  edit applied here.
+- Verification plan — six-step Revit-side regression test for a
+  reviewer to run on Windows.
+
+**Files changed**
+
+- `Data/STING_VIEW_STYLE_PACKS.json` — key rename ×350; metadata +
+  filter library on 13 corp packs.
+- `Data/STING_DRAWING_TYPES.json` — `viewStylePackId` backfill on 36
+  drawing types.
+- `docs/DRAWING_VG_RESEARCH.md` — new (587 lines).
+- `docs/CHANGELOG.md` — this entry.
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox, no Revit
+   API). Bug fix is mechanical (sed key rename), filter / pack-id
+   changes are JSON-only, and JSON validates with `jq empty`. Behavior
+   verification needs a Windows reviewer to follow the 6-step plan in
+   §8 of the research doc.
+2. The deeper VG authoring matrix (§6 of the research doc — proper
+   per-pack projection / cut / halftone overrides per BS 1192) is the
+   spec but not the edit. Bulk-rewriting `vgOverrides` on every corp
+   pack risked silent regression of project-team customisations
+   already in flight; this branch fixes the bug + ships the filter +
+   metadata layer + maps every drawing type to a pack, then leaves
+   the per-category override authoring as a follow-up that should be
+   driven by reviewer feedback against §6 in a real Revit project.
+3. The corporate filters reference `ParameterFilterElement` rules of
+   matching name (`STING - Existing`, `STING - Demolish`, etc.). Those
+   rules are minted by `TemplateExtCommands.ApplyFiltersCommand` /
+   `TemplateCommands.CreateFiltersCommand`. If the project hasn't run
+   those commands first, the applier logs a warning ("Filter '…' not
+   found — skipped") and continues; the pack still applies its VG
+   overrides correctly.
+4. `lineWeightScale` is recorded but not consumed at apply time. Live
+   honour requires multiplying every `projectionLineWeight` /
+   `cutLineWeight` by the resolved pack scale inside
+   `ViewStylePackApplier.Apply` and `ApplyPresetOverrides`. Deferred
+   to a follow-up — the value is populated correctly so the multiplier
+   commit can flip the switch with no JSON re-edit.
+
+#### Completed (Phase 168 — Unified project folder system: single-root structure, _data consolidation, BIM/Mini modes, templates, migration)
+
+Replaces four competing folder roots (`_BIM_COORD\`,
+`STING_BIM_MANAGER\`, `STING_Exports\`, `STING_Project\`) with one
+`{ProjectCode}\` root next to the `.rvt`, plus a dedicated `_data\`
+subfolder for every runtime sidecar JSON the plugin writes. Adds a
+data-driven flexibility layer so projects can choose a full ISO 19650
+BIM tree, a 5-folder Mini tree, or a saved template profile.
+
+**New files**
+
+| Path | Role |
+|---|---|
+| `StingTools/Core/ProjectSetup.cs` | POCO + factory methods (`CreateBIM` / `CreateMini`) + Load / Save / ResolveRootPath. Holds project code, root path, mode, disciplines, custom folders, hidden folders, export routes, naming convention. |
+| `StingTools/Core/FolderTemplateLibrary.cs` | 4 built-in templates (Full BIM, MEP Only, Mini Project, Structural Only) + user template load / save / delete + `ApplyTemplate(...)` materialiser. |
+| `StingTools/UI/ProjectFolderSetupDialog.cs` | 3-section WPF dialog: identity (project code, name, root, relative/absolute), structure (template picker, BIM/Mini radios, discipline checkboxes, naming convention), folders (editable DataGrid: include / id / display name / discipline subs / routes). Migration banner detects legacy folders + sidecars and offers one-click consolidation. |
+| `StingTools/UI/FolderHealthPanel.cs` | Compact UserControl + dialog wrapper. Per-folder green / amber / red status pills, file counts, last modified date, ▷ open-in-Explorer button per row, footer summary (total files, empty count, _data JSON count). |
+
+**ProjectFolderEngine extensions** (`Core/ProjectFolderEngine.cs`):
+
+`LoadOrDetectSetup(doc)` walks `{projDir}\{ProjectCode}\_data\project_setup.json`
+plus sibling-folder fallback. `InitializeSetup(doc, setup)` creates every
+folder + discipline subfolder + sub-folder list, writes `_data` and
+`folder_templates`, persists JSON, caches setup, and writes
+`FOLDER_INDEX.txt`. `GetDataPath(doc, fileName)` resolves
+`{root}\_data\{fileName}` — the canonical replacement for
+`Path.ChangeExtension(doc.PathName, ".sting_*.json")`.
+`DetectProjectCode(doc)` reads Project Information Number → Name →
+"PRJ", sanitises and clamps to 8 chars. `GetFolderHealth(doc)` returns
+a per-folder snapshot for the health panel. `MigrateFromLegacy(doc)`
+moves `.sting_*.json` sidecars + `*_STING_SEQ.json` SEQ sidecars +
+the four legacy folder roots into the new structure, routing exports
+by extension (PDF→DRAWINGS, IFC/RVT/NWC/DWG→MODELS, JSON→_data,
+XLSX/CSV→SCHEDULES, BCF→CLASHES, DOCX→TRANSMITTALS). `BuildFolderBrowserTree(doc)`
+returns hierarchical `FolderNode` rows for UI binding. `GetExportPath(doc, type, base, ext, disc)`
+honours `ExportRoutes`, drops files into discipline subfolders when
+the resolved folder has `HasDisciplineSubfolders=true`, and applies
+the chosen `NamingConvention` (ISO19650 / Timestamp / Custom).
+`InvalidateSetupCache(docPath)` is wired into `OnDocumentClosing` so
+re-opens re-detect.
+
+`GetRootPath` and `GetExportFolder` and `GetFolderPath` all consult
+`LoadOrDetectSetup` first; only fall through to legacy behaviour
+when no setup is found. Backward compatibility is preserved — every
+existing public method signature is unchanged.
+
+**Sidecar redirect** — 10 callers redirected from
+`Path.ChangeExtension(doc.PathName, ".sting_*.json")` (or
+`Path.Combine(projDir, ".sting_*")`) to
+`ProjectFolderEngine.GetDataPath(doc, "*.json")`, each with
+try/catch fallback to the legacy path so first-open before setup
+still works:
+
+| File | Was | Now |
+|---|---|---|
+| `Core/ComplianceScan.cs` | 4 sites — `.sting_compliance_trend.json` | `ResolveTrendPath(doc)` helper using `_data/compliance_trend.json` |
+| `Core/Phase74Enhancements.cs` | `.sting_warnings_baseline.json` | `_data/warnings_baseline.json` |
+| `Core/WarningsManager.cs` | 3 sites — baseline + coord_log JSON + JSONL | `_data/warnings_baseline.json` + `_data/coord_log.json[l]` |
+| `Core/StingAutoTagger.cs` | 2 sites — `.sting_deferred_elements.json` | `_data/deferred_elements.json` |
+| `Core/TagConfig.cs` | `GetSeqSidecarPath` → `*_STING_SEQ.json` | `_data/seq_counters.json` |
+| `BIMManager/BIMManagerCommands.cs` | 2 sites — coord_log + tagmap fallback | `_data/coord_log.json` + `_data/` for tagmap fallback |
+| `BIMManager/GapFixCommands.cs` | 2 sites — linked_revision + compliance_trend | `_data/linked_revision_{linkName}.json` + `_data/compliance_trend.json` |
+| `Docs/SheetManagerEngineExt.cs` | `.sting_layout_presets.json` | `_data/layout_presets.json` |
+| `Docs/SheetTemplateEngine.cs` | `.sting_sheet_templates.json` | `_data/sheet_templates.json` |
+| `UI/StingCommandHandler.cs` | 2 sites — coord_log read for export/clear | `_data/coord_log.json` |
+
+**Folder defaults**
+
+BIM mode (16 numbered folders, 4 with discipline subfolders):
+`01_WIP`, `02_SHARED`, `03_PUBLISHED`, `04_ARCHIVE`, `05_MODELS`,
+`06_DRAWINGS`, `07_SCHEDULES`, `08_COBie`, `09_BEP`, `10_TRANSMITTALS`,
+`11_ISSUES` (sub: RFI/TQ/NCR/EWN), `12_CLASHES` (sub: BCF/Reports/Snapshots),
+`13_HANDOVER`, `14_REVISIONS`, `15_REGISTERS`, `16_COMPLIANCE`. Default
+disciplines: A_Architectural, E_Electrical, M_Mechanical, P_Plumbing,
+S_Structural. Default routes: PDF→DRAWINGS, IFC/NWC/RVT/DWG→MODELS,
+COBIE→COBIE, SCHEDULE/EXCEL/CSV/BOQ→SCHEDULES, BEP→BEP,
+TRANSMITTAL→TRANSMITTALS, ISSUE/RFI→ISSUES, BCF/CLASH→CLASHES,
+HANDOVER/OAM/Maintenance/AssetHealth→HANDOVER, REVISION→REVISIONS,
+TagRegister/DocRegister/AssetRegister→REGISTERS,
+COMPLIANCE/MODELHEALTH/Validation→COMPLIANCE, JSON→_DATA.
+
+Mini mode (5 flat folders): Drawings, Models, Schedules, Documents,
+Reports.
+
+**Wiring**
+
+- `StingCommandHandler.cs` `CreateFolders` tag now opens the new
+  `ProjectFolderSetupDialog`. If a setup already exists it offers
+  "Run setup again" / "Open folder in Explorer" / Cancel.
+- New tags: `FolderHealth` (opens `FolderHealthPanel.ShowDialog`),
+  `FolderMigrate` (calls `MigrateFromLegacy` and reports moved-files
+  count).
+- `StingDockPanel.xaml` BIM tab — replaced "Create Folders" / "Open
+  Project Folder" with 4 buttons: ⚙ Folder Setup / 📁 Open Root /
+  📊 Folder Health / 🔄 Migrate Legacy.
+- `StingToolsApp.OnDocumentOpened` — softer behaviour: detects
+  persisted setup if present and logs the loaded root; **no longer
+  auto-creates folders**. Setup is now an explicit user action.
+- `StingToolsApp.OnDocumentClosing` — invalidates the per-document
+  setup cache so reopens re-detect from disk.
+- `OutputLocationHelper.GetOutputDirectory` — added a new first-priority
+  check that returns the project's MISC export folder when a setup
+  is loaded; falls through to the existing 4-level chain otherwise.
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox, no Revit
+   API). All Revit API calls reuse documented signatures already
+   present in the codebase.
+2. The migration step deletes legacy folders only when empty after
+   moving files. If a non-STING file is sitting inside `_BIM_COORD`
+   or similar, the folder is preserved with that file in place.
+3. `ProjectSetup.RootPathIsRelative=true` is the recommended mode for
+   network drives and portable workflows; `RootPathIsRelative=false`
+   stores an absolute path that won't survive a server move.
+4. The setup dialog's discipline checkbox list is fixed at 8 codes
+   (A/E/M/P/S/FP/LV/Z). Custom disciplines beyond that list need to
+   be added by editing `_data/project_setup.json` directly today; a
+   future phase will surface them in the dialog.
