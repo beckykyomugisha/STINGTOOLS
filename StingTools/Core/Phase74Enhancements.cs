@@ -575,7 +575,9 @@ namespace StingTools.Core
                 try
                 {
                     string projDir = Path.GetDirectoryName(doc.PathName ?? "");
-                    string baselinePath = Path.Combine(projDir ?? "", ".sting_warnings_baseline.json");
+                    string baselinePath = ProjectFolderEngine.GetDataPath(doc, "warnings_baseline.json");
+                    if (string.IsNullOrEmpty(baselinePath) || !File.Exists(baselinePath))
+                        baselinePath = Path.Combine(projDir ?? "", ".sting_warnings_baseline.json");
                     if (File.Exists(baselinePath))
                     {
                         var json = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(baselinePath));

@@ -4058,6 +4058,13 @@ namespace StingTools.Core
             if (doc == null || !doc.IsValidObject) return null;
             string projectPath = doc.PathName;
             if (string.IsNullOrEmpty(projectPath)) return null;
+            // Phase 167: prefer _data folder
+            try
+            {
+                string p = StingTools.Core.ProjectFolderEngine.GetDataPath(doc, "seq_counters.json");
+                if (!string.IsNullOrEmpty(p)) return p;
+            }
+            catch { }
             string dir = System.IO.Path.GetDirectoryName(projectPath);
             string fileName = System.IO.Path.GetFileNameWithoutExtension(projectPath);
             if (string.IsNullOrEmpty(dir) || string.IsNullOrEmpty(fileName)) return null;

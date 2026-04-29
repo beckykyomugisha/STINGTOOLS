@@ -385,6 +385,12 @@ namespace StingTools.Docs
 
         private static string GetTemplateFilePath(Document doc)
         {
+            try
+            {
+                string p = StingTools.Core.ProjectFolderEngine.GetDataPath(doc, "sheet_templates.json");
+                if (!string.IsNullOrEmpty(p)) return p;
+            }
+            catch { }
             string dir = Path.GetDirectoryName(doc.PathName);
             if (string.IsNullOrEmpty(dir))
                 dir = StingToolsApp.DataPath ?? Path.GetTempPath();

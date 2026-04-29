@@ -9230,3 +9230,123 @@ lands.
    `ViewStylePackApplier.Apply` and `ApplyPresetOverrides`. Deferred
    to a follow-up — the value is populated correctly so the multiplier
    commit can flip the switch with no JSON re-edit.
+
+#### Completed (Phase 168 — Unified project folder system: single-root structure, _data consolidation, BIM/Mini modes, templates, migration)
+
+Replaces four competing folder roots (`_BIM_COORD\`,
+`STING_BIM_MANAGER\`, `STING_Exports\`, `STING_Project\`) with one
+`{ProjectCode}\` root next to the `.rvt`, plus a dedicated `_data\`
+subfolder for every runtime sidecar JSON the plugin writes. Adds a
+data-driven flexibility layer so projects can choose a full ISO 19650
+BIM tree, a 5-folder Mini tree, or a saved template profile.
+
+**New files**
+
+| Path | Role |
+|---|---|
+| `StingTools/Core/ProjectSetup.cs` | POCO + factory methods (`CreateBIM` / `CreateMini`) + Load / Save / ResolveRootPath. Holds project code, root path, mode, disciplines, custom folders, hidden folders, export routes, naming convention. |
+| `StingTools/Core/FolderTemplateLibrary.cs` | 4 built-in templates (Full BIM, MEP Only, Mini Project, Structural Only) + user template load / save / delete + `ApplyTemplate(...)` materialiser. |
+| `StingTools/UI/ProjectFolderSetupDialog.cs` | 3-section WPF dialog: identity (project code, name, root, relative/absolute), structure (template picker, BIM/Mini radios, discipline checkboxes, naming convention), folders (editable DataGrid: include / id / display name / discipline subs / routes). Migration banner detects legacy folders + sidecars and offers one-click consolidation. |
+| `StingTools/UI/FolderHealthPanel.cs` | Compact UserControl + dialog wrapper. Per-folder green / amber / red status pills, file counts, last modified date, ▷ open-in-Explorer button per row, footer summary (total files, empty count, _data JSON count). |
+
+**ProjectFolderEngine extensions** (`Core/ProjectFolderEngine.cs`):
+
+`LoadOrDetectSetup(doc)` walks `{projDir}\{ProjectCode}\_data\project_setup.json`
+plus sibling-folder fallback. `InitializeSetup(doc, setup)` creates every
+folder + discipline subfolder + sub-folder list, writes `_data` and
+`folder_templates`, persists JSON, caches setup, and writes
+`FOLDER_INDEX.txt`. `GetDataPath(doc, fileName)` resolves
+`{root}\_data\{fileName}` — the canonical replacement for
+`Path.ChangeExtension(doc.PathName, ".sting_*.json")`.
+`DetectProjectCode(doc)` reads Project Information Number → Name →
+"PRJ", sanitises and clamps to 8 chars. `GetFolderHealth(doc)` returns
+a per-folder snapshot for the health panel. `MigrateFromLegacy(doc)`
+moves `.sting_*.json` sidecars + `*_STING_SEQ.json` SEQ sidecars +
+the four legacy folder roots into the new structure, routing exports
+by extension (PDF→DRAWINGS, IFC/RVT/NWC/DWG→MODELS, JSON→_data,
+XLSX/CSV→SCHEDULES, BCF→CLASHES, DOCX→TRANSMITTALS). `BuildFolderBrowserTree(doc)`
+returns hierarchical `FolderNode` rows for UI binding. `GetExportPath(doc, type, base, ext, disc)`
+honours `ExportRoutes`, drops files into discipline subfolders when
+the resolved folder has `HasDisciplineSubfolders=true`, and applies
+the chosen `NamingConvention` (ISO19650 / Timestamp / Custom).
+`InvalidateSetupCache(docPath)` is wired into `OnDocumentClosing` so
+re-opens re-detect.
+
+`GetRootPath` and `GetExportFolder` and `GetFolderPath` all consult
+`LoadOrDetectSetup` first; only fall through to legacy behaviour
+when no setup is found. Backward compatibility is preserved — every
+existing public method signature is unchanged.
+
+**Sidecar redirect** — 10 callers redirected from
+`Path.ChangeExtension(doc.PathName, ".sting_*.json")` (or
+`Path.Combine(projDir, ".sting_*")`) to
+`ProjectFolderEngine.GetDataPath(doc, "*.json")`, each with
+try/catch fallback to the legacy path so first-open before setup
+still works:
+
+| File | Was | Now |
+|---|---|---|
+| `Core/ComplianceScan.cs` | 4 sites — `.sting_compliance_trend.json` | `ResolveTrendPath(doc)` helper using `_data/compliance_trend.json` |
+| `Core/Phase74Enhancements.cs` | `.sting_warnings_baseline.json` | `_data/warnings_baseline.json` |
+| `Core/WarningsManager.cs` | 3 sites — baseline + coord_log JSON + JSONL | `_data/warnings_baseline.json` + `_data/coord_log.json[l]` |
+| `Core/StingAutoTagger.cs` | 2 sites — `.sting_deferred_elements.json` | `_data/deferred_elements.json` |
+| `Core/TagConfig.cs` | `GetSeqSidecarPath` → `*_STING_SEQ.json` | `_data/seq_counters.json` |
+| `BIMManager/BIMManagerCommands.cs` | 2 sites — coord_log + tagmap fallback | `_data/coord_log.json` + `_data/` for tagmap fallback |
+| `BIMManager/GapFixCommands.cs` | 2 sites — linked_revision + compliance_trend | `_data/linked_revision_{linkName}.json` + `_data/compliance_trend.json` |
+| `Docs/SheetManagerEngineExt.cs` | `.sting_layout_presets.json` | `_data/layout_presets.json` |
+| `Docs/SheetTemplateEngine.cs` | `.sting_sheet_templates.json` | `_data/sheet_templates.json` |
+| `UI/StingCommandHandler.cs` | 2 sites — coord_log read for export/clear | `_data/coord_log.json` |
+
+**Folder defaults**
+
+BIM mode (16 numbered folders, 4 with discipline subfolders):
+`01_WIP`, `02_SHARED`, `03_PUBLISHED`, `04_ARCHIVE`, `05_MODELS`,
+`06_DRAWINGS`, `07_SCHEDULES`, `08_COBie`, `09_BEP`, `10_TRANSMITTALS`,
+`11_ISSUES` (sub: RFI/TQ/NCR/EWN), `12_CLASHES` (sub: BCF/Reports/Snapshots),
+`13_HANDOVER`, `14_REVISIONS`, `15_REGISTERS`, `16_COMPLIANCE`. Default
+disciplines: A_Architectural, E_Electrical, M_Mechanical, P_Plumbing,
+S_Structural. Default routes: PDF→DRAWINGS, IFC/NWC/RVT/DWG→MODELS,
+COBIE→COBIE, SCHEDULE/EXCEL/CSV/BOQ→SCHEDULES, BEP→BEP,
+TRANSMITTAL→TRANSMITTALS, ISSUE/RFI→ISSUES, BCF/CLASH→CLASHES,
+HANDOVER/OAM/Maintenance/AssetHealth→HANDOVER, REVISION→REVISIONS,
+TagRegister/DocRegister/AssetRegister→REGISTERS,
+COMPLIANCE/MODELHEALTH/Validation→COMPLIANCE, JSON→_DATA.
+
+Mini mode (5 flat folders): Drawings, Models, Schedules, Documents,
+Reports.
+
+**Wiring**
+
+- `StingCommandHandler.cs` `CreateFolders` tag now opens the new
+  `ProjectFolderSetupDialog`. If a setup already exists it offers
+  "Run setup again" / "Open folder in Explorer" / Cancel.
+- New tags: `FolderHealth` (opens `FolderHealthPanel.ShowDialog`),
+  `FolderMigrate` (calls `MigrateFromLegacy` and reports moved-files
+  count).
+- `StingDockPanel.xaml` BIM tab — replaced "Create Folders" / "Open
+  Project Folder" with 4 buttons: ⚙ Folder Setup / 📁 Open Root /
+  📊 Folder Health / 🔄 Migrate Legacy.
+- `StingToolsApp.OnDocumentOpened` — softer behaviour: detects
+  persisted setup if present and logs the loaded root; **no longer
+  auto-creates folders**. Setup is now an explicit user action.
+- `StingToolsApp.OnDocumentClosing` — invalidates the per-document
+  setup cache so reopens re-detect from disk.
+- `OutputLocationHelper.GetOutputDirectory` — added a new first-priority
+  check that returns the project's MISC export folder when a setup
+  is loaded; falls through to the existing 4-level chain otherwise.
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox, no Revit
+   API). All Revit API calls reuse documented signatures already
+   present in the codebase.
+2. The migration step deletes legacy folders only when empty after
+   moving files. If a non-STING file is sitting inside `_BIM_COORD`
+   or similar, the folder is preserved with that file in place.
+3. `ProjectSetup.RootPathIsRelative=true` is the recommended mode for
+   network drives and portable workflows; `RootPathIsRelative=false`
+   stores an absolute path that won't survive a server move.
+4. The setup dialog's discipline checkbox list is fixed at 8 codes
+   (A/E/M/P/S/FP/LV/Z). Custom disciplines beyond that list need to
+   be added by editing `_data/project_setup.json` directly today; a
+   future phase will surface them in the dialog.
