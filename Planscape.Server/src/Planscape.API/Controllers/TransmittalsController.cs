@@ -1,10 +1,12 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Planscape.API.Services;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.SignalR;
 
 namespace Planscape.API.Controllers;
 
@@ -17,8 +19,17 @@ namespace Planscape.API.Controllers;
 public class TransmittalsController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
+    // GAP-FIX-SIGNALR — broadcast TransmittalUpdated to project subscribers on
+    // create / bulk-create / send. Both the Revit plugin (PlanscapeRealtimeClient)
+    // and the mobile app (realtimeClient.ts) already listen for this event;
+    // server-side broadcasts had been missed in the original wiring.
+    private readonly IHubContext<NotificationHub> _notifHub;
 
-    public TransmittalsController(PlanscapeDbContext db) => _db = db;
+    public TransmittalsController(PlanscapeDbContext db, IHubContext<NotificationHub> notifHub)
+    {
+        _db = db;
+        _notifHub = notifHub;
+    }
 
     [HttpGet]
     public async Task<ActionResult> GetTransmittals(Guid projectId,
@@ -86,6 +97,16 @@ public class TransmittalsController : ControllerBase
         });
 
         await _db.SaveChangesAsync();
+
+        // GAP-FIX-SIGNALR — broadcast TransmittalUpdated. Fire-and-forget so
+        // a slow SignalR fanout doesn't block the API response.
+        _ = _notifHub.Clients.Group($"project-{projectId}").SendAsync("TransmittalUpdated", new
+        {
+            transmittal.Id, transmittal.TransmittalCode, transmittal.Recipient,
+            transmittal.Status, transmittal.CreatedAt, transmittal.SentAt,
+            projectId, kind = "created"
+        });
+
         return CreatedAtAction(nameof(GetTransmittals), new { projectId }, transmittal);
     }
 
@@ -153,6 +174,19 @@ public class TransmittalsController : ControllerBase
         }
 
         await _db.SaveChangesAsync();
+
+        // GAP-FIX-SIGNALR — single bulk-event with the count + first/last code,
+        // not one event per row. A 200-row bulk would otherwise spam every
+        // subscribed client with 200 individual messages.
+        _ = _notifHub.Clients.Group($"project-{projectId}").SendAsync("TransmittalUpdated", new
+        {
+            projectId,
+            kind = "bulk_created",
+            count = rows.Count,
+            firstCode = rows.FirstOrDefault()?.TransmittalCode,
+            lastCode  = rows.LastOrDefault()?.TransmittalCode,
+        });
+
         return Ok(new
         {
             created = rows.Count,
@@ -187,6 +221,16 @@ public class TransmittalsController : ControllerBase
         });
 
         await _db.SaveChangesAsync();
+
+        // GAP-FIX-SIGNALR — broadcast TransmittalUpdated. The "sent" transition
+        // is the most interesting moment for clients to react to (mobile inbox
+        // moves the row to "Sent", plugin closes any open compose dialog).
+        _ = _notifHub.Clients.Group($"project-{projectId}").SendAsync("TransmittalUpdated", new
+        {
+            tx.Id, tx.TransmittalCode, tx.Recipient, tx.Status, tx.SentAt,
+            projectId, kind = "sent"
+        });
+
         return Ok(tx);
     }
 

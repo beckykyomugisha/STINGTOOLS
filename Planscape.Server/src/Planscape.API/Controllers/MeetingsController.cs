@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using Planscape.API.Services;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.SignalR;
 
 namespace Planscape.API.Controllers;
 
@@ -17,8 +19,16 @@ namespace Planscape.API.Controllers;
 public class MeetingsController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
+    // GAP-FIX-SIGNALR — broadcast MeetingCreated / MeetingUpdated to project
+    // subscribers. New events; matching subscriptions added on both clients
+    // (PlanscapeRealtimeClient.cs + src/services/realtimeClient.ts).
+    private readonly IHubContext<NotificationHub> _notifHub;
 
-    public MeetingsController(PlanscapeDbContext db) => _db = db;
+    public MeetingsController(PlanscapeDbContext db, IHubContext<NotificationHub> notifHub)
+    {
+        _db = db;
+        _notifHub = notifHub;
+    }
 
     [HttpGet]
     public async Task<ActionResult> GetMeetings(Guid projectId)
@@ -65,6 +75,14 @@ public class MeetingsController : ControllerBase
 
         _db.Meetings.Add(meeting);
         await _db.SaveChangesAsync();
+
+        // GAP-FIX-SIGNALR — broadcast MeetingCreated to project subscribers.
+        _ = _notifHub.Clients.Group($"project-{projectId}").SendAsync("MeetingCreated", new
+        {
+            meeting.Id, meeting.Title, meeting.MeetingType, meeting.ScheduledAt,
+            meeting.CreatedBy, projectId
+        });
+
         return CreatedAtAction(nameof(GetMeetings), new { projectId }, meeting);
     }
 
@@ -103,6 +121,16 @@ public class MeetingsController : ControllerBase
             rows.Add(m);
         }
         await _db.SaveChangesAsync();
+
+        // GAP-FIX-SIGNALR — single bulk-event with the count, not one per row.
+        _ = _notifHub.Clients.Group($"project-{projectId}").SendAsync("MeetingCreated", new
+        {
+            projectId,
+            kind = "bulk_created",
+            count = rows.Count,
+            firstTitle = rows.FirstOrDefault()?.Title,
+        });
+
         return Ok(new
         {
             created = rows.Count,
@@ -121,6 +149,14 @@ public class MeetingsController : ControllerBase
 
         meeting.Minutes = req.Minutes;
         await _db.SaveChangesAsync();
+
+        // GAP-FIX-SIGNALR — broadcast MeetingUpdated when minutes are logged.
+        // Mobile inbox surfaces "minutes ready" indicator off this event.
+        _ = _notifHub.Clients.Group($"project-{projectId}").SendAsync("MeetingUpdated", new
+        {
+            meeting.Id, meeting.Title, projectId, kind = "minutes_logged"
+        });
+
         return Ok(meeting);
     }
 
@@ -143,6 +179,16 @@ public class MeetingsController : ControllerBase
 
         _db.MeetingActionItems.Add(item);
         await _db.SaveChangesAsync();
+
+        // GAP-FIX-SIGNALR — action items are the most actionable child of a
+        // meeting; broadcast so any My-Actions screen open in the mobile app
+        // refreshes without a poll.
+        _ = _notifHub.Clients.Group($"project-{projectId}").SendAsync("MeetingUpdated", new
+        {
+            meeting.Id, meeting.Title, projectId, kind = "action_added",
+            actionId = item.Id, item.Assignee, item.DueDate
+        });
+
         return CreatedAtAction(nameof(GetOpenActions), new { projectId }, item);
     }
 
@@ -167,6 +213,14 @@ public class MeetingsController : ControllerBase
         if (req.LinkedIssueId != null) action.LinkedIssueId = req.LinkedIssueId;
 
         await _db.SaveChangesAsync();
+
+        // GAP-FIX-SIGNALR — action item updated (status / assignee / linked issue).
+        _ = _notifHub.Clients.Group($"project-{projectId}").SendAsync("MeetingUpdated", new
+        {
+            action.MeetingId, projectId, kind = "action_updated",
+            actionId = action.Id, action.Status, action.Assignee
+        });
+
         return Ok(action);
     }
 
