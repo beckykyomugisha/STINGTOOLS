@@ -20,6 +20,7 @@ import { getMe } from '@/api/endpoints';
 import { useOfflineQueue } from '@/hooks/useOfflineQueue';
 import type { UserProfile } from '@/types/api';
 import { crashReporter } from '@/services/crashReporter';
+import { getThemePref, setThemePref, type ThemeMode } from '@/theme/theme';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -43,6 +44,15 @@ export default function SettingsScreen() {
   const [pushToken, setPushToken] = useState<string | null>(null);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [registeringPush, setRegisteringPush] = useState(false);
+
+  // Phase 165 (MOB-11) — theme preference state
+  const [themeMode, setThemeMode] = useState<ThemeMode>(getThemePref());
+
+  const handleThemeChange = useCallback(async (next: ThemeMode) => {
+    setThemeMode(next);
+    try { await setThemePref(next); }
+    catch (e) { crashReporter.warn('settings.theme persist failed', { err: String(e) }); }
+  }, []);
 
   // Load user profile and server URL on mount
   useEffect(() => {
@@ -274,6 +284,41 @@ export default function SettingsScreen() {
           >
             <Text style={styles.actionBtnText}>Clear Queue</Text>
           </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* ── Appearance (Phase 165 / MOB-11) ── */}
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>Appearance</Text>
+        <Text style={styles.mutedText}>
+          Light, dark, or follow your device. Restart the app for the change to apply across every screen.
+        </Text>
+        <View style={[styles.switchRow, { flexWrap: 'wrap' }]}>
+          {(['light', 'dark', 'system'] as ThemeMode[]).map((m) => (
+            <TouchableOpacity
+              key={m}
+              accessibilityRole="button"
+              accessibilityLabel={`Theme: ${m}`}
+              accessibilityState={{ selected: themeMode === m }}
+              onPress={() => handleThemeChange(m)}
+              style={[
+                styles.actionBtn,
+                themeMode === m
+                  ? { backgroundColor: theme.colors.accent, borderColor: theme.colors.accent }
+                  : { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 },
+                { minWidth: 80, marginHorizontal: theme.spacing.xs, marginVertical: theme.spacing.xs },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.actionBtnText,
+                  themeMode !== m && { color: theme.colors.text },
+                ]}
+              >
+                {m.charAt(0).toUpperCase() + m.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
 

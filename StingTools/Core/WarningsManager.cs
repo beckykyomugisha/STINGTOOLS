@@ -4290,6 +4290,44 @@ namespace StingTools.Core
                 }
                 catch (Exception ex) { StingLog.Warn($"BuildCoordData: permissions restore failed: {ex.Message}"); }
 
+                // Phase 165 (TPL-FOLLOW-03) — populate the user's workflow queue.
+                // Driven by the workflow instance store under _BIM_COORD/workflows/.
+                // Failures are logged and the empty list flows through so the
+                // Workflows tab shows the "inbox zero" hint instead of crashing.
+                try
+                {
+                    string userKey = Environment.UserName ?? "";
+                    var instances = Planscape.Docs.Workflow.WorkflowEngine.GetMyQueue(doc, userKey);
+                    if (instances != null && instances.Count > 0)
+                    {
+                        var registry = Planscape.Docs.Workflow.WorkflowRegistry.Load(doc);
+                        foreach (var inst in instances)
+                        {
+                            var def = registry?.Get(inst.WorkflowId);
+                            string sla = "GREEN";
+                            string dueLocal = "";
+                            if (!string.IsNullOrEmpty(inst.SlaDeadline) &&
+                                DateTime.TryParse(inst.SlaDeadline, out var deadline))
+                            {
+                                dueLocal = deadline.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+                                var hoursLeft = (deadline - DateTime.UtcNow).TotalHours;
+                                if (hoursLeft < 0) sla = "RED";
+                                else if (hoursLeft < 8) sla = "AMBER";
+                            }
+                            coordData.MyQueue.Add(new UI.BIMCoordinationCenter.MyQueueRow
+                            {
+                                DocId = inst.DocId ?? "",
+                                Subject = "",
+                                Step = inst.State ?? "",
+                                Workflow = def?.Name ?? inst.WorkflowId ?? "",
+                                DueLocal = dueLocal,
+                                SlaStatus = sla,
+                            });
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"BuildCoordData: My Queue load failed: {ex.Message}"); }
+
                 StingLog.Info($"BIMCoordCenter built: health={healthScore}, warnings={warningReport.Total}, compliance={tagPct:F1}%");
                 return coordData;
             }
