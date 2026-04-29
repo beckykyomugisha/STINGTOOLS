@@ -67,7 +67,23 @@ builder.Services.AddDbContext<PlanscapeDbContext>(options =>
 // `Jwt:PreviousKey` for the overlap window (default 7d). Tokens issued
 // under either key validate during that window. After the window ends,
 // clear `Jwt:PreviousKey`. This prevents mass sign-outs on key rotation.
-var jwtKey = builder.Configuration["Jwt:Key"] ?? "Planscape-Dev-Secret-Key-Min32Chars!!";
+// S1 — fail fast in Production if Jwt:Key is missing. The dev fallback is
+// *publicly known* and was leaking into deployments where the production
+// settings file was misnamed or undeployed.
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey))
+{
+    if (builder.Environment.IsProduction())
+    {
+        throw new InvalidOperationException(
+            "Jwt:Key is required in Production. Set it via environment variable or appsettings.Production.json.");
+    }
+    jwtKey = "Planscape-Dev-Secret-Key-Min32Chars!!";
+}
+if (jwtKey.Length < 32)
+{
+    throw new InvalidOperationException("Jwt:Key must be at least 32 characters (HMAC-SHA256 minimum).");
+}
 var jwtPrevKey = builder.Configuration["Jwt:PreviousKey"];
 var signingKeys = new List<SecurityKey>
 {
@@ -103,6 +119,38 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
                     context.Token = accessToken;
                 return Task.CompletedTask;
+            },
+            // S5 — global iat-floor check. The JwtBearer pipeline only
+            // verifies signature + issuer + audience + lifetime. Per-user
+            // revocation (set via IPermissionRevocationStore.RevokeAllPriorTokensAsync
+            // on password change, role demotion, etc.) is a Planscape
+            // concept and must be enforced here, not just inside the
+            // BimManagerOrAdmin policy handler.
+            OnTokenValidated = async context =>
+            {
+                var sub = context.Principal?.FindFirst("user_id")?.Value
+                       ?? context.Principal?.FindFirst("sub")?.Value
+                       ?? context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (!Guid.TryParse(sub, out var userId)) return;
+
+                var revocations = context.HttpContext.RequestServices
+                    .GetRequiredService<Planscape.Infrastructure.Authorization.IPermissionRevocationStore>();
+                var floor = await revocations.GetMinIatAsync(userId);
+                if (floor is not long minIat) return;
+
+                var iatClaim = context.Principal?.FindFirst("iat")?.Value;
+                if (!long.TryParse(iatClaim, out var tokenIat))
+                {
+                    // Conservative: a Planscape token without iat is
+                    // non-conformant; don't grant access on it once a
+                    // floor exists for the user.
+                    context.Fail("Token missing iat");
+                    return;
+                }
+                if (tokenIat < minIat)
+                {
+                    context.Fail("Token issued before revocation floor");
+                }
             }
         };
     });
@@ -250,6 +298,12 @@ builder.Services.AddSignalR().AddStackExchangeRedis(redisConn, options =>
 // T3 — in-memory SignalR presence tracker (scales per-node; the Redis
 // backplane above handles the fan-out broadcast for horizontal scale).
 builder.Services.AddSingleton<Planscape.Infrastructure.SignalR.PresenceTracker>();
+// S4 — connection registry + revocation notifier so deactivating a
+// ProjectMember evicts that user's running SignalR connections from the
+// project group instead of letting them keep receiving events.
+builder.Services.AddSingleton<Planscape.Infrastructure.SignalR.HubConnectionRegistry>();
+builder.Services.AddSingleton<Planscape.Infrastructure.SignalR.IProjectMembershipNotifier,
+                              Planscape.Infrastructure.SignalR.ProjectMembershipNotifier>();
 
 // ── Hangfire background jobs ──
 builder.Services.AddHangfire(config => config
@@ -355,15 +409,38 @@ builder.Services.AddRateLimiter(options =>
         o.QueueLimit          = 0;
     });
 
-    // Mobile: 120 req/min per device (partitioned by X-Device-Id header, IP fallback)
+    // Mobile: tier-aware. Authenticated callers partition by user_id (so a
+    // shared device or rotating X-Device-Id can't multiply the budget).
+    // Unauthenticated callers fall back to IP — same fixed envelope as
+    // before (S17). Permit limit scales with the caller's licence tier:
+    //   Starter      30 req/min
+    //   Professional 120 req/min
+    //   Premium      300 req/min
+    //   Enterprise   600 req/min
+    //   anonymous    60 req/min
+    // (S18) Per-tenant DoS prevention — even a Premium tenant can't burn
+    // the cluster's budget by spamming a sync endpoint.
     options.AddPolicy("mobile", context =>
     {
-        var deviceId = context.Request.Headers["X-Device-Id"].FirstOrDefault()
-                       ?? context.Connection.RemoteIpAddress?.ToString()
-                       ?? "unknown";
-        return RateLimitPartition.GetFixedWindowLimiter(deviceId, _ => new FixedWindowRateLimiterOptions
+        var userIdClaim = context.User?.FindFirst("user_id")?.Value
+                         ?? context.User?.FindFirst("sub")?.Value;
+        var partitionKey = !string.IsNullOrWhiteSpace(userIdClaim)
+            ? $"user:{userIdClaim}"
+            : $"ip:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+
+        var tier = context.User?.FindFirst("tier")?.Value;
+        var permit = tier switch
         {
-            PermitLimit = 120,
+            "Enterprise"   => 600,
+            "Premium"      => 300,
+            "Professional" => 120,
+            "Starter"      => 30,
+            _              => string.IsNullOrWhiteSpace(userIdClaim) ? 60 : 120,
+        };
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = permit,
             Window = TimeSpan.FromMinutes(1),
             QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
             QueueLimit = 0
@@ -412,7 +489,14 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 // ── Pipeline ──
-if (app.Environment.IsDevelopment())
+// S10 — Swagger is on in Development by default; in Production the
+// operator must explicitly opt in via Swagger:Enabled=true. Leaks of the
+// API schema are useful to attackers (they enumerate every endpoint
+// shape, parameter, and authorisation requirement at zero cost), so the
+// default for any non-dev environment is off.
+var swaggerExplicitlyEnabled = string.Equals(
+    app.Configuration["Swagger:Enabled"], "true", StringComparison.OrdinalIgnoreCase);
+if (app.Environment.IsDevelopment() || swaggerExplicitlyEnabled)
 {
     app.UseSwagger();
     app.UseSwaggerUI();
@@ -447,6 +531,9 @@ app.UseRateLimiter();
 app.UseCors("Dashboard");
 app.UseCors("Mobile");
 app.UseAuthentication();
+// S9 — push correlation ID + tenant + user into Serilog LogContext.
+// Must run AFTER UseAuthentication so the JWT claims are populated.
+app.UseMiddleware<Planscape.API.Middleware.CorrelationIdMiddleware>();
 app.UseMiddleware<TenantResolutionMiddleware>(); // Must run AFTER auth so JWT claims are available
 app.UseMiddleware<MobileContextMiddleware>();
 app.UseMiddleware<LocaleMiddleware>();           // FLEX-15 — resolves language after tenant is known
@@ -478,20 +565,50 @@ app.MapGet("/health/live", () => Results.Ok(new { status = "alive", timestamp = 
 
 app.MapGet("/health/ready", async (PlanscapeDbContext db) =>
 {
+    // S11 — never leak DB connection-string / driver internals into the
+    // response body. Probes only need a 200 vs 503; debugging goes
+    // through the logs (correlation ID is enriched by S9).
     try
     {
         return await db.Database.CanConnectAsync()
             ? Results.Ok(new { status = "ready" })
-            : Results.Json(new { status = "not-ready", reason = "db-unreachable" }, statusCode: 503);
+            : Results.Json(new { status = "not-ready" }, statusCode: 503);
     }
-    catch (Exception ex)
+    catch
     {
-        return Results.Json(new { status = "not-ready", reason = ex.Message }, statusCode: 503);
+        return Results.Json(new { status = "not-ready" }, statusCode: 503);
     }
 }).AllowAnonymous();
 
-app.MapGet("/health", async (PlanscapeDbContext db, IConnectionMultiplexer? redis, Planscape.Core.Interfaces.IPushNotificationService push) =>
+app.MapGet("/health", async (HttpContext httpCtx, PlanscapeDbContext db, IConnectionMultiplexer? redis, Planscape.Core.Interfaces.IPushNotificationService push, IConfiguration config) =>
 {
+    // S11 — full health diagnostic exposes the topology (which DB,
+    // which push provider, Redis ping). Restrict to:
+    //   • loopback / private-network callers (Docker / k8s / VPC), AND
+    //   • a shared secret in the X-Health-Token header that matches
+    //     Health:Token in config. Either alone is treated as a fail.
+    // In Production both gates fire; in Development the loopback gate
+    // alone is enough so localhost diagnostics still work.
+    var remote = httpCtx.Connection.RemoteIpAddress;
+    var isPrivate = remote != null
+                    && (System.Net.IPAddress.IsLoopback(remote)
+                        || IsRfc1918(remote));
+    var configuredToken = config["Health:Token"];
+    var presentedToken = httpCtx.Request.Headers["X-Health-Token"].ToString();
+    var tokenOk = !string.IsNullOrWhiteSpace(configuredToken)
+                  && string.Equals(configuredToken, presentedToken, StringComparison.Ordinal);
+
+    var allowed = httpCtx.RequestServices
+                       .GetRequiredService<IHostEnvironment>()
+                       .IsDevelopment()
+        ? isPrivate
+        : isPrivate && tokenOk;
+
+    if (!allowed)
+    {
+        return Results.Json(new { status = "forbidden" }, statusCode: 403);
+    }
+
     var checks = new Dictionary<string, object>();
     var anyFailure = false;
 
@@ -569,11 +686,13 @@ app.MapHub<NotificationHub>("/hubs/notifications");
     {
         // In development, auto-migrate (apply pending migrations or create DB)
         db.Database.Migrate();
-        await Planscape.API.SeedData.SeedAsync(db);
+        await Planscape.API.SeedData.SeedAsync(db, app.Environment);
     }
     else
     {
-        // In production, only apply pending migrations — no seed data
+        // In production, only apply pending migrations — no seed data.
+        // SeedData itself refuses to run in Production unless
+        // PLANSCAPE_ALLOW_DEMO_SEED=true is set.
         db.Database.Migrate();
     }
 }
@@ -606,3 +725,29 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.ModelDerivativeJob>(
     "*/10 * * * *", new RecurringJobOptions { QueueName = "default" });
 
 await app.RunAsync();
+
+// S11 — RFC 1918 + IPv6 unique-local + IPv4-mapped IPv6 helper. Used by
+// the /health full-diagnostic gate to allow callers from the same
+// private network as the API (Docker compose internal network, k8s
+// pod CIDR, VPC), and reject the public internet.
+static bool IsRfc1918(System.Net.IPAddress ip)
+{
+    if (ip.IsIPv4MappedToIPv6) ip = ip.MapToIPv4();
+    if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+    {
+        var b = ip.GetAddressBytes();
+        if (b[0] == 10) return true;                                   // 10.0.0.0/8
+        if (b[0] == 172 && b[1] >= 16 && b[1] <= 31) return true;      // 172.16.0.0/12
+        if (b[0] == 192 && b[1] == 168) return true;                   // 192.168.0.0/16
+        if (b[0] == 127) return true;                                  // loopback
+        return false;
+    }
+    if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
+    {
+        var b = ip.GetAddressBytes();
+        if ((b[0] & 0xFE) == 0xFC) return true;                        // fc00::/7 (ULA)
+        if (System.Net.IPAddress.IsLoopback(ip)) return true;          // ::1
+        return false;
+    }
+    return false;
+}

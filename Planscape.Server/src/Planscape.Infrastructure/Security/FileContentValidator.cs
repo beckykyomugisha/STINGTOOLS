@@ -88,4 +88,74 @@ public static class FileContentValidator
         kind = SniffImage(s);
         return kind != DetectedImage.Unknown;
     }
+
+    /// <summary>
+    /// S8 — content-type whitelist for Planscape document uploads.
+    /// Accepts image / PDF / Office / common BIM-payload MIME types
+    /// (IFC, RVT, DWG, BCF). Anything outside this list is rejected
+    /// before the bytes are persisted. Case-insensitive.
+    /// </summary>
+    public static readonly System.Collections.Generic.HashSet<string> AllowedDocumentMimeTypes =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            // images (also covered by SniffImage)
+            "image/jpeg", "image/png", "image/webp", "image/gif", "image/bmp",
+            "image/tiff", "image/heic", "image/heif", "image/avif",
+            // PDF
+            "application/pdf",
+            // Office
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.ms-excel",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.ms-powerpoint",
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            // text / data
+            "text/plain", "text/csv", "application/json", "application/xml", "text/xml",
+            // archives (BCF is zip-based)
+            "application/zip", "application/x-zip-compressed",
+            // BIM payloads — many browsers send octet-stream for these
+            "application/octet-stream",
+            "model/ifc", "application/x-step",          // IFC
+            "application/acad", "image/vnd.dwg",         // DWG
+            "application/x-bcf",                          // BCF
+        };
+
+    /// <summary>
+    /// S8 — case-insensitive extension whitelist used as a second-line
+    /// guard when the browser sends <c>application/octet-stream</c>
+    /// (which is too permissive on its own to allow as a MIME type).
+    /// </summary>
+    public static readonly System.Collections.Generic.HashSet<string> AllowedDocumentExtensions =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tif", ".tiff",
+            ".heic", ".heif", ".avif",
+            ".pdf",
+            ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+            ".txt", ".csv", ".json", ".xml",
+            ".zip",
+            ".ifc", ".rvt", ".rfa", ".dwg", ".dxf", ".bcf", ".bcfzip", ".nwd", ".nwc",
+        };
+
+    public static bool IsAllowedDocumentUpload(string? contentType, string? fileName)
+    {
+        var ct = (contentType ?? "").Trim();
+        var ext = string.IsNullOrWhiteSpace(fileName) ? "" : Path.GetExtension(fileName);
+
+        // Reject empty content-type unless the extension is on the
+        // allow-list (some clients send "" for known BIM payloads).
+        if (string.IsNullOrEmpty(ct))
+            return AllowedDocumentExtensions.Contains(ext);
+
+        if (!AllowedDocumentMimeTypes.Contains(ct))
+            return false;
+
+        // application/octet-stream alone is too broad — require a
+        // recognisable extension before letting it through.
+        if (ct.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase))
+            return AllowedDocumentExtensions.Contains(ext);
+
+        return true;
+    }
 }

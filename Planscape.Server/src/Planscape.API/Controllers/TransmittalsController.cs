@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Planscape.API.Services;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
 
@@ -42,6 +43,7 @@ public class TransmittalsController : ControllerBase
         var tenantId = GetTenantId();
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
         // Auto-generate collision-safe TX code — scan max numeric suffix
         var existingCodes = await _db.Transmittals
@@ -104,6 +106,7 @@ public class TransmittalsController : ControllerBase
         var tenantId = GetTenantId();
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
         var existingCodes = await _db.Transmittals
             .Where(t => t.ProjectId == projectId)
@@ -164,6 +167,7 @@ public class TransmittalsController : ControllerBase
         var tx = await _db.Transmittals
             .FirstOrDefaultAsync(t => t.Id == txId && t.ProjectId == projectId && t.Project!.TenantId == tenantId);
         if (tx == null) return NotFound();
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
         tx.Status = "SENT";
         tx.SentAt = DateTime.UtcNow;

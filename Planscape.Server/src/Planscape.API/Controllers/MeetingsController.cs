@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
+using Planscape.API.Services;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
 
@@ -49,6 +50,7 @@ public class MeetingsController : ControllerBase
         var tenantId = GetTenantId();
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
         var meeting = new Meeting
         {
@@ -81,6 +83,7 @@ public class MeetingsController : ControllerBase
         var tenantId = GetTenantId();
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
         var createdBy = User.FindFirst("display_name")?.Value ?? "Unknown";
         var rows = new List<Meeting>(reqs.Count);
@@ -114,6 +117,7 @@ public class MeetingsController : ControllerBase
         var meeting = await _db.Meetings
             .FirstOrDefaultAsync(m => m.Id == meetingId && m.ProjectId == projectId && m.Project!.TenantId == tenantId);
         if (meeting == null) return NotFound();
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
         meeting.Minutes = req.Minutes;
         await _db.SaveChangesAsync();
@@ -127,6 +131,7 @@ public class MeetingsController : ControllerBase
         var meeting = await _db.Meetings
             .FirstOrDefaultAsync(m => m.Id == meetingId && m.ProjectId == projectId && m.Project!.TenantId == tenantId);
         if (meeting == null) return NotFound();
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
         var item = new MeetingActionItem
         {
@@ -144,9 +149,18 @@ public class MeetingsController : ControllerBase
     [HttpPut("{meetingId}/actions/{actionId}")]
     public async Task<ActionResult> UpdateAction(Guid projectId, Guid meetingId, Guid actionId, [FromBody] UpdateActionRequest req)
     {
+        // S3 — also fixes a pre-existing tenant-scoping gap: this endpoint
+        // had no Project.TenantId check, so a user could mutate any action
+        // item in any tenant just by knowing the GUIDs.
+        var tenantId = GetTenantId();
         var action = await _db.MeetingActionItems
-            .FirstOrDefaultAsync(a => a.Id == actionId && a.MeetingId == meetingId);
+            .Include(a => a.Meeting)
+            .FirstOrDefaultAsync(a => a.Id == actionId
+                                   && a.MeetingId == meetingId
+                                   && a.Meeting!.ProjectId == projectId
+                                   && a.Meeting.Project!.TenantId == tenantId);
         if (action == null) return NotFound();
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
         if (req.Status != null) action.Status = req.Status;
         if (req.Assignee != null) action.Assignee = req.Assignee;
