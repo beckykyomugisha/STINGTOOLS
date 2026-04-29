@@ -116,8 +116,10 @@ namespace StingTools.BIMManager
 
         public void OnRPC(RPCNode node) { }
         public void OnLight(LightNode node) { }
-        public void OnDaylightPortal(DaylightPortalNode node) { }
-        public void OnFaceBegin1(FaceNode node) { }
+        // Revit 2025 dropped DaylightPortalNode / OnDaylightPortal and
+        // OnFaceBegin1 from IExportContext (obsolete since 2022). Don't
+        // declare them — see Clash/ClashExportContext.cs for the same
+        // adjustment in another working impl.
         public RenderNodeAction OnFaceBegin(FaceNode node) => RenderNodeAction.Proceed;
         public void OnFaceEnd(FaceNode node) { }
         public void OnMaterial(MaterialNode node)
