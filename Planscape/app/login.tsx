@@ -73,7 +73,12 @@ export default function LoginScreen() {
             onChangeText={setPassword}
           />
 
-          <TouchableOpacity onPress={() => setShowServer(!showServer)}>
+          <TouchableOpacity
+            onPress={() => setShowServer(!showServer)}
+            accessibilityRole="button"
+            accessibilityLabel={showServer ? 'Hide server settings' : 'Show custom server URL'}
+            accessibilityState={{ expanded: showServer }}
+          >
             <Text style={styles.toggle}>
               {showServer ? 'Hide server settings' : 'Custom server URL'}
             </Text>
@@ -98,6 +103,9 @@ export default function LoginScreen() {
             style={[styles.button, loading && styles.buttonDisabled]}
             onPress={handleLogin}
             disabled={loading || !email || !password}
+            accessibilityRole="button"
+            accessibilityLabel="Sign in"
+            accessibilityState={{ disabled: loading || !email || !password, busy: loading }}
           >
             {loading ? (
               <ActivityIndicator color={theme.colors.surface} />

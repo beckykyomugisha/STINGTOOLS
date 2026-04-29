@@ -228,38 +228,67 @@ export interface UploadAttachmentArgs {
  * Upload an issue attachment using multipart/form-data.
  * Sends X-Latitude/X-Longitude headers when GPS available so server
  * geofence + EXIF persistence can pick them up.
+ *
+ * M9 — built-in retry with exponential backoff (250ms / 750ms / 2s).
+ * A single 3G timeout used to push the whole photo into the offline
+ * queue, where it might wait minutes before the next drain. With 3
+ * fast retries on the foreground call, transient flakiness is
+ * absorbed without involving the queue at all. Idempotency key (set
+ * by the caller) ensures a partial successful upload isn't double-
+ * stored on retry.
  */
+const UPLOAD_RETRY_DELAYS_MS = [250, 750, 2000];
+
 export async function uploadIssueAttachment(
   args: UploadAttachmentArgs
 ): Promise<IssueAttachment> {
   const base = await getBaseUrl();
   const token = await getToken();
-  const form = new FormData();
-  // React Native FormData accepts { uri, name, type } objects
-  form.append('file', {
-    uri: args.uri,
-    name: args.fileName,
-    type: args.contentType,
-  } as unknown as Blob);
 
-  const headers: Record<string, string> = {};
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  if (args.latitude !== undefined) headers['X-Latitude'] = String(args.latitude);
-  if (args.longitude !== undefined) headers['X-Longitude'] = String(args.longitude);
-  // Phase 96 — idempotency key lets the server dedup replays (e.g. the upload
-  // socket dropped after a successful write). Server: if key matches an
-  // existing attachment, return 200 with that record instead of 201+duplicate.
-  if (args.idempotencyKey) headers['X-Idempotency-Key'] = args.idempotencyKey;
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= UPLOAD_RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      // FormData / Blob references are single-use in React Native — we
+      // rebuild the form on every attempt so a retried upload doesn't
+      // resend a consumed stream.
+      const form = new FormData();
+      form.append('file', {
+        uri: args.uri,
+        name: args.fileName,
+        type: args.contentType,
+      } as unknown as Blob);
 
-  const res = await fetch(
-    `${base}/api/projects/${args.projectId}/issues/${args.issueId}/attachments`,
-    { method: 'POST', headers, body: form }
-  );
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || `Upload failed: HTTP ${res.status}`);
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (args.latitude !== undefined) headers['X-Latitude'] = String(args.latitude);
+      if (args.longitude !== undefined) headers['X-Longitude'] = String(args.longitude);
+      if (args.idempotencyKey) headers['X-Idempotency-Key'] = args.idempotencyKey;
+
+      const res = await fetch(
+        `${base}/api/projects/${args.projectId}/issues/${args.issueId}/attachments`,
+        { method: 'POST', headers, body: form }
+      );
+
+      // 4xx is fatal — retrying won't fix a malformed body or revoked auth.
+      if (res.status >= 400 && res.status < 500) {
+        const text = await res.text();
+        throw new Error(text || `Upload failed: HTTP ${res.status}`);
+      }
+      if (!res.ok) {
+        // 5xx / network — fall through to retry
+        const text = await res.text();
+        lastErr = new Error(text || `Upload failed: HTTP ${res.status}`);
+      } else {
+        return await res.json();
+      }
+    } catch (err) {
+      lastErr = err;
+    }
+    if (attempt < UPLOAD_RETRY_DELAYS_MS.length) {
+      await new Promise((r) => setTimeout(r, UPLOAD_RETRY_DELAYS_MS[attempt]));
+    }
   }
-  return res.json();
+  throw lastErr instanceof Error ? lastErr : new Error('Upload failed after retries');
 }
 
 // ── Push token registration (NEW-MOB-18) ──

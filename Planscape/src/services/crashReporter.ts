@@ -39,13 +39,42 @@ export const crashReporter = {
     console.warn(`[planscape] ${message}`, context ?? '');
   },
 
+  // M13 — dedup identical errors fired in rapid succession. Without this,
+  // a render-loop bug that fires 100 identical exceptions in 200ms would
+  // POST 100 separate /api/diagnostics/crash requests, drowning the
+  // server's rate limiter and the client's storage. Key is
+  // `${message}|${first stack frame}`; window is 30 seconds.
+  _dedupCounts: new Map<string, { firstSeenMs: number; count: number }>(),
+
   async captureError(err: unknown, context?: Record<string, unknown>) {
     const e = err instanceof Error ? err : new Error(String(err));
+    const stackHead = (e.stack ?? '').split('\n').slice(0, 2).join(' ');
+    const fingerprint = `${e.message}|${stackHead}`;
+    const now = Date.now();
+    const existing = this._dedupCounts.get(fingerprint);
+    const DEDUP_WINDOW_MS = 30_000;
+    if (existing && now - existing.firstSeenMs < DEDUP_WINDOW_MS) {
+      // Within the window — bump the count, drop the duplicate POST.
+      existing.count++;
+      return;
+    }
+    // Either no entry, or window expired. Reset and report.
+    const repeats = existing ? existing.count : 0;
+    this._dedupCounts.set(fingerprint, { firstSeenMs: now, count: 1 });
+    // Garbage-collect stale entries so the map doesn't grow forever.
+    if (this._dedupCounts.size > 64)
+    {
+      for (const [k, v] of this._dedupCounts)
+      {
+        if (now - v.firstSeenMs >= DEDUP_WINDOW_MS) this._dedupCounts.delete(k);
+      }
+    }
+
     const entry = {
       ts: new Date().toISOString(),
       message: e.message,
       stack: e.stack,
-      context: context ?? {},
+      context: { ...(context ?? {}), repeatedSinceLastReport: repeats },
       breadcrumbs: breadcrumbs.slice(),
       device: {
         platform: Platform.OS,
