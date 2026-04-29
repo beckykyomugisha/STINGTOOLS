@@ -613,6 +613,31 @@ namespace StingTools.Core
                     StingLog.Warn($"DocumentOpened offline-config reload: {ocEx.Message}");
                 }
 
+                // Phase 165 (NEW-02 / Clash wiring) — lazy-start the ClashScheduler
+                // when a project is opened. Pulls the cadence from the project's
+                // default_clash_matrix.json (SchedulerIntervalMinutes) and falls
+                // back to 60 minutes. Idempotent: re-opens hit Instance.Stop()
+                // first so we don't stack timers across documents.
+                try
+                {
+                    if (TagConfig.AutoStartClashScheduler && e.Document != null && !e.Document.IsFamilyDocument)
+                    {
+                        UIApplication uiAppForClash = UI.StingCommandHandler.CurrentApp;
+                        if (uiAppForClash == null)
+                        {
+                            var revitApp = e.Document.Application;
+                            if (revitApp != null) uiAppForClash = new UIApplication(revitApp);
+                        }
+                        if (uiAppForClash != null)
+                        {
+                            try { Clash.ClashScheduler.Instance.Stop(); } catch { /* first-run no-op */ }
+                            Clash.ClashScheduler.Instance.Start(uiAppForClash, intervalMinutes: 0);
+                            StingLog.Info("ClashScheduler started for active document");
+                        }
+                    }
+                }
+                catch (Exception csEx) { StingLog.Warn($"DocumentOpened ClashScheduler start: {csEx.Message}"); }
+
                 // BIM-CDE-FOLDER-01: Bootstrap the ISO 19650 CDE folder structure
                 // (WIP / SHARED / PUBLISHED / ARCHIVE + per-discipline sub-folders)
                 // on every doc open, idempotent. Disabled via AUTO_CREATE_CDE_FOLDERS=false.

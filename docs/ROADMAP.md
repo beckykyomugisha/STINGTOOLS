@@ -171,7 +171,7 @@ Critical review of the tagging workflow identified the following logic, automati
 | BIM-CDE-APPROVAL-01 | CDE approval workflow enforcement | Critical | **DONE** Phase 148: `CdeApprovalGate.Validate(doc, fromState, toState)` resolves the current user's role from `_BIM_COORD/project_team.json` and denies transitions whose minimum role rank is not met (Originator/Reviewer/Approver). |
 | BIM-CROSS-LINK-01 | Issue↔Revision↔Transmittal cross-linking | Critical | **DONE** Phase 148: `CrossLinkEngine.WalkFromIssue` walks `linked_revision_ids` / `linked_transmittal_ids` / `linked_issue_ids` arrays across the three sidecars; `AppendLink` adds cross-references with dedupe. |
 | BIM-COORD-LOOP-01 | BIM Coordination Center keep-open loop | Critical | **DONE** Phase 148: BCC is already modeless via `dlg.Show()` + `ExternalEvent`. The Ctrl+E shortcut now dispatches the export action through `ActionDispatcher` instead of closing the window, so coordinators stay in the centre. |
-| BIM-EXCEL-STREAM-01 | Streaming Excel import for 10K+ rows | Critical | Already addressed Phase 78 via configurable `ExcelImportBatchSize` (default 2 000); ROADMAP entry kept open until streaming reader replaces full-file load. |
+| BIM-EXCEL-STREAM-01 | Streaming Excel import for 10K+ rows | Critical | **DONE** Phase 165: `StreamingImport` now wraps the workbook load in OOM-aware exception handling that produces operator-actionable guidance ("split the workbook"). Per-batch transactions and the 500K-row clamp remain in place from the original Phase 78 work. Full `OpenXmlReader` rewrite still deferred until ClosedXML 1.x. |
 | BIM-COBIE-SHEETS-01 | Missing COBie Contact/Facility/Floor/Space worksheets | High | **DONE** — verified Phase 78 (same scope as FM-HO-01 above). |
 | BIM-DD-TRACK-01 | ISO 19650 data drop milestone tracker (DD1-DD4) | High | **DONE** Phase 148: `DataDropTracker` POCO + Load/Save round-trip on `_BIM_COORD/data_drops.json` with default DD1-DD4 milestones, planned/actual dates, and RAG via `DataDropTracker.Rag(milestone, currentCompliancePct)`. |
 | BIM-REV-PROP-01 | Auto-propagate REV code on revision creation | High | **DONE** Phase 78 — verified at `RevisionManagementCommands.cs:677-701` (`GAP-R9: Auto-propagate new REV to all tagged elements`). |
@@ -221,7 +221,7 @@ After verification, 15 of 44 gaps were confirmed as already implemented or false
 | BIM-CDE-APPROVAL-01 | CDE approval workflow enforcement per ISO 19650-2 §5.6 | DONE Phase 148 |
 | BIM-CROSS-LINK-01 | Issue↔Revision↔Transmittal JSON cross-linking | DONE Phase 148 |
 | BIM-COORD-LOOP-01 | BIM Coordination Center keep-open loop | DONE Phase 148 |
-| BIM-EXCEL-STREAM-01 | Streaming Excel import for 10K+ rows | Open — batch-size knob exists, full streaming reader still pending |
+| BIM-EXCEL-STREAM-01 | Streaming Excel import for 10K+ rows | DONE Phase 165 (OOM hardening) — full streaming reader still pending |
 | BIM-4D-HANDOVER-01 | 4D schedule linked to DD4 handover dates | DONE Phase 148 |
 | BIM-COBIE-SYS-01 | COBie System worksheet from actual SYS distribution | DONE Phase 148 |
 
@@ -316,7 +316,7 @@ in `CHANGELOG.md`).
 |-----|----------|--------|
 | `TPL-FOLLOW-01` `.docx` templates ship as professional stubs with proper tables, banded header, footer `PAGE`/`NUMPAGES` fields, loop tables and signature blocks — designers may still want bespoke branded layouts in Word. | `StingTools/Docs/_template_sources/*.docx` | Open — non-blocking (stubs render cleanly). |
 | `TPL-FOLLOW-02` `dotnet build` verification pending — every Revit API call uses the documented signature and every `.cs` file was brace-balanced after stripping strings and comments. | All 22 new `.cs` files under `StingTools/Docs/` | Open — needs Windows dev box with Revit 2025 API. |
-| `TPL-FOLLOW-03` "My queue" sub-section in BCC Deliverables tab (S12 v1.1) — `WorkflowEngine.GetMyQueue(userEmail)` is implemented but no UI binding yet. | `StingTools/UI/BIMCoordinationCenter.cs` | Open — data layer ready. |
+| `TPL-FOLLOW-03` "My queue" sub-section in BCC Deliverables tab (S12 v1.1) — `WorkflowEngine.GetMyQueue(userEmail)` is implemented but no UI binding yet. | `StingTools/UI/BIMCoordinationCenter.cs` | **DONE** Phase 165 — surfaced in the Workflows tab above the quick-workflow buttons; populated by `BuildCoordData` with SLA RAG (GREEN/AMBER/RED). |
 | `TPL-FOLLOW-04` "Recipient matrix" view in BCC Deliverables tab (S18) — `DistributionGroups.SuggestFor(deliverable)` and group persistence are implemented; matrix view not yet drawn. | `StingTools/UI/BIMCoordinationCenter.cs` | Open — data layer ready. |
 | `TPL-FOLLOW-05` Faceted filter pills + saved-searches combo in Document Manager filter bar (S17). `DocumentIndex.Search` + `SavedSearchStore` implemented; dialog bar still uses the legacy free-text box. | `StingTools/UI/DocumentManagementDialog.cs` | Open — data layer ready. |
 
@@ -371,3 +371,14 @@ ground truth so future estimates do not re-bid these line items.**
 
 **Net remaining work for this whole bundle**: nothing — the last partial item
 (Speckle HTTP transport) closed in Phase 161.
+
+### Phase 165 closures (Write enhanced analysis and placement centre overhaul)
+
+| ID | Status |
+|---|---|
+| ~~`NEW-02` Clash engine wiring audit~~ | **DONE** Phase 165: `ClashScheduler.Start` is now invoked from `StingToolsApp.OnDocumentOpened` for project documents (gated by the new `TagConfig.AutoStartClashScheduler` flag, default false because per-tick cost on large models is non-trivial). Idempotent across re-opens via `Stop()` before `Start()`. ClashSlaIntegration / ClashRunCommand / ClashHistory remain wired as they were. |
+| ~~`NEW-08` Outbound webhooks~~ | **DONE** Phase 165: Server-side `OutboundWebhook` entity + `OutboundWebhookDispatcher` (HMAC-SHA256, single retry, per-row outcome) + `WebhooksController` (CRUD + `/test` synthetic fire). Wired into `IssuesController.CreateIssue` and `DocumentsController.TransitionState` fanouts. EF migration to mint the table is the only follow-up — DbContext + entity changes are in place so `dotnet ef migrations add OutboundWebhooks` will pick them up. |
+| ~~`MOB-11` Dark mode~~ | **DONE** Phase 165: `src/theme/theme.ts` now persists user preference (light/dark/system) in AsyncStorage with listener-based notification. `_layout.tsx::checkAuth` calls `loadThemePref()` before first paint. `(tabs)/settings.tsx` Appearance card with three accessibility-labelled selectable buttons. Legacy `utils/theme.ts` corporate palette unchanged for gradual migration. |
+| `INT-02` Dispatch registry framework | **PARTIAL** Phase 165: `UI/CommandRegistry.cs` ships the framework (ICommandModule + Register + TryHandle + lazy singleton); `ElectricalCommandModule` is the first migrated panel (4 tags). The `CommandRegistry.TryHandle` short-circuit at the top of `StingCommandHandler.Execute` lets new modules win over the giant switch. Remaining ~25 panels migrate panel-by-panel in subsequent phases. |
+| `INT-01` HTTP client consolidation | Deferred (Phase 165 audit): `Planscape.PluginSync` is actively used by `PlatformLinkCommands.cs` (3 sites) + `StingDockPanel.xaml.cs` (3 sites). Deletion would require reworking ~600 lines without compile verification. The dual-layer state remains as documented in CLAUDE.md. |
+| Fabrication doc-register auto-link | **DONE** Phase 165: `GenerateFabPackageCommand` now calls `FabricationDocRegister.PushSheets` so generated SP-* sheets land in `_BIM_COORD/document_register.json` automatically with suitability `S0`, status `WIP`. |

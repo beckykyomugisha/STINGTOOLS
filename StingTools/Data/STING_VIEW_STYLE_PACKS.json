@@ -826,6 +826,101 @@
           "filterName": "STING - Suitability S3-S4",
           "visible": true,
           "halftone": false
+        },
+        {
+          "filterName": "STING - Phase: Existing",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Phase: New Construction",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Phase: Demolished",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Arch: Fire 30 min Walls",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Arch: Fire 60 min Walls",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Arch: Fire 90 min Walls",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Arch: Fire 120 min Walls",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Arch: Acoustic Walls",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Arch: Load-Bearing Walls",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Arch: External Walls",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Arch: Curtain Wall Systems",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Arch: FD30 Doors",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Arch: FD60 Doors",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Arch: FD90 Doors",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Arch: FD120 Doors",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Arch: Accessible Doors (Part M)",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Arch: Accessible WC Rooms",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Arch: Escape / Refuge Rooms",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - QA: Untagged Elements",
+          "visible": false,
+          "inheritDefaults": true
         }
       ]
     },
@@ -1482,6 +1577,111 @@
           "cutLineColor": "#808080",
           "cutLineWeight": 3,
           "transparency": 20
+        },
+        {
+          "filterName": "STING - HVAC: Supply Air",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - HVAC: Return Air",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - HVAC: Exhaust Air",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - HVAC: Smoke Extract",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - HVAC: Chilled Water Flow",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - HVAC: Chilled Water Return",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - HVAC: LTHW Flow",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - HVAC: LTHW Return",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Plumb: Domestic Cold Water (DCW)",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Plumb: Domestic Hot Water Supply (DHWS)",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Plumb: Foul Above-Ground",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Plumb: Rainwater (RWP)",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Elec: Cable Tray",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Elec: Cable Basket",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Elec: Conduit",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Fire: Wet Sprinkler",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - HVAC: Insulation 25mm",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - HVAC: Insulation 50mm",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Coord: Clash - High Priority",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Coord: Clash - Medium",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Coord: Clash - Low",
+          "visible": true,
+          "inheritDefaults": true
         }
       ]
     },
@@ -2018,6 +2218,26 @@
           "cutLineColor": "#000000",
           "cutLineWeight": 8,
           "transparency": 0
+        },
+        {
+          "filterName": "STING - Phase: Existing",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Phase: New Construction",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Phase: Demolished",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Phase: Temporary",
+          "visible": true,
+          "inheritDefaults": true
         }
       ],
       "textStyle": "STING - 2.5mm",
@@ -2203,6 +2423,106 @@
           "filterName": "STING - Suitability S3-S4",
           "visible": true,
           "halftone": false
+        },
+        {
+          "filterName": "STING - Struct: Concrete",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Struct: Steel",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Struct: Timber",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Struct: Steel UC Columns",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Struct: SHS / RHS Columns",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Struct: CHS Columns",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Struct: UB Primary Beams",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Struct: PFC Channels",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Struct: Pad Footings",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Struct: Strip Footings",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Struct: Raft Foundation",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Struct: Pile Caps",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Struct: Piles",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Struct: Shear Walls",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Struct: Retaining Walls",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Struct: Bracing",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Struct: Precast",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Struct: Rebar ≤12mm",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Struct: Rebar 16-25mm",
+          "visible": true,
+          "inheritDefaults": true
+        },
+        {
+          "filterName": "STING - Struct: Rebar >25mm",
+          "visible": true,
+          "inheritDefaults": true
         }
       ],
       "textStyle": "STING - 2.5mm",
