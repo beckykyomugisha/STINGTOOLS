@@ -211,21 +211,150 @@ namespace StingTools.Core.Drawing
                 try
                 {
                     var filterId = ResolveFilterIdCached(doc, rule.FilterName);
-                    if (filterId == ElementId.InvalidElementId) { r.Warnings.Add($"Filter '{rule.FilterName}' not found — create it first."); continue; }
+
+                    // Phase 139 — lazy-create from AecFilterRegistry if the
+                    // pack references a corporate-baseline filter that
+                    // hasn't been minted in this document yet. The registry
+                    // looks up the definition by name and the factory mints
+                    // it under the active transaction.
+                    if (filterId == ElementId.InvalidElementId)
+                    {
+                        var def = AecFilterRegistry.GetByName(doc, rule.FilterName);
+                        if (def != null)
+                        {
+                            var f = AecFilterFactory.FindOrCreate(doc, def);
+                            if (f.Ok && f.Filter != null)
+                            {
+                                filterId = f.Filter.Id;
+                                InvalidateCache(doc); // rebuild cache so other refs hit
+                                if (f.Warnings.Count > 0)
+                                    foreach (var w in f.Warnings) r.Warnings.Add($"Filter '{rule.FilterName}': {w}");
+                            }
+                            else if (!string.IsNullOrEmpty(f.Error))
+                            {
+                                r.Warnings.Add($"Filter '{rule.FilterName}' lazy-create failed: {f.Error}");
+                            }
+                        }
+                        if (filterId == ElementId.InvalidElementId)
+                        {
+                            r.Warnings.Add($"Filter '{rule.FilterName}' not found and not in AEC registry — skipped.");
+                            continue;
+                        }
+                    }
 
                     if (!view.GetFilters().Contains(filterId))
                         view.AddFilter(filterId);
 
+                    // Phase 139 — merge corporate-baseline default override
+                    // for filters that came from the registry. Pack-level
+                    // fields always win.
+                    FilterDefaultOverride defaults = null;
+                    if (rule.InheritDefaults != false)
+                    {
+                        var def = AecFilterRegistry.GetByName(doc, rule.FilterName);
+                        defaults = def?.DefaultOverride;
+                    }
+
                     var ogs = view.GetFilterOverrides(filterId) ?? new OverrideGraphicSettings();
-                    if (rule.ProjectionLineWeight.HasValue) ogs.SetProjectionLineWeight(rule.ProjectionLineWeight.Value);
-                    if (!string.IsNullOrEmpty(rule.ProjectionLineColor)) ogs.SetProjectionLineColor(HexColor(rule.ProjectionLineColor));
-                    if (rule.CutLineWeight.HasValue)        ogs.SetCutLineWeight(rule.CutLineWeight.Value);
-                    if (!string.IsNullOrEmpty(rule.CutLineColor))        ogs.SetCutLineColor(HexColor(rule.CutLineColor));
-                    if (rule.Transparency.HasValue)         ogs.SetSurfaceTransparency(Clamp(rule.Transparency.Value, 0, 100));
-                    ogs.SetHalftone(rule.Halftone);
+
+                    // Projection line
+                    var projColor = rule.ProjectionLineColor ?? defaults?.ProjColor;
+                    if (!string.IsNullOrEmpty(projColor)) ogs.SetProjectionLineColor(HexColor(projColor));
+                    var projWeight = rule.ProjectionLineWeight ?? defaults?.ProjWeight;
+                    if (projWeight.HasValue) ogs.SetProjectionLineWeight(projWeight.Value);
+                    var projLp = rule.ProjectionLinePattern ?? defaults?.ProjLinePattern;
+                    if (!string.IsNullOrEmpty(projLp))
+                    {
+                        var pid = ResolveLinePattern(doc, projLp);
+                        if (pid != ElementId.InvalidElementId) ogs.SetProjectionLinePatternId(pid);
+                    }
+
+                    // Cut line
+                    var cutColor = rule.CutLineColor ?? defaults?.CutColor;
+                    if (!string.IsNullOrEmpty(cutColor)) ogs.SetCutLineColor(HexColor(cutColor));
+                    var cutWeight = rule.CutLineWeight ?? defaults?.CutWeight;
+                    if (cutWeight.HasValue) ogs.SetCutLineWeight(cutWeight.Value);
+                    var cutLp = rule.CutLinePattern ?? defaults?.CutLinePattern;
+                    if (!string.IsNullOrEmpty(cutLp))
+                    {
+                        var pid = ResolveLinePattern(doc, cutLp);
+                        if (pid != ElementId.InvalidElementId) ogs.SetCutLinePatternId(pid);
+                    }
+
+                    // Surface foreground / background patterns
+                    var sfgColor = rule.SurfaceFgColor ?? defaults?.SurfFgColor;
+                    if (!string.IsNullOrEmpty(sfgColor)) ogs.SetSurfaceForegroundPatternColor(HexColor(sfgColor));
+                    var sfgPattern = rule.SurfaceFgPattern ?? defaults?.SurfFgPattern;
+                    if (!string.IsNullOrEmpty(sfgPattern))
+                    {
+                        var fid = ResolveFillPattern(doc, sfgPattern);
+                        if (fid != ElementId.InvalidElementId)
+                        {
+                            ogs.SetSurfaceForegroundPatternId(fid);
+                            try { ogs.SetSurfaceForegroundPatternVisible(true); } catch { }
+                        }
+                    }
+                    var sbgColor = rule.SurfaceBgColor ?? defaults?.SurfBgColor;
+                    if (!string.IsNullOrEmpty(sbgColor)) ogs.SetSurfaceBackgroundPatternColor(HexColor(sbgColor));
+                    var sbgPattern = rule.SurfaceBgPattern ?? defaults?.SurfBgPattern;
+                    if (!string.IsNullOrEmpty(sbgPattern))
+                    {
+                        var fid = ResolveFillPattern(doc, sbgPattern);
+                        if (fid != ElementId.InvalidElementId)
+                        {
+                            ogs.SetSurfaceBackgroundPatternId(fid);
+                            try { ogs.SetSurfaceBackgroundPatternVisible(true); } catch { }
+                        }
+                    }
+
+                    // Cut foreground / background patterns (fire-rated walls etc.)
+                    var cfgColor = rule.CutFgColor ?? defaults?.CutFgColor;
+                    if (!string.IsNullOrEmpty(cfgColor)) ogs.SetCutForegroundPatternColor(HexColor(cfgColor));
+                    var cfgPattern = rule.CutFgPattern ?? defaults?.CutFgPattern;
+                    if (!string.IsNullOrEmpty(cfgPattern))
+                    {
+                        var fid = ResolveFillPattern(doc, cfgPattern);
+                        if (fid != ElementId.InvalidElementId)
+                        {
+                            ogs.SetCutForegroundPatternId(fid);
+                            try { ogs.SetCutForegroundPatternVisible(true); } catch { }
+                        }
+                    }
+                    var cbgColor = rule.CutBgColor ?? defaults?.CutBgColor;
+                    if (!string.IsNullOrEmpty(cbgColor)) ogs.SetCutBackgroundPatternColor(HexColor(cbgColor));
+                    var cbgPattern = rule.CutBgPattern ?? defaults?.CutBgPattern;
+                    if (!string.IsNullOrEmpty(cbgPattern))
+                    {
+                        var fid = ResolveFillPattern(doc, cbgPattern);
+                        if (fid != ElementId.InvalidElementId)
+                        {
+                            ogs.SetCutBackgroundPatternId(fid);
+                            try { ogs.SetCutBackgroundPatternVisible(true); } catch { }
+                        }
+                    }
+
+                    // Transparency
+                    var transp = rule.Transparency ?? defaults?.Transparency;
+                    if (transp.HasValue) ogs.SetSurfaceTransparency(Clamp(transp.Value, 0, 100));
+
+                    // Halftone — pack flag wins; default override falls through.
+                    bool halftone = rule.Halftone || (defaults?.Halftone == true);
+                    ogs.SetHalftone(halftone);
+
+                    // Detail level — Revit 2023+ override.
+                    var dlStr = rule.DetailLevel ?? defaults?.DetailLevel;
+                    if (!string.IsNullOrEmpty(dlStr) &&
+                        Enum.TryParse<ViewDetailLevel>(dlStr, true, out var dl))
+                    {
+                        try { ogs.SetDetailLevel(dl); } catch { /* < 2023 */ }
+                    }
 
                     view.SetFilterOverrides(filterId, ogs);
-                    view.SetFilterVisibility(filterId, rule.Visible);
+
+                    // Visibility — pack rule wins; otherwise default override visible flag; default true.
+                    bool visible = rule.Visible;
+                    if (defaults?.Visible.HasValue == true && rule.Visible) visible = defaults.Visible.Value;
+                    view.SetFilterVisibility(filterId, visible);
                     r.FiltersApplied++;
                 }
                 catch (Exception ex) { r.Warnings.Add($"Filter '{rule.FilterName}': {ex.Message}"); }

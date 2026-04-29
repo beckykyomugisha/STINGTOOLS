@@ -287,6 +287,67 @@ Typo-prevention pass replaces free-text TextBoxes with dropdowns for fill patter
 4. `IUpdater`-based live style propagation (automatic re-apply when a profile / pack changes in-session) is not implemented — the manual `SyncStyles` command covers the same ground on demand. Runtime cost vs. always-on drift-zero trade-off means this stays deferred.
 5. `TitleBlockParamApplier` writes the first title-block instance found on a sheet. Sheets hosting multiple title blocks (unusual) only get the first one populated — the applier warns and moves on.
 
+### Phase 165 — AEC/FM Corporate Filter Library (199 filters)
+
+A complete corporate-baseline `ParameterFilterElement` library for the
+Drawing Template Manager. Until this phase, `ViewStylePackApplier` could
+*reference* filters by name but couldn't *create* them — the only filter
+factory in the codebase was the hard-coded ~40-filter
+`TemplateCommands.CreateFiltersCommand`. Phase 165 adds a full
+JSON-defined registry with 199 filter definitions covering every
+discipline an AEC/FM firm produces drawings for, plus matching
+`OverrideGraphicSettings` recipes per BS 1192 / ISO 19650 / Uniclass 2015 /
+BS 1710 / ASME A13.1 / GSA MEP / CIBSE-SDE / BS 9999 / BS 8300 /
+BIMForum LOD.
+
+**New files**
+
+| Path | Role |
+|---|---|
+| `StingTools/Data/STING_AEC_FILTERS.json` | 199 definitions: 47 Arch · 33 HVAC · 31 Struct · 30 Fire · 27 Elec · 18 Plumb · 11 FM/COBie · 8 ISO 19650 · 8 Coord/LOD · 5 VT · 5 QA |
+| `StingTools/Core/Drawing/AecFilterDefinition.cs` | POCO + rule grammar (`leaf | compound`, 14 operators, `kind=builtin/shared/phase/workset/level`) |
+| `StingTools/Core/Drawing/AecFilterRegistry.cs` | Per-document loader; layers `<project>/_BIM_COORD/aec_filters.json` over corporate; `Get` / `GetByName` / `ListAll` / `ListByTag` / `Reload` |
+| `StingTools/Core/Drawing/AecFilterFactory.cs` | JSON rule tree → `LogicalAnd`/`OrFilter` + `ElementParameterFilter` + `ParameterFilterElement.Create`; resolves built-in / shared / phase / workset / level params; sniffs storage type via `Definition.GetDataType()` |
+| `StingTools/Commands/Drawing/AecFilterCommands.cs` | `AecFiltersCreate` (mint all into doc, idempotent) / `AecFiltersInspect` (read-only diagnostic) / `AecFiltersReload` (cache invalidate) |
+| `docs/AEC_FILTER_LIBRARY.md` | Reference doc — rule grammar, override recipe, lazy-create flow, standards table, per-drawing-type filter sets |
+
+**Wiring**
+
+`ViewStylePackApplier.ApplyFilterRules` now lazy-creates missing filters
+from the registry under the active transaction (was: warned "create it
+first" and skipped). Field-by-field merge: pack `StyleFilterRule` field
+wins → registry `defaultOverride` fills nulls when `inheritDefaults != false`
+→ Revit default. `StyleFilterRule` extended with 11 fields covering surface
+foreground/background patterns + line patterns + `detailLevel` to support
+fire-rated wall washes and CIBSE-SDE pipe colour fills properly. Schema-key
+drift fixed: `ViewStylePackLibrary` now accepts both `stylePacks` and
+`viewStylePacks`; `ViewStylePack.filters` ↔ `filterRules`; short-form
+field names (`name`/`projColor`/`projWeight`/`cutColor`/`cutWeight`)
+deserialise alongside long-form. The corporate `STING_VIEW_STYLE_PACKS.json`
+is now actually consumed at runtime for the first time.
+
+**Curated filter references**
+
+Four major packs populated with 64 filter references using
+`inheritDefaults: true` — they pull the corporate-baseline override
+styling without redefining it: `corp-coordination` (21 — MEP services +
+clash + insulation), `corp-standard-plan` (19 — phase + fire-rated walls
+/ doors + accessibility + escape), `corp-structural-plan` (20 — material
++ steel sections + foundations + bracing + rebar bands),
+`corp-demolition-phase` (4 — phase rules with full corporate styling).
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox). API calls
+   target Revit 2025/2026/2027: `paramId.Value` (Int64) replaces
+   deprecated `IntegerValue`; `Definition.GetDataType()` (ForgeTypeId)
+   replaces `ParameterType`.
+2. Categories that don't exist in the target Revit version are silently
+   dropped with a warning; if all drop, the filter creation is skipped.
+3. Shared parameters referenced by `kind: "shared"` must be bound on the
+   project before the filter can be created — the factory warns + skips
+   gracefully rather than failing the whole batch.
+
 ## Template Engine v1.1 (Phase 112)
 
 **Status**: S01–S18 landed on `claude/implement-template-engine-COd9n`
