@@ -1,0 +1,20 @@
+# STING — Phase 168 — Match-line shared parameters
+#
+# Three project-shared parameters bound to OST_Lines (Detail Lines) +
+# OST_GenericAnnotation (tag family). Used by MatchLineEngine to stamp
+# paired sheet refs, pair GUIDs, and direction onto every auto-placed
+# match line so re-runs find existing pairs and drift detection can
+# verify the pair is still valid.
+#
+# Append to the project's shared parameter file (or load via
+# Tags.LoadSharedParamsCommand which honours the file fragment format).
+
+# GUID                                  Name                        DataCategory  TypeOfParameter  GroupOfParameter   Visible
+A6B7C8D9-EAFB-4ACC-5D6E-7F8A9BACDBEC    STING_MATCH_REF_TXT         TEXT          0                STRUCTURAL_STRUCT  1
+A7B8C9DA-FBAC-4BCD-6E7F-8A9BACDBECFD    STING_MATCH_LINE_GUID_TXT   TEXT          0                STRUCTURAL_STRUCT  1
+A8B9CADB-ACBD-4CDE-7F8A-9BACDBECFDAE    STING_MATCH_DIR_TXT         TEXT          0                STRUCTURAL_STRUCT  1
+
+# Bind targets (handled by MatchLineEngine.EnsureBindings):
+#   - STING_MATCH_REF_TXT       → OST_Lines, OST_GenericAnnotation, OST_Views
+#   - STING_MATCH_LINE_GUID_TXT → OST_Lines, OST_GenericAnnotation
+#   - STING_MATCH_DIR_TXT       → OST_Lines, OST_GenericAnnotation

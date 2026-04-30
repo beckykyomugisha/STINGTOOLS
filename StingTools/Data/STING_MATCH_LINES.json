@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "name": "STING Match-Line configuration",
+  "description": "Drives the MatchLineEngine — adjacency tolerance, line + symbol family names, caption templates, drift behaviour.",
+  "lastUpdated": "2026-04-30",
+
+  "adjacency": {
+    "coplanarToleranceMm": 1.0,
+    "minOverlapMm": 100.0,
+    "ignoreCornerTouches": true,
+    "considerLevelMatch": true
+  },
+
+  "geometry": {
+    "lineStyleName": "STING - Match Line",
+    "fallbackLineStyleName": "Medium Lines",
+    "marginFromCropMm": 0.0,
+    "extendBeyondCropMm": 25.0,
+    "drawOnBothSides": true
+  },
+
+  "captions": {
+    "tagFamilyName": "STING_TAG_MATCHLINE",
+    "fallbackTextNoteTypeName": "STING - 2.5mm",
+    "tipPlacement": "BothEnds",
+    "tipFormat": "see {paired_ref} →",
+    "midPlacement": "Centre",
+    "midFormat": "MATCH LINE — see {paired_ref}"
+  },
+
+  "stamping": {
+    "writePairGuid": true,
+    "writeDirection": true,
+    "writePairedRef": true,
+    "stampViewWithMatchLineCount": true
+  },
+
+  "validation": {
+    "warnIfRefMissingInBundle": true,
+    "warnIfPairedSheetRenumbered": true,
+    "warnIfScopeBoxMoved": true
+  },
+
+  "discipline": {
+    "tintByDiscipline": true,
+    "colorMap": {
+      "A":  "#000000",
+      "S":  "#C00000",
+      "M":  "#1976D2",
+      "E":  "#E6A800",
+      "P":  "#2E7D32",
+      "FP": "#E60000",
+      "LV": "#7B1FA2",
+      "G":  "#6D4C41"
+    }
+  }
+}

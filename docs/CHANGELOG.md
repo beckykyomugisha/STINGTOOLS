@@ -9230,3 +9230,167 @@ lands.
    `ViewStylePackApplier.Apply` and `ApplyPresetOverrides`. Deferred
    to a follow-up — the value is populated correctly so the multiplier
    commit can flip the switch with no JSON re-edit.
+
+#### Completed (Phase 168 — Match-line subsystem: scope-box adjacency engine + paired-curve auto-placement)
+
+The match-line subsystem closes the loop on auto-produced multi-sheet
+drawings. Until now, the user manually drew match-lines on each sheet
+and typed the cross-reference back-link. Phase 168 walks the scope-box
+adjacency graph and emits paired DetailCurve annotations + tip
+captions automatically, idempotent on re-run, with drift detection
+when scope boxes move or sheets are renumbered.
+
+**New files**
+
+| Path | Lines | Purpose |
+|---|---|---|
+| `StingTools/Core/Drawing/MatchLineConfig.cs` | 140 | Config POCO + JSON registry — corporate baseline + project override at `<project>/_BIM_COORD/match_lines.json` |
+| `StingTools/Core/Drawing/MatchLineEngine.cs` | 667 | Scope-box discovery, AABB adjacency detection, view-by-scope index, sheet-ref resolution, paired DetailCurve placement, tip-caption TextNote placement, orphan pruning, validation report |
+| `StingTools/Commands/Drawing/MatchLineCommands.cs` | 191 | Four IExternalCommand entry points: `MatchLineGenerate`, `MatchLineSync`, `MatchLineValidate`, `MatchLineInspect` |
+| `StingTools/Data/STING_MATCH_LINES.json` | 50 | Corporate baseline: tolerance 1 mm coplanar / 100 mm min overlap, line-style `STING - Match Line` (fallback `Medium Lines`), 25 mm extension beyond crop, captions on both ends, 8-discipline tint map |
+| `StingTools/Data/STING_PARAMS_MATCHLINE.txt` | 18 | Shared parameter fragment for `STING_MATCH_REF_TXT` + `STING_MATCH_LINE_GUID_TXT` + `STING_MATCH_DIR_TXT` (3 GUIDs) |
+
+**Modified files**
+
+| Path | Change |
+|---|---|
+| `StingTools/Core/ParamRegistry.cs` | + 6 const lines (3 names + 3 GUIDs) under new "Phase 168 — Match-line subsystem" section after the Phase 137 production-stamp block |
+
+**Engine pipeline**
+
+`MatchLineEngine.Run(doc, opts)` is the single entry point. Internal
+flow:
+
+1. `CollectScopeBoxes(doc, disciplineFilter)` — `FilteredElementCollector`
+   on `OST_VolumeOfInterest`, optional discipline-prefix filter
+   matching the Week 5 scope-box auto-binder convention
+   (`STING::arch-plan-A1::L01::west`).
+2. `ComputeAdjacency(boxes, cfg)` — O(n²) over scope-box pairs.
+   Tests four shared-face orientations (A.east=B.west, A.west=B.east,
+   A.north=B.south, A.south=B.north). Coplanar within
+   `adjacency.coplanarToleranceMm` (default 1 mm) AND perpendicular
+   span overlap ≥ `adjacency.minOverlapMm` (default 100 mm) — guards
+   against corner-touch false positives. Direction tagged
+   "vertical" / "horizontal". Returns `ScopeBoxAdjacency` records
+   with deterministic `PairGuid` (SHA-256 of sorted scope-box
+   UniqueIds, first 16 bytes formatted as GUID — same pair always
+   yields the same id).
+3. `BuildViewByScopeIndex(doc)` — maps `scopeBoxId.Value → List<View>`
+   via `BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP`. Filters to
+   plan / section / elevation views; templates excluded.
+4. `BuildExistingPairIndex(doc)` — indexes already-placed match-line
+   `DetailCurve` elements by `STING_MATCH_LINE_GUID_TXT` stamp so
+   re-runs find existing pairs in O(1).
+5. `PlaceOrUpdatePair` (one transaction, per edge) — for each
+   (viewA, viewB) at the same level (when `considerLevelMatch` true),
+   resolves the paired sheet ref via `ResolveSheetRef` (reads
+   `STING_SHEET_FULL_REF_TXT` on the sheet hosting each view, falls
+   back to `Sheet Number`), checks if existing pair's refs are
+   current via `AllRefsMatch` (no-op when current and not
+   `forceRestamp`), otherwise deletes the prior pair and places fresh
+   `DetailCurve` instances on both views. Curves stamped with
+   `STING_MATCH_REF_TXT` (paired sheet ref), `STING_MATCH_LINE_GUID_TXT`
+   (per-(scope-pair, viewA, viewB) GUID), `STING_MATCH_DIR_TXT`
+   (vertical/horizontal). Optional `extendBeyondCropMm` lengthens the
+   line so it visibly breaks the crop edge instead of stopping at it.
+6. Tip captions — two `TextNote.Create` calls per curve at the
+   line endpoints (`tipPlacement: BothEnds` default) with
+   `tipFormat: "see {paired_ref} →"`. Phase II refinement: tag
+   family `STING_TAG_MATCHLINE` (annotation symbol with rotation +
+   leader) preferred when loaded; current implementation falls back
+   to the project's `STING - 2.5mm` text type.
+7. `PruneOrphans` — when `opts.PruneOrphans` true (default), every
+   stamped curve whose scope-pair GUID prefix isn't in the live
+   adjacency edge set is deleted. Catches the "scope boxes no
+   longer adjacent" case after a layout reorganisation.
+
+**Commands wired**
+
+| Tag | Class | Transaction | Purpose |
+|---|---|---|---|
+| `MatchLine_Generate` | `MatchLineGenerateCommand` | Manual | Full sweep — idempotent, prunes orphans |
+| `MatchLine_Sync`     | `MatchLineSyncCommand`     | Manual | Force re-stamp every pair (after sheet renumber) |
+| `MatchLine_Validate` | `MatchLineValidateCommand` | ReadOnly | Audit — broken refs, missing pairs, count mismatch |
+| `MatchLine_Inspect`  | `MatchLineInspectCommand`  | ReadOnly | Diagnostic — list every adjacency edge with direction + scope-box names + line endpoints |
+
+The four commands are not yet wired into `StingCommandHandler.Execute`
+or the dock panel — that integration is the natural Phase 169 next
+step (the giant switch in `StingCommandHandler` is risky to touch
+without compile verification, so it stays for a follow-up that can
+be Revit-tested).
+
+**Param registry additions**
+
+Three new constants under `StingTools.Core.ParamRegistry`:
+
+```csharp
+public const string MATCH_REF       = "STING_MATCH_REF_TXT";
+public const string MATCH_REF_GUID  = "A6B7C8D9-EAFB-4ACC-5D6E-7F8A9BACDBEC";
+public const string MATCH_LINE_GUID = "STING_MATCH_LINE_GUID_TXT";
+public const string MATCH_LINE_GUID_GUID = "A7B8C9DA-FBAC-4BCD-6E7F-8A9BACDBECFD";
+public const string MATCH_DIR       = "STING_MATCH_DIR_TXT";
+public const string MATCH_DIR_GUID  = "A8B9CADB-ACBD-4CDE-7F8A-9BACDBECFDAE";
+```
+
+Bind targets (load via `Tags.LoadSharedParamsCommand`):
+`OST_Lines` for the DetailCurves, `OST_GenericAnnotation` for the
+future tag family, `OST_Views` for the per-view stamp count.
+
+**What this delivers**
+
+- Match lines auto-placed wherever two scope boxes share a face — no
+  manual draw, no cross-reference typo.
+- Idempotent re-runs — placing twice yields no duplicate; updates in
+  place when the resolved sheet ref changes.
+- Drift detection via `MatchLine_Validate` — surfaces orphan curves,
+  broken refs, missing pairs.
+- Sheet-renumber resilience via `MatchLine_Sync` — every stamped ref
+  re-resolves against the latest sheet numbers.
+- Bundle-validator hook (Phase 169) — the validator can now scan
+  every `STING_MATCH_REF_TXT` in a transmittal bundle and warn when
+  a paired sheet isn't included.
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox, no
+   Revit API). Brace + paren balance verified across all three new
+   `.cs` files. Every Revit API signature checked against existing
+   usage in the same codebase (`doc.Create.NewDetailCurve`,
+   `BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP`,
+   `dc.LineStyle = doc.GetElement(...)`, `TextNote.Create`,
+   `Category.GetGraphicsStyle`). Reviewer should confirm in Revit.
+2. Dog-leg adjacency (multiple shared faces between the same scope
+   pair) currently emits one `ScopeBoxAdjacency` record per face —
+   visually correct (multiple match-line segments) but conceptually
+   one pair. Phase II refinement: simplify into a polyline detail
+   curve via `Douglas-Peucker` with 25 mm tolerance.
+3. Tag family `STING_TAG_MATCHLINE` (annotation symbol with rotation
+   + leader) is referenced but not yet authored. Engine falls back
+   to `TextNote.Create` with the `STING - 2.5mm` text type — visually
+   acceptable but doesn't carry the chevron arrow graphic. Author
+   the .rfa in Phase 169.
+4. The `IUpdater` for live drift detection (re-run on scope-box
+   geometry change) is NOT wired in this commit — adding it requires
+   careful registration in `StingToolsApp.OnStartup` plus an
+   `OnDocumentOpened` re-arm path. Manual `MatchLine_Sync` covers
+   the same ground on demand. Updater registration deferred to
+   Phase 169.
+5. Commands are not wired into `StingCommandHandler.Execute` or the
+   dock panel — the 4,800-line switch statement is risky to touch
+   without compile verification. Phase 169 wires them and adds a
+   "Match Lines" sub-tab to the DOCS panel.
+6. Discipline tinting (`discipline.tintByDiscipline` = true) per the
+   shipped colour map is read from the config but not yet applied —
+   the engine uses the line style's default colour. Phase II hook is
+   to write `OverrideGraphicSettings` per curve with the per-disc
+   colour from `discipline.colorMap`.
+
+**Files**
+
+- `StingTools/Core/Drawing/MatchLineConfig.cs` — NEW (140)
+- `StingTools/Core/Drawing/MatchLineEngine.cs` — NEW (667)
+- `StingTools/Commands/Drawing/MatchLineCommands.cs` — NEW (191)
+- `StingTools/Data/STING_MATCH_LINES.json` — NEW (50)
+- `StingTools/Data/STING_PARAMS_MATCHLINE.txt` — NEW (18)
+- `StingTools/Core/ParamRegistry.cs` (+12 lines)
+- `docs/CHANGELOG.md` — this entry
