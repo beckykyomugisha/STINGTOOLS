@@ -82,18 +82,46 @@
     if (walkActive) {
       walkClock = new THREE.Clock();
       attachWalkInput(h);
-      const eyeHeight = 1.7; // metres — assume mm units, see eyeFromBounds
-      const startY = h.modelBounds.min.y + eyeFromBounds(h.modelBounds);
+      // Auto-detect the up axis from bounds shape. Buildings have the
+      // smallest extent on their vertical axis (height < width × depth).
+      // Revit GLBs are Z-up; web glTF is Y-up. The walkthrough picks the
+      // axis with the smallest span as "up" and aligns camera.up to it.
+      const sz = h.modelBounds.getSize(new THREE.Vector3());
+      const upAxis = pickUpAxis(sz);
+      h.camera.up.set(upAxis.x, upAxis.y, upAxis.z);
+      const eye = eyeFromBounds(h.modelBounds);
       const c = h.modelBounds.getCenter(new THREE.Vector3());
-      h.camera.position.set(c.x, startY, c.z);
-      h.camera.lookAt(c.x + 1, startY, c.z);
-      h.bridge.send('walkthrough', { active: true });
+      // Position camera at floor + eye height along the chosen up axis.
+      const floor = upAxis.x ? h.modelBounds.min.x
+                  : upAxis.y ? h.modelBounds.min.y
+                             : h.modelBounds.min.z;
+      const pos = c.clone();
+      if (upAxis.x) pos.x = floor + eye;
+      else if (upAxis.y) pos.y = floor + eye;
+      else pos.z = floor + eye;
+      h.camera.position.copy(pos);
+      // Look towards a point one metre forward along an axis perpendicular
+      // to the up axis so the view starts roughly horizontal.
+      const lookAt = pos.clone();
+      if (upAxis.x) lookAt.y += 1; else lookAt.x += 1;
+      h.camera.lookAt(lookAt);
+      walkUp = upAxis;
+      h.bridge.send('walkthrough', { active: true, upAxis: upAxis.toArray() });
     } else {
       detachWalkInput();
       walkVelocity.set(0, 0, 0);
       h.bridge.send('walkthrough', { active: false });
     }
   };
+
+  let walkUp = new THREE.Vector3(0, 1, 0);
+
+  function pickUpAxis(sz) {
+    const ax = Math.abs(sz.x), ay = Math.abs(sz.y), az = Math.abs(sz.z);
+    if (az <= ax && az <= ay) return new THREE.Vector3(0, 0, 1);
+    if (ay <= ax && ay <= az) return new THREE.Vector3(0, 1, 0);
+    return new THREE.Vector3(1, 0, 0);
+  }
 
   function eyeFromBounds(b) {
     const sz = b.getSize(new THREE.Vector3());
@@ -149,8 +177,12 @@
     const dt = walkClock.getDelta();
     const speed = Math.max(h.modelBounds.getSize(new THREE.Vector3()).length() * 0.05, 1);
     const fwd = new THREE.Vector3();
-    h.camera.getWorldDirection(fwd); fwd.y = 0; fwd.normalize();
-    const right = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
+    h.camera.getWorldDirection(fwd);
+    // Project fwd onto the plane perpendicular to walkUp so movement stays
+    // horizontal regardless of where the camera is currently pitched.
+    const dot = fwd.dot(walkUp);
+    fwd.addScaledVector(walkUp, -dot).normalize();
+    const right = new THREE.Vector3().crossVectors(fwd, walkUp).normalize();
     walkVelocity.set(0, 0, 0)
       .addScaledVector(fwd, walkInput.fwd * speed)
       .addScaledVector(right, walkInput.right * speed);

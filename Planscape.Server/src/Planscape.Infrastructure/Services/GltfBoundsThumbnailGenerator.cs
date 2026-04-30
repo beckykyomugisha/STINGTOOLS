@@ -72,15 +72,40 @@ public class GltfBoundsThumbnailGenerator : IModelThumbnailGenerator
         var json = System.Text.Encoding.UTF8.GetString(jsonBytes).TrimEnd('\0', ' ');
         using var doc = System.Text.Json.JsonDocument.Parse(json);
 
+        // Walk meshes → primitives → attributes.POSITION to collect only the
+        // POSITION accessor indices. Unioning every VEC3 accessor would pull
+        // in NORMAL (range -1..1) and TANGENT, which contaminate the box.
+        var positionAccessors = new HashSet<int>();
+        if (doc.RootElement.TryGetProperty("meshes", out var meshes))
+        {
+            foreach (var mesh in meshes.EnumerateArray())
+            {
+                if (!mesh.TryGetProperty("primitives", out var prims)) continue;
+                foreach (var prim in prims.EnumerateArray())
+                {
+                    if (!prim.TryGetProperty("attributes", out var attrs)) continue;
+                    if (attrs.TryGetProperty("POSITION", out var posIdx) && posIdx.ValueKind == System.Text.Json.JsonValueKind.Number)
+                        positionAccessors.Add(posIdx.GetInt32());
+                }
+            }
+        }
+
         double minX = double.MaxValue, minY = double.MaxValue, minZ = double.MaxValue;
         double maxX = double.MinValue, maxY = double.MinValue, maxZ = double.MinValue;
         bool any = false;
 
         if (doc.RootElement.TryGetProperty("accessors", out var accs))
         {
+            int idx = 0;
             foreach (var a in accs.EnumerateArray())
             {
-                if (!a.TryGetProperty("type", out var t) || t.GetString() != "VEC3") continue;
+                int thisIdx = idx++;
+                // If we found POSITION refs, restrict to those; otherwise fall
+                // back to "any VEC3 with min/max" so old/odd glTFs still work.
+                bool isPosition = positionAccessors.Count > 0
+                    ? positionAccessors.Contains(thisIdx)
+                    : (a.TryGetProperty("type", out var t) && t.GetString() == "VEC3");
+                if (!isPosition) continue;
                 if (!a.TryGetProperty("min", out var mn) || !a.TryGetProperty("max", out var mx)) continue;
                 if (mn.GetArrayLength() < 3 || mx.GetArrayLength() < 3) continue;
                 double aMinX = mn[0].GetDouble(), aMinY = mn[1].GetDouble(), aMinZ = mn[2].GetDouble();
