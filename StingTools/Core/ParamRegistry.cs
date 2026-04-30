@@ -644,7 +644,12 @@ namespace StingTools.Core
         public static void RegisterParagraphContainer(string categoryName, string paramName)
         {
             if (!string.IsNullOrEmpty(categoryName) && !string.IsNullOrEmpty(paramName))
+            {
                 _paragraphContainers[categoryName] = paramName;
+                // Phase 165 perf — invalidate the AllParagraphContainers cache
+                // so the next reader rebuilds it including this entry.
+                _allParagraphContainersCache = null;
+            }
         }
 
         /// <summary>Get the paragraph container param name for a category (null if none).</summary>
@@ -657,13 +662,33 @@ namespace StingTools.Core
         /// <summary>
         /// Phase 165 — Issue #22. Distinct paragraph-container parameter names
         /// across every category, used by WriteTag7All to clear stale entries
-        /// before writing the new narrative. Returns an empty enumerable if no
-        /// containers are registered.
+        /// before writing the new narrative.
+        ///
+        /// Phase 165 perf — materialised once into a string[] on first call,
+        /// invalidated by RegisterParagraphContainer (which sets the field
+        /// back to null). Replaces a LINQ chain that allocated an iterator
+        /// + a HashSet for Distinct on every WriteTag7All call (~1000 elements
+        /// × ~47 containers in a typical model = wasted millions of cycles).
         /// </summary>
-        public static IEnumerable<string> AllParagraphContainers
-            => _paragraphContainers.Values
-                .Where(v => !string.IsNullOrEmpty(v))
-                .Distinct(StringComparer.Ordinal);
+        private static string[] _allParagraphContainersCache;
+        public static string[] AllParagraphContainers
+        {
+            get
+            {
+                var cache = _allParagraphContainersCache;
+                if (cache != null) return cache;
+                var seen = new HashSet<string>(StringComparer.Ordinal);
+                var list = new List<string>(_paragraphContainers.Count);
+                foreach (var v in _paragraphContainers.Values)
+                {
+                    if (string.IsNullOrEmpty(v)) continue;
+                    if (seen.Add(v)) list.Add(v);
+                }
+                cache = list.ToArray();
+                _allParagraphContainersCache = cache;
+                return cache;
+            }
+        }
 
         /// <summary>All 10 paragraph state parameter names indexed by tier (1-based: index 0 = state 1).</summary>
         // PERF-010 FIX: Cache array to avoid per-access allocation in hot loops (WriteTag7All)
@@ -945,16 +970,47 @@ namespace StingTools.Core
         public static TagMode GetActiveTagMode(Document doc)
         {
             if (doc == null) return TagMode.DC;
+
+            // Phase 165 perf — doc-keyed mode cache. WriteTag7All used to call
+            // this per element; for a 1000-element batch that was 3000
+            // LookupParameter calls on ProjectInformation per second tag pass.
+            // Cache by doc.PathName (cheap key, stable for the duration of a
+            // doc session). InvalidateModeCache flips it on Reload /
+            // SetActiveTagMode.
+            string key = doc.PathName ?? doc.Title ?? string.Empty;
+            if (_modeCache.TryGetValue(key, out var cached)) return cached;
+
+            TagMode resolved = TagMode.DC;
             try
             {
                 var pi = doc.ProjectInformation;
-                if (pi == null) return TagMode.DC;
-                if (ReadBoolParam(pi, MODE_HANDOVER)) return TagMode.Handover;
-                if (ReadBoolParam(pi, MODE_CUSTOM))   return TagMode.Custom;
-                if (ReadBoolParam(pi, MODE_DC))       return TagMode.DC;
-                return TagMode.DC;
+                if (pi != null)
+                {
+                    if      (ReadBoolParam(pi, MODE_HANDOVER)) resolved = TagMode.Handover;
+                    else if (ReadBoolParam(pi, MODE_CUSTOM))   resolved = TagMode.Custom;
+                    else                                        resolved = TagMode.DC;
+                }
             }
-            catch { return TagMode.DC; }
+            catch { resolved = TagMode.DC; }
+
+            _modeCache[key] = resolved;
+            return resolved;
+        }
+
+        // Phase 165 perf — doc-keyed cache for GetActiveTagMode.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, TagMode>
+            _modeCache = new System.Collections.Concurrent.ConcurrentDictionary<string, TagMode>(StringComparer.Ordinal);
+
+        /// <summary>
+        /// Phase 165 perf — invalidate the mode cache for a given document
+        /// (or all documents when doc is null). Called by SetActiveTagMode
+        /// after writing the trio so subsequent reads see the fresh value.
+        /// </summary>
+        public static void InvalidateModeCache(Document doc = null)
+        {
+            if (doc == null) { _modeCache.Clear(); return; }
+            string key = doc.PathName ?? doc.Title ?? string.Empty;
+            _modeCache.TryRemove(key, out _);
         }
 
         /// <summary>
@@ -970,6 +1026,9 @@ namespace StingTools.Core
             bool a = WriteBoolParam(pi, MODE_DC,       mode == TagMode.DC);
             bool b = WriteBoolParam(pi, MODE_HANDOVER, mode == TagMode.Handover);
             bool c = WriteBoolParam(pi, MODE_CUSTOM,   mode == TagMode.Custom);
+            // Phase 165 perf — drop any cached value for this doc so the next
+            // GetActiveTagMode read sees what we just wrote.
+            InvalidateModeCache(doc);
             return a || b || c;
         }
 
