@@ -2636,3 +2636,4 @@ PARAM	a7c0b2e4-4d91-4a55-9c7e-aa0001000005	STING_SHEET_SEQUENCE_INT	INTEGER		27	
 PARAM	a8f3c1d2-4e56-7890-abcd-ef1234567801	HANDOVER_MODE_HANDOVER_BOOL	YESNO		25	1	Pattern selector — Handover / FM T4-T10 payload visible [STING Phase 165]	1
 PARAM	a8f3c1d2-4e56-7890-abcd-ef1234567802	HANDOVER_MODE_DC_BOOL	YESNO		25	1	Pattern selector — Design & Construction T4-T10 payload visible [STING Phase 165]	1
 PARAM	a8f3c1d2-4e56-7890-abcd-ef1234567803	HANDOVER_MODE_CUSTOM_BOOL	YESNO		25	1	Pattern selector — Custom (user-defined) T4-T10 payload visible [STING Phase 165]	1
+PARAM	a8f3c1d2-4e56-7890-abcd-ef1234567810	ASS_TAG_MULTILINE_TXT	TEXT		1	1	Single-parameter multi-line tag — full 8 tokens with line breaks rendered by Revit Label engine [STING Phase 165]	1

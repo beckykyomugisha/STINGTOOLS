@@ -2565,3 +2565,4 @@ Sheets,STING_SHEET_SEQUENCE_INT,a7c0b2e4-4d91-4a55-9c7e-aa0001000005,INTEGER,STI
 Project Information,HANDOVER_MODE_HANDOVER_BOOL,a8f3c1d2-4e56-7890-abcd-ef1234567801,YESNO,COMMISSIONING,Instance,Pattern selector — Handover / FM T4-T10 payload visible [STING Phase 165],False,,,MULTI,1,0
 Project Information,HANDOVER_MODE_DC_BOOL,a8f3c1d2-4e56-7890-abcd-ef1234567802,YESNO,COMMISSIONING,Instance,Pattern selector — Design & Construction T4-T10 payload visible [STING Phase 165],False,,,MULTI,1,0
 Project Information,HANDOVER_MODE_CUSTOM_BOOL,a8f3c1d2-4e56-7890-abcd-ef1234567803,YESNO,COMMISSIONING,Instance,Pattern selector — Custom (user-defined) T4-T10 payload visible [STING Phase 165],False,,,MULTI,1,0
+Generic Models,ASS_TAG_MULTILINE_TXT,a8f3c1d2-4e56-7890-abcd-ef1234567810,TEXT,ASS_MNG,Instance,Single-parameter multi-line tag — DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/SEQ separated by line breaks for one-Label-binding tag families [STING Phase 165],False,,,MULTI,1,0
