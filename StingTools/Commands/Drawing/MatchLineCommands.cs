@@ -157,6 +157,77 @@ namespace StingTools.Commands.Drawing
 
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
+    public class MatchLineValidateBundleCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = ctx.Doc;
+            var uidoc = ctx.UiDoc;
+
+            // Bundle = currently selected sheets, falling back to the
+            // active sheet when the selection is empty. Phase II hook:
+            // accept a transmittal-bundle id from
+            // Planscape.Docs.Templates.TransmittalOrchestrator.
+            var bundle = new System.Collections.Generic.List<ElementId>();
+            if (uidoc != null)
+            {
+                foreach (var id in uidoc.Selection.GetElementIds())
+                    if (doc.GetElement(id) is ViewSheet) bundle.Add(id);
+                if (bundle.Count == 0 && uidoc.ActiveView is ViewSheet activeSheet)
+                    bundle.Add(activeSheet.Id);
+            }
+            if (bundle.Count == 0)
+            {
+                TaskDialog.Show("STING — Match Line Validate Bundle",
+                    "No bundle to validate.\n\nSelect one or more sheets in the project browser, "
+                    + "or open a sheet, then run again.");
+                return Result.Cancelled;
+            }
+
+            var rep = MatchLineEngine.ValidateBundle(doc, bundle);
+
+            var sb = new StringBuilder();
+            sb.AppendLine("Match-line bundle validation report.");
+            sb.AppendLine();
+            sb.AppendLine($"Sheets in bundle              : {rep.BundleSheetIds.Count}");
+            sb.AppendLine($"Match-line curves scanned     : {rep.CurvesScanned}");
+            sb.AppendLine($"Refs resolved IN bundle       : {rep.RefsResolvedInBundle}");
+            sb.AppendLine($"Refs resolved OUTSIDE bundle  : {rep.RefsResolvedOutsideBundle}  ⚠ orphans");
+            sb.AppendLine($"Refs broken (empty / unknown) : {rep.RefsBroken}  ⚠");
+
+            if (rep.RefsResolvedOutsideBundle > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("Orphan refs — paired sheets NOT in this bundle:");
+                foreach (var rOrph in rep.OrphanRefs.Distinct().OrderBy(s => s).Take(20))
+                    sb.AppendLine($"  ⚠ {rOrph}");
+                if (rep.OrphanRefs.Count > 20)
+                    sb.AppendLine($"  … +{rep.OrphanRefs.Count - 20} more (StingTools.log)");
+                sb.AppendLine();
+                sb.AppendLine("Add the missing sheets to the bundle, or remove the");
+                sb.AppendLine("match line that references them, before issuing.");
+            }
+            else if (rep.RefsBroken == 0 && rep.CurvesScanned > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("✓  Bundle is self-contained — every match-line ref points");
+                sb.AppendLine("   at a sheet inside this bundle. Safe to issue.");
+            }
+
+            foreach (var w in rep.Warnings) StingLog.Warn($"MatchLineValidateBundle: {w}");
+            foreach (var rOrph in rep.OrphanRefs.Distinct())
+                StingLog.Warn($"MatchLineValidateBundle: orphan ref → {rOrph}");
+
+            TaskDialog.Show("STING — Match Line Validate Bundle", sb.ToString());
+            return rep.RefsResolvedOutsideBundle == 0 && rep.RefsBroken == 0
+                ? Result.Succeeded : Result.Failed;
+        }
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
     public class MatchLineInspectCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)

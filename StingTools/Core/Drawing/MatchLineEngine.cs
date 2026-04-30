@@ -69,10 +69,16 @@ namespace StingTools.Core.Drawing
     {
         public Element  ScopeBoxA   { get; set; }
         public Element  ScopeBoxB   { get; set; }
-        public XYZ      LineStart   { get; set; }   // shared edge endpoints in project coords
+        public XYZ      LineStart   { get; set; }   // shared edge endpoints in project coords (first segment)
         public XYZ      LineEnd     { get; set; }
         public string   Direction   { get; set; }   // "vertical" / "horizontal" / "dogleg"
         public string   PairGuid    { get; set; }   // deterministic, derived from sorted scope-box ids
+
+        /// <summary>Phase 169 — for dog-leg pairs, every segment of the
+        /// shared boundary in (start, end) form. Single-face pairs have
+        /// exactly one segment matching (LineStart, LineEnd).</summary>
+        public List<(XYZ Start, XYZ End)> Segments { get; set; }
+            = new List<(XYZ, XYZ)>();
 
         public string Key => string.Compare(
             ScopeBoxA?.UniqueId ?? "", ScopeBoxB?.UniqueId ?? "",
@@ -106,13 +112,19 @@ namespace StingTools.Core.Drawing
                 r.AdjacencyEdgesFound = edges.Count;
                 if (edges.Count == 0) return r;
 
+                // Phase 169 — group multi-segment edges per scope-box pair
+                // so dog-legs (multiple shared faces) collapse to one logical
+                // pair with a list of segments. Single-face pairs unaffected.
+                var groupedEdges = GroupAdjacenciesByPair(edges);
+                r.AdjacencyEdgesFound = groupedEdges.Count;
+
                 var viewByScope = BuildViewByScopeIndex(doc);
                 var existingByGuid = BuildExistingPairIndex(doc);
 
                 using (var tx = new Transaction(doc, "STING Match-Line sweep"))
                 {
                     tx.Start();
-                    foreach (var edge in edges)
+                    foreach (var edge in groupedEdges)
                     {
                         try
                         {
@@ -126,7 +138,7 @@ namespace StingTools.Core.Drawing
                         }
                     }
                     if (opts.PruneOrphans)
-                        PruneOrphans(doc, edges, existingByGuid, r);
+                        PruneOrphans(doc, groupedEdges, existingByGuid, r);
                     tx.Commit();
                 }
             }
@@ -223,14 +235,17 @@ namespace StingTools.Core.Drawing
                         if ((yMax - yMin) < minOverlapFt) continue;
                         double zMin = Math.Min(bbA.Min.Z, bbB.Min.Z);
                         double x0 = dirX.ax;
-                        edges.Add(new ScopeBoxAdjacency
+                        var sV = new XYZ(x0, yMin, zMin);
+                        var eV = new XYZ(x0, yMax, zMin);
+                        var adj = new ScopeBoxAdjacency
                         {
                             ScopeBoxA = a, ScopeBoxB = b,
-                            LineStart = new XYZ(x0, yMin, zMin),
-                            LineEnd   = new XYZ(x0, yMax, zMin),
+                            LineStart = sV, LineEnd = eV,
                             Direction = "vertical",
                             PairGuid  = DerivePairGuid(a, b),
-                        });
+                        };
+                        adj.Segments.Add((sV, eV));
+                        edges.Add(adj);
                     }
 
                     // Y-aligned shared face?
@@ -243,14 +258,17 @@ namespace StingTools.Core.Drawing
                         if ((xMax - xMin) < minOverlapFt) continue;
                         double zMin = Math.Min(bbA.Min.Z, bbB.Min.Z);
                         double y0 = dirY.ay;
-                        edges.Add(new ScopeBoxAdjacency
+                        var sH = new XYZ(xMin, y0, zMin);
+                        var eH = new XYZ(xMax, y0, zMin);
+                        var adj = new ScopeBoxAdjacency
                         {
                             ScopeBoxA = a, ScopeBoxB = b,
-                            LineStart = new XYZ(xMin, y0, zMin),
-                            LineEnd   = new XYZ(xMax, y0, zMin),
+                            LineStart = sH, LineEnd = eH,
                             Direction = "horizontal",
                             PairGuid  = DerivePairGuid(a, b),
-                        });
+                        };
+                        adj.Segments.Add((sH, eH));
+                        edges.Add(adj);
                     }
                 }
             }
@@ -274,6 +292,36 @@ namespace StingTools.Core.Drawing
                 var guid = new Guid(new ArraySegment<byte>(bytes, 0, 16).ToArray());
                 return guid.ToString("D").ToUpperInvariant();
             }
+        }
+
+        /// <summary>Phase 169 — groups multiple adjacency records that
+        /// share the same scope-box pair into a single record carrying
+        /// a `Segments` list. Direction flips to "dogleg" when ≥ 2
+        /// segments. Single-face pairs pass through unchanged.</summary>
+        private static List<ScopeBoxAdjacency> GroupAdjacenciesByPair(
+            List<ScopeBoxAdjacency> raw)
+        {
+            var byPair = new Dictionary<string, ScopeBoxAdjacency>(
+                StringComparer.OrdinalIgnoreCase);
+            foreach (var e in raw)
+            {
+                if (!byPair.TryGetValue(e.PairGuid, out var existing))
+                {
+                    byPair[e.PairGuid] = e;
+                    continue;
+                }
+                // Merge: append this edge's segments to the existing
+                // record. If both directions appear, flag as dogleg.
+                existing.Segments.AddRange(e.Segments);
+                if (!string.Equals(existing.Direction, e.Direction,
+                    StringComparison.OrdinalIgnoreCase))
+                    existing.Direction = "dogleg";
+                else if (existing.Segments.Count >= 2 &&
+                    string.Equals(existing.Direction, e.Direction,
+                        StringComparison.OrdinalIgnoreCase))
+                    existing.Direction = "dogleg";  // multiple parallel faces — also dogleg
+            }
+            return byPair.Values.ToList();
         }
 
         // ── View / sheet resolution ──────────────────────────────────────
@@ -439,6 +487,30 @@ namespace StingTools.Core.Drawing
             MatchLineConfig cfg, string viewPairGuid, string pairedRef,
             MatchLineRunResult r)
         {
+            // Phase 169 — for dog-leg pairs, draw every segment of the
+            // shared boundary; single-face pairs degenerate to one
+            // segment matching the legacy LineStart/LineEnd.
+            var segments = (edge.Segments != null && edge.Segments.Count > 0)
+                ? edge.Segments
+                : new List<(XYZ Start, XYZ End)> { (edge.LineStart, edge.LineEnd) };
+            for (int s = 0; s < segments.Count; s++)
+            {
+                var seg = segments[s];
+                // Per-segment GUID suffix so dog-legs get one stamped
+                // GUID per segment (drift detection keeps each piece
+                // independently up-to-date).
+                string segGuid = segments.Count == 1
+                    ? viewPairGuid
+                    : $"{viewPairGuid}:seg{s + 1}";
+                PlaceCurveSegment(doc, view, edge, cfg, segGuid, pairedRef,
+                                  seg.Start, seg.End, r);
+            }
+        }
+
+        private static void PlaceCurveSegment(Document doc, View view, ScopeBoxAdjacency edge,
+            MatchLineConfig cfg, string viewPairGuid, string pairedRef,
+            XYZ segStart, XYZ segEnd, MatchLineRunResult r)
+        {
             try
             {
                 // Project the line onto the view plane. For plans
@@ -450,12 +522,12 @@ namespace StingTools.Core.Drawing
                     || view.ViewType == ViewType.EngineeringPlan)
                 {
                     double z = view.GenLevel?.Elevation ?? 0.0;
-                    a = new XYZ(edge.LineStart.X, edge.LineStart.Y, z);
-                    b = new XYZ(edge.LineEnd.X,   edge.LineEnd.Y,   z);
+                    a = new XYZ(segStart.X, segStart.Y, z);
+                    b = new XYZ(segEnd.X,   segEnd.Y,   z);
                 }
                 else
                 {
-                    a = edge.LineStart; b = edge.LineEnd;
+                    a = segStart; b = segEnd;
                 }
 
                 // Optional extension beyond the crop edge so the line
@@ -489,6 +561,15 @@ namespace StingTools.Core.Drawing
                     TrySet(dc, ParamRegistry.MATCH_LINE_GUID, viewPairGuid);
                 if (cfg.Stamping.WriteDirection)
                     TrySet(dc, ParamRegistry.MATCH_DIR, edge.Direction);
+
+                // Phase 169 — discipline tint via per-element
+                // OverrideGraphicSettings. The view-style-pack default
+                // colour is overridden per-curve when the discipline
+                // colour map is enabled and the scope-box name encodes a
+                // discipline prefix (Week 5 binder convention:
+                // STING::<dt-id>::… where the dt-id starts with disc-).
+                if (cfg.Discipline?.TintByDiscipline == true)
+                    ApplyDisciplineTint(doc, view, dc, edge, cfg);
 
                 // Tip captions (TextNote — fallback path; tag-family
                 // path with STING_TAG_MATCHLINE is a Phase II refinement).
@@ -527,6 +608,81 @@ namespace StingTools.Core.Drawing
                 if (p != null && !p.IsReadOnly) p.Set(value ?? "");
             }
             catch { /* binding missing — pre-flight warns */ }
+        }
+
+        /// <summary>Phase 169 — sets a per-element OverrideGraphicSettings
+        /// on the placed curve, projection-line colour driven by the
+        /// scope-box's discipline prefix and the colour map in
+        /// MatchLineConfig.Discipline.ColorMap. Scope-box name encoding:
+        /// STING::&lt;disc&gt;-&lt;rest&gt;::… (Week 5 binder convention).</summary>
+        private static void ApplyDisciplineTint(Document doc, View view,
+            DetailCurve dc, ScopeBoxAdjacency edge, MatchLineConfig cfg)
+        {
+            try
+            {
+                if (cfg?.Discipline?.ColorMap == null
+                    || cfg.Discipline.ColorMap.Count == 0) return;
+
+                string disc = ExtractDisciplineCode(edge.ScopeBoxA?.Name)
+                              ?? ExtractDisciplineCode(edge.ScopeBoxB?.Name);
+                if (string.IsNullOrEmpty(disc)) return;
+                if (!cfg.Discipline.ColorMap.TryGetValue(disc, out var hex)
+                    || string.IsNullOrEmpty(hex)) return;
+
+                if (!TryParseHex(hex, out byte rr, out byte gg, out byte bb)) return;
+
+                var ogs = new OverrideGraphicSettings();
+                ogs.SetProjectionLineColor(new Color(rr, gg, bb));
+                view.SetElementOverrides(dc.Id, ogs);
+            }
+            catch (Exception ex) { StingLog.Warn($"ApplyDisciplineTint: {ex.Message}"); }
+        }
+
+        private static string ExtractDisciplineCode(string scopeBoxName)
+        {
+            if (string.IsNullOrEmpty(scopeBoxName)) return null;
+            // Strip the STING:: prefix if present (Week 5 binder convention).
+            var work = scopeBoxName;
+            const string p = "STING::";
+            if (work.StartsWith(p, StringComparison.OrdinalIgnoreCase))
+                work = work.Substring(p.Length);
+            // Drawing-type id starts the segment after the prefix.
+            int sep = work.IndexOf("::", StringComparison.Ordinal);
+            if (sep > 0) work = work.Substring(0, sep);
+            // Common drawing-type id prefixes: arch- / struct- / mep- /
+            // elec- / plumb- / fp- / pres- / clar- / coord- / fab- ...
+            // Map them to ISO 19650 single-letter discipline codes that
+            // the colour map expects.
+            string lower = work.ToLowerInvariant();
+            if (lower.StartsWith("arch")  || lower.StartsWith("a-")) return "A";
+            if (lower.StartsWith("struct")|| lower.StartsWith("s-")) return "S";
+            if (lower.StartsWith("mep")   || lower.StartsWith("hvac")
+                                          || lower.StartsWith("m-"))  return "M";
+            if (lower.StartsWith("elec")  || lower.StartsWith("e-")) return "E";
+            if (lower.StartsWith("plumb") || lower.StartsWith("p-")) return "P";
+            if (lower.StartsWith("fp")    || lower.StartsWith("fire"))return "FP";
+            if (lower.StartsWith("comm")  || lower.StartsWith("lv"))  return "LV";
+            if (lower.StartsWith("site")  || lower.StartsWith("land"))return "G";
+            // Two-character codes already in ISO form (rare).
+            if (lower.Length >= 2 && lower[1] == '-')
+                return lower.Substring(0, 1).ToUpperInvariant();
+            return null;
+        }
+
+        private static bool TryParseHex(string hex, out byte r, out byte g, out byte b)
+        {
+            r = g = b = 0;
+            if (string.IsNullOrEmpty(hex)) return false;
+            var s = hex.TrimStart('#');
+            if (s.Length != 6) return false;
+            try
+            {
+                r = Convert.ToByte(s.Substring(0, 2), 16);
+                g = Convert.ToByte(s.Substring(2, 2), 16);
+                b = Convert.ToByte(s.Substring(4, 2), 16);
+                return true;
+            }
+            catch { return false; }
         }
 
         private static ElementId ResolveLineStyleId(Document doc, string styleName)
@@ -662,6 +818,88 @@ namespace StingTools.Core.Drawing
             if (doc == null) return new List<ScopeBoxAdjacency>();
             var cfg = MatchLineConfigRegistry.Get(doc);
             return ComputeAdjacency(CollectScopeBoxes(doc, null), cfg);
+        }
+
+        // ── Phase 169 — bundle validator ─────────────────────────────────
+
+        public sealed class BundleReport
+        {
+            public List<ElementId> BundleSheetIds { get; set; } = new List<ElementId>();
+            public int  CurvesScanned { get; set; }
+            public int  RefsResolvedInBundle  { get; set; }
+            public int  RefsResolvedOutsideBundle { get; set; }
+            public int  RefsBroken { get; set; }
+            public List<string> Warnings { get; set; } = new List<string>();
+            public List<string> OrphanRefs { get; set; } = new List<string>();
+        }
+
+        /// <summary>Scans every match-line curve on every sheet in the
+        /// supplied bundle. Each STING_MATCH_REF must resolve to a sheet
+        /// IN the bundle — refs pointing outside the bundle are
+        /// reported as orphans (the most common cause of partial-issue
+        /// failures).</summary>
+        public static BundleReport ValidateBundle(Document doc,
+            IEnumerable<ElementId> bundleSheetIds)
+        {
+            var rep = new BundleReport();
+            if (doc == null || bundleSheetIds == null) return rep;
+            var bundle = new HashSet<ElementId>(bundleSheetIds);
+            rep.BundleSheetIds = bundle.ToList();
+            try
+            {
+                // Build set of refs the bundle PROVIDES (every sheet's
+                // STING_SHEET_FULL_REF + Sheet Number).
+                var bundleRefs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var id in bundle)
+                {
+                    if (!(doc.GetElement(id) is ViewSheet sh)) continue;
+                    var p = sh.LookupParameter("STING_SHEET_FULL_REF_TXT");
+                    if (p != null && p.HasValue)
+                        bundleRefs.Add(p.AsString() ?? "");
+                    bundleRefs.Add(sh.SheetNumber ?? "");
+                }
+
+                // Build set of view ids placed on bundle sheets.
+                var bundleViewIds = new HashSet<ElementId>();
+                foreach (var vp in new FilteredElementCollector(doc).OfClass(typeof(Viewport)))
+                {
+                    if (!(vp is Viewport viewport)) continue;
+                    if (!bundle.Contains(viewport.SheetId)) continue;
+                    bundleViewIds.Add(viewport.ViewId);
+                }
+
+                // Walk every match-line curve in those views.
+                foreach (var el in new FilteredElementCollector(doc)
+                    .OfClass(typeof(CurveElement)))
+                {
+                    if (!(el is DetailCurve dc)) continue;
+                    var pGuid = dc.LookupParameter(ParamRegistry.MATCH_LINE_GUID);
+                    if (pGuid == null || !pGuid.HasValue) continue;
+                    if (!bundleViewIds.Contains(dc.OwnerViewId)) continue;
+                    rep.CurvesScanned++;
+                    var pRef = dc.LookupParameter(ParamRegistry.MATCH_REF);
+                    var refTxt = pRef?.AsString() ?? "";
+                    if (string.IsNullOrEmpty(refTxt))
+                    {
+                        rep.RefsBroken++;
+                        rep.Warnings.Add($"curve {dc.Id} has empty MATCH_REF");
+                        continue;
+                    }
+                    if (bundleRefs.Contains(refTxt))
+                        rep.RefsResolvedInBundle++;
+                    else
+                    {
+                        rep.RefsResolvedOutsideBundle++;
+                        rep.OrphanRefs.Add(refTxt);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                rep.Warnings.Add($"ValidateBundle: {ex.Message}");
+                StingLog.Error("MatchLineEngine.ValidateBundle", ex);
+            }
+            return rep;
         }
     }
 }

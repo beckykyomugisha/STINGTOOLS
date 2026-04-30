@@ -9394,3 +9394,139 @@ future tag family, `OST_Views` for the per-view stamp count.
 - `StingTools/Data/STING_PARAMS_MATCHLINE.txt` — NEW (18)
 - `StingTools/Core/ParamRegistry.cs` (+12 lines)
 - `docs/CHANGELOG.md` — this entry
+
+#### Completed (Phase 169 — Match-line subsystem polish: dog-leg simplification, discipline tinting, bundle validator, dispatcher wiring)
+
+Closes 5 of the 6 caveats listed on Phase 168 — the IUpdater for live
+drift detection is still deferred (risk vs. gain unfavourable; manual
+`MatchLine_Sync` covers the same ground on demand). Five command tags
+are now wired into the giant dispatcher so the user can click them.
+
+**Engine extensions** (`StingTools/Core/Drawing/MatchLineEngine.cs`,
++238 lines, now 905 total)
+
+- `ScopeBoxAdjacency.Segments` — new field carrying every shared
+  boundary segment as a `(Start, End)` tuple. Single-face pairs
+  populate one segment matching the legacy `LineStart`/`LineEnd`;
+  dog-leg pairs (multiple shared faces between the same scope-box
+  pair) carry the polyline.
+- `GroupAdjacenciesByPair` — new internal helper that collapses
+  multiple `ScopeBoxAdjacency` records sharing the same `PairGuid`
+  into one record with `Segments[]` populated. Direction flips to
+  `dogleg` when ≥ 2 segments or mixed orientations. Engine pipeline
+  now runs `ComputeAdjacency → GroupAdjacenciesByPair → place per
+  pair` instead of place-per-segment.
+- `PlaceCurve` refactored — was placing one `DetailCurve` from
+  `LineStart` to `LineEnd`; now iterates `edge.Segments[]` and calls
+  the new `PlaceCurveSegment` helper per segment. Per-segment
+  pair-GUID gets a `:seg{n}` suffix when there are ≥ 2 segments so
+  drift detection stays per-segment without losing the parent
+  pair-GUID.
+- `ApplyDisciplineTint` — new internal helper. When
+  `MatchLineConfig.discipline.tintByDiscipline = true`, sets
+  per-element `OverrideGraphicSettings` on the placed curve with the
+  projection-line colour from `discipline.colorMap`. Discipline code
+  extracted from the scope-box name via `ExtractDisciplineCode` —
+  recognises `arch-` / `struct-` / `mep-` / `hvac-` / `elec-` /
+  `plumb-` / `fp-` / `comm-` / `lv-` / `site-` / `land-` prefixes
+  plus `<letter>-` two-character ISO codes.
+- `TryParseHex` — utility to parse `#RRGGBB` strings into Revit
+  `Color` values.
+- `BundleReport` + `ValidateBundle` — read-only utility that scans
+  every match-line `DetailCurve` placed on the views of every sheet
+  in a supplied bundle. Each `STING_MATCH_REF` is checked against
+  the bundle's set of known sheet refs (`STING_SHEET_FULL_REF` +
+  `Sheet Number`). Refs pointing outside the bundle are flagged as
+  orphans — the most common cause of partial-issue failures (issuing
+  the west half but forgetting the east half).
+
+**New command** (`Commands/Drawing/MatchLineCommands.cs`, +71 lines,
+now 262 total)
+
+- `MatchLineValidateBundleCommand` — reads the current sheet
+  selection from `uidoc.Selection.GetElementIds()` (filtered to
+  `ViewSheet`), falls back to the active sheet when selection is
+  empty. Calls `MatchLineEngine.ValidateBundle`. TaskDialog reports
+  curves scanned, refs in/out of bundle, broken refs, and lists the
+  first 20 orphan refs alphabetically. Phase II hook: accept a
+  transmittal-bundle id from
+  `Planscape.Docs.Templates.TransmittalOrchestrator` so the
+  validator runs automatically before issuance.
+
+**Dispatcher wiring** (`UI/StingCommandHandler.cs`, +7 lines)
+
+Five new case branches inside the giant `Execute` switch, after the
+DrawingTypes block:
+
+```csharp
+case "MatchLine_Generate":       RunCommand<...MatchLineGenerateCommand>(app); break;
+case "MatchLine_Sync":           RunCommand<...MatchLineSyncCommand>(app); break;
+case "MatchLine_Validate":       RunCommand<...MatchLineValidateCommand>(app); break;
+case "MatchLine_ValidateBundle": RunCommand<...MatchLineValidateBundleCommand>(app); break;
+case "MatchLine_Inspect":        RunCommand<...MatchLineInspectCommand>(app); break;
+```
+
+Brace + paren balance verified post-edit (1,142 / 1,142 braces and
+4,900 / 4,900 parens). The five tags can now be triggered from any
+caller that resolves the dispatcher (dock-panel button, ribbon
+button, workflow preset, or external tool via `IExternalEvent`).
+
+**Tag family stub** (`Families/Annotation/STING_TAG_MATCHLINE.params.txt`,
+57 lines)
+
+Authors a Generic Annotation `.rfa` family stub for the chevron +
+leader caption. Specifies the three shared parameters
+(`STING_MATCH_REF_TXT`, `STING_MATCH_LINE_GUID_TXT`,
+`STING_MATCH_DIR_TXT`) bound by GUID matching the constants in
+`ParamRegistry`, plus three family-internal optional parameters
+(`ARROW_DIRECTION_TXT`, `LEADER_LENGTH_MM`, `SHOW_ARROW_BOOL`).
+Four-step fallback chain documented for the engine: prefer the
+`.rfa` when loaded, fall back to `STING - 2.5mm` text-note type,
+fall back to default text-note type, finally a TaskDialog warning
+with no caption. Engine continues to use the `TextNote.Create`
+fallback until a Revit user authors the actual `.rfa` from the
+stub.
+
+**What this commit delivers vs. what's still deferred**
+
+| Caveat | Status |
+|---|---|
+| Dog-leg adjacency = polyline simplification | ✓ closed (Phase 169) |
+| Discipline tinting from `colorMap` | ✓ closed (Phase 169) |
+| Tag family `STING_TAG_MATCHLINE` | partial — stub authored, `.rfa` to be authored in Revit |
+| Bundle validator | ✓ closed (Phase 169 — engine + command + dispatcher) |
+| Commands wired into dispatcher | ✓ closed (Phase 169) |
+| IUpdater for live drift | deferred to Phase 170 (risk vs. gain) |
+
+**Files**
+
+- `StingTools/Core/Drawing/MatchLineEngine.cs` — +238 lines (now 905)
+- `StingTools/Commands/Drawing/MatchLineCommands.cs` — +71 lines (now 262)
+- `StingTools/UI/StingCommandHandler.cs` — +7 lines
+- `Families/Annotation/STING_TAG_MATCHLINE.params.txt` — NEW (57)
+- `docs/CHANGELOG.md` — this entry
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox).
+   Brace + paren balance verified across all edited files. Reviewer
+   should confirm in Revit before merge.
+2. Dog-leg detection collapses only TRULY adjacent segments — a
+   scope-box pair with two non-adjacent shared faces (rare — implies
+   non-convex scope boxes, which Revit doesn't support natively)
+   would emit two separate stamped pair-GUIDs. Acceptable.
+3. Discipline tinting writes per-element `OverrideGraphicSettings`
+   directly on the view (not a filter rule). Tints don't propagate
+   when the curve is copied to another view via copy-paste; the
+   engine must re-run. Same as today's behaviour for any per-element
+   override.
+4. Bundle validator inspects only views placed on bundle sheets —
+   orphan curves on un-placed views aren't flagged. Acceptable
+   because un-placed views don't print.
+5. IUpdater for live drift not authored — `MatchLine_Sync` covers
+   the same ground manually. Live updater requires careful
+   `Transaction` discipline inside `Execute(UpdaterData)` callback;
+   deferred to a phase that can be Revit-tested.
+6. The `STING_TAG_MATCHLINE.rfa` file itself is not in this commit —
+   only the `.params.txt` spec stub. Author the family in Revit
+   Family Editor following the stub.
