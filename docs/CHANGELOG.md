@@ -9724,3 +9724,66 @@ per family doc.
 - `StingTools/Data/STING_TITLE_BLOCKS.json` — NEW (190)
 - `StingTools/UI/StingCommandHandler.cs` (+4 lines)
 - `docs/CHANGELOG.md` — this entry
+
+#### Completed (Phase 169 — Repair 73 malformed v4-/v6- placeholder GUIDs across the parameter pipeline)
+
+Closes the bug flagged by `STING_GUID_REPAIR_REPORT.md` (StingD85/transfer):
+73 shared parameters in `MR_PARAMETERS.txt` shipped with placeholder
+strings of the form `v4-0001-0000-0000-000000000006` and
+`v6-0001-0000-0000-00000000000c`. These fail `Guid.TryParse` silently,
+so `ParamRegistry._guidByName` never picked them up and any binding,
+schedule, filter, or tag that referenced them was a no-op. The codebase
+already noted the issue in the V6 region header (`ParamRegistry.cs:2761`)
+but the repair was incomplete — the V4 fabrication / LPS / cost block
+was unaddressed and the cross-source GUIDs disagreed.
+
+Cross-checked the report's claims first: 73 malformed GUIDs confirmed
+(46 v4- + 27 v6-), but only 33 of 73 had been repaired in
+`PARAMETER_REGISTRY.json` + `ParamRegistry.cs` under a placeholder
+scheme `5753b5aa-000T-4000-8000-...` that **disagreed with the canonical
+UUIDv5 GUIDs in `Core/Fabrication/FabricationParamsV4.cs`** for 6 of
+them. The report's fresh-UUIDv5 framing would have re-keyed those 6 yet
+again; instead this phase adopts the existing `FabricationParamsV4.cs`
+UUIDv5 (namespace `7f9f5e3a-a7c0-b2e4-4d91-4a557c5e3a00`) as the
+single source of truth for the 46 fab/LPS/cost params.
+
+1. Repaired `StingTools/Data/MR_PARAMETERS.txt` and `MR_PARAMETERS.csv`
+   — replaced 73 v4-/v6- placeholders with real GUIDs (46 canonical
+   UUIDv5 from `FabricationParamsV4.cs`, 27 placeholder
+   `5753b5aa-000T-4000-8000-...` matching the existing V6 region for
+   tag-label-only tiers). Restored CRLF line endings on both files.
+2. Repaired `StingTools/Data/Parameters/STING_PARAMS_V6.txt` — same
+   73-name remap, in lockstep with MR_PARAMETERS.txt.
+3. Updated `StingTools/Data/PARAMETER_REGISTRY.json`
+   `extended_params.tier_4_10` — added 40 missing entries (17 ASS_*
+   fabrication, 18 ELC_LPS_* lightning protection, 5 CST_* cost) and
+   re-keyed 6 existing entries (ASS_SPOOL_NR_TXT, ASS_FAB_STATUS_TXT,
+   ASS_QC_INSPECTOR_TXT, CST_INTL_PRICE_USD, CST_UG_PRICE_UGX,
+   CST_QUOTE_REF_TXT) to the canonical UUIDv5. Total tier_4_10 grew
+   33 → 73 entries.
+4. Updated `StingTools/Core/ParamRegistry.cs` V6 region — added 40 new
+   `*_GUID` constants (under the existing T5/T7 sections plus a new T11
+   lightning-protection section), re-keyed 6 existing constants to the
+   canonical UUIDv5, and updated the region header comment to document
+   the dual-scheme rationale (canonical UUIDv5 for fab/LPS/cost,
+   placeholder for tag-label-only tiers).
+5. Validated all 73 names × 4 sources for byte-for-byte alignment after
+   each step (`MR_PARAMETERS.txt` ↔ `MR_PARAMETERS.csv` ↔
+   `PARAMETER_REGISTRY.json` ↔ `ParamRegistry.cs`); zero mismatches.
+6. Confirmed zero residual `v4-` / `v6-` placeholder GUIDs in
+   `StingTools/`, `docs/`, and any other tracked CSV/JSON/TXT/CS file
+   (the `Planscape.Mobile` build identifiers in unrelated lockfiles
+   were excluded by file-type filter).
+
+Caveats: built without `dotnet build` verification (Linux sandbox); the
+46 canonical UUIDv5 GUIDs match the family-library values in
+`FabricationParamsV4.cs` so binding round-trips will hold, but the
+`PARAMETER_REGISTRY.json` field naming for the 18 new ELC_LPS_*
+entries uses `tier: "T11"` — the registry doesn't currently have a
+formal T11 tier label elsewhere, so any future tier-label rendering
+code should either ignore unknown tier labels or be updated. The
+report's own UUIDv5 namespace recommendation
+(`6ba7b810-9dad-11d1-80b4-00c04fd430c8`, the standard DNS namespace)
+is **not** used because `FabricationParamsV4.cs` already publishes
+under a different STING-specific namespace; adopting the report's
+namespace would have re-keyed every published fabrication GUID.
