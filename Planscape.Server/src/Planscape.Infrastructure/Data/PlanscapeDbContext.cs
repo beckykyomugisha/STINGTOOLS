@@ -297,6 +297,12 @@ public class PlanscapeDbContext : DbContext
         {
             e.HasKey(b => b.Id);
             e.HasIndex(b => b.TenantId).IsUnique();
+            // S15 — direction is "Tenant (principal) → TenantBranding (dependent)".
+            // OnDelete(Cascade) here means: deleting a Tenant cascade-deletes
+            // its branding row. It does NOT mean deleting a branding row
+            // deletes the tenant — the FK runs from branding to tenant, not
+            // the reverse. Previous audit flagged this; the configuration is
+            // correct as written.
             e.HasOne(b => b.Tenant).WithMany().HasForeignKey(b => b.TenantId).OnDelete(DeleteBehavior.Cascade);
             e.Property(b => b.ProductName).HasMaxLength(100);
             e.Property(b => b.AccentColor).HasMaxLength(20);

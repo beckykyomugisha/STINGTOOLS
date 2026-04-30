@@ -21,6 +21,14 @@ public class SyncClient : IDisposable
     public string? ServerUrl => _baseUrl;
 
     /// <summary>
+    /// P5 — fired after each successful batch upload so the dock-panel
+    /// sync chip can render "syncing 3 of 10..." instead of a binary
+    /// spinner. Setter is intentionally public so the consumer (the
+    /// SyncScheduler / UI) can subscribe without inheritance.
+    /// </summary>
+    public Action<SyncProgress>? OnProgress { get; set; }
+
+    /// <summary>
     /// S03: Inject a bearer token that was obtained elsewhere (e.g. by the
     /// PlanscapeServerClient in the Revit plugin). Avoids a second login
     /// round-trip when the plugin already has a valid session.
@@ -98,11 +106,37 @@ public class SyncClient : IDisposable
                 return result;
             }
 
+            // P2 — proactively force a refresh if the token is within 15
+            // minutes of expiry BEFORE we start the batch loop. A large
+            // payload may take 5–10 minutes; without this, batch 5/10
+            // can fail with 401 and the remainder silently drop. Failing
+            // fast here surfaces the auth problem to the caller.
+            if (_tokenExpiresAt <= DateTime.UtcNow.AddMinutes(15)
+                && !string.IsNullOrEmpty(_refreshToken))
+            {
+                _tokenExpiresAt = DateTime.MinValue; // force EnsureAuthenticatedAsync to refresh
+                if (!await EnsureAuthenticatedAsync())
+                {
+                    result.ErrorMessage = "Token expired and refresh failed before batch sync started";
+                    return result;
+                }
+            }
+
             // Sync tags in batches to avoid timeout on large models
             if (payload.TagElements?.Count > 0)
             {
                 for (int i = 0; i < payload.TagElements.Count; i += BatchSize)
                 {
+                    // P2 — re-check token between batches. A 60-minute total
+                    // sync can outlive even a fresh access token, so we must
+                    // refresh mid-loop instead of letting batch N silently
+                    // 401-fail.
+                    if (!await EnsureAuthenticatedAsync())
+                    {
+                        result.ErrorMessage = $"Token expired mid-batch (after batch {i / BatchSize}/{(payload.TagElements.Count + BatchSize - 1) / BatchSize})";
+                        return result;
+                    }
+
                     var batch = payload.TagElements.Skip(i).Take(BatchSize).ToList();
                     var tagResult = await PostAsync<TagSyncResult>($"/api/tagsync/sync", new
                     {
@@ -117,6 +151,28 @@ public class SyncClient : IDisposable
                         result.TagsCreated += tagResult.Created;
                         result.TagsUpdated += tagResult.Updated;
                         result.ServerCompliancePercent = tagResult.CompliancePercent;
+
+                        // P7 — accumulate per-batch conflicts so the
+                        // dock-panel sync chip can show "Sync: N conflicts"
+                        // and the user can open an inspector to resolve.
+                        if (tagResult.Conflicts != null && tagResult.Conflicts.Count > 0)
+                        {
+                            foreach (var c in tagResult.Conflicts)
+                            {
+                                result.Conflicts.Add(
+                                    $"Element {c.RevitElementId}: server kept {c.Field}='{c.ServerValue}' over client '{c.ClientValue}'");
+                            }
+                        }
+
+                        // P5 — fire progress callback so the UI can show
+                        // "batch 3 of 10" instead of a binary spinner.
+                        OnProgress?.Invoke(new SyncProgress
+                        {
+                            BatchNumber = (i / BatchSize) + 1,
+                            TotalBatches = (payload.TagElements.Count + BatchSize - 1) / BatchSize,
+                            ElementsProcessed = i + batch.Count,
+                            TotalElements = payload.TagElements.Count
+                        });
                     }
                 }
             }
@@ -153,6 +209,9 @@ public class SyncClient : IDisposable
             LastError = ex.Message;
         }
 
+        // P4 — surface the last HTTP status code so the offline-queue
+        // drain can decide whether to retry or skip-and-continue.
+        result.StatusCode = _lastHttpStatus;
         return result;
     }
 
@@ -212,7 +271,18 @@ public class SyncClient : IDisposable
     }
 
     private const int MaxRetries = 3;
-    private const int BatchSize = 2000; // Max elements per sync batch
+    // P8 — keep client batch size aligned with the server-side
+    // SyncBatchSize (TagSyncController.SyncBatchSize = 500). Sending 2000
+    // forces the server to internally re-chunk to 500 anyway, while
+    // burning client memory serialising the wider payload and risking
+    // a 30-second HTTP timeout on slow networks.
+    private const int BatchSize = 500;
+
+    // P4 — last-seen HTTP status from PostAsync; SyncAsync reads it
+    // when a call fails so SyncResult.StatusCode can distinguish 4xx
+    // (fatal — skip the queued payload) from 5xx (transient — break
+    // and retry).
+    private int _lastHttpStatus;
 
     private async Task<T?> PostAsync<T>(string url, object body) where T : class
     {
@@ -224,14 +294,27 @@ public class SyncClient : IDisposable
             try
             {
                 var response = await _http.PostAsync(url, content);
+                _lastHttpStatus = (int)response.StatusCode;
+                // P4 — for 4xx errors, don't retry: the payload is bad
+                // and exponential-backoff just wastes the queue's time.
+                if (_lastHttpStatus >= 400 && _lastHttpStatus < 500)
+                {
+                    response.EnsureSuccessStatusCode(); // throws — caught above
+                }
                 response.EnsureSuccessStatusCode();
                 var responseJson = await response.Content.ReadAsStringAsync();
                 return JsonConvert.DeserializeObject<T>(responseJson);
             }
-            catch (HttpRequestException) when (attempt < MaxRetries)
+            catch (HttpRequestException) when (attempt < MaxRetries
+                                                && (_lastHttpStatus == 0 || _lastHttpStatus >= 500))
             {
                 await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt))); // 1s, 2s, 4s
                 content = new StringContent(json, Encoding.UTF8, "application/json"); // recreate disposed content
+            }
+            catch (HttpRequestException)
+            {
+                // Fatal 4xx — drop out without further retries.
+                return null;
             }
         }
         return null;
@@ -262,6 +345,23 @@ public class SyncClient : IDisposable
     private record LoginResponse(string AccessToken, string RefreshToken, DateTime ExpiresAt);
     public record LicenseResult(bool Valid, string Tier, bool MimEnabled, string? ServerUrl, DateTime? ExpiresAt, string? Message);
     private record RefreshResponse(string AccessToken, string RefreshToken, DateTime ExpiresAt);
-    private record TagSyncResult(int Received, int Created, int Updated, double CompliancePercent, string RagStatus);
+    // P7 — server returns server-side conflict descriptors when a sync
+    // arrives with a stale timestamp; we hoist them into SyncResult so
+    // the plugin UI can render "N conflicts" + a drill-down dialog.
+    private record TagSyncResult(int Received, int Created, int Updated, double CompliancePercent, string RagStatus,
+                                 List<ConflictRow>? Conflicts = null);
+    public record ConflictRow(string RevitElementId, string Field, string ServerValue, string ClientValue);
     private record SeqSyncResult(int Merged, int Total);
+}
+
+/// <summary>
+/// P5 — progress event payload. <see cref="BatchNumber"/> is 1-based;
+/// <see cref="TotalBatches"/> is the total count for the current sync.
+/// </summary>
+public sealed class SyncProgress
+{
+    public int BatchNumber { get; set; }
+    public int TotalBatches { get; set; }
+    public int ElementsProcessed { get; set; }
+    public int TotalElements { get; set; }
 }

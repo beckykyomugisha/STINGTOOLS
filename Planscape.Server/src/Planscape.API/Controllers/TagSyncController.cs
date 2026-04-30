@@ -46,7 +46,7 @@ public class TagSyncController : ControllerBase
         if (request.Elements.Count > 50_000)
             return BadRequest(new { message = "Maximum 50,000 elements per sync request" });
 
-        var tenantId = GetTenantId();
+        if (RequireTenantClaim(out var tenantId) is { } badClaim) return badClaim;
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == request.ProjectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
 
@@ -383,6 +383,26 @@ public class TagSyncController : ControllerBase
     private Guid GetTenantId()
     {
         var claim = User.FindFirst("tenant_id")?.Value;
-        return claim != null ? Guid.Parse(claim) : Guid.Empty;
+        return claim != null && Guid.TryParse(claim, out var id) ? id : Guid.Empty;
+    }
+
+    /// <summary>
+    /// P6 — null/empty tenant_id claim should yield a 400, not a silent
+    /// "no projects matched" 404. The bare GetTenantId returning
+    /// <see cref="Guid.Empty"/> caused TagSync to look exactly like
+    /// "wrong project id" — un-debuggable for plugin authors.
+    /// </summary>
+    private ActionResult? RequireTenantClaim(out Guid tenantId)
+    {
+        tenantId = GetTenantId();
+        if (tenantId == Guid.Empty)
+        {
+            return BadRequest(new
+            {
+                error = "missing_tenant_claim",
+                message = "JWT is missing or has an unparseable tenant_id claim. Re-authenticate."
+            });
+        }
+        return null;
     }
 }

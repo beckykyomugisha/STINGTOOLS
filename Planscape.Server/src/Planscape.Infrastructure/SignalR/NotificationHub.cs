@@ -21,11 +21,15 @@ public class NotificationHub : Hub
     private static readonly ConcurrentDictionary<string, (string DeviceId, string ProjectId)> _connections = new();
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly PresenceTracker _presence;
+    private readonly HubConnectionRegistry _connectionRegistry;
 
-    public NotificationHub(IServiceScopeFactory scopeFactory, PresenceTracker presence)
+    public NotificationHub(IServiceScopeFactory scopeFactory,
+                           PresenceTracker presence,
+                           HubConnectionRegistry connectionRegistry)
     {
         _scopeFactory = scopeFactory;
         _presence = presence;
+        _connectionRegistry = connectionRegistry;
     }
 
     private Guid? GetCallerUserId()
@@ -138,7 +142,11 @@ public class NotificationHub : Hub
         var userId = GetCallerUserId();
         var tenantId = GetCallerTenantId();
         if (userId.HasValue)
+        {
             await Groups.AddToGroupAsync(Context.ConnectionId, $"user_{userId}");
+            // S4 — record the connection so MemberRemoved can evict it later.
+            _connectionRegistry.Track(userId.Value, Context.ConnectionId);
+        }
         if (tenantId.HasValue)
             await Groups.AddToGroupAsync(Context.ConnectionId, $"tenant_{tenantId}");
 
@@ -148,6 +156,11 @@ public class NotificationHub : Hub
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         _connections.TryRemove(Context.ConnectionId, out _);
+        // S4 — drop the connection from the registry so revoke-loops don't
+        // try to kick a stale id.
+        var disconnectingUserId = GetCallerUserId();
+        if (disconnectingUserId.HasValue)
+            _connectionRegistry.Untrack(disconnectingUserId.Value, Context.ConnectionId);
         // T3 — broadcast PresenceChanged on hard disconnect.
         var affected = _presence.Leave(Context.ConnectionId);
         foreach (var pid in affected)

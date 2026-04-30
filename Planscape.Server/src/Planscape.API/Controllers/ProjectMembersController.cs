@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.SignalR;
 
 namespace Planscape.API.Controllers;
 
@@ -20,11 +21,15 @@ public class ProjectMembersController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
     private readonly IEmailService _emailService;
+    private readonly IProjectMembershipNotifier _membershipNotifier;
 
-    public ProjectMembersController(PlanscapeDbContext db, IEmailService emailService)
+    public ProjectMembersController(PlanscapeDbContext db,
+                                    IEmailService emailService,
+                                    IProjectMembershipNotifier membershipNotifier)
     {
         _db = db;
         _emailService = emailService;
+        _membershipNotifier = membershipNotifier;
     }
 
     // ── GET all members for a project ─────────────────────────────────────────
@@ -296,6 +301,14 @@ public class ProjectMembersController : ControllerBase
         });
 
         await _db.SaveChangesAsync();
+
+        // S4 — evict the user's running SignalR connections from the
+        // project group so they stop receiving project events immediately.
+        // Fire-and-forget is fine: the controller's response shouldn't
+        // block on hub fan-out, and the broadcast is idempotent if it
+        // races with reconnect.
+        _ = _membershipNotifier.RevokeProjectAccessAsync(member.UserId, projectId);
+
         return NoContent();
     }
 

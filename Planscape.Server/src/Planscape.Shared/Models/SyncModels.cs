@@ -114,4 +114,24 @@ public class SyncResult
     public int SeqCountersMerged { get; set; }
     public double ServerCompliancePercent { get; set; }
     public string? ErrorMessage { get; set; }
+
+    /// <summary>
+    /// P4 — HTTP status code from the server when available (0 for
+    /// network failures, -1 for non-HTTP errors). The offline-queue
+    /// drain uses this to distinguish:
+    ///   • 5xx / 0 (transient) → break the drain loop, keep retrying
+    ///   • 4xx (fatal — bad payload, revoked auth) → skip this payload,
+    ///     log + continue draining
+    /// </summary>
+    public int StatusCode { get; set; }
+
+    /// <summary>
+    /// P7 — server-side conflicts the client should surface. Each entry
+    /// is a short human-readable string; the dock-panel sync chip shows
+    /// "Sync: N conflicts" so users can open a conflict inspector.
+    /// </summary>
+    public List<string> Conflicts { get; set; } = new();
+
+    public bool IsTransient => StatusCode == 0 || StatusCode >= 500;
+    public bool IsFatalRequestError => StatusCode >= 400 && StatusCode < 500;
 }
