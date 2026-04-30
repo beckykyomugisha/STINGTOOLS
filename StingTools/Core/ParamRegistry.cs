@@ -2371,20 +2371,66 @@ namespace StingTools.Core
         {
             if (container.TokenIndices == null || container.TokenIndices.Length == 0)
                 return "";
+
+            // Phase 165 follow-up — token-write hardening pass.
+            // Two defensive measures applied here:
+            //
+            //  1. De-duplicate TokenIndices in-flight. If a config drift, hand-
+            //     edit, or upstream merge introduces the same slot twice (e.g.
+            //     [0,6,6,7]), the assembled string previously rendered the
+            //     PROD value twice ("M-AHU-AHU-0001"). We now emit each slot
+            //     at most once and preserve the original FIRST-OCCURRENCE
+            //     order so legitimate non-duplicated configs are unchanged.
+            //
+            //  2. Skip empty token values rather than emitting an empty
+            //     string. The previous code added '' to `parts` and let
+            //     string.Join produce double separators ("M-BLD1--L02"
+            //     when ZONE was empty). Stripping empties at this layer is
+            //     consistent with the "any non-empty token writes" sanity
+            //     in WriteContainers.
+
+            var seen = new HashSet<int>();
             var parts = new List<string>();
             bool anyValue = false;
             foreach (int idx in container.TokenIndices)
             {
+                if (!seen.Add(idx)) continue; // dedupe: same slot already emitted
                 string val = idx >= 0 && idx < tokenValues.Length ? tokenValues[idx] : "";
+                if (string.IsNullOrEmpty(val)) continue;   // strip empty slots
                 parts.Add(val);
-                if (!string.IsNullOrEmpty(val)) anyValue = true;
+                anyValue = true;
             }
             if (!anyValue) return "";
 
-            string assembled = string.Join(container.Separator, parts);
+            // Phase 165 follow-up — honour the literal escape form '\\n' /
+            // '\\r\\n' (two-char) emitted by JSON authors who can't paste a
+            // real newline into the file. Tag families render the resulting
+            // characters as line breaks, fixing the "label breaks not
+            // honoured" report. A real '\n' in the JSON value is left intact.
+            string sep = ResolveSeparator(container.Separator);
+
+            string assembled = string.Join(sep, parts);
             if (!string.IsNullOrEmpty(container.Prefix)) assembled = container.Prefix + assembled;
             if (!string.IsNullOrEmpty(container.Suffix)) assembled = assembled + container.Suffix;
             return assembled;
+        }
+
+        /// <summary>
+        /// Phase 165 follow-up — turn an escaped-string separator from JSON
+        /// into the real character(s) it represents. Recognised escapes:
+        ///   '\\n'   → '\n'   (LF — single line break, Revit-native)
+        ///   '\\r\\n'→ '\r\n' (CRLF — Windows newline, also accepted by Revit)
+        ///   '\\t'   → '\t'   (rarely useful, but supported for symmetry)
+        /// All other inputs (including real LF / CRLF already in the JSON
+        /// value, dashes, pipes, etc.) pass through unchanged.
+        /// </summary>
+        private static string ResolveSeparator(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return "-";
+            if (raw == "\\n")    return "\n";
+            if (raw == "\\r\\n") return "\r\n";
+            if (raw == "\\t")    return "\t";
+            return raw;
         }
 
         /// <summary>
@@ -2558,9 +2604,22 @@ namespace StingTools.Core
             HashSet<string> allowedGroupCodes = LoadAllowedContainerGroups();
 
             var containers = ContainersForCategory(categoryName);
+
+            // Phase 165 follow-up — write-once guard. ContainersForCategory
+            // unions the universal-group containers (Categories == null) with
+            // any category-specific group entries. If a future config defines
+            // the same ParamName in both lists (e.g. ASS_TAG_2_TXT in
+            // Universal AND in HVAC for one category), the loop below would
+            // assemble + write that param twice — producing TAG7 narrative
+            // duplication if the two definitions disagree on TokenIndices.
+            // We dedupe on ParamName so each container writes exactly once
+            // per element.
+            var writtenParams = new HashSet<string>(StringComparer.Ordinal);
+
             foreach (var c in containers)
             {
                 if (c.ParamName == skipParam) continue;
+                if (!writtenParams.Add(c.ParamName)) continue; // already wrote this param this pass
                 // TAG7 + sub-sections use the narrative builder, not token concatenation
                 if (IsTag7Param(c.ParamName)) continue;
 
