@@ -242,11 +242,30 @@ namespace StingTools.Core
         private static bool IsSourceTokenParam(string paramName)
         {
             if (string.IsNullOrEmpty(paramName)) return false;
-            return paramName == ParamRegistry.DISC || paramName == ParamRegistry.LOC
-                || paramName == ParamRegistry.ZONE || paramName == ParamRegistry.LVL
-                || paramName == ParamRegistry.SYS  || paramName == ParamRegistry.FUNC
-                || paramName == ParamRegistry.PROD || paramName == ParamRegistry.SEQ;
+            // Phase 165 perf — was 8 sequential string equals on every
+            // SetString call (~30-50× per element for container writes
+            // → ~30-50k compares on a 1000-element batch). Replaced with a
+            // HashSet<string> lookup populated lazily from the live
+            // ParamRegistry token names so a Reload that renames a token
+            // automatically refreshes the gate.
+            return (_sourceTokenSet ??= BuildSourceTokenSet()).Contains(paramName);
         }
+
+        // Phase 165 perf — lazy + invalidatable so a ParamRegistry.Reload
+        // that renames any source-token param refreshes the gate on next call.
+        private static HashSet<string> _sourceTokenSet;
+        private static HashSet<string> BuildSourceTokenSet()
+        {
+            return new HashSet<string>(StringComparer.Ordinal)
+            {
+                ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+                ParamRegistry.LVL,  ParamRegistry.SYS, ParamRegistry.FUNC,
+                ParamRegistry.PROD, ParamRegistry.SEQ,
+            };
+        }
+        /// <summary>Phase 165 perf — invalidate the source-token gate after
+        /// a ParamRegistry.Reload that may have renamed any ISO 19650 token.</summary>
+        public static void InvalidateSourceTokenSet() { _sourceTokenSet = null; }
 
         /// <summary>
         /// PROD-CONCAT-FIX: shape-guard for source-token writes. Returns the

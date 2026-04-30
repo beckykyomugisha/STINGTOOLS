@@ -5987,7 +5987,9 @@ namespace StingTools.Core
                 {
                     // Issue #22 — Handover/Custom: blank D-F so old DC content
                     // doesn't shadow the System B tier appends that follow.
-                    Parameter p = el.LookupParameter(sectionParams[i]);
+                    // Phase 165 perf — CachedLookup avoids per-instance
+                    // LookupParameter cost.
+                    Parameter p = ParameterHelpers.CachedLookup(el, sectionParams[i]);
                     if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String)
                     {
                         string cur = p.AsString();
@@ -6106,7 +6108,10 @@ namespace StingTools.Core
                         if (!string.IsNullOrEmpty(paraContainer)
                             && string.Equals(containerName, paraContainer, StringComparison.Ordinal))
                             continue; // skip the active container — we're writing it next.
-                        Parameter p = el.LookupParameter(containerName);
+                        // Phase 165 perf — CachedLookup short-circuits the
+                        // LookupParameter cost when the same family carries
+                        // (or doesn't carry) this container parameter.
+                        Parameter p = ParameterHelpers.CachedLookup(el, containerName);
                         if (p == null || p.IsReadOnly) continue;
                         if (p.StorageType != StorageType.String) continue;
                         string cur = p.AsString();
@@ -6144,7 +6149,12 @@ namespace StingTools.Core
         public static bool ReadParaStateBool(Element host, string paramName)
         {
             if (host == null || string.IsNullOrEmpty(paramName)) return false;
-            Parameter p = host.LookupParameter(paramName);
+            // Phase 165 perf — use the shared parameter cache so the same
+            // (typeId, paramName) pair pays the LookupParameter cost only once
+            // per session. WriteTag7All calls this 14× per element so a
+            // 1000-element batch was 14000 fresh LookupParameter calls; with
+            // CachedLookup most calls become an O(1) Definition fetch.
+            Parameter p = ParameterHelpers.CachedLookup(host, paramName);
             if (p == null) return false;
             try
             {

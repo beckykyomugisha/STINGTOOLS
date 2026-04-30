@@ -671,6 +671,13 @@ namespace StingTools.Core
         /// × ~47 containers in a typical model = wasted millions of cycles).
         /// </summary>
         private static string[] _allParagraphContainersCache;
+
+        // Phase 165 perf — per-thread reusable buffers for AssembleContainer
+        // and WriteContainers. ThreadStatic so each Revit thread gets its
+        // own. Reset on every call to be safe even though Revit pins
+        // commands to the API thread.
+        [ThreadStatic] private static List<string> _assembleScratch;
+        [ThreadStatic] private static HashSet<string> _writtenParamsScratch;
         public static string[] AllParagraphContainers
         {
             get
@@ -1316,6 +1323,13 @@ namespace StingTools.Core
             }
             // Invalidate downstream caches that depend on our data
             SharedParamGuids.InvalidateCache();
+            // Phase 165 perf — refresh the source-token-name gate and the
+            // doc-keyed mode cache so a Reload that renames any token /
+            // changes any HANDOVER_MODE_* binding doesn't leak stale cached
+            // values into the next tag-write batch.
+            ParameterHelpers.InvalidateSourceTokenSet();
+            InvalidateModeCache();
+            _allParagraphContainersCache = null;
             EnsureLoaded();
         }
 
@@ -2448,14 +2462,28 @@ namespace StingTools.Core
             //     consistent with the "any non-empty token writes" sanity
             //     in WriteContainers.
 
-            var seen = new HashSet<int>();
-            var parts = new List<string>();
+            // Phase 165 perf — replace the per-call HashSet<int> with an int
+            // bitmask. TokenIndices slots are 0..7 (eight ISO 19650 source
+            // tokens), so a single int holds the seen-set. Replaces a heap
+            // allocation per AssembleContainer call (~30k allocations for a
+            // 1000-element batch — AssembleContainer fires once per
+            // container per element).
+            // The parts list is recycled via a [ThreadStatic] buffer so the
+            // List<string> backing array is reused across calls within the
+            // same thread. Revit hosts plugins on a single thread, so this
+            // is safe and eliminates another ~30k allocations per batch.
+            int seen = 0;
+            var parts = _assembleScratch ??= new List<string>(8);
+            parts.Clear();
             bool anyValue = false;
             foreach (int idx in container.TokenIndices)
             {
-                if (!seen.Add(idx)) continue; // dedupe: same slot already emitted
-                string val = idx >= 0 && idx < tokenValues.Length ? tokenValues[idx] : "";
-                if (string.IsNullOrEmpty(val)) continue;   // strip empty slots
+                if (idx < 0 || idx > 31) continue;          // bitmask scope
+                int bit = 1 << idx;
+                if ((seen & bit) != 0) continue;            // dedupe
+                seen |= bit;
+                string val = idx < tokenValues.Length ? tokenValues[idx] : "";
+                if (string.IsNullOrEmpty(val)) continue;    // strip empty slots
                 parts.Add(val);
                 anyValue = true;
             }
@@ -2673,7 +2701,11 @@ namespace StingTools.Core
             // duplication if the two definitions disagree on TokenIndices.
             // We dedupe on ParamName so each container writes exactly once
             // per element.
-            var writtenParams = new HashSet<string>(StringComparer.Ordinal);
+            // Phase 165 perf — recycle a per-thread HashSet so a 1000-element
+            // batch doesn't allocate 1000 transient HashSets.
+            var writtenParams = _writtenParamsScratch
+                ??= new HashSet<string>(StringComparer.Ordinal);
+            writtenParams.Clear();
 
             foreach (var c in containers)
             {
@@ -2741,19 +2773,36 @@ namespace StingTools.Core
         /// when the user hasn't pushed a selection yet — callers treat null as
         /// "accept everything".
         /// </summary>
+        // Phase 165 perf — cache the parsed HashSet keyed by the raw CSV
+        // value. WriteContainers calls LoadAllowedContainerGroups per element;
+        // for an unchanged CSV (the typical case during a batch) the cache
+        // hits and avoids the per-element string.Split + HashSet allocation.
+        private static string _allowedGroupsCsvCache;
+        private static HashSet<string> _allowedGroupsSetCache;
         private static HashSet<string> LoadAllowedContainerGroups()
         {
             try
             {
                 string csv = StingTools.UI.StingCommandHandler.GetExtraParam("TagContainers");
-                if (string.IsNullOrWhiteSpace(csv)) return null;
+                if (string.IsNullOrWhiteSpace(csv))
+                {
+                    _allowedGroupsCsvCache = null;
+                    _allowedGroupsSetCache = null;
+                    return null;
+                }
+                if (string.Equals(csv, _allowedGroupsCsvCache, StringComparison.Ordinal))
+                    return _allowedGroupsSetCache;
+
                 var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (string raw in csv.Split(','))
                 {
                     string tok = raw?.Trim();
                     if (!string.IsNullOrEmpty(tok)) set.Add(tok);
                 }
-                return set.Count == 0 ? null : set;
+                if (set.Count == 0) { _allowedGroupsCsvCache = csv; _allowedGroupsSetCache = null; return null; }
+                _allowedGroupsCsvCache = csv;
+                _allowedGroupsSetCache = set;
+                return set;
             }
             catch { return null; }
         }
