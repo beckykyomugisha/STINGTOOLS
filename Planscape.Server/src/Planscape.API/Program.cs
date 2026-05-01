@@ -298,6 +298,8 @@ builder.Services.AddScoped<Planscape.Core.Interfaces.IBulkTagUpserter,
 builder.Services.AddScoped<Planscape.Infrastructure.Services.OutboxDispatcher>();
 // S4.2 — demo sandbox reset job (daily; resets the 'demo' tenant).
 builder.Services.AddScoped<Planscape.Infrastructure.Services.DemoSandboxJob>();
+// S7.2 — SLA burn-rate alert job (every 5 min).
+builder.Services.AddScoped<Planscape.Infrastructure.Services.SlaBurnRateJob>();
 
 // P7 + P8 — IFC→glTF converter + thumbnail generator. Null defaults keep the
 // system running without a converter installed; swap the registration to
@@ -486,6 +488,8 @@ app.UseCors("Mobile");
 // controllers serve both. Older /api/* paths get a Deprecation
 // header pointing at /api/v1 and a 2026-12-31 sunset date.
 app.UseApiVersionRewriter();
+// S7.2 — count every response into rolling SLA buckets in Redis.
+app.UseSlaMetrics();
 app.UseAuthentication();
 app.UseMiddleware<TenantResolutionMiddleware>(); // Must run AFTER auth so JWT claims are available
 app.UseMiddleware<MobileContextMiddleware>();
@@ -680,5 +684,12 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.OutboxDispatcher>(
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DemoSandboxJob>(
     "demo-reset", j => j.ExecuteAsync(CancellationToken.None),
     "0 2 * * *", new RecurringJobOptions { QueueName = "default" });
+
+// S7.2 — SLA burn-rate alerts every 5 minutes. Reads rolling-window
+// 5xx counts from Redis (populated by the request middleware in S7.2.1)
+// and pages the founder when burn rate exceeds the threshold.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.SlaBurnRateJob>(
+    "sla-burn", j => j.ExecuteAsync(CancellationToken.None),
+    "*/5 * * * *", new RecurringJobOptions { QueueName = "default" });
 
 await app.RunAsync();
