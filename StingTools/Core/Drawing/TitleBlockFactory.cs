@@ -10,16 +10,20 @@
 //      (with try/finally restore — same pattern as TagFamilyCreator).
 //   4. In one Transaction:
 //      a. Add every shared / internal / calculated parameter via
-//         FamilyManager. Internal Yes/No for STING_BIM_MODE_BOOL.
-//      b. Place reflow groups — for each ReflowGroupSpec, create
-//         two reference planes (top/bottom), place a labelled
-//         dimension between them, add a length parameter, set the
-//         if(BIM_MODE, fullHeight, collapsedHeight) formula. Track
-//         the height-parameter for child Visible-binding (defence
-//         in depth).
-//      c. Place lines — NewDetailCurve. Apply LineStyle. Bind
-//         Visible to BIM_MODE (or the group's height-parameter
-//         when inside a reflow group).
+//         FamilyManager in two passes (Phase 171): pass 1 mints
+//         every parameter without a formula; pass 2 sets formulas
+//         once the full map is populated, so any formula can
+//         reference any param regardless of declaration order.
+//      b. Build reflow groups — Phase 171 simplifies to pure
+//         Strategy A: per group, mint a YesNo parameter
+//         <groupId>_VIS = STING_BIM_MODE_BOOL. Children bind
+//         their Visible to it. Strip outer auto-shrink is achieved
+//         in the spec via Strategy A line pairing
+//         (visibility:"bimOnly" + visibility:"nonBimOnly").
+//      c. Place lines — NewDetailCurve. Apply LineStyle (with
+//         fallback chain "Wide" → "Heavy" → "Thick" → "Medium"
+//         → "Thin"). Bind Visible via ResolveGate(visibility,
+//         bimOnly).
 //      d. Place static text — TextNote.Create. Bind Visible.
 //      e. Place labels — NewLabel bound to FamilyParameter. Bind
 //         Visible.
@@ -128,20 +132,20 @@ namespace StingTools.Core.Drawing
                     // 4c. Lines (family-level + group children)
                     foreach (var line in spec.Lines)
                         PlaceLine(famDoc, fm, view, line, paramByName,
-                                  visibilityGate: GateForBimOnly(line.BimOnly,
-                                      paramByName, spec.BimModeParameter), r);
+                                  visibilityGate: ResolveGate(line.Visibility,
+                                      line.BimOnly, paramByName, spec.BimModeParameter), r);
 
                     // 4d. Static text
                     foreach (var st in spec.StaticText)
                         PlaceStaticText(famDoc, fm, view, st, paramByName,
-                                  visibilityGate: GateForBimOnly(st.BimOnly,
-                                      paramByName, spec.BimModeParameter), r);
+                                  visibilityGate: ResolveGate(st.Visibility,
+                                      st.BimOnly, paramByName, spec.BimModeParameter), r);
 
                     // 4e. Labels
                     foreach (var lbl in spec.Labels)
                         PlaceLabel(famDoc, fm, view, lbl, paramByName,
-                                  visibilityGate: GateForBimOnly(lbl.BimOnly,
-                                      paramByName, spec.BimModeParameter), r);
+                                  visibilityGate: ResolveGate(lbl.Visibility,
+                                      lbl.BimOnly, paramByName, spec.BimModeParameter), r);
 
                     // 4f. Label pairs (two-label trick)
                     foreach (var lp in spec.LabelPairs)
@@ -151,8 +155,8 @@ namespace StingTools.Core.Drawing
                     // 4g. Filled regions
                     foreach (var fr in spec.FilledRegions)
                         PlaceFilledRegion(famDoc, fm, view, fr, paramByName,
-                                  visibilityGate: GateForBimOnly(fr.BimOnly,
-                                      paramByName, spec.BimModeParameter), r);
+                                  visibilityGate: ResolveGate(fr.Visibility,
+                                      fr.BimOnly, paramByName, spec.BimModeParameter), r);
 
                     // 4h. Reflow group children
                     foreach (var grp in spec.ReflowGroups)
@@ -298,25 +302,33 @@ namespace StingTools.Core.Drawing
             TitleBlockSpec spec, Dictionary<string, FamilyParameter> map,
             TitleBlockBuildResult r)
         {
-            // 1. Mint the family-internal BIM_MODE_BOOL first (the
-            // visibility / formula gate every cell references).
+            // Phase 171 — two-pass creation. Pass 1 mints every
+            // parameter (internal + shared) WITHOUT formulas, so a
+            // formula in pass 2 can reference any other parameter
+            // regardless of declaration order. Defaults are still
+            // applied in pass 1 (they don't need other params).
+            var pendingFormulas = new List<(string Name, string Formula)>();
+
+            // 1. BIM_MODE_BOOL — the gate every cell references.
             var bim = AddInternalParameter(fm, spec.BimModeParameter,
                 "YesNo", "IdentityData", isInstance: true,
                 defaultValue: "1", formula: null, r);
             if (bim != null) map[spec.BimModeParameter] = bim;
 
-            // 2. Mint the inverse (NOT BIM) so the two-label trick has
-            // a parameter to bind label B's Visible to.
+            // 2. NOT_BIM inverse. Formula deferred to pass 2.
             string notBimName = spec.BimModeParameter.Replace("STING_BIM_MODE", "STING_NOT_BIM");
             if (notBimName == spec.BimModeParameter) notBimName = spec.BimModeParameter + "_INVERSE";
             var notBim = AddInternalParameter(fm, notBimName, "YesNo",
                 "IdentityData", isInstance: true, defaultValue: null,
-                formula: $"not({spec.BimModeParameter})", r);
-            if (notBim != null) map[notBimName] = notBim;
-            // Also expose under a stable alias the rest of the engine queries.
-            map["__NOT_BIM__"] = notBim;
+                formula: null, r);
+            if (notBim != null)
+            {
+                map[notBimName] = notBim;
+                map["__NOT_BIM__"] = notBim;
+                pendingFormulas.Add((notBimName, $"not({spec.BimModeParameter})"));
+            }
 
-            // 3. Spec-declared parameters.
+            // 3. Spec-declared parameters — pass 1 (no formulas yet).
             foreach (var p in spec.Parameters)
             {
                 if (string.IsNullOrEmpty(p?.Name)) continue;
@@ -325,7 +337,9 @@ namespace StingTools.Core.Drawing
                 if (string.Equals(p.Kind, "internal", StringComparison.OrdinalIgnoreCase))
                 {
                     fp = AddInternalParameter(fm, p.Name, p.Type, p.Group,
-                        p.Instance, p.Default, p.Formula, r);
+                        p.Instance, p.Default, formula: null, r);
+                    if (!string.IsNullOrEmpty(p.Formula))
+                        pendingFormulas.Add((p.Name, p.Formula));
                 }
                 else
                 {
@@ -334,6 +348,15 @@ namespace StingTools.Core.Drawing
                 }
                 if (fp != null) map[p.Name] = fp;
             }
+
+            // 4. Pass 2 — every formula now sees a fully-populated map.
+            foreach (var (name, formula) in pendingFormulas)
+            {
+                if (!map.TryGetValue(name, out var fp)) continue;
+                try { fm.SetFormula(fp, formula); }
+                catch (Exception ex) { r.Warnings.Add($"SetFormula '{name}': {ex.Message}"); }
+            }
+
             r.ParametersAdded = map.Count;
         }
 
@@ -441,22 +464,28 @@ namespace StingTools.Core.Drawing
             }
         }
 
-        // ── Reflow group construction (Strategy B) ───────────────────────
+        // ── Reflow group construction (Strategy A — Phase 171) ──────────
 
-        /// <summary>For each ReflowGroupSpec: mint a length parameter,
-        /// set its formula to if(BIM_MODE, fullHeightMm, collapsedHeightMm),
-        /// and return the height-parameter map keyed by group id. Child
-        /// elements placed inside the group have their Visible
-        /// associated to this height parameter (via a derived YesNo
-        /// formula `&lt;heightParam&gt; > 0`) so they hide when the row
-        /// collapses to 0 mm.
+        /// <summary>Phase 170 originally minted a Length parameter per
+        /// group with formula `if(BIM, fullH mm, collapsedH mm)` and a
+        /// sibling YesNo `BIM and (H > 0 mm)`. Revit's family-formula
+        /// parser rejected the metric-literal expressions in practice
+        /// (`0.0 mm` and `> 0 mm` both produce "invalid formula
+        /// string"), so Phase 171 simplifies to pure Strategy A:
         ///
-        /// NOTE: Revit doesn't directly accept a Length parameter as a
-        /// Visible (YesNo) binding source. Pattern: mint a sibling
-        /// YesNo parameter `&lt;groupId&gt;_VIS` with the formula
-        /// `if(STING_BIM_MODE_BOOL and (&lt;heightParam&gt; > 0), 1, 0)`,
-        /// and bind child Visible to that. Same effect — group visibility
-        /// = (BIM mode is on) AND (height &gt; 0).</summary>
+        ///   Per group, mint one YesNo parameter `&lt;groupId&gt;_VIS`
+        ///   with formula = STING_BIM_MODE_BOOL. Children bind their
+        ///   Visible to it. When BIM toggles to 0, every child of every
+        ///   group hides simultaneously.
+        ///
+        /// The strip outer top edge is still parametric — but via
+        /// Strategy A line pairing in the spec: a `bimOnly` line at
+        /// y = full-strip-top + a `nonBimOnly` line at y = collapsed-
+        /// strip-top. See LineSpec.Visibility ("nonBimOnly") added in
+        /// Phase 171.
+        ///
+        /// CollapsedHeightMm in the spec is now informational only;
+        /// the engine no longer creates Length parameters.</summary>
         private static Dictionary<string, FamilyParameter> BuildReflowGroups(
             Document famDoc, FamilyManager fm, TitleBlockSpec spec,
             Dictionary<string, FamilyParameter> map, View view,
@@ -464,28 +493,21 @@ namespace StingTools.Core.Drawing
         {
             var visByGroup = new Dictionary<string, FamilyParameter>(
                 StringComparer.OrdinalIgnoreCase);
+            // Defer formula assignment until the BIM_MODE param exists in
+            // the family, which it always does at this point — but match
+            // the post-pass-2 ordering of AddAllParameters by setting it
+            // directly here (the formula references only one param so no
+            // ordering risk).
             foreach (var grp in spec.ReflowGroups)
             {
                 if (string.IsNullOrEmpty(grp?.Id)) continue;
                 try
                 {
-                    // 1. Length parameter for the group's height.
-                    var heightParamName = string.IsNullOrEmpty(grp.HeightParam)
-                        ? $"H_{grp.Id}_MM" : grp.HeightParam;
-                    var hp = AddInternalParameter(fm, heightParamName,
-                        "Length", "Constraints", isInstance: false,
-                        defaultValue: null,
-                        formula: $"if({spec.BimModeParameter}, {grp.FullHeightMm} mm, {grp.CollapsedHeightMm} mm)",
-                        r);
-                    if (hp != null) map[heightParamName] = hp;
-
-                    // 2. Sibling YesNo for child Visible binding.
                     var visName = $"{grp.Id}_VIS";
                     var vp = AddInternalParameter(fm, visName, "YesNo",
                         "Constraints", isInstance: false,
                         defaultValue: null,
-                        formula: $"{spec.BimModeParameter} and ({heightParamName} > 0 mm)",
-                        r);
+                        formula: spec.BimModeParameter, r);
                     if (vp != null)
                     {
                         map[visName] = vp;
@@ -511,6 +533,38 @@ namespace StingTools.Core.Drawing
         {
             if (!bimOnly) return null;
             return map.TryGetValue(bimParamName, out var fp) ? fp : null;
+        }
+
+        /// <summary>Phase 171 — three-way visibility resolver. The
+        /// per-element `visibility` field takes precedence over the
+        /// legacy `bimOnly` boolean. Recognised values:
+        ///   "always"      → null gate (element always visible)
+        ///   "bimOnly"     → BIM_MODE gate (visible when BIM = 1)
+        ///   "nonBimOnly"  → NOT_BIM gate (visible when BIM = 0; new
+        ///                   in Phase 171 — enables Strategy A strip
+        ///                   auto-shrink: pair a `bimOnly` line at the
+        ///                   full strip top with a `nonBimOnly` line at
+        ///                   the collapsed strip top).
+        /// When `visibility` is null/empty/unrecognised, falls through
+        /// to the legacy bimOnly behaviour.</summary>
+        private static FamilyParameter ResolveGate(string visibility,
+            bool bimOnlyLegacy, Dictionary<string, FamilyParameter> map,
+            string bimParamName)
+        {
+            if (!string.IsNullOrEmpty(visibility))
+            {
+                switch (visibility.Trim().ToLowerInvariant())
+                {
+                    case "always":
+                        return null;
+                    case "bimonly":
+                        return map.TryGetValue(bimParamName, out var bim) ? bim : null;
+                    case "nonbimonly":
+                    case "nonbim":
+                        return map.TryGetValue("__NOT_BIM__", out var notBim) ? notBim : null;
+                }
+            }
+            return GateForBimOnly(bimOnlyLegacy, map, bimParamName);
         }
 
         /// <summary>Associate an element's Visible parameter to a
@@ -689,6 +743,23 @@ namespace StingTools.Core.Drawing
 
         // ── Resolvers ────────────────────────────────────────────────────
 
+        // Phase 171 — title-block .rft templates only ship a small
+        // subset of generic-line subcategories. "Wide Lines" / "Heavy
+        // Lines" / "Thick Lines" all describe the same intent across
+        // English / English-Imperial / locale variants. Try the
+        // requested name first, then walk a fallback chain, then drop
+        // back to whatever style the family's first projection
+        // subcategory exposes. Lines remain drawn either way.
+        private static readonly Dictionary<string, string[]> LineStyleFallbacks =
+            new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Wide Lines"]   = new[] { "Heavy Lines", "Thick Lines", "Medium Lines", "Thin Lines" },
+                ["Heavy Lines"]  = new[] { "Wide Lines", "Thick Lines", "Medium Lines", "Thin Lines" },
+                ["Thick Lines"]  = new[] { "Heavy Lines", "Wide Lines", "Medium Lines", "Thin Lines" },
+                ["Medium Lines"] = new[] { "Thin Lines" },
+                ["Thin Lines"]   = new[] { "Medium Lines" },
+            };
+
         private static void ApplyLineStyle(Document doc, DetailCurve dc,
             string styleName, TitleBlockBuildResult r)
         {
@@ -697,16 +768,28 @@ namespace StingTools.Core.Drawing
             {
                 var lines = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Lines);
                 if (lines == null) return;
-                foreach (Category sub in lines.SubCategories)
+
+                // Build the candidate name list: requested → fallbacks.
+                var names = new List<string> { styleName };
+                if (LineStyleFallbacks.TryGetValue(styleName, out var fb))
+                    names.AddRange(fb);
+
+                foreach (var name in names)
                 {
-                    if (string.Equals(sub.Name, styleName, StringComparison.OrdinalIgnoreCase))
+                    foreach (Category sub in lines.SubCategories)
                     {
-                        var gs = sub.GetGraphicsStyle(GraphicsStyleType.Projection);
-                        if (gs != null) dc.LineStyle = gs;
-                        return;
+                        if (string.Equals(sub.Name, name, StringComparison.OrdinalIgnoreCase))
+                        {
+                            var gs = sub.GetGraphicsStyle(GraphicsStyleType.Projection);
+                            if (gs != null) dc.LineStyle = gs;
+                            return;
+                        }
                     }
                 }
-                r.Warnings.Add($"line style '{styleName}' not found");
+
+                // No match found in the chain — line keeps its default
+                // style (still drawn). Warn once with the chain tried.
+                r.Warnings.Add($"line style '{styleName}' not found (no fallback available)");
             }
             catch (Exception ex) { r.Warnings.Add($"ApplyLineStyle '{styleName}': {ex.Message}"); }
         }

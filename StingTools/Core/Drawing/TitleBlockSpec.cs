@@ -105,6 +105,14 @@ namespace StingTools.Core.Drawing
         [JsonProperty("to")]      public double[] To   { get; set; }
         [JsonProperty("style")]   public string   Style { get; set; } = "Medium Lines";
         [JsonProperty("bimOnly")] public bool     BimOnly { get; set; }
+
+        /// <summary>"always" (default), "bimOnly" (legacy alias for
+        /// bimOnly:true), or "nonBimOnly" (Phase 171 — visible only
+        /// when BIM=0; lets spec authors do Strategy A strip
+        /// auto-shrink: pair a `bimOnly` line at the full-mode strip
+        /// top with a `nonBimOnly` line at the collapsed strip top).
+        /// When set, takes precedence over bimOnly.</summary>
+        [JsonProperty("visibility")] public string Visibility { get; set; }
     }
 
     /// <summary>Static text — cell label like "CLIENT", not bound
@@ -118,6 +126,7 @@ namespace StingTools.Core.Drawing
         [JsonProperty("vAlign")]  public string   VAlign { get; set; } = "Middle";
         [JsonProperty("bimOnly")] public bool     BimOnly { get; set; }
         [JsonProperty("textTypeName")] public string TextTypeName { get; set; }
+        [JsonProperty("visibility")] public string Visibility { get; set; }
     }
 
     /// <summary>Label bound to a single family parameter.</summary>
@@ -131,6 +140,7 @@ namespace StingTools.Core.Drawing
         [JsonProperty("prefix")]  public string   Prefix { get; set; } = "";
         [JsonProperty("suffix")]  public string   Suffix { get; set; } = "";
         [JsonProperty("bimOnly")] public bool     BimOnly { get; set; }
+        [JsonProperty("visibility")] public string Visibility { get; set; }
     }
 
     /// <summary>Two labels at the same anchor with reciprocal
@@ -157,6 +167,7 @@ namespace StingTools.Core.Drawing
         [JsonProperty("fillTypeName")] public string  FillTypeName { get; set; } = "Solid fill - Light Grey";
         [JsonProperty("color")]       public string   Color { get; set; }        // "#RRGGBB", optional
         [JsonProperty("bimOnly")]     public bool     BimOnly { get; set; }
+        [JsonProperty("visibility")]  public string   Visibility { get; set; }
     }
 
     /// <summary>Reflow group — Strategy B from §3.1. The group is a

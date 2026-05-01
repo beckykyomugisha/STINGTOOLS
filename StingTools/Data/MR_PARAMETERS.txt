@@ -2636,3 +2636,7 @@ PARAM	a7c0b2e4-4d91-4a55-9c7e-aa0001000005	STING_SHEET_SEQUENCE_INT	INTEGER		27	
 PARAM	a8f3c1d2-4e56-7890-abcd-ef1234567801	HANDOVER_MODE_HANDOVER_BOOL	YESNO		25	1	Pattern selector — Handover / FM T4-T10 payload visible [STING Phase 165]	1
 PARAM	a8f3c1d2-4e56-7890-abcd-ef1234567802	HANDOVER_MODE_DC_BOOL	YESNO		25	1	Pattern selector — Design & Construction T4-T10 payload visible [STING Phase 165]	1
 PARAM	a8f3c1d2-4e56-7890-abcd-ef1234567803	HANDOVER_MODE_CUSTOM_BOOL	YESNO		25	1	Pattern selector — Custom (user-defined) T4-T10 payload visible [STING Phase 165]	1
+PARAM	33188c51-0a4f-52e7-ad2a-37e68ca7ddda	PRJ_ORG_PROJECT_NAME_TXT	TEXT		13	1	Project name shown on the title block [STING Phase 171]	1
+PARAM	85e93a80-42bc-535e-a9e3-bcd76b7c07a0	PRJ_ORG_PROJECT_ADDRESS_TXT	TEXT		13	1	Project / site address shown on the title block [STING Phase 171]	1
+PARAM	0c7cd8c7-ae84-5f31-a3ac-cfeffff97954	PRJ_ORG_PROJECT_NUMBER_TXT	TEXT		13	1	Project number / job number shown on the title block [STING Phase 171]	1
+PARAM	b34a1ffa-4c71-5469-9806-8fc01315f8a6	PRJ_ORG_RIBA_STAGE_TXT	TEXT		13	1	RIBA work stage (0-7) shown on the title block [STING Phase 171]	1
