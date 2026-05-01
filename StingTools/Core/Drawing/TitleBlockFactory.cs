@@ -587,14 +587,22 @@ namespace StingTools.Core.Drawing
             { r.Warnings.Add($"PlaceLabel: param '{spec.Param}' not added — skipped"); return; }
             try
             {
+                // TODO-VERIFY-API: FamilyItemFactory has no public NewLabel in
+                // Revit 2025+. Same documented limitation that
+                // FamilyLabelAuthor calls out — programmatic Label creation
+                // is not exposed by the public API. Fall back to a placeholder
+                // TextNote so the family at least carries a visual hint at
+                // the right anchor; Phase 171+ will load labels from a seed
+                // .rft and rebind them via FamilyManager rather than mint
+                // them from scratch.
                 var origin = new XYZ(MmToFt(spec.Anchor[0]), MmToFt(spec.Anchor[1]), 0);
-                var hAlign = ParseHAlign(spec.HAlign);
-                var sizeFt = MmToFt(spec.Size);
-                IList<FamilyParameter> labelParams = new List<FamilyParameter> { fp };
-                IList<string> prefixSuffix = new List<string> { spec.Prefix ?? "", spec.Suffix ?? "" };
-                var lbl = famDoc.FamilyCreate.NewLabel(view, origin, hAlign,
-                    labelParams, prefixSuffix, sizeFt);
+                var typeId = ResolveTextNoteTypeId(famDoc, null);
+                if (typeId == ElementId.InvalidElementId)
+                { r.Warnings.Add($"PlaceLabel '{spec.Param}': no text type for placeholder"); return; }
+                var placeholder = $"{spec.Prefix ?? ""}<{spec.Param}>{spec.Suffix ?? ""}";
+                var lbl = TextNote.Create(famDoc, view.Id, origin, placeholder, typeId);
                 BindVisibility(fm, lbl, visibilityGate, r);
+                r.Warnings.Add($"PlaceLabel '{spec.Param}': created placeholder TextNote (NewLabel API not available — bind manually in Family Editor)");
                 r.LabelsPlaced++;
             }
             catch (Exception ex) { r.Warnings.Add($"PlaceLabel '{spec.Param}': {ex.Message}"); }
@@ -607,16 +615,18 @@ namespace StingTools.Core.Drawing
             if (spec?.Anchor == null || spec.Anchor.Length < 2) return;
             try
             {
+                // TODO-VERIFY-API: see PlaceLabel — no public NewLabel API.
+                // Both legs of the pair fall back to placeholder TextNotes.
                 var origin = new XYZ(MmToFt(spec.Anchor[0]), MmToFt(spec.Anchor[1]), 0);
-                var hAlign = ParseHAlign(spec.HAlign);
-                var sizeFt = MmToFt(spec.Size);
-                IList<string> prefixSuffix = new List<string> { "", "" };
+                var typeId = ResolveTextNoteTypeId(famDoc, null);
+                if (typeId == ElementId.InvalidElementId)
+                { r.Warnings.Add($"PlaceLabelPair: no text type for placeholder"); return; }
 
                 // Label A — visible when BIM = 1
                 if (map.TryGetValue(spec.ParamBim, out var fpA))
                 {
-                    var lblA = famDoc.FamilyCreate.NewLabel(view, origin, hAlign,
-                        new List<FamilyParameter> { fpA }, prefixSuffix, sizeFt);
+                    var lblA = TextNote.Create(famDoc, view.Id, origin,
+                        $"<{spec.ParamBim}>", typeId);
                     map.TryGetValue(bimParamName, out var bimFp);
                     BindVisibility(fm, lblA, bimFp, r);
                 }
@@ -646,11 +656,12 @@ namespace StingTools.Core.Drawing
 
                 if (fpB != null)
                 {
-                    var lblB = famDoc.FamilyCreate.NewLabel(view, origin, hAlign,
-                        new List<FamilyParameter> { fpB }, prefixSuffix, sizeFt);
+                    var lblB = TextNote.Create(famDoc, view.Id, origin,
+                        $"<{spec.ParamNonBim}>", typeId);
                     map.TryGetValue("__NOT_BIM__", out var notBim);
                     BindVisibility(fm, lblB, notBim, r);
                 }
+                r.Warnings.Add($"PlaceLabelPair: created placeholder TextNotes (NewLabel API not available — bind manually in Family Editor)");
                 r.LabelPairsPlaced++;
             }
             catch (Exception ex) { r.Warnings.Add($"PlaceLabelPair: {ex.Message}"); }
