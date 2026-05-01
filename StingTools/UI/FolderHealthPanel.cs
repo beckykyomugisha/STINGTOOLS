@@ -19,16 +19,16 @@ namespace StingTools.UI
     /// </summary>
     public class FolderHealthPanel : UserControl
     {
-        private static readonly SolidColorBrush BgDark   = new(Color.FromRgb(0x1E, 0x1E, 0x1E));
-        private static readonly SolidColorBrush BgPanel  = new(Color.FromRgb(0x25, 0x25, 0x26));
-        private static readonly SolidColorBrush BgRow    = new(Color.FromRgb(0x2D, 0x2D, 0x30));
-        private static readonly SolidColorBrush FgWhite  = new(Color.FromRgb(0xFF, 0xFF, 0xFF));
-        private static readonly SolidColorBrush FgSubtle = new(Color.FromRgb(0xAA, 0xAA, 0xAA));
-        private static readonly SolidColorBrush Accent   = new(Color.FromRgb(0x00, 0x78, 0xD4));
-        private static readonly SolidColorBrush BrBorder = new(Color.FromRgb(0x40, 0x40, 0x40));
-        private static readonly SolidColorBrush Green    = new(Color.FromRgb(0x4C, 0xAF, 0x50));
-        private static readonly SolidColorBrush Amber    = new(Color.FromRgb(0xFF, 0xC1, 0x07));
-        private static readonly SolidColorBrush Red      = new(Color.FromRgb(0xF4, 0x43, 0x36));
+        private static readonly SolidColorBrush BgDark   = new(System.Windows.Media.Color.FromRgb(0x1E, 0x1E, 0x1E));
+        private static readonly SolidColorBrush BgPanel  = new(System.Windows.Media.Color.FromRgb(0x25, 0x25, 0x26));
+        private static readonly SolidColorBrush BgRow    = new(System.Windows.Media.Color.FromRgb(0x2D, 0x2D, 0x30));
+        private static readonly SolidColorBrush FgWhite  = new(System.Windows.Media.Color.FromRgb(0xFF, 0xFF, 0xFF));
+        private static readonly SolidColorBrush FgSubtle = new(System.Windows.Media.Color.FromRgb(0xAA, 0xAA, 0xAA));
+        private static readonly SolidColorBrush Accent   = new(System.Windows.Media.Color.FromRgb(0x00, 0x78, 0xD4));
+        private static readonly SolidColorBrush BrBorder = new(System.Windows.Media.Color.FromRgb(0x40, 0x40, 0x40));
+        private static readonly SolidColorBrush Green    = new(System.Windows.Media.Color.FromRgb(0x4C, 0xAF, 0x50));
+        private static readonly SolidColorBrush Amber    = new(System.Windows.Media.Color.FromRgb(0xFF, 0xC1, 0x07));
+        private static readonly SolidColorBrush Red      = new(System.Windows.Media.Color.FromRgb(0xF4, 0x43, 0x36));
 
         private readonly UIApplication _uiapp;
         private TextBlock _header;
@@ -185,7 +185,7 @@ namespace StingTools.UI
 
             // Status pill
             SolidColorBrush pillColor = !entry.Exists ? Red : (entry.IsEmpty ? Amber : Green);
-            var pill = new Ellipse
+            var pill = new System.Windows.Shapes.Ellipse
             {
                 Width = 10,
                 Height = 10,

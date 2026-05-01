@@ -21,15 +21,15 @@ namespace StingTools.UI
     public class ProjectFolderSetupDialog
     {
         // ── Theme ──
-        private static readonly SolidColorBrush BgDark   = new(Color.FromRgb(0x1E, 0x1E, 0x1E));
-        private static readonly SolidColorBrush BgPanel  = new(Color.FromRgb(0x25, 0x25, 0x26));
-        private static readonly SolidColorBrush BgInput  = new(Color.FromRgb(0x2D, 0x2D, 0x30));
-        private static readonly SolidColorBrush FgWhite  = new(Color.FromRgb(0xFF, 0xFF, 0xFF));
-        private static readonly SolidColorBrush FgSubtle = new(Color.FromRgb(0xAA, 0xAA, 0xAA));
-        private static readonly SolidColorBrush Accent   = new(Color.FromRgb(0x00, 0x78, 0xD4));
-        private static readonly SolidColorBrush BrBorder = new(Color.FromRgb(0x40, 0x40, 0x40));
-        private static readonly SolidColorBrush Yellow   = new(Color.FromRgb(0xFF, 0xC1, 0x07));
-        private static readonly SolidColorBrush Green    = new(Color.FromRgb(0x4C, 0xAF, 0x50));
+        private static readonly SolidColorBrush BgDark   = new(System.Windows.Media.Color.FromRgb(0x1E, 0x1E, 0x1E));
+        private static readonly SolidColorBrush BgPanel  = new(System.Windows.Media.Color.FromRgb(0x25, 0x25, 0x26));
+        private static readonly SolidColorBrush BgInput  = new(System.Windows.Media.Color.FromRgb(0x2D, 0x2D, 0x30));
+        private static readonly SolidColorBrush FgWhite  = new(System.Windows.Media.Color.FromRgb(0xFF, 0xFF, 0xFF));
+        private static readonly SolidColorBrush FgSubtle = new(System.Windows.Media.Color.FromRgb(0xAA, 0xAA, 0xAA));
+        private static readonly SolidColorBrush Accent   = new(System.Windows.Media.Color.FromRgb(0x00, 0x78, 0xD4));
+        private static readonly SolidColorBrush BrBorder = new(System.Windows.Media.Color.FromRgb(0x40, 0x40, 0x40));
+        private static readonly SolidColorBrush Yellow   = new(System.Windows.Media.Color.FromRgb(0xFF, 0xC1, 0x07));
+        private static readonly SolidColorBrush Green    = new(System.Windows.Media.Color.FromRgb(0x4C, 0xAF, 0x50));
 
         public ProjectSetup Result { get; private set; }
 
@@ -359,7 +359,7 @@ namespace StingTools.UI
             _namingCombo.Items.Add("Custom pattern");
             _namingCombo.SelectedIndex = 0;
             _namingCombo.SelectionChanged += (s, e) => _customNamingRow.Visibility =
-                _namingCombo.SelectedIndex == 2 ? Visibility.Visible : Visibility.Collapsed;
+                _namingCombo.SelectedIndex == 2 ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
             row4.Children.Add(_namingCombo);
             box.Children.Add(row4);
 
@@ -367,7 +367,7 @@ namespace StingTools.UI
             {
                 Orientation = Orientation.Horizontal,
                 Margin = new Thickness(110, 0, 0, 8),
-                Visibility = Visibility.Collapsed,
+                Visibility = System.Windows.Visibility.Collapsed,
             };
             _customNamingRow.Children.Add(new TextBlock
             {
@@ -490,7 +490,7 @@ namespace StingTools.UI
                 Margin = new Thickness(0, 0, 0, 8),
                 Padding = new Thickness(4),
                 Child = dock,
-                Visibility = Visibility.Collapsed,
+                Visibility = System.Windows.Visibility.Collapsed,
             };
             return border;
         }
@@ -578,7 +578,7 @@ namespace StingTools.UI
         {
             if (_doc == null || string.IsNullOrEmpty(_docPath))
             {
-                _migrationBanner.Visibility = Visibility.Collapsed;
+                _migrationBanner.Visibility = System.Windows.Visibility.Collapsed;
                 return;
             }
             try
@@ -599,11 +599,11 @@ namespace StingTools.UI
                 {
                     _migrationText.Text = $"Legacy STING data detected: {legacy} folder(s) and {sidecars} sidecar JSON file(s) " +
                                           "alongside the model. Click 'Migrate Now' to consolidate them into the new structure.";
-                    _migrationBanner.Visibility = Visibility.Visible;
+                    _migrationBanner.Visibility = System.Windows.Visibility.Visible;
                 }
                 else
                 {
-                    _migrationBanner.Visibility = Visibility.Collapsed;
+                    _migrationBanner.Visibility = System.Windows.Visibility.Collapsed;
                 }
             }
             catch (Exception ex) { StingLog.Warn($"Migration banner: {ex.Message}"); }
@@ -687,7 +687,7 @@ namespace StingTools.UI
         private void OnModeChanged()
         {
             if (_disciplineRow == null) return;
-            _disciplineRow.Visibility = _radioBim?.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            _disciplineRow.Visibility = _radioBim?.IsChecked == true ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
             // Folder grid only meaningful in BIM mode
             if (_foldersGrid != null)
                 _foldersGrid.IsEnabled = _radioBim?.IsChecked == true;
