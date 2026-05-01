@@ -11,11 +11,6 @@ using System.Windows.Media;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
-// Both System.Windows.Controls and Autodesk.Revit.UI define TextBox / ComboBox.
-// This file is a WPF dialog so the WPF controls win — alias them so unqualified
-// uses bind unambiguously.
-using TextBox  = System.Windows.Controls.TextBox;
-using ComboBox = System.Windows.Controls.ComboBox;
 
 namespace StingTools.UI
 {
@@ -43,19 +38,22 @@ namespace StingTools.UI
         private Window _window;
 
         // Form state
-        private TextBox _projCodeBox;
-        private TextBox _projNameBox;
-        private TextBox _rootBox;
+        // Fully qualified — both System.Windows.Controls and Autodesk.Revit.UI
+        // define TextBox / ComboBox; this is a WPF dialog so we want the WPF
+        // versions explicitly.
+        private System.Windows.Controls.TextBox _projCodeBox;
+        private System.Windows.Controls.TextBox _projNameBox;
+        private System.Windows.Controls.TextBox _rootBox;
         private TextBlock _previewLabel;
         private RadioButton _radioRelative;
         private RadioButton _radioAbsolute;
-        private ComboBox _templateCombo;
+        private System.Windows.Controls.ComboBox _templateCombo;
         private RadioButton _radioBim;
         private RadioButton _radioMini;
         private WrapPanel _disciplinePanel;
         private StackPanel _disciplineRow;
-        private ComboBox _namingCombo;
-        private TextBox _customNamingBox;
+        private System.Windows.Controls.ComboBox _namingCombo;
+        private System.Windows.Controls.TextBox _customNamingBox;
         private StackPanel _customNamingRow;
         private DataGrid _foldersGrid;
         private Border _migrationBanner;
@@ -160,7 +158,7 @@ namespace StingTools.UI
             Margin = new Thickness(0, 0, 8, 0),
         };
 
-        private TextBox MakeTextBox(string initial, double width = 280) => new()
+        private System.Windows.Controls.TextBox MakeTextBox(string initial, double width = 280) => new()
         {
             Text = initial ?? "",
             Width = width,
@@ -287,7 +285,7 @@ namespace StingTools.UI
             // Template row
             var row1 = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
             row1.Children.Add(Label("Template"));
-            _templateCombo = new ComboBox
+            _templateCombo = new System.Windows.Controls.ComboBox
             {
                 Width = 320,
                 Background = BgInput,
@@ -349,7 +347,7 @@ namespace StingTools.UI
             // Naming convention
             var row4 = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
             row4.Children.Add(Label("Export Naming"));
-            _namingCombo = new ComboBox
+            _namingCombo = new System.Windows.Controls.ComboBox
             {
                 Width = 320,
                 Background = BgInput,
