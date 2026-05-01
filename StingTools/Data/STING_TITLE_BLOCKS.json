@@ -19,19 +19,19 @@
           "group": "IdentityData"
         },
         {
-          "name": "PRJ_ORG_PROJECT_NAME_TXT",
+          "name": "PRJ_NAME_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData"
         },
         {
-          "name": "PRJ_ORG_PROJECT_ADDRESS_TXT",
+          "name": "PRJ_ADDRESS_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData"
         },
         {
-          "name": "PRJ_ORG_PROJECT_NUMBER_TXT",
+          "name": "PRJ_ORG_PROJECT_CODE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData"
@@ -49,7 +49,7 @@
           "group": "IdentityData"
         },
         {
-          "name": "PRJ_ORG_RIBA_STAGE_TXT",
+          "name": "PRJ_TB_DESIGN_STAGE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData"
@@ -861,7 +861,7 @@
           "size": 2.5
         },
         {
-          "param": "PRJ_ORG_PROJECT_NAME_TXT",
+          "param": "PRJ_NAME_TXT",
           "anchor": [
             4,
             77
