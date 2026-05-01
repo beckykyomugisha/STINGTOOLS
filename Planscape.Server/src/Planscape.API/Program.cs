@@ -296,6 +296,8 @@ builder.Services.AddScoped<Planscape.Core.Interfaces.IBulkTagUpserter,
     Planscape.Infrastructure.Services.PostgresBulkTagUpserter>();
 // S3.2 — outbox dispatcher (drains OutboxMessages every minute).
 builder.Services.AddScoped<Planscape.Infrastructure.Services.OutboxDispatcher>();
+// S4.2 — demo sandbox reset job (daily; resets the 'demo' tenant).
+builder.Services.AddScoped<Planscape.Infrastructure.Services.DemoSandboxJob>();
 
 // P7 + P8 — IFC→glTF converter + thumbnail generator. Null defaults keep the
 // system running without a converter installed; swap the registration to
@@ -669,5 +671,12 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.FlutterwaveRenewalJob
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.OutboxDispatcher>(
     "outbox", j => j.ExecuteAsync(CancellationToken.None),
     "* * * * *", new RecurringJobOptions { QueueName = "default" });
+
+// S4.2 — daily demo sandbox reset. Wipes everything in the 'demo' tenant
+// and re-seeds. Runs at 02:00 UTC (05:00 EAT) so morning prospects find
+// a clean slate.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DemoSandboxJob>(
+    "demo-reset", j => j.ExecuteAsync(CancellationToken.None),
+    "0 2 * * *", new RecurringJobOptions { QueueName = "default" });
 
 await app.RunAsync();
