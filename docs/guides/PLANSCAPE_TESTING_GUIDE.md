@@ -1,173 +1,240 @@
-# Planscape Testing Guide — From StingTools
+# Planscape Testing Guide — Plain English Walkthrough
 
-A brief guide to wiring up the StingTools Revit plugin to a running
-Planscape server so you can exercise the bidirectional sync, BCC
-Platform tab, and mobile companion end-to-end.
+A non-technical guide for trying Planscape from inside Revit using the
+StingTools plugin. No coding knowledge needed.
 
 ---
 
-## 1. Stand up the server (one-time)
+## What is Planscape?
 
-```bash
-cd Planscape.Server/docker
-docker compose up -d
-```
+Planscape is the cloud service that backs the StingTools plugin. Think
+of it as the "online" half of StingTools:
 
-Verify it is alive:
-
-| Check | URL |
+| StingTools (Revit plugin) | Planscape (cloud service) |
 |---|---|
-| API health | `http://localhost:5000/health` |
-| Swagger UI | `http://localhost:5000/swagger` |
+| Lives on your laptop | Lives on the internet |
+| Tags Revit elements, makes drawings, builds reports | Stores your project's tags, issues, documents and shares them with your team |
+| Works without internet | Lets phones, tablets and other team members see your work in real time |
 
-Demo credentials seeded in `Planscape.API/SeedData.cs`:
+When you "connect to Planscape", your Revit model can push its tagged
+elements, issues, and reports to the cloud — and your team can view
+them on their phone (the **Planscape mobile app**) or in a web browser
+without needing Revit installed.
 
-| Field | Value |
+You don't have to use Planscape. StingTools works fine on its own. But
+if you want to share with a team or work on-site from a phone, this is
+how.
+
+---
+
+## What you need before starting
+
+| Item | Why |
+|---|---|
+| Revit 2025, 2026, or 2027 | To run the plugin |
+| StingTools installed and loaded | The plugin itself |
+| Any Revit project file open | The plugin needs an active document |
+| Internet connection | To reach the Planscape server |
+| A Planscape login | Either the demo account or your own |
+
+**Don't have a login?** Use the free demo account — it's pre-loaded
+and ready to go:
+
+| | |
 |---|---|
 | Email | `admin@planscape.demo` |
 | Password | `admin123` |
-| Tier | Premium (free seat) |
+| Server URL | `https://planscape-api.onrender.com` |
 
-> The seed creates one tenant + one demo project + a few issues so the
-> mobile dashboard isn't empty on first connect.
-
-For a **public** test endpoint (no Docker needed), the plugin defaults
-to `https://planscape-api.onrender.com` — see the BCC Platform tab
-screenshot.
+That's a public test server already running on the internet — you do
+**not** need to install anything for it to work.
 
 ---
 
-## 2. Connect the plugin
+## Step 1 — Open the BIM Coordination Center
 
-1. Open Revit 2025 / 2026 / 2027 with **StingTools** loaded.
-2. Open any project (the BCC needs an active document).
-3. Open the **BIM Coordination Center**:
-   - Dock panel → **BIM** tab → **BIM Coordination Center**, or
-   - Run `BIMCoordinationCenter` from the command bar.
-4. Click the **PLATFORM** tab on the left rail.
-5. Pick **Planscape ★** from the platforms list (it's the default).
-6. Fill in **Server Connection**:
+This is the screen where Planscape lives.
 
-   | Field | Local Docker | Public test |
-   |---|---|---|
-   | Server URL | `http://localhost:5000` | `https://planscape-api.onrender.com` |
-   | Email | `admin@planscape.demo` | (your account) |
-   | Password | `admin123` | (your password) |
+1. In Revit, open any project file.
+2. Look at the right side of the Revit window — you'll see the
+   **STING Tools** panel (if not, click `STING Panel` on the ribbon).
+3. Click the **BIM** tab at the top of the panel.
+4. Click the big **BIM Coordination Center** button.
 
-7. Press **Connect**.
-
-The status block should flip to:
-
-```
-✅ Successfully connected to Planscape
-User:  admin@planscape.demo
-Tier:  Premium
-```
-
-…and the connection is persisted to
-`<project>/_BIM_COORD/planscape_connection.json` (password is **not**
-saved). The dock-panel sync chip starts ticking every 5 minutes
-(`Planscape.PluginSync.SyncScheduler`).
+A new window opens, titled "BIM Coordination Center". You'll see a
+list of items down the left side: OVERVIEW, MODEL HEALTH, WARNINGS,
+ISSUES, REVISIONS, **PLATFORM**, WORKFLOWS, and so on.
 
 ---
 
-## 3. First-time onboarding wizard (alternative)
+## Step 2 — Go to the Platform tab
 
-If you would rather walk through the three-step flow:
-
-- BIM tab → **Plugin Onboarding**
-- Steps: 1) paste licence → 2) pick project → 3) publish first model.
-
-The wizard delegates to `PlanscapeConnectCommand` for step 1 and
-`PublishModelCommand` for step 3, so the result is identical to the
-manual route above.
+1. Click **PLATFORM** in the left list.
+2. The middle column shows a list of services. **Planscape ★** is at
+   the top with a star — that's the one we want. It should already be
+   selected; if not, click it.
+3. The right side now shows a panel titled
+   **"Planscape — Native Collaboration Hub"**.
 
 ---
 
-## 4. Push data and confirm the round-trip
+## Step 3 — Connect
 
-Once connected, exercise each integration channel from the BCC:
+Scroll down on the right side until you see **SERVER CONNECTION**.
+You'll see three boxes:
 
-| Channel | Plugin trigger | Server endpoint | Verify on |
-|---|---|---|---|
-| Tag sync | **Sync Elements to Server** (Platform tab) | `POST /api/tagsync/sync` | Mobile dashboard tag list |
-| Compliance | **Compliance snapshot on revision** toggle | `POST /api/projects/{id}/compliance` | BCC Overview gauge / mobile gauge |
-| Issues | Issues tab → **Raise Issue** | `POST /api/projects/{id}/issues` | Mobile Issues tab |
-| Documents | Docs tab → **Add Document** | `POST /api/projects/{id}/documents` | Mobile Documents tab |
-| 3D model | BIM tab → **Publish 3D Model** | `POST /api/projects/{id}/models` | Mobile Models viewer |
-| Workflows | any workflow preset run | auto: `POST /api/projects/{id}/workflows` | BCC Workflows tab |
-| Push tokens | mobile login | `POST /api/notifications/subscribe` | Settings → Notifications |
+| Box | What to type |
+|---|---|
+| Server URL | `https://planscape-api.onrender.com` (already filled in) |
+| Email | `admin@planscape.demo` |
+| Password | `admin123` |
 
-**Real-time updates:** SignalR hubs `/hubs/compliance`, `/hubs/tagsync`,
-`/hubs/notifications` are subscribed automatically by
-`PlanscapeRealtimeClient` on connect — compliance changes from the
-plugin propagate to mobile within a second.
+Click the green **Connect** button.
 
----
+After a few seconds, a popup says:
 
-## 5. Validate from the mobile app (optional)
+> ✅ Successfully connected to Planscape
 
-```bash
-cd Planscape
-npm install
-npx expo start
-```
+The status indicator above the boxes flips from a red dot to a green
+one, and the **SERVER STATUS** box now shows your name and the account
+tier (probably "Premium").
 
-- Log in with the same `admin@planscape.demo` / `admin123`.
-- Pick the demo project.
-- The Dashboard tab should show the compliance % you just pushed; the
-  Issues tab should show whatever you raised in step 4.
+**That's it — you're connected.** Your Revit model can now talk to
+the cloud.
 
-For Android/iOS device testing, scan the Expo QR with the **Expo Go**
-app on the same Wi-Fi as your dev box.
+> *If the connect button does nothing or you get an error*, see the
+> Troubleshooting table at the bottom.
 
 ---
 
-## 6. Inspect from Swagger (debugging)
+## Step 4 — Send your tagged elements to the cloud
 
-Open `http://localhost:5000/swagger` and use the **Authorize** button
-with the JWT obtained from `POST /api/auth/login`. The token is also
-written to the Revit log (`StingTools.log`) under
-`Planscape: Connected …`.
+Now let's prove the connection works by pushing some data up.
 
-Common quick checks:
+1. Still on the **PLATFORM** tab, scroll down to **SYNC OPTIONS**.
+2. Click the **Sync Elements to Server** button (purple, near the bottom).
+3. Wait a few seconds. A popup will tell you how many elements were
+   sent.
 
-```http
-GET  /api/projects                          → list of projects on tenant
-GET  /api/projects/{id}/dashboard           → compliance + issue counters
-GET  /api/projects/{id}/issues              → all issues for project
-GET  /api/projects/{id}/compliance/latest   → latest snapshot
-```
+Behind the scenes, every Revit element that has an ISO 19650 tag
+(things like `M-BLD1-Z01-L02-HVAC-SUP-AHU-0003`) gets copied up to
+your Planscape project.
 
----
-
-## 7. Going offline
-
-The Planscape Connect dialog hits `StingOfflineConfig.RefuseIfOffline`
-first, so disabling network access blocks login politely. Once
-authenticated, sync attempts that fail are dropped into
-`Planscape.PluginSync.OfflineQueue` (file-backed) and flushed on the
-next 5-min tick when connectivity returns. The dock-panel chip turns
-amber while items are queued.
+> **Don't have any tagged elements yet?** Run **Tags → Auto-Tag**
+> first to put tags on everything in the active view. Then come back
+> and Sync.
 
 ---
 
-## 8. Troubleshooting
+## Step 5 — Verify on the mobile app (optional but satisfying)
 
-| Symptom | Likely cause | Fix |
+If you want to *see* your data outside Revit, install the Planscape
+mobile app and log in with the same credentials. The Dashboard will
+show the compliance percentage you just pushed, and the Issues tab
+will show anything you raised.
+
+If you don't have a phone handy, the data is also visible in any web
+browser by going to `https://planscape-api.onrender.com/swagger` —
+this is a more technical view but it works for spot-checking. Less
+critical for the layperson; skip if not interested.
+
+---
+
+## What else can I do once connected?
+
+The BIM Coordination Center has a tab for each thing you can share.
+After connecting in step 3, all of these "just work":
+
+| Tab | What it does | Example |
 |---|---|---|
-| `Authentication failed` | wrong URL scheme (`http` vs `https`) | match the server's actual scheme |
-| `Connect` button greyed | no active Revit document | open a project first |
-| Mobile shows empty dashboard | no project selected on plugin side | pass `PlanscapeProjectId` in the connect dialog or pick one in the wizard |
-| Sync chip stuck red | scheduler never started | re-run `PlanscapeConnect`; it idempotently starts `SyncScheduler` |
-| 401 on every endpoint | JWT expired (60-min lifetime) | client auto-refreshes; re-press **Connect** if it doesn't |
+| **OVERVIEW** | Sends a compliance snapshot to the cloud | Your team sees the same RAG status you see |
+| **ISSUES** | Pushes RFIs / NCRs to Planscape | A site engineer raises a question on their phone, you see it in Revit |
+| **REVISIONS** | Records each revision in the cloud | Approval history is preserved |
+| **DELIVERABLES** | Sends documents up | Drawings show up in the mobile app's Documents tab |
+| **MEETINGS** | Saves agendas + action items | Anyone on the project can read them later |
+| **WORKFLOWS** | Logs every workflow you run | Audit trail you can show a client |
+
+Each tab has its own buttons. The one consistent rule: **you have to
+do Step 3 first** (connect to Planscape). Without that, the buttons
+either do nothing or save locally only.
 
 ---
 
-## 9. Reference
+## Common problems
 
-- Plugin entry point: `StingTools/BIMManager/PlatformLinkCommands.cs:2580` (`PlanscapeConnectCommand`)
-- HTTP client: `StingTools/BIMManager/PlanscapeServerClient.cs`
-- Background scheduler: `Planscape.Server/src/Planscape.PluginSync/SyncScheduler.cs`
-- Server seed: `Planscape.Server/src/Planscape.API/SeedData.cs`
-- Gap analysis: `Planscape.Server/docs/PLANSCAPE_GAPS.md`
+| What you see | What's wrong | How to fix |
+|---|---|---|
+| Connect button is greyed out | No Revit project is open | Open any `.rvt` file first |
+| "Authentication failed" popup | Wrong email, password, or URL | Re-check the three boxes; copy-paste from this guide |
+| "Network unreachable" | No internet, or VPN blocking it | Check your connection; try the public test server URL |
+| Nothing happens after Connect | Status stays red | Wait 30s — first connect to the test server can be slow as it wakes up. Try again. |
+| Sync says "0 elements" | No tagged elements in the model | Run **Tags → Auto-Tag** first |
+| Mobile app dashboard is empty | You're logged into a different project | In the mobile app, tap the project switcher and pick the one matching your plugin |
+
+---
+
+## What's actually happening when you click "Connect"?
+
+(Skip this section if you don't care — it's just for the curious.)
+
+1. The plugin sends your email + password over an encrypted connection
+   to the Planscape server.
+2. The server checks your credentials and sends back a **token** — a
+   long string that proves "this is a valid logged-in user".
+3. The plugin saves this token in memory, plus a small file inside the
+   project's `_BIM_COORD/` folder (called `planscape_connection.json`)
+   so you don't have to re-type the URL and email next time.
+   *Your password is never saved to disk.*
+4. From then on, every button you press in the BIM Coordination Center
+   that needs the cloud sends the token along to prove who you are.
+5. Every 5 minutes, the plugin also tries to push any pending changes
+   in the background — that's the little chip on the dock panel that
+   sometimes turns green or amber.
+
+---
+
+## Logging out / disconnecting
+
+There's no formal logout button — closing Revit clears the in-memory
+token. To force a fresh login next time, delete the file
+`<your project>/_BIM_COORD/planscape_connection.json` and restart
+Revit.
+
+---
+
+## When you're ready for "real" use
+
+Once you've tried the demo account and want to use Planscape with
+your own team:
+
+1. Sign up at `https://planscape.app/signup` (or click the "I don't
+   have a Planscape account yet" link in the **Plugin Onboarding**
+   wizard, BIM tab → **Plugin Onboarding**).
+2. Create a project in the Planscape web app.
+3. Come back to Revit, hit **Connect** with your real email/password,
+   and you're set.
+
+The wizard walks you through this in 3 steps if you'd rather not do
+it manually:
+
+> BIM tab → **Plugin Onboarding** → follow the prompts.
+
+---
+
+## Quick reference card
+
+Print this and tape it to your monitor:
+
+```
+PLANSCAPE — DEMO LOGIN
+URL:  https://planscape-api.onrender.com
+User: admin@planscape.demo
+Pass: admin123
+
+WHERE: Revit → STING panel → BIM tab → BIM Coordination Center
+       → PLATFORM tab → Connect
+
+SUCCESS: red dot turns green, status shows your name
+```
+
+That's everything you need to start testing.
