@@ -1,0 +1,65 @@
+site_name: Planscape Docs
+site_url: https://docs.planscape.app
+site_description: ISO 19650 BIM coordination — plugin + mobile + server
+site_author: Planscape Ltd
+repo_url: https://github.com/beckykyomugisha/STINGTOOLS
+edit_uri: edit/main/docs-site/docs/
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: deep orange
+      accent: deep orange
+    - scheme: slate
+      primary: deep orange
+      accent: deep orange
+  features:
+    - content.code.copy
+    - navigation.instant
+    - navigation.sections
+    - navigation.expand
+    - search.suggest
+    - search.share
+
+nav:
+  - Home: index.md
+  - Quick start:
+      - Sign up:           quickstart/signup.md
+      - Connect Revit:     quickstart/revit-plugin.md
+      - Install mobile:    quickstart/mobile.md
+      - First project:     quickstart/first-project.md
+  - Concepts:
+      - ISO 19650 tag:     concepts/iso19650-tag.md
+      - CDE state machine: concepts/cde.md
+      - Federation:        concepts/federation.md
+      - Offline-first:     concepts/offline.md
+  - How-to:
+      - Bulk-tag elements:    howto/bulk-tag.md
+      - Issue an RFI:         howto/rfi.md
+      - Run clash detection:  howto/clash.md
+      - Generate transmittal: howto/transmittal.md
+      - Sign-off a stage gate: howto/stage-gate.md
+  - Reference:
+      - REST API:           reference/api.md
+      - Plugin command tags: reference/plugin-commands.md
+      - Webhook events:     reference/webhooks.md
+      - Pricing:            reference/pricing.md
+  - Operations:
+      - Self-host:          ops/self-host.md
+      - Backups:            ops/backups.md
+      - Audit log verify:   ops/audit-verify.md
+      - GDPR / POPIA:       ops/data-rights.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.snippets
+  - toc:
+      permalink: true
+
+plugins:
+  - search
