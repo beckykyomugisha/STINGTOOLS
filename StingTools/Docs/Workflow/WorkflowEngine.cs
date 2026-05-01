@@ -170,6 +170,10 @@ namespace Planscape.Docs.Workflow
             if (!File.Exists(path)) return new List<WorkflowInstance>();
             try
             {
+                // S3.6.1 — version gate before deserialise.
+                StingTools.Core.PluginSchemaVersion.EnsureFileVersion(
+                    path, "planscape.workflow-state",
+                    StingTools.Core.PluginSchemaVersion.CurrentWorkflowState);
                 return JsonConvert.DeserializeObject<List<WorkflowInstance>>(File.ReadAllText(path))
                        ?? new List<WorkflowInstance>();
             }

@@ -50,6 +50,23 @@ namespace StingTools.Core
         public delegate JObject Migrator(JObject input, int fromVersion);
 
         /// <summary>
+        /// S3.6.1 — fire-and-forget version gate every JSON-store Load method
+        /// calls before its own deserialize. If the file's <c>$schemaVersion</c>
+        /// is older than <paramref name="targetVersion"/> the registered
+        /// migrators run and the file is rewritten in place; subsequent
+        /// <c>File.ReadAllText</c> sees the upgraded payload.
+        ///
+        /// Lighter-touch than <see cref="EnsureCurrent"/>: no JObject return,
+        /// no caller-side change to deserialization. Drop one call at the top
+        /// of every Load and you're covered.
+        /// </summary>
+        public static void EnsureFileVersion(string filePath, string schemaName, int targetVersion, IReadOnlyList<Migrator>? migrators = null)
+        {
+            try { EnsureCurrent(filePath, schemaName, targetVersion, migrators); }
+            catch (Exception ex) { StingLog.Warn($"PluginSchemaVersion.EnsureFileVersion failed for '{filePath}': {ex.Message}"); }
+        }
+
+        /// <summary>
         /// Read a plugin JSON file, bring it up to <paramref name="targetVersion"/>
         /// by running every registered migrator in version order, write back
         /// atomically. Returns the upgraded JObject so callers don't re-read.
