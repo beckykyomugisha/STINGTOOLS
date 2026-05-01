@@ -93,7 +93,7 @@ public class SecurityCriticalPathTests
     // ── 2. Storage path enforcement ─────────────────────────────────
 
     [Fact]
-    public void StoragePath_RejectsCrossTenantRead()
+    public async Task StoragePath_RejectsCrossTenantRead()
     {
         var tenantA = Guid.NewGuid();
         var tenantB = Guid.NewGuid();
@@ -106,12 +106,12 @@ public class SecurityCriticalPathTests
 
         // Tenant A's path — current tenant is B → must throw.
         var aPath = "t_" + tenantA.ToString("N") + "/projectId/file.glb";
-        Assert.ThrowsAsync<UnauthorizedAccessException>(
-            async () => await storage.GetAsync(aPath));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(
+            () => storage.GetAsync(aPath));
     }
 
     [Fact]
-    public void StoragePath_AllowsOwnTenantRead()
+    public async Task StoragePath_AllowsOwnTenantRead()
     {
         var tenantB = Guid.NewGuid();
         var ctxB = new StubTenantContext(tenantB, "b");
@@ -123,10 +123,8 @@ public class SecurityCriticalPathTests
 
         // Path owned by current tenant — must NOT throw (file just doesn't exist).
         var ownPath = "t_" + tenantB.ToString("N") + "/projectId/file.glb";
-        var task = storage.GetAsync(ownPath);
-        // No throw + null result for missing file.
-        Assert.True(task.IsCompletedSuccessfully || task.Status == TaskStatus.RanToCompletion);
-        Assert.Null(task.Result);
+        var stream = await storage.GetAsync(ownPath);
+        Assert.Null(stream);
     }
 
     // ── 3. Stripe webhook signature ─────────────────────────────────
@@ -146,7 +144,9 @@ public class SecurityCriticalPathTests
                 .Build());
 
         var body = "{\"id\":\"evt_1\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{}}}";
-        var headers = new Dictionary<string, string>
+        // Dictionary<,> implements IReadOnlyDictionary<,> so the call is
+        // assignment-compatible without an explicit cast.
+        IReadOnlyDictionary<string, string> headers = new Dictionary<string, string>
         {
             ["Stripe-Signature"] = "t=1700000000,v1=deadbeef",
         };
@@ -171,7 +171,7 @@ public class SecurityCriticalPathTests
                 .Build());
 
         var body = "{\"event\":\"charge.completed\",\"data\":{\"id\":1,\"status\":\"successful\"}}";
-        var headers = new Dictionary<string, string>
+        IReadOnlyDictionary<string, string> headers = new Dictionary<string, string>
         {
             ["verif-hash"] = "wrong-hash",
         };
@@ -240,16 +240,44 @@ public class SecurityCriticalPathTests
 
     // ── helpers ────────────────────────────────────────────────────
 
-    private static PlanscapeDbContext NewDb(string dbName, Guid currentTenant, bool bypass = false)
+    private static InMemoryPlanscapeDbContext NewDb(string dbName, Guid currentTenant, bool bypass = false)
     {
         var options = new DbContextOptionsBuilder<PlanscapeDbContext>()
             .UseInMemoryDatabase(dbName)
             .Options;
         var http = new HttpContextAccessorStub();
         var ctx = new StubTenantContext(currentTenant, "stub");
-        var db = new PlanscapeDbContext(options, http, ctx);
+        var db = new InMemoryPlanscapeDbContext(options, http, ctx);
         if (bypass) db.BypassTenantFilter = true;
         return db;
+    }
+
+    /// <summary>
+    /// Test-only DbContext that remaps every <c>jsonb</c> column to
+    /// <c>text</c> after <c>OnModelCreating</c> so EF's InMemory provider
+    /// (which doesn't understand Postgres-specific types) can build the
+    /// model. Behaviour-equivalent for the asserts these tests make —
+    /// every assertion compares row counts / IDs, never JSON shape.
+    /// </summary>
+    private sealed class InMemoryPlanscapeDbContext : PlanscapeDbContext
+    {
+        public InMemoryPlanscapeDbContext(
+            DbContextOptions<PlanscapeDbContext> options,
+            IHttpContextAccessor http,
+            ITenantContext tenant)
+            : base(options, http, tenant) { }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+            foreach (var entity in modelBuilder.Model.GetEntityTypes())
+            foreach (var property in entity.GetProperties())
+            {
+                var ct = property.GetColumnType();
+                if (string.Equals(ct, "jsonb", StringComparison.OrdinalIgnoreCase))
+                    property.SetColumnType("text");
+            }
+        }
     }
 
     private sealed class HttpContextAccessorStub : IHttpContextAccessor
