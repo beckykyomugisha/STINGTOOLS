@@ -286,6 +286,8 @@ builder.Services.AddSingleton<Planscape.Core.Interfaces.IPaymentProvider,
 builder.Services.AddSingleton<Planscape.Infrastructure.Billing.PaymentRouter>();
 // S2.5 — invoice PDF renderer (no library dependencies; emits PDF 1.4 bytes).
 builder.Services.AddScoped<Planscape.Infrastructure.Billing.InvoicePdfRenderer>();
+// S2.6 — dunning job (daily; reminder cadence at 0/3/7 days, suspend at 10).
+builder.Services.AddScoped<Planscape.Infrastructure.Services.DunningJob>();
 
 // P7 + P8 — IFC→glTF converter + thumbnail generator. Null defaults keep the
 // system running without a converter installed; swap the registration to
@@ -634,5 +636,13 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.ModelDerivativeJob>(
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.TrialStateMachineJob>(
     "trial-state", j => j.ExecuteAsync(CancellationToken.None),
     "0 6 * * *", new RecurringJobOptions { QueueName = "default" });
+
+// S2.6 — daily dunning job. Walks Overdue invoices on the 0/3/7-day
+// cadence, suspends at day 10. Runs at 07:00 UTC ≈ 10:00 EAT (after
+// the trial state machine so today's freezes get a billing reminder
+// today rather than tomorrow).
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DunningJob>(
+    "dunning", j => j.ExecuteAsync(CancellationToken.None),
+    "0 7 * * *", new RecurringJobOptions { QueueName = "default" });
 
 await app.RunAsync();
