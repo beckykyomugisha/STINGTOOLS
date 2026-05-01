@@ -9,7 +9,7 @@
 
 | Control                                  | Evidence (commit / file)                                       |
 |------------------------------------------|----------------------------------------------------------------|
-| A.5.1 Information-security policies      | `docs/security-policy.md` (TODO)                               |
+| A.5.1 Information-security policies      | `docs/security-policy.md`                                      |
 | A.9.1 Access-control policy              | `Planscape.API/Program.cs` JWT + role-based policies           |
 | A.9.2 User-access management             | `TenantAdminController.Invite/Remove`                          |
 | A.9.4 Multi-factor authentication        | `AuthController.Login` + TOTP option (TODO — S8.1)             |
@@ -73,7 +73,7 @@
 
 ## Section H — TODOs (open, with sprint owners)
 
-- [ ] A.5.1 — write `docs/security-policy.md` (S7.5.1)
+- [x] A.5.1 — `docs/security-policy.md` shipped
 - [ ] A.9.4 — TOTP for Owner / Admin role (S8 follow-up)
 - [ ] A.12.6 — wire Dependabot + Trivy into CI (S7.5.2)
 - [ ] A.13.1 — Cloudflare WAF + rate-limit at edge (Stage 6 deploy)
