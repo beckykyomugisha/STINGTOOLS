@@ -1,0 +1,72 @@
+{
+  "_note": "S6.4 — Swahili (sw). Used widely across Uganda, Kenya, Tanzania, Rwanda, DR Congo. Defaults for site coordinators in those markets when device locale matches.",
+
+  "common": {
+    "cancel": "Ghairi",
+    "save": "Hifadhi",
+    "delete": "Futa",
+    "retry": "Jaribu tena",
+    "close": "Funga",
+    "edit": "Hariri",
+    "share": "Shiriki",
+    "loading": "Inapakia…",
+    "empty": "Hakuna chochote bado",
+    "offline": "Uko nje ya mtandao",
+    "synced": "Imesawazishwa {when}",
+    "queued": "Imeorodheshwa kwa usawazishaji"
+  },
+
+  "auth": {
+    "sign_in": "Ingia",
+    "sign_out": "Toka",
+    "email": "Barua pepe",
+    "password": "Nenosiri",
+    "forgot_password": "Umesahau nenosiri?",
+    "session_expired": "Kipindi chako kimekwisha — tafadhali ingia tena.",
+    "invalid_credentials": "Barua pepe au nenosiri si sahihi."
+  },
+
+  "tabs": {
+    "home": "Nyumbani",
+    "issues": "Matatizo",
+    "documents": "Hati",
+    "scanner": "Skana",
+    "settings": "Mipangilio"
+  },
+
+  "issue": {
+    "create": "Ripoti tatizo",
+    "title": "Kichwa",
+    "description": "Maelezo",
+    "priority": "Kipaumbele",
+    "priorities": {
+      "critical": "Muhimu sana",
+      "high": "Juu",
+      "medium": "Kati",
+      "low": "Chini"
+    },
+    "status": {
+      "open": "Wazi",
+      "in_progress": "Inaendelea",
+      "closed": "Imefungwa",
+      "overdue": "Imechelewa"
+    },
+    "assigned_to": "Imepangiwa {name}",
+    "days_open": "Siku {n} wazi",
+    "no_location": "Hakuna eneo lililorekodiwa",
+    "outside_geofence": "Uko nje ya mpaka wa mradi — tatizo litawekwa alama kwa ukaguzi.",
+    "attach_photo": "Ambatisha picha"
+  },
+
+  "document": {
+    "upload": "Pakia",
+    "approve": "Idhinisha",
+    "reject": "Kataa",
+    "cde": {
+      "wip": "Kazi inayoendelea",
+      "shared": "Imeshirikiwa",
+      "published": "Imechapishwa",
+      "archive": "Hifadhi"
+    }
+  }
+}

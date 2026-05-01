@@ -183,6 +183,90 @@ async function replayAction(action: OfflineAction): Promise<void> {
         idempotencyKey: p.idempotencyKey as string | undefined,
       });
       break;
+
+    // S3.7 — extended replay handlers. Each one delegates to its endpoint
+    // module; the modules add the `idempotencyKey` header on every call so
+    // a retried action can't double-apply.
+    case 'POST_COMMENT': {
+      const { postIssueComment } = await import('@/api/endpoints');
+      await postIssueComment(
+        p.projectId as string,
+        p.issueId as string,
+        { body: p.body as string, idempotencyKey: p.idempotencyKey as string },
+      );
+      break;
+    }
+    case 'PIN_PLACE': {
+      const { placeIssuePin } = await import('@/api/endpoints');
+      await placeIssuePin(p.projectId as string, p.issueId as string, {
+        modelId: p.modelId as string,
+        x: p.x as number, y: p.y as number, z: p.z as number,
+        elementGuid: p.elementGuid as string | undefined,
+        idempotencyKey: p.idempotencyKey as string,
+      });
+      break;
+    }
+    case 'PIN_DELETE': {
+      const { deleteIssuePin } = await import('@/api/endpoints');
+      await deleteIssuePin(p.projectId as string, p.issueId as string, p.pinId as string);
+      break;
+    }
+    case 'ADD_MEETING_ACTION': {
+      const { addMeetingAction } = await import('@/api/endpoints');
+      await addMeetingAction(p.projectId as string, p.meetingId as string, {
+        ...(p.action as Record<string, unknown>),
+        idempotencyKey: p.idempotencyKey as string,
+      });
+      break;
+    }
+    case 'UPDATE_MEETING_ACTION': {
+      const { updateMeetingAction } = await import('@/api/endpoints');
+      await updateMeetingAction(
+        p.projectId as string, p.meetingId as string, p.actionId as string,
+        p.updates as Record<string, unknown>,
+      );
+      break;
+    }
+    case 'DIARY_ENTRY': {
+      const { upsertDiaryEntry } = await import('@/api/endpoints');
+      await upsertDiaryEntry(p.projectId as string, {
+        ...(p.entry as Record<string, unknown>),
+        idempotencyKey: p.idempotencyKey as string,
+      });
+      break;
+    }
+    case 'STAGE_SIGNOFF': {
+      const { signOffStageCriterion } = await import('@/api/endpoints');
+      await signOffStageCriterion(
+        p.projectId as string, p.gateId as string, p.criterionId as string,
+        { decision: p.decision as string, comment: p.comment as string | undefined },
+      );
+      break;
+    }
+    case 'ATTACH_AUDIO': {
+      const { uploadAudioNote } = await import('@/api/endpoints');
+      await uploadAudioNote({
+        projectId: p.projectId as string,
+        issueId: p.issueId as string,
+        uri: p.localUri as string,
+        fileName: (p.fileName as string) ?? `voice-${Date.now()}.m4a`,
+        contentType: (p.mimeType as string) ?? 'audio/mp4',
+        durationSec: p.durationSec as number | undefined,
+        idempotencyKey: p.idempotencyKey as string | undefined,
+      });
+      break;
+    }
+    case 'ATTACH_MARKUP': {
+      const { uploadModelMarkup } = await import('@/api/endpoints');
+      await uploadModelMarkup({
+        projectId: p.projectId as string,
+        modelId: p.modelId as string,
+        polylines: p.polylines as Array<{ points: number[][]; color: string; thickness: number }>,
+        label: p.label as string | undefined,
+        idempotencyKey: p.idempotencyKey as string | undefined,
+      });
+      break;
+    }
   }
 }
 

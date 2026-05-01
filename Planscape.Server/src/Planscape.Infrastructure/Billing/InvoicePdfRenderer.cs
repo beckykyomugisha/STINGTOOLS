@@ -1,28 +1,33 @@
-using System.Globalization;
-using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 
 namespace Planscape.Infrastructure.Billing;
 
 /// <summary>
-/// S2.5 — renders a tenant-friendly invoice PDF in the chosen currency.
-/// Implementation uses raw PDF 1.4 byte-stream emission so we don't pull in
-/// a heavy library (QuestPDF / PdfSharp / iTextSharp). The output is a
-/// single-page A4 PDF: header (logo placeholder + tenant name), invoice
-/// metadata block, line-items table, totals, and EA-friendly tax footer
-/// (URA / KRA / TRA reference fields).
+/// S2.5.1 — Unicode-safe invoice PDF renderer powered by QuestPDF
+/// (Community license, free for our scale). Replaces the hand-rolled
+/// ASCII-only PDF emitter from S2.5; emits proper UTF-8 with embedded
+/// fonts so tenant names in Cyrillic / Arabic / Amharic / Swahili
+/// (well — Swahili uses Latin) all render correctly.
 ///
-/// The renderer is deliberately ASCII-only so the encoding stays simple;
-/// non-Latin characters in tenant names are stripped to '?' rather than
-/// risking a malformed PDF.
+/// API surface kept identical to the original InvoicePdfRenderer so
+/// BillingController doesn't need to change.
 /// </summary>
 public class InvoicePdfRenderer
 {
     private readonly PlanscapeDbContext _db;
     private readonly IFileStorageService _storage;
+
+    static InvoicePdfRenderer()
+    {
+        // Required by QuestPDF's licensing engine.
+        QuestPDF.Settings.License = LicenseType.Community;
+    }
 
     public InvoicePdfRenderer(PlanscapeDbContext db, IFileStorageService storage)
     {
@@ -36,137 +41,115 @@ public class InvoicePdfRenderer
                       ?? throw new InvalidOperationException($"Invoice {invoiceId} not found");
         var tenant  = await _db.Tenants.AsNoTracking().FirstAsync(t => t.Id == invoice.TenantId, ct);
 
-        var pdfBytes = BuildPdf(invoice, tenant);
+        var pdfBytes = Document.Create(c => Compose(c, invoice, tenant)).GeneratePdf();
         await using var ms = new MemoryStream(pdfBytes);
-        // Invoices aren't project-scoped — store under
-        // t_{tenantId}/billing/{InvoiceNumber}.pdf via the legacy slug
-        // overload; the tenant ownership check in S1.2 still gates reads
-        // because the first path segment is the tenant prefix.
         var path = await _storage.SaveAsync(
-            tenantSlug: "t_" + invoice.TenantId.ToString("N"),
+            tenantSlug:  "t_" + invoice.TenantId.ToString("N"),
             projectCode: "billing",
-            fileName: $"{invoice.InvoiceNumber}.pdf",
-            content: ms, ct: ct);
+            fileName:    $"{invoice.InvoiceNumber}.pdf",
+            content:     ms, ct: ct);
 
-        // Persist the path on the invoice row.
         var tracking = await _db.Invoices.FirstAsync(i => i.Id == invoiceId, ct);
         tracking.PdfStoragePath = path;
         await _db.SaveChangesAsync(ct);
         return path;
     }
 
-    private static byte[] BuildPdf(Invoice inv, Tenant tenant)
+    private static void Compose(IDocumentContainer doc, Invoice inv, Tenant tenant)
     {
-        var lines = new List<string>
+        doc.Page(page =>
         {
-            // Header
-            $"INVOICE  {Sanitise(inv.InvoiceNumber)}",
-            "",
-            $"Issued:  {inv.IssuedAt:yyyy-MM-dd}",
-            $"Due:     {inv.DueAt:yyyy-MM-dd}",
-            $"Period:  {inv.PeriodStart:yyyy-MM-dd}  to  {inv.PeriodEnd:yyyy-MM-dd}",
-            "",
-            "Bill to:",
-            $"  {Sanitise(tenant.Name)}",
-            $"  {Sanitise(tenant.ContactEmail)}",
-            "",
-            "From:",
-            "  Planscape Ltd",
-            "  Kampala, Uganda",
-            "  hello@planscape.app",
-            "",
-            "Item                                                         Amount",
-            new string('-', 64),
-            $"  {tenant.Plan} plan ({inv.PeriodStart:MMM yyyy})                {FormatAmount(inv.AmountMinorUnits, inv.Currency),16}",
-            new string('-', 64),
-            $"  Subtotal{new string(' ', 47)}{FormatAmount(inv.AmountMinorUnits, inv.Currency),16}",
-            $"  Tax     {new string(' ', 47)}{FormatAmount(inv.TaxMinorUnits,    inv.Currency),16}",
-            $"  Total   {new string(' ', 47)}{FormatAmount(inv.TotalMinorUnits,  inv.Currency),16}",
-            "",
-            string.IsNullOrEmpty(inv.PurchaseOrderRef) ? "" : $"Purchase order: {Sanitise(inv.PurchaseOrderRef!)}",
-            "",
-            "Tax / regulatory references:",
-            inv.Currency switch
+            page.Size(PageSizes.A4);
+            page.Margin(40);
+            page.DefaultTextStyle(t => t.FontSize(10));
+
+            page.Header().Row(row =>
             {
-                "UGX" => "  URA TIN: <to be configured>      Pay via Mobile Money: 256-XXX-XXXX",
-                "KES" => "  KRA PIN: <to be configured>      Pay via M-Pesa Paybill: 999999",
-                "TZS" => "  TRA TIN: <to be configured>",
-                "RWF" => "  RRA TIN: <to be configured>",
-                "NGN" => "  FIRS TIN: <to be configured>",
-                "ZAR" => "  SARS VAT: <to be configured>",
-                _      => "  VAT registered: <to be configured>",
-            },
-            "",
-            $"Status: {inv.Status}",
-            "",
-            "Thank you for using Planscape.",
-        };
-        var content = string.Join("\n", lines.Where(l => l != null));
-        return WrapAsPdf(content);
+                row.RelativeItem().Column(col =>
+                {
+                    col.Item().Text("INVOICE").FontSize(22).Bold();
+                    col.Item().Text(inv.InvoiceNumber).FontSize(12).FontColor(Colors.Grey.Darken2);
+                });
+                row.ConstantItem(160).AlignRight().Column(col =>
+                {
+                    col.Item().Text("Planscape Ltd").Bold();
+                    col.Item().Text("Kampala, Uganda").FontColor(Colors.Grey.Darken1);
+                    col.Item().Text("hello@planscape.app").FontColor(Colors.Grey.Darken1);
+                });
+            });
+
+            page.Content().PaddingVertical(16).Column(col =>
+            {
+                col.Spacing(12);
+
+                col.Item().Row(r =>
+                {
+                    r.RelativeItem().Column(c =>
+                    {
+                        c.Item().Text("Bill to").FontColor(Colors.Grey.Darken1).FontSize(9);
+                        c.Item().Text(tenant.Name).Bold();
+                        c.Item().Text(tenant.ContactEmail).FontColor(Colors.Grey.Darken2);
+                    });
+                    r.ConstantItem(180).Column(c =>
+                    {
+                        c.Item().Row(rr => { rr.RelativeItem().Text("Issued"); rr.RelativeItem().AlignRight().Text($"{inv.IssuedAt:yyyy-MM-dd}"); });
+                        c.Item().Row(rr => { rr.RelativeItem().Text("Due");    rr.RelativeItem().AlignRight().Text($"{inv.DueAt:yyyy-MM-dd}"); });
+                        c.Item().Row(rr => { rr.RelativeItem().Text("Period"); rr.RelativeItem().AlignRight().Text($"{inv.PeriodStart:yyyy-MM} → {inv.PeriodEnd:yyyy-MM}"); });
+                    });
+                });
+
+                col.Item().Element(e => e.LineHorizontal(0.5f));
+
+                col.Item().Table(t =>
+                {
+                    t.ColumnsDefinition(c => { c.RelativeColumn(); c.ConstantColumn(120); });
+                    t.Header(h =>
+                    {
+                        h.Cell().Text("Item").Bold();
+                        h.Cell().AlignRight().Text("Amount").Bold();
+                    });
+                    t.Cell().Text($"{tenant.Plan} plan ({inv.PeriodStart:MMM yyyy})");
+                    t.Cell().AlignRight().Text(FormatAmount(inv.AmountMinorUnits, inv.Currency));
+                });
+
+                col.Item().Element(e => e.LineHorizontal(0.5f));
+
+                col.Item().AlignRight().Column(c =>
+                {
+                    c.Item().Width(220).Row(r => { r.RelativeItem().Text("Subtotal"); r.RelativeItem().AlignRight().Text(FormatAmount(inv.AmountMinorUnits, inv.Currency)); });
+                    c.Item().Width(220).Row(r => { r.RelativeItem().Text("Tax");      r.RelativeItem().AlignRight().Text(FormatAmount(inv.TaxMinorUnits,    inv.Currency)); });
+                    c.Item().Width(220).Row(r => { r.RelativeItem().Text("Total").Bold(); r.RelativeItem().AlignRight().Text(FormatAmount(inv.TotalMinorUnits, inv.Currency)).Bold(); });
+                });
+
+                if (!string.IsNullOrEmpty(inv.PurchaseOrderRef))
+                    col.Item().Text($"Purchase order: {inv.PurchaseOrderRef}").FontColor(Colors.Grey.Darken1);
+
+                col.Item().PaddingTop(12).Text(TaxFooter(inv.Currency)).FontColor(Colors.Grey.Darken1).FontSize(9);
+            });
+
+            page.Footer().AlignCenter().Text(t => { t.Span("Status: ").FontColor(Colors.Grey.Darken1); t.Span(inv.Status.ToString()).Bold(); });
+        });
     }
 
     private static string FormatAmount(long minor, string currency)
     {
-        // Most currencies use 2 minor units. UGX, RWF have 0.
-        var divisor = currency.Equals("UGX", StringComparison.OrdinalIgnoreCase) ||
-                      currency.Equals("RWF", StringComparison.OrdinalIgnoreCase) ? 1m : 100m;
+        var zeroDecimal = currency.Equals("UGX", StringComparison.OrdinalIgnoreCase)
+                       || currency.Equals("RWF", StringComparison.OrdinalIgnoreCase);
+        var divisor = zeroDecimal ? 1m : 100m;
         var major = minor / divisor;
-        var nfi = (NumberFormatInfo)CultureInfo.InvariantCulture.NumberFormat.Clone();
-        nfi.NumberDecimalDigits = divisor == 1m ? 0 : 2;
-        return $"{currency} {major.ToString("N", nfi)}";
+        return zeroDecimal
+            ? $"{currency} {major:N0}"
+            : $"{currency} {major:N2}";
     }
 
-    /// <summary>Strip non-ASCII so the PDF byte stream stays valid.</summary>
-    private static string Sanitise(string s)
+    private static string TaxFooter(string currency) => currency.ToUpperInvariant() switch
     {
-        var sb = new StringBuilder(s.Length);
-        foreach (var c in s)
-            sb.Append(c < 32 || c > 126 ? '?' : c);
-        return sb.ToString();
-    }
-
-    /// <summary>
-    /// Minimal PDF-1.4 emitter — one page, Helvetica 10pt monospace-ish
-    /// rendering. Hand-rolled to avoid pulling in a 5 MB PDF library; the
-    /// output passes pdf-validate and renders correctly in Chrome / Acrobat /
-    /// Preview / Adobe Mobile.
-    /// </summary>
-    private static byte[] WrapAsPdf(string content)
-    {
-        var stream = new StringBuilder();
-        stream.Append("BT\n/F1 10 Tf\n60 780 Td\n14 TL\n");
-        foreach (var raw in content.Split('\n'))
-        {
-            var escaped = raw.Replace("\\", "\\\\").Replace("(", "\\(").Replace(")", "\\)");
-            stream.Append("(").Append(escaped).Append(") Tj T*\n");
-        }
-        stream.Append("ET");
-        var streamStr = stream.ToString();
-        var streamBytes = Encoding.ASCII.GetBytes(streamStr);
-
-        var sb = new StringBuilder();
-        var offsets = new List<int>();
-        void WriteObj(int n, string body)
-        {
-            offsets.Add(sb.Length);
-            sb.Append(n).Append(" 0 obj\n").Append(body).Append("\nendobj\n");
-        }
-
-        sb.Append("%PDF-1.4\n");
-        WriteObj(1, "<< /Type /Catalog /Pages 2 0 R >>");
-        WriteObj(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
-        WriteObj(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] " +
-                    "/Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>");
-        WriteObj(4, $"<< /Length {streamBytes.Length} >>\nstream\n{streamStr}\nendstream");
-        WriteObj(5, "<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>");
-
-        var xrefOffset = sb.Length;
-        sb.Append("xref\n0 6\n0000000000 65535 f \n");
-        foreach (var off in offsets)
-            sb.Append(off.ToString("D10")).Append(" 00000 n \n");
-        sb.Append("trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n")
-          .Append(xrefOffset).Append("\n%%EOF\n");
-
-        return Encoding.ASCII.GetBytes(sb.ToString());
-    }
+        "UGX" => "URA TIN: <to be configured>     Mobile-money: 256-XXX-XXXX",
+        "KES" => "KRA PIN: <to be configured>     M-Pesa Paybill: 999999",
+        "TZS" => "TRA TIN: <to be configured>",
+        "RWF" => "RRA TIN: <to be configured>",
+        "NGN" => "FIRS TIN: <to be configured>",
+        "ZAR" => "SARS VAT: <to be configured>",
+        _      => "VAT registered: <to be configured>",
+    };
 }

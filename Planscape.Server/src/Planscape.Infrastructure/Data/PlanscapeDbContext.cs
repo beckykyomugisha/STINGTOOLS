@@ -137,6 +137,17 @@ public class PlanscapeDbContext : DbContext
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<Invoice>      Invoices      => Set<Invoice>();
     public DbSet<Payment>      Payments      => Set<Payment>();
+    // S3.2 — transactional outbox.
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    // S5.1 — scene-index chunks (one row per discipline/level/system slice
+    // of a federated ProjectModel; mobile streams these on demand).
+    public DbSet<SceneNode> SceneNodes => Set<SceneNode>();
+    // S6.1 — voice notes on issues.
+    public DbSet<IssueAudioNote> IssueAudioNotes => Set<IssueAudioNote>();
+    // S6.2 — 3D markup polylines anchored to a model / project.
+    public DbSet<ModelMarkup> ModelMarkups => Set<ModelMarkup>();
+    // S6.3 — CRDT update log for collaborative pin / issue editing.
+    public DbSet<PinCrdtUpdate> PinCrdtUpdates => Set<PinCrdtUpdate>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

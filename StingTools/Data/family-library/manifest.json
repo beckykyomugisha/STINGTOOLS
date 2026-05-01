@@ -1,0 +1,45 @@
+{
+  "$schema": "https://planscape.app/schemas/family-library.v1.json",
+  "$schemaVersion": 1,
+  "version": "1.0.0",
+  "description": "STING family library — pre-loaded ISO 19650 tag families + spec-compliant base families. Loaded by FamilyLibraryLoaderCommand on first project setup.",
+  "categories": [
+    {
+      "category": "Tag families",
+      "items": [
+        { "id": "tag-asset-uniform-en",  "file": "tags/STING-Asset-Tag-Uniform-EN.rfa", "label": "Asset tag — uniform (EN)", "iso19650": true },
+        { "id": "tag-asset-compact-en",  "file": "tags/STING-Asset-Tag-Compact-EN.rfa", "label": "Asset tag — compact (EN)", "iso19650": true },
+        { "id": "tag-asset-narrative",   "file": "tags/STING-Asset-Tag-Narrative.rfa",  "label": "Asset tag — narrative (TAG7 multi-line)", "iso19650": true },
+        { "id": "tag-room",              "file": "tags/STING-Room-Tag.rfa",             "label": "Room tag (number + name + area)", "iso19650": true },
+        { "id": "tag-door",              "file": "tags/STING-Door-Tag.rfa",             "label": "Door tag (mark + fire rating)",   "iso19650": true },
+        { "id": "tag-window",            "file": "tags/STING-Window-Tag.rfa",           "label": "Window tag (mark + glazing spec)", "iso19650": true },
+        { "id": "tag-mep-equipment",     "file": "tags/STING-MEP-Equipment-Tag.rfa",    "label": "MEP equipment tag (PROD + SEQ)",  "iso19650": true }
+      ]
+    },
+    {
+      "category": "Title blocks",
+      "items": [
+        { "id": "tb-a1-iso",             "file": "titleblocks/STING-A1-ISO19650.rfa",   "label": "A1 title block — ISO 19650",  "paperSize": "A1" },
+        { "id": "tb-a3-iso",             "file": "titleblocks/STING-A3-ISO19650.rfa",   "label": "A3 title block — ISO 19650",  "paperSize": "A3" },
+        { "id": "tb-a1-presentation",    "file": "titleblocks/STING-A1-Presentation.rfa","label": "A1 title block — presentation","paperSize": "A1" }
+      ]
+    },
+    {
+      "category": "Annotation",
+      "items": [
+        { "id": "section-marker-iso",    "file": "annotation/STING-Section-Marker-ISO.rfa",   "label": "Section marker — ISO 6412" },
+        { "id": "elevation-marker-iso",  "file": "annotation/STING-Elevation-Marker-ISO.rfa", "label": "Elevation marker — ISO" },
+        { "id": "callout-marker-iso",    "file": "annotation/STING-Callout-Marker-ISO.rfa",   "label": "Callout marker — ISO" },
+        { "id": "level-head-iso",        "file": "annotation/STING-Level-Head-ISO.rfa",       "label": "Level head — ISO" }
+      ]
+    },
+    {
+      "category": "Schedules",
+      "items": [
+        { "id": "schedule-door",         "file": "schedules/STING-Door-Schedule.rfa", "label": "Door schedule (BS 8536)" },
+        { "id": "schedule-room",         "file": "schedules/STING-Room-Schedule.rfa", "label": "Room schedule (BS 6465)" },
+        { "id": "schedule-window",       "file": "schedules/STING-Window-Schedule.rfa","label": "Window schedule" }
+      ]
+    }
+  ]
+}

@@ -342,6 +342,18 @@ builder.Services.AddSingleton<Planscape.Infrastructure.Billing.PaymentRouter>();
 builder.Services.AddScoped<Planscape.Infrastructure.Billing.InvoicePdfRenderer>();
 // S2.6 — dunning job (daily; reminder cadence at 0/3/7 days, suspend at 10).
 builder.Services.AddScoped<Planscape.Infrastructure.Services.DunningJob>();
+// S2.6.1 — Flutterwave renewal job (daily; mints next-period invoice +
+// payment-link email, since FW lacks first-class recurring subscriptions).
+builder.Services.AddScoped<Planscape.Infrastructure.Services.FlutterwaveRenewalJob>();
+// S3.1 — fast-path bulk upsert for tag sync (Postgres COPY + ON CONFLICT).
+builder.Services.AddScoped<Planscape.Core.Interfaces.IBulkTagUpserter,
+    Planscape.Infrastructure.Services.PostgresBulkTagUpserter>();
+// S3.2 — outbox dispatcher (drains OutboxMessages every minute).
+builder.Services.AddScoped<Planscape.Infrastructure.Services.OutboxDispatcher>();
+// S4.2 — demo sandbox reset job (daily; resets the 'demo' tenant).
+builder.Services.AddScoped<Planscape.Infrastructure.Services.DemoSandboxJob>();
+// S7.2 — SLA burn-rate alert job (every 5 min).
+builder.Services.AddScoped<Planscape.Infrastructure.Services.SlaBurnRateJob>();
 
 // P7 + P8 — IFC→glTF converter + thumbnail generator. Null defaults keep the
 // system running without a converter installed; swap the registration to
@@ -472,6 +484,30 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0
         });
     });
+
+    // S7.6 — per-tenant policy. Budgets a tenant's whole organisation
+    // proportional to its plan so a buggy automation account on
+    // tenant A can't DoS the cluster for tenant B. Reads tenant id
+    // from JWT claim 'tenant_id' (set by AuthController on login);
+    // anonymous requests partition by IP as a fallback.
+    options.AddPolicy("per-tenant", context =>
+    {
+        var tenantId = context.User?.FindFirst("tenant_id")?.Value
+                       ?? context.Connection.RemoteIpAddress?.ToString()
+                       ?? "anon";
+        // Default budget: 600/min for paying tenants, 60/min for trial.
+        // Plan resolution happens in middleware (TenantContext is scoped),
+        // so we keep a simple bucket here and let the [Quota] attribute
+        // (S1.4) own plan-specific axes. This rate-limit is a 'cluster
+        // safety net' — not a feature gate.
+        return RateLimitPartition.GetFixedWindowLimiter(tenantId, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 600,
+            Window = TimeSpan.FromMinutes(1),
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit = 0,
+        });
+    });
 });
 
 // ── CORS ──
@@ -556,6 +592,12 @@ app.UseHttpMetrics();
 app.UseRateLimiter();
 app.UseCors("Dashboard");
 app.UseCors("Mobile");
+// S3.8 — rewrite /api/v1/* → /api/* before routing so existing
+// controllers serve both. Older /api/* paths get a Deprecation
+// header pointing at /api/v1 and a 2026-12-31 sunset date.
+app.UseApiVersionRewriter();
+// S7.2 — count every response into rolling SLA buckets in Redis.
+app.UseSlaMetrics();
 app.UseAuthentication();
 // S9 — push correlation ID + tenant + user into Serilog LogContext.
 // Must run AFTER UseAuthentication so the JWT claims are populated.
@@ -703,6 +745,8 @@ app.MapControllers();
 app.MapHub<ComplianceHub>("/hubs/compliance");
 app.MapHub<TagSyncHub>("/hubs/tagsync");
 app.MapHub<NotificationHub>("/hubs/notifications");
+// S6.3 — CRDT relay for collaborative pin / issue editing.
+app.MapHub<Planscape.Infrastructure.SignalR.CrdtHub>("/hubs/crdt");
 
 // ── Database migration + seed ──
 {
@@ -763,6 +807,33 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.TrialStateMachineJob>
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DunningJob>(
     "dunning", j => j.ExecuteAsync(CancellationToken.None),
     "0 7 * * *", new RecurringJobOptions { QueueName = "default" });
+
+// S2.6.1 — daily Flutterwave renewal job. Mints the next-period invoice
+// + emails a payment link 24 h before the current period ends. Stripe
+// subscriptions self-renew; this only handles the FW corridor.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.FlutterwaveRenewalJob>(
+    "fw-renewals", j => j.ExecuteAsync(CancellationToken.None),
+    "30 5 * * *", new RecurringJobOptions { QueueName = "default" });
+
+// S3.2 — outbox dispatcher (every minute). Drains OutboxMessages with
+// at-least-once + exponential-backoff retry; dead-letters after 6 attempts.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.OutboxDispatcher>(
+    "outbox", j => j.ExecuteAsync(CancellationToken.None),
+    "* * * * *", new RecurringJobOptions { QueueName = "default" });
+
+// S4.2 — daily demo sandbox reset. Wipes everything in the 'demo' tenant
+// and re-seeds. Runs at 02:00 UTC (05:00 EAT) so morning prospects find
+// a clean slate.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DemoSandboxJob>(
+    "demo-reset", j => j.ExecuteAsync(CancellationToken.None),
+    "0 2 * * *", new RecurringJobOptions { QueueName = "default" });
+
+// S7.2 — SLA burn-rate alerts every 5 minutes. Reads rolling-window
+// 5xx counts from Redis (populated by the request middleware in S7.2.1)
+// and pages the founder when burn rate exceeds the threshold.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.SlaBurnRateJob>(
+    "sla-burn", j => j.ExecuteAsync(CancellationToken.None),
+    "*/5 * * * *", new RecurringJobOptions { QueueName = "default" });
 
 await app.RunAsync();
 
