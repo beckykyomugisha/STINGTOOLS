@@ -172,6 +172,22 @@ namespace StingTools.Core
         public const string STING_PRODUCTION_RULE_IDX  = "STING_PRODUCTION_RULE_IDX_INT";
         public const string STING_SHEET_SEQUENCE       = "STING_SHEET_SEQUENCE_INT";
 
+        // ── Phase 168 — Match-line subsystem ─────────────────────────────
+        // Stamped onto every auto-placed match-line DetailCurve + caption
+        // tag by MatchLineEngine.PlacePair. STING_MATCH_REF_TXT carries
+        // the paired sheet's STING_SHEET_FULL_REF (so cross-references
+        // re-resolve when sheets are renumbered); STING_MATCH_LINE_GUID
+        // is the stable pair identifier that lets re-runs find existing
+        // pairs and update them in place; STING_MATCH_DIR encodes
+        // vertical/horizontal/dogleg so the drift detector knows what
+        // shape to expect when validating against the scope-box graph.
+        public const string MATCH_REF       = "STING_MATCH_REF_TXT";
+        public const string MATCH_REF_GUID  = "A6B7C8D9-EAFB-4ACC-5D6E-7F8A9BACDBEC";
+        public const string MATCH_LINE_GUID = "STING_MATCH_LINE_GUID_TXT";
+        public const string MATCH_LINE_GUID_GUID = "A7B8C9DA-FBAC-4BCD-6E7F-8A9BACDBECFD";
+        public const string MATCH_DIR       = "STING_MATCH_DIR_TXT";
+        public const string MATCH_DIR_GUID  = "A8B9CADB-ACBD-4CDE-7F8A-9BACDBECFDAE";
+
         // LOG-01: Detection source tracking parameters
         public const string LOC_SOURCE = "ASS_LOC_SOURCE_TXT";
         public const string LOC_SOURCE_GUID = "A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D";
