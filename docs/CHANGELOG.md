@@ -9413,3 +9413,195 @@ report's own UUIDv5 namespace recommendation
 is **not** used because `FabricationParamsV4.cs` already publishes
 under a different STING-specific namespace; adopting the report's
 namespace would have re-keyed every published fabrication GUID.
+
+#### Completed (Phase 170 — Title-block factory: A1 family generator (single-family proof of pipeline))
+
+Proof-of-concept generator command that mints a STING title-block
+.rfa family from a JSON spec. Single-family proof — A1 v2.0 only;
+the remaining 17 families in the design follow in Phase 171+.
+
+Architecture follows the TagFamilyCreatorCommand pattern (Phase 1)
+and extends it with three capabilities tag families don't need:
+geometry placement (lines / static text / labels / filled regions),
+parametric reflow groups (Strategy B from
+docs/TITLE_BLOCK_FAMILY_DESIGN.md §3.1 — formula-driven row-height
+length parameters that collapse BIM-only rows to 0 mm when
+STING_BIM_MODE_BOOL = 0), and the two-label trick for the
+SHEET_FULL_REF cell (two NewLabel calls at the same anchor with
+reciprocal Visible bindings — only one renders).
+
+**New files**
+
+| Path | Lines | Purpose |
+|---|---|---|
+| `StingTools/Core/Drawing/TitleBlockSpec.cs` | 227 | POCOs matching the JSON spec — `TitleBlockLibrary`, `TitleBlockSpec`, `ParamSpec` (shared/internal/calculated), `LineSpec`, `StaticTextSpec`, `LabelSpec`, `LabelPairSpec` (two-label trick), `FilledRegionSpec`, `ReflowGroupSpec` (Strategy B) + `TitleBlockSpecRegistry.Load()` |
+| `StingTools/Core/Drawing/TitleBlockFactory.cs` | 773 | The engine. Pipeline: resolve template path → NewFamilyDocument → set SharedParametersFilename → in one Transaction add all parameters (BIM_MODE Yes/No internal + inverse via `not(...)` formula + spec params) → build reflow groups (height parameter via `if(BIM_MODE, fullHeight, collapsed)` + sibling YesNo `<group>_VIS = BIM_MODE and (height > 0)`) → place lines/static-text/labels/filled-regions with visibility binding → place label pairs → SaveAs → Close. Helpers: ResolveTemplatePath (3 RVT install-root fallbacks), ResolveTitleBlockView, AddSharedParameter (via DefinitionFile lookup), AddInternalParameter (FamilyManager.AddParameter + SetFormula or Set), ApplyLineStyle, ResolveTextNoteTypeId, ResolveFilledRegionTypeId, ParseHAlign / ParseVAlign. |
+| `StingTools/Commands/Drawing/TitleBlockFactoryCommands.cs` | 155 | Two IExternalCommand entry points: `TitleBlockCreateCommand` (picks one family from the spec — auto-selects when only one family declared, TaskDialog command-link picker otherwise), `TitleBlockCreateAllCommand` (iterates every family). Shared TitleBlockCommandUtils helper for resolving the shared-param file path + report formatting. |
+| `StingTools/Data/STING_TITLE_BLOCKS.json` | ~190 | A1 v2.0 spec. 36 parameters (7 shared bound to PRJ_ORG_*, 22 STING-internal text, 7 sheet-ID segments PROJECT/ORIG/VOL/LVL/TYPE/ROL/SEQ + 1 calculated SHEET_FULL_REF concat with formula `STING_SHEET_PROJECT_TXT & "-" & STING_SHEET_ORIG_TXT & ...`). 33 lines (sheet outer border + strip top edge + column dividers + row dividers + revision-history vertical separators × 8 columns). 26 static-text labels (CLIENT, PROJECT, LEAD/ARCHITECT, etc.). 16 dynamic labels bound to family parameters. 1 label pair (SHEET_FULL_REF / SHEET_SEQ — Phase II will swap the latter for the built-in Sheet Number once Revit's API quirks are resolved). 1 filled region (suitability chip — bimOnly). 3 reflow groups: row7Seg (full 12 mm / collapsed 0), rowTrCdeMidp (full 6 mm / collapsed 0), rowLoinFedQr (full 6 mm / collapsed 0). |
+
+**Modified files**
+
+| Path | Change |
+|---|---|
+| `StingTools/UI/StingCommandHandler.cs` | + 2 case branches under the new "Phase 170 — Title-block factory" comment block: `TitleBlock_Create` and `TitleBlock_CreateAll`. |
+
+**Pipeline detail**
+
+`TitleBlockFactory.Build(uiApp, spec, sharedParamFile)` does:
+
+1. **Resolve template** — `ResolveTemplatePath` checks 7 known
+   Revit family-template install roots (`C:\ProgramData\Autodesk\
+   RVT 2025\Family Templates\English\…` through 2027 + RAC variants);
+   falls back to a recursive glob across all roots when the specific
+   path doesn't match (handles locale variants like
+   `A1 metric.rft` vs `A1 metric_FRA.rft`).
+2. **Open template** — `app.NewFamilyDocument(rftPath)` with null check.
+3. **Activate shared-param file** — sets
+   `app.SharedParametersFilename` with try/finally restore (mirrors
+   `TagFamilyCreatorCommand`'s pattern).
+4. **One transaction**:
+    1. Mint `STING_BIM_MODE_BOOL` (YesNo, instance, default 1)
+       and the inverse `STING_NOT_BIM_MODE_BOOL` (formula `not(...)`).
+    2. Mint every spec-declared parameter — `AddSharedParameter`
+       (looks up `ExternalDefinition` in the project's shared-param
+       file by name, then `FamilyManager.AddParameter(extDef,
+       GroupTypeId.IdentityData, isInstance)`) for `kind: "shared"`,
+       `AddInternalParameter` (`FamilyManager.AddParameter(name,
+       GroupTypeId, SpecTypeId, isInstance)` + `SetFormula` or
+       per-type `Set`) for `kind: "internal"`.
+    3. Build reflow groups — for each `ReflowGroupSpec`:
+       - Mint a `Length` family parameter named `H_<groupId>_MM`
+         with formula `if(STING_BIM_MODE_BOOL, fullHeightMm,
+         collapsedHeightMm)`.
+       - Mint a sibling `YesNo` named `<groupId>_VIS` with formula
+         `STING_BIM_MODE_BOOL and (H_<groupId>_MM > 0 mm)`.
+       - Stash the `_VIS` parameter in a `Dictionary<groupId,
+         FamilyParameter>` for later child-Visible binding.
+    4. Place geometry — for every `LineSpec`, `StaticTextSpec`,
+       `LabelSpec`, `FilledRegionSpec` at the family level:
+       - Convert mm → ft (`MmToFt(spec.From[0])`).
+       - Place via `famDoc.FamilyCreate.NewDetailCurve` /
+         `TextNote.Create` / `famDoc.FamilyCreate.NewLabel(view,
+         origin, hAlign, vAlign, IList<FamilyParameter>{fp},
+         IList<string>{prefix, suffix}, sizeFt)` /
+         `FilledRegion.Create(famDoc, fillTypeId, viewId,
+         IList<CurveLoop>{loop})`.
+       - For `bimOnly: true` cells, bind the element's built-in
+         `Visible` parameter via
+         `FamilyManager.AssociateElementParameterToFamilyParameter(
+         vis, gateParam)` where `gateParam` is the BIM-mode parameter.
+       - For cells inside a reflow group, the gate is the group's
+         `_VIS` sibling instead of BIM_MODE directly — child hides
+         when BIM=0 *and* when the group's height collapses to 0.
+    5. Place label pairs — two `NewLabel` calls at the same anchor:
+       Label A bound to `paramBim` with Visible→BIM_MODE; Label B
+       bound to `paramNonBim` with Visible→NOT_BIM_MODE. Only one
+       renders at a time.
+5. **SaveAs** — `Directory.CreateDirectory` for the output path
+   (relative-to-project resolution falls back to addin assembly
+   path); `famDoc.SaveAs(savePath, SaveAsOptions{
+   OverwriteExistingFile = true })`.
+6. **Close** — `famDoc.Close(false)` — does NOT keep the family doc
+   open in Revit's session (avoids stale references).
+
+**Two commands wired**
+
+| Tag | Class | Transaction | Purpose |
+|---|---|---|---|
+| `TitleBlock_Create`      | `TitleBlockCreateCommand`      | Manual | Auto-selects when one family in spec; TaskDialog command-link picker otherwise. Mint one .rfa, report counts + warnings. |
+| `TitleBlock_CreateAll`   | `TitleBlockCreateAllCommand`   | Manual | Iterate every family in spec. Per-family success/fail line + warning preview. |
+
+Both take the family-doc transaction lifecycle out of the calling
+command — the `TransactionMode.Manual` attribute is required by
+Revit but the actual transactions live inside `TitleBlockFactory.Build`
+per family doc.
+
+**Caveats**
+
+1. **Built without `dotnet build` verification (Linux sandbox, no
+   Revit API).** Brace + paren balance verified across all 4 new
+   .cs files. Every Revit API signature checked against existing
+   usage in the same codebase (`NewFamilyDocument`,
+   `FamilyManager.AddParameter` 2 overloads, `SetFormula`, `Set`,
+   `NewDetailCurve`, `NewLabel`, `NewReferencePlane`,
+   `NewDimension`, `TextNote.Create`, `FilledRegion.Create`,
+   `AssociateElementParameterToFamilyParameter`,
+   `CanElementParameterBeAssociated`, `SaveAs`, `Close`,
+   `OpenSharedParameterFile`). Revit reviewer should run on a
+   Windows machine with Revit 2025 and confirm before merge.
+2. **Template path resolution** assumes Windows install paths under
+   `C:\ProgramData\Autodesk\RVT 20XX\…` and English-language
+   templates. Locale variants and non-default install paths are
+   matched via the recursive-glob fallback. If neither resolves,
+   the family build fails fast with a clear error message.
+3. **Two-label trick for `paramNonBimIsBuiltIn: true`** is not
+   yet wired — Revit's built-in `Sheet Number` parameter is
+   read-only at family-author time and isn't directly addressable
+   by `NewLabel`. The current spec routes Label B to
+   `STING_SHEET_SEQ_TXT` (the trailing 4-digit segment) as a
+   sensible non-BIM fallback. Phase 171 wires the proper Sheet
+   Number binding via a sheet-instance shared param + formula.
+4. **Reflow groups currently drive child VISIBILITY only — they
+   don't yet move the strip top edge.** Strategy B from §3.1.2
+   ships in two phases:
+   (a) Phase 170 (this commit) — child cells inside a reflow group
+       hide when the group's gate evaluates false. Strip outer
+       rectangle stays at fixed height (110 mm). The drawable zone
+       does NOT grow when BIM mode is toggled off — the empty
+       space stays.
+   (b) Phase 171 — add reference-plane creation + dimension labels
+       so the strip outer top edge is constrained to a parametric
+       reference plane whose offset is `STRIP_HEIGHT_MM = if(BIM,
+       110, 70)` mm. Then the drawable zone grows by 40 mm in
+       non-BIM mode as designed in §3.1.4.
+5. **`FamilyManager.SetFormula` syntax** for length/integer
+   conditions (`H_<grp>_MM > 0 mm`) is the documented pattern but
+   has not been confirmed against the live Revit 2025 family
+   formula parser in this sandbox. Reviewer please confirm; if it
+   fails, fall back to the simpler `STING_BIM_MODE_BOOL` direct
+   binding (loses the height-driven gating but BIM-mode visibility
+   still works).
+6. **Revit version compatibility** — all API calls target the
+   2024+ ForgeTypeId surface (`GroupTypeId.IdentityData`,
+   `SpecTypeId.String.Text`, `SpecTypeId.Boolean.YesNo`,
+   `SpecTypeId.Length`). Pre-2024 Revit (which uses
+   `BuiltInParameterGroup` + `ParameterType` enums) is not
+   supported.
+
+**What this delivers vs. the design**
+
+| Aspect | Phase 170 status |
+|---|---|
+| Single-family generator pipeline | ✓ A1 v2.0 |
+| 36 parameters (shared + internal + calculated) | ✓ |
+| Geometry placement (33 lines + 16 labels + 26 static text + 1 filled region) | ✓ |
+| Reflow groups (3) — child visibility | ✓ |
+| Reflow groups — strip outer auto-shrink | deferred to Phase 171 |
+| Two-label trick for SHEET_FULL_REF / Sheet Number | partial (uses SHEET_SEQ as Phase II hook) |
+| Multi-family library (A0/A2/A3/A3-port/A4-port + 12 specialty) | deferred to Phase 171+ |
+| Logo image params + revision schedule + QR | deferred to Phase 174-175 |
+
+**Verification plan** for a Windows reviewer:
+
+1. With Revit 2025 open and a project loaded, run `TitleBlock_Create`.
+2. Engine produces `Families/TitleBlocks/STING_TB_A1_v2.0.rfa`.
+3. Open the .rfa in Family Editor — verify all 36 parameters
+   appear in `Family Types → Edit`.
+4. Verify the calculated `STING_SHEET_FULL_REF_TXT` shows
+   `STG-PLNS-ZZ-01-DR-A-0001` (defaults concatenated).
+5. Toggle `STING_BIM_MODE_BOOL` to 0 in the family-types dialog
+   — confirm the SUITABILITY chip + AUTH cell + 7-segment row +
+   TR-REF row + LOIN/FED row + QR fill all hide.
+6. Load the family into the active project, place on a sheet,
+   confirm parameters are reachable on the sheet's instance
+   properties.
+
+**Files**
+
+- `StingTools/Core/Drawing/TitleBlockSpec.cs` — NEW (227)
+- `StingTools/Core/Drawing/TitleBlockFactory.cs` — NEW (773)
+- `StingTools/Commands/Drawing/TitleBlockFactoryCommands.cs` — NEW (155)
+- `StingTools/Data/STING_TITLE_BLOCKS.json` — NEW (190)
+- `StingTools/UI/StingCommandHandler.cs` (+4 lines)
+- `docs/CHANGELOG.md` — this entry
+
