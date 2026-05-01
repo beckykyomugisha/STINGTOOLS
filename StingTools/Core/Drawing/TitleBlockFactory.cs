@@ -291,8 +291,20 @@ namespace StingTools.Core.Drawing
                 }
             }
             catch { }
-            // Final fallback: alongside the addin DLL.
-            return Path.Combine(StingToolsApp.AssemblyPath ?? ".", specPath);
+            // Final fallback: alongside the addin DLL. AssemblyPath is the
+            // FILE path (ends in StingTools.dll), so we have to take the
+            // directory — Path.Combine(asmFilePath, "Families/…") would
+            // produce "…\StingTools.dll\Families\…" which Revit then tries
+            // to create and fails because StingTools.dll is a file.
+            var asmDir = ".";
+            try
+            {
+                var asm = StingToolsApp.AssemblyPath;
+                if (!string.IsNullOrEmpty(asm))
+                    asmDir = Path.GetDirectoryName(asm) ?? ".";
+            }
+            catch { }
+            return Path.Combine(asmDir, specPath);
         }
 
         // ── Parameter creation ───────────────────────────────────────────
@@ -398,12 +410,39 @@ namespace StingTools.Core.Drawing
                     var current = fm.CurrentType ?? fm.NewType("Default");
                     try
                     {
+                        // Branch on the SPEC TYPE (what kind of param we
+                        // just added), not on whether the literal happens
+                        // to look like a number — text defaults like "01"
+                        // or "0001" parse as doubles but must still be
+                        // written via the string overload.
                         if (specId == SpecTypeId.Boolean.YesNo)
-                            fm.Set(fp, defaultValue == "1" || string.Equals(defaultValue, "true", StringComparison.OrdinalIgnoreCase) ? 1 : 0);
-                        else if (double.TryParse(defaultValue, out var d))
-                            fm.Set(fp, d);
+                        {
+                            fm.Set(fp, (defaultValue == "1"
+                                || string.Equals(defaultValue, "true", StringComparison.OrdinalIgnoreCase)
+                                || string.Equals(defaultValue, "yes",  StringComparison.OrdinalIgnoreCase)) ? 1 : 0);
+                        }
+                        else if (specId == SpecTypeId.Int.Integer)
+                        {
+                            if (int.TryParse(defaultValue, System.Globalization.NumberStyles.Integer,
+                                    System.Globalization.CultureInfo.InvariantCulture, out var i))
+                                fm.Set(fp, i);
+                            else
+                                r.Warnings.Add($"Set default '{name}': '{defaultValue}' is not a valid integer");
+                        }
+                        else if (specId == SpecTypeId.Length
+                              || specId == SpecTypeId.Number)
+                        {
+                            if (double.TryParse(defaultValue, System.Globalization.NumberStyles.Float,
+                                    System.Globalization.CultureInfo.InvariantCulture, out var d))
+                                fm.Set(fp, d);
+                            else
+                                r.Warnings.Add($"Set default '{name}': '{defaultValue}' is not a valid number");
+                        }
                         else
+                        {
+                            // Text (and any other string-storage spec)
                             fm.Set(fp, defaultValue);
+                        }
                     }
                     catch (Exception ex) { r.Warnings.Add($"Set default '{name}': {ex.Message}"); }
                 }
@@ -473,32 +512,49 @@ namespace StingTools.Core.Drawing
                 try
                 {
                     // 1. Length parameter for the group's height.
-                    // Revit family-formula parser is unit-context-sensitive — the
-                    // safest form is unitless feet (Revit's internal length unit),
-                    // written with an explicit `'` (feet) suffix so it's parsed
-                    // as a length literal rather than a number expression.
+                    // Past attempts at `if(BIM, full, collapsed)` formulas
+                    // were rejected by Revit's family-formula parser across
+                    // every length-literal form tried (mm suffix, feet
+                    // suffix, bare numbers, IF/if). For Phase 170 we keep
+                    // the param as a plain Length with a fixed default
+                    // (the full strip height); Phase 171 will revisit when
+                    // we have hands-on Revit access to discover what
+                    // formula form the parser actually accepts.
                     var heightParamName = string.IsNullOrEmpty(grp.HeightParam)
                         ? $"H_{grp.Id}_MM" : grp.HeightParam;
-                    var fullFt      = MmToFt(grp.FullHeightMm).ToString("0.########", System.Globalization.CultureInfo.InvariantCulture);
-                    var collapsedFt = MmToFt(grp.CollapsedHeightMm).ToString("0.########", System.Globalization.CultureInfo.InvariantCulture);
+                    var fullFt = MmToFt(grp.FullHeightMm).ToString("0.########", System.Globalization.CultureInfo.InvariantCulture);
                     var hp = AddInternalParameter(fm, heightParamName,
                         "Length", "Constraints", isInstance: false,
-                        defaultValue: null,
-                        formula: $"IF({spec.BimModeParameter}, {fullFt}', {collapsedFt}')",
-                        r);
+                        defaultValue: fullFt, formula: null, r);
                     if (hp != null) map[heightParamName] = hp;
 
-                    // 2. Sibling YesNo for child Visible binding.
+                    // 2. Sibling YesNo for child Visible binding. The
+                    // simplest possible formula — direct assignment from
+                    // BIM_MODE — is the safest form Revit's parser will
+                    // accept across versions. The defence-in-depth `AND
+                    // (height > 0)` clause is dropped: BIM_MODE alone is
+                    // the gate.
                     var visName = $"{grp.Id}_VIS";
                     var vp = AddInternalParameter(fm, visName, "YesNo",
                         "Constraints", isInstance: false,
                         defaultValue: null,
-                        formula: $"{spec.BimModeParameter} AND ({heightParamName} > 0')",
+                        formula: spec.BimModeParameter,
                         r);
                     if (vp != null)
                     {
                         map[visName] = vp;
                         visByGroup[grp.Id] = vp;
+                    }
+                    else
+                    {
+                        // Last-resort fallback: bind reflow-group children
+                        // directly to BIM_MODE_BOOL so they still
+                        // toggle correctly even if the sibling-VIS-formula
+                        // path fails. Without this, BuildReflowGroups
+                        // returning empty visByGroup makes the loop in
+                        // Build() skip every reflow-group child entirely.
+                        if (map.TryGetValue(spec.BimModeParameter, out var bimFp))
+                            visByGroup[grp.Id] = bimFp;
                     }
                     r.ReflowGroupsBuilt++;
                 }
@@ -735,9 +791,46 @@ namespace StingTools.Core.Drawing
                     dc.LineStyle = hit;
                     return;
                 }
-                r.Warnings.Add($"line style '{styleName}' not found (no fallback available)");
+
+                // Ultimate fallback — if the template doesn't ship the
+                // standard "Wide / Medium / Thin Lines" subcategories at
+                // all (clean Revit template, custom locale, etc.), pick
+                // ANY available subcategory under Lines or TitleBlocks
+                // so the curve at least gets a line style assigned. Better
+                // than leaving it on the implicit default which can be
+                // <Invisible lines>.
+                var anyStyle = FirstAnySubcategoryStyle(doc, BuiltInCategory.OST_Lines)
+                            ?? FirstAnySubcategoryStyle(doc, BuiltInCategory.OST_TitleBlocks);
+                if (anyStyle != null)
+                {
+                    dc.LineStyle = anyStyle;
+                    _LineStyleNotFoundOnce.TryAdd(styleName, true);
+                    if (_LineStyleNotFoundOnce.Count <= 3)
+                        r.Warnings.Add($"line style '{styleName}' not found — using '{anyStyle.Name}' as fallback");
+                    return;
+                }
+                r.Warnings.Add($"line style '{styleName}' not found (no subcategory available under OST_Lines or OST_TitleBlocks)");
             }
             catch (Exception ex) { r.Warnings.Add($"ApplyLineStyle '{styleName}': {ex.Message}"); }
+        }
+
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> _LineStyleNotFoundOnce
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, bool>();
+
+        private static GraphicsStyle FirstAnySubcategoryStyle(Document doc, BuiltInCategory parentCat)
+        {
+            try
+            {
+                var parent = doc.Settings.Categories.get_Item(parentCat);
+                if (parent?.SubCategories == null) return null;
+                foreach (Category sub in parent.SubCategories)
+                {
+                    var gs = sub.GetGraphicsStyle(GraphicsStyleType.Projection);
+                    if (gs != null) return gs;
+                }
+            }
+            catch { }
+            return null;
         }
 
         private static GraphicsStyle LookupLineStyle(Document doc,
