@@ -850,11 +850,17 @@ namespace StingTools.Core.Drawing
 
         private static MethodInfo _newLabelMethod;
 
-        private static Element InvokeNewLabel(FamilyItemFactory factory, View view,
+        // factory is an Autodesk.Revit.Creation.FamilyItemFactory (the type
+        // returned by Document.FamilyCreate). Typed as `object` to avoid
+        // having to import the Autodesk.Revit.Creation namespace, which
+        // pulls in a `Document` class that collides with the DB.Document
+        // already used throughout this file.
+        private static Element InvokeNewLabel(object factory, View view,
             XYZ origin, HorizontalAlign hAlign, object vAlign,
             IList<FamilyParameter> labelParameters, IList<string> prefixSuffix,
             double size, TitleBlockBuildResult r)
         {
+            if (factory == null) return null;
             try
             {
                 if (_newLabelMethod == null && _verticalAlignType != null)
