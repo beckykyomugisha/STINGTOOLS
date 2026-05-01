@@ -5,9 +5,10 @@ namespace Planscape.Core.Entities;
 /// When the same project + filename is re-uploaded, a new version row is created
 /// and DocumentRecord.Revision is incremented.
 /// </summary>
-public class DocumentVersion
+public class DocumentVersion : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
     public Guid DocumentId { get; set; }
     public int VersionNumber { get; set; }
     public string FilePath { get; set; } = "";

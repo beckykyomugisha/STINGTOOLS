@@ -3,9 +3,10 @@ namespace Planscape.Core.Entities;
 /// <summary>
 /// ISO 19650 document record with CDE lifecycle state management.
 /// </summary>
-public class DocumentRecord
+public class DocumentRecord : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
     public Guid ProjectId { get; set; }
     public string FileName { get; set; } = "";
     public string? FilePath { get; set; }

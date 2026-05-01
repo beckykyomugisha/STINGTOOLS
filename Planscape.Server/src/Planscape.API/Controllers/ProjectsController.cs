@@ -67,8 +67,10 @@ public class ProjectsController : ControllerBase
     /// <response code="400">Tenant project limit reached.</response>
     /// <response code="404">Tenant not found.</response>
     [HttpPost]
+    [Planscape.Infrastructure.Authorization.Quota(Planscape.Infrastructure.Services.QuotaAxis.Projects)]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status402PaymentRequired)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> CreateProject([FromBody] CreateProjectRequest req)
     {

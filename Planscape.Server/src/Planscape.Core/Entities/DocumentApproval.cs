@@ -4,9 +4,10 @@ namespace Planscape.Core.Entities;
 /// Records an approval decision for a CDE state transition per ISO 19650-2 §5.6.
 /// Required before SHARED→PUBLISHED transition can complete.
 /// </summary>
-public class DocumentApproval
+public class DocumentApproval : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
     public Guid DocumentId { get; set; }
     public Guid ProjectId { get; set; }
 

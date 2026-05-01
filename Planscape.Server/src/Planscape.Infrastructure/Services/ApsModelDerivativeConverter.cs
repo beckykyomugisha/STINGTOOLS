@@ -90,17 +90,35 @@ public class ApsModelDerivativeConverter : IModelConverter
             if (!jobOk)
                 return new ConversionResult(false, ProviderName, sw.ElapsedMilliseconds, 0, null, "APS translation job failed to submit.");
 
-            var status = await PollManifestAsync(http, token, urn, ct);
-            if (status != "success")
+            var (status, manifestJson) = await PollManifestAsync(http, token, urn, ct);
+            if (status != "success" || manifestJson == null)
                 return new ConversionResult(false, ProviderName, sw.ElapsedMilliseconds, 0, null, $"APS translation status: {status}");
 
-            // TODO: walk derivative manifest → find glTF child → download SVF/glTF
-            // bundle → unzip → flatten to a single .glb at outputPath. This step
-            // requires access to a sandbox APS account to verify the response shape.
+            var derivativeUrn = FindFirst3dDerivativeUrn(manifestJson);
+            if (derivativeUrn == null)
+            {
+                sw.Stop();
+                return new ConversionResult(false, ProviderName, sw.ElapsedMilliseconds, 0, null,
+                    "APS manifest had no 3D resource child. SVF translation may not have produced a downloadable derivative.");
+            }
+
+            var size = await DownloadDerivativeAsync(http, token, urn, derivativeUrn, outputPath, ct);
             sw.Stop();
-            _logger.LogWarning("ApsModelDerivativeConverter: translation succeeded for urn={Urn} but glTF download is not yet implemented.", urn);
-            return new ConversionResult(false, ProviderName, sw.ElapsedMilliseconds, 0, null,
-                "APS translation succeeded; glTF download not yet implemented (see TODO).");
+            if (size <= 0)
+                return new ConversionResult(false, ProviderName, sw.ElapsedMilliseconds, 0, null,
+                    "APS derivative download returned an empty file.");
+
+            // APS Model Derivative emits SVF/SVF2, NOT glTF directly. The bytes
+            // saved at outputPath are the SVF root file; downstream conversion
+            // (e.g. forge-convert-utils) must produce the GLB. We surface this
+            // honestly so the derivative job logs a meaningful warning instead
+            // of pretending we have a renderable GLB.
+            _logger.LogWarning(
+                "ApsModelDerivativeConverter: saved SVF/SVF2 derivative ({Size} bytes) at {Path}. " +
+                "Note: APS does not emit glTF directly — install a SVF→glTF converter sidecar to complete the pipeline.",
+                size, outputPath);
+            return new ConversionResult(false, ProviderName, sw.ElapsedMilliseconds, size, null,
+                "APS produces SVF; chain a SVF→glTF converter (e.g. forge-convert-utils) to finish the pipeline.");
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
@@ -158,7 +176,7 @@ public class ApsModelDerivativeConverter : IModelConverter
         return resp.IsSuccessStatusCode;
     }
 
-    private async Task<string> PollManifestAsync(HttpClient http, string token, string urn, CancellationToken ct)
+    private async Task<(string status, string? manifestJson)> PollManifestAsync(HttpClient http, string token, string urn, CancellationToken ct)
     {
         var deadline = DateTime.UtcNow.AddMilliseconds(_timeoutMs);
         while (DateTime.UtcNow < deadline)
@@ -170,15 +188,73 @@ public class ApsModelDerivativeConverter : IModelConverter
             var resp = await http.SendAsync(req, ct);
             if (resp.IsSuccessStatusCode)
             {
-                var doc = await JsonDocument.ParseAsync(await resp.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
+                var body = await resp.Content.ReadAsStringAsync(ct);
+                using var doc = JsonDocument.Parse(body);
                 if (doc.RootElement.TryGetProperty("status", out var s))
                 {
                     var status = s.GetString() ?? "";
-                    if (status is "success" or "failed" or "timeout") return status;
+                    if (status == "success") return (status, body);
+                    if (status is "failed" or "timeout") return (status, null);
                 }
             }
             await Task.Delay(_pollIntervalMs, ct);
         }
-        return "timeout";
+        return ("timeout", null);
+    }
+
+    /// <summary>
+    /// Walks the manifest's <c>derivatives[].children[]</c> tree (recursive —
+    /// children can themselves contain children) and returns the URN of the
+    /// first node tagged role="3d" type="resource". Returns null if none.
+    /// </summary>
+    private static string? FindFirst3dDerivativeUrn(string manifestJson)
+    {
+        using var doc = JsonDocument.Parse(manifestJson);
+        if (!doc.RootElement.TryGetProperty("derivatives", out var derivatives)) return null;
+        foreach (var d in derivatives.EnumerateArray())
+        {
+            if (d.TryGetProperty("children", out var children))
+            {
+                var found = WalkChildren(children);
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+
+    private static string? WalkChildren(JsonElement children)
+    {
+        foreach (var c in children.EnumerateArray())
+        {
+            var role = c.TryGetProperty("role", out var r) ? r.GetString() : null;
+            var type = c.TryGetProperty("type", out var t) ? t.GetString() : null;
+            if (role == "3d" && type == "resource"
+                && c.TryGetProperty("urn", out var u))
+            {
+                var s = u.GetString();
+                if (!string.IsNullOrEmpty(s)) return s;
+            }
+            if (c.TryGetProperty("children", out var grand))
+            {
+                var found = WalkChildren(grand);
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+
+    private async Task<long> DownloadDerivativeAsync(HttpClient http, string token, string urn, string derivativeUrn, string outputPath, CancellationToken ct)
+    {
+        // The derivative download endpoint expects URL-encoded derivative urns.
+        var encoded = Uri.EscapeDataString(derivativeUrn);
+        var req = new HttpRequestMessage(HttpMethod.Get,
+            $"https://developer.api.autodesk.com/modelderivative/v2/designdata/{urn}/manifest/{encoded}");
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        using var resp = await http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+        if (!resp.IsSuccessStatusCode) return 0;
+        await using var src = await resp.Content.ReadAsStreamAsync(ct);
+        await using var dst = File.Create(outputPath);
+        await src.CopyToAsync(dst, ct);
+        return new FileInfo(outputPath).Length;
     }
 }

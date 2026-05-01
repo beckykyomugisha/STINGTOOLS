@@ -324,6 +324,24 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.DatabaseBackupJob>(
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PlatformSyncJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.ModelDerivativeJob>();
+// S1.4 — quota guard service used by [Quota(...)] action filter + controllers.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IQuotaGuardService,
+    Planscape.Infrastructure.Services.QuotaGuardService>();
+// S1.6 — trial state machine job (daily; sends reminders + freezes on expiry).
+builder.Services.AddScoped<Planscape.Infrastructure.Services.TrialStateMachineJob>();
+
+// S2.2 + S2.3 — payment providers. Both registered as IPaymentProvider so
+// PaymentRouter can pick by currency. Stripe handles USD/EUR/GBP;
+// Flutterwave handles the East-African + West-African corridor.
+builder.Services.AddSingleton<Planscape.Core.Interfaces.IPaymentProvider,
+    Planscape.Infrastructure.Billing.StripePaymentProvider>();
+builder.Services.AddSingleton<Planscape.Core.Interfaces.IPaymentProvider,
+    Planscape.Infrastructure.Billing.FlutterwavePaymentProvider>();
+builder.Services.AddSingleton<Planscape.Infrastructure.Billing.PaymentRouter>();
+// S2.5 — invoice PDF renderer (no library dependencies; emits PDF 1.4 bytes).
+builder.Services.AddScoped<Planscape.Infrastructure.Billing.InvoicePdfRenderer>();
+// S2.6 — dunning job (daily; reminder cadence at 0/3/7 days, suspend at 10).
+builder.Services.AddScoped<Planscape.Infrastructure.Services.DunningJob>();
 
 // P7 + P8 — IFC→glTF converter + thumbnail generator. Null defaults keep the
 // system running without a converter installed; swap the registration to
@@ -731,6 +749,20 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.ModelDerivativeJob>(
     "model-derivatives", j => j.ExecuteAsync(CancellationToken.None),
     "*/10 * * * *", new RecurringJobOptions { QueueName = "default" });
+
+// S1.6 — daily trial state machine. Sends 7d/3d/1d reminders, freezes
+// expired tenants, prompts dunning. Runs at 06:00 UTC ≈ 09:00 EAT.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.TrialStateMachineJob>(
+    "trial-state", j => j.ExecuteAsync(CancellationToken.None),
+    "0 6 * * *", new RecurringJobOptions { QueueName = "default" });
+
+// S2.6 — daily dunning job. Walks Overdue invoices on the 0/3/7-day
+// cadence, suspends at day 10. Runs at 07:00 UTC ≈ 10:00 EAT (after
+// the trial state machine so today's freezes get a billing reminder
+// today rather than tomorrow).
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DunningJob>(
+    "dunning", j => j.ExecuteAsync(CancellationToken.None),
+    "0 7 * * *", new RecurringJobOptions { QueueName = "default" });
 
 await app.RunAsync();
 

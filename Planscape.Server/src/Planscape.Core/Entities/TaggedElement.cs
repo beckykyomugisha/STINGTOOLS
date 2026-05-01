@@ -4,9 +4,10 @@ namespace Planscape.Core.Entities;
 /// A tagged BIM element synced from the Revit plugin.
 /// Stores ISO 19650 8-segment tag data + TAG7 narrative + compliance state.
 /// </summary>
-public class TaggedElement
+public class TaggedElement : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
     public Guid ProjectId { get; set; }
     public long RevitElementId { get; set; }
     public string UniqueId { get; set; } = ""; // Revit UniqueId for cross-session tracking
