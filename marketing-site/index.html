@@ -126,5 +126,22 @@ footer{padding:32px 24px;text-align:center;color:var(--muted);font-size:13px;bor
   © 2026 Planscape Ltd · Kampala, Uganda · <a href="mailto:hello@planscape.app">hello@planscape.app</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a>
 </footer>
 
+<!--
+  S4.6 — Crisp chat widget on the marketing site only. Mobile + web
+  app embed a smaller mailto-based help button (see
+  Planscape/src/components/HelpButton.tsx) to keep the bundle small.
+  Replace CRISP_WEBSITE_ID at deploy time with the real id; absent
+  the id the widget silently no-ops, which is what we want during
+  pre-launch.
+-->
+<script type="text/javascript">
+  window.$crisp=[];window.CRISP_WEBSITE_ID="__CRISP_WEBSITE_ID__";
+  (function(){
+    if (window.CRISP_WEBSITE_ID === "__CRISP_WEBSITE_ID__") return;
+    var d=document; var s=d.createElement("script"); s.src="https://client.crisp.chat/l.js"; s.async=1;
+    d.getElementsByTagName("head")[0].appendChild(s);
+  })();
+</script>
+
 </body>
 </html>
