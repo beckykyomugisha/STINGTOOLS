@@ -25,9 +25,41 @@ public class BillingController : ControllerBase
     private readonly ITenantContext _tenant;
     private readonly PaymentRouter _router;
 
-    public BillingController(PlanscapeDbContext db, ITenantContext tenant, PaymentRouter router)
+    private readonly InvoicePdfRenderer _pdf;
+    private readonly IFileStorageService _storage;
+
+    public BillingController(PlanscapeDbContext db, ITenantContext tenant, PaymentRouter router,
+        InvoicePdfRenderer pdf, IFileStorageService storage)
     {
-        _db = db; _tenant = tenant; _router = router;
+        _db = db; _tenant = tenant; _router = router; _pdf = pdf; _storage = storage;
+    }
+
+    /// <summary>List invoices for the current tenant.</summary>
+    [HttpGet("invoices")]
+    [Authorize(Roles = "Owner,Admin")]
+    public async Task<ActionResult> Invoices(CancellationToken ct)
+    {
+        var rows = await _db.Invoices.AsNoTracking()
+            .OrderByDescending(i => i.IssuedAt).Take(100)
+            .Select(i => new {
+                i.Id, i.InvoiceNumber, i.Currency, i.TotalMinorUnits, i.IssuedAt, i.DueAt,
+                Status = i.Status.ToString(),
+                hasPdf = i.PdfStoragePath != null,
+            }).ToListAsync(ct);
+        return Ok(rows);
+    }
+
+    /// <summary>Download (or generate-and-download) an invoice PDF.</summary>
+    [HttpGet("invoices/{invoiceId:guid}/pdf")]
+    [Authorize(Roles = "Owner,Admin")]
+    public async Task<ActionResult> InvoicePdf(Guid invoiceId, CancellationToken ct)
+    {
+        var inv = await _db.Invoices.FirstOrDefaultAsync(i => i.Id == invoiceId, ct);
+        if (inv == null) return NotFound();
+        var path = inv.PdfStoragePath ?? await _pdf.RenderAndStoreAsync(invoiceId, ct);
+        var stream = await _storage.GetAsync(path, ct);
+        if (stream == null) return NotFound();
+        return File(stream, "application/pdf", $"{inv.InvoiceNumber}.pdf");
     }
 
     [HttpPost("checkout")]
@@ -179,6 +211,10 @@ public class BillingController : ControllerBase
             Status = PaymentStatus.Succeeded,
             CompletedAt = DateTime.UtcNow,
         });
+        // S2.5 — render the receipt PDF inline so the next paid-invoice email
+        // can attach it. SaveChangesAsync below persists Invoice.PdfStoragePath.
+        await _db.SaveChangesAsync(ct);
+        try { await _pdf.RenderAndStoreAsync(invoice.Id, ct); } catch { /* best-effort; don't fail the webhook */ }
     }
 
     private async Task RecordFailedPaymentAsync(ProviderEvent ev, Guid tenantId, CancellationToken ct)

@@ -284,6 +284,8 @@ builder.Services.AddSingleton<Planscape.Core.Interfaces.IPaymentProvider,
 builder.Services.AddSingleton<Planscape.Core.Interfaces.IPaymentProvider,
     Planscape.Infrastructure.Billing.FlutterwavePaymentProvider>();
 builder.Services.AddSingleton<Planscape.Infrastructure.Billing.PaymentRouter>();
+// S2.5 — invoice PDF renderer (no library dependencies; emits PDF 1.4 bytes).
+builder.Services.AddScoped<Planscape.Infrastructure.Billing.InvoicePdfRenderer>();
 
 // P7 + P8 — IFC→glTF converter + thumbnail generator. Null defaults keep the
 // system running without a converter installed; swap the registration to
