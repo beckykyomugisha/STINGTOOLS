@@ -1028,6 +1028,11 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Stamp TX" Tag="TransmittalAutoIssue" Click="Cmd_Click" ToolTip="Stamp transmittal metadata (PRJ_TB_LAST_TRANSMITTAL_*, PRJ_TB_DELIVERABLE_*) onto selected sheets"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Pre-Export" Tag="PreExportValidate" Click="Cmd_Click" ToolTip="Run pre-export completeness gate — blocks PDF/DWF when critical fields are empty"/>
                                 </WrapPanel>
+                                <!-- Phase 170 — Title-block factory: mint .rfa families from STING_TITLE_BLOCKS.json -->
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="🏭 Build Family" Tag="TitleBlock_Create" Click="Cmd_Click" ToolTip="Phase 170 — mint a STING title-block .rfa family from STING_TITLE_BLOCKS.json. Pick the family if more than one is defined; auto-selects when there's only one. Output goes to Families/TitleBlocks/."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="🏭 Build All" Tag="TitleBlock_CreateAll" Click="Cmd_Click" ToolTip="Phase 170 — mint every title-block family declared in STING_TITLE_BLOCKS.json in one batch. Reports per-family success/warnings/errors."/>
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
 
