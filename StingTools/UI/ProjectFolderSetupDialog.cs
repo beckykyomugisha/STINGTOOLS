@@ -11,6 +11,12 @@ using System.Windows.Media;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+// Disambiguate WPF controls vs the Revit UI types of the same name.
+// Both Autodesk.Revit.UI and System.Windows.Controls export TextBox /
+// ComboBox; this dialog is a WPF dialog so the unqualified names should
+// always resolve to the WPF versions.
+using TextBox  = System.Windows.Controls.TextBox;
+using ComboBox = System.Windows.Controls.ComboBox;
 
 namespace StingTools.UI
 {
