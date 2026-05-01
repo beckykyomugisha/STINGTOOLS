@@ -273,6 +273,8 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.ModelDerivativeJob>
 // S1.4 — quota guard service used by [Quota(...)] action filter + controllers.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.IQuotaGuardService,
     Planscape.Infrastructure.Services.QuotaGuardService>();
+// S1.6 — trial state machine job (daily; sends reminders + freezes on expiry).
+builder.Services.AddScoped<Planscape.Infrastructure.Services.TrialStateMachineJob>();
 
 // P7 + P8 — IFC→glTF converter + thumbnail generator. Null defaults keep the
 // system running without a converter installed; swap the registration to
@@ -615,5 +617,11 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.ModelDerivativeJob>(
     "model-derivatives", j => j.ExecuteAsync(CancellationToken.None),
     "*/10 * * * *", new RecurringJobOptions { QueueName = "default" });
+
+// S1.6 — daily trial state machine. Sends 7d/3d/1d reminders, freezes
+// expired tenants, prompts dunning. Runs at 06:00 UTC ≈ 09:00 EAT.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.TrialStateMachineJob>(
+    "trial-state", j => j.ExecuteAsync(CancellationToken.None),
+    "0 6 * * *", new RecurringJobOptions { QueueName = "default" });
 
 await app.RunAsync();

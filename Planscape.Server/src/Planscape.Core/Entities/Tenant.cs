@@ -44,6 +44,13 @@ public class Tenant
     public BillingCycle BillingCycle { get; set; } = BillingCycle.Monthly;
 
     /// <summary>
+    /// S1.6 — bitmask of which trial-expiry reminders have been sent.
+    /// Bit 4 = 7-day · Bit 2 = 3-day · Bit 1 = 1-day. Stops the trial
+    /// state machine job from emailing the same warning every day.
+    /// </summary>
+    public int TrialReminderSentDays { get; set; }
+
+    /// <summary>
     /// Phase 151 — tenant-scoped keyword extensions for the deliverable
     /// state machine. JSON shape mirrors the per-project block:
     ///   { "working": ["PARKED"], "terminal": ["DECOMMISSIONED"] }
