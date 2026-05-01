@@ -3,7 +3,7 @@ namespace Planscape.Core.Entities;
 /// <summary>
 /// Application user with multi-tenant membership and ISO 19650 role.
 /// </summary>
-public class AppUser
+public class AppUser : ITenantScoped,  ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }

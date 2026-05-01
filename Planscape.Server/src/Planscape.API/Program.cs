@@ -324,6 +324,40 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.DatabaseBackupJob>(
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PlatformSyncJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.ModelDerivativeJob>();
+// S1.4 — quota guard service used by [Quota(...)] action filter + controllers.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IQuotaGuardService,
+    Planscape.Infrastructure.Services.QuotaGuardService>();
+// S1.6 — trial state machine job (daily; sends reminders + freezes on expiry).
+builder.Services.AddScoped<Planscape.Infrastructure.Services.TrialStateMachineJob>();
+
+// S2.2 + S2.3 — payment providers. Both registered as IPaymentProvider so
+// PaymentRouter can pick by currency. Stripe handles USD/EUR/GBP;
+// Flutterwave handles the East-African + West-African corridor.
+builder.Services.AddSingleton<Planscape.Core.Interfaces.IPaymentProvider,
+    Planscape.Infrastructure.Billing.StripePaymentProvider>();
+builder.Services.AddSingleton<Planscape.Core.Interfaces.IPaymentProvider,
+    Planscape.Infrastructure.Billing.FlutterwavePaymentProvider>();
+builder.Services.AddSingleton<Planscape.Infrastructure.Billing.PaymentRouter>();
+// S2.5 — invoice PDF renderer (no library dependencies; emits PDF 1.4 bytes).
+builder.Services.AddScoped<Planscape.Infrastructure.Billing.InvoicePdfRenderer>();
+// S2.6 — dunning job (daily; reminder cadence at 0/3/7 days, suspend at 10).
+builder.Services.AddScoped<Planscape.Infrastructure.Services.DunningJob>();
+// S2.6.1 — Flutterwave renewal job (daily; mints next-period invoice +
+// payment-link email, since FW lacks first-class recurring subscriptions).
+builder.Services.AddScoped<Planscape.Infrastructure.Services.FlutterwaveRenewalJob>();
+// S3.1 — fast-path bulk upsert for tag sync (Postgres COPY + ON CONFLICT).
+builder.Services.AddScoped<Planscape.Core.Interfaces.IBulkTagUpserter,
+    Planscape.Infrastructure.Services.PostgresBulkTagUpserter>();
+// S3.2 — outbox dispatcher (drains OutboxMessages every minute).
+builder.Services.AddScoped<Planscape.Infrastructure.Services.OutboxDispatcher>();
+// S4.2 — demo sandbox reset job (daily; resets the 'demo' tenant).
+builder.Services.AddScoped<Planscape.Infrastructure.Services.DemoSandboxJob>();
+// S7.2 — SLA burn-rate alert job (every 5 min).
+builder.Services.AddScoped<Planscape.Infrastructure.Services.SlaBurnRateJob>();
+// S7.4.1 — daily GDPR/POPIA hard-delete job (after 30-day cooling-off).
+builder.Services.AddScoped<Planscape.Infrastructure.Services.DataErasureJob>();
+// Idempotent platform-tenant seeder ('planscape' slug). Runs once on boot.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.PlatformTenantSeeder>();
 
 // P7 + P8 — IFC→glTF converter + thumbnail generator. Null defaults keep the
 // system running without a converter installed; swap the registration to
@@ -332,10 +366,18 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.ModelDerivativeJob>
 var converterProvider = builder.Configuration["ModelConverter:Provider"];
 if (string.Equals(converterProvider, "ifcconvert", StringComparison.OrdinalIgnoreCase))
     builder.Services.AddSingleton<Planscape.Core.Interfaces.IModelConverter, Planscape.Infrastructure.Services.IfcConvertConverter>();
+else if (string.Equals(converterProvider, "aps", StringComparison.OrdinalIgnoreCase))
+    builder.Services.AddSingleton<Planscape.Core.Interfaces.IModelConverter, Planscape.Infrastructure.Services.ApsModelDerivativeConverter>();
 else
     builder.Services.AddSingleton<Planscape.Core.Interfaces.IModelConverter, Planscape.Infrastructure.Services.NullModelConverter>();
-builder.Services.AddSingleton<Planscape.Core.Interfaces.IModelThumbnailGenerator,
-    Planscape.Infrastructure.Services.NullThumbnailGenerator>();
+
+var thumbProvider = builder.Configuration["ModelConverter:ThumbnailProvider"];
+if (string.Equals(thumbProvider, "null", StringComparison.OrdinalIgnoreCase))
+    builder.Services.AddSingleton<Planscape.Core.Interfaces.IModelThumbnailGenerator,
+        Planscape.Infrastructure.Services.NullThumbnailGenerator>();
+else
+    builder.Services.AddSingleton<Planscape.Core.Interfaces.IModelThumbnailGenerator,
+        Planscape.Infrastructure.Services.GltfBoundsThumbnailGenerator>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -446,6 +488,30 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0
         });
     });
+
+    // S7.6 — per-tenant policy. Budgets a tenant's whole organisation
+    // proportional to its plan so a buggy automation account on
+    // tenant A can't DoS the cluster for tenant B. Reads tenant id
+    // from JWT claim 'tenant_id' (set by AuthController on login);
+    // anonymous requests partition by IP as a fallback.
+    options.AddPolicy("per-tenant", context =>
+    {
+        var tenantId = context.User?.FindFirst("tenant_id")?.Value
+                       ?? context.Connection.RemoteIpAddress?.ToString()
+                       ?? "anon";
+        // Default budget: 600/min for paying tenants, 60/min for trial.
+        // Plan resolution happens in middleware (TenantContext is scoped),
+        // so we keep a simple bucket here and let the [Quota] attribute
+        // (S1.4) own plan-specific axes. This rate-limit is a 'cluster
+        // safety net' — not a feature gate.
+        return RateLimitPartition.GetFixedWindowLimiter(tenantId, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 600,
+            Window = TimeSpan.FromMinutes(1),
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit = 0,
+        });
+    });
 });
 
 // ── CORS ──
@@ -530,6 +596,12 @@ app.UseHttpMetrics();
 app.UseRateLimiter();
 app.UseCors("Dashboard");
 app.UseCors("Mobile");
+// S3.8 — rewrite /api/v1/* → /api/* before routing so existing
+// controllers serve both. Older /api/* paths get a Deprecation
+// header pointing at /api/v1 and a 2026-12-31 sunset date.
+app.UseApiVersionRewriter();
+// S7.2 — count every response into rolling SLA buckets in Redis.
+app.UseSlaMetrics();
 app.UseAuthentication();
 // S9 — push correlation ID + tenant + user into Serilog LogContext.
 // Must run AFTER UseAuthentication so the JWT claims are populated.
@@ -677,6 +749,8 @@ app.MapControllers();
 app.MapHub<ComplianceHub>("/hubs/compliance");
 app.MapHub<TagSyncHub>("/hubs/tagsync");
 app.MapHub<NotificationHub>("/hubs/notifications");
+// S6.3 — CRDT relay for collaborative pin / issue editing.
+app.MapHub<Planscape.Infrastructure.SignalR.CrdtHub>("/hubs/crdt");
 
 // ── Database migration + seed ──
 {
@@ -723,6 +797,68 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.ModelDerivativeJob>(
     "model-derivatives", j => j.ExecuteAsync(CancellationToken.None),
     "*/10 * * * *", new RecurringJobOptions { QueueName = "default" });
+
+// S1.6 — daily trial state machine. Sends 7d/3d/1d reminders, freezes
+// expired tenants, prompts dunning. Runs at 06:00 UTC ≈ 09:00 EAT.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.TrialStateMachineJob>(
+    "trial-state", j => j.ExecuteAsync(CancellationToken.None),
+    "0 6 * * *", new RecurringJobOptions { QueueName = "default" });
+
+// S2.6 — daily dunning job. Walks Overdue invoices on the 0/3/7-day
+// cadence, suspends at day 10. Runs at 07:00 UTC ≈ 10:00 EAT (after
+// the trial state machine so today's freezes get a billing reminder
+// today rather than tomorrow).
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DunningJob>(
+    "dunning", j => j.ExecuteAsync(CancellationToken.None),
+    "0 7 * * *", new RecurringJobOptions { QueueName = "default" });
+
+// S2.6.1 — daily Flutterwave renewal job. Mints the next-period invoice
+// + emails a payment link 24 h before the current period ends. Stripe
+// subscriptions self-renew; this only handles the FW corridor.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.FlutterwaveRenewalJob>(
+    "fw-renewals", j => j.ExecuteAsync(CancellationToken.None),
+    "30 5 * * *", new RecurringJobOptions { QueueName = "default" });
+
+// S3.2 — outbox dispatcher (every minute). Drains OutboxMessages with
+// at-least-once + exponential-backoff retry; dead-letters after 6 attempts.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.OutboxDispatcher>(
+    "outbox", j => j.ExecuteAsync(CancellationToken.None),
+    "* * * * *", new RecurringJobOptions { QueueName = "default" });
+
+// S4.2 — daily demo sandbox reset. Wipes everything in the 'demo' tenant
+// and re-seeds. Runs at 02:00 UTC (05:00 EAT) so morning prospects find
+// a clean slate.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DemoSandboxJob>(
+    "demo-reset", j => j.ExecuteAsync(CancellationToken.None),
+    "0 2 * * *", new RecurringJobOptions { QueueName = "default" });
+
+// S7.2 — SLA burn-rate alerts every 5 minutes. Reads rolling-window
+// 5xx counts from Redis (populated by the request middleware in S7.2.1)
+// and pages the founder when burn rate exceeds the threshold.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.SlaBurnRateJob>(
+    "sla-burn", j => j.ExecuteAsync(CancellationToken.None),
+    "*/5 * * * *", new RecurringJobOptions { QueueName = "default" });
+
+// S7.4.1 — daily GDPR/POPIA erasure job. Walks tenants whose
+// PendingErasureAt has elapsed (set by /api/data-rights/erase) and
+// hard-deletes them. Runs at 04:00 UTC (07:00 EAT) — late enough that
+// any cancel-erase from yesterday has landed before today's sweep.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DataErasureJob>(
+    "data-erasure", j => j.ExecuteAsync(CancellationToken.None),
+    "0 4 * * *", new RecurringJobOptions { QueueName = "default" });
+
+// Seed the well-known 'planscape' platform tenant idempotently on startup
+// so /api/platform/revenue + SlaBurnRateJob alerts find their target.
+using (var scope = app.Services.CreateScope())
+{
+    var seeder = scope.ServiceProvider.GetRequiredService<Planscape.Infrastructure.Services.PlatformTenantSeeder>();
+    try { await seeder.EnsureAsync(); }
+    catch (Exception ex)
+    {
+        // Don't fail boot — log and continue; first request will surface the error.
+        Log.Warning(ex, "PlatformTenantSeeder failed");
+    }
+}
 
 await app.RunAsync();
 

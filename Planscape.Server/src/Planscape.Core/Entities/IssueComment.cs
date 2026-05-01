@@ -9,9 +9,10 @@ namespace Planscape.Core.Entities;
 /// formatting can be added later without a schema break (the Attachments
 /// join gets the shared IssueAttachment model).
 /// </summary>
-public class IssueComment
+public class IssueComment : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
     public Guid IssueId { get; set; }
     public Guid? AuthorUserId { get; set; }
 

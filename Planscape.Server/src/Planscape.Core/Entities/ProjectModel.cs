@@ -15,9 +15,10 @@ namespace Planscape.Core.Entities;
 /// Revit plugin mapping element GUID → ISO 19650 tag, category, location.
 /// Mobile uses that to cross-reference selected 3D elements with STING tags.
 /// </summary>
-public class ProjectModel
+public class ProjectModel : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
     public Guid ProjectId { get; set; }
 
     /// <summary>Human-readable name — defaults to file name minus extension.</summary>

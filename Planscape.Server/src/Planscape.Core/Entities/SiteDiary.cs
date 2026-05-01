@@ -15,9 +15,10 @@ namespace Planscape.Core.Entities;
 /// Status field models the trade contractor → main contractor → client
 /// approval chain that's standard on UK ISO 19650 projects.
 /// </summary>
-public class SiteDiary
+public class SiteDiary : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
     public Guid ProjectId { get; set; }
 
     /// <summary>The calendar date the diary covers (UTC date — no time component).</summary>
@@ -79,6 +80,7 @@ public class SiteDiary
 public class SiteDiaryAttachment
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
     public Guid SiteDiaryId { get; set; }
     public Guid DocumentId { get; set; }
     public string AttachedBy { get; set; } = "";

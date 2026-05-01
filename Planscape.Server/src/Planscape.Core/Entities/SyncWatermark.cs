@@ -10,9 +10,10 @@ namespace Planscape.Core.Entities;
 /// project. "Device" is whatever the client sends in the X-Device-Id header
 /// — a mobile device id, a desktop user id, or the literal "desktop" fallback.
 /// </summary>
-public class SyncWatermark
+public class SyncWatermark : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
     public Guid ProjectId { get; set; }
 
     /// <summary>Opaque device identifier from the X-Device-Id header.</summary>

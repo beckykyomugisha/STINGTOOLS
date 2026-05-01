@@ -9,9 +9,10 @@ namespace Planscape.Core.Entities;
 ///
 /// v1 scope = Issues only (decision 4.1). Documents / Projects join later.
 /// </summary>
-public class IssueCustomFieldSchema
+public class IssueCustomFieldSchema : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
     public Guid ProjectId { get; set; }
 
     /// <summary>Stable machine key (snake_case, used as the JSON object key on BimIssue.CustomFields).</summary>

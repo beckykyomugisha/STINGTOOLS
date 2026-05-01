@@ -4010,6 +4010,11 @@ namespace StingTools.Core
                 string sidecarPath = GetSeqSidecarPath(doc);
                 if (sidecarPath == null || !System.IO.File.Exists(sidecarPath)) return null;
 
+                // S3.6.2 — version gate before deserialise.
+                StingTools.Core.PluginSchemaVersion.EnsureFileVersion(
+                    sidecarPath, "planscape.sting-seq-sidecar",
+                    StingTools.Core.PluginSchemaVersion.CurrentSeqSidecar);
+
                 var (loaded, ver) = BIMManager.SidecarVersioning.ReadSidecar<Dictionary<string, int>>(sidecarPath, "1.0");
                 if (loaded != null && loaded.Count > 0)
                     StingLog.Info($"SEQ sidecar loaded: {loaded.Count} groups (v{ver ?? "legacy"}) from {sidecarPath}");

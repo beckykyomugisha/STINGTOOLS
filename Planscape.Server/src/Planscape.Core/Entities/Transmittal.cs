@@ -3,9 +3,10 @@ namespace Planscape.Core.Entities;
 /// <summary>
 /// ISO 19650 document transmittal record.
 /// </summary>
-public class Transmittal
+public class Transmittal : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
     public Guid ProjectId { get; set; }
     public string TransmittalCode { get; set; } = ""; // TX-0001
     public string Recipient { get; set; } = "";

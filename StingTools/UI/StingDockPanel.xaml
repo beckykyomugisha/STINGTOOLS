@@ -3100,6 +3100,8 @@
                                             ToolTip="Unified platform integration status overview"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Webhook" Tag="WebhookPayload" Click="Cmd_Click"
                                             ToolTip="Generate webhook payload for Power Automate/Zapier"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Publish 3D Model" Tag="PublishModelToPlanscape" Click="Cmd_Click"
+                                            ToolTip="Export the active 3D view to GLB (or pick a file) and publish it + the element-map sidecar to Planscape Models"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
