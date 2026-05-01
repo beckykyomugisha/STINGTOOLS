@@ -291,6 +291,9 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.DunningJob>();
 // S2.6.1 — Flutterwave renewal job (daily; mints next-period invoice +
 // payment-link email, since FW lacks first-class recurring subscriptions).
 builder.Services.AddScoped<Planscape.Infrastructure.Services.FlutterwaveRenewalJob>();
+// S3.1 — fast-path bulk upsert for tag sync (Postgres COPY + ON CONFLICT).
+builder.Services.AddScoped<Planscape.Core.Interfaces.IBulkTagUpserter,
+    Planscape.Infrastructure.Services.PostgresBulkTagUpserter>();
 
 // P7 + P8 — IFC→glTF converter + thumbnail generator. Null defaults keep the
 // system running without a converter installed; swap the registration to
