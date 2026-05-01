@@ -51,6 +51,14 @@ public class Tenant
     public int TrialReminderSentDays { get; set; }
 
     /// <summary>
+    /// S7.4 — set when the Owner requests erasure under GDPR/POPIA. The
+    /// tenant is frozen immediately; a daily DataErasureJob hard-deletes
+    /// the rows after this timestamp passes (30-day cooling-off period
+    /// during which the request can be cancelled).
+    /// </summary>
+    public DateTime? PendingErasureAt { get; set; }
+
+    /// <summary>
     /// Phase 151 — tenant-scoped keyword extensions for the deliverable
     /// state machine. JSON shape mirrors the per-project block:
     ///   { "working": ["PARKED"], "terminal": ["DECOMMISSIONED"] }
