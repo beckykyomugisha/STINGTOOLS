@@ -37,8 +37,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using Autodesk.Revit.ApplicationServices;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
 
 namespace StingTools.Core.Drawing
 {
@@ -598,8 +600,8 @@ namespace StingTools.Core.Drawing
                 var sizeFt = MmToFt(spec.Size);
                 IList<FamilyParameter> labelParams = new List<FamilyParameter> { fp };
                 IList<string> prefixSuffix = new List<string> { spec.Prefix ?? "", spec.Suffix ?? "" };
-                var lbl = famDoc.FamilyCreate.NewLabel(view, origin, hAlign, vAlign,
-                    labelParams, prefixSuffix, sizeFt);
+                var lbl = InvokeNewLabel(famDoc.FamilyCreate, view, origin, hAlign, vAlign,
+                    labelParams, prefixSuffix, sizeFt, r);
                 BindVisibility(fm, lbl, visibilityGate, r);
                 r.LabelsPlaced++;
             }
@@ -622,8 +624,8 @@ namespace StingTools.Core.Drawing
                 // Label A — visible when BIM = 1
                 if (map.TryGetValue(spec.ParamBim, out var fpA))
                 {
-                    var lblA = famDoc.FamilyCreate.NewLabel(view, origin, hAlign,
-                        vAlign, new List<FamilyParameter> { fpA }, prefixSuffix, sizeFt);
+                    var lblA = InvokeNewLabel(famDoc.FamilyCreate, view, origin, hAlign,
+                        vAlign, new List<FamilyParameter> { fpA }, prefixSuffix, sizeFt, r);
                     map.TryGetValue(bimParamName, out var bimFp);
                     BindVisibility(fm, lblA, bimFp, r);
                 }
@@ -653,8 +655,8 @@ namespace StingTools.Core.Drawing
 
                 if (fpB != null)
                 {
-                    var lblB = famDoc.FamilyCreate.NewLabel(view, origin, hAlign,
-                        vAlign, new List<FamilyParameter> { fpB }, prefixSuffix, sizeFt);
+                    var lblB = InvokeNewLabel(famDoc.FamilyCreate, view, origin, hAlign,
+                        vAlign, new List<FamilyParameter> { fpB }, prefixSuffix, sizeFt, r);
                     map.TryGetValue("__NOT_BIM__", out var notBim);
                     BindVisibility(fm, lblB, notBim, r);
                 }
@@ -803,13 +805,92 @@ namespace StingTools.Core.Drawing
             }
         }
 
-        private static VerticalAlign ParseVAlign(string s)
+        // Vertical-align enum was renamed/relocated between Revit 2023 → 2024 →
+        // 2025 (HorizontalAlign was kept but the matching VerticalAlign type is
+        // shipped under different names depending on the major version). Resolve
+        // it via reflection at static-init time so this file compiles against
+        // any of them — and route the matching positioned-NewLabel overload
+        // through reflection too, since its 4th parameter type is the same
+        // moving target.
+        private static readonly Type _verticalAlignType = ResolveVerticalAlignType();
+
+        private static Type ResolveVerticalAlignType()
         {
-            switch ((s ?? "").ToLowerInvariant())
+            try
             {
-                case "top":    return VerticalAlign.Top;
-                case "bottom": return VerticalAlign.Bottom;
-                default:       return VerticalAlign.Middle;
+                var assy = typeof(HorizontalAlign).Assembly;
+                return assy.GetType("Autodesk.Revit.DB.VerticalAlign")
+                    ?? assy.GetType("Autodesk.Revit.DB.VerticalAlignStyle")
+                    ?? assy.GetType("Autodesk.Revit.DB.VerticalTextAlignment")
+                    ?? assy.GetType("Autodesk.Revit.DB.VerticalAlignment");
+            }
+            catch { return null; }
+        }
+
+        private static object ParseVAlign(string s)
+        {
+            if (_verticalAlignType == null) return null;
+            string memberName = (s ?? "").ToLowerInvariant() switch
+            {
+                "top"    => "Top",
+                "bottom" => "Bottom",
+                _        => "Middle",
+            };
+            try { return Enum.Parse(_verticalAlignType, memberName); }
+            catch
+            {
+                // Some Revit versions name the middle value "Center" instead of "Middle".
+                if (memberName == "Middle")
+                {
+                    try { return Enum.Parse(_verticalAlignType, "Center"); } catch { }
+                }
+                return null;
+            }
+        }
+
+        private static MethodInfo _newLabelMethod;
+
+        private static Element InvokeNewLabel(FamilyItemFactory factory, View view,
+            XYZ origin, HorizontalAlign hAlign, object vAlign,
+            IList<FamilyParameter> labelParameters, IList<string> prefixSuffix,
+            double size, TitleBlockBuildResult r)
+        {
+            try
+            {
+                if (_newLabelMethod == null && _verticalAlignType != null)
+                {
+                    foreach (var m in factory.GetType().GetMethods())
+                    {
+                        if (m.Name != "NewLabel") continue;
+                        var ps = m.GetParameters();
+                        if (ps.Length != 7) continue;
+                        if (ps[0].ParameterType != typeof(View)) continue;
+                        if (ps[1].ParameterType != typeof(XYZ)) continue;
+                        if (ps[2].ParameterType != typeof(HorizontalAlign)) continue;
+                        if (ps[3].ParameterType != _verticalAlignType) continue;
+                        _newLabelMethod = m;
+                        break;
+                    }
+                }
+                if (_newLabelMethod == null)
+                {
+                    r.Warnings.Add("InvokeNewLabel: no matching positioned NewLabel(View, XYZ, HorizontalAlign, <vAlign>, IList<FamilyParameter>, IList<string>, double) overload found on FamilyItemFactory");
+                    return null;
+                }
+                return _newLabelMethod.Invoke(factory, new object[]
+                {
+                    view, origin, hAlign, vAlign, labelParameters, prefixSuffix, size,
+                }) as Element;
+            }
+            catch (TargetInvocationException tie)
+            {
+                r.Warnings.Add($"InvokeNewLabel: {(tie.InnerException ?? tie).Message}");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                r.Warnings.Add($"InvokeNewLabel: {ex.Message}");
+                return null;
             }
         }
     }
