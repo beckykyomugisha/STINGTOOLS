@@ -72,7 +72,14 @@ namespace Planscape.Docs.Search
         {
             string path = StorePath(doc);
             if (!File.Exists(path)) return new List<SavedSearch>();
-            try { return JsonConvert.DeserializeObject<List<SavedSearch>>(File.ReadAllText(path)) ?? new List<SavedSearch>(); }
+            try
+            {
+                // S3.6.2 — version gate before deserialise.
+                StingTools.Core.PluginSchemaVersion.EnsureFileVersion(
+                    path, "planscape.saved-searches",
+                    StingTools.Core.PluginSchemaVersion.CurrentSavedSearches);
+                return JsonConvert.DeserializeObject<List<SavedSearch>>(File.ReadAllText(path)) ?? new List<SavedSearch>();
+            }
             catch (Exception ex) { StingLog.Warn($"SavedSearchStore: load failed: {ex.Message}"); return new List<SavedSearch>(); }
         }
 

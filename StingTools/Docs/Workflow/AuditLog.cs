@@ -92,6 +92,12 @@ namespace Planscape.Docs.Workflow
             return results;
         }
 
+        // S3.6.2 — JSONL append-only logs don't fit the whole-file
+        // PluginSchemaVersion.EnsureFileVersion model. Audit is migration-
+        // resistant by design: new fields are added on new entries, never
+        // break old ones; readers ignore unknown fields. Per-record
+        // schema versioning would require touching every entry, which
+        // defeats the append-only property. Intentional skip.
         public static bool VerifyChain(Document doc, string fileOrMonth)
         {
             string path = fileOrMonth != null && File.Exists(fileOrMonth)

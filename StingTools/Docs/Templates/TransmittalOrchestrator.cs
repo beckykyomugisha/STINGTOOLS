@@ -130,6 +130,10 @@ namespace Planscape.Docs.Templates
             {
                 try
                 {
+                    // S3.6.2 — version gate before deserialise.
+                    StingTools.Core.PluginSchemaVersion.EnsureFileVersion(
+                        path, "planscape.transmittals",
+                        StingTools.Core.PluginSchemaVersion.CurrentTransmittals);
                     var arr = JArray.Parse(File.ReadAllText(path));
                     count = arr.Count;
                 }
