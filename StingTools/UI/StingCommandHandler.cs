@@ -393,6 +393,10 @@ namespace StingTools.UI
                     case "MatchLine_ValidateBundle": RunCommand<Commands.Drawing.MatchLineValidateBundleCommand>(app); break;
                     case "MatchLine_Inspect":        RunCommand<Commands.Drawing.MatchLineInspectCommand>(app); break;
 
+                    // ── Phase 170 — Title-block factory ──
+                    case "TitleBlock_Create":        RunCommand<Commands.Drawing.TitleBlockCreateCommand>(app); break;
+                    case "TitleBlock_CreateAll":     RunCommand<Commands.Drawing.TitleBlockCreateAllCommand>(app); break;
+
                     // ── Selection scope ──
                     case "SetScopeView": Select.SelectionScopeHelper.SetScope(false); TaskDialog.Show("Scope", "Selection scope: ACTIVE VIEW"); break;
                     case "SetScopeProject": Select.SelectionScopeHelper.SetScope(true); TaskDialog.Show("Scope", "Selection scope: WHOLE PROJECT"); break;
