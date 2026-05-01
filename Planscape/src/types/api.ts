@@ -169,8 +169,36 @@ export interface TaggedElement {
 
 export interface OfflineAction {
   id: string;
-  /** Phase 94 adds ATTACH_PHOTO for mobile photo uploads queued when offline. */
-  type: 'CREATE_ISSUE' | 'UPDATE_ISSUE' | 'TRANSITION_CDE' | 'ATTACH_PHOTO';
+  /**
+   * S3.7 (April 2026) — coverage extended from issue-only to every write
+   * the mobile app makes. Every site-team action is now safely queueable
+   * when network is patchy:
+   *
+   *   CREATE_ISSUE / UPDATE_ISSUE / TRANSITION_CDE / ATTACH_PHOTO
+   *   POST_COMMENT       — issue comments
+   *   PIN_PLACE          — 3D issue pins
+   *   PIN_DELETE
+   *   ADD_MEETING_ACTION — meeting action items
+   *   UPDATE_MEETING_ACTION
+   *   DIARY_ENTRY        — daily site diary entries
+   *   STAGE_SIGNOFF      — stage-gate criterion sign-off
+   *   ATTACH_AUDIO       — voice notes (S6.1)
+   *   ATTACH_MARKUP      — 3D markup polylines (S6.2)
+   */
+  type:
+    | 'CREATE_ISSUE'
+    | 'UPDATE_ISSUE'
+    | 'TRANSITION_CDE'
+    | 'ATTACH_PHOTO'
+    | 'POST_COMMENT'
+    | 'PIN_PLACE'
+    | 'PIN_DELETE'
+    | 'ADD_MEETING_ACTION'
+    | 'UPDATE_MEETING_ACTION'
+    | 'DIARY_ENTRY'
+    | 'STAGE_SIGNOFF'
+    | 'ATTACH_AUDIO'
+    | 'ATTACH_MARKUP';
   payload: Record<string, unknown>;
   createdAt: string;
   synced: boolean;
