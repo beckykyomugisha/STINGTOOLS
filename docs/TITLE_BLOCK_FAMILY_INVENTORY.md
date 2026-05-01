@@ -148,7 +148,38 @@ open     docs/title_blocks/CATALOGUE.html         # macOS
 
 ## G. Caveats
 
-1. **Stub layouts**: 16 of the 20 working sheets currently use a templated bottom-strip layout that's correct for paper proportions but lacks the per-size design polish of the hand-tuned A1 LAND BIM/NONBIM. Phase 172 refines the stubs based on visual review of the SVG previews.
-2. **Specialty layouts** are placeholders — each ships a valid `.rfa` shell with the full common parameter universe bound and a single full-bleed slot, but the per-purpose layout (KCCA-specific cells, PIPE BOM strip, etc.) is Phase 172.
-3. **SVG previews** are the closest thing to a PDF/JPEG mock that this Linux sandbox can produce — no Revit, no PIL, no reportlab, no cairosvg available. Open the SVGs in any browser to review; print-to-PDF from the browser produces a clean PDF of every family. The geometry is rendered at 1 SVG-px = 1 mm so a browser print at 100% gives an actual-size paper preview.
-4. **Slot reference planes** still fail at family-author time on Revit 2025 (`NewReferencePlane` rejected for title-block families). Slot bounds are read from JSON at runtime instead — the previews show the slot bboxes regardless.
+1. **Layout polish status**: All 42 previously-stub families have been polished by
+   `tools/polish_title_block_catalogue.py`:
+   - 8 size+orientation commons (A0/A2/A3/A4 × LAND/PORT) carry refined 5-column
+     bottom strips with proportional cell widths and per-size text scaling.
+   - 16 concrete BIM/NONBIM working sheets have proper ISO-19650 BIM identity
+     strips (top-row status/suitability/rev/loin/fed + 7-segment ID row, with
+     suitability chip + status band) on BIM variants and a large sheet-number
+     block on NONBIM variants — both sized to the paper.
+   - 14 specialty families now have bespoke layouts per purpose:
+     - **ASSEMBLY_PIPE/DUCT/COND/HANGER** — 200 mm right BOM strip (6 cols × 18 rows)
+       + 80 mm bottom fab metadata strip (spool # / discipline / weight / fab loc /
+       status / BOM rev) + discipline accent stripe.
+     - **PRESENT_A1** + **PRESENT_A1_MONO** — full-bleed render area + 280×60 mm
+       bottom-right watermark with project / title / rev / date / drawn / client.
+     - **COVER_A1** — top dark-blue banner + amber accent + huge centred project
+       name + address + client + RIBA stage; bottom strip with status / rev /
+       date / transmittal.
+     - **DIVIDER_A1** — large grey panel with 60 mm centred discipline label;
+       50 mm bottom identity strip.
+     - **REGISTER_A1** — full-page 9-column × 24-row schedule frame; ExportSheetRegister
+       populates rows at print time.
+     - **TRANSMITTAL_A4** — A4 landscape, header (TX REF / DATE / REV) + recipient
+       (TO / FROM with addresses) + accompanying-documents table + signature footer.
+     - **SUBMISSION_KCCA/ERA/NEMA** — 80 mm regulator banner with full authority
+       name + statutory disclaimer band + 4-cell identity strip; banner accents
+       Uganda-green / utility-blue / nema-brown.
+     - **CLARIFICATION_A3** — A3 two-pane layout: QUERY legend slot (left) +
+       SKETCH plan slot (right); RFI REF in header.
+2. **Slot reference planes** still rejected by Revit 2025 title-block families —
+   slot bounds are read from JSON at runtime instead. Doesn't affect previews.
+3. **SVG previews** are this sandbox's best PDF/JPEG mock. Print-to-PDF from a
+   browser at 100% scale gives actual-size paper.
+4. **Re-running `polish_title_block_catalogue.py`** is idempotent — it overwrites
+   every concrete family except the master `A1_common_v2.0` and the hand-tuned
+   `STING_TB_A1_BIM_v2.0` / `STING_TB_A1_NONBIM_v2.0`.
