@@ -144,6 +144,8 @@ public class PlanscapeDbContext : DbContext
     public DbSet<SceneNode> SceneNodes => Set<SceneNode>();
     // S6.1 — voice notes on issues.
     public DbSet<IssueAudioNote> IssueAudioNotes => Set<IssueAudioNote>();
+    // S6.2 — 3D markup polylines anchored to a model / project.
+    public DbSet<ModelMarkup> ModelMarkups => Set<ModelMarkup>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
