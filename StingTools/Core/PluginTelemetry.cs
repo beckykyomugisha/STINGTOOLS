@@ -75,6 +75,10 @@ namespace StingTools.Core
             }
         }
 
+        /// <summary>Void-returning overload — convenient for wrapping <c>Action</c>-shaped bodies.</summary>
+        public static void Run(string commandTag, Action body, IDictionary<string, object?>? extras = null)
+            => Run<int>(commandTag, () => { body(); return 0; }, extras);
+
         public static async Task FlushAsync()
         {
             if (!_enabled) return;

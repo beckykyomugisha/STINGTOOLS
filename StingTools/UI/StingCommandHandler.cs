@@ -111,6 +111,11 @@ namespace StingTools.UI
                 catch (Exception mbEx) { Core.StingLog.Warn($"Deferred briefing: {mbEx.Message}"); }
             }
 
+            // S8.2.1 — wrap the dispatch body so every command emits a
+            // PluginTelemetry span. Default OFF; only fires when the user
+            // opts in via project_config.json telemetry.enabled = true.
+            Core.PluginTelemetry.Run("dispatch:" + tag, () =>
+            {
             try
             {
                 // Phase 165 (INT-02 framework) — try the new module-registered
@@ -3391,6 +3396,7 @@ namespace StingTools.UI
                     catch (Exception ex) { StingLog.Warn($"Non-critical — panel may not be open: {ex.Message}"); }
                 }
             }
+            }); // S8.2.1 — close PluginTelemetry.Run lambda
 
             // ENH-003: Compliance status bar update REMOVED from post-command hook.
             // (See commit history for rationale — FilteredElementCollector after
