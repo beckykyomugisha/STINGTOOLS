@@ -270,6 +270,9 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.DatabaseBackupJob>(
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PlatformSyncJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.ModelDerivativeJob>();
+// S1.4 — quota guard service used by [Quota(...)] action filter + controllers.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IQuotaGuardService,
+    Planscape.Infrastructure.Services.QuotaGuardService>();
 
 // P7 + P8 — IFC→glTF converter + thumbnail generator. Null defaults keep the
 // system running without a converter installed; swap the registration to
