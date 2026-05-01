@@ -164,7 +164,7 @@ namespace StingTools.Commands.Drawing
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             var doc = ctx.Doc;
-            var uidoc = ctx.UiDoc;
+            var uidoc = ctx.UIDoc;
 
             // Bundle = currently selected sheets, falling back to the
             // active sheet when the selection is empty. Phase II hook:
