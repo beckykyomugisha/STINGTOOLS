@@ -39,6 +39,12 @@ public class ModelDerivativeJob
 
     public async Task ExecuteAsync(CancellationToken ct = default)
     {
+        // S1.1 — Hangfire jobs run without an HTTP context, so the global
+        // tenant query filter would normally return no rows. Bypass it
+        // explicitly here: the job is platform-wide, processes data for
+        // every tenant, and is the only safe place to do so.
+        _db.BypassTenantFilter = true;
+
         // Candidates: undeleted models where either (a) the format is IFC/RVT
         // and no derived glb has been produced yet (ElementMapPath is used as
         // a flag here — set to "derivative_pending" during processing) OR

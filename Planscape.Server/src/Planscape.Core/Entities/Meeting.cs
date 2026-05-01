@@ -3,9 +3,10 @@ namespace Planscape.Core.Entities;
 /// <summary>
 /// BIM coordination meeting record with agenda, minutes, and linked action items.
 /// </summary>
-public class Meeting
+public class Meeting : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
     public Guid ProjectId { get; set; }
     public string Title { get; set; } = "";
     public string MeetingType { get; set; } = "BIM Coordination"; // BIM Coordination, Design Review, Client Review, Handover, Clash Resolution
@@ -27,6 +28,7 @@ public class Meeting
 public class MeetingActionItem
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
     public Guid MeetingId { get; set; }
     public string Description { get; set; } = "";
     public string? Assignee { get; set; }

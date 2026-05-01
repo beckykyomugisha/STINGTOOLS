@@ -1,12 +1,14 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
+using Planscape.Core.Interfaces;
 
 namespace Planscape.Infrastructure.Data;
 
 public class PlanscapeDbContext : DbContext
 {
     private readonly IHttpContextAccessor? _httpContextAccessor;
+    private readonly ITenantContext? _tenantContext;
 
     public PlanscapeDbContext(DbContextOptions<PlanscapeDbContext> options) : base(options) { }
 
@@ -15,6 +17,37 @@ public class PlanscapeDbContext : DbContext
     {
         _httpContextAccessor = httpContextAccessor;
     }
+
+    /// <summary>
+    /// S1.1 — DI-friendly ctor used at runtime so the global tenant
+    /// query filter has access to the resolved tenant id without
+    /// reaching into HttpContext on every read. Migrations + tooling
+    /// keep using the parameterless ctor (TenantContext stays null and
+    /// the filter degrades to "no rows" — safe by default).
+    /// </summary>
+    public PlanscapeDbContext(DbContextOptions<PlanscapeDbContext> options,
+                              IHttpContextAccessor httpContextAccessor,
+                              ITenantContext tenantContext)
+        : base(options)
+    {
+        _httpContextAccessor = httpContextAccessor;
+        _tenantContext = tenantContext;
+    }
+
+    /// <summary>
+    /// Returns the resolved tenant id for query-filter use. Defaults to
+    /// <see cref="Guid.Empty"/> when no tenant context is wired (design-time,
+    /// EF tooling, background jobs that bypass tenant scoping). Empty matches
+    /// no rows so a missing tenant context fails closed, never open.
+    /// </summary>
+    public Guid CurrentTenantId => _tenantContext?.TenantId ?? Guid.Empty;
+
+    /// <summary>
+    /// Background jobs / migrations / cross-tenant admin tools set this to
+    /// disable the global query filter for the lifetime of the DbContext.
+    /// Use sparingly and audit every call site. Defaults to false.
+    /// </summary>
+    public bool BypassTenantFilter { get; set; }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -32,6 +65,21 @@ public class PlanscapeDbContext : DbContext
                     log.Longitude = longitude;
                 if (log.DeviceId != null)
                     log.Source = "mobile";
+            }
+        }
+
+        // S1.1 — auto-stamp TenantId on every Added entity that implements
+        // ITenantScoped. Prevents the second-most-common tenant leak: a
+        // controller that forgot to set TenantId before saving. Existing
+        // values are preserved (admin tooling can set TenantId explicitly
+        // when crossing tenants is intentional).
+        var tid = CurrentTenantId;
+        if (tid != Guid.Empty)
+        {
+            foreach (var entry in ChangeTracker.Entries<ITenantScoped>().Where(e => e.State == EntityState.Added))
+            {
+                if (entry.Entity.TenantId == Guid.Empty)
+                    entry.Entity.TenantId = tid;
             }
         }
         return await base.SaveChangesAsync(cancellationToken);
@@ -535,5 +583,51 @@ public class PlanscapeDbContext : DbContext
             e.HasOne(w => w.Tenant).WithMany().HasForeignKey(w => w.TenantId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(w => w.Project).WithMany().HasForeignKey(w => w.ProjectId).OnDelete(DeleteBehavior.Cascade);
         });
+
+        // ── S1.1 — Global tenant query filter ───────────────────────────
+        // Every entity that implements ITenantScoped is filtered by the
+        // currently-resolved tenant id automatically. The filter degrades
+        // to "no rows" when no tenant context is set (Guid.Empty), so an
+        // unauthenticated background job sees nothing rather than
+        // everything. Hot reads use the indexed TenantId column directly,
+        // no joins required.
+        ApplyTenantQueryFilters(modelBuilder);
+        // Ensure every tenant-scoped entity has an index on TenantId so the
+        // query filter doesn't degenerate into a sequential scan.
+        AddTenantIdIndexes(modelBuilder);
+    }
+
+    private void ApplyTenantQueryFilters(ModelBuilder modelBuilder)
+    {
+        var entityTypes = modelBuilder.Model.GetEntityTypes()
+            .Where(t => typeof(ITenantScoped).IsAssignableFrom(t.ClrType));
+
+        foreach (var entityType in entityTypes)
+        {
+            var clrType = entityType.ClrType;
+            var parameter = System.Linq.Expressions.Expression.Parameter(clrType, "e");
+            var tenantIdProperty = System.Linq.Expressions.Expression.Property(parameter, nameof(ITenantScoped.TenantId));
+            var currentTenantIdProperty = System.Linq.Expressions.Expression.Property(
+                System.Linq.Expressions.Expression.Constant(this), nameof(CurrentTenantId));
+            var bypass = System.Linq.Expressions.Expression.Property(
+                System.Linq.Expressions.Expression.Constant(this), nameof(BypassTenantFilter));
+            var equality = System.Linq.Expressions.Expression.Equal(tenantIdProperty, currentTenantIdProperty);
+            var body = System.Linq.Expressions.Expression.OrElse(bypass, equality);
+            var lambda = System.Linq.Expressions.Expression.Lambda(body, parameter);
+            modelBuilder.Entity(clrType).HasQueryFilter(lambda);
+        }
+    }
+
+    private static void AddTenantIdIndexes(ModelBuilder modelBuilder)
+    {
+        var entityTypes = modelBuilder.Model.GetEntityTypes()
+            .Where(t => typeof(ITenantScoped).IsAssignableFrom(t.ClrType));
+        foreach (var entityType in entityTypes)
+        {
+            var hasIndex = entityType.GetIndexes().Any(i =>
+                i.Properties.Count == 1 && i.Properties[0].Name == nameof(ITenantScoped.TenantId));
+            if (!hasIndex)
+                modelBuilder.Entity(entityType.ClrType).HasIndex(nameof(ITenantScoped.TenantId));
+        }
     }
 }

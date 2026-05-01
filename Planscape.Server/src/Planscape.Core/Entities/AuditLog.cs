@@ -3,7 +3,7 @@ namespace Planscape.Core.Entities;
 /// <summary>
 /// Audit trail for all write operations — required for ISO 19650 compliance.
 /// </summary>
-public class AuditLog
+public class AuditLog : ITenantScoped,  ITenantScoped
 {
     public long Id { get; set; }
     public Guid TenantId { get; set; }

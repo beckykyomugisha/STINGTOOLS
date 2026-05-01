@@ -3,9 +3,10 @@ namespace Planscape.Core.Entities;
 /// <summary>
 /// Point-in-time compliance snapshot for trend tracking and RIBA stage gate audits.
 /// </summary>
-public class ComplianceSnapshot
+public class ComplianceSnapshot : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
     public Guid ProjectId { get; set; }
     public string CapturedBy { get; set; } = "";
     public DateTime CapturedAt { get; set; } = DateTime.UtcNow;

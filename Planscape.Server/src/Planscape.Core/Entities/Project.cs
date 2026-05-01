@@ -3,7 +3,7 @@ namespace Planscape.Core.Entities;
 /// <summary>
 /// BIM project container. Each project holds tagged elements, compliance data, and documents.
 /// </summary>
-public class Project
+public class Project : ITenantScoped,  ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }

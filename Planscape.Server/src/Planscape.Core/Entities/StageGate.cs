@@ -12,9 +12,10 @@ namespace Planscape.Core.Entities;
 /// <see cref="StageCode"/> string so projects on alternative
 /// frameworks (PAS 1192-6, US AIA G202, ICE) can use the same table.
 /// </summary>
-public class StageGate
+public class StageGate : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
     public Guid ProjectId { get; set; }
 
     /// <summary>Short code, e.g. "RIBA-3" / "RIBA-4" / "PAS-3" / project-bespoke.</summary>
@@ -64,6 +65,7 @@ public class StageGate
 public class InformationDeliverable
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
     public Guid ProjectId { get; set; }
 
     /// <summary>Optional FK to the StageGate this deliverable rolls up to.</summary>

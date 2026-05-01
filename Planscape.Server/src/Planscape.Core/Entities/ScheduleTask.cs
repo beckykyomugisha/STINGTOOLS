@@ -8,9 +8,10 @@ namespace Planscape.Core.Entities;
 /// a semicolon-delimited list of other ScheduleTask Ids; the plugin's 4D
 /// engine imports MS Project XML into this model.
 /// </summary>
-public class ScheduleTask
+public class ScheduleTask : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
     public Guid ProjectId { get; set; }
 
     /// <summary>Human-readable WBS code (e.g. "2.4.1" or "M-HVAC-01").</summary>
