@@ -394,8 +394,11 @@ namespace StingTools.UI
                     case "MatchLine_Inspect":        RunCommand<Commands.Drawing.MatchLineInspectCommand>(app); break;
 
                     // ── Phase 170 — Title-block factory ──
-                    case "TitleBlock_Create":        RunCommand<Commands.Drawing.TitleBlockCreateCommand>(app); break;
-                    case "TitleBlock_CreateAll":     RunCommand<Commands.Drawing.TitleBlockCreateAllCommand>(app); break;
+                    case "TitleBlock_Create":             RunCommand<Commands.Drawing.TitleBlockCreateCommand>(app); break;
+                    case "TitleBlock_CreateAll":          RunCommand<Commands.Drawing.TitleBlockCreateAllCommand>(app); break;
+                    // ── Phase 170 revision — Two-family BIM architecture + slot automation ──
+                    case "TitleBlock_AutoPlaceViewports": RunCommand<Commands.Drawing.TitleBlockAutoPlaceViewportsCommand>(app); break;
+                    case "TitleBlock_ToggleBIMMode":      RunCommand<Commands.Drawing.TitleBlockToggleBIMModeCommand>(app); break;
 
                     // ── Selection scope ──
                     case "SetScopeView": Select.SelectionScopeHelper.SetScope(false); TaskDialog.Show("Scope", "Selection scope: ACTIVE VIEW"); break;

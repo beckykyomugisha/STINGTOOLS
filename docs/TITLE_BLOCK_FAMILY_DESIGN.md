@@ -422,116 +422,235 @@ well above the v1.0's ~420 mm height with the right-strip proposal.
 | 27 | QR code         | 25 × 25  | ✓ | encoded sheet GUID |
 | 28 | Revision history strip | full width × 18 | partial | 8 cols in BIM, 5 cols in non-BIM (SUIT + STAT cols hide) |
 
-Total cells: **28**, of which **12 are BIM-only** and collapse when
-`STING_BIM_MODE_BOOL = 0`.
+Total cells: **28**, of which **12 are BIM-only**. Phase 170 revision
+(see § 3.1) splits these into TWO families per paper size — the BIM
+variant carries all 28 cells, the non-BIM variant carries only the 16
+always-visible cells.
 
-### 3.1 BIM-mode toggle
+### 3.1 BIM mode — Two-Family Architecture (Phase 170 revision)
 
-A single instance parameter drives BIM-cell visibility:
+**The Phase 170 hybrid (Strategy A + B + two-label trick) is removed.**
+The original design tried to ship a single `.rfa` per paper size with
+three coexisting BIM-toggle mechanisms. Every one of them tripped on
+Revit's family-formula parser in production: text concatenation
+formulas were rejected, length-conditional `if(BIM, full, collapsed)`
+formulas were rejected, type-vs-instance scope mismatches blocked the
+sibling visibility gate, and the two-label trick for `SHEET_FULL_REF`
+couldn't bind to the built-in Sheet Number anyway.
+
+In production we ship **two families per paper size**:
 
 ```
-STING_BIM_MODE_BOOL    (Yes/No, Instance, default = 1 / on)
+STING_TB_<SIZE>_BIM_v<MAJOR>.<MINOR>.rfa     ← full ISO-19650 identity
+STING_TB_<SIZE>_NONBIM_v<MAJOR>.<MINOR>.rfa  ← minimal identity
 ```
 
-**Important behaviour note: Revit's `Visible` parameter only hides
-the element — it does NOT reflow the surrounding layout.** Hiding a
-cell leaves an empty rectangle where it used to be unless the
-surrounding geometry is parameterised to grow into it. There are
-three strategies; we use a hybrid of two.
+Both are generated from a common abstract base (`<SIZE>_common_v*`)
+that's referenced via JSON `extends` inheritance, so the cells they
+share (CLIENT / PROJECT / NOTES / DRAWING TITLE / DRAWN-CHECKED-
+APPROVED block / outer border / 8 viewport slots) are authored
+exactly once. Each concrete variant only declares the cells unique
+to its mode.
 
-#### 3.1.1 The three strategies
+#### 3.1.1 Trade-off table — why the original §3.1.5 was wrong
 
-| Strategy | Mechanism | Pro | Con |
-|---|---|---|---|
-| **A — Hide only** | Cell `Visible = STING_BIM_MODE_BOOL` | Simplest | Empty white rectangles remain |
-| **B — Parametric strip + reflow** | Outer strip rectangle's top edge constrained to a reference plane whose offset is `if(BIM, 110, 70)` mm; row groups have their own formula-driven heights | Strip auto-collapses, drawable zone grows | 3-4× authoring complexity |
-| **C — Two family types** | "BIM" / "non-BIM" types each carry a polished layout | Each type visually clean | Every fix made twice, types drift apart |
-
-#### 3.1.2 Recommended hybrid (B for whole rows, A for in-row cells)
-
-| Cell category | Strategy applied | When BIM = 0 |
+| Concern | Hybrid (Phase 170 original) | **Two families (Phase 170 revision)** |
 |---|---|---|
-| **Whole-row BIM blocks** — 7-seg ID row (#20), TR-REF/CDE/MIDP row (#25), LOIN/FED/QR row (#26-27) | **B — parametric reflow** via reference-plane offset formula | Row collapses to 0 height; strip top edge moves down 40 mm; drawable zone grows |
-| **In-row BIM cells** — SUITABILITY chip (#10), AUTHORISED BY (#19), revision-history SUIT/STAT columns (last 2 cols of #28) | **A — hide only** | Cell becomes invisible; small empty space remains within a row that contains other always-on cells. Visually acceptable |
-| **`${SHEET_FULL_REF}` big cell (#24)** | **Two-label trick** — Label A bound to `STING_SHEET_FULL_REF_TXT`, Label B bound to Revit `Sheet Number`, both at the same XYZ with reciprocal `Visible` bindings | Label A hides, Label B becomes visible. Cell rectangle stays the same size; only the displayed text changes from `STG-PLNS-…-0001` to `A-001` |
+| Visual cleanliness in non-BIM | excellent for collapsing rows, leaves empty rectangles for the 3 in-row Strategy-A cells | **excellent — every cell intentional, no empty rectangles, no two-label switches** |
+| Generator code | reflow groups + label pairs + BIM_MODE param + visibility bindings ≈ **250 lines** | **drop all of that — pure declarative spec** |
+| Revit formula parser fights | 4 we lost in production (text concat, `IF` + length, `AND` + length comparison, type-→-instance scope) | **none — no formulas** |
+| Drift between modes | 1 source, no drift | **0 drift — both modes regenerated from one common abstract base via `extends`** |
+| Authoring effort | 1 hybrid spec | **1 abstract common spec + 2 thin variant overlays** |
+| Per-sheet switch | tick a Yes/No on the sheet | swap the title-block family on the sheet (one command, see § 3.4) |
 
-#### 3.1.3 The `${SHEET_FULL_REF}` two-label trick
+The "drift over time" objection in the original §3.1.5 only applies if
+humans edit each layout by hand. Our specs are JSON regenerated from
+a common base — there's no drift.
 
-You **cannot** switch a label's bound parameter dynamically in
-Revit. The workable pattern is to place TWO labels in exactly the
-same cell:
+#### 3.1.2 JSON inheritance — declared once, regenerated twice
+
+```jsonc
+{
+  "schemaVersion": 2,
+  "families": [
+    { "id": "A1_common_v2.0", "abstract": true,
+      "templateRft": "Annotations/Titleblocks/A1 metric.rft",
+      "parameters":  [ /* PRJ_ORG_*, internal text identity, drawn/checked/approved */ ],
+      "lines":       [ /* outer border, strip top edge, internal cell dividers */ ],
+      "staticText":  [ /* CLIENT, PROJECT, NOTES, DRAWING TITLE, DRAWN BY, …  */ ],
+      "labels":      [ /* 13 cells bound to common identity params */ ],
+      "slots":       [ /* the 8 viewport zones — same for both modes */ ]
+    },
+
+    { "id": "STING_TB_A1_BIM_v2.0", "extends": "A1_common_v2.0",
+      "mode": "BIM",
+      "saveAs": "Families/TitleBlocks/STING_TB_A1_BIM_v2.0.rfa",
+      "parameters":   [ /* STING_SHEET_BIM_MODE_TXT default "BIM" + 7-segment ID + suitability/status/rev */ ],
+      "lines":        [ /* status band rule, revision-history vertical separators */ ],
+      "labels":       [ /* SHEET_FULL_REF cell, SUITABILITY chip, AUTHORISED BY, revision history headers */ ],
+      "filledRegions":[ /* suitability chip background, top status band */ ]
+    },
+
+    { "id": "STING_TB_A1_NONBIM_v2.0", "extends": "A1_common_v2.0",
+      "mode": "NONBIM",
+      "saveAs": "Families/TitleBlocks/STING_TB_A1_NONBIM_v2.0.rfa",
+      "parameters":  [ /* STING_SHEET_BIM_MODE_TXT default "NONBIM" + STING_SHEET_NUMBER_TXT */ ],
+      "labels":      [ /* simple sheet-number labels */ ]
+    }
+  ]
+}
+```
+
+`TitleBlockSpecRegistry.Resolve(lib, child)` deep-merges parents:
+`parameters` are unioned by name (child wins on collision), `slots` are
+merged by `id` (child wins), and `lines` / `staticText` / `labels` /
+`filledRegions` concatenate parent-first then child-on-top. Loop-safe
+via a visited set; abstract specs are marked with `"abstract": true`
+and skipped by both `TitleBlock_Create` and `TitleBlock_CreateAll`.
+
+#### 3.1.3 Per-sheet BIM marker
+
+Both concrete families carry a shared parameter:
 
 ```
-Label A:  bound to STING_SHEET_FULL_REF_TXT,  Visible = STING_BIM_MODE_BOOL
-Label B:  bound to <Sheet Number> (Revit built-in), Visible = NOT STING_BIM_MODE_BOOL
+STING_SHEET_BIM_MODE_TXT  (Text, Instance, IdentityData)
+                          default value "BIM"  on STING_TB_*_BIM_*
+                          default value "NONBIM" on STING_TB_*_NONBIM_*
 ```
 
-Only one renders at a time. Same approach for the revision-history
-SUIT and STAT columns (entire columns of labels with `Visible =
-STING_BIM_MODE_BOOL`).
+Every sheet inherits this marker through whichever title-block family
+is loaded. Audit commands flag mismatches (sheet has `"BIM"` but the
+loaded family is `*_NONBIM_*`).
 
-#### 3.1.4 Net visual effect when BIM mode toggles OFF
+#### 3.1.4 The two `SHEET_FULL_REF` problem — solved by separation
 
-- 3 entire rows collapse via Strategy B → strip height drops from
-  ~110 mm to ~70 mm → drawable zone grows from 830 × 480 mm to
-  830 × 520 mm.
-- 3 in-row cells go invisible via Strategy A — small empty
-  rectangles in rows that still carry their other always-on cells.
-  Acceptable.
-- 2 cells switch their displayed text via the two-label trick
-  (`SHEET_FULL_REF` cell + revision-history rows) — same rectangle,
-  different content.
+The two-label trick was needed in the hybrid because one cell had to
+display `STG-PLNS-…-0001` in BIM mode and `A-001` (Revit Sheet Number)
+in non-BIM mode within the same `.rfa`. With two families:
 
-Switch is one click on the sheet's instance properties. No
-rebuilds, no family swap.
+- The BIM family has `SHEET_FULL_REF_TXT` (default
+  `"STG-PLNS-ZZ-01-DR-A-0001"`). A subsequent Phase-171 hook populates
+  it via `SetString` when sheet tokens change — no formula needed
+  since the consumer is C# code rather than Revit's parser.
+- The NON-BIM family has `STING_SHEET_NUMBER_TXT` (default `"A-001"`)
+  bound directly. No reciprocal-visibility juggling.
 
-#### 3.1.5 Why this hybrid beats Strategy C (two family types)
+#### 3.1.5 Generator authoring cost — back to ~5 lines per cell
 
-| Concern | Hybrid (single .rfa, parametric) | Two family types |
+Two-family Strategy C: each cell is one declarative entry in JSON
+(no `Visible` binding, no formula). Generator code drops by ~250
+lines vs. the hybrid:
+
+| Cost | Hybrid (removed) | Two families (current) |
 |---|---|---|
-| Source of truth | one `.rfa`, one JSON spec | two layouts diverge over time |
-| Per-sheet flexibility | toggle parameter per sheet | type-switch per sheet (heavier) |
-| Authoring effort | ~30 % more than Strategy A alone | 2× (full layout per type) |
-| Drift over time | none (single layout source) | high (every fix made twice) |
-| Visual cleanliness in non-BIM | excellent (rows collapse, in-row cells leave small gaps) | excellent (each type polished) |
-| Generator code complexity | adds reference planes + formulas (~80 lines) | duplicates the spec per type |
+| `BIM_MODE_BOOL` minting | ~10 lines | 0 |
+| `NOT_BIM_BOOL` minting | ~10 lines | 0 |
+| `BuildReflowGroups` | ~80 lines | 0 |
+| `BindVisibility` calls per element | every Place* | 0 |
+| `PlaceLabelPair` + reciprocal bind | ~70 lines | 0 |
+| Two-label trick logic | ~30 lines | 0 |
+| `extends` resolver | 0 | ~80 lines |
+| **Net change** | — | **−120 lines** |
 
-#### 3.1.6 Generator authoring cost (Phase 170+)
+### 3.2 Slot list — drawing-type slots (mm-anchored, declared in `<SIZE>_common`)
 
-Strategy A alone: ~5 lines of code per BIM cell to bind the
-`Visible` parameter.
+Slots are now declared in mm relative to the sheet's bottom-left
+(consistent with every other coord in the spec) rather than as
+normalised 0..1 positions over the drawable zone — both modes ship
+with the same drawable zone (570 × 480 mm in the bottom-strip layout)
+so a fixed-mm declaration is unambiguous and survives in both
+families without re-normalisation.
 
-Strategy B for whole rows: per row, ~15 lines — place reference
-plane via `famDoc.FamilyCreate.NewReferencePlane`, lock dimension
-via `Dimension.Create` between two reference planes, set formula
-via `FamilyManager.SetFormula(lengthParam, "if(STING_BIM_MODE_BOOL,
-110, 70)")`. Three rows → ~45 lines.
+| Slot id | Anchor (mm) | Size (mm) | Purpose tag         | Use case |
+|---|---|---|---|---|
+| `S01` | (10, 120)  | 810 × 470 | `main-plan`             | Full-bleed plan / 3D / section |
+| `S02` | (10, 120)  | 400 × 470 | `main-plan-half-left`   | 50/50 left half |
+| `S03` | (420, 120) | 400 × 470 | `main-plan-half-right`  | 50/50 right half |
+| `S04` | (10, 120)  | 400 × 230 | `quad-bottom-left`      | 4-up grid quadrant |
+| `S05` | (420, 120) | 400 × 230 | `quad-bottom-right`     | 4-up grid quadrant |
+| `S06` | (10, 360)  | 400 × 230 | `quad-top-left`         | 4-up grid quadrant |
+| `S07` | (420, 360) | 400 × 230 | `quad-top-right`        | 4-up grid quadrant |
+| `KP`  | (690, 130) | 120 × 100 | `key-plan`              | Key-plan pocket |
 
-Two-label trick for `SHEET_FULL_REF`: ~10 lines (two `NewLabel`
-calls at same XYZ with reciprocal `Visible` bindings).
+Each slot is authored by the factory as:
 
-Total generator overhead vs. Strategy A: ~80 lines. Worth it for
-the visual cleanliness — empty white blocks in non-BIM mode look
-unfinished.
+1. **Four named reference planes** at the slot bounds — `<id>_TOP`,
+   `<id>_BOT`, `<id>_LFT`, `<id>_RGT`. The Drawing-Type / Sheet-Manager
+   system reads slot bounds back via these named planes (no JSON
+   parsing at runtime).
+2. **An optional 2-mm slot-id text marker** at the top-left corner of
+   the slot, 5 mm inset, in the existing template text-style. Useful
+   during authoring; invisible at sheet placement time because Revit
+   hides text-notes inside title-block instances on sheet view.
+3. **Optional `viewportType` and `scaleHint`** that the auto-placer
+   applies when routing a viewport into the slot.
 
-### 3.2 Slot list (drawing-type slots, unchanged)
+### 3.2.1 Slot-based sheet-placement automation
 
-| label | NormX | NormY | NormW | NormH | Use |
-|---|---|---|---|---|---|
-| `MAIN`   | 0.00 | 0.00 | 1.00 | 1.00 | full drawable zone |
-| `MAIN_LEFT` | 0.00 | 0.00 | 0.66 | 1.00 | plan + side detail |
-| `MAIN_RIGHT_TOP` | 0.66 | 0.00 | 0.34 | 0.50 | section / 3D |
-| `MAIN_RIGHT_BOT` | 0.66 | 0.50 | 0.34 | 0.50 | key plan / detail |
-| `FOUR_UP_TL` | 0.00 | 0.00 | 0.50 | 0.50 | quarter |
-| `FOUR_UP_TR` | 0.50 | 0.00 | 0.50 | 0.50 | quarter |
-| `FOUR_UP_BL` | 0.00 | 0.50 | 0.50 | 0.50 | quarter |
-| `FOUR_UP_BR` | 0.50 | 0.50 | 0.50 | 0.50 | quarter |
+Two operator-facing commands pair the slot system with the two-family
+architecture:
 
-Slots resolve against the drawable zone — the zone shrinks/grows
-when BIM mode toggles, so absolute slot mm values follow
-automatically.
+| Command tag | Behaviour |
+|---|---|
+| `TitleBlock_AutoPlaceViewports` | For each selected view, look up its purpose tag from `STING_VIEWPORT_PLACEMENT_RULES.json`. Find the slot on the active sheet's title-block family with the matching `purposeTag`. Place a `Viewport` at the slot's centre, apply the slot's `viewportType` + `scaleHint`. Reports per-view what slot it went to. |
+| `TitleBlock_ToggleBIMMode` | Reads `STING_SHEET_BIM_MODE_TXT` on the active sheet, swaps the title-block family between `*_BIM_*` and `*_NONBIM_*`, transfers existing viewports onto the new family (positions transfer 1:1 since slot ids are stable across modes). |
 
-### 3.3 Bound parameter cells
+The routing rules table — `Data/STING_VIEWPORT_PLACEMENT_RULES.json` —
+maps `(ViewType, viewNamePattern)` to a `purposeTag`:
+
+```jsonc
+{
+  "defaultPurposeTag": "main-plan",
+  "rules": [
+    { "viewType": "FloorPlan",   "namePattern": "*KEY*",  "purposeTag": "key-plan" },
+    { "viewType": "FloorPlan",   "namePattern": "*",      "purposeTag": "main-plan" },
+    { "viewType": "Section",     "namePattern": "*",      "purposeTag": "section" },
+    { "viewType": "Elevation",   "namePattern": "*",      "purposeTag": "elevation" },
+    { "viewType": "ThreeD",      "namePattern": "*",      "purposeTag": "axon" },
+    { "viewType": "DraftingView","namePattern": "*",      "purposeTag": "detail" },
+    { "viewType": "Legend",      "namePattern": "*",      "purposeTag": "legend" },
+    { "viewType": "Schedule",    "namePattern": "*",      "purposeTag": "schedule" }
+  ],
+  "purposeTagAliases": {
+    "main-plan-half-left":  ["main-plan"],
+    "main-plan-half-right": ["main-plan"],
+    "quad-bottom-left":     ["main-plan", "detail"]
+  }
+}
+```
+
+When a view's resolved `purposeTag` isn't present on the active title
+block, the auto-placer walks the `purposeTagAliases` chain and falls
+through to the first match, so a `main-plan`-tagged plan view will
+land in `S02` / `S03` / quadrant slots gracefully if `S01` isn't
+present.
+
+### 3.3 Why this is also better for the Drawing-Type system
+
+The Drawing-Type registry (`STING_DRAWING_TYPES.json`) already has a
+`slots[]` array per drawing type. Until the Phase 170 revision the
+slots in the title-block family and the slots in the drawing type
+were two parallel coordinate systems the operator had to keep in
+sync by hand. With the named-reference-plane convention, the
+Drawing-Type system can introspect any loaded title-block family at
+runtime via:
+
+```csharp
+var slots = new FilteredElementCollector(famDoc)
+    .OfClass(typeof(ReferencePlane))
+    .OfType<ReferencePlane>()
+    .Where(rp => rp.Name.EndsWith("_TOP")
+              || rp.Name.EndsWith("_BOT")
+              || rp.Name.EndsWith("_LFT")
+              || rp.Name.EndsWith("_RGT"))
+    .GroupBy(rp => rp.Name.Substring(0, rp.Name.LastIndexOf('_')));
+```
+
+— and it gets a complete slot map without parsing JSON at all. The
+JSON spec stays the source of truth at *generation* time; at *runtime*
+the .rfa is self-describing.
+
+### 3.4 Bound parameter cells
 
 **28 bound cells**, of which **16 always-visible** and **12
 BIM-only**. Every label that begins with `${…}` is a `Label` element

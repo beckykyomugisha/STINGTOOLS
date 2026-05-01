@@ -1,12 +1,21 @@
-// StingTools — Drawing Template Manager · Phase 170 — Title-block factory POCOs
+// StingTools — Drawing Template Manager · Title-block factory POCOs
 //
 // Spec model loaded from Data/STING_TITLE_BLOCKS.json. Each
 // TitleBlockSpec describes one .rfa family the generator will mint:
 // the .rft template to start from, the shared parameters to add,
-// the geometry (lines / labels / static text / filled regions)
-// to draw, and the parametric reflow groups that implement the
-// hybrid BIM-mode toggle (per docs/TITLE_BLOCK_FAMILY_DESIGN.md
-// §3.1.2).
+// the geometry (lines / labels / static text / filled regions) to
+// draw, and the viewport slots the Drawing-Type / Sheet-Manager
+// system uses to auto-place viewports.
+//
+// Phase 170 Revision (Two-Family BIM Architecture):
+//   The Phase 170 original used a hybrid BIM-mode toggle
+//   (Strategy A `Visible`-bind + Strategy B reflow-groups +
+//   two-label trick for SHEET_FULL_REF). All three are removed.
+//   Each paper size now ships TWO families — `STING_TB_<SIZE>_BIM_*`
+//   and `STING_TB_<SIZE>_NONBIM_*` — declared independently in JSON
+//   with optional `extends` inheritance from a shared abstract base
+//   so duplication stays low. See docs/TITLE_BLOCK_FAMILY_DESIGN.md
+//   §3.1 for the rationale.
 //
 // All coordinates in mm relative to the title-block sheet's
 // bottom-left (consistent with Revit family-doc convention). The
@@ -22,7 +31,7 @@ namespace StingTools.Core.Drawing
     /// <summary>Root JSON document — list of families to mint.</summary>
     public sealed class TitleBlockLibrary
     {
-        [JsonProperty("schemaVersion")] public int SchemaVersion { get; set; } = 1;
+        [JsonProperty("schemaVersion")] public int SchemaVersion { get; set; } = 2;
         [JsonProperty("name")]          public string Name { get; set; }
         [JsonProperty("description")]   public string Description { get; set; }
         [JsonProperty("lastUpdated")]   public string LastUpdated { get; set; }
@@ -30,11 +39,35 @@ namespace StingTools.Core.Drawing
             = new List<TitleBlockSpec>();
     }
 
-    /// <summary>Single .rfa family.</summary>
+    /// <summary>Single .rfa family — OR an abstract base that other
+    /// families extend (set <see cref="Abstract"/> = true to skip the
+    /// .rfa generation step but still allow the spec to be referenced
+    /// via <see cref="Extends"/>).</summary>
     public sealed class TitleBlockSpec
     {
         [JsonProperty("id")]                   public string Id { get; set; }
         [JsonProperty("description")]          public string Description { get; set; }
+
+        /// <summary>Optional id of a parent spec to merge from. When set,
+        /// the parent's parameters / lines / staticText / labels /
+        /// filledRegions / slots collections are concatenated under this
+        /// child's, and the parent's scalar fields (templateRft,
+        /// category, mode) are inherited if this child leaves them
+        /// blank. Children win on collision (same parameter name,
+        /// same slot id). Loop detection in TitleBlockSpecRegistry.</summary>
+        [JsonProperty("extends")]              public string Extends { get; set; }
+
+        /// <summary>If true, the factory does NOT mint a .rfa for this
+        /// spec — it exists purely as a base for other families to
+        /// extend. Use for `A1_common_v2.0` / `A0_common_v2.0` etc.</summary>
+        [JsonProperty("abstract")]             public bool   Abstract { get; set; }
+
+        /// <summary>"BIM" or "NONBIM" — written into the family's
+        /// STING_SHEET_BIM_MODE_TXT shared parameter as the default
+        /// value, so each sheet inherits the right marker. Empty for
+        /// abstract bases and for specialty families that aren't
+        /// BIM-mode-relevant (cover sheet, transmittal cover, etc.).</summary>
+        [JsonProperty("mode")]                 public string Mode { get; set; }
 
         /// <summary>Path to the .rft Revit family template, relative to
         /// Revit's family-template root, OR absolute. Generator searches
@@ -43,26 +76,17 @@ namespace StingTools.Core.Drawing
 
         /// <summary>Output path for the .rfa, relative to the project
         /// directory or absolute. Generator creates directories as
-        /// needed.</summary>
+        /// needed. Required for non-abstract specs.</summary>
         [JsonProperty("saveAs")]               public string SaveAs { get; set; }
 
         [JsonProperty("category")]             public string Category { get; set; }
             = "OST_TitleBlocks";
 
-        /// <summary>Family-internal Yes/No instance parameter that
-        /// drives BIM-mode visibility. When the user toggles this
-        /// to 0 on a sheet, every cell flagged bimOnly hides via the
-        /// hybrid Strategy A / B / two-label-trick.</summary>
-        [JsonProperty("bimModeParameter")]     public string BimModeParameter { get; set; }
-            = "STING_BIM_MODE_BOOL";
-
         [JsonProperty("parameters")]   public List<ParamSpec>        Parameters    { get; set; } = new List<ParamSpec>();
         [JsonProperty("lines")]        public List<LineSpec>         Lines         { get; set; } = new List<LineSpec>();
         [JsonProperty("staticText")]   public List<StaticTextSpec>   StaticText    { get; set; } = new List<StaticTextSpec>();
         [JsonProperty("labels")]       public List<LabelSpec>        Labels        { get; set; } = new List<LabelSpec>();
-        [JsonProperty("labelPairs")]   public List<LabelPairSpec>    LabelPairs    { get; set; } = new List<LabelPairSpec>();
         [JsonProperty("filledRegions")]public List<FilledRegionSpec> FilledRegions { get; set; } = new List<FilledRegionSpec>();
-        [JsonProperty("reflowGroups")] public List<ReflowGroupSpec>  ReflowGroups  { get; set; } = new List<ReflowGroupSpec>();
 
         /// <summary>Viewport slots for the Drawing-Type / Sheet Manager
         /// system. Each slot defines a placement zone the consumer can
@@ -73,31 +97,6 @@ namespace StingTools.Core.Drawing
         [JsonProperty("slots")]        public List<SlotSpec>         Slots         { get; set; } = new List<SlotSpec>();
     }
 
-    /// <summary>Viewport slot. Coordinates are mm relative to the
-    /// title-block sheet bottom-left, same as every other coord in this
-    /// spec.</summary>
-    public sealed class SlotSpec
-    {
-        [JsonProperty("id")]          public string   Id { get; set; }            // "S01" / "S02" / "MAIN" — used for the corner marker label
-        [JsonProperty("anchor")]      public double[] Anchor { get; set; }        // [x, y] mm — bottom-left corner of the slot
-        [JsonProperty("size")]        public double[] Size   { get; set; }        // [w, h] mm
-        [JsonProperty("description")] public string   Description { get; set; }   // human-readable purpose, e.g. "Main drawing area"
-
-        /// <summary>If true (default), the factory authors 4 reference
-        /// planes (top / bottom / left / right) at the slot bounds so
-        /// the user can dimension off them and drag attached viewports.
-        /// Set false for slots that are markup-only (e.g. a key-plan
-        /// pocket where viewports are placed manually).</summary>
-        [JsonProperty("createReferencePlanes")] public bool CreateReferencePlanes { get; set; } = true;
-
-        /// <summary>If true (default), the factory drops a small
-        /// text-note slot-number marker at the top-left corner of the
-        /// slot so the operator can see slot numbers when authoring the
-        /// title block. Markers are 2 mm text in the existing template
-        /// text-style.</summary>
-        [JsonProperty("showCornerMarker")]      public bool ShowCornerMarker      { get; set; } = true;
-    }
-
     /// <summary>One shared / family parameter to add via FamilyManager.</summary>
     public sealed class ParamSpec
     {
@@ -105,9 +104,8 @@ namespace StingTools.Core.Drawing
         [JsonProperty("instance")]  public bool   Instance { get; set; } = true;
 
         /// <summary>"shared" pulls from the shared parameter file by
-        /// name; "internal" creates a family-internal parameter (used
-        /// for STING_BIM_MODE_BOOL itself + the calculated NOT_BIM
-        /// inverse). Default "shared".</summary>
+        /// name; "internal" creates a family-internal parameter. Default
+        /// "shared".</summary>
         [JsonProperty("kind")]      public string Kind { get; set; } = "shared";
 
         /// <summary>Used only when kind = "internal". One of
@@ -119,15 +117,12 @@ namespace StingTools.Core.Drawing
         /// "Geometry", "Constraints". Default "IdentityData".</summary>
         [JsonProperty("group")]     public string Group { get; set; } = "IdentityData";
 
-        /// <summary>Optional formula. Family-internal calculated
-        /// parameters (e.g. "if(STING_BIM_MODE_BOOL, 110, 70)" for
-        /// strip height) and inverse booleans
-        /// ("not(STING_BIM_MODE_BOOL)") are set via this field.</summary>
+        /// <summary>Optional formula for family-internal calculated
+        /// parameters. Subject to Revit's family-formula parser
+        /// constraints (see docs/TITLE_BLOCK_FAMILY_DESIGN.md §3.3).</summary>
         [JsonProperty("formula")]   public string Formula { get; set; }
 
-        /// <summary>Optional default value (used when no formula).
-        /// "1" / "0" for booleans, plain number for length, free
-        /// string for text.</summary>
+        /// <summary>Optional default value (used when no formula).</summary>
         [JsonProperty("default")]   public string Default { get; set; }
     }
 
@@ -137,7 +132,6 @@ namespace StingTools.Core.Drawing
         [JsonProperty("from")]    public double[] From { get; set; }   // [x, y] mm
         [JsonProperty("to")]      public double[] To   { get; set; }
         [JsonProperty("style")]   public string   Style { get; set; } = "Medium Lines";
-        [JsonProperty("bimOnly")] public bool     BimOnly { get; set; }
     }
 
     /// <summary>Static text — cell label like "CLIENT", not bound
@@ -149,7 +143,6 @@ namespace StingTools.Core.Drawing
         [JsonProperty("size")]    public double   Size { get; set; } = 1.8;  // mm text height
         [JsonProperty("hAlign")]  public string   HAlign { get; set; } = "Left";
         [JsonProperty("vAlign")]  public string   VAlign { get; set; } = "Middle";
-        [JsonProperty("bimOnly")] public bool     BimOnly { get; set; }
         [JsonProperty("textTypeName")] public string TextTypeName { get; set; }
     }
 
@@ -163,21 +156,6 @@ namespace StingTools.Core.Drawing
         [JsonProperty("vAlign")]  public string   VAlign { get; set; } = "Middle";
         [JsonProperty("prefix")]  public string   Prefix { get; set; } = "";
         [JsonProperty("suffix")]  public string   Suffix { get; set; } = "";
-        [JsonProperty("bimOnly")] public bool     BimOnly { get; set; }
-    }
-
-    /// <summary>Two labels at the same anchor with reciprocal
-    /// visibility — implements the SHEET_FULL_REF / Sheet Number
-    /// switch. paramA shows when BIM=1, paramB shows when BIM=0.</summary>
-    public sealed class LabelPairSpec
-    {
-        [JsonProperty("paramBim")]    public string   ParamBim { get; set; }       // visible when BIM=1
-        [JsonProperty("paramNonBim")] public string   ParamNonBim { get; set; }    // visible when BIM=0
-        [JsonProperty("anchor")]      public double[] Anchor { get; set; }
-        [JsonProperty("size")]        public double   Size { get; set; } = 5.0;
-        [JsonProperty("hAlign")]      public string   HAlign { get; set; } = "Center";
-        [JsonProperty("vAlign")]      public string   VAlign { get; set; } = "Middle";
-        [JsonProperty("paramNonBimIsBuiltIn")] public bool ParamNonBimIsBuiltIn { get; set; } = false;
     }
 
     /// <summary>Filled region — typically the suitability chip / status
@@ -189,53 +167,59 @@ namespace StingTools.Core.Drawing
         [JsonProperty("bottomRight")] public double[] BottomRight { get; set; }
         [JsonProperty("fillTypeName")] public string  FillTypeName { get; set; } = "Solid fill - Light Grey";
         [JsonProperty("color")]       public string   Color { get; set; }        // "#RRGGBB", optional
-        [JsonProperty("bimOnly")]     public bool     BimOnly { get; set; }
     }
 
-    /// <summary>Reflow group — Strategy B from §3.1. The group is a
-    /// stripe of cells whose vertical extent is driven by a length
-    /// parameter that's formula-bound to BIM_MODE. When BIM=0 the
-    /// length collapses to 0 and every cell inside the group hides.
-    ///
-    /// Generator authoring: places two reference planes (top/bottom
-    /// of the group), creates a labelled dimension between them,
-    /// adds a length parameter, sets the formula, then for every
-    /// element placed by the children Lines/Labels/Text/FilledRegions
-    /// inside the group also binds the element's Visible to the
-    /// group's gate-parameter (because hiding via length=0 alone
-    /// doesn't always remove the element — defence in depth).</summary>
-    public sealed class ReflowGroupSpec
+    /// <summary>Viewport slot. Coordinates are mm relative to the
+    /// title-block sheet bottom-left, same as every other coord in this
+    /// spec. The Drawing-Type / Sheet-Manager system reads slot bounds
+    /// back from the .rfa via the named reference planes
+    /// (`<id>_TOP/BOT/LFT/RGT`) and routes viewports here based on
+    /// <see cref="PurposeTag"/>.</summary>
+    public sealed class SlotSpec
     {
-        [JsonProperty("id")]            public string Id { get; set; }            // "row7Seg" / "rowTrCdeMidp" / etc.
-        [JsonProperty("description")]   public string Description { get; set; }
+        [JsonProperty("id")]          public string   Id { get; set; }            // "S01" / "S02" / "MAIN" — used for the corner marker label
+        [JsonProperty("anchor")]      public double[] Anchor { get; set; }        // [x, y] mm — bottom-left corner of the slot
+        [JsonProperty("size")]        public double[] Size   { get; set; }        // [w, h] mm
+        [JsonProperty("description")] public string   Description { get; set; }   // human-readable purpose
 
-        /// <summary>The length parameter the group exposes. Generator
-        /// adds it as a family-internal Length instance parameter
-        /// with formula = `if(STING_BIM_MODE_BOOL, fullHeightMm,
-        /// collapsedHeightMm)`. If collapsedHeightMm = 0 (default)
-        /// the group disappears entirely in non-BIM mode.</summary>
-        [JsonProperty("heightParam")]   public string HeightParam { get; set; }
+        /// <summary>Routing key used by TitleBlock_AutoPlaceViewports —
+        /// `STING_VIEWPORT_PLACEMENT_RULES.json` maps a view's
+        /// (ViewType, name pattern) to a purpose tag, the auto-placer
+        /// then scans the active sheet's title-block .rfa for the slot
+        /// with this tag.
+        ///
+        /// Suggested vocabulary: "main-plan" / "key-plan" / "section" /
+        /// "elevation" / "axon" / "detail" / "legend" / "schedule".
+        /// Free-form — projects can extend the rule file.</summary>
+        [JsonProperty("purposeTag")]  public string   PurposeTag { get; set; }
 
-        [JsonProperty("fullHeightMm")]      public double FullHeightMm { get; set; }
-        [JsonProperty("collapsedHeightMm")] public double CollapsedHeightMm { get; set; } = 0.0;
+        /// <summary>Optional viewport type to apply when placing a view
+        /// into this slot (e.g. "Title w/ Line", "No Title"). Resolved
+        /// at placement time against the project's loaded ElementType
+        /// of class Viewport.</summary>
+        [JsonProperty("viewportType")] public string  ViewportType { get; set; }
 
-        /// <summary>Y coordinate of the group's BOTTOM edge (anchored
-        /// reference). Top edge = bottomY + heightParam.</summary>
-        [JsonProperty("bottomY")]       public double BottomY { get; set; }
+        /// <summary>Optional default scale denominator (e.g. 100 for
+        /// 1:100). Auto-placer applies this when the view's scale is
+        /// "Use view scale" and the slot has a fixed expectation.</summary>
+        [JsonProperty("scaleHint")]   public int?     ScaleHint { get; set; }
 
-        /// <summary>Children — same shape as the family-level
-        /// collections, but their (x, y) coords are taken AS-IS;
-        /// the generator ALSO binds each child's Visible to the
-        /// group's gate parameter so the element hides when
-        /// heightParam = 0.</summary>
-        [JsonProperty("lines")]         public List<LineSpec>         Lines         { get; set; } = new List<LineSpec>();
-        [JsonProperty("staticText")]    public List<StaticTextSpec>   StaticText    { get; set; } = new List<StaticTextSpec>();
-        [JsonProperty("labels")]        public List<LabelSpec>        Labels        { get; set; } = new List<LabelSpec>();
-        [JsonProperty("filledRegions")] public List<FilledRegionSpec> FilledRegions { get; set; } = new List<FilledRegionSpec>();
+        /// <summary>If true (default), the factory authors 4 reference
+        /// planes (top / bottom / left / right) at the slot bounds so
+        /// the user can dimension off them and drag attached viewports.
+        /// Set false for slots that are markup-only.</summary>
+        [JsonProperty("createReferencePlanes")] public bool CreateReferencePlanes { get; set; } = true;
+
+        /// <summary>If true (default), the factory drops a small
+        /// text-note slot-id marker at the top-left corner of the
+        /// slot so the operator can see slot identifiers when authoring
+        /// the title block.</summary>
+        [JsonProperty("showCornerMarker")]      public bool ShowCornerMarker      { get; set; } = true;
     }
 
     /// <summary>Loader — corporate baseline at Data/STING_TITLE_BLOCKS.json,
-    /// no project override yet (Phase 171).</summary>
+    /// no project override yet (Phase 171). Resolves <see cref="TitleBlockSpec.Extends"/>
+    /// inheritance via <see cref="TitleBlockLibrary"/>.Resolve.</summary>
     public static class TitleBlockSpecRegistry
     {
         public static TitleBlockLibrary Load()
@@ -255,6 +239,116 @@ namespace StingTools.Core.Drawing
                 StingLog.Error("TitleBlockSpecRegistry.Load", ex);
                 return null;
             }
+        }
+
+        /// <summary>Walk the <see cref="TitleBlockSpec.Extends"/> chain
+        /// and return a flattened spec — parent-first concatenation for
+        /// list fields, child-wins for scalar fields. Loop-safe via a
+        /// visited set. Returns the input unchanged when there's no
+        /// parent.</summary>
+        public static TitleBlockSpec Resolve(TitleBlockLibrary lib, TitleBlockSpec spec)
+        {
+            if (lib == null || spec == null || string.IsNullOrEmpty(spec.Extends))
+                return spec;
+            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var chain   = new List<TitleBlockSpec>();
+            var cur     = spec;
+            while (cur != null && !string.IsNullOrEmpty(cur.Extends))
+            {
+                if (!visited.Add(cur.Id ?? "(anon)"))
+                {
+                    StingLog.Warn($"TitleBlockSpecRegistry.Resolve: extends loop detected at '{cur.Id}'");
+                    break;
+                }
+                var parent = FindById(lib, cur.Extends);
+                if (parent == null)
+                {
+                    StingLog.Warn($"TitleBlockSpecRegistry.Resolve: extends '{cur.Extends}' (referenced by '{cur.Id}') not found");
+                    break;
+                }
+                chain.Add(parent);
+                cur = parent;
+            }
+            // Walk parents oldest → newest, fold into a fresh accumulator,
+            // then layer the original child on top.
+            chain.Reverse();
+            var merged = new TitleBlockSpec
+            {
+                Id          = spec.Id,
+                Description = spec.Description,
+                Abstract    = false, // resolved specs are concrete
+                Extends     = null,
+                Mode        = spec.Mode,
+                TemplateRft = spec.TemplateRft,
+                SaveAs      = spec.SaveAs,
+                Category    = spec.Category,
+            };
+            foreach (var p in chain) MergeInto(merged, p);
+            MergeInto(merged, spec);
+            return merged;
+        }
+
+        private static TitleBlockSpec FindById(TitleBlockLibrary lib, string id)
+        {
+            if (lib?.Families == null) return null;
+            foreach (var f in lib.Families)
+            {
+                if (string.Equals(f.Id, id, StringComparison.OrdinalIgnoreCase))
+                    return f;
+            }
+            return null;
+        }
+
+        private static void MergeInto(TitleBlockSpec into, TitleBlockSpec from)
+        {
+            if (from == null) return;
+            // Scalars — child wins, but only when child left it blank.
+            if (string.IsNullOrEmpty(into.TemplateRft)) into.TemplateRft = from.TemplateRft;
+            if (string.IsNullOrEmpty(into.Mode))        into.Mode        = from.Mode;
+            if (string.IsNullOrEmpty(into.Category))    into.Category    = from.Category;
+            // Lists — append parent contents under child contents,
+            // de-duplicate parameters and slots by id.
+            into.Parameters    = MergeParams(into.Parameters,       from.Parameters);
+            into.Slots         = MergeSlots (into.Slots,            from.Slots);
+            // Lines / static text / labels / filled regions don't have
+            // natural ids, so just concatenate. The generator handles
+            // duplicates via spatial collision (rare in practice).
+            into.Lines         = ConcatList(into.Lines,             from.Lines);
+            into.StaticText    = ConcatList(into.StaticText,        from.StaticText);
+            into.Labels        = ConcatList(into.Labels,            from.Labels);
+            into.FilledRegions = ConcatList(into.FilledRegions,     from.FilledRegions);
+        }
+
+        private static List<T> ConcatList<T>(List<T> a, List<T> b)
+        {
+            var r = new List<T>();
+            if (b != null) r.AddRange(b);   // parent first
+            if (a != null) r.AddRange(a);   // child overrides on top
+            return r;
+        }
+
+        private static List<ParamSpec> MergeParams(List<ParamSpec> child, List<ParamSpec> parent)
+        {
+            var byName = new Dictionary<string, ParamSpec>(StringComparer.OrdinalIgnoreCase);
+            if (parent != null)
+                foreach (var p in parent)
+                    if (!string.IsNullOrEmpty(p?.Name)) byName[p.Name] = p;
+            if (child != null)
+                foreach (var p in child)
+                    if (!string.IsNullOrEmpty(p?.Name)) byName[p.Name] = p; // child wins
+            return new List<ParamSpec>(byName.Values);
+        }
+
+        private static List<SlotSpec> MergeSlots(List<SlotSpec> child, List<SlotSpec> parent)
+        {
+            var byId = new Dictionary<string, SlotSpec>(StringComparer.OrdinalIgnoreCase);
+            if (parent != null)
+                foreach (var s in parent)
+                    if (!string.IsNullOrEmpty(s?.Id)) byId[s.Id] = s;
+            if (child != null)
+                foreach (var s in child)
+                    if (!string.IsNullOrEmpty(s?.Id)) byId[s.Id] = s; // child wins
+            return new List<SlotSpec>(byId.Values);
         }
     }
 }

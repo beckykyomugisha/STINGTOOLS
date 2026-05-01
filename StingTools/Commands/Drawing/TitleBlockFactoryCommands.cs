@@ -47,10 +47,21 @@ namespace StingTools.Commands.Drawing
                 return Result.Failed;
             }
 
-            TitleBlockSpec pick;
-            if (lib.Families.Count == 1)
+            // Filter out abstract specs — they're inheritance bases only,
+            // not standalone families to mint.
+            var concrete = lib.Families.FindAll(f => !f.Abstract);
+            if (concrete.Count == 0)
             {
-                pick = lib.Families[0];
+                TaskDialog.Show("STING — Title Block Factory",
+                    $"All {lib.Families.Count} family entries in STING_TITLE_BLOCKS.json are marked abstract. "
+                    + "Mark at least one with `\"abstract\": false` (or omit the field).");
+                return Result.Failed;
+            }
+
+            TitleBlockSpec pick;
+            if (concrete.Count == 1)
+            {
+                pick = concrete[0];
             }
             else
             {
@@ -59,17 +70,22 @@ namespace StingTools.Commands.Drawing
                     MainInstruction = "Choose which family to mint",
                     AllowCancellation = true,
                 };
-                for (int i = 0; i < Math.Min(4, lib.Families.Count); i++)
+                for (int i = 0; i < Math.Min(4, concrete.Count); i++)
                 {
-                    var f = lib.Families[i];
+                    var f = concrete[i];
                     dlg.AddCommandLink((TaskDialogCommandLinkId)(1001 + i),
                         f.Id, f.Description);
                 }
                 var res = dlg.Show();
                 int chosen = (int)res - 1001;
-                if (chosen < 0 || chosen >= lib.Families.Count) return Result.Cancelled;
-                pick = lib.Families[chosen];
+                if (chosen < 0 || chosen >= concrete.Count) return Result.Cancelled;
+                pick = concrete[chosen];
             }
+
+            // Flatten the extends chain — child concatenates with every
+            // ancestor's lines / labels / static text / filled regions /
+            // slots, child wins for parameters by name and slots by id.
+            pick = TitleBlockSpecRegistry.Resolve(lib, pick);
 
             var sharedFile = TitleBlockCommandUtils.ResolveSharedParamFile(uiApp);
             var build = TitleBlockFactory.Build(uiApp, pick, sharedFile);
@@ -101,18 +117,22 @@ namespace StingTools.Commands.Drawing
             }
 
             var sharedFile = TitleBlockCommandUtils.ResolveSharedParamFile(uiApp);
+            var concrete = lib.Families.FindAll(f => !f.Abstract);
             var sb = new StringBuilder();
-            sb.AppendLine($"Title-block library — {lib.Families.Count} families.");
+            sb.AppendLine($"Title-block library — {concrete.Count} concrete families "
+                + $"({lib.Families.Count - concrete.Count} abstract bases skipped).");
             sb.AppendLine();
 
             int ok = 0, failed = 0;
-            foreach (var spec in lib.Families)
+            foreach (var rawSpec in concrete)
             {
+                // Flatten extends chain so the factory sees a complete spec.
+                var spec = TitleBlockSpecRegistry.Resolve(lib, rawSpec);
                 var build = TitleBlockFactory.Build(uiApp, spec, sharedFile);
                 if (build.Ok) ok++; else failed++;
                 sb.AppendLine($"{(build.Ok ? "✓" : "✗")} {spec.Id,-30}  "
                     + $"params {build.ParametersAdded,3}  lines {build.LinesPlaced,3}  "
-                    + $"labels {build.LabelsPlaced,3}  groups {build.ReflowGroupsBuilt}  "
+                    + $"labels {build.LabelsPlaced,3}  slots {build.SlotsPlaced}  "
                     + $"→ {build.SavedPath ?? "(not saved)"}");
                 foreach (var w in build.Warnings.Take(3)) sb.AppendLine($"    ! {w}");
                 foreach (var e in build.Errors.Take(3))   sb.AppendLine($"    ✗ {e}");
@@ -177,10 +197,8 @@ namespace StingTools.Commands.Drawing
             sb.AppendLine($"  parameters     : {r.ParametersAdded}");
             sb.AppendLine($"  lines          : {r.LinesPlaced}");
             sb.AppendLine($"  labels         : {r.LabelsPlaced}");
-            sb.AppendLine($"  label pairs    : {r.LabelPairsPlaced}");
             sb.AppendLine($"  static text    : {r.StaticTextPlaced}");
             sb.AppendLine($"  filled regions : {r.FilledRegionsPlaced}");
-            sb.AppendLine($"  reflow groups  : {r.ReflowGroupsBuilt}");
             sb.AppendLine($"  slots          : {r.SlotsPlaced}");
 
             if (r.SlotSummary.Count > 0)
@@ -237,10 +255,8 @@ namespace StingTools.Commands.Drawing
             sb.AppendLine($"  parameters   : {r.ParametersAdded}");
             sb.AppendLine($"  lines        : {r.LinesPlaced}");
             sb.AppendLine($"  labels       : {r.LabelsPlaced}");
-            sb.AppendLine($"  label pairs  : {r.LabelPairsPlaced}");
             sb.AppendLine($"  static text  : {r.StaticTextPlaced}");
             sb.AppendLine($"  filled regions : {r.FilledRegionsPlaced}");
-            sb.AppendLine($"  reflow groups: {r.ReflowGroupsBuilt}");
             sb.AppendLine($"  slots        : {r.SlotsPlaced}");
 
             if (r.SlotSummary.Count > 0)

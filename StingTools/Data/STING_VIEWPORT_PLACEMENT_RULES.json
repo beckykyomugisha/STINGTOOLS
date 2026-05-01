@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "name": "STING — Viewport placement rules",
+  "description": "Maps a (Revit ViewType, view-name pattern, optional discipline) tuple to a slot purposeTag declared in STING_TITLE_BLOCKS.json. TitleBlock_AutoPlaceViewports walks this rule list top-to-bottom for each selected view; the first matching rule wins, and the view is placed at the slot whose purposeTag matches. If no rule matches, the view falls through to the `defaultPurposeTag` slot.",
+  "lastUpdated": "2026-05-01",
+
+  "defaultPurposeTag": "main-plan",
+  "noMatchBehaviour": "place-at-default-with-warning",
+
+  "rules": [
+    { "viewType": "FloorPlan",   "namePattern": "*KEY*",       "purposeTag": "key-plan" },
+    { "viewType": "FloorPlan",   "namePattern": "*-PL-*",      "purposeTag": "main-plan" },
+    { "viewType": "FloorPlan",   "namePattern": "*PLAN*",      "purposeTag": "main-plan" },
+    { "viewType": "FloorPlan",   "namePattern": "*",           "purposeTag": "main-plan" },
+
+    { "viewType": "CeilingPlan", "namePattern": "*RCP*",       "purposeTag": "main-plan" },
+    { "viewType": "CeilingPlan", "namePattern": "*",           "purposeTag": "main-plan" },
+
+    { "viewType": "Section",     "namePattern": "*WALL*",      "purposeTag": "section" },
+    { "viewType": "Section",     "namePattern": "*",           "purposeTag": "section" },
+
+    { "viewType": "Elevation",   "namePattern": "*INTERIOR*",  "purposeTag": "elevation" },
+    { "viewType": "Elevation",   "namePattern": "*",           "purposeTag": "elevation" },
+
+    { "viewType": "ThreeD",      "namePattern": "*AXON*",      "purposeTag": "axon" },
+    { "viewType": "ThreeD",      "namePattern": "*PERSP*",     "purposeTag": "axon" },
+    { "viewType": "ThreeD",      "namePattern": "*",           "purposeTag": "axon" },
+
+    { "viewType": "DraftingView","namePattern": "*DETAIL*",    "purposeTag": "detail" },
+    { "viewType": "DraftingView","namePattern": "*",           "purposeTag": "detail" },
+
+    { "viewType": "Legend",      "namePattern": "*",           "purposeTag": "legend" },
+    { "viewType": "Schedule",    "namePattern": "*",           "purposeTag": "schedule" },
+    { "viewType": "AreaPlan",    "namePattern": "*",           "purposeTag": "main-plan" },
+    { "viewType": "EngineeringPlan", "namePattern": "*",       "purposeTag": "main-plan" }
+  ],
+
+  "purposeTagAliases": {
+    "main-plan-half-left":  ["main-plan"],
+    "main-plan-half-right": ["main-plan"],
+    "quad-top-left":        ["main-plan", "detail"],
+    "quad-top-right":       ["main-plan", "detail"],
+    "quad-bottom-left":     ["main-plan", "detail"],
+    "quad-bottom-right":    ["main-plan", "detail"]
+  }
+}

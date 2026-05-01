@@ -20,6 +20,16 @@
 >
 > If you used STING before April 2026 and your project still has the legacy 9 boolean fields in `_BIM_COORD/drawing_types.json`, opening the editor and clicking Save once auto-migrates the project file to the new Rules schema (idempotent).
 
+> ### What changed in May 2026 — Two-Family BIM Architecture (Phase 170 revision)
+>
+> 1. **Each working-sheet paper size now ships TWO families** — `STING_TB_<SIZE>_BIM_v<MAJOR>.<MINOR>.rfa` and `STING_TB_<SIZE>_NONBIM_v<MAJOR>.<MINOR>.rfa`. The earlier hybrid (single family + `STING_BIM_MODE_BOOL` Yes/No toggle + reflow groups + two-label trick) is **removed** — Revit's family-formula parser rejected every conditional/text-concat form we tried in production. See `TITLE_BLOCK_FAMILY_DESIGN.md` § 3.1 for the full rationale.
+> 2. **JSON `extends` inheritance** — common identity-data parameters, the bottom-strip framework and the 8 viewport slots are authored once in an abstract `<SIZE>_common_v*` base, and the BIM + NONBIM concrete variants only declare the cells unique to their mode. Generator regenerates both per build, so there's no drift.
+> 3. **Per-sheet BIM marker** — every sheet inherits `STING_SHEET_BIM_MODE_TXT` (`"BIM"` or `"NONBIM"`) from whichever title-block family is loaded. Audit commands flag mismatches.
+> 4. **Slot-routing automation** — each slot now declares a `purposeTag` (`main-plan` / `key-plan` / `section` / `axon` / `detail` / `legend` / `schedule`). `Data/STING_VIEWPORT_PLACEMENT_RULES.json` maps `(viewType, namePattern)` to a `purposeTag`. The new `TitleBlock_AutoPlaceViewports` command routes each selected view to its matching slot.
+> 5. **`TitleBlock_ToggleBIMMode` command** — swaps the active sheet's title-block family between BIM and NONBIM variants. Viewports transfer 1:1 since slot ids are stable across modes.
+>
+> If your project still references the old `STING_TB_A1_v2.0` single-family name (or any other size without the `_BIM_` / `_NONBIM_` suffix), update sheet templates to point at the new two-family names. Old families remain loadable but no longer get regenerated.
+
 ---
 
 ## Table of Contents

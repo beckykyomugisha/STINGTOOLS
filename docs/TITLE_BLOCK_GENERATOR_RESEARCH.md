@@ -7,6 +7,19 @@ parameters, draw lines, place dynamic labels, save). This note
 inventories what's possible, what's awkward, what's blocked, and
 proposes a phased implementation.
 
+> **Phase 170 revision update (May 2026):** the original architecture
+> in this doc proposed a single-family hybrid driving BIM/non-BIM via a
+> `STING_BIM_MODE_BOOL` toggle plus reflow groups plus a two-label
+> trick. Production runs hit four separate Revit family-formula
+> parser failures (text concat, length-conditional `IF`, length
+> comparison `> 0 mm`, type-vs-instance scope). The hybrid was
+> abandoned in favour of **Strategy C — two families per paper size**
+> (`STING_TB_<SIZE>_BIM_*` + `STING_TB_<SIZE>_NONBIM_*`) sharing a
+> common abstract base via JSON `extends` inheritance. See
+> `TITLE_BLOCK_FAMILY_DESIGN.md` § 3.1 for the rationale and § 3.2 for
+> the slot-automation system that pairs with it. The architecture
+> section below (§ 8) reflects the revision.
+
 
 ## 1. Existing pattern — TagFamilyCreatorCommand
 
@@ -133,63 +146,103 @@ family, around 2 minutes total for the 18-family library. Today,
 hand-authoring one A1 title block in Family Editor takes a designer
 ~3-4 hours and varies between projects.
 
-## 5. JSON spec format
+## 5. JSON spec format (revised — schema v2 with `extends`)
 
-Mirror the existing `STING_TAG_RULES.json` shape so editors can
-produce it without code:
+Schema v2 supports inheritance via `extends` so BIM + NONBIM variants
+share a common abstract base. All coordinates in mm relative to the
+sheet's bottom-left (consistent with Revit's family-doc coord system).
+Per-family JSON re-runnable: edit, regenerate, reload in the host
+project.
 
 ```jsonc
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "families": [
     {
-      "id": "STING_TB_A1_v2.0",
+      "id": "A1_common_v2.0",
+      "abstract": true,
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
-      "saveAs": "Families/TitleBlocks/STING_TB_A1_v2.0.rfa",
       "category": "OST_TitleBlocks",
 
       "parameters": [
-        { "name": "PRJ_ORG_PROJECT_NAME_TXT",  "instance": true,
-          "group": "IdentityData", "type": "Text" },
-        { "name": "STING_SHEET_FULL_REF_TXT",  "instance": true,
-          "group": "IdentityData", "type": "Text",
-          "formula": "$SHEET_PROJECT & \"-\" & $SHEET_ORIGINATOR & ..." },
-        { "name": "PRJ_ORG_ORIGINATOR_LOGO_IMG", "instance": true,
-          "group": "IdentityData", "type": "Image" }
+        { "name": "PRJ_ORG_PROJECT_NAME_TXT", "kind": "shared",
+          "instance": true, "group": "IdentityData" }
+        // …common identity-data params…
       ],
-
       "lines": [
-        { "from": [594, 0], "to": [594, 30],   "style": "Wide Lines"  },
-        { "from": [0, 30],  "to": [841, 30],   "style": "Wide Lines"  },
-        { "from": [641, 0], "to": [641, 30],   "style": "Medium Lines" }
+        { "from": [0, 0], "to": [841, 0], "style": "Wide Lines" }
+        // …outer border + cell dividers…
       ],
-
+      "staticText": [
+        { "text": "PROJECT", "anchor": [4, 80], "size": 1.5 }
+        // …CLIENT / NOTES / DRAWING TITLE / DRAWN BY / …
+      ],
       "labels": [
         { "param": "PRJ_ORG_PROJECT_NAME_TXT",
-          "anchor": [620, 24], "h": "Left", "v": "Middle", "size": 3.0 },
+          "anchor": [4, 70], "size": 2.0, "hAlign": "Left", "vAlign": "Middle" }
+      ],
+      "slots": [
+        { "id": "S01", "anchor": [10, 120], "size": [810, 470],
+          "purposeTag": "main-plan", "viewportType": "Title w/ Line",
+          "scaleHint": 100, "createReferencePlanes": true,
+          "showCornerMarker": true,
+          "description": "Main drawing area — full-bleed plan / 3D / section" }
+      ]
+    },
+
+    {
+      "id": "STING_TB_A1_BIM_v2.0",
+      "extends": "A1_common_v2.0",
+      "mode": "BIM",
+      "saveAs": "Families/TitleBlocks/STING_TB_A1_BIM_v2.0.rfa",
+
+      "parameters": [
+        { "name": "STING_SHEET_BIM_MODE_TXT", "kind": "shared",
+          "instance": true, "group": "IdentityData", "default": "BIM" },
+        { "name": "STING_SHEET_FULL_REF_TXT", "kind": "internal",
+          "instance": true, "type": "Text", "group": "IdentityData",
+          "default": "STG-PLNS-ZZ-01-DR-A-0001" }
+        // …suitability/status/rev/7-segment ID…
+      ],
+      "labels": [
         { "param": "STING_SHEET_FULL_REF_TXT",
-          "anchor": [720, 6],  "h": "Center", "v": "Middle", "size": 5.0 }
+          "anchor": [684, 48], "size": 2.5, "hAlign": "Center" }
       ],
-
-      "staticText": [
-        { "text": "PROJECT", "anchor": [602, 28], "size": 1.8 },
-        { "text": "DRAWING TITLE", "anchor": [602, 18], "size": 1.8 }
-      ],
-
       "filledRegions": [
-        { "kind": "rect", "topLeft": [600, 30], "bottomRight": [841, 38],
-          "fillTypeName": "Solid Light Grey" },
-        { "kind": "rect", "topLeft": [641, 0],  "bottomRight": [681, 8],
-          "fillTypeName": "Solid Amber" }
+        { "topLeft": [710, 150], "bottomRight": [770, 130],
+          "fillTypeName": "Solid fill", "color": "#F2A341" }
+      ]
+    },
+
+    {
+      "id": "STING_TB_A1_NONBIM_v2.0",
+      "extends": "A1_common_v2.0",
+      "mode": "NONBIM",
+      "saveAs": "Families/TitleBlocks/STING_TB_A1_NONBIM_v2.0.rfa",
+
+      "parameters": [
+        { "name": "STING_SHEET_BIM_MODE_TXT", "kind": "shared",
+          "instance": true, "group": "IdentityData", "default": "NONBIM" },
+        { "name": "STING_SHEET_NUMBER_TXT", "kind": "internal",
+          "instance": true, "type": "Text", "group": "IdentityData",
+          "default": "A-001" }
+      ],
+      "labels": [
+        { "param": "STING_SHEET_NUMBER_TXT",
+          "anchor": [684, 48], "size": 5.0, "hAlign": "Center" }
       ]
     }
   ]
 }
 ```
 
-All coordinates in mm relative to the sheet's bottom-left
-(consistent with Revit's family-doc coord system). Per-family JSON
-re-runnable: edit, regenerate, reload in the host project.
+`TitleBlockSpecRegistry.Resolve(library, child)` walks the `extends`
+chain (loop-safe via a visited set) and deep-merges parents:
+parameters are unioned by name (child wins), slots are merged by id
+(child wins), and lines / staticText / labels / filledRegions are
+concatenated parent-first then child-on-top. Abstract specs (those
+with `"abstract": true`) are skipped by both `TitleBlock_Create` and
+`TitleBlock_CreateAll` — they exist purely as inheritance bases.
 
 ## 6. What's harder — the four real friction points
 
@@ -263,28 +316,32 @@ inside the family doc instead of the project doc.
   north arrow rotates with the sheet's host view; that's a Revit
   built-in, not a generator concern.
 
-## 8. Proposed architecture
+## 8. Proposed architecture (revised — two-family + slot automation)
 
-Mirror the tag-family creator pattern with one engine + four
-commands.
+Mirror the tag-family creator pattern with one engine + a small set
+of operator-facing commands. **Updated for Phase 170 revision:** drop
+the reflow-group + label-pair scaffolding, add the `extends`
+resolver, add the slot-routing system.
 
 ### 8.1 New files
 
 | Path | Lines | Role |
 |---|---|---|
-| `StingTools/Core/Drawing/TitleBlockFactory.cs` | ~600 | The engine. Per-family pipeline (open template → add params → draw lines → place labels → filled regions → SaveAs → close). Static helpers `BuildLineStyle`, `BuildLabel`, `BuildFilledRegion`, `BuildStaticText`, `Compile7SegmentFormula`. |
-| `StingTools/Core/Drawing/TitleBlockSpec.cs` | ~150 | POCOs matching the JSON schema in §5. `TitleBlockSpec`, `ParamSpec`, `LineSpec`, `LabelSpec`, `StaticTextSpec`, `FilledRegionSpec`. |
-| `StingTools/Commands/Drawing/TitleBlockFactoryCommands.cs` | ~250 | Four commands: Create / CreateAll / LoadIntoProject / Audit (mirrors the four tag-family commands). |
-| `StingTools/Data/STING_TITLE_BLOCKS.json` | ~700 | Specs for the 18 families designed in `TITLE_BLOCK_FAMILY_DESIGN.md`. Editable JSON, not code. |
+| `StingTools/Core/Drawing/TitleBlockFactory.cs` | ~900 | The engine. Per-family pipeline (open template → add params → draw lines → place labels → filled regions → place slots with reference planes + corner markers → SaveAs → close). Reflection-resolved `NewLabel` for cross-Revit-version vAlign type discovery. Line-style fallback chain. |
+| `StingTools/Core/Drawing/TitleBlockSpec.cs` | ~360 | POCOs matching the JSON schema in §5. `TitleBlockSpec` + `extends`-aware `TitleBlockSpecRegistry.Resolve`. `ParamSpec` / `LineSpec` / `LabelSpec` / `StaticTextSpec` / `FilledRegionSpec` / `SlotSpec` (with PurposeTag + ViewportType + ScaleHint). |
+| `StingTools/Commands/Drawing/TitleBlockFactoryCommands.cs` | ~380 | Build commands: Create / CreateAll. Both filter abstract specs and call `Resolve` to flatten the `extends` chain. Result-log writer (per-family `.log` beside the `.rfa`). |
+| `StingTools/Commands/Drawing/TitleBlockSlotCommands.cs` | ~340 | **Phase 170 revision** — slot-automation commands: `TitleBlock_AutoPlaceViewports` (route views to slots by purposeTag) and `TitleBlock_ToggleBIMMode` (swap BIM/NONBIM family on the active sheet). |
+| `StingTools/Data/STING_TITLE_BLOCKS.json` | growing | Specs for the title-block library. Common abstract bases (`<SIZE>_common_v*`) plus concrete BIM + NONBIM variants. JSON `extends` keeps duplication near zero. |
+| `StingTools/Data/STING_VIEWPORT_PLACEMENT_RULES.json` | ~50 | **Phase 170 revision** — routing rules mapping `(viewType, namePattern)` → slot `purposeTag`. Editable; consumed by `TitleBlock_AutoPlaceViewports`. |
 
 ### 8.2 Commands
 
 | Tag | Class | Purpose |
 |---|---|---|
-| `TitleBlock_Create`         | `TitleBlockCreateCommand`         | Create one title-block family from the spec, prompting the user to pick which one |
-| `TitleBlock_CreateAll`      | `TitleBlockCreateAllCommand`      | Mint every family declared in `STING_TITLE_BLOCKS.json` (idempotent — skip when target `.rfa` exists and checksum matches) |
-| `TitleBlock_LoadIntoProject`| `TitleBlockLoadIntoProjectCommand`| Load the matching `.rfa` files into the active project from `Families/TitleBlocks/` |
-| `TitleBlock_Audit`          | `TitleBlockAuditCommand`          | Read-only — for each spec, report whether the `.rfa` exists, how many of the declared parameters are present, what cells are missing labels |
+| `TitleBlock_Create`             | `TitleBlockCreateCommand`             | Create one concrete title-block family from the spec. Picker shown when multiple non-abstract families exist; abstract `_common_*` bases filtered out. |
+| `TitleBlock_CreateAll`          | `TitleBlockCreateAllCommand`          | Mint every concrete family in `STING_TITLE_BLOCKS.json`. Skips abstract bases. Each `.rfa` written next to the project's `Families/TitleBlocks/` (or addin DLL fallback). |
+| `TitleBlock_AutoPlaceViewports` | `TitleBlockAutoPlaceViewportsCommand` | **Phase 170 revision** — for selected views, look up `purposeTag` via routing rules + place at active sheet's matching slot. |
+| `TitleBlock_ToggleBIMMode`      | `TitleBlockToggleBIMModeCommand`      | **Phase 170 revision** — swap the active sheet's title-block family between BIM and NONBIM variants; viewports transfer 1:1 since slot ids are stable across modes. |
 
 ### 8.3 Wiring
 

@@ -2577,6 +2577,7 @@ PARAM	33188c51-0a4f-52e7-ad2a-37e68ca7ddda	PRJ_ORG_PROJECT_NAME_TXT	TEXT		13	1	P
 PARAM	85e93a80-42bc-535e-a9e3-bcd76b7c07a0	PRJ_ORG_PROJECT_ADDRESS_TXT	TEXT		13	1	Project site address shown on title block [title block factory v2.0]	1
 PARAM	0c7cd8c7-ae84-5f31-a3ac-cfeffff97954	PRJ_ORG_PROJECT_NUMBER_TXT	TEXT		13	1	Internal project number shown on title block [title block factory v2.0]	1
 PARAM	b34a1ffa-4c71-5469-9806-8fc01315f8a6	PRJ_ORG_RIBA_STAGE_TXT	TEXT		13	1	RIBA Plan of Work stage code (e.g. 0-7) shown on title block [title block factory v2.0]	1
+PARAM	c6796da5-3755-5074-b19f-493318188ac8	STING_SHEET_BIM_MODE_TXT	TEXT		13	1	Per-sheet BIM mode marker — "BIM" or "NONBIM" — set as default value by the title-block family the sheet uses. TitleBlock_ToggleBIMMode swaps the title-block family between BIM/NONBIM variants, this param keeps a record of the current variant for audit purposes [title block factory v2.0 two-family architecture]	1
 PARAM	cbd94272-6db5-557c-8e6d-2f254888afc6	STR_BAR_MARK_TXT	TEXT		16	1	Rebar bar mark from bending schedule [BS 8666:2020]	1
 PARAM	6dfe3811-0d82-500a-a10a-ac51225576c6	STR_BEND_SCHEDULE_REF_TXT	TEXT		16	1	Rebar bending schedule document reference [BS 8666:2020]	1
 PARAM	dbc0b581-2741-5a76-82bc-7956cef3af86	STR_CUTTING_LIST_REF_TXT	TEXT		16	1	Rebar cutting list drawing reference [BS 8666:2020]	1
