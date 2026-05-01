@@ -126,6 +126,74 @@ def stroke_for_style(style: str) -> tuple:
     return (0.25, "#666")
 
 
+# Slot colour palette — keyed by purposeTag prefix. The renderer falls
+# through to a default if no match. Categories also drive stroke style
+# (primary = solid, auxiliary = dashed, symbol = dotted, overlay = dot-dash).
+PURPOSE_PALETTE = {
+    # Primary drawable
+    "main-plan":              "#1F4E79",
+    "main-plan-half":         "#5fa8d3",
+    "quad":                   "#5fa8d3",
+    # Auxiliary content
+    "key-plan":               "#4CAF50",
+    "aerial-key":             "#8BC34A",
+    "notes":                  "#607D8B",
+    "discipline-legend":      "#FF9800",
+    "material-legend":        "#FFB74D",
+    "fire-legend":            "#E53935",
+    "accessibility-legend":   "#7B1FA2",
+    "falls-legend":           "#0288D1",
+    "lighting-legend":        "#FFC107",
+    "schedule":               "#9C27B0",
+    "bom":                    "#9C27B0",
+    "revision-history":       "#F44336",
+    "caption":                "#795548",
+    # Symbol slots
+    "north-arrow":            "#009688",
+    "scale-bar":              "#009688",
+    "qr-code":                "#37474F",
+    "discipline-band":        "#FF9800",
+    # Specialty
+    "presentation-render":    "#FFEB3B",
+    "presentation-perspective":"#FBC02D",
+    "fabrication-isometric":  "#E91E63",
+    "cut-list":               "#AD1457",
+    "spool-refs":             "#880E4F",
+    "rfi-query":              "#FF5722",
+    "rfi-sketch":             "#00BCD4",
+    "markup-plan":            "#00BCD4",
+}
+
+CATEGORY_DASH = {
+    "primary":   "",
+    "auxiliary": "3,2",
+    "symbol":    "1,1.5",
+    "overlay":   "5,1.5,1.5,1.5",
+}
+
+CATEGORY_OPACITY = {
+    "primary":   "1.0",
+    "auxiliary": "0.85",
+    "symbol":    "0.95",
+    "overlay":   "0.65",
+}
+
+
+def slot_colour(slot: dict) -> str:
+    """Resolve preview colour for a slot — explicit override beats palette
+    lookup; falls back to neutral grey if nothing matches."""
+    if slot.get("previewColor"):
+        return slot["previewColor"]
+    tag = (slot.get("purposeTag") or "").lower()
+    if not tag:
+        return "#888"
+    # Try longest-prefix match
+    for key in sorted(PURPOSE_PALETTE.keys(), key=len, reverse=True):
+        if tag.startswith(key):
+            return PURPOSE_PALETTE[key]
+    return "#888"
+
+
 def safe_xml(s: str) -> str:
     return html.escape(s or "", quote=True)
 
@@ -233,28 +301,69 @@ def render_svg(fam: dict, paper_w: float, paper_h: float, lib: dict) -> str:
                    f'font-style="italic">'
                    f'{{{safe_xml(short)}}}</text></g>')
 
-    # Slots
-    for sl in eff.get("slots", []) or []:
+    # Slots — colour-coded per purposeTag; stroke style varies by category.
+    # Sort so primary slots render first (under) and overlays on top.
+    cat_order = {"primary": 0, "auxiliary": 1, "symbol": 2, "overlay": 3}
+    slots_sorted = sorted(eff.get("slots", []) or [],
+                          key=lambda s: cat_order.get(s.get("category", "primary"), 0))
+    palette_legend = []  # collect unique purposeTags for the title-bar legend
+    for sl in slots_sorted:
         if not sl.get("anchor") or not sl.get("size"):
             continue
         x, y = sl["anchor"][0], sl["anchor"][1]
         w, h = sl["size"][0], sl["size"][1]
+        col   = slot_colour(sl)
+        cat   = sl.get("category", "primary")
+        dash  = CATEGORY_DASH.get(cat, "3,2")
+        op    = CATEGORY_OPACITY.get(cat, "0.85")
+        # Soft fill behind primary + auxiliary so overlapping slots are visible
+        fill_op = "0.05" if cat == "primary" else "0.10" if cat == "auxiliary" else "0.0"
         out.append(f'<rect x="{x}" y="{y}" width="{w}" height="{h}" '
-                   f'fill="none" stroke="#5fa8d3" stroke-width="0.4" '
-                   f'stroke-dasharray="3,2"/>')
-        # corner marker
+                   f'fill="{col}" fill-opacity="{fill_op}" '
+                   f'stroke="{col}" stroke-width="0.5" '
+                   f'stroke-dasharray="{dash}" opacity="{op}"/>')
+        # corner badge — small solid rectangle behind the id text so it
+        # stays readable against any background
         sl_id = sl.get("id", "?")
-        out.append(f'<g transform="translate({x+5},{y+h-5}) scale(1,-1)">'
-                   f'<text x="0" y="0" font-size="6" font-weight="bold" '
-                   f'fill="#5fa8d3">{safe_xml(sl_id)}</text></g>')
-        # purpose tag
-        if sl.get("purposeTag"):
-            out.append(f'<g transform="translate({x+5},{y+h-12}) scale(1,-1)">'
-                       f'<text x="0" y="0" font-size="3.5" '
-                       f'fill="#5fa8d3" opacity="0.7">'
-                       f'{safe_xml(sl["purposeTag"])}</text></g>')
+        badge_w = max(12, len(sl_id) * 2.5 + 4)
+        badge_h = 7
+        out.append(f'<rect x="{x}" y="{y+h-badge_h}" width="{badge_w}" '
+                   f'height="{badge_h}" fill="{col}" opacity="0.9"/>')
+        out.append(f'<g transform="translate({x+2},{y+h-1.5}) scale(1,-1)">'
+                   f'<text x="0" y="0" font-size="4" font-weight="bold" '
+                   f'fill="#fff">{safe_xml(sl_id)}</text></g>')
+        # purpose tag below the badge
+        tag = sl.get("purposeTag")
+        if tag:
+            out.append(f'<g transform="translate({x+2},{y+h-badge_h-2}) scale(1,-1)">'
+                       f'<text x="0" y="0" font-size="3" '
+                       f'fill="{col}" opacity="0.85">'
+                       f'{safe_xml(tag)}</text></g>')
+            if tag not in [pl[0] for pl in palette_legend]:
+                palette_legend.append((tag, col))
 
     out.append('</g>')
+
+    # Slot palette legend strip — sits below the title bar, above the
+    # sheet. Shows up to 12 unique purposeTags with their colour swatches
+    # so the reviewer can decode the slot outlines without referring to
+    # the source file.
+    if palette_legend:
+        leg_y = title_h + 6
+        leg_x = margin
+        out.append(f'<text x="{leg_x}" y="{leg_y - 1}" font-size="6" '
+                   f'fill="#666" font-weight="bold">slot legend:</text>')
+        leg_x += 50
+        max_show = min(12, len(palette_legend))
+        for i, (tag, col) in enumerate(palette_legend[:max_show]):
+            out.append(f'<rect x="{leg_x}" y="{leg_y - 5}" width="6" height="6" '
+                       f'fill="{col}" opacity="0.85"/>')
+            out.append(f'<text x="{leg_x + 9}" y="{leg_y - 1}" font-size="5" '
+                       f'fill="#333">{safe_xml(tag)}</text>')
+            leg_x += 12 + len(tag) * 3
+        if len(palette_legend) > max_show:
+            out.append(f'<text x="{leg_x}" y="{leg_y - 1}" font-size="5" '
+                       f'fill="#999">+{len(palette_legend) - max_show} more</text>')
 
     # Footer with stats + description (under the sheet)
     counts = {

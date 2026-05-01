@@ -2488,6 +2488,7 @@
             701
           ],
           "purposeTag": "main-plan",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Main drawing area — full-bleed plan / 3D / section",
@@ -2505,6 +2506,7 @@
             701
           ],
           "purposeTag": "main-plan-half-left",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Left half — 50/50 split",
@@ -2522,6 +2524,7 @@
             701
           ],
           "purposeTag": "main-plan-half-right",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Right half — 50/50 split",
@@ -2539,6 +2542,7 @@
             343
           ],
           "purposeTag": "quad-bottom-left",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Bottom-left quadrant",
           "createReferencePlanes": false,
@@ -2555,6 +2559,7 @@
             343
           ],
           "purposeTag": "quad-bottom-right",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Bottom-right quadrant",
           "createReferencePlanes": false,
@@ -2571,6 +2576,7 @@
             343
           ],
           "purposeTag": "quad-top-left",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Top-left quadrant",
           "createReferencePlanes": false,
@@ -2587,6 +2593,7 @@
             343
           ],
           "purposeTag": "quad-top-right",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Top-right quadrant",
           "createReferencePlanes": false,
@@ -2595,18 +2602,112 @@
         {
           "id": "KP",
           "anchor": [
-            1008,
-            140
+            989,
+            705
           ],
           "size": [
-            166,
+            190,
             126
           ],
           "purposeTag": "key-plan",
+          "category": "auxiliary",
           "scaleHint": 500,
           "description": "Key-plan pocket — small location overview",
           "createReferencePlanes": false,
-          "showCornerMarker": true
+          "showCornerMarker": true,
+          "respectShowToggle": true
+        },
+        {
+          "id": "NOTES",
+          "anchor": [
+            989,
+            502
+          ],
+          "size": [
+            190,
+            196
+          ],
+          "purposeTag": "notes",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "Notes panel — drafting view or legend with general notes",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Legend_BuildNotes"
+        },
+        {
+          "id": "LEGEND",
+          "anchor": [
+            989,
+            329
+          ],
+          "size": [
+            190,
+            168
+          ],
+          "purposeTag": "discipline-legend",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "Discipline legend — symbol key matching the active discipline",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Legend_DisciplineLegendBind"
+        },
+        {
+          "id": "REV",
+          "anchor": [
+            989,
+            135
+          ],
+          "size": [
+            190,
+            189
+          ],
+          "purposeTag": "revision-history",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "rotation": 0,
+          "description": "Revision-history schedule — auto-populated from Revit's revision data",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "respectShowToggle": true,
+          "automationHook": "Revisions_AutoPopulateSchedule"
+        },
+        {
+          "id": "NA",
+          "anchor": [
+            1156,
+            137
+          ],
+          "size": [
+            18,
+            18
+          ],
+          "purposeTag": "north-arrow",
+          "category": "symbol",
+          "description": "North-arrow symbol — nested family, hides via TB_SHOW_NORTH_ARROW_BOOL",
+          "createReferencePlanes": false,
+          "showCornerMarker": false,
+          "respectShowToggle": true,
+          "automationHook": "Symbol_PlaceNorthArrow"
+        },
+        {
+          "id": "SB",
+          "anchor": [
+            15,
+            135
+          ],
+          "size": [
+            119,
+            8
+          ],
+          "purposeTag": "scale-bar",
+          "category": "symbol",
+          "description": "Scale-bar — nested family, hides via TB_SHOW_SCALEBAR_BOOL",
+          "createReferencePlanes": false,
+          "showCornerMarker": false,
+          "respectShowToggle": true,
+          "automationHook": "Symbol_PlaceScaleBar"
         }
       ]
     },
@@ -3849,6 +3950,7 @@
             1049
           ],
           "purposeTag": "main-plan",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Main drawing area — full-bleed plan / 3D / section",
@@ -3866,6 +3968,7 @@
             1049
           ],
           "purposeTag": "main-plan-half-left",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Left half — 50/50 split",
@@ -3883,6 +3986,7 @@
             1049
           ],
           "purposeTag": "main-plan-half-right",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Right half — 50/50 split",
@@ -3900,6 +4004,7 @@
             517
           ],
           "purposeTag": "quad-bottom-left",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Bottom-left quadrant",
           "createReferencePlanes": false,
@@ -3916,6 +4021,7 @@
             517
           ],
           "purposeTag": "quad-bottom-right",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Bottom-right quadrant",
           "createReferencePlanes": false,
@@ -3932,6 +4038,7 @@
             517
           ],
           "purposeTag": "quad-top-left",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Top-left quadrant",
           "createReferencePlanes": false,
@@ -3948,6 +4055,7 @@
             517
           ],
           "purposeTag": "quad-top-right",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Top-right quadrant",
           "createReferencePlanes": false,
@@ -3956,18 +4064,112 @@
         {
           "id": "KP",
           "anchor": [
-            708,
-            140
+            696,
+            990
           ],
           "size": [
-            118,
+            135,
             189
           ],
           "purposeTag": "key-plan",
+          "category": "auxiliary",
           "scaleHint": 500,
           "description": "Key-plan pocket — small location overview",
           "createReferencePlanes": false,
-          "showCornerMarker": true
+          "showCornerMarker": true,
+          "respectShowToggle": true
+        },
+        {
+          "id": "NOTES",
+          "anchor": [
+            696,
+            689
+          ],
+          "size": [
+            135,
+            294
+          ],
+          "purposeTag": "notes",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "Notes panel — drafting view or legend with general notes",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Legend_BuildNotes"
+        },
+        {
+          "id": "LEGEND",
+          "anchor": [
+            696,
+            432
+          ],
+          "size": [
+            135,
+            252
+          ],
+          "purposeTag": "discipline-legend",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "Discipline legend — symbol key matching the active discipline",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Legend_DisciplineLegendBind"
+        },
+        {
+          "id": "REV",
+          "anchor": [
+            696,
+            135
+          ],
+          "size": [
+            135,
+            292
+          ],
+          "purposeTag": "revision-history",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "rotation": 0,
+          "description": "Revision-history schedule — auto-populated from Revit's revision data",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "respectShowToggle": true,
+          "automationHook": "Revisions_AutoPopulateSchedule"
+        },
+        {
+          "id": "NA",
+          "anchor": [
+            808,
+            137
+          ],
+          "size": [
+            18,
+            18
+          ],
+          "purposeTag": "north-arrow",
+          "category": "symbol",
+          "description": "North-arrow symbol — nested family, hides via TB_SHOW_NORTH_ARROW_BOOL",
+          "createReferencePlanes": false,
+          "showCornerMarker": false,
+          "respectShowToggle": true,
+          "automationHook": "Symbol_PlaceNorthArrow"
+        },
+        {
+          "id": "SB",
+          "anchor": [
+            15,
+            135
+          ],
+          "size": [
+            84,
+            8
+          ],
+          "purposeTag": "scale-bar",
+          "category": "symbol",
+          "description": "Scale-bar — nested family, hides via TB_SHOW_SCALEBAR_BOOL",
+          "createReferencePlanes": false,
+          "showCornerMarker": false,
+          "respectShowToggle": true,
+          "automationHook": "Symbol_PlaceScaleBar"
         }
       ]
     },
@@ -5210,6 +5412,7 @@
             474
           ],
           "purposeTag": "main-plan",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Main drawing area — full-bleed plan / 3D / section",
@@ -5227,6 +5430,7 @@
             474
           ],
           "purposeTag": "main-plan-half-left",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Left half — 50/50 split",
@@ -5244,6 +5448,7 @@
             474
           ],
           "purposeTag": "main-plan-half-right",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Right half — 50/50 split",
@@ -5261,6 +5466,7 @@
             229
           ],
           "purposeTag": "quad-bottom-left",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Bottom-left quadrant",
           "createReferencePlanes": false,
@@ -5277,6 +5483,7 @@
             229
           ],
           "purposeTag": "quad-bottom-right",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Bottom-right quadrant",
           "createReferencePlanes": false,
@@ -5293,6 +5500,7 @@
             229
           ],
           "purposeTag": "quad-top-left",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Top-left quadrant",
           "createReferencePlanes": false,
@@ -5309,6 +5517,7 @@
             229
           ],
           "purposeTag": "quad-top-right",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Top-right quadrant",
           "createReferencePlanes": false,
@@ -5317,18 +5526,112 @@
         {
           "id": "KP",
           "anchor": [
-            708,
-            120
+            696,
+            499
           ],
           "size": [
-            118,
+            135,
             85
           ],
           "purposeTag": "key-plan",
+          "category": "auxiliary",
           "scaleHint": 500,
           "description": "Key-plan pocket — small location overview",
           "createReferencePlanes": false,
-          "showCornerMarker": true
+          "showCornerMarker": true,
+          "respectShowToggle": true
+        },
+        {
+          "id": "NOTES",
+          "anchor": [
+            696,
+            359
+          ],
+          "size": [
+            135,
+            133
+          ],
+          "purposeTag": "notes",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "Notes panel — drafting view or legend with general notes",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Legend_BuildNotes"
+        },
+        {
+          "id": "LEGEND",
+          "anchor": [
+            696,
+            240
+          ],
+          "size": [
+            135,
+            114
+          ],
+          "purposeTag": "discipline-legend",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "Discipline legend — symbol key matching the active discipline",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Legend_DisciplineLegendBind"
+        },
+        {
+          "id": "REV",
+          "anchor": [
+            696,
+            115
+          ],
+          "size": [
+            135,
+            120
+          ],
+          "purposeTag": "revision-history",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "rotation": 0,
+          "description": "Revision-history schedule — auto-populated from Revit's revision data",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "respectShowToggle": true,
+          "automationHook": "Revisions_AutoPopulateSchedule"
+        },
+        {
+          "id": "NA",
+          "anchor": [
+            808,
+            117
+          ],
+          "size": [
+            18,
+            18
+          ],
+          "purposeTag": "north-arrow",
+          "category": "symbol",
+          "description": "North-arrow symbol — nested family, hides via TB_SHOW_NORTH_ARROW_BOOL",
+          "createReferencePlanes": false,
+          "showCornerMarker": false,
+          "respectShowToggle": true,
+          "automationHook": "Symbol_PlaceNorthArrow"
+        },
+        {
+          "id": "SB",
+          "anchor": [
+            15,
+            115
+          ],
+          "size": [
+            84,
+            8
+          ],
+          "purposeTag": "scale-bar",
+          "category": "symbol",
+          "description": "Scale-bar — nested family, hides via TB_SHOW_SCALEBAR_BOOL",
+          "createReferencePlanes": false,
+          "showCornerMarker": false,
+          "respectShowToggle": true,
+          "automationHook": "Symbol_PlaceScaleBar"
         }
       ]
     },
@@ -5915,6 +6218,7 @@
             721
           ],
           "purposeTag": "main-plan",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Main drawing area — full-bleed plan / 3D / section",
@@ -5932,6 +6236,7 @@
             721
           ],
           "purposeTag": "main-plan-half-left",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Left half — 50/50 split",
@@ -5949,6 +6254,7 @@
             721
           ],
           "purposeTag": "main-plan-half-right",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Right half — 50/50 split",
@@ -5966,6 +6272,7 @@
             353
           ],
           "purposeTag": "quad-bottom-left",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Bottom-left quadrant",
           "createReferencePlanes": false,
@@ -5982,6 +6289,7 @@
             353
           ],
           "purposeTag": "quad-bottom-right",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Bottom-right quadrant",
           "createReferencePlanes": false,
@@ -5998,6 +6306,7 @@
             353
           ],
           "purposeTag": "quad-top-left",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Top-left quadrant",
           "createReferencePlanes": false,
@@ -6014,6 +6323,7 @@
             353
           ],
           "purposeTag": "quad-top-right",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Top-right quadrant",
           "createReferencePlanes": false,
@@ -6022,18 +6332,112 @@
         {
           "id": "KP",
           "anchor": [
-            496,
-            120
+            489,
+            701
           ],
           "size": [
-            83,
+            95,
             130
           ],
           "purposeTag": "key-plan",
+          "category": "auxiliary",
           "scaleHint": 500,
           "description": "Key-plan pocket — small location overview",
           "createReferencePlanes": false,
-          "showCornerMarker": true
+          "showCornerMarker": true,
+          "respectShowToggle": true
+        },
+        {
+          "id": "NOTES",
+          "anchor": [
+            489,
+            492
+          ],
+          "size": [
+            95,
+            202
+          ],
+          "purposeTag": "notes",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "Notes panel — drafting view or legend with general notes",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Legend_BuildNotes"
+        },
+        {
+          "id": "LEGEND",
+          "anchor": [
+            489,
+            314
+          ],
+          "size": [
+            95,
+            173
+          ],
+          "purposeTag": "discipline-legend",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "Discipline legend — symbol key matching the active discipline",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Legend_DisciplineLegendBind"
+        },
+        {
+          "id": "REV",
+          "anchor": [
+            489,
+            115
+          ],
+          "size": [
+            95,
+            194
+          ],
+          "purposeTag": "revision-history",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "rotation": 0,
+          "description": "Revision-history schedule — auto-populated from Revit's revision data",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "respectShowToggle": true,
+          "automationHook": "Revisions_AutoPopulateSchedule"
+        },
+        {
+          "id": "NA",
+          "anchor": [
+            561,
+            117
+          ],
+          "size": [
+            18,
+            18
+          ],
+          "purposeTag": "north-arrow",
+          "category": "symbol",
+          "description": "North-arrow symbol — nested family, hides via TB_SHOW_NORTH_ARROW_BOOL",
+          "createReferencePlanes": false,
+          "showCornerMarker": false,
+          "respectShowToggle": true,
+          "automationHook": "Symbol_PlaceNorthArrow"
+        },
+        {
+          "id": "SB",
+          "anchor": [
+            15,
+            115
+          ],
+          "size": [
+            59,
+            8
+          ],
+          "purposeTag": "scale-bar",
+          "category": "symbol",
+          "description": "Scale-bar — nested family, hides via TB_SHOW_SCALEBAR_BOOL",
+          "createReferencePlanes": false,
+          "showCornerMarker": false,
+          "respectShowToggle": true,
+          "automationHook": "Symbol_PlaceScaleBar"
         }
       ]
     },
@@ -7276,6 +7680,7 @@
             322
           ],
           "purposeTag": "main-plan",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Main drawing area — full-bleed plan / 3D / section",
@@ -7293,6 +7698,7 @@
             322
           ],
           "purposeTag": "main-plan-half-left",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Left half — 50/50 split",
@@ -7310,6 +7716,7 @@
             322
           ],
           "purposeTag": "main-plan-half-right",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Right half — 50/50 split",
@@ -7327,6 +7734,7 @@
             153
           ],
           "purposeTag": "quad-bottom-left",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Bottom-left quadrant",
           "createReferencePlanes": false,
@@ -7343,6 +7751,7 @@
             153
           ],
           "purposeTag": "quad-bottom-right",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Bottom-right quadrant",
           "createReferencePlanes": false,
@@ -7359,6 +7768,7 @@
             153
           ],
           "purposeTag": "quad-top-left",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Top-left quadrant",
           "createReferencePlanes": false,
@@ -7375,6 +7785,7 @@
             153
           ],
           "purposeTag": "quad-top-right",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Top-right quadrant",
           "createReferencePlanes": false,
@@ -7383,18 +7794,112 @@
         {
           "id": "KP",
           "anchor": [
-            496,
-            98
+            489,
+            352
           ],
           "size": [
-            83,
+            95,
             58
           ],
           "purposeTag": "key-plan",
+          "category": "auxiliary",
           "scaleHint": 500,
           "description": "Key-plan pocket — small location overview",
           "createReferencePlanes": false,
-          "showCornerMarker": true
+          "showCornerMarker": true,
+          "respectShowToggle": true
+        },
+        {
+          "id": "NOTES",
+          "anchor": [
+            489,
+            255
+          ],
+          "size": [
+            95,
+            90
+          ],
+          "purposeTag": "notes",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "Notes panel — drafting view or legend with general notes",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Legend_BuildNotes"
+        },
+        {
+          "id": "LEGEND",
+          "anchor": [
+            489,
+            173
+          ],
+          "size": [
+            95,
+            77
+          ],
+          "purposeTag": "discipline-legend",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "Discipline legend — symbol key matching the active discipline",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Legend_DisciplineLegendBind"
+        },
+        {
+          "id": "REV",
+          "anchor": [
+            489,
+            93
+          ],
+          "size": [
+            95,
+            75
+          ],
+          "purposeTag": "revision-history",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "rotation": 0,
+          "description": "Revision-history schedule — auto-populated from Revit's revision data",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "respectShowToggle": true,
+          "automationHook": "Revisions_AutoPopulateSchedule"
+        },
+        {
+          "id": "NA",
+          "anchor": [
+            561,
+            95
+          ],
+          "size": [
+            18,
+            18
+          ],
+          "purposeTag": "north-arrow",
+          "category": "symbol",
+          "description": "North-arrow symbol — nested family, hides via TB_SHOW_NORTH_ARROW_BOOL",
+          "createReferencePlanes": false,
+          "showCornerMarker": false,
+          "respectShowToggle": true,
+          "automationHook": "Symbol_PlaceNorthArrow"
+        },
+        {
+          "id": "SB",
+          "anchor": [
+            15,
+            93
+          ],
+          "size": [
+            59,
+            8
+          ],
+          "purposeTag": "scale-bar",
+          "category": "symbol",
+          "description": "Scale-bar — nested family, hides via TB_SHOW_SCALEBAR_BOOL",
+          "createReferencePlanes": false,
+          "showCornerMarker": false,
+          "respectShowToggle": true,
+          "automationHook": "Symbol_PlaceScaleBar"
         }
       ]
     },
@@ -8637,6 +9142,7 @@
             496
           ],
           "purposeTag": "main-plan",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Main drawing area — full-bleed plan / 3D / section",
@@ -8654,6 +9160,7 @@
             496
           ],
           "purposeTag": "main-plan-half-left",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Left half — 50/50 split",
@@ -8671,6 +9178,7 @@
             496
           ],
           "purposeTag": "main-plan-half-right",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Right half — 50/50 split",
@@ -8688,6 +9196,7 @@
             240
           ],
           "purposeTag": "quad-bottom-left",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Bottom-left quadrant",
           "createReferencePlanes": false,
@@ -8704,6 +9213,7 @@
             240
           ],
           "purposeTag": "quad-bottom-right",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Bottom-right quadrant",
           "createReferencePlanes": false,
@@ -8720,6 +9230,7 @@
             240
           ],
           "purposeTag": "quad-top-left",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Top-left quadrant",
           "createReferencePlanes": false,
@@ -8736,6 +9247,7 @@
             240
           ],
           "purposeTag": "quad-top-right",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Top-right quadrant",
           "createReferencePlanes": false,
@@ -8744,18 +9256,112 @@
         {
           "id": "KP",
           "anchor": [
-            346,
-            98
+            343,
+            495
           ],
           "size": [
-            59,
+            67,
             89
           ],
           "purposeTag": "key-plan",
+          "category": "auxiliary",
           "scaleHint": 500,
           "description": "Key-plan pocket — small location overview",
           "createReferencePlanes": false,
-          "showCornerMarker": true
+          "showCornerMarker": true,
+          "respectShowToggle": true
+        },
+        {
+          "id": "NOTES",
+          "anchor": [
+            343,
+            349
+          ],
+          "size": [
+            67,
+            139
+          ],
+          "purposeTag": "notes",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "Notes panel — drafting view or legend with general notes",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Legend_BuildNotes"
+        },
+        {
+          "id": "LEGEND",
+          "anchor": [
+            343,
+            225
+          ],
+          "size": [
+            67,
+            119
+          ],
+          "purposeTag": "discipline-legend",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "Discipline legend — symbol key matching the active discipline",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Legend_DisciplineLegendBind"
+        },
+        {
+          "id": "REV",
+          "anchor": [
+            343,
+            93
+          ],
+          "size": [
+            67,
+            127
+          ],
+          "purposeTag": "revision-history",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "rotation": 0,
+          "description": "Revision-history schedule — auto-populated from Revit's revision data",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "respectShowToggle": true,
+          "automationHook": "Revisions_AutoPopulateSchedule"
+        },
+        {
+          "id": "NA",
+          "anchor": [
+            387,
+            95
+          ],
+          "size": [
+            18,
+            18
+          ],
+          "purposeTag": "north-arrow",
+          "category": "symbol",
+          "description": "North-arrow symbol — nested family, hides via TB_SHOW_NORTH_ARROW_BOOL",
+          "createReferencePlanes": false,
+          "showCornerMarker": false,
+          "respectShowToggle": true,
+          "automationHook": "Symbol_PlaceNorthArrow"
+        },
+        {
+          "id": "SB",
+          "anchor": [
+            15,
+            93
+          ],
+          "size": [
+            42,
+            8
+          ],
+          "purposeTag": "scale-bar",
+          "category": "symbol",
+          "description": "Scale-bar — nested family, hides via TB_SHOW_SCALEBAR_BOOL",
+          "createReferencePlanes": false,
+          "showCornerMarker": false,
+          "respectShowToggle": true,
+          "automationHook": "Symbol_PlaceScaleBar"
         }
       ]
     },
@@ -9998,6 +10604,7 @@
             217
           ],
           "purposeTag": "main-plan",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Main drawing area — full-bleed plan / 3D / section",
@@ -10015,6 +10622,7 @@
             217
           ],
           "purposeTag": "main-plan-half-left",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Left half — 50/50 split",
@@ -10032,6 +10640,7 @@
             217
           ],
           "purposeTag": "main-plan-half-right",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Right half — 50/50 split",
@@ -10049,6 +10658,7 @@
             101
           ],
           "purposeTag": "quad-bottom-left",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Bottom-left quadrant",
           "createReferencePlanes": false,
@@ -10065,6 +10675,7 @@
             101
           ],
           "purposeTag": "quad-bottom-right",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Bottom-right quadrant",
           "createReferencePlanes": false,
@@ -10081,6 +10692,7 @@
             101
           ],
           "purposeTag": "quad-top-left",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Top-left quadrant",
           "createReferencePlanes": false,
@@ -10097,10 +10709,47 @@
             101
           ],
           "purposeTag": "quad-top-right",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Top-right quadrant",
           "createReferencePlanes": false,
           "showCornerMarker": true
+        },
+        {
+          "id": "NA",
+          "anchor": [
+            387,
+            77
+          ],
+          "size": [
+            18,
+            18
+          ],
+          "purposeTag": "north-arrow",
+          "category": "symbol",
+          "description": "North-arrow symbol — nested family, hides via TB_SHOW_NORTH_ARROW_BOOL",
+          "createReferencePlanes": false,
+          "showCornerMarker": false,
+          "respectShowToggle": true,
+          "automationHook": "Symbol_PlaceNorthArrow"
+        },
+        {
+          "id": "SB",
+          "anchor": [
+            15,
+            75
+          ],
+          "size": [
+            42,
+            8
+          ],
+          "purposeTag": "scale-bar",
+          "category": "symbol",
+          "description": "Scale-bar — nested family, hides via TB_SHOW_SCALEBAR_BOOL",
+          "createReferencePlanes": false,
+          "showCornerMarker": false,
+          "respectShowToggle": true,
+          "automationHook": "Symbol_PlaceScaleBar"
         }
       ]
     },
@@ -11343,6 +11992,7 @@
             340
           ],
           "purposeTag": "main-plan",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Main drawing area — full-bleed plan / 3D / section",
@@ -11360,6 +12010,7 @@
             340
           ],
           "purposeTag": "main-plan-half-left",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Left half — 50/50 split",
@@ -11377,6 +12028,7 @@
             340
           ],
           "purposeTag": "main-plan-half-right",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Right half — 50/50 split",
@@ -11394,6 +12046,7 @@
             162
           ],
           "purposeTag": "quad-bottom-left",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Bottom-left quadrant",
           "createReferencePlanes": false,
@@ -11410,6 +12063,7 @@
             162
           ],
           "purposeTag": "quad-bottom-right",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Bottom-right quadrant",
           "createReferencePlanes": false,
@@ -11426,6 +12080,7 @@
             162
           ],
           "purposeTag": "quad-top-left",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Top-left quadrant",
           "createReferencePlanes": false,
@@ -11442,10 +12097,47 @@
             162
           ],
           "purposeTag": "quad-top-right",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Top-right quadrant",
           "createReferencePlanes": false,
           "showCornerMarker": true
+        },
+        {
+          "id": "NA",
+          "anchor": [
+            264,
+            77
+          ],
+          "size": [
+            18,
+            18
+          ],
+          "purposeTag": "north-arrow",
+          "category": "symbol",
+          "description": "North-arrow symbol — nested family, hides via TB_SHOW_NORTH_ARROW_BOOL",
+          "createReferencePlanes": false,
+          "showCornerMarker": false,
+          "respectShowToggle": true,
+          "automationHook": "Symbol_PlaceNorthArrow"
+        },
+        {
+          "id": "SB",
+          "anchor": [
+            15,
+            75
+          ],
+          "size": [
+            30,
+            8
+          ],
+          "purposeTag": "scale-bar",
+          "category": "symbol",
+          "description": "Scale-bar — nested family, hides via TB_SHOW_SCALEBAR_BOOL",
+          "createReferencePlanes": false,
+          "showCornerMarker": false,
+          "respectShowToggle": true,
+          "automationHook": "Symbol_PlaceScaleBar"
         }
       ]
     },
@@ -12688,6 +13380,7 @@
             144
           ],
           "purposeTag": "main-plan",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Main drawing area — full-bleed plan / 3D / section",
@@ -12705,6 +13398,7 @@
             144
           ],
           "purposeTag": "main-plan-half-left",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Left half — 50/50 split",
@@ -12722,6 +13416,7 @@
             144
           ],
           "purposeTag": "main-plan-half-right",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Right half — 50/50 split",
@@ -12739,6 +13434,7 @@
             64
           ],
           "purposeTag": "quad-bottom-left",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Bottom-left quadrant",
           "createReferencePlanes": false,
@@ -12755,6 +13451,7 @@
             64
           ],
           "purposeTag": "quad-bottom-right",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Bottom-right quadrant",
           "createReferencePlanes": false,
@@ -12771,6 +13468,7 @@
             64
           ],
           "purposeTag": "quad-top-left",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Top-left quadrant",
           "createReferencePlanes": false,
@@ -12787,6 +13485,7 @@
             64
           ],
           "purposeTag": "quad-top-right",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Top-right quadrant",
           "createReferencePlanes": false,
@@ -14033,6 +14732,7 @@
             231
           ],
           "purposeTag": "main-plan",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Main drawing area — full-bleed plan / 3D / section",
@@ -14050,6 +14750,7 @@
             231
           ],
           "purposeTag": "main-plan-half-left",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Left half — 50/50 split",
@@ -14067,6 +14768,7 @@
             231
           ],
           "purposeTag": "main-plan-half-right",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Right half — 50/50 split",
@@ -14084,6 +14786,7 @@
             108
           ],
           "purposeTag": "quad-bottom-left",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Bottom-left quadrant",
           "createReferencePlanes": false,
@@ -14100,6 +14803,7 @@
             108
           ],
           "purposeTag": "quad-bottom-right",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Bottom-right quadrant",
           "createReferencePlanes": false,
@@ -14116,6 +14820,7 @@
             108
           ],
           "purposeTag": "quad-top-left",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Top-left quadrant",
           "createReferencePlanes": false,
@@ -14132,6 +14837,7 @@
             108
           ],
           "purposeTag": "quad-top-right",
+          "category": "primary",
           "scaleHint": 200,
           "description": "Top-right quadrant",
           "createReferencePlanes": false,
@@ -15460,7 +16166,7 @@
       ],
       "slots": [
         {
-          "id": "S01",
+          "id": "ISO",
           "anchor": [
             10,
             85
@@ -15470,11 +16176,66 @@
             504
           ],
           "purposeTag": "fabrication-isometric",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 25,
           "description": "Main fabrication isometric / spool drawing area for the pipe spool",
           "createReferencePlanes": true,
           "showCornerMarker": true
+        },
+        {
+          "id": "BOM",
+          "anchor": [
+            643,
+            85
+          ],
+          "size": [
+            196,
+            484
+          ],
+          "purposeTag": "bom",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "Bill of Materials — Revit Schedule view inside the right-strip",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Fab_BuildBOMSchedule"
+        },
+        {
+          "id": "CUT",
+          "anchor": [
+            643,
+            572
+          ],
+          "size": [
+            196,
+            18
+          ],
+          "purposeTag": "cut-list",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "Cut list / lengths summary — small schedule",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Fab_BuildCutList"
+        },
+        {
+          "id": "REF",
+          "anchor": [
+            10,
+            561
+          ],
+          "size": [
+            60,
+            22
+          ],
+          "purposeTag": "spool-refs",
+          "category": "overlay",
+          "viewportType": "No Title",
+          "description": "Spool reference list — drafting view callout linking to other spools",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Fab_LinkSpoolRefs"
         }
       ]
     },
@@ -16143,7 +16904,7 @@
       ],
       "slots": [
         {
-          "id": "S01",
+          "id": "ISO",
           "anchor": [
             10,
             85
@@ -16153,11 +16914,66 @@
             504
           ],
           "purposeTag": "fabrication-isometric",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 25,
           "description": "Main fabrication isometric / spool drawing area for the duct spool",
           "createReferencePlanes": true,
           "showCornerMarker": true
+        },
+        {
+          "id": "BOM",
+          "anchor": [
+            643,
+            85
+          ],
+          "size": [
+            196,
+            484
+          ],
+          "purposeTag": "bom",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "Bill of Materials — Revit Schedule view inside the right-strip",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Fab_BuildBOMSchedule"
+        },
+        {
+          "id": "CUT",
+          "anchor": [
+            643,
+            572
+          ],
+          "size": [
+            196,
+            18
+          ],
+          "purposeTag": "cut-list",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "Cut list / lengths summary — small schedule",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Fab_BuildCutList"
+        },
+        {
+          "id": "REF",
+          "anchor": [
+            10,
+            561
+          ],
+          "size": [
+            60,
+            22
+          ],
+          "purposeTag": "spool-refs",
+          "category": "overlay",
+          "viewportType": "No Title",
+          "description": "Spool reference list — drafting view callout linking to other spools",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Fab_LinkSpoolRefs"
         }
       ]
     },
@@ -16826,7 +17642,7 @@
       ],
       "slots": [
         {
-          "id": "S01",
+          "id": "ISO",
           "anchor": [
             10,
             85
@@ -16836,11 +17652,66 @@
             504
           ],
           "purposeTag": "fabrication-isometric",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 25,
           "description": "Main fabrication isometric / spool drawing area for the conduit / cable assembly",
           "createReferencePlanes": true,
           "showCornerMarker": true
+        },
+        {
+          "id": "BOM",
+          "anchor": [
+            643,
+            85
+          ],
+          "size": [
+            196,
+            484
+          ],
+          "purposeTag": "bom",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "Bill of Materials — Revit Schedule view inside the right-strip",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Fab_BuildBOMSchedule"
+        },
+        {
+          "id": "CUT",
+          "anchor": [
+            643,
+            572
+          ],
+          "size": [
+            196,
+            18
+          ],
+          "purposeTag": "cut-list",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "Cut list / lengths summary — small schedule",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Fab_BuildCutList"
+        },
+        {
+          "id": "REF",
+          "anchor": [
+            10,
+            561
+          ],
+          "size": [
+            60,
+            22
+          ],
+          "purposeTag": "spool-refs",
+          "category": "overlay",
+          "viewportType": "No Title",
+          "description": "Spool reference list — drafting view callout linking to other spools",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Fab_LinkSpoolRefs"
         }
       ]
     },
@@ -17509,7 +18380,7 @@
       ],
       "slots": [
         {
-          "id": "S01",
+          "id": "ISO",
           "anchor": [
             10,
             85
@@ -17519,11 +18390,66 @@
             504
           ],
           "purposeTag": "fabrication-isometric",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 25,
           "description": "Main fabrication isometric / spool drawing area for the hanger / support",
           "createReferencePlanes": true,
           "showCornerMarker": true
+        },
+        {
+          "id": "BOM",
+          "anchor": [
+            643,
+            85
+          ],
+          "size": [
+            196,
+            484
+          ],
+          "purposeTag": "bom",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "Bill of Materials — Revit Schedule view inside the right-strip",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Fab_BuildBOMSchedule"
+        },
+        {
+          "id": "CUT",
+          "anchor": [
+            643,
+            572
+          ],
+          "size": [
+            196,
+            18
+          ],
+          "purposeTag": "cut-list",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "Cut list / lengths summary — small schedule",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Fab_BuildCutList"
+        },
+        {
+          "id": "REF",
+          "anchor": [
+            10,
+            561
+          ],
+          "size": [
+            60,
+            22
+          ],
+          "purposeTag": "spool-refs",
+          "category": "overlay",
+          "viewportType": "No Title",
+          "description": "Spool reference list — drafting view callout linking to other spools",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Fab_LinkSpoolRefs"
         }
       ]
     },
@@ -17774,7 +18700,7 @@
       ],
       "slots": [
         {
-          "id": "S01",
+          "id": "RENDER",
           "anchor": [
             10,
             10
@@ -17784,10 +18710,30 @@
             574
           ],
           "purposeTag": "presentation-render",
+          "category": "primary",
           "scaleHint": 50,
-          "description": "Full-bleed render / perspective area",
+          "aspectLock": true,
+          "description": "Full-bleed render / perspective area — aspect-locked",
           "createReferencePlanes": false,
           "showCornerMarker": false
+        },
+        {
+          "id": "CAPTION",
+          "anchor": [
+            565,
+            64
+          ],
+          "size": [
+            272,
+            14
+          ],
+          "purposeTag": "caption",
+          "category": "overlay",
+          "viewportType": "No Title",
+          "description": "Caption strip overlay — drawing title + scale annotation",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Legend_BuildCaption"
         }
       ]
     },
@@ -18038,7 +18984,7 @@
       ],
       "slots": [
         {
-          "id": "S01",
+          "id": "RENDER",
           "anchor": [
             10,
             10
@@ -18048,10 +18994,30 @@
             574
           ],
           "purposeTag": "presentation-render",
+          "category": "primary",
           "scaleHint": 50,
-          "description": "Full-bleed render / perspective area",
+          "aspectLock": true,
+          "description": "Full-bleed render / perspective area — aspect-locked",
           "createReferencePlanes": false,
           "showCornerMarker": false
+        },
+        {
+          "id": "CAPTION",
+          "anchor": [
+            565,
+            64
+          ],
+          "size": [
+            272,
+            14
+          ],
+          "purposeTag": "caption",
+          "category": "overlay",
+          "viewportType": "No Title",
+          "description": "Caption strip overlay — drawing title + scale annotation",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Legend_BuildCaption"
         }
       ]
     },
@@ -18517,7 +19483,27 @@
           "color": "#E8E8E8"
         }
       ],
-      "slots": []
+      "slots": [
+        {
+          "id": "BAND",
+          "anchor": [
+            40,
+            80
+          ],
+          "size": [
+            761,
+            474
+          ],
+          "purposeTag": "discipline-band",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "Discipline-coloured panel — auto-tinted by the project's discipline band rule",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "respectShowToggle": true,
+          "automationHook": "TB_ApplyDisciplineBand"
+        }
+      ]
     },
     {
       "id": "STING_TB_REGISTER_A1_v1.0",
@@ -19114,7 +20100,26 @@
         }
       ],
       "filledRegions": [],
-      "slots": []
+      "slots": [
+        {
+          "id": "REGISTER",
+          "anchor": [
+            4,
+            62
+          ],
+          "size": [
+            833,
+            500
+          ],
+          "purposeTag": "schedule",
+          "category": "primary",
+          "viewportType": "No Title",
+          "description": "Drawing-register schedule view — Revit Sheet List populated by ExportSheetRegister",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "ExportSheetRegister"
+        }
+      ]
     },
     {
       "id": "STING_TB_TRANSMITTAL_A4_v1.0",
@@ -19480,7 +20485,62 @@
           "color": "#1F4E79"
         }
       ],
-      "slots": []
+      "slots": [
+        {
+          "id": "TO",
+          "anchor": [
+            4,
+            140
+          ],
+          "size": [
+            144.5,
+            40
+          ],
+          "purposeTag": "recipient-to",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "Recipient (TO) block — populated from Transmittal recipient list",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Transmittal_PopulateRecipient"
+        },
+        {
+          "id": "FROM",
+          "anchor": [
+            152.5,
+            140
+          ],
+          "size": [
+            140.5,
+            40
+          ],
+          "purposeTag": "recipient-from",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "Sender (FROM) block — auto-filled from PRJ_ORG_COMPANY_*",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Transmittal_PopulateSender"
+        },
+        {
+          "id": "DOCS",
+          "anchor": [
+            4,
+            35
+          ],
+          "size": [
+            289,
+            75
+          ],
+          "purposeTag": "schedule",
+          "category": "primary",
+          "viewportType": "No Title",
+          "description": "Accompanying-documents schedule — populated from the export bundle",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Transmittal_BuildAccompanying"
+        }
+      ]
     },
     {
       "id": "STING_TB_SUBMISSION_KCCA_v1.0",
@@ -19766,15 +20826,52 @@
             130
           ],
           "size": [
-            821,
+            741,
             369
           ],
           "purposeTag": "main-plan",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Main drawing area for the KCCA submission",
           "createReferencePlanes": true,
           "showCornerMarker": true
+        },
+        {
+          "id": "STAMP",
+          "anchor": [
+            751,
+            130
+          ],
+          "size": [
+            70,
+            70
+          ],
+          "purposeTag": "regulator-stamp",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "KCCA regulator stamp — placeholder for the official seal scanned in at submission time",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Submission_PlaceStamp_KCCA"
+        },
+        {
+          "id": "DECL",
+          "anchor": [
+            751,
+            208
+          ],
+          "size": [
+            70,
+            286
+          ],
+          "purposeTag": "notes",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "Statutory declaration / consultant signatures legend",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Legend_BuildStatutoryDeclaration"
         }
       ]
     },
@@ -20062,15 +21159,52 @@
             130
           ],
           "size": [
-            821,
+            741,
             369
           ],
           "purposeTag": "main-plan",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Main drawing area for the ERA submission",
           "createReferencePlanes": true,
           "showCornerMarker": true
+        },
+        {
+          "id": "STAMP",
+          "anchor": [
+            751,
+            130
+          ],
+          "size": [
+            70,
+            70
+          ],
+          "purposeTag": "regulator-stamp",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "ERA regulator stamp — placeholder for the official seal scanned in at submission time",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Submission_PlaceStamp_ERA"
+        },
+        {
+          "id": "DECL",
+          "anchor": [
+            751,
+            208
+          ],
+          "size": [
+            70,
+            286
+          ],
+          "purposeTag": "notes",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "Statutory declaration / consultant signatures legend",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Legend_BuildStatutoryDeclaration"
         }
       ]
     },
@@ -20358,15 +21492,52 @@
             130
           ],
           "size": [
-            821,
+            741,
             369
           ],
           "purposeTag": "main-plan",
+          "category": "primary",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
           "description": "Main drawing area for the NEMA submission",
           "createReferencePlanes": true,
           "showCornerMarker": true
+        },
+        {
+          "id": "STAMP",
+          "anchor": [
+            751,
+            130
+          ],
+          "size": [
+            70,
+            70
+          ],
+          "purposeTag": "regulator-stamp",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "NEMA regulator stamp — placeholder for the official seal scanned in at submission time",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Submission_PlaceStamp_NEMA"
+        },
+        {
+          "id": "DECL",
+          "anchor": [
+            751,
+            208
+          ],
+          "size": [
+            70,
+            286
+          ],
+          "purposeTag": "notes",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "Statutory declaration / consultant signatures legend",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Legend_BuildStatutoryDeclaration"
         }
       ]
     },
@@ -20606,10 +21777,12 @@
             232
           ],
           "purposeTag": "rfi-query",
+          "category": "auxiliary",
           "scaleHint": 100,
           "description": "Left half — RFI query text area (legend or schedule view)",
           "createReferencePlanes": false,
-          "showCornerMarker": true
+          "showCornerMarker": true,
+          "automationHook": "Legend_BuildRFIQuery"
         },
         {
           "id": "SKETCH",
@@ -20622,10 +21795,48 @@
             232
           ],
           "purposeTag": "rfi-sketch",
+          "category": "primary",
           "scaleHint": 50,
           "description": "Right half — sketch / detail / annotated plan view",
           "createReferencePlanes": true,
           "showCornerMarker": true
+        },
+        {
+          "id": "MARKUP",
+          "anchor": [
+            215.0,
+            35
+          ],
+          "size": [
+            195.0,
+            232
+          ],
+          "purposeTag": "markup-plan",
+          "category": "overlay",
+          "viewportType": "No Title",
+          "description": "Markup overlay — review-cloud detail view layered on top of SKETCH",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "automationHook": "Markup_AttachReviewCloud"
+        },
+        {
+          "id": "REV",
+          "anchor": [
+            215.0,
+            269
+          ],
+          "size": [
+            195.0,
+            16
+          ],
+          "purposeTag": "revision-history",
+          "category": "auxiliary",
+          "viewportType": "No Title",
+          "description": "Tiny revision strip above the sketch — RFI lifecycle history",
+          "createReferencePlanes": false,
+          "showCornerMarker": true,
+          "respectShowToggle": true,
+          "automationHook": "Revisions_AutoPopulateSchedule"
         }
       ]
     }

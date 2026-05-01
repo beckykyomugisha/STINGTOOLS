@@ -205,43 +205,118 @@ def polish_working_common(size, orientation):
 
     slots = [
         {"id": "S01", "anchor": [10, drawable_y], "size": [w - 20, drawable_h],
-         "purposeTag": "main-plan", "viewportType": "Title w/ Line", "scaleHint": 100,
+         "purposeTag": "main-plan", "category": "primary",
+         "viewportType": "Title w/ Line", "scaleHint": 100,
          "description": "Main drawing area — full-bleed plan / 3D / section",
          "createReferencePlanes": True, "showCornerMarker": True},
         {"id": "S02", "anchor": [10, drawable_y], "size": [half_w, drawable_h],
-         "purposeTag": "main-plan-half-left", "viewportType": "Title w/ Line", "scaleHint": 100,
+         "purposeTag": "main-plan-half-left", "category": "primary",
+         "viewportType": "Title w/ Line", "scaleHint": 100,
          "description": "Left half — 50/50 split",
          "createReferencePlanes": True, "showCornerMarker": True},
         {"id": "S03", "anchor": [20+half_w, drawable_y], "size": [half_w, drawable_h],
-         "purposeTag": "main-plan-half-right", "viewportType": "Title w/ Line", "scaleHint": 100,
+         "purposeTag": "main-plan-half-right", "category": "primary",
+         "viewportType": "Title w/ Line", "scaleHint": 100,
          "description": "Right half — 50/50 split",
          "createReferencePlanes": True, "showCornerMarker": True},
         {"id": "S04", "anchor": [10, drawable_y], "size": [quad_w, quad_h],
-         "purposeTag": "quad-bottom-left", "scaleHint": 200,
+         "purposeTag": "quad-bottom-left", "category": "primary",
+         "scaleHint": 200,
          "description": "Bottom-left quadrant",
          "createReferencePlanes": False, "showCornerMarker": True},
         {"id": "S05", "anchor": [20+quad_w, drawable_y], "size": [quad_w, quad_h],
-         "purposeTag": "quad-bottom-right", "scaleHint": 200,
+         "purposeTag": "quad-bottom-right", "category": "primary",
+         "scaleHint": 200,
          "description": "Bottom-right quadrant",
          "createReferencePlanes": False, "showCornerMarker": True},
         {"id": "S06", "anchor": [10, drawable_y+quad_h+5], "size": [quad_w, quad_h],
-         "purposeTag": "quad-top-left", "scaleHint": 200,
+         "purposeTag": "quad-top-left", "category": "primary",
+         "scaleHint": 200,
          "description": "Top-left quadrant",
          "createReferencePlanes": False, "showCornerMarker": True},
         {"id": "S07", "anchor": [20+quad_w, drawable_y+quad_h+5], "size": [quad_w, quad_h],
-         "purposeTag": "quad-top-right", "scaleHint": 200,
+         "purposeTag": "quad-top-right", "category": "primary",
+         "scaleHint": 200,
          "description": "Top-right quadrant",
          "createReferencePlanes": False, "showCornerMarker": True},
     ]
-    # Key-plan pocket — only for sizes with enough room
-    if size in ("A0", "A1", "A2"):
-        kp_w = round(w * 0.14)
+
+    # ── Auxiliary slots — vertical right-edge column when room allows ──
+    # Only A0/A1/A2 have enough drawable width to host a dedicated 150 mm
+    # auxiliary column without crowding the main slot. A3/A4 too small —
+    # skip auxiliary slots entirely (operator drops legends as nested
+    # families directly in the drawable zone).
+    aux_eligible = size in ("A0", "A1", "A2")
+    if aux_eligible:
+        # Auxiliary column 150mm wide, hugged against right edge inside
+        # the drawable zone. Stack: KP (top) → NOTES → LEGEND → REV.
+        aux_w = round(w * 0.16)
+        aux_x = w - aux_w - 10
+        # Top: key-plan pocket (square-ish)
         kp_h = round(drawable_h * 0.18)
-        slots.append({"id": "KP", "anchor": [w - kp_w - 15, drawable_y + 5],
-                      "size": [kp_w, kp_h],
-                      "purposeTag": "key-plan", "scaleHint": 500,
+        slots.append({"id": "KP", "anchor": [aux_x, drawable_y + drawable_h - kp_h - 5],
+                      "size": [aux_w, kp_h],
+                      "purposeTag": "key-plan", "category": "auxiliary",
+                      "scaleHint": 500,
                       "description": "Key-plan pocket — small location overview",
-                      "createReferencePlanes": False, "showCornerMarker": True})
+                      "createReferencePlanes": False, "showCornerMarker": True,
+                      "respectShowToggle": True})
+        # Notes panel — drafting view or text legend
+        notes_h = round(drawable_h * 0.28)
+        notes_y = drawable_y + drawable_h - kp_h - notes_h - 12
+        slots.append({"id": "NOTES", "anchor": [aux_x, notes_y],
+                      "size": [aux_w, notes_h],
+                      "purposeTag": "notes", "category": "auxiliary",
+                      "viewportType": "No Title",
+                      "description": "Notes panel — drafting view or legend with general notes",
+                      "createReferencePlanes": False, "showCornerMarker": True,
+                      "automationHook": "Legend_BuildNotes"})
+        # Discipline legend — symbol legend keyed to PRJ_TB_DISCIPLINE_TXT
+        leg_h = round(drawable_h * 0.24)
+        leg_y = notes_y - leg_h - 5
+        slots.append({"id": "LEGEND", "anchor": [aux_x, leg_y],
+                      "size": [aux_w, leg_h],
+                      "purposeTag": "discipline-legend", "category": "auxiliary",
+                      "viewportType": "No Title",
+                      "description": "Discipline legend — symbol key matching the active discipline",
+                      "createReferencePlanes": False, "showCornerMarker": True,
+                      "automationHook": "Legend_DisciplineLegendBind"})
+        # Revision-history strip — vertical schedule, rotated 90° in Revit
+        rev_h = leg_y - drawable_y - 5
+        slots.append({"id": "REV", "anchor": [aux_x, drawable_y],
+                      "size": [aux_w, rev_h],
+                      "purposeTag": "revision-history", "category": "auxiliary",
+                      "viewportType": "No Title",
+                      "rotation": 0,
+                      "description": "Revision-history schedule — auto-populated from Revit's revision data",
+                      "createReferencePlanes": False, "showCornerMarker": True,
+                      "respectShowToggle": True,
+                      "automationHook": "Revisions_AutoPopulateSchedule"})
+
+    # ── Symbol slots — north arrow + scale bar in the title strip ──
+    # These overlay the strip so they're visible regardless of which
+    # main-plan slot is in use. Sized small per BS 1192 typical.
+    if size in ("A0", "A1", "A2", "A3"):
+        # North arrow — bottom-right of the drawable, just above the strip
+        na_w, na_h = 18, 18
+        slots.append({"id": "NA",
+                      "anchor": [w - na_w - 15, sh + 7],
+                      "size": [na_w, na_h],
+                      "purposeTag": "north-arrow", "category": "symbol",
+                      "description": "North-arrow symbol — nested family, hides via TB_SHOW_NORTH_ARROW_BOOL",
+                      "createReferencePlanes": False, "showCornerMarker": False,
+                      "respectShowToggle": True,
+                      "automationHook": "Symbol_PlaceNorthArrow"})
+        # Scale bar — bottom-left of the drawable, just above the strip
+        sb_w, sb_h = round(w * 0.10), 8
+        slots.append({"id": "SB",
+                      "anchor": [15, sh + 5],
+                      "size": [sb_w, sb_h],
+                      "purposeTag": "scale-bar", "category": "symbol",
+                      "description": "Scale-bar — nested family, hides via TB_SHOW_SCALEBAR_BOOL",
+                      "createReferencePlanes": False, "showCornerMarker": False,
+                      "respectShowToggle": True,
+                      "automationHook": "Symbol_PlaceScaleBar"})
 
     return {
         "id": fam_id,
@@ -496,10 +571,32 @@ def polish_assembly(fam_id: str, discipline: str, accent_color: str) -> dict:
          "fillTypeName": "Solid fill", "color": accent_color},
     ]
     slots = [
-        {"id": "S01", "anchor": [10, title_h + 5], "size": [drawable_w - 5, drawable_h - 5],
-         "purposeTag": "fabrication-isometric", "viewportType": "Title w/ Line", "scaleHint": 25,
+        {"id": "ISO", "anchor": [10, title_h + 5], "size": [drawable_w - 5, drawable_h - 5],
+         "purposeTag": "fabrication-isometric", "category": "primary",
+         "viewportType": "Title w/ Line", "scaleHint": 25,
          "description": f"Main fabrication isometric / spool drawing area for the {desc_disc}",
          "createReferencePlanes": True, "showCornerMarker": True},
+        {"id": "BOM", "anchor": [w - bom_w + 2, title_h + 5],
+         "size": [bom_w - 4, h - title_h - 30],
+         "purposeTag": "bom", "category": "auxiliary",
+         "viewportType": "No Title",
+         "description": "Bill of Materials — Revit Schedule view inside the right-strip",
+         "createReferencePlanes": False, "showCornerMarker": True,
+         "automationHook": "Fab_BuildBOMSchedule"},
+        {"id": "CUT", "anchor": [w - bom_w + 2, h - 22],
+         "size": [bom_w - 4, 18],
+         "purposeTag": "cut-list", "category": "auxiliary",
+         "viewportType": "No Title",
+         "description": "Cut list / lengths summary — small schedule",
+         "createReferencePlanes": False, "showCornerMarker": True,
+         "automationHook": "Fab_BuildCutList"},
+        {"id": "REF", "anchor": [10, title_h + drawable_h - 28],
+         "size": [60, 22],
+         "purposeTag": "spool-refs", "category": "overlay",
+         "viewportType": "No Title",
+         "description": "Spool reference list — drafting view callout linking to other spools",
+         "createReferencePlanes": False, "showCornerMarker": True,
+         "automationHook": "Fab_LinkSpoolRefs"},
     ]
 
     return {
@@ -574,10 +671,17 @@ def polish_present(fam_id: str, mono: bool) -> dict:
          "fillTypeName": "Solid fill", "color": accent},
     ]
     slots = [
-        {"id": "S01", "anchor": [10, 10], "size": [w - 20, h - 20],
-         "purposeTag": "presentation-render", "scaleHint": 50,
-         "description": "Full-bleed render / perspective area",
+        {"id": "RENDER", "anchor": [10, 10], "size": [w - 20, h - 20],
+         "purposeTag": "presentation-render", "category": "primary",
+         "scaleHint": 50, "aspectLock": True,
+         "description": "Full-bleed render / perspective area — aspect-locked",
          "createReferencePlanes": False, "showCornerMarker": False},
+        {"id": "CAPTION", "anchor": [w - cw + 4, ch + 4], "size": [cw - 8, 14],
+         "purposeTag": "caption", "category": "overlay",
+         "viewportType": "No Title",
+         "description": "Caption strip overlay — drawing title + scale annotation",
+         "createReferencePlanes": False, "showCornerMarker": True,
+         "automationHook": "Legend_BuildCaption"},
     ]
     return {
         "id": fam_id,
@@ -720,7 +824,16 @@ def polish_divider() -> dict:
         "staticText": static,
         "labels": labels,
         "filledRegions": filled_regions,
-        "slots": [],
+        "slots": [
+            {"id": "BAND",
+             "anchor": [40, 80], "size": [w - 80, h - 120],
+             "purposeTag": "discipline-band", "category": "auxiliary",
+             "viewportType": "No Title",
+             "description": "Discipline-coloured panel — auto-tinted by the project's discipline band rule",
+             "createReferencePlanes": False, "showCornerMarker": True,
+             "respectShowToggle": True,
+             "automationHook": "TB_ApplyDisciplineBand"},
+        ],
     }
 
 
@@ -770,6 +883,15 @@ def polish_register() -> dict:
         {"param": "PRJ_TB_DELIVERABLE_DATADROP_TXT","anchor": [w/3 + 4, title_h - 18], "size": 2.0},
         {"param": "PRJ_TB_REVISION_NR_TXT",         "anchor": [2*w/3 + 4, title_h - 18], "size": 2.0},
     ]
+    register_slots = [
+        {"id": "REGISTER",
+         "anchor": [4, table_y0 + 2], "size": [w - 8, table_y1 - table_y0 - 4],
+         "purposeTag": "schedule", "category": "primary",
+         "viewportType": "No Title",
+         "description": "Drawing-register schedule view — Revit Sheet List populated by ExportSheetRegister",
+         "createReferencePlanes": False, "showCornerMarker": True,
+         "automationHook": "ExportSheetRegister"},
+    ]
     return {
         "id": "STING_TB_REGISTER_A1_v1.0",
         "extends": "A1_common_v2.0",
@@ -792,7 +914,7 @@ def polish_register() -> dict:
         "staticText": static,
         "labels": labels,
         "filledRegions": [],
-        "slots": [],
+        "slots": register_slots,
     }
 
 
@@ -870,7 +992,29 @@ def polish_transmittal() -> dict:
             {"topLeft": [0, h], "bottomRight": [w, h - 30],
              "fillTypeName": "Solid fill", "color": "#1F4E79"},
         ],
-        "slots": [],
+        "slots": [
+            {"id": "TO",
+             "anchor": [4, h - 70], "size": [w/2 - 4, 40],
+             "purposeTag": "recipient-to", "category": "auxiliary",
+             "viewportType": "No Title",
+             "description": "Recipient (TO) block — populated from Transmittal recipient list",
+             "createReferencePlanes": False, "showCornerMarker": True,
+             "automationHook": "Transmittal_PopulateRecipient"},
+            {"id": "FROM",
+             "anchor": [w/2 + 4, h - 70], "size": [w/2 - 8, 40],
+             "purposeTag": "recipient-from", "category": "auxiliary",
+             "viewportType": "No Title",
+             "description": "Sender (FROM) block — auto-filled from PRJ_ORG_COMPANY_*",
+             "createReferencePlanes": False, "showCornerMarker": True,
+             "automationHook": "Transmittal_PopulateSender"},
+            {"id": "DOCS",
+             "anchor": [4, 35], "size": [w - 8, h - 100 - 35],
+             "purposeTag": "schedule", "category": "primary",
+             "viewportType": "No Title",
+             "description": "Accompanying-documents schedule — populated from the export bundle",
+             "createReferencePlanes": False, "showCornerMarker": True,
+             "automationHook": "Transmittal_BuildAccompanying"},
+        ],
     }
 
 
@@ -918,10 +1062,23 @@ def polish_submission(authority: str, accent_color: str, full_name: str, statuto
          "fillTypeName": "Solid fill", "color": accent_color},
     ]
     slots = [
-        {"id": "S01", "anchor": [10, 130], "size": [w - 20, h - banner_h - 145],
-         "purposeTag": "main-plan", "viewportType": "Title w/ Line", "scaleHint": 100,
+        {"id": "S01", "anchor": [10, 130], "size": [w - 20 - 80, h - banner_h - 145],
+         "purposeTag": "main-plan", "category": "primary",
+         "viewportType": "Title w/ Line", "scaleHint": 100,
          "description": f"Main drawing area for the {authority} submission",
          "createReferencePlanes": True, "showCornerMarker": True},
+        {"id": "STAMP", "anchor": [w - 90, 130], "size": [70, 70],
+         "purposeTag": "regulator-stamp", "category": "auxiliary",
+         "viewportType": "No Title",
+         "description": f"{authority} regulator stamp — placeholder for the official seal scanned in at submission time",
+         "createReferencePlanes": False, "showCornerMarker": True,
+         "automationHook": f"Submission_PlaceStamp_{authority}"},
+        {"id": "DECL", "anchor": [w - 90, 130 + 78], "size": [70, h - banner_h - 145 - 78 - 5],
+         "purposeTag": "notes", "category": "auxiliary",
+         "viewportType": "No Title",
+         "description": "Statutory declaration / consultant signatures legend",
+         "createReferencePlanes": False, "showCornerMarker": True,
+         "automationHook": "Legend_BuildStatutoryDeclaration"},
     ]
     return {
         "id": fam_id,
@@ -982,13 +1139,29 @@ def polish_clarification() -> dict:
     ]
     slots = [
         {"id": "QUERY",  "anchor": [10, 35],       "size": [w/2 - 15, h - 65],
-         "purposeTag": "rfi-query", "scaleHint": 100,
+         "purposeTag": "rfi-query", "category": "auxiliary",
+         "scaleHint": 100,
          "description": "Left half — RFI query text area (legend or schedule view)",
-         "createReferencePlanes": False, "showCornerMarker": True},
+         "createReferencePlanes": False, "showCornerMarker": True,
+         "automationHook": "Legend_BuildRFIQuery"},
         {"id": "SKETCH", "anchor": [w/2 + 5, 35], "size": [w/2 - 15, h - 65],
-         "purposeTag": "rfi-sketch", "scaleHint": 50,
+         "purposeTag": "rfi-sketch", "category": "primary",
+         "scaleHint": 50,
          "description": "Right half — sketch / detail / annotated plan view",
          "createReferencePlanes": True, "showCornerMarker": True},
+        {"id": "MARKUP", "anchor": [w/2 + 5, 35], "size": [w/2 - 15, h - 65],
+         "purposeTag": "markup-plan", "category": "overlay",
+         "viewportType": "No Title",
+         "description": "Markup overlay — review-cloud detail view layered on top of SKETCH",
+         "createReferencePlanes": False, "showCornerMarker": True,
+         "automationHook": "Markup_AttachReviewCloud"},
+        {"id": "REV", "anchor": [w/2 + 5, h - 28], "size": [w/2 - 15, 16],
+         "purposeTag": "revision-history", "category": "auxiliary",
+         "viewportType": "No Title",
+         "description": "Tiny revision strip above the sketch — RFI lifecycle history",
+         "createReferencePlanes": False, "showCornerMarker": True,
+         "respectShowToggle": True,
+         "automationHook": "Revisions_AutoPopulateSchedule"},
     ]
     return {
         "id": "STING_TB_CLARIFICATION_A3_v1.0",

@@ -186,12 +186,21 @@ namespace StingTools.Core.Drawing
         /// `STING_VIEWPORT_PLACEMENT_RULES.json` maps a view's
         /// (ViewType, name pattern) to a purpose tag, the auto-placer
         /// then scans the active sheet's title-block .rfa for the slot
-        /// with this tag.
-        ///
-        /// Suggested vocabulary: "main-plan" / "key-plan" / "section" /
-        /// "elevation" / "axon" / "detail" / "legend" / "schedule".
-        /// Free-form — projects can extend the rule file.</summary>
+        /// with this tag. See docs/title_blocks/SLOT_TAXONOMY.md for the
+        /// canonical vocabulary.</summary>
         [JsonProperty("purposeTag")]  public string   PurposeTag { get; set; }
+
+        /// <summary>Slot category, controls visual treatment in previews
+        /// and auto-placer behaviour:
+        ///   "primary"   — main drawable area (full / half / quad)
+        ///   "auxiliary" — content slot for key-plans / notes / legends
+        ///                 / schedules / revision-history etc.
+        ///   "symbol"    — small-graphic slot for north arrow / scale bar
+        ///                 / discipline colour chip / QR code
+        ///   "overlay"   — sits on top of another slot (e.g. caption over
+        ///                 a render, RFI markup over a base plan)
+        /// </summary>
+        [JsonProperty("category")]    public string   Category { get; set; } = "primary";
 
         /// <summary>Optional viewport type to apply when placing a view
         /// into this slot (e.g. "Title w/ Line", "No Title"). Resolved
@@ -203,6 +212,42 @@ namespace StingTools.Core.Drawing
         /// 1:100). Auto-placer applies this when the view's scale is
         /// "Use view scale" and the slot has a fixed expectation.</summary>
         [JsonProperty("scaleHint")]   public int?     ScaleHint { get; set; }
+
+        /// <summary>Optional rotation (degrees, 0 / 90 / 180 / 270). Used
+        /// by the auto-placer when a slot has a fixed orientation
+        /// (e.g. a vertical revision-history strip on a landscape sheet
+        /// hosts a 90°-rotated schedule view).</summary>
+        [JsonProperty("rotation")]    public int      Rotation { get; set; } = 0;
+
+        /// <summary>If true, the auto-placer respects the view's natural
+        /// extents instead of stretching to fill the slot. Use for
+        /// presentation slots where aspect-ratio matters.</summary>
+        [JsonProperty("aspectLock")]  public bool     AspectLock { get; set; } = false;
+
+        /// <summary>Optional explicit hex colour for SVG previews and the
+        /// dock-panel slot-overview UI. When null, the renderer picks a
+        /// canonical colour from the purposeTag → palette map (see
+        /// tools/generate_title_block_previews.py PURPOSE_PALETTE).</summary>
+        [JsonProperty("previewColor")] public string  PreviewColor { get; set; }
+
+        /// <summary>Optional STING command tag that knows how to populate
+        /// this slot when no view matches the purposeTag — e.g. an
+        /// empty notes slot can route to `Legend_BuildNotes` to mint a
+        /// project-default notes legend on demand.</summary>
+        [JsonProperty("automationHook")] public string AutomationHook { get; set; }
+
+        /// <summary>If true, the operator's `TB_SHOW_*_BOOL` toggle on
+        /// the title-block instance can hide this slot's contents at
+        /// sheet level. Mapping by purposeTag:
+        ///   key-plan         → TB_SHOW_KEY_PLAN_BOOL
+        ///   north-arrow      → TB_SHOW_NORTH_ARROW_BOOL
+        ///   scale-bar        → TB_SHOW_SCALEBAR_BOOL
+        ///   revision-history → TB_SHOW_REV_TABLE_BOOL
+        ///   notes            → (no toggle — always visible)
+        ///   discipline-band  → TB_SHOW_DISCIPLINE_COLOR_STRIP_BOOL
+        ///   qr-code          → TB_SHOW_QR_CODE_BOOL
+        /// </summary>
+        [JsonProperty("respectShowToggle")] public bool RespectShowToggle { get; set; } = false;
 
         /// <summary>If true (default), the factory authors 4 reference
         /// planes (top / bottom / left / right) at the slot bounds so
