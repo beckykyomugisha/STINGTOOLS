@@ -133,6 +133,11 @@ public class PlanscapeDbContext : DbContext
     // Phase 165 (NEW-08) — outbound webhook subscriptions.
     public DbSet<OutboundWebhook> OutboundWebhooks => Set<OutboundWebhook>();
 
+    // S2.1 — billing entities (provider-agnostic).
+    public DbSet<Subscription> Subscriptions => Set<Subscription>();
+    public DbSet<Invoice>      Invoices      => Set<Invoice>();
+    public DbSet<Payment>      Payments      => Set<Payment>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -582,6 +587,45 @@ public class PlanscapeDbContext : DbContext
             e.Property(w => w.SecretHash).IsRequired().HasMaxLength(128);
             e.HasOne(w => w.Tenant).WithMany().HasForeignKey(w => w.TenantId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(w => w.Project).WithMany().HasForeignKey(w => w.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── S2.1 — Billing entities ─────────────────────────────────────
+        modelBuilder.Entity<Subscription>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.TenantId, x.Status });
+            e.HasIndex(x => x.ProviderSubscriptionId);
+            e.Property(x => x.Provider).IsRequired().HasMaxLength(20);
+            e.Property(x => x.Plan).IsRequired().HasMaxLength(20);
+            e.Property(x => x.Currency).IsRequired().HasMaxLength(3);
+            e.Property(x => x.ProviderCustomerId).HasMaxLength(120);
+            e.Property(x => x.ProviderSubscriptionId).HasMaxLength(120);
+        });
+        modelBuilder.Entity<Invoice>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.TenantId, x.InvoiceNumber }).IsUnique();
+            e.HasIndex(x => x.SubscriptionId);
+            e.HasIndex(x => x.Status);
+            e.Property(x => x.Provider).IsRequired().HasMaxLength(20);
+            e.Property(x => x.ProviderInvoiceId).HasMaxLength(120);
+            e.Property(x => x.InvoiceNumber).IsRequired().HasMaxLength(40);
+            e.Property(x => x.Currency).IsRequired().HasMaxLength(3);
+            e.Property(x => x.PdfStoragePath).HasMaxLength(500);
+            e.Property(x => x.PurchaseOrderRef).HasMaxLength(80);
+        });
+        modelBuilder.Entity<Payment>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.InvoiceId);
+            e.HasIndex(x => new { x.Provider, x.ProviderEventId }).IsUnique()
+                .HasFilter("\"ProviderEventId\" IS NOT NULL");
+            e.Property(x => x.Provider).IsRequired().HasMaxLength(20);
+            e.Property(x => x.ProviderTransactionId).HasMaxLength(120);
+            e.Property(x => x.ProviderEventId).HasMaxLength(120);
+            e.Property(x => x.Currency).IsRequired().HasMaxLength(3);
+            e.Property(x => x.MethodKind).HasMaxLength(40);
+            e.Property(x => x.MethodSuffix).HasMaxLength(20);
         });
 
         // ── S1.1 — Global tenant query filter ───────────────────────────
