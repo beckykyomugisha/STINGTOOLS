@@ -46,4 +46,14 @@ public interface IFileStorageService
     /// enforcement as <see cref="GetAsync"/>.
     /// </summary>
     Task<bool> ExistsAsync(string path, CancellationToken ct = default, bool bypassTenantCheck = false);
+
+    /// <summary>
+    /// S7.4.2 — recursively remove every object whose key starts with
+    /// <paramref name="prefix"/>. Used by <c>DataErasureJob</c> to wipe
+    /// <c>t_{tenantId}/</c> after the cooling-off period and by future
+    /// janitor passes that clean orphan files. Returns the count of
+    /// objects deleted (best-effort — providers that can't enumerate
+    /// safely return 0 and the caller logs an orphan warning).
+    /// </summary>
+    Task<int> DeleteByPrefixAsync(string prefix, CancellationToken ct = default, bool bypassTenantCheck = false);
 }

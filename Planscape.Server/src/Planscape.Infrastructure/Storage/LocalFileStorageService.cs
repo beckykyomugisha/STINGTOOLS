@@ -84,6 +84,28 @@ public class LocalFileStorageService : IFileStorageService
     }
 
     /// <summary>
+    /// S7.4.2 — recursive delete of every file under the prefix.
+    /// Returns the number of files removed.
+    /// </summary>
+    public Task<int> DeleteByPrefixAsync(string prefix, CancellationToken ct = default, bool bypassTenantCheck = false)
+    {
+        EnforceTenantOwnership(prefix, bypassTenantCheck);
+        var fullPath = Path.Combine(_rootPath, prefix);
+        if (Directory.Exists(fullPath))
+        {
+            var count = Directory.GetFiles(fullPath, "*", SearchOption.AllDirectories).Length;
+            Directory.Delete(fullPath, recursive: true);
+            return Task.FromResult(count);
+        }
+        if (File.Exists(fullPath))
+        {
+            File.Delete(fullPath);
+            return Task.FromResult(1);
+        }
+        return Task.FromResult(0);
+    }
+
+    /// <summary>
     /// Throws <see cref="UnauthorizedAccessException"/> if the path's first
     /// segment doesn't match the current tenant or one of the well-known
     /// cross-tenant buckets ("derivatives", "thumbnails", "shared"). When
