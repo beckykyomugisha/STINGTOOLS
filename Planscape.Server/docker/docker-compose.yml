@@ -92,6 +92,20 @@ services:
       - redisdata:/data
     restart: unless-stopped
 
+  # S5.2 — Node sidecar that splits uploaded GLBs into per-discipline
+  # chunks via gltf-transform + Draco compression. Stays a separate
+  # container so we can scale it horizontally without scaling the API.
+  converter:
+    build:
+      context: ../src/converter-sidecar
+    environment:
+      API_BASE: http://api:8080
+      API_BEARER: ${CONVERTER_API_BEARER:-}
+      CONVERTER_TOKEN: ${CONVERTER_TOKEN:-planscape-converter-shared-secret}
+    depends_on:
+      - api
+    restart: unless-stopped
+
   # Optional: Background job processing (Hangfire)
   worker:
     build:
