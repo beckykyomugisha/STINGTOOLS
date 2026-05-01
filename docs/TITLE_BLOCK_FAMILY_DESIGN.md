@@ -427,37 +427,92 @@ Total cells: **28**, of which **12 are BIM-only** and collapse when
 
 ### 3.1 BIM-mode toggle
 
-A single instance parameter drives every BIM-cell's visibility.
+A single instance parameter drives BIM-cell visibility:
 
 ```
 STING_BIM_MODE_BOOL    (Yes/No, Instance, default = 1 / on)
 ```
 
-For each BIM-only label / static text / line / filled region in the
-family, the cell's built-in `Visible` parameter is bound to
-`STING_BIM_MODE_BOOL`. When the user toggles the parameter to `0`
-on the sheet's instance properties:
+**Important behaviour note: Revit's `Visible` parameter only hides
+the element — it does NOT reflow the surrounding layout.** Hiding a
+cell leaves an empty rectangle where it used to be unless the
+surrounding geometry is parameterised to grow into it. There are
+three strategies; we use a hybrid of two.
 
-- **12 BIM-only cells hide** (suitability chip, 7-seg ID row,
-  full-ref cell falls back to plain Sheet Number, TR/CDE/MIDP row,
-  LOIN-LOD/FED row, QR, AUTHORISED BY 4-eyes cell, suitability +
-  status revision-history columns).
-- The four "always-on" rows expand to fill the freed vertical
-  space.
-- Strip total height drops from ~110 mm to ~70 mm.
-- Drawable zone grows from 830 × 480 mm to 830 × 520 mm.
+#### 3.1.1 The three strategies
 
-Switch is one click — sheet's instance properties → BIM Mode → Off.
-No rebuilds, no family swap. Default for new sheets is BIM mode on
-(the corporate STING workflow assumes ISO 19650).
+| Strategy | Mechanism | Pro | Con |
+|---|---|---|---|
+| **A — Hide only** | Cell `Visible = STING_BIM_MODE_BOOL` | Simplest | Empty white rectangles remain |
+| **B — Parametric strip + reflow** | Outer strip rectangle's top edge constrained to a reference plane whose offset is `if(BIM, 110, 70)` mm; row groups have their own formula-driven heights | Strip auto-collapses, drawable zone grows | 3-4× authoring complexity |
+| **C — Two family types** | "BIM" / "non-BIM" types each carry a polished layout | Each type visually clean | Every fix made twice, types drift apart |
 
-**Why one parameter, not two family types?** Considered + rejected:
+#### 3.1.2 Recommended hybrid (B for whole rows, A for in-row cells)
 
-| Alternative | Trade-off |
-|---|---|
-| Two family TYPES inside the same .rfa (`BIM` / `non-BIM`) | More discoverable in Revit's UI, but every type is a full re-author of every cell — duplication, drift risk, version-control hostile. Type-switch loses per-sheet flexibility. |
-| Two separate families (`STING_TB_A1_BIM` + `STING_TB_A1_NONBIM`) | Worst of both worlds — every fix made twice, families drift apart. |
-| **Single family + visibility parameter** ← recommended | One `.rfa`, one source of truth, one click to switch, per-sheet flexibility preserved. |
+| Cell category | Strategy applied | When BIM = 0 |
+|---|---|---|
+| **Whole-row BIM blocks** — 7-seg ID row (#20), TR-REF/CDE/MIDP row (#25), LOIN/FED/QR row (#26-27) | **B — parametric reflow** via reference-plane offset formula | Row collapses to 0 height; strip top edge moves down 40 mm; drawable zone grows |
+| **In-row BIM cells** — SUITABILITY chip (#10), AUTHORISED BY (#19), revision-history SUIT/STAT columns (last 2 cols of #28) | **A — hide only** | Cell becomes invisible; small empty space remains within a row that contains other always-on cells. Visually acceptable |
+| **`${SHEET_FULL_REF}` big cell (#24)** | **Two-label trick** — Label A bound to `STING_SHEET_FULL_REF_TXT`, Label B bound to Revit `Sheet Number`, both at the same XYZ with reciprocal `Visible` bindings | Label A hides, Label B becomes visible. Cell rectangle stays the same size; only the displayed text changes from `STG-PLNS-…-0001` to `A-001` |
+
+#### 3.1.3 The `${SHEET_FULL_REF}` two-label trick
+
+You **cannot** switch a label's bound parameter dynamically in
+Revit. The workable pattern is to place TWO labels in exactly the
+same cell:
+
+```
+Label A:  bound to STING_SHEET_FULL_REF_TXT,  Visible = STING_BIM_MODE_BOOL
+Label B:  bound to <Sheet Number> (Revit built-in), Visible = NOT STING_BIM_MODE_BOOL
+```
+
+Only one renders at a time. Same approach for the revision-history
+SUIT and STAT columns (entire columns of labels with `Visible =
+STING_BIM_MODE_BOOL`).
+
+#### 3.1.4 Net visual effect when BIM mode toggles OFF
+
+- 3 entire rows collapse via Strategy B → strip height drops from
+  ~110 mm to ~70 mm → drawable zone grows from 830 × 480 mm to
+  830 × 520 mm.
+- 3 in-row cells go invisible via Strategy A — small empty
+  rectangles in rows that still carry their other always-on cells.
+  Acceptable.
+- 2 cells switch their displayed text via the two-label trick
+  (`SHEET_FULL_REF` cell + revision-history rows) — same rectangle,
+  different content.
+
+Switch is one click on the sheet's instance properties. No
+rebuilds, no family swap.
+
+#### 3.1.5 Why this hybrid beats Strategy C (two family types)
+
+| Concern | Hybrid (single .rfa, parametric) | Two family types |
+|---|---|---|
+| Source of truth | one `.rfa`, one JSON spec | two layouts diverge over time |
+| Per-sheet flexibility | toggle parameter per sheet | type-switch per sheet (heavier) |
+| Authoring effort | ~30 % more than Strategy A alone | 2× (full layout per type) |
+| Drift over time | none (single layout source) | high (every fix made twice) |
+| Visual cleanliness in non-BIM | excellent (rows collapse, in-row cells leave small gaps) | excellent (each type polished) |
+| Generator code complexity | adds reference planes + formulas (~80 lines) | duplicates the spec per type |
+
+#### 3.1.6 Generator authoring cost (Phase 170+)
+
+Strategy A alone: ~5 lines of code per BIM cell to bind the
+`Visible` parameter.
+
+Strategy B for whole rows: per row, ~15 lines — place reference
+plane via `famDoc.FamilyCreate.NewReferencePlane`, lock dimension
+via `Dimension.Create` between two reference planes, set formula
+via `FamilyManager.SetFormula(lengthParam, "if(STING_BIM_MODE_BOOL,
+110, 70)")`. Three rows → ~45 lines.
+
+Two-label trick for `SHEET_FULL_REF`: ~10 lines (two `NewLabel`
+calls at same XYZ with reciprocal `Visible` bindings).
+
+Total generator overhead vs. Strategy A: ~80 lines. Worth it for
+the visual cleanliness — empty white blocks in non-BIM mode look
+unfinished.
 
 ### 3.2 Slot list (drawing-type slots, unchanged)
 
