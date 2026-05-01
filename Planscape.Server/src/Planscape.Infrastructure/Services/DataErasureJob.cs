@@ -154,7 +154,11 @@ public class DataErasureJob
         //    (no DB row references them) and a janitor job cleans up later.
         try
         {
-            await _storage.DeleteAsync($"t_{tenantId:N}", ct, bypassTenantCheck: true);
+            // S7.4.2 — recursive prefix delete. LocalFileStorageService
+            // removes the tenant directory; S3FileStorageService pages
+            // ListObjectsV2 + DeleteObjects in 1,000-key batches.
+            var removed = await _storage.DeleteByPrefixAsync($"t_{tenantId:N}", ct, bypassTenantCheck: true);
+            _logger.LogInformation("DataErasureJob: removed {Count} storage objects under t_{Tenant:N}", removed, tenantId);
         }
         catch (Exception ex)
         {

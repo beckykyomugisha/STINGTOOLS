@@ -74,6 +74,16 @@ namespace StingTools.Core
         /// </summary>
         public static JObject EnsureCurrent(string filePath, string schemaName, int targetVersion, IReadOnlyList<Migrator>? migrators = null)
         {
+            // S8.2.2 — span the migration so a slow / large schema upgrade
+            // surfaces as a duration outlier in telemetry rather than as
+            // mysterious 'plugin froze on project open' support tickets.
+            return PluginTelemetry.Run(
+                "schema.ensureCurrent:" + schemaName,
+                () => EnsureCurrentImpl(filePath, schemaName, targetVersion, migrators));
+        }
+
+        private static JObject EnsureCurrentImpl(string filePath, string schemaName, int targetVersion, IReadOnlyList<Migrator>? migrators)
+        {
             if (!File.Exists(filePath))
                 return CreateGenesis(filePath, schemaName, targetVersion);
 

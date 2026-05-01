@@ -173,6 +173,10 @@ namespace Planscape.Docs.Templates
                 JArray arr;
                 if (File.Exists(path))
                 {
+                    // S3.6.2 — version gate before deserialise.
+                    StingTools.Core.PluginSchemaVersion.EnsureFileVersion(
+                        path, "planscape.deliverables",
+                        StingTools.Core.PluginSchemaVersion.CurrentDeliverables);
                     arr = JArray.Parse(File.ReadAllText(path));
                 }
                 else arr = new JArray();

@@ -139,6 +139,15 @@ namespace StingTools.Temp
 
         private static (int loaded, int skipped, int failed) LoadIntoProject(Document doc, string bundleDir, string manifestPath)
         {
+            // S8.2.2 — span the load loop so a stalled .rfa surfaces with a
+            // duration outlier rather than a silent freeze.
+            return StingTools.Core.PluginTelemetry.Run(
+                "FamilyLibraryLoader.loadIntoProject",
+                () => LoadIntoProjectImpl(doc, bundleDir, manifestPath));
+        }
+
+        private static (int loaded, int skipped, int failed) LoadIntoProjectImpl(Document doc, string bundleDir, string manifestPath)
+        {
             int loaded = 0, skipped = 0, failed = 0;
             using var jdoc = JsonDocument.Parse(File.ReadAllText(manifestPath));
             if (!jdoc.RootElement.TryGetProperty("categories", out var categories)) return (0, 0, 0);

@@ -43,16 +43,28 @@ namespace StingTools.BIMManager
 
         public static ExportResult Export(Document doc, View3D view, string outputGlbPath)
         {
-            var ctx = new RevitGltfExporter(doc);
-            var exporter = new CustomExporter(doc, ctx)
-            {
-                IncludeGeometricObjects = false,
-                ShouldStopOnError = false,
-                Export2DIncludingAnnotationObjects = false,
-                Export2DGeometricObjectsIncludingPatternLines = false,
-            };
-            exporter.Export(view);
-            return ctx.WriteGlb(outputGlbPath);
+            // S8.2.2 — span around the whole export so telemetry-on users see
+            // p99 export latency vs scene size in their dashboards.
+            return StingTools.Core.PluginTelemetry.Run(
+                "RevitGltfExporter.export",
+                () =>
+                {
+                    var ctx = new RevitGltfExporter(doc);
+                    var exporter = new CustomExporter(doc, ctx)
+                    {
+                        IncludeGeometricObjects = false,
+                        ShouldStopOnError = false,
+                        Export2DIncludingAnnotationObjects = false,
+                        Export2DGeometricObjectsIncludingPatternLines = false,
+                    };
+                    exporter.Export(view);
+                    return ctx.WriteGlb(outputGlbPath);
+                },
+                extras: new System.Collections.Generic.Dictionary<string, object?>
+                {
+                    ["view"] = view.Name,
+                    ["docTitle"] = doc.Title,
+                });
         }
 
         // ── IExportContext ─────────────────────────────────────────────

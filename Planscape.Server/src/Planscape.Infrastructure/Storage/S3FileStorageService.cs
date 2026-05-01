@@ -166,6 +166,54 @@ public class S3FileStorageService : IFileStorageService, IAsyncDisposable
     }
 
     /// <summary>
+    /// S7.4.2 — recursive delete by prefix. Pages through ListObjectsV2
+    /// at 1,000 keys per call (S3's hard limit) and issues DeleteObjects
+    /// batches of the same size. O(N/1000) round-trips, which is the
+    /// best the S3 API allows. Returns the total objects deleted.
+    /// </summary>
+    public async Task<int> DeleteByPrefixAsync(string prefix, CancellationToken ct = default, bool bypassTenantCheck = false)
+    {
+        EnforceTenantOwnership(prefix, bypassTenantCheck);
+        // Ensure trailing slash so we don't accidentally delete a sibling
+        // whose key happens to start with the same characters.
+        var safePrefix = prefix.EndsWith("/") ? prefix : prefix + "/";
+
+        int total = 0;
+        string? continuationToken = null;
+        do
+        {
+            var listResp = await _s3.ListObjectsV2Async(new ListObjectsV2Request
+            {
+                BucketName = _bucket,
+                Prefix = safePrefix,
+                ContinuationToken = continuationToken,
+                MaxKeys = 1000,
+            }, ct);
+
+            if (listResp.S3Objects.Count == 0)
+            {
+                continuationToken = listResp.NextContinuationToken;
+                continue;
+            }
+
+            var delReq = new DeleteObjectsRequest { BucketName = _bucket, Quiet = true };
+            foreach (var obj in listResp.S3Objects)
+                delReq.AddKey(obj.Key);
+
+            var delResp = await _s3.DeleteObjectsAsync(delReq, ct);
+            // delResp.DeletedObjects only populated when Quiet = false; with Quiet
+            // we count the number of keys we asked to delete that the call didn't
+            // error on. Errors land on delResp.DeleteErrors.
+            total += listResp.S3Objects.Count - (delResp.DeleteErrors?.Count ?? 0);
+
+            continuationToken = listResp.IsTruncated == true ? listResp.NextContinuationToken : null;
+        } while (continuationToken != null);
+
+        _logger.LogInformation("DeleteByPrefix s3://{Bucket}/{Prefix} → {Total} objects", _bucket, safePrefix, total);
+        return total;
+    }
+
+    /// <summary>
     /// S1.2 — rejects paths whose first segment doesn't match the current
     /// tenant id (or slug, for legacy paths) or one of the well-known
     /// cross-tenant buckets ("derivatives", "thumbnails", "shared"). When
