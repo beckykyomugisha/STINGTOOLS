@@ -88,6 +88,7 @@ namespace StingTools.Core.Drawing
             // FamilyItemFactory's type, not by document, and stays
             // valid across families.
             _LineStyleNotFoundOnce.Clear();
+            _LineStyleAutoCreatedOnce.Clear();
 
             // 1. Resolve template
             string rftPath = ResolveTemplatePath(spec.TemplateRft);
@@ -706,6 +707,19 @@ namespace StingTools.Core.Drawing
                 GraphicsStyle hit = LookupLineStyle(doc, BuiltInCategory.OST_TitleBlocks, styleName)
                                  ?? LookupLineStyle(doc, BuiltInCategory.OST_Lines,        styleName);
 
+                // If the template doesn't ship the requested style, AUTO-
+                // CREATE it as a subcategory under OST_Lines with a
+                // canonical line weight + colour (BS 1192 Annex A — black
+                // weight 5 / 3 / 1 for Wide / Medium / Thin). This used to
+                // be a manual "open the .rfa, Manage → Object Styles → New
+                // Subcategory" step the operator had to do once per
+                // template. The factory now does it on first use so the
+                // generated .rfa is self-contained.
+                if (hit == null && IsCanonicalLineStyle(styleName))
+                {
+                    hit = AutoCreateLineStyle(doc, styleName, r);
+                }
+
                 // Fall-back chain: try the next-thinner style so a line still
                 // gets *some* weight rather than landing on the default
                 // <Invisible lines> some templates put first.
@@ -730,26 +744,15 @@ namespace StingTools.Core.Drawing
                     return;
                 }
 
-                // Ultimate fallback — if the template doesn't ship the
-                // standard "Wide / Medium / Thin Lines" subcategories at
-                // all (clean Revit template, custom locale, custom
-                // template content), look for any USER-DEFINED subcategory
-                // we can use. Skip <Bracketed> entries — those are Revit
-                // built-in meta-styles like <Overhead> / <Hidden> /
-                // <Sketch> / <Centerline> with specific dash/halftone
-                // patterns that look wrong as a sheet border. If only
-                // bracketed entries exist, leave the curve on Revit's
-                // default style (no warning per-curve).
+                // Ultimate fallback — pick any user-defined subcategory
+                // (skipping Revit built-in <Overhead> / <Hidden> / <Sketch>
+                // / <Centerline> meta-styles whose patterns look wrong as
+                // a generic line-weight fallback).
                 var anyStyle = FirstUserSubcategoryStyle(doc, BuiltInCategory.OST_Lines)
                             ?? FirstUserSubcategoryStyle(doc, BuiltInCategory.OST_TitleBlocks);
                 if (anyStyle != null)
                 {
                     dc.LineStyle = anyStyle;
-                    // Warn ONCE per unique missing style name (TryAdd
-                    // returns true on first add, false on subsequent —
-                    // the previous version checked Count<=3 which fired
-                    // every call when Count was still <=3, hence the
-                    // 60-line warning spam).
                     if (_LineStyleNotFoundOnce.TryAdd(styleName, true))
                         r.Warnings.Add($"line style '{styleName}' not found — using '{anyStyle.Name}' as fallback");
                     return;
@@ -760,7 +763,45 @@ namespace StingTools.Core.Drawing
             catch (Exception ex) { r.Warnings.Add($"ApplyLineStyle '{styleName}': {ex.Message}"); }
         }
 
+        private static bool IsCanonicalLineStyle(string s) =>
+               string.Equals(s, "Wide Lines",   StringComparison.OrdinalIgnoreCase)
+            || string.Equals(s, "Medium Lines", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(s, "Thin Lines",   StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>Mints a new subcategory under OST_Lines with the canonical
+        /// BS 1192 Annex A weight for Wide / Medium / Thin Lines. Called the
+        /// first time the factory needs the style and finds it absent in the
+        /// template — caches the resulting GraphicsStyle so subsequent curves
+        /// in the same .rfa reuse the same subcategory.</summary>
+        private static GraphicsStyle AutoCreateLineStyle(Document doc, string styleName, TitleBlockBuildResult r)
+        {
+            try
+            {
+                var lines = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Lines);
+                if (lines == null) return null;
+
+                // Canonical weight per BS 1192 Annex A.
+                int weight = styleName.Equals("Wide Lines",   StringComparison.OrdinalIgnoreCase) ? 5 :
+                             styleName.Equals("Medium Lines", StringComparison.OrdinalIgnoreCase) ? 3 :
+                                                                                                    1;
+
+                Category sub = doc.Settings.Categories.NewSubcategory(lines, styleName);
+                sub.LineColor = new Color(0, 0, 0);
+                sub.SetLineWeight(weight, GraphicsStyleType.Projection);
+                if (_LineStyleAutoCreatedOnce.TryAdd(styleName, true))
+                    r.Warnings.Add($"line style '{styleName}' auto-created under OST_Lines (weight {weight}, BS 1192 Annex A canonical)");
+                return sub.GetGraphicsStyle(GraphicsStyleType.Projection);
+            }
+            catch (Exception ex)
+            {
+                r.Warnings.Add($"AutoCreateLineStyle '{styleName}': {ex.Message}");
+                return null;
+            }
+        }
+
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> _LineStyleNotFoundOnce
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, bool>();
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> _LineStyleAutoCreatedOnce
             = new System.Collections.Concurrent.ConcurrentDictionary<string, bool>();
 
         private static GraphicsStyle FirstUserSubcategoryStyle(Document doc, BuiltInCategory parentCat)
