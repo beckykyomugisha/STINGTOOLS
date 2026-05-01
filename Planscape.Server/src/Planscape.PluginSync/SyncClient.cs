@@ -9,6 +9,17 @@ namespace Planscape.PluginSync;
 /// HTTP + SignalR client for plugin-to-server communication.
 /// Designed for the Revit plugin: offline-first, async, retry-capable.
 /// </summary>
+/// <remarks>
+/// S3.5 — DEPRECATED. Superseded by
+/// <c>StingTools.BIMManager.PlanscapeServerClient</c>. Kept compiling
+/// because <c>PlatformLinkCommands</c> still calls <c>SyncScheduler</c>
+/// as the background-tick driver; that wiring will move to
+/// <c>PlanscapeServerClient.RegisterBackgroundTick</c> in a follow-up
+/// sprint, after which the whole project can be deleted.
+///
+/// Migration map: see <c>docs/plugin-sync-consolidation.md</c>.
+/// </remarks>
+[Obsolete("S3.5: use StingTools.BIMManager.PlanscapeServerClient. Will be removed in a follow-up sprint.")]
 public class SyncClient : IDisposable
 {
     private readonly HttpClient _http;
