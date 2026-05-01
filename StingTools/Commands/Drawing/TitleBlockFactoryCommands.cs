@@ -18,6 +18,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Drawing;
+using StingTools.UI;
 
 namespace StingTools.Commands.Drawing
 {
@@ -27,6 +28,17 @@ namespace StingTools.Commands.Drawing
     {
         public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
         {
+            // Dock-panel dispatcher passes null for ExternalCommandData; fall
+            // back to StingCommandHandler.CurrentApp per the codebase
+            // convention (see StingCommandHandler.RunCommand<T>).
+            var uiApp = data?.Application ?? StingCommandHandler.CurrentApp;
+            if (uiApp == null)
+            {
+                TaskDialog.Show("STING — Title Block Factory",
+                    "No active Revit UIApplication — cannot resolve shared parameter file.");
+                return Result.Failed;
+            }
+
             var lib = TitleBlockSpecRegistry.Load();
             if (lib?.Families == null || lib.Families.Count == 0)
             {
@@ -59,8 +71,8 @@ namespace StingTools.Commands.Drawing
                 pick = lib.Families[chosen];
             }
 
-            var sharedFile = TitleBlockCommandUtils.ResolveSharedParamFile(data.Application);
-            var build = TitleBlockFactory.Build(data.Application, pick, sharedFile);
+            var sharedFile = TitleBlockCommandUtils.ResolveSharedParamFile(uiApp);
+            var build = TitleBlockFactory.Build(uiApp, pick, sharedFile);
             TitleBlockCommandUtils.ShowReport(pick.Id, build);
             return build.Ok ? Result.Succeeded : Result.Failed;
         }
@@ -72,6 +84,14 @@ namespace StingTools.Commands.Drawing
     {
         public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
         {
+            var uiApp = data?.Application ?? StingCommandHandler.CurrentApp;
+            if (uiApp == null)
+            {
+                TaskDialog.Show("STING — Title Block Factory",
+                    "No active Revit UIApplication — cannot resolve shared parameter file.");
+                return Result.Failed;
+            }
+
             var lib = TitleBlockSpecRegistry.Load();
             if (lib?.Families == null || lib.Families.Count == 0)
             {
@@ -80,7 +100,7 @@ namespace StingTools.Commands.Drawing
                 return Result.Failed;
             }
 
-            var sharedFile = TitleBlockCommandUtils.ResolveSharedParamFile(data.Application);
+            var sharedFile = TitleBlockCommandUtils.ResolveSharedParamFile(uiApp);
             var sb = new StringBuilder();
             sb.AppendLine($"Title-block library — {lib.Families.Count} families.");
             sb.AppendLine();
@@ -88,7 +108,7 @@ namespace StingTools.Commands.Drawing
             int ok = 0, failed = 0;
             foreach (var spec in lib.Families)
             {
-                var build = TitleBlockFactory.Build(data.Application, spec, sharedFile);
+                var build = TitleBlockFactory.Build(uiApp, spec, sharedFile);
                 if (build.Ok) ok++; else failed++;
                 sb.AppendLine($"{(build.Ok ? "✓" : "✗")} {spec.Id,-30}  "
                     + $"params {build.ParametersAdded,3}  lines {build.LinesPlaced,3}  "

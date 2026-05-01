@@ -86,9 +86,10 @@ namespace StingTools.Core.Drawing
 
             // 2. Open template
             Document famDoc = null;
-            string originalSpFile = app.SharedParametersFilename;
+            string originalSpFile = null;
             try
             {
+                try { originalSpFile = app.SharedParametersFilename; } catch { }
                 famDoc = app.NewFamilyDocument(rftPath);
                 if (famDoc == null || !famDoc.IsFamilyDocument)
                 {
