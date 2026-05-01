@@ -1,148 +1,191 @@
 {
   "schemaVersion": 2,
   "name": "STING — Title-block family library",
-  "description": "Generator spec for STING title-block .rfa families. Phase 170 revision (two-family BIM architecture): each paper size ships TWO families — STING_TB_<SIZE>_BIM_v* and STING_TB_<SIZE>_NONBIM_v*. Both inherit from a per-size abstract `<SIZE>_common_v*` base via the `extends` field so identity-data cells, slots, common labels and parameters are authored once. The legacy hybrid (single family + BIM_MODE_BOOL toggle + reflow groups + label pairs) is removed.",
+  "description": "Generator spec for STING title-block .rfa families. Two-family BIM architecture: each paper size ships STING_TB_<SIZE>_BIM_v* + STING_TB_<SIZE>_NONBIM_v* sharing a per-size abstract <SIZE>_common_v* base via JSON `extends` inheritance. Parameter set follows TITLE_BLOCK_FAMILY_DESIGN.md §2.1 universe — every param is sourced from MR_PARAMETERS.txt (no fabricated GUIDs).",
   "lastUpdated": "2026-05-01",
   "families": [
 
     {
       "id": "A1_common_v2.0",
       "abstract": true,
-      "description": "A1 landscape working sheet — common base shared between BIM and NONBIM variants. Defines identity-data parameters, the bottom strip framework (CLIENT / PROJECT / NOTES / DRAWING TITLE / DRAWN-CHECKED-APPROVED block), the outer border, and the 8 viewport slots. Concrete variants extend this and overlay either the full ISO-19650 BIM identity or a minimal non-BIM identity.",
+      "description": "A1 landscape working sheet — common base shared between BIM and NONBIM variants. Parameter set per TITLE_BLOCK_FAMILY_DESIGN.md §2.1 — Group A (project / originator / consultants / contractor identity + addresses) + Group C (authoring drawn/checked/approved). Defines the bottom-strip layout, outer border, and the 8 viewport slots. Concrete variants extend this and overlay BIM-specific or NONBIM-specific cells.",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
       "category": "OST_TitleBlocks",
 
       "parameters": [
-        { "name": "PRJ_ORG_CLIENT_NAME_TXT",        "kind": "shared", "instance": true, "group": "IdentityData" },
-        { "name": "PRJ_ORG_PROJECT_NAME_TXT",       "kind": "shared", "instance": true, "group": "IdentityData" },
-        { "name": "PRJ_ORG_PROJECT_ADDRESS_TXT",    "kind": "shared", "instance": true, "group": "IdentityData" },
-        { "name": "PRJ_ORG_PROJECT_NUMBER_TXT",     "kind": "shared", "instance": true, "group": "IdentityData" },
-        { "name": "PRJ_ORG_LEAD_APPOINTED_PARTY_TXT","kind": "shared", "instance": true, "group": "IdentityData" },
-        { "name": "PRJ_ORG_PARTICIPANTS_TXT",       "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_ORG_PROJECT_CODE_TXT",            "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_ORG_PROJECT_NUMBER_TXT",          "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_ORG_PROJECT_NAME_TXT",            "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_ORG_PROJECT_ADDRESS_TXT",         "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_ORG_ORIGINATOR_CODE_TXT",         "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_ORG_COMPANY_NAME_TXT",            "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_ORG_COMPANY_ADDRESS_TXT",         "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_ORG_LEAD_APPOINTED_PARTY_TXT",    "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_ORG_APPOINTING_PARTY_TXT",        "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_ORG_PARTICIPANTS_TXT",            "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_ORG_RIBA_STAGE_TXT",              "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_ORG_UNICLASS_CO_TXT",             "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_ORG_COORD_SYSTEM_TXT",            "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_ORG_PROJECT_NORTH_TXT",           "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_ORG_GROUND_LEVEL_TXT",            "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_ORG_SECURITY_CLASS_TXT",          "kind": "shared", "instance": true, "group": "IdentityData", "default": "OFFICIAL" },
 
-        { "name": "STING_LEAD_ARCH_TXT",  "kind": "internal", "instance": true, "type": "Text", "group": "IdentityData" },
-        { "name": "STING_STRUCT_TXT",     "kind": "internal", "instance": true, "type": "Text", "group": "IdentityData" },
-        { "name": "STING_MEP_TXT",        "kind": "internal", "instance": true, "type": "Text", "group": "IdentityData" },
-        { "name": "STING_CONTRACTOR_TXT", "kind": "internal", "instance": true, "type": "Text", "group": "IdentityData" },
-        { "name": "STING_NOTES_TXT",      "kind": "internal", "instance": true, "type": "Text", "group": "IdentityData" },
-        { "name": "STING_SHEET_NAME_TXT", "kind": "internal", "instance": true, "type": "Text", "group": "IdentityData", "default": "Unnamed" },
-        { "name": "STING_SCALE_TXT",      "kind": "internal", "instance": true, "type": "Text", "group": "IdentityData", "default": "1:100" },
-        { "name": "STING_DR",             "kind": "internal", "instance": true, "type": "Text", "group": "IdentityData" },
-        { "name": "STING_CK",             "kind": "internal", "instance": true, "type": "Text", "group": "IdentityData" },
-        { "name": "STING_AP",             "kind": "internal", "instance": true, "type": "Text", "group": "IdentityData" },
-        { "name": "STING_DATE_TXT",       "kind": "internal", "instance": true, "type": "Text", "group": "IdentityData" },
-        { "name": "STING_PAPER_SIZE_TXT", "kind": "internal", "instance": true, "type": "Text", "group": "IdentityData", "default": "A1" }
+        { "name": "PRJ_TB_CLIENT_NAME_TXT",              "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_TB_CLIENT_ADDRESS_TXT",           "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_TB_CONSULTANT_NAME_TXT",          "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_TB_CONSULTANT_ADDRESS_TXT",       "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT",    "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_TB_STRUCTURAL_CONSULTANTS_ADDRESS_TXT", "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_TB_MEP_CONSULTANTS_NAME_TXT",     "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_TB_MEP_CONSULTANTS_ADDRESS_TXT",  "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_TB_CONTRACTOR_NAME_TXT",          "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_TB_CONTRACTOR_ADDRESS_TXT",       "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_TB_DISCIPLINE_TXT",               "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_TB_PAPER_SZ_TXT",                 "kind": "shared", "instance": true, "group": "IdentityData", "default": "A1" },
+        { "name": "PRJ_TB_TOTAL_NO_SHEETS_TXT",          "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_TB_LOGO_PATH_TXT",                "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_TB_NOTES_LEGEND_REF_TXT",         "kind": "shared", "instance": true, "group": "IdentityData" },
+
+        { "name": "PRJ_TB_DRAWN_BY_TXT",                 "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_TB_DATE_DRAWN_TXT",               "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_TB_CHECKED_BY_TXT",               "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_TB_DATE_CHECKED_TXT",             "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_TB_APVD_BY_TXT",                  "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_TB_DATE_APVD_TXT",                "kind": "shared", "instance": true, "group": "IdentityData" },
+
+        { "name": "PRJ_TB_SCALE_OVERRIDE_TXT",           "kind": "shared", "instance": true, "group": "IdentityData", "default": "1:100" },
+        { "name": "PRJ_TB_VARIANT_TXT",                  "kind": "shared", "instance": true, "group": "IdentityData", "default": "WORKING" },
+        { "name": "PRJ_TB_SCHEMA_VERSION_TXT",           "kind": "shared", "instance": false, "group": "IdentityData", "default": "v2.0" }
       ],
 
       "lines": [
-        { "from": [0, 0],   "to": [841, 0],   "style": "Wide Lines" },
-        { "from": [841, 0], "to": [841, 594], "style": "Wide Lines" },
-        { "from": [841,594],"to": [0, 594],   "style": "Wide Lines" },
-        { "from": [0, 594], "to": [0, 0],     "style": "Wide Lines" },
+        { "from": [0,    0],   "to": [841, 0],   "style": "Wide Lines"   },
+        { "from": [841,  0],   "to": [841, 594], "style": "Wide Lines"   },
+        { "from": [841,  594], "to": [0,   594], "style": "Wide Lines"   },
+        { "from": [0,    594], "to": [0,   0],   "style": "Wide Lines"   },
 
         { "from": [0,    110], "to": [841, 110], "style": "Medium Lines" },
-        { "from": [200,  0],   "to": [200, 110], "style": "Thin Lines" },
-        { "from": [400,  0],   "to": [400, 110], "style": "Thin Lines" },
-        { "from": [620,  0],   "to": [620, 110], "style": "Thin Lines" },
-        { "from": [820,  0],   "to": [820, 110], "style": "Thin Lines" },
-        { "from": [200,  60],  "to": [620, 60],  "style": "Thin Lines" },
-        { "from": [200,  35],  "to": [400, 35],  "style": "Thin Lines" }
+        { "from": [200,  0],   "to": [200, 110], "style": "Thin Lines"   },
+        { "from": [400,  0],   "to": [400, 110], "style": "Thin Lines"   },
+        { "from": [620,  0],   "to": [620, 110], "style": "Thin Lines"   },
+        { "from": [820,  0],   "to": [820, 110], "style": "Thin Lines"   },
+
+        { "from": [0,    50],  "to": [200, 50],  "style": "Thin Lines"   },
+        { "from": [0,    35],  "to": [200, 35],  "style": "Thin Lines"   },
+        { "from": [0,    20],  "to": [200, 20],  "style": "Thin Lines"   },
+
+        { "from": [200,  85],  "to": [400, 85],  "style": "Thin Lines"   },
+        { "from": [200,  60],  "to": [400, 60],  "style": "Thin Lines"   },
+        { "from": [200,  35],  "to": [400, 35],  "style": "Thin Lines"   },
+
+        { "from": [620,  90],  "to": [820, 90],  "style": "Thin Lines"   },
+        { "from": [620,  72],  "to": [820, 72],  "style": "Thin Lines"   },
+        { "from": [680,  72],  "to": [680, 110], "style": "Thin Lines"   },
+        { "from": [750,  72],  "to": [750, 110], "style": "Thin Lines"   }
       ],
 
       "staticText": [
-        { "text": "CLIENT",        "anchor": [4, 105], "size": 1.5 },
-        { "text": "PROJECT",       "anchor": [4, 80],  "size": 1.5 },
-        { "text": "LEAD / ARCHITECT:", "anchor": [4, 25], "size": 1.5 },
-        { "text": "STRUCTURAL:",   "anchor": [4, 18], "size": 1.5 },
-        { "text": "MEP:",          "anchor": [4, 11], "size": 1.5 },
-        { "text": "CONTRACTOR:",   "anchor": [4, 4],  "size": 1.5 },
+        { "text": "CLIENT",        "anchor": [4, 105], "size": 1.4 },
+        { "text": "PROJECT",       "anchor": [4,  80], "size": 1.4 },
 
-        { "text": "NOTES",         "anchor": [204, 105], "size": 1.5 },
+        { "text": "ARCHITECT",     "anchor": [4,  46], "size": 1.2 },
+        { "text": "STRUCTURAL",    "anchor": [4,  31], "size": 1.2 },
+        { "text": "MEP",           "anchor": [4,  16], "size": 1.2 },
+        { "text": "CONTRACTOR",    "anchor": [4,   2], "size": 1.2 },
 
-        { "text": "DRAWING TITLE.", "anchor": [404, 105], "size": 1.5 },
-        { "text": "DRAWING TITLE.", "anchor": [404, 6],   "size": 1.5 },
+        { "text": "NOTES",         "anchor": [204, 105], "size": 1.4 },
 
-        { "text": "DATE",          "anchor": [624, 105], "size": 1.5 },
-        { "text": "PAPER SIZE",    "anchor": [684, 105], "size": 1.5 },
-        { "text": "SCALE.",        "anchor": [744, 105], "size": 1.5 },
+        { "text": "DRAWING TITLE", "anchor": [404, 105], "size": 1.4 },
+        { "text": "PROJECT REF.",  "anchor": [204,  82], "size": 1.2 },
+        { "text": "DISCIPLINE",    "anchor": [204,  56], "size": 1.2 },
+        { "text": "RIBA STAGE",    "anchor": [204,  31], "size": 1.2 },
 
-        { "text": "DRAWN BY.",     "anchor": [624, 88], "size": 1.5 },
-        { "text": "CHECKED BY.",   "anchor": [684, 88], "size": 1.5 },
-        { "text": "APPROVED BY.",  "anchor": [744, 88], "size": 1.5 }
+        { "text": "DATE",          "anchor": [624, 105], "size": 1.2 },
+        { "text": "PAPER",         "anchor": [684, 105], "size": 1.2 },
+        { "text": "SCALE",         "anchor": [754, 105], "size": 1.2 },
+
+        { "text": "DRAWN BY",      "anchor": [624,  87], "size": 1.2 },
+        { "text": "CHECKED BY",    "anchor": [684,  87], "size": 1.2 },
+        { "text": "APPROVED BY",   "anchor": [754,  87], "size": 1.2 },
+
+        { "text": "DATES",         "anchor": [624,  69], "size": 1.0 }
       ],
 
       "labels": [
-        { "param": "PRJ_ORG_CLIENT_NAME_TXT",  "anchor": [4, 95], "size": 2.0 },
-        { "param": "PRJ_ORG_PROJECT_NAME_TXT", "anchor": [4, 70], "size": 2.0 },
-        { "param": "STING_LEAD_ARCH_TXT",      "anchor": [40, 25], "size": 1.8 },
-        { "param": "STING_STRUCT_TXT",         "anchor": [40, 18], "size": 1.8 },
-        { "param": "STING_MEP_TXT",            "anchor": [40, 11], "size": 1.8 },
-        { "param": "STING_CONTRACTOR_TXT",     "anchor": [40, 4],  "size": 1.8 },
+        { "param": "PRJ_TB_CLIENT_NAME_TXT",                "anchor": [4,   95], "size": 2.0, "hAlign": "Left", "vAlign": "Middle" },
+        { "param": "PRJ_TB_CLIENT_ADDRESS_TXT",             "anchor": [4,   86], "size": 1.4, "hAlign": "Left", "vAlign": "Middle" },
 
-        { "param": "STING_NOTES_TXT",          "anchor": [204, 95], "size": 1.6 },
+        { "param": "PRJ_ORG_PROJECT_NAME_TXT",              "anchor": [4,   70], "size": 2.0, "hAlign": "Left", "vAlign": "Middle" },
+        { "param": "PRJ_ORG_PROJECT_ADDRESS_TXT",           "anchor": [4,   60], "size": 1.4, "hAlign": "Left", "vAlign": "Middle" },
 
-        { "param": "STING_SHEET_NAME_TXT",     "anchor": [404, 90], "size": 3.5 },
+        { "param": "PRJ_TB_CONSULTANT_NAME_TXT",            "anchor": [40,  46], "size": 1.4, "hAlign": "Left", "vAlign": "Middle" },
+        { "param": "PRJ_TB_CONSULTANT_ADDRESS_TXT",         "anchor": [40,  41], "size": 1.0, "hAlign": "Left", "vAlign": "Middle" },
 
-        { "param": "STING_DATE_TXT",           "anchor": [624, 96], "size": 1.6 },
-        { "param": "STING_PAPER_SIZE_TXT",     "anchor": [684, 96], "size": 1.6 },
-        { "param": "STING_SCALE_TXT",          "anchor": [744, 96], "size": 1.6 },
+        { "param": "PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT",    "anchor": [40,  31], "size": 1.4, "hAlign": "Left", "vAlign": "Middle" },
+        { "param": "PRJ_TB_STRUCTURAL_CONSULTANTS_ADDRESS_TXT", "anchor": [40,  26], "size": 1.0, "hAlign": "Left", "vAlign": "Middle" },
 
-        { "param": "STING_DR",                 "anchor": [624, 76], "size": 1.6 },
-        { "param": "STING_CK",                 "anchor": [684, 76], "size": 1.6 },
-        { "param": "STING_AP",                 "anchor": [744, 76], "size": 1.6 }
+        { "param": "PRJ_TB_MEP_CONSULTANTS_NAME_TXT",       "anchor": [40,  16], "size": 1.4, "hAlign": "Left", "vAlign": "Middle" },
+        { "param": "PRJ_TB_MEP_CONSULTANTS_ADDRESS_TXT",    "anchor": [40,  11], "size": 1.0, "hAlign": "Left", "vAlign": "Middle" },
+
+        { "param": "PRJ_TB_CONTRACTOR_NAME_TXT",            "anchor": [40,   2], "size": 1.4, "hAlign": "Left", "vAlign": "Middle" },
+        { "param": "PRJ_TB_CONTRACTOR_ADDRESS_TXT",         "anchor": [120,  2], "size": 1.0, "hAlign": "Left", "vAlign": "Middle" },
+
+        { "param": "PRJ_ORG_PROJECT_CODE_TXT",              "anchor": [204, 75], "size": 1.6, "hAlign": "Left", "vAlign": "Middle" },
+        { "param": "PRJ_ORG_PROJECT_NUMBER_TXT",            "anchor": [300, 75], "size": 1.6, "hAlign": "Left", "vAlign": "Middle" },
+
+        { "param": "PRJ_TB_DISCIPLINE_TXT",                 "anchor": [204, 50], "size": 1.6, "hAlign": "Left", "vAlign": "Middle" },
+        { "param": "PRJ_ORG_RIBA_STAGE_TXT",                "anchor": [204, 25], "size": 1.6, "hAlign": "Left", "vAlign": "Middle" },
+
+        { "param": "PRJ_TB_NOTES_LEGEND_REF_TXT",           "anchor": [204, 95], "size": 1.4, "hAlign": "Left", "vAlign": "Middle" },
+
+        { "param": "PRJ_ORG_PROJECT_NAME_TXT",              "anchor": [404, 90], "size": 3.5, "hAlign": "Left", "vAlign": "Middle" },
+
+        { "param": "PRJ_TB_DATE_DRAWN_TXT",                 "anchor": [624, 96], "size": 1.4, "hAlign": "Left", "vAlign": "Middle" },
+        { "param": "PRJ_TB_PAPER_SZ_TXT",                   "anchor": [684, 96], "size": 1.4, "hAlign": "Left", "vAlign": "Middle" },
+        { "param": "PRJ_TB_SCALE_OVERRIDE_TXT",             "anchor": [754, 96], "size": 1.4, "hAlign": "Left", "vAlign": "Middle" },
+
+        { "param": "PRJ_TB_DRAWN_BY_TXT",                   "anchor": [624, 78], "size": 1.4, "hAlign": "Left", "vAlign": "Middle" },
+        { "param": "PRJ_TB_CHECKED_BY_TXT",                 "anchor": [684, 78], "size": 1.4, "hAlign": "Left", "vAlign": "Middle" },
+        { "param": "PRJ_TB_APVD_BY_TXT",                    "anchor": [754, 78], "size": 1.4, "hAlign": "Left", "vAlign": "Middle" },
+
+        { "param": "PRJ_TB_DATE_DRAWN_TXT",                 "anchor": [624, 64], "size": 1.0, "hAlign": "Left", "vAlign": "Middle" },
+        { "param": "PRJ_TB_DATE_CHECKED_TXT",               "anchor": [684, 64], "size": 1.0, "hAlign": "Left", "vAlign": "Middle" },
+        { "param": "PRJ_TB_DATE_APVD_TXT",                  "anchor": [754, 64], "size": 1.0, "hAlign": "Left", "vAlign": "Middle" }
       ],
 
       "filledRegions": [],
 
       "slots": [
         { "id": "S01", "anchor": [10, 120], "size": [810, 470],
-          "purposeTag": "main-plan",
-          "viewportType": "Title w/ Line",
-          "scaleHint": 100,
+          "purposeTag": "main-plan", "viewportType": "Title w/ Line", "scaleHint": 100,
           "description": "Main drawing area — full-bleed plan / 3D / section",
           "createReferencePlanes": true, "showCornerMarker": true },
-
         { "id": "S02", "anchor": [10, 120], "size": [400, 470],
-          "purposeTag": "main-plan-half-left",
-          "viewportType": "Title w/ Line",
-          "scaleHint": 100,
+          "purposeTag": "main-plan-half-left", "viewportType": "Title w/ Line", "scaleHint": 100,
           "description": "Left half — 50/50 split layout",
           "createReferencePlanes": true, "showCornerMarker": true },
-
         { "id": "S03", "anchor": [420, 120], "size": [400, 470],
-          "purposeTag": "main-plan-half-right",
-          "viewportType": "Title w/ Line",
-          "scaleHint": 100,
+          "purposeTag": "main-plan-half-right", "viewportType": "Title w/ Line", "scaleHint": 100,
           "description": "Right half — 50/50 split layout",
           "createReferencePlanes": true, "showCornerMarker": true },
-
         { "id": "S04", "anchor": [10,  120], "size": [400, 230],
-          "purposeTag": "quad-bottom-left",
-          "scaleHint": 200,
+          "purposeTag": "quad-bottom-left", "scaleHint": 200,
           "description": "Bottom-left quadrant — 4-up grid",
           "createReferencePlanes": false, "showCornerMarker": true },
-
         { "id": "S05", "anchor": [420, 120], "size": [400, 230],
-          "purposeTag": "quad-bottom-right",
-          "scaleHint": 200,
+          "purposeTag": "quad-bottom-right", "scaleHint": 200,
           "description": "Bottom-right quadrant — 4-up grid",
           "createReferencePlanes": false, "showCornerMarker": true },
-
         { "id": "S06", "anchor": [10,  360], "size": [400, 230],
-          "purposeTag": "quad-top-left",
-          "scaleHint": 200,
+          "purposeTag": "quad-top-left", "scaleHint": 200,
           "description": "Top-left quadrant — 4-up grid",
           "createReferencePlanes": false, "showCornerMarker": true },
-
         { "id": "S07", "anchor": [420, 360], "size": [400, 230],
-          "purposeTag": "quad-top-right",
-          "scaleHint": 200,
+          "purposeTag": "quad-top-right", "scaleHint": 200,
           "description": "Top-right quadrant — 4-up grid",
           "createReferencePlanes": false, "showCornerMarker": true },
-
         { "id": "KP",  "anchor": [690, 130], "size": [120, 100],
-          "purposeTag": "key-plan",
-          "scaleHint": 500,
+          "purposeTag": "key-plan", "scaleHint": 500,
           "description": "Key-plan pocket — small location overview",
           "createReferencePlanes": false, "showCornerMarker": true }
       ]
@@ -152,87 +195,129 @@
       "id": "STING_TB_A1_BIM_v2.0",
       "extends": "A1_common_v2.0",
       "mode": "BIM",
-      "description": "A1 landscape working sheet — full ISO 19650 BIM identity. Adds the 7-segment sheet ID strip, suitability chip, status band, revision-history strip, and authorised-by signature row over the common base.",
+      "description": "A1 landscape working sheet — full ISO 19650 BIM identity. Adds the 7-segment sheet ID strip, suitability chip + descriptive label, status band, revision-history register, federation status, LOIN/LOD, transmittal/CDE references, and the 4-eyes AUTHORISED BY signature row over the common base.",
       "saveAs": "Families/TitleBlocks/STING_TB_A1_BIM_v2.0.rfa",
 
       "parameters": [
-        { "name": "STING_SHEET_BIM_MODE_TXT", "kind": "shared", "instance": true, "group": "IdentityData", "default": "BIM" },
+        { "name": "STING_SHEET_BIM_MODE_TXT",        "kind": "shared", "instance": true, "group": "IdentityData", "default": "BIM" },
 
-        { "name": "STING_SHEET_PROJECT_TXT", "kind": "internal", "instance": true, "type": "Text", "group": "IdentityData", "default": "STG" },
-        { "name": "STING_SHEET_ORIG_TXT",    "kind": "internal", "instance": true, "type": "Text", "group": "IdentityData", "default": "PLNS" },
-        { "name": "STING_SHEET_VOL_TXT",     "kind": "internal", "instance": true, "type": "Text", "group": "IdentityData", "default": "ZZ" },
-        { "name": "STING_SHEET_LVL_TXT",     "kind": "internal", "instance": true, "type": "Text", "group": "IdentityData", "default": "01" },
-        { "name": "STING_SHEET_TYPE_TXT",    "kind": "internal", "instance": true, "type": "Text", "group": "IdentityData", "default": "DR" },
-        { "name": "STING_SHEET_ROL_TXT",     "kind": "internal", "instance": true, "type": "Text", "group": "IdentityData", "default": "A" },
-        { "name": "STING_SHEET_SEQ_TXT",     "kind": "internal", "instance": true, "type": "Text", "group": "IdentityData", "default": "0001" },
-        { "name": "STING_SHEET_FULL_REF_TXT","kind": "internal", "instance": true, "type": "Text", "group": "IdentityData", "default": "STG-PLNS-ZZ-01-DR-A-0001" },
+        { "name": "STING_SHEET_PROJECT_TXT",         "kind": "shared", "instance": true, "group": "IdentityData", "default": "STG"  },
+        { "name": "STING_SHEET_ORIG_TXT",            "kind": "shared", "instance": true, "group": "IdentityData", "default": "PLNS" },
+        { "name": "STING_SHEET_VOLUME_TXT",          "kind": "shared", "instance": true, "group": "IdentityData", "default": "ZZ"   },
+        { "name": "STING_SHEET_LEVEL_TXT",           "kind": "shared", "instance": true, "group": "IdentityData", "default": "01"   },
+        { "name": "STING_SHEET_TYPE_TXT",            "kind": "shared", "instance": true, "group": "IdentityData", "default": "DR"   },
+        { "name": "STING_SHEET_ROLE_TXT",            "kind": "shared", "instance": true, "group": "IdentityData", "default": "A"    },
+        { "name": "STING_SHEET_SEQ_TXT",             "kind": "shared", "instance": true, "group": "IdentityData", "default": "0001" },
+        { "name": "STING_SHEET_FULL_REF_TXT",        "kind": "shared", "instance": true, "group": "IdentityData", "default": "STG-PLNS-ZZ-01-DR-A-0001" },
+        { "name": "STING_SHEET_OF_TOTAL_TXT",        "kind": "shared", "instance": true, "group": "IdentityData", "default": "01 / 01" },
 
-        { "name": "STING_SUITABILITY_TXT",   "kind": "internal", "instance": true, "type": "Text", "group": "IdentityData", "default": "S2" },
-        { "name": "STING_STATUS_TXT",        "kind": "internal", "instance": true, "type": "Text", "group": "IdentityData", "default": "FOR INFORMATION" },
-        { "name": "STING_REV_TXT",           "kind": "internal", "instance": true, "type": "Text", "group": "IdentityData", "default": "P01" },
-        { "name": "STING_REV_DATE_TXT",      "kind": "internal", "instance": true, "type": "Text", "group": "IdentityData" },
-        { "name": "STING_AUTHORISED_BY_TXT", "kind": "internal", "instance": true, "type": "Text", "group": "IdentityData" }
+        { "name": "PRJ_DWG_SUITABILITY_COD_TXT",     "kind": "shared", "instance": true, "group": "IdentityData", "default": "S2" },
+        { "name": "STING_SUITABILITY_DESC_TXT",      "kind": "shared", "instance": true, "group": "IdentityData", "default": "Shared, Non-contractual" },
+        { "name": "PRJ_DWG_ISSUE_PURPOSE_TXT",       "kind": "shared", "instance": true, "group": "IdentityData", "default": "FOR INFORMATION" },
+        { "name": "PRJ_TB_DELIVERABLE_STATUS_TXT",   "kind": "shared", "instance": true, "group": "IdentityData", "default": "Shared" },
+        { "name": "PRJ_TB_DESIGN_STAGE_TXT",         "kind": "shared", "instance": true, "group": "IdentityData" },
+
+        { "name": "PRJ_TB_REVISION_NR_TXT",          "kind": "shared", "instance": true, "group": "IdentityData", "default": "P01" },
+        { "name": "PRJ_TB_REVISION_DATE_TXT",        "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_TB_REVISION_DESCRIPTION_TXT", "kind": "shared", "instance": true, "group": "IdentityData" },
+
+        { "name": "PRJ_TB_LAST_TRANSMITTAL_TXT",     "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_TB_LAST_TRANSMITTAL_DATE_TXT","kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_TB_DELIVERABLE_CDE_TXT",      "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_TB_DELIVERABLE_DATADROP_TXT", "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_TB_DELIVERABLE_DUE_TXT",      "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "PRJ_TB_ISSUE_SUMMARY_TXT",        "kind": "shared", "instance": true, "group": "IdentityData" },
+
+        { "name": "STING_FEDERATION_STATUS_TXT",     "kind": "shared", "instance": true, "group": "IdentityData", "default": "Federated" },
+        { "name": "STING_LOIN_LOD_TXT",              "kind": "shared", "instance": true, "group": "IdentityData", "default": "LOD 300" },
+
+        { "name": "STING_AUTHORISED_BY_TXT",         "kind": "shared", "instance": true, "group": "IdentityData" },
+        { "name": "STING_AUTHORISED_DATE_TXT",       "kind": "shared", "instance": true, "group": "IdentityData" }
       ],
 
       "lines": [
         { "from": [0,    150], "to": [841, 150], "style": "Medium Lines" },
-        { "from": [0,    130], "to": [841, 130], "style": "Thin Lines" },
-        { "from": [620,  130], "to": [620, 150], "style": "Thin Lines" },
-        { "from": [710,  130], "to": [710, 150], "style": "Thin Lines" },
-        { "from": [770,  130], "to": [770, 150], "style": "Thin Lines" },
-        { "from": [820,  130], "to": [820, 150], "style": "Thin Lines" },
+        { "from": [0,    130], "to": [841, 130], "style": "Thin Lines"   },
+        { "from": [620,  130], "to": [620, 150], "style": "Thin Lines"   },
+        { "from": [710,  130], "to": [710, 150], "style": "Thin Lines"   },
+        { "from": [770,  130], "to": [770, 150], "style": "Thin Lines"   },
+        { "from": [820,  130], "to": [820, 150], "style": "Thin Lines"   },
 
-        { "from": [620,  60],  "to": [620, 110], "style": "Thin Lines" },
-        { "from": [820,  60],  "to": [820, 110], "style": "Thin Lines" },
-        { "from": [620,  35],  "to": [820, 35],  "style": "Thin Lines" },
-        { "from": [620,  10],  "to": [820, 10],  "style": "Thin Lines" },
-        { "from": [654,  0],   "to": [654, 35],  "style": "Thin Lines" },
-        { "from": [688,  0],   "to": [688, 35],  "style": "Thin Lines" },
-        { "from": [722,  0],   "to": [722, 35],  "style": "Thin Lines" },
-        { "from": [756,  0],   "to": [756, 35],  "style": "Thin Lines" },
-        { "from": [790,  0],   "to": [790, 35],  "style": "Thin Lines" }
+        { "from": [400,  72],  "to": [400, 110], "style": "Thin Lines"   },
+        { "from": [400,  90],  "to": [620,  90], "style": "Thin Lines"   },
+        { "from": [400,  60],  "to": [620,  60], "style": "Thin Lines"   },
+        { "from": [400,  35],  "to": [620,  35], "style": "Thin Lines"   },
+        { "from": [400,  15],  "to": [620,  15], "style": "Thin Lines"   },
+        { "from": [510,  15],  "to": [510, 110], "style": "Thin Lines"   }
       ],
 
       "staticText": [
-        { "text": "STATUS",      "anchor": [624, 145], "size": 1.4 },
-        { "text": "SUITABILITY", "anchor": [714, 145], "size": 1.4 },
-        { "text": "REV",         "anchor": [774, 145], "size": 1.4 },
-        { "text": "REV DATE",    "anchor": [824, 145], "size": 1.4 },
+        { "text": "STATUS",          "anchor": [624, 145], "size": 1.4 },
+        { "text": "SUITABILITY",     "anchor": [714, 145], "size": 1.4 },
+        { "text": "REV",             "anchor": [774, 145], "size": 1.4 },
+        { "text": "REV DATE",        "anchor": [824, 145], "size": 1.4 },
 
-        { "text": "DRG STATUS",  "anchor": [624, 56], "size": 1.4 },
-        { "text": "SHEET.",      "anchor": [684, 56], "size": 1.4 },
-        { "text": "AUTHORISED BY.", "anchor": [744, 56], "size": 1.4 },
+        { "text": "SHEET ID — ISO 19650",       "anchor": [404, 105], "size": 1.0 },
+        { "text": "PROJ",            "anchor": [404, 100], "size": 0.9 },
+        { "text": "ORIG",            "anchor": [432, 100], "size": 0.9 },
+        { "text": "VOL",             "anchor": [460, 100], "size": 0.9 },
+        { "text": "LVL",             "anchor": [482, 100], "size": 0.9 },
+        { "text": "TYPE",            "anchor": [504, 100], "size": 0.9 },
+        { "text": "ROL",             "anchor": [528, 100], "size": 0.9 },
+        { "text": "SEQ",             "anchor": [550, 100], "size": 0.9 },
+        { "text": "OF",              "anchor": [596, 100], "size": 0.9 },
 
-        { "text": "DRG NO.",     "anchor": [624, 31], "size": 1.4 },
+        { "text": "FULL REF",        "anchor": [404,  82], "size": 1.0 },
+        { "text": "TRANSMITTAL",     "anchor": [404,  52], "size": 0.9 },
+        { "text": "CDE",             "anchor": [404,  27], "size": 0.9 },
+        { "text": "FED",             "anchor": [510,  52], "size": 0.9 },
+        { "text": "LOIN/LOD",        "anchor": [510,  27], "size": 0.9 },
+        { "text": "ISSUE PURPOSE",   "anchor": [404,   7], "size": 0.9 },
 
-        { "text": "SEQ.NO",      "anchor": [624,  6], "size": 1.2 },
-        { "text": "REV.NO",      "anchor": [658,  6], "size": 1.2 },
-        { "text": "DESCRIPTION", "anchor": [692,  6], "size": 1.2 },
-        { "text": "APPR. BY.",   "anchor": [760,  6], "size": 1.2 },
-        { "text": "DATE.",       "anchor": [794,  6], "size": 1.2 }
+        { "text": "AUTHORISED BY",   "anchor": [624,  56], "size": 1.0 },
+        { "text": "AUTH. DATE",      "anchor": [754,  56], "size": 1.0 },
+
+        { "text": "REV HISTORY",     "anchor": [4,   145], "size": 1.0 }
       ],
 
       "labels": [
-        { "param": "STING_STATUS_TXT",        "anchor": [624, 138], "size": 2.0 },
-        { "param": "STING_SUITABILITY_TXT",   "anchor": [714, 138], "size": 2.0 },
-        { "param": "STING_REV_TXT",           "anchor": [774, 138], "size": 2.0 },
-        { "param": "STING_REV_DATE_TXT",      "anchor": [824, 138], "size": 1.8 },
+        { "param": "PRJ_TB_DELIVERABLE_STATUS_TXT",  "anchor": [624, 138], "size": 1.8, "hAlign": "Left", "vAlign": "Middle" },
+        { "param": "PRJ_DWG_SUITABILITY_COD_TXT",    "anchor": [714, 138], "size": 1.8, "hAlign": "Left", "vAlign": "Middle" },
+        { "param": "PRJ_TB_REVISION_NR_TXT",         "anchor": [774, 138], "size": 1.8, "hAlign": "Left", "vAlign": "Middle" },
+        { "param": "PRJ_TB_REVISION_DATE_TXT",       "anchor": [824, 138], "size": 1.6, "hAlign": "Left", "vAlign": "Middle" },
 
-        { "param": "STING_SHEET_FULL_REF_TXT","anchor": [684, 48], "size": 2.5, "hAlign": "Center" },
-        { "param": "STING_AUTHORISED_BY_TXT", "anchor": [744, 48], "size": 1.8 },
+        { "param": "STING_SHEET_PROJECT_TXT",        "anchor": [404, 96], "size": 1.6, "hAlign": "Left",   "vAlign": "Middle" },
+        { "param": "STING_SHEET_ORIG_TXT",           "anchor": [432, 96], "size": 1.6, "hAlign": "Left",   "vAlign": "Middle" },
+        { "param": "STING_SHEET_VOLUME_TXT",         "anchor": [460, 96], "size": 1.6, "hAlign": "Left",   "vAlign": "Middle" },
+        { "param": "STING_SHEET_LEVEL_TXT",          "anchor": [482, 96], "size": 1.6, "hAlign": "Left",   "vAlign": "Middle" },
+        { "param": "STING_SHEET_TYPE_TXT",           "anchor": [504, 96], "size": 1.6, "hAlign": "Left",   "vAlign": "Middle" },
+        { "param": "STING_SHEET_ROLE_TXT",           "anchor": [528, 96], "size": 1.6, "hAlign": "Left",   "vAlign": "Middle" },
+        { "param": "STING_SHEET_SEQ_TXT",            "anchor": [550, 96], "size": 1.6, "hAlign": "Left",   "vAlign": "Middle" },
+        { "param": "STING_SHEET_OF_TOTAL_TXT",       "anchor": [596, 96], "size": 1.4, "hAlign": "Left",   "vAlign": "Middle" },
 
-        { "param": "STING_SHEET_FULL_REF_TXT","anchor": [624, 22], "size": 2.5 }
+        { "param": "STING_SHEET_FULL_REF_TXT",       "anchor": [404, 75], "size": 2.5, "hAlign": "Left",   "vAlign": "Middle" },
+
+        { "param": "STING_SUITABILITY_DESC_TXT",     "anchor": [510, 65], "size": 1.0, "hAlign": "Left",   "vAlign": "Middle" },
+
+        { "param": "PRJ_TB_LAST_TRANSMITTAL_TXT",    "anchor": [404, 45], "size": 1.4, "hAlign": "Left",   "vAlign": "Middle" },
+        { "param": "PRJ_TB_DELIVERABLE_CDE_TXT",     "anchor": [404, 20], "size": 1.0, "hAlign": "Left",   "vAlign": "Middle" },
+        { "param": "STING_FEDERATION_STATUS_TXT",    "anchor": [510, 45], "size": 1.0, "hAlign": "Left",   "vAlign": "Middle" },
+        { "param": "STING_LOIN_LOD_TXT",             "anchor": [510, 20], "size": 1.0, "hAlign": "Left",   "vAlign": "Middle" },
+        { "param": "PRJ_DWG_ISSUE_PURPOSE_TXT",      "anchor": [510,  3], "size": 1.0, "hAlign": "Left",   "vAlign": "Middle" },
+
+        { "param": "STING_AUTHORISED_BY_TXT",        "anchor": [624, 48], "size": 1.4, "hAlign": "Left",   "vAlign": "Middle" },
+        { "param": "STING_AUTHORISED_DATE_TXT",      "anchor": [754, 48], "size": 1.4, "hAlign": "Left",   "vAlign": "Middle" },
+
+        { "param": "PRJ_TB_REVISION_DESCRIPTION_TXT","anchor": [4, 138], "size": 1.4, "hAlign": "Left",    "vAlign": "Middle" }
       ],
 
       "filledRegions": [
         { "topLeft": [710, 150], "bottomRight": [770, 130],
           "fillTypeName": "Solid fill",
-          "color": "#F2A341",
-          "description": "Suitability chip — visible only on BIM-mode sheets" },
+          "color": "#F2A341" },
         { "topLeft": [0, 150], "bottomRight": [841, 145],
           "fillTypeName": "Solid fill",
-          "color": "#1F4E79",
-          "description": "Top-status band — narrow header above the bottom strip" }
+          "color": "#1F4E79" }
       ]
     },
 
@@ -240,28 +325,32 @@
       "id": "STING_TB_A1_NONBIM_v2.0",
       "extends": "A1_common_v2.0",
       "mode": "NONBIM",
-      "description": "A1 landscape working sheet — minimal non-BIM identity. Reuses the common identity-data + drawn/checked/approved block but skips the ISO-19650 sheet ID, suitability chip, and revision-history strip. Each sheet inherits STING_SHEET_BIM_MODE_TXT = 'NONBIM' so the audit command flags any mismatch.",
+      "description": "A1 landscape working sheet — minimal non-BIM identity. Reuses the common identity-data + drawn/checked/approved block but skips the ISO-19650 sheet ID, suitability chip, and revision-history register. Sheet number is bound via PRJ_TB_SHEET_NR_TXT (the existing simple sheet identifier).",
       "saveAs": "Families/TitleBlocks/STING_TB_A1_NONBIM_v2.0.rfa",
 
       "parameters": [
-        { "name": "STING_SHEET_BIM_MODE_TXT", "kind": "shared", "instance": true, "group": "IdentityData", "default": "NONBIM" },
-        { "name": "STING_SHEET_NUMBER_TXT",   "kind": "internal", "instance": true, "type": "Text", "group": "IdentityData", "default": "A-001" }
+        { "name": "STING_SHEET_BIM_MODE_TXT",  "kind": "shared", "instance": true, "group": "IdentityData", "default": "NONBIM" },
+        { "name": "PRJ_TB_SHEET_NR_TXT",       "kind": "shared", "instance": true, "group": "IdentityData", "default": "A-001" },
+        { "name": "PRJ_TB_REVISION_NR_TXT",    "kind": "shared", "instance": true, "group": "IdentityData", "default": "0" },
+        { "name": "PRJ_TB_REVISION_DATE_TXT",  "kind": "shared", "instance": true, "group": "IdentityData" }
       ],
 
       "lines": [
-        { "from": [620, 60], "to": [620, 110], "style": "Thin Lines" },
-        { "from": [820, 60], "to": [820, 110], "style": "Thin Lines" },
-        { "from": [620, 35], "to": [820, 35],  "style": "Thin Lines" }
+        { "from": [400, 72],  "to": [400, 110], "style": "Thin Lines" },
+        { "from": [400, 90],  "to": [620,  90], "style": "Thin Lines" },
+        { "from": [400, 60],  "to": [620,  60], "style": "Thin Lines" }
       ],
 
       "staticText": [
-        { "text": "SHEET NUMBER", "anchor": [624, 56], "size": 1.4 },
-        { "text": "DRG NO.",      "anchor": [624, 31], "size": 1.4 }
+        { "text": "SHEET NUMBER", "anchor": [404, 56], "size": 1.4 },
+        { "text": "REVISION",     "anchor": [510, 56], "size": 1.2 },
+        { "text": "DATE",         "anchor": [578, 56], "size": 1.2 }
       ],
 
       "labels": [
-        { "param": "STING_SHEET_NUMBER_TXT", "anchor": [684, 48], "size": 5.0, "hAlign": "Center" },
-        { "param": "STING_SHEET_NUMBER_TXT", "anchor": [624, 22], "size": 3.5 }
+        { "param": "PRJ_TB_SHEET_NR_TXT",      "anchor": [404, 45], "size": 5.0, "hAlign": "Left", "vAlign": "Middle" },
+        { "param": "PRJ_TB_REVISION_NR_TXT",   "anchor": [510, 45], "size": 2.5, "hAlign": "Left", "vAlign": "Middle" },
+        { "param": "PRJ_TB_REVISION_DATE_TXT", "anchor": [578, 45], "size": 1.4, "hAlign": "Left", "vAlign": "Middle" }
       ],
 
       "filledRegions": []
