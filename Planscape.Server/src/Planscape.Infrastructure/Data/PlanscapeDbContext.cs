@@ -142,6 +142,8 @@ public class PlanscapeDbContext : DbContext
     // S5.1 — scene-index chunks (one row per discipline/level/system slice
     // of a federated ProjectModel; mobile streams these on demand).
     public DbSet<SceneNode> SceneNodes => Set<SceneNode>();
+    // S6.1 — voice notes on issues.
+    public DbSet<IssueAudioNote> IssueAudioNotes => Set<IssueAudioNote>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
