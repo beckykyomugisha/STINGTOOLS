@@ -386,6 +386,10 @@ namespace StingTools.UI
                     case "DrawingTypes_AuditPackages":
                     case "DrawingTypes_PackageAudit":              RunCommand<Commands.Drawing.DrawingPackageAuditCommand>(app); break;
 
+                    // ── Phase 170 — Title-block factory ──
+                    case "TitleBlock_Create":        RunCommand<Commands.Drawing.TitleBlockCreateCommand>(app); break;
+                    case "TitleBlock_CreateAll":     RunCommand<Commands.Drawing.TitleBlockCreateAllCommand>(app); break;
+
                     // ── Selection scope ──
                     case "SetScopeView": Select.SelectionScopeHelper.SetScope(false); TaskDialog.Show("Scope", "Selection scope: ACTIVE VIEW"); break;
                     case "SetScopeProject": Select.SelectionScopeHelper.SetScope(true); TaskDialog.Show("Scope", "Selection scope: WHOLE PROJECT"); break;
