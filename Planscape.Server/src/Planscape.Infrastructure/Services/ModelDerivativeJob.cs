@@ -75,7 +75,8 @@ public class ModelDerivativeJob
         try
         {
             // 1. Copy storage → local.
-            using (var src = await _storage.GetAsync(model.StoragePath, ct))
+            // Background job — explicitly cross-tenant; bypass ownership check.
+            using (var src = await _storage.GetAsync(model.StoragePath, ct, bypassTenantCheck: true))
             using (var dst = File.Create(inputPath))
             {
                 if (src == null)
