@@ -137,6 +137,8 @@ public class PlanscapeDbContext : DbContext
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<Invoice>      Invoices      => Set<Invoice>();
     public DbSet<Payment>      Payments      => Set<Payment>();
+    // S3.2 — transactional outbox.
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

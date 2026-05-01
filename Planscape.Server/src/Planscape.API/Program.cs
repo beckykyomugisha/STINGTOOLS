@@ -294,6 +294,8 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.FlutterwaveRenewalJ
 // S3.1 — fast-path bulk upsert for tag sync (Postgres COPY + ON CONFLICT).
 builder.Services.AddScoped<Planscape.Core.Interfaces.IBulkTagUpserter,
     Planscape.Infrastructure.Services.PostgresBulkTagUpserter>();
+// S3.2 — outbox dispatcher (drains OutboxMessages every minute).
+builder.Services.AddScoped<Planscape.Infrastructure.Services.OutboxDispatcher>();
 
 // P7 + P8 — IFC→glTF converter + thumbnail generator. Null defaults keep the
 // system running without a converter installed; swap the registration to
@@ -657,5 +659,11 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DunningJob>(
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.FlutterwaveRenewalJob>(
     "fw-renewals", j => j.ExecuteAsync(CancellationToken.None),
     "30 5 * * *", new RecurringJobOptions { QueueName = "default" });
+
+// S3.2 — outbox dispatcher (every minute). Drains OutboxMessages with
+// at-least-once + exponential-backoff retry; dead-letters after 6 attempts.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.OutboxDispatcher>(
+    "outbox", j => j.ExecuteAsync(CancellationToken.None),
+    "* * * * *", new RecurringJobOptions { QueueName = "default" });
 
 await app.RunAsync();
