@@ -213,183 +213,224 @@ def page_locator(c):
     c.showPage()
 
 
-# ── Page 2: A1 landscape working sheet (enlarged) ────────────────────
+# ── Page 2: A1 landscape working sheet — bottom-strip layout (revised) ──
 
 def page_landscape(c):
     page_frame(c, "2.  A1 LANDSCAPE WORKING SHEET",
-               "STING_TB_A1_v2.0 — every field labelled with bound parameter")
+               "STING_TB_A1_v2.0 — bottom-strip layout, BIM-mode toggle")
 
-    ox, oy = 8*mm, 14*mm
-    sw = PW - 16*mm
-    sh = PH - 22*mm - 14*mm        # leave room for page-frame header
+    # Sheet rectangle — take most of the page below the header.
+    ox, oy = 10*mm, 14*mm
+    sw = PW - 20*mm
+    sh = PH - 22*mm - 14*mm
     rect(c, ox, oy, sw, sh, stroke=INK, lw=0.7)
 
-    # Top status band (full width)
-    bh = 8*mm
-    by = oy + sh - bh
-    rect(c, ox, by, sw, bh, fill=HexColor("#FFF8E1"),
-         stroke=INK_SOFT, lw=0.3)
-    cw = sw / 5
-    chips = [
-        ("STATUS",        "${STATUS}"),
-        ("SUITABILITY",   "${SUITABILITY}"),
-        ("ISSUE PURPOSE", "${ISSUE_PURPOSE}"),
-        ("FEDERATION",    "${FEDERATION_STATUS}"),
-        ("LOIN / LOD",    "${LOIN_LOD}"),
-    ]
-    for i, (lbl, val) in enumerate(chips):
-        chip(c, ox + i*cw + 0.5*mm, by + 0.5*mm, cw - 1*mm, bh - 1*mm,
-             lbl, val, fill=CHIP_BG)
+    # Title strip along the BOTTOM. Approx 110 mm of an A1 594 mm tall.
+    # Scaled into our A3 canvas: strip is ~38% of the visible sheet height.
+    strip_h = sh * 0.38
+    strip_y = oy
+    sx, sy = ox, strip_y
+    rect(c, sx, sy, sw, strip_h, fill=PAPER, stroke=INK_SOFT, lw=0.3)
 
-    # Right title strip (30% of width)
-    strip_w = sw * 0.30
-    strip_x = ox + sw - strip_w
-    strip_h = sh - bh
-    rect(c, strip_x, oy, strip_w, strip_h, fill=TBLOCK_FILL,
-         stroke=INK_SOFT, lw=0.3)
-
-    # Drawable zone label
-    drw_w = sw - strip_w
-    text(c, ox + drw_w/2, oy + strip_h/2 + 8,
-         "DRAWABLE ZONE — viewport area",
-         size=14, col=INK_LIGHT, anchor="center",
-         font="Helvetica-Bold")
-    text(c, ox + drw_w/2, oy + strip_h/2 - 4,
-         "DrawingType.Slots[] resolved by SheetTemplateEngine",
+    # Drawable zone (the part above the strip)
+    drwh = sh - strip_h
+    text(c, ox + sw/2, strip_y + strip_h + drwh/2 + 6,
+         "DRAWABLE ZONE",
+         size=14, col=INK_LIGHT, anchor="center", font="Helvetica-Bold")
+    text(c, ox + sw/2, strip_y + strip_h + drwh/2 - 4,
+         "830 × 480 mm  (BIM mode on)    830 × 520 mm  (BIM mode off)",
          size=8, col=INK_LIGHT, anchor="center")
-    # Slot rectangles preview
-    sx, sy = ox + 8*mm, oy + 8*mm
-    drwh = strip_h - 16*mm
-    drww = drw_w - 16*mm
-    rect(c, sx, sy, drww*0.66, drwh, stroke=GRID_LINE, lw=0.3,
-         fill=SLOT_FILL)
-    text(c, sx + drww*0.33, sy + drwh/2,
-         "MAIN_LEFT (0.00, 0.00, 0.66, 1.00)",
+    text(c, ox + sw/2, strip_y + strip_h + drwh/2 - 14,
+         "DrawingType.Slots[] resolved by SheetTemplateEngine",
          size=7, col=INK_LIGHT, anchor="center")
-    rect(c, sx + drww*0.66, sy, drww*0.34, drwh*0.5,
-         stroke=GRID_LINE, lw=0.3, fill=SLOT_FILL)
-    text(c, sx + drww*0.83, sy + drwh*0.75,
-         "MAIN_RIGHT_TOP", size=6, col=INK_LIGHT, anchor="center")
-    rect(c, sx + drww*0.66, sy + drwh*0.5, drww*0.34, drwh*0.5,
-         stroke=GRID_LINE, lw=0.3, fill=SLOT_FILL)
-    text(c, sx + drww*0.83, sy + drwh*0.25,
-         "MAIN_RIGHT_BOT", size=6, col=INK_LIGHT, anchor="center")
 
-    # Title strip rows from top down
-    cur = by
-    rows = [
-        ("LOGO BAND",                        18*mm,
-            [("ORIGINATOR LOGO  ${ORG_LOGO}", "left", 0.55),
-             ("CLIENT LOGO  ${CL_LOGO}",      "right", 0.45)]),
-        ("ORIGINATOR PRACTICE",              13*mm,
-            [("${ORG_NAME}", None, 1.0),
-             ("${ORG_ADDRESS}", None, 1.0)]),
-        ("CLIENT  /  APPOINTING PARTY",      11*mm,
-            [("${CLIENT_NAME}", "left",  0.5),
-             ("${APPOINTING_PARTY}", "right", 0.5)]),
-        ("PROJECT",                          18*mm,
-            [("${PROJECT_NAME}", None, 1.0),
-             ("${PROJECT_ADDRESS}", None, 1.0),
-             ("Project no. ${PROJECT_NUMBER}    RIBA Stage ${RIBA_STAGE}", None, 1.0)]),
-        ("COORDINATE  /  PROJECT NORTH  /  KEY PLAN", 22*mm,
-            [("${COORD_SYS}    Datum ${GROUND_LVL}", None, 1.0),
-             ("Project north ${PRJ_NORTH}    Key plan ↗", None, 1.0)]),
-        ("NOTES",                            18*mm,
-            [("1. Do not scale from this drawing.", None, 1.0),
-             ("2. Read with arch / struct / MEP set.", None, 1.0),
-             ("3. CDM HAZARD: ${CDM_HAZARD}", None, 1.0),
-             ("4. ${COPYRIGHT}", None, 1.0)]),
-        ("DRAWING TITLE",                    11*mm,
-            [("${SHEET_NAME}", None, 1.0)]),
-        ("ID — 7 SEGMENTS",                  9*mm,
-            [("PRJ ${PROJ}  ORIG ${ORIG}  VOL ${VOL}  LVL ${LVL}  TYPE ${TYPE}  ROL ${ROL}  SEQ ${SEQ}",
-              None, 1.0)]),
-        ("FULL SHEET REF",                   10*mm,
-            [("${SHEET_FULL_REF}", None, 1.0)]),
-        ("SHEET-OF / SCALE / DATE",          9*mm,
-            [("Sheet ${OF_TOTAL}    Scale ${SCALE} @ A1    Date ${REV_DATE}",
-              None, 1.0)]),
-        ("AUTHORING — 4-EYES",               12*mm,
-            [("DR ${DR}  CK ${CK}  AP ${AP}  AU ${AU}    Rev ${REV}",
-              None, 1.0)]),
-        ("TR / CDE / MIDP",                  12*mm,
-            [("TR-REF ${TRANSMITTAL_REF}", None, 1.0),
-             ("CDE    ${CDE_PATH}", None, 1.0),
-             ("MIDP   ${DELIVERABLE_ID}", None, 1.0)]),
-        ("QR + DISCLAIMER",                  16*mm, None),
-    ]
-    for label, h, content in rows:
-        cur -= h
-        rect(c, strip_x, cur, strip_w, h, stroke=INK_SOFT, lw=0.3)
-        text(c, strip_x + 1.5*mm, cur + h - 2.5*mm, label,
-             size=5.5, col=INK_LIGHT, font="Helvetica-Bold")
-        if content is None:
-            # QR placeholder
-            qrs = 12*mm
-            rect(c, strip_x + 1.5*mm, cur + 1.5*mm, qrs, qrs,
-                 fill=INK, stroke=INK)
-            for i in range(7):
-                for j in range(7):
-                    if (i + j) % 3 == 0:
-                        rect(c, strip_x + 1.5*mm + i*qrs/7,
-                             cur + 1.5*mm + j*qrs/7, qrs/7, qrs/7,
-                             fill=PAPER, stroke=PAPER)
-            text(c, strip_x + qrs + 4*mm, cur + h - 6*mm,
-                 "QR → planscape://", size=6, col=INK_SOFT)
-            text(c, strip_x + qrs + 4*mm, cur + h - 9*mm,
-                 "  project/{id}/sheet/{guid}", size=6, col=INK_SOFT)
-            text(c, strip_x + qrs + 4*mm, cur + 2*mm,
-                 "${COPYRIGHT} • Original A1", size=5, col=INK_LIGHT)
+    # ── Strip column layout: 5 columns left-to-right ──
+    # Column widths in mm at A1 scale: 90 (parties) / 200 (notes) /
+    # 200 (drawing title) / 100 (sheet meta) / 65 (rev history)
+    # Sum 655 mm; remaining ~186 mm distributed.
+    #
+    # In our A3-canvas representation we map proportionally.
+    col_props = [0.135, 0.245, 0.245, 0.165, 0.21]   # → ~100%
+    col_x = [sx]
+    for p in col_props:
+        col_x.append(col_x[-1] + sw * p)
+
+    # Vertical lines between columns
+    for i in range(1, len(col_x) - 1):
+        vline(c, col_x[i], sy, sy + strip_h, w=0.4, col=INK_SOFT)
+
+    # ── Column 1 — parties (CLIENT / PROJECT / LEAD / STRUCT / MEP / CONTR) ──
+    parties = [("CLIENT",         "${CLIENT_NAME}"),
+               ("PROJECT",        "${PROJECT_NAME}"),
+               ("LEAD / ARCHITECT", "${LEAD_ARCH_TXT}"),
+               ("STRUCTURAL",     "${STRUCT_TXT}"),
+               ("MEP",            "${MEP_TXT}"),
+               ("CONTRACTOR",     "${CONTRACTOR_TXT}")]
+    rh = strip_h / len(parties)
+    for i, (lbl, val) in enumerate(parties):
+        ry = sy + strip_h - (i + 1) * rh
+        cell(c, col_x[0], ry, col_x[1] - col_x[0], rh,
+             label=lbl, value=val, lsize=5.5, vsize=7)
+
+    # ── Column 2 — NOTES ──
+    cell(c, col_x[1], sy, col_x[2] - col_x[1], strip_h,
+         label="NOTES", value="", lsize=5.5)
+
+    # ── Column 3 — DRAWING TITLE (centred) ──
+    rect(c, col_x[2], sy, col_x[3] - col_x[2], strip_h,
+         stroke=INK_SOFT, lw=0.3)
+    text(c, col_x[2] + 2*mm, sy + strip_h - 3.5*mm,
+         "DRAWING TITLE", size=5.5, col=INK_LIGHT, font="Helvetica-Bold")
+    text(c, col_x[2] + (col_x[3] - col_x[2]) / 2,
+         sy + strip_h * 0.55,
+         "${SHEET_NAME}", size=12, col=INK,
+         font="Helvetica-Bold", anchor="center")
+    text(c, col_x[2] + 2*mm, sy + 2*mm,
+         "DRAWING TITLE.", size=5.5, col=INK_LIGHT,
+         font="Helvetica-Bold")
+
+    # ── Column 4 — sheet meta (chips + 4-eyes + 7-seg ID + status/sheet) ──
+    c4x = col_x[3]
+    c4w = col_x[4] - col_x[3]
+    cur = sy + strip_h
+    # Row A — chips (status / suitability / rev / rev-date)
+    rowH_chips = 7*mm
+    cur -= rowH_chips
+    chip_w = c4w / 4
+    chips = [("STATUS",      "${STATUS}",       False),
+             ("SUITABILITY", "${SUITABILITY}",  True),    # BIM only
+             ("REV",         "${REV}",          False),
+             ("REV-DATE",    "${REV_DATE}",     False)]
+    for i, (lbl, val, bim) in enumerate(chips):
+        fill_col = HexColor("#FFE0B2") if bim else CHIP_BG
+        chip(c, c4x + i * chip_w + 0.3*mm, cur + 0.3*mm,
+             chip_w - 0.6*mm, rowH_chips - 0.6*mm,
+             lbl, val, fill=fill_col)
+    text(c, c4x + c4w / 2, cur - 1.8*mm,
+         "← BIM ONLY: SUITABILITY hides when STING_BIM_MODE_BOOL = 0",
+         size=5, col=ERROR, anchor="center", font="Helvetica-Oblique")
+
+    # Row B — DATE / PAPER SIZE / SCALE
+    rowH_meta = 8*mm
+    cur -= rowH_meta + 2*mm
+    metaA = [("DATE", "${REV_DATE}"), ("PAPER SIZE", "A1"),
+             ("SCALE", "${SCALE}")]
+    cmw = c4w / 3
+    for i, (lbl, val) in enumerate(metaA):
+        cell(c, c4x + i * cmw, cur, cmw, rowH_meta,
+             label=lbl, value=val, lsize=5, vsize=7)
+
+    # Row C — DRAWN BY / CHECKED BY / APPROVED BY  /  AUTH (BIM only)
+    cur -= rowH_meta
+    metaB = [("DRWN", "${DR}", False), ("CHKD", "${CK}", False),
+             ("APPR", "${AP}", False), ("AUTH", "${AU}", True)]
+    cmw = c4w / 4
+    for i, (lbl, val, bim) in enumerate(metaB):
+        fill = HexColor("#FFF3E0") if bim else None
+        cell(c, c4x + i * cmw, cur, cmw, rowH_meta,
+             label=lbl, value=val, lsize=5, vsize=7, fill=fill)
+
+    # Row D — 7-segment ID breakdown (BIM only — full row tinted)
+    rowH_7seg = 8*mm
+    cur -= rowH_7seg
+    rect(c, c4x, cur, c4w, rowH_7seg,
+         fill=HexColor("#FFF3E0"), stroke=INK_SOFT, lw=0.3)
+    text(c, c4x + 2*mm, cur + rowH_7seg - 2.5*mm,
+         "BIM ONLY — 7-SEGMENT ID", size=4.5, col=ERROR,
+         font="Helvetica-Bold")
+    seg_labels = ["PRJ", "ORIG", "VOL", "LVL", "TYPE", "ROL", "SEQ"]
+    seg_vals   = ["STG","PLNS","ZZ", "01", "DR",  "A",  "0001"]
+    cmw = c4w / 7
+    for i, (lbl, val) in enumerate(zip(seg_labels, seg_vals)):
+        text(c, c4x + (i + 0.5) * cmw, cur + rowH_7seg - 5.2*mm,
+             lbl, size=4.5, col=INK_SOFT, anchor="center")
+        text(c, c4x + (i + 0.5) * cmw, cur + 1.5*mm,
+             val, size=6, col=INK, anchor="center", font="Helvetica-Bold")
+
+    # Row E — STATUS  /  SHEET locator chevron (sheet-of-total)
+    rowH_status = 9*mm
+    cur -= rowH_status
+    cell(c, c4x, cur, c4w * 0.42, rowH_status,
+         label="DRG STATUS", value="${STATUS}", lsize=5, vsize=7)
+    rect(c, c4x + c4w * 0.42, cur, c4w * 0.58, rowH_status,
+         stroke=INK_SOFT, lw=0.3)
+    text(c, c4x + c4w * 0.42 + 2*mm, cur + rowH_status - 2.5*mm,
+         "SHEET", size=5, col=INK_LIGHT, font="Helvetica-Bold")
+    # Chevron
+    cv_x = c4x + c4w * 0.42 + 6*mm
+    cv_y = cur + rowH_status / 2
+    cv_w = c4w * 0.58 - 12*mm
+    c.setStrokeColor(INK); c.setLineWidth(0.6)
+    c.line(cv_x, cv_y - 2.5*mm, cv_x + cv_w - 4*mm, cv_y - 2.5*mm)
+    c.line(cv_x + cv_w - 4*mm, cv_y - 2.5*mm, cv_x + cv_w, cv_y)
+    c.line(cv_x + cv_w, cv_y, cv_x + cv_w - 4*mm, cv_y + 2.5*mm)
+    c.line(cv_x + cv_w - 4*mm, cv_y + 2.5*mm, cv_x, cv_y + 2.5*mm)
+    c.line(cv_x, cv_y + 2.5*mm, cv_x, cv_y - 2.5*mm)
+    text(c, cv_x + cv_w / 2, cv_y - 1.6*mm, "${OF_TOTAL}",
+         size=6, col=INK, anchor="center", font="Helvetica-Bold")
+
+    # Row F — DRG NO. label  /  ${SHEET_FULL_REF} prominent
+    rowH_full = 12*mm
+    cur -= rowH_full
+    cell(c, c4x, cur, c4w * 0.42, rowH_full,
+         label="DRG NO.", value="", lsize=5)
+    rect(c, c4x + c4w * 0.42, cur, c4w * 0.58, rowH_full,
+         stroke=INK, lw=0.5, fill=HexColor("#FFF3E0"))
+    text(c, c4x + c4w * 0.42 + (c4w * 0.58) / 2,
+         cur + rowH_full - 3*mm,
+         "BIM: ${SHEET_FULL_REF}   /   non-BIM: ${Sheet Number}",
+         size=4.5, col=ERROR, anchor="center")
+    text(c, c4x + c4w * 0.42 + (c4w * 0.58) / 2,
+         cur + rowH_full / 2 - 2*mm,
+         "STG-PLNS-ZZ-01-DR-A-0001",
+         size=8, col=INK, anchor="center", font="Helvetica-Bold")
+
+    # ── Column 5 — REVISION HISTORY (8 cols BIM, 5 cols non-BIM) ──
+    rect(c, col_x[4], sy, sw - (col_x[4] - sx), strip_h,
+         stroke=INK_SOFT, lw=0.3)
+    text(c, col_x[4] + 2*mm, sy + strip_h - 2.8*mm,
+         "REVISION HISTORY", size=6, col=INK_LIGHT,
+         font="Helvetica-Bold")
+    rev_cols = [("REV", False), ("DATE", False), ("DESC.", False),
+                ("DRWN", False), ("CHKD", False), ("APPR", False),
+                ("SUIT.", True), ("STAT.", True)]
+    cw5 = (sw - (col_x[4] - sx) - 4*mm) / len(rev_cols)
+    for i, (lbl, bim) in enumerate(rev_cols):
+        x = col_x[4] + 2*mm + i * cw5
+        if bim:
+            rect(c, x, sy + 2*mm, cw5, strip_h - 8*mm,
+                 fill=HexColor("#FFF3E0"), stroke=GRID_LINE, lw=0.2)
         else:
-            ty = cur + h - 6*mm
-            line_h = (h - 4*mm) / max(1, len(content))
-            for line, anchor, w_frac in content:
-                if anchor == "right":
-                    text(c, strip_x + strip_w - 1.5*mm, ty, line,
-                         size=7, col=INK, anchor="right",
-                         font="Helvetica-Bold")
-                else:
-                    text(c, strip_x + 1.5*mm, ty, line, size=7, col=INK,
-                         font="Helvetica-Bold")
-                ty -= line_h
-
-    # Bottom revision history (8 columns)
-    rev_h = 18*mm
-    cur -= rev_h
-    rect(c, ox, oy + 0, sw, rev_h, stroke=INK_SOFT, lw=0.3,
-         fill=HexColor("#FAFAFA"))
-    text(c, ox + 2*mm, oy + rev_h - 3.5*mm,
-         "REVISION HISTORY",
-         size=7, col=INK_LIGHT, font="Helvetica-Bold")
-    cols = ["REV", "DATE", "DESCRIPTION", "DRWN", "CHKD",
-            "APPR", "SUIT.", "STAT."]
-    cwidths = [12, 22, 80, 12, 12, 12, 12, 18]   # mm relative
-    total = sum(cwidths)
-    cx = ox + 2*mm
-    cyh = oy + rev_h - 8*mm
-    avail = sw - 4*mm
-    for i, lbl in enumerate(cols):
-        w = avail * cwidths[i] / total
-        rect(c, cx, oy + 2*mm, w, rev_h - 8*mm, stroke=GRID_LINE,
-             lw=0.2)
-        text(c, cx + w/2, cyh, lbl, size=6.5, col=INK,
+            rect(c, x, sy + 2*mm, cw5, strip_h - 8*mm,
+                 stroke=GRID_LINE, lw=0.2)
+        text(c, x + cw5 / 2, sy + strip_h - 7*mm, lbl,
+             size=5.5, col=ERROR if bim else INK,
              anchor="center", font="Helvetica-Bold")
-        cx += w
-    # Print-scale check bar (left of revision)
-    pbx, pby = ox + 4*mm, oy - 2*mm
-    text(c, pbx, pby + 1*mm, "0", size=5, col=INK_LIGHT)
-    for i in range(6):
-        seg_w = 4*mm
-        rect(c, pbx + 3*mm + i*seg_w, pby - 1*mm, seg_w, 1.5*mm,
-             stroke=INK,
-             fill=INK if i % 2 == 0 else PAPER)
-        text(c, pbx + 3*mm + (i+1)*seg_w, pby + 1*mm,
-             str((i+1)*5), size=5, col=INK_LIGHT, anchor="center")
-    text(c, pbx + 3*mm + 7*seg_w, pby + 1*mm, "mm @ 1:1",
-         size=5, col=INK_LIGHT)
+    text(c, col_x[4] + 2*mm + 2.5 * cw5, sy + strip_h - 11*mm,
+         "← always-on", size=5, col=INK_LIGHT)
+    text(c, col_x[4] + 2*mm + 6.7 * cw5, sy + strip_h - 11*mm,
+         "← BIM only", size=5, col=ERROR, font="Helvetica-Oblique")
+
+    # ── BIM-only tail strip (entire row hides when BIM = 0) ──
+    # Sit it just above the strip top — visual indicator only.
+    tail_y = strip_y + strip_h
+    text(c, ox + 4*mm, tail_y + 2.5*mm,
+         "──── BIM ONLY (entire row hides when STING_BIM_MODE_BOOL = 0) ────",
+         size=5.5, col=ERROR, font="Helvetica-Oblique")
+    text(c, ox + 4*mm, tail_y - 0.2*mm,
+         "TR-REF ${TRANSMITTAL_REF}     CDE ${CDE_PATH}     "
+         "MIDP ${DELIVERABLE_ID}     LOIN/LOD ${LOIN_LOD}     "
+         "FED ${FEDERATION_STATUS}     [QR]",
+         size=5, col=INK_SOFT)
+
+    # Footer caption
+    text(c, ox + sw / 2, oy - 4*mm,
+         "Bottom-strip layout — drawable area maximised. 12 BIM-only "
+         "cells (highlighted amber) collapse when STING_BIM_MODE_BOOL = 0; "
+         "strip auto-shortens from ~110 mm to ~70 mm.",
+         size=7, col=INK_SOFT, anchor="center")
 
     c.showPage()
-
 
 # ── Page 3: A4 portrait working sheet ────────────────────────────────
 

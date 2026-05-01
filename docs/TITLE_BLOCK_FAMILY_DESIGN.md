@@ -335,79 +335,131 @@ GROUP D — Statutory / Safety
 Every family below references this universe — the layout differs but
 the parameter set is uniform.
 
-## 3. Working sheet — A1 v2.0 (replaces shipped v1.0)
+## 3. Working sheet — A1 v2.0 (revised after v1.0 review)
 
-A1 landscape, 841 × 594 mm. Title strip moved to the **right edge**
-(NBS / UK convention) so the drawable zone is wider; status band
-along the top is full-width.
+A1 landscape, 841 × 594 mm. **Title strip on the bottom edge only**
+(NOT right + bottom as the earlier proposal suggested) — preserves
+the maximum drawable area, matches the existing v1.0 design intent,
+follows BS 1192 Annex A and matches the practice habits operators
+already use.
+
+Strip height: ~110 mm in BIM mode, ~70 mm when BIM mode toggled
+off (3 rows of BIM-only cells collapse). Drawable zone:
+**830 × 480 mm in BIM mode, 830 × 520 mm in non-BIM mode** — both
+well above the v1.0's ~420 mm height with the right-strip proposal.
+
+**Typo fixes carried over from v1.0**: `ARCHITECH → ARCHITECT`,
+`CONTRUCTOR → CONTRACTOR`, `PAPAR SIZE → PAPER SIZE`.
 
 ```
-┌─────────────────────────────────────────────────────────────────────┬────────────────────────────────────────┐
-│ ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  │  ┌──────────────────┐  ┌──────────────┐  │
-│ ┃SUITABILITY ┃STATUS  ┃ISSUE PURPOSE   ┃FEDERATION ┃LOIN/LOD     ┃  │  │ ORIGINATOR LOGO  │  │ CLIENT LOGO  │  │
-│ ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  │  │ ${ORG_LOGO}      │  │ ${CL_LOGO}   │  │
-├─────────────────────────────────────────────────────────────────────┤  └──────────────────┘  └──────────────┘  │
-│                                                                     ├────────────────────────────────────────┤
-│                                                                     │ ORIGINATOR                             │
-│                                                                     │ ${ORG_NAME}                            │
-│                                                                     │ ${ORG_ADDRESS}                         │
-│                                                                     ├────────────────────────────────────────┤
-│                                                                     │ CLIENT          │ APPOINTING PARTY     │
-│                                                                     │ ${CLIENT_NAME}  │ ${APPOINTING_PARTY}  │
-│                                                                     ├─────────────────┴──────────────────────┤
-│                                                                     │ PROJECT                                │
-│                                                                     │ ${PROJECT_NAME}                        │
-│                                                                     │ ${PROJECT_ADDRESS}                     │
-│                       DRAWABLE ZONE                                  │ Project no. ${PROJECT_NUMBER}          │
-│                       810 × 470 mm                                   │ RIBA Stage ${RIBA_STAGE}               │
-│                                                                     ├────────────────────────────────────────┤
-│                                                                     │ COORDINATE   │ PROJECT NORTH          │
-│                                                                     │ ${COORD_SYS} │      ↑ ${PRJ_NORTH}    │
-│                                                                     │ DATUM        │   ╱ ╲                  │
-│                                                                     │ ${GROUND_LVL}│  ╱ N ╲   key plan       │
-│                                                                     ├──────────────┴────────────────────────┤
-│                                                                     │ NOTES                                  │
-│                                                                     │  1. Do not scale from this drawing.    │
-│                                                                     │  2. Read with arch / struct / MEP set. │
-│                                                                     │  3. CDM HAZARD: ${CDM_HAZARD}          │
-│                                                                     │  4. ${COPYRIGHT}                       │
-│                                                                     ├────────────────────────────────────────┤
-│                                                                     │ DRAWING TITLE                          │
-│                                                                     │ ${SHEET_NAME}                          │
-│                                                                     ├──────┬──────┬───────┬──────┬──────┬───┤
-│                                                                     │PRJ   │ORIG  │VOL/SYS│LVL   │TYPE  │ROL│  ← seven-segment
-│                                                                     │ STG  │ PLNS │  ZZ   │  01  │  DR  │ A │     ID breakdown
-│                                                                     ├──────┴──────┴───────┴──────┴──────┴───┤
-│                                                                     │  ${SHEET_FULL_REF}                     │  ← prominent
-│                                                                     │  STG-PLNS-ZZ-01-DR-A-0001               │     concat
-│                                                                     ├────────────────────────────────────────┤
-│                                                                     │ Sheet ${OF_TOTAL}   Original size: A1  │
-│                                                                     │ Scale ${SCALE}      Date ${REV_DATE}   │
-│                                                                     ├──────┬──────┬───────┬──────┬──────────┤
-│                                                                     │ DRWN │ CHKD │ APPR  │ AUTH │  Rev     │
-│                                                                     │ ${DR}│ ${CK}│ ${AP} │ ${AU}│ ${REV}   │
-│                                                                     ├──────┴──────┴───────┴──────┴──────────┤
-│                                                                     │ TR-REF ${TRANSMITTAL_REF}              │
-│                                                                     │ CDE    ${CDE_PATH}                     │
-│                                                                     │ MIDP   ${DELIVERABLE_ID}               │
-│                                                                     ├────────────────────────────────────────┤
-│  ▭ print-scale check bar:  0──5──10──15──20──25 mm @ 1:1            │ ┌──────┐                              │
-│                                                                     │ │ QR   │  scan → planscape://         │
-│                                                                     │ │      │  project/{id}/sheet/{guid}   │
-│                                                                     │ └──────┘                              │
-├─────────────────────────────────────────────────────────────────────┴────────────────────────────────────────┤
-│ REVISION HISTORY                                                                                             │
-│ ┌────┬──────────┬─────────────────────────┬─────┬─────┬─────┬──────┬──────┐                                  │
-│ │REV │  DATE    │      DESCRIPTION        │DRWN │CHKD │APPR │SUIT. │STAT. │                                  │
-│ ├────┼──────────┼─────────────────────────┼─────┼─────┼─────┼──────┼──────┤                                  │
-│ │P01 │ 2026-04-01│ First issue WIP         │ JDS │ MWO │ AOK │ S0   │ WIP  │                                  │
-│ │P02 │ 2026-04-15│ Updated for stage 4 review│ JDS │ MWO │ AOK │ S2   │ Shar │                                  │
-│ └────┴──────────┴─────────────────────────┴─────┴─────┴─────┴──────┴──────┘                                  │
-└──────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                       │
+│                                                                                       │
+│                                                                                       │
+│                                                                                       │
+│                                  DRAWABLE ZONE                                        │
+│                                  830 × 480 mm  (BIM on)                               │
+│                                  830 × 520 mm  (BIM off)                              │
+│                                                                                       │
+│                                                                                       │
+│                                                                                       │
+├───────┬──────────────┬──────────────────────────────┬────────────────────┬────────────┤
+│       │              │                              │  ─── BIM ONLY ───  │            │
+│       │              │                              │ STAT │SUIT│REV│DATE│            │
+│       ├──────────────┼──────────────────────────────┼──────┬──────┬─────┬┴──┬─────────┤
+│CLIENT │ NOTES        │ DRAWING TITLE                │ DATE │PAPER │SCAL │   │         │
+│       │              │ ${SHEET_NAME}                │      │ SIZE │     │   │         │
+│       │              │                              ├──────┼──────┼─────┤   │         │
+├───────┤              │                              │ DRWN │ CHKD │ APPR│   │ Rev     │
+│PROJ.  │              │                              │      │      │     │   │ Hist.   │
+│       │              │                              ├──────┴──────┴─────┴───┤ (8 cols │
+│       │              │                              │  ─── BIM ONLY ───     │ in BIM, │
+│       │              │                              │ PRJ│ORIG│VOL│LVL│TYPE│ 5 cols  │
+├───────┤              │                              │ ROL │SEQ              │ in non- │
+│LEAD/  │              │                              ├───────┬──────────────┤ BIM     │
+│ARCH   │              │                              │ STATUS│ SHEET ──▶    │ mode)   │
+│STRUCT.│              │                              │       │ ${OF_TOTAL}  │         │
+│MEP    │              │                              │       │              ├─────────┤
+│CONTR. │              │                              │ DRG NO│ ${SHEET_FULL_REF}      │ ← BIM
+│       │              │ DRAWING TITLE.               │       │ STG-PLNS-…-0001        │   7-seg
+├───────┴──────────────┴──────────────────────────────┴───────┴────────────────────────┤
+│ ─── BIM ONLY ─── (entire strip hides in non-BIM mode)                                 │
+│ TR-REF ${TRANSMITTAL_REF}   CDE ${CDE_PATH}   MIDP ${DELIVERABLE_ID}                  │
+│ LOIN/LOD ${LOIN_LOD}        FED ${FEDERATION_STATUS}     [QR: planscape://…]          │
+└───────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Slot list (for `DrawingType.Slots[]`)**, normalised 0..1 over the
-drawable zone (top-left = 0,0):
+**Cell map** (left → right along the bottom strip, BIM mode on):
+
+| # | Cell | Width × Height (mm) | BIM only? | Bound parameter |
+|---:|---|---|:---:|---|
+|  1 | CLIENT          | 90 × 18  | | `${CLIENT_NAME}` |
+|  2 | PROJECT         | 90 × 18  | | `${PROJECT_NAME}` |
+|  3 | LEAD / ARCHITECT| 90 × 14  | | `${LEAD_ARCH_TXT}` |
+|  4 | STRUCTURAL      | 90 × 14  | | `${STRUCT_TXT}` |
+|  5 | MEP             | 90 × 14  | | `${MEP_TXT}` |
+|  6 | CONTRACTOR      | 90 × 14  | | `${CONTRACTOR_TXT}` |
+|  7 | NOTES (free text) | 200 × 70 | | `${NOTES_TXT}` |
+|  8 | DRAWING TITLE   | 200 × 70 | | `${SHEET_NAME}` |
+|  9 | STATUS chip     | 30 × 6   | | `${STATUS}` |
+| 10 | SUITABILITY chip | 35 × 6  | ✓ | `${SUITABILITY}` |
+| 11 | REV chip        | 25 × 6   | | `${REV}` |
+| 12 | REV-DATE chip   | 30 × 6   | | `${REV_DATE}` |
+| 13 | DATE            | 35 × 14  | | (Sheet Issue Date) |
+| 14 | PAPER SIZE      | 30 × 14  | | (computed from family) |
+| 15 | SCALE           | 35 × 14  | | `${SCALE}` |
+| 16 | DRAWN BY        | 35 × 14  | | `${DR}` |
+| 17 | CHECKED BY      | 30 × 14  | | `${CK}` |
+| 18 | APPROVED BY     | 35 × 14  | | `${AP}` |
+| 19 | AUTHORISED BY (4-eyes) | 35 × 14 | ✓ | `${AU}` |
+| 20 | 7-segment ID breakdown row | 100 × 8 | ✓ | 7 cells PRJ/ORIG/VOL/LVL/TYPE/ROL/SEQ |
+| 21 | DRG STATUS      | 35 × 18  | | `${STATUS}` |
+| 22 | SHEET locator (chevron) | 65 × 18 | | `${OF_TOTAL}` (e.g. `03 / 12`) |
+| 23 | DRG NO. (label) | 35 × 22  | | (static text) |
+| 24 | `${SHEET_FULL_REF}` (the BIG cell) | 65 × 22 | partial | When BIM on: 7-seg concat. When off: plain `${Sheet Number}` |
+| 25 | TR-REF row      | 250 × 6  | ✓ | `TR-REF ${TRANSMITTAL_REF}   CDE ${CDE_PATH}   MIDP ${DELIVERABLE_ID}` |
+| 26 | LOIN/LOD/FED row| 250 × 6  | ✓ | `LOIN/LOD ${LOIN_LOD}   FED ${FEDERATION_STATUS}` |
+| 27 | QR code         | 25 × 25  | ✓ | encoded sheet GUID |
+| 28 | Revision history strip | full width × 18 | partial | 8 cols in BIM, 5 cols in non-BIM (SUIT + STAT cols hide) |
+
+Total cells: **28**, of which **12 are BIM-only** and collapse when
+`STING_BIM_MODE_BOOL = 0`.
+
+### 3.1 BIM-mode toggle
+
+A single instance parameter drives every BIM-cell's visibility.
+
+```
+STING_BIM_MODE_BOOL    (Yes/No, Instance, default = 1 / on)
+```
+
+For each BIM-only label / static text / line / filled region in the
+family, the cell's built-in `Visible` parameter is bound to
+`STING_BIM_MODE_BOOL`. When the user toggles the parameter to `0`
+on the sheet's instance properties:
+
+- **12 BIM-only cells hide** (suitability chip, 7-seg ID row,
+  full-ref cell falls back to plain Sheet Number, TR/CDE/MIDP row,
+  LOIN-LOD/FED row, QR, AUTHORISED BY 4-eyes cell, suitability +
+  status revision-history columns).
+- The four "always-on" rows expand to fill the freed vertical
+  space.
+- Strip total height drops from ~110 mm to ~70 mm.
+- Drawable zone grows from 830 × 480 mm to 830 × 520 mm.
+
+Switch is one click — sheet's instance properties → BIM Mode → Off.
+No rebuilds, no family swap. Default for new sheets is BIM mode on
+(the corporate STING workflow assumes ISO 19650).
+
+**Why one parameter, not two family types?** Considered + rejected:
+
+| Alternative | Trade-off |
+|---|---|
+| Two family TYPES inside the same .rfa (`BIM` / `non-BIM`) | More discoverable in Revit's UI, but every type is a full re-author of every cell — duplication, drift risk, version-control hostile. Type-switch loses per-sheet flexibility. |
+| Two separate families (`STING_TB_A1_BIM` + `STING_TB_A1_NONBIM`) | Worst of both worlds — every fix made twice, families drift apart. |
+| **Single family + visibility parameter** ← recommended | One `.rfa`, one source of truth, one click to switch, per-sheet flexibility preserved. |
+
+### 3.2 Slot list (drawing-type slots, unchanged)
 
 | label | NormX | NormY | NormW | NormH | Use |
 |---|---|---|---|---|---|
@@ -420,11 +472,18 @@ drawable zone (top-left = 0,0):
 | `FOUR_UP_BL` | 0.00 | 0.50 | 0.50 | 0.50 | quarter |
 | `FOUR_UP_BR` | 0.50 | 0.50 | 0.50 | 0.50 | quarter |
 
-**Bound parameter cells (35 total):** every label that begins with
-`${…}` in the diagram is a `Label` element with `Sample Value` set to
-the corresponding shared parameter listed in §2.1. Cells without a
-binding shown (the static labels CLIENT / PROJECT / DRAWING TITLE /
-etc.) are static text on the title-block layer.
+Slots resolve against the drawable zone — the zone shrinks/grows
+when BIM mode toggles, so absolute slot mm values follow
+automatically.
+
+### 3.3 Bound parameter cells
+
+**28 bound cells**, of which **16 always-visible** and **12
+BIM-only**. Every label that begins with `${…}` is a `Label` element
+bound by GUID to the matching shared parameter in §2.1. Cells
+without a binding shown (the static labels CLIENT / PROJECT /
+NOTES / DRAWING TITLE / DRWN / etc.) are static text on the
+title-block layer.
 
 ## 4. Working sheet — A0 / A2 / A3 / A3 portrait / A4 portrait
 
