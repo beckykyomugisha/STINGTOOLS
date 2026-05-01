@@ -89,6 +89,16 @@ namespace StingTools.Core.Drawing
             // valid across families.
             _LineStyleNotFoundOnce.Clear();
             _LineStyleAutoCreatedOnce.Clear();
+            // Re-attempt label-API discovery on every build — the cached
+            // result is type-keyed (FamilyItemFactory's type doesn't change)
+            // so re-discovery is cheap and ensures a fresh diagnostic if
+            // the user iterates JSON without restarting Revit.
+            _newLabelDiscoveryAttempted = false;
+            _newLabelMethod             = null;
+            _newLabelTarget             = null;
+            _verticalAlignType          = null;
+            _slotRefPlanesPermittedFailCount = 0;
+            _slotRefPlanesNotPermittedWarned = false;
 
             // 1. Resolve template
             string rftPath = ResolveTemplatePath(spec.TemplateRft);
@@ -572,7 +582,7 @@ namespace StingTools.Core.Drawing
                 var sizeFt = MmToFt(spec.Size);
                 IList<FamilyParameter> labelParams = new List<FamilyParameter> { fp };
                 IList<string> prefixSuffix = new List<string> { spec.Prefix ?? "", spec.Suffix ?? "" };
-                var lbl = InvokeNewLabel(famDoc.FamilyCreate, view, origin, hAlign, spec.VAlign,
+                var lbl = InvokeNewLabel(famDoc, view, origin, hAlign, spec.VAlign,
                     labelParams, prefixSuffix, sizeFt, r);
                 if (lbl != null) r.LabelsPlaced++;
             }
@@ -676,6 +686,17 @@ namespace StingTools.Core.Drawing
             catch (Exception ex) { r.Warnings.Add($"PlaceSlot '{spec.Id}': {ex.Message}"); }
         }
 
+        // Best-effort reference-plane authoring. Title-block family documents
+        // in Revit 2025 reject `FamilyCreate.NewReferencePlane` with
+        // "The attempted operation is not permitted in this type of family."
+        // Slot ref planes are nice-to-have (the operator can dimension off
+        // them in Family Editor) but not load-bearing — slot bounds for
+        // TitleBlock_AutoPlaceViewports are read from the JSON spec at
+        // runtime, not from the .rfa. So when ref-plane creation fails we
+        // surface ONE summary warning per build and move on.
+        private static int _slotRefPlanesPermittedFailCount = 0;
+        private static bool _slotRefPlanesNotPermittedWarned = false;
+
         private static void NewSlotReferencePlane(Document famDoc, View view,
             string name, XYZ p1, XYZ p2, TitleBlockBuildResult r)
         {
@@ -684,11 +705,36 @@ namespace StingTools.Core.Drawing
                 var rp = famDoc.FamilyCreate.NewReferencePlane(p1, p2, XYZ.BasisZ, view);
                 if (rp != null && !string.IsNullOrEmpty(name))
                 {
-                    try { rp.Name = name; }
-                    catch (Exception nameEx) { r.Warnings.Add($"NewSlotReferencePlane name '{name}': {nameEx.Message}"); }
+                    try { rp.Name = name; } catch { /* best-effort */ }
                 }
             }
-            catch (Exception ex) { r.Warnings.Add($"NewSlotReferencePlane '{name}': {ex.Message}"); }
+            catch (Autodesk.Revit.Exceptions.InvalidOperationException) { LogRefPlaneFailureOnce(r); }
+            catch (Exception ex)
+            {
+                // Some Revit versions throw a generic Exception with the
+                // "not permitted in this type of family" message rather than
+                // InvalidOperationException — pattern-match to suppress those
+                // too instead of polluting the warning list 12× per build.
+                if (ex.Message != null
+                    && ex.Message.IndexOf("not permitted", StringComparison.OrdinalIgnoreCase) >= 0)
+                    LogRefPlaneFailureOnce(r);
+                else
+                    r.Warnings.Add($"NewSlotReferencePlane '{name}': {ex.Message}");
+            }
+        }
+
+        private static void LogRefPlaneFailureOnce(TitleBlockBuildResult r)
+        {
+            _slotRefPlanesPermittedFailCount++;
+            if (!_slotRefPlanesNotPermittedWarned)
+            {
+                _slotRefPlanesNotPermittedWarned = true;
+                r.Warnings.Add(
+                    "Slot reference planes not permitted in this title-block family — "
+                    + "skipped silently. Slot bounds are still readable from STING_TITLE_BLOCKS.json "
+                    + "at AutoPlaceViewports time, so this only affects the visual cue in Family Editor "
+                    + "(operator can dimension off the slot-id text markers instead).");
+            }
         }
 
         // ── Resolvers ────────────────────────────────────────────────────
@@ -897,81 +943,104 @@ namespace StingTools.Core.Drawing
         // but its sibling VerticalAlign was either renamed (different
         // capitalisations, suffixes "Style" / "TextAlignment") or moved to
         // a sub-namespace. Rather than guess which, we INVERT the lookup:
-        // search FamilyItemFactory for any NewLabel overload whose shape
-        // matches (View, XYZ, HorizontalAlign, ?, IList<FamilyParameter>,
+        // search for any NewLabel overload whose shape matches
+        // (View, XYZ, HorizontalAlign, ?, IList<FamilyParameter>,
         // IList<string>, double) and read the actual vertical-align type
         // straight off ParameterInfo[3]. That way the code self-discovers
         // whatever the current Revit calls it.
+        //
+        // Two factories are checked in priority order:
+        //   1. famDoc.FamilyCreate (FamilyItemFactory) — works for tag /
+        //      annotation-symbol families.
+        //   2. famDoc.Application.Create (Application creator) — has an
+        //      8-arg overload that takes the Document as the first
+        //      parameter, which is the title-block-family-compatible
+        //      surface (FamilyCreate.NewLabel has been observed missing
+        //      from the title-block FamilyItemFactory in Revit 2025).
         private static MethodInfo _newLabelMethod;
+        private static object     _newLabelTarget;            // factory the method is invoked on
+        private static bool       _newLabelTakesDocFirstArg;  // true for Application.Create.NewLabel
         private static Type       _verticalAlignType;
         private static bool       _newLabelDiscoveryAttempted;
 
-        private static void EnsureNewLabelDiscovered(object factory, TitleBlockBuildResult r)
+        private static void EnsureNewLabelDiscovered(object famFactory, object appFactory,
+            TitleBlockBuildResult r)
         {
             if (_newLabelMethod != null || _newLabelDiscoveryAttempted) return;
             _newLabelDiscoveryAttempted = true;
-            if (factory == null) return;
             try
             {
-                var factoryType = factory.GetType();
-                var allMethods = factoryType.GetMethods();
-                var labelLikeMethods = allMethods
-                    .Where(m => m.Name.IndexOf("Label", StringComparison.OrdinalIgnoreCase) >= 0
-                             || m.Name.IndexOf("Create", StringComparison.OrdinalIgnoreCase) == 0
-                             || m.Name.IndexOf("New",    StringComparison.OrdinalIgnoreCase) == 0)
-                    .ToList();
-
-                MethodInfo bestMatch = null;
                 var diag = new System.Text.StringBuilder();
-                foreach (var m in labelLikeMethods)
-                {
-                    var ps = m.GetParameters();
-                    diag.Append(diag.Length == 0 ? "" : "; ");
-                    diag.Append(m.Name).Append("(");
-                    for (int i = 0; i < ps.Length; i++)
-                    {
-                        if (i > 0) diag.Append(", ");
-                        diag.Append(ps[i].ParameterType.Name);
-                    }
-                    diag.Append(")");
+                MethodInfo bestMatch = null;
+                bool bestTakesDoc   = false;
+                object bestTarget   = null;
 
-                    if (m.Name != "NewLabel") continue;
-                    if (ps.Length != 7) continue;
-                    if (ps[0].ParameterType != typeof(View)) continue;
-                    if (ps[1].ParameterType != typeof(XYZ)) continue;
-                    if (ps[2].ParameterType != typeof(HorizontalAlign)) continue;
-                    if (!typeof(IList<FamilyParameter>).IsAssignableFrom(ps[4].ParameterType)) continue;
-                    if (!typeof(IList<string>).IsAssignableFrom(ps[5].ParameterType)) continue;
-                    if (ps[6].ParameterType != typeof(double)) continue;
-                    if (!ps[3].ParameterType.IsEnum) continue;
-                    bestMatch = m;
-                    _verticalAlignType = ps[3].ParameterType;
-                    break;
+                // Plan A: 7-arg form on FamilyItemFactory (familyCreate).
+                if (famFactory != null)
+                {
+                    EnumerateLabelLikeMethods(famFactory.GetType(), "FamilyCreate", diag);
+                    foreach (var m in famFactory.GetType().GetMethods())
+                    {
+                        if (m.Name != "NewLabel") continue;
+                        var ps = m.GetParameters();
+                        if (ps.Length != 7) continue;
+                        if (ps[0].ParameterType != typeof(View)) continue;
+                        if (ps[1].ParameterType != typeof(XYZ))  continue;
+                        if (ps[2].ParameterType != typeof(HorizontalAlign)) continue;
+                        if (!typeof(IList<FamilyParameter>).IsAssignableFrom(ps[4].ParameterType)) continue;
+                        if (!typeof(IList<string>).IsAssignableFrom(ps[5].ParameterType)) continue;
+                        if (ps[6].ParameterType != typeof(double)) continue;
+                        if (!ps[3].ParameterType.IsEnum) continue;
+                        bestMatch         = m;
+                        _verticalAlignType = ps[3].ParameterType;
+                        bestTakesDoc      = false;
+                        bestTarget        = famFactory;
+                        break;
+                    }
                 }
 
-                _newLabelMethod = bestMatch;
+                // Plan B: 8-arg form on Application.Create with leading Document.
+                if (bestMatch == null && appFactory != null)
+                {
+                    EnumerateLabelLikeMethods(appFactory.GetType(), "Application.Create", diag);
+                    foreach (var m in appFactory.GetType().GetMethods())
+                    {
+                        if (m.Name != "NewLabel") continue;
+                        var ps = m.GetParameters();
+                        if (ps.Length != 8) continue;
+                        if (!typeof(Document).IsAssignableFrom(ps[0].ParameterType)) continue;
+                        if (ps[1].ParameterType != typeof(View)) continue;
+                        if (ps[2].ParameterType != typeof(XYZ))  continue;
+                        if (ps[3].ParameterType != typeof(HorizontalAlign)) continue;
+                        if (!typeof(IList<FamilyParameter>).IsAssignableFrom(ps[5].ParameterType)) continue;
+                        if (!typeof(IList<string>).IsAssignableFrom(ps[6].ParameterType)) continue;
+                        if (ps[7].ParameterType != typeof(double)) continue;
+                        if (!ps[4].ParameterType.IsEnum) continue;
+                        bestMatch          = m;
+                        _verticalAlignType = ps[4].ParameterType;
+                        bestTakesDoc       = true;
+                        bestTarget         = appFactory;
+                        break;
+                    }
+                }
 
-                // Always log the diagnostic — successful or not — to
-                // StingTools.log so we have a permanent record of which
-                // overloads existed in this Revit build. Surface it as a
-                // result-dialog warning only when discovery fails.
-                StingLog.Info($"InvokeNewLabel diagnostic: factory type = {factoryType.FullName} (assembly: {factoryType.Assembly.GetName().Name})");
-                StingLog.Info($"InvokeNewLabel label-like overloads ({labelLikeMethods.Count}): {(diag.Length > 0 ? diag.ToString() : "(none)")}");
+                _newLabelMethod           = bestMatch;
+                _newLabelTakesDocFirstArg = bestTakesDoc;
+                _newLabelTarget           = bestTarget;
 
+                // Dual-factory diagnostic — record whether each surface had NewLabel.
+                StingLog.Info($"InvokeNewLabel diagnostic — {diag}");
                 if (bestMatch == null)
                 {
-                    // Stripped diagnostic — list method NAMES only (signatures
-                    // can blow past the TaskDialog character limit when the
-                    // factory has dozens of overloads).
-                    var labelNames = string.Join(", ", labelLikeMethods.Select(m => m.Name).Distinct());
                     r.Warnings.Add(
-                        $"InvokeNewLabel: no compatible NewLabel/CreateLabel overload found on '{factoryType.Name}'. "
-                        + $"Methods checked (names): {(string.IsNullOrEmpty(labelNames) ? "(none)" : labelNames)}. "
-                        + $"Full diagnostic in StingTools.log.");
+                        "InvokeNewLabel: no compatible NewLabel overload found on either "
+                        + "FamilyCreate (FamilyItemFactory) or Application.Create. Labels skipped — "
+                        + "operator must add labels via Family Editor's Label tool. Full method "
+                        + "diagnostic in StingTools.log.");
                 }
                 else
                 {
-                    StingLog.Info($"InvokeNewLabel: bound to '{bestMatch.Name}' on '{factoryType.Name}', vAlign type = '{_verticalAlignType?.FullName ?? "(none)"}'");
+                    StingLog.Info($"InvokeNewLabel: bound to '{bestMatch.DeclaringType?.Name}.{bestMatch.Name}' (vAlign type '{_verticalAlignType?.FullName}', docFirstArg={bestTakesDoc})");
                 }
             }
             catch (Exception ex)
@@ -979,6 +1048,42 @@ namespace StingTools.Core.Drawing
                 r.Warnings.Add($"InvokeNewLabel discovery: {ex.Message}");
                 StingLog.Error("InvokeNewLabel discovery", ex);
             }
+        }
+
+        private static void EnumerateLabelLikeMethods(Type factoryType,
+            string surfaceLabel, System.Text.StringBuilder diag)
+        {
+            try
+            {
+                var methods = factoryType.GetMethods()
+                    .Where(m => m.Name.IndexOf("Label", StringComparison.OrdinalIgnoreCase) >= 0
+                             || m.Name.IndexOf("Create", StringComparison.OrdinalIgnoreCase) == 0
+                             || m.Name.IndexOf("New",    StringComparison.OrdinalIgnoreCase) == 0)
+                    .OrderBy(m => m.Name)
+                    .ToList();
+                if (diag.Length > 0) diag.Append("\n");
+                diag.Append($"{surfaceLabel} ({factoryType.FullName}): ");
+                if (methods.Count == 0)
+                {
+                    diag.Append("(no Label/Create/New methods)");
+                    return;
+                }
+                bool first = true;
+                foreach (var m in methods)
+                {
+                    if (!first) diag.Append("; ");
+                    first = false;
+                    var ps = m.GetParameters();
+                    diag.Append(m.Name).Append('(');
+                    for (int i = 0; i < ps.Length; i++)
+                    {
+                        if (i > 0) diag.Append(", ");
+                        diag.Append(ps[i].ParameterType.Name);
+                    }
+                    diag.Append(')');
+                }
+            }
+            catch { /* swallow — diagnostic only */ }
         }
 
         private static object ParseVAlign(string s)
@@ -1018,21 +1123,25 @@ namespace StingTools.Core.Drawing
         // (e.g. "Top" / "Middle" / "Bottom") rather than a parsed enum
         // because the actual enum type isn't known until EnsureNewLabel-
         // Discovered runs — the parse happens after discovery.
-        private static Element InvokeNewLabel(object factory, View view,
+        private static Element InvokeNewLabel(Document famDoc, View view,
             XYZ origin, HorizontalAlign hAlign, string vAlignName,
             IList<FamilyParameter> labelParameters, IList<string> prefixSuffix,
             double size, TitleBlockBuildResult r)
         {
-            if (factory == null) return null;
-            EnsureNewLabelDiscovered(factory, r);
-            if (_newLabelMethod == null) return null;
+            if (famDoc == null) return null;
+            object famFactory = null;
+            object appFactory = null;
+            try { famFactory = famDoc.FamilyCreate; } catch { }
+            try { appFactory = famDoc.Application?.Create; } catch { }
+            EnsureNewLabelDiscovered(famFactory, appFactory, r);
+            if (_newLabelMethod == null || _newLabelTarget == null) return null;
             object vAlign = ParseVAlign(vAlignName);
             try
             {
-                return _newLabelMethod.Invoke(factory, new object[]
-                {
-                    view, origin, hAlign, vAlign, labelParameters, prefixSuffix, size,
-                }) as Element;
+                object[] args = _newLabelTakesDocFirstArg
+                    ? new object[] { famDoc, view, origin, hAlign, vAlign, labelParameters, prefixSuffix, size }
+                    : new object[] {           view, origin, hAlign, vAlign, labelParameters, prefixSuffix, size };
+                return _newLabelMethod.Invoke(_newLabelTarget, args) as Element;
             }
             catch (TargetInvocationException tie)
             {

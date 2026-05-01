@@ -78,8 +78,12 @@ namespace StingTools.Commands.Drawing
             if (slotMap.Count == 0)
             {
                 TaskDialog.Show("STING — Auto-place Viewports",
-                    $"No slot reference planes found in title-block family '{TitleBlockSlotUtils.GetFamilyName(doc, titleBlock)}'. "
-                    + "The factory needs to have authored '<slotId>_TOP/BOT/LFT/RGT' planes — regenerate the family with TitleBlock_Create.");
+                    $"No slots resolved for title-block family '{TitleBlockSlotUtils.GetFamilyName(doc, titleBlock)}'.\n\n"
+                    + "Slot bounds are read from STING_TITLE_BLOCKS.json by family id "
+                    + "(extends-resolved). Either:\n"
+                    + "  - The family id doesn't match any spec entry, or\n"
+                    + "  - The matched spec has an empty slots[] array.\n\n"
+                    + "Run TitleBlock_CreateAll to regenerate the family from a current spec.");
                 return Result.Failed;
             }
             // The slot bounds come from the family doc (origin = bottom-left
@@ -538,86 +542,28 @@ namespace StingTools.Commands.Drawing
             catch { return "(unknown)"; }
         }
 
-        /// <summary>Walk the title-block .rfa's reference planes, group by
-        /// slot id (`<id>_TOP/BOT/LFT/RGT`), compute the bbox per slot.
-        /// Reads from the family doc via Document.EditFamily — read-only,
-        /// no transaction, family doc is closed at the end. Pulls
-        /// SlotSpec metadata (purposeTag / viewportType / scaleHint) back
-        /// from the JSON spec by family name so the auto-placer can apply
-        /// them.</summary>
+        /// <summary>Resolve slot bounds for the title block on the active
+        /// sheet. JSON-first strategy:
+        ///
+        ///   1. Look up the family by id in STING_TITLE_BLOCKS.json
+        ///      (extends-resolved). The JSON declares slots in mm relative
+        ///      to the sheet's bottom-left, with PurposeTag / ViewportType
+        ///      / ScaleHint metadata.
+        ///   2. If the family ALSO has named reference planes
+        ///      (`<id>_TOP/BOT/LFT/RGT`) inside its .rfa, we override the
+        ///      JSON-declared bounds with the actual planes — useful when
+        ///      an operator has manually adjusted slots in Family Editor.
+        ///      Title-block families on Revit 2025 reject ref-plane
+        ///      creation, so this step usually no-ops; legacy families
+        ///      or migrated layouts may still have them.
+        ///
+        /// JSON is the authoritative source.</summary>
         public static Dictionary<string, SlotBounds> ReadSlotBoundsFromTitleBlock(Document doc, Element titleBlock)
         {
             var result = new Dictionary<string, SlotBounds>(StringComparer.OrdinalIgnoreCase);
             var familyName = GetFamilyName(doc, titleBlock);
 
-            // 1. Open family doc and walk reference planes.
-            try
-            {
-                var sym = doc.GetElement(titleBlock.GetTypeId()) as FamilySymbol;
-                var family = sym?.Family;
-                if (family == null) return result;
-                var famDoc = doc.EditFamily(family);
-                if (famDoc == null) return result;
-                try
-                {
-                    // Group ref planes by slot id.
-                    var byId = new Dictionary<string, List<(string suffix, XYZ p1, XYZ p2)>>(StringComparer.OrdinalIgnoreCase);
-                    foreach (var rp in new FilteredElementCollector(famDoc)
-                        .OfClass(typeof(ReferencePlane))
-                        .OfType<ReferencePlane>())
-                    {
-                        var name = rp.Name ?? "";
-                        var i = name.LastIndexOf('_');
-                        if (i <= 0) continue;
-                        var suffix = name.Substring(i + 1).ToUpperInvariant();
-                        if (suffix != "TOP" && suffix != "BOT" && suffix != "LFT" && suffix != "RGT") continue;
-                        var slotId = name.Substring(0, i);
-                        if (!byId.TryGetValue(slotId, out var list))
-                            byId[slotId] = list = new List<(string, XYZ, XYZ)>();
-                        list.Add((suffix, rp.BubbleEnd, rp.FreeEnd));
-                    }
-
-                    // Compute bbox per slot.
-                    foreach (var kv in byId)
-                    {
-                        double minX = double.PositiveInfinity, maxX = double.NegativeInfinity;
-                        double minY = double.PositiveInfinity, maxY = double.NegativeInfinity;
-                        foreach (var (_, p1, p2) in kv.Value)
-                        {
-                            foreach (var p in new[] { p1, p2 })
-                            {
-                                if (p == null) continue;
-                                if (p.X < minX) minX = p.X;
-                                if (p.X > maxX) maxX = p.X;
-                                if (p.Y < minY) minY = p.Y;
-                                if (p.Y > maxY) maxY = p.Y;
-                            }
-                        }
-                        if (double.IsInfinity(minX)) continue;
-                        result[kv.Key] = new SlotBounds
-                        {
-                            Id   = kv.Key,
-                            Bbox = new BoundingBoxXYZ
-                            {
-                                Min = new XYZ(minX, minY, 0),
-                                Max = new XYZ(maxX, maxY, 0)
-                            }
-                        };
-                    }
-                }
-                finally
-                {
-                    try { famDoc.Close(false); } catch { }
-                }
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"ReadSlotBoundsFromTitleBlock: {ex.Message}");
-            }
-
-            // 2. Augment with SlotSpec metadata from the JSON spec, looked up
-            // by family id. The id in the JSON matches the .rfa basename
-            // (e.g. STING_TB_A1_BIM_v2.0).
+            // 1. Primary source — STING_TITLE_BLOCKS.json (extends-resolved).
             try
             {
                 var lib = Core.Drawing.TitleBlockSpecRegistry.Load();
@@ -630,17 +576,102 @@ namespace StingTools.Commands.Drawing
                         spec = Core.Drawing.TitleBlockSpecRegistry.Resolve(lib, spec);
                         foreach (var slot in spec.Slots ?? Enumerable.Empty<Core.Drawing.SlotSpec>())
                         {
-                            if (string.IsNullOrEmpty(slot.Id)) continue;
-                            if (!result.TryGetValue(slot.Id, out var bounds)) continue;
-                            bounds.PurposeTag   = slot.PurposeTag;
-                            bounds.ViewportType = slot.ViewportType;
-                            bounds.ScaleHint    = slot.ScaleHint;
+                            if (string.IsNullOrEmpty(slot.Id)
+                                || slot.Anchor == null || slot.Anchor.Length < 2
+                                || slot.Size   == null || slot.Size.Length   < 2) continue;
+                            // Convert the spec's mm coords to feet (Revit
+                            // internal length unit), origin at sheet's
+                            // bottom-left.
+                            double xFt = MmToFt(slot.Anchor[0]);
+                            double yFt = MmToFt(slot.Anchor[1]);
+                            double wFt = MmToFt(slot.Size[0]);
+                            double hFt = MmToFt(slot.Size[1]);
+                            result[slot.Id] = new SlotBounds
+                            {
+                                Id           = slot.Id,
+                                Bbox         = new BoundingBoxXYZ
+                                {
+                                    Min = new XYZ(xFt,        yFt,        0),
+                                    Max = new XYZ(xFt + wFt,  yFt + hFt,  0),
+                                },
+                                PurposeTag   = slot.PurposeTag,
+                                ViewportType = slot.ViewportType,
+                                ScaleHint    = slot.ScaleHint,
+                            };
                         }
                     }
                 }
             }
-            catch { /* metadata is best-effort; bbox is the load-bearing part */ }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ReadSlotBoundsFromTitleBlock (JSON): {ex.Message}");
+            }
+
+            // 2. Optional override — if the family has named reference planes,
+            // they take precedence (the operator may have manually nudged
+            // slots in Family Editor and we want to honour that).
+            try
+            {
+                var sym = doc.GetElement(titleBlock.GetTypeId()) as FamilySymbol;
+                var family = sym?.Family;
+                if (family == null) return result;
+                var famDoc = doc.EditFamily(family);
+                if (famDoc == null) return result;
+                try
+                {
+                    var byId = new Dictionary<string, List<XYZ>>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var rp in new FilteredElementCollector(famDoc)
+                        .OfClass(typeof(ReferencePlane))
+                        .OfType<ReferencePlane>())
+                    {
+                        var name = rp.Name ?? "";
+                        var i = name.LastIndexOf('_');
+                        if (i <= 0) continue;
+                        var suffix = name.Substring(i + 1).ToUpperInvariant();
+                        if (suffix != "TOP" && suffix != "BOT" && suffix != "LFT" && suffix != "RGT") continue;
+                        var slotId = name.Substring(0, i);
+                        if (!byId.TryGetValue(slotId, out var list))
+                            byId[slotId] = list = new List<XYZ>();
+                        if (rp.BubbleEnd != null) list.Add(rp.BubbleEnd);
+                        if (rp.FreeEnd   != null) list.Add(rp.FreeEnd);
+                    }
+                    foreach (var kv in byId)
+                    {
+                        double minX = double.PositiveInfinity, maxX = double.NegativeInfinity;
+                        double minY = double.PositiveInfinity, maxY = double.NegativeInfinity;
+                        foreach (var p in kv.Value)
+                        {
+                            if (p.X < minX) minX = p.X;
+                            if (p.X > maxX) maxX = p.X;
+                            if (p.Y < minY) minY = p.Y;
+                            if (p.Y > maxY) maxY = p.Y;
+                        }
+                        if (double.IsInfinity(minX)) continue;
+                        // Override (or add) the slot — preserve metadata
+                        // from the JSON-derived entry if present.
+                        if (!result.TryGetValue(kv.Key, out var existing))
+                            existing = new SlotBounds { Id = kv.Key };
+                        existing.Bbox = new BoundingBoxXYZ
+                        {
+                            Min = new XYZ(minX, minY, 0),
+                            Max = new XYZ(maxX, maxY, 0),
+                        };
+                        result[kv.Key] = existing;
+                    }
+                }
+                finally
+                {
+                    try { famDoc.Close(false); } catch { }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ReadSlotBoundsFromTitleBlock (ref planes): {ex.Message}");
+            }
             return result;
         }
+
+        private const double MmPerFoot = 304.8;
+        private static double MmToFt(double mm) => mm / MmPerFoot;
     }
 }
