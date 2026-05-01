@@ -75,6 +75,12 @@ namespace StingTools.Core.Drawing
             if (uiApp == null || spec == null)
             { r.Errors.Add("null uiApp or spec"); return r; }
             var app = uiApp.Application;
+            // Reset per-build warn-once trackers so multi-family runs
+            // (TitleBlock_CreateAll) don't suppress legitimate warnings
+            // on the second + subsequent families. _newLabelMethod is
+            // intentionally NOT reset — its MethodInfo cache is keyed by
+            // type, not document, and stays valid across families.
+            _LineStyleNotFoundOnce.Clear();
 
             // 1. Resolve template
             string rftPath = ResolveTemplatePath(spec.TemplateRft);
@@ -520,11 +526,16 @@ namespace StingTools.Core.Drawing
                     // (the full strip height); Phase 171 will revisit when
                     // we have hands-on Revit access to discover what
                     // formula form the parser actually accepts.
+                    //
+                    // Important: instance-level (isInstance: true) so any
+                    // future formula here can reference the instance-level
+                    // STING_BIM_MODE_BOOL — type-level params can't
+                    // reference instance-level params.
                     var heightParamName = string.IsNullOrEmpty(grp.HeightParam)
                         ? $"H_{grp.Id}_MM" : grp.HeightParam;
                     var fullFt = MmToFt(grp.FullHeightMm).ToString("0.########", System.Globalization.CultureInfo.InvariantCulture);
                     var hp = AddInternalParameter(fm, heightParamName,
-                        "Length", "Constraints", isInstance: false,
+                        "Length", "Constraints", isInstance: true,
                         defaultValue: fullFt, formula: null, r);
                     if (hp != null) map[heightParamName] = hp;
 
@@ -534,9 +545,15 @@ namespace StingTools.Core.Drawing
                     // accept across versions. The defence-in-depth `AND
                     // (height > 0)` clause is dropped: BIM_MODE alone is
                     // the gate.
+                    //
+                    // Instance-level so the formula can reference the
+                    // instance-level STING_BIM_MODE_BOOL — this was the
+                    // root cause of the 3 row*_VIS "Formula setting
+                    // failed" warnings on the previous run (type-level
+                    // VIS trying to read instance-level BIM_MODE).
                     var visName = $"{grp.Id}_VIS";
                     var vp = AddInternalParameter(fm, visName, "YesNo",
-                        "Constraints", isInstance: false,
+                        "Constraints", isInstance: true,
                         defaultValue: null,
                         formula: spec.BimModeParameter,
                         r);
@@ -794,22 +811,30 @@ namespace StingTools.Core.Drawing
 
                 // Ultimate fallback — if the template doesn't ship the
                 // standard "Wide / Medium / Thin Lines" subcategories at
-                // all (clean Revit template, custom locale, etc.), pick
-                // ANY available subcategory under Lines or TitleBlocks
-                // so the curve at least gets a line style assigned. Better
-                // than leaving it on the implicit default which can be
-                // <Invisible lines>.
-                var anyStyle = FirstAnySubcategoryStyle(doc, BuiltInCategory.OST_Lines)
-                            ?? FirstAnySubcategoryStyle(doc, BuiltInCategory.OST_TitleBlocks);
+                // all (clean Revit template, custom locale, custom
+                // template content), look for any USER-DEFINED subcategory
+                // we can use. Skip <Bracketed> entries — those are Revit
+                // built-in meta-styles like <Overhead> / <Hidden> /
+                // <Sketch> / <Centerline> with specific dash/halftone
+                // patterns that look wrong as a sheet border. If only
+                // bracketed entries exist, leave the curve on Revit's
+                // default style (no warning per-curve).
+                var anyStyle = FirstUserSubcategoryStyle(doc, BuiltInCategory.OST_Lines)
+                            ?? FirstUserSubcategoryStyle(doc, BuiltInCategory.OST_TitleBlocks);
                 if (anyStyle != null)
                 {
                     dc.LineStyle = anyStyle;
-                    _LineStyleNotFoundOnce.TryAdd(styleName, true);
-                    if (_LineStyleNotFoundOnce.Count <= 3)
+                    // Warn ONCE per unique missing style name (TryAdd
+                    // returns true on first add, false on subsequent —
+                    // the previous version checked Count<=3 which fired
+                    // every call when Count was still <=3, hence the
+                    // 60-line warning spam).
+                    if (_LineStyleNotFoundOnce.TryAdd(styleName, true))
                         r.Warnings.Add($"line style '{styleName}' not found — using '{anyStyle.Name}' as fallback");
                     return;
                 }
-                r.Warnings.Add($"line style '{styleName}' not found (no subcategory available under OST_Lines or OST_TitleBlocks)");
+                if (_LineStyleNotFoundOnce.TryAdd(styleName, true))
+                    r.Warnings.Add($"line style '{styleName}' not found (no user-defined subcategory available; left on Revit default)");
             }
             catch (Exception ex) { r.Warnings.Add($"ApplyLineStyle '{styleName}': {ex.Message}"); }
         }
@@ -817,7 +842,7 @@ namespace StingTools.Core.Drawing
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> _LineStyleNotFoundOnce
             = new System.Collections.Concurrent.ConcurrentDictionary<string, bool>();
 
-        private static GraphicsStyle FirstAnySubcategoryStyle(Document doc, BuiltInCategory parentCat)
+        private static GraphicsStyle FirstUserSubcategoryStyle(Document doc, BuiltInCategory parentCat)
         {
             try
             {
@@ -825,6 +850,12 @@ namespace StingTools.Core.Drawing
                 if (parent?.SubCategories == null) return null;
                 foreach (Category sub in parent.SubCategories)
                 {
+                    // Skip Revit built-in meta-styles like <Overhead> /
+                    // <Hidden> / <Sketch> / <Centerline> — they have
+                    // specific dash/halftone patterns that look wrong
+                    // as a fallback for solid sheet borders.
+                    if (!string.IsNullOrEmpty(sub.Name) && sub.Name.StartsWith("<"))
+                        continue;
                     var gs = sub.GetGraphicsStyle(GraphicsStyleType.Projection);
                     if (gs != null) return gs;
                 }
