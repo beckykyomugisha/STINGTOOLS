@@ -128,6 +128,15 @@ public record RegisterRequest
     public string DisplayName      { get; init; } = "";
     public string Email            { get; init; } = "";
     public string Password         { get; init; } = "";
+
+    // S1.5 — optional billing surface picked up at signup time. Plan defaults
+    // to "Trial" (always 30 days regardless of the value the user picks);
+    // Currency drives whether the future invoices route to Stripe (USD/EUR/GBP)
+    // or Flutterwave (UGX/KES/TZS/RWF/NGN/ZAR/ZMW). Country is a 2-letter ISO
+    // hint that the signup flow uses to default the currency client-side.
+    public string? Plan        { get; init; }   // "Studio" | "Practice" | "Network"; null = "Network"
+    public string? Currency    { get; init; }   // "USD" | "UGX" | "KES" | "TZS" | "RWF" | "NGN" | "ZAR" | "EUR" | "GBP"
+    public string? CountryCode { get; init; }   // ISO 3166-1 alpha-2 hint
 }
 
 public record ChangePasswordRequest

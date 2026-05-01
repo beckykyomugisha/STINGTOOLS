@@ -109,9 +109,15 @@ public class AuthController : ControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult> Register([FromBody] RegisterRequest req)
     {
-        // Only allow registration if the tenant slug is not yet taken
-        if (await _db.Tenants.AnyAsync(t => t.Slug == req.TenantSlug))
-            return Conflict(new { message = $"Organisation slug '{req.TenantSlug}' is already taken" });
+        // S1.5 — slug must be URL-safe and 3-50 chars. Reject upfront with a
+        // clear error so the signup form can guide the user.
+        var slugRegex = new System.Text.RegularExpressions.Regex("^[a-z0-9](?:[a-z0-9-]{1,48}[a-z0-9])?$");
+        var normalisedSlug = (req.TenantSlug ?? "").ToLowerInvariant().Trim();
+        if (!slugRegex.IsMatch(normalisedSlug))
+            return BadRequest(new { message = "Slug must be 3-50 chars, lowercase letters/numbers/hyphens, no leading or trailing hyphen." });
+
+        if (await _db.Tenants.AnyAsync(t => t.Slug == normalisedSlug))
+            return Conflict(new { message = $"Organisation slug '{normalisedSlug}' is already taken" });
 
         if (await _db.Users.AnyAsync(u => u.Email == req.Email))
             return Conflict(new { message = "Email already registered" });
@@ -119,15 +125,25 @@ public class AuthController : ControllerBase
         if (req.Password.Length < 8)
             return BadRequest(new { message = "Password must be at least 8 characters" });
 
+        // S1.5 — picked plan + currency. Plan always starts in Trial regardless
+        // of the requested target (we record the chosen target in PlannedUpgrade
+        // metadata so the Trial→Paid conversion email knows what to push).
+        var requestedPlan = ParseBillingPlan(req.Plan) ?? BillingPlan.Network;
+        var currency = ResolveCurrency(req.Currency, req.CountryCode);
+        var planLimits = BillingPlanLimits.For(requestedPlan);
+
         // Create tenant
         var tenant = new Tenant
         {
             Name          = req.OrganisationName,
-            Slug          = req.TenantSlug.ToLowerInvariant().Trim(),
+            Slug          = normalisedSlug,
             ContactEmail  = req.Email,
             Tier          = LicenseTier.Starter,
-            MaxUsers      = 5,
-            MaxProjects   = 1,
+            Plan          = BillingPlan.Trial,
+            Currency      = currency,
+            BillingCycle  = BillingCycle.Monthly,
+            MaxUsers      = planLimits.MaxAuthors + planLimits.MaxCoordinators,
+            MaxProjects   = planLimits.MaxProjects,
             MimEnabled    = false,
             TrialExpiresAt = DateTime.UtcNow.AddDays(30)
         };
@@ -163,15 +179,66 @@ public class AuthController : ControllerBase
         return CreatedAtAction(null, null, new
         {
             accessToken    = token,
-            refreshToken   = (string?)null,  // user must login to get refresh token
+            refreshToken   = (string?)null,
             expiresAt      = DateTime.UtcNow.AddHours(8),
             userName       = owner.DisplayName,
-            tier           = "Starter",
+            tenantId       = tenant.Id,
+            tenantSlug     = tenant.Slug,
+            plan           = tenant.Plan.ToString(),
+            plannedUpgrade = requestedPlan.ToString(),
+            currency       = tenant.Currency,
             trialExpiresAt = tenant.TrialExpiresAt,
+            limits         = new
+            {
+                maxAuthors      = planLimits.MaxAuthors,
+                maxCoordinators = planLimits.MaxCoordinators,
+                maxProjects     = planLimits.MaxProjects,
+                storageMb       = planLimits.StorageMb,
+                monthlyUsd      = planLimits.MonthlyUsd,
+            },
             licenseKey     = licenseKey.Key,
-            message        = "Account created. 30-day Starter trial active. Add your licence key from the Admin panel to upgrade."
+            message        = $"Account created. 30-day trial active. After trial expires, your tenant converts to {requestedPlan} ({tenant.Currency} billing)."
         });
     }
+
+    private static BillingPlan? ParseBillingPlan(string? plan)
+    {
+        if (string.IsNullOrWhiteSpace(plan)) return null;
+        return Enum.TryParse<BillingPlan>(plan, ignoreCase: true, out var v) ? v : null;
+    }
+
+    /// <summary>
+    /// S1.5 — resolves the billing currency from an explicit user choice,
+    /// falling back to a country-code hint, finally USD. Currencies handled:
+    /// USD/EUR/GBP via Stripe; UGX/KES/TZS/RWF/NGN/ZAR/ZMW via Flutterwave.
+    /// </summary>
+    private static string ResolveCurrency(string? currency, string? countryCode)
+    {
+        if (!string.IsNullOrWhiteSpace(currency))
+        {
+            var c = currency.Trim().ToUpperInvariant();
+            if (KnownCurrencies.Contains(c)) return c;
+        }
+        return (countryCode ?? "").ToUpperInvariant() switch
+        {
+            "UG" => "UGX",
+            "KE" => "KES",
+            "TZ" => "TZS",
+            "RW" => "RWF",
+            "NG" => "NGN",
+            "ZA" => "ZAR",
+            "ZM" => "ZMW",
+            "GB" => "GBP",
+            "DE" or "FR" or "IT" or "ES" or "NL" or "BE" or "PT" or "IE" or "AT" or "FI" or "GR" => "EUR",
+            _    => "USD",
+        };
+    }
+
+    private static readonly HashSet<string> KnownCurrencies = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "USD","EUR","GBP",
+        "UGX","KES","TZS","RWF","NGN","ZAR","ZMW",
+    };
 
     // ── Change Password (authenticated) ───────────────────────────────────────
 
