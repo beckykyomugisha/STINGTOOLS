@@ -288,6 +288,9 @@ builder.Services.AddSingleton<Planscape.Infrastructure.Billing.PaymentRouter>();
 builder.Services.AddScoped<Planscape.Infrastructure.Billing.InvoicePdfRenderer>();
 // S2.6 — dunning job (daily; reminder cadence at 0/3/7 days, suspend at 10).
 builder.Services.AddScoped<Planscape.Infrastructure.Services.DunningJob>();
+// S2.6.1 — Flutterwave renewal job (daily; mints next-period invoice +
+// payment-link email, since FW lacks first-class recurring subscriptions).
+builder.Services.AddScoped<Planscape.Infrastructure.Services.FlutterwaveRenewalJob>();
 
 // P7 + P8 — IFC→glTF converter + thumbnail generator. Null defaults keep the
 // system running without a converter installed; swap the registration to
@@ -644,5 +647,12 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.TrialStateMachineJob>
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DunningJob>(
     "dunning", j => j.ExecuteAsync(CancellationToken.None),
     "0 7 * * *", new RecurringJobOptions { QueueName = "default" });
+
+// S2.6.1 — daily Flutterwave renewal job. Mints the next-period invoice
+// + emails a payment link 24 h before the current period ends. Stripe
+// subscriptions self-renew; this only handles the FW corridor.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.FlutterwaveRenewalJob>(
+    "fw-renewals", j => j.ExecuteAsync(CancellationToken.None),
+    "30 5 * * *", new RecurringJobOptions { QueueName = "default" });
 
 await app.RunAsync();
