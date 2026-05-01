@@ -18,10 +18,13 @@ import { useEffect, useState } from "react";
 import en from "./locales/en.json";
 import de from "./locales/de.json";
 import es from "./locales/es.json";
+// S6.4 — Swahili (sw) for the Uganda / Kenya / Tanzania / Rwanda /
+// DR Congo corridor. Auto-selected when device locale starts with 'sw'.
+import sw from "./locales/sw.json";
 
 type Bundle = Record<string, any>;
 
-const BUNDLES: Record<string, Bundle> = { en, de, es };
+const BUNDLES: Record<string, Bundle> = { en, de, es, sw };
 const FALLBACK = "en";
 const STORAGE_KEY = "planscape.language";
 
