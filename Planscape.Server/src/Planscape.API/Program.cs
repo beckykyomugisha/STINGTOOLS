@@ -300,6 +300,8 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.OutboxDispatcher>()
 builder.Services.AddScoped<Planscape.Infrastructure.Services.DemoSandboxJob>();
 // S7.2 — SLA burn-rate alert job (every 5 min).
 builder.Services.AddScoped<Planscape.Infrastructure.Services.SlaBurnRateJob>();
+// S7.4.1 — daily GDPR/POPIA hard-delete job (after 30-day cooling-off).
+builder.Services.AddScoped<Planscape.Infrastructure.Services.DataErasureJob>();
 
 // P7 + P8 — IFC→glTF converter + thumbnail generator. Null defaults keep the
 // system running without a converter installed; swap the registration to
@@ -715,5 +717,13 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DemoSandboxJob>(
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.SlaBurnRateJob>(
     "sla-burn", j => j.ExecuteAsync(CancellationToken.None),
     "*/5 * * * *", new RecurringJobOptions { QueueName = "default" });
+
+// S7.4.1 — daily GDPR/POPIA erasure job. Walks tenants whose
+// PendingErasureAt has elapsed (set by /api/data-rights/erase) and
+// hard-deletes them. Runs at 04:00 UTC (07:00 EAT) — late enough that
+// any cancel-erase from yesterday has landed before today's sweep.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DataErasureJob>(
+    "data-erasure", j => j.ExecuteAsync(CancellationToken.None),
+    "0 4 * * *", new RecurringJobOptions { QueueName = "default" });
 
 await app.RunAsync();
