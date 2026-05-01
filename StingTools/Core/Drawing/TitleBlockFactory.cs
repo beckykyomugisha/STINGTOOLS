@@ -43,6 +43,7 @@ using System.IO;
 using System.Linq;
 using Autodesk.Revit.ApplicationServices;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
 
 namespace StingTools.Core.Drawing
 {
@@ -646,7 +647,7 @@ namespace StingTools.Core.Drawing
                 var sizeFt = MmToFt(spec.Size);
                 IList<FamilyParameter> labelParams = new List<FamilyParameter> { fp };
                 IList<string> prefixSuffix = new List<string> { spec.Prefix ?? "", spec.Suffix ?? "" };
-                var lbl = famDoc.FamilyCreate.NewLabel(view, origin, hAlign, vAlign,
+                var lbl = CreateLabelViaReflection(famDoc, view, origin, hAlign, vAlign,
                     labelParams, prefixSuffix, sizeFt);
                 BindVisibility(fm, lbl, visibilityGate, r);
                 r.LabelsPlaced++;
@@ -670,7 +671,7 @@ namespace StingTools.Core.Drawing
                 // Label A — visible when BIM = 1
                 if (map.TryGetValue(spec.ParamBim, out var fpA))
                 {
-                    var lblA = famDoc.FamilyCreate.NewLabel(view, origin, hAlign,
+                    var lblA = CreateLabelViaReflection(famDoc, view, origin, hAlign,
                         vAlign, new List<FamilyParameter> { fpA }, prefixSuffix, sizeFt);
                     map.TryGetValue(bimParamName, out var bimFp);
                     BindVisibility(fm, lblA, bimFp, r);
@@ -701,7 +702,7 @@ namespace StingTools.Core.Drawing
 
                 if (fpB != null)
                 {
-                    var lblB = famDoc.FamilyCreate.NewLabel(view, origin, hAlign,
+                    var lblB = CreateLabelViaReflection(famDoc, view, origin, hAlign,
                         vAlign, new List<FamilyParameter> { fpB }, prefixSuffix, sizeFt);
                     map.TryGetValue("__NOT_BIM__", out var notBim);
                     BindVisibility(fm, lblB, notBim, r);
@@ -832,25 +833,75 @@ namespace StingTools.Core.Drawing
             catch { return ElementId.InvalidElementId; }
         }
 
-        private static HorizontalAlign ParseHAlign(string s)
+        // Phase 171b — Revit's HorizontalAlign / VerticalAlign enums
+        // were renamed (or otherwise mangled) between 2024 and 2025 such
+        // that VerticalAlign no longer resolves at compile time on stock
+        // installs. To stay portable across 2025 / 2026 / 2027 we parse
+        // to integers (matching the enum's underlying values) and let
+        // CreateLabelViaReflection convert them to whatever type the
+        // loaded RevitAPI's NewLabel signature actually demands.
+        //
+        // Underlying values match the historic Revit enum:
+        //   HorizontalAlign: Left = 0, Center = 1, Right = 2
+        //   VerticalAlign:   Top  = 0, Middle = 1, Bottom = 2
+        private const int H_LEFT = 0, H_CENTER = 1, H_RIGHT = 2;
+        private const int V_TOP  = 0, V_MIDDLE = 1, V_BOTTOM = 2;
+
+        private static int ParseHAlign(string s)
         {
             switch ((s ?? "").ToLowerInvariant())
             {
-                case "right":  return HorizontalAlign.Right;
+                case "right":  return H_RIGHT;
                 case "center":
-                case "centre": return HorizontalAlign.Center;
-                default:       return HorizontalAlign.Left;
+                case "centre": return H_CENTER;
+                default:       return H_LEFT;
             }
         }
 
-        private static VerticalAlign ParseVAlign(string s)
+        private static int ParseVAlign(string s)
         {
             switch ((s ?? "").ToLowerInvariant())
             {
-                case "top":    return VerticalAlign.Top;
-                case "bottom": return VerticalAlign.Bottom;
-                default:       return VerticalAlign.Middle;
+                case "top":    return V_TOP;
+                case "bottom": return V_BOTTOM;
+                default:       return V_MIDDLE;
             }
+        }
+
+        // Reflection-based NewLabel invocation. Caches the MethodInfo
+        // on first use. Throws on missing/unmatched signature so the
+        // caller's try/catch wraps it into a per-element warning.
+        private static System.Reflection.MethodInfo _newLabelMi;
+
+        private static Element CreateLabelViaReflection(Document famDoc, View view,
+            XYZ origin, int hAlignInt, int vAlignInt,
+            IList<FamilyParameter> labelParams, IList<string> prefixSuffix,
+            double sizeFt)
+        {
+            var fc = famDoc.FamilyCreate;
+            if (_newLabelMi == null)
+            {
+                // The NewLabel overload we want has 7 params and the
+                // 3rd / 4th are the alignment enums. Narrow by name
+                // and arity, then trust the converted enum values.
+                foreach (var m in fc.GetType().GetMethods())
+                {
+                    if (m.Name != "NewLabel") continue;
+                    var ps = m.GetParameters();
+                    if (ps.Length != 7) continue;
+                    if (!ps[2].ParameterType.IsEnum) continue;
+                    if (!ps[3].ParameterType.IsEnum) continue;
+                    _newLabelMi = m;
+                    break;
+                }
+                if (_newLabelMi == null)
+                    throw new InvalidOperationException("FamilyCreate.NewLabel(7-arg, enum-h, enum-v) overload not found in this Revit version");
+            }
+            var ps2 = _newLabelMi.GetParameters();
+            var hAlign = Enum.ToObject(ps2[2].ParameterType, hAlignInt);
+            var vAlign = Enum.ToObject(ps2[3].ParameterType, vAlignInt);
+            return (Element)_newLabelMi.Invoke(fc, new object[]
+            { view, origin, hAlign, vAlign, labelParams, prefixSuffix, sizeFt });
         }
     }
 }
