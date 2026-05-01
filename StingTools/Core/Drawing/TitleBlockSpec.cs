@@ -63,6 +63,39 @@ namespace StingTools.Core.Drawing
         [JsonProperty("labelPairs")]   public List<LabelPairSpec>    LabelPairs    { get; set; } = new List<LabelPairSpec>();
         [JsonProperty("filledRegions")]public List<FilledRegionSpec> FilledRegions { get; set; } = new List<FilledRegionSpec>();
         [JsonProperty("reflowGroups")] public List<ReflowGroupSpec>  ReflowGroups  { get; set; } = new List<ReflowGroupSpec>();
+
+        /// <summary>Viewport slots for the Drawing-Type / Sheet Manager
+        /// system. Each slot defines a placement zone the consumer can
+        /// drop a viewport into — the factory authors reference planes
+        /// at the slot bounds, places a small slot-number marker at the
+        /// top-left corner, and the slot definitions are echoed back to
+        /// the build report so the operator can inspect the layout.</summary>
+        [JsonProperty("slots")]        public List<SlotSpec>         Slots         { get; set; } = new List<SlotSpec>();
+    }
+
+    /// <summary>Viewport slot. Coordinates are mm relative to the
+    /// title-block sheet bottom-left, same as every other coord in this
+    /// spec.</summary>
+    public sealed class SlotSpec
+    {
+        [JsonProperty("id")]          public string   Id { get; set; }            // "S01" / "S02" / "MAIN" — used for the corner marker label
+        [JsonProperty("anchor")]      public double[] Anchor { get; set; }        // [x, y] mm — bottom-left corner of the slot
+        [JsonProperty("size")]        public double[] Size   { get; set; }        // [w, h] mm
+        [JsonProperty("description")] public string   Description { get; set; }   // human-readable purpose, e.g. "Main drawing area"
+
+        /// <summary>If true (default), the factory authors 4 reference
+        /// planes (top / bottom / left / right) at the slot bounds so
+        /// the user can dimension off them and drag attached viewports.
+        /// Set false for slots that are markup-only (e.g. a key-plan
+        /// pocket where viewports are placed manually).</summary>
+        [JsonProperty("createReferencePlanes")] public bool CreateReferencePlanes { get; set; } = true;
+
+        /// <summary>If true (default), the factory drops a small
+        /// text-note slot-number marker at the top-left corner of the
+        /// slot so the operator can see slot numbers when authoring the
+        /// title block. Markers are 2 mm text in the existing template
+        /// text-style.</summary>
+        [JsonProperty("showCornerMarker")]      public bool ShowCornerMarker      { get; set; } = true;
     }
 
     /// <summary>One shared / family parameter to add via FamilyManager.</summary>

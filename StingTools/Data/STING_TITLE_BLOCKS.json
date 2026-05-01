@@ -1257,6 +1257,72 @@
             }
           ]
         }
+      ],
+      "slots": [
+        {
+          "id": "S01",
+          "anchor": [10, 120],
+          "size": [810, 470],
+          "description": "Main drawing area — full-bleed plan / 3D / section",
+          "createReferencePlanes": true,
+          "showCornerMarker": true
+        },
+        {
+          "id": "S02",
+          "anchor": [10, 120],
+          "size": [400, 470],
+          "description": "Left half — paired plan slot when splitting the sheet 50/50",
+          "createReferencePlanes": true,
+          "showCornerMarker": true
+        },
+        {
+          "id": "S03",
+          "anchor": [420, 120],
+          "size": [400, 470],
+          "description": "Right half — paired plan slot when splitting the sheet 50/50",
+          "createReferencePlanes": true,
+          "showCornerMarker": true
+        },
+        {
+          "id": "S04",
+          "anchor": [10, 120],
+          "size": [400, 230],
+          "description": "Bottom-left quadrant — 4-up grid",
+          "createReferencePlanes": false,
+          "showCornerMarker": true
+        },
+        {
+          "id": "S05",
+          "anchor": [420, 120],
+          "size": [400, 230],
+          "description": "Bottom-right quadrant — 4-up grid",
+          "createReferencePlanes": false,
+          "showCornerMarker": true
+        },
+        {
+          "id": "S06",
+          "anchor": [10, 360],
+          "size": [400, 230],
+          "description": "Top-left quadrant — 4-up grid",
+          "createReferencePlanes": false,
+          "showCornerMarker": true
+        },
+        {
+          "id": "S07",
+          "anchor": [420, 360],
+          "size": [400, 230],
+          "description": "Top-right quadrant — 4-up grid",
+          "createReferencePlanes": false,
+          "showCornerMarker": true
+        },
+        {
+          "id": "KP",
+          "anchor": [690, 130],
+          "size": [120, 100],
+          "description": "Key-plan pocket — small location-overview viewport",
+          "createReferencePlanes": false,
+          "showCornerMarker": true
+        }
       ]
     }
   ]

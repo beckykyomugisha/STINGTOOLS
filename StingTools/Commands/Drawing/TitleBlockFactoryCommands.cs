@@ -141,6 +141,95 @@ namespace StingTools.Commands.Drawing
 
         public static void ShowReport(string id, TitleBlockBuildResult r)
         {
+            // Build the full report (everything, no cap) — used for both
+            // the dialog (truncated copy) and the on-disk .log.
+            var full = BuildFullReport(id, r);
+
+            // Drop the full report next to the .rfa so warnings + slot
+            // bbox table survive the user closing the TaskDialog. If the
+            // build didn't save, fall back to the OutputLocation chain.
+            string logPath = null;
+            try { logPath = WriteReportLog(id, r, full); }
+            catch (Exception ex) { StingLog.Warn($"TitleBlock report log write: {ex.Message}"); }
+
+            // Truncated dialog copy — same content, with hot lists clipped
+            // and a note pointing at the full log on disk.
+            var dialog = BuildDialogCopy(id, r, logPath);
+
+            foreach (var w in r.Warnings) StingLog.Warn($"TitleBlockCreate '{id}': {w}");
+            foreach (var e in r.Errors)   StingLog.Error($"TitleBlockCreate '{id}': {e}");
+
+            TaskDialog.Show("STING — Title Block Factory", dialog);
+        }
+
+        private static string BuildFullReport(string id, TitleBlockBuildResult r)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("===================================================================");
+            sb.AppendLine($"STING Title-block factory — {id}");
+            sb.AppendLine($"  generated   : {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            sb.AppendLine($"  status      : {(r.Ok ? "OK" : "FAILED")}");
+            sb.AppendLine($"  saved       : {r.SavedPath ?? "(not saved)"}");
+            sb.AppendLine("===================================================================");
+            sb.AppendLine();
+            sb.AppendLine("Counts");
+            sb.AppendLine("------");
+            sb.AppendLine($"  parameters     : {r.ParametersAdded}");
+            sb.AppendLine($"  lines          : {r.LinesPlaced}");
+            sb.AppendLine($"  labels         : {r.LabelsPlaced}");
+            sb.AppendLine($"  label pairs    : {r.LabelPairsPlaced}");
+            sb.AppendLine($"  static text    : {r.StaticTextPlaced}");
+            sb.AppendLine($"  filled regions : {r.FilledRegionsPlaced}");
+            sb.AppendLine($"  reflow groups  : {r.ReflowGroupsBuilt}");
+            sb.AppendLine($"  slots          : {r.SlotsPlaced}");
+
+            if (r.SlotSummary.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("Slots");
+                sb.AppendLine("-----");
+                sb.AppendLine("  id     bottom-left           top-right             flags");
+                foreach (var s in r.SlotSummary) sb.AppendLine(s);
+            }
+
+            // Group warnings by leading category prefix so the operator
+            // can see at a glance whether the family is ~clean or has a
+            // systemic issue. Categories are inferred from the "Foo: …"
+            // pattern most warnings follow.
+            if (r.Warnings.Count > 0)
+            {
+                var groups = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+                foreach (var w in r.Warnings)
+                {
+                    var cat = ExtractWarningCategory(w);
+                    if (!groups.TryGetValue(cat, out var list))
+                        groups[cat] = list = new List<string>();
+                    list.Add(w);
+                }
+
+                sb.AppendLine();
+                sb.AppendLine($"Warnings ({r.Warnings.Count})");
+                sb.AppendLine("--------");
+                foreach (var kv in groups.OrderByDescending(g => g.Value.Count))
+                {
+                    sb.AppendLine($"  [{kv.Key}] × {kv.Value.Count}");
+                    foreach (var w in kv.Value) sb.AppendLine($"    ! {w}");
+                }
+            }
+
+            if (r.Errors.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine($"Errors ({r.Errors.Count})");
+                sb.AppendLine("------");
+                foreach (var e in r.Errors) sb.AppendLine($"  ✗ {e}");
+            }
+
+            return sb.ToString();
+        }
+
+        private static string BuildDialogCopy(string id, TitleBlockBuildResult r, string logPath)
+        {
             var sb = new StringBuilder();
             sb.AppendLine($"Title-block family: {id}");
             sb.AppendLine();
@@ -152,24 +241,93 @@ namespace StingTools.Commands.Drawing
             sb.AppendLine($"  static text  : {r.StaticTextPlaced}");
             sb.AppendLine($"  filled regions : {r.FilledRegionsPlaced}");
             sb.AppendLine($"  reflow groups: {r.ReflowGroupsBuilt}");
-            if (r.Warnings.Count > 0)
+            sb.AppendLine($"  slots        : {r.SlotsPlaced}");
+
+            if (r.SlotSummary.Count > 0)
             {
                 sb.AppendLine();
-                sb.AppendLine($"Warnings ({r.Warnings.Count}):");
-                foreach (var w in r.Warnings.Take(15)) sb.AppendLine("  ! " + w);
-                if (r.Warnings.Count > 15)
-                    sb.AppendLine($"  … +{r.Warnings.Count - 15} more (StingTools.log)");
+                sb.AppendLine("Slots:");
+                foreach (var s in r.SlotSummary.Take(8)) sb.AppendLine(s);
+                if (r.SlotSummary.Count > 8)
+                    sb.AppendLine($"  … +{r.SlotSummary.Count - 8} more (full log)");
             }
+
+            if (r.Warnings.Count > 0)
+            {
+                var groups = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                foreach (var w in r.Warnings)
+                {
+                    var cat = ExtractWarningCategory(w);
+                    groups[cat] = groups.TryGetValue(cat, out var c) ? c + 1 : 1;
+                }
+
+                sb.AppendLine();
+                sb.AppendLine($"Warnings ({r.Warnings.Count}) by category:");
+                foreach (var kv in groups.OrderByDescending(g => g.Value))
+                    sb.AppendLine($"  [{kv.Key}] × {kv.Value}");
+
+                // Show top 8 individual warnings to give a flavour.
+                sb.AppendLine();
+                sb.AppendLine("Top warnings:");
+                foreach (var w in r.Warnings.Take(8)) sb.AppendLine("  ! " + w);
+                if (r.Warnings.Count > 8)
+                    sb.AppendLine($"  … +{r.Warnings.Count - 8} more (full log)");
+            }
+
             if (r.Errors.Count > 0)
             {
                 sb.AppendLine();
                 sb.AppendLine($"Errors ({r.Errors.Count}):");
-                foreach (var e in r.Errors.Take(10)) sb.AppendLine("  ✗ " + e);
+                foreach (var e in r.Errors.Take(5)) sb.AppendLine("  ✗ " + e);
             }
-            foreach (var w in r.Warnings) StingLog.Warn($"TitleBlockCreate '{id}': {w}");
-            foreach (var e in r.Errors)   StingLog.Error($"TitleBlockCreate '{id}': {e}");
 
-            TaskDialog.Show("STING — Title Block Factory", sb.ToString());
+            if (!string.IsNullOrEmpty(logPath))
+            {
+                sb.AppendLine();
+                sb.AppendLine($"Full log: {logPath}");
+            }
+
+            return sb.ToString();
+        }
+
+        private static string WriteReportLog(string id, TitleBlockBuildResult r, string full)
+        {
+            string dir = null;
+            if (!string.IsNullOrEmpty(r.SavedPath))
+            {
+                try { dir = Path.GetDirectoryName(r.SavedPath); } catch { }
+            }
+            if (string.IsNullOrEmpty(dir))
+            {
+                try
+                {
+                    var asm = StingToolsApp.AssemblyPath;
+                    if (!string.IsNullOrEmpty(asm))
+                        dir = Path.GetDirectoryName(asm);
+                }
+                catch { }
+            }
+            if (string.IsNullOrEmpty(dir)) return null;
+            try { Directory.CreateDirectory(dir); } catch { }
+
+            // Sanitise the family id for filesystem use, then append a
+            // timestamp so successive builds don't overwrite each other.
+            var safeId = string.Concat(id.Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '.' || c == '-'));
+            var stamp  = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            var path   = Path.Combine(dir, $"{safeId}_{stamp}.log");
+            File.WriteAllText(path, full);
+            return path;
+        }
+
+        private static string ExtractWarningCategory(string w)
+        {
+            if (string.IsNullOrEmpty(w)) return "(empty)";
+            // Most warnings follow the pattern "Foo: …" or "Foo 'bar': …"
+            // — take the first run of word characters as the category.
+            int i = 0;
+            while (i < w.Length && (char.IsLetterOrDigit(w[i]) || w[i] == '_')) i++;
+            if (i == 0) return "(misc)";
+            return w.Substring(0, i);
         }
     }
 }

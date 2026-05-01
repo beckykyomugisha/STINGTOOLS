@@ -56,6 +56,10 @@ namespace StingTools.Core.Drawing
         public int    StaticTextPlaced { get; set; }
         public int    FilledRegionsPlaced { get; set; }
         public int    ReflowGroupsBuilt { get; set; }
+        public int    SlotsPlaced { get; set; }
+        /// <summary>Brief slot id + bbox lines, surfaced in the report so
+        /// the operator can verify slot layout without opening the .rfa.</summary>
+        public List<string> SlotSummary { get; set; } = new List<string>();
         public List<string> Warnings { get; set; } = new List<string>();
         public List<string> Errors   { get; set; } = new List<string>();
     }
@@ -179,6 +183,16 @@ namespace StingTools.Core.Drawing
                         foreach (var fill in grp.FilledRegions)
                             PlaceFilledRegion(famDoc, fm, view, fill, paramByName, hp, r);
                     }
+
+                    // 4i. Slots — viewport zones with optional reference
+                    // planes + a slot-number marker at the top-left
+                    // corner. These don't appear at sheet placement time
+                    // (reference planes are always invisible on sheets);
+                    // they exist so the operator can dimension viewports
+                    // off them and so the Drawing Type / Sheet Manager
+                    // system can read slot bounds back from the family.
+                    foreach (var slot in spec.Slots)
+                        PlaceSlot(famDoc, fm, view, slot, r);
 
                     tx.Commit();
                 }
@@ -778,6 +792,90 @@ namespace StingTools.Core.Drawing
             catch (Exception ex) { r.Warnings.Add($"PlaceFilledRegion: {ex.Message}"); }
         }
 
+        /// <summary>Authors a viewport slot: 4 reference planes (top /
+        /// bottom / left / right) at the slot bounds plus a small slot-id
+        /// marker at the top-left corner. Slots are invisible at sheet-
+        /// placement time but the Drawing-Type / Sheet-Manager system
+        /// can introspect the .rfa to read slot bounds back, and the
+        /// operator can dimension viewports off the reference planes.</summary>
+        private static void PlaceSlot(Document famDoc, FamilyManager fm,
+            View view, SlotSpec spec, TitleBlockBuildResult r)
+        {
+            if (spec == null) return;
+            if (string.IsNullOrEmpty(spec.Id))
+            { r.Warnings.Add("PlaceSlot: slot has no id — skipped"); return; }
+            if (spec.Anchor == null || spec.Anchor.Length < 2
+                || spec.Size == null || spec.Size.Length < 2)
+            { r.Warnings.Add($"PlaceSlot '{spec.Id}': missing anchor or size"); return; }
+            try
+            {
+                double xMm = spec.Anchor[0];
+                double yMm = spec.Anchor[1];
+                double wMm = spec.Size[0];
+                double hMm = spec.Size[1];
+                // Top-left in screen-space terms = (xMm, yMm + hMm) since
+                // the spec is bottom-left-anchored.
+                double topYMm    = yMm + hMm;
+                double bottomYMm = yMm;
+                double leftXMm   = xMm;
+                double rightXMm  = xMm + wMm;
+
+                if (spec.CreateReferencePlanes)
+                {
+                    NewSlotReferencePlane(famDoc, view, $"{spec.Id}_TOP",
+                        new XYZ(MmToFt(leftXMm),  MmToFt(topYMm),    0),
+                        new XYZ(MmToFt(rightXMm), MmToFt(topYMm),    0), r);
+                    NewSlotReferencePlane(famDoc, view, $"{spec.Id}_BOT",
+                        new XYZ(MmToFt(leftXMm),  MmToFt(bottomYMm), 0),
+                        new XYZ(MmToFt(rightXMm), MmToFt(bottomYMm), 0), r);
+                    NewSlotReferencePlane(famDoc, view, $"{spec.Id}_LFT",
+                        new XYZ(MmToFt(leftXMm),  MmToFt(bottomYMm), 0),
+                        new XYZ(MmToFt(leftXMm),  MmToFt(topYMm),    0), r);
+                    NewSlotReferencePlane(famDoc, view, $"{spec.Id}_RGT",
+                        new XYZ(MmToFt(rightXMm), MmToFt(bottomYMm), 0),
+                        new XYZ(MmToFt(rightXMm), MmToFt(topYMm),    0), r);
+                }
+
+                if (spec.ShowCornerMarker)
+                {
+                    // Place the marker just inside the top-left corner so
+                    // it's visible but doesn't overlap the slot bounds. 5
+                    // mm inset, 2 mm text height.
+                    var cornerInsetMm = 5.0;
+                    var textTypeId = ResolveTextNoteTypeId(famDoc, null);
+                    if (textTypeId != ElementId.InvalidElementId)
+                    {
+                        var pos = new XYZ(MmToFt(leftXMm + cornerInsetMm),
+                                          MmToFt(topYMm  - cornerInsetMm), 0);
+                        TextNote.Create(famDoc, view.Id, pos, spec.Id, textTypeId);
+                    }
+                }
+
+                r.SlotsPlaced++;
+                r.SlotSummary.Add(string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                    "  {0,-6} ({1,7:0.0}, {2,7:0.0}) → ({3,7:0.0}, {4,7:0.0}) mm   {5}{6}",
+                    spec.Id, leftXMm, bottomYMm, rightXMm, topYMm,
+                    spec.CreateReferencePlanes ? "[ref-planes]" : "[no ref-planes]",
+                    string.IsNullOrEmpty(spec.Description) ? "" : "  — " + spec.Description));
+            }
+            catch (Exception ex) { r.Warnings.Add($"PlaceSlot '{spec.Id}': {ex.Message}"); }
+        }
+
+        private static void NewSlotReferencePlane(Document famDoc, View view,
+            string name, XYZ p1, XYZ p2, TitleBlockBuildResult r)
+        {
+            try
+            {
+                var rp = famDoc.FamilyCreate.NewReferencePlane(p1, p2, XYZ.BasisZ, view);
+                if (rp != null && !string.IsNullOrEmpty(name))
+                {
+                    try { rp.Name = name; }
+                    catch (Exception nameEx) { r.Warnings.Add($"NewSlotReferencePlane name '{name}': {nameEx.Message}"); }
+                }
+            }
+            catch (Exception ex) { r.Warnings.Add($"NewSlotReferencePlane '{name}': {ex.Message}"); }
+        }
+
         // ── Resolvers ────────────────────────────────────────────────────
 
         private static void ApplyLineStyle(Document doc, DetailCurve dc,
@@ -960,14 +1058,21 @@ namespace StingTools.Core.Drawing
             if (factory == null) return;
             try
             {
+                var factoryType = factory.GetType();
+                var allMethods = factoryType.GetMethods();
+                var labelLikeMethods = allMethods
+                    .Where(m => m.Name.IndexOf("Label", StringComparison.OrdinalIgnoreCase) >= 0
+                             || m.Name.IndexOf("Create", StringComparison.OrdinalIgnoreCase) == 0
+                             || m.Name.IndexOf("New",    StringComparison.OrdinalIgnoreCase) == 0)
+                    .ToList();
+
                 MethodInfo bestMatch = null;
                 var diag = new System.Text.StringBuilder();
-                foreach (var m in factory.GetType().GetMethods())
+                foreach (var m in labelLikeMethods)
                 {
-                    if (m.Name != "NewLabel") continue;
                     var ps = m.GetParameters();
                     diag.Append(diag.Length == 0 ? "" : "; ");
-                    diag.Append("NewLabel(");
+                    diag.Append(m.Name).Append("(");
                     for (int i = 0; i < ps.Length; i++)
                     {
                         if (i > 0) diag.Append(", ");
@@ -975,6 +1080,7 @@ namespace StingTools.Core.Drawing
                     }
                     diag.Append(")");
 
+                    if (m.Name != "NewLabel") continue;
                     if (ps.Length != 7) continue;
                     if (ps[0].ParameterType != typeof(View)) continue;
                     if (ps[1].ParameterType != typeof(XYZ)) continue;
@@ -982,26 +1088,41 @@ namespace StingTools.Core.Drawing
                     if (!typeof(IList<FamilyParameter>).IsAssignableFrom(ps[4].ParameterType)) continue;
                     if (!typeof(IList<string>).IsAssignableFrom(ps[5].ParameterType)) continue;
                     if (ps[6].ParameterType != typeof(double)) continue;
-                    // ps[3] is whatever the current Revit calls vertical
-                    // alignment — accept whatever enum lands there.
                     if (!ps[3].ParameterType.IsEnum) continue;
                     bestMatch = m;
                     _verticalAlignType = ps[3].ParameterType;
                     break;
                 }
+
                 _newLabelMethod = bestMatch;
+
+                // Always log the diagnostic — successful or not — to
+                // StingTools.log so we have a permanent record of which
+                // overloads existed in this Revit build. Surface it as a
+                // result-dialog warning only when discovery fails.
+                StingLog.Info($"InvokeNewLabel diagnostic: factory type = {factoryType.FullName} (assembly: {factoryType.Assembly.GetName().Name})");
+                StingLog.Info($"InvokeNewLabel label-like overloads ({labelLikeMethods.Count}): {(diag.Length > 0 ? diag.ToString() : "(none)")}");
+
                 if (bestMatch == null)
                 {
-                    r.Warnings.Add($"InvokeNewLabel: no matching 7-arg NewLabel(View, XYZ, HorizontalAlign, <enum>, IList<FamilyParameter>, IList<string>, double) overload found. Available overloads: {(diag.Length > 0 ? diag.ToString() : "(none)")}");
+                    // Stripped diagnostic — list method NAMES only (signatures
+                    // can blow past the TaskDialog character limit when the
+                    // factory has dozens of overloads).
+                    var labelNames = string.Join(", ", labelLikeMethods.Select(m => m.Name).Distinct());
+                    r.Warnings.Add(
+                        $"InvokeNewLabel: no compatible NewLabel/CreateLabel overload found on '{factoryType.Name}'. "
+                        + $"Methods checked (names): {(string.IsNullOrEmpty(labelNames) ? "(none)" : labelNames)}. "
+                        + $"Full diagnostic in StingTools.log.");
                 }
                 else
                 {
-                    StingLog.Info($"InvokeNewLabel: bound to overload with vAlign type '{_verticalAlignType.FullName}'");
+                    StingLog.Info($"InvokeNewLabel: bound to '{bestMatch.Name}' on '{factoryType.Name}', vAlign type = '{_verticalAlignType?.FullName ?? "(none)"}'");
                 }
             }
             catch (Exception ex)
             {
                 r.Warnings.Add($"InvokeNewLabel discovery: {ex.Message}");
+                StingLog.Error("InvokeNewLabel discovery", ex);
             }
         }
 
