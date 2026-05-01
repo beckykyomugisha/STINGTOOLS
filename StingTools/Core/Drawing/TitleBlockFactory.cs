@@ -289,8 +289,14 @@ namespace StingTools.Core.Drawing
                 }
             }
             catch { }
-            // Final fallback: alongside the addin DLL.
-            return Path.Combine(StingToolsApp.AssemblyPath ?? ".", specPath);
+            // Final fallback: alongside the addin DLL. AssemblyPath holds
+            // the full DLL path including the filename, so combine against
+            // its DIRECTORY — Path.Combine(<file>, <rel>) would otherwise
+            // produce a path with the DLL filename as a "directory" segment
+            // and Revit refuses to create that.
+            var dllDir = Path.GetDirectoryName(StingToolsApp.AssemblyPath ?? "")
+                         ?? Directory.GetCurrentDirectory();
+            return Path.Combine(dllDir, specPath);
         }
 
         // ── Parameter creation ───────────────────────────────────────────
@@ -396,12 +402,33 @@ namespace StingTools.Core.Drawing
                     var current = fm.CurrentType ?? fm.NewType("Default");
                     try
                     {
-                        if (specId == SpecTypeId.Boolean.YesNo)
-                            fm.Set(fp, defaultValue == "1" || string.Equals(defaultValue, "true", StringComparison.OrdinalIgnoreCase) ? 1 : 0);
-                        else if (double.TryParse(defaultValue, out var d))
-                            fm.Set(fp, d);
+                        // Decide which Set overload to use based on the
+                        // declared spec — never trust string→double parsing
+                        // because text params with numeric-looking defaults
+                        // (e.g. STING_SHEET_LVL_TXT = "01") would hit the
+                        // double overload and error out at the storage-type
+                        // check.
+                        if (specId == SpecTypeId.Boolean.YesNo
+                            || specId == SpecTypeId.Int.Integer)
+                        {
+                            int iv = (defaultValue == "1"
+                                      || string.Equals(defaultValue, "true", StringComparison.OrdinalIgnoreCase))
+                                ? 1
+                                : (int.TryParse(defaultValue, out var parsedInt) ? parsedInt : 0);
+                            fm.Set(fp, iv);
+                        }
+                        else if (specId == SpecTypeId.Length
+                                 || specId == SpecTypeId.Number)
+                        {
+                            if (double.TryParse(defaultValue, out var d))
+                                fm.Set(fp, d);
+                        }
                         else
+                        {
+                            // Text and any other spec falls through to the
+                            // string overload.
                             fm.Set(fp, defaultValue);
+                        }
                     }
                     catch (Exception ex) { r.Warnings.Add($"Set default '{name}': {ex.Message}"); }
                 }
@@ -707,16 +734,34 @@ namespace StingTools.Core.Drawing
             {
                 var lines = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Lines);
                 if (lines == null) return;
+
+                Category exact = null;
+                Category fallback = null;
                 foreach (Category sub in lines.SubCategories)
                 {
                     if (string.Equals(sub.Name, styleName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        var gs = sub.GetGraphicsStyle(GraphicsStyleType.Projection);
-                        if (gs != null) dc.LineStyle = gs;
-                        return;
-                    }
+                    { exact = sub; break; }
+                    // Title-block templates ship with a small built-in set
+                    // ("Thin Lines", "Medium Lines", "Wide Lines") but the
+                    // exact names vary by Revit locale + template revision.
+                    // Cache any reasonable fallback so we still produce a
+                    // styled curve when the requested style is missing.
+                    if (fallback == null
+                        && (string.Equals(sub.Name, "Medium Lines", StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(sub.Name, "Thin Lines",   StringComparison.OrdinalIgnoreCase)))
+                        fallback = sub;
                 }
-                r.Warnings.Add($"line style '{styleName}' not found");
+
+                var resolved = exact ?? fallback;
+                if (resolved != null)
+                {
+                    var gs = resolved.GetGraphicsStyle(GraphicsStyleType.Projection);
+                    if (gs != null) dc.LineStyle = gs;
+                    if (exact == null)
+                        r.Warnings.Add($"line style '{styleName}' not found — using '{resolved.Name}' fallback");
+                    return;
+                }
+                r.Warnings.Add($"line style '{styleName}' not found (no fallback available)");
             }
             catch (Exception ex) { r.Warnings.Add($"ApplyLineStyle '{styleName}': {ex.Message}"); }
         }
