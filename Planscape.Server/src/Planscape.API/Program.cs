@@ -276,6 +276,13 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.IQuotaGuardService,
 // S1.6 — trial state machine job (daily; sends reminders + freezes on expiry).
 builder.Services.AddScoped<Planscape.Infrastructure.Services.TrialStateMachineJob>();
 
+// S2.2 — Stripe payment provider (USD/EUR/GBP). Provider-agnostic via the
+// IPaymentProvider abstraction; PaymentRouter picks by currency. Stripe is
+// always registered; Flutterwave is registered separately in S2.3.
+builder.Services.AddSingleton<Planscape.Core.Interfaces.IPaymentProvider,
+    Planscape.Infrastructure.Billing.StripePaymentProvider>();
+builder.Services.AddSingleton<Planscape.Infrastructure.Billing.PaymentRouter>();
+
 // P7 + P8 — IFC→glTF converter + thumbnail generator. Null defaults keep the
 // system running without a converter installed; swap the registration to
 // IfcConvertConverter / ApsModelDerivativeConverter / real thumbnail
