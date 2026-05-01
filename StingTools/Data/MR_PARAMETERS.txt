@@ -2573,6 +2573,10 @@ PARAM	cef45220-b201-5c44-baed-275a0fd556a7	PRJ_ORG_CLASS_TXT	TEXT		13	1	ISO 1965
 PARAM	48a26ee9-211d-5525-8fbb-9f8eb1f38878	PRJ_ORG_WORKFLOW_PROFILE_TXT	TEXT		13	1	Workflow profile key (default "default") [template engine v1.1]	1
 PARAM	e669eea3-d1fa-51b7-b820-83fa21d40877	PRJ_ORG_SIGNATURE_PROVIDER_TXT	TEXT		13	1	Signature provider id (empty = signatures disabled) [template engine v1.1]	1
 PARAM	a7c93ee1-9df2-5531-b873-1df826526e82	PRJ_ORG_AI_EXTRACT_ENABLED_BOOL	YESNO		13	1	Enable AI metadata extraction from incoming PDFs (default false, v1.2) [template engine v1.1]	1
+PARAM	33188c51-0a4f-52e7-ad2a-37e68ca7ddda	PRJ_ORG_PROJECT_NAME_TXT	TEXT		13	1	Full project name shown on title block [Phase 170 — title-block factory]	1
+PARAM	85e93a80-42bc-535e-a9e3-bcd76b7c07a0	PRJ_ORG_PROJECT_ADDRESS_TXT	TEXT		13	1	Project site address shown on title block [Phase 170 — title-block factory]	1
+PARAM	0c7cd8c7-ae84-5f31-a3ac-cfeffff97954	PRJ_ORG_PROJECT_NUMBER_TXT	TEXT		13	1	Project commercial number shown on title block (companion to PRJ_ORG_PROJECT_CODE_TXT) [Phase 170 — title-block factory]	1
+PARAM	b34a1ffa-4c71-5469-9806-8fc01315f8a6	PRJ_ORG_RIBA_STAGE_TXT	TEXT		13	1	RIBA Plan of Work stage code (0–7) shown on title block [Phase 170 — title-block factory]	1
 PARAM	cbd94272-6db5-557c-8e6d-2f254888afc6	STR_BAR_MARK_TXT	TEXT		16	1	Rebar bar mark from bending schedule [BS 8666:2020]	1
 PARAM	6dfe3811-0d82-500a-a10a-ac51225576c6	STR_BEND_SCHEDULE_REF_TXT	TEXT		16	1	Rebar bending schedule document reference [BS 8666:2020]	1
 PARAM	dbc0b581-2741-5a76-82bc-7956cef3af86	STR_CUTTING_LIST_REF_TXT	TEXT		16	1	Rebar cutting list drawing reference [BS 8666:2020]	1

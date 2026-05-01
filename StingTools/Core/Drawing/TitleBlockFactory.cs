@@ -497,22 +497,32 @@ namespace StingTools.Core.Drawing
                 if (string.IsNullOrEmpty(grp?.Id)) continue;
                 try
                 {
-                    // 1. Length parameter for the group's height.
+                    // 1. Length parameter for the group's height. Format
+                    // numbers with InvariantCulture so non-en locales don't
+                    // emit "12,0 mm" (Revit's parser only takes "."), and
+                    // drop trailing ".0" so the literal looks like a clean
+                    // integer when possible.
                     var heightParamName = string.IsNullOrEmpty(grp.HeightParam)
                         ? $"H_{grp.Id}_MM" : grp.HeightParam;
+                    string fullMm     = grp.FullHeightMm.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+                    string collapseMm = grp.CollapsedHeightMm.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
                     var hp = AddInternalParameter(fm, heightParamName,
                         "Length", "Constraints", isInstance: false,
                         defaultValue: null,
-                        formula: $"if({spec.BimModeParameter}, {grp.FullHeightMm} mm, {grp.CollapsedHeightMm} mm)",
+                        formula: $"if({spec.BimModeParameter}, {fullMm} mm, {collapseMm} mm)",
                         r);
                     if (hp != null) map[heightParamName] = hp;
 
-                    // 2. Sibling YesNo for child Visible binding.
+                    // 2. Sibling YesNo for child Visible binding. Wrap the
+                    // boolean expression in if(..., 1, 0) so the formula's
+                    // result type matches the parameter's YesNo storage —
+                    // raw boolean expressions trip Revit's "invalid formula
+                    // string" validator.
                     var visName = $"{grp.Id}_VIS";
                     var vp = AddInternalParameter(fm, visName, "YesNo",
                         "Constraints", isInstance: false,
                         defaultValue: null,
-                        formula: $"{spec.BimModeParameter} and ({heightParamName} > 0 mm)",
+                        formula: $"if({spec.BimModeParameter} and ({heightParamName} > 0 mm), 1, 0)",
                         r);
                     if (vp != null)
                     {
@@ -736,23 +746,29 @@ namespace StingTools.Core.Drawing
                 if (lines == null) return;
 
                 Category exact = null;
-                Category fallback = null;
+                Category preferredFallback = null;
+                Category anyFallback = null;
                 foreach (Category sub in lines.SubCategories)
                 {
                     if (string.Equals(sub.Name, styleName, StringComparison.OrdinalIgnoreCase))
                     { exact = sub; break; }
-                    // Title-block templates ship with a small built-in set
-                    // ("Thin Lines", "Medium Lines", "Wide Lines") but the
-                    // exact names vary by Revit locale + template revision.
-                    // Cache any reasonable fallback so we still produce a
-                    // styled curve when the requested style is missing.
-                    if (fallback == null
+                    // Title-block templates ship varying subcategory sets
+                    // (locale + template revision dependent). Cache the
+                    // first reasonable named fallback we hit, AND cache any
+                    // valid line subcategory as a last resort so geometry
+                    // always renders styled rather than carrying Revit's
+                    // <Sketch> default.
+                    if (preferredFallback == null
                         && (string.Equals(sub.Name, "Medium Lines", StringComparison.OrdinalIgnoreCase)
-                            || string.Equals(sub.Name, "Thin Lines",   StringComparison.OrdinalIgnoreCase)))
-                        fallback = sub;
+                            || string.Equals(sub.Name, "Thin Lines",   StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(sub.Name, "Wide Lines",   StringComparison.OrdinalIgnoreCase)))
+                        preferredFallback = sub;
+                    if (anyFallback == null
+                        && sub.GetGraphicsStyle(GraphicsStyleType.Projection) != null)
+                        anyFallback = sub;
                 }
 
-                var resolved = exact ?? fallback;
+                var resolved = exact ?? preferredFallback ?? anyFallback;
                 if (resolved != null)
                 {
                     var gs = resolved.GetGraphicsStyle(GraphicsStyleType.Projection);
@@ -761,7 +777,7 @@ namespace StingTools.Core.Drawing
                         r.Warnings.Add($"line style '{styleName}' not found — using '{resolved.Name}' fallback");
                     return;
                 }
-                r.Warnings.Add($"line style '{styleName}' not found (no fallback available)");
+                r.Warnings.Add($"line style '{styleName}' not found and OST_Lines has no usable subcategories — curve uses Revit default style");
             }
             catch (Exception ex) { r.Warnings.Add($"ApplyLineStyle '{styleName}': {ex.Message}"); }
         }
