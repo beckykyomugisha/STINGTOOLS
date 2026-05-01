@@ -480,6 +480,10 @@ app.UseHttpMetrics();
 app.UseRateLimiter();
 app.UseCors("Dashboard");
 app.UseCors("Mobile");
+// S3.8 — rewrite /api/v1/* → /api/* before routing so existing
+// controllers serve both. Older /api/* paths get a Deprecation
+// header pointing at /api/v1 and a 2026-12-31 sunset date.
+app.UseApiVersionRewriter();
 app.UseAuthentication();
 app.UseMiddleware<TenantResolutionMiddleware>(); // Must run AFTER auth so JWT claims are available
 app.UseMiddleware<MobileContextMiddleware>();
