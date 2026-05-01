@@ -391,6 +391,22 @@ namespace StingTools.UI
                     case "DrawingTypes_AuditPackages":
                     case "DrawingTypes_PackageAudit":              RunCommand<Commands.Drawing.DrawingPackageAuditCommand>(app); break;
 
+                    // ── Phase 168 / 169 — Match-line subsystem ──
+                    case "MatchLine_Generate":       RunCommand<Commands.Drawing.MatchLineGenerateCommand>(app); break;
+                    case "MatchLine_Sync":           RunCommand<Commands.Drawing.MatchLineSyncCommand>(app); break;
+                    case "MatchLine_Validate":       RunCommand<Commands.Drawing.MatchLineValidateCommand>(app); break;
+                    case "MatchLine_ValidateBundle": RunCommand<Commands.Drawing.MatchLineValidateBundleCommand>(app); break;
+                    case "MatchLine_Inspect":        RunCommand<Commands.Drawing.MatchLineInspectCommand>(app); break;
+
+                    // ── Phase 170 — Title-block factory ──
+                    case "TitleBlock_Create":             RunCommand<Commands.Drawing.TitleBlockCreateCommand>(app); break;
+                    case "TitleBlock_CreateAll":          RunCommand<Commands.Drawing.TitleBlockCreateAllCommand>(app); break;
+                    // ── Phase 170 revision — Two-family BIM architecture + slot automation ──
+                    case "TitleBlock_AutoPlaceViewports": RunCommand<Commands.Drawing.TitleBlockAutoPlaceViewportsCommand>(app); break;
+                    case "TitleBlock_ToggleBIMMode":      RunCommand<Commands.Drawing.TitleBlockToggleBIMModeCommand>(app); break;
+                    case "TitleBlock_AuditLegacy":        RunCommand<Commands.Drawing.TitleBlockAuditLegacyCommand>(app); break;
+                    case "TitleBlock_MigrateLegacy":      RunCommand<Commands.Drawing.TitleBlockMigrateLegacyCommand>(app); break;
+
                     // ── Selection scope ──
                     case "SetScopeView": Select.SelectionScopeHelper.SetScope(false); TaskDialog.Show("Scope", "Selection scope: ACTIVE VIEW"); break;
                     case "SetScopeProject": Select.SelectionScopeHelper.SetScope(true); TaskDialog.Show("Scope", "Selection scope: WHOLE PROJECT"); break;
