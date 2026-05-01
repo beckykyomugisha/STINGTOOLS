@@ -612,6 +612,9 @@ export default function IssuesScreen() {
             key={p}
             style={[styles.filterChip, priorityFilter === p && styles.filterChipActive]}
             onPress={() => setPriorityFilter(p)}
+            accessibilityRole="button"
+            accessibilityLabel={p === 'ALL' ? 'Show all priorities' : `Filter to ${p.toLowerCase()} priority`}
+            accessibilityState={{ selected: priorityFilter === p }}
           >
             {p !== 'ALL' && <View style={[styles.filterDot, { backgroundColor: getPriorityColor(p) }]} />}
             <Text style={[styles.filterChipText, priorityFilter === p && styles.filterChipTextActive]}>
@@ -684,7 +687,14 @@ export default function IssuesScreen() {
       />
 
       {/* FAB — Create Issue */}
-      <TouchableOpacity style={styles.fab} onPress={() => setShowCreate(true)} activeOpacity={0.8}>
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => setShowCreate(true)}
+        activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel="Create new issue"
+        accessibilityHint="Opens a form to log an RFI, NCR, or site instruction"
+      >
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
 

@@ -41,3 +41,8 @@ CompiledPlugin/Data/STING_BIM_MANAGER/
 .sting_data_hash.json
 .sting_layout_presets.json
 STING_WORKFLOW_LOG.json
+
+# Production secrets (Phase: secrets runbook). Never commit a populated .env.
+.env
+*.env
+!*.env.template

@@ -13,9 +13,10 @@ namespace Planscape.Core.Entities;
 /// signoff endpoint can locate the row in O(1) and the BIM Manager can
 /// rely on key uniqueness within a gate.
 /// </summary>
-public class StageGateCriterion
+public class StageGateCriterion : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
     public Guid StageGateId { get; set; }
 
     /// <summary>Stable identifier within the gate, e.g. "spatial_coord_clash_zero".</summary>

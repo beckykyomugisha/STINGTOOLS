@@ -3,9 +3,10 @@ namespace Planscape.Core.Entities;
 /// <summary>
 /// Record of a workflow preset execution (DailyQA, MorningHealthCheck, etc.).
 /// </summary>
-public class WorkflowRun
+public class WorkflowRun : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
     public Guid ProjectId { get; set; }
     public string PresetName { get; set; } = "";
     public string UserName { get; set; } = "";

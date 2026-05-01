@@ -106,6 +106,7 @@ public class IssuesController : ControllerBase
         var tenantId = GetTenantId();
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
         // NEW-LOGIC-02 — Sanitise Type. Only 2-6 uppercase letters allowed to prevent
         // injection of "-" that would break IssueCode parsing elsewhere.
@@ -311,6 +312,7 @@ public class IssuesController : ControllerBase
         var issue = await _db.Issues
             .FirstOrDefaultAsync(i => i.Id == issueId && i.ProjectId == projectId && i.Project!.TenantId == tenantId);
         if (issue == null) return NotFound();
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
         // NEW-INFO-07 — Capture before/after for the audit log so the activity
         // timeline can show who changed what.
@@ -406,9 +408,22 @@ public class IssuesController : ControllerBase
         var issue = await _db.Issues
             .FirstOrDefaultAsync(i => i.Id == issueId && i.ProjectId == projectId && i.Project!.TenantId == tenantId);
         if (issue == null) return NotFound("Issue not found");
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
         if (file.Length == 0) return BadRequest("File is empty");
         if (file.Length > MaxAttachmentSize) return BadRequest($"File exceeds {MaxAttachmentSize / (1024 * 1024)} MB limit");
+
+        // S8 — content-type / extension whitelist. Issue attachments are
+        // typically photos but the schema allows arbitrary files; without
+        // this check, .exe-as-PDF slips through the existing image-only
+        // check below.
+        if (!Planscape.Infrastructure.Security.FileContentValidator
+                .IsAllowedDocumentUpload(file.ContentType, file.FileName))
+        {
+            return BadRequest(new { error = "File type is not permitted for issue attachments",
+                                    contentType = file.ContentType,
+                                    fileName = file.FileName });
+        }
 
         var project = await _db.Projects.Include(p => p.Tenant).FirstOrDefaultAsync(p => p.Id == projectId);
         if (project == null) return NotFound("Project not found");
@@ -556,6 +571,7 @@ public class IssuesController : ControllerBase
             .FirstOrDefaultAsync(a => a.Id == attachmentId && a.IssueId == issueId
                 && a.Issue!.ProjectId == projectId && a.Issue.Project!.TenantId == tenantId);
         if (attachment == null) return NotFound();
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
         _db.IssueAttachments.Remove(attachment);
         await _db.SaveChangesAsync();
@@ -606,6 +622,7 @@ public class IssuesController : ControllerBase
         var issue = await _db.Issues
             .FirstOrDefaultAsync(i => i.Id == issueId && i.ProjectId == projectId && i.Project!.TenantId == tenantId);
         if (issue == null) return NotFound("Issue not found");
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
         var doc = await _db.Documents
             .FirstOrDefaultAsync(d => d.Id == req.DocumentId && d.ProjectId == projectId);
@@ -680,6 +697,7 @@ public class IssuesController : ControllerBase
         var tenantId = GetTenantId();
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId, ct);
         if (project == null) return NotFound("Project not found");
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
         if (file == null || file.Length == 0) return BadRequest(new { error = "file_required" });
 
         List<Planscape.Shared.BCF.CoordIssue> parsed;

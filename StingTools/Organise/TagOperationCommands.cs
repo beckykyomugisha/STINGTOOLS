@@ -154,6 +154,8 @@ namespace StingTools.Organise
             if (visualTagsPlaced == 0 && stats.TotalTagged > 0)
                 report += "\n\nNote: No visual tags could be placed. Use 'Smart Place Tags' for advanced annotation placement.";
             TaskDialog.Show("Tag Selected", report);
+            // Phase 165 follow-up — explicit batch teardown.
+            TokenAutoPopulator.PopulationContext.EndSession();
             return Result.Succeeded;
         }
 
@@ -268,6 +270,8 @@ namespace StingTools.Organise
             StingAutoTagger.InvalidateContext();
 
             TaskDialog.Show("Re-Tag", $"Re-tagged {retagged} of {selected.Count} elements.");
+            // Phase 165 follow-up — explicit batch teardown.
+            TokenAutoPopulator.PopulationContext.EndSession();
             return Result.Succeeded;
         }
     }

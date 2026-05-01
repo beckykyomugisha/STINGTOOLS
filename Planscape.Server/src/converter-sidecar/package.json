@@ -1,0 +1,18 @@
+{
+  "name": "planscape-converter-sidecar",
+  "version": "1.0.0",
+  "description": "Splits uploaded GLBs into discipline-keyed chunks for the Planscape scene index.",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@gltf-transform/core":      "^4.0.0",
+    "@gltf-transform/extensions":"^4.0.0",
+    "@gltf-transform/functions": "^4.0.0",
+    "draco3dgltf":               "^1.5.6",
+    "express":                   "^4.21.0",
+    "node-fetch":                "^3.3.2"
+  }
+}

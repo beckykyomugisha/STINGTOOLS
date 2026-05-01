@@ -3,9 +3,10 @@ namespace Planscape.Core.Entities;
 /// <summary>
 /// ISO 19650 BIM issue / RFI / NCR tracked across project lifecycle.
 /// </summary>
-public class BimIssue
+public class BimIssue : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
     public Guid ProjectId { get; set; }
     public string IssueCode { get; set; } = ""; // e.g., RFI-0001, NCR-0003, SI-0012
     // Phase 96 — WORKFLOW_REQ added for mobile "Request workflow run" flow.

@@ -67,6 +67,8 @@ namespace StingTools.Core.Drawing
             int?   dispMode = profile?.DisplayMode;
             var    sectVis  = profile?.SectionVisibility;
             var    catDeps  = profile?.CategoryDepths;
+            // Phase 165 — T4-T10 payload pattern mode (HANDOVER / DC / CUSTOM).
+            string patternMode = profile?.PatternMode;
 
             try
             {
@@ -173,6 +175,30 @@ namespace StingTools.Core.Drawing
 
                 if (pack?.CategoryTagStyles != null && pack.CategoryTagStyles.Count > 0)
                     r.TypeWrites += ApplyCategoryTagStyles(doc, view, pack.CategoryTagStyles);
+
+                // ── Step H. T4-T10 tier visibility (PARA_STATE_4..10) ──────
+                // SectionVisibility entries with keys "T4".."T10" mirror the
+                // A-F per-section flags but write to TAG_PARA_STATE_N_BOOL on
+                // the element types in scope. WriteTag7All gates each tier's
+                // append on the same flag — flipping these here forces the
+                // T4-T10 payload to render on the next tagging cycle.
+                if (sectVis != null && sectVis.Count > 0)
+                {
+                    int tierWrites = ApplyTierVisibility(doc, view, sectVis);
+                    if (tierWrites > 0) r.TypeWrites += tierWrites;
+                }
+
+                // ── Step I. T4-T10 pattern mode (HANDOVER / DC / CUSTOM) ───
+                // Sets the HANDOVER_MODE_*_BOOL trio mutually exclusively on
+                // the element types in scope. WriteTag7All reads this trio via
+                // TagConfig.ResolveActivePatternMode and prefixes the appended
+                // tier payload with [<MODE>] so the rendered tag advertises
+                // which T4-T10 pack is active.
+                if (!string.IsNullOrWhiteSpace(patternMode))
+                {
+                    int modeWrites = ApplyPatternMode(doc, view, patternMode);
+                    if (modeWrites > 0) r.TypeWrites += modeWrites;
+                }
             }
             catch (Exception ex)
             {
@@ -525,6 +551,95 @@ namespace StingTools.Core.Drawing
                 }
             }
             return updated;
+        }
+
+        // ── Phase 165 — T4-T10 tier visibility (PARA_STATE_4..10) ───────
+        // Reads keys "T4".."T10" out of the SectionVisibility map (case-
+        // insensitive) and writes the matching PARA_STATE_N_BOOL on the type
+        // of every element in the view. Idempotent — only counts writes that
+        // actually changed a parameter.
+        private static int ApplyTierVisibility(Document doc, View view,
+            Dictionary<string, bool> map)
+        {
+            int n = 0;
+            // Build canonical T4..T10 → bool dictionary.
+            var canonical = new Dictionary<int, bool>();
+            foreach (var kv in map)
+            {
+                string raw = (kv.Key ?? "").Trim().ToUpperInvariant();
+                if (!raw.StartsWith("T")) continue;
+                if (!int.TryParse(raw.Substring(1), out int tier)) continue;
+                if (tier < 4 || tier > 10) continue;
+                canonical[tier] = kv.Value;
+            }
+            if (canonical.Count == 0) return 0;
+
+            string[] paraNames = new[]
+            {
+                ParamRegistry.PARA_STATE_4, ParamRegistry.PARA_STATE_5, ParamRegistry.PARA_STATE_6,
+                ParamRegistry.PARA_STATE_7, ParamRegistry.PARA_STATE_8, ParamRegistry.PARA_STATE_9,
+                ParamRegistry.PARA_STATE_10,
+            };
+
+            // Collect TYPE ids of every instance in the view (PARA_STATE lives
+            // on the type per SetParagraphDepthCommand semantics).
+            var typeIds = new HashSet<ElementId>();
+            var ids = new FilteredElementCollector(doc, view.Id)
+                .WhereElementIsNotElementType()
+                .ToElementIds();
+            foreach (var id in ids)
+            {
+                var el = doc.GetElement(id);
+                var tid = el?.GetTypeId();
+                if (tid != null && tid != ElementId.InvalidElementId) typeIds.Add(tid);
+            }
+
+            foreach (var tid in typeIds)
+            {
+                var typeEl = doc.GetElement(tid);
+                if (typeEl == null) continue;
+                foreach (var kv in canonical)
+                {
+                    int idx = kv.Key - 4; // 0..6 into paraNames
+                    if (idx < 0 || idx >= paraNames.Length) continue;
+                    if (ParameterHelpers.SetYesNo(typeEl, paraNames[idx], kv.Value, overwrite: true))
+                        n++;
+                }
+            }
+            return n;
+        }
+
+        // ── Phase 165 — T4-T10 pattern mode (HANDOVER / DC / CUSTOM) ────
+        // Writes the trio of HANDOVER_MODE_*_BOOL parameters mutually
+        // exclusively on every element type in the view. Empty / unknown
+        // mode => no-op (caller already gates on whitespace).
+        private static int ApplyPatternMode(Document doc, View view, string mode)
+        {
+            string M = (mode ?? "").Trim().ToUpperInvariant();
+            if (M != "HANDOVER" && M != "DC" && M != "CUSTOM") return 0;
+
+            var typeIds = new HashSet<ElementId>();
+            var ids = new FilteredElementCollector(doc, view.Id)
+                .WhereElementIsNotElementType()
+                .ToElementIds();
+            foreach (var id in ids)
+            {
+                var el = doc.GetElement(id);
+                var tid = el?.GetTypeId();
+                if (tid != null && tid != ElementId.InvalidElementId) typeIds.Add(tid);
+            }
+
+            int n = 0;
+            foreach (var tid in typeIds)
+            {
+                var typeEl = doc.GetElement(tid);
+                if (typeEl == null) continue;
+                bool a = ParameterHelpers.SetYesNo(typeEl, ParamRegistry.MODE_HANDOVER, M == "HANDOVER", overwrite: true);
+                bool b = ParameterHelpers.SetYesNo(typeEl, ParamRegistry.MODE_DC,       M == "DC",       overwrite: true);
+                bool c = ParameterHelpers.SetYesNo(typeEl, ParamRegistry.MODE_CUSTOM,   M == "CUSTOM",   overwrite: true);
+                if (a || b || c) n++;
+            }
+            return n;
         }
 
         // ── Presentation-mode preset (matches the existing modes) ───────

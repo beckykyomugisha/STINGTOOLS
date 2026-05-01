@@ -271,6 +271,8 @@ namespace StingTools.Tags
             td.MainContent = report.ToString();
             td.Show();
 
+            // Phase 165 follow-up — explicit batch teardown.
+            TokenAutoPopulator.PopulationContext.EndSession();
             return Result.Succeeded;
         }
 
@@ -634,6 +636,8 @@ namespace StingTools.Tags
             TaskDialog.Show("Tag Format Migration",
                 $"Migration{mfCancelNote} complete.\n\n  Scope:    {mfScopeLabel}\n  Migrated: {migrated}\n  Total:    {tagged.Count}");
             StingLog.Info($"Tag format migration: {migrated}/{tagged.Count} tags reformatted");
+            // Phase 165 follow-up — explicit batch teardown.
+            TokenAutoPopulator.PopulationContext.EndSession();
             return Result.Succeeded;
         }
     }
@@ -941,6 +945,8 @@ namespace StingTools.Tags
             TaskDialog.Show("Tag Changed",
                 $"Delta update complete.\n\n  Stale tokens: {stale}\n  Elements updated: {updated}\n  Tags rebuilt: {processedElements.Count}");
             StingLog.Info($"Delta tagging: {stale} stale tokens, {updated} elements updated");
+            // Phase 165 follow-up — explicit batch teardown.
+            TokenAutoPopulator.PopulationContext.EndSession();
             return Result.Succeeded;
         }
     }

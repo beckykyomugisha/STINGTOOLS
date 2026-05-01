@@ -5,9 +5,10 @@ namespace Planscape.Core.Entities;
 /// Allows fine-grained role assignment: a user can be a Viewer on Project A
 /// and a Coordinator on Project B within the same tenant.
 /// </summary>
-public class ProjectMember
+public class ProjectMember : ITenantScoped
 {
     public Guid Id          { get; set; } = Guid.NewGuid();
+    public Guid TenantId    { get; set; }
     public Guid ProjectId   { get; set; }
     public Guid UserId      { get; set; }
 

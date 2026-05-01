@@ -9231,6 +9231,191 @@ lands.
    to a follow-up — the value is populated correctly so the multiplier
    commit can flip the switch with no JSON re-edit.
 
+#### Completed (Phase 168 — Unified project folder system: single-root structure, _data consolidation, BIM/Mini modes, templates, migration)
+
+Replaces four competing folder roots (`_BIM_COORD\`,
+`STING_BIM_MANAGER\`, `STING_Exports\`, `STING_Project\`) with one
+`{ProjectCode}\` root next to the `.rvt`, plus a dedicated `_data\`
+subfolder for every runtime sidecar JSON the plugin writes. Adds a
+data-driven flexibility layer so projects can choose a full ISO 19650
+BIM tree, a 5-folder Mini tree, or a saved template profile.
+
+**New files**
+
+| Path | Role |
+|---|---|
+| `StingTools/Core/ProjectSetup.cs` | POCO + factory methods (`CreateBIM` / `CreateMini`) + Load / Save / ResolveRootPath. Holds project code, root path, mode, disciplines, custom folders, hidden folders, export routes, naming convention. |
+| `StingTools/Core/FolderTemplateLibrary.cs` | 4 built-in templates (Full BIM, MEP Only, Mini Project, Structural Only) + user template load / save / delete + `ApplyTemplate(...)` materialiser. |
+| `StingTools/UI/ProjectFolderSetupDialog.cs` | 3-section WPF dialog: identity (project code, name, root, relative/absolute), structure (template picker, BIM/Mini radios, discipline checkboxes, naming convention), folders (editable DataGrid: include / id / display name / discipline subs / routes). Migration banner detects legacy folders + sidecars and offers one-click consolidation. |
+| `StingTools/UI/FolderHealthPanel.cs` | Compact UserControl + dialog wrapper. Per-folder green / amber / red status pills, file counts, last modified date, ▷ open-in-Explorer button per row, footer summary (total files, empty count, _data JSON count). |
+
+**ProjectFolderEngine extensions** (`Core/ProjectFolderEngine.cs`):
+
+`LoadOrDetectSetup(doc)` walks `{projDir}\{ProjectCode}\_data\project_setup.json`
+plus sibling-folder fallback. `InitializeSetup(doc, setup)` creates every
+folder + discipline subfolder + sub-folder list, writes `_data` and
+`folder_templates`, persists JSON, caches setup, and writes
+`FOLDER_INDEX.txt`. `GetDataPath(doc, fileName)` resolves
+`{root}\_data\{fileName}` — the canonical replacement for
+`Path.ChangeExtension(doc.PathName, ".sting_*.json")`.
+`DetectProjectCode(doc)` reads Project Information Number → Name →
+"PRJ", sanitises and clamps to 8 chars. `GetFolderHealth(doc)` returns
+a per-folder snapshot for the health panel. `MigrateFromLegacy(doc)`
+moves `.sting_*.json` sidecars + `*_STING_SEQ.json` SEQ sidecars +
+the four legacy folder roots into the new structure, routing exports
+by extension (PDF→DRAWINGS, IFC/RVT/NWC/DWG→MODELS, JSON→_data,
+XLSX/CSV→SCHEDULES, BCF→CLASHES, DOCX→TRANSMITTALS). `BuildFolderBrowserTree(doc)`
+returns hierarchical `FolderNode` rows for UI binding. `GetExportPath(doc, type, base, ext, disc)`
+honours `ExportRoutes`, drops files into discipline subfolders when
+the resolved folder has `HasDisciplineSubfolders=true`, and applies
+the chosen `NamingConvention` (ISO19650 / Timestamp / Custom).
+`InvalidateSetupCache(docPath)` is wired into `OnDocumentClosing` so
+re-opens re-detect.
+
+`GetRootPath` and `GetExportFolder` and `GetFolderPath` all consult
+`LoadOrDetectSetup` first; only fall through to legacy behaviour
+when no setup is found. Backward compatibility is preserved — every
+existing public method signature is unchanged.
+
+**Sidecar redirect** — 10 callers redirected from
+`Path.ChangeExtension(doc.PathName, ".sting_*.json")` (or
+`Path.Combine(projDir, ".sting_*")`) to
+`ProjectFolderEngine.GetDataPath(doc, "*.json")`, each with
+try/catch fallback to the legacy path so first-open before setup
+still works:
+
+| File | Was | Now |
+|---|---|---|
+| `Core/ComplianceScan.cs` | 4 sites — `.sting_compliance_trend.json` | `ResolveTrendPath(doc)` helper using `_data/compliance_trend.json` |
+| `Core/Phase74Enhancements.cs` | `.sting_warnings_baseline.json` | `_data/warnings_baseline.json` |
+| `Core/WarningsManager.cs` | 3 sites — baseline + coord_log JSON + JSONL | `_data/warnings_baseline.json` + `_data/coord_log.json[l]` |
+| `Core/StingAutoTagger.cs` | 2 sites — `.sting_deferred_elements.json` | `_data/deferred_elements.json` |
+| `Core/TagConfig.cs` | `GetSeqSidecarPath` → `*_STING_SEQ.json` | `_data/seq_counters.json` |
+| `BIMManager/BIMManagerCommands.cs` | 2 sites — coord_log + tagmap fallback | `_data/coord_log.json` + `_data/` for tagmap fallback |
+| `BIMManager/GapFixCommands.cs` | 2 sites — linked_revision + compliance_trend | `_data/linked_revision_{linkName}.json` + `_data/compliance_trend.json` |
+| `Docs/SheetManagerEngineExt.cs` | `.sting_layout_presets.json` | `_data/layout_presets.json` |
+| `Docs/SheetTemplateEngine.cs` | `.sting_sheet_templates.json` | `_data/sheet_templates.json` |
+| `UI/StingCommandHandler.cs` | 2 sites — coord_log read for export/clear | `_data/coord_log.json` |
+
+**Folder defaults**
+
+BIM mode (16 numbered folders, 4 with discipline subfolders):
+`01_WIP`, `02_SHARED`, `03_PUBLISHED`, `04_ARCHIVE`, `05_MODELS`,
+`06_DRAWINGS`, `07_SCHEDULES`, `08_COBie`, `09_BEP`, `10_TRANSMITTALS`,
+`11_ISSUES` (sub: RFI/TQ/NCR/EWN), `12_CLASHES` (sub: BCF/Reports/Snapshots),
+`13_HANDOVER`, `14_REVISIONS`, `15_REGISTERS`, `16_COMPLIANCE`. Default
+disciplines: A_Architectural, E_Electrical, M_Mechanical, P_Plumbing,
+S_Structural. Default routes: PDF→DRAWINGS, IFC/NWC/RVT/DWG→MODELS,
+COBIE→COBIE, SCHEDULE/EXCEL/CSV/BOQ→SCHEDULES, BEP→BEP,
+TRANSMITTAL→TRANSMITTALS, ISSUE/RFI→ISSUES, BCF/CLASH→CLASHES,
+HANDOVER/OAM/Maintenance/AssetHealth→HANDOVER, REVISION→REVISIONS,
+TagRegister/DocRegister/AssetRegister→REGISTERS,
+COMPLIANCE/MODELHEALTH/Validation→COMPLIANCE, JSON→_DATA.
+
+Mini mode (5 flat folders): Drawings, Models, Schedules, Documents,
+Reports.
+
+**Wiring**
+
+- `StingCommandHandler.cs` `CreateFolders` tag now opens the new
+  `ProjectFolderSetupDialog`. If a setup already exists it offers
+  "Run setup again" / "Open folder in Explorer" / Cancel.
+- New tags: `FolderHealth` (opens `FolderHealthPanel.ShowDialog`),
+  `FolderMigrate` (calls `MigrateFromLegacy` and reports moved-files
+  count).
+- `StingDockPanel.xaml` BIM tab — replaced "Create Folders" / "Open
+  Project Folder" with 4 buttons: ⚙ Folder Setup / 📁 Open Root /
+  📊 Folder Health / 🔄 Migrate Legacy.
+- `StingToolsApp.OnDocumentOpened` — softer behaviour: detects
+  persisted setup if present and logs the loaded root; **no longer
+  auto-creates folders**. Setup is now an explicit user action.
+- `StingToolsApp.OnDocumentClosing` — invalidates the per-document
+  setup cache so reopens re-detect from disk.
+- `OutputLocationHelper.GetOutputDirectory` — added a new first-priority
+  check that returns the project's MISC export folder when a setup
+  is loaded; falls through to the existing 4-level chain otherwise.
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox, no Revit
+   API). All Revit API calls reuse documented signatures already
+   present in the codebase.
+2. The migration step deletes legacy folders only when empty after
+   moving files. If a non-STING file is sitting inside `_BIM_COORD`
+   or similar, the folder is preserved with that file in place.
+3. `ProjectSetup.RootPathIsRelative=true` is the recommended mode for
+   network drives and portable workflows; `RootPathIsRelative=false`
+   stores an absolute path that won't survive a server move.
+4. The setup dialog's discipline checkbox list is fixed at 8 codes
+   (A/E/M/P/S/FP/LV/Z). Custom disciplines beyond that list need to
+   be added by editing `_data/project_setup.json` directly today; a
+   future phase will surface them in the dialog.
+
+#### Completed (Phase 169 — Repair 73 malformed v4-/v6- placeholder GUIDs across the parameter pipeline)
+
+Closes the bug flagged by `STING_GUID_REPAIR_REPORT.md` (StingD85/transfer):
+73 shared parameters in `MR_PARAMETERS.txt` shipped with placeholder
+strings of the form `v4-0001-0000-0000-000000000006` and
+`v6-0001-0000-0000-00000000000c`. These fail `Guid.TryParse` silently,
+so `ParamRegistry._guidByName` never picked them up and any binding,
+schedule, filter, or tag that referenced them was a no-op. The codebase
+already noted the issue in the V6 region header (`ParamRegistry.cs:2761`)
+but the repair was incomplete — the V4 fabrication / LPS / cost block
+was unaddressed and the cross-source GUIDs disagreed.
+
+Cross-checked the report's claims first: 73 malformed GUIDs confirmed
+(46 v4- + 27 v6-), but only 33 of 73 had been repaired in
+`PARAMETER_REGISTRY.json` + `ParamRegistry.cs` under a placeholder
+scheme `5753b5aa-000T-4000-8000-...` that **disagreed with the canonical
+UUIDv5 GUIDs in `Core/Fabrication/FabricationParamsV4.cs`** for 6 of
+them. The report's fresh-UUIDv5 framing would have re-keyed those 6 yet
+again; instead this phase adopts the existing `FabricationParamsV4.cs`
+UUIDv5 (namespace `7f9f5e3a-a7c0-b2e4-4d91-4a557c5e3a00`) as the
+single source of truth for the 46 fab/LPS/cost params.
+
+1. Repaired `StingTools/Data/MR_PARAMETERS.txt` and `MR_PARAMETERS.csv`
+   — replaced 73 v4-/v6- placeholders with real GUIDs (46 canonical
+   UUIDv5 from `FabricationParamsV4.cs`, 27 placeholder
+   `5753b5aa-000T-4000-8000-...` matching the existing V6 region for
+   tag-label-only tiers). Restored CRLF line endings on both files.
+2. Repaired `StingTools/Data/Parameters/STING_PARAMS_V6.txt` — same
+   73-name remap, in lockstep with MR_PARAMETERS.txt.
+3. Updated `StingTools/Data/PARAMETER_REGISTRY.json`
+   `extended_params.tier_4_10` — added 40 missing entries (17 ASS_*
+   fabrication, 18 ELC_LPS_* lightning protection, 5 CST_* cost) and
+   re-keyed 6 existing entries (ASS_SPOOL_NR_TXT, ASS_FAB_STATUS_TXT,
+   ASS_QC_INSPECTOR_TXT, CST_INTL_PRICE_USD, CST_UG_PRICE_UGX,
+   CST_QUOTE_REF_TXT) to the canonical UUIDv5. Total tier_4_10 grew
+   33 → 73 entries.
+4. Updated `StingTools/Core/ParamRegistry.cs` V6 region — added 40 new
+   `*_GUID` constants (under the existing T5/T7 sections plus a new T11
+   lightning-protection section), re-keyed 6 existing constants to the
+   canonical UUIDv5, and updated the region header comment to document
+   the dual-scheme rationale (canonical UUIDv5 for fab/LPS/cost,
+   placeholder for tag-label-only tiers).
+5. Validated all 73 names × 4 sources for byte-for-byte alignment after
+   each step (`MR_PARAMETERS.txt` ↔ `MR_PARAMETERS.csv` ↔
+   `PARAMETER_REGISTRY.json` ↔ `ParamRegistry.cs`); zero mismatches.
+6. Confirmed zero residual `v4-` / `v6-` placeholder GUIDs in
+   `StingTools/`, `docs/`, and any other tracked CSV/JSON/TXT/CS file
+   (the `Planscape.Mobile` build identifiers in unrelated lockfiles
+   were excluded by file-type filter).
+
+Caveats: built without `dotnet build` verification (Linux sandbox); the
+46 canonical UUIDv5 GUIDs match the family-library values in
+`FabricationParamsV4.cs` so binding round-trips will hold, but the
+`PARAMETER_REGISTRY.json` field naming for the 18 new ELC_LPS_*
+entries uses `tier: "T11"` — the registry doesn't currently have a
+formal T11 tier label elsewhere, so any future tier-label rendering
+code should either ignore unknown tier labels or be updated. The
+report's own UUIDv5 namespace recommendation
+(`6ba7b810-9dad-11d1-80b4-00c04fd430c8`, the standard DNS namespace)
+is **not** used because `FabricationParamsV4.cs` already publishes
+under a different STING-specific namespace; adopting the report's
+namespace would have re-keyed every published fabrication GUID.
+
+> **Note:** the entries above and below both number themselves Phase 168/169 — that's a parallel-branch artifact: this branch (claude/phase-170-a1-generator-IPP0H) and claude/claude-md-…-hAOJn each shipped their own Phase 168/169 simultaneously. Going forward, new phases pick up from 174.
+
 #### Completed (Phase 168 — Match-line subsystem: scope-box adjacency engine + paired-curve auto-placement)
 
 The match-line subsystem closes the loop on auto-produced multi-sheet

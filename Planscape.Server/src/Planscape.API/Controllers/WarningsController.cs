@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Planscape.API.Services;
 using Planscape.Infrastructure.Data;
 
 namespace Planscape.API.Controllers;
@@ -26,6 +27,7 @@ public class WarningsController : ControllerBase
         var tenantId = GetTenantId();
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
         // Update project cached warning count
         project.WarningCount = req.TotalWarnings;
@@ -49,6 +51,7 @@ public class WarningsController : ControllerBase
         var tenantId = GetTenantId();
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
         // Store baseline as a compliance snapshot with warning focus
         var snapshot = new Core.Entities.ComplianceSnapshot

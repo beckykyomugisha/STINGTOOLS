@@ -33,6 +33,18 @@ export interface ModelViewerHandle {
   addPin: (pin: ModelPin) => void;
   clearPins: () => void;
   setBackground: (color: number) => void;
+  // Federation: load multiple GLBs at once (one per discipline).
+  loadFederation: (sources: Array<{ url: string; label?: string; discipline?: string }>) => void;
+  // Oblique section: arbitrary normal direction + 0..1 offset across bounds.
+  setSectionPlane: (opts: { enabled: boolean; normal?: [number, number, number]; offset?: number }) => void;
+  // First-person walkthrough.
+  setWalkthrough: (enabled: boolean) => void;
+  // Polygon area measurement.
+  startArea: () => void;
+  addAreaPoint: (point: [number, number, number]) => void;
+  finishArea: () => void;
+  // Volume of the currently highlighted element's AABB.
+  measureSelectionVolume: () => void;
 }
 
 interface ModelViewerProps {
@@ -55,6 +67,10 @@ interface ModelViewerProps {
   onPlaceIssue?: (e: PlaceIssueEvent) => void;
   onPinTap?: (e: { issueId: string; priority?: string }) => void;
   onMeasure?: (e: { distance: number; points: number[][] }) => void;
+  onMeasureArea?: (e: { area: number; points: number[][] }) => void;
+  onMeasureVolume?: (e: { volume: number; size: number[]; bounds: number[] }) => void;
+  onWalkthrough?: (e: { active: boolean }) => void;
+  onLodChanged?: (e: { level: number; avgFps: number }) => void;
   onToolChanged?: (tool: ViewerTool) => void;
   onError?: (err: string) => void;
 }
@@ -142,6 +158,13 @@ export const ModelViewer = React.forwardRef<ModelViewerHandle, ModelViewerProps>
       addPin: (pin) => send({ type: "addPin", payload: pin }),
       clearPins: () => send({ type: "clearPins" }),
       setBackground: (color) => send({ type: "setBackground", payload: { color } }),
+      loadFederation: (sources) => send({ type: "loadFederation", payload: { sources } }),
+      setSectionPlane: (opts) => send({ type: "setSectionPlane", payload: opts }),
+      setWalkthrough: (enabled) => send({ type: "setWalkthrough", payload: { enabled } }),
+      startArea: () => send({ type: "startArea" }),
+      addAreaPoint: (point) => send({ type: "addAreaPoint", payload: { point } }),
+      finishArea: () => send({ type: "finishArea" }),
+      measureSelectionVolume: () => send({ type: "measureVolume" }),
     }));
 
     function onMessage(ev: WebViewMessageEvent) {
@@ -154,6 +177,10 @@ export const ModelViewer = React.forwardRef<ModelViewerHandle, ModelViewerProps>
         case "placeIssue":   props.onPlaceIssue?.(msg.payload); break;
         case "pinTap":       props.onPinTap?.(msg.payload); break;
         case "measure":      props.onMeasure?.(msg.payload); break;
+        case "measureArea":  props.onMeasureArea?.(msg.payload); break;
+        case "measureVolume":props.onMeasureVolume?.(msg.payload); break;
+        case "walkthrough":  props.onWalkthrough?.(msg.payload); break;
+        case "lodChanged":   props.onLodChanged?.(msg.payload); break;
         case "toolChanged":  props.onToolChanged?.(msg.payload?.tool); break;
       }
     }
@@ -172,12 +199,24 @@ export const ModelViewer = React.forwardRef<ModelViewerHandle, ModelViewerProps>
         <WebView
           ref={webRef}
           source={{ uri: localUri }}
-          // Android can't load file:// images from other file:// URLs without this.
+          // M12 — narrow originWhitelist from "*" to the schemes we actually
+          // load (file:// for the bundled viewer.html, https://localhost
+          // for dev). The previous wildcard let any model file containing
+          // an embedded URL drive a redirect to an arbitrary origin and
+          // exfiltrate session data via the bridged onMessage channel.
+          originWhitelist={["file://*", "https://localhost*"]}
+          // M12 — disable third-party content (fonts, images, scripts from
+          // remote origins). The bundled viewer is fully self-contained;
+          // any uploaded BIM file that tries to fetch external resources
+          // is denied at the network layer.
+          thirdPartyCookiesEnabled={false}
+          // Keep file-URL access for the bundled viewer.html → its sibling
+          // JS / CSS / textures, but document the trade-off. If we ever
+          // serve the viewer over HTTPS, both flags below should drop.
           allowFileAccessFromFileURLs
           allowUniversalAccessFromFileURLs
           allowsInlineMediaPlayback
           mediaPlaybackRequiresUserAction={false}
-          originWhitelist={["*"]}
           javaScriptEnabled
           domStorageEnabled
           onMessage={onMessage}

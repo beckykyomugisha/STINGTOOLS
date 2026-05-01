@@ -10,9 +10,10 @@ namespace Planscape.Core.Entities;
 /// chain via <see cref="PreviousMarkupId"/> so we can render a blame-style
 /// history ("who drew this cloud?").
 /// </summary>
-public class DocumentMarkup
+public class DocumentMarkup : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
     public Guid DocumentId { get; set; }
     public Guid? PreviousMarkupId { get; set; }
 

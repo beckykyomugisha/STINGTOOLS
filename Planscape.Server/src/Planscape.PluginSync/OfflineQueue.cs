@@ -1,3 +1,4 @@
+#pragma warning disable CS0618 // S3.5: SyncClient is deprecated; sibling files in the same deprecated project still wire it until the migration commits land.
 using Newtonsoft.Json;
 using Planscape.Shared.Models;
 
@@ -26,12 +27,44 @@ public class OfflineQueue
         _queueDir = queueDirectory;
         if (!Directory.Exists(_queueDir))
             Directory.CreateDirectory(_queueDir);
+        LoadDropCounter();
     }
 
     /// <summary>
     /// Enqueue a sync payload for later delivery.
     /// </summary>
     private const int MaxQueueFiles = 500; // Prevent unbounded growth
+
+    /// <summary>
+    /// P3 — number of payloads silently dropped because the queue hit
+    /// <see cref="MaxQueueFiles"/>. Persisted across plugin restarts in
+    /// <c>queue_drop_counter.txt</c> alongside the queue files. The
+    /// dock-panel sync chip reads this to render a warning when offline
+    /// data is being lost (e.g. "12 payloads dropped — connect to
+    /// resync").
+    /// </summary>
+    public int DroppedSinceLastDrain { get; private set; }
+
+    private string DropCounterPath => Path.Combine(_queueDir, "queue_drop_counter.txt");
+
+    private void LoadDropCounter()
+    {
+        try
+        {
+            if (File.Exists(DropCounterPath)
+                && int.TryParse(File.ReadAllText(DropCounterPath), out var n))
+            {
+                DroppedSinceLastDrain = n;
+            }
+        }
+        catch { /* best-effort */ }
+    }
+
+    private void WriteDropCounter()
+    {
+        try { File.WriteAllText(DropCounterPath, DroppedSinceLastDrain.ToString()); }
+        catch { /* best-effort */ }
+    }
 
     public void Enqueue(PluginSyncPayload payload)
     {
@@ -41,13 +74,34 @@ public class OfflineQueue
             var existing = Directory.GetFiles(_queueDir, "sync_*.json").OrderBy(f => f).ToArray();
             if (existing.Length >= MaxQueueFiles)
             {
+                int dropped = 0;
                 for (int i = 0; i <= existing.Length - MaxQueueFiles; i++)
-                    try { File.Delete(existing[i]); } catch (IOException) { }
+                {
+                    try { File.Delete(existing[i]); dropped++; } catch (IOException) { }
+                }
+                if (dropped > 0)
+                {
+                    // P3 — surface the loss instead of silently overwriting.
+                    DroppedSinceLastDrain += dropped;
+                    WriteDropCounter();
+                    Console.Error.WriteLine($"[OfflineQueue] dropped {dropped} oldest payload(s); total since last drain: {DroppedSinceLastDrain}");
+                }
             }
 
             string fileName = $"sync_{DateTime.UtcNow:yyyyMMdd_HHmmss_fff}.json";
             string filePath = Path.Combine(_queueDir, fileName);
             File.WriteAllText(filePath, JsonConvert.SerializeObject(payload, Formatting.None));
+        }
+    }
+
+    /// <summary>P3 — clear the dropped-count after the dock panel has
+    /// acknowledged the warning.</summary>
+    public void AcknowledgeDrops()
+    {
+        lock (_lock)
+        {
+            DroppedSinceLastDrain = 0;
+            WriteDropCounter();
         }
     }
 
@@ -153,9 +207,22 @@ public class OfflineQueue
                 Dequeue(filePath);
                 synced++;
             }
+            else if (result.IsFatalRequestError)
+            {
+                // P4 — fatal request error (4xx). Re-trying this same
+                // payload won't help: it could be a malformed body, a
+                // revoked token, or a tenant that no longer exists.
+                // Skip and keep draining so one bad apple doesn't lock
+                // out the rest of the queue.
+                Console.Error.WriteLine(
+                    $"[OfflineQueue] dropping payload {Path.GetFileName(filePath)} — server returned {result.StatusCode}: {result.ErrorMessage}");
+                Dequeue(filePath);
+            }
             else
             {
-                break; // server likely down
+                // Transient (5xx, network, no status). Stop draining;
+                // the next scheduled tick will pick up where we left off.
+                break;
             }
         }
 

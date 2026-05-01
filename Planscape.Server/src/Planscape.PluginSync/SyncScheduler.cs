@@ -1,3 +1,4 @@
+#pragma warning disable CS0618 // S3.5: SyncClient is deprecated; sibling files in the same deprecated project still wire it until the migration commits land.
 using Planscape.Shared.Models;
 
 namespace Planscape.PluginSync;

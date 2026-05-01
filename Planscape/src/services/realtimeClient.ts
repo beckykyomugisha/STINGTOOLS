@@ -33,9 +33,24 @@ export class RealtimeClient {
     this.connection.on('ComplianceChanged', p => { this.emit({ type: 'COMPLIANCE_CHANGED', payload: p }); this.fire('ComplianceChanged', p); });
     this.connection.on('Notification', p => { this.emit({ type: 'NOTIFICATION', payload: p }); this.fire('Notification', p); });
     // Generic events forwarded to named handlers — lets screens subscribe to
-    // specific channels (CommentAdded, DocumentUpdated, TransmittalUpdated...)
-    // without bloating the RealtimeEvent union.
-    for (const evName of ['CommentAdded', 'DocumentUpdated', 'TransmittalUpdated', 'RevisionCreated', 'PresenceChanged']) {
+    // specific channels (CommentAdded, DocumentUpdated, TransmittalUpdated,
+    // MeetingCreated, MeetingUpdated, PresenceChanged) without bloating the
+    // RealtimeEvent union.
+    //
+    // GAP-FIX-SIGNALR — RevisionCreated removed: the server has no
+    // RevisionsController, so the channel never fired. Re-add when a
+    // server-side revisions feature ships.
+    // MeetingCreated / MeetingUpdated added to match new emissions in
+    // MeetingsController (Create / BulkCreate / LogMinutes / AddActionItem /
+    // UpdateAction).
+    for (const evName of [
+      'CommentAdded',
+      'DocumentUpdated',
+      'TransmittalUpdated',
+      'MeetingCreated',
+      'MeetingUpdated',
+      'PresenceChanged',
+    ]) {
       this.connection.on(evName, (p: unknown) => this.fire(evName, p));
     }
 

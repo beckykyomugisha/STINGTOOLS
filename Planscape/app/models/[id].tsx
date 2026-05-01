@@ -8,7 +8,7 @@
 //   - Long-press in viewer → opens issue-create modal prefilled with element GUID
 
 import { useEffect, useRef, useState } from "react";
-import { View, Text, Alert, StyleSheet } from "react-native";
+import { View, Text, Alert, StyleSheet, TouchableOpacity } from "react-native";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import {
   ModelViewer,
@@ -33,6 +33,8 @@ export default function ModelViewerScreen() {
   const [elementMap, setElementMap] = useState<ElementMap | undefined>();
   const [pins, setPins] = useState<ModelPin[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [walkActive, setWalkActive] = useState(false);
+  const [sectionEnabled, setSectionEnabled] = useState(false);
 
   useEffect(() => {
     if (!projectId || !id) return;
@@ -142,10 +144,44 @@ export default function ModelViewerScreen() {
           onPlaceIssue={onPlaceIssue}
           onPinTap={onPinTap}
           onMeasure={(m) => console.log("[viewer] distance", m.distance)}
+          onMeasureArea={(m) => Alert.alert("Area", `${(m.area / 1_000_000).toFixed(2)} m²`)}
+          onMeasureVolume={(m) => Alert.alert("Volume", `${(m.volume / 1_000_000_000).toFixed(3)} m³`)}
+          onWalkthrough={(e) => setWalkActive(e.active)}
           onError={setError}
         />
+        <ExtraToolbar viewerRef={viewerRef} walkActive={walkActive} sectionEnabled={sectionEnabled}
+          setSectionEnabled={setSectionEnabled} />
       </View>
     </>
+  );
+}
+
+function ExtraToolbar({ viewerRef, walkActive, sectionEnabled, setSectionEnabled }: {
+  viewerRef: React.RefObject<ModelViewerHandle>;
+  walkActive: boolean;
+  sectionEnabled: boolean;
+  setSectionEnabled: (v: boolean) => void;
+}) {
+  const [areaActive, setAreaActive] = useState(false);
+  const cell = (label: string, active: boolean, onPress: () => void) => (
+    <TouchableOpacity onPress={onPress} style={[styles.tb, active && styles.tbActive]}>
+      <Text style={styles.tbLabel}>{label}</Text>
+    </TouchableOpacity>
+  );
+  return (
+    <View style={styles.toolbar}>
+      {cell("Walk", walkActive, () => viewerRef.current?.setWalkthrough(!walkActive))}
+      {cell("Section", sectionEnabled, () => {
+        const next = !sectionEnabled;
+        setSectionEnabled(next);
+        viewerRef.current?.setSectionPlane({ enabled: next, normal: [0, -1, 0], offset: 0.5 });
+      })}
+      {cell(areaActive ? "Finish area" : "Area", areaActive, () => {
+        if (areaActive) { viewerRef.current?.finishArea(); setAreaActive(false); }
+        else            { viewerRef.current?.startArea();  setAreaActive(true); }
+      })}
+      {cell("Volume", false, () => viewerRef.current?.measureSelectionVolume())}
+    </View>
   );
 }
 
@@ -154,4 +190,11 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 40 },
   errorTitle: { fontSize: 18, fontWeight: "700", marginBottom: 8, color: "#d32f2f" },
   errorBody: { color: "#666", textAlign: "center" },
+  toolbar: {
+    position: "absolute", top: 12, right: 12, flexDirection: "row", gap: 6,
+    backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 18, padding: 4,
+  },
+  tb: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14 },
+  tbActive: { backgroundColor: "#E8912D" },
+  tbLabel: { color: "#fff", fontSize: 12, fontWeight: "600" },
 });

@@ -169,6 +169,8 @@ namespace StingTools.Tags
 
             TaskDialog.Show("Repair Duplicate SEQ",
                 $"Repaired {retagged} elements across {duplicates.Count} duplicate groups.");
+            // Phase 165 follow-up — explicit batch teardown.
+            TokenAutoPopulator.PopulationContext.EndSession();
             return Result.Succeeded;
         }
     }

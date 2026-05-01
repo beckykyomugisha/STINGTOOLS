@@ -244,6 +244,8 @@ namespace StingTools.Tags
                 $"compliance={postScan?.StatusBarText ?? "N/A"}, " +
                 $"elapsed={sw.Elapsed.TotalSeconds:F1}s");
 
+            // Phase 165 follow-up — explicit batch teardown.
+            TokenAutoPopulator.PopulationContext.EndSession();
             return Result.Succeeded;
         }
     }

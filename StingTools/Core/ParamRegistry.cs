@@ -573,6 +573,16 @@ namespace StingTools.Core
         /// <summary>Pattern selector — Custom (user-defined) T4-T10 payload is visible.</summary>
         public static string MODE_CUSTOM { get; private set; } = "HANDOVER_MODE_CUSTOM_BOOL";
 
+        // Phase 165 — stable GUIDs for the three pattern-mode BOOLs so they can
+        // be registered as Revit shared parameters (Issue #16 in the tagging
+        // workflow audit). Without GUIDs, AddBindings can't bind these to
+        // ProjectInformation, and they cannot be written to elements as type
+        // params. Constants are named with the same _GUID suffix convention as
+        // the rest of the file.
+        public const string MODE_HANDOVER_GUID = "a8f3c1d2-4e56-7890-abcd-ef1234567801";
+        public const string MODE_DC_GUID       = "a8f3c1d2-4e56-7890-abcd-ef1234567802";
+        public const string MODE_CUSTOM_GUID   = "a8f3c1d2-4e56-7890-abcd-ef1234567803";
+
         // ── Warning threshold definitions (v5.5) ─────────────────────────
         // Loaded from warning_thresholds section of PARAMETER_REGISTRY.json.
         // Each entry defines a compliance check with threshold, unit, and severity.
@@ -659,6 +669,17 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(categoryName)) return null;
             return _paragraphContainers.TryGetValue(categoryName, out string p) ? p : null;
         }
+
+        /// <summary>
+        /// Phase 165 — Issue #22. Distinct paragraph-container parameter names
+        /// across every category, used by WriteTag7All to clear stale entries
+        /// before writing the new narrative. Returns an empty enumerable if no
+        /// containers are registered.
+        /// </summary>
+        public static IEnumerable<string> AllParagraphContainers
+            => _paragraphContainers.Values
+                .Where(v => !string.IsNullOrEmpty(v))
+                .Distinct(StringComparer.Ordinal);
 
         /// <summary>All 10 paragraph state parameter names indexed by tier (1-based: index 0 = state 1).</summary>
         // PERF-010 FIX: Cache array to avoid per-access allocation in hot loops (WriteTag7All)
@@ -891,6 +912,132 @@ namespace StingTools.Core
             return paramName == TAG7 || paramName == TAG7A || paramName == TAG7B ||
                    paramName == TAG7C || paramName == TAG7D || paramName == TAG7E ||
                    paramName == TAG7F;
+        }
+
+        // Phase 165 — Issue #10. Ordered lead parameter names for System B
+        // (Handover) tiers T4..T10. WriteTag7All in Handover mode picks the
+        // first non-empty parameter from each tier's group; this property
+        // surfaces the lead/canonical param of each tier so callers can
+        // iterate Tag7SystemBSections[i] alongside AllParaStates[i+3].
+        // Index 0 = T4, index 6 = T10.
+        private static string[] _tag7SystemBSections;
+        public static string[] Tag7SystemBSections => _tag7SystemBSections ??= new[]
+        {
+            COMM_STATE_TXT,             // T4 — Commissioning lead
+            CST_UG_PRICE_UGX,           // T5 — Cost lead
+            CBN_A1_A3_KG_CO2E,          // T6 — Carbon lead
+            ASS_SPOOL_NR_TXT,           // T7 — Fabrication lead
+            CLASH_TRIAGE_SEVERITY_NR,   // T8 — Clash triage lead
+            ASBUILT_DEVIATION_MM,       // T9 — As-built lead
+            IFC_PSET_OVERRIDE_TXT,      // T10 — Compliance lead
+        };
+
+        /// <summary>
+        /// Phase 165 — Issue #17. Active tag-mode enum used by WriteTag7All
+        /// branch selection, depth-label rendering and UI mode toggles.
+        /// </summary>
+        public enum TagMode
+        {
+            /// <summary>Design &amp; Construction (default). T4-T6 == TAG7D-F.</summary>
+            DC,
+            /// <summary>Handover / FM. T4-T10 == COMM_/CST_/CBN_/FAB_/CLH_/ASB_/AUD_ groups.</summary>
+            Handover,
+            /// <summary>Project-specific custom T4-T10 payload.</summary>
+            Custom,
+        }
+
+        /// <summary>
+        /// Phase 165 — Issue #17. Resolve the active tag mode from the document.
+        ///
+        /// Lookup order: <c>ProjectInformation</c> first (so the mode is a
+        /// project-wide setting), then <c>HANDOVER_MODE_HANDOVER_BOOL</c> /
+        /// <c>HANDOVER_MODE_CUSTOM_BOOL</c> on Project Information; <c>DC</c>
+        /// is the default when nothing is explicitly set.
+        ///
+        /// Per-element overrides (e.g. element-type level pattern flags) are
+        /// resolved separately by <c>TagConfig.ResolveActivePatternMode</c>;
+        /// this helper answers the project-default question.
+        /// </summary>
+        public static TagMode GetActiveTagMode(Document doc)
+        {
+            if (doc == null) return TagMode.DC;
+            try
+            {
+                var pi = doc.ProjectInformation;
+                if (pi == null) return TagMode.DC;
+                if (ReadBoolParam(pi, MODE_HANDOVER)) return TagMode.Handover;
+                if (ReadBoolParam(pi, MODE_CUSTOM))   return TagMode.Custom;
+                if (ReadBoolParam(pi, MODE_DC))       return TagMode.DC;
+                return TagMode.DC;
+            }
+            catch { return TagMode.DC; }
+        }
+
+        /// <summary>
+        /// Phase 165 — Issue #17. Set the active tag mode on
+        /// ProjectInformation, flipping the three HANDOVER_MODE_*_BOOL params
+        /// mutually exclusively. Caller must wrap the call in a Transaction.
+        /// </summary>
+        public static bool SetActiveTagMode(Document doc, TagMode mode)
+        {
+            if (doc == null) return false;
+            var pi = doc.ProjectInformation;
+            if (pi == null) return false;
+            bool a = WriteBoolParam(pi, MODE_DC,       mode == TagMode.DC);
+            bool b = WriteBoolParam(pi, MODE_HANDOVER, mode == TagMode.Handover);
+            bool c = WriteBoolParam(pi, MODE_CUSTOM,   mode == TagMode.Custom);
+            return a || b || c;
+        }
+
+        // Internal Yes/No helpers — match the storage convention used by
+        // SetParagraphDepthCommand (string "Yes"/"No" or integer 0/1) so the
+        // mode params behave identically to PARA_STATE_N_BOOL.
+        private static bool ReadBoolParam(Element host, string paramName)
+        {
+            if (host == null || string.IsNullOrEmpty(paramName)) return false;
+            try
+            {
+                var p = host.LookupParameter(paramName);
+                if (p == null) return false;
+                if (p.StorageType == StorageType.String)
+                {
+                    string s = p.AsString();
+                    if (string.IsNullOrEmpty(s)) return false;
+                    return s.Equals("Yes", StringComparison.OrdinalIgnoreCase)
+                        || s.Equals("1", StringComparison.OrdinalIgnoreCase)
+                        || s.Equals("true", StringComparison.OrdinalIgnoreCase);
+                }
+                if (p.StorageType == StorageType.Integer) return p.AsInteger() != 0;
+            }
+            catch { }
+            return false;
+        }
+
+        private static bool WriteBoolParam(Element host, string paramName, bool target)
+        {
+            if (host == null || string.IsNullOrEmpty(paramName)) return false;
+            try
+            {
+                var p = host.LookupParameter(paramName);
+                if (p == null || p.IsReadOnly) return false;
+                if (p.StorageType == StorageType.String)
+                {
+                    string want = target ? "Yes" : "No";
+                    string cur = p.AsString() ?? "";
+                    if (string.Equals(cur, want, StringComparison.OrdinalIgnoreCase)) return false;
+                    p.Set(want);
+                    return true;
+                }
+                if (p.StorageType == StorageType.Integer)
+                {
+                    int want = target ? 1 : 0;
+                    if (p.AsInteger() == want) return false;
+                    p.Set(want);
+                    return true;
+                }
+            }
+            catch { }
+            return false;
         }
 
         // ── Token presets (named token index arrays) ────────────────────
@@ -1693,6 +1840,24 @@ namespace StingTools.Core
                     _guidByName[wt.ParamName] = wg;
                     _nameByGuid[wg] = wt.ParamName;
                 }
+            }
+
+            // Phase 165 — register the three HANDOVER_MODE_*_BOOL GUIDs so
+            // ParamRegistry.AddBindings can bind them as ProjectInformation
+            // shared parameters and ParamRegistry.GetGuid resolves them.
+            // Issue #16 — without this, the mode toggles can't be written.
+            RegisterModeGuid(MODE_HANDOVER, MODE_HANDOVER_GUID);
+            RegisterModeGuid(MODE_DC,       MODE_DC_GUID);
+            RegisterModeGuid(MODE_CUSTOM,   MODE_CUSTOM_GUID);
+        }
+
+        private static void RegisterModeGuid(string name, string guidStr)
+        {
+            if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(guidStr)) return;
+            if (Guid.TryParse(guidStr, out Guid g))
+            {
+                _guidByName[name] = g;
+                _nameByGuid[g] = name;
             }
         }
 
@@ -2600,18 +2765,26 @@ namespace StingTools.Core
 
         #endregion
 
-        #region V6 / Tier 4-10 parameters
+        #region V6 / Tier 4-11 parameters
         //
-        // Parameters backing tag label tiers T4..T10 (schema v5.3 — see STING_TAG_CONFIG_v5_0_*.csv).
-        // All GUIDs follow the placeholder pattern `5753b5aa-000T-4000-8000-0000000000PP`
-        // where T is the tier (4..a hex) and PP is the per-tier row index. Pattern is valid hex
-        // so Guid.TryParse succeeds — essential for the families to bind via shared parameters.
-        // Each constant is also mirrored into PARAMETER_REGISTRY.json extended_params.tier_4_10
+        // Parameters backing tag label tiers T4..T11 (schema v5.3 — see STING_TAG_CONFIG_v5_0_*.csv).
+        // Two GUID schemes coexist:
+        //   1. Fabrication / LPS / cost params (T5 cost, T7 fab, T11 lightning) use canonical
+        //      UUIDv5 hashes from `Core/Fabrication/FabricationParamsV4.cs` under namespace
+        //      7f9f5e3a-a7c0-b2e4-4d91-4a557c5e3a00. These are the binding GUIDs the v4 family
+        //      library publishes — MR_PARAMETERS.txt + STING_PARAMS_V6.txt + this region must
+        //      match it byte-for-byte or shared-param binding silently fails.
+        //   2. Tag-label-only params (T4 commissioning, T6 carbon, T8 clash, T9 as-built/health,
+        //      T10 ACC/IFC) use the placeholder pattern `5753b5aa-000T-4000-8000-0000000000PP`
+        //      where T is the tier (4..a hex) and PP is the per-tier row index. Pattern is valid
+        //      hex so Guid.TryParse succeeds. Stable GUIDs will be assigned when those tiers'
+        //      family library lands.
+        // Each constant is mirrored into PARAMETER_REGISTRY.json extended_params.tier_4_10
         // so ParamRegistry.GetGuid() resolves correctly at runtime.
         //
-        // NOTE: The earlier `v6-0001-...` pseudo-GUIDs were invalid hex and silently dropped out
-        // of _guidByName. This region replaces them with valid-hex placeholders. Real stable
-        // GUIDs will be assigned during family-library authoring (same policy as the v4 region).
+        // NOTE: The earlier `v4-0001-...` / `v6-0001-...` pseudo-GUIDs were invalid hex and
+        // silently dropped out of _guidByName. The 73 affected entries are now repaired across
+        // MR_PARAMETERS.txt + .csv, STING_PARAMS_V6.txt, PARAMETER_REGISTRY.json, and this region.
 
         // --- T4: Commissioning & handover (N-G16 QR workflow) ---
         public const string COMM_STATE_TXT               = "COMM_STATE_TXT";
@@ -2627,17 +2800,27 @@ namespace StingTools.Core
 
         // --- T5: Cost & procurement (N-G12 install/labour + UGX/USD quote) ---
         public const string CST_UG_PRICE_UGX             = "CST_UG_PRICE_UGX";
-        public const string CST_UG_PRICE_UGX_GUID        = "5753b5aa-0005-4000-8000-000000000001";
+        public const string CST_UG_PRICE_UGX_GUID        = "694fcd57-d0c2-5ed3-afca-f225781b3bc8";
         public const string CST_INTL_PRICE_USD           = "CST_INTL_PRICE_USD";
-        public const string CST_INTL_PRICE_USD_GUID      = "5753b5aa-0005-4000-8000-000000000002";
+        public const string CST_INTL_PRICE_USD_GUID      = "c40720fa-3e80-5880-86c3-a82f43055fbf";
         public const string CST_QUOTE_REF_TXT            = "CST_QUOTE_REF_TXT";
-        public const string CST_QUOTE_REF_TXT_GUID       = "5753b5aa-0005-4000-8000-000000000003";
+        public const string CST_QUOTE_REF_TXT_GUID       = "4de58d8f-38e2-584f-b8aa-5a5744a80fcd";
         public const string CST_INSTALL_HRS              = "CST_INSTALL_HRS";
         public const string CST_INSTALL_HRS_GUID         = "5753b5aa-0005-4000-8000-000000000010";
         public const string CST_LABOUR_CREW_TXT          = "CST_LABOUR_CREW_TXT";
         public const string CST_LABOUR_CREW_TXT_GUID     = "5753b5aa-0005-4000-8000-000000000011";
         public const string CST_LABOUR_RATE_GBP          = "CST_LABOUR_RATE_GBP";
         public const string CST_LABOUR_RATE_GBP_GUID     = "5753b5aa-0005-4000-8000-000000000012";
+        public const string CST_FX_RATE_USD_UGX          = "CST_FX_RATE_USD_UGX";
+        public const string CST_FX_RATE_USD_UGX_GUID     = "d4e003e1-1f43-5d22-93c1-d9e91d672c52";
+        public const string CST_LABOUR_HOURS             = "CST_LABOUR_HOURS";
+        public const string CST_LABOUR_HOURS_GUID        = "cb945ed3-ff4d-531c-89fa-c06f503ab46c";
+        public const string CST_LABOUR_RATE_UGX          = "CST_LABOUR_RATE_UGX";
+        public const string CST_LABOUR_RATE_UGX_GUID     = "3d736d48-cba0-570b-a521-844539bd998c";
+        public const string CST_SHIPPING_UGX             = "CST_SHIPPING_UGX";
+        public const string CST_SHIPPING_UGX_GUID        = "5758facf-7a3f-5900-b3ea-abf487990b25";
+        public const string CST_DUTY_PCT                 = "CST_DUTY_PCT";
+        public const string CST_DUTY_PCT_GUID            = "c26d2b96-a012-50d6-bcb9-6a32f24212e0";
 
         // --- T6: Carbon & sustainability (N-G13 — ISO 14064 / BS EN 15978) ---
         public const string CBN_A1_A3_KG_CO2E            = "CBN_A1_A3_KG_CO2E";
@@ -2657,11 +2840,45 @@ namespace StingTools.Core
 
         // --- T7: Fabrication & QC (BS EN ISO 6412 spool / QC inspector chain) ---
         public const string ASS_SPOOL_NR_TXT             = "ASS_SPOOL_NR_TXT";
-        public const string ASS_SPOOL_NR_TXT_GUID        = "5753b5aa-0007-4000-8000-000000000001";
+        public const string ASS_SPOOL_NR_TXT_GUID        = "1a4353be-eaaa-5e46-95ee-b64a74667194";
         public const string ASS_FAB_STATUS_TXT           = "ASS_FAB_STATUS_TXT";
-        public const string ASS_FAB_STATUS_TXT_GUID      = "5753b5aa-0007-4000-8000-000000000002";
+        public const string ASS_FAB_STATUS_TXT_GUID      = "29ba93ba-238e-5aad-930a-a621b0f43b5b";
         public const string ASS_QC_INSPECTOR_TXT         = "ASS_QC_INSPECTOR_TXT";
-        public const string ASS_QC_INSPECTOR_TXT_GUID    = "5753b5aa-0007-4000-8000-000000000003";
+        public const string ASS_QC_INSPECTOR_TXT_GUID    = "a028f908-b100-53bc-b21a-1a0a6a03ffac";
+        public const string ASS_WEIGHT_KG                = "ASS_WEIGHT_KG";
+        public const string ASS_WEIGHT_KG_GUID           = "eacedb67-b65b-58f7-a5b7-f1b0253ac6c9";
+        public const string ASS_TEST_PRESSURE_BAR        = "ASS_TEST_PRESSURE_BAR";
+        public const string ASS_TEST_PRESSURE_BAR_GUID   = "3e3624d3-c79d-5dd5-8014-46c8d273b9ea";
+        public const string ASS_FAB_LOC_TXT              = "ASS_FAB_LOC_TXT";
+        public const string ASS_FAB_LOC_TXT_GUID         = "e420804b-d43f-593c-91b1-fd00a18aa584";
+        public const string ASS_FAB_SEQ_NR               = "ASS_FAB_SEQ_NR";
+        public const string ASS_FAB_SEQ_NR_GUID          = "5fc70bc2-9955-583c-9d96-5b54c8f34f53";
+        public const string ASS_SHIP_DATE_TXT            = "ASS_SHIP_DATE_TXT";
+        public const string ASS_SHIP_DATE_TXT_GUID       = "c2fc8e62-b793-517c-94c6-d2d7ae7584fe";
+        public const string ASS_INSTALL_DATE_TXT         = "ASS_INSTALL_DATE_TXT";
+        public const string ASS_INSTALL_DATE_TXT_GUID    = "953575a9-1d0c-5bb5-a4d2-c52b4b4adf96";
+        public const string ASS_BOM_REV_TXT              = "ASS_BOM_REV_TXT";
+        public const string ASS_BOM_REV_TXT_GUID         = "0293f487-2ca9-5514-9b18-ac98b1a20b27";
+        public const string ASS_WELD_COUNT_NR            = "ASS_WELD_COUNT_NR";
+        public const string ASS_WELD_COUNT_NR_GUID       = "6c77833e-4b97-57f5-9a8b-97cc20d6cb61";
+        public const string ASS_BOLT_COUNT_NR            = "ASS_BOLT_COUNT_NR";
+        public const string ASS_BOLT_COUNT_NR_GUID       = "77c9f963-0164-5c71-879d-ee7308091866";
+        public const string ASS_FLANGE_COUNT_NR          = "ASS_FLANGE_COUNT_NR";
+        public const string ASS_FLANGE_COUNT_NR_GUID     = "016faa7f-1e8f-5a5d-acfb-14983937de69";
+        public const string ASS_FITTING_COUNT_NR         = "ASS_FITTING_COUNT_NR";
+        public const string ASS_FITTING_COUNT_NR_GUID    = "ead7d5f3-68fa-58c6-8a21-fa8c6a1ff318";
+        public const string ASS_LENGTH_TOTAL_MM          = "ASS_LENGTH_TOTAL_MM";
+        public const string ASS_LENGTH_TOTAL_MM_GUID     = "2605366f-f56b-5843-b8cb-9781b42a4345";
+        public const string ASS_CUT_COUNT_NR             = "ASS_CUT_COUNT_NR";
+        public const string ASS_CUT_COUNT_NR_GUID        = "16e7224e-cab9-5233-b155-3fbe194a3d56";
+        public const string ASS_INSULATION_AREA_M2       = "ASS_INSULATION_AREA_M2";
+        public const string ASS_INSULATION_AREA_M2_GUID  = "21a49d34-9ae2-5058-8d7e-43db4dabd545";
+        public const string ASS_SUPPORT_COUNT_NR         = "ASS_SUPPORT_COUNT_NR";
+        public const string ASS_SUPPORT_COUNT_NR_GUID    = "9fadd466-7dfa-5845-9a18-d618c77c418d";
+        public const string ASS_FAB_NOTES_TXT            = "ASS_FAB_NOTES_TXT";
+        public const string ASS_FAB_NOTES_TXT_GUID       = "9107dff2-054c-5371-b3ae-6d329aa12542";
+        public const string ASS_SPOOL_DRAWING_REF_TXT    = "ASS_SPOOL_DRAWING_REF_TXT";
+        public const string ASS_SPOOL_DRAWING_REF_TXT_GUID = "c1a5983c-333d-53ff-94d1-4326d9ffff86";
 
         // --- T8: Clash triage + resolution (N-G5 / N-G6) ---
         public const string CLASH_TRIAGE_SEVERITY_NR     = "CLASH_TRIAGE_SEVERITY_NR";
@@ -2692,6 +2909,44 @@ namespace StingTools.Core
         public const string ACC_ISSUE_ID_TXT_GUID        = "5753b5aa-000a-4000-8000-000000000002";
         public const string ACC_SYNC_STATUS_TXT          = "ACC_SYNC_STATUS_TXT";
         public const string ACC_SYNC_STATUS_TXT_GUID     = "5753b5aa-000a-4000-8000-000000000003";
+
+        // --- T11: Lightning protection system (BS EN 62305) ---
+        public const string ELC_LPS_CLASS_TXT                  = "ELC_LPS_CLASS_TXT";
+        public const string ELC_LPS_CLASS_TXT_GUID             = "081c2e86-3af9-5658-8a26-63da9c1eccc2";
+        public const string ELC_LPS_ROLLING_SPHERE_RADIUS_M    = "ELC_LPS_ROLLING_SPHERE_RADIUS_M";
+        public const string ELC_LPS_ROLLING_SPHERE_RADIUS_M_GUID = "c4eeed34-608c-56a5-b97f-7c899d76f208";
+        public const string ELC_LPS_MESH_SIZE_M                = "ELC_LPS_MESH_SIZE_M";
+        public const string ELC_LPS_MESH_SIZE_M_GUID           = "d6a9566f-eda9-5e6d-9dcf-fd14440c395b";
+        public const string ELC_LPS_AIR_TERMINAL_COUNT_NR      = "ELC_LPS_AIR_TERMINAL_COUNT_NR";
+        public const string ELC_LPS_AIR_TERMINAL_COUNT_NR_GUID = "36889f59-a8ba-55c8-8777-6ba332b39bff";
+        public const string ELC_LPS_DOWN_CONDUCTOR_COUNT_NR    = "ELC_LPS_DOWN_CONDUCTOR_COUNT_NR";
+        public const string ELC_LPS_DOWN_CONDUCTOR_COUNT_NR_GUID = "157527ba-17a8-5014-b6c5-f70273ccd5f5";
+        public const string ELC_LPS_EARTH_ELECTRODE_COUNT_NR   = "ELC_LPS_EARTH_ELECTRODE_COUNT_NR";
+        public const string ELC_LPS_EARTH_ELECTRODE_COUNT_NR_GUID = "d02bca9d-9159-5477-8488-48f9076841fa";
+        public const string ELC_LPS_EARTH_RESISTANCE_OHM       = "ELC_LPS_EARTH_RESISTANCE_OHM";
+        public const string ELC_LPS_EARTH_RESISTANCE_OHM_GUID  = "80da349f-708b-5165-bb2e-f369dec80e4b";
+        public const string ELC_LPS_BOND_TYPE_TXT              = "ELC_LPS_BOND_TYPE_TXT";
+        public const string ELC_LPS_BOND_TYPE_TXT_GUID         = "1cb4c3d3-8c12-5be3-9eeb-4072b4be3240";
+        public const string ELC_LPS_PROTECTION_ANGLE_DEG       = "ELC_LPS_PROTECTION_ANGLE_DEG";
+        public const string ELC_LPS_PROTECTION_ANGLE_DEG_GUID  = "0063477e-cda5-58a3-a802-061838e57a47";
+        public const string ELC_LPS_ZONE_TXT                   = "ELC_LPS_ZONE_TXT";
+        public const string ELC_LPS_ZONE_TXT_GUID              = "a01025f4-6155-524e-8514-72507f5e04ef";
+        public const string ELC_LPS_RISK_ASSESSMENT_TXT        = "ELC_LPS_RISK_ASSESSMENT_TXT";
+        public const string ELC_LPS_RISK_ASSESSMENT_TXT_GUID   = "330d6fb5-2891-5a28-8ec6-e04618c9d1e4";
+        public const string ELC_LPS_SURGE_PROTECTION_LVL_TXT   = "ELC_LPS_SURGE_PROTECTION_LVL_TXT";
+        public const string ELC_LPS_SURGE_PROTECTION_LVL_TXT_GUID = "c1605d30-bdcb-560e-9d97-bae3303a078e";
+        public const string ELC_LPS_SEPARATION_DISTANCE_MM     = "ELC_LPS_SEPARATION_DISTANCE_MM";
+        public const string ELC_LPS_SEPARATION_DISTANCE_MM_GUID = "441346ff-828f-5298-9fbb-96f27feb22ef";
+        public const string ELC_LPS_CONDUCTOR_CROSS_SECT_MM2   = "ELC_LPS_CONDUCTOR_CROSS_SECT_MM2";
+        public const string ELC_LPS_CONDUCTOR_CROSS_SECT_MM2_GUID = "423133ca-7535-521d-9c37-65ec7ae68166";
+        public const string ELC_LPS_EARTH_TYPE_TXT             = "ELC_LPS_EARTH_TYPE_TXT";
+        public const string ELC_LPS_EARTH_TYPE_TXT_GUID        = "3703245d-a866-5e05-8737-72babfbb85a4";
+        public const string ELC_LPS_INSPECTION_INTERVAL_MONTHS = "ELC_LPS_INSPECTION_INTERVAL_MONTHS";
+        public const string ELC_LPS_INSPECTION_INTERVAL_MONTHS_GUID = "5339fe4f-caa3-5edc-99b1-53c0defd4ad8";
+        public const string ELC_LPS_TEST_DATE_TXT              = "ELC_LPS_TEST_DATE_TXT";
+        public const string ELC_LPS_TEST_DATE_TXT_GUID         = "d654df13-0913-5e8f-8dfe-98b3971beb86";
+        public const string ELC_LPS_CERT_REF_TXT               = "ELC_LPS_CERT_REF_TXT";
+        public const string ELC_LPS_CERT_REF_TXT_GUID          = "0a8dbcfb-6f73-5c8c-94eb-b72606feae87";
 
         #endregion
     }

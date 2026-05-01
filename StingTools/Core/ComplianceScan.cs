@@ -769,13 +769,27 @@ namespace StingTools.Core
     {
         private const int MaxDays = 90;
 
+        /// <summary>Resolve compliance trend file path — Phase 167 _data folder, falling back to legacy sidecar.</summary>
+        private static string ResolveTrendPath(Document doc)
+        {
+            try
+            {
+                string p = ProjectFolderEngine.GetDataPath(doc, "compliance_trend.json");
+                if (!string.IsNullOrEmpty(p)) return p;
+            }
+            catch { }
+            if (doc == null || string.IsNullOrEmpty(doc.PathName)) return null;
+            return System.IO.Path.ChangeExtension(doc.PathName, ".sting_compliance_trend.json");
+        }
+
         /// <summary>Record today's compliance snapshot.</summary>
         public static void RecordSnapshot(Document doc, ComplianceScan.ComplianceResult result)
         {
             if (doc == null || result == null || string.IsNullOrEmpty(doc.PathName)) return;
             try
             {
-                string path = System.IO.Path.ChangeExtension(doc.PathName, ".sting_compliance_trend.json");
+                string path = ResolveTrendPath(doc);
+                if (string.IsNullOrEmpty(path)) return;
                 var entries = LoadEntries(path);
                 string today = DateTime.UtcNow.ToString("yyyy-MM-dd");
 
@@ -818,7 +832,8 @@ namespace StingTools.Core
                 return ("unknown", 0);
             try
             {
-                string path = System.IO.Path.ChangeExtension(doc.PathName, ".sting_compliance_trend.json");
+                string path = ResolveTrendPath(doc);
+                if (string.IsNullOrEmpty(path)) return ("unknown", 0);
                 var entries = LoadEntries(path);
                 if (entries.Count < 2) return ("insufficient data", 0);
 
@@ -856,8 +871,8 @@ namespace StingTools.Core
                 if (doc == null) return "N/A";
                 string projectPath = doc.PathName;
                 if (string.IsNullOrEmpty(projectPath)) return "N/A";
-                string trendPath = Path.ChangeExtension(projectPath, null) + ".sting_compliance_trend.json";
-                if (!File.Exists(trendPath)) return "Insufficient data";
+                string trendPath = ResolveTrendPath(doc);
+                if (string.IsNullOrEmpty(trendPath) || !File.Exists(trendPath)) return "Insufficient data";
 
                 var entries = LoadEntries(trendPath);
                 if (entries.Count < 2) return "Insufficient data";

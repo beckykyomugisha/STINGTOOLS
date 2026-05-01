@@ -1,5 +1,21 @@
 # Missing Parameters Audit — Code vs Shared-Parameter Files
 
+> **Status (2026-04-30):** SUPERSEDED. The 73 `v4-YYYY-xxxx` /
+> `v6-YYYY-xxxx` placeholder GUIDs documented below were replaced in
+> Phase 169 (commit `3d262e13`). 46 fab/LPS/cost rows now carry the
+> canonical UUIDv5 GUIDs from `Core/Fabrication/FabricationParamsV4.cs`
+> (namespace `7f9f5e3a-a7c0-b2e4-4d91-4a557c5e3a00`); the 27
+> tag-label-only rows (T4 commissioning, T6 carbon, T8 clash,
+> T9 as-built/health, T10 ACC/IFC, plus three CST_LABOUR_/INSTALL_
+> overrides) carry the `5753b5aa-000T-4000-8000-…` placeholder pattern
+> matching the V6 region in `ParamRegistry.cs`. All 73 names are
+> aligned across `MR_PARAMETERS.txt`, `MR_PARAMETERS.csv`,
+> `STING_PARAMS_V4.txt`, `STING_PARAMS_V6.txt`,
+> `PARAMETER_REGISTRY.json`, and `ParamRegistry.cs`. Every reference
+> to "placeholder GUIDs" or "real GUIDs will arrive…" in the body
+> below is therefore historical context — the placeholders are gone.
+> See `docs/CHANGELOG.md` Phase 169 for the repair details.
+
 Generated on `2026-04-22`. Scope: every `public const string … = "…"` declared
 in `StingTools/Core/ParamRegistry.cs` and `StingTools/Core/Fabrication/
 FabricationParamsV4.cs` is cross-checked against the three authoritative

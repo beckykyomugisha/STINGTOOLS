@@ -2123,6 +2123,30 @@ namespace StingTools.BIMManager
                     bool isComplete     = !string.IsNullOrEmpty(disc) && !string.IsNullOrEmpty(seq);
                     bool isFullyResolved = isComplete && !string.IsNullOrEmpty(loc) && !string.IsNullOrEmpty(lvl);
 
+                    // ─── Phase 165 — T4-T10 payload ───
+                    // Read TAG7A-TAG7F directly (already written by WriteTag7All),
+                    // build T4-T10 summaries fresh from element parameters,
+                    // resolve active depth and pattern mode for the server.
+                    string tag7a = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG7A) ?? "";
+                    string tag7b = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG7B) ?? "";
+                    string tag7c = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG7C) ?? "";
+                    string tag7d = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG7D) ?? "";
+                    string tag7e = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG7E) ?? "";
+                    string tag7f = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG7F) ?? "";
+
+                    StingTools.Core.TagConfig.Tag7Result tier = null;
+                    try
+                    {
+                        var tokens = new[] { disc, loc, zone, lvl, sys, func, prod, seq };
+                        tier = StingTools.Core.TagConfig.BuildTag7Sections(doc, el, cat, tokens);
+                    }
+                    catch { /* tier hydration is best-effort */ }
+
+                    Element typeEl = null;
+                    try { typeEl = doc.GetElement(el.GetTypeId()); } catch { }
+                    int paraDepth   = StingTools.Core.TagConfig.ReadActiveParagraphDepth(typeEl, el);
+                    string pattern  = StingTools.Core.TagConfig.ResolveActivePatternMode(typeEl, el);
+
                     elements.Add(new TagElementPayload
                     {
                         RevitElementId  = el.Id.Value,
@@ -2137,7 +2161,23 @@ namespace StingTools.BIMManager
                         // INT-03 (Phase 91): per-element wall-clock timestamp from
                         // ASS_TAG_MODIFIED_DT audit trail, with DateTime.UtcNow
                         // fallback. Enables server-side delta detection.
-                        LastModifiedUtc = ResolveElementLastModifiedUtc(el)
+                        LastModifiedUtc = ResolveElementLastModifiedUtc(el),
+                        // Phase 165 — T4-T10 + sections + depth + pattern mode
+                        Tag7A = string.IsNullOrEmpty(tag7a) ? null : tag7a,
+                        Tag7B = string.IsNullOrEmpty(tag7b) ? null : tag7b,
+                        Tag7C = string.IsNullOrEmpty(tag7c) ? null : tag7c,
+                        Tag7D = string.IsNullOrEmpty(tag7d) ? null : tag7d,
+                        Tag7E = string.IsNullOrEmpty(tag7e) ? null : tag7e,
+                        Tag7F = string.IsNullOrEmpty(tag7f) ? null : tag7f,
+                        T4Commissioning  = string.IsNullOrEmpty(tier?.SectionT4)  ? null : tier.SectionT4,
+                        T5Cost           = string.IsNullOrEmpty(tier?.SectionT5)  ? null : tier.SectionT5,
+                        T6Carbon         = string.IsNullOrEmpty(tier?.SectionT6)  ? null : tier.SectionT6,
+                        T7Fabrication    = string.IsNullOrEmpty(tier?.SectionT7)  ? null : tier.SectionT7,
+                        T8ClashTriage    = string.IsNullOrEmpty(tier?.SectionT8)  ? null : tier.SectionT8,
+                        T9AsBuilt        = string.IsNullOrEmpty(tier?.SectionT9)  ? null : tier.SectionT9,
+                        T10Compliance    = string.IsNullOrEmpty(tier?.SectionT10) ? null : tier.SectionT10,
+                        ParaDepth        = paraDepth,
+                        PatternMode      = pattern,
                     });
                 }
             }

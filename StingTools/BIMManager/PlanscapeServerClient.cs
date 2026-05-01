@@ -82,6 +82,9 @@ public sealed class PlanscapeServerClient : IDisposable
 
             ParseAuthResponse(JObject.Parse(resp.body), email);
             LastError = null;
+            // P1 — store the session so a Revit restart doesn't require
+            // re-entering credentials. Encrypted with DPAPI (current-user).
+            PersistSession();
             StingLog.Info($"Planscape: Authenticated as {ConnectedUser} @ {_serverUrl} (tier: {TierName})");
 
             // C2 — fire-and-forget SignalR start so real-time updates flow without
@@ -116,6 +119,9 @@ public sealed class PlanscapeServerClient : IDisposable
             _refreshToken = json["refreshToken"]?.Value<string>() ?? _refreshToken;
             _tokenExpiry  = json["expiresAt"]?.Value<DateTime>()  ?? DateTime.UtcNow.AddHours(8);
             _http!.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
+            // P1 — persist the rotated tokens so they survive a Revit
+            // restart between scheduled syncs.
+            PersistSession();
             StingLog.Info("Planscape: Token refreshed.");
             return true;
         }
@@ -142,6 +148,9 @@ public sealed class PlanscapeServerClient : IDisposable
         TenantId      = Guid.Empty;
         UserId        = Guid.Empty;
         _http?.DefaultRequestHeaders.Authorization = null;
+        // P1 — explicit logout removes the persisted session so the next
+        // Revit start does not auto-restore.
+        DeletePersistedSession();
 
         // C2 — stop the real-time listener (fire-and-forget; we don't await in a sync method).
         _ = Task.Run(async () => { try { await PlanscapeRealtimeClient.Instance.StopAsync(); } catch { } });
@@ -834,6 +843,156 @@ public sealed class PlanscapeServerClient : IDisposable
         return Convert.FromBase64String(s);
     }
 
+    // ── P1 — encrypted session persistence ─────────────────────────────────────
+
+    private static readonly byte[] _sessionEntropy = Encoding.UTF8.GetBytes("Planscape.PluginSession.v1");
+
+    private static string SessionFilePath
+    {
+        get
+        {
+            var dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Planscape");
+            Directory.CreateDirectory(dir);
+            return Path.Combine(dir, "session.bin");
+        }
+    }
+
+    /// <summary>
+    /// P1 — write the current session (server URL + access token + refresh
+    /// token + expiry + user metadata) to LocalAppData encrypted with
+    /// DPAPI (current-user scope). Without this, a Revit restart logs the
+    /// user out and forces them to re-enter credentials, which is a
+    /// daily friction point for Authors.
+    /// </summary>
+    private void PersistSession()
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(_refreshToken)) return;
+            var payload = new JObject
+            {
+                ["serverUrl"]    = _serverUrl,
+                ["accessToken"]  = _accessToken,
+                ["refreshToken"] = _refreshToken,
+                ["tokenExpiry"]  = _tokenExpiry,
+                ["userName"]     = ConnectedUser,
+                ["tier"]         = TierName,
+                ["mimEnabled"]   = MimEnabled,
+                ["tenantId"]     = TenantId.ToString(),
+                ["userId"]       = UserId.ToString()
+            }.ToString(Newtonsoft.Json.Formatting.None);
+
+            var raw = Encoding.UTF8.GetBytes(payload);
+            // System.Security.Cryptography.ProtectedData lives in
+            // Microsoft.Web.Cryptography on .NET 8 — fall back to
+            // unencrypted-on-non-Windows so the plugin still runs in
+            // CI / Linux test contexts. Revit only ships on Windows so
+            // the production path is always DPAPI.
+            byte[] encrypted;
+            try
+            {
+                encrypted = System.Security.Cryptography.ProtectedData.Protect(
+                    raw, _sessionEntropy,
+                    System.Security.Cryptography.DataProtectionScope.CurrentUser);
+            }
+            catch (PlatformNotSupportedException)
+            {
+                encrypted = raw; // dev/CI only
+            }
+            File.WriteAllBytes(SessionFilePath, encrypted);
+        }
+        catch (Exception ex) { StingLog.Warn($"Planscape: PersistSession failed — {ex.Message}"); }
+    }
+
+    private void DeletePersistedSession()
+    {
+        try { if (File.Exists(SessionFilePath)) File.Delete(SessionFilePath); }
+        catch (Exception ex) { StingLog.Warn($"Planscape: DeletePersistedSession failed — {ex.Message}"); }
+    }
+
+    /// <summary>
+    /// P1 — try to restore a previously persisted session. Caller is
+    /// expected to invoke this once at startup (e.g. from the dock-panel
+    /// init) BEFORE prompting the user for credentials. If the access
+    /// token is still valid, the user appears already-logged-in. If the
+    /// access token has expired but a refresh token is present, this
+    /// silently refreshes. Returns false on no-session, fatal-decrypt,
+    /// or refresh-failed.
+    /// </summary>
+    public async Task<bool> RestoreSessionAsync()
+    {
+        try
+        {
+            if (!File.Exists(SessionFilePath)) return false;
+            var encrypted = File.ReadAllBytes(SessionFilePath);
+            byte[] raw;
+            try
+            {
+                raw = System.Security.Cryptography.ProtectedData.Unprotect(
+                    encrypted, _sessionEntropy,
+                    System.Security.Cryptography.DataProtectionScope.CurrentUser);
+            }
+            catch (PlatformNotSupportedException)
+            {
+                raw = encrypted; // matches PersistSession's non-Windows path
+            }
+            catch (System.Security.Cryptography.CryptographicException ex)
+            {
+                StingLog.Warn($"Planscape: stored session unreadable, deleting — {ex.Message}");
+                DeletePersistedSession();
+                return false;
+            }
+
+            var json = JObject.Parse(Encoding.UTF8.GetString(raw));
+            _serverUrl    = json["serverUrl"]?.Value<string>() ?? "";
+            _accessToken  = json["accessToken"]?.Value<string>() ?? "";
+            _refreshToken = json["refreshToken"]?.Value<string>() ?? "";
+            _tokenExpiry  = json["tokenExpiry"]?.Value<DateTime>() ?? DateTime.MinValue;
+            ConnectedUser = json["userName"]?.Value<string>() ?? "";
+            TierName      = json["tier"]?.Value<string>() ?? "Professional";
+            MimEnabled    = json["mimEnabled"]?.Value<bool>() ?? false;
+            TenantId      = Guid.TryParse(json["tenantId"]?.Value<string>(), out var tid) ? tid : Guid.Empty;
+            UserId        = Guid.TryParse(json["userId"]?.Value<string>(), out var uid) ? uid : Guid.Empty;
+
+            if (string.IsNullOrEmpty(_serverUrl) || string.IsNullOrEmpty(_refreshToken))
+            {
+                DeletePersistedSession();
+                return false;
+            }
+            EnsureHttpClient(_serverUrl);
+            if (!string.IsNullOrEmpty(_accessToken))
+            {
+                _http!.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
+            }
+
+            // Access token is still good — we're done.
+            if (_tokenExpiry > DateTime.UtcNow.AddMinutes(5))
+            {
+                StingLog.Info($"Planscape: Session restored for {ConnectedUser} (token valid until {_tokenExpiry:u}).");
+                return true;
+            }
+
+            // Otherwise refresh. RefreshTokenAsync rewrites _accessToken /
+            // _tokenExpiry on success and persists the new state.
+            if (await RefreshTokenAsync())
+            {
+                StingLog.Info($"Planscape: Session restored + refreshed for {ConnectedUser}.");
+                return true;
+            }
+
+            DeletePersistedSession();
+            return false;
+        }
+        catch (Exception ex)
+        {
+            StingLog.Warn($"Planscape: RestoreSession failed — {ex.Message}");
+            DeletePersistedSession();
+            return false;
+        }
+    }
+
     public void Dispose()
     {
         _http?.Dispose();
@@ -1040,6 +1199,27 @@ public sealed class TagElementPayload
     /// as a full refresh (INT-03).
     /// </summary>
     [JsonProperty("lastModifiedUtc")] public DateTime? LastModifiedUtc { get; set; }
+
+    // ─── Phase 165 — T4-T10 tier payload (tagging workflow repair) ───
+    // TAG7A-TAG7F mirror the per-section parameters written by WriteTag7All;
+    // T4-T10 are formatted summaries built by BuildTier4To10Summaries; paraDepth
+    // is the highest enabled PARA_STATE_N (cumulative); patternMode is the
+    // active T4-T10 payload selector (HANDOVER / DC / CUSTOM).
+    [JsonProperty("tag7a")]            public string? Tag7A            { get; set; }
+    [JsonProperty("tag7b")]            public string? Tag7B            { get; set; }
+    [JsonProperty("tag7c")]            public string? Tag7C            { get; set; }
+    [JsonProperty("tag7d")]            public string? Tag7D            { get; set; }
+    [JsonProperty("tag7e")]            public string? Tag7E            { get; set; }
+    [JsonProperty("tag7f")]            public string? Tag7F            { get; set; }
+    [JsonProperty("t4Commissioning")]  public string? T4Commissioning  { get; set; }
+    [JsonProperty("t5Cost")]           public string? T5Cost           { get; set; }
+    [JsonProperty("t6Carbon")]         public string? T6Carbon         { get; set; }
+    [JsonProperty("t7Fabrication")]    public string? T7Fabrication    { get; set; }
+    [JsonProperty("t8ClashTriage")]    public string? T8ClashTriage    { get; set; }
+    [JsonProperty("t9AsBuilt")]        public string? T9AsBuilt        { get; set; }
+    [JsonProperty("t10Compliance")]    public string? T10Compliance    { get; set; }
+    [JsonProperty("paraDepth")]        public int     ParaDepth        { get; set; }
+    [JsonProperty("patternMode")]      public string? PatternMode      { get; set; }
 }
 
 /// <summary>Legacy sync result (POST /api/tagsync/sync).</summary>

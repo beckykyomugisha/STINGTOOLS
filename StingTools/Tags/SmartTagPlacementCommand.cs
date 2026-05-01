@@ -459,11 +459,52 @@ namespace StingTools.Tags
         }
 
         public static double GetModelOffset(View view, double baseOffset = 0.01)
+            => GetModelOffset(view, null, baseOffset);
+
+        /// <summary>
+        /// Phase 165 — overload that applies the per-category multiplier from
+        /// SCALE_CATEGORY_MULTIPLIERS (Tag Studio Scale tab sliders) to the
+        /// resolved tier offset. Pass an Element to look up its category and
+        /// multiply automatically; pass null for the base behaviour.
+        /// </summary>
+        public static double GetModelOffset(View view, Element host, double baseOffset = 0.01)
         {
             int viewScale = (view != null && view.Scale > 0) ? view.Scale : 100;
             Core.ScaleTiers.Tier tier = Core.ScaleTiers.ForView(view);
             double offsetFt = (tier.OffsetMm / 304.8) * viewScale;
+            // Per-category multiplier from the Scale tab sliders. Defaults to 1.0
+            // for unmapped categories, so callers that pass null host behave
+            // exactly as before (offsetFt unchanged).
+            if (host != null)
+            {
+                string key = MultiplierKeyForCategory(host);
+                if (!string.IsNullOrEmpty(key))
+                {
+                    double mult = Core.ScaleTiers.GetCategoryMultiplier(key);
+                    if (mult > 0 && Math.Abs(mult - 1.0) > 0.001) offsetFt *= mult;
+                }
+            }
             return Math.Min(offsetFt, Core.ScaleTiers.OffsetCapFt);
+        }
+
+        // Phase 165 — map a Revit category to one of the four multiplier
+        // keys exposed in the Scale tab. Returns null when no bucket matches
+        // so the offset is left untouched.
+        private static string MultiplierKeyForCategory(Element host)
+        {
+            try
+            {
+                string cat = host?.Category?.Name ?? "";
+                if (string.IsNullOrEmpty(cat)) return null;
+                if (cat.IndexOf("Duct", StringComparison.OrdinalIgnoreCase) >= 0)     return "DUCTS";
+                if (cat.IndexOf("Pipe", StringComparison.OrdinalIgnoreCase) >= 0)     return "PIPES";
+                // Equipment buckets — Mechanical Equipment, Electrical Equipment
+                if (cat.IndexOf("Equipment", StringComparison.OrdinalIgnoreCase) >= 0) return "EQUIPMENT";
+                // Fixture buckets — Lighting Fixtures, Plumbing Fixtures, Electrical Fixtures
+                if (cat.IndexOf("Fixture", StringComparison.OrdinalIgnoreCase) >= 0)   return "FIXTURES";
+                return null;
+            }
+            catch { return null; }
         }
 
         /// <summary>Get element center point in view coordinates.</summary>

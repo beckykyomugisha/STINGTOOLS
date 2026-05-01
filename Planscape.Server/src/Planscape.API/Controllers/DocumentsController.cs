@@ -114,6 +114,7 @@ public class DocumentsController : ControllerBase
         var tenantId = GetTenantId();
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
         var doc = new DocumentRecord
         {
@@ -161,9 +162,36 @@ public class DocumentsController : ControllerBase
             .Include(p => p.Tenant)
             .FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
+
+        // S7 — geofence parity with IssuesController.CreateIssue. A user
+        // off-site shouldn't be uploading documents that purport to be
+        // from the site. MobileContextMiddleware parses the
+        // X-Latitude / X-Longitude headers; we range-check + boundary-check
+        // them before allowing the write.
+        if (HttpContext.Items.TryGetValue("Latitude", out var latObj) &&
+            HttpContext.Items.TryGetValue("Longitude", out var lngObj) &&
+            latObj is double lat && lngObj is double lng)
+        {
+            if (double.IsNaN(lat) || double.IsNaN(lng) || Math.Abs(lat) > 90 || Math.Abs(lng) > 180)
+                return BadRequest(new { error = "Invalid latitude/longitude range" });
+            if (!_geofence.IsInsideBoundary(project.BoundaryPolygon, lat, lng))
+                return StatusCode(403, new { error = "Device location is outside the project geofence boundary" });
+        }
 
         if (file.Length == 0) return BadRequest("File is empty");
         if (file.Length > MaxFileSize) return BadRequest($"File exceeds {MaxFileSize / (1024 * 1024)} MB limit");
+
+        // S8 — MIME / extension whitelist. The previous code only validated
+        // images; an attacker could upload an .exe with a forged Content-Type
+        // of application/pdf and it would persist unchecked.
+        if (!Planscape.Infrastructure.Security.FileContentValidator
+                .IsAllowedDocumentUpload(file.ContentType, file.FileName))
+        {
+            return BadRequest(new { error = "File type is not permitted for document upload",
+                                    contentType = file.ContentType,
+                                    fileName = file.FileName });
+        }
 
         // Phase 143 — ISO 19650 naming enforcement (per-project toggle).
         // Skipped for non-deliverable types (ATTACHMENT, PHOTO) since site
@@ -457,6 +485,7 @@ public class DocumentsController : ControllerBase
         var doc = await _db.Documents
             .FirstOrDefaultAsync(d => d.Id == docId && d.ProjectId == projectId && d.Project!.TenantId == tenantId);
         if (doc == null) return NotFound();
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
         // Validate transition
         if (!ValidTransitions.TryGetValue(doc.CdeStatus, out var validTargets))
@@ -528,6 +557,7 @@ public class DocumentsController : ControllerBase
         var doc = await _db.Documents
             .FirstOrDefaultAsync(d => d.Id == docId && d.ProjectId == projectId && d.Project!.TenantId == tenantId);
         if (doc == null) return NotFound();
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
         if (!ValidTransitions.TryGetValue(doc.CdeStatus, out var validTargets))
             return BadRequest($"Unknown current state: {doc.CdeStatus}");
@@ -593,6 +623,7 @@ public class DocumentsController : ControllerBase
         var doc = await _db.Documents
             .FirstOrDefaultAsync(d => d.Id == docId && d.ProjectId == projectId && d.Project!.TenantId == tenantId);
         if (doc == null) return NotFound();
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
         var transition = $"{doc.CdeStatus}->{req.TargetState}";
 
@@ -646,6 +677,7 @@ public class DocumentsController : ControllerBase
         var doc = await _db.Documents
             .FirstOrDefaultAsync(d => d.Id == docId && d.ProjectId == projectId && d.Project!.TenantId == tenantId);
         if (doc == null) return NotFound();
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
         if (approval.Status != "PENDING")
             return BadRequest($"Approval already decided: {approval.Status}");

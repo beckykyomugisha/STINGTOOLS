@@ -157,7 +157,9 @@ namespace StingTools.Core
             {
                 string projectPath = doc?.PathName;
                 if (string.IsNullOrEmpty(projectPath)) return;
-                string sidecarPath = System.IO.Path.ChangeExtension(projectPath, ".sting_deferred_elements.json");
+                string sidecarPath = ProjectFolderEngine.GetDataPath(doc, "deferred_elements.json");
+                if (string.IsNullOrEmpty(sidecarPath))
+                    sidecarPath = System.IO.Path.ChangeExtension(projectPath, ".sting_deferred_elements.json");
                 var ids = _droppedElementIds.ToArray();
                 string json = $"{{\"version\":\"1.0\",\"timestamp\":\"{DateTime.Now:o}\",\"dropped_count\":{ids.Length},\"element_ids\":[{string.Join(",", ids)}]}}";
                 string tempPath = sidecarPath + ".tmp";
@@ -185,7 +187,9 @@ namespace StingTools.Core
             {
                 string projectPath = doc?.PathName;
                 if (string.IsNullOrEmpty(projectPath)) return 0;
-                string sidecarPath = System.IO.Path.ChangeExtension(projectPath, ".sting_deferred_elements.json");
+                string sidecarPath = ProjectFolderEngine.GetDataPath(doc, "deferred_elements.json");
+                if (string.IsNullOrEmpty(sidecarPath) || !System.IO.File.Exists(sidecarPath))
+                    sidecarPath = System.IO.Path.ChangeExtension(projectPath, ".sting_deferred_elements.json");
                 if (!System.IO.File.Exists(sidecarPath)) return 0;
 
                 string json = System.IO.File.ReadAllText(sidecarPath);

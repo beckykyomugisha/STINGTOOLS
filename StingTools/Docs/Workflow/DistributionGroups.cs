@@ -42,6 +42,10 @@ namespace Planscape.Docs.Workflow
             if (!File.Exists(path)) return new List<DistributionGroup>();
             try
             {
+                // S3.6.1 — version gate before deserialise.
+                StingTools.Core.PluginSchemaVersion.EnsureFileVersion(
+                    path, "planscape.distribution-groups",
+                    StingTools.Core.PluginSchemaVersion.CurrentDistribution);
                 return JsonConvert.DeserializeObject<List<DistributionGroup>>(File.ReadAllText(path))
                        ?? new List<DistributionGroup>();
             }

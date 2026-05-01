@@ -24,6 +24,13 @@ export default function RootLayout() {
     // NEW-INT-04 — on refresh-token failure, apiFetch emits this event and we
     // force-navigate to the login screen so the user isn't stuck with silent 401s.
     const unsubSession = onSessionExpired(() => {
+      // M7 — guard against re-fire while already on /login. The previous
+      // implementation dispatched clearProjectsCache + store clear EVERY
+      // time a 401 came back, even after the first redirect. On a flaky
+      // network, that meant fresh state was being wiped during login
+      // attempts. Returning early when we're already unauthenticated
+      // makes the handler idempotent.
+      if (segments[0] === 'login') return;
       // Phase 96 — drop any cached server data so the next user on the same
       // device sees fresh tenant-scoped content after re-login.
       import('@/api/endpoints').then(({ clearProjectsCache }) => clearProjectsCache());

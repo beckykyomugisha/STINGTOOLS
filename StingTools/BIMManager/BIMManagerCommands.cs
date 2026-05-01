@@ -6977,8 +6977,12 @@ namespace StingTools.BIMManager
                 if (ctx == null) return Result.Failed;
                 Document doc = ctx.Doc;
 
-                string logPath = System.IO.Path.Combine(
-                    System.IO.Path.GetDirectoryName(doc.PathName ?? "") ?? "", ".sting_coord_log.json");
+                string logPath = StingTools.Core.ProjectFolderEngine.GetDataPath(doc, "coord_log.json");
+                if (string.IsNullOrEmpty(logPath) || !System.IO.File.Exists(logPath))
+                {
+                    logPath = System.IO.Path.Combine(
+                        System.IO.Path.GetDirectoryName(doc.PathName ?? "") ?? "", ".sting_coord_log.json");
+                }
                 if (!System.IO.File.Exists(logPath))
                 { TaskDialog.Show("STING", "No coordination log found."); return Result.Succeeded; }
 
@@ -9764,7 +9768,9 @@ namespace StingTools.BIMManager
                 $"STING_TagMap_{DateTime.Now:yyyyMMdd_HHmm}.sting_tagmap.json");
             if (string.IsNullOrEmpty(exportPath))
             {
-                string dir = Path.GetDirectoryName(doc.PathName) ?? Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                string dir = StingTools.Core.ProjectFolderEngine.GetDataPath(doc)
+                    ?? Path.GetDirectoryName(doc.PathName)
+                    ?? Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
                 exportPath = Path.Combine(dir, $"STING_TagMap_{DateTime.Now:yyyyMMdd_HHmm}.sting_tagmap.json");
             }
 

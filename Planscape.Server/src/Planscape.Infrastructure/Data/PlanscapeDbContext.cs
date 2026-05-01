@@ -1,12 +1,14 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
+using Planscape.Core.Interfaces;
 
 namespace Planscape.Infrastructure.Data;
 
 public class PlanscapeDbContext : DbContext
 {
     private readonly IHttpContextAccessor? _httpContextAccessor;
+    private readonly ITenantContext? _tenantContext;
 
     public PlanscapeDbContext(DbContextOptions<PlanscapeDbContext> options) : base(options) { }
 
@@ -15,6 +17,37 @@ public class PlanscapeDbContext : DbContext
     {
         _httpContextAccessor = httpContextAccessor;
     }
+
+    /// <summary>
+    /// S1.1 — DI-friendly ctor used at runtime so the global tenant
+    /// query filter has access to the resolved tenant id without
+    /// reaching into HttpContext on every read. Migrations + tooling
+    /// keep using the parameterless ctor (TenantContext stays null and
+    /// the filter degrades to "no rows" — safe by default).
+    /// </summary>
+    public PlanscapeDbContext(DbContextOptions<PlanscapeDbContext> options,
+                              IHttpContextAccessor httpContextAccessor,
+                              ITenantContext tenantContext)
+        : base(options)
+    {
+        _httpContextAccessor = httpContextAccessor;
+        _tenantContext = tenantContext;
+    }
+
+    /// <summary>
+    /// Returns the resolved tenant id for query-filter use. Defaults to
+    /// <see cref="Guid.Empty"/> when no tenant context is wired (design-time,
+    /// EF tooling, background jobs that bypass tenant scoping). Empty matches
+    /// no rows so a missing tenant context fails closed, never open.
+    /// </summary>
+    public Guid CurrentTenantId => _tenantContext?.TenantId ?? Guid.Empty;
+
+    /// <summary>
+    /// Background jobs / migrations / cross-tenant admin tools set this to
+    /// disable the global query filter for the lifetime of the DbContext.
+    /// Use sparingly and audit every call site. Defaults to false.
+    /// </summary>
+    public bool BypassTenantFilter { get; set; }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -32,6 +65,21 @@ public class PlanscapeDbContext : DbContext
                     log.Longitude = longitude;
                 if (log.DeviceId != null)
                     log.Source = "mobile";
+            }
+        }
+
+        // S1.1 — auto-stamp TenantId on every Added entity that implements
+        // ITenantScoped. Prevents the second-most-common tenant leak: a
+        // controller that forgot to set TenantId before saving. Existing
+        // values are preserved (admin tooling can set TenantId explicitly
+        // when crossing tenants is intentional).
+        var tid = CurrentTenantId;
+        if (tid != Guid.Empty)
+        {
+            foreach (var entry in ChangeTracker.Entries<ITenantScoped>().Where(e => e.State == EntityState.Added))
+            {
+                if (entry.Entity.TenantId == Guid.Empty)
+                    entry.Entity.TenantId = tid;
             }
         }
         return await base.SaveChangesAsync(cancellationToken);
@@ -84,6 +132,22 @@ public class PlanscapeDbContext : DbContext
 
     // Phase 165 (NEW-08) — outbound webhook subscriptions.
     public DbSet<OutboundWebhook> OutboundWebhooks => Set<OutboundWebhook>();
+
+    // S2.1 — billing entities (provider-agnostic).
+    public DbSet<Subscription> Subscriptions => Set<Subscription>();
+    public DbSet<Invoice>      Invoices      => Set<Invoice>();
+    public DbSet<Payment>      Payments      => Set<Payment>();
+    // S3.2 — transactional outbox.
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    // S5.1 — scene-index chunks (one row per discipline/level/system slice
+    // of a federated ProjectModel; mobile streams these on demand).
+    public DbSet<SceneNode> SceneNodes => Set<SceneNode>();
+    // S6.1 — voice notes on issues.
+    public DbSet<IssueAudioNote> IssueAudioNotes => Set<IssueAudioNote>();
+    // S6.2 — 3D markup polylines anchored to a model / project.
+    public DbSet<ModelMarkup> ModelMarkups => Set<ModelMarkup>();
+    // S6.3 — CRDT update log for collaborative pin / issue editing.
+    public DbSet<PinCrdtUpdate> PinCrdtUpdates => Set<PinCrdtUpdate>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -297,6 +361,12 @@ public class PlanscapeDbContext : DbContext
         {
             e.HasKey(b => b.Id);
             e.HasIndex(b => b.TenantId).IsUnique();
+            // S15 — direction is "Tenant (principal) → TenantBranding (dependent)".
+            // OnDelete(Cascade) here means: deleting a Tenant cascade-deletes
+            // its branding row. It does NOT mean deleting a branding row
+            // deletes the tenant — the FK runs from branding to tenant, not
+            // the reverse. Previous audit flagged this; the configuration is
+            // correct as written.
             e.HasOne(b => b.Tenant).WithMany().HasForeignKey(b => b.TenantId).OnDelete(DeleteBehavior.Cascade);
             e.Property(b => b.ProductName).HasMaxLength(100);
             e.Property(b => b.AccentColor).HasMaxLength(20);
@@ -535,5 +605,90 @@ public class PlanscapeDbContext : DbContext
             e.HasOne(w => w.Tenant).WithMany().HasForeignKey(w => w.TenantId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(w => w.Project).WithMany().HasForeignKey(w => w.ProjectId).OnDelete(DeleteBehavior.Cascade);
         });
+
+        // ── S2.1 — Billing entities ─────────────────────────────────────
+        modelBuilder.Entity<Subscription>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.TenantId, x.Status });
+            e.HasIndex(x => x.ProviderSubscriptionId);
+            e.Property(x => x.Provider).IsRequired().HasMaxLength(20);
+            e.Property(x => x.Plan).IsRequired().HasMaxLength(20);
+            e.Property(x => x.Currency).IsRequired().HasMaxLength(3);
+            e.Property(x => x.ProviderCustomerId).HasMaxLength(120);
+            e.Property(x => x.ProviderSubscriptionId).HasMaxLength(120);
+        });
+        modelBuilder.Entity<Invoice>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.TenantId, x.InvoiceNumber }).IsUnique();
+            e.HasIndex(x => x.SubscriptionId);
+            e.HasIndex(x => x.Status);
+            e.Property(x => x.Provider).IsRequired().HasMaxLength(20);
+            e.Property(x => x.ProviderInvoiceId).HasMaxLength(120);
+            e.Property(x => x.InvoiceNumber).IsRequired().HasMaxLength(40);
+            e.Property(x => x.Currency).IsRequired().HasMaxLength(3);
+            e.Property(x => x.PdfStoragePath).HasMaxLength(500);
+            e.Property(x => x.PurchaseOrderRef).HasMaxLength(80);
+        });
+        modelBuilder.Entity<Payment>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.InvoiceId);
+            e.HasIndex(x => new { x.Provider, x.ProviderEventId }).IsUnique()
+                .HasFilter("\"ProviderEventId\" IS NOT NULL");
+            e.Property(x => x.Provider).IsRequired().HasMaxLength(20);
+            e.Property(x => x.ProviderTransactionId).HasMaxLength(120);
+            e.Property(x => x.ProviderEventId).HasMaxLength(120);
+            e.Property(x => x.Currency).IsRequired().HasMaxLength(3);
+            e.Property(x => x.MethodKind).HasMaxLength(40);
+            e.Property(x => x.MethodSuffix).HasMaxLength(20);
+        });
+
+        // ── S1.1 — Global tenant query filter ───────────────────────────
+        // Every entity that implements ITenantScoped is filtered by the
+        // currently-resolved tenant id automatically. The filter degrades
+        // to "no rows" when no tenant context is set (Guid.Empty), so an
+        // unauthenticated background job sees nothing rather than
+        // everything. Hot reads use the indexed TenantId column directly,
+        // no joins required.
+        ApplyTenantQueryFilters(modelBuilder);
+        // Ensure every tenant-scoped entity has an index on TenantId so the
+        // query filter doesn't degenerate into a sequential scan.
+        AddTenantIdIndexes(modelBuilder);
+    }
+
+    private void ApplyTenantQueryFilters(ModelBuilder modelBuilder)
+    {
+        var entityTypes = modelBuilder.Model.GetEntityTypes()
+            .Where(t => typeof(ITenantScoped).IsAssignableFrom(t.ClrType));
+
+        foreach (var entityType in entityTypes)
+        {
+            var clrType = entityType.ClrType;
+            var parameter = System.Linq.Expressions.Expression.Parameter(clrType, "e");
+            var tenantIdProperty = System.Linq.Expressions.Expression.Property(parameter, nameof(ITenantScoped.TenantId));
+            var currentTenantIdProperty = System.Linq.Expressions.Expression.Property(
+                System.Linq.Expressions.Expression.Constant(this), nameof(CurrentTenantId));
+            var bypass = System.Linq.Expressions.Expression.Property(
+                System.Linq.Expressions.Expression.Constant(this), nameof(BypassTenantFilter));
+            var equality = System.Linq.Expressions.Expression.Equal(tenantIdProperty, currentTenantIdProperty);
+            var body = System.Linq.Expressions.Expression.OrElse(bypass, equality);
+            var lambda = System.Linq.Expressions.Expression.Lambda(body, parameter);
+            modelBuilder.Entity(clrType).HasQueryFilter(lambda);
+        }
+    }
+
+    private static void AddTenantIdIndexes(ModelBuilder modelBuilder)
+    {
+        var entityTypes = modelBuilder.Model.GetEntityTypes()
+            .Where(t => typeof(ITenantScoped).IsAssignableFrom(t.ClrType));
+        foreach (var entityType in entityTypes)
+        {
+            var hasIndex = entityType.GetIndexes().Any(i =>
+                i.Properties.Count == 1 && i.Properties[0].Name == nameof(ITenantScoped.TenantId));
+            if (!hasIndex)
+                modelBuilder.Entity(entityType.ClrType).HasIndex(nameof(ITenantScoped.TenantId));
+        }
     }
 }

@@ -18,10 +18,13 @@ import { useEffect, useState } from "react";
 import en from "./locales/en.json";
 import de from "./locales/de.json";
 import es from "./locales/es.json";
+// S6.4 — Swahili (sw) for the Uganda / Kenya / Tanzania / Rwanda /
+// DR Congo corridor. Auto-selected when device locale starts with 'sw'.
+import sw from "./locales/sw.json";
 
 type Bundle = Record<string, any>;
 
-const BUNDLES: Record<string, Bundle> = { en, de, es };
+const BUNDLES: Record<string, Bundle> = { en, de, es, sw };
 const FALLBACK = "en";
 const STORAGE_KEY = "planscape.language";
 
@@ -64,12 +67,37 @@ export function supportedLanguages(): string[] { return Object.keys(BUNDLES); }
 /**
  * Translate a dotted key with optional parameter substitution.
  * Unknown keys return the literal key so missing translations are visible in dev.
+ *
+ * M14 — when the active language is not English and a key falls back to the
+ * English bundle, warn once per (lang, key) pair in dev builds. The previous
+ * silent fallback meant untranslated strings shipped to QA without anyone
+ * noticing. Production builds skip the warning to avoid log noise.
  */
+const _i18nWarned = new Set<string>();
+
 export function t(key: string, vars?: Record<string, string | number>): string {
   const bundle = BUNDLES[currentLanguage] ?? BUNDLES[FALLBACK];
   const fallbackBundle = BUNDLES[FALLBACK];
 
-  const value = lookup(bundle, key) ?? lookup(fallbackBundle, key) ?? key;
+  const direct = lookup(bundle, key);
+  const fallbackVal = direct == null ? lookup(fallbackBundle, key) : null;
+  const value = direct ?? fallbackVal ?? key;
+
+  if (
+    direct == null
+    && currentLanguage !== FALLBACK
+    && typeof __DEV__ !== 'undefined'
+    && (__DEV__ as boolean)
+  ) {
+    const sig = `${currentLanguage}:${key}`;
+    if (!_i18nWarned.has(sig)) {
+      _i18nWarned.add(sig);
+      const reason = fallbackVal != null ? 'falling back to en' : 'no translation found';
+      // eslint-disable-next-line no-console
+      console.warn(`[i18n] missing "${currentLanguage}" translation for "${key}" — ${reason}`);
+    }
+  }
+
   if (!vars) return value;
 
   return value.replace(/\{([A-Za-z0-9_]+)\}/g, (_, name) => {

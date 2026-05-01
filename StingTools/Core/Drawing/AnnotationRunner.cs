@@ -141,6 +141,42 @@ namespace StingTools.Core.Drawing
                 "MaterialTag", "KeynoteTag", "MultiCategoryTag",
             };
 
+            // Phase 165 — Auto3DTag short-circuits to Tag3DCommand.PlaceTagsInView
+            // when the active view is a 3D view. Pulled out of the standard tag-rule
+            // path because IndependentTag is 2D-only; 3D tags are FamilyInstances of
+            // a Generic Model "tag bubble" carrying ASS_TAG_3D_TXT.
+            if (pack.Rules != null)
+            {
+                var auto3D = pack.Rules
+                    .Where(r => r != null && r.Enabled &&
+                                string.Equals(r.RuleType, "Auto3DTag", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                if (auto3D.Count > 0)
+                {
+                    if (view is View3D v3d)
+                    {
+                        // Read the DrawingType profile's displayMode 6 hint via the
+                        // STING_DISPLAY_MODE view stamp; if 6, tag with TAG7 narrative.
+                        bool useNarrative = false;
+                        try
+                        {
+                            int dispMode = StingTools.Core.ParameterHelpers
+                                .GetInt(view, StingTools.Core.ParamRegistry.DISPLAY_MODE, 0);
+                            useNarrative = dispMode == 6;
+                        }
+                        catch { /* defensive */ }
+
+                        var r3d = StingTools.Tags.Tag3DCommand.PlaceTagsInView(doc, v3d, useNarrative);
+                        result.TagsPlaced += r3d.Placed;
+                        foreach (var w in r3d.Warnings) result.Warnings.Add($"Auto3DTag: {w}");
+                    }
+                    else
+                    {
+                        result.Warnings.Add($"Auto3DTag rule skipped — active view '{view.Name}' is not a 3D view.");
+                    }
+                }
+            }
+
             List<AutoAnnotationRule> effective;
             if (pack.Rules != null && pack.Rules.Count > 0)
             {

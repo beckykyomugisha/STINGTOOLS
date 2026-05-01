@@ -78,12 +78,19 @@ export function getThemePref(): ThemeMode {
 /**
  * Resolves the active Theme. Honours user preference (light/dark) or falls
  * back to the OS color scheme when the preference is 'system'.
+ *
+ * M10 — re-syncs the local mode state on mount so a hook-consuming screen
+ * that mounts AFTER setThemePref was called still gets the latest value
+ * even if the listener notification raced the mount.
  */
 export function useTheme(): Theme {
   const scheme = useColorScheme();
   const [mode, setMode] = useState<ThemeMode>(_mode);
 
   useEffect(() => {
+    // M10 — re-read on mount in case _mode was updated between the
+    // initial useState evaluation and the effect run.
+    setMode(_mode);
     const cb = (m: ThemeMode) => setMode(m);
     _listeners.add(cb);
     return () => { _listeners.delete(cb); };
