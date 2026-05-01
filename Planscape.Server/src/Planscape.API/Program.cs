@@ -600,6 +600,8 @@ app.MapControllers();
 app.MapHub<ComplianceHub>("/hubs/compliance");
 app.MapHub<TagSyncHub>("/hubs/tagsync");
 app.MapHub<NotificationHub>("/hubs/notifications");
+// S6.3 — CRDT relay for collaborative pin / issue editing.
+app.MapHub<Planscape.Infrastructure.SignalR.CrdtHub>("/hubs/crdt");
 
 // ── Database migration + seed ──
 {

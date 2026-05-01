@@ -146,6 +146,8 @@ public class PlanscapeDbContext : DbContext
     public DbSet<IssueAudioNote> IssueAudioNotes => Set<IssueAudioNote>();
     // S6.2 — 3D markup polylines anchored to a model / project.
     public DbSet<ModelMarkup> ModelMarkups => Set<ModelMarkup>();
+    // S6.3 — CRDT update log for collaborative pin / issue editing.
+    public DbSet<PinCrdtUpdate> PinCrdtUpdates => Set<PinCrdtUpdate>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
