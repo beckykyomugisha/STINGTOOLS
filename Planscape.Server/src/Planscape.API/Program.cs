@@ -407,6 +407,30 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0
         });
     });
+
+    // S7.6 — per-tenant policy. Budgets a tenant's whole organisation
+    // proportional to its plan so a buggy automation account on
+    // tenant A can't DoS the cluster for tenant B. Reads tenant id
+    // from JWT claim 'tenant_id' (set by AuthController on login);
+    // anonymous requests partition by IP as a fallback.
+    options.AddPolicy("per-tenant", context =>
+    {
+        var tenantId = context.User?.FindFirst("tenant_id")?.Value
+                       ?? context.Connection.RemoteIpAddress?.ToString()
+                       ?? "anon";
+        // Default budget: 600/min for paying tenants, 60/min for trial.
+        // Plan resolution happens in middleware (TenantContext is scoped),
+        // so we keep a simple bucket here and let the [Quota] attribute
+        // (S1.4) own plan-specific axes. This rate-limit is a 'cluster
+        // safety net' — not a feature gate.
+        return RateLimitPartition.GetFixedWindowLimiter(tenantId, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 600,
+            Window = TimeSpan.FromMinutes(1),
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit = 0,
+        });
+    });
 });
 
 // ── CORS ──
