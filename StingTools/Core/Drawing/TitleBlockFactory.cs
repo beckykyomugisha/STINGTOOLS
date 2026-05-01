@@ -470,12 +470,18 @@ namespace StingTools.Core.Drawing
                 try
                 {
                     // 1. Length parameter for the group's height.
+                    // Revit family-formula parser is unit-context-sensitive — the
+                    // safest form is unitless feet (Revit's internal length unit),
+                    // written with an explicit `'` (feet) suffix so it's parsed
+                    // as a length literal rather than a number expression.
                     var heightParamName = string.IsNullOrEmpty(grp.HeightParam)
                         ? $"H_{grp.Id}_MM" : grp.HeightParam;
+                    var fullFt      = MmToFt(grp.FullHeightMm).ToString("0.########", System.Globalization.CultureInfo.InvariantCulture);
+                    var collapsedFt = MmToFt(grp.CollapsedHeightMm).ToString("0.########", System.Globalization.CultureInfo.InvariantCulture);
                     var hp = AddInternalParameter(fm, heightParamName,
                         "Length", "Constraints", isInstance: false,
                         defaultValue: null,
-                        formula: $"if({spec.BimModeParameter}, {grp.FullHeightMm} mm, {grp.CollapsedHeightMm} mm)",
+                        formula: $"IF({spec.BimModeParameter}, {fullFt}', {collapsedFt}')",
                         r);
                     if (hp != null) map[heightParamName] = hp;
 
@@ -484,7 +490,7 @@ namespace StingTools.Core.Drawing
                     var vp = AddInternalParameter(fm, visName, "YesNo",
                         "Constraints", isInstance: false,
                         defaultValue: null,
-                        formula: $"{spec.BimModeParameter} and ({heightParamName} > 0 mm)",
+                        formula: $"{spec.BimModeParameter} AND ({heightParamName} > 0')",
                         r);
                     if (vp != null)
                     {
@@ -695,20 +701,57 @@ namespace StingTools.Core.Drawing
             if (string.IsNullOrEmpty(styleName) || dc == null) return;
             try
             {
-                var lines = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Lines);
-                if (lines == null) return;
-                foreach (Category sub in lines.SubCategories)
+                // Title-block line styles like "Wide Lines" / "Medium Lines" /
+                // "Thin Lines" can live as subcategories of OST_TitleBlocks
+                // (most title-block templates) OR OST_Lines (when the user
+                // has migrated them to the generic-lines category). Search
+                // both — first hit wins.
+                GraphicsStyle hit = LookupLineStyle(doc, BuiltInCategory.OST_TitleBlocks, styleName)
+                                 ?? LookupLineStyle(doc, BuiltInCategory.OST_Lines,        styleName);
+
+                // Fall-back chain: try the next-thinner style so a line still
+                // gets *some* weight rather than landing on the default
+                // <Invisible lines> some templates put first.
+                if (hit == null)
                 {
-                    if (string.Equals(sub.Name, styleName, StringComparison.OrdinalIgnoreCase))
+                    string[] fallbacks =
+                        styleName.Equals("Wide Lines",   StringComparison.OrdinalIgnoreCase) ? new[] { "Medium Lines", "Thin Lines" } :
+                        styleName.Equals("Medium Lines", StringComparison.OrdinalIgnoreCase) ? new[] { "Wide Lines",   "Thin Lines" } :
+                        styleName.Equals("Thin Lines",   StringComparison.OrdinalIgnoreCase) ? new[] { "Medium Lines", "Wide Lines" } :
+                                                                                               new[] { "Thin Lines", "Medium Lines", "Wide Lines" };
+                    foreach (var fb in fallbacks)
                     {
-                        var gs = sub.GetGraphicsStyle(GraphicsStyleType.Projection);
-                        if (gs != null) dc.LineStyle = gs;
-                        return;
+                        hit = LookupLineStyle(doc, BuiltInCategory.OST_TitleBlocks, fb)
+                           ?? LookupLineStyle(doc, BuiltInCategory.OST_Lines,        fb);
+                        if (hit != null) break;
                     }
                 }
-                r.Warnings.Add($"line style '{styleName}' not found");
+
+                if (hit != null)
+                {
+                    dc.LineStyle = hit;
+                    return;
+                }
+                r.Warnings.Add($"line style '{styleName}' not found (no fallback available)");
             }
             catch (Exception ex) { r.Warnings.Add($"ApplyLineStyle '{styleName}': {ex.Message}"); }
+        }
+
+        private static GraphicsStyle LookupLineStyle(Document doc,
+            BuiltInCategory parentCat, string styleName)
+        {
+            try
+            {
+                var parent = doc.Settings.Categories.get_Item(parentCat);
+                if (parent?.SubCategories == null) return null;
+                foreach (Category sub in parent.SubCategories)
+                {
+                    if (string.Equals(sub.Name, styleName, StringComparison.OrdinalIgnoreCase))
+                        return sub.GetGraphicsStyle(GraphicsStyleType.Projection);
+                }
+            }
+            catch { /* swallowed — caller logs */ }
+            return null;
         }
 
         private static ElementId ResolveTextNoteTypeId(Document doc, string typeName)

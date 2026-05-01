@@ -269,7 +269,7 @@
           "instance": true,
           "type": "Text",
           "group": "IdentityData",
-          "formula": "STING_SHEET_PROJECT_TXT & \"-\" & STING_SHEET_ORIG_TXT & \"-\" & STING_SHEET_VOL_TXT & \"-\" & STING_SHEET_LVL_TXT & \"-\" & STING_SHEET_TYPE_TXT & \"-\" & STING_SHEET_ROL_TXT & \"-\" & STING_SHEET_SEQ_TXT"
+          "formula": "STING_SHEET_PROJECT_TXT + \"-\" + STING_SHEET_ORIG_TXT + \"-\" + STING_SHEET_VOL_TXT + \"-\" + STING_SHEET_LVL_TXT + \"-\" + STING_SHEET_TYPE_TXT + \"-\" + STING_SHEET_ROL_TXT + \"-\" + STING_SHEET_SEQ_TXT"
         }
       ],
       "lines": [
