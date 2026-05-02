@@ -77,7 +77,12 @@ public sealed class PlanscapeServerClient : IDisposable
             _serverUrl = serverUrl.TrimEnd('/');
             EnsureHttpClient(_serverUrl);
 
-            var resp = await PostJsonAsync("/api/auth/login", new { email, password });
+            // ConfigureAwait(false) prevents the continuation from being
+            // posted back to a captured SynchronizationContext (e.g. the
+            // WPF dispatcher when this is called via .GetResult() from
+            // an IExternalEventHandler). Without it, the dispatcher
+            // deadlocks waiting for itself.
+            var resp = await PostJsonAsync("/api/auth/login", new { email, password }).ConfigureAwait(false);
             if (!resp.ok) { LastError = $"Login failed: {resp.body}"; return false; }
 
             ParseAuthResponse(JObject.Parse(resp.body), email);
@@ -111,7 +116,7 @@ public sealed class PlanscapeServerClient : IDisposable
         if (string.IsNullOrEmpty(_refreshToken)) return false;
         try
         {
-            var resp = await PostJsonAsync("/api/auth/refresh", new { refreshToken = _refreshToken });
+            var resp = await PostJsonAsync("/api/auth/refresh", new { refreshToken = _refreshToken }).ConfigureAwait(false);
             if (!resp.ok) { StingLog.Warn($"Planscape: Token refresh failed: {resp.body}"); return false; }
 
             var json = JObject.Parse(resp.body);
@@ -134,7 +139,7 @@ public sealed class PlanscapeServerClient : IDisposable
         if (string.IsNullOrEmpty(_accessToken)) { LastError = "Not connected to Planscape server."; return false; }
         // Refresh if token expires within 10 minutes
         if (_tokenExpiry <= DateTime.UtcNow.AddMinutes(10))
-            return await RefreshTokenAsync();
+            return await RefreshTokenAsync().ConfigureAwait(false);
         return true;
     }
 
@@ -976,7 +981,7 @@ public sealed class PlanscapeServerClient : IDisposable
 
             // Otherwise refresh. RefreshTokenAsync rewrites _accessToken /
             // _tokenExpiry on success and persists the new state.
-            if (await RefreshTokenAsync())
+            if (await RefreshTokenAsync().ConfigureAwait(false))
             {
                 StingLog.Info($"Planscape: Session restored + refreshed for {ConnectedUser}.");
                 return true;
