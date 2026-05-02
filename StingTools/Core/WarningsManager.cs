@@ -5615,6 +5615,34 @@ namespace StingTools.Core
                 return;
             }
 
+            // BCC Platform tab → Planscape inline actions that aren't IExternalCommand classes.
+            // StingCommandHandler.Execute handles these inline; mirror that here so BCC's
+            // ExternalEvent path doesn't fall through to "Action 'X' is not handled".
+            if (string.Equals(action, "PlanscapeDisconnect", StringComparison.OrdinalIgnoreCase)
+             || string.Equals(action, "PlanscapeUnlinkProject", StringComparison.OrdinalIgnoreCase)
+             || string.Equals(action, "PlanscapeClearCredentials", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    BIMManager.PlanscapeServerClient.Instance.Disconnect();
+                    if (string.Equals(action, "PlanscapeDisconnect", StringComparison.OrdinalIgnoreCase))
+                        TaskDialog.Show("Planscape", "Disconnected from Planscape server.");
+                }
+                catch (Exception ex) { StingLog.Warn($"{action} dispatch: {ex.Message}"); }
+                return;
+            }
+            if (string.Equals(action, "PlanscapeSyncNow", StringComparison.OrdinalIgnoreCase)
+             || string.Equals(action, "PlanscapeOpenBrowser", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var uiApp = UI.StingCommandHandler.CurrentApp;
+                    if (uiApp != null) BIMManager.PlatformSyncCommand.SyncToPlanscapeServer(uiApp);
+                }
+                catch (Exception ex) { StingLog.Warn($"{action} dispatch: {ex.Message}"); }
+                return;
+            }
+
             // Handle DocumentManager inline (opens WPF dialog directly)
             if (string.Equals(action, "DocumentManager", StringComparison.OrdinalIgnoreCase))
             {
