@@ -121,17 +121,25 @@ namespace StingTools.Commands.Drawing
                     {
                         var level = levels.FirstOrDefault(l => l.Name == levelName);
                         if (level == null) continue;
-                        foreach (var dt in pickedTypes)
+                        using (var t = new Transaction(doc, $"STING Produce Per Level - {level.Name}"))
                         {
-                            using (var t = new Transaction(doc, $"STING Produce {dt.Name} - {level.Name}"))
+                            t.Start();
+                            try
                             {
-                                t.Start();
-                                var dctx = new DrawingContext { Level = level, PackageId = res.Preset?.PackageId };
-                                var pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
-                                views += pr.ViewIds.Count;
-                                if (pr.SheetId != ElementId.InvalidElementId) sheets++;
-                                warnings.AddRange(pr.Warnings);
+                                foreach (var dt in pickedTypes)
+                                {
+                                    var dctx = new DrawingContext { Level = level, PackageId = res.Preset?.PackageId };
+                                    var pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
+                                    views += pr.ViewIds.Count;
+                                    if (pr.SheetId != ElementId.InvalidElementId) sheets++;
+                                    warnings.AddRange(pr.Warnings);
+                                }
                                 t.Commit();
+                            }
+                            catch (Exception innerEx)
+                            {
+                                StingLog.Warn($"ProduceViewsPerLevel level={level.Name}: {innerEx.Message}");
+                                t.RollBack();
                             }
                         }
                     }
@@ -263,17 +271,25 @@ namespace StingTools.Commands.Drawing
                             return $"{n} ({num})" == roomLabel;
                         });
                         if (room == null) continue;
-                        foreach (var dt in pickedTypes)
+                        using (var t = new Transaction(doc, $"STING Interior Elev {roomLabel}"))
                         {
-                            using (var t = new Transaction(doc, $"STING Interior Elev {dt.Name} {roomLabel}"))
+                            t.Start();
+                            try
                             {
-                                t.Start();
-                                var dctx = new DrawingContext { Room = room, Tag = roomLabel, PackageId = res.Preset?.PackageId };
-                                var pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
-                                views += pr.ViewIds.Count;
-                                if (pr.SheetId != ElementId.InvalidElementId) sheets++;
-                                warnings.AddRange(pr.Warnings);
+                                foreach (var dt in pickedTypes)
+                                {
+                                    var dctx = new DrawingContext { Room = room, Tag = roomLabel, PackageId = res.Preset?.PackageId };
+                                    var pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
+                                    views += pr.ViewIds.Count;
+                                    if (pr.SheetId != ElementId.InvalidElementId) sheets++;
+                                    warnings.AddRange(pr.Warnings);
+                                }
                                 t.Commit();
+                            }
+                            catch (Exception innerEx)
+                            {
+                                StingLog.Warn($"ProduceInteriorElevations room={roomLabel}: {innerEx.Message}");
+                                t.RollBack();
                             }
                         }
                     }
@@ -355,18 +371,28 @@ namespace StingTools.Commands.Drawing
                 {
                     tg.Start();
                     foreach (var dctx in contextsToProduce)
-                        foreach (var dt in pickedTypes)
+                    {
+                        using (var t = new Transaction(doc, $"STING Section {dctx.Tag}"))
                         {
-                            using (var t = new Transaction(doc, $"STING Section {dt.Name} {dctx.Tag}"))
+                            t.Start();
+                            try
                             {
-                                t.Start();
-                                var pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
-                                views += pr.ViewIds.Count;
-                                if (pr.SheetId != ElementId.InvalidElementId) sheets++;
-                                warnings.AddRange(pr.Warnings);
+                                foreach (var dt in pickedTypes)
+                                {
+                                    var pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
+                                    views += pr.ViewIds.Count;
+                                    if (pr.SheetId != ElementId.InvalidElementId) sheets++;
+                                    warnings.AddRange(pr.Warnings);
+                                }
                                 t.Commit();
                             }
+                            catch (Exception innerEx)
+                            {
+                                StingLog.Warn($"ProduceSections context={dctx.Tag}: {innerEx.Message}");
+                                t.RollBack();
+                            }
                         }
+                    }
                     tg.Assimilate();
                 }
                 BatchProduceCommons.ShowResult("Produce Sections", views, sheets, warnings);
@@ -435,40 +461,48 @@ namespace StingTools.Commands.Drawing
                             case "West":  idx = 3; origin = new XYZ(bb.Min.X - offFt, (bb.Min.Y + bb.Max.Y) / 2, 0); break;
                             default: continue;
                         }
-                        foreach (var dt in pickedTypes)
+                        using (var t = new Transaction(doc, $"STING Exterior Elev {face}"))
                         {
-                            using (var t = new Transaction(doc, $"STING Exterior Elev {face}"))
+                            t.Start();
+                            try
                             {
-                                t.Start();
-                                try
+                                foreach (var dt in pickedTypes)
                                 {
-                                    var vft = new FilteredElementCollector(doc).OfClass(typeof(ViewFamilyType))
-                                        .Cast<ViewFamilyType>()
-                                        .FirstOrDefault(vt => vt.ViewFamily == ViewFamily.Elevation);
-                                    if (vft == null) { warnings.Add("No elevation ViewFamilyType."); t.RollBack(); continue; }
-                                    var ownerPlan = new FilteredElementCollector(doc).OfClass(typeof(ViewPlan)).Cast<ViewPlan>().FirstOrDefault(v => !v.IsTemplate);
-                                    if (ownerPlan == null) { warnings.Add("No owner plan for elevation marker."); t.RollBack(); continue; }
-                                    var marker = ElevationMarker.CreateElevationMarker(doc, vft.Id, origin, dt.Scale > 0 ? dt.Scale : 100);
-                                    var view = marker.CreateElevation(doc, ownerPlan.Id, idx);
-                                    try { view.Name = $"Exterior Elevation - {face} - {dt.Name}"; } catch { }
                                     try
                                     {
-                                        var fp = view.get_Parameter(BuiltInParameter.VIEWER_BOUND_OFFSET_FAR);
-                                        if (fp != null && !fp.IsReadOnly) fp.Set(elev.FarClipMm / 304.8);
+                                        var vft = new FilteredElementCollector(doc).OfClass(typeof(ViewFamilyType))
+                                            .Cast<ViewFamilyType>()
+                                            .FirstOrDefault(vt => vt.ViewFamily == ViewFamily.Elevation);
+                                        if (vft == null) { warnings.Add("No elevation ViewFamilyType."); continue; }
+                                        var ownerPlan = new FilteredElementCollector(doc).OfClass(typeof(ViewPlan)).Cast<ViewPlan>().FirstOrDefault(v => !v.IsTemplate);
+                                        if (ownerPlan == null) { warnings.Add("No owner plan for elevation marker."); continue; }
+                                        var marker = ElevationMarker.CreateElevationMarker(doc, vft.Id, origin, dt.Scale > 0 ? dt.Scale : 100);
+                                        var view = marker.CreateElevation(doc, ownerPlan.Id, idx);
+                                        try { view.Name = $"Exterior Elevation - {face} - {dt.Name}"; } catch { }
+                                        try
+                                        {
+                                            var fp = view.get_Parameter(BuiltInParameter.VIEWER_BOUND_OFFSET_FAR);
+                                            if (fp != null && !fp.IsReadOnly) fp.Set(elev.FarClipMm / 304.8);
+                                        }
+                                        catch { }
+                                        var ar = DrawingTypePresentation.Apply(doc, view, dt, new DrawingTypePresentation.ApplyOptions
+                                        {
+                                            AnnotationOptions = new AnnotationRunOptions { ViewScale = view.Scale }
+                                        });
+                                        warnings.AddRange(ar.Warnings);
+                                        DrawingTypeStamper.Stamp(view, dt.Id);
+                                        DrawingTypeStamper.StampPackage(view, res.Preset?.PackageId ?? dt.PackageId ?? "");
+                                        ParameterHelpers.SetString(view, ParamRegistry.STING_VIEW_CONTEXT_TAG, $"exterior::face::{face}", overwrite: true);
+                                        views++;
                                     }
-                                    catch { }
-                                    var ar = DrawingTypePresentation.Apply(doc, view, dt, new DrawingTypePresentation.ApplyOptions
-                                    {
-                                        AnnotationOptions = new AnnotationRunOptions { ViewScale = view.Scale }
-                                    });
-                                    warnings.AddRange(ar.Warnings);
-                                    DrawingTypeStamper.Stamp(view, dt.Id);
-                                    DrawingTypeStamper.StampPackage(view, res.Preset?.PackageId ?? dt.PackageId ?? "");
-                                    ParameterHelpers.SetString(view, ParamRegistry.STING_VIEW_CONTEXT_TAG, $"exterior::face::{face}", overwrite: true);
-                                    views++;
+                                    catch (Exception ex) { warnings.Add($"Exterior {face}/{dt.Name}: {ex.Message}"); }
                                 }
-                                catch (Exception ex) { warnings.Add($"Exterior {face}/{dt.Name}: {ex.Message}"); }
                                 t.Commit();
+                            }
+                            catch (Exception innerEx)
+                            {
+                                StingLog.Warn($"ProduceExteriorElevations face={face}: {innerEx.Message}");
+                                t.RollBack();
                             }
                         }
                     }
@@ -510,16 +544,24 @@ namespace StingTools.Commands.Drawing
                     tg.Start();
                     foreach (var pack in chosen)
                     {
-                        foreach (var vt in new[] { ViewType.FloorPlan, ViewType.CeilingPlan, ViewType.Section, ViewType.Elevation, ViewType.Detail, ViewType.ThreeD })
+                        using (var t = new Transaction(doc, $"STING Regen {pack.Name}"))
                         {
-                            using (var t = new Transaction(doc, $"STING Regen {pack.Name} {vt}"))
+                            t.Start();
+                            try
                             {
-                                t.Start();
-                                var pr = new PackApplyResult();
-                                var id = ManagedTemplateSyncer.EnsureTemplate(doc, pack, vt, pr);
-                                if (id != ElementId.InvalidElementId) updated++;
-                                warnings.AddRange(pr.Warnings);
+                                foreach (var vt in new[] { ViewType.FloorPlan, ViewType.CeilingPlan, ViewType.Section, ViewType.Elevation, ViewType.Detail, ViewType.ThreeD })
+                                {
+                                    var pr = new PackApplyResult();
+                                    var id = ManagedTemplateSyncer.EnsureTemplate(doc, pack, vt, pr);
+                                    if (id != ElementId.InvalidElementId) updated++;
+                                    warnings.AddRange(pr.Warnings);
+                                }
                                 t.Commit();
+                            }
+                            catch (Exception innerEx)
+                            {
+                                StingLog.Warn($"RegeneratePackTemplates pack={pack.Name}: {innerEx.Message}");
+                                t.RollBack();
                             }
                         }
                     }

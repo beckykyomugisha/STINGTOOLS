@@ -49,7 +49,7 @@ namespace StingTools.Core
     {
         private static readonly object Lock = new object();
         private static string _logPath;
-        private static StreamWriter _writer;
+        private static volatile StreamWriter _writer;
 
         private static string _logDate;
 
