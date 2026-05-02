@@ -269,7 +269,7 @@ namespace StingTools.Core
             // R2-FIX: Clear container cache so reloaded ParamRegistry is reflected
             ParamRegistry.ClearContainerCache();
             // A3: Clear processed cache on context invalidation to prevent stale-skip on document reload
-            lock (_recentlyProcessed)
+            lock (_processedLock)
             {
                 _recentlyProcessed.Clear();
                 _recentlyProcessedQueue.Clear();
@@ -382,7 +382,7 @@ namespace StingTools.Core
                 WasAutoDisabled = false;
                 _consecutiveFailures = 0;
                 // PERF-R2: Acquire lock before clearing to prevent ConcurrentModificationException
-                lock (_recentlyProcessed)
+                lock (_processedLock)
                 {
                     _recentlyProcessed.Clear();
                     _recentlyProcessedQueue.Clear();

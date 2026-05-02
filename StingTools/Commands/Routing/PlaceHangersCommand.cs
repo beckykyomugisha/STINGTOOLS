@@ -218,11 +218,18 @@ namespace StingTools.Commands.Routing
             {
                 var view = doc.ActiveView;
                 if (view == null) return scope;
-                foreach (Type t in new[] { typeof(Pipe), typeof(Duct), typeof(Conduit), typeof(CableTray) })
+                var cats = new List<BuiltInCategory>
                 {
-                    var col = new FilteredElementCollector(doc, view.Id).OfClass(t);
-                    foreach (var el in col) scope.Add(el);
-                }
+                    BuiltInCategory.OST_PipeCurves,
+                    BuiltInCategory.OST_DuctCurves,
+                    BuiltInCategory.OST_Conduit,
+                    BuiltInCategory.OST_CableTray
+                };
+                var filter = new ElementMulticategoryFilter(cats);
+                var col = new FilteredElementCollector(doc, view.Id)
+                    .WherePasses(filter)
+                    .WhereElementIsNotElementType();
+                foreach (var el in col) scope.Add(el);
             }
             return scope;
         }

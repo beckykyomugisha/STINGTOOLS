@@ -1164,14 +1164,14 @@ namespace StingTools.BIMManager
                     .Select(v => v.Name ?? ""),
                 StringComparer.OrdinalIgnoreCase);
 
-            foreach (var def in All)
+            using (var t = new Transaction(doc, "STING Commissioning Schedules"))
             {
-                if (existingNames.Contains(def.Name)) continue;
-                try
+                t.Start();
+                foreach (var def in All)
                 {
-                    using (var t = new Transaction(doc, $"STING Commissioning Schedule: {def.Name}"))
+                    if (existingNames.Contains(def.Name)) continue;
+                    try
                     {
-                        t.Start();
                         var sched = ViewSchedule.CreateSchedule(doc, new ElementId((long)def.Category));
                         sched.Name = def.Name;
                         var sdef = sched.Definition;
@@ -1181,11 +1181,11 @@ namespace StingTools.BIMManager
                             var field = fields.FirstOrDefault(f => f.ParameterId == new ElementId((long)bip));
                             if (field != null) sdef.AddField(field);
                         }
-                        t.Commit();
+                        created++;
                     }
-                    created++;
+                    catch (Exception ex) { StingLog.Warn($"MepCommissioningSchedules '{def.Name}': {ex.Message}"); }
                 }
-                catch (Exception ex) { StingLog.Warn($"MepCommissioningSchedules '{def.Name}': {ex.Message}"); }
+                t.Commit();
             }
             return created;
         }
