@@ -281,6 +281,11 @@ namespace StingTools.Core
         public const string TB_LAST_SYNC_BY_GUID   = "eb514ec7-6636-5987-9667-8e85c31a8f85";
         public const string TB_LOCK                = "PRJ_TB_LOCK_BOOL";
         public const string TB_LOCK_GUID           = "74c9d75f-840c-5263-9acf-8fecf80ec6aa";
+        // Canonical home for these toggles is TB_SHOW_*_BOOL on the GROUP 26 TBL_TITLEBLOCK
+        // FamilyInstance (added in Drawing Template Manager). The PRJ_TB_SHOW_*_BOOL
+        // constants below are kept on ViewSheet for backwards compat with sheets that
+        // were authored before STING TB v1; new title block families should bind to the
+        // GROUP 26 TB_ versions.
         public const string TB_SHOW_KEYPLAN        = "PRJ_TB_SHOW_KEYPLAN_BOOL";
         public const string TB_SHOW_KEYPLAN_GUID   = "8dd6b517-7173-5a8d-b951-a08807fed830";
         public const string TB_SHOW_SCALEBAR       = "PRJ_TB_SHOW_SCALEBAR_BOOL";
@@ -700,6 +705,22 @@ namespace StingTools.Core
         // corresponding BOOL set to Yes; switching type switches visible label row.
         //
         // These are TEXT type names, resolved dynamically. Use TagStyleParamName() to build.
+        //
+        // TAG TEXT STYLE MATRIX — 128 universal YESNO parameters
+        // Pattern: TAG_{size}{style}_{color}_BOOL where
+        //   size  = 2 / 2.5 / 3 / 3.5 (mm text height)
+        //   style = NOM / BOLD / ITALIC / BOLDITALIC
+        //   color = BLACK / BLUE / GREEN / RED / GREY / ORANGE / PURPLE / WHITE
+        //
+        // Exactly one of these 128 is set to true per element at any given time,
+        // making the corresponding label row visible in the tag family. The mutual
+        // exclusion is enforced by TagStyleEngine.ApplyStyle(), not by the data model.
+        //
+        // ARCHITECTURE NOTE: Adding a new size or color requires adding 32 or 16
+        // new shared parameters respectively. The long-term replacement is a single
+        // TAG_STYLE_CODE_TXT param ("2BOLD_BLUE") with calculated BOOL formulas
+        // inside the tag family — see ROADMAP.md TAG-01. Do not expand this matrix
+        // further without updating ROADMAP.md.
         /// <summary>Tag text colour (Integer code for calculated value rendering).</summary>
         public static string TAG_TEXT_COLOUR { get; private set; } = "TAG_TEXT_COLOUR_TEXT";
         /// <summary>VG Projection/Surface visibility control.</summary>
@@ -2026,7 +2047,7 @@ namespace StingTools.Core
             _extendedParams["HVC_INSULATION"] = "HVC_INS_THICKNESS_MM"; _extendedParams["HVC_DUCT_LENGTH"] = "HVC_DCT_LENGTH_M";
             // ISO 19650 naming
             _extendedParams["PROJECT_COD"] = "ASS_PROJECT_COD_TXT"; _extendedParams["ORIGINATOR_COD"] = "ASS_ORIGINATOR_COD_TXT";
-            _extendedParams["VOLUME_COD"] = "ASS_VOLUME_COD_TXT"; _extendedParams["STATUS_COD"] = "ASS_STATUS_TXT";
+            _extendedParams["VOLUME_COD"] = "ASS_VOLUME_COD_TXT"; _extendedParams["STATUS_COD"] = "ASS_CDE_SUITABILITY_TXT";
             _extendedParams["REV_COD"] = "ASS_REV_COD_TXT";
             // Paragraph containers
             _extendedParams["PARA_WALL"] = "ARCH_TAG_7_PARA_WALL_TXT"; _extendedParams["PARA_FLOOR"] = "ARCH_TAG_7_PARA_FLOOR_TXT";
@@ -2855,8 +2876,11 @@ namespace StingTools.Core
         public const string ASS_FAB_SEQ_NR_GUID          = "5fc70bc2-9955-583c-9d96-5b54c8f34f53";
         public const string ASS_SHIP_DATE_TXT            = "ASS_SHIP_DATE_TXT";
         public const string ASS_SHIP_DATE_TXT_GUID       = "c2fc8e62-b793-517c-94c6-d2d7ae7584fe";
-        public const string ASS_INSTALL_DATE_TXT         = "ASS_INSTALL_DATE_TXT";
-        public const string ASS_INSTALL_DATE_TXT_GUID    = "953575a9-1d0c-5bb5-a4d2-c52b4b4adf96";
+        // Migrated to canonical ASS_INSTALLATION_DATE_TXT (GROUP 1, GUID cfc716aa); the
+        // 953575a9 alias remains in MR_PARAMETERS.txt for backwards compat but is marked
+        // DEPRECATED. See FabricationParamsV4.INSTALL_DATE_TXT for the v4 fabrication entry.
+        public const string ASS_INSTALL_DATE_TXT         = "ASS_INSTALLATION_DATE_TXT";
+        public const string ASS_INSTALL_DATE_TXT_GUID    = "cfc716aa-126d-5e9e-a9e8-3c2a2b52d933";
         public const string ASS_BOM_REV_TXT              = "ASS_BOM_REV_TXT";
         public const string ASS_BOM_REV_TXT_GUID         = "0293f487-2ca9-5514-9b18-ac98b1a20b27";
         public const string ASS_WELD_COUNT_NR            = "ASS_WELD_COUNT_NR";

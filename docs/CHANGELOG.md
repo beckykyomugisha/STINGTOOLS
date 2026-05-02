@@ -9906,3 +9906,50 @@ per family doc.
 - `StingTools/Data/STING_TITLE_BLOCKS.json` — NEW (190)
 - `StingTools/UI/StingCommandHandler.cs` (+4 lines)
 - `docs/CHANGELOG.md` — this entry
+
+
+#### Completed (Phase 168 — Parameter System Cleanup)
+
+Audit-driven cleanup of the 2,567-parameter shared parameter system. No GUIDs were changed in MR_PARAMETERS.txt and no parameters were deleted; all changes are renames, description updates, or registry consolidation.
+
+**True errors fixed:**
+
+1. **`ASS_STATUS_TXT` GUID collision in registry JSON.** `PARAMETER_REGISTRY.json` had two distinct entries for the same name with different GUIDs and different semantic meanings. The second entry (GUID `a57dfe0c`) at `container_groups` STATUS_COD was renamed to `ASS_CDE_SUITABILITY_TXT` (the canonical name already present in MR_PARAMETERS.txt under GUID `37de21ec`) and re-pointed at that canonical GUID, dropping the orphan a57dfe0c reference. The lifecycle `ASS_STATUS_TXT` (NEW/EXISTING/DEMOLISHED, GUID `b97665a8`) is now distinct from CDE workflow state `ASS_CDE_STATUS_TXT` and ISO 19650 suitability `ASS_CDE_SUITABILITY_TXT`.
+
+2. **`ASS_INSTALL_DATE_TXT` consolidation.** Two GROUP 1 params tracking the same install date were merged: `ASS_INSTALLATION_DATE_TXT` (GUID `cfc716aa`, original) is canonical; `ASS_INSTALL_DATE_TXT` (GUID `953575a9`, added by v4 fabrication) was marked DEPRECATED in MR_PARAMETERS.txt + .csv and all C# string callers (HandoverExportCommands, GapAnalysisFixCommands, BIMManagerCommands, StingExportDialog) migrated to the canonical name. `ParamRegistry.ASS_INSTALL_DATE_TXT` and `FabricationParamsV4.INSTALL_DATE_TXT` constants now resolve to the canonical name + GUID. Both GUIDs remain in MR_PARAMETERS.txt for backwards compat.
+
+3. **WARN_* duplicate registry entries — flagged for review, not auto-removed.** A walk over PARAMETER_REGISTRY.json found 99 `WARN_*` parameters appearing twice — once in `extended_params.warning_thresholds[]` and once in the top-level `warning_thresholds[]` — with **different GUIDs** in the two arrays. The audit prediction (same GUIDs, safe to remove) was wrong. Following the audit's safe-by-default rule, the duplicates were left intact and documented in `docs/PARAMETER_DUPLICATES.md` Section D.3 with the resolution path (open a representative project, read the live GUID via the Revit API, drop whichever JSON entry doesn't match). 27 cross-reference duplicates (where the second occurrence has no GUID and is just IFC-pset metadata) and a handful of same-GUID category-index duplicates (e.g. support_params + extended_params.slv_sleeve) were intentionally left alone — no functional collision.
+
+**Naming fixes:**
+
+4. **`ELE_FIX_TAG_1_TXT` / `ELE_FIX_TAG_2_TXT` → `ELC_FIX_TAG_1_TXT` / `ELC_FIX_TAG_2_TXT`.** Aligns with dominant ELC_ electrical prefix. GUIDs unchanged. Renamed across MR_PARAMETERS.txt, MR_PARAMETERS.csv, PARAMETER_REGISTRY.json, BINDING_COVERAGE_MATRIX.csv, PARAMETER_CATEGORIES.csv, CATEGORY_BINDINGS.csv, FORMULAS_WITH_DEPENDENCIES.csv, FAMILY_PARAMETER_BINDINGS.csv. The unsuffixed container `ELE_FIX_TAG` (also documented in CLAUDE.md) was intentionally left alone per the audit scope.
+
+5. **`PRJ_TB_CONSULTANT_NAME_TXT` → `PRJ_TB_COMPANY_NAME_TXT`** and **`PRJ_TB_CONSULTANT_ADDRESS_TXT` → `PRJ_TB_COMPANY_ADDRESS_TXT`.** Aligns with source `PRJ_ORG_COMPANY_NAME_TXT` / `PRJ_ORG_COMPANY_ADDRESS_TXT` on ProjectInformation. Renamed across MR_PARAMETERS.txt, MR_PARAMETERS.csv, BINDING_COVERAGE_MATRIX.csv, PARAMETER_CATEGORIES.csv, STING_TITLE_BLOCKS.json, TPL_SCHEDULE_METADATA.csv, TITLE_BLOCK.csv, FAMILY_PARAMETER_BINDINGS.csv, CATEGORY_BINDINGS.csv. No C# string references existed.
+
+6. **`PRJ_TB_DESIGN_STAGE_TXT` description updated** to document its relationship to `PRJ_ORG_PHASE_TXT` (PRJ_ORG holds the code, PRJ_TB the human-readable stage label). Name unchanged.
+
+**Description quality:**
+
+7. **All 41 PRJ_TB_* parameter descriptions rewritten.** Replaced auto-generated Title-Case noise (e.g. "Prj Tb Date Apvd Txt [ISO 19650-1:2018]") with substantive descriptions explaining purpose, format, and source-param relationship. Updated in both MR_PARAMETERS.txt and MR_PARAMETERS.csv.
+
+8. **`ASS_REV_COD_TXT` and `ASS_REV_TXT` cross-reference each other** in their descriptions, clarifying that GROUP 17 ASS_REV_COD_TXT is the ISO 19650 tag-container token written by the tag pipeline and GROUP 1 ASS_REV_TXT is the display revision label.
+
+9. **`PRJ_TB_SHOW_KEYPLAN/SCALEBAR/NORTHARROW_BOOL` descriptions** prefixed with "LEGACY — prefer TB_SHOW_*_BOOL (GROUP 26)" to point at the canonical home in the GROUP 26 TBL_TITLEBLOCK FamilyInstance scope. Backwards-compat block comment added to ParamRegistry.cs.
+
+**Architecture documentation:**
+
+10. **128 TAG text-style BOOL parameters documented.** Added a block comment to ParamRegistry.cs above the matrix definition explaining the {SIZE}{STYLE}_{COLOR}_BOOL pattern, mutual-exclusion enforcement by TagStyleEngine.ApplyStyle, and the long-term replacement strategy (single TAG_STYLE_CODE_TXT param + 128 calculated formulas inside each tag family). Added `TAG-01` entry in ROADMAP.md under a new "Parameter System Architecture" section.
+
+**Files touched:**
+
+- `StingTools/Core/ParamRegistry.cs` — TAG matrix block comment, install-date constant migration, ASS_STATUS_TXT/CDE_SUITABILITY_TXT extended-param entry, PRJ_TB_SHOW_* legacy comment
+- `StingTools/Core/Fabrication/FabricationParamsV4.cs` — INSTALL_DATE_TXT constant migration
+- `StingTools/Data/MR_PARAMETERS.txt` — 41 PRJ_TB descriptions + ASS_REV_COD_TXT + ASS_REV_TXT + ASS_INSTALL_DATE_TXT deprecation + ELE_→ELC_ rename + CONSULTANT→COMPANY rename
+- `StingTools/Data/MR_PARAMETERS.csv` — same updates
+- `StingTools/Data/PARAMETER_REGISTRY.json` — ASS_STATUS_TXT/CDE_SUITABILITY_TXT rename, ASS_INSTALLATION_DATE_TXT consolidation, ASS_REV cross-references, ELE_→ELC_ rename
+- `StingTools/Data/{BINDING_COVERAGE_MATRIX,PARAMETER_CATEGORIES,CATEGORY_BINDINGS,FAMILY_PARAMETER_BINDINGS,FORMULAS_WITH_DEPENDENCIES,TPL_SCHEDULE_METADATA,TITLE_BLOCK}.csv` and `STING_TITLE_BLOCKS.json` — name renames
+- `StingTools/Docs/HandoverExportCommands.cs`, `StingTools/BIMManager/{GapAnalysisFixCommands,BIMManagerCommands}.cs`, `StingTools/UI/StingExportDialog.cs` — install-date string-ref migration
+- `docs/ROADMAP.md` — TAG-01 entry
+- `docs/PARAMETER_DUPLICATES.md` — Section D registry duplicate audit
+- `docs/CHANGELOG.md` — this entry
+

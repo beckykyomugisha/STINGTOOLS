@@ -2221,7 +2221,7 @@
       ],
       "params": [
         {
-          "param_name": "ELE_FIX_TAG_1_TXT",
+          "param_name": "ELC_FIX_TAG_1_TXT",
           "guid": "5b5c4c6c-c420-4f30-a67e-bdeca6944577",
           "tokens": "all",
           "separator": "-",
@@ -2230,7 +2230,7 @@
           "description": "Full tag"
         },
         {
-          "param_name": "ELE_FIX_TAG_2_TXT",
+          "param_name": "ELC_FIX_TAG_2_TXT",
           "guid": "6b727a38-f448-4b8e-81fb-a2570637ee57",
           "tokens": "short_id",
           "separator": "-",
@@ -2900,7 +2900,7 @@
       {
         "key": "REV",
         "param_name": "ASS_REV_TXT",
-        "description": "Revision code"
+        "description": "Revision code (display label, GROUP 1). See also ASS_REV_COD_TXT (GROUP 17) for the ISO 19650 tag container token."
       },
       {
         "key": "VOLUME",
@@ -2929,15 +2929,15 @@
       },
       {
         "key": "STATUS_COD",
-        "param_name": "ASS_STATUS_TXT",
-        "guid": "a57dfe0c-6db9-4fb6-80e0-d2c453fe653b",
-        "description": "ISO 19650 status/suitability code (GROUP 17)"
+        "param_name": "ASS_CDE_SUITABILITY_TXT",
+        "guid": "37de21ec-8bb3-530d-92e3-b55b312ce611",
+        "description": "ISO 19650 suitability/status code for CDE delivery (S0 WIP / S1 Suitable for coordination / S2 Suitable for info / S3 Shared / S4 Published / S5 Archive). Canonical GUID matches MR_PARAMETERS.txt; supersedes the orphan a57dfe0c-6db9-4fb6-80e0-d2c453fe653b entry that previously sat under the ASS_STATUS_TXT name in this registry."
       },
       {
         "key": "REV_COD",
         "param_name": "ASS_REV_COD_TXT",
         "guid": "83b2139d-67bb-48db-a50f-32140c0dc753",
-        "description": "ISO 19650 revision code (GROUP 17)"
+        "description": "ISO 19650 revision code token in the tag container system (GROUP 17). Written by the tag pipeline. See also ASS_REV_TXT (GROUP 1) for the display revision label."
       }
     ],
     "ble_dimensional": [
@@ -6141,9 +6141,10 @@
       },
       {
         "key": "ASS_INSTALL_DATE",
-        "param_name": "ASS_INSTALL_DATE_TXT",
-        "guid": "953575a9-1d0c-5bb5-a4d2-c52b4b4adf96",
-        "description": "ISO 8601 date when assembly was installed on site",
+        "param_name": "ASS_INSTALLATION_DATE_TXT",
+        "guid": "cfc716aa-126d-5e9e-a9e8-3c2a2b52d933",
+        "deprecated_guid": "953575a9-1d0c-5bb5-a4d2-c52b4b4adf96",
+        "description": "Planned or actual installation date [ISO 19650-3:2020]. Canonical GUID cfc716aa supersedes the v4-fabrication alias 953575a9 (which is still bound to ASS_INSTALL_DATE_TXT in MR_PARAMETERS.txt and marked DEPRECATED).",
         "categories": [
           "ALL"
         ],

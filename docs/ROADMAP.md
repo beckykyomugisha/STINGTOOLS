@@ -389,6 +389,12 @@ ground truth so future estimates do not re-bid these line items.**
 |---|---|
 | Messy folder structure (4 competing roots) | **DONE** Phase 168: `_BIM_COORD\`, `STING_BIM_MANAGER\`, `STING_Exports\`, `STING_Project\` consolidated into one `{ProjectCode}\` root with `_data\` subfolder for sidecar JSON. New `ProjectSetup` POCO + `FolderTemplateLibrary` (4 built-ins) + `ProjectFolderSetupDialog` (3-section WPF dialog) + `FolderHealthPanel` (per-folder status pills). `ProjectFolderEngine.MigrateFromLegacy(doc)` moves legacy folders + `.sting_*.json` sidecars into the new structure routed by extension. 10 sidecar callers redirected to `ProjectFolderEngine.GetDataPath(doc, "*.json")` with try/catch fallback. |
 
+### Future Enhancement Gaps — Parameter System Architecture (Phase 168)
+
+| ID | Description | Priority |
+|---|---|---|
+| TAG-01 | **Replace 128 TAG style BOOL parameters with single TAG_STYLE_CODE_TXT.** Current state: 128 universal YESNO parameters (`TAG_2NOM_BLACK_BOOL` … `TAG_3.5BOLDITALIC_WHITE_BOOL`) bound to every element in the model. Mutual exclusion enforced by `TagStyleEngine` code, not by the data model. Target state: 1 TEXT param `TAG_STYLE_CODE_TXT` (value e.g. `"2BOLD_BLUE"`) + 128 calculated BOOL formulas inside each tag family reading it. Net saving: 127 universal shared params off every element. Migration: requires updating every `.rfa` tag family file + one migration command to write `TAG_STYLE_CODE_TXT` from the currently-true BOOL on existing elements. **Effort:** Large (tag family rework). **Benefit:** Significant Revit performance on large models. | Medium |
+
 ### Future Enhancement Gaps — Project Folder System (Phase 168 follow-ups)
 
 | ID | Description | Priority |
