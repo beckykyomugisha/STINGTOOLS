@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Globalization;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using System.Xml.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
@@ -2048,7 +2049,11 @@ namespace StingTools.BIMManager
             Planscape.Shared.Models.SyncResult sResult;
             try
             {
-                sResult = Planscape.PluginSync.SyncScheduler.SyncNow(payload).GetAwaiter().GetResult();
+                // Task.Run escapes the WPF DispatcherSynchronizationContext
+                // so SyncNow's continuations don't deadlock against the
+                // dispatcher we're blocking on with GetResult().
+                sResult = Task.Run(() => Planscape.PluginSync.SyncScheduler.SyncNow(payload))
+                    .GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
@@ -2593,9 +2598,15 @@ namespace StingTools.BIMManager
                     return Result.Cancelled;
                 }
 
-                // Blocking async call — safe in ExternalEvent context
-                bool ok = PlanscapeServerClient.Instance
-                    .LoginAsync(serverUrl.Trim(), email.Trim(), password)
+                // Run on the threadpool, not directly on the API thread.
+                // ExternalEvent.Execute runs on the Revit API thread which
+                // carries the WPF DispatcherSynchronizationContext; bare
+                // `LoginAsync(...).GetAwaiter().GetResult()` deadlocks the
+                // dispatcher because LoginAsync's continuation needs to
+                // resume on that same dispatcher. Task.Run escapes the
+                // SyncContext so the continuation runs on the threadpool.
+                bool ok = Task.Run(() => PlanscapeServerClient.Instance
+                    .LoginAsync(serverUrl.Trim(), email.Trim(), password))
                     .GetAwaiter().GetResult();
 
                 if (!ok)
