@@ -10,6 +10,8 @@ using System.Windows.Shapes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using Color = System.Windows.Media.Color;
+using Ellipse = System.Windows.Shapes.Ellipse;
 
 namespace StingTools.UI
 {
