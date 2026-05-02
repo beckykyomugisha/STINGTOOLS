@@ -60,6 +60,7 @@ namespace StingTools.Commands.Drawing
 
                 int resynced = 0;
                 var warnings = new System.Collections.Generic.List<string>();
+                using (TitleBlockParamApplier.Batch())
                 using (var tx = new Transaction(doc, "STING — Sync Drawing Type Styles"))
                 {
                     tx.Start();

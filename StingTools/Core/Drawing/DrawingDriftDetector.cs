@@ -16,6 +16,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Autodesk.Revit.DB;
 using StingTools.Core;
@@ -286,25 +287,65 @@ namespace StingTools.Core.Drawing
             }
         }
 
-        // Phase 167 — title-block param drift (sheets only). Resolves every
-        // TitleBlockParams entry through TitleBlockParamApplier.Peek and
-        // compares to the live String value on the sheet's title-block
-        // instance(s). Only String storage is checked — Integer/Double
-        // params are rare in title blocks and ambiguous to compare.
+        // Phase 167+168 — title-block drift (sheets only). Compares profile-
+        // resolved values against live TB instance parameters across all
+        // major storage types, detects deleted TBs and family-swap drift.
+        // Phase 168 fix: resolves the same DrawingTokenContext the applier
+        // would use at write-time (with seq extracted from the sheet number)
+        // so {disc}/{seq:Dn} templates don't false-positive against a literal
+        // "{disc}".
         private static void AppendTitleBlockParamDrift(Document doc, ViewSheet sheet, DrawingType dt, DriftReport report)
         {
-            if (dt?.TitleBlockParams == null || dt.TitleBlockParams.Count == 0) return;
             try
             {
-                var expected = TitleBlockParamApplier.Peek(doc, dt, tokens: null);
-                if (expected.Count == 0) return;
-
                 var tbs = new FilteredElementCollector(doc, sheet.Id)
                     .OfCategory(BuiltInCategory.OST_TitleBlocks)
                     .OfClass(typeof(FamilyInstance))
                     .Cast<FamilyInstance>()
                     .ToList();
-                if (tbs.Count == 0) return;
+
+                // Detect missing / family-swap drift even when titleBlockParams is empty.
+                if (tbs.Count == 0)
+                {
+                    if (!string.IsNullOrEmpty(dt.TitleBlockFamily))
+                        report.Drifts.Add($"TITLE_BLOCK_PARAM: sheet has no title-block instance vs profile family '{dt.TitleBlockFamily}'");
+                    return;
+                }
+                if (!string.IsNullOrEmpty(dt.TitleBlockFamily))
+                {
+                    foreach (var tb in tbs)
+                    {
+                        var actualFam = tb.Symbol?.FamilyName ?? "(unknown)";
+                        if (!string.Equals(actualFam, dt.TitleBlockFamily, StringComparison.OrdinalIgnoreCase))
+                        {
+                            report.Drifts.Add($"TITLE_BLOCK_PARAM: family '{actualFam}' vs profile '{dt.TitleBlockFamily}'");
+                            break;
+                        }
+                    }
+                    if (!string.IsNullOrEmpty(dt.TitleBlockSymbolType))
+                    {
+                        foreach (var tb in tbs)
+                        {
+                            if (string.Equals(tb.Symbol?.FamilyName, dt.TitleBlockFamily, StringComparison.OrdinalIgnoreCase)
+                                && !string.Equals(tb.Symbol?.Name, dt.TitleBlockSymbolType, StringComparison.OrdinalIgnoreCase))
+                            {
+                                report.Drifts.Add($"TITLE_BLOCK_PARAM: symbol '{tb.Symbol?.Name}' vs profile '{dt.TitleBlockSymbolType}'");
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (dt?.TitleBlockParams == null || dt.TitleBlockParams.Count == 0) return;
+
+                var tokens = DrawingTokenContext.Build(
+                    doc:        doc,
+                    dt:         dt,
+                    discCode:   dt.Discipline,
+                    discipline: dt.Discipline,
+                    seq:        DrawingTokenContext.ExtractSeqFromSheetNumber(sheet.SheetNumber));
+                var expected = TitleBlockParamApplier.Peek(doc, dt, tokens);
+                if (expected.Count == 0) return;
 
                 foreach (var kv in expected)
                 {
@@ -315,8 +356,29 @@ namespace StingTools.Core.Drawing
                         Parameter p;
                         try { p = tb.LookupParameter(paramName); } catch { continue; }
                         if (p == null || p.IsReadOnly) continue;
-                        if (p.StorageType != StorageType.String) continue;
-                        var actual = p.AsString() ?? "";
+                        string actual;
+                        switch (p.StorageType)
+                        {
+                            case StorageType.String:
+                                actual = p.AsString() ?? "";
+                                break;
+                            case StorageType.Integer:
+                                actual = p.AsInteger().ToString(CultureInfo.InvariantCulture);
+                                // Compare both raw int and yes/no semantic if expected is "Yes"/"No".
+                                if (string.Equals(expectedVal, "Yes", StringComparison.OrdinalIgnoreCase)
+                                    || string.Equals(expectedVal, "No", StringComparison.OrdinalIgnoreCase))
+                                    actual = p.AsInteger() != 0 ? "Yes" : "No";
+                                break;
+                            case StorageType.Double:
+                                actual = p.AsDouble().ToString("0.###", CultureInfo.InvariantCulture);
+                                break;
+                            case StorageType.ElementId:
+                                var eid = p.AsElementId();
+                                var el  = (eid != null && eid != ElementId.InvalidElementId) ? doc.GetElement(eid) : null;
+                                actual = el?.Name ?? "";
+                                break;
+                            default: continue;
+                        }
                         if (!string.Equals(actual, expectedVal, StringComparison.Ordinal))
                         {
                             report.Drifts.Add($"TITLE_BLOCK_PARAM: '{paramName}' = '{actual}' vs profile '{expectedVal}'");

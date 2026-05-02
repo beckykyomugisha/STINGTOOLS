@@ -9991,3 +9991,67 @@ per family doc.
 
 **Caveats** — Built without `dotnet build` verification (Linux
 sandbox). All Revit API calls use documented signatures.
+
+#### Completed (Phase 168 — Title Block Workflow Algorithm Pass)
+
+Following a 12-dimension audit of the Phase 167 title-block pipeline, this
+phase closes the highest-leverage correctness, grammar, and automation gaps
+plus four new commands.
+
+**Correctness fixes**
+
+1. **Drift detector now uses a real token context.** `DrawingDriftDetector.AppendTitleBlockParamDrift` previously called `Peek(tokens:null)`, so any template containing `{disc}` / `{seq:Dn}` produced false-positive drift on every sheet. Fix: builds `DrawingTokenContext.Build(...)` with `seq` extracted from the live sheet number.
+2. **Drift detection extended to all storage types.** Previously String-only; now compares Integer (with Yes/No semantic), Double (invariant culture), and ElementId (by name). Added missing-TB and family-swap detection — a sheet whose live `tb.Symbol.FamilyName` no longer matches the profile's `TitleBlockFamily` flags drift.
+3. **Invariant-culture parsing.** `int.TryParse` / `double.TryParse` now use `CultureInfo.InvariantCulture` so `"1.5"` parses identically on US and EU locales.
+4. **Yes/No coercion.** Integer storage params accept `Yes`/`No`/`true`/`false`/`on`/`off`/`y`/`n`/`1`/`0` via new `TryCoerceInt` helper.
+5. **ElementId coercion.** New `TryResolveElementId` resolves a string to a `FamilySymbol` within the live TB instance's family — supports the family-type-swap title-block pattern.
+6. **`${X}` unresolved warnings.** Resolver collects every `${NAME}` reference that resolves to empty and emits one warning per unique name on `Apply` — surfaces typos and unbound PI params instead of silently writing blanks.
+
+**Token grammar v2** (`TitleBlockParamApplier.ResolveTemplate`)
+
+Backward-compatible filter pipeline added to both `${X}` and `{x[:Dn]}` syntaxes:
+
+- `${X|filter|filter}` — chain filters on a project-info read
+- `{x|filter}` — chain filters on a caller token
+- `\${`, `\{` — escape syntax for literal text
+- Filters: `upper`, `lower`, `title`, `trim`, `trunc:N`, `pad:N`, `padl:N`, `date:fmt`, `default:VAL`, `fallback:${OTHER}` (recursive)
+
+Unknown filters pass through as no-ops (forward-compatible). Existing templates parse unchanged.
+
+**Multi-instance per-symbol dispatch**
+
+7. **`DrawingType.TitleBlockParamsBySymbol`** new field — a `Dictionary<string, Dictionary<string, string>>` keyed by `FamilySymbol.Name` (or `"*"` wildcard). Per-symbol entries merge on top of base `TitleBlockParams`. Sheets hosting front + back / landscape + portrait variants can now receive different payloads per TB instance. `ResolveEffectiveParams(dt, tb)` picks the right map per instance; `AllDeclaredKeys(dt)` collects every key for stale-key clearing.
+
+**Validator coverage**
+
+8. **DT-011 (Warning)**: `titleBlockSymbolType` references a symbol the family doesn't have — applier silently falls back to first symbol.
+9. **DT-097 (Warning)**: `paperSize` ↔ `titleBlockFamily` mismatch (heuristic — family name embeds an ISO code that doesn't match the profile's PaperSize).
+10. **DT-098 (Warning)**: every `{token}` in `sheetNumberPattern` / `sheetNamePattern` / `titleBlockParams` values is checked against the canonical token set (`disc`, `lvl`, `seq`, `spool`, `mark`, `vol`, `type`, `role`, `suit`, `rev`, `project`, `originator`, etc.). Unknown tokens flagged because they pass through as literal text (typo trap).
+
+**Performance**
+
+11. **Per-batch `TitleBlockParamApplier.Batch()` scope** — `ProjectInformation` lookups and template resolves memoize for the duration of the batch. Wired into `DrawingSyncStylesCommand` and the new `DrawingHealTitleBlocksCommand`. Outside a batch, every call is uncached (safe default).
+
+**Four new commands**
+
+12. **`DrawingHealTitleBlocksCommand`** (`DrawingTypes_HealTitleBlocks`) — partial sync that re-applies title-block parameter bindings on every stamped sheet without touching scale / detail / template / pack / annotation. Writes one row per sheet to `<project>/_BIM_COORD/titleblock_heal_audit.jsonl` (timestamp, user, sheet, profile, params written, warnings).
+13. **`DrawingRenumberCommand`** (`DrawingTypes_Renumber`) — compacts sheet-number gaps within each `(DrawingTypeId, packageId)` bucket. Two-pass rename via a unique sentinel prefix avoids any duplicate-number collision mid-batch. Locked sheets skipped.
+14. **`DrawingDoctorCommand`** (`DrawingTypes_Doctor`) — read-only audit that surfaces cross-stamps (CSV-populate path *and* recipe-binding path on the same sheet), family swaps, missing TBs, stale CSV syncs (>30 days), and unstamped sheets. Helps the operator pick a single doctrine per project.
+15. **`TitleBlockMigrateCsvToRecipeCommand`** (`DrawingTypes_MigrateCsv`) — reads `TITLE_BLOCK.csv` and exports `<project>/_BIM_COORD/titleblock_csv_export.json`: a baseline params block + per-discipline delta blocks ready to paste into the editor's "Title block parameters" card. Only deltas (values that differ from the row's `DefaultValue`) are emitted per discipline.
+
+**Files**
+
+- `StingTools/Core/Drawing/TitleBlockParamApplier.cs` — filter pipeline, batch caches, coercions, per-symbol effective params, escape sentinels
+- `StingTools/Core/Drawing/DrawingType.cs` — `TitleBlockParamsBySymbol` field
+- `StingTools/Core/Drawing/DrawingTypeValidator.cs` — DT-011 / DT-097 / DT-098 + `HasTitleBlockSymbol` + `ValidateUnknownTokens`
+- `StingTools/Core/Drawing/DrawingDriftDetector.cs` — token-context fix, all-storage drift, family-swap / missing-TB detection
+- `StingTools/Commands/Drawing/DrawingSyncStylesCommand.cs` — wraps loop in `Batch()` for cache reuse
+- `StingTools/Commands/Drawing/DrawingHealTitleBlocksCommand.cs` — NEW
+- `StingTools/Commands/Drawing/DrawingRenumberCommand.cs` — NEW
+- `StingTools/Commands/Drawing/DrawingDoctorCommand.cs` — NEW
+- `StingTools/Commands/Drawing/TitleBlockMigrateCsvToRecipeCommand.cs` — NEW
+- `StingTools/UI/StingCommandHandler.cs` — wires the four new command tags
+- `StingTools/UI/StingDockPanel.xaml` — surfaces Heal TBs / Renumber / Doctor / Migrate CSV buttons in the DRAWING TYPES wrap-panel
+
+**Caveats** — Built without `dotnet build` verification (Linux sandbox). All Revit API calls use documented signatures. The `${X|fallback:${OTHER}}` recursive fallback is intentionally simple (no cycle guard) — circular references would terminate quickly because the filter operates on already-resolved values; future hardening could add explicit cycle detection.
+

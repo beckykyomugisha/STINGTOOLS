@@ -143,6 +143,20 @@ namespace StingTools.Core.Drawing
         public Dictionary<string, string> TitleBlockParams { get; set; }
 
         /// <summary>
+        /// Phase 168 — per-symbol overrides. Sheets that host more than one
+        /// title-block instance (landscape + portrait, front + back, full +
+        /// reduced) can receive different value payloads per
+        /// <c>FamilySymbol.Name</c>. Keys are matched case-insensitively
+        /// against the live <c>tb.Symbol.Name</c>; the special key
+        /// <c>"*"</c> applies to TBs that don't match any explicit key.
+        /// Per-symbol entries merge on top of <see cref="TitleBlockParams"/>
+        /// (which acts as the global baseline) — same key in both wins for
+        /// the per-symbol map.
+        /// </summary>
+        [JsonProperty("titleBlockParamsBySymbol", NullValueHandling = NullValueHandling.Ignore)]
+        public Dictionary<string, Dictionary<string, string>> TitleBlockParamsBySymbol { get; set; }
+
+        /// <summary>
         /// ISO 19650 naming — optional per-profile convention payload.
         /// When set, the editor's Numbering card's "Generate ISO
         /// pattern" button assembles SheetNumberPattern from these
