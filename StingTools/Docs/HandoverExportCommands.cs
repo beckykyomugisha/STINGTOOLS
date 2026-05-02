@@ -1623,7 +1623,7 @@ namespace StingTools.Docs
                         string status = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
                         string rev = ParameterHelpers.GetString(el, ParamRegistry.REV);
                         string serial = ParameterHelpers.GetString(el, "ASS_SERIAL_NUM_TXT");
-                        string installDate = ParameterHelpers.GetString(el, "ASS_INSTALL_DATE_TXT");
+                        string installDate = ParameterHelpers.GetString(el, "ASS_INSTALLATION_DATE_TXT");
                         string costStr = ParameterHelpers.GetString(el, "ASS_COST_TOTAL_TXT");
                         string gridRef = ParameterHelpers.GetString(el, ParamRegistry.GRID_REF);
 

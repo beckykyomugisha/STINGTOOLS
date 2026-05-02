@@ -6251,8 +6251,8 @@ PRJ_TB_APVD_BY_TXT,Generic Models,Type,True
 PRJ_TB_CHECKED_BY_TXT,Generic Models,Type,True
 PRJ_TB_CLIENT_ADDRESS_TXT,Generic Models,Type,True
 PRJ_TB_CLIENT_NAME_TXT,Generic Models,Type,True
-PRJ_TB_CONSULTANT_ADDRESS_TXT,Generic Models,Type,True
-PRJ_TB_CONSULTANT_NAME_TXT,Generic Models,Type,True
+PRJ_TB_COMPANY_ADDRESS_TXT,Generic Models,Type,True
+PRJ_TB_COMPANY_NAME_TXT,Generic Models,Type,True
 PRJ_TB_CONTRACTOR_ADDRESS_TXT,Generic Models,Type,True
 PRJ_TB_CONTRACTOR_NAME_TXT,Generic Models,Type,True
 PRJ_TB_DATE_APVD_TXT,Generic Models,Type,True
@@ -7705,36 +7705,36 @@ ELC_PWR_SPARE_02_TXT,Lighting Fixtures,Type,True
 ELC_PWR_SPARE_02_TXT,Cable Trays,Type,True
 ELC_PWR_SPARE_02_TXT,Conduits,Type,True
 ELC_PWR_SPARE_02_TXT,Generic Models,Type,True
-ELE_FIX_TAG_1_TXT,Air Terminals,Type,True
-ELE_FIX_TAG_1_TXT,Cable Trays,Type,True
-ELE_FIX_TAG_1_TXT,Casework,Type,True
-ELE_FIX_TAG_1_TXT,Conduit Fittings,Type,True
-ELE_FIX_TAG_1_TXT,Conduits,Type,True
-ELE_FIX_TAG_1_TXT,Electrical Equipment,Type,True
-ELE_FIX_TAG_1_TXT,Electrical Fixtures,Type,True
-ELE_FIX_TAG_1_TXT,Furniture,Type,True
-ELE_FIX_TAG_1_TXT,Generic Models,Type,True
-ELE_FIX_TAG_1_TXT,Lighting Fixtures,Type,True
-ELE_FIX_TAG_1_TXT,Mechanical Equipment,Type,True
-ELE_FIX_TAG_1_TXT,Plumbing Equipment,Type,True
-ELE_FIX_TAG_1_TXT,Plumbing Fixtures,Type,True
-ELE_FIX_TAG_1_TXT,Specialty Equipment,Type,True
-ELE_FIX_TAG_1_TXT,Sprinklers,Type,True
-ELE_FIX_TAG_2_TXT,Air Terminals,Type,True
-ELE_FIX_TAG_2_TXT,Cable Trays,Type,True
-ELE_FIX_TAG_2_TXT,Casework,Type,True
-ELE_FIX_TAG_2_TXT,Conduit Fittings,Type,True
-ELE_FIX_TAG_2_TXT,Conduits,Type,True
-ELE_FIX_TAG_2_TXT,Electrical Equipment,Type,True
-ELE_FIX_TAG_2_TXT,Electrical Fixtures,Type,True
-ELE_FIX_TAG_2_TXT,Furniture,Type,True
-ELE_FIX_TAG_2_TXT,Generic Models,Type,True
-ELE_FIX_TAG_2_TXT,Lighting Fixtures,Type,True
-ELE_FIX_TAG_2_TXT,Mechanical Equipment,Type,True
-ELE_FIX_TAG_2_TXT,Plumbing Equipment,Type,True
-ELE_FIX_TAG_2_TXT,Plumbing Fixtures,Type,True
-ELE_FIX_TAG_2_TXT,Specialty Equipment,Type,True
-ELE_FIX_TAG_2_TXT,Sprinklers,Type,True
+ELC_FIX_TAG_1_TXT,Air Terminals,Type,True
+ELC_FIX_TAG_1_TXT,Cable Trays,Type,True
+ELC_FIX_TAG_1_TXT,Casework,Type,True
+ELC_FIX_TAG_1_TXT,Conduit Fittings,Type,True
+ELC_FIX_TAG_1_TXT,Conduits,Type,True
+ELC_FIX_TAG_1_TXT,Electrical Equipment,Type,True
+ELC_FIX_TAG_1_TXT,Electrical Fixtures,Type,True
+ELC_FIX_TAG_1_TXT,Furniture,Type,True
+ELC_FIX_TAG_1_TXT,Generic Models,Type,True
+ELC_FIX_TAG_1_TXT,Lighting Fixtures,Type,True
+ELC_FIX_TAG_1_TXT,Mechanical Equipment,Type,True
+ELC_FIX_TAG_1_TXT,Plumbing Equipment,Type,True
+ELC_FIX_TAG_1_TXT,Plumbing Fixtures,Type,True
+ELC_FIX_TAG_1_TXT,Specialty Equipment,Type,True
+ELC_FIX_TAG_1_TXT,Sprinklers,Type,True
+ELC_FIX_TAG_2_TXT,Air Terminals,Type,True
+ELC_FIX_TAG_2_TXT,Cable Trays,Type,True
+ELC_FIX_TAG_2_TXT,Casework,Type,True
+ELC_FIX_TAG_2_TXT,Conduit Fittings,Type,True
+ELC_FIX_TAG_2_TXT,Conduits,Type,True
+ELC_FIX_TAG_2_TXT,Electrical Equipment,Type,True
+ELC_FIX_TAG_2_TXT,Electrical Fixtures,Type,True
+ELC_FIX_TAG_2_TXT,Furniture,Type,True
+ELC_FIX_TAG_2_TXT,Generic Models,Type,True
+ELC_FIX_TAG_2_TXT,Lighting Fixtures,Type,True
+ELC_FIX_TAG_2_TXT,Mechanical Equipment,Type,True
+ELC_FIX_TAG_2_TXT,Plumbing Equipment,Type,True
+ELC_FIX_TAG_2_TXT,Plumbing Fixtures,Type,True
+ELC_FIX_TAG_2_TXT,Specialty Equipment,Type,True
+ELC_FIX_TAG_2_TXT,Sprinklers,Type,True
 FLS_DEV_TAG_01_TXT,Air Terminals,Type,True
 FLS_DEV_TAG_01_TXT,Cable Trays,Type,True
 FLS_DEV_TAG_01_TXT,Casework,Type,True
@@ -9744,7 +9744,7 @@ PRJ_TB_DATE_CHECKED_TXT,Project Information,Type,True
 PRJ_DRAWING_TITLE_TXT,Project Information,Type,True
 PRJ_DRAWING_SCALE_TXT,Project Information,Type,True
 PRJ_TB_REVISION_DATE_TXT,Project Information,Type,True
-PRJ_TB_CONSULTANT_ADDRESS_TXT,Project Information,Type,True
+PRJ_TB_COMPANY_ADDRESS_TXT,Project Information,Type,True
 PRJ_DWG_ISSUE_PURPOSE_TXT,Project Information,Type,True
 PRJ_TB_DISCIPLINE_TXT,Project Information,Type,True
 PRJ_GRID_REF_TXT,Project Information,Type,True
@@ -9762,7 +9762,7 @@ PRJ_DWG_SUPERSEDES_TXT,Project Information,Type,True
 PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT,Project Information,Type,True
 PRJ_TB_DATE_DRAWN_TXT,Project Information,Type,True
 PRJ_ADDRESS_2_TXT,Project Information,Type,True
-PRJ_TB_CONSULTANT_NAME_TXT,Project Information,Type,True
+PRJ_TB_COMPANY_NAME_TXT,Project Information,Type,True
 PRJ_TB_CLIENT_ADDRESS_TXT,Project Information,Type,True
 PRJ_TB_TOTAL_NO_SHEETS_TXT,Project Information,Type,True
 PRJ_PHASE_TXT,Project Information,Type,True

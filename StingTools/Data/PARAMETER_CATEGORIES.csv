@@ -426,8 +426,8 @@ ELC_PWR_SPARE_02_TXT,Electrical - Spare 02,TEXT,Type,"Electrical Equipment, Elec
 ELC_SPARE_WAYS_NR,Electrical - Spare WAYS,NUMBER,Type,"Cable Trays, Conduits, Electrical Equipment, Electrical Fixtures, Generic Models, Lighting Fixtures",ELC_PWR,8ff6b7e5-8ec9-58ab-8d92-52d2f189afb6,Elc Spare Ways Nr [ISO 19650-1:2018]
 ELC_VLT_DROP_PCT,Voltage Drop %,NUMBER,Type,"Cable Trays, Conduits, Electrical Equipment, Electrical Fixtures, Generic Models, Lighting Fixtures",ELC_PWR,cf27a6c4-4056-543b-876f-ca8747265b83,Elc Vlt Drop Pct [ISO 19650-1:2018]
 ELC_VLT_PRIMARY_RATING_V,Elc Vlt Primary Rating V,ELECTRICAL_POTENTIAL,Type,"Cable Trays, Conduits, Electrical Equipment, Electrical Fixtures, Generic Models, Lighting Fixtures",ELC_PWR,af785641-08c5-5f2b-91b9-40ea678f25c5,Elc Vlt Primary Rating V [ISO 19650-1:2018]
-ELE_FIX_TAG_1_TXT,Elc fix tag 1,TEXT,Type,,ELC_PWR,5b5c4c6c-c420-4f30-a67e-bdeca6944577,Elc fix tag 1
-ELE_FIX_TAG_2_TXT,Elc fix tag 2,TEXT,Type,,ELC_PWR,6b727a38-f448-4b8e-81fb-a2570637ee57,Elc fix tag 2
+ELC_FIX_TAG_1_TXT,Elc fix tag 1,TEXT,Type,,ELC_PWR,5b5c4c6c-c420-4f30-a67e-bdeca6944577,Elc fix tag 1
+ELC_FIX_TAG_2_TXT,Elc fix tag 2,TEXT,Type,,ELC_PWR,6b727a38-f448-4b8e-81fb-a2570637ee57,Elc fix tag 2
 MNT_HGT_MM,Mnt Hgt,LENGTH,Type,"Air Terminals, Cable Trays, Casework, Conduits, Electrical Equipment, Electrical Fixtures, Furniture, Generic Models, Lighting Fixtures, Mechanical Equipment, Plumbing Equipment, Plumbing Fixtures, Specialty Equipment, Sprinklers",ELC_PWR,67f74e7b-256f-5611-bd11-1eb958f6e5b4,Elc Mnt Hgt Mm [ISO 19650-1:2018]
 FLS_DEV_TAG_01_TXT,Fls Sfty Dev tag,TEXT,Type,,FLS_LIFE_SFTY,c611d904-3f4f-45c6-81e6-11f3cc64759d,Fls Sfty Dev tag
 FLS_LIFE_SFTY_SPARE_01_TXT,Fire/Life Safety - Spare 01,TEXT,Type,Generic Models,FLS_LIFE_SFTY,938cfdc8-a30d-49c8-9aed-7c7693dc18eb,Spare parameter 1 for FLS_LIFE_SFTY group
@@ -686,8 +686,8 @@ PRJ_TB_APVD_BY_TXT,Approved By,TEXT,Type,Sheets,PRJ_INFORMATION,9891e45b-6840-5a
 PRJ_TB_CHECKED_BY_TXT,Checked By,TEXT,Type,Sheets,PRJ_INFORMATION,052af358-d13d-5e2e-aaf2-9a7e58d18371,Prj Tb Checked By Txt [ISO 19650-1:2018]
 PRJ_TB_CLIENT_ADDRESS_TXT,Client Address,TEXT,Type,Sheets,PRJ_INFORMATION,036292d2-521c-5799-b91e-3699fc54a72f,Prj Tb Client Address Txt [ISO 19650-1:2018]
 PRJ_TB_CLIENT_NAME_TXT,Client Name,TEXT,Type,Sheets,PRJ_INFORMATION,720b78ac-264c-5e0d-8d59-81f51714b167,Prj Tb Client Name Txt [ISO 19650-1:2018]
-PRJ_TB_CONSULTANT_ADDRESS_TXT,Title Block Consultant Address,TEXT,Type,Sheets,PRJ_INFORMATION,8e83ae76-71fe-55a8-8af1-0408c799f801,Prj Tb Consultant Address Txt [ISO 19650-1:2018]
-PRJ_TB_CONSULTANT_NAME_TXT,Consultant Name,TEXT,Type,Sheets,PRJ_INFORMATION,3d16e4cf-32c6-5761-ae73-8f264cbab54c,Prj Tb Consultant Name Txt [ISO 19650-1:2018]
+PRJ_TB_COMPANY_ADDRESS_TXT,Title Block Consultant Address,TEXT,Type,Sheets,PRJ_INFORMATION,8e83ae76-71fe-55a8-8af1-0408c799f801,Prj Tb Consultant Address Txt [ISO 19650-1:2018]
+PRJ_TB_COMPANY_NAME_TXT,Consultant Name,TEXT,Type,Sheets,PRJ_INFORMATION,3d16e4cf-32c6-5761-ae73-8f264cbab54c,Prj Tb Consultant Name Txt [ISO 19650-1:2018]
 PRJ_TB_CONTRACTOR_ADDRESS_TXT,Title Block Contractor Address,TEXT,Type,Sheets,PRJ_INFORMATION,aa8717b1-a974-5c21-aec1-b9b0ba15483b,Prj Tb Contractor Address Txt [ISO 19650-1:2018]
 PRJ_TB_CONTRACTOR_NAME_TXT,Contractor Name,TEXT,Type,Sheets,PRJ_INFORMATION,4ca584a4-77e1-5c54-9ba9-30e3248db09b,Prj Tb Contractor Name Txt [ISO 19650-1:2018]
 PRJ_TB_DATE_APVD_TXT,Title Block Date Apvd,TEXT,Type,Sheets,PRJ_INFORMATION,037ae428-4007-53eb-93b8-bc37c82fed37,Prj Tb Date Apvd Txt [ISO 19650-1:2018]

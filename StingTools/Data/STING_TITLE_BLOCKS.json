@@ -121,13 +121,13 @@
           "group": "IdentityData"
         },
         {
-          "name": "PRJ_TB_CONSULTANT_NAME_TXT",
+          "name": "PRJ_TB_COMPANY_NAME_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData"
         },
         {
-          "name": "PRJ_TB_CONSULTANT_ADDRESS_TXT",
+          "name": "PRJ_TB_COMPANY_ADDRESS_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData"
@@ -656,7 +656,7 @@
           "vAlign": "Middle"
         },
         {
-          "param": "PRJ_TB_CONSULTANT_NAME_TXT",
+          "param": "PRJ_TB_COMPANY_NAME_TXT",
           "anchor": [
             40,
             46
@@ -666,7 +666,7 @@
           "vAlign": "Middle"
         },
         {
-          "param": "PRJ_TB_CONSULTANT_ADDRESS_TXT",
+          "param": "PRJ_TB_COMPANY_ADDRESS_TXT",
           "anchor": [
             40,
             41
@@ -2323,7 +2323,7 @@
           "size": 1.1
         },
         {
-          "param": "PRJ_TB_CONSULTANT_NAME_TXT",
+          "param": "PRJ_TB_COMPANY_NAME_TXT",
           "anchor": [
             3,
             75.74999999999999
@@ -2331,7 +2331,7 @@
           "size": 1.43
         },
         {
-          "param": "PRJ_TB_CONSULTANT_ADDRESS_TXT",
+          "param": "PRJ_TB_COMPANY_ADDRESS_TXT",
           "anchor": [
             3,
             68.24999999999999
@@ -3785,7 +3785,7 @@
           "size": 1.1
         },
         {
-          "param": "PRJ_TB_CONSULTANT_NAME_TXT",
+          "param": "PRJ_TB_COMPANY_NAME_TXT",
           "anchor": [
             3,
             75.74999999999999
@@ -3793,7 +3793,7 @@
           "size": 1.43
         },
         {
-          "param": "PRJ_TB_CONSULTANT_ADDRESS_TXT",
+          "param": "PRJ_TB_COMPANY_ADDRESS_TXT",
           "anchor": [
             3,
             68.24999999999999
@@ -5247,7 +5247,7 @@
           "size": 0.85
         },
         {
-          "param": "PRJ_TB_CONSULTANT_NAME_TXT",
+          "param": "PRJ_TB_COMPANY_NAME_TXT",
           "anchor": [
             2,
             64.25
@@ -5255,7 +5255,7 @@
           "size": 1.1
         },
         {
-          "param": "PRJ_TB_CONSULTANT_ADDRESS_TXT",
+          "param": "PRJ_TB_COMPANY_ADDRESS_TXT",
           "anchor": [
             2,
             57.75000000000001
@@ -6053,7 +6053,7 @@
           "size": 0.85
         },
         {
-          "param": "PRJ_TB_CONSULTANT_NAME_TXT",
+          "param": "PRJ_TB_COMPANY_NAME_TXT",
           "anchor": [
             2,
             64.25
@@ -6061,7 +6061,7 @@
           "size": 1.1
         },
         {
-          "param": "PRJ_TB_CONSULTANT_ADDRESS_TXT",
+          "param": "PRJ_TB_COMPANY_ADDRESS_TXT",
           "anchor": [
             2,
             57.75000000000001
@@ -7515,7 +7515,7 @@
           "size": 0.72
         },
         {
-          "param": "PRJ_TB_CONSULTANT_NAME_TXT",
+          "param": "PRJ_TB_COMPANY_NAME_TXT",
           "anchor": [
             2,
             51.60000000000001
@@ -7523,7 +7523,7 @@
           "size": 0.94
         },
         {
-          "param": "PRJ_TB_CONSULTANT_ADDRESS_TXT",
+          "param": "PRJ_TB_COMPANY_ADDRESS_TXT",
           "anchor": [
             2,
             46.20000000000001
@@ -8977,7 +8977,7 @@
           "size": 0.72
         },
         {
-          "param": "PRJ_TB_CONSULTANT_NAME_TXT",
+          "param": "PRJ_TB_COMPANY_NAME_TXT",
           "anchor": [
             2,
             51.60000000000001
@@ -8985,7 +8985,7 @@
           "size": 0.94
         },
         {
-          "param": "PRJ_TB_CONSULTANT_ADDRESS_TXT",
+          "param": "PRJ_TB_COMPANY_ADDRESS_TXT",
           "anchor": [
             2,
             46.20000000000001
@@ -10439,7 +10439,7 @@
           "size": 0.59
         },
         {
-          "param": "PRJ_TB_CONSULTANT_NAME_TXT",
+          "param": "PRJ_TB_COMPANY_NAME_TXT",
           "anchor": [
             2,
             41.25000000000001
@@ -10447,7 +10447,7 @@
           "size": 0.77
         },
         {
-          "param": "PRJ_TB_CONSULTANT_ADDRESS_TXT",
+          "param": "PRJ_TB_COMPANY_ADDRESS_TXT",
           "anchor": [
             2,
             36.75000000000001
@@ -11827,7 +11827,7 @@
           "size": 0.59
         },
         {
-          "param": "PRJ_TB_CONSULTANT_NAME_TXT",
+          "param": "PRJ_TB_COMPANY_NAME_TXT",
           "anchor": [
             2,
             41.25000000000001
@@ -11835,7 +11835,7 @@
           "size": 0.77
         },
         {
-          "param": "PRJ_TB_CONSULTANT_ADDRESS_TXT",
+          "param": "PRJ_TB_COMPANY_ADDRESS_TXT",
           "anchor": [
             2,
             36.75000000000001
@@ -13215,7 +13215,7 @@
           "size": 0.47
         },
         {
-          "param": "PRJ_TB_CONSULTANT_NAME_TXT",
+          "param": "PRJ_TB_COMPANY_NAME_TXT",
           "anchor": [
             2,
             33.199999999999996
@@ -13223,7 +13223,7 @@
           "size": 0.61
         },
         {
-          "param": "PRJ_TB_CONSULTANT_ADDRESS_TXT",
+          "param": "PRJ_TB_COMPANY_ADDRESS_TXT",
           "anchor": [
             2,
             29.399999999999995
@@ -14567,7 +14567,7 @@
           "size": 0.47
         },
         {
-          "param": "PRJ_TB_CONSULTANT_NAME_TXT",
+          "param": "PRJ_TB_COMPANY_NAME_TXT",
           "anchor": [
             2,
             33.199999999999996
@@ -14575,7 +14575,7 @@
           "size": 0.61
         },
         {
-          "param": "PRJ_TB_CONSULTANT_ADDRESS_TXT",
+          "param": "PRJ_TB_COMPANY_ADDRESS_TXT",
           "anchor": [
             2,
             29.399999999999995
