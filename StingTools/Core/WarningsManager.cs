@@ -5449,6 +5449,24 @@ namespace StingTools.Core
                 { "ACCPublish", "ACCPublish" },
                 { "SharePointExport", "SharePointExport" },
 
+                // Phase 167 — Planscape BCC dispatch entries. Disconnect /
+                // OpenWebDashboard short-circuit inline in ProcessAction; the
+                // remaining tags need an explicit dictionary entry so the
+                // resolver lookup hits a real command and never falls through
+                // to the "Action 'X' is not handled" toast.
+                { "PlanscapeConnect",          "PlanscapeConnect" },
+                { "PlanscapeDisconnect",       "PlanscapeDisconnect" },
+                { "PlanscapeOpenWebDashboard", "PlanscapeOpenWebDashboard" },
+                { "PlanscapeSyncNow",          "PlanscapeSyncNow" },
+                { "PlanscapeAddMember",        "PlanscapeConnect" },
+                { "PlanscapeRemoveMember",     "PlanscapeConnect" },
+                { "PlanscapeLinkProject",      "PlanscapeConnect" },
+                { "PlanscapeTestConnection",   "PlanscapeConnect" },
+                { "PlanscapeUnlinkProject",    "PlanscapeDisconnect" },
+                { "PlanscapeClearCredentials", "PlanscapeDisconnect" },
+                { "PlanscapeOpenBrowser",      "PlanscapeOpenWebDashboard" },
+                { "PublishModelToPlanscape",   "PublishModelToPlanscape" },
+
                 // Workflow actions
                 { "RunWorkflowPreset", "WorkflowPreset" },
                 { "CreateWorkflowPreset", "CreateWorkflowPreset" },
