@@ -10118,7 +10118,7 @@ namespace StingTools.BIMManager
                     ["AssetIdentifier"] = "ASS_ASSET_ID_TXT",
                     ["WarrantyDurationParts"] = "MNT_WARRANTY_YRS_TXT",
                     ["WarrantyGuarantorParts"] = "MNT_WARRANTY_PROVIDER_TXT",
-                    ["InstallationDate"] = "ASS_INSTALL_DATE_TXT",
+                    ["InstallationDate"] = "ASS_INSTALLATION_DATE_TXT",
                     ["WarrantyStartDate"] = "MNT_WARRANTY_START_TXT",
                 };
 
