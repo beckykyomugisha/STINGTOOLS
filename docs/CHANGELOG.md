@@ -9953,3 +9953,49 @@ Audit-driven cleanup of the 2,567-parameter shared parameter system. No GUIDs we
 - `docs/PARAMETER_DUPLICATES.md` — Section D registry duplicate audit
 - `docs/CHANGELOG.md` — this entry
 
+---
+
+#### Completed (Phase 167 — Planscape BCC dispatch gap fix)
+
+Same double-path issue Phases 96 / 98 / 104 fixed for QR / WorkingCalendar /
+GAP-analysis commands: BIMCoordinationCenter dispatches Planscape platform
+buttons through `BIMCoordinationCenterCommand.ProcessAction →
+WarningsManager.DispatchCoordAction → WorkflowEngine.GetCommandInstance`,
+but only `StingCommandHandler` had `case "PlanscapeConnect"` /
+`PlanscapeSyncNow` bindings. Clicking Connect / Sync Now from the BCC
+Platform > Planscape tab produced "Action 'PlanscapeConnect' is not
+handled. Check StingCommandHandler for the command binding." pop-ups.
+
+1. **`StingTools/Core/WorkflowEngine.cs` — `GetCommandInstance`** — added a
+   Phase 167 block after the Phase 104 GAP-analysis cases that maps every
+   Planscape BCC tag (and its alias siblings: Add/Remove/LinkProject/
+   TestConnection / Unlink / ClearCredentials / OpenBrowser /
+   PublishModelToPlanscape) to the right `IExternalCommand`.
+2. **`StingTools/BIMManager/PlatformLinkCommands.cs`** — added two new
+   thin wrapper commands so the resolver has something to return for tags
+   that previously had no dedicated class:
+     - `PlanscapeDisconnectCommand` calls
+       `PlanscapeServerClient.Instance.Disconnect()` and surfaces a
+       confirmation `TaskDialog`.
+     - `PlanscapeOpenWebCommand` reads the saved server URL via
+       `PlanscapeServerClient.LoadConnectionSettings`, falls back to the
+       hosted Planscape instance, appends `/dashboard`, and opens it with
+       `Process.Start(new ProcessStartInfo(url) { UseShellExecute = true })`.
+3. **`StingTools/Core/WarningsManager.cs` — `_actionToCommandTag`** — added
+   12 explicit dictionary entries (4 self-mappings + 8 alias mappings) so
+   the lookup at line ~5705 returns a real `commandTag` instead of falling
+   through to the action string and quietly missing the resolver.
+4. **`StingCommandHandler.cs` and `BIMCoordinationCenter.cs`** — left
+   untouched. The dock-panel bindings were already correct, and the
+   inline `case "PlanscapeDisconnect"` / `case "PlanscapeOpenWebDashboard"`
+   short-circuits inside `ProcessAction` (added in Phase 102) still take
+   precedence; the new resolver entries are a fallback for any future
+   caller that bypasses those inline handlers.
+
+#### Files
+
+- `StingTools/Core/WorkflowEngine.cs` — Phase 167 cases in `GetCommandInstance`
+- `StingTools/BIMManager/PlatformLinkCommands.cs` — `PlanscapeDisconnectCommand` + `PlanscapeOpenWebCommand`
+- `StingTools/Core/WarningsManager.cs` — 12 dictionary entries in `_actionToCommandTag`
+- `docs/CHANGELOG.md` — this entry
+
