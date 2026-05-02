@@ -13,6 +13,8 @@ using Autodesk.Revit.UI;
 using StingTools.Core;
 using TextBox = System.Windows.Controls.TextBox;
 using ComboBox = System.Windows.Controls.ComboBox;
+using Color = System.Windows.Media.Color;
+using Visibility = System.Windows.Visibility;
 
 namespace StingTools.UI
 {
