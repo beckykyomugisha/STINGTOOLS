@@ -68,6 +68,11 @@ namespace StingTools.Core.Drawing
                 return r;
             }
 
+            // A single param written to multiple TB instances on the same sheet
+            // counts once toward ParamsWritten — track by name so a sheet with
+            // 2 TBs and 11 params reports 11, not 22.
+            var writtenKeys = new HashSet<string>(StringComparer.Ordinal);
+
             foreach (var tb in tbs)
             {
                 // GAP-M: a secondary title block (e.g. a North arrow or a
@@ -109,28 +114,30 @@ namespace StingTools.Core.Drawing
                         r.Warnings.Add($"Parameter '{paramName}' is read-only.");
                         continue;
                     }
+                    bool wrote = false;
                     switch (p.StorageType)
                     {
                         case StorageType.String:
                             // ACC-07: always set, even for empty string,
                             // so cloned/template sheets reset stale text.
                             p.Set(resolved ?? string.Empty);
+                            wrote = true;
                             break;
                         case StorageType.Integer:
-                            if (string.IsNullOrEmpty(resolved)) p.Set(0);
-                            else if (int.TryParse(resolved, out var iv)) p.Set(iv);
+                            if (string.IsNullOrEmpty(resolved)) { p.Set(0); wrote = true; }
+                            else if (int.TryParse(resolved, out var iv)) { p.Set(iv); wrote = true; }
                             else r.Warnings.Add($"'{paramName}' expects integer; '{resolved}' not parsable.");
                             break;
                         case StorageType.Double:
-                            if (string.IsNullOrEmpty(resolved)) p.Set(0.0);
-                            else if (double.TryParse(resolved, out var dv)) p.Set(dv);
+                            if (string.IsNullOrEmpty(resolved)) { p.Set(0.0); wrote = true; }
+                            else if (double.TryParse(resolved, out var dv)) { p.Set(dv); wrote = true; }
                             else r.Warnings.Add($"'{paramName}' expects number; '{resolved}' not parsable.");
                             break;
                         default:
                             r.Warnings.Add($"'{paramName}' has unsupported storage type {p.StorageType}.");
                             continue;
                     }
-                    r.ParamsWritten++;
+                    if (wrote) writtenKeys.Add(paramName);
                 }
                 catch (Exception ex)
                 {
@@ -138,6 +145,7 @@ namespace StingTools.Core.Drawing
                 }
             }
             } // end per-TB block (GAP-M)
+            r.ParamsWritten = writtenKeys.Count;
             return r;
         }
 
@@ -153,7 +161,7 @@ namespace StingTools.Core.Drawing
                     if (tb.LookupParameter(k) != null) return true;
                 }
             }
-            catch { /* defensive — assume yes on probe failure */ return true; }
+            catch { /* defensive — a TB we cannot even probe is silently skipped rather than producing N false-positive "no parameter" warnings (GAP-M intent). */ return false; }
             return false;
         }
 
@@ -166,6 +174,7 @@ namespace StingTools.Core.Drawing
         /// leave stale values. Idempotent — no-op when the stamp is empty
         /// or the previous profile cannot be resolved.
         /// </summary>
+        /// <remarks>Must be called inside an active Revit transaction.</remarks>
         public static int ClearStaleKeysFromPriorProfile(Document doc, ViewSheet sheet)
             => ClearStaleKeysFromPriorProfile(doc, sheet, priorIdOverride: null);
 
@@ -174,6 +183,7 @@ namespace StingTools.Core.Drawing
         /// but lets the caller skip the second <see cref="DrawingTypeStamper.Read"/>
         /// when it's already loaded the prior id.
         /// </summary>
+        /// <remarks>Must be called inside an active Revit transaction.</remarks>
         public static int ClearStaleKeysFromPriorProfile(Document doc, ViewSheet sheet, string priorIdOverride)
         {
             if (doc == null || sheet == null) return 0;
@@ -233,6 +243,29 @@ namespace StingTools.Core.Drawing
             return missing;
         }
 
+        /// <summary>
+        /// Read-only resolution of every <c>TitleBlockParams</c> entry in
+        /// <paramref name="dt"/>. Substitutes <c>${PRJ_ORG_*}</c> against
+        /// the document's <see cref="ProjectInformation"/> and
+        /// <c>{token}</c>s against the supplied dict. Returns a fresh
+        /// dictionary mapping each param name to its resolved value
+        /// without writing anything to the model — used by the editor's
+        /// preview column and by drift detection.
+        /// </summary>
+        public static Dictionary<string, string> Peek(
+            Document doc, DrawingType dt, IDictionary<string, string> tokens = null)
+        {
+            var result = new Dictionary<string, string>(StringComparer.Ordinal);
+            if (dt?.TitleBlockParams == null || dt.TitleBlockParams.Count == 0) return result;
+            foreach (var kv in dt.TitleBlockParams)
+            {
+                if (string.IsNullOrWhiteSpace(kv.Key)) continue;
+                try { result[kv.Key] = ResolveTemplate(doc, kv.Value ?? "", tokens) ?? ""; }
+                catch { result[kv.Key] = ""; }
+            }
+            return result;
+        }
+
         // ── Internals ──
 
         private static string ResolveTemplate(
@@ -287,19 +320,6 @@ namespace StingTools.Core.Drawing
                     case StorageType.Double:  return p.AsDouble().ToString("0.###");
                     default: return p.AsValueString();
                 }
-            }
-            catch { return null; }
-        }
-
-        private static FamilyInstance FindTitleBlockInstance(Document doc, ViewSheet sheet)
-        {
-            try
-            {
-                return new FilteredElementCollector(doc, sheet.Id)
-                    .OfCategory(BuiltInCategory.OST_TitleBlocks)
-                    .OfClass(typeof(FamilyInstance))
-                    .Cast<FamilyInstance>()
-                    .FirstOrDefault();
             }
             catch { return null; }
         }

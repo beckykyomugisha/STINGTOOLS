@@ -436,13 +436,19 @@ namespace StingTools.Core.Drawing
             ElementId titleBlockId = ElementId.InvalidElementId;
             try
             {
-                titleBlockId = new FilteredElementCollector(doc)
+                var familyMatches = new FilteredElementCollector(doc)
                     .OfClass(typeof(FamilySymbol))
                     .OfCategory(BuiltInCategory.OST_TitleBlocks)
                     .Cast<FamilySymbol>()
                     .Where(s => string.IsNullOrEmpty(dt.TitleBlockFamily) ||
                                 string.Equals(s.FamilyName, dt.TitleBlockFamily, StringComparison.OrdinalIgnoreCase))
-                    .FirstOrDefault()?.Id ?? ElementId.InvalidElementId;
+                    .ToList();
+                FamilySymbol picked = null;
+                if (!string.IsNullOrWhiteSpace(dt.TitleBlockSymbolType))
+                    picked = familyMatches.FirstOrDefault(s =>
+                        string.Equals(s.Name, dt.TitleBlockSymbolType, StringComparison.OrdinalIgnoreCase));
+                if (picked == null) picked = familyMatches.FirstOrDefault();
+                titleBlockId = picked?.Id ?? ElementId.InvalidElementId;
                 if (titleBlockId == ElementId.InvalidElementId)
                     titleBlockId = new FilteredElementCollector(doc)
                         .OfClass(typeof(FamilySymbol))

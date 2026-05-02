@@ -9906,3 +9906,88 @@ per family doc.
 - `StingTools/Data/STING_TITLE_BLOCKS.json` — NEW (190)
 - `StingTools/UI/StingCommandHandler.cs` (+4 lines)
 - `docs/CHANGELOG.md` — this entry
+
+#### Completed (Phase 167 — Title Block Workflow Hardening)
+
+1. **Removed dead `FindTitleBlockInstance` method** —
+   `StingTools/Core/Drawing/TitleBlockParamApplier.cs`. The singular
+   overload was unreachable; `Apply()` walks every TB instance via
+   `FindAllTitleBlockInstances`.
+2. **Fixed `TitleBlockHasAnyKey` exception handling** —
+   `TitleBlockParamApplier.cs:163`. Catch block now returns `false` so a
+   TB that can't be probed is silently skipped, preventing N false-
+   positive "no parameter" warnings per secondary TB.
+3. **Fixed `ParamsWritten` double-counting on multi-TB sheets** —
+   `TitleBlockParamApplier.Apply`. Replaced the per-iteration
+   `r.ParamsWritten++` with a `HashSet<string>` keyed on param name; a
+   sheet with 2 TBs and 11 params now correctly reports 11.
+4. **Added transaction-required `<remarks>` XML docs** to both
+   `ClearStaleKeysFromPriorProfile` overloads. Documents the implicit
+   contract that the method writes Revit elements.
+5. **Logged scale-skip in `DrawingTypePresentation.Apply`** —
+   `DrawingTypePresentation.cs:312`. The `dt.Scale > 0` guard is now
+   paired with a `StingLog.Info` describing which DrawingType triggered
+   the skip, so 3D / Perspective profiles surface in diagnostics.
+6. **Added `TitleBlockSlotLoader` document cache** —
+   `UI/TitleBlockSlotLoader.cs`. `ConditionalWeakTable<Document, …>`
+   memoizes the FamilySymbol JSON walk so editor re-renders don't
+   re-collect every time. New `InvalidateCache(doc)` is wired into
+   `DrawingTypeRegistry.Reload`.
+7. **Added `DrawingType.TitleBlockSymbolType` field** — `DrawingType.cs`.
+   Optional family-type variant; resolution in `DrawingProducer.cs` and
+   `DrawingTypeSheetAdapter.cs` picks the symbol whose `Family.Name +
+   Name` match, falling back to "first symbol of family". Editor exposes
+   it as a free-text field on the Sheet card.
+8. **Added `TitleBlockParamApplier.Peek` + `TITLE_BLOCK_PARAM` drift** —
+   `TitleBlockParamApplier.cs` exposes a read-only resolver. New
+   `AppendTitleBlockParamDrift` (sheets only) compares
+   `TitleBlockParams` resolved values against the live TB instance's
+   String parameters. `DrawingSyncStylesCommand` now routes `ViewSheet`
+   targets through `DrawingTypePresentation.ApplyToSheet` so the drift
+   heals on resync.
+9. **Added DT-095 / DT-096 validation warnings** —
+   `DrawingTypeValidator.cs`. DT-070 (Error) replaced by DT-095
+   (Warning, scoped out of 3D / Perspective). DT-096 fires when the
+   sheet number pattern references `{project}` / `{originator}` /
+   `{vol}` but the `isoNaming` block is null.
+10. **Fixed `titleBlockFamily` naming inconsistencies in
+    `STING_DRAWING_TYPES.json`** — 8× `STING A1 Title Block` →
+    `STING_TB_SHEET_A1`; 1× `STING_TB_SHEET_A1_PRES` →
+    `STING_TB_SHEET_A1_PRESENTATION`. JSON re-parsed cleanly.
+11. **Removed `"scale": 0` entries from `STING_DRAWING_TYPES.json`** —
+    6 lines deleted across 3 presentation/3D drawing types. Runtime
+    skip log (item 5) handles their views without the explicit zero.
+12. **Added `BuildTitleBlockParamsCard` to the editor** —
+    `DrawingTypeEditorDialog.cs`. New "Title block parameters" card on
+    the Drawing Types tab right-panel form with a 4-column grid
+    (Param name / Value template / Resolved / delete). Resolved column
+    runs `TitleBlockParamApplier.Peek` against the active project's
+    `ProjectInformation`; unbound `${PRJ_ORG_*}` references render as
+    italic "(param not bound)".
+13. **Renamed editor tab to "Title Block Tools"** —
+    `DrawingTypeEditorDialog.cs:228` and `BuildTitleBlockTab`
+    `TabIntro` heading.
+14. **Added crosslink `InfoCard`** at the top of the Title Block Tools
+    tab pointing users to the per-drawing-type binding card on the
+    Drawing Types tab.
+15. **Expanded `DrawingType.TitleBlockParams` XML docs** —
+    `DrawingType.cs`. `<remarks>` block clarifies the `${ParameterName}`
+    PRJ_ORG_* namespace vs. legacy PRJ_TB_* and the caller-supplied
+    `{token}` set with format specifiers.
+
+**Files**
+- `StingTools/Core/Drawing/TitleBlockParamApplier.cs`
+- `StingTools/Core/Drawing/DrawingType.cs`
+- `StingTools/Core/Drawing/DrawingTypePresentation.cs`
+- `StingTools/Core/Drawing/DrawingTypeRegistry.cs`
+- `StingTools/Core/Drawing/DrawingDriftDetector.cs`
+- `StingTools/Core/Drawing/DrawingTypeValidator.cs`
+- `StingTools/Core/Drawing/DrawingProducer.cs`
+- `StingTools/Commands/Drawing/DrawingSyncStylesCommand.cs`
+- `StingTools/Docs/DrawingTypeSheetAdapter.cs`
+- `StingTools/UI/TitleBlockSlotLoader.cs`
+- `StingTools/UI/DrawingTypeEditorDialog.cs`
+- `StingTools/Data/STING_DRAWING_TYPES.json`
+
+**Caveats** — Built without `dotnet build` verification (Linux
+sandbox). All Revit API calls use documented signatures.

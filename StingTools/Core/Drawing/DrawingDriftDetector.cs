@@ -167,6 +167,15 @@ namespace StingTools.Core.Drawing
                 // through TokenProfileApplier and heals the drift.
                 AppendTokenProfileDrift(doc, v, dt, report);
 
+                // Phase 167 — title-block parameter drift (sheets only).
+                // Compares the resolved value of every TitleBlockParams entry
+                // to the live String parameter on the sheet's title-block
+                // instance(s). SyncStyles routes sheets through
+                // DrawingTypePresentation.ApplyToSheet which re-runs
+                // TitleBlockParamApplier and heals the drift.
+                if (v is ViewSheet sheet)
+                    AppendTitleBlockParamDrift(doc, sheet, dt, report);
+
                 if (report.Drifts.Count > 0 || report.Suppressed.Count > 0) reports.Add(report);
             }
             return reports;
@@ -274,6 +283,51 @@ namespace StingTools.Core.Drawing
             catch (Exception ex)
             {
                 StingTools.Core.StingLog.Warn($"AppendTokenProfileDrift({v.Id}): {ex.Message}");
+            }
+        }
+
+        // Phase 167 — title-block param drift (sheets only). Resolves every
+        // TitleBlockParams entry through TitleBlockParamApplier.Peek and
+        // compares to the live String value on the sheet's title-block
+        // instance(s). Only String storage is checked — Integer/Double
+        // params are rare in title blocks and ambiguous to compare.
+        private static void AppendTitleBlockParamDrift(Document doc, ViewSheet sheet, DrawingType dt, DriftReport report)
+        {
+            if (dt?.TitleBlockParams == null || dt.TitleBlockParams.Count == 0) return;
+            try
+            {
+                var expected = TitleBlockParamApplier.Peek(doc, dt, tokens: null);
+                if (expected.Count == 0) return;
+
+                var tbs = new FilteredElementCollector(doc, sheet.Id)
+                    .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                    .OfClass(typeof(FamilyInstance))
+                    .Cast<FamilyInstance>()
+                    .ToList();
+                if (tbs.Count == 0) return;
+
+                foreach (var kv in expected)
+                {
+                    var paramName = kv.Key;
+                    var expectedVal = kv.Value ?? "";
+                    foreach (var tb in tbs)
+                    {
+                        Parameter p;
+                        try { p = tb.LookupParameter(paramName); } catch { continue; }
+                        if (p == null || p.IsReadOnly) continue;
+                        if (p.StorageType != StorageType.String) continue;
+                        var actual = p.AsString() ?? "";
+                        if (!string.Equals(actual, expectedVal, StringComparison.Ordinal))
+                        {
+                            report.Drifts.Add($"TITLE_BLOCK_PARAM: '{paramName}' = '{actual}' vs profile '{expectedVal}'");
+                            break; // one drift per param name is enough for the report
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"AppendTitleBlockParamDrift({sheet.Id}): {ex.Message}");
             }
         }
 

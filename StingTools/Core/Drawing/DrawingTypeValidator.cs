@@ -128,9 +128,30 @@ namespace StingTools.Core.Drawing
                 r.Add(ValidationSeverity.Info, "DT-061",
                     "sheetNamePattern is empty — sheets will be named by Revit's default.");
 
+            // DT-095: scale must be positive on every purpose except 3D /
+            // Perspective, where assigning view.Scale = 0 throws and the
+            // engine logs + skips the assignment by design.
             if (dt.Scale <= 0)
-                r.Add(ValidationSeverity.Error, "DT-070",
-                    "scale must be positive (1:N denominator).");
+            {
+                bool isThreeD = string.Equals(dt.Purpose, DrawingPurpose.ThreeD, StringComparison.OrdinalIgnoreCase)
+                             || string.Equals(dt.Purpose, "Perspective", StringComparison.OrdinalIgnoreCase);
+                if (!isThreeD)
+                    r.Add(ValidationSeverity.Warning, "DT-095",
+                        $"Scale is {dt.Scale} — must be a positive integer for non-3D drawing types. Set scale > 0 or use purpose '3D'/'Perspective' for views where scale is not applicable.");
+            }
+
+            // DT-096: ISO naming tokens in the sheet number pattern need an
+            // isoNaming block, otherwise they resolve to empty strings.
+            if (!string.IsNullOrEmpty(dt.SheetNumberPattern) && dt.IsoNaming == null)
+            {
+                bool referencesIso =
+                    dt.SheetNumberPattern.IndexOf("{project}",    StringComparison.OrdinalIgnoreCase) >= 0
+                 || dt.SheetNumberPattern.IndexOf("{originator}", StringComparison.OrdinalIgnoreCase) >= 0
+                 || dt.SheetNumberPattern.IndexOf("{vol}",        StringComparison.OrdinalIgnoreCase) >= 0;
+                if (referencesIso)
+                    r.Add(ValidationSeverity.Warning, "DT-096",
+                        "sheetNumberPattern references ISO naming tokens ({project}, {originator}, etc.) but isoNaming is null. These tokens will resolve to empty strings. Add an isoNaming block to this drawing type.");
+            }
 
             // ── Phase 137 — annotation family + production rule + managed pack checks ──
 
