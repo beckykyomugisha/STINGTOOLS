@@ -776,16 +776,25 @@ app.MapHub<Planscape.Infrastructure.SignalR.CrdtHub>("/hubs/crdt");
 
     if (useEnsureCreated)
     {
-        // EnsureCreated() short-circuits if the *database* exists, but the
-        // Postgres container auto-creates the 'planscape' database from the
-        // POSTGRES_DB env var, so the API would see an empty DB with no
-        // tables and skip schema creation. RelationalDatabaseCreator.CreateTables
-        // operates at the table level — it materialises the schema from
-        // OnModelCreating whenever the model tables aren't already present.
-        var creator = (Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreator)
-            db.Database.GetService<Microsoft.EntityFrameworkCore.Storage.IDatabaseCreator>();
-        if (!creator.HasTables())
+        // EnsureCreated() short-circuits if the *database* exists, and the
+        // built-in HasTables() returns true even for non-app tables like
+        // Hangfire's job-store schema or __EFMigrationsHistory left over
+        // from earlier attempts. Probe specifically for the Tenants table
+        // (the first row created by SeedData) and materialise the full
+        // schema from OnModelCreating only when it's missing.
+        var conn = db.Database.GetDbConnection();
+        if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync();
+        bool hasAppSchema;
+        await using (var cmd = conn.CreateCommand())
         {
+            cmd.CommandText = "SELECT EXISTS (SELECT 1 FROM information_schema.tables "
+                            + "WHERE table_schema = 'public' AND table_name = 'Tenants')";
+            hasAppSchema = (bool)(await cmd.ExecuteScalarAsync() ?? false);
+        }
+        if (!hasAppSchema)
+        {
+            var creator = (Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreator)
+                db.Database.GetService<Microsoft.EntityFrameworkCore.Storage.IDatabaseCreator>();
             creator.CreateTables();
         }
     }
