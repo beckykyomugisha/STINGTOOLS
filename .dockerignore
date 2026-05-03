@@ -30,7 +30,17 @@ Thumbs.db
 **/.env
 **/.env.local
 
-# Docs and tests aren't needed in the runtime image
+# Docs and large unrelated trees aren't needed in the runtime image.
+# StingTools/ is the Revit plugin tree — exclude almost all of it, but
+# whitelist BcfEngine.cs because Planscape.Shared.csproj links it via
+# <Compile Include="..\..\..\StingTools\BIMManager\BcfEngine.cs"/>.
+StingTools/*
+!StingTools/BIMManager/
+StingTools/BIMManager/*
+!StingTools/BIMManager/BcfEngine.cs
+
+# Mobile app source isn't needed for the API container build
+Planscape/
 docs/
 tests/
 *.md
