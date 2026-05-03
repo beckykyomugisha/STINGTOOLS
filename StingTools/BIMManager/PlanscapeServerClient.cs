@@ -116,7 +116,51 @@ public sealed class PlanscapeServerClient : IDisposable
             }
             return true;
         }
-        catch (Exception ex) { LastError = ex.Message; StingLog.Error("Planscape: Login failed", ex); return false; }
+        catch (Exception ex)
+        {
+            LastError = BuildConnectivityHint(ex, _serverUrl);
+            StingLog.Error("Planscape: Login failed", ex);
+            return false;
+        }
+    }
+
+    /// <summary>Maps the raw HttpClient/socket exception to an actionable message.
+    /// Connection refused on localhost almost always means the docker stack
+    /// isn't running, which is the most common first-time-setup mistake.</summary>
+    private static string BuildConnectivityHint(Exception ex, string serverUrl)
+    {
+        // Walk the inner exception chain — HttpRequestException usually wraps
+        // a SocketException whose ErrorCode tells us refused vs. unreachable
+        // vs. DNS failure.
+        var sock = ex as System.Net.Sockets.SocketException;
+        for (var cur = ex; sock == null && cur != null; cur = cur.InnerException)
+            sock = cur.InnerException as System.Net.Sockets.SocketException;
+
+        bool isLocal = !string.IsNullOrEmpty(serverUrl) &&
+                       (serverUrl.IndexOf("localhost", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        serverUrl.IndexOf("127.0.0.1", StringComparison.OrdinalIgnoreCase) >= 0);
+
+        if (sock != null)
+        {
+            switch (sock.SocketErrorCode)
+            {
+                case System.Net.Sockets.SocketError.ConnectionRefused:
+                    return isLocal
+                        ? $"Login failed: nothing is listening on {serverUrl}. Start the local Planscape server with 'docker compose up -d' from Planscape.Server/docker, then wait for the 'api' container to become healthy (docker compose ps)."
+                        : $"Login failed: {serverUrl} refused the connection. The server may be stopped or a firewall is blocking the port.";
+                case System.Net.Sockets.SocketError.HostNotFound:
+                case System.Net.Sockets.SocketError.NoData:
+                    return $"Login failed: could not resolve '{serverUrl}'. Check the URL spelling and your DNS/internet connection.";
+                case System.Net.Sockets.SocketError.TimedOut:
+                    return $"Login failed: connection to {serverUrl} timed out. Check the server is reachable from this machine and no firewall is dropping the request.";
+                case System.Net.Sockets.SocketError.NetworkUnreachable:
+                case System.Net.Sockets.SocketError.HostUnreachable:
+                    return $"Login failed: {serverUrl} is not reachable from this network.";
+            }
+        }
+        if (ex is TaskCanceledException || ex is OperationCanceledException)
+            return $"Login failed: request to {serverUrl} timed out before the server responded.";
+        return $"Login failed: {ex.Message}";
     }
 
     /// <summary>
