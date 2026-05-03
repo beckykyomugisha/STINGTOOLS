@@ -33,16 +33,25 @@ public static class SeedData
         if (await db.Users.AnyAsync(u => u.Email == "admin@planscape.demo")) return;
 
         // ── Demo Tenant ──
-        var tenant = new Tenant
+        // Find-or-create. DemoSandboxJob (Hangfire recurring) also owns
+        // the Slug="demo" tenant — if it has already minted the row this
+        // boot, attach the demo admin to that tenant rather than inserting
+        // a duplicate (which would trip IX_Tenants_Slug). When neither
+        // seeder has run yet we create it ourselves.
+        var tenant = await db.Tenants.FirstOrDefaultAsync(t => t.Slug == "demo");
+        if (tenant == null)
         {
-            Name = "Planscape Demo",
-            Slug = "demo",
-            Tier = LicenseTier.Premium,
-            MaxUsers = 50,
-            MaxProjects = 20,
-            MimEnabled = true
-        };
-        db.Tenants.Add(tenant);
+            tenant = new Tenant
+            {
+                Name = "Planscape Demo",
+                Slug = "demo",
+                Tier = LicenseTier.Premium,
+                MaxUsers = 50,
+                MaxProjects = 20,
+                MimEnabled = true
+            };
+            db.Tenants.Add(tenant);
+        }
 
         // ── Admin User ──
         var admin = new AppUser
