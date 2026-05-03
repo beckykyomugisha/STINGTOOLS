@@ -26,6 +26,14 @@ public static class SeedData
                 return;
             }
         }
+        // Bypass the global tenant query filter. Every find-or-create probe
+        // below queries an ITenantScoped entity (Tenant/AppUser/LicenseKey/
+        // Project), and TenantContext.TenantId returns Guid.Empty at startup
+        // (no HTTP context). Without bypass, the probes return null even when
+        // the rows exist, and the subsequent Add() trips the unique
+        // constraint on the *actual* row in the database.
+        db.BypassTenantFilter = true;
+
         // Idempotent guard. Don't compare against ANY tenant — PlatformTenantSeeder
         // also creates a tenant on first start (the platform 'planscape' tenant for
         // operator accounts), so 'any tenant exists' would skip the demo seed
