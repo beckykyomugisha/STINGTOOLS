@@ -44,7 +44,13 @@ public class AuthController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<AuthLoginResponse>> Login([FromBody] AuthLoginRequest req)
     {
+        // Bypass the global tenant query filter. The caller has no JWT yet
+        // so TenantContext.TenantId is Guid.Empty and the filter would
+        // exclude every row, making login impossible. Login is the one
+        // place we have to look at AppUser across all tenants because
+        // we're trying to *resolve* the tenant from the credentials.
         var user = await _db.Users
+            .IgnoreQueryFilters()
             .Include(u => u.Tenant)
             .FirstOrDefaultAsync(u => u.Email == req.Email && u.IsActive);
 
