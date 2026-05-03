@@ -11,6 +11,7 @@ using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.Elasticsearch;
 using Hangfire;
+using Hangfire.PostgreSql;
 using Prometheus;
 using StackExchange.Redis;
 
