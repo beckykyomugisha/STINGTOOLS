@@ -2616,27 +2616,39 @@ namespace StingTools.BIMManager
                     return Result.Failed;
                 }
 
-                // Persist connection settings (no password stored)
-                var doc = commandData.Application.ActiveUIDocument?.Document;
-                if (doc != null)
+                // Login succeeded — anything that fails below is post-connect
+                // bookkeeping (save settings, start SyncScheduler, refresh dock
+                // chip). None of it should turn a working connection into a
+                // 'Connection error' popup. Wrap the whole tail in a try/catch
+                // that downgrades to a log line and still reports success.
+                try
                 {
-                    string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
-                    string cfgPath = Path.Combine(bimDir, "planscape_connection.json");
-                    PlanscapeServerClient.Instance.SaveConnectionSettings(cfgPath, email.Trim());
-
-                    // Save the project ID if provided
-                    if (!string.IsNullOrWhiteSpace(projectId))
+                    // Persist connection settings (no password stored)
+                    var doc = commandData.Application.ActiveUIDocument?.Document;
+                    if (doc != null)
                     {
-                        try
+                        string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
+                        string cfgPath = Path.Combine(bimDir, "planscape_connection.json");
+                        PlanscapeServerClient.Instance.SaveConnectionSettings(cfgPath, email.Trim());
+
+                        // Save the project ID if provided
+                        if (!string.IsNullOrWhiteSpace(projectId))
                         {
-                            JObject cfg = File.Exists(cfgPath)
-                                ? JObject.Parse(File.ReadAllText(cfgPath))
-                                : new JObject();
-                            cfg["projectId"] = projectId.Trim();
-                            File.WriteAllText(cfgPath, cfg.ToString(Formatting.Indented));
+                            try
+                            {
+                                JObject cfg = File.Exists(cfgPath)
+                                    ? JObject.Parse(File.ReadAllText(cfgPath))
+                                    : new JObject();
+                                cfg["projectId"] = projectId.Trim();
+                                File.WriteAllText(cfgPath, cfg.ToString(Formatting.Indented));
+                            }
+                            catch { /* non-fatal */ }
                         }
-                        catch { /* non-fatal */ }
                     }
+                }
+                catch (Exception persistEx)
+                {
+                    StingLog.Warn($"Planscape: post-login persist step failed (non-fatal) — {persistEx.Message}");
                 }
 
                 var client = PlanscapeServerClient.Instance;
@@ -2660,7 +2672,11 @@ namespace StingTools.BIMManager
                         {
                             Planscape.PluginSync.SyncScheduler.Instance.OnSyncComplete += _ =>
                             {
-                                UI.StingDockPanel.LastInstance?.RefreshSyncIndicator();
+                                try { UI.StingDockPanel.LastInstance?.RefreshSyncIndicator(); }
+                                catch (Exception refreshEx)
+                                {
+                                    StingLog.Warn($"RefreshSyncIndicator (post-sync): {refreshEx.Message}");
+                                }
                             };
                         }
                     }
@@ -2672,16 +2688,23 @@ namespace StingTools.BIMManager
                 }
                 catch (Exception schEx)
                 {
-                    StingLog.Warn($"SyncScheduler start from PlanscapeConnect: {schEx.Message}");
+                    StingLog.Warn($"SyncScheduler start from PlanscapeConnect (non-fatal): {schEx.Message}");
                 }
 
-                TaskDialog.Show("Planscape — Connected",
-                    $"✅ Successfully connected to Planscape!\n\n" +
-                    $"Server:  {client.ServerUrl}\n" +
-                    $"User:    {client.ConnectedUser}\n" +
-                    $"Tier:    {client.TierName}\n" +
-                    $"MIM:     {(client.MimEnabled ? "Enabled" : "Not enabled")}\n\n" +
-                    "You can now use 'Sync Now' to push tagged elements to the server.");
+                try
+                {
+                    TaskDialog.Show("Planscape — Connected",
+                        $"✅ Successfully connected to Planscape!\n\n" +
+                        $"Server:  {client.ServerUrl}\n" +
+                        $"User:    {client.ConnectedUser}\n" +
+                        $"Tier:    {client.TierName}\n" +
+                        $"MIM:     {(client.MimEnabled ? "Enabled" : "Not enabled")}\n\n" +
+                        "You can now use 'Sync Now' to push tagged elements to the server.");
+                }
+                catch (Exception dlgEx)
+                {
+                    StingLog.Warn($"Planscape: success TaskDialog failed (non-fatal) — {dlgEx.Message}");
+                }
 
                 StingLog.Info($"Planscape: Connected — {client.ConnectedUser} @ {client.ServerUrl}");
                 return Result.Succeeded;
@@ -2689,8 +2712,16 @@ namespace StingTools.BIMManager
             catch (Exception ex)
             {
                 StingLog.Error("PlanscapeConnectCommand failed", ex);
-                TaskDialog.Show("Planscape Connect Error", $"Connection error: {ex.Message}");
-                return Result.Failed;
+                // Only show the error dialog if login itself failed. If we got
+                // a JWT but a downstream hook NRE'd, the user is already
+                // connected — surfacing 'Connection error' is misleading.
+                if (!PlanscapeServerClient.Instance.IsConnected)
+                {
+                    TaskDialog.Show("Planscape Connect Error", $"Connection error: {ex.Message}");
+                    return Result.Failed;
+                }
+                StingLog.Warn("Planscape: connection succeeded but a downstream step threw — suppressing error dialog because IsConnected=true");
+                return Result.Succeeded;
             }
         }
     }
