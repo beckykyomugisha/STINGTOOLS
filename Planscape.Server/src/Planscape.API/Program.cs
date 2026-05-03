@@ -2,6 +2,7 @@ using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.SignalR;
 using Planscape.API.Middleware;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
@@ -775,7 +776,18 @@ app.MapHub<Planscape.Infrastructure.SignalR.CrdtHub>("/hubs/crdt");
 
     if (useEnsureCreated)
     {
-        db.Database.EnsureCreated();
+        // EnsureCreated() short-circuits if the *database* exists, but the
+        // Postgres container auto-creates the 'planscape' database from the
+        // POSTGRES_DB env var, so the API would see an empty DB with no
+        // tables and skip schema creation. RelationalDatabaseCreator.CreateTables
+        // operates at the table level — it materialises the schema from
+        // OnModelCreating whenever the model tables aren't already present.
+        var creator = (Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreator)
+            db.Database.GetService<Microsoft.EntityFrameworkCore.Storage.IDatabaseCreator>();
+        if (!creator.HasTables())
+        {
+            creator.CreateTables();
+        }
     }
     else
     {
