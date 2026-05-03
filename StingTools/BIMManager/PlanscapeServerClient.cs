@@ -83,7 +83,19 @@ public sealed class PlanscapeServerClient : IDisposable
             // an IExternalEventHandler). Without it, the dispatcher
             // deadlocks waiting for itself.
             var resp = await PostJsonAsync("/api/auth/login", new { email, password }).ConfigureAwait(false);
-            if (!resp.ok) { LastError = $"Login failed: {resp.body}"; return false; }
+            if (!resp.ok)
+            {
+                // 404 means the server URL is reachable but doesn't host the
+                // Planscape API. The most common cause is pointing at the
+                // retired Render deployment; nudge the user toward the local
+                // docker stack.
+                LastError = resp.status == 404
+                    ? $"Login failed: server at {_serverUrl} did not recognise /api/auth/login (HTTP 404). Confirm the URL — for the docker-compose stack use http://localhost:5000."
+                    : resp.status == 401
+                        ? "Login failed: email or password is incorrect."
+                        : $"Login failed (HTTP {resp.status}): {resp.body}";
+                return false;
+            }
 
             ParseAuthResponse(JObject.Parse(resp.body), email);
             LastError = null;
@@ -433,7 +445,17 @@ public sealed class PlanscapeServerClient : IDisposable
         {
             if (!File.Exists(configPath)) return ("", "", "");
             var json = JObject.Parse(File.ReadAllText(configPath));
-            return (json["serverUrl"]?.Value<string>()  ?? "",
+            string url = json["serverUrl"]?.Value<string>() ?? "";
+
+            // The legacy Render.com deployment is offline and returns 404 on
+            // /api/auth/login, which surfaces in the UI as "Login failed: Not
+            // Found". Drop the stale URL so the dialog falls back to its
+            // current default (the local docker stack) instead of pinning
+            // users to a dead host.
+            if (url.IndexOf("planscape-api.onrender.com", StringComparison.OrdinalIgnoreCase) >= 0)
+                url = "";
+
+            return (url,
                     json["email"]?.Value<string>()      ?? "",
                     json["projectId"]?.Value<string>()  ?? "");
         }
@@ -964,6 +986,17 @@ public sealed class PlanscapeServerClient : IDisposable
             if (string.IsNullOrEmpty(_serverUrl) || string.IsNullOrEmpty(_refreshToken))
             {
                 DeletePersistedSession();
+                return false;
+            }
+
+            // Discard sessions tied to the offline Render.com host so users
+            // aren't pinned to a dead URL after a Revit restart.
+            if (_serverUrl.IndexOf("planscape-api.onrender.com", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                StingLog.Info("Planscape: stored session points to retired onrender host, clearing.");
+                DeletePersistedSession();
+                _serverUrl = ""; _accessToken = ""; _refreshToken = "";
+                ConnectedUser = ""; TenantId = Guid.Empty; UserId = Guid.Empty;
                 return false;
             }
             EnsureHttpClient(_serverUrl);
