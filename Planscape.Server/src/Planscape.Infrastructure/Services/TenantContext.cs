@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.DependencyInjection;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
@@ -15,7 +16,7 @@ namespace Planscape.Infrastructure.Services;
 public class TenantContext : ITenantContext
 {
     private readonly IHttpContextAccessor _httpContext;
-    private readonly PlanscapeDbContext _db;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly IDistributedCache _cache;
     private Tenant? _cached;
     private bool _loaded;
@@ -25,10 +26,18 @@ public class TenantContext : ITenantContext
         AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
     };
 
-    public TenantContext(IHttpContextAccessor httpContext, PlanscapeDbContext db, IDistributedCache cache)
+    // Inject IServiceScopeFactory rather than PlanscapeDbContext directly to
+    // break the DI cycle: PlanscapeDbContext now depends on ITenantContext
+    // for its global tenant query filter, so TenantContext can't take the
+    // DbContext as a constructor argument or the service provider rejects
+    // both with InvalidOperationException 'circular dependency was detected'.
+    // The DbContext is resolved on demand from a fresh scope only when the
+    // Redis cache misses, which happens at most once per (tenant, 5-minute
+    // window).
+    public TenantContext(IHttpContextAccessor httpContext, IServiceScopeFactory scopeFactory, IDistributedCache cache)
     {
         _httpContext = httpContext;
-        _db = db;
+        _scopeFactory = scopeFactory;
         _cache = cache;
     }
 
@@ -70,8 +79,14 @@ public class TenantContext : ITenantContext
         }
         catch { /* Redis unavailable — fall through to DB */ }
 
-        // Fallback to DB
-        _cached = _db.Tenants.AsNoTracking().FirstOrDefault(t => t.Id == id);
+        // Fallback to DB. Use a short-lived scope so this lookup doesn't
+        // require holding a DbContext for the whole request lifetime, and
+        // — critically — so the DI graph stays acyclic.
+        using (var scope = _scopeFactory.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
+            _cached = db.Tenants.AsNoTracking().FirstOrDefault(t => t.Id == id);
+        }
 
         // Cache in Redis
         if (_cached != null)
