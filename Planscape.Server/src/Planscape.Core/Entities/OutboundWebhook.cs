@@ -6,7 +6,7 @@ namespace Planscape.Core.Entities;
 /// to no-code integrations (Zapier, Make, n8n, custom) without needing an
 /// OAuth round-trip from each contractor's tooling.
 /// </summary>
-public class OutboundWebhook : ITenantScoped,  ITenantScoped
+public class OutboundWebhook : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }
