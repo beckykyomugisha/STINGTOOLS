@@ -525,7 +525,7 @@ public class AuthController : ControllerBase
         var emailService = HttpContext.RequestServices.GetService<Planscape.Core.Interfaces.IEmailService>();
         if (emailService != null)
         {
-            await emailService.SendAsync(user.Email, "Planscape Password Reset",
+            await emailService.SendNotificationAsync(user.Email, "Planscape Password Reset",
                 $"Use this token to reset your password (expires in 1 hour):\n\n{resetToken}\n\n" +
                 $"POST /api/auth/reset-password with {{ \"token\": \"{resetToken}\", \"newPassword\": \"...\" }}");
         }
