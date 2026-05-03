@@ -62,7 +62,7 @@ public class QuotaGuardService : IQuotaGuardService
             return QuotaResult.Denied(QuotaAxis.Storage, used, capBytes,
                 $"Storage cap reached ({used / 1024 / 1024:N0} of {capBytes / 1024 / 1024:N0} MB)");
 
-        return QuotaResult.Allowed(QuotaAxis.Storage, used, capBytes);
+        return QuotaResult.Allow(QuotaAxis.Storage, used, capBytes);
     }
 
     private async Task<(BillingPlanLimits.Limits, int)> CountAsync(QuotaAxis axis, CancellationToken ct)
@@ -81,11 +81,11 @@ public class QuotaGuardService : IQuotaGuardService
 
     private static QuotaResult Result(QuotaAxis axis, int current, int max)
     {
-        if (max == int.MaxValue) return QuotaResult.Allowed(axis, current, max);
+        if (max == int.MaxValue) return QuotaResult.Allow(axis, current, max);
         if (current >= max)
             return QuotaResult.Denied(axis, current, max,
                 $"{axis} cap reached ({current} of {max}).");
-        return QuotaResult.Allowed(axis, current, max);
+        return QuotaResult.Allow(axis, current, max);
     }
 }
 
@@ -100,6 +100,6 @@ public enum QuotaAxis { Projects, Authors, Coordinators, Storage }
 
 public sealed record QuotaResult(bool Allowed, QuotaAxis Axis, long Current, long Max, string? Reason)
 {
-    public static QuotaResult Allowed(QuotaAxis axis, long current, long max) => new(true, axis, current, max, null);
+    public static QuotaResult Allow(QuotaAxis axis, long current, long max) => new(true, axis, current, max, null);
     public static QuotaResult Denied(QuotaAxis axis, long current, long max, string reason) => new(false, axis, current, max, reason);
 }
