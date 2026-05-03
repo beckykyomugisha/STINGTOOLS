@@ -181,14 +181,18 @@ builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationH
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<Planscape.Core.Interfaces.ITenantContext, Planscape.Infrastructure.Services.TenantContext>();
 // STORAGE-01 — Storage:Provider = "S3" | "Local" (default). S3 covers AWS, MinIO, R2, Spaces.
+// Scoped (not singleton) because both implementations inject the scoped
+// ITenantContext for per-request tenant isolation. A singleton would fail
+// service-validation with 'Cannot consume scoped service ITenantContext
+// from singleton IFileStorageService'.
 var storageProvider = builder.Configuration["Storage:Provider"];
 if (string.Equals(storageProvider, "S3", StringComparison.OrdinalIgnoreCase))
 {
-    builder.Services.AddSingleton<Planscape.Core.Interfaces.IFileStorageService, Planscape.Infrastructure.Storage.S3FileStorageService>();
+    builder.Services.AddScoped<Planscape.Core.Interfaces.IFileStorageService, Planscape.Infrastructure.Storage.S3FileStorageService>();
 }
 else
 {
-    builder.Services.AddSingleton<Planscape.Core.Interfaces.IFileStorageService, Planscape.Infrastructure.Storage.LocalFileStorageService>();
+    builder.Services.AddScoped<Planscape.Core.Interfaces.IFileStorageService, Planscape.Infrastructure.Storage.LocalFileStorageService>();
 }
 // Phase 150 — platform-wide deliverable state-machine keyword
 // extensions. Bound from `DeliverableStateMachine:Keywords` in
