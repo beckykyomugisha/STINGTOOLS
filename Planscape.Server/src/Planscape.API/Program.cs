@@ -753,22 +753,34 @@ app.MapHub<NotificationHub>("/hubs/notifications");
 // S6.3 — CRDT relay for collaborative pin / issue editing.
 app.MapHub<Planscape.Infrastructure.SignalR.CrdtHub>("/hubs/crdt");
 
-// ── Database migration + seed ──
+// ── Database schema + seed ──
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
-    if (app.Environment.IsDevelopment())
+
+    // The hand-authored migrations under Planscape.Infrastructure/Data/Migrations/
+    // are missing their .Designer.cs companions and the model snapshot is stale,
+    // so Migrate() cannot apply them in order. For dev / local docker stacks we
+    // materialise the schema directly from OnModelCreating which always matches
+    // the current entity classes. Production deployments should regenerate the
+    // migration set with `dotnet ef migrations` once the model is stable.
+    var useEnsureCreated = app.Environment.IsDevelopment()
+        || string.Equals(
+            Environment.GetEnvironmentVariable("PLANSCAPE_USE_ENSURE_CREATED"),
+            "true", StringComparison.OrdinalIgnoreCase);
+
+    if (useEnsureCreated)
     {
-        // In development, auto-migrate (apply pending migrations or create DB)
-        db.Database.Migrate();
-        await Planscape.API.SeedData.SeedAsync(db, app.Environment);
+        db.Database.EnsureCreated();
     }
     else
     {
-        // In production, only apply pending migrations — no seed data.
-        // SeedData itself refuses to run in Production unless
-        // PLANSCAPE_ALLOW_DEMO_SEED=true is set.
         db.Database.Migrate();
+    }
+
+    if (app.Environment.IsDevelopment())
+    {
+        await Planscape.API.SeedData.SeedAsync(db, app.Environment);
     }
 }
 

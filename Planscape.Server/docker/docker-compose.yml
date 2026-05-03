@@ -6,7 +6,7 @@ services:
     ports:
       - "5000:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__Default=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!}
       - ConnectionStrings__Migrations=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!}
       - Jwt__Key=${JWT_KEY:-Planscape-Production-Secret-Key-Min32Chars!!}
@@ -76,7 +76,7 @@ services:
       dockerfile: Planscape.Server/docker/Dockerfile
     command: ["dotnet", "Planscape.API.dll", "--worker"]
     environment:
-      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__Default=Host=postgres;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!}
     depends_on:
       - postgres
