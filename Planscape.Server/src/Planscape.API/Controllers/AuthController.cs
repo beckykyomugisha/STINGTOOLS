@@ -621,8 +621,14 @@ public class AuthController : ControllerBase
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new Claim("user_id", user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
+            // Emit iat exactly once. JwtRegisteredClaimNames.Iat IS the
+            // string "iat", so adding both creates a duplicate that the
+            // JWT serialiser writes as the JSON array [1777830565,
+            // 1777830565]. That's a spec violation — Microsoft.IdentityModel
+            // 8 rejects the token at validation time with 'invalid_token'
+            // and no error_description, breaking every authenticated
+            // request after login.
             new Claim(JwtRegisteredClaimNames.Iat, nowSec, ClaimValueTypes.Integer64),
-            new Claim("iat", nowSec, ClaimValueTypes.Integer64),
             new Claim("tenant_id", user.TenantId.ToString()),
             new Claim("tenant_slug", user.Tenant?.Slug ?? ""),
             new Claim("tier", tierName),
