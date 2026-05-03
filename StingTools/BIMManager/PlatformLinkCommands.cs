@@ -2612,8 +2612,7 @@ namespace StingTools.BIMManager
                 if (!ok)
                 {
                     TaskDialog.Show("Planscape Connect — Failed",
-                        $"Authentication failed.\n\n{PlanscapeServerClient.Instance.LastError ?? "Unknown error"}\n\n" +
-                        $"Please check:\n  • Server URL is reachable\n  • Email and password are correct\n  • Network connection is available");
+                        $"Authentication failed.\n\n{PlanscapeServerClient.Instance.LastError ?? "Unknown error"}");
                     return Result.Failed;
                 }
 
