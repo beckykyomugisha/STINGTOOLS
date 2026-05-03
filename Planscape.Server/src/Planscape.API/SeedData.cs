@@ -65,20 +65,32 @@ public static class SeedData
         };
         db.Users.Add(admin);
 
-        // ── Demo License Key ──
-        var license = new LicenseKey
+        // ── Demo License Key (find-or-create) ──
+        var license = await db.LicenseKeys.FirstOrDefaultAsync(l => l.Key == "PLANSCAPE-DEMO-2026-PREMIUM");
+        if (license == null)
         {
-            TenantId = tenant.Id,
-            Key = "PLANSCAPE-DEMO-2026-PREMIUM",
-            Tier = LicenseTier.Premium,
-            MaxActivations = 10,
-            MimEnabled = true,
-            ExpiresAt = DateTime.UtcNow.AddYears(1)
-        };
-        db.LicenseKeys.Add(license);
+            license = new LicenseKey
+            {
+                TenantId = tenant.Id,
+                Key = "PLANSCAPE-DEMO-2026-PREMIUM",
+                Tier = LicenseTier.Premium,
+                MaxActivations = 10,
+                MimEnabled = true,
+                ExpiresAt = DateTime.UtcNow.AddYears(1)
+            };
+            db.LicenseKeys.Add(license);
+        }
 
-        // ── Sample Project ──
-        var project = new Project
+        // ── Sample Project (find-or-create) ──
+        var project = await db.Projects.FirstOrDefaultAsync(p => p.Code == "NHW-2026" && p.TenantId == tenant.Id);
+        if (project != null)
+        {
+            // Project + cascading children already exist from a prior partial run.
+            // Skip the rest of the sample data; the demo admin we just attached is enough.
+            await db.SaveChangesAsync();
+            return;
+        }
+        project = new Project
         {
             TenantId = tenant.Id,
             Name = "New Hospital Wing",
