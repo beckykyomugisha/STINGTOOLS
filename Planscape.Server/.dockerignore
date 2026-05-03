@@ -1,0 +1,36 @@
+# .NET build artefacts — must NOT leak into the Linux container build.
+# When the host is Windows and Visual Studio (or `dotnet build`) has run
+# locally, project.assets.json carries Windows paths that the Linux SDK
+# cannot resolve and `dotnet publish` aborts with MSB4018 inside
+# Microsoft.PackageDependencyResolution.targets.
+**/bin/
+**/obj/
+
+# Node sidecar build artefacts
+**/node_modules/
+**/dist/
+**/.next/
+
+# IDE / editor cruft
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Git metadata / OS junk
+.git/
+.gitignore
+**/*.DS_Store
+Thumbs.db
+
+# Local secrets and dev overrides
+**/appsettings.Development.json
+**/appsettings.Local.json
+**/.env
+**/.env.local
+
+# Docs and tests aren't needed in the runtime image
+docs/
+tests/
+*.md
