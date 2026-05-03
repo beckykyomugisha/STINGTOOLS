@@ -26,7 +26,11 @@ public static class SeedData
                 return;
             }
         }
-        if (await db.Tenants.AnyAsync()) return; // Already seeded
+        // Idempotent guard. Don't compare against ANY tenant — PlatformTenantSeeder
+        // also creates a tenant on first start (the platform 'planscape' tenant for
+        // operator accounts), so 'any tenant exists' would skip the demo seed
+        // entirely. Probe for the demo admin specifically.
+        if (await db.Users.AnyAsync(u => u.Email == "admin@planscape.demo")) return;
 
         // ── Demo Tenant ──
         var tenant = new Tenant
