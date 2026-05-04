@@ -633,18 +633,11 @@ namespace StingTools.BIMManager
                     var preRevScan = ComplianceScan.Scan(doc);
                     if (preRevScan.CompliancePercent < 80)
                     {
-                        var gateDlg = new TaskDialog("STING Pre-Revision Compliance Gate");
-                        gateDlg.MainInstruction = $"Tag compliance is {preRevScan.CompliancePercent:F0}% (below 80% threshold)";
-                        gateDlg.MainContent =
-                            $"Total elements: {preRevScan.TotalElements}\n" +
-                            $"Tagged: {preRevScan.TaggedComplete} | Untagged: {preRevScan.Untagged}\n" +
-                            $"Stale: {preRevScan.StaleCount}\n\n" +
-                            "Creating a revision with low compliance may result in incomplete COBie data.\n" +
-                            "Recommended: tag to ≥80% before creating revision.";
-                        gateDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Create revision anyway");
-                        gateDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Cancel — tag first");
-                        if (gateDlg.Show() != TaskDialogResult.CommandLink1)
-                            return Result.Cancelled;
+                        string ack = UI.StingCommandHandler.GetExtraParam("RevisionComplianceAck") ?? "";
+                        StingLog.Warn(
+                            $"Pre-revision compliance gate: {preRevScan.CompliancePercent:F0}% " +
+                            $"(below 80%). Tagged={preRevScan.TaggedComplete} Untagged={preRevScan.Untagged} " +
+                            $"Stale={preRevScan.StaleCount}. User ack='{ack}'. Proceeding.");
                     }
                 }
                 catch (Exception ex) { StingLog.Warn($"Pre-revision compliance check: {ex.Message}"); }
