@@ -24,16 +24,16 @@ namespace StingTools.UI
     /// </summary>
     public class ProjectFolderSetupDialog
     {
-        // ── Theme ──
-        private static readonly SolidColorBrush BgDark   = new(Color.FromRgb(0x1E, 0x1E, 0x1E));
-        private static readonly SolidColorBrush BgPanel  = new(Color.FromRgb(0x25, 0x25, 0x26));
-        private static readonly SolidColorBrush BgInput  = new(Color.FromRgb(0x2D, 0x2D, 0x30));
-        private static readonly SolidColorBrush FgWhite  = new(Color.FromRgb(0xFF, 0xFF, 0xFF));
-        private static readonly SolidColorBrush FgSubtle = new(Color.FromRgb(0xAA, 0xAA, 0xAA));
-        private static readonly SolidColorBrush Accent   = new(Color.FromRgb(0x00, 0x78, 0xD4));
-        private static readonly SolidColorBrush BrBorder = new(Color.FromRgb(0x40, 0x40, 0x40));
-        private static readonly SolidColorBrush Yellow   = new(Color.FromRgb(0xFF, 0xC1, 0x07));
-        private static readonly SolidColorBrush Green    = new(Color.FromRgb(0x4C, 0xAF, 0x50));
+        // ── Theme (Corporate — matches ThemeManager "Corporate" palette) ──
+        private static readonly SolidColorBrush BgDark   = new(Color.FromRgb(0xFA, 0xFA, 0xFA));  // PrimaryBg
+        private static readonly SolidColorBrush BgPanel  = new(Color.FromRgb(0xEC, 0xEF, 0xF1));  // HeaderBg / read-only panel
+        private static readonly SolidColorBrush BgInput  = new(Color.FromRgb(0xFF, 0xFF, 0xFF));  // input/grid background
+        private static readonly SolidColorBrush FgWhite  = new(Color.FromRgb(0x37, 0x47, 0x4F));  // PanelFg slate
+        private static readonly SolidColorBrush FgSubtle = new(Color.FromRgb(0x60, 0x7D, 0x8B));  // muted slate
+        private static readonly SolidColorBrush Accent   = new(Color.FromRgb(0x19, 0x76, 0xD2));  // corporate blue
+        private static readonly SolidColorBrush BrBorder = new(Color.FromRgb(0xCF, 0xD8, 0xDC));  // light slate border
+        private static readonly SolidColorBrush Yellow   = new(Color.FromRgb(0xFF, 0xC1, 0x07));  // amber banner
+        private static readonly SolidColorBrush Green    = new(Color.FromRgb(0x2E, 0x7D, 0x32));  // success
 
         public ProjectSetup Result { get; private set; }
 
@@ -524,7 +524,7 @@ namespace StingTools.UI
             cancel.Click += (s, e) => { _window.DialogResult = false; _window.Close(); };
             var ok = MakeButton("Create Folders", 130);
             ok.Background = Accent;
-            ok.Foreground = FgWhite;
+            ok.Foreground = Brushes.White;
             ok.FontWeight = FontWeights.Bold;
             ok.Click += OnCreateFolders;
             buttons.Children.Add(cancel);

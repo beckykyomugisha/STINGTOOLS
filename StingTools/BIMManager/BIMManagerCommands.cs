@@ -6688,9 +6688,14 @@ namespace StingTools.BIMManager
                 string outputDir;
                 if (!string.IsNullOrEmpty(modelPath))
                 {
-                    string dir = Path.GetDirectoryName(modelPath);
                     string name = Path.GetFileNameWithoutExtension(modelPath);
-                    outputDir = Path.Combine(dir, $"{name}_Briefcase_{DateTime.Now:yyyyMMdd_HHmmss}");
+                    // Folder consolidation: nest the briefcase inside the unified
+                    // project root's 17_BRIEFCASE_<code>/ folder rather than a
+                    // sibling timestamp directory next to the .rvt.
+                    string briefcaseRoot = ProjectFolderEngine.GetFolderPath(doc, "BRIEFCASE");
+                    if (string.IsNullOrEmpty(briefcaseRoot))
+                        briefcaseRoot = Path.GetDirectoryName(modelPath);
+                    outputDir = Path.Combine(briefcaseRoot, $"{name}_Briefcase_{DateTime.Now:yyyyMMdd_HHmmss}");
                 }
                 else
                 {

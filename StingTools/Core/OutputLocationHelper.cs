@@ -41,15 +41,25 @@ namespace StingTools.Core
         /// <summary>
         /// Resolve the best output directory using the fallback chain.
         /// Creates the directory if it doesn't exist.
+        ///
+        /// Resolution order:
+        ///   1. Phase 167 unified project root (auto-bootstrapped if missing) → 20_MISC_<code>
+        ///   2. User-configured PreferredDirectory (overrides only if explicitly set)
+        ///   3. System temp (with one-shot warning so the user notices)
+        ///
+        /// The legacy {projectDir}/STING_Exports/ and {Documents}/STING_Exports/
+        /// fallbacks have been removed: every export now lands inside the single
+        /// project container so the user no longer sees a sprawl of sibling
+        /// folders next to the .rvt.
         /// </summary>
         public static string GetOutputDirectory(Document doc = null)
         {
-            // Phase 167: prefer the configured project folder structure when present
+            // 1. Phase 167 — unified project folder structure (auto-bootstrap if needed)
             try
             {
                 if (doc != null)
                 {
-                    var setup = ProjectFolderEngine.LoadOrDetectSetup(doc);
+                    var setup = ProjectFolderEngine.LoadOrBootstrapSetup(doc);
                     if (setup != null)
                     {
                         string projRoot = ProjectFolderEngine.GetExportFolder(doc, "MISC");
@@ -60,35 +70,12 @@ namespace StingTools.Core
             }
             catch (Exception ex) { StingLog.Warn($"GetOutputDirectory setup lookup: {ex.Message}"); }
 
-            // 1. User-preferred directory
+            // 2. User-preferred directory (explicit override only)
             string dir = PreferredDirectory;
             if (!string.IsNullOrEmpty(dir) && TryEnsureDirectory(dir))
                 return dir;
 
-            // 2. Project directory / STING_Exports subfolder
-            if (doc != null && !string.IsNullOrEmpty(doc.PathName))
-            {
-                string projDir = Path.GetDirectoryName(doc.PathName);
-                if (!string.IsNullOrEmpty(projDir))
-                {
-                    string exportsDir = Path.Combine(projDir, "STING_Exports");
-                    if (TryEnsureDirectory(exportsDir))
-                        return exportsDir;
-                    if (TryEnsureDirectory(projDir))
-                        return projDir;
-                }
-            }
-
-            // 3. Documents/STING_Exports
-            string docsDir = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            if (!string.IsNullOrEmpty(docsDir))
-            {
-                string stingDocsDir = Path.Combine(docsDir, "STING_Exports");
-                if (TryEnsureDirectory(stingDocsDir))
-                    return stingDocsDir;
-            }
-
-            // 4. Temp directory (last resort — warn so user knows exports are not in a project folder)
+            // 3. Temp directory (last resort — warn so user knows exports are not in a project folder)
             string tempDir = Path.GetTempPath();
             StingLog.Warn($"OutputLocationHelper: All preferred directories failed. Falling back to system temp: {tempDir}");
 

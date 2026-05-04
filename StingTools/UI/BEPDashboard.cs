@@ -21,21 +21,23 @@ namespace StingTools.UI
 
     internal static class BEPDashboard
     {
-        // ── Frozen brush pattern ──
+        // Palette routed through ThemeManager so the dashboard tracks the
+        // active theme (Corporate by default — navy header, orange accent).
         private static SolidColorBrush FZ(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
 
-        private static readonly SolidColorBrush BgBrush = FZ(Color.FromRgb(0xF5, 0xF5, 0xF5));
-        private static readonly SolidColorBrush HeaderBg = FZ(Color.FromRgb(0x1A, 0x23, 0x7E));
-        private static readonly SolidColorBrush AccentBrush = FZ(Color.FromRgb(0xE8, 0x91, 0x2D));
-        private static readonly SolidColorBrush PanelBg = FZ(Brushes.White.Color);
-        private static readonly SolidColorBrush FgDark = FZ(Color.FromRgb(0x22, 0x22, 0x22));
-        private static readonly SolidColorBrush FgWhite = FZ(Colors.White);
-        private static readonly SolidColorBrush FgMuted = FZ(Color.FromRgb(0x66, 0x66, 0x66));
-        private static readonly SolidColorBrush BorderLight = FZ(Color.FromRgb(0xDD, 0xDD, 0xDD));
-        private static readonly SolidColorBrush GreenAccent = FZ(Color.FromRgb(0x2E, 0x7D, 0x32));
-        private static readonly SolidColorBrush BlueAccent = FZ(Color.FromRgb(0x15, 0x65, 0xC0));
+        private static SolidColorBrush BgBrush      => ThemeManager.GetBrush("AltRowBg");
+        private static SolidColorBrush HeaderBg     => ThemeManager.GetBrush("HeaderBg");
+        private static SolidColorBrush AccentBrush  => ThemeManager.GetBrush("AccentBrush");
+        private static SolidColorBrush PanelBg      => ThemeManager.GetBrush("CardBg");
+        private static SolidColorBrush FgDark       => ThemeManager.GetBrush("PanelFg");
+        private static SolidColorBrush FgWhite      => ThemeManager.GetBrush("HeaderFg");
+        private static SolidColorBrush FgMuted      => ThemeManager.GetBrush("SubtleFg");
+        private static SolidColorBrush BorderLight  => ThemeManager.GetBrush("BorderColor");
+        private static SolidColorBrush GreenAccent  => ThemeManager.GetBrush("SuccessColor");
+        private static SolidColorBrush BlueAccent   => ThemeManager.GetBrush("InfoBlue");
+        private static SolidColorBrush RedAccent    => ThemeManager.GetBrush("ErrorColor");
+        // Brand-fixed accent retained outside the theme matrix
         private static readonly SolidColorBrush PurpleAccent = FZ(Color.FromRgb(0x6A, 0x1B, 0x9A));
-        private static readonly SolidColorBrush RedAccent = FZ(Color.FromRgb(0xC6, 0x28, 0x28));
 
         // ── Field references for value collection ──
         private static TextBox _txtProjectName;
