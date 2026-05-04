@@ -16,7 +16,11 @@ services:
       # Migrations + tooling should connect direct via host=postgres,
       # port=5432 (bypass) — PgBouncer in transaction mode breaks
       # session-state features (LISTEN/NOTIFY, prepared statements).
-      - ConnectionStrings__Default=Host=pgbouncer;Port=6432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!};No Reset On Close=true;Server Compatibility Mode=NoTypeLoading
+      # 2026-05 — direct postgres connection for local dev. The pgbouncer
+      # service below is gated behind the `pool` compose profile, so it
+      # only starts when explicitly requested (`--profile pool`). Outside
+      # that profile the API talks straight to Postgres on 5432.
+      - ConnectionStrings__Default=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!}
       - ConnectionStrings__Migrations=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!}
       - Jwt__Key=${JWT_KEY:-Planscape-Production-Secret-Key-Min32Chars!!}
       - Jwt__Issuer=Planscape
@@ -28,8 +32,8 @@ services:
       - ModelConverter__Aps__ClientId=${APS_CLIENT_ID:-}
       - ModelConverter__Aps__ClientSecret=${APS_CLIENT_SECRET:-}
     depends_on:
-      pgbouncer:
-        condition: service_started
+      postgres:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       redis:
@@ -62,9 +66,14 @@ services:
   # Multiplexes 5,000 client connections onto ~50 backend connections so
   # the ASP.NET Core pool doesn't saturate Postgres at firm #6+.
   pgbouncer:
-    # 2026-05 — was pinned to 1.23.1 but that tag was removed from Docker
-    # Hub. 1.22.1 is the most recent verified-available release.
-    image: edoburu/pgbouncer:1.22.1
+    # 2026-05 — pgbouncer is gated behind the optional `pool` profile.
+    # Default `docker compose up` skips it (the API talks straight to
+    # Postgres). To enable transaction pooling at scale:
+    #   docker compose --profile pool up -d
+    # The edoburu/pgbouncer 1.23.1 / 1.22.1 tags were withdrawn from
+    # Docker Hub; bitnami/pgbouncer is actively maintained.
+    profiles: ["pool"]
+    image: bitnami/pgbouncer:latest
     environment:
       DB_HOST: postgres
       DB_PORT: "5432"
