@@ -9879,3 +9879,49 @@ handled. Check StingCommandHandler for the command binding." pop-ups.
 - `StingTools/Core/WarningsManager.cs` — 12 dictionary entries in `_actionToCommandTag`
 - `docs/CHANGELOG.md` — this entry
 
+
+#### Completed (Phase 174 — Branch consolidation + stats refresh)
+
+Bulk-merged every outstanding `claude/*` feature branch with unique
+commits not yet in HEAD onto
+`claude/merge-branches-update-docs-SvA31`. Conflict policy mirrored
+Phase 138: `-X ours` against the Phase 168–173 baseline; for
+`modify/delete` and `rename/delete` collisions the HEAD copy was kept;
+for `delete/delete` the deletion was accepted. Result: 64 fast-forward /
+auto-merges + 11 conflict-resolved merges + 0 abandoned. After the run
+`git branch -r --no-merged HEAD` reports zero remaining. Built without
+`dotnet build` verification (Linux sandbox); verify in Revit before
+merging to `main`.
+
+1. **75 feature branches consolidated**, ranging from single-commit fixes
+   up to `document-missing-parameters-9tTAr` (1,148 unique commits).
+   Notable absorbed work: Speckle integration phases (6a/6b/6c), xeokit
+   3D viewer (phase-7), BCF round-trip (phase-8), mobile issue 3D
+   (phase-9), structural modeling automation, BOQ cost manager,
+   placement-centre overhaul, drawing-types Excel round-trip,
+   electrical family automation, condescending-blackburn,
+   crazy-visvesvaraya, and the various
+   `merge-resolve-conflicts-*` / `merge-branches-main-*` waypoints.
+2. **Conflict resolution log** captured to `/tmp/merge_log.txt` during
+   the run; eleven branches required `ours`-bias resolution
+   (`planscape-testing-guide-tyjeC`, `phase-5-pluginsync-scheduler`,
+   `merge-branches-resolve-conflicts-e3Smz`, `resume-previous-work-S1VwG`,
+   `review-3d-viewing-Fle2R` and six others where deletions in incoming
+   branches collided with renames or modifications kept on HEAD). The
+   `CompiledPlugin/Data/*` rename-vs-delete cluster from
+   `planscape-testing-guide-tyjeC` resolved by accepting the HEAD
+   directory layout (files now live under `StingTools/Data/`).
+3. **`CLAUDE.md` Quick Stats refreshed** with the post-consolidation
+   counts: 1,421 tracked files / 737,171 lines / 44 MB working tree;
+   `StingTools/` 581 source files at 370,758 lines across 17
+   sub-directories; 935 `.cs` files solution-wide at 435,298 lines;
+   `Planscape.Server/` 280 C# files at 38,581 lines;
+   `Planscape/` 93 TS/TSX files at 17,019 lines;
+   1,106 `IExternalCommand` classes (up from the previously-recorded
+   763+); 128 runtime data files under `StingTools/Data/`; 68 markdown
+   files at 40,261 lines.
+
+#### Files
+
+- `CLAUDE.md` — Quick Stats refresh + Phase 174 banner
+- `docs/CHANGELOG.md` — this entry

@@ -8,10 +8,34 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **215 source files** (212 C# + 3 XAML, ~254,000 lines of code) across 13 directories
-- **763+ `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
-- **72 runtime / embedded data files** (CSV, JSON, TXT, XLSX, PY, MD, DOCX) — includes the template engine v1.1 pack (16 templates + 5 workflow definitions + `manifest.json`)
+> Last refreshed after Phase 174 — full unmerged-branch consolidation
+> (75 feature branches merged into the working tree, conflicts resolved
+> with `--ours` against the Phase 168–173 baseline).
+
+- **Repository total**: 1,421 tracked files · 737,171 lines · 44 MB working tree (216 MB including `.git`)
+- **Plugin assembly** `StingTools/`: 581 source files (576 C# + 4 XAML + 1 .csproj-adjacent), 370,758 lines across 17 sub-directories
+- **C# across the whole solution** (plugin + server + tests + tooling): 935 `.cs` files, 435,298 lines
+- **Server backend** `Planscape.Server/`: 280 C# files, 38,581 lines (ASP.NET Core 8 + EF Core + SignalR + Hangfire)
+- **Mobile app** `Planscape/`: 93 TS/TSX files, 17,019 lines (React Native + Expo SDK 52)
+- **Documentation**: 68 `.md` files, 40,261 lines (CLAUDE.md + docs/CHANGELOG.md + docs/ROADMAP.md + per-feature guides under `docs/`, `Planscape.Server/docs/`, `Planscape/docs/`)
+- **`IExternalCommand` classes**: 1,106 (up from 763+) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
+- **Runtime / embedded data files** under `StingTools/Data/`: 128 (CSV, JSON, TXT, XLSX, PY, MD, DOCX) — includes the template engine v1.1 pack (16 templates + 5 workflow definitions + `manifest.json`)
 - **WPF dockable panel** (9 tabs, primary UI) + 1 BIM Coordination Center (13 tabs) + 1 Material Manager (7 tabs) + 1 Document Management Center (8 tabs) + ribbon retained for legacy compat
+- **Top-level workspace** ships 15 directories: `StingTools/` · `Planscape/` · `Planscape.Server/` · `StingBIM.Server/` · `StingTools.Clash.Tests/` · `StingTools.Dynamo/` · `StingTools.Headless/` · `StingTools.Standards/` · `Tests/` · `Families/` · `CompiledPlugin/` · `docs/` · `docs-site/` · `marketing-site/` · `tools/`
+
+### Phase 174 — Branch consolidation
+
+This branch (`claude/merge-branches-update-docs-SvA31`) absorbs every
+outstanding `claude/*` feature branch that had unique commits not yet in
+HEAD. Seventy-five branches were merged in a single pass, ranging from
+single-commit fix branches up to the 1,148-commit
+`document-missing-parameters-9tTAr` history. Conflict policy was
+`-X ours` (keep the Phase 168–173 baseline, take new files from the
+incoming branch); for `modify/delete` and `rename/delete` collisions the
+HEAD copy was kept. Sixty-four branches fast-forwarded or auto-merged
+cleanly; eleven required `ours` conflict resolution. After consolidation
+`git branch -r --no-merged HEAD` reports zero remote branches with
+unique commits not in HEAD. Verify in Revit before merging to `main`.
 
 ## Documentation Map
 
