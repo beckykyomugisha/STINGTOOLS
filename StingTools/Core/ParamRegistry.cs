@@ -3202,6 +3202,24 @@ namespace StingTools.Core
         public const string HEALTH_SCORE_DATE_TXT        = "HEALTH_SCORE_DATE_TXT";
         public const string HEALTH_SCORE_DATE_TXT_GUID   = "v6-0001-0000-0000-000000000014";
 
+        // --- N-G12 labour-hours engine (crew + rate override) ---
+        public const string CST_LABOUR_CREW_TXT          = "CST_LABOUR_CREW_TXT";
+        public const string CST_LABOUR_CREW_TXT_GUID     = "v6-0001-0000-0000-000000000015";
+        public const string CST_LABOUR_RATE_GBP          = "CST_LABOUR_RATE_GBP";
+        public const string CST_LABOUR_RATE_GBP_GUID     = "v6-0001-0000-0000-000000000016";
+
+        // --- N-G16 QR commissioning workflow (state + stamps) ---
+        public const string COMM_STATE_TXT               = "COMM_STATE_TXT";
+        public const string COMM_STATE_TXT_GUID          = "v6-0001-0000-0000-000000000017";
+        public const string COMM_DATE_TXT                = "COMM_DATE_TXT";
+        public const string COMM_DATE_TXT_GUID           = "v6-0001-0000-0000-000000000018";
+        public const string COMM_OPERATIVE_TXT           = "COMM_OPERATIVE_TXT";
+        public const string COMM_OPERATIVE_TXT_GUID      = "v6-0001-0000-0000-000000000019";
+        public const string COMM_WITNESS_TXT             = "COMM_WITNESS_TXT";
+        public const string COMM_WITNESS_TXT_GUID        = "v6-0001-0000-0000-00000000001a";
+        public const string COMM_NOTES_TXT               = "COMM_NOTES_TXT";
+        public const string COMM_NOTES_TXT_GUID          = "v6-0001-0000-0000-00000000001b";
+
         #endregion
     }
 }
