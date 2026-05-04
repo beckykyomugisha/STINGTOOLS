@@ -25,11 +25,25 @@ const demoProjects: DemoProject[] = [
   { name: 'Water Treatment Plant',      city: 'Dar es Salaam', country: 'Tanzania', lat: -6.7924, lng: 39.2083, status: 'Active',    compliance: 67 },
 ];
 
-// Resolution order: build-time env var → runtime placeholder. The placeholder
-// keeps the static export working: when the user hasn't set a real token the
-// section renders a friendly fallback panel instead of crashing.
-const MAPBOX_TOKEN =
-  process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? 'PLANSCAPE_MAPBOX_TOKEN';
+// Token resolution order:
+//   1. Runtime fetch from /api/public-config (preferred — single source of
+//      truth on the API server, set via Maps:MapboxToken / MAPBOX_TOKEN).
+//   2. Build-time NEXT_PUBLIC_MAPBOX_TOKEN env var (for standalone hosting).
+//   3. Placeholder → renders a friendly fallback panel.
+const BUILD_TIME_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? '';
+
+async function resolveMapboxToken(): Promise<string> {
+  try {
+    const res = await fetch('/api/public-config');
+    if (res.ok) {
+      const body = await res.json();
+      if (body && typeof body.mapboxToken === 'string' && body.mapboxToken.length > 0) {
+        return body.mapboxToken;
+      }
+    }
+  } catch { /* fall through to build-time token */ }
+  return BUILD_TIME_TOKEN;
+}
 
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) =>
@@ -58,50 +72,57 @@ export default function AfricaSection() {
   const [tokenMissing, setTokenMissing] = useState(false);
 
   useEffect(() => {
-    if (!mapContainer.current) return;
-    if (!MAPBOX_TOKEN || MAPBOX_TOKEN === 'PLANSCAPE_MAPBOX_TOKEN') {
-      setTokenMissing(true);
-      return;
-    }
-
-    mapboxgl.accessToken = MAPBOX_TOKEN;
-    const map = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/dark-v11',
-      center: [22, 2],
-      zoom: 2.8,
-      interactive: true,
-      attributionControl: false,
-    });
-    mapRef.current = map;
-
-    // Don't hijack the page scroll — user must click the map first.
-    map.scrollZoom.disable();
-    const enableZoom = () => map.scrollZoom.enable();
-    map.on('click', enableZoom);
-
+    let cancelled = false;
+    let map: mapboxgl.Map | null = null;
     const markers: mapboxgl.Marker[] = [];
+    let enableZoom: (() => void) | null = null;
 
-    demoProjects.forEach((p) => {
-      const key = p.status === 'Completed' ? 'completed' : 'active';
+    (async () => {
+      const token = await resolveMapboxToken();
+      if (cancelled || !mapContainer.current) return;
+      if (!token || token === 'PLANSCAPE_MAPBOX_TOKEN') {
+        setTokenMissing(true);
+        return;
+      }
 
-      const el = document.createElement('div');
-      el.className = `map-marker-mkt ${key}`;
+      mapboxgl.accessToken = token;
+      map = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/dark-v11',
+        center: [22, 2],
+        zoom: 2.8,
+        interactive: true,
+        attributionControl: false,
+      });
+      mapRef.current = map;
 
-      const popup = new mapboxgl.Popup({ offset: 18, closeButton: true }).setHTML(popupHtml(p));
+      // Don't hijack the page scroll — user must click the map first.
+      map.scrollZoom.disable();
+      enableZoom = () => map?.scrollZoom.enable();
+      map.on('click', enableZoom);
 
-      const marker = new mapboxgl.Marker({ element: el })
-        .setLngLat([p.lng, p.lat])
-        .setPopup(popup)
-        .addTo(map);
+      demoProjects.forEach((p) => {
+        const key = p.status === 'Completed' ? 'completed' : 'active';
 
-      markers.push(marker);
-    });
+        const el = document.createElement('div');
+        el.className = `map-marker-mkt ${key}`;
+
+        const popup = new mapboxgl.Popup({ offset: 18, closeButton: true }).setHTML(popupHtml(p));
+
+        const marker = new mapboxgl.Marker({ element: el })
+          .setLngLat([p.lng, p.lat])
+          .setPopup(popup)
+          .addTo(map!);
+
+        markers.push(marker);
+      });
+    })();
 
     return () => {
+      cancelled = true;
       markers.forEach((m) => m.remove());
-      map.off('click', enableZoom);
-      map.remove();
+      if (map && enableZoom) map.off('click', enableZoom);
+      if (map) map.remove();
       mapRef.current = null;
     };
   }, []);

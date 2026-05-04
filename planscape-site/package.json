@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "deploy:api": "next build && rm -rf ../Planscape.Server/src/Planscape.API/wwwroot/welcome && mkdir -p ../Planscape.Server/src/Planscape.API/wwwroot/welcome && cp -R out/. ../Planscape.Server/src/Planscape.API/wwwroot/welcome/"
+    "deploy:api": "next build && rm -rf ../Planscape.Server/src/Planscape.API/wwwroot/_next ../Planscape.Server/src/Planscape.API/wwwroot/index.html ../Planscape.Server/src/Planscape.API/wwwroot/index.txt ../Planscape.Server/src/Planscape.API/wwwroot/404.html ../Planscape.Server/src/Planscape.API/wwwroot/404 && cp -R out/. ../Planscape.Server/src/Planscape.API/wwwroot/"
   },
   "dependencies": {
     "framer-motion": "^11.0.0",

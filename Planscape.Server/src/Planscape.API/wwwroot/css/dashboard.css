@@ -187,10 +187,15 @@ tr:hover td { background: #fafafa; }
 }
 .card-cover {
   position: relative; height: 120px; flex-shrink: 0;
+  /* Inline `style` from coverStyle() supplies the gradient or image. */
+  background: linear-gradient(135deg, var(--navy), var(--navy-light));
+}
+/* Faint isometric grid overlay sits on top of any cover background. */
+.card-cover::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
   background:
-    linear-gradient(135deg, rgba(255,255,255,0.04) 1px, transparent 1px) 0 0/24px 24px,
-    linear-gradient(45deg, rgba(255,255,255,0.04) 1px, transparent 1px) 0 0/24px 24px,
-    linear-gradient(135deg, var(--navy), var(--navy-light));
+    linear-gradient(135deg, rgba(255,255,255,0.05) 1px, transparent 1px) 0 0/24px 24px,
+    linear-gradient(45deg,  rgba(255,255,255,0.05) 1px, transparent 1px) 0 0/24px 24px;
 }
 .card-cover .code-chip {
   position: absolute; top: 12px; left: 12px;

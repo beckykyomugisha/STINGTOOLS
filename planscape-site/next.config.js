@@ -1,27 +1,21 @@
 /** @type {import('next').NextConfig} */
 //
-// Phase 169 — the Next.js marketing site is built statically (`output: 'export'`)
-// and the resulting `out/` folder is copied into the .NET API's
-// `wwwroot/welcome/` so it's served at:
+// Phase 169 — the Next.js marketing site is built statically and copied
+// into the .NET API's wwwroot/ root, served at:
 //
-//   http://<api-host>/welcome/
+//   http://<api-host>/      (marketing)
+//   http://<api-host>/app/  (dashboard)
 //
-// `basePath` rewrites every internal link + `_next/*` asset URL to live
-// under that prefix. `assetPrefix` keeps fonts/images on the same prefix.
-// `BASE_PATH` env var lets local devs run `npm run dev` at the root without
-// the prefix (otherwise next/dev would be unreachable on localhost:3000).
+// The dashboard's HTML lives at wwwroot/app/index.html; its assets
+// (css/, js/, viewer.html) stay at wwwroot root and don't conflict with
+// Next.js's _next/* tree. basePath is empty so all marketing links work
+// at the origin root.
 //
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '/welcome';
-
 const nextConfig = {
   output: 'export',
-  basePath,
-  assetPrefix: basePath,
+  basePath: process.env.NEXT_PUBLIC_BASE_PATH ?? '',
   images: { unoptimized: true },
   trailingSlash: true,
-  env: {
-    NEXT_PUBLIC_BASE_PATH: basePath,
-  },
 };
 
 module.exports = nextConfig;
