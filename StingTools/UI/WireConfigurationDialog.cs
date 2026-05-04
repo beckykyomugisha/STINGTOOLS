@@ -15,6 +15,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Shapes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Electrical;
 using StingTools.Core;
@@ -34,6 +35,7 @@ namespace StingTools.UI
             public string Phase { get; set; }
             public string ProfileId { get; set; }
             public ComboBox Combo { get; set; }
+            public Ellipse Chip { get; set; }
         }
 
         private readonly Document _doc;
@@ -126,12 +128,13 @@ namespace StingTools.UI
                 BorderThickness = new Thickness(1),
             };
             var grid = new Grid();
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(140) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(220) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(330) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28) });   // status chip
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(140) });  // panel
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });  // circuit
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(220) });  // load
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });   // rating
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });   // phase
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(330) });  // wire profile
 
             AddHeaderRow(grid);
             BuildRows(grid);
@@ -145,7 +148,7 @@ namespace StingTools.UI
         private void AddHeaderRow(Grid grid)
         {
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            string[] hdr = { "Panel", "Circuit", "Load", "Rating", "Phase", "Wire profile" };
+            string[] hdr = { "", "Panel", "Circuit", "Load", "Rating", "Phase", "Wire profile" };
             for (int c = 0; c < hdr.Length; c++)
             {
                 var tb = new TextBlock
@@ -188,11 +191,24 @@ namespace StingTools.UI
                 };
                 row.ProfileId = map.GetProfileId(sys.Name ?? "") ?? "";
 
-                AddTextCell(grid, rowIndex, 0, row.Panel);
-                AddTextCell(grid, rowIndex, 1, row.Circuit);
-                AddTextCell(grid, rowIndex, 2, row.Load);
-                AddTextCell(grid, rowIndex, 3, row.Rating);
-                AddTextCell(grid, rowIndex, 4, row.Phase);
+                var chip = new Ellipse
+                {
+                    Width = 12, Height = 12,
+                    Margin = new Thickness(8, 8, 8, 8),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    ToolTip = "",
+                };
+                row.Chip = chip;
+                Grid.SetRow(chip, rowIndex);
+                Grid.SetColumn(chip, 0);
+                grid.Children.Add(chip);
+
+                AddTextCell(grid, rowIndex, 1, row.Panel);
+                AddTextCell(grid, rowIndex, 2, row.Circuit);
+                AddTextCell(grid, rowIndex, 3, row.Load);
+                AddTextCell(grid, rowIndex, 4, row.Rating);
+                AddTextCell(grid, rowIndex, 5, row.Phase);
 
                 var combo = new ComboBox
                 {
@@ -218,11 +234,13 @@ namespace StingTools.UI
                     }
                 }
                 combo.SelectedIndex = sel;
-                combo.SelectionChanged += (_, __) => UpdateStatus();
+                var rowRef = row;
+                combo.SelectionChanged += (_, __) => { UpdateChip(rowRef); UpdateStatus(); };
                 row.Combo = combo;
+                UpdateChip(row);
 
                 Grid.SetRow(combo, rowIndex);
-                Grid.SetColumn(combo, 5);
+                Grid.SetColumn(combo, 6);
                 grid.Children.Add(combo);
 
                 _rows.Add(row);
@@ -240,7 +258,7 @@ namespace StingTools.UI
                 };
                 Grid.SetRow(empty, 1);
                 Grid.SetColumn(empty, 0);
-                Grid.SetColumnSpan(empty, 6);
+                Grid.SetColumnSpan(empty, 7);
                 grid.Children.Add(empty);
             }
         }
@@ -257,6 +275,25 @@ namespace StingTools.UI
             Grid.SetRow(tb, row);
             Grid.SetColumn(tb, col);
             grid.Children.Add(tb);
+        }
+
+        private static readonly SolidColorBrush ChipMapped   = new SolidColorBrush(Color.FromRgb(76, 175, 80));   // green
+        private static readonly SolidColorBrush ChipAuto     = new SolidColorBrush(Color.FromRgb(189, 189, 199)); // grey
+
+        private void UpdateChip(Row row)
+        {
+            if (row?.Chip == null) return;
+            string id = (row.Combo?.SelectedItem as ComboBoxItem)?.Tag as string;
+            if (!string.IsNullOrEmpty(id))
+            {
+                row.Chip.Fill = ChipMapped;
+                row.Chip.ToolTip = $"Mapped to profile: {id}";
+            }
+            else
+            {
+                row.Chip.Fill = ChipAuto;
+                row.Chip.ToolTip = "Auto — derived from circuit's Wire Size / poles at run time.";
+            }
         }
 
         private void UpdateStatus()

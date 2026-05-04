@@ -207,6 +207,13 @@ namespace StingTools.Commands.Electrical
 
             bool is3D = view is View3D;
 
+            // Stamp the rich BS 7671 text onto the conduit's display
+            // Comments param so any tag family with a Comments label will
+            // surface it. Harmless if the host already has Comments text —
+            // we use a marker prefix and only overwrite our own previous
+            // writes.
+            StampHostDisplayComments(conduit, BuildAnnotationText(data));
+
             // Move-with-host path: if the project has loaded a tag family
             // whose name signals it's the STING wire-annotation tag, use
             // IndependentTag so it tracks the conduit. Required path in 3D.
@@ -218,10 +225,12 @@ namespace StingTools.Commands.Electrical
                 return tagId;
             }
 
-            // TextNote / DetailCurve are not available in 3D views.
+            // TextNote / DetailCurve are not available in 3D views, and
+            // even the any-tag 3D fallback above couldn't find a Conduit-
+            // Tags family. Cannot proceed in 3D.
             if (is3D)
             {
-                StingLog.Warn("3D wire annotation requires a loaded Conduit-Tag family with 'Wire Annotation' or 'STING Wire' in the name.");
+                StingLog.Warn("3D wire annotation requires at least one OST_ConduitTags family loaded in the project.");
                 return ElementId.InvalidElementId;
             }
 
@@ -497,10 +506,52 @@ namespace StingTools.Commands.Electrical
             }
         }
 
+        public static void StampHostDisplayComments(Element host, string text)
+        {
+            if (host == null || string.IsNullOrEmpty(text)) return;
+            // Prefer a STING-specific shared parameter the user binds onto
+            // OST_Conduit / OST_CableTray so we never clobber the project's
+            // built-in Comments. Falls back silently when the param isn't
+            // bound — the IndependentTag's own labels still work.
+            try
+            {
+                ParameterHelpers.SetString(host, "ELC_WIRE_ANNOT_TXT", text, overwrite: true);
+            }
+            catch (Exception ex) { StingLog.Warn("StampHostDisplayComments: " + ex.Message); }
+        }
+
+        public static FamilySymbol ResolveAnyConduitTagSymbol(Document doc)
+        {
+            try
+            {
+                return new FilteredElementCollector(doc)
+                    .OfClass(typeof(FamilySymbol))
+                    .OfCategory(BuiltInCategory.OST_ConduitTags)
+                    .Cast<FamilySymbol>()
+                    .FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn("ResolveAnyConduitTagSymbol: " + ex.Message);
+                return null;
+            }
+        }
+
         public static ElementId TryPlaceIndependentTag(Document doc, View view,
             Element conduit, XYZ headPt, string conduitUniqueId)
         {
             var sym = ResolveOptInWireTagSymbol(doc);
+            // 3D fallback: in a 3D view we cannot fall back to TextNote, so
+            // accept ANY loaded conduit-tag family rather than failing.
+            // Tag content will reflect that family's labels (typically
+            // circuit number / wire size) — not the full BS 7671 string —
+            // but the tag is host-tracked and visible.
+            if (sym == null && view is View3D)
+            {
+                sym = ResolveAnyConduitTagSymbol(doc);
+                if (sym != null)
+                    StingLog.Info($"Wire annot 3D fallback: using tag family '{sym.FamilyName}'");
+            }
             if (sym == null) return ElementId.InvalidElementId;
             try
             {
@@ -1217,15 +1268,31 @@ namespace StingTools.Commands.Electrical
             {
                 var ctx = ParameterHelpers.GetContext(commandData);
                 if (ctx == null) { message = "No active document."; return Result.Failed; }
-                var doc = ctx.Doc;
+                var doc  = ctx.Doc;
+                var view = doc.ActiveView;
 
-                var report = WireQuantityCalculator.Compute(doc, scopeView: null);
+                var scopeDlg = new TaskDialog("Wire Quantity Schedule")
+                {
+                    MainInstruction = "Compute totals across what scope?",
+                    MainContent     = "Project = every annotated circuit in the model.\nActive view = restrict to elements visible in the current view.",
+                    CommonButtons   = TaskDialogCommonButtons.Cancel,
+                };
+                scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Project (recommended)");
+                scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, $"Active view: {view?.Name ?? "(none)"}");
+                var pick = scopeDlg.Show();
+                View scopeView;
+                string scopeLabel;
+                if (pick == TaskDialogResult.CommandLink1) { scopeView = null; scopeLabel = "Project"; }
+                else if (pick == TaskDialogResult.CommandLink2) { scopeView = view; scopeLabel = $"Active view: {view?.Name}"; }
+                else return Result.Cancelled;
+
+                var report = WireQuantityCalculator.Compute(doc, scopeView: scopeView);
                 string baseDir = OutputLocationHelper.GetOutputDirectory(doc);
                 string outDir = System.IO.Path.Combine(baseDir ?? System.IO.Path.GetTempPath(), "wire_quantities");
                 string csvPath = WireQuantityCalculator.WriteCsv(report, outDir);
 
                 var b = StingResultPanel.Create("Wire Quantity Schedule")
-                    .SetSubtitle($"Project totals — {report.Rows.Count} cable types, {report.TotalMetres:F1} m, {report.TotalKg:F1} kg")
+                    .SetSubtitle($"{scopeLabel} — {report.Rows.Count} cable types, {report.TotalMetres:F1} m, {report.TotalKg:F1} kg")
                     .AddSection("TOTALS BY CABLE TYPE");
                 if (report.Rows.Count == 0)
                 {
