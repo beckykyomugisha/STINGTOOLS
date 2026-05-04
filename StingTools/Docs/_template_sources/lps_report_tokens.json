@@ -57,5 +57,5 @@
       "then": "Render red FAIL banner with compliance_items table",
       "else": "Render green PASS banner" }
   ],
-  "_status": "Stub — .docx not yet authored. CSV report is the supported deliverable until LpsFullReportCommand stops emitting the warning."
+  "_status": "Active — .docx authored at lps_compliance_report.docx (built via tools/build_lps_docx.py). LpsFullReportCommand renders the docx via MiniWord and writes a parallel CSV audit trail. CSV is no longer flagged as a fallback warning."
 }

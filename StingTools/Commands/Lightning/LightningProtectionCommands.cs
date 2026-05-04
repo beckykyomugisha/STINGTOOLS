@@ -22,6 +22,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
+using MiniSoftware;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
 using StingTools.Core.Lightning;
@@ -1256,61 +1257,251 @@ namespace StingTools.Commands.Lightning
             double earthSum = ees.Sum(e => LpsEngine.GetDoubleParam(e, LpsParams.EARTH_RESISTANCE_OHM));
             double earthAvg = ees.Count > 0 ? earthSum / ees.Count : 0;
 
+            // Build the token + loop dict shared by docx and CSV paths.
+            var tokens = BuildTokenDict(doc, prj, classId, def, items, pass, warn, fail, verdict,
+                                       ats, dcs, ees, earthAvg);
+            var complianceRows = BuildComplianceRows(items);
+            var conductorRows = BuildConductorRows(doc, dcs);
+            var electrodeRows = BuildElectrodeRows(doc, ees);
+
+            string docxOut = TryRenderDocx(doc, tokens, complianceRows, conductorRows, electrodeRows,
+                                           out string docxError);
+            string csvOut = WriteCsvFallback(doc, tokens, complianceRows, conductorRows, electrodeRows);
+
+            var summary = new StringBuilder();
+            if (!string.IsNullOrEmpty(docxOut))
+                summary.AppendLine($"DOCX report:\n{docxOut}");
+            else
+                summary.AppendLine($"DOCX render skipped ({docxError}).");
+            summary.AppendLine();
+            summary.AppendLine($"CSV (audit trail):\n{csvOut ?? "(write failed)"}");
+            StingLog.Info($"LPS compliance report — docx={docxOut ?? "skipped"} csv={csvOut ?? "fail"}");
+            TaskDialog.Show("STING — LPS Report",
+                "LPS Compliance Report (BS EN 62305) generated.\n\n" + summary.ToString());
+            return Result.Succeeded;
+        }
+
+        private static string Esc(string s) => LpsBondingInventoryCommand_CsvAccess.Escape(s ?? "");
+
+
+        // ── Token + row builders ─────────────────────────────────────
+
+        private static Dictionary<string, object> BuildTokenDict(
+            Document doc, ProjectInformation prj, string classId, LpsClassDef def,
+            IReadOnlyList<LpsComplianceItem> items, int pass, int warn, int fail, string verdict,
+            List<FamilyInstance> ats, List<FamilyInstance> dcs, List<FamilyInstance> ees, double earthAvg)
+        {
+            string regionDefault = "ug";
+            double ng = LpsEngine.GetEffectiveFlashDensity(doc, regionDefault);
+            double sphereR = def?.RollingSphereRadiusM ?? 0;
+            double meshM = def?.MeshSizeM ?? 0;
+            double spaceM = def?.DownConductorSpacingM ?? 0;
+            double earthTarget = def?.EarthResistanceTargetOhm ?? 10;
+            int interval = def?.InspectionIntervalMonths ?? 12;
+            double maxSepMm = dcs.Count > 0 ? dcs.Max(d => LpsEngine.GetDoubleParam(d, LpsParams.SEPARATION_DISTANCE_MM)) : 0;
+            double crossMm2 = LpsEngine.GetDoubleParam(prj, LpsParams.CONDUCTOR_CROSS_SECT_MM2);
+            double angleDeg = LpsEngine.GetDoubleParam(prj, LpsParams.PROTECTION_ANGLE_DEG);
+
+            return new Dictionary<string, object>
+            {
+                ["project_name"]               = prj.Name ?? doc.Title ?? "",
+                ["project_code"]               = prj.Number ?? "",
+                ["building_name"]              = prj.BuildingName ?? "",
+                ["client_name"]                = ParameterHelpers.GetString(prj, "Client Name") ?? "",
+                ["report_date"]                = DateTime.Today.ToString("yyyy-MM-dd"),
+                ["lps_class"]                  = classId,
+                ["rolling_sphere_m"]           = sphereR.ToString("F0"),
+                ["mesh_size_m"]                = meshM.ToString("F0"),
+                ["protection_angle_deg"]       = angleDeg.ToString("F0"),
+                ["down_conductor_spacing_m"]   = spaceM.ToString("F0"),
+                ["earth_resistance_target_ohm"] = earthTarget.ToString("F1"),
+                ["conductor_cross_sect_mm2"]   = crossMm2 > 0 ? crossMm2.ToString("F0") : "—",
+                ["conductor_material"]         = ParameterHelpers.GetString(prj, LpsParams.CONDUCTOR_MATERIAL_TXT) ?? "—",
+                ["surge_protection_lvl"]       = ParameterHelpers.GetString(prj, LpsParams.SURGE_PROTECTION_LVL_TXT) ?? "—",
+                ["separation_distance_mm"]     = maxSepMm > 0 ? maxSepMm.ToString("F0") : "—",
+                ["inspection_interval"]        = interval.ToString(),
+                ["risk_assessment_ref"]        = ParameterHelpers.GetString(prj, LpsParams.RISK_ASSESSMENT_TXT) ?? "—",
+                ["ng_value"]                   = ng.ToString("F2"),
+                ["annual_strikes"]             = "—",
+                ["collection_area_m2"]         = "—",
+                ["air_terminal_count"]         = ats.Count.ToString(),
+                ["down_conductor_count"]       = dcs.Count.ToString(),
+                ["earth_electrode_count"]      = ees.Count.ToString(),
+                ["earth_resistance_avg_ohm"]   = earthAvg.ToString("F2"),
+                ["compliance_status"]          = verdict,
+                ["compliance_pass"]            = pass.ToString(),
+                ["compliance_warn"]            = warn.ToString(),
+                ["compliance_fail"]            = fail.ToString(),
+                ["test_date"]                  = ParameterHelpers.GetString(prj, LpsParams.TEST_DATE_TXT) ?? "—",
+                ["cert_ref"]                   = ParameterHelpers.GetString(prj, LpsParams.CERT_REF_TXT) ?? "—",
+            };
+        }
+
+        private static List<Dictionary<string, object>> BuildComplianceRows(IReadOnlyList<LpsComplianceItem> items)
+        {
+            var rows = new List<Dictionary<string, object>>();
+            foreach (var it in items)
+            {
+                rows.Add(new Dictionary<string, object>
+                {
+                    ["CheckName"] = it.CheckName ?? "",
+                    ["Severity"]  = it.Severity.ToString(),
+                    ["Message"]   = it.Message ?? "",
+                });
+            }
+            return rows;
+        }
+
+        private static List<Dictionary<string, object>> BuildConductorRows(Document doc, List<FamilyInstance> dcs)
+        {
+            var rows = new List<Dictionary<string, object>>();
+            foreach (var dc in dcs)
+            {
+                double zFt = (dc.get_BoundingBox(null)?.Max.Z ?? 0) - (dc.get_BoundingBox(null)?.Min.Z ?? 0);
+                double zM = UnitUtils.ConvertFromInternalUnits(zFt, UnitTypeId.Meters);
+                rows.Add(new Dictionary<string, object>
+                {
+                    ["Id"]           = dc.Id.Value.ToString(),
+                    ["Family"]       = dc.Symbol?.FamilyName ?? "",
+                    ["Level"]        = doc.GetElement(dc.LevelId)?.Name ?? "",
+                    ["LengthM"]      = zM.ToString("F1"),
+                    ["Material"]     = ParameterHelpers.GetString(dc, LpsParams.CONDUCTOR_MATERIAL_TXT) ?? "—",
+                    ["CrossSectMm2"] = LpsEngine.GetDoubleParam(dc, LpsParams.CONDUCTOR_CROSS_SECT_MM2).ToString("F0"),
+                    ["SepDistMm"]    = LpsEngine.GetDoubleParam(dc, LpsParams.SEPARATION_DISTANCE_MM).ToString("F0"),
+                    ["Status"]       = ParameterHelpers.GetString(dc, LpsParams.COMPLIANCE_STATUS_TXT) ?? "",
+                });
+            }
+            return rows;
+        }
+
+        private static List<Dictionary<string, object>> BuildElectrodeRows(Document doc, List<FamilyInstance> ees)
+        {
+            var rows = new List<Dictionary<string, object>>();
+            foreach (var el in ees)
+            {
+                rows.Add(new Dictionary<string, object>
+                {
+                    ["Id"]            = el.Id.Value.ToString(),
+                    ["Family"]        = el.Symbol?.FamilyName ?? "",
+                    ["Level"]         = doc.GetElement(el.LevelId)?.Name ?? "",
+                    ["EarthType"]     = ParameterHelpers.GetString(el, LpsParams.EARTH_TYPE_TXT) ?? "",
+                    ["ResistanceOhm"] = LpsEngine.GetDoubleParam(el, LpsParams.EARTH_RESISTANCE_OHM).ToString("F2"),
+                    ["TestDate"]      = ParameterHelpers.GetString(el, LpsParams.TEST_DATE_TXT) ?? "",
+                    ["CertRef"]       = ParameterHelpers.GetString(el, LpsParams.CERT_REF_TXT) ?? "",
+                    ["Status"]        = ParameterHelpers.GetString(el, LpsParams.COMPLIANCE_STATUS_TXT) ?? "",
+                });
+            }
+            return rows;
+        }
+
+        private static string TryRenderDocx(
+            Document doc,
+            Dictionary<string, object> tokens,
+            List<Dictionary<string, object>> complianceRows,
+            List<Dictionary<string, object>> conductorRows,
+            List<Dictionary<string, object>> electrodeRows,
+            out string error)
+        {
+            error = "";
+            string templatePath = StingToolsApp.FindDataFile("lps_compliance_report.docx");
+            if (string.IsNullOrEmpty(templatePath) || !File.Exists(templatePath))
+            {
+                // Fall back to extracting the embedded resource to a temp path.
+                try
+                {
+                    var asm = typeof(LpsFullReportCommand).Assembly;
+                    string resourceName = asm.GetManifestResourceNames()
+                        .FirstOrDefault(n => n.EndsWith("lps_compliance_report.docx", StringComparison.OrdinalIgnoreCase));
+                    if (!string.IsNullOrEmpty(resourceName))
+                    {
+                        string tmp = Path.Combine(Path.GetTempPath(), "STING_lps_compliance_report.docx");
+                        using (var s = asm.GetManifestResourceStream(resourceName))
+                        using (var fs = File.Create(tmp))
+                        { s.CopyTo(fs); }
+                        templatePath = tmp;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Embedded template extract: {ex.Message}"); }
+            }
+            if (string.IsNullOrEmpty(templatePath) || !File.Exists(templatePath))
+            {
+                error = "template file lps_compliance_report.docx not found";
+                return null;
+            }
+
+            // MiniWord auto-binds list values to table rows by matching {{field}}
+            // tokens in a row against keys in any IEnumerable<Dictionary<string,object>>
+            // value in the dict.
+            var dict = new Dictionary<string, object>(tokens)
+            {
+                ["compliance_items"] = complianceRows,
+                ["down_conductors"]  = conductorRows,
+                ["earth_electrodes"] = electrodeRows,
+            };
+
+            string outPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_LPS_Compliance_Report", ".docx");
+            try
+            {
+                MiniWord.SaveAsByTemplate(outPath, templatePath, dict);
+                return outPath;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("MiniWord render failed", ex);
+                error = "render failed: " + ex.Message;
+                return null;
+            }
+        }
+
+        private static string WriteCsvFallback(
+            Document doc,
+            Dictionary<string, object> tokens,
+            List<Dictionary<string, object>> complianceRows,
+            List<Dictionary<string, object>> conductorRows,
+            List<Dictionary<string, object>> electrodeRows)
+        {
             string outPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_LPS_Compliance_Report", ".csv");
             try
             {
                 var csv = new StringBuilder();
                 csv.AppendLine("STING Lightning Protection Compliance Report");
-                csv.AppendLine($"Project,{Esc(prj.Name)}");
-                csv.AppendLine($"Generated,{DateTime.Today:yyyy-MM-dd}");
-                csv.AppendLine($"Standard,BS EN 62305");
+                csv.AppendLine($"Project,{Esc(tokens["project_name"]?.ToString())}");
+                csv.AppendLine($"Generated,{tokens["report_date"]}");
+                csv.AppendLine("Standard,BS EN 62305");
                 csv.AppendLine();
                 csv.AppendLine("Section,Field,Value");
-                csv.AppendLine($"Class,LPS Class,{classId}");
-                if (def != null)
-                {
-                    csv.AppendLine($"Class,Rolling Sphere (m),{def.RollingSphereRadiusM:F0}");
-                    csv.AppendLine($"Class,Mesh Size (m),{def.MeshSizeM:F0}");
-                    csv.AppendLine($"Class,Down Conductor Spacing (m),{def.DownConductorSpacingM:F0}");
-                    csv.AppendLine($"Class,Inspection Interval (months),{def.InspectionIntervalMonths}");
-                    csv.AppendLine($"Class,Earth Target (ohm),{def.EarthResistanceTargetOhm:F1}");
-                }
-                csv.AppendLine($"Risk,Risk Assessment Ref,{Esc(ParameterHelpers.GetString(prj, LpsParams.RISK_ASSESSMENT_TXT))}");
-                csv.AppendLine($"Risk,Last Test Date,{Esc(ParameterHelpers.GetString(prj, LpsParams.TEST_DATE_TXT))}");
-                csv.AppendLine($"Risk,Cert Ref,{Esc(ParameterHelpers.GetString(prj, LpsParams.CERT_REF_TXT))}");
-                csv.AppendLine($"Counts,Air Terminals,{ats.Count}");
-                csv.AppendLine($"Counts,Down Conductors,{dcs.Count}");
-                csv.AppendLine($"Counts,Earth Electrodes,{ees.Count}");
-                csv.AppendLine($"Counts,Avg Earth Resistance (ohm),{earthAvg:F2}");
-                csv.AppendLine($"Compliance,Verdict,{verdict}");
-                csv.AppendLine($"Compliance,Pass,{pass}");
-                csv.AppendLine($"Compliance,Warn,{warn}");
-                csv.AppendLine($"Compliance,Fail,{fail}");
+                foreach (var kv in tokens)
+                    csv.AppendLine($"Tokens,{Esc(kv.Key)},{Esc(kv.Value?.ToString())}");
                 csv.AppendLine();
                 csv.AppendLine("CheckName,Severity,Message");
-                foreach (var it in items)
-                    csv.AppendLine($"{Esc(it.CheckName)},{it.Severity},{Esc(it.Message)}");
-
+                foreach (var r in complianceRows)
+                    csv.AppendLine($"{Esc(r["CheckName"].ToString())},{r["Severity"]},{Esc(r["Message"].ToString())}");
+                csv.AppendLine();
+                csv.AppendLine("DownConductor,Id,Family,Level,LengthM,Material,CrossSectMm2,SepDistMm,Status");
+                foreach (var r in conductorRows)
+                    csv.AppendLine(string.Join(",", new[] { "DC",
+                        Esc(r["Id"].ToString()), Esc(r["Family"].ToString()), Esc(r["Level"].ToString()),
+                        r["LengthM"].ToString(), Esc(r["Material"].ToString()),
+                        r["CrossSectMm2"].ToString(), r["SepDistMm"].ToString(),
+                        Esc(r["Status"].ToString()) }));
+                csv.AppendLine();
+                csv.AppendLine("EarthElectrode,Id,Family,Level,EarthType,ResistanceOhm,TestDate,CertRef,Status");
+                foreach (var r in electrodeRows)
+                    csv.AppendLine(string.Join(",", new[] { "EE",
+                        Esc(r["Id"].ToString()), Esc(r["Family"].ToString()), Esc(r["Level"].ToString()),
+                        Esc(r["EarthType"].ToString()), r["ResistanceOhm"].ToString(),
+                        Esc(r["TestDate"].ToString()), Esc(r["CertRef"].ToString()),
+                        Esc(r["Status"].ToString()) }));
                 File.WriteAllText(outPath, csv.ToString());
+                return outPath;
             }
             catch (Exception ex)
             {
-                StingLog.Error("LPS report write failed", ex);
-                TaskDialog.Show("STING — LPS Report", "Report generation failed: " + ex.Message);
-                return Result.Failed;
+                StingLog.Error("LPS CSV fallback write failed", ex);
+                return null;
             }
-
-            // The .docx template is not yet authored — see Docs/_template_sources/lps_report_tokens.json
-            // for the contract. CSV fallback is the supported deliverable until then.
-            StingLog.Info($"LPS compliance report written: {outPath}");
-            TaskDialog.Show("STING — LPS Report",
-                $"LPS Compliance Report saved.\n\n{outPath}\n\n" +
-                "(.docx template not yet available — CSV report generated. " +
-                "Token contract: Docs/_template_sources/lps_report_tokens.json.)");
-            return Result.Succeeded;
         }
 
-        private static string Esc(string s) => LpsBondingInventoryCommand_CsvAccess.Escape(s ?? "");
     }
 
     // ════════════════════════════════════════════════════════════════
