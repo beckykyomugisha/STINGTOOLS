@@ -347,6 +347,16 @@ namespace StingTools.UI
                     case "Electrical_ExportCircuits": RunCommand<Commands.Electrical.ExportCircuitsCommand>(app); break;
                     case "Electrical_TrayFill":    RunCommand<Commands.Electrical.ShowTrayFillCommand>(app); break;
 
+                    // ── Wire annotation symbols ──
+                    case "Electrical_WireAnnotate":
+                        RunCommand<Commands.Electrical.WireAnnotateCommand>(app); break;
+                    case "Electrical_WireAnnotateBatch":
+                        RunCommand<Commands.Electrical.WireAnnotateBatchCommand>(app); break;
+                    case "Electrical_HomeRunArrow":
+                        RunCommand<Commands.Electrical.HomeRunArrowCommand>(app); break;
+                    case "Electrical_ClearWireAnnotations":
+                        RunCommand<Commands.Electrical.ClearWireAnnotationsCommand>(app); break;
+
                     // ── v4 Phase D: hanger placement ──
                     case "Routing_PlaceHangers": RunCommand<Commands.Routing.PlaceHangersCommand>(app); break;
                     case "Fabrication_PlaceISOSymbols": TaskDialog.Show("STING v4 — ISO 6412 Symbols", "Place is wired through GenerateFabPackageCommand;\nrun Generate Fabrication Package against your selection."); break;
