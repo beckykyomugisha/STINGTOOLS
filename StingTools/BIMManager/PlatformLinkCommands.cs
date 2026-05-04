@@ -2082,136 +2082,13 @@ namespace StingTools.BIMManager
             }
             catch (Exception ex) { StingLog.Warn($"Planscape sync timestamp update: {ex.Message}"); }
 
-            // GAP 1-A (INT-03) — Delta PULL from server after push completes.
-            // Picks up any edits other devices made since our last pull,
-            // keyed by the per-project `lastPullUtc` watermark in
-            // planscape_connection.json. Parameters are applied inside a
-            // short Revit Transaction; failed rows are skipped, not rolled back.
-            int pulledCount = 0, pullAppliedCount = 0;
-            try
-            {
-                DateTime? watermark = null;
-                string watermarkStr = null;
-                try
-                {
-                    var cfg = File.Exists(cfgPath)
-                        ? JObject.Parse(File.ReadAllText(cfgPath))
-                        : new JObject();
-                    watermarkStr = cfg["lastPullUtc"]?.Value<string>();
-                    if (!string.IsNullOrWhiteSpace(watermarkStr)
-                        && DateTime.TryParse(watermarkStr,
-                            System.Globalization.CultureInfo.InvariantCulture,
-                            System.Globalization.DateTimeStyles.AssumeUniversal
-                                | System.Globalization.DateTimeStyles.AdjustToUniversal,
-                            out var parsed))
-                    {
-                        watermark = parsed;
-                    }
-                }
-                catch (Exception ex) { StingLog.Warn($"Planscape delta-pull: watermark read failed: {ex.Message}"); }
-
-                var remote = System.Threading.Tasks.Task.Run(
-                    () => client.GetElementsDeltaAsync(projectId, watermark)).GetAwaiter().GetResult();
-
-                if (remote != null && remote.Count > 0)
-                {
-                    pulledCount = remote.Count;
-
-                    // Index local tagged elements by UniqueId for O(1) match.
-                    // Same collection shape as BuildPluginSyncPayload — every non-type
-                    // element with a non-empty ASS_TAG_1 is a candidate for update.
-                    var localByUid = new Dictionary<string, Element>(StringComparer.Ordinal);
-                    try
-                    {
-                        foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
-                        {
-                            if (string.IsNullOrEmpty(el.UniqueId)) continue;
-                            string t1 = ParameterHelpers.GetString(el, "ASS_TAG_1") ?? "";
-                            if (string.IsNullOrEmpty(t1)) continue;
-                            if (!localByUid.ContainsKey(el.UniqueId))
-                                localByUid[el.UniqueId] = el;
-                        }
-                    }
-                    catch (Exception ex) { StingLog.Warn($"Planscape delta-pull: local index build: {ex.Message}"); }
-
-                    using (var tx = new Transaction(doc, "STING Planscape Delta Pull"))
-                    {
-                        tx.Start();
-                        foreach (var row in remote.OfType<JObject>())
-                        {
-                            try
-                            {
-                                string uid = row["uniqueId"]?.Value<string>() ?? row["UniqueId"]?.Value<string>();
-                                if (string.IsNullOrEmpty(uid)) continue;
-                                if (!localByUid.TryGetValue(uid, out var el) || el == null) continue;
-
-                                // Apply server-side tokens. Null/empty values are skipped
-                                // so the server never blanks a field the user has locally.
-                                ApplyServerToken(el, "ASS_DISC",   row, "disc");
-                                ApplyServerToken(el, "ASS_LOC",    row, "loc");
-                                ApplyServerToken(el, "ASS_ZONE",   row, "zone");
-                                ApplyServerToken(el, "ASS_LVL",    row, "lvl");
-                                ApplyServerToken(el, "ASS_SYS",    row, "sys");
-                                ApplyServerToken(el, "ASS_FUNC",   row, "func");
-                                ApplyServerToken(el, "ASS_PROD",   row, "prod");
-                                ApplyServerToken(el, "ASS_SEQ",    row, "seq");
-                                ApplyServerToken(el, "ASS_TAG_1",  row, "tag1");
-                                ApplyServerToken(el, "ASS_TAG_7",  row, "tag7");
-                                ApplyServerToken(el, "ASS_STATUS", row, "status");
-                                ApplyServerToken(el, "ASS_REV",    row, "rev");
-                                pullAppliedCount++;
-                            }
-                            catch (Exception ex) { StingLog.Warn($"Planscape delta-pull row apply: {ex.Message}"); }
-                        }
-                        tx.Commit();
-                    }
-
-                    try { Core.ComplianceScan.InvalidateCache(); } catch { /* defensive */ }
-                }
-
-                // Persist watermark after pull. Use UtcNow so subsequent pulls
-                // retrieve everything created/modified during this session.
-                try
-                {
-                    var cfg = File.Exists(cfgPath)
-                        ? JObject.Parse(File.ReadAllText(cfgPath))
-                        : new JObject();
-                    cfg["lastPullUtc"] = DateTime.UtcNow.ToString("o");
-                    cfg["lastPullCount"] = pulledCount;
-                    File.WriteAllText(cfgPath, cfg.ToString(Formatting.Indented));
-                }
-                catch (Exception ex) { StingLog.Warn($"Planscape delta-pull watermark persist: {ex.Message}"); }
-
-                StingLog.Info($"Planscape delta-pull: {pulledCount} server elements returned, {pullAppliedCount} applied locally (watermark: {watermarkStr ?? "<none>"} → {DateTime.UtcNow:O})");
-            }
-            catch (Exception ex) { StingLog.Warn($"Planscape delta-pull failed (non-fatal): {ex.Message}"); }
-
             TaskDialog.Show("Planscape Sync — Complete",
                 $"Sync to Planscape server complete!\n\n" +
-                $"Elements sent:     {tagSync.Count:N0}\n" +
-                $"Drained payloads:  {sResult.TagsCreated:N0}\n" +
-                $"Delta pulled:      {pulledCount:N0}\n" +
-                $"Delta applied:     {pullAppliedCount:N0}\n\n" +
+                $"Elements sent:    {tagSync.Count:N0}\n" +
+                $"Drained payloads: {sResult.TagsCreated:N0}\n\n" +
                 $"Server: {client.ServerUrl}\n" +
                 $"User: {client.ConnectedUser}\n\n" +
                 $"Compliance metrics will arrive on the ComplianceHub.");
-        }
-
-        /// <summary>
-        /// GAP 1-A helper — applies a JSON-bearing token to a Revit element only
-        /// when the server value is non-empty. Read-only / missing parameters
-        /// are silently skipped (ParameterHelpers handles that throttling).
-        /// </summary>
-        private static void ApplyServerToken(Element el, string paramName, JObject row, string jsonKey)
-        {
-            try
-            {
-                string val = row[jsonKey]?.Value<string>();
-                if (val == null) val = row[char.ToUpper(jsonKey[0]) + jsonKey.Substring(1)]?.Value<string>();
-                if (string.IsNullOrEmpty(val)) return;
-                ParameterHelpers.SetString(el, paramName, val, overwrite: true);
-            }
-            catch (Exception ex) { StingLog.Warn($"ApplyServerToken({paramName}): {ex.Message}"); }
         }
 
         /// <summary>

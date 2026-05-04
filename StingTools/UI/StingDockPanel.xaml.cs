@@ -1049,21 +1049,6 @@ namespace StingTools.UI
                         if (_tagOpRunning && tagStudioTabs.SelectedIndex != active)
                             tagStudioTabs.SelectedIndex = active;
                     }));
-                return;
-            }
-
-            // Lazy-build the Categories sub-tab on first activation.
-            // The list contains 120+ checkboxes; deferring creation until the
-            // user actually opens the sub-tab keeps initial Tag Studio render fast.
-            if (!_categoryListBuilt && tagStudioTabs?.SelectedItem is TabItem ti
-                && (ti.Header as string) == "Categories")
-            {
-                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background,
-                    new Action(() =>
-                    {
-                        try { BuildCategoryList(); }
-                        catch (Exception ex) { StingLog.Warn($"BuildCategoryList failed: {ex.Message}"); }
-                    }));
             }
         }
 
