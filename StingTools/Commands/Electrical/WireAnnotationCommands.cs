@@ -33,9 +33,57 @@ namespace StingTools.Commands.Electrical
 
     internal static class WireAnnotationEngine
     {
-        private const double MmPerFt   = 304.8;
-        private const string MarkerTxt = "STING_WIRE_ANNOT";
-        private const string TickStyle = "Wire Tick Marks";
+        private const double MmPerFt    = 304.8;
+        private const string MarkerTxt  = "STING_WIRE_ANNOT";
+        private const string TickMarker = "STING_WIRE_TICK";
+        private const string TickStyle  = "Wire Tick Marks";
+
+        private static string MarkerFor(string uniqueId) =>
+            string.IsNullOrEmpty(uniqueId) ? MarkerTxt : MarkerTxt + "|" + uniqueId;
+
+        public static int RemoveAnnotationForConduit(Document doc, View view, Element conduit)
+        {
+            if (doc == null || view == null || conduit == null) return 0;
+            string target = MarkerFor(conduit.UniqueId);
+            int removed = 0;
+            try
+            {
+                var notes = new FilteredElementCollector(doc, view.Id)
+                    .OfClass(typeof(TextNote))
+                    .Cast<TextNote>()
+                    .Where(n =>
+                    {
+                        var p = n.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
+                        return string.Equals(p?.AsString(), target, StringComparison.Ordinal);
+                    })
+                    .ToList();
+                foreach (var n in notes)
+                {
+                    try { doc.Delete(n.Id); removed++; }
+                    catch (Exception ex) { StingLog.Warn("RemoveAnnot note: " + ex.Message); }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn("RemoveAnnotationForConduit: " + ex.Message); }
+            return removed;
+        }
+
+        public static bool HasAnnotation(Document doc, View view, Element conduit)
+        {
+            if (doc == null || view == null || conduit == null) return false;
+            string target = MarkerFor(conduit.UniqueId);
+            try
+            {
+                return new FilteredElementCollector(doc, view.Id)
+                    .OfClass(typeof(TextNote))
+                    .Cast<TextNote>()
+                    .Any(n =>
+                    {
+                        var p = n.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
+                        return string.Equals(p?.AsString(), target, StringComparison.Ordinal);
+                    });
+            }
+            catch { return false; }
+        }
 
         public static WireAnnotationData ReadWireData(Element conduit)
         {
@@ -145,12 +193,26 @@ namespace StingTools.Commands.Electrical
                 return ElementId.InvalidElementId;
             }
 
-            MarkAsWireAnnotation(note);
+            MarkAsWireAnnotation(note, conduit?.UniqueId);
+            PlaceLeader(doc, view, mid, annotPt, perpDir);
 
             if (addTickMarks)
                 PlaceTickMarks(doc, view, conduit, data.CoreCount);
 
             return note.Id;
+        }
+
+        private static void PlaceLeader(Document doc, View view, XYZ conduitMid, XYZ annotPt, XYZ perpDir)
+        {
+            if (doc == null || view == null) return;
+            try
+            {
+                double offsetFt = 50.0 / MmPerFt;
+                var leaderEnd  = annotPt - perpDir * offsetFt;
+                var dc = doc.Create.NewDetailCurve(view, Line.CreateBound(conduitMid, leaderEnd));
+                StampTickMarker(dc);
+            }
+            catch (Exception ex) { StingLog.Warn("Wire annot leader: " + ex.Message); }
         }
 
         public static void PlaceTickMarks(Document doc, View view, Element conduit, int coreCount)
@@ -187,6 +249,7 @@ namespace StingTools.Commands.Electrical
                 try
                 {
                     var dc = doc.Create.NewDetailCurve(view, Line.CreateBound(startPt, endPt));
+                    StampTickMarker(dc);
                     if (tickSub != null && dc != null)
                     {
                         try
@@ -194,7 +257,7 @@ namespace StingTools.Commands.Electrical
                             var newGs = tickSub.GetGraphicsStyle(GraphicsStyleType.Projection);
                             if (newGs != null) dc.LineStyle = newGs;
                         }
-                        catch (Exception ex2) { StingLog.Warn("Tick line style: " + ex2.Message); }
+                        catch { /* OST_Wire subcat not always valid for DetailLine.LineStyle */ }
                     }
                 }
                 catch (Exception ex)
@@ -202,15 +265,26 @@ namespace StingTools.Commands.Electrical
             }
         }
 
-        public static void MarkAsWireAnnotation(TextNote note)
+        public static void MarkAsWireAnnotation(TextNote note, string conduitUniqueId = null)
         {
             if (note == null) return;
             try
             {
                 var p = note.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
-                if (p != null && !p.IsReadOnly) p.Set(MarkerTxt);
+                if (p != null && !p.IsReadOnly) p.Set(MarkerFor(conduitUniqueId));
             }
             catch (Exception ex) { StingLog.Warn("MarkAsWireAnnotation: " + ex.Message); }
+        }
+
+        private static void StampTickMarker(CurveElement ce)
+        {
+            if (ce == null) return;
+            try
+            {
+                var p = ce.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
+                if (p != null && !p.IsReadOnly) p.Set(TickMarker);
+            }
+            catch { /* DetailLine may not expose Comments — fall back to line-style match */ }
         }
 
         public static bool IsWireAnnotation(TextNote note)
@@ -219,7 +293,10 @@ namespace StingTools.Commands.Electrical
             try
             {
                 var p = note.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
-                return string.Equals(p?.AsString(), MarkerTxt, StringComparison.Ordinal);
+                var v = p?.AsString();
+                return !string.IsNullOrEmpty(v)
+                    && (string.Equals(v, MarkerTxt, StringComparison.Ordinal)
+                        || v.StartsWith(MarkerTxt + "|", StringComparison.Ordinal));
             }
             catch { return false; }
         }
@@ -229,6 +306,9 @@ namespace StingTools.Commands.Electrical
             if (ce == null) return false;
             try
             {
+                var p = ce.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
+                if (string.Equals(p?.AsString(), TickMarker, StringComparison.Ordinal)) return true;
+
                 var gs = ce.LineStyle as GraphicsStyle;
                 return string.Equals(gs?.Name, TickStyle, StringComparison.Ordinal)
                     || string.Equals(gs?.GraphicsStyleCategory?.Name, TickStyle, StringComparison.Ordinal);
@@ -307,9 +387,22 @@ namespace StingTools.Commands.Electrical
                 var conduit = doc.GetElement(reference);
                 var data    = WireAnnotationEngine.ReadWireData(conduit);
 
+                if (WireAnnotationEngine.HasAnnotation(doc, view, conduit))
+                {
+                    var dup = new TaskDialog("STING Wire Annotation")
+                    {
+                        MainInstruction = "This conduit is already annotated in the active view.",
+                        MainContent     = "Replace the existing annotation?",
+                        CommonButtons   = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                        DefaultButton   = TaskDialogResult.No,
+                    };
+                    if (dup.Show() != TaskDialogResult.Yes) return Result.Cancelled;
+                }
+
                 using (var t = new Transaction(doc, "STING Place Wire Annotation"))
                 {
                     t.Start();
+                    WireAnnotationEngine.RemoveAnnotationForConduit(doc, view, conduit);
                     WireAnnotationEngine.PlaceAnnotation(doc, view, conduit, data,
                         addTickMarks: data.CoreCount > 0);
                     t.Commit();
@@ -369,12 +462,17 @@ namespace StingTools.Commands.Electrical
                 };
                 if (td.Show() != TaskDialogResult.Yes) return Result.Cancelled;
 
-                int placed = 0, failed = 0;
+                int placed = 0, failed = 0, skipped = 0;
                 using (var tg = new TransactionGroup(doc, "STING Batch Wire Annotations"))
                 {
                     tg.Start();
                     foreach (var conduit in conduits)
                     {
+                        if (WireAnnotationEngine.HasAnnotation(doc, view, conduit))
+                        {
+                            skipped++;
+                            continue;
+                        }
                         var data = WireAnnotationEngine.ReadWireData(conduit);
                         using (var t = new Transaction(doc, "STING Wire Annot"))
                         {
@@ -398,7 +496,9 @@ namespace StingTools.Commands.Electrical
                     tg.Assimilate();
                 }
 
-                string suffix = failed > 0 ? $" {failed} failed." : "";
+                string suffix = "";
+                if (skipped > 0) suffix += $" {skipped} already annotated (skipped).";
+                if (failed > 0)  suffix += $" {failed} failed.";
                 TaskDialog.Show("STING Wire Annotation",
                     $"Annotated {placed} conduits.{suffix}");
                 return Result.Succeeded;
