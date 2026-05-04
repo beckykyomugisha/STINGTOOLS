@@ -6,11 +6,18 @@
 // air terminal's rolling-sphere zone covers it. Unprotected points are
 // flagged with red DirectShape markers in a dedicated 3D view.
 //
-// Geometry: a point P at height zp is protected by air terminal AT at
-// height za if horizontal_distance(P, AT) <= sqrt(2R·H - H²) where
-// H = za - zp and 0 < H < 2R. Outside that band the terminal cannot
-// protect P (it is below P, equal in height, or so high above that the
-// rolling sphere can fit between the terminal and the point's plane).
+// Geometry: a point P at height zp is single-handedly reachable by air
+// terminal AT at height za if horizontal_distance(P, AT) <= sqrt(2R·H - H²)
+// where H = za - zp and 0 < H < 2R. Cooperative coverage extends this:
+// for every reaching terminal, the apex sphere resting on AT and P from
+// above is computed; if any *other* terminal lies inside that sphere, it
+// physically blocks the rolling sphere from reaching P. P is exposed iff
+// at least one reaching terminal has a clear (unblocked) apex sphere.
+//
+// Roof sampling walks each roof's solid faces, picks top-facing surfaces
+// (face normal Z > 0.5), and emits a uniform UV grid translated to a
+// world-space step approximating DEFAULT_GRID_M. Falls back to a bbox
+// scan when no top face is extractable (mass-derived / weird roofs).
 
 using System;
 using System.Collections.Generic;
@@ -103,19 +110,13 @@ namespace StingTools.Commands.Lightning
             foreach (var rf in roofs)
             {
                 progress?.Increment(rf.Name ?? "");
-                var bb = rf.get_BoundingBox(null);
-                if (bb == null) continue;
-                double topZ = bb.Max.Z;
                 int perRoof = 0;
-                for (double x = bb.Min.X; x <= bb.Max.X && perRoof < MAX_POINTS_PER_RF; x += gridFt)
+                foreach (var P in SampleRoofTopFaces(rf, gridFt))
                 {
-                    for (double y = bb.Min.Y; y <= bb.Max.Y && perRoof < MAX_POINTS_PER_RF; y += gridFt)
-                    {
-                        sampled++; perRoof++;
-                        var P = new XYZ(x, y, topZ);
-                        if (IsProtected(P, terminalTops, Rft)) protectedCount++;
-                        else exposed.Add(P);
-                    }
+                    if (perRoof >= MAX_POINTS_PER_RF) break;
+                    sampled++; perRoof++;
+                    if (IsProtected(P, terminalTops, Rft)) protectedCount++;
+                    else exposed.Add(P);
                 }
             }
             progress?.Close();
@@ -162,32 +163,85 @@ namespace StingTools.Commands.Lightning
                  .MetricError("Exposed",           exposed.Count.ToString("N0"), $"{100 - pct:F1}% of sampled area")
                  .Metric("3D markers placed",      markersPlaced.ToString("N0"));
             panel.AddSection("METHOD")
-                 .Text("Per BS EN 62305-3 §E.4: a point is protected by an air terminal at height H above it when its")
-                 .Text("horizontal distance is ≤ √(2R·H − H²). Below height-bands outside (0, 2R) the terminal cannot")
-                 .Text("provide single-terminal protection. Multi-terminal cooperative coverage is approximated as the")
-                 .Text("union of single-terminal zones (conservative — actual protection may be wider).")
-                 .Text($"Grid resolution: {DEFAULT_GRID_M:F1} m. Roof sampling uses bounding-box top z (sloped roofs may")
-                 .Text("over-report exposure on lower slopes).");
+                 .Text("Per BS EN 62305-3 §E.4: a point is single-handedly reachable by an air terminal at height H")
+                 .Text("above it when its horizontal distance is ≤ √(2R·H − H²) and 0 < H < 2R. Cooperative coverage:")
+                 .Text("for every reaching terminal, compute the apex sphere of radius R touching AT and P from above")
+                 .Text("(the unique max-z sphere centred in the AT–P vertical plane). If any other terminal lies inside")
+                 .Text("that sphere, it physically blocks the rolling sphere from reaching P. P is exposed iff at least")
+                 .Text("one reaching terminal has a clear (unblocked) apex sphere.")
+                 .Text($"Grid resolution: {DEFAULT_GRID_M:F1} m. Roof sampling walks each roof's top faces (normal Z>0.5)")
+                 .Text("on a UV grid translated to world-space spacing using face area / UV area. Falls back to bbox-top")
+                 .Text("when no extractable top face is found.");
             panel.Show();
             return Result.Succeeded;
         }
 
         // ── Helpers ──────────────────────────────────────────────────
 
+        /// <summary>
+        /// Cooperative protection test. P is protected iff every terminal AT
+        /// that single-handedly could reach P (sqrt(2RH - H²) check) has
+        /// some *other* terminal AT' lying inside the apex rolling sphere
+        /// resting on AT and P from above. The apex sphere is the unique
+        /// position where the sphere of radius R touches AT and P from above
+        /// while sitting in the vertical plane through them. AT' inside that
+        /// sphere physically blocks it from reaching P → AT's reach is
+        /// occluded. If every reaching terminal is blocked, the sphere has
+        /// no path to P and the cooperative geometry shields it.
+        /// </summary>
         private static bool IsProtected(XYZ P, IList<XYZ> terminalTops, double Rft)
         {
-            double zp = P.Z;
+            // Phase 1 — collect terminals that could single-handedly reach P.
+            var reaches = new List<XYZ>();
             foreach (var T in terminalTops)
             {
-                double H = T.Z - zp;
-                if (H <= 0) continue;          // terminal not above point
-                if (H >= 2.0 * Rft) continue;  // sphere can fit between
+                double H = T.Z - P.Z;
+                if (H <= 0 || H >= 2.0 * Rft) continue;
                 double rMax = Math.Sqrt(2.0 * Rft * H - H * H);
                 double dx = T.X - P.X, dy = T.Y - P.Y;
-                double d = Math.Sqrt(dx * dx + dy * dy);
-                if (d <= rMax) return true;
+                if (Math.Sqrt(dx * dx + dy * dy) <= rMax) reaches.Add(T);
             }
-            return false;
+            if (reaches.Count == 0) return true;
+
+            // Phase 2 — for each reaching terminal, check pair occlusion.
+            foreach (var T in reaches)
+            {
+                var apex = ApexSphereCenter(T, P, Rft);
+                if (apex == null) continue; // sphere geometrically can't form an apex above both
+                bool blocked = false;
+                foreach (var Tp in terminalTops)
+                {
+                    if (ReferenceEquals(Tp, T)) continue;
+                    if ((apex - Tp).GetLength() < Rft - 1e-6)
+                    {
+                        blocked = true; break;
+                    }
+                }
+                if (!blocked) return false; // unblocked path exists → P is exposed
+            }
+            return true;
+        }
+
+        /// <summary>Apex sphere centre: |C-AT|=|C-P|=R with C in the vertical
+        /// plane through AT-P, max-z solution. Returns null when no such
+        /// sphere can rest on AT and P from above.</summary>
+        private static XYZ ApexSphereCenter(XYZ AT, XYZ P, double R)
+        {
+            var v = P - AT;
+            double d = v.GetLength();
+            if (d < 1e-9 || d > 2 * R) return null;
+            var M = (AT + P) * 0.5;
+            double rc = Math.Sqrt(R * R - (d * 0.5) * (d * 0.5));
+            var vUnit = v / d;
+            // Component of +z perpendicular to v, normalised. If v is purely
+            // vertical, no canonical "above" direction in the locus circle.
+            var n = XYZ.BasisZ - (XYZ.BasisZ.DotProduct(vUnit)) * vUnit;
+            double nLen = n.GetLength();
+            if (nLen < 1e-9) return null;
+            n = n / nLen;
+            var C = M + rc * n;
+            if (C.Z <= AT.Z || C.Z <= P.Z) return null;
+            return C;
         }
 
         private static XYZ GetTopPoint(FamilyInstance fi)
@@ -269,6 +323,96 @@ namespace StingTools.Commands.Lightning
             {
                 StingLog.Warn($"PlaceMarker: {ex.Message}");
                 return false;
+            }
+        }
+
+        /// <summary>Walks roof solids, picks faces whose normal at face-centre
+        /// has Z &gt; 0.5 (top-facing), and yields a regular grid of XYZ points
+        /// across each face's UV bounding box. UV step is sized so the
+        /// average world-space spacing approximates <paramref name="gridFt"/>
+        /// using the face's area / UV-area ratio.
+        ///
+        /// Falls back to a bbox-top scan when the roof has no extractable
+        /// top face (rare, e.g. mass-derived roofs).</summary>
+        private static IEnumerable<XYZ> SampleRoofTopFaces(Element roof, double gridFt)
+        {
+            var opts = new Options { ComputeReferences = false, IncludeNonVisibleObjects = false };
+            GeometryElement geom;
+            try { geom = roof.get_Geometry(opts); }
+            catch (Exception ex) { StingLog.Warn($"SampleRoofTopFaces geom: {ex.Message}"); geom = null; }
+
+            int yielded = 0;
+            if (geom != null)
+            {
+                foreach (var go in geom)
+                {
+                    foreach (var solid in EnumerateSolids(go))
+                    {
+                        if (solid?.Faces == null) continue;
+                        foreach (Face face in solid.Faces)
+                        {
+                            BoundingBoxUV bb;
+                            try { bb = face.GetBoundingBox(); }
+                            catch (Exception ex) { StingLog.Warn($"face bbox: {ex.Message}"); continue; }
+                            if (bb == null) continue;
+
+                            UV centerUV = new UV(0.5 * (bb.Min.U + bb.Max.U), 0.5 * (bb.Min.V + bb.Max.V));
+                            XYZ n;
+                            try { n = face.ComputeNormal(centerUV); }
+                            catch (Exception ex) { StingLog.Warn($"face normal: {ex.Message}"); continue; }
+                            if (n.Z < 0.5) continue;
+
+                            double area;
+                            try { area = face.Area; } catch { area = 0; }
+                            double uvArea = (bb.Max.U - bb.Min.U) * (bb.Max.V - bb.Min.V);
+                            if (area < 1e-6 || uvArea < 1e-9) continue;
+                            double scale = Math.Sqrt(area / uvArea); // world-units per uv-unit
+                            double uStep = gridFt / scale;
+                            double vStep = gridFt / scale;
+                            if (uStep < 1e-9 || vStep < 1e-9) continue;
+
+                            for (double u = bb.Min.U; u <= bb.Max.U; u += uStep)
+                            {
+                                for (double v = bb.Min.V; v <= bb.Max.V; v += vStep)
+                                {
+                                    var uv = new UV(u, v);
+                                    XYZ p;
+                                    try { p = face.Evaluate(uv); }
+                                    catch { continue; }
+                                    if (p == null) continue;
+                                    yielded++;
+                                    yield return p;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Fallback: bbox-top grid when no top faces sampled.
+            if (yielded == 0)
+            {
+                var bb = roof.get_BoundingBox(null);
+                if (bb == null) yield break;
+                double topZ = bb.Max.Z;
+                for (double x = bb.Min.X; x <= bb.Max.X; x += gridFt)
+                    for (double y = bb.Min.Y; y <= bb.Max.Y; y += gridFt)
+                        yield return new XYZ(x, y, topZ);
+            }
+        }
+
+        private static IEnumerable<Solid> EnumerateSolids(GeometryObject go)
+        {
+            if (go is Solid s) { if (s.Volume > 1e-6) yield return s; yield break; }
+            if (go is GeometryInstance gi)
+            {
+                GeometryElement child = null;
+                try { child = gi.GetInstanceGeometry(); }
+                catch (Exception ex) { StingLog.Warn($"GetInstanceGeometry: {ex.Message}"); }
+                if (child == null) yield break;
+                foreach (var sub in child)
+                    foreach (var s2 in EnumerateSolids(sub))
+                        yield return s2;
             }
         }
     }
