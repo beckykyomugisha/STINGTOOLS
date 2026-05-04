@@ -2822,6 +2822,8 @@
                                             ToolTip="Assign LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3 to rooms (BS EN 62305-4)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Plan Visualise" Tag="LPS_PlanVisualise" Click="Cmd_Click"
                                             ToolTip="Generate plan-view rolling-sphere protection projection"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="3D Coverage" Tag="LPS_RollingSphere3D" Click="Cmd_Click"
+                                            ToolTip="Rolling-sphere 3D coverage analyser — flags exposed roof points (BS EN 62305-3 §E.4)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Sep Distance" Tag="LPS_SepDistCheck" Click="Cmd_Click"
                                             ToolTip="Check separation distance between LPS conductors and MEP services"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Inspection Schedule" Tag="LPS_InspectionSchedule" Click="Cmd_Click"

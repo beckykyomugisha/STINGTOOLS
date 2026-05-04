@@ -194,6 +194,7 @@ namespace StingTools.UI
                     case "LPS_BondingInventory":     RunCommand<Commands.Lightning.LpsBondingInventoryCommand>(app); break;
                     case "LPS_ZoneTag":              RunCommand<Commands.Lightning.LpsRoomZoneTagCommand>(app); break;
                     case "LPS_PlanVisualise":        RunCommand<Commands.Lightning.LpsPlanViewVisualizerCommand>(app); break;
+                    case "LPS_RollingSphere3D":      RunCommand<Commands.Lightning.LpsRollingSphere3DCommand>(app); break;
                     case "LPS_SepDistCheck":         RunCommand<Commands.Lightning.LpsSeparationDistanceCheckerCommand>(app); break;
                     case "LPS_InspectionSchedule":   RunCommand<Commands.Lightning.LpsInspectionSchedulerCommand>(app); break;
                     case "LPS_FullReport":           RunCommand<Commands.Lightning.LpsFullReportCommand>(app); break;

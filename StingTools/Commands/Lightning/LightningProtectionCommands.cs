@@ -896,8 +896,9 @@ namespace StingTools.Commands.Lightning
                     TaskDialog.Show("STING — Plan Visualise",
                         $"Protection zone plan created: '{viewName}'\n" +
                         $"Air terminals projected: {placed}\n\n" +
-                        "NOTE: This is a 2D horizontal projection. Pitched / sloped roof areas " +
-                        "require manual verification using the rolling sphere method per BS EN 62305-3.");
+                        "Each circle is the rolling-sphere protection radius at terminal-tip height. " +
+                        "For 3D coverage including pitched roofs, run the '3D Coverage' command — it " +
+                        "samples the actual roof geometry and flags exposed points per BS EN 62305-3 §E.4.");
                 }
                 return Result.Succeeded;
             }
