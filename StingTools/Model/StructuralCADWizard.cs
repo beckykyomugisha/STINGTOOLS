@@ -551,13 +551,15 @@ namespace StingTools.Model
     /// Single-page WPF dialog for Structural DWG-to-BIM conversion.
     /// Replaces the old 5-page wizard with a comprehensive scrollable layout.
     /// </summary>
-    public class StructuralCADWizard : Window
+    public class StructuralDWGDialog : Window
     {
         // ── State ────────────────────────────────────────────────────────
         private readonly Document _doc;
         private readonly StructuralCADPipeline _pipeline;
         private ImportInstance _selectedImport;
         private StructuralExtractionResult _extraction;
+        private readonly List<LayerRow> _layerRows = new();
+        private readonly List<DetectedElementGroup> _detectedGroups = new();
 
         // Layer data
         private ObservableCollection<LayerRowData> _layerRows = new();
@@ -662,8 +664,7 @@ namespace StingTools.Model
         };
 
         // ── Constructor ──────────────────────────────────────────────────
-
-        public StructuralCADWizard(Document doc)
+        public StructuralDWGDialog(Document doc)
         {
             _doc = doc ?? throw new ArgumentNullException(nameof(doc));
             _pipeline = new StructuralCADPipeline(doc);
@@ -795,7 +796,6 @@ namespace StingTools.Model
             btnPanel.Children.Add(btnCancel);
             Grid.SetColumn(btnPanel, 1);
             footerGrid.Children.Add(btnPanel);
-
             footer.Child = footerGrid;
             Grid.SetRow(footer, 2);
             root.Children.Add(footer);
@@ -2654,6 +2654,9 @@ namespace StingTools.Model
                 Padding = new Thickness(10, 4, 10, 4),
                 FontSize = 11,
             };
+            if (bg != null) btn.Background = bg;
+            if (fg != null) btn.Foreground = fg;
+            if (bold) btn.FontWeight = FontWeights.Bold;
             btn.Click += handler;
             return btn;
         }
