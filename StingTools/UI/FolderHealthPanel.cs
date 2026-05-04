@@ -188,7 +188,7 @@ namespace StingTools.UI
 
             // Status pill
             SolidColorBrush pillColor = !entry.Exists ? Red : (entry.IsEmpty ? Amber : Green);
-            var pill = new Ellipse
+            var pill = new System.Windows.Shapes.Ellipse
             {
                 Width = 10,
                 Height = 10,

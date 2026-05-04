@@ -144,6 +144,7 @@ namespace StingTools.Core.Drawing
         [JsonProperty("hAlign")]  public string   HAlign { get; set; } = "Left";
         [JsonProperty("vAlign")]  public string   VAlign { get; set; } = "Middle";
         [JsonProperty("textTypeName")] public string TextTypeName { get; set; }
+        [JsonProperty("visibility")] public string Visibility { get; set; }
     }
 
     /// <summary>Label bound to a single family parameter.</summary>
