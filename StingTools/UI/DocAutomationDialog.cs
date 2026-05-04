@@ -32,7 +32,7 @@ namespace StingTools.UI
         // ── Theme colours (light theme with orange accents) ─────────────
         private static readonly Color BgLight = Color.FromRgb(0xF5, 0xF5, 0xF5);
         private static readonly Color BgWhite = Color.FromRgb(0xFF, 0xFF, 0xFF);
-        private static readonly Color BgHeader = Color.FromRgb(0x2D, 0x2D, 0x30);
+        private static readonly Color BgHeader = Color.FromRgb(0x1A, 0x23, 0x7E);
         private static readonly Color AccentOrange = Color.FromRgb(0xE8, 0x91, 0x2D);
         private static readonly Color AccentOrangeHover = Color.FromRgb(0xF0, 0xA0, 0x45);
         private static readonly Color FgDark = Color.FromRgb(0x22, 0x22, 0x22);
