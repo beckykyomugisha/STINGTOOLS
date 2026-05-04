@@ -94,6 +94,9 @@
   <ItemGroup>
     <ProjectReference Include="..\Planscape.Server\src\Planscape.Shared\Planscape.Shared.csproj" />
     <ProjectReference Include="..\Planscape.Server\src\Planscape.PluginSync\Planscape.PluginSync.csproj" />
+    <!-- Phase 110: Standards & compliance calc library. Pure C#, no
+         Revit dependency; StingTools commands wrap the APIs. -->
+    <ProjectReference Include="..\StingTools.Standards\StingTools.Standards.csproj" />
   </ItemGroup>
 
   <!-- Phase 95: BcfEngine physically lives here but is compiled into
