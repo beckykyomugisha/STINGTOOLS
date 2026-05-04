@@ -189,7 +189,7 @@ namespace StingTools.Tags
             { BuiltInCategory.OST_SitePropertyLineSegment, "Generic Tag.rft" },
             { BuiltInCategory.OST_ToposolidLink, "Generic Tag.rft" },
             { BuiltInCategory.OST_StructConnectionWelds, "Generic Tag.rft" },
-            { BuiltInCategory.OST_Wire, "Electrical Equipment Tag.rft" },
+            { BuiltInCategory.OST_Wire, "Wire Tag.rft" },
 
             // ── Sheets (base category for all discipline sheet tags) ─────────
             { BuiltInCategory.OST_Sheets, "Generic Tag.rft" },

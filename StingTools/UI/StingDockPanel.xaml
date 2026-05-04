@@ -4517,6 +4517,18 @@
                                             <Border Style="{StaticResource GroupBorder}">
                                                 <StackPanel>
                                                     <Button Style="{StaticResource ActionBtn}" Content="Live fill calc"        Tag="Mep_FillLiveCalc" Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Recompute conduit + tray fill% from current cable cross section"/>
+                                                    <Button Style="{StaticResource CatBtn}" Content="W-Ann"
+                                                            Tag="Electrical_WireAnnotate" Click="Cmd_Click"
+                                                            ToolTip="Place wire annotation on a picked conduit (BS 7671 format)"/>
+                                                    <Button Style="{StaticResource CatBtn}" Content="W-Batch"
+                                                            Tag="Electrical_WireAnnotateBatch" Click="Cmd_Click"
+                                                            ToolTip="Annotate all conduits in active view with wire specifications"/>
+                                                    <Button Style="{StaticResource CatBtn}" Content="H-Run"
+                                                            Tag="Electrical_HomeRunArrow" Click="Cmd_Click"
+                                                            ToolTip="Place home-run arrow on picked conduit pointing toward panel"/>
+                                                    <Button Style="{StaticResource CatBtn}" Content="W-Clr"
+                                                            Tag="Electrical_ClearWireAnnotations" Click="Cmd_Click"
+                                                            ToolTip="Remove all STING wire annotations from active view"/>
                                                     <Button Style="{StaticResource ActionBtn}" Content="System naming audit"    Tag="Mep_NamingAudit"  Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Audit MEP system names against CIBSE / BSRIA / Uniclass 2015 prefix set"/>
                                                 </StackPanel>
                                             </Border>
