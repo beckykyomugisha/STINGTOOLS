@@ -1723,4 +1723,42 @@ namespace StingTools.Core
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
             => HubDispatcher.Run("Scheduling_Dashboard", ref message);
     }
+
+    /// <summary>
+    /// Toggle the STING Tools dockable panel visibility.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ToggleDockPanelCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                DockablePane pane = ParameterHelpers.GetApp(commandData)
+                    .GetDockablePane(StingDockPanelProvider.PaneId);
+
+                if (pane == null)
+                {
+                    TaskDialog.Show("STING Panel",
+                        "Dockable panel not found. Restart Revit to register it.");
+                    return Result.Failed;
+                }
+
+                if (pane.IsShown())
+                    pane.Hide();
+                else
+                    pane.Show();
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Toggle dockable panel failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
 }

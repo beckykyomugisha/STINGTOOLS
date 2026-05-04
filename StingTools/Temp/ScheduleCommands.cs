@@ -1358,6 +1358,21 @@ namespace StingTools.Temp
                 if (!string.IsNullOrEmpty(catName) && known.Contains(catName))
                     taggableElements.Add(el);
             }
+            var report = new StringBuilder();
+            report.AppendLine($"Auto-populated {updated} field values across {total} elements.");
+            report.AppendLine();
+            report.AppendLine("Tag tokens:");
+            if (sysAware > 0) report.AppendLine($"  SYS detected from MEP systems: {sysAware}");
+            if (locDetected > 0) report.AppendLine($"  LOC auto-detected from rooms/project: {locDetected}");
+            if (zoneDetected > 0) report.AppendLine($"  ZONE auto-detected from rooms: {zoneDetected}");
+            if (nativeMapped > 0)
+            {
+                report.AppendLine();
+                report.AppendLine("Native parameter mapping:");
+                report.AppendLine($"  Revit built-in → STING shared: {nativeMapped} values");
+                report.AppendLine("  (Mark, Comments, Description, Manufacturer, Model,");
+                report.AppendLine("   Room, MEP params, Type params, Uniformat, OmniClass)");
+            }
 
             if (taggableElements.Count == 0)
             {
