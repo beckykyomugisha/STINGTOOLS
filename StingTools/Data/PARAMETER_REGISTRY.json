@@ -6503,6 +6503,29 @@
           "ALL"
         ],
         "tier": "T11"
+      },
+      {
+        "key": "ELC_LPS_COMPLIANCE_STATUS",
+        "param_name": "ELC_LPS_COMPLIANCE_STATUS_TXT",
+        "guid": "b1c4e8d3-7f5a-5d2c-9e6b-3a4f5c8d2b1e",
+        "description": "Plugin-written LPS compliance verdict (PASS / WARN / FAIL — N items / SPACING FAIL / SEP DIST FAIL / EARTH FAIL)",
+        "categories": [
+          "OST_GenericModel",
+          "OST_ElectricalEquipment",
+          "OST_Rooms"
+        ],
+        "tier": "T11"
+      },
+      {
+        "key": "ELC_LPS_CONDUCTOR_MATERIAL",
+        "param_name": "ELC_LPS_CONDUCTOR_MATERIAL_TXT",
+        "guid": "c2d5f9e4-8a6b-5e3d-a07c-4b5d6e9c3f2a",
+        "description": "Down conductor material (COPPER / ALUMINIUM / STEEL) used for separation distance km factor",
+        "categories": [
+          "OST_GenericModel",
+          "OST_ElectricalEquipment"
+        ],
+        "tier": "T11"
       }
     ]
   },

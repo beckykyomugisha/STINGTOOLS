@@ -3144,6 +3144,10 @@ namespace StingTools.Core
         public const string ELC_LPS_TEST_DATE_TXT_GUID         = "d654df13-0913-5e8f-8dfe-98b3971beb86";
         public const string ELC_LPS_CERT_REF_TXT               = "ELC_LPS_CERT_REF_TXT";
         public const string ELC_LPS_CERT_REF_TXT_GUID          = "0a8dbcfb-6f73-5c8c-94eb-b72606feae87";
+        public const string ELC_LPS_COMPLIANCE_STATUS_TXT      = "ELC_LPS_COMPLIANCE_STATUS_TXT";
+        public const string ELC_LPS_COMPLIANCE_STATUS_TXT_GUID = "b1c4e8d3-7f5a-5d2c-9e6b-3a4f5c8d2b1e";
+        public const string ELC_LPS_CONDUCTOR_MATERIAL_TXT     = "ELC_LPS_CONDUCTOR_MATERIAL_TXT";
+        public const string ELC_LPS_CONDUCTOR_MATERIAL_TXT_GUID = "c2d5f9e4-8a6b-5e3d-a07c-4b5d6e9c3f2a";
 
         #endregion
     }

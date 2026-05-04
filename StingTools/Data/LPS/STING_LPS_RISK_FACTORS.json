@@ -1,0 +1,55 @@
+{
+  "_comment": "BS EN 62305-2:2012 weighting factors for the simplified risk assessment. Values aligned with Annex A and Table A.1–A.5. The plugin uses these to derive the recommended LPS class for a building.",
+  "buildingTypes": [
+    { "id": "RESIDENTIAL", "label": "Residential",            "cb": 0.5, "notes": "Houses, low-rise apartments — Table A.1" },
+    { "id": "COMMERCIAL",  "label": "Commercial / Office",    "cb": 1.0, "notes": "General offices, retail" },
+    { "id": "INDUSTRIAL",  "label": "Industrial / Factory",   "cb": 1.5, "notes": "Production, warehouse" },
+    { "id": "HEALTHCARE",  "label": "Healthcare / Hospital",  "cb": 2.5, "notes": "Hospital, care home — high L1 loss" },
+    { "id": "EDUCATION",   "label": "Education / School",     "cb": 1.0, "notes": "Schools, universities" },
+    { "id": "CULTURAL",    "label": "Cultural / Heritage",    "cb": 2.0, "notes": "Museum, place of worship — L3 loss" },
+    { "id": "HAZARDOUS",   "label": "Hazardous / Explosive",  "cb": 3.0, "notes": "Petrochemical, ammunition — high L1+L2" }
+  ],
+  "internalContent": [
+    { "id": "ORDINARY",     "label": "Ordinary contents",                "cc": 1.0 },
+    { "id": "VALUABLE",     "label": "Valuable contents",                "cc": 2.0 },
+    { "id": "IRREPLACEABLE","label": "Irreplaceable / cultural",         "cc": 3.0 },
+    { "id": "LOW_FIRE",     "label": "Low fire ignition risk",           "cc": 1.0 },
+    { "id": "HIGH_FIRE",    "label": "High fire ignition risk",          "cc": 2.5 },
+    { "id": "EXPLOSIVE",    "label": "Explosive / flammable contents",   "cc": 5.0 }
+  ],
+  "occupantHazard": [
+    { "id": "LOW",     "label": "Low — few occupants",      "cd": 1.0 },
+    { "id": "MEDIUM",  "label": "Medium — public access",   "cd": 2.0 },
+    { "id": "HIGH",    "label": "High — vulnerable / mass", "cd": 5.0 }
+  ],
+  "consequenceOfFailure": [
+    { "id": "LOW",     "label": "Low",     "ce": 1.0 },
+    { "id": "MEDIUM",  "label": "Medium",  "ce": 2.0 },
+    { "id": "HIGH",    "label": "High",    "ce": 5.0 },
+    { "id": "EXTREME", "label": "Extreme", "ce": 10.0 }
+  ],
+  "lossTypes": [
+    { "id": "L1", "label": "L1 — Loss of human life",       "rt": 0.00001 },
+    { "id": "L2", "label": "L2 — Loss of public service",   "rt": 0.001 },
+    { "id": "L3", "label": "L3 — Loss of cultural heritage","rt": 0.0001 },
+    { "id": "L4", "label": "L4 — Economic loss",            "rt": 0.001 }
+  ],
+  "serviceFactors": [
+    { "id": "POWER_OH",     "label": "Power — overhead",       "ct": 1.0 },
+    { "id": "POWER_UG",     "label": "Power — underground",    "ct": 0.4 },
+    { "id": "TELECOM_OH",   "label": "Telecom — overhead",     "ct": 1.0 },
+    { "id": "TELECOM_UG",   "label": "Telecom — underground",  "ct": 0.4 },
+    { "id": "GAS",          "label": "Gas service",            "ct": 1.0 },
+    { "id": "WATER",        "label": "Water service",          "ct": 0.5 }
+  ],
+  "classRecommendation": {
+    "_comment": "Map computed annual dangerous events Nd to recommended LPS class. Nd derived from Ng * Ae * Cd * 1e-6.",
+    "thresholds": [
+      { "ndMin": 0.0,    "ndMax": 0.001,  "class": "NONE", "rationale": "Risk below tolerable, LPS not required by EN 62305-2" },
+      { "ndMin": 0.001,  "ndMax": 0.01,   "class": "IV"  },
+      { "ndMin": 0.01,   "ndMax": 0.05,   "class": "III" },
+      { "ndMin": 0.05,   "ndMax": 0.2,    "class": "II"  },
+      { "ndMin": 0.2,    "ndMax": 9999.0, "class": "I"   }
+    ]
+  }
+}

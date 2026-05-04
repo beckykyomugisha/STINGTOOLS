@@ -186,6 +186,18 @@ namespace StingTools.UI
                     // ── v4 MVP: validators (Phase 4) ──
                     case "Validation_RunAll":        RunCommand<Commands.Validation.RunAllValidatorsCommand>(app); break;
 
+                    // ── Lightning Protection System (BS EN 62305) ──
+                    case "LPS_ClassSetup":           RunCommand<Commands.Lightning.LpsClassSetupCommand>(app); break;
+                    case "LPS_ComplianceCheck":      RunCommand<Commands.Lightning.LpsComplianceCheckCommand>(app); break;
+                    case "LPS_DownConductorCheck":   RunCommand<Commands.Lightning.LpsDownConductorCheckerCommand>(app); break;
+                    case "LPS_EarthCheck":           RunCommand<Commands.Lightning.LpsEarthResistanceValidatorCommand>(app); break;
+                    case "LPS_BondingInventory":     RunCommand<Commands.Lightning.LpsBondingInventoryCommand>(app); break;
+                    case "LPS_ZoneTag":              RunCommand<Commands.Lightning.LpsRoomZoneTagCommand>(app); break;
+                    case "LPS_PlanVisualise":        RunCommand<Commands.Lightning.LpsPlanViewVisualizerCommand>(app); break;
+                    case "LPS_SepDistCheck":         RunCommand<Commands.Lightning.LpsSeparationDistanceCheckerCommand>(app); break;
+                    case "LPS_InspectionSchedule":   RunCommand<Commands.Lightning.LpsInspectionSchedulerCommand>(app); break;
+                    case "LPS_FullReport":           RunCommand<Commands.Lightning.LpsFullReportCommand>(app); break;
+
                     // ── Gap 2 / Phase 121 — Extensible Storage migration + diagnostic ──
                     case "ES_Migrate":               RunCommand<Commands.Storage.MigrateToExtensibleStorageCommand>(app); break;
                     case "ES_Diagnostic":            RunCommand<Commands.Storage.EsStorageDiagnosticCommand>(app); break;
