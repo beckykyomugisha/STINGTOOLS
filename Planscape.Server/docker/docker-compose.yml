@@ -104,7 +104,14 @@ services:
   # S5.2 — Node sidecar that splits uploaded GLBs into per-discipline
   # chunks via gltf-transform + Draco compression. Stays a separate
   # container so we can scale it horizontally without scaling the API.
+  #
+  # 2026-05 — gated behind the optional `converter` compose profile.
+  # The Dockerfile COPYs a `handlers/` directory that hasn't been
+  # written yet, so default `docker compose up` skipped it. Re-enable
+  # once handlers/ is committed and the build passes:
+  #   docker compose --profile converter up -d
   converter:
+    profiles: ["converter"]
     build:
       context: ../src/converter-sidecar
     environment:
