@@ -1624,11 +1624,29 @@ namespace StingTools.Core
 
     internal static class HubDispatcher
     {
+        // Maps STING Hub button tags to the existing handler-tag strings that
+        // are already wired in StingCommandHandler.Execute. This translation
+        // layer lives here so StingCommandHandler.cs stays untouched.
+        private static readonly Dictionary<string, string> _alias =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["BIMCoordCenter_Open"]  = "BIMCoordinationCenter",
+                ["SheetManager_Open"]    = "SheetManager",
+                ["DrawingTypes_Edit"]    = "DrawingTypes_Editor",
+                ["DocumentMgmt_Open"]    = "DocumentManager",
+                ["BOQ_ExportCost"]       = "BOQCostManager",
+                ["Fabrication_Open"]     = "Fabrication_OpenWorkspace",
+                ["Placement_Open"]       = "Placement_OpenCentre",
+                ["StructuralDWGWizard"]  = "StrCADWizard",
+                ["Scheduling_Dashboard"] = "SchedulingCostDashboard",
+            };
+
         public static Result Run(string tag, ref string message)
         {
             try
             {
-                StingTools.UI.StingDockPanel.DispatchCommand(tag);
+                string resolved = _alias.TryGetValue(tag, out string handlerTag) ? handlerTag : tag;
+                StingTools.UI.StingDockPanel.DispatchCommand(resolved);
                 return Result.Succeeded;
             }
             catch (Exception ex)
