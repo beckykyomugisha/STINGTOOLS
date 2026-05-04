@@ -2596,10 +2596,20 @@ namespace StingTools.Core
         private const long MaxLogSizeBytes = 500 * 1024; // 500 KB
 
         /// <summary>
-        /// LOG-13: Get the log file path alongside the project file (or data dir fallback).
+        /// LOG-13: Get the log file path inside the unified project root's
+        /// _data folder so it never appears as a sibling of the .rvt.
         /// </summary>
         private static string GetLogPath(Document doc)
         {
+            // Folder consolidation: prefer <root>/_data/workflow_log.jsonl
+            try
+            {
+                string consolidated = ProjectFolderEngine.GetDataPath(doc);
+                if (!string.IsNullOrEmpty(consolidated))
+                    return Path.Combine(consolidated, "workflow_log.jsonl");
+            }
+            catch (Exception ex) { StingLog.Warn($"GetLogPath consolidated: {ex.Message}"); }
+
             string dir = null;
             try
             {
