@@ -776,6 +776,22 @@ namespace StingTools.Core
                         {
                             if (!cachedHasStale()) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no stale elements)"); continue; }
                         }
+                        // Phase 39: WorkflowStep.RequiresWorksharedModel condition
+                        if (step.RequiresWorksharedModel && !doc.IsWorkshared)
+                        {
+                            skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (not workshared)"); continue;
+                        }
+                        // Phase 39: Element count range condition
+                        if (step.MinElementCount.HasValue || step.MaxElementCount.HasValue)
+                        {
+                            int elemCount = new FilteredElementCollector(doc)
+                                .WhereElementIsNotElementType().GetElementCount();
+                            if (step.MinElementCount.HasValue && elemCount < step.MinElementCount.Value)
+                            { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED ({elemCount} elements < min {step.MinElementCount.Value})"); continue; }
+                            if (step.MaxElementCount.HasValue && elemCount > step.MaxElementCount.Value)
+                            { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED ({elemCount} elements > max {step.MaxElementCount.Value})"); continue; }
+                        }
+
                         if (step.Condition == "has_untagged")
                         {
                             bool hasUntagged = false;

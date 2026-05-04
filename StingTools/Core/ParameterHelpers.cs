@@ -1457,6 +1457,26 @@ namespace StingTools.Core
             /// <summary>GAP-019: Configurable default REV (from project_config.json or "P01").</summary>
             public string DefaultRev { get; set; } = "P01";
 
+            /// <summary>Phase 39: Validate that the context has all required data for reliable token population.
+            /// Returns true if all critical fields are initialized. Use after Build() to catch partial init
+            /// on corrupted documents (missing levels, rooms, phases, etc.).</summary>
+            public bool IsValid()
+            {
+                // RoomIndex can be empty (no rooms placed yet) but must not be null
+                if (RoomIndex == null) return false;
+                if (KnownCategories == null || KnownCategories.Count == 0) return false;
+                if (CachedPhases == null) return false;
+                // ProjectLoc may be null/empty (no Project Info set) — acceptable
+                // ProjectRev may be null/empty (no revisions defined) — acceptable
+                return true;
+            }
+
+            /// <summary>Phase 39: Summary of context health for diagnostics.</summary>
+            public string DiagnosticSummary =>
+                $"Rooms={RoomIndex?.Count ?? 0}, Categories={KnownCategories?.Count ?? 0}, " +
+                $"Phases={CachedPhases?.Count ?? 0}, Grids={CachedGrids?.Count ?? 0}, " +
+                $"LOC={ProjectLoc ?? "null"}, REV={ProjectRev ?? "null"}";
+
             /// <summary>
             /// Phase 165 perf — cached active TagMode for the duration of a
             /// batch. WriteTag7All previously read it per element via

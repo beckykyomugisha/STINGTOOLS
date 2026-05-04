@@ -2634,6 +2634,10 @@ namespace StingTools.UI
             var teamData = ProjectTeamRegistry.Load(doc);
             ProjectTeamRegistry.SetLastDoc(doc);
 
+            // Load team registry for attendee resolution
+            var teamData = ProjectTeamRegistry.Load(doc);
+            ProjectTeamRegistry.SetLastDoc(doc);
+
             string bimDir = GetBimManagerDir(doc);
             if (!Directory.Exists(bimDir)) Directory.CreateDirectory(bimDir);
             string path = GetMeetingsPath(doc);
