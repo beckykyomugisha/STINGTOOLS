@@ -707,6 +707,17 @@ namespace StingTools.BIMManager
                 }
                 catch (Exception clEx) { StingLog.Warn($"CrossLinkEngine revision↔issue: {clEx.Message}"); }
 
+                // GAP-FIX: Auto-save warning baseline on revision creation
+                if (TagConfig.AutoSaveBaselineOnRevision)
+                {
+                    try
+                    {
+                        WarningsManager.WarningsEngine.SaveExtendedBaseline(doc);
+                        StingLog.Info($"Auto-saved warning baseline on revision creation ({prefix})");
+                    }
+                    catch (Exception wbEx) { StingLog.Warn($"Auto-save baseline on revision: {wbEx.Message}"); }
+                }
+
                 // GAP-R9: Auto-propagate new REV to all tagged elements
                 // so tags reflect the current revision immediately
                 try
