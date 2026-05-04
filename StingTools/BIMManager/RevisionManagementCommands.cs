@@ -627,6 +627,28 @@ namespace StingTools.BIMManager
                 }
                 catch (Exception ex) { StingLog.Warn($"Pre-revision compliance check: {ex.Message}"); }
 
+                // WF-03: Pre-revision compliance gate — warn if tag compliance is below threshold
+                try
+                {
+                    var preRevScan = ComplianceScan.Scan(doc);
+                    if (preRevScan.CompliancePercent < 80)
+                    {
+                        var gateDlg = new TaskDialog("STING Pre-Revision Compliance Gate");
+                        gateDlg.MainInstruction = $"Tag compliance is {preRevScan.CompliancePercent:F0}% (below 80% threshold)";
+                        gateDlg.MainContent =
+                            $"Total elements: {preRevScan.TotalElements}\n" +
+                            $"Tagged: {preRevScan.TaggedComplete} | Untagged: {preRevScan.Untagged}\n" +
+                            $"Stale: {preRevScan.StaleCount}\n\n" +
+                            "Creating a revision with low compliance may result in incomplete COBie data.\n" +
+                            "Recommended: tag to ≥80% before creating revision.";
+                        gateDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Create revision anyway");
+                        gateDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Cancel — tag first");
+                        if (gateDlg.Show() != TaskDialogResult.CommandLink1)
+                            return Result.Cancelled;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Pre-revision compliance check: {ex.Message}"); }
+
                 // Take pre-revision snapshot
                 var snapshot = RevisionEngine.TakeTagSnapshot(doc);
                 RevisionEngine.SaveSnapshot(doc, snapshot, $"pre_rev_{prefix}");

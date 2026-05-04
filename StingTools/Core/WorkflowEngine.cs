@@ -792,6 +792,40 @@ namespace StingTools.Core
                             { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED ({elemCount} elements > max {step.MaxElementCount.Value})"); continue; }
                         }
 
+                        // Phase 47: Warning-aware workflow conditions
+                        if (step.Condition == "has_warnings")
+                        {
+                            try
+                            {
+                                int warnCount = doc.GetWarnings()?.Count ?? 0;
+                                if (warnCount == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no warnings)"); continue; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_warnings check: {ex.Message}"); }
+                        }
+                        if (step.Condition == "has_critical_warnings")
+                        {
+                            try
+                            {
+                                var warnReport = WarningsEngine.ScanWarnings(doc);
+                                int critical = warnReport.BySeverity.GetValueOrDefault(WarningSeverity.Critical);
+                                if (critical == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no critical warnings)"); continue; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_critical_warnings check: {ex.Message}"); }
+                        }
+                        if (step.Condition == "has_open_issues")
+                        {
+                            try
+                            {
+                                string projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
+                                string issuesPath = Path.Combine(projDir, "_bim_manager", "issues.json");
+                                if (!File.Exists(issuesPath)) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no issues file)"); continue; }
+                                string raw = File.ReadAllText(issuesPath);
+                                int openCount = raw.Split(new[] { "\"OPEN\"" }, StringSplitOptions.None).Length - 1;
+                                if (openCount == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no open issues)"); continue; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_open_issues check: {ex.Message}"); }
+                        }
+
                         if (step.Condition == "has_untagged")
                         {
                             bool hasUntagged = false;
@@ -1020,6 +1054,11 @@ namespace StingTools.Core
                         // that flag is specifically for skipped (condition-gated) steps.
                         // Executed steps (whether succeeded or failed) reset the skip flag.
                         previousStepSkipped = false;
+
+                        // C-03 FIX: Reset previousStepSkipped after each executed step.
+                        // Previously never reset to false, causing cascade-skip to permanently
+                        // lock after the first skipped step.
+                        previousStepSkipped = (stepResult != Result.Succeeded && stepResult != Result.Cancelled);
 
                         StingLog.Info($"Workflow step {stepNum}: {step.Label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
 
