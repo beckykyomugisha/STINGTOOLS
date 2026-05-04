@@ -7,6 +7,15 @@
 (function () {
   "use strict";
 
+  // Phase 169 — runtime config. The Mapbox token must be replaced with a
+  // real public token from mapbox.com (free account, no credit card
+  // required). When left as the placeholder, the dashboard renders a
+  // graceful fallback panel instead of crashing.
+  const CONFIG = {
+    apiBase: "/api",
+    mapboxToken: "PLANSCAPE_MAPBOX_TOKEN",
+  };
+
   const TOKEN_KEY   = "planscape_token";
   const REFRESH_KEY = "planscape_refresh";
   const USER_KEY    = "planscape_user";
@@ -15,6 +24,12 @@
     projects: [],
     projectId: null,
     view: "overview",
+    // Phase 169 — overview-screen UI state
+    mapViewActive: false,
+    mapInstance: null,
+    overviewFilter: "all",     // all | active | archived | onhold
+    overviewSearch: "",
+    overviewSort: "lastActive", // lastActive | nameAsc | complianceAsc | complianceDesc | created
   };
 
   // ── Auth + fetch ──────────────────────────────────────────────────────
@@ -155,22 +170,489 @@
 
   // ── Renderers ─────────────────────────────────────────────────────────
 
+  // Phase 169 — ACC-style overview with project cards + Mapbox map view.
   async function renderOverview(main) {
-    const dash = await api(`/api/projects/${state.projectId}/dashboard`);
-    const c = dash.compliance || {};
-    const rag = (c.ragStatus || "RED").toLowerCase();
+    // Always work from the freshly-fetched projects list so pin toggles
+    // and filter changes don't drift from the server state.
+    state.projects = await api("/api/projects");
+    const projects = state.projects;
+
+    // Aggregate stats for the greeting summary line.
+    const active = projects.filter(p => statusKey(p) === "active");
+    let openIssues = 0;
+    let overdue = 0;
+    try {
+      // Best-effort summary; if the dashboard endpoint fails for one
+      // project the others still render. Cheap because we only call it
+      // for active projects.
+      const dashboards = await Promise.all(active.map(p =>
+        api(`/api/projects/${p.id}/dashboard`).catch(() => null)));
+      for (const d of dashboards) {
+        if (!d) continue;
+        openIssues += d.openIssues || 0;
+        overdue   += d.overdueIssues || 0;
+      }
+    } catch { /* non-fatal */ }
+
+    const userName = (localStorage.getItem(USER_KEY) || "").split("@")[0] || "there";
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? "Good morning"
+                  : hour < 18 ? "Good afternoon"
+                              : "Good evening";
+
     main.innerHTML = `
-      <h1>${esc(dash.project?.name || "")}</h1>
-      <div class="kpi-grid">
-        <div class="kpi ${rag}"><div class="value">${(c.tagPercent || 0).toFixed(0)}%</div><div class="label">Tag compliance</div></div>
-        <div class="kpi"><div class="value">${c.totalElements ?? 0}</div><div class="label">Elements</div></div>
-        <div class="kpi ${c.warningCount > 10 ? "amber" : ""}"><div class="value">${c.warningCount ?? 0}</div><div class="label">Warnings</div></div>
-        <div class="kpi"><div class="value">${dash.openIssues ?? 0}</div><div class="label">Open issues</div></div>
+      <div class="greeting-strip">
+        <div>
+          <h2>${esc(greeting)}, ${esc(userName)}.</h2>
+          <div class="summary">You have ${active.length} active project${active.length === 1 ? "" : "s"} · ${openIssues} open issue${openIssues === 1 ? "" : "s"} · ${overdue} overdue today.</div>
+        </div>
+        <div class="actions">
+          <button id="btnNewProject" class="btn-primary">＋ New Project</button>
+          <button id="btnToggleMap" class="btn-ghost-light">${state.mapViewActive ? "☰ Card view" : "🗺 Map view"}</button>
+        </div>
       </div>
-      <div class="card">
-        <h3>Recent issues</h3>
-        ${issuesTableHtml(dash.recentIssues || [])}
+      <div id="overview-body"></div>
+      <div id="modal-mount"></div>
+    `;
+
+    document.getElementById("btnNewProject").onclick = openNewProjectModal;
+    document.getElementById("btnToggleMap").onclick = () => {
+      state.mapViewActive = !state.mapViewActive;
+      // Tear down any existing map before swapping views, otherwise
+      // Mapbox leaks the WebGL context.
+      if (!state.mapViewActive && state.mapInstance) {
+        try { state.mapInstance.remove(); } catch {}
+        state.mapInstance = null;
+      }
+      renderOverview(main);
+    };
+
+    renderOverviewBody();
+  }
+
+  function renderOverviewBody() {
+    const body = document.getElementById("overview-body");
+    if (!body) return;
+    const projects = state.projects || [];
+    const pinned = projects.filter(p => p.isPinned);
+
+    let html = "";
+
+    if (pinned.length > 0) {
+      html += `<div class="section-eyebrow">📌 Pinned</div>`;
+      html += `<div class="project-card-grid pinned-row">${pinned.map(projectCardHtml).join("")}</div>`;
+    }
+
+    const filtered = applyOverviewFilters(projects);
+
+    html += `
+      <div class="section-heading-row">
+        <h3>All Projects (${filtered.length})</h3>
+        <div class="controls-row" style="margin: 0">
+          <div class="left">
+            <input id="searchInput" type="text" class="search-input" placeholder="Search projects…" value="${esc(state.overviewSearch)}" />
+            ${filterPillHtml("all", "All")}
+            ${filterPillHtml("active", "Active")}
+            ${filterPillHtml("archived", "Completed")}
+            ${filterPillHtml("onhold", "On Hold")}
+          </div>
+          <div class="right">
+            <select id="sortSelect" class="sort-select">
+              <option value="lastActive"      ${state.overviewSort === "lastActive"      ? "selected" : ""}>Sort: Last Active</option>
+              <option value="nameAsc"         ${state.overviewSort === "nameAsc"         ? "selected" : ""}>Sort: Name A-Z</option>
+              <option value="complianceAsc"   ${state.overviewSort === "complianceAsc"   ? "selected" : ""}>Sort: Compliance ↑</option>
+              <option value="complianceDesc"  ${state.overviewSort === "complianceDesc"  ? "selected" : ""}>Sort: Compliance ↓</option>
+              <option value="created"         ${state.overviewSort === "created"         ? "selected" : ""}>Sort: Created Date</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    `;
+
+    if (state.mapViewActive) {
+      html += `<div id="projects-map"></div>`;
+    } else {
+      html += `<div class="project-card-grid">${
+        filtered.length === 0
+          ? `<div class="empty">No projects match your filters.</div>`
+          : filtered.map(projectCardHtml).join("")
+      }</div>`;
+    }
+
+    body.innerHTML = html;
+
+    // Wire up control inputs (re-rendered on every change)
+    const searchEl = document.getElementById("searchInput");
+    if (searchEl) {
+      searchEl.addEventListener("input", (e) => {
+        state.overviewSearch = e.target.value;
+        renderOverviewBody();
+        // restore caret + focus after innerHTML swap
+        const fresh = document.getElementById("searchInput");
+        if (fresh) { fresh.focus(); fresh.setSelectionRange(state.overviewSearch.length, state.overviewSearch.length); }
+      });
+    }
+    document.querySelectorAll(".filter-pill").forEach(pill => {
+      pill.onclick = () => {
+        state.overviewFilter = pill.dataset.filter;
+        renderOverviewBody();
+      };
+    });
+    const sortEl = document.getElementById("sortSelect");
+    if (sortEl) sortEl.onchange = () => { state.overviewSort = sortEl.value; renderOverviewBody(); };
+
+    // Wire up card buttons + map
+    wireProjectCardEvents();
+    if (state.mapViewActive) initProjectsMap(filtered);
+  }
+
+  function filterPillHtml(filterKey, label) {
+    const active = state.overviewFilter === filterKey ? " active" : "";
+    return `<button class="filter-pill${active}" data-filter="${filterKey}">${esc(label)}</button>`;
+  }
+
+  function applyOverviewFilters(projects) {
+    const q = state.overviewSearch.trim().toLowerCase();
+    let out = projects.filter(p => {
+      if (state.overviewFilter !== "all" && statusKey(p) !== state.overviewFilter) return false;
+      if (!q) return true;
+      const hay = [(p.name || ""), (p.code || ""), (p.city || ""), (p.country || "")].join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+    switch (state.overviewSort) {
+      case "nameAsc":
+        out.sort((a, b) => (a.name || "").localeCompare(b.name || "")); break;
+      case "complianceAsc":
+        out.sort((a, b) => (a.compliancePercent || 0) - (b.compliancePercent || 0)); break;
+      case "complianceDesc":
+        out.sort((a, b) => (b.compliancePercent || 0) - (a.compliancePercent || 0)); break;
+      case "created":
+        out.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)); break;
+      default:
+        // lastActive — already sorted by server (pinned first, then lastSyncAt)
+        out.sort((a, b) => new Date(b.lastSyncAt || 0) - new Date(a.lastSyncAt || 0));
+    }
+    return out;
+  }
+
+  function statusKey(p) {
+    // The API serialises ProjectStatus as either an enum int or a string
+    // depending on JsonSerializer config, so accept both.
+    const raw = p.status;
+    if (typeof raw === "number") return raw === 1 ? "archived" : raw === 2 ? "handed_over" : "active";
+    const s = String(raw || "active").toLowerCase();
+    if (s === "active") return "active";
+    if (s === "archived" || s === "handed_over" || s === "completed") return "archived";
+    if (s === "on_hold" || s === "onhold")    return "onhold";
+    return "active";
+  }
+
+  function statusLabel(key) {
+    return key === "archived" ? "✓ Completed"
+         : key === "onhold"   ? "⏸ On Hold"
+                              : "● Active";
+  }
+
+  function complianceColor(pct) {
+    if (pct >= 80) return "green";
+    if (pct >= 50) return "amber";
+    return "red";
+  }
+
+  function disciplinesFor(p) {
+    // No structured discipline field on the project DTO, so derive a
+    // plausible mix from phase/status. Cards must show 1-4 chips.
+    const status = statusKey(p);
+    if (status === "archived") return ["A", "S", "M", "E"];
+    const phase = String(p.phase || "").toLowerCase();
+    if (phase.includes("design"))   return ["A", "S", "M"];
+    if (phase.includes("execut"))   return ["M", "E", "P", "FP"];
+    if (phase.includes("handover")) return ["A", "M", "E"];
+    return ["A", "M", "E"];
+  }
+
+  function timeAgo(iso) {
+    if (!iso) return "—";
+    const t = new Date(iso).getTime();
+    if (!t) return "—";
+    const diff = Date.now() - t;
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return "just now";
+    if (m < 60) return `${m} min ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h} hour${h === 1 ? "" : "s"} ago`;
+    const d = Math.floor(h / 24);
+    if (d < 30) return `${d} day${d === 1 ? "" : "s"} ago`;
+    const mo = Math.floor(d / 30);
+    return `${mo} month${mo === 1 ? "" : "s"} ago`;
+  }
+
+  function projectCardHtml(p) {
+    const sk = statusKey(p);
+    const pct = Math.round(p.compliancePercent || 0);
+    const colour = complianceColor(pct);
+    const loc = p.city ? `${esc(p.city)}${p.country ? ", " + esc(p.country) : ""}` : "Location not set";
+    const discs = disciplinesFor(p);
+
+    return `
+      <div class="project-card" data-project-id="${esc(p.id)}">
+        <div class="card-cover">
+          <span class="code-chip">${esc(p.code || "—")}</span>
+          <span class="status-chip ${sk}">${statusLabel(sk)}</span>
+          <span class="location">📍 ${loc}</span>
+          <button class="pin-btn ${p.isPinned ? "pinned" : ""}" data-pin-id="${esc(p.id)}" title="${p.isPinned ? "Unpin" : "Pin"}">
+            ${p.isPinned ? "★" : "☆"}
+          </button>
+        </div>
+        <div class="card-body">
+          <p class="project-name" title="${esc(p.name || "")}">${esc(p.name || "Untitled")}</p>
+          <div class="disc-chips">
+            ${discs.map(d => `<span class="disc-chip ${d}">${d}</span>`).join("")}
+          </div>
+          <div class="compliance-block">
+            <div class="compliance-row"><span>Compliance</span><span>${pct}%</span></div>
+            <div class="compliance-bar"><div class="compliance-bar-fill ${colour}" data-target-width="${pct}"></div></div>
+          </div>
+          <div class="card-stats">
+            <span>⚠ ${p.warningCount || 0} issues</span>
+            <span>📄 – docs</span>
+            <span>👥 ${p.memberCount ?? 0} members</span>
+          </div>
+          <div class="card-role">You: BIM Coordinator</div>
+          <div class="card-last-active">Last sync: ${timeAgo(p.lastSyncAt)}</div>
+        </div>
+        <div class="card-footer">
+          <button data-card-action="overview"  data-project-id="${esc(p.id)}">Dashboard</button>
+          <button data-card-action="issues"    data-project-id="${esc(p.id)}">Issues</button>
+          <button data-card-action="documents" data-project-id="${esc(p.id)}">Documents</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function wireProjectCardEvents() {
+    // Animate compliance bars on render
+    requestAnimationFrame(() => {
+      document.querySelectorAll(".compliance-bar-fill").forEach(el => {
+        const w = el.dataset.targetWidth || "0";
+        el.style.width = `${w}%`;
+      });
+    });
+
+    // Card body click → navigate to project overview
+    document.querySelectorAll(".project-card").forEach(card => {
+      card.onclick = (e) => {
+        // Ignore clicks that originated on internal action buttons or pin
+        if (e.target.closest(".pin-btn")) return;
+        if (e.target.closest("[data-card-action]")) return;
+        navigateToProject(card.dataset.projectId, "overview");
+      };
+    });
+
+    // Pin button
+    document.querySelectorAll(".pin-btn").forEach(btn => {
+      btn.onclick = async (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.pinId;
+        try {
+          await api(`/api/projects/${id}/pin`, { method: "PATCH" });
+          state.projects = await api("/api/projects");
+          renderOverviewBody();
+        } catch (err) {
+          showToast("Could not toggle pin");
+        }
+      };
+    });
+
+    // Footer action buttons
+    document.querySelectorAll("[data-card-action]").forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        navigateToProject(btn.dataset.projectId, btn.dataset.cardAction);
+      };
+    });
+  }
+
+  function navigateToProject(projectId, view) {
+    state.projectId = projectId;
+    state.view = view;
+    const picker = document.getElementById("projectPicker");
+    if (picker) picker.value = projectId;
+    document.querySelectorAll(".nav-link").forEach(l => {
+      l.classList.toggle("active", l.dataset.view === view);
+    });
+    render();
+  }
+
+  // ── Mapbox project map ───────────────────────────────────────────────
+
+  function initProjectsMap(projects) {
+    const container = document.getElementById("projects-map");
+    if (!container) return;
+
+    if (!window.mapboxgl) {
+      container.outerHTML = `<div class="map-fallback">
+        <h4>Map could not load</h4>
+        <p>Mapbox GL JS failed to load. Check your network or CSP.</p>
       </div>`;
+      return;
+    }
+    if (!CONFIG.mapboxToken || CONFIG.mapboxToken === "PLANSCAPE_MAPBOX_TOKEN") {
+      container.outerHTML = `<div class="map-fallback">
+        <h4>Map view requires a Mapbox token</h4>
+        <p>Replace <code>PLANSCAPE_MAPBOX_TOKEN</code> in <code>js/dashboard.js</code> with a real token from <a href="https://account.mapbox.com/access-tokens/" target="_blank" rel="noopener">mapbox.com</a> (free tier — no credit card required).</p>
+      </div>`;
+      return;
+    }
+
+    mapboxgl.accessToken = CONFIG.mapboxToken;
+    const map = new mapboxgl.Map({
+      container: "projects-map",
+      style: "mapbox://styles/mapbox/dark-v11",
+      center: [20, 5],
+      zoom: 3.2,
+    });
+    state.mapInstance = map;
+    map.addControl(new mapboxgl.NavigationControl(), "top-right");
+
+    const located = projects.filter(p => p.latitude != null && p.longitude != null);
+    if (located.length === 0) return;
+
+    const bounds = new mapboxgl.LngLatBounds();
+
+    for (const p of located) {
+      const sk = statusKey(p);
+      const el = document.createElement("div");
+      el.className = `map-marker ${sk}`;
+
+      const pct = Math.round(p.compliancePercent || 0);
+      const colour = complianceColor(pct);
+      const barColour = colour === "green" ? "#22C55E" : colour === "amber" ? "#F59E0B" : "#EF4444";
+      const popupHtml = `
+        <div class="popup-body">
+          <div class="top-row">
+            <span class="pop-status ${sk}">${statusLabel(sk)}</span>
+            <span class="pop-code">${esc(p.code || "")}</span>
+          </div>
+          <h4>${esc(p.name || "")}</h4>
+          <div class="pop-loc">📍 ${esc(p.city || "")}${p.country ? ", " + esc(p.country) : ""}</div>
+          <hr>
+          <div>Compliance <strong style="float:right">${pct}%</strong></div>
+          <div class="pop-bar"><div class="pop-bar-fill" style="width:${pct}%;background:${barColour}"></div></div>
+          <div class="pop-stats">
+            <span>Open Issues ${p.warningCount || 0}</span>
+            <span>Phase: ${esc(p.phase || "—")}</span>
+            <span>Team: ${p.memberCount ?? 0} members</span>
+            <span>Last sync: ${timeAgo(p.lastSyncAt)}</span>
+          </div>
+          <hr>
+          <button class="pop-open-btn" data-pop-open-id="${esc(p.id)}">Open Project →</button>
+        </div>
+      `;
+
+      const popup = new mapboxgl.Popup({ offset: 24, closeButton: true })
+        .setHTML(popupHtml);
+
+      // After Mapbox injects the popup HTML, wire up the open button.
+      popup.on("open", () => {
+        const btn = document.querySelector(`[data-pop-open-id="${p.id}"]`);
+        if (btn) btn.onclick = () => {
+          popup.remove();
+          navigateToProject(p.id, "overview");
+        };
+      });
+
+      new mapboxgl.Marker({ element: el })
+        .setLngLat([p.longitude, p.latitude])
+        .setPopup(popup)
+        .addTo(map);
+
+      bounds.extend([p.longitude, p.latitude]);
+    }
+
+    if (located.length > 1) {
+      map.fitBounds(bounds, { padding: 60, maxZoom: 6, duration: 0 });
+    } else {
+      map.setCenter([located[0].longitude, located[0].latitude]);
+      map.setZoom(5);
+    }
+  }
+
+  // ── New Project modal + toast ────────────────────────────────────────
+
+  function openNewProjectModal() {
+    const mount = document.getElementById("modal-mount");
+    if (!mount) return;
+    mount.innerHTML = `
+      <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-box">
+          <h2>New Project</h2>
+          <form id="newProjectForm">
+            <div class="field">
+              <label>Project Name *</label>
+              <input id="np_name" type="text" required />
+            </div>
+            <div class="field">
+              <label>Project Code *</label>
+              <input id="np_code" type="text" class="uppercase" required placeholder="e.g. NHW-2026" />
+            </div>
+            <div class="field">
+              <label>Phase</label>
+              <select id="np_phase">
+                <option>Design</option>
+                <option>Execution</option>
+                <option>Handover</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>City</label>
+              <input id="np_city" type="text" />
+            </div>
+            <div class="field">
+              <label>Country</label>
+              <input id="np_country" type="text" />
+            </div>
+            <div class="actions">
+              <button type="button" class="btn-cancel" id="np_cancel">Cancel</button>
+              <button type="submit" class="btn-primary">Create Project</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+    const overlay = document.getElementById("modalOverlay");
+    const close = () => { mount.innerHTML = ""; };
+    document.getElementById("np_cancel").onclick = close;
+    overlay.onclick = (e) => { if (e.target === overlay) close(); };
+    document.getElementById("newProjectForm").onsubmit = async (ev) => {
+      ev.preventDefault();
+      const name    = document.getElementById("np_name").value.trim();
+      const code    = document.getElementById("np_code").value.trim().toUpperCase();
+      const phase   = document.getElementById("np_phase").value;
+      const city    = document.getElementById("np_city").value.trim();
+      const country = document.getElementById("np_country").value.trim();
+      try {
+        await api("/api/projects", {
+          method: "POST",
+          body: JSON.stringify({ name, code, phase, city, country }),
+        });
+        close();
+        state.projects = await api("/api/projects");
+        const main = document.getElementById("main");
+        if (state.view === "overview") renderOverview(main);
+        showToast("Project created ✓");
+      } catch (e) {
+        showToast("Could not create project");
+      }
+    };
+  }
+
+  function showToast(msg) {
+    const el = document.createElement("div");
+    el.className = "toast";
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 3200);
   }
 
   async function renderList(main, title, path, columns) {
