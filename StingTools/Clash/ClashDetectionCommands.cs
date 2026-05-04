@@ -1249,7 +1249,10 @@ namespace StingTools.Clash
             try
             {
                 if (string.IsNullOrEmpty(doc?.PathName)) return "";
-                string dir = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", ".bimmanager");
+                // Folder consolidation: nest .bimmanager inside <root>/_data/
+                string dir = StingTools.Core.ProjectFolderEngine.GetMetaPath(doc, ".bimmanager");
+                if (string.IsNullOrEmpty(dir))
+                    dir = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", ".bimmanager");
                 if (!Directory.Exists(dir))
                 {
                     try { Directory.CreateDirectory(dir); }

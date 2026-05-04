@@ -166,6 +166,14 @@ namespace Planscape.Docs.Templates
 
         private static string TryProjectRoot(Document doc)
         {
+            // Folder consolidation: nest "_BIM_COORD" inside the unified
+            // project root's _data folder rather than as a sibling of the .rvt.
+            try
+            {
+                string consolidated = StingTools.Core.ProjectFolderEngine.GetDataPath(doc);
+                if (!string.IsNullOrEmpty(consolidated)) return consolidated;
+            }
+            catch { /* fall through to legacy lookup */ }
             try
             {
                 if (doc != null)

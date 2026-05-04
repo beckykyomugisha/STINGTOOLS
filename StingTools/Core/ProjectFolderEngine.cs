@@ -178,21 +178,25 @@ namespace StingTools.Core
             if (!string.IsNullOrEmpty(_rootPath) && Directory.Exists(_rootPath))
                 return _rootPath;
 
-            // Try project directory
+            // Try project directory: name root after the project code so the
+            // user sees one container per project (e.g. FIRESTONE_LIBERIA/),
+            // not a generic "STING_Project" sibling.
             if (doc != null && !string.IsNullOrEmpty(doc.PathName))
             {
                 string projDir = Path.GetDirectoryName(doc.PathName);
                 if (!string.IsNullOrEmpty(projDir))
                 {
-                    string stingRoot = Path.Combine(projDir, "STING_Project");
+                    string code = DetectProjectCode(doc);
+                    string stingRoot = Path.Combine(projDir, code);
                     try { Directory.CreateDirectory(stingRoot); _rootPath = stingRoot; return stingRoot; }
                     catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine: Cannot create at project dir: {ex.Message}"); }
                 }
             }
 
-            // Fallback to Documents
+            // Fallback to Documents/<code> when project dir is unwritable
             string docsDir = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            string fallback = Path.Combine(docsDir, "STING_Project");
+            string codeDocs = doc != null ? DetectProjectCode(doc) : "STING_Project";
+            string fallback = Path.Combine(docsDir, codeDocs);
             try { Directory.CreateDirectory(fallback); _rootPath = fallback; return fallback; }
             catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine: Documents fallback failed: {ex.Message}"); }
 
@@ -247,6 +251,49 @@ namespace StingTools.Core
             }
             catch (Exception ex) { StingLog.Warn($"LoadOrDetectSetup: {ex.Message}"); }
             return null;
+        }
+
+        /// <summary>
+        /// Like LoadOrDetectSetup, but if nothing is persisted, mints a default
+        /// BIM ProjectSetup rooted at <projDir>/<projectCode>/ and persists it.
+        /// Lets every subsystem call into the unified folder structure without
+        /// asking the user to run the Folder Setup wizard first. Idempotent.
+        /// </summary>
+        public static ProjectSetup LoadOrBootstrapSetup(Document doc)
+        {
+            var existing = LoadOrDetectSetup(doc);
+            if (existing != null) return existing;
+            if (doc == null || string.IsNullOrEmpty(doc.PathName) || doc.IsFamilyDocument) return null;
+            try
+            {
+                string code = DetectProjectCode(doc);
+                var setup = ProjectSetup.CreateBIM(code, code); // root = relative folder named after the code
+                setup.RootPathIsRelative = true;
+                setup.ProjectName = "";
+                try { setup.ProjectName = doc.ProjectInformation?.Name ?? ""; } catch { }
+                InitializeSetup(doc, setup);
+                StingLog.Info($"LoadOrBootstrapSetup: minted default BIM setup for {code}");
+                return setup;
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadOrBootstrapSetup: {ex.Message}"); }
+            return null;
+        }
+
+        /// <summary>
+        /// Resolve a metadata bucket path inside the consolidated <root>/_data/
+        /// folder. Replaces 47-site hardcoded sibling-of-RVT folders like
+        /// "_BIM_COORD" / "_bim_manager" / "STING_BIM_MANAGER" by nesting them
+        /// inside the project root, so the user only sees ONE folder per project.
+        /// </summary>
+        public static string GetMetaPath(Document doc, string bucket = null, params string[] subParts)
+        {
+            string data = GetDataPath(doc);
+            if (string.IsNullOrEmpty(data)) return null;
+            string p = string.IsNullOrEmpty(bucket) ? data : Path.Combine(data, bucket);
+            foreach (var part in subParts ?? Array.Empty<string>())
+                if (!string.IsNullOrEmpty(part)) p = Path.Combine(p, part);
+            try { Directory.CreateDirectory(p); } catch (Exception ex) { StingLog.Warn($"GetMetaPath: {ex.Message}"); }
+            return p;
         }
 
         /// <summary>
@@ -366,10 +413,12 @@ namespace StingTools.Core
                 if (setup == null)
                 {
                     // Fall back to legacy folder list if no setup
+                    string codeH = doc != null ? DetectProjectCode(doc) : "";
                     foreach (var (id, name, _, _) in Folders)
                     {
                         string root = GetRootPath(doc);
-                        string p = Path.Combine(root, name);
+                        string suffixedH = ProjectSetup.WithCodeSuffix(name, codeH);
+                        string p = Path.Combine(root, suffixedH);
                         bool ex = Directory.Exists(p);
                         int n = 0; DateTime? lm = null;
                         if (ex)
@@ -487,19 +536,23 @@ namespace StingTools.Core
                 }
                 catch (Exception ex) { rep.Warnings.Add($"Sidecar scan: {ex.Message}"); }
 
-                // 2. Move legacy _BIM_COORD and STING_BIM_MANAGER → _data
-                foreach (string legacyName in new[] { "_BIM_COORD", "STING_BIM_MANAGER" })
+                // 2. Move legacy metadata buckets into _data/<bucket>/ — preserves
+                //    subsystem code that hard-codes these names while tucking the
+                //    files inside the unified project root.
+                foreach (string legacyName in new[] { "_BIM_COORD", "_bim_manager", "STING_BIM_MANAGER" })
                 {
                     string legacy = Path.Combine(projDir, legacyName);
                     if (!Directory.Exists(legacy)) continue;
+                    string bucket = Path.Combine(dataPath, legacyName);
                     try
                     {
+                        Directory.CreateDirectory(bucket);
                         foreach (string f in Directory.GetFiles(legacy, "*.*", SearchOption.AllDirectories))
                         {
                             try
                             {
                                 string rel = f.Substring(legacy.Length).TrimStart(Path.DirectorySeparatorChar);
-                                string dest = Path.Combine(dataPath, rel);
+                                string dest = Path.Combine(bucket, rel);
                                 string ddir = Path.GetDirectoryName(dest);
                                 if (!string.IsNullOrEmpty(ddir)) Directory.CreateDirectory(ddir);
                                 if (File.Exists(dest)) dest = GetUniqueFileName(dest);
@@ -508,11 +561,108 @@ namespace StingTools.Core
                             }
                             catch (Exception ex) { rep.Warnings.Add($"Move {f}: {ex.Message}"); }
                         }
-                        try { if (!Directory.EnumerateFileSystemEntries(legacy).Any()) { Directory.Delete(legacy, true); rep.FoldersRemoved++; } }
+                        try { if (!Directory.EnumerateFiles(legacy, "*.*", SearchOption.AllDirectories).Any()) { Directory.Delete(legacy, true); rep.FoldersRemoved++; } }
                         catch (Exception ex) { rep.Warnings.Add($"Delete {legacy}: {ex.Message}"); }
                     }
                     catch (Exception ex) { rep.Warnings.Add($"Process {legacy}: {ex.Message}"); }
                 }
+
+                // 2b. Hidden helper folder used by clash detection
+                {
+                    string hiddenLegacy = Path.Combine(projDir, ".bimmanager");
+                    if (Directory.Exists(hiddenLegacy))
+                    {
+                        string dest = Path.Combine(dataPath, ".bimmanager");
+                        try
+                        {
+                            Directory.CreateDirectory(dest);
+                            foreach (string f in Directory.GetFiles(hiddenLegacy, "*.*", SearchOption.AllDirectories))
+                            {
+                                try
+                                {
+                                    string rel = f.Substring(hiddenLegacy.Length).TrimStart(Path.DirectorySeparatorChar);
+                                    string dst = Path.Combine(dest, rel);
+                                    string ddir = Path.GetDirectoryName(dst);
+                                    if (!string.IsNullOrEmpty(ddir)) Directory.CreateDirectory(ddir);
+                                    if (File.Exists(dst)) dst = GetUniqueFileName(dst);
+                                    File.Move(f, dst);
+                                    rep.FilesMoved++;
+                                }
+                                catch (Exception ex) { rep.Warnings.Add($"Move {f}: {ex.Message}"); }
+                            }
+                            try { if (!Directory.EnumerateFiles(hiddenLegacy, "*.*", SearchOption.AllDirectories).Any()) { Directory.Delete(hiddenLegacy, true); rep.FoldersRemoved++; } }
+                            catch (Exception ex) { rep.Warnings.Add($"Delete {hiddenLegacy}: {ex.Message}"); }
+                        }
+                        catch (Exception ex) { rep.Warnings.Add($"Process {hiddenLegacy}: {ex.Message}"); }
+                    }
+                }
+
+                // 2c. Workflow run log written as a flat file alongside the .rvt
+                foreach (string logName in new[] { "STING_WORKFLOW_LOG.json", "STING_WORKFLOW_LOG.jsonl" })
+                {
+                    string src = Path.Combine(projDir, logName);
+                    if (!File.Exists(src)) continue;
+                    try
+                    {
+                        string dst = Path.Combine(dataPath, "workflow_log" + Path.GetExtension(logName));
+                        if (File.Exists(dst)) dst = GetUniqueFileName(dst);
+                        File.Move(src, dst);
+                        rep.FilesMoved++;
+                    }
+                    catch (Exception ex) { rep.Warnings.Add($"Move {src}: {ex.Message}"); }
+                }
+
+                // 2d. BOQ rate-source heat-map exports
+                {
+                    string boqLegacy = Path.Combine(projDir, "STING_BOQ_RateHeatMap");
+                    if (Directory.Exists(boqLegacy))
+                    {
+                        string dest = Path.Combine(GetFolderPath(doc, "COMPLIANCE"), "RateHeatMap");
+                        try
+                        {
+                            Directory.CreateDirectory(dest);
+                            foreach (string f in Directory.GetFiles(boqLegacy, "*.*", SearchOption.AllDirectories))
+                            {
+                                try
+                                {
+                                    string rel = f.Substring(boqLegacy.Length).TrimStart(Path.DirectorySeparatorChar);
+                                    string dst = Path.Combine(dest, rel);
+                                    string ddir = Path.GetDirectoryName(dst);
+                                    if (!string.IsNullOrEmpty(ddir)) Directory.CreateDirectory(ddir);
+                                    if (File.Exists(dst)) dst = GetUniqueFileName(dst);
+                                    File.Move(f, dst);
+                                    rep.FilesMoved++;
+                                }
+                                catch (Exception ex) { rep.Warnings.Add($"Move {f}: {ex.Message}"); }
+                            }
+                            try { if (!Directory.EnumerateFiles(boqLegacy, "*.*", SearchOption.AllDirectories).Any()) { Directory.Delete(boqLegacy, true); rep.FoldersRemoved++; } }
+                            catch (Exception ex) { rep.Warnings.Add($"Delete {boqLegacy}: {ex.Message}"); }
+                        }
+                        catch (Exception ex) { rep.Warnings.Add($"Process {boqLegacy}: {ex.Message}"); }
+                    }
+                }
+
+                // 2e. Briefcase export folders ({ModelName}_Briefcase_{ts}/)
+                try
+                {
+                    string briefcaseTarget = GetFolderPath(doc, "BRIEFCASE");
+                    if (!string.IsNullOrEmpty(briefcaseTarget) && Directory.Exists(projDir))
+                    {
+                        foreach (string sub in Directory.GetDirectories(projDir, "*_Briefcase_*"))
+                        {
+                            try
+                            {
+                                string subName = Path.GetFileName(sub);
+                                string dest = Path.Combine(briefcaseTarget, subName);
+                                if (Directory.Exists(dest)) dest = GetUniqueFileName(dest);
+                                Directory.Move(sub, dest);
+                                rep.FoldersRemoved++;
+                            }
+                            catch (Exception ex) { rep.Warnings.Add($"Move {sub}: {ex.Message}"); }
+                        }
+                    }
+                }
+                catch (Exception ex) { rep.Warnings.Add($"Briefcase scan: {ex.Message}"); }
 
                 // 3. Move legacy STING_Exports / STING_Project — route by extension
                 foreach (string legacyName in new[] { "STING_Exports", "STING_Project" })
@@ -608,7 +758,8 @@ namespace StingTools.Core
                 }
                 else
                 {
-                    defs = Folders.Select(f => (f.Id, f.Name, false, new List<string>()));
+                    string code0 = doc != null ? DetectProjectCode(doc) : "";
+                    defs = Folders.Select(f => (f.Id, ProjectSetup.WithCodeSuffix(f.Name, code0), false, new List<string>()));
                 }
 
                 foreach (var (id, display, discSubs, subs) in defs)
@@ -756,20 +907,22 @@ namespace StingTools.Core
         public static int CreateFolderStructure(Document doc)
         {
             string root = GetRootPath(doc);
+            string code = doc != null ? DetectProjectCode(doc) : "";
             int created = 0;
             foreach (var (id, name, desc, _) in Folders)
             {
-                string path = Path.Combine(root, name);
+                string suffixed = ProjectSetup.WithCodeSuffix(name, code);
+                string path = Path.Combine(root, suffixed);
                 if (!Directory.Exists(path))
                 {
                     try { Directory.CreateDirectory(path); created++; }
-                    catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine: Cannot create {name}: {ex.Message}"); }
+                    catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine: Cannot create {suffixed}: {ex.Message}"); }
                 }
             }
             // Create sub-folders for CDE folders (CONFIG-02: configurable)
             foreach (string cdeFolder in new[] { "01_WIP", "02_SHARED", "03_PUBLISHED" })
             {
-                string cdePath = Path.Combine(root, cdeFolder);
+                string cdePath = Path.Combine(root, ProjectSetup.WithCodeSuffix(cdeFolder, code));
                 foreach (string disc in _disciplineFolders)
                 {
                     string discPath = Path.Combine(cdePath, disc);
@@ -782,7 +935,7 @@ namespace StingTools.Core
             }
 
             // Create clash sub-folders
-            string clashRoot = Path.Combine(root, "12_CLASHES");
+            string clashRoot = Path.Combine(root, ProjectSetup.WithCodeSuffix("12_CLASHES", code));
             foreach (string sub in new[] { "BCF", "Reports", "Snapshots" })
             {
                 string subPath = Path.Combine(clashRoot, sub);
@@ -794,7 +947,7 @@ namespace StingTools.Core
             }
 
             // Create issue sub-folders by type
-            string issueRoot = Path.Combine(root, "11_ISSUES");
+            string issueRoot = Path.Combine(root, ProjectSetup.WithCodeSuffix("11_ISSUES", code));
             foreach (string sub in new[] { "RFI", "TQ", "NCR", "EWN", "SI", "VO", "AI", "CVI", "CE", "DESIGN", "CLASH", "SNAGGING", "RFA", "PMI" })
             {
                 string subPath = Path.Combine(issueRoot, sub);
@@ -822,7 +975,7 @@ namespace StingTools.Core
             // Phase 167: prefer ProjectSetup folder def (uses user-edited display name)
             try
             {
-                var setup = LoadOrDetectSetup(doc);
+                var setup = LoadOrBootstrapSetup(doc);
                 var def = setup?.GetFolder(folderId);
                 if (def != null)
                 {
@@ -833,9 +986,13 @@ namespace StingTools.Core
             }
             catch (Exception ex) { StingLog.Warn($"GetFolderPath setup: {ex.Message}"); }
 
+            // No setup — apply the project-code suffix to the built-in name so
+            // we still produce a uniquely-named folder (e.g. 20_MISC_FIRESTONE).
+            string code = doc != null ? DetectProjectCode(doc) : "";
             var folder = Folders.FirstOrDefault(f => f.Id.Equals(folderId, StringComparison.OrdinalIgnoreCase));
-            if (folder.Name == null) return Path.Combine(root, "20_MISC");
-            string path = Path.Combine(root, folder.Name);
+            string name = folder.Name ?? "20_MISC";
+            string suffixed = ProjectSetup.WithCodeSuffix(name, code);
+            string path = Path.Combine(root, suffixed);
             if (!Directory.Exists(path))
             {
                 try { Directory.CreateDirectory(path); }
@@ -886,11 +1043,18 @@ namespace StingTools.Core
             var files = new List<ProjectFile>();
             string root = GetRootPath(doc);
             if (!Directory.Exists(root)) return files;
+            string codeAF = doc != null ? DetectProjectCode(doc) : "";
 
             foreach (var (id, name, desc, cde) in Folders)
             {
-                string folderPath = Path.Combine(root, name);
-                if (!Directory.Exists(folderPath)) continue;
+                string folderPath = Path.Combine(root, ProjectSetup.WithCodeSuffix(name, codeAF));
+                if (!Directory.Exists(folderPath))
+                {
+                    // Backwards-compat: fall back to the un-suffixed legacy path
+                    string legacyPath = Path.Combine(root, name);
+                    if (!Directory.Exists(legacyPath)) continue;
+                    folderPath = legacyPath;
+                }
 
                 try
                 {
@@ -939,10 +1103,17 @@ namespace StingTools.Core
             var stats = new List<FolderStats>();
             string root = GetRootPath(doc);
             if (!Directory.Exists(root)) return stats;
+            string codeFS = doc != null ? DetectProjectCode(doc) : "";
 
             foreach (var (id, name, desc, cde) in Folders)
             {
-                string folderPath = Path.Combine(root, name);
+                string suffixedName = ProjectSetup.WithCodeSuffix(name, codeFS);
+                string folderPath = Path.Combine(root, suffixedName);
+                if (!Directory.Exists(folderPath))
+                {
+                    string legacyFs = Path.Combine(root, name);
+                    if (Directory.Exists(legacyFs)) folderPath = legacyFs;
+                }
                 int fileCount = 0;
                 long totalSize = 0;
                 DateTime? lastModified = null;
@@ -1534,12 +1705,11 @@ namespace StingTools.Core
 
             try
             {
-                string bimDir = "";
-                if (doc != null && !string.IsNullOrEmpty(doc.PathName))
-                    bimDir = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", "STING_BIM_MANAGER");
-                if (string.IsNullOrEmpty(bimDir) || !Directory.Exists(bimDir))
+                string bimDir = GetMetaPath(doc, "STING_BIM_MANAGER");
+                if (string.IsNullOrEmpty(bimDir))
                 {
-                    try { Directory.CreateDirectory(bimDir); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return; }
+                    StingLog.Warn("AutoLogTransmittal: cannot resolve metadata path");
+                    return;
                 }
 
                 string transPath = Path.Combine(bimDir, "transmittals.json");
@@ -1587,9 +1757,8 @@ namespace StingTools.Core
             var groups = new List<ClashGroup>();
             try
             {
-                string bimDir = "";
-                if (doc != null && !string.IsNullOrEmpty(doc.PathName))
-                    bimDir = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", "STING_BIM_MANAGER");
+                string bimDir = GetMetaPath(doc, "STING_BIM_MANAGER");
+                if (string.IsNullOrEmpty(bimDir)) return groups;
                 string issuePath = Path.Combine(bimDir, "issues.json");
                 if (!File.Exists(issuePath)) return groups;
 
