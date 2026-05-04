@@ -58,6 +58,16 @@ namespace StingTools.UI
         private static Color BrushColor(string key) => ((SolidColorBrush)ThemeManager.GetBrush(key)).Color;
         private static Color Darken(Color c, double f)
             => Color.FromArgb(c.A, (byte)(c.R * f), (byte)(c.G * f), (byte)(c.B * f));
+        // Mutes HeaderFg by 70% opacity over HeaderBg so secondary header
+        // text (project name, timestamp) reads as a calmer subtitle without
+        // disappearing on lighter Cool / Corporate / Warm headers.
+        private static Color MutedHeaderFg()
+        {
+            var fg = BrushColor("HeaderFg");
+            var bg = BrushColor("HeaderBg");
+            byte mix(byte a, byte b) => (byte)(a * 0.7 + b * 0.3);
+            return Color.FromArgb(255, mix(fg.R, bg.R), mix(fg.G, bg.G), mix(fg.B, bg.B));
+        }
 
         private static SolidColorBrush Br(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
 
@@ -915,7 +925,9 @@ namespace StingTools.UI
             leftStack.Children.Add(new TextBlock
             {
                 Text = _data.ProjectName,
-                Foreground = Br(Color.FromRgb(0xBB, 0xDE, 0xFB)), FontSize = 12,
+                // Themed pale-on-header tint — derived from HeaderFg so it
+                // stays readable across Cool / Corporate / Light / Warm.
+                Foreground = Br(MutedHeaderFg()), FontSize = 12,
                 VerticalAlignment = VerticalAlignment.Center
             });
             hGrid.Children.Add(leftStack);
@@ -935,8 +947,8 @@ namespace StingTools.UI
                 Content = "\u21BB  Refresh",
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
-                Background = Br(Color.FromRgb(0x1E, 0x88, 0xE5)),
-                Foreground = Brushes.White,
+                Background = ThemeManager.GetBrush("AccentBrush"),
+                Foreground = ThemeManager.GetBrush("HeaderFg"),
                 BorderThickness = new Thickness(0),
                 Padding = new Thickness(10, 3, 10, 3),
                 Margin = new Thickness(0, 0, 14, 0),
@@ -960,7 +972,7 @@ namespace StingTools.UI
             rightStack.Children.Add(new TextBlock
             {
                 Text = $"compliant  |  {DateTime.Now:dd MMM yyyy HH:mm}",
-                Foreground = Br(Color.FromRgb(0x90, 0xCA, 0xF9)), FontSize = 11,
+                Foreground = Br(MutedHeaderFg()), FontSize = 11,
                 VerticalAlignment = VerticalAlignment.Center
             });
 
@@ -1094,14 +1106,19 @@ namespace StingTools.UI
                 sp.Children.Add(badgeBorder);
             }
 
+            // Add a 4px left-edge accent stripe (transparent when inactive,
+            // accent-colour when selected) so the active nav has a clear
+            // visual marker beyond a flat fill colour.
             var btn = new Button
             {
                 Content = sp, Tag = label,
                 HorizontalContentAlignment = HorizontalAlignment.Left,
-                Height = 36, Padding = new Thickness(16, 0, 8, 0),
+                Height = 36, Padding = new Thickness(12, 0, 8, 0),
                 Margin = new Thickness(0, 1, 0, 1),
                 Background = Brushes.Transparent, Foreground = Brushes.White,
-                BorderThickness = new Thickness(0), FontSize = 12,
+                BorderThickness = new Thickness(4, 0, 0, 0),
+                BorderBrush = Brushes.Transparent,
+                FontSize = 12,
                 Cursor = Cursors.Hand
             };
             btn.Click += Nav_Click;
@@ -1123,21 +1140,25 @@ namespace StingTools.UI
             // Phase 77 Item 11A: Track current tab for F5 refresh
             _currentTab = tabName;
 
-            // Reset all nav buttons
+            // Reset all nav buttons (transparent fill + clear left stripe)
             foreach (var child in _navPanel.Children)
             {
                 if (child is Button nb)
                 {
                     nb.Background = Brushes.Transparent;
+                    nb.BorderBrush = Brushes.Transparent;
                     nb.FontWeight = FontWeights.Normal;
                 }
             }
-            // Highlight active
+            // Highlight active: subtle hover-level fill + 4px accent stripe
+            // on the left edge so the selected nav reads as a marker, not
+            // just a flat colour swap.
             foreach (var child in _navPanel.Children)
             {
                 if (child is Button nb && nb.Tag as string == tabName)
                 {
-                    nb.Background = Br(CNavSelected);
+                    nb.Background = Br(CNavHover);
+                    nb.BorderBrush = Br(CNavSelected);
                     nb.Foreground = Brushes.White;
                     nb.FontWeight = FontWeights.Bold;
                     _activeNav = nb;

@@ -19,14 +19,12 @@ namespace StingTools.UI
     /// </summary>
     public static class ThemeManager
     {
-        // Phase 101: default theme is "Corporate" — the StingTools brand
-        // (navy #1A237E header + orange #E8912D accents) matches the BCC and
-        // Document Management Centre, so the dockable panel opens in the same
-        // house theme the user sees everywhere else. Users can still cycle
-        // with the theme toggle button; the order below starts with Corporate.
-        public static string CurrentTheme { get; private set; } = "Corporate";
+        // Default theme: Cool — a calm slate-blue palette suited to long
+        // BIM-coordination sessions. Users can still cycle to Corporate,
+        // Light, or Warm via the theme toggle button.
+        public static string CurrentTheme { get; private set; } = "Cool";
 
-        private static readonly string[] ThemeOrder = { "Corporate", "Light", "Warm", "Cool" };
+        private static readonly string[] ThemeOrder = { "Cool", "Corporate", "Light", "Warm" };
 
         /// <summary>
         /// Reference to the host Page/FrameworkElement for direct resource setting.
@@ -84,18 +82,21 @@ namespace StingTools.UI
                     }
                 },
                 {
-                    // Cool blue-grey tint — light cool header
+                    // Cool blue-grey — calm slate palette suited to long
+                    // BIM-coordination sessions. Saturated blue header
+                    // (#2C5282) for primary navigation, brighter blue
+                    // accent (#3182CE) for buttons / RAG-positive cells.
                     "Cool", new Dictionary<string, string>
                     {
                         { "PrimaryBg", "#F8FAFC" },
                         { "SecondaryBg", "#F2F6FA" },
                         { "PanelFg", "#2D3748" },
-                        { "AccentBrush", "#3182CE" },   // Bright blue headers
+                        { "AccentBrush", "#3182CE" },    // Bright blue (primary accent)
                         { "ButtonBg", "#E8EEF4" },
                         { "ButtonFg", "#2D3748" },
-                        { "HoverBg", "#D6DFE8" },
-                        { "HeaderBg", "#E8EEF4" },       // Light cool header
-                        { "HeaderFg", "#1A365D" },
+                        { "HoverBg", "#DBEAFE" },
+                        { "HeaderBg", "#2C5282" },        // Saturated cool blue header
+                        { "HeaderFg", "#FFFFFF" },        // White on dark blue
                         { "BorderColor", "#D0DAE4" },
                         { "SuccessColor", "#276749" },
                         { "WarningColor", "#C05621" },
@@ -104,6 +105,14 @@ namespace StingTools.UI
                         { "TabFg", "#4A5568" },
                         { "TabSelectedBg", "#F8FAFC" },
                         { "TabSelectedFg", "#2D3748" },
+                        // Brand + dashboard extras
+                        { "NavyHeader", "#2C5282" },
+                        { "OrangeAccent", "#3182CE" },    // Cool variant uses blue
+                        { "CardBg", "#FFFFFF" },
+                        { "AltRowBg", "#F2F6FA" },
+                        { "SubtleFg", "#718096" },
+                        { "InfoBlue", "#3182CE" },
+                        { "RowHover", "#DBEAFE" },
                     }
                 },
                 {

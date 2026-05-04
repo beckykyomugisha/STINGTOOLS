@@ -1254,7 +1254,24 @@ namespace StingTools.UI
             fileWrap.Children.Add(MakeActBtn("Code Legend", BrPurple, (s, e) => ShowCodeLegend()));
             tabs.Items.Add(new TabItem { Header = "FILE / BULK", Content = fileWrap, Padding = new Thickness(8, 2, 8, 2) });
 
-            // ── TAB 2: DOCS & CDE ──
+            // ── TAB 2: FOLDERS — mirror the dock-panel DOCUMENT MANAGEMENT
+            //          CENTER row so the same actions are reachable without
+            //          closing the dialog (Folder Setup / Open Root /
+            //          Folder Health / Migrate Legacy / Data Exchange).
+            var foldersWrap = new WrapPanel { Margin = new Thickness(4, 3, 4, 3) };
+            foldersWrap.Children.Add(MakeSectionLabel("STRUCTURE"));
+            foldersWrap.Children.Add(MakeDispatchBtn("⚙ Folder Setup", "CreateFolders", BrAccent, win));
+            foldersWrap.Children.Add(MakeDispatchBtn("📁 Open Root", "OpenProjectFolder", BrAccent, win));
+            foldersWrap.Children.Add(MakeDispatchBtn("📊 Folder Health", "FolderHealth", BrTeal, win));
+            foldersWrap.Children.Add(MakeSep());
+            foldersWrap.Children.Add(MakeSectionLabel("MIGRATE"));
+            foldersWrap.Children.Add(MakeDispatchBtn("🔄 Migrate Legacy", "FolderMigrate", BrPurple, win));
+            foldersWrap.Children.Add(MakeSep());
+            foldersWrap.Children.Add(MakeSectionLabel("EXCHANGE"));
+            foldersWrap.Children.Add(MakeDispatchBtn("Data Exchange", "DataExchange", BrAccent, win));
+            tabs.Items.Add(new TabItem { Header = "FOLDERS", Content = foldersWrap, Padding = new Thickness(8, 2, 8, 2) });
+
+            // ── TAB 3: DOCS & CDE ──
             var docsWrap = new WrapPanel { Margin = new Thickness(4, 3, 4, 3) };
             docsWrap.Children.Add(MakeSectionLabel("REGISTER"));
             docsWrap.Children.Add(MakeDispatchBtn("Doc Register", "DocumentRegister", BrAccent, win));
