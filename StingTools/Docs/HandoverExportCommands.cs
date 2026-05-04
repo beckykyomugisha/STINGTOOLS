@@ -513,6 +513,18 @@ namespace StingTools.Docs
                     "ConditionGrade,LikelyFailureMode,SpareParts,SafetyPrecautions," +
                     "Manufacturer,Model,Description,Status,Mark");
 
+                // Collect tagged elements once
+                var catEnums = SharedParamGuids.AllCategoryEnums;
+                var maintCollector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                if (catEnums != null && catEnums.Length > 0)
+                    maintCollector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+                var allTaggedElements = new List<Element>();
+                foreach (Element scanEl in maintCollector)
+                {
+                    string scanCat = ParameterHelpers.GetCategoryName(scanEl);
+                    if (known.Contains(scanCat)) allTaggedElements.Add(scanEl);
+                }
+
                 int total = 0;
                 var discCounts = new Dictionary<string, int>();
 
@@ -891,6 +903,18 @@ namespace StingTools.Docs
                     "HealthScore,HealthStatus,RiskLevel," +
                     "TagScore,DataScore,MfrScore,MaintenanceScore,SpatialScore," +
                     "Issues,Recommendation");
+
+                // Collect tagged elements once
+                var ahCatEnums = SharedParamGuids.AllCategoryEnums;
+                var ahCollector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                if (ahCatEnums != null && ahCatEnums.Length > 0)
+                    ahCollector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(ahCatEnums)));
+                var allTaggedElements = new List<Element>();
+                foreach (Element scanEl in ahCollector)
+                {
+                    string scanCat = ParameterHelpers.GetCategoryName(scanEl);
+                    if (known.Contains(scanCat)) allTaggedElements.Add(scanEl);
+                }
 
                 int total = 0;
                 int healthy = 0;
