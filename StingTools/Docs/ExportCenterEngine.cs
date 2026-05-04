@@ -402,16 +402,29 @@ namespace StingTools.Docs
                 catch { /* non-fatal */ }
             }
 
-            // DWG multi-layout availability
+            // DWG multi-layout availability — Method A (AutoCAD COM) or Method B (ODA).
             if ((profile.Formats & ExportFormats.DWG) != 0 &&
                 profile.Dwg.OutputMode == DwgOutputMode.AllInOneMultiLayout)
             {
-                if (!IsMultiLayoutMergerAvailable())
+                if (ExportCenterDwgMerger.IsAvailable())
+                {
+                    /* Method A available — true merge */
+                }
+                else if (ExportCenterOdaConverter.IsAvailable())
+                {
+                    issues.Add(Warn("DWG_MERGE_METHOD_B",
+                        "AutoCAD COM not detected. Will use ODA File Converter (Method B): " +
+                        "per-sheet DWGs version-normalised + merge_manifest.json. " +
+                        "True layout-tab merging requires AutoCAD or the Teigha SDK."));
+                }
+                else
+                {
                     issues.Add(Warn("DWG_MERGE_UNAVAILABLE",
-                        "DWG multi-layout merge requires AutoCAD COM or ODA libraries — none detected. " +
+                        "DWG multi-layout merge requires AutoCAD COM or ODA File Converter — neither detected. " +
                         (profile.Dwg.FallbackOnMergeFailure
                             ? "Will fall back to individual files."
                             : "Export will fail.")));
+                }
             }
 
             // NWC availability
@@ -872,6 +885,7 @@ namespace StingTools.Docs
                     profile.Output.IllegalCharReplacement);
                 string outPath = Path.Combine(outFolder, outName + ".dwg");
 
+                // Method A — AutoCAD COM
                 string merged = ExportCenterDwgMerger.Merge(perSheet, labels, outPath);
                 if (merged != null && File.Exists(merged))
                 {
@@ -880,18 +894,39 @@ namespace StingTools.Docs
                     row.Success = true;
                     try { Directory.Delete(temp, true); } catch { }
                 }
-                else if (profile.Dwg.FallbackOnMergeFailure)
-                {
-                    result.Warnings.Add(
-                        $"DWG multi-layout merge for '{groupName}' fell back — " +
-                        $"individual DWGs staged at: {temp}");
-                    row.OutputPath = temp;
-                    row.Success = true;
-                }
                 else
                 {
-                    row.Success = false;
-                    row.Error = "Multi-layout merge failed and FallbackOnMergeFailure is disabled.";
+                    // Method B — ODA File Converter (free): version-normalise +
+                    // emit merge_manifest.json. Doesn't produce a true single
+                    // multi-layout DWG, but the user gets staged files at the
+                    // right version + a manifest a downstream tool can use.
+                    string manifest = ExportCenterDwgMerger.MergeViaOda(
+                        perSheet, labels, outPath, profile.Dwg.DwgVersion);
+                    if (manifest != null)
+                    {
+                        result.Warnings.Add(
+                            $"DWG multi-layout merge for '{groupName}' used Method B (ODA). " +
+                            $"True layout merge requires AutoCAD COM or the Teigha SDK — " +
+                            $"the staged folder + merge_manifest.json is at: " +
+                            $"{Path.GetDirectoryName(manifest)}");
+                        row.OutputPath = manifest;
+                        row.Success = true;
+                        try { Directory.Delete(temp, true); } catch { }
+                    }
+                    else if (profile.Dwg.FallbackOnMergeFailure)
+                    {
+                        result.Warnings.Add(
+                            $"DWG multi-layout merge for '{groupName}' fell back to staged " +
+                            $"individual files (no AutoCAD COM, no ODA File Converter). " +
+                            $"Staged at: {temp}");
+                        row.OutputPath = temp;
+                        row.Success = true;
+                    }
+                    else
+                    {
+                        row.Success = false;
+                        row.Error = "Multi-layout merge failed and FallbackOnMergeFailure is disabled.";
+                    }
                 }
             }
             catch (Exception ex) { row.Success = false; row.Error = ex.Message; }

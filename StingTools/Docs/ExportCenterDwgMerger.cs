@@ -15,14 +15,18 @@ namespace StingTools.Docs
     //  from CLAUDE.md): drive AutoCAD via late-bound COM automation. We use
     //  System.Type / Activator / dynamic to avoid any compile-time AutoCAD ref.
     //
-    //  When AutoCAD is not installed, IsAvailable() returns false and the engine
-    //  falls back per FallbackOnMergeFailure. Method B (ODA File Converter) is
-    //  not yet implemented — TODO_ODA_MERGE.
+    //  When AutoCAD COM (Method A) is unavailable, the engine optionally falls
+    //  back to Method B — ExportCenterOdaConverter — which uses the FREE ODA
+    //  File Converter to normalise per-sheet DWGs to a target version and emit
+    //  a merge_manifest.json for a downstream tool. Method B does NOT itself
+    //  produce a single multi-layout DWG (the free ODA tool can't); the user
+    //  gets staged files + manifest + version normalisation rather than a
+    //  true merged output. See ExportCenterOdaConverter for the scope note.
     // ════════════════════════════════════════════════════════════════════════════
 
     internal static class ExportCenterDwgMerger
     {
-        /// <summary>Probe for AutoCAD COM. Cached after first call per process.</summary>
+        /// <summary>Probe for AutoCAD COM (the only path that yields a true merged DWG).</summary>
         private static bool? _availableCache;
 
         internal static bool IsAvailable()
@@ -35,6 +39,76 @@ namespace StingTools.Docs
             }
             catch { _availableCache = false; }
             return _availableCache.Value;
+        }
+
+        /// <summary>True if either Method A (AutoCAD COM) or Method B (ODA) is available.</summary>
+        internal static bool IsAnyMergerAvailable() =>
+            IsAvailable() || ExportCenterOdaConverter.IsAvailable();
+
+        /// <summary>Friendly description of the active merger for status lines.</summary>
+        internal static string DescribeAvailableMerger()
+        {
+            if (IsAvailable())                          return "AutoCAD COM (true layout merge)";
+            if (ExportCenterOdaConverter.IsAvailable()) return "ODA File Converter (version-normalise + manifest, no true merge)";
+            return null;
+        }
+
+        /// <summary>
+        /// Method B fallback — copy staged DWGs into a final folder, normalise
+        /// every file to <paramref name="targetDwgVersion"/>, and write a
+        /// merge_manifest.json that downstream tools (Teigha SDK, ezdxf script,
+        /// or AutoCAD COM on a different workstation) can use to do the actual
+        /// layout merge. Returns the manifest path on success, null on failure.
+        /// </summary>
+        internal static string MergeViaOda(List<string> sourceDwgs, List<string> layoutNames,
+            string outputDwg, string targetDwgVersion)
+        {
+            if (sourceDwgs == null || sourceDwgs.Count == 0) return null;
+            if (!ExportCenterOdaConverter.IsAvailable())
+            {
+                StingLog.Warn("DwgMerger.MergeViaOda: ODA File Converter not available.");
+                return null;
+            }
+
+            try
+            {
+                string outputFolder = Path.GetDirectoryName(outputDwg) ?? Path.GetTempPath();
+                string stagedFolder = Path.Combine(outputFolder, Path.GetFileNameWithoutExtension(outputDwg) + "_staged");
+                Directory.CreateDirectory(stagedFolder);
+
+                // Stage 1 — assemble inputs in a single folder so the ODA CLI can sweep them.
+                string odaIn = Path.Combine(stagedFolder, "_in");
+                Directory.CreateDirectory(odaIn);
+                foreach (var src in sourceDwgs)
+                {
+                    if (!File.Exists(src)) continue;
+                    File.Copy(src, Path.Combine(odaIn, Path.GetFileName(src)), overwrite: true);
+                }
+
+                // Stage 2 — normalise to target DWG version.
+                string odaVer = ExportCenterOdaConverter.MapStingVersionToOda(targetDwgVersion);
+                int converted = ExportCenterOdaConverter.Convert(odaIn, stagedFolder, odaVer, "DWG");
+                if (converted == 0)
+                {
+                    StingLog.Warn("DwgMerger.MergeViaOda: ODA conversion produced no files.");
+                    return null;
+                }
+
+                // Stage 3 — drop a manifest describing the intended layout structure.
+                string manifest = ExportCenterOdaConverter.WriteMergeManifest(
+                    stagedFolder, sourceDwgs, layoutNames, outputDwg, targetDwgVersion);
+
+                // Stage 4 — clean up the temporary input folder.
+                try { Directory.Delete(odaIn, true); } catch { }
+
+                StingLog.Info($"DwgMerger.MergeViaOda: staged {converted} normalised DWGs + manifest at {stagedFolder}.");
+                return manifest;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn("DwgMerger.MergeViaOda: " + ex.Message);
+                return null;
+            }
         }
 
         /// <summary>

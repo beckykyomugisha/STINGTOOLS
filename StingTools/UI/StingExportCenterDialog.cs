@@ -619,16 +619,35 @@ namespace StingTools.UI
             sp.Children.Add(BindCheck("Fall back to individual files if merge fails",
                 () => _profile.Dwg.FallbackOnMergeFailure, v => _profile.Dwg.FallbackOnMergeFailure = v));
 
-            // Availability hint
-            string hint = ExportCenterEngine.IsMultiLayoutMergerAvailable()
-                ? "✅ Multi-layout merger detected on this machine."
-                : "⚠ Multi-layout merger NOT detected — install AutoCAD or ODA tools to enable.";
+            // Availability hint — distinguishes Method A (true merge) from
+            // Method B (ODA: version-normalise + manifest, no real merge).
+            string hint;
+            Brush hintColour;
+            if (ExportCenterDwgMerger.IsAvailable())
+            {
+                hint = "✅ Method A active — AutoCAD COM detected, true layout merge available.";
+                hintColour = Brushes.DarkGreen;
+            }
+            else if (ExportCenterOdaConverter.IsAvailable())
+            {
+                hint = "⚙ Method B active — ODA File Converter detected. " +
+                       "Per-sheet DWGs will be version-normalised and a merge_manifest.json " +
+                       "emitted; true layout merging requires AutoCAD or the Teigha SDK.";
+                hintColour = (Brush)new BrushConverter().ConvertFromString("#B07000");
+            }
+            else
+            {
+                hint = "⚠ No merger detected. Install AutoCAD (Method A) or the free " +
+                       "ODA File Converter (Method B) to enable multi-layout DWG output.";
+                hintColour = Brushes.DarkOrange;
+            }
             sp.Children.Add(new TextBlock
             {
                 Text = hint,
-                Foreground = ExportCenterEngine.IsMultiLayoutMergerAvailable() ? Brushes.DarkGreen : Brushes.DarkOrange,
+                Foreground = hintColour,
                 Margin = new Thickness(0, 6, 0, 0),
                 FontSize = 11,
+                TextWrapping = TextWrapping.Wrap,
             });
 
             return card;
