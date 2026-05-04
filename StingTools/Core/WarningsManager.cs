@@ -2818,14 +2818,7 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"AutoRaiseStaleIssues: {ex.Message}"); }
             return created;
         }
-    } // end WarningsEngineExt
 
-    // ══════════════════════════════════════════════════════════════════
-    //  COMMANDS (8 IExternalCommand classes)
-    // ══════════════════════════════════════════════════════════════════
-    //  COMMANDS (8 IExternalCommand classes)
-    // ══════════════════════════════════════════════════════════════════
-    //  COMMANDS (8 IExternalCommand classes)
         // ══════════════════════════════════════════════════════════════
         // Phase 55: AUTO-ISSUE CREATION FROM CRITICAL WARNINGS
         // Cross-system automation: warning → issue pipeline
@@ -2936,7 +2929,10 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"AutoCreateIssuesFromWarnings: {ex.Message}"); }
             return created;
         }
+    } // end WarningsEngineExt
 
+    // ══════════════════════════════════════════════════════════════════
+    //  COMMANDS (8 IExternalCommand classes)
     // ══════════════════════════════════════════════════════════════════
 
     /// <summary>

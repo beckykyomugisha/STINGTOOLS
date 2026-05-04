@@ -884,38 +884,6 @@ namespace StingTools.Core
                             if (pct >= threshold)
                             { RecordSkip($"compliance {pct:F0}% meets threshold {threshold:F0}%"); continue; }
                         }
-
-                    // WE-CRIT-01 FIX: Phase 68 conditions moved out of MinDataDrop block and using RecordSkip()
-                    if (step.Condition != null)
-                    {
-                        string cond68 = step.Condition.Trim().ToLowerInvariant();
-                        if (cond68 == "has_spatial_warnings")
-                        {
-                            try
-                            {
-                                var warnReport = WarningsEngine.ScanWarnings(doc);
-                                int spatial = warnReport.ByCategory.GetValueOrDefault(WarningCategory.Spatial);
-                                if (spatial == 0) { RecordSkip("no spatial warnings"); continue; }
-                            }
-                            catch (Exception ex) { StingLog.Warn($"has_spatial_warnings check: {ex.Message}"); }
-                        }
-                        if (cond68 == "has_mep_warnings")
-                        {
-                            try
-                            {
-                                var warnReport = WarningsEngine.ScanWarnings(doc);
-                                int mep = warnReport.ByCategory.GetValueOrDefault(WarningCategory.MEP);
-                                if (mep == 0) { RecordSkip("no MEP warnings"); continue; }
-                            }
-                            catch (Exception ex) { StingLog.Warn($"has_mep_warnings check: {ex.Message}"); }
-                        }
-                        if (cond68 == "tag_compliance_below_threshold")
-                        {
-                            double pct = cachedCompliancePct();
-                            double threshold = step.MinCompliancePct ?? 90;
-                            if (pct >= threshold)
-                            { RecordSkip($"compliance {pct:F0}% meets threshold {threshold:F0}%"); continue; }
-                        }
                     }
 
                     // AE-05 / GAP-09: Skip if data files unchanged (sidecar file for workshared compatibility)
