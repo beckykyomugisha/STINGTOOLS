@@ -558,7 +558,6 @@ namespace StingTools.Model
         private readonly StructuralCADPipeline _pipeline;
         private ImportInstance _selectedImport;
         private StructuralExtractionResult _extraction;
-        private readonly List<LayerRow> _layerRows = new();
         private readonly List<DetectedElementGroup> _detectedGroups = new();
 
         // Layer data

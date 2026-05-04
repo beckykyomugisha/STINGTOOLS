@@ -11,10 +11,6 @@ using System.Windows.Media;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
-using TextBox = System.Windows.Controls.TextBox;
-using ComboBox = System.Windows.Controls.ComboBox;
-using Color = System.Windows.Media.Color;
-using Visibility = System.Windows.Visibility;
 
 // Phase 165 follow-up — WPF/Revit type-name aliases. Autodesk.Revit.DB
 // ships its own Color and Visibility types that collide with the WPF

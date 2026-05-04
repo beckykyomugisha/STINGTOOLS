@@ -1494,26 +1494,6 @@ namespace StingTools.Core
             public Dictionary<ElementId, (string Loc, string Zone)> TypeOverrideCache { get; set; }
                 = new Dictionary<ElementId, (string, string)>();
 
-            /// <summary>Phase 39: Validate that the context has all required data for reliable token population.
-            /// Returns true if all critical fields are initialized. Use after Build() to catch partial init
-            /// on corrupted documents (missing levels, rooms, phases, etc.).</summary>
-            public bool IsValid()
-            {
-                // RoomIndex can be empty (no rooms placed yet) but must not be null
-                if (RoomIndex == null) return false;
-                if (KnownCategories == null || KnownCategories.Count == 0) return false;
-                if (CachedPhases == null) return false;
-                // ProjectLoc may be null/empty (no Project Info set) — acceptable
-                // ProjectRev may be null/empty (no revisions defined) — acceptable
-                return true;
-            }
-
-            /// <summary>Phase 39: Summary of context health for diagnostics.</summary>
-            public string DiagnosticSummary =>
-                $"Rooms={RoomIndex?.Count ?? 0}, Categories={KnownCategories?.Count ?? 0}, " +
-                $"Phases={CachedPhases?.Count ?? 0}, Grids={CachedGrids?.Count ?? 0}, " +
-                $"LOC={ProjectLoc ?? "null"}, REV={ProjectRev ?? "null"}";
-
             // TAG-PREFLIGHT-DUP-01: Per-document cached PopulationContext so consecutive
             // commands (e.g. PreTagAudit followed by BatchTag) reuse the spatial / room /
             // phase / grid indices instead of rebuilding them from scratch each time.
@@ -3841,52 +3821,6 @@ namespace StingTools.Core
             ["PROD"] = ParamRegistry.PROD, ["STATUS"] = ParamRegistry.STATUS,
             ["REV"] = ParamRegistry.REV
         };
-        /// <summary>
-        /// GAP-WS-01: Check whether the element can be modified in a workshared environment.
-        /// Returns true if the element is safe to edit (not workshared, or owned by current user, or unowned).
-        /// Returns false if owned by another user — the caller should skip/defer this element.
-        /// </summary>
-        public static bool IsEditableInWorksharing(Document doc, Element el)
-        {
-            if (!doc.IsWorkshared) return true;
-            try
-            {
-                WorksetId wsId = el.WorksetId;
-                if (wsId == null || wsId == WorksetId.InvalidWorksetId) return true;
-                var wsInfo = WorksharingUtils.GetWorksharingTooltipInfo(doc, el.Id);
-                if (string.IsNullOrEmpty(wsInfo.Owner) || wsInfo.Owner == "")
-                    return true; // unowned — safe to edit
-                return wsInfo.Owner == doc.Application.Username;
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"IsEditableInWorksharing check failed for {el?.Id}: {ex.Message}");
-                return true; // fail-open: allow edit attempt, Revit will throw if truly locked
-            }
-        }
-
-        /// <summary>
-        /// GAP-PH-01: Check whether element is demolished in the project's current phase.
-        /// Returns true if element has a demolished phase set (PHASE_DEMOLISHED parameter is not InvalidElementId).
-        /// </summary>
-        public static bool IsDemolished(Element el)
-        {
-            try
-            {
-                Parameter demParam = el.get_Parameter(BuiltInParameter.PHASE_DEMOLISHED);
-                if (demParam != null && demParam.HasValue)
-                {
-                    ElementId demPhaseId = demParam.AsElementId();
-                    return demPhaseId != null && demPhaseId != ElementId.InvalidElementId;
-                }
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"IsDemolished check failed for {el?.Id}: {ex.Message}");
-            }
-            return false;
-        }
-
         /// <summary>
         /// GAP-WS-01: Check whether the element can be modified in a workshared environment.
         /// Returns true if the element is safe to edit (not workshared, or owned by current user, or unowned).

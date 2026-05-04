@@ -10,8 +10,6 @@ using System.Windows.Shapes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
-using Color = System.Windows.Media.Color;
-using Ellipse = System.Windows.Shapes.Ellipse;
 
 // Phase 165 follow-up — WPF/Revit type-name aliases. Autodesk.Revit.DB
 // ships its own Color, Ellipse, and Visibility types that collide with

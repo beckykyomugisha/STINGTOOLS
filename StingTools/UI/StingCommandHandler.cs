@@ -3565,7 +3565,7 @@ namespace StingTools.UI
 
         // ── Fabrication workspace launcher ────────────────────────────
 
-        private static void OpenFabWorkspace(UIApplication app, UI.FabAction initial)
+        private static void OpenFabWorkspace(UIApplication app, StingTools.Commands.Fabrication.FabAction initial)
         {
             try
             {

@@ -266,14 +266,6 @@ namespace StingTools.UI
         private static readonly HashSet<string> _liveDataTabs = new HashSet<string>(StringComparer.Ordinal)
             { TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions, TabWorkflows, TabQA };
 
-        // BCC-HIGH-01: Cache built tab content — avoids rebuilding full visual tree on every NavigateTo
-        private readonly Dictionary<string, UIElement> _tabCache = new Dictionary<string, UIElement>();
-
-        // BCC-HIGH-01: Live-data tabs are cleared from cache on NavigateTo so they always reflect current state.
-        // Layout-only tabs (PLATFORM, 4D/5D, DELIVERABLES, PERMISSIONS, COORD LOG, TEAM, MEETINGS) are cached.
-        private static readonly HashSet<string> _liveDataTabs = new HashSet<string>(StringComparer.Ordinal)
-            { "OVERVIEW", "MODEL HEALTH", "WARNINGS", "ISSUES", "REVISIONS", "WORKFLOWS", "QA DASHBOARD" };
-
         /// <summary>Result action tag returned to the command handler.</summary>
         public string ResultAction { get; set; }
 
