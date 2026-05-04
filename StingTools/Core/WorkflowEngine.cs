@@ -1613,6 +1613,10 @@ namespace StingTools.Core
                 case "SpeckleSend":             return new BIMManager.SpeckleSendCommand();
                 case "SpeckleReceive":          return new BIMManager.SpeckleReceiveCommand();
                 case "SpeckleDiff":             return new BIMManager.SpeckleDiffCommand();
+                // Meta-action: pops a picker (Speckle / ACC / IFC) and routes
+                // to the chosen target. Wired here so BCC ExternalEvent +
+                // dock-panel paths resolve the same tag.
+                case "Publish3DModel":          return new BIMManager.Publish3DModelCommand();
                 case "ComplianceSnapshot":      return new Tags.CompletenessDashboardCommand();
                 case "WarningsSummary":         return new WarningsDashboardCommand();
 
