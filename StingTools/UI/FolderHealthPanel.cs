@@ -21,16 +21,17 @@ namespace StingTools.UI
     /// </summary>
     public class FolderHealthPanel : UserControl
     {
-        private static readonly SolidColorBrush BgDark   = new(Color.FromRgb(0x1E, 0x1E, 0x1E));
-        private static readonly SolidColorBrush BgPanel  = new(Color.FromRgb(0x25, 0x25, 0x26));
-        private static readonly SolidColorBrush BgRow    = new(Color.FromRgb(0x2D, 0x2D, 0x30));
-        private static readonly SolidColorBrush FgWhite  = new(Color.FromRgb(0xFF, 0xFF, 0xFF));
-        private static readonly SolidColorBrush FgSubtle = new(Color.FromRgb(0xAA, 0xAA, 0xAA));
-        private static readonly SolidColorBrush Accent   = new(Color.FromRgb(0x00, 0x78, 0xD4));
-        private static readonly SolidColorBrush BrBorder = new(Color.FromRgb(0x40, 0x40, 0x40));
-        private static readonly SolidColorBrush Green    = new(Color.FromRgb(0x4C, 0xAF, 0x50));
-        private static readonly SolidColorBrush Amber    = new(Color.FromRgb(0xFF, 0xC1, 0x07));
-        private static readonly SolidColorBrush Red      = new(Color.FromRgb(0xF4, 0x43, 0x36));
+        // Corporate palette — matches ThemeManager "Corporate" + StingTools brand
+        private static readonly SolidColorBrush BgDark   = new(Color.FromRgb(0xFA, 0xFA, 0xFA));  // page bg
+        private static readonly SolidColorBrush BgPanel  = new(Color.FromRgb(0xEC, 0xEF, 0xF1));  // header / read-only panel
+        private static readonly SolidColorBrush BgRow    = new(Color.FromRgb(0xFF, 0xFF, 0xFF));  // row bg
+        private static readonly SolidColorBrush FgWhite  = new(Color.FromRgb(0x37, 0x47, 0x4F));  // body text (slate)
+        private static readonly SolidColorBrush FgSubtle = new(Color.FromRgb(0x60, 0x7D, 0x8B));  // muted slate
+        private static readonly SolidColorBrush Accent   = new(Color.FromRgb(0x1A, 0x23, 0x7E));  // STING navy
+        private static readonly SolidColorBrush BrBorder = new(Color.FromRgb(0xCF, 0xD8, 0xDC));  // light slate
+        private static readonly SolidColorBrush Green    = new(Color.FromRgb(0x2E, 0x7D, 0x32));
+        private static readonly SolidColorBrush Amber    = new(Color.FromRgb(0xE6, 0x51, 0x00));
+        private static readonly SolidColorBrush Red      = new(Color.FromRgb(0xB7, 0x1C, 0x1C));
 
         private readonly UIApplication _uiapp;
         private TextBlock _header;
