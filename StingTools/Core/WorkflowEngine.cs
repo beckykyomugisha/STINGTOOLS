@@ -1483,7 +1483,9 @@ namespace StingTools.Core
                 case "CrossModelClash": return new Temp.CrossModelClashCommand();
                 case "MEPClearance": return new Temp.MEPClearanceValidationCommand();
                 // Phase 74: Removed duplicate "AutoAssignTemplates" case (already at line 1096)
-                case "BatchPrintSheets": return new Docs.BatchPrintSheetsCommand();
+                case "BatchPrintSheets": return new Docs.ExportCenterPdfCommand(); // redirects to Export Centre (PDF preset)
+                case "ExportCenter":     return new Docs.ExportCenterCommand();
+                case "ExportCenterPDF":  return new Docs.ExportCenterPdfCommand();
 
                 // Data Pipeline
                 case "DynamicBindings": return new Temp.DynamicBindingsCommand();

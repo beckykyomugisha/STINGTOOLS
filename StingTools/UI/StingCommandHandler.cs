@@ -767,8 +767,10 @@ namespace StingTools.UI
                     case "GridAlignViewports": RunCommand<Docs.GridAlignViewportsCommand>(app); break;
                     case "AlignViewportEdges": RunCommand<Docs.AlignViewportEdgesCommand>(app); break;
                     case "DistributeViewports": RunCommand<Docs.DistributeViewportsCommand>(app); break;
-                    case "BatchPrintSheets": RunCommand<Docs.BatchPrintSheetsCommand>(app); break;
+                    case "BatchPrintSheets": RunCommand<Docs.ExportCenterPdfCommand>(app); break; // redirects to Export Centre (PDF preset)
                     case "ExportSheetRegister": RunCommand<Docs.ExportSheetRegisterCommand>(app); break;
+                    case "ExportCenter": RunCommand<Docs.ExportCenterCommand>(app); break;
+                    case "ExportCenterPDF": RunCommand<Docs.ExportCenterPdfCommand>(app); break;
 
                     // ── Sheet Manager Live Operations (modeless dialog dispatch) ──
                     case "SM_PlaceViewOnSheet":
