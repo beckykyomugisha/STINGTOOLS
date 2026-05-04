@@ -306,6 +306,13 @@ namespace StingTools.Core.Drawing
                 }
                 catch (Exception ex) { r.Warnings.Add($"Scale 1:{dt.Scale}: {ex.Message}"); }
             }
+            else
+            {
+                // 3D / perspective profiles legitimately ship without a fixed
+                // scale; assigning view.Scale = 0 throws InvalidOperationException.
+                StingTools.Core.StingLog.Info(
+                    $"DrawingType '{dt.Id}' has scale <= 0; skipping view scale assignment.");
+            }
 
             // Detail level -----------------------------------------------
             if (!string.IsNullOrWhiteSpace(dt.DetailLevel))

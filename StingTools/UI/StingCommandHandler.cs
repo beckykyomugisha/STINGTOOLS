@@ -376,6 +376,10 @@ namespace StingTools.UI
                     case "DrawingTypes_GroupBrowser":  DrawingTypesGroupBrowserInline(app); break;
                     case "DrawingTypes_SyncStyles":    DrawingTypesSyncStylesInline(app);   break;
                     case "DrawingTypes_FromScopeBoxes": DrawingTypesFromScopeBoxesInline(app); break;
+                    case "DrawingTypes_Renumber":      RunCommand<Commands.Drawing.DrawingRenumberCommand>(app); break;
+                    case "DrawingTypes_HealTitleBlocks": RunCommand<Commands.Drawing.DrawingHealTitleBlocksCommand>(app); break;
+                    case "DrawingTypes_Doctor":        RunCommand<Commands.Drawing.DrawingDoctorCommand>(app); break;
+                    case "DrawingTypes_MigrateCsv":    RunCommand<Commands.Drawing.TitleBlockMigrateCsvToRecipeCommand>(app); break;
 
                     // ── Drawing Template Manager · Phase 137 — production engine ──
                     case "DrawingTypes_ProducePerLevel":           RunCommand<Commands.Drawing.ProduceViewsPerLevelCommand>(app); break;

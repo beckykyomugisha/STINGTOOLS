@@ -225,7 +225,7 @@ namespace StingTools.UI
             _rootTabs.Items.Add(MakeTab("View Style Packs", BuildViewStylePacksTab()));
             _rootTabs.Items.Add(MakeTab("Viewport Tools",   BuildViewportToolsTab()));
             _rootTabs.Items.Add(MakeTab("Sheet Tools",      BuildSheetToolsTab()));
-            _rootTabs.Items.Add(MakeTab("Title Block",      BuildTitleBlockTab()));
+            _rootTabs.Items.Add(MakeTab("Title Block Tools", BuildTitleBlockTab()));
             _rootTabs.Items.Add(MakeTab("Sheet Manager",    BuildSheetManagerTab()));
             Grid.SetRow(_rootTabs, 0);
             root.Children.Add(_rootTabs);
@@ -1115,11 +1115,20 @@ namespace StingTools.UI
             var host = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             var stack = new StackPanel { Margin = new Thickness(8) };
 
-            stack.Children.Add(TabIntro("Title Block",
+            stack.Children.Add(TabIntro("Title Block Tools",
                 "Single source of truth for every title-block action. " +
                 "Authoring writes to TITLE_BLOCK.csv and PRJ_TB_* shared parameters. " +
                 "Sheet identity / Revision / Transmittal stamp the live ViewSheet. " +
                 "Suitability codes follow BS EN ISO 19650-1 §A (S0–S4 / A1–A5 / B1–B6 / AR)."));
+
+            stack.Children.Add(InfoCard(
+                "Per-drawing-type title block parameter bindings (titleBlockParams) " +
+                "are configured on the Drawing Types tab → right-panel form → " +
+                "'Title block parameters' card. Select a drawing type in the list " +
+                "on the left, then scroll to the Title block parameters card to " +
+                "add or edit param → value template mappings. The Resolved preview " +
+                "column shows what each template will produce from the current " +
+                "project's ProjectInformation."));
 
             // ── Quick-pick reference for ISO 19650 codes ──
             var codeBody = new StackPanel();
@@ -1479,6 +1488,7 @@ namespace StingTools.UI
             _formHost.Children.Add(BuildAnnotationCard());
             _formHost.Children.Add(BuildTokenProfileCard());   // Phase 135
             _formHost.Children.Add(BuildSlotsCard());
+            _formHost.Children.Add(BuildTitleBlockParamsCard());
 
             // Validation strip
             var report = DrawingTypeValidator.Validate(_doc, _current);
@@ -1533,6 +1543,9 @@ namespace StingTools.UI
                 _current.TitleBlockFamily, v => _current.TitleBlockFamily = v,
                 ProjectAssetPicker.TitleBlockFamilyTypes(_doc),
                 "Family Symbols of category OST_TitleBlocks loaded in the active project."));
+            body.Children.Add(LabeledTextBox("Title block symbol type (optional)",
+                _current.TitleBlockSymbolType, v => _current.TitleBlockSymbolType = v,
+                "Specific FamilySymbol Name within the family (e.g. 'A1 - 594x841 Landscape'). Leave empty to use the first symbol of the family."));
             body.Children.Add(LabeledCombo("Orientation",
                 Iso19650Vocabulary.Orientations,
                 _current.Orientation, v => _current.Orientation = v));
@@ -2196,6 +2209,106 @@ namespace StingTools.UI
                 RenderForm();
             }));
             return Card("Slots (0..1 normalised)", body);
+        }
+
+        // Phase 167 — Title-block parameter binding card with resolved preview.
+        // Each row maps a TB FamilyInstance parameter name to a value template;
+        // the third column previews what the template resolves to against the
+        // active project's ProjectInformation.
+        private UIElement BuildTitleBlockParamsCard()
+        {
+            var body = new StackPanel();
+            _current.TitleBlockParams = _current.TitleBlockParams
+                ?? new System.Collections.Generic.Dictionary<string, string>();
+
+            var resolved = StingTools.Core.Drawing.TitleBlockParamApplier
+                .Peek(_doc, _current, tokens: null);
+            var unbound = new System.Collections.Generic.HashSet<string>(
+                StingTools.Core.Drawing.TitleBlockParamApplier
+                    .FindMissingProjectInfoParams(_doc, _current),
+                StringComparer.OrdinalIgnoreCase);
+
+            // Header row
+            var hdr = new Grid { Margin = new Thickness(0, 0, 0, 2) };
+            double[] cols = { 200, 220, 160, 30 };
+            for (int c = 0; c < cols.Length; c++)
+                hdr.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(cols[c]) });
+            string[] headers = { "Param name", "Value template", "Resolved", "" };
+            for (int i = 0; i < headers.Length; i++)
+            {
+                var t = new TextBlock {
+                    Text = headers[i], FontFamily = new FontFamily("Consolas"),
+                    FontSize = 10, Foreground = new SolidColorBrush(SubtleColor),
+                    Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0),
+                };
+                Grid.SetColumn(t, i);
+                hdr.Children.Add(t);
+            }
+            body.Children.Add(hdr);
+
+            foreach (var kv in _current.TitleBlockParams.ToList())
+            {
+                var key = kv.Key;
+                var row = new Grid { Margin = new Thickness(0, 2, 0, 0) };
+                for (int c = 0; c < cols.Length; c++)
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(cols[c]) });
+
+                var keyTb = SmallTb(key, newKey =>
+                {
+                    if (string.IsNullOrWhiteSpace(newKey) || newKey == key) return;
+                    var v = _current.TitleBlockParams[key];
+                    _current.TitleBlockParams.Remove(key);
+                    _current.TitleBlockParams[newKey] = v;
+                    RenderForm();
+                });
+                Grid.SetColumn(keyTb, 0);
+                row.Children.Add(keyTb);
+
+                var valTb = SmallTb(kv.Value ?? "", v => _current.TitleBlockParams[key] = v ?? "");
+                Grid.SetColumn(valTb, 1);
+                row.Children.Add(valTb);
+
+                bool referencesProj = (kv.Value ?? "").IndexOf("${", StringComparison.Ordinal) >= 0;
+                bool anyUnbound = referencesProj && unbound.Any(u =>
+                    (kv.Value ?? "").IndexOf("${" + u + "}", StringComparison.Ordinal) >= 0);
+                string previewText = anyUnbound
+                    ? "(param not bound)"
+                    : (resolved.TryGetValue(key, out var rv) ? rv : "");
+                var preview = new TextBlock
+                {
+                    Text = previewText,
+                    FontFamily = new FontFamily("Consolas"),
+                    FontSize = 10,
+                    Foreground = new SolidColorBrush(SubtleColor),
+                    Margin = new Thickness(4, 2, 0, 0),
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    ToolTip = previewText,
+                    FontStyle = anyUnbound ? FontStyles.Italic : FontStyles.Normal,
+                };
+                Grid.SetColumn(preview, 2);
+                row.Children.Add(preview);
+
+                var rm = MakeSmallBtn("×", () =>
+                {
+                    _current.TitleBlockParams.Remove(key);
+                    RenderForm();
+                });
+                Grid.SetColumn(rm, 3);
+                row.Children.Add(rm);
+
+                body.Children.Add(row);
+            }
+
+            body.Children.Add(MakeSmallBtn("＋ Add parameter", () =>
+            {
+                int n = 1;
+                string newKey = "PARAM_" + n;
+                while (_current.TitleBlockParams.ContainsKey(newKey)) { n++; newKey = "PARAM_" + n; }
+                _current.TitleBlockParams[newKey] = "";
+                RenderForm();
+            }));
+
+            return Card("Title block parameters", body);
         }
 
         private UIElement MakeSlotHeader()

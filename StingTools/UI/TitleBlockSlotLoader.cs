@@ -36,6 +36,23 @@ namespace StingTools.UI
     {
         private const string SlotJsonParam = "TB_VIEWPORT_SLOTS_JSON_TXT";
 
+        // Per-document cache so editor re-renders don't re-collect FamilySymbols
+        // every time GetLabels()/FindByLabel() runs. Keyed weakly on the
+        // Document so closing the document drops the entry naturally.
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Document, List<TitleBlockSlot>> _cache
+            = new System.Runtime.CompilerServices.ConditionalWeakTable<Document, List<TitleBlockSlot>>();
+
+        /// <summary>
+        /// Drop the cached slot list for <paramref name="doc"/>. Call after
+        /// editing the title-block JSON or reloading the registry so the next
+        /// query refreshes from disk.
+        /// </summary>
+        public static void InvalidateCache(Document doc)
+        {
+            if (doc == null) return;
+            try { _cache.Remove(doc); } catch { /* defensive */ }
+        }
+
         /// <summary>
         /// Default slot label catalogue. Used when no STING-aware title
         /// block declares a slot list, so the dropdown is never empty.
@@ -58,8 +75,9 @@ namespace StingTools.UI
         /// </summary>
         public static List<TitleBlockSlot> ReadAll(Document doc)
         {
+            if (doc == null) return new List<TitleBlockSlot>();
+            if (_cache.TryGetValue(doc, out var cached)) return cached;
             var result = new List<TitleBlockSlot>();
-            if (doc == null) return result;
             try
             {
                 var symbols = new FilteredElementCollector(doc)
@@ -101,6 +119,7 @@ namespace StingTools.UI
             {
                 StingTools.Core.StingLog.Warn($"TitleBlockSlotLoader.ReadAll: {ex.Message}");
             }
+            try { _cache.Add(doc, result); } catch { /* concurrent add — fine */ }
             return result;
         }
 
