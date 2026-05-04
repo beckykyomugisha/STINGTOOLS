@@ -3145,5 +3145,63 @@ namespace StingTools.Core
         public const string ELC_LPS_CERT_REF_TXT_GUID          = "0a8dbcfb-6f73-5c8c-94eb-b72606feae87";
 
         #endregion
+
+        #region V6 parameters
+
+        // --- N-G12 install time (labour takeoff) ---
+        public const string CST_INSTALL_HRS              = "CST_INSTALL_HRS";
+        public const string CST_INSTALL_HRS_GUID         = "v6-0001-0000-0000-000000000001";
+
+        // --- N-G13 carbon stage breakdown (ISO 14064 / BS EN 15978) ---
+        public const string CBN_A1_A3_KG_CO2E            = "CBN_A1_A3_KG_CO2E";
+        public const string CBN_A1_A3_KG_CO2E_GUID       = "v6-0001-0000-0000-000000000002";
+        public const string CBN_A4_KG_CO2E               = "CBN_A4_KG_CO2E";
+        public const string CBN_A4_KG_CO2E_GUID          = "v6-0001-0000-0000-000000000003";
+        public const string CBN_A5_KG_CO2E               = "CBN_A5_KG_CO2E";
+        public const string CBN_A5_KG_CO2E_GUID          = "v6-0001-0000-0000-000000000004";
+        public const string CBN_B6_KG_CO2E_YR            = "CBN_B6_KG_CO2E_YR";
+        public const string CBN_B6_KG_CO2E_YR_GUID       = "v6-0001-0000-0000-000000000005";
+        public const string CBN_C1_KG_CO2E               = "CBN_C1_KG_CO2E";
+        public const string CBN_C1_KG_CO2E_GUID          = "v6-0001-0000-0000-000000000006";
+        public const string CBN_C2_KG_CO2E               = "CBN_C2_KG_CO2E";
+        public const string CBN_C2_KG_CO2E_GUID          = "v6-0001-0000-0000-000000000007";
+        public const string CBN_C3_C4_KG_CO2E            = "CBN_C3_C4_KG_CO2E";
+        public const string CBN_C3_C4_KG_CO2E_GUID       = "v6-0001-0000-0000-000000000008";
+
+        // --- N-G5 / N-G6 clash triage + resolution ---
+        public const string CLASH_TRIAGE_SEVERITY_NR     = "CLASH_TRIAGE_SEVERITY_NR";
+        public const string CLASH_TRIAGE_SEVERITY_NR_GUID = "v6-0001-0000-0000-000000000009";
+        public const string CLASH_TRIAGE_SCORE           = "CLASH_TRIAGE_SCORE";
+        public const string CLASH_TRIAGE_SCORE_GUID      = "v6-0001-0000-0000-00000000000a";
+        public const string CLASH_TRIAGE_CATEGORY_TXT    = "CLASH_TRIAGE_CATEGORY_TXT";
+        public const string CLASH_TRIAGE_CATEGORY_TXT_GUID = "v6-0001-0000-0000-00000000000b";
+        public const string CLASH_RESOLUTION_STATUS_TXT  = "CLASH_RESOLUTION_STATUS_TXT";
+        public const string CLASH_RESOLUTION_STATUS_TXT_GUID = "v6-0001-0000-0000-00000000000c";
+        public const string CLASH_RESOLUTION_ACTION_TXT  = "CLASH_RESOLUTION_ACTION_TXT";
+        public const string CLASH_RESOLUTION_ACTION_TXT_GUID = "v6-0001-0000-0000-00000000000d";
+
+        // --- N-G9 as-built reconciliation ---
+        public const string ASBUILT_DEVIATION_MM         = "ASBUILT_DEVIATION_MM";
+        public const string ASBUILT_DEVIATION_MM_GUID    = "v6-0001-0000-0000-00000000000e";
+        public const string ASBUILT_CAPTURE_DATE_TXT     = "ASBUILT_CAPTURE_DATE_TXT";
+        public const string ASBUILT_CAPTURE_DATE_TXT_GUID = "v6-0001-0000-0000-00000000000f";
+
+        // --- N-G8 ACC Issues round-trip ---
+        public const string ACC_ISSUE_ID_TXT             = "ACC_ISSUE_ID_TXT";
+        public const string ACC_ISSUE_ID_TXT_GUID        = "v6-0001-0000-0000-000000000010";
+        public const string ACC_SYNC_STATUS_TXT          = "ACC_SYNC_STATUS_TXT";
+        public const string ACC_SYNC_STATUS_TXT_GUID     = "v6-0001-0000-0000-000000000011";
+
+        // --- N-G14 IFC 4.3 PSet override ---
+        public const string IFC_PSET_OVERRIDE_TXT        = "IFC_PSET_OVERRIDE_TXT";
+        public const string IFC_PSET_OVERRIDE_TXT_GUID   = "v6-0001-0000-0000-000000000012";
+
+        // --- N-G4 model health metrics ---
+        public const string HEALTH_SCORE_LAST_NR         = "HEALTH_SCORE_LAST_NR";
+        public const string HEALTH_SCORE_LAST_NR_GUID    = "v6-0001-0000-0000-000000000013";
+        public const string HEALTH_SCORE_DATE_TXT        = "HEALTH_SCORE_DATE_TXT";
+        public const string HEALTH_SCORE_DATE_TXT_GUID   = "v6-0001-0000-0000-000000000014";
+
+        #endregion
     }
 }
