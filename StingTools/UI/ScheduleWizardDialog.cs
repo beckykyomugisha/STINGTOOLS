@@ -70,6 +70,8 @@ namespace StingTools.UI
             public bool IsSelected { get; set; }
         }
 
+        private static readonly HashSet<string> _listOps = new HashSet<string> { OpCreateBatch, OpAudit, OpExportCsv, OpManage };
+
         /// <summary>
         /// Show the comprehensive scheduling dashboard.
         /// </summary>

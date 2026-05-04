@@ -804,33 +804,36 @@ namespace StingTools.Core
                             { RecordSkip($"compliance {pct:F0}% meets threshold {threshold:F0}%"); continue; }
                         }
 
-                        // Phase 68: New workflow conditions for BIM coordinator daily operations
-                        if (step.Condition == "has_spatial_warnings")
+                    // WE-CRIT-01 FIX: Phase 68 conditions moved out of MinDataDrop block and using RecordSkip()
+                    if (step.Condition != null)
+                    {
+                        string cond68 = step.Condition.Trim().ToLowerInvariant();
+                        if (cond68 == "has_spatial_warnings")
                         {
                             try
                             {
                                 var warnReport = WarningsEngine.ScanWarnings(doc);
                                 int spatial = warnReport.ByCategory.GetValueOrDefault(WarningCategory.Spatial);
-                                if (spatial == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no spatial warnings)"); continue; }
+                                if (spatial == 0) { RecordSkip("no spatial warnings"); continue; }
                             }
                             catch (Exception ex) { StingLog.Warn($"has_spatial_warnings check: {ex.Message}"); }
                         }
-                        if (step.Condition == "has_mep_warnings")
+                        if (cond68 == "has_mep_warnings")
                         {
                             try
                             {
                                 var warnReport = WarningsEngine.ScanWarnings(doc);
                                 int mep = warnReport.ByCategory.GetValueOrDefault(WarningCategory.MEP);
-                                if (mep == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no MEP warnings)"); continue; }
+                                if (mep == 0) { RecordSkip("no MEP warnings"); continue; }
                             }
                             catch (Exception ex) { StingLog.Warn($"has_mep_warnings check: {ex.Message}"); }
                         }
-                        if (step.Condition == "tag_compliance_below_threshold")
+                        if (cond68 == "tag_compliance_below_threshold")
                         {
                             double pct = cachedCompliancePct();
                             double threshold = step.MinCompliancePct ?? 90;
                             if (pct >= threshold)
-                            { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% meets threshold {threshold:F0}%)"); continue; }
+                            { RecordSkip($"compliance {pct:F0}% meets threshold {threshold:F0}%"); continue; }
                         }
                     }
 
@@ -1947,6 +1950,10 @@ namespace StingTools.Core
 
             // Remove any null entries from failed lookups
             presets.RemoveAll(p => p == null);
+
+            // HIGH-05: Cache the built-in list so subsequent calls skip all GetBuiltInPreset() work
+            _cachedBuiltInPresets = new List<WorkflowPreset>(presets);
+            _cachedBuiltInPresetsDataPath = dataDir;
 
             // User-defined JSON files
             // Append user-defined JSON presets on top
