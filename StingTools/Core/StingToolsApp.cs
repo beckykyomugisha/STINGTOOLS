@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Text;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -1260,6 +1263,13 @@ namespace StingTools.Core
                 const string tabName = "STING Tools";
                 application.CreateRibbonTab(tabName);
                 string asmPath = AssemblyPath;
+
+                // STING Hub — quick-launch panel (added FIRST so it sits at the
+                // left end of the tab). 9 small stacked buttons with runtime-
+                // drawn letter icons; no image files on disk.
+                RibbonPanel hubPanel = application.CreateRibbonPanel(tabName, "STING Hub");
+                BuildHubPanel(hubPanel);
+
                 var togglePanel = application.CreateRibbonPanel(tabName, "Panel");
                 AddButton(togglePanel, "btnTogglePanel", "STING\nPanel",
                     asmPath, typeof(ToggleDockPanelCommand).FullName,
@@ -1419,6 +1429,150 @@ namespace StingTools.Core
             data.ToolTip = tooltip;
             pulldown.AddPushButton(data);
         }
+
+        // ── STING Hub ribbon panel ──────────────────────────────────────────
+
+        /// <summary>
+        /// Render a square letter-tile icon at runtime: rounded rectangle in
+        /// <paramref name="bgColor"/> with white bold Arial letters centred
+        /// on top. Returned as a frozen <see cref="BitmapImage"/> suitable
+        /// for <c>PushButtonData.Image</c> / <c>LargeImage</c>.
+        /// </summary>
+        private static BitmapImage MakeLetterIcon(string letters, Color bgColor, int size = 32)
+        {
+            try
+            {
+                using (var bmp = new Bitmap(size, size))
+                {
+                    using (var g = Graphics.FromImage(bmp))
+                    {
+                        g.SmoothingMode = SmoothingMode.AntiAlias;
+                        g.TextRenderingHint = TextRenderingHint.AntiAlias;
+                        g.Clear(Color.Transparent);
+
+                        int radius = Math.Max(2, size / 5);
+                        int d = radius * 2;
+                        using (var path = new GraphicsPath())
+                        {
+                            path.AddArc(0, 0, d, d, 180, 90);
+                            path.AddArc(size - d - 1, 0, d, d, 270, 90);
+                            path.AddArc(size - d - 1, size - d - 1, d, d, 0, 90);
+                            path.AddArc(0, size - d - 1, d, d, 90, 90);
+                            path.CloseFigure();
+                            using (var brush = new SolidBrush(bgColor))
+                                g.FillPath(brush, path);
+                        }
+
+                        // Scale font to letter count so 2-character labels fill
+                        // the tile without clipping.
+                        float fontSize = letters != null && letters.Length >= 2
+                            ? size * 0.42f
+                            : size * 0.55f;
+                        using (var font = new Font("Arial", fontSize, FontStyle.Bold, GraphicsUnit.Pixel))
+                        using (var sf = new StringFormat
+                        {
+                            Alignment = StringAlignment.Center,
+                            LineAlignment = StringAlignment.Center
+                        })
+                        using (var textBrush = new SolidBrush(Color.White))
+                        {
+                            g.DrawString(letters ?? string.Empty, font, textBrush,
+                                new RectangleF(0, 0, size, size), sf);
+                        }
+                    }
+
+                    using (var ms = new MemoryStream())
+                    {
+                        bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                        ms.Position = 0;
+                        var img = new BitmapImage();
+                        img.BeginInit();
+                        img.CacheOption = BitmapCacheOption.OnLoad;
+                        img.StreamSource = ms;
+                        img.EndInit();
+                        img.Freeze();
+                        return img;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Info($"MakeLetterIcon('{letters}') failed: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Build the STING Hub ribbon panel: 9 quick-launch small buttons laid
+        /// out as three vertical stacks of three. Each button's icon is drawn
+        /// at runtime via <see cref="MakeLetterIcon"/> — no image files on disk.
+        ///
+        /// Tag wiring (via the wrapper IExternalCommand classes below) routes
+        /// through <see cref="StingDockPanel.DispatchCommand"/>, so each tag
+        /// must be handled in <c>StingCommandHandler.Execute</c>.
+        ///
+        /// TODO — verify these tag strings are wired in StingCommandHandler.cs;
+        /// the closest existing dispatchers use slightly different names
+        /// (e.g. "BIMCoordinationCenter", "DocumentManager", "BOQCostManager",
+        /// "Fabrication_OpenWorkspace", "Placement_OpenCentre",
+        /// "DrawingTypes_Editor"). Add aliases or switch the hub tag strings
+        /// when wiring up the handler:
+        ///   BIMCoordCenter_Open, SheetManager_Open, DrawingTypes_Edit,
+        ///   DocumentMgmt_Open, BOQ_ExportCost, Fabrication_Open,
+        ///   Placement_Open, StructuralDWGWizard, Scheduling_Dashboard.
+        /// </summary>
+        private static void BuildHubPanel(RibbonPanel panel)
+        {
+            string asm = AssemblyPath;
+
+            var specs = new (string tag, string label, string letters, Color color, string cls)[]
+            {
+                ("BIMCoordCenter_Open",  "Coord Center",  "CC", Color.SteelBlue,    typeof(HubBIMCoordCenterCommand).FullName),
+                ("SheetManager_Open",    "Sheet Manager", "SM", Color.Teal,         typeof(HubSheetManagerCommand).FullName),
+                ("DrawingTypes_Edit",    "Drawing Types", "DT", Color.MediumPurple, typeof(HubDrawingTypesCommand).FullName),
+                ("DocumentMgmt_Open",    "Doc Manager",   "DM", Color.DarkOrange,   typeof(HubDocumentMgmtCommand).FullName),
+                ("BOQ_ExportCost",       "BOQ / Cost",    "BQ", Color.SeaGreen,     typeof(HubBoqExportCostCommand).FullName),
+                ("Fabrication_Open",     "Fabrication",   "FW", Color.Firebrick,    typeof(HubFabricationCommand).FullName),
+                ("Placement_Open",       "Placement",     "PC", Color.Goldenrod,    typeof(HubPlacementCommand).FullName),
+                ("StructuralDWGWizard",  "Struct Wizard", "SW", Color.SlateGray,    typeof(HubStructuralDwgWizardCommand).FullName),
+                ("Scheduling_Dashboard", "Scheduling",    "SD", Color.MidnightBlue, typeof(HubSchedulingDashboardCommand).FullName),
+            };
+
+            var buttons = new List<PushButtonData>(9);
+            foreach (var s in specs)
+            {
+                var data = new PushButtonData("Hub_" + s.tag, s.label, asm, s.cls)
+                {
+                    ToolTip = $"{s.label} — Right-click to pin to Quick Access Toolbar"
+                };
+                try
+                {
+                    data.Image      = MakeLetterIcon(s.letters, s.color, 16);
+                    data.LargeImage = MakeLetterIcon(s.letters, s.color, 32);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Info($"Hub icon '{s.letters}' failed: {ex.Message}");
+                }
+                buttons.Add(data);
+            }
+
+            try
+            {
+                panel.AddStackedItems(buttons[0], buttons[1], buttons[2]);
+                panel.AddStackedItems(buttons[3], buttons[4], buttons[5]);
+                panel.AddStackedItems(buttons[6], buttons[7], buttons[8]);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BuildHubPanel: AddStackedItems failed, falling back to AddItem: {ex.Message}");
+                foreach (var b in buttons)
+                {
+                    try { panel.AddItem(b); }
+                    catch (Exception innerEx) { StingLog.Warn($"BuildHubPanel AddItem '{b.Name}': {innerEx.Message}"); }
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -1457,5 +1611,102 @@ namespace StingTools.Core
                 return Result.Failed;
             }
         }
+    }
+
+    // ── STING Hub button dispatchers ────────────────────────────────────────
+    // Each ribbon button on the STING Hub panel is bound to one of these thin
+    // wrappers. They delegate to StingDockPanel.DispatchCommand, which raises
+    // the shared ExternalEvent so the request is processed by
+    // StingCommandHandler.Execute on the Revit API thread — same dispatch
+    // path the dockable panel buttons use.
+
+    internal static class HubDispatcher
+    {
+        public static Result Run(string tag, ref string message)
+        {
+            try
+            {
+                StingTools.UI.StingDockPanel.DispatchCommand(tag);
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"Hub dispatch '{tag}' failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubBIMCoordCenterCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("BIMCoordCenter_Open", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubSheetManagerCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("SheetManager_Open", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubDrawingTypesCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("DrawingTypes_Edit", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubDocumentMgmtCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("DocumentMgmt_Open", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubBoqExportCostCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("BOQ_ExportCost", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubFabricationCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("Fabrication_Open", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubPlacementCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("Placement_Open", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubStructuralDwgWizardCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("StructuralDWGWizard", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubSchedulingDashboardCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("Scheduling_Dashboard", ref message);
     }
 }
