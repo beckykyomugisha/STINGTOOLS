@@ -74,6 +74,10 @@
                         ToolTip="Merge rules from another JSON file (default: append, prompt to overwrite per merge key)."/>
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Export…"          Click="OnExportRules_Click"
                         ToolTip="Export the current rule set to a portable JSON file you can share or version-control."/>
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Export Excel"     Click="OnExportExcel_Click"
+                        ToolTip="Phase 139 — Export every rule to an .xlsx workbook (one sheet per discipline pack)."/>
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Import Excel"     Click="OnImportExcel_Click"
+                        ToolTip="Phase 139 — Import rules back from .xlsx; replaces the project overlay."/>
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Save Project"     Click="OnSaveProject_Click"
                         ToolTip="Save valid rules to &lt;project&gt;/STING_PLACEMENT_RULES.project.json (Ctrl+S)."/>
                 <Separator Width="8" Visibility="Hidden"/>
@@ -110,7 +114,7 @@
                                 Content="+" Width="32" Click="OnAdd_Click" ToolTip="Add a new rule"/>
                         <TextBox x:Name="txtSearch" Padding="3"
                                  TextChanged="OnSearch_TextChanged"
-                                 ToolTip="Filter by category / variant / room / notes"/>
+                                 ToolTip="Phase 139 — search RuleId / category / variant / room / notes / standard / pack"/>
                     </DockPanel>
                     <DockPanel DockPanel.Dock="Top" LastChildFill="False" Margin="0,0,0,6">
                         <ToggleButton x:Name="chipDirty"   DockPanel.Dock="Left" Margin="0,0,4,0"
@@ -121,8 +125,9 @@
                                       Padding="6,2" Content="✗ Invalid"
                                       Checked="OnFilterChanged" Unchecked="OnFilterChanged"
                                       ToolTip="Show only rules failing validation (missing CategoryFilter, bad Priority, …)."/>
-                        <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" Margin="6,0,0,0"
-                                   Foreground="#888" FontSize="11" Text="Toggle to filter →"/>
+                        <ComboBox x:Name="cmbSourcePack" DockPanel.Dock="Left" Margin="6,0,0,0"
+                                  Width="130" SelectionChanged="OnSourcePack_SelectionChanged"
+                                  ToolTip="Phase 139 — filter by discipline pack."/>
                     </DockPanel>
 
                     <!-- Rule grid -->
@@ -143,6 +148,13 @@
                               RowBackground="{DynamicResource PrimaryBg}"
                               AlternatingRowBackground="{DynamicResource SecondaryBg}"
                               ToolTip="Ctrl+click / Shift+click to multi-select. Right-click for bulk actions.">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <!-- Phase 139 I1 — RAG status colour from VM -->
+                                <Setter Property="Background"
+                                        Value="{Binding StatusColorHex, Converter={StaticResource HexToBrushConverter}, FallbackValue=#FFFFFF}"/>
+                            </Style>
+                        </DataGrid.RowStyle>
                         <DataGrid.ContextMenu>
                             <ContextMenu>
                                 <MenuItem Header="Clone selected" Click="OnCloneSelected_Click"/>
@@ -156,11 +168,16 @@
                             <DataGridTextColumn Header="●"
                                                 Binding="{Binding IsDirty, Converter={StaticResource DirtyDotConverter}}"
                                                 Width="22"/>
-                            <DataGridTextColumn Header="Category" Binding="{Binding CategoryFilter}" Width="*"/>
-                            <DataGridTextColumn Header="Variant"  Binding="{Binding VariantHint}"   Width="80"/>
-                            <DataGridTextColumn Header="Room"     Binding="{Binding RoomFilter}"    Width="90"/>
-                            <DataGridTextColumn Header="Anchor"   Binding="{Binding AnchorType}"    Width="100"/>
-                            <DataGridTextColumn Header="Pri"      Binding="{Binding Priority}"      Width="40"/>
+                            <DataGridTextColumn Header="Category" Binding="{Binding CategoryFilter}"      Width="*"/>
+                            <DataGridTextColumn Header="Variant"  Binding="{Binding VariantHint}"        Width="80"/>
+                            <DataGridTextColumn Header="Room"     Binding="{Binding RoomFilter}"         Width="90"/>
+                            <DataGridTextColumn Header="Anchor"   Binding="{Binding AnchorType}"         Width="100"/>
+                            <DataGridTextColumn Header="Pri"      Binding="{Binding Priority}"           Width="40"/>
+                            <!-- Phase 139 I1 — new columns -->
+                            <DataGridTextColumn Header="Pack"     Binding="{Binding SourcePack}"         Width="80"/>
+                            <DataGridTextColumn Header="Cov %"    Binding="{Binding LastCoverageDisplay}" Width="60"/>
+                            <DataGridTextColumn Header="Placed/Tgt" Binding="{Binding PlacedTargetDisplay}" Width="70"/>
+                            <DataGridTextColumn Header="Standard" Binding="{Binding PrimaryStandard}"   Width="80"/>
                         </DataGrid.Columns>
                     </DataGrid>
                 </DockPanel>
@@ -448,7 +465,197 @@
                             </DataGrid>
                         </StackPanel>
                     </GroupBox>
+                    <!-- Phase 139 I2 — new rule detail cards -->
+                    <GroupBox Header="Coverage &amp; Spacing (Standards)" Style="{StaticResource GroupBoxStyle}">
+                        <StackPanel>
+                            <TextBlock Foreground="#666" FontStyle="Italic" FontWeight="Normal" Margin="0,0,0,4"
+                                       TextWrapping="Wrap"
+                                       Text="Set CoverageRadiusMm for detector / speaker rules and tick GuaranteeCoverage to fail when the engine cannot fully cover a room."/>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="160"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="160"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Coverage radius (mm)"/>
+                                <TextBox   Grid.Row="0" Grid.Column="1" x:Name="txtCoverageRadius" Margin="0,2"/>
+                                <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Max spacing (mm)"/>
+                                <TextBox   Grid.Row="0" Grid.Column="3" x:Name="txtMaxSpacing"     Margin="0,2"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Wall clearance (mm)"/>
+                                <TextBox   Grid.Row="1" Grid.Column="1" x:Name="txtWallClearance"  Margin="0,2"/>
+                                <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Obstr. clearance (mm)"/>
+                                <TextBox   Grid.Row="1" Grid.Column="3" x:Name="txtObstructionClearance" Margin="0,2"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Guarantee coverage"/>
+                                <CheckBox  Grid.Row="2" Grid.Column="1" x:Name="chkGuaranteeCoverage" Margin="0,4"/>
+                            </Grid>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <GroupBox Header="Routing (Conduit / Pipe / Duct)" Style="{StaticResource GroupBoxStyle}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Routing mode"/>
+                            <ComboBox  Grid.Row="0" Grid.Column="1" x:Name="cmbRoutingMode" Margin="0,2"/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Route face"/>
+                            <ComboBox  Grid.Row="0" Grid.Column="3" x:Name="cmbRouteFace"   Margin="0,2"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Route offset (mm)"/>
+                            <TextBox   Grid.Row="1" Grid.Column="1" x:Name="txtRouteOffset" Margin="0,2"/>
+                            <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Min bend radius (mm)"/>
+                            <TextBox   Grid.Row="1" Grid.Column="3" x:Name="txtRouteMinBendRadius" Margin="0,2"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Segment category"/>
+                            <ComboBox  Grid.Row="2" Grid.Column="1" x:Name="cmbRouteSegmentCategory" Margin="0,2"/>
+                        </Grid>
+                    </GroupBox>
+
+                    <GroupBox Header="Window / Glazing" Style="{StaticResource GroupBoxStyle}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Sill height (mm)"/>
+                            <TextBox   Grid.Row="0" Grid.Column="1" x:Name="txtSillHeight"  Margin="0,2"/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Head height (mm)"/>
+                            <TextBox   Grid.Row="0" Grid.Column="3" x:Name="txtHeadHeight"  Margin="0,2"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Cill to floor (mm)"/>
+                            <TextBox   Grid.Row="1" Grid.Column="1" x:Name="txtCillToFloor" Margin="0,2"/>
+                            <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Toughened glazing"/>
+                            <CheckBox  Grid.Row="1" Grid.Column="3" x:Name="chkToughenedGlazing" Margin="0,4"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Glazing spec"/>
+                            <ComboBox  Grid.Row="2" Grid.Column="1" x:Name="cmbGlazingSpec" Margin="0,2"/>
+                        </Grid>
+                    </GroupBox>
+
+                    <GroupBox Header="Standards &amp; Accessibility" Style="{StaticResource GroupBoxStyle}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Building type"/>
+                            <ComboBox  Grid.Row="0" Grid.Column="1" x:Name="cmbBuildingType"   Margin="0,2"/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="IP rating min"/>
+                            <TextBox   Grid.Row="0" Grid.Column="3" x:Name="txtIpRatingMin"    Margin="0,2"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Standards (csv)"/>
+                            <TextBox   Grid.Row="1" Grid.Column="1" x:Name="txtStandardsCsv"   Margin="0,2"
+                                       ToolTip="Comma-separated list, e.g. BS7671,BS5839,NFPA13,PartM,ASHRAE621."/>
+                            <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Wet zone exclusion"/>
+                            <ComboBox  Grid.Row="1" Grid.Column="3" x:Name="cmbWetZone"        Margin="0,2"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Accessibility check"/>
+                            <CheckBox  Grid.Row="2" Grid.Column="1" x:Name="chkAccessibilityCheck" Margin="0,4"/>
+                            <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Height standard"/>
+                            <ComboBox  Grid.Row="2" Grid.Column="3" x:Name="cmbHeightStandard" Margin="0,2"/>
+                        </Grid>
+                    </GroupBox>
+
+                    <GroupBox Header="Post-Placement" Style="{StaticResource GroupBoxStyle}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Requires COBie fields"/>
+                            <CheckBox  Grid.Row="0" Grid.Column="1" x:Name="chkRequiresCOBieFields" Margin="0,4"/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Requires IFC mapping"/>
+                            <CheckBox  Grid.Row="0" Grid.Column="3" x:Name="chkRequiresIfcMapping"  Margin="0,4"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Maintenance clearance"/>
+                            <ComboBox  Grid.Row="1" Grid.Column="1" x:Name="cmbMaintenanceClearance" Margin="0,2"/>
+                            <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Post audit tag"/>
+                            <TextBox   Grid.Row="1" Grid.Column="3" x:Name="txtPostAuditTag"          Margin="0,2"/>
+                        </Grid>
+                    </GroupBox>
+
                     </StackPanel> <!-- /pnlRuleDetail -->
+
+                    <!-- Phase 139 I3 — Building Profile header -->
+                    <GroupBox Header="Building Profile (Phase 139)" Style="{StaticResource GroupBoxStyle}">
+                        <StackPanel>
+                            <Border BorderBrush="#E2A04A" BorderThickness="1" Padding="6"
+                                    Background="#FFF7E6" Margin="0,0,0,8"
+                                    Visibility="{Binding VM.Profile.BuildingType, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource EmptyStringToVisibility}, FallbackValue=Visible}">
+                                <TextBlock Foreground="#A33" FontSize="11" TextWrapping="Wrap"
+                                           Text="No building profile loaded — every rule is active. Set a Building Type below to gate by sector."/>
+                            </Border>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="160"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="120"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Building type"/>
+                                <ComboBox  Grid.Row="0" Grid.Column="1" x:Name="cmbProfileBuildingType" Margin="0,2"/>
+                                <Button    Grid.Row="0" Grid.Column="2" Style="{StaticResource ToolBtnSecondary}"
+                                           Content="Load" Click="OnLoadProfile_Click" Margin="2,0"
+                                           ToolTip="Load profile from &lt;project&gt;/_BIM_COORD/placement_profile.json"/>
+                                <Button    Grid.Row="0" Grid.Column="3" Style="{StaticResource ToolBtnSecondary}"
+                                           Content="Save" Click="OnSaveProfile_Click" Margin="2,0"
+                                           ToolTip="Persist current profile to _BIM_COORD/placement_profile.json"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Active standards (csv)"/>
+                                <TextBox   Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3"
+                                           x:Name="txtProfileStandards" Margin="0,2"
+                                           ToolTip="Comma-separated list (e.g. BS7671,BS5839,NFPA13,PartM,ASHRAE621,BS6465,HTM0201,BB103)."/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Toggles"/>
+                                <WrapPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3">
+                                    <CheckBox x:Name="chkEnableWetZone"       Content="Wet-zone checks"      Margin="0,0,8,0"/>
+                                    <CheckBox x:Name="chkEnableAccessibility" Content="Accessibility checks" Margin="0,0,8,0"/>
+                                    <CheckBox x:Name="chkEnableCoverage"      Content="Coverage guarantee"   Margin="0,0,8,0"/>
+                                </WrapPanel>
+                            </Grid>
+                        </StackPanel>
+                    </GroupBox>
 
                     <GroupBox Header="Run Options" Style="{StaticResource GroupBoxStyle}">
                         <StackPanel>
@@ -561,11 +768,15 @@
                                       RowBackground="{DynamicResource PrimaryBg}"
                                       AlternatingRowBackground="{DynamicResource SecondaryBg}">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="When (UTC)" Binding="{Binding CreatedUtc}" Width="160"/>
-                                    <DataGridTextColumn Header="Engine"     Binding="{Binding Engine}"     Width="*"/>
-                                    <DataGridTextColumn Header="Rule"       Binding="{Binding RuleId}"     Width="*"/>
-                                    <DataGridTextColumn Header="Operator"   Binding="{Binding Operator}"   Width="100"/>
-                                    <DataGridTextColumn Header="Count"      Binding="{Binding Count}"      Width="60"/>
+                                    <DataGridTextColumn Header="When (UTC)" Binding="{Binding CreatedUtc}"        Width="160"/>
+                                    <DataGridTextColumn Header="Engine"     Binding="{Binding Engine}"            Width="*"/>
+                                    <DataGridTextColumn Header="Rule"       Binding="{Binding RuleId}"            Width="*"/>
+                                    <DataGridTextColumn Header="Operator"   Binding="{Binding Operator}"          Width="100"/>
+                                    <DataGridTextColumn Header="Count"      Binding="{Binding Count}"             Width="60"/>
+                                    <!-- Phase 139 I4 — extra history columns -->
+                                    <DataGridTextColumn Header="Cov %"      Binding="{Binding CoverageDisplay}"   Width="60"/>
+                                    <DataGridTextColumn Header="Skipped"    Binding="{Binding SkippedDisplay}"    Width="60"/>
+                                    <DataGridTextColumn Header="Warnings"   Binding="{Binding WarningDisplay}"    Width="70"/>
                                 </DataGrid.Columns>
                             </DataGrid>
                         </StackPanel>
