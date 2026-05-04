@@ -1048,7 +1048,7 @@ namespace StingTools.Commands.Electrical
                 using (var tg = new TransactionGroup(doc, "STING Annotate Circuit"))
                 {
                     tg.Start();
-                    foreach (var seg in route.Conduits)
+                    foreach (var seg in route.AllSegments)
                     {
                         if (WireAnnotationEngine.HasAnnotation(doc, view, seg))
                         { skipped++; continue; }
@@ -1141,16 +1141,21 @@ namespace StingTools.Commands.Electrical
                     return Result.Cancelled;
                 }
 
-                var conduits = new FilteredElementCollector(doc, view.Id)
-                    .OfCategory(BuiltInCategory.OST_Conduit)
+                var cats = new ElementMulticategoryFilter(new List<BuiltInCategory>
+                {
+                    BuiltInCategory.OST_Conduit,
+                    BuiltInCategory.OST_CableTray,
+                });
+                var hosts = new FilteredElementCollector(doc, view.Id)
+                    .WherePasses(cats)
                     .WhereElementIsNotElementType()
                     .Where(e => WireAnnotationEngine.HasAnnotation(doc, view, e))
                     .ToList();
 
-                if (conduits.Count == 0)
+                if (hosts.Count == 0)
                 {
                     TaskDialog.Show("STING Wire Annotation",
-                        "No annotated conduits found in active view. Use AnnotateCircuit or Wire Annotate first.");
+                        "No annotated conduits or cable trays found in active view. Use AnnotateCircuit or Wire Annotate first.");
                     return Result.Cancelled;
                 }
 
@@ -1159,9 +1164,9 @@ namespace StingTools.Commands.Electrical
                 using (var tg = new TransactionGroup(doc, "STING Refresh Wire Annotations"))
                 {
                     tg.Start();
-                    foreach (var conduit in conduits)
+                    foreach (var host in hosts)
                     {
-                        var data = WireAnnotationEngine.ReadWireData(conduit);
+                        var data = WireAnnotationEngine.ReadWireData(host);
                         var profileId = map.GetProfileId(data.CircuitNumber);
                         var profile = !string.IsNullOrEmpty(profileId)
                             ? WireProfileRegistry.Get(doc, profileId) : null;
@@ -1173,13 +1178,13 @@ namespace StingTools.Commands.Electrical
                             t.Start();
                             try
                             {
-                                WireAnnotationEngine.RemoveAnnotationForConduit(doc, view, conduit);
-                                WireAnnotationEngine.PlaceAnnotation(doc, view, conduit, data,
+                                WireAnnotationEngine.RemoveAnnotationForConduit(doc, view, host);
+                                WireAnnotationEngine.PlaceAnnotation(doc, view, host, data,
                                     addTickMarks: data.CoreCount > 0);
                                 rebuilt++;
                             }
                             catch (Exception ex)
-                            { StingLog.Warn($"Refresh annot {conduit.Id.Value}: {ex.Message}"); }
+                            { StingLog.Warn($"Refresh annot {host.Id.Value}: {ex.Message}"); }
                             t.Commit();
                         }
                     }
@@ -1187,7 +1192,7 @@ namespace StingTools.Commands.Electrical
                 }
 
                 TaskDialog.Show("STING Wire Annotation",
-                    $"Rebuilt {rebuilt} of {conduits.Count} annotations from current circuit data.");
+                    $"Rebuilt {rebuilt} of {hosts.Count} annotations from current circuit data.");
                 return Result.Succeeded;
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException)

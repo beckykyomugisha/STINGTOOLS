@@ -38,66 +38,59 @@ namespace StingTools.Core.Electrical
             var result = new CircuitRouteResult();
             if (doc == null || sys == null) return result;
 
-            var endpoints = new List<Element>();
+            Element panel = null;
+            var loads = new List<Element>();
             try
             {
-                var panel = sys.BaseEquipment;
-                if (panel != null) endpoints.Add(panel);
+                panel = sys.BaseEquipment;
                 if (sys.Elements != null)
                     foreach (Element e in sys.Elements)
-                        if (e != null) endpoints.Add(e);
+                        if (e != null) loads.Add(e);
             }
             catch (Exception ex) { result.Warnings.Add("collect endpoints: " + ex.Message); }
 
-            if (endpoints.Count == 0)
+            if (panel == null && loads.Count == 0)
             {
                 result.Warnings.Add("Circuit has no base equipment or load elements.");
                 return result;
             }
 
-            var visitedPerEndpoint = new List<HashSet<long>>();
-            foreach (var ep in endpoints)
+            // Compute reachability sets:
+            //   P = ids reachable from the panel within depth bound
+            //   L = union of ids reachable from any load within depth bound
+            // A segment is "on the run" if it's in P AND L. This includes
+            // branch segments (panel-reachable + reachable from at least the
+            // single load on that branch) without sweeping in unrelated
+            // conduits on the wider mesh.
+            var panelReach = panel != null
+                ? BfsFromElement(panel, doc, maxDepth: 14)
+                : new HashSet<long>();
+            var loadReach = new HashSet<long>();
+            foreach (var ld in loads)
+                loadReach.UnionWith(BfsFromElement(ld, doc, maxDepth: 14));
+
+            HashSet<long> route;
+            if (panelReach.Count > 0 && loadReach.Count > 0)
             {
-                var reachable = BfsFromElement(ep, doc, maxDepth: 12);
-                visitedPerEndpoint.Add(reachable);
+                route = new HashSet<long>(panelReach);
+                route.IntersectWith(loadReach);
+            }
+            else if (panelReach.Count > 0)
+            {
+                route = panelReach; // single-endpoint fallback
+            }
+            else
+            {
+                route = loadReach;
             }
 
-            var unionOfEndpoints = new HashSet<long>();
-            foreach (var s in visitedPerEndpoint) unionOfEndpoints.UnionWith(s);
-
-            // A conduit/tray segment "on the run" is one reachable from at
-            // least two distinct endpoints on the circuit, OR (for radial
-            // single-load circuits) any segment between the panel and any
-            // load. Use a simpler heuristic: any segment reachable from
-            // >= 2 endpoints is part of the route trunk.
-            var counts = new Dictionary<long, int>();
-            foreach (var s in visitedPerEndpoint)
-                foreach (var id in s)
-                    counts[id] = counts.TryGetValue(id, out int c) ? c + 1 : 1;
-
-            foreach (var kv in counts)
+            foreach (var idVal in route)
             {
-                if (kv.Value < 2) continue;
-                var el = doc.GetElement(new ElementId(kv.Key));
+                var el = doc.GetElement(new ElementId(idVal));
                 if (el == null) continue;
                 var bic = el.Category?.Id?.Value ?? 0;
                 if (bic == (long)BuiltInCategory.OST_Conduit) result.Conduits.Add(el);
                 else if (bic == (long)BuiltInCategory.OST_CableTray) result.CableTrays.Add(el);
-            }
-
-            // Single-endpoint fallback: include every conduit reachable from
-            // the panel within depth 8, when the intersection set was empty.
-            if (result.Conduits.Count == 0 && result.CableTrays.Count == 0
-                && visitedPerEndpoint.Count > 0)
-            {
-                foreach (var id in visitedPerEndpoint[0])
-                {
-                    var el = doc.GetElement(new ElementId(id));
-                    if (el == null) continue;
-                    var bic = el.Category?.Id?.Value ?? 0;
-                    if (bic == (long)BuiltInCategory.OST_Conduit) result.Conduits.Add(el);
-                    else if (bic == (long)BuiltInCategory.OST_CableTray) result.CableTrays.Add(el);
-                }
             }
 
             double totalFt = 0.0;
@@ -213,6 +206,18 @@ namespace StingTools.Core.Electrical
             if (doc == null) return report;
             report.ScopeName = scopeView != null ? $"View: {scopeView.Name}" : "Project";
 
+            HashSet<long> viewIds = null;
+            if (scopeView != null)
+            {
+                viewIds = new HashSet<long>();
+                try
+                {
+                    foreach (var e in new FilteredElementCollector(doc, scopeView.Id).WhereElementIsNotElementType())
+                        viewIds.Add(e.Id.Value);
+                }
+                catch (Exception ex) { report.Warnings.Add("scope-view collect: " + ex.Message); }
+            }
+
             var systems = new FilteredElementCollector(doc)
                 .OfClass(typeof(ElectricalSystem))
                 .WhereElementIsNotElementType()
@@ -236,7 +241,7 @@ namespace StingTools.Core.Electrical
                 int    segCount = 0;
                 foreach (var seg in route.AllSegments)
                 {
-                    if (scopeView != null && !IsInView(seg, scopeView)) continue;
+                    if (viewIds != null && !viewIds.Contains(seg.Id.Value)) continue;
                     try
                     {
                         var lc = seg.Location as LocationCurve;
@@ -261,17 +266,11 @@ namespace StingTools.Core.Electrical
                     };
                     rowsByProfile[profile.Id] = row;
                 }
-                row.TotalMetres  += lengthMm / 1000.0;
-                row.TotalKg      += (lengthMm / 1000.0) * (profile.WeightKgPerKm / 1000.0) * 1000.0 / 1000.0;
+                double metres    = lengthMm / 1000.0;
+                double weightPerM = (profile.WeightKgPerKm) / 1000.0; // kg/m
+                row.TotalMetres  += metres;
+                row.TotalKg      += metres * weightPerM;
                 row.SegmentCount += segCount;
-            }
-
-            // Recompute weights cleanly: kg = metres × (weight_kg_per_km / 1000).
-            foreach (var row in rowsByProfile.Values)
-            {
-                var p = WireProfileRegistry.Get(doc, row.ProfileId);
-                double weightPerM = (p?.WeightKgPerKm ?? 0) / 1000.0;
-                row.TotalKg = row.TotalMetres * weightPerM;
             }
 
             report.Rows.AddRange(rowsByProfile.Values
@@ -308,16 +307,6 @@ namespace StingTools.Core.Electrical
                 StingLog.Warn("WireQuantityCalculator.WriteCsv: " + ex.Message);
                 return null;
             }
-        }
-
-        private static bool IsInView(Element el, View view)
-        {
-            try
-            {
-                var col = new FilteredElementCollector(el.Document, view.Id).OfClass(el.GetType());
-                return col.Cast<Element>().Any(e => e.Id == el.Id);
-            }
-            catch { return true; }
         }
 
         private static string CsvEscape(string v)

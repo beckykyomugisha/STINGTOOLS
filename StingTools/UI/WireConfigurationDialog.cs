@@ -316,15 +316,17 @@ namespace StingTools.UI
                         using (var t = new Transaction(_doc, "STING Stamp Profile"))
                         {
                             t.Start();
-                            foreach (var seg in route.Conduits)
+                            var inv = System.Globalization.CultureInfo.InvariantCulture;
+                            foreach (var seg in route.AllSegments)
                             {
-                                ParameterHelpers.SetString(seg, "ELC_WIRE_CORE_COUNT_INT", profile.Cores.ToString(System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
-                                ParameterHelpers.SetString(seg, "ELC_WIRE_CSA_MM2_NUM", profile.CsaMm2.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
-                                ParameterHelpers.SetString(seg, "ELC_WIRE_COND_MAT_TXT", profile.ConductorMat ?? "", overwrite: true);
-                                ParameterHelpers.SetString(seg, "ELC_WIRE_PROFILE_ID_TXT", profile.Id, overwrite: true);
-                                ParameterHelpers.SetString(seg, "ELC_CIRCUIT_NR_TXT", sys.Name ?? "", overwrite: true);
-                                ParameterHelpers.SetString(seg, "ELC_PNL_NAME_TXT", sys.PanelName ?? "", overwrite: true);
-                                touched++;
+                                bool any = false;
+                                any |= ParameterHelpers.SetString(seg, "ELC_WIRE_CORE_COUNT_INT", profile.Cores.ToString(inv), overwrite: true);
+                                any |= ParameterHelpers.SetString(seg, "ELC_WIRE_CSA_MM2_NUM",   profile.CsaMm2.ToString("0.##", inv), overwrite: true);
+                                any |= ParameterHelpers.SetString(seg, "ELC_WIRE_COND_MAT_TXT",  profile.ConductorMat ?? "", overwrite: true);
+                                any |= ParameterHelpers.SetString(seg, "ELC_WIRE_PROFILE_ID_TXT", profile.Id, overwrite: true);
+                                any |= ParameterHelpers.SetString(seg, "ELC_CIRCUIT_NR_TXT",     sys.Name ?? "", overwrite: true);
+                                any |= ParameterHelpers.SetString(seg, "ELC_PNL_NAME_TXT",       sys.PanelName ?? "", overwrite: true);
+                                if (any) touched++;
                             }
                             t.Commit();
                         }
