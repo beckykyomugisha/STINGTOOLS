@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
+// Disambiguate System.Drawing.Color from Autodesk.Revit.DB.Color (CS0104).
+using DrawingColor = System.Drawing.Color;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -1450,7 +1452,7 @@ namespace StingTools.Core
         /// on top. Returned as a frozen <see cref="BitmapImage"/> suitable
         /// for <c>PushButtonData.Image</c> / <c>LargeImage</c>.
         /// </summary>
-        private static BitmapImage MakeLetterIcon(string letters, Color bgColor, int size = 32)
+        private static BitmapImage MakeLetterIcon(string letters, DrawingColor bgColor, int size = 32)
         {
             try
             {
@@ -1460,7 +1462,7 @@ namespace StingTools.Core
                     {
                         g.SmoothingMode = SmoothingMode.AntiAlias;
                         g.TextRenderingHint = TextRenderingHint.AntiAlias;
-                        g.Clear(Color.Transparent);
+                        g.Clear(DrawingColor.Transparent);
 
                         int radius = Math.Max(2, size / 5);
                         int d = radius * 2;
@@ -1486,7 +1488,7 @@ namespace StingTools.Core
                             Alignment = StringAlignment.Center,
                             LineAlignment = StringAlignment.Center
                         })
-                        using (var textBrush = new SolidBrush(Color.White))
+                        using (var textBrush = new SolidBrush(DrawingColor.White))
                         {
                             g.DrawString(letters ?? string.Empty, font, textBrush,
                                 new RectangleF(0, 0, size, size), sf);
@@ -1537,17 +1539,17 @@ namespace StingTools.Core
         {
             string asm = AssemblyPath;
 
-            var specs = new (string tag, string label, string letters, Color color, string cls)[]
+            var specs = new (string tag, string label, string letters, DrawingColor color, string cls)[]
             {
-                ("BIMCoordCenter_Open",  "Coord Center",  "CC", Color.SteelBlue,    typeof(HubBIMCoordCenterCommand).FullName),
-                ("SheetManager_Open",    "Sheet Manager", "SM", Color.Teal,         typeof(HubSheetManagerCommand).FullName),
-                ("DrawingTypes_Edit",    "Drawing Types", "DT", Color.MediumPurple, typeof(HubDrawingTypesCommand).FullName),
-                ("DocumentMgmt_Open",    "Doc Manager",   "DM", Color.DarkOrange,   typeof(HubDocumentMgmtCommand).FullName),
-                ("BOQ_ExportCost",       "BOQ / Cost",    "BQ", Color.SeaGreen,     typeof(HubBoqExportCostCommand).FullName),
-                ("Fabrication_Open",     "Fabrication",   "FW", Color.Firebrick,    typeof(HubFabricationCommand).FullName),
-                ("Placement_Open",       "Placement",     "PC", Color.Goldenrod,    typeof(HubPlacementCommand).FullName),
-                ("StructuralDWGWizard",  "Struct Wizard", "SW", Color.SlateGray,    typeof(HubStructuralDwgWizardCommand).FullName),
-                ("Scheduling_Dashboard", "Scheduling",    "SD", Color.MidnightBlue, typeof(HubSchedulingDashboardCommand).FullName),
+                ("BIMCoordCenter_Open",  "Coord Center",  "CC", DrawingColor.SteelBlue,    typeof(HubBIMCoordCenterCommand).FullName),
+                ("SheetManager_Open",    "Sheet Manager", "SM", DrawingColor.Teal,         typeof(HubSheetManagerCommand).FullName),
+                ("DrawingTypes_Edit",    "Drawing Types", "DT", DrawingColor.MediumPurple, typeof(HubDrawingTypesCommand).FullName),
+                ("DocumentMgmt_Open",    "Doc Manager",   "DM", DrawingColor.DarkOrange,   typeof(HubDocumentMgmtCommand).FullName),
+                ("BOQ_ExportCost",       "BOQ / Cost",    "BQ", DrawingColor.SeaGreen,     typeof(HubBoqExportCostCommand).FullName),
+                ("Fabrication_Open",     "Fabrication",   "FW", DrawingColor.Firebrick,    typeof(HubFabricationCommand).FullName),
+                ("Placement_Open",       "Placement",     "PC", DrawingColor.Goldenrod,    typeof(HubPlacementCommand).FullName),
+                ("StructuralDWGWizard",  "Struct Wizard", "SW", DrawingColor.SlateGray,    typeof(HubStructuralDwgWizardCommand).FullName),
+                ("Scheduling_Dashboard", "Scheduling",    "SD", DrawingColor.MidnightBlue, typeof(HubSchedulingDashboardCommand).FullName),
             };
 
             var buttons = new List<PushButtonData>(9);
