@@ -29,8 +29,14 @@ Thumbs.db
 *.log
 build_output.txt
 
-# STING runtime project-side sidecars — generated in each user project, not templates
-CompiledPlugin/Data/STING_BIM_MANAGER/
+# Build output: extract_plugin.sh regenerates CompiledPlugin/ on every run, so
+# tracking it makes git status unusable. Source data lives in StingTools/Data/
+# and gets COPIED here during build — the source is what we ship.
+CompiledPlugin/
+
+# Claude Code session worktrees + local settings.
+.claude/worktrees/
+.claude/settings.local.json
 
 # STING runtime sidecars at project level (written alongside .rvt)
 .sting_seq.json
