@@ -71,7 +71,7 @@ export default function Navbar() {
           {/* Right buttons */}
           <div className="hidden items-center gap-3 md:flex">
             <a
-              href="/"
+              href="/app/"
               className="rounded-lg border border-white/40 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-white hover:text-navy"
             >
               Sign In
@@ -129,7 +129,7 @@ export default function Navbar() {
                 </a>
               ))}
               <a
-                href="/"
+                href="/app/"
                 onClick={() => setMobileOpen(false)}
                 className="mt-6 rounded-lg border border-white/40 px-4 py-3 text-center text-base font-medium text-white"
               >

@@ -7,14 +7,25 @@
 (function () {
   "use strict";
 
-  // Phase 169 — runtime config. The Mapbox token must be replaced with a
-  // real public token from mapbox.com (free account, no credit card
-  // required). When left as the placeholder, the dashboard renders a
-  // graceful fallback panel instead of crashing.
+  // Phase 169 — runtime config. The Mapbox token is fetched once at boot
+  // from /api/public-config, which the server populates from
+  // appsettings.json (Maps:MapboxToken) or the MAPBOX_TOKEN env var.
+  // When the server returns an empty token we leave the placeholder in
+  // place and the map view renders a graceful fallback panel.
   const CONFIG = {
     apiBase: "/api",
     mapboxToken: "PLANSCAPE_MAPBOX_TOKEN",
   };
+  async function loadPublicConfig() {
+    try {
+      const res = await fetch("/api/public-config");
+      if (!res.ok) return;
+      const body = await res.json();
+      if (body && typeof body.mapboxToken === "string" && body.mapboxToken.length > 0) {
+        CONFIG.mapboxToken = body.mapboxToken;
+      }
+    } catch { /* non-fatal — fallback panel will render */ }
+  }
 
   const TOKEN_KEY   = "planscape_token";
   const REFRESH_KEY = "planscape_refresh";
@@ -119,6 +130,9 @@
 
   async function boot() {
     document.getElementById("userChip").textContent = localStorage.getItem(USER_KEY) || "";
+    // Phase 169 — pull public runtime config (Mapbox token) before any
+    // view tries to render the map.
+    await loadPublicConfig();
     try {
       state.projects = await api("/api/projects");
     } catch { return; /* showLogin already invoked */ }
@@ -387,6 +401,28 @@
     return `${mo} month${mo === 1 ? "" : "s"} ago`;
   }
 
+  // Phase 169 — deterministic per-project cover gradient palette. A real
+  // CoverImageUrl wins; otherwise we hash the project code into one of six
+  // palettes so every card has a distinct visual without an external image.
+  const COVER_PALETTES = [
+    ["#1A1F5E", "#2D3480"], // navy
+    ["#7C2D12", "#EA580C"], // burnt orange
+    ["#064E3B", "#10B981"], // emerald
+    ["#4C1D95", "#8B5CF6"], // violet
+    ["#831843", "#EC4899"], // magenta
+    ["#0C4A6E", "#0EA5E9"], // sky
+  ];
+  function coverStyle(p) {
+    if (p.coverImageUrl) {
+      return `background:#1A1F5E url('${esc(p.coverImageUrl)}') center/cover no-repeat;`;
+    }
+    const seed = (p.code || p.id || p.name || "").toString();
+    let h = 0;
+    for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
+    const [a, b] = COVER_PALETTES[Math.abs(h) % COVER_PALETTES.length];
+    return `background:linear-gradient(135deg, ${a}, ${b});`;
+  }
+
   function projectCardHtml(p) {
     const sk = statusKey(p);
     const pct = Math.round(p.compliancePercent || 0);
@@ -396,7 +432,7 @@
 
     return `
       <div class="project-card" data-project-id="${esc(p.id)}">
-        <div class="card-cover">
+        <div class="card-cover" style="${coverStyle(p)}">
           <span class="code-chip">${esc(p.code || "—")}</span>
           <span class="status-chip ${sk}">${statusLabel(sk)}</span>
           <span class="location">📍 ${loc}</span>
