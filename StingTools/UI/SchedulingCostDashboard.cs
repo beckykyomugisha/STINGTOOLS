@@ -35,37 +35,27 @@ namespace StingTools.UI
     /// </summary>
     internal static class SchedulingCostDashboard
     {
-        // ── Theme colours (light corporate theme) ───────────────────────
-        private static readonly Color BgLight      = Color.FromRgb(0xF5, 0xF5, 0xF5);
-        private static readonly Color BgWhite      = Colors.White;
-        private static readonly Color HeaderBg     = Color.FromRgb(0x1A, 0x23, 0x7E);
-        private static readonly Color AccentOrange = Color.FromRgb(0xE8, 0x91, 0x2D);
-        private static readonly Color FgDark       = Color.FromRgb(0x22, 0x22, 0x22);
-        private static readonly Color FgSubtle     = Color.FromRgb(0x77, 0x77, 0x77);
-        private static readonly Color BorderLight  = Color.FromRgb(0xD0, 0xD0, 0xD0);
-        private static readonly Color CardBg       = Colors.White;
-        private static readonly Color CardHover    = Color.FromRgb(0xFD, 0xF0, 0xE0);
-        private static readonly Color SectionBg    = Color.FromRgb(0xF0, 0xF0, 0xF0);
-        private static readonly Color InfoBg       = Color.FromRgb(0xE8, 0xF0, 0xFE);
-        private static readonly Color InfoBorder   = Color.FromRgb(0xB0, 0xC8, 0xE8);
-        private static readonly Color TabDefault   = Color.FromRgb(0xE0, 0xE0, 0xE0);
-
+        // ── Theme-routed palette ─────────────────────────────────────────
+        // All colours come from ThemeManager so the dashboard follows the
+        // active theme (Corporate by default — navy header, orange accent).
         private static SolidColorBrush FZ(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
 
-        private static readonly SolidColorBrush BrBgLight     = FZ(BgLight);
-        private static readonly SolidColorBrush BrBgWhite     = FZ(BgWhite);
-        private static readonly SolidColorBrush BrHeaderBg    = FZ(HeaderBg);
-        private static readonly SolidColorBrush BrAccent      = FZ(AccentOrange);
-        private static readonly SolidColorBrush BrFgDark      = FZ(FgDark);
-        private static readonly SolidColorBrush BrFgSubtle    = FZ(FgSubtle);
-        private static readonly SolidColorBrush BrBorder      = FZ(BorderLight);
-        private static readonly SolidColorBrush BrCardBg      = FZ(CardBg);
-        private static readonly SolidColorBrush BrCardHover   = FZ(CardHover);
-        private static readonly SolidColorBrush BrSectionBg   = FZ(SectionBg);
-        private static readonly SolidColorBrush BrInfoBg      = FZ(InfoBg);
-        private static readonly SolidColorBrush BrInfoBorder  = FZ(InfoBorder);
-        private static readonly SolidColorBrush BrWhiteFg     = FZ(Colors.White);
-        private static readonly SolidColorBrush BrTabDefault  = FZ(TabDefault);
+        private static SolidColorBrush BrBgLight    => ThemeManager.GetBrush("AltRowBg");
+        private static SolidColorBrush BrBgWhite    => ThemeManager.GetBrush("CardBg");
+        private static SolidColorBrush BrHeaderBg   => ThemeManager.GetBrush("HeaderBg");
+        private static SolidColorBrush BrAccent     => ThemeManager.GetBrush("AccentBrush");
+        private static SolidColorBrush BrFgDark     => ThemeManager.GetBrush("PanelFg");
+        private static SolidColorBrush BrFgSubtle   => ThemeManager.GetBrush("SubtleFg");
+        private static SolidColorBrush BrBorder     => ThemeManager.GetBrush("BorderColor");
+        private static SolidColorBrush BrCardBg     => ThemeManager.GetBrush("CardBg");
+        private static SolidColorBrush BrCardHover  => ThemeManager.GetBrush("RowHover");
+        private static SolidColorBrush BrSectionBg  => ThemeManager.GetBrush("SecondaryBg");
+        private static SolidColorBrush BrWhiteFg    => ThemeManager.GetBrush("HeaderFg");
+        private static SolidColorBrush BrTabDefault => ThemeManager.GetBrush("TabBg");
+
+        // Light info/highlight box (BIM info banner) — fixed corporate blue tint
+        private static readonly SolidColorBrush BrInfoBg     = FZ(Color.FromRgb(0xE8, 0xF0, 0xFE));
+        private static readonly SolidColorBrush BrInfoBorder = FZ(Color.FromRgb(0xB0, 0xC8, 0xE8));
 
         // ── State ───────────────────────────────────────────────────────
         private static Window _win;

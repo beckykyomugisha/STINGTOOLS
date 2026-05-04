@@ -27,29 +27,22 @@ namespace StingTools.UI
     /// </summary>
     internal static class RevisionManagerDashboard
     {
-        // ── Theme colours (light corporate with orange accents) ─────────
-        private static readonly Color BgLight = Color.FromRgb(0xF5, 0xF5, 0xF5);
-        private static readonly Color BgWhite = Color.FromRgb(0xFF, 0xFF, 0xFF);
-        private static readonly Color BgHeader = Color.FromRgb(0x1A, 0x23, 0x7E);
-        private static readonly Color AccentOrange = Color.FromRgb(0xE8, 0x91, 0x2D);
-        private static readonly Color FgDark = Color.FromRgb(0x22, 0x22, 0x22);
-        private static readonly Color FgSubtle = Color.FromRgb(0x77, 0x77, 0x77);
-        private static readonly Color BorderLight = Color.FromRgb(0xD0, 0xD0, 0xD0);
-        private static readonly Color CardBg = Color.FromRgb(0xFF, 0xFF, 0xFF);
-        private static readonly Color CardHover = Color.FromRgb(0xFD, 0xF0, 0xE0);
-
+        // ── Theme-routed palette ─────────────────────────────────────────
+        // All colours come from ThemeManager so the dashboard follows the
+        // active theme (Corporate by default — navy header, orange accent).
         private static SolidColorBrush FZ(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
-        private static readonly SolidColorBrush BrBgLight = FZ(BgLight);
-        private static readonly SolidColorBrush BrBgWhite = FZ(BgWhite);
-        private static readonly SolidColorBrush BrBgHeader = FZ(BgHeader);
-        private static readonly SolidColorBrush BrAccent = FZ(AccentOrange);
-        private static readonly SolidColorBrush BrFgDark = FZ(FgDark);
-        private static readonly SolidColorBrush BrFgSubtle = FZ(FgSubtle);
-        private static readonly SolidColorBrush BrBorder = FZ(BorderLight);
-        private static readonly SolidColorBrush BrCardBg = FZ(CardBg);
-        private static readonly SolidColorBrush BrCardHover = FZ(CardHover);
-        private static readonly SolidColorBrush BrWhite = FZ(Colors.White);
-        private static readonly SolidColorBrush BrHeaderFg = FZ(Color.FromRgb(0xA0, 0xA0, 0xA0));
+
+        private static SolidColorBrush BrBgLight   => ThemeManager.GetBrush("AltRowBg");
+        private static SolidColorBrush BrBgWhite   => ThemeManager.GetBrush("CardBg");
+        private static SolidColorBrush BrBgHeader  => ThemeManager.GetBrush("HeaderBg");
+        private static SolidColorBrush BrAccent    => ThemeManager.GetBrush("AccentBrush");
+        private static SolidColorBrush BrFgDark    => ThemeManager.GetBrush("PanelFg");
+        private static SolidColorBrush BrFgSubtle  => ThemeManager.GetBrush("SubtleFg");
+        private static SolidColorBrush BrBorder    => ThemeManager.GetBrush("BorderColor");
+        private static SolidColorBrush BrCardBg    => ThemeManager.GetBrush("CardBg");
+        private static SolidColorBrush BrCardHover => ThemeManager.GetBrush("RowHover");
+        private static SolidColorBrush BrWhite     => ThemeManager.GetBrush("HeaderFg");
+        private static SolidColorBrush BrHeaderFg  => ThemeManager.GetBrush("HeaderFg");
 
         /// <summary>
         /// Show the Revision Manager Dashboard and return the user's selection.

@@ -98,14 +98,16 @@ namespace StingTools.UI
 
         // ── Theming ────────────────────────────────────────────────────────
 
-        private static readonly Brush NavyBrush = new SolidColorBrush(Color.FromRgb(0x1A, 0x23, 0x7E));
-        private static readonly Brush OrangeBrush = new SolidColorBrush(Color.FromRgb(0xE8, 0x91, 0x2D));
-        private static readonly Brush GreenBrush = new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32));
-        private static readonly Brush AmberBrush = new SolidColorBrush(Color.FromRgb(0xE6, 0x8A, 0x00));
-        private static readonly Brush RedBrush = new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28));
-        private static readonly Brush PanelBg = new SolidColorBrush(Color.FromRgb(0xF5, 0xF6, 0xFA));
-        private static readonly Brush HeaderFg = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
-        private static readonly Brush BorderColor = new SolidColorBrush(Color.FromRgb(0xD1, 0xD5, 0xDB));
+        // Theme-routed palette: tracks ThemeManager so the panel follows
+        // the active theme (Corporate by default — navy header, orange accent).
+        private static Brush NavyBrush   => ThemeManager.GetBrush("HeaderBg");
+        private static Brush OrangeBrush => ThemeManager.GetBrush("AccentBrush");
+        private static Brush GreenBrush  => ThemeManager.GetBrush("SuccessColor");
+        private static Brush AmberBrush  => ThemeManager.GetBrush("WarningColor");
+        private static Brush RedBrush    => ThemeManager.GetBrush("ErrorColor");
+        private static Brush PanelBg     => ThemeManager.GetBrush("PrimaryBg");
+        private static Brush HeaderFg    => ThemeManager.GetBrush("HeaderFg");
+        private static Brush BorderColor => ThemeManager.GetBrush("BorderColor");
 
         static BOQCostManagerPanel()
         {

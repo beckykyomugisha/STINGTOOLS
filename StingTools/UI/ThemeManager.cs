@@ -107,18 +107,20 @@ namespace StingTools.UI
                     }
                 },
                 {
-                    // Corporate — light professional grey header
+                    // Corporate — light professional grey body + StingTools brand
+                    // navy header (#1A237E) + orange accent (#E8912D) — matches
+                    // the BCC and Document Management Centre.
                     "Corporate", new Dictionary<string, string>
                     {
                         { "PrimaryBg", "#FAFAFA" },
                         { "SecondaryBg", "#F3F3F3" },
                         { "PanelFg", "#37474F" },
-                        { "AccentBrush", "#1976D2" },   // Corporate blue headers
+                        { "AccentBrush", "#E8912D" },   // STING orange (primary accent)
                         { "ButtonBg", "#E8E8E8" },
                         { "ButtonFg", "#37474F" },
-                        { "HoverBg", "#D5D5D5" },
-                        { "HeaderBg", "#ECEFF1" },       // Light slate header
-                        { "HeaderFg", "#263238" },
+                        { "HoverBg", "#FDF0E0" },
+                        { "HeaderBg", "#1A237E" },       // STING navy header
+                        { "HeaderFg", "#FFFFFF" },       // white on navy
                         { "BorderColor", "#CFD8DC" },
                         { "SuccessColor", "#2E7D32" },
                         { "WarningColor", "#E65100" },
@@ -127,6 +129,14 @@ namespace StingTools.UI
                         { "TabFg", "#455A64" },
                         { "TabSelectedBg", "#FAFAFA" },
                         { "TabSelectedFg", "#37474F" },
+                        // Brand + dashboard extras (used by GetBrush callers)
+                        { "NavyHeader", "#1A237E" },
+                        { "OrangeAccent", "#E8912D" },
+                        { "CardBg", "#FFFFFF" },
+                        { "AltRowBg", "#F5F5F5" },
+                        { "SubtleFg", "#607D8B" },
+                        { "InfoBlue", "#1976D2" },
+                        { "RowHover", "#FDF0E0" },
                     }
                 },
             };
@@ -236,5 +246,49 @@ namespace StingTools.UI
 
         /// <summary>Get all available theme names.</summary>
         public static string[] GetThemeNames() => ThemeOrder;
+
+        /// <summary>
+        /// Resolve a theme key to a frozen <see cref="SolidColorBrush"/>
+        /// for code-behind use (where <see cref="DynamicResource"/> isn't
+        /// convenient). Looks up the active theme's palette, falls back
+        /// to the Corporate map for unknown keys, and finally returns a
+        /// safe slate brush so callers never get null. Adding this single
+        /// helper lets every dashboard route its palette through the
+        /// ThemeManager instead of hardcoding hex values inline.
+        /// </summary>
+        public static SolidColorBrush GetBrush(string key)
+        {
+            if (string.IsNullOrEmpty(key)) return _fallbackBrush;
+            try
+            {
+                var name = Themes.ContainsKey(CurrentTheme) ? CurrentTheme : "Corporate";
+                if (Themes[name].TryGetValue(key, out string hex)
+                    || Themes["Corporate"].TryGetValue(key, out hex))
+                {
+                    var color = (Color)ColorConverter.ConvertFromString(hex);
+                    if (name.Equals("Corporate", StringComparison.OrdinalIgnoreCase)
+                        && _corporateOverrides.TryGetValue(key, out string ovHex))
+                    {
+                        try { color = (Color)ColorConverter.ConvertFromString(ovHex); }
+                        catch { /* keep base colour */ }
+                    }
+                    var b = new SolidColorBrush(color);
+                    b.Freeze();
+                    return b;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ThemeManager.GetBrush('{key}'): {ex.Message}"); }
+            return _fallbackBrush;
+        }
+
+        private static readonly SolidColorBrush _fallbackBrush =
+            CreateFrozen(Color.FromRgb(0x37, 0x47, 0x4F));
+
+        private static SolidColorBrush CreateFrozen(Color c)
+        {
+            var b = new SolidColorBrush(c);
+            b.Freeze();
+            return b;
+        }
     }
 }
