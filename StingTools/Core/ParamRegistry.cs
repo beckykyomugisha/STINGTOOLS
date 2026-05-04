@@ -665,7 +665,12 @@ namespace StingTools.Core
         public static void RegisterParagraphContainer(string categoryName, string paramName)
         {
             if (!string.IsNullOrEmpty(categoryName) && !string.IsNullOrEmpty(paramName))
+            {
                 _paragraphContainers[categoryName] = paramName;
+                // Phase 165 perf — invalidate the AllParagraphContainers cache
+                // so the next reader rebuilds it including this entry.
+                _allParagraphContainersCache = null;
+            }
         }
 
         /// <summary>Get the paragraph container param name for a category (null if none).</summary>
@@ -678,13 +683,40 @@ namespace StingTools.Core
         /// <summary>
         /// Phase 165 — Issue #22. Distinct paragraph-container parameter names
         /// across every category, used by WriteTag7All to clear stale entries
-        /// before writing the new narrative. Returns an empty enumerable if no
-        /// containers are registered.
+        /// before writing the new narrative.
+        ///
+        /// Phase 165 perf — materialised once into a string[] on first call,
+        /// invalidated by RegisterParagraphContainer (which sets the field
+        /// back to null). Replaces a LINQ chain that allocated an iterator
+        /// + a HashSet for Distinct on every WriteTag7All call (~1000 elements
+        /// × ~47 containers in a typical model = wasted millions of cycles).
         /// </summary>
-        public static IEnumerable<string> AllParagraphContainers
-            => _paragraphContainers.Values
-                .Where(v => !string.IsNullOrEmpty(v))
-                .Distinct(StringComparer.Ordinal);
+        private static string[] _allParagraphContainersCache;
+
+        // Phase 165 perf — per-thread reusable buffers for AssembleContainer
+        // and WriteContainers. ThreadStatic so each Revit thread gets its
+        // own. Reset on every call to be safe even though Revit pins
+        // commands to the API thread.
+        [ThreadStatic] private static List<string> _assembleScratch;
+        [ThreadStatic] private static HashSet<string> _writtenParamsScratch;
+        public static string[] AllParagraphContainers
+        {
+            get
+            {
+                var cache = _allParagraphContainersCache;
+                if (cache != null) return cache;
+                var seen = new HashSet<string>(StringComparer.Ordinal);
+                var list = new List<string>(_paragraphContainers.Count);
+                foreach (var v in _paragraphContainers.Values)
+                {
+                    if (string.IsNullOrEmpty(v)) continue;
+                    if (seen.Add(v)) list.Add(v);
+                }
+                cache = list.ToArray();
+                _allParagraphContainersCache = cache;
+                return cache;
+            }
+        }
 
         /// <summary>All 10 paragraph state parameter names indexed by tier (1-based: index 0 = state 1).</summary>
         // PERF-010 FIX: Cache array to avoid per-access allocation in hot loops (WriteTag7All)
@@ -982,16 +1014,47 @@ namespace StingTools.Core
         public static TagMode GetActiveTagMode(Document doc)
         {
             if (doc == null) return TagMode.DC;
+
+            // Phase 165 perf — doc-keyed mode cache. WriteTag7All used to call
+            // this per element; for a 1000-element batch that was 3000
+            // LookupParameter calls on ProjectInformation per second tag pass.
+            // Cache by doc.PathName (cheap key, stable for the duration of a
+            // doc session). InvalidateModeCache flips it on Reload /
+            // SetActiveTagMode.
+            string key = doc.PathName ?? doc.Title ?? string.Empty;
+            if (_modeCache.TryGetValue(key, out var cached)) return cached;
+
+            TagMode resolved = TagMode.DC;
             try
             {
                 var pi = doc.ProjectInformation;
-                if (pi == null) return TagMode.DC;
-                if (ReadBoolParam(pi, MODE_HANDOVER)) return TagMode.Handover;
-                if (ReadBoolParam(pi, MODE_CUSTOM))   return TagMode.Custom;
-                if (ReadBoolParam(pi, MODE_DC))       return TagMode.DC;
-                return TagMode.DC;
+                if (pi != null)
+                {
+                    if      (ReadBoolParam(pi, MODE_HANDOVER)) resolved = TagMode.Handover;
+                    else if (ReadBoolParam(pi, MODE_CUSTOM))   resolved = TagMode.Custom;
+                    else                                        resolved = TagMode.DC;
+                }
             }
-            catch { return TagMode.DC; }
+            catch { resolved = TagMode.DC; }
+
+            _modeCache[key] = resolved;
+            return resolved;
+        }
+
+        // Phase 165 perf — doc-keyed cache for GetActiveTagMode.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, TagMode>
+            _modeCache = new System.Collections.Concurrent.ConcurrentDictionary<string, TagMode>(StringComparer.Ordinal);
+
+        /// <summary>
+        /// Phase 165 perf — invalidate the mode cache for a given document
+        /// (or all documents when doc is null). Called by SetActiveTagMode
+        /// after writing the trio so subsequent reads see the fresh value.
+        /// </summary>
+        public static void InvalidateModeCache(Document doc = null)
+        {
+            if (doc == null) { _modeCache.Clear(); return; }
+            string key = doc.PathName ?? doc.Title ?? string.Empty;
+            _modeCache.TryRemove(key, out _);
         }
 
         /// <summary>
@@ -1007,6 +1070,9 @@ namespace StingTools.Core
             bool a = WriteBoolParam(pi, MODE_DC,       mode == TagMode.DC);
             bool b = WriteBoolParam(pi, MODE_HANDOVER, mode == TagMode.Handover);
             bool c = WriteBoolParam(pi, MODE_CUSTOM,   mode == TagMode.Custom);
+            // Phase 165 perf — drop any cached value for this doc so the next
+            // GetActiveTagMode read sees what we just wrote.
+            InvalidateModeCache(doc);
             return a || b || c;
         }
 
@@ -1294,6 +1360,13 @@ namespace StingTools.Core
             }
             // Invalidate downstream caches that depend on our data
             SharedParamGuids.InvalidateCache();
+            // Phase 165 perf — refresh the source-token-name gate and the
+            // doc-keyed mode cache so a Reload that renames any token /
+            // changes any HANDOVER_MODE_* binding doesn't leak stale cached
+            // values into the next tag-write batch.
+            ParameterHelpers.InvalidateSourceTokenSet();
+            InvalidateModeCache();
+            _allParagraphContainersCache = null;
             EnsureLoaded();
         }
 
@@ -2408,20 +2481,80 @@ namespace StingTools.Core
         {
             if (container.TokenIndices == null || container.TokenIndices.Length == 0)
                 return "";
-            var parts = new List<string>();
+
+            // Phase 165 follow-up — token-write hardening pass.
+            // Two defensive measures applied here:
+            //
+            //  1. De-duplicate TokenIndices in-flight. If a config drift, hand-
+            //     edit, or upstream merge introduces the same slot twice (e.g.
+            //     [0,6,6,7]), the assembled string previously rendered the
+            //     PROD value twice ("M-AHU-AHU-0001"). We now emit each slot
+            //     at most once and preserve the original FIRST-OCCURRENCE
+            //     order so legitimate non-duplicated configs are unchanged.
+            //
+            //  2. Skip empty token values rather than emitting an empty
+            //     string. The previous code added '' to `parts` and let
+            //     string.Join produce double separators ("M-BLD1--L02"
+            //     when ZONE was empty). Stripping empties at this layer is
+            //     consistent with the "any non-empty token writes" sanity
+            //     in WriteContainers.
+
+            // Phase 165 perf — replace the per-call HashSet<int> with an int
+            // bitmask. TokenIndices slots are 0..7 (eight ISO 19650 source
+            // tokens), so a single int holds the seen-set. Replaces a heap
+            // allocation per AssembleContainer call (~30k allocations for a
+            // 1000-element batch — AssembleContainer fires once per
+            // container per element).
+            // The parts list is recycled via a [ThreadStatic] buffer so the
+            // List<string> backing array is reused across calls within the
+            // same thread. Revit hosts plugins on a single thread, so this
+            // is safe and eliminates another ~30k allocations per batch.
+            int seen = 0;
+            var parts = _assembleScratch ??= new List<string>(8);
+            parts.Clear();
             bool anyValue = false;
             foreach (int idx in container.TokenIndices)
             {
-                string val = idx >= 0 && idx < tokenValues.Length ? tokenValues[idx] : "";
+                if (idx < 0 || idx > 31) continue;          // bitmask scope
+                int bit = 1 << idx;
+                if ((seen & bit) != 0) continue;            // dedupe
+                seen |= bit;
+                string val = idx < tokenValues.Length ? tokenValues[idx] : "";
+                if (string.IsNullOrEmpty(val)) continue;    // strip empty slots
                 parts.Add(val);
-                if (!string.IsNullOrEmpty(val)) anyValue = true;
+                anyValue = true;
             }
             if (!anyValue) return "";
 
-            string assembled = string.Join(container.Separator, parts);
+            // Phase 165 follow-up — honour the literal escape form '\\n' /
+            // '\\r\\n' (two-char) emitted by JSON authors who can't paste a
+            // real newline into the file. Tag families render the resulting
+            // characters as line breaks, fixing the "label breaks not
+            // honoured" report. A real '\n' in the JSON value is left intact.
+            string sep = ResolveSeparator(container.Separator);
+
+            string assembled = string.Join(sep, parts);
             if (!string.IsNullOrEmpty(container.Prefix)) assembled = container.Prefix + assembled;
             if (!string.IsNullOrEmpty(container.Suffix)) assembled = assembled + container.Suffix;
             return assembled;
+        }
+
+        /// <summary>
+        /// Phase 165 follow-up — turn an escaped-string separator from JSON
+        /// into the real character(s) it represents. Recognised escapes:
+        ///   '\\n'   → '\n'   (LF — single line break, Revit-native)
+        ///   '\\r\\n'→ '\r\n' (CRLF — Windows newline, also accepted by Revit)
+        ///   '\\t'   → '\t'   (rarely useful, but supported for symmetry)
+        /// All other inputs (including real LF / CRLF already in the JSON
+        /// value, dashes, pipes, etc.) pass through unchanged.
+        /// </summary>
+        private static string ResolveSeparator(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return "-";
+            if (raw == "\\n")    return "\n";
+            if (raw == "\\r\\n") return "\r\n";
+            if (raw == "\\t")    return "\t";
+            return raw;
         }
 
         /// <summary>
@@ -2595,9 +2728,26 @@ namespace StingTools.Core
             HashSet<string> allowedGroupCodes = LoadAllowedContainerGroups();
 
             var containers = ContainersForCategory(categoryName);
+
+            // Phase 165 follow-up — write-once guard. ContainersForCategory
+            // unions the universal-group containers (Categories == null) with
+            // any category-specific group entries. If a future config defines
+            // the same ParamName in both lists (e.g. ASS_TAG_2_TXT in
+            // Universal AND in HVAC for one category), the loop below would
+            // assemble + write that param twice — producing TAG7 narrative
+            // duplication if the two definitions disagree on TokenIndices.
+            // We dedupe on ParamName so each container writes exactly once
+            // per element.
+            // Phase 165 perf — recycle a per-thread HashSet so a 1000-element
+            // batch doesn't allocate 1000 transient HashSets.
+            var writtenParams = _writtenParamsScratch
+                ??= new HashSet<string>(StringComparer.Ordinal);
+            writtenParams.Clear();
+
             foreach (var c in containers)
             {
                 if (c.ParamName == skipParam) continue;
+                if (!writtenParams.Add(c.ParamName)) continue; // already wrote this param this pass
                 // TAG7 + sub-sections use the narrative builder, not token concatenation
                 if (IsTag7Param(c.ParamName)) continue;
 
@@ -2660,19 +2810,36 @@ namespace StingTools.Core
         /// when the user hasn't pushed a selection yet — callers treat null as
         /// "accept everything".
         /// </summary>
+        // Phase 165 perf — cache the parsed HashSet keyed by the raw CSV
+        // value. WriteContainers calls LoadAllowedContainerGroups per element;
+        // for an unchanged CSV (the typical case during a batch) the cache
+        // hits and avoids the per-element string.Split + HashSet allocation.
+        private static string _allowedGroupsCsvCache;
+        private static HashSet<string> _allowedGroupsSetCache;
         private static HashSet<string> LoadAllowedContainerGroups()
         {
             try
             {
                 string csv = StingTools.UI.StingCommandHandler.GetExtraParam("TagContainers");
-                if (string.IsNullOrWhiteSpace(csv)) return null;
+                if (string.IsNullOrWhiteSpace(csv))
+                {
+                    _allowedGroupsCsvCache = null;
+                    _allowedGroupsSetCache = null;
+                    return null;
+                }
+                if (string.Equals(csv, _allowedGroupsCsvCache, StringComparison.Ordinal))
+                    return _allowedGroupsSetCache;
+
                 var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (string raw in csv.Split(','))
                 {
                     string tok = raw?.Trim();
                     if (!string.IsNullOrEmpty(tok)) set.Add(tok);
                 }
-                return set.Count == 0 ? null : set;
+                if (set.Count == 0) { _allowedGroupsCsvCache = csv; _allowedGroupsSetCache = null; return null; }
+                _allowedGroupsCsvCache = csv;
+                _allowedGroupsSetCache = set;
+                return set;
             }
             catch { return null; }
         }

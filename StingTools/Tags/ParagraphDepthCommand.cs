@@ -149,14 +149,9 @@ namespace StingTools.Tags
                 }
             }
 
-            // Build the ten paragraph-state param names once (avoid string work per element).
-            string[] paraNames = new[]
-            {
-                ParamRegistry.PARA_STATE_1, ParamRegistry.PARA_STATE_2, ParamRegistry.PARA_STATE_3,
-                ParamRegistry.PARA_STATE_4, ParamRegistry.PARA_STATE_5, ParamRegistry.PARA_STATE_6,
-                ParamRegistry.PARA_STATE_7, ParamRegistry.PARA_STATE_8, ParamRegistry.PARA_STATE_9,
-                ParamRegistry.PARA_STATE_10,
-            };
+            // Phase 165 perf — reuse the cached ParamRegistry.AllParaStates
+            // (10-entry static array) instead of allocating a fresh array.
+            string[] paraNames = ParamRegistry.AllParaStates;
 
             int updated = 0;
             using (Transaction tx = new Transaction(doc, "STING Set Paragraph Depth"))

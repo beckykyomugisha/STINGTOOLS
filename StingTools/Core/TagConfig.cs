@@ -4556,8 +4556,15 @@ namespace StingTools.Core
             /// <summary>Section F: Classification &amp; Reference (plain).</summary>
             public string SectionF { get; set; } = "";
 
-            /// <summary>All 6 sections as an array (A-F), matching TAG7Sections order.</summary>
-            public string[] AllSections => new[] { SectionA, SectionB, SectionC, SectionD, SectionE, SectionF };
+            /// <summary>
+            /// All 6 sections as an array (A-F), matching TAG7Sections order.
+            /// Phase 165 perf — array is materialised once on first read and
+            /// cached on the instance. Tag7Result is per-tagging-call so the
+            /// cache lives only as long as the surrounding write.
+            /// </summary>
+            public string[] AllSections =>
+                _allSectionsCache ??= new[] { SectionA, SectionB, SectionC, SectionD, SectionE, SectionF };
+            private string[] _allSectionsCache;
 
             // ─── T4-T10 tier summaries (Phase 165 — tagging workflow repair) ───
             // Each is a single-line formatted summary built from the relevant
@@ -4579,11 +4586,15 @@ namespace StingTools.Core
             /// <summary>T10: Compliance / audit-trail summary (IFC PSet / ACC).</summary>
             public string SectionT10 { get; set; } = "";
 
-            /// <summary>T4..T10 summaries indexed 0..6 (i.e. Tier4Summaries[0] == SectionT4).</summary>
-            public string[] Tier4Summaries => new[]
+            /// <summary>
+            /// T4..T10 summaries indexed 0..6 (i.e. Tier4Summaries[0] == SectionT4).
+            /// Phase 165 perf — cached on first read, identical lifetime to AllSections.
+            /// </summary>
+            public string[] Tier4Summaries => _tier4SummariesCache ??= new[]
             {
                 SectionT4, SectionT5, SectionT6, SectionT7, SectionT8, SectionT9, SectionT10
             };
+            private string[] _tier4SummariesCache;
         }
 
         /// <summary>
@@ -5981,7 +5992,9 @@ namespace StingTools.Core
                 {
                     // Issue #22 — Handover/Custom: blank D-F so old DC content
                     // doesn't shadow the System B tier appends that follow.
-                    Parameter p = el.LookupParameter(sectionParams[i]);
+                    // Phase 165 perf — CachedLookup avoids per-instance
+                    // LookupParameter cost.
+                    Parameter p = ParameterHelpers.CachedLookup(el, sectionParams[i]);
                     if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String)
                     {
                         string cur = p.AsString();
@@ -6007,17 +6020,15 @@ namespace StingTools.Core
             {
                 Element typeEl = doc?.GetElement(el.GetTypeId());
                 bool[] enabled = new bool[7]; // index 0 = T4 .. 6 = T10
-                string[] paraNames = new[]
+                // Phase 165 perf — reuse the cached ParamRegistry.AllParaStates
+                // (10 entries) instead of allocating a 7-string array per
+                // element. Slot index 3 in AllParaStates == PARA_STATE_4.
+                string[] allStates = ParamRegistry.AllParaStates;
+                for (int i = 0; i < 7; i++)
                 {
-                    ParamRegistry.PARA_STATE_4, ParamRegistry.PARA_STATE_5,
-                    ParamRegistry.PARA_STATE_6, ParamRegistry.PARA_STATE_7,
-                    ParamRegistry.PARA_STATE_8, ParamRegistry.PARA_STATE_9,
-                    ParamRegistry.PARA_STATE_10
-                };
-                for (int i = 0; i < paraNames.Length; i++)
-                {
-                    enabled[i] = ReadParaStateBool(typeEl, paraNames[i])
-                              || ReadParaStateBool(el,     paraNames[i]);
+                    string pname = allStates[i + 3]; // 0..6 → PARA_STATE_4..10
+                    enabled[i] = ReadParaStateBool(typeEl, pname)
+                              || ReadParaStateBool(el,     pname);
                 }
 
                 string[] tierStrings = tag7.Tier4Summaries; // T4..T10
@@ -6079,25 +6090,47 @@ namespace StingTools.Core
             // container, and the active one varies). Iterate the registered
             // container set and blank every container EXCEPT the one we're
             // about to write so the active payload survives.
-            try
+            //
+            // Phase 165 perf — skip the entire clear pass when the active
+            // paragraph container hasn't changed since the last write. We
+            // stamp ASS_LAST_PARA_CONTAINER_TXT after a successful clear and
+            // re-read it next time. If the value matches the active
+            // container, no other container can have stale data on this
+            // element (only WriteTag7All ever writes them). The pass falls
+            // through to the actual write below either way.
+            const string LAST_PARA_PARAM = "ASS_LAST_PARA_CONTAINER_TXT";
+            string lastPara = ParameterHelpers.GetString(el, LAST_PARA_PARAM);
+            bool needClear = !string.Equals(lastPara, paraContainer ?? "", StringComparison.Ordinal);
+            if (needClear)
             {
-                foreach (string containerName in ParamRegistry.AllParagraphContainers)
+                try
                 {
-                    if (string.IsNullOrEmpty(containerName)) continue;
-                    if (!string.IsNullOrEmpty(paraContainer)
-                        && string.Equals(containerName, paraContainer, StringComparison.Ordinal))
-                        continue; // skip the active container — we're writing it next.
-                    Parameter p = el.LookupParameter(containerName);
-                    if (p == null || p.IsReadOnly) continue;
-                    if (p.StorageType != StorageType.String) continue;
-                    string cur = p.AsString();
-                    if (string.IsNullOrEmpty(cur)) continue;
-                    try { p.Set(string.Empty); written++; } catch { /* defensive */ }
+                    string[] allParas = ParamRegistry.AllParagraphContainers;
+                    for (int i = 0; i < allParas.Length; i++)
+                    {
+                        string containerName = allParas[i];
+                        if (string.IsNullOrEmpty(containerName)) continue;
+                        if (!string.IsNullOrEmpty(paraContainer)
+                            && string.Equals(containerName, paraContainer, StringComparison.Ordinal))
+                            continue; // skip the active container — we're writing it next.
+                        // Phase 165 perf — CachedLookup short-circuits the
+                        // LookupParameter cost when the same family carries
+                        // (or doesn't carry) this container parameter.
+                        Parameter p = ParameterHelpers.CachedLookup(el, containerName);
+                        if (p == null || p.IsReadOnly) continue;
+                        if (p.StorageType != StorageType.String) continue;
+                        string cur = p.AsString();
+                        if (string.IsNullOrEmpty(cur)) continue;
+                        try { p.Set(string.Empty); written++; } catch { /* defensive */ }
+                    }
+                    // Stamp the new active container name so the next pass
+                    // can short-circuit when nothing has changed.
+                    ParameterHelpers.SetString(el, LAST_PARA_PARAM, paraContainer ?? "", overwrite: true);
                 }
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn("WriteTag7All paragraph clear pass failed: " + ex.Message);
+                catch (Exception ex)
+                {
+                    StingLog.Warn("WriteTag7All paragraph clear pass failed: " + ex.Message);
+                }
             }
 
             if (!string.IsNullOrEmpty(paraContainer) && !string.IsNullOrEmpty(tag7.PlainNarrative))
@@ -6121,7 +6154,12 @@ namespace StingTools.Core
         public static bool ReadParaStateBool(Element host, string paramName)
         {
             if (host == null || string.IsNullOrEmpty(paramName)) return false;
-            Parameter p = host.LookupParameter(paramName);
+            // Phase 165 perf — use the shared parameter cache so the same
+            // (typeId, paramName) pair pays the LookupParameter cost only once
+            // per session. WriteTag7All calls this 14× per element so a
+            // 1000-element batch was 14000 fresh LookupParameter calls; with
+            // CachedLookup most calls become an O(1) Definition fetch.
+            Parameter p = ParameterHelpers.CachedLookup(host, paramName);
             if (p == null) return false;
             try
             {
@@ -6162,13 +6200,9 @@ namespace StingTools.Core
         /// </summary>
         public static int ReadActiveParagraphDepth(Element typeEl, Element instEl)
         {
-            string[] paraNames = new[]
-            {
-                ParamRegistry.PARA_STATE_1, ParamRegistry.PARA_STATE_2, ParamRegistry.PARA_STATE_3,
-                ParamRegistry.PARA_STATE_4, ParamRegistry.PARA_STATE_5, ParamRegistry.PARA_STATE_6,
-                ParamRegistry.PARA_STATE_7, ParamRegistry.PARA_STATE_8, ParamRegistry.PARA_STATE_9,
-                ParamRegistry.PARA_STATE_10,
-            };
+            // Phase 165 perf — use the cached ParamRegistry.AllParaStates
+            // array instead of allocating a 10-string array per call.
+            string[] paraNames = ParamRegistry.AllParaStates;
             int max = 0;
             for (int i = 0; i < paraNames.Length; i++)
             {

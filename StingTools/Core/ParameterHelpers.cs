@@ -242,11 +242,30 @@ namespace StingTools.Core
         private static bool IsSourceTokenParam(string paramName)
         {
             if (string.IsNullOrEmpty(paramName)) return false;
-            return paramName == ParamRegistry.DISC || paramName == ParamRegistry.LOC
-                || paramName == ParamRegistry.ZONE || paramName == ParamRegistry.LVL
-                || paramName == ParamRegistry.SYS  || paramName == ParamRegistry.FUNC
-                || paramName == ParamRegistry.PROD || paramName == ParamRegistry.SEQ;
+            // Phase 165 perf — was 8 sequential string equals on every
+            // SetString call (~30-50× per element for container writes
+            // → ~30-50k compares on a 1000-element batch). Replaced with a
+            // HashSet<string> lookup populated lazily from the live
+            // ParamRegistry token names so a Reload that renames a token
+            // automatically refreshes the gate.
+            return (_sourceTokenSet ??= BuildSourceTokenSet()).Contains(paramName);
         }
+
+        // Phase 165 perf — lazy + invalidatable so a ParamRegistry.Reload
+        // that renames any source-token param refreshes the gate on next call.
+        private static HashSet<string> _sourceTokenSet;
+        private static HashSet<string> BuildSourceTokenSet()
+        {
+            return new HashSet<string>(StringComparer.Ordinal)
+            {
+                ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+                ParamRegistry.LVL,  ParamRegistry.SYS, ParamRegistry.FUNC,
+                ParamRegistry.PROD, ParamRegistry.SEQ,
+            };
+        }
+        /// <summary>Phase 165 perf — invalidate the source-token gate after
+        /// a ParamRegistry.Reload that may have renamed any ISO 19650 token.</summary>
+        public static void InvalidateSourceTokenSet() { _sourceTokenSet = null; }
 
         /// <summary>
         /// PROD-CONCAT-FIX: shape-guard for source-token writes. Returns the
@@ -1438,6 +1457,16 @@ namespace StingTools.Core
             /// <summary>GAP-019: Configurable default REV (from project_config.json or "P01").</summary>
             public string DefaultRev { get; set; } = "P01";
 
+            /// <summary>
+            /// Phase 165 perf — cached active TagMode for the duration of a
+            /// batch. WriteTag7All previously read it per element via
+            /// GetActiveTagMode → 3 LookupParameter calls on ProjectInformation
+            /// per element. With this cache the lookup happens once during
+            /// PopulationContext.Build and every WriteTag7All call reads the
+            /// stored value directly.
+            /// </summary>
+            public ParamRegistry.TagMode ActiveTagMode { get; set; } = ParamRegistry.TagMode.DC;
+
             /// <summary>EFF-05 (Phase 149b): per-batch memo of type-level LOC/ZONE
             /// overrides so PopulateAll doesn't pay a Document.GetElement +
             /// 2× GetString per instance when most types don't have overrides
@@ -1567,6 +1596,9 @@ namespace StingTools.Core
                     // GAP-019: Apply config overrides for STATUS/REV defaults
                     DefaultStatus = !string.IsNullOrEmpty(TagConfig.StatusDefault) ? TagConfig.StatusDefault : "NEW",
                     DefaultRev = !string.IsNullOrEmpty(TagConfig.RevDefault) ? TagConfig.RevDefault : "P01",
+                    // Phase 165 perf — cache the active TagMode here so
+                    // WriteTag7All doesn't re-read ProjectInformation per element.
+                    ActiveTagMode = ParamRegistry.GetActiveTagMode(doc),
                 };
             }
         }
