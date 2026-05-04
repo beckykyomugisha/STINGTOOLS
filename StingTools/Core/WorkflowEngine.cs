@@ -1734,12 +1734,6 @@ namespace StingTools.Core
                 // BCC Platform tab → Planscape Connect / member management buttons.
                 // Same double-path issue as QR/CodeLegend: only wired in StingCommandHandler
                 // so BCC's ExternalEvent path produced "Action 'PlanscapeConnect' is not handled".
-                case "PlanscapeConnect":
-                case "PlanscapeAddMember":
-                case "PlanscapeRemoveMember":
-                case "PlanscapeLinkProject":
-                case "PlanscapeTestConnection":   return new BIMManager.PlanscapeConnectCommand();
-                case "PublishModelToPlanscape":   return new BIMManager.PublishModelCommand();
                 case "PlanscapeExportTeam":
                 case "PlanscapeExportConfig":     return new BIMManager.ExportCoordLogCommand();
                 case "PlanscapeShareReport":      return new BIMManager.GenerateDashboardCommand();

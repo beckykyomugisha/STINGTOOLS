@@ -1017,7 +1017,7 @@ namespace StingTools.Model
 
             try
             {
-                var wizard = new StructuralCADWizard(doc);
+                var wizard = new StructuralDWGDialog(doc);
                 wizard.ShowDialog();
                 if (!wizard.Confirmed) return Result.Cancelled;
                 var dlg = wizard.GetConfig();

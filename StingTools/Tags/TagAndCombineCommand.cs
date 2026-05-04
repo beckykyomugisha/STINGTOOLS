@@ -238,19 +238,6 @@ namespace StingTools.Tags
             td.MainContent = report.ToString();
             td.Show();
 
-            // GAP-017: Post-batch compliance summary for workflow chain visibility
-            var postScan = ComplianceScan.Scan(doc);
-            if (postScan != null)
-            {
-                report.AppendLine();
-                report.AppendLine($"Compliance: {postScan.StatusBarText}");
-            }
-
-            TaskDialog td = new TaskDialog("Tag & Combine All");
-            td.MainInstruction = $"Processed {totalProcessed} elements ({stats.TotalTagged:N0} tagged)";
-            td.MainContent = report.ToString();
-            td.Show();
-
             StingLog.Info($"TagAndCombine: scope={scopeLabel}, processed={totalProcessed}, " +
                 $"tagged={stats.TotalTagged}, skipped={stats.TotalSkipped}, " +
                 $"collisions={stats.TotalCollisions}, errors={errors}, " +

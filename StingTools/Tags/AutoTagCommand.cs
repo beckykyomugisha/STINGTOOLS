@@ -100,15 +100,6 @@ namespace StingTools.Tags
                 if (TagConfig.TagIsComplete(ParameterHelpers.GetString(e, ParamRegistry.TAG1)))
                     alreadyTagged++;
             }
-            TagPipelineHelper.PostTagCleanup(doc, sequenceCounters, "AutoTag");
-            var report = new StringBuilder();
-            report.AppendLine($"Auto Tag — '{activeView.Name}'");
-            report.AppendLine(new string('=', 50));
-            report.AppendLine($"  Mode:       {collisionMode}");
-            report.AppendLine($"  Disciplines: {discFilterLabel}");
-            if (filteredOut > 0)
-                report.AppendLine($"  Filtered:   {filteredOut} (wrong discipline for view)");
-            report.AppendLine();
 
             if (taggable == 0)
             {
@@ -492,7 +483,6 @@ namespace StingTools.Tags
                         }
                         if (!cancelled) tx.Commit();
                     }
-                    if (!cancelled) tx.Commit();
                 }
             }
             finally
