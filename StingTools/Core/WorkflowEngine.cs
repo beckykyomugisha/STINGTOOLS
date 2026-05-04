@@ -1661,6 +1661,30 @@ namespace StingTools.Core
                 // Removed: return null caused NRE in RunCommandByTag. Falls through to default null
                 // which is handled by the plugin hook fallback + error logging in RunCommandByTag.
 
+                // Phase 167 — Planscape BCC dispatch gap: same double-path issue as
+                // QR/CodeLegend/WorkingCalendar. BIMCoordinationCenter.ShowPlatformDetail
+                // dispatches PlanscapeConnect / PlanscapeSyncNow via DispatchAction(),
+                // which routes through ProcessAction → DispatchCoordAction →
+                // WorkflowEngine.GetCommandInstance. PlanscapeDisconnect /
+                // PlanscapeOpenWebDashboard already short-circuit inline in
+                // ProcessAction; cases here keep the resolver complete so any future
+                // caller (or the dictionary alias path) lands on a real command.
+                case "PlanscapeConnect":
+                case "PlanscapeAddMember":
+                case "PlanscapeRemoveMember":
+                case "PlanscapeLinkProject":
+                case "PlanscapeTestConnection":    return new BIMManager.PlanscapeConnectCommand();
+
+                case "PlanscapeSyncNow":           return new BIMManager.PlatformSyncCommand();
+                case "PublishModelToPlanscape":    return new BIMManager.PublishModelCommand();
+
+                case "PlanscapeDisconnect":
+                case "PlanscapeUnlinkProject":
+                case "PlanscapeClearCredentials":  return new BIMManager.PlanscapeDisconnectCommand();
+
+                case "PlanscapeOpenWebDashboard":
+                case "PlanscapeOpenBrowser":       return new BIMManager.PlanscapeOpenWebCommand();
+
                 default: return null;
             }
         }
