@@ -92,7 +92,12 @@ namespace StingTools.BOQ
                 }
                 html.AppendLine("</table></body></html>");
 
-                string outDir = Path.Combine(Path.GetDirectoryName(doc.PathName ?? "") ?? "", "STING_BOQ_RateHeatMap");
+                // Folder consolidation: nest BOQ heatmap exports inside the
+                // unified project root's 16_COMPLIANCE_<code>/RateHeatMap/ folder.
+                string compRoot = StingTools.Core.ProjectFolderEngine.GetFolderPath(doc, "COMPLIANCE");
+                string outDir = string.IsNullOrEmpty(compRoot)
+                    ? Path.Combine(Path.GetDirectoryName(doc.PathName ?? "") ?? "", "STING_BOQ_RateHeatMap")
+                    : Path.Combine(compRoot, "RateHeatMap");
                 Directory.CreateDirectory(outDir);
                 string ts = DateTime.Now.ToString("yyyyMMdd_HHmm");
                 string htmlPath = Path.Combine(outDir, $"rate_heatmap_{ts}.html");

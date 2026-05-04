@@ -2955,6 +2955,40 @@ namespace StingTools.UI
                     case "SpeckleReceive": RunCommand<BIMManager.SpeckleReceiveCommand>(app); break;
                     case "SpeckleDiff":    RunCommand<BIMManager.SpeckleDiffCommand>(app);    break;
 
+                    // ── Publish 3D Model — meta action that lets the user
+                    //    pick a publish target (Speckle stream, Autodesk
+                    //    Construction Cloud, or IFC export) and routes to
+                    //    the existing per-platform command. Reachable from
+                    //    BCC Overview Quick Actions and BCC Platform tab.
+                    case "Publish3DModel":
+                    {
+                        var pickDlg = new Autodesk.Revit.UI.TaskDialog("Publish 3D Model")
+                        {
+                            MainInstruction = "Choose where to publish the active 3D model.",
+                            CommonButtons = Autodesk.Revit.UI.TaskDialogCommonButtons.Cancel
+                        };
+                        pickDlg.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink1,
+                            "Speckle Stream",
+                            "Send the model to a Speckle stream for browser-based 3D viewing.");
+                        pickDlg.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink2,
+                            "Autodesk Construction Cloud (ACC)",
+                            "Package the model for ACC / BIM 360 publishing.");
+                        pickDlg.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink3,
+                            "IFC Export",
+                            "Export an IFC 2x3 / IFC 4 model into the project's 05_MODELS folder.");
+                        var pick = pickDlg.Show();
+                        switch (pick)
+                        {
+                            case Autodesk.Revit.UI.TaskDialogResult.CommandLink1:
+                                RunCommand<BIMManager.SpeckleSendCommand>(app); break;
+                            case Autodesk.Revit.UI.TaskDialogResult.CommandLink2:
+                                RunCommand<BIMManager.ACCPublishCommand>(app); break;
+                            case Autodesk.Revit.UI.TaskDialogResult.CommandLink3:
+                                RunCommand<Temp.IFCExportCommand>(app); break;
+                        }
+                        break;
+                    }
+
                     // ── Phase 91: BOQ & Cost Manager dispatch ──
                     case "BOQCostManager":
                     {

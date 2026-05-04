@@ -224,6 +224,14 @@ namespace Planscape.Docs.Search
 
         private static string ResolveProjectRoot(Autodesk.Revit.DB.Document doc)
         {
+            // Folder consolidation: nest "_BIM_COORD" inside the unified
+            // project root's _data folder rather than as a sibling of the .rvt.
+            try
+            {
+                string consolidated = StingTools.Core.ProjectFolderEngine.GetDataPath(doc);
+                if (!string.IsNullOrEmpty(consolidated)) return consolidated;
+            }
+            catch { /* fall through to legacy lookup */ }
             try
             {
                 string p = doc?.PathName;

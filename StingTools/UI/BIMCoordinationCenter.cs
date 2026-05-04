@@ -38,18 +38,36 @@ namespace StingTools.UI
 
     internal class BIMCoordinationCenter : Window
     {
-        // ── Theme colours ──
-        private static readonly Color CHeaderBg    = Color.FromRgb(0x1A, 0x23, 0x7E);
-        private static readonly Color CAccent      = Color.FromRgb(0xE8, 0x91, 0x2D);
-        private static readonly Color CCardBg      = Colors.White;
-        private static readonly Color CPageBg      = Color.FromRgb(0xF4, 0xF5, 0xF7);
-        private static readonly Color CBorder      = Color.FromRgb(0xE0, 0xE0, 0xE8);
-        private static readonly Color CNavBg       = Color.FromRgb(0x1E, 0x27, 0x45);
-        private static readonly Color CNavHover    = Color.FromRgb(0x2A, 0x35, 0x5A);
-        private static readonly Color CNavSelected = Color.FromRgb(0xE8, 0x91, 0x2D);
-        private static readonly Color CGreen       = Color.FromRgb(0x2E, 0x7D, 0x32);
-        private static readonly Color CAmber       = Color.FromRgb(0xF5, 0x7F, 0x17);
-        private static readonly Color CRed         = Color.FromRgb(0xC6, 0x28, 0x28);
+        // ── Theme palette routed through ThemeManager ──
+        // Theme-driven colours: read live from the active palette so the
+        // BCC tracks Corporate (default), Light, Warm, or Cool when the
+        // user cycles themes. The `darken` helper produces a navy nav
+        // panel that's visibly subordinate to the brand-navy header.
+        private static Color CHeaderBg    => BrushColor("HeaderBg");
+        private static Color CAccent      => BrushColor("AccentBrush");
+        private static Color CCardBg      => BrushColor("CardBg");
+        private static Color CPageBg      => BrushColor("PrimaryBg");
+        private static Color CBorder      => BrushColor("BorderColor");
+        private static Color CNavBg       => Darken(BrushColor("HeaderBg"), 0.85);
+        private static Color CNavHover    => Darken(BrushColor("HeaderBg"), 0.92);
+        private static Color CNavSelected => BrushColor("AccentBrush");
+        private static Color CGreen       => BrushColor("SuccessColor");
+        private static Color CAmber       => BrushColor("WarningColor");
+        private static Color CRed         => BrushColor("ErrorColor");
+
+        private static Color BrushColor(string key) => ((SolidColorBrush)ThemeManager.GetBrush(key)).Color;
+        private static Color Darken(Color c, double f)
+            => Color.FromArgb(c.A, (byte)(c.R * f), (byte)(c.G * f), (byte)(c.B * f));
+        // Mutes HeaderFg by 70% opacity over HeaderBg so secondary header
+        // text (project name, timestamp) reads as a calmer subtitle without
+        // disappearing on lighter Cool / Corporate / Warm headers.
+        private static Color MutedHeaderFg()
+        {
+            var fg = BrushColor("HeaderFg");
+            var bg = BrushColor("HeaderBg");
+            byte mix(byte a, byte b) => (byte)(a * 0.7 + b * 0.3);
+            return Color.FromArgb(255, mix(fg.R, bg.R), mix(fg.G, bg.G), mix(fg.B, bg.B));
+        }
 
         private static SolidColorBrush Br(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
 
@@ -907,7 +925,9 @@ namespace StingTools.UI
             leftStack.Children.Add(new TextBlock
             {
                 Text = _data.ProjectName,
-                Foreground = Br(Color.FromRgb(0xBB, 0xDE, 0xFB)), FontSize = 12,
+                // Themed pale-on-header tint — derived from HeaderFg so it
+                // stays readable across Cool / Corporate / Light / Warm.
+                Foreground = Br(MutedHeaderFg()), FontSize = 12,
                 VerticalAlignment = VerticalAlignment.Center
             });
             hGrid.Children.Add(leftStack);
@@ -927,8 +947,8 @@ namespace StingTools.UI
                 Content = "\u21BB  Refresh",
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
-                Background = Br(Color.FromRgb(0x1E, 0x88, 0xE5)),
-                Foreground = Brushes.White,
+                Background = ThemeManager.GetBrush("AccentBrush"),
+                Foreground = ThemeManager.GetBrush("HeaderFg"),
                 BorderThickness = new Thickness(0),
                 Padding = new Thickness(10, 3, 10, 3),
                 Margin = new Thickness(0, 0, 14, 0),
@@ -952,7 +972,7 @@ namespace StingTools.UI
             rightStack.Children.Add(new TextBlock
             {
                 Text = $"compliant  |  {DateTime.Now:dd MMM yyyy HH:mm}",
-                Foreground = Br(Color.FromRgb(0x90, 0xCA, 0xF9)), FontSize = 11,
+                Foreground = Br(MutedHeaderFg()), FontSize = 11,
                 VerticalAlignment = VerticalAlignment.Center
             });
 
@@ -1086,14 +1106,19 @@ namespace StingTools.UI
                 sp.Children.Add(badgeBorder);
             }
 
+            // Add a 4px left-edge accent stripe (transparent when inactive,
+            // accent-colour when selected) so the active nav has a clear
+            // visual marker beyond a flat fill colour.
             var btn = new Button
             {
                 Content = sp, Tag = label,
                 HorizontalContentAlignment = HorizontalAlignment.Left,
-                Height = 36, Padding = new Thickness(16, 0, 8, 0),
+                Height = 36, Padding = new Thickness(12, 0, 8, 0),
                 Margin = new Thickness(0, 1, 0, 1),
                 Background = Brushes.Transparent, Foreground = Brushes.White,
-                BorderThickness = new Thickness(0), FontSize = 12,
+                BorderThickness = new Thickness(4, 0, 0, 0),
+                BorderBrush = Brushes.Transparent,
+                FontSize = 12,
                 Cursor = Cursors.Hand
             };
             btn.Click += Nav_Click;
@@ -1115,21 +1140,25 @@ namespace StingTools.UI
             // Phase 77 Item 11A: Track current tab for F5 refresh
             _currentTab = tabName;
 
-            // Reset all nav buttons
+            // Reset all nav buttons (transparent fill + clear left stripe)
             foreach (var child in _navPanel.Children)
             {
                 if (child is Button nb)
                 {
                     nb.Background = Brushes.Transparent;
+                    nb.BorderBrush = Brushes.Transparent;
                     nb.FontWeight = FontWeights.Normal;
                 }
             }
-            // Highlight active
+            // Highlight active: subtle hover-level fill + 4px accent stripe
+            // on the left edge so the selected nav reads as a marker, not
+            // just a flat colour swap.
             foreach (var child in _navPanel.Children)
             {
                 if (child is Button nb && nb.Tag as string == tabName)
                 {
-                    nb.Background = Br(CNavSelected);
+                    nb.Background = Br(CNavHover);
+                    nb.BorderBrush = Br(CNavSelected);
                     nb.Foreground = Brushes.White;
                     nb.FontWeight = FontWeights.Bold;
                     _activeNav = nb;
@@ -1243,6 +1272,8 @@ namespace StingTools.UI
                 "Capture model compliance state for meeting record — saves tag %, warnings, stale count to snapshots.json"));
             actionsWrap.Children.Add(MakeActionButton("Validate Tags", "ValidateTags", Br(CGreen),
                 "Run ISO 19650 tag validation — checks all tokens, cross-validates DISC/SYS, reports 4-bucket compliance"));
+            actionsWrap.Children.Add(MakeActionButton("📡 Publish 3D Model", "Publish3DModel", Br(CHeaderBg),
+                "Publish the active 3D model — pick Speckle stream, Autodesk Construction Cloud, or IFC export."));
             stack.Children.Add(actionsWrap);
 
             // Phase 106: Coordination checks — surface rule-based clash, clearance and naming audits
@@ -3595,6 +3626,26 @@ namespace StingTools.UI
             handoverWrap2.Children.Add(MakeActionButton("BOQ Export",    "BOQExport",            Br(Color.FromRgb(0x6A, 0x1B, 0x9A)), "Export Bill of Quantities XLSX"));
             handoverWrap2.Children.Add(MakeActionButton("COBie Stream",  "COBieExport",          Br(Color.FromRgb(0x6A, 0x1B, 0x9A)), "COBie V2.4 FM handover export"));
             outerStack.Children.Add(handoverWrap2);
+
+            // ── MODEL PUBLISH section ──
+            outerStack.Children.Add(new Border { Height = 1, Background = Br(CBorder), Margin = new Thickness(16, 8, 16, 8) });
+            var publishHeader = MakeSectionHeader("MODEL PUBLISH");
+            publishHeader.Margin = new Thickness(16, 4, 16, 4);
+            outerStack.Children.Add(publishHeader);
+            var publishWrap = new WrapPanel { Margin = new Thickness(16, 0, 16, 8) };
+            publishWrap.Children.Add(MakeActionButton(
+                "📡 Publish 3D Model", "Publish3DModel", Br(CHeaderBg),
+                "Publish the active 3D model — pick Speckle stream, Autodesk Construction Cloud, or IFC export."));
+            publishWrap.Children.Add(MakeActionButton(
+                "Speckle Send",    "SpeckleSend",   Br(CAccent),
+                "Send the active model to a Speckle stream for browser-based 3D viewing."));
+            publishWrap.Children.Add(MakeActionButton(
+                "ACC Publish",     "ACCPublish",    Br(Color.FromRgb(0x15, 0x65, 0xC0)),
+                "Package the model for Autodesk Construction Cloud / BIM 360 publishing."));
+            publishWrap.Children.Add(MakeActionButton(
+                "IFC Export",      "IFCExport",     Br(Color.FromRgb(0x6A, 0x1B, 0x9A)),
+                "Export the model as IFC 2x3 / IFC 4 into the project's 05_MODELS folder."));
+            outerStack.Children.Add(publishWrap);
 
             // ── BCF section ──
             outerStack.Children.Add(new Border { Height = 1, Background = Br(CBorder), Margin = new Thickness(16, 0, 16, 8) });
@@ -7940,6 +7991,7 @@ namespace StingTools.UI
                 "FullComplianceDashboard" => "Full project compliance report with per-discipline breakdown",
                 "DocumentManager" => "Open Document Management Center — folders, issues, revisions, CDE",
                 "RepeatLastWorkflow" => $"Re-run last workflow preset",
+                "Publish3DModel" => "Publish the active 3D model — pick Speckle stream, Autodesk Construction Cloud, or IFC export",
                 // Model Health
                 "RefreshHealth" => "Refresh model health metrics (warnings, tags, stale elements)",
                 "ExportHealth" => "Export model health report to CSV/HTML",

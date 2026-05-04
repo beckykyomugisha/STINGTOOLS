@@ -19,14 +19,12 @@ namespace StingTools.UI
     /// </summary>
     public static class ThemeManager
     {
-        // Phase 101: default theme is "Corporate" — the StingTools brand
-        // (navy #1A237E header + orange #E8912D accents) matches the BCC and
-        // Document Management Centre, so the dockable panel opens in the same
-        // house theme the user sees everywhere else. Users can still cycle
-        // with the theme toggle button; the order below starts with Corporate.
-        public static string CurrentTheme { get; private set; } = "Corporate";
+        // Default theme: Cool — a calm slate-blue palette suited to long
+        // BIM-coordination sessions. Users can still cycle to Corporate,
+        // Light, or Warm via the theme toggle button.
+        public static string CurrentTheme { get; private set; } = "Cool";
 
-        private static readonly string[] ThemeOrder = { "Corporate", "Light", "Warm", "Cool" };
+        private static readonly string[] ThemeOrder = { "Cool", "Corporate", "Light", "Warm" };
 
         /// <summary>
         /// Reference to the host Page/FrameworkElement for direct resource setting.
@@ -84,18 +82,21 @@ namespace StingTools.UI
                     }
                 },
                 {
-                    // Cool blue-grey tint — light cool header
+                    // Cool blue-grey — calm slate palette suited to long
+                    // BIM-coordination sessions. Saturated blue header
+                    // (#2C5282) for primary navigation, brighter blue
+                    // accent (#3182CE) for buttons / RAG-positive cells.
                     "Cool", new Dictionary<string, string>
                     {
                         { "PrimaryBg", "#F8FAFC" },
                         { "SecondaryBg", "#F2F6FA" },
                         { "PanelFg", "#2D3748" },
-                        { "AccentBrush", "#3182CE" },   // Bright blue headers
+                        { "AccentBrush", "#3182CE" },    // Bright blue (primary accent)
                         { "ButtonBg", "#E8EEF4" },
                         { "ButtonFg", "#2D3748" },
-                        { "HoverBg", "#D6DFE8" },
-                        { "HeaderBg", "#E8EEF4" },       // Light cool header
-                        { "HeaderFg", "#1A365D" },
+                        { "HoverBg", "#DBEAFE" },
+                        { "HeaderBg", "#2C5282" },        // Saturated cool blue header
+                        { "HeaderFg", "#FFFFFF" },        // White on dark blue
                         { "BorderColor", "#D0DAE4" },
                         { "SuccessColor", "#276749" },
                         { "WarningColor", "#C05621" },
@@ -104,21 +105,31 @@ namespace StingTools.UI
                         { "TabFg", "#4A5568" },
                         { "TabSelectedBg", "#F8FAFC" },
                         { "TabSelectedFg", "#2D3748" },
+                        // Brand + dashboard extras
+                        { "NavyHeader", "#2C5282" },
+                        { "OrangeAccent", "#3182CE" },    // Cool variant uses blue
+                        { "CardBg", "#FFFFFF" },
+                        { "AltRowBg", "#F2F6FA" },
+                        { "SubtleFg", "#718096" },
+                        { "InfoBlue", "#3182CE" },
+                        { "RowHover", "#DBEAFE" },
                     }
                 },
                 {
-                    // Corporate — light professional grey header
+                    // Corporate — light professional grey body + StingTools brand
+                    // navy header (#1A237E) + orange accent (#E8912D) — matches
+                    // the BCC and Document Management Centre.
                     "Corporate", new Dictionary<string, string>
                     {
                         { "PrimaryBg", "#FAFAFA" },
                         { "SecondaryBg", "#F3F3F3" },
                         { "PanelFg", "#37474F" },
-                        { "AccentBrush", "#1976D2" },   // Corporate blue headers
+                        { "AccentBrush", "#E8912D" },   // STING orange (primary accent)
                         { "ButtonBg", "#E8E8E8" },
                         { "ButtonFg", "#37474F" },
-                        { "HoverBg", "#D5D5D5" },
-                        { "HeaderBg", "#ECEFF1" },       // Light slate header
-                        { "HeaderFg", "#263238" },
+                        { "HoverBg", "#FDF0E0" },
+                        { "HeaderBg", "#1A237E" },       // STING navy header
+                        { "HeaderFg", "#FFFFFF" },       // white on navy
                         { "BorderColor", "#CFD8DC" },
                         { "SuccessColor", "#2E7D32" },
                         { "WarningColor", "#E65100" },
@@ -127,6 +138,14 @@ namespace StingTools.UI
                         { "TabFg", "#455A64" },
                         { "TabSelectedBg", "#FAFAFA" },
                         { "TabSelectedFg", "#37474F" },
+                        // Brand + dashboard extras (used by GetBrush callers)
+                        { "NavyHeader", "#1A237E" },
+                        { "OrangeAccent", "#E8912D" },
+                        { "CardBg", "#FFFFFF" },
+                        { "AltRowBg", "#F5F5F5" },
+                        { "SubtleFg", "#607D8B" },
+                        { "InfoBlue", "#1976D2" },
+                        { "RowHover", "#FDF0E0" },
                     }
                 },
             };
@@ -236,5 +255,49 @@ namespace StingTools.UI
 
         /// <summary>Get all available theme names.</summary>
         public static string[] GetThemeNames() => ThemeOrder;
+
+        /// <summary>
+        /// Resolve a theme key to a frozen <see cref="SolidColorBrush"/>
+        /// for code-behind use (where <see cref="DynamicResource"/> isn't
+        /// convenient). Looks up the active theme's palette, falls back
+        /// to the Corporate map for unknown keys, and finally returns a
+        /// safe slate brush so callers never get null. Adding this single
+        /// helper lets every dashboard route its palette through the
+        /// ThemeManager instead of hardcoding hex values inline.
+        /// </summary>
+        public static SolidColorBrush GetBrush(string key)
+        {
+            if (string.IsNullOrEmpty(key)) return _fallbackBrush;
+            try
+            {
+                var name = Themes.ContainsKey(CurrentTheme) ? CurrentTheme : "Corporate";
+                if (Themes[name].TryGetValue(key, out string hex)
+                    || Themes["Corporate"].TryGetValue(key, out hex))
+                {
+                    var color = (Color)ColorConverter.ConvertFromString(hex);
+                    if (name.Equals("Corporate", StringComparison.OrdinalIgnoreCase)
+                        && _corporateOverrides.TryGetValue(key, out string ovHex))
+                    {
+                        try { color = (Color)ColorConverter.ConvertFromString(ovHex); }
+                        catch { /* keep base colour */ }
+                    }
+                    var b = new SolidColorBrush(color);
+                    b.Freeze();
+                    return b;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ThemeManager.GetBrush('{key}'): {ex.Message}"); }
+            return _fallbackBrush;
+        }
+
+        private static readonly SolidColorBrush _fallbackBrush =
+            CreateFrozen(Color.FromRgb(0x37, 0x47, 0x4F));
+
+        private static SolidColorBrush CreateFrozen(Color c)
+        {
+            var b = new SolidColorBrush(c);
+            b.Freeze();
+            return b;
+        }
     }
 }

@@ -51,6 +51,9 @@ namespace StingTools.Core
         };
 
         // ── BIM folder defaults (16 numbered folders) ──────────────────────
+        // Display names get suffixed with the project code at setup time
+        // (e.g. "01_WIP" → "01_WIP_FIRESTONE_LIBERIA"). This makes every
+        // folder uniquely identifiable when copied or zipped out of the root.
         public static readonly (string Id, string Name, bool DiscSubs, string[] SubFolders)[] BimFolderDefaults = new[]
         {
             ("WIP",          "01_WIP",          true,  new string[0]),
@@ -69,6 +72,10 @@ namespace StingTools.Core
             ("REVISIONS",    "14_REVISIONS",    false, new string[0]),
             ("REGISTERS",    "15_REGISTERS",    false, new string[0]),
             ("COMPLIANCE",   "16_COMPLIANCE",   false, new string[0]),
+            ("BRIEFCASE",    "17_BRIEFCASE",    false, new string[0]),
+            ("PHOTOS",       "18_PHOTOS",       false, new string[0]),
+            ("CORRESPONDENCE","19_CORRESPONDENCE",false, new string[0]),
+            ("MISC",         "20_MISC",         false, new string[0]),
         };
 
         // ── Mini folder defaults (5 flat folders) ──────────────────────────
@@ -80,6 +87,20 @@ namespace StingTools.Core
             ("DOCUMENTS", "Documents"),
             ("REPORTS",   "Reports"),
         };
+
+        /// <summary>
+        /// Append `_<projectCode>` to a folder display name if not already suffixed.
+        /// Idempotent: WithCodeSuffix("01_WIP", "FIRESTONE") → "01_WIP_FIRESTONE"
+        /// but a second call returns the same string.
+        /// </summary>
+        public static string WithCodeSuffix(string folderName, string projectCode)
+        {
+            if (string.IsNullOrWhiteSpace(folderName)) return folderName;
+            if (string.IsNullOrWhiteSpace(projectCode)) return folderName;
+            string suffix = "_" + projectCode;
+            if (folderName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)) return folderName;
+            return folderName + suffix;
+        }
 
         // ── Default export route maps ──────────────────────────────────────
         public static Dictionary<string, string> DefaultBimRoutes() => new(StringComparer.OrdinalIgnoreCase)
@@ -136,7 +157,7 @@ namespace StingTools.Core
                 s.CustomFolders.Add(new FolderDef
                 {
                     Id = id,
-                    DisplayName = name,
+                    DisplayName = WithCodeSuffix(name, s.ProjectCode),
                     HasDisciplineSubfolders = discSubs,
                     SubFolders = subs.ToList(),
                     IsCustom = false,
@@ -161,7 +182,7 @@ namespace StingTools.Core
                 s.CustomFolders.Add(new FolderDef
                 {
                     Id = id,
-                    DisplayName = name,
+                    DisplayName = WithCodeSuffix(name, s.ProjectCode),
                     HasDisciplineSubfolders = false,
                     SubFolders = new List<string>(),
                     IsCustom = false,
