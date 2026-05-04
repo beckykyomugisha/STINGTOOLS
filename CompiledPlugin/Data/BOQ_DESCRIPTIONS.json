@@ -1,0 +1,218 @@
+[
+  {
+    "category": "Walls",
+    "nrm2_section": "14",
+    "paragraph": "Supply and fix [material] [element_type] partition/wall to [location]; including all [fixings], joints and sealants; finished to [standard].",
+    "placeholders": ["material", "element_type", "location", "fixings", "standard"]
+  },
+  {
+    "category": "Walls",
+    "nrm2_section": "14",
+    "paragraph": "External [material] cavity wall construction to [location]; including wall ties, insulation, DPC, movement joints and all associated metalwork; finished to [standard].",
+    "placeholders": ["material", "location", "standard"]
+  },
+  {
+    "category": "Floors",
+    "nrm2_section": "11",
+    "paragraph": "Supply and install [material] floor construction at [level]; including [substrate], insulation, screed, edge details and all associated fixings; finished to [standard].",
+    "placeholders": ["material", "level", "substrate", "standard"]
+  },
+  {
+    "category": "Floors",
+    "nrm2_section": "11",
+    "paragraph": "Raised access floor system to [location]; [material] panels on adjustable pedestals at [height]mm clear void; including [edge_trim] edge trim, cutouts for services and all fixings.",
+    "placeholders": ["location", "material", "height", "edge_trim"]
+  },
+  {
+    "category": "Ceilings",
+    "nrm2_section": "25",
+    "paragraph": "Supply and fix [material] suspended ceiling system to [location] at [height]mm finished floor level; including primary and secondary grid, suspension wires, perimeter trim and all fixings; finished to [standard].",
+    "placeholders": ["material", "location", "height", "standard"]
+  },
+  {
+    "category": "Ceilings",
+    "nrm2_section": "25",
+    "paragraph": "Plasterboard and skim ceiling to [location]; 2-layer [thickness]mm board on metal frame; including tape and joint, finishing coat and decoration to [standard].",
+    "placeholders": ["location", "thickness", "standard"]
+  },
+  {
+    "category": "Roofs",
+    "nrm2_section": "13",
+    "paragraph": "Supply and install [material] roofing system to [location]; including [insulation] insulation, vapour control layer, upstands, flashings, outlets, gutters and all associated metalwork; finished to [standard].",
+    "placeholders": ["material", "location", "insulation", "standard"]
+  },
+  {
+    "category": "Roofs",
+    "nrm2_section": "13",
+    "paragraph": "Standing seam [material] metal roof cladding to [location]; including subframe, insulation, breather membrane, fixings, ridges, hips, valleys, abutments and rainwater outlets.",
+    "placeholders": ["material", "location"]
+  },
+  {
+    "category": "Structural Columns",
+    "nrm2_section": "5",
+    "paragraph": "Fabricate, deliver and erect [material] structural column [section_size] to [location] at [level]; including base plates, column splices, holding-down bolts, fire protection to [standard] and applied [finish].",
+    "placeholders": ["material", "section_size", "location", "level", "standard", "finish"]
+  },
+  {
+    "category": "Structural Framing",
+    "nrm2_section": "5",
+    "paragraph": "Fabricate, deliver and erect [material] structural [element_type] to [location]; including end plates, brackets, cleats, bolted connections, fire protection to [fire_rating] and applied [finish].",
+    "placeholders": ["material", "element_type", "location", "fire_rating", "finish"]
+  },
+  {
+    "category": "Doors",
+    "nrm2_section": "21",
+    "paragraph": "Supply and hang [material] [door_type] door [width]×[height]mm in [frame_material] frame to [location]; including [hardware] ironmongery, seals, threshold and decoration to [standard]; fire rating [fire_rating].",
+    "placeholders": ["material", "door_type", "width", "height", "frame_material", "location", "hardware", "standard", "fire_rating"]
+  },
+  {
+    "category": "Doors",
+    "nrm2_section": "21",
+    "paragraph": "Automatic sliding door set [width]×[height]mm to [location]; including operator, full-height glazed panels, header rail, floor guide, safety sensors, signage and commissioning.",
+    "placeholders": ["width", "height", "location"]
+  },
+  {
+    "category": "Windows",
+    "nrm2_section": "22",
+    "paragraph": "Supply and fix [material] [window_type] window unit [width]×[height]mm to [location]; including glazing to [glass_spec], ironmongery, sills, reveals, mastic pointing and decoration to [standard].",
+    "placeholders": ["material", "window_type", "width", "height", "location", "glass_spec", "standard"]
+  },
+  {
+    "category": "Windows",
+    "nrm2_section": "22",
+    "paragraph": "Curtain wall system to [location] spanning [grid_size]mm modules; [material] frame with [glass_spec] glazing; including cills, cappings, flashings, drainage, fixings and commissioning.",
+    "placeholders": ["location", "grid_size", "material", "glass_spec"]
+  },
+  {
+    "category": "Stairs",
+    "nrm2_section": "26",
+    "paragraph": "Supply and install [material] staircase from [level_from] to [level_to]; [tread_count] treads and risers; including structural strings/waist, landing, balustrading, handrail and all fixings; finished to [standard].",
+    "placeholders": ["material", "level_from", "level_to", "tread_count", "standard"]
+  },
+  {
+    "category": "Railings",
+    "nrm2_section": "24",
+    "paragraph": "Supply and fix [material] balustrade/railing to [location]; [height]mm overall height; including posts at [spacing]mm centres, [infill_type] infill panels and [handrail_type] handrail; finished to [standard].",
+    "placeholders": ["material", "location", "height", "spacing", "infill_type", "handrail_type", "standard"]
+  },
+  {
+    "category": "Mechanical Equipment",
+    "nrm2_section": "39",
+    "paragraph": "Supply, deliver and set in position [equipment_type] rated at [capacity]; including all anchor bolts, isolating pads, commissioning, O&M manuals and handover documentation; installed to [standard].",
+    "placeholders": ["equipment_type", "capacity", "standard"]
+  },
+  {
+    "category": "Pipe Segments",
+    "nrm2_section": "33",
+    "paragraph": "Supply and install [material] pipework [nominal_size]mm nominal bore to [service]; including fittings, joints, brackets, supports at [spacing]mm centres, insulation to [insulation_spec] and testing to [standard].",
+    "placeholders": ["material", "nominal_size", "service", "spacing", "insulation_spec", "standard"]
+  },
+  {
+    "category": "Duct Systems",
+    "nrm2_section": "34",
+    "paragraph": "Supply and install [material] rectangular/circular ductwork [dimension] to [service] at [location]; including fittings, acoustic lining, fire dampers, brackets, insulation to [insulation_spec] and commissioning to [standard].",
+    "placeholders": ["material", "dimension", "service", "location", "insulation_spec", "standard"]
+  },
+  {
+    "category": "Electrical Equipment",
+    "nrm2_section": "36",
+    "paragraph": "Supply, install and connect [equipment_type] rated at [rating] to [location]; including all associated [cabling] cabling, containment, earthing, labelling, testing and commissioning to [standard].",
+    "placeholders": ["equipment_type", "rating", "location", "cabling", "standard"]
+  },
+  {
+    "category": "Lighting Fixtures",
+    "nrm2_section": "37",
+    "paragraph": "Supply, install and commission [fixture_type] luminaire [model_ref] to [location]; [wattage]W LED; including driver, emergency module where indicated, suspension/surface fixing and connection; lux level to [lux_target].",
+    "placeholders": ["fixture_type", "model_ref", "location", "wattage", "lux_target"]
+  },
+  {
+    "category": "Sprinklers",
+    "nrm2_section": "35",
+    "paragraph": "Supply and install [sprinkler_type] sprinkler head at [location]; including [pipe_size]mm supply pipe, fittings, supports and connection to sprinkler ring main; commissioned and tested to BS EN 12845.",
+    "placeholders": ["sprinkler_type", "location", "pipe_size"]
+  },
+  {
+    "category": "Plumbing Fixtures",
+    "nrm2_section": "33",
+    "paragraph": "Supply and fix [fixture_type] sanitary appliance [manufacturer_ref] to [location]; including all [connection_size]mm supply and waste connections, isolation valves, trap, sealant and commissioning; finished to [standard].",
+    "placeholders": ["fixture_type", "manufacturer_ref", "location", "connection_size", "standard"]
+  },
+  {
+    "category": "Curtain Panels",
+    "nrm2_section": "22",
+    "paragraph": "Supply and fix curtain wall panel unit [width]×[height]mm at [location]; [glass_spec] glazing in [frame_material] frame; including gaskets, thermal break, drainage, structural fixings and testing.",
+    "placeholders": ["width", "height", "location", "glass_spec", "frame_material"]
+  },
+  {
+    "category": "Curtain Wall Mullions",
+    "nrm2_section": "22",
+    "paragraph": "Supply and fix [material] curtain wall [mullion_type] mullion/transom [section_ref] at [location]; including thermal break, EPDM gaskets, snap-on cover and fixings; finished to [finish].",
+    "placeholders": ["material", "mullion_type", "section_ref", "location", "finish"]
+  },
+  {
+    "category": "Generic Models",
+    "nrm2_section": "40",
+    "paragraph": "Supply and install [element_description] to [location]; including all [fixings], connections, sealing and making good; installed to manufacturer's recommendations and [standard].",
+    "placeholders": ["element_description", "location", "fixings", "standard"]
+  },
+  {
+    "category": "Site",
+    "nrm2_section": "8",
+    "paragraph": "Excavate and prepare [area_type] to [location]; including [depth]mm average depth, disposal of [material] arisings, compact and prepare formation; all to [standard].",
+    "placeholders": ["area_type", "location", "depth", "material", "standard"]
+  },
+  {
+    "category": "Parking",
+    "nrm2_section": "8",
+    "paragraph": "Supply and construct [surface_type] car parking surface to [location]; including sub-base, base course, binder course, wearing course, road markings, kerbs, drainage and bay demarcation to [standard].",
+    "placeholders": ["surface_type", "location", "standard"]
+  },
+  {
+    "category": "Ramps",
+    "nrm2_section": "26",
+    "paragraph": "Construct [material] ramp from [level_from] to [level_to] at [gradient] gradient to [location]; including non-slip surface, edge protection, handrails, drainage channels and tactile paving; finished to [standard].",
+    "placeholders": ["material", "level_from", "level_to", "gradient", "location", "standard"]
+  },
+  {
+    "category": "Specialty Equipment",
+    "nrm2_section": "40",
+    "paragraph": "Supply, deliver, install and commission [equipment_type] [model_ref] to [location]; including all structural fixings, electrical/mechanical connections, testing, commissioning and staff training; installed to [standard].",
+    "placeholders": ["equipment_type", "model_ref", "location", "standard"]
+  },
+  {
+    "category": "Furniture",
+    "nrm2_section": "32",
+    "paragraph": "Supply and deliver [furniture_type] [manufacturer_ref] to [location]; including assembly, installation, fixing to structure where required and removal of all packing materials; to [standard].",
+    "placeholders": ["furniture_type", "manufacturer_ref", "location", "standard"]
+  },
+  {
+    "category": "Casework",
+    "nrm2_section": "32",
+    "paragraph": "Supply and fix [material] [casework_type] to [location]; including carcass, doors, drawers, shelves, [worktop_material] worktop, ironmongery, fixings and [finish]; installed to [standard].",
+    "placeholders": ["material", "casework_type", "location", "worktop_material", "finish", "standard"]
+  },
+  {
+    "category": "Structural Foundations",
+    "nrm2_section": "4",
+    "paragraph": "Excavate, form and cast [foundation_type] foundation to [location]; [concrete_spec] concrete, [reinforcement] reinforcement, [dimensions] dimensions; including blinding, formwork, waterproofing and backfill to [standard].",
+    "placeholders": ["foundation_type", "location", "concrete_spec", "reinforcement", "dimensions", "standard"]
+  },
+  {
+    "category": "Air Terminals",
+    "nrm2_section": "34",
+    "paragraph": "Supply and fix [terminal_type] air terminal [model_ref] [size]mm to [location]; including connecting ductwork, volume control damper, commissioning set and colour to [finish]; airflow [airflow]l/s.",
+    "placeholders": ["terminal_type", "model_ref", "size", "location", "finish", "airflow"]
+  },
+  {
+    "category": "Cable Tray",
+    "nrm2_section": "36",
+    "paragraph": "Supply and install [material] cable tray/basket [width]×[depth]mm to [location]; including supports at [spacing]mm centres, covers where indicated, earthing bonding, bends and tees; installed to [standard].",
+    "placeholders": ["material", "width", "depth", "location", "spacing", "standard"]
+  },
+  {
+    "category": "Conduit",
+    "nrm2_section": "36",
+    "paragraph": "Supply and install [conduit_type] conduit [diameter]mm nominal bore to [location]; including all fittings, draw-in boxes at [spacing]mm maximum centres, fixings and draw wire; installed to [standard].",
+    "placeholders": ["conduit_type", "diameter", "location", "spacing", "standard"]
+  }
+]

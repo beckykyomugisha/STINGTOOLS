@@ -8064,6 +8064,16 @@ namespace StingTools.UI
             SetExtraParam("IssueSnapshot", "captured");
         }
 
+        private static void ExportTimeline4DPng(UIApplication app)
+        {
+            // Push result to BCC inline panel; file export via SchedulingCostDashboard
+            BIMCoordinationCenter.CurrentInstance?.Show4DInlineResult("Export Timeline PNG",
+                "Timeline image export: open the 4D Timeline view, then use\n" +
+                "File → Export → Image to save as PNG.\n\n" +
+                "Automated PNG render will be available in a future phase.");
+            StingLog.Info("ExportTimeline4DPNG dispatched");
+        }
+
         private static void ImportTeamFromCsv(UIApplication app)
         {
             TaskDialog.Show("STING — Import Team", "To import team members from CSV:\n1. Prepare CSV with columns: Name, Company, Role, Discipline, Email, Phone\n2. Save to _bim_manager/team.csv\n3. Re-open BCC to reload data.");
