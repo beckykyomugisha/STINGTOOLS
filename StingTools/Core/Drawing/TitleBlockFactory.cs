@@ -324,6 +324,7 @@ namespace StingTools.Core.Drawing
             // each sheet records the variant in use). Specs that need
             // family-internal calculated parameters declare them via the
             // standard ParamSpec.Kind = "internal" + Formula path.
+            var pendingFormulas = new List<(string Name, string Formula)>();
             foreach (var p in spec.Parameters)
             {
                 if (string.IsNullOrEmpty(p?.Name)) continue;
@@ -589,7 +590,7 @@ namespace StingTools.Core.Drawing
             try
             {
                 var origin = new XYZ(MmToFt(spec.Anchor[0]), MmToFt(spec.Anchor[1]), 0);
-                var hAlign = ParseHAlign(spec.HAlign);
+                var hAlign = (HorizontalAlign)ParseHAlign(spec.HAlign);
                 var sizeFt = MmToFt(spec.Size);
                 IList<FamilyParameter> labelParams = new List<FamilyParameter> { fp };
                 IList<string> prefixSuffix = new List<string> { spec.Prefix ?? "", spec.Suffix ?? "" };

@@ -2644,7 +2644,8 @@ namespace StingTools.Model
             return border;
         }
 
-        private Button MakeBtn(string text, RoutedEventHandler handler)
+        private Button MakeBtn(string text, RoutedEventHandler handler,
+            Brush bg = null, Brush fg = null, bool bold = false)
         {
             var btn = new Button
             {

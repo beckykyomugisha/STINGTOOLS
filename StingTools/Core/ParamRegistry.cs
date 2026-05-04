@@ -40,6 +40,7 @@ namespace StingTools.Core
         private static string _overrideSeparator;
         private static int? _overrideNumPad;
         private static string[] _overrideSegmentOrder;
+        private static string[] _cachedSegmentOrder; // PERF-05: lazy cache, invalidated on override change
 
         public static string Separator => _overrideSeparator ?? _baseSeparator;
         public static int NumPad => _overrideNumPad ?? _baseNumPad;
