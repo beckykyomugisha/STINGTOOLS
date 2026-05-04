@@ -56,16 +56,19 @@ namespace StingTools.Docs
                     string level = ResolveLevelLabel(v);
                     string label = ResolveTemplate(template, v, disc, level);
 
-                    PdfOutline host = doc.Outlines;
+                    // doc.Outlines is a PdfOutlineCollection on PDFsharp 6.x;
+                    // descend into per-discipline / per-level child collections
+                    // by using each PdfOutline's own .Outlines collection.
+                    PdfOutlineCollection hostOutlines = doc.Outlines;
 
                     if (nestDisc && !string.IsNullOrEmpty(disc))
                     {
                         if (!discParents.TryGetValue(disc, out var dp))
                         {
-                            dp = host.Outlines.Add(disc, page, true);
+                            dp = hostOutlines.Add(disc, page, true);
                             discParents[disc] = dp;
                         }
-                        host = dp;
+                        hostOutlines = dp.Outlines;
                     }
 
                     if (nestLevel && !string.IsNullOrEmpty(level))
@@ -73,13 +76,13 @@ namespace StingTools.Docs
                         string key = (nestDisc ? disc + "::" : "") + level;
                         if (!levelParents.TryGetValue(key, out var lp))
                         {
-                            lp = host.Outlines.Add(level, page, true);
+                            lp = hostOutlines.Add(level, page, true);
                             levelParents[key] = lp;
                         }
-                        host = lp;
+                        hostOutlines = lp.Outlines;
                     }
 
-                    host.Outlines.Add(label, page, true);
+                    hostOutlines.Add(label, page, true);
                 }
 
                 // Document properties

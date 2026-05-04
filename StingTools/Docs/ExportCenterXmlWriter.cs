@@ -145,7 +145,7 @@ namespace StingTools.Docs
                 if (!IncludeByGroup(p, groups)) continue;
                 w.WriteStartElement("param");
                 w.WriteAttributeString("name", p.Definition?.Name ?? "");
-                w.WriteAttributeString("group", p.Definition?.ParameterGroup.ToString() ?? "");
+                w.WriteAttributeString("group", GetGroupLabel(p.Definition));
                 w.WriteString(SafeAsString(p));
                 w.WriteEndElement();
             }
@@ -181,7 +181,7 @@ namespace StingTools.Docs
         private static bool IncludeByGroup(Parameter p, List<string> groups)
         {
             if (groups == null || groups.Count == 0) return true;
-            string g = p.Definition?.ParameterGroup.ToString() ?? "";
+            string g = GetGroupLabel(p.Definition);
             foreach (var want in groups)
             {
                 if (g.IndexOf(want, StringComparison.OrdinalIgnoreCase) >= 0) return true;
@@ -192,6 +192,22 @@ namespace StingTools.Docs
                 if (want == "Revisions"  && p.Definition?.Name?.Contains("Revision", StringComparison.OrdinalIgnoreCase) == true) return true;
             }
             return false;
+        }
+
+        // Revit 2024+ replaced Definition.ParameterGroup (BuiltInParameterGroup
+        // enum) with Definition.GetGroupTypeId() (ForgeTypeId). LabelUtils
+        // gives us a stable string for grouping/serialisation.
+        private static string GetGroupLabel(Definition def)
+        {
+            if (def == null) return "";
+            try
+            {
+                var fid = def.GetGroupTypeId();
+                if (fid == null) return "";
+                var label = LabelUtils.GetLabelForGroup(fid);
+                return string.IsNullOrEmpty(label) ? (fid.TypeId ?? "") : label;
+            }
+            catch { return ""; }
         }
 
         private static string SafeAsString(Parameter p)

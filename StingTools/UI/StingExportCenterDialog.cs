@@ -22,6 +22,9 @@ using Brushes = System.Windows.Media.Brushes;
 using HorizontalAlignment = System.Windows.HorizontalAlignment;
 using Orientation = System.Windows.Controls.Orientation;
 using SystemColors = System.Windows.SystemColors;
+// Disambiguate types that exist in both WPF and the Revit API.
+using WpfBinding = System.Windows.Data.Binding;
+using WpfVisibility = System.Windows.Visibility;
 
 namespace StingTools.UI
 {
@@ -49,8 +52,6 @@ namespace StingTools.UI
         private ExportCenterState _state;
         private ExportProfile _profile;
 
-        private ComboBox _modeToggleSimple;
-        private ComboBox _modeToggleBim;
         private ComboBox _profileCombo;
         private DataGrid _selectGrid;
         private TextBox _searchBox;
@@ -442,15 +443,15 @@ namespace StingTools.UI
             _selectGrid.Columns.Add(new DataGridCheckBoxColumn
             {
                 Header = "",
-                Binding = new Binding(nameof(SheetRow.IsChecked)) { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged },
+                Binding = new WpfBinding(nameof(SheetRow.IsChecked)) { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged },
                 Width = 32,
             });
-            _selectGrid.Columns.Add(new DataGridTextColumn { Header = "Sheet No.", Binding = new Binding(nameof(SheetRow.Number)),     Width = 110, IsReadOnly = true });
-            _selectGrid.Columns.Add(new DataGridTextColumn { Header = "Title",     Binding = new Binding(nameof(SheetRow.Title)),      Width = new DataGridLength(1, DataGridLengthUnitType.Star), IsReadOnly = true });
-            _selectGrid.Columns.Add(new DataGridTextColumn { Header = "Rev",       Binding = new Binding(nameof(SheetRow.Revision)),   Width = 50,  IsReadOnly = true });
-            _selectGrid.Columns.Add(new DataGridTextColumn { Header = "Disc",      Binding = new Binding(nameof(SheetRow.Discipline)), Width = 50,  IsReadOnly = true });
-            _selectGrid.Columns.Add(new DataGridTextColumn { Header = "Size",      Binding = new Binding(nameof(SheetRow.PaperSize)),  Width = 60,  IsReadOnly = true });
-            _selectGrid.Columns.Add(new DataGridTextColumn { Header = "CDE",       Binding = new Binding(nameof(SheetRow.CdeStatus)),  Width = 60,  IsReadOnly = true });
+            _selectGrid.Columns.Add(new DataGridTextColumn { Header = "Sheet No.", Binding = new WpfBinding(nameof(SheetRow.Number)),     Width = 110, IsReadOnly = true });
+            _selectGrid.Columns.Add(new DataGridTextColumn { Header = "Title",     Binding = new WpfBinding(nameof(SheetRow.Title)),      Width = new DataGridLength(1, DataGridLengthUnitType.Star), IsReadOnly = true });
+            _selectGrid.Columns.Add(new DataGridTextColumn { Header = "Rev",       Binding = new WpfBinding(nameof(SheetRow.Revision)),   Width = 50,  IsReadOnly = true });
+            _selectGrid.Columns.Add(new DataGridTextColumn { Header = "Disc",      Binding = new WpfBinding(nameof(SheetRow.Discipline)), Width = 50,  IsReadOnly = true });
+            _selectGrid.Columns.Add(new DataGridTextColumn { Header = "Size",      Binding = new WpfBinding(nameof(SheetRow.PaperSize)),  Width = 60,  IsReadOnly = true });
+            _selectGrid.Columns.Add(new DataGridTextColumn { Header = "CDE",       Binding = new WpfBinding(nameof(SheetRow.CdeStatus)),  Width = 60,  IsReadOnly = true });
 
             dock.Children.Add(_selectGrid);
             return dock;
@@ -995,7 +996,7 @@ namespace StingTools.UI
             if (_selectGrid != null)
             {
                 var cdeCol = _selectGrid.Columns.LastOrDefault(c => string.Equals(c.Header?.ToString(), "CDE"));
-                if (cdeCol != null) cdeCol.Visibility = _profile.Mode == ExportCenterMode.BIM ? Visibility.Visible : Visibility.Collapsed;
+                if (cdeCol != null) cdeCol.Visibility = _profile.Mode == ExportCenterMode.BIM ? WpfVisibility.Visible : WpfVisibility.Collapsed;
             }
 
             // Sync format chips
