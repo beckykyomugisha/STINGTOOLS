@@ -80,6 +80,9 @@ namespace StingTools.Commands.Lightning
                     string riskRef = $"BS EN 62305-2 — {DateTime.Today:yyyy-MM-dd} — Class {classId}";
                     ParameterHelpers.SetString(prj, LpsParams.RISK_ASSESSMENT_TXT, riskRef, true);
 
+                    // Persist the project Ng override (0 clears it back to regional default).
+                    SetDouble(prj, LpsParams.PROJECT_NG_OVERRIDE_NR, wizard.NgOverride);
+
                     // Stamp separation distance on every existing down conductor.
                     var conductors = LpsEngine.CollectLpsFamily(doc, "Down Conductor", "Down_Conductor", "DownConductor");
                     int stamped = 0;
@@ -1321,11 +1324,14 @@ namespace StingTools.Commands.Lightning
         private ComboBox _bldType, _content, _occupant, _consequence, _region, _lossType;
         private CheckBox _svcPower, _svcTelecom, _svcGas, _svcWater;
         private TextBlock _ngLabel, _riskResult;
+        private TextBox _ngOverride;
         private ComboBox _classOverride;
 
         public bool IsCompleted { get; private set; }
         public string SelectedClass { get; private set; }
         public LpsRiskResult RiskResult { get; private set; }
+        /// <summary>Project Ng override the user typed; 0 means "use regional default".</summary>
+        public double NgOverride { get; private set; }
 
         public LpsClassSetupWizard(Document doc)
         {
@@ -1394,9 +1400,21 @@ namespace StingTools.Commands.Lightning
                 .Select(r => $"{r["id"]} — {r["name"]} (Ng={r["ng"]})").ToArray()
                 ?? new[] { "ug — Uganda (Ng=4)" };
             _region = LabeledCombo("Region (Ng)", regions, sp);
-            _ngLabel = new TextBlock { Margin = new Thickness(0, 0, 0, 8), FontStyle = FontStyles.Italic };
+            _ngLabel = new TextBlock { Margin = new Thickness(0, 0, 0, 4), FontStyle = FontStyles.Italic };
             sp.Children.Add(_ngLabel);
             _region.SelectionChanged += (_, __) => UpdateNg();
+
+            // Project-specific override pre-loaded from ELC_LPS_PROJECT_NG_OVERRIDE_NR.
+            // Set this from a lightning location service for site-specific accuracy.
+            string preload = "";
+            try
+            {
+                double v = LpsEngine.GetDoubleParam(_doc.ProjectInformation, LpsParams.PROJECT_NG_OVERRIDE_NR);
+                if (v > 0) preload = v.ToString("F2");
+            }
+            catch (Exception ex) { StingLog.Warn($"NG override read: {ex.Message}"); }
+            _ngOverride = LabeledBox("Project Ng override (blank = use region; from lightning location service, flashes/km²/yr)", preload, sp);
+            _ngOverride.TextChanged += (_, __) => UpdateNg();
 
             _lossType = LabeledCombo("Primary loss type (BS EN 62305-2)", new[]
             {
@@ -1478,8 +1496,15 @@ namespace StingTools.Commands.Lightning
         private void UpdateNg()
         {
             string r = PickId(_region);
-            double ng = LpsEngine.GetFlashDensity(r);
-            _ngLabel.Text = $"Ground flash density Ng = {ng:F1} flashes / km² / year ({r})";
+            double regional = LpsEngine.GetFlashDensity(r);
+            double ng = regional;
+            string source = $"region {r}";
+            if (_ngOverride != null && double.TryParse(_ngOverride.Text, out double ov) && ov > 0)
+            {
+                ng = ov;
+                source = "project override";
+            }
+            _ngLabel.Text = $"Ng = {ng:F2} flashes / km² / year ({source}; regional default {regional:F2})";
         }
 
         private void RunRisk()
@@ -1507,6 +1532,8 @@ namespace StingTools.Commands.Lightning
 
                 string regionId = PickId(_region);
                 double ng = LpsEngine.GetFlashDensity(regionId);
+                if (_ngOverride != null && double.TryParse(_ngOverride.Text, out double ovNg) && ovNg > 0)
+                    ng = ovNg;
 
                 var lib = LpsEngine.GetRiskFactorLibrary();
                 double cb = LookupFactor(lib, "buildingTypes", PickId(_bldType), "cb", 1.0);
@@ -1579,6 +1606,8 @@ namespace StingTools.Commands.Lightning
                 return;
             }
             SelectedClass = c;
+            if (_ngOverride != null && double.TryParse(_ngOverride.Text, out double ov) && ov > 0)
+                NgOverride = ov;
             IsCompleted = true;
             Close();
         }

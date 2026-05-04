@@ -6526,6 +6526,16 @@
           "OST_ElectricalEquipment"
         ],
         "tier": "T11"
+      },
+      {
+        "key": "ELC_LPS_PROJECT_NG_OVERRIDE",
+        "param_name": "ELC_LPS_PROJECT_NG_OVERRIDE_NR",
+        "guid": "d3e6fa05-9b7c-5e4d-b18d-5c6e7fad4321",
+        "description": "Project-specific ground flash density Ng (flashes/km2/year). Set from a lightning location service to override the regional default in STING_LPS_FLASH_DENSITY.json. RunRiskAssessment honours this value if > 0.",
+        "categories": [
+          "OST_ProjectInformation"
+        ],
+        "tier": "T11"
       }
     ]
   },

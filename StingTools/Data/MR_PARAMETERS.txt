@@ -2527,6 +2527,7 @@ PARAM	d654df13-0913-5e8f-8dfe-98b3971beb86	ELC_LPS_TEST_DATE_TXT	TEXT		4	1	ISO 8
 PARAM	0a8dbcfb-6f73-5c8c-94eb-b72606feae87	ELC_LPS_CERT_REF_TXT	TEXT		4	1	Certificate reference for the LPS inspection / commissioning	1
 PARAM	b1c4e8d3-7f5a-5d2c-9e6b-3a4f5c8d2b1e	ELC_LPS_COMPLIANCE_STATUS_TXT	TEXT		4	1	Plugin-written LPS compliance verdict (PASS / WARN / FAIL / SPACING FAIL / SEP DIST FAIL / EARTH FAIL)	1
 PARAM	c2d5f9e4-8a6b-5e3d-a07c-4b5d6e9c3f2a	ELC_LPS_CONDUCTOR_MATERIAL_TXT	TEXT		4	1	Down conductor material (COPPER / ALUMINIUM / STEEL) for separation distance km factor	1
+PARAM	d3e6fa05-9b7c-5e4d-b18d-5c6e7fad4321	ELC_LPS_PROJECT_NG_OVERRIDE_NR	NUMBER		4	1	Project ground flash density Ng (flashes/km2/year) override from lightning location service	1
 PARAM	c40720fa-3e80-5880-86c3-a82f43055fbf	CST_INTL_PRICE_USD	NUMBER		2	1	International supplier unit price in USD	1
 PARAM	694fcd57-d0c2-5ed3-afca-f225781b3bc8	CST_UG_PRICE_UGX	NUMBER		2	1	Local Uganda unit price in UGX	1
 PARAM	d4e003e1-1f43-5d22-93c1-d9e91d672c52	CST_FX_RATE_USD_UGX	NUMBER		2	1	USD to UGX exchange rate snapshot used on quote date	1

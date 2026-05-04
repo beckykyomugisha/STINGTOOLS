@@ -94,6 +94,27 @@ namespace StingTools.Core.Lightning
             return 2.0;
         }
 
+        /// <summary>
+        /// Effective ground flash density for the project: prefers the
+        /// ELC_LPS_PROJECT_NG_OVERRIDE_NR value on ProjectInformation when > 0,
+        /// falls back to the supplied region default. Use this instead of
+        /// GetFlashDensity directly for project-aware code paths.
+        /// </summary>
+        public static double GetEffectiveFlashDensity(Document doc, string regionId)
+        {
+            try
+            {
+                if (doc?.ProjectInformation != null)
+                {
+                    double ov = GetDoubleParam(doc.ProjectInformation,
+                        Fabrication.LpsParams.PROJECT_NG_OVERRIDE_NR);
+                    if (ov > 0) return ov;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"GetEffectiveFlashDensity: {ex.Message}"); }
+            return GetFlashDensity(regionId);
+        }
+
         // ── Calculations ──────────────────────────────────────────────
 
         /// <summary>

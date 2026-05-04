@@ -152,6 +152,9 @@ namespace StingTools.Core.Fabrication
 
         public const string CONDUCTOR_MATERIAL_TXT      = "ELC_LPS_CONDUCTOR_MATERIAL_TXT";
         public const string CONDUCTOR_MATERIAL_TXT_GUID = "c2d5f9e4-8a6b-5e3d-a07c-4b5d6e9c3f2a";
+
+        public const string PROJECT_NG_OVERRIDE_NR      = "ELC_LPS_PROJECT_NG_OVERRIDE_NR";
+        public const string PROJECT_NG_OVERRIDE_NR_GUID = "d3e6fa05-9b7c-5e4d-b18d-5c6e7fad4321";
     }
 
     /// <summary>
