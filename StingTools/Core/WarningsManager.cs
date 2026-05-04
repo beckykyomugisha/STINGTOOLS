@@ -2825,6 +2825,8 @@ namespace StingTools.Core
     // ══════════════════════════════════════════════════════════════════
     //  COMMANDS (8 IExternalCommand classes)
     // ══════════════════════════════════════════════════════════════════
+    //  COMMANDS (8 IExternalCommand classes)
+    // ══════════════════════════════════════════════════════════════════
 
     /// <summary>
     /// Comprehensive warnings dashboard showing categorised breakdown, severity distribution,

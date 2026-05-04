@@ -803,6 +803,35 @@ namespace StingTools.Core
                             if (pct >= threshold)
                             { RecordSkip($"compliance {pct:F0}% meets threshold {threshold:F0}%"); continue; }
                         }
+
+                        // Phase 68: New workflow conditions for BIM coordinator daily operations
+                        if (step.Condition == "has_spatial_warnings")
+                        {
+                            try
+                            {
+                                var warnReport = WarningsEngine.ScanWarnings(doc);
+                                int spatial = warnReport.ByCategory.GetValueOrDefault(WarningCategory.Spatial);
+                                if (spatial == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no spatial warnings)"); continue; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_spatial_warnings check: {ex.Message}"); }
+                        }
+                        if (step.Condition == "has_mep_warnings")
+                        {
+                            try
+                            {
+                                var warnReport = WarningsEngine.ScanWarnings(doc);
+                                int mep = warnReport.ByCategory.GetValueOrDefault(WarningCategory.MEP);
+                                if (mep == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no MEP warnings)"); continue; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_mep_warnings check: {ex.Message}"); }
+                        }
+                        if (step.Condition == "tag_compliance_below_threshold")
+                        {
+                            double pct = cachedCompliancePct();
+                            double threshold = step.MinCompliancePct ?? 90;
+                            if (pct >= threshold)
+                            { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% meets threshold {threshold:F0}%)"); continue; }
+                        }
                     }
 
                     // AE-05 / GAP-09: Skip if data files unchanged (sidecar file for workshared compatibility)
