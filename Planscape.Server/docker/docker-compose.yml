@@ -62,7 +62,9 @@ services:
   # Multiplexes 5,000 client connections onto ~50 backend connections so
   # the ASP.NET Core pool doesn't saturate Postgres at firm #6+.
   pgbouncer:
-    image: edoburu/pgbouncer:1.23.1
+    # 2026-05 — was pinned to 1.23.1 but that tag was removed from Docker
+    # Hub. 1.22.1 is the most recent verified-available release.
+    image: edoburu/pgbouncer:1.22.1
     environment:
       DB_HOST: postgres
       DB_PORT: "5432"
