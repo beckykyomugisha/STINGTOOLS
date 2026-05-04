@@ -258,6 +258,8 @@ namespace StingTools.Tags
             {
                 progress.Close();
             }
+
+            progress.Close();
             TagPipelineHelper.PostTagCleanup(doc, sequenceCounters, "AutoTag");
             if (cancelled && stats.TotalTagged == 0)
             {
@@ -487,6 +489,7 @@ namespace StingTools.Tags
             {
                 progress.Close();
             }
+            progress.Close();
             sw.Stop();
             if (cancelled)
             {

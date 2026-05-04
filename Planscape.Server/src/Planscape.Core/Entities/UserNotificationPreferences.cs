@@ -5,7 +5,7 @@ namespace Planscape.Core.Entities;
 /// delivery. Stored server-side so the same preferences apply on phone, tablet,
 /// and web simultaneously.
 /// </summary>
-public class UserNotificationPreferences : ITenantScoped,  ITenantScoped
+public class UserNotificationPreferences : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid UserId { get; set; }

@@ -1,22 +1,13 @@
-version: '3.9'
-
 services:
   api:
     build:
-      context: ..
-      dockerfile: docker/Dockerfile
+      context: ../..
+      dockerfile: Planscape.Server/docker/Dockerfile
     ports:
       - "5000:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      # S3.4 — connect through PgBouncer in transaction-pooling mode. Bouncer
-      # multiplexes ~5,000 logical client connections onto ~50 real Postgres
-      # backends; without it, ASP.NET Core's default pool will saturate
-      # Postgres' 100-connection ceiling around firm #6.
-      # Migrations + tooling should connect direct via host=postgres,
-      # port=5432 (bypass) — PgBouncer in transaction mode breaks
-      # session-state features (LISTEN/NOTIFY, prepared statements).
-      - ConnectionStrings__Default=Host=pgbouncer;Port=6432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!};No Reset On Close=true;Server Compatibility Mode=NoTypeLoading
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__Default=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!}
       - ConnectionStrings__Migrations=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!}
       - Jwt__Key=${JWT_KEY:-Planscape-Production-Secret-Key-Min32Chars!!}
       - Jwt__Issuer=Planscape
@@ -28,8 +19,6 @@ services:
       - ModelConverter__Aps__ClientId=${APS_CLIENT_ID:-}
       - ModelConverter__Aps__ClientSecret=${APS_CLIENT_SECRET:-}
     depends_on:
-      pgbouncer:
-        condition: service_started
       postgres:
         condition: service_healthy
       redis:
@@ -58,32 +47,6 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # S3.4 — PgBouncer transaction-pooling proxy in front of Postgres.
-  # Multiplexes 5,000 client connections onto ~50 backend connections so
-  # the ASP.NET Core pool doesn't saturate Postgres at firm #6+.
-  pgbouncer:
-    image: edoburu/pgbouncer:1.23.1
-    environment:
-      DB_HOST: postgres
-      DB_PORT: "5432"
-      DB_USER: planscape
-      DB_PASSWORD: ${DB_PASSWORD:-Planscape2026!}
-      DB_NAME: planscape
-      POOL_MODE: transaction
-      MAX_CLIENT_CONN: "5000"
-      DEFAULT_POOL_SIZE: "50"
-      RESERVE_POOL_SIZE: "10"
-      RESERVE_POOL_TIMEOUT: "5"
-      AUTH_TYPE: scram-sha-256
-      ADMIN_USERS: planscape
-      IGNORE_STARTUP_PARAMETERS: extra_float_digits,search_path,statement_timeout
-    ports:
-      - "6432:6432"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: unless-stopped
-
   redis:
     image: redis:7-alpine
     ports:
@@ -109,12 +72,22 @@ services:
   # Optional: Background job processing (Hangfire)
   worker:
     build:
-      context: ..
-      dockerfile: docker/Dockerfile
+      context: ../..
+      dockerfile: Planscape.Server/docker/Dockerfile
     command: ["dotnet", "Planscape.API.dll", "--worker"]
     environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__Default=Host=postgres;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!}
+      # Worker shares the same Program.cs as the api, so it needs the same
+      # env to wire DI / DbContext / Redis. Without Redis__Connection the
+      # default 'localhost:6379' resolves to the worker container itself
+      # (no redis there) and Hangfire/SignalR backplane fail on startup.
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__Default=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!}
+      - ConnectionStrings__Migrations=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!}
+      - Jwt__Key=${JWT_KEY:-Planscape-Production-Secret-Key-Min32Chars!!}
+      - Jwt__Issuer=Planscape
+      - Jwt__Audience=Planscape.Client
+      - Redis__Connection=redis:6379
+      - ModelConverter__Provider=${MODEL_CONVERTER_PROVIDER:-null}
     depends_on:
       - postgres
       - redis

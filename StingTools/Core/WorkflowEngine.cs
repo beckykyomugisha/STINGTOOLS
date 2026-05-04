@@ -759,6 +759,87 @@ namespace StingTools.Core
                             RecordSkip($"compound {logic}: {string.Join(", ", step.Conditions)}");
                             continue;
                         }
+                        // GAP-02: Extended condition engine for workflow steps
+                        if (step.Condition == "has_links")
+                        {
+                            bool hasLinks = new FilteredElementCollector(doc)
+                                .OfClass(typeof(RevitLinkInstance)).GetElementCount() > 0;
+                            if (!hasLinks) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no linked models)"); continue; }
+                        }
+                        if (step.Condition == "has_cad_imports")
+                        {
+                            bool hasCad = new FilteredElementCollector(doc)
+                                .OfClass(typeof(ImportInstance)).GetElementCount() > 0;
+                            if (!hasCad) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no CAD imports)"); continue; }
+                        }
+                        if (step.Condition == "has_stale")
+                        {
+                            if (!cachedHasStale()) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no stale elements)"); continue; }
+                        }
+                        // Phase 39: WorkflowStep.RequiresWorksharedModel condition
+                        if (step.RequiresWorksharedModel && !doc.IsWorkshared)
+                        {
+                            skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (not workshared)"); continue;
+                        }
+                        // Phase 39: Element count range condition
+                        if (step.MinElementCount.HasValue || step.MaxElementCount.HasValue)
+                        {
+                            int elemCount = new FilteredElementCollector(doc)
+                                .WhereElementIsNotElementType().GetElementCount();
+                            if (step.MinElementCount.HasValue && elemCount < step.MinElementCount.Value)
+                            { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED ({elemCount} elements < min {step.MinElementCount.Value})"); continue; }
+                            if (step.MaxElementCount.HasValue && elemCount > step.MaxElementCount.Value)
+                            { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED ({elemCount} elements > max {step.MaxElementCount.Value})"); continue; }
+                        }
+
+                        // Phase 47: Warning-aware workflow conditions
+                        if (step.Condition == "has_warnings")
+                        {
+                            try
+                            {
+                                int warnCount = doc.GetWarnings()?.Count ?? 0;
+                                if (warnCount == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no warnings)"); continue; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_warnings check: {ex.Message}"); }
+                        }
+                        if (step.Condition == "has_critical_warnings")
+                        {
+                            try
+                            {
+                                var warnReport = WarningsEngine.ScanWarnings(doc);
+                                int critical = warnReport.BySeverity.GetValueOrDefault(WarningSeverity.Critical);
+                                if (critical == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no critical warnings)"); continue; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_critical_warnings check: {ex.Message}"); }
+                        }
+                        if (step.Condition == "has_open_issues")
+                        {
+                            try
+                            {
+                                string projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
+                                string issuesPath = Path.Combine(projDir, "_bim_manager", "issues.json");
+                                if (!File.Exists(issuesPath)) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no issues file)"); continue; }
+                                string raw = File.ReadAllText(issuesPath);
+                                int openCount = raw.Split(new[] { "\"OPEN\"" }, StringSplitOptions.None).Length - 1;
+                                if (openCount == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no open issues)"); continue; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_open_issues check: {ex.Message}"); }
+                        }
+
+                        if (step.Condition == "has_untagged")
+                        {
+                            bool hasUntagged = false;
+                            try
+                            {
+                                var catEnums = SharedParamGuids.AllCategoryEnums;
+                                var coll = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                                if (catEnums != null && catEnums.Length > 0)
+                                    coll.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+                                hasUntagged = coll.Any(e => string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1)));
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_untagged condition check: {ex.Message}"); }
+                            if (!hasUntagged) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no untagged elements)"); continue; }
+                        }
                     }
 
                     // Phase 69: Data drop level gate
@@ -941,6 +1022,11 @@ namespace StingTools.Core
                         // that flag is specifically for skipped (condition-gated) steps.
                         // Executed steps (whether succeeded or failed) reset the skip flag.
                         previousStepSkipped = false;
+
+                        // C-03 FIX: Reset previousStepSkipped after each executed step.
+                        // Previously never reset to false, causing cascade-skip to permanently
+                        // lock after the first skipped step.
+                        previousStepSkipped = (stepResult != Result.Succeeded && stepResult != Result.Cancelled);
 
                         StingLog.Info($"Workflow step {stepNum}: {step.Label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
 
@@ -1645,6 +1731,14 @@ namespace StingTools.Core
                 case "NavisworksTimeLiner":    return new BIMManager.NavisworksTimeLinerExportCommand();
                 case "ElementCostTrace":       return new BIMManager.ElementCostTraceCommand();
 
+                // BCC Platform tab → Planscape Connect / member management buttons.
+                // Same double-path issue as QR/CodeLegend: only wired in StingCommandHandler
+                // so BCC's ExternalEvent path produced "Action 'PlanscapeConnect' is not handled".
+                case "PlanscapeExportTeam":
+                case "PlanscapeExportConfig":     return new BIMManager.ExportCoordLogCommand();
+                case "PlanscapeShareReport":      return new BIMManager.GenerateDashboardCommand();
+                case "LoadFamilyLibrary":         return new Temp.FamilyLibraryLoaderCommand();
+
                 // Phase 104: GAP-analysis commands (GapAnalysisFixCommands.cs) dispatched from BCC
                 // action bar via WarningsManager.DispatchCoordAction. Previously only resolvable via
                 // StingCommandHandler, so BCC ExternalEvent path produced "Action 'X' is not handled".
@@ -1660,6 +1754,30 @@ namespace StingTools.Core
                 // WF-02: EscalateOverdueActions is an internal method in WarningsManager, not an IExternalCommand.
                 // Removed: return null caused NRE in RunCommandByTag. Falls through to default null
                 // which is handled by the plugin hook fallback + error logging in RunCommandByTag.
+
+                // Phase 167 — Planscape BCC dispatch gap: same double-path issue as
+                // QR/CodeLegend/WorkingCalendar. BIMCoordinationCenter.ShowPlatformDetail
+                // dispatches PlanscapeConnect / PlanscapeSyncNow via DispatchAction(),
+                // which routes through ProcessAction → DispatchCoordAction →
+                // WorkflowEngine.GetCommandInstance. PlanscapeDisconnect /
+                // PlanscapeOpenWebDashboard already short-circuit inline in
+                // ProcessAction; cases here keep the resolver complete so any future
+                // caller (or the dictionary alias path) lands on a real command.
+                case "PlanscapeConnect":
+                case "PlanscapeAddMember":
+                case "PlanscapeRemoveMember":
+                case "PlanscapeLinkProject":
+                case "PlanscapeTestConnection":    return new BIMManager.PlanscapeConnectCommand();
+
+                case "PlanscapeSyncNow":           return new BIMManager.PlatformSyncCommand();
+                case "PublishModelToPlanscape":    return new BIMManager.PublishModelCommand();
+
+                case "PlanscapeDisconnect":
+                case "PlanscapeUnlinkProject":
+                case "PlanscapeClearCredentials":  return new BIMManager.PlanscapeDisconnectCommand();
+
+                case "PlanscapeOpenWebDashboard":
+                case "PlanscapeOpenBrowser":       return new BIMManager.PlanscapeOpenWebCommand();
 
                 default: return null;
             }
@@ -1870,6 +1988,13 @@ namespace StingTools.Core
 
             // Phase 92: Speckle snapshot round-trip preset
             presets.Add(GetBuiltInPreset("SpeckleSnapshot"));
+
+            // Remove any null entries from failed lookups
+            presets.RemoveAll(p => p == null);
+
+            // HIGH-05: Cache the built-in list so subsequent calls skip all GetBuiltInPreset() work
+            _cachedBuiltInPresets = new List<WorkflowPreset>(presets);
+            _cachedBuiltInPresetsDataPath = dataDir;
 
             // Remove any null entries from failed lookups
             presets.RemoveAll(p => p == null);
@@ -2596,10 +2721,20 @@ namespace StingTools.Core
         private const long MaxLogSizeBytes = 500 * 1024; // 500 KB
 
         /// <summary>
-        /// LOG-13: Get the log file path alongside the project file (or data dir fallback).
+        /// LOG-13: Get the log file path inside the unified project root's
+        /// _data folder so it never appears as a sibling of the .rvt.
         /// </summary>
         private static string GetLogPath(Document doc)
         {
+            // Folder consolidation: prefer <root>/_data/workflow_log.jsonl
+            try
+            {
+                string consolidated = ProjectFolderEngine.GetDataPath(doc);
+                if (!string.IsNullOrEmpty(consolidated))
+                    return Path.Combine(consolidated, "workflow_log.jsonl");
+            }
+            catch (Exception ex) { StingLog.Warn($"GetLogPath consolidated: {ex.Message}"); }
+
             string dir = null;
             try
             {

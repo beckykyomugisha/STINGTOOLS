@@ -324,6 +324,7 @@ namespace StingTools.Core.Drawing
             // each sheet records the variant in use). Specs that need
             // family-internal calculated parameters declare them via the
             // standard ParamSpec.Kind = "internal" + Formula path.
+            var pendingFormulas = new List<(string Name, string Formula)>();
             foreach (var p in spec.Parameters)
             {
                 if (string.IsNullOrEmpty(p?.Name)) continue;
@@ -332,7 +333,9 @@ namespace StingTools.Core.Drawing
                 if (string.Equals(p.Kind, "internal", StringComparison.OrdinalIgnoreCase))
                 {
                     fp = AddInternalParameter(fm, p.Name, p.Type, p.Group,
-                        p.Instance, p.Default, p.Formula, r);
+                        p.Instance, p.Default, formula: null, r);
+                    if (!string.IsNullOrEmpty(p.Formula))
+                        pendingFormulas.Add((p.Name, p.Formula));
                 }
                 else
                 {
@@ -347,6 +350,15 @@ namespace StingTools.Core.Drawing
                 }
                 if (fp != null) map[p.Name] = fp;
             }
+
+            // 4. Pass 2 — every formula now sees a fully-populated map.
+            foreach (var (name, formula) in pendingFormulas)
+            {
+                if (!map.TryGetValue(name, out var fp)) continue;
+                try { fm.SetFormula(fp, formula); }
+                catch (Exception ex) { r.Warnings.Add($"SetFormula '{name}': {ex.Message}"); }
+            }
+
             r.ParametersAdded = map.Count;
         }
 
@@ -578,7 +590,7 @@ namespace StingTools.Core.Drawing
             try
             {
                 var origin = new XYZ(MmToFt(spec.Anchor[0]), MmToFt(spec.Anchor[1]), 0);
-                var hAlign = ParseHAlign(spec.HAlign);
+                var hAlign = (HorizontalAlign)ParseHAlign(spec.HAlign);
                 var sizeFt = MmToFt(spec.Size);
                 IList<FamilyParameter> labelParams = new List<FamilyParameter> { fp };
                 IList<string> prefixSuffix = new List<string> { spec.Prefix ?? "", spec.Suffix ?? "" };
@@ -738,6 +750,23 @@ namespace StingTools.Core.Drawing
         }
 
         // ── Resolvers ────────────────────────────────────────────────────
+
+        // Phase 171 — title-block .rft templates only ship a small
+        // subset of generic-line subcategories. "Wide Lines" / "Heavy
+        // Lines" / "Thick Lines" all describe the same intent across
+        // English / English-Imperial / locale variants. Try the
+        // requested name first, then walk a fallback chain, then drop
+        // back to whatever style the family's first projection
+        // subcategory exposes. Lines remain drawn either way.
+        private static readonly Dictionary<string, string[]> LineStyleFallbacks =
+            new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Wide Lines"]   = new[] { "Heavy Lines", "Thick Lines", "Medium Lines", "Thin Lines" },
+                ["Heavy Lines"]  = new[] { "Wide Lines", "Thick Lines", "Medium Lines", "Thin Lines" },
+                ["Thick Lines"]  = new[] { "Heavy Lines", "Wide Lines", "Medium Lines", "Thin Lines" },
+                ["Medium Lines"] = new[] { "Thin Lines" },
+                ["Thin Lines"]   = new[] { "Medium Lines" },
+            };
 
         private static void ApplyLineStyle(Document doc, DetailCurve dc,
             string styleName, TitleBlockBuildResult r)
@@ -927,14 +956,28 @@ namespace StingTools.Core.Drawing
             catch { return ElementId.InvalidElementId; }
         }
 
-        private static HorizontalAlign ParseHAlign(string s)
+        // Phase 171b — Revit's HorizontalAlign / VerticalAlign enums
+        // were renamed (or otherwise mangled) between 2024 and 2025 such
+        // that VerticalAlign no longer resolves at compile time on stock
+        // installs. To stay portable across 2025 / 2026 / 2027 we parse
+        // to integers (matching the enum's underlying values) and let
+        // CreateLabelViaReflection convert them to whatever type the
+        // loaded RevitAPI's NewLabel signature actually demands.
+        //
+        // Underlying values match the historic Revit enum:
+        //   HorizontalAlign: Left = 0, Center = 1, Right = 2
+        //   VerticalAlign:   Top  = 0, Middle = 1, Bottom = 2
+        private const int H_LEFT = 0, H_CENTER = 1, H_RIGHT = 2;
+        private const int V_TOP  = 0, V_MIDDLE = 1, V_BOTTOM = 2;
+
+        private static int ParseHAlign(string s)
         {
             switch ((s ?? "").ToLowerInvariant())
             {
-                case "right":  return HorizontalAlign.Right;
+                case "right":  return H_RIGHT;
                 case "center":
-                case "centre": return HorizontalAlign.Center;
-                default:       return HorizontalAlign.Left;
+                case "centre": return H_CENTER;
+                default:       return H_LEFT;
             }
         }
 
@@ -1153,6 +1196,42 @@ namespace StingTools.Core.Drawing
                 r.Warnings.Add($"InvokeNewLabel: {ex.Message}");
                 return null;
             }
+        }
+
+        // Reflection-based NewLabel invocation. Caches the MethodInfo
+        // on first use. Throws on missing/unmatched signature so the
+        // caller's try/catch wraps it into a per-element warning.
+        private static System.Reflection.MethodInfo _newLabelMi;
+
+        private static Element CreateLabelViaReflection(Document famDoc, View view,
+            XYZ origin, int hAlignInt, int vAlignInt,
+            IList<FamilyParameter> labelParams, IList<string> prefixSuffix,
+            double sizeFt)
+        {
+            var fc = famDoc.FamilyCreate;
+            if (_newLabelMi == null)
+            {
+                // The NewLabel overload we want has 7 params and the
+                // 3rd / 4th are the alignment enums. Narrow by name
+                // and arity, then trust the converted enum values.
+                foreach (var m in fc.GetType().GetMethods())
+                {
+                    if (m.Name != "NewLabel") continue;
+                    var ps = m.GetParameters();
+                    if (ps.Length != 7) continue;
+                    if (!ps[2].ParameterType.IsEnum) continue;
+                    if (!ps[3].ParameterType.IsEnum) continue;
+                    _newLabelMi = m;
+                    break;
+                }
+                if (_newLabelMi == null)
+                    throw new InvalidOperationException("FamilyCreate.NewLabel(7-arg, enum-h, enum-v) overload not found in this Revit version");
+            }
+            var ps2 = _newLabelMi.GetParameters();
+            var hAlign = Enum.ToObject(ps2[2].ParameterType, hAlignInt);
+            var vAlign = Enum.ToObject(ps2[3].ParameterType, vAlignInt);
+            return (Element)_newLabelMi.Invoke(fc, new object[]
+            { view, origin, hAlign, vAlign, labelParams, prefixSuffix, sizeFt });
         }
     }
 }

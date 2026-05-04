@@ -68,6 +68,28 @@ async function openViewer(projectCode: string, modelId?: string | null): Promise
   }
 }
 
+/**
+ * Phase 94 — MOB-01/MOB-06. Open the Planscape xeokit viewer for a project in
+ * an in-app browser. URL shape is {serverUrl}/viewer/index.html?model=<code>.xkt.
+ * The viewer itself lives in wwwroot on the Planscape.Server and reads the
+ * 'model' query parameter to fetch the xkt bundle.
+ */
+async function openViewer(projectCode: string): Promise<void> {
+  try {
+    const base = await _getBaseUrl();
+    const url = `${base}/viewer/index.html?model=${encodeURIComponent(projectCode)}.xkt`;
+    await WebBrowser.openBrowserAsync(url, {
+      // Corporate-themed in-app browser tab — falls back to Safari View
+      // Controller on iOS and Custom Tabs on Android automatically.
+      toolbarColor: theme.colors.primary,
+      controlsColor: theme.colors.accent,
+      dismissButtonStyle: 'close',
+    });
+  } catch (err) {
+    Alert.alert('Viewer unavailable', err instanceof Error ? err.message : String(err));
+  }
+}
+
 type PriorityFilter = 'ALL' | 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 type StatusFilter = 'ALL' | 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
 

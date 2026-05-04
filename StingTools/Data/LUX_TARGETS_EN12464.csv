@@ -68,3 +68,33 @@ ASSEMBLY_COARSE,300,Coarse assembly work
 ASSEMBLY_MEDIUM,500,Medium assembly work
 ASSEMBLY_FINE,1000,Fine assembly (PCB etc)
 DRAUGHTING,750,Technical drawing office
+WARD_BEDHEAD,500,Bedhead reading lighting
+ICU_BAY,1000,Critical care bay
+RECOVERY_PACU,500,Recovery / PACU bay
+ISOLATION_ROOM,500,Isolation / negative pressure room
+SLUICE_DIRTY,500,Sluice / dirty utility
+NURSE_STATION,500,Nurse station
+SPORTS_HALL,300,Sports hall general
+DRAMA_STUDIO,500,Drama / performance studio
+SCIENCE_LAB,500,Science laboratory
+IT_ROOM,500,IT / computer room
+SALES_FLOOR,500,Retail sales floor general
+CHANGING_RETAIL,300,Retail changing room
+STOCKROOM,200,Retail stockroom
+FOOD_HALL,300,Food court / hall
+HOTEL_BEDROOM,100,Hotel bedroom
+HOTEL_CORRIDOR,100,Hotel corridor
+CONFERENCE_SUITE,500,Conference suite
+SPA,200,Spa / wellness
+FACTORY_FLOOR,300,Factory floor general
+CLEANROOM_FLUSH,1000,ISO 5/6/7 cleanroom flush LED
+LOADING_BAY,150,Loading bay / dispatch
+DATA_HALL,500,Data centre hall
+MASTER_BEDROOM,100,Residential master bedroom
+EN_SUITE,200,Residential ensuite
+PRIMARY_CLASSROOM,300,Primary school classroom
+SECONDARY_CLASSROOM,500,Secondary school classroom
+LECTURE_THEATRE,500,University lecture theatre
+COMMON_ROOM,200,Student common room
+ATRIUM_PUBLIC,200,Public atrium
+GALLERY,300,Museum / art gallery (sensitive lower)

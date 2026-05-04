@@ -77,6 +77,17 @@ namespace StingTools.Core.Drawing
         // Sheet
         [JsonProperty("paperSize")]        public string PaperSize { get; set; } = "A1";
         [JsonProperty("titleBlockFamily")] public string TitleBlockFamily { get; set; }
+
+        /// <summary>
+        /// Optional family-type variant within <see cref="TitleBlockFamily"/>.
+        /// When set, the resolver picks the FamilySymbol whose Family.Name
+        /// matches <see cref="TitleBlockFamily"/> AND Name matches this
+        /// value. When null/empty (the default), the first symbol of the
+        /// declared family wins — preserving historic behaviour.
+        /// </summary>
+        [JsonProperty("titleBlockSymbolType", NullValueHandling = NullValueHandling.Ignore)]
+        public string TitleBlockSymbolType { get; set; }
+
         [JsonProperty("orientation")]      public string Orientation { get; set; } = "Landscape";
 
         // Views
@@ -110,8 +121,40 @@ namespace StingTools.Core.Drawing
         /// standard <c>{disc}/{lvl}/{seq:Dn}/{mark}</c> token set from
         /// the caller's pattern context.
         /// </summary>
+        /// <remarks>
+        /// Value templates support two substitution patterns:
+        /// <list type="bullet">
+        /// <item><description>
+        /// <c>${ParameterName}</c> reads from <c>doc.ProjectInformation</c>
+        /// by the exact shared-parameter name. STING uses the
+        /// <c>PRJ_ORG_*</c> namespace (e.g. <c>${PRJ_ORG_CLIENT_NAME}</c>).
+        /// These are distinct from the legacy <c>PRJ_TB_*</c> parameters
+        /// populated by the Title Block Populate command — do not mix
+        /// the two namespaces in the same project.
+        /// </description></item>
+        /// <item><description>
+        /// <c>{token}</c> reads from the caller's token dictionary at
+        /// sheet-creation time (e.g. <c>{disc}</c>, <c>{lvl}</c>,
+        /// <c>{seq:D4}</c>, <c>{spool}</c>).
+        /// </description></item>
+        /// </list>
+        /// </remarks>
         [JsonProperty("titleBlockParams", NullValueHandling = NullValueHandling.Ignore)]
         public Dictionary<string, string> TitleBlockParams { get; set; }
+
+        /// <summary>
+        /// Phase 168 — per-symbol overrides. Sheets that host more than one
+        /// title-block instance (landscape + portrait, front + back, full +
+        /// reduced) can receive different value payloads per
+        /// <c>FamilySymbol.Name</c>. Keys are matched case-insensitively
+        /// against the live <c>tb.Symbol.Name</c>; the special key
+        /// <c>"*"</c> applies to TBs that don't match any explicit key.
+        /// Per-symbol entries merge on top of <see cref="TitleBlockParams"/>
+        /// (which acts as the global baseline) — same key in both wins for
+        /// the per-symbol map.
+        /// </summary>
+        [JsonProperty("titleBlockParamsBySymbol", NullValueHandling = NullValueHandling.Ignore)]
+        public Dictionary<string, Dictionary<string, string>> TitleBlockParamsBySymbol { get; set; }
 
         /// <summary>
         /// ISO 19650 naming — optional per-profile convention payload.

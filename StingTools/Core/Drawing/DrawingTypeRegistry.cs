@@ -248,6 +248,11 @@ namespace StingTools.Core.Drawing
             // PERF-02: pack applier filter / category caches.
             try { ViewStylePackApplier.InvalidateCache(doc); }
             catch (Exception ex) { StingTools.Core.StingLog.Warn($"Reload InvalidatePackApplierCache: {ex.Message}"); }
+
+            // Editor-side title-block slot cache — re-read FamilySymbol JSON
+            // after a registry reload so freshly-loaded title blocks surface.
+            try { StingTools.UI.TitleBlockSlotLoader.InvalidateCache(doc); }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"Reload InvalidateTitleBlockSlotCache: {ex.Message}"); }
         }
 
         public static DrawingTypeLibrary GetLibrary(Document doc)

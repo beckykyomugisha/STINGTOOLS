@@ -1,20 +1,27 @@
 # ── Build stage ──
+# Build context is the STINGTOOLS repo root (set in docker-compose.yml).
+# That's required because Planscape.Shared.csproj links a source file from
+# the Revit plugin tree via <Compile Include="..\..\..\StingTools\..."/> —
+# the compiler needs to see both Planscape.Server/ and StingTools/.
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 # Copy project files first for layer caching
-COPY src/Planscape.Shared/Planscape.Shared.csproj src/Planscape.Shared/
-COPY src/Planscape.Core/Planscape.Core.csproj src/Planscape.Core/
-COPY src/Planscape.Infrastructure/Planscape.Infrastructure.csproj src/Planscape.Infrastructure/
-COPY src/Planscape.MIM/Planscape.MIM.csproj src/Planscape.MIM/
-COPY src/Planscape.PluginSync/Planscape.PluginSync.csproj src/Planscape.PluginSync/
-COPY src/Planscape.API/Planscape.API.csproj src/Planscape.API/
-COPY Planscape.sln .
-RUN dotnet restore src/Planscape.API/Planscape.API.csproj
+COPY Planscape.Server/src/Planscape.Shared/Planscape.Shared.csproj Planscape.Server/src/Planscape.Shared/
+COPY Planscape.Server/src/Planscape.Core/Planscape.Core.csproj Planscape.Server/src/Planscape.Core/
+COPY Planscape.Server/src/Planscape.Infrastructure/Planscape.Infrastructure.csproj Planscape.Server/src/Planscape.Infrastructure/
+COPY Planscape.Server/src/Planscape.MIM/Planscape.MIM.csproj Planscape.Server/src/Planscape.MIM/
+COPY Planscape.Server/src/Planscape.PluginSync/Planscape.PluginSync.csproj Planscape.Server/src/Planscape.PluginSync/
+COPY Planscape.Server/src/Planscape.API/Planscape.API.csproj Planscape.Server/src/Planscape.API/
+COPY Planscape.Server/Planscape.sln Planscape.Server/
+RUN dotnet restore Planscape.Server/src/Planscape.API/Planscape.API.csproj
 
-# Copy everything and build
+# Copy everything and build. The .dockerignore at the repo root keeps
+# host bin/obj, the Mobile app, docs, and most of the Revit plugin out
+# of the build context — only StingTools/BIMManager/BcfEngine.cs is
+# whitelisted because Planscape.Shared.csproj links it.
 COPY . .
-RUN dotnet publish src/Planscape.API/Planscape.API.csproj -c Release -o /app --no-restore
+RUN dotnet publish Planscape.Server/src/Planscape.API/Planscape.API.csproj -c Release -o /app --no-restore
 
 # ── Runtime stage ──
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime

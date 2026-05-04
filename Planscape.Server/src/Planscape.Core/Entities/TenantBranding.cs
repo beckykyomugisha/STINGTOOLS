@@ -8,7 +8,7 @@ namespace Planscape.Core.Entities;
 /// Values that are null or empty are resolved from config at render time, so a tenant
 /// can override just the accent color and inherit the rest.
 /// </summary>
-public class TenantBranding : ITenantScoped,  ITenantScoped
+public class TenantBranding : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }

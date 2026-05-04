@@ -264,12 +264,12 @@ public class DocumentsController : ControllerBase
                 }
 
                 memStream.Position = 0;
-                var (lat, lng) = _thumbnails.ExtractGpsFromExif(memStream);
+                var (gpsLat, gpsLng) = _thumbnails.ExtractGpsFromExif(memStream);
                 // DocumentRecord has no GPS columns; surface via logs until a migration adds them.
-                if (lat.HasValue && lng.HasValue)
+                if (gpsLat.HasValue && gpsLng.HasValue)
                 {
                     _logger.LogInformation("EXIF GPS extracted for {File}: {Lat},{Lng}",
-                        file.FileName, lat.Value, lng.Value);
+                        file.FileName, gpsLat.Value, gpsLng.Value);
                 }
             }
             catch (Exception ex)

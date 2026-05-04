@@ -266,6 +266,7 @@ namespace StingTools.Tags
         }
     }
 
+    /// <summary>Set the DISC (discipline) token on selected/view elements.</summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class SetLocCommand : IExternalCommand

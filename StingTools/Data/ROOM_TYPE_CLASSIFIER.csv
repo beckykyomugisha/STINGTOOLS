@@ -64,3 +64,32 @@ room_name_pattern,en12464_room_code,target_lux,notes
 ^interview|^consult *room,INTERVIEW,300,Interview / 1-to-1 room 300 lux
 ^training *room,TRAINING,500,Training room 500 lux
 ,GENERAL,300,Default fallback 300 lux
+^icu|^critical *care|^hdu|^itu,ICU_BAY,1000,Critical care 1000 lux
+^recovery|^pacu|^post.?op,RECOVERY_PACU,500,Recovery / PACU 500 lux
+^isolation|^side.?room|^neg.?press,ISOLATION_ROOM,500,Isolation room 500 lux
+^sluice|^dirty.?utility|^bedpan,SLUICE_DIRTY,500,Sluice / dirty utility 500 lux
+^nurse.?station|^ward.?reception|^staff.?base,NURSE_STATION,500,Nurse station 500 lux
+^sports.?hall|^gymnasium|^assembly.?hall,SPORTS_HALL,300,Sports hall 300 lux
+^drama|^performance.?studio|^rehearsal,DRAMA_STUDIO,500,Drama studio 500 lux
+^science|^physics.?lab|^chem.?lab|^biology.?lab,SCIENCE_LAB,500,School science lab 500 lux
+^it.?room|^computer.?suite|^ict.?suite,IT_ROOM,500,IT / computer suite 500 lux
+^sales.?floor|^showroom|^showfloor,SALES_FLOOR,500,Retail sales floor 500 lux
+^changing.?retail|^retail.?changing,CHANGING_RETAIL,300,Retail changing room 300 lux
+^stock.?room|^stockroom|^back.?of.?house,STOCKROOM,200,Retail stockroom 200 lux
+^food.?court|^food.?hall|^canteen.?retail,FOOD_HALL,300,Food court 300 lux
+^hotel.?bedroom|^guest.?bedroom|^suite$,HOTEL_BEDROOM,100,Hotel bedroom 100 lux
+^hotel.?corridor|^guest.?corridor,HOTEL_CORRIDOR,100,Hotel corridor 100 lux
+^conference.?suite|^banquet|^function.?room,CONFERENCE_SUITE,500,Conference suite 500 lux
+^spa|^wellness|^treatment.?room,SPA,200,Spa / wellness 200 lux
+^factory|^production|^assembly.?line,FACTORY_FLOOR,300,Factory floor 300 lux
+^clean.?room.?flush|^iso.?[567].?cleanroom,CLEANROOM_FLUSH,1000,ISO 5/6/7 cleanroom 1000 lux
+^loading.?bay|^dispatch|^goods.?out,LOADING_BAY,150,Loading bay 150 lux
+^data.?hall|^data.?centre|^server.?hall,DATA_HALL,500,Data hall 500 lux
+^master.?bedroom|^principal.?bedroom,MASTER_BEDROOM,100,Master bedroom 100 lux
+^en.?suite|^ensuite$,EN_SUITE,200,En-suite 200 lux
+^primary.?classroom|^infant.?room|^reception.?year,PRIMARY_CLASSROOM,300,Primary classroom 300 lux
+^secondary.?classroom|^kS3|^ks4|^sixth.?form,SECONDARY_CLASSROOM,500,Secondary classroom 500 lux
+^common.?room|^student.?common,COMMON_ROOM,200,Student common room 200 lux
+^public.?atrium|^grand.?atrium|^lightwell,ATRIUM_PUBLIC,200,Public atrium 200 lux
+^gallery|^museum|^exhibit,GALLERY,300,Gallery / museum 300 lux
+^bedhead|^ward.?bay,WARD_BEDHEAD,500,Bedhead reading 500 lux

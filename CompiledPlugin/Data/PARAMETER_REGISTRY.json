@@ -116,7 +116,7 @@
       "guid": "e26e01ef-33d8-5a57-9ab7-fa30faa4ceff",
       "description": "Paragraph depth: compact (State 1 only)",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -124,7 +124,7 @@
       "guid": "b1080057-9890-5a0c-959a-46fb8847c766",
       "description": "Paragraph depth: standard (States 1+2)",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -132,7 +132,7 @@
       "guid": "825a73c0-4b3b-5474-8db5-f54072ff40b8",
       "description": "Paragraph depth: comprehensive (States 1+2+3)",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -140,7 +140,7 @@
       "guid": "11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f",
       "description": "Enable/disable warning text in tags",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -152,111 +152,111 @@
     },
     {
       "param_name": "TAG_7_SECTION_VISIBLE_A_BOOL",
-      "guid": "a1b2c3d4-0001-5a01-b001-000000000001",
+      "guid": "a8194ccf-05ae-5eb4-87b5-38bacb4324fe",
       "description": "Show/hide TAG7 Section A (Identity Header)",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
       "param_name": "TAG_7_SECTION_VISIBLE_B_BOOL",
-      "guid": "a1b2c3d4-0001-5a01-b001-000000000002",
+      "guid": "b561a313-f873-5648-a127-3e917b5f5dd0",
       "description": "Show/hide TAG7 Section B (System & Function)",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
       "param_name": "TAG_7_SECTION_VISIBLE_C_BOOL",
-      "guid": "a1b2c3d4-0001-5a01-b001-000000000003",
+      "guid": "0e535d1a-d2eb-5b15-b954-360ad46e1a57",
       "description": "Show/hide TAG7 Section C (Spatial Context)",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
       "param_name": "TAG_7_SECTION_VISIBLE_D_BOOL",
-      "guid": "a1b2c3d4-0001-5a01-b001-000000000004",
+      "guid": "74f5360e-4107-539f-af72-38389e7b64bd",
       "description": "Show/hide TAG7 Section D (Lifecycle & Status)",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
       "param_name": "TAG_7_SECTION_VISIBLE_E_BOOL",
-      "guid": "a1b2c3d4-0001-5a01-b001-000000000005",
+      "guid": "fdb2ccfa-6128-545c-8b6c-6a656d418948",
       "description": "Show/hide TAG7 Section E (Technical Specs)",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
       "param_name": "TAG_7_SECTION_VISIBLE_F_BOOL",
-      "guid": "a1b2c3d4-0001-5a01-b001-000000000006",
+      "guid": "329929ad-5f26-5d15-98b2-54604ecda858",
       "description": "Show/hide TAG7 Section F (Classification)",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
       "param_name": "TAG_PARA_STATE_4_BOOL",
-      "guid": "9e147e43-a5f9-477f-90c1-000000000004",
+      "guid": "3ac69694-7584-5ba2-9bce-4d045ca21088",
       "description": "State visibility control tier 4",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
       "param_name": "TAG_PARA_STATE_5_BOOL",
-      "guid": "024d0b10-01cb-49a0-8c01-000000000005",
+      "guid": "c9045501-eee6-54ce-b725-3ea589ee8025",
       "description": "State visibility control tier 5",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
       "param_name": "TAG_PARA_STATE_6_BOOL",
-      "guid": "b9539988-c956-4ece-b301-000000000006",
+      "guid": "9b913556-ac00-5a04-b53c-1e262498ad1d",
       "description": "State visibility control tier 6",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
       "param_name": "TAG_PARA_STATE_7_BOOL",
-      "guid": "9d2e4ebb-ce16-4ab4-8801-000000000007",
+      "guid": "8eb03b28-aaf9-5803-8e87-f0655afbf08d",
       "description": "State visibility control tier 7",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
       "param_name": "TAG_PARA_STATE_8_BOOL",
-      "guid": "8ce0a11b-db32-4430-b101-000000000008",
+      "guid": "dd2f491c-8806-5cd2-bb21-d3b915646070",
       "description": "State visibility control tier 8",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
       "param_name": "TAG_PARA_STATE_9_BOOL",
-      "guid": "386fc88f-fda4-411e-b9e1-000000000009",
+      "guid": "482475c4-be76-5db3-87a6-8aac4a53dc74",
       "description": "State visibility control tier 9",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
       "param_name": "TAG_PARA_STATE_10_BOOL",
-      "guid": "bf5b929f-f74a-45d9-a2c1-000000000010",
+      "guid": "8be3ef27-42ab-5668-8cd0-a376578c805a",
       "description": "State visibility control tier 10",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
       "param_name": "HANDOVER_MODE_HANDOVER_BOOL",
-      "guid": "a1b2c3d4-0002-5a01-b001-000000001001",
+      "guid": "a8f3c1d2-4e56-7890-abcd-ef1234567801",
       "description": "Pattern selector — Handover / FM T4-T10 payload is live. Paired with HANDOVER_MODE_DC_BOOL; exactly one is true per project.",
       "binding": "universal",
       "param_type": "YESNO",
@@ -264,7 +264,7 @@
     },
     {
       "param_name": "HANDOVER_MODE_DC_BOOL",
-      "guid": "a1b2c3d4-0002-5a01-b001-000000001002",
+      "guid": "a8f3c1d2-4e56-7890-abcd-ef1234567802",
       "description": "Pattern selector — Design & Construction T4-T10 payload is live. Paired with HANDOVER_MODE_HANDOVER_BOOL; exactly one is true per project.",
       "binding": "universal",
       "param_type": "YESNO",
@@ -272,7 +272,7 @@
     },
     {
       "param_name": "HANDOVER_MODE_CUSTOM_BOOL",
-      "guid": "a1b2c3d4-0002-5a01-b001-000000001003",
+      "guid": "a8f3c1d2-4e56-7890-abcd-ef1234567803",
       "description": "Pattern selector — Custom (user-defined) T4-T10 payload is live. Exactly one of HANDOVER_MODE_HANDOVER_BOOL / HANDOVER_MODE_DC_BOOL / HANDOVER_MODE_CUSTOM_BOOL is true per project.",
       "binding": "universal",
       "param_type": "YESNO",
@@ -283,7 +283,7 @@
       "guid": "867fb0db-88ea-4a3d-9c01-000000000001",
       "description": "Tag text colour (Integer code)",
       "binding": "universal",
-      "param_type": "INTEGER",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -1336,10 +1336,10 @@
     },
     {
       "param_name": "TAG_BOX_VISIBLE_BOOL",
-      "guid": "d5a1b2c3-5004-4e05-a1c1-500000000004",
+      "guid": "4ceac996-f3f3-5ba5-8049-06bbbd354ede",
       "description": "Tag bounding box visibility control",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -1375,7 +1375,7 @@
     },
     {
       "param_name": "VGPS_VISIBLE_BOOL",
-      "guid": "4942d19f-ff13-19c6-8c31-000000000001",
+      "guid": "4942d19f-ff13-19c6-8c38-70fada9adbaa",
       "description": "VG Projection/Surface visibility control",
       "binding": "universal",
       "param_type": "YESNO",
@@ -1505,7 +1505,7 @@
       "guid": "aa37f8cd-757f-655b-6557-33ac70e4d01c",
       "description": "Number of active connectors on element",
       "binding": "universal",
-      "param_type": "INTEGER",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -1693,11 +1693,11 @@
     },
     {
       "param_name": "ASS_TIEIN_CONNECTED_BOOL",
-      "guid": "ti000001-tie0-0001-t001-000000000009",
+      "guid": "675b0c39-6577-4dd2-b7d0-ecb5501987ce",
       "description": "Tie-in resolved flag: No/0 = open live termination, Yes/1 = tie-in completed and connected.",
       "binding": "universal",
       "required": false,
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "group": "TieInPoint"
     },
     {
@@ -2221,7 +2221,7 @@
       ],
       "params": [
         {
-          "param_name": "ELE_FIX_TAG_1_TXT",
+          "param_name": "ELC_FIX_TAG_1_TXT",
           "guid": "5b5c4c6c-c420-4f30-a67e-bdeca6944577",
           "tokens": "all",
           "separator": "-",
@@ -2230,7 +2230,7 @@
           "description": "Full tag"
         },
         {
-          "param_name": "ELE_FIX_TAG_2_TXT",
+          "param_name": "ELC_FIX_TAG_2_TXT",
           "guid": "6b727a38-f448-4b8e-81fb-a2570637ee57",
           "tokens": "short_id",
           "separator": "-",
@@ -2900,7 +2900,7 @@
       {
         "key": "REV",
         "param_name": "ASS_REV_TXT",
-        "description": "Revision code"
+        "description": "Revision code (display label, GROUP 1). See also ASS_REV_COD_TXT (GROUP 17) for the ISO 19650 tag container token."
       },
       {
         "key": "VOLUME",
@@ -2929,15 +2929,15 @@
       },
       {
         "key": "STATUS_COD",
-        "param_name": "ASS_STATUS_TXT",
-        "guid": "a57dfe0c-6db9-4fb6-80e0-d2c453fe653b",
-        "description": "ISO 19650 status/suitability code (GROUP 17)"
+        "param_name": "ASS_CDE_SUITABILITY_TXT",
+        "guid": "37de21ec-8bb3-530d-92e3-b55b312ce611",
+        "description": "ISO 19650 suitability/status code for CDE delivery (S0 WIP / S1 Suitable for coordination / S2 Suitable for info / S3 Shared / S4 Published / S5 Archive). Canonical GUID matches MR_PARAMETERS.txt; supersedes the orphan a57dfe0c-6db9-4fb6-80e0-d2c453fe653b entry that previously sat under the ASS_STATUS_TXT name in this registry."
       },
       {
         "key": "REV_COD",
         "param_name": "ASS_REV_COD_TXT",
         "guid": "83b2139d-67bb-48db-a50f-32140c0dc753",
-        "description": "ISO 19650 revision code (GROUP 17)"
+        "description": "ISO 19650 revision code token in the tag container system (GROUP 17). Written by the tag pipeline. See also ASS_REV_TXT (GROUP 1) for the display revision label."
       }
     ],
     "ble_dimensional": [
@@ -5334,7 +5334,7 @@
       {
         "key": "TIEIN_CONNECTED",
         "param_name": "ASS_TIEIN_CONNECTED_BOOL",
-        "guid": "8c0b8ac9-0d50-4c9e-937a-fe2bf47a9ab2",
+        "guid": "675b0c39-6577-4dd2-b7d0-ecb5501987ce",
         "description": "Tie-in connection status",
         "categories": [
           "Mechanical Equipment",
@@ -5342,7 +5342,8 @@
           "Plumbing Equipment",
           "Pipes",
           "Ducts"
-        ]
+        ],
+        "param_type": "TEXT"
       },
       {
         "key": "TIEIN_ELEV",
@@ -5427,11 +5428,12 @@
       {
         "key": "CASEWORK_ACCESSIBLE",
         "param_name": "BLE_CASEWORK_ACCESSIBLE_BOOL",
-        "guid": "3e573cb7-e85f-432b-b457-12f68a7f96ab",
+        "guid": "8c2b44a9-cc06-408d-af91-0f14499042c4",
         "description": "Accessible casework compliance",
         "categories": [
           "Casework"
-        ]
+        ],
+        "param_type": "YESNO"
       },
       {
         "key": "CASEWORK_COUNTERTOP",
@@ -5526,20 +5528,22 @@
       {
         "key": "PARK_ACCESSIBLE",
         "param_name": "BLE_PARK_ACCESSIBLE_BOOL",
-        "guid": "f7f616d9-0075-4170-9589-4183ae8e20ac",
+        "guid": "b5ac9b94-b39d-468d-847e-b49d346b3633",
         "description": "Parking bay accessibility",
         "categories": [
           "Parking"
-        ]
+        ],
+        "param_type": "YESNO"
       },
       {
         "key": "PARK_EV_CHARGING",
         "param_name": "BLE_PARK_EV_CHARGING_BOOL",
-        "guid": "9a6f6cef-8bc1-430e-888f-381098de0ce8",
+        "guid": "b09617b0-e85e-4079-9c0f-6b490e32daf4",
         "description": "EV charging provided",
         "categories": [
           "Parking"
-        ]
+        ],
+        "param_type": "YESNO"
       },
       {
         "key": "PARK_TYPE",
@@ -5607,11 +5611,12 @@
       {
         "key": "SIGN_ILLUMINATED",
         "param_name": "BLE_SIGN_ILLUMINATED_BOOL",
-        "guid": "e18cf276-3089-4ac3-900e-8b7403ead6df",
+        "guid": "908be268-188c-405a-9d0b-d8717999da94",
         "description": "Signage illumination",
         "categories": [
           "Signage"
-        ]
+        ],
+        "param_type": "YESNO"
       },
       {
         "key": "SIGN_TYPE",
@@ -5792,7 +5797,7 @@
       {
         "key": "CST_UG_PRICE",
         "param_name": "CST_UG_PRICE_UGX",
-        "guid": "5753b5aa-0005-4000-8000-000000000001",
+        "guid": "694fcd57-d0c2-5ed3-afca-f225781b3bc8",
         "description": "Uganda local price (UGX) — quoted supplier price ex-works",
         "categories": [
           "ALL"
@@ -5802,7 +5807,7 @@
       {
         "key": "CST_INTL_PRICE",
         "param_name": "CST_INTL_PRICE_USD",
-        "guid": "5753b5aa-0005-4000-8000-000000000002",
+        "guid": "c40720fa-3e80-5880-86c3-a82f43055fbf",
         "description": "International price (USD) — CIF/DAP quote for imported goods",
         "categories": [
           "ALL"
@@ -5812,7 +5817,7 @@
       {
         "key": "CST_QUOTE_REF",
         "param_name": "CST_QUOTE_REF_TXT",
-        "guid": "5753b5aa-0005-4000-8000-000000000003",
+        "guid": "4de58d8f-38e2-584f-b8aa-5a5744a80fcd",
         "description": "Quote reference — supplier quote/PO number",
         "categories": [
           "ALL"
@@ -5852,7 +5857,7 @@
       {
         "key": "ASS_SPOOL_NR",
         "param_name": "ASS_SPOOL_NR_TXT",
-        "guid": "5753b5aa-0007-4000-8000-000000000001",
+        "guid": "1a4353be-eaaa-5e46-95ee-b64a74667194",
         "description": "Fabrication spool number — BS EN ISO 6412 isometric reference",
         "categories": [
           "ALL"
@@ -5862,7 +5867,7 @@
       {
         "key": "ASS_FAB_STATUS",
         "param_name": "ASS_FAB_STATUS_TXT",
-        "guid": "5753b5aa-0007-4000-8000-000000000002",
+        "guid": "29ba93ba-238e-5aad-930a-a621b0f43b5b",
         "description": "Fabrication status (Designed / Spool released / Fabricated / Delivered / Installed)",
         "categories": [
           "ALL"
@@ -5872,7 +5877,7 @@
       {
         "key": "ASS_QC_INSPECTOR",
         "param_name": "ASS_QC_INSPECTOR_TXT",
-        "guid": "5753b5aa-0007-4000-8000-000000000003",
+        "guid": "a028f908-b100-53bc-b21a-1a0a6a03ffac",
         "description": "QC inspector — name / ID of signing engineer",
         "categories": [
           "ALL"
@@ -6088,6 +6093,407 @@
           "ALL"
         ],
         "tier": "T9"
+      },
+      {
+        "key": "ASS_WEIGHT",
+        "param_name": "ASS_WEIGHT_KG",
+        "guid": "eacedb67-b65b-58f7-a5b7-f1b0253ac6c9",
+        "description": "Assembly total weight in kilograms (sum of member volume x material density)",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T7"
+      },
+      {
+        "key": "ASS_TEST_PRESSURE",
+        "param_name": "ASS_TEST_PRESSURE_BAR",
+        "guid": "3e3624d3-c79d-5dd5-8014-46c8d273b9ea",
+        "description": "Hydrostatic or pneumatic test pressure for the assembly in bar",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T7"
+      },
+      {
+        "key": "ASS_FAB_LOC",
+        "param_name": "ASS_FAB_LOC_TXT",
+        "guid": "e420804b-d43f-593c-91b1-fd00a18aa584",
+        "description": "Fabrication location (SHOP / FIELD / VENDOR)",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T7"
+      },
+      {
+        "key": "ASS_FAB_SEQ",
+        "param_name": "ASS_FAB_SEQ_NR",
+        "guid": "5fc70bc2-9955-583c-9d96-5b54c8f34f53",
+        "description": "Fabrication sequence number within the fabrication package",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T7"
+      },
+      {
+        "key": "ASS_SHIP_DATE",
+        "param_name": "ASS_SHIP_DATE_TXT",
+        "guid": "c2fc8e62-b793-517c-94c6-d2d7ae7584fe",
+        "description": "ISO 8601 date when assembly was shipped to site",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T7"
+      },
+      {
+        "key": "ASS_INSTALL_DATE",
+        "param_name": "ASS_INSTALLATION_DATE_TXT",
+        "guid": "cfc716aa-126d-5e9e-a9e8-3c2a2b52d933",
+        "deprecated_guid": "953575a9-1d0c-5bb5-a4d2-c52b4b4adf96",
+        "description": "Planned or actual installation date [ISO 19650-3:2020]. Canonical GUID cfc716aa supersedes the v4-fabrication alias 953575a9 (which is still bound to ASS_INSTALL_DATE_TXT in MR_PARAMETERS.txt and marked DEPRECATED).",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T7"
+      },
+      {
+        "key": "ASS_BOM_REV",
+        "param_name": "ASS_BOM_REV_TXT",
+        "guid": "0293f487-2ca9-5514-9b18-ac98b1a20b27",
+        "description": "Bill of materials revision code (e.g. P01, C01)",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T7"
+      },
+      {
+        "key": "ASS_WELD_COUNT",
+        "param_name": "ASS_WELD_COUNT_NR",
+        "guid": "6c77833e-4b97-57f5-9a8b-97cc20d6cb61",
+        "description": "Total number of welds in the assembly",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T7"
+      },
+      {
+        "key": "ASS_BOLT_COUNT",
+        "param_name": "ASS_BOLT_COUNT_NR",
+        "guid": "77c9f963-0164-5c71-879d-ee7308091866",
+        "description": "Total number of bolted connections in the assembly",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T7"
+      },
+      {
+        "key": "ASS_FLANGE_COUNT",
+        "param_name": "ASS_FLANGE_COUNT_NR",
+        "guid": "016faa7f-1e8f-5a5d-acfb-14983937de69",
+        "description": "Total number of flanged connections in the assembly",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T7"
+      },
+      {
+        "key": "ASS_FITTING_COUNT",
+        "param_name": "ASS_FITTING_COUNT_NR",
+        "guid": "ead7d5f3-68fa-58c6-8a21-fa8c6a1ff318",
+        "description": "Total number of inline fittings in the assembly",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T7"
+      },
+      {
+        "key": "ASS_LENGTH_TOTAL",
+        "param_name": "ASS_LENGTH_TOTAL_MM",
+        "guid": "2605366f-f56b-5843-b8cb-9781b42a4345",
+        "description": "Total linear length of the assembly in millimetres",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T7"
+      },
+      {
+        "key": "ASS_CUT_COUNT",
+        "param_name": "ASS_CUT_COUNT_NR",
+        "guid": "16e7224e-cab9-5233-b155-3fbe194a3d56",
+        "description": "Number of cut operations required to fabricate the assembly",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T7"
+      },
+      {
+        "key": "ASS_INSULATION_AREA",
+        "param_name": "ASS_INSULATION_AREA_M2",
+        "guid": "21a49d34-9ae2-5058-8d7e-43db4dabd545",
+        "description": "External insulation surface area in square metres",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T7"
+      },
+      {
+        "key": "ASS_SUPPORT_COUNT",
+        "param_name": "ASS_SUPPORT_COUNT_NR",
+        "guid": "9fadd466-7dfa-5845-9a18-d618c77c418d",
+        "description": "Number of supports / hangers referenced by the assembly",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T7"
+      },
+      {
+        "key": "ASS_FAB_NOTES",
+        "param_name": "ASS_FAB_NOTES_TXT",
+        "guid": "9107dff2-054c-5371-b3ae-6d329aa12542",
+        "description": "Free-text fabrication notes consumed by ShopDrawingComposer",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T7"
+      },
+      {
+        "key": "ASS_SPOOL_DRAWING_REF",
+        "param_name": "ASS_SPOOL_DRAWING_REF_TXT",
+        "guid": "c1a5983c-333d-53ff-94d1-4326d9ffff86",
+        "description": "Reference to the generated shop / spool drawing sheet number",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T7"
+      },
+      {
+        "key": "CST_FX_RATE_USD_UGX",
+        "param_name": "CST_FX_RATE_USD_UGX",
+        "guid": "d4e003e1-1f43-5d22-93c1-d9e91d672c52",
+        "description": "USD to UGX exchange rate snapshot used on quote date",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T5"
+      },
+      {
+        "key": "CST_LABOUR_HOURS",
+        "param_name": "CST_LABOUR_HOURS",
+        "guid": "cb945ed3-ff4d-531c-89fa-c06f503ab46c",
+        "description": "Estimated labour hours per element for install takeoff",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T5"
+      },
+      {
+        "key": "CST_LABOUR_RATE_UGX",
+        "param_name": "CST_LABOUR_RATE_UGX",
+        "guid": "3d736d48-cba0-570b-a521-844539bd998c",
+        "description": "Labour rate in UGX per hour",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T5"
+      },
+      {
+        "key": "CST_SHIPPING_UGX",
+        "param_name": "CST_SHIPPING_UGX",
+        "guid": "5758facf-7a3f-5900-b3ea-abf487990b25",
+        "description": "Shipping cost component in UGX",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T5"
+      },
+      {
+        "key": "CST_DUTY_PCT",
+        "param_name": "CST_DUTY_PCT",
+        "guid": "c26d2b96-a012-50d6-bcb9-6a32f24212e0",
+        "description": "Import duty percentage applied to USD price",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T5"
+      },
+      {
+        "key": "ELC_LPS_CLASS",
+        "param_name": "ELC_LPS_CLASS_TXT",
+        "guid": "081c2e86-3af9-5658-8a26-63da9c1eccc2",
+        "description": "LPS class per BS EN 62305 (I / II / III / IV)",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T11"
+      },
+      {
+        "key": "ELC_LPS_ROLLING_SPHERE_RADIUS",
+        "param_name": "ELC_LPS_ROLLING_SPHERE_RADIUS_M",
+        "guid": "c4eeed34-608c-56a5-b97f-7c899d76f208",
+        "description": "Rolling sphere radius in metres per BS EN 62305 class (20 / 30 / 45 / 60)",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T11"
+      },
+      {
+        "key": "ELC_LPS_MESH_SIZE",
+        "param_name": "ELC_LPS_MESH_SIZE_M",
+        "guid": "d6a9566f-eda9-5e6d-9dcf-fd14440c395b",
+        "description": "Air terminal mesh grid size in metres per BS EN 62305 class",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T11"
+      },
+      {
+        "key": "ELC_LPS_AIR_TERMINAL_COUNT",
+        "param_name": "ELC_LPS_AIR_TERMINAL_COUNT_NR",
+        "guid": "36889f59-a8ba-55c8-8777-6ba332b39bff",
+        "description": "Count of air terminals / lightning rods on the protected zone",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T11"
+      },
+      {
+        "key": "ELC_LPS_DOWN_CONDUCTOR_COUNT",
+        "param_name": "ELC_LPS_DOWN_CONDUCTOR_COUNT_NR",
+        "guid": "157527ba-17a8-5014-b6c5-f70273ccd5f5",
+        "description": "Count of down conductors per BS EN 62305 (min 2 for class IV, 4 for class I)",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T11"
+      },
+      {
+        "key": "ELC_LPS_EARTH_ELECTRODE_COUNT",
+        "param_name": "ELC_LPS_EARTH_ELECTRODE_COUNT_NR",
+        "guid": "d02bca9d-9159-5477-8488-48f9076841fa",
+        "description": "Count of earth electrodes serving the LPS",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T11"
+      },
+      {
+        "key": "ELC_LPS_EARTH_RESISTANCE",
+        "param_name": "ELC_LPS_EARTH_RESISTANCE_OHM",
+        "guid": "80da349f-708b-5165-bb2e-f369dec80e4b",
+        "description": "Measured earth resistance in ohms (target <10 ohm per BS EN 62305)",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T11"
+      },
+      {
+        "key": "ELC_LPS_BOND_TYPE",
+        "param_name": "ELC_LPS_BOND_TYPE_TXT",
+        "guid": "1cb4c3d3-8c12-5be3-9eeb-4072b4be3240",
+        "description": "Equipotential bonding type (DIRECT / SPD / ISOLATING_SPARK_GAP)",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T11"
+      },
+      {
+        "key": "ELC_LPS_PROTECTION_ANGLE",
+        "param_name": "ELC_LPS_PROTECTION_ANGLE_DEG",
+        "guid": "0063477e-cda5-58a3-a802-061838e57a47",
+        "description": "Protection cone half-angle in degrees per BS EN 62305 class",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T11"
+      },
+      {
+        "key": "ELC_LPS_ZONE",
+        "param_name": "ELC_LPS_ZONE_TXT",
+        "guid": "a01025f4-6155-524e-8514-72507f5e04ef",
+        "description": "Lightning protection zone per BS EN 62305-4 (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3)",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T11"
+      },
+      {
+        "key": "ELC_LPS_RISK_ASSESSMENT",
+        "param_name": "ELC_LPS_RISK_ASSESSMENT_TXT",
+        "guid": "330d6fb5-2891-5a28-8ec6-e04618c9d1e4",
+        "description": "Risk assessment reference document per BS EN 62305-2",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T11"
+      },
+      {
+        "key": "ELC_LPS_SURGE_PROTECTION_LVL",
+        "param_name": "ELC_LPS_SURGE_PROTECTION_LVL_TXT",
+        "guid": "c1605d30-bdcb-560e-9d97-bae3303a078e",
+        "description": "Surge protection device level (Type 1 / Type 2 / Type 3)",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T11"
+      },
+      {
+        "key": "ELC_LPS_SEPARATION_DISTANCE",
+        "param_name": "ELC_LPS_SEPARATION_DISTANCE_MM",
+        "guid": "441346ff-828f-5298-9fbb-96f27feb22ef",
+        "description": "Separation distance (s) between LPS and services in millimetres",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T11"
+      },
+      {
+        "key": "ELC_LPS_CONDUCTOR_CROSS_SECT",
+        "param_name": "ELC_LPS_CONDUCTOR_CROSS_SECT_MM2",
+        "guid": "423133ca-7535-521d-9c37-65ec7ae68166",
+        "description": "Down conductor cross section in mm2 (min 50 mm2 copper per BS EN 62305)",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T11"
+      },
+      {
+        "key": "ELC_LPS_EARTH_TYPE",
+        "param_name": "ELC_LPS_EARTH_TYPE_TXT",
+        "guid": "3703245d-a866-5e05-8737-72babfbb85a4",
+        "description": "Earth electrode type (ROD / RING / FOUNDATION / MESH)",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T11"
+      },
+      {
+        "key": "ELC_LPS_INSPECTION_INTERVAL",
+        "param_name": "ELC_LPS_INSPECTION_INTERVAL_MONTHS",
+        "guid": "5339fe4f-caa3-5edc-99b1-53c0defd4ad8",
+        "description": "Inspection interval in months (12 for class I/II, 24 for class III/IV)",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T11"
+      },
+      {
+        "key": "ELC_LPS_TEST_DATE",
+        "param_name": "ELC_LPS_TEST_DATE_TXT",
+        "guid": "d654df13-0913-5e8f-8dfe-98b3971beb86",
+        "description": "ISO 8601 date of last LPS test / inspection",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T11"
+      },
+      {
+        "key": "ELC_LPS_CERT_REF",
+        "param_name": "ELC_LPS_CERT_REF_TXT",
+        "guid": "0a8dbcfb-6f73-5c8c-94eb-b72606feae87",
+        "description": "Certificate reference for the LPS inspection / commissioning",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T11"
       }
     ]
   },

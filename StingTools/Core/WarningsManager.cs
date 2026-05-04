@@ -5449,6 +5449,24 @@ namespace StingTools.Core
                 { "ACCPublish", "ACCPublish" },
                 { "SharePointExport", "SharePointExport" },
 
+                // Phase 167 — Planscape BCC dispatch entries. Disconnect /
+                // OpenWebDashboard short-circuit inline in ProcessAction; the
+                // remaining tags need an explicit dictionary entry so the
+                // resolver lookup hits a real command and never falls through
+                // to the "Action 'X' is not handled" toast.
+                { "PlanscapeConnect",          "PlanscapeConnect" },
+                { "PlanscapeDisconnect",       "PlanscapeDisconnect" },
+                { "PlanscapeOpenWebDashboard", "PlanscapeOpenWebDashboard" },
+                { "PlanscapeSyncNow",          "PlanscapeSyncNow" },
+                { "PlanscapeAddMember",        "PlanscapeConnect" },
+                { "PlanscapeRemoveMember",     "PlanscapeConnect" },
+                { "PlanscapeLinkProject",      "PlanscapeConnect" },
+                { "PlanscapeTestConnection",   "PlanscapeConnect" },
+                { "PlanscapeUnlinkProject",    "PlanscapeDisconnect" },
+                { "PlanscapeClearCredentials", "PlanscapeDisconnect" },
+                { "PlanscapeOpenBrowser",      "PlanscapeOpenWebDashboard" },
+                { "PublishModelToPlanscape",   "PublishModelToPlanscape" },
+
                 // Workflow actions
                 { "RunWorkflowPreset", "WorkflowPreset" },
                 { "CreateWorkflowPreset", "CreateWorkflowPreset" },
@@ -5615,6 +5633,34 @@ namespace StingTools.Core
                 return;
             }
 
+            // BCC Platform tab → Planscape inline actions that aren't IExternalCommand classes.
+            // StingCommandHandler.Execute handles these inline; mirror that here so BCC's
+            // ExternalEvent path doesn't fall through to "Action 'X' is not handled".
+            if (string.Equals(action, "PlanscapeDisconnect", StringComparison.OrdinalIgnoreCase)
+             || string.Equals(action, "PlanscapeUnlinkProject", StringComparison.OrdinalIgnoreCase)
+             || string.Equals(action, "PlanscapeClearCredentials", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    BIMManager.PlanscapeServerClient.Instance.Disconnect();
+                    if (string.Equals(action, "PlanscapeDisconnect", StringComparison.OrdinalIgnoreCase))
+                        TaskDialog.Show("Planscape", "Disconnected from Planscape server.");
+                }
+                catch (Exception ex) { StingLog.Warn($"{action} dispatch: {ex.Message}"); }
+                return;
+            }
+            if (string.Equals(action, "PlanscapeSyncNow", StringComparison.OrdinalIgnoreCase)
+             || string.Equals(action, "PlanscapeOpenBrowser", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var uiApp = UI.StingCommandHandler.CurrentApp;
+                    if (uiApp != null) BIMManager.PlatformSyncCommand.SyncToPlanscapeServer(uiApp);
+                }
+                catch (Exception ex) { StingLog.Warn($"{action} dispatch: {ex.Message}"); }
+                return;
+            }
+
             // Handle DocumentManager inline (opens WPF dialog directly)
             if (string.Equals(action, "DocumentManager", StringComparison.OrdinalIgnoreCase))
             {
@@ -5626,6 +5672,31 @@ namespace StingTools.Core
                         UI.DocumentManagementDialog.Show(doc2);
                 }
                 catch (Exception ex) { StingLog.Warn($"DocumentManager dispatch: {ex.Message}"); }
+                return;
+            }
+
+            // BCC's Planscape Native Collaboration Hub fires Planscape* actions
+            // (PlanscapeConnect / PlanscapeDisconnect / PlanscapeSyncNow / etc).
+            // StingCommandHandler already wires every Planscape tag with its own
+            // case block — including the ones that aren't IExternalCommands like
+            // Disconnect (which just calls PlanscapeServerClient.Instance.Disconnect()).
+            // Forward the whole Planscape namespace to StingCommandHandler so the
+            // BCC dispatch path doesn't have to duplicate every binding here.
+            if (action.StartsWith("Planscape", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    bool ok = UI.StingDockPanel.DispatchCommand(action);
+                    if (ok)
+                        StingLog.Info($"DispatchCoordAction: forwarded '{action}' to StingCommandHandler");
+                    else
+                        StingLog.Warn($"DispatchCoordAction: forward '{action}' failed — StingDockPanel handler not initialised");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"DispatchCoordAction: forward '{action}' failed — {ex.Message}");
+                    TaskDialog.Show("STING", $"Command '{action}' failed:\n{ex.Message}");
+                }
                 return;
             }
 

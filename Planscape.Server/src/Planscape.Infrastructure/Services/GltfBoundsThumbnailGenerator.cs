@@ -167,7 +167,7 @@ public class GltfBoundsThumbnailGenerator : IModelThumbnailGenerator
             if (family.Name == null) return;
             var font = family.CreateFont(13f, FontStyle.Regular);
             string size = $"{b.sx / 1000:0.0} × {b.sy / 1000:0.0} × {b.sz / 1000:0.0} m";
-            string name = Path.GetFileNameWithoutExtension(modelPath);
+            string name = System.IO.Path.GetFileNameWithoutExtension(modelPath);
             if (name.Length > 36) name = name.Substring(0, 33) + "…";
             img.Mutate(ctx =>
             {

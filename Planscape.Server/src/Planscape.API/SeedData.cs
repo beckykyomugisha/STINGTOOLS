@@ -26,19 +26,40 @@ public static class SeedData
                 return;
             }
         }
-        if (await db.Tenants.AnyAsync()) return; // Already seeded
+        // Bypass the global tenant query filter. Every find-or-create probe
+        // below queries an ITenantScoped entity (Tenant/AppUser/LicenseKey/
+        // Project), and TenantContext.TenantId returns Guid.Empty at startup
+        // (no HTTP context). Without bypass, the probes return null even when
+        // the rows exist, and the subsequent Add() trips the unique
+        // constraint on the *actual* row in the database.
+        db.BypassTenantFilter = true;
+
+        // Idempotent guard. Don't compare against ANY tenant — PlatformTenantSeeder
+        // also creates a tenant on first start (the platform 'planscape' tenant for
+        // operator accounts), so 'any tenant exists' would skip the demo seed
+        // entirely. Probe for the demo admin specifically.
+        if (await db.Users.AnyAsync(u => u.Email == "admin@planscape.demo")) return;
 
         // ── Demo Tenant ──
-        var tenant = new Tenant
+        // Find-or-create. DemoSandboxJob (Hangfire recurring) also owns
+        // the Slug="demo" tenant — if it has already minted the row this
+        // boot, attach the demo admin to that tenant rather than inserting
+        // a duplicate (which would trip IX_Tenants_Slug). When neither
+        // seeder has run yet we create it ourselves.
+        var tenant = await db.Tenants.FirstOrDefaultAsync(t => t.Slug == "demo");
+        if (tenant == null)
         {
-            Name = "Planscape Demo",
-            Slug = "demo",
-            Tier = LicenseTier.Premium,
-            MaxUsers = 50,
-            MaxProjects = 20,
-            MimEnabled = true
-        };
-        db.Tenants.Add(tenant);
+            tenant = new Tenant
+            {
+                Name = "Planscape Demo",
+                Slug = "demo",
+                Tier = LicenseTier.Premium,
+                MaxUsers = 50,
+                MaxProjects = 20,
+                MimEnabled = true
+            };
+            db.Tenants.Add(tenant);
+        }
 
         // ── Admin User ──
         var admin = new AppUser
@@ -52,20 +73,32 @@ public static class SeedData
         };
         db.Users.Add(admin);
 
-        // ── Demo License Key ──
-        var license = new LicenseKey
+        // ── Demo License Key (find-or-create) ──
+        var license = await db.LicenseKeys.FirstOrDefaultAsync(l => l.Key == "PLANSCAPE-DEMO-2026-PREMIUM");
+        if (license == null)
         {
-            TenantId = tenant.Id,
-            Key = "PLANSCAPE-DEMO-2026-PREMIUM",
-            Tier = LicenseTier.Premium,
-            MaxActivations = 10,
-            MimEnabled = true,
-            ExpiresAt = DateTime.UtcNow.AddYears(1)
-        };
-        db.LicenseKeys.Add(license);
+            license = new LicenseKey
+            {
+                TenantId = tenant.Id,
+                Key = "PLANSCAPE-DEMO-2026-PREMIUM",
+                Tier = LicenseTier.Premium,
+                MaxActivations = 10,
+                MimEnabled = true,
+                ExpiresAt = DateTime.UtcNow.AddYears(1)
+            };
+            db.LicenseKeys.Add(license);
+        }
 
-        // ── Sample Project ──
-        var project = new Project
+        // ── Sample Project (find-or-create) ──
+        var project = await db.Projects.FirstOrDefaultAsync(p => p.Code == "NHW-2026" && p.TenantId == tenant.Id);
+        if (project != null)
+        {
+            // Project + cascading children already exist from a prior partial run.
+            // Skip the rest of the sample data; the demo admin we just attached is enough.
+            await db.SaveChangesAsync();
+            return;
+        }
+        project = new Project
         {
             TenantId = tenant.Id,
             Name = "New Hospital Wing",

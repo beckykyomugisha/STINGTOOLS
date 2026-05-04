@@ -72,7 +72,7 @@ public class NotificationsController : ControllerBase
                 d.DeviceName,
                 d.CreatedAt,
                 d.LastUsedAt,
-                tokenPreview = d.Token.Length > 10 ? d.Token[..10] + "..." : d.Token
+                tokenPreview = d.Token.Length > 10 ? d.Token.Substring(0, 10) + "..." : d.Token
             })
             .OrderByDescending(d => d.LastUsedAt)
             .ToListAsync();

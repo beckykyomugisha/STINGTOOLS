@@ -207,7 +207,7 @@ public class ProjectsController : ControllerBase
         var complianceTrend = await _db.ComplianceSnapshots
             .Where(s => s.ProjectId == id && s.CapturedAt >= trendStart)
             .OrderBy(s => s.CapturedAt)
-            .Select(s => new { s.CapturedAt, s.CompliancePercent, s.ContainerCompliancePercent })
+            .Select(s => new { s.CapturedAt, s.TagPercent, s.ContainerPercent })
             .ToListAsync();
 
         return Ok(new
