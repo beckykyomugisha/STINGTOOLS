@@ -414,22 +414,19 @@ namespace StingTools.Docs
                             : "Export will fail.")));
             }
 
+            // NWC availability
+            if ((profile.Formats & ExportFormats.NWC) != 0)
+            {
+                if (!ExportCenterNwcExporter.IsAvailable())
+                    issues.Add(Warn("NWC_UNAVAILABLE",
+                        "Navisworks NWC Export Utility not detected — NWC export will be skipped."));
+            }
+
             return issues;
         }
 
-        public static bool IsMultiLayoutMergerAvailable()
-        {
-            // Simple heuristic — real implementation would probe for AutoCAD COM
-            // (Type.GetTypeFromProgID("AutoCAD.Application")) and the ODA SDK on
-            // disk. For headless test envs we report unavailable.
-            try
-            {
-                var t = Type.GetTypeFromProgID("AutoCAD.Application");
-                if (t != null) return true;
-            }
-            catch { }
-            return false;
-        }
+        /// <summary>True if AutoCAD COM (Method A) is reachable. ODA (Method B) is TODO.</summary>
+        public static bool IsMultiLayoutMergerAvailable() => ExportCenterDwgMerger.IsAvailable();
 
         private static ExportPreflightIssue Err(string code, string msg) =>
             new() { Level = ExportPreflightIssue.Severity.Error, Code = code, Message = msg };
@@ -489,9 +486,12 @@ namespace StingTools.Docs
                     if (cancelRequested != null && cancelRequested()) { result.Cancelled = true; goto Done; }
                 }
 
-                // NWC, DGN, DWF, Image, XML — implementations tagged TODO_FORMAT.
                 if ((profile.Formats & ExportFormats.NWC) != 0)
-                    result.Warnings.Add("NWC export is not yet implemented in this build (requires Navisworks NWC Export Utility).");
+                {
+                    RunNwc(doc, profile, result,
+                        (label) => progress?.Invoke(++done, total, label));
+                    if (cancelRequested != null && cancelRequested()) { result.Cancelled = true; goto Done; }
+                }
                 if ((profile.Formats & ExportFormats.Image) != 0)
                     RunImage(doc, profile, selectedIds, result,
                         (label) => progress?.Invoke(++done, total, label), cancelRequested);
@@ -502,7 +502,8 @@ namespace StingTools.Docs
                     RunDwf(doc, profile, selectedIds, result,
                         (label) => progress?.Invoke(++done, total, label), cancelRequested);
                 if ((profile.Formats & ExportFormats.XML) != 0)
-                    result.Warnings.Add("XML export is not yet implemented in this build.");
+                    RunXml(doc, profile, selectedIds, result,
+                        (label) => progress?.Invoke(++done, total, label));
             }
             catch (Exception ex)
             {
@@ -701,19 +702,22 @@ namespace StingTools.Docs
         private static void TryInjectBookmarks(string pdfPath, List<View> views,
             ExportProfile profile, ExportRunResult result)
         {
-            // Bookmark injection requires PdfSharp 6.x or PdfPig — neither is currently
-            // a build dependency. Mark as TODO so the dialog can show the warning and
-            // the build CI can pick it up.
-            result.Warnings.Add(
-                $"Bookmark injection skipped for '{Path.GetFileName(pdfPath)}' — " +
-                "requires PdfSharp 6.x (TODO_PDFSHARP_DEP).");
+            // Backed by PDFsharp 6.x (added as a NuGet package). Best-effort —
+            // a bookmark failure must not abort the export.
+            try { ExportCenterPdfPostProcess.InjectBookmarks(pdfPath, views, profile); }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"Bookmark injection failed for '{Path.GetFileName(pdfPath)}': {ex.Message}");
+            }
         }
 
         private static void TryInjectWatermark(string pdfPath, PdfExportSettings pdf, ExportRunResult result)
         {
-            result.Warnings.Add(
-                $"Watermark injection skipped for '{Path.GetFileName(pdfPath)}' — " +
-                "requires PdfSharp 6.x (TODO_PDFSHARP_DEP).");
+            try { ExportCenterPdfPostProcess.InjectWatermark(pdfPath, pdf); }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"Watermark injection failed for '{Path.GetFileName(pdfPath)}': {ex.Message}");
+            }
         }
 
         private static PDFExportQualityType MapRasterQuality(int dpi) => dpi switch
@@ -849,21 +853,46 @@ namespace StingTools.Docs
                 string temp = Path.Combine(Path.GetTempPath(),
                     "STING_DWG_MERGE_" + DateTime.Now.ToString("yyyyMMddHHmmss"));
                 Directory.CreateDirectory(temp);
+                var perSheet = new List<string>();
+                var labels   = new List<string>();
                 foreach (var v in sheets)
                 {
                     string label = SanitiseLayoutName(ResolveNaming(doc, v, profile.Dwg.LayoutNameTemplate, profile.Output));
                     doc.Export(temp, label, new List<ElementId> { v.Id }, opts);
+                    string p = Path.Combine(temp, label + ".dwg");
+                    if (File.Exists(p)) { perSheet.Add(p); labels.Add(label); }
                 }
 
-                // Step 2: merge — implementation deferred (TODO_DWG_MERGE).
-                // The plan in CLAUDE.md uses AutoCAD COM (Method A) or ODA (Method B);
-                // for now we stage the files, leave them for the user, and emit a
-                // warning. Falling back here keeps the dialog functional.
-                result.Warnings.Add(
-                    $"DWG multi-layout merge for '{groupName}' deferred — " +
-                    $"individual DWGs staged at: {temp} (TODO_DWG_MERGE).");
-                row.OutputPath = temp;
-                row.Success = true;
+                // Step 2: AutoCAD-COM merge (ExportCenterDwgMerger). Falls through
+                // to the staged per-sheet output if AutoCAD isn't installed and
+                // the profile permits fallback.
+                string outFolder = SubFolderFor(profile, "DWG", null);
+                string outName = Sanitise(
+                    ResolveNaming(doc, sheets[0], profile.Output.NamingTemplate, profile.Output) + "_" + groupName,
+                    profile.Output.IllegalCharReplacement);
+                string outPath = Path.Combine(outFolder, outName + ".dwg");
+
+                string merged = ExportCenterDwgMerger.Merge(perSheet, labels, outPath);
+                if (merged != null && File.Exists(merged))
+                {
+                    row.OutputPath = merged;
+                    row.FileSizeBytes = new FileInfo(merged).Length;
+                    row.Success = true;
+                    try { Directory.Delete(temp, true); } catch { }
+                }
+                else if (profile.Dwg.FallbackOnMergeFailure)
+                {
+                    result.Warnings.Add(
+                        $"DWG multi-layout merge for '{groupName}' fell back — " +
+                        $"individual DWGs staged at: {temp}");
+                    row.OutputPath = temp;
+                    row.Success = true;
+                }
+                else
+                {
+                    row.Success = false;
+                    row.Error = "Multi-layout merge failed and FallbackOnMergeFailure is disabled.";
+                }
             }
             catch (Exception ex) { row.Success = false; row.Error = ex.Message; }
             finally
@@ -1056,6 +1085,83 @@ namespace StingTools.Docs
                 }
                 catch (Exception ex) { row.Success = false; row.Error = ex.Message; }
                 finally { CommitRow(row, result); }
+            }
+        }
+
+        // ── NWC pipeline ────────────────────────────────────────────────────────
+
+        private static void RunNwc(Document doc, ExportProfile profile, ExportRunResult result, Action<string> tick)
+        {
+            var row = new ExportResultRow
+            {
+                SheetNumber = "[nwc]",
+                SheetTitle = doc.PathName,
+                Format = "NWC",
+                StartedUtc = DateTime.UtcNow,
+            };
+            try
+            {
+                if (!ExportCenterNwcExporter.IsAvailable())
+                {
+                    row.Success = false;
+                    row.Error = "Navisworks NWC Export Utility not detected.";
+                    result.Warnings.Add(row.Error +
+                        " Install the free Navisworks NWC Export Utility from Autodesk and restart Revit.");
+                    return;
+                }
+
+                string folder = SubFolderFor(profile, "NWC", null);
+                string stem = Sanitise(
+                    ResolveNaming(doc, doc.ActiveView, profile.Output.NamingTemplate, profile.Output),
+                    profile.Output.IllegalCharReplacement);
+
+                bool ok = ExportCenterNwcExporter.Export(doc, folder, stem, profile.Nwc);
+                row.OutputPath = Path.Combine(folder, stem + ".nwc");
+                row.Success = ok && File.Exists(row.OutputPath);
+                if (row.Success) row.FileSizeBytes = new FileInfo(row.OutputPath).Length;
+                else row.Error ??= "NWC export returned false";
+                tick?.Invoke("NWC");
+            }
+            catch (Exception ex) { row.Success = false; row.Error = ex.Message; }
+            finally
+            {
+                row.FinishedUtc = DateTime.UtcNow;
+                result.Rows.Add(row);
+            }
+        }
+
+        // ── XML pipeline ────────────────────────────────────────────────────────
+
+        private static void RunXml(Document doc, ExportProfile profile, List<ElementId> ids,
+            ExportRunResult result, Action<string> tick)
+        {
+            var row = new ExportResultRow
+            {
+                SheetNumber = "[xml]",
+                SheetTitle = profile.Xml.Scope == "ProjectInfoOnly" ? "(project info)" : $"{ids.Count} sheets",
+                Format = "XML",
+                StartedUtc = DateTime.UtcNow,
+            };
+            try
+            {
+                string folder = SubFolderFor(profile, "XML", null);
+                string stem = Sanitise(
+                    ResolveNaming(doc, doc.ActiveView, profile.Output.NamingTemplate, profile.Output),
+                    profile.Output.IllegalCharReplacement);
+                string path = Path.Combine(folder, stem + ".xml");
+
+                bool ok = ExportCenterXmlWriter.Write(doc, ids, path, profile.Xml);
+                row.OutputPath = path;
+                row.Success = ok;
+                if (ok) row.FileSizeBytes = new FileInfo(path).Length;
+                else row.Error = "XML writer returned false";
+                tick?.Invoke("XML");
+            }
+            catch (Exception ex) { row.Success = false; row.Error = ex.Message; }
+            finally
+            {
+                row.FinishedUtc = DateTime.UtcNow;
+                result.Rows.Add(row);
             }
         }
 

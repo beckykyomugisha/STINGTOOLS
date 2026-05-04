@@ -519,11 +519,11 @@ namespace StingTools.UI
             if ((_profile.Formats & ExportFormats.PDF)   != 0) _formatOptionsHost.Children.Add(BuildPdfOptions());
             if ((_profile.Formats & ExportFormats.DWG)   != 0) _formatOptionsHost.Children.Add(BuildDwgOptions());
             if ((_profile.Formats & ExportFormats.IFC)   != 0) _formatOptionsHost.Children.Add(BuildIfcOptions());
-            if ((_profile.Formats & ExportFormats.NWC)   != 0) _formatOptionsHost.Children.Add(BuildSimpleNote("NWC", "Requires Navisworks NWC Export Utility — TODO_NWC."));
+            if ((_profile.Formats & ExportFormats.NWC)   != 0) _formatOptionsHost.Children.Add(BuildNwcOptions());
             if ((_profile.Formats & ExportFormats.DGN)   != 0) _formatOptionsHost.Children.Add(BuildSimpleNote("DGN", "Default DGN export options applied."));
             if ((_profile.Formats & ExportFormats.DWF)   != 0) _formatOptionsHost.Children.Add(BuildSimpleNote("DWF", "DWFx default options applied."));
             if ((_profile.Formats & ExportFormats.Image) != 0) _formatOptionsHost.Children.Add(BuildImageOptions());
-            if ((_profile.Formats & ExportFormats.XML)   != 0) _formatOptionsHost.Children.Add(BuildSimpleNote("XML", "XML export — TODO_XML."));
+            if ((_profile.Formats & ExportFormats.XML)   != 0) _formatOptionsHost.Children.Add(BuildXmlOptions());
         }
 
         private Border BuildPdfOptions()
@@ -686,6 +686,78 @@ namespace StingTools.UI
         {
             var card = NewSection(title);
             ((StackPanel)card.Child).Children.Add(new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, Foreground = (Brush)new BrushConverter().ConvertFromString("#5B6470"), FontSize = 11 });
+            return card;
+        }
+
+        private Border BuildNwcOptions()
+        {
+            var card = NewSection("NWC — Navisworks Cache");
+            var sp = (StackPanel)card.Child;
+
+            string hint = ExportCenterNwcExporter.IsAvailable()
+                ? "✅ Navisworks NWC Export Utility detected."
+                : "⚠ Navisworks NWC Export Utility NOT detected. Install the free utility from Autodesk to enable.";
+            sp.Children.Add(new TextBlock
+            {
+                Text = hint,
+                Foreground = ExportCenterNwcExporter.IsAvailable() ? Brushes.DarkGreen : Brushes.DarkOrange,
+                Margin = new Thickness(0, 0, 0, 6),
+                FontSize = 11,
+                TextWrapping = TextWrapping.Wrap,
+            });
+
+            var scope = new ComboBox();
+            foreach (var v in new[] { "Selected", "CurrentView", "Entire" }) scope.Items.Add(v);
+            scope.SelectedItem = _profile.Nwc.Scope;
+            scope.SelectionChanged += (_, __) => _profile.Nwc.Scope = scope.SelectedItem?.ToString() ?? "Selected";
+            sp.Children.Add(LabelFor("Scope", scope));
+
+            var coords = new ComboBox();
+            foreach (var v in new[] { "Project", "Shared" }) coords.Items.Add(v);
+            coords.SelectedItem = _profile.Nwc.CoordinateSystem;
+            coords.SelectionChanged += (_, __) => _profile.Nwc.CoordinateSystem = coords.SelectedItem?.ToString() ?? "Project";
+            sp.Children.Add(LabelFor("Coordinates", coords));
+
+            sp.Children.Add(BindCheck("Export element IDs (clash detective)",
+                () => _profile.Nwc.ExportElementIdsForClash, v => _profile.Nwc.ExportElementIdsForClash = v));
+            return card;
+        }
+
+        private Border BuildXmlOptions()
+        {
+            var card = NewSection("XML — Sheet metadata + parameters");
+            var sp = (StackPanel)card.Child;
+
+            var scope = new ComboBox();
+            foreach (var v in new[] { "Selected", "ProjectInfoOnly" }) scope.Items.Add(v);
+            scope.SelectedItem = _profile.Xml.Scope;
+            scope.SelectionChanged += (_, __) => _profile.Xml.Scope = scope.SelectedItem?.ToString() ?? "Selected";
+            sp.Children.Add(LabelFor("Scope", scope));
+
+            sp.Children.Add(BindCheck("Include project information",
+                () => _profile.Xml.IncludeProjectInfo, v => _profile.Xml.IncludeProjectInfo = v));
+
+            sp.Children.Add(new TextBlock
+            {
+                Text = "Parameter groups",
+                FontSize = 11,
+                Foreground = (Brush)new BrushConverter().ConvertFromString("#5B6470"),
+                Margin = new Thickness(0, 6, 0, 2),
+            });
+            foreach (var group in new[] { "Identity", "Location", "Dimensions", "Revisions", "Custom" })
+            {
+                var g = group;
+                var cb = new CheckBox
+                {
+                    Content = g,
+                    IsChecked = _profile.Xml.ParameterGroups.Contains(g),
+                    Margin = new Thickness(0, 1, 0, 1),
+                };
+                cb.Checked   += (_, __) => { if (!_profile.Xml.ParameterGroups.Contains(g)) _profile.Xml.ParameterGroups.Add(g); };
+                cb.Unchecked += (_, __) => _profile.Xml.ParameterGroups.RemoveAll(x => x == g);
+                sp.Children.Add(cb);
+            }
+
             return card;
         }
 
