@@ -3534,6 +3534,25 @@ namespace StingTools.UI
             }
         }
 
+        // ── Fabrication workspace launcher ────────────────────────────
+
+        private static void OpenFabWorkspace(UIApplication app, UI.FabAction initial)
+        {
+            try
+            {
+                var uidoc = app?.ActiveUIDocument;
+                if (uidoc?.Document == null) { TaskDialog.Show("STING v4", "Open a project first."); return; }
+                var dlg = new UI.FabricationWorkspaceDialog(uidoc, initial);
+                try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch { }
+                dlg.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("OpenFabWorkspace failed", ex);
+                TaskDialog.Show("STING v4 — Fabrication", $"Workspace failed to open:\n{ex.Message}");
+            }
+        }
+
         // ── Generic command runner ────────────────────────────────────
 
         /// <summary>Phase 165 (INT-02 framework) — public bridge so the new
