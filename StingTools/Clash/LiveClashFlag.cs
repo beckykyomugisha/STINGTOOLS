@@ -89,6 +89,23 @@ namespace StingTools.Core.Clash
             }
         }
 
+        /// <summary>
+        /// rec-10: Silent failures preprocessor. LiveClashFlag writes are low-stakes
+        /// diagnostic UI (a yes/no marker). A read-only parameter or a deleted
+        /// element shouldn't raise modal warnings to the user mid-edit.
+        /// </summary>
+        private sealed class SilentFlagFailurePreprocessor : IFailuresPreprocessor
+        {
+            public FailureProcessingResult PreprocessFailures(FailuresAccessor accessor)
+            {
+                foreach (var fm in accessor.GetFailureMessages())
+                {
+                    accessor.DeleteWarning(fm);
+                }
+                return FailureProcessingResult.Continue;
+            }
+        }
+
         private static void SetParam(Document doc, int elementId, bool value)
         {
             // ElementId(int) ctor is obsolete in Revit 2024+; use Int64 overload.
