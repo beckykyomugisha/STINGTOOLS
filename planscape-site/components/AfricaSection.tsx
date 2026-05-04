@@ -2,28 +2,160 @@
 
 import { motion } from 'framer-motion';
 import { CheckCircle2, ArrowRight } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
 
-const cities = [
-  { name: 'Kampala, Uganda', x: 218, y: 220 },
-  { name: 'Nairobi, Kenya', x: 240, y: 232 },
-  { name: 'Lagos, Nigeria', x: 95, y: 190 },
-  { name: 'Accra, Ghana', x: 70, y: 198 },
-  { name: 'Dar es Salaam, Tanzania', x: 248, y: 256 },
+type DemoProject = {
+  name: string;
+  city: string;
+  country: string;
+  lat: number;
+  lng: number;
+  status: 'Active' | 'Completed';
+  compliance: number;
+};
+
+const demoProjects: DemoProject[] = [
+  { name: 'New Hospital Wing',          city: 'Kampala',       country: 'Uganda',   lat:  0.3136, lng: 32.5811, status: 'Active',    compliance: 84 },
+  { name: 'Airport Terminal Expansion', city: 'Entebbe',       country: 'Uganda',   lat:  0.0424, lng: 32.4430, status: 'Active',    compliance: 91 },
+  { name: 'Port Infrastructure',        city: 'Lagos',         country: 'Nigeria',  lat:  6.4541, lng:  3.3947, status: 'Active',    compliance: 42 },
+  { name: 'Mixed-Use Development',      city: 'Nairobi',       country: 'Kenya',    lat: -1.2921, lng: 36.8219, status: 'Completed', compliance: 98 },
+  { name: 'Commercial Centre',          city: 'Accra',         country: 'Ghana',    lat:  5.6037, lng: -0.1870, status: 'Completed', compliance: 96 },
+  { name: 'Water Treatment Plant',      city: 'Dar es Salaam', country: 'Tanzania', lat: -6.7924, lng: 39.2083, status: 'Active',    compliance: 67 },
 ];
 
-/**
- * Stylised, simplified outline of the African continent.
- * Hand-drawn path approximating the coastline within a 300x380 viewBox.
- */
-const AFRICA_PATH =
-  'M 150 30 C 175 28 198 32 218 38 L 240 50 C 255 62 268 78 275 96 L 280 118 C 282 138 278 156 270 172 L 268 190 C 272 206 278 222 280 240 L 278 260 C 272 282 260 304 244 322 L 224 340 C 205 354 184 360 165 358 L 145 354 C 128 350 116 342 108 330 L 96 312 C 88 296 84 278 80 260 L 74 240 C 68 224 60 210 52 196 L 44 178 C 38 162 36 146 38 130 L 42 110 C 50 92 64 78 82 68 L 102 58 C 118 48 135 38 150 30 Z';
+// Resolution order: build-time env var → runtime placeholder. The placeholder
+// keeps the static export working: when the user hasn't set a real token the
+// section renders a friendly fallback panel instead of crashing.
+const MAPBOX_TOKEN =
+  process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? 'PLANSCAPE_MAPBOX_TOKEN';
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c),
+  );
+}
+
+function popupHtml(p: DemoProject): string {
+  const dotClass = p.status === 'Completed' ? 'ind-completed' : 'ind-active';
+  const dot      = p.status === 'Completed' ? '✓' : '●';
+  return `
+    <div class="popup-card">
+      <h4>${escapeHtml(p.name)}</h4>
+      <div class="loc">📍 ${escapeHtml(p.city)}, ${escapeHtml(p.country)}</div>
+      <div class="row"><span>Status</span><span class="${dotClass}">${dot} ${p.status}</span></div>
+      <div class="row"><span>Compliance</span><span>${p.compliance}%</span></div>
+      <hr>
+      <a href="#pricing" class="demo-link">Request a Demo →</a>
+    </div>
+  `;
+}
 
 export default function AfricaSection() {
-  const [hovered, setHovered] = useState<string | null>(null);
+  const mapContainer = useRef<HTMLDivElement | null>(null);
+  const mapRef       = useRef<mapboxgl.Map | null>(null);
+  const [tokenMissing, setTokenMissing] = useState(false);
+
+  useEffect(() => {
+    if (!mapContainer.current) return;
+    if (!MAPBOX_TOKEN || MAPBOX_TOKEN === 'PLANSCAPE_MAPBOX_TOKEN') {
+      setTokenMissing(true);
+      return;
+    }
+
+    mapboxgl.accessToken = MAPBOX_TOKEN;
+    const map = new mapboxgl.Map({
+      container: mapContainer.current,
+      style: 'mapbox://styles/mapbox/dark-v11',
+      center: [22, 2],
+      zoom: 2.8,
+      interactive: true,
+      attributionControl: false,
+    });
+    mapRef.current = map;
+
+    // Don't hijack the page scroll — user must click the map first.
+    map.scrollZoom.disable();
+    const enableZoom = () => map.scrollZoom.enable();
+    map.on('click', enableZoom);
+
+    const markers: mapboxgl.Marker[] = [];
+
+    demoProjects.forEach((p) => {
+      const key = p.status === 'Completed' ? 'completed' : 'active';
+
+      const el = document.createElement('div');
+      el.className = `map-marker-mkt ${key}`;
+
+      const popup = new mapboxgl.Popup({ offset: 18, closeButton: true }).setHTML(popupHtml(p));
+
+      const marker = new mapboxgl.Marker({ element: el })
+        .setLngLat([p.lng, p.lat])
+        .setPopup(popup)
+        .addTo(map);
+
+      markers.push(marker);
+    });
+
+    return () => {
+      markers.forEach((m) => m.remove());
+      map.off('click', enableZoom);
+      map.remove();
+      mapRef.current = null;
+    };
+  }, []);
 
   return (
     <section id="africa" className="bg-[#FEFAF6] px-6 py-24">
+      <style jsx global>{`
+        .map-marker-mkt {
+          position: relative;
+          width: 14px;
+          height: 14px;
+          border-radius: 9999px;
+          border: 2px solid #fff;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+          cursor: pointer;
+        }
+        .map-marker-mkt.active    { background: #FF6B35; }
+        .map-marker-mkt.completed { background: #22C55E; }
+        .map-marker-mkt::after {
+          content: '';
+          position: absolute;
+          inset: -2px;
+          border-radius: 9999px;
+          background: inherit;
+          opacity: 0.35;
+          z-index: -1;
+          animation: mkt-pulse 2s ease-out infinite;
+        }
+        @keyframes mkt-pulse {
+          0%   { transform: scale(1);   opacity: 0.5; }
+          80%  { transform: scale(2.6); opacity: 0;   }
+          100% { transform: scale(2.6); opacity: 0;   }
+        }
+        .mapboxgl-popup-content {
+          background: #1a1f5e !important;
+          color: #fff !important;
+          border-radius: 12px !important;
+          padding: 16px !important;
+          min-width: 240px !important;
+          border: 1px solid rgba(255, 255, 255, 0.1) !important;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+        }
+        .mapboxgl-popup-tip { border-top-color: #1a1f5e !important; }
+        .mapboxgl-popup-close-button { color: rgba(255, 255, 255, 0.6) !important; padding: 4px 8px !important; }
+        .popup-card h4 { margin: 0 0 4px; font-size: 15px; color: #fff; font-weight: 700; }
+        .popup-card .loc { font-size: 12px; color: rgba(255, 255, 255, 0.65); margin-bottom: 8px; }
+        .popup-card .row { display: flex; justify-content: space-between; font-size: 12px; margin: 4px 0; color: rgba(255, 255, 255, 0.85); }
+        .popup-card .row .ind-active    { color: #ff6b35; font-weight: 600; }
+        .popup-card .row .ind-completed { color: #22c55e; font-weight: 600; }
+        .popup-card hr { border: 0; border-top: 1px solid rgba(255, 255, 255, 0.12); margin: 10px 0; }
+        .popup-card .demo-link { display: inline-block; color: #ff6b35; font-weight: 600; font-size: 13px; text-decoration: none; }
+        .popup-card .demo-link:hover { text-decoration: underline; }
+      `}</style>
+
       <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-16 lg:grid-cols-2">
         {/* LEFT */}
         <motion.div
@@ -80,82 +212,45 @@ export default function AfricaSection() {
           </a>
         </motion.div>
 
-        {/* RIGHT — Africa map */}
+        {/* RIGHT — Mapbox map */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true, margin: '-80px' }}
           transition={{ duration: 0.7, ease: 'easeOut' }}
-          className="flex flex-col items-center"
+          className="flex flex-col"
         >
-          <div className="relative">
-            <svg
-              viewBox="0 0 300 380"
-              className="h-auto w-full max-w-md"
-              role="img"
-              aria-label="Map of Africa with active project markers"
-            >
-              <path
-                d={AFRICA_PATH}
-                fill="#FFF3E8"
-                stroke="#FF6B35"
-                strokeWidth={2}
-                strokeLinejoin="round"
-              />
-
-              {cities.map((c, i) => (
-                <g
-                  key={c.name}
-                  onMouseEnter={() => setHovered(c.name)}
-                  onMouseLeave={() => setHovered(null)}
-                  className="cursor-pointer"
-                >
-                  {/* pulsing outer ring */}
-                  <motion.circle
-                    cx={c.x}
-                    cy={c.y}
-                    r={8}
-                    fill="rgba(255, 107, 53, 0.3)"
-                    animate={{ r: [8, 18, 8], opacity: [0.6, 0, 0.6] }}
-                    transition={{
-                      duration: 2,
-                      repeat: Infinity,
-                      delay: i * 0.4,
-                      ease: 'easeInOut',
-                    }}
-                  />
-                  {/* solid inner dot */}
-                  <circle cx={c.x} cy={c.y} r={4} fill="#FF6B35" />
-
-                  {/* tooltip */}
-                  {hovered === c.name && (
-                    <g>
-                      <rect
-                        x={c.x + 10}
-                        y={c.y - 18}
-                        width={c.name.length * 5.5 + 14}
-                        height={20}
-                        rx={4}
-                        fill="#1A1F5E"
-                      />
-                      <text
-                        x={c.x + 17}
-                        y={c.y - 4}
-                        fontSize={10}
-                        fill="white"
-                        fontWeight={500}
-                      >
-                        {c.name}
-                      </text>
-                    </g>
-                  )}
-                </g>
-              ))}
-            </svg>
+          <div
+            className="relative h-[420px] w-full overflow-hidden rounded-2xl border border-orange/30 shadow-2xl"
+            style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
+          >
+            {tokenMissing ? (
+              <div className="flex h-full w-full flex-col items-center justify-center bg-[#FFF3E8] p-6 text-center text-sm text-slate-600">
+                <div className="mb-2 text-4xl">🗺</div>
+                <strong className="mb-1 text-navy">Interactive map awaits a Mapbox token</strong>
+                <span>
+                  Set <code className="rounded bg-white/70 px-1 py-0.5 font-mono text-xs">NEXT_PUBLIC_MAPBOX_TOKEN</code>{' '}
+                  before <code className="rounded bg-white/70 px-1 py-0.5 font-mono text-xs">npm run build</code>{' '}
+                  with a free token from{' '}
+                  <a className="text-orange underline" href="https://account.mapbox.com/access-tokens/" target="_blank" rel="noopener noreferrer">
+                    mapbox.com
+                  </a>
+                  .
+                </span>
+              </div>
+            ) : (
+              <div ref={mapContainer} className="h-full w-full" />
+            )}
           </div>
-          <p className="mt-4 text-center text-xs italic text-slate-400">
-            Actively supporting projects across East &amp; West Africa
-          </p>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <span className="inline-flex items-center gap-2 rounded-full bg-orange/10 px-3 py-1 text-sm font-semibold text-orange">
+              🌍 6 active projects across 5 countries
+            </span>
+            <span className="inline-flex items-center gap-2 rounded-full bg-orange/10 px-3 py-1 text-sm font-semibold text-orange">
+              🛰 3 continents served
+            </span>
+          </div>
         </motion.div>
       </div>
     </section>
