@@ -17,6 +17,7 @@ using Autodesk.Revit.DB.Electrical;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
 using StingTools.Core;
+using StingTools.Core.Electrical;
 
 namespace StingTools.Commands.Electrical
 {
@@ -143,6 +144,17 @@ namespace StingTools.Commands.Electrical
                 circ, panel, vd, diaMm, fill);
         }
 
+        public static WireAnnotationData ApplyProfile(WireAnnotationData d, WireProfile p)
+        {
+            if (p == null) return d;
+            return new WireAnnotationData(
+                d.Phase,
+                p.Cores > 0 ? p.Cores : d.CoreCount,
+                p.CsaMm2 > 0 ? p.CsaMm2 : d.CsaMm2,
+                string.IsNullOrEmpty(p.ConductorMat) ? d.ConductorMat : p.ConductorMat,
+                d.CircuitNumber, d.PanelName, d.VoltDropPct, d.DiameterMm, d.FillPct);
+        }
+
         public static string BuildAnnotationText(WireAnnotationData d)
         {
             string baseSpec;
@@ -188,24 +200,29 @@ namespace StingTools.Commands.Electrical
             if (axisRaw.GetLength() < 1e-6) return ElementId.InvalidElementId;
             var axisDir = axisRaw.Normalize();
 
-            var perpRaw = XYZ.BasisZ.CrossProduct(axisDir);
-            var perpDir = perpRaw.GetLength() < 1e-6
-                ? XYZ.BasisX
-                : perpRaw.Normalize();
+            var perpDir = ResolvePerpInView(view, axisDir);
 
             double offsetFt = 600.0 / MmPerFt;
             var annotPt = mid + perpDir * offsetFt;
 
+            bool is3D = view is View3D;
+
             // Move-with-host path: if the project has loaded a tag family
             // whose name signals it's the STING wire-annotation tag, use
-            // IndependentTag so it tracks the conduit. Otherwise fall back
-            // to a TextNote with our computed BS 7671 text.
+            // IndependentTag so it tracks the conduit. Required path in 3D.
             var tagId = TryPlaceIndependentTag(doc, view, conduit, annotPt, conduit?.UniqueId);
             if (tagId != ElementId.InvalidElementId)
             {
-                if (addTickMarks)
+                if (addTickMarks && !is3D)
                     PlaceTickMarks(doc, view, conduit, data.CoreCount);
                 return tagId;
+            }
+
+            // TextNote / DetailCurve are not available in 3D views.
+            if (is3D)
+            {
+                StingLog.Warn("3D wire annotation requires a loaded Conduit-Tag family with 'Wire Annotation' or 'STING Wire' in the name.");
+                return ElementId.InvalidElementId;
             }
 
             TextNoteType tnt = ResolveTextNoteType(doc);
@@ -262,10 +279,7 @@ namespace StingTools.Commands.Electrical
             if (len < 1e-6) return;
             var axisDir = axisRaw.Normalize();
 
-            var perpRaw = XYZ.BasisZ.CrossProduct(axisDir);
-            var perpDir = perpRaw.GetLength() < 1e-6
-                ? XYZ.BasisX
-                : perpRaw.Normalize();
+            var perpDir = ResolvePerpInView(view, axisDir);
 
             double maxSpacingFt = 1500.0 / MmPerFt;
             double spacing   = len / (tickCount + 1);
@@ -506,6 +520,27 @@ namespace StingTools.Commands.Electrical
             }
         }
 
+        public static XYZ ResolvePerpInView(View view, XYZ axisDir)
+        {
+            // For 3D views the natural "perpendicular in screen plane" is the
+            // view's RightDirection (parallel to the screen X axis). For
+            // plan / section / elevation views we use Z×axis so the offset
+            // sits cleanly in the view plane.
+            if (view is View3D)
+            {
+                try
+                {
+                    var right = view.RightDirection;
+                    var n = right - axisDir * right.DotProduct(axisDir);
+                    if (n.GetLength() > 1e-6) return n.Normalize();
+                }
+                catch { }
+            }
+            var perpRaw = XYZ.BasisZ.CrossProduct(axisDir);
+            if (perpRaw.GetLength() > 1e-6) return perpRaw.Normalize();
+            return XYZ.BasisX;
+        }
+
         private static Category ResolveTickSubcategory(Document doc)
         {
             try
@@ -537,10 +572,10 @@ namespace StingTools.Commands.Electrical
                 var doc   = ctx.Doc;
                 var uidoc = ctx.UIDoc;
                 var view  = doc.ActiveView;
-                if (view is View3D || view is ViewSchedule)
+                if (view is ViewSchedule)
                 {
                     TaskDialog.Show("STING Wire Annotation",
-                        "Wire annotations require a plan, section, or elevation view.");
+                        "Wire annotations cannot be placed on a schedule view.");
                     return Result.Cancelled;
                 }
 
@@ -604,10 +639,10 @@ namespace StingTools.Commands.Electrical
                 if (ctx == null) { message = "No active document."; return Result.Failed; }
                 var doc  = ctx.Doc;
                 var view = doc.ActiveView;
-                if (view is View3D || view is ViewSchedule)
+                if (view is ViewSchedule)
                 {
                     TaskDialog.Show("STING Wire Annotation",
-                        "Wire annotations require a plan, section, or elevation view.");
+                        "Wire annotations cannot be placed on a schedule view.");
                     return Result.Cancelled;
                 }
 
@@ -944,5 +979,296 @@ namespace StingTools.Commands.Electrical
             e?.Category?.Id.Value == (long)BuiltInCategory.OST_Conduit ||
             e?.Category?.Id.Value == (long)BuiltInCategory.OST_ConduitRun;
         public bool AllowReference(Reference r, XYZ p) => true;
+    }
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class AnnotateCircuitCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) { message = "No active document."; return Result.Failed; }
+                var doc  = ctx.Doc;
+                var view = doc.ActiveView;
+                if (view is ViewSchedule)
+                {
+                    TaskDialog.Show("STING Wire Annotation",
+                        "Run AnnotateCircuit on a plan, section, elevation, or 3D view.");
+                    return Result.Cancelled;
+                }
+
+                var systems = new FilteredElementCollector(doc)
+                    .OfClass(typeof(ElectricalSystem))
+                    .WhereElementIsNotElementType()
+                    .Cast<ElectricalSystem>()
+                    .OrderBy(s => s.PanelName ?? "")
+                    .ThenBy(s => s.Name ?? "")
+                    .ToList();
+                if (systems.Count == 0)
+                {
+                    TaskDialog.Show("STING Wire Annotation",
+                        "No electrical circuits found in this project.");
+                    return Result.Cancelled;
+                }
+
+                var items = systems.Select(s => new StingListPicker.ListItem
+                {
+                    Label  = $"{s.PanelName} – {s.Name}",
+                    Detail = $"{s.LoadName}  |  {SafeRating(s):0}A  |  {SafeLoad(s):0} VA",
+                    Tag    = s,
+                }).ToList();
+                var picked = StingListPicker.Show(
+                    "Annotate Circuit",
+                    "Pick the electrical circuit to annotate. STING will walk the circuit's conduit / cable-tray run and place wire-spec annotations on every segment in the active view.",
+                    items, allowMultiSelect: false);
+                if (picked == null || picked.Count == 0) return Result.Cancelled;
+                if (!(picked[0].Tag is ElectricalSystem sys)) return Result.Cancelled;
+
+                var route = CircuitWalker.Walk(doc, sys);
+                int candidates = route.Conduits.Count + route.CableTrays.Count;
+                if (candidates == 0)
+                {
+                    TaskDialog.Show("STING Wire Annotation",
+                        $"Circuit '{sys.Name}' has no conduits or cable trays on its path.\n\n" +
+                        $"Total length: {route.TotalLengthMm:F0} mm.");
+                    return Result.Cancelled;
+                }
+
+                var map = CircuitWireMap.Load(doc);
+                string profileId = map.GetProfileId(sys.Name ?? "");
+                var profile = !string.IsNullOrEmpty(profileId)
+                    ? WireProfileRegistry.Get(doc, profileId)
+                    : null;
+
+                int placed = 0, failed = 0, skipped = 0;
+                using (var tg = new TransactionGroup(doc, "STING Annotate Circuit"))
+                {
+                    tg.Start();
+                    foreach (var seg in route.Conduits)
+                    {
+                        if (WireAnnotationEngine.HasAnnotation(doc, view, seg))
+                        { skipped++; continue; }
+
+                        var data = WireAnnotationEngine.ReadWireData(seg);
+                        if (profile != null) data = WireAnnotationEngine.ApplyProfile(data, profile);
+
+                        using (var t = new Transaction(doc, "STING Annot Seg"))
+                        {
+                            t.Start();
+                            try
+                            {
+                                var id = WireAnnotationEngine.PlaceAnnotation(
+                                    doc, view, seg, data, addTickMarks: data.CoreCount > 0);
+                                if (id != ElementId.InvalidElementId) placed++;
+                                else failed++;
+                            }
+                            catch (Exception ex)
+                            { failed++; StingLog.Warn($"AnnotateCircuit seg {seg.Id.Value}: {ex.Message}"); }
+                            t.Commit();
+                        }
+                    }
+                    tg.Assimilate();
+                }
+
+                StingLog.Info($"AnnotateCircuit '{sys.Name}': {placed} placed, {skipped} skipped, {failed} failed across {candidates} segments");
+
+                StingResultPanel.Create("Wire Annotation — Circuit")
+                    .SetSubtitle($"Circuit: {sys.PanelName} – {sys.Name}")
+                    .AddSection("RESULT")
+                    .Metric("Conduits on circuit",   route.Conduits.Count.ToString())
+                    .Metric("Cable trays on circuit",route.CableTrays.Count.ToString())
+                    .Metric("Annotations placed",    placed.ToString())
+                    .Metric("Already annotated",     skipped.ToString())
+                    .Metric("Failed",                failed.ToString())
+                    .Metric("Route length (mm)",     route.TotalLengthMm.ToString("F0"))
+                    .Metric("Profile",               profile != null ? profile.Name : "Auto (from circuit)")
+                    .Show();
+                return Result.Succeeded;
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+            { return Result.Cancelled; }
+            catch (Exception ex)
+            {
+                StingLog.Error("AnnotateCircuitCommand failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+
+        private static double SafeRating(ElectricalSystem sys)
+        {
+            try
+            {
+                var p = sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_RATING_PARAM);
+                if (p != null && p.StorageType == StorageType.Double) return p.AsDouble();
+            }
+            catch { }
+            return 0;
+        }
+        private static double SafeLoad(ElectricalSystem sys)
+        {
+            try
+            {
+                var p = sys.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD);
+                if (p != null && p.StorageType == StorageType.Double) return p.AsDouble();
+            }
+            catch { }
+            return 0;
+        }
+    }
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class RefreshAllWireAnnotationsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) { message = "No active document."; return Result.Failed; }
+                var doc  = ctx.Doc;
+                var view = doc.ActiveView;
+                if (view is ViewSchedule)
+                {
+                    TaskDialog.Show("STING Wire Annotation",
+                        "Refresh requires a model/drawing view (not a schedule).");
+                    return Result.Cancelled;
+                }
+
+                var conduits = new FilteredElementCollector(doc, view.Id)
+                    .OfCategory(BuiltInCategory.OST_Conduit)
+                    .WhereElementIsNotElementType()
+                    .Where(e => WireAnnotationEngine.HasAnnotation(doc, view, e))
+                    .ToList();
+
+                if (conduits.Count == 0)
+                {
+                    TaskDialog.Show("STING Wire Annotation",
+                        "No annotated conduits found in active view. Use AnnotateCircuit or Wire Annotate first.");
+                    return Result.Cancelled;
+                }
+
+                var map = CircuitWireMap.Load(doc);
+                int rebuilt = 0;
+                using (var tg = new TransactionGroup(doc, "STING Refresh Wire Annotations"))
+                {
+                    tg.Start();
+                    foreach (var conduit in conduits)
+                    {
+                        var data = WireAnnotationEngine.ReadWireData(conduit);
+                        var profileId = map.GetProfileId(data.CircuitNumber);
+                        var profile = !string.IsNullOrEmpty(profileId)
+                            ? WireProfileRegistry.Get(doc, profileId) : null;
+                        if (profile != null)
+                            data = WireAnnotationEngine.ApplyProfile(data, profile);
+
+                        using (var t = new Transaction(doc, "STING Refresh Annot"))
+                        {
+                            t.Start();
+                            try
+                            {
+                                WireAnnotationEngine.RemoveAnnotationForConduit(doc, view, conduit);
+                                WireAnnotationEngine.PlaceAnnotation(doc, view, conduit, data,
+                                    addTickMarks: data.CoreCount > 0);
+                                rebuilt++;
+                            }
+                            catch (Exception ex)
+                            { StingLog.Warn($"Refresh annot {conduit.Id.Value}: {ex.Message}"); }
+                            t.Commit();
+                        }
+                    }
+                    tg.Assimilate();
+                }
+
+                TaskDialog.Show("STING Wire Annotation",
+                    $"Rebuilt {rebuilt} of {conduits.Count} annotations from current circuit data.");
+                return Result.Succeeded;
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+            { return Result.Cancelled; }
+            catch (Exception ex)
+            {
+                StingLog.Error("RefreshAllWireAnnotationsCommand failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class WireQuantityScheduleCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) { message = "No active document."; return Result.Failed; }
+                var doc = ctx.Doc;
+
+                var report = WireQuantityCalculator.Compute(doc, scopeView: null);
+                string baseDir = OutputLocationHelper.GetOutputDirectory(doc);
+                string outDir = System.IO.Path.Combine(baseDir ?? System.IO.Path.GetTempPath(), "wire_quantities");
+                string csvPath = WireQuantityCalculator.WriteCsv(report, outDir);
+
+                var b = StingResultPanel.Create("Wire Quantity Schedule")
+                    .SetSubtitle($"Project totals — {report.Rows.Count} cable types, {report.TotalMetres:F1} m, {report.TotalKg:F1} kg")
+                    .AddSection("TOTALS BY CABLE TYPE");
+                if (report.Rows.Count == 0)
+                {
+                    b.Text("No annotated circuits found. Annotate at least one circuit first.");
+                }
+                else
+                {
+                    foreach (var r in report.Rows)
+                    {
+                        b.Text($"{r.ProfileName,-50}  {r.TotalMetres,8:F1} m   {r.TotalKg,7:F1} kg   ({r.SegmentCount} segs)");
+                    }
+                }
+                if (!string.IsNullOrEmpty(csvPath))
+                    b.SetCsvPath(csvPath);
+                b.Show();
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("WireQuantityScheduleCommand failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class WireConfigurationCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) { message = "No active document."; return Result.Failed; }
+                var doc = ctx.Doc;
+
+                StingTools.UI.WireConfigurationDialog.ShowFor(doc);
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("WireConfigurationCommand failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
     }
 }

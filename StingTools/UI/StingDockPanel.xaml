@@ -4529,6 +4529,22 @@
                                                     <Button Style="{StaticResource CatBtn}" Content="W-Clr"
                                                             Tag="Electrical_ClearWireAnnotations" Click="Cmd_Click"
                                                             ToolTip="Remove all STING wire annotations from active view"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Annotate Circuit…"
+                                                            Tag="Electrical_AnnotateCircuit" Click="Cmd_Click"
+                                                            HorizontalAlignment="Stretch" Height="26" Margin="0,1"
+                                                            ToolTip="Pick a circuit; STING walks its conduit/cable-tray run and annotates every segment in the active view"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Refresh All Annotations"
+                                                            Tag="Electrical_RefreshAllAnnotations" Click="Cmd_Click"
+                                                            HorizontalAlignment="Stretch" Height="26" Margin="0,1"
+                                                            ToolTip="Re-read circuit + profile data and rebuild every annotation in the active view"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Wire Quantity Schedule"
+                                                            Tag="Electrical_WireQuantitySchedule" Click="Cmd_Click"
+                                                            HorizontalAlignment="Stretch" Height="26" Margin="0,1"
+                                                            ToolTip="Total metres + kg by cable type across the project, exported to CSV"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Circuit Wire Config…"
+                                                            Tag="Electrical_WireConfiguration" Click="Cmd_Click"
+                                                            HorizontalAlignment="Stretch" Height="26" Margin="0,1"
+                                                            ToolTip="Open the Wire Configuration dialog: assign a cable profile per circuit and push spec onto conduits"/>
                                                     <Button Style="{StaticResource ActionBtn}" Content="System naming audit"    Tag="Mep_NamingAudit"  Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Audit MEP system names against CIBSE / BSRIA / Uniclass 2015 prefix set"/>
                                                 </StackPanel>
                                             </Border>
