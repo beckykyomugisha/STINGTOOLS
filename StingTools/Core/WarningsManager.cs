@@ -5679,6 +5679,31 @@ namespace StingTools.Core
                 return;
             }
 
+            // BCC's Planscape Native Collaboration Hub fires Planscape* actions
+            // (PlanscapeConnect / PlanscapeDisconnect / PlanscapeSyncNow / etc).
+            // StingCommandHandler already wires every Planscape tag with its own
+            // case block — including the ones that aren't IExternalCommands like
+            // Disconnect (which just calls PlanscapeServerClient.Instance.Disconnect()).
+            // Forward the whole Planscape namespace to StingCommandHandler so the
+            // BCC dispatch path doesn't have to duplicate every binding here.
+            if (action.StartsWith("Planscape", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    bool ok = UI.StingDockPanel.DispatchCommand(action);
+                    if (ok)
+                        StingLog.Info($"DispatchCoordAction: forwarded '{action}' to StingCommandHandler");
+                    else
+                        StingLog.Warn($"DispatchCoordAction: forward '{action}' failed — StingDockPanel handler not initialised");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"DispatchCoordAction: forward '{action}' failed — {ex.Message}");
+                    TaskDialog.Show("STING", $"Command '{action}' failed:\n{ex.Message}");
+                }
+                return;
+            }
+
             // Phase 104: prefixed BCC action tags that weren't being stripped produced
             // "is not handled" popups. Route the common prefixes to the nearest real
             // command so the click is never dead.

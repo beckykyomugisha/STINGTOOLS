@@ -3794,8 +3794,8 @@ namespace StingTools.UI
                 var sbUrlBox = new System.Windows.Controls.TextBox
                 {
                     Width = 270, FontSize = 11, Margin = new Thickness(4, 0, 0, 0),
-                    Text = !string.IsNullOrEmpty(_savedUrl) ? _savedUrl : "https://planscape-api.onrender.com",
-                    ToolTip = "Planscape API server URL (your Render.com deployment)"
+                    Text = !string.IsNullOrEmpty(_savedUrl) ? _savedUrl : "http://localhost:5000",
+                    ToolTip = "Planscape API server URL (default: http://localhost:5000 for the local docker-compose stack)"
                 };
                 sbUrlRow.Children.Add(sbUrlBox);
                 detailStack.Children.Add(sbUrlRow);
@@ -3879,7 +3879,7 @@ namespace StingTools.UI
                         : "\ud83c\udfe2  Tenant: (not linked)";
                     string urlLine   = !string.IsNullOrEmpty(client.ServerUrl)
                         ? $"\ud83d\udd17  Server: {client.ServerUrl}"
-                        : $"\ud83d\udd17  Server: (no URL set) \u2014 default https://planscape-api.onrender.com";
+                        : $"\ud83d\udd17  Server: (no URL set) \u2014 default http://localhost:5000";
                     string errLine   = !string.IsNullOrEmpty(client.LastError)
                         ? $"\n\u26A0  Last error: {client.LastError}"
                         : "";

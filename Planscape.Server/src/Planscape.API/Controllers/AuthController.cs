@@ -89,6 +89,7 @@ public class AuthController : ControllerBase
         }
 
         var user = await _db.Users
+            .IgnoreQueryFilters()
             .Include(u => u.Tenant)
             .FirstOrDefaultAsync(u => u.Email == req.Email && u.IsActive);
 
@@ -689,7 +690,7 @@ public class AuthController : ControllerBase
         var emailService = HttpContext.RequestServices.GetService<Planscape.Core.Interfaces.IEmailService>();
         if (emailService != null)
         {
-            await emailService.SendAsync(user.Email, "Planscape Password Reset",
+            await emailService.SendNotificationAsync(user.Email, "Planscape Password Reset",
                 $"Use this token to reset your password (expires in 1 hour):\n\n{resetToken}\n\n" +
                 $"POST /api/auth/reset-password with {{ \"token\": \"{resetToken}\", \"newPassword\": \"...\" }}");
         }
@@ -785,8 +786,14 @@ public class AuthController : ControllerBase
             new Claim(JwtRegisteredClaimNames.Jti, jti),
             new Claim("user_id", user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
+            // Emit iat exactly once. JwtRegisteredClaimNames.Iat IS the
+            // string "iat", so adding both creates a duplicate that the
+            // JWT serialiser writes as the JSON array [1777830565,
+            // 1777830565]. That's a spec violation — Microsoft.IdentityModel
+            // 8 rejects the token at validation time with 'invalid_token'
+            // and no error_description, breaking every authenticated
+            // request after login.
             new Claim(JwtRegisteredClaimNames.Iat, nowSec, ClaimValueTypes.Integer64),
-            new Claim("iat", nowSec, ClaimValueTypes.Integer64),
             new Claim("tenant_id", user.TenantId.ToString()),
             new Claim("tenant_slug", user.Tenant?.Slug ?? ""),
             new Claim("tier", tierName),

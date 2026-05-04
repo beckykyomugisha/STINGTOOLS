@@ -219,7 +219,7 @@ public class SiteDiariesController : ControllerBase
     }
 
     [HttpPost("{diaryId}/attachments/link")]
-    public async Task<ActionResult> LinkAttachment(Guid projectId, Guid diaryId, [FromBody] LinkAttachmentRequest req)
+    public async Task<ActionResult> LinkAttachment(Guid projectId, Guid diaryId, [FromBody] LinkDiaryAttachmentRequest req)
     {
         var diary = await _db.SiteDiaries.FirstOrDefaultAsync(d =>
             d.Id == diaryId && d.ProjectId == projectId);
@@ -311,4 +311,4 @@ public record CreateSiteDiaryRequest(
     double? Longitude
 );
 
-public record LinkAttachmentRequest(Guid DocumentId, string? Caption);
+public record LinkDiaryAttachmentRequest(Guid DocumentId, string? Caption);

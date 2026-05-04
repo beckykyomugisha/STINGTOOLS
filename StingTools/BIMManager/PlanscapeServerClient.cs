@@ -91,7 +91,19 @@ public sealed class PlanscapeServerClient : IDisposable
             // an IExternalEventHandler). Without it, the dispatcher
             // deadlocks waiting for itself.
             var resp = await PostJsonAsync("/api/auth/login", new { email, password }).ConfigureAwait(false);
-            if (!resp.ok) { LastError = $"Login failed: {resp.body}"; return false; }
+            if (!resp.ok)
+            {
+                // 404 means the server URL is reachable but doesn't host the
+                // Planscape API. The most common cause is pointing at the
+                // retired Render deployment; nudge the user toward the local
+                // docker stack.
+                LastError = resp.status == 404
+                    ? $"Login failed: server at {_serverUrl} did not recognise /api/auth/login (HTTP 404). Confirm the URL — for the docker-compose stack use http://localhost:5000."
+                    : resp.status == 401
+                        ? "Login failed: email or password is incorrect."
+                        : $"Login failed (HTTP {resp.status}): {resp.body}";
+                return false;
+            }
 
             ParseAuthResponse(JObject.Parse(resp.body), email);
             LastError = null;
@@ -116,7 +128,51 @@ public sealed class PlanscapeServerClient : IDisposable
             }
             return true;
         }
-        catch (Exception ex) { LastError = ex.Message; StingLog.Error("Planscape: Login failed", ex); return false; }
+        catch (Exception ex)
+        {
+            LastError = BuildConnectivityHint(ex, _serverUrl);
+            StingLog.Error("Planscape: Login failed", ex);
+            return false;
+        }
+    }
+
+    /// <summary>Maps the raw HttpClient/socket exception to an actionable message.
+    /// Connection refused on localhost almost always means the docker stack
+    /// isn't running, which is the most common first-time-setup mistake.</summary>
+    private static string BuildConnectivityHint(Exception ex, string serverUrl)
+    {
+        // Walk the inner exception chain — HttpRequestException usually wraps
+        // a SocketException whose ErrorCode tells us refused vs. unreachable
+        // vs. DNS failure.
+        var sock = ex as System.Net.Sockets.SocketException;
+        for (var cur = ex; sock == null && cur != null; cur = cur.InnerException)
+            sock = cur.InnerException as System.Net.Sockets.SocketException;
+
+        bool isLocal = !string.IsNullOrEmpty(serverUrl) &&
+                       (serverUrl.IndexOf("localhost", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        serverUrl.IndexOf("127.0.0.1", StringComparison.OrdinalIgnoreCase) >= 0);
+
+        if (sock != null)
+        {
+            switch (sock.SocketErrorCode)
+            {
+                case System.Net.Sockets.SocketError.ConnectionRefused:
+                    return isLocal
+                        ? $"Login failed: nothing is listening on {serverUrl}. Start the local Planscape server with 'docker compose up -d' from Planscape.Server/docker, then wait for the 'api' container to become healthy (docker compose ps)."
+                        : $"Login failed: {serverUrl} refused the connection. The server may be stopped or a firewall is blocking the port.";
+                case System.Net.Sockets.SocketError.HostNotFound:
+                case System.Net.Sockets.SocketError.NoData:
+                    return $"Login failed: could not resolve '{serverUrl}'. Check the URL spelling and your DNS/internet connection.";
+                case System.Net.Sockets.SocketError.TimedOut:
+                    return $"Login failed: connection to {serverUrl} timed out. Check the server is reachable from this machine and no firewall is dropping the request.";
+                case System.Net.Sockets.SocketError.NetworkUnreachable:
+                case System.Net.Sockets.SocketError.HostUnreachable:
+                    return $"Login failed: {serverUrl} is not reachable from this network.";
+            }
+        }
+        if (ex is TaskCanceledException || ex is OperationCanceledException)
+            return $"Login failed: request to {serverUrl} timed out before the server responded.";
+        return $"Login failed: {ex.Message}";
     }
 
     /// <summary>
@@ -469,7 +525,17 @@ public sealed class PlanscapeServerClient : IDisposable
         {
             if (!File.Exists(configPath)) return ("", "", "");
             var json = JObject.Parse(File.ReadAllText(configPath));
-            return (json["serverUrl"]?.Value<string>()  ?? "",
+            string url = json["serverUrl"]?.Value<string>() ?? "";
+
+            // The legacy Render.com deployment is offline and returns 404 on
+            // /api/auth/login, which surfaces in the UI as "Login failed: Not
+            // Found". Drop the stale URL so the dialog falls back to its
+            // current default (the local docker stack) instead of pinning
+            // users to a dead host.
+            if (url.IndexOf("planscape-api.onrender.com", StringComparison.OrdinalIgnoreCase) >= 0)
+                url = "";
+
+            return (url,
                     json["email"]?.Value<string>()      ?? "",
                     json["projectId"]?.Value<string>()  ?? "");
         }
@@ -1004,6 +1070,17 @@ public sealed class PlanscapeServerClient : IDisposable
             if (string.IsNullOrEmpty(_serverUrl) || string.IsNullOrEmpty(_refreshToken))
             {
                 DeletePersistedSession();
+                return false;
+            }
+
+            // Discard sessions tied to the offline Render.com host so users
+            // aren't pinned to a dead URL after a Revit restart.
+            if (_serverUrl.IndexOf("planscape-api.onrender.com", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                StingLog.Info("Planscape: stored session points to retired onrender host, clearing.");
+                DeletePersistedSession();
+                _serverUrl = ""; _accessToken = ""; _refreshToken = "";
+                ConnectedUser = ""; TenantId = Guid.Empty; UserId = Guid.Empty;
                 return false;
             }
             EnsureHttpClient(_serverUrl);

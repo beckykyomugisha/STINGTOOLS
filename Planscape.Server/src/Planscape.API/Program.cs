@@ -2,6 +2,7 @@ using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.SignalR;
 using Planscape.API.Middleware;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
@@ -11,6 +12,7 @@ using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.Elasticsearch;
 using Hangfire;
+using Hangfire.PostgreSql;
 using Prometheus;
 using StackExchange.Redis;
 
@@ -227,14 +229,18 @@ builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationH
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<Planscape.Core.Interfaces.ITenantContext, Planscape.Infrastructure.Services.TenantContext>();
 // STORAGE-01 — Storage:Provider = "S3" | "Local" (default). S3 covers AWS, MinIO, R2, Spaces.
+// Scoped (not singleton) because both implementations inject the scoped
+// ITenantContext for per-request tenant isolation. A singleton would fail
+// service-validation with 'Cannot consume scoped service ITenantContext
+// from singleton IFileStorageService'.
 var storageProvider = builder.Configuration["Storage:Provider"];
 if (string.Equals(storageProvider, "S3", StringComparison.OrdinalIgnoreCase))
 {
-    builder.Services.AddSingleton<Planscape.Core.Interfaces.IFileStorageService, Planscape.Infrastructure.Storage.S3FileStorageService>();
+    builder.Services.AddScoped<Planscape.Core.Interfaces.IFileStorageService, Planscape.Infrastructure.Storage.S3FileStorageService>();
 }
 else
 {
-    builder.Services.AddSingleton<Planscape.Core.Interfaces.IFileStorageService, Planscape.Infrastructure.Storage.LocalFileStorageService>();
+    builder.Services.AddScoped<Planscape.Core.Interfaces.IFileStorageService, Planscape.Infrastructure.Storage.LocalFileStorageService>();
 }
 // Phase 150 — platform-wide deliverable state-machine keyword
 // extensions. Bound from `DeliverableStateMachine:Keywords` in
@@ -840,22 +846,54 @@ app.MapHub<NotificationHub>("/hubs/notifications");
 // S6.3 — CRDT relay for collaborative pin / issue editing.
 app.MapHub<Planscape.Infrastructure.SignalR.CrdtHub>("/hubs/crdt");
 
-// ── Database migration + seed ──
+// ── Database schema + seed ──
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
-    if (app.Environment.IsDevelopment())
+
+    // The hand-authored migrations under Planscape.Infrastructure/Data/Migrations/
+    // are missing their .Designer.cs companions and the model snapshot is stale,
+    // so Migrate() cannot apply them in order. For dev / local docker stacks we
+    // materialise the schema directly from OnModelCreating which always matches
+    // the current entity classes. Production deployments should regenerate the
+    // migration set with `dotnet ef migrations` once the model is stable.
+    var useEnsureCreated = app.Environment.IsDevelopment()
+        || string.Equals(
+            Environment.GetEnvironmentVariable("PLANSCAPE_USE_ENSURE_CREATED"),
+            "true", StringComparison.OrdinalIgnoreCase);
+
+    if (useEnsureCreated)
     {
-        // In development, auto-migrate (apply pending migrations or create DB)
-        db.Database.Migrate();
-        await Planscape.API.SeedData.SeedAsync(db, app.Environment);
+        // EnsureCreated() short-circuits if the *database* exists, and the
+        // built-in HasTables() returns true even for non-app tables like
+        // Hangfire's job-store schema or __EFMigrationsHistory left over
+        // from earlier attempts. Probe specifically for the Tenants table
+        // (the first row created by SeedData) and materialise the full
+        // schema from OnModelCreating only when it's missing.
+        var conn = db.Database.GetDbConnection();
+        if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync();
+        bool hasAppSchema;
+        await using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = "SELECT EXISTS (SELECT 1 FROM information_schema.tables "
+                            + "WHERE table_schema = 'public' AND table_name = 'Tenants')";
+            hasAppSchema = (bool)(await cmd.ExecuteScalarAsync() ?? false);
+        }
+        if (!hasAppSchema)
+        {
+            var creator = (Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreator)
+                db.Database.GetService<Microsoft.EntityFrameworkCore.Storage.IDatabaseCreator>();
+            creator.CreateTables();
+        }
     }
     else
     {
-        // In production, only apply pending migrations — no seed data.
-        // SeedData itself refuses to run in Production unless
-        // PLANSCAPE_ALLOW_DEMO_SEED=true is set.
         db.Database.Migrate();
+    }
+
+    if (app.Environment.IsDevelopment())
+    {
+        await Planscape.API.SeedData.SeedAsync(db, app.Environment);
     }
 }
 

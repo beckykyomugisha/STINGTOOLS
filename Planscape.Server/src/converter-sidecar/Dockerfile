@@ -19,7 +19,7 @@ FROM node:20-alpine
 RUN apk add --no-cache curl python3 make g++
 
 WORKDIR /app
-COPY package.json server.js handlers/ /app/
+COPY package.json server.js /app/
 RUN npm install --omit=dev
 
 EXPOSE 7700
