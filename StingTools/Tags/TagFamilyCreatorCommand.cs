@@ -2787,8 +2787,17 @@ namespace StingTools.Tags
                     string pname = parts[2];
                     string ptype = parts[3];
 
-                    if (labelParams.Contains(pname) && !string.Equals(ptype, "TEXT", StringComparison.OrdinalIgnoreCase)
-                        && !string.Equals(ptype, "YESNO", StringComparison.OrdinalIgnoreCase))
+                    if (!labelParams.Contains(pname)) continue;
+
+                    // Per LABEL_DEFINITIONS.json (v5.3+): every parameter referenced by a
+                    // label/calculated-value template — including _BOOL ones — must be TEXT,
+                    // because Revit label formulas cannot use YESNO parameters as the
+                    // condition of if(...). STING writers detect storage and write
+                    // 'Yes'/'No' for TEXT vs 1/0 for legacy INTEGER families.
+                    // Pure-flag _BOOL params (NOT referenced by label tiers) are governed
+                    // by MR_PARAMETERS.txt directly and stay YESNO — they never reach this
+                    // validator because labelParams only contains label-tier references.
+                    if (!string.Equals(ptype, "TEXT", StringComparison.OrdinalIgnoreCase))
                     {
                         mismatches.Add((pname, ptype));
                     }
@@ -2839,7 +2848,8 @@ namespace StingTools.Tags
                 if (def == null) continue;
                 if (!labelParams.Contains(def.Name)) continue;
 
-                // Check if the spec says non-text
+                // Label-tier params (including _BOOL) must be TEXT — see ValidateSourceFile
+                // and the LABEL_DEFINITIONS.json _comment for the rationale.
                 try
                 {
                     var spec = def.GetDataType();
@@ -2880,6 +2890,8 @@ namespace StingTools.Tags
                     if (parts.Length < 4) continue;
                     if (namesToFix.Contains(parts[2]))
                     {
+                        // Label-tier params (including _BOOL ones used in if(...) formulas)
+                        // must be TEXT. See ValidateSourceFile rationale.
                         parts[3] = "TEXT";
                         lines[i] = string.Join("\t", parts);
                         fixed_++;
@@ -2887,7 +2899,7 @@ namespace StingTools.Tags
                 }
 
                 File.WriteAllLines(mrFile, lines);
-                StingLog.Info($"LabelParamTypeValidator: Fixed {fixed_} params to TEXT in MR_PARAMETERS.txt");
+                StingLog.Info($"LabelParamTypeValidator: Fixed {fixed_} label-tier params to TEXT in MR_PARAMETERS.txt");
                 return fixed_;
             }
             catch (Exception ex)
