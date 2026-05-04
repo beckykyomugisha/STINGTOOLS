@@ -44,6 +44,14 @@ public class Project : ITenantScoped,  ITenantScoped
     [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "jsonb")]
     public string? BoundaryPolygon { get; set; }
 
+    // Project location + dashboard metadata (Phase 169 — ACC-style cards + map view)
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+    public string? City { get; set; }
+    public string? Country { get; set; }
+    public string? CoverImageUrl { get; set; }
+    public bool IsPinned { get; set; } = false;
+
     // Compliance metrics (cached)
     public double CompliancePercent { get; set; }
     public double ContainerCompliancePercent { get; set; }
