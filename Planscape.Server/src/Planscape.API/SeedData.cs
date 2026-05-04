@@ -107,12 +107,18 @@ public static class SeedData
             Phase = "Stage 4 - Technical Design",
             TagSeparator = "-",
             SeqNumPad = 4,
-            CompliancePercent = 72.5,
-            ContainerCompliancePercent = 68.0,
+            CompliancePercent = 84.0,
+            ContainerCompliancePercent = 78.0,
             TotalElements = 12450,
-            TaggedElements = 9026,
+            TaggedElements = 10458,
             WarningCount = 47,
             RagStatus = "AMBER",
+            City = "Kampala",
+            Country = "Uganda",
+            Latitude = 0.3136,
+            Longitude = 32.5811,
+            Status = ProjectStatus.Active,
+            LastSyncAt = DateTime.UtcNow.AddHours(-2),
             // SEED-01 — approx 300m × 300m demo boundary polygon around central London.
             // GeoJSON-style [lat, lon] pairs (closing coordinate repeated).
             BoundaryPolygon = @"[
@@ -124,6 +130,135 @@ public static class SeedData
             ]"
         };
         db.Projects.Add(project);
+
+        // Phase 169 — extra demo projects so the project map has meaningful
+        // pin distribution across East & West Africa. Each gets the admin
+        // user as BIM Coordinator + a second seeded role member.
+        var entebbe = new Project
+        {
+            TenantId = tenant.Id,
+            Name = "Entebbe Airport Terminal Expansion",
+            Code = "EAT-2025",
+            Phase = "Execution",
+            Status = ProjectStatus.Active,
+            CompliancePercent = 91.0,
+            RagStatus = "GREEN",
+            TotalElements = 8730,
+            TaggedElements = 7944,
+            City = "Entebbe",
+            Country = "Uganda",
+            Latitude = 0.0424,
+            Longitude = 32.4430,
+            LastSyncAt = DateTime.UtcNow.AddHours(-6),
+        };
+        var lagos = new Project
+        {
+            TenantId = tenant.Id,
+            Name = "Lagos Port Infrastructure",
+            Code = "LPI-2026",
+            Phase = "Design",
+            Status = ProjectStatus.Active,
+            CompliancePercent = 42.0,
+            RagStatus = "RED",
+            TotalElements = 4210,
+            TaggedElements = 1768,
+            City = "Lagos",
+            Country = "Nigeria",
+            Latitude = 6.4541,
+            Longitude = 3.3947,
+            LastSyncAt = DateTime.UtcNow.AddDays(-1),
+        };
+        var nairobi = new Project
+        {
+            TenantId = tenant.Id,
+            Name = "Nairobi Mixed-Use Development",
+            Code = "NMD-2025",
+            Phase = "Handover",
+            Status = ProjectStatus.Archived,
+            CompliancePercent = 98.0,
+            RagStatus = "GREEN",
+            TotalElements = 21300,
+            TaggedElements = 20874,
+            City = "Nairobi",
+            Country = "Kenya",
+            Latitude = -1.2921,
+            Longitude = 36.8219,
+            LastSyncAt = DateTime.UtcNow.AddDays(-30),
+        };
+        var accra = new Project
+        {
+            TenantId = tenant.Id,
+            Name = "Accra Commercial Centre",
+            Code = "ACC-2024",
+            Phase = "Handover",
+            Status = ProjectStatus.Archived,
+            CompliancePercent = 96.0,
+            RagStatus = "GREEN",
+            TotalElements = 14920,
+            TaggedElements = 14323,
+            City = "Accra",
+            Country = "Ghana",
+            Latitude = 5.6037,
+            Longitude = -0.1870,
+            LastSyncAt = DateTime.UtcNow.AddDays(-90),
+        };
+        var darWtp = new Project
+        {
+            TenantId = tenant.Id,
+            Name = "Dar es Salaam Water Treatment Plant",
+            Code = "DSM-WTP-2026",
+            Phase = "Design",
+            Status = ProjectStatus.Active,
+            CompliancePercent = 67.0,
+            RagStatus = "AMBER",
+            TotalElements = 6210,
+            TaggedElements = 4161,
+            City = "Dar es Salaam",
+            Country = "Tanzania",
+            Latitude = -6.7924,
+            Longitude = 39.2083,
+            LastSyncAt = DateTime.UtcNow.AddHours(-18),
+        };
+        db.Projects.AddRange(entebbe, lagos, nairobi, accra, darWtp);
+
+        // Per-project memberships. admin is BIM Coordinator on every project;
+        // a second seeded discipline lead gives the "team: 2 members" chip
+        // something to count.
+        var allProjects = new[] { project, entebbe, lagos, nairobi, accra, darWtp };
+        var leadRoles = new[]
+        {
+            ("M", "MEP Lead"),
+            ("S", "Structural Lead"),
+            ("A", "Architectural Lead"),
+            ("PM", "Project Manager"),
+            ("QS", "Quantity Surveyor"),
+            ("BC", "BIM Coordinator"),
+        };
+        for (var i = 0; i < allProjects.Length; i++)
+        {
+            var p = allProjects[i];
+            db.ProjectMembers.Add(new ProjectMember
+            {
+                TenantId = tenant.Id,
+                ProjectId = p.Id,
+                UserId = admin.Id,
+                ProjectRole = "Coordinator",
+                Iso19650Role = "BC",
+            });
+            var (iso, label) = leadRoles[i % leadRoles.Length];
+            // Seeded "lead" placeholder user for membership counts. We don't
+            // create an AppUser row to keep the demo seed minimal — only the
+            // count is read by the dashboard cards.
+            db.ProjectMembers.Add(new ProjectMember
+            {
+                TenantId = tenant.Id,
+                ProjectId = p.Id,
+                UserId = Guid.NewGuid(),
+                ProjectRole = "Contributor",
+                Iso19650Role = iso,
+                InvitedBy = label,
+            });
+        }
 
         // ── Sample Issues ──
         db.Issues.AddRange(
