@@ -1645,6 +1645,20 @@ namespace StingTools.Core
                 case "NavisworksTimeLiner":    return new BIMManager.NavisworksTimeLinerExportCommand();
                 case "ElementCostTrace":       return new BIMManager.ElementCostTraceCommand();
 
+                // BCC Platform tab → Planscape Connect / member management buttons.
+                // Same double-path issue as QR/CodeLegend: only wired in StingCommandHandler
+                // so BCC's ExternalEvent path produced "Action 'PlanscapeConnect' is not handled".
+                case "PlanscapeConnect":
+                case "PlanscapeAddMember":
+                case "PlanscapeRemoveMember":
+                case "PlanscapeLinkProject":
+                case "PlanscapeTestConnection":   return new BIMManager.PlanscapeConnectCommand();
+                case "PublishModelToPlanscape":   return new BIMManager.PublishModelCommand();
+                case "PlanscapeExportTeam":
+                case "PlanscapeExportConfig":     return new BIMManager.ExportCoordLogCommand();
+                case "PlanscapeShareReport":      return new BIMManager.GenerateDashboardCommand();
+                case "LoadFamilyLibrary":         return new Temp.FamilyLibraryLoaderCommand();
+
                 // Phase 104: GAP-analysis commands (GapAnalysisFixCommands.cs) dispatched from BCC
                 // action bar via WarningsManager.DispatchCoordAction. Previously only resolvable via
                 // StingCommandHandler, so BCC ExternalEvent path produced "Action 'X' is not handled".
