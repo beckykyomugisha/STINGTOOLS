@@ -45,6 +45,14 @@ public sealed class PlanscapeServerClient : IDisposable
     private string _refreshToken = "";
     private DateTime _tokenExpiry = DateTime.MinValue;
 
+    // SEC-EA-08 — local mirror of the server's sliding inactivity window.
+    // Updated on every successful API call; if the gap exceeds the
+    // window we tear down the session before attempting a refresh
+    // (the server will reject it anyway). Mirrors AuthController.cs
+    // RefreshInactivityWindow on the server.
+    private DateTime _lastActivityTime = DateTime.UtcNow;
+    private static readonly TimeSpan SessionInactivityWindow = TimeSpan.FromMinutes(60);
+
     // ── Public state ───────────────────────────────────────────────────────────
     public bool   IsConnected   => !string.IsNullOrEmpty(_accessToken) && _tokenExpiry > DateTime.UtcNow.AddMinutes(5);
     public string ServerUrl     => _serverUrl;
@@ -87,6 +95,10 @@ public sealed class PlanscapeServerClient : IDisposable
 
             ParseAuthResponse(JObject.Parse(resp.body), email);
             LastError = null;
+            // SEC-EA-08 — seed the inactivity clock; the PostJsonAsync that
+            // wrote /api/auth/login already bumped it but make the intent
+            // explicit at the auth boundary.
+            TouchActivity();
             // P1 — store the session so a Revit restart doesn't require
             // re-entering credentials. Encrypted with DPAPI (current-user).
             PersistSession();
@@ -137,11 +149,35 @@ public sealed class PlanscapeServerClient : IDisposable
     private async Task<bool> EnsureAuthenticatedAsync()
     {
         if (string.IsNullOrEmpty(_accessToken)) { LastError = "Not connected to Planscape server."; return false; }
-        // Refresh if token expires within 10 minutes
-        if (_tokenExpiry <= DateTime.UtcNow.AddMinutes(10))
-            return await RefreshTokenAsync().ConfigureAwait(false);
+
+        // SEC-EA-08 — local idle gate. If we've been silent longer than
+        // the server's inactivity window, the server will reject the
+        // refresh anyway; clear state up-front so the user gets a clean
+        // "log in again" message rather than a confusing 401 mid-sync.
+        if (DateTime.UtcNow - _lastActivityTime > SessionInactivityWindow)
+        {
+            StingLog.Info("Planscape: session idle past inactivity window — clearing tokens.");
+            _accessToken  = "";
+            _refreshToken = "";
+            _tokenExpiry  = DateTime.MinValue;
+            try { _http?.DefaultRequestHeaders.Authorization = null; } catch { }
+            DeletePersistedSession();
+            throw new InvalidOperationException(
+                "Planscape session expired. Please log in again from the BIM tab.");
+        }
+
+        // SEC-EA-03 — access tokens are now 30 min, so refresh once <5 min remain.
+        if (_tokenExpiry <= DateTime.UtcNow.AddMinutes(5))
+        {
+            var ok = await RefreshTokenAsync().ConfigureAwait(false);
+            if (ok) _lastActivityTime = DateTime.UtcNow;
+            return ok;
+        }
         return true;
     }
+
+    /// <summary>SEC-EA-08 — call after every successful API round-trip.</summary>
+    private void TouchActivity() => _lastActivityTime = DateTime.UtcNow;
 
     /// <summary>Disconnect and clear all credentials.</summary>
     public void Disconnect()
@@ -793,7 +829,9 @@ public sealed class PlanscapeServerClient : IDisposable
         if (http == null) throw new InvalidOperationException("HttpClient not initialised — call LoginAsync first.");
         var resp = await http.PostAsync(path, content).ConfigureAwait(false);
         var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
-        return ((int)resp.StatusCode >= 200 && (int)resp.StatusCode < 300, (int)resp.StatusCode, body);
+        var ok = (int)resp.StatusCode >= 200 && (int)resp.StatusCode < 300;
+        if (ok) TouchActivity(); // SEC-EA-08
+        return (ok, (int)resp.StatusCode, body);
     }
 
     private async Task<(bool ok, int status, string body)> GetAsync(string path)
@@ -802,7 +840,9 @@ public sealed class PlanscapeServerClient : IDisposable
         if (http == null) throw new InvalidOperationException("HttpClient not initialised — call LoginAsync first.");
         var resp = await http.GetAsync(path).ConfigureAwait(false);
         var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
-        return ((int)resp.StatusCode >= 200 && (int)resp.StatusCode < 300, (int)resp.StatusCode, body);
+        var ok = (int)resp.StatusCode >= 200 && (int)resp.StatusCode < 300;
+        if (ok) TouchActivity(); // SEC-EA-08
+        return (ok, (int)resp.StatusCode, body);
     }
 
     private void ParseAuthResponse(JObject json, string fallbackEmail)

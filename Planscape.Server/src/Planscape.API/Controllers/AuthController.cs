@@ -7,6 +7,7 @@ using Planscape.Core.Entities;
 using Planscape.Infrastructure.Authorization;
 using Planscape.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using StackExchange.Redis;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -20,17 +21,39 @@ namespace Planscape.API.Controllers;
 /// </summary>
 public class AuthController : ControllerBase
 {
+    // SEC-EA-03 — Access token lifetime is SECURITY-SENSITIVE. Do NOT
+    // extend beyond 30 minutes without a security review; the JTI
+    // revocation store and account-lockout caps assume short windows.
+    private static readonly TimeSpan AccessTokenLifetime = TimeSpan.FromMinutes(30);
+
+    // SEC-EA-08 — Refresh-token sliding inactivity window. 60 minutes
+    // since last successful refresh. After this, the refresh path
+    // rejects with 401 and the user must log in again.
+    private static readonly TimeSpan RefreshInactivityWindow = TimeSpan.FromMinutes(60);
+
+    // SEC-EA-09 — Login rate-limit (per email) supplements the IP-based
+    // "auth" RateLimiter. 5 failed attempts within a 5-minute sliding
+    // window triggers lockout. Counter clears on successful login.
+    private const int MaxFailedLoginsPerWindow = 5;
+    private static readonly TimeSpan FailedLoginWindow = TimeSpan.FromMinutes(5);
+
+    private static string RefreshActivityKey(string refreshToken) => $"refresh_active:{refreshToken}";
+    private static string FailedLoginsKey(string email) => $"login_attempts:{email.ToLowerInvariant()}";
+
     private readonly PlanscapeDbContext _db;
     private readonly IConfiguration _config;
     private readonly IPermissionRevocationStore _revocations;
+    private readonly IConnectionMultiplexer _redis;
 
     public AuthController(PlanscapeDbContext db,
                           IConfiguration config,
-                          IPermissionRevocationStore revocations)
+                          IPermissionRevocationStore revocations,
+                          IConnectionMultiplexer redis)
     {
         _db = db;
         _config = config;
         _revocations = revocations;
+        _redis = redis;
     }
 
     // ── Login ──────────────────────────────────────────────────────────────────
@@ -44,30 +67,129 @@ public class AuthController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<AuthLoginResponse>> Login([FromBody] AuthLoginRequest req)
     {
+        var redisDb = _redis.GetDatabase();
+        var emailKey = string.IsNullOrWhiteSpace(req.Email) ? "" : req.Email.Trim().ToLowerInvariant();
+        var lockKey = FailedLoginsKey(emailKey);
+
+        // SEC-EA-09 — pre-flight per-email lockout check. Independent of
+        // the IP-based "auth" rate limiter so an attacker who rotates IPs
+        // (residential proxy / Tor) still hits a wall once they've burned
+        // 5 attempts on a single account.
+        if (!string.IsNullOrEmpty(emailKey))
+        {
+            var current = (long?)await redisDb.StringGetAsync(lockKey) ?? 0;
+            if (current >= MaxFailedLoginsPerWindow)
+            {
+                Response.Headers["Retry-After"] = ((int)FailedLoginWindow.TotalSeconds).ToString();
+                return StatusCode(StatusCodes.Status429TooManyRequests, new
+                {
+                    error = "Too many failed login attempts. Please wait 5 minutes before trying again."
+                });
+            }
+        }
+
         var user = await _db.Users
             .Include(u => u.Tenant)
             .FirstOrDefaultAsync(u => u.Email == req.Email && u.IsActive);
 
         if (user == null || !BCryptVerify(req.Password, user.PasswordHash))
+        {
+            // SEC-EA-09 — increment failure counter with sliding 5-min
+            // expiry. Don't reveal whether the email exists.
+            if (!string.IsNullOrEmpty(emailKey))
+            {
+                var n = await redisDb.StringIncrementAsync(lockKey);
+                if (n == 1) await redisDb.KeyExpireAsync(lockKey, FailedLoginWindow);
+            }
             return Unauthorized(new { message = "Invalid email or password" });
+        }
+
+        // Successful login — clear lockout counter for this email.
+        if (!string.IsNullOrEmpty(emailKey))
+            await redisDb.KeyDeleteAsync(lockKey);
 
         var token = GenerateJwt(user);
         var refreshToken = Guid.NewGuid().ToString("N");
         user.RefreshToken = refreshToken;
-        user.RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(30);
+        // SEC-EA-03 — Refresh tokens are SECURITY-SENSITIVE. Do NOT extend
+        //   beyond 7 days without a security review; a stolen refresh token
+        //   gives the attacker silent access for the entire window.
+        user.RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(7);
         user.LastLoginAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
+
+        // SEC-EA-08 — seed the refresh-token last-activity clock. Sliding
+        // inactivity expiry (60 min) is enforced inside RefreshToken.
+        await redisDb.StringSetAsync(
+            RefreshActivityKey(refreshToken),
+            DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+            TimeSpan.FromDays(7));
 
         return Ok(new AuthLoginResponse
         {
             AccessToken = token,
             RefreshToken = refreshToken,
-            ExpiresAt = DateTime.UtcNow.AddHours(8),
+            ExpiresAt = DateTime.UtcNow.Add(AccessTokenLifetime),
             UserName = user.DisplayName,
             Role = user.Role.ToString(),
             Tier = user.Tenant?.Tier.ToString() ?? "Starter",
             MimEnabled = user.Tenant?.MimEnabled ?? false
         });
+    }
+
+    // ── Logout (SEC-EA-02 — JTI revocation) ────────────────────────────────────
+
+    /// <summary>
+    /// Revoke the bearer token. The token's JTI claim is added to a Redis
+    /// blacklist for the remainder of its lifetime; the JwtBearer
+    /// OnTokenValidated event rejects further use.
+    /// </summary>
+    /// <response code="200">Token revoked.</response>
+    /// <response code="401">No bearer token presented.</response>
+    [HttpPost("logout")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult> Logout()
+    {
+        var auth = Request.Headers["Authorization"].ToString();
+        const string prefix = "Bearer ";
+        if (string.IsNullOrEmpty(auth) || !auth.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            return Unauthorized();
+
+        var rawToken = auth.Substring(prefix.Length).Trim();
+        var handler = new JwtSecurityTokenHandler();
+        if (!handler.CanReadToken(rawToken))
+            return Unauthorized();
+
+        var jwt = handler.ReadJwtToken(rawToken);
+        var jti = jwt.Id;
+        var revocationKey = string.IsNullOrEmpty(jti)
+            ? $"revoked:raw:{System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(rawToken)).Length}:{Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(rawToken)))}"
+            : $"revoked:{jti}";
+
+        var ttl = jwt.ValidTo - DateTime.UtcNow;
+        if (ttl <= TimeSpan.Zero) ttl = TimeSpan.FromMinutes(1); // already-expired tokens: keep a short marker so a clock-skew replay still fails
+
+        var redisDb = _redis.GetDatabase();
+        await redisDb.StringSetAsync(revocationKey, "1", ttl);
+
+        // Also clear the user's refresh token so refresh paths can't
+        // continue the session.
+        var subClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value;
+        if (Guid.TryParse(subClaim, out var userId))
+        {
+            var user = await _db.Users.FindAsync(userId);
+            if (user != null)
+            {
+                user.RefreshToken = null;
+                user.RefreshTokenExpiresAt = null;
+                await _db.SaveChangesAsync();
+            }
+        }
+
+        return Ok(new { message = "Logged out." });
     }
 
     // ── Refresh Token ──────────────────────────────────────────────────────────
@@ -87,17 +209,54 @@ public class AuthController : ControllerBase
         if (user == null || user.RefreshTokenExpiresAt < DateTime.UtcNow)
             return Unauthorized(new { message = "Invalid or expired refresh token" });
 
+        // SEC-EA-08 — sliding inactivity check. If the refresh token has
+        // been silent for more than RefreshInactivityWindow, force a
+        // fresh login. The absolute 7-day cap from SEC-EA-03 still
+        // applies on top.
+        var redisDb = _redis.GetDatabase();
+        var activityKey = RefreshActivityKey(req.RefreshToken);
+        var lastActiveRaw = await redisDb.StringGetAsync(activityKey);
+        if (lastActiveRaw.HasValue
+            && long.TryParse(lastActiveRaw.ToString(), out var lastActiveUnix))
+        {
+            var lastActive = DateTimeOffset.FromUnixTimeSeconds(lastActiveUnix);
+            if (DateTimeOffset.UtcNow - lastActive > RefreshInactivityWindow)
+            {
+                // Burn the silent token so a stolen-token replayer can't
+                // catch up later.
+                user.RefreshToken = null;
+                user.RefreshTokenExpiresAt = null;
+                await _db.SaveChangesAsync();
+                await redisDb.KeyDeleteAsync(activityKey);
+                return Unauthorized(new
+                {
+                    error = "Session expired due to inactivity. Please log in again."
+                });
+            }
+        }
+
         var newAccessToken  = GenerateJwt(user);
         var newRefreshToken = Guid.NewGuid().ToString("N");
         user.RefreshToken          = newRefreshToken;
-        user.RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(30);
+        // SEC-EA-03 — Refresh tokens are SECURITY-SENSITIVE. Do NOT extend
+        //   beyond 7 days without a security review; a stolen refresh token
+        //   gives the attacker silent access for the entire window.
+        user.RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(7);
         await _db.SaveChangesAsync();
+
+        // SEC-EA-08 — rotate the activity-tracking key alongside the
+        // refresh token rotation (catch-and-burn for token theft).
+        await redisDb.KeyDeleteAsync(activityKey);
+        await redisDb.StringSetAsync(
+            RefreshActivityKey(newRefreshToken),
+            DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+            TimeSpan.FromDays(7));
 
         return Ok(new
         {
             accessToken  = newAccessToken,
             refreshToken = newRefreshToken,
-            expiresAt    = DateTime.UtcNow.AddHours(8)
+            expiresAt    = DateTime.UtcNow.Add(AccessTokenLifetime)
         });
     }
 
@@ -185,7 +344,7 @@ public class AuthController : ControllerBase
         {
             accessToken    = token,
             refreshToken   = (string?)null,
-            expiresAt      = DateTime.UtcNow.AddHours(8),
+            expiresAt      = DateTime.UtcNow.Add(AccessTokenLifetime),
             userName       = owner.DisplayName,
             tenantId       = tenant.Id,
             tenantSlug     = tenant.Slug,
@@ -354,7 +513,10 @@ public class AuthController : ControllerBase
         // Issue a fresh access + refresh token.
         var refresh = Guid.NewGuid().ToString("N");
         user.RefreshToken = refresh;
-        user.RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(30);
+        // SEC-EA-03 — Refresh tokens are SECURITY-SENSITIVE. Do NOT extend
+        //   beyond 7 days without a security review; a stolen refresh token
+        //   gives the attacker silent access for the entire window.
+        user.RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(7);
         user.LastLoginAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
@@ -362,7 +524,7 @@ public class AuthController : ControllerBase
         {
             AccessToken  = GenerateJwt(user),
             RefreshToken = refresh,
-            ExpiresAt    = DateTime.UtcNow.AddHours(8),
+            ExpiresAt    = DateTime.UtcNow.Add(AccessTokenLifetime),
             UserName     = user.DisplayName,
             Role         = user.Role.ToString(),
             Tier         = user.Tenant?.Tier.ToString() ?? "Starter",
@@ -446,7 +608,9 @@ public class AuthController : ControllerBase
         var token = GenerateJwt(target);
         var refreshToken = Guid.NewGuid().ToString("N");
         target.RefreshToken = refreshToken;
-        target.RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(30);
+        // SEC-EA-03 — Refresh tokens are SECURITY-SENSITIVE. Do NOT extend
+        //   beyond 7 days without a security review.
+        target.RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(7);
         target.LastLoginAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
@@ -454,7 +618,7 @@ public class AuthController : ControllerBase
         {
             AccessToken = token,
             RefreshToken = refreshToken,
-            ExpiresAt = DateTime.UtcNow.AddHours(8),
+            ExpiresAt = DateTime.UtcNow.Add(AccessTokenLifetime),
             UserName = target.DisplayName,
             Role = target.Role.ToString(),
             Tier = target.Tenant?.Tier.ToString() ?? "Starter",
@@ -610,9 +774,15 @@ public class AuthController : ControllerBase
         // Program.cs can scale per-user budgets to the licence the
         // tenant pays for. Stored on Tenant.Tier (LicenseTier enum).
         var tierName = user.Tenant?.Tier.ToString() ?? "Starter";
+        // SEC-EA-02 — emit a unique JTI per token so /api/auth/logout can
+        // revoke a single bearer without bumping the per-user iat-floor
+        // (which kills every active session — too coarse for "log this
+        // device out").
+        var jti = Guid.NewGuid().ToString("N");
         var claims = new[]
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new Claim(JwtRegisteredClaimNames.Jti, jti),
             new Claim("user_id", user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
             new Claim(JwtRegisteredClaimNames.Iat, nowSec, ClaimValueTypes.Integer64),
@@ -629,7 +799,9 @@ public class AuthController : ControllerBase
             issuer: _config["Jwt:Issuer"] ?? "Planscape",
             audience: _config["Jwt:Audience"] ?? "Planscape.Client",
             claims: claims,
-            expires: DateTime.UtcNow.AddHours(8),
+            // SEC-EA-03 — short access-token lifetime; refresh + JTI
+            // revocation handle long-running sessions instead.
+            expires: DateTime.UtcNow.Add(AccessTokenLifetime),
             signingCredentials: creds);
 
         return new JwtSecurityTokenHandler().WriteToken(token);
