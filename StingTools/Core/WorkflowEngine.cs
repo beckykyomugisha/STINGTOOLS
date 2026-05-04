@@ -759,6 +759,37 @@ namespace StingTools.Core
                             RecordSkip($"compound {logic}: {string.Join(", ", step.Conditions)}");
                             continue;
                         }
+                        // GAP-02: Extended condition engine for workflow steps
+                        if (step.Condition == "has_links")
+                        {
+                            bool hasLinks = new FilteredElementCollector(doc)
+                                .OfClass(typeof(RevitLinkInstance)).GetElementCount() > 0;
+                            if (!hasLinks) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no linked models)"); continue; }
+                        }
+                        if (step.Condition == "has_cad_imports")
+                        {
+                            bool hasCad = new FilteredElementCollector(doc)
+                                .OfClass(typeof(ImportInstance)).GetElementCount() > 0;
+                            if (!hasCad) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no CAD imports)"); continue; }
+                        }
+                        if (step.Condition == "has_stale")
+                        {
+                            if (!cachedHasStale()) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no stale elements)"); continue; }
+                        }
+                        if (step.Condition == "has_untagged")
+                        {
+                            bool hasUntagged = false;
+                            try
+                            {
+                                var catEnums = SharedParamGuids.AllCategoryEnums;
+                                var coll = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                                if (catEnums != null && catEnums.Length > 0)
+                                    coll.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+                                hasUntagged = coll.Any(e => string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1)));
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_untagged condition check: {ex.Message}"); }
+                            if (!hasUntagged) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no untagged elements)"); continue; }
+                        }
                     }
 
                     // Phase 69: Data drop level gate

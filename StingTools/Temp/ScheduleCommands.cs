@@ -1358,8 +1358,20 @@ namespace StingTools.Temp
                 if (!string.IsNullOrEmpty(catName) && known.Contains(catName))
                     taggableElements.Add(el);
             }
+
+            progress.Close();
+
+            // CACHE-02: Invalidate caches after population so compliance dashboard
+            // and auto-tagger reflect the updated token values immediately.
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+
             var report = new StringBuilder();
+            if (cancelled)
+                report.AppendLine($"Cancelled by user. Partial results committed.");
             report.AppendLine($"Auto-populated {updated} field values across {total} elements.");
+            if (apErrors > 0)
+                report.AppendLine($"Errors: {apErrors}");
             report.AppendLine();
             report.AppendLine("Tag tokens:");
             if (sysAware > 0) report.AppendLine($"  SYS detected from MEP systems: {sysAware}");

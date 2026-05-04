@@ -3868,6 +3868,52 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// GAP-WS-01: Check whether the element can be modified in a workshared environment.
+        /// Returns true if the element is safe to edit (not workshared, or owned by current user, or unowned).
+        /// Returns false if owned by another user — the caller should skip/defer this element.
+        /// </summary>
+        public static bool IsEditableInWorksharing(Document doc, Element el)
+        {
+            if (!doc.IsWorkshared) return true;
+            try
+            {
+                WorksetId wsId = el.WorksetId;
+                if (wsId == null || wsId == WorksetId.InvalidWorksetId) return true;
+                var wsInfo = WorksharingUtils.GetWorksharingTooltipInfo(doc, el.Id);
+                if (string.IsNullOrEmpty(wsInfo.Owner) || wsInfo.Owner == "")
+                    return true; // unowned — safe to edit
+                return wsInfo.Owner == doc.Application.Username;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"IsEditableInWorksharing check failed for {el?.Id}: {ex.Message}");
+                return true; // fail-open: allow edit attempt, Revit will throw if truly locked
+            }
+        }
+
+        /// <summary>
+        /// GAP-PH-01: Check whether element is demolished in the project's current phase.
+        /// Returns true if element has a demolished phase set (PHASE_DEMOLISHED parameter is not InvalidElementId).
+        /// </summary>
+        public static bool IsDemolished(Element el)
+        {
+            try
+            {
+                Parameter demParam = el.get_Parameter(BuiltInParameter.PHASE_DEMOLISHED);
+                if (demParam != null && demParam.HasValue)
+                {
+                    ElementId demPhaseId = demParam.AsElementId();
+                    return demPhaseId != null && demPhaseId != ElementId.InvalidElementId;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"IsDemolished check failed for {el?.Id}: {ex.Message}");
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Centralized post-tagging cleanup: saves SEQ sidecar, invalidates caches,
         /// checks compliance gate. Call after tx.Commit() in any tagging command.
         /// </summary>
@@ -4183,6 +4229,11 @@ namespace StingTools.Core
                 // tokenVals: [0]=DISC [1]=LOC [2]=ZONE [3]=LVL [4]=SYS [5]=FUNC [6]=PROD [7]=SEQ
                 if (stats != null && tokenVals != null && tokenVals.Length >= 7)
                     stats.RecordEmptyTokens(tokenVals[5], tokenVals[6]);
+
+                // PERF-02: Inline FUNC/PROD empty tracking to avoid post-loop re-scans
+                stats?.RecordEmptyTokens(
+                    ParameterHelpers.GetString(el, ParamRegistry.FUNC),
+                    ParameterHelpers.GetString(el, ParamRegistry.PROD));
 
                 return true;
             }
