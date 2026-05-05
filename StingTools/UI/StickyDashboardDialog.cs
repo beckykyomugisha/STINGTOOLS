@@ -70,7 +70,7 @@ namespace StingTools.UI
             Width = 900;
             Height = 600;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
-            Background = new SolidColorBrush(Color.FromRgb(0xF5, 0xF5, 0xF5));
+            Background = ThemeManager.GetBrush("AltRowBg");
 
             try
             {
@@ -89,7 +89,7 @@ namespace StingTools.UI
             // ── Header ──
             var header = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(0x6A, 0x1B, 0x9A)),
+                Background = ThemeManager.GetBrush("HeaderBg"),
                 Padding = new Thickness(12, 8, 12, 8)
             };
             header.Child = new TextBlock

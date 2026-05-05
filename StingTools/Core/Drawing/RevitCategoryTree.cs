@@ -496,7 +496,7 @@ namespace StingTools.Core.Drawing
 
             // Wires
             list.Add(new RevitCategory { Bic = "OST_Wire", DisplayName = "Wires",
-                HasCutLines = false, HasHalftone = true, HasDetailLevel = false, IsTaggable = false,
+                HasCutLines = false, HasHalftone = true, HasDetailLevel = false, IsTaggable = true,
                 SubCategories = Subs("OST_Wire", false, "Home Run Arrows", "Wire Tick Marks") });
 
             // ── Phase 137 expansion — categories visible in Revit's VG dialog

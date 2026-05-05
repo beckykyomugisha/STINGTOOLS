@@ -210,6 +210,22 @@ namespace StingTools.UI.PlacementCenter
             cmbRuleKind.ItemsSource   = VM.RuleKinds;
             cmbRelativeTo.ItemsSource = VM.RelativeToOptions;
 
+            // Phase 139 — pack-chip + new-card combobox sources.
+            if (cmbSourcePack != null)
+            {
+                cmbSourcePack.ItemsSource = VM.SourcePackChips;
+                cmbSourcePack.SelectedIndex = 0;
+            }
+            if (cmbProfileBuildingType != null)    cmbProfileBuildingType.ItemsSource = VM.BuildingTypes;
+            if (cmbBuildingType        != null)    cmbBuildingType.ItemsSource        = VM.BuildingTypes;
+            if (cmbWetZone             != null)    cmbWetZone.ItemsSource             = VM.WetZoneOptions;
+            if (cmbHeightStandard      != null)    cmbHeightStandard.ItemsSource      = VM.HeightStandardKeys;
+            if (cmbRoutingMode         != null)    cmbRoutingMode.ItemsSource         = VM.RoutingModes;
+            if (cmbRouteFace           != null)    cmbRouteFace.ItemsSource           = VM.RouteFaces;
+            if (cmbRouteSegmentCategory != null)   cmbRouteSegmentCategory.ItemsSource = VM.RouteSegmentCategories;
+            if (cmbGlazingSpec         != null)    cmbGlazingSpec.ItemsSource         = VM.GlazingSpecs;
+            if (cmbMaintenanceClearance != null)   cmbMaintenanceClearance.ItemsSource = VM.MaintenanceClearances;
+
             // Run-option two-way bindings
             chkProvenance.IsChecked  = VM.RunOpts.StampProvenance;
             chkLearned.IsChecked     = VM.RunOpts.HonourLearned;
@@ -289,6 +305,41 @@ namespace StingTools.UI.PlacementCenter
             // Standards & classification
             txtStandardRef.LostFocus    += (_,__) => CommitField(() => VM.Selected.StandardRef = txtStandardRef.Text);
             txtUniclassPr.LostFocus     += (_,__) => CommitField(() => VM.Selected.UniclassPr  = txtUniclassPr.Text);
+
+            // Phase 139 — Coverage & spacing card
+            if (txtCoverageRadius        != null) txtCoverageRadius.LostFocus        += (_,__) => CommitField(() => VM.Selected.CoverageRadiusMm        = ParseDouble(txtCoverageRadius.Text,        VM.Selected.CoverageRadiusMm));
+            if (txtMaxSpacing            != null) txtMaxSpacing.LostFocus            += (_,__) => CommitField(() => VM.Selected.MaxSpacingMm            = ParseDouble(txtMaxSpacing.Text,            VM.Selected.MaxSpacingMm));
+            if (txtWallClearance         != null) txtWallClearance.LostFocus         += (_,__) => CommitField(() => VM.Selected.WallClearanceMm         = ParseDouble(txtWallClearance.Text,         VM.Selected.WallClearanceMm));
+            if (txtObstructionClearance  != null) txtObstructionClearance.LostFocus  += (_,__) => CommitField(() => VM.Selected.ObstructionClearanceMm  = ParseDouble(txtObstructionClearance.Text,  VM.Selected.ObstructionClearanceMm));
+            if (chkGuaranteeCoverage     != null) chkGuaranteeCoverage.Click         += (_,__) => CommitField(() => VM.Selected.GuaranteeCoverage       = chkGuaranteeCoverage.IsChecked == true);
+
+            // Phase 139 — Routing card
+            if (cmbRoutingMode           != null) cmbRoutingMode.SelectionChanged    += (_,__) => CommitField(() => VM.Selected.RoutingMode             = cmbRoutingMode.SelectedItem as string ?? "NONE");
+            if (cmbRouteFace             != null) cmbRouteFace.SelectionChanged      += (_,__) => CommitField(() => VM.Selected.RouteFace               = cmbRouteFace.SelectedItem   as string ?? "INTERIOR");
+            if (txtRouteOffset           != null) txtRouteOffset.LostFocus           += (_,__) => CommitField(() => VM.Selected.RouteOffsetMm           = ParseDouble(txtRouteOffset.Text,           VM.Selected.RouteOffsetMm));
+            if (txtRouteMinBendRadius    != null) txtRouteMinBendRadius.LostFocus    += (_,__) => CommitField(() => VM.Selected.RouteMinBendRadiusMm    = ParseDouble(txtRouteMinBendRadius.Text,    VM.Selected.RouteMinBendRadiusMm));
+            if (cmbRouteSegmentCategory  != null) cmbRouteSegmentCategory.SelectionChanged += (_,__) => CommitField(() => VM.Selected.RouteSegmentCategory = cmbRouteSegmentCategory.SelectedItem as string ?? "");
+
+            // Phase 139 — Window/Glazing card
+            if (txtSillHeight            != null) txtSillHeight.LostFocus            += (_,__) => CommitField(() => VM.Selected.SillHeightMm            = ParseDouble(txtSillHeight.Text,            VM.Selected.SillHeightMm));
+            if (txtHeadHeight            != null) txtHeadHeight.LostFocus            += (_,__) => CommitField(() => VM.Selected.HeadHeightMm            = ParseDouble(txtHeadHeight.Text,            VM.Selected.HeadHeightMm));
+            if (txtCillToFloor           != null) txtCillToFloor.LostFocus           += (_,__) => CommitField(() => VM.Selected.CillToFloorMm           = ParseDouble(txtCillToFloor.Text,           VM.Selected.CillToFloorMm));
+            if (chkToughenedGlazing      != null) chkToughenedGlazing.Click          += (_,__) => CommitField(() => VM.Selected.ToughenedGlazingRequired = chkToughenedGlazing.IsChecked == true);
+            if (cmbGlazingSpec           != null) cmbGlazingSpec.SelectionChanged    += (_,__) => CommitField(() => VM.Selected.GlazingSpec             = cmbGlazingSpec.SelectedItem as string ?? "");
+
+            // Phase 139 — Standards & accessibility card
+            if (cmbBuildingType          != null) cmbBuildingType.SelectionChanged   += (_,__) => CommitField(() => VM.Selected.BuildingType            = cmbBuildingType.SelectedItem as string ?? "");
+            if (txtIpRatingMin           != null) txtIpRatingMin.LostFocus           += (_,__) => CommitField(() => VM.Selected.IpRatingMin             = txtIpRatingMin.Text);
+            if (txtStandardsCsv          != null) txtStandardsCsv.LostFocus          += (_,__) => CommitField(() => VM.Selected.ApplicableStandardsCsv  = txtStandardsCsv.Text);
+            if (cmbWetZone               != null) cmbWetZone.SelectionChanged        += (_,__) => CommitField(() => VM.Selected.WetZoneExclusion        = cmbWetZone.SelectedItem as string ?? "NONE");
+            if (chkAccessibilityCheck    != null) chkAccessibilityCheck.Click        += (_,__) => CommitField(() => VM.Selected.AccessibilityCheck      = chkAccessibilityCheck.IsChecked == true);
+            if (cmbHeightStandard        != null) cmbHeightStandard.SelectionChanged += (_,__) => CommitField(() => VM.Selected.HeightStandard          = cmbHeightStandard.SelectedItem as string ?? "");
+
+            // Phase 139 — Post-placement card
+            if (chkRequiresCOBieFields   != null) chkRequiresCOBieFields.Click       += (_,__) => CommitField(() => VM.Selected.RequiresCOBieFields     = chkRequiresCOBieFields.IsChecked == true);
+            if (chkRequiresIfcMapping    != null) chkRequiresIfcMapping.Click        += (_,__) => CommitField(() => VM.Selected.RequiresIfcMapping      = chkRequiresIfcMapping.IsChecked == true);
+            if (cmbMaintenanceClearance  != null) cmbMaintenanceClearance.SelectionChanged += (_,__) => CommitField(() => VM.Selected.MaintenanceClearance = cmbMaintenanceClearance.SelectedItem as string ?? "");
+            if (txtPostAuditTag          != null) txtPostAuditTag.LostFocus          += (_,__) => CommitField(() => VM.Selected.PostAuditTag            = txtPostAuditTag.Text);
 
             // VM → status bar binding
             VM.PropertyChanged += OnVmPropertyChanged;
@@ -1340,6 +1391,133 @@ namespace StingTools.UI.PlacementCenter
             UpdateStatus();
         }
 
+        // Phase 139 I1 — SourcePack chip filter
+        private void OnSourcePack_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (cmbSourcePack?.SelectedItem is string s) VM.SelectedSourcePack = s;
+        }
+
+        // Phase 139 E3 — Excel round-trip buttons
+        private void OnExportExcel_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var rules = VM.Rules.Select(r => r.Model).ToList();
+                if (rules.Count == 0)
+                {
+                    System.Windows.MessageBox.Show("No rules to export.", "STING Placement");
+                    return;
+                }
+                var sfd = new Microsoft.Win32.SaveFileDialog
+                {
+                    Title    = "Export STING Placement Rules to Excel",
+                    Filter   = "Excel workbook (*.xlsx)|*.xlsx",
+                    FileName = $"STING_PLACEMENT_RULES_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx",
+                };
+                if (sfd.ShowDialog(this) != true) return;
+                StingTools.Core.Placement.Excel.PlacementRulesExcelExporter.Export(rules, sfd.FileName);
+                VM.Status = $"Exported {rules.Count} rule(s) → {System.IO.Path.GetFileName(sfd.FileName)}";
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("OnExportExcel_Click", ex);
+                VM.Status = $"Excel export failed: {ex.Message}";
+            }
+        }
+
+        private void OnImportExcel_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var ofd = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title  = "Import STING Placement Rules from Excel",
+                    Filter = "Excel workbook (*.xlsx)|*.xlsx",
+                };
+                if (ofd.ShowDialog(this) != true) return;
+                var (rules, errors) = StingTools.Core.Placement.Excel.PlacementRulesExcelImporter.Import(ofd.FileName);
+                if (errors.Count > 0)
+                {
+                    var preview = string.Join("\n", errors.Take(20));
+                    var res = System.Windows.MessageBox.Show(
+                        $"{errors.Count} issue(s) reading workbook.\n\n{preview}\n\nAppend valid rules anyway?",
+                        "STING Placement — Excel import",
+                        System.Windows.MessageBoxButton.YesNo);
+                    if (res != System.Windows.MessageBoxResult.Yes) return;
+                }
+                int added = 0;
+                foreach (var r in rules)
+                {
+                    if (r == null) continue;
+                    VM.Rules.Add(new PlacementRuleViewModel(r) { IsDirty = true });
+                    added++;
+                }
+                VM.RebuildCategories();
+                VM.Status = $"Imported {added} rule(s) from Excel (Save Project to persist).";
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("OnImportExcel_Click", ex);
+                VM.Status = $"Excel import failed: {ex.Message}";
+            }
+        }
+
+        // Phase 139 I3 — building profile load/save
+        private void OnLoadProfile_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var doc = _uiApp?.ActiveUIDocument?.Document;
+                if (doc == null || string.IsNullOrEmpty(doc.PathName))
+                {
+                    System.Windows.MessageBox.Show("Save the project before loading a building profile.", "STING Placement");
+                    return;
+                }
+                VM.LoadProfile(doc.PathName);
+                SyncProfileFromVm();
+            }
+            catch (Exception ex) { StingLog.Error("OnLoadProfile_Click", ex); }
+        }
+
+        private void OnSaveProfile_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var doc = _uiApp?.ActiveUIDocument?.Document;
+                if (doc == null || string.IsNullOrEmpty(doc.PathName))
+                {
+                    System.Windows.MessageBox.Show("Save the project before saving the building profile.", "STING Placement");
+                    return;
+                }
+                SyncProfileToVm();
+                VM.SaveProfile(doc.PathName);
+            }
+            catch (Exception ex) { StingLog.Error("OnSaveProfile_Click", ex); }
+        }
+
+        private void SyncProfileFromVm()
+        {
+            if (cmbProfileBuildingType != null) cmbProfileBuildingType.SelectedItem = VM.Profile.BuildingType;
+            if (txtProfileStandards    != null) txtProfileStandards.Text = VM.Profile.ActiveStandards == null ? "" : string.Join(",", VM.Profile.ActiveStandards);
+            if (chkEnableWetZone       != null) chkEnableWetZone.IsChecked = VM.Profile.EnableWetZoneChecks;
+            if (chkEnableAccessibility != null) chkEnableAccessibility.IsChecked = VM.Profile.EnableAccessibilityChecks;
+            if (chkEnableCoverage      != null) chkEnableCoverage.IsChecked = VM.Profile.EnableCoverageGuarantee;
+        }
+
+        private void SyncProfileToVm()
+        {
+            var p = VM.Profile;
+            if (cmbProfileBuildingType?.SelectedItem is string bt) p.BuildingType = bt;
+            if (txtProfileStandards != null)
+                p.ActiveStandards = (txtProfileStandards.Text ?? "")
+                    .Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => s.Trim()).ToArray();
+            if (chkEnableWetZone?.IsChecked       == true) p.EnableWetZoneChecks       = true; else p.EnableWetZoneChecks = false;
+            if (chkEnableAccessibility?.IsChecked == true) p.EnableAccessibilityChecks = true; else p.EnableAccessibilityChecks = false;
+            if (chkEnableCoverage?.IsChecked      == true) p.EnableCoverageGuarantee   = true; else p.EnableCoverageGuarantee = false;
+            VM.Profile = p;
+        }
+
         private void OnGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             VM.Selected = gridRules.SelectedItem as PlacementRuleViewModel;
@@ -1451,6 +1629,37 @@ namespace StingTools.UI.PlacementCenter
                 txtClr.Text = ""; txtClrFront.Text = ""; txtClrBack.Text = "";
                 txtClrSide.Text = ""; txtClrTop.Text = ""; txtWeightKg.Text = "";
                 txtEnvW.Text = ""; txtEnvD.Text = ""; txtEnvH.Text = ""; txtFireSep.Text = "";
+
+                // Phase 139 — new card field sync.
+                if (txtCoverageRadius        != null) txtCoverageRadius.Text        = s.CoverageRadiusMm.ToString("0.##",       CultureInfo.InvariantCulture);
+                if (txtMaxSpacing            != null) txtMaxSpacing.Text            = s.MaxSpacingMm.ToString("0.##",           CultureInfo.InvariantCulture);
+                if (txtWallClearance         != null) txtWallClearance.Text         = s.WallClearanceMm.ToString("0.##",        CultureInfo.InvariantCulture);
+                if (txtObstructionClearance  != null) txtObstructionClearance.Text  = s.ObstructionClearanceMm.ToString("0.##", CultureInfo.InvariantCulture);
+                if (chkGuaranteeCoverage     != null) chkGuaranteeCoverage.IsChecked = s.GuaranteeCoverage;
+
+                if (cmbRoutingMode           != null) cmbRoutingMode.SelectedItem   = string.IsNullOrEmpty(s.RoutingMode) ? "NONE" : s.RoutingMode;
+                if (cmbRouteFace             != null) cmbRouteFace.SelectedItem     = string.IsNullOrEmpty(s.RouteFace)   ? "INTERIOR" : s.RouteFace;
+                if (txtRouteOffset           != null) txtRouteOffset.Text           = s.RouteOffsetMm.ToString("0.##",        CultureInfo.InvariantCulture);
+                if (txtRouteMinBendRadius    != null) txtRouteMinBendRadius.Text    = s.RouteMinBendRadiusMm.ToString("0.##", CultureInfo.InvariantCulture);
+                if (cmbRouteSegmentCategory  != null) cmbRouteSegmentCategory.SelectedItem = s.RouteSegmentCategory ?? "";
+
+                if (txtSillHeight            != null) txtSillHeight.Text            = s.SillHeightMm.ToString("0.##",        CultureInfo.InvariantCulture);
+                if (txtHeadHeight            != null) txtHeadHeight.Text            = s.HeadHeightMm.ToString("0.##",        CultureInfo.InvariantCulture);
+                if (txtCillToFloor           != null) txtCillToFloor.Text           = s.CillToFloorMm.ToString("0.##",       CultureInfo.InvariantCulture);
+                if (chkToughenedGlazing      != null) chkToughenedGlazing.IsChecked = s.ToughenedGlazingRequired;
+                if (cmbGlazingSpec           != null) cmbGlazingSpec.SelectedItem   = s.GlazingSpec ?? "";
+
+                if (cmbBuildingType          != null) cmbBuildingType.SelectedItem  = s.BuildingType ?? "";
+                if (txtIpRatingMin           != null) txtIpRatingMin.Text           = s.IpRatingMin ?? "";
+                if (txtStandardsCsv          != null) txtStandardsCsv.Text          = s.ApplicableStandardsCsv ?? "";
+                if (cmbWetZone               != null) cmbWetZone.SelectedItem       = string.IsNullOrEmpty(s.WetZoneExclusion) ? "NONE" : s.WetZoneExclusion;
+                if (chkAccessibilityCheck    != null) chkAccessibilityCheck.IsChecked = s.AccessibilityCheck;
+                if (cmbHeightStandard        != null) cmbHeightStandard.SelectedItem = s.HeightStandard ?? "";
+
+                if (chkRequiresCOBieFields   != null) chkRequiresCOBieFields.IsChecked = s.RequiresCOBieFields;
+                if (chkRequiresIfcMapping    != null) chkRequiresIfcMapping.IsChecked  = s.RequiresIfcMapping;
+                if (cmbMaintenanceClearance  != null) cmbMaintenanceClearance.SelectedItem = s.MaintenanceClearance ?? "";
+                if (txtPostAuditTag          != null) txtPostAuditTag.Text          = s.PostAuditTag ?? "";
 
                 txtRuleError.Text         = s.IsValid ? "" : s.ErrorMessage;
             }
@@ -1585,6 +1794,11 @@ namespace StingTools.UI.PlacementCenter
                 if (app == null) return;
                 if (!app.Resources.Contains("DirtyDotConverter"))
                     app.Resources.Add("DirtyDotConverter", new DirtyDotConverter());
+                // Phase 139 — RAG status colour converter for the rule grid row style.
+                if (!app.Resources.Contains("HexToBrushConverter"))
+                    app.Resources.Add("HexToBrushConverter", new HexToBrushConverter());
+                if (!app.Resources.Contains("EmptyStringToVisibility"))
+                    app.Resources.Add("EmptyStringToVisibility", new EmptyStringToVisibilityConverter());
             }
             catch (Exception ex)
             {
@@ -1601,6 +1815,45 @@ namespace StingTools.UI.PlacementCenter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
             => value is bool b && b ? "●" : "";
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => System.Windows.Data.Binding.DoNothing;
+    }
+
+    /// <summary>
+    /// Phase 139 — convert "#RRGGBB" hex string to a SolidColorBrush so the
+    /// rule grid row style can colour-code RAG status from the ViewModel.
+    /// Falls back to white on null / parse failure.
+    /// </summary>
+    public class HexToBrushConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            try
+            {
+                if (value is string s && !string.IsNullOrEmpty(s))
+                {
+                    var c = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(s);
+                    return new System.Windows.Media.SolidColorBrush(c);
+                }
+            }
+            catch { }
+            return System.Windows.Media.Brushes.White;
+        }
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => System.Windows.Data.Binding.DoNothing;
+    }
+
+    /// <summary>
+    /// Phase 139 — empty/null string → Visible, otherwise → Collapsed.
+    /// Used by the Building Profile header banner that fires when no
+    /// profile is loaded.
+    /// </summary>
+    public class EmptyStringToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+            => string.IsNullOrEmpty(value as string)
+                ? System.Windows.Visibility.Visible
+                : System.Windows.Visibility.Collapsed;
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
             => System.Windows.Data.Binding.DoNothing;
     }

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,7 +39,7 @@ public sealed class QuotaAttribute : Attribute, IAsyncActionFilter
             QuotaAxis.Projects     => await guard.CheckCanAddProjectAsync(),
             QuotaAxis.Authors      => await guard.CheckCanAddUserAsync(_projectRoleHint ?? "Author"),
             QuotaAxis.Coordinators => await guard.CheckCanAddUserAsync(_projectRoleHint ?? "Coordinator"),
-            _                      => QuotaResult.Allowed(_axis, 0, int.MaxValue),
+            _                      => QuotaResult.Allow(_axis, 0, int.MaxValue),
         };
 
         if (!result.Allowed)

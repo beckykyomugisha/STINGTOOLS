@@ -9535,186 +9535,66 @@ future tag family, `OST_Views` for the per-view stamp count.
   every `STING_MATCH_REF_TXT` in a transmittal bundle and warn when
   a paired sheet isn't included.
 
-**Caveats**
+Closes the bug flagged by `STING_GUID_REPAIR_REPORT.md` (StingD85/transfer):
+73 shared parameters in `MR_PARAMETERS.txt` shipped with placeholder
+strings of the form `v4-0001-0000-0000-000000000006` and
+`v6-0001-0000-0000-00000000000c`. These fail `Guid.TryParse` silently,
+so `ParamRegistry._guidByName` never picked them up and any binding,
+schedule, filter, or tag that referenced them was a no-op. The codebase
+already noted the issue in the V6 region header (`ParamRegistry.cs:2761`)
+but the repair was incomplete — the V4 fabrication / LPS / cost block
+was unaddressed and the cross-source GUIDs disagreed.
 
-1. Built without `dotnet build` verification (Linux sandbox, no
-   Revit API). Brace + paren balance verified across all three new
-   `.cs` files. Every Revit API signature checked against existing
-   usage in the same codebase (`doc.Create.NewDetailCurve`,
-   `BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP`,
-   `dc.LineStyle = doc.GetElement(...)`, `TextNote.Create`,
-   `Category.GetGraphicsStyle`). Reviewer should confirm in Revit.
-2. Dog-leg adjacency (multiple shared faces between the same scope
-   pair) currently emits one `ScopeBoxAdjacency` record per face —
-   visually correct (multiple match-line segments) but conceptually
-   one pair. Phase II refinement: simplify into a polyline detail
-   curve via `Douglas-Peucker` with 25 mm tolerance.
-3. Tag family `STING_TAG_MATCHLINE` (annotation symbol with rotation
-   + leader) is referenced but not yet authored. Engine falls back
-   to `TextNote.Create` with the `STING - 2.5mm` text type — visually
-   acceptable but doesn't carry the chevron arrow graphic. Author
-   the .rfa in Phase 169.
-4. The `IUpdater` for live drift detection (re-run on scope-box
-   geometry change) is NOT wired in this commit — adding it requires
-   careful registration in `StingToolsApp.OnStartup` plus an
-   `OnDocumentOpened` re-arm path. Manual `MatchLine_Sync` covers
-   the same ground on demand. Updater registration deferred to
-   Phase 169.
-5. Commands are not wired into `StingCommandHandler.Execute` or the
-   dock panel — the 4,800-line switch statement is risky to touch
-   without compile verification. Phase 169 wires them and adds a
-   "Match Lines" sub-tab to the DOCS panel.
-6. Discipline tinting (`discipline.tintByDiscipline` = true) per the
-   shipped colour map is read from the config but not yet applied —
-   the engine uses the line style's default colour. Phase II hook is
-   to write `OverrideGraphicSettings` per curve with the per-disc
-   colour from `discipline.colorMap`.
+Cross-checked the report's claims first: 73 malformed GUIDs confirmed
+(46 v4- + 27 v6-), but only 33 of 73 had been repaired in
+`PARAMETER_REGISTRY.json` + `ParamRegistry.cs` under a placeholder
+scheme `5753b5aa-000T-4000-8000-...` that **disagreed with the canonical
+UUIDv5 GUIDs in `Core/Fabrication/FabricationParamsV4.cs`** for 6 of
+them. The report's fresh-UUIDv5 framing would have re-keyed those 6 yet
+again; instead this phase adopts the existing `FabricationParamsV4.cs`
+UUIDv5 (namespace `7f9f5e3a-a7c0-b2e4-4d91-4a557c5e3a00`) as the
+single source of truth for the 46 fab/LPS/cost params.
 
-**Files**
+1. Repaired `StingTools/Data/MR_PARAMETERS.txt` and `MR_PARAMETERS.csv`
+   — replaced 73 v4-/v6- placeholders with real GUIDs (46 canonical
+   UUIDv5 from `FabricationParamsV4.cs`, 27 placeholder
+   `5753b5aa-000T-4000-8000-...` matching the existing V6 region for
+   tag-label-only tiers). Restored CRLF line endings on both files.
+2. Repaired `StingTools/Data/Parameters/STING_PARAMS_V6.txt` — same
+   73-name remap, in lockstep with MR_PARAMETERS.txt.
+3. Updated `StingTools/Data/PARAMETER_REGISTRY.json`
+   `extended_params.tier_4_10` — added 40 missing entries (17 ASS_*
+   fabrication, 18 ELC_LPS_* lightning protection, 5 CST_* cost) and
+   re-keyed 6 existing entries (ASS_SPOOL_NR_TXT, ASS_FAB_STATUS_TXT,
+   ASS_QC_INSPECTOR_TXT, CST_INTL_PRICE_USD, CST_UG_PRICE_UGX,
+   CST_QUOTE_REF_TXT) to the canonical UUIDv5. Total tier_4_10 grew
+   33 → 73 entries.
+4. Updated `StingTools/Core/ParamRegistry.cs` V6 region — added 40 new
+   `*_GUID` constants (under the existing T5/T7 sections plus a new T11
+   lightning-protection section), re-keyed 6 existing constants to the
+   canonical UUIDv5, and updated the region header comment to document
+   the dual-scheme rationale (canonical UUIDv5 for fab/LPS/cost,
+   placeholder for tag-label-only tiers).
+5. Validated all 73 names × 4 sources for byte-for-byte alignment after
+   each step (`MR_PARAMETERS.txt` ↔ `MR_PARAMETERS.csv` ↔
+   `PARAMETER_REGISTRY.json` ↔ `ParamRegistry.cs`); zero mismatches.
+6. Confirmed zero residual `v4-` / `v6-` placeholder GUIDs in
+   `StingTools/`, `docs/`, and any other tracked CSV/JSON/TXT/CS file
+   (the `Planscape.Mobile` build identifiers in unrelated lockfiles
+   were excluded by file-type filter).
 
-- `StingTools/Core/Drawing/MatchLineConfig.cs` — NEW (140)
-- `StingTools/Core/Drawing/MatchLineEngine.cs` — NEW (667)
-- `StingTools/Commands/Drawing/MatchLineCommands.cs` — NEW (191)
-- `StingTools/Data/STING_MATCH_LINES.json` — NEW (50)
-- `StingTools/Data/STING_PARAMS_MATCHLINE.txt` — NEW (18)
-- `StingTools/Core/ParamRegistry.cs` (+12 lines)
-- `docs/CHANGELOG.md` — this entry
-
-#### Completed (Phase 169 — Match-line subsystem polish: dog-leg simplification, discipline tinting, bundle validator, dispatcher wiring)
-
-Closes 5 of the 6 caveats listed on Phase 168 — the IUpdater for live
-drift detection is still deferred (risk vs. gain unfavourable; manual
-`MatchLine_Sync` covers the same ground on demand). Five command tags
-are now wired into the giant dispatcher so the user can click them.
-
-**Engine extensions** (`StingTools/Core/Drawing/MatchLineEngine.cs`,
-+238 lines, now 905 total)
-
-- `ScopeBoxAdjacency.Segments` — new field carrying every shared
-  boundary segment as a `(Start, End)` tuple. Single-face pairs
-  populate one segment matching the legacy `LineStart`/`LineEnd`;
-  dog-leg pairs (multiple shared faces between the same scope-box
-  pair) carry the polyline.
-- `GroupAdjacenciesByPair` — new internal helper that collapses
-  multiple `ScopeBoxAdjacency` records sharing the same `PairGuid`
-  into one record with `Segments[]` populated. Direction flips to
-  `dogleg` when ≥ 2 segments or mixed orientations. Engine pipeline
-  now runs `ComputeAdjacency → GroupAdjacenciesByPair → place per
-  pair` instead of place-per-segment.
-- `PlaceCurve` refactored — was placing one `DetailCurve` from
-  `LineStart` to `LineEnd`; now iterates `edge.Segments[]` and calls
-  the new `PlaceCurveSegment` helper per segment. Per-segment
-  pair-GUID gets a `:seg{n}` suffix when there are ≥ 2 segments so
-  drift detection stays per-segment without losing the parent
-  pair-GUID.
-- `ApplyDisciplineTint` — new internal helper. When
-  `MatchLineConfig.discipline.tintByDiscipline = true`, sets
-  per-element `OverrideGraphicSettings` on the placed curve with the
-  projection-line colour from `discipline.colorMap`. Discipline code
-  extracted from the scope-box name via `ExtractDisciplineCode` —
-  recognises `arch-` / `struct-` / `mep-` / `hvac-` / `elec-` /
-  `plumb-` / `fp-` / `comm-` / `lv-` / `site-` / `land-` prefixes
-  plus `<letter>-` two-character ISO codes.
-- `TryParseHex` — utility to parse `#RRGGBB` strings into Revit
-  `Color` values.
-- `BundleReport` + `ValidateBundle` — read-only utility that scans
-  every match-line `DetailCurve` placed on the views of every sheet
-  in a supplied bundle. Each `STING_MATCH_REF` is checked against
-  the bundle's set of known sheet refs (`STING_SHEET_FULL_REF` +
-  `Sheet Number`). Refs pointing outside the bundle are flagged as
-  orphans — the most common cause of partial-issue failures (issuing
-  the west half but forgetting the east half).
-
-**New command** (`Commands/Drawing/MatchLineCommands.cs`, +71 lines,
-now 262 total)
-
-- `MatchLineValidateBundleCommand` — reads the current sheet
-  selection from `uidoc.Selection.GetElementIds()` (filtered to
-  `ViewSheet`), falls back to the active sheet when selection is
-  empty. Calls `MatchLineEngine.ValidateBundle`. TaskDialog reports
-  curves scanned, refs in/out of bundle, broken refs, and lists the
-  first 20 orphan refs alphabetically. Phase II hook: accept a
-  transmittal-bundle id from
-  `Planscape.Docs.Templates.TransmittalOrchestrator` so the
-  validator runs automatically before issuance.
-
-**Dispatcher wiring** (`UI/StingCommandHandler.cs`, +7 lines)
-
-Five new case branches inside the giant `Execute` switch, after the
-DrawingTypes block:
-
-```csharp
-case "MatchLine_Generate":       RunCommand<...MatchLineGenerateCommand>(app); break;
-case "MatchLine_Sync":           RunCommand<...MatchLineSyncCommand>(app); break;
-case "MatchLine_Validate":       RunCommand<...MatchLineValidateCommand>(app); break;
-case "MatchLine_ValidateBundle": RunCommand<...MatchLineValidateBundleCommand>(app); break;
-case "MatchLine_Inspect":        RunCommand<...MatchLineInspectCommand>(app); break;
-```
-
-Brace + paren balance verified post-edit (1,142 / 1,142 braces and
-4,900 / 4,900 parens). The five tags can now be triggered from any
-caller that resolves the dispatcher (dock-panel button, ribbon
-button, workflow preset, or external tool via `IExternalEvent`).
-
-**Tag family stub** (`Families/Annotation/STING_TAG_MATCHLINE.params.txt`,
-57 lines)
-
-Authors a Generic Annotation `.rfa` family stub for the chevron +
-leader caption. Specifies the three shared parameters
-(`STING_MATCH_REF_TXT`, `STING_MATCH_LINE_GUID_TXT`,
-`STING_MATCH_DIR_TXT`) bound by GUID matching the constants in
-`ParamRegistry`, plus three family-internal optional parameters
-(`ARROW_DIRECTION_TXT`, `LEADER_LENGTH_MM`, `SHOW_ARROW_BOOL`).
-Four-step fallback chain documented for the engine: prefer the
-`.rfa` when loaded, fall back to `STING - 2.5mm` text-note type,
-fall back to default text-note type, finally a TaskDialog warning
-with no caption. Engine continues to use the `TextNote.Create`
-fallback until a Revit user authors the actual `.rfa` from the
-stub.
-
-**What this commit delivers vs. what's still deferred**
-
-| Caveat | Status |
-|---|---|
-| Dog-leg adjacency = polyline simplification | ✓ closed (Phase 169) |
-| Discipline tinting from `colorMap` | ✓ closed (Phase 169) |
-| Tag family `STING_TAG_MATCHLINE` | partial — stub authored, `.rfa` to be authored in Revit |
-| Bundle validator | ✓ closed (Phase 169 — engine + command + dispatcher) |
-| Commands wired into dispatcher | ✓ closed (Phase 169) |
-| IUpdater for live drift | deferred to Phase 170 (risk vs. gain) |
-
-**Files**
-
-- `StingTools/Core/Drawing/MatchLineEngine.cs` — +238 lines (now 905)
-- `StingTools/Commands/Drawing/MatchLineCommands.cs` — +71 lines (now 262)
-- `StingTools/UI/StingCommandHandler.cs` — +7 lines
-- `Families/Annotation/STING_TAG_MATCHLINE.params.txt` — NEW (57)
-- `docs/CHANGELOG.md` — this entry
-
-**Caveats**
-
-1. Built without `dotnet build` verification (Linux sandbox).
-   Brace + paren balance verified across all edited files. Reviewer
-   should confirm in Revit before merge.
-2. Dog-leg detection collapses only TRULY adjacent segments — a
-   scope-box pair with two non-adjacent shared faces (rare — implies
-   non-convex scope boxes, which Revit doesn't support natively)
-   would emit two separate stamped pair-GUIDs. Acceptable.
-3. Discipline tinting writes per-element `OverrideGraphicSettings`
-   directly on the view (not a filter rule). Tints don't propagate
-   when the curve is copied to another view via copy-paste; the
-   engine must re-run. Same as today's behaviour for any per-element
-   override.
-4. Bundle validator inspects only views placed on bundle sheets —
-   orphan curves on un-placed views aren't flagged. Acceptable
-   because un-placed views don't print.
-5. IUpdater for live drift not authored — `MatchLine_Sync` covers
-   the same ground manually. Live updater requires careful
-   `Transaction` discipline inside `Execute(UpdaterData)` callback;
-   deferred to a phase that can be Revit-tested.
-6. The `STING_TAG_MATCHLINE.rfa` file itself is not in this commit —
-   only the `.params.txt` spec stub. Author the family in Revit
-   Family Editor following the stub.
+Caveats: built without `dotnet build` verification (Linux sandbox); the
+46 canonical UUIDv5 GUIDs match the family-library values in
+`FabricationParamsV4.cs` so binding round-trips will hold, but the
+`PARAMETER_REGISTRY.json` field naming for the 18 new ELC_LPS_*
+entries uses `tier: "T11"` — the registry doesn't currently have a
+formal T11 tier label elsewhere, so any future tier-label rendering
+code should either ignore unknown tier labels or be updated. The
+report's own UUIDv5 namespace recommendation
+(`6ba7b810-9dad-11d1-80b4-00c04fd430c8`, the standard DNS namespace)
+is **not** used because `FabricationParamsV4.cs` already publishes
+under a different STING-specific namespace; adopting the report's
+namespace would have re-keyed every published fabrication GUID.
 
 #### Completed (Phase 170 — Title-block factory: A1 family generator (single-family proof of pipeline))
 
@@ -9953,3 +9833,134 @@ Audit-driven cleanup of the 2,567-parameter shared parameter system. No GUIDs we
 - `docs/PARAMETER_DUPLICATES.md` — Section D registry duplicate audit
 - `docs/CHANGELOG.md` — this entry
 
+---
+
+#### Completed (Phase 167 — Planscape BCC dispatch gap fix)
+
+Same double-path issue Phases 96 / 98 / 104 fixed for QR / WorkingCalendar /
+GAP-analysis commands: BIMCoordinationCenter dispatches Planscape platform
+buttons through `BIMCoordinationCenterCommand.ProcessAction →
+WarningsManager.DispatchCoordAction → WorkflowEngine.GetCommandInstance`,
+but only `StingCommandHandler` had `case "PlanscapeConnect"` /
+`PlanscapeSyncNow` bindings. Clicking Connect / Sync Now from the BCC
+Platform > Planscape tab produced "Action 'PlanscapeConnect' is not
+handled. Check StingCommandHandler for the command binding." pop-ups.
+
+1. **`StingTools/Core/WorkflowEngine.cs` — `GetCommandInstance`** — added a
+   Phase 167 block after the Phase 104 GAP-analysis cases that maps every
+   Planscape BCC tag (and its alias siblings: Add/Remove/LinkProject/
+   TestConnection / Unlink / ClearCredentials / OpenBrowser /
+   PublishModelToPlanscape) to the right `IExternalCommand`.
+2. **`StingTools/BIMManager/PlatformLinkCommands.cs`** — added two new
+   thin wrapper commands so the resolver has something to return for tags
+   that previously had no dedicated class:
+     - `PlanscapeDisconnectCommand` calls
+       `PlanscapeServerClient.Instance.Disconnect()` and surfaces a
+       confirmation `TaskDialog`.
+     - `PlanscapeOpenWebCommand` reads the saved server URL via
+       `PlanscapeServerClient.LoadConnectionSettings`, falls back to the
+       hosted Planscape instance, appends `/dashboard`, and opens it with
+       `Process.Start(new ProcessStartInfo(url) { UseShellExecute = true })`.
+3. **`StingTools/Core/WarningsManager.cs` — `_actionToCommandTag`** — added
+   12 explicit dictionary entries (4 self-mappings + 8 alias mappings) so
+   the lookup at line ~5705 returns a real `commandTag` instead of falling
+   through to the action string and quietly missing the resolver.
+4. **`StingCommandHandler.cs` and `BIMCoordinationCenter.cs`** — left
+   untouched. The dock-panel bindings were already correct, and the
+   inline `case "PlanscapeDisconnect"` / `case "PlanscapeOpenWebDashboard"`
+   short-circuits inside `ProcessAction` (added in Phase 102) still take
+   precedence; the new resolver entries are a fallback for any future
+   caller that bypasses those inline handlers.
+
+#### Files
+
+- `StingTools/Core/WorkflowEngine.cs` — Phase 167 cases in `GetCommandInstance`
+- `StingTools/BIMManager/PlatformLinkCommands.cs` — `PlanscapeDisconnectCommand` + `PlanscapeOpenWebCommand`
+- `StingTools/Core/WarningsManager.cs` — 12 dictionary entries in `_actionToCommandTag`
+- `docs/CHANGELOG.md` — this entry
+
+
+#### Completed (Phase 169 — Title Block Inheritance & Editor UX Pass)
+
+Closes the four deferred items from Phase 168 plus a critical inheritance gap surfaced during the follow-up audit.
+
+**Critical fix — `ResolveExtends` did not merge title-block keys**
+
+1. **`DrawingTypeRegistry.ResolveExtends` now merges title-block fields key-by-key.** Before this fix, a `corp-base` profile that declared `titleBlockParams` was useless to children — the merge loop only walked scalar fields like `Scale` / `ViewTemplateName`, so child profiles silently lost the parent's params, per-symbol overlays, ISO naming block, and `TitleBlockSymbolType`. The merge now:
+   - copies `TitleBlockSymbolType` and `IsoNaming` like any other scalar (parent → child override),
+   - merges `TitleBlockParams` key-by-key (child wins on collision; parent baseline keys carry through to every descendant),
+   - merges `TitleBlockParamsBySymbol` group-by-group then key-by-key inside each symbol bucket.
+   
+   A `corp-base` profile carrying `${PRJ_ORG_PROJECT_CODE}` / `${PRJ_ORG_CLIENT_NAME}` / etc. is now reusable across the entire 40-profile catalogue without restating those keys in every child.
+
+**Idempotent + dry-run apply**
+
+2. **`TitleBlockChange` + `ApplyOptions` (DryRun / SkipIfEqual)`.** The applier now reads each parameter's live value before writing, populates `ApplyResult.Changes` with `(SheetNumber, SymbolName, ParamName, OldValue, NewValue)` when `DryRun=true`, and skips writes whose resolved value already matches the live value when `SkipIfEqual=true` (default). `ApplyResult.ParamsSkippedNoOp` counts the saved writes. Reduces undo-stack noise on idempotent re-applies and gives Heal / SyncStyles a cheap "preview before commit" path. New helper `ReadParamAsString` normalises live-value reads across String / Integer / Double / ElementId.
+
+**Persisted sequence counter**
+
+3. **`SheetSequenceStore` (ExtensibleStorage on ProjectInformation).** Per-bucket "next sequence" map keyed by `(DrawingTypeId, packageId, discipline, vol)`. Schema GUID `a1f9b2e3-4c7d-4a08-9f5e-7d8c6b5a4e21`. Stable across Revit restarts; first-run fallback seeds from existing sheet numbers in the bucket so legacy projects upgrade transparently. `DrawingProducer` now calls `Next(...)` for each new sheet (with a graceful fallback to the legacy in-batch counter / project sweep). `DrawingRenumberCommand` calls `Set(...)` after compaction so the next new sheet picks up from the post-renumber high-water mark — no regrowing gaps.
+
+**Editor live preview, token autocomplete, per-discipline preview**
+
+4. **Live re-resolve on keystroke.** Each row's value-template TextBox now has a `TextChanged` handler that re-runs `Peek` and updates the Resolved column inline. No more waiting for a form rebuild to see the result of an edit.
+5. **Token/filter insert menu.** A `+` button next to each value template opens a four-section menu: Project info `${X}`, Tokens `{x}`, Filters `| …`. Click inserts the snippet at the caret position (or replaces selected text). Operator never has to memorise the grammar.
+6. **Per-discipline preview controls.** A "Preview as:" bar at the top of the card carries a discipline ComboBox (`A`/`S`/`M`/`E`/`P`/`FP`/`L`) and a `{seq}` spinner. Both feed into the `DrawingTokenContext.Build(...)` call that drives the Resolved column, so the operator sees what the profile produces for any discipline + seq combination — replaces the previous `tokens:null` "raw template" preview that couldn't show how `{disc}` / `{seq:D4}` would render.
+
+**Files**
+
+- `StingTools/Core/Drawing/DrawingTypeRegistry.cs` — `ResolveExtends` TB-key merge
+- `StingTools/Core/Drawing/TitleBlockParamApplier.cs` — `ApplyOptions` (DryRun / SkipIfEqual), `TitleBlockChange`, `ReadParamAsString`, `ParamsSkippedNoOp`
+- `StingTools/Core/Drawing/SheetSequenceStore.cs` — NEW (ExtensibleStorage-backed counter)
+- `StingTools/Core/Drawing/DrawingProducer.cs` — wires `SheetSequenceStore.Next` with legacy fallback
+- `StingTools/Commands/Drawing/DrawingRenumberCommand.cs` — calls `SheetSequenceStore.Set` after compaction
+- `StingTools/UI/DrawingTypeEditorDialog.cs` — live preview / `+` insert menu / per-discipline picker / `_previewDisc` + `_previewSeq` state
+
+**Caveats** — Built without `dotnet build` verification (Linux sandbox). The ExtensibleStorage schema is registered on first read; projects opened by an older STING build that doesn't know the schema will not see the data, but a fresh open with this build re-seeds from existing sheets. The `+` insert menu offers the canonical token/filter set hard-coded against `DrawingTokenContext.Build` — adding a new token to that builder requires a one-line update to the menu.
+
+
+#### Completed (Phase 174 — Branch consolidation + stats refresh)
+
+Bulk-merged every outstanding `claude/*` feature branch with unique
+commits not yet in HEAD onto
+`claude/merge-branches-update-docs-SvA31`. Conflict policy mirrored
+Phase 138: `-X ours` against the Phase 168–173 baseline; for
+`modify/delete` and `rename/delete` collisions the HEAD copy was kept;
+for `delete/delete` the deletion was accepted. Result: 64 fast-forward /
+auto-merges + 11 conflict-resolved merges + 0 abandoned. After the run
+`git branch -r --no-merged HEAD` reports zero remaining. Built without
+`dotnet build` verification (Linux sandbox); verify in Revit before
+merging to `main`.
+
+1. **75 feature branches consolidated**, ranging from single-commit fixes
+   up to `document-missing-parameters-9tTAr` (1,148 unique commits).
+   Notable absorbed work: Speckle integration phases (6a/6b/6c), xeokit
+   3D viewer (phase-7), BCF round-trip (phase-8), mobile issue 3D
+   (phase-9), structural modeling automation, BOQ cost manager,
+   placement-centre overhaul, drawing-types Excel round-trip,
+   electrical family automation, condescending-blackburn,
+   crazy-visvesvaraya, and the various
+   `merge-resolve-conflicts-*` / `merge-branches-main-*` waypoints.
+2. **Conflict resolution log** captured to `/tmp/merge_log.txt` during
+   the run; eleven branches required `ours`-bias resolution
+   (`planscape-testing-guide-tyjeC`, `phase-5-pluginsync-scheduler`,
+   `merge-branches-resolve-conflicts-e3Smz`, `resume-previous-work-S1VwG`,
+   `review-3d-viewing-Fle2R` and six others where deletions in incoming
+   branches collided with renames or modifications kept on HEAD). The
+   `CompiledPlugin/Data/*` rename-vs-delete cluster from
+   `planscape-testing-guide-tyjeC` resolved by accepting the HEAD
+   directory layout (files now live under `StingTools/Data/`).
+3. **`CLAUDE.md` Quick Stats refreshed** with the post-consolidation
+   counts: 1,421 tracked files / 737,171 lines / 44 MB working tree;
+   `StingTools/` 581 source files at 370,758 lines across 17
+   sub-directories; 935 `.cs` files solution-wide at 435,298 lines;
+   `Planscape.Server/` 280 C# files at 38,581 lines;
+   `Planscape/` 93 TS/TSX files at 17,019 lines;
+   1,106 `IExternalCommand` classes (up from the previously-recorded
+   763+); 128 runtime data files under `StingTools/Data/`; 68 markdown
+   files at 40,261 lines.
+
+#### Files
+
+- `CLAUDE.md` — Quick Stats refresh + Phase 174 banner
+- `docs/CHANGELOG.md` — this entry

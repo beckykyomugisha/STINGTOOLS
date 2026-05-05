@@ -987,6 +987,10 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="From Scope Boxes" Tag="DrawingTypes_FromScopeBoxes" Click="Cmd_Click" ToolTip="Scan scope boxes in the active project and suggest drawing-type stub ids (with auto-discipline detection from the scope box name)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="↓ Export to Excel" Tag="DrawingTypes_ExportExcel" Click="Cmd_Click" ToolTip="Export all Drawing Types and Style Packs to an editable Excel workbook (8 sheets, colour swatches, validation dropdowns)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="↑ Import from Excel" Tag="DrawingTypes_ImportExcel" Click="Cmd_Click" ToolTip="Import Drawing Types and Style Packs from an edited Excel workbook (validation pre-flight, change preview, applies to project _BIM_COORD/ overrides)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Heal TBs" Tag="DrawingTypes_HealTitleBlocks" Click="Cmd_Click" ToolTip="Phase 168 — Re-apply title-block parameter bindings on every stamped sheet WITHOUT touching scale / detail / templates / annotation. Writes an audit row per sheet to _BIM_COORD/titleblock_heal_audit.jsonl."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Renumber" Tag="DrawingTypes_Renumber" Click="Cmd_Click" ToolTip="Phase 168 — Compact sheet-number gaps within each (DrawingType, package) bucket. Two-pass rename avoids collisions; locked sheets are skipped."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Doctor" Tag="DrawingTypes_Doctor" Click="Cmd_Click" ToolTip="Phase 168 — Audit the title-block layer: cross-stamps (CSV vs recipe), family swaps, missing TBs, stale syncs."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Migrate CSV" Tag="DrawingTypes_MigrateCsv" Click="Cmd_Click" ToolTip="Phase 168 — Export TITLE_BLOCK.csv as a recipe-ready JSON snippet (baseline + per-discipline deltas) ready to paste into the Drawing Types editor."/>
                                 </WrapPanel>
                                 <!-- Phase 137 — Production -->
                                 <Separator/>
@@ -2798,6 +2802,38 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- LIGHTNING PROTECTION (BS EN 62305) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="⚡ LIGHTNING PROTECTION"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="LPS class setup, compliance, conductor + earth checks (BS EN 62305)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="LPS Class Setup" Tag="LPS_ClassSetup" Click="Cmd_Click"
+                                            ToolTip="Risk assessment and LPS class selection wizard (BS EN 62305-2)"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Compliance Check" Tag="LPS_ComplianceCheck" Click="Cmd_Click"
+                                            ToolTip="Run all LPS compliance checks and stamp project verdict"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Down Conductors" Tag="LPS_DownConductorCheck" Click="Cmd_Click"
+                                            ToolTip="Check down conductor spacing against class limit"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Earth Check" Tag="LPS_EarthCheck" Click="Cmd_Click"
+                                            ToolTip="Validate earth electrode resistance against class target"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Bonding Inventory" Tag="LPS_BondingInventory" Click="Cmd_Click"
+                                            ToolTip="Identify equipotential bonding requirements at LPZ boundaries"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Zone Tag Rooms" Tag="LPS_ZoneTag" Click="Cmd_Click"
+                                            ToolTip="Assign LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3 to rooms (BS EN 62305-4)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Plan Visualise" Tag="LPS_PlanVisualise" Click="Cmd_Click"
+                                            ToolTip="Generate plan-view rolling-sphere protection projection"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="3D Coverage" Tag="LPS_RollingSphere3D" Click="Cmd_Click"
+                                            ToolTip="Rolling-sphere 3D coverage analyser — flags exposed roof points (BS EN 62305-3 §E.4)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sep Distance" Tag="LPS_SepDistCheck" Click="Cmd_Click"
+                                            ToolTip="Check separation distance between LPS conductors and MEP services"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Inspection Schedule" Tag="LPS_InspectionSchedule" Click="Cmd_Click"
+                                            ToolTip="LPS inspection due-date register (BS EN 62305-3 §5.5)"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="LPS Full Report" Tag="LPS_FullReport" Click="Cmd_Click"
+                                            ToolTip="Compile full LPS compliance report (BS EN 62305 deliverable)"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- CDE and DOCUMENT CONTROL -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="CDE — DOCUMENT CONTROL"/>
                         <Border Style="{StaticResource GroupBorder}">
@@ -3114,6 +3150,22 @@
                                             ToolTip="Generate webhook payload for Power Automate/Zapier"/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Publish 3D Model" Tag="PublishModelToPlanscape" Click="Cmd_Click"
                                             ToolTip="Export the active 3D view to GLB (or pick a file) and publish it + the element-map sidecar to Planscape Models"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- SPECKLE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="SPECKLE"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#0277BD">
+                            <StackPanel>
+                                <TextBlock Text="Snapshot-based Speckle integration (HTTP push/pull pending SDK v2)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Diff" Tag="SpeckleDiff" Click="Cmd_Click"
+                                            ToolTip="Compare current model to last Speckle snapshot"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Send" Tag="SpeckleSend" Click="Cmd_Click"
+                                            ToolTip="Export tagged elements to Speckle snapshot"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Receive" Tag="SpeckleReceive" Click="Cmd_Click"
+                                            ToolTip="Load elements from Speckle snapshot"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -4418,6 +4470,18 @@
                                             <Border Style="{StaticResource GroupBorder}">
                                                 <StackPanel>
                                                     <Button Style="{StaticResource ActionBtn}" Content="Live fill calc"        Tag="Mep_FillLiveCalc" Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Recompute conduit + tray fill% from current cable cross section"/>
+                                                    <Button Style="{StaticResource CatBtn}" Content="W-Ann"
+                                                            Tag="Electrical_WireAnnotate" Click="Cmd_Click"
+                                                            ToolTip="Place wire annotation on a picked conduit (BS 7671 format)"/>
+                                                    <Button Style="{StaticResource CatBtn}" Content="W-Batch"
+                                                            Tag="Electrical_WireAnnotateBatch" Click="Cmd_Click"
+                                                            ToolTip="Annotate all conduits in active view with wire specifications"/>
+                                                    <Button Style="{StaticResource CatBtn}" Content="H-Run"
+                                                            Tag="Electrical_HomeRunArrow" Click="Cmd_Click"
+                                                            ToolTip="Place home-run arrow on picked conduit pointing toward panel"/>
+                                                    <Button Style="{StaticResource CatBtn}" Content="W-Clr"
+                                                            Tag="Electrical_ClearWireAnnotations" Click="Cmd_Click"
+                                                            ToolTip="Remove all STING wire annotations from active view"/>
                                                     <Button Style="{StaticResource ActionBtn}" Content="System naming audit"    Tag="Mep_NamingAudit"  Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Audit MEP system names against CIBSE / BSRIA / Uniclass 2015 prefix set"/>
                                                 </StackPanel>
                                             </Border>

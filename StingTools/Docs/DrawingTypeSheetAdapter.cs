@@ -80,14 +80,22 @@ namespace StingTools.Docs
                 return ElementId.InvalidElementId;
             try
             {
-                var col = new FilteredElementCollector(doc)
+                var matches = new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_TitleBlocks)
-                    .OfClass(typeof(FamilySymbol));
-                foreach (var el in col)
-                    if (el is FamilySymbol fs
-                        && string.Equals(fs.FamilyName, dt.TitleBlockFamily,
-                                         StringComparison.OrdinalIgnoreCase))
-                        return fs.Id;
+                    .OfClass(typeof(FamilySymbol))
+                    .Cast<FamilySymbol>()
+                    .Where(fs => string.Equals(fs.FamilyName, dt.TitleBlockFamily,
+                                               StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                if (!string.IsNullOrWhiteSpace(dt.TitleBlockSymbolType))
+                {
+                    var picked = matches.FirstOrDefault(fs =>
+                        string.Equals(fs.Name, dt.TitleBlockSymbolType,
+                                      StringComparison.OrdinalIgnoreCase));
+                    if (picked != null) return picked.Id;
+                }
+                var fallback = matches.FirstOrDefault();
+                if (fallback != null) return fallback.Id;
             }
             catch { /* fall through */ }
             return ElementId.InvalidElementId;

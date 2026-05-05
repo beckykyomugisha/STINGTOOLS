@@ -29,30 +29,20 @@ namespace StingTools.UI
     /// </summary>
     internal static class TemplateManagerDashboard
     {
-        // ── Theme colours (light corporate) ─────────────────────────────
-        private static readonly Color BgColor      = Color.FromRgb(0xF5, 0xF5, 0xF5);
-        private static readonly Color PanelBg      = Colors.White;
-        private static readonly Color HeaderBg     = Color.FromRgb(0x1A, 0x23, 0x7E);
-        private static readonly Color AccentOrange = Color.FromRgb(0xE8, 0x91, 0x2D);
-        private static readonly Color FgDark       = Color.FromRgb(0x22, 0x22, 0x22);
-        private static readonly Color FgDim        = Color.FromRgb(0x88, 0x88, 0x88);
-        private static readonly Color BorderClr    = Color.FromRgb(0xD0, 0xD0, 0xD0);
-        private static readonly Color GreenAccent  = Color.FromRgb(0x4C, 0xAF, 0x50);
-        private static readonly Color HoverBg      = Color.FromRgb(0xFD, 0xF0, 0xDD);
-
-        private static SolidColorBrush FZ(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
-
-        private static readonly SolidColorBrush BrBg      = FZ(BgColor);
-        private static readonly SolidColorBrush BrPanel    = FZ(PanelBg);
-        private static readonly SolidColorBrush BrHeader   = FZ(HeaderBg);
-        private static readonly SolidColorBrush BrAccent   = FZ(AccentOrange);
-        private static readonly SolidColorBrush BrFg       = FZ(FgDark);
-        private static readonly SolidColorBrush BrFgDim    = FZ(FgDim);
-        private static readonly SolidColorBrush BrBorder   = FZ(BorderClr);
-        private static readonly SolidColorBrush BrWhite    = FZ(PanelBg);
-        private static readonly SolidColorBrush BrGreen    = FZ(GreenAccent);
-        private static readonly SolidColorBrush BrHover    = FZ(HoverBg);
-        private static readonly SolidColorBrush BrHeaderFg = FZ(Color.FromRgb(0xBB, 0xBB, 0xBB));
+        // ── Theme-routed palette ─────────────────────────────────────────
+        // All colours come from ThemeManager so the dashboard follows the
+        // active theme (Corporate by default — navy header, orange accent).
+        private static SolidColorBrush BrBg       => ThemeManager.GetBrush("AltRowBg");
+        private static SolidColorBrush BrPanel    => ThemeManager.GetBrush("CardBg");
+        private static SolidColorBrush BrHeader   => ThemeManager.GetBrush("HeaderBg");
+        private static SolidColorBrush BrAccent   => ThemeManager.GetBrush("AccentBrush");
+        private static SolidColorBrush BrFg       => ThemeManager.GetBrush("PanelFg");
+        private static SolidColorBrush BrFgDim    => ThemeManager.GetBrush("SubtleFg");
+        private static SolidColorBrush BrBorder   => ThemeManager.GetBrush("BorderColor");
+        private static SolidColorBrush BrWhite    => ThemeManager.GetBrush("CardBg");
+        private static SolidColorBrush BrGreen    => ThemeManager.GetBrush("SuccessColor");
+        private static SolidColorBrush BrHover    => ThemeManager.GetBrush("RowHover");
+        private static SolidColorBrush BrHeaderFg => ThemeManager.GetBrush("HeaderFg");
 
         // ── Operation definition ────────────────────────────────────────
         private class OpDef
@@ -258,7 +248,7 @@ namespace StingTools.UI
                 Cursor = Cursors.Hand
             };
             // Left accent border via the 4px left BorderThickness
-            card.BorderBrush = new SolidColorBrush(BorderClr);
+            card.BorderBrush = BrBorder;
 
             // Use a Grid to overlay the left accent colour
             var outerGrid = new Grid();

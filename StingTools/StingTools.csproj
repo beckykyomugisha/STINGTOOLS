@@ -58,6 +58,10 @@
     <PackageReference Include="Lucene.Net" Version="4.8.0-beta00016" />
     <PackageReference Include="Lucene.Net.Analysis.Common" Version="4.8.0-beta00016" />
     <PackageReference Include="Lucene.Net.QueryParser" Version="4.8.0-beta00016" />
+    <!-- Export Centre — PDFsharp 6.x for combined-PDF bookmark trees and
+         diagonal watermark overlays (TryInjectBookmarks / TryInjectWatermark).
+         Pure managed, .NET 6/8 compatible, MIT-style licence. -->
+    <PackageReference Include="PDFsharp" Version="6.1.1" />
   </ItemGroup>
 
   <!-- Template engine v1.1 (S11/S14/S15): embedded default templates + workflow JSON.
@@ -66,7 +70,27 @@
   <ItemGroup>
     <EmbeddedResource Include="Docs\_template_sources\*.docx" />
     <EmbeddedResource Include="Docs\_template_sources\*.xlsx" />
+    <EmbeddedResource Include="Docs\_template_sources\*.json" />
     <EmbeddedResource Include="Docs\_workflow_sources\*.json" />
+  </ItemGroup>
+
+  <!-- S03: bring in the Planscape plugin-sync client (SyncScheduler / SyncClient /
+       OfflineQueue) and the shared sync payload contracts. Both are plain net8.0
+       libraries, consumable from this net8.0-windows plugin. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Planscape.Server\src\Planscape.Shared\Planscape.Shared.csproj" />
+    <ProjectReference Include="..\Planscape.Server\src\Planscape.PluginSync\Planscape.PluginSync.csproj" />
+    <!-- Phase 110: Standards & compliance calc library. Pure C#, no
+         Revit dependency; StingTools commands wrap the APIs. -->
+    <ProjectReference Include="..\StingTools.Standards\StingTools.Standards.csproj" />
+  </ItemGroup>
+
+  <!-- Phase 95: BcfEngine physically lives here but is compiled into
+       Planscape.Shared.dll (via <Compile Include="..\..\..\StingTools\..."/>
+       in Planscape.Shared.csproj). Exclude it from the StingTools assembly to
+       avoid a duplicate-type collision with the Planscape.Shared reference. -->
+  <ItemGroup>
+    <Compile Remove="BIMManager\BcfEngine.cs" />
   </ItemGroup>
 
   <!-- S03: bring in the Planscape plugin-sync client (SyncScheduler / SyncClient /

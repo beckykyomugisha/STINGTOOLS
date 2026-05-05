@@ -38,18 +38,26 @@ namespace StingTools.UI
 
     internal class BIMCoordinationCenter : Window
     {
-        // ── Theme colours ──
-        private static readonly Color CHeaderBg    = Color.FromRgb(0x1A, 0x23, 0x7E);
-        private static readonly Color CAccent      = Color.FromRgb(0xE8, 0x91, 0x2D);
-        private static readonly Color CCardBg      = Colors.White;
-        private static readonly Color CPageBg      = Color.FromRgb(0xF4, 0xF5, 0xF7);
-        private static readonly Color CBorder      = Color.FromRgb(0xE0, 0xE0, 0xE8);
-        private static readonly Color CNavBg       = Color.FromRgb(0x1E, 0x27, 0x45);
-        private static readonly Color CNavHover    = Color.FromRgb(0x2A, 0x35, 0x5A);
-        private static readonly Color CNavSelected = Color.FromRgb(0xE8, 0x91, 0x2D);
-        private static readonly Color CGreen       = Color.FromRgb(0x2E, 0x7D, 0x32);
-        private static readonly Color CAmber       = Color.FromRgb(0xF5, 0x7F, 0x17);
-        private static readonly Color CRed         = Color.FromRgb(0xC6, 0x28, 0x28);
+        // ── Theme palette routed through ThemeManager ──
+        // Theme-driven colours: read live from the active palette so the
+        // BCC tracks Corporate (default), Light, Warm, or Cool when the
+        // user cycles themes. The `darken` helper produces a navy nav
+        // panel that's visibly subordinate to the brand-navy header.
+        private static Color CHeaderBg    => BrushColor("HeaderBg");
+        private static Color CAccent      => BrushColor("AccentBrush");
+        private static Color CCardBg      => BrushColor("CardBg");
+        private static Color CPageBg      => BrushColor("PrimaryBg");
+        private static Color CBorder      => BrushColor("BorderColor");
+        private static Color CNavBg       => Darken(BrushColor("HeaderBg"), 0.85);
+        private static Color CNavHover    => Darken(BrushColor("HeaderBg"), 0.92);
+        private static Color CNavSelected => BrushColor("AccentBrush");
+        private static Color CGreen       => BrushColor("SuccessColor");
+        private static Color CAmber       => BrushColor("WarningColor");
+        private static Color CRed         => BrushColor("ErrorColor");
+
+        private static Color BrushColor(string key) => ((SolidColorBrush)ThemeManager.GetBrush(key)).Color;
+        private static Color Darken(Color c, double f)
+            => Color.FromArgb(c.A, (byte)(c.R * f), (byte)(c.G * f), (byte)(c.B * f));
 
         private static SolidColorBrush Br(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
 
@@ -3643,6 +3651,7 @@ namespace StingTools.UI
                     ("📱 WhatsApp Update",     "PlanscapeWhatsApp", CGreen,                           "Generate WhatsApp-ready text with project summary link"),
                     ("🔗 Generate QR Link",    "PlanscapeQR",       CHeaderBg,                        "Generate QR code linking to the latest exported HTML dashboard"),
                     ("📊 Export HTML Dashboard","PlanscapeHTML",    Color.FromRgb(0x6A, 0x1B, 0x9A), "Export full coordination dashboard as standalone HTML file (shareable, no login needed)"),
+                    ("🧊 Publish 3D Model",    "PublishModelToPlanscape", Color.FromRgb(0xE6, 0x5F, 0x00), "Export the active 3D view to GLB (or pick a file) and publish it + the element-map sidecar to Planscape Models"),
                 };
                 foreach (var (lbl, act, clr, tip) in btns)
                 {
@@ -3778,8 +3787,8 @@ namespace StingTools.UI
                 var sbUrlBox = new System.Windows.Controls.TextBox
                 {
                     Width = 270, FontSize = 11, Margin = new Thickness(4, 0, 0, 0),
-                    Text = !string.IsNullOrEmpty(_savedUrl) ? _savedUrl : "https://planscape-api.onrender.com",
-                    ToolTip = "Planscape API server URL (your Render.com deployment)"
+                    Text = !string.IsNullOrEmpty(_savedUrl) ? _savedUrl : "http://localhost:5000",
+                    ToolTip = "Planscape API server URL (default: http://localhost:5000 for the local docker-compose stack)"
                 };
                 sbUrlRow.Children.Add(sbUrlBox);
                 detailStack.Children.Add(sbUrlRow);
@@ -3863,7 +3872,7 @@ namespace StingTools.UI
                         : "\ud83c\udfe2  Tenant: (not linked)";
                     string urlLine   = !string.IsNullOrEmpty(client.ServerUrl)
                         ? $"\ud83d\udd17  Server: {client.ServerUrl}"
-                        : $"\ud83d\udd17  Server: (no URL set) \u2014 default https://planscape-api.onrender.com";
+                        : $"\ud83d\udd17  Server: (no URL set) \u2014 default http://localhost:5000";
                     string errLine   = !string.IsNullOrEmpty(client.LastError)
                         ? $"\n\u26A0  Last error: {client.LastError}"
                         : "";

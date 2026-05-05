@@ -70,6 +70,7 @@ namespace StingTools.UI
             public bool IsSelected { get; set; }
         }
 
+
         /// <summary>
         /// Show the comprehensive scheduling dashboard.
         /// </summary>

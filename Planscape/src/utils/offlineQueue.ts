@@ -291,6 +291,8 @@ function backoffMs(retryCount: number): number {
   return Math.round(base * jitter);
 }
 
+const MAX_RETRIES_PER_ACTION = 3;
+
 /**
  * Attempt to sync all unsynced actions in FIFO order.
  * Phase 96 — each action gets up to MAX_RETRIES_PER_ACTION shots in the live

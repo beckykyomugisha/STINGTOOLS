@@ -186,12 +186,29 @@ namespace StingTools.UI
                     // ── v4 MVP: validators (Phase 4) ──
                     case "Validation_RunAll":        RunCommand<Commands.Validation.RunAllValidatorsCommand>(app); break;
 
+                    // ── Lightning Protection System (BS EN 62305) ──
+                    case "LPS_ClassSetup":           RunCommand<Commands.Lightning.LpsClassSetupCommand>(app); break;
+                    case "LPS_ComplianceCheck":      RunCommand<Commands.Lightning.LpsComplianceCheckCommand>(app); break;
+                    case "LPS_DownConductorCheck":   RunCommand<Commands.Lightning.LpsDownConductorCheckerCommand>(app); break;
+                    case "LPS_EarthCheck":           RunCommand<Commands.Lightning.LpsEarthResistanceValidatorCommand>(app); break;
+                    case "LPS_BondingInventory":     RunCommand<Commands.Lightning.LpsBondingInventoryCommand>(app); break;
+                    case "LPS_ZoneTag":              RunCommand<Commands.Lightning.LpsRoomZoneTagCommand>(app); break;
+                    case "LPS_PlanVisualise":        RunCommand<Commands.Lightning.LpsPlanViewVisualizerCommand>(app); break;
+                    case "LPS_RollingSphere3D":      RunCommand<Commands.Lightning.LpsRollingSphere3DCommand>(app); break;
+                    case "LPS_SepDistCheck":         RunCommand<Commands.Lightning.LpsSeparationDistanceCheckerCommand>(app); break;
+                    case "LPS_InspectionSchedule":   RunCommand<Commands.Lightning.LpsInspectionSchedulerCommand>(app); break;
+                    case "LPS_FullReport":           RunCommand<Commands.Lightning.LpsFullReportCommand>(app); break;
+
                     // ── Gap 2 / Phase 121 — Extensible Storage migration + diagnostic ──
                     case "ES_Migrate":               RunCommand<Commands.Storage.MigrateToExtensibleStorageCommand>(app); break;
                     case "ES_Diagnostic":            RunCommand<Commands.Storage.EsStorageDiagnosticCommand>(app); break;
 
                     // ── Phase 127 — Placement Centre (modeless WPF window) ──
                     case "Placement_OpenCentre":     RunCommand<Commands.Placement.OpenPlacementCenterCommand>(app); break;
+
+                    // ── Phase 139 — Placement Centre v2: Excel round-trip ──
+                    case "Placement_ExportExcel":    RunCommand<PlacementCenter.ExportRulesToExcelCommand>(app); break;
+                    case "Placement_ImportExcel":    RunCommand<PlacementCenter.ImportRulesFromExcelCommand>(app); break;
 
                     // ── Phase 116: Standards Extensions + Regional + Bulk API wrappers ──
                     case "StdExt_StageCompliance":  RunCommand<Commands.StandardsExt.StageComplianceAuditCommand>(app); break;
@@ -343,6 +360,16 @@ namespace StingTools.UI
                     case "Electrical_ExportCircuits": RunCommand<Commands.Electrical.ExportCircuitsCommand>(app); break;
                     case "Electrical_TrayFill":    RunCommand<Commands.Electrical.ShowTrayFillCommand>(app); break;
 
+                    // ── Wire annotation symbols ──
+                    case "Electrical_WireAnnotate":
+                        RunCommand<Commands.Electrical.WireAnnotateCommand>(app); break;
+                    case "Electrical_WireAnnotateBatch":
+                        RunCommand<Commands.Electrical.WireAnnotateBatchCommand>(app); break;
+                    case "Electrical_HomeRunArrow":
+                        RunCommand<Commands.Electrical.HomeRunArrowCommand>(app); break;
+                    case "Electrical_ClearWireAnnotations":
+                        RunCommand<Commands.Electrical.ClearWireAnnotationsCommand>(app); break;
+
                     // ── v4 Phase D: hanger placement ──
                     case "Routing_PlaceHangers": RunCommand<Commands.Routing.PlaceHangersCommand>(app); break;
                     case "Fabrication_PlaceISOSymbols": TaskDialog.Show("STING v4 — ISO 6412 Symbols", "Place is wired through GenerateFabPackageCommand;\nrun Generate Fabrication Package against your selection."); break;
@@ -376,6 +403,10 @@ namespace StingTools.UI
                     case "DrawingTypes_GroupBrowser":  DrawingTypesGroupBrowserInline(app); break;
                     case "DrawingTypes_SyncStyles":    DrawingTypesSyncStylesInline(app);   break;
                     case "DrawingTypes_FromScopeBoxes": DrawingTypesFromScopeBoxesInline(app); break;
+                    case "DrawingTypes_Renumber":      RunCommand<Commands.Drawing.DrawingRenumberCommand>(app); break;
+                    case "DrawingTypes_HealTitleBlocks": RunCommand<Commands.Drawing.DrawingHealTitleBlocksCommand>(app); break;
+                    case "DrawingTypes_Doctor":        RunCommand<Commands.Drawing.DrawingDoctorCommand>(app); break;
+                    case "DrawingTypes_MigrateCsv":    RunCommand<Commands.Drawing.TitleBlockMigrateCsvToRecipeCommand>(app); break;
 
                     // ── Drawing Template Manager · Phase 137 — production engine ──
                     case "DrawingTypes_ProducePerLevel":           RunCommand<Commands.Drawing.ProduceViewsPerLevelCommand>(app); break;
@@ -759,8 +790,10 @@ namespace StingTools.UI
                     case "GridAlignViewports": RunCommand<Docs.GridAlignViewportsCommand>(app); break;
                     case "AlignViewportEdges": RunCommand<Docs.AlignViewportEdgesCommand>(app); break;
                     case "DistributeViewports": RunCommand<Docs.DistributeViewportsCommand>(app); break;
-                    case "BatchPrintSheets": RunCommand<Docs.BatchPrintSheetsCommand>(app); break;
+                    case "BatchPrintSheets": RunCommand<Docs.ExportCenterPdfCommand>(app); break; // redirects to Export Centre (PDF preset)
                     case "ExportSheetRegister": RunCommand<Docs.ExportSheetRegisterCommand>(app); break;
+                    case "ExportCenter": RunCommand<Docs.ExportCenterCommand>(app); break;
+                    case "ExportCenterPDF": RunCommand<Docs.ExportCenterPdfCommand>(app); break;
 
                     // ── Sheet Manager Live Operations (modeless dialog dispatch) ──
                     case "SM_PlaceViewOnSheet":
@@ -3523,6 +3556,25 @@ namespace StingTools.UI
                     }
                 }
                 catch (Exception ex) { StingLog.Warn($"SM refresh dispatch failed: {ex.Message}"); }
+            }
+        }
+
+        // ── Fabrication workspace launcher ────────────────────────────
+
+        private static void OpenFabWorkspace(UIApplication app, StingTools.Commands.Fabrication.FabAction initial)
+        {
+            try
+            {
+                var uidoc = app?.ActiveUIDocument;
+                if (uidoc?.Document == null) { TaskDialog.Show("STING v4", "Open a project first."); return; }
+                var dlg = new UI.FabricationWorkspaceDialog(uidoc.Document);
+                try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch { }
+                dlg.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("OpenFabWorkspace failed", ex);
+                TaskDialog.Show("STING v4 — Fabrication", $"Workspace failed to open:\n{ex.Message}");
             }
         }
 
@@ -8035,6 +8087,16 @@ namespace StingTools.UI
         {
             StingLog.Info("View snapshot captured for issue");
             SetExtraParam("IssueSnapshot", "captured");
+        }
+
+        private static void ExportTimeline4DPng(UIApplication app)
+        {
+            // Push result to BCC inline panel; file export via SchedulingCostDashboard
+            BIMCoordinationCenter.CurrentInstance?.Show4DInlineResult("Export Timeline PNG",
+                "Timeline image export: open the 4D Timeline view, then use\n" +
+                "File → Export → Image to save as PNG.\n\n" +
+                "Automated PNG render will be available in a future phase.");
+            StingLog.Info("ExportTimeline4DPNG dispatched");
         }
 
         private static void ImportTeamFromCsv(UIApplication app)

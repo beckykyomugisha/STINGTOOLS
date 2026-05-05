@@ -11,10 +11,19 @@ using System.Windows.Media;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
-using TextBox = System.Windows.Controls.TextBox;
-using ComboBox = System.Windows.Controls.ComboBox;
-using Color = System.Windows.Media.Color;
+
+// Phase 165 follow-up — WPF/Revit type-name aliases. Autodesk.Revit.DB
+// ships its own Color and Visibility types that collide with the WPF
+// equivalents used throughout this dialog. Alias the WPF types so
+// unqualified Color / Visibility references compile.
+using Color      = System.Windows.Media.Color;
 using Visibility = System.Windows.Visibility;
+// Autodesk.Revit.UI ships TextBox and ComboBox types that collide with
+// System.Windows.Controls equivalents used by this WPF dialog. Alias
+// the WPF types so the form's controls compile without per-call-site
+// full qualification.
+using TextBox    = System.Windows.Controls.TextBox;
+using ComboBox   = System.Windows.Controls.ComboBox;
 
 namespace StingTools.UI
 {
@@ -24,16 +33,16 @@ namespace StingTools.UI
     /// </summary>
     public class ProjectFolderSetupDialog
     {
-        // ── Theme ──
-        private static readonly SolidColorBrush BgDark   = new(Color.FromRgb(0x1E, 0x1E, 0x1E));
-        private static readonly SolidColorBrush BgPanel  = new(Color.FromRgb(0x25, 0x25, 0x26));
-        private static readonly SolidColorBrush BgInput  = new(Color.FromRgb(0x2D, 0x2D, 0x30));
-        private static readonly SolidColorBrush FgWhite  = new(Color.FromRgb(0xFF, 0xFF, 0xFF));
-        private static readonly SolidColorBrush FgSubtle = new(Color.FromRgb(0xAA, 0xAA, 0xAA));
-        private static readonly SolidColorBrush Accent   = new(Color.FromRgb(0x00, 0x78, 0xD4));
-        private static readonly SolidColorBrush BrBorder = new(Color.FromRgb(0x40, 0x40, 0x40));
-        private static readonly SolidColorBrush Yellow   = new(Color.FromRgb(0xFF, 0xC1, 0x07));
-        private static readonly SolidColorBrush Green    = new(Color.FromRgb(0x4C, 0xAF, 0x50));
+        // ── Theme (Corporate — matches ThemeManager "Corporate" palette) ──
+        private static readonly SolidColorBrush BgDark   = new(Color.FromRgb(0xFA, 0xFA, 0xFA));  // PrimaryBg
+        private static readonly SolidColorBrush BgPanel  = new(Color.FromRgb(0xEC, 0xEF, 0xF1));  // HeaderBg / read-only panel
+        private static readonly SolidColorBrush BgInput  = new(Color.FromRgb(0xFF, 0xFF, 0xFF));  // input/grid background
+        private static readonly SolidColorBrush FgWhite  = new(Color.FromRgb(0x37, 0x47, 0x4F));  // PanelFg slate
+        private static readonly SolidColorBrush FgSubtle = new(Color.FromRgb(0x60, 0x7D, 0x8B));  // muted slate
+        private static readonly SolidColorBrush Accent   = new(Color.FromRgb(0x19, 0x76, 0xD2));  // corporate blue
+        private static readonly SolidColorBrush BrBorder = new(Color.FromRgb(0xCF, 0xD8, 0xDC));  // light slate border
+        private static readonly SolidColorBrush Yellow   = new(Color.FromRgb(0xFF, 0xC1, 0x07));  // amber banner
+        private static readonly SolidColorBrush Green    = new(Color.FromRgb(0x2E, 0x7D, 0x32));  // success
 
         public ProjectSetup Result { get; private set; }
 
@@ -42,19 +51,22 @@ namespace StingTools.UI
         private Window _window;
 
         // Form state
-        private TextBox _projCodeBox;
-        private TextBox _projNameBox;
-        private TextBox _rootBox;
+        // Fully qualified — both System.Windows.Controls and Autodesk.Revit.UI
+        // define TextBox / ComboBox; this is a WPF dialog so we want the WPF
+        // versions explicitly.
+        private System.Windows.Controls.TextBox _projCodeBox;
+        private System.Windows.Controls.TextBox _projNameBox;
+        private System.Windows.Controls.TextBox _rootBox;
         private TextBlock _previewLabel;
         private RadioButton _radioRelative;
         private RadioButton _radioAbsolute;
-        private ComboBox _templateCombo;
+        private System.Windows.Controls.ComboBox _templateCombo;
         private RadioButton _radioBim;
         private RadioButton _radioMini;
         private WrapPanel _disciplinePanel;
         private StackPanel _disciplineRow;
-        private ComboBox _namingCombo;
-        private TextBox _customNamingBox;
+        private System.Windows.Controls.ComboBox _namingCombo;
+        private System.Windows.Controls.TextBox _customNamingBox;
         private StackPanel _customNamingRow;
         private DataGrid _foldersGrid;
         private Border _migrationBanner;
@@ -159,7 +171,7 @@ namespace StingTools.UI
             Margin = new Thickness(0, 0, 8, 0),
         };
 
-        private TextBox MakeTextBox(string initial, double width = 280) => new()
+        private System.Windows.Controls.TextBox MakeTextBox(string initial, double width = 280) => new()
         {
             Text = initial ?? "",
             Width = width,
@@ -286,7 +298,7 @@ namespace StingTools.UI
             // Template row
             var row1 = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
             row1.Children.Add(Label("Template"));
-            _templateCombo = new ComboBox
+            _templateCombo = new System.Windows.Controls.ComboBox
             {
                 Width = 320,
                 Background = BgInput,
@@ -348,7 +360,7 @@ namespace StingTools.UI
             // Naming convention
             var row4 = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
             row4.Children.Add(Label("Export Naming"));
-            _namingCombo = new ComboBox
+            _namingCombo = new System.Windows.Controls.ComboBox
             {
                 Width = 320,
                 Background = BgInput,
@@ -360,7 +372,7 @@ namespace StingTools.UI
             _namingCombo.Items.Add("Custom pattern");
             _namingCombo.SelectedIndex = 0;
             _namingCombo.SelectionChanged += (s, e) => _customNamingRow.Visibility =
-                _namingCombo.SelectedIndex == 2 ? Visibility.Visible : Visibility.Collapsed;
+                _namingCombo.SelectedIndex == 2 ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
             row4.Children.Add(_namingCombo);
             box.Children.Add(row4);
 
@@ -368,7 +380,7 @@ namespace StingTools.UI
             {
                 Orientation = Orientation.Horizontal,
                 Margin = new Thickness(110, 0, 0, 8),
-                Visibility = Visibility.Collapsed,
+                Visibility = System.Windows.Visibility.Collapsed,
             };
             _customNamingRow.Children.Add(new TextBlock
             {
@@ -491,7 +503,7 @@ namespace StingTools.UI
                 Margin = new Thickness(0, 0, 0, 8),
                 Padding = new Thickness(4),
                 Child = dock,
-                Visibility = Visibility.Collapsed,
+                Visibility = System.Windows.Visibility.Collapsed,
             };
             return border;
         }
@@ -524,7 +536,7 @@ namespace StingTools.UI
             cancel.Click += (s, e) => { _window.DialogResult = false; _window.Close(); };
             var ok = MakeButton("Create Folders", 130);
             ok.Background = Accent;
-            ok.Foreground = FgWhite;
+            ok.Foreground = Brushes.White;
             ok.FontWeight = FontWeights.Bold;
             ok.Click += OnCreateFolders;
             buttons.Children.Add(cancel);
@@ -579,7 +591,7 @@ namespace StingTools.UI
         {
             if (_doc == null || string.IsNullOrEmpty(_docPath))
             {
-                _migrationBanner.Visibility = Visibility.Collapsed;
+                _migrationBanner.Visibility = System.Windows.Visibility.Collapsed;
                 return;
             }
             try
@@ -600,11 +612,11 @@ namespace StingTools.UI
                 {
                     _migrationText.Text = $"Legacy STING data detected: {legacy} folder(s) and {sidecars} sidecar JSON file(s) " +
                                           "alongside the model. Click 'Migrate Now' to consolidate them into the new structure.";
-                    _migrationBanner.Visibility = Visibility.Visible;
+                    _migrationBanner.Visibility = System.Windows.Visibility.Visible;
                 }
                 else
                 {
-                    _migrationBanner.Visibility = Visibility.Collapsed;
+                    _migrationBanner.Visibility = System.Windows.Visibility.Collapsed;
                 }
             }
             catch (Exception ex) { StingLog.Warn($"Migration banner: {ex.Message}"); }
@@ -688,7 +700,7 @@ namespace StingTools.UI
         private void OnModeChanged()
         {
             if (_disciplineRow == null) return;
-            _disciplineRow.Visibility = _radioBim?.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            _disciplineRow.Visibility = _radioBim?.IsChecked == true ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
             // Folder grid only meaningful in BIM mode
             if (_foldersGrid != null)
                 _foldersGrid.IsEnabled = _radioBim?.IsChecked == true;

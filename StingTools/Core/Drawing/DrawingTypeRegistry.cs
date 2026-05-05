@@ -164,6 +164,7 @@ namespace StingTools.Core.Drawing
                 if (!string.IsNullOrEmpty(p.Phase))            m.Phase = p.Phase;
                 if (!string.IsNullOrEmpty(p.PaperSize))        m.PaperSize = p.PaperSize;
                 if (!string.IsNullOrEmpty(p.TitleBlockFamily)) m.TitleBlockFamily = p.TitleBlockFamily;
+                if (!string.IsNullOrEmpty(p.TitleBlockSymbolType)) m.TitleBlockSymbolType = p.TitleBlockSymbolType;
                 if (!string.IsNullOrEmpty(p.Orientation))      m.Orientation = p.Orientation;
                 if (p.Scale > 0)                               m.Scale = p.Scale;
                 if (!string.IsNullOrEmpty(p.DetailLevel))      m.DetailLevel = p.DetailLevel;
@@ -172,12 +173,37 @@ namespace StingTools.Core.Drawing
                 if (!string.IsNullOrEmpty(p.SheetNumberPattern)) m.SheetNumberPattern = p.SheetNumberPattern;
                 if (!string.IsNullOrEmpty(p.SheetNamePattern))   m.SheetNamePattern = p.SheetNamePattern;
                 if (!string.IsNullOrEmpty(p.ViewStylePackId))    m.ViewStylePackId = p.ViewStylePackId;
+                if (p.IsoNaming != null) m.IsoNaming = p.IsoNaming;
                 if (p.Crop != null)          m.Crop = p.Crop;
                 if (p.SectionMarker != null) m.SectionMarker = p.SectionMarker;
                 if (p.Slots != null && p.Slots.Count > 0) m.Slots = p.Slots;
                 if (p.Annotation != null)    m.Annotation = p.Annotation;
                 if (p.TokenProfile != null)  m.TokenProfile = p.TokenProfile;
                 if (p.Print != null)         m.Print = p.Print;
+
+                // Phase 169 — TB params merge KEY-by-KEY (not whole-map replace)
+                // so a corp-base profile can ship baseline keys (PRJ_ORG_PROJECT_CODE
+                // etc.) that every child profile inherits. Child entries with the
+                // same key win.
+                if (p.TitleBlockParams != null && p.TitleBlockParams.Count > 0)
+                {
+                    if (m.TitleBlockParams == null)
+                        m.TitleBlockParams = new Dictionary<string, string>(p.TitleBlockParams.Count, StringComparer.Ordinal);
+                    foreach (var kv in p.TitleBlockParams)
+                        m.TitleBlockParams[kv.Key] = kv.Value;
+                }
+                if (p.TitleBlockParamsBySymbol != null && p.TitleBlockParamsBySymbol.Count > 0)
+                {
+                    if (m.TitleBlockParamsBySymbol == null)
+                        m.TitleBlockParamsBySymbol = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var kvSym in p.TitleBlockParamsBySymbol)
+                    {
+                        if (kvSym.Value == null) continue;
+                        if (!m.TitleBlockParamsBySymbol.TryGetValue(kvSym.Key, out var grp))
+                            m.TitleBlockParamsBySymbol[kvSym.Key] = grp = new Dictionary<string, string>(StringComparer.Ordinal);
+                        foreach (var kv in kvSym.Value) grp[kv.Key] = kv.Value;
+                    }
+                }
             }
             return m;
         }
@@ -248,6 +274,11 @@ namespace StingTools.Core.Drawing
             // PERF-02: pack applier filter / category caches.
             try { ViewStylePackApplier.InvalidateCache(doc); }
             catch (Exception ex) { StingTools.Core.StingLog.Warn($"Reload InvalidatePackApplierCache: {ex.Message}"); }
+
+            // Editor-side title-block slot cache — re-read FamilySymbol JSON
+            // after a registry reload so freshly-loaded title blocks surface.
+            try { StingTools.UI.TitleBlockSlotLoader.InvalidateCache(doc); }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"Reload InvalidateTitleBlockSlotCache: {ex.Message}"); }
         }
 
         public static DrawingTypeLibrary GetLibrary(Document doc)

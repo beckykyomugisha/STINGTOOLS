@@ -419,7 +419,7 @@ namespace StingTools.Model
                 if (catId == (int)BuiltInCategory.OST_StructuralColumns
                     && el.Location is LocationPoint lp)
                     columns.Add((id, lp.Point));
-                else if (catId == (int)BuiltInCategory.OST_StructuralFraming
+                else if (catId == (long)BuiltInCategory.OST_StructuralFraming
                     && el.Location is LocationCurve lc && lc.Curve != null)
                     beams.Add((id, lc.Curve.GetEndPoint(0), lc.Curve.GetEndPoint(1)));
             }

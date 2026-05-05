@@ -71,6 +71,13 @@ namespace StingTools.Core.Drawing
                     r.Add(ValidationSeverity.Error, "DT-010",
                         $"Title block family '{dt.TitleBlockFamily}' not loaded.",
                         "Load the family from Families/AssemblyTitleBlocks/ or point the profile at a different family.");
+
+                // DT-011 (Phase 168): titleBlockSymbolType references a symbol the family doesn't have.
+                if (!string.IsNullOrWhiteSpace(dt.TitleBlockSymbolType)
+                    && !HasTitleBlockSymbol(doc, dt.TitleBlockFamily, dt.TitleBlockSymbolType))
+                    r.Add(ValidationSeverity.Warning, "DT-011",
+                        $"Title block symbol type '{dt.TitleBlockSymbolType}' not found within family '{dt.TitleBlockFamily}'. Engine will fall back to first symbol.",
+                        "Open the family in Family Editor, confirm the type name, or clear titleBlockSymbolType to accept first-symbol fallback.");
             }
 
             // View template ----------------------------------------------
@@ -128,9 +135,67 @@ namespace StingTools.Core.Drawing
                 r.Add(ValidationSeverity.Info, "DT-061",
                     "sheetNamePattern is empty — sheets will be named by Revit's default.");
 
+            // DT-095: scale must be positive on every purpose except 3D /
+            // Perspective, where assigning view.Scale = 0 throws and the
+            // engine logs + skips the assignment by design.
             if (dt.Scale <= 0)
-                r.Add(ValidationSeverity.Error, "DT-070",
-                    "scale must be positive (1:N denominator).");
+            {
+                bool isThreeD = string.Equals(dt.Purpose, DrawingPurpose.ThreeD, StringComparison.OrdinalIgnoreCase)
+                             || string.Equals(dt.Purpose, "Perspective", StringComparison.OrdinalIgnoreCase);
+                if (!isThreeD)
+                    r.Add(ValidationSeverity.Warning, "DT-095",
+                        $"Scale is {dt.Scale} — must be a positive integer for non-3D drawing types. Set scale > 0 or use purpose '3D'/'Perspective' for views where scale is not applicable.");
+            }
+
+            // DT-096: ISO naming tokens in the sheet number pattern need an
+            // isoNaming block, otherwise they resolve to empty strings.
+            if (!string.IsNullOrEmpty(dt.SheetNumberPattern) && dt.IsoNaming == null)
+            {
+                bool referencesIso =
+                    dt.SheetNumberPattern.IndexOf("{project}",    StringComparison.OrdinalIgnoreCase) >= 0
+                 || dt.SheetNumberPattern.IndexOf("{originator}", StringComparison.OrdinalIgnoreCase) >= 0
+                 || dt.SheetNumberPattern.IndexOf("{vol}",        StringComparison.OrdinalIgnoreCase) >= 0;
+                if (referencesIso)
+                    r.Add(ValidationSeverity.Warning, "DT-096",
+                        "sheetNumberPattern references ISO naming tokens ({project}, {originator}, etc.) but isoNaming is null. These tokens will resolve to empty strings. Add an isoNaming block to this drawing type.");
+            }
+
+            // DT-097 (Phase 168): paperSize ↔ titleBlockFamily cross-check.
+            // Heuristic — if the family name embeds a paper-size code (A0/A1/
+            // A2/A3/A4) different from the profile's PaperSize, surface a
+            // mismatch. Avoids the "A1 profile points at an A3 family"
+            // silent-failure mode.
+            if (!string.IsNullOrWhiteSpace(dt.PaperSize)
+                && !string.IsNullOrWhiteSpace(dt.TitleBlockFamily))
+            {
+                var fam = dt.TitleBlockFamily.ToUpperInvariant();
+                var paper = dt.PaperSize.Trim().ToUpperInvariant();
+                string foundCode = null;
+                foreach (var code in new[] { "A0", "A1", "A2", "A3", "A4" })
+                {
+                    // Match boundary: surrounded by non-alphanumerics so "A10" wouldn't match "A1".
+                    var idx = fam.IndexOf(code, StringComparison.Ordinal);
+                    while (idx >= 0)
+                    {
+                        bool leftOk  = idx == 0 || !char.IsLetterOrDigit(fam[idx - 1]);
+                        bool rightOk = idx + code.Length == fam.Length
+                                    || !char.IsLetterOrDigit(fam[idx + code.Length]);
+                        if (leftOk && rightOk) { foundCode = code; break; }
+                        idx = fam.IndexOf(code, idx + 1, StringComparison.Ordinal);
+                    }
+                    if (foundCode != null) break;
+                }
+                if (foundCode != null && !string.Equals(foundCode, paper, StringComparison.Ordinal))
+                    r.Add(ValidationSeverity.Warning, "DT-097",
+                        $"PaperSize '{dt.PaperSize}' may not match titleBlockFamily '{dt.TitleBlockFamily}' (family name suggests {foundCode}).",
+                        "Confirm the family is sized correctly or update PaperSize to match.");
+            }
+
+            // DT-098 (Phase 168): every {token} referenced by sheet patterns or
+            // titleBlockParams should resolve to a known key. Unknown tokens
+            // pass through as literal text — usually a typo. Built-in token
+            // set mirrors DrawingTokenContext.Build(...).
+            ValidateUnknownTokens(dt, r);
 
             // ── Phase 137 — annotation family + production rule + managed pack checks ──
 
@@ -188,6 +253,44 @@ namespace StingTools.Core.Drawing
                     r.Add(ValidationSeverity.Warning, "DT-090",
                         $"TitleBlockParams reference ${{ {name} }} but ProjectInformation has no parameter named '{name}'.",
                         "Run Tags > Setup > Load Params, or update the project_info parameter name in the profile.");
+            }
+            catch { /* validator must never throw */ }
+        }
+
+        // DT-098 (Phase 168). Built-in token set mirrors DrawingTokenContext.Build —
+        // any {key} outside this set is most likely a typo and is reported.
+        private static readonly System.Collections.Generic.HashSet<string> _knownTokens =
+            new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "spool","disc","discipline","sys","lvl","mark","purpose","phase",
+                "project","originator","vol","type","role","suit","rev","seq",
+            };
+        private static readonly System.Text.RegularExpressions.Regex _tokenScan =
+            new System.Text.RegularExpressions.Regex(@"\{([A-Za-z0-9_]+)(?::D\d+)?(?:\|[^}]*)?\}",
+                System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        private static void ValidateUnknownTokens(DrawingType dt, ValidationReport r)
+        {
+            if (dt == null) return;
+            try
+            {
+                void Scan(string template, string source)
+                {
+                    if (string.IsNullOrEmpty(template)) return;
+                    foreach (System.Text.RegularExpressions.Match m in _tokenScan.Matches(template))
+                    {
+                        var key = m.Groups[1].Value;
+                        if (!_knownTokens.Contains(key))
+                            r.Add(ValidationSeverity.Warning, "DT-098",
+                                $"{source} references unknown token '{{{key}}}' — it will pass through as literal text.",
+                                "Check spelling against {disc}/{lvl}/{seq:D4}/{spool}/{mark}/{vol}/{type}/{role}/{suit}/{rev}/{project}/{originator}, or remove if intentional.");
+                    }
+                }
+                Scan(dt.SheetNumberPattern, "sheetNumberPattern");
+                Scan(dt.SheetNamePattern,   "sheetNamePattern");
+                if (dt.TitleBlockParams != null)
+                    foreach (var kv in dt.TitleBlockParams)
+                        Scan(kv.Value, $"titleBlockParams['{kv.Key}']");
             }
             catch { /* validator must never throw */ }
         }
@@ -368,6 +471,23 @@ namespace StingTools.Core.Drawing
                 foreach (var el in col)
                     if (el is FamilySymbol fs
                         && string.Equals(fs.FamilyName, familyName, StringComparison.OrdinalIgnoreCase))
+                        return true;
+            }
+            catch { /* ignore */ }
+            return false;
+        }
+
+        private static bool HasTitleBlockSymbol(Document doc, string familyName, string symbolName)
+        {
+            try
+            {
+                var col = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                    .OfClass(typeof(FamilySymbol));
+                foreach (var el in col)
+                    if (el is FamilySymbol fs
+                        && string.Equals(fs.FamilyName, familyName, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(fs.Name, symbolName, StringComparison.OrdinalIgnoreCase))
                         return true;
             }
             catch { /* ignore */ }

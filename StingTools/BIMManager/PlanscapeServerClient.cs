@@ -45,6 +45,14 @@ public sealed class PlanscapeServerClient : IDisposable
     private string _refreshToken = "";
     private DateTime _tokenExpiry = DateTime.MinValue;
 
+    // SEC-EA-08 — local mirror of the server's sliding inactivity window.
+    // Updated on every successful API call; if the gap exceeds the
+    // window we tear down the session before attempting a refresh
+    // (the server will reject it anyway). Mirrors AuthController.cs
+    // RefreshInactivityWindow on the server.
+    private DateTime _lastActivityTime = DateTime.UtcNow;
+    private static readonly TimeSpan SessionInactivityWindow = TimeSpan.FromMinutes(60);
+
     // ── Public state ───────────────────────────────────────────────────────────
     public bool   IsConnected   => !string.IsNullOrEmpty(_accessToken) && _tokenExpiry > DateTime.UtcNow.AddMinutes(5);
     public string ServerUrl     => _serverUrl;
@@ -83,10 +91,26 @@ public sealed class PlanscapeServerClient : IDisposable
             // an IExternalEventHandler). Without it, the dispatcher
             // deadlocks waiting for itself.
             var resp = await PostJsonAsync("/api/auth/login", new { email, password }).ConfigureAwait(false);
-            if (!resp.ok) { LastError = $"Login failed: {resp.body}"; return false; }
+            if (!resp.ok)
+            {
+                // 404 means the server URL is reachable but doesn't host the
+                // Planscape API. The most common cause is pointing at the
+                // retired Render deployment; nudge the user toward the local
+                // docker stack.
+                LastError = resp.status == 404
+                    ? $"Login failed: server at {_serverUrl} did not recognise /api/auth/login (HTTP 404). Confirm the URL — for the docker-compose stack use http://localhost:5000."
+                    : resp.status == 401
+                        ? "Login failed: email or password is incorrect."
+                        : $"Login failed (HTTP {resp.status}): {resp.body}";
+                return false;
+            }
 
             ParseAuthResponse(JObject.Parse(resp.body), email);
             LastError = null;
+            // SEC-EA-08 — seed the inactivity clock; the PostJsonAsync that
+            // wrote /api/auth/login already bumped it but make the intent
+            // explicit at the auth boundary.
+            TouchActivity();
             // P1 — store the session so a Revit restart doesn't require
             // re-entering credentials. Encrypted with DPAPI (current-user).
             PersistSession();
@@ -104,7 +128,51 @@ public sealed class PlanscapeServerClient : IDisposable
             }
             return true;
         }
-        catch (Exception ex) { LastError = ex.Message; StingLog.Error("Planscape: Login failed", ex); return false; }
+        catch (Exception ex)
+        {
+            LastError = BuildConnectivityHint(ex, _serverUrl);
+            StingLog.Error("Planscape: Login failed", ex);
+            return false;
+        }
+    }
+
+    /// <summary>Maps the raw HttpClient/socket exception to an actionable message.
+    /// Connection refused on localhost almost always means the docker stack
+    /// isn't running, which is the most common first-time-setup mistake.</summary>
+    private static string BuildConnectivityHint(Exception ex, string serverUrl)
+    {
+        // Walk the inner exception chain — HttpRequestException usually wraps
+        // a SocketException whose ErrorCode tells us refused vs. unreachable
+        // vs. DNS failure.
+        var sock = ex as System.Net.Sockets.SocketException;
+        for (var cur = ex; sock == null && cur != null; cur = cur.InnerException)
+            sock = cur.InnerException as System.Net.Sockets.SocketException;
+
+        bool isLocal = !string.IsNullOrEmpty(serverUrl) &&
+                       (serverUrl.IndexOf("localhost", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        serverUrl.IndexOf("127.0.0.1", StringComparison.OrdinalIgnoreCase) >= 0);
+
+        if (sock != null)
+        {
+            switch (sock.SocketErrorCode)
+            {
+                case System.Net.Sockets.SocketError.ConnectionRefused:
+                    return isLocal
+                        ? $"Login failed: nothing is listening on {serverUrl}. Start the local Planscape server with 'docker compose up -d' from Planscape.Server/docker, then wait for the 'api' container to become healthy (docker compose ps)."
+                        : $"Login failed: {serverUrl} refused the connection. The server may be stopped or a firewall is blocking the port.";
+                case System.Net.Sockets.SocketError.HostNotFound:
+                case System.Net.Sockets.SocketError.NoData:
+                    return $"Login failed: could not resolve '{serverUrl}'. Check the URL spelling and your DNS/internet connection.";
+                case System.Net.Sockets.SocketError.TimedOut:
+                    return $"Login failed: connection to {serverUrl} timed out. Check the server is reachable from this machine and no firewall is dropping the request.";
+                case System.Net.Sockets.SocketError.NetworkUnreachable:
+                case System.Net.Sockets.SocketError.HostUnreachable:
+                    return $"Login failed: {serverUrl} is not reachable from this network.";
+            }
+        }
+        if (ex is TaskCanceledException || ex is OperationCanceledException)
+            return $"Login failed: request to {serverUrl} timed out before the server responded.";
+        return $"Login failed: {ex.Message}";
     }
 
     /// <summary>
@@ -137,11 +205,35 @@ public sealed class PlanscapeServerClient : IDisposable
     private async Task<bool> EnsureAuthenticatedAsync()
     {
         if (string.IsNullOrEmpty(_accessToken)) { LastError = "Not connected to Planscape server."; return false; }
-        // Refresh if token expires within 10 minutes
-        if (_tokenExpiry <= DateTime.UtcNow.AddMinutes(10))
-            return await RefreshTokenAsync().ConfigureAwait(false);
+
+        // SEC-EA-08 — local idle gate. If we've been silent longer than
+        // the server's inactivity window, the server will reject the
+        // refresh anyway; clear state up-front so the user gets a clean
+        // "log in again" message rather than a confusing 401 mid-sync.
+        if (DateTime.UtcNow - _lastActivityTime > SessionInactivityWindow)
+        {
+            StingLog.Info("Planscape: session idle past inactivity window — clearing tokens.");
+            _accessToken  = "";
+            _refreshToken = "";
+            _tokenExpiry  = DateTime.MinValue;
+            try { _http?.DefaultRequestHeaders.Authorization = null; } catch { }
+            DeletePersistedSession();
+            throw new InvalidOperationException(
+                "Planscape session expired. Please log in again from the BIM tab.");
+        }
+
+        // SEC-EA-03 — access tokens are now 30 min, so refresh once <5 min remain.
+        if (_tokenExpiry <= DateTime.UtcNow.AddMinutes(5))
+        {
+            var ok = await RefreshTokenAsync().ConfigureAwait(false);
+            if (ok) _lastActivityTime = DateTime.UtcNow;
+            return ok;
+        }
         return true;
     }
+
+    /// <summary>SEC-EA-08 — call after every successful API round-trip.</summary>
+    private void TouchActivity() => _lastActivityTime = DateTime.UtcNow;
 
     /// <summary>Disconnect and clear all credentials.</summary>
     public void Disconnect()
@@ -433,7 +525,17 @@ public sealed class PlanscapeServerClient : IDisposable
         {
             if (!File.Exists(configPath)) return ("", "", "");
             var json = JObject.Parse(File.ReadAllText(configPath));
-            return (json["serverUrl"]?.Value<string>()  ?? "",
+            string url = json["serverUrl"]?.Value<string>() ?? "";
+
+            // The legacy Render.com deployment is offline and returns 404 on
+            // /api/auth/login, which surfaces in the UI as "Login failed: Not
+            // Found". Drop the stale URL so the dialog falls back to its
+            // current default (the local docker stack) instead of pinning
+            // users to a dead host.
+            if (url.IndexOf("planscape-api.onrender.com", StringComparison.OrdinalIgnoreCase) >= 0)
+                url = "";
+
+            return (url,
                     json["email"]?.Value<string>()      ?? "",
                     json["projectId"]?.Value<string>()  ?? "");
         }
@@ -793,7 +895,9 @@ public sealed class PlanscapeServerClient : IDisposable
         if (http == null) throw new InvalidOperationException("HttpClient not initialised — call LoginAsync first.");
         var resp = await http.PostAsync(path, content).ConfigureAwait(false);
         var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
-        return ((int)resp.StatusCode >= 200 && (int)resp.StatusCode < 300, (int)resp.StatusCode, body);
+        var ok = (int)resp.StatusCode >= 200 && (int)resp.StatusCode < 300;
+        if (ok) TouchActivity(); // SEC-EA-08
+        return (ok, (int)resp.StatusCode, body);
     }
 
     private async Task<(bool ok, int status, string body)> GetAsync(string path)
@@ -802,7 +906,9 @@ public sealed class PlanscapeServerClient : IDisposable
         if (http == null) throw new InvalidOperationException("HttpClient not initialised — call LoginAsync first.");
         var resp = await http.GetAsync(path).ConfigureAwait(false);
         var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
-        return ((int)resp.StatusCode >= 200 && (int)resp.StatusCode < 300, (int)resp.StatusCode, body);
+        var ok = (int)resp.StatusCode >= 200 && (int)resp.StatusCode < 300;
+        if (ok) TouchActivity(); // SEC-EA-08
+        return (ok, (int)resp.StatusCode, body);
     }
 
     private void ParseAuthResponse(JObject json, string fallbackEmail)
@@ -964,6 +1070,17 @@ public sealed class PlanscapeServerClient : IDisposable
             if (string.IsNullOrEmpty(_serverUrl) || string.IsNullOrEmpty(_refreshToken))
             {
                 DeletePersistedSession();
+                return false;
+            }
+
+            // Discard sessions tied to the offline Render.com host so users
+            // aren't pinned to a dead URL after a Revit restart.
+            if (_serverUrl.IndexOf("planscape-api.onrender.com", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                StingLog.Info("Planscape: stored session points to retired onrender host, clearing.");
+                DeletePersistedSession();
+                _serverUrl = ""; _accessToken = ""; _refreshToken = "";
+                ConnectedUser = ""; TenantId = Guid.Empty; UserId = Guid.Empty;
                 return false;
             }
             EnsureHttpClient(_serverUrl);

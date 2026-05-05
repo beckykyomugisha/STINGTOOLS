@@ -18,7 +18,13 @@ public class ProjectsController : ControllerBase
 
     public ProjectsController(PlanscapeDbContext db) => _db = db;
 
-    /// <summary>List all active projects for the current tenant.</summary>
+    /// <summary>List active and archived projects for the current tenant.</summary>
+    /// <remarks>
+    /// Phase 169 — extended to include location, cover image, pin flag, and
+    /// member count so the dashboard can render ACC-style project cards
+    /// and the Mapbox project location map. Archived projects are now
+    /// returned alongside active ones (the map renders archived = green).
+    /// </remarks>
     /// <response code="200">Array of project summaries ordered by last sync date.</response>
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -26,17 +32,45 @@ public class ProjectsController : ControllerBase
     {
         var tenantId = GetTenantId();
         var projects = await _db.Projects
-            .Where(p => p.TenantId == tenantId && p.Status == ProjectStatus.Active)
+            .Where(p => p.TenantId == tenantId
+                        && (p.Status == ProjectStatus.Active || p.Status == ProjectStatus.Archived))
             .Select(p => new
             {
                 p.Id, p.Name, p.Code, p.Phase, p.Status,
                 p.CompliancePercent, p.RagStatus, p.TotalElements, p.TaggedElements,
-                p.LastSyncAt, p.CreatedAt
+                p.LastSyncAt, p.CreatedAt,
+                p.Latitude, p.Longitude, p.City, p.Country,
+                p.CoverImageUrl, p.IsPinned,
+                MemberCount = _db.ProjectMembers
+                    .Count(m => m.ProjectId == p.Id && m.IsActive)
             })
-            .OrderByDescending(p => p.LastSyncAt)
+            .OrderByDescending(p => p.IsPinned)
+            .ThenByDescending(p => p.LastSyncAt)
             .ToListAsync();
 
         return Ok(projects);
+    }
+
+    /// <summary>Toggle the pinned state of a project.</summary>
+    /// <remarks>
+    /// Phase 169 — used by the dashboard project cards. Pinned projects
+    /// surface in a dedicated row at the top of the overview and rank
+    /// first in the default sort.
+    /// </remarks>
+    /// <response code="204">Pin state toggled.</response>
+    /// <response code="404">Project not found or does not belong to tenant.</response>
+    [HttpPatch("{id}/pin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> TogglePin(Guid id)
+    {
+        var tenantId = GetTenantId();
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id && p.TenantId == tenantId);
+        if (project == null) return NotFound();
+
+        project.IsPinned = !project.IsPinned;
+        await _db.SaveChangesAsync();
+        return NoContent();
     }
 
     /// <summary>Get a single project by ID (includes full settings).</summary>
@@ -173,7 +207,7 @@ public class ProjectsController : ControllerBase
         var complianceTrend = await _db.ComplianceSnapshots
             .Where(s => s.ProjectId == id && s.CapturedAt >= trendStart)
             .OrderBy(s => s.CapturedAt)
-            .Select(s => new { s.CapturedAt, s.CompliancePercent, s.ContainerCompliancePercent })
+            .Select(s => new { s.CapturedAt, s.TagPercent, s.ContainerPercent })
             .ToListAsync();
 
         return Ok(new

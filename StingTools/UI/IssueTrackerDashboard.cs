@@ -31,22 +31,26 @@ namespace StingTools.UI
     /// </summary>
     internal static class IssueTrackerDashboard
     {
-        // ── Frozen Brushes ──────────────────────────────────────────────
+        // ── Theme-routed palette ─────────────────────────────────────────
+        // Theme constants come from ThemeManager so the dashboard follows
+        // the active theme (Corporate by default). Severity-specific
+        // brushes (Critical/High/Medium/Low) stay fixed to industry RAG.
         private static SolidColorBrush FZ(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
 
-        private static readonly SolidColorBrush BgBrush       = FZ(Color.FromRgb(0xF5, 0xF5, 0xF5));
-        private static readonly SolidColorBrush HeaderBrush    = FZ(Color.FromRgb(0x1A, 0x23, 0x7E));
-        private static readonly SolidColorBrush AccentBrush    = FZ(Color.FromRgb(0xE8, 0x91, 0x2D));
-        private static readonly SolidColorBrush PanelBrush     = FZ(Color.FromRgb(0xFF, 0xFF, 0xFF));
-        private static readonly SolidColorBrush FgDarkBrush    = FZ(Color.FromRgb(0x22, 0x22, 0x22));
-        private static readonly SolidColorBrush FgLightBrush   = FZ(Color.FromRgb(0xFF, 0xFF, 0xFF));
-        private static readonly SolidColorBrush BorderBrush    = FZ(Color.FromRgb(0xDD, 0xDD, 0xDD));
-        private static readonly SolidColorBrush CriticalBrush  = FZ(Color.FromRgb(0xE5, 0x39, 0x35));
-        private static readonly SolidColorBrush HighBrush      = FZ(Color.FromRgb(0xFB, 0x8C, 0x00));
-        private static readonly SolidColorBrush MediumBrush    = FZ(Color.FromRgb(0xFD, 0xD8, 0x35));
-        private static readonly SolidColorBrush LowBrush       = FZ(Color.FromRgb(0x43, 0xA0, 0x47));
-        private static readonly SolidColorBrush SubtleBgBrush  = FZ(Color.FromRgb(0xF0, 0xF0, 0xF0));
-        private static readonly SolidColorBrush HoverBrush     = FZ(Color.FromRgb(0xE3, 0xF2, 0xFD));
+        private static SolidColorBrush BgBrush      => ThemeManager.GetBrush("AltRowBg");
+        private static SolidColorBrush HeaderBrush  => ThemeManager.GetBrush("HeaderBg");
+        private static SolidColorBrush AccentBrush  => ThemeManager.GetBrush("AccentBrush");
+        private static SolidColorBrush PanelBrush   => ThemeManager.GetBrush("CardBg");
+        private static SolidColorBrush FgDarkBrush  => ThemeManager.GetBrush("PanelFg");
+        private static SolidColorBrush FgLightBrush => ThemeManager.GetBrush("HeaderFg");
+        private static SolidColorBrush BorderBrush  => ThemeManager.GetBrush("BorderColor");
+        private static SolidColorBrush SubtleBgBrush => ThemeManager.GetBrush("SecondaryBg");
+        private static SolidColorBrush HoverBrush   => ThemeManager.GetBrush("RowHover");
+        // Severity colours stay fixed (Critical/High/Medium/Low RAG)
+        private static readonly SolidColorBrush CriticalBrush = FZ(Color.FromRgb(0xE5, 0x39, 0x35));
+        private static readonly SolidColorBrush HighBrush     = FZ(Color.FromRgb(0xFB, 0x8C, 0x00));
+        private static readonly SolidColorBrush MediumBrush   = FZ(Color.FromRgb(0xFD, 0xD8, 0x35));
+        private static readonly SolidColorBrush LowBrush      = FZ(Color.FromRgb(0x43, 0xA0, 0x47));
 
         // Phase 78 Section 2.3: Issue types now sourced from BIMCoordinationCenter.IsoIssueTypes
         // Kept as property for backward compatibility with any remaining direct IssueTypes[] references.

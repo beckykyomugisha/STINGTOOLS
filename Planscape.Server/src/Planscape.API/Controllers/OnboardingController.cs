@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.Services;
 
 namespace Planscape.API.Controllers;
 
