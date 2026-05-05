@@ -2802,6 +2802,38 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- LIGHTNING PROTECTION (BS EN 62305) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="⚡ LIGHTNING PROTECTION"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="LPS class setup, compliance, conductor + earth checks (BS EN 62305)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="LPS Class Setup" Tag="LPS_ClassSetup" Click="Cmd_Click"
+                                            ToolTip="Risk assessment and LPS class selection wizard (BS EN 62305-2)"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Compliance Check" Tag="LPS_ComplianceCheck" Click="Cmd_Click"
+                                            ToolTip="Run all LPS compliance checks and stamp project verdict"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Down Conductors" Tag="LPS_DownConductorCheck" Click="Cmd_Click"
+                                            ToolTip="Check down conductor spacing against class limit"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Earth Check" Tag="LPS_EarthCheck" Click="Cmd_Click"
+                                            ToolTip="Validate earth electrode resistance against class target"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Bonding Inventory" Tag="LPS_BondingInventory" Click="Cmd_Click"
+                                            ToolTip="Identify equipotential bonding requirements at LPZ boundaries"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Zone Tag Rooms" Tag="LPS_ZoneTag" Click="Cmd_Click"
+                                            ToolTip="Assign LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3 to rooms (BS EN 62305-4)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Plan Visualise" Tag="LPS_PlanVisualise" Click="Cmd_Click"
+                                            ToolTip="Generate plan-view rolling-sphere protection projection"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="3D Coverage" Tag="LPS_RollingSphere3D" Click="Cmd_Click"
+                                            ToolTip="Rolling-sphere 3D coverage analyser — flags exposed roof points (BS EN 62305-3 §E.4)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sep Distance" Tag="LPS_SepDistCheck" Click="Cmd_Click"
+                                            ToolTip="Check separation distance between LPS conductors and MEP services"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Inspection Schedule" Tag="LPS_InspectionSchedule" Click="Cmd_Click"
+                                            ToolTip="LPS inspection due-date register (BS EN 62305-3 §5.5)"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="LPS Full Report" Tag="LPS_FullReport" Click="Cmd_Click"
+                                            ToolTip="Compile full LPS compliance report (BS EN 62305 deliverable)"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- CDE and DOCUMENT CONTROL -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="CDE — DOCUMENT CONTROL"/>
                         <Border Style="{StaticResource GroupBorder}">
