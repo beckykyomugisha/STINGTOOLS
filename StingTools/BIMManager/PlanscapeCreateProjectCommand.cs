@@ -32,6 +32,16 @@ namespace StingTools.BIMManager
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
+            // When dispatched via the BCC ExternalEvent path (RunCommand<T>),
+            // commandData is null by design — fall back to the cached
+            // UIApplication. Don't dereference commandData blindly.
+            var app = commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp;
+            if (app == null)
+            {
+                TaskDialog.Show("Create Planscape Project", "No Revit application context available.");
+                return Result.Failed;
+            }
+
             var client = PlanscapeServerClient.Instance;
             if (string.IsNullOrEmpty(client.ConnectedUser))
             {
@@ -42,7 +52,7 @@ namespace StingTools.BIMManager
             }
 
             // Prefill Name + Code from the active document if present.
-            var doc = commandData.Application.ActiveUIDocument?.Document;
+            var doc = app.ActiveUIDocument?.Document;
             string defaultName = doc?.Title ?? "";
             string defaultCode = SuggestCode(defaultName);
 
