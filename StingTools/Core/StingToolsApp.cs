@@ -1550,9 +1550,16 @@ namespace StingTools.Core
                 ("Placement_Open",       "Placement",     "PC", DrawingColor.Goldenrod,    typeof(HubPlacementCommand).FullName),
                 ("StructuralDWGWizard",  "Struct Wizard", "SW", DrawingColor.SlateGray,    typeof(HubStructuralDwgWizardCommand).FullName),
                 ("Scheduling_Dashboard", "Scheduling",    "SD", DrawingColor.MidnightBlue, typeof(HubSchedulingDashboardCommand).FullName),
+                // Multi-format publisher (PDF / DWG / IFC / NWC / Image / DGN / DWF / XML).
+                // Routed to "ExportCenter" — NOT "StingDataExport", which opens the
+                // legacy orange Data Export grid for parameter-table CSV/XLSX/JSON.
+                ("ExportCenter",         "Export Center", "EC", DrawingColor.OrangeRed,    typeof(HubExportCenterCommand).FullName),
+                // Mirror of the Tag Operations Smart Numbering dialog —
+                // PREFIX/SEPARATOR/SUFFIX, group enumeration, grouping by Level.
+                ("SmartNumbering",       "Numbering",     "NB", DrawingColor.Indigo,       typeof(HubNumberingCommand).FullName),
             };
 
-            var buttons = new List<PushButtonData>(9);
+            var buttons = new List<PushButtonData>(specs.Length);
             foreach (var s in specs)
             {
                 var data = new PushButtonData("Hub_" + s.tag, s.label, asm, s.cls)
@@ -1573,9 +1580,14 @@ namespace StingTools.Core
 
             try
             {
-                panel.AddStackedItems(buttons[0], buttons[1], buttons[2]);
-                panel.AddStackedItems(buttons[3], buttons[4], buttons[5]);
-                panel.AddStackedItems(buttons[6], buttons[7], buttons[8]);
+                // AddStackedItems takes 3-button rows; lay out as many as fit and
+                // spill the remainder onto AddItem so the row count auto-adjusts
+                // when more Hub entries are appended.
+                int i = 0;
+                for (; i + 2 < buttons.Count; i += 3)
+                    panel.AddStackedItems(buttons[i], buttons[i + 1], buttons[i + 2]);
+                for (; i < buttons.Count; i++)
+                    panel.AddItem(buttons[i]);
             }
             catch (Exception ex)
             {
@@ -1722,5 +1734,31 @@ namespace StingTools.Core
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
             => HubDispatcher.Run("Scheduling_Dashboard", ref message);
+    }
+
+    /// <summary>
+    /// Hub launcher for the unified STING Export Centre (PDF / DWG / IFC /
+    /// NWC / Image / DGN / DWF / XML). Dispatches the "ExportCenter" tag —
+    /// NOT "StingDataExport", which is the legacy parameter-table grid.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubExportCenterCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("ExportCenter", ref message);
+    }
+
+    /// <summary>
+    /// Hub launcher for STING Smart Numbering — the same WPF dialog the Tag
+    /// Operations panel exposes (PREFIX/SEPARATOR/SUFFIX, group enumeration,
+    /// grouping by Level / Workset / Family-Type, skip already-numbered).
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubNumberingCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("SmartNumbering", ref message);
     }
 }
