@@ -223,12 +223,31 @@ namespace StingTools.BIMManager
             var bb = new BoundingBoxXYZ { Min = new XYZ(double.MaxValue, double.MaxValue, double.MaxValue),
                                           Max = new XYZ(double.MinValue, double.MinValue, double.MinValue) };
             int count = 0;
+            int boundsContributors = 0;
 
             foreach (var el in elements)
             {
                 var guid = el.UniqueId;
                 var tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                if (string.IsNullOrEmpty(tag)) continue; // only include tagged elements
+
+                // Track bounds from EVERY element with a bounding box, not just
+                // tagged ones. Otherwise, on a fresh project where the tag
+                // pipeline hasn't run, we get zero contributors and the bb stays
+                // at sentinel (MaxValue/MinValue), which overflows to ±Infinity
+                // when scaled to mm and the server rejects with HTTP 400.
+                var eb = el.get_BoundingBox(null);
+                if (eb != null)
+                {
+                    bb.Min = new XYZ(Math.Min(bb.Min.X, eb.Min.X),
+                                     Math.Min(bb.Min.Y, eb.Min.Y),
+                                     Math.Min(bb.Min.Z, eb.Min.Z));
+                    bb.Max = new XYZ(Math.Max(bb.Max.X, eb.Max.X),
+                                     Math.Max(bb.Max.Y, eb.Max.Y),
+                                     Math.Max(bb.Max.Z, eb.Max.Z));
+                    boundsContributors++;
+                }
+
+                if (string.IsNullOrEmpty(tag)) continue; // only include tagged elements in the map JSON
                 var disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                 var loc  = ParameterHelpers.GetString(el, ParamRegistry.LOC);
                 var lvl  = ParameterHelpers.GetString(el, ParamRegistry.LVL);
@@ -244,27 +263,19 @@ namespace StingTools.BIMManager
                     ["elementId"]  = el.Id.Value,
                 };
                 count++;
-
-                // Track bounds (mm units to match server default).
-                var eb = el.get_BoundingBox(null);
-                if (eb != null)
-                {
-                    bb.Min = new XYZ(Math.Min(bb.Min.X, eb.Min.X),
-                                     Math.Min(bb.Min.Y, eb.Min.Y),
-                                     Math.Min(bb.Min.Z, eb.Min.Z));
-                    bb.Max = new XYZ(Math.Max(bb.Max.X, eb.Max.X),
-                                     Math.Max(bb.Max.Y, eb.Max.Y),
-                                     Math.Max(bb.Max.Z, eb.Max.Z));
-                }
             }
 
             // Convert feet → mm for the bounds (Revit internal units are feet).
+            // If nothing contributed bounds (e.g. empty 3D view), send zeros so
+            // the server's [Range] validators don't see ±Infinity.
             const double feetToMm = 304.8;
-            bounds = new[]
-            {
-                bb.Min.X * feetToMm, bb.Min.Y * feetToMm, bb.Min.Z * feetToMm,
-                bb.Max.X * feetToMm, bb.Max.Y * feetToMm, bb.Max.Z * feetToMm,
-            };
+            bounds = boundsContributors > 0
+                ? new[]
+                {
+                    bb.Min.X * feetToMm, bb.Min.Y * feetToMm, bb.Min.Z * feetToMm,
+                    bb.Max.X * feetToMm, bb.Max.Y * feetToMm, bb.Max.Z * feetToMm,
+                }
+                : new[] { 0d, 0d, 0d, 0d, 0d, 0d };
             elementCount = count;
 
             File.WriteAllText(outputPath, map.ToString(Newtonsoft.Json.Formatting.Indented), Encoding.UTF8);

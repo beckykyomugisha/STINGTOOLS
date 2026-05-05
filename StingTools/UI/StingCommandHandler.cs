@@ -193,6 +193,10 @@ namespace StingTools.UI
                     // ── Phase 127 — Placement Centre (modeless WPF window) ──
                     case "Placement_OpenCentre":     RunCommand<Commands.Placement.OpenPlacementCenterCommand>(app); break;
 
+                    // ── Phase 139 — Placement Centre v2: Excel round-trip ──
+                    case "Placement_ExportExcel":    RunCommand<PlacementCenter.ExportRulesToExcelCommand>(app); break;
+                    case "Placement_ImportExcel":    RunCommand<PlacementCenter.ImportRulesFromExcelCommand>(app); break;
+
                     // ── Phase 116: Standards Extensions + Regional + Bulk API wrappers ──
                     case "StdExt_StageCompliance":  RunCommand<Commands.StandardsExt.StageComplianceAuditCommand>(app); break;
                     case "StdExt_SetRegion":         RunCommand<Commands.StandardsExt.SetRegionCommand>(app); break;
@@ -342,6 +346,16 @@ namespace StingTools.UI
                     case "Electrical_ListCables":  RunCommand<Commands.Electrical.ListCablesCommand>(app); break;
                     case "Electrical_ExportCircuits": RunCommand<Commands.Electrical.ExportCircuitsCommand>(app); break;
                     case "Electrical_TrayFill":    RunCommand<Commands.Electrical.ShowTrayFillCommand>(app); break;
+
+                    // ── Wire annotation symbols ──
+                    case "Electrical_WireAnnotate":
+                        RunCommand<Commands.Electrical.WireAnnotateCommand>(app); break;
+                    case "Electrical_WireAnnotateBatch":
+                        RunCommand<Commands.Electrical.WireAnnotateBatchCommand>(app); break;
+                    case "Electrical_HomeRunArrow":
+                        RunCommand<Commands.Electrical.HomeRunArrowCommand>(app); break;
+                    case "Electrical_ClearWireAnnotations":
+                        RunCommand<Commands.Electrical.ClearWireAnnotationsCommand>(app); break;
 
                     // ── v4 Phase D: hanger placement ──
                     case "Routing_PlaceHangers": RunCommand<Commands.Routing.PlaceHangersCommand>(app); break;
@@ -763,8 +777,10 @@ namespace StingTools.UI
                     case "GridAlignViewports": RunCommand<Docs.GridAlignViewportsCommand>(app); break;
                     case "AlignViewportEdges": RunCommand<Docs.AlignViewportEdgesCommand>(app); break;
                     case "DistributeViewports": RunCommand<Docs.DistributeViewportsCommand>(app); break;
-                    case "BatchPrintSheets": RunCommand<Docs.BatchPrintSheetsCommand>(app); break;
+                    case "BatchPrintSheets": RunCommand<Docs.ExportCenterPdfCommand>(app); break; // redirects to Export Centre (PDF preset)
                     case "ExportSheetRegister": RunCommand<Docs.ExportSheetRegisterCommand>(app); break;
+                    case "ExportCenter": RunCommand<Docs.ExportCenterCommand>(app); break;
+                    case "ExportCenterPDF": RunCommand<Docs.ExportCenterPdfCommand>(app); break;
 
                     // ── Sheet Manager Live Operations (modeless dialog dispatch) ──
                     case "SM_PlaceViewOnSheet":
@@ -3527,6 +3543,25 @@ namespace StingTools.UI
                     }
                 }
                 catch (Exception ex) { StingLog.Warn($"SM refresh dispatch failed: {ex.Message}"); }
+            }
+        }
+
+        // ── Fabrication workspace launcher ────────────────────────────
+
+        private static void OpenFabWorkspace(UIApplication app, StingTools.Commands.Fabrication.FabAction initial)
+        {
+            try
+            {
+                var uidoc = app?.ActiveUIDocument;
+                if (uidoc?.Document == null) { TaskDialog.Show("STING v4", "Open a project first."); return; }
+                var dlg = new UI.FabricationWorkspaceDialog(uidoc.Document);
+                try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch { }
+                dlg.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("OpenFabWorkspace failed", ex);
+                TaskDialog.Show("STING v4 — Fabrication", $"Workspace failed to open:\n{ex.Message}");
             }
         }
 
@@ -8039,6 +8074,16 @@ namespace StingTools.UI
         {
             StingLog.Info("View snapshot captured for issue");
             SetExtraParam("IssueSnapshot", "captured");
+        }
+
+        private static void ExportTimeline4DPng(UIApplication app)
+        {
+            // Push result to BCC inline panel; file export via SchedulingCostDashboard
+            BIMCoordinationCenter.CurrentInstance?.Show4DInlineResult("Export Timeline PNG",
+                "Timeline image export: open the 4D Timeline view, then use\n" +
+                "File → Export → Image to save as PNG.\n\n" +
+                "Automated PNG render will be available in a future phase.");
+            StingLog.Info("ExportTimeline4DPNG dispatched");
         }
 
         private static void ImportTeamFromCsv(UIApplication app)

@@ -235,29 +235,10 @@ namespace StingTools.BIMManager
             ["VOID"]        = "Issue withdrawn or superseded"
         };
 
-        // ── Issue Types (BCF-compatible + ISO 19650 / NEC / JCT standard forms) ──
-        internal static readonly Dictionary<string, string> IssueTypes = new Dictionary<string, string>
-        {
-            ["RFI"]      = "Request for Information",
-            ["RFA"]      = "Request for Approval",
-            ["TQ"]       = "Technical Query",
-            ["CLASH"]    = "Coordination Clash",
-            ["DESIGN"]   = "Design Issue/Query",
-            ["SITE"]     = "Site Observation",
-            ["SI"]       = "Site Instruction",
-            ["NCR"]      = "Non-Conformance Report",
-            ["SNAGGING"] = "Snagging/Defect",
-            ["CHANGE"]   = "Change Request",
-            ["VO"]       = "Variation Order",
-            ["AI"]       = "Architect's Instruction",
-            ["CVI"]      = "Confirmation of Verbal Instruction",
-            ["EWN"]      = "Early Warning Notice (NEC)",
-            ["CE"]       = "Compensation Event (NEC)",
-            ["PMI"]      = "Proposed Material/Product Instruction",
-            ["RISK"]     = "Risk Item",
-            ["ACTION"]   = "Action Item",
-            ["COMMENT"]  = "General Comment"
-        };
+        // ── Issue Types — derived from BIMCoordinationCenter.IsoIssueTypes (single source of truth) ──
+        internal static readonly Dictionary<string, string> IssueTypes =
+            UI.BIMCoordinationCenter.IsoIssueTypes
+                .ToDictionary(t => t.Code, t => t.Label, StringComparer.OrdinalIgnoreCase);
 
         // ── Issue Priority Levels ──
         internal static readonly Dictionary<string, string> IssuePriorities = new Dictionary<string, string>
@@ -6688,9 +6669,14 @@ namespace StingTools.BIMManager
                 string outputDir;
                 if (!string.IsNullOrEmpty(modelPath))
                 {
-                    string dir = Path.GetDirectoryName(modelPath);
                     string name = Path.GetFileNameWithoutExtension(modelPath);
-                    outputDir = Path.Combine(dir, $"{name}_Briefcase_{DateTime.Now:yyyyMMdd_HHmmss}");
+                    // Folder consolidation: nest the briefcase inside the unified
+                    // project root's 17_BRIEFCASE_<code>/ folder rather than a
+                    // sibling timestamp directory next to the .rvt.
+                    string briefcaseRoot = ProjectFolderEngine.GetFolderPath(doc, "BRIEFCASE");
+                    if (string.IsNullOrEmpty(briefcaseRoot))
+                        briefcaseRoot = Path.GetDirectoryName(modelPath);
+                    outputDir = Path.Combine(briefcaseRoot, $"{name}_Briefcase_{DateTime.Now:yyyyMMdd_HHmmss}");
                 }
                 else
                 {
@@ -10118,7 +10104,7 @@ namespace StingTools.BIMManager
                     ["AssetIdentifier"] = "ASS_ASSET_ID_TXT",
                     ["WarrantyDurationParts"] = "MNT_WARRANTY_YRS_TXT",
                     ["WarrantyGuarantorParts"] = "MNT_WARRANTY_PROVIDER_TXT",
-                    ["InstallationDate"] = "ASS_INSTALL_DATE_TXT",
+                    ["InstallationDate"] = "ASS_INSTALLATION_DATE_TXT",
                     ["WarrantyStartDate"] = "MNT_WARRANTY_START_TXT",
                 };
 

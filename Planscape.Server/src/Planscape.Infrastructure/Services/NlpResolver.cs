@@ -156,7 +156,7 @@ public class NlpResolver : INlpResolver
                 .Where(e => e.ProjectId == projectId && e.GridRef != null &&
                             (e.GridRef == label || e.GridRef == gridRef))
                 .Take(5)
-                .Select(e => new { e.Id, e.Tag, e.FamilyName })
+                .Select(e => new { e.Id, e.Tag1, e.FamilyName })
                 .ToListAsync(ct);
 
             if (hits.Count == 0)
@@ -175,13 +175,13 @@ public class NlpResolver : INlpResolver
                 {
                     result.Add(new NlpCandidate(
                         Kind: NlpCandidateKind.Element,
-                        Label: $"{h.Tag} ({h.FamilyName}) on grid {label}",
+                        Label: $"{h.Tag1} ({h.FamilyName}) on grid {label}",
                         Confidence: 0.82,
                         Strategy: "Grid",
                         Target: new Dictionary<string, string?>
                         {
                             ["elementId"] = h.Id.ToString(),
-                            ["tag"] = h.Tag,
+                            ["tag"] = h.Tag1,
                             ["grid"] = label,
                         }));
                 }

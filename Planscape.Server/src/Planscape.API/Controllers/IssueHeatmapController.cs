@@ -51,7 +51,7 @@ public class IssueHeatmapController : ControllerBase
                      && (status == "any"
                           || (status == "open"     && (i.Status == "OPEN" || i.Status == "IN_PROGRESS"))
                           || (status == "resolved" && (i.Status == "RESOLVED" || i.Status == "CLOSED"))))
-            .Select(i => new { i.ModelX!.Value, i.ModelY!.Value, i.ModelZ!.Value, i.Priority })
+            .Select(i => new { X = i.ModelX!.Value, Y = i.ModelY!.Value, Z = i.ModelZ!.Value, i.Priority })
             .ToListAsync(ct);
 
         const int gx = 16, gy = 16, gz = 8;
@@ -64,9 +64,9 @@ public class IssueHeatmapController : ControllerBase
         var grid = new Dictionary<(int, int, int), (int Count, int Weight)>();
         foreach (var p in pinned)
         {
-            int ix = (int)Math.Clamp((p.Value - bounds.MinX) / sx, 0, gx - 1);
-            int iy = (int)Math.Clamp((p.Value - bounds.MinY) / sy, 0, gy - 1);
-            int iz = (int)Math.Clamp((p.Value - bounds.MinZ) / sz, 0, gz - 1);
+            int ix = (int)Math.Clamp((p.X - bounds.MinX) / sx, 0, gx - 1);
+            int iy = (int)Math.Clamp((p.Y - bounds.MinY) / sy, 0, gy - 1);
+            int iz = (int)Math.Clamp((p.Z - bounds.MinZ) / sz, 0, gz - 1);
             int weight = p.Priority switch
             {
                 "CRITICAL" => 4, "HIGH" => 3, "MEDIUM" => 2, _ => 1

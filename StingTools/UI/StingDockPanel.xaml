@@ -3138,6 +3138,22 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- SPECKLE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="SPECKLE"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#0277BD">
+                            <StackPanel>
+                                <TextBlock Text="Snapshot-based Speckle integration (HTTP push/pull pending SDK v2)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Diff" Tag="SpeckleDiff" Click="Cmd_Click"
+                                            ToolTip="Compare current model to last Speckle snapshot"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Send" Tag="SpeckleSend" Click="Cmd_Click"
+                                            ToolTip="Export tagged elements to Speckle snapshot"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Receive" Tag="SpeckleReceive" Click="Cmd_Click"
+                                            ToolTip="Load elements from Speckle snapshot"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- REVISION MANAGEMENT -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="REVISION MANAGEMENT"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#C62828">
@@ -4501,6 +4517,18 @@
                                             <Border Style="{StaticResource GroupBorder}">
                                                 <StackPanel>
                                                     <Button Style="{StaticResource ActionBtn}" Content="Live fill calc"        Tag="Mep_FillLiveCalc" Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Recompute conduit + tray fill% from current cable cross section"/>
+                                                    <Button Style="{StaticResource CatBtn}" Content="W-Ann"
+                                                            Tag="Electrical_WireAnnotate" Click="Cmd_Click"
+                                                            ToolTip="Place wire annotation on a picked conduit (BS 7671 format)"/>
+                                                    <Button Style="{StaticResource CatBtn}" Content="W-Batch"
+                                                            Tag="Electrical_WireAnnotateBatch" Click="Cmd_Click"
+                                                            ToolTip="Annotate all conduits in active view with wire specifications"/>
+                                                    <Button Style="{StaticResource CatBtn}" Content="H-Run"
+                                                            Tag="Electrical_HomeRunArrow" Click="Cmd_Click"
+                                                            ToolTip="Place home-run arrow on picked conduit pointing toward panel"/>
+                                                    <Button Style="{StaticResource CatBtn}" Content="W-Clr"
+                                                            Tag="Electrical_ClearWireAnnotations" Click="Cmd_Click"
+                                                            ToolTip="Remove all STING wire annotations from active view"/>
                                                     <Button Style="{StaticResource ActionBtn}" Content="System naming audit"    Tag="Mep_NamingAudit"  Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Audit MEP system names against CIBSE / BSRIA / Uniclass 2015 prefix set"/>
                                                 </StackPanel>
                                             </Border>

@@ -173,14 +173,14 @@ namespace StingTools.UI
         private static readonly List<string> CobieParams = new()
         {
             ParamRegistry.TAG1, "ASS_DESCRIPTION_TXT", "ASS_MANUFACTURER_TXT",
-            "ASS_MODEL_TXT", "ASS_SERIAL_NO_TXT", "ASS_INSTALL_DATE_TXT",
+            "ASS_MODEL_TXT", "ASS_SERIAL_NO_TXT", "ASS_INSTALLATION_DATE_TXT",
             "COM_WARRANTY_START_TXT", "ASS_WARRANTY_DUR_TXT", "ASS_BARCODE_TXT",
             "MNT_INTERVAL_TXT", "MNT_RESPONSIBILITY_TXT", "MNT_TASK_TXT"
         };
 
         private static readonly List<string> LifecycleParams = new()
         {
-            ParamRegistry.STATUS, ParamRegistry.REV, "ASS_INSTALL_DATE_TXT",
+            ParamRegistry.STATUS, ParamRegistry.REV, "ASS_INSTALLATION_DATE_TXT",
             "ASS_COMMISSION_DATE_TXT", "MNT_CONDITION_TXT", "MNT_NEXT_SERVICE_TXT",
             "ASS_EXPECTED_LIFE_TXT", "ASS_REPLACEMENT_COST_TXT"
         };

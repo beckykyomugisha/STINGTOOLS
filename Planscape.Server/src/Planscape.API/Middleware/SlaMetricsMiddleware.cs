@@ -9,6 +9,12 @@ namespace Planscape.API.Middleware;
 ///
 /// Bucket keys:
 ///   sla:1h:total · sla:1h:5xx · sla:6h:total · sla:6h:5xx
+///
+/// TODO-SEC: SEC-EA-05 — these Redis keys are intentionally NOT
+///   tenant-scoped. They aggregate cluster-wide error rates so
+///   SlaBurnRateJob can alert the founder tenant on platform-level
+///   SLO breaches. Tenant-scoping these keys would defeat the
+///   purpose. Verified intentional 2026-05.
 /// </summary>
 public class SlaMetricsMiddleware
 {

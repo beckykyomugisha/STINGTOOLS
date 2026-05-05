@@ -50,6 +50,7 @@ namespace StingTools.Core.Placement
 
         private readonly Document _doc;
         private LightingGridCalculator _lightingGrid;
+        private LinkedModelClearance _linkedClearance;
 
         /// <summary>
         /// Per-room cache of ceiling obstruction AABBs. Built once on
@@ -381,6 +382,21 @@ namespace StingTools.Core.Placement
                     c.CollisionScore = 0;
                     c.CollisionFlags |= (int)PlacementCollisionFlags.InsideWall;
                 }
+            }
+
+            // Phase 139 G — LinkedModelClearance: query linked
+            // RevitLinkInstances for obstructions within
+            // ObstructionClearanceMm.  When clearance is breached, halve
+            // the collision score (penalty) but don't reject outright.
+            if (rule.ObstructionClearanceMm > 0 && c.CollisionScore > 0)
+            {
+                try
+                {
+                    if (_linkedClearance == null) _linkedClearance = new LinkedModelClearance(_doc);
+                    if (_linkedClearance.HasObstructionWithin(anchor, rule.ObstructionClearanceMm))
+                        c.CollisionScore *= 0.5;
+                }
+                catch (Exception ex) { StingLog.Warn($"PlacementScorer.LinkedClearance: {ex.Message}"); }
             }
 
             // Symmetry / aesthetic: small bonus for being near an

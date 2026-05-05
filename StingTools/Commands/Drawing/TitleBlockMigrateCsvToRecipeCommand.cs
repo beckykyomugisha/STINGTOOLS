@@ -154,7 +154,7 @@ namespace StingTools.Commands.Drawing
         {
             var rows = new List<List<string>>();
             foreach (var line in File.ReadAllLines(path))
-                rows.Add(StingToolsApp.ParseCsvLine(line));
+                rows.Add(new List<string>(StingToolsApp.ParseCsvLine(line)));
             return rows;
         }
     }

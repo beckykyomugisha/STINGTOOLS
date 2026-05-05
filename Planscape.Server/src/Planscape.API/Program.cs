@@ -2,6 +2,7 @@ using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.SignalR;
 using Planscape.API.Middleware;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
@@ -11,6 +12,7 @@ using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.Elasticsearch;
 using Hangfire;
+using Hangfire.PostgreSql;
 using Prometheus;
 using StackExchange.Redis;
 
@@ -97,12 +99,33 @@ if (!string.IsNullOrWhiteSpace(jwtPrevKey))
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        // SEC-EA-01 — Algorithm whitelist + RequireSignedTokens.
+        //
+        // Two attacks this defeats:
+        //   1. "alg: none" — attacker submits an unsigned token; pre-2015
+        //      JWT libraries would honour it. RequireSignedTokens=true and
+        //      explicit ValidAlgorithms make this impossible to reach.
+        //   2. Algorithm confusion (RS↔HS) — attacker signs an HS256 token
+        //      using the public key as the HMAC secret and submits it; a
+        //      lazy validator that auto-detects the alg accepts it. The
+        //      whitelist below restricts the validator to only the alg we
+        //      actually issue.
+        //
+        // TODO-SEC: Production should migrate signing to RSA (RS256) with
+        //   an asymmetric key pair so the public key can be rotated without
+        //   re-issuing the secret to every plugin/mobile client. Until that
+        //   migration ships, ValidAlgorithms is pinned to HS256 — the alg
+        //   AuthController.GenerateJwt currently emits. After RS256
+        //   migration, replace HmacSha256 below with RsaSha256.
+        options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
+            RequireSignedTokens = true,
+            ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 },
             ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "Planscape",
             ValidAudience = builder.Configuration["Jwt:Audience"] ?? "Planscape.Client",
             // IssuerSigningKeys (plural) lets us validate tokens signed with
@@ -128,6 +151,32 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             // BimManagerOrAdmin policy handler.
             OnTokenValidated = async context =>
             {
+                // SEC-EA-02 — per-token JTI revocation check. /api/auth/logout
+                // writes "revoked:{jti}" into Redis with a TTL that matches
+                // the token's remaining lifetime; if it's there, refuse.
+                var jtiClaim = context.Principal?.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Jti)?.Value
+                            ?? context.Principal?.FindFirst("jti")?.Value;
+                if (!string.IsNullOrEmpty(jtiClaim))
+                {
+                    try
+                    {
+                        var redis = context.HttpContext.RequestServices
+                            .GetRequiredService<StackExchange.Redis.IConnectionMultiplexer>();
+                        var revoked = await redis.GetDatabase().KeyExistsAsync($"revoked:{jtiClaim}");
+                        if (revoked)
+                        {
+                            context.Fail("Token has been revoked");
+                            return;
+                        }
+                    }
+                    catch
+                    {
+                        // Fail-open on Redis outage rather than locking every
+                        // user out of the platform; the iat-floor below still
+                        // applies and SEC-EA-09 (account lockout) caps abuse.
+                    }
+                }
+
                 var sub = context.Principal?.FindFirst("user_id")?.Value
                        ?? context.Principal?.FindFirst("sub")?.Value
                        ?? context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -180,14 +229,18 @@ builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationH
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<Planscape.Core.Interfaces.ITenantContext, Planscape.Infrastructure.Services.TenantContext>();
 // STORAGE-01 — Storage:Provider = "S3" | "Local" (default). S3 covers AWS, MinIO, R2, Spaces.
+// Scoped (not singleton) because both implementations inject the scoped
+// ITenantContext for per-request tenant isolation. A singleton would fail
+// service-validation with 'Cannot consume scoped service ITenantContext
+// from singleton IFileStorageService'.
 var storageProvider = builder.Configuration["Storage:Provider"];
 if (string.Equals(storageProvider, "S3", StringComparison.OrdinalIgnoreCase))
 {
-    builder.Services.AddSingleton<Planscape.Core.Interfaces.IFileStorageService, Planscape.Infrastructure.Storage.S3FileStorageService>();
+    builder.Services.AddScoped<Planscape.Core.Interfaces.IFileStorageService, Planscape.Infrastructure.Storage.S3FileStorageService>();
 }
 else
 {
-    builder.Services.AddSingleton<Planscape.Core.Interfaces.IFileStorageService, Planscape.Infrastructure.Storage.LocalFileStorageService>();
+    builder.Services.AddScoped<Planscape.Core.Interfaces.IFileStorageService, Planscape.Infrastructure.Storage.LocalFileStorageService>();
 }
 // Phase 150 — platform-wide deliverable state-machine keyword
 // extensions. Bound from `DeliverableStateMachine:Keywords` in
@@ -417,29 +470,61 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // ── Rate Limiting ──
-// auth: 10 req/min per IP (prevents brute-force)
-// api:  tier-based — configured per user after auth; global fallback 120 req/min
+// auth: 5 attempts / 5 min per IP (SEC-EA-06 — credential stuffing defence)
+// api:  100 req / 60s per authenticated user (SEC-EA-06 baseline; tier
+//       policies below extend this for paying customers)
+//
+// SEC-EA-06: when these thresholds change, update the "Retry-After"
+// behaviour expectations in the mobile retry helper.
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    // Emit a Retry-After header alongside the 429 so clients can honour it.
+    options.OnRejected = async (ctx, ct) =>
+    {
+        if (ctx.Lease.TryGetMetadata(System.Threading.RateLimiting.MetadataName.RetryAfter, out var retryAfter))
+        {
+            ctx.HttpContext.Response.Headers["Retry-After"] =
+                ((int)retryAfter.TotalSeconds).ToString(System.Globalization.NumberFormatInfo.InvariantInfo);
+        }
+        ctx.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        ctx.HttpContext.Response.ContentType = "application/json";
+        await ctx.HttpContext.Response.WriteAsync("{\"error\":\"rate_limit_exceeded\"}", ct);
+    };
 
-    // Fixed-window for auth endpoints — 10 requests per minute per IP
+    // SEC-EA-06 — auth endpoints. 5 attempts per 5 minutes per IP defeats
+    // credential stuffing while still allowing a careful human typist
+    // who fat-fingers their password a few times. Queue = 0 so 6th
+    // attempt rejects immediately rather than parking.
     options.AddFixedWindowLimiter("auth", o =>
     {
-        o.PermitLimit         = 10;
-        o.Window              = TimeSpan.FromMinutes(1);
+        o.PermitLimit         = 5;
+        o.Window              = TimeSpan.FromMinutes(5);
         o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
         o.QueueLimit          = 0;
+        o.AutoReplenishment   = true;
     });
 
-    // Sliding-window for API endpoints — 120 requests per minute per IP (global fallback)
-    options.AddSlidingWindowLimiter("api", o =>
+    // SEC-EA-06 — API baseline. Partition by user_id (sub) when
+    // authenticated so a shared NAT IP doesn't punish concurrent users;
+    // IP fallback for anonymous public endpoints.
+    options.AddPolicy("api", context =>
     {
-        o.PermitLimit         = 120;
-        o.Window              = TimeSpan.FromMinutes(1);
-        o.SegmentsPerWindow   = 6;  // 10-second buckets
-        o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        o.QueueLimit          = 0;
+        var sub = context.User?.FindFirst("sub")?.Value
+                  ?? context.User?.FindFirst("user_id")?.Value;
+        var partitionKey = !string.IsNullOrWhiteSpace(sub)
+            ? $"user:{sub}"
+            : $"ip:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey,
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 100,
+                Window = TimeSpan.FromSeconds(60),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 10,
+                AutoReplenishment = true,
+            });
     });
 
     // Tag sync: 30 req/min per IP (large payloads — be conservative)
@@ -589,6 +674,11 @@ app.UseHttpsRedirection();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
+// SEC-EA-07 — security response headers (HSTS / nosniff / frame-deny /
+// CSP / Referrer-Policy / Permissions-Policy). Inserted early so even
+// short-circuit responses from the rate limiter or auth middleware
+// still carry the hardening headers. /health endpoints are skipped.
+app.UseSecurityHeaders();
 app.UseSerilogRequestLogging();
 // MON-02: request/response metrics (latency histogram, status codes, in-flight).
 // Exposed at /metrics in Prometheus exposition format. Scrape once per 15-30s.
@@ -745,29 +835,65 @@ app.MapPost("/api/diagnostics/crash", async (HttpContext ctx, Microsoft.Extensio
     return Results.Accepted();
 }).RequireRateLimiting("mobile");
 
-app.MapControllers();
+// SEC-EA-06 — apply the "api" baseline limit to every controller. Per-
+// endpoint [EnableRateLimiting("auth"|"mobile"|"tagsync"|...)] attributes
+// override this default, so paying tiers still get their tier-aware
+// budget while bare endpoints get the 100/60s baseline.
+app.MapControllers().RequireRateLimiting("api");
 app.MapHub<ComplianceHub>("/hubs/compliance");
 app.MapHub<TagSyncHub>("/hubs/tagsync");
 app.MapHub<NotificationHub>("/hubs/notifications");
 // S6.3 — CRDT relay for collaborative pin / issue editing.
 app.MapHub<Planscape.Infrastructure.SignalR.CrdtHub>("/hubs/crdt");
 
-// ── Database migration + seed ──
+// ── Database schema + seed ──
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
-    if (app.Environment.IsDevelopment())
+
+    // The hand-authored migrations under Planscape.Infrastructure/Data/Migrations/
+    // are missing their .Designer.cs companions and the model snapshot is stale,
+    // so Migrate() cannot apply them in order. For dev / local docker stacks we
+    // materialise the schema directly from OnModelCreating which always matches
+    // the current entity classes. Production deployments should regenerate the
+    // migration set with `dotnet ef migrations` once the model is stable.
+    var useEnsureCreated = app.Environment.IsDevelopment()
+        || string.Equals(
+            Environment.GetEnvironmentVariable("PLANSCAPE_USE_ENSURE_CREATED"),
+            "true", StringComparison.OrdinalIgnoreCase);
+
+    if (useEnsureCreated)
     {
-        // In development, auto-migrate (apply pending migrations or create DB)
-        db.Database.Migrate();
-        await Planscape.API.SeedData.SeedAsync(db, app.Environment);
+        // EnsureCreated() short-circuits if the *database* exists, and the
+        // built-in HasTables() returns true even for non-app tables like
+        // Hangfire's job-store schema or __EFMigrationsHistory left over
+        // from earlier attempts. Probe specifically for the Tenants table
+        // (the first row created by SeedData) and materialise the full
+        // schema from OnModelCreating only when it's missing.
+        var conn = db.Database.GetDbConnection();
+        if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync();
+        bool hasAppSchema;
+        await using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = "SELECT EXISTS (SELECT 1 FROM information_schema.tables "
+                            + "WHERE table_schema = 'public' AND table_name = 'Tenants')";
+            hasAppSchema = (bool)(await cmd.ExecuteScalarAsync() ?? false);
+        }
+        if (!hasAppSchema)
+        {
+            var creator = (Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreator)
+                db.Database.GetService<Microsoft.EntityFrameworkCore.Storage.IDatabaseCreator>();
+            creator.CreateTables();
+        }
     }
     else
     {
-        // In production, only apply pending migrations — no seed data.
-        // SeedData itself refuses to run in Production unless
-        // PLANSCAPE_ALLOW_DEMO_SEED=true is set.
         db.Database.Migrate();
+    }
+
+    if (app.Environment.IsDevelopment())
+    {
+        await Planscape.API.SeedData.SeedAsync(db, app.Environment);
     }
 }
 

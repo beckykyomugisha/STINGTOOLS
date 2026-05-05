@@ -8,10 +8,34 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **215 source files** (212 C# + 3 XAML, ~254,000 lines of code) across 13 directories
-- **763+ `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
-- **72 runtime / embedded data files** (CSV, JSON, TXT, XLSX, PY, MD, DOCX) — includes the template engine v1.1 pack (16 templates + 5 workflow definitions + `manifest.json`)
+> Last refreshed after Phase 174 — full unmerged-branch consolidation
+> (75 feature branches merged into the working tree, conflicts resolved
+> with `--ours` against the Phase 168–173 baseline).
+
+- **Repository total**: 1,421 tracked files · 737,171 lines · 44 MB working tree (216 MB including `.git`)
+- **Plugin assembly** `StingTools/`: 581 source files (576 C# + 4 XAML + 1 .csproj-adjacent), 370,758 lines across 17 sub-directories
+- **C# across the whole solution** (plugin + server + tests + tooling): 935 `.cs` files, 435,298 lines
+- **Server backend** `Planscape.Server/`: 280 C# files, 38,581 lines (ASP.NET Core 8 + EF Core + SignalR + Hangfire)
+- **Mobile app** `Planscape/`: 93 TS/TSX files, 17,019 lines (React Native + Expo SDK 52)
+- **Documentation**: 68 `.md` files, 40,261 lines (CLAUDE.md + docs/CHANGELOG.md + docs/ROADMAP.md + per-feature guides under `docs/`, `Planscape.Server/docs/`, `Planscape/docs/`)
+- **`IExternalCommand` classes**: 1,106 (up from 763+) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
+- **Runtime / embedded data files** under `StingTools/Data/`: 128 (CSV, JSON, TXT, XLSX, PY, MD, DOCX) — includes the template engine v1.1 pack (16 templates + 5 workflow definitions + `manifest.json`)
 - **WPF dockable panel** (9 tabs, primary UI) + 1 BIM Coordination Center (13 tabs) + 1 Material Manager (7 tabs) + 1 Document Management Center (8 tabs) + ribbon retained for legacy compat
+- **Top-level workspace** ships 15 directories: `StingTools/` · `Planscape/` · `Planscape.Server/` · `StingBIM.Server/` · `StingTools.Clash.Tests/` · `StingTools.Dynamo/` · `StingTools.Headless/` · `StingTools.Standards/` · `Tests/` · `Families/` · `CompiledPlugin/` · `docs/` · `docs-site/` · `marketing-site/` · `tools/`
+
+### Phase 174 — Branch consolidation
+
+This branch (`claude/merge-branches-update-docs-SvA31`) absorbs every
+outstanding `claude/*` feature branch that had unique commits not yet in
+HEAD. Seventy-five branches were merged in a single pass, ranging from
+single-commit fix branches up to the 1,148-commit
+`document-missing-parameters-9tTAr` history. Conflict policy was
+`-X ours` (keep the Phase 168–173 baseline, take new files from the
+incoming branch); for `modify/delete` and `rename/delete` collisions the
+HEAD copy was kept. Sixty-four branches fast-forwarded or auto-merged
+cleanly; eleven required `ours` conflict resolution. After consolidation
+`git branch -r --no-merged HEAD` reports zero remote branches with
+unique commits not in HEAD. Verify in Revit before merging to `main`.
 
 ## Documentation Map
 
@@ -447,6 +471,64 @@ a default `manifest.json` seeded from `ProjectInformation` and
    per the runner PDF. `PRJ_ORG_SIGNATURE_PROVIDER_TXT` and
    `PRJ_ORG_AI_EXTRACT_ENABLED_BOOL` are already defined so enabling
    them is additive only.
+
+## v4 MVP
+
+**Status**: Phase 1 (parameters) → Phase 5 (fabrication) implemented across ~50 commits on branch `claude/sting-tools-v4-mvp-SiPGw`. Code committed without `dotnet build` verification (Linux sandbox, no .NET / Revit API). Verify in Revit before merge.
+
+### New folders
+
+| Path | Purpose |
+|---|---|
+| `StingTools/Core/Placement/` | Fixture placement engine (rule + scorer + candidate + lighting grid) |
+| `StingTools/Core/Routing/` | Auto-drop engines (DropEngineBase + AutoConduitDrop / AutoPipeDrop / AutoDuctDrop) |
+| `StingTools/Core/Validation/` | Five v4 validators (connectivity / fill / spec / termination / slope) + ValidationResult record |
+| `StingTools/Core/Fabrication/` | Fabrication coordinator + AssemblyGrouper + AssemblyBuilder + AssemblyViewBuilder + ShopDrawingComposer + IsoSymbolPlacer + per-discipline subfolders (Electrical / Pipe / Duct) |
+| `StingTools/Commands/Placement/` | PlaceFixturesCommand, LightingGridCommand, LearnPlacementV4Command |
+| `StingTools/Commands/Routing/` | AutoDropCommand, GenerateLayoutCommand, ValidateFillsCommand |
+| `StingTools/Commands/Validation/` | RunAllValidatorsCommand |
+| `StingTools/Commands/Fabrication/` | GenerateFabPackageCommand, ExportCutListCommand, ExportIsometricsCommand, ExportWeldMapCommand |
+| `StingTools/Data/Placement/` | STING_PLACEMENT_RULES.json (43 rules) |
+| `StingTools/Data/Fabrication/` | STING_FAB_RULES.json (6 disciplines), STING_ISO_SYMBOLS_INDEX.csv (180+ symbols) |
+| `StingTools/Data/Parameters/` | STING_PARAMS_V4.txt shared-parameter fragment |
+| `Families/AssemblyTitleBlocks/` | 8 title block parameter spec stubs + README |
+
+### New namespaces
+
+`StingTools.Core.Placement`, `StingTools.Core.Routing`, `StingTools.Core.Validation`, `StingTools.Core.Fabrication`, `StingTools.Core.Fabrication.Electrical`, `StingTools.Core.Fabrication.Pipe`, `StingTools.Core.Fabrication.Duct`, `StingTools.Commands.Placement`, `StingTools.Commands.Routing`, `StingTools.Commands.Validation`, `StingTools.Commands.Fabrication`.
+
+### New commands (12)
+
+| Command tag | Class | Tab |
+|---|---|---|
+| `Placement_PlaceFixtures` | `PlaceFixturesCommand` | Fixtures |
+| `Placement_LightingGrid` | `LightingGridCommand` | Fixtures |
+| `Placement_Learn` | `LearnPlacementV4Command` | Fixtures |
+| `Routing_AutoDrop` | `AutoDropCommand` | Routing |
+| `Routing_GenerateLayout` | `GenerateLayoutCommand` | Routing |
+| `Routing_ValidateFills` | `ValidateFillsCommand` | Routing |
+| `Validation_RunAll` | `RunAllValidatorsCommand` | (called from Routing) |
+| `Fabrication_GeneratePackage` | `GenerateFabPackageCommand` | Fabrication |
+| `Fabrication_ExportCutList` | `ExportCutListCommand` | Fabrication |
+| `Fabrication_ExportIsometrics` | `ExportIsometricsCommand` | Fabrication |
+| `Fabrication_ExportWeldMap` | `ExportWeldMapCommand` | Fabrication |
+| `Fabrication_PlaceISOSymbols` | inline TaskDialog (placement runs in GeneratePackage) | Fabrication |
+
+### New tags Studio sub-tabs (3)
+
+`Fabrication`, `Routing`, `Fixtures` — added to `tagStudioTabs` inside the existing TAGS top-tab. Each follows the proven DockPanel + pinned WrapPanel + ScrollViewer pattern.
+
+### New parameter count
+
+- **6 net-new shared parameters** (S1.1 + S1.2): PLACE_ANCHOR / PLACE_OFFSET_X_MM / PLACE_SIDE / CPC_SZ_MM / PPE_INSULATION_THK_MM / PLM_SLOPE_PCT_V4
+- **46 fabrication / LPS / pricing constants** (S1.3) in `StingTools.Core.Fabrication.{AssyParams,LpsParams,CostParams}` with placeholder `v4-YYYY-xxxx` GUIDs awaiting family library authoring.
+- **Total**: 52 new constants. The 6 net-new ones use stable GUIDs; the 46 placeholders need real GUIDs assigned during family-library authoring.
+
+### Caveats
+
+1. Built without `dotnet build` verification — every Revit API call uses the documented signature but has not been compile-checked. `// TODO-VERIFY-API` comments mark the most uncertain spots (`AssemblyInstance.Create` category arg, `Conduit.Create` / `Pipe.Create` / `Duct.Create` overloads, ISO 6412 axonometric section transform).
+2. The 8 title block `.rfa` families are NOT shipped — only their parameter specs. `ShopDrawingComposer.ResolveTitleBlock` falls back to the first available title block in the project.
+3. ISO 6412 detail families (180 entries) are referenced by name in `STING_ISO_SYMBOLS_INDEX.csv`; `IsoSymbolPlacer` lazy-loads from `Families/ISO6412/` and warns once per missing family.
 
 ## Technology Stack
 

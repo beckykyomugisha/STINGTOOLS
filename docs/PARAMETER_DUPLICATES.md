@@ -60,3 +60,51 @@ Document these to prevent accidental consolidation in future merges.
 4. Run the tag-family audit (`grep -P '^PARAM\t[^\t]+\tDEPRECATED_NAME\t' StingTools/Data/MR_PARAMETERS.txt` should return empty).
 5. Bump the schema version comment in affected CSVs.
 6. Document the change in CLAUDE.md.
+
+---
+
+## D. PARAMETER_REGISTRY.json duplicate audit (Phase 168)
+
+A walk over `PARAMETER_REGISTRY.json` for every `param_name` field showed three categories of repeated names. Counts were taken on 2026-05-02.
+
+### D.1 Cross-reference (not a real duplicate) — 27 cases
+
+Pattern: a param defined once in `source_tokens` / `support_params` / `container_groups[].params` / `extended_params.<facet>[]` and then referenced by name (no `guid` field) in `ifc_property_mapping.mappings[]` or another facet to attach IFC pset/property metadata. These are intentional — the second occurrence carries no GUID and is just attaching extra metadata.
+
+**Action:** none. Leave as-is.
+
+### D.2 Same-GUID duplicates inside `extended_params` — handful of cases
+
+Pattern: `support_params[N]` defines a param fully, and `extended_params.slv_sleeve[]` (or similar facet array) re-lists the same param with the same GUID. The second occurrence groups the param under a categorisation key (e.g. for the facet drop-down in the editor).
+
+**Action:** none. Same GUID means there is no functional collision; the second occurrence serves as a categorisation index. Removing it would lose the categorisation without saving anything functionally meaningful.
+
+### D.3 `WARN_*` different-GUID collisions — 99 cases — `TODO: GUID_COLLISION_REVIEW`
+
+The registry contains TWO sibling `warning_thresholds` arrays:
+
+- `extended_params.warning_thresholds[]` — added when warnings were grouped under `extended_params`
+- top-level `warning_thresholds[]` — the original location
+
+For 99 of the entries, **both arrays have a row with the same `param_name` but different GUIDs.** This is a real collision: each row would create a separate Revit shared parameter with the same display name, which is illegal at the project level. Examples:
+
+| param_name | extended_params guid | top-level guid |
+|---|---|---|
+| `WARN_BLE_RAMP_SLOPE_PCT_RAMPS` | `e8750740-…` | `d1d95fa4-…` |
+| `WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI` | `7dd4922a-…` | `b442923a-…` |
+| `WARN_HVC_DCT_SOUNDLVL_DB` | `be2ddf28-…` | `c397432d-…` |
+| `WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS` | `05aac695-…` | `5de3531a-…` |
+| `WARN_STR_TRUSS_SPAN` | `230b7d16-…` | `f81ac5b3-…` |
+
+(The full list is 99 entries — the regex `^WARN_` against the duplicate-name set yields all of them.)
+
+**Why this was not auto-resolved:** the audit instruction was *"Different GUIDs = report this but do NOT auto-fix"*. Choosing one GUID over the other risks invalidating any Revit project that has data stored under the discarded GUID. The "live" GUID can only be confirmed by inspecting an open project that uses the warning system.
+
+**Recommended next step (deferred):**
+
+1. Open a representative project that has had warnings populated.
+2. Read each `WARN_*` parameter via the Revit API; the GUID returned is the live one.
+3. Drop the orphan row from whichever JSON array does not match.
+4. If both arrays match no live GUID, the parameter has never been bound — drop the row from `extended_params.warning_thresholds[]` and keep top-level (top-level is the historic primary).
+
+Until that audit is done, both rows are kept so existing projects continue to resolve the warning regardless of which GUID their data is stored under. Both rows also stay tagged with the same `description` text so the editor UI is consistent.
