@@ -143,7 +143,17 @@
 
   async function render() {
     const main = document.getElementById("main");
-    if (!state.projectId) { main.innerHTML = `<div class="empty">No projects available.</div>`; return; }
+    // Views that don't depend on a selected project: the Overview lists
+    // every project and is also the place where 'New Project' lives, so
+    // it MUST render even when the tenant has no projects yet (otherwise
+    // there's no way to create the first one). The two tenant-admin
+    // views are also project-independent.
+    const viewNeedsProject = !["overview", "tenant-keywords", "tenant-bim-manager-roles"]
+      .includes(state.view);
+    if (viewNeedsProject && !state.projectId) {
+      main.innerHTML = `<div class="empty">No projects available. Open the Overview tab to create one.</div>`;
+      return;
+    }
     main.innerHTML = `<div class="empty">Loading…</div>`;
     try {
       switch (state.view) {

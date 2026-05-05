@@ -885,6 +885,20 @@ app.MapHub<Planscape.Infrastructure.SignalR.CrdtHub>("/hubs/crdt");
                 db.Database.GetService<Microsoft.EntityFrameworkCore.Storage.IDatabaseCreator>();
             creator.CreateTables();
         }
+        else
+        {
+            // The dev DB pre-dates one or more entity additions and the
+            // EnsureCreated path skips OnModelCreating once the schema
+            // exists. Run idempotent 'ADD COLUMN IF NOT EXISTS' patches
+            // for fields the running entity classes expect but older
+            // dev databases lack, so 'POST /api/projects' (and similar)
+            // don't fail with 42703 'column "X" does not exist'.
+            //
+            // Production deployments use Migrate() (the else branch
+            // below) and don't need this; it only runs in dev / when
+            // PLANSCAPE_USE_ENSURE_CREATED=true.
+            await PatchDevSchemaAsync(conn);
+        }
     }
     else
     {
@@ -987,6 +1001,40 @@ using (var scope = app.Services.CreateScope())
 }
 
 await app.RunAsync();
+
+// Idempotent 'ADD COLUMN IF NOT EXISTS' patcher for dev databases that
+// were created on an older entity model. Each entry runs in its own
+// command so a failure on one column does not block the rest. Add new
+// rows here whenever a dev-relevant migration adds nullable columns.
+static async Task PatchDevSchemaAsync(System.Data.Common.DbConnection conn)
+{
+    var patches = new[]
+    {
+        // Phase 169 — project location + cover image + pin flag.
+        "ALTER TABLE \"Projects\" ADD COLUMN IF NOT EXISTS \"Latitude\" double precision",
+        "ALTER TABLE \"Projects\" ADD COLUMN IF NOT EXISTS \"Longitude\" double precision",
+        "ALTER TABLE \"Projects\" ADD COLUMN IF NOT EXISTS \"City\" text",
+        "ALTER TABLE \"Projects\" ADD COLUMN IF NOT EXISTS \"Country\" text",
+        "ALTER TABLE \"Projects\" ADD COLUMN IF NOT EXISTS \"CoverImageUrl\" text",
+        "ALTER TABLE \"Projects\" ADD COLUMN IF NOT EXISTS \"IsPinned\" boolean NOT NULL DEFAULT false",
+    };
+    foreach (var sql in patches)
+    {
+        try
+        {
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = sql;
+            await cmd.ExecuteNonQueryAsync();
+        }
+        catch (Exception ex)
+        {
+            // Don't crash startup over a schema patch — log and continue.
+            // The original column-missing error will still surface on the
+            // request that needs it, which is the correct fallback.
+            Console.WriteLine($"[schema-patch] failed: {sql} — {ex.Message}");
+        }
+    }
+}
 
 // S11 — RFC 1918 + IPv6 unique-local + IPv4-mapped IPv6 helper. Used by
 // the /health full-diagnostic gate to allow callers from the same
