@@ -17,6 +17,7 @@ using Grid = System.Windows.Controls.Grid;
 using TextBox = System.Windows.Controls.TextBox;
 using ComboBox = System.Windows.Controls.ComboBox;
 using CheckBox = System.Windows.Controls.CheckBox;
+using Binding = System.Windows.Data.Binding;
 using Brush = System.Windows.Media.Brush;
 using Brushes = System.Windows.Media.Brushes;
 using HorizontalAlignment = System.Windows.HorizontalAlignment;
@@ -995,7 +996,7 @@ namespace StingTools.UI
             if (_selectGrid != null)
             {
                 var cdeCol = _selectGrid.Columns.LastOrDefault(c => string.Equals(c.Header?.ToString(), "CDE"));
-                if (cdeCol != null) cdeCol.Visibility = _profile.Mode == ExportCenterMode.BIM ? Visibility.Visible : Visibility.Collapsed;
+                if (cdeCol != null) cdeCol.Visibility = _profile.Mode == ExportCenterMode.BIM ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
             }
 
             // Sync format chips

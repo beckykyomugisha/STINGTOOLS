@@ -478,7 +478,7 @@ namespace StingTools.Docs
                     RunPdf(doc, profile, selectedIds, result,
                         (label) => progress?.Invoke(++done, total, label),
                         cancelRequested);
-                    if (cancelRequested != null && cancelRequested()) { result.Cancelled = true; goto Done; }
+                    if (cancelRequested != null && cancelRequested()) { result.Cancelled = true; return result; }
                 }
 
                 // DWG
@@ -487,7 +487,7 @@ namespace StingTools.Docs
                     RunDwg(doc, profile, selectedIds, result,
                         (label) => progress?.Invoke(++done, total, label),
                         cancelRequested);
-                    if (cancelRequested != null && cancelRequested()) { result.Cancelled = true; goto Done; }
+                    if (cancelRequested != null && cancelRequested()) { result.Cancelled = true; return result; }
                 }
 
                 // IFC
@@ -496,14 +496,14 @@ namespace StingTools.Docs
                     RunIfc(doc, profile, selectedIds, result,
                         (label) => progress?.Invoke(++done, total, label),
                         cancelRequested);
-                    if (cancelRequested != null && cancelRequested()) { result.Cancelled = true; goto Done; }
+                    if (cancelRequested != null && cancelRequested()) { result.Cancelled = true; return result; }
                 }
 
                 if ((profile.Formats & ExportFormats.NWC) != 0)
                 {
                     RunNwc(doc, profile, result,
                         (label) => progress?.Invoke(++done, total, label));
-                    if (cancelRequested != null && cancelRequested()) { result.Cancelled = true; goto Done; }
+                    if (cancelRequested != null && cancelRequested()) { result.Cancelled = true; return result; }
                 }
                 if ((profile.Formats & ExportFormats.Image) != 0)
                     RunImage(doc, profile, selectedIds, result,
@@ -525,7 +525,6 @@ namespace StingTools.Docs
             }
             finally
             {
-                Done:
                 result.FinishedUtc = DateTime.UtcNow;
                 if (profile.Output.GenerateReport)
                     WriteReport(profile, result);
@@ -733,12 +732,12 @@ namespace StingTools.Docs
             }
         }
 
-        private static PDFExportQualityType MapRasterQuality(int dpi) => dpi switch
+        private static RasterQualityType MapRasterQuality(int dpi) => dpi switch
         {
-            <= 72  => PDFExportQualityType.DPI72,
-            <= 150 => PDFExportQualityType.DPI150,
-            <= 300 => PDFExportQualityType.DPI300,
-            _      => PDFExportQualityType.DPI600,
+            <= 72  => RasterQualityType.Low,
+            <= 150 => RasterQualityType.Medium,
+            <= 300 => RasterQualityType.High,
+            _      => RasterQualityType.Presentation,
         };
 
         private static ColorDepthType MapColorDepth(string scheme) => scheme switch
@@ -822,7 +821,8 @@ namespace StingTools.Docs
             "AC2013" => ACADVersion.R2013,
             "AC2010" => ACADVersion.R2010,
             "AC2007" => ACADVersion.R2007,
-            "AC2004" => ACADVersion.R2004,
+            // ACADVersion.R2004 removed in Revit 2025 — fall back to oldest supported.
+            "AC2004" => ACADVersion.R2007,
             _        => ACADVersion.Default,
         };
 
@@ -1099,16 +1099,19 @@ namespace StingTools.Docs
                         ResolveNaming(doc, v, profile.Output.NamingTemplate, profile.Output),
                         profile.Output.IllegalCharReplacement);
 
+                    // DWF/DWFX overloads take a ViewSet, not a List<ElementId>.
+                    var viewSet = new ViewSet();
+                    viewSet.Insert(v);
                     bool ok;
                     if (profile.Dwf.DwfX)
                     {
                         var dx = new DWFXExportOptions();
-                        ok = doc.Export(folder, stem, new List<ElementId> { v.Id }, dx);
+                        ok = doc.Export(folder, stem, viewSet, dx);
                     }
                     else
                     {
                         var dw = new DWFExportOptions();
-                        ok = doc.Export(folder, stem, new List<ElementId> { v.Id }, dw);
+                        ok = doc.Export(folder, stem, viewSet, dw);
                     }
 
                     string ext = profile.Dwf.DwfX ? ".dwfx" : ".dwf";
