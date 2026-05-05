@@ -1130,7 +1130,7 @@ public sealed class PlanscapeServerClient : IDisposable
     /// to <c>POST /api/projects/{id}/models</c>. Returns the created model id on
     /// success or an error message on failure.
     /// </summary>
-    public async Task<(bool ok, Guid modelId, string? error)> UploadModelAsync(
+    public async Task<(bool ok, Guid modelId, string? error, bool alreadyExisted)> UploadModelAsync(
         Guid projectId,
         string modelFilePath,
         string? elementMapPath = null,
@@ -1142,8 +1142,8 @@ public sealed class PlanscapeServerClient : IDisposable
         int? elementCount = null,
         double[]? bounds = null)
     {
-        if (!await EnsureAuthenticatedAsync()) return (false, Guid.Empty, LastError);
-        if (!File.Exists(modelFilePath))       return (false, Guid.Empty, $"Model file not found: {modelFilePath}");
+        if (!await EnsureAuthenticatedAsync()) return (false, Guid.Empty, LastError, false);
+        if (!File.Exists(modelFilePath))       return (false, Guid.Empty, $"Model file not found: {modelFilePath}", false);
 
         try
         {
@@ -1193,11 +1193,28 @@ public sealed class PlanscapeServerClient : IDisposable
                 var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
                 if (!resp.IsSuccessStatusCode)
                 {
-                    return (false, Guid.Empty, $"HTTP {(int)resp.StatusCode}: {body}");
+                    // 409 Conflict with body {"error":"duplicate_content","id":"<existing>"}
+                    // means the server SHA-256-dedup'd this upload — same file is already
+                    // published for this project. Treat as soft success and surface the
+                    // existing model id so the user can re-use it.
+                    if (resp.StatusCode == System.Net.HttpStatusCode.Conflict)
+                    {
+                        try
+                        {
+                            var conflict = JObject.Parse(body);
+                            if (string.Equals(conflict["error"]?.Value<string>(), "duplicate_content", StringComparison.Ordinal)
+                                && Guid.TryParse(conflict["id"]?.Value<string>(), out var existingId))
+                            {
+                                return (true, existingId, null, true);
+                            }
+                        }
+                        catch { /* fall through to generic error */ }
+                    }
+                    return (false, Guid.Empty, $"HTTP {(int)resp.StatusCode}: {body}", false);
                 }
                 var json = JObject.Parse(body);
                 var id = json["id"]?.Value<string>() ?? "";
-                return (true, Guid.TryParse(id, out var g) ? g : Guid.Empty, null);
+                return (true, Guid.TryParse(id, out var g) ? g : Guid.Empty, null, false);
             }
             finally
             {
@@ -1210,7 +1227,7 @@ public sealed class PlanscapeServerClient : IDisposable
         {
             LastError = ex.Message;
             StingLog.Error("Planscape: UploadModelAsync failed", ex);
-            return (false, Guid.Empty, ex.Message);
+            return (false, Guid.Empty, ex.Message, false);
         }
     }
 
