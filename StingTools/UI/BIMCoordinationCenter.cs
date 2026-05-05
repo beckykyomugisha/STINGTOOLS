@@ -3651,6 +3651,7 @@ namespace StingTools.UI
                     ("📱 WhatsApp Update",     "PlanscapeWhatsApp", CGreen,                           "Generate WhatsApp-ready text with project summary link"),
                     ("🔗 Generate QR Link",    "PlanscapeQR",       CHeaderBg,                        "Generate QR code linking to the latest exported HTML dashboard"),
                     ("📊 Export HTML Dashboard","PlanscapeHTML",    Color.FromRgb(0x6A, 0x1B, 0x9A), "Export full coordination dashboard as standalone HTML file (shareable, no login needed)"),
+                    ("🧊 Publish 3D Model",    "PublishModelToPlanscape", Color.FromRgb(0xE6, 0x5F, 0x00), "Export the active 3D view to GLB (or pick a file) and publish it + the element-map sidecar to Planscape Models"),
                 };
                 foreach (var (lbl, act, clr, tip) in btns)
                 {
