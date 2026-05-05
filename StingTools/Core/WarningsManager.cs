@@ -4693,6 +4693,40 @@ namespace StingTools.Core
                         catch (Exception ex) { StingLog.Warn($"PlanscapeOpenWebDashboard: {ex.Message}"); }
                         return;
                     }
+
+                    // BCC's "Connect" button on the Planscape Native Collaboration Hub
+                    // dispatches PlanscapeConnect (and its alias tags) here. Previously
+                    // this fell through to DispatchCoordAction which bounced through a
+                    // second ExternalEvent (StingDockPanel.DispatchCommand) — when the
+                    // dock panel handler wasn't initialised, or the second event was
+                    // dropped, the user saw "Action 'PlanscapeConnect' is not handled".
+                    // Run the command inline so it executes in this ExternalEvent's
+                    // own call context with no further indirection.
+                    case "PlanscapeConnect":
+                    case "PlanscapeAddMember":
+                    case "PlanscapeRemoveMember":
+                    case "PlanscapeLinkProject":
+                    case "PlanscapeTestConnection":
+                        RunBccPlanscapeCommand<BIMManager.PlanscapeConnectCommand>(action);
+                        return;
+                    case "PlanscapeSyncNow":
+                    case "PlanscapeOpenBrowser":
+                        RunBccPlanscapeCommand<BIMManager.PlatformSyncCommand>(action);
+                        return;
+                    case "PublishModelToPlanscape":
+                        RunBccPlanscapeCommand<BIMManager.PublishModelCommand>(action);
+                        return;
+                    case "PlanscapeExportTeam":
+                    case "PlanscapeExportConfig":
+                        RunBccPlanscapeCommand<BIMManager.ExportCoordLogCommand>(action);
+                        return;
+                    case "PlanscapeShareReport":
+                        RunBccPlanscapeCommand<BIMManager.GenerateDashboardCommand>(action);
+                        return;
+                    case "PlanscapeQR":
+                    case "PlanscapeQRCode":
+                        RunBccPlanscapeCommand<Tags.QRCodeCommand>(action);
+                        return;
                     case "EscalateActions":
                         EscalateOverdueActions(doc);
                         return;
@@ -4749,6 +4783,32 @@ namespace StingTools.Core
             catch (Exception ex)
             {
                 StingLog.Warn($"ProcessAction({action}): {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Executes an IExternalCommand inline from BCC's ExternalEvent path. Mirrors
+        /// StingCommandHandler.RunCommand: passes a null ExternalCommandData (commands
+        /// fall back to StingCommandHandler.CurrentApp), catches and logs failures.
+        /// Used by ProcessAction for Planscape* tags so they don't have to bounce
+        /// through StingDockPanel.DispatchCommand and risk producing
+        /// "Action 'X' is not handled" toasts when the second ExternalEvent is dropped.
+        /// </summary>
+        private static void RunBccPlanscapeCommand<T>(string action) where T : IExternalCommand, new()
+        {
+            try
+            {
+                var cmd = new T();
+                string msg = "";
+                var els = new ElementSet();
+                cmd.Execute(null, ref msg, els);
+                StingLog.Info($"ProcessAction: ran '{action}' inline → {typeof(T).Name}");
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException) { /* user cancelled */ }
+            catch (Exception ex)
+            {
+                StingLog.Error($"ProcessAction: '{action}' → {typeof(T).Name} failed", ex);
+                TaskDialog.Show("STING", $"Command '{action}' failed:\n{ex.Message}");
             }
         }
 
