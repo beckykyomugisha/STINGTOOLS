@@ -990,6 +990,7 @@ namespace StingTools.UI
             qaRow.Children.Add(MakeToolBtn("Template Compliance", "TemplateComplianceScore", BrGreen, "View template compliance scoring"));
             qaRow.Children.Add(MakeToolBtn("Export CSV", "ExportSheetSet", BrFgSubtle, "Export sheet inventory to CSV"));
             qaRow.Children.Add(MakeToolBtn("Register", "ExportSheetRegister", BrFgSubtle, "Export comprehensive sheet register"));
+            qaRow.Children.Add(MakeToolBtn("Export Center", "UnifiedExport", BrAccent, "Open the STING Export Center (multi-format export with column mapping)"));
             qaRow.Children.Add(MakeToolBtn("Batch PDF", "BatchPrintSheets", BrRed, "Export sheets to PDF (all/discipline/selected)"));
             qaRow.Children.Add(MakeToolBtn("Save Template", "SaveSheetTemplate", BrFgSubtle, "Save current sheet as reusable template"));
             qaRow.Children.Add(MakeToolBtn("Drawing Register", "DocsDrawingRegister", BrBlue, "ISO 19650 drawing register with CDE tracking"));

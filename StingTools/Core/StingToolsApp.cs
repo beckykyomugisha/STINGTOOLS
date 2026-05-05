@@ -1527,20 +1527,31 @@ namespace StingTools.Core
         {
             string asm = AssemblyPath;
 
+            // 15 buttons laid out as 5 vertical stacks of 3 small buttons.
+            // Tag Center is first (primary entry point for tagging workflows).
             var specs = new (string tag, string label, string letters, DrawingColor color, string cls)[]
             {
-                ("BIMCoordCenter_Open",  "Coord Center",  "CC", DrawingColor.SteelBlue,    typeof(HubBIMCoordCenterCommand).FullName),
-                ("SheetManager_Open",    "Sheet Manager", "SM", DrawingColor.Teal,         typeof(HubSheetManagerCommand).FullName),
-                ("DrawingTypes_Edit",    "Drawing Types", "DT", DrawingColor.MediumPurple, typeof(HubDrawingTypesCommand).FullName),
-                ("DocumentMgmt_Open",    "Doc Manager",   "DM", DrawingColor.DarkOrange,   typeof(HubDocumentMgmtCommand).FullName),
-                ("BOQ_ExportCost",       "BOQ / Cost",    "BQ", DrawingColor.SeaGreen,     typeof(HubBoqExportCostCommand).FullName),
-                ("Fabrication_Open",     "Fabrication",   "FW", DrawingColor.Firebrick,    typeof(HubFabricationCommand).FullName),
-                ("Placement_Open",       "Placement",     "PC", DrawingColor.Goldenrod,    typeof(HubPlacementCommand).FullName),
-                ("StructuralDWGWizard",  "Struct Wizard", "SW", DrawingColor.SlateGray,    typeof(HubStructuralDwgWizardCommand).FullName),
-                ("Scheduling_Dashboard", "Scheduling",    "SD", DrawingColor.MidnightBlue, typeof(HubSchedulingDashboardCommand).FullName),
+                ("TagCenter_Open",       "Tag Center",    "TC", DrawingColor.DarkSlateBlue, typeof(HubTagCenterCommand).FullName),
+                ("ExportCenter_Open",    "Export Center", "EC", DrawingColor.DarkCyan,      typeof(HubExportCenterCommand).FullName),
+                ("DocWizard_Open",       "Doc Wizard",    "DW", DrawingColor.Chocolate,     typeof(HubDocWizardCommand).FullName),
+
+                ("BIMCoordCenter_Open",  "Coord Center",  "CC", DrawingColor.SteelBlue,     typeof(HubBIMCoordCenterCommand).FullName),
+                ("SheetManager_Open",    "Sheet Manager", "SM", DrawingColor.Teal,          typeof(HubSheetManagerCommand).FullName),
+                ("DrawingTypes_Edit",    "Drawing Types", "DT", DrawingColor.MediumPurple,  typeof(HubDrawingTypesCommand).FullName),
+
+                ("DocumentMgmt_Open",    "Doc Manager",   "DM", DrawingColor.DarkOrange,    typeof(HubDocumentMgmtCommand).FullName),
+                ("BOQ_ExportCost",       "BOQ / Cost",    "BQ", DrawingColor.SeaGreen,      typeof(HubBoqExportCostCommand).FullName),
+                ("Numbering_Open",       "Numbering",     "NM", DrawingColor.DarkOliveGreen,typeof(HubNumberingCommand).FullName),
+
+                ("BatchRename_Open",     "Batch Rename",  "BR", DrawingColor.SaddleBrown,   typeof(HubBatchRenameCommand).FullName),
+                ("Fabrication_Open",     "Fabrication",   "FW", DrawingColor.Firebrick,     typeof(HubFabricationCommand).FullName),
+                ("Placement_Open",       "Placement",     "PC", DrawingColor.Goldenrod,     typeof(HubPlacementCommand).FullName),
+
+                ("StructuralDWGWizard",  "Struct Wizard", "SW", DrawingColor.SlateGray,     typeof(HubStructuralDwgWizardCommand).FullName),
+                ("Scheduling_Dashboard", "Scheduling",    "SD", DrawingColor.MidnightBlue,  typeof(HubSchedulingDashboardCommand).FullName),
             };
 
-            var buttons = new List<PushButtonData>(9);
+            var buttons = new List<PushButtonData>(specs.Length);
             foreach (var s in specs)
             {
                 var data = new PushButtonData("Hub_" + s.tag, s.label, asm, s.cls)
@@ -1561,9 +1572,17 @@ namespace StingTools.Core
 
             try
             {
-                panel.AddStackedItems(buttons[0], buttons[1], buttons[2]);
-                panel.AddStackedItems(buttons[3], buttons[4], buttons[5]);
-                panel.AddStackedItems(buttons[6], buttons[7], buttons[8]);
+                // Stack three at a time; trailing remainder is added individually.
+                int i = 0;
+                for (; i + 3 <= buttons.Count; i += 3)
+                    panel.AddStackedItems(buttons[i], buttons[i + 1], buttons[i + 2]);
+                if (i + 2 == buttons.Count)
+                {
+                    panel.AddStackedItems(buttons[i], buttons[i + 1]);
+                    i += 2;
+                }
+                for (; i < buttons.Count; i++)
+                    panel.AddItem(buttons[i]);
             }
             catch (Exception ex)
             {
@@ -1639,6 +1658,14 @@ namespace StingTools.Core
                 ["Placement_Open"]       = "Placement_OpenCentre",
                 ["StructuralDWGWizard"]  = "StrCADWizard",
                 ["Scheduling_Dashboard"] = "SchedulingCostDashboard",
+
+                // Phase: STING Hub expansion
+                ["ExportCenter_Open"]    = "UnifiedExport",
+                ["DocWizard_Open"]       = "DocWizard",
+                ["Numbering_Open"]       = "RenumberTags",
+                ["BatchRename_Open"]     = "BatchRenameViews",
+                // TagCenter_Open is handled directly by HubTagCenterCommand
+                // (opens the modeless Tag Center dialog) — no handler dispatch.
             };
 
         public static Result Run(string tag, ref string message)
@@ -1728,5 +1755,68 @@ namespace StingTools.Core
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
             => HubDispatcher.Run("Scheduling_Dashboard", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubExportCenterCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("ExportCenter_Open", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubDocWizardCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("DocWizard_Open", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubNumberingCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("Numbering_Open", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubBatchRenameCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("BatchRename_Open", ref message);
+    }
+
+    /// <summary>
+    /// Launches the modeless Tag Center dialog directly — no ExternalEvent
+    /// dispatch needed because the ribbon button click is already on the
+    /// Revit API thread.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubTagCenterCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var doc = data?.Application?.ActiveUIDocument?.Document;
+                if (doc == null)
+                {
+                    TaskDialog.Show("STING Tag Center", "No document is open. Please open a Revit project first.");
+                    return Result.Cancelled;
+                }
+                StingTools.UI.TagCenterDialog.Show(doc);
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Tag Center dialog launch failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
     }
 }
