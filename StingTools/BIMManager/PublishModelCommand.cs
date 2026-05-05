@@ -94,6 +94,19 @@ namespace StingTools.BIMManager
                     return Result.Failed;
                 }
 
+                if (result.alreadyExisted)
+                {
+                    TaskDialog.Show(
+                        "Publish Model to Planscape",
+                        $"This model is already published — the server returned the existing entry instead of creating a duplicate.\n\n" +
+                        $"File: {Path.GetFileName(modelPath)}\n" +
+                        $"Project: {projectId}\n" +
+                        $"Existing model id: {result.modelId}\n\n" +
+                        "If you intended to publish a new revision, change the geometry (re-export the 3D view, or pick a different file) and try again.");
+                    StingLog.Info($"Planscape: model already published (dedup) → {result.modelId}");
+                    return Result.Succeeded;
+                }
+
                 TaskDialog.Show(
                     "Publish Model to Planscape",
                     $"Published {Path.GetFileName(modelPath)}\n\n" +
