@@ -25,6 +25,9 @@ using Autodesk.Revit.UI;
 using MiniSoftware;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
+// Disambiguate WPF controls from Autodesk.Revit.UI.TextBox/ComboBox.
+using TextBox = System.Windows.Controls.TextBox;
+using ComboBox = System.Windows.Controls.ComboBox;
 using StingTools.Core.Lightning;
 using StingTools.Core.Fabrication;
 using StingTools.UI;
@@ -1288,7 +1291,7 @@ namespace StingTools.Commands.Lightning
         // ── Token + row builders ─────────────────────────────────────
 
         private static Dictionary<string, object> BuildTokenDict(
-            Document doc, ProjectInformation prj, string classId, LpsClassDef def,
+            Document doc, Autodesk.Revit.DB.ProjectInformation prj, string classId, LpsClassDef def,
             IReadOnlyList<LpsComplianceItem> items, int pass, int warn, int fail, string verdict,
             List<FamilyInstance> ats, List<FamilyInstance> dcs, List<FamilyInstance> ees, double earthAvg)
         {
