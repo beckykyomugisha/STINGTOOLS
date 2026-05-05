@@ -885,24 +885,25 @@ app.MapHub<Planscape.Infrastructure.SignalR.CrdtHub>("/hubs/crdt");
                 db.Database.GetService<Microsoft.EntityFrameworkCore.Storage.IDatabaseCreator>();
             creator.CreateTables();
         }
-        else
-        {
-            // The dev DB pre-dates one or more entity additions and the
-            // EnsureCreated path skips OnModelCreating once the schema
-            // exists. Run idempotent 'ADD COLUMN IF NOT EXISTS' patches
-            // for fields the running entity classes expect but older
-            // dev databases lack, so 'POST /api/projects' (and similar)
-            // don't fail with 42703 'column "X" does not exist'.
-            //
-            // Production deployments use Migrate() (the else branch
-            // below) and don't need this; it only runs in dev / when
-            // PLANSCAPE_USE_ENSURE_CREATED=true.
-            await PatchDevSchemaAsync(conn);
-        }
     }
     else
     {
         db.Database.Migrate();
+    }
+
+    // Idempotent column patcher — runs in BOTH branches because:
+    //   • EnsureCreated short-circuits once tables exist, so older dev
+    //     DBs don't pick up entity additions.
+    //   • The hand-authored Migrate() set is also incomplete (Program.cs
+    //     comment at line 854-859), so production DBs with the same
+    //     vintage hit the same gap.
+    // 'ADD COLUMN IF NOT EXISTS' is a no-op when the column already
+    // exists, so running it on a healthy DB costs nothing.
+    {
+        var patchConn = db.Database.GetDbConnection();
+        if (patchConn.State != System.Data.ConnectionState.Open)
+            await patchConn.OpenAsync();
+        await PatchDevSchemaAsync(patchConn);
     }
 
     if (app.Environment.IsDevelopment())
@@ -1002,10 +1003,12 @@ using (var scope = app.Services.CreateScope())
 
 await app.RunAsync();
 
-// Idempotent 'ADD COLUMN IF NOT EXISTS' patcher for dev databases that
-// were created on an older entity model. Each entry runs in its own
-// command so a failure on one column does not block the rest. Add new
-// rows here whenever a dev-relevant migration adds nullable columns.
+// Idempotent 'ADD COLUMN IF NOT EXISTS' patcher for databases that were
+// created on an older entity model. Runs unconditionally on startup —
+// 'IF NOT EXISTS' makes every statement a no-op when the column is
+// already there, so it's safe to keep around. Add new rows here
+// whenever an entity gains a nullable column that older deployments
+// won't have via the migration set.
 static async Task PatchDevSchemaAsync(System.Data.Common.DbConnection conn)
 {
     var patches = new[]
@@ -1018,6 +1021,7 @@ static async Task PatchDevSchemaAsync(System.Data.Common.DbConnection conn)
         "ALTER TABLE \"Projects\" ADD COLUMN IF NOT EXISTS \"CoverImageUrl\" text",
         "ALTER TABLE \"Projects\" ADD COLUMN IF NOT EXISTS \"IsPinned\" boolean NOT NULL DEFAULT false",
     };
+    int applied = 0, failed = 0;
     foreach (var sql in patches)
     {
         try
@@ -1025,15 +1029,18 @@ static async Task PatchDevSchemaAsync(System.Data.Common.DbConnection conn)
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = sql;
             await cmd.ExecuteNonQueryAsync();
+            applied++;
         }
         catch (Exception ex)
         {
             // Don't crash startup over a schema patch — log and continue.
             // The original column-missing error will still surface on the
             // request that needs it, which is the correct fallback.
-            Console.WriteLine($"[schema-patch] failed: {sql} — {ex.Message}");
+            failed++;
+            Console.WriteLine($"[schema-patch] FAILED: {sql} — {ex.Message}");
         }
     }
+    Console.WriteLine($"[schema-patch] done — {applied} ok, {failed} failed");
 }
 
 // S11 — RFC 1918 + IPv6 unique-local + IPv4-mapped IPv6 helper. Used by
