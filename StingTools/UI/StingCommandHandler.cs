@@ -3355,6 +3355,7 @@ namespace StingTools.UI
                                                    TaskDialog.Show("Planscape", "Disconnected from Planscape server."); break;
                     case "PlanscapeSyncNow":        BIMManager.PlatformSyncCommand.SyncToPlanscapeServer(app); break;
                     case "PublishModelToPlanscape": RunCommand<BIMManager.PublishModelCommand>(app); break;
+                    case "PlanscapeCreateProject":  RunCommand<BIMManager.PlanscapeCreateProjectCommand>(app); break;
                     case "LoadFamilyLibrary":       RunCommand<Temp.FamilyLibraryLoaderCommand>(app); break;
                     // Phase 78 Section 6.1: Additional Planscape action tags (renamed from StingBIM per Phase 88)
                     case "PlanscapeAddMember":      RunCommand<BIMManager.PlanscapeConnectCommand>(app); break;
