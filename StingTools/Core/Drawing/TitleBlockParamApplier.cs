@@ -29,7 +29,36 @@ namespace StingTools.Core.Drawing
     public sealed class TitleBlockApplyResult
     {
         public int ParamsWritten { get; set; }
+        /// <summary>Phase 169 — count of writes skipped because the live value
+        /// already matched the resolved value (idempotent skip-if-equal).</summary>
+        public int ParamsSkippedNoOp { get; set; }
+        /// <summary>Phase 169 — when populated, lists every (paramName, oldVal,
+        /// newVal) the apply did or would have changed. Always populated when
+        /// <see cref="ApplyOptions.DryRun"/> is true; otherwise empty.</summary>
+        public List<TitleBlockChange> Changes { get; } = new List<TitleBlockChange>();
         public List<string> Warnings { get; } = new List<string>();
+    }
+
+    public sealed class TitleBlockChange
+    {
+        public string SheetNumber { get; set; }
+        public string SymbolName { get; set; }
+        public string ParamName { get; set; }
+        public string OldValue { get; set; }
+        public string NewValue { get; set; }
+    }
+
+    public sealed class ApplyOptions
+    {
+        /// <summary>When true, every storage-type write is replaced by a
+        /// <see cref="TitleBlockChange"/> entry on the result without
+        /// touching the model. The caller is responsible for skipping
+        /// the surrounding transaction when only previewing.</summary>
+        public bool DryRun { get; set; }
+        /// <summary>When true (default), writes that would set the live value
+        /// to its current value are skipped — reduces undo-stack noise and
+        /// transaction time when re-applying a profile that hasn't changed.</summary>
+        public bool SkipIfEqual { get; set; } = true;
     }
 
     public static class TitleBlockParamApplier
@@ -88,8 +117,14 @@ namespace StingTools.Core.Drawing
         public static TitleBlockApplyResult Apply(
             Document doc, ViewSheet sheet, DrawingType dt,
             IDictionary<string, string> tokens = null)
+            => Apply(doc, sheet, dt, tokens, options: null);
+
+        public static TitleBlockApplyResult Apply(
+            Document doc, ViewSheet sheet, DrawingType dt,
+            IDictionary<string, string> tokens, ApplyOptions options)
         {
             var r = new TitleBlockApplyResult();
+            options = options ?? new ApplyOptions();
             if (doc == null || sheet == null || dt == null) return r;
             bool hasBase     = dt.TitleBlockParams != null && dt.TitleBlockParams.Count > 0;
             bool hasOverlay  = dt.TitleBlockParamsBySymbol != null && dt.TitleBlockParamsBySymbol.Count > 0;
@@ -164,40 +199,89 @@ namespace StingTools.Core.Drawing
                         r.Warnings.Add($"Parameter '{paramName}' is read-only.");
                         continue;
                     }
+                    // Phase 169 — read live value first so we can skip-if-equal
+                    // and emit dry-run change rows. Reading is cheap (no
+                    // transaction) so the cost is negligible vs. an idempotent
+                    // re-write that bloats the undo stack.
+                    string liveVal = ReadParamAsString(p, doc);
                     bool wrote = false;
+                    bool wouldChange = false;
+                    string newDisplay = resolved ?? "";
+
                     switch (p.StorageType)
                     {
                         case StorageType.String:
-                            // ACC-07: always set, even for empty string,
-                            // so cloned/template sheets reset stale text.
-                            p.Set(resolved ?? string.Empty);
-                            wrote = true;
+                            wouldChange = !string.Equals(liveVal ?? "", resolved ?? "", StringComparison.Ordinal);
+                            if (!options.DryRun && (wouldChange || !options.SkipIfEqual))
+                            {
+                                p.Set(resolved ?? string.Empty);
+                                wrote = true;
+                            }
                             break;
                         case StorageType.Integer:
-                            if (string.IsNullOrEmpty(resolved)) { p.Set(0); wrote = true; }
-                            else if (TryCoerceInt(resolved, out var iv)) { p.Set(iv); wrote = true; }
+                            if (string.IsNullOrEmpty(resolved))
+                            {
+                                wouldChange = liveVal != "0";
+                                newDisplay = "0";
+                                if (!options.DryRun && (wouldChange || !options.SkipIfEqual)) { p.Set(0); wrote = true; }
+                            }
+                            else if (TryCoerceInt(resolved, out var iv))
+                            {
+                                newDisplay = iv.ToString(CultureInfo.InvariantCulture);
+                                wouldChange = liveVal != newDisplay;
+                                if (!options.DryRun && (wouldChange || !options.SkipIfEqual)) { p.Set(iv); wrote = true; }
+                            }
                             else r.Warnings.Add($"'{paramName}' expects integer / Yes-No; '{resolved}' not parsable.");
                             break;
                         case StorageType.Double:
-                            if (string.IsNullOrEmpty(resolved)) { p.Set(0.0); wrote = true; }
-                            else if (TryCoerceDouble(resolved, out var dv)) { p.Set(dv); wrote = true; }
+                            if (string.IsNullOrEmpty(resolved))
+                            {
+                                wouldChange = liveVal != "0";
+                                newDisplay = "0";
+                                if (!options.DryRun && (wouldChange || !options.SkipIfEqual)) { p.Set(0.0); wrote = true; }
+                            }
+                            else if (TryCoerceDouble(resolved, out var dv))
+                            {
+                                newDisplay = dv.ToString("0.###", CultureInfo.InvariantCulture);
+                                wouldChange = liveVal != newDisplay;
+                                if (!options.DryRun && (wouldChange || !options.SkipIfEqual)) { p.Set(dv); wrote = true; }
+                            }
                             else r.Warnings.Add($"'{paramName}' expects number; '{resolved}' not parsable.");
                             break;
                         case StorageType.ElementId:
-                            // Resolve element by name within an inferred category.
-                            // Currently supports family-type swaps (FamilySymbol by
-                            // name within the title-block instance's family).
                             if (TryResolveElementId(doc, tb, paramName, resolved, out var eid))
-                            { p.Set(eid); wrote = true; }
+                            {
+                                var newEl = doc.GetElement(eid);
+                                newDisplay = newEl?.Name ?? "";
+                                wouldChange = !string.Equals(liveVal ?? "", newDisplay, StringComparison.Ordinal);
+                                if (!options.DryRun && (wouldChange || !options.SkipIfEqual)) { p.Set(eid); wrote = true; }
+                            }
                             else if (string.IsNullOrEmpty(resolved))
-                            { p.Set(ElementId.InvalidElementId); wrote = true; }
+                            {
+                                wouldChange = !string.IsNullOrEmpty(liveVal);
+                                if (!options.DryRun && (wouldChange || !options.SkipIfEqual)) { p.Set(ElementId.InvalidElementId); wrote = true; }
+                            }
                             else r.Warnings.Add($"'{paramName}' expects ElementId; '{resolved}' did not resolve.");
                             break;
                         default:
                             r.Warnings.Add($"'{paramName}' has unsupported storage type {p.StorageType}.");
                             continue;
                     }
-                    if (wrote) writtenKeys.Add(paramName);
+
+                    if (options.DryRun)
+                    {
+                        if (wouldChange)
+                            r.Changes.Add(new TitleBlockChange
+                            {
+                                SheetNumber = sheet.SheetNumber,
+                                SymbolName  = tb?.Symbol?.Name,
+                                ParamName   = paramName,
+                                OldValue    = liveVal ?? "",
+                                NewValue    = newDisplay,
+                            });
+                    }
+                    else if (wrote) writtenKeys.Add(paramName);
+                    else if (!wouldChange && options.SkipIfEqual) r.ParamsSkippedNoOp++;
                 }
                 catch (Exception ex)
                 {
@@ -605,6 +689,29 @@ namespace StingTools.Core.Drawing
             }
             catch { }
             return false;
+        }
+
+        // Phase 169 — read any parameter to a stable string for skip-if-equal
+        // comparison. ElementId returns the element's Name (matching the
+        // convention used by ElementId writes).
+        private static string ReadParamAsString(Parameter p, Document doc)
+        {
+            if (p == null) return null;
+            try
+            {
+                switch (p.StorageType)
+                {
+                    case StorageType.String:  return p.AsString() ?? "";
+                    case StorageType.Integer: return p.AsInteger().ToString(CultureInfo.InvariantCulture);
+                    case StorageType.Double:  return p.AsDouble().ToString("0.###", CultureInfo.InvariantCulture);
+                    case StorageType.ElementId:
+                        var id = p.AsElementId();
+                        var el = (id != null && id != ElementId.InvalidElementId) ? doc?.GetElement(id) : null;
+                        return el?.Name ?? "";
+                }
+            }
+            catch { }
+            return "";
         }
 
         private static string ReadProjectInfoParam(Document doc, string name)

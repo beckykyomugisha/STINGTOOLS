@@ -487,23 +487,41 @@ namespace StingTools.Core.Drawing
 
             try
             {
-                // GAP-L: prefer the per-batch package count cache; bump it
-                // for the sheet we're about to stamp so successive sheets in
-                // the same package get monotonically increasing sequences
-                // without re-collecting the project's sheets.
+                // Phase 169 — persisted sequence counter via ExtensibleStorage on
+                // ProjectInfo, granular by (DT, package, discipline, vol). Falls
+                // back to the per-batch cache (and ultimately a sheet count) when
+                // ES is unavailable. Survives Revit restarts and the renumber
+                // command's compaction so deleted sheets don't regrow gaps.
                 int seq;
-                if (_packageSheetCount != null && CacheMatchesDoc(doc))
+                bool used = false;
+                try
                 {
-                    _packageSheetCount.TryGetValue(effectivePackage, out var n);
-                    seq = n + 1;
-                    _packageSheetCount[effectivePackage] = seq;
+                    seq = SheetSequenceStore.Next(doc, dt.Id, effectivePackage,
+                        dt.Discipline ?? "", dt.IsoNaming?.Volume ?? "");
+                    used = true;
                 }
-                else
+                catch (Exception ex)
                 {
-                    seq = new FilteredElementCollector(doc)
-                        .OfClass(typeof(ViewSheet))
-                        .Cast<ViewSheet>()
-                        .Count(s => string.Equals(StingTools.Core.ParameterHelpers.GetString(s, DrawingTypeStamper.PARAM_DRAWING_PACKAGE_ID) ?? "", effectivePackage, StringComparison.Ordinal));
+                    seq = 0;
+                    StingTools.Core.StingLog.Warn($"SheetSequenceStore.Next: {ex.Message}");
+                }
+                if (!used)
+                {
+                    // Legacy fallback path — preserves prior behaviour for
+                    // documents where ExtensibleStorage isn't writable.
+                    if (_packageSheetCount != null && CacheMatchesDoc(doc))
+                    {
+                        _packageSheetCount.TryGetValue(effectivePackage, out var n);
+                        seq = n + 1;
+                        _packageSheetCount[effectivePackage] = seq;
+                    }
+                    else
+                    {
+                        seq = new FilteredElementCollector(doc)
+                            .OfClass(typeof(ViewSheet))
+                            .Cast<ViewSheet>()
+                            .Count(s => string.Equals(StingTools.Core.ParameterHelpers.GetString(s, DrawingTypeStamper.PARAM_DRAWING_PACKAGE_ID) ?? "", effectivePackage, StringComparison.Ordinal));
+                    }
                 }
                 DrawingTypeStamper.StampSheetSequence(sheet, seq);
                 // Newly-created sheet should be discoverable next time.

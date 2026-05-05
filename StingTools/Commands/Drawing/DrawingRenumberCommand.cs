@@ -134,6 +134,19 @@ namespace StingTools.Commands.Drawing
                         try { p.sheet.SheetNumber = p.newNo; renumbered++; }
                         catch (Exception ex) { StingLog.Warn($"Renumber pass2 → {p.newNo}: {ex.Message}"); }
                     }
+
+                    // Phase 169 — push the post-compaction high-water mark back
+                    // into SheetSequenceStore so the producer's next "new sheet"
+                    // call picks up from the renumbered total, not the original
+                    // gap-laden max.
+                    foreach (var g in groups)
+                    {
+                        var dt = DrawingTypeRegistry.Get(doc, g.Key.DtId);
+                        if (dt == null) continue;
+                        SheetSequenceStore.Set(doc, g.Key.DtId, g.Key.Pkg ?? "",
+                            dt.Discipline ?? "", dt.IsoNaming?.Volume ?? "",
+                            g.Count());
+                    }
                     tx.Commit();
                 }
 

@@ -9880,6 +9880,45 @@ handled. Check StingCommandHandler for the command binding." pop-ups.
 - `docs/CHANGELOG.md` — this entry
 
 
+#### Completed (Phase 169 — Title Block Inheritance & Editor UX Pass)
+
+Closes the four deferred items from Phase 168 plus a critical inheritance gap surfaced during the follow-up audit.
+
+**Critical fix — `ResolveExtends` did not merge title-block keys**
+
+1. **`DrawingTypeRegistry.ResolveExtends` now merges title-block fields key-by-key.** Before this fix, a `corp-base` profile that declared `titleBlockParams` was useless to children — the merge loop only walked scalar fields like `Scale` / `ViewTemplateName`, so child profiles silently lost the parent's params, per-symbol overlays, ISO naming block, and `TitleBlockSymbolType`. The merge now:
+   - copies `TitleBlockSymbolType` and `IsoNaming` like any other scalar (parent → child override),
+   - merges `TitleBlockParams` key-by-key (child wins on collision; parent baseline keys carry through to every descendant),
+   - merges `TitleBlockParamsBySymbol` group-by-group then key-by-key inside each symbol bucket.
+   
+   A `corp-base` profile carrying `${PRJ_ORG_PROJECT_CODE}` / `${PRJ_ORG_CLIENT_NAME}` / etc. is now reusable across the entire 40-profile catalogue without restating those keys in every child.
+
+**Idempotent + dry-run apply**
+
+2. **`TitleBlockChange` + `ApplyOptions` (DryRun / SkipIfEqual)`.** The applier now reads each parameter's live value before writing, populates `ApplyResult.Changes` with `(SheetNumber, SymbolName, ParamName, OldValue, NewValue)` when `DryRun=true`, and skips writes whose resolved value already matches the live value when `SkipIfEqual=true` (default). `ApplyResult.ParamsSkippedNoOp` counts the saved writes. Reduces undo-stack noise on idempotent re-applies and gives Heal / SyncStyles a cheap "preview before commit" path. New helper `ReadParamAsString` normalises live-value reads across String / Integer / Double / ElementId.
+
+**Persisted sequence counter**
+
+3. **`SheetSequenceStore` (ExtensibleStorage on ProjectInformation).** Per-bucket "next sequence" map keyed by `(DrawingTypeId, packageId, discipline, vol)`. Schema GUID `a1f9b2e3-4c7d-4a08-9f5e-7d8c6b5a4e21`. Stable across Revit restarts; first-run fallback seeds from existing sheet numbers in the bucket so legacy projects upgrade transparently. `DrawingProducer` now calls `Next(...)` for each new sheet (with a graceful fallback to the legacy in-batch counter / project sweep). `DrawingRenumberCommand` calls `Set(...)` after compaction so the next new sheet picks up from the post-renumber high-water mark — no regrowing gaps.
+
+**Editor live preview, token autocomplete, per-discipline preview**
+
+4. **Live re-resolve on keystroke.** Each row's value-template TextBox now has a `TextChanged` handler that re-runs `Peek` and updates the Resolved column inline. No more waiting for a form rebuild to see the result of an edit.
+5. **Token/filter insert menu.** A `+` button next to each value template opens a four-section menu: Project info `${X}`, Tokens `{x}`, Filters `| …`. Click inserts the snippet at the caret position (or replaces selected text). Operator never has to memorise the grammar.
+6. **Per-discipline preview controls.** A "Preview as:" bar at the top of the card carries a discipline ComboBox (`A`/`S`/`M`/`E`/`P`/`FP`/`L`) and a `{seq}` spinner. Both feed into the `DrawingTokenContext.Build(...)` call that drives the Resolved column, so the operator sees what the profile produces for any discipline + seq combination — replaces the previous `tokens:null` "raw template" preview that couldn't show how `{disc}` / `{seq:D4}` would render.
+
+**Files**
+
+- `StingTools/Core/Drawing/DrawingTypeRegistry.cs` — `ResolveExtends` TB-key merge
+- `StingTools/Core/Drawing/TitleBlockParamApplier.cs` — `ApplyOptions` (DryRun / SkipIfEqual), `TitleBlockChange`, `ReadParamAsString`, `ParamsSkippedNoOp`
+- `StingTools/Core/Drawing/SheetSequenceStore.cs` — NEW (ExtensibleStorage-backed counter)
+- `StingTools/Core/Drawing/DrawingProducer.cs` — wires `SheetSequenceStore.Next` with legacy fallback
+- `StingTools/Commands/Drawing/DrawingRenumberCommand.cs` — calls `SheetSequenceStore.Set` after compaction
+- `StingTools/UI/DrawingTypeEditorDialog.cs` — live preview / `+` insert menu / per-discipline picker / `_previewDisc` + `_previewSeq` state
+
+**Caveats** — Built without `dotnet build` verification (Linux sandbox). The ExtensibleStorage schema is registered on first read; projects opened by an older STING build that doesn't know the schema will not see the data, but a fresh open with this build re-seeds from existing sheets. The `+` insert menu offers the canonical token/filter set hard-coded against `DrawingTokenContext.Build` — adding a new token to that builder requires a one-line update to the menu.
+
+
 #### Completed (Phase 174 — Branch consolidation + stats refresh)
 
 Bulk-merged every outstanding `claude/*` feature branch with unique
