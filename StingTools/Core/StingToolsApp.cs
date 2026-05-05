@@ -1527,28 +1527,36 @@ namespace StingTools.Core
         {
             string asm = AssemblyPath;
 
-            // 15 buttons laid out as 5 vertical stacks of 3 small buttons.
-            // Tag Center is first (primary entry point for tagging workflows).
+            // 15 buttons laid out as a clean 5×3 grid (5 vertical stacks of 3
+            // small buttons each). Stacks 1-2 are the new STING entry points
+            // (Tag Center, Colouriser, Export Center, Doc Wizard, Numbering,
+            // Batch Rename); stacks 3-5 are the original 9 management centres.
             var specs = new (string tag, string label, string letters, DrawingColor color, string cls)[]
             {
-                ("TagCenter_Open",       "Tag Center",    "TC", DrawingColor.DarkSlateBlue, typeof(HubTagCenterCommand).FullName),
-                ("ExportCenter_Open",    "Export Center", "EC", DrawingColor.DarkCyan,      typeof(HubExportCenterCommand).FullName),
-                ("DocWizard_Open",       "Doc Wizard",    "DW", DrawingColor.Chocolate,     typeof(HubDocWizardCommand).FullName),
+                // Stack 1
+                ("TagCenter_Open",       "Tag Center",    "TC", DrawingColor.DarkSlateBlue,  typeof(HubTagCenterCommand).FullName),
+                ("Colouriser_Open",      "Colouriser",    "CL", DrawingColor.MediumVioletRed,typeof(HubColouriserCommand).FullName),
+                ("ExportCenter_Open",    "Export Center", "EC", DrawingColor.DarkCyan,       typeof(HubExportCenterCommand).FullName),
 
-                ("BIMCoordCenter_Open",  "Coord Center",  "CC", DrawingColor.SteelBlue,     typeof(HubBIMCoordCenterCommand).FullName),
-                ("SheetManager_Open",    "Sheet Manager", "SM", DrawingColor.Teal,          typeof(HubSheetManagerCommand).FullName),
-                ("DrawingTypes_Edit",    "Drawing Types", "DT", DrawingColor.MediumPurple,  typeof(HubDrawingTypesCommand).FullName),
+                // Stack 2
+                ("DocWizard_Open",       "Doc Wizard",    "DW", DrawingColor.Chocolate,      typeof(HubDocWizardCommand).FullName),
+                ("Numbering_Open",       "Numbering",     "NM", DrawingColor.DarkOliveGreen, typeof(HubNumberingCommand).FullName),
+                ("BatchRename_Open",     "Batch Rename",  "BR", DrawingColor.SaddleBrown,    typeof(HubBatchRenameCommand).FullName),
 
-                ("DocumentMgmt_Open",    "Doc Manager",   "DM", DrawingColor.DarkOrange,    typeof(HubDocumentMgmtCommand).FullName),
-                ("BOQ_ExportCost",       "BOQ / Cost",    "BQ", DrawingColor.SeaGreen,      typeof(HubBoqExportCostCommand).FullName),
-                ("Numbering_Open",       "Numbering",     "NM", DrawingColor.DarkOliveGreen,typeof(HubNumberingCommand).FullName),
+                // Stack 3
+                ("BIMCoordCenter_Open",  "Coord Center",  "CC", DrawingColor.SteelBlue,      typeof(HubBIMCoordCenterCommand).FullName),
+                ("SheetManager_Open",    "Sheet Manager", "SM", DrawingColor.Teal,           typeof(HubSheetManagerCommand).FullName),
+                ("DrawingTypes_Edit",    "Drawing Types", "DT", DrawingColor.MediumPurple,   typeof(HubDrawingTypesCommand).FullName),
 
-                ("BatchRename_Open",     "Batch Rename",  "BR", DrawingColor.SaddleBrown,   typeof(HubBatchRenameCommand).FullName),
-                ("Fabrication_Open",     "Fabrication",   "FW", DrawingColor.Firebrick,     typeof(HubFabricationCommand).FullName),
-                ("Placement_Open",       "Placement",     "PC", DrawingColor.Goldenrod,     typeof(HubPlacementCommand).FullName),
+                // Stack 4
+                ("DocumentMgmt_Open",    "Doc Manager",   "DM", DrawingColor.DarkOrange,     typeof(HubDocumentMgmtCommand).FullName),
+                ("BOQ_ExportCost",       "BOQ / Cost",    "BQ", DrawingColor.SeaGreen,       typeof(HubBoqExportCostCommand).FullName),
+                ("Fabrication_Open",     "Fabrication",   "FW", DrawingColor.Firebrick,      typeof(HubFabricationCommand).FullName),
 
-                ("StructuralDWGWizard",  "Struct Wizard", "SW", DrawingColor.SlateGray,     typeof(HubStructuralDwgWizardCommand).FullName),
-                ("Scheduling_Dashboard", "Scheduling",    "SD", DrawingColor.MidnightBlue,  typeof(HubSchedulingDashboardCommand).FullName),
+                // Stack 5
+                ("Placement_Open",       "Placement",     "PC", DrawingColor.Goldenrod,      typeof(HubPlacementCommand).FullName),
+                ("StructuralDWGWizard",  "Struct Wizard", "SW", DrawingColor.SlateGray,      typeof(HubStructuralDwgWizardCommand).FullName),
+                ("Scheduling_Dashboard", "Scheduling",    "SD", DrawingColor.MidnightBlue,   typeof(HubSchedulingDashboardCommand).FullName),
             };
 
             var buttons = new List<PushButtonData>(specs.Length);
@@ -1664,8 +1672,9 @@ namespace StingTools.Core
                 ["DocWizard_Open"]       = "DocWizard",
                 ["Numbering_Open"]       = "RenumberTags",
                 ["BatchRename_Open"]     = "BatchRenameViews",
-                // TagCenter_Open is handled directly by HubTagCenterCommand
-                // (opens the modeless Tag Center dialog) — no handler dispatch.
+                // TagCenter_Open and Colouriser_Open are handled directly by
+                // their wrapper commands (open modeless dialogs) — no
+                // handler dispatch.
             };
 
         public static Result Run(string tag, ref string message)
@@ -1814,6 +1823,39 @@ namespace StingTools.Core
             catch (Exception ex)
             {
                 StingLog.Error("Tag Center dialog launch failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Launches the modeless STING Colouriser dialog — comprehensive element
+    /// + annotation graphic-override surface (parameter-driven coloring,
+    /// 11 quick schemes, palette presets, view-filter generation, halftone /
+    /// transparency / line-weight controls). Inspired by Naviate Color
+    /// Elements, GRAITEC PowerPack, and DiRoots OneFilter.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubColouriserCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var doc = data?.Application?.ActiveUIDocument?.Document;
+                if (doc == null)
+                {
+                    TaskDialog.Show("STING Colouriser", "No document is open. Please open a Revit project first.");
+                    return Result.Cancelled;
+                }
+                StingTools.UI.StingColouriserDialog.Show(doc);
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Colouriser dialog launch failed", ex);
                 message = ex.Message;
                 return Result.Failed;
             }
