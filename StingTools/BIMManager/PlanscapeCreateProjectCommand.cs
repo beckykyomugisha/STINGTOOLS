@@ -9,6 +9,12 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 
+// Disambiguate WPF controls from the Revit UI shim of the same name —
+// 'TextBox' / 'ComboBox' exist in both System.Windows.Controls and
+// Autodesk.Revit.UI. We only ever want the WPF controls in this file.
+using TextBox  = System.Windows.Controls.TextBox;
+using ComboBox = System.Windows.Controls.ComboBox;
+
 namespace StingTools.BIMManager
 {
     /// <summary>
