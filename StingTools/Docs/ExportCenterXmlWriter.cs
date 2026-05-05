@@ -145,7 +145,8 @@ namespace StingTools.Docs
                 if (!IncludeByGroup(p, groups)) continue;
                 w.WriteStartElement("param");
                 w.WriteAttributeString("name", p.Definition?.Name ?? "");
-                w.WriteAttributeString("group", p.Definition?.ParameterGroup.ToString() ?? "");
+                // Definition.ParameterGroup was removed in Revit 2024+; use the ForgeTypeId.
+                w.WriteAttributeString("group", p.Definition?.GetGroupTypeId()?.TypeId ?? "");
                 w.WriteString(SafeAsString(p));
                 w.WriteEndElement();
             }
@@ -181,7 +182,7 @@ namespace StingTools.Docs
         private static bool IncludeByGroup(Parameter p, List<string> groups)
         {
             if (groups == null || groups.Count == 0) return true;
-            string g = p.Definition?.ParameterGroup.ToString() ?? "";
+            string g = p.Definition?.GetGroupTypeId()?.TypeId ?? "";
             foreach (var want in groups)
             {
                 if (g.IndexOf(want, StringComparison.OrdinalIgnoreCase) >= 0) return true;
