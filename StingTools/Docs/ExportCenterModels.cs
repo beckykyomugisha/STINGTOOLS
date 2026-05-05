@@ -378,20 +378,39 @@ namespace StingTools.Docs
 
     public static class ExportNamingPresets
     {
+        // Insertion order is preserved by Dictionary<,> on .NET, so the dropdown
+        // shows entries in the order they're declared here. Group plain naming
+        // first, then ISO 19650, then ad-hoc presets.
         public static readonly Dictionary<string, string> SimpleMode = new()
         {
-            { "US Standard",            "{SheetNumber} - {SheetTitle}" },
-            { "UK Basic",               "{SheetNumber}_{SheetTitle}_Rev{Revision}" },
-            { "Australia",              "{ProjectCode}-{SheetNumber}-{SheetTitle}" },
-            { "Africa / General",       "{ProjectName}_{SheetNumber}_{Revision}_{Date:yyyyMMdd}" },
+            // ── Plain naming (no ISO 19650 vocabulary) ──────────────────────
+            { "US Standard",                  "{SheetNumber} - {SheetTitle}" },
+            { "UK Basic",                     "{SheetNumber}_{SheetTitle}_Rev{Revision}" },
+            { "Australia",                    "{ProjectCode}-{SheetNumber}-{SheetTitle}" },
+            { "Africa / General",             "{ProjectName}_{SheetNumber}_{Revision}_{Date:yyyyMMdd}" },
+
+            // ── ISO 19650 (BS EN ISO 19650-2 §A.2 file-naming convention) ──
+            // Available from Simple mode too so users don't have to toggle to
+            // BIM just to pick an ISO preset. Full set: originator, volume,
+            // level, type, role, number, suitability, revision.
+            { "ISO 19650 — Full",             "{ProjectCode}-{Originator}-{Volume}-{Level}-{Type}-{Role}-{SheetNumber}-{Suitability}-{Revision}" },
+            { "ISO 19650 — Compact",          "{Originator}-{SheetNumber}-{Suitability}{Revision}" },
+            { "ISO 19650 — No project code",  "{Originator}-{Volume}-{Level}-{Type}-{Role}-{SheetNumber}-{Suitability}-{Revision}" },
+            { "ISO 19650 — With date",        "{Originator}-{Volume}-{Level}-{Type}-{Role}-{SheetNumber}-{Suitability}-{Revision}_{Date:yyyyMMdd}" },
+
+            // ── Quick ad-hoc presets ─────────────────────────────────────────
+            { "Drawing number only",          "{SheetNumber}" },
+            { "Issue + Date",                 "{ProjectCode}-{SheetNumber}-{SheetTitle}-{Suitability}{Revision}_{Date:yyyyMMdd}" },
         };
 
         public static readonly Dictionary<string, string> BimMode = new()
         {
-            { "ISO 19650 (full)",       "{Originator}-{Volume}-{Level}-{Type}-{Role}-{SheetNumber}-{Suitability}-{Revision}" },
-            { "ISO 19650 (compact)",    "{Originator}-{SheetNumber}-{Suitability}{Revision}" },
-            { "Issue + Date",           "{ProjectCode}-{SheetNumber}-{SheetTitle}-{Suitability}{Revision}_{Date:yyyyMMdd}" },
-            { "Drawing No. only",       "{SheetNumber}" },
+            { "ISO 19650 — Full",             "{ProjectCode}-{Originator}-{Volume}-{Level}-{Type}-{Role}-{SheetNumber}-{Suitability}-{Revision}" },
+            { "ISO 19650 — Compact",          "{Originator}-{SheetNumber}-{Suitability}{Revision}" },
+            { "ISO 19650 — No project code",  "{Originator}-{Volume}-{Level}-{Type}-{Role}-{SheetNumber}-{Suitability}-{Revision}" },
+            { "ISO 19650 — With date",        "{Originator}-{Volume}-{Level}-{Type}-{Role}-{SheetNumber}-{Suitability}-{Revision}_{Date:yyyyMMdd}" },
+            { "Issue + Date",                 "{ProjectCode}-{SheetNumber}-{SheetTitle}-{Suitability}{Revision}_{Date:yyyyMMdd}" },
+            { "Drawing number only",          "{SheetNumber}" },
         };
     }
 
