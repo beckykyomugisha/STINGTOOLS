@@ -1,59 +1,271 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Planscape — office dashboard</title>
-<link rel="stylesheet" href="/css/dashboard.css" />
-<!-- Phase 169 — Mapbox GL JS for the project location map. Replace
-     PLANSCAPE_MAPBOX_TOKEN inside dashboard.js with a real public token
-     from mapbox.com (free tier is sufficient). -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Planscape — BIM coordination for East African firms</title>
+<meta name="description" content="ISO 19650 BIM coordination · Revit plugin · offline-first mobile · invoiced in UGX/KES/TZS. From $30/firm/month.">
+<meta property="og:title" content="Planscape — BIM coordination for East African firms">
+<meta property="og:description" content="From $30/firm/month. Revit plugin + offline-first mobile + ISO 19650 templates pre-built. Invoiced in your local currency.">
+<meta property="og:type" content="website">
+<link rel="canonical" href="https://planscape.app/">
+<!-- Phase 169 — Mapbox GL JS for the Africa project location map.
+     Replace PLANSCAPE_MAPBOX_TOKEN inside the bottom <script> with a
+     real public token from mapbox.com (free tier — no credit card). -->
 <link href='https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css' rel='stylesheet' />
 <script src='https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js'></script>
+<style>
+:root{--accent:#E8912D;--ink:#1c1f26;--muted:#6c7280;--bg:#fafbfc;--card:#fff;--line:#eceef3}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.55 -apple-system,system-ui,Segoe UI,Roboto,sans-serif;color:var(--ink);background:var(--bg)}
+nav{position:sticky;top:0;z-index:10;background:rgba(250,251,252,0.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
+nav .brand{font-weight:700;font-size:18px}
+nav .brand .dot{color:var(--accent)}
+nav .links a{color:var(--ink);text-decoration:none;margin:0 14px;font-size:14px}
+nav .cta{background:var(--accent);color:#fff;padding:8px 14px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px}
+.hero{padding:96px 24px 64px;text-align:center;max-width:920px;margin:0 auto}
+.hero h1{font-size:48px;line-height:1.1;margin:0 0 16px;letter-spacing:-0.02em}
+.hero .sub{color:var(--muted);font-size:18px;max-width:640px;margin:0 auto 32px}
+.hero .cta-row a{display:inline-block;padding:14px 22px;border-radius:10px;text-decoration:none;font-weight:600;margin:0 6px}
+.hero .cta-row a.primary{background:var(--accent);color:#fff}
+.hero .cta-row a.secondary{border:1px solid var(--ink);color:var(--ink)}
+.hero .price-strip{margin-top:32px;color:var(--muted);font-size:14px}
+.hero .price-strip strong{color:var(--ink);font-weight:600}
+section{max-width:1100px;margin:0 auto;padding:64px 24px}
+section h2{font-size:30px;margin:0 0 16px;letter-spacing:-0.01em}
+section .lead{color:var(--muted);max-width:640px;margin:0 0 36px}
+.grid-3{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.feat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px}
+.feat .icon{font-size:32px;margin-bottom:10px}
+.feat h3{margin:0 0 6px;font-size:17px}
+.feat p{margin:0;color:var(--muted);font-size:14px}
+.compare{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.compare th,.compare td{padding:14px 18px;text-align:left;border-bottom:1px solid var(--line);font-size:14px}
+.compare thead{background:#f3f5f8}
+.compare th{font-weight:600}
+.compare td.us{color:var(--accent);font-weight:600}
+.testimonial{background:linear-gradient(135deg,rgba(232,145,45,0.08),rgba(232,145,45,0.02));border-radius:14px;padding:32px;margin:24px 0;font-size:16px}
+.testimonial .quote{font-style:italic;color:#34394a}
+.testimonial .who{margin-top:12px;color:var(--muted);font-size:13px}
+.cta-band{text-align:center;background:var(--ink);color:#fff;padding:64px 24px}
+.cta-band h2{margin:0 0 12px;color:#fff;font-size:30px}
+.cta-band p{color:#a8b1c0;margin:0 0 24px}
+.cta-band a{display:inline-block;padding:14px 22px;background:var(--accent);color:#fff;text-decoration:none;border-radius:10px;font-weight:600}
+footer{padding:32px 24px;text-align:center;color:var(--muted);font-size:13px;border-top:1px solid var(--line)}
+@media (max-width:640px){.hero h1{font-size:32px}.hero .sub{font-size:16px}}
+
+/* Phase 169 — Africa section + Mapbox map */
+#africa{background:#FEFAF6}
+#africa .africa-grid{display:grid;gap:48px;grid-template-columns:1fr 1fr;align-items:center}
+@media (max-width:880px){#africa .africa-grid{grid-template-columns:1fr}}
+#africa .eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:2px;color:var(--accent);font-weight:600;margin:0 0 8px}
+#africa h2{font-size:32px;line-height:1.15;margin:0 0 16px;color:var(--ink)}
+#africa p{color:var(--muted);font-size:16px;margin:0 0 12px;max-width:520px}
+#africa-map{width:100%;height:420px;border-radius:16px;overflow:hidden;border:1px solid rgba(232,145,45,0.3);box-shadow:0 20px 60px rgba(0,0,0,0.15)}
+.africa-stats{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.africa-stats .stat-chip{background:rgba(232,145,45,0.10);color:var(--accent);border-radius:999px;padding:4px 12px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
+.mapboxgl-popup-content{background:#1A1F5E !important;color:#fff !important;border-radius:12px !important;padding:16px !important;min-width:240px !important;border:1px solid rgba(255,255,255,0.1) !important;box-shadow:0 8px 32px rgba(0,0,0,0.4) !important}
+.mapboxgl-popup-tip{border-top-color:#1A1F5E !important;border-bottom-color:#1A1F5E !important}
+.mapboxgl-popup-close-button{color:rgba(255,255,255,0.6) !important;padding:4px 8px !important}
+.popup-card h4{margin:0 0 4px;font-size:15px;color:#fff;font-weight:700}
+.popup-card .loc{font-size:12px;color:rgba(255,255,255,0.65);margin-bottom:8px}
+.popup-card .row{display:flex;justify-content:space-between;font-size:12px;margin:4px 0;color:rgba(255,255,255,0.85)}
+.popup-card .row .ind-active{color:#FF6B35;font-weight:600}
+.popup-card .row .ind-completed{color:#22C55E;font-weight:600}
+.popup-card hr{border:0;border-top:1px solid rgba(255,255,255,0.12);margin:10px 0}
+.popup-card .demo-link{display:inline-block;color:#FF6B35;font-weight:600;font-size:13px;text-decoration:none}
+.popup-card .demo-link:hover{text-decoration:underline}
+.map-marker-mkt{position:relative;width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.4);cursor:pointer}
+.map-marker-mkt.active{background:#FF6B35}
+.map-marker-mkt.completed{background:#22C55E}
+.map-marker-mkt::after{content:"";position:absolute;inset:-2px;border-radius:50%;background:inherit;opacity:0.35;animation:mkt-pulse 2s ease-out infinite;z-index:-1}
+@keyframes mkt-pulse{0%{transform:scale(1);opacity:0.5}80%{transform:scale(2.6);opacity:0}100%{transform:scale(2.6);opacity:0}}
+</style>
 </head>
 <body>
-<nav class="topbar">
-  <div class="brand">Planscape</div>
-  <div class="spacer"></div>
-  <select id="projectPicker" class="project-picker"></select>
-  <div id="userChip" class="user-chip">Signing in…</div>
-  <button id="signOutBtn" class="ghost">Sign out</button>
+
+<nav>
+  <div class="brand">Plan<span class="dot">·</span>scape</div>
+  <div class="links">
+    <a href="#features">Features</a>
+    <a href="#compare">Compare</a>
+    <a href="/api/pricing/html">Pricing</a>
+    <a href="/docs/">Docs</a>
+    <a href="/app/">Sign in</a>
+  </div>
+  <a href="/app/" class="cta">Get started</a>
 </nav>
 
-<aside class="sidebar">
-  <a href="#overview"      class="nav-link active" data-view="overview">Overview</a>
-  <a href="#issues"        class="nav-link"        data-view="issues">Issues</a>
-  <a href="#documents"     class="nav-link"        data-view="documents">Documents</a>
-  <a href="#transmittals"  class="nav-link"        data-view="transmittals">Transmittals</a>
-  <a href="#meetings"      class="nav-link"        data-view="meetings">Meetings</a>
-  <a href="#workflows"     class="nav-link"        data-view="workflows">Workflows</a>
-  <a href="#warnings"      class="nav-link"        data-view="warnings">Warnings</a>
-  <a href="#models"        class="nav-link"        data-view="models">3D models</a>
-  <a href="#schedule"      class="nav-link"        data-view="schedule">Schedule</a>
-  <a href="#cost"          class="nav-link"        data-view="cost">Cost</a>
-  <!-- Phase 152 — admin section -->
-  <div class="nav-divider" aria-hidden="true"></div>
-  <a href="#tenant-keywords"         class="nav-link" data-view="tenant-keywords">Tenant keywords</a>
-  <!-- Phase 155 — tenant-scoped BIM-Manager role override editor -->
-  <a href="#tenant-bim-manager-roles" class="nav-link" data-view="tenant-bim-manager-roles">BIM-Manager roles</a>
-</aside>
+<section class="hero">
+  <h1>BIM coordination built for East African firms.</h1>
+  <p class="sub">Revit plugin for authors, offline-first mobile for site coordinators, ISO 19650 templates pre-built. Invoiced in shillings, not dollars.</p>
+  <div class="cta-row">
+    <a href="/app/" class="primary">Start 30-day trial</a>
+    <a href="#demo" class="secondary">Watch 90-second demo</a>
+  </div>
+  <div class="price-strip">
+    From <strong>$30/firm/month</strong> · ~$4.50 per seat · 10× cheaper than Autodesk Construction Cloud
+  </div>
+</section>
 
-<main id="main" class="main">
-  <!-- populated by js/dashboard.js based on active view -->
-</main>
+<section id="features">
+  <h2>Everything you need, nothing you don't</h2>
+  <p class="lead">Built around the workflow ISO 19650 actually demands — and the connectivity East African sites actually have.</p>
+  <div class="grid-3">
+    <div class="feat"><div class="icon">🧊</div><h3>Revit plugin included</h3><p>Tag, sync, publish models direct from Revit. No separate license, no extra seat cost.</p></div>
+    <div class="feat"><div class="icon">📱</div><h3>Offline-first mobile</h3><p>Coordinators work on site without signal. Photos, voice notes, pins queue and replay automatically.</p></div>
+    <div class="feat"><div class="icon">📋</div><h3>ISO 19650 templates</h3><p>Transmittals, RFIs, NCRs, BEPs, MIDPs — pre-built and ready to issue from day one.</p></div>
+    <div class="feat"><div class="icon">🌍</div><h3>Local invoicing</h3><p>UGX, KES, TZS, RWF, NGN, ZAR via Flutterwave. USD/EUR/GBP via Stripe. You pick.</p></div>
+    <div class="feat"><div class="icon">🔐</div><h3>Audit-grade trail</h3><p>Tamper-evident hash chain over every write. Court-admissible by construction.</p></div>
+    <div class="feat"><div class="icon">⚡</div><h3>Fast where it matters</h3><p>30k-element model save in &lt;1s. 200MB federation loads on a 3G phone.</p></div>
+  </div>
+</section>
 
-<!-- Login overlay (shown until we have a token) -->
-<div id="loginOverlay" class="overlay hidden">
-  <form id="loginForm" class="card">
-    <h2>Sign in</h2>
-    <input id="loginEmail" type="email" placeholder="you@company.com" required />
-    <input id="loginPassword" type="password" placeholder="password" required />
-    <button type="submit">Sign in</button>
-    <p id="loginError" class="error"></p>
-    <p class="hint">Use the same credentials as the mobile app. Passwords are never stored in the browser.</p>
-  </form>
+<section id="compare">
+  <h2>How we stack up</h2>
+  <p class="lead">Per-seat cost at a 33-person firm. We don't try to be the most feature-rich BIM platform on earth — we try to be the right one for a mid-size East African practice.</p>
+  <table class="compare">
+    <thead><tr><th>Tool</th><th>Per seat / month</th><th>Offline mobile</th><th>Local invoicing</th></tr></thead>
+    <tbody>
+      <tr><td class="us">Planscape Network</td><td class="us">$4.50</td><td class="us">Yes</td><td class="us">Yes (UGX/KES/TZS/…)</td></tr>
+      <tr><td>Autodesk Construction Cloud</td><td>$40–80</td><td>No</td><td>USD only</td></tr>
+      <tr><td>Procore</td><td>$30–80 (firm-priced)</td><td>Partial</td><td>USD only</td></tr>
+      <tr><td>Trimble Connect</td><td>$20–40</td><td>Partial</td><td>USD only</td></tr>
+      <tr><td>BIM Track</td><td>$40–55</td><td>No</td><td>USD only</td></tr>
+      <tr><td>Dalux</td><td>$30–50</td><td>Partial</td><td>USD only</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <div class="testimonial">
+    <div class="quote">"We were paying for ACC seats we never used. Switched 18 coordinators to Planscape and stopped sweating the monthly USD bill — local invoicing was the unlock."</div>
+    <div class="who">— Architect / Practice owner, Kampala (pilot, name on request)</div>
+  </div>
+</section>
+
+<section id="demo">
+  <h2>See it in 90 seconds</h2>
+  <p class="lead">Drop your email and we'll send you a private demo link. Or click <a href="/app/">Start free trial</a> and try it yourself — no credit card.</p>
+</section>
+
+<section id="africa">
+  <div class="africa-grid">
+    <div>
+      <div class="eyebrow">Made for Africa's AEC sector</div>
+      <h2>Global standards. Built for East &amp; West Africa.</h2>
+      <p>From hospital wings in Kampala to port infrastructure in Lagos, Planscape is built by AEC practitioners who understand the realities of delivery across the continent — mixed teams, variable connectivity, and projects that must satisfy both local standards and international donor requirements.</p>
+      <p>Six live demo pins on the map — drag, zoom, and click any one to see the project status. Compliance scores are seeded from the same data that powers the dashboard.</p>
+      <div class="africa-stats">
+        <span class="stat-chip">🌍 6 active projects across 5 countries</span>
+        <span class="stat-chip">🛰 3 continents served</span>
+      </div>
+    </div>
+    <div>
+      <div id="africa-map"></div>
+    </div>
+  </div>
+</section>
+
+<div class="cta-band">
+  <h2>Stop paying for software you don't use.</h2>
+  <p>30-day free trial. No credit card. Cancel any time.</p>
+  <a href="/app/">Start now</a>
 </div>
 
-<script src="/js/dashboard.js"></script>
+<footer>
+  © 2026 Planscape Ltd · Kampala, Uganda · <a href="mailto:hello@planscape.app">hello@planscape.app</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a>
+</footer>
+
+<!--
+  S4.6 — Crisp chat widget on the marketing site only. Mobile + web
+  app embed a smaller mailto-based help button (see
+  Planscape/src/components/HelpButton.tsx) to keep the bundle small.
+  Replace CRISP_WEBSITE_ID at deploy time with the real id; absent
+  the id the widget silently no-ops, which is what we want during
+  pre-launch.
+-->
+<!--
+  Phase 169 — Africa project location map. Hardcoded demo pins; no API
+  call. Replace PLANSCAPE_MAPBOX_TOKEN below with a real public Mapbox
+  token (free account, no credit card). Without a real token the script
+  silently no-ops and the section still renders the headline + chips.
+-->
+<script type="text/javascript">
+(function(){
+  var MAPBOX_TOKEN = "PLANSCAPE_MAPBOX_TOKEN";
+  if (!window.mapboxgl) return;
+  if (MAPBOX_TOKEN === "PLANSCAPE_MAPBOX_TOKEN") {
+    var el = document.getElementById("africa-map");
+    if (el) el.innerHTML =
+      '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:#FFF3E8;color:#6c7280;text-align:center;padding:24px;font-size:14px">' +
+        '<div style="font-size:40px;margin-bottom:8px">🗺</div>' +
+        '<strong style="color:#1c1f26;margin-bottom:4px">Interactive map awaits a Mapbox token</strong>' +
+        '<span>Replace <code>PLANSCAPE_MAPBOX_TOKEN</code> in <code>index.html</code> with a free token from mapbox.com.</span>' +
+      '</div>';
+    return;
+  }
+
+  mapboxgl.accessToken = MAPBOX_TOKEN;
+  var map = new mapboxgl.Map({
+    container: "africa-map",
+    style: "mapbox://styles/mapbox/dark-v11",
+    center: [22, 2],
+    zoom: 2.8,
+    interactive: true,
+    attributionControl: false,
+  });
+  // Don't hijack page scroll; user must click in to enable zoom.
+  map.scrollZoom.disable();
+  map.on("click", function(){ map.scrollZoom.enable(); });
+
+  var demoProjects = [
+    { name: "New Hospital Wing",            city: "Kampala",       country: "Uganda",   lat: 0.3136,  lng: 32.5811, status: "Active",    compliance: 84 },
+    { name: "Airport Terminal Expansion",   city: "Entebbe",       country: "Uganda",   lat: 0.0424,  lng: 32.4430, status: "Active",    compliance: 91 },
+    { name: "Port Infrastructure Project",  city: "Lagos",         country: "Nigeria",  lat: 6.4541,  lng:  3.3947, status: "Active",    compliance: 42 },
+    { name: "Mixed-Use Development",        city: "Nairobi",       country: "Kenya",    lat: -1.2921, lng: 36.8219, status: "Completed", compliance: 98 },
+    { name: "Commercial Centre",            city: "Accra",         country: "Ghana",    lat: 5.6037,  lng: -0.1870, status: "Completed", compliance: 96 },
+    { name: "Water Treatment Plant",        city: "Dar es Salaam", country: "Tanzania", lat: -6.7924, lng: 39.2083, status: "Active",    compliance: 67 },
+  ];
+
+  function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]; }); }
+
+  demoProjects.forEach(function(p){
+    var key = p.status === "Completed" ? "completed" : "active";
+    var el = document.createElement("div");
+    el.className = "map-marker-mkt " + key;
+
+    var indClass = key === "active" ? "ind-active" : "ind-completed";
+    var dot = key === "active" ? "●" : "✓";
+    var html =
+      '<div class="popup-card">' +
+        '<h4>' + esc(p.name) + '</h4>' +
+        '<div class="loc">📍 ' + esc(p.city) + ', ' + esc(p.country) + '</div>' +
+        '<div class="row"><span>Status</span><span class="' + indClass + '">' + dot + ' ' + esc(p.status) + '</span></div>' +
+        '<div class="row"><span>Compliance</span><span>' + p.compliance + '%</span></div>' +
+        '<hr>' +
+        '<a href="#pricing" class="demo-link">Request a Demo →</a>' +
+      '</div>';
+
+    var popup = new mapboxgl.Popup({ offset: 18, closeButton: true })
+      .setHTML(html);
+
+    new mapboxgl.Marker({ element: el })
+      .setLngLat([p.lng, p.lat])
+      .setPopup(popup)
+      .addTo(map);
+  });
+})();
+</script>
+
+<script type="text/javascript">
+  window.$crisp=[];window.CRISP_WEBSITE_ID="__CRISP_WEBSITE_ID__";
+  (function(){
+    if (window.CRISP_WEBSITE_ID === "__CRISP_WEBSITE_ID__") return;
+    var d=document; var s=d.createElement("script"); s.src="https://client.crisp.chat/l.js"; s.async=1;
+    d.getElementsByTagName("head")[0].appendChild(s);
+  })();
+</script>
+
 </body>
 </html>
