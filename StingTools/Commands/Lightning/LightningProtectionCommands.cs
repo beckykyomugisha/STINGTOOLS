@@ -25,12 +25,14 @@ using Autodesk.Revit.UI;
 using MiniSoftware;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
-// Disambiguate WPF controls from Autodesk.Revit.UI.TextBox/ComboBox.
-using TextBox = System.Windows.Controls.TextBox;
-using ComboBox = System.Windows.Controls.ComboBox;
 using StingTools.Core.Lightning;
 using StingTools.Core.Fabrication;
 using StingTools.UI;
+// Disambiguate WPF controls from Autodesk.Revit.UI.TextBox/ComboBox and
+// from Autodesk.Revit.DB.Color.
+using TextBox = System.Windows.Controls.TextBox;
+using ComboBox = System.Windows.Controls.ComboBox;
+using Color = System.Windows.Media.Color;
 
 namespace StingTools.Commands.Lightning
 {
