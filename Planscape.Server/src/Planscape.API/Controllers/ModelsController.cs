@@ -73,7 +73,7 @@ public class ModelsController : ControllerBase
     // ── Upload ─────────────────────────────────────────────────────────
 
     [HttpPost]
-    [RequestSizeLimit(MaxModelSizeBytes)]
+    [DisableRequestSizeLimit]
     [RequestFormLimits(MultipartBodyLengthLimit = MaxModelSizeBytes)]
     [Authorize(Roles = "Admin,Owner,Coordinator")]
     public async Task<ActionResult> Upload(
