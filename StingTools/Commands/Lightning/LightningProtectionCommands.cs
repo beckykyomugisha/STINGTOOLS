@@ -1291,7 +1291,7 @@ namespace StingTools.Commands.Lightning
         // ── Token + row builders ─────────────────────────────────────
 
         private static Dictionary<string, object> BuildTokenDict(
-            Document doc, Autodesk.Revit.DB.ProjectInformation prj, string classId, LpsClassDef def,
+            Document doc, ProjectInfo prj, string classId, LpsClassDef def,
             IReadOnlyList<LpsComplianceItem> items, int pass, int warn, int fail, string verdict,
             List<FamilyInstance> ats, List<FamilyInstance> dcs, List<FamilyInstance> ees, double earthAvg)
         {
