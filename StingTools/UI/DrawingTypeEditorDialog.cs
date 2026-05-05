@@ -52,6 +52,12 @@ namespace StingTools.UI
         private readonly Document _doc;
         private readonly List<DrawingType> _types;       // working copy
         private DrawingType _current;
+        // Phase 169 — Resolved-column preview state. _previewDisc drives the
+        // {disc}/{discipline}/{role} tokens; _previewSeq drives {seq:Dn}; both
+        // optional. Persisted across RenderForm() rebuilds for the same dialog
+        // session so the operator's pick survives a re-render.
+        private string _previewDisc = "";
+        private int    _previewSeq  = 1;
         private ListBox _lbTypes;
         private TextBox _tbSearch;
         private StackPanel _formHost;                    // right-hand form container
@@ -2221,19 +2227,53 @@ namespace StingTools.UI
             _current.TitleBlockParams = _current.TitleBlockParams
                 ?? new System.Collections.Generic.Dictionary<string, string>();
 
-            var resolved = StingTools.Core.Drawing.TitleBlockParamApplier
-                .Peek(_doc, _current, tokens: null);
             var unbound = new System.Collections.Generic.HashSet<string>(
                 StingTools.Core.Drawing.TitleBlockParamApplier
                     .FindMissingProjectInfoParams(_doc, _current),
                 StringComparer.OrdinalIgnoreCase);
 
+            // Phase 169 — preview controls row: discipline picker + seq spinner
+            // drive the live Resolved column, and an Insert-token affordance
+            // helps the operator discover available {tokens} + |filters.
+            var previewBar = new DockPanel { Margin = new Thickness(0, 0, 0, 6), LastChildFill = false };
+            previewBar.Children.Add(new TextBlock {
+                Text = "Preview as:", VerticalAlignment = VerticalAlignment.Center,
+                FontSize = 11, Foreground = new SolidColorBrush(SubtleColor),
+                Margin = new Thickness(0, 0, 6, 0) });
+            string[] discs = { "", "A", "S", "M", "E", "P", "FP", "L" };
+            if (string.IsNullOrEmpty(_previewDisc) && !string.IsNullOrEmpty(_current.Discipline))
+                _previewDisc = _current.Discipline;
+            var discCombo = SmallCombo(_previewDisc ?? "",
+                v => { _previewDisc = v ?? ""; RenderForm(); },
+                discs);
+            discCombo.Width = 90; discCombo.Margin = new Thickness(0, 0, 12, 0);
+            previewBar.Children.Add(discCombo);
+            previewBar.Children.Add(new TextBlock {
+                Text = "{seq}:", VerticalAlignment = VerticalAlignment.Center,
+                FontSize = 11, Foreground = new SolidColorBrush(SubtleColor),
+                Margin = new Thickness(0, 0, 6, 0) });
+            var seqTb = SmallTb(_previewSeq.ToString(), v =>
+            {
+                if (int.TryParse(v, out var n) && n != _previewSeq) { _previewSeq = n; RenderForm(); }
+            });
+            seqTb.Width = 60; seqTb.Margin = new Thickness(0, 0, 12, 0);
+            previewBar.Children.Add(seqTb);
+            body.Children.Add(previewBar);
+
+            // Build the token dict the Resolved column will use.
+            var previewTokens = StingTools.Core.Drawing.DrawingTokenContext.Build(
+                doc:        _doc,
+                dt:         _current,
+                discCode:   string.IsNullOrEmpty(_previewDisc) ? _current.Discipline : _previewDisc,
+                discipline: string.IsNullOrEmpty(_previewDisc) ? _current.Discipline : _previewDisc,
+                seq:        _previewSeq);
+
             // Header row
             var hdr = new Grid { Margin = new Thickness(0, 0, 0, 2) };
-            double[] cols = { 200, 220, 160, 30 };
+            double[] cols = { 200, 220, 24, 160, 30 };
             for (int c = 0; c < cols.Length; c++)
                 hdr.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(cols[c]) });
-            string[] headers = { "Param name", "Value template", "Resolved", "" };
+            string[] headers = { "Param name", "Value template", "+", "Resolved", "" };
             for (int i = 0; i < headers.Length; i++)
             {
                 var t = new TextBlock {
@@ -2264,36 +2304,82 @@ namespace StingTools.UI
                 Grid.SetColumn(keyTb, 0);
                 row.Children.Add(keyTb);
 
-                var valTb = SmallTb(kv.Value ?? "", v => _current.TitleBlockParams[key] = v ?? "");
+                // Value template TextBox — Phase 169 live preview.
+                var valTb = new TextBox {
+                    Text = kv.Value ?? "", Height = 20, FontSize = 10 };
+                DarkDialogTheme.StyleInput(valTb, CardBg, FgColor, CardBorder);
                 Grid.SetColumn(valTb, 1);
                 row.Children.Add(valTb);
 
-                bool referencesProj = (kv.Value ?? "").IndexOf("${", StringComparison.Ordinal) >= 0;
-                bool anyUnbound = referencesProj && unbound.Any(u =>
-                    (kv.Value ?? "").IndexOf("${" + u + "}", StringComparison.Ordinal) >= 0);
-                string previewText = anyUnbound
-                    ? "(param not bound)"
-                    : (resolved.TryGetValue(key, out var rv) ? rv : "");
+                // Token / filter insert button — opens an autocomplete-style
+                // ContextMenu listing canonical tokens + filters. Inserts at
+                // current caret position so chains like "{disc|upper}" can
+                // be assembled without typing the whole grammar.
+                var insertBtn = new Button
+                {
+                    Content = "+", Height = 20, Width = 20, FontSize = 10,
+                    Padding = new Thickness(0), Margin = new Thickness(2, 0, 2, 0),
+                    Background = new SolidColorBrush(CardBg),
+                    Foreground = new SolidColorBrush(FgColor),
+                    BorderBrush = new SolidColorBrush(CardBorder),
+                    BorderThickness = new Thickness(1),
+                    ToolTip = "Insert token or filter at the cursor position",
+                };
+                insertBtn.Click += (_, __) => ShowTokenInsertMenu(insertBtn, valTb);
+                Grid.SetColumn(insertBtn, 2);
+                row.Children.Add(insertBtn);
+
+                // Resolved preview — captured reference so live keystrokes
+                // re-resolve without rebuilding the whole form.
                 var preview = new TextBlock
                 {
-                    Text = previewText,
                     FontFamily = new FontFamily("Consolas"),
                     FontSize = 10,
                     Foreground = new SolidColorBrush(SubtleColor),
                     Margin = new Thickness(4, 2, 0, 0),
                     TextTrimming = TextTrimming.CharacterEllipsis,
-                    ToolTip = previewText,
-                    FontStyle = anyUnbound ? FontStyles.Italic : FontStyles.Normal,
                 };
-                Grid.SetColumn(preview, 2);
+                Grid.SetColumn(preview, 3);
                 row.Children.Add(preview);
+
+                Action<string> updatePreview = (tpl) =>
+                {
+                    bool referencesProj = (tpl ?? "").IndexOf("${", StringComparison.Ordinal) >= 0;
+                    bool anyUnbound = referencesProj && unbound.Any(u =>
+                        (tpl ?? "").IndexOf("${" + u + "}", StringComparison.Ordinal) >= 0);
+                    string txt;
+                    if (anyUnbound) txt = "(param not bound)";
+                    else
+                    {
+                        try
+                        {
+                            var tinyDt = new StingTools.Core.Drawing.DrawingType
+                            {
+                                TitleBlockParams = new Dictionary<string, string> { { "_p", tpl ?? "" } }
+                            };
+                            var peek = StingTools.Core.Drawing.TitleBlockParamApplier
+                                .Peek(_doc, tinyDt, previewTokens);
+                            txt = peek.TryGetValue("_p", out var v) ? v : "";
+                        }
+                        catch { txt = "(error)"; }
+                    }
+                    preview.Text = txt;
+                    preview.ToolTip = txt;
+                    preview.FontStyle = anyUnbound ? FontStyles.Italic : FontStyles.Normal;
+                };
+                updatePreview(kv.Value);
+                valTb.TextChanged += (_, __) =>
+                {
+                    _current.TitleBlockParams[key] = valTb.Text ?? "";
+                    updatePreview(valTb.Text);
+                };
 
                 var rm = MakeSmallBtn("×", () =>
                 {
                     _current.TitleBlockParams.Remove(key);
                     RenderForm();
                 });
-                Grid.SetColumn(rm, 3);
+                Grid.SetColumn(rm, 4);
                 row.Children.Add(rm);
 
                 body.Children.Add(row);
@@ -2309,6 +2395,68 @@ namespace StingTools.UI
             }));
 
             return Card("Title block parameters", body);
+        }
+
+        // Phase 169 — autocomplete-style insert menu listing every canonical
+        // token and filter the resolver knows about. Inserts at the caret
+        // (or replaces selection) so the operator never has to memorise the
+        // grammar. Items in 4 sections so the menu is scannable.
+        private void ShowTokenInsertMenu(System.Windows.Controls.Button anchor, TextBox target)
+        {
+            var menu = new System.Windows.Controls.ContextMenu();
+            void AddItem(string label, string snippet)
+            {
+                var mi = new System.Windows.Controls.MenuItem { Header = label };
+                mi.Click += (_, __) => InsertAtCaret(target, snippet);
+                menu.Items.Add(mi);
+            }
+            void AddHeader(string label)
+            {
+                var hdr = new System.Windows.Controls.MenuItem
+                {
+                    Header = label,
+                    IsEnabled = false,
+                    FontWeight = FontWeights.SemiBold,
+                };
+                menu.Items.Add(hdr);
+            }
+            AddHeader("Project info ${X}");
+            foreach (var k in new[] {
+                "PRJ_ORG_PROJECT_CODE", "PRJ_ORG_PROJECT_NAME",
+                "PRJ_ORG_ORIGINATOR_CODE", "PRJ_ORG_COMPANY_NAME",
+                "PRJ_ORG_CLIENT_NAME", "PRJ_ORG_APPOINTING_PARTY",
+                "PRJ_ORG_LEAD_APPOINTED_PARTY",
+            }) AddItem("${ " + k + " }", "${" + k + "}");
+            menu.Items.Add(new System.Windows.Controls.Separator());
+            AddHeader("Tokens {x}");
+            foreach (var k in new[] {
+                "{disc}", "{discipline}", "{lvl}", "{sys}", "{purpose}", "{phase}",
+                "{spool}", "{mark}", "{vol}", "{type}", "{role}", "{suit}", "{rev}",
+                "{project}", "{originator}", "{seq:D4}",
+            }) AddItem(k, k);
+            menu.Items.Add(new System.Windows.Controls.Separator());
+            AddHeader("Filters | …");
+            foreach (var f in new[] {
+                "|upper", "|lower", "|title", "|trim",
+                "|trunc:N", "|pad:N", "|padl:N",
+                "|date:yyyy-MM-dd", "|default:VALUE", "|fallback:${OTHER}",
+            }) AddItem(f, f);
+            menu.PlacementTarget = anchor;
+            menu.IsOpen = true;
+        }
+
+        private static void InsertAtCaret(TextBox tb, string snippet)
+        {
+            try
+            {
+                int start = tb.SelectionStart;
+                int len   = tb.SelectionLength;
+                var txt   = tb.Text ?? "";
+                tb.Text   = txt.Substring(0, start) + snippet + txt.Substring(start + len);
+                tb.CaretIndex = start + snippet.Length;
+                tb.Focus();
+            }
+            catch { /* best-effort UX helper */ }
         }
 
         private UIElement MakeSlotHeader()
