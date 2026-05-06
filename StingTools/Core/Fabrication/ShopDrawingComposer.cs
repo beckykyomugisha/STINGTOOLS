@@ -134,18 +134,90 @@ namespace StingTools.Core.Fabrication
             try { ApplySheetMetadata(doc, sheet, assemblyId, discipline, drawingType, result); }
             catch (Exception ex) { result.Warnings.Add($"Sheet metadata: {ex.Message}"); }
 
-            // Apply user-selected view template to every non-schedule
-            // view the sheet will host, so the shop drawing inherits
-            // the company's graphic standards (line weights, filled
-            // regions, VG overrides, cropping rules).
+            // Apply the resolved DrawingType profile to every non-schedule
+            // view so spools render at the slot's intended scale. Without
+            // this, AssemblyViewUtils-created views keep the
+            // ViewFamilyType default (~1:100) and print half-size on a
+            // layout sized for 1:50. Schedules / material takeoffs have
+            // no Scale property and are intentionally excluded.
+            //
+            // runAnnotation: false — fabrication views handle their own
+            // annotation via IsoSymbolPlacer; we only want the
+            // presentation pass (scale, detail level, view template,
+            // crop, style pack).
+            // Map each fabrication view to the DrawingSlot that hosts it
+            // so per-slot Scale / DetailLevel / ViewTemplate overrides
+            // declared in the editor can land on the right view. Detail
+                // callout slots (e.g. 1:20) can sit on the same sheet as the
+                // 1:50 spool overview without the author having to clone the
+                // whole DrawingType.
+            var viewSlotMap = new (ElementId ViewId, string SlotLabel)[]
+            {
+                (views.ViewPlan,    "Plan"),
+                (views.View3D,      "3D"),
+                (views.ViewIso6412, "ISO"),
+                (views.Elevation0,  "Elev0"),
+                (views.Elevation90, "Elev90"),
+                (views.ElevationTop,"ElevTop"),
+            };
+            var viewIdsToPresent = viewSlotMap.Select(t => t.ViewId).ToArray();
+
+            if (drawingType != null)
+            {
+                foreach (var (viewId, slotLabel) in viewSlotMap)
+                {
+                    if (viewId == null || viewId == ElementId.InvalidElementId) continue;
+                    try
+                    {
+                        if (doc.GetElement(viewId) is View v && !v.IsTemplate)
+                        {
+                            var apply = StingTools.Core.Drawing.DrawingTypePresentation
+                                .Apply(doc, v, drawingType, runAnnotation: false);
+                            foreach (var w in apply.Warnings)
+                                result.Warnings.Add($"Apply view {viewId.Value}: {w}");
+
+                            // Layer per-slot overrides on top of DrawingType
+                            // defaults — finer scale on detail slots, fine
+                            // detail level on the ISO callout, etc.
+                            var slot = ResolveSlot(drawingType, slotLabel);
+                            if (slot != null)
+                            {
+                                StingTools.Core.Drawing.DrawingTypePresentation
+                                    .ApplySlotOverrides(doc, v, slot, apply);
+                            }
+
+                            // Phase 175 — auto-dim pass. Annotation was
+                            // skipped above so fabrication keeps its own
+                            // tag pipeline; here we explicitly run only
+                            // dim + spot rules so the profile's
+                            // dimensionStrategy (Ordinate on spools) lands
+                            // on every dimensionable view. 3D views are
+                            // skipped by every dimensioner.
+                            RunFabricationDimPass(doc, v, drawingType, result);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        result.Warnings.Add($"DrawingType view apply {viewId.Value}: {ex.Message}");
+                    }
+                }
+            }
+            else
+            {
+                // No profile resolved — still guarantee a readable scale
+                // so the slot layout (sized for 1:50 A1) isn't fed
+                // default-scaled views.
+                foreach (var viewId in viewIdsToPresent)
+                    TrySetViewScale(doc, viewId, 50, result);
+            }
+
+            // User-picked view template (if any) wins over the profile —
+            // applied last so corporate graphic standards override the
+            // DrawingType.viewTemplateName fallback.
             if (options != null && options.ViewTemplateId != ElementId.InvalidElementId)
             {
-                foreach (var viewId in new[] {
-                    views.View3D, views.ViewPlan, views.ViewIso6412,
-                    views.Elevation0, views.Elevation90, views.ElevationTop })
-                {
+                foreach (var viewId in viewIdsToPresent)
                     ApplyViewTemplate(doc, viewId, options.ViewTemplateId, result);
-                }
             }
 
             // Place views at fixed slots. Elev0/Elev90 receive the new
@@ -402,6 +474,84 @@ namespace StingTools.Core.Fabrication
                 return p?.StorageType == StorageType.String ? (p.AsString() ?? "") : "";
             }
             catch { return ""; }
+        }
+
+        /// <summary>
+        /// Phase 175 — run the AnnotationRunner with tag passes disabled
+        /// against a fabrication view, so the profile's dim rules
+        /// (Ordinate spool chains, MEP-run chains, drainage spot
+        /// elevations) actually fire. Tagging is owned by IsoSymbolPlacer
+        /// + the discipline-specific fabricator; this pass exists purely
+        /// to land annotation primitives the spool drawer expects.
+        /// </summary>
+        private static void RunFabricationDimPass(Document doc, View view,
+            StingTools.Core.Drawing.DrawingType dt, FabricationResult result)
+        {
+            if (dt?.Annotation == null) return;
+            try
+            {
+                var pack = dt.Annotation;
+                try { pack.MigrateFromLegacy(); } catch { }
+                var opts = new StingTools.Core.Drawing.AnnotationRunOptions
+                {
+                    ViewScale       = view.Scale,
+                    SkipAutoTag     = true,
+                    SkipDecorative  = true,
+                    SkipAutoDim     = false,
+                    SkipSpots       = false,
+                };
+                var r = StingTools.Core.Drawing.AnnotationRunner.Run(doc, view, pack, opts);
+                foreach (var w in r.Warnings)
+                    result.Warnings.Add($"FabDim view {view.Id.Value}: {w}");
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"RunFabricationDimPass: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Resolve the DrawingSlot whose Label matches the supplied
+        /// fabrication-view tag (Plan / 3D / ISO / Elev0 / Elev90 /
+        /// ElevTop). Match is case-insensitive and tolerates the legacy
+        /// uppercase forms ("PLAN" / "ELEV0") used in the slot
+        /// catalogues. Returns null when the profile authors didn't
+        /// declare a corresponding slot.
+        /// </summary>
+        private static StingTools.Core.Drawing.DrawingSlot ResolveSlot(
+            StingTools.Core.Drawing.DrawingType dt, string slotLabel)
+        {
+            if (dt?.Slots == null || dt.Slots.Count == 0) return null;
+            if (string.IsNullOrEmpty(slotLabel)) return null;
+            foreach (var s in dt.Slots)
+            {
+                if (s == null || string.IsNullOrEmpty(s.Label)) continue;
+                if (string.Equals(s.Label, slotLabel, StringComparison.OrdinalIgnoreCase))
+                    return s;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Force a view's scale (1:N) — used as the no-DrawingType
+        /// fallback so spools never end up at the Revit default scale,
+        /// which would print half-size on the 1:50 slot layout.
+        /// Views without a settable Scale (schedules, legends) throw
+        /// and are silently skipped.
+        /// </summary>
+        private static void TrySetViewScale(Document doc, ElementId viewId, int scale,
+            FabricationResult result)
+        {
+            if (viewId == null || viewId == ElementId.InvalidElementId || scale <= 0) return;
+            try
+            {
+                if (doc.GetElement(viewId) is View v && !v.IsTemplate)
+                    v.Scale = scale;
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"Scale 1:{scale} on {viewId.Value}: {ex.Message}");
+            }
         }
 
         /// <summary>

@@ -1380,6 +1380,18 @@
             "category": "Pipes",
             "ruleType": "AutoAnnotateSlope",
             "enabled": true
+          },
+          {
+            "category": "OST_DuctCurves",
+            "ruleType": "AutoDimMEPToGrid",
+            "enabled": true,
+            "minSizeMm": 200
+          },
+          {
+            "category": "OST_PipeCurves",
+            "ruleType": "AutoDimMEPToGrid",
+            "enabled": true,
+            "minSizeMm": 50
           }
         ]
       },
@@ -1462,7 +1474,9 @@
           "normX": 0.55,
           "normY": 0.55,
           "normW": 0.4,
-          "normH": 0.4
+          "normH": 0.4,
+          "scale": 25,
+          "detailLevel": "Fine"
         },
         {
           "label": "Elev0",
@@ -1470,7 +1484,9 @@
           "normX": 0.05,
           "normY": 0.1,
           "normW": 0.28,
-          "normH": 0.4
+          "normH": 0.4,
+          "scale": 20,
+          "detailLevel": "Fine"
         },
         {
           "label": "Elev90",
@@ -1478,7 +1494,9 @@
           "normX": 0.36,
           "normY": 0.1,
           "normW": 0.28,
-          "normH": 0.4
+          "normH": 0.4,
+          "scale": 20,
+          "detailLevel": "Fine"
         },
         {
           "label": "3D",
@@ -1534,6 +1552,12 @@
             "category": "Duct Accessories",
             "ruleType": "AutoTag",
             "enabled": true
+          },
+          {
+            "category": "OST_PipeCurves",
+            "ruleType": "AutoDimMEPRun",
+            "enabled": true,
+            "minSizeMm": 25
           }
         ]
       },
@@ -1624,7 +1648,9 @@
           "normX": 0.55,
           "normY": 0.55,
           "normW": 0.4,
-          "normH": 0.4
+          "normH": 0.4,
+          "scale": 25,
+          "detailLevel": "Fine"
         },
         {
           "label": "Elev0",
@@ -1632,7 +1658,9 @@
           "normX": 0.05,
           "normY": 0.1,
           "normW": 0.28,
-          "normH": 0.4
+          "normH": 0.4,
+          "scale": 20,
+          "detailLevel": "Fine"
         },
         {
           "label": "Elev90",
@@ -1640,7 +1668,9 @@
           "normX": 0.36,
           "normY": 0.1,
           "normW": 0.28,
-          "normH": 0.4
+          "normH": 0.4,
+          "scale": 20,
+          "detailLevel": "Fine"
         },
         {
           "label": "3D",
@@ -1695,6 +1725,12 @@
             "category": "Duct Accessories",
             "ruleType": "AutoTag",
             "enabled": true
+          },
+          {
+            "category": "OST_DuctCurves",
+            "ruleType": "AutoDimMEPRun",
+            "enabled": true,
+            "minSizeMm": 100
           }
         ]
       },
@@ -3679,12 +3715,12 @@
         "rules": [
           {
             "category": "Grids",
-            "ruleType": "AutoDim",
+            "ruleType": "GridDim",
             "enabled": true
           },
           {
             "category": "Levels",
-            "ruleType": "AutoDim",
+            "ruleType": "LevelAnnotation",
             "enabled": true
           },
           {
@@ -3696,6 +3732,17 @@
             "category": "Pipes",
             "ruleType": "AutoAnnotateSlope",
             "enabled": true
+          },
+          {
+            "category": "OST_PipeCurves",
+            "ruleType": "AutoSpotInvert",
+            "enabled": true
+          },
+          {
+            "category": "OST_PipeCurves",
+            "ruleType": "AutoDimMEPToGrid",
+            "enabled": true,
+            "minSizeMm": 50
           },
           {
             "category": "Pipe Fittings",
