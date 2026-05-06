@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Privacy Policy — Planscape</title>
+<meta name="description" content="How Planscape collects, uses, and protects your personal and project data — written for Uganda's DPPA 2019 and GDPR.">
+<link rel="canonical" href="https://planscape.app/privacy">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="icon" type="image/png" href="/images/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="/images/apple-touch-icon.png">
+<style>
+:root{--accent:#E8912D;--ink:#1c1f26;--muted:#6c7280;--bg:#fafbfc;--card:#fff;--line:#eceef3}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.65 -apple-system,system-ui,Segoe UI,Roboto,sans-serif;color:var(--ink);background:var(--bg)}
+nav{position:sticky;top:0;z-index:10;background:rgba(250,251,252,0.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
+nav .brand{font-weight:700;font-size:18px}
+nav .brand .dot{color:var(--accent)}
+nav .links a{color:var(--ink);text-decoration:none;margin:0 14px;font-size:14px}
+nav .cta{background:var(--accent);color:#fff;padding:8px 14px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px}
+.legal{max-width:720px;margin:0 auto;padding:64px 24px}
+.legal h1{font-size:36px;margin:0 0 8px;letter-spacing:-0.02em}
+.legal .effective{color:var(--muted);font-size:14px;margin:0 0 32px}
+.legal h2{font-size:22px;margin:36px 0 12px;letter-spacing:-0.01em}
+.legal p{margin:0 0 14px;color:#34394a}
+.legal ul{padding-left:22px;margin:0 0 14px}
+.legal li{margin-bottom:6px;color:#34394a}
+.legal a{color:var(--accent)}
+footer{padding:32px 24px;text-align:center;color:var(--muted);font-size:13px;border-top:1px solid var(--line)}
+@media (max-width:640px){.legal h1{font-size:28px}}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="brand"><a href="/" style="color:inherit;text-decoration:none">Plan<span class="dot">·</span>scape</a></div>
+  <div class="links">
+    <a href="/#features">Features</a>
+    <a href="/#how-it-works">How it works</a>
+    <a href="/#compare">Compare</a>
+    <a href="/api/pricing/html">Pricing</a>
+    <a href="/docs/">Docs</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<div class="legal">
+  <h1>Privacy Policy</h1>
+  <p class="effective">Effective: 1 May 2026</p>
+
+  <h2>1. Who we are</h2>
+  <p>Planscape Ltd is a private limited company registered in Uganda, with offices in Kampala. We operate the Planscape platform — a Revit plugin, mobile app, and cloud service for BIM coordination. In the language of the Uganda Data Protection and Privacy Act 2019 (DPPA) and the EU General Data Protection Regulation (GDPR), Planscape Ltd is the data controller for personal data collected through our marketing site and account systems, and a data processor for project content uploaded by our customers.</p>
+
+  <h2>2. What data we collect</h2>
+  <p>We collect only what we need to operate the service:</p>
+  <ul>
+    <li><strong>Account data</strong> — your name, email, organisation, role, and password hash (we use BCrypt; we never store plain-text passwords).</li>
+    <li><strong>Project metadata</strong> — project names, ISO 19650 codes, team membership, RIBA stages, and tag identifiers. We do <em>not</em> mine the geometric content of your Revit models.</li>
+    <li><strong>Usage logs</strong> — request URLs, response codes, timestamps, IP address, and user agent. Retained for 90 days for security and debugging.</li>
+    <li><strong>Device tokens</strong> — Firebase or Apple push notification tokens, used solely to deliver the notifications you've subscribed to.</li>
+    <li><strong>Billing information</strong> — name, billing address, currency preference, and a transaction ID from our payment processor. We do not store full card numbers; that data is held by Flutterwave or Stripe.</li>
+    <li><strong>Support correspondence</strong> — emails and chat transcripts when you contact us, retained while your account is open.</li>
+  </ul>
+
+  <h2>3. How we use it</h2>
+  <p>We use your data to:</p>
+  <ul>
+    <li>Deliver the service you signed up for — authenticate you, sync your projects, send notifications, render documents.</li>
+    <li>Maintain the audit-grade trail required by ISO 19650-2 §5.6 — every write operation is logged with actor, timestamp, and a hash chain.</li>
+    <li>Bill your subscription and produce VAT-compliant invoices in your chosen currency.</li>
+    <li>Provide support — respond to your questions, investigate issues you report.</li>
+    <li>Improve the product — aggregate usage statistics tell us which features matter. We never sell or share individual usage data with third parties.</li>
+  </ul>
+
+  <h2>4. Lawful basis</h2>
+  <p>Under DPPA 2019 and GDPR Article 6, our lawful bases are:</p>
+  <ul>
+    <li><strong>Contract performance</strong> — for everything required to deliver the service you've paid for.</li>
+    <li><strong>Legitimate interests</strong> — for security logs, fraud prevention, and aggregate analytics.</li>
+    <li><strong>Legal obligation</strong> — for billing records (Uganda Income Tax Act, statutory retention) and audit trail records (ISO 19650-2, contract requirements with your appointing party).</li>
+    <li><strong>Consent</strong> — for marketing emails. You can withdraw consent at any time by clicking unsubscribe or emailing us.</li>
+  </ul>
+
+  <h2>5. Who we share it with</h2>
+  <p>We share data only with the third-party processors needed to operate the service:</p>
+  <ul>
+    <li><strong>Flutterwave</strong> (for African currency billing) and <strong>Stripe</strong> (for USD/EUR/GBP) — receive only what's required to process your subscription payment.</li>
+    <li><strong>Mapbox</strong> — receives anonymous tile-render requests when your team uses map-based features.</li>
+    <li><strong>Crisp</strong> — provides the in-app support chat. If you start a chat we share the message contents, your name, and email with Crisp.</li>
+    <li><strong>Firebase Cloud Messaging</strong> (Google) and <strong>Apple Push Notification Service</strong> — receive a notification token and message body when we send you a push notification.</li>
+    <li><strong>Hosting infrastructure</strong> — our primary database and object storage are operated in EU (Frankfurt) data centres under EU-standard physical security controls.</li>
+  </ul>
+  <p>We do not sell your data. We do not share it with advertisers. We have no third-party tracking cookies on this site.</p>
+
+  <h2>6. Data retention</h2>
+  <ul>
+    <li><strong>Active account data</strong> — kept while your account is open, plus 2 years after closure to support legitimate business and legal needs.</li>
+    <li><strong>Audit chain records</strong> — retained for 7 years to satisfy contract and statutory audit requirements. Erasure of these records would break the chain and invalidate the audit trail; see Section 7.</li>
+    <li><strong>Trial data</strong> — purged 30 days after a trial expires without conversion. We email a reminder 7 days before purge so you can export your data.</li>
+    <li><strong>Usage logs</strong> — 90 days.</li>
+    <li><strong>Support correspondence</strong> — duration of the account, then 90 days after closure.</li>
+  </ul>
+
+  <h2>7. Your rights</h2>
+  <p>Under DPPA 2019 and GDPR, you have the right to:</p>
+  <ul>
+    <li><strong>Access</strong> the data we hold about you.</li>
+    <li><strong>Rectification</strong> of inaccurate data.</li>
+    <li><strong>Erasure</strong> of your account data, except where we are legally required to retain it (audit chain records, billing records).</li>
+    <li><strong>Portability</strong> — export your project data in JSON, CSV, or BCF 2.1.</li>
+    <li><strong>Objection</strong> to processing based on legitimate interests; you can opt out of analytics anytime.</li>
+    <li><strong>Withdrawal of consent</strong> for marketing emails.</li>
+  </ul>
+  <p>To exercise any of these rights, email <a href="mailto:privacy@planscape.app">privacy@planscape.app</a>. We respond within 30 days. If you're not satisfied with our response you can complain to the Personal Data Protection Office of Uganda (PDPO) or, if you're an EU data subject, your local supervisory authority.</p>
+
+  <h2>8. Cookies</h2>
+  <p>We use a small number of cookies:</p>
+  <ul>
+    <li><strong>Session cookie</strong> — required to keep you logged in. First-party, HTTPS-only, SameSite=Lax. No tracking.</li>
+    <li><strong>Mapbox</strong> — when the map renders, Mapbox may set functional cookies for tile caching.</li>
+    <li><strong>Crisp</strong> — the chat widget sets a cookie to remember your conversation across page loads.</li>
+  </ul>
+  <p>We do not use Google Analytics, Facebook Pixel, or any other third-party tracking cookie.</p>
+
+  <h2>9. International transfers</h2>
+  <p>Our primary data region is EU (Frankfurt, Germany). When you sign up from Uganda or elsewhere outside the EU, your data is transferred to and stored in the EU. This transfer is covered by EU-standard contractual clauses (SCCs) between Planscape Ltd and our infrastructure providers, satisfying both DPPA 2019 §38 and GDPR Article 46. If you require in-country data residency, ask about our self-host option which lets you run Planscape on your own infrastructure.</p>
+
+  <h2>10. Contact</h2>
+  <p>Privacy questions: <a href="mailto:privacy@planscape.app">privacy@planscape.app</a><br>
+  General questions: <a href="mailto:hello@planscape.app">hello@planscape.app</a></p>
+  <p>We commit to acknowledge any privacy enquiry within 5 working days and to provide a substantive response within 30 days.</p>
+
+  <h2>11. Changes to this policy</h2>
+  <p>We will update this policy as the product and the regulatory landscape evolve. The effective date at the top of this page reflects the most recent revision. For material changes — anything that meaningfully affects what data we collect, how we use it, or who we share it with — we will email all account holders at least 30 days before the change takes effect, so you have time to review and, if you wish, close your account before the new terms apply.</p>
+</div>
+
+<footer>
+  © 2026 Planscape Ltd · Kampala, Uganda · <a href="mailto:hello@planscape.app">hello@planscape.app</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a>
+</footer>
+
+</body>
+</html>
