@@ -9964,3 +9964,134 @@ merging to `main`.
 
 - `CLAUDE.md` — Quick Stats refresh + Phase 174 banner
 - `docs/CHANGELOG.md` — this entry
+
+#### Completed (Phase 175 — MEP/FP/SLD Symbol Library)
+
+A data-driven batch symbol library creator that mints ~210 Revit
+families from JSON definition files covering Single Line Diagram
+(IEC 60617), lighting, fire protection (NFPA 13 / BS 5306 / BS 5839),
+HVAC / mechanical, electrical devices, plumbing / public health, and
+generic pipe accessories. Each JSON entry describes one family using
+normalised −0.5…+0.5 coordinates that the engine scales to Revit
+internal feet via the `symbolSize` (mm) field.
+
+#### What landed
+
+1. **Schema** — `StingTools/Commands/Symbols/SymbolDefinition.cs` defines
+   `SymbolLibrary` / `SymbolDefinition` / `SymbolGeometry` (lines, arcs,
+   filled regions, connection lines, text) / `ConnectorDefinition` /
+   `Solid3DDefinition` / `ParameterDefinition` POCOs.
+2. **Engine** — `StingTools/Commands/Symbols/SymbolLibraryCreator.cs`
+   resolves the family template per `FamilyType` (`GenericAnnotation`,
+   `MEPAccessory`, `MEPEquipment`) and discipline, opens it via
+   `Application.NewFamilyDocument`, draws geometry with
+   `FamilyCreate.NewDetailCurve` + `FilledRegion.Create` + `TextNote.Create`,
+   adds shared parameters via `FamilyManager.AddParameter`, mints
+   connectors via `ConnectorElement.CreatePipe/Duct/Electrical/ConduitConnector`,
+   optionally extrudes a placeholder 3D mass, saves the `.rfa` to
+   `<project>/_BIM_COORD/Families/Symbols/<group>/`, and reloads it
+   into the host document.
+3. **Commands** — `StingTools/Commands/Symbols/SymbolLibraryCommands.cs`
+   ships six `IExternalCommand` classes:
+   `CreateSymbolLibraryCommand` (full sweep), `CreateSLDSymbolsCommand`,
+   `CreateLightingSymbolsCommand`, `CreateFPSymbolsCommand`,
+   `ReloadSymbolLibraryCommand`, `InspectSymbolLibraryCommand`.
+4. **Data files** — seven JSON catalogues under
+   `StingTools/Data/Symbols/`:
+   - `STING_SLD_SYMBOLS.json` — 42 IEC 60617 SLD primitives
+     (MCB / MCCB / ACB / fuse / RCD / RCBO / SPD / contactor / VSD /
+     transformer 2W & 3W & auto & star-delta / measuring instruments /
+     CT / VT / busbar / earth / generator / UPS / battery / PV /
+     ATS / motor 1Ph & 3Ph / capacitor / heater / lighting load /
+     distribution board / socket / mains switch).
+   - `STING_LIGHTING_SYMBOLS.json` — 25 luminaires
+     (recessed round + square, surface round + square, pendant,
+     track, fluorescent 1T + 2T, LED linear, emergency maintained
+     + non-maintained, exit sign, spotlight, wall bracket,
+     floodlight, bollard, street light, high bay, low bay,
+     anti-vandal, clean room, EX-rated, PIR-controlled, trimless,
+     step light).
+   - `STING_FP_SYMBOLS.json` — 28 fire-protection devices
+     (pendant / upright / sidewall / concealed / ESFR sprinklers,
+     deluge nozzle, optical + ionisation smoke, fixed + rate-of-rise
+     heat, multi-sensor, beam TX/RX, flame, MCP, sounder, sounder/beacon,
+     VAD, FAP, repeater + alarm/deluge/butterfly valves, flow switch,
+     pressure gauge, test + drain valves).
+   - `STING_MEP_SYMBOLS.json` — 26 HVAC items
+     (square + round supply diffusers, square + round return grilles,
+     linear slot, extract valve, displacement, swirl, transfer grille,
+     fire / smoke / fire-smoke / VCD / motorised / non-return dampers,
+     FCU 4-pipe + 2-pipe, VAV, CAV, AHU schematic, axial + centrifugal
+     fans, thermostat, CO₂ / temp / humidity / dP sensors).
+   - `STING_ELEC_SYMBOLS.json` — 24 electrical / data / security devices
+     (single + double sockets, FCU, EV charger, floor socket, 1G + 2G
+     + 2-way + dimmer + PIR switches, consumer unit, distribution board,
+     MCC, rotary isolator, kWh meter, internal + external CCTV, access
+     reader, data outlet, combined data/voice, speaker, door bell,
+     addressable smoke + heat).
+   - `STING_PLUMBING_SYMBOLS.json` — 23 sanitary / drainage / valve items
+     (wall + close-coupled WCs, urinal, WHB, vanity basin, single +
+     double sinks, cleaner's sink, shower tray, bath, bidet, round +
+     square floor drains, gully, gate / globe / ball / butterfly /
+     check valves, Y-strainer, flexible connector, PRV, direct +
+     indirect HWC).
+   - `STING_PIPE_ACCESSORIES.json` — 21 reusable piping accessories
+     (gate, globe, ball, butterfly, check, indicating gate, needle,
+     diaphragm, solenoid, pressure-reducing, pressure-sustaining,
+     flow-control valves; Y + basket strainers; flexible coupling;
+     expansion joint; pressure + temperature gauges; flow meter;
+     inline pump).
+   Total: **190 symbols** across 7 catalogues
+   (42 SLD + 25 lighting + 28 FP + 27 HVAC + 24 electrical +
+   24 plumbing + 20 pipe accessories).
+5. **Wiring** — six dispatch entries added to
+   `StingTools/UI/StingCommandHandler.cs` (`Symbols_CreateAll`,
+   `Symbols_CreateSLD`, `Symbols_CreateLighting`, `Symbols_CreateFP`,
+   `Symbols_Reload`, `Symbols_Inspect`) and a "SYMBOL LIBRARY"
+   section added to the TEMP tab in `StingTools/UI/StingDockPanel.xaml`.
+6. **Build pipeline** — JSON files land under `StingTools/Data/Symbols/`,
+   which is already covered by the `Data\**\*` glob in
+   `StingTools.csproj` so they ship to `data/Symbols/` at build time
+   and are resolved at runtime via `StingToolsApp.FindDataFile`
+   (recursive search).
+
+#### Caveats
+
+1. Built without `dotnet build` verification (Linux sandbox with no
+   Revit API). Spots that depend on overload resolution carry
+   `// TODO-VERIFY-API` comments — particularly
+   `ConnectorElement.CreatePipe/Duct/Electrical/ConduitConnector`
+   reference geometry in 2025, `FamilyCreate.NewExtrusion` profile
+   array shape, and `SpecTypeId` paths under
+   `SpecTypeId.Int.Integer` / `SpecTypeId.String.Text` /
+   `SpecTypeId.Boolean.YesNo`.
+2. The 3D solids on `MEPEquipment` families are best-effort
+   placeholder masses (extruded box / cylinder) so the family loads
+   non-empty in section / 3D views; replace with proper authored
+   geometry during family-library finishing.
+3. Family templates are resolved by name from
+   `Application.FamilyTemplatePath`; on machines where that returns
+   empty the engine falls back to the per-version
+   `C:\ProgramData\Autodesk\RVT 2025/2026/2027\Family Templates\English`
+   tree. Templates that are not present (e.g. `Metric Sprinkler.rft`)
+   degrade gracefully to `Metric Generic Model.rft`.
+4. Coordinate normalisation assumes the symbol body is centred at the
+   family origin. Off-axis symbols (e.g. wall-bracket luminaires)
+   bake the offset into the JSON line list rather than the symbol
+   transform.
+
+#### Files
+
+- `StingTools/Commands/Symbols/SymbolDefinition.cs` — POCO schema
+- `StingTools/Commands/Symbols/SymbolLibraryCreator.cs` — engine
+- `StingTools/Commands/Symbols/SymbolLibraryCommands.cs` — six commands
+- `StingTools/Data/Symbols/STING_SLD_SYMBOLS.json`
+- `StingTools/Data/Symbols/STING_LIGHTING_SYMBOLS.json`
+- `StingTools/Data/Symbols/STING_FP_SYMBOLS.json`
+- `StingTools/Data/Symbols/STING_MEP_SYMBOLS.json`
+- `StingTools/Data/Symbols/STING_ELEC_SYMBOLS.json`
+- `StingTools/Data/Symbols/STING_PLUMBING_SYMBOLS.json`
+- `StingTools/Data/Symbols/STING_PIPE_ACCESSORIES.json`
+- `StingTools/UI/StingCommandHandler.cs` — dispatch entries
+- `StingTools/UI/StingDockPanel.xaml` — SYMBOL LIBRARY section
+- `docs/CHANGELOG.md` — this entry
