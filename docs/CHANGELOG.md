@@ -2,6 +2,107 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 176 — Electrical Panel Schedule Automation)
+
+End-to-end electrical panel schedule pipeline with rule-based template
+selection, Excel round-trip, slot management, configuration-aware
+fallback, drawing-type stamping, and STING tag integration. Replaces the
+single-pass `templates.First()` heuristic in
+`Temp.PanelScheduleCommand` with a configurable engine driven by
+`Data/STING_PANEL_SCHEDULE_TEMPLATES.json`. The legacy `"PanelSchedule"`
+button tag now dispatches to the new pipeline so users transparently
+receive the upgrade.
+
+#### New namespace
+
+`StingTools.Commands.Panels` — `Commands/Panels/` (4 source files
++ 1 audit file, ~1,100 lines).
+
+#### New commands (8)
+
+| Tag | Class | Description |
+|---|---|---|
+| `Panel_BatchSchedules` | `BatchPanelSchedulesCommand` | Rule-based per-panel `PanelScheduleView.CreateInstanceView` with multi-template fallback, drawing-type stamp, ELC_PNL_* fill, circuit back-refs |
+| `Panel_Audit` | `PanelScheduleAuditCommand` | Read-only audit: panels without schedules, template drift (current vs. rule-suggested), missing PNL params |
+| `Panel_ExportToExcel` | `ExportPanelSchedulesToExcelCommand` | Header + Body + Summary sections to `.xlsx`, one worksheet per panel + INDEX cover sheet |
+| `Panel_ImportFromExcel` | `ImportPanelSchedulesFromExcelCommand` | Round-trip Body cells via `TableSectionData.SetCellText`. Empty-cell guard prevents accidental erasure |
+| `Panel_FillSpares` | `FillEmptySlotsWithSparesCommand` | `AddSpare` on every empty slot of active schedule |
+| `Panel_FillSpaces` | `FillEmptySlotsWithSpacesCommand` | `AddSpace` variant |
+| `Panel_FillSparesAll` | `FillSparesAllSchedulesCommand` | Project-wide `AddSpare` with `TransactionGroup` so per-panel failures don't roll back others |
+| `Panel_SpacesToSpares` | `ConvertSpacesToSparesCommand` | `RemoveSpace` + `AddSpare` on every Space slot |
+| `Panel_ClearSparesSpaces` | `ClearSparesAndSpacesCommand` | Wipe spares and spaces from active schedule |
+
+#### New data files
+
+- `Data/STING_PANEL_SCHEDULE_TEMPLATES.json` — 5 priority-ordered rules
+  (switchboard / 3-phase DB / 1-phase consumer unit / data panel /
+  catch-all), skip patterns (SPARE / FUTURE / TBD …), `globalFallback`
+  for first-available template selection, `panelType` field used by the
+  reflection-based `PanelScheduleTemplate.GetPanelConfiguration` probe
+  in the registry.
+- `Data/WORKFLOW_PanelScheduleProduction.json` — preset chaining
+  Audit → BatchSchedules → FillSparesAll (optional) → ExportToExcel
+  (optional) → re-Audit.
+
+#### Drawing Type
+
+`elec-panel-schedule-A3` added to `Data/STING_DRAWING_TYPES.json`,
+routed by `(discipline=Electrical, docType=PANEL_SCHEDULE)`. `BatchPanelSchedules`
+calls `DrawingTypeStamper.Stamp(psv, "elec-panel-schedule-A3")` so
+every created `PanelScheduleView` participates in Browser Organizer +
+drift detection + SyncStyles.
+
+#### Integration with existing systems
+
+- **STING tag containers** — `BatchPanelSchedulesCommand` populates
+  `ELC_PNL_NAME`, `ELC_PNL_VOLTAGE`, `ELC_PNL_LOAD`, `ELC_PNL_FED_FROM`,
+  `ELC_MAIN_BRK`, `ELC_WAYS` on the panel element via `SetIfEmpty`
+  (user-authored values are never overwritten).
+- **Circuit tags** — every `ElectricalSystem` whose `BaseEquipment` is
+  the panel gets `PARA_ELC_PANEL` and `ELC_PANEL_SCHEDULE_REF_TXT`
+  written as `"PS: <schedule-name>"`. The latter is consumed by the
+  T7 panel-schedule-ref tag in `STING_TAG_CONFIG_v5_0_MEP.csv`.
+- **`ActionAuditLog`** — every command writes a line so Phase 74
+  audit trail sees panel-schedule operations.
+- **`WorkflowEngine.ResolveCommand`** — all 9 panel commands wired so
+  workflow JSON presets can chain them.
+- **Output folder** — Excel exports default to
+  `<project>/_BIM_COORD/electrical/` matching the convention in
+  `Commands/Electrical/ExportCircuitsCommand`.
+
+#### Revit API limitations honoured
+
+- `PanelScheduleSheetInstance.Create` is broken in Revit 2024-2026
+  (verified via Autodesk Ideas backlog + Dynamo forum threads).
+  STING does NOT attempt programmatic placement; the result panel
+  surfaces "drag onto sheet manually" instructions.
+- `PanelScheduleTemplate` structure (columns, formulas, headers) is
+  read-only via API. The registry only chooses *which* existing
+  template to apply; templates must be authored via the Revit UI
+  Panel Schedule Template Editor.
+- Read-only Revit-managed cells (computed loads, totals, breaker
+  ratings driven by circuit data) reject `SetCellText` silently or
+  throw — caught and reported as `cellsRejected` in the import result.
+- `IsCircuitRow` does not exist on `PanelScheduleView`. Real-circuit
+  detection uses `GetCircuitByCell(row, col)` which returns the
+  `ElectricalSystem` or null.
+
+#### Caveats
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. The 5 named templates in `STING_PANEL_SCHEDULE_TEMPLATES.json`
+   (`STING - Switchboard Schedule`, etc.) must exist in the host `.rvt`.
+   Without them the registry falls back to "first available template".
+3. `PanelScheduleTemplate.GetPanelConfiguration` is invoked via
+   reflection so the codebase compiles even on Revit versions where the
+   method signature differs. The `PanelType` field in the rule
+   contributes additional configuration-matched fallback templates,
+   but is not authoritative.
+4. CLAUDE.md "Quick Stats" file/line counters not refreshed — the
+   numbers were calibrated up to Phase 175 and would need a new
+   walk-through to be accurate.
+
+
 ## Conventions
 
 - Each phase is a `#### Completed (Phase N — short title)` heading. Entries inside a phase are numbered and imperative ("Added X", "Fixed Y"). Numbering spans across phases, so an entry numbered "525" is the 525th item since Phase 1.

@@ -1811,6 +1811,72 @@
       }
     },
     {
+      "id": "elec-panel-schedule-A3",
+      "name": "Electrical Panel Schedule \u2014 A3",
+      "origin": "corporate",
+      "purpose": "Schedule",
+      "discipline": "E",
+      "paperSize": "A3",
+      "orientation": "Portrait",
+      "titleBlockFamily": "STING_TB_SHEET_A3",
+      "scale": 50,
+      "viewStylePackId": "corp-standard-detail",
+      "sheetNumberPattern": "E-SCH-PNL-{seq:D3}",
+      "sheetNamePattern": "PANEL SCHEDULE \u2014 {disc}",
+      "crop": {
+        "kind": "None"
+      },
+      "tokenProfile": {
+        "presentationMode": "BOQ",
+        "paraDepth": 1,
+        "tagSize": "2",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "",
+        "segmentMask": "10000101",
+        "displayMode": 2,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": false,
+          "C": false,
+          "D": false,
+          "E": false,
+          "F": false,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
+      },
+      "slots": [
+        {
+          "label": "Panel Schedule",
+          "viewType": "PanelSchedule",
+          "normX": 0.05,
+          "normY": 0.05,
+          "normW": 0.9,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "rules": []
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      },
+      "_apiCaveats": [
+        "PanelScheduleSheetInstance.Create has been broken in Revit 2024-2026. STING creates the sheet + applies the title block + stamps the drawing-type id, but the user must drag the PanelScheduleView onto the sheet manually.",
+        "The 'PanelSchedule' viewType in the slot is informational; STING tooling does not auto-place panel schedule views into slots."
+      ]
+    },
+    {
       "id": "door-schedule-A2",
       "name": "Door Schedule \u2014 A2",
       "origin": "corporate",
@@ -6142,6 +6208,12 @@
       "phaseMatches": "PRESENTATION",
       "docTypeMatches": "NARRATIVE",
       "drawingTypeId": "pres-narrative-A1"
+    },
+    {
+      "discipline": "Electrical",
+      "phase": "*",
+      "docType": "PANEL_SCHEDULE",
+      "drawingTypeId": "elec-panel-schedule-A3"
     },
     {
       "discipline": "Architecture",
