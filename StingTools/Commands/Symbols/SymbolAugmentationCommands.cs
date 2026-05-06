@@ -140,7 +140,7 @@ namespace StingTools.Commands.Symbols
             }
             if (augmentedNames.Count == 0)
             { TaskDialog.Show("STING", "No augmented families found."); return Result.Cancelled; }
-            var pick = StingTools.UI.StingListPicker.Show(
+            var pick = StingTools.Select.StingListPicker.Show(
                 "Rollback augmentation", "Pick a family to rollback.", augmentedNames);
             if (string.IsNullOrEmpty(pick)) return Result.Cancelled;
             var fam = families.FirstOrDefault(f => f.Name == pick);

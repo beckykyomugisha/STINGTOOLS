@@ -26,7 +26,7 @@ namespace StingTools.Commands.Symbols
                 TaskDialog.Show("STING", "No standards configured.");
                 return Result.Failed;
             }
-            var pick = StingTools.UI.StingListPicker.Show(
+            var pick = StingTools.Select.StingListPicker.Show(
                 "Switch project symbol standard",
                 "Pick the standard to apply to all symbol overlays.",
                 standards);
@@ -99,7 +99,7 @@ namespace StingTools.Commands.Symbols
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             if (ctx.ActiveView == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
-            var pick = StingTools.UI.StingListPicker.Show("Switch view standard",
+            var pick = StingTools.Select.StingListPicker.Show("Switch view standard",
                 "Pick the standard to apply to symbols in this view.",
                 SymbolStandardRegistry.ListStandards().ToList());
             if (string.IsNullOrEmpty(pick)) return Result.Cancelled;
@@ -122,7 +122,7 @@ namespace StingTools.Commands.Symbols
             var profiles = SymbolStandardRegistry.ListProfiles()
                 .Select(p => p.Id + " — " + p.Name).ToList();
             if (profiles.Count == 0) { TaskDialog.Show("STING", "No mixed-standard profiles defined."); return Result.Failed; }
-            var pick = StingTools.UI.StingListPicker.Show(
+            var pick = StingTools.Select.StingListPicker.Show(
                 "Mixed-standard profile", "Pick the active profile.", profiles);
             if (string.IsNullOrEmpty(pick)) return Result.Cancelled;
             string id = pick.Split(' ').FirstOrDefault();

@@ -27,6 +27,7 @@ using Newtonsoft.Json.Linq;
 using StingTools.Core;
 using StingTools.Core.Lightning;
 using StingTools.Core.Fabrication;
+using StingTools.Select;
 using StingTools.UI;
 // Disambiguate WPF controls from Autodesk.Revit.UI.TextBox/ComboBox and
 // from Autodesk.Revit.DB.Color.
