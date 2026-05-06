@@ -842,7 +842,41 @@ namespace StingTools.Temp
                     // Write discipline-specific design data to Project Information params
                     WriteDisciplineDesignParams(pi, data);
 
+                    // Standards regional preset — write PROJECT_REGION so the
+                    // choice persists on the .rvt; the in-process singleton
+                    // is updated below (after the transaction commits).
+                    if (!string.IsNullOrWhiteSpace(data.Region))
+                    {
+                        try
+                        {
+                            Parameter regionParam = pi.LookupParameter("PROJECT_REGION");
+                            if (regionParam != null && !regionParam.IsReadOnly)
+                                regionParam.Set(data.Region);
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"Could not set PROJECT_REGION on ProjectInfo: {ex.Message}");
+                        }
+                    }
+
                     tx.Commit();
+                }
+
+                // Apply the regional preset on the in-process singleton so
+                // every Standards-aware command that runs immediately after
+                // the wizard already sees the new electrical / HVAC / fire
+                // bindings (avoids the next-doc-open race).
+                if (!string.IsNullOrWhiteSpace(data.Region))
+                {
+                    try
+                    {
+                        StingTools.Standards.ProjectStandardsManager.Instance
+                            .ApplyRegionalPreset(data.Region);
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"ApplyRegionalPreset({data.Region}) skipped: {ex.Message}");
+                    }
                 }
 
                 StingLog.Info($"Project Info set: '{data.ProjectName}' #{data.ProjectNumber}");

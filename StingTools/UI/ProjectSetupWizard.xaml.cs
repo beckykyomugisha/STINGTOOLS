@@ -29,7 +29,9 @@ namespace StingTools.UI
     /// </summary>
     public partial class ProjectSetupWizard : Window
     {
-        private const int TotalPages = 7;
+        // 8 pages: Project Info → Levels → Grids → Disciplines → Disc. Config
+        //          → Automation → Region → Review.
+        private const int TotalPages = 8;
         private int _currentPage = 0;
 
         /// <summary>Result data — populated when user clicks Run.</summary>
@@ -64,6 +66,52 @@ namespace StingTools.UI
 
             BuildStepIndicators();
             UpdateNavigation();
+            PopulateRegionPresets();
+        }
+
+        // Standards & Region — populate the listbox from
+        // ProjectStandardsManager.RegionalPresets and pre-select the
+        // active region so the wizard reflects whatever was already set.
+        private void PopulateRegionPresets()
+        {
+            try
+            {
+                var mgr = StingTools.Standards.ProjectStandardsManager.Instance;
+                var regions = mgr.GetAvailableRegions().ToList();
+                lstRegionPresets.ItemsSource = regions;
+                string current = mgr.Region;
+                int idx = !string.IsNullOrEmpty(current)
+                    ? regions.FindIndex(r => string.Equals(r, current, StringComparison.OrdinalIgnoreCase))
+                    : -1;
+                lstRegionPresets.SelectedIndex = idx >= 0 ? idx : regions.IndexOf("International");
+            }
+            catch (System.Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"PopulateRegionPresets: {ex.Message}");
+            }
+        }
+
+        private void LstRegionPresets_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                if (lstRegionPresets.SelectedItem is string key &&
+                    StingTools.Standards.ProjectStandardsManager.RegionalPresets.TryGetValue(key, out var p))
+                {
+                    txtRegElec.Text   = p.ElectricalStandard;
+                    txtRegHvac.Text   = p.HVACStandard;
+                    txtRegPlumb.Text  = p.PlumbingStandard;
+                    txtRegStruct.Text = p.StructuralStandard;
+                    txtRegFire.Text   = p.FireProtectionStandard;
+                    txtRegLight.Text  = p.LightingStandard;
+                    txtRegEnergy.Text = p.EnergyStandard;
+                    txtRegUnits.Text  = p.UnitSystem.ToString();
+                }
+            }
+            catch (System.Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"LstRegionPresets_SelectionChanged: {ex.Message}");
+            }
         }
 
         private void RenumberLevelRows()
@@ -100,6 +148,30 @@ namespace StingTools.UI
                         txtBuildingName.Text = pi.BuildingName;
                     if (!string.IsNullOrEmpty(pi.Address))
                         txtAddress.Text = pi.Address;
+
+                    // Pre-select the regional preset from PROJECT_REGION when
+                    // it's already been set on this document (e.g. by a prior
+                    // wizard run or the SetRegionCommand). Falls back to the
+                    // singleton's current region otherwise.
+                    try
+                    {
+                        string projRegion = pi.LookupParameter("PROJECT_REGION")?.AsString();
+                        if (string.IsNullOrWhiteSpace(projRegion))
+                            projRegion = StingTools.Standards.ProjectStandardsManager.Instance.Region;
+                        if (!string.IsNullOrWhiteSpace(projRegion) && lstRegionPresets.Items.Count > 0)
+                        {
+                            for (int i = 0; i < lstRegionPresets.Items.Count; i++)
+                            {
+                                if (string.Equals(lstRegionPresets.Items[i] as string, projRegion,
+                                    StringComparison.OrdinalIgnoreCase))
+                                {
+                                    lstRegionPresets.SelectedIndex = i;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception rex) { StingLog.Warn($"PrePopulate region: {rex.Message}"); }
                 }
             }
             catch (Exception ex)
@@ -367,11 +439,11 @@ namespace StingTools.UI
         // ── Step indicators ──────────────────────────────────────────
 
         private readonly List<Border> _stepBorders = new List<Border>();
-        private readonly string[] _stepLabels = { "1", "2", "3", "4", "5", "6", "7" };
+        private readonly string[] _stepLabels = { "1", "2", "3", "4", "5", "6", "7", "8" };
         private readonly string[] _stepTitles =
         {
             "Project Info", "Levels", "Grids",
-            "Disciplines", "Disc. Config", "Automation", "Review"
+            "Disciplines", "Disc. Config", "Automation", "Region", "Review"
         };
 
         private void BuildStepIndicators()
@@ -1037,6 +1109,9 @@ namespace StingTools.UI
             data.CreateSections = chkCreateSections.IsChecked == true;
             data.CreateElevations = chkCreateElevations.IsChecked == true;
 
+            // Page 7: Standards & Region
+            data.Region = lstRegionPresets.SelectedItem as string;
+
             return data;
         }
 
@@ -1169,6 +1244,28 @@ namespace StingTools.UI
             sb.AppendLine($"  Status:        {data.Status}");
             sb.AppendLine($"  LOC codes:     {string.Join(", ", data.LocCodes)}");
             sb.AppendLine($"  ZONE codes:    {string.Join(", ", data.ZoneCodes)}");
+
+            // Standards & Region
+            sb.AppendLine();
+            sb.AppendLine("STANDARDS & REGION");
+            sb.AppendLine(new string('─', 55));
+            if (!string.IsNullOrEmpty(data.Region) &&
+                StingTools.Standards.ProjectStandardsManager.RegionalPresets.TryGetValue(data.Region, out var preset))
+            {
+                sb.AppendLine($"  Region:        {preset.Name} ({data.Region})");
+                sb.AppendLine($"  Electrical:    {preset.ElectricalStandard}");
+                sb.AppendLine($"  HVAC:          {preset.HVACStandard}");
+                sb.AppendLine($"  Plumbing:      {preset.PlumbingStandard}");
+                sb.AppendLine($"  Structural:    {preset.StructuralStandard}");
+                sb.AppendLine($"  Fire:          {preset.FireProtectionStandard}");
+                sb.AppendLine($"  Lighting:      {preset.LightingStandard}");
+                sb.AppendLine($"  Energy:        {preset.EnergyStandard}");
+                sb.AppendLine($"  Units:         {preset.UnitSystem}");
+            }
+            else
+            {
+                sb.AppendLine("  Region:        (not set — defaults to International)");
+            }
 
             // Levels
             sb.AppendLine();
@@ -1500,6 +1597,13 @@ namespace StingTools.UI
     /// </summary>
     public class ProjectSetupData
     {
+        // Page 7: Standards regional preset (UK / USA / EastAfrica / Uganda /
+        // Kenya / SouthAfrica / Australia / Europe / International). Run step
+        // calls ProjectStandardsManager.ApplyRegionalPreset and writes
+        // PROJECT_REGION onto Project Information so the choice travels with
+        // the .rvt and OnDocumentOpened can re-sync the singleton.
+        public string Region { get; set; }
+
         // Page 1: Project info
         public string ProjectName { get; set; }
         public string ProjectNumber { get; set; }
