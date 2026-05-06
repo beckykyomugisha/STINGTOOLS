@@ -88,7 +88,7 @@ public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
             Email = "member@test.org",
             DisplayName = "Test Member",
             PasswordHash = BCrypt.Net.BCrypt.HashPassword("Password123!", workFactor: 4),
-            Role = UserRole.Member,
+            Role = UserRole.Contributor, // pre-existing typo: enum has no `Member`
             Iso19650Role = "E",
             IsActive = true
         };

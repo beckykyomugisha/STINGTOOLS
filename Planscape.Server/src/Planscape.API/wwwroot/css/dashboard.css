@@ -37,6 +37,15 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
 .nav-link { display: block; padding: 10px 20px; color: var(--muted); text-decoration: none; font-weight: 500; }
 .nav-link:hover { background: var(--bg); color: var(--text); }
 .nav-link.active { color: var(--primary); border-left: 3px solid var(--accent); background: var(--bg); }
+/* Project-scoped sidebar section — hidden until a project is opened. */
+.nav-section[data-scope="project"] { display: none; }
+body.in-project .nav-section[data-scope="project"] { display: block; }
+.nav-section-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
+  color: var(--muted); font-weight: 600; padding: 12px 20px 4px;
+  border-top: 1px solid var(--border); margin-top: 8px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 /* Phase 152 — admin-section divider + status colours */
 .nav-divider { height: 1px; background: var(--border, #e0e0e0); margin: 16px 12px; }
 .hint.ok { color: #2e7d32; }
@@ -369,6 +378,109 @@ tr:hover td { background: #fafafa; }
   font-size: 14px; font-weight: 500; cursor: pointer;
 }
 .modal-box .btn-cancel:hover { background: var(--slate-50); }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Project dashboard (single-project landing page)
+   ═══════════════════════════════════════════════════════════════════════ */
+.pd-header {
+  background: linear-gradient(135deg, var(--navy), var(--navy-light));
+  color: #fff; border-radius: 12px; padding: 20px 28px;
+  margin-bottom: 20px;
+}
+.pd-back {
+  background: transparent; color: rgba(255,255,255,0.85); border: 0;
+  font-size: 13px; font-weight: 500; cursor: pointer; padding: 0; margin-bottom: 12px;
+}
+.pd-back:hover { color: #fff; text-decoration: underline; }
+.pd-title-row {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 16px; flex-wrap: wrap;
+}
+.pd-eyebrow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.pd-eyebrow .code-chip { background: rgba(255,255,255,0.18); }
+.pd-eyebrow .status-chip { font-size: 11px; padding: 4px 10px; border-radius: 999px; font-weight: 600; }
+.pd-eyebrow .status-chip.active { background: var(--orange); color: #fff; }
+.pd-eyebrow .status-chip.archived { background: var(--success); color: #fff; }
+.pd-eyebrow .status-chip.onhold { background: var(--warning); color: #1c1f26; }
+.pd-loc, .pd-phase { font-size: 12px; color: rgba(255,255,255,0.75); }
+.pd-name { margin: 8px 0 0; font-size: 26px; font-weight: 700; color: #fff; }
+.pd-meta { font-size: 12px; color: rgba(255,255,255,0.75); text-align: right; position: relative; }
+.pd-meta strong { color: #fff; font-weight: 600; }
+.pd-more-btn {
+  background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 6px; padding: 2px 10px; margin-top: 6px;
+  font-size: 18px; line-height: 1; cursor: pointer;
+}
+.pd-more-btn:hover { background: rgba(255,255,255,0.25); }
+.pd-more-menu {
+  position: absolute; top: 100%; right: 0; margin-top: 6px;
+  background: #fff; color: var(--text);
+  border: 1px solid var(--slate-200); border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  min-width: 180px; padding: 4px; z-index: 100;
+}
+.pd-more-menu button {
+  display: block; width: 100%; text-align: left;
+  background: transparent; border: 0; padding: 8px 12px;
+  font-size: 13px; color: var(--danger); border-radius: 6px; cursor: pointer;
+}
+.pd-more-menu button:hover { background: rgba(239,68,68,0.08); }
+
+.kpi .kpi-bar {
+  margin-top: 8px; width: 100%; height: 4px;
+  background: var(--slate-200); border-radius: 2px; overflow: hidden;
+}
+.kpi .kpi-bar-fill { height: 100%; transition: width 600ms ease; }
+.kpi .kpi-bar-fill.green { background: var(--success); }
+.kpi .kpi-bar-fill.amber { background: var(--warning); }
+.kpi .kpi-bar-fill.red   { background: var(--danger); }
+.kpi .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+.pd-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 16px;
+}
+.pd-grid .card { margin-bottom: 0; }
+.pd-grid .card-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 12px;
+}
+.pd-grid .card-head h3 { margin: 0; font-size: 15px; color: var(--navy); }
+.pd-link {
+  font-size: 12px; color: var(--navy); text-decoration: none; font-weight: 600;
+}
+.pd-link:hover { color: var(--orange); }
+
+.pd-table { width: 100%; }
+.pd-table th { font-size: 10px; }
+.pd-table td { font-size: 13px; }
+.pd-table tr.pd-overdue td { background: rgba(239,68,68,0.05); }
+.pd-overdue-tag {
+  background: var(--danger); color: #fff; font-size: 10px;
+  padding: 1px 6px; border-radius: 4px; font-weight: 600;
+}
+
+.pd-trend { padding: 4px 0; }
+.pd-trend-summary {
+  display: flex; gap: 18px; flex-wrap: wrap; font-size: 12px;
+  color: var(--muted); margin-bottom: 8px;
+}
+.pd-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+.pd-trend-svg { width: 100%; height: 120px; display: block; }
+
+.pd-quicklinks {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+.pd-quicklinks button {
+  background: var(--slate-50); border: 1px solid var(--slate-200);
+  color: var(--navy); padding: 10px 12px; border-radius: 8px;
+  font-size: 13px; font-weight: 500; cursor: pointer; text-align: left;
+}
+.pd-quicklinks button:hover {
+  background: var(--navy); color: #fff; border-color: var(--navy);
+}
 
 /* ── Toast ──────────────────────────────────────────────────────────── */
 .toast {

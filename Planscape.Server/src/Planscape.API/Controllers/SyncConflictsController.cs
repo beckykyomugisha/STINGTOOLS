@@ -6,6 +6,7 @@ using Planscape.API.Services;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.API.Authorization;
 
 namespace Planscape.API.Controllers;
 
@@ -35,6 +36,7 @@ namespace Planscape.API.Controllers;
 [Route("api/projects/{projectId}/[controller]")]
 [EnableRateLimiting("mobile")]
 [Authorize]
+[ProjectAccess]
 public class SyncConflictsController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;

@@ -429,6 +429,16 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.Property<string>("Revision")
                     .HasColumnType("text");
 
+                b.Property<DateTime?>("ScanScannedAt")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<string>("ScanStatus")
+                    .IsRequired()
+                    .HasColumnType("text");
+
+                b.Property<string>("ScanThreatName")
+                    .HasColumnType("text");
+
                 b.Property<string>("StatusHistoryJson")
                     .HasColumnType("text");
 
@@ -453,6 +463,10 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.HasIndex("ProjectId", "Discipline");
 
                 b.HasIndex("ProjectId", "UploadedAt");
+
+                b.HasIndex("ScanStatus")
+                    .HasFilter("\"ScanStatus\" = 'PENDING'")
+                    .HasDatabaseName("IX_Documents_ScanStatus_Pending");
 
                 b.ToTable("Documents");
             });
@@ -612,6 +626,9 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.Property<DateTime>("CreatedAt")
                     .HasColumnType("timestamp with time zone");
 
+                b.Property<Guid?>("CreatedById")
+                    .HasColumnType("uuid");
+
                 b.Property<string>("Description")
                     .HasColumnType("text");
 
@@ -662,6 +679,8 @@ namespace Planscape.Infrastructure.Data.Migrations
 
                 b.HasIndex("TenantId", "Code")
                     .IsUnique();
+
+                b.HasIndex("TenantId", "CreatedById");
 
                 b.ToTable("Projects");
             });

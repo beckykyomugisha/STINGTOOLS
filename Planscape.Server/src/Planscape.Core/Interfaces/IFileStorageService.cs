@@ -56,4 +56,29 @@ public interface IFileStorageService
     /// safely return 0 and the caller logs an orphan warning).
     /// </summary>
     Task<int> DeleteByPrefixAsync(string prefix, CancellationToken ct = default, bool bypassTenantCheck = false);
+
+    /// <summary>
+    /// Phase 175 audit P1-14 — generate a presigned PUT URL the client
+    /// uploads to directly, bypassing the API process. The returned key
+    /// goes under <c>uploads/raw/t_{tenantId}/...</c>; a Hangfire
+    /// scanner moves the file to <c>safe/...</c> after virus scan.
+    /// Throws <see cref="NotSupportedException"/> on backends that
+    /// can't presign (e.g. local filesystem in dev) — caller should
+    /// fall back to the multipart upload endpoint in that case.
+    /// </summary>
+    Task<PresignedUpload> GetPresignedPutUrlAsync(
+        string objectKey, string contentType, TimeSpan validFor, long maxBytes, CancellationToken ct = default);
+
+    /// <summary>
+    /// Move (server-side copy + delete) an object from one key to
+    /// another inside the same bucket. Used by the ClamAV scanner
+    /// to promote <c>uploads/raw/...</c> → <c>safe/...</c> after the
+    /// scan passes (or → <c>quarantine/...</c> on hit).
+    /// </summary>
+    Task MoveAsync(string sourceKey, string destKey, CancellationToken ct = default, bool bypassTenantCheck = false);
 }
+
+/// <summary>
+/// Result of a presigned-upload request.
+/// </summary>
+public record PresignedUpload(string Url, string ObjectKey, DateTime ExpiresAt, IReadOnlyDictionary<string, string> Headers);

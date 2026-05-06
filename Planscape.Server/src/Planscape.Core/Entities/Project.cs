@@ -15,6 +15,16 @@ public class Project : ITenantScoped
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastSyncAt { get; set; }
 
+    /// <summary>
+    /// AppUser.Id of the project author (whoever called POST /api/projects).
+    /// Nullable because pre-existing projects predate this column; the
+    /// backfill migration leaves them at NULL and grants every existing
+    /// tenant user a ProjectMember row so legacy projects stay visible
+    /// to whoever could see them before. New projects start private to
+    /// the author + their invited members + tenant admins.
+    /// </summary>
+    public Guid? CreatedById { get; set; }
+
     // Tag format configuration
     public string TagSeparator { get; set; } = "-";
     public int SeqNumPad { get; set; } = 4;

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Infrastructure.Data;
+using Planscape.API.Authorization;
 
 namespace Planscape.API.Controllers;
 
@@ -29,6 +30,7 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/projects/{projectId:guid}/cobie")]
 [Authorize]
+[ProjectAccess]
 public class CobieController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;

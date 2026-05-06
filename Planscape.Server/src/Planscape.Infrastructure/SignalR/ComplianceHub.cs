@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.Services;
 
 namespace Planscape.Infrastructure.SignalR;
 
@@ -33,18 +34,17 @@ public class ComplianceHub : Hub
 
     public async Task JoinProject(string projectId)
     {
-        if (!Guid.TryParse(projectId, out var pid))
-            throw new HubException("Invalid project id");
-        var userId = GetCallerUserId();
-        if (userId == null)
-            throw new HubException("Not authenticated");
+        // Phase 175 audit P0-2 + P2-21 — visibility is author OR active
+        // member OR tenant admin (matches REST). Single opaque error
+        // message so callers can't distinguish "doesn't exist" from
+        // "you're not a member".
+        if (Context.User == null) throw new HubException("Cannot join");
+        if (!Guid.TryParse(projectId, out var pid)) throw new HubException("Cannot join");
 
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
-        var isMember = await db.ProjectMembers.AnyAsync(m =>
-            m.ProjectId == pid && m.UserId == userId.Value && m.IsActive);
-        if (!isMember)
-            throw new HubException("Not a member of this project");
+        var ok = await ProjectVisibility.CanSeeProjectAsync(db, pid, Context.User);
+        if (!ok) throw new HubException("Cannot join");
 
         await Groups.AddToGroupAsync(Context.ConnectionId, $"project-{projectId}");
         await Clients.Caller.SendAsync("Joined", projectId);
@@ -96,18 +96,15 @@ public class TagSyncHub : Hub
 
     public async Task JoinProject(string projectId)
     {
-        if (!Guid.TryParse(projectId, out var pid))
-            throw new HubException("Invalid project id");
-        var userId = GetCallerUserId();
-        if (userId == null)
-            throw new HubException("Not authenticated");
+        // Phase 175 audit P0-2 + P2-21 — opaque error, visibility check
+        // matches REST (author OR member OR tenant admin).
+        if (Context.User == null) throw new HubException("Cannot join");
+        if (!Guid.TryParse(projectId, out var pid)) throw new HubException("Cannot join");
 
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
-        var isMember = await db.ProjectMembers.AnyAsync(m =>
-            m.ProjectId == pid && m.UserId == userId.Value && m.IsActive);
-        if (!isMember)
-            throw new HubException("Not a member of this project");
+        var ok = await ProjectVisibility.CanSeeProjectAsync(db, pid, Context.User);
+        if (!ok) throw new HubException("Cannot join");
 
         await Groups.AddToGroupAsync(Context.ConnectionId, $"project-{projectId}");
     }

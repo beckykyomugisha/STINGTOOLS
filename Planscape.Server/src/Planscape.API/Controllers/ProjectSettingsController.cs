@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Planscape.Infrastructure.Data;
+using Planscape.API.Authorization;
 
 namespace Planscape.API.Controllers;
 
@@ -19,6 +20,7 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/projects/{projectId}/settings")]
 [Authorize]
+[ProjectAccess]
 public class ProjectSettingsController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;

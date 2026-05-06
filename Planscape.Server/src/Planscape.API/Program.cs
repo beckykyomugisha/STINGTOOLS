@@ -15,6 +15,8 @@ using Hangfire;
 using Hangfire.PostgreSql;
 using Prometheus;
 using StackExchange.Redis;
+using RedisRateLimiting;
+using RedisRateLimiting.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -60,8 +62,20 @@ builder.Host.UseSerilog((ctx, sp, lc) =>
 });
 
 // ── Database ──
+// Phase 175 — opt-in Postgres RLS interceptor. When Database:RlsEnabled
+// is true, every connection gets `SET app.current_tenant = <guid>` so
+// the policies installed by EnablePostgresRowLevelSecurity gate every
+// row read at the database. Default OFF: the EF query filter is the
+// only barrier until the operator flips the flag (rollout-safe).
+var rlsEnabled = builder.Configuration.GetValue<bool>("Database:RlsEnabled");
 builder.Services.AddDbContext<PlanscapeDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
+{
+    options.UseNpgsql(builder.Configuration.GetConnectionString("Default"));
+    if (rlsEnabled)
+    {
+        options.AddInterceptors(new Planscape.Infrastructure.Data.RlsConnectionInterceptor());
+    }
+});
 
 // ── Authentication ──
 // P1 — JWT key rotation with grace period.
@@ -69,22 +83,44 @@ builder.Services.AddDbContext<PlanscapeDbContext>(options =>
 // `Jwt:PreviousKey` for the overlap window (default 7d). Tokens issued
 // under either key validate during that window. After the window ends,
 // clear `Jwt:PreviousKey`. This prevents mass sign-outs on key rotation.
-// S1 — fail fast in Production if Jwt:Key is missing. The dev fallback is
-// *publicly known* and was leaking into deployments where the production
-// settings file was misnamed or undeployed.
+// S1 / Phase 175 — Jwt:Key is required in EVERY environment. The
+// previous dev fallback was a publicly-known string baked into source
+// control — a leaked image (or just a `git clone` of this repo) used
+// to be enough to mint admin tokens for any tenant.
+//
+// Contract:
+//   - Set via env var Jwt__Key (Docker / Kubernetes secrets) in every
+//     environment, including local dev (docker-compose.yml does this).
+//   - Minimum 32 chars (HMAC-SHA256).
+//   - Refused if it matches a known-bad value (the old leaked dev
+//     literal, "secret", "test", "changeme", or all-the-same-char keys).
+//
+// During key rotation: put the old key in Jwt:PreviousKey for the
+// overlap window, then clear once tokens have aged out.
 var jwtKey = builder.Configuration["Jwt:Key"];
 if (string.IsNullOrWhiteSpace(jwtKey))
 {
-    if (builder.Environment.IsProduction())
-    {
-        throw new InvalidOperationException(
-            "Jwt:Key is required in Production. Set it via environment variable or appsettings.Production.json.");
-    }
-    jwtKey = "Planscape-Dev-Secret-Key-Min32Chars!!";
+    throw new InvalidOperationException(
+        "Jwt:Key is required. Supply via env var Jwt__Key (32+ chars, randomly generated). " +
+        "In docker-compose: environment: [\"Jwt__Key=$JWT_KEY\"] with JWT_KEY in your .env / shell.");
 }
 if (jwtKey.Length < 32)
 {
     throw new InvalidOperationException("Jwt:Key must be at least 32 characters (HMAC-SHA256 minimum).");
+}
+// Refuse a curated list of well-known dev / placeholder values.
+var bannedKeys = new[]
+{
+    "Planscape-Dev-Secret-Key-Min32Chars!!",
+    "Planscape-Production-Secret-Key-Min32Chars!!",
+    "secret", "test", "changeme", "password", "123456",
+};
+if (bannedKeys.Contains(jwtKey, StringComparer.OrdinalIgnoreCase)
+    || jwtKey.Distinct().Count() < 4)
+{
+    throw new InvalidOperationException(
+        "Jwt:Key is set to a known-bad / placeholder value. Generate a fresh random 32+ char secret " +
+        "(e.g. `openssl rand -base64 48`) and supply via env var Jwt__Key.");
 }
 var jwtPrevKey = builder.Configuration["Jwt:PreviousKey"];
 var signingKeys = new List<SecurityKey>
@@ -242,6 +278,25 @@ else
 {
     builder.Services.AddScoped<Planscape.Core.Interfaces.IFileStorageService, Planscape.Infrastructure.Storage.LocalFileStorageService>();
 }
+// Phase 175 audit P1-15-tx — atomic per-key counter (transmittals,
+// future RFIs / NCRs). Scoped because it shares the request DbContext.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.ISequenceCounterService,
+    Planscape.Infrastructure.Services.SequenceCounterService>();
+// Phase 175 audit P1-15 — ClamAV scanner. Set ClamAv:Enabled = true
+// (and bring up the clamav service in docker-compose) to switch from
+// the no-op scanner that reports every file clean. The TCP scanner
+// reaches clamd at ClamAv:Host:Port (defaults clamav:3310).
+var clamAvEnabled = builder.Configuration.GetValue<bool>("ClamAv:Enabled");
+if (clamAvEnabled)
+{
+    builder.Services.AddScoped<Planscape.Infrastructure.Security.IClamAvScanner,
+        Planscape.Infrastructure.Security.TcpClamAvScanner>();
+}
+else
+{
+    builder.Services.AddScoped<Planscape.Infrastructure.Security.IClamAvScanner,
+        Planscape.Infrastructure.Security.NullClamAvScanner>();
+}
 // Phase 150 — platform-wide deliverable state-machine keyword
 // extensions. Bound from `DeliverableStateMachine:Keywords` in
 // appsettings; falls back to an empty registry when the section is
@@ -340,8 +395,12 @@ builder.Services.AddStackExchangeRedisCache(options =>
     options.Configuration = redisConn;
     options.InstanceName = "Planscape:";
 });
-builder.Services.AddSingleton<IConnectionMultiplexer>(
-    ConnectionMultiplexer.Connect(redisConn));
+// Phase 175 — single shared multiplexer reused by the SignalR
+// backplane, the cache, the permission-revocation store, AND the
+// Redis-backed rate limiter below. Avoid creating a second connection
+// just for the limiter's ConnectionMultiplexerFactory.
+var redisMux = ConnectionMultiplexer.Connect(redisConn);
+builder.Services.AddSingleton<IConnectionMultiplexer>(redisMux);
 
 builder.Services.AddSignalR().AddStackExchangeRedis(redisConn, options =>
 {
@@ -493,21 +552,35 @@ builder.Services.AddRateLimiter(options =>
     };
 
     // SEC-EA-06 — auth endpoints. 5 attempts per 5 minutes per IP defeats
-    // credential stuffing while still allowing a careful human typist
-    // who fat-fingers their password a few times. Queue = 0 so 6th
-    // attempt rejects immediately rather than parking.
-    options.AddFixedWindowLimiter("auth", o =>
+    // credential stuffing while still allowing a careful human typist.
+    //
+    // Phase 175 — was AddFixedWindowLimiter("auth") which is *not*
+    // partitioned (a single global counter across the whole fleet),
+    // contradicting the per-IP intent and silently locking out every
+    // user once the 5 was reached. Now Redis-backed sliding window
+    // partitioned by IP, so each origin IP gets its own bucket and
+    // the counter is shared across pods.
+    options.AddPolicy("auth", context =>
     {
-        o.PermitLimit         = 5;
-        o.Window              = TimeSpan.FromMinutes(5);
-        o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        o.QueueLimit          = 0;
-        o.AutoReplenishment   = true;
+        var key = $"ip:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+        return RedisRateLimitPartition.GetSlidingWindowRateLimiter(
+            key,
+            _ => new RedisSlidingWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(5),
+                ConnectionMultiplexerFactory = () => redisMux,
+            });
     });
 
     // SEC-EA-06 — API baseline. Partition by user_id (sub) when
     // authenticated so a shared NAT IP doesn't punish concurrent users;
     // IP fallback for anonymous public endpoints.
+    //
+    // Phase 175 — Redis sliding window so the per-user budget is
+    // enforced across every API replica. The previous in-memory
+    // FixedWindowLimiter multiplied each user's budget by pod count
+    // (3 pods × 100/min = 300/min effective).
     options.AddPolicy("api", context =>
     {
         var sub = context.User?.FindFirst("sub")?.Value
@@ -515,25 +588,29 @@ builder.Services.AddRateLimiter(options =>
         var partitionKey = !string.IsNullOrWhiteSpace(sub)
             ? $"user:{sub}"
             : $"ip:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
-        return RateLimitPartition.GetFixedWindowLimiter(
+        return RedisRateLimitPartition.GetSlidingWindowRateLimiter(
             partitionKey,
-            _ => new FixedWindowRateLimiterOptions
+            _ => new RedisSlidingWindowRateLimiterOptions
             {
                 PermitLimit = 100,
                 Window = TimeSpan.FromSeconds(60),
-                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit = 10,
-                AutoReplenishment = true,
+                ConnectionMultiplexerFactory = () => redisMux,
             });
     });
 
-    // Tag sync: 30 req/min per IP (large payloads — be conservative)
-    options.AddFixedWindowLimiter("tagsync", o =>
+    // Tag sync: 30 req/min per IP (large payloads — be conservative).
+    // Phase 175 — Redis partitioned-by-IP, same fix as the "auth" policy.
+    options.AddPolicy("tagsync", context =>
     {
-        o.PermitLimit         = 30;
-        o.Window              = TimeSpan.FromMinutes(1);
-        o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        o.QueueLimit          = 0;
+        var key = $"ip:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+        return RedisRateLimitPartition.GetSlidingWindowRateLimiter(
+            key,
+            _ => new RedisSlidingWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
+                Window = TimeSpan.FromMinutes(1),
+                ConnectionMultiplexerFactory = () => redisMux,
+            });
     });
 
     // Mobile: tier-aware. Authenticated callers partition by user_id (so a
@@ -547,6 +624,7 @@ builder.Services.AddRateLimiter(options =>
     //   anonymous    60 req/min
     // (S18) Per-tenant DoS prevention — even a Premium tenant can't burn
     // the cluster's budget by spamming a sync endpoint.
+    // Phase 175 — Redis sliding window across all pods.
     options.AddPolicy("mobile", context =>
     {
         var userIdClaim = context.User?.FindFirst("user_id")?.Value
@@ -565,13 +643,14 @@ builder.Services.AddRateLimiter(options =>
             _              => string.IsNullOrWhiteSpace(userIdClaim) ? 60 : 120,
         };
 
-        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
-        {
-            PermitLimit = permit,
-            Window = TimeSpan.FromMinutes(1),
-            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-            QueueLimit = 0
-        });
+        return RedisRateLimitPartition.GetSlidingWindowRateLimiter(
+            partitionKey,
+            _ => new RedisSlidingWindowRateLimiterOptions
+            {
+                PermitLimit = permit,
+                Window = TimeSpan.FromMinutes(1),
+                ConnectionMultiplexerFactory = () => redisMux,
+            });
     });
 
     // S7.6 — per-tenant policy. Budgets a tenant's whole organisation
@@ -579,23 +658,22 @@ builder.Services.AddRateLimiter(options =>
     // tenant A can't DoS the cluster for tenant B. Reads tenant id
     // from JWT claim 'tenant_id' (set by AuthController on login);
     // anonymous requests partition by IP as a fallback.
+    // Phase 175 — Redis sliding window so the cluster safety-net is
+    // actually a *cluster* safety-net (not a per-pod one). Without this
+    // a buggy tenant could burn N×600/min where N is pod count.
     options.AddPolicy("per-tenant", context =>
     {
         var tenantId = context.User?.FindFirst("tenant_id")?.Value
                        ?? context.Connection.RemoteIpAddress?.ToString()
                        ?? "anon";
-        // Default budget: 600/min for paying tenants, 60/min for trial.
-        // Plan resolution happens in middleware (TenantContext is scoped),
-        // so we keep a simple bucket here and let the [Quota] attribute
-        // (S1.4) own plan-specific axes. This rate-limit is a 'cluster
-        // safety net' — not a feature gate.
-        return RateLimitPartition.GetFixedWindowLimiter(tenantId, _ => new FixedWindowRateLimiterOptions
-        {
-            PermitLimit = 600,
-            Window = TimeSpan.FromMinutes(1),
-            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-            QueueLimit = 0,
-        });
+        return RedisRateLimitPartition.GetSlidingWindowRateLimiter(
+            tenantId,
+            _ => new RedisSlidingWindowRateLimiterOptions
+            {
+                PermitLimit = 600,
+                Window = TimeSpan.FromMinutes(1),
+                ConnectionMultiplexerFactory = () => redisMux,
+            });
     });
 });
 
@@ -636,6 +714,61 @@ builder.Services.AddCors(options =>
         .AllowAnyMethod()
         .AllowAnyHeader());
 });
+
+// ── OpenTelemetry tracing ──
+// Phase 175 — emit OTLP traces to the otel-collector sidecar so we get
+// end-to-end visibility across HTTP → EF Core → Redis without bolting
+// on a vendor agent. The Collector applies tail sampling
+// (docker/otel-collector-config.yaml) so we keep 100% of errors and
+// slow traces but only ~5% of healthy ones.
+//
+// Configure via:
+//   OTEL_EXPORTER_OTLP_ENDPOINT  default http://otel-collector:4317
+//   OTEL_SERVICE_NAME            default planscape-api
+//   OTEL_RESOURCE_ATTRIBUTES     standard OTel env (deployment.environment, etc.)
+//
+// Trace propagation header is W3C TraceContext (default in OTel SDK).
+// The Serilog pipeline already enriches log lines with TraceId/SpanId
+// when an Activity is active, so logs join traces in Seq/Elasticsearch
+// without extra config.
+var otelEndpoint = builder.Configuration["Otel:Endpoint"]
+    ?? Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT")
+    ?? "http://otel-collector:4317";
+var otelServiceName = builder.Configuration["Otel:ServiceName"]
+    ?? Environment.GetEnvironmentVariable("OTEL_SERVICE_NAME")
+    ?? "planscape-api";
+
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(r => r
+        .AddService(serviceName: otelServiceName,
+                    serviceVersion: typeof(Program).Assembly.GetName().Version?.ToString() ?? "0.0.0")
+        .AddAttributes(new Dictionary<string, object>
+        {
+            ["deployment.environment"] = builder.Environment.EnvironmentName,
+        }))
+    .WithTracing(t => t
+        .AddAspNetCoreInstrumentation(o =>
+        {
+            // Drop /health + /metrics polling noise so the tail
+            // sampler doesn't waste its budget on liveness checks.
+            o.Filter = ctx =>
+            {
+                var path = ctx.Request.Path.Value ?? "";
+                return !path.StartsWith("/health", StringComparison.OrdinalIgnoreCase)
+                    && !path.StartsWith("/metrics", StringComparison.OrdinalIgnoreCase);
+            };
+            o.RecordException = true;
+        })
+        .AddHttpClientInstrumentation()
+        .AddEntityFrameworkCoreInstrumentation(o =>
+        {
+            o.SetDbStatementForText = false;   // privacy: no parameter values in spans
+            o.SetDbStatementForStoredProcedure = false;
+        })
+        // SignalR backplane + cache + permission revocation all share
+        // the same multiplexer; instrument it once.
+        .AddRedisInstrumentation(redisMux)
+        .AddOtlpExporter(o => o.Endpoint = new Uri(otelEndpoint)));
 
 var app = builder.Build();
 
@@ -907,6 +1040,14 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.SlaEscalationJob>(
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.StaleWarningCleanupJob>(
     "stale-warning-cleanup", j => j.ExecuteAsync(CancellationToken.None),
     Cron.Daily, new RecurringJobOptions { QueueName = "default" });
+// Phase 175 audit P1-15 — every 30s, scan presigned-URL uploads.
+// Cron precision is 1 minute; for sub-minute polling Hangfire's
+// MinutelyCron is the floor. 30s would require a custom scheduler,
+// so we settle for 1m which still keeps the upload→available
+// latency tight enough for the office dashboard.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.ClamAvScannerJob>(
+    "clamav-scan-pending", j => j.ExecuteAsync(CancellationToken.None),
+    Cron.Minutely, new RecurringJobOptions { QueueName = "default" });
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PlatformSyncJob>(
     "platform-sync", j => j.ExecuteAsync(CancellationToken.None),
     "*/30 * * * *", new RecurringJobOptions { QueueName = "platform-sync" });

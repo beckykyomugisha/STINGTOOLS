@@ -106,6 +106,30 @@ public class LocalFileStorageService : IFileStorageService
     }
 
     /// <summary>
+    /// Phase 175 — local FS can't issue a presigned URL. Callers fall
+    /// back to the multipart endpoint when this throws.
+    /// </summary>
+    public Task<Planscape.Core.Interfaces.PresignedUpload> GetPresignedPutUrlAsync(
+        string objectKey, string contentType, TimeSpan validFor, long maxBytes, CancellationToken ct = default)
+        => throw new NotSupportedException(
+            "LocalFileStorageService cannot generate presigned URLs. Use S3 storage in production or POST the bytes through the API.");
+
+    /// <summary>
+    /// Phase 175 — server-side move via filesystem rename.
+    /// </summary>
+    public Task MoveAsync(string sourceKey, string destKey, CancellationToken ct = default, bool bypassTenantCheck = false)
+    {
+        EnforceTenantOwnership(sourceKey, bypassTenantCheck);
+        EnforceTenantOwnership(destKey, bypassTenantCheck);
+        var src = Path.Combine(_rootPath, sourceKey);
+        var dst = Path.Combine(_rootPath, destKey);
+        Directory.CreateDirectory(Path.GetDirectoryName(dst)!);
+        if (File.Exists(dst)) File.Delete(dst);
+        File.Move(src, dst);
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
     /// Throws <see cref="UnauthorizedAccessException"/> if the path's first
     /// segment doesn't match the current tenant or one of the well-known
     /// cross-tenant buckets ("derivatives", "thumbnails", "shared"). When

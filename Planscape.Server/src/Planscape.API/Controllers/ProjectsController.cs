@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.Services;
 
 namespace Planscape.API.Controllers;
 
@@ -30,10 +31,9 @@ public class ProjectsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult> GetProjects()
     {
-        var tenantId = GetTenantId();
         var projects = await _db.Projects
-            .Where(p => p.TenantId == tenantId
-                        && (p.Status == ProjectStatus.Active || p.Status == ProjectStatus.Archived))
+            .Where(p => p.Status == ProjectStatus.Active || p.Status == ProjectStatus.Archived)
+            .WhereVisibleTo(_db, User)
             .Select(p => new
             {
                 p.Id, p.Name, p.Code, p.Phase, p.Status,
@@ -64,8 +64,8 @@ public class ProjectsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> TogglePin(Guid id)
     {
-        var tenantId = GetTenantId();
-        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id && p.TenantId == tenantId);
+        if (!await ProjectVisibility.CanSeeProjectAsync(_db, id, User)) return NotFound();
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id);
         if (project == null) return NotFound();
 
         project.IsPinned = !project.IsPinned;
@@ -81,8 +81,8 @@ public class ProjectsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> GetProject(Guid id)
     {
-        var tenantId = GetTenantId();
-        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id && p.TenantId == tenantId);
+        if (!await ProjectVisibility.CanSeeProjectAsync(_db, id, User)) return NotFound();
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id);
         if (project == null) return NotFound();
 
         return Ok(new
@@ -121,15 +121,40 @@ public class ProjectsController : ControllerBase
         if (projectCount >= tenant.MaxProjects)
             return BadRequest($"Project limit ({tenant.MaxProjects}) reached for {tenant.Tier} tier");
 
+        var creatorId = ProjectVisibility.GetUserId(User);
         var project = new Project
         {
             TenantId = tenantId,
             Name = req.Name,
             Code = req.Code,
             Description = req.Description,
-            Phase = req.Phase ?? "Design"
+            Phase = req.Phase ?? "Design",
+            CreatedById = creatorId == Guid.Empty ? null : creatorId
         };
         _db.Projects.Add(project);
+
+        // Phase 175 — author auto-becomes a project Manager / BIM
+        // Coordinator. Without this, the author can still see the
+        // project (CreatedById predicate kicks in), but they wouldn't
+        // appear in the team list and downstream write-side guards
+        // that only consult ProjectMember would lock them out.
+        if (creatorId != Guid.Empty)
+        {
+            var creatorIso = User.FindFirst("iso_role")?.Value;
+            if (string.IsNullOrWhiteSpace(creatorIso)) creatorIso = "BC";
+            _db.ProjectMembers.Add(new ProjectMember
+            {
+                TenantId     = tenantId,
+                ProjectId    = project.Id,
+                UserId       = creatorId,
+                ProjectRole  = "Manager",
+                Iso19650Role = creatorIso!,
+                IsActive     = true,
+                JoinedAt     = DateTime.UtcNow,
+                InvitedBy    = User.FindFirst("display_name")?.Value
+            });
+        }
+
         await _db.SaveChangesAsync();
 
         return CreatedAtAction(nameof(GetProject), new { id = project.Id }, project);
@@ -143,8 +168,8 @@ public class ProjectsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> UpdateProject(Guid id, [FromBody] UpdateProjectRequest req)
     {
-        var tenantId = GetTenantId();
-        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id && p.TenantId == tenantId);
+        if (!await ProjectVisibility.CanSeeProjectAsync(_db, id, User)) return NotFound();
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id);
         if (project == null) return NotFound();
 
         if (req.Name != null) project.Name = req.Name;
@@ -169,8 +194,8 @@ public class ProjectsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> GetDashboard(Guid id)
     {
-        var tenantId = GetTenantId();
-        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id && p.TenantId == tenantId);
+        if (!await ProjectVisibility.CanSeeProjectAsync(_db, id, User)) return NotFound();
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id);
         if (project == null) return NotFound();
 
         var issueCount = await _db.Issues.CountAsync(i => i.ProjectId == id && i.Status != "CLOSED");
@@ -224,6 +249,63 @@ public class ProjectsController : ControllerBase
             RecentIssues = recentIssues,
             ComplianceTrend = complianceTrend,
         });
+    }
+
+    /// <summary>
+    /// Archive a project (soft delete). Restricted to tenant Admin /
+    /// Owner / SecurityOfficer or the project author.
+    /// </summary>
+    /// <remarks>
+    /// Phase 175 — destructive operation, double-gated:
+    ///   1. Caller must be admin OR Project.CreatedById matches.
+    ///   2. Caller must pass <c>?confirmCode=&lt;Project.Code&gt;</c> to
+    ///      prove they typed the code rather than misclicked. The
+    ///      front-end exposes this behind a "⋯ → Archive" menu and a
+    ///      modal that requires the user to retype the project code.
+    ///
+    /// Effect: <c>Status</c> flips to <see cref="ProjectStatus.Archived"/>.
+    /// The project keeps its data and remains visible to the same
+    /// audience; the dashboard renders it under the "Completed" filter
+    /// and stops counting it in active-project totals. There is no hard
+    /// delete via this endpoint — true purges go through Admin tooling
+    /// and require an additional approval flow.
+    /// </remarks>
+    [HttpDelete("{id}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> ArchiveProject(Guid id, [FromQuery] string? confirmCode = null)
+    {
+        if (!await ProjectVisibility.CanSeeProjectAsync(_db, id, User)) return NotFound();
+
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id);
+        if (project == null) return NotFound();
+
+        var userId = ProjectVisibility.GetUserId(User);
+        var isAdmin = ProjectVisibility.IsTenantAdmin(User);
+        var isAuthor = project.CreatedById.HasValue && project.CreatedById.Value == userId;
+        if (!isAdmin && !isAuthor)
+            return StatusCode(StatusCodes.Status403Forbidden,
+                new { message = "Only the project author or a tenant admin can archive this project." });
+
+        if (string.IsNullOrWhiteSpace(confirmCode)
+            || !string.Equals(confirmCode.Trim(), project.Code, StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(new
+            {
+                message = "Confirmation required — retype the project code to archive.",
+                expectedField = "confirmCode",
+                expectedValue = project.Code
+            });
+        }
+
+        if (project.Status == ProjectStatus.Archived)
+            return NoContent();
+
+        project.Status = ProjectStatus.Archived;
+        await _db.SaveChangesAsync();
+        return NoContent();
     }
 
     private Guid GetTenantId() =>
