@@ -557,7 +557,8 @@ public class DocumentsController : ControllerBase
                 v.FileSizeBytes,
                 v.ContentHash,
                 v.UploadedBy,
-                v.UploadedAt
+                v.UploadedAt,
+                v.ChangeDescription
             })
             .ToListAsync();
 
