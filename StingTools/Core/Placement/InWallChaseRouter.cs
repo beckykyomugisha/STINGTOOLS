@@ -230,6 +230,21 @@ namespace StingTools.Core.Placement
                         }
                     }
                 }
+
+                // Phase 139.28 — slope check for chased gravity drainage.
+                // BS EN 12056-2 §6 minimum 1:80 (1.25 %) for branches up
+                // to 1.5 m, 1:40 (2.5 %) for longer runs / mains.
+                if (rule.MinSlopePercent > 0 && result.CreatedSegments.Count > 0)
+                {
+                    try
+                    {
+                        var slope = StingTools.Core.Calc.SlopeValidator.CheckSegments(
+                            _doc, result.CreatedSegments, rule.MinSlopePercent, rule.RuleId);
+                        foreach (var w in slope.Warnings)
+                            if (!result.Warnings.Contains(w)) result.Warnings.Add(w);
+                    }
+                    catch (Exception slx) { result.Warnings.Add($"InWallChaseRouter slope check: {slx.Message}"); }
+                }
             }
             catch (Exception ex)
             {
@@ -320,10 +335,42 @@ namespace StingTools.Core.Placement
                 if (entry != null && entry.BoxDepthMm > 0) pipeOdMm = entry.BoxDepthMm;
             }
             catch { }
-            if (pipeOdMm == 0) pipeOdMm = rule.BoxDepthMm > 0 ? rule.BoxDepthMm : 22.0; // 22 mm = standard 15 mm copper OD with insulation
-            double insulationMm = rule.ObstructionClearanceMm > 0 ? rule.ObstructionClearanceMm : 10.0;
+            if (pipeOdMm == 0)
+            {
+                // Phase 139.28 — prefer rule.NominalDiameterMm when set
+                // so the rule controls the chase budget rather than the
+                // manufacturer envelope. Falls through to BoxDepthMm and
+                // then to a 22mm default (15mm copper OD + insulation).
+                if (rule.NominalDiameterMm > 0) pipeOdMm = rule.NominalDiameterMm;
+                else if (rule.BoxDepthMm > 0)   pipeOdMm = rule.BoxDepthMm;
+                else                             pipeOdMm = 22.0;
+            }
+            // Phase 139.28 — InsulationThicknessMm is the new dedicated
+            // field; ObstructionClearanceMm survives as a fallback for
+            // older rule packs that overloaded it.
+            double insulationMm = rule.InsulationThicknessMm > 0 ? rule.InsulationThicknessMm
+                                : rule.ObstructionClearanceMm > 0 ? rule.ObstructionClearanceMm
+                                : 10.0;
+
+            // Phase 139.28 — Eurocode 2 / UK NA concrete cover.
+            // Applies only when MountingContext=CHASED. The cover sits
+            // BETWEEN the structural-core face and the pipe outer
+            // surface, so the chase budget on the FINISH side must be
+            // (cover + pipeOd + 2 × insulation + 5mm placing clearance).
             double clearanceMm  = 5.0;
-            double requiredMm   = pipeOdMm + 2 * insulationMm + clearanceMm;
+            double coverMm = 0.0;
+            if (string.Equals(rule.MountingContext, "CHASED", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    coverMm = StingTools.Core.Calc.ConcreteCoverTable.GetNominalCoverMm(
+                        rule.ExposureClass,
+                        StingTools.Core.Calc.ConcreteCoverTable.DefaultStructuralClass,
+                        fireResistance: "");
+                }
+                catch (Exception ex) { StingLog.Warn($"ConcreteCoverTable: {ex.Message}"); }
+            }
+            double requiredMm   = pipeOdMm + 2 * insulationMm + clearanceMm + coverMm;
             return (availableMm, requiredMm);
         }
 

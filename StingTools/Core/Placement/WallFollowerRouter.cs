@@ -115,6 +115,47 @@ namespace StingTools.Core.Placement
                         TryStampRouteRuleId(newId, rule.RuleId);
                     }
                 }
+
+                // Phase 139.28 — auto-emit physical clip / hanger family
+                // instances at the BS 5572 / BS EN 12056-2 / MSS SP-58
+                // spacing. Only fires for SURFACE / SUSPENDED contexts;
+                // CHASED routes are cast-in and don't need surface clips.
+                string ctx = (rule.MountingContext ?? "").ToUpperInvariant();
+                bool wantsSupports = (ctx == "SURFACE" || ctx == "SUSPENDED")
+                    && rule.EmitSupports
+                    && result.CreatedSegments.Count > 0;
+                if (wantsSupports)
+                {
+                    try
+                    {
+                        var supportRes = StingTools.Core.Calc.RoutingSupportPlacer.PlaceForRoute(
+                            _doc, rule, result.CreatedSegments);
+                        if (supportRes.SupportsPlaced > 0)
+                            result.Warnings.Add(
+                                $"WallFollowerRouter: emitted {supportRes.SupportsPlaced} support(s) " +
+                                $"({ctx}) per BS 5572 / MSS SP-58 spacing.");
+                        if (supportRes.FamilyMissCount > 0)
+                            result.Warnings.Add(
+                                $"WallFollowerRouter: {supportRes.FamilyMissCount} support(s) planned but no " +
+                                $"hanger / clip family loaded — load STING_HANGER_GENERIC.rfa or run Place_Hangers manually.");
+                        foreach (var w in supportRes.Warnings)
+                            if (!result.Warnings.Contains(w)) result.Warnings.Add(w);
+                    }
+                    catch (Exception sex) { result.Warnings.Add($"WallFollowerRouter support emit: {sex.Message}"); }
+                }
+
+                // Phase 139.28 — slope validation for gravity-drainage runs.
+                if (rule.MinSlopePercent > 0 && result.CreatedSegments.Count > 0)
+                {
+                    try
+                    {
+                        var slope = StingTools.Core.Calc.SlopeValidator.CheckSegments(
+                            _doc, result.CreatedSegments, rule.MinSlopePercent, rule.RuleId);
+                        foreach (var w in slope.Warnings)
+                            if (!result.Warnings.Contains(w)) result.Warnings.Add(w);
+                    }
+                    catch (Exception slx) { result.Warnings.Add($"WallFollowerRouter slope check: {slx.Message}"); }
+                }
             }
             catch (Exception ex)
             {
@@ -161,7 +202,27 @@ namespace StingTools.Core.Placement
         private List<XYZ> ApplyFaceOffset(List<XYZ> ordered, PlacementRule rule, Room room, string mode)
         {
             var offset = new List<XYZ>();
+            // Phase 139.28 — diameter-aware standoff when MountingContext=SURFACE.
+            // BS 5572 / BS EN 12056-2 standoff scales with pipe DN:
+            //   ≤ 25 mm  → 35 mm clip standoff
+            //   ≤ 50 mm  → 50 mm
+            //   ≤ 100 mm → 65 mm
+            //   ≤ 150 mm → 85 mm
+            //   > 150 mm → 100 mm
+            // Plus insulation thickness on top.
             double offsetMm = rule.RouteOffsetMm;
+            string ctx = (rule.MountingContext ?? "").ToUpperInvariant();
+            if (ctx == "SURFACE" && rule.NominalDiameterMm > 0)
+            {
+                double dn = rule.NominalDiameterMm;
+                double standoffMm =
+                      dn <=  25.0 ? 35.0
+                    : dn <=  50.0 ? 50.0
+                    : dn <= 100.0 ? 65.0
+                    : dn <= 150.0 ? 85.0
+                    : 100.0;
+                offsetMm = standoffMm + rule.InsulationThicknessMm;
+            }
             string face = (rule.RouteFace ?? "INTERIOR").ToUpperInvariant();
             double sign = (face == "INTERIOR" || face == "BOTTOM") ? -1.0 : 1.0;
             double offFt = offsetMm * MmToFt * sign;
