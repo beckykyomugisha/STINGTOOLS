@@ -15,6 +15,8 @@ using Hangfire;
 using Hangfire.PostgreSql;
 using Prometheus;
 using StackExchange.Redis;
+using RedisRateLimiting;
+using RedisRateLimiting.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -340,8 +342,12 @@ builder.Services.AddStackExchangeRedisCache(options =>
     options.Configuration = redisConn;
     options.InstanceName = "Planscape:";
 });
-builder.Services.AddSingleton<IConnectionMultiplexer>(
-    ConnectionMultiplexer.Connect(redisConn));
+// Phase 175 — single shared multiplexer reused by the SignalR
+// backplane, the cache, the permission-revocation store, AND the
+// Redis-backed rate limiter below. Avoid creating a second connection
+// just for the limiter's ConnectionMultiplexerFactory.
+var redisMux = ConnectionMultiplexer.Connect(redisConn);
+builder.Services.AddSingleton<IConnectionMultiplexer>(redisMux);
 
 builder.Services.AddSignalR().AddStackExchangeRedis(redisConn, options =>
 {
@@ -493,21 +499,35 @@ builder.Services.AddRateLimiter(options =>
     };
 
     // SEC-EA-06 — auth endpoints. 5 attempts per 5 minutes per IP defeats
-    // credential stuffing while still allowing a careful human typist
-    // who fat-fingers their password a few times. Queue = 0 so 6th
-    // attempt rejects immediately rather than parking.
-    options.AddFixedWindowLimiter("auth", o =>
+    // credential stuffing while still allowing a careful human typist.
+    //
+    // Phase 175 — was AddFixedWindowLimiter("auth") which is *not*
+    // partitioned (a single global counter across the whole fleet),
+    // contradicting the per-IP intent and silently locking out every
+    // user once the 5 was reached. Now Redis-backed sliding window
+    // partitioned by IP, so each origin IP gets its own bucket and
+    // the counter is shared across pods.
+    options.AddPolicy("auth", context =>
     {
-        o.PermitLimit         = 5;
-        o.Window              = TimeSpan.FromMinutes(5);
-        o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        o.QueueLimit          = 0;
-        o.AutoReplenishment   = true;
+        var key = $"ip:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+        return RedisRateLimitPartition.GetSlidingWindowRateLimiter(
+            key,
+            _ => new RedisSlidingWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(5),
+                ConnectionMultiplexerFactory = () => redisMux,
+            });
     });
 
     // SEC-EA-06 — API baseline. Partition by user_id (sub) when
     // authenticated so a shared NAT IP doesn't punish concurrent users;
     // IP fallback for anonymous public endpoints.
+    //
+    // Phase 175 — Redis sliding window so the per-user budget is
+    // enforced across every API replica. The previous in-memory
+    // FixedWindowLimiter multiplied each user's budget by pod count
+    // (3 pods × 100/min = 300/min effective).
     options.AddPolicy("api", context =>
     {
         var sub = context.User?.FindFirst("sub")?.Value
@@ -515,25 +535,29 @@ builder.Services.AddRateLimiter(options =>
         var partitionKey = !string.IsNullOrWhiteSpace(sub)
             ? $"user:{sub}"
             : $"ip:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
-        return RateLimitPartition.GetFixedWindowLimiter(
+        return RedisRateLimitPartition.GetSlidingWindowRateLimiter(
             partitionKey,
-            _ => new FixedWindowRateLimiterOptions
+            _ => new RedisSlidingWindowRateLimiterOptions
             {
                 PermitLimit = 100,
                 Window = TimeSpan.FromSeconds(60),
-                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit = 10,
-                AutoReplenishment = true,
+                ConnectionMultiplexerFactory = () => redisMux,
             });
     });
 
-    // Tag sync: 30 req/min per IP (large payloads — be conservative)
-    options.AddFixedWindowLimiter("tagsync", o =>
+    // Tag sync: 30 req/min per IP (large payloads — be conservative).
+    // Phase 175 — Redis partitioned-by-IP, same fix as the "auth" policy.
+    options.AddPolicy("tagsync", context =>
     {
-        o.PermitLimit         = 30;
-        o.Window              = TimeSpan.FromMinutes(1);
-        o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        o.QueueLimit          = 0;
+        var key = $"ip:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+        return RedisRateLimitPartition.GetSlidingWindowRateLimiter(
+            key,
+            _ => new RedisSlidingWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
+                Window = TimeSpan.FromMinutes(1),
+                ConnectionMultiplexerFactory = () => redisMux,
+            });
     });
 
     // Mobile: tier-aware. Authenticated callers partition by user_id (so a
@@ -547,6 +571,7 @@ builder.Services.AddRateLimiter(options =>
     //   anonymous    60 req/min
     // (S18) Per-tenant DoS prevention — even a Premium tenant can't burn
     // the cluster's budget by spamming a sync endpoint.
+    // Phase 175 — Redis sliding window across all pods.
     options.AddPolicy("mobile", context =>
     {
         var userIdClaim = context.User?.FindFirst("user_id")?.Value
@@ -565,13 +590,14 @@ builder.Services.AddRateLimiter(options =>
             _              => string.IsNullOrWhiteSpace(userIdClaim) ? 60 : 120,
         };
 
-        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
-        {
-            PermitLimit = permit,
-            Window = TimeSpan.FromMinutes(1),
-            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-            QueueLimit = 0
-        });
+        return RedisRateLimitPartition.GetSlidingWindowRateLimiter(
+            partitionKey,
+            _ => new RedisSlidingWindowRateLimiterOptions
+            {
+                PermitLimit = permit,
+                Window = TimeSpan.FromMinutes(1),
+                ConnectionMultiplexerFactory = () => redisMux,
+            });
     });
 
     // S7.6 — per-tenant policy. Budgets a tenant's whole organisation
@@ -579,23 +605,22 @@ builder.Services.AddRateLimiter(options =>
     // tenant A can't DoS the cluster for tenant B. Reads tenant id
     // from JWT claim 'tenant_id' (set by AuthController on login);
     // anonymous requests partition by IP as a fallback.
+    // Phase 175 — Redis sliding window so the cluster safety-net is
+    // actually a *cluster* safety-net (not a per-pod one). Without this
+    // a buggy tenant could burn N×600/min where N is pod count.
     options.AddPolicy("per-tenant", context =>
     {
         var tenantId = context.User?.FindFirst("tenant_id")?.Value
                        ?? context.Connection.RemoteIpAddress?.ToString()
                        ?? "anon";
-        // Default budget: 600/min for paying tenants, 60/min for trial.
-        // Plan resolution happens in middleware (TenantContext is scoped),
-        // so we keep a simple bucket here and let the [Quota] attribute
-        // (S1.4) own plan-specific axes. This rate-limit is a 'cluster
-        // safety net' — not a feature gate.
-        return RateLimitPartition.GetFixedWindowLimiter(tenantId, _ => new FixedWindowRateLimiterOptions
-        {
-            PermitLimit = 600,
-            Window = TimeSpan.FromMinutes(1),
-            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-            QueueLimit = 0,
-        });
+        return RedisRateLimitPartition.GetSlidingWindowRateLimiter(
+            tenantId,
+            _ => new RedisSlidingWindowRateLimiterOptions
+            {
+                PermitLimit = 600,
+                Window = TimeSpan.FromMinutes(1),
+                ConnectionMultiplexerFactory = () => redisMux,
+            });
     });
 });
 
@@ -636,6 +661,61 @@ builder.Services.AddCors(options =>
         .AllowAnyMethod()
         .AllowAnyHeader());
 });
+
+// ── OpenTelemetry tracing ──
+// Phase 175 — emit OTLP traces to the otel-collector sidecar so we get
+// end-to-end visibility across HTTP → EF Core → Redis without bolting
+// on a vendor agent. The Collector applies tail sampling
+// (docker/otel-collector-config.yaml) so we keep 100% of errors and
+// slow traces but only ~5% of healthy ones.
+//
+// Configure via:
+//   OTEL_EXPORTER_OTLP_ENDPOINT  default http://otel-collector:4317
+//   OTEL_SERVICE_NAME            default planscape-api
+//   OTEL_RESOURCE_ATTRIBUTES     standard OTel env (deployment.environment, etc.)
+//
+// Trace propagation header is W3C TraceContext (default in OTel SDK).
+// The Serilog pipeline already enriches log lines with TraceId/SpanId
+// when an Activity is active, so logs join traces in Seq/Elasticsearch
+// without extra config.
+var otelEndpoint = builder.Configuration["Otel:Endpoint"]
+    ?? Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT")
+    ?? "http://otel-collector:4317";
+var otelServiceName = builder.Configuration["Otel:ServiceName"]
+    ?? Environment.GetEnvironmentVariable("OTEL_SERVICE_NAME")
+    ?? "planscape-api";
+
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(r => r
+        .AddService(serviceName: otelServiceName,
+                    serviceVersion: typeof(Program).Assembly.GetName().Version?.ToString() ?? "0.0.0")
+        .AddAttributes(new Dictionary<string, object>
+        {
+            ["deployment.environment"] = builder.Environment.EnvironmentName,
+        }))
+    .WithTracing(t => t
+        .AddAspNetCoreInstrumentation(o =>
+        {
+            // Drop /health + /metrics polling noise so the tail
+            // sampler doesn't waste its budget on liveness checks.
+            o.Filter = ctx =>
+            {
+                var path = ctx.Request.Path.Value ?? "";
+                return !path.StartsWith("/health", StringComparison.OrdinalIgnoreCase)
+                    && !path.StartsWith("/metrics", StringComparison.OrdinalIgnoreCase);
+            };
+            o.RecordException = true;
+        })
+        .AddHttpClientInstrumentation()
+        .AddEntityFrameworkCoreInstrumentation(o =>
+        {
+            o.SetDbStatementForText = false;   // privacy: no parameter values in spans
+            o.SetDbStatementForStoredProcedure = false;
+        })
+        // SignalR backplane + cache + permission revocation all share
+        // the same multiplexer; instrument it once.
+        .AddRedisInstrumentation(redisMux)
+        .AddOtlpExporter(o => o.Endpoint = new Uri(otelEndpoint)));
 
 var app = builder.Build();
 

@@ -26,6 +26,19 @@
     <PackageReference Include="Serilog.Sinks.Seq" Version="8.0.0" />
     <PackageReference Include="Serilog.Sinks.Elasticsearch" Version="10.0.0" />
     <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
+    <!-- Phase 175 — Redis-backed RateLimiter so per-tenant / per-user
+         budgets are enforced across all API pods, not multiplied by pod
+         count. Plugs into the standard AddRateLimiter API. -->
+    <PackageReference Include="RedisRateLimiting.AspNetCore" Version="1.2.0" />
+    <!-- Phase 175 — OpenTelemetry instrumentation + OTLP exporter. Trace
+         data ships to the otel-collector service which applies tail
+         sampling (see docker/otel-collector-config.yaml). -->
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.9.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.9.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.9.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.9.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" Version="1.0.0-beta.12" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.StackExchangeRedis" Version="1.0.0-rc9.15" />
     <PackageReference Include="Hangfire.AspNetCore" Version="1.8.17" />
     <PackageReference Include="Hangfire.PostgreSql" Version="1.20.10" />
     <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.0" />

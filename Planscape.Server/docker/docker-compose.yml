@@ -18,6 +18,11 @@ services:
       - ModelConverter__ThumbnailProvider=${MODEL_THUMBNAIL_PROVIDER:-gltf-bounds}
       - ModelConverter__Aps__ClientId=${APS_CLIENT_ID:-}
       - ModelConverter__Aps__ClientSecret=${APS_CLIENT_SECRET:-}
+      # Phase 175 — OpenTelemetry. Default points at the otel-collector
+      # service below; set OTEL_EXPORTER_OTLP_ENDPOINT in the env to
+      # ship traces to a remote backend (Tempo, Honeycomb, Datadog…).
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
+      - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-planscape-api}
     depends_on:
       postgres:
         condition: service_healthy
@@ -136,6 +141,21 @@ services:
       - "3001:3000"
     depends_on:
       - prometheus
+    restart: unless-stopped
+
+  # Phase 175 — OpenTelemetry Collector with tail-based sampling.
+  # Receives OTLP/gRPC on 4317 from the API replicas, applies
+  # tail_sampling (errors + slow + 5% baseline) and ships to the
+  # debug exporter by default. Wire a real backend in
+  # otel-collector-config.yaml (Jaeger / Tempo / Honeycomb etc.).
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.108.0
+    command: [ "--config=/etc/otel/config.yaml" ]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel/config.yaml:ro
+    ports:
+      - "4317:4317"  # OTLP gRPC
+      - "4318:4318"  # OTLP HTTP
     restart: unless-stopped
 
 volumes:
