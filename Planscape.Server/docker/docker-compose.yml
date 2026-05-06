@@ -28,6 +28,13 @@ services:
       # ship traces to a remote backend (Tempo, Honeycomb, Datadog…).
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
       - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-planscape-api}
+      # Phase 175 — ClamAV antivirus scanner. Set ClamAv__Enabled=true
+      # to switch from the no-op scanner to the TCP clamd client
+      # below. Off by default so a fresh `docker compose up` boots
+      # without waiting on the (slow-starting) clamav image.
+      - ClamAv__Enabled=${CLAMAV_ENABLED:-false}
+      - ClamAv__Host=${CLAMAV_HOST:-clamav}
+      - ClamAv__Port=${CLAMAV_PORT:-3310}
     depends_on:
       postgres:
         condition: service_healthy
@@ -153,6 +160,26 @@ services:
       - prometheus
     restart: unless-stopped
 
+  # Phase 175 — ClamAV antivirus daemon. Off by default; enable by
+  # setting CLAMAV_ENABLED=true in your .env. First boot downloads
+  # the signature DB (~250 MB) so allow ~5 minutes before the
+  # scanner becomes responsive.
+  clamav:
+    image: clamav/clamav:latest
+    profiles: [ "av" ]
+    environment:
+      - CLAMAV_NO_FRESHCLAMD=false
+    ports:
+      - "3310:3310"
+    volumes:
+      - clamavdb:/var/lib/clamav
+    healthcheck:
+      test: [ "CMD-SHELL", "echo PING | nc -w 5 localhost 3310 | grep -q PONG" ]
+      interval: 30s
+      timeout: 10s
+      retries: 6
+    restart: unless-stopped
+
   # Phase 175 — OpenTelemetry Collector with tail-based sampling.
   # Receives OTLP/gRPC on 4317 from the API replicas, applies
   # tail_sampling (errors + slow + 5% baseline) and ships to the
@@ -174,3 +201,4 @@ volumes:
   seqdata:
   promdata:
   grafanadata:
+  clamavdb:

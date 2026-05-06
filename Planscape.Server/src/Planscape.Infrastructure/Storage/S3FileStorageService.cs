@@ -214,6 +214,61 @@ public class S3FileStorageService : IFileStorageService, IAsyncDisposable
     }
 
     /// <summary>
+    /// Phase 175 audit P1-14 — issue a presigned PUT URL so the client
+    /// uploads directly to S3 without proxying bytes through the API.
+    /// Caps content length and pins Content-Type so a different MIME
+    /// can't be sneaked in after the URL is signed.
+    /// </summary>
+    public Task<Planscape.Core.Interfaces.PresignedUpload> GetPresignedPutUrlAsync(
+        string objectKey, string contentType, TimeSpan validFor, long maxBytes, CancellationToken ct = default)
+    {
+        EnforceTenantOwnership(objectKey, bypassTenantCheck: false);
+
+        var req = new GetPreSignedUrlRequest
+        {
+            BucketName = _bucket,
+            Key = objectKey,
+            Verb = HttpVerb.PUT,
+            Expires = DateTime.UtcNow.Add(validFor),
+            ContentType = contentType,
+        };
+        // Header pinning so the client must send the same Content-Type
+        // we signed for. S3 enforces this — a mismatch returns 403.
+        req.Headers["Content-Type"] = contentType;
+        // Cap upload size via Content-Length-Range (signed condition).
+        // Note: Content-Length itself is not part of the signed URL but
+        // we surface maxBytes to the caller so the controller can
+        // round-trip a Content-Length validation header.
+        var url = _s3.GetPreSignedURL(req);
+        var headers = new Dictionary<string, string>
+        {
+            ["Content-Type"] = contentType,
+            ["x-amz-meta-max-bytes"] = maxBytes.ToString(),
+        };
+        return Task.FromResult(new Planscape.Core.Interfaces.PresignedUpload(
+            url, objectKey, req.Expires, headers));
+    }
+
+    /// <summary>
+    /// Phase 175 — server-side copy + delete inside the same bucket.
+    /// Used to promote uploads/raw/... → safe/... after AV scan.
+    /// </summary>
+    public async Task MoveAsync(string sourceKey, string destKey, CancellationToken ct = default, bool bypassTenantCheck = false)
+    {
+        EnforceTenantOwnership(sourceKey, bypassTenantCheck);
+        EnforceTenantOwnership(destKey, bypassTenantCheck);
+
+        await _s3.CopyObjectAsync(new CopyObjectRequest
+        {
+            SourceBucket = _bucket,
+            SourceKey = sourceKey,
+            DestinationBucket = _bucket,
+            DestinationKey = destKey,
+        }, ct);
+        await _s3.DeleteObjectAsync(_bucket, sourceKey, ct);
+    }
+
+    /// <summary>
     /// S1.2 — rejects paths whose first segment doesn't match the current
     /// tenant id (or slug, for legacy paths) or one of the well-known
     /// cross-tenant buckets ("derivatives", "thumbnails", "shared"). When

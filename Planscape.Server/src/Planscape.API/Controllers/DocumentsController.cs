@@ -93,6 +93,107 @@ public class DocumentsController : ControllerBase
         _webhooks = webhooks;
     }
 
+    /// <summary>
+    /// Phase 175 audit P1-14 — issue a presigned PUT URL so the client
+    /// uploads the file body directly to object storage without proxying
+    /// bytes through the API. After the PUT completes the client calls
+    /// POST /finalize to create the DocumentRecord. Files land in
+    /// uploads/raw/ and are scanned by ClamAvScannerJob before becoming
+    /// available; downloads of unscanned / infected files are refused.
+    /// </summary>
+    [HttpPost("presign")]
+    public async Task<ActionResult> PresignUpload(Guid projectId, [FromBody] PresignUploadRequest req)
+    {
+        if (string.IsNullOrWhiteSpace(req.FileName))
+            return BadRequest(new { message = "fileName is required" });
+        if (string.IsNullOrWhiteSpace(req.ContentType))
+            return BadRequest(new { message = "contentType is required" });
+        if (req.SizeBytes <= 0 || req.SizeBytes > MaxFileSize)
+            return BadRequest(new { message = $"sizeBytes must be 1..{MaxFileSize}" });
+        if (!Planscape.Infrastructure.Security.FileContentValidator
+                .IsAllowedDocumentUpload(req.ContentType, req.FileName))
+            return BadRequest(new { message = "File type is not permitted." });
+
+        var tenantId = GetTenantId();
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
+        if (project == null) return NotFound();
+
+        // Scoped key: uploads/raw/t_{tenantId}/{projectId}/{guid}/{filename}
+        var safeName = Path.GetFileName(req.FileName);
+        var objectKey = $"uploads/raw/t_{tenantId:N}/{projectId:N}/{Guid.NewGuid():N}/{safeName}";
+
+        try
+        {
+            var presigned = await _storage.GetPresignedPutUrlAsync(
+                objectKey, req.ContentType, TimeSpan.FromMinutes(10), MaxFileSize);
+            return Ok(new
+            {
+                uploadUrl = presigned.Url,
+                objectKey = presigned.ObjectKey,
+                expiresAt = presigned.ExpiresAt,
+                requiredHeaders = presigned.Headers,
+                maxBytes = MaxFileSize,
+            });
+        }
+        catch (NotSupportedException)
+        {
+            return StatusCode(501, new
+            {
+                message = "Storage backend does not support presigned uploads. Use POST /upload (multipart) instead.",
+            });
+        }
+    }
+
+    /// <summary>
+    /// Phase 175 — finalise a presigned upload by creating the
+    /// DocumentRecord. The file is parked at uploads/raw/ until the
+    /// AV scanner promotes it. Caller is the document's UploadedBy.
+    /// </summary>
+    [HttpPost("finalize")]
+    public async Task<ActionResult> FinalizeUpload(Guid projectId, [FromBody] FinalizeUploadRequest req)
+    {
+        if (string.IsNullOrWhiteSpace(req.ObjectKey)
+            || !req.ObjectKey.StartsWith($"uploads/raw/t_{GetTenantId():N}/{projectId:N}/", StringComparison.Ordinal))
+            return BadRequest(new { message = "objectKey did not match the presign tenant/project scope." });
+
+        var tenantId = GetTenantId();
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
+        if (project == null) return NotFound();
+
+        // Verify the upload actually landed in storage.
+        if (!await _storage.ExistsAsync(req.ObjectKey))
+            return BadRequest(new { message = "Upload not found at the given objectKey. PUT to the presigned URL first." });
+
+        var safeName = Path.GetFileName(req.FileName ?? "");
+        if (string.IsNullOrEmpty(safeName)) safeName = Path.GetFileName(req.ObjectKey);
+
+        var doc = new DocumentRecord
+        {
+            TenantId      = tenantId,
+            ProjectId     = projectId,
+            FileName      = safeName,
+            FilePath      = req.ObjectKey,
+            DocumentType  = req.DocumentType ?? "",
+            Discipline    = req.Discipline,
+            Revision      = req.Revision,
+            Description   = req.Description,
+            Originator    = req.Originator,
+            FileSizeBytes = req.SizeBytes,
+            ContentHash   = req.ContentHash,
+            UploadedBy    = User.FindFirst("display_name")?.Value ?? User.FindFirst("sub")?.Value ?? "system",
+            UploadedAt    = DateTime.UtcNow,
+            ScanStatus    = "PENDING",
+        };
+        _db.Documents.Add(doc);
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            doc.Id, doc.FileName, doc.FilePath, doc.ScanStatus,
+            note = "Document is awaiting antivirus scan; download will return 423 until the scanner promotes it.",
+        });
+    }
+
     [HttpGet]
     public async Task<ActionResult> GetDocuments(Guid projectId,
         [FromQuery] string? cdeStatus = null, [FromQuery] string? discipline = null,
@@ -416,6 +517,16 @@ public class DocumentsController : ControllerBase
 
         if (string.IsNullOrEmpty(doc.FilePath))
             return NotFound("File not found on disk");
+
+        // Phase 175 audit P1-15 — refuse downloads of files that haven't
+        // cleared antivirus. PENDING returns 423 Locked so clients can
+        // retry; INFECTED returns 451 Unavailable for Legal Reasons
+        // (the closest standard mapping for "we have it but won't serve
+        // it") and the threat name is logged in the server response.
+        if (doc.ScanStatus == "PENDING")
+            return StatusCode(423, new { message = "File is awaiting antivirus scan. Retry shortly." });
+        if (doc.ScanStatus == "INFECTED")
+            return StatusCode(451, new { message = "File is quarantined.", threat = doc.ScanThreatName });
 
         var stream = await _storage.GetAsync(doc.FilePath);
         if (stream == null)
@@ -790,6 +901,13 @@ public class DocumentsController : ControllerBase
 }
 
 public record CreateDocumentRequest(string FileName, string? DocumentType, string? Discipline, string? Revision, string? Description = null, string? Originator = null);
+
+// Phase 175 audit P1-14 — presigned-upload DTOs.
+public record PresignUploadRequest(string FileName, string ContentType, long SizeBytes);
+public record FinalizeUploadRequest(
+    string ObjectKey, string? FileName, long SizeBytes, string? ContentHash,
+    string? DocumentType, string? Discipline, string? Revision,
+    string? Description, string? Originator);
 public record CdeTransitionRequest(string NewState, string? SuitabilityCode, string? Revision);
 public record MobileTransitionRequest(string NewStatus);
 public record ApprovalRequestBody(string TargetState, string? Comments = null);

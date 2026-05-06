@@ -278,6 +278,25 @@ else
 {
     builder.Services.AddScoped<Planscape.Core.Interfaces.IFileStorageService, Planscape.Infrastructure.Storage.LocalFileStorageService>();
 }
+// Phase 175 audit P1-15-tx — atomic per-key counter (transmittals,
+// future RFIs / NCRs). Scoped because it shares the request DbContext.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.ISequenceCounterService,
+    Planscape.Infrastructure.Services.SequenceCounterService>();
+// Phase 175 audit P1-15 — ClamAV scanner. Set ClamAv:Enabled = true
+// (and bring up the clamav service in docker-compose) to switch from
+// the no-op scanner that reports every file clean. The TCP scanner
+// reaches clamd at ClamAv:Host:Port (defaults clamav:3310).
+var clamAvEnabled = builder.Configuration.GetValue<bool>("ClamAv:Enabled");
+if (clamAvEnabled)
+{
+    builder.Services.AddScoped<Planscape.Infrastructure.Security.IClamAvScanner,
+        Planscape.Infrastructure.Security.TcpClamAvScanner>();
+}
+else
+{
+    builder.Services.AddScoped<Planscape.Infrastructure.Security.IClamAvScanner,
+        Planscape.Infrastructure.Security.NullClamAvScanner>();
+}
 // Phase 150 — platform-wide deliverable state-machine keyword
 // extensions. Bound from `DeliverableStateMachine:Keywords` in
 // appsettings; falls back to an empty registry when the section is
@@ -1021,6 +1040,14 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.SlaEscalationJob>(
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.StaleWarningCleanupJob>(
     "stale-warning-cleanup", j => j.ExecuteAsync(CancellationToken.None),
     Cron.Daily, new RecurringJobOptions { QueueName = "default" });
+// Phase 175 audit P1-15 — every 30s, scan presigned-URL uploads.
+// Cron precision is 1 minute; for sub-minute polling Hangfire's
+// MinutelyCron is the floor. 30s would require a custom scheduler,
+// so we settle for 1m which still keeps the upload→available
+// latency tight enough for the office dashboard.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.ClamAvScannerJob>(
+    "clamav-scan-pending", j => j.ExecuteAsync(CancellationToken.None),
+    Cron.Minutely, new RecurringJobOptions { QueueName = "default" });
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PlatformSyncJob>(
     "platform-sync", j => j.ExecuteAsync(CancellationToken.None),
     "*/30 * * * *", new RecurringJobOptions { QueueName = "platform-sync" });
