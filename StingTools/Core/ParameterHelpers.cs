@@ -1710,14 +1710,6 @@ namespace StingTools.Core
                             }
                         }
 
-                        // AE-04: Write connector inherit status for diagnostics
-                        if (copied > 0)
-                        {
-                            string sourceTag = connTag.Length > 30 ? connTag.Substring(0, 30) : connTag;
-                            ParameterHelpers.SetIfEmpty(el, "STING_TOKEN_COPY_SOURCE",
-                                $"ConnectorInherit:{connected.Id.Value}:{sourceTag}:{copied}tok");
-                        }
-
                         // Phase 56b CRIT-02 FIX: Check if ALL tokens now populated before returning
                         // Previously returned after first tagged element even if some tokens still empty
                         bool nowComplete = true;

@@ -1622,9 +1622,9 @@ namespace StingTools.Docs
                         string seq = ParameterHelpers.GetString(el, ParamRegistry.SEQ);
                         string status = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
                         string rev = ParameterHelpers.GetString(el, ParamRegistry.REV);
-                        string serial = ParameterHelpers.GetString(el, "ASS_SERIAL_NUM_TXT");
+                        string serial = ParameterHelpers.GetString(el, "ASS_SERIAL_NR_TXT");
                         string installDate = ParameterHelpers.GetString(el, "ASS_INSTALLATION_DATE_TXT");
-                        string costStr = ParameterHelpers.GetString(el, "ASS_COST_TOTAL_TXT");
+                        string costStr = ParameterHelpers.GetString(el, "ASS_CST_TOTAL_UGX_NR");
                         string gridRef = ParameterHelpers.GetString(el, ParamRegistry.GRID_REF);
 
                         compWriter.Write(Esc(tag1 ?? el.Name ?? el.Id.ToString()));
