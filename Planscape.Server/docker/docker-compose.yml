@@ -9,7 +9,12 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__Default=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!}
       - ConnectionStrings__Migrations=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!}
-      - Jwt__Key=${JWT_KEY:-Planscape-Production-Secret-Key-Min32Chars!!}
+      # Phase 175 — JWT_KEY MUST be supplied via .env or shell env.
+      # ${JWT_KEY:?...} fails the compose run with a clear message if
+      # the operator forgot to set it (instead of silently falling back
+      # to a known-bad literal that bannedKeys would then reject at
+      # startup anyway).
+      - Jwt__Key=${JWT_KEY:?Set JWT_KEY in your shell or .env (32+ chars, e.g. `openssl rand -base64 48`)}
       - Jwt__Issuer=Planscape
       - Jwt__Audience=Planscape.Client
       - Redis__Connection=redis:6379
@@ -88,7 +93,12 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__Default=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!}
       - ConnectionStrings__Migrations=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!}
-      - Jwt__Key=${JWT_KEY:-Planscape-Production-Secret-Key-Min32Chars!!}
+      # Phase 175 — JWT_KEY MUST be supplied via .env or shell env.
+      # ${JWT_KEY:?...} fails the compose run with a clear message if
+      # the operator forgot to set it (instead of silently falling back
+      # to a known-bad literal that bannedKeys would then reject at
+      # startup anyway).
+      - Jwt__Key=${JWT_KEY:?Set JWT_KEY in your shell or .env (32+ chars, e.g. `openssl rand -base64 48`)}
       - Jwt__Issuer=Planscape
       - Jwt__Audience=Planscape.Client
       - Redis__Connection=redis:6379

@@ -163,8 +163,15 @@ public class ProjectMembersController : ControllerBase
             // access token via POST /api/auth/accept-invitation. Stored in
             // RefreshToken with "INV:" prefix so AuthController.AcceptInvitation
             // can distinguish it from refresh / reset tokens.
+            //
+            // Phase 175 — store the SHA-256 of the token, not the raw value.
+            // The raw value goes in the email body; the DB only ever holds
+            // the hash. AcceptInvitation hashes the inbound token before
+            // comparing.
             var inviteToken = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))
                 .Replace('+', '-').Replace('/', '_').TrimEnd('=');
+            var inviteTokenHash = Convert.ToHexString(
+                System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(inviteToken)));
 
             user = new AppUser
             {
@@ -175,7 +182,7 @@ public class ProjectMembersController : ControllerBase
                 Role          = UserRole.Contributor,
                 Iso19650Role  = req.Iso19650Role ?? "M",
                 IsActive      = false,  // awaiting first login / password set
-                RefreshToken  = $"INV:{inviteToken}",
+                RefreshToken  = $"INV:{inviteTokenHash}",
                 RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(14),
             };
             _db.Users.Add(user);

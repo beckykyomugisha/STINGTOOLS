@@ -62,8 +62,20 @@ builder.Host.UseSerilog((ctx, sp, lc) =>
 });
 
 // ── Database ──
+// Phase 175 — opt-in Postgres RLS interceptor. When Database:RlsEnabled
+// is true, every connection gets `SET app.current_tenant = <guid>` so
+// the policies installed by EnablePostgresRowLevelSecurity gate every
+// row read at the database. Default OFF: the EF query filter is the
+// only barrier until the operator flips the flag (rollout-safe).
+var rlsEnabled = builder.Configuration.GetValue<bool>("Database:RlsEnabled");
 builder.Services.AddDbContext<PlanscapeDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
+{
+    options.UseNpgsql(builder.Configuration.GetConnectionString("Default"));
+    if (rlsEnabled)
+    {
+        options.AddInterceptors(new Planscape.Infrastructure.Data.RlsConnectionInterceptor());
+    }
+});
 
 // ── Authentication ──
 // P1 — JWT key rotation with grace period.
@@ -71,22 +83,44 @@ builder.Services.AddDbContext<PlanscapeDbContext>(options =>
 // `Jwt:PreviousKey` for the overlap window (default 7d). Tokens issued
 // under either key validate during that window. After the window ends,
 // clear `Jwt:PreviousKey`. This prevents mass sign-outs on key rotation.
-// S1 — fail fast in Production if Jwt:Key is missing. The dev fallback is
-// *publicly known* and was leaking into deployments where the production
-// settings file was misnamed or undeployed.
+// S1 / Phase 175 — Jwt:Key is required in EVERY environment. The
+// previous dev fallback was a publicly-known string baked into source
+// control — a leaked image (or just a `git clone` of this repo) used
+// to be enough to mint admin tokens for any tenant.
+//
+// Contract:
+//   - Set via env var Jwt__Key (Docker / Kubernetes secrets) in every
+//     environment, including local dev (docker-compose.yml does this).
+//   - Minimum 32 chars (HMAC-SHA256).
+//   - Refused if it matches a known-bad value (the old leaked dev
+//     literal, "secret", "test", "changeme", or all-the-same-char keys).
+//
+// During key rotation: put the old key in Jwt:PreviousKey for the
+// overlap window, then clear once tokens have aged out.
 var jwtKey = builder.Configuration["Jwt:Key"];
 if (string.IsNullOrWhiteSpace(jwtKey))
 {
-    if (builder.Environment.IsProduction())
-    {
-        throw new InvalidOperationException(
-            "Jwt:Key is required in Production. Set it via environment variable or appsettings.Production.json.");
-    }
-    jwtKey = "Planscape-Dev-Secret-Key-Min32Chars!!";
+    throw new InvalidOperationException(
+        "Jwt:Key is required. Supply via env var Jwt__Key (32+ chars, randomly generated). " +
+        "In docker-compose: environment: [\"Jwt__Key=$JWT_KEY\"] with JWT_KEY in your .env / shell.");
 }
 if (jwtKey.Length < 32)
 {
     throw new InvalidOperationException("Jwt:Key must be at least 32 characters (HMAC-SHA256 minimum).");
+}
+// Refuse a curated list of well-known dev / placeholder values.
+var bannedKeys = new[]
+{
+    "Planscape-Dev-Secret-Key-Min32Chars!!",
+    "Planscape-Production-Secret-Key-Min32Chars!!",
+    "secret", "test", "changeme", "password", "123456",
+};
+if (bannedKeys.Contains(jwtKey, StringComparer.OrdinalIgnoreCase)
+    || jwtKey.Distinct().Count() < 4)
+{
+    throw new InvalidOperationException(
+        "Jwt:Key is set to a known-bad / placeholder value. Generate a fresh random 32+ char secret " +
+        "(e.g. `openssl rand -base64 48`) and supply via env var Jwt__Key.");
 }
 var jwtPrevKey = builder.Configuration["Jwt:PreviousKey"];
 var signingKeys = new List<SecurityKey>

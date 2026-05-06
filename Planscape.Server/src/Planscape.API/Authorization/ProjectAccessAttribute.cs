@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.DependencyInjection;
 using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.Services;
 
@@ -52,7 +54,35 @@ public class ProjectAccessAttribute : Attribute, IAsyncActionFilter
             return;
         }
 
-        var ok = await ProjectVisibility.CanSeeProjectAsync(db, projectId, context.HttpContext.User, context.HttpContext.RequestAborted);
+        // Phase 175 audit P1-13 — cache the visibility decision in
+        // Redis (IDistributedCache) for 30 s. Hot endpoints (Issues
+        // list, mobile polling, SignalR fall-through) hit the same
+        // (user, project) pair many times per minute and the underlying
+        // EF query is the same each time. ProjectMembershipNotifier
+        // invalidates the key on revoke so changes still take effect
+        // within the eviction window.
+        var cache = context.HttpContext.RequestServices.GetService<IDistributedCache>();
+        var userId = ProjectVisibility.GetUserId(context.HttpContext.User);
+        var tenantId = ProjectVisibility.GetTenantId(context.HttpContext.User);
+        var ct = context.HttpContext.RequestAborted;
+        var cacheKey = ProjectAccessCache.Key(tenantId, userId, projectId);
+
+        bool ok;
+        if (cache != null && userId != Guid.Empty)
+        {
+            var cached = await cache.GetStringAsync(cacheKey, ct);
+            if (cached == "1") { await next(); return; }
+            if (cached == "0") { context.Result = new NotFoundResult(); return; }
+
+            ok = await ProjectVisibility.CanSeeProjectAsync(db, projectId, context.HttpContext.User, ct);
+            await cache.SetStringAsync(cacheKey, ok ? "1" : "0",
+                new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(30) }, ct);
+        }
+        else
+        {
+            ok = await ProjectVisibility.CanSeeProjectAsync(db, projectId, context.HttpContext.User, ct);
+        }
+
         if (!ok)
         {
             context.Result = new NotFoundResult();
@@ -61,4 +91,28 @@ public class ProjectAccessAttribute : Attribute, IAsyncActionFilter
 
         await next();
     }
+}
+
+/// <summary>
+/// Shared cache-key helpers so the membership notifier (which runs in
+/// the Infrastructure project) can invalidate decisions written by
+/// the API-side attribute without coupling.
+/// </summary>
+public static class ProjectAccessCache
+{
+    public const string KeyPrefix = "pv:";
+
+    public static string Key(Guid tenantId, Guid userId, Guid projectId)
+        => $"{KeyPrefix}{tenantId:N}:{userId:N}:{projectId:N}";
+
+    /// <summary>
+    /// Wildcard pattern used for "invalidate every (user, project) entry"
+    /// — Redis-side a SCAN + DEL is required since IDistributedCache
+    /// doesn't expose pattern delete.
+    /// </summary>
+    public static string ProjectScanPattern(Guid projectId)
+        => $"{KeyPrefix}*:{projectId:N}";
+
+    public static string UserProjectKey(Guid userId, Guid projectId)
+        => $"{KeyPrefix}*:{userId:N}:{projectId:N}";
 }

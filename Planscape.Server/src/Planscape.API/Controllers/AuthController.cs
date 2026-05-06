@@ -53,6 +53,16 @@ public class AuthController : ControllerBase
         return Convert.ToHexString(bytes);
     }
 
+    // Phase 175 audit P0-2 — hash sensitive opaque tokens (refresh,
+    // invitation) before storing in AppUser.RefreshToken. SHA-256 is
+    // adequate for high-entropy 128-bit secrets (no rainbow tables can
+    // be precomputed against the entire 2^128 space). Returns the same
+    // form so the column shape (and the `INV:` / `RESET:` overload
+    // prefixes) stay intact.
+    private static string HashRefreshToken(string raw) => HashForKey(raw);
+    private const string InvitationPrefix = "INV:";
+    private const string ResetPrefix      = "RESET:";
+
     private readonly PlanscapeDbContext _db;
     private readonly IConfiguration _config;
     private readonly IPermissionRevocationStore _revocations;
@@ -124,7 +134,10 @@ public class AuthController : ControllerBase
 
         var token = GenerateJwt(user);
         var refreshToken = Guid.NewGuid().ToString("N");
-        user.RefreshToken = refreshToken;
+        // Phase 175 — store the SHA-256 of the refresh token, never the
+        // raw value. The raw goes back to the caller in the response;
+        // a DB leak then yields hashes, not session secrets.
+        user.RefreshToken = HashRefreshToken(refreshToken);
         // SEC-EA-03 — Refresh tokens are SECURITY-SENSITIVE. Do NOT extend
         //   beyond 7 days without a security review; a stolen refresh token
         //   gives the attacker silent access for the entire window.
@@ -216,9 +229,10 @@ public class AuthController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult> RefreshToken([FromBody] RefreshTokenRequest req)
     {
+        var refreshHash = HashRefreshToken(req.RefreshToken);
         var user = await _db.Users
             .Include(u => u.Tenant)
-            .FirstOrDefaultAsync(u => u.RefreshToken == req.RefreshToken && u.IsActive);
+            .FirstOrDefaultAsync(u => u.RefreshToken == refreshHash && u.IsActive);
 
         if (user == null || user.RefreshTokenExpiresAt < DateTime.UtcNow)
             return Unauthorized(new { message = "Invalid or expired refresh token" });
@@ -251,7 +265,7 @@ public class AuthController : ControllerBase
 
         var newAccessToken  = GenerateJwt(user);
         var newRefreshToken = Guid.NewGuid().ToString("N");
-        user.RefreshToken          = newRefreshToken;
+        user.RefreshToken          = HashRefreshToken(newRefreshToken);
         // SEC-EA-03 — Refresh tokens are SECURITY-SENSITIVE. Do NOT extend
         //   beyond 7 days without a security review; a stolen refresh token
         //   gives the attacker silent access for the entire window.
@@ -511,11 +525,13 @@ public class AuthController : ControllerBase
             return BadRequest(new { message = "Password must be at least 8 characters." });
 
         var email = req.Email.Trim().ToLowerInvariant();
+        // Phase 175 — invitation tokens are now hashed at rest too.
+        var inviteHash = $"{InvitationPrefix}{HashRefreshToken(req.Token)}";
         var user = await _db.Users
             .Include(u => u.Tenant)
             .FirstOrDefaultAsync(u =>
                 u.Email == email &&
-                u.RefreshToken == $"INV:{req.Token}" &&
+                u.RefreshToken == inviteHash &&
                 u.RefreshTokenExpiresAt > DateTime.UtcNow);
 
         if (user == null)
@@ -526,7 +542,7 @@ public class AuthController : ControllerBase
 
         // Issue a fresh access + refresh token.
         var refresh = Guid.NewGuid().ToString("N");
-        user.RefreshToken = refresh;
+        user.RefreshToken = HashRefreshToken(refresh);
         // SEC-EA-03 — Refresh tokens are SECURITY-SENSITIVE. Do NOT extend
         //   beyond 7 days without a security review; a stolen refresh token
         //   gives the attacker silent access for the entire window.
@@ -621,7 +637,7 @@ public class AuthController : ControllerBase
 
         var token = GenerateJwt(target);
         var refreshToken = Guid.NewGuid().ToString("N");
-        target.RefreshToken = refreshToken;
+        target.RefreshToken = HashRefreshToken(refreshToken);
         // SEC-EA-03 — Refresh tokens are SECURITY-SENSITIVE. Do NOT extend
         //   beyond 7 days without a security review.
         target.RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(7);
