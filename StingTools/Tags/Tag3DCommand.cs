@@ -21,11 +21,23 @@ namespace StingTools.Tags
     {
         private const string TAG_3D_LABEL = "ASS_TAG_3D_TXT";
 
-        // Idempotency stamp written to the placed FamilyInstance's Comments.
-        // Format: "[STING3D host=<elementId>]". Caller MUST keep prefix stable —
-        // the existing-host-id scan parses it back out to skip duplicates.
+        // Preferred idempotency stamp — dedicated shared parameter on the
+        // placed FamilyInstance. Bound to OST_GenericModel via
+        // MR_PARAMETERS.csv; LoadSharedParams binds it to projects that
+        // run the standard setup. Stores ElementId.Value (Int64) as a
+        // decimal string so values exceeding Int32 still survive.
+        private const string HOST_ID_PARAM = "STING_TAG3D_HOST_ID_TXT";
+
+        // Fallback idempotency stamp written to Comments when the
+        // dedicated shared parameter isn't bound on the project. Marker
+        // prefix lets us round-trip the host id without colliding with
+        // user-authored Comments. The existing-host-id scan parses both
+        // forms — projects that later run LoadSharedParams to bind the
+        // dedicated param continue to recognise legacy stamps.
         private const string HOST_STAMP_PREFIX = "[STING3D host=";
         private const string HOST_STAMP_SUFFIX = "]";
+        private const string LINK_STAMP_PREFIX = "[STING3D link=";
+        private const string LINK_STAMP_SUFFIX = "]";
 
         // Annotation workset name we prefer when present. If missing the
         // FamilyInstance lands on the user's active workset, which is fine.
@@ -66,8 +78,17 @@ namespace StingTools.Tags
 
         private sealed class PlacementConfig
         {
-            public AnchorMode Anchor { get; set; } = AnchorMode.TopOfBbox;
-            public double DefaultOffsetFt { get; set; } = 300.0 / 304.8; // 300 mm
+            // Defaults preserve historic behaviour (centroid + 1 ft) so
+            // upgrading existing projects doesn't shift the visual position
+            // of every 3D tag. Projects that prefer top-of-bounding-box
+            // placement opt in via project_config.json:
+            //   { "tag3DPlacement": {
+            //       "anchor": "TopOfBbox",
+            //       "defaultOffsetMm": 300,
+            //       "perCategoryOffsetMm": { "Mechanical Equipment": 600 }
+            //   } }
+            public AnchorMode Anchor { get; set; } = AnchorMode.Centroid;
+            public double DefaultOffsetFt { get; set; } = 1.0; // 1 ft, original
             public Dictionary<string, double> PerCategoryOffsetFt { get; set; }
                 = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
             public bool IncludeLinked { get; set; } = false;
@@ -589,17 +610,45 @@ namespace StingTools.Tags
 
         private static void StampHostId(FamilyInstance fi, ElementId hostId)
         {
+            string idStr = hostId.Value.ToString();
+
+            // Preferred: dedicated shared parameter — no collision with
+            // user-authored Comments.
+            try
+            {
+                var dedicated = fi.LookupParameter(HOST_ID_PARAM);
+                if (dedicated != null && !dedicated.IsReadOnly
+                    && dedicated.StorageType == StorageType.String)
+                {
+                    dedicated.Set(idStr);
+                    return;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Tag3D StampHostId (dedicated): {ex.Message}"); }
+
+            // Fallback: Comments with marker prefix.
             try
             {
                 var p = fi.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
                 if (p == null || p.IsReadOnly) return;
-                p.Set($"{HOST_STAMP_PREFIX}{hostId.Value}{HOST_STAMP_SUFFIX}");
+                p.Set($"{HOST_STAMP_PREFIX}{idStr}{HOST_STAMP_SUFFIX}");
             }
-            catch (Exception ex) { StingLog.Warn($"Tag3D StampHostId: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"Tag3D StampHostId (comments): {ex.Message}"); }
         }
 
         private static long? ReadStampedHostId(FamilyInstance fi)
         {
+            // Preferred: dedicated shared parameter.
+            try
+            {
+                var dedicated = fi.LookupParameter(HOST_ID_PARAM);
+                string s = dedicated?.AsString();
+                if (!string.IsNullOrEmpty(s) && long.TryParse(s, out long id))
+                    return id;
+            }
+            catch { /* defensive */ }
+
+            // Fallback: parse legacy Comments stamp.
             try
             {
                 var p = fi.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
@@ -611,6 +660,59 @@ namespace StingTools.Tags
                 int end = s.IndexOf(HOST_STAMP_SUFFIX, start, StringComparison.Ordinal);
                 if (end <= start) return null;
                 if (long.TryParse(s.Substring(start, end - start), out long id)) return id;
+            }
+            catch { /* defensive */ }
+            return null;
+        }
+
+        private static void StampLinkedHostKey(FamilyInstance fi, string hostKey)
+        {
+            // Linked stamps go into the dedicated param when available
+            // (prefixed so we can distinguish from local-host stamps),
+            // else fall back to a marker-prefixed Comments string.
+            try
+            {
+                var dedicated = fi.LookupParameter(HOST_ID_PARAM);
+                if (dedicated != null && !dedicated.IsReadOnly
+                    && dedicated.StorageType == StorageType.String)
+                {
+                    dedicated.Set("link:" + hostKey);
+                    return;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Tag3D StampLinkedHostKey (dedicated): {ex.Message}"); }
+
+            try
+            {
+                var p = fi.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
+                if (p == null || p.IsReadOnly) return;
+                p.Set($"{LINK_STAMP_PREFIX}{hostKey}{LINK_STAMP_SUFFIX}");
+            }
+            catch (Exception ex) { StingLog.Warn($"Tag3D StampLinkedHostKey (comments): {ex.Message}"); }
+        }
+
+        private static string ReadStampedLinkedHostKey(FamilyInstance fi)
+        {
+            try
+            {
+                var dedicated = fi.LookupParameter(HOST_ID_PARAM);
+                string s = dedicated?.AsString();
+                if (!string.IsNullOrEmpty(s) && s.StartsWith("link:", StringComparison.Ordinal))
+                    return s.Substring("link:".Length);
+            }
+            catch { /* defensive */ }
+
+            try
+            {
+                var p = fi.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
+                string s = p?.AsString();
+                if (string.IsNullOrEmpty(s)) return null;
+                int i = s.IndexOf(LINK_STAMP_PREFIX, StringComparison.Ordinal);
+                if (i < 0) return null;
+                int start = i + LINK_STAMP_PREFIX.Length;
+                int end = s.IndexOf(LINK_STAMP_SUFFIX, start, StringComparison.Ordinal);
+                if (end <= start) return null;
+                return s.Substring(start, end - start);
             }
             catch { /* defensive */ }
             return null;
@@ -679,7 +781,8 @@ namespace StingTools.Tags
             if (links.Count == 0) return;
 
             // Build a host-id set keyed by "<linkInstanceId>:<linkedElementId>"
-            // stamped into the placed instance Comments.
+            // stamped into the placed instance via the dedicated shared
+            // param ("link:<key>") or legacy Comments ([STING3D link=<key>]).
             var alreadyTaggedLinked = new HashSet<string>();
             try
             {
@@ -690,13 +793,8 @@ namespace StingTools.Tags
                     .Where(fi => familyId == null || fi.Symbol?.Family?.Id == familyId);
                 foreach (var fi in existing)
                 {
-                    string s = fi.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)?.AsString();
-                    if (string.IsNullOrEmpty(s)) continue;
-                    int i = s.IndexOf("link=", StringComparison.Ordinal);
-                    if (i < 0) continue;
-                    int end = s.IndexOf(']', i);
-                    if (end < 0) continue;
-                    alreadyTaggedLinked.Add(s.Substring(i + 5, end - (i + 5)));
+                    string key = ReadStampedLinkedHostKey(fi);
+                    if (!string.IsNullOrEmpty(key)) alreadyTaggedLinked.Add(key);
                 }
             }
             catch (Exception ex) { StingLog.Warn($"Tag3D linked-host scan: {ex.Message}"); }
@@ -771,14 +869,7 @@ namespace StingTools.Tags
                             }
                             ParameterHelpers.SetString(fi, TAG_3D_LABEL, label, overwrite: true);
 
-                            // Stamp link key into Comments for idempotent re-runs.
-                            try
-                            {
-                                var p = fi.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
-                                if (p != null && !p.IsReadOnly)
-                                    p.Set($"[STING3D link={hostKey}]");
-                            }
-                            catch (Exception stampEx) { StingLog.Warn($"Tag3D linked stamp: {stampEx.Message}"); }
+                            StampLinkedHostKey(fi, hostKey);
 
                             if (cfg.PinPlacedInstances) TryPin(fi);
 
