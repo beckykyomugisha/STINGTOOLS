@@ -124,6 +124,14 @@ namespace StingTools.Commands.Mep
                  .Metric("Skipped",          res.Skipped.ToString())
                  .Metric("Failed",           res.Failed.ToString());
 
+            panel.AddSection("STANDARDS")
+                 .Text("Sleeves sized per BS EN 1366-3 minimum annulus rules:")
+                 .Text("  • Pipes / ducts: 50 mm clearance per side")
+                 .Text("  • Conduit:       15 mm clearance per side")
+                 .Text("  • Large-bore (≥250 mm): rule PIPE_LARGEBORE")
+                 .Text("Fire rating inherited from host wall/floor TYPE per BS EN 13501-2.")
+                 .Text("Configure rules in Data/Routing/STING_SLEEVE_RULES.json.");
+
             if (res.Warnings.Count > 0)
             {
                 panel.AddSection("WARNINGS");
@@ -135,7 +143,8 @@ namespace StingTools.Commands.Mep
                  .Text("To round-trip sleeves to Tekla Structures Hole Reservation Manager:")
                  .Text("1. Run Fabrication → Export IFC Provisions for Voids (next command).")
                  .Text("2. Load the IFC4 Reference View in Tekla; use the PFV_UUID as the")
-                 .Text("   matching key between MEP voids and structural cuts.");
+                 .Text("   matching key between MEP voids and structural cuts.")
+                 .Text("3. Run Export Sleeve BCF to issue per-penetration RFIs to coordinators.");
             panel.Show();
         }
     }

@@ -9,13 +9,10 @@
 //   2. STING_SLV_GENERIC.rfa
 //   3. First FamilySymbol whose name contains "SLEEVE"
 //
-// Each placed sleeve is tagged with:
-//   SLV_HOST_ELEMENT_ID  — id of the wall/floor/roof host
-//   SLV_PENETRATED_ID    — id of the pipe/duct/conduit/tray
-//   SLV_NOMINAL_SIZE_MM  — ((nominalDia or rectangularMax) + 2*50) mm
-//                          per BS EN 1366-3 minimum annulus
-//   SLV_FIRE_RATING_TXT  — copied from host wall/floor fire rating
-//   SLV_CREATED_BY_TXT   = "STING v4 AutoSleeve"
+// Each placed sleeve is tagged with the unified STING_SLEEVE_* schema
+// (see Core/Mep/SleeveParamRegistry.cs) so the same downstream BCF and
+// IFC PFV exports work whether sleeves were placed by this command or
+// the selection-scoped PlaceSleevesCommand.
 
 using System;
 using System.Collections.Generic;
@@ -25,6 +22,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Core.Mep;
 using StingTools.UI;
 
 namespace StingTools.Commands.Mep
@@ -226,15 +224,77 @@ namespace StingTools.Commands.Mep
 
         private void TagSleeve(FamilyInstance fi, Element host, Element mep)
         {
-            TrySetInt  (fi, "SLV_HOST_ELEMENT_ID", (int)(host.Id?.Value ?? 0));
-            TrySetInt  (fi, "SLV_PENETRATED_ID",   (int)(mep.Id?.Value ?? 0));
+            // Unified STING_SLEEVE_* schema — keep this in sync with
+            // SleeveEngine.PlaceSleeves so BCF + IFC PFV exports see the
+            // same parameter set regardless of which entry point placed
+            // the sleeve.
+            TrySetInt   (fi, SleeveParamRegistry.HostElementId, (int)(host.Id?.Value ?? 0));
+            TrySetInt   (fi, SleeveParamRegistry.PenetratedId,  (int)(mep.Id?.Value ?? 0));
 
             double sizeMm = NominalSizeMm(mep) + 2.0 * AnnulusMm;
-            TrySetDouble(fi, "SLV_NOMINAL_SIZE_MM", sizeMm);
+            string shape  = SleeveShape(mep);
+            if (shape == "rectangular")
+            {
+                TrySetDouble(fi, SleeveParamRegistry.WidthMm,  sizeMm);
+                TrySetDouble(fi, SleeveParamRegistry.HeightMm, sizeMm);
+            }
+            else
+            {
+                TrySetDouble(fi, SleeveParamRegistry.BoreMm, sizeMm);
+            }
 
-            TrySetString(fi, "SLV_FIRE_RATING_TXT",
-                host?.LookupParameter("FIRE_RATING")?.AsString() ?? "");
-            TrySetString(fi, "SLV_CREATED_BY_TXT", "STING v4 AutoSleeve");
+            // FIRE_RATING is a TYPE parameter on walls/floors. Read it
+            // from the type rather than the instance, matching SleeveEngine.
+            string fireRat = "";
+            try
+            {
+                var typeId = host?.GetTypeId() ?? ElementId.InvalidElementId;
+                if (typeId != ElementId.InvalidElementId)
+                {
+                    var typeEl = host.Document.GetElement(typeId);
+                    fireRat = typeEl?.get_Parameter(BuiltInParameter.FIRE_RATING)?.AsString() ?? "";
+                }
+            }
+            catch { }
+            TrySetString(fi, SleeveParamRegistry.HostFireRating, fireRat);
+
+            // Stable PFV UUID so re-runs and downstream exports stay linked.
+            TrySetString(fi, SleeveParamRegistry.PfvUuid, MakePfvUuid(host, mep));
+            TrySetString(fi, SleeveParamRegistry.RuleId, $"AutoSleeve|{DisciplineFor(mep)}");
+            TrySetString(fi, SleeveParamRegistry.CreatedBy, "STING v4 AutoSleeve");
+        }
+
+        private static string SleeveShape(Element mep)
+        {
+            try
+            {
+                if (mep is Autodesk.Revit.DB.Mechanical.Duct d)
+                    return (d.Width > 0 && d.Height > 0) ? "rectangular" : "round";
+                if (mep is Autodesk.Revit.DB.Electrical.CableTray) return "rectangular";
+            }
+            catch { }
+            return "round";
+        }
+
+        /// <summary>
+        /// Same deterministic UUIDv5 used by SleeveEngine — keeps the BCF /
+        /// IFC PFV round-trip key stable when both commands place sleeves
+        /// against the same (host, mep) pair.
+        /// </summary>
+        private static string MakePfvUuid(Element host, Element mep)
+        {
+            try
+            {
+                string seed = $"{host?.UniqueId}|{mep?.UniqueId}";
+                using var sha = System.Security.Cryptography.SHA1.Create();
+                var bytes = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes("STING_PFV|" + seed));
+                var g = new byte[16];
+                Array.Copy(bytes, g, 16);
+                g[6] = (byte)((g[6] & 0x0F) | 0x50);
+                g[8] = (byte)((g[8] & 0x3F) | 0x80);
+                return new Guid(g).ToString();
+            }
+            catch { return Guid.NewGuid().ToString(); }
         }
 
         private static double NominalSizeMm(Element mep)
@@ -277,6 +337,10 @@ namespace StingTools.Commands.Mep
                  .Metric("Intersections detected",  r.Intersections.ToString())
                  .Metric("Sleeves created",         r.Created.ToString())
                  .Metric("Skipped",                 r.Skipped.ToString());
+            panel.AddSection("STANDARDS")
+                 .Text("Sized per BS EN 1366-3 minimum annulus (50 mm clearance per side).")
+                 .Text("Tagged with the unified STING_SLEEVE_* schema — same set as")
+                 .Text("Place Sleeves; downstream BCF and IFC PFV exports see both.");
             if (r.ByDiscipline.Count > 0)
             {
                 panel.AddSection("BY DISCIPLINE");
