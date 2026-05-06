@@ -2726,6 +2726,94 @@ namespace StingTools.Tags
                     report.AppendLine($"  {pname}: {stype}");
             }
 
+            // ── Style-pack coverage (review fix for leader-and-style #2) ──
+            // Tag families should expose all 128 TAG_{SIZE}{STYLE}_{COLOR}_BOOL
+            // params. If injection partly failed, ApplyTagStyle silently
+            // updates 0 types and the user sees no error — this audit makes
+            // the partial state visible. Counted on type-elements that have
+            // at least ONE style param (i.e. STING tag types).
+            var stylePack = ParamRegistry.AllTagStyleParams;
+            int stingTypesScanned = 0;
+            int stingTypesFullPack = 0;
+            int stingTypesPartialPack = 0;
+            int stingTypesNoPack = 0;
+            int worstMissing = 0;
+            string worstTypeName = "";
+            foreach (Element typeEl in new FilteredElementCollector(doc).WhereElementIsElementType())
+            {
+                if (typeEl?.Category == null) continue;
+                if (typeEl.Category.CategoryType != CategoryType.Annotation) continue;
+                int present = 0;
+                foreach (var name in stylePack)
+                    if (typeEl.LookupParameter(name) != null) present++;
+                if (present == 0) continue;
+                stingTypesScanned++;
+                int missing = stylePack.Length - present;
+                if (missing == 0) stingTypesFullPack++;
+                else
+                {
+                    stingTypesPartialPack++;
+                    if (missing > worstMissing)
+                    {
+                        worstMissing = missing;
+                        worstTypeName = $"{typeEl.Name} ({((typeEl as ElementType)?.FamilyName) ?? "?"})";
+                    }
+                }
+                if (present < 8) stingTypesNoPack++;
+            }
+            if (stingTypesScanned > 0)
+            {
+                report.AppendLine();
+                report.AppendLine("── Style-pack coverage (128 TAG_*_BOOL params) ──");
+                report.AppendLine($"  Annotation types with style params: {stingTypesScanned}");
+                report.AppendLine($"  Full pack (all 128):                {stingTypesFullPack}");
+                report.AppendLine($"  Partial pack (silent style failure): {stingTypesPartialPack}");
+                if (stingTypesPartialPack > 0)
+                {
+                    report.AppendLine($"  Worst: {worstTypeName} — missing {worstMissing} of {stylePack.Length} params");
+                    report.AppendLine("  → ApplyTagStyle will silently no-op for missing slots.");
+                    report.AppendLine("  → Re-run 'Create Tag Families' or 'Family Parameter Processor'.");
+                }
+            }
+
+            // ── Paragraph BOOL storage mix (review fix for leader-and-style #5) ──
+            // Mixed YESNO + TEXT bindings cause SetParagraphDepth to update
+            // half the project; surface the count so a migration can be run.
+            var paraStates = ParamRegistry.AllParaStates;
+            int paraStringTypes = 0, paraIntegerTypes = 0, paraMixed = 0;
+            foreach (Element typeEl in new FilteredElementCollector(doc).WhereElementIsElementType())
+            {
+                bool sawString = false, sawInt = false;
+                foreach (var pn in paraStates)
+                {
+                    Parameter p = typeEl.LookupParameter(pn);
+                    if (p == null) continue;
+                    if (p.StorageType == StorageType.String) sawString = true;
+                    else if (p.StorageType == StorageType.Integer) sawInt = true;
+                }
+                if (sawString && sawInt) paraMixed++;
+                else if (sawString) paraStringTypes++;
+                else if (sawInt) paraIntegerTypes++;
+            }
+            if (paraStringTypes + paraIntegerTypes + paraMixed > 0)
+            {
+                report.AppendLine();
+                report.AppendLine("── Paragraph BOOL storage (TAG_PARA_STATE_*_BOOL) ──");
+                report.AppendLine($"  TEXT-storage (v5.3+):  {paraStringTypes}");
+                report.AppendLine($"  YESNO-storage (legacy): {paraIntegerTypes}");
+                report.AppendLine($"  Mixed within one type:  {paraMixed}");
+                if (paraIntegerTypes > 0 || paraMixed > 0)
+                {
+                    report.AppendLine("  ⚠ Mixed bindings make SetParagraphDepth half-silent.");
+                    report.AppendLine("    Calculated-Value `if(BOOL, …)` only resolves on TEXT params.");
+                    report.AppendLine("    Re-load MR_PARAMETERS.txt v5.3+ then re-bind from project.");
+                }
+            }
+
+            StingLog.Info($"TagFamilyAudit stylePack: scanned={stingTypesScanned}, " +
+                $"full={stingTypesFullPack}, partial={stingTypesPartialPack}; " +
+                $"paraBOOL: text={paraStringTypes}, yesno={paraIntegerTypes}, mixed={paraMixed}");
+
             TaskDialog td = new TaskDialog("Tag Family Audit");
             td.MainInstruction = $"Tag coverage: {stingLoaded + otherTag}/{TagFamilyConfig.CategoryTemplateMap.Count} categories";
             td.MainContent = report.ToString();

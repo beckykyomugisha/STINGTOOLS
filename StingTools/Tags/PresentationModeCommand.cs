@@ -95,6 +95,7 @@ namespace StingTools.Tags
                 .ToList();
 
             int updated = 0;
+            ResetBoolDiagnostics();
             using (Transaction tx = new Transaction(doc, $"STING Set Mode: {modeName}"))
             {
                 tx.Start();
@@ -112,16 +113,48 @@ namespace StingTools.Tags
                 tx.Commit();
             }
 
+            // Mixed paragraph BOOL storage types (some families YESNO, others
+            // TEXT) are a known silent-failure source — surface the counts so
+            // users see why a depth toggle didn't propagate everywhere.
+            string diag = "";
+            if (LastBoolStringPath > 0 && LastBoolIntegerPath > 0)
+                diag = $"\n\n⚠ Mixed paragraph BOOL storage detected: " +
+                       $"{LastBoolStringPath} TEXT writes, {LastBoolIntegerPath} YESNO writes. " +
+                       "Run 'Audit Tag Families' to migrate.";
+            else if (LastBoolBadStorageCount > 0)
+                diag = $"\n\n⚠ {LastBoolBadStorageCount} parameters had unsupported storage types.";
+
             TaskDialog.Show("Presentation Mode",
                 $"Mode: {modeName}\n" +
                 $"State 1: {(s1 ? "ON" : "OFF")} | State 2: {(s2 ? "ON" : "OFF")} | " +
                 $"State 3: {(s3 ? "ON" : "OFF")} | Warnings: {(warn ? "ON" : "OFF")}\n\n" +
                 $"Element types updated: {updated}\n\n" +
                 "Tag families with calculated values gated by these parameters\n" +
-                "will now show/hide their tier content accordingly.");
+                "will now show/hide their tier content accordingly." + diag);
 
-            StingLog.Info($"Presentation mode set to {modeName}, {updated} types updated");
+            StingLog.Info($"Presentation mode set to {modeName}, {updated} types updated " +
+                $"(stringPath={LastBoolStringPath}, intPath={LastBoolIntegerPath}, " +
+                $"missing={LastBoolMissingCount}, readonly={LastBoolReadOnlyCount}, " +
+                $"badStorage={LastBoolBadStorageCount})");
             return Result.Succeeded;
+        }
+
+        // Diagnostic counters surfaced in the result dialog so users see
+        // when families ship paragraph BOOLs as the wrong storage type
+        // (review fix for leader-and-style issue #4).
+        internal static int LastBoolMissingCount;
+        internal static int LastBoolReadOnlyCount;
+        internal static int LastBoolBadStorageCount;
+        internal static int LastBoolStringPath;
+        internal static int LastBoolIntegerPath;
+
+        internal static void ResetBoolDiagnostics()
+        {
+            LastBoolMissingCount = 0;
+            LastBoolReadOnlyCount = 0;
+            LastBoolBadStorageCount = 0;
+            LastBoolStringPath = 0;
+            LastBoolIntegerPath = 0;
         }
 
         private static bool SetBool(Element el, string paramName, bool value)
@@ -130,9 +163,11 @@ namespace StingTools.Tags
             // Calculated Values can reference them inside if(...); legacy YESNO
             // families still resolve via the Integer branch.
             Parameter p = el.LookupParameter(paramName);
-            if (p == null || p.IsReadOnly) return false;
+            if (p == null) { LastBoolMissingCount++; return false; }
+            if (p.IsReadOnly) { LastBoolReadOnlyCount++; return false; }
             if (p.StorageType == StorageType.String)
             {
+                LastBoolStringPath++;
                 string target = value ? "Yes" : "No";
                 string cur = p.AsString() ?? "";
                 if (string.Equals(cur, target, StringComparison.OrdinalIgnoreCase)) return false;
@@ -141,11 +176,13 @@ namespace StingTools.Tags
             }
             if (p.StorageType == StorageType.Integer)
             {
+                LastBoolIntegerPath++;
                 int target = value ? 1 : 0;
                 if (p.AsInteger() == target) return false;
                 p.Set(target);
                 return true;
             }
+            LastBoolBadStorageCount++;
             return false;
         }
     }
