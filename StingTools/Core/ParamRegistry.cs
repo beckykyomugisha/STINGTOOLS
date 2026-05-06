@@ -192,6 +192,20 @@ namespace StingTools.Core
         public const string SYMBOL_LIBRARY_VERSION    = "STING_SYMBOL_LIBRARY_VERSION";
         public const string SYMBOL_LIBRARY_VERSION_GUID = "1B2C3D4E-5F6A-4B7C-8D9E-0F1A2B3C4D5E";
 
+        // Phase 175 — Circuit-annotation parameters consumed by
+        // Core/Symbols/SymbolAnnotationEngine.BuildLabel. STING-prefixed
+        // names take precedence; the legacy bare names (CIRCUIT_REF /
+        // RATING / POLES / LABEL) remain supported as fallback so imported
+        // third-party families render labels without re-binding.
+        public const string CIRCUIT_REF               = "ELC_CIRCUIT_REF_TXT";
+        public const string CIRCUIT_REF_GUID          = "C2A7E5B1-3001-5333-9333-300000000001";
+        public const string CIRCUIT_RATING            = "ELC_CIRCUIT_RATING_TXT";
+        public const string CIRCUIT_RATING_GUID       = "C2A7E5B1-3002-5333-9333-300000000002";
+        public const string CIRCUIT_POLES             = "ELC_CIRCUIT_POLES_NR";
+        public const string CIRCUIT_POLES_GUID        = "C2A7E5B1-3003-5333-9333-300000000003";
+        public const string CIRCUIT_LABEL             = "ELC_CIRCUIT_LABEL_TXT";
+        public const string CIRCUIT_LABEL_GUID        = "C2A7E5B1-3004-5333-9333-300000000004";
+
         // ── Phase 137 — Drawing production stamps ────────────────────────
         // Written onto views/sheets by the production engine so audits and
         // browser organisers can find STING-produced artefacts.

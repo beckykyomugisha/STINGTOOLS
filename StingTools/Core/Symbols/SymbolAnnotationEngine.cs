@@ -129,10 +129,14 @@ namespace StingTools.Core.Symbols
         private static string BuildLabel(Element host, AnnotationRules rules)
         {
             if (host == null) return "";
-            string circuit = host.LookupParameter("CIRCUIT_REF")?.AsString() ?? "";
-            string rating  = host.LookupParameter("RATING")?.AsString() ?? "";
-            string poles   = host.LookupParameter("POLES")?.AsString() ?? "";
-            string label   = host.LookupParameter("LABEL")?.AsString() ?? "";
+            // STING-prefixed shared parameters take precedence (Phase 175). The bare names
+            // CIRCUIT_REF / RATING / POLES / LABEL remain as fallback so imported families
+            // built against other library conventions still render labels — but the project
+            // template ships ELC_CIRCUIT_REF_TXT / _RATING_TXT / _POLES_NR / _LABEL_TXT.
+            string circuit = ReadCircuitParam(host, "ELC_CIRCUIT_REF_TXT",    "CIRCUIT_REF");
+            string rating  = ReadCircuitParam(host, "ELC_CIRCUIT_RATING_TXT", "RATING");
+            string poles   = ReadCircuitParam(host, "ELC_CIRCUIT_POLES_NR",   "POLES");
+            string label   = ReadCircuitParam(host, "ELC_CIRCUIT_LABEL_TXT",  "LABEL");
 
             string fmt = (rules.RatingFormat ?? "{rating}{unit}")
                 .Replace("{poles}", poles)
@@ -194,6 +198,37 @@ namespace StingTools.Core.Symbols
                 return !string.IsNullOrEmpty(p?.AsString());
             }
             catch { return false; }
+        }
+
+        /// <summary>
+        /// Phase 175 — read a circuit parameter, preferring the STING-prefixed
+        /// shared parameter (defined in MR_PARAMETERS group ELC_PWR) and falling
+        /// back to the bare-name parameter that imported third-party families
+        /// commonly carry. Handles String + Integer storage so ELC_CIRCUIT_POLES_NR
+        /// rendered as INTEGER still flows into the SLD label correctly.
+        /// </summary>
+        private static string ReadCircuitParam(Element host, string preferredName, string fallbackName)
+        {
+            if (host == null) return "";
+            try
+            {
+                var p = host.LookupParameter(preferredName);
+                if (p != null && p.HasValue)
+                {
+                    if (p.StorageType == StorageType.String)  return p.AsString() ?? "";
+                    if (p.StorageType == StorageType.Integer) return p.AsInteger().ToString();
+                    if (p.StorageType == StorageType.Double)  return p.AsValueString() ?? p.AsDouble().ToString("0.##");
+                }
+                var f = host.LookupParameter(fallbackName);
+                if (f != null && f.HasValue)
+                {
+                    if (f.StorageType == StorageType.String)  return f.AsString() ?? "";
+                    if (f.StorageType == StorageType.Integer) return f.AsInteger().ToString();
+                    if (f.StorageType == StorageType.Double)  return f.AsValueString() ?? f.AsDouble().ToString("0.##");
+                }
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"ReadCircuitParam {preferredName}/{fallbackName}: {ex.Message}"); }
+            return "";
         }
     }
 }

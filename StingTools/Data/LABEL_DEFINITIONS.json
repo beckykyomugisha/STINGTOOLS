@@ -1,6 +1,6 @@
 {
-  "version": "6.1",
-  "description": "STING Seed Tag v6.1 — master label specification. Paragraph tiers 1..10. All BOOL parameters referenced inside tag-family Calculated Values are stored as TEXT in MR_PARAMETERS v5.3+ (Revit label formulas cannot reference YESNO params inside if(...)). Includes 109 threshold warnings (10 BS EN 62305 LPS warnings — all TEXT type) with all columns populated. (v6.1 / Phase 176 cross-discipline integration: added 3 LPS reuse families — Foundation Earth (Structural rebar reuse — BS EN 62305-3 Annex E.5.3), Natural Air Termination (Architectural metal roof / parapet reuse — BS EN 62305-3 §5.2.5), Generic Component (catch-all). v6.0: 6 specialised LPS families in MEP. Total 147 categories covering 151 tag families.)",
+  "version": "6.2",
+  "description": "STING Seed Tag v6.2 — master label specification. Paragraph tiers 1..10. All BOOL parameters referenced inside tag-family Calculated Values are stored as TEXT in MR_PARAMETERS v5.3+ (Revit label formulas cannot reference YESNO params inside if(...)). Includes 109 threshold warnings with all columns populated. (v6.2 / Phase 175: + 4 ELC_CIRCUIT_* field labels for SLD symbol-annotation engine inputs (REF/RATING/POLES/LABEL); SymbolAnnotationEngine now prefers STING-prefixed names with fallback to bare names. v6.1: 3 LPS cross-discipline reuse families. v6.0: 6 specialised LPS families in MEP. Total 147 categories covering 151 tag families.)",
   "presentation_modes": {
     "Compact": {
       "state_1": true,
@@ -1181,6 +1181,26 @@
       "prefix": "",
       "suffix": "",
       "label": "LPS TAG7 Paragraph"
+    },
+    "ELC_CIRCUIT_REF_TXT": {
+      "prefix": "Ckt:",
+      "suffix": "",
+      "label": "Circuit Reference (SLD)"
+    },
+    "ELC_CIRCUIT_RATING_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Circuit Rating (SLD)"
+    },
+    "ELC_CIRCUIT_POLES_NR": {
+      "prefix": "",
+      "suffix": "P",
+      "label": "Circuit Poles (SLD)"
+    },
+    "ELC_CIRCUIT_LABEL_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Circuit Label Override (SLD)"
     },
     "WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI": {
       "prefix": "⚠ ",

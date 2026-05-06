@@ -2700,3 +2700,8 @@ PARAM	f1d6f0e5-2007-5222-9222-200000000007	WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW
 PARAM	f1d6f0e5-2008-5222-9222-200000000008	WARN_ELC_LPS_NO_BONDING	TEXT		4	1	Warning: equipotential bonding type not specified (DIRECT / SPD / ISOLATING_SPARK_GAP) [BS EN 62305-3 §6.2] [HIGH]	1
 PARAM	f1d6f0e5-2009-5222-9222-200000000009	WARN_ELC_LPS_MESH_SIZE_EXCEEDED	TEXT		4	1	Warning: air-termination mesh exceeds class limit (I=5×5, II=10×10, III=15×15, IV=20×20 m) [BS EN 62305-3 Tab 2] [HIGH]	1
 PARAM	f1d6f0e5-2010-5222-9222-200000000010	WARN_ELC_LPS_NO_ZONE	TEXT		4	1	Warning: lightning protection zone (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) not assigned [BS EN 62305-4 §4.1] [MEDIUM]	1
+# ── SLD / Symbol workflow circuit parameters (Phase 175 — read by SymbolAnnotationEngine.BuildLabel) ──
+PARAM	c2a7e5b1-3001-5333-9333-300000000001	ELC_CIRCUIT_REF_TXT	TEXT		4	1	Electrical circuit reference (e.g. L1 / DB1-3) — rendered into SLD labels by SymbolAnnotationEngine [STING Phase 175]	1
+PARAM	c2a7e5b1-3002-5333-9333-300000000002	ELC_CIRCUIT_RATING_TXT	TEXT		4	1	Circuit / device rating string (e.g. 32A / 100A) — rendered into SLD labels [STING Phase 175]	1
+PARAM	c2a7e5b1-3003-5333-9333-300000000003	ELC_CIRCUIT_POLES_NR	INTEGER		4	1	Number of poles (1/2/3/4) for circuit breakers and switches — rendered into SLD labels [STING Phase 175]	1
+PARAM	c2a7e5b1-3004-5333-9333-300000000004	ELC_CIRCUIT_LABEL_TXT	TEXT		4	1	Free-text display-label override appended to SLD label after circuit ref + rating [STING Phase 175]	1

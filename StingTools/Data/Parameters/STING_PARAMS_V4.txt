@@ -87,6 +87,13 @@ PARAM	f1d6f0e5-2007-5222-9222-200000000007	WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW
 PARAM	f1d6f0e5-2008-5222-9222-200000000008	WARN_ELC_LPS_NO_BONDING	TEXT		4	1	Warning: equipotential bonding type missing [BS EN 62305-3 §6.2] [HIGH]	1
 PARAM	f1d6f0e5-2009-5222-9222-200000000009	WARN_ELC_LPS_MESH_SIZE_EXCEEDED	TEXT		4	1	Warning: air-termination mesh exceeds class limit [BS EN 62305-3 Tab 2] [HIGH]	1
 PARAM	f1d6f0e5-2010-5222-9222-200000000010	WARN_ELC_LPS_NO_ZONE	TEXT		4	1	Warning: lightning protection zone (LPZ) not assigned [BS EN 62305-4 §4.1] [MEDIUM]	1
+# --- v4 Section 4c: SLD / symbol annotation engine circuit inputs (Phase 175) ---
+# Read by Core/Symbols/SymbolAnnotationEngine.BuildLabel — STING-prefixed names take precedence,
+# bare names (CIRCUIT_REF / RATING / POLES / LABEL) remain as fallback for imported families.
+PARAM	c2a7e5b1-3001-5333-9333-300000000001	ELC_CIRCUIT_REF_TXT	TEXT		4	1	Electrical circuit reference (e.g. L1 / DB1-3) for SLD labels	1
+PARAM	c2a7e5b1-3002-5333-9333-300000000002	ELC_CIRCUIT_RATING_TXT	TEXT		4	1	Circuit / device rating string (e.g. 32A / 100A) for SLD labels	1
+PARAM	c2a7e5b1-3003-5333-9333-300000000003	ELC_CIRCUIT_POLES_NR	INTEGER		4	1	Number of poles (1/2/3/4) for circuit breakers / switches	1
+PARAM	c2a7e5b1-3004-5333-9333-300000000004	ELC_CIRCUIT_LABEL_TXT	TEXT		4	1	Free-text display-label override for SLD annotations	1
 # --- v4 Section 5: dual-currency pricing (FabricationParamsV4.CostParams) ---
 PARAM	c40720fa-3e80-5880-86c3-a82f43055fbf	CST_INTL_PRICE_USD	NUMBER		2	1	International supplier unit price in USD	1
 PARAM	694fcd57-d0c2-5ed3-afca-f225781b3bc8	CST_UG_PRICE_UGX	NUMBER		2	1	Local Uganda unit price in UGX	1
