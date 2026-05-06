@@ -321,15 +321,15 @@ namespace StingTools.BIMManager
                 {
                     if (el == null) continue;
 
-                    string tag1 = ParameterHelpers.GetString(el, "STING_TAG1");
+                    string tag1 = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG1);
                     if (string.IsNullOrEmpty(tag1)) continue;
 
                     dtos.Add(new SpeckleElementDto
                     {
                         ElementId = el.Id.Value.ToString(),
                         Tag1 = tag1,
-                        Tag2 = ParameterHelpers.GetString(el, "STING_TAG2"),
-                        Tag3 = ParameterHelpers.GetString(el, "STING_TAG3"),
+                        Tag2 = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG2),
+                        Tag3 = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG3),
                         CategoryName = ParameterHelpers.GetCategoryName(el) ?? string.Empty,
                         FamilyName = ParameterHelpers.GetFamilyName(el) ?? string.Empty,
                         ExportedAt = stamp,

@@ -10098,14 +10098,14 @@ namespace StingTools.BIMManager
                 // COBie column → STING parameter mapping
                 var columnMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                 {
-                    ["Description"] = "ASS_DESC_TXT",
-                    ["SerialNumber"] = "ASS_SERIAL_NUM_TXT",
+                    ["Description"] = "ASS_DESCRIPTION_TXT",
+                    ["SerialNumber"] = "ASS_SERIAL_NR_TXT",
                     ["BarCode"] = "ASS_BARCODE_TXT",
                     ["AssetIdentifier"] = "ASS_ASSET_ID_TXT",
-                    ["WarrantyDurationParts"] = "MNT_WARRANTY_YRS_TXT",
-                    ["WarrantyGuarantorParts"] = "MNT_WARRANTY_PROVIDER_TXT",
+                    ["WarrantyDurationParts"] = "ASS_WARRANTY_DURATION_PARTS_YRS",
+                    ["WarrantyGuarantorParts"] = "ASS_WARRANTY_PARTS_TXT",
                     ["InstallationDate"] = "ASS_INSTALLATION_DATE_TXT",
-                    ["WarrantyStartDate"] = "MNT_WARRANTY_START_TXT",
+                    ["WarrantyStartDate"] = "COM_WARRANTY_START_TXT",
                 };
 
                 using (Transaction tx = new Transaction(doc, "STING COBie Import"))
@@ -10675,7 +10675,7 @@ namespace StingTools.BIMManager
                 .ToList();
             foreach (var wall in walls)
             {
-                string thermal = ParameterHelpers.GetString(wall, "BLE_U_VALUE_TXT");
+                string thermal = ParameterHelpers.GetString(wall, "BLE_WALL_THERMAL_TRANSMITTANCE_U_VALUE_W_M_2K_NR");
                 if (!string.IsNullOrEmpty(thermal)) wallsWithU++;
             }
             report.AppendLine($"\nWalls with U-value: {wallsWithU}/{walls.Count}");

@@ -2108,20 +2108,20 @@ namespace StingTools.BIMManager
             {
                 foreach (Element el in collector)
                 {
-                    string tag1 = ParameterHelpers.GetString(el, "ASS_TAG_1") ?? "";
+                    string tag1 = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG1) ?? "";
                     if (string.IsNullOrEmpty(tag1)) continue;
 
-                    string disc = ParameterHelpers.GetString(el, "ASS_DISC") ?? "";
-                    string loc  = ParameterHelpers.GetString(el, "ASS_LOC")  ?? "";
-                    string zone = ParameterHelpers.GetString(el, "ASS_ZONE") ?? "";
-                    string lvl  = ParameterHelpers.GetString(el, "ASS_LVL")  ?? "";
-                    string sys  = ParameterHelpers.GetString(el, "ASS_SYS")  ?? "";
-                    string func = ParameterHelpers.GetString(el, "ASS_FUNC") ?? "";
-                    string prod = ParameterHelpers.GetString(el, "ASS_PROD") ?? "";
-                    string seq  = ParameterHelpers.GetString(el, "ASS_SEQ")  ?? "";
-                    string tag7 = ParameterHelpers.GetString(el, "ASS_TAG_7") ?? "";
-                    string status = ParameterHelpers.GetString(el, "ASS_STATUS") ?? "";
-                    string rev   = ParameterHelpers.GetString(el, "ASS_REV")    ?? "";
+                    string disc = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.DISC) ?? "";
+                    string loc  = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.LOC)  ?? "";
+                    string zone = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.ZONE) ?? "";
+                    string lvl  = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.LVL)  ?? "";
+                    string sys  = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.SYS)  ?? "";
+                    string func = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.FUNC) ?? "";
+                    string prod = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.PROD) ?? "";
+                    string seq  = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.SEQ)  ?? "";
+                    string tag7 = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG7) ?? "";
+                    string status = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.STATUS) ?? "";
+                    string rev   = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.REV)    ?? "";
                     string cat   = ParameterHelpers.GetCategoryName(el);
                     string fam   = (el as FamilyInstance)?.Symbol?.FamilyName ?? "";
 
