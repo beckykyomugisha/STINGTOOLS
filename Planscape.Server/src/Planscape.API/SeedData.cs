@@ -234,6 +234,16 @@ public static class SeedData
             ("QS", "Quantity Surveyor"),
             ("BC", "BIM Coordinator"),
         };
+        // Placeholder lead users so the ProjectMember.UserId FK resolves.
+        // Not loginable (empty password hash).
+        var leadUsers = leadRoles.Select(r => new AppUser
+        {
+            TenantId = tenant.Id,
+            DisplayName = r.Item2,
+            Email = $"{r.Item2.Replace(" ", "").ToLowerInvariant()}@planscape.demo",
+            Iso19650Role = r.Item1,
+        }).ToArray();
+        db.Users.AddRange(leadUsers);
         for (var i = 0; i < allProjects.Length; i++)
         {
             var p = allProjects[i];
@@ -245,18 +255,15 @@ public static class SeedData
                 ProjectRole = "Coordinator",
                 Iso19650Role = "BC",
             });
-            var (iso, label) = leadRoles[i % leadRoles.Length];
-            // Seeded "lead" placeholder user for membership counts. We don't
-            // create an AppUser row to keep the demo seed minimal — only the
-            // count is read by the dashboard cards.
+            var lead = leadUsers[i % leadUsers.Length];
             db.ProjectMembers.Add(new ProjectMember
             {
                 TenantId = tenant.Id,
                 ProjectId = p.Id,
-                UserId = Guid.NewGuid(),
+                UserId = lead.Id,
                 ProjectRole = "Contributor",
-                Iso19650Role = iso,
-                InvitedBy = label,
+                Iso19650Role = lead.Iso19650Role,
+                InvitedBy = lead.DisplayName,
             });
         }
 
