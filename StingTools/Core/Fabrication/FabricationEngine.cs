@@ -29,10 +29,17 @@ namespace StingTools.Core.Fabrication
         public List<string> Warnings { get; } = new List<string>();
         public int FailedCount { get; set; }
 
+        // ISO 6412 symbol placement results — populated by IsoSymbolPlacer
+        // after each discipline's transaction commits. Surfaced in the
+        // FabricationResultDialog so users see whether the option had effect.
+        public int SymbolsPlaced { get; set; }
+        public HashSet<string> MissingFamilies { get; }
+            = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         public string FormatSummary()
         {
             int total = AssembliesByDiscipline.Values.Sum();
-            return $"Assemblies: {total}, Sheets: {SheetIds.Count}, Failed: {FailedCount}";
+            return $"Assemblies: {total}, Sheets: {SheetIds.Count}, Failed: {FailedCount}, Symbols: {SymbolsPlaced}";
         }
     }
 
@@ -83,6 +90,39 @@ namespace StingTools.Core.Fabrication
                 result.Warnings.Add($"FabricationEngine fatal: {ex.Message}");
             }
             return result;
+        }
+
+        /// <summary>
+        /// Run IsoSymbolPlacer for each (assembly, ISO view) pair when the
+        /// user has ticked PlaceISO6412Symbols on the Fabrication tab. Must
+        /// be called AFTER the discipline's transaction commits — the placer
+        /// opens its own Transaction and may need to LoadFamily, which is
+        /// not legal inside an active outer Transaction.
+        /// </summary>
+        public static void PlaceSymbolsIfRequested(
+            Document doc,
+            IList<(ElementId AssyId, ElementId IsoViewId)> targets,
+            FabricationResult result)
+        {
+            if (doc == null || result == null) return;
+            if (targets == null || targets.Count == 0) return;
+            if (!StingTools.Commands.Fabrication.FabricationOptions.PlaceISO6412Symbols) return;
+
+            foreach (var pair in targets)
+            {
+                try
+                {
+                    var view = doc.GetElement(pair.IsoViewId) as View;
+                    if (view == null) continue;
+                    int placed = IsoSymbolPlacer.PlaceSymbolsForAssembly(
+                        doc, pair.AssyId, view, result);
+                    result.SymbolsPlaced += placed;
+                }
+                catch (Exception ex)
+                {
+                    result.Warnings.Add($"PlaceSymbolsIfRequested {pair.AssyId}: {ex.Message}");
+                }
+            }
         }
 
         public static string DisciplineFor(Element el)

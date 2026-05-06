@@ -22,6 +22,7 @@ namespace StingTools.Core.Fabrication.Electrical
             var groups = grouper.GroupForDiscipline(doc, elementIds, "Electrical",
                 out List<AssemblyGrouper.SpoolMetrics> metrics);
             int seq = 1;
+            var symbolTargets = new List<(ElementId AssyId, ElementId IsoViewId)>();
 
             using (var tx = new Transaction(doc, "STING v4 Electrical fabrication"))
             {
@@ -42,6 +43,8 @@ namespace StingTools.Core.Fabrication.Electrical
                         var sheetId = ShopDrawingComposer.ComposeSheet(doc, "Electrical", assyId, views, result);
                         if (sheetId != null && sheetId != ElementId.InvalidElementId)
                             result.SheetIds.Add(sheetId);
+                        if (views.ViewIso6412 != null && views.ViewIso6412 != ElementId.InvalidElementId)
+                            symbolTargets.Add((assyId, views.ViewIso6412));
                     }
                     tx.Commit();
                 }
@@ -53,6 +56,8 @@ namespace StingTools.Core.Fabrication.Electrical
             }
 
             result.AssembliesByDiscipline["Electrical"] = seq - 1;
+
+            FabricationEngine.PlaceSymbolsIfRequested(doc, symbolTargets, result);
 
             // Bend + tray schedules as CSV sidecars
             try { EmitBendScheduleCsv(doc, elementIds, result); }

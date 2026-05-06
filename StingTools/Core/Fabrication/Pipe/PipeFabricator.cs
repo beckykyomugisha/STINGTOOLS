@@ -22,6 +22,7 @@ namespace StingTools.Core.Fabrication.Pipe
             var groups = grouper.GroupForDiscipline(doc, elementIds, "Pipe",
                 out List<AssemblyGrouper.SpoolMetrics> metrics);
             int seq = 1;
+            var symbolTargets = new List<(ElementId AssyId, ElementId IsoViewId)>();
 
             using (var tx = new Transaction(doc, "STING v4 Pipe fabrication"))
             {
@@ -42,6 +43,8 @@ namespace StingTools.Core.Fabrication.Pipe
                         var sheetId = ShopDrawingComposer.ComposeSheet(doc, "Pipe", assyId, views, result);
                         if (sheetId != null && sheetId != ElementId.InvalidElementId)
                             result.SheetIds.Add(sheetId);
+                        if (views.ViewIso6412 != null && views.ViewIso6412 != ElementId.InvalidElementId)
+                            symbolTargets.Add((assyId, views.ViewIso6412));
                     }
                     tx.Commit();
                 }
@@ -52,6 +55,8 @@ namespace StingTools.Core.Fabrication.Pipe
                 }
             }
             result.AssembliesByDiscipline["Pipe"] = seq - 1;
+
+            FabricationEngine.PlaceSymbolsIfRequested(doc, symbolTargets, result);
 
             try { EmitWeldMapCsv(doc, elementIds, result); }
             catch (Exception ex) { result.Warnings.Add($"Weld map csv: {ex.Message}"); }

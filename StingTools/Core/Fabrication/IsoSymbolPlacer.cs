@@ -145,6 +145,7 @@ namespace StingTools.Core.Fabrication
 
             if (_missingFamiliesLogged.Add(famName))
                 StingLog.Warn($"IsoSymbolPlacer: family not found -> {famName}");
+            try { result?.MissingFamilies?.Add(famName); } catch { }
             return null;
         }
 
