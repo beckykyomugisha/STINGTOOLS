@@ -1,0 +1,700 @@
+{
+  "version": "1.0",
+  "standard": "BS EN 12056 / BS 1553 / Approved Document G",
+  "symbols": [
+    {
+      "id": "PLM_WC_WALL",
+      "name": "WC (Wall-Hung)",
+      "category": "Plumbing",
+      "familyType": "MEPEquipment",
+      "discipline": "Plumbing",
+      "subcategory": "Sanitary",
+      "symbolSize": 5.5,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true },
+        { "name": "FLUSH_VOLUME_L", "type": "Text", "shared": true, "default": "6" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.25, "y1": -0.4, "x2":  0.25, "y2": -0.4 },
+          { "x1":  0.25, "y1": -0.4, "x2":  0.25, "y2":  0.2 },
+          { "x1": -0.25, "y1": -0.4, "x2": -0.25, "y2":  0.2 }
+        ],
+        "arcs": [
+          { "cx": 0, "cy": 0.2, "r": 0.25, "startDeg": 0, "endDeg": 180 }
+        ],
+        "filledRegions": [
+          {
+            "boundary": [
+              { "x": -0.05, "y": -0.25 }, { "x": 0.05, "y": -0.25 },
+              { "x": 0.05, "y": -0.15 }, { "x": -0.05, "y": -0.15 }
+            ]
+          }
+        ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "DomesticColdWater", "shape": "Round", "sizeMm": 15, "direction": "In",  "facing": "+Y", "offsetY": 0.5 },
+        { "domain": "Piping", "systemType": "Sanitary",          "shape": "Round", "sizeMm": 100, "direction": "Out", "facing": "-Y", "offsetY": -0.5 }
+      ],
+      "solid3D": { "type": "Box", "widthMm": 370, "depthMm": 560, "heightMm": 400 }
+    },
+    {
+      "id": "PLM_WC_CLOSE_COUPLED",
+      "name": "WC (Close-Coupled)",
+      "category": "Plumbing",
+      "familyType": "MEPEquipment",
+      "discipline": "Plumbing",
+      "subcategory": "Sanitary",
+      "symbolSize": 6.5,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.3, "y1": -0.5, "x2":  0.3, "y2": -0.5 },
+          { "x1":  0.3, "y1": -0.5, "x2":  0.3, "y2":  0.0 },
+          { "x1": -0.3, "y1": -0.5, "x2": -0.3, "y2":  0.0 }
+        ],
+        "arcs": [
+          { "cx": 0, "cy": 0.0, "r": 0.3, "startDeg": 0, "endDeg": 180 }
+        ],
+        "filledRegions": [
+          {
+            "boundary": [
+              { "x": -0.06, "y": -0.35 }, { "x": 0.06, "y": -0.35 },
+              { "x": 0.06, "y": -0.25 }, { "x": -0.06, "y": -0.25 }
+            ]
+          }
+        ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "DomesticColdWater", "shape": "Round", "sizeMm": 15, "direction": "In",  "facing": "+Y", "offsetY": 0.5 },
+        { "domain": "Piping", "systemType": "Sanitary",          "shape": "Round", "sizeMm": 100, "direction": "Out", "facing": "-Y", "offsetY": -0.5 }
+      ],
+      "solid3D": { "type": "Box", "widthMm": 400, "depthMm": 700, "heightMm": 800 }
+    },
+    {
+      "id": "PLM_URINAL_WALL",
+      "name": "Urinal (Wall-Hung)",
+      "category": "Plumbing",
+      "familyType": "MEPEquipment",
+      "discipline": "Plumbing",
+      "subcategory": "Sanitary",
+      "symbolSize": 4.0,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [
+          { "cx": 0, "cy": 0.0, "r": 0.4, "startDeg": 0, "endDeg": 180 }
+        ],
+        "lines": [
+          { "x1": -0.4, "y1": 0, "x2": 0.4, "y2": 0 }
+        ],
+        "filledRegions": [
+          {
+            "boundary": [
+              { "x": -0.04, "y": -0.1 }, { "x": 0.04, "y": -0.1 },
+              { "x": 0.04, "y": 0.0 }, { "x": -0.04, "y": 0.0 }
+            ]
+          }
+        ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "DomesticColdWater", "shape": "Round", "sizeMm": 15, "direction": "In",  "facing": "+Y" },
+        { "domain": "Piping", "systemType": "Sanitary",          "shape": "Round", "sizeMm": 50, "direction": "Out", "facing": "-Y" }
+      ],
+      "solid3D": { "type": "Box", "widthMm": 350, "depthMm": 350, "heightMm": 600 }
+    },
+    {
+      "id": "PLM_WHB",
+      "name": "Wash Hand Basin",
+      "category": "Plumbing",
+      "familyType": "MEPEquipment",
+      "discipline": "Plumbing",
+      "subcategory": "Sanitary",
+      "symbolSize": 5.0,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.4, "y1": -0.4, "x2":  0.4, "y2": -0.4 }
+        ],
+        "arcs": [
+          { "cx": 0, "cy": -0.4, "r": 0.4, "startDeg": 0, "endDeg": 180 }
+        ],
+        "filledRegions": [
+          {
+            "boundary": [
+              { "x": -0.05, "y": -0.2 }, { "x": 0.05, "y": -0.2 },
+              { "x": 0.04, "y": -0.13 }, { "x": -0.04, "y": -0.13 }
+            ]
+          }
+        ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "DomesticColdWater", "shape": "Round", "sizeMm": 15, "direction": "In",  "facing": "-Y" },
+        { "domain": "Piping", "systemType": "DomesticHotWater",  "shape": "Round", "sizeMm": 15, "direction": "In",  "facing": "-Y" },
+        { "domain": "Piping", "systemType": "Sanitary",          "shape": "Round", "sizeMm": 32, "direction": "Out", "facing": "-Z" }
+      ],
+      "solid3D": { "type": "Box", "widthMm": 500, "depthMm": 400, "heightMm": 200 }
+    },
+    {
+      "id": "PLM_VANITY_BASIN",
+      "name": "Vanity Basin / Countertop Basin",
+      "category": "Plumbing",
+      "familyType": "MEPEquipment",
+      "discipline": "Plumbing",
+      "subcategory": "Sanitary",
+      "symbolSize": 6.0,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.3, "x2":  0.5, "y2": -0.3 },
+          { "x1":  0.5, "y1": -0.3, "x2":  0.5, "y2":  0.3 },
+          { "x1":  0.5, "y1":  0.3, "x2": -0.5, "y2":  0.3 },
+          { "x1": -0.5, "y1":  0.3, "x2": -0.5, "y2": -0.3 }
+        ],
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.2, "startDeg": 0, "endDeg": 360 } ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "DomesticColdWater", "shape": "Round", "sizeMm": 15, "direction": "In",  "facing": "-Z" },
+        { "domain": "Piping", "systemType": "DomesticHotWater",  "shape": "Round", "sizeMm": 15, "direction": "In",  "facing": "-Z" },
+        { "domain": "Piping", "systemType": "Sanitary",          "shape": "Round", "sizeMm": 32, "direction": "Out", "facing": "-Z" }
+      ],
+      "solid3D": { "type": "Box", "widthMm": 600, "depthMm": 450, "heightMm": 200 }
+    },
+    {
+      "id": "PLM_SINK_SINGLE",
+      "name": "Single Sink (Kitchen / Lab)",
+      "category": "Plumbing",
+      "familyType": "MEPEquipment",
+      "discipline": "Plumbing",
+      "subcategory": "Sanitary",
+      "symbolSize": 6.0,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.3, "x2":  0.5, "y2": -0.3 },
+          { "x1":  0.5, "y1": -0.3, "x2":  0.5, "y2":  0.3 },
+          { "x1":  0.5, "y1":  0.3, "x2": -0.5, "y2":  0.3 },
+          { "x1": -0.5, "y1":  0.3, "x2": -0.5, "y2": -0.3 },
+          { "x1": -0.45, "y1": -0.25, "x2":  0.05, "y2": -0.25 },
+          { "x1":  0.05, "y1": -0.25, "x2":  0.05, "y2":  0.25 },
+          { "x1":  0.05, "y1":  0.25, "x2": -0.45, "y2":  0.25 },
+          { "x1": -0.45, "y1":  0.25, "x2": -0.45, "y2": -0.25 }
+        ],
+        "arcs": [ { "cx": -0.2, "cy": 0, "r": 0.05, "startDeg": 0, "endDeg": 360 } ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "DomesticColdWater", "shape": "Round", "sizeMm": 15, "direction": "In",  "facing": "-Z" },
+        { "domain": "Piping", "systemType": "DomesticHotWater",  "shape": "Round", "sizeMm": 15, "direction": "In",  "facing": "-Z" },
+        { "domain": "Piping", "systemType": "Sanitary",          "shape": "Round", "sizeMm": 40, "direction": "Out", "facing": "-Z" }
+      ],
+      "solid3D": { "type": "Box", "widthMm": 600, "depthMm": 500, "heightMm": 200 }
+    },
+    {
+      "id": "PLM_SINK_DOUBLE",
+      "name": "Double Sink",
+      "category": "Plumbing",
+      "familyType": "MEPEquipment",
+      "discipline": "Plumbing",
+      "subcategory": "Sanitary",
+      "symbolSize": 8.0,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.3, "x2":  0.5, "y2": -0.3 },
+          { "x1":  0.5, "y1": -0.3, "x2":  0.5, "y2":  0.3 },
+          { "x1":  0.5, "y1":  0.3, "x2": -0.5, "y2":  0.3 },
+          { "x1": -0.5, "y1":  0.3, "x2": -0.5, "y2": -0.3 },
+          { "x1": -0.45, "y1": -0.25, "x2":  0.0, "y2": -0.25 },
+          { "x1":  0.0, "y1": -0.25, "x2":  0.0, "y2":  0.25 },
+          { "x1":  0.0, "y1":  0.25, "x2": -0.45, "y2":  0.25 },
+          { "x1": -0.45, "y1":  0.25, "x2": -0.45, "y2": -0.25 },
+          { "x1":  0.05, "y1": -0.25, "x2":  0.45, "y2": -0.25 },
+          { "x1":  0.45, "y1": -0.25, "x2":  0.45, "y2":  0.25 },
+          { "x1":  0.45, "y1":  0.25, "x2":  0.05, "y2":  0.25 },
+          { "x1":  0.05, "y1":  0.25, "x2":  0.05, "y2": -0.25 }
+        ],
+        "arcs": [
+          { "cx": -0.2, "cy": 0, "r": 0.04, "startDeg": 0, "endDeg": 360 },
+          { "cx":  0.25, "cy": 0, "r": 0.04, "startDeg": 0, "endDeg": 360 }
+        ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "Sanitary", "shape": "Round", "sizeMm": 40, "direction": "Out", "facing": "-Z" }
+      ],
+      "solid3D": { "type": "Box", "widthMm": 800, "depthMm": 500, "heightMm": 200 }
+    },
+    {
+      "id": "PLM_CLEANERS_SINK",
+      "name": "Cleaner's Sink / Belfast Sink",
+      "category": "Plumbing",
+      "familyType": "MEPEquipment",
+      "discipline": "Plumbing",
+      "subcategory": "Sanitary",
+      "symbolSize": 5.0,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.4, "x2":  0.5, "y2": -0.4 },
+          { "x1":  0.5, "y1": -0.4, "x2":  0.5, "y2":  0.4 },
+          { "x1":  0.5, "y1":  0.4, "x2": -0.5, "y2":  0.4 },
+          { "x1": -0.5, "y1":  0.4, "x2": -0.5, "y2": -0.4 },
+          { "x1": -0.4, "y1": -0.3, "x2":  0.4, "y2": -0.3 },
+          { "x1":  0.4, "y1": -0.3, "x2":  0.4, "y2":  0.3 },
+          { "x1":  0.4, "y1":  0.3, "x2": -0.4, "y2":  0.3 },
+          { "x1": -0.4, "y1":  0.3, "x2": -0.4, "y2": -0.3 }
+        ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "DomesticColdWater", "shape": "Round", "sizeMm": 15, "direction": "In",  "facing": "-Z" },
+        { "domain": "Piping", "systemType": "Sanitary",          "shape": "Round", "sizeMm": 50, "direction": "Out", "facing": "-Z" }
+      ],
+      "solid3D": { "type": "Box", "widthMm": 600, "depthMm": 500, "heightMm": 400 }
+    },
+    {
+      "id": "PLM_SHOWER_TRAY",
+      "name": "Shower Tray / Wet Room",
+      "category": "Plumbing",
+      "familyType": "MEPEquipment",
+      "discipline": "Plumbing",
+      "subcategory": "Sanitary",
+      "symbolSize": 8.0,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true },
+        { "name": "TRAY_SIZE_MM", "type": "Text", "shared": true, "default": "800" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.5, "x2":  0.5, "y2": -0.5 },
+          { "x1":  0.5, "y1": -0.5, "x2":  0.5, "y2":  0.5 },
+          { "x1":  0.5, "y1":  0.5, "x2": -0.5, "y2":  0.5 },
+          { "x1": -0.5, "y1":  0.5, "x2": -0.5, "y2": -0.5 },
+          { "x1": -0.5, "y1": -0.5, "x2": -0.3, "y2": -0.3 },
+          { "x1":  0.5, "y1": -0.5, "x2":  0.3, "y2": -0.3 },
+          { "x1":  0.5, "y1":  0.5, "x2":  0.3, "y2":  0.3 },
+          { "x1": -0.5, "y1":  0.5, "x2": -0.3, "y2":  0.3 }
+        ],
+        "arcs": [
+          { "cx": -0.4, "cy": 0.4, "r": 0.04, "startDeg": 0, "endDeg": 360 }
+        ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "Sanitary", "shape": "Round", "sizeMm": 50, "direction": "Out", "facing": "-Z" }
+      ],
+      "solid3D": { "type": "Box", "widthMm": 800, "depthMm": 800, "heightMm": 100 }
+    },
+    {
+      "id": "PLM_BATH",
+      "name": "Bath",
+      "category": "Plumbing",
+      "familyType": "MEPEquipment",
+      "discipline": "Plumbing",
+      "subcategory": "Sanitary",
+      "symbolSize": 17.0,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true },
+        { "name": "BATH_SIZE_MM", "type": "Text", "shared": true, "default": "1700x700" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.2, "x2":  0.5, "y2": -0.2 },
+          { "x1":  0.5, "y1": -0.2, "x2":  0.5, "y2":  0.2 },
+          { "x1":  0.5, "y1":  0.2, "x2": -0.5, "y2":  0.2 },
+          { "x1": -0.5, "y1":  0.2, "x2": -0.5, "y2": -0.2 },
+          { "x1": -0.45, "y1": -0.15, "x2":  0.45, "y2": -0.15 },
+          { "x1":  0.45, "y1": -0.15, "x2":  0.45, "y2":  0.15 },
+          { "x1":  0.45, "y1":  0.15, "x2": -0.45, "y2":  0.15 },
+          { "x1": -0.45, "y1":  0.15, "x2": -0.45, "y2": -0.15 }
+        ],
+        "arcs": [
+          { "cx": -0.4, "cy": 0, "r": 0.05, "startDeg": 0, "endDeg": 360 }
+        ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "DomesticColdWater", "shape": "Round", "sizeMm": 15, "direction": "In", "facing": "-Z" },
+        { "domain": "Piping", "systemType": "DomesticHotWater",  "shape": "Round", "sizeMm": 15, "direction": "In", "facing": "-Z" },
+        { "domain": "Piping", "systemType": "Sanitary",          "shape": "Round", "sizeMm": 40, "direction": "Out", "facing": "-Z" }
+      ],
+      "solid3D": { "type": "Box", "widthMm": 1700, "depthMm": 700, "heightMm": 500 }
+    },
+    {
+      "id": "PLM_BIDET",
+      "name": "Bidet",
+      "category": "Plumbing",
+      "familyType": "MEPEquipment",
+      "discipline": "Plumbing",
+      "subcategory": "Sanitary",
+      "symbolSize": 4.5,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.2, "y1": -0.4, "x2":  0.2, "y2": -0.4 },
+          { "x1": -0.2, "y1": -0.4, "x2": -0.2, "y2":  0.0 },
+          { "x1":  0.2, "y1": -0.4, "x2":  0.2, "y2":  0.0 }
+        ],
+        "arcs": [
+          { "cx": 0, "cy": 0.0, "r": 0.2, "startDeg": 0, "endDeg": 180 }
+        ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "Sanitary", "shape": "Round", "sizeMm": 32, "direction": "Out", "facing": "-Z" }
+      ],
+      "solid3D": { "type": "Box", "widthMm": 350, "depthMm": 600, "heightMm": 400 }
+    },
+    {
+      "id": "PLM_FLOOR_DRAIN_RND",
+      "name": "Floor Drain (Round)",
+      "category": "Plumbing",
+      "familyType": "MEPEquipment",
+      "discipline": "Plumbing",
+      "subcategory": "Drainage",
+      "symbolSize": 3.0,
+      "parameters": [],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
+        "lines": [
+          { "x1": -0.5, "y1": 0, "x2":  0.5, "y2": 0 },
+          { "x1": 0, "y1": -0.5, "x2": 0, "y2": 0.5 }
+        ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "Sanitary", "shape": "Round", "sizeMm": 50, "direction": "Out", "facing": "-Z" }
+      ],
+      "solid3D": { "type": "Cylinder", "diameterMm": 100, "heightMm": 30 }
+    },
+    {
+      "id": "PLM_FLOOR_DRAIN_SQ",
+      "name": "Floor Drain (Square)",
+      "category": "Plumbing",
+      "familyType": "MEPEquipment",
+      "discipline": "Plumbing",
+      "subcategory": "Drainage",
+      "symbolSize": 3.5,
+      "parameters": [],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.5, "x2":  0.5, "y2": -0.5 },
+          { "x1":  0.5, "y1": -0.5, "x2":  0.5, "y2":  0.5 },
+          { "x1":  0.5, "y1":  0.5, "x2": -0.5, "y2":  0.5 },
+          { "x1": -0.5, "y1":  0.5, "x2": -0.5, "y2": -0.5 },
+          { "x1": -0.5, "y1": 0, "x2":  0.5, "y2": 0 },
+          { "x1": 0, "y1": -0.5, "x2": 0, "y2": 0.5 }
+        ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "Sanitary", "shape": "Round", "sizeMm": 50, "direction": "Out", "facing": "-Z" }
+      ],
+      "solid3D": { "type": "Box", "widthMm": 150, "depthMm": 150, "heightMm": 30 }
+    },
+    {
+      "id": "PLM_GULLEY",
+      "name": "Yard Gully / Gulley",
+      "category": "Plumbing",
+      "familyType": "MEPEquipment",
+      "discipline": "Plumbing",
+      "subcategory": "Drainage",
+      "symbolSize": 4.0,
+      "parameters": [],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.5, "x2":  0.5, "y2": -0.5 },
+          { "x1":  0.5, "y1": -0.5, "x2":  0.5, "y2":  0.5 },
+          { "x1":  0.5, "y1":  0.5, "x2": -0.5, "y2":  0.5 },
+          { "x1": -0.5, "y1":  0.5, "x2": -0.5, "y2": -0.5 },
+          { "x1": -0.3, "y1": -0.3, "x2":  0.3, "y2": -0.3 },
+          { "x1":  0.3, "y1": -0.3, "x2":  0.3, "y2":  0.3 },
+          { "x1":  0.3, "y1":  0.3, "x2": -0.3, "y2":  0.3 },
+          { "x1": -0.3, "y1":  0.3, "x2": -0.3, "y2": -0.3 }
+        ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "Sanitary", "shape": "Round", "sizeMm": 100, "direction": "Out", "facing": "-Z" }
+      ],
+      "solid3D": { "type": "Box", "widthMm": 250, "depthMm": 250, "heightMm": 200 }
+    },
+    {
+      "id": "PLM_GATE_VALVE",
+      "name": "Gate Valve",
+      "category": "Plumbing",
+      "familyType": "MEPAccessory",
+      "discipline": "Plumbing",
+      "subcategory": "Valve",
+      "symbolSize": 4.0,
+      "parameters": [
+        { "name": "SIZE_MM", "type": "Text", "shared": true, "default": "25" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": 0, "x2": -0.25, "y2": 0 },
+          { "x1":  0.25, "y1": 0, "x2":  0.5, "y2": 0 },
+          { "x1": -0.25, "y1":  0.0, "x2":  0.0, "y2":  0.25 },
+          { "x1":  0.0, "y1":  0.25, "x2":  0.25, "y2":  0.0 },
+          { "x1":  0.25, "y1":  0.0, "x2":  0.0, "y2": -0.25 },
+          { "x1":  0.0, "y1": -0.25, "x2": -0.25, "y2":  0.0 },
+          { "x1":  0.0, "y1":  0.25, "x2":  0.0, "y2":  0.4 }
+        ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "DomesticColdWater", "shape": "Round", "sizeMm": 25, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
+        { "domain": "Piping", "systemType": "DomesticColdWater", "shape": "Round", "sizeMm": 25, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
+      ]
+    },
+    {
+      "id": "PLM_GLOBE_VALVE",
+      "name": "Globe Valve",
+      "category": "Plumbing",
+      "familyType": "MEPAccessory",
+      "discipline": "Plumbing",
+      "subcategory": "Valve",
+      "symbolSize": 4.0,
+      "parameters": [
+        { "name": "SIZE_MM", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.25, "startDeg": 0, "endDeg": 360 } ],
+        "lines": [
+          { "x1": -0.5, "y1": 0, "x2": -0.25, "y2": 0 },
+          { "x1":  0.25, "y1": 0, "x2":  0.5, "y2": 0 },
+          { "x1": 0, "y1": 0.25, "x2": 0, "y2": 0.4 }
+        ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "DomesticColdWater", "shape": "Round", "sizeMm": 25, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
+        { "domain": "Piping", "systemType": "DomesticColdWater", "shape": "Round", "sizeMm": 25, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
+      ]
+    },
+    {
+      "id": "PLM_BALL_VALVE",
+      "name": "Ball Valve",
+      "category": "Plumbing",
+      "familyType": "MEPAccessory",
+      "discipline": "Plumbing",
+      "subcategory": "Valve",
+      "symbolSize": 4.0,
+      "parameters": [
+        { "name": "SIZE_MM", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.25, "startDeg": 0, "endDeg": 360 } ],
+        "lines": [
+          { "x1": -0.5, "y1": 0, "x2": -0.25, "y2": 0 },
+          { "x1":  0.25, "y1": 0, "x2":  0.5, "y2": 0 },
+          { "x1": -0.25, "y1": 0, "x2":  0.25, "y2": 0 },
+          { "x1": 0, "y1": 0.25, "x2": 0.15, "y2": 0.25 }
+        ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "DomesticColdWater", "shape": "Round", "sizeMm": 25, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
+        { "domain": "Piping", "systemType": "DomesticColdWater", "shape": "Round", "sizeMm": 25, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
+      ]
+    },
+    {
+      "id": "PLM_BUTTERFLY_VALVE",
+      "name": "Butterfly Valve",
+      "category": "Plumbing",
+      "familyType": "MEPAccessory",
+      "discipline": "Plumbing",
+      "subcategory": "Valve",
+      "symbolSize": 4.5,
+      "parameters": [
+        { "name": "SIZE_MM", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.25, "startDeg": 0, "endDeg": 360 } ],
+        "lines": [
+          { "x1": -0.5, "y1": 0, "x2": -0.25, "y2": 0 },
+          { "x1":  0.25, "y1": 0, "x2":  0.5, "y2": 0 },
+          { "x1": -0.18, "y1": -0.05, "x2":  0.18, "y2":  0.05 }
+        ],
+        "filledRegions": [
+          {
+            "boundary": [
+              { "x": -0.18, "y": -0.025 }, { "x": -0.025, "y": -0.025 },
+              { "x":  0.025, "y": 0.025 }, { "x": 0.18, "y": 0.025 },
+              { "x":  0.025, "y": 0.025 }, { "x": -0.025, "y": -0.025 }
+            ]
+          }
+        ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "ChilledWaterSupply", "shape": "Round", "sizeMm": 50, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
+        { "domain": "Piping", "systemType": "ChilledWaterSupply", "shape": "Round", "sizeMm": 50, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
+      ]
+    },
+    {
+      "id": "PLM_CHECK_VALVE",
+      "name": "Check Valve / Non-Return Valve",
+      "category": "Plumbing",
+      "familyType": "MEPAccessory",
+      "discipline": "Plumbing",
+      "subcategory": "Valve",
+      "symbolSize": 4.0,
+      "parameters": [],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": 0, "x2":  0.5, "y2": 0 },
+          { "x1":  0.2, "y1": 0, "x2":  0.0, "y2":  0.15 },
+          { "x1":  0.0, "y1":  0.15, "x2":  0.0, "y2": -0.15 },
+          { "x1":  0.0, "y1": -0.15, "x2":  0.2, "y2": 0 }
+        ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "DomesticColdWater", "shape": "Round", "sizeMm": 25, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
+        { "domain": "Piping", "systemType": "DomesticColdWater", "shape": "Round", "sizeMm": 25, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
+      ]
+    },
+    {
+      "id": "PLM_STRAINER",
+      "name": "Y-Strainer",
+      "category": "Plumbing",
+      "familyType": "MEPAccessory",
+      "discipline": "Plumbing",
+      "subcategory": "Filter",
+      "symbolSize": 5.0,
+      "parameters": [],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": 0, "x2": -0.25, "y2": 0 },
+          { "x1":  0.25, "y1": 0, "x2":  0.5, "y2": 0 },
+          { "x1": -0.25, "y1": -0.15, "x2":  0.25, "y2": -0.15 },
+          { "x1":  0.25, "y1": -0.15, "x2":  0.25, "y2":  0.15 },
+          { "x1":  0.25, "y1":  0.15, "x2": -0.25, "y2":  0.15 },
+          { "x1": -0.25, "y1":  0.15, "x2": -0.25, "y2": -0.15 },
+          { "x1": -0.25, "y1": -0.15, "x2":  0.25, "y2":  0.15 },
+          { "x1": -0.25, "y1":  0.0, "x2":  0.25, "y2":  0.0 }
+        ],
+        "text": [ { "x": -0.35, "y": 0.0, "value": "Y", "heightMm": 1.2 } ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "DomesticColdWater", "shape": "Round", "sizeMm": 50, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
+        { "domain": "Piping", "systemType": "DomesticColdWater", "shape": "Round", "sizeMm": 50, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
+      ]
+    },
+    {
+      "id": "PLM_FLEXIBLE_CONN",
+      "name": "Flexible Connection / Hose",
+      "category": "Plumbing",
+      "familyType": "MEPAccessory",
+      "discipline": "Plumbing",
+      "subcategory": "Connector",
+      "symbolSize": 5.0,
+      "parameters": [],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": 0, "x2": -0.4, "y2": 0 },
+          { "x1":  0.4, "y1": 0, "x2":  0.5, "y2": 0 }
+        ],
+        "arcs": [
+          { "cx": -0.3, "cy": 0, "r": 0.1, "startDeg": 0, "endDeg": 180 },
+          { "cx": -0.1, "cy": 0, "r": 0.1, "startDeg": 180, "endDeg": 360 },
+          { "cx":  0.1, "cy": 0, "r": 0.1, "startDeg": 0, "endDeg": 180 },
+          { "cx":  0.3, "cy": 0, "r": 0.1, "startDeg": 180, "endDeg": 360 }
+        ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "DomesticColdWater", "shape": "Round", "sizeMm": 25, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
+        { "domain": "Piping", "systemType": "DomesticColdWater", "shape": "Round", "sizeMm": 25, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
+      ]
+    },
+    {
+      "id": "PLM_PRESSURE_REDUCING",
+      "name": "Pressure Reducing Valve (PRV)",
+      "category": "Plumbing",
+      "familyType": "MEPAccessory",
+      "discipline": "Plumbing",
+      "subcategory": "Valve",
+      "symbolSize": 5.0,
+      "parameters": [
+        { "name": "SET_PRESSURE_BAR", "type": "Text", "shared": true, "default": "3" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": 0, "x2": -0.25, "y2": 0 },
+          { "x1":  0.25, "y1": 0, "x2":  0.5, "y2": 0 },
+          { "x1": -0.25, "y1": -0.15, "x2":  0.25, "y2": -0.15 },
+          { "x1":  0.25, "y1": -0.15, "x2":  0.25, "y2":  0.15 },
+          { "x1":  0.25, "y1":  0.15, "x2": -0.25, "y2":  0.15 },
+          { "x1": -0.25, "y1":  0.15, "x2": -0.25, "y2": -0.15 },
+          { "x1": -0.1, "y1":  0.15, "x2":  0.0, "y2":  0.0 },
+          { "x1":  0.0, "y1":  0.0, "x2":  0.1, "y2":  0.15 }
+        ],
+        "text": [ { "x": 0.0, "y": -0.07, "value": "P", "heightMm": 1.0 } ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "DomesticColdWater", "shape": "Round", "sizeMm": 25, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
+        { "domain": "Piping", "systemType": "DomesticColdWater", "shape": "Round", "sizeMm": 25, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
+      ]
+    },
+    {
+      "id": "PLM_HWC_DIRECT",
+      "name": "Hot Water Cylinder (Direct)",
+      "category": "Plumbing",
+      "familyType": "MEPEquipment",
+      "discipline": "Plumbing",
+      "subcategory": "Equipment",
+      "symbolSize": 7.0,
+      "parameters": [
+        { "name": "EQUIPMENT_REF", "type": "Text", "shared": true },
+        { "name": "CAPACITY_L", "type": "Text", "shared": true, "default": "150" }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
+        "lines": [
+          { "x1": -0.3, "y1":  0.0, "x2": -0.2, "y2":  0.1 },
+          { "x1": -0.2, "y1":  0.1, "x2": -0.1, "y2": -0.1 },
+          { "x1": -0.1, "y1": -0.1, "x2":  0.0, "y2":  0.1 },
+          { "x1":  0.0, "y1":  0.1, "x2":  0.1, "y2": -0.1 },
+          { "x1":  0.1, "y1": -0.1, "x2":  0.2, "y2":  0.1 },
+          { "x1":  0.2, "y1":  0.1, "x2":  0.3, "y2":  0.0 }
+        ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "DomesticColdWater", "shape": "Round", "sizeMm": 22, "direction": "In",  "facing": "-Z", "offsetX": -0.3 },
+        { "domain": "Piping", "systemType": "DomesticHotWater",  "shape": "Round", "sizeMm": 22, "direction": "Out", "facing": "+Z", "offsetX":  0.3 }
+      ],
+      "solid3D": { "type": "Cylinder", "diameterMm": 450, "heightMm": 1050 }
+    },
+    {
+      "id": "PLM_HWC_INDIRECT",
+      "name": "Hot Water Cylinder (Indirect)",
+      "category": "Plumbing",
+      "familyType": "MEPEquipment",
+      "discipline": "Plumbing",
+      "subcategory": "Equipment",
+      "symbolSize": 7.0,
+      "parameters": [
+        { "name": "EQUIPMENT_REF", "type": "Text", "shared": true },
+        { "name": "CAPACITY_L", "type": "Text", "shared": true, "default": "180" }
+      ],
+      "geometry": {
+        "arcs": [
+          { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 },
+          { "cx": 0, "cy": 0, "r": 0.3, "startDeg": 0, "endDeg": 180 },
+          { "cx": 0, "cy": 0, "r": 0.2, "startDeg": 180, "endDeg": 360 },
+          { "cx": 0, "cy": 0, "r": 0.1, "startDeg": 0, "endDeg": 180 }
+        ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "DomesticColdWater", "shape": "Round", "sizeMm": 22, "direction": "In",  "facing": "-Z", "offsetX": -0.3 },
+        { "domain": "Piping", "systemType": "DomesticHotWater",  "shape": "Round", "sizeMm": 22, "direction": "Out", "facing": "+Z", "offsetX":  0.3 },
+        { "domain": "Piping", "systemType": "HotWaterSupply",    "shape": "Round", "sizeMm": 22, "direction": "In",  "facing": "+X", "offsetX":  0.5, "offsetY":  0.2 },
+        { "domain": "Piping", "systemType": "HotWaterReturn",    "shape": "Round", "sizeMm": 22, "direction": "Out", "facing": "+X", "offsetX":  0.5, "offsetY": -0.2 }
+      ],
+      "solid3D": { "type": "Cylinder", "diameterMm": 500, "heightMm": 1200 }
+    }
+  ]
+}

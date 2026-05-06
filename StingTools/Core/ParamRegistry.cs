@@ -40,7 +40,14 @@ namespace StingTools.Core
         private static string _overrideSeparator;
         private static int? _overrideNumPad;
         private static string[] _overrideSegmentOrder;
-        private static string[] _cachedSegmentOrder; // PERF-05: lazy cache, invalidated on override change
+        // PERF-05: lazy cache, invalidated on override change. Reader was
+        // refactored away in a later sweep but the invalidation hooks
+        // remain as guard infrastructure for the next time the cache is
+        // re-introduced. Silence CS0414 since the field is intentionally
+        // write-only for now.
+#pragma warning disable CS0414
+        private static string[] _cachedSegmentOrder;
+#pragma warning restore CS0414
 
         public static string Separator => _overrideSeparator ?? _baseSeparator;
         public static int NumPad => _overrideNumPad ?? _baseNumPad;
@@ -166,6 +173,24 @@ namespace StingTools.Core
         public const string VIEW_TAG_STYLE_GUID = "E2F3A4B5-C6D7-4E8F-9A0B-1C2D3E4F5A6C";
         public const string TAG_SEG_MASK = "TAG_SEG_MASK_TXT";
         public const string TAG_SEG_MASK_GUID = "F3A4B5C6-D7E8-4F9A-0B1C-2D3E4F5A6B7D";
+
+        // ── Phase 175 — Symbol system parameters ─────────────────────────
+        public const string SYMBOL_ID                 = "STING_SYMBOL_ID";
+        public const string SYMBOL_ID_GUID            = "A4B5C6D7-E8F9-4A0B-1C2D-3E4F5A6B7C8D";
+        public const string SYMBOL_STANDARD           = "STING_SYMBOL_STANDARD";
+        public const string SYMBOL_STANDARD_GUID      = "B5C6D7E8-F9A0-4B1C-2D3E-4F5A6B7C8D9E";
+        public const string SYMBOL_HOST_ELEMENT_ID    = "STING_HOST_ELEMENT_ID";
+        public const string SYMBOL_HOST_ELEMENT_ID_GUID = "C6D7E8F9-A0B1-4C2D-3E4F-5A6B7C8D9E0F";
+        public const string SYMBOL_LABEL_ID           = "STING_SYMBOL_LABEL_ID";
+        public const string SYMBOL_LABEL_ID_GUID      = "D7E8F9A0-B1C2-4D3E-4F5A-6B7C8D9E0F1A";
+        public const string SYMBOL_OVERRIDE           = "STING_SYMBOL_OVERRIDE";
+        public const string SYMBOL_OVERRIDE_GUID      = "E8F9A0B1-C2D3-4E4F-5A6B-7C8D9E0F1A2B";
+        public const string VIEW_SYMBOL_STANDARD      = "STING_VIEW_SYMBOL_STANDARD";
+        public const string VIEW_SYMBOL_STANDARD_GUID = "F9A0B1C2-D3E4-4F5A-6B7C-8D9E0F1A2B3C";
+        public const string SLD_ELEMENT_ID            = "STING_SLD_ELEMENT_ID";
+        public const string SLD_ELEMENT_ID_GUID       = "0A1B2C3D-4E5F-4A6B-7C8D-9E0F1A2B3C4D";
+        public const string SYMBOL_LIBRARY_VERSION    = "STING_SYMBOL_LIBRARY_VERSION";
+        public const string SYMBOL_LIBRARY_VERSION_GUID = "1B2C3D4E-5F6A-4B7C-8D9E-0F1A2B3C4D5E";
 
         // ── Phase 137 — Drawing production stamps ────────────────────────
         // Written onto views/sheets by the production engine so audits and

@@ -1,0 +1,671 @@
+{
+  "version": "1.0",
+  "standard": "NFPA 13 / BS 5306 / BS 5839",
+  "symbols": [
+    {
+      "id": "FP_SPKR_PENDANT",
+      "name": "Sprinkler Head (Pendant)",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Sprinkler",
+      "symbolSize": 4.0,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true },
+        { "name": "K_FACTOR", "type": "Text", "shared": true, "default": "80" },
+        { "name": "TEMP_RATING_C", "type": "Text", "shared": true, "default": "68" },
+        { "name": "STATUS", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
+        "lines": [
+          { "x1": -0.5, "y1": 0, "x2": 0.5, "y2": 0 },
+          { "x1": 0, "y1": -0.5, "x2": 0, "y2": 0.5 }
+        ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 25, "direction": "In", "facing": "+Z", "offsetX": 0, "offsetY": 0, "offsetZ": 0 }
+      ],
+      "solid3D": { "type": "Cylinder", "diameterMm": 50, "heightMm": 80 }
+    },
+    {
+      "id": "FP_SPKR_UPRIGHT",
+      "name": "Sprinkler Head (Upright)",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Sprinkler",
+      "symbolSize": 4.0,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true },
+        { "name": "K_FACTOR", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
+        "lines": [
+          { "x1": -0.5, "y1": 0, "x2": 0.5, "y2": 0 },
+          { "x1": 0, "y1": -0.5, "x2": 0, "y2": 0.5 },
+          { "x1": 0, "y1": 0.55, "x2": -0.05, "y2": 0.45 },
+          { "x1": 0, "y1": 0.55, "x2":  0.05, "y2": 0.45 }
+        ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 25, "direction": "In", "facing": "-Z" }
+      ],
+      "solid3D": { "type": "Cylinder", "diameterMm": 50, "heightMm": 60 }
+    },
+    {
+      "id": "FP_SPKR_SIDEWALL",
+      "name": "Sprinkler Head (Sidewall Horizontal)",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Sprinkler",
+      "symbolSize": 4.0,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
+        "lines": [
+          { "x1": -0.5, "y1": 0, "x2": 0.5, "y2": 0 },
+          { "x1": 0, "y1": -0.5, "x2": 0, "y2": 0.5 },
+          { "x1": 0.55, "y1": 0, "x2": 0.45, "y2": 0.05 },
+          { "x1": 0.55, "y1": 0, "x2": 0.45, "y2": -0.05 }
+        ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 25, "direction": "In", "facing": "-X" }
+      ],
+      "solid3D": { "type": "Cylinder", "diameterMm": 50, "heightMm": 80 }
+    },
+    {
+      "id": "FP_SPKR_CONCEALED",
+      "name": "Concealed Sprinkler",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Sprinkler",
+      "symbolSize": 4.0,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
+        "lines": [
+          { "x1": -0.5, "y1": 0, "x2": 0.5, "y2": 0, "style": "Hidden Lines" },
+          { "x1": 0, "y1": -0.5, "x2": 0, "y2": 0.5, "style": "Hidden Lines" }
+        ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 25, "direction": "In", "facing": "+Z" }
+      ],
+      "solid3D": { "type": "Cylinder", "diameterMm": 100, "heightMm": 10 }
+    },
+    {
+      "id": "FP_SPKR_ESFR",
+      "name": "ESFR Sprinkler (Storage)",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Sprinkler",
+      "symbolSize": 5.0,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true },
+        { "name": "K_FACTOR", "type": "Text", "shared": true, "default": "200" }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
+        "lines": [
+          { "x1": -0.5, "y1": 0, "x2": 0.5, "y2": 0, "style": "Wide Lines" },
+          { "x1": 0, "y1": -0.5, "x2": 0, "y2": 0.5, "style": "Wide Lines" }
+        ],
+        "text": [ { "x": 0.55, "y": -0.55, "value": "ESFR", "heightMm": 1.2 } ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 50, "direction": "In", "facing": "+Z" }
+      ],
+      "solid3D": { "type": "Cylinder", "diameterMm": 80, "heightMm": 100 }
+    },
+    {
+      "id": "FP_DELUGE_NOZZLE",
+      "name": "Deluge Nozzle / Open Sprinkler",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Sprinkler",
+      "symbolSize": 4.0,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
+        "lines": [
+          { "x1": -0.35, "y1": -0.35, "x2": 0.35, "y2": 0.35 },
+          { "x1": -0.35, "y1":  0.35, "x2": 0.35, "y2": -0.35 }
+        ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "FireProtectionDry", "shape": "Round", "sizeMm": 32, "direction": "In", "facing": "+Z" }
+      ],
+      "solid3D": { "type": "Cylinder", "diameterMm": 50, "heightMm": 80 }
+    },
+    {
+      "id": "FP_SMOKE_OPTICAL",
+      "name": "Smoke Detector (Optical)",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Detection",
+      "symbolSize": 4.0,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true },
+        { "name": "DEVICE_ADDRESS", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
+        "text": [ { "x": 0, "y": 0, "value": "S", "heightMm": 2.0 } ]
+      },
+      "solid3D": { "type": "Cylinder", "diameterMm": 100, "heightMm": 40 }
+    },
+    {
+      "id": "FP_SMOKE_IONISATION",
+      "name": "Smoke Detector (Ionisation)",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Detection",
+      "symbolSize": 4.0,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
+        "text": [ { "x": 0, "y": 0, "value": "I", "heightMm": 2.0 } ]
+      },
+      "solid3D": { "type": "Cylinder", "diameterMm": 100, "heightMm": 40 }
+    },
+    {
+      "id": "FP_HEAT_FIXED",
+      "name": "Heat Detector (Fixed Temperature)",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Detection",
+      "symbolSize": 4.0,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true },
+        { "name": "TEMP_TRIP_C", "type": "Text", "shared": true, "default": "60" }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
+        "text": [ { "x": 0, "y": 0, "value": "H", "heightMm": 2.0 } ]
+      },
+      "solid3D": { "type": "Cylinder", "diameterMm": 100, "heightMm": 40 }
+    },
+    {
+      "id": "FP_HEAT_RATE_OF_RISE",
+      "name": "Heat Detector (Rate of Rise)",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Detection",
+      "symbolSize": 4.0,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [
+          { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 },
+          { "cx": 0, "cy": 0, "r": 0.4, "startDeg": 0, "endDeg": 360 }
+        ],
+        "text": [ { "x": 0, "y": 0, "value": "R", "heightMm": 1.8 } ]
+      },
+      "solid3D": { "type": "Cylinder", "diameterMm": 100, "heightMm": 40 }
+    },
+    {
+      "id": "FP_MULTI_SENSOR",
+      "name": "Multi-Sensor Detector",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Detection",
+      "symbolSize": 4.5,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
+        "lines": [
+          { "x1": -0.3, "y1": 0, "x2": 0.3, "y2": 0 },
+          { "x1": 0, "y1": -0.3, "x2": 0, "y2": 0.3 }
+        ],
+        "text": [ { "x": 0.6, "y": 0.6, "value": "MS", "heightMm": 1.2 } ]
+      },
+      "solid3D": { "type": "Cylinder", "diameterMm": 110, "heightMm": 45 }
+    },
+    {
+      "id": "FP_BEAM_TX",
+      "name": "Beam Detector Transmitter",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Detection",
+      "symbolSize": 5.0,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true },
+        { "name": "BEAM_LENGTH_M", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.4, "y1": -0.3, "x2":  0.4, "y2": -0.3 },
+          { "x1":  0.4, "y1": -0.3, "x2":  0.4, "y2":  0.3 },
+          { "x1":  0.4, "y1":  0.3, "x2": -0.4, "y2":  0.3 },
+          { "x1": -0.4, "y1":  0.3, "x2": -0.4, "y2": -0.3 },
+          { "x1":  0.4, "y1":  0.0, "x2":  0.6, "y2":  0.0 },
+          { "x1":  0.6, "y1":  0.0, "x2":  0.5, "y2":  0.05 },
+          { "x1":  0.6, "y1":  0.0, "x2":  0.5, "y2": -0.05 }
+        ],
+        "text": [ { "x": 0, "y": 0, "value": "TX", "heightMm": 1.5 } ]
+      },
+      "solid3D": { "type": "Box", "widthMm": 200, "depthMm": 100, "heightMm": 80 }
+    },
+    {
+      "id": "FP_BEAM_RX",
+      "name": "Beam Detector Receiver",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Detection",
+      "symbolSize": 5.0,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.4, "y1": -0.3, "x2":  0.4, "y2": -0.3 },
+          { "x1":  0.4, "y1": -0.3, "x2":  0.4, "y2":  0.3 },
+          { "x1":  0.4, "y1":  0.3, "x2": -0.4, "y2":  0.3 },
+          { "x1": -0.4, "y1":  0.3, "x2": -0.4, "y2": -0.3 },
+          { "x1": -0.6, "y1":  0.0, "x2": -0.4, "y2":  0.0 },
+          { "x1": -0.4, "y1":  0.0, "x2": -0.5, "y2":  0.05 },
+          { "x1": -0.4, "y1":  0.0, "x2": -0.5, "y2": -0.05 }
+        ],
+        "text": [ { "x": 0, "y": 0, "value": "RX", "heightMm": 1.5 } ]
+      },
+      "solid3D": { "type": "Box", "widthMm": 200, "depthMm": 100, "heightMm": 80 }
+    },
+    {
+      "id": "FP_FLAME_DETECTOR",
+      "name": "Flame Detector",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Detection",
+      "symbolSize": 4.5,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true },
+        { "name": "DETECTION_TYPE", "type": "Text", "shared": true, "default": "UV/IR" }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
+        "lines": [
+          { "x1": -0.2, "y1": -0.2, "x2":  0.0, "y2":  0.2 },
+          { "x1":  0.0, "y1":  0.2, "x2":  0.2, "y2": -0.2 },
+          { "x1":  0.2, "y1": -0.2, "x2": -0.2, "y2": -0.2 }
+        ]
+      },
+      "solid3D": { "type": "Cylinder", "diameterMm": 120, "heightMm": 100 }
+    },
+    {
+      "id": "FP_MCP",
+      "name": "Manual Call Point (Break Glass)",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Alarm",
+      "symbolSize": 4.0,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true },
+        { "name": "DEVICE_ADDRESS", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.5, "x2":  0.5, "y2": -0.5, "style": "Wide Lines" },
+          { "x1":  0.5, "y1": -0.5, "x2":  0.5, "y2":  0.5, "style": "Wide Lines" },
+          { "x1":  0.5, "y1":  0.5, "x2": -0.5, "y2":  0.5, "style": "Wide Lines" },
+          { "x1": -0.5, "y1":  0.5, "x2": -0.5, "y2": -0.5, "style": "Wide Lines" },
+          { "x1": -0.5, "y1": -0.5, "x2":  0.5, "y2":  0.5 }
+        ]
+      },
+      "solid3D": { "type": "Box", "widthMm": 80, "depthMm": 80, "heightMm": 30 }
+    },
+    {
+      "id": "FP_SOUNDER",
+      "name": "Fire Sounder / Bell",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Alarm",
+      "symbolSize": 4.0,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true },
+        { "name": "DB_RATING", "type": "Text", "shared": true, "default": "100" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.4, "x2":  0.5, "y2": -0.4 },
+          { "x1": -0.5, "y1": -0.4, "x2":  0.0, "y2":  0.5 },
+          { "x1":  0.5, "y1": -0.4, "x2":  0.0, "y2":  0.5 }
+        ]
+      },
+      "solid3D": { "type": "Cylinder", "diameterMm": 100, "heightMm": 100 }
+    },
+    {
+      "id": "FP_SOUNDER_BEACON",
+      "name": "Sounder/Beacon Combined",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Alarm",
+      "symbolSize": 5.0,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.4, "x2":  0.5, "y2": -0.4 },
+          { "x1": -0.5, "y1": -0.4, "x2":  0.0, "y2":  0.2 },
+          { "x1":  0.5, "y1": -0.4, "x2":  0.0, "y2":  0.2 }
+        ],
+        "arcs": [ { "cx": 0, "cy": 0.4, "r": 0.15, "startDeg": 0, "endDeg": 360 } ]
+      },
+      "solid3D": { "type": "Cylinder", "diameterMm": 130, "heightMm": 130 }
+    },
+    {
+      "id": "FP_VAD",
+      "name": "Visual Alarm Device (Strobe)",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Alarm",
+      "symbolSize": 4.0,
+      "parameters": [
+        { "name": "ZONE_REF", "type": "Text", "shared": true },
+        { "name": "EN54_CATEGORY", "type": "Text", "shared": true, "default": "C-3-15" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.4, "y1": -0.3, "x2":  0.2, "y2": -0.3 },
+          { "x1":  0.2, "y1": -0.3, "x2":  0.2, "y2":  0.3 },
+          { "x1":  0.2, "y1":  0.3, "x2": -0.4, "y2":  0.3 },
+          { "x1": -0.4, "y1":  0.3, "x2": -0.4, "y2": -0.3 },
+          { "x1":  0.2, "y1":  0.0, "x2":  0.5, "y2":  0.0 },
+          { "x1":  0.3, "y1": -0.15, "x2":  0.5, "y2": -0.05 },
+          { "x1":  0.3, "y1":  0.15, "x2":  0.5, "y2":  0.05 }
+        ]
+      },
+      "solid3D": { "type": "Box", "widthMm": 100, "depthMm": 100, "heightMm": 80 }
+    },
+    {
+      "id": "FP_FAP",
+      "name": "Fire Alarm Panel",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Panel",
+      "symbolSize": 8.0,
+      "parameters": [
+        { "name": "PANEL_REF", "type": "Text", "shared": true },
+        { "name": "EN54_PART", "type": "Text", "shared": true, "default": "EN54-2" },
+        { "name": "ZONE_COUNT", "type": "Integer", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.4, "x2":  0.5, "y2": -0.4 },
+          { "x1":  0.5, "y1": -0.4, "x2":  0.5, "y2":  0.4 },
+          { "x1":  0.5, "y1":  0.4, "x2": -0.5, "y2":  0.4 },
+          { "x1": -0.5, "y1":  0.4, "x2": -0.5, "y2": -0.4 }
+        ],
+        "text": [ { "x": 0, "y": 0.15, "value": "FAP", "heightMm": 2.0 } ],
+        "arcs": [
+          { "cx": -0.3, "cy": -0.2, "r": 0.04, "startDeg": 0, "endDeg": 360 },
+          { "cx": -0.1, "cy": -0.2, "r": 0.04, "startDeg": 0, "endDeg": 360 },
+          { "cx":  0.1, "cy": -0.2, "r": 0.04, "startDeg": 0, "endDeg": 360 },
+          { "cx":  0.3, "cy": -0.2, "r": 0.04, "startDeg": 0, "endDeg": 360 }
+        ]
+      },
+      "solid3D": { "type": "Box", "widthMm": 400, "depthMm": 150, "heightMm": 600 }
+    },
+    {
+      "id": "FP_REPEATER",
+      "name": "Repeater Panel",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Panel",
+      "symbolSize": 6.0,
+      "parameters": [
+        { "name": "PANEL_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.3, "x2":  0.5, "y2": -0.3 },
+          { "x1":  0.5, "y1": -0.3, "x2":  0.5, "y2":  0.3 },
+          { "x1":  0.5, "y1":  0.3, "x2": -0.5, "y2":  0.3 },
+          { "x1": -0.5, "y1":  0.3, "x2": -0.5, "y2": -0.3 }
+        ],
+        "text": [ { "x": 0, "y": 0, "value": "RP", "heightMm": 2.0 } ]
+      },
+      "solid3D": { "type": "Box", "widthMm": 250, "depthMm": 100, "heightMm": 200 }
+    },
+    {
+      "id": "FP_ALARM_VALVE_WET",
+      "name": "Alarm Valve (Wet System)",
+      "category": "FireProtection",
+      "familyType": "MEPAccessory",
+      "discipline": "FireProtection",
+      "subcategory": "Valve",
+      "symbolSize": 6.0,
+      "parameters": [
+        { "name": "VALVE_REF", "type": "Text", "shared": true },
+        { "name": "SIZE_MM", "type": "Text", "shared": true, "default": "100" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1":  0.0, "x2": -0.25, "y2":  0.0 },
+          { "x1":  0.25, "y1": 0.0, "x2":  0.5, "y2":  0.0 },
+          { "x1": -0.25, "y1": 0.0, "x2":  0.0, "y2":  0.25 },
+          { "x1":  0.0, "y1":  0.25, "x2":  0.25, "y2":  0.0 },
+          { "x1":  0.25, "y1": 0.0, "x2":  0.0, "y2": -0.25 },
+          { "x1":  0.0, "y1": -0.25, "x2": -0.25, "y2":  0.0 }
+        ],
+        "text": [ { "x": 0, "y": 0, "value": "W", "heightMm": 1.5 } ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 100, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
+        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 100, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
+      ]
+    },
+    {
+      "id": "FP_ALARM_VALVE_DRY",
+      "name": "Alarm Valve (Dry System)",
+      "category": "FireProtection",
+      "familyType": "MEPAccessory",
+      "discipline": "FireProtection",
+      "subcategory": "Valve",
+      "symbolSize": 6.0,
+      "parameters": [
+        { "name": "VALVE_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1":  0.0, "x2": -0.25, "y2":  0.0 },
+          { "x1":  0.25, "y1": 0.0, "x2":  0.5, "y2":  0.0 },
+          { "x1": -0.25, "y1": 0.0, "x2":  0.0, "y2":  0.25, "style": "Hidden Lines" },
+          { "x1":  0.0, "y1":  0.25, "x2":  0.25, "y2":  0.0, "style": "Hidden Lines" },
+          { "x1":  0.25, "y1": 0.0, "x2":  0.0, "y2": -0.25, "style": "Hidden Lines" },
+          { "x1":  0.0, "y1": -0.25, "x2": -0.25, "y2":  0.0, "style": "Hidden Lines" }
+        ],
+        "text": [ { "x": 0, "y": 0, "value": "D", "heightMm": 1.5 } ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "FireProtectionDry", "shape": "Round", "sizeMm": 100, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
+        { "domain": "Piping", "systemType": "FireProtectionDry", "shape": "Round", "sizeMm": 100, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
+      ]
+    },
+    {
+      "id": "FP_DELUGE_VALVE",
+      "name": "Deluge Valve",
+      "category": "FireProtection",
+      "familyType": "MEPAccessory",
+      "discipline": "FireProtection",
+      "subcategory": "Valve",
+      "symbolSize": 7.0,
+      "parameters": [
+        { "name": "VALVE_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1":  0.0, "x2": -0.25, "y2":  0.0 },
+          { "x1":  0.25, "y1": 0.0, "x2":  0.5, "y2":  0.0 },
+          { "x1":  0.0, "y1":  0.25, "x2":  0.0, "y2":  0.5 },
+          { "x1": -0.25, "y1": 0.0, "x2":  0.0, "y2":  0.25 },
+          { "x1":  0.0, "y1":  0.25, "x2":  0.25, "y2":  0.0 },
+          { "x1":  0.25, "y1": 0.0, "x2":  0.0, "y2": -0.25 },
+          { "x1":  0.0, "y1": -0.25, "x2": -0.25, "y2":  0.0 }
+        ],
+        "text": [ { "x": 0, "y": 0.05, "value": "DV", "heightMm": 1.5 } ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "FireProtectionPreaction", "shape": "Round", "sizeMm": 100, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
+        { "domain": "Piping", "systemType": "FireProtectionPreaction", "shape": "Round", "sizeMm": 100, "direction": "Out", "facing": "+X", "offsetX":  0.5 },
+        { "domain": "Piping", "systemType": "FireProtectionPreaction", "shape": "Round", "sizeMm": 25,  "direction": "In",  "facing": "+Y", "offsetY":  0.5 }
+      ]
+    },
+    {
+      "id": "FP_FLOW_SWITCH",
+      "name": "Flow Switch",
+      "category": "FireProtection",
+      "familyType": "MEPAccessory",
+      "discipline": "FireProtection",
+      "subcategory": "Monitor",
+      "symbolSize": 5.0,
+      "parameters": [
+        { "name": "DEVICE_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": 0, "x2":  0.5, "y2": 0 },
+          { "x1": -0.25, "y1": -0.15, "x2":  0.25, "y2": -0.15 },
+          { "x1":  0.25, "y1": -0.15, "x2":  0.25, "y2":  0.15 },
+          { "x1":  0.25, "y1":  0.15, "x2": -0.25, "y2":  0.15 },
+          { "x1": -0.25, "y1":  0.15, "x2": -0.25, "y2": -0.15 },
+          { "x1":  0.0, "y1": -0.15, "x2":  0.0, "y2":  0.05 },
+          { "x1":  0.0, "y1":  0.05, "x2":  0.05, "y2":  0.05 },
+          { "x1": -0.15, "y1": -0.05, "x2": -0.05, "y2":  0.0 },
+          { "x1": -0.05, "y1":  0.0, "x2": -0.15, "y2":  0.05 }
+        ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 50, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
+        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 50, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
+      ]
+    },
+    {
+      "id": "FP_PRESSURE_GAUGE_FP",
+      "name": "Pressure Gauge (Fire Protection)",
+      "category": "FireProtection",
+      "familyType": "MEPAccessory",
+      "discipline": "FireProtection",
+      "subcategory": "Monitor",
+      "symbolSize": 4.0,
+      "parameters": [
+        { "name": "RANGE_BAR", "type": "Text", "shared": true, "default": "0-16" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": 0, "x2":  0.5, "y2": 0 }
+        ],
+        "arcs": [ { "cx": 0, "cy": 0.2, "r": 0.2, "startDeg": 0, "endDeg": 360 } ],
+        "text": [ { "x": 0, "y": 0.2, "value": "P", "heightMm": 1.5 } ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 25, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
+        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 25, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
+      ]
+    },
+    {
+      "id": "FP_TEST_VALVE",
+      "name": "Inspector's Test Valve / Test Point",
+      "category": "FireProtection",
+      "familyType": "MEPAccessory",
+      "discipline": "FireProtection",
+      "subcategory": "Valve",
+      "symbolSize": 4.0,
+      "parameters": [],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.25, "startDeg": 0, "endDeg": 360 } ],
+        "lines": [
+          { "x1": -0.5, "y1": 0, "x2": -0.25, "y2": 0 },
+          { "x1":  0.25, "y1": 0, "x2": 0.5, "y2": 0 }
+        ],
+        "text": [ { "x": 0, "y": 0, "value": "T", "heightMm": 1.5 } ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 25, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
+        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 25, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
+      ]
+    },
+    {
+      "id": "FP_DRAIN_VALVE",
+      "name": "Drain Valve / Test and Drain",
+      "category": "FireProtection",
+      "familyType": "MEPAccessory",
+      "discipline": "FireProtection",
+      "subcategory": "Valve",
+      "symbolSize": 4.0,
+      "parameters": [],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.25, "startDeg": 0, "endDeg": 360 } ],
+        "lines": [
+          { "x1": -0.5, "y1": 0, "x2": -0.25, "y2": 0 },
+          { "x1":  0.25, "y1": 0, "x2": 0.5, "y2": 0 },
+          { "x1": 0, "y1": 0.25, "x2": 0, "y2": 0.5 }
+        ],
+        "text": [ { "x": 0, "y": 0, "value": "D", "heightMm": 1.5 } ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 25, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
+        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 25, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
+      ]
+    },
+    {
+      "id": "FP_BFPV",
+      "name": "Butterfly Valve (Indicating, Fire Service)",
+      "category": "FireProtection",
+      "familyType": "MEPAccessory",
+      "discipline": "FireProtection",
+      "subcategory": "Valve",
+      "symbolSize": 5.0,
+      "parameters": [
+        { "name": "VALVE_REF", "type": "Text", "shared": true },
+        { "name": "SIZE_MM", "type": "Text", "shared": true, "default": "100" }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.25, "startDeg": 0, "endDeg": 360 } ],
+        "lines": [
+          { "x1": -0.5, "y1": 0, "x2": -0.25, "y2": 0 },
+          { "x1":  0.25, "y1": 0, "x2":  0.5, "y2": 0 },
+          { "x1": -0.18, "y1": -0.05, "x2":  0.18, "y2":  0.05 },
+          { "x1":  0.0, "y1":  0.25, "x2":  0.0, "y2":  0.45 },
+          { "x1": -0.05, "y1":  0.45, "x2": 0.05, "y2": 0.45 }
+        ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 100, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
+        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 100, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
+      ]
+    }
+  ]
+}

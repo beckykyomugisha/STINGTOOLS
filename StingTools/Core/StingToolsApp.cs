@@ -33,6 +33,7 @@ namespace StingTools.Core
     {
         public static string AssemblyPath { get; private set; }
         public static string DataPath { get; private set; }
+        private static UpdaterId _sldUpdaterId;
 
         public Result OnStartup(UIControlledApplication application)
         {
@@ -72,6 +73,29 @@ namespace StingTools.Core
                 // Keeps ASS_TAG_7_TXT in sync with the active paragraph preset when
                 // source parameters change. Users enable it from Tag Studio.
                 StingTag7NarrativeUpdater.Register(application);
+
+                // Phase 175 — SLD sync updater. Registered unconditionally; it
+                // self-gates on project_config "sld_sync_enabled" inside Execute.
+                try
+                {
+                    var sldUpdater = new StingTools.Core.SLD.SLDSyncUpdater(application.ActiveAddInId);
+                    Autodesk.Revit.DB.UpdaterRegistry.RegisterUpdater(sldUpdater);
+                    var elecFilter = new Autodesk.Revit.DB.ElementMulticategoryFilter(
+                        new System.Collections.Generic.List<Autodesk.Revit.DB.BuiltInCategory>
+                        {
+                            Autodesk.Revit.DB.BuiltInCategory.OST_ElectricalEquipment,
+                            Autodesk.Revit.DB.BuiltInCategory.OST_ElectricalFixtures,
+                            Autodesk.Revit.DB.BuiltInCategory.OST_LightingFixtures,
+                        });
+                    Autodesk.Revit.DB.UpdaterRegistry.AddTrigger(
+                        sldUpdater.GetUpdaterId(), elecFilter,
+                        Autodesk.Revit.DB.Element.GetChangeTypeAny());
+                    _sldUpdaterId = sldUpdater.GetUpdaterId();
+                }
+                catch (Exception sldEx)
+                {
+                    StingLog.Warn($"SLDSyncUpdater register failed: {sldEx.Message}");
+                }
 
                 // Phase 106: reserve the Live Clash Updater id. Triggers are
                 // deferred to a follow-on phase so models that don't use clash
@@ -1093,6 +1117,14 @@ namespace StingTools.Core
             StingPluginHooks.ClearAll();
             StingAutoTagger.Unregister();
             StingTag7NarrativeUpdater.Unregister();
+
+            // Phase 175 — unregister the SLD sync updater.
+            try
+            {
+                if (_sldUpdaterId != null)
+                    Autodesk.Revit.DB.UpdaterRegistry.UnregisterUpdater(_sldUpdaterId);
+            }
+            catch (Exception ex) { StingLog.Warn($"SLDSyncUpdater unregister: {ex.Message}"); }
 
             // Clash rec-2: Unregister the live clash IUpdater. Safe against re-entry
             // and no-op if never registered.
