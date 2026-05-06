@@ -272,7 +272,11 @@ namespace StingTools.Core.Placement
         {
             try
             {
-                double tileXMm = rule.TileGridSpacingXMm > 0 ? rule.TileGridSpacingXMm : 600.0;
+                // Phase 139.27 (N-06) — default 1200×600 to match CeilingGridSnap
+                // (UK ceiling tile baseline). When the rule pack ships explicit
+                // 600 / 600 (US troffer tiles), TileGridSpacing*Mm carry
+                // the override.
+                double tileXMm = rule.TileGridSpacingXMm > 0 ? rule.TileGridSpacingXMm : 1200.0;
                 double tileYMm = rule.TileGridSpacingYMm > 0 ? rule.TileGridSpacingYMm : 600.0;
 
                 Document doc = room?.Document;
@@ -325,18 +329,71 @@ namespace StingTools.Core.Placement
 
                 double stepX = tileXMm * MmToFt;
                 double stepY = tileYMm * MmToFt;
+                // Phase 139.27 (C-05) — guard against pathological rule
+                // configs (TileGridSpacingXMm / Y < 1mm). The fallback at
+                // the top of this method gates ≤ 0, but a 0.5mm rule slips
+                // through and Math.Round((p.X - origin) / 0.0016) returns
+                // ±Infinity. Re-floor the step to 100mm here so the grid
+                // is at least usable.
+                if (stepX < 100.0 * MmToFt) stepX = 600.0 * MmToFt;
+                if (stepY < 100.0 * MmToFt) stepY = 600.0 * MmToFt;
+
+                // Phase 139.27 (C-05) — snap can push a point outside the
+                // room polygon (corner case: corner tile, tile origin from
+                // an adjacent ceiling). Track points that drift outside
+                // the room AABB and revert them; if reverting still leaves
+                // them out of room, drop them entirely. Without this,
+                // downstream RoomMatchesScope flips the rule's room hit
+                // off post-snap and the engine reports "31 placed" against
+                // a zero-fixture room.
+                BoundingBoxXYZ roomBb = null;
+                try { roomBb = room.get_BoundingBox(null); } catch { }
 
                 int adjustments = 0;
+                int reverted = 0;
+                int dropped  = 0;
+                var snappedList = new List<XYZ>(r.Points.Count);
                 for (int i = 0; i < r.Points.Count; i++)
                 {
                     var p = r.Points[i];
                     double snappedX = tileOrigin.X + Math.Round((p.X - tileOrigin.X) / stepX) * stepX + stepX * 0.5;
                     double snappedY = tileOrigin.Y + Math.Round((p.Y - tileOrigin.Y) / stepY) * stepY + stepY * 0.5;
                     var snapped = new XYZ(snappedX, snappedY, p.Z);
-                    if (snapped.DistanceTo(p) > 50.0 * MmToFt) adjustments++;
-                    r.Points[i] = snapped;
+
+                    bool snappedInBbox = roomBb == null
+                        || (snapped.X >= roomBb.Min.X && snapped.X <= roomBb.Max.X
+                         && snapped.Y >= roomBb.Min.Y && snapped.Y <= roomBb.Max.Y);
+                    bool snappedInRoom = snappedInBbox;
+                    if (snappedInBbox)
+                    {
+                        try { snappedInRoom = room.IsPointInRoom(snapped); }
+                        catch { snappedInRoom = true; }
+                    }
+
+                    if (snappedInRoom)
+                    {
+                        if (snapped.DistanceTo(p) > 50.0 * MmToFt) adjustments++;
+                        snappedList.Add(snapped);
+                    }
+                    else
+                    {
+                        // Try the original (un-snapped) point — it was
+                        // generated from the room's own AABB so it should
+                        // still be inside the polygon.
+                        bool originalInRoom = false;
+                        try { originalInRoom = room.IsPointInRoom(p); } catch { }
+                        if (originalInRoom) { snappedList.Add(p); reverted++; }
+                        else                { dropped++; }
+                    }
                 }
+                r.Points.Clear();
+                r.Points.AddRange(snappedList);
+                r.FixturesPlaced = r.Points.Count;
                 r.TileSnapAdjustments = adjustments;
+                if (reverted > 0)
+                    r.Warnings.Add($"Tile snap: {reverted} luminaire(s) reverted to grid position because the snapped tile centre fell outside the room boundary.");
+                if (dropped > 0)
+                    r.Warnings.Add($"Tile snap: {dropped} luminaire(s) dropped — neither the snapped nor the original position lay inside the room.");
                 if (nameSuggestsTiles)
                     StingLog.Info($"LightingGridCalculator: tile snap applied ({adjustments} adjustments) to room {room.Id}.");
             }
