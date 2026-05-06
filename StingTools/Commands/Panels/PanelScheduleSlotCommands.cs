@@ -95,7 +95,7 @@ namespace StingTools.Commands.Panels
                     rows = body.NumberOfRows;
                     cols = body.NumberOfColumns;
                 }
-                catch (Exception ex) { StingLog.Error("FillEmptySlots Body", ex); message = ex.Message; return Result.Failed; }
+                catch (Exception ex) { StingLog.Error("FillEmptySlots Body", ex); return Result.Failed; }
 
                 for (int r = 0; r < rows; r++)
                 {
@@ -104,7 +104,7 @@ namespace StingTools.Commands.Panels
                         bool occupied = false;
                         try
                         {
-                            occupied = psv.IsCircuitRow(r, c) || psv.IsSpare(r, c) || psv.IsSpace(r, c) || psv.IsSlotLocked(r, c);
+                            occupied = psv.IsSpare(r, c) || psv.IsSpace(r, c) || psv.IsSlotLocked(r, c);
                         }
                         catch (Exception ex) { StingLog.Warn($"slot probe [{r},{c}]: {ex.Message}"); }
 
