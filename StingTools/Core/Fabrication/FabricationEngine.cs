@@ -33,8 +33,14 @@ namespace StingTools.Core.Fabrication
         // after each discipline's transaction commits. Surfaced in the
         // FabricationResultDialog so users see whether the option had effect.
         public int SymbolsPlaced { get; set; }
+        public int SymbolsReplaced { get; set; }
+        public int UnmatchedMembers { get; set; }
+        public List<ElementId> SymbolIds { get; } = new List<ElementId>();
+        public List<string> UnmatchedSamples { get; } = new List<string>();
         public HashSet<string> MissingFamilies { get; }
             = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, int> SymbolsByDiscipline { get; }
+            = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
         public string FormatSummary()
         {
@@ -94,20 +100,26 @@ namespace StingTools.Core.Fabrication
 
         /// <summary>
         /// Run IsoSymbolPlacer for each (assembly, ISO view) pair when the
-        /// user has ticked PlaceISO6412Symbols on the Fabrication tab. Must
-        /// be called AFTER the discipline's transaction commits — the placer
-        /// opens its own Transaction and may need to LoadFamily, which is
-        /// not legal inside an active outer Transaction.
+        /// user has ticked PlaceISO6412Symbols on the Fabrication tab and
+        /// the per-discipline toggle for <paramref name="discipline"/> is
+        /// also on. Must be called AFTER the discipline's transaction
+        /// commits — the placer opens its own Transaction.
         /// </summary>
         public static void PlaceSymbolsIfRequested(
             Document doc,
+            string discipline,
             IList<(ElementId AssyId, ElementId IsoViewId)> targets,
             FabricationResult result)
         {
             if (doc == null || result == null) return;
             if (targets == null || targets.Count == 0) return;
-            if (!StingTools.Commands.Fabrication.FabricationOptions.PlaceISO6412Symbols) return;
+            var opts = StingTools.Commands.Fabrication.FabricationOptions;
+            if (!opts.PlaceISO6412Symbols) return;
+            if (opts.SymbolPlacementMode ==
+                StingTools.Commands.Fabrication.FabricationOptions.PlacementMode.Off) return;
+            if (!IsDisciplineOn(discipline)) return;
 
+            int totalForDisc = 0;
             foreach (var pair in targets)
             {
                 try
@@ -117,11 +129,30 @@ namespace StingTools.Core.Fabrication
                     int placed = IsoSymbolPlacer.PlaceSymbolsForAssembly(
                         doc, pair.AssyId, view, result);
                     result.SymbolsPlaced += placed;
+                    totalForDisc += placed;
                 }
                 catch (Exception ex)
                 {
                     result.Warnings.Add($"PlaceSymbolsIfRequested {pair.AssyId}: {ex.Message}");
                 }
+            }
+            if (totalForDisc > 0)
+            {
+                if (!result.SymbolsByDiscipline.ContainsKey(discipline))
+                    result.SymbolsByDiscipline[discipline] = 0;
+                result.SymbolsByDiscipline[discipline] += totalForDisc;
+            }
+        }
+
+        private static bool IsDisciplineOn(string discipline)
+        {
+            var o = StingTools.Commands.Fabrication.FabricationOptions;
+            switch ((discipline ?? "").ToUpperInvariant())
+            {
+                case "PIPE":       return o.PlaceISOPipe;
+                case "DUCT":       return o.PlaceISODuct;
+                case "ELECTRICAL": return o.PlaceISOElectrical;
+                default:           return true;
             }
         }
 

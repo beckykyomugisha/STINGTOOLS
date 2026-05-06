@@ -37,6 +37,7 @@ namespace StingTools.Commands.Fabrication
         public List<long> AssemblyIds { get; set; } = new List<long>();
         public List<long> SheetIds    { get; set; } = new List<long>();
         public List<long> ViewIds     { get; set; } = new List<long>();
+        public List<long> SymbolIds   { get; set; } = new List<long>();
         public string Summary { get; set; } = "";
     }
 
@@ -73,6 +74,7 @@ namespace StingTools.Commands.Fabrication
             {
                 AssemblyIds = res.AssemblyIds?.Select(i => i.Value).ToList() ?? new List<long>(),
                 SheetIds    = res.SheetIds?.Select(i => i.Value).ToList()    ?? new List<long>(),
+                SymbolIds   = res.SymbolIds?.Select(i => i.Value).ToList()   ?? new List<long>(),
                 Summary     = res.FormatSummary(),
             };
             try { File.WriteAllText(path, JsonConvert.SerializeObject(rec, Formatting.Indented)); }
@@ -99,6 +101,27 @@ namespace StingTools.Commands.Fabrication
                 tg.Start();
                 try
                 {
+                    // Delete placed ISO symbols first — they're detail
+                    // components owned by views that we're about to delete,
+                    // but we delete explicitly so the count is reportable.
+                    if (rec.SymbolIds != null && rec.SymbolIds.Count > 0)
+                    {
+                        using (var t = new Transaction(doc, "Undo fab symbols"))
+                        {
+                            t.Start();
+                            foreach (var id in rec.SymbolIds)
+                            {
+                                try
+                                {
+                                    var el = doc.GetElement(new ElementId(id));
+                                    if (el != null) { doc.Delete(el.Id); removed++; }
+                                }
+                                catch (Exception ex) { StingLog.Warn($"UndoLast symbol {id}: {ex.Message}"); }
+                            }
+                            t.Commit();
+                        }
+                    }
+
                     // Delete sheets first so viewports release their views
                     using (var t = new Transaction(doc, "Undo fab sheets"))
                     {

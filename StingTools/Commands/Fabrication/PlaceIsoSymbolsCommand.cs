@@ -11,12 +11,14 @@
 // off at package time.
 //
 // Resolution order for (assembly, view):
-//   1. Active view is a ViewSection and is associated with an
-//      AssemblyInstance — place on the active view (1 assembly).
-//   2. Selection contains AssemblyInstance(s) — for each, find the
-//      first associated ViewSection (the ISO 6412 axonometric created
-//      by AssemblyViewBuilder is a Section view).
-//   3. Otherwise — clear TaskDialog explaining what to select / open.
+//   1. Active view is the ISO 6412 view itself — its name was stamped
+//      with the assembly id by AssemblyViewBuilder, so we parse the
+//      assembly id back out of view.Name (`STING ISO 6412 - <name> ::<id>`).
+//   2. Active view is some other section/plan/drafting view associated
+//      with an assembly via AssemblyInstance.GetAssociatedAssemblyViews().
+//   3. Selection contains AssemblyInstance(s) — for each, find its
+//      stamped ISO 6412 section view by name suffix scan.
+//   4. Otherwise — clear TaskDialog explaining what to select / open.
 
 using System;
 using System.Collections.Generic;
@@ -81,7 +83,25 @@ namespace StingTools.Commands.Fabrication
         {
             var targets = new List<(ElementId, ElementId)>();
 
-            // 1) Active view is a section/detail tied to an assembly.
+            // 1) Active view IS a STING ISO 6412 view (stamped by name).
+            try
+            {
+                var av = doc.ActiveView;
+                if (av != null && IsStingIsoView(av))
+                {
+                    var aid = ParseAssemblyIdFromIsoViewName(av.Name);
+                    if (aid != null && aid != ElementId.InvalidElementId
+                        && doc.GetElement(aid) is AssemblyInstance)
+                    {
+                        targets.Add((aid, av.Id));
+                        return targets;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"PlaceIsoSymbols.IsoView: {ex.Message}"); }
+
+            // 2) Active view associated with an assembly (older path —
+            //    AssemblyViewUtils-created views like elevations).
             try
             {
                 var av = doc.ActiveView;
@@ -97,25 +117,81 @@ namespace StingTools.Commands.Fabrication
             }
             catch (Exception ex) { StingLog.Warn($"PlaceIsoSymbols.ActiveView: {ex.Message}"); }
 
-            // 2) Selection contains AssemblyInstance(s).
+            // 3) Selection contains AssemblyInstance(s) — find each one's
+            //    STING ISO 6412 view by name suffix `:: <id>`.
             try
             {
                 var selIds = uidoc?.Selection?.GetElementIds();
                 if (selIds != null)
                 {
+                    var nameIndex = BuildIsoViewNameIndex(doc);
                     foreach (var id in selIds)
                     {
                         var ai = doc.GetElement(id) as AssemblyInstance;
                         if (ai == null) continue;
-                        var viewId = FindFirstSectionViewForAssembly(doc, ai);
-                        if (viewId == null || viewId == ElementId.InvalidElementId) continue;
-                        targets.Add((ai.Id, viewId));
+                        if (nameIndex.TryGetValue(ai.Id.Value, out ElementId viewId))
+                        {
+                            targets.Add((ai.Id, viewId));
+                            continue;
+                        }
+                        // Final fallback: AssemblyViewUtils-associated section.
+                        var fallback = FindFirstSectionViewForAssembly(doc, ai);
+                        if (fallback != null && fallback != ElementId.InvalidElementId)
+                            targets.Add((ai.Id, fallback));
                     }
                 }
             }
             catch (Exception ex) { StingLog.Warn($"PlaceIsoSymbols.Selection: {ex.Message}"); }
 
             return targets;
+        }
+
+        private static bool IsStingIsoView(View v)
+        {
+            try { return (v?.Name ?? "").StartsWith("STING ISO 6412", StringComparison.OrdinalIgnoreCase); }
+            catch { return false; }
+        }
+
+        /// <summary>
+        /// Parses the assembly element-id out of a STING ISO 6412 view
+        /// name. Format: `STING ISO 6412 - {assyName} ::{id}`.
+        /// </summary>
+        private static ElementId ParseAssemblyIdFromIsoViewName(string name)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(name)) return ElementId.InvalidElementId;
+                int idx = name.LastIndexOf("::", StringComparison.Ordinal);
+                if (idx < 0) return ElementId.InvalidElementId;
+                string tail = name.Substring(idx + 2).Trim();
+                if (long.TryParse(tail, out long val)) return new ElementId(val);
+            }
+            catch { }
+            return ElementId.InvalidElementId;
+        }
+
+        /// <summary>
+        /// One-pass scan of every ViewSection in the document whose name
+        /// matches the STING ISO 6412 pattern. Returns map of
+        /// assemblyId.Value → viewId.
+        /// </summary>
+        private static Dictionary<long, ElementId> BuildIsoViewNameIndex(Document doc)
+        {
+            var map = new Dictionary<long, ElementId>();
+            try
+            {
+                var col = new FilteredElementCollector(doc).OfClass(typeof(View));
+                foreach (var el in col)
+                {
+                    if (!(el is View v) || v.IsTemplate) continue;
+                    if (!IsStingIsoView(v)) continue;
+                    var aid = ParseAssemblyIdFromIsoViewName(v.Name);
+                    if (aid == null || aid == ElementId.InvalidElementId) continue;
+                    map[aid.Value] = v.Id;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BuildIsoViewNameIndex: {ex.Message}"); }
+            return map;
         }
 
         /// <summary>
@@ -192,7 +268,17 @@ namespace StingTools.Commands.Fabrication
         {
             var lines = new List<string>();
             lines.Add($"Assemblies processed: {assemblyCount}");
+            lines.Add($"Mode: {StingTools.Commands.Fabrication.FabricationOptions.SymbolPlacementMode}");
             lines.Add($"Symbols placed: {res.SymbolsPlaced}");
+            if (res.SymbolsReplaced > 0) lines.Add($"Symbols replaced: {res.SymbolsReplaced}");
+            if (res.UnmatchedMembers > 0)
+            {
+                lines.Add($"Members with no symbol mapping: {res.UnmatchedMembers}");
+                foreach (var s in res.UnmatchedSamples.Take(5))
+                    lines.Add("  • " + s);
+                if (res.UnmatchedSamples.Count > 5)
+                    lines.Add($"  (+{res.UnmatchedMembers - res.UnmatchedSamples.Count} more)");
+            }
             if (res.MissingFamilies.Count > 0)
             {
                 lines.Add("");

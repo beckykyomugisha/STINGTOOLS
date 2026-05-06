@@ -188,14 +188,36 @@ namespace StingTools.UI
         private UIElement BuildSymbolsCard()
         {
             var body = new StackPanel();
-            bool optionOn = StingTools.Commands.Fabrication.FabricationOptions.PlaceISO6412Symbols;
+            var opts = StingTools.Commands.Fabrication.FabricationOptions;
+            bool optionOn = opts.PlaceISO6412Symbols;
             body.Children.Add(MetricRow("Placement option", optionOn ? "ON" : "OFF",
                 accent: optionOn ? GreenColor : (Color?)SubtleColor));
+            body.Children.Add(MetricRow("Mode", opts.SymbolPlacementMode.ToString()));
             body.Children.Add(MetricRow("Symbols placed", _res.SymbolsPlaced.ToString(),
                 accent: _res.SymbolsPlaced > 0 ? GreenColor : (Color?)null,
                 bold: _res.SymbolsPlaced > 0));
+            if (_res.SymbolsReplaced > 0)
+                body.Children.Add(MetricRow("Symbols replaced", _res.SymbolsReplaced.ToString(),
+                    accent: AmberColor));
+            if (_res.UnmatchedMembers > 0)
+                body.Children.Add(MetricRow("Unmatched members", _res.UnmatchedMembers.ToString(),
+                    accent: AmberColor));
             body.Children.Add(MetricRow("Missing families", _res.MissingFamilies.Count.ToString(),
                 accent: _res.MissingFamilies.Count > 0 ? AmberColor : (Color?)null));
+
+            // Per-discipline breakdown when there's more than one.
+            if (_res.SymbolsByDiscipline.Count > 1)
+            {
+                body.Children.Add(new TextBlock
+                {
+                    Text = "By discipline:",
+                    FontSize = 11,
+                    Foreground = new SolidColorBrush(SubtleColor),
+                    Margin = new Thickness(0, 6, 0, 4),
+                });
+                foreach (var kv in _res.SymbolsByDiscipline.OrderByDescending(kv => kv.Value))
+                    body.Children.Add(MetricRow("  " + kv.Key, kv.Value.ToString()));
+            }
 
             if (_res.MissingFamilies.Count > 0)
             {
@@ -230,16 +252,44 @@ namespace StingTools.UI
             }
             else if (optionOn && _res.AssemblyIds.Count > 0 && _res.SymbolsPlaced == 0)
             {
+                string hint = _res.UnmatchedMembers > 0
+                    ? "Option was ON but every member was unmatched — extend STING_ISO_SYMBOLS_INDEX.csv " +
+                      "with codes that match your fitting names, or check the family keyword tokens."
+                    : "Option was ON but nothing placed — check that STING_ISO_SYMBOLS_INDEX.csv " +
+                      "is in the data folder and the symbol_code keywords match member names.";
                 body.Children.Add(new TextBlock
                 {
-                    Text = "Option was ON but nothing placed — check that STING_ISO_SYMBOLS_INDEX.csv " +
-                           "is in the data folder and the symbol_code keywords match member names.",
+                    Text = hint,
                     Foreground = new SolidColorBrush(SubtleColor),
                     FontSize = 11,
                     FontStyle = FontStyles.Italic,
                     TextWrapping = TextWrapping.Wrap,
                     Margin = new Thickness(0, 6, 0, 0),
                 });
+            }
+
+            // Sample of unmatched member names so users can see WHY
+            // symbols weren't found and update the catalogue.
+            if (_res.UnmatchedSamples.Count > 0)
+            {
+                body.Children.Add(new TextBlock
+                {
+                    Text = $"Unmatched member samples (first {Math.Min(5, _res.UnmatchedSamples.Count)}):",
+                    FontSize = 11,
+                    Foreground = new SolidColorBrush(SubtleColor),
+                    Margin = new Thickness(0, 6, 0, 4),
+                });
+                foreach (var s in _res.UnmatchedSamples.Take(5))
+                {
+                    body.Children.Add(new TextBlock
+                    {
+                        Text = "• " + s,
+                        Foreground = new SolidColorBrush(FgColor),
+                        FontSize = 11,
+                        TextWrapping = TextWrapping.Wrap,
+                        Margin = new Thickness(0, 1, 0, 1),
+                    });
+                }
             }
             return Card("ISO 6412 symbols", body);
         }

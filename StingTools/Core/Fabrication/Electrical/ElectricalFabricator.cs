@@ -57,7 +57,7 @@ namespace StingTools.Core.Fabrication.Electrical
 
             result.AssembliesByDiscipline["Electrical"] = seq - 1;
 
-            FabricationEngine.PlaceSymbolsIfRequested(doc, symbolTargets, result);
+            FabricationEngine.PlaceSymbolsIfRequested(doc, "Electrical", symbolTargets, result);
 
             // Bend + tray schedules as CSV sidecars
             try { EmitBendScheduleCsv(doc, elementIds, result); }

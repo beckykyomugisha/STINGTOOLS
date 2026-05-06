@@ -56,7 +56,7 @@ namespace StingTools.Core.Fabrication.Duct
             }
             result.AssembliesByDiscipline["Duct"] = seq - 1;
 
-            FabricationEngine.PlaceSymbolsIfRequested(doc, symbolTargets, result);
+            FabricationEngine.PlaceSymbolsIfRequested(doc, "Duct", symbolTargets, result);
 
             try { EmitSeamTallyCsv(doc, elementIds, result); }
             catch (Exception ex) { result.Warnings.Add($"Seam tally csv: {ex.Message}"); }

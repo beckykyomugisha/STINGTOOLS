@@ -56,7 +56,7 @@ namespace StingTools.Core.Fabrication.Pipe
             }
             result.AssembliesByDiscipline["Pipe"] = seq - 1;
 
-            FabricationEngine.PlaceSymbolsIfRequested(doc, symbolTargets, result);
+            FabricationEngine.PlaceSymbolsIfRequested(doc, "Pipe", symbolTargets, result);
 
             try { EmitWeldMapCsv(doc, elementIds, result); }
             catch (Exception ex) { result.Warnings.Add($"Weld map csv: {ex.Message}"); }

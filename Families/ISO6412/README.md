@@ -61,19 +61,40 @@ can use it without per-family special cases:
 
 ### Required parameters
 
-The placer sets up to three optional instance parameters when present.
-None are mandatory — the placer's `LookupParameter` calls are guarded
-by null-checks — but adding them lets the symbol size match the host
-view's plotted scale.
+All listed parameters are **optional** — the placer's `LookupParameter`
+calls are guarded by null-checks — but adding them unlocks features:
 
-| Parameter name              | Storage  | Purpose                                                  |
-|-----------------------------|----------|----------------------------------------------------------|
-| `Symbol Scale`              | Integer  | View scale (e.g. 50 for a 1:50 detail view).            |
-| `Symbol Scale`              | Double   | Same — placer accepts either storage type.              |
-| `STING_ISO_SYMBOL_SCALE_IN` | Double   | STING-namespaced parallel param for shared-param users. |
+| Parameter name                          | Storage  | Purpose                                                  |
+|-----------------------------------------|----------|----------------------------------------------------------|
+| `Symbol Scale`                          | Integer  | View scale (50 for a 1:50 view). Placer only writes when current value is at the convention default of 50, so families authored at non-default scales aren't overwritten. |
+| `Symbol Scale`                          | Double   | Same — placer accepts either storage type.              |
+| `STING_ISO_SYMBOL_SCALE_IN`             | Double   | STING-namespaced parallel param.                        |
+| `STING_PLACED_BY_SYMBOL_PLACER_BOOL`    | Integer  | **Required for idempotency.** Set to 1 by the placer; used to detect "already placed" instances in NewOnly mode and to find purge targets in Replace mode. |
+| `STING_PLACER_ASSY_ID_TXT`              | String   | Owning assembly's ElementId.                            |
+| `STING_PLACER_MEMBER_ID_TXT`            | String   | Source member's ElementId — keyed for idempotency.      |
+| `STING_PLACER_SYMBOL_CODE_TXT`          | String   | Resolved CSV `symbol_code`.                             |
+
+**Without** the stamp parameters above, re-running the placer will
+create duplicates because the placer can't tell that a member was
+already symbolised. Add them as instance shared parameters in every
+family in this folder.
 
 If you parameterise linework size by `Symbol Scale`, a 1:25 detail and
 a 1:50 spool render the same plotted millimetres.
+
+### Placement modes
+
+`FabricationOptions.SymbolPlacementMode` is a tri-state read by both
+auto and manual paths:
+
+| Mode      | Behaviour                                                           |
+|-----------|--------------------------------------------------------------------|
+| `Off`     | Skip the placer entirely.                                          |
+| `NewOnly` | (default) Skip members whose `STING_PLACER_MEMBER_ID_TXT` already matches a placed instance on the view — idempotent re-runs. |
+| `Replace` | Purge every placer-stamped instance on the view first, then re-place all members from scratch. |
+
+Per-discipline gates (`FabricationOptions.PlaceISOPipe / PlaceISODuct
+/ PlaceISOElectrical`) further restrict which fabricators emit symbols.
 
 ### Authoring checklist
 
@@ -123,3 +144,38 @@ the bundled file via `StingToolsApp.FindDataFile(...)`, which prefers
 project-local copies — drop a customised `STING_ISO_SYMBOLS_INDEX.csv`
 into the project's data folder to add or remap symbols without
 shipping a new plugin build.
+
+## View identification
+
+Every ISO 6412 view created by `AssemblyViewBuilder.CreateIso6412Section`
+is renamed to:
+
+```
+STING ISO 6412 - {assemblyTypeName} ::{assemblyElementId}
+```
+
+The trailing `::id` is parsed back by `PlaceIsoSymbolsCommand` so the
+standalone command can find the right view from a selected
+`AssemblyInstance` (and vice-versa). Don't rename these views —
+renaming breaks the link and the standalone command falls back to a
+slow `GetAssociatedAssemblyViews()` scan that won't return the
+hand-rolled section.
+
+## Audit trail
+
+Every placement run appends to `STING_v4_iso_symbols.csv` in the
+project's output directory:
+
+```
+assembly_id, assembly_name, view_id, view_name, member_id,
+member_category, member_name, family_name, symbol_code,
+family_file, resolved
+```
+
+`resolved = 1` rows show what got matched; `resolved = 0` rows show
+which members fell through the resolution chain — useful for extending
+the catalogue.
+
+Placed `FamilyInstance` ids are added to `FabricationResult.SymbolIds`
+and persisted by `FabricationUndoManager`, so the standard
+`Undo Fabrication Package` command rolls back symbols too.
