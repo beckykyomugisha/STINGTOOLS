@@ -70,7 +70,7 @@ When you finish a piece of work, log it in `docs/CHANGELOG.md` rather than exten
 | `StingTools/Data/Placement/` | STING_PLACEMENT_RULES.json (43 rules) |
 | `StingTools/Data/Fabrication/` | STING_FAB_RULES.json (6 disciplines), STING_ISO_SYMBOLS_INDEX.csv (180+ symbols) |
 | `StingTools/Data/Parameters/` | STING_PARAMS_V4.txt shared-parameter fragment |
-| `Families/AssemblyTitleBlocks/` | 8 title block parameter spec stubs + README |
+| `Families/AssemblyTitleBlocks/` | 7 title block parameter spec stubs + README |
 
 ### New namespaces
 
@@ -106,7 +106,7 @@ When you finish a piece of work, log it in `docs/CHANGELOG.md` rather than exten
 ### Caveats
 
 1. Built without `dotnet build` verification — every Revit API call uses the documented signature but has not been compile-checked. `// TODO-VERIFY-API` comments mark the most uncertain spots (`AssemblyInstance.Create` category arg, `Conduit.Create` / `Pipe.Create` / `Duct.Create` overloads, ISO 6412 axonometric section transform).
-2. The 8 title block `.rfa` families are NOT shipped — only their parameter specs. `ShopDrawingComposer.ResolveTitleBlock` falls back to the first available title block in the project.
+2. The 7 title block `.rfa` families are NOT shipped — only their parameter specs. `ShopDrawingComposer.ResolveTitleBlock` falls back to the first available title block in the project (now warns loudly via `FabricationResult.Warnings` and `StingLog`).
 3. ISO 6412 detail families (180 entries) are referenced by name in `STING_ISO_SYMBOLS_INDEX.csv`; `IsoSymbolPlacer` lazy-loads from `Families/ISO6412/` and warns once per missing family.
 
 ## Electrical Panel Schedules (Phase 176)
@@ -539,7 +539,7 @@ a default `manifest.json` seeded from `ProjectInformation` and
 | `StingTools/Data/Placement/` | STING_PLACEMENT_RULES.json (43 rules) |
 | `StingTools/Data/Fabrication/` | STING_FAB_RULES.json (6 disciplines), STING_ISO_SYMBOLS_INDEX.csv (180+ symbols) |
 | `StingTools/Data/Parameters/` | STING_PARAMS_V4.txt shared-parameter fragment |
-| `Families/AssemblyTitleBlocks/` | 8 title block parameter spec stubs + README |
+| `Families/AssemblyTitleBlocks/` | 7 title block parameter spec stubs + README |
 
 ### New namespaces
 
@@ -575,7 +575,7 @@ a default `manifest.json` seeded from `ProjectInformation` and
 ### Caveats
 
 1. Built without `dotnet build` verification — every Revit API call uses the documented signature but has not been compile-checked. `// TODO-VERIFY-API` comments mark the most uncertain spots (`AssemblyInstance.Create` category arg, `Conduit.Create` / `Pipe.Create` / `Duct.Create` overloads, ISO 6412 axonometric section transform).
-2. The 8 title block `.rfa` families are NOT shipped — only their parameter specs. `ShopDrawingComposer.ResolveTitleBlock` falls back to the first available title block in the project.
+2. The 7 title block `.rfa` families are NOT shipped — only their parameter specs. `ShopDrawingComposer.ResolveTitleBlock` falls back to the first available title block in the project (now warns loudly via `FabricationResult.Warnings` and `StingLog`).
 3. ISO 6412 detail families (180 entries) are referenced by name in `STING_ISO_SYMBOLS_INDEX.csv`; `IsoSymbolPlacer` lazy-loads from `Families/ISO6412/` and warns once per missing family.
 
 ## Technology Stack
