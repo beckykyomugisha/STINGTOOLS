@@ -901,7 +901,8 @@ app.MapHub<Planscape.Infrastructure.SignalR.CrdtHub>("/hubs/crdt");
 
     if (app.Environment.IsDevelopment())
     {
-        await Planscape.API.SeedData.SeedAsync(db, app.Environment);
+        var storage = scope.ServiceProvider.GetService<Planscape.Core.Interfaces.IFileStorageService>();
+        await Planscape.API.SeedData.SeedAsync(db, app.Environment, storage);
     }
 }
 

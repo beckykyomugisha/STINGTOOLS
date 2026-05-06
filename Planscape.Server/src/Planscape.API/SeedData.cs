@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Planscape.Core.Entities;
+using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
 
 namespace Planscape.API;
@@ -15,7 +16,8 @@ public static class SeedData
     // IsDevelopment() guard is bypassed. The demo admin (admin@planscape.demo /
     // admin123) and Premium licence key were a back-door if Production ever
     // started against an empty DB.
-    public static async Task SeedAsync(PlanscapeDbContext db, IHostEnvironment env)
+    public static async Task SeedAsync(PlanscapeDbContext db, IHostEnvironment env,
+        IFileStorageService? storage = null)
     {
         if (env.IsProduction())
         {
@@ -349,6 +351,133 @@ public static class SeedData
             });
         }
 
+        // ── Demo 3-D Model (glTF/GLB) ────────────────────────────────────────
+        // Seed a minimal but valid GLB so the model viewer works on a fresh
+        // database without needing to publish anything from the Revit plugin.
+        // Three coloured floor slabs (ground / L1 / L2) in a 10 × 8 m footprint.
+        if (storage != null &&
+            !await db.ProjectModels.AnyAsync(m => m.ProjectId == project.Id))
+        {
+            try
+            {
+                byte[] glbBytes = BuildDemoGlb();
+                using var ms = new MemoryStream(glbBytes);
+                string path = await storage.SaveScopedAsync(tenant.Id, project.Id,
+                    "nhw-demo-building.glb", ms);
+                db.ProjectModels.Add(new ProjectModel
+                {
+                    TenantId      = tenant.Id,
+                    ProjectId     = project.Id,
+                    Name          = "NHW Demo — 3-Storey Building",
+                    Description   = "Auto-seeded demo model (ground floor + L1 + L2 slabs)",
+                    Discipline    = "A",
+                    FileName      = "nhw-demo-building.glb",
+                    Format        = ModelFormat.Glb,
+                    StoragePath   = path,
+                    FileSizeBytes = glbBytes.Length,
+                    ElementCount  = 3,
+                    Units         = "m",
+                    Revision      = "P01",
+                    BoundsMinX    = 0, BoundsMinY = 0, BoundsMinZ = 0,
+                    BoundsMaxX    = 10, BoundsMaxY = 7.3, BoundsMaxZ = 8,
+                    UploadedBy    = "Planscape Seed",
+                });
+            }
+            catch { /* non-critical — viewer just shows "no models yet" */ }
+        }
+
         await db.SaveChangesAsync();
+    }
+
+    // ── Minimal GLB builder ────────────────────────────────────────────────
+    // Generates a valid glTF 2.0 binary with three coloured floor slabs:
+    //   - Ground floor (grey)  y = 0.0 – 0.3 m
+    //   - Level 1 (blue)       y = 3.5 – 3.8 m
+    //   - Level 2 (green)      y = 7.0 – 7.3 m
+    // Footprint: 10 m (X) × 8 m (Z). Each slab is a closed box mesh.
+    private static byte[] BuildDemoGlb()
+    {
+        const float W = 10f, D = 8f, SH = 0.3f;
+        float[] ys = { 0f, 3.5f, 7.0f };
+
+        // Binary buffer layout:
+        //   [0   .. 287]  vertices: 3 slabs × 8 verts × 3 floats × 4 bytes = 288 bytes
+        //   [288 .. 503]  indices:  3 slabs × 36 uint16 × 2 bytes = 216 bytes
+        var bin = new byte[504];
+
+        // Clockwise winding (glTF default back-face culling off — visible from any angle).
+        ushort[] faceIdx = { 0,2,1, 0,3,2, 4,5,6, 4,6,7,
+                             3,7,6, 3,6,2, 1,0,4, 1,4,5,
+                             1,2,6, 1,6,5, 0,4,7, 0,7,3 };
+
+        for (int s = 0; s < 3; s++)
+        {
+            float y0 = ys[s], y1 = y0 + SH;
+            float[] xs  = { 0, W, W, 0, 0, W, W, 0 };
+            float[] yv  = { y0,y0,y0,y0, y1,y1,y1,y1 };
+            float[] zv  = { 0, 0, D, D,  0, 0, D, D };
+            for (int v = 0; v < 8; v++)
+            {
+                int p = s * 96 + v * 12;
+                BitConverter.GetBytes(xs[v]).CopyTo(bin, p);
+                BitConverter.GetBytes(yv[v]).CopyTo(bin, p + 4);
+                BitConverter.GetBytes(zv[v]).CopyTo(bin, p + 8);
+            }
+            for (int i = 0; i < 36; i++)
+                BitConverter.GetBytes(faceIdx[i]).CopyTo(bin, 288 + s * 72 + i * 2);
+        }
+
+        string json =
+            "{\"asset\":{\"version\":\"2.0\",\"generator\":\"Planscape Demo Seed\"}," +
+            "\"scene\":0,\"scenes\":[{\"name\":\"NHW-2026\",\"nodes\":[0,1,2]}]," +
+            "\"nodes\":[{\"name\":\"Ground Floor\",\"mesh\":0}," +
+                       "{\"name\":\"Level 1\",\"mesh\":1}," +
+                       "{\"name\":\"Level 2\",\"mesh\":2}]," +
+            "\"meshes\":[{\"name\":\"GF Slab\",\"primitives\":[{\"attributes\":{\"POSITION\":0},\"indices\":3,\"material\":0}]}," +
+                        "{\"name\":\"L1 Slab\",\"primitives\":[{\"attributes\":{\"POSITION\":1},\"indices\":4,\"material\":1}]}," +
+                        "{\"name\":\"L2 Slab\",\"primitives\":[{\"attributes\":{\"POSITION\":2},\"indices\":5,\"material\":2}]}]," +
+            "\"materials\":[" +
+                "{\"name\":\"Concrete\",\"pbrMetallicRoughness\":{\"baseColorFactor\":[0.55,0.55,0.55,1.0]}}," +
+                "{\"name\":\"L1 Blue\",\"pbrMetallicRoughness\":{\"baseColorFactor\":[0.20,0.47,0.76,1.0]}}," +
+                "{\"name\":\"L2 Green\",\"pbrMetallicRoughness\":{\"baseColorFactor\":[0.18,0.65,0.38,1.0]}}]," +
+            "\"accessors\":[" +
+                "{\"bufferView\":0,\"componentType\":5126,\"count\":8,\"type\":\"VEC3\",\"max\":[10,0.3,8],\"min\":[0,0,0]}," +
+                "{\"bufferView\":1,\"componentType\":5126,\"count\":8,\"type\":\"VEC3\",\"max\":[10,3.8,8],\"min\":[0,3.5,0]}," +
+                "{\"bufferView\":2,\"componentType\":5126,\"count\":8,\"type\":\"VEC3\",\"max\":[10,7.3,8],\"min\":[0,7.0,0]}," +
+                "{\"bufferView\":3,\"componentType\":5123,\"count\":36,\"type\":\"SCALAR\"}," +
+                "{\"bufferView\":4,\"componentType\":5123,\"count\":36,\"type\":\"SCALAR\"}," +
+                "{\"bufferView\":5,\"componentType\":5123,\"count\":36,\"type\":\"SCALAR\"}]," +
+            "\"bufferViews\":[" +
+                "{\"buffer\":0,\"byteOffset\":0,\"byteLength\":96,\"target\":34962}," +
+                "{\"buffer\":0,\"byteOffset\":96,\"byteLength\":96,\"target\":34962}," +
+                "{\"buffer\":0,\"byteOffset\":192,\"byteLength\":96,\"target\":34962}," +
+                "{\"buffer\":0,\"byteOffset\":288,\"byteLength\":72,\"target\":34963}," +
+                "{\"buffer\":0,\"byteOffset\":360,\"byteLength\":72,\"target\":34963}," +
+                "{\"buffer\":0,\"byteOffset\":432,\"byteLength\":72,\"target\":34963}]," +
+            "\"buffers\":[{\"byteLength\":504}]}";
+
+        byte[] jb = System.Text.Encoding.UTF8.GetBytes(json);
+        int jp   = (jb.Length + 3) & ~3;          // JSON padded length (4-byte aligned)
+        int total = 12 + 8 + jp + 8 + 504;
+        var glb  = new byte[total];
+
+        // GLB header (12 bytes)
+        BitConverter.GetBytes(0x46546C67u).CopyTo(glb, 0);   // magic "glTF"
+        BitConverter.GetBytes(2u).CopyTo(glb, 4);             // version 2
+        BitConverter.GetBytes((uint)total).CopyTo(glb, 8);
+
+        // JSON chunk
+        BitConverter.GetBytes((uint)jp).CopyTo(glb, 12);
+        BitConverter.GetBytes(0x4E4F534Au).CopyTo(glb, 16);  // chunk type "JSON"
+        jb.CopyTo(glb, 20);
+        for (int i = jb.Length; i < jp; i++) glb[20 + i] = 0x20; // space-pad to alignment
+
+        // Binary chunk
+        int bs = 20 + jp;
+        BitConverter.GetBytes(504u).CopyTo(glb, bs);
+        BitConverter.GetBytes(0x004E4942u).CopyTo(glb, bs + 4); // chunk type "BIN\0"
+        bin.CopyTo(glb, bs + 8);
+
+        return glb;
     }
 }
