@@ -39,6 +39,20 @@ namespace StingTools.Commands.Fabrication
         public static bool PlaceISO6412Symbols { get; set; } = true;
         public static bool EmitPerDisciplineCsv{ get; set; } = true;
 
+        // Per-discipline ISO 6412 symbol toggles (only honoured when the
+        // master PlaceISO6412Symbols flag above is on). Lets a user
+        // generate symbol-stamped pipe drawings while leaving duct /
+        // electrical assemblies bare.
+        public static bool PlaceISOPipe       { get; set; } = true;
+        public static bool PlaceISODuct       { get; set; } = true;
+        public static bool PlaceISOElectrical { get; set; } = true;
+
+        /// <summary>Symbol placement run-mode. Off = skip; NewOnly =
+        /// idempotent (skip members already symbolised); Replace = purge
+        /// previously placed symbols on the view first, then re-place.</summary>
+        public enum PlacementMode { Off, NewOnly, Replace }
+        public static PlacementMode SymbolPlacementMode { get; set; } = PlacementMode.NewOnly;
+
         // Content mode — ISO 6412 (workshop) vs Generic (geometry only)
         public static bool ContentModeIso6412  { get; set; } = true;
 

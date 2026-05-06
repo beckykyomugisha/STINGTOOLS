@@ -144,6 +144,7 @@ namespace StingTools.UI
 
             stack.Children.Add(BuildAssembliesCard());
             stack.Children.Add(BuildSheetsCard());
+            stack.Children.Add(BuildSymbolsCard());
             if (_res.Warnings.Count > 0) stack.Children.Add(BuildWarningsCard());
 
             scroll.Content = stack;
@@ -182,6 +183,117 @@ namespace StingTools.UI
             body.Children.Add(MetricRow("Failed", _res.FailedCount.ToString(),
                 accent: _res.FailedCount > 0 ? RedColor : (Color?)null));
             return Card("Sheets", body);
+        }
+
+        private UIElement BuildSymbolsCard()
+        {
+            var body = new StackPanel();
+            // FabricationOptions is static — read directly rather than
+            // aliasing the type to a local (CS0723 / CS0176).
+            bool optionOn = StingTools.Commands.Fabrication.FabricationOptions.PlaceISO6412Symbols;
+            body.Children.Add(MetricRow("Placement option", optionOn ? "ON" : "OFF",
+                accent: optionOn ? GreenColor : (Color?)SubtleColor));
+            body.Children.Add(MetricRow("Mode",
+                StingTools.Commands.Fabrication.FabricationOptions.SymbolPlacementMode.ToString()));
+            body.Children.Add(MetricRow("Symbols placed", _res.SymbolsPlaced.ToString(),
+                accent: _res.SymbolsPlaced > 0 ? GreenColor : (Color?)null,
+                bold: _res.SymbolsPlaced > 0));
+            if (_res.SymbolsReplaced > 0)
+                body.Children.Add(MetricRow("Symbols replaced", _res.SymbolsReplaced.ToString(),
+                    accent: AmberColor));
+            if (_res.UnmatchedMembers > 0)
+                body.Children.Add(MetricRow("Unmatched members", _res.UnmatchedMembers.ToString(),
+                    accent: AmberColor));
+            body.Children.Add(MetricRow("Missing families", _res.MissingFamilies.Count.ToString(),
+                accent: _res.MissingFamilies.Count > 0 ? AmberColor : (Color?)null));
+
+            // Per-discipline breakdown when there's more than one.
+            if (_res.SymbolsByDiscipline.Count > 1)
+            {
+                body.Children.Add(new TextBlock
+                {
+                    Text = "By discipline:",
+                    FontSize = 11,
+                    Foreground = new SolidColorBrush(SubtleColor),
+                    Margin = new Thickness(0, 6, 0, 4),
+                });
+                foreach (var kv in _res.SymbolsByDiscipline.OrderByDescending(kv => kv.Value))
+                    body.Children.Add(MetricRow("  " + kv.Key, kv.Value.ToString()));
+            }
+
+            if (_res.MissingFamilies.Count > 0)
+            {
+                body.Children.Add(new TextBlock
+                {
+                    Text = $"Missing .rfa files (first {Math.Min(6, _res.MissingFamilies.Count)} of {_res.MissingFamilies.Count}):",
+                    FontSize = 11,
+                    Foreground = new SolidColorBrush(SubtleColor),
+                    Margin = new Thickness(0, 6, 0, 4),
+                });
+                foreach (var fam in _res.MissingFamilies.OrderBy(f => f).Take(6))
+                {
+                    body.Children.Add(new TextBlock
+                    {
+                        Text = "• " + fam,
+                        Foreground = new SolidColorBrush(FgColor),
+                        FontSize = 11,
+                        TextWrapping = TextWrapping.Wrap,
+                        Margin = new Thickness(0, 1, 0, 1),
+                    });
+                }
+                body.Children.Add(new TextBlock
+                {
+                    Text = "Drop the .rfa files into Families/ISO6412/ next to the plugin and re-run, " +
+                           "or use the standalone Place ISO 6412 Symbols command.",
+                    Foreground = new SolidColorBrush(SubtleColor),
+                    FontSize = 11,
+                    FontStyle = FontStyles.Italic,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 6, 0, 0),
+                });
+            }
+            else if (optionOn && _res.AssemblyIds.Count > 0 && _res.SymbolsPlaced == 0)
+            {
+                string hint = _res.UnmatchedMembers > 0
+                    ? "Option was ON but every member was unmatched — extend STING_ISO_SYMBOLS_INDEX.csv " +
+                      "with codes that match your fitting names, or check the family keyword tokens."
+                    : "Option was ON but nothing placed — check that STING_ISO_SYMBOLS_INDEX.csv " +
+                      "is in the data folder and the symbol_code keywords match member names.";
+                body.Children.Add(new TextBlock
+                {
+                    Text = hint,
+                    Foreground = new SolidColorBrush(SubtleColor),
+                    FontSize = 11,
+                    FontStyle = FontStyles.Italic,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 6, 0, 0),
+                });
+            }
+
+            // Sample of unmatched member names so users can see WHY
+            // symbols weren't found and update the catalogue.
+            if (_res.UnmatchedSamples.Count > 0)
+            {
+                body.Children.Add(new TextBlock
+                {
+                    Text = $"Unmatched member samples (first {Math.Min(5, _res.UnmatchedSamples.Count)}):",
+                    FontSize = 11,
+                    Foreground = new SolidColorBrush(SubtleColor),
+                    Margin = new Thickness(0, 6, 0, 4),
+                });
+                foreach (var s in _res.UnmatchedSamples.Take(5))
+                {
+                    body.Children.Add(new TextBlock
+                    {
+                        Text = "• " + s,
+                        Foreground = new SolidColorBrush(FgColor),
+                        FontSize = 11,
+                        TextWrapping = TextWrapping.Wrap,
+                        Margin = new Thickness(0, 1, 0, 1),
+                    });
+                }
+            }
+            return Card("ISO 6412 symbols", body);
         }
 
         private UIElement BuildWarningsCard()

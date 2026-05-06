@@ -103,6 +103,28 @@ namespace StingTools.Core.Fabrication
             try
             {
                 set.ViewIso6412 = CreateIso6412Section(doc, ai);
+                // Stamp the view name with the assembly id so
+                // PlaceIsoSymbolsCommand and any future drift-checker
+                // can resolve view ↔ assembly without depending on
+                // GetAssociatedAssemblyViews() (which only returns views
+                // created via AssemblyViewUtils, not raw ViewSection).
+                if (set.ViewIso6412 != null && set.ViewIso6412 != ElementId.InvalidElementId
+                    && doc.GetElement(set.ViewIso6412) is View v)
+                {
+                    try
+                    {
+                        string assyName = "";
+                        try { assyName = (doc.GetElement(ai.GetTypeId()) as AssemblyType)?.Name ?? ""; } catch { }
+                        string suffix = $"::{assemblyId.Value}";
+                        string baseName = $"STING ISO 6412 - {assyName}";
+                        if (string.IsNullOrEmpty(assyName)) baseName = "STING ISO 6412";
+                        // Revit view names must be unique — append assy id
+                        // to avoid collisions when two assemblies share a
+                        // type name in the same document.
+                        v.Name = baseName + " " + suffix;
+                    }
+                    catch (Exception nx) { set.Warnings.Add($"ISO 6412 rename: {nx.Message}"); }
+                }
             }
             catch (Exception ex) { set.Warnings.Add($"ISO 6412: {ex.Message}"); }
 
