@@ -4,7 +4,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
+using Planscape.API.Authorization;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.Services;
 using Planscape.Infrastructure.SignalR;
 
 namespace Planscape.API.Controllers;
@@ -17,6 +19,7 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/projects/{projectId}/members")]
 [Authorize]
+[ProjectAccess]
 public class ProjectMembersController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
@@ -347,8 +350,10 @@ public class ProjectMembersController : ControllerBase
 
     private async Task<bool> CanAccessProjectAsync(Guid projectId)
     {
-        var tenantId = GetTenantId();
-        return await _db.Projects.AnyAsync(p => p.Id == projectId && p.TenantId == tenantId);
+        // Phase 175 — visibility is author OR active member OR tenant admin.
+        // The previous tenant-only check leaked project membership across
+        // un-invited users in the same tenant.
+        return await ProjectVisibility.CanSeeProjectAsync(_db, projectId, User);
     }
 
     private async Task<bool> IsManagerOrAboveAsync(Guid projectId)

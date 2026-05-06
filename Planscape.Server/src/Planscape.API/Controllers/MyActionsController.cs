@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Infrastructure.Data;
+using Planscape.API.Authorization;
 
 namespace Planscape.API.Controllers;
 
@@ -25,6 +26,7 @@ namespace Planscape.API.Controllers;
 [Route("api/projects/{projectId}/[controller]")]
 [EnableRateLimiting("mobile")]
 [Authorize]
+[ProjectAccess]
 public class MyActionsController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;

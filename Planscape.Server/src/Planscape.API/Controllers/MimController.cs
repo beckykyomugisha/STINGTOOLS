@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Infrastructure.Data;
 using Planscape.MIM.Entities;
+using Planscape.API.Authorization;
 
 namespace Planscape.API.Controllers;
 
@@ -13,6 +14,7 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/projects/{projectId}/mim")]
 [Authorize]
+[ProjectAccess]
 public class MimController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;

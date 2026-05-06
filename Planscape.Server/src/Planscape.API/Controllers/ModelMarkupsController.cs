@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.API.Authorization;
 
 namespace Planscape.API.Controllers;
 
@@ -15,6 +16,7 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/projects/{projectId:guid}/markups")]
 [Authorize]
+[ProjectAccess]
 public class ModelMarkupsController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;

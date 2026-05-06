@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Planscape.API.Services;
 using Planscape.Infrastructure.Data;
+using Planscape.API.Authorization;
 
 namespace Planscape.API.Controllers;
 
@@ -12,6 +13,7 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/projects/{projectId}/warnings")]
 [Authorize]
+[ProjectAccess]
 public class WarningsController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;

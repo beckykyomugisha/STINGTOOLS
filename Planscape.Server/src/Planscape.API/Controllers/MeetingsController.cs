@@ -7,6 +7,7 @@ using Planscape.API.Services;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.SignalR;
+using Planscape.API.Authorization;
 
 namespace Planscape.API.Controllers;
 
@@ -16,6 +17,7 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/projects/{projectId}/meetings")]
 [Authorize]
+[ProjectAccess]
 public class MeetingsController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;

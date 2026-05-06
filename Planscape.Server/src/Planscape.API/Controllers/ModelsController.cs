@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.API.Authorization;
 
 namespace Planscape.API.Controllers;
 
@@ -26,6 +27,7 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/projects/{projectId:guid}/models")]
 [Authorize]
+[ProjectAccess]
 public class ModelsController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;

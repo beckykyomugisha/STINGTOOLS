@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
+using Planscape.API.Authorization;
 
 namespace Planscape.API.Controllers;
 
@@ -28,6 +29,7 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/projects/{projectId:guid}/bcf")]
 [Authorize]
+[ProjectAccess]
 public class BcfController : ControllerBase
 {
     private const string BcfXmlns  = "http://www.buildingsmart-tech.org/BCFXML/2.1";

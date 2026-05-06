@@ -612,6 +612,9 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.Property<DateTime>("CreatedAt")
                     .HasColumnType("timestamp with time zone");
 
+                b.Property<Guid?>("CreatedById")
+                    .HasColumnType("uuid");
+
                 b.Property<string>("Description")
                     .HasColumnType("text");
 
@@ -662,6 +665,8 @@ namespace Planscape.Infrastructure.Data.Migrations
 
                 b.HasIndex("TenantId", "Code")
                     .IsUnique();
+
+                b.HasIndex("TenantId", "CreatedById");
 
                 b.ToTable("Projects");
             });

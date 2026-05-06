@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.SignalR;
+using Planscape.API.Authorization;
 
 namespace Planscape.API.Controllers;
 
@@ -16,6 +17,7 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/projects/{projectId}/compliance")]
 [Authorize]
+[ProjectAccess]
 [EnableRateLimiting("mobile")]
 public class ComplianceController : ControllerBase
 {

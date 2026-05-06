@@ -9,6 +9,7 @@ using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.SignalR;
+using Planscape.API.Authorization;
 
 namespace Planscape.API.Controllers;
 
@@ -16,6 +17,7 @@ namespace Planscape.API.Controllers;
 [Route("api/projects/{projectId}/[controller]")]
 [EnableRateLimiting("mobile")]
 [Authorize]
+[ProjectAccess]
 public class IssuesController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;

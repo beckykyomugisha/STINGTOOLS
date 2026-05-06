@@ -10,6 +10,7 @@ using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.SignalR;
+using Planscape.API.Authorization;
 
 namespace Planscape.API.Controllers;
 
@@ -20,6 +21,7 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/projects/{projectId}/[controller]")]
 [Authorize]
+[ProjectAccess]
 [EnableRateLimiting("mobile")]
 public class DocumentsController : ControllerBase
 {
