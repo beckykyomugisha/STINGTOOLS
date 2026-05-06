@@ -418,23 +418,29 @@ namespace StingTools.Core
                 // Prevents stale project-wide scope from carrying over between projects
                 Select.SelectionScopeHelper.SetScope(false);
 
-                // Standards: sync ProjectStandardsManager from this document's
-                // PROJECT_REGION instance parameter. The manager persists to
-                // %APPDATA%, which is per-user not per-project — without this
-                // sync, opening a different .rvt keeps the previous region's
-                // electrical / fire / structural bindings active.
+                // Standards: sync ProjectStandardsManager from this document.
+                // The manager persists to %APPDATA% (per-user, not per-project)
+                // so without a per-project hint, opening a different .rvt keeps
+                // the previous region's electrical / fire / structural bindings
+                // active. Read order: PROJECT_REGION param → sidecar JSON next
+                // to the .rvt → leave singleton unchanged.
                 try
                 {
                     var pi = e.Document?.ProjectInformation;
-                    var pRegion = pi?.LookupParameter("PROJECT_REGION");
-                    string projectRegion = pRegion?.AsString();
+                    string projectRegion = pi?.LookupParameter("PROJECT_REGION")?.AsString();
+                    string source = "PROJECT_REGION";
+                    if (string.IsNullOrWhiteSpace(projectRegion))
+                    {
+                        projectRegion = ProjectRegionSidecar.Read(e.Document);
+                        source = "sting_region.json";
+                    }
                     if (!string.IsNullOrWhiteSpace(projectRegion))
                     {
                         var mgr = StingTools.Standards.ProjectStandardsManager.Instance;
                         if (!string.Equals(mgr.Region, projectRegion, StringComparison.OrdinalIgnoreCase))
                         {
                             mgr.ApplyRegionalPreset(projectRegion);
-                            StingLog.Info($"Standards: synced active region → {projectRegion} from PROJECT_REGION");
+                            StingLog.Info($"Standards: synced active region → {projectRegion} (from {source})");
                         }
                     }
                 }

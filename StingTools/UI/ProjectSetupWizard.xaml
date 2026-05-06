@@ -1139,7 +1139,7 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,8">
                     <StackPanel>
                         <TextBlock Style="{StaticResource WizSectionHeader}"
-                                   Text="7. Review &amp; Execute"/>
+                                   Text="8. Review &amp; Execute"/>
                         <TextBlock Text="Review your selections, then click Run to automate the entire project setup."
                                    FontSize="10" Foreground="#777" Margin="0,0,0,8"/>
 

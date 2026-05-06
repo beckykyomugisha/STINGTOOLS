@@ -151,11 +151,13 @@ namespace StingTools.UI
 
                     // Pre-select the regional preset from PROJECT_REGION when
                     // it's already been set on this document (e.g. by a prior
-                    // wizard run or the SetRegionCommand). Falls back to the
-                    // singleton's current region otherwise.
+                    // wizard run or SetRegionCommand). Read order: param →
+                    // sidecar (sting_region.json) → singleton's current region.
                     try
                     {
                         string projRegion = pi.LookupParameter("PROJECT_REGION")?.AsString();
+                        if (string.IsNullOrWhiteSpace(projRegion))
+                            projRegion = ProjectRegionSidecar.Read(doc);
                         if (string.IsNullOrWhiteSpace(projRegion))
                             projRegion = StingTools.Standards.ProjectStandardsManager.Instance.Region;
                         if (!string.IsNullOrWhiteSpace(projRegion) && lstRegionPresets.Items.Count > 0)

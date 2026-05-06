@@ -844,7 +844,8 @@ namespace StingTools.Temp
 
                     // Standards regional preset — write PROJECT_REGION so the
                     // choice persists on the .rvt; the in-process singleton
-                    // is updated below (after the transaction commits).
+                    // and per-project sidecar are updated below (after the
+                    // transaction commits).
                     if (!string.IsNullOrWhiteSpace(data.Region))
                     {
                         try
@@ -865,7 +866,9 @@ namespace StingTools.Temp
                 // Apply the regional preset on the in-process singleton so
                 // every Standards-aware command that runs immediately after
                 // the wizard already sees the new electrical / HVAC / fire
-                // bindings (avoids the next-doc-open race).
+                // bindings (avoids the next-doc-open race). Also write the
+                // sidecar so the choice survives even on projects where
+                // PROJECT_REGION isn't bound to ProjectInformation.
                 if (!string.IsNullOrWhiteSpace(data.Region))
                 {
                     try
@@ -877,6 +880,7 @@ namespace StingTools.Temp
                     {
                         StingLog.Warn($"ApplyRegionalPreset({data.Region}) skipped: {ex.Message}");
                     }
+                    ProjectRegionSidecar.Write(doc, data.Region);
                 }
 
                 StingLog.Info($"Project Info set: '{data.ProjectName}' #{data.ProjectNumber}");

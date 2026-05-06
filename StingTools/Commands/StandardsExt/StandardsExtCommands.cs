@@ -202,9 +202,11 @@ namespace StingTools.Commands.StandardsExt
             try { mgr.ApplyRegionalPreset(picked); }
             catch (Exception ex) { StingLog.Error("ApplyRegionalPreset failed", ex); message = ex.Message; return Result.Failed; }
 
-            // Persist on the Revit document so the choice travels with the .rvt
-            // and the dock-panel status bar can read it back without consulting
-            // %APPDATA%. PROJECT_REGION lives on ProjectInformation.
+            // Persist on the Revit document so the choice travels with the .rvt.
+            // Two channels: PROJECT_REGION on ProjectInformation (preferred —
+            // visible in schedules) and a sidecar JSON next to the .rvt
+            // (resilient fallback when the shared parameter isn't bound).
+            bool paramWritten = false;
             try
             {
                 var pi = ctx.Doc.ProjectInformation;
@@ -214,19 +216,29 @@ namespace StingTools.Commands.StandardsExt
                     {
                         t.Start();
                         var p = pi.LookupParameter("PROJECT_REGION");
-                        if (p != null && !p.IsReadOnly) p.Set(picked);
+                        if (p != null && !p.IsReadOnly)
+                        {
+                            p.Set(picked);
+                            paramWritten = true;
+                        }
                         t.Commit();
                     }
                 }
             }
             catch (Exception ex) { StingLog.Warn($"PROJECT_REGION write skipped: {ex.Message}"); }
+            bool sidecarWritten = ProjectRegionSidecar.Write(ctx.Doc, picked);
 
             var summary = mgr.GetConfigurationSummary();
             var panel = StingResultPanel.Create("Active region updated").SetSubtitle(picked);
             var sec = panel.AddSection("STANDARDS BINDING");
             foreach (var kv in summary.Standards) sec.Metric(kv.Key, kv.Value);
             sec.Metric("Unit system", summary.UnitSystem.ToString());
-            panel.Text($"Saved to {Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)}\\StingTools\\config\\project-standards.json");
+            var persist = panel.AddSection("PERSISTENCE");
+            persist.Metric("PROJECT_REGION param", paramWritten ? "written" : "NOT BOUND — load shared params to enable");
+            persist.Metric("Project sidecar",      sidecarWritten ? "written" : "FAILED (unsaved doc?)");
+            persist.Metric("User store",            $"{Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)}\\StingTools\\config\\project-standards.json");
+            if (!paramWritten)
+                panel.Text("Tip: PROJECT_REGION isn't bound to Project Information on this project. The region is still saved to the per-project sidecar (sting_region.json) and the per-user appdata store, so document-open sync will recover it. Bind the shared parameter to surface the value in schedules and title blocks.");
             panel.Show();
             return Result.Succeeded;
         }
