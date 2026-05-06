@@ -8,10 +8,24 @@
 <meta property="og:title" content="Planscape — BIM coordination for East African firms">
 <meta property="og:description" content="From $30/firm/month. Revit plugin + offline-first mobile + ISO 19650 templates pre-built. Invoiced in your local currency.">
 <meta property="og:type" content="website">
+<meta property="og:url" content="https://planscape.app/">
+<meta property="og:image" content="https://planscape.app/images/og-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Planscape — BIM coordination for East African firms">
+<meta name="twitter:description" content="From $30/firm/month. Revit plugin + offline-first mobile + ISO 19650 templates. Invoiced in UGX/KES/TZS.">
+<meta name="twitter:image" content="https://planscape.app/images/og-card.png">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="icon" type="image/png" href="/images/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="/images/apple-touch-icon.png">
 <link rel="canonical" href="https://planscape.app/">
 <!-- Phase 169 — Mapbox GL JS for the Africa project location map.
      Replace PLANSCAPE_MAPBOX_TOKEN inside the bottom <script> with a
      real public token from mapbox.com (free tier — no credit card). -->
+<link rel="preconnect" href="https://api.mapbox.com">
+<link rel="preconnect" href="https://client.crisp.chat">
 <link href='https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css' rel='stylesheet' />
 <script src='https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js'></script>
 <style>
@@ -80,7 +94,79 @@ footer{padding:32px 24px;text-align:center;color:var(--muted);font-size:13px;bor
 .map-marker-mkt.completed{background:#22C55E}
 .map-marker-mkt::after{content:"";position:absolute;inset:-2px;border-radius:50%;background:inherit;opacity:0.35;animation:mkt-pulse 2s ease-out infinite;z-index:-1}
 @keyframes mkt-pulse{0%{transform:scale(1);opacity:0.5}80%{transform:scale(2.6);opacity:0}100%{transform:scale(2.6);opacity:0}}
+
+/* How it works */
+.how-steps{display:grid;gap:0;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));position:relative}
+.how-step{text-align:center;padding:32px 24px}
+.how-step .num{width:52px;height:52px;border-radius:50%;background:var(--accent);color:#fff;font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
+.how-step h3{margin:0 0 8px;font-size:17px}
+.how-step p{margin:0;color:var(--muted);font-size:14px}
+.how-connector{display:none}
+@media (min-width:641px){.how-connector{display:block;position:absolute;top:68px;left:calc(33.33% - 12px);width:calc(33.33% + 24px);height:2px;background:linear-gradient(90deg,var(--accent),rgba(232,145,45,0.3));pointer-events:none}}
+
+/* Demo form */
+.demo-form{display:flex;gap:8px;flex-wrap:wrap;margin-top:24px;max-width:480px}
+.demo-form input[type=email]{flex:1;min-width:200px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;font-size:15px;outline:none;background:var(--card);color:var(--ink)}
+.demo-form input[type=email]:focus{border-color:var(--accent)}
+.demo-form button{padding:12px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:600;font-size:15px;cursor:pointer;white-space:nowrap}
+.demo-form button:hover{opacity:0.9}
+#demo-msg{margin-top:10px;font-size:13px;color:var(--muted)}
+
+/* FAQ */
+#faq{background:var(--bg)}
+.faq-list{max-width:720px;margin:0 auto}
+.faq-item{border-bottom:1px solid var(--line);padding:20px 0}
+.faq-item:last-child{border-bottom:none}
+.faq-q{font-weight:600;font-size:16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;list-style:none}
+.faq-q::after{content:"＋";color:var(--accent);font-size:20px;flex-shrink:0;transition:transform 0.2s}
+details[open] .faq-q::after{transform:rotate(45deg)}
+.faq-a{color:var(--muted);font-size:15px;padding:12px 0 4px;line-height:1.65}
+.faq-a a{color:var(--accent)}
 </style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://planscape.app/#org",
+      "name": "Planscape Ltd",
+      "url": "https://planscape.app",
+      "logo": "https://planscape.app/images/og-card.png",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "email": "hello@planscape.app",
+        "contactType": "customer support"
+      },
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Kampala",
+        "addressCountry": "UG"
+      }
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://planscape.app/#app",
+      "name": "Planscape",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Windows, iOS, Android",
+      "description": "ISO 19650 BIM coordination for East African AEC firms. Revit plugin, offline-first mobile, local currency invoicing.",
+      "offers": {
+        "@type": "Offer",
+        "price": "30",
+        "priceCurrency": "USD",
+        "priceSpecification": {
+          "@type": "UnitPriceSpecification",
+          "price": "30",
+          "priceCurrency": "USD",
+          "unitText": "MONTH"
+        }
+      },
+      "publisher": { "@id": "https://planscape.app/#org" }
+    }
+  ]
+}
+</script>
 </head>
 <body>
 
@@ -88,9 +174,11 @@ footer{padding:32px 24px;text-align:center;color:var(--muted);font-size:13px;bor
   <div class="brand">Plan<span class="dot">·</span>scape</div>
   <div class="links">
     <a href="#features">Features</a>
+    <a href="#how-it-works">How it works</a>
     <a href="#compare">Compare</a>
     <a href="/api/pricing/html">Pricing</a>
     <a href="/docs/">Docs</a>
+    <a href="https://wa.me/256700000000?text=Hi%2C%20I%27d%20like%20to%20learn%20more%20about%20Planscape" class="links" target="_blank" rel="noopener" title="Chat on WhatsApp" style="color:var(--muted);font-size:18px;margin:0 8px;text-decoration:none">💬</a>
   </div>
   <a href="/signup" class="cta">Start free trial</a>
 </nav>
@@ -102,6 +190,7 @@ footer{padding:32px 24px;text-align:center;color:var(--muted);font-size:13px;bor
     <a href="/signup" class="primary">Start 30-day trial</a>
     <a href="#demo" class="secondary">Watch 90-second demo</a>
   </div>
+  <p style="margin:12px 0 0;font-size:13px;color:var(--muted)">No credit card required · Cancel any time</p>
   <div class="price-strip">
     From <strong>$30/firm/month</strong> · ~$4.50 per seat · 10× cheaper than Autodesk Construction Cloud
   </div>
@@ -120,6 +209,28 @@ footer{padding:32px 24px;text-align:center;color:var(--muted);font-size:13px;bor
   </div>
 </section>
 
+<section id="how-it-works">
+  <h2>From model to site in three steps</h2>
+  <p class="lead">Planscape fits the workflow your team already uses — it doesn't replace it.</p>
+  <div class="how-steps" style="position:relative">
+    <div class="how-step">
+      <div class="num">1</div>
+      <h3>Author in Revit</h3>
+      <p>Tag elements with ISO 19650 identifiers direct from the Planscape ribbon. One click syncs the model to the cloud — no IFC export, no manual upload.</p>
+    </div>
+    <div class="how-step">
+      <div class="num">2</div>
+      <h3>Coordinate in the cloud</h3>
+      <p>RFIs, NCRs, transmittals, and stage-gate approvals live in a shared CDE. Every action is timestamped and hash-chained for the audit trail.</p>
+    </div>
+    <div class="how-step">
+      <div class="num">3</div>
+      <h3>Verify on site</h3>
+      <p>Site coordinators use the mobile app — offline when there's no signal. QR-scan an asset to pull its full tag history. Photos and voice notes sync when back in range.</p>
+    </div>
+  </div>
+</section>
+
 <section id="compare">
   <h2>How we stack up</h2>
   <p class="lead">Per-seat cost at a 33-person firm. We don't try to be the most feature-rich BIM platform on earth — we try to be the right one for a mid-size East African practice.</p>
@@ -134,18 +245,27 @@ footer{padding:32px 24px;text-align:center;color:var(--muted);font-size:13px;bor
       <tr><td>Dalux</td><td>$30–50</td><td>Partial</td><td>USD only</td></tr>
     </tbody>
   </table>
+  <p style="font-size:12px;color:var(--muted);margin-top:10px">
+    Competitor pricing sourced from public rate cards, May 2026. Actual pricing varies by contract. Planscape per-seat figure based on Network plan ($150/mo ÷ 33 users).
+  </p>
 </section>
 
 <section>
   <div class="testimonial">
     <div class="quote">"We were paying for ACC seats we never used. Switched 18 coordinators to Planscape and stopped sweating the monthly USD bill — local invoicing was the unlock."</div>
-    <div class="who">— Architect / Practice owner, Kampala (pilot, name on request)</div>
+    <div class="who">— Practice Owner, Kampala, Uganda · Pilot cohort, early 2026</div>
   </div>
 </section>
 
 <section id="demo">
   <h2>See it in 90 seconds</h2>
-  <p class="lead">Drop your email and we'll send you a private demo link. Or click <a href="/signup">Start free trial</a> and try it yourself — no credit card.</p>
+  <p class="lead">Enter your email and we'll send you a private demo link straight away. Or <a href="/signup" style="color:var(--accent);font-weight:600">start the free trial</a> — no credit card.</p>
+  <form class="demo-form" id="demo-form" onsubmit="handleDemoForm(event)">
+    <input type="email" name="email" placeholder="you@firm.co.ug" required autocomplete="email">
+    <button type="submit">Send me the demo</button>
+  </form>
+  <div id="demo-msg"></div>
+  <p style="margin-top:16px;font-size:13px;color:var(--muted)">📹 &nbsp;Prefer to watch now? <a href="https://www.youtube.com/watch?v=DEMO_VIDEO_ID" target="_blank" rel="noopener" style="color:var(--accent)">Open the 90-second walkthrough →</a></p>
 </section>
 
 <section id="africa">
@@ -154,15 +274,49 @@ footer{padding:32px 24px;text-align:center;color:var(--muted);font-size:13px;bor
       <div class="eyebrow">Made for Africa's AEC sector</div>
       <h2>Global standards. Built for East &amp; West Africa.</h2>
       <p>From hospital wings in Kampala to port infrastructure in Lagos, Planscape is built by AEC practitioners who understand the realities of delivery across the continent — mixed teams, variable connectivity, and projects that must satisfy both local standards and international donor requirements.</p>
-      <p>Six live demo pins on the map — drag, zoom, and click any one to see the project status. Compliance scores are seeded from the same data that powers the dashboard.</p>
+      <p>The map shows six representative project types from our pilot cohort — hospital, airport, port, mixed-use, commercial, and utilities — illustrating the range of sectors and geographies we're designed for.</p>
       <div class="africa-stats">
-        <span class="stat-chip">🌍 6 active projects across 5 countries</span>
-        <span class="stat-chip">🛰 3 continents served</span>
+        <span class="stat-chip">🌍 Pilot projects across East &amp; West Africa</span>
+        <span class="stat-chip">🗂 Demo data — real client data on request</span>
       </div>
     </div>
     <div>
       <div id="africa-map"></div>
     </div>
+  </div>
+</section>
+
+<section id="faq">
+  <h2 style="text-align:center">Frequently asked questions</h2>
+  <div class="faq-list">
+    <details class="faq-item">
+      <summary class="faq-q">Does it work without an internet connection?</summary>
+      <div class="faq-a">Yes — offline-first is a core design goal, not an afterthought. The mobile app queues photos, voice notes, issue pins, and CDE status changes locally and replays them automatically when connectivity is restored. The Revit plugin caches the last-known project state so authors can keep working and sync when back online.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">Which versions of Revit are supported?</summary>
+      <div class="faq-a">Revit 2025, 2026, and 2027. The plugin ships as a single compiled .addin — one download covers all three versions. Older versions (2023, 2024) are not supported due to API differences in the Revit 2025 release.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">How does billing in local currency work?</summary>
+      <div class="faq-a">At signup you pick your currency. East African currencies (UGX, KES, TZS, RWF) and West African (NGN, ZAR) are processed via Flutterwave — mobile money, bank transfer, and card all supported. USD, EUR, and GBP go through Stripe. Invoices are issued in your chosen currency so you never pay a foreign-exchange spread on a software subscription.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">Can I migrate from Autodesk Construction Cloud?</summary>
+      <div class="faq-a">Yes. We provide a BCF 2.1 import for issues and a document importer for CDE-structured file sets. Your Revit models come across as-is — the Planscape plugin reads the same .rvt files. Book a migration call with our team and we'll scope the move for your project count and data volume.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">Is the data stored in Africa?</summary>
+      <div class="faq-a">The primary database region is EU (Frankfurt), chosen for latency balance across East and West Africa and for GDPR compliance that satisfies international donor reporting requirements. An East Africa (Nairobi) edge replica is on the roadmap for 2026 Q3. If data residency in-country is a hard requirement, ask about the self-host option.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">What does "audit-grade trail" mean in practice?</summary>
+      <div class="faq-a">Every write operation appends a record to a hash chain in Postgres. Each record includes the previous record's SHA-256 hash, so the chain can be independently verified — any tampering breaks the sequence. The same mechanism is used in the Revit plugin's local sidecar file. This is court-admissible in most jurisdictions and satisfies ISO 19650-2 §5.6 audit requirements.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">Can we self-host Planscape on our own servers?</summary>
+      <div class="faq-a">Yes — the server stack (ASP.NET Core 8 + PostgreSQL + Redis + MinIO) ships as a Docker Compose configuration. Self-host is included in the Enterprise plan. See the <a href="/docs/ops/self-host">self-hosting guide</a> for requirements and a step-by-step deployment walkthrough.</div>
+    </details>
   </div>
 </section>
 
@@ -184,6 +338,35 @@ footer{padding:32px 24px;text-align:center;color:var(--muted);font-size:13px;bor
   the id the widget silently no-ops, which is what we want during
   pre-launch.
 -->
+<script>
+function handleDemoForm(e) {
+  e.preventDefault();
+  var form = document.getElementById('demo-form');
+  var msg  = document.getElementById('demo-msg');
+  var email = form.querySelector('input[type=email]').value;
+  var btn   = form.querySelector('button');
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  fetch('https://api.planscape.app/marketing/demo-request', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ email: email, source: 'marketing-site' })
+  })
+  .then(function(r){ return r.ok ? r.json() : Promise.reject(r.status); })
+  .then(function(){
+    form.style.display = 'none';
+    msg.style.color = '#16a34a';
+    msg.textContent = '✓ Demo link sent — check your inbox (and spam folder).';
+  })
+  .catch(function(){
+    btn.disabled = false;
+    btn.textContent = 'Send me the demo';
+    msg.style.color = '#dc2626';
+    msg.textContent = 'Something went wrong. Email us at hello@planscape.app instead.';
+  });
+}
+</script>
+
 <!--
   Phase 169 — Africa project location map. Hardcoded demo pins; no API
   call. Replace PLANSCAPE_MAPBOX_TOKEN below with a real public Mapbox
