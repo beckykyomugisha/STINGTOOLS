@@ -69,10 +69,28 @@ namespace StingTools.Core.Placement
                     new XYZ(bb.Max.X + pad, bb.Max.Y + pad, bb.Max.Z + pad));
                 var bbf = new BoundingBoxIntersectsFilter(outline);
 
+                // Phase 139.27 (N-02) — restrict to the room's phase so a
+                // demolished water fixture in a renovation project doesn't
+                // exclude an electrical socket in the new layout. When the
+                // room has no phase (older docs, schematic stage), the
+                // collector falls through to all phases.
                 var col = new FilteredElementCollector(_doc)
                     .OfCategory(BuiltInCategory.OST_PlumbingFixtures)
                     .WhereElementIsNotElementType()
                     .WherePasses(bbf);
+                ElementId roomPhaseId = ElementId.InvalidElementId;
+                try { roomPhaseId = room.CreatedPhaseId; }
+                catch { roomPhaseId = ElementId.InvalidElementId; }
+                if (roomPhaseId != null && roomPhaseId != ElementId.InvalidElementId)
+                {
+                    try
+                    {
+                        var phaseFilter = new ElementPhaseStatusFilter(roomPhaseId,
+                            new List<ElementOnPhaseStatus> { ElementOnPhaseStatus.Existing, ElementOnPhaseStatus.New });
+                        col = col.WherePasses(phaseFilter);
+                    }
+                    catch (Exception pex) { StingLog.Warn($"WetZone phase filter: {pex.Message}"); }
+                }
 
                 foreach (var el in col)
                 {

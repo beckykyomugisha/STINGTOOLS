@@ -82,6 +82,18 @@ namespace StingTools.Core.Placement
             LoadLuxTargets();
         }
 
+        /// <summary>
+        /// Phase 139.27 (X-02) — minimum acceptable BS EN 12464-1 / CIBSE LG7
+        /// uniformity ratio (Uo = Emin / Eavg). 0.40 is the published
+        /// minimum for general areas; 0.60 for tasks; 0.70 for fine work
+        /// (drawing offices, healthcare, classrooms). Below this floor
+        /// <see cref="LightingGridResult.Warnings"/> reports the rule as
+        /// non-compliant and the engine surfaces it in the run report.
+        /// Tunable per rule via <c>PlacementRule.MinUniformityRatio</c> when
+        /// set (> 0); otherwise this default applies.
+        /// </summary>
+        public double DefaultMinimumUniformity { get; set; } = 0.40;
+
         public LightingGridResult Compute(Room room) => Compute(room, null);
 
         /// <summary>
@@ -628,8 +640,21 @@ namespace StingTools.Core.Placement
                 if (avgE <= 0) return;
                 double uniformity = minE / avgE;
                 r.ActualUniformityRatio = uniformity;
-                if (uniformity < 0.40)
-                    r.Warnings.Add($"Uniformity Uo={uniformity:F2} below BS EN 12464-1 0.40 minimum for general areas.");
+                // Phase 139.27 (X-02) — escalate to a per-rule threshold when
+                // the rule sets MinUniformityRatio (e.g. 0.70 for healthcare,
+                // 0.60 for offices). Falls back to the calculator's
+                // DefaultMinimumUniformity (0.40 = BS EN 12464-1 floor).
+                double minRatio = (rule != null && rule.MinUniformityRatio > 0)
+                    ? rule.MinUniformityRatio
+                    : DefaultMinimumUniformity;
+                if (uniformity < minRatio)
+                {
+                    string standard = minRatio >= 0.60 ? "CIBSE LG7" : "BS EN 12464-1";
+                    r.Warnings.Add(
+                        $"Uniformity Uo={uniformity:F2} below {minRatio:F2} ({standard}) — " +
+                        $"increase fixture count or reduce spacing. " +
+                        $"Required {r.FixturesRequired}, placed {r.FixturesPlaced} in room area {r.RoomAreaM2:F1}m².");
+                }
             }
             catch (Exception ex)
             {
