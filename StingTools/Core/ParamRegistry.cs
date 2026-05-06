@@ -173,6 +173,12 @@ namespace StingTools.Core
         public const string VIEW_TAG_STYLE_GUID = "E2F3A4B5-C6D7-4E8F-9A0B-1C2D3E4F5A6C";
         public const string TAG_SEG_MASK = "TAG_SEG_MASK_TXT";
         public const string TAG_SEG_MASK_GUID = "F3A4B5C6-D7E8-4F9A-0B1C-2D3E4F5A6B7D";
+        // Per-view 8-char "1"/"0" mask gating which segments render in
+        // BuildDisplayTag without mutating the canonical ASS_TAG_1_TXT.
+        // Bound to OST_Views so users can hide ZONE in a presentation view
+        // without breaking exports — review fix for TAG-token-toggling #1.
+        public const string VIEW_TOKEN_MASK = "STING_VIEW_TOKEN_MASK_TXT";
+        public const string VIEW_TOKEN_MASK_GUID = "F4A5B6C7-D8E9-4F0A-1B2C-3D4E5F6A7B8E";
 
         // ── Phase 175 — Symbol system parameters ─────────────────────────
         public const string SYMBOL_ID                 = "STING_SYMBOL_ID";

@@ -250,6 +250,17 @@ namespace StingTools.Tags
                         body.AppendLine("All style parameters already match the requested style — nothing to change.");
                     }
                 }
+                else if (updated > 0 && diag != null && diag.MissingActiveParam > 0)
+                {
+                    // Review fix for leader-and-style #2: surface partial style
+                    // failure even when updated > 0, so partial 128-pack injection
+                    // doesn't keep silently no-opping on some types.
+                    body.AppendLine();
+                    body.AppendLine($"⚠ Partial style coverage: {diag.MissingActiveParam} of " +
+                                     $"{diag.HadAnyStyleParam} style-aware types lack '{diag.ActiveParam}'.");
+                    body.AppendLine("Run 'Audit Tag Families' for the full coverage report,");
+                    body.AppendLine("then 'Family Parameter Creator' to inject missing slots.");
+                }
                 TaskDialog.Show("Tag Style Applied", body.ToString());
             }
 

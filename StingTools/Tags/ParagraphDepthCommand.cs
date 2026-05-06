@@ -127,6 +127,8 @@ namespace StingTools.Tags
                     "Selected elements", "Set depth on types of selected elements");
                 scopeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
                     "All element types in project", "Set depth on all element types");
+                scopeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                    "By discipline...", "Pick a discipline (M/E/P/A/S/...) and apply depth only to its types");
                 scopeTd.CommonButtons = TaskDialogCommonButtons.Cancel;
 
                 TaskDialogResult scopeResult = scopeTd.Show();
@@ -142,6 +144,20 @@ namespace StingTools.Tags
                 else if (scopeResult == TaskDialogResult.CommandLink2)
                 {
                     targetTypeIds = CollectAllElementTypeIds(doc);
+                }
+                else if (scopeResult == TaskDialogResult.CommandLink3)
+                {
+                    string disc = PickDiscipline();
+                    if (string.IsNullOrEmpty(disc)) return Result.Cancelled;
+                    targetTypeIds = CollectTypeIdsForDiscipline(doc, disc);
+                    if (targetTypeIds.Count == 0)
+                    {
+                        TaskDialog.Show("Set Paragraph Depth",
+                            $"No element types found for discipline '{disc}'.\n" +
+                            "Tag elements first (Auto Tag) so DISC tokens propagate to types.");
+                        return Result.Cancelled;
+                    }
+                    depthName = $"{depthName} (discipline: {disc})";
                 }
                 else
                 {
@@ -346,6 +362,56 @@ namespace StingTools.Tags
             return new FilteredElementCollector(doc)
                 .WhereElementIsElementType()
                 .ToElementIds();
+        }
+
+        /// <summary>
+        /// Discipline-scoped depth: collect every element TYPE that has at
+        /// least one tagged INSTANCE whose ASS_DISCIPLINE_COD_TXT matches.
+        /// This stops cross-talk between disciplines that share generic tag
+        /// families (review fix for token-depth issue #1).
+        /// </summary>
+        private static ICollection<ElementId> CollectTypeIdsForDiscipline(Document doc, string disc)
+        {
+            var typeIds = new HashSet<ElementId>();
+            foreach (Element inst in new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType())
+            {
+                string d = ParameterHelpers.GetString(inst, ParamRegistry.DISC);
+                if (!string.Equals(d, disc, StringComparison.OrdinalIgnoreCase)) continue;
+                ElementId tid = inst.GetTypeId();
+                if (tid != ElementId.InvalidElementId) typeIds.Add(tid);
+            }
+            return typeIds;
+        }
+
+        /// <summary>
+        /// Discipline picker — pulls choices from configured DisciplineProfiles
+        /// or the static DISC list when no profiles are configured.
+        /// Returns null on cancel.
+        /// </summary>
+        private static string PickDiscipline()
+        {
+            var choices = new List<string>();
+            if (TagConfig.DisciplineProfiles != null && TagConfig.DisciplineProfiles.Count > 0)
+                choices.AddRange(TagConfig.DisciplineProfiles.Keys);
+            if (choices.Count == 0)
+                choices.AddRange(new[] { "M", "E", "P", "A", "S", "FP", "LV", "G" });
+            choices.Sort(StringComparer.OrdinalIgnoreCase);
+
+            try
+            {
+                string picked = StingTools.Select.StingListPicker.Show(
+                    "Set Paragraph Depth — by discipline",
+                    "Choose discipline. Depth will apply only to types whose tagged " +
+                    "instances carry that DISC token.",
+                    choices);
+                return picked;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PickDiscipline list picker failed: {ex.Message}");
+                return null;
+            }
         }
 
         private static bool SetYesNo(Element el, string paramName, bool value)

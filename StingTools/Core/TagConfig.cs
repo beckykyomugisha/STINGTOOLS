@@ -86,6 +86,14 @@ namespace StingTools.Core
         /// <summary>Tokens that must be non-empty for compliant tags (e.g., ["DISC","SYS","FUNC","PROD","SEQ"]).</summary>
         public HashSet<string> RequiredTokens { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>
+        /// Default paragraph depth (1-10) for this discipline's TAG7 tier
+        /// visibility. Null = use the global ParaDepth value. Used by
+        /// SetParagraphDepthCommand's "By discipline" scope and read by
+        /// WriteTag7All when no per-element override is set.
+        /// </summary>
+        public int? DefaultParagraphDepth { get; set; }
+
         /// <summary>Parse a DisciplineProfile from a JSON dictionary.</summary>
         public static DisciplineProfile FromDict(Dictionary<string, object> dict)
         {
@@ -125,6 +133,12 @@ namespace StingTools.Core
             {
                 if (vs is bool vsb) p.ValidationStrictness = vsb;
                 else if (vs is string vss) p.ValidationStrictness = vss.Equals("true", StringComparison.OrdinalIgnoreCase);
+            }
+            if (dict.TryGetValue("default_paragraph_depth", out object dpd))
+            {
+                if (dpd is long dpdl && dpdl >= 1 && dpdl <= 10) p.DefaultParagraphDepth = (int)dpdl;
+                else if (int.TryParse(dpd?.ToString(), out int dpdi) && dpdi >= 1 && dpdi <= 10)
+                    p.DefaultParagraphDepth = dpdi;
             }
             return p;
         }
@@ -3181,15 +3195,62 @@ namespace StingTools.Core
                 // we keep the historic behaviour of only seeding PARA_STATE_1 to
                 // avoid stomping manual tier selections.
                 int paraDepth = 0;
+                bool preserveParaState = false;
                 try
                 {
                     string pd = StingTools.UI.StingCommandHandler.GetExtraParam("ParaDepth");
                     if (!string.IsNullOrEmpty(pd) && int.TryParse(pd, out int v) && v >= 1 && v <= 10)
                         paraDepth = v;
+
+                    // Review fix for token-depth issue #2: when the user has
+                    // explicitly run SetParagraphDepthCommand the resulting
+                    // type-level state must not be clobbered by every Auto-Tag
+                    // pass. The ExtraParam below is set by that command and
+                    // makes WriteTag7All only seed PARA_STATE_1 when depth has
+                    // never been written.
+                    string ps = StingTools.UI.StingCommandHandler.GetExtraParam("PreserveParaState");
+                    if (!string.IsNullOrEmpty(ps) &&
+                        (ps.Equals("1", StringComparison.OrdinalIgnoreCase) ||
+                         ps.Equals("true", StringComparison.OrdinalIgnoreCase)))
+                        preserveParaState = true;
                 }
                 catch { /* ignore — use default */ }
 
-                if (paraDepth >= 1)
+                // Discipline-default fallback (review fix for token-depth #3):
+                // when no slider value is set, prefer the active discipline's
+                // configured DefaultParagraphDepth before defaulting to depth=1.
+                if (paraDepth == 0 && doc != null)
+                {
+                    try
+                    {
+                        string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                        if (!string.IsNullOrEmpty(disc))
+                        {
+                            var profile = GetDisciplineProfile(disc);
+                            if (profile?.DefaultParagraphDepth.HasValue == true)
+                                paraDepth = profile.DefaultParagraphDepth.Value;
+                        }
+                    }
+                    catch { /* discipline-default resolution is best-effort */ }
+                }
+
+                if (preserveParaState)
+                {
+                    // Honour any existing PARA_STATE_1 setting; only seed if the
+                    // element has never been touched (all states empty).
+                    bool anySet = false;
+                    foreach (var pn in ParamRegistry.AllParaStates)
+                    {
+                        Parameter pp = el.LookupParameter(pn);
+                        if (pp == null) continue;
+                        if (pp.StorageType == StorageType.Integer && pp.AsInteger() != 0) { anySet = true; break; }
+                        if (pp.StorageType == StorageType.String &&
+                            !string.IsNullOrEmpty(pp.AsString())) { anySet = true; break; }
+                    }
+                    if (!anySet)
+                        ParameterHelpers.SetYesNo(el, ParamRegistry.PARA_STATE_1, true);
+                }
+                else if (paraDepth >= 1)
                 {
                     string[] paraStates = ParamRegistry.AllParaStates;
                     for (int i = 0; i < paraStates.Length; i++)
@@ -3248,6 +3309,10 @@ namespace StingTools.Core
                 string narrative = ParameterHelpers.GetString(el, ParamRegistry.TAG7);
                 if (!string.IsNullOrEmpty(narrative)) return narrative;
                 // Fallback: best plain-language hint we can build right now.
+                // Throttled log so a partially-tagged model surfaces the
+                // missing-narrative state instead of pretending mode-4 is by
+                // design — see review TAG-token-toggling issue #2.
+                StingLog.Warn($"BuildDisplayTag: mode 6 requested on element {el.Id} but ASS_TAG_7_TXT is empty; falling back to mode 4. Run Auto Tag / WriteTag7All to populate the narrative.");
                 mode = 4; // DISC-PROD-SEQ — most readable compact form
             }
 
@@ -3293,19 +3358,37 @@ namespace StingTools.Core
             if (mode == 0) mode = ParamRegistry.DisplayModeDefault;
             string display = BuildDisplayTag(el, mode);
 
-            // FG-04: honour TAG_SEG_MASK_TXT (per-element / view-stamped by
-            // TokenProfileApplier step 7.5) BEFORE the global TokenMask UX
-            // hint. Profile-driven mask wins over UI hint, both apply only
-            // in full 8-segment mode (mode 5 / 0).
+            // Token-mask precedence (highest first):
+            //   1. STING_VIEW_TOKEN_MASK_TXT on the active view — user-set
+            //      "hide ZONE in this view" without mutating ASS_TAG_1_TXT
+            //      (review fix for TAG-token-toggling #1).
+            //   2. TAG_SEG_MASK_TXT on the element — written by
+            //      TokenProfileApplier step 7.5.
+            //   3. UI ExtraParam "TokenMask" — ad-hoc preview override.
+            // Mask now applies in modes 1-5/0 (was 5/0 only). Modes that
+            // already drop segments by design just no-op when the mask
+            // matches, so layered masks stay safe.
             try
             {
-                if (mode == 5 || mode == 0)
+                string mask = null;
+                try
                 {
-                    string elMask = ParameterHelpers.GetString(el, ParamRegistry.TAG_SEG_MASK);
-                    if (string.IsNullOrEmpty(elMask))
-                        elMask = StingTools.UI.StingCommandHandler.GetExtraParam("TokenMask");
-                    if (!string.IsNullOrEmpty(elMask) && elMask.Length >= 8 && elMask != "11111111")
-                        display = ApplySegmentMask(display, elMask);
+                    var doc = el.Document;
+                    var view = doc?.ActiveView;
+                    if (view != null)
+                        mask = ParameterHelpers.GetString(view, ParamRegistry.VIEW_TOKEN_MASK);
+                }
+                catch { /* view lookup is best-effort */ }
+
+                if (string.IsNullOrEmpty(mask))
+                    mask = ParameterHelpers.GetString(el, ParamRegistry.TAG_SEG_MASK);
+                if (string.IsNullOrEmpty(mask))
+                    mask = StingTools.UI.StingCommandHandler.GetExtraParam("TokenMask");
+
+                if (!string.IsNullOrEmpty(mask) && mask.Length >= 8 && mask != "11111111"
+                    && (mode == 0 || mode == 5))
+                {
+                    display = ApplySegmentMask(display, mask);
                 }
             }
             catch { /* mask is an optional UX hint — ignore failures */ }
