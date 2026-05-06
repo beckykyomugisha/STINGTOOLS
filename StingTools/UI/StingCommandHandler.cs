@@ -431,7 +431,8 @@ namespace StingTools.UI
 
                     // ── v4 Phase D: hanger placement ──
                     case "Routing_PlaceHangers": RunCommand<Commands.Routing.PlaceHangersCommand>(app); break;
-                    case "Fabrication_PlaceISOSymbols": TaskDialog.Show("STING v4 — ISO 6412 Symbols", "Place is wired through GenerateFabPackageCommand;\nrun Generate Fabrication Package against your selection."); break;
+                    case "Fabrication_PlaceISOSymbols":
+                        RunCommand<Commands.Fabrication.PlaceIsoSymbolsCommand>(app); break;
                     case "Fabrication_ConfigureShopDrawing":
                     {
                         var doc = app?.ActiveUIDocument?.Document;
