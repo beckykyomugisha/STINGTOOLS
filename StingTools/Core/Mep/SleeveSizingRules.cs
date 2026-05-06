@@ -33,13 +33,22 @@ namespace StingTools.Core.Mep
         private static readonly object _lock = new object();
         private static List<SleeveSizingRule> _rules;
         private static bool _loaded;
+        // Memoise resolved rules by (category, dia-bucket, shape) so the
+        // engine doesn't re-scan the rule list for every MEP curve. Bucket
+        // by 5 mm steps to keep the cache bounded.
+        private static readonly Dictionary<string, SleeveSizingRule> _resolveCache
+            = new Dictionary<string, SleeveSizingRule>();
 
         public static List<SleeveSizingRule> All
         {
             get { EnsureLoaded(); return _rules ?? new List<SleeveSizingRule>(); }
         }
 
-        public static void Reload() { lock (_lock) { _loaded = false; } EnsureLoaded(); }
+        public static void Reload()
+        {
+            lock (_lock) { _loaded = false; _resolveCache.Clear(); }
+            EnsureLoaded();
+        }
 
         private static void EnsureLoaded()
         {
@@ -115,6 +124,16 @@ namespace StingTools.Core.Mep
 
             double diaMm = ProbeDiameterMm(el);
             string shape = ProbeShape(el);
+            // Bucket diameter to the nearest 5 mm so 27 mm and 28 mm hit
+            // the same cache entry but the 250 mm large-bore threshold
+            // still sorts correctly.
+            int diaBucket = (int)Math.Round(diaMm / 5.0) * 5;
+            string cacheKey = $"{shortCat}|{diaBucket}|{shape}";
+
+            lock (_lock)
+            {
+                if (_resolveCache.TryGetValue(cacheKey, out var hit)) return hit;
+            }
 
             SleeveSizingRule best = null;
             foreach (var r in All)
@@ -127,6 +146,7 @@ namespace StingTools.Core.Mep
                 if (r.DiameterGeMm.HasValue && diaMm < r.DiameterGeMm.Value) continue;
                 best = r;
             }
+            lock (_lock) { _resolveCache[cacheKey] = best; }
             return best;
         }
 

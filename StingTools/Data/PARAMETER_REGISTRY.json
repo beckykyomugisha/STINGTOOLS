@@ -1922,6 +1922,94 @@
       "description": "Last inspection date",
       "binding": "Instance",
       "required": false
+    },
+    {
+      "param_name": "STING_SLEEVE_PFV_UUID",
+      "guid": "cfe809e7-77c4-5f44-a43c-1d770d97abea",
+      "description": "Deterministic UUIDv5 keyed on (host, mep) — round-trip key for IFC Pset_ProvisionForVoid and BCF topic GUID.",
+      "binding": "Instance",
+      "required": false,
+      "group": "Sleeve"
+    },
+    {
+      "param_name": "STING_SLEEVE_BORE_MM",
+      "guid": "5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c13",
+      "description": "Round sleeve bore in millimetres (element OD + 2× insulation + 2× clearance, clamped to rule minimum).",
+      "binding": "Instance",
+      "required": false,
+      "group": "Sleeve"
+    },
+    {
+      "param_name": "STING_SLEEVE_WIDTH_MM",
+      "guid": "5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c14",
+      "description": "Rectangular sleeve clear-opening width in millimetres.",
+      "binding": "Instance",
+      "required": false,
+      "group": "Sleeve"
+    },
+    {
+      "param_name": "STING_SLEEVE_HEIGHT_MM",
+      "guid": "5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c15",
+      "description": "Rectangular sleeve clear-opening height in millimetres.",
+      "binding": "Instance",
+      "required": false,
+      "group": "Sleeve"
+    },
+    {
+      "param_name": "STING_SLEEVE_DEPTH_MM",
+      "guid": "5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c16",
+      "description": "Sleeve depth in millimetres (host thickness + 2× protrusion).",
+      "binding": "Instance",
+      "required": false,
+      "group": "Sleeve"
+    },
+    {
+      "param_name": "STING_SLEEVE_HOST_FIRE_RATING",
+      "guid": "a2a00ce9-5812-5db6-bde0-cefb05775691",
+      "description": "Fire rating inherited from the host wall/floor TYPE (BS EN 13501-2 / EI rating).",
+      "binding": "Instance",
+      "required": false,
+      "group": "Sleeve"
+    },
+    {
+      "param_name": "STING_SLEEVE_RULE_ID",
+      "guid": "5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c18",
+      "description": "Identifier of the sizing rule from STING_SLEEVE_RULES.json that produced this sleeve.",
+      "binding": "Instance",
+      "required": false,
+      "group": "Sleeve"
+    },
+    {
+      "param_name": "STING_SLEEVE_UL_SYS",
+      "guid": "3ec85c17-a7f3-5b2f-879b-14bbb6b05e2c",
+      "description": "UL or BS EN 1366-3 firestop system reference for this sleeve.",
+      "binding": "Instance",
+      "required": false,
+      "group": "Sleeve"
+    },
+    {
+      "param_name": "STING_SLEEVE_HOST_ID",
+      "guid": "5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c1a",
+      "description": "ElementId.IntegerValue of the host wall/floor/roof.",
+      "binding": "Instance",
+      "required": false,
+      "group": "Sleeve"
+    },
+    {
+      "param_name": "STING_SLEEVE_PENETRATED_ID",
+      "guid": "5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c1b",
+      "description": "ElementId.IntegerValue of the penetrating MEP element.",
+      "binding": "Instance",
+      "required": false,
+      "group": "Sleeve"
+    },
+    {
+      "param_name": "STING_SLEEVE_CREATED_BY",
+      "guid": "5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c1c",
+      "description": "STING command that placed the sleeve (audit trail).",
+      "binding": "Instance",
+      "required": false,
+      "group": "Sleeve"
     }
   ],
   "token_presets": {
@@ -5836,6 +5924,61 @@
         "key": "SLV_INSP",
         "param_name": "SLV_INSPECTION_DATE_TXT",
         "description": "Last inspection date"
+      },
+      {
+        "key": "STING_SLEEVE_PFV_UUID",
+        "param_name": "STING_SLEEVE_PFV_UUID",
+        "description": "PFV UUID round-trip key (auto-placed)"
+      },
+      {
+        "key": "STING_SLEEVE_BORE",
+        "param_name": "STING_SLEEVE_BORE_MM",
+        "description": "Round sleeve bore (auto-placed)"
+      },
+      {
+        "key": "STING_SLEEVE_WIDTH",
+        "param_name": "STING_SLEEVE_WIDTH_MM",
+        "description": "Rectangular sleeve width (auto-placed)"
+      },
+      {
+        "key": "STING_SLEEVE_HEIGHT",
+        "param_name": "STING_SLEEVE_HEIGHT_MM",
+        "description": "Rectangular sleeve height (auto-placed)"
+      },
+      {
+        "key": "STING_SLEEVE_DEPTH",
+        "param_name": "STING_SLEEVE_DEPTH_MM",
+        "description": "Sleeve depth (auto-placed)"
+      },
+      {
+        "key": "STING_SLEEVE_FIRE",
+        "param_name": "STING_SLEEVE_HOST_FIRE_RATING",
+        "description": "Host fire rating inherited (auto-placed)"
+      },
+      {
+        "key": "STING_SLEEVE_RULE",
+        "param_name": "STING_SLEEVE_RULE_ID",
+        "description": "Sizing rule id (auto-placed)"
+      },
+      {
+        "key": "STING_SLEEVE_UL",
+        "param_name": "STING_SLEEVE_UL_SYS",
+        "description": "UL firestop system (auto-placed)"
+      },
+      {
+        "key": "STING_SLEEVE_HOST_ID",
+        "param_name": "STING_SLEEVE_HOST_ID",
+        "description": "Host element id (auto-placed)"
+      },
+      {
+        "key": "STING_SLEEVE_PENETRATED_ID",
+        "param_name": "STING_SLEEVE_PENETRATED_ID",
+        "description": "Penetrating MEP id (auto-placed)"
+      },
+      {
+        "key": "STING_SLEEVE_CREATED_BY",
+        "param_name": "STING_SLEEVE_CREATED_BY",
+        "description": "Audit — placement command"
       }
     ],
     "tier_4_10": [

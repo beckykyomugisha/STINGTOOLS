@@ -1,0 +1,10 @@
+{
+  "_comment": "Ordered list of parameter names probed on MEP elements when sizing sleeves. First match wins. Add project-specific param names here without recompiling.",
+  "params": [
+    "PLM_PPE_INSULATION_THK_MM",
+    "HVC_DCT_INSULATION_THK_MM",
+    "PIPE_INSULATION_THK_MM",
+    "DUCT_INSULATION_THK_MM",
+    "Insulation Thickness"
+  ]
+}
