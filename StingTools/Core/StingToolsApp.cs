@@ -1729,7 +1729,13 @@ namespace StingTools.Core
     public class HubFabricationCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
-            => HubDispatcher.Run("Fabrication_Open", ref message);
+            // Quick Access opens the Fabrication Workspace dialog. The dock
+            // panel exposes this under "Fabrication_OpenWorkspace"; an
+            // earlier "Fabrication_Open" alias was never wired into
+            // StingCommandHandler, so clicking the Hub button surfaced a
+            // "could not be matched to a handler" TaskDialog. Use the
+            // canonical tag.
+            => HubDispatcher.Run("Fabrication_OpenWorkspace", ref message);
     }
 
     [Transaction(TransactionMode.ReadOnly)]

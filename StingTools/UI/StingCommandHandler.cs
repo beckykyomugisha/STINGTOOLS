@@ -328,7 +328,8 @@ namespace StingTools.UI
                     case "Mep_NamingAudit":     RunCommand<Commands.Mep.MepNamingAuditCommand>(app); break;
 
                     // ── v4 MVP: fabrication (Phase 5) ──
-                    case "Fabrication_OpenWorkspace":     RunCommand<Commands.Fabrication.FabricationWorkspaceCommand>(app); break;
+                    case "Fabrication_OpenWorkspace":
+                    case "Fabrication_Open":              RunCommand<Commands.Fabrication.FabricationWorkspaceCommand>(app); break;
                     case "Fabrication_GeneratePackage":   RunCommand<Commands.Fabrication.GenerateFabPackageCommand>(app); break;
                     case "Fabrication_ExportCutList":     RunCommand<Commands.Fabrication.ExportCutListCommand>(app); break;
                     case "Fabrication_ExportIsometrics":  RunCommand<Commands.Fabrication.ExportIsometricsCommand>(app); break;
