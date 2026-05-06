@@ -449,75 +449,71 @@ namespace StingTools.Core.Drawing
         }
 
         // ── Dim rules ──
+        //
+        // Phase 175 — strategy dispatcher. Reads pack.DimensionStrategy
+        // (Linear / Ordinate / Chain) and dispatches each enabled
+        // AutoAnnotationRule whose RuleType is dim-shaped to the right
+        // helper in StingTools.Core.Drawing.Dimensioning. The legacy
+        // pack.AutoDim bool keeps working — it synthesises a single
+        // GridDim rule so existing profiles still place grid chains.
+
+        private static readonly HashSet<string> DimRuleKinds =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "AutoDim", "GridDim", "LevelAnnotation",
+                "AutoDimMEPRun", "AutoDimMEPToGrid",
+                "AutoSpotInvert",
+            };
 
         private static void RunDimRules(Document doc, View view, AnnotationRulePack pack, AnnotationRunOptions opts, AnnotationResult result)
         {
-            bool autoDim = pack.AutoDim == true ||
-                           (pack.Rules != null && pack.Rules.Any(r => r != null && r.Enabled &&
-                               string.Equals(r.RuleType, "AutoDim", StringComparison.OrdinalIgnoreCase)));
-            if (!autoDim) return;
-
-            var grids = new FilteredElementCollector(doc, view.Id)
-                .OfClass(typeof(Grid))
-                .Cast<Grid>()
-                .ToList();
-            if (grids.Count >= 2)
+            // Synthesise a GridDim rule from the legacy AutoDim bool so
+            // older profiles keep working without JSON migration.
+            var rules = new List<AutoAnnotationRule>();
+            if (pack.Rules != null)
+                rules.AddRange(pack.Rules.Where(r => r != null && r.Enabled && DimRuleKinds.Contains(r.RuleType ?? "")));
+            if (pack.AutoDim == true && !rules.Any(r => string.Equals(r.RuleType, "GridDim", StringComparison.OrdinalIgnoreCase)
+                                                       || string.Equals(r.RuleType, "AutoDim", StringComparison.OrdinalIgnoreCase)))
             {
-                try { CreateGridDim(doc, view, grids.Where(IsHorizontal).ToList(), result); } catch (Exception ex) { result.Warnings.Add("DimGrids horizontal: " + ex.Message); }
-                try { CreateGridDim(doc, view, grids.Where(IsVertical).ToList(),   result); } catch (Exception ex) { result.Warnings.Add("DimGrids vertical: " + ex.Message); }
+                rules.Insert(0, new AutoAnnotationRule { RuleType = "GridDim", Category = "Grids" });
             }
+            if (rules.Count == 0) return;
 
-            DimensionType dt = ResolveDimensionType(doc, pack.DimensionStyle);
-            if (dt != null)
+            foreach (var rule in rules)
             {
-                // Best-effort: ChangeTypeId on the most recently placed dimensions is non-trivial without tracking ids;
-                // skipped here, but the resolved dimension type is logged.
+                try { DispatchDimRule(doc, view, pack, rule, result); }
+                catch (Exception ex) { result.Warnings.Add($"DimRule '{rule.RuleType}': {ex.Message}"); }
             }
         }
 
-        private static void CreateGridDim(Document doc, View view, List<Grid> grids, AnnotationResult result)
+        private static void DispatchDimRule(Document doc, View view, AnnotationRulePack pack,
+            AutoAnnotationRule rule, AnnotationResult result)
         {
-            if (grids == null || grids.Count < 2) return;
-            try
+            switch ((rule.RuleType ?? "").Trim().ToLowerInvariant())
             {
-                var refArr = new ReferenceArray();
-                foreach (var g in grids)
-                {
-                    var c = g.Curve;
-                    if (c == null) continue;
-                    refArr.Append(new Reference(g));
-                }
-                if (refArr.Size < 2) return;
-                var first = grids[0].Curve;
-                if (first == null) return;
-                var p1 = first.GetEndPoint(0);
-                var p2 = first.GetEndPoint(1);
-                var line = Line.CreateBound(p1, p2);
-                doc.Create.NewDimension(view, line, refArr);
-                result.DimsPlaced++;
+                case "autodim":
+                case "griddim":
+                    StingTools.Core.Drawing.Dimensioning.GridDimensioner.Run(doc, view, pack, result);
+                    break;
+                case "levelannotation":
+                    // Levels live on sections / elevations — same chain
+                    // primitive as grids, dispatched through the grid
+                    // dimensioner which already filters by view type.
+                    StingTools.Core.Drawing.Dimensioning.GridDimensioner.Run(doc, view, pack, result);
+                    break;
+                case "autodimmeprun":
+                    StingTools.Core.Drawing.Dimensioning.MEPDimensioner.RunChain(doc, view, pack, rule, result);
+                    break;
+                case "autodimmeptogrid":
+                    StingTools.Core.Drawing.Dimensioning.MEPDimensioner.RunGridDrop(doc, view, pack, rule, result);
+                    break;
+                case "autospotinvert":
+                    StingTools.Core.Drawing.Dimensioning.DrainageInvertDimensioner.Run(doc, view, pack, rule, result);
+                    break;
+                default:
+                    result.Warnings.Add($"DimRule unknown RuleType '{rule.RuleType}' — skipped.");
+                    break;
             }
-            catch (Exception ex) { result.Warnings.Add("CreateGridDim: " + ex.Message); }
-        }
-
-        private static bool IsHorizontal(Grid g)
-        {
-            try { var c = g.Curve as Line; if (c == null) return false; var d = c.Direction; return Math.Abs(d.Y) > Math.Abs(d.X); }
-            catch { return false; }
-        }
-
-        private static bool IsVertical(Grid g)
-        {
-            try { var c = g.Curve as Line; if (c == null) return false; var d = c.Direction; return Math.Abs(d.X) >= Math.Abs(d.Y); }
-            catch { return false; }
-        }
-
-        private static DimensionType ResolveDimensionType(Document doc, string name)
-        {
-            if (string.IsNullOrEmpty(name)) return null;
-            return new FilteredElementCollector(doc)
-                .OfClass(typeof(DimensionType))
-                .Cast<DimensionType>()
-                .FirstOrDefault(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
         }
 
         // ── Decorative annotation: north arrow / scale bar / key plan / matchlines ──

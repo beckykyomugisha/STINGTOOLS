@@ -1380,6 +1380,18 @@
             "category": "Pipes",
             "ruleType": "AutoAnnotateSlope",
             "enabled": true
+          },
+          {
+            "category": "OST_DuctCurves",
+            "ruleType": "AutoDimMEPToGrid",
+            "enabled": true,
+            "minSizeMm": 200
+          },
+          {
+            "category": "OST_PipeCurves",
+            "ruleType": "AutoDimMEPToGrid",
+            "enabled": true,
+            "minSizeMm": 50
           }
         ]
       },
@@ -1540,6 +1552,12 @@
             "category": "Duct Accessories",
             "ruleType": "AutoTag",
             "enabled": true
+          },
+          {
+            "category": "OST_PipeCurves",
+            "ruleType": "AutoDimMEPRun",
+            "enabled": true,
+            "minSizeMm": 25
           }
         ]
       },
@@ -1707,6 +1725,12 @@
             "category": "Duct Accessories",
             "ruleType": "AutoTag",
             "enabled": true
+          },
+          {
+            "category": "OST_DuctCurves",
+            "ruleType": "AutoDimMEPRun",
+            "enabled": true,
+            "minSizeMm": 100
           }
         ]
       },
@@ -3625,12 +3649,12 @@
         "rules": [
           {
             "category": "Grids",
-            "ruleType": "AutoDim",
+            "ruleType": "GridDim",
             "enabled": true
           },
           {
             "category": "Levels",
-            "ruleType": "AutoDim",
+            "ruleType": "LevelAnnotation",
             "enabled": true
           },
           {
@@ -3642,6 +3666,17 @@
             "category": "Pipes",
             "ruleType": "AutoAnnotateSlope",
             "enabled": true
+          },
+          {
+            "category": "OST_PipeCurves",
+            "ruleType": "AutoSpotInvert",
+            "enabled": true
+          },
+          {
+            "category": "OST_PipeCurves",
+            "ruleType": "AutoDimMEPToGrid",
+            "enabled": true,
+            "minSizeMm": 50
           },
           {
             "category": "Pipe Fittings",

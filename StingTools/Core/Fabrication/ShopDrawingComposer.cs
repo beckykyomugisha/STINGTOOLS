@@ -185,6 +185,15 @@ namespace StingTools.Core.Fabrication
                                 StingTools.Core.Drawing.DrawingTypePresentation
                                     .ApplySlotOverrides(doc, v, slot, apply);
                             }
+
+                            // Phase 175 — auto-dim pass. Annotation was
+                            // skipped above so fabrication keeps its own
+                            // tag pipeline; here we explicitly run only
+                            // dim + spot rules so the profile's
+                            // dimensionStrategy (Ordinate on spools) lands
+                            // on every dimensionable view. 3D views are
+                            // skipped by every dimensioner.
+                            RunFabricationDimPass(doc, v, drawingType, result);
                         }
                     }
                     catch (Exception ex)
@@ -465,6 +474,40 @@ namespace StingTools.Core.Fabrication
                 return p?.StorageType == StorageType.String ? (p.AsString() ?? "") : "";
             }
             catch { return ""; }
+        }
+
+        /// <summary>
+        /// Phase 175 — run the AnnotationRunner with tag passes disabled
+        /// against a fabrication view, so the profile's dim rules
+        /// (Ordinate spool chains, MEP-run chains, drainage spot
+        /// elevations) actually fire. Tagging is owned by IsoSymbolPlacer
+        /// + the discipline-specific fabricator; this pass exists purely
+        /// to land annotation primitives the spool drawer expects.
+        /// </summary>
+        private static void RunFabricationDimPass(Document doc, View view,
+            StingTools.Core.Drawing.DrawingType dt, FabricationResult result)
+        {
+            if (dt?.Annotation == null) return;
+            try
+            {
+                var pack = dt.Annotation;
+                try { pack.MigrateFromLegacy(); } catch { }
+                var opts = new StingTools.Core.Drawing.AnnotationRunOptions
+                {
+                    ViewScale       = view.Scale,
+                    SkipAutoTag     = true,
+                    SkipDecorative  = true,
+                    SkipAutoDim     = false,
+                    SkipSpots       = false,
+                };
+                var r = StingTools.Core.Drawing.AnnotationRunner.Run(doc, view, pack, opts);
+                foreach (var w in r.Warnings)
+                    result.Warnings.Add($"FabDim view {view.Id.Value}: {w}");
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"RunFabricationDimPass: {ex.Message}");
+            }
         }
 
         /// <summary>

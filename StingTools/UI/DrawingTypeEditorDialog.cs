@@ -163,6 +163,9 @@ namespace StingTools.UI
             "AutoDimWallLength", "AutoDimColumnGrid", "AutoDimOpenings",
             "AutoDimElevation", "AutoAnnotateSlope", "AutoAnnotateFlowArrow",
             "AutoAnnotateSpaceNumber", "AutoAnnotateAreaBoundary",
+            // Phase 175 — strategy dispatcher rule types
+            "GridDim", "LevelAnnotation",
+            "AutoDimMEPRun", "AutoDimMEPToGrid", "AutoSpotInvert",
         };
 
         // Merge live + static into a deduplicated, sorted list. Used for
