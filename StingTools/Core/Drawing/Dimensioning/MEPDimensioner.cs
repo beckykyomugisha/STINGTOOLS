@@ -47,7 +47,10 @@ namespace StingTools.Core.Drawing.Dimensioning
         {
             if (!GridDimensioner.IsDimensionable(view))
             {
-                result.Warnings.Add($"MEP chain dim: view '{view?.Name}' is not 2D — skipped.");
+                result.Warnings.Add(
+                    $"MEP chain dim: view '{view?.Name}' is not 2D — skipped. " +
+                    "Revit's Dimension API only accepts plan / section / elevation / detail / drafting views. " +
+                    "For a 3D-style spool dim use the ISO 6412 axonometric drafting view minted by AssemblyViewBuilder.");
                 return;
             }
 
@@ -74,7 +77,9 @@ namespace StingTools.Core.Drawing.Dimensioning
         {
             if (!GridDimensioner.IsDimensionable(view))
             {
-                result.Warnings.Add($"MEP grid-drop dim: view '{view?.Name}' is not 2D — skipped.");
+                result.Warnings.Add(
+                    $"MEP grid-drop dim: view '{view?.Name}' is not 2D — skipped. " +
+                    "Use the coordination plan or section views, not the 3D coordination view.");
                 return;
             }
 
@@ -194,52 +199,47 @@ namespace StingTools.Core.Drawing.Dimensioning
         {
             if (run == null || run.Count == 0) return;
 
-            // Build a unique connector-origin list — fittings between two
-            // straights share connector positions, but Revit references
-            // dedupe by element so we keep one per straight pair.
-            var pts = new List<(Reference R, XYZ P)>();
+            // One Reference per MEPCurve, anchored at the curve's midpoint.
+            // Walking connectors instead would yield two references per
+            // pipe — both pointing at the same LocationCurve.Reference —
+            // which Revit collapses into a single dimension witness, so
+            // every chain segment came out zero-length. Letting Revit
+            // project per-pipe midpoints onto the witness line gives the
+            // correct centre-to-centre lengths a fitter expects.
+            var axis = ResolveRunAxis(run);
+            var pts = new List<(Reference R, XYZ P, long Id)>();
             foreach (var c in run)
             {
-                if (c.ConnectorManager == null) continue;
-                foreach (Connector cn in c.ConnectorManager.Connectors)
+                if (!(c.Location is LocationCurve lc) || lc.Curve == null) continue;
+                var cref = lc.Curve.Reference;
+                if (cref == null)
                 {
-                    if (cn == null) continue;
-                    XYZ origin = null;
-                    try { origin = cn.Origin; } catch { }
-                    if (origin == null) continue;
-                    // MEPCurve has no face references usable for a Dimension;
-                    // fall back to the curve's location reference, then to a
-                    // raw element reference if that's null too. Errors get
-                    // swallowed by the surrounding try around NewDimension.
-                    Reference cref = null;
-                    if (c.Location is LocationCurve lc) cref = lc.Curve.Reference;
-                    if (cref == null) cref = new Reference(c);
-                    pts.Add((cref, origin));
+                    // Some MEPCurve subclasses (e.g. flex pipe / flex duct)
+                    // expose a null curve reference. Skip with a warning so
+                    // the rest of the chain still ships rather than failing
+                    // the whole rule.
+                    result.Warnings.Add($"MEP chain: pipe/duct {c.Id} has no curve reference — skipped.");
+                    continue;
                 }
+                var mid = (lc.Curve.GetEndPoint(0) + lc.Curve.GetEndPoint(1)) * 0.5;
+                pts.Add((cref, mid, c.Id.Value));
             }
             if (pts.Count < 2) return;
 
-            // Project onto the run's dominant axis so the segments read
-            // along the centreline, not along the global X.
-            var axis = ResolveRunAxis(run);
-            pts = DimensionStrategy.SortAlongAxis(pts, axis);
-
-            // Dedupe collocated origins — fittings often share a connector
-            // origin with the adjacent straight; keep only the first for
-            // chain segmentation.
-            var unique = new List<(Reference R, XYZ P)>();
-            foreach (var p in pts)
-            {
-                if (unique.Count == 0 || (p.P - unique.Last().P).GetLength() > 1.0 / DimensionStrategy.MmPerFt)
-                    unique.Add(p);
-            }
-            if (unique.Count < 2) return;
+            // Sort along the dominant run axis so segments read in
+            // geographic order; dedupe by element id (pipes shared by
+            // multiple connector traversals would otherwise repeat).
+            pts = pts
+                .GroupBy(t => t.Id).Select(g => g.First())
+                .OrderBy(t => t.P.DotProduct(axis.Normalize()))
+                .ToList();
+            if (pts.Count < 2) return;
 
             var refArr = new ReferenceArray();
-            foreach (var p in unique) refArr.Append(p.R);
+            foreach (var p in pts) refArr.Append(p.R);
 
-            var first = unique.First().P;
-            var last  = unique.Last().P;
+            var first = pts.First().P;
+            var last  = pts.Last().P;
             var span  = (last - first).GetLength();
             var line  = DimensionStrategy.BuildWitnessLine(first, axis, RunOffsetMm, span + 1.0);
 

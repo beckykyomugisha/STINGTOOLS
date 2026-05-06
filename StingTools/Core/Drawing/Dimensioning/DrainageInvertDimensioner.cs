@@ -38,7 +38,9 @@ namespace StingTools.Core.Drawing.Dimensioning
         {
             if (!GridDimensioner.IsDimensionable(view))
             {
-                result.Warnings.Add($"AutoSpotInvert: view '{view?.Name}' is not 2D — skipped.");
+                result.Warnings.Add(
+                    $"AutoSpotInvert: view '{view?.Name}' is not 2D — skipped. " +
+                    "Spot elevations need a section / plan view; use the drainage section associated with this run.");
                 return;
             }
 

@@ -24,7 +24,9 @@ namespace StingTools.Core.Drawing.Dimensioning
         {
             if (!IsDimensionable(view))
             {
-                result.Warnings.Add($"GridDim: view '{view?.Name}' is not 2D — skipped.");
+                result.Warnings.Add(
+                    $"GridDim: view '{view?.Name}' is not 2D — skipped. " +
+                    "Revit's Dimension API rejects 3D views; place this rule on a plan / section / elevation.");
                 return;
             }
 
@@ -81,7 +83,10 @@ namespace StingTools.Core.Drawing.Dimensioning
                 {
                     result.DimsPlaced++;
                     if (strategy == DimStrategyKind.Ordinate && dimType == null)
-                        result.Warnings.Add("GridDim: Ordinate strategy requested but no Ordinate DimensionType is loaded — fell back to Linear.");
+                        result.Warnings.Add(
+                            "GridDim: Ordinate strategy requested but no Ordinate DimensionType is loaded — fell back to Linear. " +
+                            "Author an Ordinate-style DimensionType in Manage > Additional Settings > Dimension Types " +
+                            "with 'ordinate' in its name (e.g. 'STING - Ordinate'), or pin a name via DrawingType.annotation.dimensionStyle.");
                 }
             }
             catch (Exception ex)
