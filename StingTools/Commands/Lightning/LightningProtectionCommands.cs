@@ -1743,7 +1743,6 @@ namespace StingTools.Commands.Lightning
 
                 // Append residual risk table (BS EN 62305-2 Table 6).
                 double r1 = RiskResult.RiskComponents.TryGetValue("R1_Direct", out var r1v) ? r1v : 0.0;
-                double rt = RiskResult.TolerableRisk;
                 if (RiskResult.ResidualRiskByClass.Count > 0)
                 {
                     var sbR = new StringBuilder();
