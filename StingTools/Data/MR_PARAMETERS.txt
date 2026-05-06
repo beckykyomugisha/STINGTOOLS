@@ -2321,6 +2321,7 @@ PARAM	930f241d-9c78-580a-9576-b665f99064fe	ASS_MAINT_INTERVAL_TXT	TEXT		1	1	Main
 PARAM	ee8bbc8d-e28d-5123-91fc-d563ad7f2bfe	ASS_MAINT_NEXT_TXT	TEXT		1	1	Next maintenance date	1
 PARAM	c5aed1e4-fedb-5e8b-9805-a1f8c1c66730	ASS_NRM_CODE_TXT	TEXT		1	1	NRM classification code	1
 PARAM	57a75c25-166b-5246-a053-7ea761aed180	ASS_TAG_3D_TXT	TEXT		1	1	3D view tag text	1
+PARAM	35e4567f-833b-5b43-90e5-6d22faa0a7e5	STING_TAG3D_HOST_ID_TXT	TEXT		1	1	Source host element id stamped on placed Tag3D family instance for idempotent re-runs (Int64 as decimal string)	1
 PARAM	211dbcbc-361e-513e-a25c-ba0c730c6409	ASS_UNICLASS_2015_TXT	TEXT		1	1	Uniclass 2015 classification code	1
 PARAM	cff93906-a238-526b-8b29-af4c681f0032	ASS_WARRANTY_DURATION_LABOR_YRS	TEXT		1	1	Warranty duration labor in years (COBie)	1
 PARAM	2d93e44d-2520-5108-ae5c-680043fe53db	ASS_WARRANTY_DURATION_PARTS_YRS	TEXT		1	1	Warranty duration parts in years (COBie)	1
