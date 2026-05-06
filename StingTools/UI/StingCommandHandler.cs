@@ -2578,6 +2578,15 @@ namespace StingTools.UI
 
                     // ── MEP Schedules (MEPScheduleCommands.cs, StingTools.Temp) ──
                     case "PanelSchedule": RunCommand<Temp.PanelScheduleCommand>(app); break;
+
+                    // ── Electrical Panel Schedules (Commands/Panels) ──
+                    case "Panel_BatchSchedules":     RunCommand<Commands.Panels.BatchPanelSchedulesCommand>(app); break;
+                    case "Panel_ExportToExcel":      RunCommand<Commands.Panels.ExportPanelSchedulesToExcelCommand>(app); break;
+                    case "Panel_ImportFromExcel":    RunCommand<Commands.Panels.ImportPanelSchedulesFromExcelCommand>(app); break;
+                    case "Panel_FillSpares":         RunCommand<Commands.Panels.FillEmptySlotsWithSparesCommand>(app); break;
+                    case "Panel_FillSpaces":         RunCommand<Commands.Panels.FillEmptySlotsWithSpacesCommand>(app); break;
+                    case "Panel_SpacesToSpares":     RunCommand<Commands.Panels.ConvertSpacesToSparesCommand>(app); break;
+                    case "Panel_ClearSparesSpaces":  RunCommand<Commands.Panels.ClearSparesAndSpacesCommand>(app); break;
                     case "LightingFixtureSchedule": RunCommand<Temp.LightingFixtureScheduleCommand>(app); break;
                     case "ElectricalDeviceSchedule": RunCommand<Temp.ElectricalDeviceScheduleCommand>(app); break;
                     case "MechEquipSchedule": RunCommand<Temp.MechanicalEquipmentScheduleCommand>(app); break;
