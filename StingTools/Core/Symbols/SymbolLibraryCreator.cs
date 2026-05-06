@@ -92,38 +92,104 @@ namespace StingTools.Core.Symbols
                     continue;
                 }
 
-                var rfaPath = Path.Combine(outputFolder, def.Id + ".rfa");
-                if (File.Exists(rfaPath))
+                // Base family (bare id) + one variant per standard override.
+                // The base is always emitted; standards without an override
+                // share it via the concept-registry fallback chain.
+                BuildVariant(hostDoc, app, def, def.Id, null,
+                    outputFolder, templateFolder, loadIntoProject, result);
+                if (def.StandardOverrides != null)
                 {
-                    result.Existed++;
-                    result.CreatedRfaPaths.Add(rfaPath);
-                    if (loadIntoProject) TryLoadFamily(hostDoc, rfaPath, result);
-                    continue;
-                }
-
-                try
-                {
-                    string built = BuildOne(app, def, outputFolder, templateFolder, result);
-                    if (!string.IsNullOrEmpty(built))
+                    foreach (var kv in def.StandardOverrides)
                     {
-                        result.Created++;
-                        result.CreatedRfaPaths.Add(built);
-                        if (loadIntoProject) TryLoadFamily(hostDoc, built, result);
+                        if (kv.Value == null) continue;
+                        string variantId = kv.Key + "_" + def.Id;
+                        BuildVariant(hostDoc, app, def, variantId, kv.Value,
+                            outputFolder, templateFolder, loadIntoProject, result);
                     }
-                    else
-                    {
-                        result.Failed++;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    result.Failed++;
-                    result.Errors.Add($"{def.Id}: {ex.Message}");
-                    StingLog.Error($"SymbolLibraryCreator: {def.Id} failed", ex);
                 }
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Build one named family — either the base symbol (override null)
+        /// or a per-standard variant. Override fields shadow the base
+        /// symbol's geometry / connectors / solid3D / size; non-overridden
+        /// fields fall back to the base.
+        /// </summary>
+        private static void BuildVariant(Document hostDoc, Application app, SymbolDefinition baseDef,
+            string emitId, StandardGeometryOverride overrideDef,
+            string outputFolder, string templateFolder, bool loadIntoProject,
+            SymbolCreationResult result)
+        {
+            var rfaPath = Path.Combine(outputFolder, emitId + ".rfa");
+            if (File.Exists(rfaPath))
+            {
+                result.Existed++;
+                result.CreatedRfaPaths.Add(rfaPath);
+                if (loadIntoProject) TryLoadFamily(hostDoc, rfaPath, result);
+                return;
+            }
+
+            // Materialise an effective def by shallow-merging the override.
+            SymbolDefinition effective = overrideDef == null ? baseDef : new SymbolDefinition
+            {
+                Id          = emitId,
+                Name        = baseDef.Name,
+                Category    = baseDef.Category,
+                FamilyType  = baseDef.FamilyType,
+                Discipline  = baseDef.Discipline,
+                Subcategory = baseDef.Subcategory,
+                SymbolSize  = overrideDef.SymbolSize ?? baseDef.SymbolSize,
+                Parameters  = baseDef.Parameters,
+                Geometry    = overrideDef.Geometry  ?? baseDef.Geometry,
+                Connectors  = overrideDef.Connectors ?? baseDef.Connectors,
+                Solid3D     = overrideDef.Solid3D    ?? baseDef.Solid3D,
+            };
+            // For the base case we still want the emitted id pinned to emitId
+            // (which equals baseDef.Id); for override case it's the variant id.
+            if (overrideDef == null) effective = CloneWithId(baseDef, emitId);
+
+            try
+            {
+                string built = BuildOne(app, effective, outputFolder, templateFolder, result);
+                if (!string.IsNullOrEmpty(built))
+                {
+                    result.Created++;
+                    result.CreatedRfaPaths.Add(built);
+                    if (loadIntoProject) TryLoadFamily(hostDoc, built, result);
+                }
+                else
+                {
+                    result.Failed++;
+                }
+            }
+            catch (Exception ex)
+            {
+                result.Failed++;
+                result.Errors.Add($"{emitId}: {ex.Message}");
+                StingLog.Error($"SymbolLibraryCreator: {emitId} failed", ex);
+            }
+        }
+
+        /// <summary>Shallow clone preserving every field except Id.</summary>
+        private static SymbolDefinition CloneWithId(SymbolDefinition src, string newId)
+        {
+            return new SymbolDefinition
+            {
+                Id = newId,
+                Name = src.Name,
+                Category = src.Category,
+                FamilyType = src.FamilyType,
+                Discipline = src.Discipline,
+                Subcategory = src.Subcategory,
+                SymbolSize = src.SymbolSize,
+                Parameters = src.Parameters,
+                Geometry = src.Geometry,
+                Connectors = src.Connectors,
+                Solid3D = src.Solid3D,
+            };
         }
 
         // ─────────────────────────────────────────────────────────────────

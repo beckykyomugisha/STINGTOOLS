@@ -52,6 +52,34 @@ namespace StingTools.Core.Symbols
 
         [JsonProperty("solid3D", NullValueHandling = NullValueHandling.Ignore)]
         public Solid3DDefinition Solid3D { get; set; }
+
+        /// <summary>
+        /// Optional per-standard geometry overrides. When present, the
+        /// library creator emits one extra family named
+        /// <c>&lt;STANDARD&gt;_&lt;Id&gt;</c> (e.g. <c>IEEE_SLD_MCB</c>)
+        /// using the override's geometry / connectors / solid3D, falling
+        /// back to the base values for any field the override doesn't
+        /// set. The base family (bare id) is always emitted regardless,
+        /// so standards with no override automatically use it via the
+        /// concept registry's fallback chain.
+        /// </summary>
+        [JsonProperty("standardOverrides", NullValueHandling = NullValueHandling.Ignore)]
+        public Dictionary<string, StandardGeometryOverride> StandardOverrides { get; set; }
+    }
+
+    public sealed class StandardGeometryOverride
+    {
+        [JsonProperty("symbolSize", NullValueHandling = NullValueHandling.Ignore)]
+        public double? SymbolSize { get; set; }
+
+        [JsonProperty("geometry", NullValueHandling = NullValueHandling.Ignore)]
+        public SymbolGeometry Geometry { get; set; }
+
+        [JsonProperty("connectors", NullValueHandling = NullValueHandling.Ignore)]
+        public List<ConnectorDefinition> Connectors { get; set; }
+
+        [JsonProperty("solid3D", NullValueHandling = NullValueHandling.Ignore)]
+        public Solid3DDefinition Solid3D { get; set; }
     }
 
     public sealed class ParameterDefinition

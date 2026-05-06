@@ -127,10 +127,13 @@ namespace StingTools.Core.Symbols
         /// Pick the most specific concept for an element. Order:
         ///   1. Element's own STING_SYMBOL_ID stamp (Universe C —
         ///      augmented family knows its concept).
-        ///   2. Family/type name keyword match against concept name
+        ///   2. Project-specific alias map
+        ///      (<c>&lt;project&gt;/_BIM_COORD/symbol_aliases.json</c>)
+        ///      — exact and glob matches on family/type/instance name.
+        ///   3. Family/type name keyword match against concept name
         ///      tokens (e.g. element with family "Pendant - Glass" maps
         ///      to LTG_PENDANT, not LTG_DOWNLIGHT_RND).
-        ///   3. First concept for the category (legacy behaviour).
+        ///   4. First concept for the category (legacy behaviour).
         /// </summary>
         private static SymbolConcept ResolveConceptForElement(Element el,
             IReadOnlyList<SymbolConcept> categoryConcepts)
@@ -151,7 +154,27 @@ namespace StingTools.Core.Symbols
             }
             catch (Exception ex) { StingTools.Core.StingLog.Warn($"ResolveConcept stamp: {ex.Message}"); }
 
-            // 2. Family / type / instance name keyword match.
+            // 2. Project-specific alias map.
+            try
+            {
+                string fam = "", typ = "", inst = el.Name ?? "";
+                if (el is FamilyInstance fi)
+                {
+                    typ = fi.Symbol?.Name ?? "";
+                    fam = fi.Symbol?.FamilyName ?? "";
+                }
+                string aliasConceptId = SymbolAliasRegistry.ResolveAlias(
+                    el.Document, fam, typ, inst);
+                if (!string.IsNullOrEmpty(aliasConceptId))
+                {
+                    var match = categoryConcepts.FirstOrDefault(c =>
+                        string.Equals(c.ConceptId, aliasConceptId, StringComparison.OrdinalIgnoreCase));
+                    if (match != null) return match;
+                }
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"ResolveConcept alias: {ex.Message}"); }
+
+            // 3. Family / type / instance name keyword match.
             string haystack = BuildElementHaystack(el);
             if (!string.IsNullOrEmpty(haystack))
             {
@@ -165,7 +188,7 @@ namespace StingTools.Core.Symbols
                 if (best != null && bestScore > 0) return best;
             }
 
-            // 3. Fall back to first.
+            // 4. Fall back to first.
             return categoryConcepts[0];
         }
 

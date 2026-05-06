@@ -10618,3 +10618,91 @@ Modified:
 - `StingTools/UI/StingCommandHandler.cs` — 2 new dispatch entries
 - `StingTools/UI/StingDockPanel.xaml` — 2 new buttons
 - `docs/CHANGELOG.md` — this entry
+
+#### Completed (Phase 175 — close residual caveats: per-standard geometry, alias map, project-wide removal)
+
+Closes the three residual caveats from the workflow-fix commit
+(7fcf983):
+
+#### What landed
+
+1. **Per-standard distinct geometry.** `SymbolDefinition` gains an
+   optional `standardOverrides` map keyed on standard id. Each
+   override can shadow `geometry` / `connectors` / `solid3D` /
+   `symbolSize`; non-overridden fields fall back to the base.
+   `SymbolLibraryCreator.CreateAllFromFile` now iterates twice per
+   symbol: once for the base family (bare id, e.g. `SLD_MCB.rfa`)
+   and once per override (prefixed with the standard, e.g.
+   `IEEE_SLD_MCB.rfa`). New `BuildVariant` helper merges the
+   override over a clone of the base def and routes through the
+   existing `BuildOne` path. New `CloneWithId` shallow-copies the
+   def with a swapped id so the base case remains explicit.
+   - **Example shipped:** IEEE override on `SLD_MCB` —
+     ANSI/IEEE 315-style open-blade contact with a hinge pivot
+     circle, distinct from the IEC slash-through-rectangle. The
+     `SLD_MCB` concept in `STING_SYMBOL_CONCEPTS.json` now points
+     IEEE → `IEEE_SLD_MCB` while IEC keeps `SLD_MCB`. Switching
+     standards on a project visibly swaps the breaker glyph; for
+     concepts without an override (the other 190), all standards
+     share the base family via the resolver's fallback chain so
+     the existing behaviour is preserved.
+
+2. **Project-specific concept alias map.**
+   New `StingTools/Core/Symbols/SymbolAliasRegistry.cs`. Reads
+   `<project>/_BIM_COORD/symbol_aliases.json` once per document and
+   caches the result; `Reload(doc)` invalidates after edits. Match
+   priority: exact `<Family>::<Type>` → exact family → exact type
+   → glob `<prefix>*` → glob `*<substring>*` (case-insensitive
+   throughout). The resolver in
+   `SymbolOverlayManager.ResolveConceptForElement` consults the
+   alias map as a new priority-2 step (between the stamped concept
+   and the keyword scoring), so projects with non-descriptive
+   custom families (`"Type 1"`, `"Standard"`) can pin the right
+   concept explicitly without touching the corporate JSONs.
+
+3. **`RemoveSymbolsProjectWideCommand`.**
+   Companion to the per-view command. Collects STING tags across
+   the whole project once, presents a confirmation dialog with
+   per-view tally (top 8 views by count) before deleting, then
+   chunks the removal into `TransactionGroup` batches of 200
+   under a single group so a 5,000-tag project is interruptible
+   and partial-success-safe. Wired through `Symbols_RemoveAll`
+   dispatch and a "Remove All Views" button in SYMBOLS & DEVICES.
+
+#### Caveats (residual — none significant)
+
+1. The override system covers geometry / connectors / solid3D /
+   symbol-size; it does not yet override `parameters`. In practice
+   per-standard parameter sets are rare, but the schema can grow
+   later by adding `parameters` to `StandardGeometryOverride`.
+2. `SymbolAliasRegistry` is per-document. Aliases that should
+   apply across all projects (e.g., a corporate naming convention)
+   would benefit from a corporate alias file layered under the
+   project file, mirroring the `AecFilterRegistry` /
+   `DrawingTypeRegistry` pattern. Deferred — most users will use
+   the per-project file.
+
+#### Files
+
+New:
+- `StingTools/Core/Symbols/SymbolAliasRegistry.cs` — per-doc
+  alias map + 5-tier match priority
+
+Modified:
+- `StingTools/Core/Symbols/SymbolDefinition.cs` — new
+  `StandardGeometryOverride` POCO + `StandardOverrides` field
+- `StingTools/Core/Symbols/SymbolLibraryCreator.cs` —
+  `BuildVariant` + `CloneWithId` helpers; emits base + per-standard
+  variants from one geometry def
+- `StingTools/Core/Symbols/SymbolOverlayManager.cs` —
+  `ResolveConceptForElement` consults `SymbolAliasRegistry` as
+  priority 2
+- `StingTools/Commands/Symbols/SymbolStandardCommands.cs` —
+  new `RemoveSymbolsProjectWideCommand` with chunked transactions
+- `StingTools/Data/Symbols/STING_SLD_SYMBOLS.json` —
+  `standardOverrides.IEEE` block on `SLD_MCB`
+- `StingTools/Data/Symbols/STING_SYMBOL_CONCEPTS.json` —
+  `SLD_MCB.IEEE.genericAnnotation` repointed to `IEEE_SLD_MCB`
+- `StingTools/UI/StingCommandHandler.cs` — `Symbols_RemoveAll` dispatch
+- `StingTools/UI/StingDockPanel.xaml` — "Remove All Views" button
+- `docs/CHANGELOG.md` — this entry

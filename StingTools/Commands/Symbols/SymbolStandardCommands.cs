@@ -315,6 +315,102 @@ namespace StingTools.Commands.Symbols
     }
 
     /// <summary>
+    /// Project-wide companion to
+    /// <see cref="RemoveSymbolsInViewCommand"/>. Walks every non-template
+    /// view, deletes every STING symbol tag (filtered by
+    /// <c>STING_SYMBOL_ID</c>) and its label TextNote. Chunked into
+    /// transactions of 200 tags so a 5,000-tag project is interruptible
+    /// and partial-success-safe.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class RemoveSymbolsProjectWideCommand : IExternalCommand
+    {
+        private const int RemoveChunkSize = 200;
+
+        public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) return Result.Failed;
+
+            // Collect once across the project.
+            var tags = new FilteredElementCollector(ctx.Doc)
+                .OfClass(typeof(IndependentTag))
+                .Cast<IndependentTag>()
+                .Where(t => !string.IsNullOrEmpty(t.LookupParameter("STING_SYMBOL_ID")?.AsString()))
+                .ToList();
+            if (tags.Count == 0)
+            { TaskDialog.Show("STING", "No STING symbol overlays in this project."); return Result.Succeeded; }
+
+            // Tally by view for the confirmation dialog.
+            var perView = tags
+                .GroupBy(t => t.OwnerViewId)
+                .Select(g => new { ViewId = g.Key, Count = g.Count() })
+                .OrderByDescending(x => x.Count)
+                .ToList();
+
+            var preview = new StringBuilder();
+            preview.AppendLine($"Found {tags.Count} STING symbol overlay(s) across {perView.Count} view(s).");
+            preview.AppendLine();
+            preview.AppendLine("Top views by count:");
+            foreach (var v in perView.Take(8))
+            {
+                string viewName = (ctx.Doc.GetElement(v.ViewId) as View)?.Name ?? "<unknown>";
+                preview.AppendLine($"  {v.Count,5}  {viewName}");
+            }
+            if (perView.Count > 8)
+                preview.AppendLine($"  …  +{perView.Count - 8} more views");
+
+            var dlg = new TaskDialog("STING - Remove Symbols Project-Wide")
+            {
+                MainInstruction = $"Delete all {tags.Count} STING symbol overlay(s)?",
+                MainContent = preview.ToString()
+                    + "\nHost MEP elements are not touched. Associated label TextNotes are removed."
+                    + "\n\nThis action is reversible only by re-running PlaceSymbolsInView per view.",
+                CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No
+            };
+            if (dlg.Show() != TaskDialogResult.Yes) return Result.Cancelled;
+
+            int removed = 0;
+            using (var tg = new TransactionGroup(ctx.Doc, "STING Remove Symbols Project-Wide"))
+            {
+                tg.Start();
+                for (int chunkStart = 0; chunkStart < tags.Count; chunkStart += RemoveChunkSize)
+                {
+                    int end = Math.Min(chunkStart + RemoveChunkSize, tags.Count);
+                    using (var tx = new Transaction(ctx.Doc, $"STING Remove chunk {chunkStart / RemoveChunkSize + 1}"))
+                    {
+                        tx.Start();
+                        try
+                        {
+                            for (int i = chunkStart; i < end; i++)
+                            {
+                                try
+                                {
+                                    SymbolAnnotationEngine.RemoveAnnotation(ctx.Doc, tags[i].Id);
+                                    ctx.Doc.Delete(tags[i].Id);
+                                    removed++;
+                                }
+                                catch (Exception ex) { StingLog.Warn($"RemoveSymbolsProjectWide [{i}]: {ex.Message}"); }
+                            }
+                            tx.Commit();
+                        }
+                        catch (Exception chunkEx)
+                        {
+                            StingLog.Error($"RemoveSymbolsProjectWide chunk {chunkStart}-{end}", chunkEx);
+                            try { tx.RollBack(); } catch (Exception rbEx) { StingLog.Warn($"RemoveSymbolsProjectWide rollback: {rbEx.Message}"); }
+                        }
+                    }
+                }
+                tg.Assimilate();
+            }
+
+            TaskDialog.Show("STING", $"Removed {removed}/{tags.Count} symbol overlay(s) across {perView.Count} view(s).");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
     /// Companion to <see cref="PlaceSymbolsInViewCommand"/>: deletes
     /// every STING symbol overlay (and its associated label TextNote)
     /// from the active view. Restricts to tags carrying
