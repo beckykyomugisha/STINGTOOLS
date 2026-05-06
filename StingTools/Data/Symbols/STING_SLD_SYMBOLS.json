@@ -145,7 +145,22 @@
                 "y2": 0.6
               }
             ]
-          }
+          },
+          "parameterMode": "extend",
+          "parameters": [
+            {
+              "name": "TRIP_CURVE",
+              "type": "Text",
+              "shared": true,
+              "default": "C"
+            },
+            {
+              "name": "AIC_RATING_KA",
+              "type": "Text",
+              "shared": true,
+              "default": "10"
+            }
+          ]
         }
       }
     },

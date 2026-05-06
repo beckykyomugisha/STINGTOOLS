@@ -10706,3 +10706,67 @@ Modified:
 - `StingTools/UI/StingCommandHandler.cs` — `Symbols_RemoveAll` dispatch
 - `StingTools/UI/StingDockPanel.xaml` — "Remove All Views" button
 - `docs/CHANGELOG.md` — this entry
+
+#### Completed (Phase 175 — close last residual caveats: per-standard params + corporate alias baseline)
+
+Closes the two truly-last items.
+
+#### What landed
+
+1. **Per-standard parameters in `StandardGeometryOverride`.**
+   The override schema gains two fields:
+   - `parameters: List<ParameterDefinition>` — extra or replacement
+     params for the variant family.
+   - `parameterMode: "replace" | "extend"` (default `replace`) —
+     `replace` swaps the base list entirely; `extend` appends new
+     entries while skipping any whose name already exists in the
+     base.
+
+   Wired through `SymbolLibraryCreator.MergeParameters`. The
+   IEEE override on `SLD_MCB` now uses `extend` mode to add two
+   IEEE 315-specific params (`TRIP_CURVE` defaulted to "C",
+   `AIC_RATING_KA` defaulted to 10) on top of the base 4 (CIRCUIT_REF /
+   RATING_A / POLES / LABEL). Switching a project to IEEE on the
+   breaker will surface those extra fields in the Properties palette
+   without losing the base ones.
+
+2. **Corporate-baseline alias map layered under project.**
+   `SymbolAliasRegistry` now follows the AecFilterRegistry /
+   DrawingTypeRegistry pattern — corporate baseline from
+   `data/Symbols/STING_SYMBOL_ALIASES.json` (resolved via
+   `StingToolsApp.FindDataFile`), project override from
+   `<project>/_BIM_COORD/symbol_aliases.json`. Project entries win
+   by key; project-only keys append.
+
+   Bonus — fixed the multi-segment glob matcher. The previous
+   single-substring matcher couldn't handle patterns like
+   `*recessed*downlight*` (would treat `recessed*downlight` as a
+   literal substring containing `*`). New `MatchesGlob` splits on
+   `*`, requires each literal segment to appear in order in the
+   haystack, and handles three anchored cases explicitly:
+   `prefix*` (haystack starts), `*suffix` (haystack ends), and
+   `*foo*bar*…*` (in-order substring sequence).
+
+   Shipped a corporate alias file with **82 seed entries** covering
+   common Revit-default and AcmeCorp-style family-naming conventions
+   across lighting (18), electrical (16), fire (9), HVAC (15),
+   plumbing/sanitary (10), and pipe accessories (14). Projects
+   layer their own JSON over the top — no need to redefine the
+   common ones.
+
+#### Files
+
+New:
+- `StingTools/Data/Symbols/STING_SYMBOL_ALIASES.json` — 82 seed aliases
+
+Modified:
+- `StingTools/Core/Symbols/SymbolDefinition.cs` —
+  `StandardGeometryOverride.Parameters` + `ParameterMode` fields
+- `StingTools/Core/Symbols/SymbolLibraryCreator.cs` —
+  `MergeParameters` helper handling `replace` vs `extend`
+- `StingTools/Core/Symbols/SymbolAliasRegistry.cs` —
+  corporate + project two-layer load, multi-segment glob matcher
+- `StingTools/Data/Symbols/STING_SLD_SYMBOLS.json` —
+  IEEE override on `SLD_MCB` gains `parameterMode: extend` plus
+  `TRIP_CURVE` + `AIC_RATING_KA`
+- `docs/CHANGELOG.md` — this entry

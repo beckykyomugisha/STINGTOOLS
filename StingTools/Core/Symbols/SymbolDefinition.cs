@@ -80,6 +80,24 @@ namespace StingTools.Core.Symbols
 
         [JsonProperty("solid3D", NullValueHandling = NullValueHandling.Ignore)]
         public Solid3DDefinition Solid3D { get; set; }
+
+        /// <summary>
+        /// Per-standard parameter set. Two semantics:
+        /// <list type="bullet">
+        /// <item><c>replace</c> mode (default when <c>parameters</c> is set
+        /// alongside <c>parameterMode = "replace"</c> or omitted) — the
+        /// override list fully replaces the base list.</item>
+        /// <item><c>extend</c> mode (when <c>parameterMode = "extend"</c>) —
+        /// the override list is appended to the base list, with names
+        /// already in the base skipped.</item>
+        /// </list>
+        /// </summary>
+        [JsonProperty("parameters", NullValueHandling = NullValueHandling.Ignore)]
+        public List<ParameterDefinition> Parameters { get; set; }
+
+        /// <summary>"replace" (default) | "extend"</summary>
+        [JsonProperty("parameterMode", NullValueHandling = NullValueHandling.Ignore)]
+        public string ParameterMode { get; set; }
     }
 
     public sealed class ParameterDefinition

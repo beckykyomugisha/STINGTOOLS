@@ -142,7 +142,8 @@ namespace StingTools.Core.Symbols
                 Discipline  = baseDef.Discipline,
                 Subcategory = baseDef.Subcategory,
                 SymbolSize  = overrideDef.SymbolSize ?? baseDef.SymbolSize,
-                Parameters  = baseDef.Parameters,
+                Parameters  = MergeParameters(baseDef.Parameters, overrideDef.Parameters,
+                                              overrideDef.ParameterMode),
                 Geometry    = overrideDef.Geometry  ?? baseDef.Geometry,
                 Connectors  = overrideDef.Connectors ?? baseDef.Connectors,
                 Solid3D     = overrideDef.Solid3D    ?? baseDef.Solid3D,
@@ -171,6 +172,40 @@ namespace StingTools.Core.Symbols
                 result.Errors.Add($"{emitId}: {ex.Message}");
                 StingLog.Error($"SymbolLibraryCreator: {emitId} failed", ex);
             }
+        }
+
+        /// <summary>
+        /// Resolve the parameter set for a per-standard variant.
+        /// <list type="bullet">
+        /// <item>No override params → base params unchanged.</item>
+        /// <item>Override params with <c>parameterMode = "extend"</c> → base
+        /// params + override params (deduped by name; base wins on
+        /// collision).</item>
+        /// <item>Override params with <c>parameterMode = "replace"</c> or
+        /// no mode set → override params replace base entirely.</item>
+        /// </list>
+        /// </summary>
+        private static List<ParameterDefinition> MergeParameters(
+            List<ParameterDefinition> baseParams,
+            List<ParameterDefinition> overrideParams,
+            string mode)
+        {
+            if (overrideParams == null) return baseParams;
+            if (string.Equals(mode, "extend", StringComparison.OrdinalIgnoreCase))
+            {
+                var merged = new List<ParameterDefinition>(baseParams ?? new List<ParameterDefinition>());
+                var existing = new HashSet<string>(
+                    merged.Where(p => !string.IsNullOrEmpty(p?.Name)).Select(p => p.Name),
+                    StringComparer.OrdinalIgnoreCase);
+                foreach (var p in overrideParams)
+                {
+                    if (p == null || string.IsNullOrWhiteSpace(p.Name)) continue;
+                    if (existing.Add(p.Name)) merged.Add(p);
+                }
+                return merged;
+            }
+            // replace (default)
+            return overrideParams;
         }
 
         /// <summary>Shallow clone preserving every field except Id.</summary>
