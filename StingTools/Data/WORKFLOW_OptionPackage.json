@@ -8,6 +8,7 @@
     { "commandTag": "DesignOptions_PrimaryClashView", "label": "Mint primary-only 3D clash view" },
     { "commandTag": "DesignOptions_IsolationView",    "label": "Mint per-option 3D isolation views (interactive)", "optional": true },
     { "commandTag": "DesignOptions_CloneSchedule",    "label": "Clone the active schedule per option (interactive)", "optional": true },
+    { "commandTag": "DesignOptions_ExportComparison", "label": "Export per-option BOQ + carbon comparison (CSV + HTML)" },
     { "commandTag": "AnomalyAutoFix",                 "label": "Fix any anomalies introduced by per-option work", "optional": true },
     { "commandTag": "ValidateTags",                   "label": "Validate ISO 19650 compliance after option work" },
     { "commandTag": "DocumentBriefcase",              "label": "Bundle outputs into a transmittable briefcase",   "optional": true }

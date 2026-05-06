@@ -1792,6 +1792,7 @@ namespace StingTools.Core
                 case "DesignOptions_Audit":               return new Commands.DesignOptions.AuditOptionsCommand();
                 case "DesignOptions_BatchLinkVisibility": return new Commands.DesignOptions.BatchSetLinkOptionVisibilityCommand();
                 case "DesignOptions_Dashboard":           return new Commands.DesignOptions.OptionsDashboardCommand();
+                case "DesignOptions_ExportComparison":    return new Commands.DesignOptions.ExportOptionComparisonCommand();
 
                 default: return null;
             }

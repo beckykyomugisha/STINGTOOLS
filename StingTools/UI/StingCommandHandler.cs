@@ -197,6 +197,7 @@ namespace StingTools.UI
                     case "DesignOptions_Audit":               RunCommand<Commands.DesignOptions.AuditOptionsCommand>(app); break;
                     case "DesignOptions_BatchLinkVisibility": RunCommand<Commands.DesignOptions.BatchSetLinkOptionVisibilityCommand>(app); break;
                     case "DesignOptions_Dashboard":           RunCommand<Commands.DesignOptions.OptionsDashboardCommand>(app); break;
+                    case "DesignOptions_ExportComparison":    RunCommand<Commands.DesignOptions.ExportOptionComparisonCommand>(app); break;
 
                     // ── Lightning Protection System (BS EN 62305) ──
                     case "LPS_ClassSetup":           RunCommand<Commands.Lightning.LpsClassSetupCommand>(app); break;

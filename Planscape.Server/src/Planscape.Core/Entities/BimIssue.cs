@@ -53,6 +53,15 @@ public class BimIssue : ITenantScoped
     // Postgres (with a GIN index for searched keys); empty object when unset.
     public string? CustomFields { get; set; }
 
+    // Phase 175 — design option binding. When an issue is raised against
+    // a specific Revit design option (e.g. RFI on the VE façade study
+    // alternative), the plugin attaches the host project's option-set
+    // and option name. The mobile inbox + cross-project SearchController
+    // filter on these so site queries are answered against the right
+    // alternative. Both nullable for legacy / main-model issues.
+    public string? OptionSetName { get; set; }
+    public string? OptionName { get; set; }
+
     // Navigation
     public Project? Project { get; set; }
     public AppUser? AssigneeUser { get; set; }
