@@ -1,4 +1,4 @@
-#SCHEMA_VERSION=5.4,CREATED=2026-03-16,UPDATED=2026-04-23,FAMILIES=142,ADDS=per_family_tier_variation+standards_cited+reuse_check,PREV=tier_1_to_10_rows+style_parameter_catalog_150_params,SYNC=LABEL_DEFINITIONS.json_v5.9(138_categories)+PARAMETER_REGISTRY.json_extended_params.tier_4_10(33_entries)
+#SCHEMA_VERSION=5.5,CREATED=2026-03-16,UPDATED=2026-05-06,FAMILIES=151,ADDS=phase_176_lps_generic_component_xref+6_lps_families_in_MEP_csv,PREV=per_family_tier_variation+standards_cited+reuse_check,SYNC=LABEL_DEFINITIONS.json_v6.0(151_categories)+PARAMETER_REGISTRY.json_extended_params.tier_4_10(33_entries)+ELC_LPS_GROUP(7_containers)
 #
 # SCHEMA v5.2 (2026-04-16) — Added 3 trailing columns: Style,Color,Size
 #   Style  : NOM | BOLD | ITALIC | BOLDITALIC               (default per tier: T1=NOM, T2=NOM, T3=NOM)
@@ -1300,3 +1300,32 @@ TAG7: SHT_TAG_7_TXT  •  Category: Sheets (ViewSheet)
 
 # CROSS-REFERENCE: Generic Models with PROD=SLV (MEP Sleeves/Penetrations) use the MEP Sleeve Tag defined in STING_TAG_CONFIG_v5_0_MEP.csv
 # Category: Generic Models | FUNC: PEN | Disciplines: M, E, P, FP | Standard: BS EN 1366-3
+
+Tag Family #34: STING - LPS Generic Component Tag
+# Category: Generic Models, Specialty Equipment, Detail Items | PROD: family-resolved (ATR/AMS/ACT/DCN/ERD/ERG/EFE/EME/BCN/BBR/BSG/SPD1-3/TCL) | SYS: LPS | FUNC: AT/DC/EE/BOND/SPD/TC | DISC: E
+# Catch-all for lightning protection elements modelled as Generic Models / Specialty Equipment / Detail Items.
+# CROSS-REFERENCE: 6 specialised LPS tag families live in STING_TAG_CONFIG_v5_0_MEP.csv (#54-#59):
+#   #54 STING - LPS Air Terminal Tag        (PROD=ATR/AMS/ACT)  BS EN 62305-3 §5.2
+#   #55 STING - LPS Down Conductor Tag      (PROD=DCN)          BS EN 62305-3 §5.3
+#   #56 STING - LPS Earth Electrode Tag     (PROD=ERD/ERG/EFE/EME) BS EN 62305-3 §5.4
+#   #57 STING - LPS Bond Tag                (PROD=BCN/BBR/BSG)  BS EN 62305-3 §6.2
+#   #58 STING - LPS SPD Tag                 (PROD=SPD1/2/3)     BS EN 62305-4 / BS EN 61643
+#   #59 STING - LPS Test Clamp Tag          (PROD=TCL)          BS EN 62305-3 §7.2
+# CROSS-DISCIPLINE REUSE: STR Tag #22 (Foundation Earth — rebar reuse), ARCH Tag #36 (Natural Air Termination).
+# Family-name detection in TagConfig.GetSysFromFamilyName auto-routes generic-model LPS elements to SYS=LPS.
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Generic Models / Specialty Equipment
+
+★ TIER 1 — COMPACT (always visible)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,BOLD,BLUE,2.5,None,None
+
+★ TIER 2 — TECHNICAL (gated by TAG_PARA_STATE_2_BOOL)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T2,ELC_LPS_CLASS_TXT,Class:,,0,✓,Common,Text,LPS Class,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_CLASS_TXT, """")",NOM,BLACK,2.0,None,None
+2,T2,ELC_LPS_ZONE_TXT,LPZ:,,0,✓,Common,Text,Lightning Zone,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_ZONE_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ELC_LPS_COMPLIANCE_STATUS_TXT,,,0,✓,Common,Text,LPS Compliance Status (PASS/WARN/FAIL),"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_COMPLIANCE_STATUS_TXT, """")",BOLD,RED,2.0,None,None
+
+⚠ WARNING PARAMETERS — add after all Tier rows
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,CRITICAL,WARN_ELC_LPS_NO_CLASS,LPS class missing — set I/II/III/IV per BS EN 62305-2 risk assessment,BS EN 62305-1:2011 §8,Common,Text,⚠ Warning: No LPS Class,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_CLASS, """")"
+2,MEDIUM,WARN_ELC_LPS_NO_ZONE,Lightning protection zone (LPZ) not assigned,BS EN 62305-4:2011 §4.1,Common,Text,⚠ Warning: No LPZ Assigned,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_ZONE, """")"

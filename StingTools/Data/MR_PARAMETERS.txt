@@ -2669,3 +2669,39 @@ PARAM	33188c51-0a4f-52e7-ad2a-37e68ca7ddda	PRJ_ORG_PROJECT_NAME_TXT	TEXT		13	1	P
 PARAM	85e93a80-42bc-535e-a9e3-bcd76b7c07a0	PRJ_ORG_PROJECT_ADDRESS_TXT	TEXT		13	1	Project / site address shown on the title block [STING Phase 171]	1
 PARAM	0c7cd8c7-ae84-5f31-a3ac-cfeffff97954	PRJ_ORG_PROJECT_NUMBER_TXT	TEXT		13	1	Project number / job number shown on the title block [STING Phase 171]	1
 PARAM	b34a1ffa-4c71-5469-9806-8fc01315f8a6	PRJ_ORG_RIBA_STAGE_TXT	TEXT		13	1	RIBA work stage (0-7) shown on the title block [STING Phase 171]	1
+# ── Symbol / SLD / Match-line parameters (Phase 175 + Phase 168) ──────────────
+PARAM	a4b5c6d7-e8f9-4a0b-1c2d-3e4f5a6b7c8d	STING_SYMBOL_ID	TEXT		27	1	Symbol library concept id stamped on placed instances [STING Phase 175 / IEC 60617]	1
+PARAM	b5c6d7e8-f9a0-4b1c-2d3e-4f5a6b7c8d9e	STING_SYMBOL_STANDARD	TEXT		27	1	Symbol standard variant — IEC 60617 / IEEE 315 / ISO 14617 [STING Phase 175]	1
+PARAM	c6d7e8f9-a0b1-4c2d-3e4f-5a6b7c8d9e0f	STING_HOST_ELEMENT_ID	TEXT		27	1	Element id of the host modelled element this symbol represents [STING Phase 175]	1
+PARAM	d7e8f9a0-b1c2-4d3e-4f5a-6b7c8d9e0f1a	STING_SYMBOL_LABEL_ID	TEXT		27	1	Stable id linking SLD label / annotation to its symbol family instance [STING Phase 175]	1
+PARAM	e8f9a0b1-c2d3-4e4f-5a6b-7c8d9e0f1a2b	STING_SYMBOL_OVERRIDE	TEXT		27	1	Project-level symbol override id (forces specific concept regardless of category) [STING Phase 175]	1
+PARAM	f9a0b1c2-d3e4-4f5a-6b7c-8d9e0f1a2b3c	STING_VIEW_SYMBOL_STANDARD	TEXT		27	1	Per-view symbol standard override — IEC / IEEE / ISO [STING Phase 175]	1
+PARAM	0a1b2c3d-4e5f-4a6b-7c8d-9e0f1a2b3c4d	STING_SLD_ELEMENT_ID	TEXT		27	1	Source modelled element id paired with this Single Line Diagram symbol [STING Phase 175 / SLD Generator]	1
+PARAM	1b2c3d4e-5f6a-4b7c-8d9e-0f1a2b3c4d5e	STING_SYMBOL_LIBRARY_VERSION	TEXT		27	1	Symbol library version stamp (e.g. 2026.04 IEC) for change tracking [STING Phase 175]	1
+PARAM	a6b7c8d9-eafb-4acc-5d6e-7f8a9bacdbec	STING_MATCH_REF_TXT	TEXT		27	1	Paired sheet reference written on match-line + caption tags [STING Phase 168]	1
+PARAM	a7b8c9da-fbac-4bcd-6e7f-8a9bacdbecfd	STING_MATCH_LINE_GUID_TXT	TEXT		27	1	Stable match-line pair identifier — pairs DetailCurve + caption tag for in-place updates [STING Phase 168]	1
+PARAM	a8b9cadb-acbd-4cde-7f8a-9bacdbecfdae	STING_MATCH_DIR_TXT	TEXT		27	1	Match-line direction encoding — VERTICAL / HORIZONTAL / DOGLEG [STING Phase 168]	1
+# ── Lightning Protection System tag containers (BS EN 62305) ───────────────
+PARAM	e1c5f9d4-1001-5111-9111-100000000001	ELC_LPS_AIRTERM_TAG_TXT	TEXT		4	1	LPS air-terminal / finial tag — full ISO 19650 tag for rod, mesh node, or strike termination [BS EN 62305-3 §5.2]	1
+PARAM	e1c5f9d4-1002-5111-9111-100000000002	ELC_LPS_DOWNCOND_TAG_TXT	TEXT		4	1	LPS down-conductor tag — full tag for descent conductors connecting air terminals to earth [BS EN 62305-3 §5.3]	1
+PARAM	e1c5f9d4-1003-5111-9111-100000000003	ELC_LPS_EARTH_TAG_TXT	TEXT		4	1	LPS earth-electrode tag — full tag for rod / ring / foundation / mesh earth electrode [BS EN 62305-3 §5.4]	1
+PARAM	e1c5f9d4-1004-5111-9111-100000000004	ELC_LPS_BOND_TAG_TXT	TEXT		4	1	LPS equipotential bonding tag — full tag for bonding conductor or bonding bar [BS EN 62305-3 §6.2]	1
+PARAM	e1c5f9d4-1005-5111-9111-100000000005	ELC_LPS_SPD_TAG_TXT	TEXT		4	1	LPS surge protective device tag — full tag for SPD Type 1 / 2 / 3 [BS EN 62305-4 / BS EN 61643]	1
+PARAM	e1c5f9d4-1006-5111-9111-100000000006	ELC_LPS_TESTCLAMP_TAG_TXT	TEXT		4	1	LPS test clamp / inspection point tag — full tag for clamps allowing earth-resistance test [BS EN 62305-3 §7.2]	1
+PARAM	e1c5f9d4-1007-5111-9111-100000000007	ELC_TAG_7_PARA_LPS_TXT	TEXT		4	1	Electrical TAG7 paragraph container for LPS (class, LPZ, down conductors, earth resistance, last test) [STING Phase 176]	1
+# ── Lightning Protection System validation warnings (BS EN 62305) ──────────
+PARAM	f1d6f0e5-2001-5222-9222-200000000001	WARN_ELC_LPS_NO_CLASS	TEXT		4	1	Warning: LPS class missing — set ELC_LPS_CLASS_TXT to I / II / III / IV [BS EN 62305-1 §8] [CRITICAL]	1
+PARAM	f1d6f0e5-2002-5222-9222-200000000002	WARN_ELC_LPS_DOWN_COND_INSUFFICIENT	TEXT		4	1	Warning: down-conductor count below class minimum (Class I=4, II=3, III/IV=2) [BS EN 62305-3 Tab 4] [HIGH]	1
+PARAM	f1d6f0e5-2003-5222-9222-200000000003	WARN_ELC_LPS_EARTH_RESISTANCE_HIGH	TEXT		4	1	Warning: earth resistance exceeds 10 ohm — refit electrodes or supplement ring earth [BS EN 62305-3 §5.4.1] [HIGH]	1
+PARAM	f1d6f0e5-2004-5222-9222-200000000004	WARN_ELC_LPS_NO_RISK_ASSESSMENT	TEXT		4	1	Warning: BS EN 62305-2 risk assessment reference (R1..R4) not recorded — class selection cannot be justified [HIGH]	1
+PARAM	f1d6f0e5-2005-5222-9222-200000000005	WARN_ELC_LPS_SEPARATION_FAIL	TEXT		4	1	Warning: separation distance s = ki·kc·l/km is below computed value — services may flashover during strike [BS EN 62305-3 §6.3] [HIGH]	1
+PARAM	f1d6f0e5-2006-5222-9222-200000000006	WARN_ELC_LPS_INSPECTION_OVERDUE	TEXT		4	1	Warning: inspection interval exceeded (Class I/II=12 mo, III/IV=24 mo) [BS EN 62305-3 §E.7] [MEDIUM]	1
+PARAM	f1d6f0e5-2007-5222-9222-200000000007	WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW	TEXT		4	1	Warning: down-conductor cross-section below class minimum (50 mm² Cu / 70 mm² Al / 50 mm² Steel) [BS EN 62305-3 Tab 6] [HIGH]	1
+PARAM	f1d6f0e5-2008-5222-9222-200000000008	WARN_ELC_LPS_NO_BONDING	TEXT		4	1	Warning: equipotential bonding type not specified (DIRECT / SPD / ISOLATING_SPARK_GAP) [BS EN 62305-3 §6.2] [HIGH]	1
+PARAM	f1d6f0e5-2009-5222-9222-200000000009	WARN_ELC_LPS_MESH_SIZE_EXCEEDED	TEXT		4	1	Warning: air-termination mesh exceeds class limit (I=5×5, II=10×10, III=15×15, IV=20×20 m) [BS EN 62305-3 Tab 2] [HIGH]	1
+PARAM	f1d6f0e5-2010-5222-9222-200000000010	WARN_ELC_LPS_NO_ZONE	TEXT		4	1	Warning: lightning protection zone (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) not assigned [BS EN 62305-4 §4.1] [MEDIUM]	1
+# ── SLD / Symbol workflow circuit parameters (Phase 175 — read by SymbolAnnotationEngine.BuildLabel) ──
+PARAM	c2a7e5b1-3001-5333-9333-300000000001	ELC_CIRCUIT_REF_TXT	TEXT		4	1	Electrical circuit reference (e.g. L1 / DB1-3) — rendered into SLD labels by SymbolAnnotationEngine [STING Phase 175]	1
+PARAM	c2a7e5b1-3002-5333-9333-300000000002	ELC_CIRCUIT_RATING_TXT	TEXT		4	1	Circuit / device rating string (e.g. 32A / 100A) — rendered into SLD labels [STING Phase 175]	1
+PARAM	c2a7e5b1-3003-5333-9333-300000000003	ELC_CIRCUIT_POLES_NR	INTEGER		4	1	Number of poles (1/2/3/4) for circuit breakers and switches — rendered into SLD labels [STING Phase 175]	1
+PARAM	c2a7e5b1-3004-5333-9333-300000000004	ELC_CIRCUIT_LABEL_TXT	TEXT		4	1	Free-text display-label override appended to SLD label after circuit ref + rating [STING Phase 175]	1

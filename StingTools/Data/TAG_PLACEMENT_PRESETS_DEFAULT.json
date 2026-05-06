@@ -98,6 +98,60 @@
       "offsetY": 1.0,
       "orientation": "Horizontal",
       "leaderThreshold": 1.5
+    },
+    "STING - LPS Air Terminal Tag": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 0.0,
+      "offsetY": 2.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 2.0,
+      "note": "BS EN 62305-3 §5.2 — air terminals are roof-top finials; tag offset above element with leader."
+    },
+    "STING - LPS Down Conductor Tag": {
+      "preferredSide": 2,
+      "addLeader": true,
+      "offsetX": 1.5,
+      "offsetY": 0.0,
+      "orientation": "Vertical",
+      "leaderThreshold": 1.5,
+      "note": "BS EN 62305-3 §5.3 — down conductors are vertical descents; tag side-aligned vertically with leader."
+    },
+    "STING - LPS Earth Electrode Tag": {
+      "preferredSide": 3,
+      "addLeader": true,
+      "offsetX": 0.0,
+      "offsetY": -1.5,
+      "orientation": "Horizontal",
+      "leaderThreshold": 2.0,
+      "note": "BS EN 62305-3 §5.4 — earth electrodes are at ground level; tag offset below."
+    },
+    "STING - LPS Bond Tag": {
+      "preferredSide": 0,
+      "addLeader": true,
+      "offsetX": 1.0,
+      "offsetY": 0.5,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.0,
+      "note": "BS EN 62305-3 §6.2 — bonds are typically inside risers / plant rooms; short leader."
+    },
+    "STING - LPS SPD Tag": {
+      "preferredSide": 0,
+      "addLeader": false,
+      "offsetX": 0.0,
+      "offsetY": 1.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.5,
+      "note": "BS EN 62305-4 / BS EN 61643 — SPDs sit inside switchboards; centred above device."
+    },
+    "STING - LPS Test Clamp Tag": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 0.5,
+      "offsetY": 0.5,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.0,
+      "note": "BS EN 62305-3 §7.2 — test clamps are external inspection points; offset with short leader."
     }
   }
 }

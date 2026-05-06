@@ -4161,6 +4161,14 @@ namespace StingTools.Core
 
                 TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwrite);
 
+                // Phase 176 — Lightning Protection System warnings (BS EN 62305).
+                // Cheap inline check: only LPS-tagged families incur the cost
+                // of LpsValidator.EvaluateAndWrite (10 rules + verdict roll-up).
+                // Hooked here so PreTagAudit, AutoTag, BatchTag, TagAndCombine,
+                // TagNewOnly, ReTag and the IUpdater all share one code path.
+                if (TagConfig.IsLightningProtection(el))
+                    StingTools.Core.Validation.LpsValidator.EvaluateAndWrite(doc, el, overwrite: true);
+
                 // P5: Auto-populate GRID_REF if empty and grids are available
                 // LOGIC-010: Log once per session when no grids exist in document
                 if (gridLines != null && gridLines.Count > 0)
