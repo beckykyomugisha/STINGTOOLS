@@ -1,6 +1,9 @@
 ## STING TAG GUIDE V3 — Comprehensive Tag Configuration & Manual Input Reference
-## Version: 3.1 | Date: 2026-05-06 | Standard: ISO 19650 + BS EN 62305 | Plugin: StingTools v1.0
+## Version: 3.2 | Date: 2026-05-06 | Standard: ISO 19650 + BS EN 62305 | Plugin: StingTools v1.0
 ## Replaces: TAG GUIDE V2.xlsx and TAG_GUIDE.xlsx
+## v3.2 / Phase 175: + 4 ELC_CIRCUIT_* manual-input parameters for SLD label rendering (REF / RATING /
+##                   POLES / LABEL). SymbolAnnotationEngine prefers STING-prefixed names; bare
+##                   CIRCUIT_REF / RATING / POLES / LABEL remain as fallback for imported families.
 ## v3.1 / Phase 176: + SYS=LPS, + 6 LPS FUNC sub-codes (AT/DC/EE/BOND/SPD/TC), + 14 LPS PROD codes,
 ##                   + 7 LPS containers, + 19 LPS manual-input parameters. WARN_ELC_LPS_* parameters
 ##                   are TEXT type per Revit-label calculated-value rule.
@@ -308,6 +311,10 @@ ELC_LPS_INSPECTION_INTERVAL_MONTHS,INTEGER,LPS,YES,12,"Inspection interval in mo
 ELC_LPS_TEST_DATE_TXT,TEXT,LPS,NO,"","ISO 8601 date of last LPS test","Element properties panel","Enter after each commissioning / periodic test (yyyy-mm-dd)."
 ELC_LPS_CERT_REF_TXT,TEXT,LPS,NO,"","Certificate / commissioning report reference","Element properties panel","Enter the BS EN 62305 certification document reference."
 ELC_LPS_EARTH_TYPE_TXT,TEXT,LPS,NO,"","Earth electrode type — ROD / RING / FOUNDATION / MESH","Element properties panel","Enter to record Type-A vs Type-B earth electrode design."
+ELC_CIRCUIT_REF_TXT,TEXT,SLD,NO,"","Electrical circuit reference (e.g. L1 / DB1-3) — rendered into SLD labels","Element properties panel","Enter on distribution-board outgoing circuits + protective devices for SLD label rendering. SymbolAnnotationEngine reads this first; falls back to bare CIRCUIT_REF for imported families."
+ELC_CIRCUIT_RATING_TXT,TEXT,SLD,NO,"","Circuit / device rating string (e.g. 32A / 100A) — rendered into SLD labels","Element properties panel","Enter the protective device rating string. Auto-included in SLD labels via {rating} token in AnnotationRules.RatingFormat."
+ELC_CIRCUIT_POLES_NR,INTEGER,SLD,NO,0,"Number of poles (1/2/3/4) for circuit breakers and switches","Element properties panel","Enter pole count for SLD label rendering. Used in {poles} token of AnnotationRules.RatingFormat (e.g. '32A 3P')."
+ELC_CIRCUIT_LABEL_TXT,TEXT,SLD,NO,"","Free-text display-label override appended to SLD label","Element properties panel","Enter a free-text label that gets appended after circuit ref + rating in the SLD annotation."
 ##
 ## ═══════════════════════════════════════════════════════════════════════════════
 ## SHEET 12: TAGGING WORKFLOW — Step-by-Step Guide

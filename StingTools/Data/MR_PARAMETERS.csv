@@ -1,4 +1,4 @@
-# v5.8 | 20260506 | BIM Template mr_parameters — 2583 params (+28: 11 SLD/Symbol/Match-line, 7 LPS containers, 10 LPS warnings — Phase 176 lightning protection tagging)
+# v5.9 | 20260506 | BIM Template mr_parameters — 2587 params (+4 ELC_CIRCUIT_*: REF / RATING / POLES / LABEL — Phase 175 SLD symbol-annotation engine inputs)
 Revit_Category,Parameter_Name,Parameter_GUID,Data_Type,Group_Name,Binding_Type,Description,Has_Formula,Formula,Input_Parameters,Discipline,User_Modifiable,Hide_When_No_Value
 Generic Models,ASS_CAT_TXT,f8fe813a-44e9-5e47-9109-921171dc53b6,TEXT,ASS_MNG,Type,Ass Cat Txt [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_CST_QUANTITY_NR,3c189e63-383c-5011-b7d9-873faed4e6c6,TEXT,ASS_MNG,Type,Ass Cst Quantity Nr [ISO 19650-3:2020],False,,,MULTI,1,0
@@ -2595,3 +2595,7 @@ Electrical Equipment,WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW,f1d6f0e5-2007-5222-92
 Electrical Equipment,WARN_ELC_LPS_NO_BONDING,f1d6f0e5-2008-5222-9222-200000000008,TEXT,ELC_PWR,Instance,Warning: equipotential bonding type not specified [BS EN 62305-3 §6.2] [HIGH],False,,,ELECTRICAL,1,1
 Electrical Equipment,WARN_ELC_LPS_MESH_SIZE_EXCEEDED,f1d6f0e5-2009-5222-9222-200000000009,TEXT,ELC_PWR,Instance,Warning: air-termination mesh exceeds class limit [BS EN 62305-3 Tab 2] [HIGH],False,,,ELECTRICAL,1,1
 Electrical Equipment,WARN_ELC_LPS_NO_ZONE,f1d6f0e5-2010-5222-9222-200000000010,TEXT,ELC_PWR,Instance,Warning: LPZ (LPZ0A/LPZ0B/LPZ1/LPZ2/LPZ3) not assigned [BS EN 62305-4 §4.1] [MEDIUM],False,,,ELECTRICAL,1,1
+Electrical Equipment,ELC_CIRCUIT_REF_TXT,c2a7e5b1-3001-5333-9333-300000000001,TEXT,ELC_PWR,Instance,Electrical circuit reference (e.g. L1 / DB1-3) — rendered into SLD labels by SymbolAnnotationEngine [STING Phase 175],False,,,ELECTRICAL,1,0
+Electrical Equipment,ELC_CIRCUIT_RATING_TXT,c2a7e5b1-3002-5333-9333-300000000002,TEXT,ELC_PWR,Instance,Circuit / device rating string (e.g. 32A / 100A) — rendered into SLD labels [STING Phase 175],False,,,ELECTRICAL,1,0
+Electrical Equipment,ELC_CIRCUIT_POLES_NR,c2a7e5b1-3003-5333-9333-300000000003,INTEGER,ELC_PWR,Instance,Number of poles (1/2/3/4) for circuit breakers and switches — rendered into SLD labels [STING Phase 175],False,,,ELECTRICAL,1,0
+Electrical Equipment,ELC_CIRCUIT_LABEL_TXT,c2a7e5b1-3004-5333-9333-300000000004,TEXT,ELC_PWR,Instance,Free-text display-label override appended to SLD label after circuit ref + rating [STING Phase 175],False,,,ELECTRICAL,1,0
