@@ -52,6 +52,52 @@ namespace StingTools.Core.Symbols
 
         [JsonProperty("solid3D", NullValueHandling = NullValueHandling.Ignore)]
         public Solid3DDefinition Solid3D { get; set; }
+
+        /// <summary>
+        /// Optional per-standard geometry overrides. When present, the
+        /// library creator emits one extra family named
+        /// <c>&lt;STANDARD&gt;_&lt;Id&gt;</c> (e.g. <c>IEEE_SLD_MCB</c>)
+        /// using the override's geometry / connectors / solid3D, falling
+        /// back to the base values for any field the override doesn't
+        /// set. The base family (bare id) is always emitted regardless,
+        /// so standards with no override automatically use it via the
+        /// concept registry's fallback chain.
+        /// </summary>
+        [JsonProperty("standardOverrides", NullValueHandling = NullValueHandling.Ignore)]
+        public Dictionary<string, StandardGeometryOverride> StandardOverrides { get; set; }
+    }
+
+    public sealed class StandardGeometryOverride
+    {
+        [JsonProperty("symbolSize", NullValueHandling = NullValueHandling.Ignore)]
+        public double? SymbolSize { get; set; }
+
+        [JsonProperty("geometry", NullValueHandling = NullValueHandling.Ignore)]
+        public SymbolGeometry Geometry { get; set; }
+
+        [JsonProperty("connectors", NullValueHandling = NullValueHandling.Ignore)]
+        public List<ConnectorDefinition> Connectors { get; set; }
+
+        [JsonProperty("solid3D", NullValueHandling = NullValueHandling.Ignore)]
+        public Solid3DDefinition Solid3D { get; set; }
+
+        /// <summary>
+        /// Per-standard parameter set. Two semantics:
+        /// <list type="bullet">
+        /// <item><c>replace</c> mode (default when <c>parameters</c> is set
+        /// alongside <c>parameterMode = "replace"</c> or omitted) — the
+        /// override list fully replaces the base list.</item>
+        /// <item><c>extend</c> mode (when <c>parameterMode = "extend"</c>) —
+        /// the override list is appended to the base list, with names
+        /// already in the base skipped.</item>
+        /// </list>
+        /// </summary>
+        [JsonProperty("parameters", NullValueHandling = NullValueHandling.Ignore)]
+        public List<ParameterDefinition> Parameters { get; set; }
+
+        /// <summary>"replace" (default) | "extend"</summary>
+        [JsonProperty("parameterMode", NullValueHandling = NullValueHandling.Ignore)]
+        public string ParameterMode { get; set; }
     }
 
     public sealed class ParameterDefinition

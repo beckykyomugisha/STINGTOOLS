@@ -10489,3 +10489,284 @@ Modified:
 - `StingTools/UI/StingDockPanel.xaml` — Migrate Labels button in
   SLD GENERATOR section
 - `docs/CHANGELOG.md` — this entry
+
+#### Completed (Phase 175 — workflow review fixes: 5 P0 + 2 P1 + 3 P2)
+
+Closes 10 findings from the symbol-workflow review. The system went
+from "compiles but PlaceSymbolsInView places 0 overlays" to "actually
+places usable, distinguishable, correctly-sized overlays at scale."
+
+#### What landed
+
+**P0-1 + P0-3 — concept ↔ library alignment.**
+The concepts JSON expected `IEC_LTG_DOWNLIGHT_RND_TAG` while the
+library creator emits `LTG_DOWNLIGHT_RND.rfa`. Regenerated
+`STING_SYMBOL_CONCEPTS.json` to use bare ids matching library
+output (715 family-name remaps across 191 concepts). Standard
+differentiation happens via stamped parameters + annotation rules
++ connector sizing — per-standard distinct geometry deferred. The
+library creator now binds 6 universal stamps on every emitted
+family (`STING_SYMBOL_ID`, `_STANDARD`, `_HOST_ELEMENT_ID`,
+`_LABEL_ID`, `_OVERRIDE`, `_COMPOUND_PARENT_ID`) so the SLD
+fast-path label-id lookup actually lights up. Added matching
+shared-parameter constants to `ParamRegistry`.
+
+**P0-2 + P0-4 — overlay duplicate-skip + concept-per-element.**
+`PlaceOverlaysForView` was checking `STING_SYMBOL_ID` on the host
+element (where it never lives — the param is on the tag), so
+re-running stacked N tags per element. Replaced with a HashSet of
+host element IDs read from existing tags' `STING_HOST_ELEMENT_ID`
+stamps. First-concept-wins resolution made every luminaire show
+the same downlight symbol; new `ResolveConceptForElement` walks a
+3-level priority chain: stamped concept on the host →
+family/type/instance-name keyword scoring against concept tokens
+(skipping low-information prefixes like `ltg`/`elec`/`hvac`) →
+first-concept fallback.
+
+**P0-5 — text height honoured.**
+`ResolveTextNoteType` was returning the doc's first TextNoteType
+regardless of `AnnotationRules.TextHeightMm`. Replaced with a
+4-tier resolver: cache by (doc, height) → existing TextNoteType
+within 0.05 mm of target → duplicate of the seed type at the
+requested size, named `STING_Symbol_<h>mm` → last-resort first.
+IEC's 2.0 mm vs IEEE's 2.5 mm vs CIBSE's 1.8 mm now produce
+visibly different labels. New `InvalidateAnnotationCache` called
+by the standard-swap path so cache stays fresh across switches.
+
+**P1-6 — chunked SwapAllTags.**
+Single `Transaction` wrapping every tag swap could leave a
+half-swapped state if any tag failed mid-loop. Replaced with a
+`TransactionGroup` containing chunks of 100 tags per inner
+`Transaction`; chunk-level failure rolls back that chunk only,
+already-committed chunks survive. Added `FamilySymbol` lookup
+caching so we don't run a project-wide collector inside the inner
+loop. On a 5,000-tag project, the swap is now interruptible and
+partial-progress-safe.
+
+**P1-7 — SLD sync gate cached per-document.**
+`SLDSyncUpdater.IsSyncEnabled` was reading `project_config.json`
+from disk on every IUpdater fire. Cached the gate result in a
+static `Dictionary<string, bool>` keyed on `doc.PathName`.
+`SLDSyncToggleCommand` now calls `InvalidateGateCache(doc.PathName)`
+after writing the new value so the toggle takes effect immediately
+— no Revit restart required, message updated.
+
+**P2-8 — `SymbolsAutoPlaceToggleCommand`.**
+The `StingAutoTagger` symbol-overlay branch checks
+`project_config.json` `symbol_auto_place` (default false) but
+there was no UI to flip it. New command writes the flag and
+reports the new state. Wired through `Symbols_AutoPlaceToggle`
+dispatch and an "Auto-Place Toggle" button in SYMBOLS & DEVICES.
+
+**P2-9 — `RemoveSymbolsInViewCommand`.**
+Companion to `PlaceSymbolsInViewCommand`. Filters tags in the
+active view to those carrying `STING_SYMBOL_ID` (so non-STING
+tags are untouched), confirms with the user, deletes each tag
+plus its associated label TextNote via
+`SymbolAnnotationEngine.RemoveAnnotation`. Wired through
+`Symbols_RemoveInView` dispatch and a "Remove In View" button.
+
+**P2-10 — compound parent-id stamped + drift audit extended.**
+`CompoundSymbolPlacer.PlaceOne` now also stamps
+`STING_COMPOUND_PARENT_ID` and `STING_SYMBOL_STANDARD` on each
+child. `SymbolDriftDetector` gains an `AppendCompoundDrift` pass
+that groups child instances by parent id and flags any group
+whose siblings carry mismatched standards (a "half-swapped
+compound"). New `COMPOUND_INCONSISTENT` drift type plus
+`CompoundParentId` field on `DriftInstance` so
+`FixSymbolDriftCommand` can heal them in one pass.
+
+#### Caveats (residual)
+
+1. Per-standard distinct geometry (the original architectural
+   promise of IEEE-shaped breakers vs IEC-shaped breakers) is
+   deferred. v1 stamps the standard parameter and applies
+   per-standard annotation rules + connector sizing, but the
+   geometry itself is single-source.
+2. The keyword-scoring concept resolver in
+   `ResolveConceptForElement` is heuristic. Custom families with
+   non-descriptive names (e.g., "Type 1", "Standard") fall back
+   to first-concept-wins. Project-specific JSON aliases would
+   close this.
+3. `RemoveSymbolsInViewCommand` is single-view-scoped. A
+   "Remove All Views" project-wide companion can be added if
+   users want it; deferred to keep the action surface minimal.
+
+#### Files
+
+Modified:
+- `StingTools/Data/Symbols/STING_SYMBOL_CONCEPTS.json` —
+  715 family-name remaps to bare-id form
+- `StingTools/Core/Symbols/SymbolLibraryCreator.cs` —
+  6 universal stamps on every emitted family
+- `StingTools/Core/Symbols/SymbolOverlayManager.cs` —
+  HashSet-based duplicate skip + 3-tier concept resolver
+- `StingTools/Core/Symbols/SymbolAnnotationEngine.cs` —
+  4-tier TextNoteType resolver with cache
+- `StingTools/Core/Symbols/CompoundSymbolPlacer.cs` —
+  parent-id stamping
+- `StingTools/Core/Symbols/SymbolDriftDetector.cs` —
+  COMPOUND_INCONSISTENT drift type + audit pass
+- `StingTools/Core/SLD/SLDSyncUpdater.cs` —
+  per-document gate cache + invalidation hook
+- `StingTools/Commands/Symbols/SymbolStandardCommands.cs` —
+  chunked TransactionGroup swap + 2 new commands
+- `StingTools/Commands/SLD/SLDGeneratorCommands.cs` —
+  toggle invalidates gate cache
+- `StingTools/Core/ParamRegistry.cs` —
+  `SYMBOL_COMPOUND_PARENT_ID` constant
+- `StingTools/UI/StingCommandHandler.cs` — 2 new dispatch entries
+- `StingTools/UI/StingDockPanel.xaml` — 2 new buttons
+- `docs/CHANGELOG.md` — this entry
+
+#### Completed (Phase 175 — close residual caveats: per-standard geometry, alias map, project-wide removal)
+
+Closes the three residual caveats from the workflow-fix commit
+(7fcf983):
+
+#### What landed
+
+1. **Per-standard distinct geometry.** `SymbolDefinition` gains an
+   optional `standardOverrides` map keyed on standard id. Each
+   override can shadow `geometry` / `connectors` / `solid3D` /
+   `symbolSize`; non-overridden fields fall back to the base.
+   `SymbolLibraryCreator.CreateAllFromFile` now iterates twice per
+   symbol: once for the base family (bare id, e.g. `SLD_MCB.rfa`)
+   and once per override (prefixed with the standard, e.g.
+   `IEEE_SLD_MCB.rfa`). New `BuildVariant` helper merges the
+   override over a clone of the base def and routes through the
+   existing `BuildOne` path. New `CloneWithId` shallow-copies the
+   def with a swapped id so the base case remains explicit.
+   - **Example shipped:** IEEE override on `SLD_MCB` —
+     ANSI/IEEE 315-style open-blade contact with a hinge pivot
+     circle, distinct from the IEC slash-through-rectangle. The
+     `SLD_MCB` concept in `STING_SYMBOL_CONCEPTS.json` now points
+     IEEE → `IEEE_SLD_MCB` while IEC keeps `SLD_MCB`. Switching
+     standards on a project visibly swaps the breaker glyph; for
+     concepts without an override (the other 190), all standards
+     share the base family via the resolver's fallback chain so
+     the existing behaviour is preserved.
+
+2. **Project-specific concept alias map.**
+   New `StingTools/Core/Symbols/SymbolAliasRegistry.cs`. Reads
+   `<project>/_BIM_COORD/symbol_aliases.json` once per document and
+   caches the result; `Reload(doc)` invalidates after edits. Match
+   priority: exact `<Family>::<Type>` → exact family → exact type
+   → glob `<prefix>*` → glob `*<substring>*` (case-insensitive
+   throughout). The resolver in
+   `SymbolOverlayManager.ResolveConceptForElement` consults the
+   alias map as a new priority-2 step (between the stamped concept
+   and the keyword scoring), so projects with non-descriptive
+   custom families (`"Type 1"`, `"Standard"`) can pin the right
+   concept explicitly without touching the corporate JSONs.
+
+3. **`RemoveSymbolsProjectWideCommand`.**
+   Companion to the per-view command. Collects STING tags across
+   the whole project once, presents a confirmation dialog with
+   per-view tally (top 8 views by count) before deleting, then
+   chunks the removal into `TransactionGroup` batches of 200
+   under a single group so a 5,000-tag project is interruptible
+   and partial-success-safe. Wired through `Symbols_RemoveAll`
+   dispatch and a "Remove All Views" button in SYMBOLS & DEVICES.
+
+#### Caveats (residual — none significant)
+
+1. The override system covers geometry / connectors / solid3D /
+   symbol-size; it does not yet override `parameters`. In practice
+   per-standard parameter sets are rare, but the schema can grow
+   later by adding `parameters` to `StandardGeometryOverride`.
+2. `SymbolAliasRegistry` is per-document. Aliases that should
+   apply across all projects (e.g., a corporate naming convention)
+   would benefit from a corporate alias file layered under the
+   project file, mirroring the `AecFilterRegistry` /
+   `DrawingTypeRegistry` pattern. Deferred — most users will use
+   the per-project file.
+
+#### Files
+
+New:
+- `StingTools/Core/Symbols/SymbolAliasRegistry.cs` — per-doc
+  alias map + 5-tier match priority
+
+Modified:
+- `StingTools/Core/Symbols/SymbolDefinition.cs` — new
+  `StandardGeometryOverride` POCO + `StandardOverrides` field
+- `StingTools/Core/Symbols/SymbolLibraryCreator.cs` —
+  `BuildVariant` + `CloneWithId` helpers; emits base + per-standard
+  variants from one geometry def
+- `StingTools/Core/Symbols/SymbolOverlayManager.cs` —
+  `ResolveConceptForElement` consults `SymbolAliasRegistry` as
+  priority 2
+- `StingTools/Commands/Symbols/SymbolStandardCommands.cs` —
+  new `RemoveSymbolsProjectWideCommand` with chunked transactions
+- `StingTools/Data/Symbols/STING_SLD_SYMBOLS.json` —
+  `standardOverrides.IEEE` block on `SLD_MCB`
+- `StingTools/Data/Symbols/STING_SYMBOL_CONCEPTS.json` —
+  `SLD_MCB.IEEE.genericAnnotation` repointed to `IEEE_SLD_MCB`
+- `StingTools/UI/StingCommandHandler.cs` — `Symbols_RemoveAll` dispatch
+- `StingTools/UI/StingDockPanel.xaml` — "Remove All Views" button
+- `docs/CHANGELOG.md` — this entry
+
+#### Completed (Phase 175 — close last residual caveats: per-standard params + corporate alias baseline)
+
+Closes the two truly-last items.
+
+#### What landed
+
+1. **Per-standard parameters in `StandardGeometryOverride`.**
+   The override schema gains two fields:
+   - `parameters: List<ParameterDefinition>` — extra or replacement
+     params for the variant family.
+   - `parameterMode: "replace" | "extend"` (default `replace`) —
+     `replace` swaps the base list entirely; `extend` appends new
+     entries while skipping any whose name already exists in the
+     base.
+
+   Wired through `SymbolLibraryCreator.MergeParameters`. The
+   IEEE override on `SLD_MCB` now uses `extend` mode to add two
+   IEEE 315-specific params (`TRIP_CURVE` defaulted to "C",
+   `AIC_RATING_KA` defaulted to 10) on top of the base 4 (CIRCUIT_REF /
+   RATING_A / POLES / LABEL). Switching a project to IEEE on the
+   breaker will surface those extra fields in the Properties palette
+   without losing the base ones.
+
+2. **Corporate-baseline alias map layered under project.**
+   `SymbolAliasRegistry` now follows the AecFilterRegistry /
+   DrawingTypeRegistry pattern — corporate baseline from
+   `data/Symbols/STING_SYMBOL_ALIASES.json` (resolved via
+   `StingToolsApp.FindDataFile`), project override from
+   `<project>/_BIM_COORD/symbol_aliases.json`. Project entries win
+   by key; project-only keys append.
+
+   Bonus — fixed the multi-segment glob matcher. The previous
+   single-substring matcher couldn't handle patterns like
+   `*recessed*downlight*` (would treat `recessed*downlight` as a
+   literal substring containing `*`). New `MatchesGlob` splits on
+   `*`, requires each literal segment to appear in order in the
+   haystack, and handles three anchored cases explicitly:
+   `prefix*` (haystack starts), `*suffix` (haystack ends), and
+   `*foo*bar*…*` (in-order substring sequence).
+
+   Shipped a corporate alias file with **82 seed entries** covering
+   common Revit-default and AcmeCorp-style family-naming conventions
+   across lighting (18), electrical (16), fire (9), HVAC (15),
+   plumbing/sanitary (10), and pipe accessories (14). Projects
+   layer their own JSON over the top — no need to redefine the
+   common ones.
+
+#### Files
+
+New:
+- `StingTools/Data/Symbols/STING_SYMBOL_ALIASES.json` — 82 seed aliases
+
+Modified:
+- `StingTools/Core/Symbols/SymbolDefinition.cs` —
+  `StandardGeometryOverride.Parameters` + `ParameterMode` fields
+- `StingTools/Core/Symbols/SymbolLibraryCreator.cs` —
+  `MergeParameters` helper handling `replace` vs `extend`
+- `StingTools/Core/Symbols/SymbolAliasRegistry.cs` —
+  corporate + project two-layer load, multi-segment glob matcher
+- `StingTools/Data/Symbols/STING_SLD_SYMBOLS.json` —
+  IEEE override on `SLD_MCB` gains `parameterMode: extend` plus
+  `TRIP_CURVE` + `AIC_RATING_KA`
+- `docs/CHANGELOG.md` — this entry

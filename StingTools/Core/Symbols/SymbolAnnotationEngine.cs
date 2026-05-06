@@ -168,16 +168,86 @@ namespace StingTools.Core.Symbols
             }
         }
 
+        // Cache resolved TextNoteType per (doc, height-in-mm) so the
+        // height-match scan + duplicate fallback only runs once per
+        // standard switch. Cleared by InvalidateAnnotationCache below.
+        private static readonly Dictionary<string, ElementId> _textTypeCache
+            = new Dictionary<string, ElementId>(StringComparer.Ordinal);
+
+        public static void InvalidateAnnotationCache()
+        {
+            lock (_textTypeCache) _textTypeCache.Clear();
+        }
+
+        /// <summary>
+        /// Resolve a <see cref="TextNoteType"/> whose text size matches
+        /// <paramref name="textHeightMm"/>. Order:
+        ///   1. Cached value for (doc, height).
+        ///   2. Any existing TextNoteType whose <c>TEXT_SIZE</c>
+        ///      parameter is within 0.05 mm of the request.
+        ///   3. Duplicate of the doc's first TextNoteType, named
+        ///      <c>STING_Symbol_<height>mm</c>, with TEXT_SIZE set.
+        ///   4. Fall back to the first TextNoteType (legacy behaviour)
+        ///      so callers always get something usable.
+        /// </summary>
         private static ElementId ResolveTextNoteType(Document doc, double textHeightMm)
         {
-            // Use the document's first TextNoteType. Heightmatch is a future
-            // improvement; default works fine for most projects.
+            string key = (doc?.PathName ?? doc?.Title ?? "") + "::" + textHeightMm.ToString("F2");
+            lock (_textTypeCache)
+            {
+                if (_textTypeCache.TryGetValue(key, out var cached) && cached != ElementId.InvalidElementId
+                    && doc.GetElement(cached) is TextNoteType) return cached;
+            }
             try
             {
-                var tnt = new FilteredElementCollector(doc)
+                double targetFt = MmToFt(textHeightMm);
+                const double tolMm = 0.05;
+                double tolFt = MmToFt(tolMm);
+
+                // 2. Existing match.
+                var allTypes = new FilteredElementCollector(doc)
                     .OfClass(typeof(TextNoteType))
-                    .FirstElementId();
-                return tnt;
+                    .Cast<TextNoteType>()
+                    .ToList();
+                foreach (var t in allTypes)
+                {
+                    var p = t.get_Parameter(BuiltInParameter.TEXT_SIZE);
+                    if (p == null) continue;
+                    if (Math.Abs(p.AsDouble() - targetFt) <= tolFt)
+                    {
+                        lock (_textTypeCache) _textTypeCache[key] = t.Id;
+                        return t.Id;
+                    }
+                }
+
+                // 3. Duplicate the first available type at the requested size.
+                var seed = allTypes.FirstOrDefault();
+                if (seed != null)
+                {
+                    string newName = $"STING_Symbol_{textHeightMm:F1}mm";
+                    var existing = allTypes.FirstOrDefault(t => string.Equals(t.Name, newName, StringComparison.Ordinal));
+                    if (existing != null)
+                    {
+                        lock (_textTypeCache) _textTypeCache[key] = existing.Id;
+                        return existing.Id;
+                    }
+                    try
+                    {
+                        if (seed.Duplicate(newName) is TextNoteType dup)
+                        {
+                            var sizeParam = dup.get_Parameter(BuiltInParameter.TEXT_SIZE);
+                            if (sizeParam != null && !sizeParam.IsReadOnly) sizeParam.Set(targetFt);
+                            lock (_textTypeCache) _textTypeCache[key] = dup.Id;
+                            return dup.Id;
+                        }
+                    }
+                    catch (Exception dupEx) { StingTools.Core.StingLog.Warn($"ResolveTextNoteType duplicate: {dupEx.Message}"); }
+                }
+
+                // 4. Last-resort fallback.
+                var first = allTypes.FirstOrDefault()?.Id ?? ElementId.InvalidElementId;
+                lock (_textTypeCache) _textTypeCache[key] = first;
+                return first;
             }
             catch (Exception ex)
             {

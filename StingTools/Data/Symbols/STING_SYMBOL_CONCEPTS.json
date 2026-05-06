@@ -11,7 +11,7 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_MCB"
+          "genericAnnotation": "SLD_MCB"
         },
         "IEEE": {
           "genericAnnotation": "IEEE_SLD_MCB"
@@ -28,10 +28,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_MCCB"
+          "genericAnnotation": "SLD_MCCB"
         },
         "IEEE": {
-          "genericAnnotation": "IEEE_SLD_MCCB"
+          "genericAnnotation": "SLD_MCCB"
         }
       }
     },
@@ -45,10 +45,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_ACB"
+          "genericAnnotation": "SLD_ACB"
         },
         "IEEE": {
-          "genericAnnotation": "IEEE_SLD_ACB"
+          "genericAnnotation": "SLD_ACB"
         }
       }
     },
@@ -62,10 +62,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_FUSE"
+          "genericAnnotation": "SLD_FUSE"
         },
         "IEEE": {
-          "genericAnnotation": "IEEE_SLD_FUSE"
+          "genericAnnotation": "SLD_FUSE"
         }
       }
     },
@@ -79,10 +79,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_FUSED_SWITCH"
+          "genericAnnotation": "SLD_FUSED_SWITCH"
         },
         "IEEE": {
-          "genericAnnotation": "IEEE_SLD_FUSED_SWITCH"
+          "genericAnnotation": "SLD_FUSED_SWITCH"
         }
       }
     },
@@ -96,10 +96,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_ISOLATOR"
+          "genericAnnotation": "SLD_ISOLATOR"
         },
         "IEEE": {
-          "genericAnnotation": "IEEE_SLD_ISOLATOR"
+          "genericAnnotation": "SLD_ISOLATOR"
         }
       }
     },
@@ -113,10 +113,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_CONTACTOR"
+          "genericAnnotation": "SLD_CONTACTOR"
         },
         "IEEE": {
-          "genericAnnotation": "IEEE_SLD_CONTACTOR"
+          "genericAnnotation": "SLD_CONTACTOR"
         }
       }
     },
@@ -130,10 +130,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_SOFT_STARTER"
+          "genericAnnotation": "SLD_SOFT_STARTER"
         },
         "IEEE": {
-          "genericAnnotation": "IEEE_SLD_SOFT_STARTER"
+          "genericAnnotation": "SLD_SOFT_STARTER"
         }
       }
     },
@@ -147,10 +147,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_VSD"
+          "genericAnnotation": "SLD_VSD"
         },
         "IEEE": {
-          "genericAnnotation": "IEEE_SLD_VSD"
+          "genericAnnotation": "SLD_VSD"
         }
       }
     },
@@ -164,10 +164,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_RCD"
+          "genericAnnotation": "SLD_RCD"
         },
         "IEEE": {
-          "genericAnnotation": "IEEE_SLD_RCD"
+          "genericAnnotation": "SLD_RCD"
         }
       }
     },
@@ -181,10 +181,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_RCBO"
+          "genericAnnotation": "SLD_RCBO"
         },
         "IEEE": {
-          "genericAnnotation": "IEEE_SLD_RCBO"
+          "genericAnnotation": "SLD_RCBO"
         }
       }
     },
@@ -198,10 +198,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_SPD"
+          "genericAnnotation": "SLD_SPD"
         },
         "IEEE": {
-          "genericAnnotation": "IEEE_SLD_SPD"
+          "genericAnnotation": "SLD_SPD"
         }
       }
     },
@@ -215,10 +215,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_XFMR_2W"
+          "genericAnnotation": "SLD_XFMR_2W"
         },
         "IEEE": {
-          "genericAnnotation": "IEEE_SLD_XFMR_2W"
+          "genericAnnotation": "SLD_XFMR_2W"
         }
       }
     },
@@ -232,10 +232,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_XFMR_3W"
+          "genericAnnotation": "SLD_XFMR_3W"
         },
         "IEEE": {
-          "genericAnnotation": "IEEE_SLD_XFMR_3W"
+          "genericAnnotation": "SLD_XFMR_3W"
         }
       }
     },
@@ -249,10 +249,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_AUTOXFMR"
+          "genericAnnotation": "SLD_AUTOXFMR"
         },
         "IEEE": {
-          "genericAnnotation": "IEEE_SLD_AUTOXFMR"
+          "genericAnnotation": "SLD_AUTOXFMR"
         }
       }
     },
@@ -266,10 +266,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_XFMR_STAR_DELTA"
+          "genericAnnotation": "SLD_XFMR_STAR_DELTA"
         },
         "IEEE": {
-          "genericAnnotation": "IEEE_SLD_XFMR_STAR_DELTA"
+          "genericAnnotation": "SLD_XFMR_STAR_DELTA"
         }
       }
     },
@@ -283,7 +283,7 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_AMMETER"
+          "genericAnnotation": "SLD_AMMETER"
         }
       }
     },
@@ -297,7 +297,7 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_VOLTMETER"
+          "genericAnnotation": "SLD_VOLTMETER"
         }
       }
     },
@@ -311,7 +311,7 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_WATTMETER"
+          "genericAnnotation": "SLD_WATTMETER"
         }
       }
     },
@@ -325,7 +325,7 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_KWH_METER"
+          "genericAnnotation": "SLD_KWH_METER"
         }
       }
     },
@@ -339,7 +339,7 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_PF_METER"
+          "genericAnnotation": "SLD_PF_METER"
         }
       }
     },
@@ -353,7 +353,7 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_CT"
+          "genericAnnotation": "SLD_CT"
         }
       }
     },
@@ -367,7 +367,7 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_VT"
+          "genericAnnotation": "SLD_VT"
         }
       }
     },
@@ -381,7 +381,7 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_BUSBAR"
+          "genericAnnotation": "SLD_BUSBAR"
         }
       }
     },
@@ -395,7 +395,7 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_BUS_SECTION"
+          "genericAnnotation": "SLD_BUS_SECTION"
         }
       }
     },
@@ -409,7 +409,7 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_EARTH"
+          "genericAnnotation": "SLD_EARTH"
         }
       }
     },
@@ -423,7 +423,7 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_NEUTRAL"
+          "genericAnnotation": "SLD_NEUTRAL"
         }
       }
     },
@@ -437,7 +437,7 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_EARTH_BAR"
+          "genericAnnotation": "SLD_EARTH_BAR"
         }
       }
     },
@@ -451,7 +451,7 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_GENERATOR"
+          "genericAnnotation": "SLD_GENERATOR"
         }
       }
     },
@@ -465,7 +465,7 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_UPS"
+          "genericAnnotation": "SLD_UPS"
         }
       }
     },
@@ -479,7 +479,7 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_BATTERY"
+          "genericAnnotation": "SLD_BATTERY"
         }
       }
     },
@@ -493,7 +493,7 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_SOLAR_PV"
+          "genericAnnotation": "SLD_SOLAR_PV"
         }
       }
     },
@@ -507,7 +507,7 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_ATS"
+          "genericAnnotation": "SLD_ATS"
         }
       }
     },
@@ -521,10 +521,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_MOTOR_3PH"
+          "genericAnnotation": "SLD_MOTOR_3PH"
         },
         "IEEE": {
-          "genericAnnotation": "IEEE_SLD_MOTOR_3PH"
+          "genericAnnotation": "SLD_MOTOR_3PH"
         }
       }
     },
@@ -538,10 +538,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_MOTOR_1PH"
+          "genericAnnotation": "SLD_MOTOR_1PH"
         },
         "IEEE": {
-          "genericAnnotation": "IEEE_SLD_MOTOR_1PH"
+          "genericAnnotation": "SLD_MOTOR_1PH"
         }
       }
     },
@@ -555,10 +555,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_CAPACITOR"
+          "genericAnnotation": "SLD_CAPACITOR"
         },
         "IEEE": {
-          "genericAnnotation": "IEEE_SLD_CAPACITOR"
+          "genericAnnotation": "SLD_CAPACITOR"
         }
       }
     },
@@ -572,10 +572,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_HEATING"
+          "genericAnnotation": "SLD_HEATING"
         },
         "IEEE": {
-          "genericAnnotation": "IEEE_SLD_HEATING"
+          "genericAnnotation": "SLD_HEATING"
         }
       }
     },
@@ -589,10 +589,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_LIGHT_LOAD"
+          "genericAnnotation": "SLD_LIGHT_LOAD"
         },
         "IEEE": {
-          "genericAnnotation": "IEEE_SLD_LIGHT_LOAD"
+          "genericAnnotation": "SLD_LIGHT_LOAD"
         }
       }
     },
@@ -606,10 +606,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_DB_DOWNSTREAM"
+          "genericAnnotation": "SLD_DB_DOWNSTREAM"
         },
         "IEEE": {
-          "genericAnnotation": "IEEE_SLD_DB_DOWNSTREAM"
+          "genericAnnotation": "SLD_DB_DOWNSTREAM"
         }
       }
     },
@@ -623,10 +623,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_SOCKET_LOAD"
+          "genericAnnotation": "SLD_SOCKET_LOAD"
         },
         "IEEE": {
-          "genericAnnotation": "IEEE_SLD_SOCKET_LOAD"
+          "genericAnnotation": "SLD_SOCKET_LOAD"
         }
       }
     },
@@ -640,10 +640,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_SWITCH_FUSE"
+          "genericAnnotation": "SLD_SWITCH_FUSE"
         },
         "IEEE": {
-          "genericAnnotation": "IEEE_SLD_SWITCH_FUSE"
+          "genericAnnotation": "SLD_SWITCH_FUSE"
         }
       }
     },
@@ -657,10 +657,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_MAINS_SWITCH"
+          "genericAnnotation": "SLD_MAINS_SWITCH"
         },
         "IEEE": {
-          "genericAnnotation": "IEEE_SLD_MAINS_SWITCH"
+          "genericAnnotation": "SLD_MAINS_SWITCH"
         }
       }
     },
@@ -674,10 +674,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_LTG_DOWNLIGHT_RND_TAG"
+          "tagFamily": "LTG_DOWNLIGHT_RND"
         },
         "IEEE": {
-          "tagFamily": "IEEE_LTG_DOWNLIGHT_RND_TAG"
+          "tagFamily": "LTG_DOWNLIGHT_RND"
         }
       }
     },
@@ -691,10 +691,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_LTG_DOWNLIGHT_SQ_TAG"
+          "tagFamily": "LTG_DOWNLIGHT_SQ"
         },
         "IEEE": {
-          "tagFamily": "IEEE_LTG_DOWNLIGHT_SQ_TAG"
+          "tagFamily": "LTG_DOWNLIGHT_SQ"
         }
       }
     },
@@ -708,10 +708,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_LTG_SURFACE_RND_TAG"
+          "tagFamily": "LTG_SURFACE_RND"
         },
         "IEEE": {
-          "tagFamily": "IEEE_LTG_SURFACE_RND_TAG"
+          "tagFamily": "LTG_SURFACE_RND"
         }
       }
     },
@@ -725,10 +725,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_LTG_SURFACE_SQ_TAG"
+          "tagFamily": "LTG_SURFACE_SQ"
         },
         "IEEE": {
-          "tagFamily": "IEEE_LTG_SURFACE_SQ_TAG"
+          "tagFamily": "LTG_SURFACE_SQ"
         }
       }
     },
@@ -742,10 +742,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_LTG_PENDANT_TAG"
+          "tagFamily": "LTG_PENDANT"
         },
         "IEEE": {
-          "tagFamily": "IEEE_LTG_PENDANT_TAG"
+          "tagFamily": "LTG_PENDANT"
         }
       }
     },
@@ -759,10 +759,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_LTG_TRACK_LINEAR_TAG"
+          "tagFamily": "LTG_TRACK_LINEAR"
         },
         "IEEE": {
-          "tagFamily": "IEEE_LTG_TRACK_LINEAR_TAG"
+          "tagFamily": "LTG_TRACK_LINEAR"
         }
       }
     },
@@ -776,10 +776,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_LTG_FLUORO_1T_TAG"
+          "tagFamily": "LTG_FLUORO_1T"
         },
         "IEEE": {
-          "tagFamily": "IEEE_LTG_FLUORO_1T_TAG"
+          "tagFamily": "LTG_FLUORO_1T"
         }
       }
     },
@@ -793,10 +793,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_LTG_FLUORO_2T_TAG"
+          "tagFamily": "LTG_FLUORO_2T"
         },
         "IEEE": {
-          "tagFamily": "IEEE_LTG_FLUORO_2T_TAG"
+          "tagFamily": "LTG_FLUORO_2T"
         }
       }
     },
@@ -810,10 +810,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_LTG_LED_LINEAR_TAG"
+          "tagFamily": "LTG_LED_LINEAR"
         },
         "IEEE": {
-          "tagFamily": "IEEE_LTG_LED_LINEAR_TAG"
+          "tagFamily": "LTG_LED_LINEAR"
         }
       }
     },
@@ -827,10 +827,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_LTG_EMERGENCY_MAINTAINED_TAG"
+          "tagFamily": "LTG_EMERGENCY_MAINTAINED"
         },
         "IEEE": {
-          "tagFamily": "IEEE_LTG_EMERGENCY_MAINTAINED_TAG"
+          "tagFamily": "LTG_EMERGENCY_MAINTAINED"
         }
       }
     },
@@ -844,10 +844,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_LTG_EMERGENCY_NON_TAG"
+          "tagFamily": "LTG_EMERGENCY_NON"
         },
         "IEEE": {
-          "tagFamily": "IEEE_LTG_EMERGENCY_NON_TAG"
+          "tagFamily": "LTG_EMERGENCY_NON"
         }
       }
     },
@@ -861,10 +861,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_LTG_EXIT_SIGN_TAG"
+          "tagFamily": "LTG_EXIT_SIGN"
         },
         "IEEE": {
-          "tagFamily": "IEEE_LTG_EXIT_SIGN_TAG"
+          "tagFamily": "LTG_EXIT_SIGN"
         }
       }
     },
@@ -878,10 +878,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_LTG_SPOTLIGHT_TAG"
+          "tagFamily": "LTG_SPOTLIGHT"
         },
         "IEEE": {
-          "tagFamily": "IEEE_LTG_SPOTLIGHT_TAG"
+          "tagFamily": "LTG_SPOTLIGHT"
         }
       }
     },
@@ -895,10 +895,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_LTG_WALL_BRACKET_TAG"
+          "tagFamily": "LTG_WALL_BRACKET"
         },
         "IEEE": {
-          "tagFamily": "IEEE_LTG_WALL_BRACKET_TAG"
+          "tagFamily": "LTG_WALL_BRACKET"
         }
       }
     },
@@ -912,10 +912,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_LTG_FLOODLIGHT_EXT_TAG"
+          "tagFamily": "LTG_FLOODLIGHT_EXT"
         },
         "IEEE": {
-          "tagFamily": "IEEE_LTG_FLOODLIGHT_EXT_TAG"
+          "tagFamily": "LTG_FLOODLIGHT_EXT"
         }
       }
     },
@@ -929,10 +929,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_LTG_BOLLARD_TAG"
+          "tagFamily": "LTG_BOLLARD"
         },
         "IEEE": {
-          "tagFamily": "IEEE_LTG_BOLLARD_TAG"
+          "tagFamily": "LTG_BOLLARD"
         }
       }
     },
@@ -946,10 +946,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_LTG_STREET_LIGHT_TAG"
+          "tagFamily": "LTG_STREET_LIGHT"
         },
         "IEEE": {
-          "tagFamily": "IEEE_LTG_STREET_LIGHT_TAG"
+          "tagFamily": "LTG_STREET_LIGHT"
         }
       }
     },
@@ -963,10 +963,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_LTG_HIGH_BAY_TAG"
+          "tagFamily": "LTG_HIGH_BAY"
         },
         "IEEE": {
-          "tagFamily": "IEEE_LTG_HIGH_BAY_TAG"
+          "tagFamily": "LTG_HIGH_BAY"
         }
       }
     },
@@ -980,10 +980,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_LTG_LOW_BAY_TAG"
+          "tagFamily": "LTG_LOW_BAY"
         },
         "IEEE": {
-          "tagFamily": "IEEE_LTG_LOW_BAY_TAG"
+          "tagFamily": "LTG_LOW_BAY"
         }
       }
     },
@@ -997,10 +997,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_LTG_ANTI_VANDAL_TAG"
+          "tagFamily": "LTG_ANTI_VANDAL"
         },
         "IEEE": {
-          "tagFamily": "IEEE_LTG_ANTI_VANDAL_TAG"
+          "tagFamily": "LTG_ANTI_VANDAL"
         }
       }
     },
@@ -1014,10 +1014,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_LTG_CLEAN_ROOM_TAG"
+          "tagFamily": "LTG_CLEAN_ROOM"
         },
         "IEEE": {
-          "tagFamily": "IEEE_LTG_CLEAN_ROOM_TAG"
+          "tagFamily": "LTG_CLEAN_ROOM"
         }
       }
     },
@@ -1031,10 +1031,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_LTG_EXPLOSION_PROOF_TAG"
+          "tagFamily": "LTG_EXPLOSION_PROOF"
         },
         "IEEE": {
-          "tagFamily": "IEEE_LTG_EXPLOSION_PROOF_TAG"
+          "tagFamily": "LTG_EXPLOSION_PROOF"
         }
       }
     },
@@ -1048,10 +1048,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_LTG_SENSOR_LIGHT_TAG"
+          "tagFamily": "LTG_SENSOR_LIGHT"
         },
         "IEEE": {
-          "tagFamily": "IEEE_LTG_SENSOR_LIGHT_TAG"
+          "tagFamily": "LTG_SENSOR_LIGHT"
         }
       }
     },
@@ -1065,10 +1065,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_LTG_RECESSED_TRIMLESS_TAG"
+          "tagFamily": "LTG_RECESSED_TRIMLESS"
         },
         "IEEE": {
-          "tagFamily": "IEEE_LTG_RECESSED_TRIMLESS_TAG"
+          "tagFamily": "LTG_RECESSED_TRIMLESS"
         }
       }
     },
@@ -1082,10 +1082,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_LTG_STEP_LIGHT_TAG"
+          "tagFamily": "LTG_STEP_LIGHT"
         },
         "IEEE": {
-          "tagFamily": "IEEE_LTG_STEP_LIGHT_TAG"
+          "tagFamily": "LTG_STEP_LIGHT"
         }
       }
     },
@@ -1099,19 +1099,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_HVAC_SAD_SQ_TAG",
+          "tagFamily": "HVAC_SAD_SQ",
           "viewContextOverrides": {
-            "Plan": "IEC_HVAC_SAD_SQ_TAG",
-            "Section": "IEC_HVAC_SAD_SQ_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_SAD_SQ"
+            "Plan": "HVAC_SAD_SQ",
+            "Section": "HVAC_SAD_SQ_SECTION",
+            "Schematic": "SCH_HVAC_SAD_SQ"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_HVAC_SAD_SQ_TAG",
+          "tagFamily": "HVAC_SAD_SQ",
           "viewContextOverrides": {
-            "Plan": "CIBSE_HVAC_SAD_SQ_TAG",
-            "Section": "CIBSE_HVAC_SAD_SQ_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_SAD_SQ"
+            "Plan": "HVAC_SAD_SQ",
+            "Section": "HVAC_SAD_SQ_SECTION",
+            "Schematic": "SCH_HVAC_SAD_SQ"
           }
         }
       },
@@ -1132,19 +1132,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_HVAC_SAD_RND_TAG",
+          "tagFamily": "HVAC_SAD_RND",
           "viewContextOverrides": {
-            "Plan": "IEC_HVAC_SAD_RND_TAG",
-            "Section": "IEC_HVAC_SAD_RND_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_SAD_RND"
+            "Plan": "HVAC_SAD_RND",
+            "Section": "HVAC_SAD_RND_SECTION",
+            "Schematic": "SCH_HVAC_SAD_RND"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_HVAC_SAD_RND_TAG",
+          "tagFamily": "HVAC_SAD_RND",
           "viewContextOverrides": {
-            "Plan": "CIBSE_HVAC_SAD_RND_TAG",
-            "Section": "CIBSE_HVAC_SAD_RND_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_SAD_RND"
+            "Plan": "HVAC_SAD_RND",
+            "Section": "HVAC_SAD_RND_SECTION",
+            "Schematic": "SCH_HVAC_SAD_RND"
           }
         }
       },
@@ -1165,19 +1165,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_HVAC_RAG_SQ_TAG",
+          "tagFamily": "HVAC_RAG_SQ",
           "viewContextOverrides": {
-            "Plan": "IEC_HVAC_RAG_SQ_TAG",
-            "Section": "IEC_HVAC_RAG_SQ_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_RAG_SQ"
+            "Plan": "HVAC_RAG_SQ",
+            "Section": "HVAC_RAG_SQ_SECTION",
+            "Schematic": "SCH_HVAC_RAG_SQ"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_HVAC_RAG_SQ_TAG",
+          "tagFamily": "HVAC_RAG_SQ",
           "viewContextOverrides": {
-            "Plan": "CIBSE_HVAC_RAG_SQ_TAG",
-            "Section": "CIBSE_HVAC_RAG_SQ_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_RAG_SQ"
+            "Plan": "HVAC_RAG_SQ",
+            "Section": "HVAC_RAG_SQ_SECTION",
+            "Schematic": "SCH_HVAC_RAG_SQ"
           }
         }
       },
@@ -1198,19 +1198,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_HVAC_RAG_RND_TAG",
+          "tagFamily": "HVAC_RAG_RND",
           "viewContextOverrides": {
-            "Plan": "IEC_HVAC_RAG_RND_TAG",
-            "Section": "IEC_HVAC_RAG_RND_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_RAG_RND"
+            "Plan": "HVAC_RAG_RND",
+            "Section": "HVAC_RAG_RND_SECTION",
+            "Schematic": "SCH_HVAC_RAG_RND"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_HVAC_RAG_RND_TAG",
+          "tagFamily": "HVAC_RAG_RND",
           "viewContextOverrides": {
-            "Plan": "CIBSE_HVAC_RAG_RND_TAG",
-            "Section": "CIBSE_HVAC_RAG_RND_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_RAG_RND"
+            "Plan": "HVAC_RAG_RND",
+            "Section": "HVAC_RAG_RND_SECTION",
+            "Schematic": "SCH_HVAC_RAG_RND"
           }
         }
       },
@@ -1231,19 +1231,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_HVAC_LINEAR_SLOT_TAG",
+          "tagFamily": "HVAC_LINEAR_SLOT",
           "viewContextOverrides": {
-            "Plan": "IEC_HVAC_LINEAR_SLOT_TAG",
-            "Section": "IEC_HVAC_LINEAR_SLOT_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_LINEAR_SLOT"
+            "Plan": "HVAC_LINEAR_SLOT",
+            "Section": "HVAC_LINEAR_SLOT_SECTION",
+            "Schematic": "SCH_HVAC_LINEAR_SLOT"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_HVAC_LINEAR_SLOT_TAG",
+          "tagFamily": "HVAC_LINEAR_SLOT",
           "viewContextOverrides": {
-            "Plan": "CIBSE_HVAC_LINEAR_SLOT_TAG",
-            "Section": "CIBSE_HVAC_LINEAR_SLOT_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_LINEAR_SLOT"
+            "Plan": "HVAC_LINEAR_SLOT",
+            "Section": "HVAC_LINEAR_SLOT_SECTION",
+            "Schematic": "SCH_HVAC_LINEAR_SLOT"
           }
         }
       },
@@ -1264,19 +1264,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_HVAC_EXTRACT_VALVE_RND_TAG",
+          "tagFamily": "HVAC_EXTRACT_VALVE_RND",
           "viewContextOverrides": {
-            "Plan": "IEC_HVAC_EXTRACT_VALVE_RND_TAG",
-            "Section": "IEC_HVAC_EXTRACT_VALVE_RND_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_EXTRACT_VALVE_RND"
+            "Plan": "HVAC_EXTRACT_VALVE_RND",
+            "Section": "HVAC_EXTRACT_VALVE_RND_SECTION",
+            "Schematic": "SCH_HVAC_EXTRACT_VALVE_RND"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_HVAC_EXTRACT_VALVE_RND_TAG",
+          "tagFamily": "HVAC_EXTRACT_VALVE_RND",
           "viewContextOverrides": {
-            "Plan": "CIBSE_HVAC_EXTRACT_VALVE_RND_TAG",
-            "Section": "CIBSE_HVAC_EXTRACT_VALVE_RND_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_EXTRACT_VALVE_RND"
+            "Plan": "HVAC_EXTRACT_VALVE_RND",
+            "Section": "HVAC_EXTRACT_VALVE_RND_SECTION",
+            "Schematic": "SCH_HVAC_EXTRACT_VALVE_RND"
           }
         }
       },
@@ -1297,19 +1297,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_HVAC_DISPLACEMENT_TAG",
+          "tagFamily": "HVAC_DISPLACEMENT",
           "viewContextOverrides": {
-            "Plan": "IEC_HVAC_DISPLACEMENT_TAG",
-            "Section": "IEC_HVAC_DISPLACEMENT_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_DISPLACEMENT"
+            "Plan": "HVAC_DISPLACEMENT",
+            "Section": "HVAC_DISPLACEMENT_SECTION",
+            "Schematic": "SCH_HVAC_DISPLACEMENT"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_HVAC_DISPLACEMENT_TAG",
+          "tagFamily": "HVAC_DISPLACEMENT",
           "viewContextOverrides": {
-            "Plan": "CIBSE_HVAC_DISPLACEMENT_TAG",
-            "Section": "CIBSE_HVAC_DISPLACEMENT_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_DISPLACEMENT"
+            "Plan": "HVAC_DISPLACEMENT",
+            "Section": "HVAC_DISPLACEMENT_SECTION",
+            "Schematic": "SCH_HVAC_DISPLACEMENT"
           }
         }
       },
@@ -1330,19 +1330,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_HVAC_SWIRL_TAG",
+          "tagFamily": "HVAC_SWIRL",
           "viewContextOverrides": {
-            "Plan": "IEC_HVAC_SWIRL_TAG",
-            "Section": "IEC_HVAC_SWIRL_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_SWIRL"
+            "Plan": "HVAC_SWIRL",
+            "Section": "HVAC_SWIRL_SECTION",
+            "Schematic": "SCH_HVAC_SWIRL"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_HVAC_SWIRL_TAG",
+          "tagFamily": "HVAC_SWIRL",
           "viewContextOverrides": {
-            "Plan": "CIBSE_HVAC_SWIRL_TAG",
-            "Section": "CIBSE_HVAC_SWIRL_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_SWIRL"
+            "Plan": "HVAC_SWIRL",
+            "Section": "HVAC_SWIRL_SECTION",
+            "Schematic": "SCH_HVAC_SWIRL"
           }
         }
       },
@@ -1363,19 +1363,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_HVAC_TRANSFER_GRILLE_TAG",
+          "tagFamily": "HVAC_TRANSFER_GRILLE",
           "viewContextOverrides": {
-            "Plan": "IEC_HVAC_TRANSFER_GRILLE_TAG",
-            "Section": "IEC_HVAC_TRANSFER_GRILLE_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_TRANSFER_GRILLE"
+            "Plan": "HVAC_TRANSFER_GRILLE",
+            "Section": "HVAC_TRANSFER_GRILLE_SECTION",
+            "Schematic": "SCH_HVAC_TRANSFER_GRILLE"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_HVAC_TRANSFER_GRILLE_TAG",
+          "tagFamily": "HVAC_TRANSFER_GRILLE",
           "viewContextOverrides": {
-            "Plan": "CIBSE_HVAC_TRANSFER_GRILLE_TAG",
-            "Section": "CIBSE_HVAC_TRANSFER_GRILLE_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_TRANSFER_GRILLE"
+            "Plan": "HVAC_TRANSFER_GRILLE",
+            "Section": "HVAC_TRANSFER_GRILLE_SECTION",
+            "Schematic": "SCH_HVAC_TRANSFER_GRILLE"
           }
         }
       },
@@ -1396,19 +1396,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_HVAC_FIRE_DAMPER_TAG",
+          "tagFamily": "HVAC_FIRE_DAMPER",
           "viewContextOverrides": {
-            "Plan": "IEC_HVAC_FIRE_DAMPER_TAG",
-            "Section": "IEC_HVAC_FIRE_DAMPER_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_FIRE_DAMPER"
+            "Plan": "HVAC_FIRE_DAMPER",
+            "Section": "HVAC_FIRE_DAMPER_SECTION",
+            "Schematic": "SCH_HVAC_FIRE_DAMPER"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_HVAC_FIRE_DAMPER_TAG",
+          "tagFamily": "HVAC_FIRE_DAMPER",
           "viewContextOverrides": {
-            "Plan": "CIBSE_HVAC_FIRE_DAMPER_TAG",
-            "Section": "CIBSE_HVAC_FIRE_DAMPER_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_FIRE_DAMPER"
+            "Plan": "HVAC_FIRE_DAMPER",
+            "Section": "HVAC_FIRE_DAMPER_SECTION",
+            "Schematic": "SCH_HVAC_FIRE_DAMPER"
           }
         }
       },
@@ -1430,19 +1430,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_HVAC_SMOKE_DAMPER_TAG",
+          "tagFamily": "HVAC_SMOKE_DAMPER",
           "viewContextOverrides": {
-            "Plan": "IEC_HVAC_SMOKE_DAMPER_TAG",
-            "Section": "IEC_HVAC_SMOKE_DAMPER_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_SMOKE_DAMPER"
+            "Plan": "HVAC_SMOKE_DAMPER",
+            "Section": "HVAC_SMOKE_DAMPER_SECTION",
+            "Schematic": "SCH_HVAC_SMOKE_DAMPER"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_HVAC_SMOKE_DAMPER_TAG",
+          "tagFamily": "HVAC_SMOKE_DAMPER",
           "viewContextOverrides": {
-            "Plan": "CIBSE_HVAC_SMOKE_DAMPER_TAG",
-            "Section": "CIBSE_HVAC_SMOKE_DAMPER_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_SMOKE_DAMPER"
+            "Plan": "HVAC_SMOKE_DAMPER",
+            "Section": "HVAC_SMOKE_DAMPER_SECTION",
+            "Schematic": "SCH_HVAC_SMOKE_DAMPER"
           }
         }
       },
@@ -1464,19 +1464,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_HVAC_FIRE_SMOKE_DAMPER_TAG",
+          "tagFamily": "HVAC_FIRE_SMOKE_DAMPER",
           "viewContextOverrides": {
-            "Plan": "IEC_HVAC_FIRE_SMOKE_DAMPER_TAG",
-            "Section": "IEC_HVAC_FIRE_SMOKE_DAMPER_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_FIRE_SMOKE_DAMPER"
+            "Plan": "HVAC_FIRE_SMOKE_DAMPER",
+            "Section": "HVAC_FIRE_SMOKE_DAMPER_SECTION",
+            "Schematic": "SCH_HVAC_FIRE_SMOKE_DAMPER"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_HVAC_FIRE_SMOKE_DAMPER_TAG",
+          "tagFamily": "HVAC_FIRE_SMOKE_DAMPER",
           "viewContextOverrides": {
-            "Plan": "CIBSE_HVAC_FIRE_SMOKE_DAMPER_TAG",
-            "Section": "CIBSE_HVAC_FIRE_SMOKE_DAMPER_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_FIRE_SMOKE_DAMPER"
+            "Plan": "HVAC_FIRE_SMOKE_DAMPER",
+            "Section": "HVAC_FIRE_SMOKE_DAMPER_SECTION",
+            "Schematic": "SCH_HVAC_FIRE_SMOKE_DAMPER"
           }
         }
       },
@@ -1498,19 +1498,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_HVAC_VCD_TAG",
+          "tagFamily": "HVAC_VCD",
           "viewContextOverrides": {
-            "Plan": "IEC_HVAC_VCD_TAG",
-            "Section": "IEC_HVAC_VCD_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_VCD"
+            "Plan": "HVAC_VCD",
+            "Section": "HVAC_VCD_SECTION",
+            "Schematic": "SCH_HVAC_VCD"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_HVAC_VCD_TAG",
+          "tagFamily": "HVAC_VCD",
           "viewContextOverrides": {
-            "Plan": "CIBSE_HVAC_VCD_TAG",
-            "Section": "CIBSE_HVAC_VCD_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_VCD"
+            "Plan": "HVAC_VCD",
+            "Section": "HVAC_VCD_SECTION",
+            "Schematic": "SCH_HVAC_VCD"
           }
         }
       },
@@ -1532,19 +1532,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_HVAC_MOTORISED_DAMPER_TAG",
+          "tagFamily": "HVAC_MOTORISED_DAMPER",
           "viewContextOverrides": {
-            "Plan": "IEC_HVAC_MOTORISED_DAMPER_TAG",
-            "Section": "IEC_HVAC_MOTORISED_DAMPER_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_MOTORISED_DAMPER"
+            "Plan": "HVAC_MOTORISED_DAMPER",
+            "Section": "HVAC_MOTORISED_DAMPER_SECTION",
+            "Schematic": "SCH_HVAC_MOTORISED_DAMPER"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_HVAC_MOTORISED_DAMPER_TAG",
+          "tagFamily": "HVAC_MOTORISED_DAMPER",
           "viewContextOverrides": {
-            "Plan": "CIBSE_HVAC_MOTORISED_DAMPER_TAG",
-            "Section": "CIBSE_HVAC_MOTORISED_DAMPER_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_MOTORISED_DAMPER"
+            "Plan": "HVAC_MOTORISED_DAMPER",
+            "Section": "HVAC_MOTORISED_DAMPER_SECTION",
+            "Schematic": "SCH_HVAC_MOTORISED_DAMPER"
           }
         }
       },
@@ -1566,19 +1566,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_HVAC_NR_DAMPER_TAG",
+          "tagFamily": "HVAC_NR_DAMPER",
           "viewContextOverrides": {
-            "Plan": "IEC_HVAC_NR_DAMPER_TAG",
-            "Section": "IEC_HVAC_NR_DAMPER_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_NR_DAMPER"
+            "Plan": "HVAC_NR_DAMPER",
+            "Section": "HVAC_NR_DAMPER_SECTION",
+            "Schematic": "SCH_HVAC_NR_DAMPER"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_HVAC_NR_DAMPER_TAG",
+          "tagFamily": "HVAC_NR_DAMPER",
           "viewContextOverrides": {
-            "Plan": "CIBSE_HVAC_NR_DAMPER_TAG",
-            "Section": "CIBSE_HVAC_NR_DAMPER_SECTION_TAG",
-            "Schematic": "IEC_SCH_HVAC_NR_DAMPER"
+            "Plan": "HVAC_NR_DAMPER",
+            "Section": "HVAC_NR_DAMPER_SECTION",
+            "Schematic": "SCH_HVAC_NR_DAMPER"
           }
         }
       },
@@ -1600,10 +1600,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_HVAC_FCU_TAG"
+          "tagFamily": "HVAC_FCU"
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_HVAC_FCU_TAG"
+          "tagFamily": "HVAC_FCU"
         }
       }
     },
@@ -1617,10 +1617,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_HVAC_FCU_2PIPE_TAG"
+          "tagFamily": "HVAC_FCU_2PIPE"
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_HVAC_FCU_2PIPE_TAG"
+          "tagFamily": "HVAC_FCU_2PIPE"
         }
       }
     },
@@ -1634,10 +1634,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_HVAC_VAV_TAG"
+          "tagFamily": "HVAC_VAV"
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_HVAC_VAV_TAG"
+          "tagFamily": "HVAC_VAV"
         }
       }
     },
@@ -1651,10 +1651,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_HVAC_CAV_TAG"
+          "tagFamily": "HVAC_CAV"
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_HVAC_CAV_TAG"
+          "tagFamily": "HVAC_CAV"
         }
       }
     },
@@ -1668,10 +1668,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_HVAC_AHU_TAG"
+          "tagFamily": "HVAC_AHU"
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_HVAC_AHU_TAG"
+          "tagFamily": "HVAC_AHU"
         }
       }
     },
@@ -1685,10 +1685,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_HVAC_FAN_AXIAL_TAG"
+          "tagFamily": "HVAC_FAN_AXIAL"
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_HVAC_FAN_AXIAL_TAG"
+          "tagFamily": "HVAC_FAN_AXIAL"
         }
       }
     },
@@ -1702,10 +1702,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_HVAC_FAN_CENTRIFUGAL_TAG"
+          "tagFamily": "HVAC_FAN_CENTRIFUGAL"
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_HVAC_FAN_CENTRIFUGAL_TAG"
+          "tagFamily": "HVAC_FAN_CENTRIFUGAL"
         }
       }
     },
@@ -1719,10 +1719,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_HVAC_THERMOSTAT_TAG"
+          "tagFamily": "HVAC_THERMOSTAT"
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_HVAC_THERMOSTAT_TAG"
+          "tagFamily": "HVAC_THERMOSTAT"
         }
       }
     },
@@ -1736,10 +1736,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_HVAC_CO2_SENSOR_TAG"
+          "tagFamily": "HVAC_CO2_SENSOR"
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_HVAC_CO2_SENSOR_TAG"
+          "tagFamily": "HVAC_CO2_SENSOR"
         }
       }
     },
@@ -1753,10 +1753,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_HVAC_TEMP_SENSOR_TAG"
+          "tagFamily": "HVAC_TEMP_SENSOR"
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_HVAC_TEMP_SENSOR_TAG"
+          "tagFamily": "HVAC_TEMP_SENSOR"
         }
       }
     },
@@ -1770,10 +1770,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_HVAC_HUMIDITY_SENSOR_TAG"
+          "tagFamily": "HVAC_HUMIDITY_SENSOR"
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_HVAC_HUMIDITY_SENSOR_TAG"
+          "tagFamily": "HVAC_HUMIDITY_SENSOR"
         }
       }
     },
@@ -1787,10 +1787,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_HVAC_PRESSURE_DIFF_TAG"
+          "tagFamily": "HVAC_PRESSURE_DIFF"
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_HVAC_PRESSURE_DIFF_TAG"
+          "tagFamily": "HVAC_PRESSURE_DIFF"
         }
       }
     },
@@ -1804,10 +1804,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_FP_SPKR_PENDANT_TAG"
+          "tagFamily": "FP_SPKR_PENDANT"
         },
         "NFPA": {
-          "tagFamily": "NFPA_FP_SPKR_PENDANT_TAG"
+          "tagFamily": "FP_SPKR_PENDANT"
         }
       },
       "connectorDomain": "Piping"
@@ -1822,10 +1822,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_FP_SPKR_UPRIGHT_TAG"
+          "tagFamily": "FP_SPKR_UPRIGHT"
         },
         "NFPA": {
-          "tagFamily": "NFPA_FP_SPKR_UPRIGHT_TAG"
+          "tagFamily": "FP_SPKR_UPRIGHT"
         }
       },
       "connectorDomain": "Piping"
@@ -1840,10 +1840,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_FP_SPKR_SIDEWALL_TAG"
+          "tagFamily": "FP_SPKR_SIDEWALL"
         },
         "NFPA": {
-          "tagFamily": "NFPA_FP_SPKR_SIDEWALL_TAG"
+          "tagFamily": "FP_SPKR_SIDEWALL"
         }
       },
       "connectorDomain": "Piping"
@@ -1858,10 +1858,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_FP_SPKR_CONCEALED_TAG"
+          "tagFamily": "FP_SPKR_CONCEALED"
         },
         "NFPA": {
-          "tagFamily": "NFPA_FP_SPKR_CONCEALED_TAG"
+          "tagFamily": "FP_SPKR_CONCEALED"
         }
       },
       "connectorDomain": "Piping"
@@ -1876,10 +1876,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_FP_SPKR_ESFR_TAG"
+          "tagFamily": "FP_SPKR_ESFR"
         },
         "NFPA": {
-          "tagFamily": "NFPA_FP_SPKR_ESFR_TAG"
+          "tagFamily": "FP_SPKR_ESFR"
         }
       },
       "connectorDomain": "Piping"
@@ -1894,10 +1894,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_FP_DELUGE_NOZZLE_TAG"
+          "tagFamily": "FP_DELUGE_NOZZLE"
         },
         "NFPA": {
-          "tagFamily": "NFPA_FP_DELUGE_NOZZLE_TAG"
+          "tagFamily": "FP_DELUGE_NOZZLE"
         }
       },
       "connectorDomain": "Piping"
@@ -1912,10 +1912,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_FP_SMOKE_OPTICAL_TAG"
+          "tagFamily": "FP_SMOKE_OPTICAL"
         },
         "NFPA": {
-          "tagFamily": "NFPA_FP_SMOKE_OPTICAL_TAG"
+          "tagFamily": "FP_SMOKE_OPTICAL"
         }
       }
     },
@@ -1929,10 +1929,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_FP_SMOKE_IONISATION_TAG"
+          "tagFamily": "FP_SMOKE_IONISATION"
         },
         "NFPA": {
-          "tagFamily": "NFPA_FP_SMOKE_IONISATION_TAG"
+          "tagFamily": "FP_SMOKE_IONISATION"
         }
       }
     },
@@ -1946,10 +1946,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_FP_HEAT_FIXED_TAG"
+          "tagFamily": "FP_HEAT_FIXED"
         },
         "NFPA": {
-          "tagFamily": "NFPA_FP_HEAT_FIXED_TAG"
+          "tagFamily": "FP_HEAT_FIXED"
         }
       }
     },
@@ -1963,10 +1963,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_FP_HEAT_RATE_OF_RISE_TAG"
+          "tagFamily": "FP_HEAT_RATE_OF_RISE"
         },
         "NFPA": {
-          "tagFamily": "NFPA_FP_HEAT_RATE_OF_RISE_TAG"
+          "tagFamily": "FP_HEAT_RATE_OF_RISE"
         }
       }
     },
@@ -1980,10 +1980,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_FP_MULTI_SENSOR_TAG"
+          "tagFamily": "FP_MULTI_SENSOR"
         },
         "NFPA": {
-          "tagFamily": "NFPA_FP_MULTI_SENSOR_TAG"
+          "tagFamily": "FP_MULTI_SENSOR"
         }
       }
     },
@@ -1997,10 +1997,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_FP_BEAM_TX_TAG"
+          "tagFamily": "FP_BEAM_TX"
         },
         "NFPA": {
-          "tagFamily": "NFPA_FP_BEAM_TX_TAG"
+          "tagFamily": "FP_BEAM_TX"
         }
       }
     },
@@ -2014,10 +2014,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_FP_BEAM_RX_TAG"
+          "tagFamily": "FP_BEAM_RX"
         },
         "NFPA": {
-          "tagFamily": "NFPA_FP_BEAM_RX_TAG"
+          "tagFamily": "FP_BEAM_RX"
         }
       }
     },
@@ -2031,10 +2031,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_FP_FLAME_DETECTOR_TAG"
+          "tagFamily": "FP_FLAME_DETECTOR"
         },
         "NFPA": {
-          "tagFamily": "NFPA_FP_FLAME_DETECTOR_TAG"
+          "tagFamily": "FP_FLAME_DETECTOR"
         }
       }
     },
@@ -2048,10 +2048,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_FP_MCP_TAG"
+          "tagFamily": "FP_MCP"
         },
         "NFPA": {
-          "tagFamily": "NFPA_FP_MCP_TAG"
+          "tagFamily": "FP_MCP"
         }
       }
     },
@@ -2065,10 +2065,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_FP_SOUNDER_TAG"
+          "tagFamily": "FP_SOUNDER"
         },
         "NFPA": {
-          "tagFamily": "NFPA_FP_SOUNDER_TAG"
+          "tagFamily": "FP_SOUNDER"
         }
       }
     },
@@ -2082,10 +2082,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_FP_SOUNDER_BEACON_TAG"
+          "tagFamily": "FP_SOUNDER_BEACON"
         },
         "NFPA": {
-          "tagFamily": "NFPA_FP_SOUNDER_BEACON_TAG"
+          "tagFamily": "FP_SOUNDER_BEACON"
         }
       }
     },
@@ -2099,10 +2099,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_FP_VAD_TAG"
+          "tagFamily": "FP_VAD"
         },
         "NFPA": {
-          "tagFamily": "NFPA_FP_VAD_TAG"
+          "tagFamily": "FP_VAD"
         }
       }
     },
@@ -2116,10 +2116,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_FP_FAP_TAG"
+          "tagFamily": "FP_FAP"
         },
         "NFPA": {
-          "tagFamily": "NFPA_FP_FAP_TAG"
+          "tagFamily": "FP_FAP"
         }
       }
     },
@@ -2133,10 +2133,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_FP_REPEATER_TAG"
+          "tagFamily": "FP_REPEATER"
         },
         "NFPA": {
-          "tagFamily": "NFPA_FP_REPEATER_TAG"
+          "tagFamily": "FP_REPEATER"
         }
       }
     },
@@ -2150,19 +2150,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_FP_ALARM_VALVE_WET_TAG",
+          "tagFamily": "FP_ALARM_VALVE_WET",
           "viewContextOverrides": {
-            "Plan": "IEC_FP_ALARM_VALVE_WET_TAG",
-            "Section": "IEC_FP_ALARM_VALVE_WET_SECTION_TAG",
-            "Schematic": "IEC_SCH_FP_ALARM_VALVE_WET"
+            "Plan": "FP_ALARM_VALVE_WET",
+            "Section": "FP_ALARM_VALVE_WET_SECTION",
+            "Schematic": "SCH_FP_ALARM_VALVE_WET"
           }
         },
         "NFPA": {
-          "tagFamily": "NFPA_FP_ALARM_VALVE_WET_TAG",
+          "tagFamily": "FP_ALARM_VALVE_WET",
           "viewContextOverrides": {
-            "Plan": "NFPA_FP_ALARM_VALVE_WET_TAG",
-            "Section": "NFPA_FP_ALARM_VALVE_WET_SECTION_TAG",
-            "Schematic": "IEC_SCH_FP_ALARM_VALVE_WET"
+            "Plan": "FP_ALARM_VALVE_WET",
+            "Section": "FP_ALARM_VALVE_WET_SECTION",
+            "Schematic": "SCH_FP_ALARM_VALVE_WET"
           }
         }
       },
@@ -2184,19 +2184,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_FP_ALARM_VALVE_DRY_TAG",
+          "tagFamily": "FP_ALARM_VALVE_DRY",
           "viewContextOverrides": {
-            "Plan": "IEC_FP_ALARM_VALVE_DRY_TAG",
-            "Section": "IEC_FP_ALARM_VALVE_DRY_SECTION_TAG",
-            "Schematic": "IEC_SCH_FP_ALARM_VALVE_DRY"
+            "Plan": "FP_ALARM_VALVE_DRY",
+            "Section": "FP_ALARM_VALVE_DRY_SECTION",
+            "Schematic": "SCH_FP_ALARM_VALVE_DRY"
           }
         },
         "NFPA": {
-          "tagFamily": "NFPA_FP_ALARM_VALVE_DRY_TAG",
+          "tagFamily": "FP_ALARM_VALVE_DRY",
           "viewContextOverrides": {
-            "Plan": "NFPA_FP_ALARM_VALVE_DRY_TAG",
-            "Section": "NFPA_FP_ALARM_VALVE_DRY_SECTION_TAG",
-            "Schematic": "IEC_SCH_FP_ALARM_VALVE_DRY"
+            "Plan": "FP_ALARM_VALVE_DRY",
+            "Section": "FP_ALARM_VALVE_DRY_SECTION",
+            "Schematic": "SCH_FP_ALARM_VALVE_DRY"
           }
         }
       },
@@ -2218,19 +2218,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_FP_DELUGE_VALVE_TAG",
+          "tagFamily": "FP_DELUGE_VALVE",
           "viewContextOverrides": {
-            "Plan": "IEC_FP_DELUGE_VALVE_TAG",
-            "Section": "IEC_FP_DELUGE_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_FP_DELUGE_VALVE"
+            "Plan": "FP_DELUGE_VALVE",
+            "Section": "FP_DELUGE_VALVE_SECTION",
+            "Schematic": "SCH_FP_DELUGE_VALVE"
           }
         },
         "NFPA": {
-          "tagFamily": "NFPA_FP_DELUGE_VALVE_TAG",
+          "tagFamily": "FP_DELUGE_VALVE",
           "viewContextOverrides": {
-            "Plan": "NFPA_FP_DELUGE_VALVE_TAG",
-            "Section": "NFPA_FP_DELUGE_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_FP_DELUGE_VALVE"
+            "Plan": "FP_DELUGE_VALVE",
+            "Section": "FP_DELUGE_VALVE_SECTION",
+            "Schematic": "SCH_FP_DELUGE_VALVE"
           }
         }
       },
@@ -2252,19 +2252,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_FP_FLOW_SWITCH_TAG",
+          "tagFamily": "FP_FLOW_SWITCH",
           "viewContextOverrides": {
-            "Plan": "IEC_FP_FLOW_SWITCH_TAG",
-            "Section": "IEC_FP_FLOW_SWITCH_SECTION_TAG",
-            "Schematic": "IEC_SCH_FP_FLOW_SWITCH"
+            "Plan": "FP_FLOW_SWITCH",
+            "Section": "FP_FLOW_SWITCH_SECTION",
+            "Schematic": "SCH_FP_FLOW_SWITCH"
           }
         },
         "NFPA": {
-          "tagFamily": "NFPA_FP_FLOW_SWITCH_TAG",
+          "tagFamily": "FP_FLOW_SWITCH",
           "viewContextOverrides": {
-            "Plan": "NFPA_FP_FLOW_SWITCH_TAG",
-            "Section": "NFPA_FP_FLOW_SWITCH_SECTION_TAG",
-            "Schematic": "IEC_SCH_FP_FLOW_SWITCH"
+            "Plan": "FP_FLOW_SWITCH",
+            "Section": "FP_FLOW_SWITCH_SECTION",
+            "Schematic": "SCH_FP_FLOW_SWITCH"
           }
         }
       },
@@ -2286,19 +2286,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_FP_PRESSURE_GAUGE_FP_TAG",
+          "tagFamily": "FP_PRESSURE_GAUGE_FP",
           "viewContextOverrides": {
-            "Plan": "IEC_FP_PRESSURE_GAUGE_FP_TAG",
-            "Section": "IEC_FP_PRESSURE_GAUGE_FP_SECTION_TAG",
-            "Schematic": "IEC_SCH_FP_PRESSURE_GAUGE_FP"
+            "Plan": "FP_PRESSURE_GAUGE_FP",
+            "Section": "FP_PRESSURE_GAUGE_FP_SECTION",
+            "Schematic": "SCH_FP_PRESSURE_GAUGE_FP"
           }
         },
         "NFPA": {
-          "tagFamily": "NFPA_FP_PRESSURE_GAUGE_FP_TAG",
+          "tagFamily": "FP_PRESSURE_GAUGE_FP",
           "viewContextOverrides": {
-            "Plan": "NFPA_FP_PRESSURE_GAUGE_FP_TAG",
-            "Section": "NFPA_FP_PRESSURE_GAUGE_FP_SECTION_TAG",
-            "Schematic": "IEC_SCH_FP_PRESSURE_GAUGE_FP"
+            "Plan": "FP_PRESSURE_GAUGE_FP",
+            "Section": "FP_PRESSURE_GAUGE_FP_SECTION",
+            "Schematic": "SCH_FP_PRESSURE_GAUGE_FP"
           }
         }
       },
@@ -2320,19 +2320,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_FP_TEST_VALVE_TAG",
+          "tagFamily": "FP_TEST_VALVE",
           "viewContextOverrides": {
-            "Plan": "IEC_FP_TEST_VALVE_TAG",
-            "Section": "IEC_FP_TEST_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_FP_TEST_VALVE"
+            "Plan": "FP_TEST_VALVE",
+            "Section": "FP_TEST_VALVE_SECTION",
+            "Schematic": "SCH_FP_TEST_VALVE"
           }
         },
         "NFPA": {
-          "tagFamily": "NFPA_FP_TEST_VALVE_TAG",
+          "tagFamily": "FP_TEST_VALVE",
           "viewContextOverrides": {
-            "Plan": "NFPA_FP_TEST_VALVE_TAG",
-            "Section": "NFPA_FP_TEST_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_FP_TEST_VALVE"
+            "Plan": "FP_TEST_VALVE",
+            "Section": "FP_TEST_VALVE_SECTION",
+            "Schematic": "SCH_FP_TEST_VALVE"
           }
         }
       },
@@ -2354,19 +2354,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_FP_DRAIN_VALVE_TAG",
+          "tagFamily": "FP_DRAIN_VALVE",
           "viewContextOverrides": {
-            "Plan": "IEC_FP_DRAIN_VALVE_TAG",
-            "Section": "IEC_FP_DRAIN_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_FP_DRAIN_VALVE"
+            "Plan": "FP_DRAIN_VALVE",
+            "Section": "FP_DRAIN_VALVE_SECTION",
+            "Schematic": "SCH_FP_DRAIN_VALVE"
           }
         },
         "NFPA": {
-          "tagFamily": "NFPA_FP_DRAIN_VALVE_TAG",
+          "tagFamily": "FP_DRAIN_VALVE",
           "viewContextOverrides": {
-            "Plan": "NFPA_FP_DRAIN_VALVE_TAG",
-            "Section": "NFPA_FP_DRAIN_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_FP_DRAIN_VALVE"
+            "Plan": "FP_DRAIN_VALVE",
+            "Section": "FP_DRAIN_VALVE_SECTION",
+            "Schematic": "SCH_FP_DRAIN_VALVE"
           }
         }
       },
@@ -2388,19 +2388,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_FP_BFPV_TAG",
+          "tagFamily": "FP_BFPV",
           "viewContextOverrides": {
-            "Plan": "IEC_FP_BFPV_TAG",
-            "Section": "IEC_FP_BFPV_SECTION_TAG",
-            "Schematic": "IEC_SCH_FP_BFPV"
+            "Plan": "FP_BFPV",
+            "Section": "FP_BFPV_SECTION",
+            "Schematic": "SCH_FP_BFPV"
           }
         },
         "NFPA": {
-          "tagFamily": "NFPA_FP_BFPV_TAG",
+          "tagFamily": "FP_BFPV",
           "viewContextOverrides": {
-            "Plan": "NFPA_FP_BFPV_TAG",
-            "Section": "NFPA_FP_BFPV_SECTION_TAG",
-            "Schematic": "IEC_SCH_FP_BFPV"
+            "Plan": "FP_BFPV",
+            "Section": "FP_BFPV_SECTION",
+            "Schematic": "SCH_FP_BFPV"
           }
         }
       },
@@ -2422,13 +2422,13 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_ELEC_SOCKET_SINGLE_TAG"
+          "tagFamily": "ELEC_SOCKET_SINGLE"
         },
         "IEEE": {
-          "tagFamily": "IEEE_ELEC_SOCKET_SINGLE_TAG"
+          "tagFamily": "ELEC_SOCKET_SINGLE"
         },
         "BS": {
-          "tagFamily": "BS_ELEC_SOCKET_SINGLE_TAG"
+          "tagFamily": "ELEC_SOCKET_SINGLE"
         }
       }
     },
@@ -2442,13 +2442,13 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_ELEC_SOCKET_DOUBLE_TAG"
+          "tagFamily": "ELEC_SOCKET_DOUBLE"
         },
         "IEEE": {
-          "tagFamily": "IEEE_ELEC_SOCKET_DOUBLE_TAG"
+          "tagFamily": "ELEC_SOCKET_DOUBLE"
         },
         "BS": {
-          "tagFamily": "BS_ELEC_SOCKET_DOUBLE_TAG"
+          "tagFamily": "ELEC_SOCKET_DOUBLE"
         }
       }
     },
@@ -2462,13 +2462,13 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_ELEC_FCU_DEVICE_TAG"
+          "tagFamily": "ELEC_FCU_DEVICE"
         },
         "IEEE": {
-          "tagFamily": "IEEE_ELEC_FCU_DEVICE_TAG"
+          "tagFamily": "ELEC_FCU_DEVICE"
         },
         "BS": {
-          "tagFamily": "BS_ELEC_FCU_DEVICE_TAG"
+          "tagFamily": "ELEC_FCU_DEVICE"
         }
       }
     },
@@ -2482,13 +2482,13 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_ELEC_EV_CHARGER_TAG"
+          "tagFamily": "ELEC_EV_CHARGER"
         },
         "IEEE": {
-          "tagFamily": "IEEE_ELEC_EV_CHARGER_TAG"
+          "tagFamily": "ELEC_EV_CHARGER"
         },
         "BS": {
-          "tagFamily": "BS_ELEC_EV_CHARGER_TAG"
+          "tagFamily": "ELEC_EV_CHARGER"
         }
       }
     },
@@ -2502,13 +2502,13 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_ELEC_SOCKET_FLOOR_TAG"
+          "tagFamily": "ELEC_SOCKET_FLOOR"
         },
         "IEEE": {
-          "tagFamily": "IEEE_ELEC_SOCKET_FLOOR_TAG"
+          "tagFamily": "ELEC_SOCKET_FLOOR"
         },
         "BS": {
-          "tagFamily": "BS_ELEC_SOCKET_FLOOR_TAG"
+          "tagFamily": "ELEC_SOCKET_FLOOR"
         }
       }
     },
@@ -2522,13 +2522,13 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_ELEC_SWITCH_1G_TAG"
+          "tagFamily": "ELEC_SWITCH_1G"
         },
         "IEEE": {
-          "tagFamily": "IEEE_ELEC_SWITCH_1G_TAG"
+          "tagFamily": "ELEC_SWITCH_1G"
         },
         "BS": {
-          "tagFamily": "BS_ELEC_SWITCH_1G_TAG"
+          "tagFamily": "ELEC_SWITCH_1G"
         }
       }
     },
@@ -2542,13 +2542,13 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_ELEC_SWITCH_2G_TAG"
+          "tagFamily": "ELEC_SWITCH_2G"
         },
         "IEEE": {
-          "tagFamily": "IEEE_ELEC_SWITCH_2G_TAG"
+          "tagFamily": "ELEC_SWITCH_2G"
         },
         "BS": {
-          "tagFamily": "BS_ELEC_SWITCH_2G_TAG"
+          "tagFamily": "ELEC_SWITCH_2G"
         }
       }
     },
@@ -2562,13 +2562,13 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_ELEC_SWITCH_2WAY_TAG"
+          "tagFamily": "ELEC_SWITCH_2WAY"
         },
         "IEEE": {
-          "tagFamily": "IEEE_ELEC_SWITCH_2WAY_TAG"
+          "tagFamily": "ELEC_SWITCH_2WAY"
         },
         "BS": {
-          "tagFamily": "BS_ELEC_SWITCH_2WAY_TAG"
+          "tagFamily": "ELEC_SWITCH_2WAY"
         }
       }
     },
@@ -2582,13 +2582,13 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_ELEC_DIMMER_TAG"
+          "tagFamily": "ELEC_DIMMER"
         },
         "IEEE": {
-          "tagFamily": "IEEE_ELEC_DIMMER_TAG"
+          "tagFamily": "ELEC_DIMMER"
         },
         "BS": {
-          "tagFamily": "BS_ELEC_DIMMER_TAG"
+          "tagFamily": "ELEC_DIMMER"
         }
       }
     },
@@ -2602,13 +2602,13 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_ELEC_PIR_SWITCH_TAG"
+          "tagFamily": "ELEC_PIR_SWITCH"
         },
         "IEEE": {
-          "tagFamily": "IEEE_ELEC_PIR_SWITCH_TAG"
+          "tagFamily": "ELEC_PIR_SWITCH"
         },
         "BS": {
-          "tagFamily": "BS_ELEC_PIR_SWITCH_TAG"
+          "tagFamily": "ELEC_PIR_SWITCH"
         }
       }
     },
@@ -2622,13 +2622,13 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_ELEC_CONSUMER_UNIT_TAG"
+          "tagFamily": "ELEC_CONSUMER_UNIT"
         },
         "IEEE": {
-          "tagFamily": "IEEE_ELEC_CONSUMER_UNIT_TAG"
+          "tagFamily": "ELEC_CONSUMER_UNIT"
         },
         "BS": {
-          "tagFamily": "BS_ELEC_CONSUMER_UNIT_TAG"
+          "tagFamily": "ELEC_CONSUMER_UNIT"
         }
       }
     },
@@ -2642,13 +2642,13 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_ELEC_DB_TAG"
+          "tagFamily": "ELEC_DB"
         },
         "IEEE": {
-          "tagFamily": "IEEE_ELEC_DB_TAG"
+          "tagFamily": "ELEC_DB"
         },
         "BS": {
-          "tagFamily": "BS_ELEC_DB_TAG"
+          "tagFamily": "ELEC_DB"
         }
       }
     },
@@ -2662,13 +2662,13 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_ELEC_MCC_TAG"
+          "tagFamily": "ELEC_MCC"
         },
         "IEEE": {
-          "tagFamily": "IEEE_ELEC_MCC_TAG"
+          "tagFamily": "ELEC_MCC"
         },
         "BS": {
-          "tagFamily": "BS_ELEC_MCC_TAG"
+          "tagFamily": "ELEC_MCC"
         }
       }
     },
@@ -2682,13 +2682,13 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_ELEC_ISOLATOR_SWITCH_TAG"
+          "tagFamily": "ELEC_ISOLATOR_SWITCH"
         },
         "IEEE": {
-          "tagFamily": "IEEE_ELEC_ISOLATOR_SWITCH_TAG"
+          "tagFamily": "ELEC_ISOLATOR_SWITCH"
         },
         "BS": {
-          "tagFamily": "BS_ELEC_ISOLATOR_SWITCH_TAG"
+          "tagFamily": "ELEC_ISOLATOR_SWITCH"
         }
       }
     },
@@ -2702,13 +2702,13 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_ELEC_KWH_METER_DEVICE_TAG"
+          "tagFamily": "ELEC_KWH_METER_DEVICE"
         },
         "IEEE": {
-          "tagFamily": "IEEE_ELEC_KWH_METER_DEVICE_TAG"
+          "tagFamily": "ELEC_KWH_METER_DEVICE"
         },
         "BS": {
-          "tagFamily": "BS_ELEC_KWH_METER_DEVICE_TAG"
+          "tagFamily": "ELEC_KWH_METER_DEVICE"
         }
       }
     },
@@ -2722,13 +2722,13 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_ELEC_CCTV_INTERNAL_TAG"
+          "tagFamily": "ELEC_CCTV_INTERNAL"
         },
         "IEEE": {
-          "tagFamily": "IEEE_ELEC_CCTV_INTERNAL_TAG"
+          "tagFamily": "ELEC_CCTV_INTERNAL"
         },
         "BS": {
-          "tagFamily": "BS_ELEC_CCTV_INTERNAL_TAG"
+          "tagFamily": "ELEC_CCTV_INTERNAL"
         }
       }
     },
@@ -2742,13 +2742,13 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_ELEC_CCTV_EXTERNAL_TAG"
+          "tagFamily": "ELEC_CCTV_EXTERNAL"
         },
         "IEEE": {
-          "tagFamily": "IEEE_ELEC_CCTV_EXTERNAL_TAG"
+          "tagFamily": "ELEC_CCTV_EXTERNAL"
         },
         "BS": {
-          "tagFamily": "BS_ELEC_CCTV_EXTERNAL_TAG"
+          "tagFamily": "ELEC_CCTV_EXTERNAL"
         }
       }
     },
@@ -2762,13 +2762,13 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_ELEC_ACCESS_READER_TAG"
+          "tagFamily": "ELEC_ACCESS_READER"
         },
         "IEEE": {
-          "tagFamily": "IEEE_ELEC_ACCESS_READER_TAG"
+          "tagFamily": "ELEC_ACCESS_READER"
         },
         "BS": {
-          "tagFamily": "BS_ELEC_ACCESS_READER_TAG"
+          "tagFamily": "ELEC_ACCESS_READER"
         }
       }
     },
@@ -2782,13 +2782,13 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_ELEC_DATA_OUTLET_TAG"
+          "tagFamily": "ELEC_DATA_OUTLET"
         },
         "IEEE": {
-          "tagFamily": "IEEE_ELEC_DATA_OUTLET_TAG"
+          "tagFamily": "ELEC_DATA_OUTLET"
         },
         "BS": {
-          "tagFamily": "BS_ELEC_DATA_OUTLET_TAG"
+          "tagFamily": "ELEC_DATA_OUTLET"
         }
       }
     },
@@ -2802,13 +2802,13 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_ELEC_COMBINED_DATA_VOICE_TAG"
+          "tagFamily": "ELEC_COMBINED_DATA_VOICE"
         },
         "IEEE": {
-          "tagFamily": "IEEE_ELEC_COMBINED_DATA_VOICE_TAG"
+          "tagFamily": "ELEC_COMBINED_DATA_VOICE"
         },
         "BS": {
-          "tagFamily": "BS_ELEC_COMBINED_DATA_VOICE_TAG"
+          "tagFamily": "ELEC_COMBINED_DATA_VOICE"
         }
       }
     },
@@ -2822,13 +2822,13 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_ELEC_SPEAKER_TAG"
+          "tagFamily": "ELEC_SPEAKER"
         },
         "IEEE": {
-          "tagFamily": "IEEE_ELEC_SPEAKER_TAG"
+          "tagFamily": "ELEC_SPEAKER"
         },
         "BS": {
-          "tagFamily": "BS_ELEC_SPEAKER_TAG"
+          "tagFamily": "ELEC_SPEAKER"
         }
       }
     },
@@ -2842,13 +2842,13 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_ELEC_DOOR_BELL_TAG"
+          "tagFamily": "ELEC_DOOR_BELL"
         },
         "IEEE": {
-          "tagFamily": "IEEE_ELEC_DOOR_BELL_TAG"
+          "tagFamily": "ELEC_DOOR_BELL"
         },
         "BS": {
-          "tagFamily": "BS_ELEC_DOOR_BELL_TAG"
+          "tagFamily": "ELEC_DOOR_BELL"
         }
       }
     },
@@ -2862,13 +2862,13 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_ELEC_SMOKE_DETECTOR_ELEC_TAG"
+          "tagFamily": "ELEC_SMOKE_DETECTOR_ELEC"
         },
         "IEEE": {
-          "tagFamily": "IEEE_ELEC_SMOKE_DETECTOR_ELEC_TAG"
+          "tagFamily": "ELEC_SMOKE_DETECTOR_ELEC"
         },
         "BS": {
-          "tagFamily": "BS_ELEC_SMOKE_DETECTOR_ELEC_TAG"
+          "tagFamily": "ELEC_SMOKE_DETECTOR_ELEC"
         }
       }
     },
@@ -2882,13 +2882,13 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_ELEC_HEAT_DETECTOR_ELEC_TAG"
+          "tagFamily": "ELEC_HEAT_DETECTOR_ELEC"
         },
         "IEEE": {
-          "tagFamily": "IEEE_ELEC_HEAT_DETECTOR_ELEC_TAG"
+          "tagFamily": "ELEC_HEAT_DETECTOR_ELEC"
         },
         "BS": {
-          "tagFamily": "BS_ELEC_HEAT_DETECTOR_ELEC_TAG"
+          "tagFamily": "ELEC_HEAT_DETECTOR_ELEC"
         }
       }
     },
@@ -2902,10 +2902,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PLM_WC_WALL_TAG"
+          "tagFamily": "PLM_WC_WALL"
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PLM_WC_WALL_TAG"
+          "tagFamily": "PLM_WC_WALL"
         }
       }
     },
@@ -2919,10 +2919,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PLM_WC_CLOSE_COUPLED_TAG"
+          "tagFamily": "PLM_WC_CLOSE_COUPLED"
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PLM_WC_CLOSE_COUPLED_TAG"
+          "tagFamily": "PLM_WC_CLOSE_COUPLED"
         }
       }
     },
@@ -2936,10 +2936,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PLM_URINAL_WALL_TAG"
+          "tagFamily": "PLM_URINAL_WALL"
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PLM_URINAL_WALL_TAG"
+          "tagFamily": "PLM_URINAL_WALL"
         }
       }
     },
@@ -2953,10 +2953,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PLM_WHB_TAG"
+          "tagFamily": "PLM_WHB"
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PLM_WHB_TAG"
+          "tagFamily": "PLM_WHB"
         }
       }
     },
@@ -2970,10 +2970,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PLM_VANITY_BASIN_TAG"
+          "tagFamily": "PLM_VANITY_BASIN"
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PLM_VANITY_BASIN_TAG"
+          "tagFamily": "PLM_VANITY_BASIN"
         }
       }
     },
@@ -2987,10 +2987,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PLM_SINK_SINGLE_TAG"
+          "tagFamily": "PLM_SINK_SINGLE"
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PLM_SINK_SINGLE_TAG"
+          "tagFamily": "PLM_SINK_SINGLE"
         }
       }
     },
@@ -3004,10 +3004,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PLM_SINK_DOUBLE_TAG"
+          "tagFamily": "PLM_SINK_DOUBLE"
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PLM_SINK_DOUBLE_TAG"
+          "tagFamily": "PLM_SINK_DOUBLE"
         }
       }
     },
@@ -3021,10 +3021,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PLM_CLEANERS_SINK_TAG"
+          "tagFamily": "PLM_CLEANERS_SINK"
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PLM_CLEANERS_SINK_TAG"
+          "tagFamily": "PLM_CLEANERS_SINK"
         }
       }
     },
@@ -3038,10 +3038,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PLM_SHOWER_TRAY_TAG"
+          "tagFamily": "PLM_SHOWER_TRAY"
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PLM_SHOWER_TRAY_TAG"
+          "tagFamily": "PLM_SHOWER_TRAY"
         }
       }
     },
@@ -3055,10 +3055,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PLM_BATH_TAG"
+          "tagFamily": "PLM_BATH"
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PLM_BATH_TAG"
+          "tagFamily": "PLM_BATH"
         }
       }
     },
@@ -3072,10 +3072,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PLM_BIDET_TAG"
+          "tagFamily": "PLM_BIDET"
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PLM_BIDET_TAG"
+          "tagFamily": "PLM_BIDET"
         }
       }
     },
@@ -3089,10 +3089,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PLM_FLOOR_DRAIN_RND_TAG"
+          "tagFamily": "PLM_FLOOR_DRAIN_RND"
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PLM_FLOOR_DRAIN_RND_TAG"
+          "tagFamily": "PLM_FLOOR_DRAIN_RND"
         }
       }
     },
@@ -3106,10 +3106,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PLM_FLOOR_DRAIN_SQ_TAG"
+          "tagFamily": "PLM_FLOOR_DRAIN_SQ"
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PLM_FLOOR_DRAIN_SQ_TAG"
+          "tagFamily": "PLM_FLOOR_DRAIN_SQ"
         }
       }
     },
@@ -3123,10 +3123,10 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PLM_GULLEY_TAG"
+          "tagFamily": "PLM_GULLEY"
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PLM_GULLEY_TAG"
+          "tagFamily": "PLM_GULLEY"
         }
       }
     },
@@ -3140,19 +3140,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PLM_GATE_VALVE_TAG",
+          "tagFamily": "PLM_GATE_VALVE",
           "viewContextOverrides": {
-            "Plan": "IEC_PLM_GATE_VALVE_TAG",
-            "Section": "IEC_PLM_GATE_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PLM_GATE_VALVE"
+            "Plan": "PLM_GATE_VALVE",
+            "Section": "PLM_GATE_VALVE_SECTION",
+            "Schematic": "SCH_PLM_GATE_VALVE"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PLM_GATE_VALVE_TAG",
+          "tagFamily": "PLM_GATE_VALVE",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PLM_GATE_VALVE_TAG",
-            "Section": "CIBSE_PLM_GATE_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PLM_GATE_VALVE"
+            "Plan": "PLM_GATE_VALVE",
+            "Section": "PLM_GATE_VALVE_SECTION",
+            "Schematic": "SCH_PLM_GATE_VALVE"
           }
         }
       },
@@ -3174,19 +3174,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PLM_GLOBE_VALVE_TAG",
+          "tagFamily": "PLM_GLOBE_VALVE",
           "viewContextOverrides": {
-            "Plan": "IEC_PLM_GLOBE_VALVE_TAG",
-            "Section": "IEC_PLM_GLOBE_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PLM_GLOBE_VALVE"
+            "Plan": "PLM_GLOBE_VALVE",
+            "Section": "PLM_GLOBE_VALVE_SECTION",
+            "Schematic": "SCH_PLM_GLOBE_VALVE"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PLM_GLOBE_VALVE_TAG",
+          "tagFamily": "PLM_GLOBE_VALVE",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PLM_GLOBE_VALVE_TAG",
-            "Section": "CIBSE_PLM_GLOBE_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PLM_GLOBE_VALVE"
+            "Plan": "PLM_GLOBE_VALVE",
+            "Section": "PLM_GLOBE_VALVE_SECTION",
+            "Schematic": "SCH_PLM_GLOBE_VALVE"
           }
         }
       },
@@ -3208,19 +3208,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PLM_BALL_VALVE_TAG",
+          "tagFamily": "PLM_BALL_VALVE",
           "viewContextOverrides": {
-            "Plan": "IEC_PLM_BALL_VALVE_TAG",
-            "Section": "IEC_PLM_BALL_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PLM_BALL_VALVE"
+            "Plan": "PLM_BALL_VALVE",
+            "Section": "PLM_BALL_VALVE_SECTION",
+            "Schematic": "SCH_PLM_BALL_VALVE"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PLM_BALL_VALVE_TAG",
+          "tagFamily": "PLM_BALL_VALVE",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PLM_BALL_VALVE_TAG",
-            "Section": "CIBSE_PLM_BALL_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PLM_BALL_VALVE"
+            "Plan": "PLM_BALL_VALVE",
+            "Section": "PLM_BALL_VALVE_SECTION",
+            "Schematic": "SCH_PLM_BALL_VALVE"
           }
         }
       },
@@ -3242,19 +3242,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PLM_BUTTERFLY_VALVE_TAG",
+          "tagFamily": "PLM_BUTTERFLY_VALVE",
           "viewContextOverrides": {
-            "Plan": "IEC_PLM_BUTTERFLY_VALVE_TAG",
-            "Section": "IEC_PLM_BUTTERFLY_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PLM_BUTTERFLY_VALVE"
+            "Plan": "PLM_BUTTERFLY_VALVE",
+            "Section": "PLM_BUTTERFLY_VALVE_SECTION",
+            "Schematic": "SCH_PLM_BUTTERFLY_VALVE"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PLM_BUTTERFLY_VALVE_TAG",
+          "tagFamily": "PLM_BUTTERFLY_VALVE",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PLM_BUTTERFLY_VALVE_TAG",
-            "Section": "CIBSE_PLM_BUTTERFLY_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PLM_BUTTERFLY_VALVE"
+            "Plan": "PLM_BUTTERFLY_VALVE",
+            "Section": "PLM_BUTTERFLY_VALVE_SECTION",
+            "Schematic": "SCH_PLM_BUTTERFLY_VALVE"
           }
         }
       },
@@ -3276,19 +3276,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PLM_CHECK_VALVE_TAG",
+          "tagFamily": "PLM_CHECK_VALVE",
           "viewContextOverrides": {
-            "Plan": "IEC_PLM_CHECK_VALVE_TAG",
-            "Section": "IEC_PLM_CHECK_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PLM_CHECK_VALVE"
+            "Plan": "PLM_CHECK_VALVE",
+            "Section": "PLM_CHECK_VALVE_SECTION",
+            "Schematic": "SCH_PLM_CHECK_VALVE"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PLM_CHECK_VALVE_TAG",
+          "tagFamily": "PLM_CHECK_VALVE",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PLM_CHECK_VALVE_TAG",
-            "Section": "CIBSE_PLM_CHECK_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PLM_CHECK_VALVE"
+            "Plan": "PLM_CHECK_VALVE",
+            "Section": "PLM_CHECK_VALVE_SECTION",
+            "Schematic": "SCH_PLM_CHECK_VALVE"
           }
         }
       },
@@ -3310,19 +3310,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PLM_STRAINER_TAG",
+          "tagFamily": "PLM_STRAINER",
           "viewContextOverrides": {
-            "Plan": "IEC_PLM_STRAINER_TAG",
-            "Section": "IEC_PLM_STRAINER_SECTION_TAG",
-            "Schematic": "IEC_SCH_PLM_STRAINER"
+            "Plan": "PLM_STRAINER",
+            "Section": "PLM_STRAINER_SECTION",
+            "Schematic": "SCH_PLM_STRAINER"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PLM_STRAINER_TAG",
+          "tagFamily": "PLM_STRAINER",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PLM_STRAINER_TAG",
-            "Section": "CIBSE_PLM_STRAINER_SECTION_TAG",
-            "Schematic": "IEC_SCH_PLM_STRAINER"
+            "Plan": "PLM_STRAINER",
+            "Section": "PLM_STRAINER_SECTION",
+            "Schematic": "SCH_PLM_STRAINER"
           }
         }
       },
@@ -3344,19 +3344,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PLM_FLEXIBLE_CONN_TAG",
+          "tagFamily": "PLM_FLEXIBLE_CONN",
           "viewContextOverrides": {
-            "Plan": "IEC_PLM_FLEXIBLE_CONN_TAG",
-            "Section": "IEC_PLM_FLEXIBLE_CONN_SECTION_TAG",
-            "Schematic": "IEC_SCH_PLM_FLEXIBLE_CONN"
+            "Plan": "PLM_FLEXIBLE_CONN",
+            "Section": "PLM_FLEXIBLE_CONN_SECTION",
+            "Schematic": "SCH_PLM_FLEXIBLE_CONN"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PLM_FLEXIBLE_CONN_TAG",
+          "tagFamily": "PLM_FLEXIBLE_CONN",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PLM_FLEXIBLE_CONN_TAG",
-            "Section": "CIBSE_PLM_FLEXIBLE_CONN_SECTION_TAG",
-            "Schematic": "IEC_SCH_PLM_FLEXIBLE_CONN"
+            "Plan": "PLM_FLEXIBLE_CONN",
+            "Section": "PLM_FLEXIBLE_CONN_SECTION",
+            "Schematic": "SCH_PLM_FLEXIBLE_CONN"
           }
         }
       },
@@ -3378,19 +3378,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PLM_PRESSURE_REDUCING_TAG",
+          "tagFamily": "PLM_PRESSURE_REDUCING",
           "viewContextOverrides": {
-            "Plan": "IEC_PLM_PRESSURE_REDUCING_TAG",
-            "Section": "IEC_PLM_PRESSURE_REDUCING_SECTION_TAG",
-            "Schematic": "IEC_SCH_PLM_PRESSURE_REDUCING"
+            "Plan": "PLM_PRESSURE_REDUCING",
+            "Section": "PLM_PRESSURE_REDUCING_SECTION",
+            "Schematic": "SCH_PLM_PRESSURE_REDUCING"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PLM_PRESSURE_REDUCING_TAG",
+          "tagFamily": "PLM_PRESSURE_REDUCING",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PLM_PRESSURE_REDUCING_TAG",
-            "Section": "CIBSE_PLM_PRESSURE_REDUCING_SECTION_TAG",
-            "Schematic": "IEC_SCH_PLM_PRESSURE_REDUCING"
+            "Plan": "PLM_PRESSURE_REDUCING",
+            "Section": "PLM_PRESSURE_REDUCING_SECTION",
+            "Schematic": "SCH_PLM_PRESSURE_REDUCING"
           }
         }
       },
@@ -3412,19 +3412,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PLM_HWC_DIRECT_TAG",
+          "tagFamily": "PLM_HWC_DIRECT",
           "viewContextOverrides": {
-            "Plan": "IEC_PLM_HWC_DIRECT_TAG",
-            "Section": "IEC_PLM_HWC_DIRECT_SECTION_TAG",
-            "Schematic": "IEC_SCH_PLM_HWC_DIRECT"
+            "Plan": "PLM_HWC_DIRECT",
+            "Section": "PLM_HWC_DIRECT_SECTION",
+            "Schematic": "SCH_PLM_HWC_DIRECT"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PLM_HWC_DIRECT_TAG",
+          "tagFamily": "PLM_HWC_DIRECT",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PLM_HWC_DIRECT_TAG",
-            "Section": "CIBSE_PLM_HWC_DIRECT_SECTION_TAG",
-            "Schematic": "IEC_SCH_PLM_HWC_DIRECT"
+            "Plan": "PLM_HWC_DIRECT",
+            "Section": "PLM_HWC_DIRECT_SECTION",
+            "Schematic": "SCH_PLM_HWC_DIRECT"
           }
         }
       },
@@ -3446,19 +3446,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PLM_HWC_INDIRECT_TAG",
+          "tagFamily": "PLM_HWC_INDIRECT",
           "viewContextOverrides": {
-            "Plan": "IEC_PLM_HWC_INDIRECT_TAG",
-            "Section": "IEC_PLM_HWC_INDIRECT_SECTION_TAG",
-            "Schematic": "IEC_SCH_PLM_HWC_INDIRECT"
+            "Plan": "PLM_HWC_INDIRECT",
+            "Section": "PLM_HWC_INDIRECT_SECTION",
+            "Schematic": "SCH_PLM_HWC_INDIRECT"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PLM_HWC_INDIRECT_TAG",
+          "tagFamily": "PLM_HWC_INDIRECT",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PLM_HWC_INDIRECT_TAG",
-            "Section": "CIBSE_PLM_HWC_INDIRECT_SECTION_TAG",
-            "Schematic": "IEC_SCH_PLM_HWC_INDIRECT"
+            "Plan": "PLM_HWC_INDIRECT",
+            "Section": "PLM_HWC_INDIRECT_SECTION",
+            "Schematic": "SCH_PLM_HWC_INDIRECT"
           }
         }
       },
@@ -3480,19 +3480,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PLM_PUMP_INLINE_TAG",
+          "tagFamily": "PLM_PUMP_INLINE",
           "viewContextOverrides": {
-            "Plan": "IEC_PLM_PUMP_INLINE_TAG",
-            "Section": "IEC_PLM_PUMP_INLINE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PLM_PUMP_INLINE"
+            "Plan": "PLM_PUMP_INLINE",
+            "Section": "PLM_PUMP_INLINE_SECTION",
+            "Schematic": "SCH_PLM_PUMP_INLINE"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PLM_PUMP_INLINE_TAG",
+          "tagFamily": "PLM_PUMP_INLINE",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PLM_PUMP_INLINE_TAG",
-            "Section": "CIBSE_PLM_PUMP_INLINE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PLM_PUMP_INLINE"
+            "Plan": "PLM_PUMP_INLINE",
+            "Section": "PLM_PUMP_INLINE_SECTION",
+            "Schematic": "SCH_PLM_PUMP_INLINE"
           }
         }
       },
@@ -3514,19 +3514,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PIPE_GATE_VALVE_TAG",
+          "tagFamily": "PIPE_GATE_VALVE",
           "viewContextOverrides": {
-            "Plan": "IEC_PIPE_GATE_VALVE_TAG",
-            "Section": "IEC_PIPE_GATE_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_GATE_VALVE"
+            "Plan": "PIPE_GATE_VALVE",
+            "Section": "PIPE_GATE_VALVE_SECTION",
+            "Schematic": "SCH_PIPE_GATE_VALVE"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PIPE_GATE_VALVE_TAG",
+          "tagFamily": "PIPE_GATE_VALVE",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PIPE_GATE_VALVE_TAG",
-            "Section": "CIBSE_PIPE_GATE_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_GATE_VALVE"
+            "Plan": "PIPE_GATE_VALVE",
+            "Section": "PIPE_GATE_VALVE_SECTION",
+            "Schematic": "SCH_PIPE_GATE_VALVE"
           }
         }
       },
@@ -3548,19 +3548,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PIPE_GLOBE_VALVE_TAG",
+          "tagFamily": "PIPE_GLOBE_VALVE",
           "viewContextOverrides": {
-            "Plan": "IEC_PIPE_GLOBE_VALVE_TAG",
-            "Section": "IEC_PIPE_GLOBE_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_GLOBE_VALVE"
+            "Plan": "PIPE_GLOBE_VALVE",
+            "Section": "PIPE_GLOBE_VALVE_SECTION",
+            "Schematic": "SCH_PIPE_GLOBE_VALVE"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PIPE_GLOBE_VALVE_TAG",
+          "tagFamily": "PIPE_GLOBE_VALVE",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PIPE_GLOBE_VALVE_TAG",
-            "Section": "CIBSE_PIPE_GLOBE_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_GLOBE_VALVE"
+            "Plan": "PIPE_GLOBE_VALVE",
+            "Section": "PIPE_GLOBE_VALVE_SECTION",
+            "Schematic": "SCH_PIPE_GLOBE_VALVE"
           }
         }
       },
@@ -3582,19 +3582,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PIPE_BALL_VALVE_TAG",
+          "tagFamily": "PIPE_BALL_VALVE",
           "viewContextOverrides": {
-            "Plan": "IEC_PIPE_BALL_VALVE_TAG",
-            "Section": "IEC_PIPE_BALL_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_BALL_VALVE"
+            "Plan": "PIPE_BALL_VALVE",
+            "Section": "PIPE_BALL_VALVE_SECTION",
+            "Schematic": "SCH_PIPE_BALL_VALVE"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PIPE_BALL_VALVE_TAG",
+          "tagFamily": "PIPE_BALL_VALVE",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PIPE_BALL_VALVE_TAG",
-            "Section": "CIBSE_PIPE_BALL_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_BALL_VALVE"
+            "Plan": "PIPE_BALL_VALVE",
+            "Section": "PIPE_BALL_VALVE_SECTION",
+            "Schematic": "SCH_PIPE_BALL_VALVE"
           }
         }
       },
@@ -3616,19 +3616,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PIPE_BUTTERFLY_VALVE_TAG",
+          "tagFamily": "PIPE_BUTTERFLY_VALVE",
           "viewContextOverrides": {
-            "Plan": "IEC_PIPE_BUTTERFLY_VALVE_TAG",
-            "Section": "IEC_PIPE_BUTTERFLY_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_BUTTERFLY_VALVE"
+            "Plan": "PIPE_BUTTERFLY_VALVE",
+            "Section": "PIPE_BUTTERFLY_VALVE_SECTION",
+            "Schematic": "SCH_PIPE_BUTTERFLY_VALVE"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PIPE_BUTTERFLY_VALVE_TAG",
+          "tagFamily": "PIPE_BUTTERFLY_VALVE",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PIPE_BUTTERFLY_VALVE_TAG",
-            "Section": "CIBSE_PIPE_BUTTERFLY_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_BUTTERFLY_VALVE"
+            "Plan": "PIPE_BUTTERFLY_VALVE",
+            "Section": "PIPE_BUTTERFLY_VALVE_SECTION",
+            "Schematic": "SCH_PIPE_BUTTERFLY_VALVE"
           }
         }
       },
@@ -3650,19 +3650,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PIPE_CHECK_VALVE_TAG",
+          "tagFamily": "PIPE_CHECK_VALVE",
           "viewContextOverrides": {
-            "Plan": "IEC_PIPE_CHECK_VALVE_TAG",
-            "Section": "IEC_PIPE_CHECK_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_CHECK_VALVE"
+            "Plan": "PIPE_CHECK_VALVE",
+            "Section": "PIPE_CHECK_VALVE_SECTION",
+            "Schematic": "SCH_PIPE_CHECK_VALVE"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PIPE_CHECK_VALVE_TAG",
+          "tagFamily": "PIPE_CHECK_VALVE",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PIPE_CHECK_VALVE_TAG",
-            "Section": "CIBSE_PIPE_CHECK_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_CHECK_VALVE"
+            "Plan": "PIPE_CHECK_VALVE",
+            "Section": "PIPE_CHECK_VALVE_SECTION",
+            "Schematic": "SCH_PIPE_CHECK_VALVE"
           }
         }
       },
@@ -3684,19 +3684,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PIPE_GATE_VALVE_INDICATING_TAG",
+          "tagFamily": "PIPE_GATE_VALVE_INDICATING",
           "viewContextOverrides": {
-            "Plan": "IEC_PIPE_GATE_VALVE_INDICATING_TAG",
-            "Section": "IEC_PIPE_GATE_VALVE_INDICATING_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_GATE_VALVE_INDICATING"
+            "Plan": "PIPE_GATE_VALVE_INDICATING",
+            "Section": "PIPE_GATE_VALVE_INDICATING_SECTION",
+            "Schematic": "SCH_PIPE_GATE_VALVE_INDICATING"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PIPE_GATE_VALVE_INDICATING_TAG",
+          "tagFamily": "PIPE_GATE_VALVE_INDICATING",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PIPE_GATE_VALVE_INDICATING_TAG",
-            "Section": "CIBSE_PIPE_GATE_VALVE_INDICATING_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_GATE_VALVE_INDICATING"
+            "Plan": "PIPE_GATE_VALVE_INDICATING",
+            "Section": "PIPE_GATE_VALVE_INDICATING_SECTION",
+            "Schematic": "SCH_PIPE_GATE_VALVE_INDICATING"
           }
         }
       },
@@ -3718,19 +3718,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PIPE_NEEDLE_VALVE_TAG",
+          "tagFamily": "PIPE_NEEDLE_VALVE",
           "viewContextOverrides": {
-            "Plan": "IEC_PIPE_NEEDLE_VALVE_TAG",
-            "Section": "IEC_PIPE_NEEDLE_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_NEEDLE_VALVE"
+            "Plan": "PIPE_NEEDLE_VALVE",
+            "Section": "PIPE_NEEDLE_VALVE_SECTION",
+            "Schematic": "SCH_PIPE_NEEDLE_VALVE"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PIPE_NEEDLE_VALVE_TAG",
+          "tagFamily": "PIPE_NEEDLE_VALVE",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PIPE_NEEDLE_VALVE_TAG",
-            "Section": "CIBSE_PIPE_NEEDLE_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_NEEDLE_VALVE"
+            "Plan": "PIPE_NEEDLE_VALVE",
+            "Section": "PIPE_NEEDLE_VALVE_SECTION",
+            "Schematic": "SCH_PIPE_NEEDLE_VALVE"
           }
         }
       },
@@ -3752,19 +3752,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PIPE_DIAPHRAGM_VALVE_TAG",
+          "tagFamily": "PIPE_DIAPHRAGM_VALVE",
           "viewContextOverrides": {
-            "Plan": "IEC_PIPE_DIAPHRAGM_VALVE_TAG",
-            "Section": "IEC_PIPE_DIAPHRAGM_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_DIAPHRAGM_VALVE"
+            "Plan": "PIPE_DIAPHRAGM_VALVE",
+            "Section": "PIPE_DIAPHRAGM_VALVE_SECTION",
+            "Schematic": "SCH_PIPE_DIAPHRAGM_VALVE"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PIPE_DIAPHRAGM_VALVE_TAG",
+          "tagFamily": "PIPE_DIAPHRAGM_VALVE",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PIPE_DIAPHRAGM_VALVE_TAG",
-            "Section": "CIBSE_PIPE_DIAPHRAGM_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_DIAPHRAGM_VALVE"
+            "Plan": "PIPE_DIAPHRAGM_VALVE",
+            "Section": "PIPE_DIAPHRAGM_VALVE_SECTION",
+            "Schematic": "SCH_PIPE_DIAPHRAGM_VALVE"
           }
         }
       },
@@ -3786,19 +3786,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PIPE_SOLENOID_VALVE_TAG",
+          "tagFamily": "PIPE_SOLENOID_VALVE",
           "viewContextOverrides": {
-            "Plan": "IEC_PIPE_SOLENOID_VALVE_TAG",
-            "Section": "IEC_PIPE_SOLENOID_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_SOLENOID_VALVE"
+            "Plan": "PIPE_SOLENOID_VALVE",
+            "Section": "PIPE_SOLENOID_VALVE_SECTION",
+            "Schematic": "SCH_PIPE_SOLENOID_VALVE"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PIPE_SOLENOID_VALVE_TAG",
+          "tagFamily": "PIPE_SOLENOID_VALVE",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PIPE_SOLENOID_VALVE_TAG",
-            "Section": "CIBSE_PIPE_SOLENOID_VALVE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_SOLENOID_VALVE"
+            "Plan": "PIPE_SOLENOID_VALVE",
+            "Section": "PIPE_SOLENOID_VALVE_SECTION",
+            "Schematic": "SCH_PIPE_SOLENOID_VALVE"
           }
         }
       },
@@ -3820,19 +3820,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PIPE_PRESSURE_REDUCING_TAG",
+          "tagFamily": "PIPE_PRESSURE_REDUCING",
           "viewContextOverrides": {
-            "Plan": "IEC_PIPE_PRESSURE_REDUCING_TAG",
-            "Section": "IEC_PIPE_PRESSURE_REDUCING_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_PRESSURE_REDUCING"
+            "Plan": "PIPE_PRESSURE_REDUCING",
+            "Section": "PIPE_PRESSURE_REDUCING_SECTION",
+            "Schematic": "SCH_PIPE_PRESSURE_REDUCING"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PIPE_PRESSURE_REDUCING_TAG",
+          "tagFamily": "PIPE_PRESSURE_REDUCING",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PIPE_PRESSURE_REDUCING_TAG",
-            "Section": "CIBSE_PIPE_PRESSURE_REDUCING_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_PRESSURE_REDUCING"
+            "Plan": "PIPE_PRESSURE_REDUCING",
+            "Section": "PIPE_PRESSURE_REDUCING_SECTION",
+            "Schematic": "SCH_PIPE_PRESSURE_REDUCING"
           }
         }
       },
@@ -3854,19 +3854,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PIPE_PRESSURE_SUSTAINING_TAG",
+          "tagFamily": "PIPE_PRESSURE_SUSTAINING",
           "viewContextOverrides": {
-            "Plan": "IEC_PIPE_PRESSURE_SUSTAINING_TAG",
-            "Section": "IEC_PIPE_PRESSURE_SUSTAINING_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_PRESSURE_SUSTAINING"
+            "Plan": "PIPE_PRESSURE_SUSTAINING",
+            "Section": "PIPE_PRESSURE_SUSTAINING_SECTION",
+            "Schematic": "SCH_PIPE_PRESSURE_SUSTAINING"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PIPE_PRESSURE_SUSTAINING_TAG",
+          "tagFamily": "PIPE_PRESSURE_SUSTAINING",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PIPE_PRESSURE_SUSTAINING_TAG",
-            "Section": "CIBSE_PIPE_PRESSURE_SUSTAINING_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_PRESSURE_SUSTAINING"
+            "Plan": "PIPE_PRESSURE_SUSTAINING",
+            "Section": "PIPE_PRESSURE_SUSTAINING_SECTION",
+            "Schematic": "SCH_PIPE_PRESSURE_SUSTAINING"
           }
         }
       },
@@ -3888,19 +3888,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PIPE_FLOW_CONTROL_TAG",
+          "tagFamily": "PIPE_FLOW_CONTROL",
           "viewContextOverrides": {
-            "Plan": "IEC_PIPE_FLOW_CONTROL_TAG",
-            "Section": "IEC_PIPE_FLOW_CONTROL_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_FLOW_CONTROL"
+            "Plan": "PIPE_FLOW_CONTROL",
+            "Section": "PIPE_FLOW_CONTROL_SECTION",
+            "Schematic": "SCH_PIPE_FLOW_CONTROL"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PIPE_FLOW_CONTROL_TAG",
+          "tagFamily": "PIPE_FLOW_CONTROL",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PIPE_FLOW_CONTROL_TAG",
-            "Section": "CIBSE_PIPE_FLOW_CONTROL_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_FLOW_CONTROL"
+            "Plan": "PIPE_FLOW_CONTROL",
+            "Section": "PIPE_FLOW_CONTROL_SECTION",
+            "Schematic": "SCH_PIPE_FLOW_CONTROL"
           }
         }
       },
@@ -3922,19 +3922,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PIPE_Y_STRAINER_TAG",
+          "tagFamily": "PIPE_Y_STRAINER",
           "viewContextOverrides": {
-            "Plan": "IEC_PIPE_Y_STRAINER_TAG",
-            "Section": "IEC_PIPE_Y_STRAINER_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_Y_STRAINER"
+            "Plan": "PIPE_Y_STRAINER",
+            "Section": "PIPE_Y_STRAINER_SECTION",
+            "Schematic": "SCH_PIPE_Y_STRAINER"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PIPE_Y_STRAINER_TAG",
+          "tagFamily": "PIPE_Y_STRAINER",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PIPE_Y_STRAINER_TAG",
-            "Section": "CIBSE_PIPE_Y_STRAINER_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_Y_STRAINER"
+            "Plan": "PIPE_Y_STRAINER",
+            "Section": "PIPE_Y_STRAINER_SECTION",
+            "Schematic": "SCH_PIPE_Y_STRAINER"
           }
         }
       },
@@ -3956,19 +3956,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PIPE_BASKET_STRAINER_TAG",
+          "tagFamily": "PIPE_BASKET_STRAINER",
           "viewContextOverrides": {
-            "Plan": "IEC_PIPE_BASKET_STRAINER_TAG",
-            "Section": "IEC_PIPE_BASKET_STRAINER_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_BASKET_STRAINER"
+            "Plan": "PIPE_BASKET_STRAINER",
+            "Section": "PIPE_BASKET_STRAINER_SECTION",
+            "Schematic": "SCH_PIPE_BASKET_STRAINER"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PIPE_BASKET_STRAINER_TAG",
+          "tagFamily": "PIPE_BASKET_STRAINER",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PIPE_BASKET_STRAINER_TAG",
-            "Section": "CIBSE_PIPE_BASKET_STRAINER_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_BASKET_STRAINER"
+            "Plan": "PIPE_BASKET_STRAINER",
+            "Section": "PIPE_BASKET_STRAINER_SECTION",
+            "Schematic": "SCH_PIPE_BASKET_STRAINER"
           }
         }
       },
@@ -3990,19 +3990,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PIPE_FLEXIBLE_COUPLING_TAG",
+          "tagFamily": "PIPE_FLEXIBLE_COUPLING",
           "viewContextOverrides": {
-            "Plan": "IEC_PIPE_FLEXIBLE_COUPLING_TAG",
-            "Section": "IEC_PIPE_FLEXIBLE_COUPLING_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_FLEXIBLE_COUPLING"
+            "Plan": "PIPE_FLEXIBLE_COUPLING",
+            "Section": "PIPE_FLEXIBLE_COUPLING_SECTION",
+            "Schematic": "SCH_PIPE_FLEXIBLE_COUPLING"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PIPE_FLEXIBLE_COUPLING_TAG",
+          "tagFamily": "PIPE_FLEXIBLE_COUPLING",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PIPE_FLEXIBLE_COUPLING_TAG",
-            "Section": "CIBSE_PIPE_FLEXIBLE_COUPLING_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_FLEXIBLE_COUPLING"
+            "Plan": "PIPE_FLEXIBLE_COUPLING",
+            "Section": "PIPE_FLEXIBLE_COUPLING_SECTION",
+            "Schematic": "SCH_PIPE_FLEXIBLE_COUPLING"
           }
         }
       },
@@ -4024,19 +4024,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PIPE_EXPANSION_JOINT_TAG",
+          "tagFamily": "PIPE_EXPANSION_JOINT",
           "viewContextOverrides": {
-            "Plan": "IEC_PIPE_EXPANSION_JOINT_TAG",
-            "Section": "IEC_PIPE_EXPANSION_JOINT_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_EXPANSION_JOINT"
+            "Plan": "PIPE_EXPANSION_JOINT",
+            "Section": "PIPE_EXPANSION_JOINT_SECTION",
+            "Schematic": "SCH_PIPE_EXPANSION_JOINT"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PIPE_EXPANSION_JOINT_TAG",
+          "tagFamily": "PIPE_EXPANSION_JOINT",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PIPE_EXPANSION_JOINT_TAG",
-            "Section": "CIBSE_PIPE_EXPANSION_JOINT_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_EXPANSION_JOINT"
+            "Plan": "PIPE_EXPANSION_JOINT",
+            "Section": "PIPE_EXPANSION_JOINT_SECTION",
+            "Schematic": "SCH_PIPE_EXPANSION_JOINT"
           }
         }
       },
@@ -4058,19 +4058,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PIPE_PRESSURE_GAUGE_TAG",
+          "tagFamily": "PIPE_PRESSURE_GAUGE",
           "viewContextOverrides": {
-            "Plan": "IEC_PIPE_PRESSURE_GAUGE_TAG",
-            "Section": "IEC_PIPE_PRESSURE_GAUGE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_PRESSURE_GAUGE"
+            "Plan": "PIPE_PRESSURE_GAUGE",
+            "Section": "PIPE_PRESSURE_GAUGE_SECTION",
+            "Schematic": "SCH_PIPE_PRESSURE_GAUGE"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PIPE_PRESSURE_GAUGE_TAG",
+          "tagFamily": "PIPE_PRESSURE_GAUGE",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PIPE_PRESSURE_GAUGE_TAG",
-            "Section": "CIBSE_PIPE_PRESSURE_GAUGE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_PRESSURE_GAUGE"
+            "Plan": "PIPE_PRESSURE_GAUGE",
+            "Section": "PIPE_PRESSURE_GAUGE_SECTION",
+            "Schematic": "SCH_PIPE_PRESSURE_GAUGE"
           }
         }
       },
@@ -4092,19 +4092,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PIPE_TEMPERATURE_GAUGE_TAG",
+          "tagFamily": "PIPE_TEMPERATURE_GAUGE",
           "viewContextOverrides": {
-            "Plan": "IEC_PIPE_TEMPERATURE_GAUGE_TAG",
-            "Section": "IEC_PIPE_TEMPERATURE_GAUGE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_TEMPERATURE_GAUGE"
+            "Plan": "PIPE_TEMPERATURE_GAUGE",
+            "Section": "PIPE_TEMPERATURE_GAUGE_SECTION",
+            "Schematic": "SCH_PIPE_TEMPERATURE_GAUGE"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PIPE_TEMPERATURE_GAUGE_TAG",
+          "tagFamily": "PIPE_TEMPERATURE_GAUGE",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PIPE_TEMPERATURE_GAUGE_TAG",
-            "Section": "CIBSE_PIPE_TEMPERATURE_GAUGE_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_TEMPERATURE_GAUGE"
+            "Plan": "PIPE_TEMPERATURE_GAUGE",
+            "Section": "PIPE_TEMPERATURE_GAUGE_SECTION",
+            "Schematic": "SCH_PIPE_TEMPERATURE_GAUGE"
           }
         }
       },
@@ -4126,19 +4126,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PIPE_FLOW_METER_TAG",
+          "tagFamily": "PIPE_FLOW_METER",
           "viewContextOverrides": {
-            "Plan": "IEC_PIPE_FLOW_METER_TAG",
-            "Section": "IEC_PIPE_FLOW_METER_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_FLOW_METER"
+            "Plan": "PIPE_FLOW_METER",
+            "Section": "PIPE_FLOW_METER_SECTION",
+            "Schematic": "SCH_PIPE_FLOW_METER"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PIPE_FLOW_METER_TAG",
+          "tagFamily": "PIPE_FLOW_METER",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PIPE_FLOW_METER_TAG",
-            "Section": "CIBSE_PIPE_FLOW_METER_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_FLOW_METER"
+            "Plan": "PIPE_FLOW_METER",
+            "Section": "PIPE_FLOW_METER_SECTION",
+            "Schematic": "SCH_PIPE_FLOW_METER"
           }
         }
       },
@@ -4160,19 +4160,19 @@
       "isViewDependent": true,
       "standardMappings": {
         "IEC": {
-          "tagFamily": "IEC_PIPE_PUMP_TAG",
+          "tagFamily": "PIPE_PUMP",
           "viewContextOverrides": {
-            "Plan": "IEC_PIPE_PUMP_TAG",
-            "Section": "IEC_PIPE_PUMP_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_PUMP"
+            "Plan": "PIPE_PUMP",
+            "Section": "PIPE_PUMP_SECTION",
+            "Schematic": "SCH_PIPE_PUMP"
           }
         },
         "CIBSE": {
-          "tagFamily": "CIBSE_PIPE_PUMP_TAG",
+          "tagFamily": "PIPE_PUMP",
           "viewContextOverrides": {
-            "Plan": "CIBSE_PIPE_PUMP_TAG",
-            "Section": "CIBSE_PIPE_PUMP_SECTION_TAG",
-            "Schematic": "IEC_SCH_PIPE_PUMP"
+            "Plan": "PIPE_PUMP",
+            "Section": "PIPE_PUMP_SECTION",
+            "Schematic": "SCH_PIPE_PUMP"
           }
         }
       },
@@ -4194,7 +4194,7 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_RCBO_COMPOUND"
+          "genericAnnotation": "SLD_RCBO_COMPOUND"
         }
       },
       "compoundComponents": [
@@ -4212,7 +4212,7 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_STAR_DELTA_STARTER"
+          "genericAnnotation": "SLD_STAR_DELTA_STARTER"
         }
       },
       "compoundComponents": [

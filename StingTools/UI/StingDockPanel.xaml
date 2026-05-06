@@ -1366,6 +1366,9 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Place All Views" Tag="Symbols_PlaceAll" Click="Cmd_Click" ToolTip="Same, project-wide"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Std Audit" Tag="Symbols_Audit" Click="Cmd_Click" ToolTip="Drift + coverage report"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Sync Filters" Tag="Symbols_SyncFilters" Click="Cmd_Click" ToolTip="Mirror host visibility onto symbol tags"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Auto-Place Toggle" Tag="Symbols_AutoPlaceToggle" Click="Cmd_Click" ToolTip="Toggle whether the StingAutoTagger drops symbol overlays on every newly-placed MEP element (project_config.symbol_auto_place)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Remove In View" Tag="Symbols_RemoveInView" Click="Cmd_Click" ToolTip="Delete every STING symbol overlay (and its label TextNote) from the active view; non-STING tags untouched"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Remove All Views" Tag="Symbols_RemoveAll" Click="Cmd_Click" ToolTip="Project-wide: delete every STING symbol overlay across all views (chunked, interruptible). Tally-confirmation dialog shows top views by count before committing."/>
                                 </WrapPanel>
                                 <WrapPanel Margin="0,4,0,0">
                                     <Button Style="{StaticResource ActionBtn}" Content="Augment Families" Tag="Symbols_AugmentAll" Click="Cmd_Click" ToolTip="Inject STING symbol parameters into all loaded families"/>
