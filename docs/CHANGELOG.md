@@ -10254,3 +10254,103 @@ Modified:
 - `StingTools/UI/StingCommandHandler.cs` — 24 new dispatch entries
 - `StingTools/UI/StingDockPanel.xaml` — SYMBOLS & DEVICES + SLD GENERATOR sections
 - `docs/CHANGELOG.md` — this entry
+
+#### Completed (Phase 175 — caveat resolution: orientation/ladder/SLD-scope/async-augment)
+
+Closed the four caveats flagged at the bottom of the Phase 175 entry
+above. All four were marked as caveats rather than blocking issues —
+each is now a proper implementation.
+
+#### What landed
+
+1. **`SymbolOrientationEngine.Compute` widened to `Element`** —
+   non-FamilyInstance hosts now get a real axis. New
+   `ResolvePrimaryAxis` priority chain:
+   - `FamilyInstance.HandOrientation` / `FacingOrientation` (best signal)
+   - `MEPCurve` axis from `LocationCurve` — covers `Pipe`, `Duct`,
+     `Conduit`, `CableTray`, `FlexPipe`, `FlexDuct`. Vertical pipes /
+     risers now correctly resolve to `OrientationState.Vertical`.
+   - Generic `LocationCurve` fallback for linked-model proxies and
+     structural framing.
+   - Bounding-box dominant-dimension heuristic when nothing else exposes
+     an axis (only kicks in when one dimension is ≥ 1.5× the others).
+   - `XYZ.BasisX` last-resort default.
+   The legacy `Compute(FamilyInstance, View)` overload is preserved as
+   a thin delegating wrapper so any future caller that already passes a
+   FI compiles unchanged.
+
+2. **`CompoundSymbolPlacer` gains a `CompoundLayoutMode` enum** —
+   `VerticalStack` (existing behavior, default), `HorizontalSeries`
+   (left-to-right with inline connection lines, suited to circuit-flow
+   inline diagrams), and `Ladder` (two vertical rails with components
+   on horizontal rungs, one rung per component, connection lines from
+   each rail to each component centre — proper ladder-logic style for
+   full schematics). The placer's component-resolution path also now
+   falls back to `GetFamilyName` when `GetAnnotationFamilyName` returns
+   nothing, so it works with both annotation-only and tag-family
+   concepts.
+
+3. **`SLDGenerator.UpdateSLD` two-tier strategy** — fast label-only
+   path for modifications, full rebuild only on structural changes.
+   - `TryUpdateSingleNode` finds the SLD symbol via
+     `STING_SLD_ELEMENT_ID`, re-reads the live circuit data, and
+     refreshes only the symbol's adjacent TextNote annotation. O(1)
+     work per modified element.
+   - `FullRebuild` is the original delete-all-and-recreate flow, kept
+     for added / deleted elements where layout has to change.
+   - `SLDSyncUpdater.Execute` was the second half of the fix: it now
+     classifies each batch's changes once (additions or deletions →
+     structural → one rebuild per view; otherwise per-element fast
+     path). A 50-element edit on a project with 5 SLD views used to
+     trigger 250 full rebuilds; it now triggers 250 cheap label
+     refreshes (or 5 rebuilds if the edit touched added/deleted
+     elements).
+   - `SLDSyncUpdater` now self-gates on `project_config.json`
+     `sld_sync_enabled` inside `Execute` (rather than registration
+     time) so toggling without restarting Revit takes effect on the
+     next change.
+
+4. **`AugmentProjectFamiliesCommand` is now async-with-progress** —
+   `FamilyAugmentationEngine.AugmentProjectFamilies` accepts an
+   optional `Func<bool> isCancelled` predicate; the command wires it
+   to `StingProgressDialog.IsCancelled` so Escape / Cancel stop the
+   loop between families. The engine also now filters families to
+   augmentable categories before iterating (Mechanical / Electrical /
+   Lighting / Plumbing / Fire / Pipe-Duct accessories / Data /
+   Communications / Security), turning a 1,000-family library run
+   into a ~200-family run that touches only relevant content. EditFamily
+   itself still has to run on the Revit API thread, but the user gets
+   a live progress bar and ETA, plus partial results if they cancel
+   mid-run.
+
+#### Caveats (residual)
+
+1. Still no `dotnet build` verification (Linux sandbox). The new
+   `MEPCurve` axis path uses `Pipe` / `Duct` / `Conduit` / `CableTray`
+   types — verify those imports compile against your Revit 2025/2026
+   target. The `BoundingBoxXYZ` fallback is API-stable.
+2. `TryUpdateSingleNode` looks for adjacent TextNotes within
+   ~60 mm of the symbol position. Unusual annotation layouts with
+   labels far from their symbols would not be cleaned up; in those
+   cases the fast path falls back to leaving stale labels until the
+   next full rebuild. A future enhancement could stamp the TextNote
+   ID onto the symbol for direct lookup.
+3. `IsAugmentableCategory` filters by BuiltInCategory id casts — on
+   non-English Revit installations the category names visible in the
+   UI differ but the integer IDs are stable, so the filter still
+   works. Spot-check on a non-EN project before relying on it.
+4. The Ladder layout in `CompoundSymbolPlacer` puts one component per
+   rung. Putting multiple components on a single rung (in series along
+   the rung) is the next refinement — needs a `rungIndex` discriminator
+   on the `SymbolConcept.CompoundComponents` entries; deferred.
+
+#### Files
+
+Modified:
+- `StingTools/Core/Symbols/SymbolOrientationEngine.cs`
+- `StingTools/Core/Symbols/CompoundSymbolPlacer.cs`
+- `StingTools/Core/Symbols/FamilyAugmentationEngine.cs`
+- `StingTools/Core/SLD/SLDGenerator.cs`
+- `StingTools/Core/SLD/SLDSyncUpdater.cs`
+- `StingTools/Commands/Symbols/SymbolAugmentationCommands.cs`
+- `docs/CHANGELOG.md` — this entry

@@ -65,41 +65,171 @@ namespace StingTools.Core.SLD
             return result;
         }
 
+        /// <summary>
+        /// Refresh an existing SLD view in response to a model change.
+        /// <para>
+        /// Two-tier update strategy:
+        /// </para>
+        /// <list type="bullet">
+        /// <item><b>Fast path</b> — when <paramref name="changedElementId"/>
+        /// matches one symbol on the view (via <c>STING_SLD_ELEMENT_ID</c>),
+        /// only that symbol's label is re-rendered. O(1) work; suitable
+        /// for tight IUpdater loops.</item>
+        /// <item><b>Full rebuild</b> — when the changed element doesn't
+        /// map to an existing symbol (added or deleted), or
+        /// <paramref name="changedElementId"/> is invalid, the whole view
+        /// content is regenerated.</item>
+        /// </list>
+        /// </summary>
         public static void UpdateSLD(Document doc, ViewDrafting sldView, ElementId changedElementId)
         {
-            // Lightweight update — re-runs the full generator, deleting prior
-            // contents on the same view first.
             if (doc == null || sldView == null) return;
             try
             {
-                using (var tx = new Transaction(doc, "STING Update SLD"))
+                string standard = sldView.LookupParameter("STING_VIEW_SYMBOL_STANDARD")?.AsString() ?? "IEC";
+
+                // Fast path — try targeted update first.
+                if (changedElementId != null
+                    && changedElementId != ElementId.InvalidElementId
+                    && doc.GetElement(changedElementId) != null
+                    && TryUpdateSingleNode(doc, sldView, changedElementId, standard))
                 {
-                    tx.Start();
-                    var ids = new FilteredElementCollector(doc, sldView.Id).ToElementIds();
-                    foreach (var id in ids)
-                    {
-                        try { doc.Delete(id); } catch (Exception ex) { StingTools.Core.StingLog.Warn($"UpdateSLD del {id}: {ex.Message}"); }
-                    }
-                    tx.Commit();
+                    return;
                 }
-                // Now regenerate symbols/annotations onto the same view.
-                var standard = sldView.LookupParameter("STING_VIEW_SYMBOL_STANDARD")?.AsString() ?? "IEC";
-                var root = SLDCircuitTraverser.BuildHierarchy(doc);
-                if (root == null) return;
-                var layout = SLDLayoutEngine.CalculateLayout(root, standard);
-                using (var tx = new Transaction(doc, "STING Update SLD content"))
-                {
-                    tx.Start();
-                    var stub = new SLDResult();
-                    PlaceSymbols(doc, sldView, root, layout, standard, stub);
-                    SLDAnnotationPlacer.PlaceBusbarsAndBranches(doc, sldView, layout);
-                    SLDAnnotationPlacer.PlaceAllAnnotations(doc, sldView, root, layout, standard);
-                    tx.Commit();
-                }
+
+                // Full rebuild fallback.
+                FullRebuild(doc, sldView, standard);
             }
             catch (Exception ex)
             {
                 StingTools.Core.StingLog.Error("SLDGenerator.UpdateSLD", ex);
+            }
+        }
+
+        private static bool TryUpdateSingleNode(Document doc, ViewDrafting sldView,
+            ElementId changedElementId, string standard)
+        {
+            try
+            {
+                // Find the SLD symbol that maps to this model element.
+                string targetIdStr = changedElementId.IntegerValue.ToString();
+                var sldSymbol = new FilteredElementCollector(doc, sldView.Id)
+                    .OfClass(typeof(FamilyInstance))
+                    .Cast<FamilyInstance>()
+                    .FirstOrDefault(fi => string.Equals(
+                        fi.LookupParameter("STING_SLD_ELEMENT_ID")?.AsString(),
+                        targetIdStr,
+                        StringComparison.Ordinal));
+                if (sldSymbol == null) return false;
+
+                // Re-read circuit data from the live model.
+                var live = doc.GetElement(changedElementId) as FamilyInstance;
+                if (live == null) return false;
+
+                var node = new StingTools.Core.SLD.SLDNode
+                {
+                    ElementId = changedElementId,
+                    RevitElement = live,
+                    Label = live.Name,
+                    ConceptId = sldSymbol.LookupParameter("STING_SYMBOL_ID")?.AsString(),
+                };
+
+                // Pull rating/circuit/poles/load from any electrical system
+                // this element belongs to.
+                try
+                {
+                    var systems = new FilteredElementCollector(doc)
+                        .OfClass(typeof(Autodesk.Revit.DB.Electrical.ElectricalSystem))
+                        .Cast<Autodesk.Revit.DB.Electrical.ElectricalSystem>()
+                        .Where(s =>
+                        {
+                            try
+                            {
+                                if (s.BaseEquipment?.Id == changedElementId) return true;
+                                foreach (Element e in s.Elements)
+                                    if (e.Id == changedElementId) return true;
+                            }
+                            catch { }
+                            return false;
+                        }).ToList();
+                    if (systems.Count > 0)
+                        StingTools.Core.SLD.SLDCircuitTraverser.ReadCircuitData(systems[0], node);
+                }
+                catch (Exception ex)
+                { StingTools.Core.StingLog.Warn($"TryUpdateSingleNode read circuit: {ex.Message}"); }
+
+                // Locate and refresh the associated TextNote (or recreate it
+                // if missing). The label TextNote sits adjacent to the
+                // symbol — we look within a small radius and replace any
+                // matching one.
+                var rules = StingTools.Core.Symbols.SymbolStandardRegistry.GetAnnotationRules(standard);
+                XYZ pos = (sldSymbol.Location as LocationPoint)?.Point ?? XYZ.Zero;
+
+                using (var tx = new Transaction(doc, "STING Refresh SLD Node"))
+                {
+                    tx.Start();
+                    DeleteAdjacentTextNotes(doc, sldView, pos);
+                    SLDAnnotationPlacer.PlaceCircuitAnnotation(doc, sldView, node, pos, rules);
+                    tx.Commit();
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"TryUpdateSingleNode: {ex.Message}");
+                return false;
+            }
+        }
+
+        private static void DeleteAdjacentTextNotes(Document doc, View view, XYZ near, double maxDistFt = 0.2)
+        {
+            try
+            {
+                var toDelete = new System.Collections.Generic.List<ElementId>();
+                foreach (TextNote n in new FilteredElementCollector(doc, view.Id)
+                    .OfClass(typeof(TextNote))
+                    .Cast<TextNote>())
+                {
+                    try
+                    {
+                        if (n.Coord != null && n.Coord.DistanceTo(near) <= maxDistFt)
+                            toDelete.Add(n.Id);
+                    }
+                    catch (Exception ex) { StingTools.Core.StingLog.Warn($"DeleteAdjacentTextNotes inner: {ex.Message}"); }
+                }
+                foreach (var id in toDelete)
+                {
+                    try { doc.Delete(id); } catch (Exception ex) { StingTools.Core.StingLog.Warn($"DeleteAdjacentTextNotes del: {ex.Message}"); }
+                }
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"DeleteAdjacentTextNotes: {ex.Message}"); }
+        }
+
+        private static void FullRebuild(Document doc, ViewDrafting sldView, string standard)
+        {
+            using (var tx = new Transaction(doc, "STING Rebuild SLD"))
+            {
+                tx.Start();
+                var ids = new FilteredElementCollector(doc, sldView.Id).ToElementIds();
+                foreach (var id in ids)
+                {
+                    try { doc.Delete(id); } catch (Exception ex) { StingTools.Core.StingLog.Warn($"Rebuild del {id}: {ex.Message}"); }
+                }
+                tx.Commit();
+            }
+
+            var root = SLDCircuitTraverser.BuildHierarchy(doc);
+            if (root == null) return;
+            var layout = SLDLayoutEngine.CalculateLayout(root, standard);
+
+            using (var tx = new Transaction(doc, "STING Rebuild SLD content"))
+            {
+                tx.Start();
+                var stub = new SLDResult();
+                PlaceSymbols(doc, sldView, root, layout, standard, stub);
+                SLDAnnotationPlacer.PlaceBusbarsAndBranches(doc, sldView, layout);
+                SLDAnnotationPlacer.PlaceAllAnnotations(doc, sldView, root, layout, standard);
+                tx.Commit();
             }
         }
 

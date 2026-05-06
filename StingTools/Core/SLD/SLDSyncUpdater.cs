@@ -1,15 +1,23 @@
 // StingTools — SLD sync updater (Phase 175)
 //
-// IUpdater that re-runs SLDGenerator.UpdateSLD on every drafting view
-// whose name starts with "STING - SLD" whenever an electrical element
-// changes. Registered in StingToolsApp.OnStartup behind a project_config
-// gate ("sld_sync_enabled").
+// IUpdater that syncs every "STING - SLD" drafting view with electrical
+// model changes. Strategy per Execute call:
+//
+//   * One full rebuild per view IF any element was added or deleted
+//     (those are structural — layout depends on the hierarchy).
+//   * Otherwise, one targeted label refresh per modified element per
+//     view (fast path; falls back to rebuild internally if the element
+//     doesn't have a corresponding SLD symbol).
+//
+// Registered in StingToolsApp.OnStartup; self-gates on
+// project_config.json `sld_sync_enabled`.
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
-using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
+using Newtonsoft.Json.Linq;
 
 namespace StingTools.Core.SLD
 {
@@ -34,11 +42,14 @@ namespace StingTools.Core.SLD
             try
             {
                 var doc = data.GetDocument();
-                if (doc == null) return;
+                if (doc == null || !IsSyncEnabled(doc)) return;
 
-                var changed = new HashSet<ElementId>(data.GetModifiedElementIds());
-                foreach (var id in data.GetAddedElementIds()) changed.Add(id);
-                foreach (var id in data.GetDeletedElementIds()) changed.Add(id);
+                var added    = new HashSet<ElementId>(data.GetAddedElementIds());
+                var deleted  = new HashSet<ElementId>(data.GetDeletedElementIds());
+                var modified = new HashSet<ElementId>(data.GetModifiedElementIds());
+
+                // No work to do.
+                if (added.Count == 0 && deleted.Count == 0 && modified.Count == 0) return;
 
                 var views = new FilteredElementCollector(doc)
                     .OfClass(typeof(ViewDrafting))
@@ -48,15 +59,56 @@ namespace StingTools.Core.SLD
                     .ToList();
                 if (views.Count == 0) return;
 
+                bool structural = added.Count > 0 || deleted.Count > 0;
+
                 foreach (var v in views)
                 {
-                    foreach (var id in changed)
-                        SLDGenerator.UpdateSLD(doc, v, id);
+                    try
+                    {
+                        if (structural)
+                        {
+                            // One rebuild per view, regardless of how many
+                            // additions / deletions arrived in this batch.
+                            SLDGenerator.UpdateSLD(doc, v, ElementId.InvalidElementId);
+                        }
+                        else
+                        {
+                            // Targeted label refresh for each modified
+                            // element. Each call is O(1) on the view —
+                            // avoids the per-ID full-rebuild storm.
+                            foreach (var id in modified)
+                            {
+                                SLDGenerator.UpdateSLD(doc, v, id);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingTools.Core.StingLog.Warn(
+                            $"SLDSyncUpdater view {v.Name}: {ex.Message}");
+                    }
                 }
             }
             catch (Exception ex)
             {
                 StingTools.Core.StingLog.Warn($"SLDSyncUpdater: {ex.Message}");
+            }
+        }
+
+        private static bool IsSyncEnabled(Document doc)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(doc?.PathName)) return false;
+                string p = Path.Combine(Path.GetDirectoryName(doc.PathName), "project_config.json");
+                if (!File.Exists(p)) return false;
+                var root = JObject.Parse(File.ReadAllText(p));
+                return (bool)(root["sld_sync_enabled"] ?? false);
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"SLDSyncUpdater.IsSyncEnabled: {ex.Message}");
+                return false;
             }
         }
     }

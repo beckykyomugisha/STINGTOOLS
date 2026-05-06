@@ -21,34 +21,70 @@ namespace StingTools.Commands.Symbols
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) return Result.Failed;
 
+            // Pre-count families so the progress dialog has an accurate
+            // denominator before we start the long EditFamily loop.
+            int total = new FilteredElementCollector(ctx.Doc)
+                .OfClass(typeof(Family))
+                .Cast<Family>()
+                .Count();
+
             var dlg = new TaskDialog("STING - Augment Families")
             {
-                MainInstruction = "Add STING symbol parameters to all loaded families?",
-                MainContent = "Each family will get STING_SYMBOL_ID / _STANDARD / _HOST_ELEMENT_ID injected."
-                            + " Already-augmented families are skipped.",
+                MainInstruction = $"Add STING symbol parameters to ~{total} loaded families?",
+                MainContent =
+                    "Each family will get STING_SYMBOL_ID / _STANDARD / _HOST_ELEMENT_ID injected. "
+                  + "Already-augmented families are skipped. "
+                  + "A progress dialog will appear; press Escape or click Cancel to stop early.",
                 CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.Cancel
             };
             if (dlg.Show() != TaskDialogResult.Yes) return Result.Cancelled;
 
-            var results = FamilyAugmentationEngine.AugmentProjectFamilies(ctx.Doc);
-            int ok       = results.Count(r => r.Success);
-            int already  = results.Count(r => r.AlreadyAugmented);
-            int failed   = results.Count(r => !r.Success);
-
-            var sb = new StringBuilder();
-            sb.AppendLine($"Total      : {results.Count}");
-            sb.AppendLine($"  augmented: {ok}");
-            sb.AppendLine($"  already  : {already}");
-            sb.AppendLine($"  failed   : {failed}");
-            if (failed > 0)
+            var progress = StingTools.UI.StingProgressDialog.Show(
+                "STING - Augment Families", Math.Max(total, 1));
+            try
             {
-                sb.AppendLine();
-                sb.AppendLine("First 10 failures:");
-                foreach (var r in results.Where(r => !r.Success).Take(10))
-                    sb.AppendLine($"  · {r.FamilyName}: {r.Warning}");
+                var iprog = new ProgressAdapter(progress);
+                var results = FamilyAugmentationEngine.AugmentProjectFamilies(
+                    ctx.Doc,
+                    progress: iprog,
+                    isCancelled: () => progress.IsCancelled);
+
+                int ok      = results.Count(r => r.Success);
+                int already = results.Count(r => r.AlreadyAugmented);
+                int failed  = results.Count(r => !r.Success && !r.AlreadyAugmented);
+                bool wasCancelled = progress.IsCancelled;
+
+                var sb = new StringBuilder();
+                if (wasCancelled) sb.AppendLine("Cancelled by user — partial results.");
+                sb.AppendLine($"Processed  : {results.Count}");
+                sb.AppendLine($"  augmented: {ok}");
+                sb.AppendLine($"  already  : {already}");
+                sb.AppendLine($"  failed   : {failed}");
+                if (failed > 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("First 10 failures:");
+                    foreach (var r in results.Where(r => !r.Success && !r.AlreadyAugmented).Take(10))
+                        sb.AppendLine($"  · {r.FamilyName}: {r.Warning}");
+                }
+                TaskDialog.Show("STING - Augment Families", sb.ToString());
+                return wasCancelled ? Result.Cancelled : Result.Succeeded;
             }
-            TaskDialog.Show("STING - Augment Families", sb.ToString());
-            return Result.Succeeded;
+            finally
+            {
+                try { progress.Close(); } catch (Exception ex) { StingLog.Warn($"AugmentProjectFamilies progress.Close: {ex.Message}"); }
+            }
+        }
+
+        /// <summary>
+        /// Adapts <see cref="StingTools.UI.StingProgressDialog"/> to the
+        /// <see cref="IProgress{T}"/> contract the engine accepts.
+        /// </summary>
+        private sealed class ProgressAdapter : IProgress<string>
+        {
+            private readonly StingTools.UI.StingProgressDialog _dlg;
+            public ProgressAdapter(StingTools.UI.StingProgressDialog dlg) { _dlg = dlg; }
+            public void Report(string value) => _dlg.Increment(value);
         }
     }
 

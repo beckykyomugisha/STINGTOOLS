@@ -23,8 +23,21 @@ namespace StingTools.Core.Symbols
 
     public static class FamilyAugmentationEngine
     {
+        /// <summary>
+        /// Augment every Family loaded in the project. Synchronous, but the
+        /// optional <paramref name="isCancelled"/> predicate lets the
+        /// caller short-circuit between families (StingProgressDialog
+        /// passes <c>() =&gt; progress.IsCancelled</c> here so the user
+        /// can stop a 200-family run).
+        /// <para>
+        /// EditFamily / LoadFamily must run on the Revit API thread; this
+        /// method is therefore not thread-safe. Callers that need a
+        /// non-blocking UI should pump the progress dialog from the API
+        /// thread itself (see <c>AugmentProjectFamiliesCommand</c>).
+        /// </para>
+        /// </summary>
         public static List<AugmentationResult> AugmentProjectFamilies(Document doc,
-            IProgress<string> progress = null)
+            IProgress<string> progress = null, Func<bool> isCancelled = null)
         {
             var results = new List<AugmentationResult>();
             if (doc == null) return results;
@@ -33,11 +46,18 @@ namespace StingTools.Core.Symbols
                 var families = new FilteredElementCollector(doc)
                     .OfClass(typeof(Family))
                     .Cast<Family>()
+                    .Where(IsAugmentableCategory)
                     .ToList();
 
                 int idx = 0;
                 foreach (var fam in families)
                 {
+                    if (isCancelled != null && isCancelled())
+                    {
+                        StingTools.Core.StingLog.Info(
+                            $"AugmentProjectFamilies cancelled at {idx}/{families.Count}");
+                        break;
+                    }
                     idx++;
                     progress?.Report($"Augmenting {idx}/{families.Count}: {fam.Name}");
                     results.Add(AugmentFamily(doc, fam));
@@ -48,6 +68,51 @@ namespace StingTools.Core.Symbols
                 StingTools.Core.StingLog.Error("AugmentProjectFamilies", ex);
             }
             return results;
+        }
+
+        /// <summary>
+        /// Filter to families whose category could plausibly host a STING
+        /// symbol concept. Skips title blocks, profiles, detail items,
+        /// annotation symbols, and other non-MEP / non-architectural
+        /// content so a 1,000-family library run only touches the ~200
+        /// that matter.
+        /// </summary>
+        private static bool IsAugmentableCategory(Family fam)
+        {
+            try
+            {
+                var cat = fam.FamilyCategory;
+                if (cat == null) return false;
+                int catId;
+                try { catId = cat.Id?.IntegerValue ?? 0; }
+                catch (Exception ex) { StingTools.Core.StingLog.Warn($"IsAugmentableCategory id: {ex.Message}"); return false; }
+
+                switch ((BuiltInCategory)catId)
+                {
+                    case BuiltInCategory.OST_MechanicalEquipment:
+                    case BuiltInCategory.OST_ElectricalEquipment:
+                    case BuiltInCategory.OST_ElectricalFixtures:
+                    case BuiltInCategory.OST_LightingFixtures:
+                    case BuiltInCategory.OST_FireAlarmDevices:
+                    case BuiltInCategory.OST_Sprinklers:
+                    case BuiltInCategory.OST_PlumbingFixtures:
+                    case BuiltInCategory.OST_PipeAccessory:
+                    case BuiltInCategory.OST_DuctAccessory:
+                    case BuiltInCategory.OST_DuctTerminal:
+                    case BuiltInCategory.OST_DataDevices:
+                    case BuiltInCategory.OST_CommunicationDevices:
+                    case BuiltInCategory.OST_NurseCallDevices:
+                    case BuiltInCategory.OST_SecurityDevices:
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"IsAugmentableCategory: {ex.Message}");
+                return false;
+            }
         }
 
         public static AugmentationResult AugmentFamily(Document doc, Family fam)
