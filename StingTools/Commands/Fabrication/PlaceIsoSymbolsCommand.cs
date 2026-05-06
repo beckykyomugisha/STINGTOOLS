@@ -15,7 +15,7 @@
 //      with the assembly id by AssemblyViewBuilder, so we parse the
 //      assembly id back out of view.Name (`STING ISO 6412 - <name> ::<id>`).
 //   2. Active view is some other section/plan/drafting view associated
-//      with an assembly via AssemblyInstance.GetAssociatedAssemblyViews().
+//      with an assembly via View.AssociatedAssemblyInstanceId.
 //   3. Selection contains AssemblyInstance(s) — for each, find its
 //      stamped ISO 6412 section view by name suffix scan.
 //   4. Otherwise — clear TaskDialog explaining what to select / open.
@@ -203,13 +203,10 @@ namespace StingTools.Commands.Fabrication
         {
             try
             {
-                var col = new FilteredElementCollector(doc)
-                    .OfClass(typeof(AssemblyInstance));
-                foreach (var el in col)
+                if (doc.GetElement(viewId) is View v
+                    && v.AssociatedAssemblyInstanceId != ElementId.InvalidElementId)
                 {
-                    if (!(el is AssemblyInstance ai)) continue;
-                    var views = ai.GetAssociatedAssemblyViews();
-                    if (views != null && views.Contains(viewId)) return ai.Id;
+                    return v.AssociatedAssemblyInstanceId;
                 }
             }
             catch (Exception ex) { StingLog.Warn($"FindAssemblyForView: {ex.Message}"); }
@@ -225,22 +222,30 @@ namespace StingTools.Commands.Fabrication
         /// </summary>
         private static ElementId FindFirstSectionViewForAssembly(Document doc, AssemblyInstance ai)
         {
+            if (ai == null) return ElementId.InvalidElementId;
             try
             {
-                var views = ai.GetAssociatedAssemblyViews();
-                if (views == null) return ElementId.InvalidElementId;
-                foreach (var vid in views)
+                // Revit has no AssemblyInstance.GetAssociatedAssemblyViews
+                // helper; views own their owning-assembly via
+                // View.AssociatedAssemblyInstanceId. Filter the view set by
+                // that id and pick the first ViewSection — that's the
+                // ISO 6412 axonometric AssemblyViewBuilder mints.
+                foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(ViewSection)))
                 {
-                    if (doc.GetElement(vid) is ViewSection) return vid;
+                    if (el is ViewSection vs && vs.AssociatedAssemblyInstanceId == ai.Id)
+                        return vs.Id;
                 }
-                // Fallback: any non-3D, non-schedule view.
-                foreach (var vid in views)
+                // Fallback: any non-3D, non-schedule view bound to the
+                // assembly. Catches projects where the user duplicated the
+                // ISO into a Detail / DraftingView before triggering the
+                // command.
+                foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(View)))
                 {
-                    var v = doc.GetElement(vid) as View;
-                    if (v == null) continue;
+                    if (!(el is View v) || v.IsTemplate) continue;
+                    if (v.AssociatedAssemblyInstanceId != ai.Id) continue;
                     if (v is View3D) continue;
                     if (v is ViewSchedule) continue;
-                    return vid;
+                    return v.Id;
                 }
             }
             catch (Exception ex) { StingLog.Warn($"FindFirstSectionViewForAssembly: {ex.Message}"); }

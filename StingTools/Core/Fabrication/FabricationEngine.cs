@@ -113,9 +113,10 @@ namespace StingTools.Core.Fabrication
         {
             if (doc == null || result == null) return;
             if (targets == null || targets.Count == 0) return;
-            var opts = StingTools.Commands.Fabrication.FabricationOptions;
-            if (!opts.PlaceISO6412Symbols) return;
-            if (opts.SymbolPlacementMode ==
+            // FabricationOptions is a static class, so it can't be assigned
+            // to a local. Reference its static members directly.
+            if (!StingTools.Commands.Fabrication.FabricationOptions.PlaceISO6412Symbols) return;
+            if (StingTools.Commands.Fabrication.FabricationOptions.SymbolPlacementMode ==
                 StingTools.Commands.Fabrication.FabricationOptions.PlacementMode.Off) return;
             if (!IsDisciplineOn(discipline)) return;
 
@@ -146,12 +147,13 @@ namespace StingTools.Core.Fabrication
 
         private static bool IsDisciplineOn(string discipline)
         {
-            var o = StingTools.Commands.Fabrication.FabricationOptions;
+            // FabricationOptions is static — read the per-discipline flag
+            // directly rather than aliasing the type to a local.
             switch ((discipline ?? "").ToUpperInvariant())
             {
-                case "PIPE":       return o.PlaceISOPipe;
-                case "DUCT":       return o.PlaceISODuct;
-                case "ELECTRICAL": return o.PlaceISOElectrical;
+                case "PIPE":       return StingTools.Commands.Fabrication.FabricationOptions.PlaceISOPipe;
+                case "DUCT":       return StingTools.Commands.Fabrication.FabricationOptions.PlaceISODuct;
+                case "ELECTRICAL": return StingTools.Commands.Fabrication.FabricationOptions.PlaceISOElectrical;
                 default:           return true;
             }
         }

@@ -188,11 +188,13 @@ namespace StingTools.UI
         private UIElement BuildSymbolsCard()
         {
             var body = new StackPanel();
-            var opts = StingTools.Commands.Fabrication.FabricationOptions;
-            bool optionOn = opts.PlaceISO6412Symbols;
+            // FabricationOptions is static — read directly rather than
+            // aliasing the type to a local (CS0723 / CS0176).
+            bool optionOn = StingTools.Commands.Fabrication.FabricationOptions.PlaceISO6412Symbols;
             body.Children.Add(MetricRow("Placement option", optionOn ? "ON" : "OFF",
                 accent: optionOn ? GreenColor : (Color?)SubtleColor));
-            body.Children.Add(MetricRow("Mode", opts.SymbolPlacementMode.ToString()));
+            body.Children.Add(MetricRow("Mode",
+                StingTools.Commands.Fabrication.FabricationOptions.SymbolPlacementMode.ToString()));
             body.Children.Add(MetricRow("Symbols placed", _res.SymbolsPlaced.ToString(),
                 accent: _res.SymbolsPlaced > 0 ? GreenColor : (Color?)null,
                 bold: _res.SymbolsPlaced > 0));
