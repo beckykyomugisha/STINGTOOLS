@@ -134,18 +134,58 @@ namespace StingTools.Core.Fabrication
             try { ApplySheetMetadata(doc, sheet, assemblyId, discipline, drawingType, result); }
             catch (Exception ex) { result.Warnings.Add($"Sheet metadata: {ex.Message}"); }
 
-            // Apply user-selected view template to every non-schedule
-            // view the sheet will host, so the shop drawing inherits
-            // the company's graphic standards (line weights, filled
-            // regions, VG overrides, cropping rules).
+            // Apply the resolved DrawingType profile to every non-schedule
+            // view so spools render at the slot's intended scale. Without
+            // this, AssemblyViewUtils-created views keep the
+            // ViewFamilyType default (~1:100) and print half-size on a
+            // layout sized for 1:50. Schedules / material takeoffs have
+            // no Scale property and are intentionally excluded.
+            //
+            // runAnnotation: false — fabrication views handle their own
+            // annotation via IsoSymbolPlacer; we only want the
+            // presentation pass (scale, detail level, view template,
+            // crop, style pack).
+            var viewIdsToPresent = new[] {
+                views.View3D, views.ViewPlan, views.ViewIso6412,
+                views.Elevation0, views.Elevation90, views.ElevationTop };
+
+            if (drawingType != null)
+            {
+                foreach (var viewId in viewIdsToPresent)
+                {
+                    if (viewId == null || viewId == ElementId.InvalidElementId) continue;
+                    try
+                    {
+                        if (doc.GetElement(viewId) is View v && !v.IsTemplate)
+                        {
+                            var apply = StingTools.Core.Drawing.DrawingTypePresentation
+                                .Apply(doc, v, drawingType, runAnnotation: false);
+                            foreach (var w in apply.Warnings)
+                                result.Warnings.Add($"Apply view {viewId.Value}: {w}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        result.Warnings.Add($"DrawingType view apply {viewId.Value}: {ex.Message}");
+                    }
+                }
+            }
+            else
+            {
+                // No profile resolved — still guarantee a readable scale
+                // so the slot layout (sized for 1:50 A1) isn't fed
+                // default-scaled views.
+                foreach (var viewId in viewIdsToPresent)
+                    TrySetViewScale(doc, viewId, 50, result);
+            }
+
+            // User-picked view template (if any) wins over the profile —
+            // applied last so corporate graphic standards override the
+            // DrawingType.viewTemplateName fallback.
             if (options != null && options.ViewTemplateId != ElementId.InvalidElementId)
             {
-                foreach (var viewId in new[] {
-                    views.View3D, views.ViewPlan, views.ViewIso6412,
-                    views.Elevation0, views.Elevation90, views.ElevationTop })
-                {
+                foreach (var viewId in viewIdsToPresent)
                     ApplyViewTemplate(doc, viewId, options.ViewTemplateId, result);
-                }
             }
 
             // Place views at fixed slots. Elev0/Elev90 receive the new
@@ -402,6 +442,28 @@ namespace StingTools.Core.Fabrication
                 return p?.StorageType == StorageType.String ? (p.AsString() ?? "") : "";
             }
             catch { return ""; }
+        }
+
+        /// <summary>
+        /// Force a view's scale (1:N) — used as the no-DrawingType
+        /// fallback so spools never end up at the Revit default scale,
+        /// which would print half-size on the 1:50 slot layout.
+        /// Views without a settable Scale (schedules, legends) throw
+        /// and are silently skipped.
+        /// </summary>
+        private static void TrySetViewScale(Document doc, ElementId viewId, int scale,
+            FabricationResult result)
+        {
+            if (viewId == null || viewId == ElementId.InvalidElementId || scale <= 0) return;
+            try
+            {
+                if (doc.GetElement(viewId) is View v && !v.IsTemplate)
+                    v.Scale = scale;
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"Scale 1:{scale} on {viewId.Value}: {ex.Message}");
+            }
         }
 
         /// <summary>
