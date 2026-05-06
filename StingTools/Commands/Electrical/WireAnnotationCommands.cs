@@ -152,6 +152,38 @@ namespace StingTools.Commands.Electrical
             }
             catch (Exception ex) { StingLog.Warn("ReadWireData diameter: " + ex.Message); }
 
+            // Prefer live circuit data when the conduit network reaches a
+            // circuited device. ricaun-style: the wire spec should follow
+            // the actual electrical model, not a separately-maintained
+            // shared-parameter snapshot. Fall back to ELC_WIRE_* params
+            // when no circuit is reachable.
+            try
+            {
+                var circuit = GetConnectedCircuit(conduit);
+                if (circuit != null)
+                {
+                    string circuitPanel = "";
+                    string circuitNumber = "";
+                    int circuitPoles = 0;
+                    try { circuitPanel = circuit.PanelName ?? ""; } catch { }
+                    try { circuitNumber = circuit.CircuitNumber ?? ""; } catch { }
+                    try { circuitPoles = circuit.PolesNumber; } catch { }
+
+                    if (!string.IsNullOrEmpty(circuitPanel))  panel = circuitPanel;
+                    if (!string.IsNullOrEmpty(circuitNumber)) circ  = circuitNumber;
+                    if (circuitPoles > 0 && cores <= 0)       cores = circuitPoles;
+                    if (string.IsNullOrEmpty(phase) && circuitPoles > 0)
+                    {
+                        phase = circuitPoles == 1 ? "1P"
+                              : circuitPoles == 2 ? "1P+N"
+                              : circuitPoles == 3 ? "3P"
+                              : circuitPoles == 4 ? "3P+N"
+                              : phase;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn("ReadWireData circuit: " + ex.Message); }
+
             return new WireAnnotationData(
                 phase, cores, csa,
                 string.IsNullOrEmpty(mat) ? "" : mat,
@@ -555,6 +587,245 @@ namespace StingTools.Commands.Electrical
             }
             catch (Exception ex) { StingLog.Warn("ResolveTickSubcategory: " + ex.Message); }
             return null;
+        }
+
+        private static ConnectorManager GetMepConnectorManager(Element el)
+        {
+            try
+            {
+                if (el is MEPCurve mc) return mc.ConnectorManager;
+                if (el is FamilyInstance fi) return fi.MEPModel?.ConnectorManager;
+            }
+            catch { }
+            return null;
+        }
+
+        private static bool IsElectricalDevice(Element el)
+        {
+            if (!(el is FamilyInstance fi) || fi.MEPModel == null) return false;
+            var catId = fi.Category?.Id?.Value ?? 0;
+            return catId == (long)BuiltInCategory.OST_ElectricalEquipment
+                || catId == (long)BuiltInCategory.OST_ElectricalFixtures
+                || catId == (long)BuiltInCategory.OST_LightingFixtures
+                || catId == (long)BuiltInCategory.OST_LightingDevices
+                || catId == (long)BuiltInCategory.OST_DataDevices
+                || catId == (long)BuiltInCategory.OST_CommunicationDevices
+                || catId == (long)BuiltInCategory.OST_FireAlarmDevices
+                || catId == (long)BuiltInCategory.OST_NurseCallDevices
+                || catId == (long)BuiltInCategory.OST_SecurityDevices
+                || catId == (long)BuiltInCategory.OST_TelephoneDevices;
+        }
+
+        public static ElectricalSystem GetConnectedCircuit(Element conduit)
+        {
+            if (conduit == null) return null;
+            var cm = GetMepConnectorManager(conduit);
+            if (cm == null) return null;
+
+            var visited = new HashSet<long> { conduit.Id.Value };
+            var frontier = new List<Connector>();
+            try
+            {
+                foreach (Connector c in cm.Connectors)
+                    if (c.ConnectorType == ConnectorType.End) frontier.Add(c);
+            }
+            catch { return null; }
+
+            const int maxDepth = 12;
+            for (int depth = 0; depth < maxDepth && frontier.Count > 0; depth++)
+            {
+                var next = new List<Connector>();
+                foreach (var fc in frontier)
+                {
+                    ConnectorSet refs;
+                    try { refs = fc.AllRefs; } catch { continue; }
+                    if (refs == null) continue;
+                    foreach (Connector other in refs)
+                    {
+                        var owner = other?.Owner;
+                        if (owner == null) continue;
+                        long oid = owner.Id.Value;
+                        if (!visited.Add(oid)) continue;
+
+                        if (IsElectricalDevice(owner))
+                        {
+                            try
+                            {
+                                var systems = ((FamilyInstance)owner).MEPModel.GetElectricalSystems();
+                                if (systems != null && systems.Count > 0)
+                                    return systems.FirstOrDefault();
+                            }
+                            catch { }
+                            continue;
+                        }
+
+                        var catId = owner.Category?.Id?.Value ?? 0;
+                        if (catId != (long)BuiltInCategory.OST_Conduit
+                         && catId != (long)BuiltInCategory.OST_ConduitFitting)
+                            continue;
+
+                        var ocm = GetMepConnectorManager(owner);
+                        if (ocm == null) continue;
+                        try
+                        {
+                            foreach (Connector pc in ocm.Connectors)
+                            {
+                                if (pc.ConnectorType != ConnectorType.End) continue;
+                                if (pc.Id == other.Id) continue;
+                                next.Add(pc);
+                            }
+                        }
+                        catch { }
+                    }
+                }
+                frontier = next;
+            }
+            return null;
+        }
+
+        public class WirePathResult
+        {
+            public List<XYZ> Vertices { get; set; } = new List<XYZ>();
+            public Connector StartConnector { get; set; }
+            public Connector EndConnector { get; set; }
+        }
+
+        public static WirePathResult BuildWirePath(Element conduit)
+        {
+            if (conduit == null) return null;
+            var lc = conduit.Location as LocationCurve;
+            if (lc?.Curve == null) return null;
+            var p0 = lc.Curve.GetEndPoint(0);
+            var p1 = lc.Curve.GetEndPoint(1);
+
+            var visited = new HashSet<long> { conduit.Id.Value };
+            var sideA = WalkSide(conduit, p0, visited);
+            var sideB = WalkSide(conduit, p1, visited);
+
+            // sideA.points = [p0, ..., deviceA-end-position]
+            // sideB.points = [p1, ..., deviceB-end-position]
+            // Final polyline: reverse(sideA) + sideB  →  deviceA → ... → p0 → p1 → ... → deviceB
+            var verts = new List<XYZ>(sideA.points.Count + sideB.points.Count);
+            for (int i = sideA.points.Count - 1; i >= 0; i--) verts.Add(sideA.points[i]);
+            verts.AddRange(sideB.points);
+
+            // De-duplicate consecutive coincident vertices (Wire.Create dislikes them).
+            var clean = new List<XYZ>();
+            foreach (var v in verts)
+            {
+                if (clean.Count == 0 || !clean[clean.Count - 1].IsAlmostEqualTo(v, 1e-3))
+                    clean.Add(v);
+            }
+
+            return new WirePathResult
+            {
+                Vertices = clean,
+                StartConnector = sideA.deviceConn,
+                EndConnector   = sideB.deviceConn,
+            };
+        }
+
+        private static (List<XYZ> points, Connector deviceConn) WalkSide(
+            Element startElement, XYZ startPt, HashSet<long> visited)
+        {
+            var points = new List<XYZ> { startPt };
+            Connector deviceConn = null;
+            Element current = startElement;
+            XYZ currentPt = startPt;
+            int safety = 200;
+
+            while (safety-- > 0)
+            {
+                var cm = GetMepConnectorManager(current);
+                if (cm == null) break;
+
+                Connector outConn = null;
+                try
+                {
+                    foreach (Connector c in cm.Connectors)
+                    {
+                        if (c.ConnectorType != ConnectorType.End) continue;
+                        if (c.Origin != null && c.Origin.IsAlmostEqualTo(currentPt, 1e-3))
+                        { outConn = c; break; }
+                    }
+                }
+                catch { break; }
+                if (outConn == null || !outConn.IsConnected) break;
+
+                Connector partnerConn = null;
+                try
+                {
+                    foreach (Connector other in outConn.AllRefs)
+                    {
+                        if (other?.Owner == null) continue;
+                        if (other.Owner.Id == current.Id) continue;
+                        partnerConn = other;
+                        break;
+                    }
+                }
+                catch { break; }
+                if (partnerConn == null) break;
+
+                var nextElement = partnerConn.Owner;
+                if (!visited.Add(nextElement.Id.Value)) break;
+
+                if (IsElectricalDevice(nextElement))
+                {
+                    deviceConn = partnerConn;
+                    if (partnerConn.Origin != null)
+                        points.Add(partnerConn.Origin);
+                    break;
+                }
+
+                var catId = nextElement.Category?.Id?.Value ?? 0;
+                if (catId != (long)BuiltInCategory.OST_Conduit
+                 && catId != (long)BuiltInCategory.OST_ConduitFitting)
+                    break;
+
+                var nextCm = GetMepConnectorManager(nextElement);
+                if (nextCm == null) break;
+
+                Connector exitConn = null;
+                try
+                {
+                    foreach (Connector c in nextCm.Connectors)
+                    {
+                        if (c.ConnectorType != ConnectorType.End) continue;
+                        if (c.Id == partnerConn.Id) continue;
+                        exitConn = c;
+                        break;
+                    }
+                }
+                catch { break; }
+                if (exitConn == null || exitConn.Origin == null) break;
+
+                points.Add(exitConn.Origin);
+                current   = nextElement;
+                currentPt = exitConn.Origin;
+            }
+
+            return (points, deviceConn);
+        }
+
+        public static WireType ResolveWireType(Document doc)
+        {
+            if (doc == null) return null;
+            try
+            {
+                var all = new FilteredElementCollector(doc)
+                    .OfClass(typeof(WireType))
+                    .Cast<WireType>()
+                    .ToList();
+                if (all.Count == 0) return null;
+                var preferred = all.FirstOrDefault(w =>
+                    (w.Name ?? "").IndexOf("STING", StringComparison.OrdinalIgnoreCase) >= 0);
+                return preferred ?? all[0];
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn("ResolveWireType: " + ex.Message);
+                return null;
+            }
         }
     }
 
@@ -1023,6 +1294,228 @@ namespace StingTools.Commands.Electrical
             catch (Exception ex)
             {
                 StingLog.Error("ClearWireAnnotationsCommand failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    // Creates real Revit Wire elements following the conduit centerline
+    // (ricaun-style). Walks the conduit + conduit-fitting graph from the
+    // picked conduit outward in both directions until a circuited device
+    // is reached, then mints a Wire.Create call connected to the circuit
+    // at both ends. When a device end can't be reached, the wire is still
+    // drawn along the partial path but left unconnected on that side.
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class WireOnConduitCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) { message = "No active document."; return Result.Failed; }
+                var doc   = ctx.Doc;
+                var uidoc = ctx.UIDoc;
+                var view  = doc.ActiveView;
+                if (view is View3D || view is ViewSchedule)
+                {
+                    TaskDialog.Show("STING Wire On Conduit",
+                        "Wires must be created in a plan, section, or elevation view.");
+                    return Result.Cancelled;
+                }
+
+                Reference reference;
+                try
+                {
+                    reference = uidoc.Selection.PickObject(ObjectType.Element,
+                        new ConduitSelectionFilter(),
+                        "Pick a conduit on the wire run");
+                }
+                catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+                { return Result.Cancelled; }
+
+                var conduit = doc.GetElement(reference);
+                var path = WireAnnotationEngine.BuildWirePath(conduit);
+                if (path == null || path.Vertices == null || path.Vertices.Count < 2)
+                {
+                    TaskDialog.Show("STING Wire On Conduit",
+                        "Could not trace a conduit path from the picked element.");
+                    return Result.Cancelled;
+                }
+
+                var wireType = WireAnnotationEngine.ResolveWireType(doc);
+                if (wireType == null)
+                {
+                    TaskDialog.Show("STING Wire On Conduit",
+                        "No WireType defined in this project. Load or create a wire type first.");
+                    return Result.Failed;
+                }
+
+                ElementId wireId = ElementId.InvalidElementId;
+                using (var t = new Transaction(doc, "STING Wire On Conduit"))
+                {
+                    t.Start();
+                    try
+                    {
+                        var wire = Wire.Create(doc, wireType.Id, view.Id,
+                            WiringType.Chamfered, path.Vertices,
+                            path.StartConnector, path.EndConnector);
+                        if (wire == null)
+                        {
+                            t.RollBack();
+                            TaskDialog.Show("STING Wire On Conduit",
+                                "Wire.Create returned null.");
+                            return Result.Failed;
+                        }
+                        wireId = wire.Id;
+                        t.Commit();
+                    }
+                    catch (Exception ex)
+                    {
+                        t.RollBack();
+                        StingLog.Error("Wire.Create failed", ex);
+                        message = ex.Message;
+                        return Result.Failed;
+                    }
+                }
+
+                bool bothEnds = path.StartConnector != null && path.EndConnector != null;
+                string suffix = bothEnds
+                    ? " connected to circuit at both ends."
+                    : " (one or both ends not connected to a circuit).";
+                StingLog.Info($"Wire {wireId.Value} created along {path.Vertices.Count}-vertex path");
+                TaskDialog.Show("STING Wire On Conduit",
+                    $"Wire placed along {path.Vertices.Count}-vertex path{suffix}");
+                return Result.Succeeded;
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+            { return Result.Cancelled; }
+            catch (Exception ex)
+            {
+                StingLog.Error("WireOnConduitCommand failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class WireOnConduitBatchCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) { message = "No active document."; return Result.Failed; }
+                var doc  = ctx.Doc;
+                var view = doc.ActiveView;
+                if (view is View3D || view is ViewSchedule)
+                {
+                    TaskDialog.Show("STING Wire On Conduit",
+                        "Wires must be created in a plan, section, or elevation view.");
+                    return Result.Cancelled;
+                }
+
+                var conduits = new FilteredElementCollector(doc, view.Id)
+                    .OfCategory(BuiltInCategory.OST_Conduit)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+                if (conduits.Count == 0)
+                {
+                    TaskDialog.Show("STING Wire On Conduit",
+                        "No conduits found in active view.");
+                    return Result.Cancelled;
+                }
+
+                var wireType = WireAnnotationEngine.ResolveWireType(doc);
+                if (wireType == null)
+                {
+                    TaskDialog.Show("STING Wire On Conduit",
+                        "No WireType defined in this project. Load or create a wire type first.");
+                    return Result.Failed;
+                }
+
+                var td = new TaskDialog("STING Wire On Conduit")
+                {
+                    MainInstruction = $"Found {conduits.Count} conduits. Place wires along all unique runs?",
+                    MainContent     = "Each conduit network reaching two devices produces one Wire. Walked-through conduits are skipped to avoid duplicates.",
+                    CommonButtons   = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                    DefaultButton   = TaskDialogResult.Yes,
+                };
+                if (td.Show() != TaskDialogResult.Yes) return Result.Cancelled;
+
+                int placed = 0, skipped = 0, failed = 0;
+                bool cancelled = false;
+                var processed = new HashSet<long>();
+                var prog = StingProgressDialog.Show("STING Wire On Conduit", conduits.Count);
+                using (var tg = new TransactionGroup(doc, "STING Batch Wires On Conduit"))
+                {
+                    tg.Start();
+                    foreach (var conduit in conduits)
+                    {
+                        prog.Increment($"Conduit {conduit.Id.Value}");
+                        if (EscapeChecker.IsEscapePressed())
+                        {
+                            cancelled = true;
+                            break;
+                        }
+                        if (processed.Contains(conduit.Id.Value))
+                        {
+                            skipped++;
+                            continue;
+                        }
+                        var path = WireAnnotationEngine.BuildWirePath(conduit);
+                        if (path == null || path.Vertices == null || path.Vertices.Count < 2
+                            || path.StartConnector == null || path.EndConnector == null)
+                        {
+                            skipped++;
+                            continue;
+                        }
+
+                        using (var t = new Transaction(doc, "STING Wire"))
+                        {
+                            t.Start();
+                            try
+                            {
+                                var wire = Wire.Create(doc, wireType.Id, view.Id,
+                                    WiringType.Chamfered, path.Vertices,
+                                    path.StartConnector, path.EndConnector);
+                                if (wire != null) placed++;
+                                else { failed++; t.RollBack(); continue; }
+                                t.Commit();
+                                processed.Add(conduit.Id.Value);
+                            }
+                            catch (Exception ex)
+                            {
+                                failed++;
+                                StingLog.Warn($"Batch Wire.Create {conduit.Id.Value}: {ex.Message}");
+                                try { t.RollBack(); } catch { }
+                            }
+                        }
+                    }
+                    tg.Assimilate();
+                }
+                prog.Close();
+
+                string suffix = "";
+                if (skipped > 0)   suffix += $" {skipped} skipped (incomplete or duplicate runs).";
+                if (failed > 0)    suffix += $" {failed} failed.";
+                if (cancelled)     suffix += " Cancelled by user.";
+                TaskDialog.Show("STING Wire On Conduit",
+                    $"Placed {placed} wires.{suffix}");
+                return Result.Succeeded;
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+            { return Result.Cancelled; }
+            catch (Exception ex)
+            {
+                StingLog.Error("WireOnConduitBatchCommand failed", ex);
                 message = ex.Message;
                 return Result.Failed;
             }
