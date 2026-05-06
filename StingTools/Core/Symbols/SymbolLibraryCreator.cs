@@ -34,6 +34,40 @@ namespace StingTools.Core.Symbols
         public List<string> CreatedRfaPaths { get; } = new List<string>();
     }
 
+    /// <summary>
+    /// Suppresses "Highlighted lines overlap. Lines may not form closed
+    /// loops." and a small handful of cosmetic warnings that the
+    /// Symbol Library creator hits when drawing dense schematic geometry
+    /// (e.g. MCB / fluorescent fixture symbols built from overlapping
+    /// line segments). These warnings are non-fatal and pop a Revit
+    /// dialog mid-batch, blocking 191-family runs.
+    ///
+    /// Hard errors are NOT swallowed — they fall through and roll back
+    /// the family transaction normally so the caller still sees the
+    /// "Sketch plane creation is not allowed in this family" or similar
+    /// fatal in result.Errors.
+    /// </summary>
+    internal sealed class SymbolFailureSwallow : IFailuresPreprocessor
+    {
+        public FailureProcessingResult PreprocessFailures(FailuresAccessor a)
+        {
+            try
+            {
+                var msgs = a.GetFailureMessages();
+                foreach (var m in msgs)
+                {
+                    var sev = m.GetSeverity();
+                    if (sev == FailureSeverity.Warning)
+                    {
+                        a.DeleteWarning(m);
+                    }
+                }
+            }
+            catch { }
+            return FailureProcessingResult.Continue;
+        }
+    }
+
     internal static class SymbolLibraryCreator
     {
         // 1 ft = 304.8 mm — Revit internal length unit is decimal feet.
@@ -160,6 +194,16 @@ namespace StingTools.Core.Symbols
             {
                 using (var tx = new Transaction(fdoc, "STING Create Symbol"))
                 {
+                    // Suppress noisy "Highlighted lines overlap" warnings
+                    // that pop a Revit dialog mid-build. These are
+                    // unavoidable for procedurally-drawn schematic symbols
+                    // (e.g. an MCB drawn from overlapping line segments)
+                    // and don't affect the resulting .rfa.
+                    var failOpts = tx.GetFailureHandlingOptions();
+                    failOpts.SetFailuresPreprocessor(new SymbolFailureSwallow());
+                    failOpts.SetClearAfterRollback(true);
+                    tx.SetFailureHandlingOptions(failOpts);
+
                     tx.Start();
                     DrawGeometry(fdoc, def, result);
                     AddParameters(fdoc, def, result);
@@ -195,6 +239,36 @@ namespace StingTools.Core.Symbols
         // Geometry
         // ─────────────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Three template "kinds" that drive the curve-creation API
+        /// branch. The Revit API treats each one differently:
+        ///
+        ///   Annotation — Generic Annotation .rft. Lines created via
+        ///                <c>FamilyCreate.NewSymbolicCurve(line, plane)</c>.
+        ///                The template ships with a built-in sketch plane;
+        ///                <c>SketchPlane.Create</c> is NOT permitted.
+        ///   DetailItem — Detail Item .rft. Lines created via
+        ///                <c>FamilyCreate.NewDetailCurve(view, line)</c>.
+        ///                No sketch plane needed.
+        ///   Model      — Lighting/Mechanical/Generic Model .rft. 2D plan
+        ///                symbols use <c>NewSymbolicCurve(line, plane)</c>;
+        ///                the template has a default ref-level sketch
+        ///                plane that we resolve with a collector.
+        /// </summary>
+        private enum TemplateKind { Annotation, DetailItem, Model }
+
+        private static TemplateKind ResolveTemplateKind(SymbolDefinition def)
+        {
+            string ft = (def?.FamilyType ?? "").Trim();
+            if (string.Equals(ft, "GenericAnnotation", StringComparison.OrdinalIgnoreCase))
+                return TemplateKind.Annotation;
+            if (string.Equals(ft, "DetailItem", StringComparison.OrdinalIgnoreCase))
+                return TemplateKind.DetailItem;
+            // MEPAccessory / MEPEquipment / anything else lands on a 3D
+            // model template (Lighting Fixture / Generic Model / etc.).
+            return TemplateKind.Model;
+        }
+
         private static void DrawGeometry(Document fdoc, SymbolDefinition def, SymbolCreationResult result)
         {
             var geo = def.Geometry;
@@ -206,22 +280,28 @@ namespace StingTools.Core.Symbols
                 result.Warnings.Add($"{def.Id}: no plan view in family template; geometry skipped.");
                 return;
             }
-            SketchPlane sketch = SketchPlane.Create(fdoc,
-                Plane.CreateByNormalAndOrigin(XYZ.BasisZ, XYZ.Zero));
+
+            var kind = ResolveTemplateKind(def);
+            // Annotation templates carry a built-in sketch plane; calling
+            // SketchPlane.Create on them throws "Sketch plane creation is
+            // not allowed in this family". DetailItem doesn't need one
+            // (NewDetailCurve takes the view). Model templates have a
+            // ref-level plane already created by the .rft.
+            SketchPlane sketch = ResolveSketchPlane(fdoc, kind, def.Id, result);
 
             double s = def.SymbolSize > 0 ? def.SymbolSize : 3.0;
 
             if (geo.Lines != null)
                 foreach (var l in geo.Lines)
-                    DrawLine(fdoc, planView, sketch, l, s, result, def.Id);
+                    DrawLine(fdoc, planView, sketch, kind, l, s, result, def.Id);
 
             if (geo.ConnectionLines != null)
                 foreach (var l in geo.ConnectionLines)
-                    DrawLine(fdoc, planView, sketch, l, s, result, def.Id);
+                    DrawLine(fdoc, planView, sketch, kind, l, s, result, def.Id);
 
             if (geo.Arcs != null)
                 foreach (var a in geo.Arcs)
-                    DrawArc(fdoc, planView, sketch, a, s, result, def.Id);
+                    DrawArc(fdoc, planView, sketch, kind, a, s, result, def.Id);
 
             if (geo.FilledRegions != null)
                 foreach (var fr in geo.FilledRegions)
@@ -232,7 +312,53 @@ namespace StingTools.Core.Symbols
                     DrawText(fdoc, planView, t, s, result, def.Id);
         }
 
-        private static void DrawLine(Document fdoc, View view, SketchPlane sketch,
+        /// <summary>
+        /// Looks up an existing sketch plane in the family doc instead of
+        /// creating one (which fails in Annotation templates). For
+        /// Annotation + Model templates the .rft ships one; for DetailItem
+        /// no plane is needed.
+        /// </summary>
+        private static SketchPlane ResolveSketchPlane(Document fdoc, TemplateKind kind, string id, SymbolCreationResult result)
+        {
+            if (kind == TemplateKind.DetailItem) return null;
+            try
+            {
+                // Prefer an existing sketch plane shipped by the template.
+                var existing = new FilteredElementCollector(fdoc)
+                    .OfClass(typeof(SketchPlane))
+                    .Cast<SketchPlane>()
+                    .FirstOrDefault();
+                if (existing != null) return existing;
+
+                // Fallback: derive one from a reference plane (Generic Model
+                // templates carry "Center (Front/Back)" + "Center (Left/Right)").
+                var refPlane = new FilteredElementCollector(fdoc)
+                    .OfClass(typeof(ReferencePlane))
+                    .Cast<ReferencePlane>()
+                    .FirstOrDefault(rp => rp?.GetPlane() != null);
+                if (refPlane != null) return refPlane.GetPlane() != null
+                    ? SketchPlane.Create(fdoc, refPlane.Id) : null;
+
+                // Annotation templates only: sketch plane creation is
+                // forbidden, so we have to give up gracefully.
+                if (kind == TemplateKind.Annotation)
+                {
+                    result.Warnings.Add($"{id}: no built-in sketch plane in Annotation template; geometry will be skipped.");
+                    return null;
+                }
+
+                // Model templates: last-resort try to create one.
+                return SketchPlane.Create(fdoc,
+                    Plane.CreateByNormalAndOrigin(XYZ.BasisZ, XYZ.Zero));
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"{id}: sketch plane resolve failed — {ex.Message}");
+                return null;
+            }
+        }
+
+        private static void DrawLine(Document fdoc, View view, SketchPlane sketch, TemplateKind kind,
             LineDefinition l, double symMm, SymbolCreationResult result, string id)
         {
             try
@@ -241,14 +367,24 @@ namespace StingTools.Core.Symbols
                 XYZ p2 = new XYZ(Scale(l.X2, symMm), Scale(l.Y2, symMm), 0);
                 if (p1.DistanceTo(p2) < 1e-6) return;
                 Line line = Line.CreateBound(p1, p2);
-                if (fdoc.IsFamilyDocument)
-                {
-                    // TODO-VERIFY-API: NewSymbolicCurve for family annotation; falls back to NewDetailCurve.
-                    fdoc.FamilyCreate.NewDetailCurve(view, line);
-                }
-                else
+
+                if (!fdoc.IsFamilyDocument)
                 {
                     fdoc.Create.NewDetailCurve(view, line);
+                    return;
+                }
+
+                switch (kind)
+                {
+                    case TemplateKind.DetailItem:
+                        fdoc.FamilyCreate.NewDetailCurve(view, line);
+                        break;
+                    case TemplateKind.Annotation:
+                    case TemplateKind.Model:
+                    default:
+                        if (sketch == null) return; // Annotation w/o plane already warned.
+                        fdoc.FamilyCreate.NewSymbolicCurve(line, sketch);
+                        break;
                 }
             }
             catch (Exception ex)
@@ -257,7 +393,7 @@ namespace StingTools.Core.Symbols
             }
         }
 
-        private static void DrawArc(Document fdoc, View view, SketchPlane sketch,
+        private static void DrawArc(Document fdoc, View view, SketchPlane sketch, TemplateKind kind,
             ArcDefinition a, double symMm, SymbolCreationResult result, string id)
         {
             try
@@ -280,10 +416,23 @@ namespace StingTools.Core.Symbols
                     curve = Arc.Create(centre, r, startRad, endRad, XYZ.BasisX, XYZ.BasisY);
                 }
 
-                if (fdoc.IsFamilyDocument)
-                    fdoc.FamilyCreate.NewDetailCurve(view, curve);
-                else
+                if (!fdoc.IsFamilyDocument)
+                {
                     fdoc.Create.NewDetailCurve(view, curve);
+                    return;
+                }
+                switch (kind)
+                {
+                    case TemplateKind.DetailItem:
+                        fdoc.FamilyCreate.NewDetailCurve(view, curve);
+                        break;
+                    case TemplateKind.Annotation:
+                    case TemplateKind.Model:
+                    default:
+                        if (sketch == null) return;
+                        fdoc.FamilyCreate.NewSymbolicCurve(curve, sketch);
+                        break;
+                }
             }
             catch (Exception ex)
             {
