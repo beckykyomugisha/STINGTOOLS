@@ -439,6 +439,22 @@ namespace StingTools.Core.Drawing
                 catch (Exception ex) { r.Warnings.Add($"TokenProfileApplier: {ex.Message}"); }
             }
 
+            // Phase 175 — Step 7.7 design-option scope. Resolves the
+            // profile's OptionScope to a concrete option ElementId and
+            // writes VIEWER_OPTION_VISIBILITY on the view. Runs after
+            // TokenProfile so annotations inherit the option-aware tag
+            // suffix when the profile sets one.
+            if (dt.OptionScope != null)
+            {
+                try
+                {
+                    var optRes = DrawingOptionApplier.Apply(doc, view, dt);
+                    if (!string.IsNullOrEmpty(optRes.Warning))
+                        r.Warnings.Add($"DrawingOptionApplier: {optRes.Warning}");
+                }
+                catch (Exception ex) { r.Warnings.Add($"DrawingOptionApplier: {ex.Message}"); }
+            }
+
             // Annotation pass --------------------------------------------
             // Phase 137 — explicit AnnotationRunOptions plumbing so callers
             // (SyncStyles, batch producers) can skip individual passes.

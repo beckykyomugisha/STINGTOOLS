@@ -195,6 +195,8 @@ namespace StingTools.UI
                     case "DesignOptions_IsolationView":       RunCommand<Commands.DesignOptions.CreateIsolationViewCommand>(app); break;
                     case "DesignOptions_PrimaryClashView":    RunCommand<Commands.DesignOptions.CreatePrimaryOnlyClashViewCommand>(app); break;
                     case "DesignOptions_Audit":               RunCommand<Commands.DesignOptions.AuditOptionsCommand>(app); break;
+                    case "DesignOptions_BatchLinkVisibility": RunCommand<Commands.DesignOptions.BatchSetLinkOptionVisibilityCommand>(app); break;
+                    case "DesignOptions_Dashboard":           RunCommand<Commands.DesignOptions.OptionsDashboardCommand>(app); break;
 
                     // ── Lightning Protection System (BS EN 62305) ──
                     case "LPS_ClassSetup":           RunCommand<Commands.Lightning.LpsClassSetupCommand>(app); break;

@@ -177,9 +177,77 @@ namespace StingTools.Core.Drawing
                 if (v is ViewSheet sheet)
                     AppendTitleBlockParamDrift(doc, sheet, dt, report);
 
+                // Phase 175 — design-option drift. When a profile declares
+                // an OptionScope, compare the view's actual
+                // VIEWER_OPTION_VISIBILITY to what DrawingOptionApplier
+                // would write. SyncStyles re-runs Apply and heals.
+                AppendOptionScopeDrift(doc, v, dt, report);
+
                 if (report.Drifts.Count > 0 || report.Suppressed.Count > 0) reports.Add(report);
             }
             return reports;
+        }
+
+        // Phase 175 — drift between profile.OptionScope and view's actual
+        // VIEWER_OPTION_VISIBILITY parameter.
+        private static void AppendOptionScopeDrift(Document doc, View v, DrawingType dt, DriftReport report)
+        {
+            try
+            {
+                if (dt?.OptionScope == null) return;
+                if (v == null || v.IsTemplate) return;
+                var p = v.get_Parameter(BuiltInParameter.VIEWER_OPTION_VISIBILITY);
+                if (p == null) return;
+                ElementId actual = p.AsElementId() ?? ElementId.InvalidElementId;
+                ElementId expected = ResolveExpectedOptionId(doc, dt.OptionScope);
+                if (actual == expected) return;
+                string actualName = actual == ElementId.InvalidElementId
+                    ? "<Automatic>"
+                    : doc.GetElement(actual)?.Name ?? actual.ToString();
+                string expectedName = expected == ElementId.InvalidElementId
+                    ? "<Automatic>"
+                    : doc.GetElement(expected)?.Name ?? expected.ToString();
+                report.Drifts.Add($"OPTION_SCOPE: VIEWER_OPTION_VISIBILITY '{actualName}' vs profile '{expectedName}'");
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"AppendOptionScopeDrift({v?.Id}): {ex.Message}");
+            }
+        }
+
+        private static ElementId ResolveExpectedOptionId(Document doc, DrawingOptionScope scope)
+        {
+            try
+            {
+                if (scope == null || string.IsNullOrEmpty(scope.Mode)) return ElementId.InvalidElementId;
+                switch (scope.Mode.Trim().ToLowerInvariant())
+                {
+                    case "automatic":
+                        return ElementId.InvalidElementId;
+                    case "primary":
+                        if (string.IsNullOrEmpty(scope.SetName)) return ElementId.InvalidElementId;
+                        var setsP = StingTools.Core.DesignOptions.DesignOptionRegistry.Snapshot(doc);
+                        foreach (var s in setsP)
+                            if (string.Equals(s.Name, scope.SetName, StringComparison.OrdinalIgnoreCase))
+                                return s.Primary?.OptionId ?? ElementId.InvalidElementId;
+                        return ElementId.InvalidElementId;
+                    case "specific":
+                        if (string.IsNullOrEmpty(scope.OptionName)) return ElementId.InvalidElementId;
+                        var setsS = StingTools.Core.DesignOptions.DesignOptionRegistry.Snapshot(doc);
+                        foreach (var s in setsS)
+                        {
+                            if (!string.IsNullOrEmpty(scope.SetName) &&
+                                !string.Equals(s.Name, scope.SetName, StringComparison.OrdinalIgnoreCase))
+                                continue;
+                            foreach (var o in s.Options)
+                                if (string.Equals(o.Name, scope.OptionName, StringComparison.OrdinalIgnoreCase))
+                                    return o.OptionId;
+                        }
+                        return ElementId.InvalidElementId;
+                }
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"ResolveExpectedOptionId: {ex.Message}"); }
+            return ElementId.InvalidElementId;
         }
 
         /// <summary>
