@@ -37,9 +37,8 @@
     <!-- Standards CSV loading + structured config. Matches StingTools.csproj. -->
     <PackageReference Include="CsvHelper" Version="30.0.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <!-- Re-added Phase 118: StandardsComplianceEngine.cs uses NLog for
-         6 Logger.{Info,Warn,Error} calls. Dropped in S110.03 on the
-         assumption it was unused; Windows build proved otherwise. -->
-    <PackageReference Include="NLog" Version="5.2.8" />
+    <!-- NLog dropped: StandardsComplianceEngine now logs through the
+         pluggable StandardsLog.Sink hook (default no-op). Hosts wire
+         their own logger (StingLog) on startup. -->
   </ItemGroup>
 </Project>

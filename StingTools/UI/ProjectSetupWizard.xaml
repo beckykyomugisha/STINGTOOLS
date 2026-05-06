@@ -1066,12 +1066,80 @@
                 </ScrollViewer>
             </TabItem>
 
-            <!-- ═══ PAGE 7: REVIEW + RUN ═══ -->
+            <!-- ═══ PAGE 7: STANDARDS REGION ═══ -->
+            <TabItem Header="Region">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,8">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource WizSectionHeader}"
+                                   Text="7. Standards &amp; Region"/>
+                        <TextBlock Text="Pick the regional preset that drives every Standards-aware command (cable size, sprinkler design, EUI benchmark, …). The Run step writes PROJECT_REGION onto Project Information so the choice travels with the .rvt."
+                                   FontSize="10" Foreground="#777" Margin="0,0,0,8" TextWrapping="Wrap"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Preset list -->
+                            <Border Grid.Column="0" Style="{StaticResource WizGroupBox}" Padding="0">
+                                <ListBox x:Name="lstRegionPresets"
+                                         SelectionChanged="LstRegionPresets_SelectionChanged"
+                                         BorderThickness="0" Height="320"/>
+                            </Border>
+
+                            <!-- Resolved bindings preview -->
+                            <Border Grid.Column="1" Style="{StaticResource WizGroupBox}" Margin="8,0,0,0">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource WizSubHeader}" Text="Resolved standards"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="120"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Electrical"/>
+                                        <TextBlock Grid.Row="0" Grid.Column="1" x:Name="txtRegElec"   FontSize="11" Margin="0,4"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource WizLabel}" Text="HVAC"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="1" x:Name="txtRegHvac"   FontSize="11" Margin="0,4"/>
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Plumbing"/>
+                                        <TextBlock Grid.Row="2" Grid.Column="1" x:Name="txtRegPlumb"  FontSize="11" Margin="0,4"/>
+                                        <TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Structural"/>
+                                        <TextBlock Grid.Row="3" Grid.Column="1" x:Name="txtRegStruct" FontSize="11" Margin="0,4"/>
+                                        <TextBlock Grid.Row="4" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Fire"/>
+                                        <TextBlock Grid.Row="4" Grid.Column="1" x:Name="txtRegFire"   FontSize="11" Margin="0,4"/>
+                                        <TextBlock Grid.Row="5" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Lighting"/>
+                                        <TextBlock Grid.Row="5" Grid.Column="1" x:Name="txtRegLight"  FontSize="11" Margin="0,4"/>
+                                        <TextBlock Grid.Row="6" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Energy"/>
+                                        <TextBlock Grid.Row="6" Grid.Column="1" x:Name="txtRegEnergy" FontSize="11" Margin="0,4"/>
+                                        <TextBlock Grid.Row="7" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Units"/>
+                                        <TextBlock Grid.Row="7" Grid.Column="1" x:Name="txtRegUnits"  FontSize="11" Margin="0,4"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <TextBlock Text="Tip: regions cover UK / USA / Europe / East Africa (KEBS, UNBS, TBS, RSB, SSBS, BBN, EAS) / South Africa (SANS) / Australia / International. The Run step persists PROJECT_REGION; subsequent document opens auto-sync."
+                                   FontSize="10" Foreground="#777" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ═══ PAGE 8: REVIEW + RUN ═══ -->
             <TabItem Header="Review">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,8">
                     <StackPanel>
                         <TextBlock Style="{StaticResource WizSectionHeader}"
-                                   Text="7. Review &amp; Execute"/>
+                                   Text="8. Review &amp; Execute"/>
                         <TextBlock Text="Review your selections, then click Run to automate the entire project setup."
                                    FontSize="10" Foreground="#777" Margin="0,0,0,8"/>
 
@@ -1101,7 +1169,7 @@
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
                     <TextBlock x:Name="txtPageInfo" FontSize="11" Foreground="#777"
-                               VerticalAlignment="Center" Text="Step 1 of 7"/>
+                               VerticalAlignment="Center" Text="Step 1 of 8"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal">

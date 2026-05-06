@@ -54,6 +54,16 @@ namespace StingTools.Core
                 // loads later in OnDocumentOpened and can flip the flag off.
                 StingOfflineConfig.ApplyDefaults();
 
+                // Wire the Standards library's pluggable log sink to StingLog so
+                // StandardsComplianceEngine messages land in the same log file as
+                // the rest of the plugin (replaces the old NLog dependency).
+                StingTools.Standards.Compliance.StandardsLog.Sink = (lvl, msg, ex) =>
+                {
+                    if (lvl == StingTools.Standards.Compliance.StandardsLogLevel.Info) StingLog.Info(msg);
+                    else if (lvl == StingTools.Standards.Compliance.StandardsLogLevel.Warn) StingLog.Warn(msg);
+                    else StingLog.Error(msg, ex);
+                };
+
                 // Pack 7 — wire the DocumentChanged cascade handler (room
                 // renumbers, level changes, sheet ISO violations). Gated by
                 // StingOfflineConfig.RealtimeCascadesEnabled at callback time.
@@ -407,6 +417,34 @@ namespace StingTools.Core
                 // FIX-C01: Reset selection scope to view-only on document switch
                 // Prevents stale project-wide scope from carrying over between projects
                 Select.SelectionScopeHelper.SetScope(false);
+
+                // Standards: sync ProjectStandardsManager from this document.
+                // The manager persists to %APPDATA% (per-user, not per-project)
+                // so without a per-project hint, opening a different .rvt keeps
+                // the previous region's electrical / fire / structural bindings
+                // active. Read order: PROJECT_REGION param → sidecar JSON next
+                // to the .rvt → leave singleton unchanged.
+                try
+                {
+                    var pi = e.Document?.ProjectInformation;
+                    string projectRegion = pi?.LookupParameter("PROJECT_REGION")?.AsString();
+                    string source = "PROJECT_REGION";
+                    if (string.IsNullOrWhiteSpace(projectRegion))
+                    {
+                        projectRegion = ProjectRegionSidecar.Read(e.Document);
+                        source = "sting_region.json";
+                    }
+                    if (!string.IsNullOrWhiteSpace(projectRegion))
+                    {
+                        var mgr = StingTools.Standards.ProjectStandardsManager.Instance;
+                        if (!string.Equals(mgr.Region, projectRegion, StringComparison.OrdinalIgnoreCase))
+                        {
+                            mgr.ApplyRegionalPreset(projectRegion);
+                            StingLog.Info($"Standards: synced active region → {projectRegion} (from {source})");
+                        }
+                    }
+                }
+                catch (Exception regEx) { StingLog.Warn($"Standards region sync skipped: {regEx.Message}"); }
 
                 // C4 / G1.3: Reload TagConfig on document open — prefer project-adjacent config
                 // to prevent config bleed between projects
