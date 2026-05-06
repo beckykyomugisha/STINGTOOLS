@@ -1675,7 +1675,7 @@ namespace StingTools.Commands.Electrical
                             try
                             {
                                 var wire = Wire.Create(doc, wireType.Id, view.Id,
-                                    WiringType.Chamfered, path.Vertices,
+                                    WiringType.Chamfer, path.Vertices,
                                     path.StartConnector, path.EndConnector);
                                 if (wire == null) { t.RollBack(); failed++; continue; }
                                 t.Commit();
@@ -1780,7 +1780,7 @@ namespace StingTools.Commands.Electrical
                             try
                             {
                                 var wire = Wire.Create(doc, wireType.Id, view.Id,
-                                    WiringType.Chamfered, path.Vertices,
+                                    WiringType.Chamfer, path.Vertices,
                                     path.StartConnector, path.EndConnector);
                                 if (wire == null) { t.RollBack(); failed++; continue; }
                                 t.Commit();
@@ -1908,7 +1908,7 @@ namespace StingTools.Commands.Electrical
                                 try
                                 {
                                     var wire = Wire.Create(doc, wireType.Id, view.Id,
-                                        WiringType.Chamfered, path.Vertices,
+                                        WiringType.Chamfer, path.Vertices,
                                         path.StartConnector, path.EndConnector);
                                     if (wire != null) { placed++; t.Commit(); }
                                     else { failed++; t.RollBack(); }
