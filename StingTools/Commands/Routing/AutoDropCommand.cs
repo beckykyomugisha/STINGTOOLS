@@ -34,6 +34,13 @@ namespace StingTools.Commands.Routing
         public static string ConduitInstallMethod { get; set; } = "CLIPPED";
         public static string DuctSeamType       { get; set; } = "A";
         public static string PipeHangerType     { get; set; } = "CLEVIS_ROD";
+
+        // Phase 139.28 — auto-emit physical hangers / clips on the
+        // dropped runs per BS 5572 / MSS SP-58 / SMACNA spacing tables.
+        // Defaults to true so the user gets standards-compliant supports
+        // out of the box; flip to false in the Routing tab when you want
+        // bare drops only and will run Place_Hangers manually later.
+        public static bool   EmitSupports       { get; set; } = true;
     }
 
     [Transaction(TransactionMode.Manual)]
@@ -119,6 +126,68 @@ namespace StingTools.Commands.Routing
                 StingLog.Error("AutoDropCommand failed", ex);
                 message = ex.Message;
                 return Result.Failed;
+            }
+
+            // Phase 139.28 — auto-emit supports per BS 5572 / MSS SP-58.
+            // Each engine returns a DropResult with CreatedIds; we pass
+            // those into RoutingSupportPlacer with a synthetic SUSPENDED
+            // rule so HangerPlacementEngine + HangerFamilyResolver can
+            // place real FamilyInstances inside the same transaction.
+            if (AutoDropOptions.EmitSupports)
+            {
+                using (var sx = new Transaction(doc, "STING v4 Auto-drop supports"))
+                {
+                    try
+                    {
+                        sx.Start();
+                        int totalPlaced = 0, totalMissed = 0;
+                        var aggregateWarnings = new List<string>();
+                        foreach (var dr in allResults)
+                        {
+                            if (dr?.CreatedIds == null || dr.CreatedIds.Count == 0) continue;
+                            var syntheticRule = new StingTools.Core.Placement.PlacementRule
+                            {
+                                RuleId           = "auto-drop-supports",
+                                CategoryFilter   = "",
+                                MountingContext  = "SUSPENDED",
+                                EmitSupports     = true,
+                                // Material / diameter left empty — RoutingSupportPlacer
+                                // falls back to family-side detection in
+                                // HangerPlacementEngine.BuildQuery.
+                            };
+                            var supportRes = StingTools.Core.Calc.RoutingSupportPlacer.PlaceForRoute(
+                                doc, syntheticRule, dr.CreatedIds);
+                            totalPlaced += supportRes.SupportsPlaced;
+                            totalMissed += supportRes.FamilyMissCount;
+                            foreach (var w in supportRes.Warnings)
+                                if (!aggregateWarnings.Contains(w)) aggregateWarnings.Add(w);
+                        }
+                        sx.Commit();
+                        if (totalPlaced > 0 && allResults.Count > 0)
+                        {
+                            allResults[0].Warnings.Add(
+                                $"Auto-drop supports: emitted {totalPlaced} hanger(s) per BS 5572 / MSS SP-58.");
+                        }
+                        if (totalMissed > 0 && allResults.Count > 0)
+                        {
+                            allResults[0].Warnings.Add(
+                                $"Auto-drop supports: {totalMissed} support(s) planned but no hanger family loaded — " +
+                                "load STING_HANGER_GENERIC.rfa or any Anvil/B-Line/Unistrut family.");
+                        }
+                        if (allResults.Count > 0)
+                        {
+                            foreach (var w in aggregateWarnings)
+                                if (!allResults[0].Warnings.Contains(w)) allResults[0].Warnings.Add(w);
+                        }
+                    }
+                    catch (Exception sex)
+                    {
+                        if (sx.HasStarted() && !sx.HasEnded()) sx.RollBack();
+                        StingLog.Warn($"AutoDropCommand support emit: {sex.Message}");
+                        if (allResults.Count > 0)
+                            allResults[0].Warnings.Add($"Auto-drop supports failed: {sex.Message}");
+                    }
+                }
             }
 
             ShowResult(allResults);

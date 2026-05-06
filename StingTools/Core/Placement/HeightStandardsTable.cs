@@ -53,6 +53,38 @@ namespace StingTools.Core.Placement
             lock (_lock) { _cache = null; }
         }
 
+        /// <summary>
+        /// Phase 139.27 (N-05) — light validation pass over a rule library.
+        /// For every rule whose <c>HeightStandard</c> field references an
+        /// entry in this table, check that <c>MountingHeightMm</c> falls
+        /// inside MinMm..MaxMm. Returns a list of human-readable warnings;
+        /// callers (engine pre-flight, Placement Centre's audit button)
+        /// surface them in the result panel. Pre-139.27 the table existed
+        /// but no caller consulted it, so accessibility-non-compliant
+        /// rules shipped silently.
+        /// </summary>
+        public static List<string> ValidateRulesAgainstStandards(IEnumerable<PlacementRule> rules)
+        {
+            var warnings = new List<string>();
+            if (rules == null) return warnings;
+            foreach (var r in rules)
+            {
+                if (r == null || string.IsNullOrEmpty(r.HeightStandard)) continue;
+                var entry = Get(r.HeightStandard);
+                if (entry == null)
+                {
+                    warnings.Add($"HeightStandards: rule '{r.MergeKey}' references unknown HeightStandard '{r.HeightStandard}' — add it to STING_HEIGHT_STANDARDS.json or clear the rule field.");
+                    continue;
+                }
+                if (r.MountingHeightMm <= 0) continue; // rule defers to family-side default
+                if (entry.MinMm > 0 && r.MountingHeightMm < entry.MinMm)
+                    warnings.Add($"HeightStandards: rule '{r.MergeKey}' MountingHeightMm={r.MountingHeightMm:F0}mm is BELOW {r.HeightStandard} minimum ({entry.MinMm:F0}mm, {entry.Standard}).");
+                if (entry.MaxMm > 0 && r.MountingHeightMm > entry.MaxMm)
+                    warnings.Add($"HeightStandards: rule '{r.MergeKey}' MountingHeightMm={r.MountingHeightMm:F0}mm is ABOVE {r.HeightStandard} maximum ({entry.MaxMm:F0}mm, {entry.Standard}).");
+            }
+            return warnings;
+        }
+
         private static void EnsureLoaded()
         {
             lock (_lock)

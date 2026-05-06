@@ -912,6 +912,24 @@ namespace StingTools.UI.PlacementCenter
                         panel.Metric(kv.Key, kv.Value.ToString());
                 }
 
+                // Phase 139.27 (I-03) — per-rule diagnostics in the Centre.
+                // Bubbles rules that generated candidates but placed zero
+                // to the top, with a one-line skip-reason summary.
+                if (result?.Diagnostics != null && result.Diagnostics.Count > 0)
+                {
+                    panel.AddSection("PER-RULE DIAGNOSTICS");
+                    var ordered = result.Diagnostics.Values
+                        .OrderByDescending(d => d.CandidatesGenerated > 0 && d.CandidatesPlaced == 0)
+                        .ThenByDescending(d => d.CandidatesGenerated)
+                        .Take(40)
+                        .ToList();
+                    foreach (var d in ordered) panel.Text(d.OneLineSummary());
+
+                    int zeroPlaced = result.Diagnostics.Values.Count(d => d.CandidatesGenerated > 0 && d.CandidatesPlaced == 0);
+                    if (zeroPlaced > 0)
+                        panel.Text($"⚠ {zeroPlaced} rule(s) generated candidates but placed nothing — see skip reasons above.");
+                }
+
                 if (placed == 0)
                 {
                     panel.AddSection("ZERO PLACED — common causes")

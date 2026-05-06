@@ -34,6 +34,57 @@ namespace StingTools.Core.Placement
         // Phase 139.2 G — additional fields surfaced from subsystems.
         public List<XYZ> NogginRequiredPoints { get; } = new List<XYZ>();
         public int       TileSnapAdjustments  { get; set; }
+
+        // Phase 139.27 (I-03) — per-rule diagnostics. The Centre's result
+        // panel now shows a row per rule answering: did it fire? how many
+        // candidates? how many were rejected and why? Without this users
+        // who tick "Place Electrical Fixtures" and get zero placements
+        // can't tell whether the rule was filtered out by a room name,
+        // rejected on score, or simply had no matching family symbol.
+        public Dictionary<string, RuleDiagnostic> Diagnostics { get; }
+            = new Dictionary<string, RuleDiagnostic>(StringComparer.OrdinalIgnoreCase);
+
+        internal RuleDiagnostic Diag(string mergeKey)
+        {
+            if (string.IsNullOrEmpty(mergeKey)) return null;
+            if (!Diagnostics.TryGetValue(mergeKey, out var d))
+            {
+                d = new RuleDiagnostic { MergeKey = mergeKey };
+                Diagnostics[mergeKey] = d;
+            }
+            return d;
+        }
+    }
+
+    /// <summary>
+    /// Phase 139.27 (I-03) — one row of per-rule placement diagnostics.
+    /// Filled by FixturePlacementEngine + ProcessRoomRule, surfaced by
+    /// PlaceFixturesCommand.ShowResult.
+    /// </summary>
+    public class RuleDiagnostic
+    {
+        public string MergeKey { get; set; } = "";
+        public int RoomsConsidered { get; set; }
+        public int RoomsFilteredByName { get; set; }
+        public int RoomsFilteredByExclude { get; set; }
+        public int RoomsBlockedByConflict { get; set; }
+        public int RoomsBlockedByDependsOn { get; set; }
+        public int CandidatesGenerated { get; set; }
+        public int CandidatesRejectedDedup { get; set; }
+        public int CandidatesPlaced { get; set; }
+        public int SkippedNoSymbol { get; set; }
+        public int SkippedHostPreflight { get; set; }
+        public int ManufacturerMisses { get; set; }
+        public string FirstSkipReason { get; set; } = "";
+
+        public string OneLineSummary()
+        {
+            return $"{MergeKey}: rooms={RoomsConsidered}/-{RoomsFilteredByName}/-{RoomsFilteredByExclude} " +
+                   $"cand={CandidatesGenerated} placed={CandidatesPlaced} " +
+                   $"skip(host={SkippedHostPreflight}, sym={SkippedNoSymbol}, dedup={CandidatesRejectedDedup}, " +
+                   $"conflict={RoomsBlockedByConflict}, dep={RoomsBlockedByDependsOn}, mfr={ManufacturerMisses})" +
+                   (string.IsNullOrEmpty(FirstSkipReason) ? "" : $" • first: {FirstSkipReason}");
+        }
     }
 
     /// <summary>
@@ -126,11 +177,43 @@ namespace StingTools.Core.Placement
                 }
             }
 
+            // Phase 139.27 (M-05) — surface validation warnings up front.
+            // PlacementRuleLoader.LastValidationWarnings is populated by
+            // every Load/MergeRules call; without this loop they only
+            // landed in the .log file.
+            try
+            {
+                var vw = PlacementRuleLoader.LastValidationWarnings;
+                if (vw != null)
+                    foreach (var w in vw)
+                        if (!string.IsNullOrEmpty(w)) result.Warnings.Add(w);
+            }
+            catch { }
+
+            // Phase 139.27 (N-05) — accessibility / mounting-height validation
+            // against STING_HEIGHT_STANDARDS.json. Silent until 139.27.
+            try
+            {
+                var hsw = HeightStandardsTable.ValidateRulesAgainstStandards(rules);
+                if (hsw != null)
+                    foreach (var w in hsw)
+                        if (!string.IsNullOrEmpty(w)) result.Warnings.Add(w);
+            }
+            catch (Exception hex) { StingLog.Warn($"HeightStandards validation: {hex.Message}"); }
+
             if (rules.Count == 0)
             {
                 result.Warnings.Add("No placement rules found. Ship STING_PLACEMENT_RULES.json or provide a project override.");
                 return result;
             }
+
+            // Phase 139.27 (C-03) — surface a one-shot warning at start
+            // of run when the user enabled "Tag every placement" but
+            // the reflection target is missing. RunFor() warns once per
+            // session via StingLog; mirroring it into result.Warnings
+            // means the run report shows it too.
+            if (PostPlacementHooks.RunDataTagPipeline && PostPlacementHooks.TagPipelineMissing)
+                result.Warnings.Add("Post-placement: 'Tag every placement' is on but TagPipelineHelper.RunFullPipeline could not be resolved by reflection — placed instances will NOT be tagged this session.");
 
             var rooms = CollectRooms(doc, roomIds, result);
             result.RoomsVisited = rooms.Count;
@@ -280,13 +363,24 @@ namespace StingTools.Core.Placement
                     string roomName = SafeRoomName(room);
                     foreach (var rule in ordered)
                     {
+                        var diag = result.Diag(rule.MergeKey);
+                        if (diag != null) diag.RoomsConsidered++;
+
                         // Phase 139.5 Q21 — fast filter using pre-compiled regex
                         // before paying the cost of scorer.Score / RoomMatchesScope
                         // (which reads parameters, level, phase, workset).
                         if (roomFilterRx.TryGetValue(rule.MergeKey, out var rfx)
-                            && !rfx.IsMatch(roomName ?? "")) continue;
+                            && !rfx.IsMatch(roomName ?? ""))
+                        {
+                            if (diag != null) diag.RoomsFilteredByName++;
+                            continue;
+                        }
                         if (excludeFilterRx.TryGetValue(rule.MergeKey, out var efx)
-                            && efx.IsMatch(roomName ?? "")) continue;
+                            && efx.IsMatch(roomName ?? ""))
+                        {
+                            if (diag != null) diag.RoomsFilteredByExclude++;
+                            continue;
+                        }
 
                         try
                         {
@@ -294,33 +388,44 @@ namespace StingTools.Core.Placement
                             if (RuleHasConflict(rule, roomState))
                             {
                                 result.Warnings.Add($"Room {room.Id} / {rule.MergeKey}: skipped — ConflictsWith already fired.");
+                                if (diag != null) diag.RoomsBlockedByConflict++;
                                 continue;
                             }
                             // PC-13 — DependsOn: skip if predecessor produced no placements yet.
                             if (!string.IsNullOrEmpty(rule.DependsOn) && !roomState.PlacedByRule.ContainsKey(rule.DependsOn))
                             {
                                 result.Warnings.Add($"Room {room.Id} / {rule.MergeKey}: skipped — DependsOn '{rule.DependsOn}' has no placement in this room.");
+                                if (diag != null) diag.RoomsBlockedByDependsOn++;
                                 continue;
                             }
 
                             ProcessRoomRule(doc, room, rule, scorer,
                                 perCategorySymbol, result, dryRun, roomState);
 
-                            // PC-13 — CoPlaceWith: fire each co-rule at the same XYZ as the primary's last point.
+                            // PC-13 / Phase 139.27 (M-06) — CoPlaceWith fires at
+                            // EVERY placement point of the primary rule, not just
+                            // the last. Pre-139.27 only the last point of a 5-fixture
+                            // primary triggered the co-rule; the other 4 silently
+                            // missed their dependent device (smoke detector under
+                            // luminaire, double-pole isolator next to fan, etc.).
                             if (rule.CoPlaceWith != null && rule.CoPlaceWith.Count > 0
-                                && roomState.LastPointByRule.TryGetValue(rule.MergeKey, out var lastPt))
+                                && roomState.PlacedByRule.TryGetValue(rule.MergeKey, out var primaryPoints)
+                                && primaryPoints != null && primaryPoints.Count > 0)
                             {
                                 foreach (var coId in rule.CoPlaceWith)
                                 {
                                     var coRule = ordered.FirstOrDefault(r => string.Equals(r.MergeKey, coId, StringComparison.OrdinalIgnoreCase));
                                     if (coRule == null) continue;
-                                    try
+                                    foreach (var primaryPt in primaryPoints)
                                     {
-                                        ProcessRoomRuleAtPoint(doc, room, coRule, scorer, perCategorySymbol, result, dryRun, roomState, lastPt);
-                                    }
-                                    catch (Exception cex)
-                                    {
-                                        result.Warnings.Add($"Co-place {coRule.MergeKey} in room {room.Id}: {cex.Message}");
+                                        try
+                                        {
+                                            ProcessRoomRuleAtPoint(doc, room, coRule, scorer, perCategorySymbol, result, dryRun, roomState, primaryPt);
+                                        }
+                                        catch (Exception cex)
+                                        {
+                                            result.Warnings.Add($"Co-place {coRule.MergeKey} in room {room.Id}: {cex.Message}");
+                                        }
                                     }
                                 }
                             }
@@ -356,6 +461,80 @@ namespace StingTools.Core.Placement
                 {
                     try { TwoPhaseBoxPlacer.PlaceSecondFixDevices(doc, roomIds, ordered, firstFixIndex, result); }
                     catch (Exception ex) { result.Warnings.Add($"Two-phase second-fix: {ex.Message}"); }
+                }
+
+                // Phase 139.27 (M-02 partial) — stamp STING_NOGGIN_REQUIRED on
+                // every placed instance whose XY matches a NogginRequiredPoint
+                // from the scorer's lighting-grid cache. Pre-139.27 these
+                // points were computed but discarded; the export command
+                // (NogginRequirementExportCommand) had no parameter to read.
+                if (!dryRun)
+                {
+                    try
+                    {
+                        StampNogginRequirementsFromGrid(doc, scorer, result);
+                    }
+                    catch (Exception nx) { result.Warnings.Add($"Noggin stamp: {nx.Message}"); }
+
+                    // Phase 139.27 (M-02 deep) — structural-awareness audit.
+                    // Walk each placed instance and warn when the location
+                    // sits inside a beam-junction or column clearance zone
+                    // — drilling there would breach structure. Currently
+                    // advisory-only (no auto-relocation); the warning lands
+                    // in PlacementResult.Warnings so the BIM coordinator
+                    // can resolve before issuing.
+                    try
+                    {
+                        AuditStructuralClearance(doc, ordered, result);
+                    }
+                    catch (Exception sx) { result.Warnings.Add($"Structural audit: {sx.Message}"); }
+
+                    // Phase 139.27 (X-03) — best-effort MEP connector auto-join.
+                    // Walks placed FamilyInstances with MEP connectors and
+                    // tries to connect each open connector to the closest
+                    // unconnected connector on a neighbouring placed
+                    // instance whose system classification matches. Skipped
+                    // when no rule sets RouteSegmentCategory (i.e. not a
+                    // routing rule). All exceptions captured per instance.
+                    try
+                    {
+                        AutoJoinMepConnectors(doc, ordered, result);
+                    }
+                    catch (Exception mx) { result.Warnings.Add($"MEP connector join: {mx.Message}"); }
+
+                    // Phase 139.27 (X-04) — cable / conduit bundle advisory.
+                    // For rules with CableBundleAdvisoryCount > 0, count how
+                    // many same-category instances landed within bundle
+                    // clearance (300 mm default) and warn when the count
+                    // exceeds the BS 7671 Table 4 derating thresholds
+                    // (no auto-resize; advisory only).
+                    try
+                    {
+                        AuditCableBundleDerating(doc, ordered, result);
+                    }
+                    catch (Exception cx) { result.Warnings.Add($"Cable bundle audit: {cx.Message}"); }
+
+                    // Phase 139.30 (X-05) — door swing envelope vs switch
+                    // placement. Switches anchored at DOOR_HINGE_SIDE_*
+                    // can sit inside the door's swept arc; opening the
+                    // door hits the switch with the handle. Walks every
+                    // placed switch / electrical fixture and checks
+                    // against every door's swept envelope.
+                    try
+                    {
+                        AuditDoorSwingClearance(doc, ordered, result);
+                    }
+                    catch (Exception dx) { result.Warnings.Add($"Door swing audit: {dx.Message}"); }
+
+                    // Phase 139.30 (X-01) — circuit-aware electrical pass.
+                    // Groups placed sockets / electrical fixtures into
+                    // BS 7671 ring / radial circuits and stamps RCD
+                    // group + circuit ID per element.
+                    try
+                    {
+                        StingTools.Core.Calc.CircuitTopologyEngine.AssignCircuits(doc, result);
+                    }
+                    catch (Exception ex) { result.Warnings.Add($"Circuit topology: {ex.Message}"); }
                 }
 
                 if (!dryRun)
@@ -513,6 +692,8 @@ namespace StingTools.Core.Placement
                 candidates = scorer.Score(room, rule, placedPoints, alreadyInRoom);
                 result.CandidatesEvaluated += candidates.Count;
             }
+            var diagRoom = result.Diag(rule.MergeKey);
+            if (diagRoom != null) diagRoom.CandidatesGenerated += candidates.Count;
             if (candidates.Count == 0) return;
 
             // PC-12 — derive the count for Density / Linear rules from the room's
@@ -528,6 +709,7 @@ namespace StingTools.Core.Placement
                 {
                     result.CountsByRule[rule.MergeKey] = result.CountsByRule.TryGetValue(rule.MergeKey, out var n) ? n + 1 : 1;
                     result.CountsByRoom[roomKey] = result.CountsByRoom.TryGetValue(roomKey, out var m) ? m + 1 : 1;
+                    if (diagRoom != null) diagRoom.CandidatesPlaced++;
                     if (state != null)
                     {
                         if (!state.PlacedByRule.TryGetValue(rule.MergeKey, out var lst))
@@ -539,11 +721,50 @@ namespace StingTools.Core.Placement
                         state.LastPointByRule[rule.MergeKey] = c.Position;
                     }
                 }
+
+                // Phase 139.27 (I-01) — dry-run preview of post-placement
+                // hooks. The hooks themselves cannot run in dry-run (no
+                // FamilyInstance to operate on), but the user needs to know
+                // BEFORE they commit whether tagging / COBie seed / MEP
+                // join are configured and resolvable. Surfaced only once
+                // per rule per session, gated by toggles.
+                if (PostPlacementHooks.RunDataTagPipeline && PostPlacementHooks.TagPipelineMissing)
+                {
+                    string warnKey = $"DryRun:{rule.MergeKey}:tagging-missing";
+                    if (!result.Warnings.Any(w => w.Contains(warnKey)))
+                        result.Warnings.Add($"{warnKey} — would-be-tagged in live run, but TagPipelineHelper not resolvable; tagging will silently no-op.");
+                }
                 return;
             }
 
             FamilySymbol symbol = ResolveSymbol(doc, rule.CategoryFilter, rule, perCategorySymbol, result);
-            if (symbol == null) return;
+            if (symbol == null)
+            {
+                if (diagRoom != null)
+                {
+                    diagRoom.SkippedNoSymbol++;
+                    if (string.IsNullOrEmpty(diagRoom.FirstSkipReason))
+                        diagRoom.FirstSkipReason = $"No FamilySymbol for category '{rule.CategoryFilter}'";
+                }
+                return;
+            }
+
+            // Phase 139.27 (M-07) — manufacturer-miss penalty surfaced as a
+            // diagnostic count. PlacementScorer's catalogue scoring is the
+            // proper home for the 0.5 penalty (see PlacementScorer.cs); here
+            // we just record that a rule referenced a catalogue entry the
+            // registry didn't resolve. Surfaced in the result panel so users
+            // know the placement landed without manufacturer-side validation.
+            try
+            {
+                if (!string.IsNullOrEmpty(rule.CatalogueRef) || !string.IsNullOrEmpty(rule.ManufacturerCode))
+                {
+                    bool resolved = false;
+                    try { resolved = ManufacturerCatalogueRegistry.GetForRule(rule) != null; } catch { }
+                    if (!resolved && diagRoom != null) diagRoom.ManufacturerMisses++;
+                }
+            }
+            catch { }
 
             // Phase 139.18 — warn once per (rule, family) when a wall- or
             // ceiling-anchored rule resolves to an un-hosted family. The
@@ -620,6 +841,7 @@ namespace StingTools.Core.Placement
                 if (tooClose)
                 {
                     result.SkippedCount++;
+                    if (diagRoom != null) diagRoom.CandidatesRejectedDedup++;
                     continue;
                 }
                 try
@@ -636,6 +858,12 @@ namespace StingTools.Core.Placement
                     if (pf.Skipped || fi == null)
                     {
                         result.SkippedCount++;
+                        if (diagRoom != null)
+                        {
+                            diagRoom.SkippedHostPreflight++;
+                            if (string.IsNullOrEmpty(diagRoom.FirstSkipReason))
+                                diagRoom.FirstSkipReason = pf.Reason ?? "host preflight skipped";
+                        }
                         if (!string.IsNullOrEmpty(pf.Reason))
                             result.Warnings.Add(pf.Reason);
                         continue;
@@ -667,6 +895,7 @@ namespace StingTools.Core.Placement
                     result.PlacedIds.Add(fi.Id);
                     result.CountsByRule[rule.MergeKey] = result.CountsByRule.TryGetValue(rule.MergeKey, out var n) ? n + 1 : 1;
                     result.CountsByRoom[roomKey] = result.CountsByRoom.TryGetValue(roomKey, out var m) ? m + 1 : 1;
+                    if (diagRoom != null) diagRoom.CandidatesPlaced++;
                     placedPoints.Add(c.Position);
                     existingNearby.Add(c.Position); // Phase 139.25 — live dedup
 
@@ -1331,14 +1560,19 @@ namespace StingTools.Core.Placement
         // Phase 139.4 — resolve a Document.Settings.Categories entry to its
         // BuiltInCategory enum so FilteredElementCollector.OfCategory can
         // pre-filter family symbols. Cached per document on first hit.
-        private static readonly Dictionary<int, Dictionary<string, BuiltInCategory>> _bicByName
-            = new Dictionary<int, Dictionary<string, BuiltInCategory>>();
+        // Phase 139.27 (N-03) — key by PathName|Title not GetHashCode(),
+        // same hash-collision concern as PlacementHostPreflight.ResolveView3D.
+        private static readonly Dictionary<string, Dictionary<string, BuiltInCategory>> _bicByName
+            = new Dictionary<string, Dictionary<string, BuiltInCategory>>(StringComparer.Ordinal);
         private static readonly object _bicByNameLock = new object();
 
         private static BuiltInCategory ResolveBuiltInCategoryByName(Document doc, string categoryName)
         {
             if (doc == null || string.IsNullOrEmpty(categoryName)) return BuiltInCategory.INVALID;
-            int key = doc.GetHashCode();
+            string path = "", title = "";
+            try { path = doc.PathName ?? ""; } catch { }
+            try { title = doc.Title ?? ""; } catch { }
+            string key = path + "|" + title;
             Dictionary<string, BuiltInCategory> map;
             lock (_bicByNameLock)
             {
@@ -1364,6 +1598,544 @@ namespace StingTools.Core.Placement
                 }
             }
             return map.TryGetValue(categoryName, out var hit) ? hit : BuiltInCategory.INVALID;
+        }
+
+        /// <summary>
+        /// Phase 139.27 (M-02 partial) — flow noggin-required points from
+        /// the lighting-grid cache onto placed instances, so structural
+        /// coordination can read them via NogginRequirementExportCommand.
+        ///
+        /// Match radius: 200mm XY. The scorer's grid points are tile-snapped,
+        /// so a placed instance shouldn't be more than half a tile (300mm)
+        /// from its source point — 200mm is a safety buffer.
+        /// </summary>
+        private static void StampNogginRequirementsFromGrid(
+            Document doc, PlacementScorer scorer, PlacementResult result)
+        {
+            if (doc == null || scorer == null || result == null) return;
+            var grids = scorer.GridResults;
+            if (grids == null || grids.Count == 0) return;
+
+            const double matchRadiusFt = 200.0 / 304.8;
+            double matchSq = matchRadiusFt * matchRadiusFt;
+            int stamped = 0;
+
+            // Collect every noggin point across all (room, rule) pairs.
+            var noggins = new List<XYZ>();
+            foreach (var kv in grids)
+            {
+                if (kv.Value?.NogginRequiredPoints == null) continue;
+                foreach (var p in kv.Value.NogginRequiredPoints)
+                {
+                    if (p != null) noggins.Add(p);
+                    result.NogginRequiredPoints.Add(p);
+                }
+            }
+            if (noggins.Count == 0) return;
+
+            foreach (var id in result.PlacedIds)
+            {
+                FamilyInstance fi = null;
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch { }
+                if (fi == null) continue;
+                XYZ p = (fi.Location as LocationPoint)?.Point;
+                if (p == null) continue;
+
+                bool nearNoggin = false;
+                foreach (var n in noggins)
+                {
+                    double dx = n.X - p.X, dy = n.Y - p.Y;
+                    if (dx * dx + dy * dy <= matchSq) { nearNoggin = true; break; }
+                }
+                if (!nearNoggin) continue;
+
+                try
+                {
+                    var pNog = fi.LookupParameter(ParamRegistry.NOGGIN_REQUIRED);
+                    if (pNog == null || pNog.IsReadOnly) continue;
+                    if (pNog.StorageType == StorageType.Integer && pNog.AsInteger() != 1)
+                    {
+                        pNog.Set(1);
+                        stamped++;
+                    }
+                    else if (pNog.StorageType == StorageType.Double && Math.Abs(pNog.AsDouble() - 1) > 1e-6)
+                    {
+                        pNog.Set(1.0);
+                        stamped++;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"StampNogginRequirements {id.Value}: {ex.Message}"); }
+            }
+
+            if (stamped > 0)
+            {
+                result.Warnings.Add($"Stamped STING_NOGGIN_REQUIRED on {stamped} placed fixture(s) — run Placement_NogginExport to dump the structural fixing schedule.");
+                StingLog.Info($"FixturePlacementEngine: stamped STING_NOGGIN_REQUIRED on {stamped} fixture(s).");
+            }
+        }
+
+        /// <summary>
+        /// Phase 139.27 (M-02 deep) — post-placement structural-clearance
+        /// audit. Each placed instance is checked against
+        /// <see cref="StructuralAwareness.IsNearJunction"/> with a 300mm
+        /// clearance; matches surface as warnings so the coordinator can
+        /// review before drilling. Cheap because StructuralAwareness
+        /// pre-builds the junction set once per document.
+        /// </summary>
+        private static void AuditStructuralClearance(
+            Document doc, IList<PlacementRule> rules, PlacementResult result)
+        {
+            if (doc == null || result == null || result.PlacedIds.Count == 0) return;
+            // Only audit rules whose anchor implies a structural penetration
+            // (ceiling-mounted, soffit-mounted, wall-deep). Surface-mounted
+            // wall fixtures rarely conflict with structure.
+            var auditRuleKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (rules != null)
+            {
+                foreach (var r in rules)
+                {
+                    if (r == null) continue;
+                    string anchor = (r.AnchorType ?? "").ToUpperInvariant();
+                    bool ceilingAnchor = anchor == "CEILING_CENTRE" || anchor == "CEILING_TILE_CENTRE"
+                                       || anchor == "LIGHTING_GRID" || anchor == "LUX_GRID";
+                    bool soffitAnchor = anchor == "SOFFIT_CENTRE" || anchor == "SOFFIT_BESA"
+                                       || anchor == "STRUCTURAL_SOFFIT";
+                    bool deepWallAnchor = (anchor == "WALL_FACE_OFFSET" && r.OffsetXMm > 50.0);
+                    if (ceilingAnchor || soffitAnchor || deepWallAnchor)
+                        auditRuleKeys.Add(r.MergeKey);
+                }
+            }
+            if (auditRuleKeys.Count == 0) return;
+
+            StructuralAwareness sa;
+            try { sa = new StructuralAwareness(doc); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"AuditStructuralClearance init: {ex.Message}");
+                return;
+            }
+
+            const double clearanceFt = 300.0 / 304.8;
+            int conflicts = 0;
+            foreach (var id in result.PlacedIds)
+            {
+                FamilyInstance fi = null;
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch { }
+                if (fi == null) continue;
+                XYZ p = (fi.Location as LocationPoint)?.Point;
+                if (p == null) continue;
+                bool nearStructure = false;
+                try { nearStructure = sa.IsNearJunction(p, clearanceFt); } catch { }
+                if (!nearStructure) continue;
+                conflicts++;
+                if (conflicts <= 10)
+                    result.Warnings.Add(
+                        $"Structural clearance: placed instance {id.Value} at ({p.X:F2},{p.Y:F2}) " +
+                        $"sits within 300mm of a beam-junction or column. Drilling may breach structure — " +
+                        $"verify with the structural BIM coordinator before issuing.");
+            }
+            if (conflicts > 10)
+                result.Warnings.Add($"Structural clearance: {conflicts - 10} additional conflicts truncated — see StingLog.");
+            if (conflicts > 0)
+                StingLog.Warn($"FixturePlacementEngine.AuditStructuralClearance: {conflicts} placed instance(s) within 300mm of structure.");
+        }
+
+        /// <summary>
+        /// Phase 139.27 (X-03) — best-effort MEP connector auto-join.
+        /// For each placed FamilyInstance with MEP connectors:
+        ///   1. enumerate unconnected connectors;
+        ///   2. find the closest unconnected connector on another placed
+        ///      instance of the same SystemClassification within 600mm;
+        ///   3. attempt a direct connection (no fitting insertion).
+        /// Failures are tallied and surfaced as a single advisory rather
+        /// than per-instance noise. Pre-139.27 placed instances had zero
+        /// connector joins and shipped to COBie / schedules as orphaned.
+        /// </summary>
+        private static void AutoJoinMepConnectors(
+            Document doc, IList<PlacementRule> rules, PlacementResult result)
+        {
+            if (doc == null || result == null || result.PlacedIds.Count == 0) return;
+            // Only run when at least one rule declares a routing target.
+            bool anyRouting = false;
+            if (rules != null)
+            {
+                foreach (var r in rules)
+                {
+                    if (r == null) continue;
+                    if (!string.IsNullOrEmpty(r.RoutingMode)
+                        && !string.Equals(r.RoutingMode, "NONE", StringComparison.OrdinalIgnoreCase))
+                    { anyRouting = true; break; }
+                }
+            }
+            if (!anyRouting) return;
+
+            const double joinRadiusFt = 600.0 / 304.8;
+            double radSq = joinRadiusFt * joinRadiusFt;
+
+            // Index connectors per system classification.
+            var openConns = new Dictionary<string, List<(Connector c, ElementId id)>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var id in result.PlacedIds)
+            {
+                FamilyInstance fi = null;
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch { }
+                if (fi == null) continue;
+                var mgr = fi.MEPModel?.ConnectorManager;
+                if (mgr == null) continue;
+                foreach (Connector c in mgr.Connectors)
+                {
+                    if (c == null || c.IsConnected) continue;
+                    string sysKey = "?";
+                    try { sysKey = c.Domain.ToString() + ":" + (c.MEPSystem?.Name ?? c.Description ?? c.Owner?.Category?.Name ?? ""); } catch { }
+                    if (!openConns.TryGetValue(sysKey, out var list))
+                    {
+                        list = new List<(Connector, ElementId)>();
+                        openConns[sysKey] = list;
+                    }
+                    list.Add((c, id));
+                }
+            }
+
+            int joined = 0, failed = 0;
+            int fittingsElbow = 0, fittingsUnion = 0, fittingsTransition = 0, fittingsTee = 0, directJoins = 0;
+            foreach (var kv in openConns)
+            {
+                var list = kv.Value;
+                for (int i = 0; i < list.Count; i++)
+                {
+                    var (a, aid) = list[i];
+                    if (a.IsConnected) continue;
+                    XYZ pa = a.Origin;
+                    if (pa == null) continue;
+                    int bestJ = -1; double bestSq = radSq;
+                    for (int j = i + 1; j < list.Count; j++)
+                    {
+                        var (b, bid) = list[j];
+                        if (b == null || b.IsConnected || bid == aid) continue;
+                        XYZ pb = b.Origin;
+                        if (pb == null) continue;
+                        double dx = pa.X - pb.X, dy = pa.Y - pb.Y, dz = pa.Z - pb.Z;
+                        double sq = dx * dx + dy * dy + dz * dz;
+                        if (sq < bestSq) { bestSq = sq; bestJ = j; }
+                    }
+                    if (bestJ < 0) continue;
+                    var (target, tid) = list[bestJ];
+                    try
+                    {
+                        if (a.IsConnectedTo(target)) continue;
+                        // Phase 139.29 — prefer fitting insertion over direct
+                        // ConnectTo. Geometry decides the fitting kind:
+                        //  · same axis, same size  → Union fitting
+                        //  · same axis, ≠ size     → Transition fitting
+                        //  · different axis        → Elbow / Tee fitting
+                        // Falls through to ConnectTo when no fitting matches
+                        // (rare — happens with cable-tray which Revit doesn't
+                        // ship a Union for).
+                        bool insertedFitting = TryInsertFitting(doc, a, target, out int kind);
+                        if (insertedFitting)
+                        {
+                            joined++;
+                            switch (kind)
+                            {
+                                case 1: fittingsElbow++;       break;
+                                case 2: fittingsUnion++;       break;
+                                case 3: fittingsTransition++;  break;
+                                case 4: fittingsTee++;         break;
+                            }
+                        }
+                        else
+                        {
+                            a.ConnectTo(target);
+                            if (a.IsConnected) { joined++; directJoins++; } else failed++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        failed++;
+                        StingLog.Warn($"AutoJoinMepConnectors {aid.Value}->{tid.Value}: {ex.Message}");
+                    }
+                }
+            }
+
+            if (joined > 0)
+            {
+                var detail = new List<string>();
+                if (fittingsElbow      > 0) detail.Add($"{fittingsElbow} elbow");
+                if (fittingsUnion      > 0) detail.Add($"{fittingsUnion} union");
+                if (fittingsTransition > 0) detail.Add($"{fittingsTransition} transition");
+                if (fittingsTee        > 0) detail.Add($"{fittingsTee} tee");
+                if (directJoins        > 0) detail.Add($"{directJoins} direct");
+                string detailTxt = detail.Count > 0 ? " (" + string.Join(", ", detail) + ")" : "";
+                result.Warnings.Add($"MEP auto-join: connected {joined} pair(s){detailTxt}. Verify fitting orientation in Revit before issue.");
+            }
+            if (failed > 0)
+                result.Warnings.Add($"MEP auto-join: {failed} connector pair(s) within 600mm could not be joined (mismatched flow direction, incompatible fitting, or missing fitting in family library). See StingLog.");
+        }
+
+        /// <summary>
+        /// Phase 139.29 — try to insert the right fitting between two
+        /// unconnected connectors. Returns true on success and outputs
+        /// the fitting kind (1=elbow, 2=union, 3=transition, 4=tee).
+        /// Falls through quietly when the API call fails so the caller
+        /// can fall back to direct ConnectTo.
+        /// </summary>
+        private static bool TryInsertFitting(Document doc, Connector a, Connector b, out int kind)
+        {
+            kind = 0;
+            if (doc == null || a == null || b == null) return false;
+            try
+            {
+                XYZ pa = a.Origin, pb = b.Origin;
+                if (pa == null || pb == null) return false;
+                XYZ da = (a.CoordinateSystem?.BasisZ) ?? XYZ.BasisZ;
+                XYZ db = (b.CoordinateSystem?.BasisZ) ?? XYZ.BasisZ;
+                bool sameAxis = Math.Abs(Math.Abs(da.DotProduct(db)) - 1.0) < 0.05;
+                bool sameSize = SameSize(a, b);
+
+                if (sameAxis && sameSize)
+                {
+                    var fi = doc.Create.NewUnionFitting(a, b);
+                    if (fi != null) { kind = 2; return true; }
+                }
+                if (sameAxis && !sameSize)
+                {
+                    var fi = doc.Create.NewTransitionFitting(a, b);
+                    if (fi != null) { kind = 3; return true; }
+                }
+                if (!sameAxis)
+                {
+                    var fi = doc.Create.NewElbowFitting(a, b);
+                    if (fi != null) { kind = 1; return true; }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TryInsertFitting: {ex.Message}");
+            }
+            return false;
+        }
+
+        private static bool SameSize(Connector a, Connector b)
+        {
+            try
+            {
+                // Connector.Radius is set on round connectors;
+                // Connector.Width / Height on rectangular. Use the larger
+                // dimension when one is rect and the other round (rare).
+                double sa = a.Shape == ConnectorProfileType.Round ? a.Radius * 2 : Math.Max(a.Width, a.Height);
+                double sb = b.Shape == ConnectorProfileType.Round ? b.Radius * 2 : Math.Max(b.Width, b.Height);
+                return Math.Abs(sa - sb) < 1e-3;
+            }
+            catch { return true; }
+        }
+
+        /// <summary>
+        /// Phase 139.30 (X-05) — door swing envelope vs switch placement.
+        /// For every placed switch / socket / electrical fixture whose
+        /// rule's AnchorType starts with DOOR_, locate the nearest door
+        /// and check whether the placement falls inside the door's
+        /// swept arc (90° default). When a hit is found, surfaces a
+        /// per-instance warning with a re-anchor recommendation
+        /// (DOOR_LATCH_SIDE / DOOR_STRIKE_SIDE).
+        /// </summary>
+        private static void AuditDoorSwingClearance(
+            Document doc, IList<PlacementRule> rules, PlacementResult result)
+        {
+            if (doc == null || result == null || result.PlacedIds.Count == 0) return;
+
+            // Collect rules that placed switch-like fixtures near doors —
+            // these are the ones at risk.
+            var doorRiskRules = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (rules != null)
+            {
+                foreach (var r in rules)
+                {
+                    if (r == null) continue;
+                    string anchor = (r.AnchorType ?? "").ToUpperInvariant();
+                    if (anchor.StartsWith("DOOR_")
+                        || anchor == "WALL_MIDPOINT"
+                        || anchor == "WALL_FACE_OFFSET")
+                        doorRiskRules.Add(r.MergeKey);
+                }
+            }
+            if (doorRiskRules.Count == 0) return;
+
+            // Build a door index: location point + facing + width per door.
+            var doors = new List<DoorEnvelope>();
+            try
+            {
+                foreach (var el in new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_Doors)
+                    .WhereElementIsNotElementType())
+                {
+                    if (!(el is FamilyInstance fi)) continue;
+                    var loc = (fi.Location as LocationPoint)?.Point;
+                    if (loc == null) continue;
+                    XYZ facing = fi.FacingOrientation ?? XYZ.BasisX;
+                    XYZ hand = fi.HandOrientation   ?? XYZ.BasisY;
+                    double widthFt = 0.85; // ~ 26" door fallback
+                    try
+                    {
+                        var sym = fi.Symbol;
+                        var pW = sym?.LookupParameter("Width") ?? sym?.get_Parameter(BuiltInParameter.DOOR_WIDTH);
+                        if (pW != null && pW.StorageType == StorageType.Double) widthFt = Math.Max(0.5, pW.AsDouble());
+                    }
+                    catch { }
+                    doors.Add(new DoorEnvelope
+                    {
+                        Id      = fi.Id,
+                        Loc     = loc,
+                        Facing  = facing,
+                        Hand    = hand,
+                        WidthFt = widthFt,
+                        HandFlipped   = fi.HandFlipped,
+                        FacingFlipped = fi.FacingFlipped,
+                    });
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"AuditDoorSwingClearance enum doors: {ex.Message}"); }
+            if (doors.Count == 0) return;
+
+            int conflicts = 0;
+            foreach (var id in result.PlacedIds)
+            {
+                FamilyInstance fi = null;
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch { }
+                if (fi == null) continue;
+                XYZ p = (fi.Location as LocationPoint)?.Point;
+                if (p == null) continue;
+
+                DoorEnvelope nearest = null;
+                double bestSq = double.MaxValue;
+                foreach (var d in doors)
+                {
+                    double dx = d.Loc.X - p.X, dy = d.Loc.Y - p.Y;
+                    double sq = dx * dx + dy * dy;
+                    double maxDistFt = d.WidthFt + (300.0 / 304.8);
+                    if (sq < maxDistFt * maxDistFt && sq < bestSq) { bestSq = sq; nearest = d; }
+                }
+                if (nearest == null) continue;
+
+                if (PointInsideSweptArc(nearest, p))
+                {
+                    conflicts++;
+                    if (conflicts <= 10)
+                    {
+                        result.Warnings.Add(
+                            $"Door swing: placed instance {id.Value} at ({p.X:F2},{p.Y:F2}) sits inside the " +
+                            $"swept arc of door {nearest.Id.Value} ({nearest.WidthFt * 304.8:F0}mm). " +
+                            $"The door handle will hit the switch on opening — re-anchor the rule to " +
+                            $"DOOR_LATCH_SIDE or DOOR_STRIKE_SIDE, or move the switch ≥ {nearest.WidthFt * 304.8:F0}mm from the hinge.");
+                    }
+                }
+            }
+            if (conflicts > 10)
+                result.Warnings.Add($"Door swing: {conflicts - 10} additional conflicts truncated — see StingLog.");
+            if (conflicts > 0)
+                StingLog.Warn($"AuditDoorSwingClearance: {conflicts} placed instance(s) inside door swept arc.");
+        }
+
+        private class DoorEnvelope
+        {
+            public ElementId Id;
+            public XYZ       Loc;
+            public XYZ       Facing;
+            public XYZ       Hand;
+            public double    WidthFt;
+            public bool      HandFlipped;
+            public bool      FacingFlipped;
+        }
+
+        /// <summary>
+        /// Approximate "inside swept arc" test. The door hinges on one
+        /// jamb; the leaf swings 90° from closed (along Hand axis) to
+        /// open (along Facing axis, into the room). A switch placed in
+        /// the quarter-circle between those two axes, within door-width
+        /// of the hinge, sits in the swept envelope and will be hit by
+        /// the handle on opening.
+        /// </summary>
+        private static bool PointInsideSweptArc(DoorEnvelope door, XYZ p)
+        {
+            try
+            {
+                double half = door.WidthFt * 0.5;
+                XYZ hinge = door.HandFlipped
+                    ? door.Loc + door.Hand.Multiply(half)
+                    : door.Loc - door.Hand.Multiply(half);
+                XYZ v = p - hinge; v = new XYZ(v.X, v.Y, 0);
+                double r = v.GetLength();
+                if (r < 1e-3) return true;
+                if (r > door.WidthFt + 0.05) return false;
+                XYZ closedDir = door.HandFlipped ? door.Hand.Negate() : door.Hand;
+                XYZ openDir   = door.FacingFlipped ? door.Facing.Negate() : door.Facing;
+                double cosToClosed = v.Normalize().DotProduct(closedDir.Normalize());
+                double cosToOpen   = v.Normalize().DotProduct(openDir.Normalize());
+                return cosToClosed > 0 && cosToOpen > 0;
+            }
+            catch { return false; }
+        }
+
+        /// <summary>
+        /// Phase 139.27 (X-04) — BS 7671 Table 4 cable / conduit bundle
+        /// advisory. For rules whose <c>CableBundleAdvisoryCount</c> > 0,
+        /// count placed instances of the same category within 300mm and
+        /// warn when the count crosses the standard derating thresholds
+        /// (4 → 0.80×, 6 → 0.69×, 9+ → 0.50×). Advisory only — does not
+        /// auto-resize cables, this is a check the electrical engineer
+        /// owns. Designed to flag before issue.
+        /// </summary>
+        private static void AuditCableBundleDerating(
+            Document doc, IList<PlacementRule> rules, PlacementResult result)
+        {
+            if (doc == null || rules == null || result == null) return;
+            const double bundleRadiusFt = 300.0 / 304.8;
+            double radSq = bundleRadiusFt * bundleRadiusFt;
+
+            // Group placed ids by rule MergeKey (via CountsByRule diag mapping
+            // is not enough — we need positions). Use document categories
+            // as a proxy.
+            var byCategory = new Dictionary<string, List<(ElementId id, XYZ p)>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var id in result.PlacedIds)
+            {
+                FamilyInstance fi = null;
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch { }
+                if (fi == null) continue;
+                XYZ p = (fi.Location as LocationPoint)?.Point;
+                if (p == null) continue;
+                string cat = "(uncategorised)";
+                try { cat = fi.Category?.Name ?? "(uncategorised)"; } catch { }
+                if (!byCategory.TryGetValue(cat, out var list))
+                {
+                    list = new List<(ElementId, XYZ)>();
+                    byCategory[cat] = list;
+                }
+                list.Add((id, p));
+            }
+
+            // Apply advisory per rule; rules without the field don't trigger.
+            foreach (var rule in rules)
+            {
+                if (rule == null || rule.CableBundleAdvisoryCount <= 0) continue;
+                if (!byCategory.TryGetValue(rule.CategoryFilter ?? "", out var list)) continue;
+                int worstBundle = 0;
+                foreach (var (id, p) in list)
+                {
+                    int near = 0;
+                    foreach (var (id2, p2) in list)
+                    {
+                        if (id == id2) continue;
+                        double dx = p.X - p2.X, dy = p.Y - p2.Y, dz = p.Z - p2.Z;
+                        if (dx * dx + dy * dy + dz * dz <= radSq) near++;
+                    }
+                    if (near > worstBundle) worstBundle = near;
+                }
+                int total = worstBundle + 1; // include self
+                if (total < rule.CableBundleAdvisoryCount) continue;
+
+                double derate = total >= 9 ? 0.50 : total >= 6 ? 0.69 : total >= 4 ? 0.80 : 1.00;
+                result.Warnings.Add(
+                    $"Cable derating: rule '{rule.MergeKey}' has up to {total} same-category instances within 300mm — " +
+                    $"BS 7671 Table 4 derating ≈ {derate:F2}×. Verify cable size with the electrical engineer before issue.");
+            }
         }
     }
 }

@@ -120,6 +120,79 @@ namespace StingTools.Core.Placement
                 result.CoveragePercent = ComputeCoveragePercent(room, bb, result.Points,
                     rule.CoverageRadiusMm * MmToFt, result.UncoveredSamples);
 
+                // Phase 139.30 (M-08 deep) — iterative densification.
+                // The bbox grid + IsPointInRoom filter is correct but
+                // sparse in narrow legs of L-shaped / T-shaped / U-shaped
+                // rooms. When GuaranteeCoverage is on and coverage is
+                // below 99 %, cluster the uncovered samples and place an
+                // extra point at each cluster centroid; obstruction-test
+                // those extras through the same gate as the base grid.
+                if (rule.GuaranteeCoverage && result.CoveragePercent < 99.0
+                    && result.UncoveredSamples != null && result.UncoveredSamples.Count > 0)
+                {
+                    int densifiedAdded = 0;
+                    for (int pass = 0; pass < 3 && result.CoveragePercent < 99.0; pass++)
+                    {
+                        // Cluster uncovered samples using a coverage-radius
+                        // greedy grouping. Each cluster centroid becomes a
+                        // candidate extra point.
+                        var clusters = ClusterUncoveredSamples(
+                            result.UncoveredSamples, rule.CoverageRadiusMm * MmToFt);
+                        if (clusters.Count == 0) break;
+
+                        int addedThisPass = 0;
+                        foreach (var c in clusters)
+                        {
+                            // Snap Z back to the active anchorZ so the
+                            // extra point lands at mounting height.
+                            var pt = new XYZ(c.X, c.Y, anchorZ);
+                            // Wall + obstruction clearance gates same as
+                            // the base grid.
+                            if (HasObstructionWithin(pt, obstructions, obsClearFt)) continue;
+                            try { if (!room.IsPointInRoom(new XYZ(pt.X, pt.Y, room.Level?.Elevation ?? bb.Min.Z))) continue; }
+                            catch { /* unbounded room — accept */ }
+                            // Reject points too close to the bay edge
+                            // (wall clearance already trimmed the bay,
+                            // but cluster centroids can drift outside).
+                            bool inBay = false;
+                            foreach (var bay in bays)
+                            {
+                                if (pt.X >= bay.minX && pt.X <= bay.maxX
+                                 && pt.Y >= bay.minY && pt.Y <= bay.maxY)
+                                { inBay = true; break; }
+                            }
+                            if (!inBay) continue;
+                            // Don't double-up — skip if an existing point
+                            // is within MinSpacing.
+                            double minSpacingFt = (rule.MinSpacingMm > 0 ? rule.MinSpacingMm : 0.0) * MmToFt;
+                            bool tooClose = false;
+                            if (minSpacingFt > 0)
+                            {
+                                double mssq = minSpacingFt * minSpacingFt;
+                                foreach (var existing in result.Points)
+                                {
+                                    double dx = existing.X - pt.X, dy = existing.Y - pt.Y;
+                                    if (dx * dx + dy * dy < mssq) { tooClose = true; break; }
+                                }
+                            }
+                            if (tooClose) continue;
+                            result.Points.Add(pt);
+                            addedThisPass++;
+                            densifiedAdded++;
+                        }
+                        if (addedThisPass == 0) break;
+                        result.UncoveredSamples.Clear();
+                        result.CoveragePercent = ComputeCoveragePercent(
+                            room, bb, result.Points,
+                            rule.CoverageRadiusMm * MmToFt, result.UncoveredSamples);
+                    }
+                    if (densifiedAdded > 0)
+                        result.Warnings.Add(
+                            $"CoverageGrid: densified +{densifiedAdded} extra point(s) for non-rectangular " +
+                            $"room — bbox grid left {result.UncoveredSamples?.Count ?? 0} uncovered sample(s) " +
+                            $"in narrow leg(s).");
+                }
+
                 if (rule.GuaranteeCoverage && result.CoveragePercent < 99.0)
                 {
                     result.Warnings.Add(
@@ -133,6 +206,39 @@ namespace StingTools.Core.Placement
                 result.Warnings.Add($"CoverageGrid exception: {ex.Message}");
             }
             return result;
+        }
+
+        /// <summary>
+        /// Phase 139.30 (M-08 deep) — group uncovered samples by greedy
+        /// 2× coverage-radius proximity and return cluster centroids.
+        /// Cheap O(n²) for the small uncovered-sample count we expect
+        /// (≤ 100 by ComputeCoveragePercent's cap).
+        /// </summary>
+        private static List<XYZ> ClusterUncoveredSamples(IList<XYZ> samples, double coverageRadiusFt)
+        {
+            var centroids = new List<XYZ>();
+            if (samples == null || samples.Count == 0) return centroids;
+            // 2× radius — points within this distance of each other can
+            // share a single new fixture.
+            double clusterRadiusFt = coverageRadiusFt * 2.0;
+            double rSq = clusterRadiusFt * clusterRadiusFt;
+            var claimed = new bool[samples.Count];
+            for (int i = 0; i < samples.Count; i++)
+            {
+                if (claimed[i] || samples[i] == null) continue;
+                claimed[i] = true;
+                XYZ acc = samples[i];
+                int n = 1;
+                for (int j = i + 1; j < samples.Count; j++)
+                {
+                    if (claimed[j] || samples[j] == null) continue;
+                    double dx = samples[j].X - samples[i].X;
+                    double dy = samples[j].Y - samples[i].Y;
+                    if (dx * dx + dy * dy <= rSq) { acc += samples[j]; n++; claimed[j] = true; }
+                }
+                centroids.Add(acc * (1.0 / n));
+            }
+            return centroids;
         }
 
         private static bool HasObstructionWithin(XYZ pt, List<ExclusionRect> obstructions, double clearFt)

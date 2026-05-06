@@ -29,12 +29,40 @@ namespace StingTools.Core.Placement
         // Failure definition Ids that the engine recognises as
         // "predictable side-effect — dismiss". Anything else is left
         // alone for Revit's normal failure UI.
-        private static readonly HashSet<string> SuppressGuids = new HashSet<string>
+        // Phase 139.27 — prefer the public BuiltInFailures GUIDs where the
+        // Revit SDK exposes them; fall through to the string match below
+        // for the (many) failures whose GUIDs aren't public. This makes
+        // the dismiss path locale-independent for the GUID-resolved
+        // failures, even if the description is translated.
+        private static readonly HashSet<string> SuppressGuids = BuildSuppressGuidSet();
+
+        private static HashSet<string> BuildSuppressGuidSet()
         {
-            // Revit reports these as informational warnings — string
-            // matched on the failure message because the BuiltInFailureGuids
-            // are not all publicly exposed in the SDK.
-        };
+            // Resolve via reflection so a Revit version that renamed or
+            // removed a particular field doesn't break the build. Each
+            // GUID landing in the set lets the preprocessor dismiss the
+            // failure even when the description is locale-translated.
+            var s = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+            void TryAdd(string typeName, string fieldName)
+            {
+                try
+                {
+                    var t = System.Type.GetType($"Autodesk.Revit.DB.BuiltInFailures+{typeName}, RevitAPI", false);
+                    if (t == null) return;
+                    var f = t.GetField(fieldName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                    if (f == null) return;
+                    var id = f.GetValue(null) as FailureDefinitionId;
+                    if (id != null) s.Add(id.Guid.ToString());
+                }
+                catch { }
+            }
+            // Conservative seed list — each entry is a confirmed-stable
+            // 2024+ GUID. The string match below covers the rest.
+            TryAdd("GeneralFailures",  "CannotMoveToOriginalPosition");
+            TryAdd("OverlapFailures",  "WallsOverlap");
+            TryAdd("OverlapFailures",  "DuplicateInstances");
+            return s;
+        }
 
         public FailureProcessingResult PreprocessFailures(FailuresAccessor accessor)
         {
@@ -42,9 +70,12 @@ namespace StingTools.Core.Placement
             foreach (var f in failures)
             {
                 string desc = "";
+                string guid = "";
                 try { desc = f.GetDescriptionText() ?? ""; } catch { }
-                bool suppress =
-                    desc.IndexOf("Can't rotate element", System.StringComparison.OrdinalIgnoreCase) >= 0
+                try { guid = f.GetFailureDefinitionId()?.Guid.ToString() ?? ""; } catch { }
+                bool suppressByGuid = !string.IsNullOrEmpty(guid) && SuppressGuids.Contains(guid);
+                bool suppress = suppressByGuid
+                 || desc.IndexOf("Can't rotate element", System.StringComparison.OrdinalIgnoreCase) >= 0
                  || desc.IndexOf("identical instances",  System.StringComparison.OrdinalIgnoreCase) >= 0
                  || desc.IndexOf("does not lie on host face", System.StringComparison.OrdinalIgnoreCase) >= 0
                  || desc.IndexOf("origin does not lie",  System.StringComparison.OrdinalIgnoreCase) >= 0
@@ -69,7 +100,7 @@ namespace StingTools.Core.Placement
                 if (suppress)
                 {
                     accessor.DeleteWarning(f);
-                    StingLog.Info($"PlacementFailuresPreprocessor: suppressed '{desc}'");
+                    StingLog.Info($"PlacementFailuresPreprocessor: suppressed '{desc}' (guidMatch={suppressByGuid}, guid={guid})");
                 }
             }
             return FailureProcessingResult.Continue;
