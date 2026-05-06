@@ -1,0 +1,29 @@
+{
+  "name": "Panel Schedule Production",
+  "description": "End-to-end electrical panel schedule pipeline: audit drift → batch-create using rule-based template picker → fill empty slots with spares → export to Excel for review → audit again to confirm convergence. Complements 'Batch Panel Schedules' the way TemplateAuditCommand complements AutoAssignTemplates.",
+  "rollback_on_failure": false,
+  "steps": [
+    {
+      "commandTag": "Panel_Audit",
+      "label": "Audit current state (panels without schedules, template drift, missing PNL params)"
+    },
+    {
+      "commandTag": "Panel_BatchSchedules",
+      "label": "Create missing schedules + stamp drawing-type + fill ELC_PNL_* params + write circuit back-refs"
+    },
+    {
+      "commandTag": "Panel_FillSparesAll",
+      "label": "Fill empty slots with spares across every panel schedule",
+      "optional": true
+    },
+    {
+      "commandTag": "Panel_ExportToExcel",
+      "label": "Export full schedule corpus to Excel for review",
+      "optional": true
+    },
+    {
+      "commandTag": "Panel_Audit",
+      "label": "Re-audit to confirm drift closed"
+    }
+  ]
+}

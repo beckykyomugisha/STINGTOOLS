@@ -1440,6 +1440,17 @@ namespace StingTools.Core
                 case "BatchSchedules": return new Temp.BatchSchedulesCommand();
                 case "EvaluateFormulas": return new Temp.FormulaEvaluatorCommand();
 
+                // Electrical Panel Schedules (Commands.Panels)
+                case "Panel_BatchSchedules":    return new Commands.Panels.BatchPanelSchedulesCommand();
+                case "Panel_Audit":             return new Commands.Panels.PanelScheduleAuditCommand();
+                case "Panel_ExportToExcel":     return new Commands.Panels.ExportPanelSchedulesToExcelCommand();
+                case "Panel_ImportFromExcel":   return new Commands.Panels.ImportPanelSchedulesFromExcelCommand();
+                case "Panel_FillSpares":        return new Commands.Panels.FillEmptySlotsWithSparesCommand();
+                case "Panel_FillSparesAll":     return new Commands.Panels.FillSparesAllSchedulesCommand();
+                case "Panel_FillSpaces":        return new Commands.Panels.FillEmptySlotsWithSpacesCommand();
+                case "Panel_SpacesToSpares":    return new Commands.Panels.ConvertSpacesToSparesCommand();
+                case "Panel_ClearSparesSpaces": return new Commands.Panels.ClearSparesAndSpacesCommand();
+
                 // Tagging
                 case "AutoTag": return new Tags.AutoTagCommand();
                 case "BatchTag": return new Tags.BatchTagCommand();

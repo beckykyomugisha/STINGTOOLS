@@ -120,14 +120,27 @@ namespace StingTools.Commands.Panels
         /// </summary>
         public static ElementId Resolve(Document doc, FamilyInstance panel, out string ruleUsed, out string templateUsed)
         {
+            return ResolveCandidates(doc, panel, out ruleUsed, out templateUsed).FirstOrDefault();
+        }
+
+        /// <summary>
+        /// Returns an ordered list of candidate template ElementIds for the panel.
+        /// Used by BatchPanelSchedulesCommand to fall through templates if the
+        /// first one fails CreateInstanceView (e.g. configuration mismatch). Orders
+        /// the rule's primary first, then its fallbacks, then the global fallback.
+        /// </summary>
+        public static List<ElementId> ResolveCandidates(Document doc, FamilyInstance panel,
+            out string ruleUsed, out string templateUsed)
+        {
             ruleUsed = null; templateUsed = null;
+            var ordered = new List<ElementId>();
             EnsureLoaded(doc);
 
             var allTemplates = new FilteredElementCollector(doc)
                 .OfClass(typeof(PanelScheduleTemplate))
                 .Cast<PanelScheduleTemplate>()
                 .ToList();
-            if (allTemplates.Count == 0) return ElementId.InvalidElementId;
+            if (allTemplates.Count == 0) return ordered;
 
             string panelName = panel?.Name ?? "";
 
@@ -136,33 +149,76 @@ namespace StingTools.Commands.Panels
                 if (!MatchesAnyPattern(panelName, rule.NamePatterns)) continue;
 
                 var t = FindTemplateByName(allTemplates, rule.TemplateName);
-                if (t != null)
+                if (t != null && !ordered.Contains(t.Id))
                 {
-                    ruleUsed = $"name~/{string.Join("|", rule.NamePatterns.Take(3))}/ priority={rule.Priority}";
-                    templateUsed = t.Name;
-                    return t.Id;
+                    if (templateUsed == null)
+                    {
+                        ruleUsed = $"name~/{string.Join("|", rule.NamePatterns.Take(3))}/ priority={rule.Priority}";
+                        templateUsed = t.Name;
+                    }
+                    ordered.Add(t.Id);
                 }
                 foreach (string fb in rule.FallbackTemplateNames)
                 {
                     var t2 = FindTemplateByName(allTemplates, fb);
-                    if (t2 != null)
+                    if (t2 != null && !ordered.Contains(t2.Id)) ordered.Add(t2.Id);
+                }
+
+                // AUTO-1: also append every template whose PanelConfiguration matches
+                // the rule's expected panelType, so a configuration-aware fallback
+                // exists even if naming drifted. Best-effort — wrapped in try/catch
+                // because the API surface for GetPanelConfiguration may differ
+                // between Revit versions.
+                if (!string.IsNullOrEmpty(rule.PanelType))
+                {
+                    foreach (var t3 in allTemplates)
                     {
-                        ruleUsed = $"name~/{string.Join("|", rule.NamePatterns.Take(3))}/ fallback={fb}";
-                        templateUsed = t2.Name;
-                        return t2.Id;
+                        if (ordered.Contains(t3.Id)) continue;
+                        if (PanelTypeMatches(t3, rule.PanelType)) ordered.Add(t3.Id);
                     }
                 }
             }
 
             if (_useFirstAvailableFallback)
             {
-                var first = allTemplates.First();
-                ruleUsed = "global-fallback (first available)";
-                templateUsed = first.Name;
-                return first.Id;
+                foreach (var t in allTemplates)
+                    if (!ordered.Contains(t.Id)) ordered.Add(t.Id);
+                if (templateUsed == null && ordered.Count > 0)
+                {
+                    var first = doc.GetElement(ordered[0]) as PanelScheduleTemplate;
+                    ruleUsed = "global-fallback (first available)";
+                    templateUsed = first?.Name;
+                }
             }
 
-            return ElementId.InvalidElementId;
+            return ordered;
+        }
+
+        private static bool PanelTypeMatches(PanelScheduleTemplate t, string ruleType)
+        {
+            if (t == null || string.IsNullOrEmpty(ruleType)) return false;
+            try
+            {
+                // Reflection-friendly probe: try GetPanelConfiguration() if it exists.
+                var m = t.GetType().GetMethod("GetPanelConfiguration");
+                if (m != null)
+                {
+                    object cfg = m.Invoke(t, null);
+                    if (cfg != null)
+                    {
+                        string s = cfg.ToString();
+                        // Switchboard, BranchPanelThreePhase, BranchPanelSinglePhase, DataPanel
+                        if (ruleType.IndexOf("Switchboard", StringComparison.OrdinalIgnoreCase) >= 0
+                            && s.IndexOf("Switchboard", StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                        if (ruleType.IndexOf("Branch", StringComparison.OrdinalIgnoreCase) >= 0
+                            && s.IndexOf("Branch", StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                        if (ruleType.IndexOf("Data", StringComparison.OrdinalIgnoreCase) >= 0
+                            && s.IndexOf("Data", StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"PanelTypeMatches '{t?.Name}' vs '{ruleType}': {ex.Message}"); }
+            return false;
         }
 
         private static bool MatchesAnyPattern(string name, List<string> patterns)
