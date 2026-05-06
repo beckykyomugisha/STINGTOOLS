@@ -26,6 +26,14 @@ public class SyncWatermark : ITenantScoped
     /// </summary>
     public DateTime LastSyncUtc { get; set; } = DateTime.UtcNow;
 
+    /// <summary>
+    /// Optional client-reported element count captured at the moment of the
+    /// watermark upsert. Lets a device cheaply sanity-check that the server
+    /// agrees on its expected row count without a follow-up read. Defaults
+    /// to 0 — additive column, safe for legacy rows.
+    /// </summary>
+    public int ElementCount { get; set; } = 0;
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

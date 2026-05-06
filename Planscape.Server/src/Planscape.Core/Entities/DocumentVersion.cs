@@ -17,6 +17,13 @@ public class DocumentVersion : ITenantScoped
     public string UploadedBy { get; set; } = "";
     public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
 
+    /// <summary>
+    /// Optional human-readable note describing what changed in this revision
+    /// (e.g. "Updated section 4 floor plans", "Tagged S4 for client review").
+    /// Nullable — additive, safe for legacy rows.
+    /// </summary>
+    public string? ChangeDescription { get; set; }
+
     // Navigation
     public DocumentRecord? Document { get; set; }
 }
