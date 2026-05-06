@@ -164,3 +164,20 @@ SHEETS,SHT_TAG_7_TXT,"SHT_DISC_TXT,SHT_NAME_TXT,SHT_LEVEL_TXT,SHT_FORM_TXT,SHT_R
 # v5.1 | MEP Sleeve (SLV) tag and TAG7 paragraph containers for Generic Models
 TAG_CONTAINER,SLV_TAG,"ASS_DISCIPLINE_COD_TXT,ASS_LOC_TXT,ASS_ZONE_TXT,ASS_LVL_COD_TXT,ASS_SYSTEM_TYPE_TXT,ASS_FUNC_TXT,ASS_PRODCT_COD_TXT,ASS_SEQ_NUM_TXT",-,MEP Sleeve discipline tag container,Generic Models
 TAG7_PARAGRAPH,SLV_TAG_7_PARA_TXT,"SLV_REF_TXT,SLV_SZ_MM,SLV_MAT_TXT,SLV_FIRE_RATING_TXT,SLV_SEAL_TYPE_TXT,SLV_SERVICE_TXT,SLV_WALL_TYPE_TXT,SLV_WALL_THICKNESS_MM,SLV_ANNULAR_GAP_MM,SLV_FIRESTOP_MFR_TXT,SLV_FIRESTOP_PRODUCT_TXT,SLV_TESTED_TO_TXT,SLV_STATUS_TXT,SLV_INSPECTION_DATE_TXT",-,MEP Sleeve TAG7 paragraph container,Generic Models
+# ─── Section 16: Lightning Protection System (LPS) Containers ───────────────
+# v5.2 | Phase 176: BS EN 62305 lightning protection tag families (6 element kinds + TAG7 paragraph)
+# Discipline routing: SYS=LPS, FUNC=LPS, DISC=E (electrical earthing & lightning protection)
+LPS,ELC_LPS_AIRTERM_TAG_TXT,"0,1,2,3,4,5,6,7",-,LPS air terminal / finial full tag,"Electrical Equipment,Generic Models,Specialty Equipment"
+LPS,ELC_LPS_DOWNCOND_TAG_TXT,"0,1,2,3,4,5,6,7",-,LPS down conductor full tag,"Electrical Equipment,Generic Models,Conduits,Conduit Fittings,Specialty Equipment"
+LPS,ELC_LPS_EARTH_TAG_TXT,"0,1,2,3,4,5,6,7",-,LPS earth electrode full tag,"Electrical Equipment,Generic Models,Specialty Equipment"
+LPS,ELC_LPS_BOND_TAG_TXT,"0,1,2,3,4,5,6,7",-,LPS equipotential bond full tag,"Electrical Equipment,Generic Models,Conduits,Specialty Equipment"
+LPS,ELC_LPS_SPD_TAG_TXT,"0,1,2,3,4,5,6,7",-,LPS surge protective device full tag,"Electrical Equipment,Specialty Equipment"
+LPS,ELC_LPS_TESTCLAMP_TAG_TXT,"0,1,2,3,4,5,6,7",-,LPS test clamp / inspection point full tag,"Electrical Equipment,Generic Models,Specialty Equipment"
+LPS_TAG7,ELC_TAG_7_PARA_LPS_TXT,"ELC_LPS_CLASS_TXT,ELC_LPS_ZONE_TXT,ELC_LPS_AIR_TERMINAL_COUNT_NR,ELC_LPS_DOWN_CONDUCTOR_COUNT_NR,ELC_LPS_EARTH_ELECTRODE_COUNT_NR,ELC_LPS_EARTH_RESISTANCE_OHM,ELC_LPS_CONDUCTOR_CROSS_SECT_MM2,ELC_LPS_CONDUCTOR_MATERIAL_TXT,ELC_LPS_BOND_TYPE_TXT,ELC_LPS_SURGE_PROTECTION_LVL_TXT,ELC_LPS_SEPARATION_DISTANCE_MM,ELC_LPS_PROTECTION_ANGLE_DEG,ELC_LPS_MESH_SIZE_M,ELC_LPS_RISK_ASSESSMENT_TXT,ELC_LPS_INSPECTION_INTERVAL_MONTHS,ELC_LPS_TEST_DATE_TXT,ELC_LPS_CERT_REF_TXT,ELC_LPS_COMPLIANCE_STATUS_TXT",-,LPS TAG7 paragraph container,"Electrical Equipment,Generic Models,Specialty Equipment"
+# LPS Tag Families (6 discipline-specific lightning protection tag families)
+LPS_FAMILY,STING - LPS Air Terminal Tag,"Electrical Equipment,Generic Models,Specialty Equipment",ELC_LPS_AIRTERM_TAG_TXT
+LPS_FAMILY,STING - LPS Down Conductor Tag,"Electrical Equipment,Generic Models,Conduits,Conduit Fittings,Specialty Equipment",ELC_LPS_DOWNCOND_TAG_TXT
+LPS_FAMILY,STING - LPS Earth Electrode Tag,"Electrical Equipment,Generic Models,Specialty Equipment",ELC_LPS_EARTH_TAG_TXT
+LPS_FAMILY,STING - LPS Bond Tag,"Electrical Equipment,Generic Models,Conduits,Specialty Equipment",ELC_LPS_BOND_TAG_TXT
+LPS_FAMILY,STING - LPS SPD Tag,"Electrical Equipment,Specialty Equipment",ELC_LPS_SPD_TAG_TXT
+LPS_FAMILY,STING - LPS Test Clamp Tag,"Electrical Equipment,Generic Models,Specialty Equipment",ELC_LPS_TESTCLAMP_TAG_TXT

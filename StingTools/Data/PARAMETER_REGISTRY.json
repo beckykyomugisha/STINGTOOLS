@@ -2384,6 +2384,72 @@
       ]
     },
     {
+      "group": "Lightning Protection",
+      "group_code": "ELC_LPS",
+      "categories": [
+        "Electrical Equipment",
+        "Generic Models",
+        "Conduits",
+        "Specialty Equipment"
+      ],
+      "params": [
+        {
+          "param_name": "ELC_LPS_AIRTERM_TAG_TXT",
+          "guid": "e1c5f9d4-1001-5111-9111-100000000001",
+          "tokens": "all",
+          "separator": "-",
+          "prefix": "",
+          "suffix": "",
+          "description": "Air terminal / finial full tag (BS EN 62305-3)"
+        },
+        {
+          "param_name": "ELC_LPS_DOWNCOND_TAG_TXT",
+          "guid": "e1c5f9d4-1002-5111-9111-100000000002",
+          "tokens": "all",
+          "separator": "-",
+          "prefix": "",
+          "suffix": "",
+          "description": "Down conductor full tag (BS EN 62305-3)"
+        },
+        {
+          "param_name": "ELC_LPS_EARTH_TAG_TXT",
+          "guid": "e1c5f9d4-1003-5111-9111-100000000003",
+          "tokens": "all",
+          "separator": "-",
+          "prefix": "",
+          "suffix": "",
+          "description": "Earth electrode full tag (BS EN 62305-3)"
+        },
+        {
+          "param_name": "ELC_LPS_BOND_TAG_TXT",
+          "guid": "e1c5f9d4-1004-5111-9111-100000000004",
+          "tokens": "all",
+          "separator": "-",
+          "prefix": "",
+          "suffix": "",
+          "description": "Equipotential bond full tag (BS EN 62305-3)"
+        },
+        {
+          "param_name": "ELC_LPS_SPD_TAG_TXT",
+          "guid": "e1c5f9d4-1005-5111-9111-100000000005",
+          "tokens": "all",
+          "separator": "-",
+          "prefix": "",
+          "suffix": "",
+          "description": "Surge protective device full tag (BS EN 62305-4)"
+        },
+        {
+          "param_name": "ELC_LPS_TESTCLAMP_TAG_TXT",
+          "guid": "e1c5f9d4-1006-5111-9111-100000000006",
+          "tokens": "all",
+          "separator": "-",
+          "prefix": "",
+          "suffix": "",
+          "description": "Test clamp / inspection point full tag (BS EN 62305-3)"
+        }
+      ]
+    },
+    {
       "group": "Communications",
       "group_code": "COM_DEV",
       "categories": [
