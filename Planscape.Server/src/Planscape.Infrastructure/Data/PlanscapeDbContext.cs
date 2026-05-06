@@ -393,6 +393,8 @@ public class PlanscapeDbContext : DbContext
             e.HasKey(p => p.Id);
             e.HasOne(p => p.Tenant).WithMany(t => t.Projects).HasForeignKey(p => p.TenantId);
             e.HasIndex(p => new { p.TenantId, p.Code }).IsUnique();
+            // Phase 175 — author lookup for the visibility predicate
+            e.HasIndex(p => new { p.TenantId, p.CreatedById });
         });
 
         // ── TaggedElement ──

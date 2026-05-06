@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Planscape.API.Services;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
+using Planscape.API.Authorization;
 
 namespace Planscape.API.Controllers;
 
@@ -14,6 +15,7 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/projects/{projectId}/workflows")]
 [Authorize]
+[ProjectAccess]
 public class WorkflowsController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;

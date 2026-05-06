@@ -7,6 +7,7 @@ using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.Workflow;
+using Planscape.API.Authorization;
 
 namespace Planscape.API.Controllers;
 
@@ -26,6 +27,7 @@ namespace Planscape.API.Controllers;
 [Route("api/projects/{projectId}/[controller]")]
 [EnableRateLimiting("mobile")]
 [Authorize]
+[ProjectAccess]
 public class DeliverablesController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;

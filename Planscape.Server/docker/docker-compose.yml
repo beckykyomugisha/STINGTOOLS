@@ -9,7 +9,12 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__Default=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!}
       - ConnectionStrings__Migrations=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!}
-      - Jwt__Key=${JWT_KEY:-Planscape-Production-Secret-Key-Min32Chars!!}
+      # Phase 175 — JWT_KEY MUST be supplied via .env or shell env.
+      # ${JWT_KEY:?...} fails the compose run with a clear message if
+      # the operator forgot to set it (instead of silently falling back
+      # to a known-bad literal that bannedKeys would then reject at
+      # startup anyway).
+      - Jwt__Key=${JWT_KEY:?Set JWT_KEY in your shell or .env (32+ chars, e.g. `openssl rand -base64 48`)}
       - Jwt__Issuer=Planscape
       - Jwt__Audience=Planscape.Client
       - Redis__Connection=redis:6379
@@ -18,6 +23,18 @@ services:
       - ModelConverter__ThumbnailProvider=${MODEL_THUMBNAIL_PROVIDER:-gltf-bounds}
       - ModelConverter__Aps__ClientId=${APS_CLIENT_ID:-}
       - ModelConverter__Aps__ClientSecret=${APS_CLIENT_SECRET:-}
+      # Phase 175 — OpenTelemetry. Default points at the otel-collector
+      # service below; set OTEL_EXPORTER_OTLP_ENDPOINT in the env to
+      # ship traces to a remote backend (Tempo, Honeycomb, Datadog…).
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
+      - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-planscape-api}
+      # Phase 175 — ClamAV antivirus scanner. Set ClamAv__Enabled=true
+      # to switch from the no-op scanner to the TCP clamd client
+      # below. Off by default so a fresh `docker compose up` boots
+      # without waiting on the (slow-starting) clamav image.
+      - ClamAv__Enabled=${CLAMAV_ENABLED:-false}
+      - ClamAv__Host=${CLAMAV_HOST:-clamav}
+      - ClamAv__Port=${CLAMAV_PORT:-3310}
     depends_on:
       postgres:
         condition: service_healthy
@@ -83,7 +100,12 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__Default=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!}
       - ConnectionStrings__Migrations=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!}
-      - Jwt__Key=${JWT_KEY:-Planscape-Production-Secret-Key-Min32Chars!!}
+      # Phase 175 — JWT_KEY MUST be supplied via .env or shell env.
+      # ${JWT_KEY:?...} fails the compose run with a clear message if
+      # the operator forgot to set it (instead of silently falling back
+      # to a known-bad literal that bannedKeys would then reject at
+      # startup anyway).
+      - Jwt__Key=${JWT_KEY:?Set JWT_KEY in your shell or .env (32+ chars, e.g. `openssl rand -base64 48`)}
       - Jwt__Issuer=Planscape
       - Jwt__Audience=Planscape.Client
       - Redis__Connection=redis:6379
@@ -138,9 +160,45 @@ services:
       - prometheus
     restart: unless-stopped
 
+  # Phase 175 — ClamAV antivirus daemon. Off by default; enable by
+  # setting CLAMAV_ENABLED=true in your .env. First boot downloads
+  # the signature DB (~250 MB) so allow ~5 minutes before the
+  # scanner becomes responsive.
+  clamav:
+    image: clamav/clamav:latest
+    profiles: [ "av" ]
+    environment:
+      - CLAMAV_NO_FRESHCLAMD=false
+    ports:
+      - "3310:3310"
+    volumes:
+      - clamavdb:/var/lib/clamav
+    healthcheck:
+      test: [ "CMD-SHELL", "echo PING | nc -w 5 localhost 3310 | grep -q PONG" ]
+      interval: 30s
+      timeout: 10s
+      retries: 6
+    restart: unless-stopped
+
+  # Phase 175 — OpenTelemetry Collector with tail-based sampling.
+  # Receives OTLP/gRPC on 4317 from the API replicas, applies
+  # tail_sampling (errors + slow + 5% baseline) and ships to the
+  # debug exporter by default. Wire a real backend in
+  # otel-collector-config.yaml (Jaeger / Tempo / Honeycomb etc.).
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.108.0
+    command: [ "--config=/etc/otel/config.yaml" ]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel/config.yaml:ro
+    ports:
+      - "4317:4317"  # OTLP gRPC
+      - "4318:4318"  # OTLP HTTP
+    restart: unless-stopped
+
 volumes:
   pgdata:
   redisdata:
   seqdata:
   promdata:
   grafanadata:
+  clamavdb:

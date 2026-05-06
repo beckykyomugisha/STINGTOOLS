@@ -7,6 +7,7 @@ using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.SignalR;
+using Planscape.API.Authorization;
 
 namespace Planscape.API.Controllers;
 
@@ -24,6 +25,7 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/projects/{projectId:guid}/issues/{issueId:guid}/comments")]
 [Authorize]
+[ProjectAccess]
 public class IssueCommentsController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;

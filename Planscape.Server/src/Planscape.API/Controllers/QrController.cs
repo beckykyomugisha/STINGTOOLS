@@ -7,12 +7,14 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using ZXing;
 using ZXing.Common;
+using Planscape.API.Authorization;
 
 namespace Planscape.API.Controllers;
 
 [ApiController]
 [Route("api/projects/{projectId}")]
 [Authorize]
+[ProjectAccess]
 public class QrController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;

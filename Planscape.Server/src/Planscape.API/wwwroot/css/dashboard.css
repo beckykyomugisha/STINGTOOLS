@@ -37,6 +37,15 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
 .nav-link { display: block; padding: 10px 20px; color: var(--muted); text-decoration: none; font-weight: 500; }
 .nav-link:hover { background: var(--bg); color: var(--text); }
 .nav-link.active { color: var(--primary); border-left: 3px solid var(--accent); background: var(--bg); }
+/* Project-scoped sidebar section — hidden until a project is opened. */
+.nav-section[data-scope="project"] { display: none; }
+body.in-project .nav-section[data-scope="project"] { display: block; }
+.nav-section-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
+  color: var(--muted); font-weight: 600; padding: 12px 20px 4px;
+  border-top: 1px solid var(--border); margin-top: 8px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 /* Phase 152 — admin-section divider + status colours */
 .nav-divider { height: 1px; background: var(--border, #e0e0e0); margin: 16px 12px; }
 .hint.ok { color: #2e7d32; }
@@ -395,8 +404,27 @@ tr:hover td { background: #fafafa; }
 .pd-eyebrow .status-chip.onhold { background: var(--warning); color: #1c1f26; }
 .pd-loc, .pd-phase { font-size: 12px; color: rgba(255,255,255,0.75); }
 .pd-name { margin: 8px 0 0; font-size: 26px; font-weight: 700; color: #fff; }
-.pd-meta { font-size: 12px; color: rgba(255,255,255,0.75); text-align: right; }
+.pd-meta { font-size: 12px; color: rgba(255,255,255,0.75); text-align: right; position: relative; }
 .pd-meta strong { color: #fff; font-weight: 600; }
+.pd-more-btn {
+  background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 6px; padding: 2px 10px; margin-top: 6px;
+  font-size: 18px; line-height: 1; cursor: pointer;
+}
+.pd-more-btn:hover { background: rgba(255,255,255,0.25); }
+.pd-more-menu {
+  position: absolute; top: 100%; right: 0; margin-top: 6px;
+  background: #fff; color: var(--text);
+  border: 1px solid var(--slate-200); border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  min-width: 180px; padding: 4px; z-index: 100;
+}
+.pd-more-menu button {
+  display: block; width: 100%; text-align: left;
+  background: transparent; border: 0; padding: 8px 12px;
+  font-size: 13px; color: var(--danger); border-radius: 6px; cursor: pointer;
+}
+.pd-more-menu button:hover { background: rgba(239,68,68,0.08); }
 
 .kpi .kpi-bar {
   margin-top: 8px; width: 100%; height: 4px;

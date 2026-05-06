@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.Services;
 
 namespace Planscape.Infrastructure.SignalR;
 
@@ -27,14 +28,20 @@ public class CrdtHub : Hub
         _db = db; _tenant = tenant;
     }
 
-    public Task Subscribe(string docKey)
-        => Groups.AddToGroupAsync(Context.ConnectionId, GroupName(docKey));
+    public async Task Subscribe(string docKey)
+    {
+        // Phase 175 audit P0-4 — gate on project visibility. Until now any
+        // logged-in tenant user could subscribe to any docKey by guessing.
+        await EnsureCanAccessAsync(docKey);
+        await Groups.AddToGroupAsync(Context.ConnectionId, GroupName(docKey));
+    }
 
     public Task Unsubscribe(string docKey)
         => Groups.RemoveFromGroupAsync(Context.ConnectionId, GroupName(docKey));
 
     public async Task Push(string docKey, string updateBase64)
     {
+        await EnsureCanAccessAsync(docKey);
         var userId = TryParseUserId();
         var row = new PinCrdtUpdate
         {
@@ -58,6 +65,7 @@ public class CrdtHub : Hub
 
     public async Task<IEnumerable<object>> PullSince(string docKey, DateTime sinceUtc)
     {
+        await EnsureCanAccessAsync(docKey);
         var rows = await _db.PinCrdtUpdates.AsNoTracking()
             .Where(u => u.DocKey == docKey && u.CreatedAt > sinceUtc)
             .OrderBy(u => u.CreatedAt)
@@ -70,4 +78,49 @@ public class CrdtHub : Hub
 
     private Guid? TryParseUserId()
         => Guid.TryParse(Context.User?.FindFirst("sub")?.Value, out var id) ? id : null;
+
+    /// <summary>
+    /// Resolve a CRDT docKey to its owning project and 403 if the caller
+    /// can't see it. Recognised shapes (see <see cref="PinCrdtUpdate.DocKey"/>):
+    ///   - <c>project:&lt;guid&gt;:...</c>  → project id is in the key
+    ///   - <c>issue:&lt;guid&gt;</c>         → look up the issue's project id
+    /// Anything else throws — opaque keys would let an attacker invent
+    /// docKeys outside any project's scope and leak fan-out.
+    /// </summary>
+    private async Task EnsureCanAccessAsync(string docKey)
+    {
+        if (Context.User == null)
+            throw new HubException("Not authenticated");
+        var projectId = await ResolveProjectIdAsync(docKey);
+        if (projectId == null)
+            throw new HubException("Cannot access");
+        var ok = await ProjectVisibility.CanSeeProjectAsync(_db, projectId.Value, Context.User);
+        if (!ok)
+            throw new HubException("Cannot access");
+    }
+
+    private async Task<Guid?> ResolveProjectIdAsync(string docKey)
+    {
+        if (string.IsNullOrWhiteSpace(docKey)) return null;
+
+        if (docKey.StartsWith("project:", StringComparison.Ordinal))
+        {
+            var afterPrefix = docKey.AsSpan(8);
+            var sep = afterPrefix.IndexOf(':');
+            var guidPart = sep >= 0 ? afterPrefix[..sep].ToString() : afterPrefix.ToString();
+            return Guid.TryParse(guidPart, out var pid) ? pid : null;
+        }
+
+        if (docKey.StartsWith("issue:", StringComparison.Ordinal))
+        {
+            var guidPart = docKey.AsSpan(6).ToString();
+            if (!Guid.TryParse(guidPart, out var iid)) return null;
+            return await _db.Issues.AsNoTracking()
+                .Where(i => i.Id == iid)
+                .Select(i => (Guid?)i.ProjectId)
+                .FirstOrDefaultAsync();
+        }
+
+        return null;
+    }
 }

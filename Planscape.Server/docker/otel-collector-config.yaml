@@ -1,0 +1,94 @@
+# Phase 175 — OpenTelemetry Collector with tail-based sampling.
+#
+# Pipeline shape:
+#   API replicas → OTLP/gRPC :4317 → tail_sampling → debug + (optional Jaeger)
+#
+# At small scale a single Collector with a tail_sampling processor is
+# fine. At >50 spans/sec or multiple Collectors, you must front this
+# with a `loadbalancing` exporter so all spans for the same trace land
+# on the same Collector instance — otherwise the tail sampler decides
+# on a partial trace.
+# See https://opentelemetry.io/docs/languages/dotnet/traces/tail-based-sampling/
+#
+# Sampling policy (first match wins):
+#   1. Always sample errors                       → ~3-5% of traffic
+#   2. Always sample slow traces (>500ms p95)     → ~1-2% of traffic
+#   3. Probabilistic 5% baseline                  → keeps a steady control sample
+#
+# decision_wait must exceed the longest expected request latency or
+# the sampler will commit before the trace finishes.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Cap memory before any other processor so a flood of spans can't OOM
+  # the Collector. Adjusted up if you raise the sampling rate.
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: 400
+    spike_limit_mib: 100
+
+  # Buffer the trace until decision_wait elapses, then apply policies.
+  tail_sampling:
+    decision_wait: 10s
+    num_traces: 50000
+    expected_new_traces_per_sec: 100
+    policies:
+      - name: keep-errors
+        type: status_code
+        status_code: { status_codes: [ ERROR ] }
+      - name: keep-slow
+        type: latency
+        latency: { threshold_ms: 500 }
+      - name: drop-health-and-metrics
+        type: string_attribute
+        string_attribute:
+          key: http.target
+          values: [ "/health", "/metrics", "/health/ready", "/health/live" ]
+          enabled_regex_matching: false
+          invert_match: true
+      - name: keep-baseline
+        type: probabilistic
+        probabilistic: { sampling_percentage: 5 }
+
+  # Fold high-cardinality span attributes before export — keeps cost down
+  # without losing the trace shape. Tweak the keep list for your backend.
+  attributes/redact:
+    actions:
+      - key: db.statement.parameters
+        action: delete
+      - key: http.request.body
+        action: delete
+
+  batch:
+    timeout: 5s
+    send_batch_size: 512
+
+exporters:
+  # Always-on debug exporter so you can `docker compose logs otel-collector`
+  # and confirm spans are arriving without standing up a backend.
+  debug:
+    verbosity: basic
+    sampling_initial: 5
+    sampling_thereafter: 50
+
+  # Optional Jaeger / Tempo / Honeycomb / Datadog backend. Wire by
+  # uncommenting one of these and the matching pipeline exporter
+  # below. Default config does not require a backend so the Collector
+  # boots cleanly out of the box.
+  # otlp/jaeger:
+  #   endpoint: jaeger:4317
+  #   tls: { insecure: true }
+
+service:
+  pipelines:
+    traces:
+      receivers:  [ otlp ]
+      processors: [ memory_limiter, tail_sampling, attributes/redact, batch ]
+      exporters:  [ debug ]

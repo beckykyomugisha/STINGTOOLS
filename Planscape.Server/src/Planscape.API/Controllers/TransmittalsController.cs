@@ -6,7 +6,9 @@ using Microsoft.EntityFrameworkCore;
 using Planscape.API.Services;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.Services;
 using Planscape.Infrastructure.SignalR;
+using Planscape.API.Authorization;
 
 namespace Planscape.API.Controllers;
 
@@ -16,6 +18,7 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/projects/{projectId}/transmittals")]
 [Authorize]
+[ProjectAccess]
 public class TransmittalsController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
@@ -24,11 +27,49 @@ public class TransmittalsController : ControllerBase
     // and the mobile app (realtimeClient.ts) already listen for this event;
     // server-side broadcasts had been missed in the original wiring.
     private readonly IHubContext<NotificationHub> _notifHub;
+    private readonly ISequenceCounterService _seq;
 
-    public TransmittalsController(PlanscapeDbContext db, IHubContext<NotificationHub> notifHub)
+    // Phase 175 audit P1-15-tx — single counter key per project. Bump
+    // the suffix when a different code series is introduced (e.g.
+    // "tx:rev2") so the SeqCounter row stays unique-per-format.
+    private const string TransmittalCounterKey = "transmittal:tx";
+
+    public TransmittalsController(PlanscapeDbContext db, IHubContext<NotificationHub> notifHub, ISequenceCounterService seq)
     {
         _db = db;
         _notifHub = notifHub;
+        _seq = seq;
+    }
+
+    /// <summary>
+    /// Phase 175 — one-shot scan of existing TX-#### codes so the
+    /// counter starts ahead of any historic value. After the SeqCounter
+    /// row is materialised, subsequent allocations skip this scan.
+    /// </summary>
+    private async Task<int> ResolveSeedFloorAsync(Guid projectId, CancellationToken ct)
+    {
+        // Already-materialised counters short-circuit immediately.
+        var existing = await _db.SeqCounters.AsNoTracking()
+            .Where(s => s.ProjectId == projectId && s.CounterKey == TransmittalCounterKey)
+            .Select(s => (int?)s.CurrentValue)
+            .FirstOrDefaultAsync(ct);
+        if (existing.HasValue) return 0;
+
+        // Cold start — scan once. The seed only matters until the
+        // first allocation writes the row; from then on the counter
+        // is authoritative.
+        var maxFromHistory = await _db.Transmittals
+            .Where(t => t.ProjectId == projectId)
+            .Select(t => t.TransmittalCode)
+            .ToListAsync(ct);
+        int floor = 0;
+        foreach (var code in maxFromHistory)
+        {
+            var parts = code.Split('-');
+            if (parts.Length == 2 && int.TryParse(parts[1], out int n) && n > floor)
+                floor = n;
+        }
+        return floor;
     }
 
     [HttpGet]
@@ -56,19 +97,17 @@ public class TransmittalsController : ControllerBase
         if (project == null) return NotFound("Project not found");
         if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
-        // Auto-generate collision-safe TX code — scan max numeric suffix
-        var existingCodes = await _db.Transmittals
-            .Where(t => t.ProjectId == projectId)
-            .Select(t => t.TransmittalCode)
-            .ToListAsync();
-
-        int nextNum = 1;
-        foreach (var code in existingCodes)
-        {
-            var parts = code.Split('-');
-            if (parts.Length == 2 && int.TryParse(parts[1], out int n) && n >= nextNum)
-                nextNum = n + 1;
-        }
+        // Phase 175 audit P1-15-tx — atomic counter via SeqCounter +
+        // Postgres UPSERT RETURNING. Replaces the prior O(N) scan +
+        // race-prone in-memory MAX. seedFloor handles cold start
+        // against legacy data so the counter never collides with
+        // historic codes.
+        var seedFloor = await ResolveSeedFloorAsync(projectId, HttpContext.RequestAborted);
+        var nextNum = await _seq.AllocateAsync(
+            tenantId, projectId, TransmittalCounterKey,
+            seedFloor: seedFloor, count: 1,
+            updatedBy: User.FindFirst("display_name")?.Value,
+            ct: HttpContext.RequestAborted);
 
         var transmittal = new Transmittal
         {
@@ -129,18 +168,16 @@ public class TransmittalsController : ControllerBase
         if (project == null) return NotFound("Project not found");
         if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
-        var existingCodes = await _db.Transmittals
-            .Where(t => t.ProjectId == projectId)
-            .Select(t => t.TransmittalCode)
-            .ToListAsync();
-
-        int nextNum = 1;
-        foreach (var code in existingCodes)
-        {
-            var parts = code.Split('-');
-            if (parts.Length == 2 && int.TryParse(parts[1], out int n) && n >= nextNum)
-                nextNum = n + 1;
-        }
+        // Phase 175 audit P1-15-tx — bulk allocation in one round-trip.
+        // The counter is bumped by `count` atomically; we then iterate
+        // (lastValue - count + 1) … lastValue for per-row codes.
+        var seedFloor = await ResolveSeedFloorAsync(projectId, HttpContext.RequestAborted);
+        var lastNum = await _seq.AllocateAsync(
+            tenantId, projectId, TransmittalCounterKey,
+            seedFloor: seedFloor, count: reqs.Count,
+            updatedBy: User.FindFirst("display_name")?.Value,
+            ct: HttpContext.RequestAborted);
+        int nextNum = lastNum - reqs.Count + 1;
 
         var createdBy = User.FindFirst("display_name")?.Value ?? "Unknown";
         var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;

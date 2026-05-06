@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
 
 namespace Planscape.Infrastructure.SignalR;
 
@@ -22,19 +23,54 @@ public sealed class ProjectMembershipNotifier : IProjectMembershipNotifier
 {
     private readonly IHubContext<NotificationHub> _hub;
     private readonly HubConnectionRegistry _registry;
+    private readonly IConnectionMultiplexer? _redis;
     private readonly ILogger<ProjectMembershipNotifier> _logger;
+
+    // Phase 175 audit P1-13 — keep this in sync with ProjectAccessCache
+    // in the API project. Duplicated rather than shared because
+    // Infrastructure must not reference API.
+    private const string ProjectAccessCachePrefix = "Planscape:pv:";
 
     public ProjectMembershipNotifier(IHubContext<NotificationHub> hub,
                                      HubConnectionRegistry registry,
-                                     ILogger<ProjectMembershipNotifier> logger)
+                                     ILogger<ProjectMembershipNotifier> logger,
+                                     IConnectionMultiplexer? redis = null)
     {
         _hub = hub;
         _registry = registry;
+        _redis = redis;
         _logger = logger;
     }
 
     public async Task RevokeProjectAccessAsync(Guid userId, Guid projectId, CancellationToken ct = default)
     {
+        // Phase 175 audit P1-13 — invalidate the cached visibility
+        // decision so the 30s window doesn't leave a removed member
+        // with phantom access. Uses a Redis SCAN+DEL for the (any-tenant,
+        // user, project) tuple — the IDistributedCache abstraction
+        // doesn't expose pattern delete, so we go to Redis directly.
+        // Best-effort: a Redis blip means we wait out the 30s TTL.
+        if (_redis != null)
+        {
+            try
+            {
+                foreach (var endpoint in _redis.GetEndPoints())
+                {
+                    var server = _redis.GetServer(endpoint);
+                    if (!server.IsConnected) continue;
+                    var pattern = $"{ProjectAccessCachePrefix}*:{userId:N}:{projectId:N}";
+                    await foreach (var key in server.KeysAsync(pattern: pattern).WithCancellation(ct))
+                    {
+                        await _redis.GetDatabase().KeyDeleteAsync(key);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "ProjectAccess cache invalidation failed for user={User} project={Project}", userId, projectId);
+            }
+        }
+
         var groupName = $"project-{projectId}";
         var connections = _registry.GetConnections(userId);
         foreach (var conn in connections)

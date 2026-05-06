@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.SignalR;
+using Planscape.API.Authorization;
 
 namespace Planscape.API.Controllers;
 
@@ -14,6 +15,7 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/projects/{projectId:guid}/presence")]
 [Authorize]
+[ProjectAccess]
 public class PresenceController : ControllerBase
 {
     private readonly PresenceTracker _presence;

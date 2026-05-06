@@ -144,6 +144,7 @@
   async function render() {
     const main = document.getElementById("main");
     if (!state.projectId) { main.innerHTML = `<div class="empty">No projects available.</div>`; return; }
+    syncSidebarScope();
     main.innerHTML = `<div class="empty">Loading…</div>`;
     try {
       switch (state.view) {
@@ -485,6 +486,24 @@
     render();
   }
 
+  // Show the project-scoped sidebar section only when the user is inside
+  // a project (anything other than the all-projects Overview and the
+  // tenant-admin views). The label updates to the active project name so
+  // it's clear whose Issues / Documents / etc. you're navigating.
+  const PROJECT_SCOPED_VIEWS = new Set([
+    "project-dashboard", "issues", "documents", "transmittals",
+    "meetings", "workflows", "warnings", "models", "schedule", "cost",
+  ]);
+  function syncSidebarScope() {
+    const inProject = PROJECT_SCOPED_VIEWS.has(state.view);
+    document.body.classList.toggle("in-project", inProject);
+    const label = document.getElementById("navProjectLabel");
+    if (label) {
+      const p = (state.projects || []).find(p => p.id === state.projectId);
+      label.textContent = p ? (p.code || p.name || "Project") : "Project";
+    }
+  }
+
   // ── Project dashboard ────────────────────────────────────────────────
   // Single-project landing page. Reached by clicking a project card or
   // the Dashboard footer button. The all-projects "Overview" stays clean
@@ -534,9 +553,14 @@
           <div class="pd-meta">
             <div>Last sync: <strong>${timeAgo(summary.lastSyncAt)}</strong></div>
             <div>Members: <strong>${summary.memberCount ?? 0}</strong></div>
+            <button class="pd-more-btn" id="pdMoreBtn" title="Project actions">⋯</button>
+            <div class="pd-more-menu" id="pdMoreMenu" hidden>
+              <button data-pd-action="archive">🗄 Archive project</button>
+            </div>
           </div>
         </div>
       </div>
+      <div id="modal-mount"></div>
 
       <div class="kpi-grid">
         <div class="kpi ${colour}">
@@ -614,6 +638,85 @@
         navigateToProject(id, b.dataset.jump);
       };
     });
+
+    // ⋯ menu — opens a small popover with destructive actions
+    // gated behind a confirm modal that requires the project code to be
+    // retyped. Hidden behind the menu so a stray click can't archive.
+    const moreBtn = document.getElementById("pdMoreBtn");
+    const moreMenu = document.getElementById("pdMoreMenu");
+    if (moreBtn && moreMenu) {
+      moreBtn.onclick = (e) => {
+        e.stopPropagation();
+        moreMenu.hidden = !moreMenu.hidden;
+      };
+      document.addEventListener("click", () => { moreMenu.hidden = true; }, { once: true });
+      moreMenu.querySelectorAll("[data-pd-action]").forEach(b => {
+        b.onclick = (e) => {
+          e.stopPropagation();
+          moreMenu.hidden = true;
+          if (b.dataset.pdAction === "archive") openArchiveModal(d);
+        };
+      });
+    }
+  }
+
+  function openArchiveModal(project) {
+    const mount = document.getElementById("modal-mount");
+    if (!mount) return;
+    const code = project.code || "";
+    mount.innerHTML = `
+      <div class="modal-overlay" id="archiveOverlay">
+        <div class="modal-box">
+          <h2>Archive project</h2>
+          <p style="color:var(--muted);font-size:13px;margin:0 0 12px">
+            This will move <strong>${esc(project.name || "this project")}</strong>
+            to the Completed list. Members keep access; nothing is deleted,
+            but the project stops counting toward active-project totals.
+          </p>
+          <p style="color:var(--muted);font-size:13px;margin:0 0 8px">
+            To confirm, type the project code <code style="background:var(--slate-100);padding:1px 6px;border-radius:4px">${esc(code)}</code> below.
+          </p>
+          <div class="field">
+            <input id="archiveConfirm" type="text" placeholder="${esc(code)}" autocomplete="off" />
+          </div>
+          <div class="actions">
+            <button type="button" class="btn-cancel" id="archiveCancel">Cancel</button>
+            <button type="button" class="btn-primary" id="archiveGo" disabled style="background:var(--danger)">Archive project</button>
+          </div>
+        </div>
+      </div>
+    `;
+    const overlay = document.getElementById("archiveOverlay");
+    const close = () => { mount.innerHTML = ""; };
+    document.getElementById("archiveCancel").onclick = close;
+    overlay.onclick = (e) => { if (e.target === overlay) close(); };
+
+    const input = document.getElementById("archiveConfirm");
+    const go    = document.getElementById("archiveGo");
+    input.addEventListener("input", () => {
+      go.disabled = input.value.trim().toUpperCase() !== code.toUpperCase();
+    });
+    input.focus();
+
+    go.onclick = async () => {
+      go.disabled = true;
+      try {
+        await api(`/api/projects/${project.id}?confirmCode=${encodeURIComponent(code)}`, {
+          method: "DELETE",
+        });
+        close();
+        showToast("Project archived");
+        state.projects = await api("/api/projects");
+        state.view = "overview";
+        document.querySelectorAll(".nav-link").forEach(l => {
+          l.classList.toggle("active", l.dataset.view === "overview");
+        });
+        render();
+      } catch (e) {
+        go.disabled = false;
+        showToast("Could not archive — check your permissions and try again.");
+      }
+    };
   }
 
   function recentIssuesHtml(rows) {
