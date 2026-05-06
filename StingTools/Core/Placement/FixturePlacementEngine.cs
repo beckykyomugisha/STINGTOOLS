@@ -402,21 +402,30 @@ namespace StingTools.Core.Placement
                             ProcessRoomRule(doc, room, rule, scorer,
                                 perCategorySymbol, result, dryRun, roomState);
 
-                            // PC-13 — CoPlaceWith: fire each co-rule at the same XYZ as the primary's last point.
+                            // PC-13 / Phase 139.27 (M-06) — CoPlaceWith fires at
+                            // EVERY placement point of the primary rule, not just
+                            // the last. Pre-139.27 only the last point of a 5-fixture
+                            // primary triggered the co-rule; the other 4 silently
+                            // missed their dependent device (smoke detector under
+                            // luminaire, double-pole isolator next to fan, etc.).
                             if (rule.CoPlaceWith != null && rule.CoPlaceWith.Count > 0
-                                && roomState.LastPointByRule.TryGetValue(rule.MergeKey, out var lastPt))
+                                && roomState.PlacedByRule.TryGetValue(rule.MergeKey, out var primaryPoints)
+                                && primaryPoints != null && primaryPoints.Count > 0)
                             {
                                 foreach (var coId in rule.CoPlaceWith)
                                 {
                                     var coRule = ordered.FirstOrDefault(r => string.Equals(r.MergeKey, coId, StringComparison.OrdinalIgnoreCase));
                                     if (coRule == null) continue;
-                                    try
+                                    foreach (var primaryPt in primaryPoints)
                                     {
-                                        ProcessRoomRuleAtPoint(doc, room, coRule, scorer, perCategorySymbol, result, dryRun, roomState, lastPt);
-                                    }
-                                    catch (Exception cex)
-                                    {
-                                        result.Warnings.Add($"Co-place {coRule.MergeKey} in room {room.Id}: {cex.Message}");
+                                        try
+                                        {
+                                            ProcessRoomRuleAtPoint(doc, room, coRule, scorer, perCategorySymbol, result, dryRun, roomState, primaryPt);
+                                        }
+                                        catch (Exception cex)
+                                        {
+                                            result.Warnings.Add($"Co-place {coRule.MergeKey} in room {room.Id}: {cex.Message}");
+                                        }
                                     }
                                 }
                             }
@@ -466,6 +475,44 @@ namespace StingTools.Core.Placement
                         StampNogginRequirementsFromGrid(doc, scorer, result);
                     }
                     catch (Exception nx) { result.Warnings.Add($"Noggin stamp: {nx.Message}"); }
+
+                    // Phase 139.27 (M-02 deep) — structural-awareness audit.
+                    // Walk each placed instance and warn when the location
+                    // sits inside a beam-junction or column clearance zone
+                    // — drilling there would breach structure. Currently
+                    // advisory-only (no auto-relocation); the warning lands
+                    // in PlacementResult.Warnings so the BIM coordinator
+                    // can resolve before issuing.
+                    try
+                    {
+                        AuditStructuralClearance(doc, ordered, result);
+                    }
+                    catch (Exception sx) { result.Warnings.Add($"Structural audit: {sx.Message}"); }
+
+                    // Phase 139.27 (X-03) — best-effort MEP connector auto-join.
+                    // Walks placed FamilyInstances with MEP connectors and
+                    // tries to connect each open connector to the closest
+                    // unconnected connector on a neighbouring placed
+                    // instance whose system classification matches. Skipped
+                    // when no rule sets RouteSegmentCategory (i.e. not a
+                    // routing rule). All exceptions captured per instance.
+                    try
+                    {
+                        AutoJoinMepConnectors(doc, ordered, result);
+                    }
+                    catch (Exception mx) { result.Warnings.Add($"MEP connector join: {mx.Message}"); }
+
+                    // Phase 139.27 (X-04) — cable / conduit bundle advisory.
+                    // For rules with CableBundleAdvisoryCount > 0, count how
+                    // many same-category instances landed within bundle
+                    // clearance (300 mm default) and warn when the count
+                    // exceeds the BS 7671 Table 4 derating thresholds
+                    // (no auto-resize; advisory only).
+                    try
+                    {
+                        AuditCableBundleDerating(doc, ordered, result);
+                    }
+                    catch (Exception cx) { result.Warnings.Add($"Cable bundle audit: {cx.Message}"); }
                 }
 
                 if (!dryRun)
@@ -1602,6 +1649,234 @@ namespace StingTools.Core.Placement
             {
                 result.Warnings.Add($"Stamped STING_NOGGIN_REQUIRED on {stamped} placed fixture(s) — run Placement_NogginExport to dump the structural fixing schedule.");
                 StingLog.Info($"FixturePlacementEngine: stamped STING_NOGGIN_REQUIRED on {stamped} fixture(s).");
+            }
+        }
+
+        /// <summary>
+        /// Phase 139.27 (M-02 deep) — post-placement structural-clearance
+        /// audit. Each placed instance is checked against
+        /// <see cref="StructuralAwareness.IsNearJunction"/> with a 300mm
+        /// clearance; matches surface as warnings so the coordinator can
+        /// review before drilling. Cheap because StructuralAwareness
+        /// pre-builds the junction set once per document.
+        /// </summary>
+        private static void AuditStructuralClearance(
+            Document doc, IList<PlacementRule> rules, PlacementResult result)
+        {
+            if (doc == null || result == null || result.PlacedIds.Count == 0) return;
+            // Only audit rules whose anchor implies a structural penetration
+            // (ceiling-mounted, soffit-mounted, wall-deep). Surface-mounted
+            // wall fixtures rarely conflict with structure.
+            var auditRuleKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (rules != null)
+            {
+                foreach (var r in rules)
+                {
+                    if (r == null) continue;
+                    string anchor = (r.AnchorType ?? "").ToUpperInvariant();
+                    bool ceilingAnchor = anchor == "CEILING_CENTRE" || anchor == "CEILING_TILE_CENTRE"
+                                       || anchor == "LIGHTING_GRID" || anchor == "LUX_GRID";
+                    bool soffitAnchor = anchor == "SOFFIT_CENTRE" || anchor == "SOFFIT_BESA"
+                                       || anchor == "STRUCTURAL_SOFFIT";
+                    bool deepWallAnchor = (anchor == "WALL_FACE_OFFSET" && r.OffsetXMm > 50.0);
+                    if (ceilingAnchor || soffitAnchor || deepWallAnchor)
+                        auditRuleKeys.Add(r.MergeKey);
+                }
+            }
+            if (auditRuleKeys.Count == 0) return;
+
+            StructuralAwareness sa;
+            try { sa = new StructuralAwareness(doc); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"AuditStructuralClearance init: {ex.Message}");
+                return;
+            }
+
+            const double clearanceFt = 300.0 / 304.8;
+            int conflicts = 0;
+            foreach (var id in result.PlacedIds)
+            {
+                FamilyInstance fi = null;
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch { }
+                if (fi == null) continue;
+                XYZ p = (fi.Location as LocationPoint)?.Point;
+                if (p == null) continue;
+                bool nearStructure = false;
+                try { nearStructure = sa.IsNearJunction(p, clearanceFt); } catch { }
+                if (!nearStructure) continue;
+                conflicts++;
+                if (conflicts <= 10)
+                    result.Warnings.Add(
+                        $"Structural clearance: placed instance {id.Value} at ({p.X:F2},{p.Y:F2}) " +
+                        $"sits within 300mm of a beam-junction or column. Drilling may breach structure — " +
+                        $"verify with the structural BIM coordinator before issuing.");
+            }
+            if (conflicts > 10)
+                result.Warnings.Add($"Structural clearance: {conflicts - 10} additional conflicts truncated — see StingLog.");
+            if (conflicts > 0)
+                StingLog.Warn($"FixturePlacementEngine.AuditStructuralClearance: {conflicts} placed instance(s) within 300mm of structure.");
+        }
+
+        /// <summary>
+        /// Phase 139.27 (X-03) — best-effort MEP connector auto-join.
+        /// For each placed FamilyInstance with MEP connectors:
+        ///   1. enumerate unconnected connectors;
+        ///   2. find the closest unconnected connector on another placed
+        ///      instance of the same SystemClassification within 600mm;
+        ///   3. attempt a direct connection (no fitting insertion).
+        /// Failures are tallied and surfaced as a single advisory rather
+        /// than per-instance noise. Pre-139.27 placed instances had zero
+        /// connector joins and shipped to COBie / schedules as orphaned.
+        /// </summary>
+        private static void AutoJoinMepConnectors(
+            Document doc, IList<PlacementRule> rules, PlacementResult result)
+        {
+            if (doc == null || result == null || result.PlacedIds.Count == 0) return;
+            // Only run when at least one rule declares a routing target.
+            bool anyRouting = false;
+            if (rules != null)
+            {
+                foreach (var r in rules)
+                {
+                    if (r == null) continue;
+                    if (!string.IsNullOrEmpty(r.RoutingMode)
+                        && !string.Equals(r.RoutingMode, "NONE", StringComparison.OrdinalIgnoreCase))
+                    { anyRouting = true; break; }
+                }
+            }
+            if (!anyRouting) return;
+
+            const double joinRadiusFt = 600.0 / 304.8;
+            double radSq = joinRadiusFt * joinRadiusFt;
+
+            // Index connectors per system classification.
+            var openConns = new Dictionary<string, List<(Connector c, ElementId id)>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var id in result.PlacedIds)
+            {
+                FamilyInstance fi = null;
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch { }
+                if (fi == null) continue;
+                var mgr = fi.MEPModel?.ConnectorManager;
+                if (mgr == null) continue;
+                foreach (Connector c in mgr.Connectors)
+                {
+                    if (c == null || c.IsConnected) continue;
+                    string sysKey = "?";
+                    try { sysKey = c.Domain.ToString() + ":" + (c.MEPSystem?.Name ?? c.PartType.ToString()); } catch { }
+                    if (!openConns.TryGetValue(sysKey, out var list))
+                    {
+                        list = new List<(Connector, ElementId)>();
+                        openConns[sysKey] = list;
+                    }
+                    list.Add((c, id));
+                }
+            }
+
+            int joined = 0, failed = 0;
+            foreach (var kv in openConns)
+            {
+                var list = kv.Value;
+                for (int i = 0; i < list.Count; i++)
+                {
+                    var (a, aid) = list[i];
+                    if (a.IsConnected) continue;
+                    XYZ pa = a.Origin;
+                    if (pa == null) continue;
+                    int bestJ = -1; double bestSq = radSq;
+                    for (int j = i + 1; j < list.Count; j++)
+                    {
+                        var (b, bid) = list[j];
+                        if (b == null || b.IsConnected || bid == aid) continue;
+                        XYZ pb = b.Origin;
+                        if (pb == null) continue;
+                        double dx = pa.X - pb.X, dy = pa.Y - pb.Y, dz = pa.Z - pb.Z;
+                        double sq = dx * dx + dy * dy + dz * dz;
+                        if (sq < bestSq) { bestSq = sq; bestJ = j; }
+                    }
+                    if (bestJ < 0) continue;
+                    var (target, tid) = list[bestJ];
+                    try
+                    {
+                        if (a.IsConnectedTo(target)) continue;
+                        a.ConnectTo(target);
+                        if (a.IsConnected) joined++; else failed++;
+                    }
+                    catch (Exception ex)
+                    {
+                        failed++;
+                        StingLog.Warn($"AutoJoinMepConnectors {aid.Value}->{tid.Value}: {ex.Message}");
+                    }
+                }
+            }
+
+            if (joined > 0)
+                result.Warnings.Add($"MEP auto-join: connected {joined} pair(s) of placed-instance connectors. Verify in Revit before issuing — direct ConnectTo bypasses fitting insertion.");
+            if (failed > 0)
+                result.Warnings.Add($"MEP auto-join: {failed} connector pair(s) within 600mm could not be joined (mismatched flow direction or fitting required). See StingLog.");
+        }
+
+        /// <summary>
+        /// Phase 139.27 (X-04) — BS 7671 Table 4 cable / conduit bundle
+        /// advisory. For rules whose <c>CableBundleAdvisoryCount</c> > 0,
+        /// count placed instances of the same category within 300mm and
+        /// warn when the count crosses the standard derating thresholds
+        /// (4 → 0.80×, 6 → 0.69×, 9+ → 0.50×). Advisory only — does not
+        /// auto-resize cables, this is a check the electrical engineer
+        /// owns. Designed to flag before issue.
+        /// </summary>
+        private static void AuditCableBundleDerating(
+            Document doc, IList<PlacementRule> rules, PlacementResult result)
+        {
+            if (doc == null || rules == null || result == null) return;
+            const double bundleRadiusFt = 300.0 / 304.8;
+            double radSq = bundleRadiusFt * bundleRadiusFt;
+
+            // Group placed ids by rule MergeKey (via CountsByRule diag mapping
+            // is not enough — we need positions). Use document categories
+            // as a proxy.
+            var byCategory = new Dictionary<string, List<(ElementId id, XYZ p)>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var id in result.PlacedIds)
+            {
+                FamilyInstance fi = null;
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch { }
+                if (fi == null) continue;
+                XYZ p = (fi.Location as LocationPoint)?.Point;
+                if (p == null) continue;
+                string cat = "(uncategorised)";
+                try { cat = fi.Category?.Name ?? "(uncategorised)"; } catch { }
+                if (!byCategory.TryGetValue(cat, out var list))
+                {
+                    list = new List<(ElementId, XYZ)>();
+                    byCategory[cat] = list;
+                }
+                list.Add((id, p));
+            }
+
+            // Apply advisory per rule; rules without the field don't trigger.
+            foreach (var rule in rules)
+            {
+                if (rule == null || rule.CableBundleAdvisoryCount <= 0) continue;
+                if (!byCategory.TryGetValue(rule.CategoryFilter ?? "", out var list)) continue;
+                int worstBundle = 0;
+                foreach (var (id, p) in list)
+                {
+                    int near = 0;
+                    foreach (var (id2, p2) in list)
+                    {
+                        if (id == id2) continue;
+                        double dx = p.X - p2.X, dy = p.Y - p2.Y, dz = p.Z - p2.Z;
+                        if (dx * dx + dy * dy + dz * dz <= radSq) near++;
+                    }
+                    if (near > worstBundle) worstBundle = near;
+                }
+                int total = worstBundle + 1; // include self
+                if (total < rule.CableBundleAdvisoryCount) continue;
+
+                double derate = total >= 9 ? 0.50 : total >= 6 ? 0.69 : total >= 4 ? 0.80 : 1.00;
+                result.Warnings.Add(
+                    $"Cable derating: rule '{rule.MergeKey}' has up to {total} same-category instances within 300mm — " +
+                    $"BS 7671 Table 4 derating ≈ {derate:F2}×. Verify cable size with the electrical engineer before issue.");
             }
         }
     }

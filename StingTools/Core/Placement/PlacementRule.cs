@@ -330,6 +330,25 @@ namespace StingTools.Core.Placement
 
         public string HeightStandardRef { get; set; } = "";
 
+        // ── Phase 139.27 (X-02) — Per-rule lighting uniformity gate ─
+
+        /// <summary>
+        /// Minimum acceptable BS EN 12464-1 / CIBSE LG7 uniformity ratio
+        /// (Uo = Emin / Eavg). 0 = use calculator default (0.40 — general).
+        /// 0.60 typical for offices; 0.70 for healthcare / classrooms.
+        /// </summary>
+        public double MinUniformityRatio { get; set; } = 0.0;
+
+        // ── Phase 139.27 (X-04) — Cable-derating advisory ───────────
+
+        /// <summary>
+        /// When > 0, the placement engine emits an advisory warning if
+        /// more than this many same-system cables / conduits land within
+        /// the rule's bundle clearance — BS 7671 Table 4 derating
+        /// (e.g. 0.80× at 4 cables, 0.50× at ≥ 9). 0 = no advisory.
+        /// </summary>
+        public int CableBundleAdvisoryCount { get; set; } = 0;
+
         // ── Methods ─────────────────────────────────────────────────
 
         /// <summary>Deep-copy the rule.</summary>
@@ -432,6 +451,8 @@ namespace StingTools.Core.Placement
                 WetZoneExclude       = this.WetZoneExclude,
                 WetZoneClass         = this.WetZoneClass,
                 HeightStandardRef    = this.HeightStandardRef,
+                MinUniformityRatio        = this.MinUniformityRatio,
+                CableBundleAdvisoryCount  = this.CableBundleAdvisoryCount,
             };
         }
 
