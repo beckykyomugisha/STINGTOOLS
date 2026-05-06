@@ -2577,14 +2577,18 @@ namespace StingTools.UI
                     case "COBieDataSummary": RunCommand<Temp.COBieDataSummaryCommand>(app); break;
 
                     // ── MEP Schedules (MEPScheduleCommands.cs, StingTools.Temp) ──
-                    case "PanelSchedule": RunCommand<Temp.PanelScheduleCommand>(app); break;
+                    // Legacy "PanelSchedule" tag now redirects to the rule-based picker
+                    // in Commands.Panels — strictly better than templates.First() heuristic.
+                    case "PanelSchedule": RunCommand<Commands.Panels.BatchPanelSchedulesCommand>(app); break;
 
                     // ── Electrical Panel Schedules (Commands/Panels) ──
                     case "Panel_BatchSchedules":     RunCommand<Commands.Panels.BatchPanelSchedulesCommand>(app); break;
+                    case "Panel_Audit":              RunCommand<Commands.Panels.PanelScheduleAuditCommand>(app); break;
                     case "Panel_ExportToExcel":      RunCommand<Commands.Panels.ExportPanelSchedulesToExcelCommand>(app); break;
                     case "Panel_ImportFromExcel":    RunCommand<Commands.Panels.ImportPanelSchedulesFromExcelCommand>(app); break;
                     case "Panel_FillSpares":         RunCommand<Commands.Panels.FillEmptySlotsWithSparesCommand>(app); break;
                     case "Panel_FillSpaces":         RunCommand<Commands.Panels.FillEmptySlotsWithSpacesCommand>(app); break;
+                    case "Panel_FillSparesAll":      RunCommand<Commands.Panels.FillSparesAllSchedulesCommand>(app); break;
                     case "Panel_SpacesToSpares":     RunCommand<Commands.Panels.ConvertSpacesToSparesCommand>(app); break;
                     case "Panel_ClearSparesSpaces":  RunCommand<Commands.Panels.ClearSparesAndSpacesCommand>(app); break;
                     case "LightingFixtureSchedule": RunCommand<Temp.LightingFixtureScheduleCommand>(app); break;

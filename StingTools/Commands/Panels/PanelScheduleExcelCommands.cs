@@ -25,6 +25,25 @@ namespace StingTools.Commands.Panels
     //  import. This matches the DiRoots PanelLink behaviour.
     // ════════════════════════════════════════════════════════════════════════════
 
+    internal static class PanelExportPathHelper
+    {
+        public static string ResolveDefaultDir(Document doc)
+        {
+            try
+            {
+                string projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
+                if (!string.IsNullOrEmpty(projDir))
+                {
+                    string dir = Path.Combine(projDir, "_BIM_COORD", "electrical");
+                    Directory.CreateDirectory(dir);
+                    return dir;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"PanelExportPathHelper electrical dir: {ex.Message}"); }
+            return OutputLocationHelper.GetOutputDirectory(doc);
+        }
+    }
+
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
     public class ExportPanelSchedulesToExcelCommand : IExternalCommand
@@ -50,13 +69,20 @@ namespace StingTools.Commands.Panels
             }
 
             string defaultName = $"STING_PanelSchedules_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
-            string outPath = OutputLocationHelper.PromptForSaveLocation(
-                doc, "Export Panel Schedules to Excel", defaultName,
-                "Excel Workbook (*.xlsx)|*.xlsx");
-            if (string.IsNullOrEmpty(outPath)) return Result.Cancelled;
+            string defaultDir = PanelExportPathHelper.ResolveDefaultDir(doc);
+            var dlg = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = "Export Panel Schedules to Excel",
+                FileName = defaultName,
+                Filter = "Excel Workbook (*.xlsx)|*.xlsx",
+                InitialDirectory = defaultDir
+            };
+            if (dlg.ShowDialog() != true) return Result.Cancelled;
+            string outPath = dlg.FileName;
 
-            int sheetsWritten = 0, totalRows = 0, errors = 0;
+            int sheetsWritten = 0, totalBodyRows = 0, errors = 0;
             var failures = new List<string>();
+            var usedSheetNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "INDEX" };
 
             try
             {
@@ -75,7 +101,9 @@ namespace StingTools.Commands.Panels
 
                 foreach (var psv in schedules)
                 {
-                    string sheetName = SafeWorksheetName(psv.Name, sheetsWritten + 1);
+                    string sheetName = SafeWorksheetName(psv.Name, usedSheetNames, sheetsWritten + 1);
+                    usedSheetNames.Add(sheetName);
+
                     string panelName = "(unknown)";
                     string templateName = "(unknown)";
                     try
@@ -99,7 +127,7 @@ namespace StingTools.Commands.Panels
                     }
                     catch (Exception ex) { StingLog.Warn($"GetTemplate for {psv.Name}: {ex.Message}"); }
 
-                    int rows = 0, cols = 0;
+                    int bodyRows = 0, bodyCols = 0;
                     try
                     {
                         var ws = wb.Worksheets.Add(sheetName);
@@ -113,20 +141,21 @@ namespace StingTools.Commands.Panels
                         ws.Cell(4, 2).Value = psv.Id.Value.ToString();
                         ws.Range(1, 1, 4, 1).Style.Font.Bold = true;
 
-                        WriteSection(ws, psv, SectionType.Header, "HEADER", 6, ref rows, ref cols);
-                        int afterHeader = 6 + Math.Max(rows, 0) + 3;
-                        WriteSection(ws, psv, SectionType.Body, "BODY (editable circuit rows)", afterHeader, ref rows, ref cols);
-                        int afterBody = afterHeader + Math.Max(rows, 0) + 3;
-                        WriteSection(ws, psv, SectionType.Summary, "SUMMARY", afterBody, ref rows, ref cols);
+                        int hdrRows = WriteSection(ws, psv, SectionType.Header, "HEADER", 6);
+                        int afterHeader = 6 + Math.Max(hdrRows, 0) + 3;
+                        bodyRows = WriteSection(ws, psv, SectionType.Body,
+                            "BODY (editable circuit rows)", afterHeader, out bodyCols);
+                        int afterBody = afterHeader + Math.Max(bodyRows, 0) + 3;
+                        WriteSection(ws, psv, SectionType.Summary, "SUMMARY", afterBody);
 
                         ws.Columns().AdjustToContents(1, 60);
                         sheetsWritten++;
-                        totalRows += rows;
+                        totalBodyRows += bodyRows;
 
                         index.Cell(indexRow, 1).Value = sheetName;
                         index.Cell(indexRow, 2).Value = panelName;
                         index.Cell(indexRow, 3).Value = templateName;
-                        index.Cell(indexRow, 4).Value = $"{rows}×{cols}";
+                        index.Cell(indexRow, 4).Value = $"{bodyRows}×{bodyCols}";
                         indexRow++;
                     }
                     catch (Exception ex)
@@ -148,7 +177,7 @@ namespace StingTools.Commands.Panels
             }
 
             var panel = StingResultPanel.Create("Export Panel Schedules → Excel");
-            panel.SetSubtitle($"{sheetsWritten} schedules · {totalRows} rows · {errors} error(s)");
+            panel.SetSubtitle($"{sheetsWritten} schedules · {totalBodyRows} body rows · {errors} error(s)");
             panel.AddSection("OUTPUT").Text(outPath);
             panel.AddSection("NEXT STEPS")
                  .Text("Edit the BODY section (circuit description, breaker rating, notes).")
@@ -161,23 +190,23 @@ namespace StingTools.Commands.Panels
             }
             panel.Show();
 
-            StingLog.Info($"PanelSchedule Excel export: {sheetsWritten} sheets, {totalRows} rows, {errors} errors → {outPath}");
+            StingLog.Info($"PanelSchedule Excel export: {sheetsWritten} sheets, {totalBodyRows} body rows, {errors} errors → {outPath}");
             return Result.Succeeded;
         }
 
-        private static void WriteSection(IXLWorksheet ws, PanelScheduleView psv, SectionType section,
-            string label, int startRow, ref int outRows, ref int outCols)
+        private static int WriteSection(IXLWorksheet ws, PanelScheduleView psv, SectionType section,
+            string label, int startRow, out int outCols)
         {
-            outRows = 0; outCols = 0;
+            outCols = 0;
             TableSectionData data;
             try
             {
                 var td = psv.GetTableData();
-                if (td == null) return;
+                if (td == null) return 0;
                 data = td.GetSectionData(section);
             }
-            catch (Exception ex) { StingLog.Warn($"GetSectionData {section}: {ex.Message}"); return; }
-            if (data == null) return;
+            catch (Exception ex) { StingLog.Warn($"GetSectionData {section}: {ex.Message}"); return 0; }
+            if (data == null) return 0;
 
             int nRows = data.NumberOfRows;
             int nCols = data.NumberOfColumns;
@@ -195,16 +224,34 @@ namespace StingTools.Commands.Panels
                     ws.Cell(startRow + 1 + r, c + 1).Value = txt;
                 }
             }
-            outRows = nRows; outCols = nCols;
+            outCols = nCols;
+            return nRows;
         }
 
-        private static string SafeWorksheetName(string raw, int fallbackOrdinal)
+        private static int WriteSection(IXLWorksheet ws, PanelScheduleView psv, SectionType section,
+            string label, int startRow)
         {
-            if (string.IsNullOrEmpty(raw)) return $"Panel_{fallbackOrdinal:D3}";
+            return WriteSection(ws, psv, section, label, startRow, out _);
+        }
+
+        private static string SafeWorksheetName(string raw, HashSet<string> used, int fallbackOrdinal)
+        {
+            if (string.IsNullOrEmpty(raw)) raw = $"Panel_{fallbackOrdinal:D3}";
             var bad = new[] { '\\', '/', '?', '*', ':', '[', ']' };
             foreach (char c in bad) raw = raw.Replace(c, '_');
             if (raw.Length > 31) raw = raw.Substring(0, 31);
-            return raw;
+
+            string name = raw;
+            int suffix = 2;
+            while (used.Contains(name))
+            {
+                string tail = $"_{suffix}";
+                int trim = Math.Max(0, raw.Length + tail.Length - 31);
+                name = raw.Substring(0, raw.Length - trim) + tail;
+                suffix++;
+                if (suffix > 999) break;
+            }
+            return name;
         }
     }
 
@@ -222,7 +269,7 @@ namespace StingTools.Commands.Panels
             {
                 Title = "Import Panel Schedules from Excel",
                 Filter = "Excel Workbook (*.xlsx)|*.xlsx",
-                InitialDirectory = OutputLocationHelper.GetOutputDirectory(doc)
+                InitialDirectory = PanelExportPathHelper.ResolveDefaultDir(doc)
             };
             if (dlg.ShowDialog() != true) return Result.Cancelled;
             string inPath = dlg.FileName;
@@ -235,8 +282,11 @@ namespace StingTools.Commands.Panels
             foreach (var p in byId.Values)
                 if (!byName.ContainsKey(p.Name)) byName[p.Name] = p;
 
-            int sheetsProcessed = 0, cellsWritten = 0, cellsRejected = 0, cellsSkipped = 0, schedulesNotFound = 0;
+            int sheetsProcessed = 0, cellsWritten = 0, cellsRejected = 0,
+                cellsSkipped = 0, cellsBlankPreserved = 0, schedulesNotFound = 0,
+                colMismatchSheets = 0;
             var failures = new List<string>();
+            var loadDeltas = new List<string>();
 
             using (var tx = new Transaction(doc, "STING Import Panel Schedules"))
             {
@@ -293,15 +343,29 @@ namespace StingTools.Commands.Panels
 
                         int nRows = body.NumberOfRows;
                         int nCols = body.NumberOfColumns;
-                        int written = 0, rejected = 0, skipped = 0;
+
+                        int xlsxLastUsed = 0;
+                        try { xlsxLastUsed = ws.LastColumnUsed()?.ColumnNumber() ?? 0; }
+                        catch (Exception ex) { StingLog.Warn($"LastColumnUsed: {ex.Message}"); }
+                        if (xlsxLastUsed > 0 && xlsxLastUsed < nCols)
+                        {
+                            colMismatchSheets++;
+                            failures.Add($"{psv.Name}: xlsx has {xlsxLastUsed} cols, body needs {nCols} — out-of-range cells skipped to prevent erasure");
+                        }
+
+                        double loadBefore = ReadConnectedLoadKW(psv);
+                        int written = 0, rejected = 0, skipped = 0, blankPreserved = 0;
 
                         for (int r = 0; r < nRows; r++)
                         {
                             int xlRow = bodyHeaderRow + 1 + r;
                             for (int c = 0; c < nCols; c++)
                             {
+                                int xlCol = c + 1;
+                                bool xlsxCellExists = xlsxLastUsed == 0 || xlCol <= xlsxLastUsed;
+
                                 string newVal;
-                                try { newVal = ws.Cell(xlRow, c + 1).GetString() ?? ""; }
+                                try { newVal = ws.Cell(xlRow, xlCol).GetString() ?? ""; }
                                 catch (Exception ex) { StingLog.Warn($"{psv.Name}[{r},{c}] read xlsx: {ex.Message}"); continue; }
 
                                 string oldVal = "";
@@ -311,6 +375,20 @@ namespace StingTools.Commands.Panels
                                 if (string.Equals(newVal, oldVal, StringComparison.Ordinal))
                                 {
                                     skipped++;
+                                    continue;
+                                }
+
+                                // BUG-1 guard: never overwrite non-empty Revit data with empty xlsx cell.
+                                // The xlsx-truncated-columns and accidentally-deleted-cell cases both
+                                // show as "empty xlsx cell ↔ non-empty Revit cell" — preserve Revit.
+                                if (string.IsNullOrWhiteSpace(newVal) && !string.IsNullOrWhiteSpace(oldVal))
+                                {
+                                    blankPreserved++;
+                                    continue;
+                                }
+                                if (!xlsxCellExists)
+                                {
+                                    blankPreserved++;
                                     continue;
                                 }
 
@@ -327,14 +405,25 @@ namespace StingTools.Commands.Panels
                             }
                         }
 
+                        double loadAfter = ReadConnectedLoadKW(psv);
+                        if (Math.Abs(loadAfter - loadBefore) > 0.001)
+                        {
+                            loadDeltas.Add($"{psv.Name}: {loadBefore:F2} → {loadAfter:F2} kW (Δ {loadAfter - loadBefore:+0.00;-0.00} kW)");
+                        }
+
                         sheetsProcessed++;
                         cellsWritten += written;
                         cellsRejected += rejected;
                         cellsSkipped += skipped;
+                        cellsBlankPreserved += blankPreserved;
                     }
                 }
                 tx.Commit();
             }
+
+            try { ActionAuditLog.Record("PanelScheduleImport",
+                $"sheets={sheetsProcessed} written={cellsWritten} rejected={cellsRejected} blankGuard={cellsBlankPreserved}"); }
+            catch (Exception ex) { StingLog.Warn($"audit: {ex.Message}"); }
 
             var panel = StingResultPanel.Create("Import Panel Schedules ← Excel");
             panel.SetSubtitle($"{sheetsProcessed} schedules · {cellsWritten} cells written · {cellsRejected} rejected");
@@ -342,8 +431,16 @@ namespace StingTools.Commands.Panels
                  .Metric("Worksheets processed", sheetsProcessed.ToString())
                  .MetricHighlight("Cells written", cellsWritten.ToString())
                  .MetricWarn("Cells rejected (read-only)", cellsRejected.ToString())
+                 .MetricWarn("Empty-cell guard preserved Revit data", cellsBlankPreserved.ToString())
                  .Metric("Cells unchanged", cellsSkipped.ToString())
-                 .MetricError("Schedules not found", schedulesNotFound.ToString());
+                 .MetricError("Schedules not found", schedulesNotFound.ToString())
+                 .MetricWarn("xlsx column-count mismatch", colMismatchSheets.ToString());
+            if (loadDeltas.Count > 0)
+            {
+                panel.AddSection("LOAD CHANGES");
+                foreach (string ld in loadDeltas.Take(25)) panel.Text(ld);
+                if (loadDeltas.Count > 25) panel.Text($"… {loadDeltas.Count - 25} more.");
+            }
             if (failures.Count > 0)
             {
                 panel.AddSection("WARNINGS");
@@ -352,11 +449,28 @@ namespace StingTools.Commands.Panels
             }
             panel.AddSection("NOTES")
                  .Text("Rejected cells are typically Revit-managed: computed loads, totals, breaker ratings driven by circuit data, or cells outside the editable schema for the active template.")
+                 .Text("Empty-cell guard: an xlsx cell that is blank where the Revit cell had content is preserved (prevents accidental erasure from column-shifted edits or truncated workbooks). To intentionally clear a cell, edit it inside Revit's Panel Schedule UI directly.")
                  .Text("Only the BODY section is imported. HEADER and SUMMARY edits in Excel are ignored.");
             panel.Show();
 
-            StingLog.Info($"PanelSchedule Excel import: sheets={sheetsProcessed} written={cellsWritten} rejected={cellsRejected} skipped={cellsSkipped}");
+            StingLog.Info($"PanelSchedule Excel import: sheets={sheetsProcessed} written={cellsWritten} rejected={cellsRejected} blankGuard={cellsBlankPreserved} skipped={cellsSkipped}");
             return Result.Succeeded;
+        }
+
+        private static double ReadConnectedLoadKW(PanelScheduleView psv)
+        {
+            try
+            {
+                var pid = psv.GetPanel();
+                if (pid == null || pid == ElementId.InvalidElementId) return 0;
+                var panel = psv.Document.GetElement(pid);
+                if (panel == null) return 0;
+                var p = panel.LookupParameter("Total Connected") ?? panel.LookupParameter("Total Connected Load");
+                if (p != null && p.HasValue && p.StorageType == StorageType.Double)
+                    return UnitUtils.ConvertFromInternalUnits(p.AsDouble(), UnitTypeId.Watts) / 1000.0;
+            }
+            catch (Exception ex) { StingLog.Warn($"ReadConnectedLoadKW: {ex.Message}"); }
+            return 0;
         }
 
         private static int FindLabelRow(IXLWorksheet ws, string label)

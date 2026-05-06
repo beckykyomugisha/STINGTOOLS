@@ -109,6 +109,54 @@ When you finish a piece of work, log it in `docs/CHANGELOG.md` rather than exten
 2. The 8 title block `.rfa` families are NOT shipped — only their parameter specs. `ShopDrawingComposer.ResolveTitleBlock` falls back to the first available title block in the project.
 3. ISO 6412 detail families (180 entries) are referenced by name in `STING_ISO_SYMBOLS_INDEX.csv`; `IsoSymbolPlacer` lazy-loads from `Families/ISO6412/` and warns once per missing family.
 
+## Electrical Panel Schedules (Phase 176)
+
+**Status**: Landed on branch `claude/research-panel-schedules-J0qqo`. Built without `dotnet build` verification — the Revit API surface for `PanelScheduleTemplate.GetPanelConfiguration` is invoked via reflection so the call compiles regardless of Revit version. Verify in Revit before merge.
+
+### New folder
+
+`StingTools/Commands/Panels/` — `PanelScheduleTemplateRegistry.cs` (rule loader + project override merge + multi-candidate `ResolveCandidates` for AUTO-2 fallback), `BatchPanelSchedulesCommand.cs` (rule-based create + drawing-type stamp + ELC_PNL_* fill + circuit back-refs), `PanelScheduleAuditCommand.cs` (read-only drift report), `PanelScheduleExcelCommands.cs` (round-trip with empty-cell guard + load-delta diff), `PanelScheduleSlotCommands.cs` (5 slot-management commands using `GetCircuitByCell` for real-circuit detection).
+
+### New namespace
+
+`StingTools.Commands.Panels`.
+
+### Commands (9)
+
+| Tag | Class | Description |
+|---|---|---|
+| `Panel_BatchSchedules` | `BatchPanelSchedulesCommand` | Rule-based per-panel `PanelScheduleView.CreateInstanceView` with multi-template fallback, drawing-type stamp, ELC_PNL_* fill, circuit back-refs. The legacy `"PanelSchedule"` tag now redirects here. |
+| `Panel_Audit` | `PanelScheduleAuditCommand` | Read-only audit: panels without schedules, template drift, missing PNL params |
+| `Panel_ExportToExcel` | `ExportPanelSchedulesToExcelCommand` | Header + Body + Summary to `.xlsx` (one worksheet per panel + INDEX) |
+| `Panel_ImportFromExcel` | `ImportPanelSchedulesFromExcelCommand` | Round-trip Body cells via `TableSectionData.SetCellText` with empty-cell guard + load-delta diff |
+| `Panel_FillSpares` | `FillEmptySlotsWithSparesCommand` | `AddSpare` on empty slots of active schedule |
+| `Panel_FillSpaces` | `FillEmptySlotsWithSpacesCommand` | `AddSpace` variant |
+| `Panel_FillSparesAll` | `FillSparesAllSchedulesCommand` | Project-wide `AddSpare` with `TransactionGroup` so per-panel failures don't roll back others |
+| `Panel_SpacesToSpares` | `ConvertSpacesToSparesCommand` | `RemoveSpace` + `AddSpare` |
+| `Panel_ClearSparesSpaces` | `ClearSparesAndSpacesCommand` | Wipe spares and spaces |
+
+### Data files
+
+- `StingTools/Data/STING_PANEL_SCHEDULE_TEMPLATES.json` — 5 priority-ordered rules (switchboard / 3-phase DB / 1-phase consumer unit / data panel / catch-all) + skip patterns + `globalFallback`. Project override at `<project>/_BIM_COORD/panel_schedule_templates.json`.
+- `StingTools/Data/WORKFLOW_PanelScheduleProduction.json` — workflow preset chaining Audit → BatchSchedules → FillSparesAll → ExportToExcel → re-Audit.
+
+### Drawing Type
+
+`elec-panel-schedule-A3` added to `STING_DRAWING_TYPES.json`, routed by `(discipline=Electrical, docType=PANEL_SCHEDULE)`. `BatchPanelSchedules` stamps every created `PanelScheduleView` with this id so Browser Organizer + drift detection + SyncStyles work on panel schedules.
+
+### API limits honoured
+
+- `PanelScheduleSheetInstance.Create` is broken in Revit 2024-2026 — STING does NOT attempt programmatic sheet placement. The result panel surfaces "drag onto sheet manually" guidance.
+- `PanelScheduleTemplate` cell layout / column order / formulas remain read-only. The registry chooses *which* template to apply, never edits structure.
+- Read-only Revit-managed cells (computed loads, totals) reject `SetCellText` silently — caught and reported as `cellsRejected` in import.
+- Real-circuit detection uses `PanelScheduleView.GetCircuitByCell(r, c)` (returns the `ElectricalSystem` or null) — `IsCircuitRow` does not exist on PanelScheduleView.
+
+### Caveats
+
+1. The 5 named templates in the JSON (`STING - Switchboard Schedule`, etc.) must exist in the host `.rvt`. Without them the registry falls back to "first available template".
+2. `PanelTypeMatches` in `PanelScheduleTemplateRegistry` invokes `GetPanelConfiguration` via reflection. If the method signature differs between Revit versions, configuration-aware fallback degrades to no-op (rule-name + global-fallback still work).
+3. Excel import preserves Revit data when the xlsx cell is blank but the Revit cell is non-empty (anti-erasure guard). To intentionally clear a cell, use the Revit Panel Schedule UI directly.
+
 ## Drawing Template Manager (Phase 113)
 
 **Status**: Foundation landed on `claude/fix-text-visibility-layouts-OsiY9`. A single-source engine for how every drawing is produced — sheet size, title block, scale, view template, slot layout, annotation rule pack, crop strategy, section-marker family, viewport type, sheet numbering — replacing four scattered configuration surfaces (SheetTemplateEngine, ShopDrawingComposer hard-codes, DocAutomation TaskDialog prompts, SheetManager presets).
