@@ -145,7 +145,7 @@ namespace StingTools.Docs
                 if (!IncludeByGroup(p, groups)) continue;
                 w.WriteStartElement("param");
                 w.WriteAttributeString("name", p.Definition?.Name ?? "");
-                w.WriteAttributeString("group", p.Definition?.ParameterGroup.ToString() ?? "");
+                w.WriteAttributeString("group", SafeGroupName(p.Definition));
                 w.WriteString(SafeAsString(p));
                 w.WriteEndElement();
             }
@@ -181,7 +181,7 @@ namespace StingTools.Docs
         private static bool IncludeByGroup(Parameter p, List<string> groups)
         {
             if (groups == null || groups.Count == 0) return true;
-            string g = p.Definition?.ParameterGroup.ToString() ?? "";
+            string g = SafeGroupName(p.Definition);
             foreach (var want in groups)
             {
                 if (g.IndexOf(want, StringComparison.OrdinalIgnoreCase) >= 0) return true;
@@ -192,6 +192,28 @@ namespace StingTools.Docs
                 if (want == "Revisions"  && p.Definition?.Name?.Contains("Revision", StringComparison.OrdinalIgnoreCase) == true) return true;
             }
             return false;
+        }
+
+        /// <summary>
+        /// Revit 2025 deprecated <c>Definition.ParameterGroup</c> in favour of
+        /// <c>Definition.GetGroupTypeId()</c> (returns a ForgeTypeId).
+        /// We use the schema name (last segment of the typeid string) as the
+        /// human-readable group label.
+        /// </summary>
+        private static string SafeGroupName(Definition def)
+        {
+            if (def == null) return "";
+            try
+            {
+                var ft = def.GetGroupTypeId();
+                if (ft == null) return "";
+                string id = ft.TypeId ?? "";
+                int dash = id.LastIndexOf('-');
+                int dot  = id.LastIndexOf('.');
+                int cut  = Math.Max(dash, dot);
+                return cut > 0 && cut < id.Length - 1 ? id.Substring(cut + 1) : id;
+            }
+            catch (Exception ex) { StingLog.Warn($"SafeGroupName: {ex.Message}"); return ""; }
         }
 
         private static string SafeAsString(Parameter p)

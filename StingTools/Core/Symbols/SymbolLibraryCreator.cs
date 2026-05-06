@@ -494,18 +494,19 @@ namespace StingTools.Core.Symbols
 
         private static void SetConnectorDirection(ConnectorElement ce, string direction)
         {
+            // TODO-VERIFY-API: ConnectorElement.Flow accepts FlowDirectionType
+            // (In / Out / Bidirectional / Calculated) directly; there's no
+            // BuiltInParameter for direction in 2025+.
             try
             {
-                var p = ce.get_Parameter(BuiltInParameter.CONNECTOR_FLOW_DIRECTION);
-                if (p == null || p.IsReadOnly) return;
-                int v = 0;
+                FlowDirectionType v;
                 switch ((direction ?? "Bidirectional").Trim())
                 {
-                    case "In":  v = 1; break;
-                    case "Out": v = 2; break;
-                    case "Bidirectional": default: v = 0; break;
+                    case "In":  v = FlowDirectionType.In;  break;
+                    case "Out": v = FlowDirectionType.Out; break;
+                    default:    v = FlowDirectionType.Bidirectional; break;
                 }
-                p.Set(v);
+                ce.Flow = v;
             }
             catch (Exception ex) { StingLog.Warn($"SetConnectorDirection: {ex.Message}"); }
         }
@@ -571,15 +572,18 @@ namespace StingTools.Core.Symbols
 
         private static ElectricalSystemType ResolveElectricalSystemType(string s)
         {
+            // Revit 2025 enum names are short ("Data" not "DataCircuit").
+            // PowerBalanced / PowerUnBalanced are the only "Power…" variants;
+            // "Power" maps to PowerCircuit which is the generic power flag.
             switch ((s ?? "").Trim())
             {
                 case "Power":         return ElectricalSystemType.PowerCircuit;
                 case "Lighting":      return ElectricalSystemType.PowerCircuit;
-                case "Data":          return ElectricalSystemType.DataCircuit;
+                case "Data":          return ElectricalSystemType.Data;
                 case "Telephone":     return ElectricalSystemType.Telephone;
-                case "FireAlarm":     return ElectricalSystemType.FireAlarmCircuit;
-                case "Security":      return ElectricalSystemType.SecurityCircuit;
-                case "NurseCall":     return ElectricalSystemType.NurseCallCircuit;
+                case "FireAlarm":     return ElectricalSystemType.FireAlarm;
+                case "Security":      return ElectricalSystemType.Security;
+                case "NurseCall":     return ElectricalSystemType.NurseCall;
                 case "Communication": return ElectricalSystemType.Communication;
                 default:              return ElectricalSystemType.UndefinedSystemType;
             }

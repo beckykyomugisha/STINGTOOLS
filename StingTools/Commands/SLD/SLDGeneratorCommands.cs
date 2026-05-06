@@ -40,7 +40,7 @@ namespace StingTools.Commands.SLD
         {
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) return Result.Failed;
-            var pick = StingTools.UI.StingListPicker.Show(
+            var pick = StingTools.Select.StingListPicker.Show(
                 "SLD Standard", "Pick the standard for the generated SLD.",
                 SymbolStandardRegistry.ListStandards().ToList());
             if (string.IsNullOrEmpty(pick)) return Result.Cancelled;

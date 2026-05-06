@@ -478,7 +478,7 @@ namespace StingTools.Docs
                     RunPdf(doc, profile, selectedIds, result,
                         (label) => progress?.Invoke(++done, total, label),
                         cancelRequested);
-                    if (cancelRequested != null && cancelRequested()) { result.Cancelled = true; goto Done; }
+                    if (cancelRequested != null && cancelRequested()) { result.Cancelled = true; return Finalize(profile, result); }
                 }
 
                 // DWG
@@ -487,7 +487,7 @@ namespace StingTools.Docs
                     RunDwg(doc, profile, selectedIds, result,
                         (label) => progress?.Invoke(++done, total, label),
                         cancelRequested);
-                    if (cancelRequested != null && cancelRequested()) { result.Cancelled = true; goto Done; }
+                    if (cancelRequested != null && cancelRequested()) { result.Cancelled = true; return Finalize(profile, result); }
                 }
 
                 // IFC
@@ -496,14 +496,14 @@ namespace StingTools.Docs
                     RunIfc(doc, profile, selectedIds, result,
                         (label) => progress?.Invoke(++done, total, label),
                         cancelRequested);
-                    if (cancelRequested != null && cancelRequested()) { result.Cancelled = true; goto Done; }
+                    if (cancelRequested != null && cancelRequested()) { result.Cancelled = true; return Finalize(profile, result); }
                 }
 
                 if ((profile.Formats & ExportFormats.NWC) != 0)
                 {
                     RunNwc(doc, profile, result,
                         (label) => progress?.Invoke(++done, total, label));
-                    if (cancelRequested != null && cancelRequested()) { result.Cancelled = true; goto Done; }
+                    if (cancelRequested != null && cancelRequested()) { result.Cancelled = true; return Finalize(profile, result); }
                 }
                 if ((profile.Formats & ExportFormats.Image) != 0)
                     RunImage(doc, profile, selectedIds, result,
@@ -523,13 +523,18 @@ namespace StingTools.Docs
                 StingLog.Error("ExportCenterEngine.Run failed", ex);
                 result.Warnings.Add("Run failed: " + ex.Message);
             }
-            finally
-            {
-                Done:
-                result.FinishedUtc = DateTime.UtcNow;
-                if (profile.Output.GenerateReport)
-                    WriteReport(profile, result);
-            }
+            return Finalize(profile, result);
+        }
+
+        /// <summary>
+        /// Common cleanup path — was the body of a finally block guarded
+        /// by a "Done:" label, but C# doesn't allow goto-into-finally.
+        /// </summary>
+        private static ExportRunResult Finalize(ExportProfile profile, ExportRunResult result)
+        {
+            result.FinishedUtc = DateTime.UtcNow;
+            if (profile.Output.GenerateReport)
+                WriteReport(profile, result);
             return result;
         }
 
@@ -733,12 +738,14 @@ namespace StingTools.Docs
             }
         }
 
-        private static PDFExportQualityType MapRasterQuality(int dpi) => dpi switch
+        // PDFExportOptions.RasterQuality is RasterQualityType in Revit
+        // 2025+; the legacy DPI-buckets enum was retired.
+        private static RasterQualityType MapRasterQuality(int dpi) => dpi switch
         {
-            <= 72  => PDFExportQualityType.DPI72,
-            <= 150 => PDFExportQualityType.DPI150,
-            <= 300 => PDFExportQualityType.DPI300,
-            _      => PDFExportQualityType.DPI600,
+            <= 72  => RasterQualityType.Low,
+            <= 150 => RasterQualityType.Medium,
+            <= 300 => RasterQualityType.High,
+            _      => RasterQualityType.Presentation,
         };
 
         private static ColorDepthType MapColorDepth(string scheme) => scheme switch
@@ -816,13 +823,14 @@ namespace StingTools.Docs
             return opts;
         }
 
+        // ACADVersion.R2004 was removed in Revit 2025+; oldest supported
+        // is R2007. AC2004 callers fall through to Default.
         private static ACADVersion MapDwgVersion(string v) => v switch
         {
             "AC2018" => ACADVersion.R2018,
             "AC2013" => ACADVersion.R2013,
             "AC2010" => ACADVersion.R2010,
             "AC2007" => ACADVersion.R2007,
-            "AC2004" => ACADVersion.R2004,
             _        => ACADVersion.Default,
         };
 
@@ -1100,15 +1108,21 @@ namespace StingTools.Docs
                         profile.Output.IllegalCharReplacement);
 
                     bool ok;
+                    // Use a ViewSet to disambiguate the Document.Export
+                    // overload — passing a List<ElementId> binds to the
+                    // SAT overload in Revit 2025 because DWF overloads
+                    // were realigned to take ViewSet.
+                    var vs = new ViewSet();
+                    vs.Insert(v);
                     if (profile.Dwf.DwfX)
                     {
                         var dx = new DWFXExportOptions();
-                        ok = doc.Export(folder, stem, new List<ElementId> { v.Id }, dx);
+                        ok = doc.Export(folder, stem, vs, dx);
                     }
                     else
                     {
                         var dw = new DWFExportOptions();
-                        ok = doc.Export(folder, stem, new List<ElementId> { v.Id }, dw);
+                        ok = doc.Export(folder, stem, vs, dw);
                     }
 
                     string ext = profile.Dwf.DwfX ? ".dwfx" : ".dwf";
