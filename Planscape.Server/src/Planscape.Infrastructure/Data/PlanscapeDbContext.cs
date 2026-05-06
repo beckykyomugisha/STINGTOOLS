@@ -406,6 +406,9 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(t => t.Tag1);
             e.HasIndex(t => t.Disc);
             e.HasIndex(t => t.IsStale);
+            // Delta-sync cutoff queries (`(LastModifiedUtc ?? SyncedAt) > cutoff`)
+            // benefit from an index on the modification timestamp.
+            e.HasIndex(t => t.LastModifiedUtc);
         });
 
         // ── BimIssue ──
@@ -581,7 +584,28 @@ public class PlanscapeDbContext : DbContext
             e.Property(w => w.DeviceId).HasMaxLength(128).IsRequired();
             // One watermark per (project, device) — upserts key on this pair.
             e.HasIndex(w => new { w.ProjectId, w.DeviceId }).IsUnique();
+            // Tenant scope filtering on admin/list endpoints.
+            e.HasIndex(w => w.TenantId);
+            // "Most recent activity" queries / monitoring sort by LastSyncUtc.
+            e.HasIndex(w => w.LastSyncUtc);
             e.HasOne(w => w.Project).WithMany().HasForeignKey(w => w.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── SyncConflict (S01 — log of last-write-wins sync rejections) ──
+        modelBuilder.Entity<SyncConflict>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Property(c => c.ElementId).HasMaxLength(128).IsRequired();
+            e.Property(c => c.ConflictType).HasMaxLength(40).IsRequired();
+            e.Property(c => c.Resolution).HasMaxLength(20).IsRequired();
+            // Drill-down: list every conflict that happened on a given element.
+            e.HasIndex(c => new { c.ProjectId, c.ElementId });
+            // Time-windowed queries ("conflicts in the last 24h") + dashboard sort.
+            e.HasIndex(c => c.DetectedAt);
+            // Tenant scope filtering for cross-project admin views.
+            e.HasIndex(c => c.TenantId);
+            e.HasOne(c => c.Project).WithMany().HasForeignKey(c => c.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(c => c.TaggedElement).WithMany().HasForeignKey(c => c.TaggedElementId).OnDelete(DeleteBehavior.SetNull);
         });
 
         // ── Planscape MIM Entities ──
