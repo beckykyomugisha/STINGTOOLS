@@ -83,8 +83,8 @@ namespace StingTools.Commands.Panels
                         var pid = psv.GetPanel();
                         if (pid != null && pid != ElementId.InvalidElementId)
                         {
-                            var panel = doc.GetElement(pid);
-                            if (panel != null) panelName = panel.Name;
+                            var panelEl = doc.GetElement(pid);
+                            if (panelEl != null) panelName = panelEl.Name;
                         }
                     }
                     catch (Exception ex) { StingLog.Warn($"GetPanel for {psv.Name}: {ex.Message}"); }
