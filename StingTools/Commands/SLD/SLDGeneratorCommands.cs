@@ -97,7 +97,10 @@ namespace StingTools.Commands.SLD
                 bool next = !current;
                 root["sld_sync_enabled"] = next;
                 File.WriteAllText(p, root.ToString());
-                TaskDialog.Show("STING", $"SLD sync {(next ? "enabled" : "disabled")}. Restart Revit to apply.");
+                StingTools.Core.SLD.SLDSyncUpdater.InvalidateGateCache(ctx.Doc.PathName);
+                TaskDialog.Show("STING",
+                    $"SLD sync {(next ? "enabled" : "disabled")}. Effective immediately — "
+                  + "no Revit restart required.");
                 return Result.Succeeded;
             }
             catch (Exception ex)

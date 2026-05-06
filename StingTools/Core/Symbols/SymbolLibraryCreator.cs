@@ -359,12 +359,44 @@ namespace StingTools.Core.Symbols
         // Parameters
         // ─────────────────────────────────────────────────────────────────
 
+        // Universal symbol-system parameters — stamped on every family the
+        // library creator emits so the runtime can identify symbols, track
+        // their host element, find their adjacent label TextNote, and
+        // override the resolved standard per-instance. Defined as static
+        // text instance params; same names as ParamRegistry.SYMBOL_*.
+        private static readonly string[] _universalStamps = new[]
+        {
+            "STING_SYMBOL_ID",
+            "STING_SYMBOL_STANDARD",
+            "STING_HOST_ELEMENT_ID",
+            "STING_SYMBOL_LABEL_ID",
+            "STING_SYMBOL_OVERRIDE",
+            "STING_COMPOUND_PARENT_ID",
+        };
+
         private static void AddParameters(Document fdoc, SymbolDefinition def, SymbolCreationResult result)
         {
-            if (def.Parameters == null || def.Parameters.Count == 0) return;
             if (!fdoc.IsFamilyDocument) return;
             var fm = fdoc.FamilyManager;
 
+            // Always-on system stamps. These light up overlay placement,
+            // SLD label-id fast path, drift detection, and per-instance
+            // standard override.
+            foreach (var name in _universalStamps)
+            {
+                try
+                {
+                    if (fm.get_Parameter(name) != null) continue;
+                    fm.AddParameter(name, GroupTypeId.IdentityData,
+                        SpecTypeId.String.Text, isInstance: true);
+                }
+                catch (Exception ex)
+                {
+                    result.Warnings.Add($"{def.Id}: universal stamp '{name}' add failed — {ex.Message}");
+                }
+            }
+
+            if (def.Parameters == null || def.Parameters.Count == 0) return;
             foreach (var p in def.Parameters)
             {
                 if (string.IsNullOrWhiteSpace(p?.Name)) continue;
@@ -372,7 +404,7 @@ namespace StingTools.Core.Symbols
                 {
                     if (fm.get_Parameter(p.Name) != null) continue; // already exists
 
-                    var groupTypeId = GroupTypeId.IdentityData; // TODO-VERIFY-API
+                    var groupTypeId = GroupTypeId.IdentityData;
                     var specTypeId  = ResolveSpecTypeId(p.Type);
                     fm.AddParameter(p.Name, groupTypeId, specTypeId, p.IsInstance);
                 }
