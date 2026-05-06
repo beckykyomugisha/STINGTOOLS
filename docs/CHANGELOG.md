@@ -10489,3 +10489,144 @@ Modified:
 - `StingTools/UI/StingDockPanel.xaml` — Migrate Labels button in
   SLD GENERATOR section
 - `docs/CHANGELOG.md` — this entry
+
+#### Completed (Phase 176 — Tagging-workflow review fixes: token toggling / leader & style / scale / depth)
+
+Six concrete fixes from the deep audit of the four pillars of the
+tagging workflow: token toggling, leader & style functions, scale
+tiers, and per-discipline paragraph depth. Each fix targets a
+specific silent-failure mode where the user clicks something and
+nothing visibly happens because the underlying parameter is missing,
+the wrong storage type, or scoped too widely.
+
+##### Per-view token mask (TAG-token-toggling)
+
+`STING_VIEW_TOKEN_MASK_TXT` (new `ParamRegistry.VIEW_TOKEN_MASK`)
+is an 8-character "1"/"0" mask bound to OST_Views that gates which
+ISO 19650 segments render in `BuildDisplayTag` for the active view.
+Lookup precedence is view-mask → element `TAG_SEG_MASK_TXT` → UI
+`ExtraParam("TokenMask")`. The canonical `ASS_TAG_1_TXT` is never
+mutated, so the same model can show DISC-PROD-SEQ in a presentation
+view and the full 8-segment string in an export — this is the first
+time the segment-mask path runs for non-mode-5 callers.
+
+##### Mode-6 narrative-fallback logging
+
+`BuildDisplayTag` mode 6 (TAG7 narrative) used to silently downgrade
+to mode 4 (DISC-PROD-SEQ) whenever `ASS_TAG_7_TXT` was empty —
+common right after a fresh `RunFullPipeline` if `WriteTag7All`
+partially failed. Now warns to `StingLog` so partial-tagging state
+surfaces instead of looking like a 3-segment design choice.
+
+##### SetBool storage diagnostics
+
+`PresentationModeCommand.SetBool` now tracks string-path,
+integer-path, missing, read-only, and bad-storage counters per call.
+Mixed YESNO + TEXT bindings (a known silent-failure source when
+families pre-date MR_PARAMETERS v5.3+) are surfaced inline in the
+result dialog with a "Run Audit Tag Families to migrate" hint.
+
+##### Tag-family auditor: 128-pack + paragraph BOOL storage
+
+`AuditTagFamiliesCommand` gains two new sections:
+
+1. **Style-pack coverage** — counts annotation types that carry the
+   full 128-entry `TAG_{SIZE}{STYLE}_{COLOR}_BOOL` pack vs partial
+   (silent style failure source) vs missing. Names the worst
+   offender so users can see which family to re-process. Without
+   this audit, `ApplyTagStyle` could update zero types on a partial
+   family and the user would have no signal beyond the dead-end "0
+   types updated" line.
+2. **Paragraph BOOL storage mix** — counts types whose 10
+   `TAG_PARA_STATE_*_BOOL` parameters resolve as TEXT (v5.3+),
+   YESNO (legacy), or mixed within one type. Mixed bindings make
+   `SetParagraphDepth` half-silent because Calculated-Value
+   `if(BOOL, …)` only resolves on TEXT params.
+
+`ApplyTagStyleCommand` result panel additionally surfaces partial
+style coverage even when `updated > 0`, so a partial 128-pack
+injection no longer keeps silently no-opping on some types.
+
+##### Scale-tier auto-apply on view-scale change
+
+`StingDocumentChangedHandler` classifies modified Views as a new
+`CascadeKind.ViewScaleChanged` and dispatches
+`Tags.SetScaleAwareTagSizeCommand.ApplyToView` from the next Idling
+tick, gated by the existing `TAG_SCALE_TIER_AUTO_BOOL` opt-in on
+ProjectInformation. Until this phase, scale-aware sizing only ran on
+view _activation_ (`OnViewActivated` → `MaybeAutoApplyScaleSize`),
+so changing the scale of the currently-active view did nothing.
+
+Views are exempted from the `_recentlyProcessed` dedup set so
+repeated scale edits keep firing — without that guard, the second
+scale change in a session would be silently dropped.
+
+##### Discipline-scoped paragraph depth
+
+Three changes that together stop cross-talk between disciplines that
+share generic tag families:
+
+1. **`DisciplineProfile.DefaultParagraphDepth`** (1-10) — new
+   nullable int field plus `default_paragraph_depth` JSON parser.
+   `WriteTag7All` consults the active discipline's value when no
+   `ParaDepth` slider override is set, before falling back to the
+   historic depth-1 default.
+2. **"By discipline…" scope on `SetParagraphDepthCommand`** — third
+   command-link added to the legacy scope dialog. Picks a discipline
+   via `StingListPicker`, then collects every type that has a
+   tagged instance carrying that DISC token. Setting depth on M now
+   leaves E and A untouched even when they share a common generic
+   tag family.
+3. **`PreserveParaState` ExtraParam** — read by `WriteTag7All`. When
+   set, the writer only seeds `PARA_STATE_1` if the element has
+   never been touched (all states empty) instead of unconditionally
+   re-deriving the full state vector from the slider value. This
+   stops Auto-Tag passes from clobbering manual
+   `SetParagraphDepth` selections.
+
+##### Diagnostic surface
+
+`LeaderHelper.AutoAlignTagsToLeaders` now records per-call
+orphan-tag and no-leader counters; `AutoAlignLeaderTextCommand`
+dialog surfaces the orphan count so leader operations on linked /
+deleted-host tags don't appear to silently succeed.
+
+##### Files
+
+Modified:
+- `StingTools/Core/ParamRegistry.cs` — `VIEW_TOKEN_MASK` constant +
+  GUID
+- `StingTools/Core/TagConfig.cs` — `BuildDisplayTag` view-first mask
+  precedence; mode-6 fallback Warn; `WriteTag7All` discipline-default
+  depth + `PreserveParaState` honouring;
+  `DisciplineProfile.DefaultParagraphDepth` + JSON parser
+- `StingTools/Core/StingDocumentChangedHandler.cs` —
+  `CascadeKind.ViewScaleChanged` + `IsScalable` view-type filter;
+  view-exempt dedup; `ApplyCascade` dispatch to
+  `SetScaleAwareTagSizeCommand.ApplyToView`
+- `StingTools/Tags/PresentationModeCommand.cs` — SetBool
+  diagnostic counters; mixed-storage warning surface
+- `StingTools/Tags/ParagraphDepthCommand.cs` — third "By discipline…"
+  scope; `PickDiscipline` + `CollectTypeIdsForDiscipline` helpers
+- `StingTools/Tags/TagFamilyCreatorCommand.cs` — style-pack coverage
+  + paragraph BOOL storage report sections
+- `StingTools/Tags/TagStyleCommands.cs` — partial-coverage warning
+  on `updated > 0` path
+- `StingTools/Organise/TagOperationCommands.cs` —
+  `LeaderHelper.LastAutoAlignOrphanCount` + dialog surface
+- `docs/CHANGELOG.md` — this entry
+
+##### Caveats
+
+- Built without `dotnet build` verification (Linux sandbox).
+- `STING_VIEW_TOKEN_MASK_TXT` needs binding to `OST_Views` in
+  `MR_PARAMETERS.txt` before the per-view mask path activates;
+  unbound projects fall through to the historic element / UI
+  precedence with no behaviour change.
+- The view-scale cascade depends on Revit reporting View elements
+  through `DocumentChangedEventArgs.GetModifiedElementIds()` when
+  `View.Scale` changes — verified against the Revit 2025 docs but
+  not yet exercised in-product.
+- `DisciplineProfile.DefaultParagraphDepth` only takes effect when
+  the element's `DISC` token has been written; untagged elements
+  still get depth-1 from the historic fallback.
