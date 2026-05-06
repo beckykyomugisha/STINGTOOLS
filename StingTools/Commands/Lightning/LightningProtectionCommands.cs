@@ -2387,21 +2387,31 @@ namespace StingTools.Commands.Lightning
             var created = new List<string>();
             try
             {
+                // Revit's public API has no multi-category ViewSchedule.CreateSchedule
+                // overload, so we materialise one schedule per category that actually
+                // hosts LPS-stamped elements. The category-name suffix on each
+                // schedule keeps them grouped in the project browser.
+                var hostCats = DetectLpsHostCategories(doc);
+
                 using (var t = new Transaction(doc, "STING — Create LPS Revit Schedules"))
                 {
                     t.Start();
-                    DeleteExisting(doc, "STING - LPS Element Register");
-                    DeleteExisting(doc, "STING - LPS Earth Electrode Summary");
-                    DeleteExisting(doc, "STING - LPS Inspection Register");
+                    foreach (var cat in hostCats)
+                    {
+                        string suffix = $" ({CategorySuffix(cat)})";
+                        DeleteExisting(doc, "STING - LPS Element Register" + suffix);
+                        DeleteExisting(doc, "STING - LPS Earth Electrode Summary" + suffix);
+                        DeleteExisting(doc, "STING - LPS Inspection Register" + suffix);
 
-                    var s1 = CreateRegister(doc);
-                    if (s1 != null) created.Add(s1.Name);
+                        var s1 = CreateRegister(doc, cat, suffix);
+                        if (s1 != null) created.Add(s1.Name);
 
-                    var s2 = CreateEarthSummary(doc);
-                    if (s2 != null) created.Add(s2.Name);
+                        var s2 = CreateEarthSummary(doc, cat, suffix);
+                        if (s2 != null) created.Add(s2.Name);
 
-                    var s3 = CreateInspectionRegister(doc);
-                    if (s3 != null) created.Add(s3.Name);
+                        var s3 = CreateInspectionRegister(doc, cat, suffix);
+                        if (s3 != null) created.Add(s3.Name);
+                    }
                     t.Commit();
                 }
             }
@@ -2435,19 +2445,57 @@ namespace StingTools.Commands.Lightning
             catch (Exception ex) { StingLog.Warn($"DeleteExisting collect {name}: {ex.Message}"); }
         }
 
-        // TODO-VERIFY-API — multi-category schedules are typically created via
-        // ViewSchedule.CreateSchedule with a multi-category ElementId. Some
-        // Revit 2025/2026/2027 builds expose a ViewSchedule.CreateSchedule
-        // overload taking an IList<ElementId> of categories; we fall back to
-        // a single-category schedule on OST_GenericModel and rely on the
-        // ELEMENT_TYPE filter to scope rows correctly.
-        private static ViewSchedule CreateRegister(Document doc)
+        // Categories LPS components are commonly hosted in. ELEMENT_TYPE_TXT
+        // is the marker shared param; we only emit a schedule for a category
+        // if at least one stamped instance lives there. Falls back to
+        // GenericModel when nothing is stamped yet (e.g. on first run).
+        private static readonly BuiltInCategory[] LpsCandidateCategories = new[]
+        {
+            BuiltInCategory.OST_GenericModel,
+            BuiltInCategory.OST_ElectricalEquipment,
+            BuiltInCategory.OST_ElectricalFixtures,
+            BuiltInCategory.OST_Conduit,
+        };
+
+        private static List<BuiltInCategory> DetectLpsHostCategories(Document doc)
+        {
+            var hits = new List<BuiltInCategory>();
+            foreach (var bic in LpsCandidateCategories)
+            {
+                try
+                {
+                    bool any = new FilteredElementCollector(doc)
+                        .OfCategory(bic)
+                        .OfClass(typeof(FamilyInstance))
+                        .Cast<FamilyInstance>()
+                        .Any(fi => !string.IsNullOrEmpty(ParameterHelpers.GetString(fi, LpsParams.ELEMENT_TYPE_TXT)));
+                    if (any) hits.Add(bic);
+                }
+                catch (Exception ex) { StingLog.Warn($"DetectLpsHostCategories {bic}: {ex.Message}"); }
+            }
+            if (hits.Count == 0) hits.Add(BuiltInCategory.OST_GenericModel);
+            return hits;
+        }
+
+        private static string CategorySuffix(BuiltInCategory bic)
+        {
+            switch (bic)
+            {
+                case BuiltInCategory.OST_GenericModel: return "Generic Model";
+                case BuiltInCategory.OST_ElectricalEquipment: return "Electrical Equipment";
+                case BuiltInCategory.OST_ElectricalFixtures: return "Electrical Fixtures";
+                case BuiltInCategory.OST_Conduit: return "Conduit";
+                default: return bic.ToString().Replace("OST_", "");
+            }
+        }
+
+        private static ViewSchedule CreateRegister(Document doc, BuiltInCategory bic, string suffix)
         {
             try
             {
-                var vs = ViewSchedule.CreateSchedule(doc, new ElementId((long)BuiltInCategory.OST_GenericModel));
+                var vs = ViewSchedule.CreateSchedule(doc, new ElementId((long)bic));
                 if (vs == null) return null;
-                vs.Name = "STING - LPS Element Register";
+                vs.Name = "STING - LPS Element Register" + suffix;
                 AddFieldByName(doc, vs, LpsParams.ELEMENT_TYPE_TXT);
                 AddFieldByName(doc, vs, "Family and Type");
                 AddFieldByName(doc, vs, LpsParams.COMPLIANCE_STATUS_TXT);
@@ -2458,16 +2506,16 @@ namespace StingTools.Commands.Lightning
                 ApplyHasValueFilter(vs, LpsParams.ELEMENT_TYPE_TXT);
                 return vs;
             }
-            catch (Exception ex) { StingLog.Error("CreateRegister", ex); return null; }
+            catch (Exception ex) { StingLog.Error($"CreateRegister {bic}", ex); return null; }
         }
 
-        private static ViewSchedule CreateEarthSummary(Document doc)
+        private static ViewSchedule CreateEarthSummary(Document doc, BuiltInCategory bic, string suffix)
         {
             try
             {
-                var vs = ViewSchedule.CreateSchedule(doc, new ElementId((long)BuiltInCategory.OST_GenericModel));
+                var vs = ViewSchedule.CreateSchedule(doc, new ElementId((long)bic));
                 if (vs == null) return null;
-                vs.Name = "STING - LPS Earth Electrode Summary";
+                vs.Name = "STING - LPS Earth Electrode Summary" + suffix;
                 AddFieldByName(doc, vs, LpsParams.ELEMENT_TYPE_TXT);
                 AddFieldByName(doc, vs, "Family and Type");
                 AddFieldByName(doc, vs, LpsParams.EARTH_RESISTANCE_OHM);
@@ -2478,16 +2526,16 @@ namespace StingTools.Commands.Lightning
                 ApplyEqualsFilter(vs, LpsParams.ELEMENT_TYPE_TXT, "EARTH_ELECTRODE");
                 return vs;
             }
-            catch (Exception ex) { StingLog.Error("CreateEarthSummary", ex); return null; }
+            catch (Exception ex) { StingLog.Error($"CreateEarthSummary {bic}", ex); return null; }
         }
 
-        private static ViewSchedule CreateInspectionRegister(Document doc)
+        private static ViewSchedule CreateInspectionRegister(Document doc, BuiltInCategory bic, string suffix)
         {
             try
             {
-                var vs = ViewSchedule.CreateSchedule(doc, new ElementId((long)BuiltInCategory.OST_GenericModel));
+                var vs = ViewSchedule.CreateSchedule(doc, new ElementId((long)bic));
                 if (vs == null) return null;
-                vs.Name = "STING - LPS Inspection Register";
+                vs.Name = "STING - LPS Inspection Register" + suffix;
                 AddFieldByName(doc, vs, LpsParams.ELEMENT_TYPE_TXT);
                 AddFieldByName(doc, vs, "Family and Type");
                 AddFieldByName(doc, vs, LpsParams.TEST_DATE_TXT);
@@ -2498,7 +2546,7 @@ namespace StingTools.Commands.Lightning
                 ApplySortAsc(vs, "Comments");
                 return vs;
             }
-            catch (Exception ex) { StingLog.Error("CreateInspectionRegister", ex); return null; }
+            catch (Exception ex) { StingLog.Error($"CreateInspectionRegister {bic}", ex); return null; }
         }
 
         private static ScheduleField AddFieldByName(Document doc, ViewSchedule vs, string name)
@@ -2618,31 +2666,46 @@ namespace StingTools.Commands.Lightning
                     catch { }
                     string installDate = ParameterHelpers.GetString(fi, LpsParams.TEST_DATE_TXT);
                     string serial = ParameterHelpers.GetString(fi, "ASS_SERIAL_TXT");
+                    if (string.IsNullOrEmpty(serial)) serial = ParameterHelpers.GetString(fi, LpsParams.CERT_REF_TXT);
                     string status = ParameterHelpers.GetString(fi, LpsParams.COMPLIANCE_STATUS_TXT);
-                    double earthOhm = LpsEngine.GetDoubleParam(fi, LpsParams.EARTH_RESISTANCE_OHM);
-                    int interval = (int)Math.Round(LpsEngine.GetDoubleParam(fi, LpsParams.INSPECTION_INTERVAL_MONTHS));
-                    string nextInspection = "";
-                    if (DateTime.TryParse(installDate, out var dt))
-                    {
-                        if (interval <= 0) interval = 12;
-                        nextInspection = dt.AddMonths(interval).ToString("yyyy-MM-dd");
-                    }
+                    string lpsZone = ParameterHelpers.GetString(fi, "ELC_LPS_ZONE_TXT");
+                    string lvl = "";
+                    try { lvl = (doc.GetElement(fi.LevelId) as Level)?.Name ?? ""; } catch { }
+                    DateTime? installDt = null;
+                    if (DateTime.TryParse(installDate, out var dt0)) installDt = dt0;
 
+                    // Schema matches Planscape.Server CreateAssetRequest record
+                    // (Planscape.Server/src/Planscape.API/Controllers/MimController.cs).
+                    // The bulk endpoint persists: AssetTag, AssetName, CategoryName,
+                    // FamilyName, Discipline, SystemCode, FunctionCode, ProductCode,
+                    // Location, Zone, Level, Status. The DTO accepts SerialNumber /
+                    // InstallationDate / Manufacturer / etc. but the bulk handler
+                    // ignores them — they are sent here so a future server change
+                    // can pick them up without a plugin refresh. LPS-specific data
+                    // (class, element type) is folded into persisted fields:
+                    //   Discipline   = "LPS"
+                    //   SystemCode   = LPS class (I/II/III/IV)
+                    //   ProductCode  = element type (AIR_TERMINAL / DOWN_CONDUCTOR / …)
+                    //   Zone         = LPZ value
                     assets.Add(new
                     {
                         AssetTag = tag,
-                        TypeName = typeName,
-                        Space = room,
-                        InstallDate = installDate,
-                        SerialNo = serial,
-                        ElementType = elementType,
-                        Attributes = new
-                        {
-                            LpsClass = classId ?? "",
-                            EarthResistanceOhm = earthOhm,
-                            ComplianceStatus = status ?? "",
-                            NextInspectionDate = nextInspection
-                        }
+                        AssetName = typeName,
+                        CategoryName = fi.Category?.Name ?? "",
+                        FamilyName = fi.Symbol?.FamilyName ?? "",
+                        Discipline = "LPS",
+                        SystemCode = classId ?? "",
+                        FunctionCode = (string)null,
+                        ProductCode = elementType,
+                        Location = (string)null,
+                        Zone = lpsZone,
+                        Level = lvl,
+                        Room = room,
+                        Status = string.IsNullOrWhiteSpace(status) ? "OPERATIONAL" : status,
+                        Manufacturer = (string)null,
+                        ModelNumber = (string)null,
+                        SerialNumber = serial,
+                        InstallationDate = installDt,
                     });
                 }
                 catch (Exception ex) { StingLog.Warn($"Asset build {fi?.Id}: {ex.Message}"); }
