@@ -126,8 +126,9 @@ namespace StingTools.Commands.Standards
             }
             catch (Exception ex) { StingLog.Error("CalcCableSize failed", ex); message = ex.Message; return Result.Failed; }
 
+            string region = ProjectStandardsManager.Instance.Region ?? "International";
             var panel = StingResultPanel.Create("Cable sizing — BS 7671 / IEC 60364");
-            panel.SetSubtitle(res.Success ? (res.IsNECCompliant ? "COMPLIANT" : "REVIEW") : "FAILED");
+            panel.SetSubtitle($"{region} · {(res.Success ? (res.IsNECCompliant ? "COMPLIANT" : "REVIEW") : "FAILED")}");
             panel.AddSection("RESULT")
                  .Metric("Size", res.SizeAWG ?? "-")
                  .Metric("Required ampacity", $"{res.Ampacity:F1} A")
@@ -175,8 +176,9 @@ namespace StingTools.Commands.Standards
                     basicWindSpeedMPH: mph, exposureCategory: exp,
                     buildingHeightFt: ft, riskCategory: "II");
 
+                string region = ProjectStandardsManager.Instance.Region ?? "International";
                 var panel = StingResultPanel.Create("Wind load — ASCE 7 / Eurocode EN 1991-1-4");
-                panel.SetSubtitle(res.StandardReference ?? "");
+                panel.SetSubtitle($"{region} · {res.StandardReference ?? ""}");
                 panel.AddSection("DESIGN WIND PRESSURE")
                      .Metric("Basic wind speed",     $"{res.BasicWindSpeed:F0} mph ({v[0]:F0} m/s)")
                      .Metric("Velocity pressure qz", $"{res.VelocityPressureKPa * 1000:F0} Pa ({res.VelocityPressurePSF:F1} psf)")
@@ -218,8 +220,9 @@ namespace StingTools.Commands.Standards
                 var res = StandardsAPI.CalculateLighting(
                     floorAreaM2: v[0], spaceType: space, ceilingHeightM: v[1]);
 
+                string region = ProjectStandardsManager.Instance.Region ?? "International";
                 var panel = StingResultPanel.Create("Lighting — CIBSE / EN 12464-1");
-                panel.SetSubtitle(res.CIBSEReference ?? "BS EN 12464-1:2021");
+                panel.SetSubtitle($"{region} · {res.CIBSEReference ?? "BS EN 12464-1:2021"}");
                 panel.AddSection("RESULT")
                      .Metric("Space type",           res.SpaceType ?? space)
                      .Metric("Illuminance target",   $"{res.IlluminanceLux:F0} lx ({res.IlluminanceFootcandles:F0} fc)")
@@ -265,8 +268,9 @@ namespace StingTools.Commands.Standards
                     equipmentLoadW: equipW, lightingLoadW: lightW,
                     orientationN_E_S_W: "N", ceilingHeightM: v[4]);
 
+                string region = ProjectStandardsManager.Instance.Region ?? "International";
                 var panel = StingResultPanel.Create("HVAC cooling load — ASHRAE / CIBSE Guide A");
-                panel.SetSubtitle(res.CIBSEReference ?? "ASHRAE 62.1 + CIBSE Guide A");
+                panel.SetSubtitle($"{region} · {res.CIBSEReference ?? "ASHRAE 62.1 + CIBSE Guide A"}");
                 panel.AddSection("LOADS")
                      .Metric("Sensible",      $"{res.SensibleLoadKW:F1} kW")
                      .Metric("Latent",        $"{res.LatentLoadKW:F1} kW")
@@ -316,8 +320,9 @@ namespace StingTools.Commands.Standards
                 var td = AECCalculations.CalculateTravelDistance(
                     occupancyGroup: "B", sprinklered: v[3] >= 0.5);
 
+                string region = ProjectStandardsManager.Instance.Region ?? "International";
                 var panel = StingResultPanel.Create("Egress + travel distance — IBC / NFPA 101");
-                panel.SetSubtitle($"Occupancy {occ.OccupantLoad}, sprinklered: {(v[3] >= 0.5 ? "yes" : "no")}");
+                panel.SetSubtitle($"{region} · Occupancy {occ.OccupantLoad}, sprinklered: {(v[3] >= 0.5 ? "yes" : "no")}");
 
                 panel.AddSection("OCCUPANT LOAD")
                      .Metric("Occupant load", occ.OccupantLoad.ToString())
@@ -370,8 +375,9 @@ namespace StingTools.Commands.Standards
                     floorAreaM2: v[0], occupancyType: "Office",
                     hazardClassification: hazard, standard: fireStd);
 
+                string region = ProjectStandardsManager.Instance.Region ?? "International";
                 var panel = StingResultPanel.Create("Sprinkler design — NFPA 13 / BS EN 12845");
-                panel.SetSubtitle(res.NFPAReference ?? "NFPA 13 / BS EN 12845");
+                panel.SetSubtitle($"{region} · {res.NFPAReference ?? "NFPA 13 / BS EN 12845"}");
                 panel.AddSection("HYDRAULIC DEMAND")
                      .Metric("Hazard class",       res.HazardClass ?? hazard)
                      .Metric("Occupancy",           res.OccupancyType ?? "Office")

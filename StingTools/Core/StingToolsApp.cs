@@ -418,6 +418,28 @@ namespace StingTools.Core
                 // Prevents stale project-wide scope from carrying over between projects
                 Select.SelectionScopeHelper.SetScope(false);
 
+                // Standards: sync ProjectStandardsManager from this document's
+                // PROJECT_REGION instance parameter. The manager persists to
+                // %APPDATA%, which is per-user not per-project — without this
+                // sync, opening a different .rvt keeps the previous region's
+                // electrical / fire / structural bindings active.
+                try
+                {
+                    var pi = e.Document?.ProjectInformation;
+                    var pRegion = pi?.LookupParameter("PROJECT_REGION");
+                    string projectRegion = pRegion?.AsString();
+                    if (!string.IsNullOrWhiteSpace(projectRegion))
+                    {
+                        var mgr = StingTools.Standards.ProjectStandardsManager.Instance;
+                        if (!string.Equals(mgr.Region, projectRegion, StringComparison.OrdinalIgnoreCase))
+                        {
+                            mgr.ApplyRegionalPreset(projectRegion);
+                            StingLog.Info($"Standards: synced active region → {projectRegion} from PROJECT_REGION");
+                        }
+                    }
+                }
+                catch (Exception regEx) { StingLog.Warn($"Standards region sync skipped: {regEx.Message}"); }
+
                 // C4 / G1.3: Reload TagConfig on document open — prefer project-adjacent config
                 // to prevent config bleed between projects
                 try

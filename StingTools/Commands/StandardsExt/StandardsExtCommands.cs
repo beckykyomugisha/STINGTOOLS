@@ -301,13 +301,21 @@ namespace StingTools.Commands.StandardsExt
         public Result Execute(ExternalCommandData cd, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(cd); if (ctx == null) { message = "No doc"; return Result.Failed; }
+            // Names below match the ASHRAE service-life lookup in
+            // AECCalculations.CalculateEquipmentLifecycle (Boiler-Cast Iron / -Steel,
+            // Chiller-Centrifugal / -Screw, Pump-Base Mounted / -Inline, etc.).
+            // Anything not in that lookup falls through to a 20 yr default.
             if (!NumericPrompt.TryAsk("STD-10 Equipment lifecycle (CIBSE TM56 / ISO 15686)",
-                new[] { "Type (1=AHU, 2=Chiller, 3=Boiler, 4=Pump, 5=Luminaire LED)", "Current age (years)", "Replacement cost ($)", "Annual maintenance ($)" },
+                new[] { "Type (1=AHU, 2=Chiller-Centrifugal, 3=Boiler-Cast Iron, 4=Pump-Base Mounted, 5=Cooling Tower, 6=Transformer-Dry)", "Current age (years)", "Replacement cost ($)", "Annual maintenance ($)" },
                 new[] { 1.0, 8.0, 50000.0, 2000.0 }, out var v)) return Result.Cancelled;
             try
             {
-                string type = v[0] <= 1.5 ? "AHU" : v[0] <= 2.5 ? "Chiller"
-                           : v[0] <= 3.5 ? "Boiler" : v[0] <= 4.5 ? "Pump" : "LED Luminaire";
+                string type = v[0] <= 1.5 ? "AHU"
+                           : v[0] <= 2.5 ? "Chiller-Centrifugal"
+                           : v[0] <= 3.5 ? "Boiler-Cast Iron"
+                           : v[0] <= 4.5 ? "Pump-Base Mounted"
+                           : v[0] <= 5.5 ? "Cooling Tower"
+                           : "Transformer-Dry";
                 var res = AECCalculations.CalculateEquipmentLifecycle(type, (int)v[1], v[2], v[3]);
                 StdP.B("STD-10 Lifecycle cost", $"{ProjectStandardsManager.Instance.Region} · {res.StandardReference ?? "ISO 15686 + CIBSE TM56"}")
                     .AddSection("LIFECYCLE")

@@ -91,9 +91,12 @@ namespace StingTools.Commands.StandardsExt
                 new[] { 500.0, 1.0 }, out var v)) return Result.Cancelled;
             try
             {
-                // Library expects CFM + in.WG/100ft; convert from L/s + Pa/m
+                // Library expects CFM + in.WG/100ft. Convert from L/s + Pa/m:
+                //   1 L/s ≈ 2.1189 CFM
+                //   100 ft = 30.48 m, 1 in.WG ≈ 248.84 Pa
+                //   in.WG/100ft = (Pa/m × 30.48 m) / 248.84 Pa/in.WG
                 double cfm = v[0] * 2.1189;
-                double frictionInWG = (v[1] * 100 / 0.3048) / 248.84; // Pa/m → in.WG/100ft
+                double frictionInWG = v[1] * 30.48 / 248.84;
                 var res = AECCalculations.CalculateDuctSize(cfm, frictionInWG);
                 Bk.B("Equal friction duct", $"{Bk.Region} · {res.StandardReference ?? "CIBSE Guide B3"}")
                     .AddSection("RESULT")

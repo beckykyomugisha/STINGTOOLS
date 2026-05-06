@@ -151,9 +151,17 @@ namespace StingTools.Commands.StandardsExt
 
             foreach (var d in doors)
             {
-                double widthFt = d.LookupParameter("Width")?.AsDouble() ?? 0;
-                double heightFt = d.LookupParameter("Height")?.AsDouble() ?? 0;
+                // Door Width / Height are normally TYPE parameters. LookupParameter
+                // on an instance does NOT walk through to the family symbol, so
+                // we fall back to the symbol when the instance returns null/0.
+                double widthFt = ReadDoubleWithTypeFallback(doc, d, "Width");
+                double heightFt = ReadDoubleWithTypeFallback(doc, d, "Height");
                 string fire = ParameterHelpers.GetString(d, "Fire Rating");
+                if (string.IsNullOrEmpty(fire))
+                {
+                    var symbol = doc.GetElement(d.GetTypeId()) as ElementType;
+                    if (symbol != null) fire = ParameterHelpers.GetString(symbol, "Fire Rating");
+                }
                 bag.Add(new DesignElement
                 {
                     Id = d.Id.ToString(),
@@ -169,6 +177,17 @@ namespace StingTools.Commands.StandardsExt
             }
 
             return bag;
+        }
+
+        // Read a numeric parameter from an instance, falling back to the
+        // associated FamilySymbol when the instance value is null or zero.
+        // Door / window dimensions are nearly always type-bound.
+        private static double ReadDoubleWithTypeFallback(Document doc, FamilyInstance fi, string name)
+        {
+            double v = fi.LookupParameter(name)?.AsDouble() ?? 0.0;
+            if (v > 0) return v;
+            var symbol = doc.GetElement(fi.GetTypeId()) as ElementType;
+            return symbol?.LookupParameter(name)?.AsDouble() ?? 0.0;
         }
 
         // Default rule pack — fires when no CSV is shipped. Mirrors a minimal
