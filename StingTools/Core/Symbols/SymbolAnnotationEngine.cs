@@ -39,7 +39,7 @@ namespace StingTools.Core.Symbols
                 if (note != null)
                 {
                     var p = tag.LookupParameter("STING_SYMBOL_LABEL_ID");
-                    if (p != null && !p.IsReadOnly) p.Set(note.Id.IntegerValue.ToString());
+                    if (p != null && !p.IsReadOnly) p.Set(note.Id.Value.ToString());
                     return note.Id;
                 }
             }
@@ -89,7 +89,7 @@ namespace StingTools.Core.Symbols
                 string idStr = p?.AsString();
                 if (string.IsNullOrEmpty(idStr)) return;
                 if (!long.TryParse(idStr, out var rawId)) return;
-                var noteId = new ElementId((int)rawId);
+                var noteId = new ElementId(rawId);
                 if (doc.GetElement(noteId) is TextNote note)
                     doc.Delete(note.Id);
                 if (!p.IsReadOnly) p.Set("");
@@ -109,7 +109,7 @@ namespace StingTools.Core.Symbols
                 var p = tag.LookupParameter("STING_HOST_ELEMENT_ID");
                 string s = p?.AsString();
                 if (!string.IsNullOrEmpty(s) && long.TryParse(s, out var raw))
-                    return doc.GetElement(new ElementId((int)raw));
+                    return doc.GetElement(new ElementId(raw));
 
                 // TODO-VERIFY-API: GetTaggedLocalElementIds in Revit 2025.
                 var ids = tag.GetTaggedLocalElementIds();

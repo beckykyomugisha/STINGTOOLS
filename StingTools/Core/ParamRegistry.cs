@@ -40,7 +40,14 @@ namespace StingTools.Core
         private static string _overrideSeparator;
         private static int? _overrideNumPad;
         private static string[] _overrideSegmentOrder;
-        private static string[] _cachedSegmentOrder; // PERF-05: lazy cache, invalidated on override change
+        // PERF-05: lazy cache, invalidated on override change. Reader was
+        // refactored away in a later sweep but the invalidation hooks
+        // remain as guard infrastructure for the next time the cache is
+        // re-introduced. Silence CS0414 since the field is intentionally
+        // write-only for now.
+#pragma warning disable CS0414
+        private static string[] _cachedSegmentOrder;
+#pragma warning restore CS0414
 
         public static string Separator => _overrideSeparator ?? _baseSeparator;
         public static int NumPad => _overrideNumPad ?? _baseNumPad;

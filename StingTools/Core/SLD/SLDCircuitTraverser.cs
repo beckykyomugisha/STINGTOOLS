@@ -46,7 +46,7 @@ namespace StingTools.Core.SLD
                     .ToList();
 
                 // Find root: panel that is NOT a load on any ElectricalSystem.
-                var loadIds = new HashSet<int>();
+                var loadIds = new HashSet<long>();
                 var allSystems = new FilteredElementCollector(doc)
                     .OfClass(typeof(ElectricalSystem))
                     .Cast<ElectricalSystem>()
@@ -57,12 +57,12 @@ namespace StingTools.Core.SLD
                     {
                         // TODO-VERIFY-API: ElectricalSystem.Elements property.
                         foreach (Element el in sys.Elements)
-                            loadIds.Add(el.Id.IntegerValue);
+                            loadIds.Add(el.Id.Value);
                     }
                     catch (Exception ex) { StingTools.Core.StingLog.Warn($"Traverser scan systems: {ex.Message}"); }
                 }
 
-                var root = equipment.FirstOrDefault(e => !loadIds.Contains(e.Id.IntegerValue));
+                var root = equipment.FirstOrDefault(e => !loadIds.Contains(e.Id.Value));
                 if (root == null) return null;
 
                 var rootNode = BuildNode(root, null, 0, allSystems, doc);
@@ -107,8 +107,8 @@ namespace StingTools.Core.SLD
                         {
                             if (el is FamilyInstance child)
                             {
-                                bool isPanel = child.Category?.Id?.IntegerValue
-                                    == (int)BuiltInCategory.OST_ElectricalEquipment;
+                                bool isPanel = child.Category?.Id?.Value
+                                    == (long)BuiltInCategory.OST_ElectricalEquipment;
                                 if (isPanel)
                                 {
                                     node.Children.Add(BuildNode(child, node, level + 1, allSystems, doc));

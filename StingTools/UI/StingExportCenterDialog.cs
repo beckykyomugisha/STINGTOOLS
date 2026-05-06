@@ -51,8 +51,6 @@ namespace StingTools.UI
         private ExportCenterState _state;
         private ExportProfile _profile;
 
-        private ComboBox _modeToggleSimple;
-        private ComboBox _modeToggleBim;
         private ComboBox _profileCombo;
         private DataGrid _selectGrid;
         private TextBox _searchBox;

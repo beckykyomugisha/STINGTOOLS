@@ -218,7 +218,7 @@ namespace StingTools.Commands.SLD
                                 }
                                 if (best != null && !p.IsReadOnly)
                                 {
-                                    p.Set(best.Id.IntegerValue.ToString());
+                                    p.Set(best.Id.Value.ToString());
                                     stamped++;
                                 }
                                 else

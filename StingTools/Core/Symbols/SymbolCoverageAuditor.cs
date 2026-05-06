@@ -59,7 +59,7 @@ namespace StingTools.Core.Symbols
                 report.TotalMEPElements = elements.Count;
 
                 // Build covered set from existing symbol tags.
-                var coveredHostIds = new HashSet<int>();
+                var coveredHostIds = new HashSet<long>();
                 FilteredElementCollector tagCol = view != null
                     ? new FilteredElementCollector(doc, view.Id)
                     : new FilteredElementCollector(doc);
@@ -70,12 +70,12 @@ namespace StingTools.Core.Symbols
                     var p = tag.LookupParameter("STING_HOST_ELEMENT_ID");
                     if (p == null || string.IsNullOrEmpty(p.AsString())) continue;
                     if (long.TryParse(p.AsString(), out var raw))
-                        coveredHostIds.Add((int)raw);
+                        coveredHostIds.Add(raw);
                 }
 
                 foreach (var el in elements)
                 {
-                    bool covered = coveredHostIds.Contains(el.Id.IntegerValue);
+                    bool covered = coveredHostIds.Contains(el.Id.Value);
                     if (covered) { report.CoveredElements++; continue; }
 
                     report.UncoveredElements++;
