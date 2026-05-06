@@ -69,6 +69,20 @@ namespace StingTools.Core.Calc
             ( 50.0, 1800.0 ), ( 75.0, 2400.0 ), (100.0, 3000.0 ),
             (150.0, 3000.0 ), (200.0, 3000.0 ),
         };
+        // Phase 139.29 — ACO trough / linear drainage support spacing.
+        // Source: ACO Building Drainage technical manual + BS EN 1433
+        // (drainage channels). Channel "diameter" here is the nominal
+        // internal width (slot width) in mm. Hi-Cap channels accept
+        // wider intervals because they're stiffer; standard channels
+        // need closer support to prevent deflection at gully points.
+        private static readonly (double widthMm, double span)[] AcoChannel = new[]
+        {
+            ( 100.0, 1500.0 ),  // ACO Drain S100 — 1.5 m support
+            ( 150.0, 1500.0 ),  // S150
+            ( 200.0, 2000.0 ),  // S200 / Multidrain
+            ( 300.0, 2500.0 ),  // S300 Hi-Cap
+            ( 400.0, 3000.0 ),  // S400+ Hi-Cap
+        };
         // SMACNA rectangular duct hanger spacing by largest dimension.
         private static readonly (double size, double span)[] SmacnaRect = new[]
         {
@@ -109,6 +123,10 @@ namespace StingTools.Core.Calc
                     { tbl = Tr19Plastic; basis = "HVCA TR/19 plastic drainage"; }
                     else if (q.Material.Equals("CAST_IRON", StringComparison.OrdinalIgnoreCase))
                     { tbl = CastIron;    basis = "BS 416 cast iron"; }
+                    else if (q.Material.Equals("ACO", StringComparison.OrdinalIgnoreCase) ||
+                             q.Material.Equals("CHANNEL", StringComparison.OrdinalIgnoreCase) ||
+                             q.Material.Equals("LINEAR_DRAIN", StringComparison.OrdinalIgnoreCase))
+                    { tbl = AcoChannel;  basis = "BS EN 1433 / ACO channel"; }
                     else
                     { tbl = MssSteel;    basis = "MSS SP-58 steel"; }
                     break;

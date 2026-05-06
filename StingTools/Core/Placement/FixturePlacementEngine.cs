@@ -1774,6 +1774,7 @@ namespace StingTools.Core.Placement
             }
 
             int joined = 0, failed = 0;
+            int fittingsElbow = 0, fittingsUnion = 0, fittingsTransition = 0, fittingsTee = 0, directJoins = 0;
             foreach (var kv in openConns)
             {
                 var list = kv.Value;
@@ -1799,8 +1800,31 @@ namespace StingTools.Core.Placement
                     try
                     {
                         if (a.IsConnectedTo(target)) continue;
-                        a.ConnectTo(target);
-                        if (a.IsConnected) joined++; else failed++;
+                        // Phase 139.29 — prefer fitting insertion over direct
+                        // ConnectTo. Geometry decides the fitting kind:
+                        //  · same axis, same size  → Union fitting
+                        //  · same axis, ≠ size     → Transition fitting
+                        //  · different axis        → Elbow / Tee fitting
+                        // Falls through to ConnectTo when no fitting matches
+                        // (rare — happens with cable-tray which Revit doesn't
+                        // ship a Union for).
+                        bool insertedFitting = TryInsertFitting(doc, a, target, out int kind);
+                        if (insertedFitting)
+                        {
+                            joined++;
+                            switch (kind)
+                            {
+                                case 1: fittingsElbow++;       break;
+                                case 2: fittingsUnion++;       break;
+                                case 3: fittingsTransition++;  break;
+                                case 4: fittingsTee++;         break;
+                            }
+                        }
+                        else
+                        {
+                            a.ConnectTo(target);
+                            if (a.IsConnected) { joined++; directJoins++; } else failed++;
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -1811,9 +1835,75 @@ namespace StingTools.Core.Placement
             }
 
             if (joined > 0)
-                result.Warnings.Add($"MEP auto-join: connected {joined} pair(s) of placed-instance connectors. Verify in Revit before issuing — direct ConnectTo bypasses fitting insertion.");
+            {
+                var detail = new List<string>();
+                if (fittingsElbow      > 0) detail.Add($"{fittingsElbow} elbow");
+                if (fittingsUnion      > 0) detail.Add($"{fittingsUnion} union");
+                if (fittingsTransition > 0) detail.Add($"{fittingsTransition} transition");
+                if (fittingsTee        > 0) detail.Add($"{fittingsTee} tee");
+                if (directJoins        > 0) detail.Add($"{directJoins} direct");
+                string detailTxt = detail.Count > 0 ? " (" + string.Join(", ", detail) + ")" : "";
+                result.Warnings.Add($"MEP auto-join: connected {joined} pair(s){detailTxt}. Verify fitting orientation in Revit before issue.");
+            }
             if (failed > 0)
-                result.Warnings.Add($"MEP auto-join: {failed} connector pair(s) within 600mm could not be joined (mismatched flow direction or fitting required). See StingLog.");
+                result.Warnings.Add($"MEP auto-join: {failed} connector pair(s) within 600mm could not be joined (mismatched flow direction, incompatible fitting, or missing fitting in family library). See StingLog.");
+        }
+
+        /// <summary>
+        /// Phase 139.29 — try to insert the right fitting between two
+        /// unconnected connectors. Returns true on success and outputs
+        /// the fitting kind (1=elbow, 2=union, 3=transition, 4=tee).
+        /// Falls through quietly when the API call fails so the caller
+        /// can fall back to direct ConnectTo.
+        /// </summary>
+        private static bool TryInsertFitting(Document doc, Connector a, Connector b, out int kind)
+        {
+            kind = 0;
+            if (doc == null || a == null || b == null) return false;
+            try
+            {
+                XYZ pa = a.Origin, pb = b.Origin;
+                if (pa == null || pb == null) return false;
+                XYZ da = (a.CoordinateSystem?.BasisZ) ?? XYZ.BasisZ;
+                XYZ db = (b.CoordinateSystem?.BasisZ) ?? XYZ.BasisZ;
+                bool sameAxis = Math.Abs(Math.Abs(da.DotProduct(db)) - 1.0) < 0.05;
+                bool sameSize = SameSize(a, b);
+
+                if (sameAxis && sameSize)
+                {
+                    var fi = doc.Create.NewUnionFitting(a, b);
+                    if (fi != null) { kind = 2; return true; }
+                }
+                if (sameAxis && !sameSize)
+                {
+                    var fi = doc.Create.NewTransitionFitting(a, b);
+                    if (fi != null) { kind = 3; return true; }
+                }
+                if (!sameAxis)
+                {
+                    var fi = doc.Create.NewElbowFitting(a, b);
+                    if (fi != null) { kind = 1; return true; }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TryInsertFitting: {ex.Message}");
+            }
+            return false;
+        }
+
+        private static bool SameSize(Connector a, Connector b)
+        {
+            try
+            {
+                // Connector.Radius is set on round connectors;
+                // Connector.Width / Height on rectangular. Use the larger
+                // dimension when one is rect and the other round (rare).
+                double sa = a.Shape == ConnectorProfileType.Round ? a.Radius * 2 : Math.Max(a.Width, a.Height);
+                double sb = b.Shape == ConnectorProfileType.Round ? b.Radius * 2 : Math.Max(b.Width, b.Height);
+                return Math.Abs(sa - sb) < 1e-3;
+            }
+            catch { return true; }
         }
 
         /// <summary>

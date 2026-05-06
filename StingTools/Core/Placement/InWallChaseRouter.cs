@@ -81,10 +81,110 @@ namespace StingTools.Core.Placement
         private readonly Document _doc;
         private readonly StructuralAwareness _structural;
 
+        /// <summary>
+        /// Phase 139.29 — rebar centreline cache built lazily on first
+        /// segment validation. Rebuilt once per Route call (per host
+        /// wall). When the project doesn't model reinforcement the list
+        /// stays empty and the rebar-clash check is a no-op.
+        /// </summary>
+        private List<Curve> _rebarCache;
+
         public InWallChaseRouter(Document doc, StructuralAwareness structural)
         {
             _doc = doc;
             _structural = structural ?? new StructuralAwareness(doc);
+        }
+
+        /// <summary>
+        /// Collect Rebar centreline curves whose bounding box overlaps
+        /// the host wall (plus 200 mm pad). Empty when no reinforcement
+        /// is modelled — typical at MEP stage.
+        /// </summary>
+        private void BuildRebarCache(Wall hostWall)
+        {
+            _rebarCache = new List<Curve>();
+            if (hostWall == null) return;
+            try
+            {
+                var bb = hostWall.get_BoundingBox(null);
+                if (bb == null) return;
+                const double padFt = 200.0 / 304.8;
+                var outline = new Outline(
+                    new XYZ(bb.Min.X - padFt, bb.Min.Y - padFt, bb.Min.Z - padFt),
+                    new XYZ(bb.Max.X + padFt, bb.Max.Y + padFt, bb.Max.Z + padFt));
+                var bbf = new BoundingBoxIntersectsFilter(outline);
+
+                // OST_Rebar covers structural rebar; OST_RebarShape would
+                // be the type-only filter, not what we want.
+                var rebarCol = new FilteredElementCollector(_doc)
+                    .OfCategory(BuiltInCategory.OST_Rebar)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(bbf);
+
+                foreach (var el in rebarCol)
+                {
+                    try
+                    {
+                        // Rebar exposes centreline curves via the API
+                        // method GetCenterlineCurves(false, false, false,
+                        // MultiplanarOption.IncludeOnlyPlanarCurves, 0).
+                        // Some rebar variants throw — catch per element.
+                        var rebar = el as Autodesk.Revit.DB.Structure.Rebar;
+                        if (rebar == null) continue;
+                        var curves = rebar.GetCenterlineCurves(
+                            adjustForSelfIntersection: false,
+                            suppressHooks: false,
+                            suppressBendRadius: false,
+                            multiplanarOption: Autodesk.Revit.DB.Structure.MultiplanarOption.IncludeOnlyPlanarCurves,
+                            barPositionIndex: 0);
+                        if (curves == null) continue;
+                        foreach (var c in curves) if (c != null) _rebarCache.Add(c);
+                    }
+                    catch (Exception ex) { StingLog.Warn($"BuildRebarCache rebar {el?.Id?.Value}: {ex.Message}"); }
+                }
+                if (_rebarCache.Count > 0)
+                    StingLog.Info($"InWallChaseRouter: rebar clash check active — {_rebarCache.Count} rebar curve(s) loaded.");
+            }
+            catch (Exception ex) { StingLog.Warn($"BuildRebarCache: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Cheap minimum-distance estimate between line segment a→b and
+        /// an arbitrary curve. Samples the curve at 8 points and returns
+        /// the closest. Good enough for the clash check; not perfect for
+        /// pathological curve shapes.
+        /// </summary>
+        private static double MinSegmentToCurveDistanceFt(XYZ a, XYZ b, Curve curve)
+        {
+            if (a == null || b == null || curve == null) return double.MaxValue;
+            try
+            {
+                double best = double.MaxValue;
+                int samples = 8;
+                for (int i = 0; i <= samples; i++)
+                {
+                    double t = (double)i / samples;
+                    XYZ p;
+                    try { p = curve.Evaluate(t, true); }
+                    catch { continue; }
+                    if (p == null) continue;
+                    double d = DistancePointToSegmentFt(p, a, b);
+                    if (d < best) best = d;
+                }
+                return best;
+            }
+            catch { return double.MaxValue; }
+        }
+
+        private static double DistancePointToSegmentFt(XYZ p, XYZ a, XYZ b)
+        {
+            var ab = b - a;
+            double abLenSq = ab.DotProduct(ab);
+            if (abLenSq < 1e-9) return p.DistanceTo(a);
+            double t = (p - a).DotProduct(ab) / abLenSq;
+            if (t < 0) t = 0; else if (t > 1) t = 1;
+            var proj = a + ab.Multiply(t);
+            return p.DistanceTo(proj);
         }
 
         /// <summary>
@@ -160,6 +260,37 @@ namespace StingTools.Core.Placement
                         result.Warnings.Add(
                             $"InWallChaseRouter: segment {i} crosses load-bearing junction — split run or relocate.");
                         continue;
+                    }
+
+                    // Phase 139.29 — rebar clash check. Only fires when
+                    // reinforcement is actually modelled (typically not at
+                    // MEP stage); silent otherwise. Pipe must clear any
+                    // rebar centreline by at least cover + dia/2 per
+                    // Eurocode 2 §4.4.1.2(2).
+                    if (_rebarCache == null) BuildRebarCache(hostWall);
+                    if (_rebarCache.Count > 0)
+                    {
+                        double pipeOdMm = (rule.NominalDiameterMm > 0 ? rule.NominalDiameterMm
+                                          : rule.BoxDepthMm > 0 ? rule.BoxDepthMm : 22.0);
+                        double coverMm = string.Equals(rule.MountingContext, "CHASED", StringComparison.OrdinalIgnoreCase)
+                            ? StingTools.Core.Calc.ConcreteCoverTable.GetNominalCoverMm(rule.ExposureClass)
+                            : 25.0;
+                        double minClearFt = (coverMm + pipeOdMm * 0.5) / 304.8;
+                        bool rebarClash = false;
+                        foreach (var rebarCurve in _rebarCache)
+                        {
+                            if (rebarCurve == null) continue;
+                            double dist = MinSegmentToCurveDistanceFt(a, b, rebarCurve);
+                            if (dist < minClearFt) { rebarClash = true; break; }
+                        }
+                        if (rebarClash)
+                        {
+                            result.RejectedSegments++;
+                            result.Warnings.Add(
+                                $"InWallChaseRouter: segment {i} clashes with reinforcement (Eurocode 2 cover " +
+                                $"{coverMm:F0}mm + dia/2 from rebar centreline). Adjust mounting height or relocate chase.");
+                            continue;
+                        }
                     }
 
                     // Wall openings (doors, windows): permit the segment to
