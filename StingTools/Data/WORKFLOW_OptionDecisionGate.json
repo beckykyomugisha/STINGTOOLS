@@ -1,0 +1,12 @@
+{
+  "name": "Option Decision Gate",
+  "description": "Phase 175 — run BEFORE accepting a primary option (Manage → Design Options → Make Primary → Accept Primary). Validates the destruction blast radius and emits an audit so the team can recover state if the merge breaks downstream sheets/schedules.",
+  "rollback_on_failure": false,
+  "steps": [
+    { "commandTag": "DesignOptions_Inspect",       "label": "Snapshot option state pre-decision" },
+    { "commandTag": "DesignOptions_Audit",         "label": "Find schedules/ghost tags/sheets that depend on options" },
+    { "commandTag": "DesignOptions_IsolationView", "label": "Mint isolation views per option (last chance to capture losing alternatives)" },
+    { "commandTag": "DocumentBriefcase",           "label": "Bundle a backup briefcase before destructive merge", "optional": true },
+    { "commandTag": "ValidateTags",                "label": "Confirm tag/ISO 19650 compliance before merge" }
+  ]
+}

@@ -154,6 +154,21 @@ namespace StingTools.BIMManager
                             catch (Exception wsEx) { Core.StingLog.Warn($"Snapshot workset capture: {wsEx.Message}"); }
                             // MEP system context for system-level change classification
                             tokens["_SYSTEM"] = ParameterHelpers.GetString(el, "ASS_SYSTEM_TYPE_TXT");
+                            // Phase 175 — capture design option context so
+                            // RevisionCompare can group deltas per option.
+                            // Without this, accepting Option B emits a
+                            // misleading "every Option A element removed"
+                            // delta. Stored under "_OPTION_SET" /
+                            // "_OPTION" / "_OPTION_PRIMARY".
+                            try
+                            {
+                                var dopt = el.DesignOption;
+                                tokens["_OPTION"] = dopt?.Name ?? "";
+                                tokens["_OPTION_PRIMARY"] = (dopt == null || dopt.IsPrimary) ? "1" : "0";
+                                tokens["_OPTION_SET"] = ParameterHelpers.GetString(el,
+                                    StingTools.Core.DesignOptions.DesignOptionParams.OPTION_SET_TXT);
+                            }
+                            catch (Exception optEx) { Core.StingLog.Warn($"Snapshot option capture: {optEx.Message}"); }
                         }
                         catch (Exception ex) { Core.StingLog.Warn($"Snapshot context capture: {ex.Message}"); }
                         snapshot[el.Id.Value] = tokens;

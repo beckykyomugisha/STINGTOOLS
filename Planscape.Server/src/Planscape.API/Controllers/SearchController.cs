@@ -21,7 +21,9 @@ public class SearchController : ControllerBase
     public async Task<ActionResult> Search(
         [FromQuery] string q,
         [FromQuery] string? type = null,
-        [FromQuery] int limit = 25)
+        [FromQuery] int limit = 25,
+        [FromQuery] string? optionSet = null,
+        [FromQuery] string? option = null)
     {
         if (string.IsNullOrWhiteSpace(q) || q.Length < 2)
             return BadRequest(new { message = "Query must be at least 2 characters" });
@@ -49,13 +51,21 @@ public class SearchController : ControllerBase
             results.AddRange(tags);
         }
 
-        // Search issues
+        // Search issues — Phase 175: optional design-option filter so the
+        // mobile inbox can group queries by option set/option, ensuring
+        // site queries land against the right alternative when the host
+        // doc has multiple façade / fit-out / VE alternatives in flight.
         if (types == null || types.Contains("issue"))
         {
-            var issues = await _db.Issues
+            var qIssues = _db.Issues
                 .Where(i => i.Project!.TenantId == tenantId &&
-                    (i.Title!.ToLower().Contains(term) || i.IssueCode!.ToLower().Contains(term) || (i.Description ?? "").ToLower().Contains(term)))
-                .Select(i => new { Type = "issue", i.Id, Label = $"{i.IssueCode}: {i.Title}", Detail = i.Status, ProjectId = i.ProjectId, ProjectName = i.Project!.Name })
+                    (i.Title!.ToLower().Contains(term) || i.IssueCode!.ToLower().Contains(term) || (i.Description ?? "").ToLower().Contains(term)));
+            if (!string.IsNullOrWhiteSpace(optionSet))
+                qIssues = qIssues.Where(i => i.OptionSetName == optionSet);
+            if (!string.IsNullOrWhiteSpace(option))
+                qIssues = qIssues.Where(i => i.OptionName == option);
+            var issues = await qIssues
+                .Select(i => new { Type = "issue", i.Id, Label = $"{i.IssueCode}: {i.Title}", Detail = i.Status, ProjectId = i.ProjectId, ProjectName = i.Project!.Name, OptionSet = i.OptionSetName, Option = i.OptionName })
                 .Take(limit).ToListAsync();
             results.AddRange(issues);
         }

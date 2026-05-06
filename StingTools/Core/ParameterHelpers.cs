@@ -4179,6 +4179,13 @@ namespace StingTools.Core
                     StingLog.Info("TagPipeline: No grids found in document — GRID_REF will be empty. Create grid lines if grid references are required.");
                 }
 
+                // Phase 175 (Design Options): write ASS_DESIGN_OPTION_TXT /
+                // ASS_OPTION_SET_TXT / ASS_OPTION_PRIMARY_BOOL so every
+                // schedule, dashboard, legend, and Excel export becomes
+                // option-aware without bespoke wiring. Idempotent and safe
+                // on main-model elements.
+                StingTools.Core.DesignOptions.DesignOptionRegistry.WriteOptionParams(doc, el, overwrite);
+
                 // PERF-02: Inline FUNC/PROD empty tracking from tokenVals (avoids 2 GetString calls per element)
                 // tokenVals: [0]=DISC [1]=LOC [2]=ZONE [3]=LVL [4]=SYS [5]=FUNC [6]=PROD [7]=SEQ
                 if (stats != null && tokenVals != null && tokenVals.Length >= 7)

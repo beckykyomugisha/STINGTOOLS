@@ -458,19 +458,45 @@ public sealed class PlanscapeServerClient : IDisposable
     /// <summary>Create an issue on the server. Returns the new issue code, or null on failure.</summary>
     public async Task<string?> CreateIssueAsync(Guid projectId, string type, string title,
         string priority = "MEDIUM", string? assignee = null, string? discipline = null,
-        List<long>? linkedElementIds = null)
+        List<long>? linkedElementIds = null,
+        string? optionSetName = null, string? optionName = null)
     {
         if (!await EnsureAuthenticatedAsync()) return null;
         try
         {
+            // Phase 175 — optionSetName / optionName attach to BimIssue so
+            // the server-side SearchController can filter site queries by
+            // active design option, ensuring RFIs land against the right
+            // alternative when the host doc has parallel options in flight.
             var resp = await PostJsonAsync($"/api/projects/{projectId}/issues", new
             {
                 type, title, priority, assignee, discipline,
-                linkedElementIds = linkedElementIds ?? new List<long>()
+                linkedElementIds = linkedElementIds ?? new List<long>(),
+                optionSetName,
+                optionName
             });
             if (!resp.ok) { LastError = $"Create issue failed: {resp.body}"; return null; }
             var json = JObject.Parse(resp.body);
             return json["issueCode"]?.Value<string>();
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    /// <summary>Phase 175 — search server issues filtered by design option.
+    /// Returns raw JArray; caller projects to its own DTO.</summary>
+    public async Task<Newtonsoft.Json.Linq.JArray?> SearchIssuesByOptionAsync(
+        string query, string? optionSetName = null, string? optionName = null, int limit = 25)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var url = $"/api/search?q={Uri.EscapeDataString(query)}&type=issue&limit={limit}";
+            if (!string.IsNullOrEmpty(optionSetName)) url += $"&optionSet={Uri.EscapeDataString(optionSetName)}";
+            if (!string.IsNullOrEmpty(optionName))    url += $"&option={Uri.EscapeDataString(optionName)}";
+            var resp = await GetAsync(url);
+            if (!resp.ok) return null;
+            var json = JObject.Parse(resp.body);
+            return json["results"] as Newtonsoft.Json.Linq.JArray;
         }
         catch (Exception ex) { LastError = ex.Message; return null; }
     }

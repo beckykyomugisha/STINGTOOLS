@@ -202,6 +202,21 @@ namespace StingTools.Core.Drawing
         [JsonProperty("print")]      public PrintOverride Print { get; set; } = new PrintOverride();
 
         /// <summary>
+        /// Phase 175 — design-option scope for views and sheets minted
+        /// under this profile. When set, DrawingTypePresentation.Apply
+        /// writes BuiltInParameter.VIEWER_OPTION_VISIBILITY on the view
+        /// so it shows only the chosen option (or main-model primary).
+        ///
+        /// Schema:
+        ///   { "mode": "Automatic" | "Primary" | "Specific",
+        ///     "optionName": "Façade-A",
+        ///     "setName":    "Façade Study"     // disambiguates duplicates
+        ///   }
+        /// </summary>
+        [JsonProperty("optionScope", NullValueHandling = NullValueHandling.Ignore)]
+        public DrawingOptionScope OptionScope { get; set; }
+
+        /// <summary>
         /// Phase 137 — production rules. One DrawingType can produce
         /// multiple companion views (e.g. one plan + one RCP + one
         /// section). Each rule yields one view with optional per-rule
@@ -224,6 +239,26 @@ namespace StingTools.Core.Drawing
         // compares on save to detect out-of-band edits.
         [JsonProperty("checksum", NullValueHandling = NullValueHandling.Ignore)]
         public string Checksum { get; set; }
+    }
+
+    /// <summary>Phase 175 — option binding for a DrawingType.</summary>
+    public sealed class DrawingOptionScope
+    {
+        /// <summary>Automatic | Primary | Specific.</summary>
+        [JsonProperty("mode")] public string Mode { get; set; } = "Automatic";
+
+        /// <summary>Option name to bind when Mode = Specific.</summary>
+        [JsonProperty("optionName", NullValueHandling = NullValueHandling.Ignore)]
+        public string OptionName { get; set; }
+
+        /// <summary>Owning option-set name (disambiguates duplicates).</summary>
+        [JsonProperty("setName", NullValueHandling = NullValueHandling.Ignore)]
+        public string SetName { get; set; }
+
+        /// <summary>Optional suffix appended to auto-generated tags in
+        /// views minted under this profile, e.g. "(Opt: Façade-A)".</summary>
+        [JsonProperty("tagSuffix", NullValueHandling = NullValueHandling.Ignore)]
+        public string TagSuffix { get; set; }
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -499,5 +534,13 @@ namespace StingTools.Core.Drawing
         [JsonProperty("docTypeMatches",    NullValueHandling = NullValueHandling.Ignore)] public string DocTypeMatches { get; set; }
         [JsonProperty("levelMatches",      NullValueHandling = NullValueHandling.Ignore)] public string LevelMatches { get; set; }
         [JsonProperty("projectCodeMatches",NullValueHandling = NullValueHandling.Ignore)] public string ProjectCodeMatches { get; set; }
+
+        // Phase 175: design-option-aware routing. Regex evaluated against
+        // the caller-supplied option name, or "Main Model" when the caller
+        // is not in any option. Lets a profile catalogue express e.g.
+        // "VE option uses presentation pack, baseline option uses
+        //  production pack" via two routing rules differing only in
+        // optionMatches.
+        [JsonProperty("optionMatches",     NullValueHandling = NullValueHandling.Ignore)] public string OptionMatches { get; set; }
     }
 }

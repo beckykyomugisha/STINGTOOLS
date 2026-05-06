@@ -1781,6 +1781,19 @@ namespace StingTools.Core
                 case "PlanscapeOpenWebDashboard":
                 case "PlanscapeOpenBrowser":       return new BIMManager.PlanscapeOpenWebCommand();
 
+                // ── Phase 175: Design Options ──
+                case "DesignOptions_Inspect":             return new Commands.DesignOptions.DesignOptionsInspectCommand();
+                case "DesignOptions_MoveTo":              return new Commands.DesignOptions.MoveToOptionCommand();
+                case "DesignOptions_LockView":            return new Commands.DesignOptions.LockViewToOptionCommand();
+                case "DesignOptions_ResetView":           return new Commands.DesignOptions.ResetViewOptionVisibilityCommand();
+                case "DesignOptions_CloneSchedule":       return new Commands.DesignOptions.ClonePerOptionScheduleCommand();
+                case "DesignOptions_IsolationView":       return new Commands.DesignOptions.CreateIsolationViewCommand();
+                case "DesignOptions_PrimaryClashView":    return new Commands.DesignOptions.CreatePrimaryOnlyClashViewCommand();
+                case "DesignOptions_Audit":               return new Commands.DesignOptions.AuditOptionsCommand();
+                case "DesignOptions_BatchLinkVisibility": return new Commands.DesignOptions.BatchSetLinkOptionVisibilityCommand();
+                case "DesignOptions_Dashboard":           return new Commands.DesignOptions.OptionsDashboardCommand();
+                case "DesignOptions_ExportComparison":    return new Commands.DesignOptions.ExportOptionComparisonCommand();
+
                 default: return null;
             }
         }
