@@ -1,0 +1,228 @@
+// StingTools — Symbol standard switching + placement commands (Phase 175)
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using Autodesk.Revit.Attributes;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
+using StingTools.Core;
+using StingTools.Core.Symbols;
+
+namespace StingTools.Commands.Symbols
+{
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SwitchProjectStandardCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var standards = SymbolStandardRegistry.ListStandards().ToList();
+            if (standards.Count == 0)
+            {
+                TaskDialog.Show("STING", "No standards configured.");
+                return Result.Failed;
+            }
+            var pick = StingTools.UI.StingListPicker.Show(
+                "Switch project symbol standard",
+                "Pick the standard to apply to all symbol overlays.",
+                standards);
+            if (string.IsNullOrEmpty(pick)) return Result.Cancelled;
+
+            try
+            {
+                SymbolStandardResolver.SetProjectStandard(ctx.Doc, pick);
+                int swapped = SwapAllTags(ctx.Doc, pick);
+                TaskDialog.Show("STING", $"Switched to {pick}. {swapped} tag(s) updated.");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("SwitchProjectStandardCommand", ex);
+                msg = ex.Message;
+                return Result.Failed;
+            }
+        }
+
+        internal static int SwapAllTags(Document doc, string newStandard)
+        {
+            int n = 0;
+            var tags = new FilteredElementCollector(doc)
+                .OfClass(typeof(IndependentTag))
+                .Cast<IndependentTag>()
+                .Where(t => !string.IsNullOrEmpty(t.LookupParameter("STING_SYMBOL_ID")?.AsString()))
+                .ToList();
+            using (var tx = new Transaction(doc, "STING Swap Symbol Standard"))
+            {
+                tx.Start();
+                foreach (var tag in tags)
+                {
+                    try
+                    {
+                        var view = doc.GetElement(tag.OwnerViewId) as View;
+                        string conceptId = tag.LookupParameter("STING_SYMBOL_ID")?.AsString();
+                        if (string.IsNullOrEmpty(conceptId)) continue;
+                        string viewCtx = SymbolViewContextResolver.ToKey(SymbolViewContextResolver.Resolve(view));
+                        string scaleTier = SymbolScaleEngine.GetScaleTier(view);
+                        string fam = SymbolConceptRegistry.GetFamilyName(conceptId, newStandard, viewCtx, scaleTier, null);
+                        if (string.IsNullOrEmpty(fam)) continue;
+                        var sym = new FilteredElementCollector(doc)
+                            .OfClass(typeof(FamilySymbol))
+                            .Cast<FamilySymbol>()
+                            .FirstOrDefault(s => string.Equals(s.Name, fam, StringComparison.OrdinalIgnoreCase));
+                        if (sym == null) continue;
+                        if (!sym.IsActive) sym.Activate();
+                        tag.ChangeTypeId(sym.Id);
+                        var stdParam = tag.LookupParameter("STING_SYMBOL_STANDARD");
+                        if (stdParam != null && !stdParam.IsReadOnly) stdParam.Set(newStandard);
+                        if (view != null)
+                            SymbolAnnotationEngine.UpdateAnnotations(doc, view, newStandard);
+                        n++;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"SwapAllTags inner: {ex.Message}"); }
+                }
+                tx.Commit();
+            }
+            return n;
+        }
+    }
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SwitchViewStandardCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            if (ctx.ActiveView == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+            var pick = StingTools.UI.StingListPicker.Show("Switch view standard",
+                "Pick the standard to apply to symbols in this view.",
+                SymbolStandardRegistry.ListStandards().ToList());
+            if (string.IsNullOrEmpty(pick)) return Result.Cancelled;
+
+            SymbolStandardResolver.SetViewStandard(ctx.Doc, ctx.ActiveView, pick);
+            int n = SymbolAnnotationEngine.UpdateAnnotations(ctx.Doc, ctx.ActiveView, pick);
+            TaskDialog.Show("STING", $"View standard set to {pick}. {n} annotation(s) refreshed.");
+            return Result.Succeeded;
+        }
+    }
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SetMixedStandardProfileCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var profiles = SymbolStandardRegistry.ListProfiles()
+                .Select(p => p.Id + " — " + p.Name).ToList();
+            if (profiles.Count == 0) { TaskDialog.Show("STING", "No mixed-standard profiles defined."); return Result.Failed; }
+            var pick = StingTools.UI.StingListPicker.Show(
+                "Mixed-standard profile", "Pick the active profile.", profiles);
+            if (string.IsNullOrEmpty(pick)) return Result.Cancelled;
+            string id = pick.Split(' ').FirstOrDefault();
+            SymbolStandardResolver.SetProjectProfile(ctx.Doc, id);
+            TaskDialog.Show("STING", $"Profile set to {id}.");
+            return Result.Succeeded;
+        }
+    }
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class PlaceSymbolsInViewCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null || ctx.ActiveView == null)
+            { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+            try
+            {
+                int n;
+                using (var tx = new Transaction(ctx.Doc, "STING Place Symbols in View"))
+                {
+                    tx.Start();
+                    n = SymbolOverlayManager.PlaceOverlaysForView(ctx.Doc, ctx.ActiveView);
+                    tx.Commit();
+                }
+                TaskDialog.Show("STING", $"Placed {n} symbol overlay(s) in {ctx.ActiveView.Name}.");
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("PlaceSymbolsInView", ex); msg = ex.Message; return Result.Failed; }
+        }
+    }
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class PlaceSymbolsProjectWideCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) return Result.Failed;
+            int totalPlaced = 0;
+            using (var tx = new Transaction(ctx.Doc, "STING Place Symbols Project-Wide"))
+            {
+                tx.Start();
+                foreach (View v in new FilteredElementCollector(ctx.Doc)
+                    .OfClass(typeof(View)).Cast<View>()
+                    .Where(v => !v.IsTemplate
+                        && (v.ViewType == ViewType.FloorPlan
+                         || v.ViewType == ViewType.CeilingPlan
+                         || v.ViewType == ViewType.Section
+                         || v.ViewType == ViewType.Elevation)))
+                {
+                    totalPlaced += SymbolOverlayManager.PlaceOverlaysForView(ctx.Doc, v);
+                }
+                tx.Commit();
+            }
+            TaskDialog.Show("STING", $"Placed {totalPlaced} symbol overlay(s) project-wide.");
+            return Result.Succeeded;
+        }
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SymbolStandardAuditCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) return Result.Failed;
+            var drift = SymbolDriftDetector.DetectDrift(ctx.Doc);
+            var coverage = SymbolCoverageAuditor.AuditCoverage(ctx.Doc);
+            var sb = new StringBuilder();
+            sb.AppendLine($"Symbols total: {drift.TotalSymbols}");
+            sb.AppendLine($"  drift count : {drift.DriftedSymbols}");
+            sb.AppendLine($"Coverage     : {coverage.CoveragePercent:F1}% ({coverage.CoveredElements}/{coverage.TotalMEPElements})");
+            sb.AppendLine($"Uncovered    : {coverage.UncoveredElements}");
+            TaskDialog.Show("STING - Symbol Audit", sb.ToString());
+            return Result.Succeeded;
+        }
+    }
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SyncViewFilterVisibilityCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) return Result.Failed;
+            int n;
+            using (var tx = new Transaction(ctx.Doc, "STING Sync Symbol Filter Visibility"))
+            {
+                tx.Start();
+                n = SymbolOverlayManager.SyncAllFilterVisibility(ctx.Doc);
+                tx.Commit();
+            }
+            TaskDialog.Show("STING", $"Synced filter visibility on {n} symbol tag(s).");
+            return Result.Succeeded;
+        }
+    }
+}

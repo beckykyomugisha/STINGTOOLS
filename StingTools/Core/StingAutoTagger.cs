@@ -799,6 +799,28 @@ namespace StingTools.Core
                                     }
                                 }
 
+                                // Phase 175 — symbol overlay auto-placement.
+                                try
+                                {
+                                    if (IsSymbolAutoPlaceEnabled(doc) && doc.ActiveView != null
+                                        && !(doc.ActiveView is ViewSheet))
+                                    {
+                                        var concept = StingTools.Core.Symbols.SymbolConceptRegistry
+                                            .GetConceptsForCategory(el.Category?.Name)
+                                            .FirstOrDefault();
+                                        if (concept != null)
+                                        {
+                                            string std = StingTools.Core.Symbols.SymbolStandardResolver
+                                                .ResolveStandard(doc, doc.ActiveView, el);
+                                            StingTools.Core.Symbols.SymbolOverlayManager
+                                                .PlaceSymbolOverlay(doc, doc.ActiveView, el,
+                                                    concept.ConceptId, std);
+                                        }
+                                    }
+                                }
+                                catch (Exception sEx)
+                                { StingLog.Warn($"AutoTagger symbol overlay: {sEx.Message}"); }
+
                                 processed++;
                             }
                             catch (Exception elEx)
@@ -832,6 +854,25 @@ namespace StingTools.Core
                     }
                 }
                 return processed;
+            }
+
+            /// <summary>
+            /// Phase 175 — gate symbol overlay auto-placement on
+            /// project_config.json &quot;symbol_auto_place&quot; (default false to
+            /// avoid surprising existing projects).
+            /// </summary>
+            private static bool IsSymbolAutoPlaceEnabled(Document doc)
+            {
+                try
+                {
+                    if (doc == null || string.IsNullOrEmpty(doc.PathName)) return false;
+                    string p = System.IO.Path.Combine(
+                        System.IO.Path.GetDirectoryName(doc.PathName), "project_config.json");
+                    if (!System.IO.File.Exists(p)) return false;
+                    var root = Newtonsoft.Json.Linq.JObject.Parse(System.IO.File.ReadAllText(p));
+                    return (bool)(root["symbol_auto_place"] ?? false);
+                }
+                catch (Exception ex) { StingLog.Warn($"IsSymbolAutoPlaceEnabled: {ex.Message}"); return false; }
             }
 
             /// <summary>

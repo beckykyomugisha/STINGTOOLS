@@ -9964,3 +9964,528 @@ merging to `main`.
 
 - `CLAUDE.md` — Quick Stats refresh + Phase 174 banner
 - `docs/CHANGELOG.md` — this entry
+
+#### Completed (Phase 175 — MEP/FP/SLD Symbol Library)
+
+A data-driven batch symbol library creator that mints ~210 Revit
+families from JSON definition files covering Single Line Diagram
+(IEC 60617), lighting, fire protection (NFPA 13 / BS 5306 / BS 5839),
+HVAC / mechanical, electrical devices, plumbing / public health, and
+generic pipe accessories. Each JSON entry describes one family using
+normalised −0.5…+0.5 coordinates that the engine scales to Revit
+internal feet via the `symbolSize` (mm) field.
+
+#### What landed
+
+1. **Schema** — `StingTools/Commands/Symbols/SymbolDefinition.cs` defines
+   `SymbolLibrary` / `SymbolDefinition` / `SymbolGeometry` (lines, arcs,
+   filled regions, connection lines, text) / `ConnectorDefinition` /
+   `Solid3DDefinition` / `ParameterDefinition` POCOs.
+2. **Engine** — `StingTools/Commands/Symbols/SymbolLibraryCreator.cs`
+   resolves the family template per `FamilyType` (`GenericAnnotation`,
+   `MEPAccessory`, `MEPEquipment`) and discipline, opens it via
+   `Application.NewFamilyDocument`, draws geometry with
+   `FamilyCreate.NewDetailCurve` + `FilledRegion.Create` + `TextNote.Create`,
+   adds shared parameters via `FamilyManager.AddParameter`, mints
+   connectors via `ConnectorElement.CreatePipe/Duct/Electrical/ConduitConnector`,
+   optionally extrudes a placeholder 3D mass, saves the `.rfa` to
+   `<project>/_BIM_COORD/Families/Symbols/<group>/`, and reloads it
+   into the host document.
+3. **Commands** — `StingTools/Commands/Symbols/SymbolLibraryCommands.cs`
+   ships six `IExternalCommand` classes:
+   `CreateSymbolLibraryCommand` (full sweep), `CreateSLDSymbolsCommand`,
+   `CreateLightingSymbolsCommand`, `CreateFPSymbolsCommand`,
+   `ReloadSymbolLibraryCommand`, `InspectSymbolLibraryCommand`.
+4. **Data files** — seven JSON catalogues under
+   `StingTools/Data/Symbols/`:
+   - `STING_SLD_SYMBOLS.json` — 42 IEC 60617 SLD primitives
+     (MCB / MCCB / ACB / fuse / RCD / RCBO / SPD / contactor / VSD /
+     transformer 2W & 3W & auto & star-delta / measuring instruments /
+     CT / VT / busbar / earth / generator / UPS / battery / PV /
+     ATS / motor 1Ph & 3Ph / capacitor / heater / lighting load /
+     distribution board / socket / mains switch).
+   - `STING_LIGHTING_SYMBOLS.json` — 25 luminaires
+     (recessed round + square, surface round + square, pendant,
+     track, fluorescent 1T + 2T, LED linear, emergency maintained
+     + non-maintained, exit sign, spotlight, wall bracket,
+     floodlight, bollard, street light, high bay, low bay,
+     anti-vandal, clean room, EX-rated, PIR-controlled, trimless,
+     step light).
+   - `STING_FP_SYMBOLS.json` — 28 fire-protection devices
+     (pendant / upright / sidewall / concealed / ESFR sprinklers,
+     deluge nozzle, optical + ionisation smoke, fixed + rate-of-rise
+     heat, multi-sensor, beam TX/RX, flame, MCP, sounder, sounder/beacon,
+     VAD, FAP, repeater + alarm/deluge/butterfly valves, flow switch,
+     pressure gauge, test + drain valves).
+   - `STING_MEP_SYMBOLS.json` — 26 HVAC items
+     (square + round supply diffusers, square + round return grilles,
+     linear slot, extract valve, displacement, swirl, transfer grille,
+     fire / smoke / fire-smoke / VCD / motorised / non-return dampers,
+     FCU 4-pipe + 2-pipe, VAV, CAV, AHU schematic, axial + centrifugal
+     fans, thermostat, CO₂ / temp / humidity / dP sensors).
+   - `STING_ELEC_SYMBOLS.json` — 24 electrical / data / security devices
+     (single + double sockets, FCU, EV charger, floor socket, 1G + 2G
+     + 2-way + dimmer + PIR switches, consumer unit, distribution board,
+     MCC, rotary isolator, kWh meter, internal + external CCTV, access
+     reader, data outlet, combined data/voice, speaker, door bell,
+     addressable smoke + heat).
+   - `STING_PLUMBING_SYMBOLS.json` — 23 sanitary / drainage / valve items
+     (wall + close-coupled WCs, urinal, WHB, vanity basin, single +
+     double sinks, cleaner's sink, shower tray, bath, bidet, round +
+     square floor drains, gully, gate / globe / ball / butterfly /
+     check valves, Y-strainer, flexible connector, PRV, direct +
+     indirect HWC).
+   - `STING_PIPE_ACCESSORIES.json` — 21 reusable piping accessories
+     (gate, globe, ball, butterfly, check, indicating gate, needle,
+     diaphragm, solenoid, pressure-reducing, pressure-sustaining,
+     flow-control valves; Y + basket strainers; flexible coupling;
+     expansion joint; pressure + temperature gauges; flow meter;
+     inline pump).
+   Total: **190 symbols** across 7 catalogues
+   (42 SLD + 25 lighting + 28 FP + 27 HVAC + 24 electrical +
+   24 plumbing + 20 pipe accessories).
+5. **Wiring** — six dispatch entries added to
+   `StingTools/UI/StingCommandHandler.cs` (`Symbols_CreateAll`,
+   `Symbols_CreateSLD`, `Symbols_CreateLighting`, `Symbols_CreateFP`,
+   `Symbols_Reload`, `Symbols_Inspect`) and a "SYMBOL LIBRARY"
+   section added to the TEMP tab in `StingTools/UI/StingDockPanel.xaml`.
+6. **Build pipeline** — JSON files land under `StingTools/Data/Symbols/`,
+   which is already covered by the `Data\**\*` glob in
+   `StingTools.csproj` so they ship to `data/Symbols/` at build time
+   and are resolved at runtime via `StingToolsApp.FindDataFile`
+   (recursive search).
+
+#### Caveats
+
+1. Built without `dotnet build` verification (Linux sandbox with no
+   Revit API). Spots that depend on overload resolution carry
+   `// TODO-VERIFY-API` comments — particularly
+   `ConnectorElement.CreatePipe/Duct/Electrical/ConduitConnector`
+   reference geometry in 2025, `FamilyCreate.NewExtrusion` profile
+   array shape, and `SpecTypeId` paths under
+   `SpecTypeId.Int.Integer` / `SpecTypeId.String.Text` /
+   `SpecTypeId.Boolean.YesNo`.
+2. The 3D solids on `MEPEquipment` families are best-effort
+   placeholder masses (extruded box / cylinder) so the family loads
+   non-empty in section / 3D views; replace with proper authored
+   geometry during family-library finishing.
+3. Family templates are resolved by name from
+   `Application.FamilyTemplatePath`; on machines where that returns
+   empty the engine falls back to the per-version
+   `C:\ProgramData\Autodesk\RVT 2025/2026/2027\Family Templates\English`
+   tree. Templates that are not present (e.g. `Metric Sprinkler.rft`)
+   degrade gracefully to `Metric Generic Model.rft`.
+4. Coordinate normalisation assumes the symbol body is centred at the
+   family origin. Off-axis symbols (e.g. wall-bracket luminaires)
+   bake the offset into the JSON line list rather than the symbol
+   transform.
+
+#### Files
+
+- `StingTools/Commands/Symbols/SymbolDefinition.cs` — POCO schema
+- `StingTools/Commands/Symbols/SymbolLibraryCreator.cs` — engine
+- `StingTools/Commands/Symbols/SymbolLibraryCommands.cs` — six commands
+- `StingTools/Data/Symbols/STING_SLD_SYMBOLS.json`
+- `StingTools/Data/Symbols/STING_LIGHTING_SYMBOLS.json`
+- `StingTools/Data/Symbols/STING_FP_SYMBOLS.json`
+- `StingTools/Data/Symbols/STING_MEP_SYMBOLS.json`
+- `StingTools/Data/Symbols/STING_ELEC_SYMBOLS.json`
+- `StingTools/Data/Symbols/STING_PLUMBING_SYMBOLS.json`
+- `StingTools/Data/Symbols/STING_PIPE_ACCESSORIES.json`
+- `StingTools/UI/StingCommandHandler.cs` — dispatch entries
+- `StingTools/UI/StingDockPanel.xaml` — SYMBOL LIBRARY section
+- `docs/CHANGELOG.md` — this entry
+
+#### Completed (Phase 175 — Three-Universe Symbol System + SLD Auto-Gen)
+
+Phase 175 grew from a single library creator into a full symbol-system
+architecture spanning three "universes" (Schematic / Model / Augmented),
+five drawing standards (IEC, IEEE, NFPA, CIBSE, BS), four mixed-standard
+profiles, drift detection, orphan healing, coverage auditing, family
+augmentation, and an SLD auto-generator with live IUpdater sync. All
+file paths now match `StingTools/Core/Symbols/`,
+`StingTools/Core/SLD/`, and `StingTools/Commands/{Symbols,SLD}/`.
+
+#### What landed
+
+1. **Three-universe architecture** — every concept (e.g. `MEP_FCU`)
+   exists as `IEC_SLD_FCU` (Schematic / GenericAnnotation),
+   `IEC_MEP_FCU_TAG` (Model / IndependentTag), and as STING-augmented
+   parameters on the existing `MEP_FCU` model family.
+   `SymbolViewContextResolver` picks the correct universe per view;
+   `SymbolStandardResolver` walks a 6-level inheritance chain
+   (element override → view override → DrawingType discipline →
+   mixed-profile discipline → project global → IEC) to pick the active
+   standard.
+
+2. **Standards + concepts catalogue** —
+   `StingTools/Data/Symbols/STING_SYMBOL_STANDARDS.json` (5 standards),
+   `STING_MIXED_STANDARD_PROFILES.json` (4 profiles, default
+   `Uganda-Standard`), and `STING_SYMBOL_CONCEPTS.json` (191 conceptIds
+   × 2-3 standard mappings = 4,188 lines). Reverse index built once at
+   load time so `SymbolConceptRegistry.GetConceptForFamily` is O(1).
+
+3. **Engines under `StingTools/Core/Symbols/`** (12 files) —
+   `SymbolDefinition.cs` POCOs, `SymbolStandardRegistry`,
+   `SymbolConceptRegistry`, `SymbolStandardResolver`,
+   `SymbolViewContextResolver`, `SymbolScaleEngine`,
+   `SymbolOrientationEngine` (5 states from instance axis × view
+   normal), `SymbolAnnotationEngine` (per-standard rating + circuit
+   labels), `SymbolLibraryCreator` (carried over from the prior
+   commit, geometry creator unchanged), `SymbolOverlayManager`,
+   `CompoundSymbolPlacer`, `FamilyAugmentationEngine`,
+   `SymbolOrphanHealer`, `SymbolCoverageAuditor`,
+   `SymbolDriftDetector`.
+
+4. **SLD subsystem under `StingTools/Core/SLD/`** (5 files) —
+   `SLDCircuitTraverser` walks `ElectricalSystem.BaseEquipment` /
+   `Elements` to build a hierarchy; `SLDLayoutEngine` assigns XYZ
+   positions plus busbar / branch line geometry; `SLDAnnotationPlacer`
+   draws those plus per-symbol rating labels per the active standard's
+   `AnnotationRules`; `SLDGenerator` is the façade that mints a
+   drafting view, places symbols, and stamps the view's standard;
+   `SLDSyncUpdater` is an IUpdater that re-runs UpdateSLD whenever an
+   electrical element changes (gated on `project_config.json`
+   `sld_sync_enabled`).
+
+5. **24 new commands under `StingTools/Commands/{Symbols,SLD}/`** —
+   library (6: CreateAll / SLD-only / Lighting-only / FP-only /
+   Reload / Inspect — carried over), standards (7: SwitchProject /
+   SwitchView / SetProfile / PlaceView / PlaceAll / Audit /
+   SyncFilters), augmentation (3: AugmentAll / AugmentSelected /
+   Rollback), maintenance (4: HealOrphans / Coverage / FixDrift /
+   BatchHeal), SLD (5: Generate / GenerateOptions / Update /
+   SyncToggle / Validate). All wired through StingCommandHandler.
+
+6. **Existing-file extensions** —
+   - `Core/StingAutoTagger.cs`: after `RunFullPipeline` / visual tag
+     placement, drops a symbol overlay via
+     `SymbolOverlayManager.PlaceSymbolOverlay` when
+     `project_config.json` `symbol_auto_place == true` (default false
+     so existing projects don't get surprised).
+   - `Core/StingToolsApp.cs`: registers `SLDSyncUpdater` for
+     ElectricalEquipment / ElectricalFixtures / LightingFixtures
+     in OnStartup; unregisters in OnShutdown via the new
+     `_sldUpdaterId` field.
+   - `Core/ParamRegistry.cs`: 8 new shared-parameter constants with
+     stable GUIDs (`SYMBOL_ID`, `SYMBOL_STANDARD`,
+     `SYMBOL_HOST_ELEMENT_ID`, `SYMBOL_LABEL_ID`, `SYMBOL_OVERRIDE`,
+     `VIEW_SYMBOL_STANDARD`, `SLD_ELEMENT_ID`,
+     `SYMBOL_LIBRARY_VERSION`).
+   - `Core/Drawing/DrawingTypePresentation.cs`: pipeline gains
+     Step 8.5 — read-only drift check against the resolved standard;
+     surfaces `r.Warnings` for the user to heal via FixSymbolDrift.
+
+7. **Dock panel** — TEMP tab gains two Phase-175 sections
+   ("SYMBOLS & DEVICES" with 4 button rows, and "SLD GENERATOR" with
+   5 buttons). Existing geometry JSONs from the prior commit
+   (`STING_SLD_SYMBOLS.json` etc., 190 symbols) still ship and are
+   the data the library creator chews through.
+
+#### Caveats
+
+1. Built without `dotnet build` verification (Linux sandbox with no
+   Revit API). Spots that depend on overload resolution carry
+   `// TODO-VERIFY-API`, particularly:
+   - `ElectricalSystem.PolesNumber` / `RBS_ELEC_APPARENT_LOAD` access
+     in `SLDCircuitTraverser.ReadCircuitData`
+   - `IndependentTag.GetTaggedLocalElementIds` in
+     `SymbolAnnotationEngine.ResolveHost` /
+     `SymbolOrphanHealer.FindOrphans` / `SymbolDriftDetector`
+   - `IndependentTag.Create` overload signature
+   - `Family.FamilyCategory` access during augmentation
+   Verify in Revit before relying on them.
+2. The `SymbolLibraryCreator` family templates path (carried over from
+   the prior commit) auto-detects 2025/2026/2027 — symbol families
+   that don't have a perfect template (e.g. `Metric Sprinkler.rft`)
+   degrade to `Metric Generic Model.rft`.
+3. `SymbolOrientationEngine.Compute` uses `FamilyInstance.HandOrientation`
+   / `FacingOrientation` — for non-FamilyInstance hosts (e.g. linked
+   models) it returns `Horizontal`, which is the safe default but may
+   not be ideal for vertical pipes.
+4. Compound symbol layout is currently a vertical stack with simple
+   straight connection lines — adequate for SLD legend keys, less so
+   for ladder-logic style schematics. Future enhancement.
+5. `SLDGenerator.UpdateSLD` rebuilds the entire view contents on every
+   trigger from `SLDSyncUpdater`. Acceptable for projects up to a few
+   hundred circuits; for very large projects, future enhancement
+   would scope updates to only the changed subtree.
+
+#### Files
+
+New:
+- `StingTools/Core/Symbols/SymbolDefinition.cs` (POCOs, expanded)
+- `StingTools/Core/Symbols/SymbolStandardRegistry.cs`
+- `StingTools/Core/Symbols/SymbolConceptRegistry.cs`
+- `StingTools/Core/Symbols/SymbolStandardResolver.cs`
+- `StingTools/Core/Symbols/SymbolViewContextResolver.cs`
+- `StingTools/Core/Symbols/SymbolScaleEngine.cs`
+- `StingTools/Core/Symbols/SymbolOrientationEngine.cs`
+- `StingTools/Core/Symbols/SymbolAnnotationEngine.cs`
+- `StingTools/Core/Symbols/SymbolOverlayManager.cs`
+- `StingTools/Core/Symbols/CompoundSymbolPlacer.cs`
+- `StingTools/Core/Symbols/FamilyAugmentationEngine.cs`
+- `StingTools/Core/Symbols/SymbolOrphanHealer.cs`
+- `StingTools/Core/Symbols/SymbolCoverageAuditor.cs`
+- `StingTools/Core/Symbols/SymbolDriftDetector.cs`
+- `StingTools/Core/SLD/SLDCircuitTraverser.cs`
+- `StingTools/Core/SLD/SLDLayoutEngine.cs`
+- `StingTools/Core/SLD/SLDAnnotationPlacer.cs`
+- `StingTools/Core/SLD/SLDGenerator.cs`
+- `StingTools/Core/SLD/SLDSyncUpdater.cs`
+- `StingTools/Commands/Symbols/SymbolStandardCommands.cs`
+- `StingTools/Commands/Symbols/SymbolAugmentationCommands.cs`
+- `StingTools/Commands/Symbols/SymbolMaintenanceCommands.cs`
+- `StingTools/Commands/SLD/SLDGeneratorCommands.cs`
+- `StingTools/Data/Symbols/STING_SYMBOL_STANDARDS.json`
+- `StingTools/Data/Symbols/STING_MIXED_STANDARD_PROFILES.json`
+- `StingTools/Data/Symbols/STING_SYMBOL_CONCEPTS.json` (4,188 lines)
+
+Moved (`Commands/Symbols/` → `Core/Symbols/`):
+- `StingTools/Core/Symbols/SymbolDefinition.cs`
+- `StingTools/Core/Symbols/SymbolLibraryCreator.cs`
+
+Modified:
+- `StingTools/Core/StingToolsApp.cs` — SLDSyncUpdater register / unregister
+- `StingTools/Core/StingAutoTagger.cs` — symbol overlay auto-place
+- `StingTools/Core/ParamRegistry.cs` — 8 symbol-system shared-param constants
+- `StingTools/Core/Drawing/DrawingTypePresentation.cs` — Step 8.5 drift gate
+- `StingTools/Commands/Symbols/SymbolLibraryCommands.cs` — namespace import
+- `StingTools/UI/StingCommandHandler.cs` — 24 new dispatch entries
+- `StingTools/UI/StingDockPanel.xaml` — SYMBOLS & DEVICES + SLD GENERATOR sections
+- `docs/CHANGELOG.md` — this entry
+
+#### Completed (Phase 175 — caveat resolution: orientation/ladder/SLD-scope/async-augment)
+
+Closed the four caveats flagged at the bottom of the Phase 175 entry
+above. All four were marked as caveats rather than blocking issues —
+each is now a proper implementation.
+
+#### What landed
+
+1. **`SymbolOrientationEngine.Compute` widened to `Element`** —
+   non-FamilyInstance hosts now get a real axis. New
+   `ResolvePrimaryAxis` priority chain:
+   - `FamilyInstance.HandOrientation` / `FacingOrientation` (best signal)
+   - `MEPCurve` axis from `LocationCurve` — covers `Pipe`, `Duct`,
+     `Conduit`, `CableTray`, `FlexPipe`, `FlexDuct`. Vertical pipes /
+     risers now correctly resolve to `OrientationState.Vertical`.
+   - Generic `LocationCurve` fallback for linked-model proxies and
+     structural framing.
+   - Bounding-box dominant-dimension heuristic when nothing else exposes
+     an axis (only kicks in when one dimension is ≥ 1.5× the others).
+   - `XYZ.BasisX` last-resort default.
+   The legacy `Compute(FamilyInstance, View)` overload is preserved as
+   a thin delegating wrapper so any future caller that already passes a
+   FI compiles unchanged.
+
+2. **`CompoundSymbolPlacer` gains a `CompoundLayoutMode` enum** —
+   `VerticalStack` (existing behavior, default), `HorizontalSeries`
+   (left-to-right with inline connection lines, suited to circuit-flow
+   inline diagrams), and `Ladder` (two vertical rails with components
+   on horizontal rungs, one rung per component, connection lines from
+   each rail to each component centre — proper ladder-logic style for
+   full schematics). The placer's component-resolution path also now
+   falls back to `GetFamilyName` when `GetAnnotationFamilyName` returns
+   nothing, so it works with both annotation-only and tag-family
+   concepts.
+
+3. **`SLDGenerator.UpdateSLD` two-tier strategy** — fast label-only
+   path for modifications, full rebuild only on structural changes.
+   - `TryUpdateSingleNode` finds the SLD symbol via
+     `STING_SLD_ELEMENT_ID`, re-reads the live circuit data, and
+     refreshes only the symbol's adjacent TextNote annotation. O(1)
+     work per modified element.
+   - `FullRebuild` is the original delete-all-and-recreate flow, kept
+     for added / deleted elements where layout has to change.
+   - `SLDSyncUpdater.Execute` was the second half of the fix: it now
+     classifies each batch's changes once (additions or deletions →
+     structural → one rebuild per view; otherwise per-element fast
+     path). A 50-element edit on a project with 5 SLD views used to
+     trigger 250 full rebuilds; it now triggers 250 cheap label
+     refreshes (or 5 rebuilds if the edit touched added/deleted
+     elements).
+   - `SLDSyncUpdater` now self-gates on `project_config.json`
+     `sld_sync_enabled` inside `Execute` (rather than registration
+     time) so toggling without restarting Revit takes effect on the
+     next change.
+
+4. **`AugmentProjectFamiliesCommand` is now async-with-progress** —
+   `FamilyAugmentationEngine.AugmentProjectFamilies` accepts an
+   optional `Func<bool> isCancelled` predicate; the command wires it
+   to `StingProgressDialog.IsCancelled` so Escape / Cancel stop the
+   loop between families. The engine also now filters families to
+   augmentable categories before iterating (Mechanical / Electrical /
+   Lighting / Plumbing / Fire / Pipe-Duct accessories / Data /
+   Communications / Security), turning a 1,000-family library run
+   into a ~200-family run that touches only relevant content. EditFamily
+   itself still has to run on the Revit API thread, but the user gets
+   a live progress bar and ETA, plus partial results if they cancel
+   mid-run.
+
+#### Caveats (residual)
+
+1. Still no `dotnet build` verification (Linux sandbox). The new
+   `MEPCurve` axis path uses `Pipe` / `Duct` / `Conduit` / `CableTray`
+   types — verify those imports compile against your Revit 2025/2026
+   target. The `BoundingBoxXYZ` fallback is API-stable.
+2. `TryUpdateSingleNode` looks for adjacent TextNotes within
+   ~60 mm of the symbol position. Unusual annotation layouts with
+   labels far from their symbols would not be cleaned up; in those
+   cases the fast path falls back to leaving stale labels until the
+   next full rebuild. A future enhancement could stamp the TextNote
+   ID onto the symbol for direct lookup.
+3. `IsAugmentableCategory` filters by BuiltInCategory id casts — on
+   non-English Revit installations the category names visible in the
+   UI differ but the integer IDs are stable, so the filter still
+   works. Spot-check on a non-EN project before relying on it.
+4. The Ladder layout in `CompoundSymbolPlacer` puts one component per
+   rung. Putting multiple components on a single rung (in series along
+   the rung) is the next refinement — needs a `rungIndex` discriminator
+   on the `SymbolConcept.CompoundComponents` entries; deferred.
+
+#### Files
+
+Modified:
+- `StingTools/Core/Symbols/SymbolOrientationEngine.cs`
+- `StingTools/Core/Symbols/CompoundSymbolPlacer.cs`
+- `StingTools/Core/Symbols/FamilyAugmentationEngine.cs`
+- `StingTools/Core/SLD/SLDGenerator.cs`
+- `StingTools/Core/SLD/SLDSyncUpdater.cs`
+- `StingTools/Commands/Symbols/SymbolAugmentationCommands.cs`
+- `docs/CHANGELOG.md` — this entry
+
+#### Completed (Phase 175 — direct label-ID lookup + multi-component rungs)
+
+Closes the two residual caveats from the post-caveat-resolution commit
+(e5518cf):
+
+#### What landed
+
+1. **TextNote ID stamped directly on each SLD symbol** — eliminates the
+   ~60 mm spatial scan that was leaking stale labels in unusual
+   layouts.
+   - `SLDAnnotationPlacer.PlaceCircuitAnnotation` now returns the new
+     TextNote's `ElementId` (was: void).
+   - `SLDAnnotationPlacer.PlaceAllAnnotations` accepts an optional
+     `IDictionary<ElementId, ElementId> nodeToInstance` and, after
+     placing each TextNote, stamps the label's `ElementId` onto the
+     matching SLD symbol via `STING_SYMBOL_LABEL_ID`.
+   - `SLDGenerator.PlaceSymbols` builds that map (`node.ElementId` →
+     placed `FamilyInstance.Id`) and threads it through the recursion.
+     The fast path in `TryUpdateSingleNode` now reads
+     `STING_SYMBOL_LABEL_ID` and deletes/updates that exact TextNote
+     directly. The original spatial-radius scan stays as a fallback
+     for legacy symbols placed before this commit, so nothing breaks
+     on a project with already-generated SLDs.
+
+2. **Multi-component ladder rungs** — `SymbolConcept` gains an optional
+   `compoundRungs` field. Each rung carries its own `components` list
+   plus an optional `label`, expressing the natural shape of a real
+   schematic (e.g., a star-delta starter has a Main / Star / Delta
+   row, each row carrying multiple devices in series).
+   - New `CompoundRung` POCO in `SymbolDefinition.cs`.
+   - `CompoundSymbolPlacer.PlaceLadder` now resolves rungs via a
+     unified `ResolveRungs` helper: prefer `compoundRungs` when
+     present and non-empty; otherwise wrap each
+     `compoundComponents` entry into its own one-component rung
+     (preserves the old behavior for every existing concept).
+   - Bay width auto-scales with the widest rung so multi-component
+     rungs don't overlap the rails.
+   - Components on a rung are evenly distributed across the bay
+     (fraction `(j+1)/(n+1)`) and connected in series with detail
+     curves between adjacent symbols.
+   - Two example concepts added to
+     `STING_SYMBOL_CONCEPTS.json`: `SLD_RCBO_COMPOUND`
+     (vertical-stack-friendly: MCB + RCD) and
+     `SLD_STAR_DELTA_STARTER` (a 3-rung ladder: Main supply / Star
+     contactor / Delta contactor with the heater and motor on the
+     last two rungs respectively). Concept count: 191 → 193.
+
+#### Caveats
+
+1. The fallback spatial scan in `TryUpdateSingleNode` is intentionally
+   kept — old symbols placed before this commit don't carry
+   `STING_SYMBOL_LABEL_ID` yet. The fast path lights up automatically
+   the first time the user regenerates an SLD or the next full
+   rebuild touches it; no migration step required.
+2. `compoundRungs.label` is parsed but not yet drawn — labels next
+   to ladder rungs are a small follow-up that needs a dedicated
+   TextNote placement (offset to the left of the left rail, aligned
+   to the rung centre).
+3. Bay width sizing assumes `SpacingMm * 1.6` is enough breathing
+   room per component on a multi-rung ladder. Visually fine for 2-4
+   components per rung; very dense rungs (5+) may need a larger
+   spacing constant.
+
+#### Files
+
+Modified:
+- `StingTools/Core/Symbols/SymbolDefinition.cs` — new `CompoundRung`
+  POCO + `SymbolConcept.CompoundRungs`
+- `StingTools/Core/SLD/SLDAnnotationPlacer.cs` — return
+  `ElementId`, stamp label IDs onto instances
+- `StingTools/Core/SLD/SLDGenerator.cs` — thread
+  `nodeToInstance` map; `TryUpdateSingleNode` reads stamped ID
+- `StingTools/Core/Symbols/CompoundSymbolPlacer.cs` — multi-component
+  ladder rungs via `ResolveRungs`
+- `StingTools/Data/Symbols/STING_SYMBOL_CONCEPTS.json` — two new
+  compound concepts
+- `docs/CHANGELOG.md` — this entry
+
+#### Completed (Phase 175 — rung labels, dense-rung sizing, label-ID migration)
+
+Closes the three follow-up items from the prior commit (141290a):
+
+#### What landed
+
+1. **Rung labels are now drawn.** The `compoundRungs.label` field
+   was being parsed but ignored. `CompoundSymbolPlacer.PlaceLadder`
+   now calls a new `DrawRungLabel` helper for each rung that has a
+   non-empty label. Labels render as right-aligned TextNotes a few
+   millimetres to the left of the left rail, vertically centred on
+   the rung. Text height is `RungLabelTextHeightMm` (1.6 mm), smaller
+   than the main rating labels so they read as a header rather than
+   competing for attention.
+
+2. **Bay-width sizing now scales for dense rungs.** Replaced the
+   single-multiplier formula with a piecewise function in the new
+   `ResolveBayWidth` helper:
+   - 1 component → minimum bay (60 mm rail gap).
+   - 2-4 components → linear: `60 mm + n × 16 mm` per component.
+   - 5+ components → linear up to 4, then 1.25× per extra
+     component, so a 6-component rung gets `60 + 4×16 + 2×16×1.25
+     = 164 mm` instead of overflowing the rails.
+   The per-component constant `LadderPerComponentMm` (16 mm) is
+   tuned so 4 stacked breakers in a 60 mm bay still leave clear
+   gaps between them.
+
+3. **`MigrateSLDLabelIdsCommand`** — a one-shot migration that walks
+   every `STING - SLD` drafting view and stamps
+   `STING_SYMBOL_LABEL_ID` onto SLD symbols that don't have one yet.
+   For each unstamped symbol it finds the closest TextNote within
+   ~120 mm (more generous than the live-update scan because this
+   runs once) and writes that note's ElementId onto the symbol.
+   Idempotent — symbols that already carry a stamped ID are skipped.
+   - Wired through `StingCommandHandler` as `SLD_MigrateLabels` and
+     a "Migrate Labels" button in the SLD GENERATOR section of the
+     dock panel.
+   - Useful when you want a project's SLDs migrated proactively
+     rather than waiting for the spatial-fallback path in
+     `TryUpdateSingleNode` to self-heal them on next modification.
+   - Reports views scanned, already-stamped, newly-stamped, and
+     unmatched (no nearby TextNote) counts on completion.
+
+#### Files
+
+Modified:
+- `StingTools/Core/Symbols/CompoundSymbolPlacer.cs` — `DrawRungLabel`,
+  `ResolveBayWidth`, `ResolveRungLabels`; new constants
+  `LadderPerComponentMm`, `RungLabelOffsetMm`, `RungLabelTextHeightMm`
+- `StingTools/Commands/SLD/SLDGeneratorCommands.cs` —
+  new `MigrateSLDLabelIdsCommand`
+- `StingTools/UI/StingCommandHandler.cs` — `SLD_MigrateLabels`
+  dispatch entry
+- `StingTools/UI/StingDockPanel.xaml` — Migrate Labels button in
+  SLD GENERATOR section
+- `docs/CHANGELOG.md` — this entry

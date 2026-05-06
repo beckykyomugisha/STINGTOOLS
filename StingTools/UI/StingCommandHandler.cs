@@ -342,6 +342,42 @@ namespace StingTools.UI
                     case "Fabrication_BomRollup":         RunCommand<Commands.Fabrication.BomRollupCommand>(app); break;
                     case "Fabrication_LinkDocRegister":   RunCommand<Commands.Fabrication.LinkDocRegisterCommand>(app); break;
 
+                    // ── Phase 175: MEP/FP/SLD Symbol Library ──
+                    case "Symbols_CreateAll":      RunCommand<Commands.Symbols.CreateSymbolLibraryCommand>(app); break;
+                    case "Symbols_CreateSLD":      RunCommand<Commands.Symbols.CreateSLDSymbolsCommand>(app); break;
+                    case "Symbols_CreateLighting": RunCommand<Commands.Symbols.CreateLightingSymbolsCommand>(app); break;
+                    case "Symbols_CreateFP":       RunCommand<Commands.Symbols.CreateFPSymbolsCommand>(app); break;
+                    case "Symbols_Reload":         RunCommand<Commands.Symbols.ReloadSymbolLibraryCommand>(app); break;
+                    case "Symbols_Inspect":        RunCommand<Commands.Symbols.InspectSymbolLibraryCommand>(app); break;
+
+                    // ── Phase 175: Symbol Standards ──
+                    case "Symbols_SwitchProject":  RunCommand<Commands.Symbols.SwitchProjectStandardCommand>(app); break;
+                    case "Symbols_SwitchView":     RunCommand<Commands.Symbols.SwitchViewStandardCommand>(app); break;
+                    case "Symbols_SetProfile":     RunCommand<Commands.Symbols.SetMixedStandardProfileCommand>(app); break;
+                    case "Symbols_PlaceView":      RunCommand<Commands.Symbols.PlaceSymbolsInViewCommand>(app); break;
+                    case "Symbols_PlaceAll":       RunCommand<Commands.Symbols.PlaceSymbolsProjectWideCommand>(app); break;
+                    case "Symbols_Audit":          RunCommand<Commands.Symbols.SymbolStandardAuditCommand>(app); break;
+                    case "Symbols_SyncFilters":    RunCommand<Commands.Symbols.SyncViewFilterVisibilityCommand>(app); break;
+
+                    // ── Phase 175: Symbol Augmentation ──
+                    case "Symbols_AugmentAll":      RunCommand<Commands.Symbols.AugmentProjectFamiliesCommand>(app); break;
+                    case "Symbols_AugmentSelected": RunCommand<Commands.Symbols.AugmentSelectedFamilyCommand>(app); break;
+                    case "Symbols_RollbackAugment": RunCommand<Commands.Symbols.RollbackAugmentationCommand>(app); break;
+
+                    // ── Phase 175: Symbol Maintenance ──
+                    case "Symbols_HealOrphans":    RunCommand<Commands.Symbols.HealSymbolOrphansCommand>(app); break;
+                    case "Symbols_Coverage":       RunCommand<Commands.Symbols.SymbolCoverageAuditCommand>(app); break;
+                    case "Symbols_FixDrift":       RunCommand<Commands.Symbols.FixSymbolDriftCommand>(app); break;
+                    case "Symbols_BatchHeal":      RunCommand<Commands.Symbols.BatchHealAllSymbolsCommand>(app); break;
+
+                    // ── Phase 175: SLD Generator ──
+                    case "SLD_Generate":           RunCommand<Commands.SLD.GenerateSLDCommand>(app); break;
+                    case "SLD_GenerateOptions":    RunCommand<Commands.SLD.GenerateSLDWithOptionsCommand>(app); break;
+                    case "SLD_Update":             RunCommand<Commands.SLD.UpdateSLDCommand>(app); break;
+                    case "SLD_SyncToggle":         RunCommand<Commands.SLD.SLDSyncToggleCommand>(app); break;
+                    case "SLD_Validate":           RunCommand<Commands.SLD.SLDValidateCommand>(app); break;
+                    case "SLD_MigrateLabels":      RunCommand<Commands.SLD.MigrateSLDLabelIdsCommand>(app); break;
+
                     // ── v4 Phase C: calc engines ──
                     case "Calc_ConduitFill":  RunCommand<Commands.Routing.CalcConduitFillCommand>(app); break;
                     case "Calc_DuctFriction": RunCommand<Commands.Routing.CalcDuctFrictionCommand>(app); break;

@@ -1,0 +1,734 @@
+{
+  "version": "1.0",
+  "standard": "CIBSE Guide B / ASHRAE / BS 1553",
+  "symbols": [
+    {
+      "id": "HVAC_SAD_SQ",
+      "name": "Supply Air Diffuser (Square)",
+      "category": "HVAC",
+      "familyType": "MEPEquipment",
+      "discipline": "Mechanical",
+      "subcategory": "AirTerminal",
+      "symbolSize": 6.0,
+      "parameters": [
+        { "name": "SYSTEM_REF", "type": "Text", "shared": true },
+        { "name": "FLOW_LS", "type": "Text", "shared": true },
+        { "name": "NECK_SIZE_MM", "type": "Text", "shared": true, "default": "300" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.5, "x2":  0.5, "y2": -0.5 },
+          { "x1":  0.5, "y1": -0.5, "x2":  0.5, "y2":  0.5 },
+          { "x1":  0.5, "y1":  0.5, "x2": -0.5, "y2":  0.5 },
+          { "x1": -0.5, "y1":  0.5, "x2": -0.5, "y2": -0.5 },
+          { "x1": -0.5, "y1": -0.5, "x2":  0.5, "y2":  0.5 },
+          { "x1": -0.5, "y1":  0.5, "x2":  0.5, "y2": -0.5 },
+          { "x1": -0.25, "y1": -0.25, "x2": -0.4, "y2": -0.4 },
+          { "x1":  0.25, "y1": -0.25, "x2":  0.4, "y2": -0.4 },
+          { "x1": -0.25, "y1":  0.25, "x2": -0.4, "y2":  0.4 },
+          { "x1":  0.25, "y1":  0.25, "x2":  0.4, "y2":  0.4 }
+        ]
+      },
+      "connectors": [
+        { "domain": "HVAC", "systemType": "SupplyAir", "shape": "Rectangular", "widthMm": 300, "heightMm": 300, "direction": "In", "facing": "+Z" }
+      ],
+      "solid3D": { "type": "Box", "widthMm": 595, "depthMm": 595, "heightMm": 40 }
+    },
+    {
+      "id": "HVAC_SAD_RND",
+      "name": "Supply Air Diffuser (Round)",
+      "category": "HVAC",
+      "familyType": "MEPEquipment",
+      "discipline": "Mechanical",
+      "subcategory": "AirTerminal",
+      "symbolSize": 5.0,
+      "parameters": [
+        { "name": "SYSTEM_REF", "type": "Text", "shared": true },
+        { "name": "FLOW_LS", "type": "Text", "shared": true },
+        { "name": "NECK_DIA_MM", "type": "Text", "shared": true, "default": "200" }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
+        "lines": [
+          { "x1": -0.5, "y1": 0, "x2": 0.5, "y2": 0 },
+          { "x1": 0, "y1": -0.5, "x2": 0, "y2": 0.5 },
+          { "x1": -0.25, "y1": -0.25, "x2": -0.35, "y2": -0.35 },
+          { "x1":  0.25, "y1": -0.25, "x2":  0.35, "y2": -0.35 },
+          { "x1": -0.25, "y1":  0.25, "x2": -0.35, "y2":  0.35 },
+          { "x1":  0.25, "y1":  0.25, "x2":  0.35, "y2":  0.35 }
+        ]
+      },
+      "connectors": [
+        { "domain": "HVAC", "systemType": "SupplyAir", "shape": "Round", "sizeMm": 200, "direction": "In", "facing": "+Z" }
+      ],
+      "solid3D": { "type": "Cylinder", "diameterMm": 300, "heightMm": 30 }
+    },
+    {
+      "id": "HVAC_RAG_SQ",
+      "name": "Return Air Grille (Square)",
+      "category": "HVAC",
+      "familyType": "MEPEquipment",
+      "discipline": "Mechanical",
+      "subcategory": "AirTerminal",
+      "symbolSize": 6.0,
+      "parameters": [
+        { "name": "SYSTEM_REF", "type": "Text", "shared": true },
+        { "name": "FLOW_LS", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.5, "x2":  0.5, "y2": -0.5 },
+          { "x1":  0.5, "y1": -0.5, "x2":  0.5, "y2":  0.5 },
+          { "x1":  0.5, "y1":  0.5, "x2": -0.5, "y2":  0.5 },
+          { "x1": -0.5, "y1":  0.5, "x2": -0.5, "y2": -0.5 },
+          { "x1": -0.5, "y1": -0.25, "x2":  0.5, "y2": -0.25 },
+          { "x1": -0.5, "y1":  0.0,  "x2":  0.5, "y2":  0.0 },
+          { "x1": -0.5, "y1":  0.25, "x2":  0.5, "y2":  0.25 },
+          { "x1": -0.25, "y1": -0.5, "x2": -0.25, "y2":  0.5 },
+          { "x1":  0.0,  "y1": -0.5, "x2":  0.0,  "y2":  0.5 },
+          { "x1":  0.25, "y1": -0.5, "x2":  0.25, "y2":  0.5 }
+        ]
+      },
+      "connectors": [
+        { "domain": "HVAC", "systemType": "ReturnAir", "shape": "Rectangular", "widthMm": 300, "heightMm": 300, "direction": "Out", "facing": "+Z" }
+      ],
+      "solid3D": { "type": "Box", "widthMm": 595, "depthMm": 595, "heightMm": 40 }
+    },
+    {
+      "id": "HVAC_RAG_RND",
+      "name": "Return Air Grille (Round)",
+      "category": "HVAC",
+      "familyType": "MEPEquipment",
+      "discipline": "Mechanical",
+      "subcategory": "AirTerminal",
+      "symbolSize": 5.0,
+      "parameters": [
+        { "name": "SYSTEM_REF", "type": "Text", "shared": true },
+        { "name": "FLOW_LS", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
+        "lines": [
+          { "x1": -0.45, "y1": -0.25, "x2":  0.45, "y2": -0.25 },
+          { "x1": -0.5,  "y1":  0.0,  "x2":  0.5,  "y2":  0.0 },
+          { "x1": -0.45, "y1":  0.25, "x2":  0.45, "y2":  0.25 },
+          { "x1": -0.25, "y1": -0.45, "x2": -0.25, "y2":  0.45 },
+          { "x1":  0.0,  "y1": -0.5,  "x2":  0.0,  "y2":  0.5 },
+          { "x1":  0.25, "y1": -0.45, "x2":  0.25, "y2":  0.45 }
+        ]
+      },
+      "connectors": [
+        { "domain": "HVAC", "systemType": "ReturnAir", "shape": "Round", "sizeMm": 200, "direction": "Out", "facing": "+Z" }
+      ],
+      "solid3D": { "type": "Cylinder", "diameterMm": 300, "heightMm": 30 }
+    },
+    {
+      "id": "HVAC_LINEAR_SLOT",
+      "name": "Linear Slot Diffuser",
+      "category": "HVAC",
+      "familyType": "MEPEquipment",
+      "discipline": "Mechanical",
+      "subcategory": "AirTerminal",
+      "symbolSize": 12.0,
+      "parameters": [
+        { "name": "SYSTEM_REF", "type": "Text", "shared": true },
+        { "name": "LENGTH_MM", "type": "Text", "shared": true, "default": "1200" },
+        { "name": "SLOT_COUNT", "type": "Integer", "shared": true, "default": "2" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.06, "x2":  0.5, "y2": -0.06 },
+          { "x1":  0.5, "y1": -0.06, "x2":  0.5, "y2":  0.06 },
+          { "x1":  0.5, "y1":  0.06, "x2": -0.5, "y2":  0.06 },
+          { "x1": -0.5, "y1":  0.06, "x2": -0.5, "y2": -0.06 },
+          { "x1": -0.5, "y1":  0.0,  "x2":  0.5, "y2":  0.0  }
+        ]
+      },
+      "connectors": [
+        { "domain": "HVAC", "systemType": "SupplyAir", "shape": "Rectangular", "widthMm": 1200, "heightMm": 100, "direction": "In", "facing": "+Z" }
+      ],
+      "solid3D": { "type": "Box", "widthMm": 1200, "depthMm": 100, "heightMm": 150 }
+    },
+    {
+      "id": "HVAC_EXTRACT_VALVE_RND",
+      "name": "Extract Valve (Round)",
+      "category": "HVAC",
+      "familyType": "MEPEquipment",
+      "discipline": "Mechanical",
+      "subcategory": "AirTerminal",
+      "symbolSize": 4.0,
+      "parameters": [
+        { "name": "SYSTEM_REF", "type": "Text", "shared": true },
+        { "name": "FLOW_LS", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [
+          { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 },
+          { "cx": 0, "cy": 0, "r": 0.06, "startDeg": 0, "endDeg": 360 }
+        ],
+        "filledRegions": [
+          {
+            "boundary": [
+              { "x": -0.05, "y": -0.05 }, { "x": 0.05, "y": -0.05 },
+              { "x": 0.05, "y": 0.05 }, { "x": -0.05, "y": 0.05 }
+            ]
+          }
+        ],
+        "lines": [
+          { "x1": -0.5, "y1": 0, "x2": 0.5, "y2": 0 },
+          { "x1": 0, "y1": -0.5, "x2": 0, "y2": 0.5 }
+        ]
+      },
+      "connectors": [
+        { "domain": "HVAC", "systemType": "ExhaustAir", "shape": "Round", "sizeMm": 100, "direction": "Out", "facing": "+Z" }
+      ],
+      "solid3D": { "type": "Cylinder", "diameterMm": 150, "heightMm": 60 }
+    },
+    {
+      "id": "HVAC_DISPLACEMENT",
+      "name": "Displacement Ventilation Terminal",
+      "category": "HVAC",
+      "familyType": "MEPEquipment",
+      "discipline": "Mechanical",
+      "subcategory": "AirTerminal",
+      "symbolSize": 6.0,
+      "parameters": [
+        { "name": "SYSTEM_REF", "type": "Text", "shared": true },
+        { "name": "FLOW_LS", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.4, "y1": -0.5, "x2":  0.4, "y2": -0.5 },
+          { "x1":  0.4, "y1": -0.5, "x2":  0.4, "y2":  0.5 },
+          { "x1":  0.4, "y1":  0.5, "x2": -0.4, "y2":  0.5 },
+          { "x1": -0.4, "y1":  0.5, "x2": -0.4, "y2": -0.5 },
+          { "x1": -0.2, "y1": -0.2, "x2": -0.2, "y2":  0.3 },
+          { "x1": -0.2, "y1":  0.3, "x2": -0.3, "y2":  0.2 },
+          { "x1": -0.2, "y1":  0.3, "x2": -0.1, "y2":  0.2 },
+          { "x1":  0.0, "y1": -0.2, "x2":  0.0, "y2":  0.3 },
+          { "x1":  0.0, "y1":  0.3, "x2": -0.1, "y2":  0.2 },
+          { "x1":  0.0, "y1":  0.3, "x2":  0.1, "y2":  0.2 },
+          { "x1":  0.2, "y1": -0.2, "x2":  0.2, "y2":  0.3 },
+          { "x1":  0.2, "y1":  0.3, "x2":  0.1, "y2":  0.2 },
+          { "x1":  0.2, "y1":  0.3, "x2":  0.3, "y2":  0.2 }
+        ]
+      },
+      "connectors": [
+        { "domain": "HVAC", "systemType": "SupplyAir", "shape": "Round", "sizeMm": 250, "direction": "In", "facing": "-Y", "offsetY": -0.5 }
+      ],
+      "solid3D": { "type": "Box", "widthMm": 600, "depthMm": 300, "heightMm": 1500 }
+    },
+    {
+      "id": "HVAC_SWIRL",
+      "name": "Swirl Diffuser",
+      "category": "HVAC",
+      "familyType": "MEPEquipment",
+      "discipline": "Mechanical",
+      "subcategory": "AirTerminal",
+      "symbolSize": 5.5,
+      "parameters": [
+        { "name": "SYSTEM_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [
+          { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 },
+          { "cx": 0.15, "cy": 0.0, "r": 0.25, "startDeg": 0, "endDeg": 90 },
+          { "cx": 0.0, "cy": 0.15, "r": 0.25, "startDeg": 90, "endDeg": 180 },
+          { "cx": -0.15, "cy": 0.0, "r": 0.25, "startDeg": 180, "endDeg": 270 },
+          { "cx": 0.0, "cy": -0.15, "r": 0.25, "startDeg": 270, "endDeg": 360 }
+        ]
+      },
+      "connectors": [
+        { "domain": "HVAC", "systemType": "SupplyAir", "shape": "Round", "sizeMm": 250, "direction": "In", "facing": "+Z" }
+      ],
+      "solid3D": { "type": "Cylinder", "diameterMm": 600, "heightMm": 50 }
+    },
+    {
+      "id": "HVAC_TRANSFER_GRILLE",
+      "name": "Transfer Grille",
+      "category": "HVAC",
+      "familyType": "MEPEquipment",
+      "discipline": "Mechanical",
+      "subcategory": "AirTerminal",
+      "symbolSize": 5.0,
+      "parameters": [
+        { "name": "FLOW_LS", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.3, "x2":  0.5, "y2": -0.3 },
+          { "x1":  0.5, "y1": -0.3, "x2":  0.5, "y2":  0.3 },
+          { "x1":  0.5, "y1":  0.3, "x2": -0.5, "y2":  0.3 },
+          { "x1": -0.5, "y1":  0.3, "x2": -0.5, "y2": -0.3 },
+          { "x1": -0.5, "y1": -0.15, "x2": 0.5, "y2": -0.15 },
+          { "x1": -0.5, "y1":  0.15, "x2": 0.5, "y2":  0.15 },
+          { "x1": -0.6, "y1":  0.0,  "x2":  0.6, "y2":  0.0 },
+          { "x1":  0.6, "y1":  0.0,  "x2":  0.5, "y2":  0.05 },
+          { "x1":  0.6, "y1":  0.0,  "x2":  0.5, "y2": -0.05 }
+        ]
+      },
+      "solid3D": { "type": "Box", "widthMm": 500, "depthMm": 100, "heightMm": 300 }
+    },
+    {
+      "id": "HVAC_FIRE_DAMPER",
+      "name": "Fire Damper",
+      "category": "HVAC",
+      "familyType": "MEPAccessory",
+      "discipline": "Mechanical",
+      "subcategory": "Damper",
+      "symbolSize": 5.0,
+      "parameters": [
+        { "name": "FIRE_RATING", "type": "Text", "shared": true, "default": "EI 60" },
+        { "name": "SIZE_W_MM", "type": "Text", "shared": true },
+        { "name": "SIZE_H_MM", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.3, "x2":  0.5, "y2": -0.3, "style": "Wide Lines" },
+          { "x1":  0.5, "y1": -0.3, "x2":  0.5, "y2":  0.3, "style": "Wide Lines" },
+          { "x1":  0.5, "y1":  0.3, "x2": -0.5, "y2":  0.3, "style": "Wide Lines" },
+          { "x1": -0.5, "y1":  0.3, "x2": -0.5, "y2": -0.3, "style": "Wide Lines" },
+          { "x1": -0.5, "y1": -0.3, "x2":  0.5, "y2":  0.3, "style": "Wide Lines" },
+          { "x1": -0.5, "y1":  0.3, "x2":  0.5, "y2": -0.3, "style": "Wide Lines" }
+        ],
+        "text": [ { "x": 0, "y": 0.45, "value": "FD", "heightMm": 1.5 } ]
+      },
+      "connectors": [
+        { "domain": "HVAC", "systemType": "SupplyAir", "shape": "Rectangular", "widthMm": 400, "heightMm": 300, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
+        { "domain": "HVAC", "systemType": "SupplyAir", "shape": "Rectangular", "widthMm": 400, "heightMm": 300, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
+      ]
+    },
+    {
+      "id": "HVAC_SMOKE_DAMPER",
+      "name": "Smoke Damper",
+      "category": "HVAC",
+      "familyType": "MEPAccessory",
+      "discipline": "Mechanical",
+      "subcategory": "Damper",
+      "symbolSize": 5.0,
+      "parameters": [
+        { "name": "DEVICE_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.3, "x2":  0.5, "y2": -0.3, "style": "Hidden Lines" },
+          { "x1":  0.5, "y1": -0.3, "x2":  0.5, "y2":  0.3, "style": "Hidden Lines" },
+          { "x1":  0.5, "y1":  0.3, "x2": -0.5, "y2":  0.3, "style": "Hidden Lines" },
+          { "x1": -0.5, "y1":  0.3, "x2": -0.5, "y2": -0.3, "style": "Hidden Lines" },
+          { "x1": -0.5, "y1": -0.3, "x2":  0.5, "y2":  0.3 }
+        ],
+        "text": [ { "x": 0, "y": 0.45, "value": "SD", "heightMm": 1.5 } ]
+      },
+      "connectors": [
+        { "domain": "HVAC", "systemType": "SupplyAir", "shape": "Rectangular", "widthMm": 400, "heightMm": 300, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
+        { "domain": "HVAC", "systemType": "SupplyAir", "shape": "Rectangular", "widthMm": 400, "heightMm": 300, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
+      ]
+    },
+    {
+      "id": "HVAC_FIRE_SMOKE_DAMPER",
+      "name": "Combined Fire/Smoke Damper",
+      "category": "HVAC",
+      "familyType": "MEPAccessory",
+      "discipline": "Mechanical",
+      "subcategory": "Damper",
+      "symbolSize": 5.5,
+      "parameters": [
+        { "name": "FIRE_RATING", "type": "Text", "shared": true, "default": "EIS 60" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.3, "x2":  0.5, "y2": -0.3, "style": "Hidden Lines" },
+          { "x1":  0.5, "y1": -0.3, "x2":  0.5, "y2":  0.3, "style": "Hidden Lines" },
+          { "x1":  0.5, "y1":  0.3, "x2": -0.5, "y2":  0.3, "style": "Hidden Lines" },
+          { "x1": -0.5, "y1":  0.3, "x2": -0.5, "y2": -0.3, "style": "Hidden Lines" },
+          { "x1": -0.5, "y1": -0.3, "x2":  0.5, "y2":  0.3, "style": "Wide Lines" },
+          { "x1": -0.5, "y1":  0.3, "x2":  0.5, "y2": -0.3, "style": "Wide Lines" }
+        ],
+        "text": [ { "x": 0, "y": 0.45, "value": "FSD", "heightMm": 1.5 } ]
+      },
+      "connectors": [
+        { "domain": "HVAC", "systemType": "SupplyAir", "shape": "Rectangular", "widthMm": 400, "heightMm": 300, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
+        { "domain": "HVAC", "systemType": "SupplyAir", "shape": "Rectangular", "widthMm": 400, "heightMm": 300, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
+      ]
+    },
+    {
+      "id": "HVAC_VCD",
+      "name": "Volume Control Damper",
+      "category": "HVAC",
+      "familyType": "MEPAccessory",
+      "discipline": "Mechanical",
+      "subcategory": "Damper",
+      "symbolSize": 4.5,
+      "parameters": [],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.3, "x2":  0.5, "y2": -0.3 },
+          { "x1":  0.5, "y1": -0.3, "x2":  0.5, "y2":  0.3 },
+          { "x1":  0.5, "y1":  0.3, "x2": -0.5, "y2":  0.3 },
+          { "x1": -0.5, "y1":  0.3, "x2": -0.5, "y2": -0.3 },
+          { "x1": -0.3, "y1":  0.2, "x2":  0.3, "y2": -0.1 }
+        ],
+        "text": [ { "x": 0, "y": 0.45, "value": "VCD", "heightMm": 1.5 } ]
+      },
+      "connectors": [
+        { "domain": "HVAC", "systemType": "SupplyAir", "shape": "Rectangular", "widthMm": 400, "heightMm": 300, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
+        { "domain": "HVAC", "systemType": "SupplyAir", "shape": "Rectangular", "widthMm": 400, "heightMm": 300, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
+      ]
+    },
+    {
+      "id": "HVAC_MOTORISED_DAMPER",
+      "name": "Motorised Damper",
+      "category": "HVAC",
+      "familyType": "MEPAccessory",
+      "discipline": "Mechanical",
+      "subcategory": "Damper",
+      "symbolSize": 5.0,
+      "parameters": [
+        { "name": "ACTUATOR_TYPE", "type": "Text", "shared": true, "default": "Modulating" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.3, "x2":  0.5, "y2": -0.3 },
+          { "x1":  0.5, "y1": -0.3, "x2":  0.5, "y2":  0.3 },
+          { "x1":  0.5, "y1":  0.3, "x2": -0.5, "y2":  0.3 },
+          { "x1": -0.5, "y1":  0.3, "x2": -0.5, "y2": -0.3 },
+          { "x1": -0.3, "y1":  0.2, "x2":  0.3, "y2": -0.1 }
+        ],
+        "arcs": [ { "cx": 0, "cy": 0.45, "r": 0.1, "startDeg": 0, "endDeg": 360 } ],
+        "text": [ { "x": 0, "y": 0.45, "value": "M", "heightMm": 1.2 } ]
+      },
+      "connectors": [
+        { "domain": "HVAC", "systemType": "SupplyAir", "shape": "Rectangular", "widthMm": 400, "heightMm": 300, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
+        { "domain": "HVAC", "systemType": "SupplyAir", "shape": "Rectangular", "widthMm": 400, "heightMm": 300, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
+      ]
+    },
+    {
+      "id": "HVAC_NR_DAMPER",
+      "name": "Non-Return / Backdraught Damper",
+      "category": "HVAC",
+      "familyType": "MEPAccessory",
+      "discipline": "Mechanical",
+      "subcategory": "Damper",
+      "symbolSize": 4.5,
+      "parameters": [],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.3, "x2":  0.5, "y2": -0.3 },
+          { "x1":  0.5, "y1": -0.3, "x2":  0.5, "y2":  0.3 },
+          { "x1":  0.5, "y1":  0.3, "x2": -0.5, "y2":  0.3 },
+          { "x1": -0.5, "y1":  0.3, "x2": -0.5, "y2": -0.3 },
+          { "x1": -0.3, "y1":  0.0, "x2":  0.3, "y2":  0.0 },
+          { "x1":  0.3, "y1":  0.0, "x2":  0.2, "y2":  0.05 },
+          { "x1":  0.3, "y1":  0.0, "x2":  0.2, "y2": -0.05 },
+          { "x1": -0.1, "y1":  0.2, "x2": -0.1, "y2": -0.2 }
+        ]
+      },
+      "connectors": [
+        { "domain": "HVAC", "systemType": "ExhaustAir", "shape": "Rectangular", "widthMm": 400, "heightMm": 300, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
+        { "domain": "HVAC", "systemType": "ExhaustAir", "shape": "Rectangular", "widthMm": 400, "heightMm": 300, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
+      ]
+    },
+    {
+      "id": "HVAC_FCU",
+      "name": "Fan Coil Unit (4-pipe)",
+      "category": "HVAC",
+      "familyType": "MEPEquipment",
+      "discipline": "Mechanical",
+      "subcategory": "Equipment",
+      "symbolSize": 8.0,
+      "parameters": [
+        { "name": "EQUIPMENT_REF", "type": "Text", "shared": true },
+        { "name": "COOLING_KW", "type": "Text", "shared": true },
+        { "name": "HEATING_KW", "type": "Text", "shared": true },
+        { "name": "AIRFLOW_LS", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.4, "x2":  0.5, "y2": -0.4 },
+          { "x1":  0.5, "y1": -0.4, "x2":  0.5, "y2":  0.4 },
+          { "x1":  0.5, "y1":  0.4, "x2": -0.5, "y2":  0.4 },
+          { "x1": -0.5, "y1":  0.4, "x2": -0.5, "y2": -0.4 }
+        ],
+        "arcs": [ { "cx": -0.2, "cy": 0, "r": 0.18, "startDeg": 0, "endDeg": 360 } ],
+        "text": [
+          { "x": 0.15, "y": 0.15, "value": "FCU", "heightMm": 1.2 },
+          { "x": 0.15, "y": -0.15, "value": "4P", "heightMm": 1.0 }
+        ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "ChilledWaterSupply", "shape": "Round", "sizeMm": 25, "direction": "In",  "facing": "-Y", "offsetX": -0.3, "offsetY": -0.4 },
+        { "domain": "Piping", "systemType": "ChilledWaterReturn", "shape": "Round", "sizeMm": 25, "direction": "Out", "facing": "-Y", "offsetX": -0.1, "offsetY": -0.4 },
+        { "domain": "Piping", "systemType": "HotWaterSupply",     "shape": "Round", "sizeMm": 25, "direction": "In",  "facing": "-Y", "offsetX":  0.1, "offsetY": -0.4 },
+        { "domain": "Piping", "systemType": "HotWaterReturn",     "shape": "Round", "sizeMm": 25, "direction": "Out", "facing": "-Y", "offsetX":  0.3, "offsetY": -0.4 }
+      ],
+      "solid3D": { "type": "Box", "widthMm": 800, "depthMm": 600, "heightMm": 250 }
+    },
+    {
+      "id": "HVAC_FCU_2PIPE",
+      "name": "Fan Coil Unit (2-pipe)",
+      "category": "HVAC",
+      "familyType": "MEPEquipment",
+      "discipline": "Mechanical",
+      "subcategory": "Equipment",
+      "symbolSize": 8.0,
+      "parameters": [
+        { "name": "EQUIPMENT_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.4, "x2":  0.5, "y2": -0.4 },
+          { "x1":  0.5, "y1": -0.4, "x2":  0.5, "y2":  0.4 },
+          { "x1":  0.5, "y1":  0.4, "x2": -0.5, "y2":  0.4 },
+          { "x1": -0.5, "y1":  0.4, "x2": -0.5, "y2": -0.4 }
+        ],
+        "arcs": [ { "cx": -0.2, "cy": 0, "r": 0.18, "startDeg": 0, "endDeg": 360 } ],
+        "text": [ { "x": 0.15, "y": 0, "value": "FCU 2P", "heightMm": 1.0 } ]
+      },
+      "connectors": [
+        { "domain": "Piping", "systemType": "ChilledWaterSupply", "shape": "Round", "sizeMm": 25, "direction": "In",  "facing": "-Y", "offsetX": -0.2, "offsetY": -0.4 },
+        { "domain": "Piping", "systemType": "ChilledWaterReturn", "shape": "Round", "sizeMm": 25, "direction": "Out", "facing": "-Y", "offsetX":  0.2, "offsetY": -0.4 }
+      ],
+      "solid3D": { "type": "Box", "widthMm": 800, "depthMm": 600, "heightMm": 250 }
+    },
+    {
+      "id": "HVAC_VAV",
+      "name": "VAV Box (Variable Air Volume)",
+      "category": "HVAC",
+      "familyType": "MEPEquipment",
+      "discipline": "Mechanical",
+      "subcategory": "Equipment",
+      "symbolSize": 6.0,
+      "parameters": [
+        { "name": "EQUIPMENT_REF", "type": "Text", "shared": true },
+        { "name": "MAX_FLOW_LS", "type": "Text", "shared": true },
+        { "name": "MIN_FLOW_LS", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.3, "x2":  0.5, "y2": -0.3 },
+          { "x1":  0.5, "y1": -0.3, "x2":  0.5, "y2":  0.3 },
+          { "x1":  0.5, "y1":  0.3, "x2": -0.5, "y2":  0.3 },
+          { "x1": -0.5, "y1":  0.3, "x2": -0.5, "y2": -0.3 },
+          { "x1": -0.3, "y1": 0, "x2": 0.2, "y2": 0 },
+          { "x1": 0.2, "y1": 0, "x2": 0.1, "y2": 0.05 },
+          { "x1": 0.2, "y1": 0, "x2": 0.1, "y2": -0.05 }
+        ],
+        "text": [ { "x": 0.35, "y": 0, "value": "V", "heightMm": 1.5 } ],
+        "arcs": [ { "cx": 0, "cy": 0.45, "r": 0.08, "startDeg": 0, "endDeg": 360 } ]
+      },
+      "connectors": [
+        { "domain": "HVAC", "systemType": "SupplyAir", "shape": "Round", "sizeMm": 250, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
+        { "domain": "HVAC", "systemType": "SupplyAir", "shape": "Round", "sizeMm": 250, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
+      ],
+      "solid3D": { "type": "Box", "widthMm": 600, "depthMm": 400, "heightMm": 300 }
+    },
+    {
+      "id": "HVAC_CAV",
+      "name": "CAV Box (Constant Air Volume)",
+      "category": "HVAC",
+      "familyType": "MEPEquipment",
+      "discipline": "Mechanical",
+      "subcategory": "Equipment",
+      "symbolSize": 6.0,
+      "parameters": [
+        { "name": "FLOW_LS", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.3, "x2":  0.5, "y2": -0.3 },
+          { "x1":  0.5, "y1": -0.3, "x2":  0.5, "y2":  0.3 },
+          { "x1":  0.5, "y1":  0.3, "x2": -0.5, "y2":  0.3 },
+          { "x1": -0.5, "y1":  0.3, "x2": -0.5, "y2": -0.3 },
+          { "x1": -0.3, "y1": 0, "x2": 0.2, "y2": 0 },
+          { "x1": 0.2, "y1": 0, "x2": 0.1, "y2": 0.05 },
+          { "x1": 0.2, "y1": 0, "x2": 0.1, "y2": -0.05 }
+        ],
+        "text": [ { "x": 0.35, "y": 0, "value": "C", "heightMm": 1.5 } ]
+      },
+      "connectors": [
+        { "domain": "HVAC", "systemType": "SupplyAir", "shape": "Round", "sizeMm": 250, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
+        { "domain": "HVAC", "systemType": "SupplyAir", "shape": "Round", "sizeMm": 250, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
+      ],
+      "solid3D": { "type": "Box", "widthMm": 600, "depthMm": 400, "heightMm": 300 }
+    },
+    {
+      "id": "HVAC_AHU",
+      "name": "Air Handling Unit (schematic)",
+      "category": "HVAC",
+      "familyType": "MEPEquipment",
+      "discipline": "Mechanical",
+      "subcategory": "Equipment",
+      "symbolSize": 16.0,
+      "parameters": [
+        { "name": "EQUIPMENT_REF", "type": "Text", "shared": true },
+        { "name": "AIRFLOW_LS", "type": "Text", "shared": true },
+        { "name": "COOLING_KW", "type": "Text", "shared": true },
+        { "name": "HEATING_KW", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.3, "x2":  0.5, "y2": -0.3 },
+          { "x1":  0.5, "y1": -0.3, "x2":  0.5, "y2":  0.3 },
+          { "x1":  0.5, "y1":  0.3, "x2": -0.5, "y2":  0.3 },
+          { "x1": -0.5, "y1":  0.3, "x2": -0.5, "y2": -0.3 },
+          { "x1": -0.3, "y1": -0.3, "x2": -0.3, "y2":  0.3 },
+          { "x1": -0.1, "y1": -0.3, "x2": -0.1, "y2":  0.3 },
+          { "x1":  0.1, "y1": -0.3, "x2":  0.1, "y2":  0.3 },
+          { "x1":  0.3, "y1": -0.3, "x2":  0.3, "y2":  0.3 }
+        ],
+        "arcs": [ { "cx": 0.4, "cy": 0, "r": 0.07, "startDeg": 0, "endDeg": 360 } ],
+        "text": [
+          { "x": -0.4, "y": 0, "value": "F", "heightMm": 1.0 },
+          { "x": -0.2, "y": 0, "value": "C", "heightMm": 1.0 },
+          { "x":  0.0, "y": 0, "value": "H", "heightMm": 1.0 },
+          { "x":  0.2, "y": 0, "value": "F", "heightMm": 1.0 }
+        ]
+      },
+      "connectors": [
+        { "domain": "HVAC", "systemType": "ReturnAir", "shape": "Rectangular", "widthMm": 600, "heightMm": 400, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
+        { "domain": "HVAC", "systemType": "SupplyAir", "shape": "Rectangular", "widthMm": 600, "heightMm": 400, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
+      ],
+      "solid3D": { "type": "Box", "widthMm": 3000, "depthMm": 800, "heightMm": 1200 }
+    },
+    {
+      "id": "HVAC_FAN_AXIAL",
+      "name": "Axial Fan",
+      "category": "HVAC",
+      "familyType": "MEPEquipment",
+      "discipline": "Mechanical",
+      "subcategory": "Fan",
+      "symbolSize": 5.0,
+      "parameters": [
+        { "name": "EQUIPMENT_REF", "type": "Text", "shared": true },
+        { "name": "FLOW_LS", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
+        "lines": [
+          { "x1":  0.0, "y1":  0.0, "x2":  0.4, "y2":  0.25 },
+          { "x1":  0.0, "y1":  0.0, "x2": -0.4, "y2":  0.25 },
+          { "x1":  0.0, "y1":  0.0, "x2":  0.0, "y2": -0.45 }
+        ]
+      },
+      "connectors": [
+        { "domain": "HVAC", "systemType": "SupplyAir", "shape": "Round", "sizeMm": 400, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
+        { "domain": "HVAC", "systemType": "SupplyAir", "shape": "Round", "sizeMm": 400, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
+      ],
+      "solid3D": { "type": "Cylinder", "diameterMm": 500, "heightMm": 400 }
+    },
+    {
+      "id": "HVAC_FAN_CENTRIFUGAL",
+      "name": "Centrifugal Fan",
+      "category": "HVAC",
+      "familyType": "MEPEquipment",
+      "discipline": "Mechanical",
+      "subcategory": "Fan",
+      "symbolSize": 6.0,
+      "parameters": [
+        { "name": "EQUIPMENT_REF", "type": "Text", "shared": true },
+        { "name": "FLOW_LS", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [
+          { "cx": 0, "cy": 0, "r": 0.4, "startDeg": 0, "endDeg": 360 },
+          { "cx": 0, "cy": 0, "r": 0.15, "startDeg": 0, "endDeg": 360 }
+        ],
+        "lines": [
+          { "x1": 0.4, "y1": 0, "x2": 0.5, "y2": 0.25 },
+          { "x1": 0.5, "y1": 0.25, "x2": 0.5, "y2": -0.25 },
+          { "x1": 0.5, "y1": -0.25, "x2": 0.4, "y2": 0 }
+        ]
+      },
+      "connectors": [
+        { "domain": "HVAC", "systemType": "ReturnAir", "shape": "Round", "sizeMm": 350, "direction": "In",  "facing": "-Y", "offsetY": -0.5 },
+        { "domain": "HVAC", "systemType": "SupplyAir", "shape": "Rectangular", "widthMm": 350, "heightMm": 400, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
+      ],
+      "solid3D": { "type": "Box", "widthMm": 700, "depthMm": 600, "heightMm": 600 }
+    },
+    {
+      "id": "HVAC_THERMOSTAT",
+      "name": "Room Thermostat / Controller",
+      "category": "HVAC",
+      "familyType": "MEPEquipment",
+      "discipline": "Mechanical",
+      "subcategory": "Controls",
+      "symbolSize": 3.5,
+      "parameters": [
+        { "name": "DEVICE_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.4, "startDeg": 0, "endDeg": 360 } ],
+        "text": [ { "x": 0, "y": 0, "value": "T", "heightMm": 1.8 } ]
+      },
+      "solid3D": { "type": "Cylinder", "diameterMm": 80, "heightMm": 20 }
+    },
+    {
+      "id": "HVAC_CO2_SENSOR",
+      "name": "CO2 Sensor",
+      "category": "HVAC",
+      "familyType": "MEPEquipment",
+      "discipline": "Mechanical",
+      "subcategory": "Controls",
+      "symbolSize": 3.5,
+      "parameters": [
+        { "name": "DEVICE_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.4, "startDeg": 0, "endDeg": 360 } ],
+        "text": [ { "x": 0, "y": 0, "value": "CO2", "heightMm": 1.0 } ]
+      },
+      "solid3D": { "type": "Cylinder", "diameterMm": 80, "heightMm": 25 }
+    },
+    {
+      "id": "HVAC_TEMP_SENSOR",
+      "name": "Temperature Sensor",
+      "category": "HVAC",
+      "familyType": "MEPEquipment",
+      "discipline": "Mechanical",
+      "subcategory": "Controls",
+      "symbolSize": 3.5,
+      "parameters": [
+        { "name": "DEVICE_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.4, "startDeg": 0, "endDeg": 360 } ],
+        "text": [ { "x": 0, "y": 0, "value": "T/H", "heightMm": 1.2 } ]
+      },
+      "solid3D": { "type": "Cylinder", "diameterMm": 60, "heightMm": 80 }
+    },
+    {
+      "id": "HVAC_HUMIDITY_SENSOR",
+      "name": "Humidity Sensor",
+      "category": "HVAC",
+      "familyType": "MEPEquipment",
+      "discipline": "Mechanical",
+      "subcategory": "Controls",
+      "symbolSize": 3.5,
+      "parameters": [
+        { "name": "DEVICE_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.4, "startDeg": 0, "endDeg": 360 } ],
+        "text": [ { "x": 0, "y": 0, "value": "%", "heightMm": 1.5 } ]
+      },
+      "solid3D": { "type": "Cylinder", "diameterMm": 80, "heightMm": 25 }
+    },
+    {
+      "id": "HVAC_PRESSURE_DIFF",
+      "name": "Pressure Differential Sensor",
+      "category": "HVAC",
+      "familyType": "MEPEquipment",
+      "discipline": "Mechanical",
+      "subcategory": "Controls",
+      "symbolSize": 3.5,
+      "parameters": [
+        { "name": "DEVICE_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.4, "startDeg": 0, "endDeg": 360 } ],
+        "text": [ { "x": 0, "y": 0, "value": "dP", "heightMm": 1.4 } ]
+      },
+      "solid3D": { "type": "Box", "widthMm": 100, "depthMm": 80, "heightMm": 50 }
+    }
+  ]
+}

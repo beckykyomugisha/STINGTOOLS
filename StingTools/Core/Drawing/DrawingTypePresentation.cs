@@ -468,6 +468,26 @@ namespace StingTools.Core.Drawing
                 catch (Exception ex) { r.Warnings.Add($"AnnotationRunner: {ex.Message}"); }
             }
 
+            // Step 8.5 — Phase 175 symbol-standard drift gate.
+            // Read-only: surfaces drift as a warning so SyncStyles or
+            // FixSymbolDriftCommand can heal it. Doesn't auto-apply to
+            // avoid surprising the user mid-Apply.
+            try
+            {
+                string activeStd = StingTools.Core.Symbols.SymbolStandardResolver
+                    .ResolveStandard(doc, view, null);
+                var driftReport = StingTools.Core.Symbols.SymbolDriftDetector
+                    .DetectDrift(doc, view);
+                if (driftReport.DriftedSymbols > 0)
+                {
+                    r.Warnings.Add(
+                        $"Symbol-standard drift in view: {driftReport.DriftedSymbols} symbol(s) "
+                      + $"don't match resolved standard ({activeStd}). "
+                      + "Run 'Fix Symbol Drift' to heal.");
+                }
+            }
+            catch (Exception ex) { r.Warnings.Add($"Symbol drift check: {ex.Message}"); }
+
             return r;
         }
     }

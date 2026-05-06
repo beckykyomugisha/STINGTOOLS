@@ -1,0 +1,50 @@
+{
+  "version": "1.0",
+  "profiles": [
+    {
+      "id": "Uganda-Standard",
+      "name": "Uganda / East Africa (IEC throughout)",
+      "disciplineMappings": {
+        "Electrical": "IEC",
+        "FireProtection": "IEC",
+        "HVAC": "IEC",
+        "Plumbing": "IEC",
+        "Structural": "IEC"
+      },
+      "isDefault": true
+    },
+    {
+      "id": "US-International",
+      "name": "US Client + International MEP",
+      "disciplineMappings": {
+        "Electrical": "IEEE",
+        "FireProtection": "NFPA",
+        "HVAC": "IEC",
+        "Plumbing": "IEC",
+        "Structural": "IEC"
+      }
+    },
+    {
+      "id": "UK-Standard",
+      "name": "UK Building Services (BS + CIBSE)",
+      "disciplineMappings": {
+        "Electrical": "BS",
+        "FireProtection": "BS",
+        "HVAC": "CIBSE",
+        "Plumbing": "CIBSE",
+        "Structural": "IEC"
+      }
+    },
+    {
+      "id": "Full-IEC",
+      "name": "IEC All Disciplines",
+      "disciplineMappings": {
+        "Electrical": "IEC",
+        "FireProtection": "IEC",
+        "HVAC": "IEC",
+        "Plumbing": "IEC",
+        "Structural": "IEC"
+      }
+    }
+  ]
+}
