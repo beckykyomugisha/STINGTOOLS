@@ -14,6 +14,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.DesignOptions;
+using StingTools.Select;
 using StingTools.UI;
 
 namespace StingTools.Commands.DesignOptions
@@ -106,6 +107,23 @@ namespace StingTools.Commands.DesignOptions
             }
 
             // ── Execute move ─────────────────────────────────────────────
+            // Document.AddToDesignOption was public in Revit 2018-era API
+            // but is no longer reliably exposed in 2025/2026/2027. Look it
+            // up reflectively so we work where it exists and degrade
+            // gracefully where it doesn't.
+            var addMethod = typeof(Document).GetMethod("AddToDesignOption",
+                new[] { typeof(ElementId), typeof(ICollection<ElementId>) });
+            if (addMethod == null)
+            {
+                TaskDialog.Show("STING — Move to Option",
+                    "This Revit version does not expose Document.AddToDesignOption "
+                    + "via the public API. Move elements manually:\n\n"
+                    + "  Manage tab → Design Options → pick the option → "
+                    + "'Add to Set' → window-select the elements.\n\n"
+                    + $"Selection currently held: {movable.Count} eligible element(s).");
+                return Result.Cancelled;
+            }
+
             int moved = 0;
             var failures = new List<string>();
             using (var t = new Transaction(doc, "STING Move to Design Option"))
@@ -113,24 +131,29 @@ namespace StingTools.Commands.DesignOptions
                 t.Start();
                 try
                 {
-                    doc.AddToDesignOption(targetId, movable);
+                    addMethod.Invoke(doc, new object[] { targetId, (ICollection<ElementId>)movable });
                     moved = movable.Count;
                 }
                 catch (Exception ex)
                 {
-                    // Some elements may have been rejected by AddToDesignOption.
-                    // Try one-at-a-time so we can report which failed.
-                    StingLog.Warn($"AddToDesignOption batch failed: {ex.Message}");
+                    // Some elements may have been rejected. Try one at a
+                    // time so we can report which failed.
+                    var inner = (ex as System.Reflection.TargetInvocationException)?.InnerException ?? ex;
+                    StingLog.Warn($"AddToDesignOption batch failed: {inner.Message}");
                     foreach (var id in movable)
                     {
                         try
                         {
-                            doc.AddToDesignOption(targetId, new List<ElementId> { id });
+                            addMethod.Invoke(doc, new object[]
+                            {
+                                targetId, (ICollection<ElementId>)new List<ElementId> { id }
+                            });
                             moved++;
                         }
                         catch (Exception e2)
                         {
-                            failures.Add($"{id}: {e2.Message}");
+                            var inner2 = (e2 as System.Reflection.TargetInvocationException)?.InnerException ?? e2;
+                            failures.Add($"{id}: {inner2.Message}");
                         }
                     }
                 }

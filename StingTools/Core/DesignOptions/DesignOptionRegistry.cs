@@ -96,11 +96,17 @@ namespace StingTools.Core.DesignOptions
             }
         }
 
-        /// <summary>True if the supplied option is its set's primary.</summary>
+        /// <summary>True if the supplied option is its set's primary.
+        /// Reads DesignOption.IsPrimary directly — Document.IsDesignOptionPrimary
+        /// was removed from the public API in modern Revit versions.</summary>
         public static bool IsPrimary(Document doc, ElementId optionId)
         {
             if (doc == null || optionId == null || optionId == ElementId.InvalidElementId) return true;
-            try { return doc.IsDesignOptionPrimary(optionId); }
+            try
+            {
+                var opt = doc.GetElement(optionId) as DesignOption;
+                return opt != null ? opt.IsPrimary : false;
+            }
             catch (Exception ex) { StingLog.Warn($"IsPrimary: {ex.Message}"); return false; }
         }
 

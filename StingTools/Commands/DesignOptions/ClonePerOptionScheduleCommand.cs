@@ -15,6 +15,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.DesignOptions;
+using StingTools.Select;
 using StingTools.UI;
 
 namespace StingTools.Commands.DesignOptions
