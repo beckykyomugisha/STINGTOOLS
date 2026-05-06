@@ -1785,7 +1785,7 @@ namespace StingTools.Core.Placement
                 {
                     if (c == null || c.IsConnected) continue;
                     string sysKey = "?";
-                    try { sysKey = c.Domain.ToString() + ":" + (c.MEPSystem?.Name ?? c.PartType.ToString()); } catch { }
+                    try { sysKey = c.Domain.ToString() + ":" + (c.MEPSystem?.Name ?? c.Description ?? c.Owner?.Category?.Name ?? ""); } catch { }
                     if (!openConns.TryGetValue(sysKey, out var list))
                     {
                         list = new List<(Connector, ElementId)>();
