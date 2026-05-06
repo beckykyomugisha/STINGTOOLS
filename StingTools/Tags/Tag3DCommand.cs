@@ -6,6 +6,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Tags
 {
@@ -20,15 +21,57 @@ namespace StingTools.Tags
     {
         private const string TAG_3D_LABEL = "ASS_TAG_3D_TXT";
 
-        /// <summary>
-        /// Phase 165 — result envelope for programmatic Tag3D runs.
-        /// </summary>
+        // Idempotency stamp written to the placed FamilyInstance's Comments.
+        // Format: "[STING3D host=<elementId>]". Caller MUST keep prefix stable —
+        // the existing-host-id scan parses it back out to skip duplicates.
+        private const string HOST_STAMP_PREFIX = "[STING3D host=";
+        private const string HOST_STAMP_SUFFIX = "]";
+
+        // Annotation workset name we prefer when present. If missing the
+        // FamilyInstance lands on the user's active workset, which is fine.
+        private const string ANNOTATION_WORKSET_NAME = "STING-Annotations";
+
+        public enum SkipReason
+        {
+            NoLocation,
+            AlreadyTagged,
+            OwnedByOtherUser,
+            NoTagAfterPipeline,
+            ExceptionDuringPlacement
+        }
+
+        /// <summary>Result envelope for programmatic Tag3D runs (Phase 165 +).</summary>
         public sealed class Tag3DResult
         {
-            public int Placed   { get; set; }
-            public int Enriched { get; set; }
-            public int Errors   { get; set; }
+            public int Placed       { get; set; }
+            public int Enriched     { get; set; }
+            public int Skipped      { get; set; }
+            public int Errors       { get; set; }
+            public int LinkedPlaced { get; set; }
+            public Dictionary<SkipReason, int> SkipReasons { get; }
+                = new Dictionary<SkipReason, int>();
             public List<string> Warnings { get; } = new List<string>();
+
+            internal void RecordSkip(SkipReason reason)
+            {
+                Skipped++;
+                if (!SkipReasons.ContainsKey(reason)) SkipReasons[reason] = 0;
+                SkipReasons[reason]++;
+            }
+        }
+
+        // ── Per-project placement config ──────────────────────────────────
+
+        private enum AnchorMode { Centroid, TopOfBbox }
+
+        private sealed class PlacementConfig
+        {
+            public AnchorMode Anchor { get; set; } = AnchorMode.TopOfBbox;
+            public double DefaultOffsetFt { get; set; } = 300.0 / 304.8; // 300 mm
+            public Dictionary<string, double> PerCategoryOffsetFt { get; set; }
+                = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            public bool IncludeLinked { get; set; } = false;
+            public bool PinPlacedInstances { get; set; } = true;
         }
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
@@ -44,23 +87,77 @@ namespace StingTools.Tags
                 TaskDialog.Show("Tag 3D", "Active view must be a 3D view.");
                 return Result.Succeeded;
             }
+            if (view.IsTemplate)
+            {
+                TaskDialog.Show("Tag 3D", "Active view is a view template; nothing placed.");
+                return Result.Succeeded;
+            }
 
-            var r = PlaceTagsInView(doc, v3d, useTag7Narrative: false);
+            // Selection scope — if user has an active selection, ask whether to
+            // restrict to it. Default for empty selection is whole-view.
+            ICollection<ElementId> selected = null;
+            try { selected = uidoc.Selection.GetElementIds(); } catch { /* defensive */ }
+
+            HashSet<ElementId> hostFilter = null;
+            if (selected != null && selected.Count > 0)
+            {
+                var td = new TaskDialog("Tag 3D")
+                {
+                    MainInstruction = $"You have {selected.Count:N0} element(s) selected.",
+                    MainContent = "Tag only the selection, or every taggable element in the view?"
+                };
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Tag selected only");
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Tag entire view");
+                td.CommonButtons = TaskDialogCommonButtons.Cancel;
+                td.DefaultButton = TaskDialogResult.CommandLink1;
+                var resp = td.Show();
+                if (resp == TaskDialogResult.Cancel) return Result.Cancelled;
+                if (resp == TaskDialogResult.CommandLink1)
+                    hostFilter = new HashSet<ElementId>(selected);
+            }
+
+            var progress = StingProgressDialog.Show("Tag 3D", 0);
+            Tag3DResult r;
+            try
+            {
+                r = PlaceTagsInView(doc, v3d,
+                    useTag7Narrative: false,
+                    hostFilter: hostFilter,
+                    wrapTransaction: true,
+                    progress: progress);
+            }
+            finally
+            {
+                try { progress.Close(); } catch { /* defensive */ }
+            }
+
             string report = $"3D tags placed: {r.Placed}";
-            if (r.Enriched > 0) report += $"\nElements enriched via pipeline: {r.Enriched}";
-            if (r.Errors > 0)   report += $"\nErrors: {r.Errors}";
+            if (r.LinkedPlaced > 0) report += $" (incl. {r.LinkedPlaced} on linked elements)";
+            if (r.Enriched > 0)     report += $"\nElements enriched via pipeline: {r.Enriched}";
+            if (r.Skipped > 0)
+            {
+                report += $"\nSkipped: {r.Skipped}";
+                foreach (var kv in r.SkipReasons.OrderByDescending(k => k.Value))
+                    report += $"\n  • {kv.Key}: {kv.Value}";
+            }
+            if (r.Errors > 0)       report += $"\nErrors: {r.Errors}";
+            if (r.Warnings.Count > 0)
+            {
+                report += "\n\nWarnings:";
+                foreach (var w in r.Warnings.Take(5)) report += $"\n  • {w}";
+                if (r.Warnings.Count > 5) report += $"\n  • (+{r.Warnings.Count - 5} more)";
+            }
+
             TaskDialog.Show("Tag 3D", report);
-            // Phase 165 follow-up — explicit batch teardown for the
-            // PopulationContext built inside PlaceTagsCore.
             TokenAutoPopulator.PopulationContext.EndSession();
             return Result.Succeeded;
         }
 
         /// <summary>
-        /// Phase 165 — programmatic entry point used by AnnotationRunner when a
-        /// DrawingType profile pack carries an <c>Auto3DTag</c> rule. Self-contained
-        /// transaction-managed run; safe to invoke from event handlers and rule
-        /// dispatch.
+        /// Programmatic entry point used by AnnotationRunner when a DrawingType
+        /// profile pack carries an <c>Auto3DTag</c> rule. Pass
+        /// <paramref name="wrapTransaction"/>=false when called from inside an
+        /// already-open Transaction (the AnnotationRunner contract).
         /// </summary>
         /// <param name="useTag7Narrative">
         /// When true, the placed 3D tag's <c>ASS_TAG_3D_TXT</c> label receives
@@ -68,9 +165,29 @@ namespace StingTools.Tags
         /// 8-segment tag — matches DrawingType displayMode 6.
         /// </param>
         public static Tag3DResult PlaceTagsInView(Document doc, View3D view, bool useTag7Narrative)
+            => PlaceTagsInView(doc, view, useTag7Narrative,
+                hostFilter: null, wrapTransaction: true, progress: null);
+
+        /// <summary>
+        /// Full-control entry point. <paramref name="hostFilter"/> restricts
+        /// tagging to those host element ids when non-null;
+        /// <paramref name="wrapTransaction"/>=false skips the internal
+        /// Transaction so the call can nest under an existing one;
+        /// <paramref name="progress"/> is updated per element when supplied.
+        /// </summary>
+        public static Tag3DResult PlaceTagsInView(
+            Document doc, View3D view, bool useTag7Narrative,
+            ICollection<ElementId> hostFilter,
+            bool wrapTransaction,
+            StingProgressDialog progress)
         {
             var r = new Tag3DResult();
             if (doc == null || view == null) return r;
+            if (view.IsTemplate)
+            {
+                r.Warnings.Add($"View '{view.Name}' is a template; nothing placed.");
+                return r;
+            }
 
             FamilySymbol tagSymbol = FindTagFamily(doc);
             if (tagSymbol == null)
@@ -81,15 +198,51 @@ namespace StingTools.Tags
                 StingLog.Warn(r.Warnings[r.Warnings.Count - 1]);
                 return r;
             }
-            PlaceTagsCore(doc, view, tagSymbol, useTag7Narrative, r);
+
+            var cfg = LoadPlacementConfig(doc);
+
+            if (wrapTransaction)
+            {
+                using (var tx = new Transaction(doc, "STING Tag 3D"))
+                {
+                    tx.Start();
+                    PlaceTagsCore(doc, view, tagSymbol, useTag7Narrative,
+                        hostFilter, cfg, progress, r);
+                    tx.Commit();
+                }
+            }
+            else
+            {
+                // Caller owns the open Transaction (AnnotationRunner contract).
+                PlaceTagsCore(doc, view, tagSymbol, useTag7Narrative,
+                    hostFilter, cfg, progress, r);
+            }
+
+            // Cache invalidation + sidecar save can happen outside the transaction.
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
             return r;
         }
 
-        private static void PlaceTagsCore(Document doc, View view, FamilySymbol tagSymbol,
-            bool useTag7Narrative, Tag3DResult result)
+        private static void PlaceTagsCore(
+            Document doc, View view, FamilySymbol tagSymbol,
+            bool useTag7Narrative, ICollection<ElementId> hostFilter,
+            PlacementConfig cfg, StingProgressDialog progress, Tag3DResult result)
         {
+            // 1. Activate symbol + regen so NewFamilyInstance sees the live type.
+            if (!tagSymbol.IsActive)
+            {
+                tagSymbol.Activate();
+                doc.Regenerate();
+            }
 
-            // Collect taggable elements in view
+            // 2. Validate the chosen family carries the label we will write to.
+            //    If not, abort the whole run — placing instances we can't label
+            //    is pure noise.
+            if (!ValidateFamilyHasLabel(doc, tagSymbol, result))
+                return;
+
+            // 3. Collect taggable elements in this view.
             var catEnums = SharedParamGuids.AllCategoryEnums;
             IEnumerable<Element> viewElements;
             if (catEnums != null && catEnums.Length > 0)
@@ -100,14 +253,20 @@ namespace StingTools.Tags
                 viewElements = new FilteredElementCollector(doc, view.Id)
                     .WhereElementIsNotElementType();
 
-            var elList = viewElements.ToList();
-            if (elList.Count == 0)
+            var elList = viewElements
+                .Where(e => hostFilter == null || hostFilter.Contains(e.Id))
+                .ToList();
+
+            int totalForProgress = elList.Count + (cfg.IncludeLinked ? 0 : 0);
+            if (progress != null) progress.UpdateTotal(totalForProgress);
+
+            if (elList.Count == 0 && !cfg.IncludeLinked)
             {
                 StingLog.Info($"Tag3D: no taggable elements in view '{view.Name}'.");
                 return;
             }
 
-            // TAG-02: Build pipeline context once for enriching untagged elements
+            // 4. Build pipeline context once.
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
             var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             if (tagIndex == null) tagIndex = new HashSet<string>();
@@ -115,96 +274,125 @@ namespace StingTools.Tags
             var formulas = TagPipelineHelper.LoadFormulas();
             var gridLines = TagPipelineHelper.LoadGridLines(doc);
 
-            using (Transaction tx = new Transaction(doc, "STING Tag 3D"))
+            // 5. Idempotency: scan existing 3D tag instances in this view and
+            //    capture host element ids already tagged. Skip those.
+            var alreadyTagged = BuildExistingHostIdSet(doc, view, tagSymbol);
+
+            // 6. Resolve preferred annotation workset (optional).
+            WorksetId annotationWorksetId = ResolveAnnotationWorkset(doc);
+
+            int annotationWorksetSkips = 0;
+
+            foreach (Element el in elList)
             {
-                tx.Start();
-
-                if (!tagSymbol.IsActive) tagSymbol.Activate();
-
-                foreach (Element el in elList)
+                try
                 {
-                    try
-                    {
-                        string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    if (progress != null && progress.IsCancelled) break;
 
-                        // TAG-02: If element is untagged, run full pipeline to enrich it first
-                        if (string.IsNullOrEmpty(tag1))
+                    if (alreadyTagged.Contains(el.Id.Value))
+                    {
+                        result.RecordSkip(SkipReason.AlreadyTagged);
+                        continue;
+                    }
+
+                    // Workshared safety: skip elements owned by another user
+                    // before attempting any write.
+                    if (!IsEditable(doc, el))
+                    {
+                        result.RecordSkip(SkipReason.OwnedByOtherUser);
+                        continue;
+                    }
+
+                    string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+
+                    // Run full pipeline for untagged hosts so we never label
+                    // a 3D tag with an empty string.
+                    if (string.IsNullOrEmpty(tag1))
+                    {
+                        try
                         {
-                            try
+                            bool ok = TagPipelineHelper.RunFullPipeline(
+                                doc, el, popCtx, tagIndex, seqCounters,
+                                formulas, gridLines, overwrite: false,
+                                skipComplete: false, collisionMode: TagCollisionMode.AutoIncrement);
+                            if (ok)
                             {
-                                bool ok = TagPipelineHelper.RunFullPipeline(
-                                    doc, el, popCtx, tagIndex, seqCounters,
-                                    formulas, gridLines, overwrite: false,
-                                    skipComplete: false, collisionMode: TagCollisionMode.AutoIncrement);
-                                if (ok)
-                                {
-                                    tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                                    result.Enriched++;
-                                }
-                            }
-                            catch (Exception pipeEx)
-                            {
-                                StingLog.Warn($"Tag3D pipeline for {el.Id}: {pipeEx.Message}");
+                                tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                                result.Enriched++;
                             }
                         }
-                        if (string.IsNullOrEmpty(tag1)) continue;
-
-                        // Get element location for placement
-                        XYZ point = GetElementCenter(el);
-                        if (point == null) continue;
-
-                        // Offset tag slightly above element
-                        XYZ tagPoint = new XYZ(point.X, point.Y, point.Z + 1.0);
-
-                        // Place 3D tag family instance
-                        FamilyInstance fi = doc.Create.NewFamilyInstance(
-                            tagPoint, tagSymbol, Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
-                        if (fi == null) continue;
-
-                        // Phase 165 — when the active DrawingType profile asks for the
-                        // TAG7 narrative (displayMode 6), prefer the rich narrative as
-                        // the visible label. Falls back to the technical tag if the
-                        // narrative is empty (element not yet tagged with TAG7).
-                        string label = tag1;
-                        if (useTag7Narrative)
+                        catch (Exception pipeEx)
                         {
-                            string narrative = ParameterHelpers.GetString(el, ParamRegistry.TAG7);
-                            if (!string.IsNullOrEmpty(narrative)) label = narrative;
+                            StingLog.Warn($"Tag3D pipeline for {el.Id}: {pipeEx.Message}");
                         }
-
-                        ParameterHelpers.SetString(fi, TAG_3D_LABEL, label, overwrite: true);
-
-                        // Note: Containers/TAG7 already written to source element (el) by
-                        // RunFullPipeline above. The annotation instance (fi) is just a
-                        // visual marker — it has no STING token parameters bound.
-
-                        result.Placed++;
                     }
-                    catch (Exception ex)
+                    if (string.IsNullOrEmpty(tag1))
                     {
-                        result.Errors++;
-                        StingLog.Warn($"Tag3D placement for {el.Id}: {ex.Message}");
+                        result.RecordSkip(SkipReason.NoTagAfterPipeline);
+                        continue;
                     }
+
+                    XYZ tagPoint = ComputeTagPoint(el, cfg);
+                    if (tagPoint == null)
+                    {
+                        result.RecordSkip(SkipReason.NoLocation);
+                        continue;
+                    }
+
+                    var fi = doc.Create.NewFamilyInstance(
+                        tagPoint, tagSymbol,
+                        Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
+                    if (fi == null) continue;
+
+                    string label = tag1;
+                    if (useTag7Narrative)
+                    {
+                        string narrative = ParameterHelpers.GetString(el, ParamRegistry.TAG7);
+                        if (!string.IsNullOrEmpty(narrative)) label = narrative;
+                    }
+                    ParameterHelpers.SetString(fi, TAG_3D_LABEL, label, overwrite: true);
+
+                    StampHostId(fi, el.Id);
+                    if (cfg.PinPlacedInstances) TryPin(fi);
+                    if (annotationWorksetId != WorksetId.InvalidWorksetId)
+                    {
+                        if (!TryAssignWorkset(fi, annotationWorksetId))
+                            annotationWorksetSkips++;
+                    }
+
+                    result.Placed++;
                 }
-
-                tx.Commit();
+                catch (Exception ex)
+                {
+                    result.Errors++;
+                    result.RecordSkip(SkipReason.ExceptionDuringPlacement);
+                    StingLog.Warn($"Tag3D placement for {el.Id}: {ex.Message}");
+                }
+                finally
+                {
+                    progress?.Increment();
+                }
             }
 
-            // FIX-B09: Invalidate caches and check compliance gate after 3D tagging
-            ComplianceScan.InvalidateCache();
-            StingAutoTagger.InvalidateContext();
+            // 7. Optionally label elements in linked Revit files.
+            if (cfg.IncludeLinked)
+                PlaceLinkedTags(doc, view, tagSymbol, useTag7Narrative, cfg, result);
+
+            if (annotationWorksetSkips > 0)
+                result.Warnings.Add(
+                    $"{annotationWorksetSkips} placed instance(s) could not be moved to " +
+                    $"workset '{ANNOTATION_WORKSET_NAME}'.");
+
+            // 8. Persist seq sidecar + run compliance gate.
             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
             catch (Exception ssEx) { StingLog.Warn($"Tag3D SaveSeqSidecar: {ssEx.Message}"); }
             TagConfig.CheckComplianceGate(doc, "Tag3D");
         }
 
-        /// <summary>
-        /// Find a suitable 3D tag family already loaded in the document,
-        /// or attempt to load from project_config.json tag3DFamilyPath.
-        /// </summary>
+        // ── Family resolution + validation ────────────────────────────────
+
         private static FamilySymbol FindTagFamily(Document doc)
         {
-            // First try: find a loaded Generic Model family with the tag label parameter
             var candidates = new FilteredElementCollector(doc)
                 .OfClass(typeof(FamilySymbol))
                 .Cast<FamilySymbol>()
@@ -216,7 +404,6 @@ namespace StingTools.Tags
             {
                 try
                 {
-                    // Check family name for tag/3D indicators — no temp instance needed
                     string famName = fs.Family?.Name?.ToUpperInvariant() ?? "";
                     if (famName.Contains("TAG") || famName.Contains("3D"))
                     {
@@ -227,7 +414,6 @@ namespace StingTools.Tags
                 catch (Exception ex) { StingLog.Warn($"Tag family name check failed for '{fs?.Name}': {ex.Message}"); }
             }
 
-            // Second try: any Generic Model family
             var fallback = candidates.FirstOrDefault();
             if (fallback != null)
             {
@@ -235,7 +421,7 @@ namespace StingTools.Tags
                 return fallback;
             }
 
-            // A6: Attempt to load family from project_config.json tag3DFamilyPath
+            // Fallback: load from project_config.json tag3DFamilyPath.
             try
             {
                 string docPath = doc.PathName ?? string.Empty;
@@ -274,7 +460,86 @@ namespace StingTools.Tags
             return null;
         }
 
-        /// <summary>Get the center point of an element from its bounding box or location.</summary>
+        // Per-document cache of validated family ids — reused across runs and
+        // across the (interactive, AnnotationRunner) entry points.
+        private static readonly Dictionary<string, bool> s_validatedFamilies
+            = new Dictionary<string, bool>();
+
+        /// <summary>
+        /// Probe-place a temporary instance inside a SubTransaction to confirm
+        /// the family carries the <c>ASS_TAG_3D_TXT</c> label. The probe is
+        /// rolled back so nothing is left in the model.
+        /// </summary>
+        private static bool ValidateFamilyHasLabel(Document doc, FamilySymbol fs, Tag3DResult result)
+        {
+            string key = $"{doc.PathName}::{fs.Family?.Name}::{fs.Name}";
+            if (s_validatedFamilies.TryGetValue(key, out bool cached))
+            {
+                if (!cached)
+                    result.Warnings.Add(
+                        $"Tag3D family '{fs.Family?.Name}' has no '{TAG_3D_LABEL}' parameter.");
+                return cached;
+            }
+
+            bool valid = false;
+            try
+            {
+                using (var sub = new SubTransaction(doc))
+                {
+                    sub.Start();
+                    try
+                    {
+                        if (!fs.IsActive) fs.Activate();
+                        doc.Regenerate();
+                        var fi = doc.Create.NewFamilyInstance(
+                            XYZ.Zero, fs,
+                            Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
+                        valid = fi != null && fi.LookupParameter(TAG_3D_LABEL) != null;
+                    }
+                    finally
+                    {
+                        sub.RollBack();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Tag3D family probe '{fs.Family?.Name}': {ex.Message}");
+                result.Warnings.Add(
+                    $"Tag3D family '{fs.Family?.Name}' could not be probed: {ex.Message}");
+                valid = false;
+            }
+
+            s_validatedFamilies[key] = valid;
+            if (!valid)
+                result.Warnings.Add(
+                    $"Tag3D family '{fs.Family?.Name}' has no '{TAG_3D_LABEL}' parameter; " +
+                    "load a 3D tag family with that label and retry.");
+            return valid;
+        }
+
+        // ── Placement geometry ────────────────────────────────────────────
+
+        private static XYZ ComputeTagPoint(Element el, PlacementConfig cfg)
+        {
+            XYZ basePt = GetElementCenter(el);
+            if (basePt == null) return null;
+
+            double offsetFt = cfg.DefaultOffsetFt;
+            string catName = el.Category?.Name;
+            if (!string.IsNullOrEmpty(catName)
+                && cfg.PerCategoryOffsetFt.TryGetValue(catName, out double catOffset))
+                offsetFt = catOffset;
+
+            if (cfg.Anchor == AnchorMode.TopOfBbox)
+            {
+                BoundingBoxXYZ bb = el.get_BoundingBox(null);
+                if (bb != null)
+                    return new XYZ(basePt.X, basePt.Y, bb.Max.Z + offsetFt);
+            }
+            return new XYZ(basePt.X, basePt.Y, basePt.Z + offsetFt);
+        }
+
         private static XYZ GetElementCenter(Element el)
         {
             LocationPoint lp = el.Location as LocationPoint;
@@ -295,6 +560,294 @@ namespace StingTools.Tags
                     (bb.Min.Z + bb.Max.Z) / 2);
 
             return null;
+        }
+
+        // ── Idempotency ───────────────────────────────────────────────────
+
+        private static HashSet<long> BuildExistingHostIdSet(Document doc, View view, FamilySymbol tagSymbol)
+        {
+            var hosts = new HashSet<long>();
+            try
+            {
+                var familyId = tagSymbol.Family?.Id;
+                var existing = new FilteredElementCollector(doc, view.Id)
+                    .OfClass(typeof(FamilyInstance))
+                    .Cast<FamilyInstance>()
+                    .Where(fi => familyId == null || fi.Symbol?.Family?.Id == familyId);
+                foreach (var fi in existing)
+                {
+                    long? hostId = ReadStampedHostId(fi);
+                    if (hostId.HasValue) hosts.Add(hostId.Value);
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Tag3D BuildExistingHostIdSet: {ex.Message}");
+            }
+            return hosts;
+        }
+
+        private static void StampHostId(FamilyInstance fi, ElementId hostId)
+        {
+            try
+            {
+                var p = fi.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
+                if (p == null || p.IsReadOnly) return;
+                p.Set($"{HOST_STAMP_PREFIX}{hostId.Value}{HOST_STAMP_SUFFIX}");
+            }
+            catch (Exception ex) { StingLog.Warn($"Tag3D StampHostId: {ex.Message}"); }
+        }
+
+        private static long? ReadStampedHostId(FamilyInstance fi)
+        {
+            try
+            {
+                var p = fi.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
+                string s = p?.AsString();
+                if (string.IsNullOrEmpty(s)) return null;
+                int i = s.IndexOf(HOST_STAMP_PREFIX, StringComparison.Ordinal);
+                if (i < 0) return null;
+                int start = i + HOST_STAMP_PREFIX.Length;
+                int end = s.IndexOf(HOST_STAMP_SUFFIX, start, StringComparison.Ordinal);
+                if (end <= start) return null;
+                if (long.TryParse(s.Substring(start, end - start), out long id)) return id;
+            }
+            catch { /* defensive */ }
+            return null;
+        }
+
+        // ── Workshared / pin / workset helpers ────────────────────────────
+
+        private static bool IsEditable(Document doc, Element el)
+        {
+            try
+            {
+                if (!doc.IsWorkshared) return true;
+                var status = WorksharingUtils.GetCheckoutStatus(doc, el.Id);
+                return status != CheckoutStatus.OwnedByOtherUser;
+            }
+            catch { return true; }
+        }
+
+        private static void TryPin(FamilyInstance fi)
+        {
+            try { fi.Pinned = true; }
+            catch (Exception ex) { StingLog.Warn($"Tag3D pin: {ex.Message}"); }
+        }
+
+        private static WorksetId ResolveAnnotationWorkset(Document doc)
+        {
+            try
+            {
+                if (!doc.IsWorkshared) return WorksetId.InvalidWorksetId;
+                var ws = new FilteredWorksetCollector(doc)
+                    .OfKind(WorksetKind.UserWorkset)
+                    .FirstOrDefault(w => string.Equals(w.Name, ANNOTATION_WORKSET_NAME,
+                        StringComparison.OrdinalIgnoreCase));
+                return ws?.Id ?? WorksetId.InvalidWorksetId;
+            }
+            catch { return WorksetId.InvalidWorksetId; }
+        }
+
+        private static bool TryAssignWorkset(FamilyInstance fi, WorksetId wsId)
+        {
+            try
+            {
+                var p = fi.get_Parameter(BuiltInParameter.ELEM_PARTITION_PARAM);
+                if (p == null || p.IsReadOnly) return false;
+                p.Set(wsId.IntegerValue);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Tag3D workset assign: {ex.Message}");
+                return false;
+            }
+        }
+
+        // ── Linked-element placement ──────────────────────────────────────
+
+        private static void PlaceLinkedTags(
+            Document doc, View view, FamilySymbol tagSymbol,
+            bool useTag7Narrative, PlacementConfig cfg, Tag3DResult result)
+        {
+            var links = new FilteredElementCollector(doc)
+                .OfClass(typeof(RevitLinkInstance))
+                .Cast<RevitLinkInstance>()
+                .Where(li => li.GetLinkDocument() != null)
+                .ToList();
+            if (links.Count == 0) return;
+
+            // Build a host-id set keyed by "<linkInstanceId>:<linkedElementId>"
+            // stamped into the placed instance Comments.
+            var alreadyTaggedLinked = new HashSet<string>();
+            try
+            {
+                var familyId = tagSymbol.Family?.Id;
+                var existing = new FilteredElementCollector(doc, view.Id)
+                    .OfClass(typeof(FamilyInstance))
+                    .Cast<FamilyInstance>()
+                    .Where(fi => familyId == null || fi.Symbol?.Family?.Id == familyId);
+                foreach (var fi in existing)
+                {
+                    string s = fi.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)?.AsString();
+                    if (string.IsNullOrEmpty(s)) continue;
+                    int i = s.IndexOf("link=", StringComparison.Ordinal);
+                    if (i < 0) continue;
+                    int end = s.IndexOf(']', i);
+                    if (end < 0) continue;
+                    alreadyTaggedLinked.Add(s.Substring(i + 5, end - (i + 5)));
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Tag3D linked-host scan: {ex.Message}"); }
+
+            foreach (var link in links)
+            {
+                try
+                {
+                    Document linkDoc = link.GetLinkDocument();
+                    if (linkDoc == null) continue;
+                    Transform xf = link.GetTotalTransform();
+
+                    var catEnums = SharedParamGuids.AllCategoryEnums;
+                    IEnumerable<Element> linkEls;
+                    if (catEnums != null && catEnums.Length > 0)
+                        linkEls = new FilteredElementCollector(linkDoc)
+                            .WhereElementIsNotElementType()
+                            .WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+                    else
+                        linkEls = new FilteredElementCollector(linkDoc)
+                            .WhereElementIsNotElementType();
+
+                    foreach (var le in linkEls)
+                    {
+                        try
+                        {
+                            string hostKey = $"{link.Id.Value}:{le.Id.Value}";
+                            if (alreadyTaggedLinked.Contains(hostKey))
+                            {
+                                result.RecordSkip(SkipReason.AlreadyTagged);
+                                continue;
+                            }
+
+                            string tag1 = ParameterHelpers.GetString(le, ParamRegistry.TAG1);
+                            // Linked elements are read-only — we can't run the
+                            // pipeline against them. Skip if untagged.
+                            if (string.IsNullOrEmpty(tag1))
+                            {
+                                result.RecordSkip(SkipReason.NoTagAfterPipeline);
+                                continue;
+                            }
+
+                            XYZ basePt = GetElementCenter(le);
+                            if (basePt == null)
+                            {
+                                result.RecordSkip(SkipReason.NoLocation);
+                                continue;
+                            }
+
+                            double offsetFt = cfg.DefaultOffsetFt;
+                            string catName = le.Category?.Name;
+                            if (!string.IsNullOrEmpty(catName)
+                                && cfg.PerCategoryOffsetFt.TryGetValue(catName, out double catOffset))
+                                offsetFt = catOffset;
+
+                            XYZ localTagPoint = (cfg.Anchor == AnchorMode.TopOfBbox && le.get_BoundingBox(null) is BoundingBoxXYZ bb)
+                                ? new XYZ(basePt.X, basePt.Y, bb.Max.Z + offsetFt)
+                                : new XYZ(basePt.X, basePt.Y, basePt.Z + offsetFt);
+
+                            XYZ worldPt = xf.OfPoint(localTagPoint);
+
+                            var fi = doc.Create.NewFamilyInstance(
+                                worldPt, tagSymbol,
+                                Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
+                            if (fi == null) continue;
+
+                            string label = tag1;
+                            if (useTag7Narrative)
+                            {
+                                string narrative = ParameterHelpers.GetString(le, ParamRegistry.TAG7);
+                                if (!string.IsNullOrEmpty(narrative)) label = narrative;
+                            }
+                            ParameterHelpers.SetString(fi, TAG_3D_LABEL, label, overwrite: true);
+
+                            // Stamp link key into Comments for idempotent re-runs.
+                            try
+                            {
+                                var p = fi.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
+                                if (p != null && !p.IsReadOnly)
+                                    p.Set($"[STING3D link={hostKey}]");
+                            }
+                            catch (Exception stampEx) { StingLog.Warn($"Tag3D linked stamp: {stampEx.Message}"); }
+
+                            if (cfg.PinPlacedInstances) TryPin(fi);
+
+                            result.LinkedPlaced++;
+                            result.Placed++;
+                        }
+                        catch (Exception inner)
+                        {
+                            result.Errors++;
+                            StingLog.Warn($"Tag3D linked placement {le?.Id}: {inner.Message}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Tag3D link '{link?.Name}': {ex.Message}");
+                    result.Warnings.Add($"Linked file '{link?.Name}' skipped: {ex.Message}");
+                }
+            }
+        }
+
+        // ── project_config.json reader ────────────────────────────────────
+
+        private static PlacementConfig LoadPlacementConfig(Document doc)
+        {
+            var cfg = new PlacementConfig();
+            try
+            {
+                string docPath = doc.PathName ?? string.Empty;
+                if (string.IsNullOrEmpty(docPath)) return cfg;
+                string cfgPath = Path.Combine(
+                    Path.GetDirectoryName(docPath) ?? string.Empty,
+                    "project_config.json");
+                if (!File.Exists(cfgPath)) return cfg;
+
+                string json = File.ReadAllText(cfgPath);
+                var root = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, object>>(json);
+                if (root == null) return cfg;
+
+                if (root.TryGetValue("tag3DPlacement", out object pObj)
+                    && pObj is Newtonsoft.Json.Linq.JObject placement)
+                {
+                    string anchor = placement.Value<string>("anchor");
+                    if (string.Equals(anchor, "Centroid", StringComparison.OrdinalIgnoreCase))
+                        cfg.Anchor = AnchorMode.Centroid;
+
+                    var defaultMm = placement.Value<double?>("defaultOffsetMm");
+                    if (defaultMm.HasValue) cfg.DefaultOffsetFt = defaultMm.Value / 304.8;
+
+                    var pinObj = placement.Value<bool?>("pinPlacedInstances");
+                    if (pinObj.HasValue) cfg.PinPlacedInstances = pinObj.Value;
+
+                    var includeLinked = placement.Value<bool?>("includeLinked");
+                    if (includeLinked.HasValue) cfg.IncludeLinked = includeLinked.Value;
+
+                    var perCat = placement["perCategoryOffsetMm"] as Newtonsoft.Json.Linq.JObject;
+                    if (perCat != null)
+                    {
+                        foreach (var prop in perCat.Properties())
+                        {
+                            double? mm = prop.Value?.Value<double?>();
+                            if (mm.HasValue)
+                                cfg.PerCategoryOffsetFt[prop.Name] = mm.Value / 304.8;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Tag3D LoadPlacementConfig: {ex.Message}"); }
+            return cfg;
         }
     }
 }
