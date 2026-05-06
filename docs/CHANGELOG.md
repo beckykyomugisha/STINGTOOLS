@@ -10095,3 +10095,162 @@ internal feet via the `symbolSize` (mm) field.
 - `StingTools/UI/StingCommandHandler.cs` — dispatch entries
 - `StingTools/UI/StingDockPanel.xaml` — SYMBOL LIBRARY section
 - `docs/CHANGELOG.md` — this entry
+
+#### Completed (Phase 175 — Three-Universe Symbol System + SLD Auto-Gen)
+
+Phase 175 grew from a single library creator into a full symbol-system
+architecture spanning three "universes" (Schematic / Model / Augmented),
+five drawing standards (IEC, IEEE, NFPA, CIBSE, BS), four mixed-standard
+profiles, drift detection, orphan healing, coverage auditing, family
+augmentation, and an SLD auto-generator with live IUpdater sync. All
+file paths now match `StingTools/Core/Symbols/`,
+`StingTools/Core/SLD/`, and `StingTools/Commands/{Symbols,SLD}/`.
+
+#### What landed
+
+1. **Three-universe architecture** — every concept (e.g. `MEP_FCU`)
+   exists as `IEC_SLD_FCU` (Schematic / GenericAnnotation),
+   `IEC_MEP_FCU_TAG` (Model / IndependentTag), and as STING-augmented
+   parameters on the existing `MEP_FCU` model family.
+   `SymbolViewContextResolver` picks the correct universe per view;
+   `SymbolStandardResolver` walks a 6-level inheritance chain
+   (element override → view override → DrawingType discipline →
+   mixed-profile discipline → project global → IEC) to pick the active
+   standard.
+
+2. **Standards + concepts catalogue** —
+   `StingTools/Data/Symbols/STING_SYMBOL_STANDARDS.json` (5 standards),
+   `STING_MIXED_STANDARD_PROFILES.json` (4 profiles, default
+   `Uganda-Standard`), and `STING_SYMBOL_CONCEPTS.json` (191 conceptIds
+   × 2-3 standard mappings = 4,188 lines). Reverse index built once at
+   load time so `SymbolConceptRegistry.GetConceptForFamily` is O(1).
+
+3. **Engines under `StingTools/Core/Symbols/`** (12 files) —
+   `SymbolDefinition.cs` POCOs, `SymbolStandardRegistry`,
+   `SymbolConceptRegistry`, `SymbolStandardResolver`,
+   `SymbolViewContextResolver`, `SymbolScaleEngine`,
+   `SymbolOrientationEngine` (5 states from instance axis × view
+   normal), `SymbolAnnotationEngine` (per-standard rating + circuit
+   labels), `SymbolLibraryCreator` (carried over from the prior
+   commit, geometry creator unchanged), `SymbolOverlayManager`,
+   `CompoundSymbolPlacer`, `FamilyAugmentationEngine`,
+   `SymbolOrphanHealer`, `SymbolCoverageAuditor`,
+   `SymbolDriftDetector`.
+
+4. **SLD subsystem under `StingTools/Core/SLD/`** (5 files) —
+   `SLDCircuitTraverser` walks `ElectricalSystem.BaseEquipment` /
+   `Elements` to build a hierarchy; `SLDLayoutEngine` assigns XYZ
+   positions plus busbar / branch line geometry; `SLDAnnotationPlacer`
+   draws those plus per-symbol rating labels per the active standard's
+   `AnnotationRules`; `SLDGenerator` is the façade that mints a
+   drafting view, places symbols, and stamps the view's standard;
+   `SLDSyncUpdater` is an IUpdater that re-runs UpdateSLD whenever an
+   electrical element changes (gated on `project_config.json`
+   `sld_sync_enabled`).
+
+5. **24 new commands under `StingTools/Commands/{Symbols,SLD}/`** —
+   library (6: CreateAll / SLD-only / Lighting-only / FP-only /
+   Reload / Inspect — carried over), standards (7: SwitchProject /
+   SwitchView / SetProfile / PlaceView / PlaceAll / Audit /
+   SyncFilters), augmentation (3: AugmentAll / AugmentSelected /
+   Rollback), maintenance (4: HealOrphans / Coverage / FixDrift /
+   BatchHeal), SLD (5: Generate / GenerateOptions / Update /
+   SyncToggle / Validate). All wired through StingCommandHandler.
+
+6. **Existing-file extensions** —
+   - `Core/StingAutoTagger.cs`: after `RunFullPipeline` / visual tag
+     placement, drops a symbol overlay via
+     `SymbolOverlayManager.PlaceSymbolOverlay` when
+     `project_config.json` `symbol_auto_place == true` (default false
+     so existing projects don't get surprised).
+   - `Core/StingToolsApp.cs`: registers `SLDSyncUpdater` for
+     ElectricalEquipment / ElectricalFixtures / LightingFixtures
+     in OnStartup; unregisters in OnShutdown via the new
+     `_sldUpdaterId` field.
+   - `Core/ParamRegistry.cs`: 8 new shared-parameter constants with
+     stable GUIDs (`SYMBOL_ID`, `SYMBOL_STANDARD`,
+     `SYMBOL_HOST_ELEMENT_ID`, `SYMBOL_LABEL_ID`, `SYMBOL_OVERRIDE`,
+     `VIEW_SYMBOL_STANDARD`, `SLD_ELEMENT_ID`,
+     `SYMBOL_LIBRARY_VERSION`).
+   - `Core/Drawing/DrawingTypePresentation.cs`: pipeline gains
+     Step 8.5 — read-only drift check against the resolved standard;
+     surfaces `r.Warnings` for the user to heal via FixSymbolDrift.
+
+7. **Dock panel** — TEMP tab gains two Phase-175 sections
+   ("SYMBOLS & DEVICES" with 4 button rows, and "SLD GENERATOR" with
+   5 buttons). Existing geometry JSONs from the prior commit
+   (`STING_SLD_SYMBOLS.json` etc., 190 symbols) still ship and are
+   the data the library creator chews through.
+
+#### Caveats
+
+1. Built without `dotnet build` verification (Linux sandbox with no
+   Revit API). Spots that depend on overload resolution carry
+   `// TODO-VERIFY-API`, particularly:
+   - `ElectricalSystem.PolesNumber` / `RBS_ELEC_APPARENT_LOAD` access
+     in `SLDCircuitTraverser.ReadCircuitData`
+   - `IndependentTag.GetTaggedLocalElementIds` in
+     `SymbolAnnotationEngine.ResolveHost` /
+     `SymbolOrphanHealer.FindOrphans` / `SymbolDriftDetector`
+   - `IndependentTag.Create` overload signature
+   - `Family.FamilyCategory` access during augmentation
+   Verify in Revit before relying on them.
+2. The `SymbolLibraryCreator` family templates path (carried over from
+   the prior commit) auto-detects 2025/2026/2027 — symbol families
+   that don't have a perfect template (e.g. `Metric Sprinkler.rft`)
+   degrade to `Metric Generic Model.rft`.
+3. `SymbolOrientationEngine.Compute` uses `FamilyInstance.HandOrientation`
+   / `FacingOrientation` — for non-FamilyInstance hosts (e.g. linked
+   models) it returns `Horizontal`, which is the safe default but may
+   not be ideal for vertical pipes.
+4. Compound symbol layout is currently a vertical stack with simple
+   straight connection lines — adequate for SLD legend keys, less so
+   for ladder-logic style schematics. Future enhancement.
+5. `SLDGenerator.UpdateSLD` rebuilds the entire view contents on every
+   trigger from `SLDSyncUpdater`. Acceptable for projects up to a few
+   hundred circuits; for very large projects, future enhancement
+   would scope updates to only the changed subtree.
+
+#### Files
+
+New:
+- `StingTools/Core/Symbols/SymbolDefinition.cs` (POCOs, expanded)
+- `StingTools/Core/Symbols/SymbolStandardRegistry.cs`
+- `StingTools/Core/Symbols/SymbolConceptRegistry.cs`
+- `StingTools/Core/Symbols/SymbolStandardResolver.cs`
+- `StingTools/Core/Symbols/SymbolViewContextResolver.cs`
+- `StingTools/Core/Symbols/SymbolScaleEngine.cs`
+- `StingTools/Core/Symbols/SymbolOrientationEngine.cs`
+- `StingTools/Core/Symbols/SymbolAnnotationEngine.cs`
+- `StingTools/Core/Symbols/SymbolOverlayManager.cs`
+- `StingTools/Core/Symbols/CompoundSymbolPlacer.cs`
+- `StingTools/Core/Symbols/FamilyAugmentationEngine.cs`
+- `StingTools/Core/Symbols/SymbolOrphanHealer.cs`
+- `StingTools/Core/Symbols/SymbolCoverageAuditor.cs`
+- `StingTools/Core/Symbols/SymbolDriftDetector.cs`
+- `StingTools/Core/SLD/SLDCircuitTraverser.cs`
+- `StingTools/Core/SLD/SLDLayoutEngine.cs`
+- `StingTools/Core/SLD/SLDAnnotationPlacer.cs`
+- `StingTools/Core/SLD/SLDGenerator.cs`
+- `StingTools/Core/SLD/SLDSyncUpdater.cs`
+- `StingTools/Commands/Symbols/SymbolStandardCommands.cs`
+- `StingTools/Commands/Symbols/SymbolAugmentationCommands.cs`
+- `StingTools/Commands/Symbols/SymbolMaintenanceCommands.cs`
+- `StingTools/Commands/SLD/SLDGeneratorCommands.cs`
+- `StingTools/Data/Symbols/STING_SYMBOL_STANDARDS.json`
+- `StingTools/Data/Symbols/STING_MIXED_STANDARD_PROFILES.json`
+- `StingTools/Data/Symbols/STING_SYMBOL_CONCEPTS.json` (4,188 lines)
+
+Moved (`Commands/Symbols/` → `Core/Symbols/`):
+- `StingTools/Core/Symbols/SymbolDefinition.cs`
+- `StingTools/Core/Symbols/SymbolLibraryCreator.cs`
+
+Modified:
+- `StingTools/Core/StingToolsApp.cs` — SLDSyncUpdater register / unregister
+- `StingTools/Core/StingAutoTagger.cs` — symbol overlay auto-place
+- `StingTools/Core/ParamRegistry.cs` — 8 symbol-system shared-param constants
+- `StingTools/Core/Drawing/DrawingTypePresentation.cs` — Step 8.5 drift gate
+- `StingTools/Commands/Symbols/SymbolLibraryCommands.cs` — namespace import
+- `StingTools/UI/StingCommandHandler.cs` — 24 new dispatch entries
+- `StingTools/UI/StingDockPanel.xaml` — SYMBOLS & DEVICES + SLD GENERATOR sections
+- `docs/CHANGELOG.md` — this entry

@@ -11,10 +11,11 @@
 // creator scales them by SymbolSize (millimetres) to Revit internal feet
 // at runtime.
 
+using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 
-namespace StingTools.Commands.Symbols
+namespace StingTools.Core.Symbols
 {
     public sealed class SymbolLibrary
     {
@@ -154,5 +155,99 @@ namespace StingTools.Commands.Symbols
         [JsonProperty("diameterMm")] public double DiameterMm { get; set; }
         [JsonProperty("profile", NullValueHandling = NullValueHandling.Ignore)]
         public List<Point2D> Profile { get; set; }
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // Standards / Concepts / Profiles — Phase 175 expansion
+    // ──────────────────────────────────────────────────────────────────
+
+    public sealed class SymbolStandardsFile
+    {
+        [JsonProperty("version")]  public string Version { get; set; } = "1.0";
+        [JsonProperty("standards")] public Dictionary<string, StandardDefinition> Standards { get; set; }
+            = new Dictionary<string, StandardDefinition>(StringComparer.OrdinalIgnoreCase);
+        [JsonProperty("fallbackChain")] public Dictionary<string, string> FallbackChain { get; set; }
+            = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        [JsonProperty("scaleTierThresholds")] public Dictionary<string, int> ScaleTierThresholds { get; set; }
+            = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+    }
+
+    public sealed class StandardDefinition
+    {
+        [JsonProperty("name")]               public string Name { get; set; }
+        [JsonProperty("region")]             public List<string> Region { get; set; } = new List<string>();
+        [JsonProperty("disciplines")]        public List<string> Disciplines { get; set; } = new List<string>();
+        [JsonProperty("symbolSizeMm")]       public double SymbolSizeMm { get; set; } = 3.0;
+        [JsonProperty("symbolScaleTiers")]   public Dictionary<string, double> SymbolScaleTiers { get; set; }
+            = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        [JsonProperty("annotationRules")]    public AnnotationRules AnnotationRules { get; set; }
+        [JsonProperty("lineWeightSymbol")]   public int LineWeightSymbol { get; set; } = 3;
+        [JsonProperty("lineWeightConnection")] public int LineWeightConnection { get; set; } = 1;
+        [JsonProperty("colorScheme")]        public string ColorScheme { get; set; } = "Monochrome";
+    }
+
+    public sealed class AnnotationRules
+    {
+        [JsonProperty("labelPosition")]      public string LabelPosition { get; set; } = "Above";
+        [JsonProperty("textHeightMm")]       public double TextHeightMm { get; set; } = 2.0;
+        [JsonProperty("leaderRequired")]     public bool LeaderRequired { get; set; }
+        [JsonProperty("ratingFormat")]       public string RatingFormat { get; set; } = "{rating}{unit}";
+        [JsonProperty("circuitRefPrefix")]   public string CircuitRefPrefix { get; set; } = "";
+        [JsonProperty("circuitRefSuffix")]   public string CircuitRefSuffix { get; set; } = "";
+    }
+
+    public sealed class MixedStandardProfilesFile
+    {
+        [JsonProperty("version")]  public string Version { get; set; } = "1.0";
+        [JsonProperty("profiles")] public List<MixedStandardProfile> Profiles { get; set; }
+            = new List<MixedStandardProfile>();
+    }
+
+    public sealed class MixedStandardProfile
+    {
+        [JsonProperty("id")]                 public string Id { get; set; }
+        [JsonProperty("name")]               public string Name { get; set; }
+        [JsonProperty("disciplineMappings")] public Dictionary<string, string> DisciplineMappings { get; set; }
+            = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        [JsonProperty("isDefault")]          public bool IsDefault { get; set; }
+    }
+
+    public sealed class ConceptsFile
+    {
+        [JsonProperty("version")]  public string Version { get; set; } = "1.0";
+        [JsonProperty("concepts")] public Dictionary<string, SymbolConcept> Concepts { get; set; }
+            = new Dictionary<string, SymbolConcept>(StringComparer.OrdinalIgnoreCase);
+    }
+
+    public sealed class SymbolConcept
+    {
+        [JsonProperty("conceptId")]       public string ConceptId { get; set; }
+        [JsonProperty("name")]            public string Name { get; set; }
+        [JsonProperty("discipline")]      public string Discipline { get; set; }
+        [JsonProperty("subcategory")]     public string Subcategory { get; set; }
+        [JsonProperty("revitCategory")]   public string RevitCategory { get; set; }
+        /// <summary>Schematic | Model | Both</summary>
+        [JsonProperty("universe")]        public string Universe { get; set; } = "Schematic";
+        [JsonProperty("isViewDependent")] public bool IsViewDependent { get; set; }
+        [JsonProperty("standardMappings")] public Dictionary<string, ConceptStandardMapping> StandardMappings { get; set; }
+            = new Dictionary<string, ConceptStandardMapping>(StringComparer.OrdinalIgnoreCase);
+        [JsonProperty("compoundComponents", NullValueHandling = NullValueHandling.Ignore)]
+        public List<string> CompoundComponents { get; set; }
+        [JsonProperty("connectorDomain", NullValueHandling = NullValueHandling.Ignore)]
+        public string ConnectorDomain { get; set; }
+        [JsonProperty("orientationStates", NullValueHandling = NullValueHandling.Ignore)]
+        public Dictionary<string, string> OrientationStates { get; set; }
+    }
+
+    public sealed class ConceptStandardMapping
+    {
+        [JsonProperty("genericAnnotation", NullValueHandling = NullValueHandling.Ignore)]
+        public string GenericAnnotation { get; set; }
+        [JsonProperty("tagFamily", NullValueHandling = NullValueHandling.Ignore)]
+        public string TagFamily { get; set; }
+        [JsonProperty("viewContextOverrides", NullValueHandling = NullValueHandling.Ignore)]
+        public Dictionary<string, string> ViewContextOverrides { get; set; }
+        [JsonProperty("scaleVariants", NullValueHandling = NullValueHandling.Ignore)]
+        public Dictionary<string, string> ScaleVariants { get; set; }
     }
 }

@@ -18,7 +18,7 @@ using Autodesk.Revit.DB;
 using Newtonsoft.Json;
 using StingTools.Core;
 
-namespace StingTools.Commands.Symbols
+namespace StingTools.Core.Symbols
 {
     /// <summary>Aggregate result of a CreateAllFromFile run.</summary>
     public sealed class SymbolCreationResult
