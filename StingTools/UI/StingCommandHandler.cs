@@ -198,6 +198,13 @@ namespace StingTools.UI
                     case "LPS_SepDistCheck":         RunCommand<Commands.Lightning.LpsSeparationDistanceCheckerCommand>(app); break;
                     case "LPS_InspectionSchedule":   RunCommand<Commands.Lightning.LpsInspectionSchedulerCommand>(app); break;
                     case "LPS_FullReport":           RunCommand<Commands.Lightning.LpsFullReportCommand>(app); break;
+                    case "LPS_Dashboard":            RunCommand<Commands.Lightning.LpsDashboardCommand>(app); break;
+                    case "LPS_MarkElementTypes":     RunCommand<Commands.Lightning.LpsMarkElementTypesCommand>(app); break;
+                    case "LPS_RecalcKcFactor":       RunCommand<Commands.Lightning.LpsRecalcKcFactorCommand>(app); break;
+                    case "LPS_ColourZones":          RunCommand<Commands.Lightning.LpsColourZonesCommand>(app); break;
+                    case "LPS_ClearZoneColours":     RunCommand<Commands.Lightning.LpsClearZoneColoursCommand>(app); break;
+                    case "LPS_CreateSchedules":      RunCommand<Commands.Lightning.LpsCreateRevitScheduleCommand>(app); break;
+                    case "LPS_SyncToServer":         RunCommand<Commands.Lightning.LpsSyncToServerCommand>(app); break;
 
                     // ── Gap 2 / Phase 121 — Extensible Storage migration + diagnostic ──
                     case "ES_Migrate":               RunCommand<Commands.Storage.MigrateToExtensibleStorageCommand>(app); break;

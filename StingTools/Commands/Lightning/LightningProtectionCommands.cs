@@ -91,13 +91,15 @@ namespace StingTools.Commands.Lightning
 
                     // Stamp separation distance on every existing down conductor.
                     var conductors = LpsEngine.CollectLpsFamily(doc, "Down Conductor", "Down_Conductor", "DownConductor");
+                    double kc = LpsEngine.ComputeKcFactor(conductors.Count);
+                    SetDouble(prj, LpsParams.KC_FACTOR_NR, kc);
                     int stamped = 0;
                     foreach (var dc in conductors)
                     {
-                        double zM = ConductorLengthM(dc);
+                        double zM = LpsEngine.GetConductorLengthM(dc);
                         string mat = ParameterHelpers.GetString(dc, LpsParams.CONDUCTOR_MATERIAL_TXT);
                         if (string.IsNullOrWhiteSpace(mat)) mat = "COPPER";
-                        double sMm = LpsEngine.ComputeSeparationDistance(classId, zM, mat);
+                        double sMm = LpsEngine.ComputeSeparationDistance(classId, zM, mat, kc);
                         SetDouble(dc, LpsParams.SEPARATION_DISTANCE_MM, sMm);
                         if (string.IsNullOrWhiteSpace(ParameterHelpers.GetString(dc, LpsParams.CONDUCTOR_MATERIAL_TXT)))
                             ParameterHelpers.SetString(dc, LpsParams.CONDUCTOR_MATERIAL_TXT, mat);
@@ -110,6 +112,7 @@ namespace StingTools.Commands.Lightning
                         $"Rolling sphere radius: {def.RollingSphereRadiusM} m\n" +
                         $"Mesh size: {def.MeshSizeM} m\n" +
                         $"Inspection interval: {def.InspectionIntervalMonths} months\n" +
+                        $"Down conductors: {conductors.Count}  •  kc = {kc:F3}\n" +
                         $"Down conductors stamped with separation distance: {stamped}\n\n" +
                         $"Risk: {risk?.Notes}");
                 }
@@ -121,19 +124,6 @@ namespace StingTools.Commands.Lightning
                 TaskDialog.Show("STING — LPS Class Setup", "Setup failed: " + ex.Message);
                 return Result.Failed;
             }
-        }
-
-        private static double ConductorLengthM(FamilyInstance fi)
-        {
-            try
-            {
-                var bb = fi.get_BoundingBox(null);
-                if (bb == null) return 3.0;
-                double zFt = bb.Max.Z - bb.Min.Z;
-                double zM = UnitUtils.ConvertFromInternalUnits(zFt, UnitTypeId.Meters);
-                return zM > 0.1 ? zM : 3.0;
-            }
-            catch (Exception ex) { StingLog.Warn($"ConductorLengthM: {ex.Message}"); return 3.0; }
         }
 
         private static void SetDouble(Element el, string paramName, double valueInRevitDisplay)
@@ -212,10 +202,21 @@ namespace StingTools.Commands.Lightning
             }
             catch (Exception ex) { StingLog.Warn($"Stamp compliance: {ex.Message}"); }
 
+            // Surface kc factor in the panel header. ProjectInformation may have
+            // a stamped value (set by Class Setup / Recalculate); else compute
+            // live from the down-conductor count.
+            double kcShown = LpsEngine.GetDoubleParam(doc.ProjectInformation, LpsParams.KC_FACTOR_NR);
+            if (kcShown <= 0)
+            {
+                int dcCount = LpsEngine.CollectLpsFamily(doc, "Down Conductor", "Down_Conductor", "DownConductor").Count;
+                kcShown = LpsEngine.ComputeKcFactor(dcCount);
+            }
+
             var panel = StingResultPanel.Create("LPS Compliance Check (BS EN 62305)");
-            panel.SetSubtitle($"Project class: {classId} — verdict: {verdict}");
+            panel.SetSubtitle($"Project class: {classId} — verdict: {verdict}  •  kc = {kcShown:F3}");
             panel.AddSection("SUMMARY")
                  .Metric("Total checks", items.Count.ToString())
+                 .Metric("kc factor", kcShown.ToString("F3"))
                  .MetricHighlight("Pass", pass.ToString())
                  .MetricWarn("Warn", warn.ToString())
                  .MetricError("Fail", fail.ToString());
@@ -626,7 +627,7 @@ namespace StingTools.Commands.Lightning
                 var csv = new StringBuilder();
                 csv.AppendLine("ElementId,Category,FamilyName,Level,FromRoom,FromLPZ,ToRoom,ToLPZ,BondType,Remarks");
                 foreach (var r in rows)
-                    csv.AppendLine(string.Join(",", r.Select(CsvEscape)));
+                    csv.AppendLine(string.Join(",", r.Select(LpsCommandsHelpers.CsvEscape)));
                 File.WriteAllText(outPath, csv.ToString());
             }
             catch (Exception ex) { StingLog.Warn($"CSV write: {ex.Message}"); outPath = "(write failed)"; }
@@ -653,14 +654,6 @@ namespace StingTools.Commands.Lightning
                 return doc.GetRoomAtPoint(pt);
             }
             catch (Exception ex) { StingLog.Warn($"ResolveRoom: {ex.Message}"); return null; }
-        }
-
-        private static string CsvEscape(string s)
-        {
-            if (string.IsNullOrEmpty(s)) return "";
-            if (s.Contains(",") || s.Contains("\"") || s.Contains("\n"))
-                return "\"" + s.Replace("\"", "\"\"") + "\"";
-            return s;
         }
     }
 
@@ -970,21 +963,31 @@ namespace StingTools.Commands.Lightning
             int violations = 0;
             var conflictingMepIds = new HashSet<ElementId>();
             var mepIds = mep.Select(m => m.Id).ToList();
+            double kc = LpsEngine.ComputeKcFactor(conductors.Count);
             try
             {
                 using (var t = new Transaction(doc, "STING — Separation Distance Check"))
                 {
                     t.Start();
+                    // Stamp the resolved kc onto ProjectInformation for downstream visibility.
+                    try
+                    {
+                        var prjP = doc.ProjectInformation?.LookupParameter(LpsParams.KC_FACTOR_NR);
+                        if (prjP != null && !prjP.IsReadOnly && prjP.StorageType == StorageType.Double)
+                            prjP.Set(kc);
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Stamp kc: {ex.Message}"); }
+
                     foreach (var dc in conductors)
                     {
                         double sMm = LpsEngine.GetDoubleParam(dc, LpsParams.SEPARATION_DISTANCE_MM);
                         if (sMm <= 0)
                         {
-                            // Compute on the fly from class + length + material
-                            double L = ConductorLengthM(dc);
+                            // Compute on the fly from class + length + material + kc
+                            double L = LpsEngine.GetConductorLengthM(dc);
                             string mat = ParameterHelpers.GetString(dc, LpsParams.CONDUCTOR_MATERIAL_TXT);
                             if (string.IsNullOrWhiteSpace(mat)) mat = "COPPER";
-                            sMm = LpsEngine.ComputeSeparationDistance(classId, L, mat);
+                            sMm = LpsEngine.ComputeSeparationDistance(classId, L, mat, kc);
                             try
                             {
                                 var p = dc.LookupParameter(LpsParams.SEPARATION_DISTANCE_MM);
@@ -1038,9 +1041,10 @@ namespace StingTools.Commands.Lightning
             }
 
             var panel = StingResultPanel.Create("Separation Distance Check (BS EN 62305-3 §6.3)");
-            panel.SetSubtitle($"Class {classId} — {conductors.Count} down conductor(s) checked");
+            panel.SetSubtitle($"Class {classId} — {conductors.Count} down conductor(s) checked  •  kc = {kc:F3}");
             panel.AddSection("SUMMARY")
                  .Metric("Down conductors", conductors.Count.ToString())
+                 .Metric("kc factor", kc.ToString("F3"))
                  .MetricError("Violations", violations.ToString());
             if (rows.Count > 0)
             {
@@ -1056,19 +1060,6 @@ namespace StingTools.Commands.Lightning
             }
             panel.Show();
             return Result.Succeeded;
-        }
-
-        private static double ConductorLengthM(FamilyInstance fi)
-        {
-            try
-            {
-                var bb = fi.get_BoundingBox(null);
-                if (bb == null) return 3.0;
-                double zFt = bb.Max.Z - bb.Min.Z;
-                double zM = UnitUtils.ConvertFromInternalUnits(zFt, UnitTypeId.Meters);
-                return zM > 0.1 ? zM : 3.0;
-            }
-            catch (Exception ex) { StingLog.Warn($"ConductorLengthM: {ex.Message}"); return 3.0; }
         }
     }
 
@@ -1185,7 +1176,7 @@ namespace StingTools.Commands.Lightning
                 var csv = new StringBuilder();
                 csv.AppendLine("ElementId,Family,Level,Room,LastTestDate,IntervalMonths,NextDueDate,CertRef,Status");
                 foreach (var r in rows)
-                    csv.AppendLine(string.Join(",", r.Select(LpsBondingInventoryCommand_CsvAccess.Escape)));
+                    csv.AppendLine(string.Join(",", r.Select(LpsCommandsHelpers.CsvEscape)));
                 File.WriteAllText(outPath, csv.ToString());
             }
             catch (Exception ex) { StingLog.Warn($"CSV: {ex.Message}"); outPath = "(write failed)"; }
@@ -1203,19 +1194,6 @@ namespace StingTools.Commands.Lightning
             if (rowsUpcoming.Count > 0) panel.AddSection("DUE ≤ 90 DAYS").Table(hdr, rowsUpcoming.Take(50).ToList());
             panel.Show();
             return Result.Succeeded;
-        }
-    }
-
-    // Tiny shim so CMD-9 can reuse CMD-5's CSV escape without an awkward
-    // public method on a command class.
-    internal static class LpsBondingInventoryCommand_CsvAccess
-    {
-        public static string Escape(string s)
-        {
-            if (string.IsNullOrEmpty(s)) return "";
-            if (s.Contains(",") || s.Contains("\"") || s.Contains("\n"))
-                return "\"" + s.Replace("\"", "\"\"") + "\"";
-            return s;
         }
     }
 
@@ -1287,7 +1265,7 @@ namespace StingTools.Commands.Lightning
             return Result.Succeeded;
         }
 
-        private static string Esc(string s) => LpsBondingInventoryCommand_CsvAccess.Escape(s ?? "");
+        private static string Esc(string s) => LpsCommandsHelpers.CsvEscape(s ?? "");
 
 
         // ── Token + row builders ─────────────────────────────────────
@@ -1759,9 +1737,28 @@ namespace StingTools.Commands.Lightning
                 };
                 RiskResult = LpsEngine.RunRiskAssessment(input);
 
-                _riskResult.Text = (RiskResult.RequiresLps
+                var head = (RiskResult.RequiresLps
                     ? $"LPS REQUIRED — Class {RiskResult.RecommendedClass} recommended.\n"
                     : "LPS NOT REQUIRED based on risk inputs.\n") + RiskResult.Notes;
+
+                // Append residual risk table (BS EN 62305-2 Table 6).
+                double r1 = RiskResult.RiskComponents.TryGetValue("R1_Direct", out var r1v) ? r1v : 0.0;
+                double rt = RiskResult.TolerableRisk;
+                if (RiskResult.ResidualRiskByClass.Count > 0)
+                {
+                    var sbR = new StringBuilder();
+                    sbR.AppendLine();
+                    sbR.AppendLine("Residual risk after LPS (BS EN 62305-2 Table 6):");
+                    sbR.AppendLine($"  R1 (no LPS) = {r1:E2}    Rt = {rt:E2}");
+                    foreach (var kv in RiskResult.ResidualRiskByClass.OrderBy(k => k.Key))
+                    {
+                        string mark = kv.Value <= rt ? "✓" : "✗";
+                        sbR.AppendLine($"  Class {kv.Key,-3} → R_residual = {kv.Value:E2}  vs Rt = {rt:E2}  {mark}");
+                    }
+                    head = head + sbR.ToString();
+                }
+
+                _riskResult.Text = head;
                 if (RiskResult.RequiresLps)
                 {
                     int idx = new[] { "I", "II", "III", "IV" }.ToList().IndexOf(RiskResult.RecommendedClass);
@@ -1811,5 +1808,888 @@ namespace StingTools.Commands.Lightning
 
         private static void MessageBoxAsTaskDialog(string title, string content)
             => TaskDialog.Show("STING — " + title, content);
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  Shared helpers (CSV escape, parameter writer)
+    // ════════════════════════════════════════════════════════════════
+
+    internal static class LpsCommandsHelpers
+    {
+        /// <summary>
+        /// CSV field escape — quotes the value when it contains commas, quotes
+        /// or newlines and doubles embedded quotes. Used by every LPS command
+        /// that writes a CSV. Was previously duplicated as inline private
+        /// helpers + an awkward shim class; consolidated in Phase 175.
+        /// </summary>
+        public static string CsvEscape(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            if (s.Contains(",") || s.Contains("\"") || s.Contains("\n"))
+                return "\"" + s.Replace("\"", "\"\"") + "\"";
+            return s;
+        }
+
+        /// <summary>
+        /// Best-effort double writer — silently coerces to Integer / String
+        /// storage when the parameter is not a Double. Mirrors the local
+        /// SetDouble helpers scattered through the LPS commands.
+        /// </summary>
+        public static void SetDouble(Element el, string paramName, double value)
+        {
+            try
+            {
+                var p = el?.LookupParameter(paramName);
+                if (p == null || p.IsReadOnly) return;
+                if (p.StorageType == StorageType.Double) p.Set(value);
+                else if (p.StorageType == StorageType.String) p.Set(value.ToString("F4"));
+                else if (p.StorageType == StorageType.Integer) p.Set((int)Math.Round(value));
+            }
+            catch (Exception ex) { StingLog.Warn($"SetDouble {paramName}: {ex.Message}"); }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  CMD-11 — LPS Dashboard (overview snapshot)
+    // ════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class LpsDashboardCommand : IExternalCommand, IPanelCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { message = "No active document."; return Result.Failed; }
+            return RunInternal(ctx.App, ctx.Doc);
+        }
+
+        public Result Execute(UIApplication app)
+        {
+            var doc = app?.ActiveUIDocument?.Document;
+            if (doc == null) { TaskDialog.Show("STING — LPS Dashboard", "No active document."); return Result.Cancelled; }
+            return RunInternal(app, doc);
+        }
+
+        private Result RunInternal(UIApplication app, Document doc)
+        {
+            var prj = doc.ProjectInformation;
+            string classId = ParameterHelpers.GetString(prj, LpsParams.CLASS_TXT);
+
+            var ats = LpsEngine.CollectLpsFamily(doc, "Air Terminal", "Air_Terminal", "Franklin", "AT");
+            var dcs = LpsEngine.CollectLpsFamily(doc, "Down Conductor", "Down_Conductor", "DownConductor");
+            var ees = LpsEngine.CollectLpsFamily(doc, "Earth", "Ground Rod", "GroundRod", "Earth_Rod", "Earth Electrode");
+            var bonds = LpsEngine.CollectLpsFamily(doc, "Bonding", "Bond Bar", "BondingBar");
+            var spds = LpsEngine.CollectLpsFamily(doc, "SPD", "Surge");
+
+            var items = string.IsNullOrWhiteSpace(classId)
+                ? new List<LpsComplianceItem>()
+                : LpsEngine.ValidateModel(doc).ToList();
+            int pass = items.Count(i => i.Severity == LpsSeverity.Pass);
+            int warn = items.Count(i => i.Severity == LpsSeverity.Warn);
+            int fail = items.Count(i => i.Severity == LpsSeverity.Fail);
+            string verdict = string.IsNullOrWhiteSpace(classId)
+                ? "NOT CONFIGURED"
+                : (fail > 0 ? $"FAIL — {fail}" : (warn > 0 ? "WARN" : "PASS"));
+
+            // Test-date freshness
+            string testStr = ParameterHelpers.GetString(prj, LpsParams.TEST_DATE_TXT);
+            int interval = (int)Math.Round(LpsEngine.GetDoubleParam(prj, LpsParams.INSPECTION_INTERVAL_MONTHS));
+            if (interval <= 0)
+                interval = LpsEngine.LoadClass(string.IsNullOrWhiteSpace(classId) ? "II" : classId)?.InspectionIntervalMonths ?? 12;
+            string nextDueStr = "—";
+            string daysRemainingStr = "—";
+            if (DateTime.TryParse(testStr, out var dt))
+            {
+                var nextDue = dt.AddMonths(interval);
+                nextDueStr = nextDue.ToString("yyyy-MM-dd");
+                daysRemainingStr = ((int)(nextDue - DateTime.Today).TotalDays).ToString();
+            }
+
+            // Issue counts
+            int sepViolations = items.Count(i => i.CheckName == "SEPARATION_DISTANCE_STAMP" && i.Severity != LpsSeverity.Pass);
+            int bondReview = 0;
+            try
+            {
+                BuiltInCategory[] cats = {
+                    BuiltInCategory.OST_PipeCurves, BuiltInCategory.OST_DuctCurves,
+                    BuiltInCategory.OST_Conduit, BuiltInCategory.OST_CableTray,
+                    BuiltInCategory.OST_StructuralColumns, BuiltInCategory.OST_StructuralFraming
+                };
+                foreach (var bic in cats)
+                {
+                    foreach (var el in new FilteredElementCollector(doc).OfCategory(bic).WhereElementIsNotElementType())
+                    {
+                        string b = ParameterHelpers.GetString(el, LpsParams.BOND_TYPE_TXT);
+                        if (string.Equals(b, "REVIEW REQUIRED", StringComparison.OrdinalIgnoreCase)) bondReview++;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Dashboard bond scan: {ex.Message}"); }
+
+            int unzonedRooms = 0;
+            try
+            {
+                var rooms = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_Rooms)
+                    .WhereElementIsNotElementType()
+                    .Cast<Element>()
+                    .Where(r => (r as Room)?.Area > 0).ToList();
+                unzonedRooms = rooms.Count(r => string.IsNullOrWhiteSpace(ParameterHelpers.GetString(r, LpsParams.ZONE_TXT)));
+            }
+            catch (Exception ex) { StingLog.Warn($"Dashboard room scan: {ex.Message}"); }
+
+            double kc = LpsEngine.GetDoubleParam(prj, LpsParams.KC_FACTOR_NR);
+            if (kc <= 0) kc = LpsEngine.ComputeKcFactor(dcs.Count);
+
+            var panel = StingResultPanel.Create("LPS Dashboard");
+            panel.SetSubtitle($"Project class: {(string.IsNullOrEmpty(classId) ? "(not set)" : classId)} — verdict: {verdict}  •  kc = {kc:F3}");
+            var summary = panel.AddSection("OVERVIEW")
+                 .Metric("Air terminals", ats.Count.ToString())
+                 .Metric("Down conductors", dcs.Count.ToString())
+                 .Metric("Earth electrodes", ees.Count.ToString())
+                 .Metric("Bonding bars", bonds.Count.ToString())
+                 .Metric("SPDs", spds.Count.ToString());
+            if (fail > 0) summary.MetricError("Failures", fail.ToString());
+            else if (warn > 0) summary.MetricWarn("Warnings", warn.ToString());
+            else summary.MetricHighlight("Compliance", "PASS");
+
+            panel.AddSection("INSPECTION")
+                 .Metric("Last test", string.IsNullOrWhiteSpace(testStr) ? "—" : testStr)
+                 .Metric("Interval (months)", interval.ToString())
+                 .Metric("Next due", nextDueStr)
+                 .Metric("Days remaining", daysRemainingStr);
+
+            var issuesSection = panel.AddSection("OPEN ISSUES");
+            if (sepViolations > 0) issuesSection.MetricError("Separation flags", sepViolations.ToString());
+            else issuesSection.MetricHighlight("Separation flags", "0");
+            if (bondReview > 0) issuesSection.MetricWarn("Bonding review", bondReview.ToString());
+            else issuesSection.MetricHighlight("Bonding review", "0");
+            if (unzonedRooms > 0) issuesSection.MetricWarn("Unzoned rooms", unzonedRooms.ToString());
+            else issuesSection.MetricHighlight("Unzoned rooms", "0");
+
+            // Action buttons. Re-dispatch via the same External Event pattern by
+            // raising the dock-panel handler when available; falls back to direct
+            // invocation when the handler is unreachable from a modeless context.
+            panel.Action("Run Full Check", "Re-run LPS compliance check", _ =>
+            {
+                try { new LpsComplianceCheckCommand().Execute(app); }
+                catch (Exception ex) { StingLog.Warn($"Dashboard run check: {ex.Message}"); }
+            });
+            panel.Action("View Report", "Open LPS Full Report (DOCX + CSV)", _ =>
+            {
+                try { new LpsFullReportCommand().Execute(app); }
+                catch (Exception ex) { StingLog.Warn($"Dashboard view report: {ex.Message}"); }
+            });
+            panel.Action("Open Inspection Schedule", "Show inspection-due register", _ =>
+            {
+                try { new LpsInspectionSchedulerCommand().Execute(app); }
+                catch (Exception ex) { StingLog.Warn($"Dashboard inspection schedule: {ex.Message}"); }
+            });
+
+            panel.Show();
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  CMD-12 — Mark LPS Element Types
+    // ════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class LpsMarkElementTypesCommand : IExternalCommand, IPanelCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { message = "No active document."; return Result.Failed; }
+            return RunInternal(ctx.App, ctx.Doc);
+        }
+
+        public Result Execute(UIApplication app)
+        {
+            var doc = app?.ActiveUIDocument?.Document;
+            if (doc == null) { TaskDialog.Show("STING — Mark LPS Types", "No active document."); return Result.Cancelled; }
+            return RunInternal(app, doc);
+        }
+
+        private Result RunInternal(UIApplication app, Document doc)
+        {
+            // Bucket by ELEMENT_TYPE_TXT canonical value. Run name-substring
+            // matching so we can stamp existing untagged libraries; the engine's
+            // CollectLpsFamily pass-1 will then resolve them via param going
+            // forward, even after family / type renames.
+            var groups = new (string tag, string[] kw)[]
+            {
+                ("AIR_TERMINAL",   new[] { "Air Terminal", "Air_Terminal", "Air-Terminal", "Franklin", "AT" }),
+                ("DOWN_CONDUCTOR", new[] { "Down Conductor", "Down_Conductor", "DownConductor" }),
+                ("EARTH_ELECTRODE",new[] { "Earth", "Ground Rod", "GroundRod", "Earth_Rod", "Earth Electrode" }),
+                ("BONDING_BAR",    new[] { "Bonding", "Bond Bar", "BondingBar" }),
+                ("SPD",            new[] { "SPD", "Surge" }),
+            };
+
+            var stampedById = new HashSet<ElementId>();
+            var perType = new Dictionary<string, int>();
+            int total = 0;
+            try
+            {
+                using (var t = new Transaction(doc, "STING — Mark LPS Element Types"))
+                {
+                    t.Start();
+                    foreach (var (tag, kw) in groups)
+                    {
+                        var hits = LpsEngine.CollectLpsFamily(doc, kw);
+                        int n = 0;
+                        foreach (var fi in hits)
+                        {
+                            if (!stampedById.Add(fi.Id)) continue; // already stamped under earlier (more specific) bucket
+                            try
+                            {
+                                if (ParameterHelpers.SetString(fi, LpsParams.ELEMENT_TYPE_TXT, tag, true))
+                                    n++;
+                            }
+                            catch (Exception ex) { StingLog.Warn($"Stamp {tag} on {fi.Id}: {ex.Message}"); }
+                        }
+                        perType[tag] = n;
+                        total += n;
+                    }
+                    t.Commit();
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("MarkLpsElementTypes failed", ex);
+                TaskDialog.Show("STING — Mark LPS Types", "Failed: " + ex.Message);
+                return Result.Failed;
+            }
+
+            var panel = StingResultPanel.Create("Mark LPS Element Types");
+            panel.SetSubtitle($"Stamped ELC_LPS_ELEMENT_TYPE_TXT on {total} element(s).");
+            var s = panel.AddSection("BY TYPE");
+            foreach (var kv in perType)
+                s.Metric(kv.Key, kv.Value.ToString());
+            panel.Show();
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  CMD-13 — kc Recalculate
+    // ════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class LpsRecalcKcFactorCommand : IExternalCommand, IPanelCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { message = "No active document."; return Result.Failed; }
+            return RunInternal(ctx.App, ctx.Doc);
+        }
+
+        public Result Execute(UIApplication app)
+        {
+            var doc = app?.ActiveUIDocument?.Document;
+            if (doc == null) { TaskDialog.Show("STING — Recalc kc", "No active document."); return Result.Cancelled; }
+            return RunInternal(app, doc);
+        }
+
+        private Result RunInternal(UIApplication app, Document doc)
+        {
+            string classId = ParameterHelpers.GetString(doc.ProjectInformation, LpsParams.CLASS_TXT);
+            if (string.IsNullOrWhiteSpace(classId))
+            {
+                TaskDialog.Show("STING — Recalc kc", "Run LPS Class Setup first.");
+                return Result.Cancelled;
+            }
+            var conductors = LpsEngine.CollectLpsFamily(doc, "Down Conductor", "Down_Conductor", "DownConductor");
+            int n = conductors.Count;
+            double kc = LpsEngine.ComputeKcFactor(n);
+
+            int restamped = 0;
+            double maxSepMm = 0.0;
+            try
+            {
+                using (var t = new Transaction(doc, "STING — Recalc kc Factor"))
+                {
+                    t.Start();
+                    LpsCommandsHelpers.SetDouble(doc.ProjectInformation, LpsParams.KC_FACTOR_NR, kc);
+                    foreach (var dc in conductors)
+                    {
+                        double L = LpsEngine.GetConductorLengthM(dc);
+                        string mat = ParameterHelpers.GetString(dc, LpsParams.CONDUCTOR_MATERIAL_TXT);
+                        if (string.IsNullOrWhiteSpace(mat)) mat = "COPPER";
+                        double sMm = LpsEngine.ComputeSeparationDistance(classId, L, mat, kc);
+                        LpsCommandsHelpers.SetDouble(dc, LpsParams.SEPARATION_DISTANCE_MM, sMm);
+                        if (sMm > maxSepMm) maxSepMm = sMm;
+                        restamped++;
+                    }
+                    t.Commit();
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("RecalcKc failed", ex);
+                TaskDialog.Show("STING — Recalc kc", "Failed: " + ex.Message);
+                return Result.Failed;
+            }
+
+            TaskDialog.Show("STING — Recalc kc",
+                $"Class {classId}\n" +
+                $"Down conductors n = {n}\n" +
+                $"kc = {kc:F3}\n" +
+                $"Max separation distance: {maxSepMm:F0} mm\n" +
+                $"Conductors re-stamped: {restamped}");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  CMD-14 — Colour LPZ Zones
+    // ════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class LpsColourZonesCommand : IExternalCommand, IPanelCommand
+    {
+        // BS EN 62305-4 zone palette. Tuned for clear contrast on white sheets.
+        private static readonly Dictionary<string, Autodesk.Revit.DB.Color> Palette =
+            new Dictionary<string, Autodesk.Revit.DB.Color>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "LPZ0A",     new Autodesk.Revit.DB.Color(237, 28, 36) },
+                { "LPZ0B",     new Autodesk.Revit.DB.Color(255, 127, 39) },
+                { "LPZ1",      new Autodesk.Revit.DB.Color(255, 242, 0) },
+                { "LPZ2",      new Autodesk.Revit.DB.Color(146, 208, 80) },
+                { "LPZ3",      new Autodesk.Revit.DB.Color(0, 70, 127) },
+                { "(unzoned)", new Autodesk.Revit.DB.Color(200, 200, 200) },
+            };
+
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { message = "No active document."; return Result.Failed; }
+            return RunInternal(ctx.App, ctx.Doc);
+        }
+
+        public Result Execute(UIApplication app)
+        {
+            var doc = app?.ActiveUIDocument?.Document;
+            if (doc == null) { TaskDialog.Show("STING — Colour Zones", "No active document."); return Result.Cancelled; }
+            return RunInternal(app, doc);
+        }
+
+        private Result RunInternal(UIApplication app, Document doc)
+        {
+            var view = doc.ActiveView;
+            if (view == null || view.IsTemplate)
+            {
+                TaskDialog.Show("STING — Colour Zones", "Activate a non-template view first.");
+                return Result.Cancelled;
+            }
+
+            // Solid fill pattern — reuse ColorHelper helper from the palette engine
+            var solidFill = StingTools.Select.ColorHelper.FindSolidFill(doc);
+            if (solidFill == null)
+            {
+                TaskDialog.Show("STING — Colour Zones", "No solid fill pattern found in this project.");
+                return Result.Failed;
+            }
+
+            // Collect rooms in the active view via 3D filter
+            var rooms = new FilteredElementCollector(doc, view.Id)
+                .OfCategory(BuiltInCategory.OST_Rooms)
+                .WhereElementIsNotElementType()
+                .Cast<Element>()
+                .Where(r => (r as Room)?.Area > 0)
+                .Cast<Room>()
+                .ToList();
+
+            var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            int containedStamped = 0;
+            try
+            {
+                using (var t = new Transaction(doc, "STING — Colour LPZ Zones"))
+                {
+                    t.Start();
+                    foreach (var room in rooms)
+                    {
+                        string zone = ParameterHelpers.GetString(room, LpsParams.ZONE_TXT);
+                        string key = string.IsNullOrWhiteSpace(zone) ? "(unzoned)" : zone.Trim();
+                        if (!Palette.TryGetValue(key, out var col)) col = new Autodesk.Revit.DB.Color(200, 200, 200);
+                        var roomOgs = BuildSurfaceOverride(col, solidFill, transparency: 50);
+                        try { view.SetElementOverrides(room.Id, roomOgs); } catch (Exception ex) { StingLog.Warn($"Room override {room.Id}: {ex.Message}"); }
+                        counts[key] = counts.TryGetValue(key, out int c) ? c + 1 : 1;
+
+                        // Override family instances inside the room at lighter transparency
+                        try
+                        {
+                            var miOgs = BuildSurfaceOverride(col, solidFill, transparency: 70);
+                            var inViewFi = new FilteredElementCollector(doc, view.Id)
+                                .OfClass(typeof(FamilyInstance))
+                                .WhereElementIsNotElementType()
+                                .Cast<FamilyInstance>();
+                            foreach (var fi in inViewFi)
+                            {
+                                var pt = (fi.Location as LocationPoint)?.Point;
+                                if (pt == null) continue;
+                                var hostRoom = doc.GetRoomAtPoint(pt);
+                                if (hostRoom != null && hostRoom.Id == room.Id)
+                                {
+                                    try { view.SetElementOverrides(fi.Id, miOgs); containedStamped++; }
+                                    catch (Exception ex) { StingLog.Warn($"FI override {fi.Id}: {ex.Message}"); }
+                                }
+                            }
+                        }
+                        catch (Exception ex) { StingLog.Warn($"Contained-FI scan: {ex.Message}"); }
+                    }
+                    t.Commit();
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("ColourZones failed", ex);
+                TaskDialog.Show("STING — Colour Zones", "Failed: " + ex.Message);
+                return Result.Failed;
+            }
+
+            var panel = StingResultPanel.Create("LPZ Zone Colours");
+            panel.SetSubtitle($"View: {view.Name}  •  rooms coloured: {rooms.Count}  •  contained elements coloured: {containedStamped}");
+            var s = panel.AddSection("BY ZONE");
+            foreach (var kv in counts.OrderBy(k => k.Key))
+                s.Metric(kv.Key, kv.Value.ToString());
+            panel.Show();
+            return Result.Succeeded;
+        }
+
+        private static OverrideGraphicSettings BuildSurfaceOverride(
+            Autodesk.Revit.DB.Color col, FillPatternElement solidFill, int transparency)
+        {
+            var ogs = new OverrideGraphicSettings();
+            try { ogs.SetSurfaceForegroundPatternId(solidFill.Id); } catch { }
+            try { ogs.SetSurfaceForegroundPatternColor(col); } catch { }
+            try { ogs.SetCutForegroundPatternId(solidFill.Id); } catch { }
+            try { ogs.SetCutForegroundPatternColor(col); } catch { }
+            try { ogs.SetProjectionLineColor(col); } catch { }
+            try { ogs.SetSurfaceTransparency(Math.Max(0, Math.Min(100, transparency))); } catch { }
+            return ogs;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  CMD-15 — Clear LPZ Zone Colours
+    // ════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class LpsClearZoneColoursCommand : IExternalCommand, IPanelCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { message = "No active document."; return Result.Failed; }
+            return RunInternal(ctx.App, ctx.Doc);
+        }
+
+        public Result Execute(UIApplication app)
+        {
+            var doc = app?.ActiveUIDocument?.Document;
+            if (doc == null) { TaskDialog.Show("STING — Clear Zone Colours", "No active document."); return Result.Cancelled; }
+            return RunInternal(app, doc);
+        }
+
+        private Result RunInternal(UIApplication app, Document doc)
+        {
+            var view = doc.ActiveView;
+            if (view == null || view.IsTemplate)
+            {
+                TaskDialog.Show("STING — Clear Zone Colours", "Activate a non-template view first.");
+                return Result.Cancelled;
+            }
+            int cleared = 0;
+            try
+            {
+                using (var t = new Transaction(doc, "STING — Clear LPZ Zone Colours"))
+                {
+                    t.Start();
+                    var rooms = new FilteredElementCollector(doc, view.Id)
+                        .OfCategory(BuiltInCategory.OST_Rooms)
+                        .WhereElementIsNotElementType()
+                        .Cast<Element>()
+                        .Where(r => (r as Room)?.Area > 0)
+                        .Cast<Room>()
+                        .ToList();
+                    var blank = new OverrideGraphicSettings();
+                    foreach (var room in rooms)
+                    {
+                        try { view.SetElementOverrides(room.Id, blank); cleared++; }
+                        catch (Exception ex) { StingLog.Warn($"Clear room {room.Id}: {ex.Message}"); }
+
+                        try
+                        {
+                            var inViewFi = new FilteredElementCollector(doc, view.Id)
+                                .OfClass(typeof(FamilyInstance))
+                                .WhereElementIsNotElementType()
+                                .Cast<FamilyInstance>();
+                            foreach (var fi in inViewFi)
+                            {
+                                var pt = (fi.Location as LocationPoint)?.Point;
+                                if (pt == null) continue;
+                                var hostRoom = doc.GetRoomAtPoint(pt);
+                                if (hostRoom != null && hostRoom.Id == room.Id)
+                                {
+                                    try { view.SetElementOverrides(fi.Id, blank); cleared++; }
+                                    catch (Exception ex) { StingLog.Warn($"Clear FI {fi.Id}: {ex.Message}"); }
+                                }
+                            }
+                        }
+                        catch (Exception ex) { StingLog.Warn($"Clear contained: {ex.Message}"); }
+                    }
+                    t.Commit();
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("ClearZoneColours failed", ex);
+                TaskDialog.Show("STING — Clear Zone Colours", "Failed: " + ex.Message);
+                return Result.Failed;
+            }
+            TaskDialog.Show("STING — Clear Zone Colours", $"Cleared graphic overrides on {cleared} element(s) in view '{view.Name}'.");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  CMD-16 — Create LPS Revit Schedules
+    // ════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class LpsCreateRevitScheduleCommand : IExternalCommand, IPanelCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { message = "No active document."; return Result.Failed; }
+            return RunInternal(ctx.App, ctx.Doc);
+        }
+
+        public Result Execute(UIApplication app)
+        {
+            var doc = app?.ActiveUIDocument?.Document;
+            if (doc == null) { TaskDialog.Show("STING — LPS Schedules", "No active document."); return Result.Cancelled; }
+            return RunInternal(app, doc);
+        }
+
+        private Result RunInternal(UIApplication app, Document doc)
+        {
+            var created = new List<string>();
+            try
+            {
+                using (var t = new Transaction(doc, "STING — Create LPS Revit Schedules"))
+                {
+                    t.Start();
+                    DeleteExisting(doc, "STING - LPS Element Register");
+                    DeleteExisting(doc, "STING - LPS Earth Electrode Summary");
+                    DeleteExisting(doc, "STING - LPS Inspection Register");
+
+                    var s1 = CreateRegister(doc);
+                    if (s1 != null) created.Add(s1.Name);
+
+                    var s2 = CreateEarthSummary(doc);
+                    if (s2 != null) created.Add(s2.Name);
+
+                    var s3 = CreateInspectionRegister(doc);
+                    if (s3 != null) created.Add(s3.Name);
+                    t.Commit();
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("CreateLpsSchedules failed", ex);
+                TaskDialog.Show("STING — LPS Schedules", "Failed: " + ex.Message);
+                return Result.Failed;
+            }
+
+            TaskDialog.Show("STING — LPS Schedules",
+                created.Count > 0
+                    ? $"Created {created.Count} schedule(s):\n  • " + string.Join("\n  • ", created)
+                    : "No schedules created — check the log for parameter binding errors.");
+            return Result.Succeeded;
+        }
+
+        private static void DeleteExisting(Document doc, string name)
+        {
+            try
+            {
+                var existing = new FilteredElementCollector(doc).OfClass(typeof(ViewSchedule))
+                    .Cast<ViewSchedule>().Where(v => string.Equals(v.Name, name, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                foreach (var v in existing)
+                {
+                    try { doc.Delete(v.Id); }
+                    catch (Exception ex) { StingLog.Warn($"DeleteExisting {name}: {ex.Message}"); }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DeleteExisting collect {name}: {ex.Message}"); }
+        }
+
+        // TODO-VERIFY-API — multi-category schedules are typically created via
+        // ViewSchedule.CreateSchedule with a multi-category ElementId. Some
+        // Revit 2025/2026/2027 builds expose a ViewSchedule.CreateSchedule
+        // overload taking an IList<ElementId> of categories; we fall back to
+        // a single-category schedule on OST_GenericModel and rely on the
+        // ELEMENT_TYPE filter to scope rows correctly.
+        private static ViewSchedule CreateRegister(Document doc)
+        {
+            try
+            {
+                var vs = ViewSchedule.CreateSchedule(doc, new ElementId((long)BuiltInCategory.OST_GenericModel));
+                if (vs == null) return null;
+                vs.Name = "STING - LPS Element Register";
+                AddFieldByName(doc, vs, LpsParams.ELEMENT_TYPE_TXT);
+                AddFieldByName(doc, vs, "Family and Type");
+                AddFieldByName(doc, vs, LpsParams.COMPLIANCE_STATUS_TXT);
+                AddFieldByName(doc, vs, LpsParams.TEST_DATE_TXT);
+                AddFieldByName(doc, vs, LpsParams.CERT_REF_TXT);
+                AddFieldByName(doc, vs, "Comments");
+
+                ApplyHasValueFilter(vs, LpsParams.ELEMENT_TYPE_TXT);
+                return vs;
+            }
+            catch (Exception ex) { StingLog.Error("CreateRegister", ex); return null; }
+        }
+
+        private static ViewSchedule CreateEarthSummary(Document doc)
+        {
+            try
+            {
+                var vs = ViewSchedule.CreateSchedule(doc, new ElementId((long)BuiltInCategory.OST_GenericModel));
+                if (vs == null) return null;
+                vs.Name = "STING - LPS Earth Electrode Summary";
+                AddFieldByName(doc, vs, LpsParams.ELEMENT_TYPE_TXT);
+                AddFieldByName(doc, vs, "Family and Type");
+                AddFieldByName(doc, vs, LpsParams.EARTH_RESISTANCE_OHM);
+                AddFieldByName(doc, vs, LpsParams.EARTH_TYPE_TXT);
+                AddFieldByName(doc, vs, LpsParams.TEST_DATE_TXT);
+                AddFieldByName(doc, vs, LpsParams.COMPLIANCE_STATUS_TXT);
+
+                ApplyEqualsFilter(vs, LpsParams.ELEMENT_TYPE_TXT, "EARTH_ELECTRODE");
+                return vs;
+            }
+            catch (Exception ex) { StingLog.Error("CreateEarthSummary", ex); return null; }
+        }
+
+        private static ViewSchedule CreateInspectionRegister(Document doc)
+        {
+            try
+            {
+                var vs = ViewSchedule.CreateSchedule(doc, new ElementId((long)BuiltInCategory.OST_GenericModel));
+                if (vs == null) return null;
+                vs.Name = "STING - LPS Inspection Register";
+                AddFieldByName(doc, vs, LpsParams.ELEMENT_TYPE_TXT);
+                AddFieldByName(doc, vs, "Family and Type");
+                AddFieldByName(doc, vs, LpsParams.TEST_DATE_TXT);
+                AddFieldByName(doc, vs, LpsParams.INSPECTION_INTERVAL_MONTHS);
+                AddFieldByName(doc, vs, "Comments");
+
+                ApplyHasValueFilter(vs, LpsParams.ELEMENT_TYPE_TXT);
+                ApplySortAsc(vs, "Comments");
+                return vs;
+            }
+            catch (Exception ex) { StingLog.Error("CreateInspectionRegister", ex); return null; }
+        }
+
+        private static ScheduleField AddFieldByName(Document doc, ViewSchedule vs, string name)
+        {
+            try
+            {
+                var available = vs.Definition.GetSchedulableFields();
+                foreach (var sf in available)
+                {
+                    string sfName = sf.GetName(doc);
+                    if (string.Equals(sfName, name, StringComparison.OrdinalIgnoreCase))
+                        return vs.Definition.AddField(sf);
+                }
+                StingLog.Warn($"LPS schedule field '{name}' not schedulable in {vs.Name}");
+            }
+            catch (Exception ex) { StingLog.Warn($"AddFieldByName {name}: {ex.Message}"); }
+            return null;
+        }
+
+        private static void ApplyHasValueFilter(ViewSchedule vs, string fieldName)
+        {
+            try
+            {
+                var fid = FindFieldId(vs, fieldName);
+                if (fid == null) return;
+                vs.Definition.AddFilter(new ScheduleFilter(fid, ScheduleFilterType.HasValue));
+            }
+            catch (Exception ex) { StingLog.Warn($"HasValueFilter {fieldName}: {ex.Message}"); }
+        }
+
+        private static void ApplyEqualsFilter(ViewSchedule vs, string fieldName, string value)
+        {
+            try
+            {
+                var fid = FindFieldId(vs, fieldName);
+                if (fid == null) return;
+                vs.Definition.AddFilter(new ScheduleFilter(fid, ScheduleFilterType.Equal, value));
+            }
+            catch (Exception ex) { StingLog.Warn($"EqualsFilter {fieldName}={value}: {ex.Message}"); }
+        }
+
+        private static void ApplySortAsc(ViewSchedule vs, string fieldName)
+        {
+            try
+            {
+                var fid = FindFieldId(vs, fieldName);
+                if (fid == null) return;
+                vs.Definition.AddSortGroupField(new ScheduleSortGroupField(fid, ScheduleSortOrder.Ascending));
+            }
+            catch (Exception ex) { StingLog.Warn($"SortAsc {fieldName}: {ex.Message}"); }
+        }
+
+        private static ScheduleFieldId FindFieldId(ViewSchedule vs, string fieldName)
+        {
+            for (int i = 0; i < vs.Definition.GetFieldCount(); i++)
+            {
+                var f = vs.Definition.GetField(i);
+                if (string.Equals(f.GetName(), fieldName, StringComparison.OrdinalIgnoreCase)
+                 || string.Equals(f.ColumnHeading, fieldName, StringComparison.OrdinalIgnoreCase))
+                    return f.FieldId;
+            }
+            return null;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  CMD-17 — Sync LPS to Planscape Server
+    // ════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class LpsSyncToServerCommand : IExternalCommand, IPanelCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { message = "No active document."; return Result.Failed; }
+            return RunInternal(ctx.App, ctx.Doc);
+        }
+
+        public Result Execute(UIApplication app)
+        {
+            var doc = app?.ActiveUIDocument?.Document;
+            if (doc == null) { TaskDialog.Show("STING — LPS Sync", "No active document."); return Result.Cancelled; }
+            return RunInternal(app, doc);
+        }
+
+        private Result RunInternal(UIApplication app, Document doc)
+        {
+            var client = StingTools.BIMManager.PlanscapeServerClient.Instance;
+            if (!client.IsConnected)
+            {
+                TaskDialog.Show("STING — LPS Sync",
+                    "Not signed in to Planscape. Open BIM Coordination Center → Planscape and sign in first.");
+                return Result.Cancelled;
+            }
+
+            string projName = doc.ProjectInformation?.Name ?? doc.Title ?? "STING Project";
+            string projCode = doc.ProjectInformation?.Number ?? "";
+            string classId = ParameterHelpers.GetString(doc.ProjectInformation, LpsParams.CLASS_TXT);
+
+            // Build asset list — every LPS element becomes a MIM asset.
+            var assets = new List<object>();
+            void Push(FamilyInstance fi, string elementType)
+            {
+                try
+                {
+                    string tag = ParameterHelpers.GetString(fi, "ASS_TAG_1");
+                    if (string.IsNullOrWhiteSpace(tag)) tag = $"LPS-{fi.Id.Value}";
+                    string typeName = fi.Symbol?.Name ?? fi.Symbol?.FamilyName ?? "";
+                    string room = "";
+                    try
+                    {
+                        var pt = (fi.Location as LocationPoint)?.Point;
+                        if (pt != null) room = doc.GetRoomAtPoint(pt)?.Name ?? "";
+                    }
+                    catch { }
+                    string installDate = ParameterHelpers.GetString(fi, LpsParams.TEST_DATE_TXT);
+                    string serial = ParameterHelpers.GetString(fi, "ASS_SERIAL_TXT");
+                    string status = ParameterHelpers.GetString(fi, LpsParams.COMPLIANCE_STATUS_TXT);
+                    double earthOhm = LpsEngine.GetDoubleParam(fi, LpsParams.EARTH_RESISTANCE_OHM);
+                    int interval = (int)Math.Round(LpsEngine.GetDoubleParam(fi, LpsParams.INSPECTION_INTERVAL_MONTHS));
+                    string nextInspection = "";
+                    if (DateTime.TryParse(installDate, out var dt))
+                    {
+                        if (interval <= 0) interval = 12;
+                        nextInspection = dt.AddMonths(interval).ToString("yyyy-MM-dd");
+                    }
+
+                    assets.Add(new
+                    {
+                        AssetTag = tag,
+                        TypeName = typeName,
+                        Space = room,
+                        InstallDate = installDate,
+                        SerialNo = serial,
+                        ElementType = elementType,
+                        Attributes = new
+                        {
+                            LpsClass = classId ?? "",
+                            EarthResistanceOhm = earthOhm,
+                            ComplianceStatus = status ?? "",
+                            NextInspectionDate = nextInspection
+                        }
+                    });
+                }
+                catch (Exception ex) { StingLog.Warn($"Asset build {fi?.Id}: {ex.Message}"); }
+            }
+
+            foreach (var fi in LpsEngine.CollectLpsFamily(doc, "Air Terminal", "Air_Terminal", "Franklin", "AT")) Push(fi, "AIR_TERMINAL");
+            foreach (var fi in LpsEngine.CollectLpsFamily(doc, "Down Conductor", "Down_Conductor", "DownConductor")) Push(fi, "DOWN_CONDUCTOR");
+            foreach (var fi in LpsEngine.CollectLpsFamily(doc, "Earth", "Ground Rod", "GroundRod", "Earth_Rod", "Earth Electrode")) Push(fi, "EARTH_ELECTRODE");
+            foreach (var fi in LpsEngine.CollectLpsFamily(doc, "Bonding", "Bond Bar", "BondingBar")) Push(fi, "BONDING_BAR");
+            foreach (var fi in LpsEngine.CollectLpsFamily(doc, "SPD", "Surge")) Push(fi, "SPD");
+
+            if (assets.Count == 0)
+            {
+                TaskDialog.Show("STING — LPS Sync", "No LPS components found to sync.");
+                return Result.Cancelled;
+            }
+
+            int created;
+            string err = null;
+            try
+            {
+                // Resolve project id and push assets in one round-trip.
+                var task = System.Threading.Tasks.Task.Run(async () =>
+                {
+                    var pid = await client.GetOrCreateProjectAsync(projName, projCode);
+                    if (pid == Guid.Empty) return -1;
+                    return await client.BulkPushMimAssetsAsync(pid, assets);
+                });
+                created = task.GetAwaiter().GetResult();
+                if (created < 0) err = client.LastError;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("LpsSyncToServer push failed", ex);
+                err = ex.Message;
+                created = -1;
+            }
+
+            if (created < 0)
+            {
+                TaskDialog.Show("STING — LPS Sync",
+                    $"Sync failed: {err ?? "unknown"}\n\nAssets attempted: {assets.Count}");
+                return Result.Failed;
+            }
+            TaskDialog.Show("STING — LPS Sync",
+                $"LPS sync to Planscape complete.\n\nAssets sent: {assets.Count}\nServer reported created: {created}");
+            return Result.Succeeded;
+        }
     }
 }

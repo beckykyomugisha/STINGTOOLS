@@ -2808,6 +2808,8 @@
                             <StackPanel>
                                 <TextBlock Text="LPS class setup, compliance, conductor + earth checks (BS EN 62305)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
                                 <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Dashboard" Tag="LPS_Dashboard" Click="Cmd_Click"
+                                            ToolTip="LPS dashboard — overview, inspection due dates, open issues"/>
                                     <Button Style="{StaticResource PurpleBtn}" Content="LPS Class Setup" Tag="LPS_ClassSetup" Click="Cmd_Click"
                                             ToolTip="Risk assessment and LPS class selection wizard (BS EN 62305-2)"/>
                                     <Button Style="{StaticResource BlueBtn}" Content="Compliance Check" Tag="LPS_ComplianceCheck" Click="Cmd_Click"
@@ -2820,6 +2822,14 @@
                                             ToolTip="Identify equipotential bonding requirements at LPZ boundaries"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Zone Tag Rooms" Tag="LPS_ZoneTag" Click="Cmd_Click"
                                             ToolTip="Assign LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3 to rooms (BS EN 62305-4)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Mark Types" Tag="LPS_MarkElementTypes" Click="Cmd_Click"
+                                            ToolTip="Stamp ELC_LPS_ELEMENT_TYPE_TXT on all LPS families (AIR_TERMINAL / DOWN_CONDUCTOR / EARTH_ELECTRODE / BONDING_BAR / SPD)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="kc Recalculate" Tag="LPS_RecalcKcFactor" Click="Cmd_Click"
+                                            ToolTip="Recompute kc partition factor and re-stamp separation distance on all down conductors"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Colour Zones" Tag="LPS_ColourZones" Click="Cmd_Click"
+                                            ToolTip="Apply BS EN 62305-4 LPZ palette to rooms in active view"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Clear Colours" Tag="LPS_ClearZoneColours" Click="Cmd_Click"
+                                            ToolTip="Clear LPZ zone graphic overrides in active view"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Plan Visualise" Tag="LPS_PlanVisualise" Click="Cmd_Click"
                                             ToolTip="Generate plan-view rolling-sphere protection projection"/>
                                     <Button Style="{StaticResource PurpleBtn}" Content="3D Coverage" Tag="LPS_RollingSphere3D" Click="Cmd_Click"
@@ -2828,8 +2838,12 @@
                                             ToolTip="Check separation distance between LPS conductors and MEP services"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Inspection Schedule" Tag="LPS_InspectionSchedule" Click="Cmd_Click"
                                             ToolTip="LPS inspection due-date register (BS EN 62305-3 §5.5)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Create Schedules" Tag="LPS_CreateSchedules" Click="Cmd_Click"
+                                            ToolTip="Create / refresh LPS Revit schedules (Element Register, Earth Summary, Inspection Register)"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="LPS Full Report" Tag="LPS_FullReport" Click="Cmd_Click"
                                             ToolTip="Compile full LPS compliance report (BS EN 62305 deliverable)"/>
+                                    <Button Style="{StaticResource TealBtn}" Content="Sync to Planscape" Tag="LPS_SyncToServer" Click="Cmd_Click"
+                                            ToolTip="Push LPS components and inspection state to the Planscape MIM asset registry"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

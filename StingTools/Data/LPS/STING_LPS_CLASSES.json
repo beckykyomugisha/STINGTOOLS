@@ -1,5 +1,5 @@
 {
-  "_comment": "Lightning Protection class parameters per BS EN 62305-3:2011. rollingSphereRadiusM, meshSizeM, downConductorSpacingM and minConductorCrossSectionMm2 are taken directly from Table 2 (mesh + rolling sphere) and Table 6 (conductor cross-section). protectionAngleDeg_* are read from Figure 2 — protection angle is height-dependent. earthResistanceTargetOhm reflects the BS EN 62305-3 §5.4.2.2 design target of 10 ohm for a Type B foundation electrode arrangement.",
+  "_comment": "Lightning Protection class parameters per BS EN 62305-3:2011. rollingSphereRadiusM, meshSizeM, downConductorSpacingM and minConductorCrossSectionMm2 are taken directly from Table 2 (mesh + rolling sphere) and Table 6 (conductor cross-section). protectionAngleDeg_* are read from Figure 2 — protection angle is height-dependent. earthResistanceTargetOhm reflects the BS EN 62305-3 §5.4.2.2 design target of 10 ohm for a Type B foundation electrode arrangement. protectionEfficiency is BS EN 62305-2 Table 6 (used for residual risk = R1 × (1 − PE)). minConductorCrossSectionMm2ByMaterial overrides the scalar baseline per BS EN 62305-3 Table 6 row split (copper / aluminium / steel).",
   "classes": [
     {
       "id": "I",
@@ -12,9 +12,11 @@
       "protectionAngleDeg_60m": 0,
       "downConductorSpacingM": 10,
       "minConductorCrossSectionMm2": 50,
+      "minConductorCrossSectionMm2ByMaterial": { "COPPER": 50, "ALUMINIUM": 70, "STEEL": 50 },
       "inspectionIntervalMonths": 12,
       "earthResistanceTargetOhm": 10.0,
-      "kiFactor": 0.08
+      "kiFactor": 0.08,
+      "protectionEfficiency": 0.98
     },
     {
       "id": "II",
@@ -27,9 +29,11 @@
       "protectionAngleDeg_60m": 0,
       "downConductorSpacingM": 10,
       "minConductorCrossSectionMm2": 50,
+      "minConductorCrossSectionMm2ByMaterial": { "COPPER": 50, "ALUMINIUM": 70, "STEEL": 50 },
       "inspectionIntervalMonths": 12,
       "earthResistanceTargetOhm": 10.0,
-      "kiFactor": 0.06
+      "kiFactor": 0.06,
+      "protectionEfficiency": 0.95
     },
     {
       "id": "III",
@@ -42,9 +46,11 @@
       "protectionAngleDeg_60m": 0,
       "downConductorSpacingM": 15,
       "minConductorCrossSectionMm2": 50,
+      "minConductorCrossSectionMm2ByMaterial": { "COPPER": 50, "ALUMINIUM": 70, "STEEL": 50 },
       "inspectionIntervalMonths": 24,
       "earthResistanceTargetOhm": 10.0,
-      "kiFactor": 0.04
+      "kiFactor": 0.04,
+      "protectionEfficiency": 0.90
     },
     {
       "id": "IV",
@@ -57,9 +63,11 @@
       "protectionAngleDeg_60m": 25,
       "downConductorSpacingM": 20,
       "minConductorCrossSectionMm2": 50,
+      "minConductorCrossSectionMm2ByMaterial": { "COPPER": 50, "ALUMINIUM": 70, "STEEL": 50 },
       "inspectionIntervalMonths": 24,
       "earthResistanceTargetOhm": 10.0,
-      "kiFactor": 0.04
+      "kiFactor": 0.04,
+      "protectionEfficiency": 0.80
     }
   ],
   "materialFactors": {
