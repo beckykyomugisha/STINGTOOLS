@@ -115,42 +115,92 @@ namespace StingTools.Core.Symbols
 
         // ── Ladder logic ────────────────────────────────────────────────
 
+        /// <summary>
+        /// Lay out the concept on a two-rail ladder. Prefers
+        /// <see cref="SymbolConcept.CompoundRungs"/> when present (one
+        /// row per rung, multiple components in series along the rung);
+        /// falls back to <see cref="SymbolConcept.CompoundComponents"/>
+        /// (one component per rung) for legacy concepts.
+        /// </summary>
         private static List<ElementId> PlaceLadder(Document doc, View view, XYZ origin,
             SymbolConcept concept, string standardId)
         {
             var placed = new List<ElementId>();
-            double rail = MmToFt(LadderRailGapMm);
-            double rung = MmToFt(LadderRungSpacingMm);
-            int rungCount = concept.CompoundComponents.Count;
-            if (rungCount == 0) return placed;
 
-            // Rail extents — top to bottom of rung stack with a small margin.
-            double topY = origin.Y + rung * 0.5;
-            double bottomY = origin.Y - rung * (rungCount - 0.5);
-            XYZ leftRailTop  = new XYZ(origin.X,         topY,    0);
-            XYZ leftRailBot  = new XYZ(origin.X,         bottomY, 0);
-            XYZ rightRailTop = new XYZ(origin.X + rail,  topY,    0);
-            XYZ rightRailBot = new XYZ(origin.X + rail,  bottomY, 0);
+            // Build the canonical rung list once, regardless of source.
+            List<List<string>> rungs = ResolveRungs(concept);
+            if (rungs.Count == 0) return placed;
 
-            DrawConnectionLine(doc, view, leftRailTop, leftRailBot);
+            // Width of a rail bay scales with the widest rung so multi-
+            // component rungs don't overlap the rails.
+            double rungSpace = MmToFt(LadderRungSpacingMm);
+            double minBay    = MmToFt(LadderRailGapMm);
+            int    maxOnRung = rungs.Max(r => r.Count);
+            double bayWidth  = Math.Max(minBay, maxOnRung * MmToFt(SpacingMm * 1.6));
+
+            int rungCount = rungs.Count;
+            double topY    = origin.Y + rungSpace * 0.5;
+            double bottomY = origin.Y - rungSpace * (rungCount - 0.5);
+
+            XYZ leftRailTop  = new XYZ(origin.X,             topY,    0);
+            XYZ leftRailBot  = new XYZ(origin.X,             bottomY, 0);
+            XYZ rightRailTop = new XYZ(origin.X + bayWidth,  topY,    0);
+            XYZ rightRailBot = new XYZ(origin.X + bayWidth,  bottomY, 0);
+
+            DrawConnectionLine(doc, view, leftRailTop,  leftRailBot);
             DrawConnectionLine(doc, view, rightRailTop, rightRailBot);
 
             for (int i = 0; i < rungCount; i++)
             {
-                double yi = origin.Y - i * rung;
-                XYZ rungLeft  = new XYZ(origin.X,        yi, 0);
-                XYZ rungRight = new XYZ(origin.X + rail, yi, 0);
-                XYZ centre    = new XYZ(origin.X + rail * 0.5, yi, 0);
+                var components = rungs[i];
+                if (components == null || components.Count == 0) continue;
 
-                var id = PlaceOne(doc, view, centre, concept.CompoundComponents[i], standardId);
-                if (id != ElementId.InvalidElementId) placed.Add(id);
+                double yi = origin.Y - i * rungSpace;
+                XYZ rungLeft  = new XYZ(origin.X,            yi, 0);
+                XYZ rungRight = new XYZ(origin.X + bayWidth, yi, 0);
 
-                // Connection lines from rails to component centre on each side.
-                DrawConnectionLine(doc, view, rungLeft,  centre);
-                DrawConnectionLine(doc, view, centre,    rungRight);
+                // Distribute components evenly across the bay.
+                int n = components.Count;
+                XYZ prev = rungLeft;
+                for (int j = 0; j < n; j++)
+                {
+                    // Position at fraction (j + 1) / (n + 1) — gives even
+                    // spacing with margin on both sides of the bay.
+                    double frac = (j + 1.0) / (n + 1.0);
+                    var pos = new XYZ(origin.X + bayWidth * frac, yi, 0);
+                    var id  = PlaceOne(doc, view, pos, components[j], standardId);
+                    if (id != ElementId.InvalidElementId) placed.Add(id);
+
+                    DrawConnectionLine(doc, view, prev, pos);
+                    prev = pos;
+                }
+                DrawConnectionLine(doc, view, prev, rungRight);
             }
-
             return placed;
+        }
+
+        /// <summary>
+        /// Resolve the rung list. <see cref="SymbolConcept.CompoundRungs"/>
+        /// wins when present and non-empty; otherwise each entry in
+        /// <see cref="SymbolConcept.CompoundComponents"/> becomes its own
+        /// single-component rung.
+        /// </summary>
+        private static List<List<string>> ResolveRungs(SymbolConcept concept)
+        {
+            var rungs = new List<List<string>>();
+            if (concept.CompoundRungs != null && concept.CompoundRungs.Count > 0)
+            {
+                foreach (var r in concept.CompoundRungs)
+                    if (r?.Components != null && r.Components.Count > 0)
+                        rungs.Add(new List<string>(r.Components));
+            }
+            else if (concept.CompoundComponents != null)
+            {
+                foreach (var cid in concept.CompoundComponents)
+                    if (!string.IsNullOrEmpty(cid))
+                        rungs.Add(new List<string> { cid });
+            }
+            return rungs;
         }
 
         // ── Shared helpers ──────────────────────────────────────────────

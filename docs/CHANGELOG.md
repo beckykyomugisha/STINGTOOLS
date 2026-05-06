@@ -10354,3 +10354,81 @@ Modified:
 - `StingTools/Core/SLD/SLDSyncUpdater.cs`
 - `StingTools/Commands/Symbols/SymbolAugmentationCommands.cs`
 - `docs/CHANGELOG.md` — this entry
+
+#### Completed (Phase 175 — direct label-ID lookup + multi-component rungs)
+
+Closes the two residual caveats from the post-caveat-resolution commit
+(e5518cf):
+
+#### What landed
+
+1. **TextNote ID stamped directly on each SLD symbol** — eliminates the
+   ~60 mm spatial scan that was leaking stale labels in unusual
+   layouts.
+   - `SLDAnnotationPlacer.PlaceCircuitAnnotation` now returns the new
+     TextNote's `ElementId` (was: void).
+   - `SLDAnnotationPlacer.PlaceAllAnnotations` accepts an optional
+     `IDictionary<ElementId, ElementId> nodeToInstance` and, after
+     placing each TextNote, stamps the label's `ElementId` onto the
+     matching SLD symbol via `STING_SYMBOL_LABEL_ID`.
+   - `SLDGenerator.PlaceSymbols` builds that map (`node.ElementId` →
+     placed `FamilyInstance.Id`) and threads it through the recursion.
+     The fast path in `TryUpdateSingleNode` now reads
+     `STING_SYMBOL_LABEL_ID` and deletes/updates that exact TextNote
+     directly. The original spatial-radius scan stays as a fallback
+     for legacy symbols placed before this commit, so nothing breaks
+     on a project with already-generated SLDs.
+
+2. **Multi-component ladder rungs** — `SymbolConcept` gains an optional
+   `compoundRungs` field. Each rung carries its own `components` list
+   plus an optional `label`, expressing the natural shape of a real
+   schematic (e.g., a star-delta starter has a Main / Star / Delta
+   row, each row carrying multiple devices in series).
+   - New `CompoundRung` POCO in `SymbolDefinition.cs`.
+   - `CompoundSymbolPlacer.PlaceLadder` now resolves rungs via a
+     unified `ResolveRungs` helper: prefer `compoundRungs` when
+     present and non-empty; otherwise wrap each
+     `compoundComponents` entry into its own one-component rung
+     (preserves the old behavior for every existing concept).
+   - Bay width auto-scales with the widest rung so multi-component
+     rungs don't overlap the rails.
+   - Components on a rung are evenly distributed across the bay
+     (fraction `(j+1)/(n+1)`) and connected in series with detail
+     curves between adjacent symbols.
+   - Two example concepts added to
+     `STING_SYMBOL_CONCEPTS.json`: `SLD_RCBO_COMPOUND`
+     (vertical-stack-friendly: MCB + RCD) and
+     `SLD_STAR_DELTA_STARTER` (a 3-rung ladder: Main supply / Star
+     contactor / Delta contactor with the heater and motor on the
+     last two rungs respectively). Concept count: 191 → 193.
+
+#### Caveats
+
+1. The fallback spatial scan in `TryUpdateSingleNode` is intentionally
+   kept — old symbols placed before this commit don't carry
+   `STING_SYMBOL_LABEL_ID` yet. The fast path lights up automatically
+   the first time the user regenerates an SLD or the next full
+   rebuild touches it; no migration step required.
+2. `compoundRungs.label` is parsed but not yet drawn — labels next
+   to ladder rungs are a small follow-up that needs a dedicated
+   TextNote placement (offset to the left of the left rail, aligned
+   to the rung centre).
+3. Bay width sizing assumes `SpacingMm * 1.6` is enough breathing
+   room per component on a multi-rung ladder. Visually fine for 2-4
+   components per rung; very dense rungs (5+) may need a larger
+   spacing constant.
+
+#### Files
+
+Modified:
+- `StingTools/Core/Symbols/SymbolDefinition.cs` — new `CompoundRung`
+  POCO + `SymbolConcept.CompoundRungs`
+- `StingTools/Core/SLD/SLDAnnotationPlacer.cs` — return
+  `ElementId`, stamp label IDs onto instances
+- `StingTools/Core/SLD/SLDGenerator.cs` — thread
+  `nodeToInstance` map; `TryUpdateSingleNode` reads stamped ID
+- `StingTools/Core/Symbols/CompoundSymbolPlacer.cs` — multi-component
+  ladder rungs via `ResolveRungs`
+- `StingTools/Data/Symbols/STING_SYMBOL_CONCEPTS.json` — two new
+  compound concepts
+- `docs/CHANGELOG.md` — this entry

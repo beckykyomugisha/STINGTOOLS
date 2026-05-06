@@ -4183,6 +4183,71 @@
         "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
         "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
       }
+    },
+    "SLD_RCBO_COMPOUND": {
+      "conceptId": "SLD_RCBO_COMPOUND",
+      "name": "RCBO (compound: MCB + RCD)",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Compound",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_RCBO_COMPOUND"
+        }
+      },
+      "compoundComponents": [
+        "SLD_MCB",
+        "SLD_RCD"
+      ]
+    },
+    "SLD_STAR_DELTA_STARTER": {
+      "conceptId": "SLD_STAR_DELTA_STARTER",
+      "name": "Star-Delta Motor Starter (3-rung ladder)",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Compound",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_STAR_DELTA_STARTER"
+        }
+      },
+      "compoundComponents": [
+        "SLD_MCCB",
+        "SLD_FUSE",
+        "SLD_CONTACTOR",
+        "SLD_CONTACTOR",
+        "SLD_HEATING",
+        "SLD_CONTACTOR",
+        "SLD_MOTOR_3PH"
+      ],
+      "compoundRungs": [
+        {
+          "label": "Main supply",
+          "components": [
+            "SLD_MCCB",
+            "SLD_FUSE",
+            "SLD_CONTACTOR"
+          ]
+        },
+        {
+          "label": "Star contactor",
+          "components": [
+            "SLD_CONTACTOR",
+            "SLD_HEATING"
+          ]
+        },
+        {
+          "label": "Delta contactor",
+          "components": [
+            "SLD_CONTACTOR",
+            "SLD_MOTOR_3PH"
+          ]
+        }
+      ]
     }
   }
 }

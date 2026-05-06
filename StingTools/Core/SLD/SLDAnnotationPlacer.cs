@@ -2,9 +2,12 @@
 //
 // Draws busbars, branch lines, and per-symbol rating/circuit labels on
 // a generated SLD drafting view, using the active standard's
-// AnnotationRules.
+// AnnotationRules. PlaceCircuitAnnotation returns the new TextNote's
+// ElementId so the generator can stamp it onto the corresponding symbol
+// instance via STING_SYMBOL_LABEL_ID for direct fast-path lookup later.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 using StingTools.Core.Symbols;
@@ -16,43 +19,67 @@ namespace StingTools.Core.SLD
         private const double MmPerFoot = 304.8;
         private static double Mm(double mm) => mm / MmPerFoot;
 
+        /// <summary>
+        /// Place a label TextNote for every node in <paramref name="root"/>'s
+        /// tree. When <paramref name="nodeToInstance"/> maps a node to a
+        /// placed FamilyInstance, the new TextNote's ElementId is also
+        /// stamped onto that instance via <c>STING_SYMBOL_LABEL_ID</c>
+        /// so <c>SLDGenerator.TryUpdateSingleNode</c> can find it
+        /// directly without a spatial search.
+        /// </summary>
         public static void PlaceAllAnnotations(Document doc, ViewDrafting view, SLDNode root,
-            SLDLayout layout, string standardId)
+            SLDLayout layout, string standardId,
+            IDictionary<ElementId, ElementId> nodeToInstance = null)
         {
             if (doc == null || view == null || root == null || layout == null) return;
             var rules = SymbolStandardRegistry.GetAnnotationRules(standardId);
 
-            // BFS-style traversal over the tree.
-            var stack = new System.Collections.Generic.Stack<SLDNode>();
+            var stack = new Stack<SLDNode>();
             stack.Push(root);
             while (stack.Count > 0)
             {
                 var node = stack.Pop();
                 if (layout.SymbolPositions.TryGetValue(node.ElementId, out var pos))
-                    PlaceCircuitAnnotation(doc, view, node, pos, rules);
+                {
+                    ElementId noteId = PlaceCircuitAnnotation(doc, view, node, pos, rules);
+                    if (noteId != ElementId.InvalidElementId
+                        && nodeToInstance != null
+                        && nodeToInstance.TryGetValue(node.ElementId, out var instanceId))
+                    {
+                        StampLabelId(doc, instanceId, noteId);
+                    }
+                }
                 foreach (var c in node.Children) stack.Push(c);
             }
         }
 
-        public static void PlaceCircuitAnnotation(Document doc, ViewDrafting view, SLDNode node,
+        /// <summary>
+        /// Place a single rating/circuit label and return its
+        /// <see cref="ElementId"/>. Returns
+        /// <see cref="ElementId.InvalidElementId"/> when no label was
+        /// produced (no host data, missing TextNoteType, etc.).
+        /// </summary>
+        public static ElementId PlaceCircuitAnnotation(Document doc, ViewDrafting view, SLDNode node,
             XYZ position, AnnotationRules rules)
         {
             try
             {
                 string label = BuildCircuitLabel(node, rules);
-                if (string.IsNullOrWhiteSpace(label)) return;
+                if (string.IsNullOrWhiteSpace(label)) return ElementId.InvalidElementId;
 
                 XYZ textPos = OffsetForRule(position, rules.LabelPosition,
                     Mm(rules.TextHeightMm * 1.5));
                 var tnt = new FilteredElementCollector(doc)
                     .OfClass(typeof(TextNoteType))
                     .FirstElementId();
-                if (tnt == ElementId.InvalidElementId) return;
-                TextNote.Create(doc, view.Id, textPos, label, tnt);
+                if (tnt == ElementId.InvalidElementId) return ElementId.InvalidElementId;
+                var note = TextNote.Create(doc, view.Id, textPos, label, tnt);
+                return note?.Id ?? ElementId.InvalidElementId;
             }
             catch (Exception ex)
             {
-                StingTools.Core.StingLog.Warn($"PlaceCircuitAnnotation {node.ConceptId}: {ex.Message}");
+                StingTools.Core.StingLog.Warn($"PlaceCircuitAnnotation {node?.ConceptId}: {ex.Message}");
+                return ElementId.InvalidElementId;
             }
         }
 
@@ -78,6 +105,8 @@ namespace StingTools.Core.SLD
             }
         }
 
+        // ── helpers ─────────────────────────────────────────────────────
+
         private static string BuildCircuitLabel(SLDNode node, AnnotationRules rules)
         {
             if (node == null || rules == null) return "";
@@ -102,6 +131,21 @@ namespace StingTools.Core.SLD
                 case "Right": return new XYZ(pos.X + off, pos.Y, pos.Z);
                 case "Left":  return new XYZ(pos.X - off, pos.Y, pos.Z);
                 default:      return pos.Add(new XYZ(0, off, 0));
+            }
+        }
+
+        private static void StampLabelId(Document doc, ElementId instanceId, ElementId labelId)
+        {
+            try
+            {
+                var inst = doc.GetElement(instanceId) as FamilyInstance;
+                if (inst == null) return;
+                var p = inst.LookupParameter("STING_SYMBOL_LABEL_ID");
+                if (p != null && !p.IsReadOnly) p.Set(labelId.IntegerValue.ToString());
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"SLDAnnotationPlacer.StampLabelId: {ex.Message}");
             }
         }
     }

@@ -4,6 +4,7 @@
 // drafting view that mirrors the project's electrical hierarchy.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 using StingTools.Core.Symbols;
@@ -46,9 +47,10 @@ namespace StingTools.Core.SLD
                     view.Name = viewName ?? $"STING - SLD - {DateTime.Now:yyyyMMdd-HHmm}";
                     try { view.Scale = 50; } catch (Exception ex) { StingTools.Core.StingLog.Warn($"SLD set scale: {ex.Message}"); }
 
-                    PlaceSymbols(doc, view, root, layout, standardId, result);
+                    var nodeToInstance = new Dictionary<ElementId, ElementId>();
+                    PlaceSymbols(doc, view, root, layout, standardId, result, nodeToInstance);
                     SLDAnnotationPlacer.PlaceBusbarsAndBranches(doc, view, layout);
-                    SLDAnnotationPlacer.PlaceAllAnnotations(doc, view, root, layout, standardId);
+                    SLDAnnotationPlacer.PlaceAllAnnotations(doc, view, root, layout, standardId, nodeToInstance);
 
                     StampViewStandard(view, standardId);
                     tx.Commit();
@@ -158,18 +160,36 @@ namespace StingTools.Core.SLD
                 catch (Exception ex)
                 { StingTools.Core.StingLog.Warn($"TryUpdateSingleNode read circuit: {ex.Message}"); }
 
-                // Locate and refresh the associated TextNote (or recreate it
-                // if missing). The label TextNote sits adjacent to the
-                // symbol — we look within a small radius and replace any
-                // matching one.
+                // Locate the stamped TextNote ID. If present, refresh that
+                // exact label. Otherwise fall back to a spatial scan.
                 var rules = StingTools.Core.Symbols.SymbolStandardRegistry.GetAnnotationRules(standard);
                 XYZ pos = (sldSymbol.Location as LocationPoint)?.Point ?? XYZ.Zero;
+                ElementId stampedLabelId = ResolveStampedLabelId(sldSymbol);
 
                 using (var tx = new Transaction(doc, "STING Refresh SLD Node"))
                 {
                     tx.Start();
-                    DeleteAdjacentTextNotes(doc, sldView, pos);
-                    SLDAnnotationPlacer.PlaceCircuitAnnotation(doc, sldView, node, pos, rules);
+                    if (stampedLabelId != ElementId.InvalidElementId
+                        && doc.GetElement(stampedLabelId) is TextNote)
+                    {
+                        try { doc.Delete(stampedLabelId); }
+                        catch (Exception ex) { StingTools.Core.StingLog.Warn($"Refresh delete stamped: {ex.Message}"); }
+                    }
+                    else
+                    {
+                        // No stamped link — fall back to deleting any
+                        // TextNote sitting next to the symbol.
+                        DeleteAdjacentTextNotes(doc, sldView, pos);
+                    }
+
+                    var newLabelId = SLDAnnotationPlacer.PlaceCircuitAnnotation(
+                        doc, sldView, node, pos, rules);
+                    if (newLabelId != ElementId.InvalidElementId)
+                    {
+                        var p = sldSymbol.LookupParameter("STING_SYMBOL_LABEL_ID");
+                        if (p != null && !p.IsReadOnly)
+                            p.Set(newLabelId.IntegerValue.ToString());
+                    }
                     tx.Commit();
                 }
                 return true;
@@ -179,6 +199,20 @@ namespace StingTools.Core.SLD
                 StingTools.Core.StingLog.Warn($"TryUpdateSingleNode: {ex.Message}");
                 return false;
             }
+        }
+
+        private static ElementId ResolveStampedLabelId(FamilyInstance symbol)
+        {
+            try
+            {
+                var p = symbol?.LookupParameter("STING_SYMBOL_LABEL_ID");
+                string s = p?.AsString();
+                if (string.IsNullOrEmpty(s)) return ElementId.InvalidElementId;
+                if (long.TryParse(s, out var raw))
+                    return new ElementId((int)raw);
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"ResolveStampedLabelId: {ex.Message}"); }
+            return ElementId.InvalidElementId;
         }
 
         private static void DeleteAdjacentTextNotes(Document doc, View view, XYZ near, double maxDistFt = 0.2)
@@ -226,9 +260,10 @@ namespace StingTools.Core.SLD
             {
                 tx.Start();
                 var stub = new SLDResult();
-                PlaceSymbols(doc, sldView, root, layout, standard, stub);
+                var nodeToInstance = new Dictionary<ElementId, ElementId>();
+                PlaceSymbols(doc, sldView, root, layout, standard, stub, nodeToInstance);
                 SLDAnnotationPlacer.PlaceBusbarsAndBranches(doc, sldView, layout);
-                SLDAnnotationPlacer.PlaceAllAnnotations(doc, sldView, root, layout, standard);
+                SLDAnnotationPlacer.PlaceAllAnnotations(doc, sldView, root, layout, standard, nodeToInstance);
                 tx.Commit();
             }
         }
@@ -236,7 +271,8 @@ namespace StingTools.Core.SLD
         // ── helpers ─────────────────────────────────────────────────────
 
         private static void PlaceSymbols(Document doc, ViewDrafting view, SLDNode node,
-            SLDLayout layout, string standard, SLDResult result)
+            SLDLayout layout, string standard, SLDResult result,
+            IDictionary<ElementId, ElementId> nodeToInstance = null)
         {
             if (node == null) return;
             try
@@ -262,6 +298,8 @@ namespace StingTools.Core.SLD
                                     StampParam(inst, "STING_SYMBOL_ID", node.ConceptId);
                                     StampParam(inst, "STING_SLD_ELEMENT_ID", node.ElementId.IntegerValue.ToString());
                                     result.SymbolsPlaced++;
+                                    if (nodeToInstance != null)
+                                        nodeToInstance[node.ElementId] = inst.Id;
                                 }
                             }
                             catch (Exception ex) { StingTools.Core.StingLog.Warn($"PlaceSymbols inst: {ex.Message}"); }
@@ -271,7 +309,7 @@ namespace StingTools.Core.SLD
             }
             catch (Exception ex) { StingTools.Core.StingLog.Warn($"PlaceSymbols: {ex.Message}"); }
 
-            foreach (var c in node.Children) PlaceSymbols(doc, view, c, layout, standard, result);
+            foreach (var c in node.Children) PlaceSymbols(doc, view, c, layout, standard, result, nodeToInstance);
         }
 
         private static void StampViewStandard(View view, string standard)

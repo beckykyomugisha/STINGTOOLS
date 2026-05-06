@@ -233,10 +233,34 @@ namespace StingTools.Core.Symbols
             = new Dictionary<string, ConceptStandardMapping>(StringComparer.OrdinalIgnoreCase);
         [JsonProperty("compoundComponents", NullValueHandling = NullValueHandling.Ignore)]
         public List<string> CompoundComponents { get; set; }
+        /// <summary>
+        /// Optional multi-component rung definition for ladder-mode layout.
+        /// Each <see cref="CompoundRung"/> places its components in series
+        /// along one horizontal rung. When present, takes precedence over
+        /// <see cref="CompoundComponents"/> in ladder mode; ignored by
+        /// vertical-stack and horizontal-series modes (which use
+        /// <see cref="CompoundComponents"/>).
+        /// </summary>
+        [JsonProperty("compoundRungs", NullValueHandling = NullValueHandling.Ignore)]
+        public List<CompoundRung> CompoundRungs { get; set; }
         [JsonProperty("connectorDomain", NullValueHandling = NullValueHandling.Ignore)]
         public string ConnectorDomain { get; set; }
         [JsonProperty("orientationStates", NullValueHandling = NullValueHandling.Ignore)]
         public Dictionary<string, string> OrientationStates { get; set; }
+    }
+
+    /// <summary>
+    /// One horizontal rung in a ladder-style compound layout. Components
+    /// are placed left-to-right in <see cref="Components"/> order, in
+    /// series between the supply and neutral rails.
+    /// </summary>
+    public sealed class CompoundRung
+    {
+        [JsonProperty("components")] public List<string> Components { get; set; }
+            = new List<string>();
+        /// <summary>Optional human-readable label drawn next to the rung.</summary>
+        [JsonProperty("label", NullValueHandling = NullValueHandling.Ignore)]
+        public string Label { get; set; }
     }
 
     public sealed class ConceptStandardMapping
