@@ -690,54 +690,122 @@ namespace StingTools.Commands.Electrical
             public Connector EndConnector { get; set; }
         }
 
+        // Returns the first path (back-compat). For multi-branch trunks
+        // pick a branch deterministically; callers wanting all branches
+        // should use BuildWirePaths.
         public static WirePathResult BuildWirePath(Element conduit)
         {
-            if (conduit == null) return null;
+            var all = BuildWirePaths(conduit);
+            return all.Count > 0 ? all[0] : null;
+        }
+
+        // Walks both directions through the conduit + conduit-fitting graph
+        // with a multi-branch DFS. A tee/junction with N outgoing exits
+        // produces N branches per side; pairs with the other side's
+        // device-terminated branches give one WirePathResult per
+        // (deviceA, deviceB) pair that crosses the picked conduit.
+        public static List<WirePathResult> BuildWirePaths(Element conduit)
+        {
+            var results = new List<WirePathResult>();
+            if (conduit == null) return results;
             var lc = conduit.Location as LocationCurve;
-            if (lc?.Curve == null) return null;
+            if (lc?.Curve == null) return results;
             var p0 = lc.Curve.GetEndPoint(0);
             var p1 = lc.Curve.GetEndPoint(1);
 
-            var visited = new HashSet<long> { conduit.Id.Value };
-            var sideA = WalkSide(conduit, p0, visited);
-            var sideB = WalkSide(conduit, p1, visited);
+            var seedVisited = new HashSet<long> { conduit.Id.Value };
+            var sideA = WalkSideMulti(conduit, p0, seedVisited);
+            var sideB = WalkSideMulti(conduit, p1, seedVisited);
 
-            // sideA.points = [p0, ..., deviceA-end-position]
-            // sideB.points = [p1, ..., deviceB-end-position]
-            // Final polyline: reverse(sideA) + sideB  →  deviceA → ... → p0 → p1 → ... → deviceB
-            var verts = new List<XYZ>(sideA.points.Count + sideB.points.Count);
-            for (int i = sideA.points.Count - 1; i >= 0; i--) verts.Add(sideA.points[i]);
-            verts.AddRange(sideB.points);
+            const int maxPairs = 64;
 
-            // De-duplicate consecutive coincident vertices (Wire.Create dislikes them).
+            if (sideA.Count > 0 && sideB.Count > 0)
+            {
+                foreach (var a in sideA)
+                {
+                    foreach (var b in sideB)
+                    {
+                        if (results.Count >= maxPairs) break;
+                        var verts = new List<XYZ>(a.points.Count + b.points.Count);
+                        for (int i = a.points.Count - 1; i >= 0; i--) verts.Add(a.points[i]);
+                        verts.AddRange(b.points);
+                        results.Add(new WirePathResult
+                        {
+                            Vertices       = DeDupeConsecutive(verts),
+                            StartConnector = a.deviceConn,
+                            EndConnector   = b.deviceConn,
+                        });
+                    }
+                }
+            }
+            else if (sideA.Count > 0)
+            {
+                foreach (var a in sideA)
+                {
+                    if (results.Count >= maxPairs) break;
+                    var verts = new List<XYZ>(a.points.Count + 1);
+                    for (int i = a.points.Count - 1; i >= 0; i--) verts.Add(a.points[i]);
+                    verts.Add(p1);
+                    results.Add(new WirePathResult
+                    {
+                        Vertices       = DeDupeConsecutive(verts),
+                        StartConnector = a.deviceConn,
+                        EndConnector   = null,
+                    });
+                }
+            }
+            else if (sideB.Count > 0)
+            {
+                foreach (var b in sideB)
+                {
+                    if (results.Count >= maxPairs) break;
+                    var verts = new List<XYZ>(b.points.Count + 1) { p0 };
+                    verts.AddRange(b.points);
+                    results.Add(new WirePathResult
+                    {
+                        Vertices       = DeDupeConsecutive(verts),
+                        StartConnector = null,
+                        EndConnector   = b.deviceConn,
+                    });
+                }
+            }
+            else
+            {
+                results.Add(new WirePathResult
+                {
+                    Vertices       = new List<XYZ> { p0, p1 },
+                    StartConnector = null,
+                    EndConnector   = null,
+                });
+            }
+
+            return results;
+        }
+
+        private static List<XYZ> DeDupeConsecutive(List<XYZ> verts)
+        {
             var clean = new List<XYZ>();
             foreach (var v in verts)
             {
                 if (clean.Count == 0 || !clean[clean.Count - 1].IsAlmostEqualTo(v, 1e-3))
                     clean.Add(v);
             }
-
-            return new WirePathResult
-            {
-                Vertices = clean,
-                StartConnector = sideA.deviceConn,
-                EndConnector   = sideB.deviceConn,
-            };
+            return clean;
         }
 
-        private static (List<XYZ> points, Connector deviceConn) WalkSide(
-            Element startElement, XYZ startPt, HashSet<long> visited)
+        private static List<(List<XYZ> points, Connector deviceConn)> WalkSideMulti(
+            Element startElement, XYZ startPt, HashSet<long> seedVisited)
         {
-            var points = new List<XYZ> { startPt };
-            Connector deviceConn = null;
-            Element current = startElement;
-            XYZ currentPt = startPt;
-            int safety = 200;
+            var results = new List<(List<XYZ>, Connector)>();
+            const int maxResults = 32;
+            const int maxDepth   = 200;
 
-            while (safety-- > 0)
+            void Recurse(Element current, XYZ currentPt, List<XYZ> acc, HashSet<long> visited, int depth)
             {
+                if (results.Count >= maxResults || depth > maxDepth) return;
+
                 var cm = GetMepConnectorManager(current);
-                if (cm == null) break;
+                if (cm == null) return;
 
                 Connector outConn = null;
                 try
@@ -749,8 +817,8 @@ namespace StingTools.Commands.Electrical
                         { outConn = c; break; }
                     }
                 }
-                catch { break; }
-                if (outConn == null || !outConn.IsConnected) break;
+                catch { return; }
+                if (outConn == null || !outConn.IsConnected) return;
 
                 Connector partnerConn = null;
                 try
@@ -763,48 +831,55 @@ namespace StingTools.Commands.Electrical
                         break;
                     }
                 }
-                catch { break; }
-                if (partnerConn == null) break;
+                catch { return; }
+                if (partnerConn == null) return;
 
                 var nextElement = partnerConn.Owner;
-                if (!visited.Add(nextElement.Id.Value)) break;
+                if (visited.Contains(nextElement.Id.Value)) return;
 
                 if (IsElectricalDevice(nextElement))
                 {
-                    deviceConn = partnerConn;
-                    if (partnerConn.Origin != null)
-                        points.Add(partnerConn.Origin);
-                    break;
+                    var finalAcc = new List<XYZ>(acc);
+                    if (partnerConn.Origin != null) finalAcc.Add(partnerConn.Origin);
+                    results.Add((finalAcc, partnerConn));
+                    return;
                 }
 
                 var catId = nextElement.Category?.Id?.Value ?? 0;
                 if (catId != (long)BuiltInCategory.OST_Conduit
                  && catId != (long)BuiltInCategory.OST_ConduitFitting)
-                    break;
+                    return;
 
                 var nextCm = GetMepConnectorManager(nextElement);
-                if (nextCm == null) break;
+                if (nextCm == null) return;
 
-                Connector exitConn = null;
+                var exits = new List<Connector>();
                 try
                 {
                     foreach (Connector c in nextCm.Connectors)
                     {
                         if (c.ConnectorType != ConnectorType.End) continue;
                         if (c.Id == partnerConn.Id) continue;
-                        exitConn = c;
-                        break;
+                        exits.Add(c);
                     }
                 }
-                catch { break; }
-                if (exitConn == null || exitConn.Origin == null) break;
+                catch { return; }
+                if (exits.Count == 0) return;
 
-                points.Add(exitConn.Origin);
-                current   = nextElement;
-                currentPt = exitConn.Origin;
+                var visitedDown = new HashSet<long>(visited) { nextElement.Id.Value };
+
+                foreach (var exit in exits)
+                {
+                    if (results.Count >= maxResults) break;
+                    if (exit.Origin == null) continue;
+                    var branchAcc = new List<XYZ>(acc) { exit.Origin };
+                    Recurse(nextElement, exit.Origin, branchAcc, new HashSet<long>(visitedDown), depth + 1);
+                }
             }
 
-            return (points, deviceConn);
+            var initialAcc = new List<XYZ> { startPt };
+            Recurse(startElement, startPt, initialAcc, new HashSet<long>(seedVisited), 0);
+            return results;
         }
 
         public static WireType ResolveWireType(Document doc)
@@ -1338,8 +1413,8 @@ namespace StingTools.Commands.Electrical
                 { return Result.Cancelled; }
 
                 var conduit = doc.GetElement(reference);
-                var path = WireAnnotationEngine.BuildWirePath(conduit);
-                if (path == null || path.Vertices == null || path.Vertices.Count < 2)
+                var paths = WireAnnotationEngine.BuildWirePaths(conduit);
+                if (paths == null || paths.Count == 0)
                 {
                     TaskDialog.Show("STING Wire On Conduit",
                         "Could not trace a conduit path from the picked element.");
@@ -1354,42 +1429,45 @@ namespace StingTools.Commands.Electrical
                     return Result.Failed;
                 }
 
-                ElementId wireId = ElementId.InvalidElementId;
-                using (var t = new Transaction(doc, "STING Wire On Conduit"))
+                int placed = 0, failed = 0, partial = 0;
+                using (var tg = new TransactionGroup(doc, "STING Wires On Conduit"))
                 {
-                    t.Start();
-                    try
+                    tg.Start();
+                    foreach (var path in paths)
                     {
-                        var wire = Wire.Create(doc, wireType.Id, view.Id,
-                            WiringType.Chamfered, path.Vertices,
-                            path.StartConnector, path.EndConnector);
-                        if (wire == null)
+                        if (path.Vertices == null || path.Vertices.Count < 2) { failed++; continue; }
+                        using (var t = new Transaction(doc, "STING Wire"))
                         {
-                            t.RollBack();
-                            TaskDialog.Show("STING Wire On Conduit",
-                                "Wire.Create returned null.");
-                            return Result.Failed;
+                            t.Start();
+                            try
+                            {
+                                var wire = Wire.Create(doc, wireType.Id, view.Id,
+                                    WiringType.Chamfered, path.Vertices,
+                                    path.StartConnector, path.EndConnector);
+                                if (wire == null) { t.RollBack(); failed++; continue; }
+                                t.Commit();
+                                placed++;
+                                if (path.StartConnector == null || path.EndConnector == null) partial++;
+                            }
+                            catch (Exception ex)
+                            {
+                                try { t.RollBack(); } catch { }
+                                failed++;
+                                StingLog.Warn($"Wire.Create: {ex.Message}");
+                            }
                         }
-                        wireId = wire.Id;
-                        t.Commit();
                     }
-                    catch (Exception ex)
-                    {
-                        t.RollBack();
-                        StingLog.Error("Wire.Create failed", ex);
-                        message = ex.Message;
-                        return Result.Failed;
-                    }
+                    tg.Assimilate();
                 }
 
-                bool bothEnds = path.StartConnector != null && path.EndConnector != null;
-                string suffix = bothEnds
-                    ? " connected to circuit at both ends."
-                    : " (one or both ends not connected to a circuit).";
-                StingLog.Info($"Wire {wireId.Value} created along {path.Vertices.Count}-vertex path");
-                TaskDialog.Show("STING Wire On Conduit",
-                    $"Wire placed along {path.Vertices.Count}-vertex path{suffix}");
-                return Result.Succeeded;
+                string detail = paths.Count > 1
+                    ? $"Placed {placed} wires across {paths.Count} branches"
+                    : $"Placed {placed} wire";
+                if (partial > 0) detail += $" ({partial} unconnected on one or both ends)";
+                if (failed > 0)  detail += $", {failed} failed";
+                StingLog.Info(detail);
+                TaskDialog.Show("STING Wire On Conduit", detail + ".");
+                return placed > 0 ? Result.Succeeded : Result.Failed;
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException)
             { return Result.Cancelled; }
@@ -1444,7 +1522,7 @@ namespace StingTools.Commands.Electrical
                 var td = new TaskDialog("STING Wire On Conduit")
                 {
                     MainInstruction = $"Found {conduits.Count} conduits. Place wires along all unique runs?",
-                    MainContent     = "Each conduit network reaching two devices produces one Wire. Walked-through conduits are skipped to avoid duplicates.",
+                    MainContent     = "One Wire per (device, device) pair connected through the network — multi-branch trunks produce one Wire per leaf device. Pairs are deduped so walking from either end yields the same wire once.",
                     CommonButtons   = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
                     DefaultButton   = TaskDialogResult.Yes,
                 };
@@ -1452,7 +1530,10 @@ namespace StingTools.Commands.Electrical
 
                 int placed = 0, skipped = 0, failed = 0;
                 bool cancelled = false;
-                var processed = new HashSet<long>();
+                // Dedupe by (deviceA, deviceB) ID pair (sorted) so that
+                // walking from any conduit on a multi-branch trunk doesn't
+                // re-create the same wire from the other end.
+                var placedPairs = new HashSet<(long, long)>();
                 var prog = StingProgressDialog.Show("STING Wire On Conduit", conduits.Count);
                 using (var tg = new TransactionGroup(doc, "STING Batch Wires On Conduit"))
                 {
@@ -1465,37 +1546,37 @@ namespace StingTools.Commands.Electrical
                             cancelled = true;
                             break;
                         }
-                        if (processed.Contains(conduit.Id.Value))
-                        {
-                            skipped++;
-                            continue;
-                        }
-                        var path = WireAnnotationEngine.BuildWirePath(conduit);
-                        if (path == null || path.Vertices == null || path.Vertices.Count < 2
-                            || path.StartConnector == null || path.EndConnector == null)
-                        {
-                            skipped++;
-                            continue;
-                        }
+                        var paths = WireAnnotationEngine.BuildWirePaths(conduit);
+                        if (paths == null || paths.Count == 0) { skipped++; continue; }
 
-                        using (var t = new Transaction(doc, "STING Wire"))
+                        foreach (var path in paths)
                         {
-                            t.Start();
-                            try
+                            if (path.Vertices == null || path.Vertices.Count < 2
+                                || path.StartConnector == null || path.EndConnector == null)
+                            { skipped++; continue; }
+
+                            long aId = path.StartConnector.Owner.Id.Value;
+                            long bId = path.EndConnector.Owner.Id.Value;
+                            var key = aId < bId ? (aId, bId) : (bId, aId);
+                            if (!placedPairs.Add(key)) { skipped++; continue; }
+
+                            using (var t = new Transaction(doc, "STING Wire"))
                             {
-                                var wire = Wire.Create(doc, wireType.Id, view.Id,
-                                    WiringType.Chamfered, path.Vertices,
-                                    path.StartConnector, path.EndConnector);
-                                if (wire != null) placed++;
-                                else { failed++; t.RollBack(); continue; }
-                                t.Commit();
-                                processed.Add(conduit.Id.Value);
-                            }
-                            catch (Exception ex)
-                            {
-                                failed++;
-                                StingLog.Warn($"Batch Wire.Create {conduit.Id.Value}: {ex.Message}");
-                                try { t.RollBack(); } catch { }
+                                t.Start();
+                                try
+                                {
+                                    var wire = Wire.Create(doc, wireType.Id, view.Id,
+                                        WiringType.Chamfered, path.Vertices,
+                                        path.StartConnector, path.EndConnector);
+                                    if (wire != null) { placed++; t.Commit(); }
+                                    else { failed++; t.RollBack(); }
+                                }
+                                catch (Exception ex)
+                                {
+                                    failed++;
+                                    StingLog.Warn($"Batch Wire.Create {conduit.Id.Value}: {ex.Message}");
+                                    try { t.RollBack(); } catch { }
+                                }
                             }
                         }
                     }
