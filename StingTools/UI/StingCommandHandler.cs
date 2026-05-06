@@ -186,6 +186,16 @@ namespace StingTools.UI
                     // ── v4 MVP: validators (Phase 4) ──
                     case "Validation_RunAll":        RunCommand<Commands.Validation.RunAllValidatorsCommand>(app); break;
 
+                    // ── Phase 175: Design Options ──
+                    case "DesignOptions_Inspect":             RunCommand<Commands.DesignOptions.DesignOptionsInspectCommand>(app); break;
+                    case "DesignOptions_MoveTo":              RunCommand<Commands.DesignOptions.MoveToOptionCommand>(app); break;
+                    case "DesignOptions_LockView":            RunCommand<Commands.DesignOptions.LockViewToOptionCommand>(app); break;
+                    case "DesignOptions_ResetView":           RunCommand<Commands.DesignOptions.ResetViewOptionVisibilityCommand>(app); break;
+                    case "DesignOptions_CloneSchedule":       RunCommand<Commands.DesignOptions.ClonePerOptionScheduleCommand>(app); break;
+                    case "DesignOptions_IsolationView":       RunCommand<Commands.DesignOptions.CreateIsolationViewCommand>(app); break;
+                    case "DesignOptions_PrimaryClashView":    RunCommand<Commands.DesignOptions.CreatePrimaryOnlyClashViewCommand>(app); break;
+                    case "DesignOptions_Audit":               RunCommand<Commands.DesignOptions.AuditOptionsCommand>(app); break;
+
                     // ── Lightning Protection System (BS EN 62305) ──
                     case "LPS_ClassSetup":           RunCommand<Commands.Lightning.LpsClassSetupCommand>(app); break;
                     case "LPS_ComplianceCheck":      RunCommand<Commands.Lightning.LpsComplianceCheckCommand>(app); break;
