@@ -2233,6 +2233,68 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Phase 176 — Lightning Protection family-aware FUNC resolution.
+        /// When SYS=LPS, the FUNC token is one of 6 sub-functions
+        /// (AT / DC / EE / BOND / SPD / TC) chosen from family/type name.
+        /// Returns null for non-LPS elements (caller should fall back to
+        /// FuncMap[sys]). Wired into the tagging pipeline by the
+        /// Smart-FUNC layer so LPS finials → AT, down conductors → DC, etc.
+        /// </summary>
+        public static string ResolveLpsFunc(Element el)
+        {
+            if (el == null) return null;
+            string fam = ParameterHelpers.GetFamilyName(el);
+            string sym = ParameterHelpers.GetFamilySymbolName(el);
+            string upper = ($"{fam} {sym}").ToUpperInvariant();
+            if (upper.Contains("AIR TERMINAL") || upper.Contains("FINIAL") ||
+                upper.Contains("STRIKE TERMINATION") || upper.Contains("AIR ROD") ||
+                upper.Contains("AIR MESH") || upper.Contains("CATENARY"))
+                return "AT";
+            if (upper.Contains("DOWN CONDUCTOR") || upper.Contains("DOWNCOND") ||
+                upper.Contains("DESCENT"))
+                return "DC";
+            if (upper.Contains("EARTH ROD") || upper.Contains("EARTH ELECTRODE") ||
+                upper.Contains("RING EARTH") || upper.Contains("FOUNDATION EARTH") ||
+                upper.Contains("MESH EARTH") || upper.Contains("EARTH MESH") ||
+                upper.Contains("EARTH PLATE"))
+                return "EE";
+            if (upper.Contains("EQUIPOTENTIAL") || upper.Contains("BONDING BAR") ||
+                upper.Contains("EARTH BAR") || (upper.Contains("BOND") && upper.Contains("LPS")) ||
+                upper.Contains("SPARK GAP"))
+                return "BOND";
+            if ((upper.Contains("SPD") || upper.Contains("SURGE PROTECT")) &&
+                (upper.Contains("LIGHTNING") || upper.Contains("TYPE 1") ||
+                 upper.Contains("TYPE 2") || upper.Contains("TYPE 3")))
+                return "SPD";
+            if (upper.Contains("TEST CLAMP") || upper.Contains("INSPECTION POINT"))
+                return "TC";
+            // Generic LPS family — leave as base "LPS" so caller falls back
+            return null;
+        }
+
+        /// <summary>
+        /// Phase 176 — true when family/type name shows lightning-protection
+        /// markers. Used by validators, container resolvers and LPS warning
+        /// writers to scope BS EN 62305 checks to the relevant elements only.
+        /// </summary>
+        public static bool IsLightningProtection(Element el)
+        {
+            if (el == null) return false;
+            string fam = ParameterHelpers.GetFamilyName(el);
+            string sym = ParameterHelpers.GetFamilySymbolName(el);
+            string upper = ($"{fam} {sym}").ToUpperInvariant();
+            return upper.Contains("LPS") || upper.Contains("LIGHTNING") ||
+                   upper.Contains("AIR TERMINAL") || upper.Contains("FINIAL") ||
+                   upper.Contains("DOWN CONDUCTOR") || upper.Contains("DOWNCOND") ||
+                   upper.Contains("EARTH ROD") || upper.Contains("EARTH ELECTRODE") ||
+                   upper.Contains("RING EARTH") || upper.Contains("FOUNDATION EARTH") ||
+                   upper.Contains("MESH EARTH") || upper.Contains("EARTH MESH") ||
+                   upper.Contains("EQUIPOTENTIAL") || upper.Contains("BONDING BAR") ||
+                   upper.Contains("EARTH BAR") || upper.Contains("TEST CLAMP") ||
+                   upper.Contains("INSPECTION POINT") || upper.Contains("SPARK GAP");
+        }
+
+        /// <summary>
         /// Get a guaranteed default SYS code from a discipline code.
         /// Used as a fallback when MEP system detection returns empty —
         /// ensures every element gets a valid SYS token.
@@ -2378,6 +2440,57 @@ namespace StingTools.Core
             {
                 // Search both family name and combined (family + type) name for patterns
                 string upper = combinedName;
+
+                // ── Lightning Protection System (BS EN 62305) ────────────────
+                // LPS elements may be modelled in Electrical Equipment, Generic Models,
+                // Conduits, or Specialty Equipment. Family-name discriminates the
+                // 6 LPS sub-element kinds (12 PROD codes) regardless of category.
+                // Phase 176 — wired into LPS tag families #54 to #59.
+                if (upper.Contains("LPS") || upper.Contains("LIGHTNING") ||
+                    upper.Contains("AIR TERMINAL") || upper.Contains("FINIAL") ||
+                    upper.Contains("DOWN CONDUCTOR") || upper.Contains("DOWNCOND") ||
+                    upper.Contains("EARTH ROD") || upper.Contains("EARTH ELECTRODE") ||
+                    upper.Contains("RING EARTH") || upper.Contains("FOUNDATION EARTH") ||
+                    upper.Contains("TEST CLAMP") || upper.Contains("EQUIPOTENTIAL"))
+                {
+                    if (upper.Contains("AIR TERMINAL") || upper.Contains("FINIAL") ||
+                        upper.Contains("STRIKE TERMINATION") || upper.Contains("AIR ROD"))
+                        return "ATR";  // Air terminal rod
+                    if (upper.Contains("AIR MESH") || upper.Contains("MESH NODE"))
+                        return "AMS";  // Air mesh section
+                    if (upper.Contains("CATENARY"))
+                        return "ACT";  // Air catenary
+                    if (upper.Contains("DOWN CONDUCTOR") || upper.Contains("DOWNCOND") ||
+                        upper.Contains("DESCENT"))
+                        return "DCN";  // Down conductor
+                    if (upper.Contains("EARTH ROD") || upper.Contains("ROD EARTH"))
+                        return "ERD";  // Earth rod
+                    if (upper.Contains("RING EARTH") || upper.Contains("EARTH RING"))
+                        return "ERG";  // Ring earth
+                    if (upper.Contains("FOUNDATION EARTH"))
+                        return "EFE";  // Foundation earth
+                    if (upper.Contains("MESH EARTH") || upper.Contains("EARTH MESH"))
+                        return "EME";  // Mesh earth
+                    if (upper.Contains("EARTH ELECTRODE") || upper.Contains("EARTH PLATE"))
+                        return "ERD";
+                    if (upper.Contains("BOND") || upper.Contains("EQUIPOTENTIAL"))
+                        return "BCN";  // Bond conductor (default)
+                    if (upper.Contains("BONDING BAR") || upper.Contains("EARTH BAR"))
+                        return "BBR";
+                    if (upper.Contains("SPARK GAP"))
+                        return "BSG";
+                    if (upper.Contains("TYPE 1") && upper.Contains("SPD"))
+                        return "SPD1";
+                    if (upper.Contains("TYPE 2") && upper.Contains("SPD"))
+                        return "SPD2";
+                    if (upper.Contains("TYPE 3") && upper.Contains("SPD"))
+                        return "SPD3";
+                    if (upper.Contains("TEST CLAMP") || upper.Contains("INSPECTION POINT"))
+                        return "TCL";
+                    // Generic LPS fallback — always return some LPS PROD code
+                    if (upper.Contains("LPS") || upper.Contains("LIGHTNING"))
+                        return "LPS";
+                }
 
                 // Mechanical Equipment — distinguish AHU, FCU, VAV, CHR, BLR, PMP, FAN, etc.
                 if (categoryName == "Mechanical Equipment")
@@ -3359,6 +3472,21 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(familyName)) return null;
             string upper = familyName.ToUpperInvariant();
 
+            // Phase 176 — Lightning Protection System pattern (BS EN 62305).
+            // Match BEFORE LV / electrical patterns so an LPS finial in
+            // Electrical Equipment doesn't get tagged as LV.
+            if (upper.Contains("LPS") || upper.Contains("LIGHTNING") ||
+                upper.Contains("AIR TERMINAL") || upper.Contains("FINIAL") ||
+                upper.Contains("DOWN CONDUCTOR") || upper.Contains("DOWNCOND") ||
+                upper.Contains("EARTH ROD") || upper.Contains("EARTH ELECTRODE") ||
+                upper.Contains("RING EARTH") || upper.Contains("FOUNDATION EARTH") ||
+                upper.Contains("MESH EARTH") || upper.Contains("EARTH MESH") ||
+                upper.Contains("EQUIPOTENTIAL") || upper.Contains("BONDING BAR") ||
+                upper.Contains("EARTH BAR") || upper.Contains("TEST CLAMP") ||
+                upper.Contains("INSPECTION POINT") || upper.Contains("SPARK GAP") ||
+                ((upper.Contains("SPD") || upper.Contains("SURGE PROTECT")) && upper.Contains("LIGHTNING")))
+                return "LPS";
+
             // HVAC equipment patterns
             if (upper.Contains("AHU") || upper.Contains("AIR HANDLING") ||
                 upper.Contains("FCU") || upper.Contains("FAN COIL") ||
@@ -4225,6 +4353,27 @@ namespace StingTools.Core
                 { "GAS", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes" } },
                 { "FP", new List<string> { "Sprinklers", "Fire Protection", "Fire Alarm Devices", "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes" } },
                 { "LV", new List<string> { "Electrical Equipment", "Electrical Fixtures", "Electrical Connectors", "Lighting Fixtures", "Lighting Devices", "Conduits", "Conduit Fittings", "Cable Trays", "Cable Tray Fittings", "MEP Fabrication Containment" } },
+                // Lightning Protection — BS EN 62305. LPS-bearing elements may be modelled as
+                // Electrical Equipment (SPDs, test clamps), Generic Models (rods, mesh, ring earth),
+                // Conduits / Conduit Fittings (down-conductor channels), or Specialty Equipment.
+                // Family-name discrimination in GetFamilyAwareProdCode picks the correct LPS sub-tag.
+                // Phase 176 cross-discipline integration:
+                //   - Structural Foundations / Rebar / Reinforcement reused as Type-B foundation earth
+                //     (BS EN 62305-3 Annex E.5.3) → STR Tag #22 STING - LPS Foundation Earth Tag
+                //   - Roofs / Walls / Curtain Wall / Wall Sweeps / Fascia / Gutter / Roof Soffits acting
+                //     as natural air termination (BS EN 62305-3 §5.2.5) → ARCH Tag #36 STING - LPS Natural
+                //     Air Termination Tag
+                //   - Detail Items used for LPS schematic / installation details → GEN Tag #34 STING - LPS
+                //     Generic Component Tag (catch-all)
+                { "LPS", new List<string>
+                    {
+                        // Electrical / generic LPS modelling
+                        "Electrical Equipment", "Generic Models", "Conduits", "Conduit Fittings", "Specialty Equipment", "Detail Items",
+                        // Structural reuse — Type-B foundation earth (BS EN 62305-3 Annex E.5.3)
+                        "Structural Foundations", "Structural Rebar", "Structural Area Reinforcement", "Structural Path Reinforcement", "Structural Fabric Reinforcement",
+                        // Architectural reuse — natural air termination (BS EN 62305-3 §5.2.5)
+                        "Roofs", "Walls", "Curtain Wall Mullions", "Wall Sweeps", "Fascia", "Gutter", "Roof Soffits"
+                    } },
                 { "FLS", new List<string> { "Fire Alarm Devices", "Fire Protection" } },
                 { "COM", new List<string> { "Communication Devices", "Telephone Devices", "Audio Visual Devices" } },
                 { "ICT", new List<string> { "Data Devices" } },
@@ -4336,6 +4485,9 @@ namespace StingTools.Core
                 { "HVAC", "SUP" }, { "HWS", "HTG" }, { "DHW", "DHW" },
                 { "DCW", "DCW" }, { "SAN", "SAN" }, { "RWD", "RWD" }, { "GAS", "GAS" },
                 { "FP", "FP" }, { "LV", "PWR" }, { "FLS", "FLS" },
+                // Lightning protection — default FUNC. The 6 LPS sub-functions (AT / DC / EE / BOND / SPD / TC)
+                // are family-aware overrides resolved by GetFamilyAwareProdCode + ResolveLpsFunc.
+                { "LPS", "LPS" },
                 { "COM", "COM" }, { "ICT", "ICT" }, { "NCL", "NCL" },
                 { "SEC", "SEC" },
                 { "ARC", "FIT" }, { "STR", "STR" }, { "GEN", "GEN" },

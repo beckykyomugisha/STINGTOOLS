@@ -2538,6 +2538,28 @@ namespace StingTools.UI
                     case "PlaceTieInTagElec": PlaceTieInTag(app, "Elec"); break;
                     case "ExportTieInRegister": ExportTieInRegister(app); break;
 
+                    // ════════════════════════════════════════════════════════
+                    // LIGHTNING PROTECTION (LPS) COMMANDS — Phase 176 / BS EN 62305
+                    // ════════════════════════════════════════════════════════
+                    case "PlaceLpsTagAirTerm":   PlaceLpsTag(app, "AirTerm"); break;
+                    case "PlaceLpsTagDownCond":  PlaceLpsTag(app, "DownCond"); break;
+                    case "PlaceLpsTagEarth":     PlaceLpsTag(app, "Earth"); break;
+                    case "PlaceLpsTagBond":      PlaceLpsTag(app, "Bond"); break;
+                    case "PlaceLpsTagSpd":       PlaceLpsTag(app, "Spd"); break;
+                    case "PlaceLpsTagTestClamp": PlaceLpsTag(app, "TestClamp"); break;
+                    case "PlaceLpsTagNaturalAT": PlaceLpsTag(app, "NaturalAT"); break;
+                    case "SetLpsClassI":   SetLpsClass(app, "I"); break;
+                    case "SetLpsClassII":  SetLpsClass(app, "II"); break;
+                    case "SetLpsClassIII": SetLpsClass(app, "III"); break;
+                    case "SetLpsClassIV":  SetLpsClass(app, "IV"); break;
+                    case "SetLpz0A": SetLpsZone(app, "LPZ0A"); break;
+                    case "SetLpz0B": SetLpsZone(app, "LPZ0B"); break;
+                    case "SetLpz1":  SetLpsZone(app, "LPZ1"); break;
+                    case "SetLpz2":  SetLpsZone(app, "LPZ2"); break;
+                    case "SetLpz3":  SetLpsZone(app, "LPZ3"); break;
+                    case "ValidateLpsSelection": ValidateLpsSelection(app); break;
+                    case "ExportLpsRegister":    ExportLpsRegister(app); break;
+
                     // ── FIX-UI01: Missing dispatch entries (buttons were wired to
                     //    command classes that were never added to this switch) ──
 
@@ -8041,6 +8063,223 @@ namespace StingTools.UI
             TaskDialog.Show("STING Tie-In Register",
                 $"Exported {rows.Count - 1} tie-in point(s) to:\n{path}");
             StingLog.Info($"ExportTieInRegister: {rows.Count - 1} records → {path}");
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        //  Phase 176 — Lightning Protection (LPS) UI helpers (BS EN 62305)
+        // ════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Stamp the LPS-kind container (one of 6 ELC_LPS_*_TAG_TXT) with the
+        /// element's existing ASS_TAG_1, seed class / LPZ defaults if blank,
+        /// then re-run LpsValidator so warnings + compliance verdict update
+        /// in the same transaction.
+        /// </summary>
+        private void PlaceLpsTag(UIApplication app, string kind)
+        {
+            var uidoc = app.ActiveUIDocument;
+            var doc = uidoc.Document;
+            var selection = uidoc.Selection.GetElementIds();
+            if (selection.Count == 0)
+            {
+                TaskDialog.Show("STING LPS", $"No elements selected.\nSelect element(s) to place an LPS {kind} tag.");
+                return;
+            }
+
+            // Map tag kind → container parameter + default PROD code (BS EN 62305-3 §5)
+            string container; string prodCode; string funcCode;
+            switch (kind)
+            {
+                case "AirTerm":   container = "ELC_LPS_AIRTERM_TAG_TXT";   prodCode = "ATR";  funcCode = "AT";   break;
+                case "DownCond":  container = "ELC_LPS_DOWNCOND_TAG_TXT";  prodCode = "DCN";  funcCode = "DC";   break;
+                case "Earth":     container = "ELC_LPS_EARTH_TAG_TXT";     prodCode = "ERD";  funcCode = "EE";   break;
+                case "Bond":      container = "ELC_LPS_BOND_TAG_TXT";      prodCode = "BCN";  funcCode = "BOND"; break;
+                case "Spd":       container = "ELC_LPS_SPD_TAG_TXT";       prodCode = "SPD2"; funcCode = "SPD";  break;
+                case "TestClamp": container = "ELC_LPS_TESTCLAMP_TAG_TXT"; prodCode = "TCL";  funcCode = "TC";   break;
+                case "NaturalAT": container = "ELC_LPS_AIRTERM_TAG_TXT";   prodCode = "ATR";  funcCode = "AT";   break;
+                default: TaskDialog.Show("STING LPS", $"Unknown LPS tag kind: {kind}"); return;
+            }
+
+            int count = 0;
+            using (Transaction tx = new Transaction(doc, $"STING Place LPS Tag — {kind}"))
+            {
+                tx.Start();
+                foreach (ElementId id in selection)
+                {
+                    Element el = doc.GetElement(id);
+                    if (el == null) continue;
+
+                    // Force SYS=LPS + FUNC + PROD on the source tokens — RunFullPipeline
+                    // assembles ASS_TAG_1 from these so the LPS tag inherits the right
+                    // 8-segment tag without a full re-tag pass.
+                    ParameterHelpers.SetString(el, ParamRegistry.SYS,  "LPS",     overwrite: true);
+                    ParameterHelpers.SetString(el, ParamRegistry.FUNC, funcCode,  overwrite: true);
+                    ParameterHelpers.SetString(el, ParamRegistry.PROD, prodCode,  overwrite: true);
+
+                    // Stamp the LPS-kind container with whatever the assembled tag is.
+                    string mainTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    if (!string.IsNullOrEmpty(mainTag))
+                        ParameterHelpers.SetString(el, container, mainTag, overwrite: true);
+
+                    // Run LPS validator so warnings + ELC_LPS_COMPLIANCE_STATUS_TXT
+                    // refresh under the same transaction.
+                    StingTools.Core.Validation.LpsValidator.EvaluateAndWrite(doc, el, overwrite: true);
+
+                    count++;
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("STING LPS", $"Placed LPS {kind} tag on {count} element(s).\nContainer: {container}\nFUNC: {funcCode}  PROD: {prodCode}");
+            StingLog.Info($"PlaceLpsTag {kind}: {count} elements stamped to {container}.");
+        }
+
+        /// <summary>
+        /// Set ELC_LPS_CLASS_TXT (I/II/III/IV) on selection then re-run LPS
+        /// validator — the class flips down-conductor minimum, mesh maximum
+        /// and inspection interval thresholds, so warnings often change.
+        /// </summary>
+        private void SetLpsClass(UIApplication app, string lpsClass)
+        {
+            var uidoc = app.ActiveUIDocument;
+            var doc = uidoc.Document;
+            var selection = uidoc.Selection.GetElementIds();
+            if (selection.Count == 0) { TaskDialog.Show("STING LPS", "No elements selected."); return; }
+
+            int count = 0;
+            using (Transaction tx = new Transaction(doc, $"STING Set LPS Class {lpsClass}"))
+            {
+                tx.Start();
+                foreach (ElementId id in selection)
+                {
+                    Element el = doc.GetElement(id);
+                    if (el == null) continue;
+                    ParameterHelpers.SetString(el, "ELC_LPS_CLASS_TXT", lpsClass, overwrite: true);
+                    // Class drives several thresholds — refresh warnings.
+                    StingTools.Core.Validation.LpsValidator.EvaluateAndWrite(doc, el, overwrite: true);
+                    count++;
+                }
+                tx.Commit();
+            }
+            TaskDialog.Show("STING LPS", $"Set ELC_LPS_CLASS_TXT = {lpsClass} on {count} element(s).\nWarnings + compliance verdict refreshed (BS EN 62305-1 §8).");
+        }
+
+        /// <summary>Set ELC_LPS_ZONE_TXT (LPZ0A/LPZ0B/LPZ1/LPZ2/LPZ3) per BS EN 62305-4 §4.1.</summary>
+        private void SetLpsZone(UIApplication app, string lpz)
+        {
+            var uidoc = app.ActiveUIDocument;
+            var doc = uidoc.Document;
+            var selection = uidoc.Selection.GetElementIds();
+            if (selection.Count == 0) { TaskDialog.Show("STING LPS", "No elements selected."); return; }
+
+            int count = 0;
+            using (Transaction tx = new Transaction(doc, $"STING Set LPS Zone {lpz}"))
+            {
+                tx.Start();
+                foreach (ElementId id in selection)
+                {
+                    Element el = doc.GetElement(id);
+                    if (el == null) continue;
+                    ParameterHelpers.SetString(el, "ELC_LPS_ZONE_TXT", lpz, overwrite: true);
+                    StingTools.Core.Validation.LpsValidator.EvaluateAndWrite(doc, el, overwrite: true);
+                    count++;
+                }
+                tx.Commit();
+            }
+            TaskDialog.Show("STING LPS", $"Set ELC_LPS_ZONE_TXT = {lpz} on {count} element(s) (BS EN 62305-4 §4.1).");
+        }
+
+        /// <summary>
+        /// Re-run LpsValidator.EvaluateAndWrite on selection — repopulates all
+        /// 10 WARN_ELC_LPS_* params and rolls up ELC_LPS_COMPLIANCE_STATUS_TXT
+        /// to PASS / WARN / FAIL based on rule severity.
+        /// </summary>
+        private void ValidateLpsSelection(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            var doc = uidoc.Document;
+            var selection = uidoc.Selection.GetElementIds();
+            int scope = selection.Count;
+            IEnumerable<Element> targets;
+            if (scope == 0)
+            {
+                targets = new FilteredElementCollector(doc).WhereElementIsNotElementType()
+                    .Where(TagConfig.IsLightningProtection);
+            }
+            else
+            {
+                targets = selection.Select(id => doc.GetElement(id)).Where(e => e != null);
+            }
+
+            int evaluated = 0, pass = 0, warn = 0, fail = 0;
+            using (Transaction tx = new Transaction(doc, "STING Validate LPS"))
+            {
+                tx.Start();
+                foreach (Element el in targets)
+                {
+                    if (!TagConfig.IsLightningProtection(el)) continue;
+                    StingTools.Core.Validation.LpsValidator.EvaluateAndWrite(doc, el, overwrite: true);
+                    string verdict = ParameterHelpers.GetString(el, "ELC_LPS_COMPLIANCE_STATUS_TXT");
+                    if      (verdict == "PASS") pass++;
+                    else if (verdict == "WARN") warn++;
+                    else if (verdict == "FAIL") fail++;
+                    evaluated++;
+                }
+                tx.Commit();
+            }
+
+            string scopeLabel = scope == 0 ? "project-wide" : $"{scope} selected element(s)";
+            TaskDialog.Show("STING LPS Validator",
+                $"BS EN 62305 evaluated {evaluated} LPS element(s) ({scopeLabel}):\n\n" +
+                $"  PASS: {pass}\n  WARN: {warn}\n  FAIL: {fail}\n\n" +
+                "Verdicts written to ELC_LPS_COMPLIANCE_STATUS_TXT;\n" +
+                "details in WARN_ELC_LPS_* params (TEXT type).");
+            StingLog.Info($"ValidateLpsSelection: {evaluated} elements (PASS={pass} WARN={warn} FAIL={fail})");
+        }
+
+        /// <summary>Export every LPS element to CSV with class / LPZ / R / counts / compliance verdict.</summary>
+        private void ExportLpsRegister(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument.Document;
+            var rows = new List<string>();
+            rows.Add("Tag,Kind,Class,LPZ,EarthOhm,CrossSect_mm2,Material,DownCondCount,LastTest,Bond,Verdict,Standard,ElementId,Category,Level");
+
+            foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            {
+                if (!TagConfig.IsLightningProtection(el)) continue;
+
+                string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                string kind =
+                    !string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ELC_LPS_AIRTERM_TAG_TXT"))   ? "AirTerm" :
+                    !string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ELC_LPS_DOWNCOND_TAG_TXT"))  ? "DownCond" :
+                    !string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ELC_LPS_EARTH_TAG_TXT"))     ? "Earth" :
+                    !string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ELC_LPS_BOND_TAG_TXT"))      ? "Bond" :
+                    !string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ELC_LPS_SPD_TAG_TXT"))       ? "SPD" :
+                    !string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ELC_LPS_TESTCLAMP_TAG_TXT")) ? "TestClamp" : "Generic";
+
+                string cls       = ParameterHelpers.GetString(el, "ELC_LPS_CLASS_TXT");
+                string lpz       = ParameterHelpers.GetString(el, "ELC_LPS_ZONE_TXT");
+                string ohm       = ParameterHelpers.GetString(el, "ELC_LPS_EARTH_RESISTANCE_OHM");
+                string crossMm2  = ParameterHelpers.GetString(el, "ELC_LPS_CONDUCTOR_CROSS_SECT_MM2");
+                string material  = ParameterHelpers.GetString(el, "ELC_LPS_CONDUCTOR_MATERIAL_TXT");
+                string downN     = ParameterHelpers.GetString(el, "ELC_LPS_DOWN_CONDUCTOR_COUNT_NR");
+                string testDate  = ParameterHelpers.GetString(el, "ELC_LPS_TEST_DATE_TXT");
+                string bond      = ParameterHelpers.GetString(el, "ELC_LPS_BOND_TYPE_TXT");
+                string verdict   = ParameterHelpers.GetString(el, "ELC_LPS_COMPLIANCE_STATUS_TXT");
+                string standard  = "BS EN 62305 (multi-part)";
+                string catName   = el.Category?.Name ?? "";
+                string level     = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+
+                rows.Add($"\"{tag}\",\"{kind}\",\"{cls}\",\"{lpz}\",\"{ohm}\",\"{crossMm2}\",\"{material}\",\"{downN}\",\"{testDate}\",\"{bond}\",\"{verdict}\",\"{standard}\",{el.Id.Value},\"{catName}\",\"{level}\"");
+            }
+
+            if (rows.Count <= 1) { TaskDialog.Show("STING LPS Register", "No LPS elements found in the model."); return; }
+
+            string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string path = Path.Combine(outDir, $"LPS_Register_{DateTime.Now:yyyyMMdd}.csv");
+            File.WriteAllLines(path, rows);
+            TaskDialog.Show("STING LPS Register", $"Exported {rows.Count - 1} LPS element(s) to:\n{path}");
+            StingLog.Info($"ExportLpsRegister: {rows.Count - 1} records → {path}");
         }
 
         // ── Dynamic-prefix action helpers (Phase 78) ──────────────────────

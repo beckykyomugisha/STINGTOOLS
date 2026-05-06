@@ -1,4 +1,4 @@
-#SCHEMA_VERSION=5.4,CREATED=2026-03-16,UPDATED=2026-04-23,FAMILIES=142,ADDS=per_family_tier_variation+standards_cited+reuse_check,PREV=tier_1_to_10_rows+style_parameter_catalog_150_params,SYNC=LABEL_DEFINITIONS.json_v5.9(138_categories)+PARAMETER_REGISTRY.json_extended_params.tier_4_10(33_entries)
+#SCHEMA_VERSION=5.5,CREATED=2026-03-16,UPDATED=2026-05-06,FAMILIES=148,ADDS=phase_176_lightning_protection_6_families+10_lps_validation_warnings,PREV=per_family_tier_variation+standards_cited+reuse_check,SYNC=LABEL_DEFINITIONS.json_v5.9(138_categories)+PARAMETER_REGISTRY.json_extended_params.tier_4_10(33_entries)+ELC_LPS_GROUP(6_containers+TAG7_paragraph)
 #
 # SCHEMA v5.2 (2026-04-16) — Added 3 trailing columns: Style,Color,Size
 #   Style  : NOM | BOLD | ITALIC | BOLDITALIC               (default per tier: T1=NOM, T2=NOM, T3=NOM)
@@ -2531,3 +2531,140 @@ Tag Family #53: STING - MEP Sleeve Tag
 1,CRITICAL,WARN_SLV_NO_FIRE_RATING,SLV_FIRE_RATING_TXT empty — penetration seal cannot be validated,BS EN 1366-3:2009,Common,Text,⚠ Warning: No Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_SLV_NO_FIRE_RATING, """")"
 2,HIGH,WARN_SLV_NO_REF,SLV_REF_TXT empty — asset cannot be tracked,ISO 19650-2:2018,Common,Text,⚠ Warning: No Sleeve Ref,"if(TAG_WARN_VISIBLE_BOOL, WARN_SLV_NO_REF, """")"
 3,HIGH,WARN_SLV_NO_SEAL,SLV_SEAL_TYPE_TXT empty — fire compartmentation incomplete,BS EN 1366-3:2009,Common,Text,⚠ Warning: No Seal Type,"if(TAG_WARN_VISIBLE_BOOL, WARN_SLV_NO_SEAL, """")"
+
+Tag Family #54: STING - LPS Air Terminal Tag
+# Category: Electrical Equipment, Generic Models, Specialty Equipment | PROD: ATR (Air Terminal Rod) / AMS (Air Mesh Section) / ACT (Air Catenary) | SYS: LPS | FUNC: AT | DISC: E
+# Lightning protection air-termination per BS EN 62305-3 §5.2 — rolling sphere / mesh / protection angle method
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
+
+★ TIER 1 — COMPACT (always visible)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ELC_LPS_AIRTERM_TAG_TXT,,,0,✓,---,---,---,Add directly,BOLD,BLUE,2.5,None,None
+
+★ TIER 2 — TECHNICAL (gated by TAG_PARA_STATE_2_BOOL)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T2,ELC_LPS_CLASS_TXT,Class:,,0,✓,Common,Text,LPS Class,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_CLASS_TXT, """")",NOM,BLACK,2.0,None,None
+2,T2,ELC_LPS_ZONE_TXT,LPZ:,,0,✓,Common,Text,Lightning Zone,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_ZONE_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ELC_LPS_PROTECTION_ANGLE_DEG,α:,°,0,✓,Common,Text,Protection Angle,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_PROTECTION_ANGLE_DEG, """")",NOM,BLACK,2.0,None,None
+4,T2,ELC_LPS_AIR_TERMINAL_COUNT_NR,N:,,0,✓,Common,Text,Air Terminal Count,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_AIR_TERMINAL_COUNT_NR, """")",NOM,BLACK,2.0,None,None
+
+★ TIER 3 — FULL SPECIFICATION (gated by TAG_PARA_STATE_3_BOOL)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T3,ELC_LPS_ROLLING_SPHERE_RADIUS_M,r:,m,0,✓,Common,Text,Rolling Sphere Radius,"if(TAG_PARA_STATE_3_BOOL, ELC_LPS_ROLLING_SPHERE_RADIUS_M, """")",NOM,BLACK,2.0,None,None
+2,T3,ELC_LPS_MESH_SIZE_M,Mesh:,m,0,✓,Common,Text,Mesh Size,"if(TAG_PARA_STATE_3_BOOL, ELC_LPS_MESH_SIZE_M, """")",NOM,BLACK,2.0,None,None
+3,T3,ELC_LPS_RISK_ASSESSMENT_TXT,Risk:,,0,✓,Common,Text,Risk Assessment Ref,"if(TAG_PARA_STATE_3_BOOL, ELC_LPS_RISK_ASSESSMENT_TXT, """")",NOM,BLACK,2.0,None,None
+4,T3,ELC_LPS_COMPLIANCE_STATUS_TXT,,,0,✓,Common,Text,LPS Compliance Status,"if(TAG_PARA_STATE_3_BOOL, ELC_LPS_COMPLIANCE_STATUS_TXT, """")",BOLD,RED,2.0,None,None
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,CRITICAL,WARN_ELC_LPS_NO_CLASS,LPS class missing — set I / II / III / IV from BS EN 62305-2 risk assessment,BS EN 62305-1:2011 §8,Common,Text,⚠ Warning: No LPS Class,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_CLASS, """")"
+2,HIGH,WARN_ELC_LPS_MESH_SIZE_EXCEEDED,Air-termination mesh exceeds class limit (I=5×5 II=10×10 III=15×15 IV=20×20 m),BS EN 62305-3:2011 Table 2,Common,Text,⚠ Warning: Mesh Exceeds Class,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_MESH_SIZE_EXCEEDED, """")"
+3,MEDIUM,WARN_ELC_LPS_NO_ZONE,Lightning protection zone (LPZ0A/LPZ0B/LPZ1/LPZ2/LPZ3) not assigned,BS EN 62305-4:2011 §4.1,Common,Text,⚠ Warning: No LPZ Assigned,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_ZONE, """")"
+4,HIGH,WARN_ELC_LPS_NO_RISK_ASSESSMENT,BS EN 62305-2 risk assessment reference (R1..R4) not recorded,BS EN 62305-2:2012,Common,Text,⚠ Warning: No Risk Assessment,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_RISK_ASSESSMENT, """")"
+
+Tag Family #55: STING - LPS Down Conductor Tag
+# Category: Electrical Equipment, Generic Models, Conduits, Conduit Fittings, Specialty Equipment | PROD: DCN (Down Conductor) / DCS (Steel reinforcement reused) | SYS: LPS | FUNC: DC | DISC: E
+# Lightning protection down conductor per BS EN 62305-3 §5.3 — minimum count + cross-section by class
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment, Conduits
+
+★ TIER 1 — COMPACT (always visible)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ELC_LPS_DOWNCOND_TAG_TXT,,,0,✓,---,---,---,Add directly,BOLD,BLUE,2.5,None,None
+
+★ TIER 2 — TECHNICAL (gated by TAG_PARA_STATE_2_BOOL)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T2,ELC_LPS_DOWN_CONDUCTOR_COUNT_NR,N:,,0,✓,Common,Text,Down Conductor Count,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_DOWN_CONDUCTOR_COUNT_NR, """")",NOM,BLACK,2.0,None,None
+2,T2,ELC_LPS_CONDUCTOR_CROSS_SECT_MM2,A:,mm²,0,✓,Common,Text,Cross-section,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_CONDUCTOR_CROSS_SECT_MM2, """")",NOM,BLACK,2.0,None,None
+3,T2,ELC_LPS_CONDUCTOR_MATERIAL_TXT,Mat:,,0,✓,Common,Text,Conductor Material,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_CONDUCTOR_MATERIAL_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,ELC_LPS_SEPARATION_DISTANCE_MM,s:,mm,0,✓,Common,Text,Separation Distance,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_SEPARATION_DISTANCE_MM, """")",NOM,BLACK,2.0,None,None
+
+★ TIER 3 — FULL SPECIFICATION (gated by TAG_PARA_STATE_3_BOOL)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T3,ELC_LPS_CLASS_TXT,Class:,,0,✓,Common,Text,LPS Class,"if(TAG_PARA_STATE_3_BOOL, ELC_LPS_CLASS_TXT, """")",NOM,BLACK,2.0,None,None
+2,T3,ELC_LPS_ZONE_TXT,LPZ:,,0,✓,Common,Text,Lightning Zone,"if(TAG_PARA_STATE_3_BOOL, ELC_LPS_ZONE_TXT, """")",NOM,BLACK,2.0,None,None
+
+⚠ WARNING PARAMETERS — add after all Tier rows
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_ELC_LPS_DOWN_COND_INSUFFICIENT,Down conductor count below class minimum (Class I=4 II=3 III/IV=2),BS EN 62305-3:2011 Table 4,Common,Text,⚠ Warning: Insufficient Down Conductors,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_DOWN_COND_INSUFFICIENT, """")"
+2,HIGH,WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW,Cross-section below 50 mm² Cu / 70 mm² Al / 50 mm² Steel,BS EN 62305-3:2011 Table 6,Common,Text,⚠ Warning: Cross-Section Below Min,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW, """")"
+3,HIGH,WARN_ELC_LPS_SEPARATION_FAIL,Separation distance below s = ki·kc·l/km — services flashover risk,BS EN 62305-3:2011 §6.3,Common,Text,⚠ Warning: Separation Distance Fail,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_SEPARATION_FAIL, """")"
+
+Tag Family #56: STING - LPS Earth Electrode Tag
+# Category: Electrical Equipment, Generic Models, Specialty Equipment | PROD: ERD (Earth Rod) / ERG (Earth Ring) / EFE (Foundation Earth) / EME (Mesh Earth) | SYS: LPS | FUNC: EE | DISC: E
+# Lightning protection earth electrode per BS EN 62305-3 §5.4 — Type A (rod/plate) or Type B (ring/foundation)
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
+
+★ TIER 1 — COMPACT (always visible)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ELC_LPS_EARTH_TAG_TXT,,,0,✓,---,---,---,Add directly,BOLD,BLUE,2.5,None,None
+
+★ TIER 2 — TECHNICAL (gated by TAG_PARA_STATE_2_BOOL)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T2,ELC_LPS_EARTH_TYPE_TXT,Type:,,0,✓,Common,Text,Earth Electrode Type,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_EARTH_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
+2,T2,ELC_LPS_EARTH_RESISTANCE_OHM,R:,Ω,0,✓,Common,Text,Earth Resistance,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_EARTH_RESISTANCE_OHM, """")",NOM,BLACK,2.0,None,None
+3,T2,ELC_LPS_EARTH_ELECTRODE_COUNT_NR,N:,,0,✓,Common,Text,Earth Electrode Count,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_EARTH_ELECTRODE_COUNT_NR, """")",NOM,BLACK,2.0,None,None
+4,T2,ELC_LPS_TEST_DATE_TXT,Tested:,,0,✓,Common,Text,Last Test Date,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_TEST_DATE_TXT, """")",NOM,BLACK,2.0,None,None
+
+★ TIER 3 — FULL SPECIFICATION (gated by TAG_PARA_STATE_3_BOOL)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T3,ELC_LPS_INSPECTION_INTERVAL_MONTHS,Inspect:,mo,0,✓,Common,Text,Inspection Interval,"if(TAG_PARA_STATE_3_BOOL, ELC_LPS_INSPECTION_INTERVAL_MONTHS, """")",NOM,BLACK,2.0,None,None
+2,T3,ELC_LPS_CERT_REF_TXT,Cert:,,0,✓,Common,Text,Certificate Ref,"if(TAG_PARA_STATE_3_BOOL, ELC_LPS_CERT_REF_TXT, """")",NOM,BLACK,2.0,None,None
+
+⚠ WARNING PARAMETERS — add after all Tier rows
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_ELC_LPS_EARTH_RESISTANCE_HIGH,Earth resistance > 10 ohm — supplement electrodes or add ring earth,BS EN 62305-3:2011 §5.4.1,Common,Text,⚠ Warning: Earth Resistance High,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_EARTH_RESISTANCE_HIGH, """")"
+2,MEDIUM,WARN_ELC_LPS_INSPECTION_OVERDUE,Inspection interval exceeded (Class I/II=12mo III/IV=24mo),BS EN 62305-3:2011 §E.7,Common,Text,⚠ Warning: Inspection Overdue,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_INSPECTION_OVERDUE, """")"
+
+Tag Family #57: STING - LPS Bond Tag
+# Category: Electrical Equipment, Generic Models, Conduits, Specialty Equipment | PROD: BCN (Bond Conductor) / BBR (Bonding Bar) / BSG (Spark Gap) | SYS: LPS | FUNC: BOND | DISC: E
+# Lightning protection equipotential bonding per BS EN 62305-3 §6.2 — DIRECT / SPD / ISOLATING_SPARK_GAP
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
+
+★ TIER 1 — COMPACT (always visible)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ELC_LPS_BOND_TAG_TXT,,,0,✓,---,---,---,Add directly,BOLD,BLUE,2.5,None,None
+
+★ TIER 2 — TECHNICAL (gated by TAG_PARA_STATE_2_BOOL)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T2,ELC_LPS_BOND_TYPE_TXT,Bond:,,0,✓,Common,Text,Bond Type,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_BOND_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
+2,T2,ELC_LPS_CONDUCTOR_CROSS_SECT_MM2,A:,mm²,0,✓,Common,Text,Cross-section,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_CONDUCTOR_CROSS_SECT_MM2, """")",NOM,BLACK,2.0,None,None
+3,T2,ELC_LPS_ZONE_TXT,LPZ:,,0,✓,Common,Text,Lightning Zone,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_ZONE_TXT, """")",NOM,BLACK,2.0,None,None
+
+⚠ WARNING PARAMETERS — add after all Tier rows
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_ELC_LPS_NO_BONDING,Equipotential bonding type not specified — DIRECT / SPD / ISOLATING_SPARK_GAP required,BS EN 62305-3:2011 §6.2,Common,Text,⚠ Warning: No Bonding Type,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_BONDING, """")"
+
+Tag Family #58: STING - LPS SPD Tag
+# Category: Electrical Equipment, Specialty Equipment | PROD: SPD1 (Type 1) / SPD2 (Type 2) / SPD3 (Type 3) | SYS: LPS | FUNC: SPD | DISC: E
+# Surge protective device per BS EN 62305-4 + BS EN 61643 — coordinated SPD strategy across LPZ boundaries
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
+
+★ TIER 1 — COMPACT (always visible)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ELC_LPS_SPD_TAG_TXT,,,0,✓,---,---,---,Add directly,BOLD,BLUE,2.5,None,None
+
+★ TIER 2 — TECHNICAL (gated by TAG_PARA_STATE_2_BOOL)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T2,ELC_LPS_SURGE_PROTECTION_LVL_TXT,SPD:,,0,✓,Common,Text,SPD Type,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_SURGE_PROTECTION_LVL_TXT, """")",NOM,BLACK,2.0,None,None
+2,T2,ELC_LPS_ZONE_TXT,LPZ:,,0,✓,Common,Text,LPZ Boundary,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_ZONE_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ELC_LPS_BOND_TYPE_TXT,Bond:,,0,✓,Common,Text,Bond Type,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_BOND_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
+
+Tag Family #59: STING - LPS Test Clamp Tag
+# Category: Electrical Equipment, Generic Models, Specialty Equipment | PROD: TCL (Test Clamp) / TIP (Inspection Point) | SYS: LPS | FUNC: TC | DISC: E
+# Test clamp / inspection point per BS EN 62305-3 §7.2 — required for periodic earth resistance testing
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
+
+★ TIER 1 — COMPACT (always visible)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ELC_LPS_TESTCLAMP_TAG_TXT,,,0,✓,---,---,---,Add directly,BOLD,BLUE,2.5,None,None
+
+★ TIER 2 — TECHNICAL (gated by TAG_PARA_STATE_2_BOOL)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T2,ELC_LPS_TEST_DATE_TXT,Tested:,,0,✓,Common,Text,Last Test Date,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_TEST_DATE_TXT, """")",NOM,BLACK,2.0,None,None
+2,T2,ELC_LPS_EARTH_RESISTANCE_OHM,R:,Ω,0,✓,Common,Text,Earth Resistance Reading,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_EARTH_RESISTANCE_OHM, """")",NOM,BLACK,2.0,None,None
+3,T2,ELC_LPS_INSPECTION_INTERVAL_MONTHS,Next:,mo,0,✓,Common,Text,Inspection Interval,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_INSPECTION_INTERVAL_MONTHS, """")",NOM,BLACK,2.0,None,None
+4,T2,ELC_LPS_CERT_REF_TXT,Cert:,,0,✓,Common,Text,Certificate Ref,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_CERT_REF_TXT, """")",NOM,BLACK,2.0,None,None
+
+⚠ WARNING PARAMETERS — add after all Tier rows
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,MEDIUM,WARN_ELC_LPS_INSPECTION_OVERDUE,Inspection overdue per BS EN 62305-3 §E.7 (12mo Class I/II / 24mo Class III/IV),BS EN 62305-3:2011 §E.7,Common,Text,⚠ Warning: Inspection Overdue,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_INSPECTION_OVERDUE, """")"

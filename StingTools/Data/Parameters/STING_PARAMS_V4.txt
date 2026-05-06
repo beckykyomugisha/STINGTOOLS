@@ -66,6 +66,27 @@ PARAM	0a8dbcfb-6f73-5c8c-94eb-b72606feae87	ELC_LPS_CERT_REF_TXT	TEXT		4	1	Certif
 PARAM	b1c4e8d3-7f5a-5d2c-9e6b-3a4f5c8d2b1e	ELC_LPS_COMPLIANCE_STATUS_TXT	TEXT		4	1	Plugin-written LPS compliance verdict (PASS / WARN / FAIL / SPACING FAIL / SEP DIST FAIL / EARTH FAIL)	1
 PARAM	c2d5f9e4-8a6b-5e3d-a07c-4b5d6e9c3f2a	ELC_LPS_CONDUCTOR_MATERIAL_TXT	TEXT		4	1	Down conductor material (COPPER / ALUMINIUM / STEEL) for separation distance km factor	1
 PARAM	d3e6fa05-9b7c-5e4d-b18d-5c6e7fad4321	ELC_LPS_PROJECT_NG_OVERRIDE_NR	NUMBER		4	1	Project ground flash density Ng (flashes/km2/year) override from lightning location service	1
+# --- v4 Section 4b: LPS tag containers + warnings (Phase 176 — BS EN 62305 tagging) ---
+# Container parameters (TEXT) hold the assembled ISO 19650 8-segment tag for each LPS element kind.
+PARAM	e1c5f9d4-1001-5111-9111-100000000001	ELC_LPS_AIRTERM_TAG_TXT	TEXT		4	1	LPS air-terminal / finial full ISO 19650 tag [BS EN 62305-3 §5.2]	1
+PARAM	e1c5f9d4-1002-5111-9111-100000000002	ELC_LPS_DOWNCOND_TAG_TXT	TEXT		4	1	LPS down-conductor full tag [BS EN 62305-3 §5.3]	1
+PARAM	e1c5f9d4-1003-5111-9111-100000000003	ELC_LPS_EARTH_TAG_TXT	TEXT		4	1	LPS earth-electrode full tag [BS EN 62305-3 §5.4]	1
+PARAM	e1c5f9d4-1004-5111-9111-100000000004	ELC_LPS_BOND_TAG_TXT	TEXT		4	1	LPS equipotential bond full tag [BS EN 62305-3 §6.2]	1
+PARAM	e1c5f9d4-1005-5111-9111-100000000005	ELC_LPS_SPD_TAG_TXT	TEXT		4	1	LPS surge protective device full tag [BS EN 62305-4 / BS EN 61643]	1
+PARAM	e1c5f9d4-1006-5111-9111-100000000006	ELC_LPS_TESTCLAMP_TAG_TXT	TEXT		4	1	LPS test clamp / inspection point full tag [BS EN 62305-3 §7.2]	1
+PARAM	e1c5f9d4-1007-5111-9111-100000000007	ELC_TAG_7_PARA_LPS_TXT	TEXT		4	1	Electrical TAG7 paragraph container for LPS narrative	1
+# Warning parameters — TEXT type (Revit label Calculated Values cannot reference YESNO inside if(...)).
+# LpsValidator.EvaluateAndWrite populates these per element when BS EN 62305 rules fire.
+PARAM	f1d6f0e5-2001-5222-9222-200000000001	WARN_ELC_LPS_NO_CLASS	TEXT		4	1	Warning: LPS class missing [BS EN 62305-1 §8] [CRITICAL]	1
+PARAM	f1d6f0e5-2002-5222-9222-200000000002	WARN_ELC_LPS_DOWN_COND_INSUFFICIENT	TEXT		4	1	Warning: down-conductor count below class minimum [BS EN 62305-3 Tab 4] [HIGH]	1
+PARAM	f1d6f0e5-2003-5222-9222-200000000003	WARN_ELC_LPS_EARTH_RESISTANCE_HIGH	TEXT		4	1	Warning: earth resistance exceeds 10 ohm [BS EN 62305-3 §5.4.1] [HIGH]	1
+PARAM	f1d6f0e5-2004-5222-9222-200000000004	WARN_ELC_LPS_NO_RISK_ASSESSMENT	TEXT		4	1	Warning: BS EN 62305-2 risk assessment reference (R1..R4) missing [HIGH]	1
+PARAM	f1d6f0e5-2005-5222-9222-200000000005	WARN_ELC_LPS_SEPARATION_FAIL	TEXT		4	1	Warning: separation distance below s = ki·kc·l/km [BS EN 62305-3 §6.3] [HIGH]	1
+PARAM	f1d6f0e5-2006-5222-9222-200000000006	WARN_ELC_LPS_INSPECTION_OVERDUE	TEXT		4	1	Warning: inspection interval exceeded [BS EN 62305-3 §E.7] [MEDIUM]	1
+PARAM	f1d6f0e5-2007-5222-9222-200000000007	WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW	TEXT		4	1	Warning: down-conductor cross-section below class minimum [BS EN 62305-3 Tab 6] [HIGH]	1
+PARAM	f1d6f0e5-2008-5222-9222-200000000008	WARN_ELC_LPS_NO_BONDING	TEXT		4	1	Warning: equipotential bonding type missing [BS EN 62305-3 §6.2] [HIGH]	1
+PARAM	f1d6f0e5-2009-5222-9222-200000000009	WARN_ELC_LPS_MESH_SIZE_EXCEEDED	TEXT		4	1	Warning: air-termination mesh exceeds class limit [BS EN 62305-3 Tab 2] [HIGH]	1
+PARAM	f1d6f0e5-2010-5222-9222-200000000010	WARN_ELC_LPS_NO_ZONE	TEXT		4	1	Warning: lightning protection zone (LPZ) not assigned [BS EN 62305-4 §4.1] [MEDIUM]	1
 # --- v4 Section 5: dual-currency pricing (FabricationParamsV4.CostParams) ---
 PARAM	c40720fa-3e80-5880-86c3-a82f43055fbf	CST_INTL_PRICE_USD	NUMBER		2	1	International supplier unit price in USD	1
 PARAM	694fcd57-d0c2-5ed3-afca-f225781b3bc8	CST_UG_PRICE_UGX	NUMBER		2	1	Local Uganda unit price in UGX	1

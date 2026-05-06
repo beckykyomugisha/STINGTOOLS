@@ -1,4 +1,4 @@
-#SCHEMA_VERSION=5.4,CREATED=2026-03-16,UPDATED=2026-04-23,FAMILIES=142,ADDS=per_family_tier_variation+standards_cited+reuse_check,PREV=tier_1_to_10_rows+style_parameter_catalog_150_params,SYNC=LABEL_DEFINITIONS.json_v5.9(138_categories)+PARAMETER_REGISTRY.json_extended_params.tier_4_10(33_entries),VARIANT=DesignConstruction
+#SCHEMA_VERSION=5.5,CREATED=2026-03-16,UPDATED=2026-05-06,FAMILIES=149,ADDS=phase_176_lps_foundation_earth_structural_reuse(BS_EN_62305-3_Annex_E.5.3),PREV=per_family_tier_variation+standards_cited+reuse_check,SYNC=LABEL_DEFINITIONS.json_v6.0(149_categories)+PARAMETER_REGISTRY.json_extended_params.tier_4_10(33_entries)+ELC_LPS_GROUP(7_containers),VARIANT=DesignConstruction
 #
 # SCHEMA v5.2 (2026-04-16) — Added 3 trailing columns: Style,Color,Size
 #   Style  : NOM | BOLD | ITALIC | BOLDITALIC               (default per tier: T1=NOM, T2=NOM, T3=NOM)
@@ -1094,3 +1094,30 @@ TAG7: SHT_TAG_7_TXT  •  Category: Sheets — Structural discipline
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_SHT_NAMING_STR,Sheet name does not match ISO 19650 naming convention for structural drawings,ISO 19650-2 / BS EN ISO 7200,Common,Text,⚠ Warning: Sheet Naming Convention,"if(TAG_WARN_VISIBLE_BOOL, WARN_SHT_NAMING_STR, """")"
+
+Tag Family #22: STING - LPS Foundation Earth (Structural Reuse) Tag
+# Category: Structural Foundations, Structural Rebar, Structural Area Reinforcement, Structural Path Reinforcement, Structural Fabric Reinforcement | PROD: EFE | SYS: LPS | FUNC: EE | DISC: S
+# Cross-discipline integration — structural foundation rebar reused as BS EN 62305-3 Type B foundation earth (Annex E.5.3).
+# DC variant: T4-T10 use Design intent / Performance / Material / Installation / Coordination / Warranty / Classification.
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Structural Foundations / Rebar
+
+★ TIER 1 — COMPACT (always visible)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ELC_LPS_EARTH_TAG_TXT,,,0,✓,---,---,---,Add directly,BOLD,BLUE,2.5,None,None
+
+★ TIER 2 — TECHNICAL (gated by TAG_PARA_STATE_2_BOOL)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T2,ELC_LPS_EARTH_TYPE_TXT,Type:,,0,✓,Common,Text,Earth Electrode Type (FOUNDATION),"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_EARTH_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
+2,T2,ELC_LPS_CLASS_TXT,Class:,,0,✓,Common,Text,LPS Class,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_CLASS_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ELC_LPS_EARTH_RESISTANCE_OHM,R:,Ω,0,✓,Common,Text,Earth Resistance,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_EARTH_RESISTANCE_OHM, """")",NOM,BLACK,2.0,None,None
+4,T2,ELC_LPS_TEST_DATE_TXT,Tested:,,0,✓,Common,Text,Last Test Date,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_TEST_DATE_TXT, """")",NOM,BLACK,2.0,None,None
+
+★ TIER 3 — FULL SPECIFICATION (gated by TAG_PARA_STATE_3_BOOL)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T3,ELC_LPS_BOND_TYPE_TXT,Bond:,,0,✓,Common,Text,Bonding Method to Steel,"if(TAG_PARA_STATE_3_BOOL, ELC_LPS_BOND_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
+2,T3,ELC_LPS_CERT_REF_TXT,Cert:,,0,✓,Common,Text,Continuity Certificate,"if(TAG_PARA_STATE_3_BOOL, ELC_LPS_CERT_REF_TXT, """")",NOM,BLACK,2.0,None,None
+
+⚠ WARNING PARAMETERS — add after all Tier rows
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_ELC_LPS_EARTH_RESISTANCE_HIGH,Foundation earth resistance > 10 ohm — supplement with Type-A rod electrodes,BS EN 62305-3:2011 §5.4.1 + Annex E.5.3,Common,Text,⚠ Warning: Foundation Earth Resistance High,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_EARTH_RESISTANCE_HIGH, """")"
+2,HIGH,WARN_ELC_LPS_NO_BONDING,Rebar-to-LPS bonding method not specified — continuity is not guaranteed without welded / clamped bonds,BS EN 62305-3:2011 Annex E.5.3,Common,Text,⚠ Warning: No Rebar-LPS Bond,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_BONDING, """")"

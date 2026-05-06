@@ -502,6 +502,36 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="TI Status: CONNECTED" Tag="SetTieInConnected" Click="Cmd_Click" ToolTip="Set ASS_TIEIN_STATUS_TXT = CONNECTED + ASS_TIEIN_CONNECTED_BOOL = Yes"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="TI Register" Tag="ExportTieInRegister" Click="Cmd_Click" ToolTip="Export all tie-in points to CSV register (ref, system, size, elev, status, IFC ref)"/>
                                 </WrapPanel>
+                                <!-- LIGHTNING PROTECTION (LPS) TAGS — Phase 176 / BS EN 62305 -->
+                                <TextBlock Style="{StaticResource SubLabel}" Text="LPS TAGS (BS EN 62305)" Margin="0,6,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="⊕ Air Terminal" Tag="PlaceLpsTagAirTerm" Click="Cmd_Click" ToolTip="Place LPS Air Terminal tag on selection (Family #54 — BS EN 62305-3 §5.2). Stamps ELC_LPS_AIRTERM_TAG_TXT and seeds class/LPZ if blank."/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="⊕ Down Conductor" Tag="PlaceLpsTagDownCond" Click="Cmd_Click" ToolTip="Place LPS Down Conductor tag on selection (Family #55 — BS EN 62305-3 §5.3)"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="⊕ Earth Electrode" Tag="PlaceLpsTagEarth" Click="Cmd_Click" ToolTip="Place LPS Earth Electrode tag on selection (Family #56 — BS EN 62305-3 §5.4). Includes structural rebar reused as Type-B foundation earth (STR Tag #22)."/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="⊕ Bond" Tag="PlaceLpsTagBond" Click="Cmd_Click" ToolTip="Place LPS Equipotential Bond tag on selection (Family #57 — BS EN 62305-3 §6.2)"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,2,0,0">
+                                    <Button Style="{StaticResource BlueBtn}" Content="⊕ SPD" Tag="PlaceLpsTagSpd" Click="Cmd_Click" ToolTip="Place LPS Surge Protective Device tag on selection (Family #58 — BS EN 62305-4 / BS EN 61643)"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="⊕ Test Clamp" Tag="PlaceLpsTagTestClamp" Click="Cmd_Click" ToolTip="Place LPS Test Clamp / Inspection Point tag on selection (Family #59 — BS EN 62305-3 §7.2)"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="⊕ Natural AT" Tag="PlaceLpsTagNaturalAT" Click="Cmd_Click" ToolTip="Place LPS Natural Air Termination tag on architectural elements (ARCH Tag #36 — metal roof / parapet / coping per BS EN 62305-3 §5.2.5)"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource ActionBtn}" Content="Class I" Tag="SetLpsClassI" Click="Cmd_Click" ToolTip="Set ELC_LPS_CLASS_TXT = I on selection (highest protection — rolling sphere r=20 m, mesh 5×5 m, min 4 down conductors)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Class II" Tag="SetLpsClassII" Click="Cmd_Click" ToolTip="Set ELC_LPS_CLASS_TXT = II (rolling sphere r=30 m, mesh 10×10 m, min 3 down conductors)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Class III" Tag="SetLpsClassIII" Click="Cmd_Click" ToolTip="Set ELC_LPS_CLASS_TXT = III (rolling sphere r=45 m, mesh 15×15 m, min 2 down conductors)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Class IV" Tag="SetLpsClassIV" Click="Cmd_Click" ToolTip="Set ELC_LPS_CLASS_TXT = IV (rolling sphere r=60 m, mesh 20×20 m, min 2 down conductors)"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,2,0,0">
+                                    <Button Style="{StaticResource ActionBtn}" Content="LPZ 0A" Tag="SetLpz0A" Click="Cmd_Click" ToolTip="Set ELC_LPS_ZONE_TXT = LPZ0A — exposed to direct strike + full lightning EM field (BS EN 62305-4)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="LPZ 0B" Tag="SetLpz0B" Click="Cmd_Click" ToolTip="Set LPZ0B — protected from direct strike, full EM field"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="LPZ 1" Tag="SetLpz1" Click="Cmd_Click" ToolTip="Set LPZ1 — first interior zone, attenuated current and EM field"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="LPZ 2" Tag="SetLpz2" Click="Cmd_Click" ToolTip="Set LPZ2 — further attenuation by SPD coordination"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="LPZ 3" Tag="SetLpz3" Click="Cmd_Click" ToolTip="Set LPZ3 — innermost equipment-protection zone"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource OrangeBtn}" Content="🛡 Validate LPS" Tag="ValidateLpsSelection" Click="Cmd_Click" ToolTip="Re-run BS EN 62305 validator (LpsValidator.EvaluateAndWrite) on selection — populates WARN_ELC_LPS_* params and rolls up ELC_LPS_COMPLIANCE_STATUS_TXT (PASS / WARN / FAIL)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="LPS Register" Tag="ExportLpsRegister" Click="Cmd_Click" ToolTip="Export all LPS elements to CSV register (tag, kind, class, LPZ, R Ω, conductor mm², down conductor count, last test, compliance verdict, BS EN 62305 standard ref)"/>
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
 

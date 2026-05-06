@@ -433,6 +433,11 @@
           "description": "Data, security, CCTV, access control, AV, telecoms."
         },
         {
+          "code": "LPS",
+          "label": "Lightning Protection System (BS EN 62305)",
+          "description": "Air terminals, down conductors, earth electrodes, equipotential bonds, surge protective devices and test clamps. Sub-functions AT/DC/EE/BOND/SPD/TC are family-name resolved."
+        },
+        {
           "code": "G",
           "label": "General / Non-Disciplinary",
           "description": "Elements that don't fit a specific discipline; default fallback."

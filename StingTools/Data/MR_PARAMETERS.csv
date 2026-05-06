@@ -1,4 +1,4 @@
-# v5.7 | 20260425 | BIM Template mr_parameters — 2555 params (TXT/CSV alignment: +194 params synced from MR_PARAMETERS.txt)
+# v5.8 | 20260506 | BIM Template mr_parameters — 2583 params (+28: 11 SLD/Symbol/Match-line, 7 LPS containers, 10 LPS warnings — Phase 176 lightning protection tagging)
 Revit_Category,Parameter_Name,Parameter_GUID,Data_Type,Group_Name,Binding_Type,Description,Has_Formula,Formula,Input_Parameters,Discipline,User_Modifiable,Hide_When_No_Value
 Generic Models,ASS_CAT_TXT,f8fe813a-44e9-5e47-9109-921171dc53b6,TEXT,ASS_MNG,Type,Ass Cat Txt [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_CST_QUANTITY_NR,3c189e63-383c-5011-b7d9-873faed4e6c6,TEXT,ASS_MNG,Type,Ass Cst Quantity Nr [ISO 19650-3:2020],False,,,MULTI,1,0
@@ -2567,3 +2567,31 @@ Sheets,STING_SHEET_SEQUENCE_INT,a7c0b2e4-4d91-4a55-9c7e-aa0001000005,INTEGER,STI
 Project Information,HANDOVER_MODE_HANDOVER_BOOL,a8f3c1d2-4e56-7890-abcd-ef1234567801,YESNO,COMMISSIONING,Instance,Pattern selector — Handover / FM T4-T10 payload visible [STING Phase 165],False,,,MULTI,1,0
 Project Information,HANDOVER_MODE_DC_BOOL,a8f3c1d2-4e56-7890-abcd-ef1234567802,YESNO,COMMISSIONING,Instance,Pattern selector — Design & Construction T4-T10 payload visible [STING Phase 165],False,,,MULTI,1,0
 Project Information,HANDOVER_MODE_CUSTOM_BOOL,a8f3c1d2-4e56-7890-abcd-ef1234567803,YESNO,COMMISSIONING,Instance,Pattern selector — Custom (user-defined) T4-T10 payload visible [STING Phase 165],False,,,MULTI,1,0
+Generic Models,STING_SYMBOL_ID,a4b5c6d7-e8f9-4a0b-1c2d-3e4f5a6b7c8d,TEXT,STING_DRAWING,Instance,Symbol library concept id stamped on placed instances [STING Phase 175],False,,,ELECTRICAL,1,0
+Generic Models,STING_SYMBOL_STANDARD,b5c6d7e8-f9a0-4b1c-2d3e-4f5a6b7c8d9e,TEXT,STING_DRAWING,Instance,Symbol standard variant — IEC 60617 / IEEE 315 / ISO 14617 [STING Phase 175],False,,,ELECTRICAL,1,0
+Generic Models,STING_HOST_ELEMENT_ID,c6d7e8f9-a0b1-4c2d-3e4f-5a6b7c8d9e0f,TEXT,STING_DRAWING,Instance,Element id of the host modelled element this symbol represents [STING Phase 175],False,,,ELECTRICAL,1,0
+Generic Models,STING_SYMBOL_LABEL_ID,d7e8f9a0-b1c2-4d3e-4f5a-6b7c8d9e0f1a,TEXT,STING_DRAWING,Instance,Stable id linking SLD label / annotation to its symbol family instance [STING Phase 175],False,,,ELECTRICAL,1,0
+Generic Models,STING_SYMBOL_OVERRIDE,e8f9a0b1-c2d3-4e4f-5a6b-7c8d9e0f1a2b,TEXT,STING_DRAWING,Instance,Project-level symbol override id [STING Phase 175],False,,,ELECTRICAL,1,0
+Views,STING_VIEW_SYMBOL_STANDARD,f9a0b1c2-d3e4-4f5a-6b7c-8d9e0f1a2b3c,TEXT,STING_DRAWING,Instance,Per-view symbol standard override — IEC / IEEE / ISO [STING Phase 175],False,,,ELECTRICAL,1,0
+Generic Models,STING_SLD_ELEMENT_ID,0a1b2c3d-4e5f-4a6b-7c8d-9e0f1a2b3c4d,TEXT,STING_DRAWING,Instance,Source modelled element id paired with this Single Line Diagram symbol [STING Phase 175],False,,,ELECTRICAL,1,0
+Project Information,STING_SYMBOL_LIBRARY_VERSION,1b2c3d4e-5f6a-4b7c-8d9e-0f1a2b3c4d5e,TEXT,STING_DRAWING,Instance,Symbol library version stamp (e.g. 2026.04 IEC) for change tracking [STING Phase 175],False,,,ELECTRICAL,1,0
+Detail Items,STING_MATCH_REF_TXT,a6b7c8d9-eafb-4acc-5d6e-7f8a9bacdbec,TEXT,STING_DRAWING,Instance,Paired sheet reference written on match-line + caption tags [STING Phase 168],False,,,MULTI,1,0
+Detail Items,STING_MATCH_LINE_GUID_TXT,a7b8c9da-fbac-4bcd-6e7f-8a9bacdbecfd,TEXT,STING_DRAWING,Instance,Stable match-line pair identifier [STING Phase 168],False,,,MULTI,1,0
+Detail Items,STING_MATCH_DIR_TXT,a8b9cadb-acbd-4cde-7f8a-9bacdbecfdae,TEXT,STING_DRAWING,Instance,Match-line direction encoding — VERTICAL / HORIZONTAL / DOGLEG [STING Phase 168],False,,,MULTI,1,0
+Electrical Equipment,ELC_LPS_AIRTERM_TAG_TXT,e1c5f9d4-1001-5111-9111-100000000001,TEXT,ELC_PWR,Instance,LPS air-terminal / finial full ISO 19650 tag [BS EN 62305-3 §5.2],False,,,ELECTRICAL,1,0
+Electrical Equipment,ELC_LPS_DOWNCOND_TAG_TXT,e1c5f9d4-1002-5111-9111-100000000002,TEXT,ELC_PWR,Instance,LPS down-conductor full tag [BS EN 62305-3 §5.3],False,,,ELECTRICAL,1,0
+Electrical Equipment,ELC_LPS_EARTH_TAG_TXT,e1c5f9d4-1003-5111-9111-100000000003,TEXT,ELC_PWR,Instance,LPS earth-electrode full tag [BS EN 62305-3 §5.4],False,,,ELECTRICAL,1,0
+Electrical Equipment,ELC_LPS_BOND_TAG_TXT,e1c5f9d4-1004-5111-9111-100000000004,TEXT,ELC_PWR,Instance,LPS equipotential bonding full tag [BS EN 62305-3 §6.2],False,,,ELECTRICAL,1,0
+Electrical Equipment,ELC_LPS_SPD_TAG_TXT,e1c5f9d4-1005-5111-9111-100000000005,TEXT,ELC_PWR,Instance,LPS surge protective device full tag [BS EN 62305-4 / BS EN 61643],False,,,ELECTRICAL,1,0
+Electrical Equipment,ELC_LPS_TESTCLAMP_TAG_TXT,e1c5f9d4-1006-5111-9111-100000000006,TEXT,ELC_PWR,Instance,LPS test clamp / inspection point full tag [BS EN 62305-3 §7.2],False,,,ELECTRICAL,1,0
+Electrical Equipment,ELC_TAG_7_PARA_LPS_TXT,e1c5f9d4-1007-5111-9111-100000000007,TEXT,ELC_PWR,Instance,Electrical TAG7 paragraph container for LPS narrative [STING Phase 176],False,,,ELECTRICAL,1,0
+Electrical Equipment,WARN_ELC_LPS_NO_CLASS,f1d6f0e5-2001-5222-9222-200000000001,TEXT,ELC_PWR,Instance,Warning: LPS class missing [BS EN 62305-1] [CRITICAL],False,,,ELECTRICAL,1,1
+Electrical Equipment,WARN_ELC_LPS_DOWN_COND_INSUFFICIENT,f1d6f0e5-2002-5222-9222-200000000002,TEXT,ELC_PWR,Instance,Warning: down-conductor count below class minimum [BS EN 62305-3 Tab 4] [HIGH],False,,,ELECTRICAL,1,1
+Electrical Equipment,WARN_ELC_LPS_EARTH_RESISTANCE_HIGH,f1d6f0e5-2003-5222-9222-200000000003,TEXT,ELC_PWR,Instance,Warning: earth resistance exceeds 10 ohm [BS EN 62305-3 §5.4.1] [HIGH],False,,,ELECTRICAL,1,1
+Electrical Equipment,WARN_ELC_LPS_NO_RISK_ASSESSMENT,f1d6f0e5-2004-5222-9222-200000000004,TEXT,ELC_PWR,Instance,Warning: risk assessment (R1..R4) not recorded [BS EN 62305-2] [HIGH],False,,,ELECTRICAL,1,1
+Electrical Equipment,WARN_ELC_LPS_SEPARATION_FAIL,f1d6f0e5-2005-5222-9222-200000000005,TEXT,ELC_PWR,Instance,Warning: separation distance below computed value [BS EN 62305-3 §6.3] [HIGH],False,,,ELECTRICAL,1,1
+Electrical Equipment,WARN_ELC_LPS_INSPECTION_OVERDUE,f1d6f0e5-2006-5222-9222-200000000006,TEXT,ELC_PWR,Instance,Warning: inspection interval exceeded [BS EN 62305-3 §E.7] [MEDIUM],False,,,ELECTRICAL,1,1
+Electrical Equipment,WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW,f1d6f0e5-2007-5222-9222-200000000007,TEXT,ELC_PWR,Instance,Warning: down-conductor cross-section below class minimum [BS EN 62305-3 Tab 6] [HIGH],False,,,ELECTRICAL,1,1
+Electrical Equipment,WARN_ELC_LPS_NO_BONDING,f1d6f0e5-2008-5222-9222-200000000008,TEXT,ELC_PWR,Instance,Warning: equipotential bonding type not specified [BS EN 62305-3 §6.2] [HIGH],False,,,ELECTRICAL,1,1
+Electrical Equipment,WARN_ELC_LPS_MESH_SIZE_EXCEEDED,f1d6f0e5-2009-5222-9222-200000000009,TEXT,ELC_PWR,Instance,Warning: air-termination mesh exceeds class limit [BS EN 62305-3 Tab 2] [HIGH],False,,,ELECTRICAL,1,1
+Electrical Equipment,WARN_ELC_LPS_NO_ZONE,f1d6f0e5-2010-5222-9222-200000000010,TEXT,ELC_PWR,Instance,Warning: LPZ (LPZ0A/LPZ0B/LPZ1/LPZ2/LPZ3) not assigned [BS EN 62305-4 §4.1] [MEDIUM],False,,,ELECTRICAL,1,1
