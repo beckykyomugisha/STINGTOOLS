@@ -4357,7 +4357,23 @@ namespace StingTools.Core
                 // Electrical Equipment (SPDs, test clamps), Generic Models (rods, mesh, ring earth),
                 // Conduits / Conduit Fittings (down-conductor channels), or Specialty Equipment.
                 // Family-name discrimination in GetFamilyAwareProdCode picks the correct LPS sub-tag.
-                { "LPS", new List<string> { "Electrical Equipment", "Generic Models", "Conduits", "Conduit Fittings", "Specialty Equipment" } },
+                // Phase 176 cross-discipline integration:
+                //   - Structural Foundations / Rebar / Reinforcement reused as Type-B foundation earth
+                //     (BS EN 62305-3 Annex E.5.3) → STR Tag #22 STING - LPS Foundation Earth Tag
+                //   - Roofs / Walls / Curtain Wall / Wall Sweeps / Fascia / Gutter / Roof Soffits acting
+                //     as natural air termination (BS EN 62305-3 §5.2.5) → ARCH Tag #36 STING - LPS Natural
+                //     Air Termination Tag
+                //   - Detail Items used for LPS schematic / installation details → GEN Tag #34 STING - LPS
+                //     Generic Component Tag (catch-all)
+                { "LPS", new List<string>
+                    {
+                        // Electrical / generic LPS modelling
+                        "Electrical Equipment", "Generic Models", "Conduits", "Conduit Fittings", "Specialty Equipment", "Detail Items",
+                        // Structural reuse — Type-B foundation earth (BS EN 62305-3 Annex E.5.3)
+                        "Structural Foundations", "Structural Rebar", "Structural Area Reinforcement", "Structural Path Reinforcement", "Structural Fabric Reinforcement",
+                        // Architectural reuse — natural air termination (BS EN 62305-3 §5.2.5)
+                        "Roofs", "Walls", "Curtain Wall Mullions", "Wall Sweeps", "Fascia", "Gutter", "Roof Soffits"
+                    } },
                 { "FLS", new List<string> { "Fire Alarm Devices", "Fire Protection" } },
                 { "COM", new List<string> { "Communication Devices", "Telephone Devices", "Audio Visual Devices" } },
                 { "ICT", new List<string> { "Data Devices" } },

@@ -1,4 +1,4 @@
-#SCHEMA_VERSION=5.4,CREATED=2026-03-16,UPDATED=2026-04-23,FAMILIES=142,ADDS=per_family_tier_variation+standards_cited+reuse_check,PREV=tier_1_to_10_rows+style_parameter_catalog_150_params,SYNC=LABEL_DEFINITIONS.json_v5.9(138_categories)+PARAMETER_REGISTRY.json_extended_params.tier_4_10(33_entries)
+#SCHEMA_VERSION=5.5,CREATED=2026-03-16,UPDATED=2026-05-06,FAMILIES=150,ADDS=phase_176_lps_natural_air_termination_arch_reuse(BS_EN_62305-3_§5.2.5),PREV=per_family_tier_variation+standards_cited+reuse_check,SYNC=LABEL_DEFINITIONS.json_v6.0(150_categories)+PARAMETER_REGISTRY.json_extended_params.tier_4_10(33_entries)+ELC_LPS_GROUP(7_containers)
 #
 # SCHEMA v5.2 (2026-04-16) — Added 3 trailing columns: Style,Color,Size
 #   Style  : NOM | BOLD | ITALIC | BOLDITALIC               (default per tier: T1=NOM, T2=NOM, T3=NOM)
@@ -1678,3 +1678,31 @@ TAG7: ARCH_TAG_7_PARA_COLUMNS_TXT  •  Category: Columns — Architectural disc
 1,CRITICAL,WARN_PER_FIRE_RATING_HR_ARCH_COLUMNS,Fire rating < 1.0 hr for architectural column,Building Regs Part B / BS 9999 Table 10,Common,Text,⚠ Warning: Column Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_ARCH_COLUMNS, """")"
 2,CRITICAL,WARN_BLE_COLUMN_SLENDERNESS,Column slenderness ratio exceeds limit,BS EN 1992-1-1 / EC2 5.8.3,Common,Text,⚠ Warning: Column Slenderness,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_COLUMN_SLENDERNESS, """")"
 3,MEDIUM,WARN_PER_EMBODIED_CARBON_KG_CO2_M2_ARCH,Carbon > 500 kgCO₂/m² for architectural element,RIBA 2030 Climate Challenge,Common,Text,⚠ Warning: Embodied Carbon,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_EMBODIED_CARBON_KG_CO2_M2_ARCH, """")"
+
+Tag Family #36: STING - LPS Natural Air Termination (Architectural Reuse) Tag
+# Category: Roofs, Walls, Wall Sweeps, Curtain Wall Mullions, Fascia, Gutter, Roof Soffits | PROD: ATR (Air Terminal — Natural) | SYS: LPS | FUNC: AT | DISC: A
+# Cross-discipline integration: metal roof / parapet / coping / metallic facade element acting as a BS EN 62305-3 §5.2.5 natural air-termination component.
+# Architects own the geometry but the LPS designer needs the element tagged with class + thickness + bond strategy so the air-termination network drawing is complete.
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Roofs / Walls / Curtain Wall
+
+★ TIER 1 — COMPACT (always visible)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ELC_LPS_AIRTERM_TAG_TXT,,,0,✓,---,---,---,Add directly,BOLD,BLUE,2.5,None,None
+
+★ TIER 2 — TECHNICAL (gated by TAG_PARA_STATE_2_BOOL)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T2,ELC_LPS_CLASS_TXT,Class:,,0,✓,Common,Text,LPS Class,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_CLASS_TXT, """")",NOM,BLACK,2.0,None,None
+2,T2,ELC_LPS_ZONE_TXT,LPZ:,,0,✓,Common,Text,Lightning Zone,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_ZONE_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ELC_LPS_CONDUCTOR_MATERIAL_TXT,Mat:,,0,✓,Common,Text,Sheet Material (Cu/Al/Steel/Zn/SS),"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_CONDUCTOR_MATERIAL_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,ELC_LPS_CONDUCTOR_CROSS_SECT_MM2,t:,mm,0,✓,Common,Text,Sheet Thickness (BS EN 62305-3 Tab 3),"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_CONDUCTOR_CROSS_SECT_MM2, """")",NOM,BLACK,2.0,None,None
+
+★ TIER 3 — FULL SPECIFICATION (gated by TAG_PARA_STATE_3_BOOL)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T3,ELC_LPS_BOND_TYPE_TXT,Bond:,,0,✓,Common,Text,Bonding Method to LPS Network,"if(TAG_PARA_STATE_3_BOOL, ELC_LPS_BOND_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
+2,T3,ELC_LPS_RISK_ASSESSMENT_TXT,Risk:,,0,✓,Common,Text,Risk Assessment Ref,"if(TAG_PARA_STATE_3_BOOL, ELC_LPS_RISK_ASSESSMENT_TXT, """")",NOM,BLACK,2.0,None,None
+
+⚠ WARNING PARAMETERS — add after all Tier rows
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW,Sheet thickness below natural-component minimum (BS EN 62305-3 Tab 3 — typ. 0.5 mm Cu / 0.7 mm Al / 4 mm Steel for puncture resistance),BS EN 62305-3:2011 Tab 3,Common,Text,⚠ Warning: Sheet Thickness Below Min,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW, """")"
+2,HIGH,WARN_ELC_LPS_NO_BONDING,Bonding method to LPS network not specified — natural component is non-functional without continuity,BS EN 62305-3:2011 §5.2.5,Common,Text,⚠ Warning: No Bond to LPS Network,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_BONDING, """")"
+3,CRITICAL,WARN_ELC_LPS_NO_CLASS,LPS class not assigned — required to verify natural-component thickness vs BS EN 62305-3 Tab 3,BS EN 62305-1:2011 §8,Common,Text,⚠ Warning: No LPS Class,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_CLASS, """")"
