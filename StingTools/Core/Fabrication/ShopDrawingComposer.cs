@@ -145,13 +145,26 @@ namespace StingTools.Core.Fabrication
             // annotation via IsoSymbolPlacer; we only want the
             // presentation pass (scale, detail level, view template,
             // crop, style pack).
-            var viewIdsToPresent = new[] {
-                views.View3D, views.ViewPlan, views.ViewIso6412,
-                views.Elevation0, views.Elevation90, views.ElevationTop };
+            // Map each fabrication view to the DrawingSlot that hosts it
+            // so per-slot Scale / DetailLevel / ViewTemplate overrides
+            // declared in the editor can land on the right view. Detail
+                // callout slots (e.g. 1:20) can sit on the same sheet as the
+                // 1:50 spool overview without the author having to clone the
+                // whole DrawingType.
+            var viewSlotMap = new (ElementId ViewId, string SlotLabel)[]
+            {
+                (views.ViewPlan,    "Plan"),
+                (views.View3D,      "3D"),
+                (views.ViewIso6412, "ISO"),
+                (views.Elevation0,  "Elev0"),
+                (views.Elevation90, "Elev90"),
+                (views.ElevationTop,"ElevTop"),
+            };
+            var viewIdsToPresent = viewSlotMap.Select(t => t.ViewId).ToArray();
 
             if (drawingType != null)
             {
-                foreach (var viewId in viewIdsToPresent)
+                foreach (var (viewId, slotLabel) in viewSlotMap)
                 {
                     if (viewId == null || viewId == ElementId.InvalidElementId) continue;
                     try
@@ -162,6 +175,16 @@ namespace StingTools.Core.Fabrication
                                 .Apply(doc, v, drawingType, runAnnotation: false);
                             foreach (var w in apply.Warnings)
                                 result.Warnings.Add($"Apply view {viewId.Value}: {w}");
+
+                            // Layer per-slot overrides on top of DrawingType
+                            // defaults — finer scale on detail slots, fine
+                            // detail level on the ISO callout, etc.
+                            var slot = ResolveSlot(drawingType, slotLabel);
+                            if (slot != null)
+                            {
+                                StingTools.Core.Drawing.DrawingTypePresentation
+                                    .ApplySlotOverrides(doc, v, slot, apply);
+                            }
                         }
                     }
                     catch (Exception ex)
@@ -442,6 +465,28 @@ namespace StingTools.Core.Fabrication
                 return p?.StorageType == StorageType.String ? (p.AsString() ?? "") : "";
             }
             catch { return ""; }
+        }
+
+        /// <summary>
+        /// Resolve the DrawingSlot whose Label matches the supplied
+        /// fabrication-view tag (Plan / 3D / ISO / Elev0 / Elev90 /
+        /// ElevTop). Match is case-insensitive and tolerates the legacy
+        /// uppercase forms ("PLAN" / "ELEV0") used in the slot
+        /// catalogues. Returns null when the profile authors didn't
+        /// declare a corresponding slot.
+        /// </summary>
+        private static StingTools.Core.Drawing.DrawingSlot ResolveSlot(
+            StingTools.Core.Drawing.DrawingType dt, string slotLabel)
+        {
+            if (dt?.Slots == null || dt.Slots.Count == 0) return null;
+            if (string.IsNullOrEmpty(slotLabel)) return null;
+            foreach (var s in dt.Slots)
+            {
+                if (s == null || string.IsNullOrEmpty(s.Label)) continue;
+                if (string.Equals(s.Label, slotLabel, StringComparison.OrdinalIgnoreCase))
+                    return s;
+            }
+            return null;
         }
 
         /// <summary>

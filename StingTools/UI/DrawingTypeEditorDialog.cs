@@ -68,7 +68,7 @@ namespace StingTools.UI
         // so the column edges line up pixel-for-pixel regardless of the
         // dialog width.
         // [Label, ViewType, NormX, NormY, NormW, NormH, Scale, ×]
-        private static readonly int[] _slotColWidths = { 100, 110, 60, 60, 60, 60, 60, 24 };
+        private static readonly int[] _slotColWidths = { 100, 110, 50, 50, 50, 50, 60, 75, 24 };
 
         // ── Static vocabularies (Change 3 / 4 / 6) ────────────────────
         // Union with ProjectAssetPicker.* live readers at runtime so the
@@ -2464,7 +2464,7 @@ namespace StingTools.UI
             var g = new Grid { Margin = new Thickness(0, 0, 0, 2) };
             for (int c = 0; c < _slotColWidths.Length; c++)
                 g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(_slotColWidths[c]) });
-            string[] headers = { "Label", "ViewType", "X", "Y", "W", "H", "Scale", "" };
+            string[] headers = { "Label", "ViewType", "X", "Y", "W", "H", "Scale", "Detail", "" };
             for (int i = 0; i < headers.Length; i++)
             {
                 var t = new TextBlock {
@@ -2520,10 +2520,19 @@ namespace StingTools.UI
             var tbH  = SmallTb(slot.NormH.ToString("F2"), v => slot.NormH = Parse(v));
             var tbSc = SmallTb(slot.Scale?.ToString() ?? "", v =>
                 slot.Scale = int.TryParse(v, out var n) ? (int?)n : null);
+            tbSc.ToolTip = "Per-slot 1:N override (blank = use DrawingType.Scale). " +
+                "Use a finer scale (e.g. 1:20) on detail slots so dimensions stay readable.";
+            // Per-slot detail level — empty defers to DrawingType.DetailLevel;
+            // letting authors set Fine on a 1:20 detail slot while leaving the
+            // overall spool layout at Medium.
+            var tbDl = SmallCombo(string.IsNullOrEmpty(slot.DetailLevel) ? "" : slot.DetailLevel,
+                v => slot.DetailLevel = string.IsNullOrEmpty(v) ? null : v,
+                new[] { "", "Coarse", "Medium", "Fine" });
+            tbDl.ToolTip = "Per-slot detail level (blank = use DrawingType.DetailLevel).";
             var rm   = MakeSmallBtn("×", () => { _current.Slots.Remove(slot); onChange?.Invoke(); });
             rm.Width = 22;
 
-            var ctrls = new UIElement[] { tbLbl, tbVt, tbX, tbY, tbW, tbH, tbSc, rm };
+            var ctrls = new UIElement[] { tbLbl, tbVt, tbX, tbY, tbW, tbH, tbSc, tbDl, rm };
             for (int i = 0; i < ctrls.Length; i++)
             {
                 Grid.SetColumn(ctrls[i], i);

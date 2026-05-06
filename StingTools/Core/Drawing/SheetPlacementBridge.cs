@@ -85,6 +85,25 @@ namespace StingTools.Core.Drawing
                         var ol = sheet.Outline;
                         pt = ol != null ? new XYZ((ol.Min.U + ol.Max.U) / 2.0, (ol.Min.V + ol.Max.V) / 2.0, 0) : XYZ.Zero;
                     }
+
+                    // Per-slot Scale / DetailLevel / ViewTemplate overrides
+                    // declared in the editor land on the view before it is
+                    // placed, so a 1:20 detail slot can sit next to a 1:50
+                    // overview on the same sheet.
+                    DrawingSlot slot = null;
+                    if (dt.Slots != null && i >= 0 && i < dt.Slots.Count) slot = dt.Slots[i];
+                    if (slot != null && doc.GetElement(viewIds[i]) is View v)
+                    {
+                        try
+                        {
+                            DrawingTypePresentation.ApplySlotOverrides(doc, v, slot, null);
+                        }
+                        catch (Exception ex)
+                        {
+                            pr.Warnings.Add($"Slot overrides[{i}]: {ex.Message}");
+                        }
+                    }
+
                     var vp = Viewport.Create(doc, sheet.Id, viewIds[i], pt);
                     if (vp != null)
                     {

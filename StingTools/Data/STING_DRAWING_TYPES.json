@@ -1462,7 +1462,9 @@
           "normX": 0.55,
           "normY": 0.55,
           "normW": 0.4,
-          "normH": 0.4
+          "normH": 0.4,
+          "scale": 25,
+          "detailLevel": "Fine"
         },
         {
           "label": "Elev0",
@@ -1470,7 +1472,9 @@
           "normX": 0.05,
           "normY": 0.1,
           "normW": 0.28,
-          "normH": 0.4
+          "normH": 0.4,
+          "scale": 20,
+          "detailLevel": "Fine"
         },
         {
           "label": "Elev90",
@@ -1478,7 +1482,9 @@
           "normX": 0.36,
           "normY": 0.1,
           "normW": 0.28,
-          "normH": 0.4
+          "normH": 0.4,
+          "scale": 20,
+          "detailLevel": "Fine"
         },
         {
           "label": "3D",
@@ -1624,7 +1630,9 @@
           "normX": 0.55,
           "normY": 0.55,
           "normW": 0.4,
-          "normH": 0.4
+          "normH": 0.4,
+          "scale": 25,
+          "detailLevel": "Fine"
         },
         {
           "label": "Elev0",
@@ -1632,7 +1640,9 @@
           "normX": 0.05,
           "normY": 0.1,
           "normW": 0.28,
-          "normH": 0.4
+          "normH": 0.4,
+          "scale": 20,
+          "detailLevel": "Fine"
         },
         {
           "label": "Elev90",
@@ -1640,7 +1650,9 @@
           "normX": 0.36,
           "normY": 0.1,
           "normW": 0.28,
-          "normH": 0.4
+          "normH": 0.4,
+          "scale": 20,
+          "detailLevel": "Fine"
         },
         {
           "label": "3D",

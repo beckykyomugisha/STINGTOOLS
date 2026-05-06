@@ -275,6 +275,74 @@ namespace StingTools.Core.Drawing
                 }
             });
 
+        /// <summary>
+        /// Apply per-slot overrides on top of the DrawingType defaults that
+        /// already landed via <see cref="Apply(Document,View,DrawingType,ApplyOptions)"/>.
+        /// Slots can specify a different scale, detail level or view template
+        /// — used by fabrication so a 1:20 detail callout slot can sit next
+        /// to a 1:50 spool overview on the same sheet.
+        /// </summary>
+        public static void ApplySlotOverrides(Document doc, View view, DrawingSlot slot, ApplyResult result)
+        {
+            if (doc == null || view == null || slot == null) return;
+            if (view.IsTemplate) return;
+            if (DrawingTypeStamper.IsLocked(view)) return;
+
+            if (slot.Scale.HasValue && slot.Scale.Value > 0)
+            {
+                try
+                {
+                    view.Scale = slot.Scale.Value;
+                    if (result != null) result.ScaleApplied = true;
+                }
+                catch (Exception ex)
+                {
+                    result?.Warnings.Add($"Slot scale 1:{slot.Scale.Value} on {view.Id}: {ex.Message}");
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(slot.DetailLevel))
+            {
+                try
+                {
+                    ViewDetailLevel parsed;
+                    switch (slot.DetailLevel.Trim().ToLowerInvariant())
+                    {
+                        case "coarse": parsed = ViewDetailLevel.Coarse; break;
+                        case "fine":   parsed = ViewDetailLevel.Fine;   break;
+                        default:       parsed = ViewDetailLevel.Medium; break;
+                    }
+                    view.DetailLevel = parsed;
+                    if (result != null) result.DetailLevelApplied = true;
+                }
+                catch (Exception ex)
+                {
+                    result?.Warnings.Add($"Slot DetailLevel {slot.DetailLevel}: {ex.Message}");
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(slot.ViewTemplate))
+            {
+                try
+                {
+                    var tplId = ResolveViewTemplate(doc, slot.ViewTemplate);
+                    if (tplId != ElementId.InvalidElementId)
+                    {
+                        view.ViewTemplateId = tplId;
+                        if (result != null) result.TemplateApplied = true;
+                    }
+                    else
+                    {
+                        result?.Warnings.Add($"Slot ViewTemplate '{slot.ViewTemplate}' not found.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    result?.Warnings.Add($"Slot ViewTemplate: {ex.Message}");
+                }
+            }
+        }
+
         public static ApplyResult Apply(Document doc, View view, DrawingType dt, ApplyOptions options)
         {
             var r = new ApplyResult();
