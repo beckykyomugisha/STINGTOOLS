@@ -142,8 +142,7 @@ namespace StingTools.Core.Calc
         private static string SlopeAsRatio(double pct)
         {
             if (pct <= 0) return "level";
-            double rise = 1.0;
-            double run  = 100.0 / pct;
+            double run = 100.0 / pct;
             return $"1:{run:F0}";
         }
     }

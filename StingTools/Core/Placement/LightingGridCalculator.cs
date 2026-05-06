@@ -137,7 +137,7 @@ namespace StingTools.Core.Placement
                 if (rule.StructuralFixingCheck) CheckStructuralFixing(room, r, rule);
                 CheckSprinklerSeparation(room, r);   // Phase 139.3 — BS 5306 ≥600mm
                 EnforceMinSpacing(r, rule);          // Phase 139.6 LX-1 — drop points violating MinSpacingMm
-                ComputeUniformityRatio(room, r);
+                ComputeUniformityRatio(room, r, rule);
             }
 
             return r;
@@ -603,7 +603,7 @@ namespace StingTools.Core.Placement
             catch (Exception ex) { StingLog.Warn($"LightingGridCalculator.EnforceMinSpacing: {ex.Message}"); }
         }
 
-        private void ComputeUniformityRatio(Room room, LightingGridResult r)
+        private void ComputeUniformityRatio(Room room, LightingGridResult r, PlacementRule rule)
         {
             try
             {
