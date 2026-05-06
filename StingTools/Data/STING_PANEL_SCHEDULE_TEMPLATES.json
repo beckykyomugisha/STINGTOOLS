@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "_comment": "STING panel schedule template selection rules. Maps Revit PanelConfiguration + panel attributes to a named PanelScheduleTemplate already present in the host project. The Revit API does NOT allow programmatic editing of the template structure (column order, headers, formulas) — this file only chooses which existing template to apply on PanelScheduleView.CreateInstanceView. Override per project by dropping a panel_schedule_templates.json under <project>/_BIM_COORD/.",
+  "_apiNotes": [
+    "PanelScheduleTemplate is project-scoped; templates must be authored via the Revit UI Panel Schedule Template Editor and transferred between projects via 'Transfer Project Standards' or 'Insert Views from File'. There is no public API to import a template from a file.",
+    "PanelScheduleSheetInstance.Create has been broken in Revit 2024/2025/2026 — the call returns no visible instance. STING does NOT attempt programmatic placement; the user drags created views onto sheets manually.",
+    "PanelConfiguration enum values: OneSection, TwoSectionsHorizontal, TwoSectionsVertical, ThreeSections, ThreeSectionsHorizontal."
+  ],
+  "rules": [
+    {
+      "_comment": "Switchboard / main distribution — wide template with utility, summary rows, multi-section support",
+      "namePatterns": ["MSB", "Main Switchboard", "Switchboard", "MDB", "Main Distribution", "LV Switchboard"],
+      "panelType": "Switchboard",
+      "templateName": "STING - Switchboard Schedule",
+      "fallbackTemplateNames": ["Switchboard", "Default Switchboard"],
+      "priority": 1
+    },
+    {
+      "_comment": "Sub-main / distribution boards — three-phase branch with summary + load classification",
+      "namePatterns": ["DB-", "SDB-", "Distribution Board", "Sub-Main", "TPN", "3PH"],
+      "panelType": "BranchPanelThreePhase",
+      "templateName": "STING - 3-Phase Distribution Board",
+      "fallbackTemplateNames": ["3-Phase Branch Panel", "Default Branch Panel"],
+      "priority": 2
+    },
+    {
+      "_comment": "Single-phase consumer units / final circuit boards",
+      "namePatterns": ["CU-", "Consumer Unit", "FCB-", "1PH", "SP&N"],
+      "panelType": "BranchPanelSinglePhase",
+      "templateName": "STING - Single-Phase Consumer Unit",
+      "fallbackTemplateNames": ["1-Phase Branch Panel", "Default Branch Panel"],
+      "priority": 3
+    },
+    {
+      "_comment": "Data / comms cabinets — communications panel layout (no breaker columns)",
+      "namePatterns": ["DATA-", "COMMS-", "RACK-", "PATCH-", "COMM PANEL"],
+      "panelType": "DataPanel",
+      "templateName": "STING - Data Comms Panel",
+      "fallbackTemplateNames": ["Data Panel", "Default Data Panel"],
+      "priority": 4
+    },
+    {
+      "_comment": "Catch-all branch panel rule — applies when no name pattern matches",
+      "namePatterns": [".*"],
+      "panelType": "BranchPanelThreePhase",
+      "templateName": "STING - 3-Phase Distribution Board",
+      "fallbackTemplateNames": ["3-Phase Branch Panel", "1-Phase Branch Panel", "Default Branch Panel"],
+      "priority": 999
+    }
+  ],
+  "globalFallback": {
+    "_comment": "If no rule matches AND none of the templates in matched rules exist, use the first PanelScheduleTemplate in the project as last-resort.",
+    "useFirstAvailableTemplate": true
+  },
+  "skipPatterns": {
+    "_comment": "Panel name patterns to skip entirely (e.g., spare panels, placeholders, future loads).",
+    "patterns": ["SPARE", "FUTURE", "PROVISION", "TBD", "PLACEHOLDER"]
+  }
+}
