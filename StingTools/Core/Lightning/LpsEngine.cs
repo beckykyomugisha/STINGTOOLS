@@ -137,6 +137,46 @@ namespace StingTools.Core.Lightning
         }
 
         /// <summary>
+        /// Down-conductor length in metres derived from the family bounding-box
+        /// Z-extent. Returns 3.0 m as a safe fallback when geometry is missing
+        /// or fails to evaluate. Replaces the duplicate per-command helpers.
+        /// </summary>
+        public static double GetConductorLengthM(FamilyInstance fi)
+        {
+            try
+            {
+                if (fi == null) { StingLog.Warn("GetConductorLengthM: fi was null — returning 3.0m fallback"); return 3.0; }
+                var bb = fi.get_BoundingBox(null);
+                if (bb == null) { StingLog.Warn($"GetConductorLengthM: no bbox on {fi.Id} — returning 3.0m fallback"); return 3.0; }
+                double zFt = bb.Max.Z - bb.Min.Z;
+                double zM = UnitUtils.ConvertFromInternalUnits(zFt, UnitTypeId.Meters);
+                if (zM <= 0.1)
+                {
+                    StingLog.Warn($"GetConductorLengthM: bbox Z too small ({zM:F3}m) on {fi.Id} — returning 3.0m fallback");
+                    return 3.0;
+                }
+                return zM;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"GetConductorLengthM: {ex.Message}");
+                return 3.0;
+            }
+        }
+
+        /// <summary>
+        /// kc factor per BS EN 62305-3 §6.3 — partitioning of lightning current
+        /// among parallel down conductors. Single conductor → 1.0. n conductors →
+        /// 1/n, floored at 0.1 to keep stamped separations meaningful even for
+        /// large parallel arrays.
+        /// </summary>
+        public static double ComputeKcFactor(int n)
+        {
+            if (n <= 1) return 1.0;
+            return Math.Max(1.0 / n, 0.1);
+        }
+
+        /// <summary>
         /// Separation distance s = (ki / km) * kc * l per BS EN 62305-3 §6.3.
         /// kc defaults to 1.0 for a single down conductor path. Returns
         /// millimetres; caller passes conductor length in metres.
@@ -214,6 +254,19 @@ namespace StingTools.Core.Lightning
 
                 if (!result.RequiresLps)
                     result.RecommendedClass = "NONE";
+
+                // Residual risk per class — R_residual = R1 × (1 − PE)
+                try
+                {
+                    foreach (var classDef in AllClasses())
+                    {
+                        double pe = classDef.ProtectionEfficiency;
+                        if (pe <= 0 || pe >= 1) continue;
+                        double residual = R1 * (1.0 - pe);
+                        result.ResidualRiskByClass[classDef.Id.ToUpperInvariant()] = residual;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Residual risk: {ex.Message}"); }
 
                 result.Notes = string.Format(
                     "Nd={0:F4} flashes/yr; R1={1:E2} vs Rt={2:E2}; recommended class {3}.",
@@ -418,6 +471,46 @@ namespace StingTools.Core.Lightning
                     Message = $"{rooms.Count - taggedRooms} of {rooms.Count} rooms have no LPZ assigned. Run Zone Tag Rooms." });
             }
 
+            // CHECK_8: Conductor cross-section -----------------------
+            if (downConductors.Count > 0)
+            {
+                var underId = new List<ElementId>();
+                var unsetId = new List<ElementId>();
+                int okCount = 0;
+                foreach (var dc in downConductors)
+                {
+                    string mat = ParameterHelpers.GetString(dc, "ELC_LPS_CONDUCTOR_MATERIAL_TXT");
+                    if (string.IsNullOrWhiteSpace(mat)) mat = "COPPER";
+                    double minMm2 = classDef.MinConductorCrossSectionMm2;
+                    if (classDef.MinConductorCrossSectionMm2ByMaterial != null &&
+                        classDef.MinConductorCrossSectionMm2ByMaterial.TryGetValue(mat.ToUpperInvariant(), out int matMin) &&
+                        matMin > 0)
+                    {
+                        minMm2 = matMin;
+                    }
+                    double cs = GetDoubleParam(dc, "ELC_LPS_CONDUCTOR_CROSS_SECT_MM2");
+                    if (cs <= 0) { unsetId.Add(dc.Id); continue; }
+                    if (cs < minMm2) underId.Add(dc.Id); else okCount++;
+                }
+                if (underId.Count > 0)
+                {
+                    items.Add(new LpsComplianceItem { Severity = LpsSeverity.Fail, CheckName = "CONDUCTOR_CROSS_SECTION",
+                        Message = $"{underId.Count} conductor(s) below class {classId} minimum cross-section (material-aware).",
+                        ElementIds = underId });
+                }
+                else if (unsetId.Count > 0)
+                {
+                    items.Add(new LpsComplianceItem { Severity = LpsSeverity.Warn, CheckName = "CONDUCTOR_CROSS_SECTION",
+                        Message = $"{unsetId.Count} conductor(s) missing ELC_LPS_CONDUCTOR_CROSS_SECT_MM2 — set per material spec.",
+                        ElementIds = unsetId });
+                }
+                else
+                {
+                    items.Add(new LpsComplianceItem { Severity = LpsSeverity.Pass, CheckName = "CONDUCTOR_CROSS_SECTION",
+                        Message = $"All {okCount} conductor(s) meet class {classId} minimum cross-section." });
+                }
+            }
+
             // CHECK_7: Inspection date freshness ----------------------
             string testDate = ParameterHelpers.GetString(prjInfo, "ELC_LPS_TEST_DATE_TXT");
             if (string.IsNullOrWhiteSpace(testDate))
@@ -447,16 +540,78 @@ namespace StingTools.Core.Lightning
 
         /// <summary>
         /// Collect FamilyInstances in OST_ElectricalEquipment + OST_GenericModel
-        /// whose family name contains any of the given substrings (case-insensitive).
-        /// Used to identify LPS components since Revit has no native LPS category.
+        /// using a two-pass strategy: (1) exact match against
+        /// <c>ELC_LPS_ELEMENT_TYPE_TXT</c> for any keyword that maps to a known
+        /// element-type tag (AIR_TERMINAL, DOWN_CONDUCTOR, EARTH_ELECTRODE,
+        /// BONDING_BAR, SPD); (2) fallback substring match against family/type
+        /// name. Results are de-duplicated by ElementId.
         /// </summary>
         public static List<FamilyInstance> CollectLpsFamily(Document doc, params string[] keywords)
         {
             var result = new List<FamilyInstance>();
             if (doc == null || keywords == null || keywords.Length == 0) return result;
 
+            // Map keyword sets to canonical element-type tags so the param-based
+            // pass can resolve the same logical group across legacy callers.
+            var typeTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var k in keywords)
+            {
+                if (string.IsNullOrEmpty(k)) continue;
+                if (k.IndexOf("Air Terminal", StringComparison.OrdinalIgnoreCase) >= 0
+                 || k.IndexOf("Air_Terminal", StringComparison.OrdinalIgnoreCase) >= 0
+                 || k.IndexOf("Franklin", StringComparison.OrdinalIgnoreCase) >= 0
+                 || k.Equals("AT", StringComparison.OrdinalIgnoreCase)
+                 || k.IndexOf("Air-Terminal", StringComparison.OrdinalIgnoreCase) >= 0)
+                    typeTags.Add("AIR_TERMINAL");
+                if (k.IndexOf("Down Conductor", StringComparison.OrdinalIgnoreCase) >= 0
+                 || k.IndexOf("Down_Conductor", StringComparison.OrdinalIgnoreCase) >= 0
+                 || k.IndexOf("DownConductor", StringComparison.OrdinalIgnoreCase) >= 0)
+                    typeTags.Add("DOWN_CONDUCTOR");
+                if (k.IndexOf("Earth", StringComparison.OrdinalIgnoreCase) >= 0
+                 || k.IndexOf("Ground Rod", StringComparison.OrdinalIgnoreCase) >= 0
+                 || k.IndexOf("GroundRod", StringComparison.OrdinalIgnoreCase) >= 0
+                 || k.IndexOf("Earth_Rod", StringComparison.OrdinalIgnoreCase) >= 0
+                 || k.IndexOf("Earth Electrode", StringComparison.OrdinalIgnoreCase) >= 0)
+                    typeTags.Add("EARTH_ELECTRODE");
+                if (k.IndexOf("Bonding", StringComparison.OrdinalIgnoreCase) >= 0
+                 || k.IndexOf("Bond Bar", StringComparison.OrdinalIgnoreCase) >= 0
+                 || k.IndexOf("BondingBar", StringComparison.OrdinalIgnoreCase) >= 0)
+                    typeTags.Add("BONDING_BAR");
+                if (k.IndexOf("SPD", StringComparison.OrdinalIgnoreCase) >= 0
+                 || k.IndexOf("Surge", StringComparison.OrdinalIgnoreCase) >= 0)
+                    typeTags.Add("SPD");
+            }
+
             var seen = new HashSet<ElementId>();
             BuiltInCategory[] cats = { BuiltInCategory.OST_ElectricalEquipment, BuiltInCategory.OST_GenericModel };
+
+            // Pass 1 — match by ELC_LPS_ELEMENT_TYPE_TXT exact value
+            if (typeTags.Count > 0)
+            {
+                foreach (var bic in cats)
+                {
+                    try
+                    {
+                        var collector = new FilteredElementCollector(doc)
+                            .OfCategory(bic)
+                            .WhereElementIsNotElementType()
+                            .Cast<FamilyInstance>();
+                        foreach (var fi in collector)
+                        {
+                            if (fi == null || seen.Contains(fi.Id)) continue;
+                            string et = ParameterHelpers.GetString(fi, "ELC_LPS_ELEMENT_TYPE_TXT");
+                            if (!string.IsNullOrWhiteSpace(et) && typeTags.Contains(et.Trim()))
+                            {
+                                seen.Add(fi.Id);
+                                result.Add(fi);
+                            }
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"CollectLpsFamily pass1 {bic}: {ex.Message}"); }
+                }
+            }
+
+            // Pass 2 — fallback substring match on family / type name
             foreach (var bic in cats)
             {
                 try
@@ -477,7 +632,7 @@ namespace StingTools.Core.Lightning
                         }
                     }
                 }
-                catch (Exception ex) { StingLog.Warn($"CollectLpsFamily {bic}: {ex.Message}"); }
+                catch (Exception ex) { StingLog.Warn($"CollectLpsFamily pass2 {bic}: {ex.Message}"); }
             }
             return result;
         }
@@ -514,8 +669,24 @@ namespace StingTools.Core.Lightning
                                     MinConductorCrossSectionMm2 = c["minConductorCrossSectionMm2"]?.Value<double>() ?? 50,
                                     InspectionIntervalMonths = c["inspectionIntervalMonths"]?.Value<int>() ?? 12,
                                     EarthResistanceTargetOhm = c["earthResistanceTargetOhm"]?.Value<double>() ?? 10.0,
-                                    KiFactor = c["kiFactor"]?.Value<double>() ?? 0.06
+                                    KiFactor = c["kiFactor"]?.Value<double>() ?? 0.06,
+                                    ProtectionEfficiency = c["protectionEfficiency"]?.Value<double>() ?? 0.95
                                 };
+                                // Per-material minimum cross-section (optional)
+                                var byMat = c["minConductorCrossSectionMm2ByMaterial"] as JObject;
+                                if (byMat != null)
+                                {
+                                    foreach (var kv in byMat)
+                                    {
+                                        try
+                                        {
+                                            int v = kv.Value?.Value<int>() ?? 0;
+                                            if (v > 0)
+                                                def.MinConductorCrossSectionMm2ByMaterial[kv.Key.ToUpperInvariant()] = v;
+                                        }
+                                        catch (Exception ex) { StingLog.Warn($"minConductorCrossSection map: {ex.Message}"); }
+                                    }
+                                }
                                 dict[def.Id.ToUpperInvariant()] = def;
                             }
                         }
@@ -600,9 +771,21 @@ namespace StingTools.Core.Lightning
         public double ProtectionAngleDeg60m { get; set; }
         public double DownConductorSpacingM { get; set; }
         public double MinConductorCrossSectionMm2 { get; set; }
+        /// <summary>
+        /// Optional per-material override of the minimum conductor cross-section
+        /// (mm²). Keys: COPPER / ALUMINIUM / STEEL. Falls back to
+        /// <see cref="MinConductorCrossSectionMm2"/> when the material is not listed.
+        /// </summary>
+        public Dictionary<string, int> MinConductorCrossSectionMm2ByMaterial { get; set; }
+            = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         public int InspectionIntervalMonths { get; set; }
         public double EarthResistanceTargetOhm { get; set; }
         public double KiFactor { get; set; }
+        /// <summary>
+        /// Protection efficiency PE per BS EN 62305-2 Table 6 — used for
+        /// residual risk (R1 × (1 − PE)). I=0.98, II=0.95, III=0.90, IV=0.80.
+        /// </summary>
+        public double ProtectionEfficiency { get; set; }
     }
 
     public class LpsRiskInput
@@ -636,6 +819,14 @@ namespace StingTools.Core.Lightning
         public double CollectionAreaM2 { get; set; }
         public double TolerableRisk { get; set; }
         public Dictionary<string, double> RiskComponents { get; } = new Dictionary<string, double>();
+        /// <summary>
+        /// Residual annual risk per LPS class after the protection efficiency
+        /// is applied: R_residual = R1 × (1 − PE). Keys are class IDs (I, II, III, IV).
+        /// Populated by RunRiskAssessment when class definitions expose
+        /// <see cref="LpsClassDef.ProtectionEfficiency"/>.
+        /// </summary>
+        public Dictionary<string, double> ResidualRiskByClass { get; }
+            = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
         public string Notes { get; set; }
     }
 

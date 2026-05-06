@@ -155,6 +155,20 @@ namespace StingTools.Core.Fabrication
 
         public const string PROJECT_NG_OVERRIDE_NR      = "ELC_LPS_PROJECT_NG_OVERRIDE_NR";
         public const string PROJECT_NG_OVERRIDE_NR_GUID = "d3e6fa05-9b7c-5e4d-b18d-5c6e7fad4321";
+
+        // kc factor — partitioning of lightning current among parallel down
+        // conductors per BS EN 62305-3 §6.3. Stamped on ProjectInformation
+        // when the LPS class is applied or recalculated.
+        // GUID = uuid5(a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a, "ELC_LPS_KC_FACTOR_NR")
+        public const string KC_FACTOR_NR                = "ELC_LPS_KC_FACTOR_NR";
+        public const string KC_FACTOR_NR_GUID           = "b1332559-0830-5d8f-8ac7-5f77a963cd94";
+
+        // Element type marker used by CollectLpsFamily pass-1. Allowed
+        // values: AIR_TERMINAL / DOWN_CONDUCTOR / EARTH_ELECTRODE /
+        // BONDING_BAR / SPD.
+        // GUID = uuid5(a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a, "ELC_LPS_ELEMENT_TYPE_TXT")
+        public const string ELEMENT_TYPE_TXT            = "ELC_LPS_ELEMENT_TYPE_TXT";
+        public const string ELEMENT_TYPE_TXT_GUID       = "75cd5268-c764-551b-872d-00b0b31308a6";
     }
 
     /// <summary>
