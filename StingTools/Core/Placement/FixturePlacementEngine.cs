@@ -513,6 +513,28 @@ namespace StingTools.Core.Placement
                         AuditCableBundleDerating(doc, ordered, result);
                     }
                     catch (Exception cx) { result.Warnings.Add($"Cable bundle audit: {cx.Message}"); }
+
+                    // Phase 139.30 (X-05) — door swing envelope vs switch
+                    // placement. Switches anchored at DOOR_HINGE_SIDE_*
+                    // can sit inside the door's swept arc; opening the
+                    // door hits the switch with the handle. Walks every
+                    // placed switch / electrical fixture and checks
+                    // against every door's swept envelope.
+                    try
+                    {
+                        AuditDoorSwingClearance(doc, ordered, result);
+                    }
+                    catch (Exception dx) { result.Warnings.Add($"Door swing audit: {dx.Message}"); }
+
+                    // Phase 139.30 (X-01) — circuit-aware electrical pass.
+                    // Groups placed sockets / electrical fixtures into
+                    // BS 7671 ring / radial circuits and stamps RCD
+                    // group + circuit ID per element.
+                    try
+                    {
+                        StingTools.Core.Calc.CircuitTopologyEngine.AssignCircuits(doc, result);
+                    }
+                    catch (Exception ex) { result.Warnings.Add($"Circuit topology: {ex.Message}"); }
                 }
 
                 if (!dryRun)
@@ -1904,6 +1926,152 @@ namespace StingTools.Core.Placement
                 return Math.Abs(sa - sb) < 1e-3;
             }
             catch { return true; }
+        }
+
+        /// <summary>
+        /// Phase 139.30 (X-05) — door swing envelope vs switch placement.
+        /// For every placed switch / socket / electrical fixture whose
+        /// rule's AnchorType starts with DOOR_, locate the nearest door
+        /// and check whether the placement falls inside the door's
+        /// swept arc (90° default). When a hit is found, surfaces a
+        /// per-instance warning with a re-anchor recommendation
+        /// (DOOR_LATCH_SIDE / DOOR_STRIKE_SIDE).
+        /// </summary>
+        private static void AuditDoorSwingClearance(
+            Document doc, IList<PlacementRule> rules, PlacementResult result)
+        {
+            if (doc == null || result == null || result.PlacedIds.Count == 0) return;
+
+            // Collect rules that placed switch-like fixtures near doors —
+            // these are the ones at risk.
+            var doorRiskRules = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (rules != null)
+            {
+                foreach (var r in rules)
+                {
+                    if (r == null) continue;
+                    string anchor = (r.AnchorType ?? "").ToUpperInvariant();
+                    if (anchor.StartsWith("DOOR_")
+                        || anchor == "WALL_MIDPOINT"
+                        || anchor == "WALL_FACE_OFFSET")
+                        doorRiskRules.Add(r.MergeKey);
+                }
+            }
+            if (doorRiskRules.Count == 0) return;
+
+            // Build a door index: location point + facing + width per door.
+            var doors = new List<DoorEnvelope>();
+            try
+            {
+                foreach (var el in new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_Doors)
+                    .WhereElementIsNotElementType())
+                {
+                    if (!(el is FamilyInstance fi)) continue;
+                    var loc = (fi.Location as LocationPoint)?.Point;
+                    if (loc == null) continue;
+                    XYZ facing = fi.FacingOrientation ?? XYZ.BasisX;
+                    XYZ hand = fi.HandOrientation   ?? XYZ.BasisY;
+                    double widthFt = 0.85; // ~ 26" door fallback
+                    try
+                    {
+                        var sym = fi.Symbol;
+                        var pW = sym?.LookupParameter("Width") ?? sym?.get_Parameter(BuiltInParameter.DOOR_WIDTH);
+                        if (pW != null && pW.StorageType == StorageType.Double) widthFt = Math.Max(0.5, pW.AsDouble());
+                    }
+                    catch { }
+                    doors.Add(new DoorEnvelope
+                    {
+                        Id      = fi.Id,
+                        Loc     = loc,
+                        Facing  = facing,
+                        Hand    = hand,
+                        WidthFt = widthFt,
+                        HandFlipped   = fi.HandFlipped,
+                        FacingFlipped = fi.FacingFlipped,
+                    });
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"AuditDoorSwingClearance enum doors: {ex.Message}"); }
+            if (doors.Count == 0) return;
+
+            int conflicts = 0;
+            foreach (var id in result.PlacedIds)
+            {
+                FamilyInstance fi = null;
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch { }
+                if (fi == null) continue;
+                XYZ p = (fi.Location as LocationPoint)?.Point;
+                if (p == null) continue;
+
+                DoorEnvelope nearest = null;
+                double bestSq = double.MaxValue;
+                foreach (var d in doors)
+                {
+                    double dx = d.Loc.X - p.X, dy = d.Loc.Y - p.Y;
+                    double sq = dx * dx + dy * dy;
+                    double maxDistFt = d.WidthFt + (300.0 / 304.8);
+                    if (sq < maxDistFt * maxDistFt && sq < bestSq) { bestSq = sq; nearest = d; }
+                }
+                if (nearest == null) continue;
+
+                if (PointInsideSweptArc(nearest, p))
+                {
+                    conflicts++;
+                    if (conflicts <= 10)
+                    {
+                        result.Warnings.Add(
+                            $"Door swing: placed instance {id.Value} at ({p.X:F2},{p.Y:F2}) sits inside the " +
+                            $"swept arc of door {nearest.Id.Value} ({nearest.WidthFt * 304.8:F0}mm). " +
+                            $"The door handle will hit the switch on opening — re-anchor the rule to " +
+                            $"DOOR_LATCH_SIDE or DOOR_STRIKE_SIDE, or move the switch ≥ {nearest.WidthFt * 304.8:F0}mm from the hinge.");
+                    }
+                }
+            }
+            if (conflicts > 10)
+                result.Warnings.Add($"Door swing: {conflicts - 10} additional conflicts truncated — see StingLog.");
+            if (conflicts > 0)
+                StingLog.Warn($"AuditDoorSwingClearance: {conflicts} placed instance(s) inside door swept arc.");
+        }
+
+        private class DoorEnvelope
+        {
+            public ElementId Id;
+            public XYZ       Loc;
+            public XYZ       Facing;
+            public XYZ       Hand;
+            public double    WidthFt;
+            public bool      HandFlipped;
+            public bool      FacingFlipped;
+        }
+
+        /// <summary>
+        /// Approximate "inside swept arc" test. The door hinges on one
+        /// jamb; the leaf swings 90° from closed (along Hand axis) to
+        /// open (along Facing axis, into the room). A switch placed in
+        /// the quarter-circle between those two axes, within door-width
+        /// of the hinge, sits in the swept envelope and will be hit by
+        /// the handle on opening.
+        /// </summary>
+        private static bool PointInsideSweptArc(DoorEnvelope door, XYZ p)
+        {
+            try
+            {
+                double half = door.WidthFt * 0.5;
+                XYZ hinge = door.HandFlipped
+                    ? door.Loc + door.Hand.Multiply(half)
+                    : door.Loc - door.Hand.Multiply(half);
+                XYZ v = p - hinge; v = new XYZ(v.X, v.Y, 0);
+                double r = v.GetLength();
+                if (r < 1e-3) return true;
+                if (r > door.WidthFt + 0.05) return false;
+                XYZ closedDir = door.HandFlipped ? door.Hand.Negate() : door.Hand;
+                XYZ openDir   = door.FacingFlipped ? door.Facing.Negate() : door.Facing;
+                double cosToClosed = v.Normalize().DotProduct(closedDir.Normalize());
+                double cosToOpen   = v.Normalize().DotProduct(openDir.Normalize());
+                return cosToClosed > 0 && cosToOpen > 0;
+            }
+            catch { return false; }
         }
 
         /// <summary>
