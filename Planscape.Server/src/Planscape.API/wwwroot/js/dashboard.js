@@ -144,6 +144,7 @@
   async function render() {
     const main = document.getElementById("main");
     if (!state.projectId) { main.innerHTML = `<div class="empty">No projects available.</div>`; return; }
+    syncSidebarScope();
     main.innerHTML = `<div class="empty">Loading…</div>`;
     try {
       switch (state.view) {
@@ -483,6 +484,24 @@
       l.classList.toggle("active", l.dataset.view === view);
     });
     render();
+  }
+
+  // Show the project-scoped sidebar section only when the user is inside
+  // a project (anything other than the all-projects Overview and the
+  // tenant-admin views). The label updates to the active project name so
+  // it's clear whose Issues / Documents / etc. you're navigating.
+  const PROJECT_SCOPED_VIEWS = new Set([
+    "project-dashboard", "issues", "documents", "transmittals",
+    "meetings", "workflows", "warnings", "models", "schedule", "cost",
+  ]);
+  function syncSidebarScope() {
+    const inProject = PROJECT_SCOPED_VIEWS.has(state.view);
+    document.body.classList.toggle("in-project", inProject);
+    const label = document.getElementById("navProjectLabel");
+    if (label) {
+      const p = (state.projects || []).find(p => p.id === state.projectId);
+      label.textContent = p ? (p.code || p.name || "Project") : "Project";
+    }
   }
 
   // ── Project dashboard ────────────────────────────────────────────────
