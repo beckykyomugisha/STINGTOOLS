@@ -930,7 +930,10 @@ namespace StingTools.Tags
                     {
                         foreach (var prop in perCat.Properties())
                         {
-                            double? mm = prop.Value?.Value<double?>();
+                            // JToken supports an explicit cast to nullable
+                            // primitives; JToken.Value<T> requires a key
+                            // argument, which doesn't apply here.
+                            double? mm = (double?)prop.Value;
                             if (mm.HasValue)
                                 cfg.PerCategoryOffsetFt[prop.Name] = mm.Value / 304.8;
                         }
