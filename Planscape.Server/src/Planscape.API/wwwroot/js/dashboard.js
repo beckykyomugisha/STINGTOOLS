@@ -147,7 +147,8 @@
     main.innerHTML = `<div class="empty">Loading…</div>`;
     try {
       switch (state.view) {
-        case "overview":     await renderOverview(main); break;
+        case "overview":          await renderOverview(main); break;
+        case "project-dashboard": await renderProjectDashboard(main); break;
         case "issues":       await renderList(main, `Issues`, `/api/projects/${state.projectId}/issues`, issueColumns); break;
         case "documents":    await renderList(main, `Documents`, `/api/projects/${state.projectId}/documents`, docColumns); break;
         case "transmittals": await renderList(main, `Transmittals`, `/api/projects/${state.projectId}/transmittals`, tmxColumns); break;
@@ -422,9 +423,9 @@
           <div class="card-last-active">Last sync: ${timeAgo(p.lastSyncAt)}</div>
         </div>
         <div class="card-footer">
-          <button data-card-action="overview"  data-project-id="${esc(p.id)}">Dashboard</button>
-          <button data-card-action="issues"    data-project-id="${esc(p.id)}">Issues</button>
-          <button data-card-action="documents" data-project-id="${esc(p.id)}">Documents</button>
+          <button data-card-action="project-dashboard" data-project-id="${esc(p.id)}">Dashboard</button>
+          <button data-card-action="issues"            data-project-id="${esc(p.id)}">Issues</button>
+          <button data-card-action="documents"         data-project-id="${esc(p.id)}">Documents</button>
         </div>
       </div>
     `;
@@ -439,13 +440,13 @@
       });
     });
 
-    // Card body click → navigate to project overview
+    // Card body click → navigate to the per-project dashboard
     document.querySelectorAll(".project-card").forEach(card => {
       card.onclick = (e) => {
         // Ignore clicks that originated on internal action buttons or pin
         if (e.target.closest(".pin-btn")) return;
         if (e.target.closest("[data-card-action]")) return;
-        navigateToProject(card.dataset.projectId, "overview");
+        navigateToProject(card.dataset.projectId, "project-dashboard");
       };
     });
 
@@ -482,6 +483,201 @@
       l.classList.toggle("active", l.dataset.view === view);
     });
     render();
+  }
+
+  // ── Project dashboard ────────────────────────────────────────────────
+  // Single-project landing page. Reached by clicking a project card or
+  // the Dashboard footer button. The all-projects "Overview" stays clean
+  // and high-level; the per-project information that used to live on
+  // the cards is shown in full here against /api/projects/{id}/dashboard.
+
+  async function renderProjectDashboard(main) {
+    if (!state.projectId) {
+      main.innerHTML = `<div class="empty">No project selected.</div>`;
+      return;
+    }
+    const id = state.projectId;
+    let d;
+    try {
+      d = await api(`/api/projects/${id}/dashboard`);
+    } catch (e) {
+      main.innerHTML = `<div class="empty">Could not load project dashboard: ${esc(String(e))}</div>`;
+      return;
+    }
+
+    const summary = (state.projects || []).find(p => p.id === id) || {};
+    const sk = statusKey(summary);
+    const pct = Math.round(d.compliancePercent || 0);
+    const colour = complianceColor(pct);
+    const cpct = Math.round(d.containerCompliancePercent || 0);
+    const ccolour = complianceColor(cpct);
+    const totalEls = d.totalElements || 0;
+    const taggedEls = d.taggedElements || 0;
+    const untaggedEls = Math.max(0, totalEls - taggedEls);
+    const loc = summary.city
+      ? `${esc(summary.city)}${summary.country ? ", " + esc(summary.country) : ""}`
+      : "Location not set";
+
+    main.innerHTML = `
+      <div class="pd-header">
+        <button class="pd-back" id="pdBack">← All projects</button>
+        <div class="pd-title-row">
+          <div>
+            <div class="pd-eyebrow">
+              <span class="code-chip">${esc(d.code || summary.code || "—")}</span>
+              <span class="status-chip ${sk}">${statusLabel(sk)}</span>
+              <span class="pd-loc">📍 ${loc}</span>
+              <span class="pd-phase">Phase: ${esc(d.phase || summary.phase || "—")}</span>
+            </div>
+            <h1 class="pd-name">${esc(d.name || summary.name || "Project")}</h1>
+          </div>
+          <div class="pd-meta">
+            <div>Last sync: <strong>${timeAgo(summary.lastSyncAt)}</strong></div>
+            <div>Members: <strong>${summary.memberCount ?? 0}</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi ${colour}">
+          <div class="value">${pct}%</div>
+          <div class="label">Tag compliance</div>
+          <div class="kpi-bar"><div class="kpi-bar-fill ${colour}" style="width:${pct}%"></div></div>
+        </div>
+        <div class="kpi ${ccolour}">
+          <div class="value">${cpct}%</div>
+          <div class="label">Container compliance</div>
+          <div class="kpi-bar"><div class="kpi-bar-fill ${ccolour}" style="width:${cpct}%"></div></div>
+        </div>
+        <div class="kpi"><div class="value">${taggedEls.toLocaleString()}</div><div class="label">Tagged elements</div><div class="kpi-sub">of ${totalEls.toLocaleString()} · ${untaggedEls.toLocaleString()} untagged</div></div>
+        <div class="kpi ${d.openIssues ? 'amber' : 'green'}"><div class="value">${d.openIssues || 0}</div><div class="label">Open issues</div></div>
+        <div class="kpi ${d.overdueIssues ? 'red' : ''}"><div class="value">${d.overdueIssues || 0}</div><div class="label">Overdue</div></div>
+        <div class="kpi ${d.criticalIssues ? 'red' : ''}"><div class="value">${d.criticalIssues || 0}</div><div class="label">Critical</div></div>
+        <div class="kpi"><div class="value">${d.documents || 0}</div><div class="label">Documents</div></div>
+        <div class="kpi ${d.warningCount ? 'amber' : ''}"><div class="value">${d.warningCount || 0}</div><div class="label">Warnings</div></div>
+      </div>
+
+      <div class="pd-grid">
+        <div class="card">
+          <div class="card-head">
+            <h3>Compliance trend (30 days)</h3>
+            <a href="#" class="pd-link" data-jump="workflows">Workflow history →</a>
+          </div>
+          ${trendSparklineHtml(d.complianceTrend || [])}
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h3>Recent issues</h3>
+            <a href="#" class="pd-link" data-jump="issues">All issues →</a>
+          </div>
+          ${recentIssuesHtml(d.recentIssues || [])}
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h3>Recent workflow runs</h3>
+            <a href="#" class="pd-link" data-jump="workflows">All runs →</a>
+          </div>
+          ${recentWorkflowsHtml(d.recentWorkflows || [])}
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h3>Quick links</h3>
+          </div>
+          <div class="pd-quicklinks">
+            <button data-jump="documents">📄 Documents (${d.documents || 0})</button>
+            <button data-jump="issues">⚠ Issues (${d.openIssues || 0})</button>
+            <button data-jump="transmittals">📤 Transmittals</button>
+            <button data-jump="meetings">📅 Meetings</button>
+            <button data-jump="warnings">🚧 Warnings (${d.warningCount || 0})</button>
+            <button data-jump="models">🧊 3D models</button>
+            <button data-jump="schedule">📊 Schedule</button>
+            <button data-jump="cost">💰 Cost</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById("pdBack").onclick = () => {
+      state.view = "overview";
+      document.querySelectorAll(".nav-link").forEach(l => {
+        l.classList.toggle("active", l.dataset.view === "overview");
+      });
+      render();
+    };
+
+    document.querySelectorAll("[data-jump]").forEach(b => {
+      b.onclick = (e) => {
+        e.preventDefault();
+        navigateToProject(id, b.dataset.jump);
+      };
+    });
+  }
+
+  function recentIssuesHtml(rows) {
+    if (!rows.length) return `<div class="empty">No issues yet.</div>`;
+    return `<table class="pd-table"><thead><tr>
+        <th>Code</th><th>Title</th><th>Priority</th><th>Status</th><th>Age</th>
+      </tr></thead><tbody>
+      ${rows.map(i => `
+        <tr class="${i.isOverdue ? 'pd-overdue' : ''}">
+          <td>${esc(i.issueCode || "")}</td>
+          <td>${esc(i.title || "")}</td>
+          <td>${chip(i.priority)}</td>
+          <td>${chip(i.status)}</td>
+          <td>${i.daysOpen ?? 0}d${i.isOverdue ? ' · <span class="pd-overdue-tag">overdue</span>' : ''}</td>
+        </tr>`).join("")}
+      </tbody></table>`;
+  }
+
+  function recentWorkflowsHtml(rows) {
+    if (!rows.length) return `<div class="empty">No workflow runs yet.</div>`;
+    return `<table class="pd-table"><thead><tr>
+        <th>Preset</th><th>✓</th><th>✗</th><th>Before → After</th><th>When</th>
+      </tr></thead><tbody>
+      ${rows.slice(0, 6).map(w => {
+        const before = w.complianceBefore != null ? Math.round(w.complianceBefore) + "%" : "—";
+        const after  = w.complianceAfter  != null ? Math.round(w.complianceAfter)  + "%" : "—";
+        return `<tr>
+          <td>${esc(w.preset || "")}</td>
+          <td style="color:var(--green)">${w.stepsPassed ?? 0}</td>
+          <td style="color:var(--red)">${w.stepsFailed ?? 0}</td>
+          <td>${before} → <strong>${after}</strong></td>
+          <td>${fmtDate(w.executedAt)}</td>
+        </tr>`;
+      }).join("")}
+      </tbody></table>`;
+  }
+
+  function trendSparklineHtml(points) {
+    if (!points || points.length < 2) {
+      return `<div class="empty">Not enough data for a trend yet — sync your project to start tracking.</div>`;
+    }
+    const w = 600, h = 120, pad = 8;
+    const xs = points.map((_, i) => pad + (i * (w - 2 * pad)) / Math.max(1, points.length - 1));
+    const tagY = points.map(p => h - pad - ((p.tagPercent || 0) / 100) * (h - 2 * pad));
+    const conY = points.map(p => h - pad - ((p.containerPercent || 0) / 100) * (h - 2 * pad));
+    const tagPath = xs.map((x, i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${tagY[i].toFixed(1)}`).join(" ");
+    const conPath = xs.map((x, i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${conY[i].toFixed(1)}`).join(" ");
+    const last = points[points.length - 1];
+    const first = points[0];
+    const delta = ((last.tagPercent || 0) - (first.tagPercent || 0));
+    const deltaTxt = (delta >= 0 ? "+" : "") + delta.toFixed(1) + "%";
+    const deltaCol = delta >= 0 ? "var(--green)" : "var(--red)";
+    return `
+      <div class="pd-trend">
+        <div class="pd-trend-summary">
+          <span><span class="pd-dot" style="background:#3B82F6"></span> Tag ${Math.round(last.tagPercent || 0)}%</span>
+          <span><span class="pd-dot" style="background:#22C55E"></span> Container ${Math.round(last.containerPercent || 0)}%</span>
+          <span style="color:${deltaCol};font-weight:600">Δ ${deltaTxt}</span>
+        </div>
+        <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" class="pd-trend-svg">
+          <path d="${tagPath}" fill="none" stroke="#3B82F6" stroke-width="2"/>
+          <path d="${conPath}" fill="none" stroke="#22C55E" stroke-width="2" stroke-dasharray="4 3"/>
+        </svg>
+      </div>`;
   }
 
   // ── Mapbox project map ───────────────────────────────────────────────
@@ -558,7 +754,7 @@
         const btn = document.querySelector(`[data-pop-open-id="${p.id}"]`);
         if (btn) btn.onclick = () => {
           popup.remove();
-          navigateToProject(p.id, "overview");
+          navigateToProject(p.id, "project-dashboard");
         };
       });
 
