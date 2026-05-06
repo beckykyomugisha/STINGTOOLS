@@ -376,6 +376,7 @@ namespace StingTools.UI
                     case "SLD_Update":             RunCommand<Commands.SLD.UpdateSLDCommand>(app); break;
                     case "SLD_SyncToggle":         RunCommand<Commands.SLD.SLDSyncToggleCommand>(app); break;
                     case "SLD_Validate":           RunCommand<Commands.SLD.SLDValidateCommand>(app); break;
+                    case "SLD_MigrateLabels":      RunCommand<Commands.SLD.MigrateSLDLabelIdsCommand>(app); break;
 
                     // ── v4 Phase C: calc engines ──
                     case "Calc_ConduitFill":  RunCommand<Commands.Routing.CalcConduitFillCommand>(app); break;

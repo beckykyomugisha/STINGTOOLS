@@ -10432,3 +10432,60 @@ Modified:
 - `StingTools/Data/Symbols/STING_SYMBOL_CONCEPTS.json` — two new
   compound concepts
 - `docs/CHANGELOG.md` — this entry
+
+#### Completed (Phase 175 — rung labels, dense-rung sizing, label-ID migration)
+
+Closes the three follow-up items from the prior commit (141290a):
+
+#### What landed
+
+1. **Rung labels are now drawn.** The `compoundRungs.label` field
+   was being parsed but ignored. `CompoundSymbolPlacer.PlaceLadder`
+   now calls a new `DrawRungLabel` helper for each rung that has a
+   non-empty label. Labels render as right-aligned TextNotes a few
+   millimetres to the left of the left rail, vertically centred on
+   the rung. Text height is `RungLabelTextHeightMm` (1.6 mm), smaller
+   than the main rating labels so they read as a header rather than
+   competing for attention.
+
+2. **Bay-width sizing now scales for dense rungs.** Replaced the
+   single-multiplier formula with a piecewise function in the new
+   `ResolveBayWidth` helper:
+   - 1 component → minimum bay (60 mm rail gap).
+   - 2-4 components → linear: `60 mm + n × 16 mm` per component.
+   - 5+ components → linear up to 4, then 1.25× per extra
+     component, so a 6-component rung gets `60 + 4×16 + 2×16×1.25
+     = 164 mm` instead of overflowing the rails.
+   The per-component constant `LadderPerComponentMm` (16 mm) is
+   tuned so 4 stacked breakers in a 60 mm bay still leave clear
+   gaps between them.
+
+3. **`MigrateSLDLabelIdsCommand`** — a one-shot migration that walks
+   every `STING - SLD` drafting view and stamps
+   `STING_SYMBOL_LABEL_ID` onto SLD symbols that don't have one yet.
+   For each unstamped symbol it finds the closest TextNote within
+   ~120 mm (more generous than the live-update scan because this
+   runs once) and writes that note's ElementId onto the symbol.
+   Idempotent — symbols that already carry a stamped ID are skipped.
+   - Wired through `StingCommandHandler` as `SLD_MigrateLabels` and
+     a "Migrate Labels" button in the SLD GENERATOR section of the
+     dock panel.
+   - Useful when you want a project's SLDs migrated proactively
+     rather than waiting for the spatial-fallback path in
+     `TryUpdateSingleNode` to self-heal them on next modification.
+   - Reports views scanned, already-stamped, newly-stamped, and
+     unmatched (no nearby TextNote) counts on completion.
+
+#### Files
+
+Modified:
+- `StingTools/Core/Symbols/CompoundSymbolPlacer.cs` — `DrawRungLabel`,
+  `ResolveBayWidth`, `ResolveRungLabels`; new constants
+  `LadderPerComponentMm`, `RungLabelOffsetMm`, `RungLabelTextHeightMm`
+- `StingTools/Commands/SLD/SLDGeneratorCommands.cs` —
+  new `MigrateSLDLabelIdsCommand`
+- `StingTools/UI/StingCommandHandler.cs` — `SLD_MigrateLabels`
+  dispatch entry
+- `StingTools/UI/StingDockPanel.xaml` — Migrate Labels button in
+  SLD GENERATOR section
+- `docs/CHANGELOG.md` — this entry

@@ -1391,6 +1391,7 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="Update" Tag="SLD_Update" Click="Cmd_Click" ToolTip="Refresh existing SLD views in place"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Sync Toggle" Tag="SLD_SyncToggle" Click="Cmd_Click" ToolTip="Enable / disable the live SLD sync IUpdater (project_config.json)"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Validate" Tag="SLD_Validate" Click="Cmd_Click" ToolTip="Compare SLD topology against the live electrical model"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Migrate Labels" Tag="SLD_MigrateLabels" Click="Cmd_Click" ToolTip="One-shot: stamp STING_SYMBOL_LABEL_ID on every SLD symbol that doesn't have one (so the fast-path update can find labels by ID instead of spatially)"/>
                             </WrapPanel>
                         </Border>
 

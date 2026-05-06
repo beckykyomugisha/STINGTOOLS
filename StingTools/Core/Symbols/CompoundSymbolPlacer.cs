@@ -37,6 +37,15 @@ namespace StingTools.Core.Symbols
         private const double SpacingMm = 10.0;
         private const double LadderRailGapMm = 60.0;
         private const double LadderRungSpacingMm = 12.0;
+        // Width allocated per component on a ladder rung. Sized so 4
+        // components fit cleanly in a 60 mm bay; multi-component rungs
+        // expand the bay automatically (see ResolveBayWidth).
+        private const double LadderPerComponentMm = 16.0;
+        // Where rung labels sit: this far to the left of the left rail.
+        private const double RungLabelOffsetMm = 4.0;
+        // Rung-label text height. Smaller than the main rating labels
+        // so it doesn't compete visually.
+        private const double RungLabelTextHeightMm = 1.6;
         private static double MmToFt(double mm) => mm / MmPerFoot;
 
         public static List<ElementId> PlaceCompound(Document doc, View view, XYZ origin,
@@ -127,16 +136,16 @@ namespace StingTools.Core.Symbols
         {
             var placed = new List<ElementId>();
 
-            // Build the canonical rung list once, regardless of source.
+            // Build the canonical rung list (and labels) once, regardless of source.
             List<List<string>> rungs = ResolveRungs(concept);
+            List<string>       rungLabels = ResolveRungLabels(concept, rungs.Count);
             if (rungs.Count == 0) return placed;
 
             // Width of a rail bay scales with the widest rung so multi-
             // component rungs don't overlap the rails.
             double rungSpace = MmToFt(LadderRungSpacingMm);
-            double minBay    = MmToFt(LadderRailGapMm);
             int    maxOnRung = rungs.Max(r => r.Count);
-            double bayWidth  = Math.Max(minBay, maxOnRung * MmToFt(SpacingMm * 1.6));
+            double bayWidth  = ResolveBayWidth(maxOnRung);
 
             int rungCount = rungs.Count;
             double topY    = origin.Y + rungSpace * 0.5;
@@ -158,6 +167,12 @@ namespace StingTools.Core.Symbols
                 double yi = origin.Y - i * rungSpace;
                 XYZ rungLeft  = new XYZ(origin.X,            yi, 0);
                 XYZ rungRight = new XYZ(origin.X + bayWidth, yi, 0);
+
+                // Optional rung label drawn just to the left of the
+                // left rail.
+                string label = (i < rungLabels.Count) ? rungLabels[i] : null;
+                if (!string.IsNullOrWhiteSpace(label))
+                    DrawRungLabel(doc, view, label, rungLeft);
 
                 // Distribute components evenly across the bay.
                 int n = components.Count;
@@ -201,6 +216,81 @@ namespace StingTools.Core.Symbols
                         rungs.Add(new List<string> { cid });
             }
             return rungs;
+        }
+
+        /// <summary>
+        /// Per-rung label list, sized to match the rung count. Returns
+        /// null entries when a rung has no label.
+        /// </summary>
+        private static List<string> ResolveRungLabels(SymbolConcept concept, int rungCount)
+        {
+            var labels = new List<string>(rungCount);
+            if (concept.CompoundRungs != null && concept.CompoundRungs.Count > 0)
+            {
+                for (int i = 0; i < rungCount; i++)
+                {
+                    string label = (i < concept.CompoundRungs.Count) ? concept.CompoundRungs[i]?.Label : null;
+                    labels.Add(label);
+                }
+            }
+            else
+            {
+                for (int i = 0; i < rungCount; i++) labels.Add(null);
+            }
+            return labels;
+        }
+
+        /// <summary>
+        /// Bay width that scales with components-per-rung. The minimum
+        /// bay covers a sensible width for the standalone rails;
+        /// beyond that, allocate <c>LadderPerComponentMm</c> per
+        /// component, with diminishing returns above 4 components so
+        /// the diagram doesn't run off-page on dense rungs while still
+        /// giving them breathing room.
+        /// </summary>
+        private static double ResolveBayWidth(int maxOnRung)
+        {
+            if (maxOnRung <= 1) return MmToFt(LadderRailGapMm);
+            // Linear up to 4 components, then 1.25× per extra component.
+            double widthMm;
+            if (maxOnRung <= 4)
+            {
+                widthMm = LadderRailGapMm + maxOnRung * LadderPerComponentMm;
+            }
+            else
+            {
+                widthMm = LadderRailGapMm
+                        + 4 * LadderPerComponentMm
+                        + (maxOnRung - 4) * LadderPerComponentMm * 1.25;
+            }
+            return MmToFt(widthMm);
+        }
+
+        private static void DrawRungLabel(Document doc, View view, string label, XYZ rungLeft)
+        {
+            try
+            {
+                var tnt = new FilteredElementCollector(doc)
+                    .OfClass(typeof(TextNoteType))
+                    .FirstElementId();
+                if (tnt == ElementId.InvalidElementId) return;
+
+                XYZ pos = new XYZ(
+                    rungLeft.X - MmToFt(RungLabelOffsetMm + RungLabelTextHeightMm * 4.0),
+                    rungLeft.Y,
+                    0);
+
+                var opts = new TextNoteOptions(tnt)
+                {
+                    HorizontalAlignment = HorizontalTextAlignment.Right,
+                    Rotation = 0,
+                };
+                TextNote.Create(doc, view.Id, pos, label, opts);
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"DrawRungLabel: {ex.Message}");
+            }
         }
 
         // ── Shared helpers ──────────────────────────────────────────────
