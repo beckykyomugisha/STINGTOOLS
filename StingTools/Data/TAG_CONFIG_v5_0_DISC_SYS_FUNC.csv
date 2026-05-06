@@ -70,6 +70,7 @@ SYS,GAS,"Pipes,Pipe Fittings,Pipe Accessories",Natural gas distribution
 SYS,FP,"Sprinklers,Pipes,Pipe Fittings,Fire Alarm Devices",Fire protection (sprinklers + alarm)
 SYS,FLS,"Fire Alarm Devices",Fire/life safety detection
 SYS,LV,"Electrical Equipment,Electrical Fixtures,Cable Trays,Conduits",Low voltage distribution
+SYS,LPS,"Electrical Equipment,Generic Models,Conduits,Conduit Fittings,Specialty Equipment",Lightning protection system per BS EN 62305
 SYS,COM,"Communication Devices",Communications systems
 SYS,ICT,"Data Devices",Information and communications technology
 SYS,NCL,"Nurse Call Devices",Nurse call / assisted living
@@ -95,6 +96,13 @@ FUNC,GAS,GAS,Gas distribution
 FUNC,FP,FP,Fire protection
 FUNC,FLS,FLS,Fire/life safety
 FUNC,LV,PWR,Power distribution
+FUNC,LPS,LPS,Lightning protection — air termination + down conductor + earth + bond + SPD
+FUNC,LPS,AT,Air termination (rod / mesh / catenary) — BS EN 62305-3 §5.2
+FUNC,LPS,DC,Down conductor — BS EN 62305-3 §5.3
+FUNC,LPS,EE,Earth electrode (rod / ring / foundation / mesh) — BS EN 62305-3 §5.4
+FUNC,LPS,BOND,Equipotential bonding — BS EN 62305-3 §6.2
+FUNC,LPS,SPD,Surge protective device — BS EN 62305-4 / BS EN 61643
+FUNC,LPS,TC,Test clamp / inspection point — BS EN 62305-3 §7.2
 FUNC,COM,COM,Communications
 FUNC,ICT,ICT,ICT/Data
 FUNC,NCL,NCL,Nurse call

@@ -214,3 +214,15 @@ SLV_RULE,HIGH,WARN_SLV_NO_SEAL,SLV_SEAL_TYPE_TXT empty,BS EN 1366-3:2009,No seal
 SLV_RULE,MEDIUM,WARN_SLV_NO_SERVICE,SLV_SERVICE_TXT empty,ISO 19650-2:2018,Service through sleeve not identified
 SLV_RULE,MEDIUM,WARN_SLV_NO_FIRESTOP,SLV_FIRESTOP_PRODUCT_TXT empty,BS EN 1366-3:2009,Firestop product not specified — cannot verify fire test compliance
 SLV_RULE,LOW,WARN_SLV_NO_INSPECTION,SLV_INSPECTION_DATE_TXT empty,BS 9999:2017,No inspection date recorded for sleeve
+# --- Section 15: Lightning Protection System (LPS) validation rules ---
+# Phase 176 — BS EN 62305 lightning protection compliance gates
+LPS_RULE,CRITICAL,WARN_ELC_LPS_NO_CLASS,ELC_LPS_CLASS_TXT empty,BS EN 62305-1:2011 §8,LPS class not assigned — set to I / II / III / IV based on risk assessment
+LPS_RULE,HIGH,WARN_ELC_LPS_DOWN_COND_INSUFFICIENT,ELC_LPS_DOWN_CONDUCTOR_COUNT_NR below class minimum (I=4 II=3 III/IV=2),BS EN 62305-3:2011 Table 4,Down conductor count below class minimum — strike currents cannot dissipate safely
+LPS_RULE,HIGH,WARN_ELC_LPS_EARTH_RESISTANCE_HIGH,ELC_LPS_EARTH_RESISTANCE_OHM > 10,BS EN 62305-3:2011 §5.4.1,Earth resistance exceeds 10 ohm — supplement electrodes or add ring earth
+LPS_RULE,HIGH,WARN_ELC_LPS_NO_RISK_ASSESSMENT,ELC_LPS_RISK_ASSESSMENT_TXT empty,BS EN 62305-2:2012,Risk assessment (R1..R4) reference missing — class selection cannot be justified
+LPS_RULE,HIGH,WARN_ELC_LPS_SEPARATION_FAIL,ELC_LPS_SEPARATION_DISTANCE_MM below s = ki·kc·l/km,BS EN 62305-3:2011 §6.3,Separation distance below computed value — flashover risk to internal services
+LPS_RULE,MEDIUM,WARN_ELC_LPS_INSPECTION_OVERDUE,ELC_LPS_TEST_DATE_TXT older than ELC_LPS_INSPECTION_INTERVAL_MONTHS,BS EN 62305-3:2011 §E.7,Inspection interval exceeded (Class I/II=12mo III/IV=24mo)
+LPS_RULE,HIGH,WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW,ELC_LPS_CONDUCTOR_CROSS_SECT_MM2 < 50 (Cu) / 70 (Al) / 50 (Steel),BS EN 62305-3:2011 Table 6,Down conductor cross-section below class minimum
+LPS_RULE,HIGH,WARN_ELC_LPS_NO_BONDING,ELC_LPS_BOND_TYPE_TXT empty,BS EN 62305-3:2011 §6.2,Equipotential bonding type not specified — DIRECT / SPD / ISOLATING_SPARK_GAP required
+LPS_RULE,HIGH,WARN_ELC_LPS_MESH_SIZE_EXCEEDED,ELC_LPS_MESH_SIZE_M > class limit (I=5 II=10 III=15 IV=20),BS EN 62305-3:2011 Table 2,Air-termination mesh exceeds class limit
+LPS_RULE,MEDIUM,WARN_ELC_LPS_NO_ZONE,ELC_LPS_ZONE_TXT empty,BS EN 62305-4:2011 §4.1,Lightning protection zone (LPZ) not assigned — internal zoning model incomplete
