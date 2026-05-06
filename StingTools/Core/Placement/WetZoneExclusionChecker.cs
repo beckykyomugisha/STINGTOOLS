@@ -78,18 +78,39 @@ namespace StingTools.Core.Placement
                 {
                     var fi = el as FamilyInstance;
                     if (fi == null) continue;
+                    // Phase 139.27 (M-03 partial) — combine Family name +
+                    // Type name + an explicit STING_WET_FIXTURE_KIND override.
+                    // The override lets users tag mis-named fixtures (e.g.
+                    // "Shower Head Bracket" in a corridor) explicitly so
+                    // they're not mistaken for water sources. Acceptable
+                    // override values: BATH / SHOWER / BASIN / SINK / NONE.
                     string famName = (fi.Symbol?.FamilyName ?? "").ToLowerInvariant();
                     string typName = (fi.Symbol?.Name ?? "").ToLowerInvariant();
                     string key     = famName + " " + typName;
                     XYZ origin = (fi.Location as LocationPoint)?.Point;
                     if (origin == null) continue;
 
-                    if (key.Contains("bath"))
-                        AddBathZones(zones, fi, origin);
-                    else if (key.Contains("shower"))
-                        AddShowerZones(zones, fi, origin);
-                    else if (key.Contains("basin") || key.Contains("sink"))
-                        AddBasinZones(zones, fi, origin);
+                    string kindOverride = "";
+                    try
+                    {
+                        kindOverride = (fi.LookupParameter("STING_WET_FIXTURE_KIND")?.AsString()
+                                     ?? fi.Symbol?.LookupParameter("STING_WET_FIXTURE_KIND")?.AsString()
+                                     ?? "").Trim().ToUpperInvariant();
+                    }
+                    catch { }
+
+                    if (kindOverride == "NONE") continue;
+
+                    bool isBath = kindOverride == "BATH"
+                        || (string.IsNullOrEmpty(kindOverride) && (key.Contains(" bath") || key.StartsWith("bath") || key.Contains("bathtub")));
+                    bool isShower = kindOverride == "SHOWER"
+                        || (string.IsNullOrEmpty(kindOverride) && (key.Contains(" shower") || key.StartsWith("shower") || key.Contains("shower head") || key.Contains("shower-head")) && !key.Contains("bracket"));
+                    bool isBasin = kindOverride == "BASIN" || kindOverride == "SINK"
+                        || (string.IsNullOrEmpty(kindOverride) && (key.Contains("basin") || key.Contains("lavatory") || (key.Contains("sink") && !key.Contains("sinkhole"))));
+
+                    if (isBath)        AddBathZones(zones, fi, origin);
+                    else if (isShower) AddShowerZones(zones, fi, origin);
+                    else if (isBasin)  AddBasinZones(zones, fi, origin);
                 }
             }
             catch (Exception ex) { StingLog.Warn($"WetZoneExclusionChecker.BuildForRoom {room.Id}: {ex.Message}"); }

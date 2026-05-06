@@ -61,6 +61,11 @@ namespace StingTools.Core.Placement
         /// Categories to treat as ceiling obstructions for luminaire
         /// placement. Extendable via the <paramref name="extraCats"/>
         /// parameter on <see cref="BuildForRoom"/>.
+        /// Phase 139.27 (M-01) — added Furniture / Casework / GenericModel
+        /// so a luminaire can't be placed inside the swept-volume of a
+        /// suspended cupboard, kitchen island top, or generic ceiling
+        /// rose. The buffer applied around their AABB is the same
+        /// 350 mm CIBSE Guide B4 default.
         /// </summary>
         public static readonly BuiltInCategory[] DefaultCategories = new[]
         {
@@ -71,6 +76,15 @@ namespace StingTools.Core.Placement
             BuiltInCategory.OST_SpecialityEquipment,
             BuiltInCategory.OST_SecurityDevices,
             BuiltInCategory.OST_CommunicationDevices,
+            BuiltInCategory.OST_Furniture,
+            BuiltInCategory.OST_Casework,
+            BuiltInCategory.OST_GenericModel,
+            // Suspended ducts + pipes — a luminaire can't share Z-space
+            // with a 200 mm extract spine. Z-pad on Outline already
+            // covers the swept volume (3 ft above room max Z).
+            BuiltInCategory.OST_DuctCurves,
+            BuiltInCategory.OST_PipeCurves,
+            BuiltInCategory.OST_CableTray,
         };
 
         /// <summary>

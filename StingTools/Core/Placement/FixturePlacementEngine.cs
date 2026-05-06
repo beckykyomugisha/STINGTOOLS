@@ -34,6 +34,57 @@ namespace StingTools.Core.Placement
         // Phase 139.2 G — additional fields surfaced from subsystems.
         public List<XYZ> NogginRequiredPoints { get; } = new List<XYZ>();
         public int       TileSnapAdjustments  { get; set; }
+
+        // Phase 139.27 (I-03) — per-rule diagnostics. The Centre's result
+        // panel now shows a row per rule answering: did it fire? how many
+        // candidates? how many were rejected and why? Without this users
+        // who tick "Place Electrical Fixtures" and get zero placements
+        // can't tell whether the rule was filtered out by a room name,
+        // rejected on score, or simply had no matching family symbol.
+        public Dictionary<string, RuleDiagnostic> Diagnostics { get; }
+            = new Dictionary<string, RuleDiagnostic>(StringComparer.OrdinalIgnoreCase);
+
+        internal RuleDiagnostic Diag(string mergeKey)
+        {
+            if (string.IsNullOrEmpty(mergeKey)) return null;
+            if (!Diagnostics.TryGetValue(mergeKey, out var d))
+            {
+                d = new RuleDiagnostic { MergeKey = mergeKey };
+                Diagnostics[mergeKey] = d;
+            }
+            return d;
+        }
+    }
+
+    /// <summary>
+    /// Phase 139.27 (I-03) — one row of per-rule placement diagnostics.
+    /// Filled by FixturePlacementEngine + ProcessRoomRule, surfaced by
+    /// PlaceFixturesCommand.ShowResult.
+    /// </summary>
+    public class RuleDiagnostic
+    {
+        public string MergeKey { get; set; } = "";
+        public int RoomsConsidered { get; set; }
+        public int RoomsFilteredByName { get; set; }
+        public int RoomsFilteredByExclude { get; set; }
+        public int RoomsBlockedByConflict { get; set; }
+        public int RoomsBlockedByDependsOn { get; set; }
+        public int CandidatesGenerated { get; set; }
+        public int CandidatesRejectedDedup { get; set; }
+        public int CandidatesPlaced { get; set; }
+        public int SkippedNoSymbol { get; set; }
+        public int SkippedHostPreflight { get; set; }
+        public int ManufacturerMisses { get; set; }
+        public string FirstSkipReason { get; set; } = "";
+
+        public string OneLineSummary()
+        {
+            return $"{MergeKey}: rooms={RoomsConsidered}/-{RoomsFilteredByName}/-{RoomsFilteredByExclude} " +
+                   $"cand={CandidatesGenerated} placed={CandidatesPlaced} " +
+                   $"skip(host={SkippedHostPreflight}, sym={SkippedNoSymbol}, dedup={CandidatesRejectedDedup}, " +
+                   $"conflict={RoomsBlockedByConflict}, dep={RoomsBlockedByDependsOn}, mfr={ManufacturerMisses})" +
+                   (string.IsNullOrEmpty(FirstSkipReason) ? "" : $" • first: {FirstSkipReason}");
+        }
     }
 
     /// <summary>
@@ -126,11 +177,43 @@ namespace StingTools.Core.Placement
                 }
             }
 
+            // Phase 139.27 (M-05) — surface validation warnings up front.
+            // PlacementRuleLoader.LastValidationWarnings is populated by
+            // every Load/MergeRules call; without this loop they only
+            // landed in the .log file.
+            try
+            {
+                var vw = PlacementRuleLoader.LastValidationWarnings;
+                if (vw != null)
+                    foreach (var w in vw)
+                        if (!string.IsNullOrEmpty(w)) result.Warnings.Add(w);
+            }
+            catch { }
+
+            // Phase 139.27 (N-05) — accessibility / mounting-height validation
+            // against STING_HEIGHT_STANDARDS.json. Silent until 139.27.
+            try
+            {
+                var hsw = HeightStandardsTable.ValidateRulesAgainstStandards(rules);
+                if (hsw != null)
+                    foreach (var w in hsw)
+                        if (!string.IsNullOrEmpty(w)) result.Warnings.Add(w);
+            }
+            catch (Exception hex) { StingLog.Warn($"HeightStandards validation: {hex.Message}"); }
+
             if (rules.Count == 0)
             {
                 result.Warnings.Add("No placement rules found. Ship STING_PLACEMENT_RULES.json or provide a project override.");
                 return result;
             }
+
+            // Phase 139.27 (C-03) — surface a one-shot warning at start
+            // of run when the user enabled "Tag every placement" but
+            // the reflection target is missing. RunFor() warns once per
+            // session via StingLog; mirroring it into result.Warnings
+            // means the run report shows it too.
+            if (PostPlacementHooks.RunDataTagPipeline && PostPlacementHooks.TagPipelineMissing)
+                result.Warnings.Add("Post-placement: 'Tag every placement' is on but TagPipelineHelper.RunFullPipeline could not be resolved by reflection — placed instances will NOT be tagged this session.");
 
             var rooms = CollectRooms(doc, roomIds, result);
             result.RoomsVisited = rooms.Count;
@@ -280,13 +363,24 @@ namespace StingTools.Core.Placement
                     string roomName = SafeRoomName(room);
                     foreach (var rule in ordered)
                     {
+                        var diag = result.Diag(rule.MergeKey);
+                        if (diag != null) diag.RoomsConsidered++;
+
                         // Phase 139.5 Q21 — fast filter using pre-compiled regex
                         // before paying the cost of scorer.Score / RoomMatchesScope
                         // (which reads parameters, level, phase, workset).
                         if (roomFilterRx.TryGetValue(rule.MergeKey, out var rfx)
-                            && !rfx.IsMatch(roomName ?? "")) continue;
+                            && !rfx.IsMatch(roomName ?? ""))
+                        {
+                            if (diag != null) diag.RoomsFilteredByName++;
+                            continue;
+                        }
                         if (excludeFilterRx.TryGetValue(rule.MergeKey, out var efx)
-                            && efx.IsMatch(roomName ?? "")) continue;
+                            && efx.IsMatch(roomName ?? ""))
+                        {
+                            if (diag != null) diag.RoomsFilteredByExclude++;
+                            continue;
+                        }
 
                         try
                         {
@@ -294,12 +388,14 @@ namespace StingTools.Core.Placement
                             if (RuleHasConflict(rule, roomState))
                             {
                                 result.Warnings.Add($"Room {room.Id} / {rule.MergeKey}: skipped — ConflictsWith already fired.");
+                                if (diag != null) diag.RoomsBlockedByConflict++;
                                 continue;
                             }
                             // PC-13 — DependsOn: skip if predecessor produced no placements yet.
                             if (!string.IsNullOrEmpty(rule.DependsOn) && !roomState.PlacedByRule.ContainsKey(rule.DependsOn))
                             {
                                 result.Warnings.Add($"Room {room.Id} / {rule.MergeKey}: skipped — DependsOn '{rule.DependsOn}' has no placement in this room.");
+                                if (diag != null) diag.RoomsBlockedByDependsOn++;
                                 continue;
                             }
 
@@ -356,6 +452,20 @@ namespace StingTools.Core.Placement
                 {
                     try { TwoPhaseBoxPlacer.PlaceSecondFixDevices(doc, roomIds, ordered, firstFixIndex, result); }
                     catch (Exception ex) { result.Warnings.Add($"Two-phase second-fix: {ex.Message}"); }
+                }
+
+                // Phase 139.27 (M-02 partial) — stamp STING_NOGGIN_REQUIRED on
+                // every placed instance whose XY matches a NogginRequiredPoint
+                // from the scorer's lighting-grid cache. Pre-139.27 these
+                // points were computed but discarded; the export command
+                // (NogginRequirementExportCommand) had no parameter to read.
+                if (!dryRun)
+                {
+                    try
+                    {
+                        StampNogginRequirementsFromGrid(doc, scorer, result);
+                    }
+                    catch (Exception nx) { result.Warnings.Add($"Noggin stamp: {nx.Message}"); }
                 }
 
                 if (!dryRun)
@@ -513,6 +623,8 @@ namespace StingTools.Core.Placement
                 candidates = scorer.Score(room, rule, placedPoints, alreadyInRoom);
                 result.CandidatesEvaluated += candidates.Count;
             }
+            var diagRoom = result.Diag(rule.MergeKey);
+            if (diagRoom != null) diagRoom.CandidatesGenerated += candidates.Count;
             if (candidates.Count == 0) return;
 
             // PC-12 — derive the count for Density / Linear rules from the room's
@@ -528,6 +640,7 @@ namespace StingTools.Core.Placement
                 {
                     result.CountsByRule[rule.MergeKey] = result.CountsByRule.TryGetValue(rule.MergeKey, out var n) ? n + 1 : 1;
                     result.CountsByRoom[roomKey] = result.CountsByRoom.TryGetValue(roomKey, out var m) ? m + 1 : 1;
+                    if (diagRoom != null) diagRoom.CandidatesPlaced++;
                     if (state != null)
                     {
                         if (!state.PlacedByRule.TryGetValue(rule.MergeKey, out var lst))
@@ -539,11 +652,50 @@ namespace StingTools.Core.Placement
                         state.LastPointByRule[rule.MergeKey] = c.Position;
                     }
                 }
+
+                // Phase 139.27 (I-01) — dry-run preview of post-placement
+                // hooks. The hooks themselves cannot run in dry-run (no
+                // FamilyInstance to operate on), but the user needs to know
+                // BEFORE they commit whether tagging / COBie seed / MEP
+                // join are configured and resolvable. Surfaced only once
+                // per rule per session, gated by toggles.
+                if (PostPlacementHooks.RunDataTagPipeline && PostPlacementHooks.TagPipelineMissing)
+                {
+                    string warnKey = $"DryRun:{rule.MergeKey}:tagging-missing";
+                    if (!result.Warnings.Any(w => w.Contains(warnKey)))
+                        result.Warnings.Add($"{warnKey} — would-be-tagged in live run, but TagPipelineHelper not resolvable; tagging will silently no-op.");
+                }
                 return;
             }
 
             FamilySymbol symbol = ResolveSymbol(doc, rule.CategoryFilter, rule, perCategorySymbol, result);
-            if (symbol == null) return;
+            if (symbol == null)
+            {
+                if (diagRoom != null)
+                {
+                    diagRoom.SkippedNoSymbol++;
+                    if (string.IsNullOrEmpty(diagRoom.FirstSkipReason))
+                        diagRoom.FirstSkipReason = $"No FamilySymbol for category '{rule.CategoryFilter}'";
+                }
+                return;
+            }
+
+            // Phase 139.27 (M-07) — manufacturer-miss penalty surfaced as a
+            // diagnostic count. PlacementScorer's catalogue scoring is the
+            // proper home for the 0.5 penalty (see PlacementScorer.cs); here
+            // we just record that a rule referenced a catalogue entry the
+            // registry didn't resolve. Surfaced in the result panel so users
+            // know the placement landed without manufacturer-side validation.
+            try
+            {
+                if (!string.IsNullOrEmpty(rule.CatalogueRef) || !string.IsNullOrEmpty(rule.ManufacturerCode))
+                {
+                    bool resolved = false;
+                    try { resolved = ManufacturerCatalogueRegistry.GetForRule(rule) != null; } catch { }
+                    if (!resolved && diagRoom != null) diagRoom.ManufacturerMisses++;
+                }
+            }
+            catch { }
 
             // Phase 139.18 — warn once per (rule, family) when a wall- or
             // ceiling-anchored rule resolves to an un-hosted family. The
@@ -620,6 +772,7 @@ namespace StingTools.Core.Placement
                 if (tooClose)
                 {
                     result.SkippedCount++;
+                    if (diagRoom != null) diagRoom.CandidatesRejectedDedup++;
                     continue;
                 }
                 try
@@ -636,6 +789,12 @@ namespace StingTools.Core.Placement
                     if (pf.Skipped || fi == null)
                     {
                         result.SkippedCount++;
+                        if (diagRoom != null)
+                        {
+                            diagRoom.SkippedHostPreflight++;
+                            if (string.IsNullOrEmpty(diagRoom.FirstSkipReason))
+                                diagRoom.FirstSkipReason = pf.Reason ?? "host preflight skipped";
+                        }
                         if (!string.IsNullOrEmpty(pf.Reason))
                             result.Warnings.Add(pf.Reason);
                         continue;
@@ -667,6 +826,7 @@ namespace StingTools.Core.Placement
                     result.PlacedIds.Add(fi.Id);
                     result.CountsByRule[rule.MergeKey] = result.CountsByRule.TryGetValue(rule.MergeKey, out var n) ? n + 1 : 1;
                     result.CountsByRoom[roomKey] = result.CountsByRoom.TryGetValue(roomKey, out var m) ? m + 1 : 1;
+                    if (diagRoom != null) diagRoom.CandidatesPlaced++;
                     placedPoints.Add(c.Position);
                     existingNearby.Add(c.Position); // Phase 139.25 — live dedup
 
@@ -1331,14 +1491,19 @@ namespace StingTools.Core.Placement
         // Phase 139.4 — resolve a Document.Settings.Categories entry to its
         // BuiltInCategory enum so FilteredElementCollector.OfCategory can
         // pre-filter family symbols. Cached per document on first hit.
-        private static readonly Dictionary<int, Dictionary<string, BuiltInCategory>> _bicByName
-            = new Dictionary<int, Dictionary<string, BuiltInCategory>>();
+        // Phase 139.27 (N-03) — key by PathName|Title not GetHashCode(),
+        // same hash-collision concern as PlacementHostPreflight.ResolveView3D.
+        private static readonly Dictionary<string, Dictionary<string, BuiltInCategory>> _bicByName
+            = new Dictionary<string, Dictionary<string, BuiltInCategory>>(StringComparer.Ordinal);
         private static readonly object _bicByNameLock = new object();
 
         private static BuiltInCategory ResolveBuiltInCategoryByName(Document doc, string categoryName)
         {
             if (doc == null || string.IsNullOrEmpty(categoryName)) return BuiltInCategory.INVALID;
-            int key = doc.GetHashCode();
+            string path = "", title = "";
+            try { path = doc.PathName ?? ""; } catch { }
+            try { title = doc.Title ?? ""; } catch { }
+            string key = path + "|" + title;
             Dictionary<string, BuiltInCategory> map;
             lock (_bicByNameLock)
             {
@@ -1364,6 +1529,80 @@ namespace StingTools.Core.Placement
                 }
             }
             return map.TryGetValue(categoryName, out var hit) ? hit : BuiltInCategory.INVALID;
+        }
+
+        /// <summary>
+        /// Phase 139.27 (M-02 partial) — flow noggin-required points from
+        /// the lighting-grid cache onto placed instances, so structural
+        /// coordination can read them via NogginRequirementExportCommand.
+        ///
+        /// Match radius: 200mm XY. The scorer's grid points are tile-snapped,
+        /// so a placed instance shouldn't be more than half a tile (300mm)
+        /// from its source point — 200mm is a safety buffer.
+        /// </summary>
+        private static void StampNogginRequirementsFromGrid(
+            Document doc, PlacementScorer scorer, PlacementResult result)
+        {
+            if (doc == null || scorer == null || result == null) return;
+            var grids = scorer.GridResults;
+            if (grids == null || grids.Count == 0) return;
+
+            const double matchRadiusFt = 200.0 / 304.8;
+            double matchSq = matchRadiusFt * matchRadiusFt;
+            int stamped = 0;
+
+            // Collect every noggin point across all (room, rule) pairs.
+            var noggins = new List<XYZ>();
+            foreach (var kv in grids)
+            {
+                if (kv.Value?.NogginRequiredPoints == null) continue;
+                foreach (var p in kv.Value.NogginRequiredPoints)
+                {
+                    if (p != null) noggins.Add(p);
+                    result.NogginRequiredPoints.Add(p);
+                }
+            }
+            if (noggins.Count == 0) return;
+
+            foreach (var id in result.PlacedIds)
+            {
+                FamilyInstance fi = null;
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch { }
+                if (fi == null) continue;
+                XYZ p = (fi.Location as LocationPoint)?.Point;
+                if (p == null) continue;
+
+                bool nearNoggin = false;
+                foreach (var n in noggins)
+                {
+                    double dx = n.X - p.X, dy = n.Y - p.Y;
+                    if (dx * dx + dy * dy <= matchSq) { nearNoggin = true; break; }
+                }
+                if (!nearNoggin) continue;
+
+                try
+                {
+                    var pNog = fi.LookupParameter(ParamRegistry.NOGGIN_REQUIRED);
+                    if (pNog == null || pNog.IsReadOnly) continue;
+                    if (pNog.StorageType == StorageType.Integer && pNog.AsInteger() != 1)
+                    {
+                        pNog.Set(1);
+                        stamped++;
+                    }
+                    else if (pNog.StorageType == StorageType.Double && Math.Abs(pNog.AsDouble() - 1) > 1e-6)
+                    {
+                        pNog.Set(1.0);
+                        stamped++;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"StampNogginRequirements {id.Value}: {ex.Message}"); }
+            }
+
+            if (stamped > 0)
+            {
+                result.Warnings.Add($"Stamped STING_NOGGIN_REQUIRED on {stamped} placed fixture(s) — run Placement_NogginExport to dump the structural fixing schedule.");
+                StingLog.Info($"FixturePlacementEngine: stamped STING_NOGGIN_REQUIRED on {stamped} fixture(s).");
+            }
         }
     }
 }
