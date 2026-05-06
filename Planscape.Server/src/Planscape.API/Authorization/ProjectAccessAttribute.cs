@@ -27,11 +27,13 @@ public class ProjectAccessAttribute : Attribute, IAsyncActionFilter
 
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
+        // Phase 175 audit P1-17 — only look up the explicitly-named route
+        // param. The previous implicit fallback to {id} silently turned
+        // an IssueId / DocumentId into a "ProjectId not found" 404,
+        // masking real auth bugs as routine resource-not-found responses.
+        // Controllers that own {id} (e.g. ProjectsController) declare
+        // [ProjectAccess(RouteParam = "id")].
         var routeValue = context.RouteData.Values.TryGetValue(RouteParam, out var v) ? v?.ToString() : null;
-        // Fall back to {id} when the named param isn't present — covers
-        // ProjectsController.GetProject(Guid id) without per-action overrides.
-        if (string.IsNullOrEmpty(routeValue) && RouteParam != "id")
-            routeValue = context.RouteData.Values.TryGetValue("id", out var v2) ? v2?.ToString() : null;
 
         if (!Guid.TryParse(routeValue, out var projectId) || projectId == Guid.Empty)
         {

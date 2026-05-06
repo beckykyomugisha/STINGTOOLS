@@ -438,6 +438,7 @@ public class DocumentsController : ControllerBase
         var versions = await _db.DocumentVersions
             .Where(v => v.DocumentId == docId)
             .OrderByDescending(v => v.VersionNumber)
+            .Take(200) // Phase 175 audit P1-11 — bound revision history
             .Select(v => new
             {
                 v.Id,
@@ -712,6 +713,7 @@ public class DocumentsController : ControllerBase
         var approvals = await _db.DocumentApprovals
             .Where(a => a.DocumentId == docId)
             .OrderByDescending(a => a.RequestedAt)
+            .Take(200) // Phase 175 audit P1-11 — bound approval history
             .ToListAsync();
 
         return Ok(new { doc.Id, doc.FileName, doc.CdeStatus, approvals });

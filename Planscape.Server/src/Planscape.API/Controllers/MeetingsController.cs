@@ -245,6 +245,11 @@ public class MeetingsController : ControllerBase
                 MeetingTitle = a.Meeting!.Title,
                 IsOverdue = a.DueDate.HasValue && a.DueDate < DateTime.UtcNow
             })
+            // Phase 175 audit P1-11 — bound the response so a project
+            // accumulating thousands of open actions can't silently
+            // hammer the API. Callers that need pagination should
+            // upgrade this to page/pageSize.
+            .Take(500)
             .ToListAsync();
 
         return Ok(actions);

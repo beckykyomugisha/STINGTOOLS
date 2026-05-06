@@ -48,6 +48,7 @@ public class ComplianceCheckJob
         _logger = logger;
     }
 
+    [Hangfire.AutomaticRetry(Attempts = 3, OnAttemptsExceeded = Hangfire.AttemptsExceededAction.Delete)]
     [Hangfire.DisableConcurrentExecution(timeoutInSeconds: 3600)]
     public async Task ExecuteAsync(CancellationToken ct)
     {
@@ -55,6 +56,10 @@ public class ComplianceCheckJob
 
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
+        // Phase 175 audit P0-1 — Hangfire runs without HttpContext so the
+        // global tenant filter sees Guid.Empty and matches no rows. Bypass
+        // the filter and rely on each row's TenantId for cross-tenant work.
+        db.BypassTenantFilter = true;
 
         var projects = await db.Projects
             .Where(p => p.Status == Core.Entities.ProjectStatus.Active)
@@ -123,6 +128,10 @@ public class SlaEscalationJob
         _logger = logger;
     }
 
+    // Phase 175 audit P0-6 — make the job retry-safe. Without an explicit
+    // policy, Hangfire's default 10-retry exponential backoff can re-bump
+    // priority on a transient failure, fast-tracking issues to CRITICAL.
+    [Hangfire.AutomaticRetry(Attempts = 3, OnAttemptsExceeded = Hangfire.AttemptsExceededAction.Delete)]
     [Hangfire.DisableConcurrentExecution(timeoutInSeconds: 3600)]
     public async Task ExecuteAsync(CancellationToken ct)
     {
@@ -130,6 +139,9 @@ public class SlaEscalationJob
 
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
+        // Phase 175 audit P0-1 — Hangfire has no HttpContext; the global
+        // tenant filter would otherwise see Guid.Empty and skip every row.
+        db.BypassTenantFilter = true;
         var notifications = scope.ServiceProvider.GetService<INotificationService>();
         var push = scope.ServiceProvider.GetService<IPushNotificationService>();
 
@@ -137,6 +149,7 @@ public class SlaEscalationJob
 
         var overdueIssues = await db.Issues
             .Include(i => i.Project)
+            .Include(i => i.AssigneeUser)
             .Where(i => i.DueDate != null
                 && i.DueDate < now
                 && i.Status != "CLOSED"
@@ -178,28 +191,38 @@ public class SlaEscalationJob
                         ct);
                 }
 
-                // Push to assignee if set
-                if (!string.IsNullOrEmpty(issue.Assignee) && push != null && tenantId != Guid.Empty)
+                // Push to assignee if set. Phase 175 audit P0-5 — prefer
+                // the AssigneeUserId FK (already loaded via Include) over
+                // matching by DisplayName, which is non-unique and silently
+                // mis-routes when two users share a name.
+                var assigneeUser = issue.AssigneeUser;
+                if (assigneeUser == null && !string.IsNullOrEmpty(issue.Assignee) && tenantId != Guid.Empty)
                 {
-                    var assignee = await db.Users.FirstOrDefaultAsync(
+                    // Legacy issues lacking AssigneeUserId — best-effort
+                    // fall back, scoped to tenant. Logged so we can spot
+                    // unmigrated rows and backfill the FK.
+                    assigneeUser = await db.Users.FirstOrDefaultAsync(
                         u => u.DisplayName == issue.Assignee && u.TenantId == tenantId, ct);
-                    if (assignee != null)
+                    if (assigneeUser != null)
+                        _logger.LogDebug("Issue {Code} resolved assignee by DisplayName fallback — backfill AssigneeUserId.", issue.IssueCode);
+                }
+
+                if (assigneeUser != null && push != null)
+                {
+                    _ = push.SendToUserAsync(assigneeUser.Id, new PushPayload
                     {
-                        _ = push.SendToUserAsync(assignee.Id, new PushPayload
+                        Title = $"SLA Breach: {issue.IssueCode}",
+                        Body = $"Escalated {previousPriority} → {issue.Priority}. {issue.Title}",
+                        Channel = "sla_breach",
+                        Data = new Dictionary<string, string>
                         {
-                            Title = $"SLA Breach: {issue.IssueCode}",
-                            Body = $"Escalated {previousPriority} → {issue.Priority}. {issue.Title}",
-                            Channel = "sla_breach",
-                            Data = new Dictionary<string, string>
-                            {
-                                ["type"] = "sla_escalation",
-                                ["issueId"] = issue.Id.ToString(),
-                                ["issueCode"] = issue.IssueCode,
-                                ["priority"] = issue.Priority,
-                                ["projectId"] = issue.ProjectId.ToString()
-                            }
-                        }, ct);
-                    }
+                            ["type"] = "sla_escalation",
+                            ["issueId"] = issue.Id.ToString(),
+                            ["issueCode"] = issue.IssueCode,
+                            ["priority"] = issue.Priority,
+                            ["projectId"] = issue.ProjectId.ToString()
+                        }
+                    }, ct);
                 }
             }
         }
@@ -228,6 +251,7 @@ public class StaleWarningCleanupJob
         _logger = logger;
     }
 
+    [Hangfire.AutomaticRetry(Attempts = 3, OnAttemptsExceeded = Hangfire.AttemptsExceededAction.Delete)]
     [Hangfire.DisableConcurrentExecution(timeoutInSeconds: 3600)]
     public async Task ExecuteAsync(CancellationToken ct)
     {
@@ -235,6 +259,8 @@ public class StaleWarningCleanupJob
 
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
+        // Phase 175 audit P0-1 — Hangfire context lacks tenant_id.
+        db.BypassTenantFilter = true;
 
         var cutoff = DateTime.UtcNow.AddDays(-RetentionDays);
 
@@ -284,6 +310,7 @@ public class PlatformSyncJob
         _logger = logger;
     }
 
+    [Hangfire.AutomaticRetry(Attempts = 3, OnAttemptsExceeded = Hangfire.AttemptsExceededAction.Delete)]
     [Hangfire.DisableConcurrentExecution(timeoutInSeconds: 3600)]
     public async Task ExecuteAsync(CancellationToken ct)
     {
@@ -291,6 +318,8 @@ public class PlatformSyncJob
 
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
+        // Phase 175 audit P0-1 — Hangfire context lacks tenant_id.
+        db.BypassTenantFilter = true;
         var factory = scope.ServiceProvider.GetRequiredService<IPlatformConnectorFactory>();
 
         var connections = await db.PlatformConnections

@@ -45,32 +45,74 @@ public partial class AddProjectCreatedByAndBackfillMembers : Migration
         // the pattern in BackfillStageGateCriteria.
         mb.Sql("CREATE EXTENSION IF NOT EXISTS pgcrypto;");
 
-        // Backfill: insert an active ProjectMember row for every
-        // (project, tenant user) pair that isn't already represented.
-        // Defaults: ProjectRole='Contributor', Iso19650Role='M'. The
-        // unique (ProjectId, UserId) index ensures idempotency if the
-        // migration is replayed.
+        // Phase 175 audit P2-22 — backfill CreatedById to the tenant
+        // Owner / first Admin so legacy projects always have a fallback
+        // author. Without this, an admin pruning the legacy member
+        // backfill (per the docstring above) could orphan a project.
+        // Scoped to projects where CreatedById is still NULL so reruns
+        // are idempotent.
         mb.Sql(@"
-            INSERT INTO ""ProjectMembers""
-                (""Id"", ""TenantId"", ""ProjectId"", ""UserId"",
-                 ""ProjectRole"", ""Iso19650Role"", ""IsActive"",
-                 ""JoinedAt"", ""InvitedBy"")
-            SELECT
-                gen_random_uuid(),
-                p.""TenantId"",
-                p.""Id"",
-                u.""Id"",
-                'Contributor',
-                COALESCE(NULLIF(u.""Iso19650Role"", ''), 'M'),
-                TRUE,
-                now(),
-                'phase-175-backfill'
-            FROM ""Projects"" p
-            JOIN ""Users"" u ON u.""TenantId"" = p.""TenantId"" AND u.""IsActive"" = TRUE
-            WHERE NOT EXISTS (
-                SELECT 1 FROM ""ProjectMembers"" m
-                WHERE m.""ProjectId"" = p.""Id"" AND m.""UserId"" = u.""Id""
-            );
+            UPDATE ""Projects"" p
+            SET ""CreatedById"" = sub.""UserId""
+            FROM (
+                SELECT DISTINCT ON (u.""TenantId"") u.""TenantId"", u.""Id"" AS ""UserId""
+                FROM ""Users"" u
+                WHERE u.""IsActive"" = TRUE
+                ORDER BY u.""TenantId"",
+                         CASE u.""Role""
+                             WHEN 5 THEN 0  -- Owner
+                             WHEN 4 THEN 1  -- Admin
+                             WHEN 3 THEN 2  -- Manager
+                             ELSE 9
+                         END,
+                         u.""CreatedAt""
+            ) AS sub
+            WHERE p.""TenantId"" = sub.""TenantId""
+              AND p.""CreatedById"" IS NULL;
+        ");
+
+        // Phase 175 audit P1-8 — batched backfill. The original single
+        // INSERT … SELECT could lock ProjectMembers long enough on a
+        // large tenant (1k projects × 500 users = 500k rows) to block
+        // live traffic. We chunk by Project so each statement touches
+        // at most (users_per_tenant) rows, well under any reasonable
+        // lock budget. Idempotent via the unique (ProjectId, UserId)
+        // index.
+        mb.Sql(@"
+            DO $$
+            DECLARE
+                proj RECORD;
+                inserted_total BIGINT := 0;
+                inserted_batch BIGINT := 0;
+            BEGIN
+                FOR proj IN SELECT ""Id"", ""TenantId"" FROM ""Projects"" LOOP
+                    INSERT INTO ""ProjectMembers""
+                        (""Id"", ""TenantId"", ""ProjectId"", ""UserId"",
+                         ""ProjectRole"", ""Iso19650Role"", ""IsActive"",
+                         ""JoinedAt"", ""InvitedBy"")
+                    SELECT
+                        gen_random_uuid(),
+                        proj.""TenantId"",
+                        proj.""Id"",
+                        u.""Id"",
+                        'Contributor',
+                        COALESCE(NULLIF(u.""Iso19650Role"", ''), 'M'),
+                        TRUE,
+                        now(),
+                        'phase-175-backfill'
+                    FROM ""Users"" u
+                    WHERE u.""TenantId"" = proj.""TenantId""
+                      AND u.""IsActive"" = TRUE
+                      AND NOT EXISTS (
+                          SELECT 1 FROM ""ProjectMembers"" m
+                          WHERE m.""ProjectId"" = proj.""Id""
+                            AND m.""UserId"" = u.""Id""
+                      );
+                    GET DIAGNOSTICS inserted_batch = ROW_COUNT;
+                    inserted_total := inserted_total + inserted_batch;
+                END LOOP;
+                RAISE NOTICE 'Phase 175 backfill: inserted % ProjectMember rows.', inserted_total;
+            END$$;
         ");
     }
 

@@ -70,6 +70,11 @@ public class IssuesController : ControllerBase
         [FromQuery] Guid? modelId = null,
         [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
+        // Phase 175 audit P1-14 — clamp pageSize so a client can't ask
+        // for pageSize=1_000_000. Page-1 minimum guards a negative skip.
+        if (page < 1) page = 1;
+        pageSize = Math.Clamp(pageSize, 1, 200);
+
         var tenantId = GetTenantId();
         var query = _db.Issues.Where(i => i.ProjectId == projectId && i.Project!.TenantId == tenantId);
 

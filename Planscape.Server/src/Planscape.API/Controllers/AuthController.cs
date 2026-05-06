@@ -37,8 +37,21 @@ public class AuthController : ControllerBase
     private const int MaxFailedLoginsPerWindow = 5;
     private static readonly TimeSpan FailedLoginWindow = TimeSpan.FromMinutes(5);
 
-    private static string RefreshActivityKey(string refreshToken) => $"refresh_active:{refreshToken}";
+    // Phase 175 audit P0-3 — never use the raw refresh token as a Redis
+    // key. Anyone with Redis read access (ops, backups, side-channel,
+    // accidental KEYS scan) sees live session secrets. SHA-256 the token
+    // first; the activity-tracking semantics are unchanged because the
+    // hash is deterministic and 256 bits is collision-safe at our scale.
+    private static string RefreshActivityKey(string refreshToken) =>
+        $"refresh_active:{HashForKey(refreshToken)}";
     private static string FailedLoginsKey(string email) => $"login_attempts:{email.ToLowerInvariant()}";
+
+    private static string HashForKey(string value)
+    {
+        var bytes = System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(value ?? string.Empty));
+        return Convert.ToHexString(bytes);
+    }
 
     private readonly PlanscapeDbContext _db;
     private readonly IConfiguration _config;
