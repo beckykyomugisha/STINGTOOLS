@@ -4455,6 +4455,7 @@
                                         <Button Style="{StaticResource GreenBtn}"  Content="Cover audit"     Tag="Arch_CoverAudit"       Click="Cmd_Click" Width="90"  Height="30" ToolTip="ARCH-06 Fire / moisture / thermal cover audit"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Wind apply"      Tag="StrExt_WindAutoApply"  Click="Cmd_Click" Width="90"  Height="30" ToolTip="STR-03 ASCE 7 / EC 1 wind pressure"/>
                                         <Button Style="{StaticResource OrangeBtn}" Content="Stage audit"     Tag="StdExt_StageCompliance" Click="Cmd_Click" Width="90"  Height="30" ToolTip="STD-01 RIBA 0-7 compliance gate"/>
+                                        <Button Style="{StaticResource GreenBtn}"  Content="Compliance"     Tag="StdExt_RunCompliance"  Click="Cmd_Click" Width="90"  Height="30" ToolTip="Run StandardsComplianceEngine over rooms + doors using the active region's rule pack"/>
                                     </WrapPanel>
                                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                                         <StackPanel Margin="4">

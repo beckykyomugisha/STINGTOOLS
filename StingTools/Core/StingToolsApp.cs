@@ -54,6 +54,16 @@ namespace StingTools.Core
                 // loads later in OnDocumentOpened and can flip the flag off.
                 StingOfflineConfig.ApplyDefaults();
 
+                // Wire the Standards library's pluggable log sink to StingLog so
+                // StandardsComplianceEngine messages land in the same log file as
+                // the rest of the plugin (replaces the old NLog dependency).
+                StingTools.Standards.Compliance.StandardsLog.Sink = (lvl, msg, ex) =>
+                {
+                    if (lvl == StingTools.Standards.Compliance.StandardsLogLevel.Info) StingLog.Info(msg);
+                    else if (lvl == StingTools.Standards.Compliance.StandardsLogLevel.Warn) StingLog.Warn(msg);
+                    else StingLog.Error(msg, ex);
+                };
+
                 // Pack 7 — wire the DocumentChanged cascade handler (room
                 // renumbers, level changes, sheet ISO violations). Gated by
                 // StingOfflineConfig.RealtimeCascadesEnabled at callback time.

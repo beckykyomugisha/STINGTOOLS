@@ -116,10 +116,13 @@ namespace StingTools.Commands.Standards
             CableSizeResult res;
             try
             {
+                // Region-aware: pull the active electrical standard from the project
+                // (BS 7671 for UK, NEC 310 for US, IEC 60364 for International, etc.).
+                string elecStd = ProjectStandardsManager.Instance.GetStandardForDiscipline(StandardsDiscipline.Electrical);
                 res = StandardsAPI.CalculateCableSize(
                     voltageV: v[0], currentA: v[1], lengthM: v[2],
                     conductorType: "Copper", insulationType: "THHN",
-                    conduitFill: (int)v[3], ambientTempC: v[4], standard: "IEC60364");
+                    conduitFill: (int)v[3], ambientTempC: v[4], standard: elecStd);
             }
             catch (Exception ex) { StingLog.Error("CalcCableSize failed", ex); message = ex.Message; return Result.Failed; }
 
@@ -362,9 +365,10 @@ namespace StingTools.Commands.Standards
                 // Library signature: (floorAreaM2, occupancyType, hazardClassification, standard)
                 string hazard = v[1] <= 1.5 ? "Light" : v[1] <= 2.5 ? "OrdinaryGroup1" :
                                 v[1] <= 3.5 ? "OrdinaryGroup2" : "ExtraHazard";
+                string fireStd = ProjectStandardsManager.Instance.GetStandardForDiscipline(StandardsDiscipline.FireProtection);
                 var res = StandardsAPI.DesignSprinklerSystem(
                     floorAreaM2: v[0], occupancyType: "Office",
-                    hazardClassification: hazard);
+                    hazardClassification: hazard, standard: fireStd);
 
                 var panel = StingResultPanel.Create("Sprinkler design — NFPA 13 / BS EN 12845");
                 panel.SetSubtitle(res.NFPAReference ?? "NFPA 13 / BS EN 12845");
