@@ -83,8 +83,8 @@ namespace StingTools.Core.Symbols
             {
                 var cat = fam.FamilyCategory;
                 if (cat == null) return false;
-                int catId;
-                try { catId = cat.Id?.IntegerValue ?? 0; }
+                long catId;
+                try { catId = cat.Id?.Value ?? 0L; }
                 catch (Exception ex) { StingTools.Core.StingLog.Warn($"IsAugmentableCategory id: {ex.Message}"); return false; }
 
                 switch ((BuiltInCategory)catId)

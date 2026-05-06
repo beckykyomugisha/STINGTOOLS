@@ -141,7 +141,7 @@ namespace StingTools.Core.SLD
                 var inst = doc.GetElement(instanceId) as FamilyInstance;
                 if (inst == null) return;
                 var p = inst.LookupParameter("STING_SYMBOL_LABEL_ID");
-                if (p != null && !p.IsReadOnly) p.Set(labelId.IntegerValue.ToString());
+                if (p != null && !p.IsReadOnly) p.Set(labelId.Value.ToString());
             }
             catch (Exception ex)
             {

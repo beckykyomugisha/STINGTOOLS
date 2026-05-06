@@ -114,7 +114,7 @@ namespace StingTools.Core.SLD
             try
             {
                 // Find the SLD symbol that maps to this model element.
-                string targetIdStr = changedElementId.IntegerValue.ToString();
+                string targetIdStr = changedElementId.Value.ToString();
                 var sldSymbol = new FilteredElementCollector(doc, sldView.Id)
                     .OfClass(typeof(FamilyInstance))
                     .Cast<FamilyInstance>()
@@ -188,7 +188,7 @@ namespace StingTools.Core.SLD
                     {
                         var p = sldSymbol.LookupParameter("STING_SYMBOL_LABEL_ID");
                         if (p != null && !p.IsReadOnly)
-                            p.Set(newLabelId.IntegerValue.ToString());
+                            p.Set(newLabelId.Value.ToString());
                     }
                     tx.Commit();
                 }
@@ -209,7 +209,7 @@ namespace StingTools.Core.SLD
                 string s = p?.AsString();
                 if (string.IsNullOrEmpty(s)) return ElementId.InvalidElementId;
                 if (long.TryParse(s, out var raw))
-                    return new ElementId((int)raw);
+                    return new ElementId(raw);
             }
             catch (Exception ex) { StingTools.Core.StingLog.Warn($"ResolveStampedLabelId: {ex.Message}"); }
             return ElementId.InvalidElementId;
@@ -296,7 +296,7 @@ namespace StingTools.Core.SLD
                                 if (inst != null)
                                 {
                                     StampParam(inst, "STING_SYMBOL_ID", node.ConceptId);
-                                    StampParam(inst, "STING_SLD_ELEMENT_ID", node.ElementId.IntegerValue.ToString());
+                                    StampParam(inst, "STING_SLD_ELEMENT_ID", node.ElementId.Value.ToString());
                                     result.SymbolsPlaced++;
                                     if (nodeToInstance != null)
                                         nodeToInstance[node.ElementId] = inst.Id;

@@ -115,7 +115,7 @@ namespace StingTools.Core.Symbols
                 var p = tag.LookupParameter("STING_HOST_ELEMENT_ID");
                 string s = p?.AsString();
                 if (!string.IsNullOrEmpty(s) && long.TryParse(s, out var raw))
-                    return doc.GetElement(new ElementId((int)raw));
+                    return doc.GetElement(new ElementId(raw));
                 var ids = tag.GetTaggedLocalElementIds();
                 if (ids != null)
                 {

@@ -494,21 +494,18 @@ namespace StingTools.Core.Symbols
 
         private static void SetConnectorDirection(ConnectorElement ce, string direction)
         {
-            // TODO-VERIFY-API: ConnectorElement.Flow accepts FlowDirectionType
-            // (In / Out / Bidirectional / Calculated) directly; there's no
-            // BuiltInParameter for direction in 2025+.
-            try
-            {
-                FlowDirectionType v;
-                switch ((direction ?? "Bidirectional").Trim())
-                {
-                    case "In":  v = FlowDirectionType.In;  break;
-                    case "Out": v = FlowDirectionType.Out; break;
-                    default:    v = FlowDirectionType.Bidirectional; break;
-                }
-                ce.Flow = v;
-            }
-            catch (Exception ex) { StingLog.Warn($"SetConnectorDirection: {ex.Message}"); }
+            // ConnectorElement (family edit) doesn't expose flow direction
+            // directly in Revit 2025 — the runtime Connector.Direction is
+            // a get-only mirror of the connector's intrinsic type, and
+            // BuiltInParameter.CONNECTOR_FLOW_DIRECTION was retired.
+            // Symbol families default to Bidirectional which is fine for
+            // schematic / tag content; users can override in the family
+            // editor when fabrication-grade direction is required.
+            if (string.IsNullOrEmpty(direction)
+                || direction.Equals("Bidirectional", StringComparison.OrdinalIgnoreCase))
+                return;
+            StingLog.Info($"SetConnectorDirection: '{direction}' requested but ConnectorElement "
+                + "doesn't expose flow direction in 2025 API — left at family default.");
         }
 
         private static XYZ ParseFacing(string facing)

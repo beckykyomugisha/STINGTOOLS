@@ -61,7 +61,7 @@ namespace StingTools.Core.Symbols
 
                 Stamp(tag, "STING_SYMBOL_ID", conceptId);
                 Stamp(tag, "STING_SYMBOL_STANDARD", standardId);
-                Stamp(tag, "STING_HOST_ELEMENT_ID", host.Id.IntegerValue.ToString());
+                Stamp(tag, "STING_HOST_ELEMENT_ID", host.Id.Value.ToString());
 
                 SymbolAnnotationEngine.PlaceAnnotation(doc, view, tag, conceptId, standardId);
                 return tag.Id;
@@ -127,7 +127,7 @@ namespace StingTools.Core.Symbols
                     var p = tag.LookupParameter("STING_HOST_ELEMENT_ID");
                     string hostStr = p?.AsString();
                     if (string.IsNullOrEmpty(hostStr) || !long.TryParse(hostStr, out var raw)) continue;
-                    var host = doc.GetElement(new ElementId((int)raw));
+                    var host = doc.GetElement(new ElementId(raw));
                     if (host == null) { view.SetElementOverrides(tag.Id, ogsHidden); adjusted++; continue; }
                     bool hostHidden = host.IsHidden(view);
                     view.SetElementOverrides(tag.Id, hostHidden ? ogsHidden : ogsVisible);
