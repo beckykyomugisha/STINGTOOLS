@@ -52,6 +52,12 @@ can use it without per-family special cases:
   `doc.Create.NewFamilyInstance(point, fs, view)` with a 2D detail
   view, so the family must accept that overload (Detail Item families
   do; Generic Model 3D families do not).
+* The placer validates `Family.FamilyCategory` at load time and warns
+  (once per session per family) when the category is not Detail Item
+  or Generic Annotation. Hosted families, 3D Generic Models, and MEP
+  families will trigger the warning — placement may still proceed but
+  the symbol can render at the wrong scale or fail to position
+  correctly. Re-author from the Detail Item template.
 * Drawn **at the family origin**. The placer puts the symbol at the
   member's `LocationPoint` (or first `LocationCurve` endpoint) — there
   is no per-symbol offset, so author the linework so the visual
@@ -81,6 +87,21 @@ family in this folder.
 
 If you parameterise linework size by `Symbol Scale`, a 1:25 detail and
 a 1:50 spool render the same plotted millimetres.
+
+### Leaders
+
+When the 8-quadrant collision-avoidance pass displaces a symbol from
+its true anchor (because another symbol is already there), the placer
+draws a straight `DetailCurve` leader from the displaced symbol back
+toward the member anchor. The leader stops a half-step short of the
+symbol so it doesn't pass through the symbol body. Co-located symbols
+(no displacement) skip the leader since the symbol overlay is its own
+visual cue per ISO 6412.
+
+Leader detail curves carry the same placer stamps as the symbols, so:
+
+* Replace mode purges them with the symbols.
+* `FabricationUndoManager` rolls them back as part of the package.
 
 ### Placement modes
 

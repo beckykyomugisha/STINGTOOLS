@@ -138,14 +138,16 @@ namespace StingTools.Core.Fabrication
 
                 try
                 {
-                    // Replace mode: purge first.
-                    if (mode == StingTools.Commands.Fabrication.FabricationOptions.PlacementMode.Replace
-                        && existingByMember.Count > 0)
+                    // Replace mode: purge ALL stamped elements (symbols +
+                    // leader curves) on the view first. Symbol-only purge
+                    // would orphan leaders.
+                    if (mode == StingTools.Commands.Fabrication.FabricationOptions.PlacementMode.Replace)
                     {
+                        var stampedIds = CollectAllStamped(doc, detailView);
                         int purged = 0;
-                        foreach (var kv in existingByMember)
+                        foreach (var sid in stampedIds)
                         {
-                            try { doc.Delete(kv.Value); purged++; } catch { }
+                            try { doc.Delete(sid); purged++; } catch { }
                         }
                         result.SymbolsReplaced += purged;
                         existingByMember.Clear();
@@ -226,9 +228,15 @@ namespace StingTools.Core.Fabrication
 
                 // 8-quadrant collision avoidance.
                 UV pickedUv = anchorUv;
+                bool displaced = false;
                 if (Overlaps(occupied, anchorUv, stepFt))
                 {
-                    pickedUv = TryFallbackPositions(anchorUv, occupied, stepFt) ?? anchorUv;
+                    var fallback = TryFallbackPositions(anchorUv, occupied, stepFt);
+                    if (fallback != null)
+                    {
+                        pickedUv = fallback;
+                        displaced = true;
+                    }
                 }
                 XYZ placePoint = UvToXyz(view, pickedUv);
 
@@ -248,6 +256,14 @@ namespace StingTools.Core.Fabrication
 
                 // Track for undo.
                 if (result?.SymbolIds != null) result.SymbolIds.Add(inst.Id);
+
+                // P5: leader from displaced symbol to anchor. Skip when the
+                // symbol sits over the member (no displacement) — the
+                // overlay is its own visual cue per ISO 6412.
+                if (displaced)
+                {
+                    TryPlaceLeader(doc, view, anchorUv, pickedUv, stepFt, assemblyId, r, result);
+                }
                 return true;
             }
             catch (Exception ex)
@@ -340,6 +356,63 @@ namespace StingTools.Core.Fabrication
                 }
             }
             return null;
+        }
+
+        /// <summary>
+        /// P5: draws a straight leader from the displaced symbol's
+        /// placement point back toward the member's true anchor. The
+        /// leader stops one half-step short of the symbol so it doesn't
+        /// pass through the symbol body. Stamps the curve so the undo
+        /// manager can roll it back with the symbol.
+        /// </summary>
+        private static void TryPlaceLeader(
+            Document doc, View view,
+            UV anchorUv, UV pickedUv, double stepFt,
+            ElementId assemblyId, MemberResolution r,
+            FabricationResult result)
+        {
+            try
+            {
+                // Pull the leader endpoint half a step toward the anchor
+                // so it doesn't cross under the symbol family graphics.
+                double dx = anchorUv.U - pickedUv.U;
+                double dy = anchorUv.V - pickedUv.V;
+                double len = Math.Sqrt(dx * dx + dy * dy);
+                if (len < 1e-9) return;
+                double pullback = Math.Min(stepFt * 0.5, len * 0.25);
+                double t = (len - pullback) / len;
+                UV leaderTipUv = new UV(
+                    pickedUv.U + dx * (pullback / len),
+                    pickedUv.V + dy * (pullback / len));
+                UV leaderEndUv = new UV(
+                    pickedUv.U + dx * t,
+                    pickedUv.V + dy * t);
+
+                XYZ p0 = UvToXyz(view, leaderTipUv);
+                XYZ p1 = UvToXyz(view, leaderEndUv);
+                if (p0.IsAlmostEqualTo(p1, 1e-9)) return;
+
+                Line line = Line.CreateBound(p0, p1);
+                DetailCurve curve = doc.Create.NewDetailCurve(view, line);
+                if (curve == null) return;
+
+                // Track + stamp so undo + replace mode pick it up.
+                if (result?.SymbolIds != null) result.SymbolIds.Add(curve.Id);
+                try
+                {
+                    var pBool = curve.LookupParameter(STAMP_BOOL);
+                    if (pBool != null && !pBool.IsReadOnly && pBool.StorageType == StorageType.Integer)
+                        pBool.Set(1);
+                    var pAssy = curve.LookupParameter(STAMP_ASSY);
+                    if (pAssy != null && !pAssy.IsReadOnly && pAssy.StorageType == StorageType.String)
+                        pAssy.Set(assemblyId?.Value.ToString() ?? "");
+                    var pMember = curve.LookupParameter(STAMP_MEMBER);
+                    if (pMember != null && !pMember.IsReadOnly && pMember.StorageType == StorageType.String)
+                        pMember.Set(r.MemberId.Value.ToString());
+                }
+                catch { /* curves rarely accept these stamps; that's OK */ }
+            }
+            catch (Exception ex) { StingLog.Warn($"IsoSymbolPlacer leader: {ex.Message}"); }
         }
 
         private static void ApplyRotation(Document doc, View view, FamilyInstance inst, Element member, XYZ pivot)
@@ -452,6 +525,30 @@ namespace StingTools.Core.Fabrication
         }
 
         // ─── Existing-symbol detection (idempotency) ───────────────────
+
+        /// <summary>
+        /// Replace-mode purge target: every element on the view stamped
+        /// with STAMP_BOOL = 1 — symbols (FamilyInstance) AND leader
+        /// curves (DetailCurve / CurveElement). Leaders without stamps
+        /// survive (legacy placements pre-Phase 178).
+        /// </summary>
+        private static List<ElementId> CollectAllStamped(Document doc, View view)
+        {
+            var ids = new List<ElementId>();
+            try
+            {
+                var col = new FilteredElementCollector(doc, view.Id);
+                foreach (var el in col)
+                {
+                    if (el == null) continue;
+                    var pBool = el.LookupParameter(STAMP_BOOL);
+                    if (pBool == null || pBool.StorageType != StorageType.Integer) continue;
+                    if (pBool.AsInteger() == 1) ids.Add(el.Id);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"IsoSymbolPlacer.CollectAllStamped: {ex.Message}"); }
+            return ids;
+        }
 
         /// <summary>
         /// Returns map of memberId.Value → existing FamilyInstance id for
@@ -587,7 +684,10 @@ namespace StingTools.Core.Fabrication
                 {
                     if (el is FamilySymbol fs &&
                         string.Equals(fs.FamilyName, famName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        ValidateFamilyTemplate(fs, result);
                         return fs;
+                    }
                 }
                 // Try lazy load from families folder
                 string familyPath = Path.Combine(StingToolsApp.DataPath ?? "", "..", "Families", "ISO6412", entry.FamilyFile);
@@ -597,7 +697,13 @@ namespace StingTools.Core.Fabrication
                     if (doc.LoadFamily(familyPath, out f) && f != null)
                     {
                         foreach (ElementId sid in f.GetFamilySymbolIds())
-                            if (doc.GetElement(sid) is FamilySymbol fs) return fs;
+                        {
+                            if (doc.GetElement(sid) is FamilySymbol fs)
+                            {
+                                ValidateFamilyTemplate(fs, result);
+                                return fs;
+                            }
+                        }
                     }
                 }
             }
@@ -610,6 +716,56 @@ namespace StingTools.Core.Fabrication
                 StingLog.Warn($"IsoSymbolPlacer: family not found -> {famName}");
             try { result?.MissingFamilies?.Add(famName); } catch { }
             return null;
+        }
+
+        // Process-static dedup so the per-family warning only fires once
+        // per session even when the same wrong-template family is used by
+        // hundreds of members.
+        private static readonly HashSet<string> _badTemplateLogged
+            = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// P6: warns when a family loaded for symbol placement is NOT
+        /// a Detail Item or Generic Annotation. Hosted families
+        /// (walls, ceilings, level-based) and 3D Generic Models will
+        /// either fail to place on a section view or render at the
+        /// wrong scale. We don't reject the family — we only warn —
+        /// because Revit's family-category landscape is fragmented and
+        /// users may have valid reasons (e.g. an annotation symbol
+        /// authored as a Generic Annotation Tag with a custom subcategory).
+        /// </summary>
+        private static void ValidateFamilyTemplate(FamilySymbol fs, FabricationResult result)
+        {
+            try
+            {
+                if (fs?.Family == null) return;
+                var fam = fs.Family;
+                var catId = fam.FamilyCategory?.Id ?? ElementId.InvalidElementId;
+                if (catId == ElementId.InvalidElementId) return;
+
+                // Acceptable templates: Detail Items, Generic Annotations,
+                // Title Blocks (rare), Filled Region — anything that the
+                // Revit API accepts on a 2D detail/section view.
+                var ok = new HashSet<long>
+                {
+                    (long)BuiltInCategory.OST_DetailComponents,
+                    (long)BuiltInCategory.OST_GenericAnnotation,
+                    (long)BuiltInCategory.OST_TitleBlocks,
+                };
+                if (ok.Contains(catId.Value)) return;
+
+                // Hosted / 3D families: warn (once per family per session).
+                if (_badTemplateLogged.Add(fam.Name))
+                {
+                    string warn = $"ISO 6412 family '{fam.Name}' has unexpected category " +
+                                  $"({fam.FamilyCategory?.Name ?? "unknown"}). Expected " +
+                                  $"Detail Item or Generic Annotation — placement may render " +
+                                  $"incorrectly. Re-author from the Detail Item template.";
+                    result?.Warnings?.Add(warn);
+                    StingLog.Warn($"IsoSymbolPlacer: {warn}");
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"IsoSymbolPlacer.ValidateFamilyTemplate: {ex.Message}"); }
         }
 
         // ─── Index loading ─────────────────────────────────────────────
