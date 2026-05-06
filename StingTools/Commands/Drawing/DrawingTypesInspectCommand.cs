@@ -60,6 +60,13 @@ namespace StingTools.Commands.Drawing
                 }
                 sb.AppendLine();
 
+                // Title-block readiness — fast pre-flight summary of which
+                // title-block families profiles reference vs. what's loaded
+                // in the project, plus whether the TitleBlockRouter has a
+                // discipline default configured. Surfaces the silent
+                // "first available" fallback risk in one place.
+                AppendTitleBlockReadiness(doc, lib, sb);
+
                 // Validation summary
                 int errors   = reports.Sum(r => r.Issues.Count(i => i.Severity == ValidationSeverity.Error));
                 int warnings = reports.Sum(r => r.Issues.Count(i => i.Severity == ValidationSeverity.Warning));
@@ -144,6 +151,56 @@ namespace StingTools.Commands.Drawing
         {
             if (string.IsNullOrEmpty(s)) return "";
             return s.Length <= len ? s : s.Substring(0, len - 1) + "…";
+        }
+
+        private static void AppendTitleBlockReadiness(Document doc, DrawingTypeLibrary lib, StringBuilder sb)
+        {
+            if (doc == null || lib == null) return;
+            try
+            {
+                var loadedFamilies = new System.Collections.Generic.HashSet<string>(
+                    new FilteredElementCollector(doc)
+                        .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                        .OfClass(typeof(FamilySymbol))
+                        .Cast<FamilySymbol>()
+                        .Select(fs => fs.FamilyName ?? ""),
+                    StringComparer.OrdinalIgnoreCase);
+
+                var referenced = lib.DrawingTypes
+                    .Where(t => !string.IsNullOrWhiteSpace(t.TitleBlockFamily))
+                    .GroupBy(t => t.TitleBlockFamily, StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(g => g.Key)
+                    .ToList();
+
+                sb.AppendLine("Title-block readiness:");
+                if (referenced.Count == 0)
+                {
+                    sb.AppendLine("  (no profiles declare a titleBlockFamily)");
+                }
+                else
+                {
+                    int missing = 0;
+                    foreach (var grp in referenced)
+                    {
+                        bool loaded = loadedFamilies.Contains(grp.Key);
+                        if (!loaded) missing++;
+                        sb.AppendLine($"  {(loaded ? "✓" : "✗")} {grp.Key}  ({grp.Count()} profile{(grp.Count() == 1 ? "" : "s")})");
+                    }
+                    if (missing > 0)
+                        sb.AppendLine($"  ⚠ {missing} family(ies) not loaded — sheets created from those profiles will fall back to the first available title block, and populated cells may silently drop.");
+                }
+
+                // TitleBlockRouter status
+                var router = StingTools.Core.TitleBlockRouter.ByDiscipline ?? new System.Collections.Generic.Dictionary<string, ElementId>();
+                int routed = router.Values.Count(id => id != ElementId.InvalidElementId);
+                bool hasDefault = StingTools.Core.TitleBlockRouter.DefaultId != ElementId.InvalidElementId;
+                sb.AppendLine($"  Router: {routed} discipline override(s); default {(hasDefault ? "set" : "UNSET")} (run Project Setup Wizard to configure).");
+                sb.AppendLine();
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"Title-block readiness check failed: {ex.Message}");
+            }
         }
     }
 

@@ -114,9 +114,22 @@ namespace StingTools.Core.Fabrication
             }
             else
             {
+                // 1) DrawingType profile (corporate spool A1 etc.)
                 tbId = ResolveTitleBlockFromDrawingType(doc, drawingType);
+                // 2) Project Setup Wizard router — single source of truth
+                //    populated by ProjectSetupCommand. Honoured here so the
+                //    fabrication path obeys the same per-discipline policy
+                //    as DocAutomation / SheetManager / BatchCreateSheets.
                 if (tbId == ElementId.InvalidElementId)
-                    tbId = ResolveTitleBlock(doc, discipline);
+                {
+                    string discCode = DisciplineCode.TryGetValue(discipline ?? "", out var dc)
+                        ? dc : "G";
+                    var routed = StingTools.Core.TitleBlockRouter.Resolve(doc, discCode);
+                    if (routed != null) tbId = routed.Id;
+                }
+                // 3) Per-discipline STING_TB_ASSEMBLY_* hard-code as last resort
+                if (tbId == ElementId.InvalidElementId)
+                    tbId = ResolveTitleBlock(doc, discipline, result);
             }
 
             ViewSheet sheet = null;
@@ -262,7 +275,7 @@ namespace StingTools.Core.Fabrication
             catch (Exception ex) { result.Warnings.Add($"PlaceView {viewId.Value}: {ex.Message}"); }
         }
 
-        private static ElementId ResolveTitleBlock(Document doc, string discipline)
+        private static ElementId ResolveTitleBlock(Document doc, string discipline, FabricationResult result)
         {
             string familyName = TitleBlockByDiscipline.TryGetValue(discipline ?? "", out var n)
                 ? n : TitleBlockByDiscipline["Generic"];
@@ -276,9 +289,19 @@ namespace StingTools.Core.Fabrication
                     if (el is FamilySymbol fs && string.Equals(fs.FamilyName, familyName, StringComparison.OrdinalIgnoreCase))
                         return fs.Id;
                 }
-                // Fallback: first available title block
+                // Last-resort fallback: first available title block. Warn
+                // loudly — populated cells (spool / weight / FAB_LOC / BOM
+                // rev) may land on parameters this family doesn't carry.
                 foreach (var el in col)
-                    if (el is FamilySymbol fs) return fs.Id;
+                {
+                    if (el is FamilySymbol fs)
+                    {
+                        string msg = $"Title block '{familyName}' not loaded; falling back to '{fs.FamilyName}'. Populated fab cells may be silently dropped.";
+                        StingLog.Warn("ShopDrawingComposer: " + msg);
+                        result?.Warnings.Add(msg);
+                        return fs.Id;
+                    }
+                }
             }
             catch (Exception ex) { StingLog.Warn($"ShopDrawingComposer: title block resolve: {ex.Message}"); }
             return ElementId.InvalidElementId;
@@ -664,13 +687,24 @@ namespace StingTools.Core.Fabrication
                 return ElementId.InvalidElementId;
             try
             {
-                var col = new FilteredElementCollector(doc)
+                // Mirror DrawingTypeSheetAdapter.ResolveTitleBlock so the
+                // optional TitleBlockSymbolType variant (Tender / Construction
+                // / As-Built etc.) is honoured on the fabrication path too.
+                var matches = new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_TitleBlocks)
-                    .OfClass(typeof(FamilySymbol));
-                foreach (var el in col)
-                    if (el is FamilySymbol fs && string.Equals(
-                            fs.FamilyName, dt.TitleBlockFamily, StringComparison.OrdinalIgnoreCase))
-                        return fs.Id;
+                    .OfClass(typeof(FamilySymbol))
+                    .Cast<FamilySymbol>()
+                    .Where(fs => string.Equals(
+                        fs.FamilyName, dt.TitleBlockFamily, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                if (!string.IsNullOrWhiteSpace(dt.TitleBlockSymbolType))
+                {
+                    var picked = matches.FirstOrDefault(fs => string.Equals(
+                        fs.Name, dt.TitleBlockSymbolType, StringComparison.OrdinalIgnoreCase));
+                    if (picked != null) return picked.Id;
+                }
+                var fallback = matches.FirstOrDefault();
+                if (fallback != null) return fallback.Id;
             }
             catch (Exception ex)
             {
