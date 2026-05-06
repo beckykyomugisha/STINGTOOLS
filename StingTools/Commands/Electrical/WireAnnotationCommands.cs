@@ -1713,6 +1713,111 @@ namespace StingTools.Commands.Electrical
         }
     }
 
+    // Logical-wire variant: walks through multi-port switches so a 2-way
+    // or intermediate-switching chain emits a single panel-to-fixture
+    // wire rather than per-segment wires. Useful when the documentation
+    // intent is "show the circuit's logical conductors" rather than
+    // "show every cable physically pulled".
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class WireOnConduitLogicalCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) { message = "No active document."; return Result.Failed; }
+                var doc   = ctx.Doc;
+                var uidoc = ctx.UIDoc;
+                var view  = doc.ActiveView;
+                if (view is View3D || view is ViewSchedule)
+                {
+                    TaskDialog.Show("STING Wire On Conduit (Logical)",
+                        "Wires must be created in a plan, section, or elevation view.");
+                    return Result.Cancelled;
+                }
+
+                Reference reference;
+                try
+                {
+                    reference = uidoc.Selection.PickObject(ObjectType.Element,
+                        new ConduitSelectionFilter(),
+                        "Pick a conduit on the wire run (logical mode — passes through switches)");
+                }
+                catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+                { return Result.Cancelled; }
+
+                var conduit = doc.GetElement(reference);
+                var paths = WireAnnotationEngine.BuildWirePaths(conduit,
+                    WireAnnotationEngine.WalkMode.StopAtLoadOnly);
+                if (paths == null || paths.Count == 0)
+                {
+                    TaskDialog.Show("STING Wire On Conduit (Logical)",
+                        "Could not trace a logical wire path from the picked element.");
+                    return Result.Cancelled;
+                }
+
+                var wireType = WireAnnotationEngine.ResolveWireType(doc);
+                if (wireType == null)
+                {
+                    TaskDialog.Show("STING Wire On Conduit (Logical)",
+                        "No WireType defined in this project. Load or create a wire type first.");
+                    return Result.Failed;
+                }
+
+                int placed = 0, failed = 0, partial = 0;
+                using (var tg = new TransactionGroup(doc, "STING Logical Wires On Conduit"))
+                {
+                    tg.Start();
+                    foreach (var path in paths)
+                    {
+                        if (path.Vertices == null || path.Vertices.Count < 2) { failed++; continue; }
+                        using (var t = new Transaction(doc, "STING Logical Wire"))
+                        {
+                            t.Start();
+                            try
+                            {
+                                var wire = Wire.Create(doc, wireType.Id, view.Id,
+                                    WiringType.Chamfered, path.Vertices,
+                                    path.StartConnector, path.EndConnector);
+                                if (wire == null) { t.RollBack(); failed++; continue; }
+                                t.Commit();
+                                placed++;
+                                if (path.StartConnector == null || path.EndConnector == null) partial++;
+                            }
+                            catch (Exception ex)
+                            {
+                                try { t.RollBack(); } catch { }
+                                failed++;
+                                StingLog.Warn($"Logical Wire.Create: {ex.Message}");
+                            }
+                        }
+                    }
+                    tg.Assimilate();
+                }
+
+                string detail = paths.Count > 1
+                    ? $"Placed {placed} logical wires across {paths.Count} branches"
+                    : $"Placed {placed} logical wire";
+                if (partial > 0) detail += $" ({partial} unconnected on one or both ends)";
+                if (failed > 0)  detail += $", {failed} failed";
+                StingLog.Info(detail);
+                TaskDialog.Show("STING Wire On Conduit (Logical)", detail + ".");
+                return placed > 0 ? Result.Succeeded : Result.Failed;
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+            { return Result.Cancelled; }
+            catch (Exception ex)
+            {
+                StingLog.Error("WireOnConduitLogicalCommand failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class WireOnConduitBatchCommand : IExternalCommand
