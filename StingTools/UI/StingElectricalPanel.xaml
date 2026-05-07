@@ -1085,7 +1085,7 @@
                                         ToolTip="One A4 worksheet per room with the full Lumen Method derivation: room geometry, surface reflectances, luminaire data + Φ/n, room index k, UF (LG10 Table 6), MF, estimated lux vs target, designer/checker sign-off. Mirror of the BS 7671 loop calc sheet — for the design pack."/>
                                 <Button Content="📚 Luminaire Registry" Style="{StaticResource ElecActionBtn}"
                                         Tag="Lite_LuminaireRegistry" Click="Cmd_Click"
-                                        ToolTip="Project-scoped CSV mapping each luminaire family/type to manufacturer / model / .ies path / lumens / watts / CCT / CRI. First run scaffolds the CSV from placed types; second run stamps registry values onto matching family TYPES so AssignPhotometric, Quick Lux, and Calc Sheets all pick them up automatically. Lives at <project>/_BIM_COORD/luminaire_registry.csv."/>
+                                        ToolTip="Project-scoped CSV mapping each luminaire family/type to manufacturer / model / .ies path / lumens / watts / CCT / CRI. First run scaffolds the CSV from placed types; second run stamps registry values onto matching family TYPES so AssignPhotometric, Quick Lux, and Calc Sheets all pick them up automatically. Lives at &lt;project&gt;/_BIM_COORD/luminaire_registry.csv."/>
                             </StackPanel>
                         </Expander>
 

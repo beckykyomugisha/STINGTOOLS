@@ -11,7 +11,8 @@ namespace StingTools.Commands.Electrical.ArcFlash
     /// <summary>
     /// Drops a detail-circle annotation at every panel's footprint on the
     /// active plan view, sized to its arc-flash boundary distance
-    /// (ELC_ARC_FLASH_BD parameter, in mm — populated by ArcFlashCommand).
+    /// (ELC_ARC_FLASH_BOUNDARY_MM parameter, populated by ArcFlashCommand
+    /// — accessed via the ParamRegistry alias for canonical resolution).
     /// Colour-codes red/orange/yellow/green by PPE category for instant
     /// safety-zone awareness on installation drawings.
     /// </summary>
@@ -50,9 +51,13 @@ namespace StingTools.Commands.Electrical.ArcFlash
                 {
                     try
                     {
-                        double bdMm = ParseDouble(panel.LookupParameter("ELC_ARC_FLASH_BD")?.AsString());
+                        // Canonical via ParamRegistry: ELC_ARC_FLASH_BOUNDARY_MM
+                        // and ELC_ARC_FLASH_PPE_CAT. ParamRegistry.ELC_ARC_FLASH_BD /
+                        // _PPE alias these so the lookup matches whichever schema
+                        // version the project ships.
+                        double bdMm = ParseDouble(panel.LookupParameter(ParamRegistry.ELC_ARC_FLASH_BD)?.AsString());
                         if (bdMm <= 0) { skipped++; continue; }
-                        int ppe = (int)ParseDouble(panel.LookupParameter("ELC_ARC_FLASH_PPE")?.AsString());
+                        int ppe = (int)ParseDouble(panel.LookupParameter(ParamRegistry.ELC_ARC_FLASH_PPE)?.AsString());
                         XYZ origin = (panel.Location as LocationPoint)?.Point;
                         if (origin == null) { skipped++; continue; }
                         double bdFt = bdMm / 304.8;
