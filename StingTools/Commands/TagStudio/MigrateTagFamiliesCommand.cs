@@ -84,7 +84,8 @@ namespace StingTools.Commands.TagStudio
                 $"For each family this will:\n" +
                 $"  • Add ~{TagFamilyConfig.StyleParams.Length + TagFamilyConfig.VisibilityParams.Length} style & visibility params (if missing)\n" +
                 $"  • Create up to {variants.Count} standard type variants\n" +
-                $"  • Author T4..T10 tier rows + warning gates from the active mode CSV\n" +
+                $"  • Author T4..T10 tier rows from the active mode CSV\n" +
+                $"  • Author warning-row formulas (gated by TAG_WARN_VISIBLE_BOOL)\n" +
                 $"  • Assign arrowheads by name (OST_ArrowHeads)\n\n" +
                 $"T1..T3 hand-edited rows are preserved (PreserveHandEdits=on).\n\n" +
                 $"Runtime: ~3–8 minutes for {stingFamilies.Count} families.\n" +
@@ -115,6 +116,7 @@ namespace StingTools.Commands.TagStudio
             int migrated = 0, failed = 0, cancelled = 0;
             int totalParamsAdded = 0, totalTypesCreated = 0;
             int totalFormulasApplied = 0, totalTiersPreserved = 0, totalNoPlan = 0;
+            int totalWarningsApplied = 0, totalWarningsSkipped = 0;
             string originalSharedFile = app.SharedParametersFilename;
 
             try
@@ -141,6 +143,8 @@ namespace StingTools.Commands.TagStudio
                     totalTypesCreated += result.TypesCreated;
                     totalFormulasApplied += result.FormulasApplied;
                     totalTiersPreserved += result.TiersPreserved;
+                    totalWarningsApplied += result.WarningsApplied;
+                    totalWarningsSkipped += result.WarningsSkipped;
                     if (!result.HadPlan) totalNoPlan++;
                     if (result.Success) migrated++; else failed++;
 
@@ -152,6 +156,8 @@ namespace StingTools.Commands.TagStudio
                         result.TypesCreated.ToString(),
                         result.HadPlan ? result.FormulasApplied.ToString() : "—",
                         result.HadPlan ? result.TiersPreserved.ToString() : "—",
+                        result.HadPlan ? result.WarningsApplied.ToString() : "—",
+                        result.HadPlan ? result.WarningsSkipped.ToString() : "—",
                         result.Success ? "OK" : "FAILED",
                         result.ErrorMessage ?? ""
                     });
@@ -173,7 +179,9 @@ namespace StingTools.Commands.TagStudio
                 StingExcelExporter.ExportTable(
                     xlsx, "Migration",
                     new List<string> { "Family", "Category", "ParamsAdded", "TypesCreated",
-                                       "FormulasApplied", "TiersPreserved", "Status", "Error" },
+                                       "FormulasApplied", "TiersPreserved",
+                                       "WarningsApplied", "WarningsSkipped",
+                                       "Status", "Error" },
                     rows, openFolder: false);
             }
             catch (Exception ex) { StingLog.Warn($"Excel export: {ex.Message}"); }
@@ -185,6 +193,8 @@ namespace StingTools.Commands.TagStudio
                 $"Types created: {totalTypesCreated}\n" +
                 $"T4..T10 formulas applied: {totalFormulasApplied}\n" +
                 $"Tiers preserved (hand-edits): {totalTiersPreserved}\n" +
+                $"Warning rows applied: {totalWarningsApplied}\n" +
+                $"Warning rows skipped: {totalWarningsSkipped}\n" +
                 $"Families without a CSV plan: {totalNoPlan}\n" +
                 $"Failed: {failed}\n" +
                 $"Cancelled: {cancelled}\n\n" +
@@ -193,7 +203,9 @@ namespace StingTools.Commands.TagStudio
 
             StingLog.Info($"MigrateTagFamilies: migrated={migrated}, failed={failed}, " +
                 $"cancelled={cancelled}, paramsAdded={totalParamsAdded}, typesCreated={totalTypesCreated}, " +
-                $"formulasApplied={totalFormulasApplied}, tiersPreserved={totalTiersPreserved}, noPlan={totalNoPlan}");
+                $"formulasApplied={totalFormulasApplied}, tiersPreserved={totalTiersPreserved}, " +
+                $"warningsApplied={totalWarningsApplied}, warningsSkipped={totalWarningsSkipped}, " +
+                $"noPlan={totalNoPlan}");
             return Result.Succeeded;
         }
 
@@ -207,6 +219,8 @@ namespace StingTools.Commands.TagStudio
             public int TypesCreated;
             public int FormulasApplied;
             public int TiersPreserved;
+            public int WarningsApplied;
+            public int WarningsSkipped;
             public bool HadPlan;
             public bool Success;
             public string ErrorMessage;
@@ -296,6 +310,8 @@ namespace StingTools.Commands.TagStudio
                         var ar = FamilyLabelAuthor.AuthorLabelsMulti(famDoc, modePlans, opts);
                         result.FormulasApplied = ar.FormulasApplied;
                         result.TiersPreserved = ar.TiersPreserved;
+                        result.WarningsApplied = ar.WarningsApplied;
+                        result.WarningsSkipped = ar.WarningsSkipped;
                         foreach (var w in ar.Warnings) StingLog.Warn($"{fam.Name}: {w}");
                     }
                     catch (Exception authEx)

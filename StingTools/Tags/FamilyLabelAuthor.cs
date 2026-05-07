@@ -72,8 +72,16 @@ namespace StingTools.Tags
             public int FormulasSkipped { get; set; }
             public int TiersPreserved { get; set; }
             public bool LabelRebound { get; set; }
+            // Warning-row authoring (added when TierPlan.WarningRows is non-empty).
+            public int WarningsApplied { get; set; }
+            public int WarningsSkipped { get; set; }
             public List<string> Warnings { get; } = new List<string>();
         }
+
+        /// <summary>Gate parameter every warning formula AND-merges with — kept
+        /// as a constant so the reader-side check + author-side formula stay
+        /// in lock-step. Mirrors PARAM_REGISTRY.WARN_VISIBLE.</summary>
+        private const string WarnGateParam = "TAG_WARN_VISIBLE_BOOL";
 
         /// <summary>
         /// Single-mode entry point (back-compat). Delegates to
@@ -131,26 +139,109 @@ namespace StingTools.Tags
                 Accum(10, mp.Plan.T10Rows, mp.Plan.T10);
             }
 
-            if (flat.Count == 0)
+            // Collect deduped warning rows from every mode plan. A warning
+            // (keyed by Parameter name) authored in more than one mode gets
+            // bound once — the formula is identical (TAG_WARN_VISIBLE_BOOL
+            // gate, no per-mode discrimination by design — warnings are
+            // mode-agnostic).
+            var warningsByParam = new Dictionary<string, WarningRow>(StringComparer.Ordinal);
+            foreach (ModePlan mp in modePlans)
             {
-                result.Warnings.Add($"{opts.FamilyName ?? "(unknown)"}: no T4..T10 rows to author.");
+                if (mp?.Plan?.WarningRows == null) continue;
+                foreach (var w in mp.Plan.WarningRows)
+                {
+                    if (w == null || string.IsNullOrEmpty(w.Parameter)) continue;
+                    if (!warningsByParam.ContainsKey(w.Parameter))
+                        warningsByParam[w.Parameter] = w;
+                }
+            }
+            bool hasTierRows = flat.Count > 0;
+            bool hasWarnings = warningsByParam.Count > 0;
+
+            if (!hasTierRows && !hasWarnings)
+            {
+                result.Warnings.Add($"{opts.FamilyName ?? "(unknown)"}: no T4..T10 rows or warnings to author.");
                 return result;
             }
 
-            // Bind every parameter referenced by any row PLUS each distinct
-            // mode gate BOOL, so a later SetFormula(gate=…) resolves.
+            // Bind every parameter referenced by any tier row PLUS each
+            // distinct mode gate BOOL PLUS every warning param + the warning
+            // gate so a later SetFormula resolves on first try.
             var distinctParams = flat
                 .Select(x => x.Row?.Parameter)
                 .Where(s => !string.IsNullOrEmpty(s))
                 .Concat(flat.Select(x => x.Gate).Where(s => !string.IsNullOrEmpty(s)))
+                .Concat(warningsByParam.Keys)
+                .Concat(hasWarnings ? new[] { WarnGateParam } : Array.Empty<string>())
                 .Distinct(StringComparer.Ordinal)
                 .ToList();
             result.ParamsBound = BindSharedParameters(fdoc, distinctParams, opts, result);
 
-            ApplyVisibilityFormulas(fdoc, flat, preservedTiers, result);
+            if (hasTierRows)
+                ApplyVisibilityFormulas(fdoc, flat, preservedTiers, result);
+
+            if (hasWarnings)
+                ApplyWarningFormulas(fdoc, warningsByParam.Values, result);
 
             result.LabelRebound = TryRebindPrimaryLabel(fdoc, result);
             return result;
+        }
+
+        // ------------------------------------------------------------------
+        // Warning-row formulas. Each WARN_xxx parameter gets the formula
+        //   if(TAG_WARN_VISIBLE_BOOL, WARN_xxx, "")
+        // unless the CSV row carries an explicit Formula override (some
+        // higher-fidelity rows compose threshold-aware predicates that we
+        // honour verbatim). PreserveHandEdits is intentionally not
+        // consulted: warnings are additive metadata, never the user's
+        // primary label, so re-running migration always re-binds them.
+        // ------------------------------------------------------------------
+        private static void ApplyWarningFormulas(Document fdoc,
+            IEnumerable<WarningRow> warnings, Result result)
+        {
+            FamilyManager fm = fdoc.FamilyManager;
+            using (Transaction tx = new Transaction(fdoc, "STING AuthorLabels — warning formulas"))
+            {
+                tx.Start();
+                foreach (var w in warnings)
+                {
+                    if (w == null || string.IsNullOrEmpty(w.Parameter))
+                    {
+                        result.WarningsSkipped++;
+                        continue;
+                    }
+
+                    FamilyParameter target = null;
+                    foreach (FamilyParameter fp in fm.Parameters)
+                    {
+                        if (string.Equals(fp.Definition?.Name, w.Parameter, StringComparison.Ordinal))
+                        {
+                            target = fp; break;
+                        }
+                    }
+                    if (target == null)
+                    {
+                        result.WarningsSkipped++;
+                        result.Warnings.Add($"Warning param '{w.Parameter}' not bound — skipped.");
+                        continue;
+                    }
+
+                    string formula = !string.IsNullOrEmpty(w.Formula)
+                        ? w.Formula
+                        : "if(" + WarnGateParam + ", " + w.Parameter + ", \"\")";
+                    try
+                    {
+                        fm.SetFormula(target, formula);
+                        result.WarningsApplied++;
+                    }
+                    catch (Exception ex)
+                    {
+                        result.WarningsSkipped++;
+                        result.Warnings.Add($"SetFormula(warning '{w.Parameter}') failed: {ex.Message}");
+                    }
+                }
+                tx.Commit();
+            }
         }
 
         // ------------------------------------------------------------------
