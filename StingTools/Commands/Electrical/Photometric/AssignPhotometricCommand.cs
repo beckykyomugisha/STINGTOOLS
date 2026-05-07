@@ -40,7 +40,6 @@ namespace StingTools.Commands.Electrical.Photometric
             // explicitly picked from the library dialog, try to bind each
             // selected type from the project registry's IES path. If every
             // selected type has a registry hit, we never need the picker.
-            bool registryBound = false;
             if (file == null)
             {
                 var sel = ctx.UIDoc?.Selection?.GetElementIds() ?? new List<ElementId>();
