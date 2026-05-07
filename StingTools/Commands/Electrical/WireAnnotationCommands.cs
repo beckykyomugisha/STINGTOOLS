@@ -90,8 +90,11 @@ namespace StingTools.Commands.Electrical
         {
             string phase  = ParameterHelpers.GetString(conduit, "ELC_WIRE_PHASE_TXT");
             string mat    = ParameterHelpers.GetString(conduit, "ELC_WIRE_COND_MAT_TXT");
-            string circ   = ParameterHelpers.GetString(conduit, "ELC_CIRCUIT_NR_TXT");
-            string panel  = ParameterHelpers.GetString(conduit, "ELC_PNL_NAME_TXT");
+            // Canonical resolution via ParamRegistry: ELC_CIRCUIT_NR aliases
+            // to ELC_CKT_NR; ELC_PNL_NAME aliases to ELC_PNL_DESIGNATION_NAME_TXT.
+            // (Phase 188 fix — earlier literals didn't match MR_PARAMETERS.txt.)
+            string circ   = ParameterHelpers.GetString(conduit, ParamRegistry.ELC_CIRCUIT_NR);
+            string panel  = ParameterHelpers.GetString(conduit, ParamRegistry.ELC_PNL_NAME);
 
             int    cores  = ParameterHelpers.GetInt(conduit, "ELC_WIRE_CORE_COUNT_INT", 0);
             double csa    = 0.0;
@@ -115,9 +118,9 @@ namespace StingTools.Commands.Electrical
 
             try
             {
-                var p = conduit.LookupParameter("ELC_WIRE_VD_PCT_NUM");
+                var p = conduit.LookupParameter(ParamRegistry.ELC_CKT_VD_PCT);
                 if (p == null) {
-                    double.TryParse(ParameterHelpers.GetString(conduit, "ELC_WIRE_VD_PCT_NUM"),
+                    double.TryParse(ParameterHelpers.GetString(conduit, ParamRegistry.ELC_CKT_VD_PCT),
                         System.Globalization.NumberStyles.Float,
                         System.Globalization.CultureInfo.InvariantCulture, out vd);
                 } else if (p.StorageType == StorageType.Double) {
