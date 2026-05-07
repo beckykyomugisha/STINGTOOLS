@@ -260,6 +260,8 @@ namespace StingTools.UI
                     RunCommand<StingTools.Commands.Electrical.Lighting.LightingControlZoneCommand>(app); break;
                 case "Bs7671_WorkingClearance":
                     RunCommand<StingTools.Commands.Electrical.Compliance.WorkingClearanceCommand>(app); break;
+                case "Elec_CarbonRollup":
+                    RunCommand<StingTools.Commands.Electrical.Sustainability.ElectricalCarbonCommand>(app); break;
 
                 // ── RPRT ─────────────────────────────────────────────
                 case "Rprt_Audit":
