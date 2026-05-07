@@ -1,0 +1,66 @@
+{
+  "_comment": "BS 7671:2018+A2:2022 Table 41.1 / 41.3 derived disconnection-time + Ia thresholds. Used by BS7671ComplianceEngine to verify Zs × Ia ≤ Uo within the required disconnection time.",
+  "_standard": "BS 7671:2018 Amendment 2:2022",
+  "version": "1.0",
+
+  "earthingSystems": {
+    "TN-S":      { "ZeOhm": 0.35, "description": "Separate earth conductor from utility" },
+    "TN-C-S":    { "ZeOhm": 0.80, "description": "Combined neutral-earth at utility, split at consumer (PME)" },
+    "TT":        { "ZeOhm": 21.0, "description": "Local earth electrode" },
+    "IT":        { "ZeOhm": 100.0, "description": "Isolated/floating earth (specialist)" }
+  },
+
+  "_ia_comment": "Multiplier × rated current (In) at which device operates within the disconnection time. From BS EN 60898-1 Type B/C/D characteristic curves.",
+  "iaMultipliers": {
+    "MCB_B":  5.0,
+    "MCB_C":  10.0,
+    "MCB_D":  20.0,
+    "RCBO_B": 5.0,
+    "RCBO_C": 10.0,
+    "MCCB":   10.0,
+    "BS88":   "table",
+    "ACB":    8.0
+  },
+
+  "_disconnect_comment": "Maximum disconnection times (Table 41.1) by circuit type and earthing system. Final circuits ≤ 32 A: 0.4 s for TN, 0.2 s for TT. Distribution circuits + final >32 A: 5 s for TN, 1 s for TT.",
+  "disconnectionTimesSec": {
+    "TN-S":   { "final_le32A": 0.4, "distribution": 5.0 },
+    "TN-C-S": { "final_le32A": 0.4, "distribution": 5.0 },
+    "TT":     { "final_le32A": 0.2, "distribution": 1.0 },
+    "IT":     { "final_le32A": 0.4, "distribution": 5.0 }
+  },
+
+  "_uo_comment": "Phase-to-earth voltage Uo (V). 230 V single-phase TN; 240 V is also accepted for legacy installations.",
+  "nominalUoV": 230,
+
+  "_k_comment": "Adiabatic constant k for (k·S)² ≥ I²·t check (BS 7671 §434.5.2 Table 43.1). 115=Cu/PVC, 143=Cu/XLPE (90°C), 76=Al/PVC, 94=Al/XLPE.",
+  "adiabaticK": {
+    "Cu/PVC":  115,
+    "Cu/XLPE": 143,
+    "Cu/LSOH": 143,
+    "Cu/EPR":  143,
+    "Cu/MICA": 134,
+    "Al/PVC":  76,
+    "Al/XLPE": 94
+  },
+
+  "_rcd_comment": "RCD/RCBO sensitivity tiers per BS 7671:2018+A2:2022. 30 mA mandatory for sockets ≤32 A in dwellings (Reg 411.3.4) and cables in walls <50 mm depth (Reg 522.6.202). 100 mA / 300 mA for distribution discrimination.",
+  "rcdTiersMA": [30, 100, 300, 500],
+
+  "_disconnect_rcd_comment": "RCD disconnection times: 30 mA must trip at 5×IΔn within 40 ms (BS EN 61008-1).",
+  "rcdMaxDisconnectMs": {
+    "30":  40,
+    "100": 40,
+    "300": 150,
+    "500": 200
+  },
+
+  "rcdRequiredScenarios": [
+    { "scenario": "socket_le32A_dwelling",   "imaxMA": 30, "regulation": "411.3.4" },
+    { "scenario": "cable_in_wall_lt50mm",    "imaxMA": 30, "regulation": "522.6.202" },
+    { "scenario": "bathroom_zone1_zone2",    "imaxMA": 30, "regulation": "701.411.3.3" },
+    { "scenario": "outdoor_socket",          "imaxMA": 30, "regulation": "411.3.3" },
+    { "scenario": "TT_system_all_circuits",  "imaxMA": 100,"regulation": "411.5.2"  },
+    { "scenario": "construction_site",       "imaxMA": 30, "regulation": "704.410.3.10" }
+  ]
+}

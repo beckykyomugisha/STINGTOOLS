@@ -1506,6 +1506,21 @@ namespace StingTools.Core
                 case "Photo_IfcImport":    return new Commands.Electrical.IfcResults.IfcResultsImportCommand();
                 case "Photo_Aggregator":   return new Commands.Electrical.IfcResults.MultiEngineAggregatorCommand();
                 case "Panel_PlaceOnSheets":return new Commands.Electrical.PanelViewScheduleCommand();
+                case "Bs7671_Audit":         return new Commands.Electrical.Compliance.BS7671AuditCommand();
+                case "Bs7671_LoopCalcSheet": return new Commands.Electrical.Compliance.BS7671LoopCalcSheetCommand();
+                case "Bs7671_Certificate":   return new Commands.Electrical.Compliance.BS7671CertificateCommand();
+                case "Rprt_CablePullList":   return new Commands.Electrical.Reports.CablePullListCommand();
+                case "Rprt_EquipSchedule":   return new Commands.Electrical.Reports.ElectricalEquipmentScheduleCommand();
+                case "Calc_LoadDemandAudit": return new Commands.Electrical.LoadDemand.LoadDemandAuditCommand();
+                case "Elec_TccPlot":         return new Commands.Electrical.Coordination.TccPlotCommand();
+                case "Elec_ArcFlashBoundary":return new Commands.Electrical.ArcFlash.ArcFlashBoundaryViewCommand();
+                case "Lite_QuickLuxEstimate":return new Commands.Electrical.Lighting.QuickLuxEstimateCommand();
+                case "Lite_ControlZones":    return new Commands.Electrical.Lighting.LightingControlZoneCommand();
+                case "Bs7671_WorkingClearance":return new Commands.Electrical.Compliance.WorkingClearanceCommand();
+                case "Elec_CarbonRollup":    return new Commands.Electrical.Sustainability.ElectricalCarbonCommand();
+                case "Lite_LightingCalcSheet": return new Commands.Electrical.Lighting.LightingCalcSheetCommand();
+                case "Lite_LuminaireRegistry": return new Commands.Electrical.Lighting.LuminaireRegistryCommand();
+                case "Elec_DrawingLegend":     return new Commands.Electrical.Reports.ElectricalDrawingLegendCommand();
                 case "Panel_SyncParams":   return new Commands.Electrical.ElecPanelParamSyncCommand();
                 case "Panel_WriteParams":  return new Commands.Electrical.ElecPanelWriteParamsCommand();
 

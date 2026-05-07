@@ -1,0 +1,36 @@
+{
+  "_comment": "Operational + embodied carbon factors for the electrical scope. Operational from BEIS / DEFRA Conversion Factors 2024 (UK grid mix). Embodied from ICE v3.0 — Inventory of Carbon and Energy, University of Bath. Cable values weighted (Cu conductor + insulation + sheath).",
+  "_standard": "BEIS 2024 / ICE v3.0 / RIBA 2030 Climate Challenge",
+  "version": "1.0",
+
+  "operationalCarbon": {
+    "gridFactor_kgCO2e_per_kWh": 0.207,
+    "_comment": "BEIS 2024 average UK grid scope 2 — was 0.193 in 2023, 0.181 in 2022 expected to fall ~3-5% per year",
+    "annualHoursByLoadType": {
+      "Lighting":      { "weekday": 12, "weekend": 6,  "annualH": 3120,  "_note": "Office occupancy ~3120 h/year typical commercial" },
+      "Lighting_24x7": { "weekday": 24, "weekend": 24, "annualH": 8760 },
+      "Small Power":   { "annualH": 2600, "_note": "Plug load duty cycle ~30% over working hours" },
+      "HVAC":          { "annualH": 4400, "_note": "CIBSE TM52 — heating + cooling combined" },
+      "Lifts":         { "annualH": 1500 },
+      "EV Charging":   { "annualH": 2000 },
+      "IT / Server":   { "annualH": 8760, "_note": "Continuous" },
+      "General":       { "annualH": 3000 }
+    }
+  },
+
+  "_embodied_comment": "kgCO2e per kg of cable (ICE v3.0 weighted). For panels/transformers/UPS use kgCO2e/kVA derived from manufacturer EPDs (typical mid-range LV switchgear).",
+  "embodiedCarbon": {
+    "cableKgPerM_Cu_PVC_perMm2":   0.012,
+    "cableKgPerM_Cu_PVC_baseline": 0.06,
+    "Cu_kgCO2e_per_kg":            2.96,
+    "Al_kgCO2e_per_kg":            8.24,
+    "PVC_kgCO2e_per_kg":           2.61,
+    "XLPE_kgCO2e_per_kg":          1.80,
+
+    "panel_kgCO2e_per_kVA":  4.5,
+    "transformer_kgCO2e_per_kVA": 6.8,
+    "ups_kgCO2e_per_kVA":   24.0,
+    "generator_kgCO2e_per_kVA": 18.5,
+    "luminaire_kgCO2e_each":  6.0
+  }
+}

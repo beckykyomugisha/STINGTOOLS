@@ -44,11 +44,15 @@ namespace StingTools.UI
             = new StingTools.Commands.SLD.RiserOptions { Layout = "Horizontal", ShowFaultKa = true, ShowFeederCsa = true, ShowLoadingPct = true };
         public static string CurrentLpdStandard = "ASHRAE_90_1_2019";
         public static double CurrentLpdCustomLimit = 0;
+        // Phase 183: earthing-system selector for the BS 7671 compliance audit.
+        // Drives Ze (utility loop impedance) lookup in BS7671ComplianceEngine.
+        public static string CurrentEarthingSystem = "TN-C-S";
 
         // Snapshot outputs surfaced by Phase 178 commands.
         public static List<StingTools.UI.ConduitFillData> LastConduitFills = new();
         public static List<StingTools.UI.EmergAuditRow> LastEmergAudit = new();
         public static List<StingTools.UI.LpdRow> LastLpdRows = new();
+        public static List<StingTools.Commands.Electrical.Compliance.CircuitAuditResult> LastBs7671Results = new();
 
         private StingElectricalCommandHandler(StingElectricalPanel panel) { _panel = panel; }
 
@@ -232,6 +236,38 @@ namespace StingTools.UI
                 case "Elec_ClearOverrides":
                     ClearActiveViewOverrides(app, doc);
                     break;
+
+                // ── Phase 183: BS 7671 compliance audit ────────────────
+                case "Bs7671_Audit":
+                    RunCommand<StingTools.Commands.Electrical.Compliance.BS7671AuditCommand>(app); break;
+                case "Bs7671_LoopCalcSheet":
+                    RunCommand<StingTools.Commands.Electrical.Compliance.BS7671LoopCalcSheetCommand>(app); break;
+                case "Bs7671_Certificate":
+                    RunCommand<StingTools.Commands.Electrical.Compliance.BS7671CertificateCommand>(app); break;
+                case "Rprt_CablePullList":
+                    RunCommand<StingTools.Commands.Electrical.Reports.CablePullListCommand>(app); break;
+                case "Rprt_EquipSchedule":
+                    RunCommand<StingTools.Commands.Electrical.Reports.ElectricalEquipmentScheduleCommand>(app); break;
+                case "Calc_LoadDemandAudit":
+                    RunCommand<StingTools.Commands.Electrical.LoadDemand.LoadDemandAuditCommand>(app); break;
+                case "Elec_TccPlot":
+                    RunCommand<StingTools.Commands.Electrical.Coordination.TccPlotCommand>(app); break;
+                case "Elec_ArcFlashBoundary":
+                    RunCommand<StingTools.Commands.Electrical.ArcFlash.ArcFlashBoundaryViewCommand>(app); break;
+                case "Lite_QuickLuxEstimate":
+                    RunCommand<StingTools.Commands.Electrical.Lighting.QuickLuxEstimateCommand>(app); break;
+                case "Lite_ControlZones":
+                    RunCommand<StingTools.Commands.Electrical.Lighting.LightingControlZoneCommand>(app); break;
+                case "Bs7671_WorkingClearance":
+                    RunCommand<StingTools.Commands.Electrical.Compliance.WorkingClearanceCommand>(app); break;
+                case "Elec_CarbonRollup":
+                    RunCommand<StingTools.Commands.Electrical.Sustainability.ElectricalCarbonCommand>(app); break;
+                case "Lite_LightingCalcSheet":
+                    RunCommand<StingTools.Commands.Electrical.Lighting.LightingCalcSheetCommand>(app); break;
+                case "Lite_LuminaireRegistry":
+                    RunCommand<StingTools.Commands.Electrical.Lighting.LuminaireRegistryCommand>(app); break;
+                case "Elec_DrawingLegend":
+                    RunCommand<StingTools.Commands.Electrical.Reports.ElectricalDrawingLegendCommand>(app); break;
 
                 // ── RPRT ─────────────────────────────────────────────
                 case "Rprt_Audit":
