@@ -2715,3 +2715,15 @@ PARAM	f1d6e7c8-1004-5178-9178-100000000004	ELC_EMERG_COVERED_BOOL	TEXT		4	1	Room
 PARAM	f1d6e7c8-1005-5178-9178-100000000005	ELC_LPD_W_PER_M2	TEXT		4	1	Calculated lighting power density of the room in W/m² [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178]	1
 PARAM	f1d6e7c8-1006-5178-9178-100000000006	ELC_LPD_LIMIT_W_PER_M2	TEXT		4	1	Standard LPD limit for the room type in W/m² [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178]	1
 PARAM	f1d6e7c8-1007-5178-9178-100000000007	ELC_LPD_STATUS_TXT	TEXT		4	1	LPD compliance status (PASS / FAIL / WARNING / UNCHECKED) [STING Phase 178]	1
+PARAM	a2e7f8d9-1001-5179-9179-100000000001	ELC_ARC_FLASH_IE_CAL_CM2	TEXT		4	1	Calculated incident energy in cal/cm² at the working distance [IEEE 1584-2018 / NFPA 70E / STING Phase 179]	1
+PARAM	a2e7f8d9-1002-5179-9179-100000000002	ELC_ARC_FLASH_BOUNDARY_MM	TEXT		4	1	Arc flash boundary distance in mm — the distance at which incident energy = 1.2 cal/cm² [IEEE 1584-2018 / STING Phase 179]	1
+PARAM	a2e7f8d9-1003-5179-9179-100000000003	ELC_ARC_FLASH_PPE_CAT	TEXT		4	1	NFPA 70E Table 130.5(G) PPE category 0–4 (-1 = exceeds Cat 4 / dangerous) [STING Phase 179]	1
+PARAM	a2e7f8d9-1004-5179-9179-100000000004	ELC_ARC_FLASH_WORK_DIST_MM	TEXT		4	1	Working distance from the arc source in mm (default 455 mm for LV equipment per IEEE 1584) [STING Phase 179]	1
+PARAM	a2e7f8d9-1005-5179-9179-100000000005	ELC_ARC_FLASH_LABEL_TXT	TEXT		4	1	Formatted NFPA 70E arc flash warning label text — voltage / energy / boundary / PPE [STING Phase 179]	1
+PARAM	a2e7f8d9-1006-5179-9179-100000000006	ELC_SEL_COORD_VERIFIED_BOOL	TEXT		4	1	Selective coordination check result (1=passes, 0=fails) [BS 7671 / NEC 240.87 / STING Phase 179]	1
+PARAM	a2e7f8d9-1007-5179-9179-100000000007	ELC_BUSBAR_CSA_MM2	TEXT		4	1	Busbar trunking conductor cross-sectional area in mm² [BS EN 60439-1 / STING Phase 179]	1
+PARAM	a2e7f8d9-1008-5179-9179-100000000008	ELC_BUSBAR_RATING_A	TEXT		4	1	Busbar trunking continuous current rating in amperes [BS EN 60439-1 / STING Phase 179]	1
+PARAM	a2e7f8d9-1009-5179-9179-100000000009	ELC_BUSBAR_FILL_PCT	TEXT		4	1	Busbar trunking duct fill percentage [STING Phase 179]	1
+PARAM	a2e7f8d9-100a-5179-9179-10000000000a	ELC_CONDUIT_ROUTE_TXT	TEXT		4	1	Auto-routed conduit path identifier (AUTO:<circuit-id>) [STING Phase 179]	1
+PARAM	a2e7f8d9-100b-5179-9179-10000000000b	ELC_PHOTO_LUX_CALC	TEXT		4	1	Calculated maintained illuminance at the workplane in lux [CIBSE LG7 / DIALux import / STING Phase 179]	1
+PARAM	a2e7f8d9-100c-5179-9179-10000000000c	ELC_PHOTO_UGR_CALC	TEXT		4	1	Calculated Unified Glare Rating per the room geometry [CIE 117 / CIBSE LG7 / STING Phase 179]	1

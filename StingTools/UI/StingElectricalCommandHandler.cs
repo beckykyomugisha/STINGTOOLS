@@ -284,6 +284,28 @@ namespace StingTools.UI
                 case "Rprt_DemandFactors":
                     RunCommand<StingTools.Commands.Electrical.Reports.DemandFactorReportCommand>(app); break;
 
+                // ── Phase 179 — advanced analysis & external integration ──
+                case "Elec_ArcFlash":
+                    RunCommand<StingTools.Commands.Electrical.ArcFlash.ArcFlashCommand>(app); break;
+                case "Elec_ArcFlashLabels":
+                    RunCommand<StingTools.Commands.Electrical.ArcFlash.ArcFlashLabelSheetCommand>(app); break;
+                case "Elec_ArcFlashSched":
+                    RunCommand<StingTools.Commands.Electrical.ArcFlash.ArcFlashScheduleCommand>(app); break;
+                case "Elec_SelectCoord":
+                    RunCommand<StingTools.Commands.Electrical.Coordination.SelectiveCoordCommand>(app); break;
+                case "Elec_ExportEasyPower":
+                    RunCommand<StingTools.Commands.Electrical.Export.EasyPowerExportCommand>(app); break;
+                case "Elec_ExportDIALux":
+                    RunCommand<StingTools.Commands.Electrical.Export.DIALuxExportCommand>(app); break;
+                case "Elec_ExportEtap":
+                    RunCommand<StingTools.Commands.Electrical.Export.EtapExportCommand>(app); break;
+                case "Elec_AutoRoute":
+                    RunCommand<StingTools.Commands.Electrical.Routing.ConduitAutoRouteCommand>(app); break;
+                case "Elec_BusbarModel":
+                    RunCommand<StingTools.Commands.Electrical.Busbar.BusbarModelingCommand>(app); break;
+                case "Elec_PhotoLink":
+                    RunCommand<StingTools.Commands.Electrical.Photometric.PhotometricLinkCommand>(app); break;
+
                 default:
                     StingLog.Info($"ElectricalCommandHandler: unknown tag '{tag}'");
                     break;

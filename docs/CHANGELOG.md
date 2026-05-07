@@ -2,6 +2,101 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 179 — STING Electrical: Advanced Analysis & External Integration)
+
+Unlocks the remaining placeholder cards from Phase 178 — arc flash,
+selective coordination, conduit auto-routing, busbar trunking,
+photometric link, and the external-tool exporters (EasyPower / DIALux /
+ETAP).
+
+**12 new commands**
+
+| Tag | Class | Description |
+|---|---|---|
+| `Elec_ArcFlash` | `ArcFlashCommand` | IEEE 1584-2018 simplified — incident energy + boundary + PPE category. Reads `FaultCurrentCommand.LastResults`; stamps `ELC_ARC_FLASH_*` parameters; applies green/amber/orange/red graphic override per PPE level |
+| `Elec_ArcFlashLabels` | `ArcFlashLabelSheetCommand` | Drafting view with one NFPA 70E warning label per panel — FilledRegion border + TextNote, 5 labels/row, colour-coded by PPE |
+| `Elec_ArcFlashSched` | `ArcFlashScheduleCommand` | Revit ViewSchedule of OST_ElectricalEquipment with arc flash columns (IE / boundary / PPE / working distance) |
+| `Elec_SelectCoord` | `SelectiveCoordCommand` | Walks the SLD hierarchy and asserts upstream-clears-slower-than-downstream at sampled fault levels; opens `SelectiveCoordDialog` |
+| `Elec_ExportEasyPower` | `EasyPowerExportCommand` | Best-effort EasyPower-compatible XML (buses + branches + arc flash). Real format is licensed; this is a documented approximation |
+| `Elec_ExportDIALux` | `DIALuxExportCommand` | IFC 4 STEP file with IfcLightFixture + IfcSpace entities for DIALux evo import |
+| `Elec_ExportEtap` | `EtapExportCommand` | IEC 61968 / 61970 CIM XML — substations + energy consumers — for ETAP load-flow |
+| `Elec_AutoRoute` | `ConduitAutoRouteCommand` | Walks `CableManifest`, creates Conduit elements along an L/Z Manhattan path between each circuit's load and panel; sizes conduit to ≤40 % fill |
+| `Elec_BusbarModel` | `BusbarModelingCommand` | Sizes cable-tray runs whose name contains 'Busbar' or 'Trunking'; demand from manifest or parsed from name; red-overrides > 80 % fill |
+| `Elec_PhotoLink` | `PhotometricLinkCommand` | Three-way: import lux + UGR from a DIALux IFC, estimate from connected watts (CIBSE LG7 lumen-method), or open the workflow guide |
+
+**4 pure-math engines (no Revit API)**
+
+- `ArcFlashEngine` — IEEE 1584-2018 simplified empirical formula
+  (`E = 0.0093 × F^0.9956 × t × (610^x / D^x)`); `PpeCategory()` lookup
+  per NFPA 70E Table 130.5(G); default working distance + bus gap by
+  voltage class.
+- `SelectiveCoordEngine` — recursive hierarchy walk with 10-point fault
+  sampling; records first violation per parent / child pair so the grid
+  stays compact.
+- `ConduitRouteEngine` — rectilinear L/Z route generator + conduit
+  diameter selection from STING_WIRE_TABLES.json targeting ≤40 % fill;
+  cable OD lookup from CSA per IEC 60228.
+- `BusbarSizerEngine` — BS EN 60439-1 indicative copper flat-bar table
+  (12 sizes 100–2000 mm² CSA / 250–2000 A); ambient temperature derate
+  ; insulation-factor fill calculation.
+
+**1 modal WPF dialog**
+
+`SelectiveCoordDialog` — dark-theme 900 × 660 window with TreeView of
+the SLD hierarchy on the left, log-log TCC chart canvas (4 decades x ×
+4 decades y, axis labels every decade), and DataGrid of violations
+below. CSV export via `OutputLocationHelper`.
+
+**12 new shared parameters (all TEXT, instance binding)**
+
+`ELC_ARC_FLASH_IE_CAL_CM2`, `ELC_ARC_FLASH_BOUNDARY_MM`,
+`ELC_ARC_FLASH_PPE_CAT`, `ELC_ARC_FLASH_WORK_DIST_MM`,
+`ELC_ARC_FLASH_LABEL_TXT`, `ELC_SEL_COORD_VERIFIED_BOOL`,
+`ELC_BUSBAR_CSA_MM2`, `ELC_BUSBAR_RATING_A`, `ELC_BUSBAR_FILL_PCT`,
+`ELC_CONDUIT_ROUTE_TXT`, `ELC_PHOTO_LUX_CALC`, `ELC_PHOTO_UGR_CALC`.
+12 ParamRegistry constants exposed.
+
+**3 new data files (auto-included via `Data/**` glob)**
+
+- `STING_TCC_DATABASE.json` — 18 generic device entries (MCB-B/C/D,
+  MCCB, ACB) at standard ratings 6 A → 800 A; default clearing 100 ms.
+- `STING_ARC_FLASH_PPE.json` — NFPA 70E PPE category thresholds
+  (0 → 4 + dangerous), working-distance + bus-gap tables by voltage.
+- `STING_EXTERNAL_FORMATS.json` — field-mapping reference for
+  EasyPower / DIALux IFC 4 / ETAP CIM exporters.
+
+**Dock-panel XAML — 7 sections unlocked**
+
+CALCS · Arc Flash expander (3 buttons) and Selective Coordination
+expander (1 button — opens the modal viewer) — both were 🔒 PLANNED in
+Phase 178. CABLE · Conduit Routing + Busbar Trunking expanders.
+LITE · Photometric Link expander. RPRT · External Tool Integration
+expander (3 active exporters + SKM placeholder kept disabled for
+Phase 180) and the Create-arc-flash-schedule button.
+
+**API limits honoured**
+
+- `Conduit.Create(Document, ElementId, XYZ, XYZ, ElementId)` is
+  Revit 2024+'s 5-arg form; each segment creation wrapped in its own
+  try/catch so a single failure doesn't abort the run.
+- `FilledRegion.Create` boundary loops are checked with
+  `IsCounterclockwise(XYZ.BasisZ)` and reflected if needed.
+- `Doc.Create.NewDetailCurve` (not `NewModelCurve`) for any drafting-
+  view geometry.
+- Log-log canvas mapping clamps `Math.Log10(max(value, 1e-6))` so the
+  TCC chart never produces NaN or `-Infinity` near the axes.
+- `panel.LookupParameter("Voltage")` (display-name lookup) avoids the
+  brittle `BuiltInParameter.RBS_ELEC_PANEL_TOTAL_*VOLTAGE` enum that
+  varies between Revit versions.
+- All exports go through `OutputLocationHelper.GetOutputDirectory(doc)`
+  + an `electrical/` subfolder; UTF-8 encoding for XML / IFC / CSV.
+- DIALux IFC parser is regex-based — sufficient for standard DIALux
+  evo output, documented as best-effort. Production hardening could
+  swap in xbim / GeometryGym.
+
+**Built without `dotnet build` verification** (Linux sandbox). Verify
+in Revit before merge.
+
 #### Completed (Phase 178 — STING Electrical: Advanced Calculations & Automation)
 
 Unlocks every 🔒 placeholder card in the Phase 177 dock panel except the

@@ -628,39 +628,25 @@
                             </StackPanel>
                         </Expander>
 
-                        <Expander Style="{StaticResource ElecExpander}" IsEnabled="False">
-                            <Expander.Header>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="ARC FLASH (IEEE 1584-2018)"/>
-                                    <Border Style="{StaticResource LockBadge}">
-                                        <TextBlock Text="🔒 PLANNED" FontSize="9" Foreground="#FFFF6B6B"/>
-                                    </Border>
-                                </StackPanel>
-                            </Expander.Header>
+                        <Expander Header="ARC FLASH (IEEE 1584-2018)" Style="{StaticResource ElecExpander}">
                             <StackPanel Margin="4">
-                                <Button Content="▶ Calculate incident energy" Style="{StaticResource ElecActionBtn}"
-                                        ToolTip="Planned for Phase 178 — contact support to prioritise"/>
-                                <Button Content="▶ Generate arc flash schedules" Style="{StaticResource ElecActionBtn}"
-                                        ToolTip="Planned for Phase 178 — contact support to prioritise"/>
-                                <Button Content="▶ Print warning labels" Style="{StaticResource ElecActionBtn}"
-                                        ToolTip="Planned for Phase 178 — contact support to prioritise"/>
+                                <Button Content="⚡ Arc Flash Calc" Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="Elec_ArcFlash" Click="Cmd_Click"
+                                        ToolTip="IEEE 1584-2018 simplified — incident energy + boundary + PPE category. Requires fault current run first."/>
+                                <Button Content="🏷 Arc Flash Label Sheet" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Elec_ArcFlashLabels" Click="Cmd_Click"
+                                        ToolTip="Creates a drafting view with NFPA 70E warning labels (one per panel)."/>
+                                <Button Content="📋 Arc Flash Schedule" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Elec_ArcFlashSched" Click="Cmd_Click"
+                                        ToolTip="Creates a Revit ViewSchedule of OST_ElectricalEquipment with arc flash columns."/>
                             </StackPanel>
                         </Expander>
 
-                        <Expander Style="{StaticResource ElecExpander}" IsEnabled="False">
-                            <Expander.Header>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="SELECTIVE COORDINATION"/>
-                                    <Border Style="{StaticResource LockBadge}">
-                                        <TextBlock Text="🔒 PLANNED" FontSize="9" Foreground="#FFFF6B6B"/>
-                                    </Border>
-                                </StackPanel>
-                            </Expander.Header>
+                        <Expander Header="SELECTIVE COORDINATION" Style="{StaticResource ElecExpander}">
                             <StackPanel Margin="4">
-                                <Button Content="▶ Plot time-current curves" Style="{StaticResource ElecActionBtn}"
-                                        ToolTip="Planned for Phase 178 — contact support to prioritise"/>
-                                <Button Content="▶ Verify coordination between panels" Style="{StaticResource ElecActionBtn}"
-                                        ToolTip="Planned for Phase 178 — contact support to prioritise"/>
+                                <Button Content="📈 Selective Coordination Viewer" Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="Elec_SelectCoord" Click="Cmd_Click"
+                                        ToolTip="Walks the SLD hierarchy and checks upstream / downstream device coordination using STING_TCC_DATABASE.json. Opens a log-log TCC chart + violations grid."/>
                             </StackPanel>
                         </Expander>
                     </StackPanel>
@@ -849,39 +835,23 @@
                             </StackPanel>
                         </Expander>
 
-                        <Expander Style="{StaticResource ElecExpander}" IsEnabled="False">
-                            <Expander.Header>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="CONDUIT ROUTING"/>
-                                    <Border Style="{StaticResource LockBadge}">
-                                        <TextBlock Text="🔒 PLANNED" FontSize="9" Foreground="#FFFF6B6B"/>
-                                    </Border>
-                                </StackPanel>
-                            </Expander.Header>
+                        <Expander Header="CONDUIT ROUTING" Style="{StaticResource ElecExpander}">
                             <StackPanel Margin="4">
-                                <Button Content="▶ Auto-route conduit between panels" Style="{StaticResource ElecActionBtn}"
-                                        ToolTip="Planned for Phase 179 — contact support to prioritise"/>
-                                <Button Content="▶ Assign elements to cable trays" Style="{StaticResource ElecActionBtn}"
-                                        ToolTip="Planned for Phase 179 — contact support to prioritise"/>
+                                <Button Content="🗺 Auto-Route Conduit (rectilinear)" Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="Elec_AutoRoute" Click="Cmd_Click"
+                                        ToolTip="Walks the cable manifest and creates Conduit elements along an L/Z Manhattan path between each circuit's load and panel."/>
                                 <Button Content="▶ Validate containment fill in model" Style="{StaticResource ElecActionBtn}"
-                                        ToolTip="Planned for Phase 179 — contact support to prioritise"/>
+                                        Tag="Cable_ValidateConduitFill" Click="Cmd_Click"
+                                        ToolTip="Audit every conduit / tray against the regulatory fill limit (alias of Validate Model Conduits)."/>
                             </StackPanel>
                         </Expander>
 
-                        <Expander Style="{StaticResource ElecExpander}" IsEnabled="False">
-                            <Expander.Header>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="BUSBAR TRUNKING"/>
-                                    <Border Style="{StaticResource LockBadge}">
-                                        <TextBlock Text="🔒 PLANNED" FontSize="9" Foreground="#FFFF6B6B"/>
-                                    </Border>
-                                </StackPanel>
-                            </Expander.Header>
+                        <Expander Header="BUSBAR TRUNKING" Style="{StaticResource ElecExpander}">
                             <StackPanel Margin="4">
-                                <Button Content="▶ Size busbar trunking runs" Style="{StaticResource ElecActionBtn}"
-                                        ToolTip="Planned for Phase 179 — contact support to prioritise"/>
-                                <Button Content="▶ Calculate tap-off current ratings" Style="{StaticResource ElecActionBtn}"
-                                        ToolTip="Planned for Phase 179 — contact support to prioritise"/>
+                                <Button Content="🔲 Busbar Trunking Sizer (BS EN 60439-1)"
+                                        Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="Elec_BusbarModel" Click="Cmd_Click"
+                                        ToolTip="Sizes cable-tray runs whose name contains 'Busbar' or 'Trunking'. Demand from the manifest or parsed from the tray name (e.g. 'Busbar 400A')."/>
                             </StackPanel>
                         </Expander>
                     </StackPanel>
@@ -1135,21 +1105,12 @@
                             </StackPanel>
                         </Expander>
 
-                        <Expander Style="{StaticResource ElecExpander}" IsEnabled="False">
-                            <Expander.Header>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="PHOTOMETRIC LINK"/>
-                                    <Border Style="{StaticResource LockBadge}">
-                                        <TextBlock Text="🔒 PLANNED" FontSize="9" Foreground="#FFFF6B6B"/>
-                                    </Border>
-                                </StackPanel>
-                            </Expander.Header>
+                        <Expander Header="PHOTOMETRIC LINK" Style="{StaticResource ElecExpander}">
                             <StackPanel Margin="4">
-                                <TextBlock Text="Link to ElumTools / DIALux evo IFC" FontSize="10" Margin="0,0,0,4"/>
-                                <Button Content="▶ Import IFC luminaire data" Style="{StaticResource ElecActionBtn}"
-                                        ToolTip="Planned for Phase 178 — contact support to prioritise"/>
-                                <Button Content="▶ Map DIALux types to Revit families" Style="{StaticResource ElecActionBtn}"
-                                        ToolTip="Planned for Phase 178 — contact support to prioritise"/>
+                                <TextBlock Text="DIALux evo / ElumTools handoff" FontSize="10" Margin="0,0,0,4"/>
+                                <Button Content="☀ Photometric Link…" Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="Elec_PhotoLink" Click="Cmd_Click"
+                                        ToolTip="Three-way: import lux + UGR from a DIALux IFC, estimate from connected watts (CIBSE LG7), or open the workflow guide."/>
                             </StackPanel>
                         </Expander>
                     </StackPanel>
@@ -1259,24 +1220,20 @@
                             </StackPanel>
                         </Expander>
 
-                        <Expander Style="{StaticResource ElecExpander}" IsEnabled="False">
-                            <Expander.Header>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="EXTERNAL TOOL INTEGRATION"/>
-                                    <Border Style="{StaticResource LockBadge}">
-                                        <TextBlock Text="🔒 PLANNED" FontSize="9" Foreground="#FFFF6B6B"/>
-                                    </Border>
-                                </StackPanel>
-                            </Expander.Header>
+                        <Expander Header="EXTERNAL TOOL INTEGRATION" Style="{StaticResource ElecExpander}">
                             <StackPanel Margin="4">
-                                <Button Content="▶ Export to EasyPower (IFC/XML)" Style="{StaticResource ElecActionBtn}"
-                                        ToolTip="Planned for Phase 178 — contact support to prioritise"/>
-                                <Button Content="▶ Export to SKM PowerTools" Style="{StaticResource ElecActionBtn}"
-                                        ToolTip="Planned for Phase 178 — contact support to prioritise"/>
-                                <Button Content="▶ Export to DIALux (IFC)" Style="{StaticResource ElecActionBtn}"
-                                        ToolTip="Planned for Phase 178 — contact support to prioritise"/>
-                                <Button Content="▶ Export to ETAP (CIM XML)" Style="{StaticResource ElecActionBtn}"
-                                        ToolTip="Planned for Phase 178 — contact support to prioritise"/>
+                                <Button Content="🔌 Export to EasyPower (XML)" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Elec_ExportEasyPower" Click="Cmd_Click"
+                                        ToolTip="Best-effort EasyPower-compatible XML (buses + branches + arc flash). Real EasyPower import format is licensed; this is a documented approximation."/>
+                                <Button Content="💡 Export to DIALux evo (IFC 4)" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Elec_ExportDIALux" Click="Cmd_Click"
+                                        ToolTip="IFC 4 STEP file with IfcLightFixture + IfcSpace entities. DIALux 12+ accepts this."/>
+                                <Button Content="⚙ Export to ETAP (CIM XML)" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Elec_ExportEtap" Click="Cmd_Click"
+                                        ToolTip="IEC 61968 / 61970 CIM XML — substations + energy consumers for ETAP load-flow."/>
+                                <Button Content="▶ Export to SKM PowerTools 🔒" Style="{StaticResource ElecActionBtn}"
+                                        IsEnabled="False"
+                                        ToolTip="Planned for Phase 180 — SKM PowerTools requires a licensed import format."/>
                             </StackPanel>
                         </Expander>
 
@@ -1287,9 +1244,9 @@
                                 <Button Content="▶ Create fault current schedule" Style="{StaticResource ElecActionBtn}"
                                         Tag="Rprt_FaultSchedule" Click="Cmd_Click"
                                         ToolTip="Build a Revit ViewSchedule of OST_ElectricalEquipment showing the fault levels stamped by Calc → Fault Current."/>
-                                <Button Content="▶ Create arc flash schedule 🔒" Style="{StaticResource ElecActionBtn}"
-                                        IsEnabled="False"
-                                        ToolTip="Planned for Phase 179 — IEEE 1584-2018 implementation"/>
+                                <Button Content="▶ Create arc flash schedule" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Elec_ArcFlashSched" Click="Cmd_Click"
+                                        ToolTip="Creates a Revit ViewSchedule of OST_ElectricalEquipment with Phase 179 arc flash columns (IE / boundary / PPE)."/>
                                 <Button Content="▶ Demand Factor Report" Style="{StaticResource ElecActionBtn}"
                                         Tag="Rprt_DemandFactors" Click="Cmd_Click"
                                         ToolTip="Per-panel NEC 2023 / BS 7671 demand-factor breakdown exported to Excel."/>
