@@ -104,7 +104,7 @@ namespace StingTools.Commands.Electrical.Lighting
                     foreach (var z in zones.Where(z => z.RoomId == room.Id.Value))
                         foreach (var f in z.FixtureIds)
                             try { ParameterHelpers.SetString(doc.GetElement(new ElementId(f)),
-                                "ELC_LITE_CONTROL_ZONE", $"Z{z.ZoneId:D3}", overwrite: true); } catch { }
+                                "LTG_CTRL_TYPE_TXT", $"Z{z.ZoneId:D3}", overwrite: true); } catch { }
                 }
                 tx.Commit();
             }
@@ -116,7 +116,7 @@ namespace StingTools.Commands.Electrical.Lighting
 
             TaskDialog.Show("STING Lighting Zones",
                 $"Created {zones.Count} control zone(s).\n" +
-                $"Wrote ELC_LITE_CONTROL_ZONE on each fixture (where the parameter exists).\n\n" +
+                $"Wrote LTG_CTRL_TYPE_TXT on each fixture (where the parameter exists).\n\n" +
                 $"Excel: {outPath}");
             try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", outDir) { UseShellExecute = true }); } catch { }
             return Result.Succeeded;

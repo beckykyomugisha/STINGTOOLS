@@ -122,15 +122,17 @@ namespace StingTools.Commands.Electrical.Lighting
                         if (entry == null) { missing++; continue; }
 
                         // Write to type — applies to every instance via Revit's type system.
-                        SetIfEmpty(sym, "ELC_LITE_MANUFACTURER", entry.Manufacturer);
-                        SetIfEmpty(sym, "ELC_LITE_MODEL",        entry.Model);
-                        SetIfEmpty(sym, "ELC_LITE_IES_FILE",     entry.IesPath);
-                        SetDoubleIfEmpty(sym, "ELC_LITE_LUMENS",     entry.Lumens);
-                        SetDoubleIfEmpty(sym, "ELC_LITE_WATTAGE",    entry.Watts);
-                        SetDoubleIfEmpty(sym, "ELC_LITE_CCT_K",      entry.CctK);
-                        SetDoubleIfEmpty(sym, "ELC_LITE_CRI",        entry.Cri);
-                        SetDoubleIfEmpty(sym, "ELC_LITE_BEAM_DEG",   entry.BeamAngleDeg);
-                        SetIfEmpty(sym, "ELC_LITE_IP_RATING",    entry.IpRating);
+                        // Parameter names match MR_PARAMETERS.txt canonical (Phase 188 fix —
+                        // earlier draft used ELC_LITE_* names that don't exist in the registry).
+                        SetIfEmpty(sym, "ASS_MANUFACTURER_TXT",      entry.Manufacturer);
+                        SetIfEmpty(sym, "ASS_MODEL_NR_TXT",          entry.Model);
+                        SetIfEmpty(sym, "ELC_PHOTO_FILE_PATH_TXT",   entry.IesPath);
+                        SetDoubleIfEmpty(sym, "ELC_PHOTO_LUMENS_NR",     entry.Lumens);
+                        SetDoubleIfEmpty(sym, "LTG_FIX_LMP_WATTAGE_W",   entry.Watts);
+                        SetDoubleIfEmpty(sym, "ELC_PHOTO_CCT_K",         entry.CctK);
+                        SetDoubleIfEmpty(sym, "ELC_PHOTO_CRI_NR",        entry.Cri);
+                        SetDoubleIfEmpty(sym, "ELC_PHOTO_BEAM_ANGLE_DEG",entry.BeamAngleDeg);
+                        SetIfEmpty(sym, "ELC_IP_RATING_TXT",         entry.IpRating);
                         matched++;
                     }
                     catch (Exception ex) { StingLog.Warn($"LuminaireRegistry apply: {ex.Message}"); skipped++; }

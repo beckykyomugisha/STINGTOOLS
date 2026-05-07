@@ -147,7 +147,10 @@ namespace StingTools.Commands.Electrical.Lighting
         {
             try
             {
-                var p = fi.LookupParameter("ELC_LITE_LUMENS")
+                // Canonical MR_PARAMETERS name (Phase 180): ELC_PHOTO_LUMENS_NR.
+                // Fall through to Revit native built-in params when the shared
+                // parameter file hasn't been loaded into the project yet.
+                var p = fi.LookupParameter("ELC_PHOTO_LUMENS_NR")
                         ?? fi.LookupParameter("Initial Intensity")
                         ?? fi.LookupParameter("Luminous Flux");
                 if (p == null) return 0;

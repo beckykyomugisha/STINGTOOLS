@@ -157,16 +157,20 @@ namespace StingTools.Commands.Electrical.Lighting
                 if (!inRoom) continue;
 
                 fixtures++;
-                double lm = SafeDouble(fi, "ELC_LITE_LUMENS", "Initial Intensity", "Luminous Flux");
+                // Canonical MR_PARAMETERS names: ELC_PHOTO_LUMENS_NR (Phase 180),
+                // LTG_FIX_LMP_WATTAGE_W, ELC_PHOTO_FILE_PATH_TXT. Fall through to
+                // Revit native "Initial Intensity"/"Luminous Flux" when shared
+                // params haven't been loaded.
+                double lm = SafeDouble(fi, "ELC_PHOTO_LUMENS_NR", "Initial Intensity", "Luminous Flux");
                 if (lm <= 0) lm = 4000;
                 totalLumens += lm;
-                double w = SafeDouble(fi, "ELC_LITE_WATTAGE", "Wattage");
+                double w = SafeDouble(fi, "LTG_FIX_LMP_WATTAGE_W", "ELC_PHOTO_WATTS_NR", "Wattage");
                 if (w <= 0) w = 36;
                 totalWatts += w;
                 if (string.IsNullOrEmpty(fixtureType))
                 {
                     fixtureType = $"{fi.Symbol?.FamilyName} : {fi.Symbol?.Name}";
-                    iesFile = SafeString(fi, "ELC_LITE_IES_FILE", "Photometric File", "ELC_PHOTOMETRIC_FILE");
+                    iesFile = SafeString(fi, "ELC_PHOTO_FILE_PATH_TXT", "Photometric File");
                 }
             }
             if (fixtures == 0 && totalLumens == 0) return null;

@@ -54,14 +54,22 @@ namespace StingTools.Commands.Electrical.LoadDemand
             foreach (var (panelName, circuits) in circuitsByPanel)
             {
                 var panel = FindPanelByName(doc, panelName);
+                // Canonical MR_PARAMETERS names (Phase 188 fix):
+                //   ELC_BUSBAR_RATING_A     (Phase 179, busbar trunking) — ✓
+                //   ELC_PNL_MAIN_BRK_A      (panel rated breaker, replaces made-up ELC_PNL_RATING_A)
+                //   ELC_PNL_VLT_V           (replaces ELC_PNL_VOLTAGE)
+                //   ELC_CKT_PHASE_COUNT_NR  (existing, ✓)
+                // ELC_PNL_SECTOR doesn't exist in MR_PARAMETERS — pull project sector
+                // from ProjectInformation.OrganizationDescription as a heuristic fallback,
+                // default to "Commercial".
                 double busbarA = panel != null ? SafeDouble(panel, "ELC_BUSBAR_RATING_A") : 0;
-                if (busbarA <= 0 && panel != null) busbarA = SafeDouble(panel, "ELC_PNL_RATING_A");
+                if (busbarA <= 0 && panel != null) busbarA = SafeDouble(panel, "ELC_PNL_MAIN_BRK_A");
                 if (busbarA <= 0) busbarA = 200; // sensible default for sub-DB
-                double voltageV = panel != null ? SafeDouble(panel, "ELC_PNL_VOLTAGE") : 0;
+                double voltageV = panel != null ? SafeDouble(panel, "ELC_PNL_VLT_V") : 0;
                 if (voltageV <= 0) voltageV = 400; // 400 V 3φ
                 int phases = panel != null ? (int)SafeDouble(panel, "ELC_CKT_PHASE_COUNT_NR") : 3;
                 if (phases == 0) phases = 3;
-                string sector = panel != null ? (panel.LookupParameter("ELC_PNL_SECTOR")?.AsString() ?? "Commercial") : "Commercial";
+                string sector = ResolveSector(doc);
 
                 var diversity = LoadDemandEngine.ApplyDiversity(circuits.Select(c => (c.load, c.kw)));
                 var spare = LoadDemandEngine.AssessSpareCapacity(diversity.TotalDemandKw, busbarA, voltageV, phases, sector);
@@ -129,6 +137,30 @@ namespace StingTools.Commands.Electrical.LoadDemand
             }
             catch { }
             return Result.Succeeded;
+        }
+
+        // ELC_PNL_SECTOR isn't in MR_PARAMETERS. Heuristic: read
+        // ProjectInformation.OrganizationDescription / BuildingName /
+        // ProjectName for sector hints (hospital→Healthcare, school→Education,
+        // etc.); fall back to "Commercial". Engineer can override at panel
+        // level once a formal sector parameter is added to MR_PARAMETERS.
+        private static string ResolveSector(Document doc)
+        {
+            try
+            {
+                var pi = doc?.ProjectInformation;
+                if (pi == null) return "Commercial";
+                string blob = ((pi.OrganizationDescription ?? "") + " " +
+                               (pi.BuildingName ?? "") + " " +
+                               (pi.Name ?? "")).ToLowerInvariant();
+                if (blob.Contains("hospital") || blob.Contains("healthcare") || blob.Contains("clinic")) return "Healthcare";
+                if (blob.Contains("school") || blob.Contains("university") || blob.Contains("college")) return "Education";
+                if (blob.Contains("warehouse") || blob.Contains("factory") || blob.Contains("industrial")) return "Industrial";
+                if (blob.Contains("residential") || blob.Contains("dwelling") || blob.Contains("housing")) return "Residential";
+                if (blob.Contains("retail") || blob.Contains("shop") || blob.Contains("store")) return "Retail";
+            }
+            catch { }
+            return "Commercial";
         }
 
         private static FamilyInstance FindPanelByName(Document doc, string name)

@@ -77,8 +77,10 @@ namespace StingTools.Commands.Electrical.Sustainability
                     double csa = SafeDouble(sys, "ELC_FEEDER_CSA_MM2");
                     if (csa <= 0) csa = SafeDouble(sys, "ELC_CBL_SZ_MM");
                     if (lenM <= 0 || csa <= 0) continue;
-                    string ins = sys.LookupParameter("ELC_CBL_INSULATION")?.AsString() ?? "PVC";
-                    string mat = sys.LookupParameter("ELC_CBL_MATERIAL")?.AsString() ?? "Cu";
+                    // Canonical MR_PARAMETERS: ELC_CBL_INS_TYPE_TXT (Phase 188 fix).
+                    // ELC_CBL_MATERIAL isn't tabulated yet — default to copper.
+                    string ins = sys.LookupParameter("ELC_CBL_INS_TYPE_TXT")?.AsString() ?? "PVC";
+                    string mat = "Cu";
 
                     double kgPerM = csa * carbon.CableKgPerM_PerMm2 + carbon.CableKgPerM_Baseline;
                     double conductorFactor = mat == "Al" ? carbon.Al_kg : carbon.Cu_kg;
@@ -98,8 +100,10 @@ namespace StingTools.Commands.Electrical.Sustainability
             {
                 try
                 {
-                    double kva = SafeDouble(p, "ELC_PNL_KVA");
-                    if (kva <= 0) kva = SafeDouble(p, "ELC_KVA_RATING");
+                    // Canonical MR_PARAMETERS: ELC_PNL_RATED_KW (Phase 188 fix).
+                    // For embodied-carbon sizing we treat kW≈kVA at the project
+                    // PF target — close enough for the per-kVA factor lookup.
+                    double kva = SafeDouble(p, "ELC_PNL_RATED_KW", "ELC_PNL_CONNECTED_LOAD_KW");
                     if (kva <= 0) kva = 100;
                     string fn = (p.Symbol?.FamilyName ?? "").ToLowerInvariant();
                     double factor = fn.Contains("transformer") ? carbon.Transformer_kgPerKva
@@ -138,17 +142,20 @@ namespace StingTools.Commands.Electrical.Sustainability
             return Result.Succeeded;
         }
 
-        private static double SafeDouble(Element el, string name)
+        private static double SafeDouble(Element el, params string[] names)
         {
-            var p = el?.LookupParameter(name);
-            if (p == null) return 0;
-            try
+            foreach (var n in names)
             {
-                if (p.StorageType == StorageType.Double) return p.AsDouble();
-                if (p.StorageType == StorageType.Integer) return p.AsInteger();
-                if (p.StorageType == StorageType.String && double.TryParse(p.AsString(), out double v)) return v;
+                var p = el?.LookupParameter(n);
+                if (p == null) continue;
+                try
+                {
+                    if (p.StorageType == StorageType.Double)  { var v = p.AsDouble();  if (v > 0) return v; }
+                    if (p.StorageType == StorageType.Integer) { var v = p.AsInteger(); if (v > 0) return v; }
+                    if (p.StorageType == StorageType.String && double.TryParse(p.AsString(), out double s) && s > 0) return s;
+                }
+                catch { }
             }
-            catch { }
             return 0;
         }
 

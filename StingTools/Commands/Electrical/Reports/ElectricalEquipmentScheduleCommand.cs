@@ -83,8 +83,11 @@ namespace StingTools.Commands.Electrical.Reports
                 try
                 {
                     string name = el.Name ?? "";
-                    double kva = SafeDouble(el, "ELC_PNL_KVA");
-                    if (kva <= 0) kva = SafeDouble(el, "ELC_KVA_RATING");
+                    // Canonical MR_PARAMETERS names (Phase 188 fix). Closest-fit:
+                    // ELC_PNL_RATED_KW for capacity (kW not kVA but suffices for
+                    // sizing roll-up at PF=1), ELC_PNL_VLT_V for voltage, ASS_*
+                    // for ISO 19650-3 manufacturer / model / serial / weight.
+                    double kva = SafeDouble(el, "ELC_PNL_RATED_KW", "ELC_PNL_CONNECTED_LOAD_KW");
                     if (string.IsNullOrEmpty(name) && kva <= 0) continue;
                     var row = new EquipmentRow
                     {
@@ -93,14 +96,14 @@ namespace StingTools.Commands.Electrical.Reports
                         Discipline    = defaultDisc,
                         FamilyName    = el.Symbol?.FamilyName ?? "",
                         TypeName      = el.Symbol?.Name ?? "",
-                        Voltage       = SafeText(el, "ELC_PNL_VOLTAGE", "ELC_VLT_PRIMARY_RATING_V"),
+                        Voltage       = SafeText(el, "ELC_PNL_VLT_V", "ELC_VLT_PRIMARY_RATING_V"),
                         KvaRating     = kva,
                         FaultKa       = SafeDouble(el, "ELC_PNL_SHORT_CIRCUIT_RATING_KA"),
-                        IpRating      = SafeText(el, "ELC_PNL_IP_RATING", "ELC_IP_RATING"),
-                        WeightKg      = SafeDouble(el, "ELC_WEIGHT_KG"),
-                        Manufacturer  = SafeText(el, "ELC_MANUFACTURER", "Manufacturer"),
-                        Model         = SafeText(el, "ELC_MODEL", "Model"),
-                        SerialNumber  = SafeText(el, "ELC_SERIAL_NUMBER"),
+                        IpRating      = SafeText(el, "ELC_PNL_IP_RATING_TXT", "ELC_IP_RATING_TXT"),
+                        WeightKg      = SafeDouble(el, "ASS_WEIGHT_KG"),
+                        Manufacturer  = SafeText(el, "ASS_MANUFACTURER_TXT", "Manufacturer"),
+                        Model         = SafeText(el, "ASS_MODEL_NR_TXT", "Model"),
+                        SerialNumber  = SafeText(el, "ASS_SERIAL_NR_TXT"),
                         Location      = LocationFor(doc, el),
                         Notes         = ""
                     };

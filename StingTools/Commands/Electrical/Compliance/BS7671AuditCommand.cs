@@ -115,9 +115,12 @@ namespace StingTools.Commands.Electrical.Compliance
             // Revit stores ratings in internal Amps already
             if (rating <= 0) rating = Math.Ceiling(iA);
 
-            string ocpd = (sys.LookupParameter("ELC_BREAKER_TYPE")?.AsString() ?? "MCB_C").ToUpperInvariant();
-            string mat = sys.LookupParameter("ELC_CBL_MATERIAL")?.AsString() ?? "Cu";
-            string ins = sys.LookupParameter("ELC_CBL_INSULATION")?.AsString() ?? "PVC";
+            // ELC_BREAKER_TYPE / ELC_CBL_MATERIAL aren't in MR_PARAMETERS yet
+            // — use the defaults pending future schema additions. Insulation
+            // is canonical: ELC_CBL_INS_TYPE_TXT (Phase 188 fix).
+            string ocpd = "MCB_C";  // BS EN 60898 Type C is the safe default
+            string mat = "Cu";       // copper unless project specifies aluminium
+            string ins = sys.LookupParameter("ELC_CBL_INS_TYPE_TXT")?.AsString() ?? "PVC";
 
             string load = (sys.LoadName ?? sys.Name ?? "").ToLowerInvariant();
             string context = load;  // future: pull room category, plus circuit description

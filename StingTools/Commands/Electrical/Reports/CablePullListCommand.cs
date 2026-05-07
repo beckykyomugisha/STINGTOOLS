@@ -89,8 +89,11 @@ namespace StingTools.Commands.Electrical.Reports
             if (csa <= 0) csa = SafeDouble(sys, "ELC_CBL_SZ_MM");
             double cpc = SafeDouble(sys, "ELC_CPC_SZ_MM");
 
-            string mat = sys.LookupParameter("ELC_CBL_MATERIAL")?.AsString() ?? "Cu";
-            string ins = sys.LookupParameter("ELC_CBL_INSULATION")?.AsString() ?? "PVC";
+            // Canonical MR_PARAMETERS: ELC_CBL_INS_TYPE_TXT (Phase 188 fix).
+            // Conductor material isn't tabulated in MR_PARAMETERS yet — default
+            // to copper unless project schema adds an ELC_CBL_COND_MAT_TXT.
+            string mat = "Cu";
+            string ins = sys.LookupParameter("ELC_CBL_INS_TYPE_TXT")?.AsString() ?? "PVC";
             int phases = sys.get_Parameter(BuiltInParameter.RBS_ELEC_NUMBER_OF_RUNS)?.AsInteger() ?? 1;
 
             // Weight estimate: copper PVC ≈ 9 kg/100m at 2.5 mm², linear in CSA
