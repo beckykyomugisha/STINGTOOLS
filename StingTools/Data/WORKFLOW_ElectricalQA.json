@@ -1,0 +1,16 @@
+{
+  "id": "ElectricalQA",
+  "name": "Electrical QA Workflow",
+  "description": "Audit panels, balance phases, size breakers, check voltage drop, and generate a compliance report. Run periodically during electrical design.",
+  "version": "1.0",
+  "phase": 177,
+  "steps": [
+    { "order": 1, "tag": "Panel_Audit",       "label": "Audit panel schedules",      "continueOnFail": true  },
+    { "order": 2, "tag": "Calc_LoadSummary",  "label": "Compute load summary",       "continueOnFail": true  },
+    { "order": 3, "tag": "Circuit_Balance",   "label": "Balance three-phase loads",  "continueOnFail": false },
+    { "order": 4, "tag": "Calc_SizeBreakers", "label": "Preview breaker sizing",     "continueOnFail": true  },
+    { "order": 5, "tag": "Calc_VoltageDrop",  "label": "Calculate voltage drop",     "continueOnFail": true  },
+    { "order": 6, "tag": "Rprt_Audit",        "label": "Generate compliance audit",  "continueOnFail": true  },
+    { "order": 7, "tag": "Rprt_ExcelExport",  "label": "Export panel schedules",     "continueOnFail": true  }
+  ]
+}

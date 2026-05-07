@@ -2,6 +2,112 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 177 — STING Electrical Center)
+
+A dedicated 7-tab WPF dockable panel for electrical work, sitting tabbed
+behind the Properties palette so it cohabits with the main STING panel
+on the right rail. Persistent workspace for panel scheduling, circuit
+description / phase / breaker sizing, voltage-drop calculation, single-
+line viewer, lighting checks and reports — picking up where Revit 2026's
+removed native voltage-drop calculation left off.
+
+**New dockable panel**: `StingElectricalPanel` (tabs PNLS · CIRCTS ·
+CALCS · CABLE · SLD · LITE · RPRT). Registered via
+`StingElectricalPanelProvider` (GUID `E5F6A7B8-9012-CDEF-0123-456789012CDE`),
+toggled from a new "⚡ Electrical" ribbon group on the STING Tools tab.
+All button clicks dispatch through `StingElectricalCommandHandler`
+(`IExternalEventHandler`) so Revit API calls run on the API thread; the
+handler also publishes the running UIApplication via the new
+`StingCommandHandler.SetCurrentApp(UIApplication)` helper so commands
+invoked with null `ExternalCommandData` resolve their UIApplication
+through the standard `ParameterHelpers.GetApp()` fallback.
+
+**New commands (12)**
+
+| Tag | Class | Description |
+|---|---|---|
+| `Panel_SyncParams` | `ElecPanelParamSyncCommand` | Bulk-fill ELC_PNL_* shared parameters across every panel from Revit native data + spatial detect |
+| `Panel_WriteParams` | `ElecPanelWriteParamsCommand` | Save the PANEL PARAMETERS card on the dock panel back to the selected panel |
+| `Circuit_AutoDesc` | `CircuitDescriptionCommand` | Auto-fill `ElectricalSystem.LoadName` from connected equipment name + mark + room name; configurable sources, separator and Title-Case toggle; preview mode without committing |
+| `Circuit_Balance` | `PhaseBalanceCommand` | Greedy largest-first 3-phase load balance using `ElectricalSystem.StartingPhase`; skips 3-pole circuits and (when honoured) grouped 2-pole circuits; shows before/after Δ on the panel and prompts before applying |
+| `Circuit_Renumber` | `ElecCircuitRenumberCommand` | Resequence circuit slots using `RBS_ELEC_CIRCUIT_NUMBER` |
+| `Calc_LoadSummary` | `ElecLoadSummaryCommand` | Refresh per-panel connected/demand load summary |
+| `Calc_VoltageDrop` | `VoltageDropCommand` | BS 7671 + NEC voltage-drop calc using actual 3D wire lengths from `ElectricalSystem.Length` (ft × 0.3048 → m); pushes results to the circuit grid |
+| `Calc_FlagVD` | `VoltageDropFlagCommand` | Apply red graphic override to elements on circuits exceeding the VD threshold in the active view |
+| `Calc_SizeBreakers` | `BreakerSizerCommand` | Read-only preview of next standard breaker sizes (BS EN 60898 / BS EN 60947-2 / NEC) |
+| `Calc_ApplyBreakers` | `BreakerSizerApplyCommand` | Write proposed ratings via `RBS_ELEC_CIRCUIT_RATING_PARAM` |
+| `Cable_Calculate` | `CableSizerCommand` | Inline cable size calculator (CABLE tab) using the pure `CableSizerEngine` |
+| `Lite_CreateSchedule` | `ElecLightingScheduleCommand` | Create `STING - Lighting Fixtures` `ViewSchedule` |
+
+**New engines (no Revit API dependency)**
+
+- `Commands/Electrical/VoltageDrop/VoltageDropEngine.cs` — copper /
+  aluminium resistance tables, BS 7671 Appx 4 temperature correction,
+  1-phase / 3-phase voltage-drop formula, minimum-CSA finder, BS / NEC
+  standard breaker rounding (with 125 % continuous-load multiplier).
+- `Commands/Electrical/CableSizer/CableSizerEngine.cs` — install-method,
+  insulation and ambient-temperature correction factor lookups, design-
+  current calculation, full sizing pipeline returning recommended CSA +
+  actual VD % + breaker rating, plus a `CalculateConduitFill` helper.
+- `Commands/Electrical/ElectricalSnapshotBuilder.cs` — read-only Revit
+  scan that assembles the `ElectricalPanelSnapshot` pushed back to the
+  dock panel after every command (panels, circuits, SLD root, load
+  summary, lighting fixtures, room targets, wire reference table,
+  compliance items).
+
+**New data files** (auto-included via the existing `Data/**` glob in
+`StingTools.csproj`)
+
+- `Data/STING_WIRE_TABLES.json` — BS 7671 Method C XLPE-90 + PVC-70
+  copper tables, NEC THWN copper (75 °C), aluminium-resistance factor,
+  install-method / insulation / ambient-temperature correction-factor
+  tables, BS EN 60898 + BS EN 60947-2 + NEC OCPD breaker arrays,
+  conduit internal-area lookup keyed by BS 4568 size, wire outer-area
+  table, six rated voltage profiles (UK / EU / US).
+- `Data/WORKFLOW_ElectricalQA.json` — 7-step QA preset chaining
+  `Panel_Audit → Calc_LoadSummary → Circuit_Balance → Calc_SizeBreakers
+  → Calc_VoltageDrop → Rprt_Audit → Rprt_ExcelExport`.
+
+**SLD tab** — wraps the existing `SLDCircuitTraverser.BuildHierarchy()`
+in a `TreeView` driven by `SLDNodeViewModel`. Selecting a node fills a
+detail card with connected / demand load, feeder rating and VD %; "Zoom
+to in Model" calls `UIDocument.ShowElements`; "Open Schedule" activates
+the matching `PanelScheduleView`.
+
+**Compliance + reports** — RPRT tab's compliance list flags panels
+without schedules and circuits exceeding the VD threshold. Excel
+round-trip / circuit register export delegate to the existing Phase 176
+panel commands and `ExportCircuitsCommand`. COBie buttons hand off to
+the existing `BIMManager.COBieExportCommand`.
+
+**Placeholder buttons** — every Phase 178+ feature has a visible
+placeholder card in the XAML with `IsEnabled="False"` and a tooltip
+explaining the deferral: feeder sizing, fault current (utility kA →
+panel AIC), arc flash IEEE 1584-2018, selective coordination, conduit
+auto-routing, busbar trunking, riser-diagram generation, emergency-
+lighting grading, lighting-power density, photometric IFC link,
+EasyPower / SKM / DIALux / ETAP exporters.
+
+**API limits honoured**
+
+- `PanelScheduleSheetInstance.Create` is broken in Revit 2024+; the
+  Sheet Placement card explicitly does NOT call it — it offers a
+  Guided Manual flow instead.
+- `ElectricalSystem.PolesNumber` and voltage are read-only —
+  `PhaseBalanceCommand` only writes `StartingPhase`.
+- `ElectricalSystem.Length` is read in feet and converted to metres
+  (`× 0.3048`) before the VD formula.
+- `RBS_ELEC_CIRCUIT_RATING_PARAM` is the writable lever for breaker
+  ratings; `BreakerSizerApplyCommand` wraps the writes in a single
+  `Transaction` and skips read-only circuits gracefully.
+- `CableSizerEngine` and `VoltageDropEngine` import zero Revit
+  assemblies and are unit-testable in isolation.
+
+**Built without `dotnet build` verification** (Linux sandbox, no .NET /
+Revit API). Verify in Revit before merge. Phase 177 ships the panel
+shell + the 12 must-have commands; Phase 178 will add fault current,
+arc flash, riser auto-generation and the external-tool exporters.
+
 #### Completed (Phase 176 — Electrical Panel Schedule Automation)
 
 End-to-end electrical panel schedule pipeline with rule-based template
