@@ -2823,14 +2823,14 @@ namespace StingTools.Tags
                     if (typeEl.LookupParameter(name) != null) present++;
                 if (present == 0) continue;
                 stingTypesScanned++;
-                int missing = stylePack.Length - present;
-                if (missing == 0) stingTypesFullPack++;
+                int typeMissing = stylePack.Length - present;
+                if (typeMissing == 0) stingTypesFullPack++;
                 else
                 {
                     stingTypesPartialPack++;
-                    if (missing > worstMissing)
+                    if (typeMissing > worstMissing)
                     {
-                        worstMissing = missing;
+                        worstMissing = typeMissing;
                         worstTypeName = $"{typeEl.Name} ({((typeEl as ElementType)?.FamilyName) ?? "?"})";
                     }
                 }

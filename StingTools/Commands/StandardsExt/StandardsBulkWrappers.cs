@@ -7,6 +7,8 @@
 // stubs that hard-coded calculation values inline.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -160,11 +162,16 @@ namespace StingTools.Commands.StandardsExt
         public Result Execute(ExternalCommandData cd, ref string m, ElementSet e)
         {
             if (!NumericPrompt.TryAsk("Conduit fill (NEC ch.9 / BS 7671)",
-                new[] { "Number of cables", "Cable Ø (mm)" },
-                new[] { 6.0, 12.0 }, out var v)) return Result.Cancelled;
+                new[] { "Number of cables", "Cable CSA (mm²)" },
+                new[] { 6.0, 2.5 }, out var v)) return Result.Cancelled;
             try
             {
-                var res = StandardsAPI.CalculateBoundingSize((int)v[0], v[1]);
+                int count = (int)v[0];
+                double csaMm2 = v[1];
+                var cableSizes = System.Linq.Enumerable
+                    .Repeat(csaMm2.ToString(System.Globalization.CultureInfo.InvariantCulture), count)
+                    .ToList();
+                var res = StandardsAPI.CalculateBoundingSize(cableSizes, count);
                 Bk.B("Conduit fill", $"{Bk.Region} · NEC ch.9 + BS 7671 App.4")
                     .AddSection("RESULT")
                     .Metric("Recommended size", res.RecommendedSize ?? "-")
