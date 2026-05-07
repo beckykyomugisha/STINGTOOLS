@@ -1166,14 +1166,43 @@ namespace StingTools.UI
 
         private PresetCategoryOverride ResolveData(string bic, string sub, string display)
         {
-            var key = string.IsNullOrEmpty(sub) ? bic : $"{bic}/{sub}";
-            if (Data.TryGetValue(key, out var existing)) return existing;
+            // Phase 177 — bridge keys arriving from a hand-authored pack JSON
+            // are typically localised display names ("Walls", "Doors") rather
+            // than BICs ("OST_Walls" / "OST_Doors"). The editor binds rows by
+            // BIC, so a naïve `Data[bic]` lookup misses every entry and every
+            // row appears blank. Try BIC first, then display-name aliases,
+            // before allocating a fresh override.
+            var bicKey = string.IsNullOrEmpty(sub) ? bic : $"{bic}/{sub}";
+            if (!string.IsNullOrEmpty(bicKey) && Data.TryGetValue(bicKey, out var byBic)) return byBic;
+
+            // Display-name fallbacks — pack files use "Walls" not "OST_Walls".
+            // For subcategories, accept either "Walls/Wall Surface" or just
+            // the subcategory display name on its own.
+            if (!string.IsNullOrEmpty(display))
+            {
+                var nameKey = string.IsNullOrEmpty(sub) ? display : $"{display}/{sub}";
+                if (Data.TryGetValue(nameKey, out var byName))
+                {
+                    // Re-key under BIC so future round-trips stay consistent
+                    // and SyncRowToPack writes back to a single canonical key.
+                    Data[bicKey] = byName;
+                    Data.Remove(nameKey);
+                    return byName;
+                }
+                if (!string.IsNullOrEmpty(sub) && Data.TryGetValue(sub, out var bySub))
+                {
+                    Data[bicKey] = bySub;
+                    Data.Remove(sub);
+                    return bySub;
+                }
+            }
+
             var fresh = new PresetCategoryOverride
             {
                 Category    = string.IsNullOrEmpty(sub) ? display : null,
                 SubCategory = sub
             };
-            Data[key] = fresh;
+            Data[bicKey] = fresh;
             return fresh;
         }
 

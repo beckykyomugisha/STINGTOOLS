@@ -525,17 +525,36 @@ namespace StingTools.UI
             var frBody = new StackPanel();
             _currentPack.Filters = _currentPack.Filters ?? new List<StyleFilterRule>();
             frBody.Children.Add(new TextBlock {
-                Text = "Per-filter graphic overrides. Filter names resolve against ParameterFilterElement in the active project (corporate AEC filters lazy-create on apply). Colours in #RRGGBB.",
+                Text = "Per-filter graphic overrides. Filter names resolve against ParameterFilterElement in the active project (corporate AEC filters lazy-create on apply). Colours in #RRGGBB. " +
+                       "Inherited rows (italic) come from parent packs in the extends chain — edits land on this pack only.",
                 Foreground = new SolidColorBrush(SubtleColor), FontSize = 11, TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 0, 0, 4) });
             frBody.Children.Add(MakeFilterRuleHeader());
-            foreach (var fr in _currentPack.Filters.ToList())
+
+            // Show inherited filters first (italicised, from parent packs in the
+            // extends chain), then this pack's own filters. The runtime
+            // applier appends both at apply time, so showing both here
+            // matches what the user will actually see on a view.
+            var ownFilters = _currentPack.Filters ?? new List<StyleFilterRule>();
+            var inherited  = ResolveInheritedFilters(_currentPack);
+            if (inherited.Count > 0)
+            {
+                foreach (var fr in inherited)
+                    frBody.Children.Add(MakeInheritedFilterRow(fr));
+                frBody.Children.Add(new TextBlock {
+                    Text = $"— ↑ {inherited.Count} inherited filter row(s) — ↓ this pack's own filters —",
+                    Foreground = new SolidColorBrush(SubtleColor),
+                    FontSize = 10, FontStyle = FontStyles.Italic,
+                    Margin = new Thickness(0, 4, 0, 4) });
+            }
+            foreach (var fr in ownFilters.ToList())
                 frBody.Children.Add(MakeFilterRuleRow(fr));
             frBody.Children.Add(MakeSmallBtn("＋ Add filter rule", () =>
             {
                 _currentPack.Filters.Add(new StyleFilterRule { FilterName = "NewFilter", Visible = true,
                     ProjectionLineColor = "#000000", ProjectionLineWeight = 1,
                     CutLineColor = "#000000", CutLineWeight = 1 });
+                MarkPackEdited(_currentPack);
                 RenderPackForm();
             }));
             _packFormHost.Children.Add(Card("Filter rules", frBody));
@@ -544,9 +563,20 @@ namespace StingTools.UI
             // replica embedded inline (no popup). Backed by a bridge dict of
             // PresetCategoryOverride that mirrors the pack's StyleVgOverride
             // dict on every cell change. Pattern + detail-level fields
-            // round-trip too (Phase 177).
+            // round-trip too. The bridge walks the extends chain so child
+            // packs show inherited values from corp-base / mid-tier parents.
             var vgBody = new StackPanel();
             _currentPack.VgOverrides = _currentPack.VgOverrides ?? new Dictionary<string, StyleVgOverride>();
+            int chainLen = CountExtendsChainLength(_currentPack);
+            if (chainLen > 1)
+            {
+                vgBody.Children.Add(new TextBlock {
+                    Text = $"Showing resolved overrides — values rolled up from {chainLen} pack(s) in the extends chain " +
+                           $"({ResolveExtendsChain(_currentPack)}). Edits land on this pack only.",
+                    Foreground = new SolidColorBrush(Colors.Goldenrod), FontSize = 11,
+                    FontStyle = FontStyles.Italic, TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 0, 0, 4) });
+            }
             vgBody.Children.Add(new TextBlock {
                 Text = "Full Revit Visibility/Graphics Overrides — every model + annotation category from the active project pre-populated, " +
                        "subcategories indented underneath. Cells round-trip live into the pack JSON; tab away from a cell to commit. " +
@@ -815,14 +845,19 @@ namespace StingTools.UI
             var name = SmallCombo(fr.FilterName, v => fr.FilterName = v, filterNames);
             var vis  = MakeChk(fr.Visible,  v => fr.Visible = v);
             var ht   = MakeChk(fr.Halftone, v => fr.Halftone = v);
-            var pc   = MakeColourSwatch(fr.ProjectionLineColor, v => { fr.ProjectionLineColor = v; RenderPackForm(); });
+            // Phase 177 — swatch clicks no longer trigger RenderPackForm:
+            // a full re-render on every colour pick was eating UI focus and
+            // resetting the RevitVgEditor's expand / scroll state. The
+            // MakeColourSwatch helper repaints its own button content from
+            // the new hex value, so a re-render is unnecessary here.
+            var pc   = MakeColourSwatch(fr.ProjectionLineColor, v => { fr.ProjectionLineColor = v; MarkPackEdited(_currentPack); });
             var pw   = SmallTb(fr.ProjectionLineWeight?.ToString() ?? "",
-                               v => fr.ProjectionLineWeight = string.IsNullOrEmpty(v) ? (int?)null : TryInt(v));
-            var cc   = MakeColourSwatch(fr.CutLineColor, v => { fr.CutLineColor = v; RenderPackForm(); });
+                               v => { fr.ProjectionLineWeight = string.IsNullOrEmpty(v) ? (int?)null : TryNullableInt(v); MarkPackEdited(_currentPack); });
+            var cc   = MakeColourSwatch(fr.CutLineColor, v => { fr.CutLineColor = v; MarkPackEdited(_currentPack); });
             var cw   = SmallTb(fr.CutLineWeight?.ToString() ?? "",
-                               v => fr.CutLineWeight = string.IsNullOrEmpty(v) ? (int?)null : TryInt(v));
+                               v => { fr.CutLineWeight = string.IsNullOrEmpty(v) ? (int?)null : TryNullableInt(v); MarkPackEdited(_currentPack); });
             var tr   = SmallTb(fr.Transparency?.ToString() ?? "",
-                               v => fr.Transparency = string.IsNullOrEmpty(v) ? (int?)null : TryInt(v));
+                               v => { fr.Transparency = string.IsNullOrEmpty(v) ? (int?)null : TryNullableInt(v); MarkPackEdited(_currentPack); });
 
             var ctrls = new UIElement[] { name, vis, ht, pc, pw, cc, cw, tr };
             for (int i = 0; i < ctrls.Length; i++)
@@ -831,6 +866,64 @@ namespace StingTools.UI
                 if (ctrls[i] is FrameworkElement fe) fe.Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0);
                 g.Children.Add(ctrls[i]);
             }
+            return g;
+        }
+
+        // Phase 177 — collect filters declared by every parent in the
+        // extends chain so the editor can render them as read-only
+        // inherited rows. Returns empty when the pack has no parent
+        // or no parents declare filters.
+        private List<StyleFilterRule> ResolveInheritedFilters(ViewStylePack pack)
+        {
+            var result = new List<StyleFilterRule>();
+            if (pack == null || string.IsNullOrEmpty(pack.Extends)) return result;
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { pack.Id ?? "" };
+            var cur = _packs?.FirstOrDefault(p => string.Equals(p.Id, pack.Extends, StringComparison.OrdinalIgnoreCase));
+            int guard = 16;
+            while (cur != null && guard-- > 0)
+            {
+                if (string.IsNullOrEmpty(cur.Id) || !seen.Add(cur.Id)) break;
+                if (cur.Filters != null) result.AddRange(cur.Filters);
+                if (string.IsNullOrEmpty(cur.Extends)) break;
+                cur = _packs?.FirstOrDefault(p => string.Equals(p.Id, cur.Extends, StringComparison.OrdinalIgnoreCase));
+            }
+            return result;
+        }
+
+        // Phase 177 — render an inherited filter row read-only with an
+        // italic style hint so the user knows it came from a parent pack
+        // and any edit needs to either override on this pack or be made
+        // on the parent.
+        private UIElement MakeInheritedFilterRow(StyleFilterRule fr)
+        {
+            var g = new Grid { Margin = new Thickness(0, 1, 0, 1), Opacity = 0.65 };
+            double[] widths = { 200, 56, 56, 70, 50, 70, 50, 56 };
+            for (int i = 0; i < widths.Length; i++)
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(widths[i]) });
+            string[] cells =
+            {
+                fr.FilterName ?? "",
+                fr.Visible  ? "✓" : "",
+                fr.Halftone ? "✓" : "",
+                fr.ProjectionLineColor ?? "",
+                fr.ProjectionLineWeight?.ToString() ?? "",
+                fr.CutLineColor ?? "",
+                fr.CutLineWeight?.ToString() ?? "",
+                fr.Transparency?.ToString() ?? "",
+            };
+            for (int i = 0; i < cells.Length; i++)
+            {
+                var t = new TextBlock {
+                    Text = cells[i] ?? "",
+                    FontStyle = FontStyles.Italic,
+                    FontSize = 11,
+                    Foreground = new SolidColorBrush(SubtleColor),
+                    Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0),
+                    VerticalAlignment = VerticalAlignment.Center,
+                };
+                Grid.SetColumn(t, i); g.Children.Add(t);
+            }
+            g.ToolTip = "Inherited from a parent pack. Edit the parent to change, or add an override row on this pack.";
             return g;
         }
 
@@ -862,52 +955,121 @@ namespace StingTools.UI
         //    event so the user's edits survive Save without an explicit
         //    "apply" step. ──
 
-        private static Dictionary<string, StingTools.Core.Drawing.PresetCategoryOverride>
+        // Phase 177 — bridge build now:
+        //   1. Walks the extends chain (root → … → current) so child packs
+        //      display the resolved/effective override set, not just their
+        //      own deltas. Child entries overwrite parent entries.
+        //   2. Normalises every JSON key to a BIC ("Walls" → "OST_Walls")
+        //      via RevitCategoryTree.FindByDisplayName, falling back to the
+        //      raw key when the lookup misses (subcategories, BIC strings
+        //      already in canonical form, or unknown categories).
+        // The result: opening any child pack in the editor now reveals the
+        // line colours, weights, halftone, pattern overrides, etc. it will
+        // actually apply at runtime — instead of a sea of empty rows.
+        private Dictionary<string, StingTools.Core.Drawing.PresetCategoryOverride>
             BuildVgBridge(ViewStylePack pack)
         {
             var bridge = new Dictionary<string, StingTools.Core.Drawing.PresetCategoryOverride>(StringComparer.OrdinalIgnoreCase);
-            if (pack?.VgOverrides == null) return bridge;
-            foreach (var kv in pack.VgOverrides)
+            if (pack == null) return bridge;
+
+            // Resolve ancestors so corp-base ↑ corp-standard-plan ↑ corp-standard-rcp
+            // gets walked once, root-first, with the active pack last so its
+            // values win on conflicting keys.
+            var chain = new List<ViewStylePack>();
+            var seen  = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var cur = pack;
+            int guard = 16;
+            while (cur != null && guard-- > 0)
             {
-                var v = kv.Value;
-                if (v == null) continue;
-                bridge[kv.Key] = new StingTools.Core.Drawing.PresetCategoryOverride
+                if (string.IsNullOrEmpty(cur.Id) || !seen.Add(cur.Id)) break;
+                chain.Add(cur);
+                if (string.IsNullOrEmpty(cur.Extends)) break;
+                cur = _packs?.FirstOrDefault(p =>
+                    string.Equals(p.Id, cur.Extends, StringComparison.OrdinalIgnoreCase));
+            }
+            chain.Reverse(); // root first; current pack overrides last
+
+            foreach (var p in chain)
+            {
+                if (p.VgOverrides == null) continue;
+                foreach (var kv in p.VgOverrides)
                 {
-                    Category        = kv.Key,
-                    Visible         = v.Visible,
-                    Halftone        = v.Halftone,
-                    ProjLineColor   = v.ProjectionLineColor,
-                    ProjLineWeight  = v.ProjectionLineWeight,
-                    ProjLinePattern = v.ProjectionLinePattern,
-                    CutLineColor    = v.CutLineColor,
-                    CutLineWeight   = v.CutLineWeight,
-                    CutLinePattern  = v.CutLinePattern,
-                    SurfFgColor     = v.SurfaceFgColor,
-                    SurfFgPattern   = v.SurfaceFgPattern,
-                    SurfFgVisible   = v.SurfaceFgVisible,
-                    SurfBgColor     = v.SurfaceBgColor,
-                    SurfBgPattern   = v.SurfaceBgPattern,
-                    SurfBgVisible   = v.SurfaceBgVisible,
-                    CutFgColor      = v.CutFgColor,
-                    CutFgPattern    = v.CutFgPattern,
-                    CutFgVisible    = v.CutFgVisible,
-                    CutBgColor      = v.CutBgColor,
-                    CutBgPattern    = v.CutBgPattern,
-                    Transparency    = v.Transparency,
-                    DetailLevel     = v.DetailLevel,
-                };
+                    var v = kv.Value;
+                    if (v == null) continue;
+                    var key = NormaliseCategoryKey(kv.Key);
+                    bridge[key] = new StingTools.Core.Drawing.PresetCategoryOverride
+                    {
+                        Category        = kv.Key,
+                        Visible         = v.Visible,
+                        Halftone        = v.Halftone,
+                        ProjLineColor   = v.ProjectionLineColor,
+                        ProjLineWeight  = v.ProjectionLineWeight,
+                        ProjLinePattern = v.ProjectionLinePattern,
+                        CutLineColor    = v.CutLineColor,
+                        CutLineWeight   = v.CutLineWeight,
+                        CutLinePattern  = v.CutLinePattern,
+                        SurfFgColor     = v.SurfaceFgColor,
+                        SurfFgPattern   = v.SurfaceFgPattern,
+                        SurfFgVisible   = v.SurfaceFgVisible,
+                        SurfBgColor     = v.SurfaceBgColor,
+                        SurfBgPattern   = v.SurfaceBgPattern,
+                        SurfBgVisible   = v.SurfaceBgVisible,
+                        CutFgColor      = v.CutFgColor,
+                        CutFgPattern    = v.CutFgPattern,
+                        CutFgVisible    = v.CutFgVisible,
+                        CutBgColor      = v.CutBgColor,
+                        CutBgPattern    = v.CutBgPattern,
+                        Transparency    = v.Transparency,
+                        DetailLevel     = v.DetailLevel,
+                    };
+                }
             }
             return bridge;
         }
 
+        // Phase 177 — translate a pack JSON category key into the BIC the
+        // RevitVgEditor's row builder uses. Accepts:
+        //   * Already-canonical BIC strings  ("OST_Walls" → unchanged)
+        //   * Localised display names        ("Walls"     → "OST_Walls")
+        //   * Subcategory paths              ("Walls/Wall Surface" — first
+        //     segment translated, second left alone)
+        // Returns the input verbatim when no match is found so the user's
+        // hand-authored key is preserved on round-trip.
+        private static string NormaliseCategoryKey(string key)
+        {
+            if (string.IsNullOrEmpty(key)) return key;
+            // Subcategory path: "Parent/Sub"
+            int slash = key.IndexOf('/');
+            if (slash > 0)
+            {
+                var parent = key.Substring(0, slash);
+                var sub    = key.Substring(slash + 1);
+                var pBic = NormaliseSingle(parent);
+                return pBic + "/" + sub;
+            }
+            return NormaliseSingle(key);
+        }
+
+        private static string NormaliseSingle(string key)
+        {
+            if (string.IsNullOrEmpty(key)) return key;
+            // Already a BIC string?
+            if (key.StartsWith("OST_", StringComparison.OrdinalIgnoreCase)) return key;
+            // Try the catalogue
+            var cat = RevitCategoryTree.FindByDisplayName(key);
+            return !string.IsNullOrEmpty(cat?.Bic) ? cat.Bic : key;
+        }
+
         /// <summary>
         /// Phase 177 — push a single edited row from the inline VG editor
-        /// back into the pack's StyleVgOverride dict. Now copies the full
-        /// pattern + detail-level field set (line patterns, surface fg/bg
-        /// patterns, cut fg/bg patterns, detail level) so user edits in
-        /// the embedded RevitVgEditor survive Save without dropping fields.
+        /// back into the pack's StyleVgOverride dict. Pattern + detail-level
+        /// fields round-trip too. The write-back key prefers the user-
+        /// friendly display name ("Walls") over the BIC ("OST_Walls") so
+        /// hand-authored JSON stays human-readable, and the editor's first
+        /// edit on a corporate pack flips Origin to "project" so Save
+        /// actually persists.
         /// </summary>
-        private static void SyncRowToPack(ViewStylePack pack, RevitVgEditor.VgRow r)
+        private void SyncRowToPack(ViewStylePack pack, RevitVgEditor.VgRow r)
         {
             if (pack == null || r?.Data == null) return;
             pack.VgOverrides = pack.VgOverrides ?? new Dictionary<string, StyleVgOverride>();
@@ -924,12 +1086,18 @@ namespace StingTools.UI
                 || !string.IsNullOrEmpty(v.CutBgColor)      || !string.IsNullOrEmpty(v.CutBgPattern)
                 || v.Transparency.HasValue
                 || !string.IsNullOrEmpty(v.DetailLevel);
+
+            // Resolve which key form the pack already uses for this row so
+            // we update the existing entry instead of creating a duplicate
+            // under a different key.
+            var packKey = ResolveExistingPackKey(pack, r) ?? PreferredPackKey(r);
             if (!any)
             {
-                pack.VgOverrides.Remove(r.Key);
+                pack.VgOverrides.Remove(packKey);
+                MarkPackEdited(pack);
                 return;
             }
-            pack.VgOverrides[r.Key] = new StyleVgOverride
+            pack.VgOverrides[packKey] = new StyleVgOverride
             {
                 Visible              = v.Visible,
                 Halftone             = v.Halftone,
@@ -953,6 +1121,56 @@ namespace StingTools.UI
                 Transparency         = v.Transparency,
                 DetailLevel          = v.DetailLevel,
             };
+            MarkPackEdited(pack);
+        }
+
+        // Phase 177 — find whichever key form (BIC, display name, sub-path)
+        // the pack already uses for this row, so we update that entry instead
+        // of creating a parallel duplicate.
+        private static string ResolveExistingPackKey(ViewStylePack pack, RevitVgEditor.VgRow r)
+        {
+            if (pack?.VgOverrides == null || pack.VgOverrides.Count == 0) return null;
+            // Try BIC, BIC/sub, name, name/sub.
+            var candidates = new List<string>(4);
+            if (!string.IsNullOrEmpty(r.Bic))
+            {
+                candidates.Add(string.IsNullOrEmpty(r.SubCategoryName) ? r.Bic : $"{r.Bic}/{r.SubCategoryName}");
+            }
+            if (!string.IsNullOrEmpty(r.DisplayName))
+            {
+                candidates.Add(string.IsNullOrEmpty(r.SubCategoryName) ? r.DisplayName : $"{r.DisplayName}/{r.SubCategoryName}");
+            }
+            // Display name of the parent for subcategory rows
+            if (!string.IsNullOrEmpty(r.Bic) && !string.IsNullOrEmpty(r.SubCategoryName))
+            {
+                var parentDisplay = RevitCategoryTree.FindByBic(r.Bic)?.DisplayName;
+                if (!string.IsNullOrEmpty(parentDisplay))
+                    candidates.Add($"{parentDisplay}/{r.SubCategoryName}");
+            }
+            foreach (var c in candidates)
+                if (pack.VgOverrides.ContainsKey(c)) return c;
+            return null;
+        }
+
+        // Phase 177 — when the pack doesn't yet have an entry for this row,
+        // pick the friendlier display name ("Walls") over the BIC
+        // ("OST_Walls") so the resulting JSON stays human-readable. Falls
+        // back to BIC when no display name is available.
+        private static string PreferredPackKey(RevitVgEditor.VgRow r)
+        {
+            string head = !string.IsNullOrEmpty(r.DisplayName) ? r.DisplayName : r.Bic;
+            return string.IsNullOrEmpty(r.SubCategoryName) ? head : $"{head}/{r.SubCategoryName}";
+        }
+
+        // Phase 177 — first edit on a corporate-origin pack flips Origin to
+        // "project" so SavePacksToProjectOverride actually persists the edit.
+        // Without this, the editor would silently discard every change a
+        // user made to a corp-base pack on Save.
+        private static void MarkPackEdited(ViewStylePack pack)
+        {
+            if (pack == null) return;
+            if (string.Equals(pack.Origin, "corporate", StringComparison.OrdinalIgnoreCase))
+                pack.Origin = "project";
         }
 
         // ── Helpers for the filter-rule grid ──
@@ -970,6 +1188,12 @@ namespace StingTools.UI
         }
 
         private static int TryInt(string s) => int.TryParse(s, out var n) ? n : 0;
+
+        // Phase 177 — strict parser that returns null on un-parseable input
+        // so the user's "abc" doesn't silently become weight 0 (a meaningful
+        // override) when they meant "leave blank".
+        private static int? TryNullableInt(string s)
+            => int.TryParse(s, out var n) ? (int?)n : null;
 
         /// <summary>
         /// Phase 137 — clickable colour swatch button used for filter-rules
@@ -1042,6 +1266,25 @@ namespace StingTools.UI
                 if (cur != null) chain.Add(cur.Id);
             }
             return string.Join(" → ", chain);
+        }
+
+        // Phase 177 — count packs in the extends chain (current + ancestors).
+        // Used to decide whether to show the "rolled up from N packs" notice
+        // on the VG overrides card.
+        private int CountExtendsChainLength(ViewStylePack p)
+        {
+            if (p == null) return 0;
+            int n = 0;
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var cur = p;
+            while (cur != null && n < 16)
+            {
+                if (string.IsNullOrEmpty(cur.Id) || !seen.Add(cur.Id)) break;
+                n++;
+                if (string.IsNullOrEmpty(cur.Extends)) break;
+                cur = _packs?.FirstOrDefault(x => string.Equals(x.Id, cur.Extends, StringComparison.OrdinalIgnoreCase));
+            }
+            return n;
         }
 
         // Phase 177 — pack-side bidirectional template copy. "↓ Push to bound
@@ -1187,23 +1430,55 @@ namespace StingTools.UI
         // so we round-trip the full schema (managed mode, filters, pattern
         // overrides, all Phase 137+ fields) instead of the truncated nested
         // POCOs that used to live here.
+        // Phase 177 — load corporate baseline AND layer the project override
+        // on top by id (project entries replace same-id corporate entries;
+        // ids only present in project get appended). Mirrors what
+        // ViewStylePackRegistry.GetLibrary does at runtime so the editor
+        // shows the same union the runtime sees. The earlier version
+        // returned ONLY the project override file when it existed, hiding
+        // every corporate pack from the editor — a critical regression.
         private List<ViewStylePack> LoadViewStylePacks()
         {
             var list = new List<ViewStylePack>();
             try
             {
-                // Project override wins; corporate baseline is the fallback.
+                // 1. Corporate baseline (read-only on disk, always loaded)
+                var byId = new Dictionary<string, ViewStylePack>(StringComparer.OrdinalIgnoreCase);
+                var path = Path.Combine(StingTools.Core.StingToolsApp.DataPath ?? "", "STING_VIEW_STYLE_PACKS.json");
+                if (File.Exists(path))
+                {
+                    var corpLib = JsonConvert.DeserializeObject<ViewStylePackLibrary>(File.ReadAllText(path));
+                    if (corpLib?.Packs != null)
+                    {
+                        foreach (var p in corpLib.Packs)
+                        {
+                            if (string.IsNullOrEmpty(p?.Id)) continue;
+                            if (string.IsNullOrEmpty(p.Origin)) p.Origin = "corporate";
+                            byId[p.Id] = p;
+                        }
+                    }
+                }
+
+                // 2. Project override layered on top (same-id entries
+                //    replace corporate; new ids get appended).
                 string proj = null;
                 try { proj = ResolveProjectPackOverridePath(); } catch { }
                 if (!string.IsNullOrEmpty(proj) && File.Exists(proj))
                 {
-                    var lib = JsonConvert.DeserializeObject<ViewStylePackLibrary>(File.ReadAllText(proj));
-                    if (lib?.Packs != null && lib.Packs.Count > 0) return lib.Packs;
+                    var pLib = JsonConvert.DeserializeObject<ViewStylePackLibrary>(File.ReadAllText(proj));
+                    if (pLib?.Packs != null)
+                    {
+                        foreach (var p in pLib.Packs)
+                        {
+                            if (string.IsNullOrEmpty(p?.Id)) continue;
+                            if (string.IsNullOrEmpty(p.Origin)) p.Origin = "project";
+                            byId[p.Id] = p; // project wins
+                        }
+                    }
                 }
-                var path = Path.Combine(StingTools.Core.StingToolsApp.DataPath ?? "", "STING_VIEW_STYLE_PACKS.json");
-                if (!File.Exists(path)) return list;
-                var corpLib = JsonConvert.DeserializeObject<ViewStylePackLibrary>(File.ReadAllText(path));
-                return corpLib?.Packs ?? list;
+
+                list.AddRange(byId.Values);
+                return list;
             }
             catch (Exception ex) { StingLog.Warn("ViewStylePacks load: " + ex.Message); return list; }
         }
@@ -3000,9 +3275,12 @@ namespace StingTools.UI
         }
 
         // Phase 177 — write the View Style Packs tab to its own project
-        // override. Mirrors SaveToProjectOverride: only project-origin packs
-        // are written, corporate baseline on disk stays pristine. Reloads
-        // the runtime registry so subsequent Apply() runs see the edits.
+        // override. Anything whose Origin isn't strictly "corporate" goes
+        // out (project-origin + null/untracked + anything an edit flipped
+        // off corporate); corporate baseline on disk stays pristine.
+        // Reloads the runtime registry so subsequent Apply() runs see the
+        // edits, and surfaces a clear empty-set warning so the user knows
+        // their edits didn't reach disk.
         private bool SavePacksToProjectOverride()
         {
             if (_doc == null || string.IsNullOrEmpty(_doc.PathName))
@@ -3018,9 +3296,23 @@ namespace StingTools.UI
                 Directory.CreateDirectory(dir);
                 var path = Path.Combine(dir, "view_style_packs.json");
 
+                // Anything not strictly "corporate" wins a slot in the project
+                // override. Untracked / null origins go out too — Phase 177
+                // change closes the silent-discard hole where edits to a
+                // corp pack vanished because Origin was still "corporate".
                 var projectPacks = (_packs ?? new List<ViewStylePack>())
-                    .Where(p => string.Equals(p.Origin, "project", StringComparison.OrdinalIgnoreCase))
+                    .Where(p => !string.Equals(p.Origin, "corporate", StringComparison.OrdinalIgnoreCase))
                     .ToList();
+                if (projectPacks.Count == 0)
+                {
+                    var resp = System.Windows.MessageBox.Show(
+                        "No project-origin packs to write.\n\n" +
+                        "Every pack still has Origin=\"corporate\" — usually that means no edits have been made, " +
+                        "OR the dialog hasn't picked them up yet. Click Yes to write an empty override file " +
+                        "(removes any existing project overrides), No to cancel.",
+                        "STING — View Style Packs", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                    if (resp != MessageBoxResult.Yes) return false;
+                }
                 var lib = new ViewStylePackLibrary
                 {
                     Version = 1,
@@ -3029,7 +3321,8 @@ namespace StingTools.UI
                 File.WriteAllText(path, JsonConvert.SerializeObject(lib, Formatting.Indented));
                 try { ViewStylePackRegistry.Reload(_doc); } catch { /* registry may not expose Reload(doc) */ }
                 System.Windows.MessageBox.Show(
-                    $"Saved {projectPacks.Count} project-scoped pack(s) to\n{path}",
+                    $"Saved {projectPacks.Count} pack(s) to\n{path}\n\n" +
+                    "Corporate baseline on disk is unchanged. Reload the registry or restart Revit to reapply.",
                     "STING — View Style Packs", MessageBoxButton.OK);
                 return true;
             }
