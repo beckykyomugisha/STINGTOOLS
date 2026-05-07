@@ -67,14 +67,18 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                             var firstEl = proposal.Elements.FirstOrDefault();
                             if (firstEl?.Id == null) { failed.Add($"{proposal.ProposedLabel}: no source element"); tx.RollBack(); continue; }
                             var elFirst = doc.GetElement(firstEl.Id as ElementId);
-                            var connector = FindElectricalConnector(elFirst);
-                            if (connector == null) { failed.Add($"{proposal.ProposedLabel}: no electrical connector"); tx.RollBack(); continue; }
+                            if (elFirst == null) { failed.Add($"{proposal.ProposedLabel}: source element missing"); tx.RollBack(); continue; }
+                            // Verify the first element exposes an electrical connector — otherwise
+                            // ElectricalSystem.Create will fail. Discard the connector itself; the
+                            // factory takes an ElementSet, not connectors.
+                            if (FindElectricalConnector(elFirst) == null)
+                            { failed.Add($"{proposal.ProposedLabel}: no electrical connector"); tx.RollBack(); continue; }
 
-                            // doc.Create.NewElectricalSystem is the stable cross-version API:
-                            // takes the seed connector + system type, returns the new circuit.
-                            var sys = doc.Create.NewElectricalSystem(connector, ElectricalSystemType.PowerCircuit);
-                            if (sys == null) { failed.Add($"{proposal.ProposedLabel}: NewElectricalSystem returned null"); tx.RollBack(); continue; }
-
+                            // ElectricalSystem.Create(ElementSet, ElectricalSystemType) is the
+                            // stable Revit 2025+ static factory. The collection is built up
+                            // with all member elements first, then we hand it off in one shot.
+                            var elSet = new ElementSet();
+                            elSet.Insert(elFirst);
                             for (int i = 1; i < proposal.Elements.Count; i++)
                             {
                                 try
@@ -82,14 +86,19 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                                     var elId = proposal.Elements[i].Id as ElementId;
                                     if (elId == null) continue;
                                     var el = doc.GetElement(elId);
-                                    var c2 = FindElectricalConnector(el);
-                                    if (c2 == null) continue;
-                                    var set = new ConnectorSet();
-                                    set.Insert(c2);
-                                    sys.Add(set);
+                                    if (el != null) elSet.Insert(el);
                                 }
-                                catch (Exception ex) { StingLog.Warn($"Add connector to circuit: {ex.Message}"); }
+                                catch (Exception ex) { StingLog.Warn($"Build ElementSet: {ex.Message}"); }
                             }
+                            ElectricalSystem sys = null;
+                            try { sys = ElectricalSystem.Create(elSet, ElectricalSystemType.PowerCircuit); }
+                            catch (Exception ex)
+                            {
+                                failed.Add($"{proposal.ProposedLabel}: ElectricalSystem.Create failed — {ex.Message}");
+                                tx.RollBack();
+                                continue;
+                            }
+                            if (sys == null) { failed.Add($"{proposal.ProposedLabel}: ElectricalSystem.Create returned null"); tx.RollBack(); continue; }
 
                             try { sys.SelectPanel(panel); }
                             catch (Exception ex)
@@ -99,18 +108,28 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                                 continue;
                             }
 
-                            // Phase assignment via parameter — best-effort, write-once.
-                            // RBS_ELEC_CIRCUIT_PHASE_PARAM is read-only on most installations,
-                            // so we attempt the write inside a try/catch and skip silently.
+                            // Phase assignment via "Phase" display-name parameter — best-effort.
+                            // The parameter is read-only on most installations because phase comes
+                            // from the panel slot. We probe by display name (the BIP enum varies
+                            // between Revit versions) and write inside try/catch.
                             if (!string.IsNullOrEmpty(proposal.Phase) && proposal.Phase.Length == 1)
                             {
                                 try
                                 {
-                                    var phaseParam = sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_PHASE_PARAM);
+                                    var phaseParam = sys.LookupParameter("Phase")
+                                                  ?? sys.LookupParameter("Circuit Phase")
+                                                  ?? sys.LookupParameter("Starting Phase");
                                     if (phaseParam != null && !phaseParam.IsReadOnly)
                                     {
-                                        int v = proposal.Phase switch { "A" => 0, "B" => 1, "C" => 2, _ => 0 };
-                                        phaseParam.Set(v);
+                                        if (phaseParam.StorageType == StorageType.Integer)
+                                        {
+                                            int v = proposal.Phase switch { "A" => 0, "B" => 1, "C" => 2, _ => 0 };
+                                            phaseParam.Set(v);
+                                        }
+                                        else if (phaseParam.StorageType == StorageType.String)
+                                        {
+                                            phaseParam.Set(proposal.Phase);
+                                        }
                                     }
                                 }
                                 catch (Exception ex) { StingLog.Info($"Phase param write soft-fail: {ex.Message}"); }

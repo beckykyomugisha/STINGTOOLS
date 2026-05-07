@@ -44,8 +44,9 @@ namespace StingTools.Commands.Electrical.ArcFlash
             }
 
             // Inline options dialog — simpler than a separate Window subclass.
+            // Bus gap is resolved per-panel from voltage class via
+            // ArcFlashEngine.DefaultBusGapMm() so we don't need a global value.
             double clearingMs = 100.0;
-            double busGapMm = 32.0;
             var optDlg = new TaskDialog("STING Arc Flash — Options")
             {
                 MainInstruction = "Clearing time source",

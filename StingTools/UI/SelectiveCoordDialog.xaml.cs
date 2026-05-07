@@ -196,7 +196,7 @@ namespace StingTools.UI
             try
             {
                 string outDir = OutputLocationHelper.GetOutputDirectory(null);
-                string outPath = Path.Combine(outDir, $"STING_SelectiveCoord_{DateTime.Now:yyyyMMdd-HHmm}.csv");
+                string outPath = System.IO.Path.Combine(outDir, $"STING_SelectiveCoord_{DateTime.Now:yyyyMMdd-HHmm}.csv");
                 using (var sw = new StreamWriter(outPath))
                 {
                     sw.WriteLine("Upstream,Downstream,FaultKa,Reason");

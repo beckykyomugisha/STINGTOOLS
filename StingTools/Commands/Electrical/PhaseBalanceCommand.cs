@@ -15,9 +15,9 @@ namespace StingTools.Commands.Electrical
     ///
     /// API limit: <c>ElectricalSystem.StartingPhase</c> is not exposed as a
     /// writable property in this Revit version, and the
-    /// <c>RBS_ELEC_CIRCUIT_PHASE_PARAM</c> parameter is read-only on most
-    /// installations because phase comes from the panel slot. The command
-    /// therefore runs in two modes:
+    /// "Phase" display-name parameter is read-only on most installations
+    /// because phase comes from the panel slot. The command therefore
+    /// runs in two modes:
     ///   • Preview always — pushes before/after phase totals to the dock panel.
     ///   • Best-effort apply — attempts the parameter write inside try/catch
     ///     and reports how many circuits could not be reassigned.
@@ -80,13 +80,15 @@ namespace StingTools.Commands.Electrical
                         bool ok = false;
                         try
                         {
-                            var phaseParam = sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_PHASE_PARAM);
+                            var phaseParam = sys.LookupParameter("Phase")
+                                          ?? sys.LookupParameter("Circuit Phase")
+                                          ?? sys.LookupParameter("Starting Phase");
                             if (phaseParam != null && !phaseParam.IsReadOnly)
                             {
                                 int v = PhaseToInt(assign.NewPhase);
-                                phaseParam.Set(v);
-                                reassigned++;
-                                ok = true;
+                                if (phaseParam.StorageType == StorageType.Integer) { phaseParam.Set(v); ok = true; }
+                                else if (phaseParam.StorageType == StorageType.String) { phaseParam.Set(assign.NewPhase ?? "A"); ok = true; }
+                                if (ok) reassigned++;
                             }
                         }
                         catch (Exception ex) { StingLog.Info($"Phase write soft-fail on {sys.Name}: {ex.Message}"); }
@@ -223,15 +225,34 @@ namespace StingTools.Commands.Electrical
             try { return s.ApparentLoad / 1000.0; } catch { return 0; }
         }
 
-        /// <summary>Read the circuit's current phase via the parameter (0=A, 1=B, 2=C).</summary>
+        /// <summary>
+        /// Read the circuit's current phase via the "Phase" display-name
+        /// parameter (0/A, 1/B, 2/C). The BIP enum constant for this varies
+        /// between Revit versions, so we fall back through several names.
+        /// </summary>
         private static string SafePhase(ElectricalSystem s)
         {
             try
             {
-                int v = s.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_PHASE_PARAM)?.AsInteger() ?? 0;
-                return v switch { 1 => "B", 2 => "C", _ => "A" };
+                var p = s.LookupParameter("Phase")
+                     ?? s.LookupParameter("Circuit Phase")
+                     ?? s.LookupParameter("Starting Phase");
+                if (p == null) return "A";
+                if (p.StorageType == StorageType.Integer)
+                {
+                    int v = p.AsInteger();
+                    return v switch { 1 => "B", 2 => "C", _ => "A" };
+                }
+                if (p.StorageType == StorageType.String)
+                {
+                    string v = (p.AsString() ?? "").Trim().ToUpperInvariant();
+                    if (v.StartsWith("B")) return "B";
+                    if (v.StartsWith("C")) return "C";
+                    return "A";
+                }
             }
-            catch { return "A"; }
+            catch { }
+            return "A";
         }
 
         private static bool IsGroupedTwoPole(ElectricalSystem s)

@@ -194,10 +194,24 @@ namespace StingTools.Commands.Electrical.Export
         {
             try
             {
-                int v = sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_PHASE_PARAM)?.AsInteger() ?? 0;
-                return v switch { 1 => "B", 2 => "C", _ => "A" };
+                var p = sys.LookupParameter("Phase")
+                     ?? sys.LookupParameter("Circuit Phase")
+                     ?? sys.LookupParameter("Starting Phase");
+                if (p == null) return "A";
+                if (p.StorageType == StorageType.Integer)
+                {
+                    int v = p.AsInteger();
+                    return v switch { 1 => "B", 2 => "C", _ => "A" };
+                }
+                if (p.StorageType == StorageType.String)
+                {
+                    string v = (p.AsString() ?? "").Trim().ToUpperInvariant();
+                    if (v.StartsWith("B")) return "B";
+                    if (v.StartsWith("C")) return "C";
+                }
             }
-            catch { return "A"; }
+            catch { }
+            return "A";
         }
     }
 }
