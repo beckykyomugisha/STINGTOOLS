@@ -37,6 +37,30 @@ namespace StingTools.Commands.Electrical
                 snap.WireRefRows = BuildWireRefRows("Cu", "XLPE90", "C");
                 snap.ComplianceItems = BuildCompliance(doc);
                 snap.Standard = StingTools.UI.StingElectricalCommandHandler.ActivePanel?.SelectedStandard;
+                // Phase 178 — surface LastResults caches (no extra Revit reads).
+                snap.Feeders = StingTools.Commands.Electrical.FeederSizing.FeederSizerCommand.LastResults
+                    .Select(r => new StingTools.UI.FeederData
+                    {
+                        PanelName = r.PanelName, DemandKW = r.DemandKW,
+                        FeederCurrentA = r.DesignCurrentA,
+                        ProposedCsaMm2 = r.ProposedCsaMm2,
+                        VoltDropPct = r.ActualVDPct,
+                        ProposedRatingA = r.ProposedRatingA,
+                        Status = r.Status
+                    }).ToList();
+                snap.FaultResults = StingTools.Commands.Electrical.FaultCurrent.FaultCurrentCommand.LastResults
+                    .Select(r => new StingTools.UI.FaultData
+                    {
+                        PanelName = r.PanelName, Voltage = r.Voltage,
+                        FeederCsaMm2 = r.FeederCsaMm2,
+                        ZtotalMohm = r.ZtotalMohm,
+                        FaultKa = r.FaultKa,
+                        AicRequiredKa = r.AicRequiredKa,
+                        Status = r.AicRequiredKa > 0 && r.FaultKa > r.AicRequiredKa ? "EXCEEDS_AIC" : "OK"
+                    }).ToList();
+                snap.ConduitFills = StingTools.UI.StingElectricalCommandHandler.LastConduitFills;
+                snap.EmergAudit   = StingTools.UI.StingElectricalCommandHandler.LastEmergAudit;
+                snap.LpdRows      = StingTools.UI.StingElectricalCommandHandler.LastLpdRows;
             }
             catch (Exception ex) { StingLog.Warn($"SnapshotBuilder: {ex.Message}"); }
             return snap;

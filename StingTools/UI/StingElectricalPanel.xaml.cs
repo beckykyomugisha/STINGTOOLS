@@ -40,6 +40,12 @@ namespace StingTools.UI
         public ObservableCollection<ConduitWireRowViewModel> ConduitWires  { get; }
             = new ObservableCollection<ConduitWireRowViewModel>();
 
+        // Phase 178 — observable collections for the newly-unlocked grids
+        public ObservableCollection<FeederData>      Feeders      { get; } = new ObservableCollection<FeederData>();
+        public ObservableCollection<FaultData>       FaultResults { get; } = new ObservableCollection<FaultData>();
+        public ObservableCollection<EmergAuditRow>   EmergAudit   { get; } = new ObservableCollection<EmergAuditRow>();
+        public ObservableCollection<LpdRow>          LpdRows      { get; } = new ObservableCollection<LpdRow>();
+
         public string SelectedStandard { get; private set; } = "BS7671";
         public string SelectedVoltage  { get; private set; } = "415V3Ph";
         public string CalcStandard     { get; private set; } = "BS7671";
@@ -64,6 +70,11 @@ namespace StingTools.UI
             RoomTargetGrid.ItemsSource    = RoomTargets;
             WireRefGrid.ItemsSource       = WireRefRows;
             ConduitWireGrid.ItemsSource   = ConduitWires;
+            // Phase 178 — bind the newly-unlocked grids
+            try { FeederResultsGrid.ItemsSource = Feeders;       } catch { }
+            try { FaultResultsGrid.ItemsSource  = FaultResults;  } catch { }
+            try { EmergAuditGrid.ItemsSource    = EmergAudit;    } catch { }
+            try { LpdGrid.ItemsSource           = LpdRows;       } catch { }
 
             try { StingElectricalCommandHandler.Initialize(this); }
             catch (Exception ex) { Core.StingLog.Error("ElectricalPanel handler init", ex); }
@@ -158,6 +169,72 @@ namespace StingTools.UI
             catch { /* command handler may not be ready yet */ }
         }
 
+        // ── Phase 178 — new event handlers ───────────────────────────────
+
+        private void FeederDiversityMode_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                string tag = ((FeederDiversityMode?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "None";
+                if (FeederDiversityPct != null)
+                    FeederDiversityPct.IsEnabled = tag == "User";
+                StingElectricalCommandHandler.CurrentFeederSettings = ReadFeederSettings();
+            }
+            catch (Exception ex) { Core.StingLog.Warn($"FeederDiversityMode_Changed: {ex.Message}"); }
+        }
+
+        private StingTools.Commands.Electrical.FeederSizing.FeederSettingsSnapshot ReadFeederSettings()
+        {
+            var s = new StingTools.Commands.Electrical.FeederSizing.FeederSettingsSnapshot
+            {
+                DerateFactor = ParseDouble(FeederDerateFactor?.Text, 0.8),
+                DiversityMode = ((FeederDiversityMode?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "None",
+                DiversityPct = ParseDouble(FeederDiversityPct?.Text, 100),
+                InstallMethod = ((FeederInstallMethod?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "C",
+                VDLimitPct = 2.0
+            };
+            return s;
+        }
+
+        private void UtilityFaultKa_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            StingElectricalCommandHandler.CurrentUtilityFaultKa = ParseDouble(UtilityFaultKa?.Text, 25.0);
+        }
+
+        private void RiserOptions_Changed(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                StingElectricalCommandHandler.CurrentRiserOptions = new StingTools.Commands.SLD.RiserOptions
+                {
+                    Layout = ((RiserLayout?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "Horizontal",
+                    ShowFaultKa = RiserShowFaultKa?.IsChecked == true,
+                    ShowFeederCsa = RiserShowFeederCsa?.IsChecked == true,
+                    ShowLoadingPct = RiserShowLoadingPct?.IsChecked == true
+                };
+            }
+            catch { }
+        }
+
+        private void SheetPlacementMode_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            StingElectricalCommandHandler.CurrentSheetPlacementMode =
+                ((cmbSheetPlacementMode?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "GuidedManual";
+        }
+
+        private void LpdStandard_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                string tag = ((LpdStandard?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "ASHRAE_90_1_2019";
+                StingElectricalCommandHandler.CurrentLpdStandard = tag;
+                if (LpdCustomRow != null)
+                    LpdCustomRow.Visibility = tag == "Custom" ? Visibility.Visible : Visibility.Collapsed;
+                StingElectricalCommandHandler.CurrentLpdCustomLimit = ParseDouble(LpdCustomLimit?.Text, 0);
+            }
+            catch { }
+        }
+
         private void ConduitAdd_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -193,6 +270,11 @@ namespace StingTools.UI
                     if (snapshot.RoomTargets != null) PopulateRoomTargets(snapshot.RoomTargets);
                     if (snapshot.WireRefRows != null) PopulateWireRef(snapshot.WireRefRows);
                     if (snapshot.ComplianceItems != null) PopulateCompliance(snapshot.ComplianceItems);
+                    // Phase 178 grids
+                    if (snapshot.Feeders != null) { Feeders.Clear(); foreach (var r in snapshot.Feeders) Feeders.Add(r); }
+                    if (snapshot.FaultResults != null) { FaultResults.Clear(); foreach (var r in snapshot.FaultResults) FaultResults.Add(r); }
+                    if (snapshot.EmergAudit != null) { EmergAudit.Clear(); foreach (var r in snapshot.EmergAudit) EmergAudit.Add(r); }
+                    if (snapshot.LpdRows != null) { LpdRows.Clear(); foreach (var r in snapshot.LpdRows) LpdRows.Add(r); }
                     if (!string.IsNullOrEmpty(snapshot.PhaseSummary))
                         txtPhaseSummary.Text = snapshot.PhaseSummary;
                     if (!string.IsNullOrEmpty(snapshot.ImbalanceText))
@@ -732,6 +814,74 @@ namespace StingTools.UI
         public string                     PhaseSummary;
         public string                     ImbalanceText;
         public string                     Standard;
+        // Phase 178 additions
+        public List<FeederData>           Feeders;
+        public List<FaultData>            FaultResults;
+        public List<ConduitFillData>      ConduitFills;
+        public List<EmergAuditRow>        EmergAudit;
+        public List<LpdRow>               LpdRows;
+    }
+
+    // ── Phase 178 DTOs (with bound display properties) ────────────────
+    public class FeederData
+    {
+        public string PanelName        { get; set; }
+        public double DemandKW         { get; set; }
+        public double FeederCurrentA   { get; set; }
+        public double ProposedCsaMm2   { get; set; }
+        public double VoltDropPct      { get; set; }
+        public double ProposedRatingA  { get; set; }
+        public string Status           { get; set; }
+        public string DemandDisplay  => $"{DemandKW:0.0}";
+        public string CurrentDisplay => $"{FeederCurrentA:0.0}";
+        public string CsaDisplay     => $"{ProposedCsaMm2:0.#}mm²";
+        public string VDDisplay      => $"{VoltDropPct:0.00}";
+        public string RatingDisplay  => $"{ProposedRatingA:0}A";
+    }
+    public class FaultData
+    {
+        public string PanelName     { get; set; }
+        public string Voltage       { get; set; }
+        public double FeederCsaMm2  { get; set; }
+        public double ZtotalMohm    { get; set; }
+        public double FaultKa       { get; set; }
+        public double AicRequiredKa { get; set; }
+        public string Status        { get; set; }
+        public string CsaDisplay   => $"{FeederCsaMm2:0.#}";
+        public string ZDisplay     => $"{ZtotalMohm:0.0}";
+        public string FaultDisplay => $"{FaultKa:0.00}";
+        public string AicDisplay   => $"{AicRequiredKa:0}";
+    }
+    public class ConduitFillData
+    {
+        public Autodesk.Revit.DB.ElementId ConduitId { get; set; }
+        public string ConduitName { get; set; }
+        public double FillPct     { get; set; }
+        public double LimitPct    { get; set; }
+        public bool   Passes      { get; set; }
+    }
+    public class EmergAuditRow
+    {
+        public string RoomName       { get; set; }
+        public string OccupancyType  { get; set; }
+        public int    NormalCircuits { get; set; }
+        public int    EmergCircuits  { get; set; }
+        public bool   SameCircuit    { get; set; }
+        public string Status         { get; set; }
+        public string SameCircuitDisplay => SameCircuit ? "yes" : "no";
+    }
+    public class LpdRow
+    {
+        public string RoomName    { get; set; }
+        public double AreaM2      { get; set; }
+        public double TotalW      { get; set; }
+        public double WPerM2      { get; set; }
+        public double LimitWPerM2 { get; set; }
+        public string Status      { get; set; }
+        public string AreaDisplay  => $"{AreaM2:0.0}";
+        public string WattsDisplay => $"{TotalW:0}";
+        public string LpdDisplay   => $"{WPerM2:0.00}";
+        public string LimitDisplay => $"{LimitWPerM2:0.00}";
     }
 
     public class CableSizerInputSnapshot

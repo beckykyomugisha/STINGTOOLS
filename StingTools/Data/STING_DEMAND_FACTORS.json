@@ -1,0 +1,65 @@
+{
+  "version": "1.0",
+  "standards": {
+    "NEC_2023": {
+      "description": "NEC 2023 Article 220 demand factors",
+      "loadClasses": [
+        {
+          "class": "Lighting",
+          "rule": "NEC 220.12",
+          "description": "General lighting load — 125% for continuous",
+          "factors": [{ "thresholdVA": 0, "pct": 125 }],
+          "continuousLoad": true
+        },
+        {
+          "class": "SmallPower",
+          "rule": "NEC 220.14(A)",
+          "description": "Receptacle loads — first 10kVA at 100%, remainder at 50%",
+          "factors": [
+            { "thresholdVA": 0,      "pct": 100 },
+            { "thresholdVA": 10000,  "pct": 50  }
+          ],
+          "continuousLoad": false
+        },
+        {
+          "class": "HVAC",
+          "rule": "NEC 220.60",
+          "description": "Nameplate rating used directly",
+          "factors": [{ "thresholdVA": 0, "pct": 100 }],
+          "continuousLoad": false
+        },
+        {
+          "class": "Emergency",
+          "rule": "NEC 220.12",
+          "description": "Same as lighting — 125% continuous",
+          "factors": [{ "thresholdVA": 0, "pct": 125 }],
+          "continuousLoad": true
+        },
+        {
+          "class": "Other",
+          "rule": "NEC 220.14",
+          "description": "100% of connected load",
+          "factors": [{ "thresholdVA": 0, "pct": 100 }],
+          "continuousLoad": false
+        }
+      ]
+    },
+    "BS7671_2018": {
+      "description": "BS 7671:2018 Appendix 1 diversity factors (domestic / small commercial)",
+      "loadClasses": [
+        { "class": "Lighting",   "rule": "BS7671 App.1 §1.3", "pct": 66,  "notes": "66% after first circuit" },
+        { "class": "SmallPower", "rule": "BS7671 App.1 §1.4", "pct": 40,  "notes": "40% of remaining after 3kVA" },
+        { "class": "HVAC",       "rule": "BS7671 App.1 §1.6", "pct": 100, "notes": "Full load" },
+        { "class": "Other",      "rule": "BS7671 App.1",       "pct": 100, "notes": "Full load" }
+      ]
+    }
+  },
+  "classificationPatterns": {
+    "Lighting":   ["light", "luminaire", "fixture", "led panel", "downlight", "strip", "fluorescent", "lamp"],
+    "SmallPower": ["socket", "receptacle", "outlet", "ups", "workstation"],
+    "HVAC":       ["fcu", "ahu", "vrf", "fan coil", "heat pump", "chiller", "pump", "fan", "cooling"],
+    "Emergency":  ["emergency", "emerg", "exit", "em-", "e-", "maintained", "non-maintained"],
+    "Data":       ["data", "it", "rack", "server", "patch", "comms", "network"],
+    "Other":      []
+  }
+}

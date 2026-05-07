@@ -2,6 +2,147 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 178 — STING Electrical: Advanced Calculations & Automation)
+
+Unlocks every 🔒 placeholder card in the Phase 177 dock panel except the
+Phase 179 reservations (arc flash, selective coordination, conduit
+auto-routing, busbar trunking, photometric IFC link, EasyPower / SKM /
+DIALux / ETAP exporters).
+
+**MR_PARAMETERS crosscheck — 4 reuses + 7 new instead of 11 net-new**
+
+The brief proposed 11 new shared parameters; auditing
+`Data/MR_PARAMETERS.txt` showed four already exist and should be reused:
+`ELC_PNL_SHORT_CIRCUIT_RATING_KA` (line 210) for the panel fault level,
+`ELC_VLT_DROP_PCT` (line 214) for the circuit voltage drop,
+`ELC_CDT_CBL_FILL_PCT` (line 292) for conduit fill, and
+`ELC_CBL_SZ_MM` (line 191) for circuit cable CSA. The seven net-new
+parameters are `ELC_PNL_AIC_RATING_KA`, `ELC_FEEDER_CSA_MM2`,
+`ELC_FEEDER_RATING_A`, `ELC_EMERG_COVERED_BOOL`, `ELC_LPD_W_PER_M2`,
+`ELC_LPD_LIMIT_W_PER_M2`, `ELC_LPD_STATUS_TXT`, all `TEXT` datatype to
+match the existing electrical block's cross-binding convention.
+`ParamRegistry.cs` exposes 11 new constants (`ELC_PNL_FAULT_KA`,
+`ELC_PNL_AIC_KA`, `ELC_FEEDER_CSA`, `ELC_FEEDER_RATING_A`,
+`ELC_CKT_VD_PCT`, `ELC_CKT_CSA_MM2`, `ELC_CONDUIT_FILL_PCT`,
+`ELC_EMERG_COVERED`, `ELC_LPD_W_M2`, `ELC_LPD_LIMIT_W_M2`,
+`ELC_LPD_STATUS`) wired through `_extendedParams` so the seven new
+literals and the four existing literals are addressable from the same
+namespace.
+
+**New commands (15)**
+
+| Tag | Class | Description |
+|---|---|---|
+| `Calc_FaultCurrent` | `FaultCurrentCommand` | Resistive fault propagation through `SLDCircuitTraverser` (IEC 60909 simplified). Stamps `ELC_PNL_SHORT_CIRCUIT_RATING_KA` |
+| `Calc_AicStamp` | `AicRatingCommand` | Maps each panel's fault level to the next standard AIC tier (6 → 100 kA from `STING_AIC_TIERS.json`) and stamps `ELC_PNL_AIC_RATING_KA` |
+| `Calc_FeederSize` | `FeederSizerCommand` | Per-panel feeder demand current from the SLD hierarchy + diversity / derate from the dock panel; sizes via `CableSizerEngine`; writes `ELC_FEEDER_CSA_MM2` + `ELC_FEEDER_RATING_A` + `ELC_VLT_DROP_PCT` |
+| `Calc_UpsizeWires` | `AutoUpsizeWiresCommand` | Reads VD results, calls `VoltageDropEngine.MinimumCsaForVDLimit()`, prompts before writing `ELC_CBL_SZ_MM` + best-effort `RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM` |
+| `SLD_RiserDiagram` | `SLDRiserDiagramCommand` | Horizontal riser in a `ViewDrafting` using `FilledRegion` boxes + `NewDetailCurve` feeder lines + `TextNote` ratings. Stamped with `elec-riser-A2-1to100` |
+| `SLD_UpdateRiser` | `SLDUpdateRiserCommand` | Replaces detail items in the existing riser view in-place to preserve sheet placement |
+| `Panel_PlaceOnSheets` | `PanelViewScheduleCommand` | Three placement modes (Guided manual / ViewSchedule via `Viewport.Create()` / PDF). Works around the broken `PanelScheduleSheetInstance.Create()` |
+| `Cable_ValidateConduitFill` | `ConduitFillValidateCommand` | Wraps existing `TrayFillCalculator.Compute()` for whole-model audit; writes `ELC_CDT_CBL_FILL_PCT`; red-overrides failing containment |
+| `Lite_EmergAudit` | `EmergencyLightingAuditCommand` | Per-room emergency lighting audit + same-circuit fault detection; writes `ELC_EMERG_COVERED_BOOL` |
+| `Lite_MarkEmerg` | `EmergencyLightingMarkCommand` | Blue projection-line override on emergency fixtures in active view |
+| `Lite_LPD` | `LightingPowerDensityCommand` | W/m² per room vs ASHRAE 90.1 / Part L 2021 / CIBSE LG7 from `STING_LPD_LIMITS.json`; writes `ELC_LPD_W_PER_M2` / `_LIMIT_W_PER_M2` / `_STATUS_TXT`; green / amber / red overrides |
+| `Lite_LpdColor` | `LpdColorCommand` | Re-applies graphic overrides from existing status without recalculating |
+| `Rprt_VDSchedule` | `VoltageDropScheduleCommand` | Writes `ELC_VLT_DROP_PCT` then creates a `ViewSchedule` of `OST_ElectricalCircuit` sorted by panel/circuit |
+| `Rprt_FaultSchedule` | `FaultCurrentScheduleCommand` | `ViewSchedule` of `OST_ElectricalEquipment` showing fault kA + AIC tiers; requires `Calc_FaultCurrent` first |
+| `Rprt_DemandFactors` | `DemandFactorReportCommand` | Per-panel NEC 220 / BS 7671 App 1 demand-factor breakdown to Excel via ClosedXML, one worksheet per panel |
+| `Circuit_CreateWizard` | `CircuitWizardCommand` | Materialises the proposed circuits from `CircuitWizardDialog` via `ElectricalSystem.Create()` + `AddToCircuit()` + `SelectPanel()` in a single `TransactionGroup` with per-circuit `Transaction` rollback |
+
+**New engines (no Revit API)**
+
+- `Commands/Electrical/FaultCurrent/FaultCurrentEngine.cs` — IEC 60909
+  resistive fault propagation; `WireTableSet` loader for
+  `STING_WIRE_TABLES.json`; `NextAicTierKa()` with 10 % safety margin.
+- `Commands/Electrical/FeederSizing/FeederSizerEngine.cs` — diversity +
+  derate + `CableSizerEngine` delegation; `CalculateAll()` batch.
+- `Commands/Electrical/CircuitWizard/CircuitWizardEngine.cs` —
+  classification by family-name pattern from
+  `STING_DEMAND_FACTORS.json`; bin-packing into `ProposedCircuit` with
+  greedy least-loaded phase assignment + Phase 177
+  `CableSizerEngine` for cable sizing.
+
+**New WPF dialog**
+
+`UI/CircuitWizardDialog.xaml(.cs)` — modal 900 × 680 wizard with
+target-panel picker, options card, editable proposal grid (label /
+class / phase as DataGridComboBoxColumn), merge / split / add-element
+/ remove-element / reset toolbar, live phase summary, expandable
+unconnected-element grid (double-click adds to selected proposal).
+
+**New data files** (auto-included via `Data/**` glob)
+
+- `Data/STING_AIC_TIERS.json` — 12 standard AIC tiers (6 → 100 kA) +
+  IEC 60947-2 / BS EN 60898 / NEC UL489 sub-arrays + 10 % safety margin.
+- `Data/STING_LPD_LIMITS.json` — three standards
+  (ASHRAE 90.1-2019 / Part L 2021 / CIBSE LG7) with name-pattern → LPD
+  mapping + occupancy classification (escape route / high risk / open
+  area) used by the emergency-lighting audit.
+- `Data/STING_DEMAND_FACTORS.json` — NEC 2023 (220.12 / 220.14 /
+  220.60) + BS 7671:2018 App.1 demand factors with bracketed thresholds
+  (NEC 220.14(A) 100 % first 10 kVA / 50 % remainder modelled
+  explicitly) + classification patterns shared by
+  `CircuitWizardEngine.ClassifyLoad()` and
+  `DemandFactorReportCommand.ClassifySystem()`.
+
+**Dock-panel XAML — 11 sections unlocked**
+
+CALCS · Auto-Upsize Failing button (was 🔒); Feeder Sizing expander
+(was 🔒 BETA — full inputs + result grid); Fault Current expander (was
+🔒 PLANNED — utility kA TextBox + method ComboBox + result grid + 3
+buttons). SLD · Riser Diagram expander (was 🔒 PLANNED — layout
+ComboBox + 3 show-checkboxes + Generate / Update buttons). PNLS ·
+Sheet Placement now reads three modes (`GuidedManual` /
+`ViewSchedule` / `PDF`) via `Tag` on the ComboBoxItems. CIRCTS ·
+Circuit Wizard expander (was 🔒 BETA — 'Launch Wizard' opens the
+modal). CABLE · Conduit Fill BETA badge removed; new "Validate Model
+Conduits" button added below the inline calculator. LITE · Emergency
+Lighting expander (was 🔒 BETA — 2 buttons + audit grid); Lighting
+Power Density expander (was 🔒 PLANNED — standard ComboBox + custom
+limit + 2 buttons + result grid). RPRT · "Create fault current
+schedule" button enabled (was 🔒); new "Demand Factor Report" button
+added.
+
+**Static state expansion in StingElectricalCommandHandler**
+
+7 new static input fields (`CurrentUtilityFaultKa`,
+`CurrentFeederSettings`, `CurrentSheetPlacementMode`,
+`CurrentSheetPlacementSheetId`, `CurrentRiserOptions`,
+`CurrentLpdStandard`, `CurrentLpdCustomLimit`) and 3 new output caches
+(`LastConduitFills`, `LastEmergAudit`, `LastLpdRows`).
+`ElectricalSnapshotBuilder` extended to surface
+`FeederSizerCommand.LastResults` and
+`FaultCurrentCommand.LastResults` plus the three handler caches into
+the panel snapshot. `OpenCircuitWizard()` private helper invokes
+`Application.Current.Dispatcher.Invoke` to show the wizard on the WPF
+thread; `RunWizardPropose()` surfaces a hint pointing the user at the
+modal.
+
+**API limits honoured**
+
+- `PanelScheduleSheetInstance.Create()` still not called — Phase 178
+  routes the ViewSchedule mode through `Viewport.Create()` instead and
+  keeps the Guided Manual taskdialog for the native panel schedule.
+- `ElectricalSystem.PolesNumber` and `Voltage` remain read-only.
+- `ElectricalSystem.Length` × 0.3048 in every consumer.
+- `Room.Area` × 0.0929 (m² conversion) in `LightingPowerDensityCommand`.
+- `Doc.Create.NewDetailCurve` (not `NewModelCurve`) in `SLDRiserDiagramCommand`.
+- `FilledRegion.Create()` collects the first available `FilledRegionType`.
+- `ElectricalSystem.Create()` + `AddToCircuit()` (modern Revit 2024+
+  API) inside per-circuit `Transaction`s nested in a
+  `TransactionGroup`; `SelectPanel()` wrapped in try/catch with mismatch
+  logging that fails just that circuit's transaction.
+- `RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM` write in `AutoUpsizeWiresCommand`
+  is best-effort with silent fallback to the STING-only
+  `ELC_CBL_SZ_MM` parameter; the count of soft-failures is reported.
+
+**Built without `dotnet build` verification** (Linux sandbox). Verify
+in Revit before merge. Phase 179 reservations (arc flash, selective
+coordination, conduit auto-routing, busbar trunking, photometric IFC
+link, external-tool exports) remain disabled placeholders with
+explanatory tooltips.
+
 #### Completed (Phase 177 — STING Electrical Center)
 
 A dedicated 7-tab WPF dockable panel for electrical work, sitting tabbed

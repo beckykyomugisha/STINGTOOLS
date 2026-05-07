@@ -252,10 +252,11 @@
                         <Expander Header="SHEET PLACEMENT (Revit 2024+ workaround)" Style="{StaticResource ElecExpander}">
                             <StackPanel Margin="4">
                                 <TextBlock Text="Mode" Style="{StaticResource ElecLabel}"/>
-                                <ComboBox x:Name="cmbSheetPlacementMode" FontSize="10">
-                                    <ComboBoxItem Content="Guided manual — step-through" IsSelected="True"/>
-                                    <ComboBoxItem Content="Convert to linked ViewSchedule"/>
-                                    <ComboBoxItem Content="Export PDF → embed as image"/>
+                                <ComboBox x:Name="cmbSheetPlacementMode" FontSize="10"
+                                          SelectionChanged="SheetPlacementMode_Changed">
+                                    <ComboBoxItem Content="Guided manual — step-through" IsSelected="True" Tag="GuidedManual"/>
+                                    <ComboBoxItem Content="Convert to linked ViewSchedule" Tag="ViewSchedule"/>
+                                    <ComboBoxItem Content="Export PDF → embed as image" Tag="PDF"/>
                                 </ComboBox>
                                 <Button Content="▶ Place Schedules on Sheets" Margin="0,6,0,0"
                                         Style="{StaticResource ElecPrimaryBtn}"
@@ -378,28 +379,17 @@
                             </Grid>
                         </Expander>
 
-                        <Expander Style="{StaticResource ElecExpander}" IsEnabled="False">
-                            <Expander.Header>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="CIRCUIT WIZARD"/>
-                                    <Border Style="{StaticResource LockBadge}">
-                                        <TextBlock Text="🔒 BETA" FontSize="9" Foreground="#FFFF6B6B"/>
-                                    </Border>
-                                </StackPanel>
-                            </Expander.Header>
+                        <Expander Header="CIRCUIT WIZARD" Style="{StaticResource ElecExpander}">
                             <StackPanel Margin="4">
-                                <TextBlock Text="Room/zone" Style="{StaticResource ElecLabel}"/>
-                                <ComboBox FontSize="10"/>
-                                <TextBlock Text="Load type" Style="{StaticResource ElecLabel}"/>
-                                <ComboBox FontSize="10">
-                                    <ComboBoxItem Content="Mixed — group by type" IsSelected="True"/>
-                                </ComboBox>
-                                <TextBlock Text="Max load %" Style="{StaticResource ElecLabel}"/>
-                                <TextBox Text="80" FontSize="10"/>
-                                <Button Content="▶ Propose Circuits" Style="{StaticResource ElecActionBtn}"
-                                        Margin="0,4,0,0" ToolTip="Planned for Phase 178 — contact support to prioritise"/>
-                                <Button Content="▶ Create All" Style="{StaticResource ElecActionBtn}"
-                                        ToolTip="Planned for Phase 178 — contact support to prioritise"/>
+                                <TextBlock Text="The wizard runs in a modal window. It collects unconnected fixtures, groups them into proposed circuits with greedy phase balancing, and lets you edit before committing."
+                                           FontSize="9" TextWrapping="Wrap" Margin="0,0,0,4"
+                                           Foreground="{DynamicResource PanelFg}" Opacity="0.7"/>
+                                <Button Content="▶ Propose Circuits (in panel)"
+                                        Style="{StaticResource ElecActionBtn}"
+                                        Tag="Circuit_WizardPropose" Click="Cmd_Click"/>
+                                <Button Content="▶ Launch Wizard…"
+                                        Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="Circuit_CreateWizard" Click="Cmd_Click"/>
                             </StackPanel>
                         </Expander>
 
@@ -527,8 +517,9 @@
                                             Tag="Calc_VoltageDrop" Click="Cmd_Click"/>
                                     <Button Content="▶ Flag Exceedances" Style="{StaticResource ElecActionBtn}"
                                             Tag="Calc_FlagVD" Click="Cmd_Click"/>
-                                    <Button Content="▶ Auto-Upsize Failing 🔒" Style="{StaticResource ElecActionBtn}"
-                                            IsEnabled="False" ToolTip="Planned for Phase 178 — contact support to prioritise"/>
+                                    <Button Content="▶ Auto-Upsize Failing" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Calc_UpsizeWires" Click="Cmd_Click"
+                                            ToolTip="Auto-upsize conductors on circuits exceeding the VD threshold. Reviews before applying."/>
                                 </WrapPanel>
                             </StackPanel>
                         </Expander>
@@ -563,43 +554,77 @@
                             </StackPanel>
                         </Expander>
 
-                        <Expander Style="{StaticResource ElecExpander}" IsEnabled="False">
-                            <Expander.Header>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="FEEDER SIZING"/>
-                                    <Border Style="{StaticResource LockBadge}">
-                                        <TextBlock Text="🔒 BETA" FontSize="9" Foreground="#FFFF6B6B"/>
-                                    </Border>
-                                </StackPanel>
-                            </Expander.Header>
+                        <Expander Header="FEEDER SIZING" Style="{StaticResource ElecExpander}">
                             <StackPanel Margin="4">
                                 <TextBlock Text="Feeder derate (grouping)" Style="{StaticResource ElecLabel}"/>
-                                <TextBox Text="0.8" FontSize="10"/>
-                                <TextBlock Text="Cable route" Style="{StaticResource ElecLabel}"/>
-                                <ComboBox FontSize="10">
-                                    <ComboBoxItem Content="Clipped direct (Method C)" IsSelected="True"/>
+                                <TextBox x:Name="FeederDerateFactor" Text="0.8" FontSize="10"/>
+                                <TextBlock Text="Install method" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox x:Name="FeederInstallMethod" FontSize="10">
+                                    <ComboBoxItem Content="A1 — Conduit in insulated wall" Tag="A1"/>
+                                    <ComboBoxItem Content="B1 — Conduit on a wall" Tag="B1"/>
+                                    <ComboBoxItem Content="C — Clipped direct" IsSelected="True" Tag="C"/>
+                                    <ComboBoxItem Content="E — Free air" Tag="E"/>
                                 </ComboBox>
-                                <Button Content="▶ Auto-Size All Feeders" Style="{StaticResource ElecActionBtn}"
-                                        Margin="0,4" ToolTip="Planned for Phase 178 — contact support to prioritise"/>
+                                <TextBlock Text="Diversity mode" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox x:Name="FeederDiversityMode" FontSize="10"
+                                          SelectionChanged="FeederDiversityMode_Changed">
+                                    <ComboBoxItem Content="None" IsSelected="True" Tag="None"/>
+                                    <ComboBoxItem Content="BS 7671 App 1 (domestic)" Tag="BS"/>
+                                    <ComboBoxItem Content="NEC 220.83 (existing)" Tag="NEC"/>
+                                    <ComboBoxItem Content="User-defined %" Tag="User"/>
+                                </ComboBox>
+                                <StackPanel Orientation="Horizontal" Margin="0,2">
+                                    <TextBlock Text="Diversity %" Style="{StaticResource ElecLabel}"/>
+                                    <TextBox x:Name="FeederDiversityPct" Text="100" Width="60"
+                                             FontSize="10" IsEnabled="False"/>
+                                </StackPanel>
+                                <Button Content="▶ Size All Feeders" Margin="0,4"
+                                        Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="Calc_FeederSize" Click="Cmd_Click"/>
+                                <DataGrid x:Name="FeederResultsGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                                          IsReadOnly="True" HeadersVisibility="Column" Height="120" FontSize="10" Margin="0,4">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Panel" Binding="{Binding PanelName}" Width="*"/>
+                                        <DataGridTextColumn Header="Demand kW" Binding="{Binding DemandDisplay}" Width="80"/>
+                                        <DataGridTextColumn Header="Ic(A)" Binding="{Binding CurrentDisplay}" Width="60"/>
+                                        <DataGridTextColumn Header="CSA" Binding="{Binding CsaDisplay}" Width="70"/>
+                                        <DataGridTextColumn Header="VD%" Binding="{Binding VDDisplay}" Width="55"/>
+                                        <DataGridTextColumn Header="Rating A" Binding="{Binding RatingDisplay}" Width="70"/>
+                                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="70"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
                             </StackPanel>
                         </Expander>
 
-                        <Expander Style="{StaticResource ElecExpander}" IsEnabled="False">
-                            <Expander.Header>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="FAULT CURRENT"/>
-                                    <Border Style="{StaticResource LockBadge}">
-                                        <TextBlock Text="🔒 PLANNED" FontSize="9" Foreground="#FFFF6B6B"/>
-                                    </Border>
-                                </StackPanel>
-                            </Expander.Header>
+                        <Expander Header="FAULT CURRENT" Style="{StaticResource ElecExpander}">
                             <StackPanel Margin="4">
                                 <TextBlock Text="Utility fault level (kA)" Style="{StaticResource ElecLabel}"/>
-                                <TextBox Text="25" FontSize="10"/>
-                                <Button Content="▶ Calculate" Style="{StaticResource ElecActionBtn}" Margin="0,4"
-                                        ToolTip="Planned for Phase 178 — contact support to prioritise"/>
-                                <Button Content="▶ Stamp AIC ratings to panels" Style="{StaticResource ElecActionBtn}"
-                                        ToolTip="Planned for Phase 178 — contact support to prioritise"/>
+                                <TextBox x:Name="UtilityFaultKa" Text="25.0" FontSize="10"
+                                         TextChanged="UtilityFaultKa_TextChanged"/>
+                                <TextBlock Text="Method" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox x:Name="FaultCalcMethod" FontSize="10">
+                                    <ComboBoxItem Content="Simplified resistive (IEC 60909)" IsSelected="True"/>
+                                    <ComboBoxItem Content="Full impedance method"/>
+                                </ComboBox>
+                                <DataGrid x:Name="FaultResultsGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                                          IsReadOnly="True" HeadersVisibility="Column" Height="120" FontSize="10" Margin="0,4">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Panel" Binding="{Binding PanelName}" Width="*"/>
+                                        <DataGridTextColumn Header="V" Binding="{Binding Voltage}" Width="50"/>
+                                        <DataGridTextColumn Header="CSA" Binding="{Binding CsaDisplay}" Width="65"/>
+                                        <DataGridTextColumn Header="Z mΩ" Binding="{Binding ZDisplay}" Width="60"/>
+                                        <DataGridTextColumn Header="Iₖ kA" Binding="{Binding FaultDisplay}" Width="60"/>
+                                        <DataGridTextColumn Header="AIC" Binding="{Binding AicDisplay}" Width="55"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <WrapPanel Margin="0,4">
+                                    <Button Content="▶ Calculate Fault Levels" Style="{StaticResource ElecPrimaryBtn}"
+                                            Tag="Calc_FaultCurrent" Click="Cmd_Click"/>
+                                    <Button Content="▶ Stamp to Panels" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Calc_AicStamp" Click="Cmd_Click"/>
+                                    <Button Content="▶ Create Fault Schedule" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Rprt_FaultSchedule" Click="Cmd_Click"/>
+                                </WrapPanel>
                             </StackPanel>
                         </Expander>
 
@@ -775,15 +800,7 @@
                             </StackPanel>
                         </Expander>
 
-                        <Expander Style="{StaticResource ElecExpander}">
-                            <Expander.Header>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="CONDUIT FILL CALCULATOR"/>
-                                    <Border Style="{StaticResource LockBadge}">
-                                        <TextBlock Text="🔒 BETA" FontSize="9" Foreground="#FFFF6B6B"/>
-                                    </Border>
-                                </StackPanel>
-                            </Expander.Header>
+                        <Expander Header="CONDUIT FILL CALCULATOR" Style="{StaticResource ElecExpander}">
                             <StackPanel Margin="4">
                                 <TextBlock Text="Conduit type" Style="{StaticResource ElecLabel}"/>
                                 <ComboBox x:Name="cmbConduitType" FontSize="10">
@@ -822,7 +839,13 @@
                                            Text="Fill: — / — (— %)" />
                                 <Button Content="▶ Calculate Fill" x:Name="btnConduitCalc"
                                         Style="{StaticResource ElecPrimaryBtn}" IsEnabled="False"
-                                        Tag="Cable_ConduitFill" Click="Cmd_Click" Margin="0,4,0,0"/>
+                                        Tag="Cable_ConduitFill" Click="Cmd_Click" Margin="0,4,0,0"
+                                        ToolTip="BETA — manual calculator. Use 'Validate Model Conduits' for whole-model audit."/>
+                                <Separator Margin="0,8,0,4"/>
+                                <Button Content="▶ Validate Model Conduits"
+                                        Style="{StaticResource ElecActionBtn}"
+                                        Tag="Cable_ValidateConduitFill" Click="Cmd_Click"
+                                        ToolTip="Audit every conduit / cable tray in the model against the BS 7671 / NEC fill limit. Writes ELC_CONDUIT_FILL_PCT and red-overrides failing containment."/>
                             </StackPanel>
                         </Expander>
 
@@ -960,20 +983,25 @@
                             </StackPanel>
                         </Expander>
 
-                        <Expander Style="{StaticResource ElecExpander}" IsEnabled="False">
-                            <Expander.Header>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="RISER DIAGRAM"/>
-                                    <Border Style="{StaticResource LockBadge}">
-                                        <TextBlock Text="🔒 PLANNED" FontSize="9" Foreground="#FFFF6B6B"/>
-                                    </Border>
-                                </StackPanel>
-                            </Expander.Header>
+                        <Expander Header="RISER DIAGRAM" Style="{StaticResource ElecExpander}">
                             <StackPanel Margin="4">
-                                <Button Content="▶ Generate horizontal riser diagram" Style="{StaticResource ElecActionBtn}"
-                                        ToolTip="Planned for Phase 178 — contact support to prioritise"/>
-                                <Button Content="▶ Auto-sync with model changes" Style="{StaticResource ElecActionBtn}"
-                                        ToolTip="Planned for Phase 178 — contact support to prioritise"/>
+                                <TextBlock Text="Layout" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox x:Name="RiserLayout" FontSize="10"
+                                          SelectionChanged="RiserOptions_Changed">
+                                    <ComboBoxItem Content="Horizontal — left to right" IsSelected="True" Tag="Horizontal"/>
+                                    <ComboBoxItem Content="Vertical — top to bottom" Tag="Vertical"/>
+                                </ComboBox>
+                                <CheckBox x:Name="RiserShowFaultKa" Content="Show fault kA" IsChecked="True"
+                                          Margin="0,2" Click="RiserOptions_Changed"/>
+                                <CheckBox x:Name="RiserShowFeederCsa" Content="Show feeder CSA" IsChecked="True"
+                                          Margin="0,2" Click="RiserOptions_Changed"/>
+                                <CheckBox x:Name="RiserShowLoadingPct" Content="Show panel loading %" IsChecked="True"
+                                          Margin="0,2" Click="RiserOptions_Changed"/>
+                                <Button Content="▶ Generate Riser Diagram" Margin="0,4"
+                                        Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="SLD_RiserDiagram" Click="Cmd_Click"/>
+                                <Button Content="▶ Update Existing Riser" Style="{StaticResource ElecActionBtn}"
+                                        Tag="SLD_UpdateRiser" Click="Cmd_Click"/>
                             </StackPanel>
                         </Expander>
                     </StackPanel>
@@ -1040,15 +1068,7 @@
                             </StackPanel>
                         </Expander>
 
-                        <Expander Style="{StaticResource ElecExpander}" IsEnabled="False">
-                            <Expander.Header>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="EMERGENCY LIGHTING"/>
-                                    <Border Style="{StaticResource LockBadge}">
-                                        <TextBlock Text="🔒 BETA" FontSize="9" Foreground="#FFFF6B6B"/>
-                                    </Border>
-                                </StackPanel>
-                            </Expander.Header>
+                        <Expander Header="EMERGENCY LIGHTING" Style="{StaticResource ElecExpander}">
                             <StackPanel Margin="4">
                                 <TextBlock Text="Mode" Style="{StaticResource ElecLabel}"/>
                                 <ComboBox FontSize="10">
@@ -1060,27 +1080,58 @@
                                     <ComboBoxItem Content="BS 5266-1 Grade A" IsSelected="True"/>
                                 </ComboBox>
                                 <CheckBox Content="Flag circuits with no emergency backup" IsChecked="True"/>
-                                <Button Content="▶ Emergency Circuit Audit" Style="{StaticResource ElecActionBtn}"
-                                        ToolTip="Planned for Phase 178 — contact support to prioritise"/>
-                                <Button Content="▶ Mark emergency fixtures in view" Style="{StaticResource ElecActionBtn}"
-                                        ToolTip="Planned for Phase 178 — contact support to prioritise"/>
+                                <WrapPanel Margin="0,4">
+                                    <Button Content="▶ Emergency Circuit Audit" Style="{StaticResource ElecPrimaryBtn}"
+                                            Tag="Lite_EmergAudit" Click="Cmd_Click"/>
+                                    <Button Content="▶ Mark emergency fixtures" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Lite_MarkEmerg" Click="Cmd_Click"/>
+                                </WrapPanel>
+                                <DataGrid x:Name="EmergAuditGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                                          IsReadOnly="True" HeadersVisibility="Column" Height="120" FontSize="10" Margin="0,4">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Room" Binding="{Binding RoomName}" Width="*"/>
+                                        <DataGridTextColumn Header="Occupancy" Binding="{Binding OccupancyType}" Width="80"/>
+                                        <DataGridTextColumn Header="Norm" Binding="{Binding NormalCircuits}" Width="50"/>
+                                        <DataGridTextColumn Header="Emerg" Binding="{Binding EmergCircuits}" Width="55"/>
+                                        <DataGridTextColumn Header="Same?" Binding="{Binding SameCircuitDisplay}" Width="55"/>
+                                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="80"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
                             </StackPanel>
                         </Expander>
 
-                        <Expander Style="{StaticResource ElecExpander}" IsEnabled="False">
-                            <Expander.Header>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="LIGHTING POWER DENSITY"/>
-                                    <Border Style="{StaticResource LockBadge}">
-                                        <TextBlock Text="🔒 PLANNED" FontSize="9" Foreground="#FFFF6B6B"/>
-                                    </Border>
-                                </StackPanel>
-                            </Expander.Header>
+                        <Expander Header="LIGHTING POWER DENSITY" Style="{StaticResource ElecExpander}">
                             <StackPanel Margin="4">
-                                <Button Content="▶ Calculate W/m² per room/zone" Style="{StaticResource ElecActionBtn}"
-                                        ToolTip="Planned for Phase 178 — contact support to prioritise"/>
-                                <Button Content="▶ Check against ASHRAE 90.1 / Part L" Style="{StaticResource ElecActionBtn}"
-                                        ToolTip="Planned for Phase 178 — contact support to prioritise"/>
+                                <TextBlock Text="Standard" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox x:Name="LpdStandard" FontSize="10"
+                                          SelectionChanged="LpdStandard_Changed">
+                                    <ComboBoxItem Content="ASHRAE 90.1-2019" IsSelected="True" Tag="ASHRAE_90_1_2019"/>
+                                    <ComboBoxItem Content="Part L 2021 (UK)" Tag="PartL_2021"/>
+                                    <ComboBoxItem Content="CIBSE LG7" Tag="CIBSE_LG7"/>
+                                    <ComboBoxItem Content="Custom" Tag="Custom"/>
+                                </ComboBox>
+                                <StackPanel x:Name="LpdCustomRow" Orientation="Horizontal"
+                                            Margin="0,2" Visibility="Collapsed">
+                                    <TextBlock Text="Custom limit (W/m²)" Style="{StaticResource ElecLabel}"/>
+                                    <TextBox x:Name="LpdCustomLimit" Text="11.8" Width="60" FontSize="10"/>
+                                </StackPanel>
+                                <WrapPanel Margin="0,4">
+                                    <Button Content="▶ Calculate W/m²" Style="{StaticResource ElecPrimaryBtn}"
+                                            Tag="Lite_LPD" Click="Cmd_Click"/>
+                                    <Button Content="▶ Color rooms in view" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Lite_LpdColor" Click="Cmd_Click"/>
+                                </WrapPanel>
+                                <DataGrid x:Name="LpdGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                                          IsReadOnly="True" HeadersVisibility="Column" Height="120" FontSize="10" Margin="0,4">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Room" Binding="{Binding RoomName}" Width="*"/>
+                                        <DataGridTextColumn Header="m²" Binding="{Binding AreaDisplay}" Width="55"/>
+                                        <DataGridTextColumn Header="Total W" Binding="{Binding WattsDisplay}" Width="65"/>
+                                        <DataGridTextColumn Header="W/m²" Binding="{Binding LpdDisplay}" Width="55"/>
+                                        <DataGridTextColumn Header="Limit" Binding="{Binding LimitDisplay}" Width="55"/>
+                                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="65"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
                             </StackPanel>
                         </Expander>
 
@@ -1233,12 +1284,15 @@
                             <StackPanel Margin="4">
                                 <Button Content="▶ Create VD schedule in model" Style="{StaticResource ElecActionBtn}"
                                         Tag="Rprt_VDSchedule" Click="Cmd_Click"/>
-                                <Button Content="▶ Create fault current schedule 🔒" Style="{StaticResource ElecActionBtn}"
-                                        IsEnabled="False"
-                                        ToolTip="Planned for Phase 178 — contact support to prioritise"/>
+                                <Button Content="▶ Create fault current schedule" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Rprt_FaultSchedule" Click="Cmd_Click"
+                                        ToolTip="Build a Revit ViewSchedule of OST_ElectricalEquipment showing the fault levels stamped by Calc → Fault Current."/>
                                 <Button Content="▶ Create arc flash schedule 🔒" Style="{StaticResource ElecActionBtn}"
                                         IsEnabled="False"
-                                        ToolTip="Planned for Phase 178 — contact support to prioritise"/>
+                                        ToolTip="Planned for Phase 179 — IEEE 1584-2018 implementation"/>
+                                <Button Content="▶ Demand Factor Report" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Rprt_DemandFactors" Click="Cmd_Click"
+                                        ToolTip="Per-panel NEC 2023 / BS 7671 demand-factor breakdown exported to Excel."/>
                             </StackPanel>
                         </Expander>
                     </StackPanel>

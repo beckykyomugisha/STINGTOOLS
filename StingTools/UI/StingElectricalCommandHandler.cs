@@ -35,6 +35,21 @@ namespace StingTools.UI
         public static StingElectricalPanel ActivePanel;
         public static List<StingTools.Commands.Electrical.BreakerProposal> LastBreakerProposals;
 
+        // ── Phase 178 — extra inputs / outputs ──────────────────────────
+        public static double CurrentUtilityFaultKa = 25.0;
+        public static StingTools.Commands.Electrical.FeederSizing.FeederSettingsSnapshot CurrentFeederSettings;
+        public static string CurrentSheetPlacementMode = "GuidedManual";
+        public static Autodesk.Revit.DB.ElementId CurrentSheetPlacementSheetId;
+        public static StingTools.Commands.SLD.RiserOptions CurrentRiserOptions
+            = new StingTools.Commands.SLD.RiserOptions { Layout = "Horizontal", ShowFaultKa = true, ShowFeederCsa = true, ShowLoadingPct = true };
+        public static string CurrentLpdStandard = "ASHRAE_90_1_2019";
+        public static double CurrentLpdCustomLimit = 0;
+
+        // Snapshot outputs surfaced by Phase 178 commands.
+        public static List<StingTools.UI.ConduitFillData> LastConduitFills = new();
+        public static List<StingTools.UI.EmergAuditRow> LastEmergAudit = new();
+        public static List<StingTools.UI.LpdRow> LastLpdRows = new();
+
         private StingElectricalCommandHandler(StingElectricalPanel panel) { _panel = panel; }
 
         public static void Initialize(StingElectricalPanel panel)
@@ -234,10 +249,41 @@ namespace StingTools.UI
                     TryRunByTypeName("StingTools.BIMManager.COBieExportCommand", app);
                     break;
                 case "Rprt_VDSchedule":
-                    TaskDialog.Show("STING Electrical",
-                        "Voltage-drop schedule generation will land in Phase 178. " +
-                        "For now, use Calc → Voltage Drop and export the grid.");
-                    break;
+                    RunCommand<StingTools.Commands.Electrical.Reports.VoltageDropScheduleCommand>(app); break;
+
+                // ── Phase 178 — newly unlocked dispatch ──────────────
+                case "Calc_UpsizeWires":
+                    RunCommand<StingTools.Commands.Electrical.AutoUpsizeWiresCommand>(app); break;
+                case "Calc_FeederSize":
+                    RunCommand<StingTools.Commands.Electrical.FeederSizing.FeederSizerCommand>(app); break;
+                case "Calc_FaultCurrent":
+                    RunCommand<StingTools.Commands.Electrical.FaultCurrent.FaultCurrentCommand>(app); break;
+                case "Calc_AicStamp":
+                    RunCommand<StingTools.Commands.Electrical.FaultCurrent.AicRatingCommand>(app); break;
+                case "SLD_RiserDiagram":
+                    RunCommand<StingTools.Commands.SLD.SLDRiserDiagramCommand>(app); break;
+                case "SLD_UpdateRiser":
+                    RunCommand<StingTools.Commands.SLD.SLDUpdateRiserCommand>(app); break;
+                case "Panel_PlaceOnSheets":
+                    RunCommand<StingTools.Commands.Electrical.PanelViewScheduleCommand>(app); break;
+                case "Circuit_WizardPropose":
+                    RunWizardPropose(app, doc); break;
+                case "Circuit_CreateWizard":
+                    OpenCircuitWizard(app); break;
+                case "Cable_ValidateConduitFill":
+                    RunCommand<StingTools.Commands.Electrical.ConduitFillValidateCommand>(app); break;
+                case "Lite_EmergAudit":
+                    RunCommand<StingTools.Commands.Electrical.Lighting.EmergencyLightingAuditCommand>(app); break;
+                case "Lite_MarkEmerg":
+                    RunCommand<StingTools.Commands.Electrical.Lighting.EmergencyLightingMarkCommand>(app); break;
+                case "Lite_LPD":
+                    RunCommand<StingTools.Commands.Electrical.Lighting.LightingPowerDensityCommand>(app); break;
+                case "Lite_LpdColor":
+                    RunCommand<StingTools.Commands.Electrical.Lighting.LpdColorCommand>(app); break;
+                case "Rprt_FaultSchedule":
+                    RunCommand<StingTools.Commands.Electrical.Reports.FaultCurrentScheduleCommand>(app); break;
+                case "Rprt_DemandFactors":
+                    RunCommand<StingTools.Commands.Electrical.Reports.DemandFactorReportCommand>(app); break;
 
                 default:
                     StingLog.Info($"ElectricalCommandHandler: unknown tag '{tag}'");
@@ -439,6 +485,33 @@ namespace StingTools.UI
             if (_panel == null || doc == null) return;
             var snap = StingTools.Commands.Electrical.ElectricalSnapshotBuilder.Build(doc);
             _panel.RefreshFromData(snap);
+        }
+
+        // ── Phase 178 wizard helpers ────────────────────────────────────
+
+        private void OpenCircuitWizard(UIApplication app)
+        {
+            var doc = app?.ActiveUIDocument?.Document;
+            if (doc == null) return;
+            try
+            {
+                System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    var dlg = new CircuitWizardDialog(app);
+                    try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch { }
+                    dlg.ShowDialog();
+                });
+            }
+            catch (Exception ex) { StingLog.Warn($"OpenCircuitWizard: {ex.Message}"); }
+        }
+
+        private void RunWizardPropose(UIApplication app, Document doc)
+        {
+            // The dialog handles the Propose step internally; this dispatch
+            // case is reserved for non-modal future use. For now we surface a
+            // hint so the button on the dock panel is discoverable.
+            TaskDialog.Show("STING Circuit Wizard",
+                "Click 'Launch Wizard' to open the modal proposer / editor.");
         }
 
         public void RefreshWireRefTable(StingElectricalPanel panel)

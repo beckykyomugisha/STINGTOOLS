@@ -1,0 +1,11 @@
+{
+  "version": "1.0",
+  "description": "Standard AIC (Ampere Interrupting Capacity) rating tiers for breaker / switchgear selection. Phase 178 fault-current → AIC stamping uses these tiers via FaultCurrentEngine.NextAicTierKa().",
+  "tiers_kA": [6, 10, 16, 18, 22, 25, 35, 42, 50, 65, 85, 100],
+  "safetyMarginPct": 10,
+  "standards": {
+    "IEC_60947_2": [6, 10, 16, 25, 36, 50, 63, 80, 100],
+    "BS_EN_60898": [6, 10],
+    "NEC_UL489":   [10, 14, 18, 22, 25, 35, 42, 65, 100, 200]
+  }
+}
