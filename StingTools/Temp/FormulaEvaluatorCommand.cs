@@ -137,7 +137,7 @@ namespace StingTools.Temp
                         try
                         {
                             // Check if the element has the target parameter
-                            Parameter targetParam = el.LookupParameter(formula.ParameterName);
+                            Parameter targetParam = ParameterHelpers.CachedLookup(el, formula.ParameterName);
                             if (targetParam == null || targetParam.IsReadOnly) continue;
 
                             // Collect input values
@@ -597,7 +597,7 @@ namespace StingTools.Temp
                 }
 
                 // Try custom parameter
-                Parameter param = el.LookupParameter(inputName);
+                Parameter param = ParameterHelpers.CachedLookup(el, inputName);
                 if (param == null) continue;
 
                 switch (param.StorageType)
@@ -651,25 +651,25 @@ namespace StingTools.Temp
                 {
                     case "Width":
                         p = el.get_Parameter(BuiltInParameter.FAMILY_WIDTH_PARAM)
-                            ?? el.LookupParameter("Width");
+                            ?? ParameterHelpers.CachedLookup(el, "Width");
                         break;
                     case "Height":
                         p = el.get_Parameter(BuiltInParameter.FAMILY_HEIGHT_PARAM)
-                            ?? el.LookupParameter("Height");
+                            ?? ParameterHelpers.CachedLookup(el, "Height");
                         break;
                     case "Length":
                         p = el.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH)
-                            ?? el.LookupParameter("Length");
+                            ?? ParameterHelpers.CachedLookup(el, "Length");
                         break;
                     case "Diameter":
-                        p = el.LookupParameter("Diameter")
-                            ?? el.LookupParameter("Overall Size");
+                        p = ParameterHelpers.CachedLookup(el, "Diameter")
+                            ?? ParameterHelpers.CachedLookup(el, "Overall Size");
                         break;
                     case "Thickness":
-                        p = el.LookupParameter("Thickness");
+                        p = ParameterHelpers.CachedLookup(el, "Thickness");
                         break;
                     default:
-                        p = el.LookupParameter(name);
+                        p = ParameterHelpers.CachedLookup(el, name);
                         break;
                 }
 

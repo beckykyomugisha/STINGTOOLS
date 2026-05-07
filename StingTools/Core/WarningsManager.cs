@@ -149,6 +149,13 @@ namespace StingTools.Core
     /// Intelligent Revit warnings analysis engine. Classifies warnings by BIM domain,
     /// identifies auto-fixable issues, tracks trends against baseline, and provides
     /// per-level/workset/discipline breakdown for BIM coordinator triage.
+    ///
+    /// PERF NOTE: WarningsEngine does NOT subscribe to DocumentChanged or register
+    /// any IUpdater. Every entry point (ScanWarnings, BatchAutoFix, etc.) is invoked
+    /// on-demand from commands. ScanWarnings carries a 30-second cache TTL to absorb
+    /// rapid repeat calls. There is no concurrency risk with StingAutoTagger /
+    /// StingStaleMarker IUpdaters because WarningsEngine never runs inside a
+    /// DocumentChanged callback.
     /// </summary>
     internal static class WarningsEngine
     {
