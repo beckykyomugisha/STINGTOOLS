@@ -3223,10 +3223,10 @@ namespace StingTools.Core
                 {
                     try
                     {
-                        string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
-                        if (!string.IsNullOrEmpty(disc))
+                        string elDisc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                        if (!string.IsNullOrEmpty(elDisc))
                         {
-                            var profile = GetDisciplineProfile(disc);
+                            var profile = GetDisciplineProfile(elDisc);
                             if (profile?.DefaultParagraphDepth.HasValue == true)
                                 paraDepth = profile.DefaultParagraphDepth.Value;
                         }

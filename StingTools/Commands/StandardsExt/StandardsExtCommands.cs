@@ -7,6 +7,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Commands.Standards;
 using StingTools.Core;
+using StingTools.Select;
 using StingTools.Standards;
 using StingTools.UI;
 

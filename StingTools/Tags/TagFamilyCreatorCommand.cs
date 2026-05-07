@@ -396,7 +396,14 @@ namespace StingTools.Tags
         /// </summary>
         public static readonly (BuiltInCategory bic, string template, string display, string suffix)[] MepVariantFamilies =
         {
-            (BuiltInCategory.OST_GenericModel, "Generic Model Tag.rft", "MEP Sleeve (Fire-rated penetration)", "MEP Sleeve"),
+            (BuiltInCategory.OST_GenericModel,        "Generic Model Tag.rft",         "MEP Sleeve (Fire-rated penetration)", "MEP Sleeve"),
+            // ── Lightning Protection System (BS EN 62305) — MEP CSV families #54..#59
+            (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS Air Terminal (BS EN 62305-3 §5.2)",   "LPS Air Terminal"),
+            (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS Down Conductor (BS EN 62305-3 §5.3)", "LPS Down Conductor"),
+            (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS Earth Electrode (BS EN 62305-3 §5.4)","LPS Earth Electrode"),
+            (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS Bond / Spark Gap (BS EN 62305-3)",    "LPS Bond"),
+            (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS SPD (BS EN 62305-4)",                 "LPS SPD"),
+            (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS Test Clamp / Inspection Point",       "LPS Test Clamp"),
         };
 
         /// <summary>Total tag family count including standard categories + all variant arrays.</summary>
@@ -935,6 +942,38 @@ namespace StingTools.Tags
                 return Result.Succeeded;
             }
 
+            // Count how many .rfa files already exist on disk (built by a
+            // previous run but not loaded into this project). These can be
+            // skipped on incremental runs so we only build the genuinely new
+            // families (e.g. when adding the 6 LPS variants).
+            string outputDirEarly = TagFamilyConfig.GetOutputDirectory();
+            int onDisk = 0;
+            foreach (var bic in categories)
+            {
+                if (File.Exists(Path.Combine(outputDirEarly, TagFamilyConfig.GetFamilyFileName(bic))))
+                    onDisk++;
+            }
+            foreach (var tiein in TagFamilyConfig.TieInPointFamilies)
+            {
+                if (File.Exists(Path.Combine(outputDirEarly, TagFamilyConfig.GetTieInFamilyFileName(tiein.suffix))))
+                    onDisk++;
+            }
+            foreach (var ds in TagFamilyConfig.DisciplineSheetFamilies)
+            {
+                if (File.Exists(Path.Combine(outputDirEarly, TagFamilyConfig.GetTieInFamilyFileName(ds.suffix))))
+                    onDisk++;
+            }
+            foreach (var sv in TagFamilyConfig.StructuralVariantFamilies)
+            {
+                if (File.Exists(Path.Combine(outputDirEarly, TagFamilyConfig.GetTieInFamilyFileName(sv.suffix))))
+                    onDisk++;
+            }
+            foreach (var mv in TagFamilyConfig.MepVariantFamilies)
+            {
+                if (File.Exists(Path.Combine(outputDirEarly, TagFamilyConfig.GetTieInFamilyFileName(mv.suffix))))
+                    onDisk++;
+            }
+
             TaskDialog confirm = new TaskDialog("Create Tag Families");
             confirm.MainInstruction = $"Create {toCreate} STING tag families?";
             int familiesWithPlan = 0;
@@ -945,21 +984,32 @@ namespace StingTools.Tags
             }
             confirm.MainContent =
                 $"Total taggable categories: {total}\n" +
-                $"Already loaded: {alreadyLoaded}\n" +
+                $"Already loaded in project: {alreadyLoaded}\n" +
+                $"Already built on disk: {onDisk}\n" +
                 $"To create: {toCreate}\n\n" +
                 $"Mode: {activeMode}  •  Preserve hand-edits: {(preserveHandEdits ? "on" : "off")}\n" +
                 $"Families with a CSV plan: {familiesWithPlan} (of {categories.Count} primary categories)\n\n" +
                 $"Templates: {templateDir}\n" +
                 $"Tag .rft files found: {tagRftCount} of {availableRft.Length} total\n" +
-                $"Output: {TagFamilyConfig.GetOutputDirectory()}\n\n" +
+                $"Output: {outputDirEarly}\n\n" +
                 "Each family will be created from a Revit annotation template,\n" +
                 "loaded with STING shared parameters, and — when a plan is\n" +
                 "available — have T4..T10 visibility formulas re-authored.";
-            confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
-            if (confirm.Show() == TaskDialogResult.Cancel)
+            confirm.CommonButtons = TaskDialogCommonButtons.Cancel;
+            confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Build only new families",
+                "Skip families that already exist on disk or are loaded in the project. " +
+                "Use this when adding the new LPS families without rebuilding the 142 existing ones.");
+            confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Build / refresh all missing families",
+                "Skip only families already loaded in the project; (re)build any whose .rfa is " +
+                "missing on disk. This is the original behaviour.");
+            TaskDialogResult choice = confirm.Show();
+            if (choice == TaskDialogResult.Cancel)
                 return Result.Cancelled;
+            bool skipExistingOnDisk = (choice == TaskDialogResult.CommandLink1);
 
-            string outputDir = TagFamilyConfig.GetOutputDirectory();
+            string outputDir = outputDirEarly;
             report.AppendLine($"STING Tag Family Creation Report");
             report.AppendLine(new string('=', 50));
             report.AppendLine($"Template directory: {templateDir}");
@@ -1019,6 +1069,11 @@ namespace StingTools.Tags
                     // Verify it has parameters — if empty, delete and recreate
                     if (File.Exists(outputPath))
                     {
+                        if (skipExistingOnDisk)
+                        {
+                            report.AppendLine($"  [SKIP] {catDisplay} — .rfa exists on disk, skipped (incremental run)");
+                            continue;
+                        }
                         bool hasParams = VerifyFamilyHasParams(app, outputPath);
                         if (hasParams)
                         {
@@ -1128,6 +1183,11 @@ namespace StingTools.Tags
                 string existingRfa = Path.Combine(outputDir, fileName);
                 if (File.Exists(existingRfa))
                 {
+                    if (skipExistingOnDisk)
+                    {
+                        report.AppendLine($"  [SKIP] {tiein.display} — .rfa exists on disk, skipped (incremental run)");
+                        continue;
+                    }
                     try
                     {
                         using (Transaction t = new Transaction(doc, "STING Load Tie-In Tag"))
@@ -1237,6 +1297,11 @@ namespace StingTools.Tags
                 string existingRfa = Path.Combine(outputDir, fileName);
                 if (File.Exists(existingRfa))
                 {
+                    if (skipExistingOnDisk)
+                    {
+                        report.AppendLine($"  [SKIP] {ds.display} — .rfa exists on disk, skipped (incremental run)");
+                        continue;
+                    }
                     try
                     {
                         using (Transaction t = new Transaction(doc, "STING Load Sheet Tag"))
@@ -1344,6 +1409,11 @@ namespace StingTools.Tags
                 string existingRfa = Path.Combine(outputDir, fileName);
                 if (File.Exists(existingRfa))
                 {
+                    if (skipExistingOnDisk)
+                    {
+                        report.AppendLine($"  [SKIP] {sv.display} — .rfa exists on disk, skipped (incremental run)");
+                        continue;
+                    }
                     try
                     {
                         using (Transaction t = new Transaction(doc, "STING Load Struct Variant Tag"))
@@ -1451,6 +1521,11 @@ namespace StingTools.Tags
                 string existingRfa = Path.Combine(outputDir, fileName);
                 if (File.Exists(existingRfa))
                 {
+                    if (skipExistingOnDisk)
+                    {
+                        report.AppendLine($"  [SKIP] {mv.display} — .rfa exists on disk, skipped (incremental run)");
+                        continue;
+                    }
                     try
                     {
                         using (Transaction t = new Transaction(doc, "STING Load MEP Variant Tag"))
@@ -2748,14 +2823,14 @@ namespace StingTools.Tags
                     if (typeEl.LookupParameter(name) != null) present++;
                 if (present == 0) continue;
                 stingTypesScanned++;
-                int missing = stylePack.Length - present;
-                if (missing == 0) stingTypesFullPack++;
+                int typeMissing = stylePack.Length - present;
+                if (typeMissing == 0) stingTypesFullPack++;
                 else
                 {
                     stingTypesPartialPack++;
-                    if (missing > worstMissing)
+                    if (typeMissing > worstMissing)
                     {
-                        worstMissing = missing;
+                        worstMissing = typeMissing;
                         worstTypeName = $"{typeEl.Name} ({((typeEl as ElementType)?.FamilyName) ?? "?"})";
                     }
                 }
