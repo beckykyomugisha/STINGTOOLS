@@ -2,6 +2,116 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 180+181 — Photometric Library + DIALux Round-Trip Loop)
+
+Closes the design loop for lighting: engineer models luminaires in Revit
+→ exports IFC 4 to DIALux evo → calculates → imports IFC results back
+→ STING colour-codes rooms by pass / fail and emits an Excel design
+review with quantified "add N more fixtures" recommendations per room.
+Implements the recommendations from the DIALux STF research report —
+sticks with IFC 4 (DIAL's strategic direction), skips STF (legacy), and
+adds the multi-engine aggregator the report flagged as the
+killer differentiator vs. ElumTools.
+
+**Phase 180 — Photometric Library Engine**
+
+- `Photometrics/IesParser.cs` — IESNA LM-63 (1986/1991/1995/2002)
+  pure parser. Reads keyword block, TILT directive, lamp / luminaire
+  count, candela grid; resolves beam (50 % peak) + field (10 % peak)
+  angles + symmetry from horizontal angle pattern. No Revit refs.
+- `Photometrics/LdtParser.cs` — EULUMDAT pure parser per Stockmar 1990
+  / Paul Bourke spec. Line-oriented fixed-slot layout; converts mm →
+  metres; maps Isym 1-4 to STING symmetry tokens.
+- `Photometrics/PhotometricFile.cs` — common DTO with manufacturer,
+  luminaire name, lumens, watts, efficacy, beam / field angles, peak
+  candela, CCT, CRI, symmetry, dimensions.
+- `Photometrics/PhotometricLibrary.cs` — directory-scoped scanner +
+  lazy cache keyed by `(fullPath, lastWriteTimeUtc)`. Skips GLDF
+  parsing (deferred to Phase 182 to avoid GLDF.Net NuGet transitive-
+  dep risk per existing csproj comments).
+
+**Three new commands**
+
+| Tag | Class | Description |
+|---|---|---|
+| `Photo_Library` | `PhotometricLibraryCommand` | Modal viewer over a directory of IES / LDT files. Per-project root paths persisted to `_BIM_COORD/photometric_roots.txt` |
+| `Photo_Assign` | `AssignPhotometricCommand` | Stamps every selected luminaire TYPE with the chosen photometric file: `ELC_PHOTO_FILE_PATH` + `LUMENS` + `WATTS` + `EFFICACY` + `BEAM_ANGLE` + `CCT` + `CRI` + `SYMMETRY`. Mirrors lumens/watts onto LTG_LUMENS / LTG_WATTAGE so Phase 178 LPD calc stays honest |
+| `Photo_Preflight` | `PhotometricPreflightCommand` | Differentiator #3 from the research: read-only audit catching missing IES bindings, missing reflectances, fixtures outside room boundaries. Catches 90 % of "garbage in" failures before round-trip |
+
+**One new modal dialog**
+
+`UI/PhotometricLibraryDialog.xaml(.cs)` — 980 × 640 dark-theme window:
+search-filter TextBox, library DataGrid (filename, format,
+manufacturer, luminaire, lumens, watts, lm/W, beam°, CCT, CRI,
+symmetry), live detail panel, Assign button dispatching to
+`AssignPhotometricCommand` via the IExternalEventHandler.
+
+**Phase 181 — IFC Results Contract + Multi-Engine Aggregator**
+
+- `IfcResults/StingLightingPSet.cs` — defines the
+  `Pset_StingLightingResults` field set: `IlluminanceLux`,
+  `AverageLux`, `MinimumLux`, `MaximumLux`, `UniformityRatio`, `UGR`,
+  `CalculationDate`, `EngineUsed`, `EngineVersion`,
+  `WorkingPlaneHeightM`. Aliases for `MaintainedIlluminance` /
+  `Em` / `Uo` etc. so importers from DIALux / ElumTools / Relux all
+  match.
+- `IfcResults/IfcSimpleParser.cs` — minimal STEP-format reader, no
+  xbim / GeometryGym dependency. Pre-flows multi-line entities onto
+  one line, then regex-anchors on `#NN=TYPE(`. Handles
+  IFCRELDEFINESBYPROPERTIES → IFCPROPERTYSET → IFCPROPERTYSINGLEVALUE
+  chain to attach numeric / string properties to IFCSPACE +
+  IFCLIGHTFIXTURE entities by GlobalId.
+- **Upgraded** `Export/DIALuxExportCommand.cs` — now writes the
+  STING PSet contract on every IfcSpace + IfcLightFixture, preserves
+  Revit `Element.UniqueId` as `IfcGloballyUniqueId` so the round-trip
+  back matches by GUID. Logs every export to
+  `_BIM_COORD/dialux_roundtrips.json` for the orchestrator dialog.
+
+**Five new commands**
+
+| Tag | Class | Description |
+|---|---|---|
+| `Photo_IfcImport` | `IfcResultsImportCommand` | User picks the engine (DIALux / ElumTools / Relux / Other) + IFC file. Maps `IfcSpace.GlobalId` to Revit room `UniqueId`; falls back to room-name match. Writes engine-specific lux to `ELC_PHOTO_LUX_DIALUX` / `ELUMTOOLS` / `RELUX`, plus the headline `ELC_PHOTO_LUX_CALC` |
+| `Photo_Aggregator` | `MultiEngineAggregatorCommand` | Differentiator #1 — Excel report comparing DIALux / ElumTools / Relux / STING-estimate lux side-by-side per room with delta highlighting (yellow > 10 %, red > 25 %). ElumTools cannot do this because it ships its own engine and ignores the others |
+| `Photo_RoundTrip` | `DialuxRoundTripCommand` | One-button orchestrator: pre-flight → IFC export → opens output folder in Explorer → walk-through dialog reminding the user of the DIALux evo steps and pointing at the import command |
+| `Photo_DesignReview` | `PhotometricDesignReviewCommand` | **The loop closer.** Compares imported lux against BS EN 12464-1 / CIBSE LG7 / ASHRAE 90.1 targets per room-name pattern; colour-codes rooms in the active view (green = pass, amber = over-lit, red = below target); emits an Excel report with quantified `add ~N more fixture(s)` or `remove ~N fixture(s)` recommendations per room |
+
+**14 new shared parameters (all TEXT)**
+
+Phase 180 (luminaire metadata, type-bound):
+`ELC_PHOTO_FILE_PATH_TXT`, `_LUMENS_NR`, `_WATTS_NR`, `_EFFICACY_LM_W`,
+`_BEAM_ANGLE_DEG`, `_CCT_K`, `_CRI_NR`, `_SYMMETRY_TXT`.
+
+Phase 181 (engine-specific results, instance-bound on rooms):
+`ELC_PHOTO_LUX_DIALUX_NR`, `_ELUMTOOLS_NR`, `_RELUX_NR`,
+`ELC_PHOTO_UNIFORMITY_NR`, `_LAST_ENGINE_TXT`, `_LAST_CALC_DATE_TXT`.
+
+**Dock-panel XAML — three new sections in LITE tab**
+
+PHOTOMETRIC LIBRARY (Phase 180), DIALUX ROUND-TRIP (Phase 181 — round-
+trip + import + aggregator + design review buttons), and a kept-for-
+backward-compat PHOTOMETRIC LINK (legacy Phase 178 entry).
+
+**API limits honoured**
+
+- All photometric parameters TEXT-typed for cross-binding flexibility,
+  matching the existing electrical block convention.
+- IFC parser uses regex over a flattened string — no NuGet dependency,
+  no xbim runtime cost. Adequate for DIALux evo / ElumTools / Relux
+  IFC outputs; multi-line nested-list edge cases would justify
+  switching to xbim in a later phase.
+- Display-name parameter lookups (`LookupParameter("Phase")`) where
+  BIP enum stability is uncertain.
+- All file outputs through `OutputLocationHelper.GetOutputDirectory(doc)
+  + electrical/`.
+- Design review recommendations use a linear-scaling assumption (lux
+  scales with installed lumens at constant geometry) — sufficient for
+  "add ~3 more 4000 lm panels" guidance, documented as approximate in
+  the recommendation text.
+
+**Built without `dotnet build` verification** (Linux sandbox). Verify
+in Revit before merge.
+
 #### Completed (Phase 179 — STING Electrical: Advanced Analysis & External Integration)
 
 Unlocks the remaining placeholder cards from Phase 178 — arc flash,

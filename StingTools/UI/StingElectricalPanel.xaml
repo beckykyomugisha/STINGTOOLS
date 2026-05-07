@@ -1105,12 +1105,48 @@
                             </StackPanel>
                         </Expander>
 
-                        <Expander Header="PHOTOMETRIC LINK" Style="{StaticResource ElecExpander}">
+                        <Expander Header="PHOTOMETRIC LIBRARY (Phase 180)" Style="{StaticResource ElecExpander}" IsExpanded="True">
                             <StackPanel Margin="4">
-                                <TextBlock Text="DIALux evo / ElumTools handoff" FontSize="10" Margin="0,0,0,4"/>
-                                <Button Content="☀ Photometric Link…" Style="{StaticResource ElecPrimaryBtn}"
-                                        Tag="Elec_PhotoLink" Click="Cmd_Click"
-                                        ToolTip="Three-way: import lux + UGR from a DIALux IFC, estimate from connected watts (CIBSE LG7), or open the workflow guide."/>
+                                <TextBlock Text="IES / LDT luminaire library — bind manufacturer photometric data onto Revit families."
+                                           FontSize="10" TextWrapping="Wrap" Margin="0,0,0,4"
+                                           Foreground="{DynamicResource PanelFg}" Opacity="0.7"/>
+                                <Button Content="📚 Open Photometric Library…" Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="Photo_Library" Click="Cmd_Click"
+                                        ToolTip="Modal viewer over a directory of IES / LDT files. Filter, inspect and assign onto selected luminaire types."/>
+                                <Button Content="⚙ Pre-Flight Check" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Photo_Preflight" Click="Cmd_Click"
+                                        ToolTip="Audit every fixture has a bound IES/LDT, every room has reflectances, every fixture is inside a room boundary — before export."/>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="DIALUX ROUND-TRIP (Phase 181)" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="STING → DIALux evo → STING via IFC 4 with the Pset_StingLightingResults contract."
+                                           FontSize="10" TextWrapping="Wrap" Margin="0,0,0,4"
+                                           Foreground="{DynamicResource PanelFg}" Opacity="0.7"/>
+                                <Button Content="🔁 DIALux Round-Trip…" Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="Photo_RoundTrip" Click="Cmd_Click"
+                                        ToolTip="One-button orchestrator: pre-flight → IFC export → walks you through DIALux evo → reminds you to import results."/>
+                                <Button Content="📥 Import IFC Results" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Photo_IfcImport" Click="Cmd_Click"
+                                        ToolTip="Read an IFC file produced by DIALux / ElumTools / Relux and map results back to Revit by GUID + name."/>
+                                <Button Content="📊 Multi-Engine Aggregator" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Photo_Aggregator" Click="Cmd_Click"
+                                        ToolTip="Compare DIALux / ElumTools / Relux / STING-estimate lux side-by-side per room. Excel export with delta highlighting."/>
+                                <Separator Margin="0,8,0,4"/>
+                                <Button Content="🎯 Photometric Design Review" Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="Photo_DesignReview" Click="Cmd_Click"
+                                        ToolTip="Closes the loop — compare imported lux against BS EN 12464-1 / CIBSE / ASHRAE targets, colour-codes rooms in the active view, and produces an Excel report with quantified 'add N more fixtures' recommendations per room."/>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="PHOTOMETRIC LINK (legacy)" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Phase 178 handoff command — superseded by DIALux Round-Trip above. Keep for backward compatibility."
+                                           FontSize="10" TextWrapping="Wrap" Margin="0,0,0,4"
+                                           Foreground="{DynamicResource PanelFg}" Opacity="0.7"/>
+                                <Button Content="☀ Photometric Link…" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Elec_PhotoLink" Click="Cmd_Click"/>
                             </StackPanel>
                         </Expander>
                     </StackPanel>
