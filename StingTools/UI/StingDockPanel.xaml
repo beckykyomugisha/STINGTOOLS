@@ -111,6 +111,7 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel>
                     <TextBlock Text="STINGTOOLS V2.1" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource HeaderFg}"/>
@@ -132,10 +133,18 @@
                         MouseLeftButtonUp="SyncIndicator_Click" Cursor="Hand">
                     <TextBlock x:Name="txtSync" Text="Sync: off" FontSize="9" Foreground="{DynamicResource HeaderFg}" Opacity="0.85"/>
                 </Border>
-                <Button x:Name="btnPin" Grid.Column="4" Content="Pin" Width="30" Height="20"
+                <!-- Standards regional preset indicator. Click opens the region picker (StdExt_SetRegion). -->
+                <Border Grid.Column="4" x:Name="bdrRegion" Background="#33000000" CornerRadius="3" Padding="4,1"
+                        VerticalAlignment="Center" Margin="0,0,6,0"
+                        Cursor="Hand"
+                        MouseLeftButtonUp="RegionIndicator_Click"
+                        ToolTip="Active Standards region — click to switch (BS 7671 / NEC / IEC 60364, ASHRAE / CIBSE, NFPA / BS 9999, Eurocode / AISC, KEBS / UNBS / SANS, …). Persisted to PROJECT_REGION on the document.">
+                    <TextBlock x:Name="txtRegion" Text="Region: —" FontSize="9" Foreground="{DynamicResource HeaderFg}" Opacity="0.85"/>
+                </Border>
+                <Button x:Name="btnPin" Grid.Column="5" Content="Pin" Width="30" Height="20"
                         FontSize="9" Background="{DynamicResource AccentBrush}" Foreground="White" BorderThickness="0"
                         ToolTip="Pin panel" Click="BtnPin_Click" Margin="0,0,2,0"/>
-                <Button Grid.Column="5" Content="&#x2600;" Width="26" Height="20"
+                <Button Grid.Column="6" Content="&#x2600;" Width="26" Height="20"
                         FontSize="13" Background="{DynamicResource AccentBrush}" Foreground="White" BorderThickness="0"
                         ToolTip="Cycle theme: Light / Warm / Cool / Corporate" Tag="CycleTheme" Click="Cmd_Click"/>
             </Grid>
@@ -4502,6 +4511,7 @@
                                         <Button Style="{StaticResource GreenBtn}"  Content="Cover audit"     Tag="Arch_CoverAudit"       Click="Cmd_Click" Width="90"  Height="30" ToolTip="ARCH-06 Fire / moisture / thermal cover audit"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Wind apply"      Tag="StrExt_WindAutoApply"  Click="Cmd_Click" Width="90"  Height="30" ToolTip="STR-03 ASCE 7 / EC 1 wind pressure"/>
                                         <Button Style="{StaticResource OrangeBtn}" Content="Stage audit"     Tag="StdExt_StageCompliance" Click="Cmd_Click" Width="90"  Height="30" ToolTip="STD-01 RIBA 0-7 compliance gate"/>
+                                        <Button Style="{StaticResource GreenBtn}"  Content="Compliance"     Tag="StdExt_RunCompliance"  Click="Cmd_Click" Width="90"  Height="30" ToolTip="Run StandardsComplianceEngine over rooms + doors using the active region's rule pack"/>
                                     </WrapPanel>
                                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                                         <StackPanel Margin="4">

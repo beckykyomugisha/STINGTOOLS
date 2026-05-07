@@ -261,6 +261,7 @@ namespace StingTools.UI
                     case "StdBulk_AccessibleFix":     RunCommand<Commands.StandardsExt.AccessibleFixturesCommand>(app); break;
                     case "StdBulk_EnergyAnalysis":    RunCommand<Commands.StandardsExt.EnergyAnalysisCommand>(app); break;
                     case "StdBulk_SprinklerCriteria": RunCommand<Commands.StandardsExt.SprinklerCriteriaCommand>(app); break;
+                    case "StdExt_RunCompliance":      RunCommand<Commands.StandardsExt.RunStandardsComplianceCommand>(app); break;
 
                     // ── Phase 115: Fabrication Extensions ──
                     case "FabExt_ACCPublish":    RunCommand<Commands.FabricationExt.ACCPublishShopCommand>(app); break;

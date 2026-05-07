@@ -88,6 +88,18 @@ namespace StingTools.UI
             // Pack 0 — reflect current offline state the moment the panel is realised.
             try { UpdateOfflineStatus(StingTools.Core.StingOfflineConfig.IsOffline, StingTools.Core.StingOfflineConfig.Source); }
             catch { /* non-fatal */ }
+
+            // Standards — paint the active region into the header chip and
+            // subscribe to ProjectStandardsManager.StandardsChanged so the
+            // chip updates live whenever a region is applied (SetRegionCommand,
+            // OnDocumentOpened sync, ProjectSetupWizard finish).
+            try
+            {
+                RefreshRegionIndicator();
+                StingTools.Standards.ProjectStandardsManager.Instance.StandardsChanged
+                    += (_, __) => RefreshRegionIndicator();
+            }
+            catch { /* non-fatal */ }
         }
 
         /// <summary>
@@ -945,6 +957,56 @@ namespace StingTools.UI
             {
                 Core.StingLog.Warn($"SyncIndicator_Click failed: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Repaint the active Standards region chip in the header. Reads
+        /// ProjectStandardsManager.Instance and is safe to call from any thread.
+        /// </summary>
+        public void RefreshRegionIndicator()
+        {
+            void Apply()
+            {
+                try
+                {
+                    if (txtRegion == null) return;
+                    var mgr = StingTools.Standards.ProjectStandardsManager.Instance;
+                    string region = mgr?.Region;
+                    txtRegion.Text = string.IsNullOrEmpty(region)
+                        ? "Region: —"
+                        : $"Region: {region}";
+                    if (bdrRegion != null && mgr != null)
+                    {
+                        bdrRegion.ToolTip =
+                            $"Active Standards region: {region ?? "(unset)"}.\n" +
+                            $"Electrical: {mgr.ElectricalStandard}\n" +
+                            $"HVAC: {mgr.HVACStandard}\n" +
+                            $"Plumbing: {mgr.PlumbingStandard}\n" +
+                            $"Structural: {mgr.StructuralStandard}\n" +
+                            $"Fire: {mgr.FireProtectionStandard}\n" +
+                            $"Lighting: {mgr.LightingStandard}\n" +
+                            $"Energy: {mgr.EnergyStandard}\n" +
+                            $"Units: {mgr.UnitSystem}\n\n" +
+                            "Click to switch (writes PROJECT_REGION onto ProjectInformation).";
+                    }
+                }
+                catch (System.Exception ex) { Core.StingLog.Warn($"RefreshRegionIndicator: {ex.Message}"); }
+            }
+            if (Dispatcher.CheckAccess()) Apply();
+            else Dispatcher.BeginInvoke(new System.Action(Apply));
+        }
+
+        // Region chip click — fires StdExt_SetRegion via the existing handler.
+        // The command's ApplyRegionalPreset triggers StandardsChanged which
+        // refreshes the chip automatically.
+        private void RegionIndicator_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            try
+            {
+                _handler?.SetCommand("StdExt_SetRegion");
+                _externalEvent?.Raise();
+            }
+            catch (System.Exception ex) { Core.StingLog.Warn($"RegionIndicator_Click: {ex.Message}"); }
         }
 
         /// <summary>

@@ -54,6 +54,16 @@ namespace StingTools.Core
                 // loads later in OnDocumentOpened and can flip the flag off.
                 StingOfflineConfig.ApplyDefaults();
 
+                // Wire the Standards library's pluggable log sink to StingLog so
+                // StandardsComplianceEngine messages land in the same log file as
+                // the rest of the plugin (replaces the old NLog dependency).
+                StingTools.Standards.Compliance.StandardsLog.Sink = (lvl, msg, ex) =>
+                {
+                    if (lvl == StingTools.Standards.Compliance.StandardsLogLevel.Info) StingLog.Info(msg);
+                    else if (lvl == StingTools.Standards.Compliance.StandardsLogLevel.Warn) StingLog.Warn(msg);
+                    else StingLog.Error(msg, ex);
+                };
+
                 // Pack 7 — wire the DocumentChanged cascade handler (room
                 // renumbers, level changes, sheet ISO violations). Gated by
                 // StingOfflineConfig.RealtimeCascadesEnabled at callback time.
@@ -407,6 +417,34 @@ namespace StingTools.Core
                 // FIX-C01: Reset selection scope to view-only on document switch
                 // Prevents stale project-wide scope from carrying over between projects
                 Select.SelectionScopeHelper.SetScope(false);
+
+                // Standards: sync ProjectStandardsManager from this document.
+                // The manager persists to %APPDATA% (per-user, not per-project)
+                // so without a per-project hint, opening a different .rvt keeps
+                // the previous region's electrical / fire / structural bindings
+                // active. Read order: PROJECT_REGION param → sidecar JSON next
+                // to the .rvt → leave singleton unchanged.
+                try
+                {
+                    var pi = e.Document?.ProjectInformation;
+                    string projectRegion = pi?.LookupParameter("PROJECT_REGION")?.AsString();
+                    string source = "PROJECT_REGION";
+                    if (string.IsNullOrWhiteSpace(projectRegion))
+                    {
+                        projectRegion = ProjectRegionSidecar.Read(e.Document);
+                        source = "sting_region.json";
+                    }
+                    if (!string.IsNullOrWhiteSpace(projectRegion))
+                    {
+                        var mgr = StingTools.Standards.ProjectStandardsManager.Instance;
+                        if (!string.Equals(mgr.Region, projectRegion, StringComparison.OrdinalIgnoreCase))
+                        {
+                            mgr.ApplyRegionalPreset(projectRegion);
+                            StingLog.Info($"Standards: synced active region → {projectRegion} (from {source})");
+                        }
+                    }
+                }
+                catch (Exception regEx) { StingLog.Warn($"Standards region sync skipped: {regEx.Message}"); }
 
                 // C4 / G1.3: Reload TagConfig on document open — prefer project-adjacent config
                 // to prevent config bleed between projects
@@ -1582,9 +1620,12 @@ namespace StingTools.Core
                 ("Placement_Open",       "Placement",     "PC", DrawingColor.Goldenrod,    typeof(HubPlacementCommand).FullName),
                 ("StructuralDWGWizard",  "Struct Wizard", "SW", DrawingColor.SlateGray,    typeof(HubStructuralDwgWizardCommand).FullName),
                 ("Scheduling_Dashboard", "Scheduling",    "SD", DrawingColor.MidnightBlue, typeof(HubSchedulingDashboardCommand).FullName),
+                ("Tag3D",                "3D Tag",        "T3", DrawingColor.Crimson,      typeof(HubTag3DCommand).FullName),
+                ("CreateTagFamilies",    "Tag Families",  "TF", DrawingColor.DarkCyan,     typeof(HubCreateTagFamiliesCommand).FullName),
+                ("AutoTag",              "Auto Tag",      "AT", DrawingColor.DarkGreen,    typeof(HubAutoTagCommand).FullName),
             };
 
-            var buttons = new List<PushButtonData>(9);
+            var buttons = new List<PushButtonData>(12);
             foreach (var s in specs)
             {
                 var data = new PushButtonData("Hub_" + s.tag, s.label, asm, s.cls)
@@ -1608,6 +1649,7 @@ namespace StingTools.Core
                 panel.AddStackedItems(buttons[0], buttons[1], buttons[2]);
                 panel.AddStackedItems(buttons[3], buttons[4], buttons[5]);
                 panel.AddStackedItems(buttons[6], buttons[7], buttons[8]);
+                panel.AddStackedItems(buttons[9], buttons[10], buttons[11]);
             }
             catch (Exception ex)
             {
@@ -1689,7 +1731,7 @@ namespace StingTools.Core
     public class HubBIMCoordCenterCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
-            => HubDispatcher.Run("BIMCoordCenter_Open", ref message);
+            => HubDispatcher.Run("BIMCoordinationCenter", ref message);
     }
 
     [Transaction(TransactionMode.ReadOnly)]
@@ -1697,7 +1739,7 @@ namespace StingTools.Core
     public class HubSheetManagerCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
-            => HubDispatcher.Run("SheetManager_Open", ref message);
+            => HubDispatcher.Run("SheetManager", ref message);
     }
 
     [Transaction(TransactionMode.ReadOnly)]
@@ -1705,7 +1747,7 @@ namespace StingTools.Core
     public class HubDrawingTypesCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
-            => HubDispatcher.Run("DrawingTypes_Edit", ref message);
+            => HubDispatcher.Run("DrawingTypes_Editor", ref message);
     }
 
     [Transaction(TransactionMode.ReadOnly)]
@@ -1713,7 +1755,7 @@ namespace StingTools.Core
     public class HubDocumentMgmtCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
-            => HubDispatcher.Run("DocumentMgmt_Open", ref message);
+            => HubDispatcher.Run("DocumentManager", ref message);
     }
 
     [Transaction(TransactionMode.ReadOnly)]
@@ -1721,7 +1763,7 @@ namespace StingTools.Core
     public class HubBoqExportCostCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
-            => HubDispatcher.Run("BOQ_ExportCost", ref message);
+            => HubDispatcher.Run("BOQCostManager", ref message);
     }
 
     [Transaction(TransactionMode.ReadOnly)]
@@ -1729,7 +1771,7 @@ namespace StingTools.Core
     public class HubFabricationCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
-            => HubDispatcher.Run("Fabrication_Open", ref message);
+            => HubDispatcher.Run("Fabrication_OpenWorkspace", ref message);
     }
 
     [Transaction(TransactionMode.ReadOnly)]
@@ -1737,7 +1779,7 @@ namespace StingTools.Core
     public class HubPlacementCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
-            => HubDispatcher.Run("Placement_Open", ref message);
+            => HubDispatcher.Run("Placement_OpenCentre", ref message);
     }
 
     [Transaction(TransactionMode.ReadOnly)]
@@ -1745,7 +1787,7 @@ namespace StingTools.Core
     public class HubStructuralDwgWizardCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
-            => HubDispatcher.Run("StructuralDWGWizard", ref message);
+            => HubDispatcher.Run("StrCADWizard", ref message);
     }
 
     [Transaction(TransactionMode.ReadOnly)]
@@ -1753,6 +1795,30 @@ namespace StingTools.Core
     public class HubSchedulingDashboardCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
-            => HubDispatcher.Run("Scheduling_Dashboard", ref message);
+            => HubDispatcher.Run("AutoSchedule4D", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubTag3DCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("Tag3D", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubCreateTagFamiliesCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("CreateTagFamilies", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubAutoTagCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("AutoTag", ref message);
     }
 }

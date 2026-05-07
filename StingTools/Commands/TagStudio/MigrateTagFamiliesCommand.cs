@@ -84,19 +84,37 @@ namespace StingTools.Commands.TagStudio
                 $"For each family this will:\n" +
                 $"  • Add ~{TagFamilyConfig.StyleParams.Length + TagFamilyConfig.VisibilityParams.Length} style & visibility params (if missing)\n" +
                 $"  • Create up to {variants.Count} standard type variants\n" +
+                $"  • Author T4..T10 tier rows + warning gates from the active mode CSV\n" +
                 $"  • Assign arrowheads by name (OST_ArrowHeads)\n\n" +
+                $"T1..T3 hand-edited rows are preserved (PreserveHandEdits=on).\n\n" +
                 $"Runtime: ~3–8 minutes for {stingFamilies.Count} families.\n" +
                 $"Press Escape at any time to cancel.";
-            confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
-            if (confirm.Show() == TaskDialogResult.Cancel) return Result.Cancelled;
+            confirm.CommonButtons = TaskDialogCommonButtons.Cancel;
+            confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Upgrade in place (preserve T1..T3 hand-edits)",
+                "Add missing params, types, and author T4..T10 + warning rows from the CSV. " +
+                "Existing hand-configured rows in T1..T3 are detected and left untouched.");
+            confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Upgrade and overwrite ALL tier rows",
+                "As above, but rebuild every T4..T10 row from the CSV without preservation. " +
+                "Use only if you want a clean re-author.");
+            TaskDialogResult mig = confirm.Show();
+            if (mig == TaskDialogResult.Cancel) return Result.Cancelled;
+            bool preserveHandEdits = (mig == TaskDialogResult.CommandLink1);
 
             // ── Pre-resolve arrowhead types in the project ──
             var arrowheads = BuildArrowheadLookup(doc);
+
+            // ── Pre-load TierPlans for active mode + every available mode (dual-wire) ──
+            Dictionary<string, Dictionary<string, TierPlan>> plansByMode =
+                TagConfigPlanResolver.LoadAllPerMode(doc);
+            Dictionary<string, TierPlan> plansByFamily = TagConfigPlanResolver.LoadAll(doc);
 
             var rows = new List<List<string>>();
             var progress = StingProgressDialog.Show("Migrate Tag Families", stingFamilies.Count);
             int migrated = 0, failed = 0, cancelled = 0;
             int totalParamsAdded = 0, totalTypesCreated = 0;
+            int totalFormulasApplied = 0, totalTiersPreserved = 0, totalNoPlan = 0;
             string originalSharedFile = app.SharedParametersFilename;
 
             try
@@ -117,9 +135,13 @@ namespace StingTools.Commands.TagStudio
                     string catName = fam.FamilyCategory?.Name ?? "";
                     progress.Increment($"Migrating {famName} ({i + 1}/{stingFamilies.Count})");
 
-                    var result = MigrateOne(doc, app, sharedParamFile, fam, variants, arrowheads);
+                    var result = MigrateOne(doc, app, sharedParamFile, fam, variants, arrowheads,
+                        plansByMode, plansByFamily, preserveHandEdits);
                     totalParamsAdded += result.ParamsAdded;
                     totalTypesCreated += result.TypesCreated;
+                    totalFormulasApplied += result.FormulasApplied;
+                    totalTiersPreserved += result.TiersPreserved;
+                    if (!result.HadPlan) totalNoPlan++;
                     if (result.Success) migrated++; else failed++;
 
                     rows.Add(new List<string>
@@ -128,6 +150,8 @@ namespace StingTools.Commands.TagStudio
                         catName,
                         result.ParamsAdded.ToString(),
                         result.TypesCreated.ToString(),
+                        result.HadPlan ? result.FormulasApplied.ToString() : "—",
+                        result.HadPlan ? result.TiersPreserved.ToString() : "—",
                         result.Success ? "OK" : "FAILED",
                         result.ErrorMessage ?? ""
                     });
@@ -148,7 +172,8 @@ namespace StingTools.Commands.TagStudio
                 xlsx = Path.Combine(outDir, $"STING_MigrateTagFamilies_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
                 StingExcelExporter.ExportTable(
                     xlsx, "Migration",
-                    new List<string> { "Family", "Category", "ParamsAdded", "TypesCreated", "Status", "Error" },
+                    new List<string> { "Family", "Category", "ParamsAdded", "TypesCreated",
+                                       "FormulasApplied", "TiersPreserved", "Status", "Error" },
                     rows, openFolder: false);
             }
             catch (Exception ex) { StingLog.Warn($"Excel export: {ex.Message}"); }
@@ -158,13 +183,17 @@ namespace StingTools.Commands.TagStudio
             td.MainContent =
                 $"Params added: {totalParamsAdded}\n" +
                 $"Types created: {totalTypesCreated}\n" +
+                $"T4..T10 formulas applied: {totalFormulasApplied}\n" +
+                $"Tiers preserved (hand-edits): {totalTiersPreserved}\n" +
+                $"Families without a CSV plan: {totalNoPlan}\n" +
                 $"Failed: {failed}\n" +
                 $"Cancelled: {cancelled}\n\n" +
                 (xlsx != null ? $"Report: {xlsx}" : "");
             td.Show();
 
             StingLog.Info($"MigrateTagFamilies: migrated={migrated}, failed={failed}, " +
-                $"cancelled={cancelled}, paramsAdded={totalParamsAdded}, typesCreated={totalTypesCreated}");
+                $"cancelled={cancelled}, paramsAdded={totalParamsAdded}, typesCreated={totalTypesCreated}, " +
+                $"formulasApplied={totalFormulasApplied}, tiersPreserved={totalTiersPreserved}, noPlan={totalNoPlan}");
             return Result.Succeeded;
         }
 
@@ -176,6 +205,9 @@ namespace StingTools.Commands.TagStudio
         {
             public int ParamsAdded;
             public int TypesCreated;
+            public int FormulasApplied;
+            public int TiersPreserved;
+            public bool HadPlan;
             public bool Success;
             public string ErrorMessage;
         }
@@ -183,7 +215,10 @@ namespace StingTools.Commands.TagStudio
         private MigrationResult MigrateOne(
             Document doc, Autodesk.Revit.ApplicationServices.Application app,
             string sharedParamFile, Family fam,
-            List<TypeVariantSpec> variants, Dictionary<string, ElementId> arrowheads)
+            List<TypeVariantSpec> variants, Dictionary<string, ElementId> arrowheads,
+            Dictionary<string, Dictionary<string, TierPlan>> plansByMode,
+            Dictionary<string, TierPlan> plansByFamily,
+            bool preserveHandEdits)
         {
             var result = new MigrationResult();
             Document famDoc = null;
@@ -219,6 +254,58 @@ namespace StingTools.Commands.TagStudio
                     result.TypesCreated = CreateStandardVariants(fm, variants, arrowheads);
 
                     tx.Commit();
+                }
+
+                // ── Author T4..T10 tier rows + warning gates from CSV plan ──
+                // FamilyLabelAuthor handles its own transactions internally and
+                // detects already-bound tiers when PreserveHandEdits=true so
+                // T1..T3 hand-configured rows are left untouched.
+                var modePlans = new List<FamilyLabelAuthor.ModePlan>();
+                if (plansByMode != null)
+                {
+                    foreach (var kv in plansByMode)
+                    {
+                        if (kv.Value == null) continue;
+                        if (!kv.Value.TryGetValue(fam.Name, out TierPlan plan) || plan == null) continue;
+                        modePlans.Add(new FamilyLabelAuthor.ModePlan
+                        {
+                            Mode = kv.Key,
+                            GateParam = HandoverModeHelper.GetSelectorBool(kv.Key),
+                            Plan = plan,
+                        });
+                    }
+                }
+                if (modePlans.Count == 0 && plansByFamily != null &&
+                    plansByFamily.TryGetValue(fam.Name, out TierPlan single) && single != null)
+                {
+                    modePlans.Add(new FamilyLabelAuthor.ModePlan { Mode = "", GateParam = null, Plan = single });
+                }
+
+                if (modePlans.Count > 0)
+                {
+                    result.HadPlan = true;
+                    try
+                    {
+                        var opts = new FamilyLabelAuthor.Options
+                        {
+                            App = app,
+                            SharedParamFile = sharedParamFile,
+                            PreserveHandEdits = preserveHandEdits,
+                            FamilyName = fam.Name,
+                        };
+                        var ar = FamilyLabelAuthor.AuthorLabelsMulti(famDoc, modePlans, opts);
+                        result.FormulasApplied = ar.FormulasApplied;
+                        result.TiersPreserved = ar.TiersPreserved;
+                        foreach (var w in ar.Warnings) StingLog.Warn($"{fam.Name}: {w}");
+                    }
+                    catch (Exception authEx)
+                    {
+                        StingLog.Error($"MigrateTagFamilies AuthorLabelsMulti({fam.Name})", authEx);
+                    }
+                }
+                else
+                {
+                    StingLog.Info($"MigrateTagFamilies: no CSV plan for {fam.Name} — params + types only");
                 }
 
                 // Save to the family's stored path if known, else a temp file next to the plugin.

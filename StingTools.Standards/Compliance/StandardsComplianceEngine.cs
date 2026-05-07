@@ -10,17 +10,30 @@ using System.IO;
 using System.Linq;
 using CsvHelper;
 using CsvHelper.Configuration;
-using NLog;
 
 namespace StingTools.Standards.Compliance
 {
+    // Pluggable log sink; default no-op so the library has no third-party
+    // logging dependency. Hosts (e.g. StingTools plugin) install StingLog
+    // by setting StandardsLog.Sink at startup.
+    public enum StandardsLogLevel { Info, Warn, Error }
+
+    public static class StandardsLog
+    {
+        public static Action<StandardsLogLevel, string, Exception> Sink { get; set; } =
+            (_, __, ___) => { };
+        internal static void Info(string m)               => Sink(StandardsLogLevel.Info, m, null);
+        internal static void Warn(string m)               => Sink(StandardsLogLevel.Warn, m, null);
+        internal static void Warn(Exception ex, string m) => Sink(StandardsLogLevel.Warn, m, ex);
+        internal static void Error(Exception ex, string m)=> Sink(StandardsLogLevel.Error, m, ex);
+    }
+
     /// <summary>
     /// Compliance engine for checking designs against building standards.
     /// Supports IBC, ASHRAE, ADA, ISO 19650, and regional codes.
     /// </summary>
     public class StandardsComplianceEngine
     {
-        private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
         private readonly Dictionary<string, BuildingStandard> _standards;
         private readonly Dictionary<string, List<ComplianceRule>> _rulesByStandard;
         private readonly List<string> _enabledStandards;
@@ -41,7 +54,7 @@ namespace StingTools.Standards.Compliance
         {
             if (!File.Exists(filePath))
             {
-                Logger.Warn($"Standards file not found: {filePath}");
+                StandardsLog.Warn($"Standards file not found: {filePath}");
                 return;
             }
 
@@ -64,11 +77,11 @@ namespace StingTools.Standards.Compliance
                     AddRule(rule);
                 }
 
-                Logger.Info($"Loaded standards from {filePath}");
+                StandardsLog.Info($"Loaded standards from {filePath}");
             }
             catch (Exception ex)
             {
-                Logger.Error(ex, $"Failed to load standards from {filePath}");
+                StandardsLog.Error(ex, $"Failed to load standards from {filePath}");
             }
         }
 
@@ -80,7 +93,7 @@ namespace StingTools.Standards.Compliance
             if (!_enabledStandards.Contains(standardCode, StringComparer.OrdinalIgnoreCase))
             {
                 _enabledStandards.Add(standardCode);
-                Logger.Info($"Enabled standard: {standardCode}");
+                StandardsLog.Info($"Enabled standard: {standardCode}");
             }
         }
 
@@ -90,7 +103,7 @@ namespace StingTools.Standards.Compliance
         public void DisableStandard(string standardCode)
         {
             _enabledStandards.RemoveAll(s => s.Equals(standardCode, StringComparison.OrdinalIgnoreCase));
-            Logger.Info($"Disabled standard: {standardCode}");
+            StandardsLog.Info($"Disabled standard: {standardCode}");
         }
 
         /// <summary>
@@ -405,7 +418,7 @@ namespace StingTools.Standards.Compliance
             {
                 result.IsCompliant = false;
                 result.Message = $"Error evaluating rule: {ex.Message}";
-                Logger.Warn(ex, $"Failed to evaluate rule {rule.Id}");
+                StandardsLog.Warn(ex, $"Failed to evaluate rule {rule.Id}");
             }
 
             return result;

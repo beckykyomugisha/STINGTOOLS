@@ -54,10 +54,12 @@ namespace StingTools.Commands.MepDesign
                             double currentA = ReadNamed(el, new[] { "Apparent Current", "Current", "Total Installed Current" });
                             if (voltageV <= 0 || currentA <= 0) { skipped++; continue; }
 
+                            // Region-aware: BS 7671 / IEC 60364 / NEC 310 driven by the active project region.
+                            string elecStd = ProjectStandardsManager.Instance.GetStandardForDiscipline(StandardsDiscipline.Electrical);
                             var res = StingTools.Standards.StandardsAPI.CalculateCableSize(
                                 voltageV: voltageV, currentA: currentA, lengthM: v[0],
                                 conductorType: "Copper", insulationType: "THHN",
-                                conduitFill: (int)v[2], ambientTempC: v[1], standard: "IEC60364");
+                                conduitFill: (int)v[2], ambientTempC: v[1], standard: elecStd);
                             if (!res.Success || string.IsNullOrEmpty(res.SizeAWG)) { skipped++; continue; }
 
                             var p = el.LookupParameter("CABLE_SIZE") ??
