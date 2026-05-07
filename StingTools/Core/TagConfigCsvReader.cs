@@ -28,8 +28,10 @@ namespace StingTools.Core
             new Regex(@"^T(?<n>\d{1,2})$",
                 RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
-        // Sentinel that ends a family's data rows. Matches the "⚠ WARNING PARAMETERS"
-        // banner the regenerator emits after the last tier row of each family.
+        // Sentinel that opens a family's warning block. Matches the
+        // "⚠ WARNING PARAMETERS" banner the regenerator emits after the last
+        // tier row of each family. Rows after this banner (until the next
+        // family header) are absorbed into TierPlan.WarningRows.
         private const string WarningBanner = "⚠ WARNING PARAMETERS";
 
         // Column indexes inside the v5 data header:
@@ -45,6 +47,18 @@ namespace StingTools.Core
         private const int ColColor     = 12;
         private const int ColSize      = 13;
         private const int MinColumns   = 14;
+
+        // Column indexes inside the v5 warning header:
+        //   #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+        private const int WarnColSev       = 1;
+        private const int WarnColParameter = 2;
+        private const int WarnColThreshold = 3;
+        private const int WarnColStandard  = 4;
+        private const int WarnColDisc      = 5;
+        private const int WarnColType      = 6;
+        private const int WarnColName      = 7;
+        private const int WarnColFormula   = 8;
+        private const int WarnMinColumns   = 9;
 
         /// <summary>
         /// Load one CSV file and return a dictionary of family name → <see cref="TierPlan"/>.
@@ -94,6 +108,7 @@ namespace StingTools.Core
 
             string currentFamily = null;
             TierPlan currentPlan = null;
+            bool inWarnings = false;
             int lineNo = 0;
 
             foreach (var raw in lines)
@@ -108,17 +123,16 @@ namespace StingTools.Core
                     continue;
                 if (trimmed.StartsWith(WarningBanner))
                 {
-                    // Warning rows follow this banner. They do not contribute to
-                    // TierPlan, but they may be followed by more family blocks
-                    // in the same file — so we just close the current family
-                    // and keep scanning.
-                    currentFamily = null;
-                    currentPlan = null;
+                    // Warning rows follow this banner. Stay inside the current
+                    // family and route subsequent rows to TryAbsorbWarningRow.
+                    // The next family header (FamilyHeaderRegex match below)
+                    // closes the warning block and starts a fresh family.
+                    inWarnings = true;
                     continue;
                 }
 
                 // Family block start? Commits the previous plan (if any) and
-                // opens a fresh one.
+                // opens a fresh one. Also clears the warning flag.
                 var famMatch = FamilyHeaderRegex.Match(raw);
                 if (famMatch.Success)
                 {
@@ -132,6 +146,7 @@ namespace StingTools.Core
                         T7 = TierState.Omit, T8 = TierState.Omit, T9 = TierState.Omit,
                         T10 = TierState.Omit,
                     };
+                    inWarnings = false;
                     continue;
                 }
 
@@ -139,7 +154,10 @@ namespace StingTools.Core
                 if (trimmed.StartsWith("#,")) continue;
 
                 if (currentPlan == null) continue; // pre-amble rows before the first family
-                TryAbsorbRow(raw, currentPlan, sourcePath, lineNo);
+                if (inWarnings)
+                    TryAbsorbWarningRow(raw, currentPlan, sourcePath, lineNo);
+                else
+                    TryAbsorbRow(raw, currentPlan, sourcePath, lineNo);
             }
 
             if (!string.IsNullOrEmpty(currentFamily) && currentPlan != null)
@@ -193,6 +211,41 @@ namespace StingTools.Core
                 case 9:  plan.T9Rows.Add(row);  plan.T9  = TierState.Replace; break;
                 case 10: plan.T10Rows.Add(row); plan.T10 = TierState.Replace; break;
             }
+        }
+
+        private static void TryAbsorbWarningRow(string rawLine, TierPlan plan, string sourcePath, int lineNo)
+        {
+            string[] cols;
+            try { cols = ParseCsvLine(rawLine); }
+            catch (Exception ex)
+            {
+                try { StingLog.Warn($"TagConfigCsvReader (warning): malformed row at {sourcePath ?? "(in-memory)"}:{lineNo} — {ex.Message}"); }
+                catch { /* swallow — reader must stay pure */ }
+                return;
+            }
+            if (cols.Length < WarnMinColumns) return;
+
+            // Must start with an integer index ("1", "2", …) — guards against
+            // section banners, blank rows, or stray prose between blocks.
+            if (!int.TryParse((cols[0] ?? string.Empty).Trim(), out _)) return;
+
+            string param = cols[WarnColParameter].Trim();
+            if (string.IsNullOrEmpty(param)) return;
+            // Only WARN_-prefixed parameters belong here. Anything else is
+            // either a stray tier row or a hand-written note — skip silently.
+            if (!param.StartsWith("WARN_", StringComparison.Ordinal)) return;
+
+            plan.WarningRows.Add(new WarningRow
+            {
+                Severity   = (cols[WarnColSev]       ?? string.Empty).Trim(),
+                Parameter  = param,
+                Threshold  = (cols[WarnColThreshold] ?? string.Empty).Trim(),
+                Standard   = (cols[WarnColStandard]  ?? string.Empty).Trim(),
+                Discipline = (cols[WarnColDisc]      ?? string.Empty).Trim(),
+                Type       = (cols[WarnColType]      ?? string.Empty).Trim(),
+                Name       = (cols[WarnColName]      ?? string.Empty).Trim(),
+                Formula    = (cols[WarnColFormula]   ?? string.Empty).Trim(),
+            });
         }
 
         private static TierPlan Finalise(TierPlan plan) => plan;
