@@ -75,6 +75,7 @@ namespace StingTools.Core
 
                 // Register the dockable panel — the single unified UI
                 RegisterDockablePanel(application);
+                RegisterElectricalPanel(application);
 
                 // Register the real-time auto-tagger (IUpdater) — starts disabled
                 StingAutoTagger.Register(application);
@@ -1367,6 +1368,37 @@ namespace StingTools.Core
             }
         }
 
+        // ── Phase 177 — STING Electrical Center registration ────────────
+
+        /// <summary>
+        /// Register the STING Electrical Center as a second dockable panel
+        /// (tabbed behind the Properties palette so it sits alongside the
+        /// main panel) plus a ribbon button to toggle it.
+        /// </summary>
+        private void RegisterElectricalPanel(UIControlledApplication application)
+        {
+            try
+            {
+                var provider = new StingTools.UI.StingElectricalPanelProvider();
+                application.RegisterDockablePane(
+                    StingTools.UI.StingElectricalPanelProvider.PaneId,
+                    "⚡ STING Electrical",
+                    provider);
+
+                const string tabName = "STING Tools";
+                string asmPath = AssemblyPath;
+                var elecPanel = application.CreateRibbonPanel(tabName, "⚡ Electrical");
+                AddButton(elecPanel, "btnToggleElectrical", "STING\nElectrical",
+                    asmPath, typeof(ToggleElectricalPanelCommand).FullName,
+                    "Show/hide the STING Electrical Center dockable panel.");
+                StingLog.Info("Electrical dockable panel registered successfully");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Failed to register Electrical dockable panel", ex);
+            }
+        }
+
         /* Ribbon panels removed — all commands now accessible via the dockable panel.
            Original panels: Select (22 cmds), Docs (17 cmds), Tags (28 cmds),
            Organise (32 cmds), Temp (64 cmds). */
@@ -1691,6 +1723,39 @@ namespace StingTools.Core
             catch (Exception ex)
             {
                 StingLog.Error("Toggle dockable panel failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Phase 177 — toggle the STING Electrical Center dockable panel from the
+    /// "⚡ Electrical" ribbon button. Mirrors <see cref="ToggleDockPanelCommand"/>
+    /// but targets the electrical pane GUID.
+    /// </summary>
+    [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.ReadOnly)]
+    public class ToggleElectricalPanelCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var pane = ParameterHelpers.GetApp(commandData)
+                    .GetDockablePane(StingTools.UI.StingElectricalPanelProvider.PaneId);
+                if (pane == null)
+                {
+                    TaskDialog.Show("STING Electrical",
+                        "Electrical panel not found. Restart Revit to register it.");
+                    return Result.Failed;
+                }
+                if (pane.IsShown()) pane.Hide(); else pane.Show();
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Toggle Electrical panel failed", ex);
                 message = ex.Message;
                 return Result.Failed;
             }

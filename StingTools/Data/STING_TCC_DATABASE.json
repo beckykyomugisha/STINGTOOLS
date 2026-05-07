@@ -1,0 +1,26 @@
+{
+  "_comment": "Time-current curve data for selective coordination checks. Phase 179. Extend with manufacturer-specific data when project demands.",
+  "_standard": "Generic Type B/C/D MCB / MCCB / ACB clearing-time curves (BS EN 60898-1, BS EN 60947-2, IEC 60364)",
+  "defaultClearingMs": 100,
+  "entries": [
+    { "deviceLabel": "6A",   "type": "MCB-B", "clearingMs_At_10xIn": 10, "minFaultKa": 0.05, "maxFaultKa": 6 },
+    { "deviceLabel": "10A",  "type": "MCB-B", "clearingMs_At_10xIn": 10, "minFaultKa": 0.05, "maxFaultKa": 6 },
+    { "deviceLabel": "16A",  "type": "MCB-C", "clearingMs_At_10xIn": 10, "minFaultKa": 0.05, "maxFaultKa": 6 },
+    { "deviceLabel": "20A",  "type": "MCB-C", "clearingMs_At_10xIn": 10, "minFaultKa": 0.05, "maxFaultKa": 10 },
+    { "deviceLabel": "25A",  "type": "MCB-C", "clearingMs_At_10xIn": 10, "minFaultKa": 0.05, "maxFaultKa": 10 },
+    { "deviceLabel": "32A",  "type": "MCB-C", "clearingMs_At_10xIn": 10, "minFaultKa": 0.05, "maxFaultKa": 10 },
+    { "deviceLabel": "40A",  "type": "MCB-C", "clearingMs_At_10xIn": 10, "minFaultKa": 0.05, "maxFaultKa": 10 },
+    { "deviceLabel": "50A",  "type": "MCB-D", "clearingMs_At_10xIn": 10, "minFaultKa": 0.05, "maxFaultKa": 10 },
+    { "deviceLabel": "63A",  "type": "MCCB",  "clearingMs_At_10xIn": 20, "minFaultKa": 0.1,  "maxFaultKa": 25 },
+    { "deviceLabel": "80A",  "type": "MCCB",  "clearingMs_At_10xIn": 20, "minFaultKa": 0.1,  "maxFaultKa": 25 },
+    { "deviceLabel": "100A", "type": "MCCB",  "clearingMs_At_10xIn": 20, "minFaultKa": 0.1,  "maxFaultKa": 36 },
+    { "deviceLabel": "125A", "type": "MCCB",  "clearingMs_At_10xIn": 20, "minFaultKa": 0.1,  "maxFaultKa": 36 },
+    { "deviceLabel": "160A", "type": "MCCB",  "clearingMs_At_10xIn": 25, "minFaultKa": 0.1,  "maxFaultKa": 50 },
+    { "deviceLabel": "200A", "type": "ACB",   "clearingMs_At_10xIn": 50, "minFaultKa": 0.1,  "maxFaultKa": 65 },
+    { "deviceLabel": "250A", "type": "ACB",   "clearingMs_At_10xIn": 50, "minFaultKa": 0.1,  "maxFaultKa": 65 },
+    { "deviceLabel": "400A", "type": "ACB",   "clearingMs_At_10xIn": 50, "minFaultKa": 0.1,  "maxFaultKa": 85 },
+    { "deviceLabel": "630A", "type": "ACB",   "clearingMs_At_10xIn": 60, "minFaultKa": 0.1,  "maxFaultKa": 100 },
+    { "deviceLabel": "800A", "type": "ACB",   "clearingMs_At_10xIn": 60, "minFaultKa": 0.1,  "maxFaultKa": 100 }
+  ],
+  "curves": []
+}

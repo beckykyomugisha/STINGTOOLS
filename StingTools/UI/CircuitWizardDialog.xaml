@@ -1,0 +1,158 @@
+<Window x:Class="StingTools.UI.CircuitWizardDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="⚡ STING Circuit Wizard"
+        Width="900" Height="680" MinWidth="700" MinHeight="500"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource PrimaryBg}">
+    <Window.Resources>
+        <Style x:Key="WzLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Margin" Value="0,2,4,2"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+        </Style>
+        <Style x:Key="WzHeader" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Margin" Value="0,8,0,4"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+        <Style x:Key="WzPrimaryBtn" TargetType="Button">
+            <Setter Property="MinWidth" Value="120"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="Background" Value="#FF1976D2"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+        <Style x:Key="WzActionBtn" TargetType="Button">
+            <Setter Property="MinWidth" Value="80"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="FontSize" Value="10"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="280"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Step 1: source selection -->
+        <Border Grid.Row="0" Grid.Column="0" Background="{DynamicResource SecondaryBg}" Padding="10">
+            <StackPanel>
+                <TextBlock Text="1. TARGET PANEL" Style="{StaticResource WzHeader}"/>
+                <ComboBox x:Name="cmbWzPanel" FontSize="10" Margin="0,2"/>
+
+                <TextBlock Text="2. SCOPE" Style="{StaticResource WzHeader}"/>
+                <RadioButton x:Name="rbScopeSelection" GroupName="WzScope" Content="Selected elements"
+                             IsChecked="True" FontSize="10" Margin="0,2"/>
+                <RadioButton x:Name="rbScopeRoom"      GroupName="WzScope" Content="Room"        FontSize="10" Margin="0,2"/>
+                <RadioButton x:Name="rbScopeZone"      GroupName="WzScope" Content="Zone"        FontSize="10" Margin="0,2"/>
+                <ComboBox x:Name="cmbWzScopePicker" FontSize="10" Margin="0,2" IsEnabled="False"/>
+
+                <TextBlock Text="3. OPTIONS" Style="{StaticResource WzHeader}"/>
+                <StackPanel Orientation="Horizontal" Margin="0,2">
+                    <TextBlock Text="Max load %" Style="{StaticResource WzLabel}"/>
+                    <TextBox x:Name="txtMaxLoadPct" Text="80" Width="50" FontSize="10"/>
+                </StackPanel>
+                <TextBlock Text="Standard" Style="{StaticResource WzLabel}"/>
+                <ComboBox x:Name="cmbWzStandard" FontSize="10">
+                    <ComboBoxItem Content="BS 7671:2018" IsSelected="True" Tag="BS7671"/>
+                    <ComboBoxItem Content="NEC 2023" Tag="NEC"/>
+                </ComboBox>
+                <CheckBox x:Name="chkWzGroupByClass" Content="Group by load classification"
+                          IsChecked="True" Margin="0,4"/>
+                <CheckBox x:Name="chkWzAutoBalance" Content="Auto-balance phases"
+                          IsChecked="True" Margin="0,2"/>
+                <CheckBox x:Name="chkWzAutoDescribe" Content="Auto-describe circuits"
+                          IsChecked="True" Margin="0,2"/>
+
+                <Button Content="▶ PROPOSE CIRCUITS" Margin="0,16,0,0"
+                        Style="{StaticResource WzPrimaryBtn}" Click="BtnPropose_Click"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Step 2: proposal review -->
+        <DockPanel Grid.Row="0" Grid.Column="1" Margin="6">
+            <TextBlock Text="PROPOSED CIRCUITS" Style="{StaticResource WzHeader}" DockPanel.Dock="Top"/>
+            <DataGrid x:Name="ProposalGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                      FontSize="10" RowHeight="22" DockPanel.Dock="Top" Height="280">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Label" Binding="{Binding ProposedLabel, Mode=TwoWay}" Width="160"/>
+                    <DataGridComboBoxColumn Header="Class" SelectedItemBinding="{Binding LoadClass}" Width="100">
+                        <DataGridComboBoxColumn.ItemsSource>
+                            <x:Array Type="{x:Type sys:String}" xmlns:sys="clr-namespace:System;assembly=mscorlib">
+                                <sys:String>Lighting</sys:String>
+                                <sys:String>SmallPower</sys:String>
+                                <sys:String>HVAC</sys:String>
+                                <sys:String>Emergency</sys:String>
+                                <sys:String>Data</sys:String>
+                                <sys:String>Other</sys:String>
+                            </x:Array>
+                        </DataGridComboBoxColumn.ItemsSource>
+                    </DataGridComboBoxColumn>
+                    <DataGridComboBoxColumn Header="Phase" SelectedItemBinding="{Binding Phase}" Width="60">
+                        <DataGridComboBoxColumn.ItemsSource>
+                            <x:Array Type="{x:Type sys:String}" xmlns:sys="clr-namespace:System;assembly=mscorlib">
+                                <sys:String>A</sys:String>
+                                <sys:String>B</sys:String>
+                                <sys:String>C</sys:String>
+                                <sys:String>ABC</sys:String>
+                            </x:Array>
+                        </DataGridComboBoxColumn.ItemsSource>
+                    </DataGridComboBoxColumn>
+                    <DataGridTextColumn Header="Elements" Binding="{Binding ElementsCount}" Width="65" IsReadOnly="True"/>
+                    <DataGridTextColumn Header="VA" Binding="{Binding TotalVADisplay}" Width="60" IsReadOnly="True"/>
+                    <DataGridTextColumn Header="Util %" Binding="{Binding UtilDisplay}" Width="60" IsReadOnly="True"/>
+                    <DataGridTextColumn Header="Rating" Binding="{Binding ProposedRatingDisplay}" Width="60" IsReadOnly="True"/>
+                    <DataGridTextColumn Header="CSA" Binding="{Binding ProposedCsaDisplay}" Width="60" IsReadOnly="True"/>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <WrapPanel DockPanel.Dock="Top" Margin="0,4">
+                <Button Content="Merge Selected" Style="{StaticResource WzActionBtn}" Click="BtnMerge_Click"/>
+                <Button Content="Split Selected" Style="{StaticResource WzActionBtn}" Click="BtnSplit_Click"/>
+                <Button Content="Add Element"    Style="{StaticResource WzActionBtn}" Click="BtnAddElement_Click"/>
+                <Button Content="Remove Element" Style="{StaticResource WzActionBtn}" Click="BtnRemoveElement_Click"/>
+                <Button Content="Reset Proposals" Style="{StaticResource WzActionBtn}" Click="BtnReset_Click"/>
+            </WrapPanel>
+
+            <TextBlock x:Name="txtPhaseSummary" DockPanel.Dock="Top"
+                       Margin="0,4" FontSize="10"
+                       Text="Phase A: 0 VA  |  Phase B: 0 VA  |  Phase C: 0 VA  |  Imbalance: 0%"
+                       Foreground="{DynamicResource AccentBrush}"/>
+
+            <Expander Header="UNCONNECTED ELEMENTS" IsExpanded="False" DockPanel.Dock="Top" Margin="0,6">
+                <DataGrid x:Name="UnconnectedGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                          IsReadOnly="True" HeadersVisibility="Column" Height="120" FontSize="10"
+                          MouseDoubleClick="UnconnectedGrid_DoubleClick">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Family" Binding="{Binding FamilyName}" Width="*"/>
+                        <DataGridTextColumn Header="Mark" Binding="{Binding Mark}" Width="80"/>
+                        <DataGridTextColumn Header="Room" Binding="{Binding RoomName}" Width="120"/>
+                        <DataGridTextColumn Header="VA" Binding="{Binding LoadVA}" Width="60"/>
+                        <DataGridTextColumn Header="Class" Binding="{Binding LoadClass}" Width="80"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Expander>
+        </DockPanel>
+
+        <!-- Footer -->
+        <Border Grid.Row="1" Grid.ColumnSpan="2" Background="{DynamicResource SecondaryBg}" Padding="10,6">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Cancel" Style="{StaticResource WzActionBtn}" MinWidth="100"
+                        Click="BtnCancel_Click"/>
+                <Button x:Name="btnCreate" Content="▶ Create 0 Circuits"
+                        Style="{StaticResource WzPrimaryBtn}" Click="BtnCreate_Click"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

@@ -1,0 +1,168 @@
+{
+  "version": "1.0",
+  "standards": ["BS7671", "NEC"],
+  "copperTables": [
+    {
+      "standard": "BS7671",
+      "insulation": "XLPE90",
+      "installMethod": "C",
+      "methodDescription": "Clipped direct (BS 7671 Method C, Table 4D5A)",
+      "sizes": [
+        { "csaMm2": 1.5,  "currentA_1ph": 19.5, "currentA_3ph": 17.5, "mohm_per_m": 14.48 },
+        { "csaMm2": 2.5,  "currentA_1ph": 27.0, "currentA_3ph": 24.0, "mohm_per_m": 8.71  },
+        { "csaMm2": 4.0,  "currentA_1ph": 36.0, "currentA_3ph": 32.0, "mohm_per_m": 5.09  },
+        { "csaMm2": 6.0,  "currentA_1ph": 46.0, "currentA_3ph": 41.0, "mohm_per_m": 3.39  },
+        { "csaMm2": 10.0, "currentA_1ph": 63.0, "currentA_3ph": 57.0, "mohm_per_m": 1.83  },
+        { "csaMm2": 16.0, "currentA_1ph": 85.0, "currentA_3ph": 76.0, "mohm_per_m": 1.15  },
+        { "csaMm2": 25.0, "currentA_1ph": 112.0,"currentA_3ph": 99.0, "mohm_per_m": 0.727 },
+        { "csaMm2": 35.0, "currentA_1ph": 138.0,"currentA_3ph": 122.0,"mohm_per_m": 0.524 },
+        { "csaMm2": 50.0, "currentA_1ph": 168.0,"currentA_3ph": 149.0,"mohm_per_m": 0.387 },
+        { "csaMm2": 70.0, "currentA_1ph": 213.0,"currentA_3ph": 189.0,"mohm_per_m": 0.268 },
+        { "csaMm2": 95.0, "currentA_1ph": 258.0,"currentA_3ph": 229.0,"mohm_per_m": 0.193 },
+        { "csaMm2": 120.0,"currentA_1ph": 299.0,"currentA_3ph": 264.0,"mohm_per_m": 0.153 },
+        { "csaMm2": 150.0,"currentA_1ph": 344.0,"currentA_3ph": 305.0,"mohm_per_m": 0.124 },
+        { "csaMm2": 185.0,"currentA_1ph": 392.0,"currentA_3ph": 349.0,"mohm_per_m": 0.101 },
+        { "csaMm2": 240.0,"currentA_1ph": 461.0,"currentA_3ph": 409.0,"mohm_per_m": 0.0778}
+      ]
+    },
+    {
+      "standard": "BS7671",
+      "insulation": "PVC70",
+      "installMethod": "C",
+      "methodDescription": "Clipped direct (BS 7671 Method C, Table 4D2A)",
+      "sizes": [
+        { "csaMm2": 1.5,  "currentA_1ph": 17.5, "currentA_3ph": 15.5, "mohm_per_m": 14.48 },
+        { "csaMm2": 2.5,  "currentA_1ph": 24.0, "currentA_3ph": 21.0, "mohm_per_m": 8.71  },
+        { "csaMm2": 4.0,  "currentA_1ph": 32.0, "currentA_3ph": 28.0, "mohm_per_m": 5.09  },
+        { "csaMm2": 6.0,  "currentA_1ph": 41.0, "currentA_3ph": 36.0, "mohm_per_m": 3.39  },
+        { "csaMm2": 10.0, "currentA_1ph": 57.0, "currentA_3ph": 50.0, "mohm_per_m": 1.83  },
+        { "csaMm2": 16.0, "currentA_1ph": 76.0, "currentA_3ph": 68.0, "mohm_per_m": 1.15  },
+        { "csaMm2": 25.0, "currentA_1ph": 101.0,"currentA_3ph": 89.0, "mohm_per_m": 0.727 },
+        { "csaMm2": 35.0, "currentA_1ph": 125.0,"currentA_3ph": 110.0,"mohm_per_m": 0.524 },
+        { "csaMm2": 50.0, "currentA_1ph": 151.0,"currentA_3ph": 134.0,"mohm_per_m": 0.387 },
+        { "csaMm2": 70.0, "currentA_1ph": 192.0,"currentA_3ph": 171.0,"mohm_per_m": 0.268 },
+        { "csaMm2": 95.0, "currentA_1ph": 232.0,"currentA_3ph": 207.0,"mohm_per_m": 0.193 },
+        { "csaMm2": 120.0,"currentA_1ph": 269.0,"currentA_3ph": 239.0,"mohm_per_m": 0.153 },
+        { "csaMm2": 150.0,"currentA_1ph": 309.0,"currentA_3ph": 275.0,"mohm_per_m": 0.124 },
+        { "csaMm2": 185.0,"currentA_1ph": 353.0,"currentA_3ph": 314.0,"mohm_per_m": 0.101 },
+        { "csaMm2": 240.0,"currentA_1ph": 415.0,"currentA_3ph": 369.0,"mohm_per_m": 0.0778}
+      ]
+    },
+    {
+      "standard": "NEC",
+      "insulation": "THWN90",
+      "installMethod": "Conduit",
+      "methodDescription": "NEC Table 310.16 — copper, 75°C column, conduit",
+      "sizes": [
+        { "csaMm2": 2.08, "awg": "14",   "currentA_1ph": 20.0,  "currentA_3ph": 20.0,  "mohm_per_m": 8.282 },
+        { "csaMm2": 3.31, "awg": "12",   "currentA_1ph": 25.0,  "currentA_3ph": 25.0,  "mohm_per_m": 5.211 },
+        { "csaMm2": 5.26, "awg": "10",   "currentA_1ph": 35.0,  "currentA_3ph": 35.0,  "mohm_per_m": 3.277 },
+        { "csaMm2": 8.37, "awg": "8",    "currentA_1ph": 50.0,  "currentA_3ph": 50.0,  "mohm_per_m": 2.061 },
+        { "csaMm2": 13.3, "awg": "6",    "currentA_1ph": 65.0,  "currentA_3ph": 65.0,  "mohm_per_m": 1.296 },
+        { "csaMm2": 21.2, "awg": "4",    "currentA_1ph": 85.0,  "currentA_3ph": 85.0,  "mohm_per_m": 0.815 },
+        { "csaMm2": 33.6, "awg": "2",    "currentA_1ph": 115.0, "currentA_3ph": 115.0, "mohm_per_m": 0.513 },
+        { "csaMm2": 42.4, "awg": "1",    "currentA_1ph": 130.0, "currentA_3ph": 130.0, "mohm_per_m": 0.407 },
+        { "csaMm2": 53.5, "awg": "1/0",  "currentA_1ph": 150.0, "currentA_3ph": 150.0, "mohm_per_m": 0.323 },
+        { "csaMm2": 67.4, "awg": "2/0",  "currentA_1ph": 175.0, "currentA_3ph": 175.0, "mohm_per_m": 0.256 },
+        { "csaMm2": 85.0, "awg": "3/0",  "currentA_1ph": 200.0, "currentA_3ph": 200.0, "mohm_per_m": 0.203 },
+        { "csaMm2": 107.0,"awg": "4/0",  "currentA_1ph": 230.0, "currentA_3ph": 230.0, "mohm_per_m": 0.161 },
+        { "csaMm2": 126.7,"awg": "250kcmil","currentA_1ph": 255.0,"currentA_3ph": 255.0,"mohm_per_m": 0.137 },
+        { "csaMm2": 152.0,"awg": "300kcmil","currentA_1ph": 285.0,"currentA_3ph": 285.0,"mohm_per_m": 0.114 },
+        { "csaMm2": 177.3,"awg": "350kcmil","currentA_1ph": 310.0,"currentA_3ph": 310.0,"mohm_per_m": 0.098 },
+        { "csaMm2": 202.7,"awg": "400kcmil","currentA_1ph": 335.0,"currentA_3ph": 335.0,"mohm_per_m": 0.085 }
+      ]
+    }
+  ],
+  "correctionFactors": {
+    "installMethods": {
+      "A1": 0.77,
+      "A2": 0.77,
+      "B1": 0.88,
+      "B2": 0.88,
+      "C":  1.00,
+      "E":  1.17,
+      "F":  1.21,
+      "Conduit": 1.00,
+      "DirectBuried": 0.93
+    },
+    "installMethodNames": {
+      "A1": "A1 — Insulated conductors in conduit in thermally insulated wall",
+      "A2": "A2 — Multi-core cable in conduit in thermally insulated wall",
+      "B1": "B1 — Insulated conductors in conduit on a wall",
+      "B2": "B2 — Multi-core cable in conduit on a wall",
+      "C":  "C — Single or multi-core cable clipped direct",
+      "E":  "E — Multi-core cable in free air",
+      "F":  "F — Single-core cables touching in free air",
+      "Conduit": "NEC — Conductors in conduit",
+      "DirectBuried": "Direct buried"
+    },
+    "insulation": {
+      "PVC70":  1.00,
+      "XLPE90": 1.18,
+      "LSOH90": 1.18,
+      "THWN90": 1.00
+    },
+    "ambientTemperatureCu": {
+      "20": 1.10,
+      "25": 1.05,
+      "30": 1.00,
+      "35": 0.94,
+      "40": 0.87,
+      "45": 0.79,
+      "50": 0.71
+    },
+    "groupingCableTrayCu": {
+      "1": 1.00,
+      "2": 0.85,
+      "3": 0.79,
+      "4": 0.75,
+      "5": 0.73,
+      "6": 0.72
+    }
+  },
+  "aluminiumFactor": 1.61,
+  "breakerSizes": {
+    "BS_EN_60898_MCB":  [6, 10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125],
+    "BS_EN_60947_MCCB": [16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600],
+    "NEC_OCPD":         [15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 110, 125, 150, 175, 200, 225, 250, 300, 350, 400, 450, 500, 600, 700, 800, 1000, 1200]
+  },
+  "conduitSizes_mm": {
+    "PVC_BS4568": [16, 20, 25, 32, 40, 50, 63],
+    "Steel_BS31": [16, 20, 25, 32, 40, 50, 63],
+    "NEC_EMT_inch": [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]
+  },
+  "conduitInternalArea_mm2": {
+    "PVC_BS4568_16mm": 113,
+    "PVC_BS4568_20mm": 177,
+    "PVC_BS4568_25mm": 314,
+    "PVC_BS4568_32mm": 531,
+    "PVC_BS4568_40mm": 855,
+    "PVC_BS4568_50mm": 1385,
+    "PVC_BS4568_63mm": 2206
+  },
+  "wireOuterArea_mm2": {
+    "1.5":  8.5,
+    "2.5":  11.0,
+    "4":    14.0,
+    "6":    18.0,
+    "10":   28.0,
+    "16":   38.0,
+    "25":   58.0,
+    "35":   78.0,
+    "50":   105.0,
+    "70":   140.0,
+    "95":   181.0,
+    "120":  220.0,
+    "150":  267.0,
+    "185":  314.0,
+    "240":  390.0
+  },
+  "ratedVoltages": {
+    "415V_3Ph_TN-S": { "lineToLine": 415.0, "lineToNeutral": 240.0, "phases": 3, "system": "TN-S" },
+    "400V_3Ph_TT":   { "lineToLine": 400.0, "lineToNeutral": 230.0, "phases": 3, "system": "TT" },
+    "240V_1Ph":      { "lineToLine": 240.0, "lineToNeutral": 240.0, "phases": 1, "system": "TN-S" },
+    "480V_3Ph":      { "lineToLine": 480.0, "lineToNeutral": 277.0, "phases": 3, "system": "NEC" },
+    "208V_3Ph":      { "lineToLine": 208.0, "lineToNeutral": 120.0, "phases": 3, "system": "NEC" },
+    "120V_1Ph":      { "lineToLine": 120.0, "lineToNeutral": 120.0, "phases": 1, "system": "NEC" }
+  }
+}

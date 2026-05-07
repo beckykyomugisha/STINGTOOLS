@@ -1,0 +1,44 @@
+{
+  "version": "1.0",
+  "standards": {
+    "ASHRAE_90_1_2019": {
+      "description": "ASHRAE 90.1-2019 Space-by-Space Method (W/ft² converted to W/m²)",
+      "spaces": [
+        { "type": "Office",             "pattern": ["office", "admin", "reception"],        "limitWPerM2": 10.8 },
+        { "type": "Open Office",        "pattern": ["open plan", "open office", "bullpen"],  "limitWPerM2": 10.8 },
+        { "type": "Corridor",           "pattern": ["corridor", "hallway", "passage"],       "limitWPerM2": 5.4  },
+        { "type": "Conference",         "pattern": ["conference", "meeting", "boardroom"],   "limitWPerM2": 13.7 },
+        { "type": "Storage",            "pattern": ["store", "storage", "riser", "plant"],   "limitWPerM2": 8.6  },
+        { "type": "Toilet",             "pattern": ["toilet", "wc", "bathroom", "shower"],   "limitWPerM2": 9.7  },
+        { "type": "Kitchen",            "pattern": ["kitchen", "canteen", "cafe", "break"],  "limitWPerM2": 13.0 },
+        { "type": "Lobby",              "pattern": ["lobby", "foyer", "atrium", "entrance"], "limitWPerM2": 10.8 },
+        { "type": "Stair",              "pattern": ["stair", "staircase", "stairwell"],      "limitWPerM2": 6.5  },
+        { "type": "Car Park",           "pattern": ["car park", "parking", "garage"],        "limitWPerM2": 2.0  },
+        { "type": "Plant Room",         "pattern": ["plant", "mechanical", "electrical", "boiler", "pump"], "limitWPerM2": 15.1 },
+        { "type": "Default",            "pattern": [],                                       "limitWPerM2": 11.8 }
+      ]
+    },
+    "PartL_2021": {
+      "description": "Part L 2021 (England) target efficacy lm/circuit-W and LPD",
+      "targetEfficacyLmPerW": 75,
+      "spaces": [
+        { "type": "Office",    "pattern": ["office", "admin"], "limitWPerM2": 10.0 },
+        { "type": "Retail",    "pattern": ["retail", "shop"],  "limitWPerM2": 15.0 },
+        { "type": "Default",   "pattern": [],                  "limitWPerM2": 12.0 }
+      ]
+    },
+    "CIBSE_LG7": {
+      "description": "CIBSE LG7:2015 Office Lighting installed-load targets",
+      "spaces": [
+        { "type": "General Office", "pattern": ["office", "open plan"], "limitWPerM2": 12.0 },
+        { "type": "Reception",      "pattern": ["reception", "lobby"],  "limitWPerM2": 10.0 },
+        { "type": "Default",        "pattern": [],                      "limitWPerM2": 12.0 }
+      ]
+    }
+  },
+  "occupancyTypes": {
+    "escape_route":  ["corridor", "stair", "lobby", "foyer", "escape"],
+    "high_risk":     ["plant", "kitchen", "mechanical", "workshop", "laboratory"],
+    "open_area":     ["office", "open plan", "conference", "retail", "school"]
+  }
+}
