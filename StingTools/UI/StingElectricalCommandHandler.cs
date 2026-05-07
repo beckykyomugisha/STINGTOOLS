@@ -44,11 +44,15 @@ namespace StingTools.UI
             = new StingTools.Commands.SLD.RiserOptions { Layout = "Horizontal", ShowFaultKa = true, ShowFeederCsa = true, ShowLoadingPct = true };
         public static string CurrentLpdStandard = "ASHRAE_90_1_2019";
         public static double CurrentLpdCustomLimit = 0;
+        // Phase 183: earthing-system selector for the BS 7671 compliance audit.
+        // Drives Ze (utility loop impedance) lookup in BS7671ComplianceEngine.
+        public static string CurrentEarthingSystem = "TN-C-S";
 
         // Snapshot outputs surfaced by Phase 178 commands.
         public static List<StingTools.UI.ConduitFillData> LastConduitFills = new();
         public static List<StingTools.UI.EmergAuditRow> LastEmergAudit = new();
         public static List<StingTools.UI.LpdRow> LastLpdRows = new();
+        public static List<StingTools.Commands.Electrical.Compliance.CircuitAuditResult> LastBs7671Results = new();
 
         private StingElectricalCommandHandler(StingElectricalPanel panel) { _panel = panel; }
 
@@ -232,6 +236,12 @@ namespace StingTools.UI
                 case "Elec_ClearOverrides":
                     ClearActiveViewOverrides(app, doc);
                     break;
+
+                // ── Phase 183: BS 7671 compliance audit ────────────────
+                case "Bs7671_Audit":
+                    RunCommand<StingTools.Commands.Electrical.Compliance.BS7671AuditCommand>(app); break;
+                case "Bs7671_LoopCalcSheet":
+                    RunCommand<StingTools.Commands.Electrical.Compliance.BS7671LoopCalcSheetCommand>(app); break;
 
                 // ── RPRT ─────────────────────────────────────────────
                 case "Rprt_Audit":

@@ -631,6 +631,27 @@
                             </StackPanel>
                         </Expander>
 
+                        <Expander Header="BS 7671 COMPLIANCE (Zs / Adiabatic / RCD)" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Earthing system" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox x:Name="cmbEarthingSystem" FontSize="10" SelectedIndex="1"
+                                          SelectionChanged="EarthingSystem_Changed">
+                                    <ComboBoxItem Content="TN-S"/>
+                                    <ComboBoxItem Content="TN-C-S"/>
+                                    <ComboBoxItem Content="TT"/>
+                                    <ComboBoxItem Content="IT"/>
+                                </ComboBox>
+                                <WrapPanel Margin="0,4">
+                                    <Button Content="▶ Run BS 7671 Audit" Style="{StaticResource ElecPrimaryBtn}"
+                                            Tag="Bs7671_Audit" Click="Cmd_Click"
+                                            ToolTip="Audits every power circuit for earth-fault loop impedance Zs (Table 41.1), adiabatic conductor verification (k·S)² ≥ I²·t per §434.5.2, and RCD strategy per §411.3.3 / 411.3.4 / 522.6.202. Writes a colour-coded Excel pack."/>
+                                    <Button Content="▶ Loop Calc Sheet" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Bs7671_LoopCalcSheet" Click="Cmd_Click"
+                                            ToolTip="One A4 sheet per circuit: Ze + R1 + R2, Zs vs Zs_max, OCPD trip current, k·S vs I·t, derating factors. Designed for the design pack."/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Expander>
+
                         <Expander Header="ARC FLASH (IEEE 1584-2018)" Style="{StaticResource ElecExpander}">
                             <StackPanel Margin="4">
                                 <Button Content="⚡ Arc Flash Calc" Style="{StaticResource ElecPrimaryBtn}"

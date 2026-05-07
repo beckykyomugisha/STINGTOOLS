@@ -1506,6 +1506,8 @@ namespace StingTools.Core
                 case "Photo_IfcImport":    return new Commands.Electrical.IfcResults.IfcResultsImportCommand();
                 case "Photo_Aggregator":   return new Commands.Electrical.IfcResults.MultiEngineAggregatorCommand();
                 case "Panel_PlaceOnSheets":return new Commands.Electrical.PanelViewScheduleCommand();
+                case "Bs7671_Audit":         return new Commands.Electrical.Compliance.BS7671AuditCommand();
+                case "Bs7671_LoopCalcSheet": return new Commands.Electrical.Compliance.BS7671LoopCalcSheetCommand();
                 case "Panel_SyncParams":   return new Commands.Electrical.ElecPanelParamSyncCommand();
                 case "Panel_WriteParams":  return new Commands.Electrical.ElecPanelWriteParamsCommand();
 
