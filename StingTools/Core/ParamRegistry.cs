@@ -551,6 +551,20 @@ namespace StingTools.Core
         public static string ELC_LPD_LIMIT_W_M2    => Ext("ELC_LPD_LIMIT_W_M2");    // → ELC_LPD_LIMIT_W_PER_M2 (new)
         public static string ELC_LPD_STATUS        => Ext("ELC_LPD_STATUS");        // → ELC_LPD_STATUS_TXT (new)
 
+        // ── Phase 179 — Advanced analysis & external integration ─────────
+        public static string ELC_ARC_FLASH_IE     => Ext("ELC_ARC_FLASH_IE");     // → ELC_ARC_FLASH_IE_CAL_CM2
+        public static string ELC_ARC_FLASH_BD     => Ext("ELC_ARC_FLASH_BD");     // → ELC_ARC_FLASH_BOUNDARY_MM
+        public static string ELC_ARC_FLASH_PPE    => Ext("ELC_ARC_FLASH_PPE");    // → ELC_ARC_FLASH_PPE_CAT
+        public static string ELC_ARC_FLASH_WD     => Ext("ELC_ARC_FLASH_WD");     // → ELC_ARC_FLASH_WORK_DIST_MM
+        public static string ELC_ARC_FLASH_LABEL  => Ext("ELC_ARC_FLASH_LABEL");  // → ELC_ARC_FLASH_LABEL_TXT
+        public static string ELC_SEL_COORD_OK     => Ext("ELC_SEL_COORD_OK");     // → ELC_SEL_COORD_VERIFIED_BOOL
+        public static string ELC_BUSBAR_CSA       => Ext("ELC_BUSBAR_CSA");       // → ELC_BUSBAR_CSA_MM2
+        public static string ELC_BUSBAR_RATING    => Ext("ELC_BUSBAR_RATING");    // → ELC_BUSBAR_RATING_A
+        public static string ELC_BUSBAR_FILL      => Ext("ELC_BUSBAR_FILL");      // → ELC_BUSBAR_FILL_PCT
+        public static string ELC_CONDUIT_ROUTE    => Ext("ELC_CONDUIT_ROUTE");    // → ELC_CONDUIT_ROUTE_TXT
+        public static string ELC_PHOTO_LUX        => Ext("ELC_PHOTO_LUX");        // → ELC_PHOTO_LUX_CALC
+        public static string ELC_PHOTO_UGR        => Ext("ELC_PHOTO_UGR");        // → ELC_PHOTO_UGR_CALC
+
         // ── Lighting parameters ──────────────────────────────────────────
         public static string LTG_WATTAGE    => Ext("LTG_WATTAGE");
         public static string LTG_LUMENS     => Ext("LTG_LUMENS");
@@ -2177,6 +2191,19 @@ namespace StingTools.Core
             _extendedParams["ELC_LPD_W_M2"]          = "ELC_LPD_W_PER_M2";
             _extendedParams["ELC_LPD_LIMIT_W_M2"]    = "ELC_LPD_LIMIT_W_PER_M2";
             _extendedParams["ELC_LPD_STATUS"]        = "ELC_LPD_STATUS_TXT";
+            // Phase 179 — advanced analysis & external integration
+            _extendedParams["ELC_ARC_FLASH_IE"]     = "ELC_ARC_FLASH_IE_CAL_CM2";
+            _extendedParams["ELC_ARC_FLASH_BD"]     = "ELC_ARC_FLASH_BOUNDARY_MM";
+            _extendedParams["ELC_ARC_FLASH_PPE"]    = "ELC_ARC_FLASH_PPE_CAT";
+            _extendedParams["ELC_ARC_FLASH_WD"]     = "ELC_ARC_FLASH_WORK_DIST_MM";
+            _extendedParams["ELC_ARC_FLASH_LABEL"]  = "ELC_ARC_FLASH_LABEL_TXT";
+            _extendedParams["ELC_SEL_COORD_OK"]     = "ELC_SEL_COORD_VERIFIED_BOOL";
+            _extendedParams["ELC_BUSBAR_CSA"]       = "ELC_BUSBAR_CSA_MM2";
+            _extendedParams["ELC_BUSBAR_RATING"]    = "ELC_BUSBAR_RATING_A";
+            _extendedParams["ELC_BUSBAR_FILL"]      = "ELC_BUSBAR_FILL_PCT";
+            _extendedParams["ELC_CONDUIT_ROUTE"]    = "ELC_CONDUIT_ROUTE_TXT";
+            _extendedParams["ELC_PHOTO_LUX"]        = "ELC_PHOTO_LUX_CALC";
+            _extendedParams["ELC_PHOTO_UGR"]        = "ELC_PHOTO_UGR_CALC";
             // Lighting
             _extendedParams["LTG_WATTAGE"] = "LTG_FIX_LMP_WATTAGE_W"; _extendedParams["LTG_LUMENS"] = "CST_FIX_LUMEN_OUTPUT_LM";
             _extendedParams["LTG_EFFICACY"] = "LTG_FIX_EFFICACY_LM_W"; _extendedParams["LTG_LAMP_TYPE"] = "LTG_FIX_LAMP_TYPE_TXT";

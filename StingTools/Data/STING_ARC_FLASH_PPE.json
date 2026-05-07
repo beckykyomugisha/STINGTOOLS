@@ -1,0 +1,26 @@
+{
+  "_comment": "NFPA 70E Table 130.5(G) PPE categories + default IEEE 1584-2018 calculation parameters.",
+  "_standard": "NFPA 70E-2021 / IEEE 1584-2018",
+  "defaultClearingMs": 100,
+  "defaultBusGapMm": 32,
+  "ppeCategories": [
+    { "cat": 0, "maxCalCm2": 1.2,  "description": "PPE Category 0 — Arc-rated face shield, safety glasses",  "colour": "#00C850" },
+    { "cat": 1, "maxCalCm2": 4.0,  "description": "PPE Category 1 — Arc-rated jacket, balaclava",           "colour": "#C8C800" },
+    { "cat": 2, "maxCalCm2": 8.0,  "description": "PPE Category 2 — Arc-rated suit 8 cal/cm² minimum",      "colour": "#C88000" },
+    { "cat": 3, "maxCalCm2": 25.0, "description": "PPE Category 3 — Arc-rated suit 25 cal/cm² minimum",     "colour": "#C84000" },
+    { "cat": 4, "maxCalCm2": 40.0, "description": "PPE Category 4 — Arc-rated suit 40 cal/cm² minimum",     "colour": "#C80000" },
+    { "cat": -1,"maxCalCm2": 9999, "description": "DANGER — Exceeds Category 4. Engineering controls required.", "colour": "#800000" }
+  ],
+  "workingDistances": [
+    { "maxVoltageV": 240,   "distMm": 455 },
+    { "maxVoltageV": 600,   "distMm": 455 },
+    { "maxVoltageV": 15000, "distMm": 910 },
+    { "maxVoltageV": 99999, "distMm": 1830 }
+  ],
+  "busGapByVoltage": [
+    { "maxVoltageV": 250,   "gapMm": 25 },
+    { "maxVoltageV": 600,   "gapMm": 32 },
+    { "maxVoltageV": 5000,  "gapMm": 102 },
+    { "maxVoltageV": 15000, "gapMm": 152 }
+  ]
+}
