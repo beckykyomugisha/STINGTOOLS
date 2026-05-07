@@ -68,30 +68,15 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                             if (firstEl?.Id == null) { failed.Add($"{proposal.ProposedLabel}: no source element"); tx.RollBack(); continue; }
                             var elFirst = doc.GetElement(firstEl.Id as ElementId);
                             if (elFirst == null) { failed.Add($"{proposal.ProposedLabel}: source element missing"); tx.RollBack(); continue; }
-                            // Verify the first element exposes an electrical connector — otherwise
-                            // ElectricalSystem.Create will fail. Discard the connector itself; the
-                            // factory takes an ElementSet, not connectors.
-                            if (FindElectricalConnector(elFirst) == null)
+                            // ElectricalSystem.Create(Connector, ElectricalSystemType) is the
+                            // Revit 2025+ static factory — takes a SINGLE seed connector. The
+                            // remaining elements are added afterwards via ElectricalSystem.Add(ConnectorSet).
+                            var seedConnector = FindElectricalConnector(elFirst);
+                            if (seedConnector == null)
                             { failed.Add($"{proposal.ProposedLabel}: no electrical connector"); tx.RollBack(); continue; }
 
-                            // ElectricalSystem.Create(ElementSet, ElectricalSystemType) is the
-                            // stable Revit 2025+ static factory. The collection is built up
-                            // with all member elements first, then we hand it off in one shot.
-                            var elSet = new ElementSet();
-                            elSet.Insert(elFirst);
-                            for (int i = 1; i < proposal.Elements.Count; i++)
-                            {
-                                try
-                                {
-                                    var elId = proposal.Elements[i].Id as ElementId;
-                                    if (elId == null) continue;
-                                    var el = doc.GetElement(elId);
-                                    if (el != null) elSet.Insert(el);
-                                }
-                                catch (Exception ex) { StingLog.Warn($"Build ElementSet: {ex.Message}"); }
-                            }
                             ElectricalSystem sys = null;
-                            try { sys = ElectricalSystem.Create(elSet, ElectricalSystemType.PowerCircuit); }
+                            try { sys = ElectricalSystem.Create(seedConnector, ElectricalSystemType.PowerCircuit); }
                             catch (Exception ex)
                             {
                                 failed.Add($"{proposal.ProposedLabel}: ElectricalSystem.Create failed — {ex.Message}");
@@ -99,6 +84,24 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                                 continue;
                             }
                             if (sys == null) { failed.Add($"{proposal.ProposedLabel}: ElectricalSystem.Create returned null"); tx.RollBack(); continue; }
+
+                            // Add the remaining members via their own connectors.
+                            for (int i = 1; i < proposal.Elements.Count; i++)
+                            {
+                                try
+                                {
+                                    var elId = proposal.Elements[i].Id as ElementId;
+                                    if (elId == null) continue;
+                                    var el = doc.GetElement(elId);
+                                    if (el == null) continue;
+                                    var c2 = FindElectricalConnector(el);
+                                    if (c2 == null) continue;
+                                    var set = new ConnectorSet();
+                                    set.Insert(c2);
+                                    sys.Add(set);
+                                }
+                                catch (Exception ex) { StingLog.Warn($"Add connector to circuit: {ex.Message}"); }
+                            }
 
                             try { sys.SelectPanel(panel); }
                             catch (Exception ex)

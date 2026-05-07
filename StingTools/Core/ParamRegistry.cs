@@ -567,6 +567,24 @@ namespace StingTools.Core
         public static string ELC_PHOTO_LUX        => Ext("ELC_PHOTO_LUX");        // → ELC_PHOTO_LUX_CALC
         public static string ELC_PHOTO_UGR        => Ext("ELC_PHOTO_UGR");        // → ELC_PHOTO_UGR_CALC
 
+        // ── Phase 180 — photometric library / luminaire metadata ──────────
+        public static string ELC_PHOTO_FILE_PATH  => Ext("ELC_PHOTO_FILE_PATH");  // → ELC_PHOTO_FILE_PATH_TXT
+        public static string ELC_PHOTO_LUMENS     => Ext("ELC_PHOTO_LUMENS");     // → ELC_PHOTO_LUMENS_NR
+        public static string ELC_PHOTO_WATTS      => Ext("ELC_PHOTO_WATTS");      // → ELC_PHOTO_WATTS_NR
+        public static string ELC_PHOTO_EFFICACY   => Ext("ELC_PHOTO_EFFICACY");   // → ELC_PHOTO_EFFICACY_LM_W
+        public static string ELC_PHOTO_BEAM_ANGLE => Ext("ELC_PHOTO_BEAM_ANGLE"); // → ELC_PHOTO_BEAM_ANGLE_DEG
+        public static string ELC_PHOTO_CCT        => Ext("ELC_PHOTO_CCT");        // → ELC_PHOTO_CCT_K
+        public static string ELC_PHOTO_CRI        => Ext("ELC_PHOTO_CRI");        // → ELC_PHOTO_CRI_NR
+        public static string ELC_PHOTO_SYMMETRY   => Ext("ELC_PHOTO_SYMMETRY");   // → ELC_PHOTO_SYMMETRY_TXT
+
+        // ── Phase 181 — multi-engine photometric results ──────────────────
+        public static string ELC_PHOTO_LUX_DIALUX     => Ext("ELC_PHOTO_LUX_DIALUX");     // → ELC_PHOTO_LUX_DIALUX_NR
+        public static string ELC_PHOTO_LUX_ELUMTOOLS  => Ext("ELC_PHOTO_LUX_ELUMTOOLS");  // → ELC_PHOTO_LUX_ELUMTOOLS_NR
+        public static string ELC_PHOTO_LUX_RELUX      => Ext("ELC_PHOTO_LUX_RELUX");      // → ELC_PHOTO_LUX_RELUX_NR
+        public static string ELC_PHOTO_UNIFORMITY     => Ext("ELC_PHOTO_UNIFORMITY");     // → ELC_PHOTO_UNIFORMITY_NR
+        public static string ELC_PHOTO_LAST_ENGINE    => Ext("ELC_PHOTO_LAST_ENGINE");    // → ELC_PHOTO_LAST_ENGINE_TXT
+        public static string ELC_PHOTO_LAST_CALC_DATE => Ext("ELC_PHOTO_LAST_CALC_DATE"); // → ELC_PHOTO_LAST_CALC_DATE_TXT
+
         // ── Lighting parameters ──────────────────────────────────────────
         public static string LTG_WATTAGE    => Ext("LTG_WATTAGE");
         public static string LTG_LUMENS     => Ext("LTG_LUMENS");
@@ -2206,6 +2224,22 @@ namespace StingTools.Core
             _extendedParams["ELC_CONDUIT_ROUTE"]    = "ELC_CONDUIT_ROUTE_TXT";
             _extendedParams["ELC_PHOTO_LUX"]        = "ELC_PHOTO_LUX_CALC";
             _extendedParams["ELC_PHOTO_UGR"]        = "ELC_PHOTO_UGR_CALC";
+            // Phase 180 — photometric library / luminaire metadata
+            _extendedParams["ELC_PHOTO_FILE_PATH"]  = "ELC_PHOTO_FILE_PATH_TXT";
+            _extendedParams["ELC_PHOTO_LUMENS"]     = "ELC_PHOTO_LUMENS_NR";
+            _extendedParams["ELC_PHOTO_WATTS"]      = "ELC_PHOTO_WATTS_NR";
+            _extendedParams["ELC_PHOTO_EFFICACY"]   = "ELC_PHOTO_EFFICACY_LM_W";
+            _extendedParams["ELC_PHOTO_BEAM_ANGLE"] = "ELC_PHOTO_BEAM_ANGLE_DEG";
+            _extendedParams["ELC_PHOTO_CCT"]        = "ELC_PHOTO_CCT_K";
+            _extendedParams["ELC_PHOTO_CRI"]        = "ELC_PHOTO_CRI_NR";
+            _extendedParams["ELC_PHOTO_SYMMETRY"]   = "ELC_PHOTO_SYMMETRY_TXT";
+            // Phase 181 — multi-engine photometric results
+            _extendedParams["ELC_PHOTO_LUX_DIALUX"]     = "ELC_PHOTO_LUX_DIALUX_NR";
+            _extendedParams["ELC_PHOTO_LUX_ELUMTOOLS"]  = "ELC_PHOTO_LUX_ELUMTOOLS_NR";
+            _extendedParams["ELC_PHOTO_LUX_RELUX"]      = "ELC_PHOTO_LUX_RELUX_NR";
+            _extendedParams["ELC_PHOTO_UNIFORMITY"]     = "ELC_PHOTO_UNIFORMITY_NR";
+            _extendedParams["ELC_PHOTO_LAST_ENGINE"]    = "ELC_PHOTO_LAST_ENGINE_TXT";
+            _extendedParams["ELC_PHOTO_LAST_CALC_DATE"] = "ELC_PHOTO_LAST_CALC_DATE_TXT";
             // Lighting
             _extendedParams["LTG_WATTAGE"] = "LTG_FIX_LMP_WATTAGE_W"; _extendedParams["LTG_LUMENS"] = "CST_FIX_LUMEN_OUTPUT_LM";
             _extendedParams["LTG_EFFICACY"] = "LTG_FIX_EFFICACY_LM_W"; _extendedParams["LTG_LAMP_TYPE"] = "LTG_FIX_LAMP_TYPE_TXT";

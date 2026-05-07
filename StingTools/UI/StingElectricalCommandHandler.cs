@@ -306,6 +306,24 @@ namespace StingTools.UI
                 case "Elec_PhotoLink":
                     RunCommand<StingTools.Commands.Electrical.Photometric.PhotometricLinkCommand>(app); break;
 
+                // ── Phase 180 — photometric library + assign + pre-flight ──
+                case "Photo_Library":
+                    RunCommand<StingTools.Commands.Electrical.Photometric.PhotometricLibraryCommand>(app); break;
+                case "Photo_Assign":
+                    RunCommand<StingTools.Commands.Electrical.Photometric.AssignPhotometricCommand>(app); break;
+                case "Photo_Preflight":
+                    RunCommand<StingTools.Commands.Electrical.Photometric.PhotometricPreflightCommand>(app); break;
+
+                // ── Phase 181 — IFC results contract + multi-engine aggregator ──
+                case "Photo_IfcImport":
+                    RunCommand<StingTools.Commands.Electrical.IfcResults.IfcResultsImportCommand>(app); break;
+                case "Photo_Aggregator":
+                    RunCommand<StingTools.Commands.Electrical.IfcResults.MultiEngineAggregatorCommand>(app); break;
+                case "Photo_RoundTrip":
+                    RunCommand<StingTools.Commands.Electrical.Photometric.DialuxRoundTripCommand>(app); break;
+                case "Photo_DesignReview":
+                    RunCommand<StingTools.Commands.Electrical.Photometric.PhotometricDesignReviewCommand>(app); break;
+
                 default:
                     StingLog.Info($"ElectricalCommandHandler: unknown tag '{tag}'");
                     break;
