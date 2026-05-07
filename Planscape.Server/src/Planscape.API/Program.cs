@@ -857,6 +857,31 @@ app.UseCors("Mobile");
 app.UseApiVersionRewriter();
 // S7.2 — count every response into rolling SLA buckets in Redis.
 app.UseSlaMetrics();
+
+// MODEL-VIEWER — The 3D viewer's GLTFLoader can't always set custom
+// headers (some Three.js builds, redirected requests, <img> thumbnails),
+// so it falls back to ?access_token=<jwt> in the URL. Bridge that to the
+// standard Authorization header BEFORE UseAuthentication runs so the
+// normal JWT bearer pipeline picks it up — no special-case handling
+// inside JwtBearerEvents, no per-endpoint allowlist to keep in sync.
+// Scoped tightly to model download endpoints so we don't widen the
+// attack surface elsewhere (tokens in URLs leak to access logs and
+// browser history).
+app.Use(async (ctx, next) =>
+{
+    var pathVal = ctx.Request.Path.Value;
+    if (pathVal != null
+        && pathVal.Contains("/api/projects/", StringComparison.OrdinalIgnoreCase)
+        && pathVal.Contains("/models/", StringComparison.OrdinalIgnoreCase)
+        && !ctx.Request.Headers.ContainsKey("Authorization")
+        && ctx.Request.Query.TryGetValue("access_token", out var qt)
+        && !string.IsNullOrEmpty(qt))
+    {
+        ctx.Request.Headers["Authorization"] = $"Bearer {qt}";
+    }
+    await next();
+});
+
 app.UseAuthentication();
 // S9 — push correlation ID + tenant + user into Serilog LogContext.
 // Must run AFTER UseAuthentication so the JWT claims are populated.

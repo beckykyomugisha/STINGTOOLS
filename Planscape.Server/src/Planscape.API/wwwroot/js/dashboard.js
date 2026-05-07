@@ -967,18 +967,36 @@
       ${rows.length === 0 ? `<div class="empty">No models published yet. Use the Revit plugin's "Publish Model to Planscape" command.</div>` : ""}
       <div class="kpi-grid">
         ${rows.map(m => `
-          <div class="card" style="margin-bottom:0">
+          <div class="card" style="margin-bottom:0" data-model-id="${m.id}">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
               <span style="font-size:24px">${m.format === "Glb" || m.format === "Gltf" ? "🧊" : "📦"}</span>
               <strong>${esc(m.name)}</strong>
             </div>
             <div style="font-size:12px;color:#666">${esc(m.format)} · ${(m.fileSizeBytes/1024/1024).toFixed(1)} MB${m.discipline ? " · " + esc(m.discipline) : ""}</div>
-            <button class="ghost" style="margin-top:10px;color:var(--primary);border-color:var(--primary)"
-              onclick="window.open('/viewer.html?project=${state.projectId}&model=${m.id}','_blank')">
-              Open in viewer
-            </button>
+            <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+              <button class="ghost" style="color:var(--primary);border-color:var(--primary)"
+                data-action="open" data-id="${m.id}">Open in viewer</button>
+              <button class="ghost" style="color:#a33;border-color:#a33"
+                data-action="delete" data-id="${m.id}" data-name="${esc(m.name)}">Delete</button>
+            </div>
           </div>`).join("")}
       </div>`;
+
+    main.querySelectorAll('[data-action="open"]').forEach(b => {
+      b.onclick = () => window.open(`/viewer.html?project=${state.projectId}&model=${b.dataset.id}`, "_blank");
+    });
+    main.querySelectorAll('[data-action="delete"]').forEach(b => {
+      b.onclick = async () => {
+        if (!confirm(`Delete model "${b.dataset.name}"?\n\nThe Revit plugin's SHA-256 dedup will then accept a republish of the same geometry.`)) return;
+        try {
+          await api(`/api/projects/${state.projectId}/models/${b.dataset.id}`, { method: "DELETE" });
+          showToast("Model deleted ✓");
+          renderModels(main);
+        } catch (e) {
+          showToast("Delete failed: " + e.message);
+        }
+      };
+    });
   }
 
   async function renderCost(main) {
