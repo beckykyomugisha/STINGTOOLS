@@ -2447,23 +2447,23 @@ Generic Models,CST_UNIT_RATE_USD,4a6c27ee-694f-4d99-9c7f-5c1b305aa6aa,TEXT,CST_P
 Generic Models,ELC_CPC_SZ_MM,d7e8f9a0-b1c2-4d3e-bf4a-5b6c7d8e9fa0,TEXT,ELC_PWR,Type,Circuit protective conductor size in mm2 per BS 7671,False,,,MULTI,1,0
 Generic Models,ELC_FACTORY_QR_TXT,a4257dba-e2fb-5890-96f8-80a14ad0d8c2,TEXT,ELC_PWR,Type,Electrical factory QR code label reference [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ELC_FAT_CERT_REF_TXT,37ac83fc-80c9-5a43-a03b-6365d5424731,TEXT,ELC_PWR,Type,Factory Acceptance Test certificate reference [IEC 61439-1:2020],False,,,MULTI,1,0
-Generic Models,ELC_LPS_AIR_TERMINAL_COUNT_NR,36889f59-a8ba-55c8-8777-6ba332b39bff,INTEGER,ELC_PWR,Type,Count of air terminals / lightning rods on the protected zone,False,,,MULTI,1,0
+Generic Models,ELC_LPS_AIR_TERMINAL_COUNT_NR,36889f59-a8ba-55c8-8777-6ba332b39bff,TEXT,ELC_PWR,Type,Count of air terminals / lightning rods on the protected zone,False,,,MULTI,1,0
 Generic Models,ELC_LPS_BOND_TYPE_TXT,1cb4c3d3-8c12-5be3-9eeb-4072b4be3240,TEXT,ELC_PWR,Type,Equipotential bonding type (DIRECT / SPD / ISOLATING_SPARK_GAP),False,,,MULTI,1,0
 Generic Models,ELC_LPS_CERT_REF_TXT,0a8dbcfb-6f73-5c8c-94eb-b72606feae87,TEXT,ELC_PWR,Type,Certificate reference for the LPS inspection / commissioning,False,,,MULTI,1,0
 Generic Models,ELC_LPS_CLASS_TXT,081c2e86-3af9-5658-8a26-63da9c1eccc2,TEXT,ELC_PWR,Type,LPS class per BS EN 62305 (I / II / III / IV),False,,,MULTI,1,0
-Generic Models,ELC_LPS_CONDUCTOR_CROSS_SECT_MM2,423133ca-7535-521d-9c37-65ec7ae68166,NUMBER,ELC_PWR,Type,Down conductor cross section in mm2 (min 50 mm2 copper per BS EN 62305),False,,,MULTI,1,0
-Generic Models,ELC_LPS_DOWN_CONDUCTOR_COUNT_NR,157527ba-17a8-5014-b6c5-f70273ccd5f5,INTEGER,ELC_PWR,Type,"Count of down conductors per BS EN 62305 (min 2 for class IV, 4 for class I)",False,,,MULTI,1,0
-Generic Models,ELC_LPS_EARTH_ELECTRODE_COUNT_NR,d02bca9d-9159-5477-8488-48f9076841fa,INTEGER,ELC_PWR,Type,Count of earth electrodes serving the LPS,False,,,MULTI,1,0
-Generic Models,ELC_LPS_EARTH_RESISTANCE_OHM,80da349f-708b-5165-bb2e-f369dec80e4b,NUMBER,ELC_PWR,Type,Measured earth resistance in ohms (target <10 ohm per BS EN 62305),False,,,MULTI,1,0
+Generic Models,ELC_LPS_CONDUCTOR_CROSS_SECT_MM2,423133ca-7535-521d-9c37-65ec7ae68166,TEXT,ELC_PWR,Type,Down conductor cross section in mm2 (min 50 mm2 copper per BS EN 62305),False,,,MULTI,1,0
+Generic Models,ELC_LPS_DOWN_CONDUCTOR_COUNT_NR,157527ba-17a8-5014-b6c5-f70273ccd5f5,TEXT,ELC_PWR,Type,"Count of down conductors per BS EN 62305 (min 2 for class IV, 4 for class I)",False,,,MULTI,1,0
+Generic Models,ELC_LPS_EARTH_ELECTRODE_COUNT_NR,d02bca9d-9159-5477-8488-48f9076841fa,TEXT,ELC_PWR,Type,Count of earth electrodes serving the LPS,False,,,MULTI,1,0
+Generic Models,ELC_LPS_EARTH_RESISTANCE_OHM,80da349f-708b-5165-bb2e-f369dec80e4b,TEXT,ELC_PWR,Type,Measured earth resistance in ohms (target <10 ohm per BS EN 62305),False,,,MULTI,1,0
 Generic Models,ELC_LPS_EARTH_TYPE_TXT,3703245d-a866-5e05-8737-72babfbb85a4,TEXT,ELC_PWR,Type,Earth electrode type (ROD / RING / FOUNDATION / MESH),False,,,MULTI,1,0
 Generic Models,ELC_LPS_ELEMENT_TYPE_TXT,75cd5268-c764-551b-872d-00b0b31308a6,TEXT,ELC_PWR,Type,LPS component type marker (AIR_TERMINAL / DOWN_CONDUCTOR / EARTH_ELECTRODE / BONDING_BAR / SPD); primary discriminator for CollectLpsFamily,False,,,MULTI,1,0
-Generic Models,ELC_LPS_INSPECTION_INTERVAL_MONTHS,5339fe4f-caa3-5edc-99b1-53c0defd4ad8,INTEGER,ELC_PWR,Type,"Inspection interval in months (12 for class I/II, 24 for class III/IV)",False,,,MULTI,1,0
+Generic Models,ELC_LPS_INSPECTION_INTERVAL_MONTHS,5339fe4f-caa3-5edc-99b1-53c0defd4ad8,TEXT,ELC_PWR,Type,"Inspection interval in months (12 for class I/II, 24 for class III/IV)",False,,,MULTI,1,0
 Generic Models,ELC_LPS_KC_FACTOR_NR,b1332559-0830-5d8f-8ac7-5f77a963cd94,NUMBER,ELC_PWR,Type,Current-distribution factor kc per BS EN 62305-3 §6.3 (1/n with floor 0.1; stamped on Project Information by LPS Class Setup / kc Recalc),False,,,MULTI,1,0
-Generic Models,ELC_LPS_MESH_SIZE_M,d6a9566f-eda9-5e6d-9dcf-fd14440c395b,NUMBER,ELC_PWR,Type,Air terminal mesh grid size in metres per BS EN 62305 class,False,,,MULTI,1,0
-Generic Models,ELC_LPS_PROTECTION_ANGLE_DEG,0063477e-cda5-58a3-a802-061838e57a47,NUMBER,ELC_PWR,Type,Protection cone half-angle in degrees per BS EN 62305 class,False,,,MULTI,1,0
+Generic Models,ELC_LPS_MESH_SIZE_M,d6a9566f-eda9-5e6d-9dcf-fd14440c395b,TEXT,ELC_PWR,Type,Air terminal mesh grid size in metres per BS EN 62305 class,False,,,MULTI,1,0
+Generic Models,ELC_LPS_PROTECTION_ANGLE_DEG,0063477e-cda5-58a3-a802-061838e57a47,TEXT,ELC_PWR,Type,Protection cone half-angle in degrees per BS EN 62305 class,False,,,MULTI,1,0
 Generic Models,ELC_LPS_RISK_ASSESSMENT_TXT,330d6fb5-2891-5a28-8ec6-e04618c9d1e4,TEXT,ELC_PWR,Type,Risk assessment reference document per BS EN 62305-2,False,,,MULTI,1,0
-Generic Models,ELC_LPS_ROLLING_SPHERE_RADIUS_M,c4eeed34-608c-56a5-b97f-7c899d76f208,NUMBER,ELC_PWR,Type,Rolling sphere radius in metres per BS EN 62305 class (20 / 30 / 45 / 60),False,,,MULTI,1,0
-Generic Models,ELC_LPS_SEPARATION_DISTANCE_MM,441346ff-828f-5298-9fbb-96f27feb22ef,NUMBER,ELC_PWR,Type,Separation distance (s) between LPS and services in millimetres,False,,,MULTI,1,0
+Generic Models,ELC_LPS_ROLLING_SPHERE_RADIUS_M,c4eeed34-608c-56a5-b97f-7c899d76f208,TEXT,ELC_PWR,Type,Rolling sphere radius in metres per BS EN 62305 class (20 / 30 / 45 / 60),False,,,MULTI,1,0
+Generic Models,ELC_LPS_SEPARATION_DISTANCE_MM,441346ff-828f-5298-9fbb-96f27feb22ef,TEXT,ELC_PWR,Type,Separation distance (s) between LPS and services in millimetres,False,,,MULTI,1,0
 Generic Models,ELC_LPS_SURGE_PROTECTION_LVL_TXT,c1605d30-bdcb-560e-9d97-bae3303a078e,TEXT,ELC_PWR,Type,Surge protection device level (Type 1 / Type 2 / Type 3),False,,,MULTI,1,0
 Generic Models,ELC_LPS_TEST_DATE_TXT,d654df13-0913-5e8f-8dfe-98b3971beb86,TEXT,ELC_PWR,Type,ISO 8601 date of last LPS test / inspection,False,,,MULTI,1,0
 Generic Models,ELC_LPS_ZONE_TXT,a01025f4-6155-524e-8514-72507f5e04ef,TEXT,ELC_PWR,Type,Lightning protection zone per BS EN 62305-4 (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3),False,,,MULTI,1,0
