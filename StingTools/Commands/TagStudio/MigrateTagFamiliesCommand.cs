@@ -87,21 +87,28 @@ namespace StingTools.Commands.TagStudio
                 $"  • Author T4..T10 tier rows from the active mode CSV\n" +
                 $"  • Author warning-row formulas (gated by TAG_WARN_VISIBLE_BOOL)\n" +
                 $"  • Assign arrowheads by name (OST_ArrowHeads)\n\n" +
-                $"T1..T3 hand-edited rows are preserved (PreserveHandEdits=on).\n\n" +
+                $"Pick the option below that matches your preservation needs.\n\n" +
                 $"Runtime: ~3–8 minutes for {stingFamilies.Count} families.\n" +
                 $"Press Escape at any time to cancel.";
             confirm.CommonButtons = TaskDialogCommonButtons.Cancel;
             confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Upgrade in place (preserve T1..T3 hand-edits)",
+                "Upgrade in place — preserve T1..T3 + hand-authored warnings",
                 "Add missing params, types, and author T4..T10 + warning rows from the CSV. " +
-                "Existing hand-configured rows in T1..T3 are detected and left untouched.");
+                "T1..T3 hand-edits are detected and left untouched. " +
+                "WARN_xxx parameters that already carry a non-empty formula on the Family " +
+                "are also preserved — the CSV warning is only stamped on first run.");
             confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Upgrade and overwrite ALL tier rows",
-                "As above, but rebuild every T4..T10 row from the CSV without preservation. " +
+                "Upgrade in place — preserve T1..T3 only (re-stamp warnings)",
+                "Same as above but always re-stamps WARN_xxx formulas from the CSV. " +
+                "Use this if a CSV warning row was updated and you want all families realigned.");
+            confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Upgrade and overwrite ALL tier rows + warnings",
+                "Rebuild every T4..T10 row + every warning formula from the CSV without preservation. " +
                 "Use only if you want a clean re-author.");
             TaskDialogResult mig = confirm.Show();
             if (mig == TaskDialogResult.Cancel) return Result.Cancelled;
-            bool preserveHandEdits = (mig == TaskDialogResult.CommandLink1);
+            bool preserveHandEdits = (mig == TaskDialogResult.CommandLink1 || mig == TaskDialogResult.CommandLink2);
+            bool preserveHandWarnings = (mig == TaskDialogResult.CommandLink1);
 
             // ── Pre-resolve arrowhead types in the project ──
             var arrowheads = BuildArrowheadLookup(doc);
@@ -138,7 +145,7 @@ namespace StingTools.Commands.TagStudio
                     progress.Increment($"Migrating {famName} ({i + 1}/{stingFamilies.Count})");
 
                     var result = MigrateOne(doc, app, sharedParamFile, fam, variants, arrowheads,
-                        plansByMode, plansByFamily, preserveHandEdits);
+                        plansByMode, plansByFamily, preserveHandEdits, preserveHandWarnings);
                     totalParamsAdded += result.ParamsAdded;
                     totalTypesCreated += result.TypesCreated;
                     totalFormulasApplied += result.FormulasApplied;
@@ -232,7 +239,7 @@ namespace StingTools.Commands.TagStudio
             List<TypeVariantSpec> variants, Dictionary<string, ElementId> arrowheads,
             Dictionary<string, Dictionary<string, TierPlan>> plansByMode,
             Dictionary<string, TierPlan> plansByFamily,
-            bool preserveHandEdits)
+            bool preserveHandEdits, bool preserveHandWarnings)
         {
             var result = new MigrationResult();
             Document famDoc = null;
@@ -305,6 +312,7 @@ namespace StingTools.Commands.TagStudio
                             App = app,
                             SharedParamFile = sharedParamFile,
                             PreserveHandEdits = preserveHandEdits,
+                            PreserveHandWarnings = preserveHandWarnings,
                             FamilyName = fam.Name,
                         };
                         var ar = FamilyLabelAuthor.AuthorLabelsMulti(famDoc, modePlans, opts);

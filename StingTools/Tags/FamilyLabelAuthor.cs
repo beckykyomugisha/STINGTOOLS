@@ -47,6 +47,14 @@ namespace StingTools.Tags
             public Application App { get; set; }
             public string SharedParamFile { get; set; }
             public bool PreserveHandEdits { get; set; }
+            /// <summary>
+            /// When true, <see cref="ApplyWarningFormulas"/> skips any
+            /// WARN_xxx parameter that already has a non-empty formula on
+            /// the FamilyParameter (treated as user-authored). When false
+            /// (default — back-compat) every CSV warning row is re-stamped
+            /// on every run.
+            /// </summary>
+            public bool PreserveHandWarnings { get; set; }
             public string FamilyName { get; set; }
         }
 
@@ -181,7 +189,7 @@ namespace StingTools.Tags
                 ApplyVisibilityFormulas(fdoc, flat, preservedTiers, result);
 
             if (hasWarnings)
-                ApplyWarningFormulas(fdoc, warningsByParam.Values, result);
+                ApplyWarningFormulas(fdoc, warningsByParam.Values, opts, result);
 
             result.LabelRebound = TryRebindPrimaryLabel(fdoc, result);
             return result;
@@ -192,12 +200,16 @@ namespace StingTools.Tags
         //   if(TAG_WARN_VISIBLE_BOOL, WARN_xxx, "")
         // unless the CSV row carries an explicit Formula override (some
         // higher-fidelity rows compose threshold-aware predicates that we
-        // honour verbatim). PreserveHandEdits is intentionally not
-        // consulted: warnings are additive metadata, never the user's
-        // primary label, so re-running migration always re-binds them.
+        // honour verbatim).
+        //
+        // When opts.PreserveHandWarnings is true, any WARN_xxx parameter
+        // whose existing FamilyParameter.Formula is non-empty is treated
+        // as user-authored and left untouched. This matches the
+        // PreserveHandEdits semantics for tier rows: re-running migration
+        // does not clobber manual authoring.
         // ------------------------------------------------------------------
         private static void ApplyWarningFormulas(Document fdoc,
-            IEnumerable<WarningRow> warnings, Result result)
+            IEnumerable<WarningRow> warnings, Options opts, Result result)
         {
             FamilyManager fm = fdoc.FamilyManager;
             using (Transaction tx = new Transaction(fdoc, "STING AuthorLabels — warning formulas"))
@@ -224,6 +236,18 @@ namespace StingTools.Tags
                         result.WarningsSkipped++;
                         result.Warnings.Add($"Warning param '{w.Parameter}' not bound — skipped.");
                         continue;
+                    }
+
+                    if (opts != null && opts.PreserveHandWarnings)
+                    {
+                        string existing = null;
+                        try { existing = target.Formula; }
+                        catch { /* read-only / unsupported — fall through to write */ }
+                        if (!string.IsNullOrWhiteSpace(existing))
+                        {
+                            result.WarningsSkipped++;
+                            continue;
+                        }
                     }
 
                     string formula = !string.IsNullOrEmpty(w.Formula)
