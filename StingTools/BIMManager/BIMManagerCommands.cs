@@ -2983,9 +2983,11 @@ namespace StingTools.BIMManager
             data["Assembly"] = assemblies;
 
             // ── Connection (MEP system connections via Connector API) ──
+            // PERF: reuse cobieElements (same WhereElementIsNotElementType filter)
+            // instead of opening a second collector pass over the document.
             var connections = new List<Dictionary<string, string>>();
             int connIdx = 0;
-            foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            foreach (var el in cobieElements)
             {
                 ConnectorSet connectorSet = null;
                 if (el is FamilyInstance fi && fi.MEPModel?.ConnectorManager != null)

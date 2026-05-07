@@ -140,7 +140,7 @@ namespace StingTools.Temp
                 if (string.IsNullOrWhiteSpace(val))
                 {
                     // Try built-in parameters
-                    var p = projInfo.LookupParameter(field);
+                    var p = ParameterHelpers.CachedLookup(projInfo, field);
                     val = p?.AsString() ?? p?.AsValueString() ?? "";
                 }
                 string status = string.IsNullOrWhiteSpace(val) ? "MISSING" : "OK";
@@ -206,7 +206,7 @@ namespace StingTools.Temp
                 if (duct == null) continue;
 
                 double velocity = 0;
-                var velParam = duct.LookupParameter("Velocity");
+                var velParam = ParameterHelpers.CachedLookup(duct, "Velocity");
                 if (velParam != null && velParam.HasValue)
                     velocity = velParam.AsDouble() * 0.3048; // ft/s to m/s
 
@@ -234,7 +234,7 @@ namespace StingTools.Temp
                 if (pipe == null) continue;
 
                 double velocity = 0;
-                var velParam = pipe.LookupParameter("Velocity");
+                var velParam = ParameterHelpers.CachedLookup(pipe, "Velocity");
                 if (velParam != null && velParam.HasValue)
                     velocity = velParam.AsDouble() * 0.3048;
 
@@ -269,22 +269,22 @@ namespace StingTools.Temp
                 string name = circuit.Name ?? "Unknown";
 
                 // Check circuit rating
-                var ratingParam = circuit.LookupParameter("Rating");
+                var ratingParam = ParameterHelpers.CachedLookup(circuit, "Rating");
                 double rating = ratingParam?.AsDouble() ?? 0;
 
                 // Check apparent load
-                var loadParam = circuit.LookupParameter("Apparent Load");
+                var loadParam = ParameterHelpers.CachedLookup(circuit, "Apparent Load");
                 double load = loadParam?.AsDouble() ?? 0;
 
                 if (rating > 0 && load > rating)
                     issues.Add((id, name, $"Load ({load:F1}A) exceeds rating ({rating:F1}A)"));
 
                 // Check wire size
-                var wireParam = circuit.LookupParameter("Wire Size");
+                var wireParam = ParameterHelpers.CachedLookup(circuit, "Wire Size");
                 string wireSize = wireParam?.AsString() ?? "";
 
                 // Check voltage drop (max 3% for lighting, 5% for power per BS 7671)
-                var vDropParam = circuit.LookupParameter("Voltage Drop");
+                var vDropParam = ParameterHelpers.CachedLookup(circuit, "Voltage Drop");
                 double vDrop = vDropParam?.AsDouble() ?? 0;
                 bool isLighting = name.ToLower().Contains("light") || name.ToLower().Contains("ltg");
                 double maxDrop = isLighting ? 3.0 : 5.0;
@@ -385,7 +385,7 @@ namespace StingTools.Temp
             double minDoorMM = Bs8300Requirements["MinDoorWidth"];
             foreach (var door in doors)
             {
-                var widthParam = door.LookupParameter("Width") ?? door.get_Parameter(BuiltInParameter.DOOR_WIDTH);
+                var widthParam = ParameterHelpers.CachedLookup(door, "Width") ?? door.get_Parameter(BuiltInParameter.DOOR_WIDTH);
                 if (widthParam != null && widthParam.HasValue)
                 {
                     double widthMM = widthParam.AsDouble() * 304.8; // ft to mm
@@ -547,7 +547,7 @@ namespace StingTools.Temp
 
                 if (thermalAsset != null)
                 {
-                    var conductivityParam = thermalAsset.LookupParameter("Thermal Conductivity");
+                    var conductivityParam = ParameterHelpers.CachedLookup(thermalAsset, "Thermal Conductivity");
                     if (conductivityParam != null && conductivityParam.HasValue)
                     {
                         double conductivity = conductivityParam.AsDouble(); // W/(m·K) in Revit internal units
