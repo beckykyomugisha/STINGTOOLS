@@ -11,10 +11,19 @@ using StingTools.UI;
 namespace StingTools.Commands.Electrical
 {
     /// <summary>
-    /// Greedy largest-first 3-phase load balancer. Iterates power circuits
-    /// sorted descending by ApparentLoad, assigning each to the lowest-loaded
-    /// phase via <see cref="ElectricalSystem.StartingPhase"/>. Skips 3-pole
-    /// circuits and (when the option is on) grouped 2-pole circuits.
+    /// Greedy largest-first 3-phase load balancer.
+    ///
+    /// API limit: <c>ElectricalSystem.StartingPhase</c> is not exposed as a
+    /// writable property in this Revit version, and the
+    /// <c>RBS_ELEC_CIRCUIT_PHASE_PARAM</c> parameter is read-only on most
+    /// installations because phase comes from the panel slot. The command
+    /// therefore runs in two modes:
+    ///   • Preview always — pushes before/after phase totals to the dock panel.
+    ///   • Best-effort apply — attempts the parameter write inside try/catch
+    ///     and reports how many circuits could not be reassigned.
+    /// To physically reassign phases, users move circuits to the appropriate
+    /// slot column in the panel schedule (left = A, middle = B, right = C
+    /// for the standard 3-phase format).
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -36,7 +45,6 @@ namespace StingTools.Commands.Electrical
                 return Result.Cancelled;
             }
 
-            // Push preview to the dock panel so the user can compare before/after.
             var panel = StingElectricalCommandHandler.ActivePanel;
             panel?.RefreshBalancePreview(
                 $"Before: A {pre.PhaseABefore:0.0} kW │ B {pre.PhaseBBefore:0.0} kW │ C {pre.PhaseCBefore:0.0} kW  Δ={pre.ImbalanceBefore:0.0}",
@@ -49,7 +57,8 @@ namespace StingTools.Commands.Electrical
                     MainInstruction = "Apply the proposed phase balance?",
                     MainContent =
                         $"Before: A {pre.PhaseABefore:0.0} | B {pre.PhaseBBefore:0.0} | C {pre.PhaseCBefore:0.0} kW (Δ {pre.ImbalanceBefore:0.0})\n" +
-                        $"After:  A {pre.PhaseAAfter:0.0} | B {pre.PhaseBAfter:0.0} | C {pre.PhaseCAfter:0.0} kW (Δ {pre.ImbalanceAfter:0.0})",
+                        $"After:  A {pre.PhaseAAfter:0.0} | B {pre.PhaseBAfter:0.0} | C {pre.PhaseCAfter:0.0} kW (Δ {pre.ImbalanceAfter:0.0})\n\n" +
+                        "Note: phase parameter is often read-only — circuits that cannot be written are reported in the result.",
                     CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No
                 };
                 if (dlg.Show() != TaskDialogResult.Yes) return Result.Cancelled;
@@ -68,12 +77,20 @@ namespace StingTools.Commands.Electrical
                         if (SafePoles(sys) >= 3) { skipped++; continue; }
                         if (opts.RespectGrouped && IsGroupedTwoPole(sys)) { skipped++; continue; }
 
-                        try { sys.StartingPhase = assign.NewPhase; reassigned++; }
-                        catch (Exception ex)
+                        bool ok = false;
+                        try
                         {
-                            StingLog.Warn($"StartingPhase write failed on {sys.Name}: {ex.Message}");
-                            skipped++;
+                            var phaseParam = sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_PHASE_PARAM);
+                            if (phaseParam != null && !phaseParam.IsReadOnly)
+                            {
+                                int v = PhaseToInt(assign.NewPhase);
+                                phaseParam.Set(v);
+                                reassigned++;
+                                ok = true;
+                            }
                         }
+                        catch (Exception ex) { StingLog.Info($"Phase write soft-fail on {sys.Name}: {ex.Message}"); }
+                        if (!ok) skipped++;
                     }
                     catch (Exception ex)
                     {
@@ -103,7 +120,8 @@ namespace StingTools.Commands.Electrical
         public class PhaseAssignment
         {
             public ElementId SystemId;
-            public ElectricalPhase NewPhase;
+            /// <summary>"A", "B" or "C".</summary>
+            public string NewPhase;
             public double LoadKW;
         }
 
@@ -123,19 +141,16 @@ namespace StingTools.Commands.Electrical
                 foreach (var s in systems)
                 {
                     double load = SafeLoadKW(s);
-                    var ph = SafePhase(s);
-                    if (ph == ElectricalPhase.A) aBefore += load;
-                    else if (ph == ElectricalPhase.B) bBefore += load;
-                    else if (ph == ElectricalPhase.C) cBefore += load;
-                    // Three-pole circuits split evenly across all three phases.
+                    string ph = SafePhase(s);
+                    if (ph == "A") aBefore += load;
+                    else if (ph == "B") bBefore += load;
+                    else if (ph == "C") cBefore += load;
                     else if (SafePoles(s) >= 3)
                     {
                         aBefore += load / 3.0; bBefore += load / 3.0; cBefore += load / 3.0;
                     }
                 }
 
-                // Greedy largest-first reassignment, ignoring 3-pole and (when honouring
-                // grouped) grouped 2-pole circuits — they keep their original phase.
                 var preview = new BalancePreview
                 {
                     PhaseABefore = aBefore, PhaseBBefore = bBefore, PhaseCBefore = cBefore,
@@ -143,22 +158,20 @@ namespace StingTools.Commands.Electrical
                 };
 
                 double aAfter = 0, bAfter = 0, cAfter = 0;
-                // Three-pole circuits keep their balanced split.
                 foreach (var s in systems.Where(s => SafePoles(s) >= 3))
                 {
                     double l = SafeLoadKW(s);
                     aAfter += l / 3.0; bAfter += l / 3.0; cAfter += l / 3.0;
                 }
-                // Grouped 2-pole circuits keep their existing phase assignment.
                 if (opts.RespectGrouped)
                 {
                     foreach (var s in systems.Where(s => SafePoles(s) == 2 && IsGroupedTwoPole(s)))
                     {
-                        var ph = SafePhase(s);
+                        string ph = SafePhase(s);
                         double l = SafeLoadKW(s);
-                        if (ph == ElectricalPhase.A) aAfter += l;
-                        else if (ph == ElectricalPhase.B) bAfter += l;
-                        else if (ph == ElectricalPhase.C) cAfter += l;
+                        if (ph == "A") aAfter += l;
+                        else if (ph == "B") bAfter += l;
+                        else if (ph == "C") cAfter += l;
                     }
                 }
 
@@ -171,11 +184,11 @@ namespace StingTools.Commands.Electrical
                 foreach (var s in movable)
                 {
                     double l = SafeLoadKW(s);
-                    ElectricalPhase target;
+                    string target;
                     double minBucket = Math.Min(aAfter, Math.Min(bAfter, cAfter));
-                    if (Math.Abs(aAfter - minBucket) < 1e-6) { target = ElectricalPhase.A; aAfter += l; }
-                    else if (Math.Abs(bAfter - minBucket) < 1e-6) { target = ElectricalPhase.B; bAfter += l; }
-                    else { target = ElectricalPhase.C; cAfter += l; }
+                    if (Math.Abs(aAfter - minBucket) < 1e-6) { target = "A"; aAfter += l; }
+                    else if (Math.Abs(bAfter - minBucket) < 1e-6) { target = "B"; bAfter += l; }
+                    else { target = "C"; cAfter += l; }
 
                     preview.Assignments.Add(new PhaseAssignment
                     { SystemId = s.Id, NewPhase = target, LoadKW = l });
@@ -189,6 +202,11 @@ namespace StingTools.Commands.Electrical
             }
             catch (Exception ex) { StingLog.Warn($"PreviewBalance: {ex.Message}"); return null; }
         }
+
+        private static int PhaseToInt(string phase) => phase switch
+        {
+            "A" => 0, "B" => 1, "C" => 2, _ => 0
+        };
 
         private static double ImbalanceKW(double a, double b, double c)
             => Math.Max(a, Math.Max(b, c)) - Math.Min(a, Math.Min(b, c));
@@ -205,16 +223,19 @@ namespace StingTools.Commands.Electrical
             try { return s.ApparentLoad / 1000.0; } catch { return 0; }
         }
 
-        private static ElectricalPhase SafePhase(ElectricalSystem s)
+        /// <summary>Read the circuit's current phase via the parameter (0=A, 1=B, 2=C).</summary>
+        private static string SafePhase(ElectricalSystem s)
         {
-            try { return s.StartingPhase; } catch { return ElectricalPhase.A; }
+            try
+            {
+                int v = s.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_PHASE_PARAM)?.AsInteger() ?? 0;
+                return v switch { 1 => "B", 2 => "C", _ => "A" };
+            }
+            catch { return "A"; }
         }
 
         private static bool IsGroupedTwoPole(ElectricalSystem s)
         {
-            // Revit doesn't expose IsGrouped on ElectricalSystem directly. Best-effort:
-            // assume any 2-pole circuit with adjacent slot numbering is grouped — the
-            // user's "Respect grouped" toggle gates the safety net.
             try
             {
                 var p1 = s.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_START_SLOT)?.AsDouble() ?? 0;

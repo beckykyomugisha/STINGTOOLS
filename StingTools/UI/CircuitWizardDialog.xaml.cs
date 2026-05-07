@@ -135,9 +135,11 @@ namespace StingTools.UI
                         if (c.Domain != Domain.DomainElectrical) continue;
                         try
                         {
-                            var einfo = c.GetMEPConnectorInfo() as MEPConnectorInfoElec;
-                            // Voltage / poles aren't directly exposed on MEPConnectorInfoElec
-                            // in a stable way across versions; fall back to family params.
+                            // GetMEPConnectorInfo() returns the connector's MEP info; voltage
+                            // and pole counts aren't exposed via a stable cross-version API on
+                            // it, so we only call it for forward-compatibility and fall back
+                            // to family parameters below.
+                            var _ = c.GetMEPConnectorInfo();
                         }
                         catch { }
                     }

@@ -87,13 +87,15 @@ namespace StingTools.Commands.Electrical
                     .OfType<FamilyInstance>())
                 {
                     string status = psvByPanel.ContainsKey(p.Id.Value) ? "OK" : "Missing";
+                    int phaseCount = SafeIntByName(p, "Number of Phases");
+                    int wayCount   = SafeIntByName(p, "Number of Circuits");
                     rows.Add(new PanelData
                     {
                         Id = p.Id,
                         Name = p.Name ?? "",
-                        Voltage = SafeStr(p, BuiltInParameter.RBS_ELEC_VOLTAGE),
-                        Phase = SafeInt(p, BuiltInParameter.RBS_ELEC_NUMBER_OF_PHASES) is int n && n > 0 ? $"{n}Ph" : "",
-                        Ways = (int)SafeDouble(p, BuiltInParameter.RBS_ELEC_NUMBER_OF_CIRCUITS),
+                        Voltage = SafeStrByName(p, "Voltage", "Panel Voltage"),
+                        Phase = phaseCount > 0 ? $"{phaseCount}Ph" : "",
+                        Ways = wayCount,
                         ScheduleStatus = status,
                         FedFrom = SafeStr(p, BuiltInParameter.RBS_ELEC_PANEL_SUPPLY_FROM_PARAM)
                     });
@@ -123,7 +125,7 @@ namespace StingTools.Commands.Electrical
                         PanelName = TrySafe(() => sys.PanelName) ?? "",
                         CircuitNumber = SafeStr(sys, BuiltInParameter.RBS_ELEC_CIRCUIT_NUMBER),
                         Description = TrySafe(() => sys.LoadName) ?? sys.Name,
-                        Phase = TrySafe(() => sys.StartingPhase.ToString()) ?? "",
+                        Phase = ReadCircuitPhase(sys),
                         CurrentA = SafeDouble(sys, BuiltInParameter.RBS_ELEC_APPARENT_CURRENT_PARAM),
                         LoadKW = TrySafe(() => sys.ApparentLoad / 1000.0),
                         VoltDropPct = 0,
@@ -156,7 +158,9 @@ namespace StingTools.Commands.Electrical
                 {
                     double connected = SafeDouble(p, BuiltInParameter.RBS_ELEC_PANEL_TOTALLOAD_PARAM) / 1000.0;
                     double demand = connected; // No demand factors applied yet — Phase 178.
-                    int feederA = (int)SafeDouble(p, BuiltInParameter.RBS_ELEC_PANEL_RATING_PARAM);
+                    // Panel rating BIP name varies by Revit version; read by parameter
+                    // display-name fallback to stay version-portable.
+                    int feederA = (int)SafeDoubleByName(p, "Mains", "Max Number of Single Pole Breakers", "Number of Mains");
                     double sparePct = feederA > 0 && connected > 0
                         ? Math.Max(0, (1.0 - (demand / (feederA * 0.001 * 240))) * 100.0)
                         : 0;
@@ -345,5 +349,64 @@ namespace StingTools.Commands.Electrical
         private static int SafeInt(Element e, BuiltInParameter bip)
         { try { return e.get_Parameter(bip)?.AsInteger() ?? 0; } catch { return 0; } }
         private static T TrySafe<T>(Func<T> f) { try { return f(); } catch { return default(T); } }
+
+        private static string ReadCircuitPhase(ElectricalSystem sys)
+        {
+            try
+            {
+                int v = sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_PHASE_PARAM)?.AsInteger() ?? 0;
+                return v switch { 1 => "B", 2 => "C", _ => "A" };
+            }
+            catch { return ""; }
+        }
+
+        // Display-name lookup — used when a BIP enum constant differs between
+        // Revit versions; tries each fallback name in order.
+        private static string SafeStrByName(Element e, params string[] names)
+        {
+            foreach (var n in names)
+            {
+                try
+                {
+                    var p = e.LookupParameter(n);
+                    if (p == null) continue;
+                    if (p.StorageType == StorageType.String) return p.AsString() ?? "";
+                    string v = p.AsValueString();
+                    if (!string.IsNullOrEmpty(v)) return v;
+                }
+                catch { }
+            }
+            return "";
+        }
+        private static int SafeIntByName(Element e, params string[] names)
+        {
+            foreach (var n in names)
+            {
+                try
+                {
+                    var p = e.LookupParameter(n);
+                    if (p == null) continue;
+                    if (p.StorageType == StorageType.Integer) return p.AsInteger();
+                    if (p.StorageType == StorageType.Double) return (int)p.AsDouble();
+                }
+                catch { }
+            }
+            return 0;
+        }
+        private static double SafeDoubleByName(Element e, params string[] names)
+        {
+            foreach (var n in names)
+            {
+                try
+                {
+                    var p = e.LookupParameter(n);
+                    if (p == null) continue;
+                    if (p.StorageType == StorageType.Double) return p.AsDouble();
+                    if (p.StorageType == StorageType.Integer) return p.AsInteger();
+                }
+                catch { }
+            }
+            return 0;
+        }
     }
 }
