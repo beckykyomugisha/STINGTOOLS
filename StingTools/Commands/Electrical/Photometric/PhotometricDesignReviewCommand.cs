@@ -42,7 +42,7 @@ namespace StingTools.Commands.Electrical.Photometric
             // (we map room-type patterns there to a default illuminance table).
             var limits = LightingPowerDensityCommand.LoadLpdLimits(
                 StingElectricalCommandHandler_CurrentLpdStandard());
-            var targetLuxByPattern = BuildLuxTargets();
+            var luxTargets = StingTools.Photometrics.LuxTargetTable.Load();
 
             var rooms = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_Rooms)
@@ -78,7 +78,7 @@ namespace StingTools.Commands.Electrical.Photometric
                     if (lux <= 0) continue;
 
                     string roomName = room.Name ?? "";
-                    double targetLux = TargetLuxFor(roomName, targetLuxByPattern);
+                    double targetLux = luxTargets.TargetFor(roomName);
                     if (targetLux <= 0) targetLux = 300; // BS EN 12464-1 default for general work
 
                     double pct = lux / targetLux * 100;
@@ -197,42 +197,9 @@ namespace StingTools.Commands.Electrical.Photometric
             return n;
         }
 
-        // ── lux targets ─────────────────────────────────────────────────
-
-        /// <summary>
-        /// BS EN 12464-1 + CIBSE LG7 maintained illuminance targets per
-        /// room-name pattern. Conservative defaults — projects can override
-        /// per-room via the existing ELC_LPD_LIMIT_W_PER_M2 mechanism if
-        /// they need lighter / heavier targets.
-        /// </summary>
-        private static List<(string[] patterns, double luxTarget)> BuildLuxTargets() =>
-            new List<(string[], double)>
-            {
-                (new[] { "office", "open plan", "bullpen" }, 500),
-                (new[] { "conference", "meeting", "boardroom" }, 500),
-                (new[] { "reception", "lobby", "foyer" }, 300),
-                (new[] { "corridor", "passage", "circulation" }, 100),
-                (new[] { "stair", "stairwell" }, 150),
-                (new[] { "toilet", "wc", "bathroom" }, 200),
-                (new[] { "kitchen", "cafeteria", "canteen" }, 500),
-                (new[] { "store", "storage", "riser" }, 100),
-                (new[] { "plant", "mechanical", "boiler" }, 200),
-                (new[] { "car park", "parking", "garage" }, 75),
-                (new[] { "warehouse" }, 300),
-                (new[] { "retail", "shop" }, 500),
-                (new[] { "classroom", "school" }, 500),
-                (new[] { "laboratory", "lab" }, 500),
-                (new[] { "library" }, 500),
-                (new[] { "examination", "treatment" }, 1000),
-            };
-
-        private static double TargetLuxFor(string roomName, List<(string[] patterns, double luxTarget)> table)
-        {
-            string n = (roomName ?? "").ToLowerInvariant();
-            foreach (var (patterns, target) in table)
-                if (patterns.Any(p => n.Contains(p))) return target;
-            return 300;
-        }
+        // Lux target table moved to StingTools.Photometrics.LuxTargetTable
+        // (loads from STING_LUX_TARGETS.json — single source of truth shared
+        // with ElectricalSnapshotBuilder).
 
         // ── Excel writer ────────────────────────────────────────────────
 
