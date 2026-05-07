@@ -179,8 +179,77 @@ namespace StingTools.Core.Drawing
                     if (src.Halftone.HasValue)             ogs.SetHalftone(src.Halftone.Value);
                     if (src.ProjectionLineWeight.HasValue) ogs.SetProjectionLineWeight(src.ProjectionLineWeight.Value);
                     if (!string.IsNullOrEmpty(src.ProjectionLineColor)) ogs.SetProjectionLineColor(HexColor(src.ProjectionLineColor));
+                    if (!string.IsNullOrEmpty(src.ProjectionLinePattern))
+                    {
+                        var pid = ResolveLinePattern(doc, src.ProjectionLinePattern);
+                        if (pid != ElementId.InvalidElementId) ogs.SetProjectionLinePatternId(pid);
+                    }
                     if (src.CutLineWeight.HasValue)        ogs.SetCutLineWeight(src.CutLineWeight.Value);
                     if (!string.IsNullOrEmpty(src.CutLineColor))        ogs.SetCutLineColor(HexColor(src.CutLineColor));
+                    if (!string.IsNullOrEmpty(src.CutLinePattern))
+                    {
+                        var pid = ResolveLinePattern(doc, src.CutLinePattern);
+                        if (pid != ElementId.InvalidElementId) ogs.SetCutLinePatternId(pid);
+                    }
+
+                    // Phase 177 — surface foreground / background fill patterns
+                    if (!string.IsNullOrEmpty(src.SurfaceFgColor)) ogs.SetSurfaceForegroundPatternColor(HexColor(src.SurfaceFgColor));
+                    if (!string.IsNullOrEmpty(src.SurfaceFgPattern))
+                    {
+                        var fid = ResolveFillPattern(doc, src.SurfaceFgPattern);
+                        if (fid != ElementId.InvalidElementId)
+                        {
+                            ogs.SetSurfaceForegroundPatternId(fid);
+                            try { ogs.SetSurfaceForegroundPatternVisible(src.SurfaceFgVisible ?? true); } catch { }
+                        }
+                    }
+                    else if (src.SurfaceFgVisible.HasValue)
+                    {
+                        try { ogs.SetSurfaceForegroundPatternVisible(src.SurfaceFgVisible.Value); } catch { }
+                    }
+                    if (!string.IsNullOrEmpty(src.SurfaceBgColor)) ogs.SetSurfaceBackgroundPatternColor(HexColor(src.SurfaceBgColor));
+                    if (!string.IsNullOrEmpty(src.SurfaceBgPattern))
+                    {
+                        var fid = ResolveFillPattern(doc, src.SurfaceBgPattern);
+                        if (fid != ElementId.InvalidElementId)
+                        {
+                            ogs.SetSurfaceBackgroundPatternId(fid);
+                            try { ogs.SetSurfaceBackgroundPatternVisible(src.SurfaceBgVisible ?? true); } catch { }
+                        }
+                    }
+                    else if (src.SurfaceBgVisible.HasValue)
+                    {
+                        try { ogs.SetSurfaceBackgroundPatternVisible(src.SurfaceBgVisible.Value); } catch { }
+                    }
+
+                    // Cut foreground / background fill patterns
+                    if (!string.IsNullOrEmpty(src.CutFgColor)) ogs.SetCutForegroundPatternColor(HexColor(src.CutFgColor));
+                    if (!string.IsNullOrEmpty(src.CutFgPattern))
+                    {
+                        var fid = ResolveFillPattern(doc, src.CutFgPattern);
+                        if (fid != ElementId.InvalidElementId)
+                        {
+                            ogs.SetCutForegroundPatternId(fid);
+                            try { ogs.SetCutForegroundPatternVisible(src.CutFgVisible ?? true); } catch { }
+                        }
+                    }
+                    else if (src.CutFgVisible.HasValue)
+                    {
+                        try { ogs.SetCutForegroundPatternVisible(src.CutFgVisible.Value); } catch { }
+                    }
+                    if (!string.IsNullOrEmpty(src.CutBgColor)) ogs.SetCutBackgroundPatternColor(HexColor(src.CutBgColor));
+                    if (!string.IsNullOrEmpty(src.CutBgPattern))
+                    {
+                        var fid = ResolveFillPattern(doc, src.CutBgPattern);
+                        if (fid != ElementId.InvalidElementId) ogs.SetCutBackgroundPatternId(fid);
+                    }
+
+                    if (!string.IsNullOrEmpty(src.DetailLevel) &&
+                        Enum.TryParse<ViewDetailLevel>(src.DetailLevel, true, out var dl))
+                    {
+                        try { ogs.SetDetailLevel(dl); } catch { /* < 2023 */ }
+                    }
+
                     if (src.Transparency.HasValue)
                     {
                         var t = Clamp(src.Transparency.Value, 0, 100);

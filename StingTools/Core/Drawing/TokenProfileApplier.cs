@@ -65,8 +65,13 @@ namespace StingTools.Core.Drawing
             string preset   = profile?.PresentationMode;
             string segMask  = profile?.SegmentMask;
             int?   dispMode = profile?.DisplayMode;
-            var    sectVis  = profile?.SectionVisibility;
-            var    catDeps  = profile?.CategoryDepths;
+            // Phase 177 — pack-level CategoryTag7Sections falls in as
+            // SectionVisibility default when the profile leaves it empty.
+            var    sectVis  = profile?.SectionVisibility ?? PackSectionVisibilityDefault(pack);
+            // Phase 177 — pack-level CategoryDepths feeds the per-category
+            // depth map when the profile doesn't set it. Profile entries
+            // still win on a per-key basis (Merge semantics).
+            var    catDeps  = MergeCategoryDepths(profile?.CategoryDepths, pack?.CategoryDepths);
             // Phase 165 — T4-T10 payload pattern mode (HANDOVER / DC / CUSTOM).
             string patternMode = profile?.PatternMode;
 
@@ -261,6 +266,45 @@ namespace StingTools.Core.Drawing
                 StingLog.Warn($"WriteElementInts({paramName}): {ex.Message}");
             }
             return n;
+        }
+
+        // Phase 177 — translate pack.CategoryTag7Sections (per-category
+        // string of letters like "ABDF") into a single global SectionVisibility
+        // map ("A"->true, "B"->true, ...). The pack value applies project-
+        // wide as a fallback; the per-category granularity is more detailed
+        // than the global map can express, so we use the *union* of all
+        // category strings as the visible-set default. Profile-level
+        // SectionVisibility still takes precedence when set.
+        private static Dictionary<string, bool> PackSectionVisibilityDefault(ViewStylePack pack)
+        {
+            if (pack?.CategoryTag7Sections == null || pack.CategoryTag7Sections.Count == 0) return null;
+            var union = new HashSet<char>();
+            foreach (var v in pack.CategoryTag7Sections.Values)
+            {
+                if (string.IsNullOrEmpty(v)) continue;
+                foreach (var c in v.ToUpperInvariant()) if (c >= 'A' && c <= 'F') union.Add(c);
+            }
+            if (union.Count == 0) return null;
+            var map = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+            // Every section A..F is explicit: present in union -> visible, absent -> hidden.
+            for (char c = 'A'; c <= 'F'; c++) map[c.ToString()] = union.Contains(c);
+            return map;
+        }
+
+        // Phase 177 — merge profile + pack per-category depth maps. Profile
+        // entries always win; pack entries fill in keys the profile didn't
+        // set. Returns null if both inputs are empty/null so the existing
+        // null-check downstream can short-circuit.
+        private static Dictionary<string, int> MergeCategoryDepths(
+            Dictionary<string, int> profileMap, Dictionary<string, int> packMap)
+        {
+            bool hasP = profileMap != null && profileMap.Count > 0;
+            bool hasK = packMap    != null && packMap.Count    > 0;
+            if (!hasP && !hasK) return null;
+            if (!hasK) return profileMap;
+            var merged = new Dictionary<string, int>(packMap, StringComparer.OrdinalIgnoreCase);
+            if (hasP) foreach (var kv in profileMap) merged[kv.Key] = kv.Value;
+            return merged;
         }
 
         // PERF-03: helper used by the merged single-pass loop above.
