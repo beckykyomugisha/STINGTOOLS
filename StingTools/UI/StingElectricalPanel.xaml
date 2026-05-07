@@ -523,6 +523,9 @@
                                     <Button Content="✕ Clear Overrides" Style="{StaticResource ElecActionBtn}"
                                             Tag="Elec_ClearOverrides" Click="Cmd_Click"
                                             ToolTip="Reset any colour / halftone overrides applied by Flag Exceedances, Arc Flash, Emergency Audit or LPD checks on the active view."/>
+                                    <Button Content="▶ Load + Demand Audit" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Calc_LoadDemandAudit" Click="Cmd_Click"
+                                            ToolTip="Phase 185 — applies BS 7671 App 1 / IEE OSG diversity factors per circuit category (lighting 90%, small power 75%, HVAC 100%, etc.), reports per-panel spare capacity (target 25% commercial, 30% industrial, 35% healthcare), recommends harmonics-aware neutral CSA, sizes a project-wide PFC capacitor bank with payback estimate."/>
                                 </WrapPanel>
                             </StackPanel>
                         </Expander>

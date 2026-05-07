@@ -248,6 +248,8 @@ namespace StingTools.UI
                     RunCommand<StingTools.Commands.Electrical.Reports.CablePullListCommand>(app); break;
                 case "Rprt_EquipSchedule":
                     RunCommand<StingTools.Commands.Electrical.Reports.ElectricalEquipmentScheduleCommand>(app); break;
+                case "Calc_LoadDemandAudit":
+                    RunCommand<StingTools.Commands.Electrical.LoadDemand.LoadDemandAuditCommand>(app); break;
 
                 // ── RPRT ─────────────────────────────────────────────
                 case "Rprt_Audit":
