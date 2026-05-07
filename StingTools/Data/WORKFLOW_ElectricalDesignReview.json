@@ -1,0 +1,19 @@
+{
+  "id": "ElectricalDesignReview",
+  "name": "Electrical Design Review (DIALux Round-Trip)",
+  "description": "Mid-design checkpoint: round-trips lighting through DIALux/ElumTools/Relux via IFC, scores every room against BS EN 12464-1 / CIBSE LG7 illuminance targets, then tightens panel/circuit metadata and re-flags voltage-drop exceedances. Run before each design issue.",
+  "version": "1.0",
+  "phase": 182,
+  "steps": [
+    { "order": 1, "tag": "Photo_Preflight",     "label": "Pre-flight luminaire library",                     "continueOnFail": true  },
+    { "order": 2, "tag": "Elec_ExportDIALux",   "label": "Export rooms + fixtures to DIALux IFC",            "continueOnFail": true  },
+    { "order": 3, "tag": "Photo_IfcImport",     "label": "Re-import IFC results from photometric engine",    "continueOnFail": true  },
+    { "order": 4, "tag": "Photo_Aggregator",    "label": "Aggregate multi-engine results",                   "continueOnFail": true  },
+    { "order": 5, "tag": "Photo_DesignReview",  "label": "Score lux vs CIBSE/BS EN 12464-1 targets",         "continueOnFail": true  },
+    { "order": 6, "tag": "Lite_LPD",            "label": "Lighting power density check",                     "continueOnFail": true  },
+    { "order": 7, "tag": "Lite_EmergAudit",     "label": "Emergency lighting audit",                         "continueOnFail": true  },
+    { "order": 8, "tag": "Calc_VoltageDrop",    "label": "Re-run voltage drop after lighting changes",       "continueOnFail": true  },
+    { "order": 9, "tag": "Calc_FlagVD",         "label": "Flag voltage-drop exceedances",                    "continueOnFail": true  },
+    { "order": 10,"tag": "Rprt_Audit",          "label": "Generate compliance audit",                        "continueOnFail": true  }
+  ]
+}

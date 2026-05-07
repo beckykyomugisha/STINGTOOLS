@@ -8,10 +8,12 @@ using StingTools.Core;
 namespace StingTools.Commands.Electrical.Coordination
 {
     /// <summary>
-    /// Time-current curve database POCO. Each entry is a coarse summary of a
-    /// breaker's clearing characteristic — single anchor point at 10× In plus
-    /// the fault-level range it is rated for. Production hardening could add
-    /// the full <see cref="TccCurve"/> point list for log-log interpolation.
+    /// Time-current curve database POCO. Each entry holds a breaker's
+    /// clearing characteristic. The minimal form is one anchor (10× In) plus
+    /// the rated fault-level range, used as a linear-ramp fallback. When the
+    /// JSON entry supplies a <c>points</c> array, <see cref="TccEntry.ClearingTimeMs"/>
+    /// log-log interpolates between them — the standard way TCC curves are
+    /// read off manufacturer datasheets.
     /// </summary>
     public class TccDatabase
     {
@@ -59,13 +61,47 @@ namespace StingTools.Commands.Electrical.Coordination
         [JsonProperty("maxFaultKa")]         public double MaxFaultKa         { get; set; }
 
         /// <summary>
-        /// Linear ramp between an instantaneous-trip floor (the table's 10× In
-        /// value) and a long-time pickup ceiling (300 ms) over the rated fault
-        /// range. Production hardening should swap this for log-log
-        /// interpolation against <see cref="TccCurve.Points"/>.
+        /// Optional point list (faultKa, clearingMs) supplying a real
+        /// time-current curve. When populated, <see cref="ClearingTimeMs"/>
+        /// log-log interpolates between adjacent points (the standard way TCC
+        /// curves are read off manufacturer datasheets — both axes are log
+        /// scaled). Missing → falls back to the linear ramp.
+        /// </summary>
+        [JsonProperty("points")] public List<TccPoint> Points { get; set; } = new List<TccPoint>();
+
+        /// <summary>
+        /// Clearing time at a given fault current. Uses log-log interpolation
+        /// against <see cref="Points"/> when ≥ 2 points are tabulated;
+        /// otherwise applies a linear ramp between the rated-floor (10× In) and
+        /// long-time pickup ceiling (300 ms).
         /// </summary>
         public double ClearingTimeMs(double faultKa)
         {
+            if (faultKa <= 0) return ClearingMs_At_10xIn;
+            var pts = Points;
+            if (pts != null && pts.Count >= 2)
+            {
+                var sorted = pts.Where(p => p.FaultKa > 0 && p.ClearingMs > 0)
+                                .OrderBy(p => p.FaultKa).ToList();
+                if (sorted.Count >= 2)
+                {
+                    if (faultKa <= sorted[0].FaultKa) return sorted[0].ClearingMs;
+                    if (faultKa >= sorted[sorted.Count - 1].FaultKa) return sorted[sorted.Count - 1].ClearingMs;
+                    for (int i = 0; i < sorted.Count - 1; i++)
+                    {
+                        var a = sorted[i]; var b = sorted[i + 1];
+                        if (faultKa < a.FaultKa || faultKa > b.FaultKa) continue;
+                        // log-log interp: log(t) is linear in log(I)
+                        double lx = Math.Log10(faultKa);
+                        double la = Math.Log10(a.FaultKa);
+                        double lb = Math.Log10(b.FaultKa);
+                        double f  = (lx - la) / (lb - la);
+                        double lt = Math.Log10(a.ClearingMs) + f * (Math.Log10(b.ClearingMs) - Math.Log10(a.ClearingMs));
+                        return Math.Pow(10, lt);
+                    }
+                }
+            }
+            // Linear-ramp fallback (Phase 178 baseline behaviour).
             if (MaxFaultKa <= MinFaultKa) return ClearingMs_At_10xIn;
             double ratio = Math.Min(1.0, Math.Max(0.0,
                 (faultKa - MinFaultKa) / (MaxFaultKa - MinFaultKa)));
