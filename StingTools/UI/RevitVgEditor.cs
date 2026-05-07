@@ -578,13 +578,20 @@ namespace StingTools.UI
             };
             var noteRow = new StackPanel { Orientation = Orientation.Horizontal };
             noteRow.Children.Add(note);
-            noteRow.Children.Add(new Button
+            // Phase 177 — wire the previously-dead Object Styles… button.
+            // Dispatches the STING CreateObjectStylesCommand which mints the
+            // corporate-baseline Object Styles into the document. Tooltip
+            // explains both paths: STING command vs Revit's native dialog.
+            var objStylesBtn = new Button
             {
                 Content = "Object Styles…",
                 Margin = new Thickness(8, 0, 0, 0),
                 Padding = new Thickness(8, 2, 8, 2),
-                ToolTip = "Object Styles authoring lives in Revit's native Manage tab — STING does not duplicate it."
-            });
+                ToolTip = "Click: run STING's CreateObjectStyles command (mints the corporate object-style catalogue " +
+                          "into this project). For free-form authoring use Revit's Manage tab → Object Styles."
+            };
+            objStylesBtn.Click += (s, e) => DispatchObjectStyles();
+            noteRow.Children.Add(objStylesBtn);
             left.Children.Add(noteRow);
 
             // Right: Override Host Layers + Cut Line Styles + Edit…
@@ -595,13 +602,18 @@ namespace StingTools.UI
             var cutRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
             _hostLayers = new CheckBox { Content = "Cut Line Styles", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
             cutRow.Children.Add(_hostLayers);
-            cutRow.Children.Add(new Button
+            // Phase 177 — wire the Edit… button. Opens VgLineGraphicsDialog
+            // pre-populated from the Cut Line Styles checkbox state so users
+            // can override host-layer cut graphics without bouncing to Revit.
+            var editBtn = new Button
             {
                 Content = "Edit…",
                 Padding = new Thickness(8, 2, 8, 2),
-                ToolTip = "Edit cut-line styles for compound walls / floors / roofs (Revit native dialog)."
-            });
-            right.Children.Add(cutRow);
+                ToolTip = "Override host-layer cut-line styles. Pops STING's Line Graphics dialog (pattern + colour + weight) " +
+                          "applied to every selected row's CutLine* fields."
+            };
+            editBtn.Click += (s, e) => OpenCutLineStylesEditor();
+            cutRow.Children.Add(editBtn);
 
             Grid.SetColumn(left, 0); Grid.SetColumn(right, 1);
             bottom.Children.Add(left); bottom.Children.Add(right);
@@ -698,6 +710,87 @@ namespace StingTools.UI
         {
             foreach (var r in AllRows) if (r.IsParent) r.Expanded = v;
             RefreshFilters();
+        }
+
+        // Phase 177 — Object Styles… click handler. Uses the dock panel's
+        // external-event dispatcher so the STING CreateObjectStylesCommand
+        // runs on the Revit API thread under its own transaction.
+        private void DispatchObjectStyles()
+        {
+            try
+            {
+                bool ok = StingTools.UI.StingDockPanel.DispatchCommand("CreateObjectStyles");
+                if (!ok)
+                {
+                    MessageBox.Show(
+                        "Open the STING dock panel once before launching the editor — " +
+                        "the dock panel registers the external-event handler that runs tagged commands.",
+                        "STING — Object Styles", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Error("RevitVgEditor.DispatchObjectStyles", ex);
+            }
+        }
+
+        // Phase 177 — Edit… (cut line styles) click handler. When the
+        // "Cut Line Styles" checkbox is ticked, applies the user's chosen
+        // cut-line graphics across every selected (or every visible) row's
+        // CutLine* fields. When unticked, applies to the projection-line side.
+        private void OpenCutLineStylesEditor()
+        {
+            bool cut = _hostLayers?.IsChecked == true;
+            var seed = new VgLineGraphics
+            {
+                Pattern  = cut ? "Solid" : "Solid",
+                ColorHex = "#000000",
+                Weight   = cut ? 4 : 1,
+            };
+            var picked = VgLineGraphicsDialog.Show(seed, _linePatterns);
+            if (picked == null) return;
+
+            // Scope: selected rows on the active grid, falling back to every
+            // visible row in the active tab when nothing is selected.
+            var grid = _modelGrid?.Visibility == Visibility.Visible ? _modelGrid : _annoGrid;
+            IEnumerable<VgRow> targets = grid?.SelectedItems?.Cast<VgRow>().ToList();
+            if (targets == null || !targets.Any())
+            {
+                var view = grid == _annoGrid ? _annoView : _modelView;
+                targets = view?.Cast<VgRow>().ToList() ?? Enumerable.Empty<VgRow>();
+            }
+            int n = 0;
+            foreach (var row in targets)
+            {
+                if (picked.Cleared)
+                {
+                    if (cut)
+                    {
+                        row.CutLinePattern = null; row.CutLineColor = null; row.CutLineWeightStr = null;
+                    }
+                    else
+                    {
+                        row.ProjLinePattern = null; row.ProjLineColor = null; row.ProjLineWeightStr = null;
+                    }
+                }
+                else
+                {
+                    if (cut)
+                    {
+                        row.CutLinePattern   = picked.Pattern;
+                        row.CutLineColor     = picked.ColorHex;
+                        row.CutLineWeightStr = picked.Weight?.ToString();
+                    }
+                    else
+                    {
+                        row.ProjLinePattern   = picked.Pattern;
+                        row.ProjLineColor     = picked.ColorHex;
+                        row.ProjLineWeightStr = picked.Weight?.ToString();
+                    }
+                }
+                n++;
+            }
+            try { StingTools.Core.StingLog.Info($"RevitVgEditor.OpenCutLineStylesEditor: applied to {n} row(s) ({(cut ? "cut" : "projection")})."); } catch { }
         }
 
         private void ClearOverrides()
