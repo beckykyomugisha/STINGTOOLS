@@ -170,13 +170,14 @@ namespace StingTools.UI
                     RunCommand<StingTools.Commands.Electrical.ElecCircuitRenumberCommand>(app); break;
                 case "Circuit_Excel":
                     RunCommand<StingTools.Commands.Panels.ExportPanelSchedulesToExcelCommand>(app); break;
-                case "Circuit_Move":
                 case "Circuit_Create":
+                    RunCommand<StingTools.Commands.Electrical.CircuitCreateCommand>(app); break;
                 case "Circuit_Delete":
+                    RunCommand<StingTools.Commands.Electrical.CircuitDeleteCommand>(app); break;
+                case "Circuit_Move":
+                    RunCommand<StingTools.Commands.Electrical.CircuitMoveCommand>(app); break;
                 case "Circuit_Sort":
-                    TaskDialog.Show("STING Electrical",
-                        $"{tag} is planned for Phase 178. Use the panel schedule UI for now.");
-                    break;
+                    RunCommand<StingTools.Commands.Electrical.CircuitSortCommand>(app); break;
 
                 // ── CALCS ────────────────────────────────────────────
                 case "Calc_LoadSummary":
@@ -192,15 +193,15 @@ namespace StingTools.UI
 
                 // ── SLD ──────────────────────────────────────────────
                 case "SLD_Generate":
+                    RunCommand<StingTools.Commands.SLD.GenerateSLDCommand>(app); break;
                 case "SLD_Update":
-                    TryRunByTypeName("StingTools.Commands.SLD.SLDGeneratorCommand", app);
-                    break;
+                    RunCommand<StingTools.Commands.SLD.UpdateSLDCommand>(app); break;
                 case "SLD_Refresh":
-                    /* fresh snapshot will run after Dispatch */
+                    // PushSnapshot at the end of Execute() already rebuilds the
+                    // SLD tree from the latest model state — no extra work here.
                     break;
                 case "SLD_Export":
-                    TryRunByTypeName("StingTools.Commands.SLD.SLDExportCommand", app);
-                    break;
+                    RunCommand<StingTools.Commands.SLD.SLDExportCommand>(app); break;
                 case "SLD_ZoomTo":
                     ZoomToSelectedSld(app, doc);
                     break;
@@ -218,29 +219,27 @@ namespace StingTools.UI
 
                 // ── LITE ─────────────────────────────────────────────
                 case "Lite_Refresh":
-                    /* snapshot picks up lighting refresh */
+                    // PushSnapshot at the end of Execute() rescans lighting fixtures
+                    // and refreshes the LITE grid — no extra work needed here.
                     break;
                 case "Lite_CreateSchedule":
                     RunCommand<StingTools.Commands.Electrical.ElecLightingScheduleCommand>(app); break;
                 case "Lite_UpdateTargets":
-                    /* snapshot picks up targets */
+                    // PushSnapshot already re-evaluates lux targets per room.
+                    // Same pattern as Lite_Refresh and SLD_Refresh — intentional no-op.
                     break;
 
                 // ── RPRT ─────────────────────────────────────────────
                 case "Rprt_Audit":
                     RunCommand<StingTools.Commands.Panels.PanelScheduleAuditCommand>(app); break;
                 case "Rprt_PDF":
-                    TaskDialog.Show("STING Electrical",
-                        "PDF report generation is queued for Phase 178. Excel export is available now.");
-                    break;
+                    RunCommand<StingTools.Commands.Electrical.Reports.ElecPdfReportCommand>(app); break;
                 case "Rprt_ExcelExport":
                     RunCommand<StingTools.Commands.Panels.ExportPanelSchedulesToExcelCommand>(app); break;
                 case "Rprt_ExcelImport":
                     RunCommand<StingTools.Commands.Panels.ImportPanelSchedulesFromExcelCommand>(app); break;
                 case "Rprt_ShowDiff":
-                    TaskDialog.Show("STING Electrical",
-                        "Last import diff is logged in StingTools.log. A dedicated viewer arrives in Phase 178.");
-                    break;
+                    RunCommand<StingTools.Commands.Electrical.Reports.ImportDiffViewerCommand>(app); break;
                 case "Rprt_CircuitExport":
                     RunCommand<StingTools.Commands.Electrical.ExportCircuitsCommand>(app); break;
                 case "Rprt_COBie":
