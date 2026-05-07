@@ -294,20 +294,20 @@ ASS_FIRE_RATING_TXT,TEXT,Fire,NO,"","Fire rating classification","Element proper
 ASS_KEYNOTE_TXT,TEXT,Classification,NO,"","Keynote reference","Element properties panel","Enter for TAG7F section and specification cross-reference."
 ELC_LPS_CLASS_TXT,TEXT,LPS,YES,"","LPS class — I/II/III/IV per BS EN 62305-2 risk assessment","Element properties panel","Enter on every lightning-protection element BEFORE tagging. Drives down-conductor min count, mesh max, inspection interval."
 ELC_LPS_ZONE_TXT,TEXT,LPS,YES,"","Lightning protection zone — LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3 (BS EN 62305-4)","Element properties panel","Enter for every LPS element to record the zone topology of the building."
-ELC_LPS_AIR_TERMINAL_COUNT_NR,INTEGER,LPS,YES,0,"Air terminal count on protected zone","Element properties panel","Enter on the lead air-terminal element only — used for compliance roll-up."
-ELC_LPS_DOWN_CONDUCTOR_COUNT_NR,INTEGER,LPS,YES,0,"Down conductor count","Element properties panel","Enter on the lead down-conductor element. Min 4 (Class I) / 3 (II) / 2 (III/IV) — validator fires if below."
-ELC_LPS_EARTH_ELECTRODE_COUNT_NR,INTEGER,LPS,YES,0,"Earth electrode count","Element properties panel","Enter on the lead earth-electrode element."
-ELC_LPS_EARTH_RESISTANCE_OHM,NUMBER,LPS,YES,0,"Measured earth resistance in Ω","Element properties panel","Enter after commissioning earth test. Validator fires if > 10 Ω."
-ELC_LPS_CONDUCTOR_CROSS_SECT_MM2,NUMBER,LPS,YES,0,"Down conductor cross-section in mm²","Element properties panel","Enter to verify class minimum (50 mm² Cu / 70 mm² Al / 50 mm² Steel)."
+ELC_LPS_AIR_TERMINAL_COUNT_NR,TEXT,LPS,YES,0,Air terminal count on protected zone,Element properties panel,Enter on the lead air-terminal element only — used for compliance roll-up.
+ELC_LPS_DOWN_CONDUCTOR_COUNT_NR,TEXT,LPS,YES,0,Down conductor count,Element properties panel,Enter on the lead down-conductor element. Min 4 (Class I) / 3 (II) / 2 (III/IV) — validator fires if below.
+ELC_LPS_EARTH_ELECTRODE_COUNT_NR,TEXT,LPS,YES,0,Earth electrode count,Element properties panel,Enter on the lead earth-electrode element.
+ELC_LPS_EARTH_RESISTANCE_OHM,TEXT,LPS,YES,0,Measured earth resistance in Ω,Element properties panel,Enter after commissioning earth test. Validator fires if > 10 Ω.
+ELC_LPS_CONDUCTOR_CROSS_SECT_MM2,TEXT,LPS,YES,0,Down conductor cross-section in mm²,Element properties panel,Enter to verify class minimum (50 mm² Cu / 70 mm² Al / 50 mm² Steel).
 ELC_LPS_CONDUCTOR_MATERIAL_TXT,TEXT,LPS,YES,COPPER,"Conductor material — COPPER / ALUMINIUM / STEEL","Element properties panel","Drives separation distance km factor and minimum cross-section validator."
 ELC_LPS_BOND_TYPE_TXT,TEXT,LPS,YES,"","Bonding type — DIRECT / SPD / ISOLATING_SPARK_GAP","Element properties panel","Enter on each bond element. Validator fires if empty."
 ELC_LPS_SURGE_PROTECTION_LVL_TXT,TEXT,LPS,NO,"","SPD type — Type 1 / Type 2 / Type 3","Element properties panel","Enter on each SPD element."
-ELC_LPS_SEPARATION_DISTANCE_MM,NUMBER,LPS,NO,0,"Separation distance s (mm) between LPS and services","Element properties panel","Enter computed s = ki·kc·l/km — validator fires if below safe minimum."
-ELC_LPS_PROTECTION_ANGLE_DEG,NUMBER,LPS,NO,0,"Protection cone half-angle (°)","Element properties panel","Enter when using protection-angle method (BS EN 62305-3 §A.2)."
-ELC_LPS_MESH_SIZE_M,NUMBER,LPS,NO,0,"Air-termination mesh size (m)","Element properties panel","Enter when using mesh method. Class limits: I=5×5, II=10×10, III=15×15, IV=20×20 m."
-ELC_LPS_ROLLING_SPHERE_RADIUS_M,NUMBER,LPS,NO,0,"Rolling sphere radius (m)","Element properties panel","Enter when using rolling-sphere method. Class radii: I=20, II=30, III=45, IV=60 m."
+ELC_LPS_SEPARATION_DISTANCE_MM,TEXT,LPS,NO,0,Separation distance s (mm) between LPS and services,Element properties panel,Enter computed s = ki·kc·l/km — validator fires if below safe minimum.
+ELC_LPS_PROTECTION_ANGLE_DEG,TEXT,LPS,NO,0,Protection cone half-angle (°),Element properties panel,Enter when using protection-angle method (BS EN 62305-3 §A.2).
+ELC_LPS_MESH_SIZE_M,TEXT,LPS,NO,0,Air-termination mesh size (m),Element properties panel,"Enter when using mesh method. Class limits: I=5×5, II=10×10, III=15×15, IV=20×20 m."
+ELC_LPS_ROLLING_SPHERE_RADIUS_M,TEXT,LPS,NO,0,Rolling sphere radius (m),Element properties panel,"Enter when using rolling-sphere method. Class radii: I=20, II=30, III=45, IV=60 m."
 ELC_LPS_RISK_ASSESSMENT_TXT,TEXT,LPS,YES,"","BS EN 62305-2 risk assessment reference (R1..R4)","Project Information or element properties","Enter the risk-assessment document reference. Validator fires if empty."
-ELC_LPS_INSPECTION_INTERVAL_MONTHS,INTEGER,LPS,YES,12,"Inspection interval in months","Element properties panel","Enter 12 (Class I/II) or 24 (Class III/IV)."
+ELC_LPS_INSPECTION_INTERVAL_MONTHS,TEXT,LPS,YES,12,Inspection interval in months,Element properties panel,Enter 12 (Class I/II) or 24 (Class III/IV).
 ELC_LPS_TEST_DATE_TXT,TEXT,LPS,NO,"","ISO 8601 date of last LPS test","Element properties panel","Enter after each commissioning / periodic test (yyyy-mm-dd)."
 ELC_LPS_CERT_REF_TXT,TEXT,LPS,NO,"","Certificate / commissioning report reference","Element properties panel","Enter the BS EN 62305 certification document reference."
 ELC_LPS_EARTH_TYPE_TXT,TEXT,LPS,NO,"","Earth electrode type — ROD / RING / FOUNDATION / MESH","Element properties panel","Enter to record Type-A vs Type-B earth electrode design."
