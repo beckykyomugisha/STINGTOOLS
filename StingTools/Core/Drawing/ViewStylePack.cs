@@ -35,6 +35,19 @@ namespace StingTools.Core.Drawing
         [JsonProperty("dimensionStyle")]  public string DimensionStyle { get; set; }
         [JsonProperty("hatchPalette")]    public string HatchPalette { get; set; }
 
+        // ── Phase 136 — pack-level view-template fallback. Resolved by
+        // DrawingTypePresentation early in Apply() so packs supply a sensible
+        // template / detail level / scale / colour scheme for every profile
+        // bound to them when the profile leaves the slot empty. ──
+        [JsonProperty("viewTemplate", NullValueHandling = NullValueHandling.Ignore)]
+        public string ViewTemplate { get; set; }
+        [JsonProperty("packDetailLevel", NullValueHandling = NullValueHandling.Ignore)]
+        public string DetailLevel { get; set; }
+        [JsonProperty("scaleHint", NullValueHandling = NullValueHandling.Ignore)]
+        public string ScaleHint { get; set; }
+        [JsonProperty("colorScheme", NullValueHandling = NullValueHandling.Ignore)]
+        public string ColorScheme { get; set; }
+
         // Phase 139 — accept both "filters" and "filterRules" (corporate
         // file uses filterRules; we expose Filters for runtime).
         [JsonProperty("filters", NullValueHandling = NullValueHandling.Ignore)]
@@ -100,6 +113,23 @@ namespace StingTools.Core.Drawing
         /// </summary>
         [JsonProperty("categoryTagStyles", NullValueHandling = NullValueHandling.Ignore)]
         public Dictionary<string, string> CategoryTagStyles { get; set; }
+            = new Dictionary<string, string>();
+
+        // ── Phase 177 — Tag Appearance per-category extensions ──
+        // CategoryDepths drives the global TAG7 paragraph depth (1..10) per
+        // category as a pack-level default; the DrawingType's
+        // AnnotationTokenProfile.CategoryDepths still wins where both set
+        // the same key. CategoryTag7Sections is a string of section letters
+        // ("ABCDEF" / "AB" / etc.) controlling which TAG7 sub-sections
+        // (A-F) are visible per category — mirrors the
+        // TAG_7_SECTION_VISIBLE_{A..F}_BOOL family the runtime writes.
+
+        [JsonProperty("categoryDepths", NullValueHandling = NullValueHandling.Ignore)]
+        public Dictionary<string, int> CategoryDepths { get; set; }
+            = new Dictionary<string, int>();
+
+        [JsonProperty("categoryTag7Sections", NullValueHandling = NullValueHandling.Ignore)]
+        public Dictionary<string, string> CategoryTag7Sections { get; set; }
             = new Dictionary<string, string>();
 
         [JsonProperty("checksum", NullValueHandling = NullValueHandling.Ignore)]
@@ -254,6 +284,27 @@ namespace StingTools.Core.Drawing
         // Phase 113+ presentation packs use this to hide MEP / structural framing
         // / scope boxes etc. on architectural presentation drawings.
         [JsonProperty("visible",               NullValueHandling = NullValueHandling.Ignore)] public bool?   Visible { get; set; }
+
+        // ── Phase 177 — pattern + detail-level overrides ──
+        // Mirrors the StyleFilterRule extended fields so per-category overrides
+        // can express line-pattern + surface/cut fill patterns + detail-level,
+        // matching what the inline RevitVgEditor exposes. ApplyCategoryOverrides
+        // resolves *Pattern names against the document's LinePatternElement /
+        // FillPatternElement collectors at apply time.
+        [JsonProperty("projectionLinePattern", NullValueHandling = NullValueHandling.Ignore)] public string ProjectionLinePattern { get; set; }
+        [JsonProperty("cutLinePattern",        NullValueHandling = NullValueHandling.Ignore)] public string CutLinePattern { get; set; }
+        [JsonProperty("surfaceFgColor",        NullValueHandling = NullValueHandling.Ignore)] public string SurfaceFgColor { get; set; }
+        [JsonProperty("surfaceFgPattern",      NullValueHandling = NullValueHandling.Ignore)] public string SurfaceFgPattern { get; set; }
+        [JsonProperty("surfaceFgVisible",      NullValueHandling = NullValueHandling.Ignore)] public bool?  SurfaceFgVisible { get; set; }
+        [JsonProperty("surfaceBgColor",        NullValueHandling = NullValueHandling.Ignore)] public string SurfaceBgColor { get; set; }
+        [JsonProperty("surfaceBgPattern",      NullValueHandling = NullValueHandling.Ignore)] public string SurfaceBgPattern { get; set; }
+        [JsonProperty("surfaceBgVisible",      NullValueHandling = NullValueHandling.Ignore)] public bool?  SurfaceBgVisible { get; set; }
+        [JsonProperty("cutFgColor",            NullValueHandling = NullValueHandling.Ignore)] public string CutFgColor { get; set; }
+        [JsonProperty("cutFgPattern",          NullValueHandling = NullValueHandling.Ignore)] public string CutFgPattern { get; set; }
+        [JsonProperty("cutFgVisible",          NullValueHandling = NullValueHandling.Ignore)] public bool?  CutFgVisible { get; set; }
+        [JsonProperty("cutBgColor",            NullValueHandling = NullValueHandling.Ignore)] public string CutBgColor { get; set; }
+        [JsonProperty("cutBgPattern",          NullValueHandling = NullValueHandling.Ignore)] public string CutBgPattern { get; set; }
+        [JsonProperty("detailLevel",           NullValueHandling = NullValueHandling.Ignore)] public string DetailLevel { get; set; }
     }
 
     public sealed class ViewStylePackLibrary
