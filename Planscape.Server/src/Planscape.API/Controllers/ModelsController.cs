@@ -97,18 +97,28 @@ public class ModelsController : ControllerBase
         var tenantSlug = await TenantSlug(ct);
         var projectCode = string.IsNullOrWhiteSpace(project.Code) ? project.Id.ToString("N") : project.Code;
 
-        // Hash first so we can short-circuit duplicate uploads.
+        // Hash first so we can short-circuit duplicate uploads — unless
+        // the caller explicitly set Force=true (e.g. Revit plugin's
+        // "republish anyway" flow when bytes haven't changed but the
+        // user wants a new revision row).
         string hash;
         using (var hashStream = req.File.OpenReadStream())
         {
             hash = await ComputeHashAsync(hashStream, ct);
         }
-        var existing = await _db.ProjectModels.AsNoTracking()
-            .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.ContentHash == hash && m.DeletedAt == null, ct);
-        if (existing != null)
+        if (!req.Force)
         {
-            _logger.LogInformation("Model upload skipped — duplicate hash {Hash} for project {ProjectId}", hash, projectId);
-            return Conflict(new { error = "duplicate_content", id = existing.Id });
+            var existing = await _db.ProjectModels.AsNoTracking()
+                .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.ContentHash == hash && m.DeletedAt == null, ct);
+            if (existing != null)
+            {
+                _logger.LogInformation("Model upload skipped — duplicate hash {Hash} for project {ProjectId}", hash, projectId);
+                return Conflict(new { error = "duplicate_content", id = existing.Id });
+            }
+        }
+        else
+        {
+            _logger.LogInformation("Model upload forced — bypassing SHA-256 dedup for project {ProjectId}", projectId);
         }
 
         // Store geometry.
@@ -389,6 +399,14 @@ public class UploadModelRequest
     public double? BoundsMaxX { get; set; }
     public double? BoundsMaxY { get; set; }
     public double? BoundsMaxZ { get; set; }
+    /// <summary>
+    /// When true, bypasses the SHA-256 content-hash dedup and creates a
+    /// new ProjectModel row even if an entry with the same bytes
+    /// already exists. Used by the Revit plugin's "republish anyway"
+    /// flow when a user wants to re-issue an unchanged GLB as a new
+    /// revision (e.g. updated element map only).
+    /// </summary>
+    public bool Force { get; set; }
 }
 
 public record ModelMetaDto(
