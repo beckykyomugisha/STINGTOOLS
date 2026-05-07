@@ -80,7 +80,22 @@ namespace StingTools.Commands.Electrical.ArcFlash
                     if (!byPanelId.TryGetValue(panel.Id.Value, out var fr)) continue;
 
                     double voltageV = ParseVoltage(fr.Voltage, panel);
-                    double workMm = ArcFlashEngine.DefaultWorkingDistanceMm(voltageV);
+                    // Phase 186 — honour a per-equipment working-distance override
+                    // (ELC_ARC_FLASH_WD_OVERRIDE in mm). Falls back to IEEE 1584
+                    // defaults when the override is zero/missing. Catches the
+                    // common case where MV switchgear or NEMA 4 enclosures need
+                    // a non-standard clearance distance.
+                    double overrideMm = 0;
+                    try
+                    {
+                        var p = panel.LookupParameter("ELC_ARC_FLASH_WD_OVERRIDE");
+                        if (p != null && p.StorageType == StorageType.Double) overrideMm = p.AsDouble();
+                        else if (p != null && p.StorageType == StorageType.String && double.TryParse(p.AsString(), out double ov)) overrideMm = ov;
+                    }
+                    catch { }
+                    double workMm = overrideMm > 0
+                        ? overrideMm
+                        : ArcFlashEngine.DefaultWorkingDistanceMm(voltageV);
                     double gapMm = ArcFlashEngine.DefaultBusGapMm(voltageV);
 
                     double clearMs = useFixed

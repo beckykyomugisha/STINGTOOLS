@@ -1512,6 +1512,8 @@ namespace StingTools.Core
                 case "Rprt_CablePullList":   return new Commands.Electrical.Reports.CablePullListCommand();
                 case "Rprt_EquipSchedule":   return new Commands.Electrical.Reports.ElectricalEquipmentScheduleCommand();
                 case "Calc_LoadDemandAudit": return new Commands.Electrical.LoadDemand.LoadDemandAuditCommand();
+                case "Elec_TccPlot":         return new Commands.Electrical.Coordination.TccPlotCommand();
+                case "Elec_ArcFlashBoundary":return new Commands.Electrical.ArcFlash.ArcFlashBoundaryViewCommand();
                 case "Panel_SyncParams":   return new Commands.Electrical.ElecPanelParamSyncCommand();
                 case "Panel_WriteParams":  return new Commands.Electrical.ElecPanelWriteParamsCommand();
 

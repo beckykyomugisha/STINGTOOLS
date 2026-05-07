@@ -250,6 +250,10 @@ namespace StingTools.UI
                     RunCommand<StingTools.Commands.Electrical.Reports.ElectricalEquipmentScheduleCommand>(app); break;
                 case "Calc_LoadDemandAudit":
                     RunCommand<StingTools.Commands.Electrical.LoadDemand.LoadDemandAuditCommand>(app); break;
+                case "Elec_TccPlot":
+                    RunCommand<StingTools.Commands.Electrical.Coordination.TccPlotCommand>(app); break;
+                case "Elec_ArcFlashBoundary":
+                    RunCommand<StingTools.Commands.Electrical.ArcFlash.ArcFlashBoundaryViewCommand>(app); break;
 
                 // ── RPRT ─────────────────────────────────────────────
                 case "Rprt_Audit":

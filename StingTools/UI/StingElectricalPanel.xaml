@@ -669,6 +669,12 @@
                                 <Button Content="📋 Arc Flash Schedule" Style="{StaticResource ElecActionBtn}"
                                         Tag="Elec_ArcFlashSched" Click="Cmd_Click"
                                         ToolTip="Creates a Revit ViewSchedule of OST_ElectricalEquipment with arc flash columns."/>
+                                <Button Content="⭕ Boundary Circles" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Elec_ArcFlashBoundary" Click="Cmd_Click"
+                                        ToolTip="Drops a coloured detail circle at every panel on the active plan view sized to its arc-flash boundary distance (ELC_ARC_FLASH_BD). Red/orange/yellow/green by PPE category."/>
+                                <Button Content="📈 TCC Curve Plot" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Elec_TccPlot" Click="Cmd_Click"
+                                        ToolTip="SVG time-current coordination curves on log-log axes for every cascaded OCPD pair in the TCC database. Drops in &lt;output&gt;/electrical/tcc/ for shop-drawing inclusion."/>
                             </StackPanel>
                         </Expander>
 
