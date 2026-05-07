@@ -242,6 +242,12 @@ namespace StingTools.UI
                     RunCommand<StingTools.Commands.Electrical.Compliance.BS7671AuditCommand>(app); break;
                 case "Bs7671_LoopCalcSheet":
                     RunCommand<StingTools.Commands.Electrical.Compliance.BS7671LoopCalcSheetCommand>(app); break;
+                case "Bs7671_Certificate":
+                    RunCommand<StingTools.Commands.Electrical.Compliance.BS7671CertificateCommand>(app); break;
+                case "Rprt_CablePullList":
+                    RunCommand<StingTools.Commands.Electrical.Reports.CablePullListCommand>(app); break;
+                case "Rprt_EquipSchedule":
+                    RunCommand<StingTools.Commands.Electrical.Reports.ElectricalEquipmentScheduleCommand>(app); break;
 
                 // ── RPRT ─────────────────────────────────────────────
                 case "Rprt_Audit":

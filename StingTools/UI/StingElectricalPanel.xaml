@@ -648,6 +648,9 @@
                                     <Button Content="▶ Loop Calc Sheet" Style="{StaticResource ElecActionBtn}"
                                             Tag="Bs7671_LoopCalcSheet" Click="Cmd_Click"
                                             ToolTip="One A4 sheet per circuit: Ze + R1 + R2, Zs vs Zs_max, OCPD trip current, k·S vs I·t, derating factors. Designed for the design pack."/>
+                                    <Button Content="📜 Certificate (Appendix 6)" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Bs7671_Certificate" Click="Cmd_Click"
+                                            ToolTip="Generates a BS 7671:2018+A2:2022 Appendix 6 Initial Verification Certificate template (.xlsx) with cover, schedule of inspections, circuit details, schedule of test results — pre-filled from project info + latest audit, blank columns for the inspecting electrician to write in measured Zs / RCD trip times."/>
                                 </WrapPanel>
                             </StackPanel>
                         </Expander>
@@ -1260,6 +1263,17 @@
                                 </Grid>
                                 <Button Content="▶ Export Circuit Register" Style="{StaticResource ElecPrimaryBtn}"
                                         Tag="Rprt_CircuitExport" Click="Cmd_Click"/>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="CABLE PULL LIST + EQUIPMENT SCHEDULE" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <Button Content="▶ Cable Pull List" Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="Rprt_CablePullList" Click="Cmd_Click"
+                                        ToolTip="Construction document for the install team. One row per cable with from-panel, to-load, route metres, cable type/CSA, drum allocation (FFD packing), weight estimate. Excel export, A4 landscape print."/>
+                                <Button Content="▶ Equipment Schedule" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Rprt_EquipSchedule" Click="Cmd_Click"
+                                        ToolTip="Project-wide nameplate schedule covering switchgear, transformers, panels, UPS, generators. kVA, voltage, fault rating, IP, weight, manufacturer/model, location."/>
                             </StackPanel>
                         </Expander>
 
