@@ -73,9 +73,13 @@ namespace StingTools.Commands.Electrical.Reports
             if (ctx == null) { msg = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
 
-            // Active project standard for the legend subtitle.
+            // Active project standard for the legend subtitle. ResolveStandard
+            // with null view/host falls through Levels 1-4 and lands on the
+            // project-global config (Level 5) — same value SetProjectStandard
+            // writes. No public GetProjectStandard exists; this is the
+            // documented read path.
             string activeStd = "";
-            try { activeStd = SymbolStandardResolver.GetProjectStandard(doc) ?? ""; } catch { }
+            try { activeStd = SymbolStandardResolver.ResolveStandard(doc, null, null) ?? ""; } catch { }
             if (string.IsNullOrEmpty(activeStd)) activeStd = "Mixed (per family)";
 
             // Walk every electrical family instance, dedupe by (category, family, type).

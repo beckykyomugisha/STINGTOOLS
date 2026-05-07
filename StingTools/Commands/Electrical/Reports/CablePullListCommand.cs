@@ -94,12 +94,23 @@ namespace StingTools.Commands.Electrical.Reports
             // to copper unless project schema adds an ELC_CBL_COND_MAT_TXT.
             string mat = "Cu";
             string ins = sys.LookupParameter("ELC_CBL_INS_TYPE_TXT")?.AsString() ?? "PVC";
-            int phases = sys.get_Parameter(BuiltInParameter.RBS_ELEC_NUMBER_OF_RUNS)?.AsInteger() ?? 1;
+            // Number of conductors (cores) for weight scaling.
+            // RBS_ELEC_NUMBER_OF_RUNS doesn't exist in modern Revit API — use
+            // the canonical MR_PARAMETERS ELC_CBL_NUM_OF_CORES_NR string
+            // parameter (1-phase ~3 cores, 3-phase ~5 cores when populated;
+            // defaults to 3 if blank).
+            int cores = 3;
+            try
+            {
+                string c = sys.LookupParameter("ELC_CBL_NUM_OF_CORES_NR")?.AsString();
+                if (int.TryParse(c, out int parsed) && parsed > 0) cores = parsed;
+            }
+            catch { }
 
             // Weight estimate: copper PVC ≈ 9 kg/100m at 2.5 mm², linear in CSA
             // (BS 6004 informative). Aluminium ≈ 0.32× by mass.
             double kgPerM = (mat == "Al" ? 0.32 : 1.0) * (csa * 0.012 + 0.06);
-            double weight = lenM * kgPerM * Math.Max(phases, 1);
+            double weight = lenM * kgPerM * Math.Max(cores, 1);
 
             string from = sys.PanelName ?? "—";
             string to   = "(loads)";
@@ -123,7 +134,7 @@ namespace StingTools.Commands.Electrical.Reports
                 CableType  = $"{mat}/{ins}",
                 CsaMm2     = csa,
                 CpcMm2     = cpc,
-                Phases     = phases,
+                Phases     = cores,
                 LengthM    = lenM,
                 WeightKg   = weight
             };
@@ -186,7 +197,7 @@ namespace StingTools.Commands.Electrical.Reports
             ws.Range(1, 1, 1, 11).Style.Fill.BackgroundColor = XLColor.LightSteelBlue;
 
             string[] hdr = { "Drum", "Circuit", "From", "To", "Cable type",
-                             "CSA (mm²)", "CPC (mm²)", "Phases", "Length (m)",
+                             "CSA (mm²)", "CPC (mm²)", "Cores", "Length (m)",
                              "Weight (kg)", "Notes" };
             for (int i = 0; i < hdr.Length; i++)
             {
