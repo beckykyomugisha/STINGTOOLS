@@ -254,6 +254,12 @@ namespace StingTools.UI
                     RunCommand<StingTools.Commands.Electrical.Coordination.TccPlotCommand>(app); break;
                 case "Elec_ArcFlashBoundary":
                     RunCommand<StingTools.Commands.Electrical.ArcFlash.ArcFlashBoundaryViewCommand>(app); break;
+                case "Lite_QuickLuxEstimate":
+                    RunCommand<StingTools.Commands.Electrical.Lighting.QuickLuxEstimateCommand>(app); break;
+                case "Lite_ControlZones":
+                    RunCommand<StingTools.Commands.Electrical.Lighting.LightingControlZoneCommand>(app); break;
+                case "Bs7671_WorkingClearance":
+                    RunCommand<StingTools.Commands.Electrical.Compliance.WorkingClearanceCommand>(app); break;
 
                 // ── RPRT ─────────────────────────────────────────────
                 case "Rprt_Audit":

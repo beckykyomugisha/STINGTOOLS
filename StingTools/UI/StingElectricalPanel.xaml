@@ -654,6 +654,9 @@
                                     <Button Content="📜 Certificate (Appendix 6)" Style="{StaticResource ElecActionBtn}"
                                             Tag="Bs7671_Certificate" Click="Cmd_Click"
                                             ToolTip="Generates a BS 7671:2018+A2:2022 Appendix 6 Initial Verification Certificate template (.xlsx) with cover, schedule of inspections, circuit details, schedule of test results — pre-filled from project info + latest audit, blank columns for the inspecting electrician to write in measured Zs / RCD trip times."/>
+                                    <Button Content="📐 Working Clearance" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Bs7671_WorkingClearance" Click="Cmd_Click"
+                                            ToolTip="BS 7671 §132.12 / IEC 60364-7-729 / NEC 110.26 — checks 1000 mm front + 750 mm side + 2000 mm headroom around every panel against walls / columns / furniture / ducts / pipes / cable trays / doors. Reports each intrusion."/>
                                 </WrapPanel>
                             </StackPanel>
                         </Expander>
@@ -1071,6 +1074,12 @@
                                 <Button Content="▶ Update from connected load data"
                                         Style="{StaticResource ElecActionBtn}" Margin="0,4,0,0"
                                         Tag="Lite_UpdateTargets" Click="Cmd_Click"/>
+                                <Button Content="▶ Quick Lux (CIBSE LG10)" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Lite_QuickLuxEstimate" Click="Cmd_Click"
+                                        ToolTip="Coarse first-pass illuminance estimate via CIBSE LG10 Lumen Method (E = nΦ·UF·MF/A) — answers 'do we need 12 fixtures or 8?' before committing to a DIALux round-trip. Excel pack with target lux from STING_LUX_TARGETS.json + recommended ±N fixtures per room."/>
+                                <Button Content="▶ Control Zones (Part L 2021)" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Lite_ControlZones" Click="Cmd_Click"
+                                        ToolTip="Auto-derives lighting control zones per Part L 2021 / ASHRAE 90.1 §9.4.1 / Title 24 — splits perimeter daylight zone (within 6 m of windows) from core zone, occupancy sensing for offices ≥ 10 m² + WCs/storage, scene control for meeting rooms. Excel control schedule + ELC_LITE_CONTROL_ZONE stamp on each fixture."/>
                             </StackPanel>
                         </Expander>
 

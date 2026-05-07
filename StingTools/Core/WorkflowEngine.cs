@@ -1514,6 +1514,9 @@ namespace StingTools.Core
                 case "Calc_LoadDemandAudit": return new Commands.Electrical.LoadDemand.LoadDemandAuditCommand();
                 case "Elec_TccPlot":         return new Commands.Electrical.Coordination.TccPlotCommand();
                 case "Elec_ArcFlashBoundary":return new Commands.Electrical.ArcFlash.ArcFlashBoundaryViewCommand();
+                case "Lite_QuickLuxEstimate":return new Commands.Electrical.Lighting.QuickLuxEstimateCommand();
+                case "Lite_ControlZones":    return new Commands.Electrical.Lighting.LightingControlZoneCommand();
+                case "Bs7671_WorkingClearance":return new Commands.Electrical.Compliance.WorkingClearanceCommand();
                 case "Panel_SyncParams":   return new Commands.Electrical.ElecPanelParamSyncCommand();
                 case "Panel_WriteParams":  return new Commands.Electrical.ElecPanelWriteParamsCommand();
 
