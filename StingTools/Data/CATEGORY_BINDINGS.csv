@@ -15941,3 +15941,38 @@ PRJ_TB_LAST_TRANSMITTAL_DATE_TXT,Generic Models,Type,True
 PRJ_TB_LAST_TRANSMITTAL_DATE_TXT,Project Information,Type,True
 PRJ_TB_NOTES_LEGEND_REF_TXT,Generic Models,Type,True
 PRJ_TB_NOTES_LEGEND_REF_TXT,Project Information,Type,True
+ELC_PNL_AIC_RATING_KA,Electrical Equipment,Instance,True
+ELC_FEEDER_CSA_MM2,Electrical Equipment,Instance,True
+ELC_FEEDER_RATING_A,Electrical Equipment,Instance,True
+ELC_EMERG_COVERED_BOOL,Rooms,Instance,True
+ELC_LPD_W_PER_M2,Rooms,Instance,True
+ELC_LPD_LIMIT_W_PER_M2,Rooms,Instance,True
+ELC_LPD_STATUS_TXT,Rooms,Instance,True
+ELC_ARC_FLASH_IE_CAL_CM2,Electrical Equipment,Instance,True
+ELC_ARC_FLASH_BOUNDARY_MM,Electrical Equipment,Instance,True
+ELC_ARC_FLASH_PPE_CAT,Electrical Equipment,Instance,True
+ELC_ARC_FLASH_WORK_DIST_MM,Electrical Equipment,Instance,True
+ELC_ARC_FLASH_LABEL_TXT,Electrical Equipment,Instance,True
+ELC_SEL_COORD_VERIFIED_BOOL,Electrical Equipment,Instance,True
+ELC_BUSBAR_CSA_MM2,Electrical Equipment,Instance,True
+ELC_BUSBAR_CSA_MM2,Cable Trays,Instance,True
+ELC_BUSBAR_RATING_A,Electrical Equipment,Instance,True
+ELC_BUSBAR_RATING_A,Cable Trays,Instance,True
+ELC_BUSBAR_FILL_PCT,Cable Trays,Instance,True
+ELC_CONDUIT_ROUTE_TXT,Conduits,Instance,True
+ELC_PHOTO_LUX_CALC,Rooms,Instance,True
+ELC_PHOTO_UGR_CALC,Rooms,Instance,True
+ELC_PHOTO_FILE_PATH_TXT,Lighting Fixtures,Type,True
+ELC_PHOTO_LUMENS_NR,Lighting Fixtures,Type,True
+ELC_PHOTO_WATTS_NR,Lighting Fixtures,Type,True
+ELC_PHOTO_EFFICACY_LM_W,Lighting Fixtures,Type,True
+ELC_PHOTO_BEAM_ANGLE_DEG,Lighting Fixtures,Type,True
+ELC_PHOTO_CCT_K,Lighting Fixtures,Type,True
+ELC_PHOTO_CRI_NR,Lighting Fixtures,Type,True
+ELC_PHOTO_SYMMETRY_TXT,Lighting Fixtures,Type,True
+ELC_PHOTO_LUX_DIALUX_NR,Rooms,Instance,True
+ELC_PHOTO_LUX_ELUMTOOLS_NR,Rooms,Instance,True
+ELC_PHOTO_LUX_RELUX_NR,Rooms,Instance,True
+ELC_PHOTO_UNIFORMITY_NR,Rooms,Instance,True
+ELC_PHOTO_LAST_ENGINE_TXT,Rooms,Instance,True
+ELC_PHOTO_LAST_CALC_DATE_TXT,Rooms,Instance,True

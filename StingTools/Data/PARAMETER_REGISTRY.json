@@ -3392,7 +3392,28 @@
         "categories": [
           "Cable Trays"
         ]
-      }
+      },
+      { "key": "ELC_PNL_FAULT_KA",      "param_name": "ELC_PNL_SHORT_CIRCUIT_RATING_KA", "description": "Calculated fault current at panel (kA) — reuses Phase 175 short-circuit param [STING Phase 178]", "categories": ["Electrical Equipment"] },
+      { "key": "ELC_PNL_AIC_KA",        "param_name": "ELC_PNL_AIC_RATING_KA",            "guid": "f1d6e7c8-1001-5178-9178-100000000001", "description": "Standardised AIC tier in kA stamped to the panel for breaker / switchgear specification [STING Phase 178]", "categories": ["Electrical Equipment"] },
+      { "key": "ELC_FEEDER_CSA",        "param_name": "ELC_FEEDER_CSA_MM2",               "guid": "f1d6e7c8-1002-5178-9178-100000000002", "description": "Calculated / proposed feeder cable cross-sectional area (mm²) — distinct from circuit cable size [STING Phase 178]", "categories": ["Electrical Equipment"] },
+      { "key": "ELC_FEEDER_RATING_A",   "param_name": "ELC_FEEDER_RATING_A",              "guid": "f1d6e7c8-1003-5178-9178-100000000003", "description": "Calculated feeder breaker / fuse rating in amperes — the upstream protective device rating [STING Phase 178]", "categories": ["Electrical Equipment"] },
+      { "key": "ELC_CKT_VD_PCT",        "param_name": "ELC_VLT_DROP_PCT",                 "description": "Calculated voltage drop % — reuses existing Phase 175 param [STING Phase 178]", "categories": ["Electrical Circuits"] },
+      { "key": "ELC_CKT_CSA_MM2",       "param_name": "ELC_CBL_SZ_MM",                    "description": "Assigned cable CSA — reuses existing Phase 175 param [STING Phase 178]", "categories": ["Electrical Circuits", "Wires"] },
+      { "key": "ELC_CONDUIT_FILL_PCT",  "param_name": "ELC_CDT_CBL_FILL_PCT",             "description": "Calculated conduit fill % — reuses existing Phase 175 param [STING Phase 178]", "categories": ["Conduits"] },
+      { "key": "ELC_EMERG_COVERED",     "param_name": "ELC_EMERG_COVERED_BOOL",           "guid": "f1d6e7c8-1004-5178-9178-100000000004", "description": "Room has emergency lighting coverage (1=true, 0=false) [BS 5266-1 / BS 9999 / STING Phase 178]", "categories": ["Rooms"] },
+      { "key": "ELC_LPD_W_M2",          "param_name": "ELC_LPD_W_PER_M2",                 "guid": "f1d6e7c8-1005-5178-9178-100000000005", "description": "Calculated lighting power density (W/m²) [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178]", "categories": ["Rooms"] },
+      { "key": "ELC_LPD_LIMIT_W_M2",    "param_name": "ELC_LPD_LIMIT_W_PER_M2",           "guid": "f1d6e7c8-1006-5178-9178-100000000006", "description": "Standard LPD limit for the room type (W/m²) [STING Phase 178]", "categories": ["Rooms"] },
+      { "key": "ELC_LPD_STATUS",        "param_name": "ELC_LPD_STATUS_TXT",               "guid": "f1d6e7c8-1007-5178-9178-100000000007", "description": "LPD compliance status (PASS / FAIL / WARNING / UNCHECKED) [STING Phase 178]", "categories": ["Rooms"] },
+      { "key": "ELC_ARC_FLASH_IE",      "param_name": "ELC_ARC_FLASH_IE_CAL_CM2",         "guid": "a2e7f8d9-1001-5179-9179-100000000001", "description": "Calculated incident energy in cal/cm² at the working distance [IEEE 1584-2018 / NFPA 70E / STING Phase 179]", "categories": ["Electrical Equipment"] },
+      { "key": "ELC_ARC_FLASH_BD",      "param_name": "ELC_ARC_FLASH_BOUNDARY_MM",        "guid": "a2e7f8d9-1002-5179-9179-100000000002", "description": "Arc flash boundary distance in mm [IEEE 1584-2018 / STING Phase 179]", "categories": ["Electrical Equipment"] },
+      { "key": "ELC_ARC_FLASH_PPE",     "param_name": "ELC_ARC_FLASH_PPE_CAT",            "guid": "a2e7f8d9-1003-5179-9179-100000000003", "description": "NFPA 70E Table 130.5(G) PPE category 0–4 (-1 = exceeds Cat 4) [STING Phase 179]", "categories": ["Electrical Equipment"] },
+      { "key": "ELC_ARC_FLASH_WD",      "param_name": "ELC_ARC_FLASH_WORK_DIST_MM",       "guid": "a2e7f8d9-1004-5179-9179-100000000004", "description": "Working distance from the arc source in mm [STING Phase 179]", "categories": ["Electrical Equipment"] },
+      { "key": "ELC_ARC_FLASH_LABEL",   "param_name": "ELC_ARC_FLASH_LABEL_TXT",          "guid": "a2e7f8d9-1005-5179-9179-100000000005", "description": "Formatted NFPA 70E arc flash warning label text [STING Phase 179]", "categories": ["Electrical Equipment"] },
+      { "key": "ELC_SEL_COORD_OK",      "param_name": "ELC_SEL_COORD_VERIFIED_BOOL",      "guid": "a2e7f8d9-1006-5179-9179-100000000006", "description": "Selective coordination check result (1=passes, 0=fails) [BS 7671 / NEC 240.87 / STING Phase 179]", "categories": ["Electrical Equipment"] },
+      { "key": "ELC_BUSBAR_CSA",        "param_name": "ELC_BUSBAR_CSA_MM2",               "guid": "a2e7f8d9-1007-5179-9179-100000000007", "description": "Busbar trunking conductor cross-sectional area (mm²) [BS EN 60439-1 / STING Phase 179]", "categories": ["Electrical Equipment", "Cable Trays"] },
+      { "key": "ELC_BUSBAR_RATING",     "param_name": "ELC_BUSBAR_RATING_A",              "guid": "a2e7f8d9-1008-5179-9179-100000000008", "description": "Busbar trunking continuous current rating (A) [BS EN 60439-1 / STING Phase 179]", "categories": ["Electrical Equipment", "Cable Trays"] },
+      { "key": "ELC_BUSBAR_FILL",       "param_name": "ELC_BUSBAR_FILL_PCT",              "guid": "a2e7f8d9-1009-5179-9179-100000000009", "description": "Busbar trunking duct fill % [STING Phase 179]", "categories": ["Cable Trays"] },
+      { "key": "ELC_CONDUIT_ROUTE",     "param_name": "ELC_CONDUIT_ROUTE_TXT",            "guid": "a2e7f8d9-100a-5179-9179-10000000000a", "description": "Auto-routed conduit path identifier (AUTO:<circuit-id>) [STING Phase 179]", "categories": ["Conduits"] }
     ],
     "lighting": [
       {
@@ -3414,7 +3435,23 @@
         "key": "LTG_LAMP_TYPE",
         "param_name": "LTG_FIX_LAMP_TYPE_TXT",
         "description": "Lamp type"
-      }
+      },
+      { "key": "ELC_PHOTO_LUX",          "param_name": "ELC_PHOTO_LUX_CALC",            "guid": "a2e7f8d9-100b-5179-9179-10000000000b", "description": "Calculated maintained illuminance at the workplane in lux [CIBSE LG7 / DIALux import / STING Phase 179]", "categories": ["Rooms"] },
+      { "key": "ELC_PHOTO_UGR",          "param_name": "ELC_PHOTO_UGR_CALC",            "guid": "a2e7f8d9-100c-5179-9179-10000000000c", "description": "Calculated Unified Glare Rating per the room geometry [CIE 117 / CIBSE LG7 / STING Phase 179]", "categories": ["Rooms"] },
+      { "key": "ELC_PHOTO_FILE_PATH",    "param_name": "ELC_PHOTO_FILE_PATH_TXT",       "guid": "b3f8a9da-1801-5180-9180-100000000001", "description": "Absolute / project-relative path to the IES / LDT / GLDF photometric file bound to this fixture [STING Phase 180]", "categories": ["Lighting Fixtures"] },
+      { "key": "ELC_PHOTO_LUMENS",       "param_name": "ELC_PHOTO_LUMENS_NR",           "guid": "b3f8a9da-1802-5180-9180-100000000002", "description": "Total luminous flux from the bound photometric file (lm) [IESNA LM-63 / EULUMDAT / STING Phase 180]", "categories": ["Lighting Fixtures"] },
+      { "key": "ELC_PHOTO_WATTS",        "param_name": "ELC_PHOTO_WATTS_NR",            "guid": "b3f8a9da-1803-5180-9180-100000000003", "description": "Total power draw from the bound photometric file (W) [STING Phase 180]", "categories": ["Lighting Fixtures"] },
+      { "key": "ELC_PHOTO_EFFICACY",     "param_name": "ELC_PHOTO_EFFICACY_LM_W",       "guid": "b3f8a9da-1804-5180-9180-100000000004", "description": "Calculated luminous efficacy (lm / W) [STING Phase 180]", "categories": ["Lighting Fixtures"] },
+      { "key": "ELC_PHOTO_BEAM_ANGLE",   "param_name": "ELC_PHOTO_BEAM_ANGLE_DEG",      "guid": "b3f8a9da-1805-5180-9180-100000000005", "description": "Beam angle in degrees (50 % peak intensity envelope) [STING Phase 180]", "categories": ["Lighting Fixtures"] },
+      { "key": "ELC_PHOTO_CCT",          "param_name": "ELC_PHOTO_CCT_K",               "guid": "b3f8a9da-1806-5180-9180-100000000006", "description": "Correlated colour temperature in Kelvin [STING Phase 180]", "categories": ["Lighting Fixtures"] },
+      { "key": "ELC_PHOTO_CRI",          "param_name": "ELC_PHOTO_CRI_NR",              "guid": "b3f8a9da-1807-5180-9180-100000000007", "description": "Colour Rendering Index Ra [CIE 13.3 / STING Phase 180]", "categories": ["Lighting Fixtures"] },
+      { "key": "ELC_PHOTO_SYMMETRY",     "param_name": "ELC_PHOTO_SYMMETRY_TXT",        "guid": "b3f8a9da-1808-5180-9180-100000000008", "description": "Photometric symmetry (rotational / axial / quadrant / none) per LM-63 / EULUMDAT [STING Phase 180]", "categories": ["Lighting Fixtures"] },
+      { "key": "ELC_PHOTO_LUX_DIALUX",   "param_name": "ELC_PHOTO_LUX_DIALUX_NR",       "guid": "c4a9badb-1811-5181-9181-100000000001", "description": "Calculated illuminance from a DIALux evo IFC import [STING Phase 181]", "categories": ["Rooms"] },
+      { "key": "ELC_PHOTO_LUX_ELUMTOOLS","param_name": "ELC_PHOTO_LUX_ELUMTOOLS_NR",    "guid": "c4a9badb-1812-5181-9181-100000000002", "description": "Calculated illuminance from ElumTools shared parameters [STING Phase 181]", "categories": ["Rooms"] },
+      { "key": "ELC_PHOTO_LUX_RELUX",    "param_name": "ELC_PHOTO_LUX_RELUX_NR",        "guid": "c4a9badb-1813-5181-9181-100000000003", "description": "Calculated illuminance from a Relux IFC import [STING Phase 181]", "categories": ["Rooms"] },
+      { "key": "ELC_PHOTO_UNIFORMITY",   "param_name": "ELC_PHOTO_UNIFORMITY_NR",       "guid": "c4a9badb-1814-5181-9181-100000000004", "description": "Uniformity ratio (Emin / Eavg) per BS EN 12464-1 [STING Phase 181]", "categories": ["Rooms"] },
+      { "key": "ELC_PHOTO_LAST_ENGINE",  "param_name": "ELC_PHOTO_LAST_ENGINE_TXT",     "guid": "c4a9badb-1815-5181-9181-100000000005", "description": "Engine ID that wrote the most recent photometric result (DIALux / ElumTools / Relux / Estimate) [STING Phase 181]", "categories": ["Rooms"] },
+      { "key": "ELC_PHOTO_LAST_CALC_DATE","param_name": "ELC_PHOTO_LAST_CALC_DATE_TXT", "guid": "c4a9badb-1816-5181-9181-100000000006", "description": "ISO 8601 date stamp of the most recent photometric calculation [STING Phase 181]", "categories": ["Rooms"] }
     ],
     "hvac": [
       {
