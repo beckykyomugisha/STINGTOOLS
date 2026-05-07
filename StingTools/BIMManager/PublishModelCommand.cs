@@ -260,14 +260,23 @@ namespace StingTools.BIMManager
                     boundsContributors++;
                 }
 
-                if (string.IsNullOrEmpty(tag)) continue; // only include tagged elements in the map JSON
+                // Always include the element in the map even when the STING
+                // tag pipeline hasn't run yet — the viewer needs the
+                // UniqueId → name/category mapping for tooltips and
+                // discipline filtering on every element it can render.
+                // Skipping untagged elements meant a fresh project always
+                // shipped an empty map ("Elements mapped: 0") and the
+                // viewer lost its overlay until users re-published *after*
+                // tagging. Tag/disc/loc/lvl are empty strings when not yet
+                // populated; republishing after the tag pipeline runs
+                // upgrades the map in place.
                 var disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                 var loc  = ParameterHelpers.GetString(el, ParamRegistry.LOC);
                 var lvl  = ParameterHelpers.GetString(el, ParamRegistry.LVL);
 
                 map[guid] = new JObject
                 {
-                    ["tag"]        = tag,
+                    ["tag"]        = tag ?? "",
                     ["name"]       = el.Name ?? "",
                     ["category"]   = el.Category?.Name ?? "",
                     ["discipline"] = disc,
