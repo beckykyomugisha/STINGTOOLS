@@ -50,13 +50,11 @@ public class IssueAudioNotesController : ControllerBase
     [HttpPost]
     public async Task<ActionResult> Upload(
         Guid projectId, Guid issueId,
-        [FromForm] IFormFile file,
-        [FromForm] string? transcriptText,
-        [FromForm] string? language,
-        [FromForm] int durationSeconds,
+        [FromForm] AudioNoteUploadRequest req,
         CancellationToken ct)
     {
-        if (file.Length == 0) return BadRequest(new { error = "empty file" });
+        var file = req.File;
+        if (file is null || file.Length == 0) return BadRequest(new { error = "empty file" });
         if (file.Length > 10 * 1024 * 1024) return BadRequest(new { error = "max 10 MB per voice note" });
 
         await using var stream = file.OpenReadStream();
@@ -71,9 +69,9 @@ public class IssueAudioNotesController : ControllerBase
             TenantId        = _tenant.TenantId,
             IssueId         = issueId,
             StoragePath     = path,
-            TranscriptText  = transcriptText,
-            Language        = language ?? "en",
-            DurationSeconds = durationSeconds,
+            TranscriptText  = req.TranscriptText,
+            Language        = req.Language ?? "en",
+            DurationSeconds = req.DurationSeconds,
             FileSizeBytes   = file.Length,
             MimeType        = file.ContentType ?? "audio/mp4",
         };
@@ -91,4 +89,12 @@ public class IssueAudioNotesController : ControllerBase
         if (stream == null) return NotFound();
         return File(stream, note.MimeType);
     }
+}
+
+public class AudioNoteUploadRequest
+{
+    public IFormFile File { get; set; } = default!;
+    public string? TranscriptText { get; set; }
+    public string? Language { get; set; }
+    public int DurationSeconds { get; set; }
 }
