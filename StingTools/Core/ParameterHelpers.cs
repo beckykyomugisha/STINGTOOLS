@@ -156,14 +156,20 @@ namespace StingTools.Core
             {
                 StingLog.RecordMiss(StingLog.CacheKind.ParamCache); // E-1
                 Parameter found = el.LookupParameter(paramName);
-                // A-7: bounded — clear when the cache exceeds 50K entries
-                // (this should not happen in practice; the clear is logged
-                // so unexpected growth is visible in diagnostics).
                 if (_paramCache.Count >= _paramCacheCap)
                 {
-                    int original = _paramCache.Count;
-                    _paramCache.Clear();
-                    StingLog.Warn($"_paramCache reached {original} entries; cleared to enforce cap of {_paramCacheCap}.");
+                    // Evict oldest 20% rather than clearing entirely.
+                    // ConcurrentDictionary has no age tracking, so take a snapshot
+                    // of 20% of the keys and remove them.
+                    int evictCount = _paramCacheCap / 5;
+                    int removed = 0;
+                    foreach (var k in _paramCache.Keys)
+                    {
+                        if (removed >= evictCount) break;
+                        _paramCache.TryRemove(k, out _);
+                        removed++;
+                    }
+                    StingLog.Warn($"_paramCache evicted {removed} entries (cap={_paramCacheCap}).");
                 }
                 // Cache the Definition (not Parameter — that's per-element)
                 _paramCache[key] = found?.Definition;
