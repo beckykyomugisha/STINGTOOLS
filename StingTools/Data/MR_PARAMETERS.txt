@@ -2708,3 +2708,10 @@ PARAM	c2a7e5b1-3001-5333-9333-300000000001	ELC_CIRCUIT_REF_TXT	TEXT		4	1	Electri
 PARAM	c2a7e5b1-3002-5333-9333-300000000002	ELC_CIRCUIT_RATING_TXT	TEXT		4	1	Circuit / device rating string (e.g. 32A / 100A) — rendered into SLD labels [STING Phase 175]	1
 PARAM	c2a7e5b1-3003-5333-9333-300000000003	ELC_CIRCUIT_POLES_NR	INTEGER		4	1	Number of poles (1/2/3/4) for circuit breakers and switches — rendered into SLD labels [STING Phase 175]	1
 PARAM	c2a7e5b1-3004-5333-9333-300000000004	ELC_CIRCUIT_LABEL_TXT	TEXT		4	1	Free-text display-label override appended to SLD label after circuit ref + rating [STING Phase 175]	1
+PARAM	f1d6e7c8-1001-5178-9178-100000000001	ELC_PNL_AIC_RATING_KA	TEXT		4	1	Standardised AIC (Ampere Interrupting Capacity) tier in kA stamped to the panel for breaker / switchgear specification [STING Phase 178]	1
+PARAM	f1d6e7c8-1002-5178-9178-100000000002	ELC_FEEDER_CSA_MM2	TEXT		4	1	Calculated / proposed feeder cable cross-sectional area in mm² (distinct from circuit cable size) [STING Phase 178]	1
+PARAM	f1d6e7c8-1003-5178-9178-100000000003	ELC_FEEDER_RATING_A	TEXT		4	1	Calculated feeder breaker / fuse rating in amperes — the upstream protective device rating [STING Phase 178]	1
+PARAM	f1d6e7c8-1004-5178-9178-100000000004	ELC_EMERG_COVERED_BOOL	TEXT		4	1	Room has emergency lighting coverage (1=true, 0=false) [BS 5266-1 / BS 9999 / STING Phase 178]	1
+PARAM	f1d6e7c8-1005-5178-9178-100000000005	ELC_LPD_W_PER_M2	TEXT		4	1	Calculated lighting power density of the room in W/m² [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178]	1
+PARAM	f1d6e7c8-1006-5178-9178-100000000006	ELC_LPD_LIMIT_W_PER_M2	TEXT		4	1	Standard LPD limit for the room type in W/m² [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178]	1
+PARAM	f1d6e7c8-1007-5178-9178-100000000007	ELC_LPD_STATUS_TXT	TEXT		4	1	LPD compliance status (PASS / FAIL / WARNING / UNCHECKED) [STING Phase 178]	1

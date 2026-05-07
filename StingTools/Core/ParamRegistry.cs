@@ -536,6 +536,23 @@ namespace StingTools.Core
         public static string ELC_WAYS       => Ext("ELC_WAYS");
         public static string ELC_IP_RATING  => Ext("ELC_IP_RATING");
 
+        // ── Phase 178 — Advanced calculations & automation ───────────────
+        // 4 of these reuse existing TEXT params (short-circuit, voltage drop,
+        // cable size, conduit fill); the remaining 7 are net-new in
+        // MR_PARAMETERS.txt (AIC tier, feeder CSA + rating, emerg coverage,
+        // LPD value + limit + status). All TEXT for cross-binding flexibility.
+        public static string ELC_PNL_FAULT_KA      => Ext("ELC_PNL_FAULT_KA");      // → ELC_PNL_SHORT_CIRCUIT_RATING_KA (existing)
+        public static string ELC_PNL_AIC_KA        => Ext("ELC_PNL_AIC_KA");        // → ELC_PNL_AIC_RATING_KA (new)
+        public static string ELC_FEEDER_CSA        => Ext("ELC_FEEDER_CSA");        // → ELC_FEEDER_CSA_MM2 (new)
+        public static string ELC_FEEDER_RATING_A   => Ext("ELC_FEEDER_RATING_A");   // → ELC_FEEDER_RATING_A (new)
+        public static string ELC_CKT_VD_PCT        => Ext("ELC_CKT_VD_PCT");        // → ELC_VLT_DROP_PCT (existing)
+        public static string ELC_CKT_CSA_MM2       => Ext("ELC_CKT_CSA_MM2");       // → ELC_CBL_SZ_MM (existing)
+        public static string ELC_CONDUIT_FILL_PCT  => Ext("ELC_CONDUIT_FILL_PCT");  // → ELC_CDT_CBL_FILL_PCT (existing)
+        public static string ELC_EMERG_COVERED     => Ext("ELC_EMERG_COVERED");     // → ELC_EMERG_COVERED_BOOL (new)
+        public static string ELC_LPD_W_M2          => Ext("ELC_LPD_W_M2");          // → ELC_LPD_W_PER_M2 (new)
+        public static string ELC_LPD_LIMIT_W_M2    => Ext("ELC_LPD_LIMIT_W_M2");    // → ELC_LPD_LIMIT_W_PER_M2 (new)
+        public static string ELC_LPD_STATUS        => Ext("ELC_LPD_STATUS");        // → ELC_LPD_STATUS_TXT (new)
+
         // ── Lighting parameters ──────────────────────────────────────────
         public static string LTG_WATTAGE    => Ext("LTG_WATTAGE");
         public static string LTG_LUMENS     => Ext("LTG_LUMENS");
@@ -2149,6 +2166,19 @@ namespace StingTools.Core
             _extendedParams["ELC_PNL_LOAD"] = "ELC_PNL_CONNECTED_LOAD_KW"; _extendedParams["ELC_PNL_FED_FROM"] = "ELC_PNL_FED_FROM_PNL_TXT";
             _extendedParams["ELC_MAIN_BRK"] = "ELC_PNL_MAIN_BRK_A"; _extendedParams["ELC_WAYS"] = "ELC_PNL_NUM_OF_WAYS_NR";
             _extendedParams["ELC_IP_RATING"] = "ELC_IP_RATING_TXT";
+            // Phase 178 — Electrical advanced calculations & automation
+            // Reuse existing 4 (no MR_PARAMETERS additions); add 7 new ones.
+            _extendedParams["ELC_PNL_FAULT_KA"]      = "ELC_PNL_SHORT_CIRCUIT_RATING_KA";
+            _extendedParams["ELC_PNL_AIC_KA"]        = "ELC_PNL_AIC_RATING_KA";
+            _extendedParams["ELC_FEEDER_CSA"]        = "ELC_FEEDER_CSA_MM2";
+            _extendedParams["ELC_FEEDER_RATING_A"]   = "ELC_FEEDER_RATING_A";
+            _extendedParams["ELC_CKT_VD_PCT"]        = "ELC_VLT_DROP_PCT";
+            _extendedParams["ELC_CKT_CSA_MM2"]       = "ELC_CBL_SZ_MM";
+            _extendedParams["ELC_CONDUIT_FILL_PCT"]  = "ELC_CDT_CBL_FILL_PCT";
+            _extendedParams["ELC_EMERG_COVERED"]     = "ELC_EMERG_COVERED_BOOL";
+            _extendedParams["ELC_LPD_W_M2"]          = "ELC_LPD_W_PER_M2";
+            _extendedParams["ELC_LPD_LIMIT_W_M2"]    = "ELC_LPD_LIMIT_W_PER_M2";
+            _extendedParams["ELC_LPD_STATUS"]        = "ELC_LPD_STATUS_TXT";
             // Lighting
             _extendedParams["LTG_WATTAGE"] = "LTG_FIX_LMP_WATTAGE_W"; _extendedParams["LTG_LUMENS"] = "CST_FIX_LUMEN_OUTPUT_LM";
             _extendedParams["LTG_EFFICACY"] = "LTG_FIX_EFFICACY_LM_W"; _extendedParams["LTG_LAMP_TYPE"] = "LTG_FIX_LAMP_TYPE_TXT";

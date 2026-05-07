@@ -3478,6 +3478,11 @@ namespace StingTools.UI
                     }
                     case "MeetingRSVP":            TaskDialog.Show("STING — RSVP", "RSVP tracking requires CDE integration.\nConnect Planscape or configure email in Settings > Notifications."); break;
 
+                    // ── Phase 177 — STING Electrical Center toggle from main hub ──
+                    case "ElectricalHub":
+                        StingElectricalCommandHandler.Instance?.SetCommand("ElectricalHub");
+                        break;
+
                     // ── Unmapped command tag ──
                     default:
                         // ── Dynamic-prefix routing ──
@@ -3561,6 +3566,13 @@ namespace StingTools.UI
         /// Commands can use this as a fallback when ExternalCommandData is null.
         /// </summary>
         public static UIApplication CurrentApp { get; private set; }
+
+        /// <summary>
+        /// Phase 177 — allows StingElectricalCommandHandler to publish the
+        /// running UIApplication so commands invoked with null
+        /// ExternalCommandData can fall back via ParameterHelpers.GetApp().
+        /// </summary>
+        public static void SetCurrentApp(UIApplication app) { if (app != null) CurrentApp = app; }
 
         // ── Sheet Manager live operation runner ──────────────────────
 
