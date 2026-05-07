@@ -1080,6 +1080,12 @@
                                 <Button Content="▶ Control Zones (Part L 2021)" Style="{StaticResource ElecActionBtn}"
                                         Tag="Lite_ControlZones" Click="Cmd_Click"
                                         ToolTip="Auto-derives lighting control zones per Part L 2021 / ASHRAE 90.1 §9.4.1 / Title 24 — splits perimeter daylight zone (within 6 m of windows) from core zone, occupancy sensing for offices ≥ 10 m² + WCs/storage, scene control for meeting rooms. Excel control schedule + ELC_LITE_CONTROL_ZONE stamp on each fixture."/>
+                                <Button Content="📄 Lighting Calc Sheets" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Lite_LightingCalcSheet" Click="Cmd_Click"
+                                        ToolTip="One A4 worksheet per room with the full Lumen Method derivation: room geometry, surface reflectances, luminaire data + Φ/n, room index k, UF (LG10 Table 6), MF, estimated lux vs target, designer/checker sign-off. Mirror of the BS 7671 loop calc sheet — for the design pack."/>
+                                <Button Content="📚 Luminaire Registry" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Lite_LuminaireRegistry" Click="Cmd_Click"
+                                        ToolTip="Project-scoped CSV mapping each luminaire family/type to manufacturer / model / .ies path / lumens / watts / CCT / CRI. First run scaffolds the CSV from placed types; second run stamps registry values onto matching family TYPES so AssignPhotometric, Quick Lux, and Calc Sheets all pick them up automatically. Lives at <project>/_BIM_COORD/luminaire_registry.csv."/>
                             </StackPanel>
                         </Expander>
 
@@ -1295,6 +1301,9 @@
                                 <Button Content="🌍 Carbon Rollup (Op + Embodied)" Style="{StaticResource ElecActionBtn}"
                                         Tag="Elec_CarbonRollup" Click="Cmd_Click"
                                         ToolTip="Annual operational kWh + scope-2 carbon at the BEIS 2024 grid factor (0.207 kgCO₂e/kWh) plus embodied A1-A3 carbon for cables (ICE v3.0 weighted) + panels/transformers/UPS/generators (EPD-derived). Year-1 + 60-year LCA totals for RIBA 2030 / BS EN 15978 reporting."/>
+                                <Button Content="🔣 Drawing Symbols Legend" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Elec_DrawingLegend" Click="Cmd_Click"
+                                        ToolTip="Auto-builds an Electrical Symbols Legend drafting/Legend view per IEC 60617 / IEEE 315 / NFPA 170 / CIBSE / BS 1553. Walks every electrical family instance (lighting / lighting controls / power equipment / outlets / fire alarm / data / comms / security), groups by family/type, shows discipline-coloured swatch + concept ID + standard reference + placement count. Drag onto sheets via Project Browser or use DOCS → Place on All Sheets."/>
                             </StackPanel>
                         </Expander>
 

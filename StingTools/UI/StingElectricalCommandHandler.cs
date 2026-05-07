@@ -262,6 +262,12 @@ namespace StingTools.UI
                     RunCommand<StingTools.Commands.Electrical.Compliance.WorkingClearanceCommand>(app); break;
                 case "Elec_CarbonRollup":
                     RunCommand<StingTools.Commands.Electrical.Sustainability.ElectricalCarbonCommand>(app); break;
+                case "Lite_LightingCalcSheet":
+                    RunCommand<StingTools.Commands.Electrical.Lighting.LightingCalcSheetCommand>(app); break;
+                case "Lite_LuminaireRegistry":
+                    RunCommand<StingTools.Commands.Electrical.Lighting.LuminaireRegistryCommand>(app); break;
+                case "Elec_DrawingLegend":
+                    RunCommand<StingTools.Commands.Electrical.Reports.ElectricalDrawingLegendCommand>(app); break;
 
                 // ── RPRT ─────────────────────────────────────────────
                 case "Rprt_Audit":

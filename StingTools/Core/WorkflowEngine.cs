@@ -1518,6 +1518,9 @@ namespace StingTools.Core
                 case "Lite_ControlZones":    return new Commands.Electrical.Lighting.LightingControlZoneCommand();
                 case "Bs7671_WorkingClearance":return new Commands.Electrical.Compliance.WorkingClearanceCommand();
                 case "Elec_CarbonRollup":    return new Commands.Electrical.Sustainability.ElectricalCarbonCommand();
+                case "Lite_LightingCalcSheet": return new Commands.Electrical.Lighting.LightingCalcSheetCommand();
+                case "Lite_LuminaireRegistry": return new Commands.Electrical.Lighting.LuminaireRegistryCommand();
+                case "Elec_DrawingLegend":     return new Commands.Electrical.Reports.ElectricalDrawingLegendCommand();
                 case "Panel_SyncParams":   return new Commands.Electrical.ElecPanelParamSyncCommand();
                 case "Panel_WriteParams":  return new Commands.Electrical.ElecPanelWriteParamsCommand();
 
