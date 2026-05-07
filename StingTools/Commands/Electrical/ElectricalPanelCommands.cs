@@ -56,12 +56,20 @@ namespace StingTools.Commands.Electrical
                         if (!string.IsNullOrEmpty(voltageParam))
                             ParameterHelpers.SetString(p, ParamRegistry.ELC_PNL_FED_FROM, voltageParam, overwrite: true);
 
-                        // Voltage / phase — Revit-derived
+                        // Voltage / phase — Revit-derived. Read by display name to stay
+                        // version-agnostic (the BIP enum constant has changed between
+                        // Revit versions and isn't guaranteed to compile).
                         try
                         {
-                            var vDouble = p.get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_TOTALDISTRIBPHASEVOLTAGE)?.AsDouble() ?? 0;
-                            if (vDouble > 0)
-                                ParameterHelpers.SetString(p, ParamRegistry.ELC_PNL_VOLTAGE, $"{vDouble:0}V", overwrite: true);
+                            var vp = p.LookupParameter("Voltage")
+                                  ?? p.LookupParameter("Distribution System")
+                                  ?? p.LookupParameter("Panel Voltage");
+                            if (vp != null && vp.StorageType == StorageType.Double)
+                            {
+                                double vDouble = vp.AsDouble();
+                                if (vDouble > 0)
+                                    ParameterHelpers.SetString(p, ParamRegistry.ELC_PNL_VOLTAGE, $"{vDouble:0}V", overwrite: true);
+                            }
                         }
                         catch { }
 

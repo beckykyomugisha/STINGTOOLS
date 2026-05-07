@@ -50,23 +50,26 @@ namespace StingTools.Commands.Electrical.Reports
         {
             try
             {
+                var doc = sched.Document;
                 var def = sched.Definition;
-                AddByName(def, "Panel Name");
-                AddByName(def, "ELC_PNL_DESIGNATION_NAME_TXT");
-                AddByName(def, "ELC_PNL_VLT_V");
-                AddByName(def, "ELC_FEEDER_CSA_MM2");
-                AddByName(def, "ELC_PNL_SHORT_CIRCUIT_RATING_KA");
-                AddByName(def, "ELC_PNL_AIC_RATING_KA");
+                AddByName(def, doc, "Panel Name");
+                AddByName(def, doc, "ELC_PNL_DESIGNATION_NAME_TXT");
+                AddByName(def, doc, "ELC_PNL_VLT_V");
+                AddByName(def, doc, "ELC_FEEDER_CSA_MM2");
+                AddByName(def, doc, "ELC_PNL_SHORT_CIRCUIT_RATING_KA");
+                AddByName(def, doc, "ELC_PNL_AIC_RATING_KA");
             }
             catch (Exception ex) { StingLog.Warn($"AddFields: {ex.Message}"); }
         }
 
-        private static void AddByName(ScheduleDefinition def, string paramName)
+        private static void AddByName(ScheduleDefinition def, Document doc, string paramName)
         {
             try
             {
+                // SchedulableField.GetName(Document) requires a Document argument since
+                // ScheduleDefinition itself does not expose one in this API version.
                 var sf = def.GetSchedulableFields()
-                    .FirstOrDefault(f => string.Equals(f.GetName(def.Document), paramName, StringComparison.OrdinalIgnoreCase));
+                    .FirstOrDefault(f => string.Equals(f.GetName(doc), paramName, StringComparison.OrdinalIgnoreCase));
                 if (sf != null) def.AddField(sf);
             }
             catch (Exception ex) { StingLog.Info($"AddByName {paramName}: {ex.Message}"); }

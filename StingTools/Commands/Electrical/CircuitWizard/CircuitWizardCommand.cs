@@ -70,10 +70,10 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                             var connector = FindElectricalConnector(elFirst);
                             if (connector == null) { failed.Add($"{proposal.ProposedLabel}: no electrical connector"); tx.RollBack(); continue; }
 
-                            var sys = ElectricalSystem.Create(doc,
-                                new List<ElementId> { (firstEl.Id as ElementId) ?? ElementId.InvalidElementId },
-                                ElectricalSystemType.PowerCircuit);
-                            if (sys == null) { failed.Add($"{proposal.ProposedLabel}: ElectricalSystem.Create returned null"); tx.RollBack(); continue; }
+                            // doc.Create.NewElectricalSystem is the stable cross-version API:
+                            // takes the seed connector + system type, returns the new circuit.
+                            var sys = doc.Create.NewElectricalSystem(connector, ElectricalSystemType.PowerCircuit);
+                            if (sys == null) { failed.Add($"{proposal.ProposedLabel}: NewElectricalSystem returned null"); tx.RollBack(); continue; }
 
                             for (int i = 1; i < proposal.Elements.Count; i++)
                             {
@@ -81,9 +81,14 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                                 {
                                     var elId = proposal.Elements[i].Id as ElementId;
                                     if (elId == null) continue;
-                                    sys.AddToCircuit(new List<ElementId> { elId });
+                                    var el = doc.GetElement(elId);
+                                    var c2 = FindElectricalConnector(el);
+                                    if (c2 == null) continue;
+                                    var set = new ConnectorSet();
+                                    set.Insert(c2);
+                                    sys.Add(set);
                                 }
-                                catch (Exception ex) { StingLog.Warn($"AddToCircuit: {ex.Message}"); }
+                                catch (Exception ex) { StingLog.Warn($"Add connector to circuit: {ex.Message}"); }
                             }
 
                             try { sys.SelectPanel(panel); }
@@ -94,19 +99,21 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                                 continue;
                             }
 
+                            // Phase assignment via parameter — best-effort, write-once.
+                            // RBS_ELEC_CIRCUIT_PHASE_PARAM is read-only on most installations,
+                            // so we attempt the write inside a try/catch and skip silently.
                             if (!string.IsNullOrEmpty(proposal.Phase) && proposal.Phase.Length == 1)
                             {
                                 try
                                 {
-                                    sys.StartingPhase = proposal.Phase switch
+                                    var phaseParam = sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_PHASE_PARAM);
+                                    if (phaseParam != null && !phaseParam.IsReadOnly)
                                     {
-                                        "A" => ElectricalPhase.A,
-                                        "B" => ElectricalPhase.B,
-                                        "C" => ElectricalPhase.C,
-                                        _ => sys.StartingPhase
-                                    };
+                                        int v = proposal.Phase switch { "A" => 0, "B" => 1, "C" => 2, _ => 0 };
+                                        phaseParam.Set(v);
+                                    }
                                 }
-                                catch (Exception ex) { StingLog.Warn($"StartingPhase: {ex.Message}"); }
+                                catch (Exception ex) { StingLog.Info($"Phase param write soft-fail: {ex.Message}"); }
                             }
                             try { sys.LoadName = proposal.ProposedLabel; }
                             catch (Exception ex) { StingLog.Warn($"LoadName: {ex.Message}"); }
