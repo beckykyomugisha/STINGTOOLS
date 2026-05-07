@@ -154,22 +154,115 @@ namespace StingTools.Core.Drawing
                 if (!string.IsNullOrEmpty(p.TextStyle))      merged.TextStyle      = p.TextStyle;
                 if (!string.IsNullOrEmpty(p.DimensionStyle)) merged.DimensionStyle = p.DimensionStyle;
                 if (!string.IsNullOrEmpty(p.HatchPalette))   merged.HatchPalette   = p.HatchPalette;
+
+                // Phase 136 — pack-level view template / detail level / scale / colour scheme
+                if (!string.IsNullOrEmpty(p.ViewTemplate))   merged.ViewTemplate   = p.ViewTemplate;
+                if (!string.IsNullOrEmpty(p.DetailLevel))    merged.DetailLevel    = p.DetailLevel;
+                if (!string.IsNullOrEmpty(p.ScaleHint))      merged.ScaleHint      = p.ScaleHint;
+                if (!string.IsNullOrEmpty(p.ColorScheme))    merged.ColorScheme    = p.ColorScheme;
+
+                // Phase 137 — managed mode + view-template controlled fields
+                if (!string.IsNullOrEmpty(p.TemplateMode))   merged.TemplateMode   = p.TemplateMode;
+                if (p.ManagedFields != null && p.ManagedFields.Count > 0) merged.ManagedFields = new List<string>(p.ManagedFields);
+                if (!string.IsNullOrEmpty(p.Discipline))     merged.Discipline     = p.Discipline;
+                if (!string.IsNullOrEmpty(p.VisualStyle))    merged.VisualStyle    = p.VisualStyle;
+                if (!string.IsNullOrEmpty(p.PhaseFilter))    merged.PhaseFilter    = p.PhaseFilter;
+                if (!string.IsNullOrEmpty(p.Phase))          merged.Phase          = p.Phase;
+                if (p.AnnotationCrop.HasValue)               merged.AnnotationCrop = p.AnnotationCrop;
+                if (p.FarClipMm.HasValue)                    merged.FarClipMm      = p.FarClipMm;
+                if (p.ViewRange != null)                     merged.ViewRange      = p.ViewRange;
+                if (p.Underlay != null)                      merged.Underlay       = p.Underlay;
+                if (!string.IsNullOrEmpty(p.Background))     merged.Background     = p.Background;
+                if (p.WorksetVisibility != null) merged.WorksetVisibility = MergeStringStringDict(merged.WorksetVisibility, p.WorksetVisibility);
+                if (p.LinkOverrides != null)
+                {
+                    merged.LinkOverrides = merged.LinkOverrides ?? new Dictionary<string, PackLinkOverride>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var kv in p.LinkOverrides) merged.LinkOverrides[kv.Key] = kv.Value;
+                }
+                if (p.ColorFillSchemes != null) merged.ColorFillSchemes = MergeStringStringDict(merged.ColorFillSchemes, p.ColorFillSchemes);
+                if (p.FilterEnabled != null)
+                {
+                    merged.FilterEnabled = merged.FilterEnabled ?? new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var kv in p.FilterEnabled) merged.FilterEnabled[kv.Key] = kv.Value;
+                }
+                if (!string.IsNullOrEmpty(p.ManagedChecksum)) merged.ManagedChecksum = p.ManagedChecksum;
+
+                // Filters — append. Same-name filters from the child win
+                // because we re-add them after the parent's copy and the
+                // applier uses last-write semantics inside Revit's
+                // OverrideGraphicSettings.
                 if (p.Filters != null) foreach (var f in p.Filters) merged.Filters.Add(f);
+
+                // VG overrides — Phase 177: PER-FIELD merge instead of
+                // whole-object replace. Previously a child saying
+                // {"Walls": {"halftone": true}} would wipe the parent's
+                // projColor / projWeight / cutColor / cutWeight on Walls.
+                // Now child fields land on top of parent fields and only
+                // the explicitly-set fields override.
                 if (p.VgOverrides != null)
-                    foreach (var kv in p.VgOverrides) merged.VgOverrides[kv.Key] = kv.Value;
+                    foreach (var kv in p.VgOverrides) merged.VgOverrides[kv.Key] = MergeVgOverride(
+                        merged.VgOverrides.TryGetValue(kv.Key, out var existing) ? existing : null, kv.Value);
+
                 if (p.TagFamilies != null)
                     foreach (var kv in p.TagFamilies) merged.TagFamilies[kv.Key] = kv.Value;
 
                 // Phase 135 — Tag Appearance pack-level defaults
                 if (!string.IsNullOrEmpty(p.TagColorScheme))   merged.TagColorScheme = p.TagColorScheme;
                 if (!string.IsNullOrEmpty(p.DefaultTagStyle))  merged.DefaultTagStyle = p.DefaultTagStyle;
-                if (p.CategoryTagStyles != null)
+                if (p.CategoryTagStyles != null) merged.CategoryTagStyles = MergeStringStringDict(merged.CategoryTagStyles, p.CategoryTagStyles);
+
+                // Phase 177 — per-category depth + TAG7 narrative sections
+                if (p.CategoryDepths != null)
                 {
-                    if (merged.CategoryTagStyles == null)
-                        merged.CategoryTagStyles = new Dictionary<string, string>();
-                    foreach (var kv in p.CategoryTagStyles) merged.CategoryTagStyles[kv.Key] = kv.Value;
+                    merged.CategoryDepths = merged.CategoryDepths ?? new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var kv in p.CategoryDepths) merged.CategoryDepths[kv.Key] = kv.Value;
                 }
+                if (p.CategoryTag7Sections != null) merged.CategoryTag7Sections = MergeStringStringDict(merged.CategoryTag7Sections, p.CategoryTag7Sections);
             }
+            return merged;
+        }
+
+        // Phase 177 — per-field merge of two StyleVgOverride values so a
+        // child's halftone-only override doesn't blow away the parent's
+        // colour and line weight. Child fields win on conflict.
+        private static StyleVgOverride MergeVgOverride(StyleVgOverride parent, StyleVgOverride child)
+        {
+            if (parent == null) return child;
+            if (child == null) return parent;
+            return new StyleVgOverride
+            {
+                Visible              = child.Visible              ?? parent.Visible,
+                Halftone             = child.Halftone             ?? parent.Halftone,
+                ProjectionLineWeight = child.ProjectionLineWeight ?? parent.ProjectionLineWeight,
+                ProjectionLineColor  = string.IsNullOrEmpty(child.ProjectionLineColor)  ? parent.ProjectionLineColor  : child.ProjectionLineColor,
+                ProjectionLinePattern= string.IsNullOrEmpty(child.ProjectionLinePattern)? parent.ProjectionLinePattern: child.ProjectionLinePattern,
+                CutLineWeight        = child.CutLineWeight        ?? parent.CutLineWeight,
+                CutLineColor         = string.IsNullOrEmpty(child.CutLineColor)         ? parent.CutLineColor         : child.CutLineColor,
+                CutLinePattern       = string.IsNullOrEmpty(child.CutLinePattern)       ? parent.CutLinePattern       : child.CutLinePattern,
+                SurfaceFgColor       = string.IsNullOrEmpty(child.SurfaceFgColor)       ? parent.SurfaceFgColor       : child.SurfaceFgColor,
+                SurfaceFgPattern     = string.IsNullOrEmpty(child.SurfaceFgPattern)     ? parent.SurfaceFgPattern     : child.SurfaceFgPattern,
+                SurfaceFgVisible     = child.SurfaceFgVisible     ?? parent.SurfaceFgVisible,
+                SurfaceBgColor       = string.IsNullOrEmpty(child.SurfaceBgColor)       ? parent.SurfaceBgColor       : child.SurfaceBgColor,
+                SurfaceBgPattern     = string.IsNullOrEmpty(child.SurfaceBgPattern)     ? parent.SurfaceBgPattern     : child.SurfaceBgPattern,
+                SurfaceBgVisible     = child.SurfaceBgVisible     ?? parent.SurfaceBgVisible,
+                CutFgColor           = string.IsNullOrEmpty(child.CutFgColor)           ? parent.CutFgColor           : child.CutFgColor,
+                CutFgPattern         = string.IsNullOrEmpty(child.CutFgPattern)         ? parent.CutFgPattern         : child.CutFgPattern,
+                CutFgVisible         = child.CutFgVisible         ?? parent.CutFgVisible,
+                CutBgColor           = string.IsNullOrEmpty(child.CutBgColor)           ? parent.CutBgColor           : child.CutBgColor,
+                CutBgPattern         = string.IsNullOrEmpty(child.CutBgPattern)         ? parent.CutBgPattern         : child.CutBgPattern,
+                Transparency         = child.Transparency         ?? parent.Transparency,
+                DetailLevel          = string.IsNullOrEmpty(child.DetailLevel)          ? parent.DetailLevel          : child.DetailLevel,
+            };
+        }
+
+        // Helper for any Dictionary<string,string> field that wants
+        // case-insensitive child-wins merge semantics.
+        private static Dictionary<string, string> MergeStringStringDict(Dictionary<string, string> parent, Dictionary<string, string> child)
+        {
+            var merged = parent != null
+                ? new Dictionary<string, string>(parent, StringComparer.OrdinalIgnoreCase)
+                : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (child != null) foreach (var kv in child) merged[kv.Key] = kv.Value;
             return merged;
         }
 
