@@ -96,7 +96,8 @@ namespace StingTools.Commands.Electrical.Photometric
                         Verdict = verdict,
                         Engine = lastEngine,
                         UGR = ParseDouble(ParameterHelpers.GetString(room, ParamRegistry.ELC_PHOTO_UGR)),
-                        Recommendation = BuildRecommendation(verdict, pct, room, doc)
+                        Recommendation = BuildRecommendation(verdict, pct, room, doc),
+                        AgeDays = AgeInDays(room)
                     };
                     reviews.Add(review);
 
@@ -121,6 +122,7 @@ namespace StingTools.Commands.Electrical.Photometric
             int below = reviews.Count(r => r.Verdict == "BELOW");
             int over  = reviews.Count(r => r.Verdict == "OVER");
             int pass  = reviews.Count(r => r.Verdict == "PASS");
+            int stale = reviews.Count(r => r.IsStale);
             var topThree = reviews.Where(r => r.Verdict == "BELOW")
                                   .OrderBy(r => r.Pct).Take(3).ToList();
 
@@ -130,12 +132,17 @@ namespace StingTools.Commands.Electrical.Photometric
             sb.AppendLine($"✅ PASS  : {pass}  ({pass * 100.0 / Math.Max(reviews.Count, 1):0}%)");
             sb.AppendLine($"⚠ BELOW : {below} (< {UnderTargetThresholdPct:0}% of target)");
             sb.AppendLine($"⚠ OVER  : {over} (> {OverTargetThresholdPct:0}% of target — energy waste)");
+            if (stale > 0)
+                sb.AppendLine($"⏱ STALE : {stale} room(s) using results > 14 days old — re-run the photometric engine before submission.");
             if (topThree.Count > 0)
             {
                 sb.AppendLine();
                 sb.AppendLine("WORST OFFENDERS (action required):");
                 foreach (var t in topThree)
-                    sb.AppendLine($"  • {t.RoomName}: {t.ActualLux:0} lx vs {t.TargetLux:0} lx target ({t.Pct:0}%) → {t.Recommendation}");
+                {
+                    string staleTag = t.AgeDays > 14 ? $"  [{t.AgeDays}d old]" : "";
+                    sb.AppendLine($"  • {t.RoomName}: {t.ActualLux:0} lx vs {t.TargetLux:0} lx target ({t.Pct:0}%){staleTag} → {t.Recommendation}");
+                }
             }
             sb.AppendLine();
             sb.AppendLine("Active view: rooms colour-coded red/amber/green by verdict.");
@@ -223,7 +230,8 @@ namespace StingTools.Commands.Electrical.Photometric
                 ws.Cell(1, 7).Value = "UGR";
                 ws.Cell(1, 8).Value = "Engine";
                 ws.Cell(1, 9).Value = "Recommendation";
-                ws.Range(1, 1, 1, 9).Style.Font.Bold = true;
+                ws.Cell(1, 10).Value = "Age (days)";
+                ws.Range(1, 1, 1, 10).Style.Font.Bold = true;
 
                 int row = 2;
                 foreach (var r in rows.OrderBy(x => x.Pct))
@@ -237,12 +245,15 @@ namespace StingTools.Commands.Electrical.Photometric
                     ws.Cell(row, 7).Value = r.UGR;
                     ws.Cell(row, 8).Value = r.Engine ?? "";
                     ws.Cell(row, 9).Value = r.Recommendation ?? "";
+                    ws.Cell(row, 10).Value = r.AgeDays < 0 ? "—" : r.AgeDays.ToString();
                     if (r.Verdict == "BELOW")
-                        ws.Range(row, 1, row, 9).Style.Fill.BackgroundColor = XLColor.LightSalmon;
+                        ws.Range(row, 1, row, 10).Style.Fill.BackgroundColor = XLColor.LightSalmon;
                     else if (r.Verdict == "OVER")
-                        ws.Range(row, 1, row, 9).Style.Fill.BackgroundColor = XLColor.LightYellow;
+                        ws.Range(row, 1, row, 10).Style.Fill.BackgroundColor = XLColor.LightYellow;
                     else
-                        ws.Range(row, 1, row, 9).Style.Fill.BackgroundColor = XLColor.LightGreen;
+                        ws.Range(row, 1, row, 10).Style.Fill.BackgroundColor = XLColor.LightGreen;
+                    if (r.IsStale)
+                        ws.Cell(row, 10).Style.Font.Bold = true;
                     row++;
                 }
                 ws.Columns().AdjustToContents();
@@ -263,6 +274,19 @@ namespace StingTools.Commands.Electrical.Photometric
             public string Verdict;
             public string Engine;
             public string Recommendation;
+            public int AgeDays;        // -1 if last-calc date missing/unparseable
+            public bool IsStale => AgeDays > 14;
+        }
+
+        // Read ELC_PHOTO_LAST_CALC_DATE (ISO 8601 written by IfcResultsImportCommand)
+        // and return the days elapsed. -1 when missing or unparseable.
+        private static int AgeInDays(Room room)
+        {
+            string s = ParameterHelpers.GetString(room, ParamRegistry.ELC_PHOTO_LAST_CALC_DATE);
+            if (string.IsNullOrWhiteSpace(s)) return -1;
+            return DateTime.TryParse(s, null, System.Globalization.DateTimeStyles.AssumeUniversal, out var dt)
+                ? Math.Max(0, (int)(DateTime.UtcNow - dt.ToUniversalTime()).TotalDays)
+                : -1;
         }
 
         private static double ParseDouble(string s) => double.TryParse(s, out double v) ? v : 0;

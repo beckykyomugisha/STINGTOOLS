@@ -11,10 +11,12 @@ using StingTools.Core;
 namespace StingTools.Commands.Electrical.Reports
 {
     /// <summary>
-    /// Exports every PanelScheduleView to PDF via Revit's PrintManager —
+    /// Exports every PanelScheduleView to PDF via the Revit 2022+
+    /// <c>Document.Export(folder, name, viewIds, PDFExportOptions)</c> API —
     /// one file per schedule, batch mode. Wired from the RPRT tab's "PDF
-    /// Report" button (tag <c>Rprt_PDF</c>). Replaces the Phase 177 stub
-    /// that surfaced "queued for Phase 178" to the user.
+    /// Report" button (tag <c>Rprt_PDF</c>). The earlier PrintManager.SubmitPrint
+    /// path required a system PDF printer to be pre-selected and silently
+    /// failed when none was; the native Export path has no driver dependency.
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
@@ -39,9 +41,8 @@ namespace StingTools.Commands.Electrical.Reports
             {
                 MainInstruction = $"Export {schedules.Count} panel schedule(s) to PDF",
                 MainContent =
-                    "Each schedule exports to a separate file using Revit's active print driver. " +
-                    "Ensure a PDF driver (Microsoft Print to PDF, Bluebeam, Adobe, etc.) is selected " +
-                    "in Revit's Print Settings before running.",
+                    "Uses Revit's native PDF exporter — one file per schedule, " +
+                    "no system PDF driver required.",
                 CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel
             };
             if (td.Show() != TaskDialogResult.Ok) return Result.Cancelled;
@@ -52,31 +53,23 @@ namespace StingTools.Commands.Electrical.Reports
 
             int exported = 0;
             var errors = new List<string>();
-            var pm = doc.PrintManager;
-            try
+            var pdfOpts = new PDFExportOptions
             {
-                pm.PrintRange = PrintRange.Select;
-                pm.PrintToFile = true;
-                pm.CombinedFile = false;
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"ElecPDF PrintManager setup: {ex.Message}");
-                TaskDialog.Show("STING Electrical PDF",
-                    $"PrintManager configuration failed: {ex.Message}\n\n" +
-                    "Open File → Print Setup in Revit, choose a PDF driver, then re-run this command.");
-                return Result.Failed;
-            }
+                Combine = false,
+                StopOnError = false,
+                HideScopeBoxes = true,
+                HideCropBoundaries = true
+            };
 
             foreach (var psv in schedules)
             {
                 string safeName = SanitiseName(psv.Name);
                 try
                 {
-                    pm.PrintToFileName = Path.Combine(outputDir, safeName + ".pdf");
-                    pm.SubmitPrint(psv);
-                    exported++;
-                    StingLog.Info($"ElecPDF exported: {psv.Name}");
+                    pdfOpts.FileName = safeName;
+                    bool ok = doc.Export(outputDir, new List<ElementId> { psv.Id }, pdfOpts);
+                    if (ok) { exported++; StingLog.Info($"ElecPDF exported: {psv.Name}"); }
+                    else    { errors.Add($"{psv.Name}: Export returned false"); }
                 }
                 catch (Exception ex)
                 {

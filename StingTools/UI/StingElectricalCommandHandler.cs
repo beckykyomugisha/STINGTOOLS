@@ -197,8 +197,10 @@ namespace StingTools.UI
                 case "SLD_Update":
                     RunCommand<StingTools.Commands.SLD.UpdateSLDCommand>(app); break;
                 case "SLD_Refresh":
-                    // PushSnapshot at the end of Execute() already rebuilds the
-                    // SLD tree from the latest model state — no extra work here.
+                    // The PushSnapshot tail-call rebuilds the SLD tree; this
+                    // case just records the refresh timestamp so the panel
+                    // status bar visibly confirms the request landed.
+                    FlashRefreshed("SLD refreshed");
                     break;
                 case "SLD_Export":
                     RunCommand<StingTools.Commands.SLD.SLDExportCommand>(app); break;
@@ -219,14 +221,16 @@ namespace StingTools.UI
 
                 // ── LITE ─────────────────────────────────────────────
                 case "Lite_Refresh":
-                    // PushSnapshot at the end of Execute() rescans lighting fixtures
-                    // and refreshes the LITE grid — no extra work needed here.
+                    FlashRefreshed("Lighting refreshed");
                     break;
                 case "Lite_CreateSchedule":
                     RunCommand<StingTools.Commands.Electrical.ElecLightingScheduleCommand>(app); break;
                 case "Lite_UpdateTargets":
-                    // PushSnapshot already re-evaluates lux targets per room.
-                    // Same pattern as Lite_Refresh and SLD_Refresh — intentional no-op.
+                    StingTools.Photometrics.LuxTargetTable.InvalidateCache();
+                    FlashRefreshed("Lux targets reloaded");
+                    break;
+                case "Elec_ClearOverrides":
+                    ClearActiveViewOverrides(app, doc);
                     break;
 
                 // ── RPRT ─────────────────────────────────────────────
@@ -550,6 +554,37 @@ namespace StingTools.UI
             // hint so the button on the dock panel is discoverable.
             TaskDialog.Show("STING Circuit Wizard",
                 "Click 'Launch Wizard' to open the modal proposer / editor.");
+        }
+
+        private void FlashRefreshed(string message)
+        {
+            try { _panel?.UpdateStatus($"{message}  ·  {DateTime.Now:HH:mm:ss}"); } catch { }
+        }
+
+        // Clear graphic overrides applied by ArcFlash / LPD / EmergAudit /
+        // PhotometricDesignReview — those commands tint elements red/amber/green
+        // and leave the colour stuck on the active view. One-shot reset.
+        private void ClearActiveViewOverrides(UIApplication app, Document doc)
+        {
+            if (doc == null) return;
+            var view = app?.ActiveUIDocument?.ActiveView;
+            if (view == null || view.IsTemplate) return;
+            try
+            {
+                using var tx = new Transaction(doc, "STING Clear Electrical Overrides");
+                tx.Start();
+                var blank = new OverrideGraphicSettings();
+                int n = 0;
+                foreach (var id in new FilteredElementCollector(doc, view.Id)
+                    .WhereElementIsNotElementType()
+                    .ToElementIds())
+                {
+                    try { view.SetElementOverrides(id, blank); n++; } catch { }
+                }
+                tx.Commit();
+                FlashRefreshed($"Cleared overrides on {n} elements");
+            }
+            catch (Exception ex) { StingLog.Warn($"ClearActiveViewOverrides: {ex.Message}"); }
         }
 
         public void RefreshWireRefTable(StingElectricalPanel panel)

@@ -520,6 +520,9 @@
                                     <Button Content="▶ Auto-Upsize Failing" Style="{StaticResource ElecActionBtn}"
                                             Tag="Calc_UpsizeWires" Click="Cmd_Click"
                                             ToolTip="Auto-upsize conductors on circuits exceeding the VD threshold. Reviews before applying."/>
+                                    <Button Content="✕ Clear Overrides" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Elec_ClearOverrides" Click="Cmd_Click"
+                                            ToolTip="Reset any colour / halftone overrides applied by Flag Exceedances, Arc Flash, Emergency Audit or LPD checks on the active view."/>
                                 </WrapPanel>
                             </StackPanel>
                         </Expander>

@@ -56,20 +56,36 @@ namespace StingTools.UI
             StatusLabel.Text = "Scanning…";
             Rows.Clear();
             _allRows.Clear();
-            // Run synchronously — Phase 180 keeps the dialog modal and the
-            // file-system scan is fast (a few hundred files in <500 ms).
-            try
+            // Phase 180 ran the scan synchronously which froze the UI for ~3s
+            // on libraries with a few thousand .ies files. Now offloaded to a
+            // worker; the dialog stays responsive (search box still filters
+            // partial results as they arrive).
+            var lib = _library;
+            System.Threading.Tasks.Task.Run(() =>
             {
-                var files = _library.LoadAll();
-                _allRows = files.Select(f => new PhotometricRowVm(f)).ToList();
-                ApplyFilter();
-                StatusLabel.Text = $"{_allRows.Count} luminaire(s)";
-            }
-            catch (Exception ex)
+                try { return lib.LoadAll(); }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"PhotometricLibrary scan: {ex.Message}");
+                    return new List<PhotometricFile>();
+                }
+            }).ContinueWith(t =>
             {
-                StingLog.Warn($"PhotometricLibrary scan: {ex.Message}");
-                StatusLabel.Text = "Scan failed — see StingTools.log";
-            }
+                try
+                {
+                    _allRows = (t.Result ?? new List<PhotometricFile>())
+                        .Select(f => new PhotometricRowVm(f)).ToList();
+                    ApplyFilter();
+                    StatusLabel.Text = _allRows.Count == 0
+                        ? "No luminaires found — check root path"
+                        : $"{_allRows.Count} luminaire(s)";
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"PhotometricLibrary scan apply: {ex.Message}");
+                    StatusLabel.Text = "Scan failed — see StingTools.log";
+                }
+            }, System.Threading.Tasks.TaskScheduler.FromCurrentSynchronizationContext());
         }
 
         private void ApplyFilter()

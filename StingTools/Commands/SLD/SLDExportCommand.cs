@@ -10,9 +10,10 @@ using StingTools.Core;
 namespace StingTools.Commands.SLD
 {
     /// <summary>
-    /// Exports every STING-authored SLD drafting view to PDF (via the
-    /// active Revit print driver), DWG, or a CSV summary. Wired from the
-    /// SLD tab's "Export" button (tag <c>SLD_Export</c>).
+    /// Exports every STING-authored SLD drafting view to PDF (via the Revit
+    /// 2022+ native PDF exporter — no system print driver required), DWG,
+    /// or a CSV summary. Wired from the SLD tab's "Export" button
+    /// (tag <c>SLD_Export</c>).
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
@@ -42,7 +43,7 @@ namespace StingTools.Commands.SLD
                 MainContent = "Choose export format:",
                 CommonButtons = TaskDialogCommonButtons.Cancel
             };
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Export to PDF (via active print driver)");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Export to PDF (Revit native exporter)");
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Export to DWG");
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Export view names to CSV summary");
             var choice = td.Show();
@@ -78,31 +79,26 @@ namespace StingTools.Commands.SLD
         private static int ExportToPdf(Document doc, List<ViewDrafting> views, string dir, List<string> errors)
         {
             int count = 0;
-            try
+            var opts = new PDFExportOptions
             {
-                var pm = doc.PrintManager;
-                pm.PrintRange = PrintRange.Select;
-                pm.PrintToFile = true;
-                pm.CombinedFile = false;
-                foreach (var v in views)
+                Combine = false,
+                StopOnError = false,
+                HideScopeBoxes = true,
+                HideCropBoundaries = true
+            };
+            foreach (var v in views)
+            {
+                try
                 {
-                    try
-                    {
-                        pm.PrintToFileName = Path.Combine(dir, SanitiseName(v.Name) + ".pdf");
-                        pm.SubmitPrint(v);
-                        count++;
-                    }
-                    catch (Exception ex)
-                    {
-                        errors.Add($"{v.Name}: {ex.Message}");
-                        StingLog.Warn($"SLDExport PDF {v.Name}: {ex.Message}");
-                    }
+                    opts.FileName = SanitiseName(v.Name);
+                    if (doc.Export(dir, new List<ElementId> { v.Id }, opts)) count++;
+                    else errors.Add($"{v.Name}: Export returned false");
                 }
-            }
-            catch (Exception ex)
-            {
-                errors.Add($"PrintManager setup: {ex.Message}");
-                StingLog.Warn($"SLDExport PDF setup: {ex.Message}");
+                catch (Exception ex)
+                {
+                    errors.Add($"{v.Name}: {ex.Message}");
+                    StingLog.Warn($"SLDExport PDF {v.Name}: {ex.Message}");
+                }
             }
             return count;
         }
