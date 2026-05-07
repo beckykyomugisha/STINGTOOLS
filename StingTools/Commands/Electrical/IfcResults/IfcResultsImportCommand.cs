@@ -57,7 +57,12 @@ namespace StingTools.Commands.Electrical.IfcResults
                 .WhereElementIsNotElementType().OfType<Room>()
                 .Where(r => r.Area > 0))
             {
+                // Index by both the raw UniqueId AND the 22-char IFC-encoded
+                // form (the export uses IfcGuidEncoder so DIALux preserves the
+                // IfcGloballyUniqueId verbatim — match against both shapes for
+                // safety against DIALux ever re-emitting in either form).
                 try { roomsByGuid[r.UniqueId] = r; } catch { }
+                try { roomsByGuid[IfcGuidEncoder.FromRevitUniqueId(r.UniqueId)] = r; } catch { }
                 if (!string.IsNullOrEmpty(r.Name)) roomsByName[r.Name] = r;
             }
             var fixturesByGuid = new Dictionary<string, FamilyInstance>(StringComparer.OrdinalIgnoreCase);
@@ -66,6 +71,7 @@ namespace StingTools.Commands.Electrical.IfcResults
                 .WhereElementIsNotElementType().OfType<FamilyInstance>())
             {
                 try { fixturesByGuid[fi.UniqueId] = fi; } catch { }
+                try { fixturesByGuid[IfcGuidEncoder.FromRevitUniqueId(fi.UniqueId)] = fi; } catch { }
             }
 
             string engineParam = ResolveEngineParam(engine);

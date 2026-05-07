@@ -42,7 +42,7 @@ namespace StingTools.Commands.Electrical.Photometric
             // (we map room-type patterns there to a default illuminance table).
             var limits = LightingPowerDensityCommand.LoadLpdLimits(
                 StingElectricalCommandHandler_CurrentLpdStandard());
-            var targetLuxByPattern = BuildLuxTargets();
+            var luxTargets = StingTools.Photometrics.LuxTargetTable.Load();
 
             var rooms = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_Rooms)
@@ -78,7 +78,7 @@ namespace StingTools.Commands.Electrical.Photometric
                     if (lux <= 0) continue;
 
                     string roomName = room.Name ?? "";
-                    double targetLux = TargetLuxFor(roomName, targetLuxByPattern);
+                    double targetLux = luxTargets.TargetFor(roomName);
                     if (targetLux <= 0) targetLux = 300; // BS EN 12464-1 default for general work
 
                     double pct = lux / targetLux * 100;
@@ -96,7 +96,8 @@ namespace StingTools.Commands.Electrical.Photometric
                         Verdict = verdict,
                         Engine = lastEngine,
                         UGR = ParseDouble(ParameterHelpers.GetString(room, ParamRegistry.ELC_PHOTO_UGR)),
-                        Recommendation = BuildRecommendation(verdict, pct, room, doc)
+                        Recommendation = BuildRecommendation(verdict, pct, room, doc),
+                        AgeDays = AgeInDays(room)
                     };
                     reviews.Add(review);
 
@@ -121,6 +122,7 @@ namespace StingTools.Commands.Electrical.Photometric
             int below = reviews.Count(r => r.Verdict == "BELOW");
             int over  = reviews.Count(r => r.Verdict == "OVER");
             int pass  = reviews.Count(r => r.Verdict == "PASS");
+            int stale = reviews.Count(r => r.IsStale);
             var topThree = reviews.Where(r => r.Verdict == "BELOW")
                                   .OrderBy(r => r.Pct).Take(3).ToList();
 
@@ -130,12 +132,17 @@ namespace StingTools.Commands.Electrical.Photometric
             sb.AppendLine($"✅ PASS  : {pass}  ({pass * 100.0 / Math.Max(reviews.Count, 1):0}%)");
             sb.AppendLine($"⚠ BELOW : {below} (< {UnderTargetThresholdPct:0}% of target)");
             sb.AppendLine($"⚠ OVER  : {over} (> {OverTargetThresholdPct:0}% of target — energy waste)");
+            if (stale > 0)
+                sb.AppendLine($"⏱ STALE : {stale} room(s) using results > 14 days old — re-run the photometric engine before submission.");
             if (topThree.Count > 0)
             {
                 sb.AppendLine();
                 sb.AppendLine("WORST OFFENDERS (action required):");
                 foreach (var t in topThree)
-                    sb.AppendLine($"  • {t.RoomName}: {t.ActualLux:0} lx vs {t.TargetLux:0} lx target ({t.Pct:0}%) → {t.Recommendation}");
+                {
+                    string staleTag = t.AgeDays > 14 ? $"  [{t.AgeDays}d old]" : "";
+                    sb.AppendLine($"  • {t.RoomName}: {t.ActualLux:0} lx vs {t.TargetLux:0} lx target ({t.Pct:0}%){staleTag} → {t.Recommendation}");
+                }
             }
             sb.AppendLine();
             sb.AppendLine("Active view: rooms colour-coded red/amber/green by verdict.");
@@ -197,42 +204,9 @@ namespace StingTools.Commands.Electrical.Photometric
             return n;
         }
 
-        // ── lux targets ─────────────────────────────────────────────────
-
-        /// <summary>
-        /// BS EN 12464-1 + CIBSE LG7 maintained illuminance targets per
-        /// room-name pattern. Conservative defaults — projects can override
-        /// per-room via the existing ELC_LPD_LIMIT_W_PER_M2 mechanism if
-        /// they need lighter / heavier targets.
-        /// </summary>
-        private static List<(string[] patterns, double luxTarget)> BuildLuxTargets() =>
-            new List<(string[], double)>
-            {
-                (new[] { "office", "open plan", "bullpen" }, 500),
-                (new[] { "conference", "meeting", "boardroom" }, 500),
-                (new[] { "reception", "lobby", "foyer" }, 300),
-                (new[] { "corridor", "passage", "circulation" }, 100),
-                (new[] { "stair", "stairwell" }, 150),
-                (new[] { "toilet", "wc", "bathroom" }, 200),
-                (new[] { "kitchen", "cafeteria", "canteen" }, 500),
-                (new[] { "store", "storage", "riser" }, 100),
-                (new[] { "plant", "mechanical", "boiler" }, 200),
-                (new[] { "car park", "parking", "garage" }, 75),
-                (new[] { "warehouse" }, 300),
-                (new[] { "retail", "shop" }, 500),
-                (new[] { "classroom", "school" }, 500),
-                (new[] { "laboratory", "lab" }, 500),
-                (new[] { "library" }, 500),
-                (new[] { "examination", "treatment" }, 1000),
-            };
-
-        private static double TargetLuxFor(string roomName, List<(string[] patterns, double luxTarget)> table)
-        {
-            string n = (roomName ?? "").ToLowerInvariant();
-            foreach (var (patterns, target) in table)
-                if (patterns.Any(p => n.Contains(p))) return target;
-            return 300;
-        }
+        // Lux target table moved to StingTools.Photometrics.LuxTargetTable
+        // (loads from STING_LUX_TARGETS.json — single source of truth shared
+        // with ElectricalSnapshotBuilder).
 
         // ── Excel writer ────────────────────────────────────────────────
 
@@ -256,7 +230,8 @@ namespace StingTools.Commands.Electrical.Photometric
                 ws.Cell(1, 7).Value = "UGR";
                 ws.Cell(1, 8).Value = "Engine";
                 ws.Cell(1, 9).Value = "Recommendation";
-                ws.Range(1, 1, 1, 9).Style.Font.Bold = true;
+                ws.Cell(1, 10).Value = "Age (days)";
+                ws.Range(1, 1, 1, 10).Style.Font.Bold = true;
 
                 int row = 2;
                 foreach (var r in rows.OrderBy(x => x.Pct))
@@ -270,12 +245,15 @@ namespace StingTools.Commands.Electrical.Photometric
                     ws.Cell(row, 7).Value = r.UGR;
                     ws.Cell(row, 8).Value = r.Engine ?? "";
                     ws.Cell(row, 9).Value = r.Recommendation ?? "";
+                    ws.Cell(row, 10).Value = r.AgeDays < 0 ? "—" : r.AgeDays.ToString();
                     if (r.Verdict == "BELOW")
-                        ws.Range(row, 1, row, 9).Style.Fill.BackgroundColor = XLColor.LightSalmon;
+                        ws.Range(row, 1, row, 10).Style.Fill.BackgroundColor = XLColor.LightSalmon;
                     else if (r.Verdict == "OVER")
-                        ws.Range(row, 1, row, 9).Style.Fill.BackgroundColor = XLColor.LightYellow;
+                        ws.Range(row, 1, row, 10).Style.Fill.BackgroundColor = XLColor.LightYellow;
                     else
-                        ws.Range(row, 1, row, 9).Style.Fill.BackgroundColor = XLColor.LightGreen;
+                        ws.Range(row, 1, row, 10).Style.Fill.BackgroundColor = XLColor.LightGreen;
+                    if (r.IsStale)
+                        ws.Cell(row, 10).Style.Font.Bold = true;
                     row++;
                 }
                 ws.Columns().AdjustToContents();
@@ -296,6 +274,19 @@ namespace StingTools.Commands.Electrical.Photometric
             public string Verdict;
             public string Engine;
             public string Recommendation;
+            public int AgeDays;        // -1 if last-calc date missing/unparseable
+            public bool IsStale => AgeDays > 14;
+        }
+
+        // Read ELC_PHOTO_LAST_CALC_DATE (ISO 8601 written by IfcResultsImportCommand)
+        // and return the days elapsed. -1 when missing or unparseable.
+        private static int AgeInDays(Room room)
+        {
+            string s = ParameterHelpers.GetString(room, ParamRegistry.ELC_PHOTO_LAST_CALC_DATE);
+            if (string.IsNullOrWhiteSpace(s)) return -1;
+            return DateTime.TryParse(s, null, System.Globalization.DateTimeStyles.AssumeUniversal, out var dt)
+                ? Math.Max(0, (int)(DateTime.UtcNow - dt.ToUniversalTime()).TotalDays)
+                : -1;
         }
 
         private static double ParseDouble(string s) => double.TryParse(s, out double v) ? v : 0;

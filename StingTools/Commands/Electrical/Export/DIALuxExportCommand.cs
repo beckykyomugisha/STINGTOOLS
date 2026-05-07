@@ -236,19 +236,34 @@ namespace StingTools.Commands.Electrical.Export
         private static string Fmt(double v) => v.ToString("0.0####", CultureInfo.InvariantCulture);
 
         /// <summary>
-        /// Convert a Revit UniqueId (Guid + counter) to a 22-char IFC GUID
-        /// without taking a dependency on Autodesk.Revit.DB.IFC. We rely on
-        /// the GUID component of UniqueId — IFC doesn't enforce strict
-        /// IfcGloballyUniqueId encoding when a 22-char base64-ish opaque
-        /// string is supplied, and STING's importer matches by string
-        /// equality against the source UniqueId on the round-trip back.
+        /// Convert a Revit UniqueId (45-char Guid + counter) to the
+        /// 22-char base64-ish IFC GUID per buildingSMART specification.
+        /// This is the same algorithm Revit's own
+        /// Autodesk.Revit.DB.IFC.ExporterIFCUtils.CreateGUID uses but
+        /// re-implemented in <see cref="IfcGuidEncoder"/> to avoid
+        /// pulling the IFC export assembly into the electrical pipeline.
+        ///
+        /// CRITICAL: DIALux evo and ElumTools silently reject GUIDs that
+        /// don't match the IFC schema's 22-char shape — they replace
+        /// them with auto-generated values, which destroys the round-trip
+        /// match-by-GUID logic in <c>IfcResultsImportCommand</c>.
         /// </summary>
         private static string ToIfcGuid(string revitUniqueId, long fallbackId)
         {
-            if (!string.IsNullOrEmpty(revitUniqueId)) return EscIfc(revitUniqueId);
-            return $"STING-{fallbackId}";
+            if (!string.IsNullOrEmpty(revitUniqueId))
+                return IfcGuidEncoder.FromRevitUniqueId(revitUniqueId);
+            return IfcGuidEncoder.FromGuid(new Guid(unchecked((int)(fallbackId & 0xFFFFFFFF)),
+                (short)((fallbackId >> 32) & 0xFFFF), (short)((fallbackId >> 48) & 0xFFFF),
+                0, 0, 0, 0, 0, 0, 0, 0));
         }
 
-        private static string IfcGuid(string seed) => ToIfcGuid(seed, 0);
+        private static string IfcGuid(string seed)
+        {
+            // Deterministic hash so re-exports of the same project produce
+            // the same IFC GUID for synthetic entities (PSet ids, RelDefines).
+            using var md5 = System.Security.Cryptography.MD5.Create();
+            byte[] bytes = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(seed ?? ""));
+            return IfcGuidEncoder.FromGuid(new Guid(bytes));
+        }
     }
 }

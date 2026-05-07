@@ -1451,6 +1451,64 @@ namespace StingTools.Core
                 case "Panel_SpacesToSpares":    return new Commands.Panels.ConvertSpacesToSparesCommand();
                 case "Panel_ClearSparesSpaces": return new Commands.Panels.ClearSparesAndSpacesCommand();
 
+                // ── Phase 182: STING Electrical Center workflow tags ────
+                // The dock panel dispatches these via StingElectricalCommandHandler;
+                // resolving them here too lets workflow presets (ElectricalQA,
+                // ElectricalDesignReview, ElectricalSubmission, PostFitOut)
+                // chain electrical commands through the same WorkflowEngine
+                // every other discipline already uses.
+                case "Calc_LoadSummary":   return new Commands.Electrical.ElecLoadSummaryCommand();
+                case "Calc_VoltageDrop":   return new Commands.Electrical.VoltageDrop.VoltageDropCommand();
+                case "Calc_FlagVD":        return new Commands.Electrical.VoltageDrop.VoltageDropFlagCommand();
+                case "Calc_SizeBreakers":  return new Commands.Electrical.BreakerSizerCommand();
+                case "Calc_ApplyBreakers": return new Commands.Electrical.BreakerSizerApplyCommand();
+                case "Calc_UpsizeWires":   return new Commands.Electrical.AutoUpsizeWiresCommand();
+                case "Calc_FaultCurrent":  return new Commands.Electrical.FaultCurrent.FaultCurrentCommand();
+                case "Calc_AicStamp":      return new Commands.Electrical.FaultCurrent.AicRatingCommand();
+                case "Calc_FeederSize":    return new Commands.Electrical.FeederSizing.FeederSizerCommand();
+                case "Circuit_AutoDesc":   return new Commands.Electrical.CircuitDescriptionCommand();
+                case "Circuit_Balance":    return new Commands.Electrical.PhaseBalanceCommand();
+                case "Circuit_Renumber":   return new Commands.Electrical.ElecCircuitRenumberCommand();
+                case "Cable_Calculate":    return new Commands.Electrical.CableSizer.CableSizerCommand();
+                case "Cable_ValidateConduitFill": return new Commands.Electrical.ConduitFillValidateCommand();
+                case "Lite_LPD":           return new Commands.Electrical.Lighting.LightingPowerDensityCommand();
+                case "Lite_LpdColor":      return new Commands.Electrical.Lighting.LpdColorCommand();
+                case "Lite_EmergAudit":    return new Commands.Electrical.Lighting.EmergencyLightingAuditCommand();
+                case "Lite_MarkEmerg":     return new Commands.Electrical.Lighting.EmergencyLightingMarkCommand();
+                case "Lite_CreateSchedule":return new Commands.Electrical.ElecLightingScheduleCommand();
+                case "SLD_Generate":       return new Commands.SLD.GenerateSLDCommand();
+                case "SLD_Update":         return new Commands.SLD.UpdateSLDCommand();
+                case "SLD_Export":         return new Commands.SLD.SLDExportCommand();
+                case "SLD_RiserDiagram":   return new Commands.SLD.SLDRiserDiagramCommand();
+                case "Rprt_PDF":           return new Commands.Electrical.Reports.ElecPdfReportCommand();
+                case "Rprt_DemandFactors": return new Commands.Electrical.Reports.DemandFactorReportCommand();
+                case "Rprt_FaultSchedule": return new Commands.Electrical.Reports.FaultCurrentScheduleCommand();
+                case "Rprt_VDSchedule":    return new Commands.Electrical.Reports.VoltageDropScheduleCommand();
+                case "Rprt_CircuitExport": return new Commands.Electrical.ExportCircuitsCommand();
+                case "Rprt_Audit":         return new Commands.Panels.PanelScheduleAuditCommand();
+                case "Rprt_ExcelExport":   return new Commands.Panels.ExportPanelSchedulesToExcelCommand();
+                case "Rprt_ExcelImport":   return new Commands.Panels.ImportPanelSchedulesFromExcelCommand();
+                case "Elec_ArcFlash":      return new Commands.Electrical.ArcFlash.ArcFlashCommand();
+                case "Elec_ArcFlashLabels":return new Commands.Electrical.ArcFlash.ArcFlashLabelSheetCommand();
+                case "Elec_ArcFlashSched": return new Commands.Electrical.ArcFlash.ArcFlashScheduleCommand();
+                case "Elec_SelectCoord":   return new Commands.Electrical.Coordination.SelectiveCoordCommand();
+                case "Elec_AutoRoute":     return new Commands.Electrical.Routing.ConduitAutoRouteCommand();
+                case "Elec_BusbarModel":   return new Commands.Electrical.Busbar.BusbarModelingCommand();
+                case "Elec_ExportDIALux":  return new Commands.Electrical.Export.DIALuxExportCommand();
+                case "Elec_ExportEasyPower":return new Commands.Electrical.Export.EasyPowerExportCommand();
+                case "Elec_ExportEtap":    return new Commands.Electrical.Export.EtapExportCommand();
+                case "Elec_PhotoLink":     return new Commands.Electrical.Photometric.PhotometricLinkCommand();
+                case "Photo_Library":      return new Commands.Electrical.Photometric.PhotometricLibraryCommand();
+                case "Photo_Assign":       return new Commands.Electrical.Photometric.AssignPhotometricCommand();
+                case "Photo_Preflight":    return new Commands.Electrical.Photometric.PhotometricPreflightCommand();
+                case "Photo_DesignReview": return new Commands.Electrical.Photometric.PhotometricDesignReviewCommand();
+                case "Photo_RoundTrip":    return new Commands.Electrical.Photometric.DialuxRoundTripCommand();
+                case "Photo_IfcImport":    return new Commands.Electrical.IfcResults.IfcResultsImportCommand();
+                case "Photo_Aggregator":   return new Commands.Electrical.IfcResults.MultiEngineAggregatorCommand();
+                case "Panel_PlaceOnSheets":return new Commands.Electrical.PanelViewScheduleCommand();
+                case "Panel_SyncParams":   return new Commands.Electrical.ElecPanelParamSyncCommand();
+                case "Panel_WriteParams":  return new Commands.Electrical.ElecPanelWriteParamsCommand();
+
                 // Tagging
                 case "AutoTag": return new Tags.AutoTagCommand();
                 case "BatchTag": return new Tags.BatchTagCommand();
