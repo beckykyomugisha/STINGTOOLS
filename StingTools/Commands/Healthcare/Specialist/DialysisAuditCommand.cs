@@ -18,7 +18,9 @@ namespace StingTools.Commands.Healthcare.Specialist
             try
             {
                 var doc = commandData.Application.ActiveUIDocument.Document;
-                var stations = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_SpecialityEquipment)
+                var clinicalCats = new ElementMulticategoryFilter(new[] {
+                    BuiltInCategory.OST_MedicalEquipment, BuiltInCategory.OST_SpecialityEquipment });
+                var stations = new FilteredElementCollector(doc).WherePasses(clinicalCats)
                     .WhereElementIsNotElementType().ToElements()
                     .Where(e => Get(e,"ASS_PRODCT_COD_TXT")=="RO-DIA")
                     .ToList();

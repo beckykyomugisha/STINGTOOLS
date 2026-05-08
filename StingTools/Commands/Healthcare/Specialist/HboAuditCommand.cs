@@ -18,7 +18,9 @@ namespace StingTools.Commands.Healthcare.Specialist
             try
             {
                 var doc = commandData.Application.ActiveUIDocument.Document;
-                var hboChambers = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_SpecialityEquipment)
+                var clinicalCats = new ElementMulticategoryFilter(new[] {
+                    BuiltInCategory.OST_MedicalEquipment, BuiltInCategory.OST_SpecialityEquipment });
+                var hboChambers = new FilteredElementCollector(doc).WherePasses(clinicalCats)
                     .WhereElementIsNotElementType().ToElements()
                     .Where(e => Get(e,"ASS_PRODCT_COD_TXT")=="HBO").ToList();
                 var sb = new StringBuilder();
@@ -26,7 +28,7 @@ namespace StingTools.Commands.Healthcare.Specialist
                 sb.AppendLine($"HBO chambers detected: {hboChambers.Count}");
                 foreach (var c in hboChambers)
                     sb.AppendLine($"  {c.Name} — verify NFPA 99 Ch.14 deluge sprinkler + O2 sensor + 3 m fire envelope");
-                var cytoHoods = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_SpecialityEquipment)
+                var cytoHoods = new FilteredElementCollector(doc).WherePasses(clinicalCats)
                     .WhereElementIsNotElementType().ToElements()
                     .Where(e => Get(e,"CEQ_CATEGORY_TXT")=="PHARMACY"
                              && Get(e,"ASS_PRODCT_COD_TXT")=="ISO-USP").ToList();

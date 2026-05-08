@@ -262,19 +262,19 @@ PROD,Specialty Equipment,H,GEN,STD,CP-ANES,Anaesthesia boom
 PROD,Plumbing Fixtures,H,GEN,STD,SCR,Scrub trough
 PROD,Plumbing Fixtures,H,GEN,STD,SCRD,Scrub-in dispenser
 PROD,Plumbing Fixtures,H,GEN,STD,BPW,Bedpan washer
-PROD,Specialty Equipment,H,GEN,STD,WD,Washer-disinfector
-PROD,Specialty Equipment,H,GEN,STD,STZ,Sterilizer / autoclave
-PROD,Specialty Equipment,H,GEN,STD,RO-DIA,Dialysis Reverse Osmosis unit
-PROD,Specialty Equipment,H,GEN,STD,MRI,MRI bore unit
-PROD,Specialty Equipment,H,GEN,STD,LIN,Linear accelerator
-PROD,Specialty Equipment,H,GEN,STD,CT,CT scanner
-PROD,Specialty Equipment,H,GEN,STD,PET,PET scanner
-PROD,Specialty Equipment,H,GEN,STD,XRY,X-ray imaging
-PROD,Specialty Equipment,H,GEN,STD,FLR,Fluoroscopy
-PROD,Specialty Equipment,H,GEN,STD,CTH,Cath-lab equipment
+PROD,Medical Equipment,H,GEN,STD,WD,Washer-disinfector
+PROD,Medical Equipment,H,GEN,STD,STZ,Sterilizer / autoclave
+PROD,Medical Equipment,H,GEN,STD,RO-DIA,Dialysis Reverse Osmosis unit
+PROD,Medical Equipment,H,GEN,STD,MRI,MRI bore unit
+PROD,Medical Equipment,H,GEN,STD,LIN,Linear accelerator
+PROD,Medical Equipment,H,GEN,STD,CT,CT scanner
+PROD,Medical Equipment,H,GEN,STD,PET,PET scanner
+PROD,Medical Equipment,H,GEN,STD,XRY,X-ray imaging
+PROD,Medical Equipment,H,GEN,STD,FLR,Fluoroscopy
+PROD,Medical Equipment,H,GEN,STD,CTH,Cath-lab equipment
 PROD,Specialty Equipment,H,GEN,STD,CRT,Crash trolley
-PROD,Specialty Equipment,H,GEN,STD,NCS,Nurse-call station
-PROD,Specialty Equipment,H,GEN,STD,NCP,Nurse-call post
+PROD,Nurse Call Devices,H,GEN,STD,NCS,Nurse-call station
+PROD,Nurse Call Devices,H,GEN,STD,NCP,Nurse-call post
 PROD,Specialty Equipment,H,GEN,STD,AED,Automated External Defibrillator
 PROD,Specialty Equipment,H,GEN,STD,HRD,Hand-rub dispenser
 PROD,Specialty Equipment,H,GEN,STD,PTS,Pneumatic tube station
@@ -282,8 +282,8 @@ PROD,Specialty Equipment,H,GEN,STD,AGV-D,AGV docking station
 PROD,Specialty Equipment,H,GEN,STD,DUM,Dumb waiter
 PROD,Specialty Equipment,H,GEN,STD,MORT-FRG,Mortuary refrigerator
 PROD,Specialty Equipment,H,GEN,STD,POST-MTBL,Post-mortem table
-PROD,Specialty Equipment,H,GEN,STD,INC,Incubator
-PROD,Specialty Equipment,H,GEN,STD,WCT,Warming cot
+PROD,Medical Equipment,H,GEN,STD,INC,Incubator
+PROD,Medical Equipment,H,GEN,STD,WCT,Warming cot
 PROD,Pipe Accessories,MG,MGS-O2,SUP,ZVB,Zone valve box
 PROD,Plumbing Fixtures,MG,MGS-O2,SUP,AAP,Area alarm panel
 PROD,Plumbing Fixtures,MG,MGS-O2,SUP,MAP,Master alarm panel

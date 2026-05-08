@@ -14,7 +14,14 @@ namespace StingTools.Core.Validation.Healthcare
         {
             var res = new List<ValidationResult>();
             if (doc == null) return res;
-            var anchors = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_DataDevices)
+            // RTLS anchors / readers ship as Data Devices, Communication Devices,
+            // Nurse Call Devices, or sometimes Medical Equipment depending on the manufacturer.
+            var anchorCats = new ElementMulticategoryFilter(new[] {
+                BuiltInCategory.OST_DataDevices,
+                BuiltInCategory.OST_CommunicationDevices,
+                BuiltInCategory.OST_NurseCallDevices,
+                BuiltInCategory.OST_MedicalEquipment });
+            var anchors = new FilteredElementCollector(doc).WherePasses(anchorCats)
                 .WhereElementIsNotElementType().ToElements()
                 .Where(e => !string.IsNullOrEmpty(GetParam(e, "ICT_RTLS_ANCHOR_ID_TXT")))
                 .ToList();

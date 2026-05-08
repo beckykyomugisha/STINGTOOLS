@@ -3620,6 +3620,16 @@
           "projectionLineColor": "#00838F",
           "projectionLineWeight": 4,
           "visible": true
+        },
+        "Medical Equipment": {
+          "visible": true,
+          "projectionLineColor": "#00838F",
+          "projectionLineWeight": 4
+        },
+        "Nurse Call Devices": {
+          "visible": true,
+          "projectionLineColor": "#7B1FA2",
+          "projectionLineWeight": 3
         }
       },
       "filterRules": [
