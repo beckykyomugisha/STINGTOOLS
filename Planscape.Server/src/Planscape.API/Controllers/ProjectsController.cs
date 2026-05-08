@@ -7,12 +7,12 @@ using Planscape.Infrastructure.Services;
 
 namespace Planscape.API.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
-[Authorize]
 /// <summary>
 /// BIM project management — CRUD, settings, and dashboard.
 /// </summary>
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]
 public class ProjectsController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;

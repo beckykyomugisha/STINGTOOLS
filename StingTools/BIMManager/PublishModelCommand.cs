@@ -96,62 +96,29 @@ namespace StingTools.BIMManager
 
                 if (result.alreadyExisted)
                 {
-                    var dlg = new TaskDialog("Publish Model to Planscape")
-                    {
-                        MainInstruction = "This model is already published",
-                        MainContent =
-                            $"The server has an existing entry with the same SHA-256 content hash:\n\n" +
-                            $"  File:    {Path.GetFileName(modelPath)}\n" +
-                            $"  Project: {projectId}\n" +
-                            $"  Existing model id: {result.modelId}\n\n" +
-                            "Renaming the file on disk doesn't change the bytes, so the dedup still triggers.",
-                        CommonButtons = TaskDialogCommonButtons.Close,
-                        DefaultButton = TaskDialogResult.Close,
-                    };
-                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                        "Republish anyway as a new revision",
-                        "Bypasses the SHA-256 dedup and creates a new entry with the same bytes (useful when only the element map / metadata has changed).");
-                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                        "Open the existing entry",
-                        "Use the model the server already has — no upload.");
-                    var r = dlg.Show();
-                    if (r == TaskDialogResult.CommandLink1)
-                    {
-                        var forced = Task.Run(() => client.UploadModelAsync(
-                            projectId,
-                            modelPath,
-                            mapPath,
-                            name: doc.Title,
-                            description: $"Re-published from Revit {doc.Application.VersionName}",
-                            discipline: DetectDocDiscipline(doc),
-                            revision: PhaseAutoDetect.DetectProjectRevision(doc),
-                            units: "mm",
-                            elementCount: elementCount,
-                            bounds: bounds,
-                            force: true)).GetAwaiter().GetResult();
-                        if (!forced.ok)
-                        {
-                            TaskDialog.Show("Publish Model", $"Forced republish failed: {forced.error}");
-                            StingLog.Warn($"Planscape: forced model upload failed — {forced.error}");
-                            return Result.Failed;
-                        }
-                        TaskDialog.Show(
-                            "Publish Model to Planscape",
-                            $"Republished as a new revision.\n\n" +
-                            $"Elements mapped: {elementCount}\n" +
-                            $"Project: {projectId}\n" +
-                            $"New model id: {forced.modelId}");
-                        StingLog.Info($"Planscape: model force-republished → {forced.modelId}");
-                        return Result.Succeeded;
-                    }
-                    StingLog.Info($"Planscape: model already published (dedup) → {result.modelId}");
+                    // Modern server (commits 1b7ff61+) refreshes the element-
+                    // map / thumbnail / bounds / revision on the existing row
+                    // even when the GLB hash is identical, so this branch is
+                    // now the "re-publish to refresh sidecars" success path,
+                    // not a dead-end. Coordinators expect re-publishing to
+                    // pick up new tagging / new map data.
+                    TaskDialog.Show(
+                        "Publish Model to Planscape",
+                        $"Geometry already published — element-map and metadata refreshed on the existing entry.\n\n" +
+                        $"File: {Path.GetFileName(modelPath)}\n" +
+                        $"Project: {projectId}\n" +
+                        $"Model id: {result.modelId}\n\n" +
+                        "The viewer + mobile app will pick up the new element-map on next open. " +
+                        "To create a NEW revision instead of refreshing, change the geometry first " +
+                        "(re-export the 3D view) and re-publish.");
+                    StingLog.Info($"Planscape: model sidecars refreshed (dedup) → {result.modelId}");
                     return Result.Succeeded;
                 }
 
                 TaskDialog.Show(
                     "Publish Model to Planscape",
                     $"Published {Path.GetFileName(modelPath)}\n\n" +
-                    $"Elements mapped: {elementCount}\n" +
+                    $"Elements published: {elementCount}\n" +
                     $"Project: {projectId}\n" +
                     $"Model id:   {result.modelId}\n\n" +
                     "Site users can now open the model from the Planscape mobile app → Models.");
@@ -301,19 +268,32 @@ namespace StingTools.BIMManager
                     boundsContributors++;
                 }
 
-                // Always include the element in the map even when the STING
-                // tag pipeline hasn't run yet — the viewer needs the
-                // UniqueId → name/category mapping for tooltips and
-                // discipline filtering on every element it can render.
-                // Skipping untagged elements meant a fresh project always
-                // shipped an empty map ("Elements mapped: 0") and the
-                // viewer lost its overlay until users re-published *after*
-                // tagging. Tag/disc/loc/lvl are empty strings when not yet
-                // populated; republishing after the tag pipeline runs
-                // upgrades the map in place.
+                if (string.IsNullOrEmpty(tag))
+                {
+                    // PUBLISH-WHOLE-MODEL — emit a minimal entry for every
+                    // element with geometry so the viewer's tree, discipline
+                    // chips, level strip, and properties panel work end-to-end
+                    // even on models that haven't been through the STING tag
+                    // pipeline yet. Tagged elements get the rich block below;
+                    // untagged ones still get name + category + level + elementId
+                    // which is what the right-panel Properties tab needs.
+                    string lvlOnly = "";
+                    try { lvlOnly = ParameterHelpers.GetLevelCode(doc, el) ?? ""; } catch { }
+                    map[guid] = new JObject
+                    {
+                        ["name"]      = el.Name ?? "",
+                        ["category"]  = el.Category?.Name ?? "",
+                        ["level"]     = lvlOnly,
+                        ["elementId"] = el.Id.Value,
+                    };
+                    count++;
+                    continue;
+                }
                 var disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                 var loc  = ParameterHelpers.GetString(el, ParamRegistry.LOC);
                 var lvl  = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+                var sys  = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                var stat = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
 
                 map[guid] = new JObject
                 {
@@ -323,6 +303,8 @@ namespace StingTools.BIMManager
                     ["discipline"] = disc,
                     ["location"]   = loc,
                     ["level"]      = lvl,
+                    ["system"]     = sys,
+                    ["status"]     = stat,
                     ["elementId"]  = el.Id.Value,
                 };
                 count++;

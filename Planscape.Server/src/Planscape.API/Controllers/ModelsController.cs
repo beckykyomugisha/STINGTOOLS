@@ -36,7 +36,7 @@ public class ModelsController : ControllerBase
 
     // Upload cap — glTF can be large but anything over this is almost certainly
     // an uncompressed IFC or a federated model that should be split.
-    private const long MaxModelSizeBytes = 200L * 1024 * 1024;
+    private const long MaxModelSizeBytes = 500L * 1024 * 1024;
 
     public ModelsController(
         PlanscapeDbContext db,
@@ -76,7 +76,13 @@ public class ModelsController : ControllerBase
 
     [HttpPost]
     [RequestSizeLimit(MaxModelSizeBytes)]
-    [RequestFormLimits(MultipartBodyLengthLimit = MaxModelSizeBytes)]
+    // RequestSizeLimit caps the raw HTTP body. RequestFormLimits caps the
+    // multipart-form parser separately — its default is 128 MB regardless
+    // of the HTTP body cap. Without this attribute, Revit / mobile uploads
+    // bigger than 128 MB fail with HTTP 400 "Multipart body length limit
+    // 134217728" even though the 500 MB body limit allows the bytes.
+    [RequestFormLimits(MultipartBodyLengthLimit = MaxModelSizeBytes,
+                       ValueLengthLimit = int.MaxValue)]
     [Authorize(Roles = "Admin,Owner,Coordinator")]
     public async Task<ActionResult> Upload(
         Guid projectId,
@@ -106,19 +112,53 @@ public class ModelsController : ControllerBase
         {
             hash = await ComputeHashAsync(hashStream, ct);
         }
-        if (!req.Force)
+        var existing = await _db.ProjectModels
+            .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.ContentHash == hash && m.DeletedAt == null, ct);
+        if (existing != null)
         {
-            var existing = await _db.ProjectModels.AsNoTracking()
-                .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.ContentHash == hash && m.DeletedAt == null, ct);
-            if (existing != null)
+            // Geometry hash is identical, so the GLB itself is already on
+            // disk — skip the costly re-upload. BUT: refresh the ELEMENT-MAP
+            // and THUMBNAIL sidecars (they're cheap, and they're often the
+            // reason a coordinator re-publishes — schema changes, new
+            // tagging, etc.). This avoids the recurring "I re-published
+            // and the viewer still shows the old element-map" trap.
+            bool sidecarChanged = false;
+            if (req.ElementMap != null && req.ElementMap.Length > 0)
             {
-                _logger.LogInformation("Model upload skipped — duplicate hash {Hash} for project {ProjectId}", hash, projectId);
-                return Conflict(new { error = "duplicate_content", id = existing.Id });
+                if (req.ElementMap.Length > 5 * 1024 * 1024)
+                    return BadRequest(new { error = "element_map_too_large", maxMb = 5 });
+                using var s = req.ElementMap.OpenReadStream();
+                existing.ElementMapPath = await _storage.SaveAsync(
+                    tenantSlug, $"{projectCode}/models", req.ElementMap.FileName, s, ct);
+                sidecarChanged = true;
             }
-        }
-        else
-        {
-            _logger.LogInformation("Model upload forced — bypassing SHA-256 dedup for project {ProjectId}", projectId);
+            if (req.Thumbnail != null && req.Thumbnail.Length > 0)
+            {
+                if (req.Thumbnail.Length > 2 * 1024 * 1024)
+                    return BadRequest(new { error = "thumbnail_too_large", maxMb = 2 });
+                using var s = req.Thumbnail.OpenReadStream();
+                existing.ThumbnailPath = await _storage.SaveAsync(
+                    tenantSlug, $"{projectCode}/models", req.Thumbnail.FileName, s, ct);
+                sidecarChanged = true;
+            }
+            // Refresh the cheap row-level fields too, since the same Revit
+            // view can ship a new ElementCount / Bounds / Revision label.
+            if (req.ElementCount > 0) { existing.ElementCount = req.ElementCount; sidecarChanged = true; }
+            if (!string.IsNullOrEmpty(req.Revision)) { existing.Revision = req.Revision; sidecarChanged = true; }
+            if (req.BoundsMaxX != 0 || req.BoundsMinX != 0)
+            {
+                existing.BoundsMinX = req.BoundsMinX; existing.BoundsMinY = req.BoundsMinY; existing.BoundsMinZ = req.BoundsMinZ;
+                existing.BoundsMaxX = req.BoundsMaxX; existing.BoundsMaxY = req.BoundsMaxY; existing.BoundsMaxZ = req.BoundsMaxZ;
+                sidecarChanged = true;
+            }
+            if (sidecarChanged) await _db.SaveChangesAsync(ct);
+            _logger.LogInformation(
+                "Model upload — duplicate geometry hash {Hash}; sidecars {Sc} for {ModelId}",
+                hash, sidecarChanged ? "REFRESHED" : "unchanged", existing.Id);
+            return Ok(new { id = existing.Id, duplicate = true, sidecarsRefreshed = sidecarChanged,
+                            message = sidecarChanged
+                                ? "Geometry already published — element-map and metadata refreshed."
+                                : "Geometry already published — no new sidecars to refresh." });
         }
 
         // Store geometry.
