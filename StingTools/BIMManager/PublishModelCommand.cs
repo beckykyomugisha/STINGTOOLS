@@ -110,7 +110,7 @@ namespace StingTools.BIMManager
                 TaskDialog.Show(
                     "Publish Model to Planscape",
                     $"Published {Path.GetFileName(modelPath)}\n\n" +
-                    $"Elements mapped: {elementCount}\n" +
+                    $"Elements published: {elementCount}\n" +
                     $"Project: {projectId}\n" +
                     $"Model id:   {result.modelId}\n\n" +
                     "Site users can now open the model from the Planscape mobile app → Models.");
@@ -260,10 +260,32 @@ namespace StingTools.BIMManager
                     boundsContributors++;
                 }
 
-                if (string.IsNullOrEmpty(tag)) continue; // only include tagged elements in the map JSON
+                if (string.IsNullOrEmpty(tag))
+                {
+                    // PUBLISH-WHOLE-MODEL — emit a minimal entry for every
+                    // element with geometry so the viewer's tree, discipline
+                    // chips, level strip, and properties panel work end-to-end
+                    // even on models that haven't been through the STING tag
+                    // pipeline yet. Tagged elements get the rich block below;
+                    // untagged ones still get name + category + level + elementId
+                    // which is what the right-panel Properties tab needs.
+                    string lvlOnly = "";
+                    try { lvlOnly = ParameterHelpers.GetLevelCode(doc, el) ?? ""; } catch { }
+                    map[guid] = new JObject
+                    {
+                        ["name"]      = el.Name ?? "",
+                        ["category"]  = el.Category?.Name ?? "",
+                        ["level"]     = lvlOnly,
+                        ["elementId"] = el.Id.Value,
+                    };
+                    count++;
+                    continue;
+                }
                 var disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                 var loc  = ParameterHelpers.GetString(el, ParamRegistry.LOC);
                 var lvl  = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+                var sys  = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                var stat = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
 
                 map[guid] = new JObject
                 {
@@ -273,6 +295,8 @@ namespace StingTools.BIMManager
                     ["discipline"] = disc,
                     ["location"]   = loc,
                     ["level"]      = lvl,
+                    ["system"]     = sys,
+                    ["status"]     = stat,
                     ["elementId"]  = el.Id.Value,
                 };
                 count++;

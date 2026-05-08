@@ -91,6 +91,17 @@ fi
 # shellcheck disable=SC1090
 source "$ENV_FILE"
 
+# PERMANENT FIX: unset DB_PASSWORD after sourcing. If the user's parent
+# shell had DB_PASSWORD exported (a stale value from some prior session),
+# it would leak into `docker compose up` via the
+# ${DB_PASSWORD:-Planscape2026!} default, baking the wrong password into
+# the freshly-initialised Postgres volume. The 'stack' subcommand sets
+# DB_PASSWORD explicitly from .env.local's connection string when it
+# needs to; clearing it here means everything else (direct docker
+# invocations, dotnet run, etc.) gets a clean slate.
+unset DB_PASSWORD
+
+
 # ── validate required env ────────────────────────────────────────────
 errors=0
 if [[ -z "${Jwt__Key:-}" ]]; then
@@ -126,6 +137,23 @@ ensure_tools() {
   popd >/dev/null
 }
 
+# Permanent fix for the recurring "MSB3026 file locked by Planscape.API
+# (PID xxxxx)" build failures. When a Git Bash window gets closed without
+# Ctrl+C, dotnet.exe lives on as a parent-less process that holds the
+# DLLs and port 5000 hostage. This pre-flight finds the offender via
+# `netstat` and kills it before `dotnet run` tries to bind.
+kill_stale_api() {
+  local pids
+  pids="$(cmd //c "netstat -ano | findstr LISTENING | findstr :5000" 2>/dev/null \
+    | awk '{print $NF}' | tr -d '\r' | sort -u)"
+  if [[ -z "$pids" ]]; then return 0; fi
+  for pid in $pids; do
+    [[ "$pid" =~ ^[0-9]+$ ]] || continue
+    info "Killing stale process on :5000 (PID $pid)"
+    cmd //c "taskkill /F /PID $pid /T" >/dev/null 2>&1 || true
+  done
+}
+
 # ── dispatch ─────────────────────────────────────────────────────────
 cmd="${1:-migrate}"
 case "$cmd" in
@@ -152,8 +180,14 @@ case "$cmd" in
     ;;
 
   run)
+    kill_stale_api
     info "Starting API on http://localhost:5000 (Ctrl+C to stop)…"
     dotnet run --project "$API"
+    ;;
+
+  kill)
+    kill_stale_api
+    ok "Stale API processes cleared"
     ;;
 
   build)
