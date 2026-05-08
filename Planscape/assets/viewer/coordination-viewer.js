@@ -60,6 +60,10 @@
     const isFileScheme  = location.protocol === 'file:';
     const isWebView     = !!window.ReactNativeWebView;
     const apiEnabled    = !isFileScheme && !isWebView;
+    // U8 — embedders (e.g., a parent dashboard rendering the viewer in an
+    // iframe) can pass ?embed=1 to suppress the auto-redirect on 401 and
+    // handle re-auth themselves.
+    const embedMode     = params.get('embed') === '1';
 
     // ── State ───────────────────────────────────────────────────────────
     const state = {
@@ -105,8 +109,17 @@
         const res = await fetch(`${apiBase}${path}`, Object.assign({}, opts, { headers }));
         if (res.status === 401 && !authChallenged) {
           authChallenged = true;
-          toast('Sign-in expired — please log in again', 'error');
-          // Don't auto-redirect; viewer can be embedded.
+          // U8 — toast immediately, then redirect to /login after a short
+          // grace window so the user sees what happened. Embedders pass
+          // ?embed=1 to keep the viewer mounted and re-auth themselves.
+          toast('Sign-in expired — redirecting to login…', 'error');
+          if (typeof localStorage !== 'undefined') {
+            try { localStorage.removeItem('planscape_token'); } catch (_) {}
+          }
+          if (!embedMode) {
+            const next = encodeURIComponent(location.pathname + location.search);
+            setTimeout(() => { location.href = `${apiBase}/login?next=${next}`; }, 1500);
+          }
         }
         if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
         const ct = res.headers.get('content-type') || '';
@@ -161,6 +174,7 @@
     setupNavControls();
     setupSectionCard();
     setupHelp();
+    setupHeartbeat();
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -511,7 +525,22 @@
           let discCount = 0;
           Object.keys(tree[lvl][disc]).sort().forEach(sys => {
             const items = tree[lvl][disc][sys];
-            const sysKids = items.slice(0, 200).map(it => buildNode(it.name, [], null, true, it));
+            // U3 — render a deterministic page (200) and surface a "+ N more"
+            // affordance when there's overflow, instead of silently truncating.
+            const PAGE = 200;
+            const visible = items.slice(0, PAGE);
+            const sysKids = visible.map(it => buildNode(it.name, [], null, true, it));
+            if (items.length > PAGE) {
+              const more = el('div', { class: 'tree-row', style: 'color:var(--accent);cursor:pointer;font-style:italic' },
+                `+ ${items.length - PAGE} more — load all`);
+              more.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                const parent = more.parentElement;
+                items.slice(PAGE).forEach(it => parent.appendChild(buildNode(it.name, [], null, true, it)));
+                more.remove();
+              });
+              sysKids.push(more);
+            }
             discChildren.push(buildNode(sys, sysKids, items.length));
             discCount += items.length;
           });
@@ -686,8 +715,87 @@
           state.rightTab = t.dataset.tab;
           if (t.dataset.tab === 'clashes') renderRightClashes();
           if (t.dataset.tab === 'issues')  renderRightIssues();
+          if (t.dataset.tab === 'comments') renderComments();
         });
       });
+    }
+
+    // ── Comments tab (U2) ──────────────────────────────────────────────
+    // When an issue is selected, load its thread; otherwise show a hint.
+    let commentsCache = new Map();        // issueId → comment[]
+    async function renderComments() {
+      const pane = $('#pane-comments');
+      const issueId = state.selectedIssueId;
+      if (!issueId) {
+        pane.innerHTML = `
+          <div class="empty-state">
+            <span class="glyph">💬</span>
+            Select an issue from the bottom tray to view and reply to its thread.
+          </div>`;
+        return;
+      }
+      const issue = state.issues.find(i => i.id === issueId);
+      pane.innerHTML = `
+        <div class="prop-section-label">${escapeHtml(issue?.code || issueId)} comments</div>
+        <div class="comments-list" id="commentsList">
+          <div class="inline-loader"><span class="dot-spin"></span>Loading…</div>
+        </div>
+        <div class="comment-compose">
+          <textarea id="commentInput" placeholder="Reply to this issue… (use @ to mention)"></textarea>
+          <div class="row">
+            <button class="btn ghost sm" id="commentAttach">📷 Attach view</button>
+            <button class="btn sm" id="commentSubmit">Post</button>
+          </div>
+        </div>`;
+      $('#commentSubmit').addEventListener('click', () => postComment(issueId));
+      $('#commentAttach').addEventListener('click', () => {
+        const b64 = V.renderer.domElement.toDataURL('image/png');
+        const ta = $('#commentInput');
+        ta.value = (ta.value ? ta.value + '\n\n' : '') + '[screenshot attached]';
+        ta.dataset.attachment = b64;
+      });
+
+      const listEl = $('#commentsList');
+      let items = commentsCache.get(issueId);
+      if (!items) {
+        const data = await api(`/api/projects/${projectId}/issues/${issueId}/comments`);
+        items = Array.isArray(data) ? data : (data?.items || []);
+        commentsCache.set(issueId, items);
+      }
+      if (!items.length) {
+        listEl.innerHTML = '<div class="empty-state" style="padding:14px"><span style="opacity:.6">No replies yet</span></div>';
+        return;
+      }
+      listEl.innerHTML = '';
+      items.forEach(c => {
+        const who = escapeHtml(c.authorName || c.author || 'Unknown');
+        const when = c.createdAt ? new Date(c.createdAt).toLocaleString() : '';
+        const item = el('div', { class: 'comment-item' });
+        item.innerHTML = `
+          <div class="meta"><span class="who">${who}</span><span>${escapeHtml(when)}</span></div>
+          <div class="body">${escapeHtml(c.body || c.text || '')}</div>`;
+        listEl.appendChild(item);
+      });
+    }
+
+    async function postComment(issueId) {
+      const ta = $('#commentInput');
+      const body = (ta?.value || '').trim();
+      if (!body) return;
+      const payload = { body, attachment: ta.dataset.attachment || null };
+      const result = await api(`/api/projects/${projectId}/issues/${issueId}/comments`, {
+        method: 'POST', body: JSON.stringify(payload)
+      });
+      const created = result || {
+        id: 'local-' + Date.now(),
+        body,
+        authorName: state.currentUser?.displayName || 'You',
+        createdAt: new Date().toISOString()
+      };
+      const list = commentsCache.get(issueId) || [];
+      list.push(created);
+      commentsCache.set(issueId, list);
+      renderComments();
     }
 
     // ── Properties tab ─────────────────────────────────────────────────
@@ -719,8 +827,10 @@
       }
       const meta = state.elementMap[guid] || {};
       const tag = meta.tag || meta.STING_TAG || '';
-      const dim = meta.dimensions || {};
-      const perf = meta.performance || {};
+      // Polish — accept either nested {dimensions:{}, performance:{}} or
+      // flat keys (width_mm, flow_lps, etc.) coming back from
+      // ModelsController.GetElementMap. Identity / dimension / performance
+      // groups are inferred by suffix if the response is flat.
       const idCard = [
         ['Discipline', meta.discipline],
         ['System',     meta.system],
@@ -730,8 +840,18 @@
         ['Type',       meta.type],
         ['Mark',       meta.mark]
       ].filter(([, v]) => v != null && v !== '');
-      const dims = Object.entries(dim).filter(([, v]) => v != null);
-      const perfs = Object.entries(perf).filter(([, v]) => v != null);
+      const RESERVED = new Set(['name','category','tag','STING_TAG','discipline','system','status','level','family','type','mark','dimensions','performance']);
+      const isDimKey  = k => /(_mm|_m|width|height|depth|length|diameter|thickness|area)$/i.test(k);
+      const isPerfKey = k => /(flow|pressure|capacity|voltage|current|power|temperature|cooling|heating|wattage|kw|lps|cfm|pa)/i.test(k);
+      let dims = Object.entries(meta.dimensions  || {}).filter(([, v]) => v != null);
+      let perfs = Object.entries(meta.performance || {}).filter(([, v]) => v != null);
+      if (!dims.length || !perfs.length) {
+        Object.entries(meta).forEach(([k, v]) => {
+          if (RESERVED.has(k) || v == null || typeof v === 'object') return;
+          if (!dims.length  && isDimKey(k))  dims.push([k, v]);
+          if (!perfs.length && isPerfKey(k)) perfs.push([k, v]);
+        });
+      }
 
       pane.innerHTML = `
         <div class="prop-section-label">Element</div>
@@ -761,12 +881,32 @@
       $$('.copy', pane).forEach(c => c.addEventListener('click', () => copyText(c.dataset.copy)));
     }
 
+    // U7 — clipboard.writeText is unavailable in non-secure contexts
+    // (file:// inside RN WebView, http:// in older browsers). Fall back
+    // to the historic textarea + execCommand("copy") trick so the Copy
+    // STING Tag / Share view link buttons keep working there too.
     function copyText(t) {
       if (!t) return;
-      navigator.clipboard?.writeText(t).then(
-        () => toast('Copied: ' + t, 'success'),
-        () => toast('Copy failed', 'error')
-      );
+      const okMsg = 'Copied: ' + t;
+      const failMsg = 'Copy failed';
+      const useExecFallback = () => {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = t;
+          ta.setAttribute('readonly', '');
+          ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0';
+          document.body.appendChild(ta);
+          ta.focus(); ta.select();
+          const ok = document.execCommand('copy');
+          document.body.removeChild(ta);
+          toast(ok ? okMsg : failMsg, ok ? 'success' : 'error');
+        } catch (_) { toast(failMsg, 'error'); }
+      };
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(t).then(() => toast(okMsg, 'success'), useExecFallback);
+      } else {
+        useExecFallback();
+      }
     }
 
     // ── Clashes ────────────────────────────────────────────────────────
@@ -1101,6 +1241,8 @@
       }
       // switch right panel
       const tab = $('.tab-bar .tab[data-tab=issues]'); tab?.click();
+      // U2 — if Comments tab is active, refresh thread for the new issue.
+      if (state.rightTab === 'comments') renderComments();
       logHistory(`Inspected ${i.code || i.id}`);
     }
 
@@ -1460,15 +1602,30 @@
     }
 
     function setupNavControls() {
+      // Capture OrbitControls' default mouse-button bindings so Pan ↔ Orbit
+      // toggling can restore them.
+      const defaultButtons = V.controls.mouseButtons
+        ? Object.assign({}, V.controls.mouseButtons)
+        : null;
       $$('.nav-btn').forEach(b => b.addEventListener('click', () => {
         $$('.nav-btn').forEach(x => x.classList.remove('active'));
         b.classList.add('active');
         const m = b.dataset.mode;
         state.activeNav = m;
-        if (m === 'walk') {
-          handleHostCommand({ type: 'setWalkthrough', payload: { enabled: true } });
-        } else {
-          handleHostCommand({ type: 'setWalkthrough', payload: { enabled: false } });
+        // Walk mode delegates to viewer-extras' first-person controls.
+        handleHostCommand({ type: 'setWalkthrough', payload: { enabled: m === 'walk' } });
+        // Polish — Pan mode rebinds left mouse to PAN so coordinators can
+        // shove the model around with one finger / left-drag without
+        // remembering the right-click pan modifier. Orbit restores defaults.
+        if (V.controls && V.controls.mouseButtons && THREE_.MOUSE) {
+          if (m === 'pan') {
+            V.controls.mouseButtons.LEFT  = THREE_.MOUSE.PAN;
+            V.controls.mouseButtons.RIGHT = THREE_.MOUSE.ROTATE;
+          } else if (defaultButtons) {
+            V.controls.mouseButtons.LEFT   = defaultButtons.LEFT;
+            V.controls.mouseButtons.MIDDLE = defaultButtons.MIDDLE;
+            V.controls.mouseButtons.RIGHT  = defaultButtons.RIGHT;
+          }
         }
         if (m === 'focus' && state.selectedElementGuid) {
           selectElementByGuid(state.selectedElementGuid);
@@ -1598,6 +1755,46 @@
       const url = `${location.origin}${location.pathname}?project=${projectId}&model=${modelId}`;
       navigator.clipboard?.writeText(url);
       toast('View URL copied to clipboard', 'success');
+    }
+
+    // ── Connectivity heartbeat (U6) ────────────────────────────────────
+    // Lightweight: ping /health every 15s and toggle the session pill.
+    // SignalR proper would need the full @microsoft/signalr browser bundle;
+    // this gives the coordinator a real "Live / Offline" signal without
+    // pulling in 100KB of dependencies. Browser online/offline events
+    // short-circuit the next ping.
+    function setupHeartbeat() {
+      const pill = $('#sessionPill');
+      if (!pill) return;
+      function setOnline(ok) {
+        pill.classList.toggle('offline', !ok);
+        pill.lastChild.nodeValue = ok ? 'Live' : 'Offline';
+        pill.title = ok ? 'Server reachable' : 'Server unreachable — retrying…';
+      }
+      // If the API is disabled (file://, RN WebView), the host owns
+      // connectivity — show neutral state instead of polling.
+      if (!apiEnabled) {
+        pill.classList.toggle('offline', false);
+        pill.lastChild.nodeValue = isWebView ? 'Bridged' : 'Local';
+        pill.title = isWebView ? 'Connected via React Native bridge' : 'Standalone mode';
+        return;
+      }
+      let alive = true;
+      async function ping() {
+        try {
+          const res = await fetch(`${apiBase}/health`, { method: 'GET', cache: 'no-store' });
+          setOnline(res.ok);
+          alive = res.ok;
+        } catch (_) {
+          setOnline(false);
+          alive = false;
+        }
+      }
+      ping();                                          // immediate
+      setInterval(ping, 15000);                         // every 15s
+      window.addEventListener('online',  ping);
+      window.addEventListener('offline', () => setOnline(false));
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) ping(); });
     }
 
     function updateBadges() {
