@@ -153,11 +153,16 @@ namespace StingTools.BIMManager
 
         private static PublishMode? PromptForPublishMode()
         {
+            // Note: TaskDialog.DefaultButton only accepts common-button
+            // values (Ok / Cancel / Close / Yes / No), not CommandLink1-4.
+            // Setting DefaultButton = CommandLink1 throws ArgumentException
+            // ("Corresponding button not found. Parameter name: defaultButton").
+            // The first command link is naturally the keyboard default
+            // anyway, so we just don't set DefaultButton.
             var dlg = new TaskDialog("Publish Model to Planscape")
             {
                 MainInstruction = "How do you want to publish this model?",
                 CommonButtons = TaskDialogCommonButtons.Cancel,
-                DefaultButton = TaskDialogResult.CommandLink1,
             };
             dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
                 "Auto — smart dedup (recommended)",
