@@ -2163,8 +2163,8 @@
     },
     {
       "id": "corp-demolition-phase",
-      "name": "Corporate — Demolition Phase",
-      "description": "Standard demolition drawing — existing-to-remain halftoned grey, demolished elements red at 50% transparency, new work bold.",
+      "name": "Corporate \u2014 Demolition Phase",
+      "description": "Standard demolition drawing \u2014 existing-to-remain halftoned grey, demolished elements red at 50% transparency, new work bold.",
       "extends": "corp-standard-plan",
       "origin": "corporate",
       "viewTemplate": "STING - Demolition Plan",
@@ -2245,8 +2245,8 @@
     },
     {
       "id": "corp-structural-plan",
-      "name": "Corporate — Structural Plan / Section",
-      "description": "Structural drawings — concrete dark red, steel blue, rebar bright red, architectural elements halftoned grey.",
+      "name": "Corporate \u2014 Structural Plan / Section",
+      "description": "Structural drawings \u2014 concrete dark red, steel blue, rebar bright red, architectural elements halftoned grey.",
       "extends": "corp-base",
       "origin": "corporate",
       "viewTemplate": "STING - Structural Plan",
@@ -2510,7 +2510,7 @@
           "inheritDefaults": true
         },
         {
-          "filterName": "STING - Struct: Rebar ≤12mm",
+          "filterName": "STING - Struct: Rebar \u226412mm",
           "visible": true,
           "inheritDefaults": true
         },
@@ -2531,7 +2531,7 @@
     {
       "id": "proj-arch-presentation",
       "name": "Project Architectural Presentation",
-      "description": "Project-level pack — managed; pastel tags; lighter line weights for client presentation.",
+      "description": "Project-level pack \u2014 managed; pastel tags; lighter line weights for client presentation.",
       "extends": "corp-presentation-rich",
       "origin": "project",
       "templateMode": "managed",
@@ -2554,7 +2554,7 @@
     {
       "id": "proj-mep-coordination",
       "name": "Project MEP Coordination",
-      "description": "Project-level pack — managed; thin lines for clash review.",
+      "description": "Project-level pack \u2014 managed; thin lines for clash review.",
       "extends": "corp-coordination",
       "origin": "project",
       "templateMode": "managed",
@@ -2576,7 +2576,7 @@
     {
       "id": "proj-structural",
       "name": "Project Structural",
-      "description": "Project-level pack — external (uses project's existing structural template).",
+      "description": "Project-level pack \u2014 external (uses project's existing structural template).",
       "extends": "corp-structural-plan",
       "origin": "project",
       "templateMode": "external",
@@ -2586,7 +2586,7 @@
     {
       "id": "pres-base",
       "name": "Presentation Base (parent of all pres-* packs)",
-      "description": "Parent for every presentation pack. Turns off MEP, structural framing/foundations/connections, rebar, conduits/cable trays, fire/comms/security devices, scope boxes/grids/levels/reference planes — every category that does not contribute to a presentation drawing. Themed pres-* children extend this and only add colour overrides on the categories that actually paint the building.",
+      "description": "Parent for every presentation pack. Turns off MEP, structural framing/foundations/connections, rebar, conduits/cable trays, fire/comms/security devices, scope boxes/grids/levels/reference planes \u2014 every category that does not contribute to a presentation drawing. Themed pres-* children extend this and only add colour overrides on the categories that actually paint the building.",
       "extends": "corp-base",
       "origin": "corporate",
       "vgOverrides": {
@@ -2687,7 +2687,7 @@
     },
     {
       "id": "pres-pink-teal",
-      "name": "Presentation — Pink / Teal",
+      "name": "Presentation \u2014 Pink / Teal",
       "description": "Architecture A (Hidden Line). Soft pink building line work against a flat teal #5BA8A0 background. Walls render in pink #E890BC over white surfaces with a horizontal-cladding pattern (STING-Pres-HorizontalCladding @ #F0B8D4); roofs use STING-Pres-RoofHatch @ #F090C0; floors solid pink #F090C0. Topography in a teal herringbone (STING-Pres-Herringbone @ #B8DED8) on white. Ground base sub-element (Generic Models:STING-PresGround) is white-filled with a teal #2A8A80 outline weight 5. Furniture/Casework/Specialty Equipment halftoned pink. Set view background to flat teal in Graphic Display Options.",
       "extends": "pres-base",
       "origin": "corporate",
@@ -2799,7 +2799,7 @@
     },
     {
       "id": "pres-blue-line",
-      "name": "Presentation — Blue Line",
+      "name": "Presentation \u2014 Blue Line",
       "description": "Architecture A (Hidden Line). All building line work in blue #1B6EA8. Light grey #F0F0F0 background. Floors washed pale blue #C8DCF0; walls white with light-blue cladding lines (STING-Pres-HorizontalCladding @ #90B8D8); ground base sub-element solid blue #1B6EA8 with weight 4 outline. Site herringbone in #90B8D8 on white. Large trees ghost white #FFFFFF with blue outline; small shrubs blue outline only (no fill).",
       "extends": "pres-base",
       "origin": "corporate",
@@ -2911,8 +2911,8 @@
     },
     {
       "id": "pres-red-mint",
-      "name": "Presentation — Red / Mint",
-      "description": "Architecture A (Hidden Line). Building line work in red #B81818 against a mint #8FCEC0 background. Floors washed salmon #F0A0A0; walls white with red cladding lines (STING-Pres-HorizontalCladding @ #E89090). Site herringbone in #EEB0B0 on white; ground base sub-element solid red #B81818 with weight 4 outline. Large trees solid white #FFFFFF with teal outline #6ABCB0; small shrubs teal outline only — designed to recede into the mint backdrop. Set view background to flat mint in Graphic Display Options.",
+      "name": "Presentation \u2014 Red / Mint",
+      "description": "Architecture A (Hidden Line). Building line work in red #B81818 against a mint #8FCEC0 background. Floors washed salmon #F0A0A0; walls white with red cladding lines (STING-Pres-HorizontalCladding @ #E89090). Site herringbone in #EEB0B0 on white; ground base sub-element solid red #B81818 with weight 4 outline. Large trees solid white #FFFFFF with teal outline #6ABCB0; small shrubs teal outline only \u2014 designed to recede into the mint backdrop. Set view background to flat mint in Graphic Display Options.",
       "extends": "pres-base",
       "origin": "corporate",
       "vgOverrides": {
@@ -3023,7 +3023,7 @@
     },
     {
       "id": "pres-salmon",
-      "name": "Presentation — Salmon",
+      "name": "Presentation \u2014 Salmon",
       "description": "Architecture A (Hidden Line). Salmon/peach #E8B8A8 background. All building line work in terracotta salmon #C06040 over light-salmon #E8A898 floor washes; walls white with horizontal-cladding pattern (STING-Pres-HorizontalCladding @ #E8C0B0). Ground base sub-element solid dark terracotta #A03818 with weight 4 outline. Site herringbone in #E0B8A8 on white. Large trees white solid with salmon outline; small shrubs light-salmon outline only.",
       "extends": "pres-base",
       "origin": "corporate",
@@ -3135,7 +3135,7 @@
     },
     {
       "id": "pres-burgund-green",
-      "name": "Presentation — Rosewood / Sage",
+      "name": "Presentation \u2014 Rosewood / Sage",
       "description": "Architecture A (Hidden Line). Dual-colour semantic palette on a cream #EDE8DF background. Burgundy #7B3535 = ground-plane and structural cuts; sage green #8BAF85 = floors, roofs, and active surfaces. Walls render with horizontal cladding (STING-Pres-HorizontalCladding @ #C4A0A0); roofs use STING-Pres-RoofHatch @ #8BAF85 over white; topography uses STING-Pres-Herringbone @ #D8C0B8 on cream. Ground base sub-element solid burgundy with #5A2020 outline weight 4. Large trees solid white with burgundy outline; small shrubs burgundy outline only.",
       "extends": "pres-base",
       "origin": "corporate",
@@ -3229,8 +3229,8 @@
     },
     {
       "id": "pres-yellow-fill",
-      "name": "Presentation — Yellow Fill",
-      "description": "Architecture B (Consistent Colors). Entire building overridden to solid yellow #F0C020 — semantic distinction (floor vs wall vs roof) emerges from face direction and sun-study shading rather than from line work. Set visual style to Consistent Colors with Sun Study ON in Graphic Display Options. Windows remain white #FFFFFF (transparent in shaded preview). Ground base sub-element solid black #000000 with weight 5 outline. Site is white with grey-outlined entourage casting grey shadows.",
+      "name": "Presentation \u2014 Yellow Fill",
+      "description": "Architecture B (Consistent Colors). Entire building overridden to solid yellow #F0C020 \u2014 semantic distinction (floor vs wall vs roof) emerges from face direction and sun-study shading rather than from line work. Set visual style to Consistent Colors with Sun Study ON in Graphic Display Options. Windows remain white #FFFFFF (transparent in shaded preview). Ground base sub-element solid black #000000 with weight 5 outline. Site is white with grey-outlined entourage casting grey shadows.",
       "extends": "pres-base",
       "origin": "corporate",
       "visualStyle": "Consistent Colors",
@@ -3322,7 +3322,7 @@
     },
     {
       "id": "pres-black-night",
-      "name": "Presentation — Black Night",
+      "name": "Presentation \u2014 Black Night",
       "description": "Architecture A (Hidden Line) on a pure black background. White building silhouette with all line work in white #FFFFFF at varying weights; floors and roof fills are inverted (solid black) so they read as voids. Cut wall faces solid white. Site is white with very-light-grey #D0D0D0 herringbone (STING-Pres-Herringbone). Large trees solid white with no outline; small shrubs light-grey #C0C0C0 outline only. Set view background to Solid Black + silhouettes weight 5 white in Graphic Display Options (these settings cannot be applied via VG and must be set manually or by a Graphic Display Options step).",
       "extends": "pres-base",
       "origin": "corporate",
@@ -3412,8 +3412,8 @@
     },
     {
       "id": "pres-grey-shadow",
-      "name": "Presentation — Grey Shadow",
-      "description": "Architecture C (Consistent Colors with sun study). No category overrides on the building — Revit materials provide the natural greyscale. Set visual style to Consistent Colors, enable Shadows (cast + ambient) in Graphic Display Options, and apply the STING Presentation Sun preset (azimuth 225°, altitude 35°). Background gradient grey sky — top #B0B0B0, horizon #D8D8D8 — set in Graphic Display Options. Ground base sub-element solid mid-grey #A8A8A8 with grey weight 3 outline. Topography near-white #F5F5F5 with #E0E0E0 herringbone (STING-Pres-Herringbone). Large trees solid white with grey outline; small shrubs grey outline only.",
+      "name": "Presentation \u2014 Grey Shadow",
+      "description": "Architecture C (Consistent Colors with sun study). No category overrides on the building \u2014 Revit materials provide the natural greyscale. Set visual style to Consistent Colors, enable Shadows (cast + ambient) in Graphic Display Options, and apply the STING Presentation Sun preset (azimuth 225\u00b0, altitude 35\u00b0). Background gradient grey sky \u2014 top #B0B0B0, horizon #D8D8D8 \u2014 set in Graphic Display Options. Ground base sub-element solid mid-grey #A8A8A8 with grey weight 3 outline. Topography near-white #F5F5F5 with #E0E0E0 herringbone (STING-Pres-Herringbone). Large trees solid white with grey outline; small shrubs grey outline only.",
       "extends": "pres-base",
       "origin": "corporate",
       "visualStyle": "Consistent Colors",
@@ -3445,7 +3445,7 @@
     },
     {
       "id": "pres-interior-terracotta",
-      "name": "Presentation — Interior Terracotta",
+      "name": "Presentation \u2014 Interior Terracotta",
       "description": "Architecture C (Realistic). Interior commercial spaces, semantic rule: architecture = terracotta, furniture = white. Set visual style to Realistic. Walls render in terracotta #C47060; columns in dark terracotta #7A3018; floors use STING-Pres-Herringbone @ #D48060 over a #E8C0B0 background. Furniture/casework/specialty equipment all overridden to white #FFFFFF to contrast with the architecture. Interior planting in orange-terracotta #C86030; exterior trees seen through glazing render solid white with light-grey outline.",
       "extends": "pres-base",
       "origin": "corporate",
@@ -3525,7 +3525,7 @@
     },
     {
       "id": "pres-interior-sage",
-      "name": "Presentation — Interior Sage",
+      "name": "Presentation \u2014 Interior Sage",
       "description": "Architecture C (Realistic). Interior commercial spaces, semantic rule: architecture = grey, furniture = sage green. Set visual style to Realistic. Walls render mid-grey #A0A8A4; ceilings slightly lighter #B8BEB8; columns dark grey #505050; floors use STING-Pres-Herringbone @ #B8BEB8 over a #D0D4D0 background. All furniture, casework, specialty equipment, and interior plants overridden to sage green #8BAF85; large interior plants forest green #4A7A4A. Glazing transparent with dark grey #505050 frame. Exterior trees seen through glazing render solid white with light-grey outline.",
       "extends": "pres-base",
       "origin": "corporate",
@@ -3607,6 +3607,289 @@
           "projectionLineWeight": 1
         }
       }
+    },
+    {
+      "id": "corp-healthcare-clinical",
+      "name": "Healthcare \u2014 Clinical (lighter wash, clinical equipment in saturated colour)",
+      "description": "Lighter wash for non-clinical content; clinical FF&E in saturated colour; nurse-call posts visible at coarse. Use for general ward / OPD / consult plans.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "templateMode": "managed",
+      "vgOverrides": {
+        "Speciality Equipment": {
+          "projectionLineColor": "#00838F",
+          "projectionLineWeight": 4,
+          "visible": true
+        }
+      },
+      "filterRules": [
+        {
+          "name": "STING - CEQ: Clinical Asset",
+          "inheritDefaults": true
+        }
+      ]
+    },
+    {
+      "id": "corp-healthcare-shielding",
+      "name": "Healthcare \u2014 Radiation Shielding (Pb dashed, 5-Gauss line, hazard hatch)",
+      "description": "Lead-equivalent walls dashed-thick; X-ray hazard hatch; MRI 5-Gauss line as red dashed circle; controlled-area signage as halo.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "templateMode": "managed",
+      "vgOverrides": {
+        "Walls": {
+          "projectionLineWeight": 6,
+          "projectionLinePattern": "Dash"
+        }
+      },
+      "filterRules": [
+        {
+          "name": "STING - Rad: Primary Barrier",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - Rad: Secondary Barrier",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - Rad: Controlled Area",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - Rad: MRI Zone 1",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - Rad: MRI Zone 2",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - Rad: MRI Zone 3",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - Rad: MRI Zone 4",
+          "inheritDefaults": true
+        }
+      ]
+    },
+    {
+      "id": "corp-healthcare-pressure",
+      "name": "Healthcare \u2014 Pressure Regime (NEG blue / POS red / NEUTRAL grey)",
+      "description": "Negative rooms blue tint, positive red, neutral grey, anterooms striped; pressure arrows as detail components.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "templateMode": "managed",
+      "vgOverrides": {},
+      "filterRules": [
+        {
+          "name": "STING - Clin: Pressure Negative",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - Clin: Pressure Positive",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - Clin: Pressure Neutral",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - Clin: Pressure Cascade FAULT",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - Clin: ANTERM",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - Clin: AIIR",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - Clin: PE",
+          "inheritDefaults": true
+        }
+      ]
+    },
+    {
+      "id": "corp-healthcare-fire",
+      "name": "Healthcare \u2014 Fire Compartment + PHE Refuge",
+      "description": "Fire compartments in primary colours; PHE refuge zones halftoned; smoke-rated lines distinct from fire-rated.",
+      "extends": "corp-coordination",
+      "origin": "corporate",
+      "templateMode": "managed",
+      "vgOverrides": {},
+      "filterRules": [
+        {
+          "name": "STING - Fire: PHE Refuge",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - Fire: 60-min Compartment",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - Fire: 120-min Compartment",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - Fire: Compartment Tagged",
+          "inheritDefaults": true
+        }
+      ]
+    },
+    {
+      "id": "corp-healthcare-mgs",
+      "name": "Healthcare \u2014 Medical Gas (gas-coloured pipework + ZVB / alarm halos)",
+      "description": "Each gas in its conventional colour (O2 green, MA4 blue, MA7 dark blue, N2O cyan, VAC yellow, AGS grey).",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "templateMode": "managed",
+      "vgOverrides": {},
+      "filterRules": [
+        {
+          "name": "STING - MGS: O2",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - MGS: MA4",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - MGS: MA7",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - MGS: N2O",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - MGS: N2",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - MGS: CO2",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - MGS: HE",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - MGS: VAC",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - MGS: AGS",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - MGS: DENT",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - MGS: Zone Valve Box",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - MGS: Area Alarm",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - MGS: Verification FAIL",
+          "inheritDefaults": true
+        }
+      ]
+    },
+    {
+      "id": "corp-healthcare-ees",
+      "name": "Healthcare \u2014 Essential Electrical (LS / Critical / Equipment / IPS)",
+      "description": "EES branches highlighted: Life Safety orange, Critical red, Equipment amber, IPS purple, IT-Cardiac magenta. Normal halftoned.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "templateMode": "managed",
+      "vgOverrides": {},
+      "filterRules": [
+        {
+          "name": "STING - EES: Life Safety",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - EES: Critical",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - EES: Equipment",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - EES: Normal",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - EES: Isolated Power",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - EES: IT-Network Cardiac",
+          "inheritDefaults": true
+        }
+      ]
+    },
+    {
+      "id": "corp-healthcare-water",
+      "name": "Healthcare \u2014 Water Safety (HTM 04-01 TMV3 / aug-care / RO loop / sentinel)",
+      "description": "Tempered/augmented-care/sentinel/RO-loop highlighted; legionella risk paths halftoned.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "templateMode": "managed",
+      "vgOverrides": {},
+      "filterRules": [
+        {
+          "name": "STING - PLM: TMV3 (Augmented Care)",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - PLM: Augmented Care Outlet",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - PLM: Sentinel Point",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - PLM: Dialysis RO Loop",
+          "inheritDefaults": true
+        }
+      ]
+    },
+    {
+      "id": "corp-healthcare-ligature",
+      "name": "Healthcare \u2014 Anti-ligature (HBN 03-01 risk-banded)",
+      "description": "Anti-ligature risk bands LOW/MED/HIGH/VERY-HIGH banded by colour; observation LOS overlays.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "templateMode": "managed",
+      "vgOverrides": {},
+      "filterRules": [
+        {
+          "name": "STING - Lig: VERY-HIGH Risk",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - Lig: HIGH Risk",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - Lig: MED Risk",
+          "inheritDefaults": true
+        },
+        {
+          "name": "STING - Lig: LOW Risk",
+          "inheritDefaults": true
+        }
+      ]
     }
   ],
   "routing": [
@@ -3694,6 +3977,66 @@
       "purpose": "*",
       "discipline": "*",
       "stylePackId": "corp-base"
+    },
+    {
+      "disciplineMatches": "^MG$",
+      "drawingTypeId": "health-medgas-pln-A1-1to100",
+      "stylePackId": "corp-healthcare-mgs"
+    },
+    {
+      "disciplineMatches": "^MG$",
+      "drawingTypeId": "health-medgas-schem-A1",
+      "stylePackId": "corp-healthcare-mgs"
+    },
+    {
+      "disciplineMatches": "^RP$",
+      "drawingTypeId": "health-rad-shield-A1-1to50",
+      "stylePackId": "corp-healthcare-shielding"
+    },
+    {
+      "disciplineMatches": "^RP$",
+      "drawingTypeId": "health-mri-zoning-A1-1to50",
+      "stylePackId": "corp-healthcare-shielding"
+    },
+    {
+      "disciplineMatches": "^H$",
+      "drawingTypeId": "health-rds-A2",
+      "stylePackId": "corp-healthcare-clinical"
+    },
+    {
+      "disciplineMatches": "^H$",
+      "drawingTypeId": "health-eqp-pln-A1-1to50",
+      "stylePackId": "corp-healthcare-clinical"
+    },
+    {
+      "disciplineMatches": "^H$",
+      "drawingTypeId": "health-ligature-pln-A1-1to50",
+      "stylePackId": "corp-healthcare-ligature"
+    },
+    {
+      "disciplineMatches": "^H$",
+      "drawingTypeId": "health-pressure-pln-A1-1to100",
+      "stylePackId": "corp-healthcare-pressure"
+    },
+    {
+      "disciplineMatches": "^E$",
+      "drawingTypeId": "health-ess-power-riser-A1",
+      "stylePackId": "corp-healthcare-ees"
+    },
+    {
+      "disciplineMatches": "^E$",
+      "drawingTypeId": "health-ips-pln-A1-1to50",
+      "stylePackId": "corp-healthcare-ees"
+    },
+    {
+      "disciplineMatches": "^P$",
+      "drawingTypeId": "health-water-safety-A1-1to100",
+      "stylePackId": "corp-healthcare-water"
+    },
+    {
+      "disciplineMatches": "^A$",
+      "drawingTypeId": "health-fire-comp-A1-1to100",
+      "stylePackId": "corp-healthcare-fire"
     }
   ]
 }
