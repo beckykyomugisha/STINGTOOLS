@@ -17,6 +17,12 @@ using Prometheus;
 using StackExchange.Redis;
 using RedisRateLimiting;
 using RedisRateLimiting.AspNetCore;
+// Phase 175 — OpenTelemetry usings. Resources hosts AddService /
+// AddAttributes; Trace hosts the *Instrumentation extensions and
+// AddOtlpExporter. Without these the OTel pipeline below fails to
+// compile with CS1061 even though the NuGet packages are referenced.
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 
