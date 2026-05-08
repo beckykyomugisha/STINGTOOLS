@@ -8,6 +8,7 @@
 #
 # Usage:
 #   ./Planscape.Server/dev-up.sh                # default: migrate
+#   ./Planscape.Server/dev-up.sh init           # one-step first-run bootstrap
 #   ./Planscape.Server/dev-up.sh migrate        # apply pending migrations
 #   ./Planscape.Server/dev-up.sh run            # dotnet run the API
 #   ./Planscape.Server/dev-up.sh build          # dotnet build only
@@ -15,9 +16,10 @@
 #   ./Planscape.Server/dev-up.sh check          # validate env without doing anything
 #
 # Bootstrap (first time):
-#   cp Planscape.Server/.env.local.example Planscape.Server/.env.local
-#   # edit Planscape.Server/.env.local — set Jwt__Key + ConnectionStrings__Default
-#   ./Planscape.Server/dev-up.sh check
+#   ./Planscape.Server/dev-up.sh init
+#   # — that copies .env.local.example to .env.local AND generates a real
+#   #   Jwt__Key in one step. Edit ConnectionStrings__Default afterwards
+#   #   if your Postgres differs from the docker-compose default.
 
 set -euo pipefail
 
@@ -25,6 +27,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ENV_FILE="$SCRIPT_DIR/.env.local"
 EXAMPLE="$SCRIPT_DIR/.env.local.example"
+PLACEHOLDER="REPLACE_WITH_OPENSSL_RAND_BASE64_48"
 INFRA="$SCRIPT_DIR/src/Planscape.Infrastructure"
 API="$SCRIPT_DIR/src/Planscape.API"
 
@@ -39,13 +42,47 @@ warn() { echo "${YEL}!${OFF} $*" >&2; }
 ok()   { echo "${GRN}✓${OFF} $*"; }
 info() { echo "${DIM}→${OFF} $*"; }
 
+# ── init handled before the .env.local existence check ─────────────
+# (running `init` when .env.local already exists must NOT clobber it)
+if [[ "${1:-}" == "init" ]]; then
+  if [[ -f "$ENV_FILE" ]]; then
+    warn "$ENV_FILE already exists — refusing to overwrite"
+    info "Run './dev-up.sh check' to validate it, or delete it first."
+    exit 1
+  fi
+  [[ -f "$EXAMPLE" ]] || die "Template missing: $EXAMPLE"
+  # Generate a 32+ char base64 secret. Prefer openssl, fall back to
+  # /dev/urandom which is always available on Git Bash + WSL.
+  if command -v openssl >/dev/null 2>&1; then
+    new_key="$(openssl rand -base64 48)"
+  else
+    new_key="$(head -c 48 /dev/urandom | base64)"
+  fi
+  cp "$EXAMPLE" "$ENV_FILE"
+  # Substitute the placeholder. The key contains '/' and '+' so use a
+  # delimiter (|) that doesn't appear in base64 output.
+  if sed --version >/dev/null 2>&1; then
+    # GNU sed — supports -i without an arg.
+    sed -i "s|$PLACEHOLDER|$new_key|" "$ENV_FILE"
+  else
+    # BSD sed (macOS, some MINGW builds) — needs a backup arg.
+    sed -i.bak "s|$PLACEHOLDER|$new_key|" "$ENV_FILE" && rm -f "$ENV_FILE.bak"
+  fi
+  ok "Created $ENV_FILE with a fresh Jwt__Key (${#new_key} chars)"
+  info "Review ConnectionStrings__Default in the file if your Postgres"
+  info "differs from the docker-compose default, then run:"
+  info "  ./dev-up.sh check     # validate the env"
+  info "  ./dev-up.sh migrate   # apply migrations"
+  info "  ./dev-up.sh run       # boot the API on :5000"
+  exit 0
+fi
+
 # ── load .env.local ──────────────────────────────────────────────────
 if [[ ! -f "$ENV_FILE" ]]; then
   warn ".env.local not found at $ENV_FILE"
   if [[ -f "$EXAMPLE" ]]; then
-    info "Copy the template and edit it:"
-    info "  cp '$EXAMPLE' '$ENV_FILE'"
-    info "  # then fill in Jwt__Key and ConnectionStrings__Default"
+    info "Run the one-step bootstrap:"
+    info "  ./dev-up.sh init"
   fi
   die "Cannot continue without .env.local"
 fi
@@ -113,6 +150,6 @@ case "$cmd" in
     ;;
 
   *)
-    die "Unknown command: $cmd  (try: check | migrate | run | build | shell | help)"
+    die "Unknown command: $cmd  (try: init | check | migrate | run | build | shell | help)"
     ;;
 esac
