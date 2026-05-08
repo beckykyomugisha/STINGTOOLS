@@ -15,6 +15,7 @@
 #   ./Planscape.Server/dev-up.sh stack down         # stop the stack (keep volumes)
 #   ./Planscape.Server/dev-up.sh stack reset        # wipe volumes + recreate
 #   ./Planscape.Server/dev-up.sh stack db-only      # only postgres+redis (for dev-mode run)
+#   ./Planscape.Server/dev-up.sh stack rebuild      # force --no-cache rebuild of api+worker
 #   ./Planscape.Server/dev-up.sh status             # show container health
 #   ./Planscape.Server/dev-up.sh migrate        # apply pending migrations
 #   ./Planscape.Server/dev-up.sh run            # dotnet run the API
@@ -240,11 +241,19 @@ case "$cmd" in
     # stale shell exports (DB_PASSWORD leak fix from commit d209e9f).
     case "$sub" in
       up)
-        info "Bringing up full stack (first run builds the api image — 3-8 min)…"
-        DB_PASSWORD="$pw" JWT_KEY="$Jwt__Key" docker compose up -d
+        info "Bringing up full stack with --build (incremental — only rebuilds changed layers)…"
+        # --build is essential: `docker compose up -d` alone does NOT
+        # rebuild even when source files have changed since the last
+        # build. With --build, Docker rebuilds only the layers whose
+        # inputs changed (typically the dotnet publish step picking up
+        # new .cs files); unchanged layers are reused from cache.
+        # First run on a fresh checkout takes 3-8 min; subsequent
+        # incremental rebuilds after a `git pull` take 30-90 s.
+        DB_PASSWORD="$pw" JWT_KEY="$Jwt__Key" docker compose up -d --build
         ok "Stack up. API will be reachable at http://localhost:5000 once healthy."
-        info "  ./dev-up.sh status     # check container health"
-        info "  ./dev-up.sh stack down # stop"
+        info "  ./dev-up.sh status        # check container health"
+        info "  ./dev-up.sh stack rebuild # force a clean rebuild (--no-cache)"
+        info "  ./dev-up.sh stack down    # stop"
         ;;
       down)
         DB_PASSWORD="$pw" JWT_KEY="$Jwt__Key" docker compose down
@@ -260,9 +269,20 @@ case "$cmd" in
         DB_PASSWORD="$pw" JWT_KEY="$Jwt__Key" docker compose up -d postgres redis
         ok "DB stack up (postgres + redis only). Now you can './dev-up.sh run' against it."
         ;;
+      rebuild)
+        # Force a clean image rebuild (--no-cache). Useful when:
+        #  * the dotnet publish layer cached a broken state
+        #  * a NuGet package version bump didn't pick up
+        #  * Dockerfile changes added new system packages
+        # 3-8 min just like the very first build.
+        warn "Force rebuilding api + worker images with --no-cache (3-8 min)…"
+        DB_PASSWORD="$pw" JWT_KEY="$Jwt__Key" docker compose build --no-cache api worker
+        DB_PASSWORD="$pw" JWT_KEY="$Jwt__Key" docker compose up -d
+        ok "Rebuild complete. Run './dev-up.sh status' to confirm."
+        ;;
       *)
         popd >/dev/null
-        die "Unknown stack subcommand: $sub  (try: up | down | reset | db-only)"
+        die "Unknown stack subcommand: $sub  (try: up | down | reset | db-only | rebuild)"
         ;;
     esac
     popd >/dev/null
