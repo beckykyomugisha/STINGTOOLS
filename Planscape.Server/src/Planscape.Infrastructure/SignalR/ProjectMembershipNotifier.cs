@@ -17,6 +17,14 @@ namespace Planscape.Infrastructure.SignalR;
 public interface IProjectMembershipNotifier
 {
     Task RevokeProjectAccessAsync(Guid userId, Guid projectId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Phase 177 — called when a member's per-folder ACL CSV changes (CDE /
+    /// discipline / suitability). Pushes a "re-join" cue so the client
+    /// drops + re-issues <c>JoinProject</c>, which rebuilds the per-CDE
+    /// subgroup membership against the new allow-list.
+    /// </summary>
+    Task NotifyAclChangedAsync(Guid userId, Guid projectId, CancellationToken ct = default);
 }
 
 public sealed class ProjectMembershipNotifier : IProjectMembershipNotifier
@@ -73,11 +81,22 @@ public sealed class ProjectMembershipNotifier : IProjectMembershipNotifier
 
         var groupName = $"project-{projectId}";
         var connections = _registry.GetConnections(userId);
+        // Phase 177 — also evict from the per-CDE-state subgroups so the
+        // removed user stops receiving CDE-targeted document events too.
+        var cdeGroups = new[]
+        {
+            $"project-{projectId}-cde-WIP",
+            $"project-{projectId}-cde-SHARED",
+            $"project-{projectId}-cde-PUBLISHED",
+            $"project-{projectId}-cde-ARCHIVE",
+        };
         foreach (var conn in connections)
         {
             try
             {
                 await _hub.Groups.RemoveFromGroupAsync(conn, groupName, ct);
+                foreach (var g in cdeGroups)
+                    await _hub.Groups.RemoveFromGroupAsync(conn, g, ct);
             }
             catch (Exception ex)
             {
@@ -99,6 +118,36 @@ public sealed class ProjectMembershipNotifier : IProjectMembershipNotifier
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to broadcast MemberRevoked to user {UserId}", userId);
+        }
+    }
+
+    public async Task NotifyAclChangedAsync(Guid userId, Guid projectId, CancellationToken ct = default)
+    {
+        // Drop the CDE subgroup memberships server-side; the client will
+        // re-call JoinProject which re-attaches against the new allow-list.
+        var connections = _registry.GetConnections(userId);
+        var cdeGroups = new[]
+        {
+            $"project-{projectId}-cde-WIP",
+            $"project-{projectId}-cde-SHARED",
+            $"project-{projectId}-cde-PUBLISHED",
+            $"project-{projectId}-cde-ARCHIVE",
+        };
+        foreach (var conn in connections)
+        foreach (var g in cdeGroups)
+        {
+            try { await _hub.Groups.RemoveFromGroupAsync(conn, g, ct); }
+            catch (Exception ex) { _logger.LogDebug(ex, "Drop {Conn} from {Group}", conn, g); }
+        }
+
+        try
+        {
+            await _hub.Clients.Group($"user_{userId}").SendAsync(
+                "AclChanged", new { projectId }, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to broadcast AclChanged to user {UserId}", userId);
         }
     }
 }

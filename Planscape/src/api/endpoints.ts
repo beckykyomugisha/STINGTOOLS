@@ -459,9 +459,56 @@ export function requestDocumentApproval(projectId: string, documentId: string, t
   });
 }
 export function decideDocumentApproval(projectId: string, documentId: string, approvalId: string, decision: 'APPROVED' | 'REJECTED', comment?: string): Promise<unknown> {
-  return apiFetch(`/api/projects/${projectId}/documents/${documentId}/approvals/${approvalId}`, {
-    method: 'PUT', body: JSON.stringify({ decision, comment }),
+  // Phase 177 — server route is `/approval/{id}` (singular) per
+  // DocumentsController.DecideApproval, not /approvals/{id}.
+  return apiFetch(`/api/projects/${projectId}/documents/${documentId}/approval/${approvalId}`, {
+    method: 'PUT', body: JSON.stringify({ decision, comments: comment }),
   });
+}
+
+// Phase 177 — per-folder ACL slice for the active user on a project. Used
+// by the documents tab + project-settings UI to hide CDE-state filters,
+// disciplines and suitability codes the user has no access to.
+export interface MyProjectAccess {
+  projectId: string;
+  userId: string;
+  bypassesAcl: boolean;
+  projectRole: string | null;
+  iso19650Role: string | null;
+  allowedCdeStates: string[];
+  allowedDisciplines: string[];
+  allowedSuitabilities: string[];
+}
+export function getMyProjectAccess(projectId: string): Promise<MyProjectAccess> {
+  return apiFetch(`/api/projects/${projectId}/members/me`);
+}
+
+// Phase 177-D — tenant-scoped named ACL presets. PMs pick a profile from a
+// dropdown when inviting / updating members; the server folds the preset
+// allow-lists onto the member row in one call.
+export interface AccessProfile {
+  id: string;
+  name: string;
+  description: string | null;
+  allowedCdeStates: string[];
+  allowedDisciplines: string[];
+  allowedSuitabilities: string[];
+  defaultProjectRole: string;
+  defaultIso19650Role: string;
+  createdAt: string;
+  createdBy: string | null;
+}
+export function listAccessProfiles(): Promise<AccessProfile[]> {
+  return apiFetch(`/api/access-profiles`);
+}
+export function createAccessProfile(body: Partial<AccessProfile>): Promise<AccessProfile> {
+  return apiFetch(`/api/access-profiles`, { method: 'POST', body: JSON.stringify(body) });
+}
+export function updateAccessProfile(id: string, body: Partial<AccessProfile>): Promise<AccessProfile> {
+  return apiFetch(`/api/access-profiles/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+export function deleteAccessProfile(id: string): Promise<void> {
+  return apiFetch(`/api/access-profiles/${id}`, { method: 'DELETE' });
 }
 
 // ── My Actions (Phase 142) ──────────────────────────────────────────────

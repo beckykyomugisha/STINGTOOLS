@@ -159,6 +159,8 @@ public class DocumentsController : ControllerBase
         var tenantId = GetTenantId();
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound();
+        // Phase 177 — match Upload/CreateDocument: ACL on bootstrap state + discipline.
+        if (await RequireAclCreateAsync(projectId, req.Discipline) is { } aclDenied) return aclDenied;
 
         // Verify the upload actually landed in storage.
         if (!await _storage.ExistsAsync(req.ObjectKey))
@@ -205,6 +207,10 @@ public class DocumentsController : ControllerBase
         if (!string.IsNullOrEmpty(cdeStatus)) query = query.Where(d => d.CdeStatus == cdeStatus);
         if (!string.IsNullOrEmpty(discipline)) query = query.Where(d => d.Discipline == discipline);
 
+        // Phase 177 — narrow by per-folder/per-discipline/per-suitability ACL.
+        var acl = await Planscape.API.Authorization.ProjectMemberAcl.ResolveAsync(_db, projectId, User);
+        query = Planscape.API.Authorization.ProjectMemberAcl.ApplyTo(query, acl);
+
         var total = await query.CountAsync();
         var docs = await query.OrderByDescending(d => d.UploadedAt)
             .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
@@ -218,6 +224,8 @@ public class DocumentsController : ControllerBase
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
         if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
+        // Phase 177 — caller must hold WIP + the requested discipline.
+        if (await RequireAclCreateAsync(projectId, req.Discipline) is { } aclDenied) return aclDenied;
 
         var doc = new DocumentRecord
         {
@@ -266,6 +274,8 @@ public class DocumentsController : ControllerBase
             .FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
         if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
+        // Phase 177 — block uploads outside the caller's CDE/discipline slice.
+        if (await RequireAclCreateAsync(projectId, discipline) is { } aclDenied) return aclDenied;
 
         // S7 — geofence parity with IssuesController.CreateIssue. A user
         // off-site shouldn't be uploading documents that purport to be
@@ -504,6 +514,8 @@ public class DocumentsController : ControllerBase
         var doc = await _db.Documents
             .FirstOrDefaultAsync(d => d.Id == docId && d.ProjectId == projectId && d.Project!.TenantId == tenantId);
         if (doc == null) return NotFound();
+        // Phase 177 — per-folder ACL.
+        if (await RequireAclAsync(projectId, doc) is { } aclDenied) return aclDenied;
 
         // S12 — geofence boundary check for mobile downloads
         if (HttpContext.Items.TryGetValue("Latitude", out var latObj) &&
@@ -545,6 +557,7 @@ public class DocumentsController : ControllerBase
         var doc = await _db.Documents
             .FirstOrDefaultAsync(d => d.Id == docId && d.ProjectId == projectId && d.Project!.TenantId == tenantId);
         if (doc == null) return NotFound();
+        if (await RequireAclAsync(projectId, doc) is { } aclDenied) return aclDenied;
 
         var versions = await _db.DocumentVersions
             .Where(v => v.DocumentId == docId)
@@ -575,6 +588,7 @@ public class DocumentsController : ControllerBase
         var doc = await _db.Documents
             .FirstOrDefaultAsync(d => d.Id == docId && d.ProjectId == projectId && d.Project!.TenantId == tenantId);
         if (doc == null) return NotFound();
+        if (await RequireAclAsync(projectId, doc) is { } aclDenied) return aclDenied;
 
         var version = await _db.DocumentVersions
             .FirstOrDefaultAsync(v => v.DocumentId == docId && v.VersionNumber == versionNumber);
@@ -601,6 +615,10 @@ public class DocumentsController : ControllerBase
             .FirstOrDefaultAsync(d => d.Id == docId && d.ProjectId == projectId && d.Project!.TenantId == tenantId);
         if (doc == null) return NotFound();
         if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
+
+        // Phase 177 — per-folder ACL: source slice + target slice + target suitability.
+        if (await RequireAclTargetAsync(projectId, doc, req.NewState, req.SuitabilityCode) is { } aclDenied)
+            return aclDenied;
 
         // Validate transition
         if (!ValidTransitions.TryGetValue(doc.CdeStatus, out var validTargets))
@@ -640,7 +658,14 @@ public class DocumentsController : ControllerBase
             $"{{\"oldState\":\"{oldState}\",\"newState\":\"{req.NewState}\"}}");
 
         // C2 — real-time push so coordinators in Revit + mobile viewers refresh.
-        _ = _hub.Clients.Group($"project-{projectId}").SendAsync("DocumentUpdated", new
+        // Phase 177 — broadcast to BOTH the source and target CDE subgroups so
+        // a member who could see the doc at oldState (and is therefore tracking
+        // it on their UI) gets the "it just left WIP" event, AND a member who
+        // can only see it now-that-it's-SHARED still receives the arrival.
+        await _hub.Clients.Groups(
+                $"project-{projectId}-cde-{oldState}",
+                $"project-{projectId}-cde-{doc.CdeStatus}")
+            .SendAsync("DocumentUpdated", new
         {
             projectId, documentId = docId,
             fileName = doc.FileName, cdeStatus = doc.CdeStatus,
@@ -673,6 +698,10 @@ public class DocumentsController : ControllerBase
             .FirstOrDefaultAsync(d => d.Id == docId && d.ProjectId == projectId && d.Project!.TenantId == tenantId);
         if (doc == null) return NotFound();
         if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
+
+        // Phase 177 — per-folder ACL.
+        if (await RequireAclTargetAsync(projectId, doc, req.NewStatus, null) is { } aclDenied)
+            return aclDenied;
 
         if (!ValidTransitions.TryGetValue(doc.CdeStatus, out var validTargets))
             return BadRequest($"Unknown current state: {doc.CdeStatus}");
@@ -717,6 +746,7 @@ public class DocumentsController : ControllerBase
         var doc = await _db.Documents
             .FirstOrDefaultAsync(d => d.Id == docId && d.ProjectId == projectId && d.Project!.TenantId == tenantId);
         if (doc == null) return NotFound();
+        if (await RequireAclAsync(projectId, doc) is { } aclDenied) return aclDenied;
 
         var history = !string.IsNullOrEmpty(doc.StatusHistoryJson)
             ? JsonConvert.DeserializeObject<List<object>>(doc.StatusHistoryJson)
@@ -739,6 +769,7 @@ public class DocumentsController : ControllerBase
             .FirstOrDefaultAsync(d => d.Id == docId && d.ProjectId == projectId && d.Project!.TenantId == tenantId);
         if (doc == null) return NotFound();
         if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
+        if (await RequireAclTargetAsync(projectId, doc, req.TargetState, null) is { } aclDenied) return aclDenied;
 
         var transition = $"{doc.CdeStatus}->{req.TargetState}";
 
@@ -793,6 +824,7 @@ public class DocumentsController : ControllerBase
             .FirstOrDefaultAsync(d => d.Id == docId && d.ProjectId == projectId && d.Project!.TenantId == tenantId);
         if (doc == null) return NotFound();
         if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
+        if (await RequireAclAsync(projectId, doc) is { } aclDenied) return aclDenied;
 
         if (approval.Status != "PENDING")
             return BadRequest($"Approval already decided: {approval.Status}");
@@ -821,6 +853,7 @@ public class DocumentsController : ControllerBase
         var doc = await _db.Documents
             .FirstOrDefaultAsync(d => d.Id == docId && d.ProjectId == projectId && d.Project!.TenantId == tenantId);
         if (doc == null) return NotFound();
+        if (await RequireAclAsync(projectId, doc) is { } aclDenied) return aclDenied;
 
         var approvals = await _db.DocumentApprovals
             .Where(a => a.DocumentId == docId)
@@ -829,6 +862,133 @@ public class DocumentsController : ControllerBase
             .ToListAsync();
 
         return Ok(new { doc.Id, doc.FileName, doc.CdeStatus, approvals });
+    }
+
+    /// <summary>
+    /// Phase 177 — single-call sync from the Revit plugin's
+    /// <c>DeliverableLifecycle</c>. Finds-or-creates a DocumentRecord
+    /// keyed by deliverable number, applies the new lifecycle status, and
+    /// returns the resulting record. Idempotent — safe to retry. Plugin
+    /// drives lifecycle locally first (the .docx is rendered on disk),
+    /// then mirrors the state here so coordinators on web/mobile see the
+    /// same truth without the plugin having to track server-side
+    /// DocumentIds itself.
+    ///
+    /// All ACL + role + approval gates of the regular transition path
+    /// still apply.
+    /// </summary>
+    [HttpPost("sync-from-plugin")]
+    public async Task<ActionResult> SyncFromPlugin(Guid projectId, [FromBody] PluginDeliverableSyncRequest req)
+    {
+        if (string.IsNullOrWhiteSpace(req.DocNumber))
+            return BadRequest(new { message = "docNumber is required" });
+
+        var tenantId = GetTenantId();
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
+        if (project == null) return NotFound("Project not found");
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
+
+        var userName = User.FindFirst("display_name")?.Value ?? "Plugin";
+
+        // Find by plugin doc number — the plugin's stable identity. Stored
+        // in FileName so the existing register-list endpoints surface it.
+        var doc = await _db.Documents
+            .FirstOrDefaultAsync(d => d.ProjectId == projectId
+                && d.Project!.TenantId == tenantId
+                && d.FileName == req.DocNumber);
+
+        var isCreate = doc == null;
+        if (isCreate)
+        {
+            // Phase 177 — first-time create is gated like a regular upload.
+            if (await RequireAclCreateAsync(projectId, req.Discipline) is { } aclCreateDenied)
+                return aclCreateDenied;
+            doc = new DocumentRecord
+            {
+                ProjectId       = projectId,
+                FileName        = req.DocNumber,
+                Description     = req.Title,
+                DocumentType    = req.TemplateId ?? "DELIVERABLE",
+                CdeStatus       = "WIP",
+                SuitabilityCode = "S0",
+                Discipline      = req.Discipline,
+                Originator      = req.Originator,
+                Revision        = req.Revision ?? "P01",
+                UploadedBy      = userName,
+                StatusHistoryJson = JsonConvert.SerializeObject(new[]
+                {
+                    new { timestamp = DateTime.UtcNow, oldState = "", newState = "WIP",
+                          suitability = "S0", user = userName, source = "plugin" }
+                })
+            };
+            _db.Documents.Add(doc);
+        }
+
+        // Phase 177 — ACL on the *target* state and suitability.
+        if (await RequireAclTargetAsync(projectId, doc, req.NewCdeStatus ?? doc.CdeStatus, req.SuitabilityCode)
+                is { } aclDenied)
+            return aclDenied;
+
+        // Apply transition if requested. We bypass the strict ValidTransitions
+        // table here because the plugin owns the source-of-truth lifecycle —
+        // however role + approval gates still run.
+        if (!string.IsNullOrEmpty(req.NewCdeStatus) && req.NewCdeStatus != doc.CdeStatus)
+        {
+            var roleCheck = CheckTransitionRole(doc.CdeStatus, req.NewCdeStatus);
+            if (roleCheck != null) return roleCheck;
+
+            var approvalCheck = await CheckApprovalGate(doc.CdeStatus, req.NewCdeStatus, doc.Id);
+            if (approvalCheck != null) return approvalCheck;
+
+            var oldState = doc.CdeStatus;
+            doc.CdeStatus = req.NewCdeStatus;
+            doc.SuitabilityCode = req.SuitabilityCode
+                ?? DefaultSuitability.GetValueOrDefault(req.NewCdeStatus, doc.SuitabilityCode);
+            if (!string.IsNullOrEmpty(req.Revision)) doc.Revision = req.Revision;
+            doc.UpdatedAt = DateTime.UtcNow;
+
+            var history = !string.IsNullOrEmpty(doc.StatusHistoryJson)
+                ? JsonConvert.DeserializeObject<List<object>>(doc.StatusHistoryJson) ?? new()
+                : new List<object>();
+            history.Add(new
+            {
+                timestamp = DateTime.UtcNow, oldState, newState = req.NewCdeStatus,
+                suitability = doc.SuitabilityCode,
+                user = userName, source = "plugin",
+                pluginAction = req.Action,
+                reason = req.Reason
+            });
+            doc.StatusHistoryJson = JsonConvert.SerializeObject(history);
+        }
+        else if (!string.IsNullOrEmpty(req.Revision) && req.Revision != doc.Revision)
+        {
+            // Pure revision bump (no state change) — common for ReIssue.
+            doc.Revision = req.Revision;
+            doc.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await _db.SaveChangesAsync();
+        await _audit.LogAsync(isCreate ? "PLUGIN_CREATE" : "PLUGIN_TRANSITION",
+            "Document", doc.Id.ToString(),
+            JsonConvert.SerializeObject(new
+            {
+                docNumber = req.DocNumber,
+                action    = req.Action,
+                state     = doc.CdeStatus,
+                revision  = doc.Revision
+            }));
+
+        // Phase 177 — broadcast only to members whose ACL covers the new state.
+        await _hub.Clients.Group($"project-{projectId}-cde-{doc.CdeStatus}")
+            .SendAsync("DocumentUpdated", new
+        {
+            projectId, documentId = doc.Id,
+            fileName = doc.FileName, cdeStatus = doc.CdeStatus,
+            revision = doc.Revision, suitability = doc.SuitabilityCode,
+            kind = "plugin_sync"
+        });
+
+        return Ok(new { doc.Id, doc.FileName, doc.CdeStatus, doc.SuitabilityCode, doc.Revision, isCreate });
     }
 
     /// <summary>
@@ -854,6 +1014,52 @@ public class DocumentsController : ControllerBase
 
     private Guid GetTenantId() =>
         Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;
+
+    /// <summary>
+    /// Phase 177 — return null when the document is within the caller's
+    /// per-folder ACL slice; otherwise return 404. We deliberately 404
+    /// (not 403) so that listing the project never leaks the existence
+    /// of documents the user is not allowed to see.
+    /// </summary>
+    private async Task<ActionResult?> RequireAclAsync(Guid projectId, DocumentRecord doc)
+    {
+        var acl = await Planscape.API.Authorization.ProjectMemberAcl.ResolveAsync(_db, projectId, User);
+        if (!acl.AllowsDocument(doc)) return NotFound();
+        return null;
+    }
+
+    /// <summary>
+    /// Phase 177 — gate document *creation* on the caller's ACL slice for
+    /// the bootstrap state (always WIP for upload paths) and the requested
+    /// discipline. Users with a discipline allow-list that excludes the
+    /// requested discipline can't smuggle a doc into WIP via upload.
+    /// </summary>
+    private async Task<ActionResult?> RequireAclCreateAsync(Guid projectId, string? discipline, string bootstrapState = "WIP")
+    {
+        var acl = await Planscape.API.Authorization.ProjectMemberAcl.ResolveAsync(_db, projectId, User);
+        if (!acl.AllowsCde(bootstrapState))
+            return StatusCode(403, new { message = $"Your access does not include the {bootstrapState} CDE state." });
+        if (!acl.AllowsDiscipline(discipline))
+            return StatusCode(403, new { message = $"Your access does not include discipline {discipline ?? "(unset)"}." });
+        return null;
+    }
+
+    /// <summary>
+    /// Phase 177 — also gate transition *targets*: a member with WIP-only
+    /// access can't transition a doc INTO SHARED. The source state was
+    /// already validated by the AllowsDocument check.
+    /// </summary>
+    private async Task<ActionResult?> RequireAclTargetAsync(
+        Guid projectId, DocumentRecord doc, string newState, string? newSuitability)
+    {
+        var acl = await Planscape.API.Authorization.ProjectMemberAcl.ResolveAsync(_db, projectId, User);
+        if (!acl.AllowsDocument(doc)) return NotFound();
+        if (!acl.AllowsCde(newState))
+            return StatusCode(403, new { message = $"Your access does not include the {newState} CDE state." });
+        if (!string.IsNullOrEmpty(newSuitability) && !acl.AllowsSuitability(newSuitability))
+            return StatusCode(403, new { message = $"Your access does not include suitability {newSuitability}." });
+        return null;
+    }
 
     private UserRole GetUserRole()
     {
@@ -912,4 +1118,17 @@ public record FinalizeUploadRequest(
 public record CdeTransitionRequest(string NewState, string? SuitabilityCode, string? Revision);
 public record MobileTransitionRequest(string NewStatus);
 public record ApprovalRequestBody(string TargetState, string? Comments = null);
+
+// Phase 177 — DeliverableLifecycle → server mirror.
+public record PluginDeliverableSyncRequest(
+    string  DocNumber,            // Plugin's stable id ("PRJ-A-001")
+    string? Title,
+    string? Discipline,
+    string? Originator,
+    string? Revision,
+    string? TemplateId,           // A01 / A02 / A03 / A04 / B06 …
+    string? NewCdeStatus,         // WIP / SHARED / PUBLISHED / ARCHIVE
+    string? SuitabilityCode,      // S0..S7
+    string? Action,               // issued / reissued / published / cancelled / superseded / replaced
+    string? Reason);
 public record ApprovalDecisionBody(string Decision, string? Comments = null);

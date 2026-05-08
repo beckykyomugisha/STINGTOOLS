@@ -50,9 +50,25 @@ export class RealtimeClient {
       'MeetingCreated',
       'MeetingUpdated',
       'PresenceChanged',
+      // Phase 177 — fired by the server when a member's per-folder ACL
+      // changes; the client re-issues JoinProject below to rebuild
+      // the per-CDE-state subgroup memberships against the new slice.
+      'AclChanged',
+      'MemberRevoked',
     ]) {
       this.connection.on(evName, (p: unknown) => this.fire(evName, p));
     }
+
+    // Phase 177 — when the server pushes AclChanged for the active project,
+    // drop the project subscription and re-join so SignalR rebuilds the
+    // per-CDE-state subgroups against the new allow-list.
+    this.connection.on('AclChanged', async (p: { projectId?: string }) => {
+      if (!p?.projectId || p.projectId !== this.currentProjectId) return;
+      try {
+        await this.connection?.invoke('LeaveProject', this.currentProjectId);
+        await this.connection?.invoke('JoinProject', this.currentProjectId);
+      } catch { /* reconnect path will retry */ }
+    });
 
     await this.connection.start();
     await this.connection.invoke('JoinProject', projectId);

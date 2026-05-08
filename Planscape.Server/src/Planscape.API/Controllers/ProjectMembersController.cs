@@ -54,12 +54,54 @@ public class ProjectMembersController : ControllerBase
                 m.ProjectRole,
                 m.Iso19650Role,
                 m.JoinedAt,
-                m.InvitedBy
+                m.InvitedBy,
+                // Phase 177 — surface the per-folder ACLs so the admin UI
+                // (BCC Project Members tab + mobile project-settings) can
+                // edit them without an extra round-trip per row.
+                m.AllowedCdeStates,
+                m.AllowedDisciplines,
+                m.AllowedSuitabilities
             })
             .OrderBy(m => m.DisplayName)
             .ToListAsync();
 
         return Ok(members);
+    }
+
+    // ── Phase 177 — return *my* ACL slice for this project ─────────────────
+    //
+    // Plugin (BCC Deliverables tab) and mobile (documents.tsx) call this on
+    // project load to learn which CDE-state tabs / discipline filters /
+    // suitability dropdowns the user is permitted to see, so the UI can hide
+    // controls the server would 404 on anyway.
+
+    [HttpGet("me")]
+    public async Task<ActionResult> GetMyAccess(Guid projectId)
+    {
+        if (!await CanAccessProjectAsync(projectId)) return NotFound();
+
+        var subClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value;
+        if (!Guid.TryParse(subClaim, out var userId)) return Unauthorized();
+
+        var role = User.FindFirst("role")?.Value ?? "";
+        var bypass = role is "Admin" or "Owner" or "SecurityOfficer";
+
+        var member = await _db.ProjectMembers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.UserId == userId && m.IsActive);
+
+        return Ok(new
+        {
+            projectId,
+            userId,
+            bypassesAcl          = bypass || member == null,
+            projectRole          = member?.ProjectRole,
+            iso19650Role         = member?.Iso19650Role,
+            allowedCdeStates     = ProjectMember.ParseAllowList(member?.AllowedCdeStates)     ?? Array.Empty<string>(),
+            allowedDisciplines   = ProjectMember.ParseAllowList(member?.AllowedDisciplines)   ?? Array.Empty<string>(),
+            allowedSuitabilities = ProjectMember.ParseAllowList(member?.AllowedSuitabilities) ?? Array.Empty<string>(),
+        });
     }
 
     // ── Add a user to the project ──────────────────────────────────────────────
@@ -85,11 +127,16 @@ public class ProjectMembersController : ControllerBase
         {
             if (existing.IsActive) return Conflict("User is already a member of this project");
             // Re-activate
+            // Phase 177-D — preset baseline; explicit request fields still win.
+            var profileExisting = await ResolveProfileAsync(req.AccessProfileId);
             existing.IsActive     = true;
-            existing.ProjectRole  = req.ProjectRole ?? "Contributor";
-            existing.Iso19650Role = req.Iso19650Role ?? "M";
+            existing.ProjectRole  = req.ProjectRole  ?? profileExisting?.DefaultProjectRole  ?? "Contributor";
+            existing.Iso19650Role = req.Iso19650Role ?? profileExisting?.DefaultIso19650Role ?? "M";
             existing.JoinedAt     = DateTime.UtcNow;
             existing.InvitedBy    = GetCurrentUserName();
+            existing.AllowedCdeStates     = req.AllowedCdeStates     != null ? ToCsv(req.AllowedCdeStates)     : profileExisting?.AllowedCdeStates;
+            existing.AllowedDisciplines   = req.AllowedDisciplines   != null ? ToCsv(req.AllowedDisciplines)   : profileExisting?.AllowedDisciplines;
+            existing.AllowedSuitabilities = req.AllowedSuitabilities != null ? ToCsv(req.AllowedSuitabilities) : profileExisting?.AllowedSuitabilities;
 
             var userId1 = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid1) ? uid1 : (Guid?)null;
             _db.AuditLogs.Add(new AuditLog
@@ -108,13 +155,18 @@ public class ProjectMembersController : ControllerBase
             return Ok(new { message = "Membership re-activated", memberId = existing.Id });
         }
 
+        // Phase 177-D — resolve preset; explicit request fields still win.
+        var profile = await ResolveProfileAsync(req.AccessProfileId);
         var member = new ProjectMember
         {
             ProjectId    = projectId,
             UserId       = req.UserId,
-            ProjectRole  = req.ProjectRole  ?? "Contributor",
-            Iso19650Role = req.Iso19650Role ?? "M",
-            InvitedBy    = GetCurrentUserName()
+            ProjectRole  = req.ProjectRole  ?? profile?.DefaultProjectRole  ?? "Contributor",
+            Iso19650Role = req.Iso19650Role ?? profile?.DefaultIso19650Role ?? "M",
+            InvitedBy    = GetCurrentUserName(),
+            AllowedCdeStates     = req.AllowedCdeStates     != null ? ToCsv(req.AllowedCdeStates)     : profile?.AllowedCdeStates,
+            AllowedDisciplines   = req.AllowedDisciplines   != null ? ToCsv(req.AllowedDisciplines)   : profile?.AllowedDisciplines,
+            AllowedSuitabilities = req.AllowedSuitabilities != null ? ToCsv(req.AllowedSuitabilities) : profile?.AllowedSuitabilities,
         };
         _db.ProjectMembers.Add(member);
 
@@ -214,18 +266,26 @@ public class ProjectMembersController : ControllerBase
         if (existing != null && existing.IsActive)
             return Conflict("User is already a member of this project");
 
+        // Phase 177-D — apply named preset baseline; explicit fields override.
+        var inviteProfile = await ResolveProfileAsync(req.AccessProfileId);
         if (existing != null)
         {
             existing.IsActive = true; existing.JoinedAt = DateTime.UtcNow;
+            existing.AllowedCdeStates     = req.AllowedCdeStates     != null ? ToCsv(req.AllowedCdeStates)     : inviteProfile?.AllowedCdeStates;
+            existing.AllowedDisciplines   = req.AllowedDisciplines   != null ? ToCsv(req.AllowedDisciplines)   : inviteProfile?.AllowedDisciplines;
+            existing.AllowedSuitabilities = req.AllowedSuitabilities != null ? ToCsv(req.AllowedSuitabilities) : inviteProfile?.AllowedSuitabilities;
         }
         else
         {
             _db.ProjectMembers.Add(new ProjectMember
             {
                 ProjectId    = projectId, UserId = user.Id,
-                ProjectRole  = req.ProjectRole  ?? "Contributor",
-                Iso19650Role = req.Iso19650Role ?? "M",
-                InvitedBy    = GetCurrentUserName()
+                ProjectRole  = req.ProjectRole  ?? inviteProfile?.DefaultProjectRole  ?? "Contributor",
+                Iso19650Role = req.Iso19650Role ?? inviteProfile?.DefaultIso19650Role ?? "M",
+                InvitedBy    = GetCurrentUserName(),
+                AllowedCdeStates     = req.AllowedCdeStates     != null ? ToCsv(req.AllowedCdeStates)     : inviteProfile?.AllowedCdeStates,
+                AllowedDisciplines   = req.AllowedDisciplines   != null ? ToCsv(req.AllowedDisciplines)   : inviteProfile?.AllowedDisciplines,
+                AllowedSuitabilities = req.AllowedSuitabilities != null ? ToCsv(req.AllowedSuitabilities) : inviteProfile?.AllowedSuitabilities,
             });
         }
 
@@ -263,8 +323,33 @@ public class ProjectMembersController : ControllerBase
             .FirstOrDefaultAsync(m => m.Id == memberId && m.ProjectId == projectId);
         if (member == null) return NotFound();
 
+        // Phase 177-D — apply preset first (if supplied), then let explicit
+        // request fields override individual axes. AccessProfileId is treated
+        // as a one-shot stamp; we don't store the profile id on the member
+        // because later edits to the profile shouldn't retroactively change
+        // existing member rows (audit hygiene).
+        var profile = await ResolveProfileAsync(req.AccessProfileId);
+        if (profile != null)
+        {
+            member.ProjectRole          = profile.DefaultProjectRole;
+            member.Iso19650Role         = profile.DefaultIso19650Role;
+            member.AllowedCdeStates     = profile.AllowedCdeStates;
+            member.AllowedDisciplines   = profile.AllowedDisciplines;
+            member.AllowedSuitabilities = profile.AllowedSuitabilities;
+        }
+
         if (req.ProjectRole  != null) member.ProjectRole  = req.ProjectRole;
         if (req.Iso19650Role != null) member.Iso19650Role = req.Iso19650Role;
+        // Phase 177 — pass null array to leave a column unchanged; pass an
+        // empty array to clear it; pass a non-empty array to overwrite.
+        var aclTouched =
+            profile != null ||
+            req.AllowedCdeStates     != null ||
+            req.AllowedDisciplines   != null ||
+            req.AllowedSuitabilities != null;
+        if (req.AllowedCdeStates     != null) member.AllowedCdeStates     = ToCsv(req.AllowedCdeStates);
+        if (req.AllowedDisciplines   != null) member.AllowedDisciplines   = ToCsv(req.AllowedDisciplines);
+        if (req.AllowedSuitabilities != null) member.AllowedSuitabilities = ToCsv(req.AllowedSuitabilities);
 
         var userId3 = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid3) ? uid3 : (Guid?)null;
         _db.AuditLogs.Add(new AuditLog
@@ -280,6 +365,12 @@ public class ProjectMembersController : ControllerBase
         });
 
         await _db.SaveChangesAsync();
+
+        // Phase 177 — re-shard the member's SignalR subscriptions to match the
+        // new allow-list. Fire-and-forget: the response shouldn't block on
+        // hub fan-out, and the broadcast is idempotent if it races with reconnect.
+        if (aclTouched)
+            _ = _membershipNotifier.NotifyAclChangedAsync(member.UserId, projectId);
 
         return Ok(new { member.Id, member.ProjectRole, member.Iso19650Role });
     }
@@ -369,10 +460,65 @@ public class ProjectMembersController : ControllerBase
         var role = User.FindFirst("role")?.Value ?? "";
         return role is "Manager" or "Admin" or "Owner";
     }
+
+    // Phase 177 — normalise inbound array → CSV; null/empty array means
+    // "no narrowing for this axis" so it persists as null.
+    private static string? ToCsv(string[]? arr)
+    {
+        if (arr == null) return null;
+        var cleaned = arr.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).ToArray();
+        return cleaned.Length == 0 ? null : string.Join(',', cleaned);
+    }
+
+    /// <summary>
+    /// Phase 177-D — resolve an AccessProfile into a snapshot of the four
+    /// fields (CSV allow-lists + default roles) so the caller can fold them
+    /// into a ProjectMember row. Returns null if the profile id is null,
+    /// missing, or belongs to a different tenant.
+    /// </summary>
+    private async Task<AccessProfile?> ResolveProfileAsync(Guid? profileId)
+    {
+        if (profileId is null || profileId == Guid.Empty) return null;
+        var tenantId = GetTenantId();
+        return await _db.AccessProfiles.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == profileId.Value && p.TenantId == tenantId && p.IsActive);
+    }
 }
 
 // ── Request DTOs ───────────────────────────────────────────────────────────────
+//
+// Phase 177 — three optional ACL allow-lists are accepted as either CSV
+// ("WIP,SHARED") or string[] from the mobile JSON serialiser. The
+// controller normalises both to CSV before persisting.
+//
+// Phase 177-D — AccessProfileId optionally applies a tenant-scoped preset.
+// When supplied, the preset's allow-lists + default roles are copied onto
+// the member; any explicitly-provided fields on the request still win
+// (so a PM can use a profile as the baseline and override one axis).
 
-public record AddMemberRequest(Guid UserId, string? ProjectRole, string? Iso19650Role);
-public record InviteByEmailRequest(string Email, string? DisplayName, string? ProjectRole, string? Iso19650Role);
-public record UpdateMemberRequest(string? ProjectRole, string? Iso19650Role);
+public record AddMemberRequest(
+    Guid    UserId,
+    string? ProjectRole,
+    string? Iso19650Role,
+    string[]? AllowedCdeStates     = null,
+    string[]? AllowedDisciplines   = null,
+    string[]? AllowedSuitabilities = null,
+    Guid?   AccessProfileId        = null);
+
+public record InviteByEmailRequest(
+    string  Email,
+    string? DisplayName,
+    string? ProjectRole,
+    string? Iso19650Role,
+    string[]? AllowedCdeStates     = null,
+    string[]? AllowedDisciplines   = null,
+    string[]? AllowedSuitabilities = null,
+    Guid?   AccessProfileId        = null);
+
+public record UpdateMemberRequest(
+    string? ProjectRole,
+    string? Iso19650Role,
+    string[]? AllowedCdeStates     = null,
+    string[]? AllowedDisciplines   = null,
+    string[]? AllowedSuitabilities = null,
+    Guid?   AccessProfileId        = null);

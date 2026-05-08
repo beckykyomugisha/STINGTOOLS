@@ -608,6 +608,60 @@ public sealed class PlanscapeServerClient : IDisposable
         catch (Exception ex) { LastError = ex.Message; return false; }
     }
 
+    /// <summary>
+    /// Phase 177 — mirror a plugin DeliverableLifecycle event into the server's
+    /// DocumentRecord/DocumentApproval state. Idempotent (find-or-create on
+    /// DocNumber). Fail-soft: returns false on any error so the plugin keeps
+    /// working offline; the next sync tick can retry.
+    /// </summary>
+    public async Task<bool> SyncDeliverableFromPluginAsync(Guid projectId, object payload)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync(
+                $"/api/projects/{projectId}/documents/sync-from-plugin", payload);
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
+    /// <summary>
+    /// Phase 177 — fetch the calling user's per-folder ACL slice for the
+    /// project. Mirrors <c>GET /api/projects/{id}/members/me</c>; the BCC
+    /// uses the result to hide CDE tabs / discipline filters the user
+    /// can't access.
+    /// </summary>
+    public async Task<JObject?> GetMyAccessAsync(Guid projectId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await GetAsync($"/api/projects/{projectId}/members/me");
+            return resp.ok ? JObject.Parse(resp.body) : null;
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    /// <summary>
+    /// Phase 177 — batch-push audit events recorded by the local
+    /// <c>Planscape.Docs.Workflow.AuditLog</c> JSONL chain so the server's
+    /// AuditLog table has the union, not just server-originated rows.
+    /// Capped at 200 events per call by the server.
+    /// </summary>
+    public async Task<bool> PushAuditEventsAsync(Guid projectId, IEnumerable<object> events)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync(
+                $"/api/projects/{projectId}/audit-events/batch",
+                new { events });
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
     // ── Meetings ───────────────────────────────────────────────────────────────
 
     public async Task<JArray?> GetMeetingsAsync(Guid projectId, bool upcomingOnly = true)
