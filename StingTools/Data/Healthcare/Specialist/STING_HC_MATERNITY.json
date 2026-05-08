@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1.0,
+  "description": "H-16 — Maternity / NICU (HBN 21 / 09-03 / FGI 2026).",
+  "minRoomAreaM2": {
+    "MAT-LDR": 14, "MAT-DEL": 22, "NICU": 14, "NICU-COUPLET": 17,
+    "BIRTH-POOL": 22, "MILK-KIT": 9
+  },
+  "achMin": { "MAT-LDR": 6, "NICU": 6, "MILK-KIT": 10 },
+  "noiseNrMax": { "NICU": 35, "MAT-LDR": 35 },
+  "neonatalResuscPointRequired": ["MAT-LDR","MAT-DEL"],
+  "coupletCareSupported": true,
+  "warmingCotMandatory": ["MAT-LDR","MAT-DEL"]
+}

@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1.0,
+  "description": "H-15 — Mortuary / post-mortem (HBN 16).",
+  "fridgeBaysPerBeds": 0.005,
+  "minBaysPerHospital": 4,
+  "ventilation": { "MORT": {"ach":6,"polarity":"NEG"}, "POST": {"ach":15,"polarity":"NEG","downflow":true} },
+  "viewingRoomRequired": true,
+  "publicAccessSeparate": true,
+  "remoteFromClinical": true
+}

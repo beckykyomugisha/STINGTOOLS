@@ -1,0 +1,12 @@
+GasCode,GasName,NominalKPa,IndexConvention,ColourBSEN,ConnectorType
+O2,Medical Oxygen,400,BS 5682 NIST,White,Schrader
+MA4,Medical Air 4-bar,400,BS 5682 NIST,Black/White,Schrader
+MA7,Surgical Air 7-bar,700,BS 5682 NIST,Black,Schrader
+N2O,Nitrous Oxide,400,BS 5682 NIST,Blue,Schrader
+N2,Surgical Nitrogen,1100,BS 5682 NIST,Black,Schrader
+CO2,Carbon Dioxide,400,BS 5682 NIST,Grey,Schrader
+HE,Helium,400,BS 5682 NIST,Brown,Schrader
+VAC,Medical Vacuum,-65,BS 5682 NIST,Yellow,Schrader
+AGS,AGS,-25,BS 5682 NIST,Magenta/Purple,Schrader
+DENT-AIR,Dental Air,400,BS 5682 NIST,Grey-Blue,Schrader
+DENT-VAC,Dental Vacuum,-65,BS 5682 NIST,Grey-Yellow,Schrader

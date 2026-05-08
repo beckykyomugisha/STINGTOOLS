@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1.0,
+  "description": "H-14 — Behavioural / mental health (FGI Pt 2 + HBN 03-01).",
+  "roomClassesRequiringSafetyRiskAssessment": ["PSY-BED","PSY-OBS","SECL","BEH-DAY","ED-PSY-HOLD"],
+  "minObservationLOSPercent": { "SECL": 100, "PSY-OBS": 95, "PSY-BED": 50 },
+  "selfHarmRiskBands": ["LOW","MED","HIGH","VERY-HIGH"],
+  "antiLigatureMandatedClasses": ["PSY-BED","PSY-OBS","SECL"],
+  "weaponisablePartLimitsKg": { "decorative-fitting": 0.5, "shelf": 5.0 }
+}

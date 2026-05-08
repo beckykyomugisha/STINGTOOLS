@@ -6247,6 +6247,864 @@
         "halftoneLinks": true,
         "lineWeightScale": 1.0
       }
+    },
+    {
+      "id": "health-rds-A2",
+      "name": "Healthcare \u2014 Room Data Sheet (A2)",
+      "origin": "corporate",
+      "purpose": "Schedule",
+      "discipline": "H",
+      "phase": "*",
+      "paperSize": "A2",
+      "orientation": "Portrait",
+      "titleBlockFamily": "STING - Healthcare Title Block",
+      "scale": "NA",
+      "detailLevel": "Medium",
+      "viewTemplateName": "",
+      "viewportTypeName": "STING Viewport",
+      "viewStylePackId": "corp-healthcare-clinical",
+      "sheetNumberPattern": "{disc}-RDS-{lvl}-{seq:D4}",
+      "sheetNamePattern": "Room Data Sheet \u2014 {room}",
+      "crop": {
+        "mode": "ScopeBoxOrBbox",
+        "marginMm": 50
+      },
+      "tokenProfile": "default",
+      "slots": [],
+      "annotation": {
+        "autoDimension": false,
+        "autoTag": true,
+        "denseUntilScale": 100,
+        "tagFamilies": {
+          "OST_GenericModel": "STING - Generic Tag"
+        }
+      },
+      "titleBlockParams": {},
+      "isoNaming": true,
+      "print": {
+        "colourScheme": "BlackAndWhite",
+        "lineWeightScale": 1.0
+      },
+      "_description": "One per clinical room: plan, elev, equipment list, services, finishes, sign-off"
+    },
+    {
+      "id": "health-eqp-pln-A1-1to50",
+      "name": "Healthcare \u2014 Clinical Equipment Plan (A1 1:50)",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "H",
+      "phase": "*",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING - Healthcare Title Block",
+      "scale": 50,
+      "detailLevel": "Medium",
+      "viewTemplateName": "",
+      "viewportTypeName": "STING Viewport",
+      "viewStylePackId": "corp-healthcare-clinical",
+      "sheetNumberPattern": "{disc}-EQP-{lvl}-{seq:D3}",
+      "sheetNamePattern": "Clinical Equipment Plan \u2014 Level {lvl}",
+      "crop": {
+        "mode": "ScopeBoxOrBbox",
+        "marginMm": 50
+      },
+      "tokenProfile": "default",
+      "slots": [],
+      "annotation": {
+        "autoDimension": false,
+        "autoTag": true,
+        "denseUntilScale": 100,
+        "tagFamilies": {
+          "OST_GenericModel": "STING - Generic Tag"
+        }
+      },
+      "titleBlockParams": {},
+      "isoNaming": true,
+      "print": {
+        "colourScheme": "BlackAndWhite",
+        "lineWeightScale": 1.0
+      },
+      "_description": "FF&E callouts, pendant + bedhead positions, scrub/AED/PTS"
+    },
+    {
+      "id": "health-mep-coord-A1-1to50",
+      "name": "Healthcare \u2014 MEP Coordination + Shielding (A1 1:50)",
+      "origin": "corporate",
+      "purpose": "Coordination",
+      "discipline": "M",
+      "phase": "*",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING - Healthcare Title Block",
+      "scale": 50,
+      "detailLevel": "Medium",
+      "viewTemplateName": "",
+      "viewportTypeName": "STING Viewport",
+      "viewStylePackId": "corp-healthcare-shielding",
+      "sheetNumberPattern": "{disc}-COO-{lvl}-{seq:D3}",
+      "sheetNamePattern": "MEP Coordination + Shielding \u2014 {lvl}",
+      "crop": {
+        "mode": "ScopeBoxOrBbox",
+        "marginMm": 50
+      },
+      "tokenProfile": "default",
+      "slots": [],
+      "annotation": {
+        "autoDimension": false,
+        "autoTag": true,
+        "denseUntilScale": 100,
+        "tagFamilies": {
+          "OST_GenericModel": "STING - Generic Tag"
+        }
+      },
+      "titleBlockParams": {},
+      "isoNaming": true,
+      "print": {
+        "colourScheme": "BlackAndWhite",
+        "lineWeightScale": 1.0
+      },
+      "_description": "Combined MEP coordination with radiation-shielding overlay"
+    },
+    {
+      "id": "health-medgas-pln-A1-1to100",
+      "name": "Healthcare \u2014 Medical Gas Layout (A1 1:100)",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "MG",
+      "phase": "*",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING - Healthcare Title Block",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "",
+      "viewportTypeName": "STING Viewport",
+      "viewStylePackId": "corp-healthcare-mgs",
+      "sheetNumberPattern": "MG-LAY-{lvl}-{seq:D3}",
+      "sheetNamePattern": "Medical Gas Layout \u2014 Level {lvl}",
+      "crop": {
+        "mode": "ScopeBoxOrBbox",
+        "marginMm": 50
+      },
+      "tokenProfile": "default",
+      "slots": [],
+      "annotation": {
+        "autoDimension": false,
+        "autoTag": true,
+        "denseUntilScale": 100,
+        "tagFamilies": {
+          "OST_GenericModel": "STING - Generic Tag"
+        }
+      },
+      "titleBlockParams": {},
+      "isoNaming": true,
+      "print": {
+        "colourScheme": "BlackAndWhite",
+        "lineWeightScale": 1.0
+      },
+      "_description": "MGPS pipe layout per HTM 02-01"
+    },
+    {
+      "id": "health-medgas-schem-A1",
+      "name": "Healthcare \u2014 Medical Gas Schematic (A1)",
+      "origin": "corporate",
+      "purpose": "Schematic",
+      "discipline": "MG",
+      "phase": "*",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING - Healthcare Title Block",
+      "scale": "NA",
+      "detailLevel": "Medium",
+      "viewTemplateName": "",
+      "viewportTypeName": "STING Viewport",
+      "viewStylePackId": "corp-healthcare-mgs",
+      "sheetNumberPattern": "MG-SCH-{seq:D3}",
+      "sheetNamePattern": "Medical Gas Schematic \u2014 {gas}",
+      "crop": {
+        "mode": "ScopeBoxOrBbox",
+        "marginMm": 50
+      },
+      "tokenProfile": "default",
+      "slots": [],
+      "annotation": {
+        "autoDimension": false,
+        "autoTag": true,
+        "denseUntilScale": 100,
+        "tagFamilies": {
+          "OST_GenericModel": "STING - Generic Tag"
+        }
+      },
+      "titleBlockParams": {},
+      "isoNaming": true,
+      "print": {
+        "colourScheme": "BlackAndWhite",
+        "lineWeightScale": 1.0
+      },
+      "_description": "Manifold \u2192 riser \u2192 ZVB \u2192 AAP \u2192 terminal-unit schematic"
+    },
+    {
+      "id": "health-pressure-pln-A1-1to100",
+      "name": "Healthcare \u2014 Pressure Regime Plan (A1 1:100)",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "H",
+      "phase": "*",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING - Healthcare Title Block",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "",
+      "viewportTypeName": "STING Viewport",
+      "viewStylePackId": "corp-healthcare-pressure",
+      "sheetNumberPattern": "H-PRS-{lvl}-{seq:D3}",
+      "sheetNamePattern": "Pressure Regime Plan \u2014 Level {lvl}",
+      "crop": {
+        "mode": "ScopeBoxOrBbox",
+        "marginMm": 50
+      },
+      "tokenProfile": "default",
+      "slots": [],
+      "annotation": {
+        "autoDimension": false,
+        "autoTag": true,
+        "denseUntilScale": 100,
+        "tagFamilies": {
+          "OST_GenericModel": "STING - Generic Tag"
+        }
+      },
+      "titleBlockParams": {},
+      "isoNaming": true,
+      "print": {
+        "colourScheme": "BlackAndWhite",
+        "lineWeightScale": 1.0
+      },
+      "_description": "\u0394p arrows, AIIR/PE/anteroom cascade per HTM 03-01"
+    },
+    {
+      "id": "health-ess-power-riser-A1",
+      "name": "Healthcare \u2014 Essential Power Single-Line (A1)",
+      "origin": "corporate",
+      "purpose": "Schematic",
+      "discipline": "E",
+      "phase": "*",
+      "paperSize": "A1",
+      "orientation": "Portrait",
+      "titleBlockFamily": "STING - Healthcare Title Block",
+      "scale": "NA",
+      "detailLevel": "Medium",
+      "viewTemplateName": "",
+      "viewportTypeName": "STING Viewport",
+      "viewStylePackId": "corp-healthcare-ees",
+      "sheetNumberPattern": "E-EES-{seq:D3}",
+      "sheetNamePattern": "Essential Power Single-Line \u2014 {area}",
+      "crop": {
+        "mode": "ScopeBoxOrBbox",
+        "marginMm": 50
+      },
+      "tokenProfile": "default",
+      "slots": [],
+      "annotation": {
+        "autoDimension": false,
+        "autoTag": true,
+        "denseUntilScale": 100,
+        "tagFamilies": {
+          "OST_GenericModel": "STING - Generic Tag"
+        }
+      },
+      "titleBlockParams": {},
+      "isoNaming": true,
+      "print": {
+        "colourScheme": "BlackAndWhite",
+        "lineWeightScale": 1.0
+      },
+      "_description": "EES single-line with LS/CR/EQ branches + ATS, NFPA 99 / HTM 06-01"
+    },
+    {
+      "id": "health-ips-pln-A1-1to50",
+      "name": "Healthcare \u2014 Isolated Power Plan (A1 1:50)",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "E",
+      "phase": "*",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING - Healthcare Title Block",
+      "scale": 50,
+      "detailLevel": "Medium",
+      "viewTemplateName": "",
+      "viewportTypeName": "STING Viewport",
+      "viewStylePackId": "corp-healthcare-ees",
+      "sheetNumberPattern": "E-IPS-{lvl}-{seq:D3}",
+      "sheetNamePattern": "IPS Plan \u2014 {lvl}",
+      "crop": {
+        "mode": "ScopeBoxOrBbox",
+        "marginMm": 50
+      },
+      "tokenProfile": "default",
+      "slots": [],
+      "annotation": {
+        "autoDimension": false,
+        "autoTag": true,
+        "denseUntilScale": 100,
+        "tagFamilies": {
+          "OST_GenericModel": "STING - Generic Tag"
+        }
+      },
+      "titleBlockParams": {},
+      "isoNaming": true,
+      "print": {
+        "colourScheme": "BlackAndWhite",
+        "lineWeightScale": 1.0
+      },
+      "_description": "Isolated power systems for OR / ICU per NEC 517"
+    },
+    {
+      "id": "health-decon-flow-A1-1to50",
+      "name": "Healthcare \u2014 Decontamination Flow Plan (A1 1:50)",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "H",
+      "phase": "*",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING - Healthcare Title Block",
+      "scale": 50,
+      "detailLevel": "Medium",
+      "viewTemplateName": "",
+      "viewportTypeName": "STING Viewport",
+      "viewStylePackId": "corp-healthcare-clinical",
+      "sheetNumberPattern": "H-DEC-{lvl}-{seq:D3}",
+      "sheetNamePattern": "Decon Flow Plan \u2014 {lvl}",
+      "crop": {
+        "mode": "ScopeBoxOrBbox",
+        "marginMm": 50
+      },
+      "tokenProfile": "default",
+      "slots": [],
+      "annotation": {
+        "autoDimension": false,
+        "autoTag": true,
+        "denseUntilScale": 100,
+        "tagFamilies": {
+          "OST_GenericModel": "STING - Generic Tag"
+        }
+      },
+      "titleBlockParams": {},
+      "isoNaming": true,
+      "print": {
+        "colourScheme": "BlackAndWhite",
+        "lineWeightScale": 1.0
+      },
+      "_description": "HSDU dirty / clean / sterile flow per HBN 13"
+    },
+    {
+      "id": "health-mortuary-pln-A2-1to50",
+      "name": "Healthcare \u2014 Mortuary Plan (A2 1:50)",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "H",
+      "phase": "*",
+      "paperSize": "A2",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING - Healthcare Title Block",
+      "scale": 50,
+      "detailLevel": "Medium",
+      "viewTemplateName": "",
+      "viewportTypeName": "STING Viewport",
+      "viewStylePackId": "corp-healthcare-clinical",
+      "sheetNumberPattern": "H-MOR-{lvl}-{seq:D3}",
+      "sheetNamePattern": "Mortuary Plan \u2014 {lvl}",
+      "crop": {
+        "mode": "ScopeBoxOrBbox",
+        "marginMm": 50
+      },
+      "tokenProfile": "default",
+      "slots": [],
+      "annotation": {
+        "autoDimension": false,
+        "autoTag": true,
+        "denseUntilScale": 100,
+        "tagFamilies": {
+          "OST_GenericModel": "STING - Generic Tag"
+        }
+      },
+      "titleBlockParams": {},
+      "isoNaming": true,
+      "print": {
+        "colourScheme": "BlackAndWhite",
+        "lineWeightScale": 1.0
+      },
+      "_description": "Mortuary / post-mortem suite per HBN 16"
+    },
+    {
+      "id": "health-fire-comp-A1-1to100",
+      "name": "Healthcare \u2014 Fire Compartment + PHE Plan (A1 1:100)",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "A",
+      "phase": "*",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING - Healthcare Title Block",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "",
+      "viewportTypeName": "STING Viewport",
+      "viewStylePackId": "corp-healthcare-fire",
+      "sheetNumberPattern": "A-FIR-{lvl}-{seq:D3}",
+      "sheetNamePattern": "Fire Compartment + PHE \u2014 Level {lvl}",
+      "crop": {
+        "mode": "ScopeBoxOrBbox",
+        "marginMm": 50
+      },
+      "tokenProfile": "default",
+      "slots": [],
+      "annotation": {
+        "autoDimension": false,
+        "autoTag": true,
+        "denseUntilScale": 100,
+        "tagFamilies": {
+          "OST_GenericModel": "STING - Generic Tag"
+        }
+      },
+      "titleBlockParams": {},
+      "isoNaming": true,
+      "print": {
+        "colourScheme": "BlackAndWhite",
+        "lineWeightScale": 1.0
+      },
+      "_description": "HTM 05-02 / BS 9999 compartmentation + PHE refuges"
+    },
+    {
+      "id": "health-rad-shield-A1-1to50",
+      "name": "Healthcare \u2014 Radiation Shielding Plan (A1 1:50)",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "RP",
+      "phase": "*",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING - Healthcare Title Block",
+      "scale": 50,
+      "detailLevel": "Medium",
+      "viewTemplateName": "",
+      "viewportTypeName": "STING Viewport",
+      "viewStylePackId": "corp-healthcare-shielding",
+      "sheetNumberPattern": "RP-SHD-{lvl}-{seq:D3}",
+      "sheetNamePattern": "Radiation Shielding \u2014 {lvl}",
+      "crop": {
+        "mode": "ScopeBoxOrBbox",
+        "marginMm": 50
+      },
+      "tokenProfile": "default",
+      "slots": [],
+      "annotation": {
+        "autoDimension": false,
+        "autoTag": true,
+        "denseUntilScale": 100,
+        "tagFamilies": {
+          "OST_GenericModel": "STING - Generic Tag"
+        }
+      },
+      "titleBlockParams": {},
+      "isoNaming": true,
+      "print": {
+        "colourScheme": "BlackAndWhite",
+        "lineWeightScale": 1.0
+      },
+      "_description": "mm Pb callouts on walls/doors/windows per NCRP 147"
+    },
+    {
+      "id": "health-mri-zoning-A1-1to50",
+      "name": "Healthcare \u2014 MRI Suite Zoning (A1 1:50)",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "RP",
+      "phase": "*",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING - Healthcare Title Block",
+      "scale": 50,
+      "detailLevel": "Medium",
+      "viewTemplateName": "",
+      "viewportTypeName": "STING Viewport",
+      "viewStylePackId": "corp-healthcare-shielding",
+      "sheetNumberPattern": "RP-MRI-{lvl}-{seq:D3}",
+      "sheetNamePattern": "MRI Zoning \u2014 {area}",
+      "crop": {
+        "mode": "ScopeBoxOrBbox",
+        "marginMm": 50
+      },
+      "tokenProfile": "default",
+      "slots": [],
+      "annotation": {
+        "autoDimension": false,
+        "autoTag": true,
+        "denseUntilScale": 100,
+        "tagFamilies": {
+          "OST_GenericModel": "STING - Generic Tag"
+        }
+      },
+      "titleBlockParams": {},
+      "isoNaming": true,
+      "print": {
+        "colourScheme": "BlackAndWhite",
+        "lineWeightScale": 1.0
+      },
+      "_description": "Z1..Z4 zoning + 5-Gauss boundary"
+    },
+    {
+      "id": "health-ligature-pln-A1-1to50",
+      "name": "Healthcare \u2014 Anti-Ligature Plan (A1 1:50)",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "H",
+      "phase": "*",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING - Healthcare Title Block",
+      "scale": 50,
+      "detailLevel": "Medium",
+      "viewTemplateName": "",
+      "viewportTypeName": "STING Viewport",
+      "viewStylePackId": "corp-healthcare-ligature",
+      "sheetNumberPattern": "H-LIG-{lvl}-{seq:D3}",
+      "sheetNamePattern": "Anti-Ligature Plan \u2014 {lvl}",
+      "crop": {
+        "mode": "ScopeBoxOrBbox",
+        "marginMm": 50
+      },
+      "tokenProfile": "default",
+      "slots": [],
+      "annotation": {
+        "autoDimension": false,
+        "autoTag": true,
+        "denseUntilScale": 100,
+        "tagFamilies": {
+          "OST_GenericModel": "STING - Generic Tag"
+        }
+      },
+      "titleBlockParams": {},
+      "isoNaming": true,
+      "print": {
+        "colourScheme": "BlackAndWhite",
+        "lineWeightScale": 1.0
+      },
+      "_description": "Ligature risk bands + observation LOS per HBN 03-01"
+    },
+    {
+      "id": "health-bedhead-elev-A2-1to20",
+      "name": "Healthcare \u2014 Bedhead Elevations (A2 1:20)",
+      "origin": "corporate",
+      "purpose": "Elevation",
+      "discipline": "H",
+      "phase": "*",
+      "paperSize": "A2",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING - Healthcare Title Block",
+      "scale": 20,
+      "detailLevel": "Medium",
+      "viewTemplateName": "",
+      "viewportTypeName": "STING Viewport",
+      "viewStylePackId": "corp-healthcare-clinical",
+      "sheetNumberPattern": "H-BHD-{lvl}-{seq:D3}",
+      "sheetNamePattern": "Bedhead Elevations \u2014 {area}",
+      "crop": {
+        "mode": "ScopeBoxOrBbox",
+        "marginMm": 50
+      },
+      "tokenProfile": "default",
+      "slots": [],
+      "annotation": {
+        "autoDimension": false,
+        "autoTag": true,
+        "denseUntilScale": 100,
+        "tagFamilies": {
+          "OST_GenericModel": "STING - Generic Tag"
+        }
+      },
+      "titleBlockParams": {},
+      "isoNaming": true,
+      "print": {
+        "colourScheme": "BlackAndWhite",
+        "lineWeightScale": 1.0
+      },
+      "_description": "Bedhead trunking elevations with services schedule"
+    },
+    {
+      "id": "health-or-ceiling-A2-1to20",
+      "name": "Healthcare \u2014 OR Ceiling RCP (A2 1:20)",
+      "origin": "corporate",
+      "purpose": "RCP",
+      "discipline": "H",
+      "phase": "*",
+      "paperSize": "A2",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING - Healthcare Title Block",
+      "scale": 20,
+      "detailLevel": "Medium",
+      "viewTemplateName": "",
+      "viewportTypeName": "STING Viewport",
+      "viewStylePackId": "corp-healthcare-clinical",
+      "sheetNumberPattern": "H-RCP-{lvl}-{seq:D3}",
+      "sheetNamePattern": "OR Ceiling RCP \u2014 {area}",
+      "crop": {
+        "mode": "ScopeBoxOrBbox",
+        "marginMm": 50
+      },
+      "tokenProfile": "default",
+      "slots": [],
+      "annotation": {
+        "autoDimension": false,
+        "autoTag": true,
+        "denseUntilScale": 100,
+        "tagFamilies": {
+          "OST_GenericModel": "STING - Generic Tag"
+        }
+      },
+      "titleBlockParams": {},
+      "isoNaming": true,
+      "print": {
+        "colourScheme": "BlackAndWhite",
+        "lineWeightScale": 1.0
+      },
+      "_description": "Pendant/boom/light/laminar canopy reflected ceiling"
+    },
+    {
+      "id": "health-water-safety-A1-1to100",
+      "name": "Healthcare \u2014 Water Safety Plan (A1 1:100)",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "P",
+      "phase": "*",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING - Healthcare Title Block",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "",
+      "viewportTypeName": "STING Viewport",
+      "viewStylePackId": "corp-healthcare-water",
+      "sheetNumberPattern": "P-HWS-{lvl}-{seq:D3}",
+      "sheetNamePattern": "Water Safety Plan \u2014 {lvl}",
+      "crop": {
+        "mode": "ScopeBoxOrBbox",
+        "marginMm": 50
+      },
+      "tokenProfile": "default",
+      "slots": [],
+      "annotation": {
+        "autoDimension": false,
+        "autoTag": true,
+        "denseUntilScale": 100,
+        "tagFamilies": {
+          "OST_GenericModel": "STING - Generic Tag"
+        }
+      },
+      "titleBlockParams": {},
+      "isoNaming": true,
+      "print": {
+        "colourScheme": "BlackAndWhite",
+        "lineWeightScale": 1.0
+      },
+      "_description": "TMV3 / aug-care / sentinel / RO-loop per HTM 04-01"
+    },
+    {
+      "id": "health-acoustic-A1-1to100",
+      "name": "Healthcare \u2014 Acoustic Strategy Plan (A1 1:100)",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "A",
+      "phase": "*",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING - Healthcare Title Block",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "",
+      "viewportTypeName": "STING Viewport",
+      "viewStylePackId": "corp-healthcare-clinical",
+      "sheetNumberPattern": "A-ACO-{lvl}-{seq:D3}",
+      "sheetNamePattern": "Acoustic Strategy \u2014 Level {lvl}",
+      "crop": {
+        "mode": "ScopeBoxOrBbox",
+        "marginMm": 50
+      },
+      "tokenProfile": "default",
+      "slots": [],
+      "annotation": {
+        "autoDimension": false,
+        "autoTag": true,
+        "denseUntilScale": 100,
+        "tagFamilies": {
+          "OST_GenericModel": "STING - Generic Tag"
+        }
+      },
+      "titleBlockParams": {},
+      "isoNaming": true,
+      "print": {
+        "colourScheme": "BlackAndWhite",
+        "lineWeightScale": 1.0
+      },
+      "_description": "NR rating + Rw bands + private/sensitive zones"
+    },
+    {
+      "id": "health-struct-loads-A1-1to100",
+      "name": "Healthcare \u2014 Imaging Equipment Structural Loads (A1 1:100)",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "S",
+      "phase": "*",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING - Healthcare Title Block",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "",
+      "viewportTypeName": "STING Viewport",
+      "viewStylePackId": "corp-healthcare-clinical",
+      "sheetNumberPattern": "S-IMG-{lvl}-{seq:D3}",
+      "sheetNamePattern": "Equipment Loads \u2014 Level {lvl}",
+      "crop": {
+        "mode": "ScopeBoxOrBbox",
+        "marginMm": 50
+      },
+      "tokenProfile": "default",
+      "slots": [],
+      "annotation": {
+        "autoDimension": false,
+        "autoTag": true,
+        "denseUntilScale": 100,
+        "tagFamilies": {
+          "OST_GenericModel": "STING - Generic Tag"
+        }
+      },
+      "titleBlockParams": {},
+      "isoNaming": true,
+      "print": {
+        "colourScheme": "BlackAndWhite",
+        "lineWeightScale": 1.0
+      },
+      "_description": "MRI / CT / Linac point loads + slab edge stiffening"
+    },
+    {
+      "id": "health-rtls-coverage-A1-1to100",
+      "name": "Healthcare \u2014 RTLS Coverage Plan (A1 1:100)",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "H",
+      "phase": "*",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING - Healthcare Title Block",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "",
+      "viewportTypeName": "STING Viewport",
+      "viewStylePackId": "corp-healthcare-clinical",
+      "sheetNumberPattern": "H-RTL-{lvl}-{seq:D3}",
+      "sheetNamePattern": "RTLS Coverage \u2014 Level {lvl}",
+      "crop": {
+        "mode": "ScopeBoxOrBbox",
+        "marginMm": 50
+      },
+      "tokenProfile": "default",
+      "slots": [],
+      "annotation": {
+        "autoDimension": false,
+        "autoTag": true,
+        "denseUntilScale": 100,
+        "tagFamilies": {
+          "OST_GenericModel": "STING - Generic Tag"
+        }
+      },
+      "titleBlockParams": {},
+      "isoNaming": true,
+      "print": {
+        "colourScheme": "BlackAndWhite",
+        "lineWeightScale": 1.0
+      },
+      "_description": "RTLS / RFID reader coverage with dead-zone overlay"
+    },
+    {
+      "id": "health-waste-flow-A1-1to100",
+      "name": "Healthcare \u2014 Clinical Waste Flow (A1 1:100)",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "H",
+      "phase": "*",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING - Healthcare Title Block",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "",
+      "viewportTypeName": "STING Viewport",
+      "viewStylePackId": "corp-healthcare-clinical",
+      "sheetNumberPattern": "H-WST-{lvl}-{seq:D3}",
+      "sheetNamePattern": "Waste Flow \u2014 Level {lvl}",
+      "crop": {
+        "mode": "ScopeBoxOrBbox",
+        "marginMm": 50
+      },
+      "tokenProfile": "default",
+      "slots": [],
+      "annotation": {
+        "autoDimension": false,
+        "autoTag": true,
+        "denseUntilScale": 100,
+        "tagFamilies": {
+          "OST_GenericModel": "STING - Generic Tag"
+        }
+      },
+      "titleBlockParams": {},
+      "isoNaming": true,
+      "print": {
+        "colourScheme": "BlackAndWhite",
+        "lineWeightScale": 1.0
+      },
+      "_description": "Clinical / cytotoxic / sharps / general flows segregated"
+    },
+    {
+      "id": "health-nuclear-medicine-A1",
+      "name": "Healthcare \u2014 Nuclear Medicine Schematic (A1)",
+      "origin": "corporate",
+      "purpose": "Schematic",
+      "discipline": "RP",
+      "phase": "*",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING - Healthcare Title Block",
+      "scale": "NA",
+      "detailLevel": "Medium",
+      "viewTemplateName": "",
+      "viewportTypeName": "STING Viewport",
+      "viewStylePackId": "corp-healthcare-shielding",
+      "sheetNumberPattern": "RP-NM-{seq:D3}",
+      "sheetNamePattern": "Nuclear Medicine \u2014 {area}",
+      "crop": {
+        "mode": "ScopeBoxOrBbox",
+        "marginMm": 50
+      },
+      "tokenProfile": "default",
+      "slots": [],
+      "annotation": {
+        "autoDimension": false,
+        "autoTag": true,
+        "denseUntilScale": 100,
+        "tagFamilies": {
+          "OST_GenericModel": "STING - Generic Tag"
+        }
+      },
+      "titleBlockParams": {},
+      "isoNaming": true,
+      "print": {
+        "colourScheme": "BlackAndWhite",
+        "lineWeightScale": 1.0
+      },
+      "_description": "Hot lab / dispensing / waiting / imaging zoning"
     }
   ],
   "routing": [
@@ -6603,6 +7461,116 @@
       "phase": "PRESENTATION",
       "docType": "COMPOSITE",
       "drawingTypeId": "pres-composite-A1"
+    },
+    {
+      "disciplineMatches": "^H$",
+      "docTypeMatches": "^RDS$",
+      "drawingTypeId": "health-rds-A2"
+    },
+    {
+      "disciplineMatches": "^H$",
+      "docTypeMatches": "^EQP$",
+      "drawingTypeId": "health-eqp-pln-A1-1to50"
+    },
+    {
+      "disciplineMatches": "^M$",
+      "docTypeMatches": "^MEP-COORD-CLN$",
+      "drawingTypeId": "health-mep-coord-A1-1to50"
+    },
+    {
+      "disciplineMatches": "^MG$",
+      "docTypeMatches": "^MGS-LAY$",
+      "drawingTypeId": "health-medgas-pln-A1-1to100"
+    },
+    {
+      "disciplineMatches": "^MG$",
+      "docTypeMatches": "^MGS-SCH$",
+      "drawingTypeId": "health-medgas-schem-A1"
+    },
+    {
+      "disciplineMatches": "^H$",
+      "docTypeMatches": "^PRESS-REGIME$",
+      "drawingTypeId": "health-pressure-pln-A1-1to100"
+    },
+    {
+      "disciplineMatches": "^E$",
+      "docTypeMatches": "^EES-RISER$",
+      "drawingTypeId": "health-ess-power-riser-A1"
+    },
+    {
+      "disciplineMatches": "^E$",
+      "docTypeMatches": "^IPS$",
+      "drawingTypeId": "health-ips-pln-A1-1to50"
+    },
+    {
+      "disciplineMatches": "^H$",
+      "docTypeMatches": "^DECON-FLOW$",
+      "drawingTypeId": "health-decon-flow-A1-1to50"
+    },
+    {
+      "disciplineMatches": "^H$",
+      "docTypeMatches": "^MORTUARY$",
+      "drawingTypeId": "health-mortuary-pln-A2-1to50"
+    },
+    {
+      "disciplineMatches": "^A$",
+      "docTypeMatches": "^FIRE-COMP-CLN$",
+      "drawingTypeId": "health-fire-comp-A1-1to100"
+    },
+    {
+      "disciplineMatches": "^RP$",
+      "docTypeMatches": "^RAD-SHIELD$",
+      "drawingTypeId": "health-rad-shield-A1-1to50"
+    },
+    {
+      "disciplineMatches": "^RP$",
+      "docTypeMatches": "^MRI-ZONING$",
+      "drawingTypeId": "health-mri-zoning-A1-1to50"
+    },
+    {
+      "disciplineMatches": "^H$",
+      "docTypeMatches": "^LIGATURE$",
+      "drawingTypeId": "health-ligature-pln-A1-1to50"
+    },
+    {
+      "disciplineMatches": "^H$",
+      "docTypeMatches": "^BEDHEAD-ELEV$",
+      "drawingTypeId": "health-bedhead-elev-A2-1to20"
+    },
+    {
+      "disciplineMatches": "^H$",
+      "docTypeMatches": "^OR-RCP$",
+      "drawingTypeId": "health-or-ceiling-A2-1to20"
+    },
+    {
+      "disciplineMatches": "^P$",
+      "docTypeMatches": "^WATER-SAFETY$",
+      "drawingTypeId": "health-water-safety-A1-1to100"
+    },
+    {
+      "disciplineMatches": "^A$",
+      "docTypeMatches": "^ACOUSTIC-STRAT$",
+      "drawingTypeId": "health-acoustic-A1-1to100"
+    },
+    {
+      "disciplineMatches": "^S$",
+      "docTypeMatches": "^IMAGING-LOADS$",
+      "drawingTypeId": "health-struct-loads-A1-1to100"
+    },
+    {
+      "disciplineMatches": "^H$",
+      "docTypeMatches": "^RTLS$",
+      "drawingTypeId": "health-rtls-coverage-A1-1to100"
+    },
+    {
+      "disciplineMatches": "^H$",
+      "docTypeMatches": "^WASTE-FLOW$",
+      "drawingTypeId": "health-waste-flow-A1-1to100"
+    },
+    {
+      "disciplineMatches": "^RP$",
+      "docTypeMatches": "^NUC-MED$",
+      "drawingTypeId": "health-nuclear-medicine-A1"
     }
   ]
 }

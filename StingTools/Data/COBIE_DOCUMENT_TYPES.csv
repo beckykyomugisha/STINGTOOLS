@@ -27,3 +27,15 @@ O&M-025,BIM Execution Plan,BIM,Project BIM Execution Plan (BEP),Facility,Yes,BS 
 O&M-026,Asset Information Model,BIM,Handover AIM (IFC + COBie),Facility,Yes,BS EN ISO 19650-3,Life of building,IFC/XLSX,{Project}-AIM-{Rev}
 O&M-027,Training Record,Training,Operator/FM training record,System;Type,Yes,CDM 2015,5 years,PDF,{Project}-{System}-TRAINING-{Date}
 O&M-028,Spare Parts Schedule,O&M,Recommended spare parts inventory,Type;System,Yes,,Life of equipment,PDF/XLS,{Project}-{System}-SPARES-{Rev}
+HC-MGPS-VERIFY,Medical Gas Verification Certificate,Certificate,NFPA 99 / ASSE 6030 verification report,Component;System,Yes,NFPA 99 §5.1.12; HTM 02-01,Life of building,PDF,{Project}-{Zone}-MGPS-VERIFY-{Date}
+HC-RAD-SHIELD,Radiation Shielding Calculation,Engineering,NCRP 147 / 151 shielding calc with QE sign-off,Component,Yes,NCRP 147; IRR17,Life of building,PDF,{Project}-{Room}-RAD-SHIELD-{Date}
+HC-PRESS-COMM,Pressure Regime Commissioning Report,Commissioning,HTM 03-01 anteroom cascade test,Room,Yes,HTM 03-01,Life of building,PDF,{Project}-{Room}-PRESS-COMM-{Date}
+HC-WATER-SAFETY,Water Safety Plan,Operational,HTM 04-01 water safety plan with risk assessment,System,Yes,HTM 04-01,Life of building,PDF,{Project}-WSP-{Rev}
+HC-RDS,Room Data Sheet,Brief,ADB / HBN room data sheet,Room,Yes,HBN catalogue,Life of building,DOCX,{Project}-{Room}-RDS-{Rev}
+HC-LIG-AUDIT,Anti-Ligature Audit Report,Audit,HBN 03-01 / FGI Pt 2 fitting audit,Room,Yes,HBN 03-01,5 years,PDF,{Project}-LIG-{Date}
+HC-EES-REPORT,EES Single-Line Compliance Report,Engineering,NFPA 99 / NEC 517 EES compliance,System,Yes,NFPA 99; NEC 517,Life of building,PDF,{Project}-EES-{Rev}
+HC-MRI-ZONING,MRI Zoning + Faraday Cage Test,Engineering,IEC 60601-2-33 zoning + RF integrity test,Room,Yes,IEC 60601-2-33,Life of building,PDF,{Project}-MRI-{Rev}
+HC-USP-CERT,USP <797>/<800> Cleanroom Certification,Certificate,Cleanroom recertification report,Room,Yes,USP <797>; USP <800>,5 years,PDF,{Project}-USP-{Date}
+HC-COMM-FILE,Healthcare Commissioning File,Commissioning,Aggregated commissioning evidence,Project,Yes,HTM 00 / NHS Capital Investment Manual,Life of building,PDF,{Project}-COMM-{Rev}
+HC-ASSET-REG,Clinical Asset Register,Operational,GMDN / UMDNS asset register with SFG20 maintenance,Component,Yes,COBie healthcare,Life of building,XLSX,{Project}-CAR-{Rev}
+HC-DECON-FLOW,Decontamination Flow Statement,Operational,HBN 13 / HTM 01-06 dirty-clean-sterile flow report,Room,Yes,HBN 13; HTM 01-06,Life of building,PDF,{Project}-DECON-{Rev}
