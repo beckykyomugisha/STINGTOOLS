@@ -5,10 +5,9 @@
 using Autodesk.Revit.DB;
 using StingTools.Core;
 using System;
-using System.Collections.Generic;
 using System.IO;
 
-namespace StingTools.Docs.Templates
+namespace Planscape.Docs.Templates
 {
     public static class RdsRenderer
     {
@@ -19,7 +18,7 @@ namespace StingTools.Docs.Templates
 
             var docPath = doc.PathName;
             var root = string.IsNullOrEmpty(docPath) ? Path.GetTempPath() : Path.GetDirectoryName(docPath);
-            var outDir = Path.Combine(root, "_BIM_COORD", "healthcare", "rds");
+            var outDir = Path.Combine(root ?? Path.GetTempPath(), "_BIM_COORD", "healthcare", "rds");
             Directory.CreateDirectory(outDir);
 
             var roomNum = ReadString(room, "ASS_ROOM_NUM_TXT")
@@ -39,7 +38,7 @@ namespace StingTools.Docs.Templates
             var ctx = RdsContextBuilder.Build(doc, room);
             try
             {
-                MiniWordAdapter.Render(tpl, outPath, ctx);
+                MiniWordAdapter.Render(tpl, ctx, outPath);
                 StingLog.Info($"RDS rendered: {outPath}");
                 return outPath;
             }

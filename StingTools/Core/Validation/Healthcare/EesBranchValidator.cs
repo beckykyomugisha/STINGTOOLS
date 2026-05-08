@@ -86,16 +86,10 @@ namespace StingTools.Core.Validation.Healthcare
             {
                 if (el is FamilyInstance fi)
                 {
-                    var p = fi.LookupParameter("Room") ?? fi.LookupParameter("ROOM");
-                    if (p != null && p.HasValue && p.StorageType == StorageType.ElementId)
+                    if (fi.Room != null) return fi.Room;
+                    if (fi.Location is LocationPoint lp)
                     {
-                        var rid = p.AsElementId();
-                        if (rid != null && rid.IntegerValue > 0) return doc.GetElement(rid);
-                    }
-                    var loc = fi.Location as LocationPoint;
-                    if (loc != null && fi.LevelId != null && fi.LevelId.IntegerValue > 0)
-                    {
-                        var room = doc.GetRoomAtPoint(loc.Point);
+                        var room = doc.GetRoomAtPoint(lp.Point);
                         if (room != null) return room;
                     }
                 }

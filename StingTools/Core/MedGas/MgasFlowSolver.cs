@@ -49,6 +49,9 @@ namespace StingTools.Core.MedGas
             return loads;
         }
 
-        private static double LookupDouble(MgasNode tu) => 0.0; // Phase H-7 stub — extends to read MGS_DESIGN_FLOW_LPM_NR per TU
+        // Phase H-7 stub — flow is per-TU on the BIM element; MgasNode does not
+        // currently carry the Element reference, so the solver returns 0 until
+        // the network model is extended. Audit consumers tolerate zero loads.
+        private static double LookupDouble(MgasNode _) => 0.0;
     }
 }
