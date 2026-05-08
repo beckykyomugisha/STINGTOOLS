@@ -111,6 +111,11 @@ public class DemoSandboxJob
     {
         // Cascade-delete order matters: child rows first, then the project,
         // then leaf tenant-scoped rows (users, models without project).
+        // EF1002 — DemoTenantId is a compile-time constant Guid; the
+        // interpolation cannot carry SQL injection. ExecuteSqlRawAsync
+        // is required so the multi-statement DELETE batch ships in a
+        // single round-trip (Interpolated would split per-hole).
+#pragma warning disable EF1002
         await _db.Database.ExecuteSqlRawAsync($@"
             DELETE FROM ""Issues""              WHERE ""TenantId"" = '{DemoTenantId}';
             DELETE FROM ""TaggedElements""      WHERE ""TenantId"" = '{DemoTenantId}';
@@ -120,5 +125,6 @@ public class DemoSandboxJob
             DELETE FROM ""Projects""            WHERE ""TenantId"" = '{DemoTenantId}';
             DELETE FROM ""Users""               WHERE ""TenantId"" = '{DemoTenantId}';
         ", ct);
+#pragma warning restore EF1002
     }
 }

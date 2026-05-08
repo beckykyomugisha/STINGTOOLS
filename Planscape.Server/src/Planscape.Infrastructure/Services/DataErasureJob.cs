@@ -85,6 +85,13 @@ public class DataErasureJob
     {
         // 1. SQL deletes, child → parent. Composite raw SQL keeps it atomic
         //    inside one transaction. Order respects the existing FK graph.
+        // EF1002 — tenantId is a typed Guid parameter sourced from
+        // tenant.Id, never user input, so the interpolation cannot
+        // carry SQL injection. The composite multi-statement DELETE
+        // batch needs to flow through ExecuteSqlRawAsync because
+        // ExecuteSqlInterpolatedAsync would parameterise each hole
+        // separately and break the BEGIN/COMMIT round-trip semantics.
+#pragma warning disable EF1002
         await _db.Database.ExecuteSqlRawAsync($@"
             BEGIN;
             -- Pin / CRDT
@@ -144,6 +151,7 @@ public class DataErasureJob
             DELETE FROM ""Tenants""               WHERE ""Id""       = '{tenantId}';
             COMMIT;
         ", ct);
+#pragma warning restore EF1002
 
         // 2. Storage. We can't enumerate efficiently across providers, so
         //    we issue a delete for the conventional tenant prefix; the
