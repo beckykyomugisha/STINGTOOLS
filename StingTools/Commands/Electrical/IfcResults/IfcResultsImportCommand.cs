@@ -61,8 +61,10 @@ namespace StingTools.Commands.Electrical.IfcResults
                 // form (the export uses IfcGuidEncoder so DIALux preserves the
                 // IfcGloballyUniqueId verbatim — match against both shapes for
                 // safety against DIALux ever re-emitting in either form).
-                try { roomsByGuid[r.UniqueId] = r; } catch { }
-                try { roomsByGuid[IfcGuidEncoder.FromRevitUniqueId(r.UniqueId)] = r; } catch { }
+                try { roomsByGuid[r.UniqueId] = r; }
+                catch (Exception ex) { StingLog.Warn($"IfcImport room raw key '{r.UniqueId}': {ex.Message}"); }
+                try { roomsByGuid[IfcGuidEncoder.FromRevitUniqueId(r.UniqueId)] = r; }
+                catch (Exception ex) { StingLog.Warn($"IfcImport room encoded key '{r.UniqueId}': {ex.Message}"); }
                 if (!string.IsNullOrEmpty(r.Name)) roomsByName[r.Name] = r;
             }
             var fixturesByGuid = new Dictionary<string, FamilyInstance>(StringComparer.OrdinalIgnoreCase);
@@ -70,8 +72,10 @@ namespace StingTools.Commands.Electrical.IfcResults
                 .OfCategory(BuiltInCategory.OST_LightingFixtures)
                 .WhereElementIsNotElementType().OfType<FamilyInstance>())
             {
-                try { fixturesByGuid[fi.UniqueId] = fi; } catch { }
-                try { fixturesByGuid[IfcGuidEncoder.FromRevitUniqueId(fi.UniqueId)] = fi; } catch { }
+                try { fixturesByGuid[fi.UniqueId] = fi; }
+                catch (Exception ex) { StingLog.Warn($"IfcImport fixture raw key '{fi.UniqueId}': {ex.Message}"); }
+                try { fixturesByGuid[IfcGuidEncoder.FromRevitUniqueId(fi.UniqueId)] = fi; }
+                catch (Exception ex) { StingLog.Warn($"IfcImport fixture encoded key '{fi.UniqueId}': {ex.Message}"); }
             }
 
             string engineParam = ResolveEngineParam(engine);
