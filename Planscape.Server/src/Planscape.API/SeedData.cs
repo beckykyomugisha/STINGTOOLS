@@ -234,6 +234,26 @@ public static class SeedData
             ("QS", "Quantity Surveyor"),
             ("BC", "BIM Coordinator"),
         };
+        // Create one shared AppUser per lead role so the ProjectMember rows
+        // below have a real FK target (was previously Guid.NewGuid() which
+        // violated FK_ProjectMembers_Users_UserId on insert). Keeps the
+        // dashboard "team: 2 members" count accurate without bloating the
+        // seed with one user per project × per role.
+        var leadUsers = new Dictionary<string, AppUser>();
+        foreach (var (iso, label) in leadRoles)
+        {
+            var u = new AppUser
+            {
+                TenantId      = tenant.Id,
+                Email         = $"{iso.ToLowerInvariant()}-lead@planscape.demo",
+                DisplayName   = label,
+                PasswordHash  = BCrypt.Net.BCrypt.HashPassword("demo-lead", workFactor: 12),
+                Role          = UserRole.User,
+                Iso19650Role  = iso
+            };
+            db.Users.Add(u);
+            leadUsers[iso] = u;
+        }
         for (var i = 0; i < allProjects.Length; i++)
         {
             var p = allProjects[i];
@@ -246,14 +266,14 @@ public static class SeedData
                 Iso19650Role = "BC",
             });
             var (iso, label) = leadRoles[i % leadRoles.Length];
-            // Seeded "lead" placeholder user for membership counts. We don't
-            // create an AppUser row to keep the demo seed minimal — only the
-            // count is read by the dashboard cards.
+            // Reference the shared lead AppUser created above so the FK to
+            // Users is satisfied. Same display label flows through InvitedBy
+            // for the dashboard cards.
             db.ProjectMembers.Add(new ProjectMember
             {
                 TenantId = tenant.Id,
                 ProjectId = p.Id,
-                UserId = Guid.NewGuid(),
+                UserId = leadUsers[iso].Id,
                 ProjectRole = "Contributor",
                 Iso19650Role = iso,
                 InvitedBy = label,
