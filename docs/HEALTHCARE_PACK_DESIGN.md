@@ -21,11 +21,17 @@ Hospitals are the single most regulated and most BIM-information-intensive
 building type in the AEC sector. The current StingTools content layer is
 discipline-aware (M/E/P/A/S/FP/LV/G) but **building-type-agnostic**:
 
-- The 2,555-row `MR_PARAMETERS.txt` registry has no clinical/health
-  parameters — no pressure regime, no medical-gas terminal-unit GUID,
-  no NFPA 99 essential-power branch, no NCRP 147 lead-equivalence,
-  no MRI zone, no infection-control class, no TMV3 dead-leg, no ADB
-  cross-reference.
+- The 2,555-row `MR_PARAMETERS.txt` registry has *seeds* of healthcare
+  intent — `WARN_BLE_MEDICAL_CLEARANCE_MEDICAL_EQUIP`,
+  `WARN_BLE_MEDICAL_POWER_MEDICAL_EQUIP`, `WARN_RGL_STD_MEDICAL_EQUIP`,
+  `WARN_ASS_LEAD_TIME_SPECIALTY_EQUIP` — but no first-class clinical
+  attributes. There is no clinical room class, no pressure regime,
+  no medical-gas type, no NFPA 99 essential-power branch, no NCRP 147
+  lead-equivalence, no MRI zone, no infection-control class, no TMV3
+  dead-leg, no HBN / HTM / FGI / ADB cross-reference. (See §5.0 for
+  the full crosscheck — the surviving net-new parameter count after
+  reusing existing params is **~85**, not 140 as the first draft
+  estimated.)
 - The 199-filter `STING_AEC_FILTERS.json` has zero healthcare filters.
 - The 11 ViewStylePacks include no clinical or shielding presentation
   pack.
@@ -102,7 +108,7 @@ the project sandbox at `<project>/_BIM_COORD/healthcare/`.
 
 | StingTools subsystem | Healthcare extension point |
 |---|---|
-| `Core/ParamRegistry.cs` + `Data/PARAMETER_REGISTRY.json` | Adds ~140 healthcare shared parameters, 4 new container groups, 6 new SeqScheme variants |
+| `Core/ParamRegistry.cs` + `Data/PARAMETER_REGISTRY.json` | Adds **~85 net-new shared parameters** (after crosscheck — see §5.0) into 5 new groups (28 `CLN_CLINICAL`, 29 `MGS_SYSTEMS`, 30 `RAD_PROTECTION`, 31 `CEQ_CLINICAL`, 32 `LIG_BEHAVIOURAL`) plus extensions to existing groups 4 (`ELC_PWR`), 5 (`HVC_SYSTEMS`), 6 (`PLM_DRN`), 8 (`FLS_LIFE_SFTY`), 13 (`PRJ_INFORMATION`), 25 (`COMMISSIONING`); 6 new SeqScheme variants |
 | `Core/TagConfig.cs` + `Data/TAG_CONFIG_v5_0_*.csv` | Adds `H` and `MG` disciplines, `MGAS-*` system family, ~40 product codes, ~20 function codes, 12 clinical room-class enums |
 | `Core/Drawing/` (Drawing Template Manager) | Adds 12 healthcare drawing types, 4 healthcare ViewStylePacks, 1 routing-rule supplement |
 | `Core/Drawing/AecFilterDefinition.cs` + `Data/STING_AEC_FILTERS.json` | Adds 60 healthcare filters (pressure regime, EES branches, MRI zones, infection-control class, decon flow, fire compartment, anti-ligature, MGAS by gas) |
@@ -203,139 +209,286 @@ ownership belongs to the clinical fit-out package.
 
 ## 5. Shared parameter pack (Phase H-1)
 
+> **Crosschecked against `Data/MR_PARAMETERS.txt` (2,743 lines, 27 groups,
+> ~2,555 params) on 2026-05-08.** The first draft of this section
+> proposed ~140 net-new parameters under fresh namespaces (`ROM_*`,
+> `WAT_*`, `ELE_*`, `CEQ_*`, `MGAS_*`, etc.). After full crosscheck the
+> net-new count drops to **~95** because (a) ~25 already exist under
+> different names, (b) ~20 must re-prefix to match existing namespaces
+> (`ELC_*`, `PLM_*`, `HVC_*`, `FLS_*`, `MNT_*`, `ASS_ROOM_*`, `PRJ_ORG_*`),
+> and (c) one proposed namespace (`HEALTH_*`) clashes with the existing
+> `HEALTH_METRICS` group (23 — model-health-score, not building-health).
+
 All parameters are **`SHARED`** type, scoped per the existing
 `ParamRegistry` JSON conventions. GUIDs are minted from a stable
 namespace `c8d4f6e2-a9b3-4d27-8c61-0e7a3f9b2d15` (UUIDv5 over the
 parameter name). Storage type is given in column 3.
 
-### 5.1 Room-level (binds to Rooms)
+### 5.0 Crosscheck — duplicates to drop, params to re-prefix
+
+Three categories. Reuse first, rename second, mint last.
+
+#### 5.0.1 Drop — already present under a different name
+
+| First-draft proposal | Existing parameter | Group | Action |
+|---|---|---|---|
+| `ROM_PRESS_DELTA_PA_NUM` (required Δp) | `MEP_DELTA_PRESS_PA` (TEXT) | 5 (HVC) | **Drop** — reuse; storage upgrade to NUMBER tracked separately |
+| `ROM_ACH_REQ_NUM` | `HVC_AIR_CHANGES_PER_HR` (TEXT) | 5 (HVC) | **Drop** — reuse |
+| `ROM_TEMP_DESIGN_C_NUM` | `PER_ENVIRONMENTAL_TEMP_DESIGN_C` *and* `MEP_DESIGN_TEMP_C` *and* `SYS_TEMPERATURE_NR` | 9 / 5 / 11 | **Drop** — reuse `PER_ENVIRONMENTAL_TEMP_DESIGN_C` for design temp |
+| `ROM_RH_DESIGN_PCT_NUM` | `PER_ENVIRONMENTAL_HUMIDITY_DESIGN_PCT` | 9 | **Drop** — reuse |
+| `ROM_NOISE_NR_NUM` | `PER_ACOUSTICS_BACKGROUND_NOISE_DB` | 9 | **Drop** for background noise; if NR-rating is required separately, mint `CLN_ROOM_NOISE_NR_NR` (NR ≠ dB(A)) |
+| `ROM_PHE_REFUGE_BOOL` | `RGL_ACCESS_REFUGE_AREA_TXT` | 15 (RGL) | **Drop** — reuse (TEXT carries `Y / N / Code`) |
+| `ROM_OCC_CLINICAL_INT` | `ASS_DESIGN_OCCUPANCY_INT` *and* `BLE_ROOM_OCCUPANCY_NR` *and* `FLS_SFTY_OCCUPANT_LOAD_NR` | 1 / 10 / 8 | **Drop** — reuse `ASS_DESIGN_OCCUPANCY_INT` for clinical occupancy; visitors mint as new |
+| `CEQ_MAKE_TXT` | `ASS_MANUFACTURER_TXT` | 1 | **Drop** — reuse |
+| `CEQ_MODEL_TXT` | `ASS_MODEL_NR_TXT` | 1 | **Drop** — reuse |
+| `CEQ_PPM_FREQ_TXT` | `ASS_MAINTENANCE_FREQUENCY_MONTHS` *and* `ASS_MAINT_INTERVAL_TXT` *and* `MNT_SERVICE_INTERVAL_TXT` | 1 / 1 / 25 | **Drop** — reuse `ASS_MAINTENANCE_FREQUENCY_MONTHS` (numeric) |
+| `CEQ_CALIBRATION_DT` | `MNT_LAST_SERVICE_DATE_TXT` exists; calibration date does NOT | 25 | **Partial** — calibration is distinct from service; mint `MNT_CAL_LAST_DT` + `MNT_CAL_NEXT_DT` (matches `MNT_*` convention) |
+| (no proposal — serial) | `ASS_SERIAL_NR_TXT` already exists | 1 | (use as-is for clinical equipment serial) |
+| (no proposal — barcode) | `ASS_BARCODE_TXT` already exists | 1 | (use as-is for asset tracking) |
+| Room area / volume / height / name / number (implied by RDS template) | `ASS_ROOM_AREA_SQ_M`, `ASS_ROOM_VOLUME_CU_M`, `ASS_ROOM_HEIGHT_MM`, `ASS_ROOM_NAME_TXT`, `ASS_ROOM_NUM_TXT`, `ASS_ROOM_FUNCTION_USE_TXT` | 1 | **Reuse** — RDS template tokens bind to these |
+| Room finishes (floor / ceiling / wall / base) | `BLE_ROOM_FINISH_FLOOR_TXT`, `BLE_ROOM_FINISH_CEILING_TXT`, `BLE_ROOM_FINISH_WALL_TXT`, `BLE_ROOM_FINISH_BASE_TXT` | 10 (BLE) | **Reuse** — RDS template tokens bind to these |
+| Room lighting design lux (RDS token) | `LTG_DESIGN_ILLUMINANCE_LUX` *and* `ASS_DESIGN_LTG_LVL_LUX_NR` | 7 / 1 | **Reuse** — `LTG_DESIGN_ILLUMINANCE_LUX` |
+| Room lighting colour temp (RDS token) | `LTG_CLR_TEMP_K` | 7 | **Reuse** |
+| Door acoustic rating (RDS token) | `BLE_DOOR_ACOUSTIC_RATING_DB`, `BLE_DOOR_ACOUSTIC_STC_NR` | 10 | **Reuse** |
+| Floor impact sound (RDS token) | `BLE_FLR_IMPACT_SOUND_INS_DB` | 10 | **Reuse** |
+| `MGAS_PIPE_MATERIAL_TXT` | `HVC_PIPE_*` material covered via `SYS_INSULATION_TYPE_TXT` and material params on the pipe type | 5 / 11 | **Drop** — material rides on the pipe type; `MGAS_GAS_TYPE_TXT` discriminates the system |
+| MGAS test pressure | `ASS_TEST_PRESSURE_BAR` already exists | 1 | **Reuse** — drop dedicated MGAS test-pressure param |
+| MGAS terminal-unit ↔ ZVB linkage (`MGAS_ZVB_REF_TXT`) | `ASS_TIEIN_REF_TXT` + `ASS_TIEIN_CONNECTED_BOOL` + `ASS_TIEIN_FLOW_DIR_TXT` already exist as a generic tie-in framework (10 params) | 1 | **Reuse** the tie-in framework for TU↔ZVB linkage; keep `MGAS_ZVB_REF_TXT` only as a denormalised quick-lookup, optional |
+| Cost / lead-time for medical equipment | `CST_DELIVERY_LEAD_TIME_DAYS`, `CST_SUP_PROCUREMENT_LEAD_TIME_DAYS`, `WARN_ASS_LEAD_TIME_SPECIALTY_EQUIP`, `WARN_GEN_SPEC_EQUIP_LEAD_TIME` | 2 / 18 | **Reuse** — clinical-equipment lead-time rides existing CST + WARN slots |
+| `ELC_EMERG_COVERED_BOOL` (existing binary "is this on emergency power?") | exists, but cannot represent LS / CR / EQ / N | 4 | **Keep both** — `ELC_EMERG_COVERED_BOOL` stays as the legacy binary; new `ELC_EES_BRANCH_TXT` carries the four-value branch |
+| `LTG_EMRG_TYPE_TXT` *and* `LTG_EMERGENCY_TXT` | exist for emergency lighting type | 7 | **Reuse** — emergency lighting type isn't an EES branch |
+| Fire-rating of construction (carrier of the room boundary) | `PER_FIRE_RATING_HR`, `PER_FIRE_RATING_MINS`, `PROP_FIRE_RATING`, `RGL_FIRE_RATING_TXT` | 14 / 9 / 15 | **Reuse** — none of these is a *compartment ID*; the new `FLS_COMPARTMENT_ID_TXT` is additive |
+| Fire compartment occupant load | `BLE_ROOM_FIRE_ESCAPE_CAPACITY_NR`, `FLS_SFTY_OCCUPANT_LOAD_NR`, `FLS_EVACUATION_TIME_MIN`, `FLS_EXIT_TRAVEL_DIST_M` | 10 / 8 | **Reuse** — PHE refuge + evacuation time are already there |
+
+#### 5.0.2 Re-prefix — keep concept, match existing namespace
+
+| First-draft name | Adopted name | Reason |
+|---|---|---|
+| `ROM_HEPA_REQ_BOOL`, `ROM_HEPA_GRADE_TXT`, `ROM_HEPA_LAST_TST_DT` | `HVC_HEPA_REQ_BOOL`, `HVC_HEPA_GRADE_TXT`, `HVC_HEPA_LAST_TST_DT` | HEPA is HVAC — matches `HVC_*` group 5 |
+| `WAT_TMV_TYPE_TXT`, `WAT_DEAD_LEG_M_NUM`, `WAT_AUG_CARE_BOOL`, `WAT_POU_FILTER_BOOL`, `WAT_SENTINEL_BOOL`, `WAT_FLUSH_LOG_REF_TXT`, `WAT_RO_LOOP_BOOL` | `PLM_TMV_TYPE_TXT`, `PLM_DEAD_LEG_M_NUM`, `PLM_AUG_CARE_BOOL`, `PLM_POU_FILTER_BOOL`, `PLM_SENTINEL_BOOL`, `PLM_FLUSH_LOG_REF_TXT`, `PLM_RO_LOOP_BOOL` | Water safety lives under `PLM_*` group 6 |
+| `ELE_BRANCH_TXT`, `ELE_ATS_TIME_S_NUM`, `ELE_IPS_BOOL`, `ELE_IT_CARDIAC_BOOL`, `ELE_RECEPT_TYPE_TXT`, `ELE_GEN_RUN_HRS_TGT_NUM`, `ELE_LSC_TIER_TXT` | `ELC_EES_BRANCH_TXT`, `ELC_ATS_TIME_S_NUM`, `ELC_IPS_BOOL`, `ELC_IT_CARDIAC_BOOL`, `ELC_RECEPT_TYPE_TXT`, `ELC_GEN_RUN_HRS_TGT_NUM`, `ELC_LSC_TIER_TXT` | All electrical params use `ELC_*` group 4 |
+| `ROM_FIRE_COMP_TXT` | `FLS_COMPARTMENT_ID_TXT` | Fire-compartment membership is FLS — group 8 |
+| `ROM_HEALTH_CLASS_TXT`, `ROM_HBN_REF_TXT`, `ROM_FGI_REF_TXT`, `ROM_HTM_REF_TXT`, `ROM_ADB_CODE_TXT`, `ROM_PRESS_REGIME_TXT`, `ROM_PRESS_DELTA_ACT_PA_NUM`, `ROM_INFECT_CLASS_TXT`, `ROM_ANTERM_LINKED_ID_TXT`, `ROM_RAD_CONTROLLED_BOOL`, `ROM_RAD_DESIGN_GOAL_MGY_NUM`, `ROM_RAD_LEAD_REQ_MM_NUM`, `ROM_RAD_LEAD_ACT_MM_NUM`, `ROM_MRI_ZONE_INT`, `ROM_RF_SHIELD_BOOL`, `ROM_LIGATURE_RES_BOOL`, `ROM_LIG_RISK_LVL_TXT`, `ROM_BARI_DESIGN_KG_NUM`, `ROM_HOIST_TRACK_BOOL`, `ROM_NURSECALL_TYPE_TXT`, `ROM_PRIVACY_LVL_TXT` | All re-prefixed `CLN_*` (Clinical — new group 28) | New three-letter namespace `CLN_*` matches existing `HVC_/PLM_/ELC_/LTG_/FLS_/MAT_/MNT_` convention. Group 23 `HEALTH_METRICS` is reserved for model-health and must not be reused |
+| `MGAS_*` (13 params) | `MGS_*` (13 params) — `MGS_GAS_TYPE_TXT`, `MGS_NOM_PRESS_KPA_NUM`, `MGS_DESIGN_FLOW_LPM_NUM`, `MGS_DIVERSITY_PCT_NUM`, `MGS_TU_BS5682_BOOL`, `MGS_TU_INDEXED_BOOL`, `MGS_ZVB_REF_TXT`, `MGS_AAP_REF_TXT`, `MGS_PIPE_BRAZED_BOOL`, `MGS_VERIFY_DT`, `MGS_VERIFY_BY_TXT`, `MGS_VERIFY_PASS_BOOL` (12 — material dropped, test-pressure dropped) | Three-letter prefix matches existing `HVC_/PLM_/ELC_` convention |
+| `RAD_*` (8 params) | `RAD_*` — kept as-is | 3-letter, no clash |
+| `LIG_*` (5 params) | `LIG_*` — kept as-is | 3-letter, no clash |
+| `CEQ_*` (5 surviving params: GMDN / UMDNS / SFG20 ref / clinical flag / Spaulding tier / decon method) | `CEQ_*` — kept as-is | 3-letter, no clash |
+| `PRJ_HEALTH_*` (12 project-info params) | `PRJ_ORG_HEALTH_*` (12 params) | Matches Phase 112 `PRJ_ORG_*` convention. Lands inside group 13 `PRJ_INFORMATION` |
+
+#### 5.0.3 Existing infrastructure to plug into rather than duplicate
+
+| Existing system | What to plug in |
+|---|---|
+| `ASS_TIEIN_*` (10 params, generic tie-in framework) | MGS terminal-unit ↔ zone-valve-box and ↔ alarm-panel linkage rides on the existing tie-in framework (`ASS_TIEIN_REF_TXT`, `ASS_TIEIN_CONNECTED_BOOL`, `ASS_TIEIN_FLOW_DIR_TXT`, `ASS_TIEIN_PHASE_TXT`, `ASS_TIEIN_BY_TXT`, `ASS_TIEIN_STATUS_TXT`, `ASS_TIEIN_IFC_REF_TXT`, `ASS_TIEIN_TAG_1_TXT`). Healthcare adds only `MGS_GAS_TYPE_TXT` to discriminate gas |
+| `MNT_*` (5 params for last/next service / interval / provider / warranty) | All clinical-equipment PPM rides on this; calibration adds `MNT_CAL_LAST_DT` + `MNT_CAL_NEXT_DT` only |
+| `ASS_WARRANTY_*` (5 params, parts/labor/duration) | All clinical-equipment warranties ride on this |
+| `WARN_BLE_MEDICAL_CLEARANCE_MEDICAL_EQUIP`, `WARN_BLE_MEDICAL_POWER_MEDICAL_EQUIP`, `WARN_RGL_STD_MEDICAL_EQUIP`, `WARN_ASS_LEAD_TIME_SPECIALTY_EQUIP`, `WARN_GEN_SPEC_EQUIP_LEAD_TIME` (5 existing healthcare-flavoured `WARN_*` thresholds) | Healthcare validators publish back into these existing warning channels via `WarningsManager` so the existing warnings dashboard surfaces healthcare drift without UI changes |
+| `ELC_LPS_CERT_REF_TXT`, `ELC_FAT_CERT_REF_TXT` (existing certificate-ref pattern) | MGPS verification cert rides this pattern; new `MGS_VERIFY_CERT_REF_TXT` mirrors `ELC_FAT_CERT_REF_TXT` shape |
+| `ELC_PANEL_SCHEDULE_REF_TXT`, `ELC_CIRCUIT_REF_TXT` | EES branch is a *classification* on the existing circuit; `ELC_EES_BRANCH_TXT` rides alongside the existing circuit refs, no parallel framework |
+| `RGL_ACCESS_REFUGE_AREA_TXT` | Reuse for PHE refuge designation |
+| Group 23 `HEALTH_METRICS` (model-health-score) | **Do not extend** — strict naming separation. Group 28 `CLN_CLINICAL` (new) is the home of clinical-attribute params |
+| Group 25 `COMMISSIONING` | Healthcare commissioning workflows persist run records here, reusing the existing schema |
+| `CST_DELIVERY_LEAD_TIME_DAYS`, `CST_SUP_PROCUREMENT_LEAD_TIME_DAYS` | Long-lead clinical-equipment dates ride these |
+
+#### 5.0.4 Group additions to `PARAMETER_REGISTRY.json`
+
+| New group id | Code | Purpose |
+|---|---|---|
+| 28 | `CLN_CLINICAL` | Room-bound clinical attributes (room class, infection class, MRI zone, RF shielding, ligature, hoist, bariatric, nurse-call type, privacy, anteroom link, etc.) |
+| 29 | `MGS_SYSTEMS` | Medical gas pipeline systems (parallel to `HVC_SYSTEMS` / `PLM_DRN`) |
+| 30 | `RAD_PROTECTION` | Radiation shielding (NCRP 147 / 151 driven, X-ray / CT / MRI / LINAC) |
+| 31 | `CEQ_CLINICAL` | Clinical equipment classification (GMDN / UMDNS / SFG20-Healthcare / Spaulding) |
+| 32 | `LIG_BEHAVIOURAL` | Anti-ligature / behavioural-health attributes |
+
+`HVC_HEPA_*`, `PLM_TMV_*`, `PLM_DEAD_LEG_*`, `PLM_AUG_CARE_*`, `PLM_RO_*`,
+`ELC_EES_*`, `ELC_IPS_*`, `ELC_IT_CARDIAC_*`, `FLS_COMPARTMENT_*`, and
+`MNT_CAL_*` extensions land in their existing groups (5, 6, 4, 8, 25)
+and need no new group.
+
+---
+
+### 5.1 Clinical room-bound (group 28 `CLN_CLINICAL`, binds to Rooms)
 
 | Parameter | Type | Purpose |
 |---|---|---|
-| `ROM_HEALTH_CLASS_TXT` | TEXT | Clinical room class (§4.5) |
-| `ROM_HBN_REF_TXT` | TEXT | HBN reference (e.g. `HBN 04-01 R-1234`) |
-| `ROM_FGI_REF_TXT` | TEXT | FGI section reference |
-| `ROM_HTM_REF_TXT` | TEXT | HTM reference |
-| `ROM_ADB_CODE_TXT` | TEXT | NHS ADB room code |
-| `ROM_PRESS_REGIME_TXT` | TEXT | `NEG / POS / NEUTRAL` |
-| `ROM_PRESS_DELTA_PA_NUM` | NUMBER | Δp (Pa) — required design value |
-| `ROM_PRESS_DELTA_ACT_PA_NUM` | NUMBER | Δp last-tested value |
-| `ROM_ACH_REQ_NUM` | INTEGER | Required air changes / hour |
-| `ROM_ACH_OUTSIDE_NUM` | INTEGER | Outside-air component |
-| `ROM_HEPA_REQ_BOOL` | YESNO | HEPA terminal required |
-| `ROM_HEPA_GRADE_TXT` | TEXT | `H13`, `H14`, `U15`, `U16` |
-| `ROM_HEPA_LAST_TST_DT` | TEXT (ISO date) | Last DOP / PAO test |
-| `ROM_TEMP_DESIGN_C_NUM` | NUMBER | Design temperature |
-| `ROM_RH_DESIGN_PCT_NUM` | NUMBER | Design relative humidity |
-| `ROM_NOISE_NR_NUM` | INTEGER | NR rating ceiling |
-| `ROM_INFECT_CLASS_TXT` | TEXT | `STD / AIIR / PE / CLASS-N / CLASS-P` |
-| `ROM_ANTERM_LINKED_ID_TXT` | TEXT | ElementId of paired anteroom |
-| `ROM_OCC_CLINICAL_INT` | INTEGER | Clinical occupancy (excl. visitors) |
-| `ROM_RAD_CONTROLLED_BOOL` | YESNO | IRR17 controlled area? |
-| `ROM_RAD_DESIGN_GOAL_MGY_NUM` | NUMBER | NCRP 147 design goal (mGy/yr) |
-| `ROM_RAD_LEAD_REQ_MM_NUM` | NUMBER | Required Pb-equivalent thickness |
-| `ROM_RAD_LEAD_ACT_MM_NUM` | NUMBER | Specified thickness |
-| `ROM_MRI_ZONE_INT` | INTEGER | 1..4 |
-| `ROM_RF_SHIELD_BOOL` | YESNO | RF Faraday cage present |
-| `ROM_FIRE_COMP_TXT` | TEXT | Fire compartment ID |
-| `ROM_PHE_REFUGE_BOOL` | YESNO | Designated PHE refuge zone |
-| `ROM_LIGATURE_RES_BOOL` | YESNO | Anti-ligature design applies |
-| `ROM_LIG_RISK_LVL_TXT` | TEXT | `LOW / MED / HIGH / VERY-HIGH` |
-| `ROM_BARI_DESIGN_KG_NUM` | NUMBER | Bariatric SWL (kg) |
-| `ROM_HOIST_TRACK_BOOL` | YESNO | Ceiling-hoist track installed |
-| `ROM_NURSECALL_TYPE_TXT` | TEXT | `STD / EMG / ASSAULT / CARDIAC` |
-| `ROM_PRIVACY_LVL_TXT` | TEXT | `OPEN / SEMI / SINGLE / SECURE` |
+| `CLN_ROOM_CLASS_TXT` | TEXT | Clinical room class enum (§4.5) |
+| `CLN_HBN_REF_TXT` | TEXT | HBN reference (e.g. `HBN 04-01 R-1234`) |
+| `CLN_FGI_REF_TXT` | TEXT | FGI section reference |
+| `CLN_HTM_REF_TXT` | TEXT | HTM reference |
+| `CLN_ADB_CODE_TXT` | TEXT | NHS ADB room code |
+| `CLN_PRESS_REGIME_TXT` | TEXT | `NEG / POS / NEUTRAL` (Δp itself rides on existing `MEP_DELTA_PRESS_PA`; design Δp adds `CLN_PRESS_DELTA_DESIGN_PA_NR` because the existing param is field-measured) |
+| `CLN_PRESS_DELTA_DESIGN_PA_NR` | NUMBER | Required design Δp (Pa) — distinct from field-tested `MEP_DELTA_PRESS_PA` |
+| `CLN_INFECT_CLASS_TXT` | TEXT | `STD / AIIR / PE / CLASS-N / CLASS-P` |
+| `CLN_ANTERM_LINKED_ID_TXT` | TEXT | ElementId of paired anteroom |
+| `CLN_OCC_VISITOR_INT` | INTEGER | Visitor headcount (clinical occupancy reuses `ASS_DESIGN_OCCUPANCY_INT`) |
+| `CLN_RAD_CONTROLLED_BOOL` | YESNO | IRR17 controlled area? |
+| `CLN_MRI_ZONE_INT` | INTEGER | 1..4 |
+| `CLN_RF_SHIELD_BOOL` | YESNO | RF Faraday cage present |
+| `CLN_LIGATURE_RES_BOOL` | YESNO | Anti-ligature design applies |
+| `CLN_LIG_RISK_LVL_TXT` | TEXT | `LOW / MED / HIGH / VERY-HIGH` |
+| `CLN_BARI_DESIGN_KG_NR` | NUMBER | Bariatric SWL (kg) |
+| `CLN_HOIST_TRACK_BOOL` | YESNO | Ceiling-hoist track installed |
+| `CLN_NURSECALL_TYPE_TXT` | TEXT | `STD / EMG / ASSAULT / CARDIAC` |
+| `CLN_PRIVACY_LVL_TXT` | TEXT | `OPEN / SEMI / SINGLE / SECURE` |
+| `CLN_NOISE_NR_NR` | INTEGER | NR rating (mint only if NR ≠ existing `PER_ACOUSTICS_BACKGROUND_NOISE_DB` semantics; otherwise drop) |
 
-### 5.2 Element-level — medical gas
+(19 params in CLN — down from 32 in the first draft.)
+
+### 5.2 Medical gas (group 29 `MGS_SYSTEMS`, binds to Pipes / Mech Equipment / Plumbing Fixtures)
 
 | Parameter | Type | Purpose |
 |---|---|---|
-| `MGAS_GAS_TYPE_TXT` | TEXT | `O2 / MA4 / MA7 / N2O / N2 / CO2 / HE / VAC / AGS` |
-| `MGAS_NOM_PRESS_KPA_NUM` | NUMBER | Nominal pressure (kPa) |
-| `MGAS_DESIGN_FLOW_LPM_NUM` | NUMBER | Design flow (l/min, free air) |
-| `MGAS_DIVERSITY_PCT_NUM` | NUMBER | Diversity factor (%) |
-| `MGAS_TU_BS5682_BOOL` | YESNO | Terminal unit complies with BS 5682 |
-| `MGAS_TU_INDEXED_BOOL` | YESNO | Has gas-specific indexing |
-| `MGAS_ZVB_REF_TXT` | TEXT | Owning zone valve box ID |
-| `MGAS_AAP_REF_TXT` | TEXT | Owning area alarm panel ID |
-| `MGAS_PIPE_MATERIAL_TXT` | TEXT | `Cu-Y / Cu-X / SS-316L` |
-| `MGAS_PIPE_BRAZED_BOOL` | YESNO | Brazed under inert gas |
-| `MGAS_VERIFY_DT` | TEXT | NFPA 99 verification date |
-| `MGAS_VERIFY_BY_TXT` | TEXT | ASSE 6030 verifier name |
-| `MGAS_VERIFY_PASS_BOOL` | YESNO | Latest verification passed |
+| `MGS_GAS_TYPE_TXT` | TEXT | `O2 / MA4 / MA7 / N2O / N2 / CO2 / HE / VAC / AGS / DENT` |
+| `MGS_NOM_PRESS_KPA_NR` | NUMBER | Nominal design pressure (kPa) — distinct from field-tested `HVC_PIPE_PRESSURE_KPA` and `ASS_TEST_PRESSURE_BAR` |
+| `MGS_DESIGN_FLOW_LPM_NR` | NUMBER | Design flow (l/min, free air) — l/min is the medical-gas convention; existing `HVC_PIPE_FLOWRATE_LPS` is wrong unit |
+| `MGS_DIVERSITY_PCT_NR` | NUMBER | Diversity factor (%) |
+| `MGS_TU_BS5682_BOOL` | YESNO | Terminal unit complies with BS 5682 |
+| `MGS_TU_INDEXED_BOOL` | YESNO | Has gas-specific NIST indexing |
+| `MGS_ZVB_REF_TXT` | TEXT | Owning zone valve box ID (denormalised; canonical link rides `ASS_TIEIN_REF_TXT`) |
+| `MGS_AAP_REF_TXT` | TEXT | Owning area alarm panel ID |
+| `MGS_PIPE_BRAZED_BOOL` | YESNO | Brazed under inert-gas purge |
+| `MGS_VERIFY_DT` | TEXT (ISO date) | NFPA 99 §5.1.12 verification date |
+| `MGS_VERIFY_BY_TXT` | TEXT | ASSE 6030 verifier name |
+| `MGS_VERIFY_PASS_BOOL` | YESNO | Latest verification passed |
+| `MGS_VERIFY_CERT_REF_TXT` | TEXT | Verification certificate reference (mirrors `ELC_FAT_CERT_REF_TXT`) |
 
-### 5.3 Element-level — essential electrical
+(13 params, all new. Pipe material drops — rides existing pipe-type material; test pressure drops — reuses `ASS_TEST_PRESSURE_BAR`.)
 
-| Parameter | Type | Purpose |
-|---|---|---|
-| `ELE_BRANCH_TXT` | TEXT | `LIFE-SAF / CRIT / EQP-BR / NORMAL` |
-| `ELE_ATS_TIME_S_NUM` | NUMBER | Required ATS transfer time (s) |
-| `ELE_IPS_BOOL` | YESNO | Powered from isolated power system |
-| `ELE_IT_CARDIAC_BOOL` | YESNO | Cardiac-protected outlet |
-| `ELE_RECEPT_TYPE_TXT` | TEXT | `HOSP-GR / TR / ISO / EMG-RED` |
-| `ELE_GEN_RUN_HRS_TGT_NUM` | NUMBER | Required runtime (h) at full load |
-| `ELE_LSC_TIER_TXT` | TEXT | NEC 517 Tier — `1 / 2 / 3` |
-
-### 5.4 Element-level — water safety
+### 5.3 Essential electrical (extends group 4 `ELC_PWR`)
 
 | Parameter | Type | Purpose |
 |---|---|---|
-| `WAT_TMV_TYPE_TXT` | TEXT | `TMV2 / TMV3 / NONE` |
-| `WAT_DEAD_LEG_M_NUM` | NUMBER | Distance from main to outlet (m) |
-| `WAT_AUG_CARE_BOOL` | YESNO | Augmented-care wing rules apply |
-| `WAT_POU_FILTER_BOOL` | YESNO | Point-of-use filter fitted |
-| `WAT_SENTINEL_BOOL` | YESNO | Sentinel temperature point |
-| `WAT_FLUSH_LOG_REF_TXT` | TEXT | Flushing-log document ref |
-| `WAT_RO_LOOP_BOOL` | YESNO | Belongs to dialysis RO loop |
+| `ELC_EES_BRANCH_TXT` | TEXT | `LIFE-SAF / CRIT / EQP-BR / NORMAL` (existing `ELC_EMERG_COVERED_BOOL` retained as legacy binary) |
+| `ELC_ATS_TIME_S_NR` | NUMBER | Required ATS transfer time (s) — NFPA 99 ≤ 10 s for LS / CR |
+| `ELC_IPS_BOOL` | YESNO | Powered from isolated power system (NEC 517) |
+| `ELC_IT_CARDIAC_BOOL` | YESNO | Cardiac-protected outlet |
+| `ELC_RECEPT_TYPE_TXT` | TEXT | `HOSP-GR / TR / ISO / EMG-RED` |
+| `ELC_GEN_RUN_HRS_TGT_NR` | NUMBER | Required runtime (h) at full load |
+| `ELC_LSC_TIER_TXT` | TEXT | NEC 517 / NFPA 99 Tier — `1 / 2 / 3` |
 
-### 5.5 Element-level — radiation
+(7 params — all new — sit alongside existing `ELC_EMERG_COVERED_BOOL`, `ELC_PANEL_SCHEDULE_REF_TXT`, `ELC_CIRCUIT_REF_TXT`.)
+
+### 5.4 Water safety (extends group 6 `PLM_DRN`)
 
 | Parameter | Type | Purpose |
 |---|---|---|
-| `RAD_LEAD_MM_NUM` | NUMBER | Pb-equivalent thickness in this element |
+| `PLM_TMV_TYPE_TXT` | TEXT | `TMV2 / TMV3 / NONE` |
+| `PLM_DEAD_LEG_M_NR` | NUMBER | Distance from main to outlet (m) |
+| `PLM_AUG_CARE_BOOL` | YESNO | Augmented-care wing rules apply (HTM 04-01 Pt C) |
+| `PLM_POU_FILTER_BOOL` | YESNO | Point-of-use filter fitted |
+| `PLM_SENTINEL_BOOL` | YESNO | Sentinel temperature point |
+| `PLM_FLUSH_LOG_REF_TXT` | TEXT | Flushing-log document ref |
+| `PLM_RO_LOOP_BOOL` | YESNO | Belongs to dialysis RO loop |
+
+(7 params — hot/cold-water temps reuse existing `PLM_HOTWTR_TEMP_C`.)
+
+### 5.5 HEPA / cleanroom ventilation (extends group 5 `HVC_SYSTEMS`)
+
+| Parameter | Type | Purpose |
+|---|---|---|
+| `HVC_HEPA_REQ_BOOL` | YESNO | HEPA terminal required |
+| `HVC_HEPA_GRADE_TXT` | TEXT | `H13 / H14 / U15 / U16` (BS EN 1822) |
+| `HVC_HEPA_LAST_TST_DT` | TEXT (ISO date) | Last DOP / PAO test |
+| `HVC_ACH_OUTSIDE_NR` | INTEGER | Outside-air component (total ACH reuses existing `HVC_AIR_CHANGES_PER_HR`) |
+
+(4 params — ACH reuses existing.)
+
+### 5.6 Radiation (group 30 `RAD_PROTECTION`, binds to Walls / Doors / Windows / GenericModel)
+
+| Parameter | Type | Purpose |
+|---|---|---|
+| `RAD_LEAD_MM_NR` | NUMBER | Pb-equivalent thickness in this element |
 | `RAD_BARRIER_TYPE_TXT` | TEXT | `PRIMARY / SECONDARY / SCATTER / LEAKAGE` |
-| `RAD_WORKLOAD_MAWK_NUM` | NUMBER | Workload (mA·min/wk) |
-| `RAD_USE_FACTOR_NUM` | NUMBER | NCRP 147 U |
-| `RAD_OCC_FACTOR_NUM` | NUMBER | NCRP 147 T |
+| `RAD_WORKLOAD_MAWK_NR` | NUMBER | Workload (mA·min/wk) |
+| `RAD_USE_FACTOR_NR` | NUMBER | NCRP 147 U |
+| `RAD_OCC_FACTOR_NR` | NUMBER | NCRP 147 T |
 | `RAD_DOSE_DESIGN_GOAL_TXT` | TEXT | `CONTROLLED / UNCONTROLLED` |
 | `RAD_QE_NAME_TXT` | TEXT | Qualified Expert (medical / health physicist) |
-| `RAD_QE_DT` | TEXT | Sign-off date |
+| `RAD_QE_DT` | TEXT (ISO date) | Sign-off date |
 
-### 5.6 Element-level — clinical equipment / FF&E
+(8 params, all new.)
+
+### 5.7 Clinical equipment (group 31 `CEQ_CLINICAL`, binds to Mechanical Equipment / Specialty Equipment / GenericModel)
 
 | Parameter | Type | Purpose |
 |---|---|---|
-| `CEQ_CATEGORY_TXT` | TEXT | `PENDANT / BEDHEAD / IMAGING / PHARMACY / DIAL / MORT` |
-| `CEQ_MAKE_TXT` | TEXT | Manufacturer |
-| `CEQ_MODEL_TXT` | TEXT | Model |
+| `CEQ_CATEGORY_TXT` | TEXT | `PENDANT / BEDHEAD / IMAGING / PHARMACY / DIAL / MORT / MOBIL` |
 | `CEQ_GMDN_CODE_TXT` | TEXT | Global Medical Device Nomenclature code |
 | `CEQ_UMDNS_CODE_TXT` | TEXT | ECRI UMDNS code |
 | `CEQ_SFG20_REF_TXT` | TEXT | SFG20 healthcare schedule id |
-| `CEQ_PPM_FREQ_TXT` | TEXT | PPM frequency token |
 | `CEQ_CLINICAL_BOOL` | YESNO | Counts towards clinical asset register |
 | `CEQ_INFECT_TIER_TXT` | TEXT | Spaulding `CRITICAL / SEMI / NON-CRITICAL` |
-| `CEQ_CALIBRATION_DT` | TEXT | Last calibration |
 | `CEQ_DECON_METHOD_TXT` | TEXT | Decon route |
 
-### 5.7 Anti-ligature / behavioural
+(7 params — make/model/serial/PPM/warranty/cost all reuse `ASS_*` and `MNT_*`.)
+
+Calibration extensions in group 25 `COMMISSIONING`:
+
+| Parameter | Type | Purpose |
+|---|---|---|
+| `MNT_CAL_LAST_DT` | TEXT (ISO date) | Last calibration date |
+| `MNT_CAL_NEXT_DT` | TEXT (ISO date) | Next calibration due |
+
+(2 params, additive to existing `MNT_*` set.)
+
+### 5.8 Anti-ligature / behavioural (group 32 `LIG_BEHAVIOURAL`)
 
 | Parameter | Type | Purpose |
 |---|---|---|
 | `LIG_PRODUCT_RATING_TXT` | TEXT | `BS 9263 LR1..LR4` or US grade |
 | `LIG_SELF_CLOSE_BOOL` | YESNO | Self-closing fitting |
 | `LIG_PRESSURE_REL_BOOL` | YESNO | Releases under load |
-| `LIG_FORCE_LIMIT_KG_NUM` | NUMBER | Release threshold |
-| `LIG_AREA_OBS_LOS_TXT` | TEXT | Observation line-of-sight required |
+| `LIG_FORCE_LIMIT_KG_NR` | NUMBER | Release threshold |
+| `LIG_AREA_OBS_LOS_TXT` | TEXT | Observation line-of-sight code |
 
-### 5.8 Healthcare project info
+(5 params, all new.)
 
-Project Information container `PRJ_HEALTH_*`: `PRJ_HEALTH_FACILITY_TYPE_TXT`
-(`Acute / Mental / Community / Rehab / Day / FM`),
-`PRJ_HEALTH_BEDS_INT`, `PRJ_HEALTH_OR_INT`, `PRJ_HEALTH_ICU_INT`,
-`PRJ_HEALTH_CODE_BASE_TXT` (`HBN/HTM`, `FGI`, `iHFG`, `Other`),
-`PRJ_HEALTH_AREA_M2_NUM`, `PRJ_HEALTH_AHJ_TXT`, `PRJ_HEALTH_QE_TXT`,
-`PRJ_HEALTH_AE_VENT_TXT` (Authorising Engineer), `PRJ_HEALTH_AE_MGAS_TXT`,
-`PRJ_HEALTH_AE_WATER_TXT`, `PRJ_HEALTH_AE_ELEC_TXT`.
+### 5.9 Fire compartment (extends group 8 `FLS_LIFE_SFTY`)
+
+| Parameter | Type | Purpose |
+|---|---|---|
+| `FLS_COMPARTMENT_ID_TXT` | TEXT | Fire-compartment membership (`PER_FIRE_RATING_*` continues to rate the construction itself) |
+
+(1 param — PHE refuge designation reuses `RGL_ACCESS_REFUGE_AREA_TXT`; evacuation time + travel distance + escape capacity all reuse existing `FLS_*` / `BLE_ROOM_FIRE_ESCAPE_CAPACITY_NR`.)
+
+### 5.10 Healthcare project info (extends group 13 `PRJ_INFORMATION`, prefix `PRJ_ORG_HEALTH_*`)
+
+| Parameter | Type | Purpose |
+|---|---|---|
+| `PRJ_ORG_HEALTH_FACILITY_TYPE_TXT` | TEXT | `Acute / Mental / Community / Rehab / Day / FM` |
+| `PRJ_ORG_HEALTH_BEDS_INT` | INTEGER | Bed count |
+| `PRJ_ORG_HEALTH_OR_INT` | INTEGER | OR count |
+| `PRJ_ORG_HEALTH_ICU_INT` | INTEGER | ICU bed count |
+| `PRJ_ORG_HEALTH_CODE_BASE_TXT` | TEXT | `HBN/HTM`, `FGI`, `iHFG`, `Other` |
+| `PRJ_ORG_HEALTH_AREA_M2_NR` | NUMBER | GIA |
+| `PRJ_ORG_HEALTH_AHJ_TXT` | TEXT | Authority Having Jurisdiction |
+| `PRJ_ORG_HEALTH_QE_TXT` | TEXT | Qualified Expert (radiation) |
+| `PRJ_ORG_HEALTH_AE_VENT_TXT` | TEXT | Authorising Engineer — Ventilation |
+| `PRJ_ORG_HEALTH_AE_MGAS_TXT` | TEXT | AE — Medical Gas |
+| `PRJ_ORG_HEALTH_AE_WATER_TXT` | TEXT | AE — Water Safety |
+| `PRJ_ORG_HEALTH_AE_ELEC_TXT` | TEXT | AE — Electrical |
+
+(12 params — uses `PRJ_ORG_*` Phase 112 convention.)
+
+### 5.11 Net-new parameter count
+
+| Sub-pack | New params | Reuse existing |
+|---|---|---|
+| 5.1 CLN_CLINICAL (room-bound clinical) | **19** | `ASS_ROOM_*`, `BLE_ROOM_FINISH_*`, `ASS_DESIGN_OCCUPANCY_INT`, `BLE_ROOM_FIRE_ESCAPE_CAPACITY_NR`, `RGL_ACCESS_REFUGE_AREA_TXT`, `MEP_DELTA_PRESS_PA`, `PER_ACOUSTICS_*`, `PER_ENVIRONMENTAL_TEMP_DESIGN_C`, `PER_ENVIRONMENTAL_HUMIDITY_DESIGN_PCT`, `LTG_DESIGN_ILLUMINANCE_LUX`, `LTG_CLR_TEMP_K`, `BLE_DOOR_ACOUSTIC_*` |
+| 5.2 MGS_SYSTEMS | **13** | `ASS_TIEIN_*`, `ASS_TEST_PRESSURE_BAR`, `HVC_PIPE_PRESSURE_KPA` |
+| 5.3 ELC_PWR (EES extensions) | **7** | `ELC_EMERG_COVERED_BOOL`, `ELC_PANEL_SCHEDULE_REF_TXT`, `ELC_CIRCUIT_REF_TXT`, `ELC_FAT_CERT_REF_TXT` |
+| 5.4 PLM_DRN (water-safety extensions) | **7** | `PLM_HOTWTR_TEMP_C` |
+| 5.5 HVC_SYSTEMS (HEPA / ACH-outside) | **4** | `HVC_AIR_CHANGES_PER_HR` |
+| 5.6 RAD_PROTECTION | **8** | — |
+| 5.7 CEQ_CLINICAL | **7** + 2 calibration in MNT | `ASS_MANUFACTURER_TXT`, `ASS_MODEL_NR_TXT`, `ASS_SERIAL_NR_TXT`, `ASS_BARCODE_TXT`, `ASS_MAINTENANCE_FREQUENCY_MONTHS`, `ASS_MAINT_INTERVAL_TXT`, `ASS_MAINTENANCE_SCHEDULE_TXT`, `ASS_WARRANTY_*`, `MNT_*`, `CST_DELIVERY_LEAD_TIME_DAYS`, `CST_SUP_PROCUREMENT_LEAD_TIME_DAYS`, `ASS_OMNICLASS_TXT`, `ASS_UNICLASS_2015_TXT`, `ASS_UNIFORMAT_TXT`, `ASS_KEYNOTE_TXT` |
+| 5.8 LIG_BEHAVIOURAL | **5** | — |
+| 5.9 FLS_LIFE_SFTY (fire compartment) | **1** | `PER_FIRE_RATING_*`, `PROP_FIRE_RATING`, `RGL_FIRE_RATING_TXT`, `FLS_EVACUATION_TIME_MIN`, `FLS_EXIT_TRAVEL_DIST_M`, `FLS_SFTY_OCCUPANT_LOAD_NR` |
+| 5.10 PRJ_ORG_HEALTH | **12** | All other `PRJ_ORG_*` |
+| **Total net-new** | **~85** | (~30 existing parameters reused) |
+
+The first draft cited "~140" net-new params — the corrected count is
+roughly **40 % smaller**, with the difference reabsorbed into existing
+parameters.
 
 ---
 
@@ -465,14 +618,18 @@ shipped in any order after the common foundation.
 **Where it lands**
 
 ```
-StingTools/Data/MR_PARAMETERS.txt                     (+~140 rows)
+StingTools/Data/MR_PARAMETERS.txt                     (+~85 rows — see §5.0 crosscheck for re-prefixing
+                                                          and duplicate elimination against the existing 2,555 params)
 StingTools/Data/MR_PARAMETERS.csv                     (mirror)
-StingTools/Data/PARAMETER_REGISTRY.json               (4 new container groups)
-StingTools/Data/TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv     (new disciplines, systems, functions)
-StingTools/Data/TAG_CONFIG_v5_0_CONTAINERS.csv        (5 new container rows: ELE_HEALTH, MGAS_TAG, RAD_TAG, CEQ_TAG, LIG_TAG)
+StingTools/Data/PARAMETER_REGISTRY.json               (+5 GROUP rows: 28 CLN_CLINICAL, 29 MGS_SYSTEMS,
+                                                          30 RAD_PROTECTION, 31 CEQ_CLINICAL,
+                                                          32 LIG_BEHAVIOURAL; container groups + bindings)
+StingTools/Data/TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv     (new disciplines H/MG/RP, MGS-* systems, clinical functions)
+StingTools/Data/TAG_CONFIG_v5_0_CONTAINERS.csv        (5 new container rows: CLN_TAG, MGS_TAG, RAD_TAG, CEQ_TAG, LIG_TAG)
 StingTools/Data/TAG_CONFIG_v5_0_VALIDATION.csv        (clinical validation rules)
-StingTools/Data/STING_TAG_CONFIG_v5_0_HEALTH.csv      (NEW — 70+ tag families)
-StingTools/Core/ParamRegistry.cs                      (constants for hot-path params)
+StingTools/Data/STING_TAG_CONFIG_v5_0_HEALTH.csv      (NEW — 70+ tag families across H/MG/RP)
+StingTools/Core/ParamRegistry.cs                      (constants for hot-path params, e.g. CLN_ROOM_CLASS,
+                                                          MGS_GAS_TYPE, ELC_EES_BRANCH, RAD_LEAD_MM)
 StingTools/Core/TagConfig.cs                          (+1 const file load + ISO 19650 cross-validation entries)
 ```
 
@@ -480,6 +637,16 @@ StingTools/Core/TagConfig.cs                          (+1 const file load + ISO 
 
 - `LoadSharedParamsCommand` binds 100 % of new parameters in two passes
   without errors on a stock Revit project (no missing GUIDs).
+- No naming clash with existing `HEALTH_METRICS` (group 23) — all
+  clinical attributes use the `CLN_*` prefix; the model-health-score
+  pair (`HEALTH_SCORE_LAST_NR`, `HEALTH_SCORE_DATE_TXT`) is untouched.
+- Existing `WARN_BLE_MEDICAL_CLEARANCE_MEDICAL_EQUIP` and the four
+  other healthcare-flavoured `WARN_*` thresholds remain wired to
+  `WarningsManager` — Phase H-5 validators publish back into them
+  rather than re-introducing the same warnings.
+- Existing `ASS_TIEIN_*` framework (10 params) is reused for medical-gas
+  terminal-unit ↔ zone-valve-box ↔ alarm-panel linkage; no parallel
+  link framework is introduced.
 - `Tags.AutoTagCommand` on a sample hospital project produces non-empty
   `H-*-*-*-*-*-*-NNNN` tags for clinical equipment.
 - `PreTagAuditCommand` reports < 5 % unresolved tokens.
@@ -860,7 +1027,7 @@ default values for `ROM_PRESS_*`, `ROM_ACH_*`, `ROM_HEPA_*`,
 
 | File | Phase | Change kind |
 |---|---|---|
-| `Core/ParamRegistry.cs` | H-1 | + ~140 string constants; +4 container groups |
+| `Core/ParamRegistry.cs` | H-1 | + ~85 string constants; +5 groups (CLN_CLINICAL, MGS_SYSTEMS, RAD_PROTECTION, CEQ_CLINICAL, LIG_BEHAVIOURAL); extensions to ELC_PWR / HVC_SYSTEMS / PLM_DRN / FLS_LIFE_SFTY / PRJ_INFORMATION / COMMISSIONING — see §5.0 crosscheck |
 | `Core/TagConfig.cs` | H-1 | + load `STING_TAG_CONFIG_v5_0_HEALTH.csv`; +clinical room-class enum; +`TagConfig.HealthDisciplines`; cross-validator extension |
 | `Core/Drawing/DrawingTypeRegistry.cs` | H-3 | unchanged code; corporate JSON gets +16 entries |
 | `Core/Drawing/AecFilterRegistry.cs` | H-2 | unchanged code; +60 filter definitions in JSON |
