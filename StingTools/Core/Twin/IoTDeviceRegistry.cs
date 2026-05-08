@@ -67,7 +67,8 @@ namespace StingTools.Core.Twin
             var cats = new[] {
                 BuiltInCategory.OST_DataDevices, BuiltInCategory.OST_CommunicationDevices,
                 BuiltInCategory.OST_SecurityDevices, BuiltInCategory.OST_FireAlarmDevices,
-                BuiltInCategory.OST_SpecialityEquipment, BuiltInCategory.OST_MechanicalEquipment,
+                BuiltInCategory.OST_SpecialityEquipment, BuiltInCategory.OST_MedicalEquipment,
+                BuiltInCategory.OST_NurseCallDevices, BuiltInCategory.OST_MechanicalEquipment,
                 BuiltInCategory.OST_ElectricalEquipment, BuiltInCategory.OST_PlumbingFixtures,
                 BuiltInCategory.OST_GenericModel
             };

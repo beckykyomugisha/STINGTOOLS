@@ -7010,7 +7010,9 @@
         "OST_SpecialityEquipment",
         "OST_MechanicalEquipment",
         "OST_GenericModel",
-        "OST_PlumbingFixtures"
+        "OST_PlumbingFixtures",
+        "OST_MedicalEquipment",
+        "OST_NurseCallDevices"
       ],
       "rule": {
         "param": "CEQ_CLINICAL_BOOL",
@@ -7038,7 +7040,9 @@
         "OST_SpecialityEquipment",
         "OST_MechanicalEquipment",
         "OST_GenericModel",
-        "OST_PlumbingFixtures"
+        "OST_PlumbingFixtures",
+        "OST_MedicalEquipment",
+        "OST_NurseCallDevices"
       ],
       "rule": {
         "param": "CEQ_INFECT_TIER_TXT",
@@ -7067,7 +7071,9 @@
         "OST_SpecialityEquipment",
         "OST_MechanicalEquipment",
         "OST_GenericModel",
-        "OST_PlumbingFixtures"
+        "OST_PlumbingFixtures",
+        "OST_MedicalEquipment",
+        "OST_NurseCallDevices"
       ],
       "rule": {
         "param": "CLN_BARI_DESIGN_KG_NR",

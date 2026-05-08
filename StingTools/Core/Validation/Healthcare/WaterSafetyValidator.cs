@@ -19,7 +19,9 @@ namespace StingTools.Core.Validation.Healthcare
             var cats = new[] {
                 BuiltInCategory.OST_PlumbingFixtures,
                 BuiltInCategory.OST_PipeCurves,
-                BuiltInCategory.OST_PipeAccessory
+                BuiltInCategory.OST_PipeAccessory,
+                // Dialysis stations / RO plants live under Medical Equipment.
+                BuiltInCategory.OST_MedicalEquipment
             };
             var f = new ElementMulticategoryFilter(cats);
             var els = new FilteredElementCollector(doc).WherePasses(f).WhereElementIsNotElementType().ToElements();

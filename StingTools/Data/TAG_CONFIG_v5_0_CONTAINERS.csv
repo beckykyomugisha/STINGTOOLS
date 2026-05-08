@@ -187,7 +187,7 @@ LPS_FAMILY,STING - LPS Test Clamp Tag,"Electrical Equipment,Generic Models,Speci
 HEALTHCARE_CONTAINER,CLN_TAG,Clinical room metadata tag,"Rooms",CLN_ROOM_CLASS_TXT
 HEALTHCARE_CONTAINER,MGS_TAG,Medical gas tag,"Pipes,Pipe Fittings,Pipe Accessories,Plumbing Fixtures,Mechanical Equipment",MGS_GAS_TYPE_TXT
 HEALTHCARE_CONTAINER,RAD_TAG,Radiation barrier tag,"Walls,Doors,Windows,Generic Models",RAD_LEAD_MM_NR
-HEALTHCARE_CONTAINER,CEQ_TAG,Clinical equipment tag,"Specialty Equipment,Mechanical Equipment,Generic Models,Plumbing Fixtures",CEQ_CATEGORY_TXT
+HEALTHCARE_CONTAINER,CEQ_TAG,Clinical equipment tag,"Medical Equipment,Nurse Call Devices,Specialty Equipment,Mechanical Equipment,Generic Models,Plumbing Fixtures",CEQ_CATEGORY_TXT
 HEALTHCARE_CONTAINER,LIG_TAG,Anti-ligature tag,"Doors,Plumbing Fixtures,Lighting Fixtures,Generic Models",LIG_PRODUCT_RATING_TXT
 HEALTHCARE_FAMILY,STING - Clinical Room Tag,Rooms,CLN_ROOM_CLASS_TXT
 HEALTHCARE_FAMILY,STING - Medical Gas Tag,"Pipes,Pipe Fittings,Pipe Accessories,Plumbing Fixtures",MGS_GAS_TYPE_TXT
@@ -196,9 +196,11 @@ HEALTHCARE_FAMILY,STING - MGS Zone Valve Box Tag,Pipe Accessories,MGS_ZVB_REF_TX
 HEALTHCARE_FAMILY,STING - MGS Area Alarm Panel Tag,Plumbing Fixtures,MGS_AAP_REF_TXT
 HEALTHCARE_FAMILY,STING - Radiation Barrier Tag,"Walls,Doors,Windows",RAD_LEAD_MM_NR
 HEALTHCARE_FAMILY,STING - MRI Zone Tag,Generic Models,CLN_MRI_ZONE_INT
-HEALTHCARE_FAMILY,STING - Clinical Equipment Tag,Specialty Equipment,CEQ_CATEGORY_TXT
+HEALTHCARE_FAMILY,STING - Clinical Equipment Tag,"Medical Equipment,Specialty Equipment",CEQ_CATEGORY_TXT
 HEALTHCARE_FAMILY,STING - Pendant Tag,Specialty Equipment,CEQ_CATEGORY_TXT
 HEALTHCARE_FAMILY,STING - Bed-head Trunking Tag,Specialty Equipment,CEQ_CATEGORY_TXT
+HEALTHCARE_FAMILY,STING - Imaging Modality Tag,Medical Equipment,CEQ_CATEGORY_TXT
+HEALTHCARE_FAMILY,STING - Nurse Call Device Tag,Nurse Call Devices,CLN_NURSECALL_TYPE_TXT
 HEALTHCARE_FAMILY,STING - Anti-Ligature Tag,"Doors,Plumbing Fixtures,Lighting Fixtures",LIG_PRODUCT_RATING_TXT
 HEALTHCARE_FAMILY,STING - Pressure Regime Tag,Rooms,CLN_PRESS_REGIME_TXT
 HEALTHCARE_FAMILY,STING - Infection Class Tag,Rooms,CLN_INFECT_CLASS_TXT

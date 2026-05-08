@@ -24,8 +24,10 @@ namespace StingTools.Commands.Healthcare.Specialist
                     if (p?.HasValue == true && p.StorageType==StorageType.Integer) beds = p.AsInteger();
                 } catch { }
                 int requiredBays = (int)Math.Max(4, Math.Ceiling(beds * 0.005));
+                var clinicalCats = new ElementMulticategoryFilter(new[] {
+                    BuiltInCategory.OST_MedicalEquipment, BuiltInCategory.OST_SpecialityEquipment });
                 int actualBays = new FilteredElementCollector(doc)
-                    .OfCategory(BuiltInCategory.OST_SpecialityEquipment)
+                    .WherePasses(clinicalCats)
                     .WhereElementIsNotElementType().ToElements()
                     .Count(e => string.Equals(Get(e,"ASS_PRODCT_COD_TXT"), "MORT-FRG", StringComparison.OrdinalIgnoreCase));
                 var sb = new StringBuilder();
