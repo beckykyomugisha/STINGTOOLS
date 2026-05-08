@@ -36,7 +36,7 @@ public class ModelsController : ControllerBase
 
     // Upload cap — glTF can be large but anything over this is almost certainly
     // an uncompressed IFC or a federated model that should be split.
-    private const long MaxModelSizeBytes = 200L * 1024 * 1024;
+    private const long MaxModelSizeBytes = 500L * 1024 * 1024;
 
     public ModelsController(
         PlanscapeDbContext db,
@@ -76,6 +76,13 @@ public class ModelsController : ControllerBase
 
     [HttpPost]
     [RequestSizeLimit(MaxModelSizeBytes)]
+    // RequestSizeLimit caps the raw HTTP body. RequestFormLimits caps the
+    // multipart-form parser separately — its default is 128 MB regardless
+    // of the HTTP body cap. Without this attribute, Revit / mobile uploads
+    // bigger than 128 MB fail with HTTP 400 "Multipart body length limit
+    // 134217728" even though the 500 MB body limit allows the bytes.
+    [RequestFormLimits(MultipartBodyLengthLimit = MaxModelSizeBytes,
+                       ValueLengthLimit = int.MaxValue)]
     [Authorize(Roles = "Admin,Owner,Coordinator")]
     public async Task<ActionResult> Upload(
         Guid projectId,
