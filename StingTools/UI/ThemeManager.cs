@@ -19,14 +19,13 @@ namespace StingTools.UI
     /// </summary>
     public static class ThemeManager
     {
-        // Phase 101: default theme is "Corporate" — the StingTools brand
-        // (navy #1A237E header + orange #E8912D accents) matches the BCC and
-        // Document Management Centre, so the dockable panel opens in the same
-        // house theme the user sees everywhere else. Users can still cycle
-        // with the theme toggle button; the order below starts with Corporate.
-        public static string CurrentTheme { get; private set; } = "Corporate";
+        // Default theme is "Cool" — light blue-grey body with bright blue
+        // accents. The BCC, Document Management Centre, and dockable panel
+        // all open in the same house theme. Users can still cycle with the
+        // theme toggle button; the order below starts with Cool.
+        public static string CurrentTheme { get; private set; } = "Cool";
 
-        private static readonly string[] ThemeOrder = { "Corporate", "Light", "Warm", "Cool" };
+        private static readonly string[] ThemeOrder = { "Cool", "Light", "Warm", "Corporate" };
 
         /// <summary>
         /// Reference to the host Page/FrameworkElement for direct resource setting.
@@ -58,6 +57,14 @@ namespace StingTools.UI
                         { "TabFg", "#555555" },
                         { "TabSelectedBg", "#FFFFFF" },
                         { "TabSelectedFg", "#333333" },
+                        // Brand + dashboard extras (shared with DMD / BCC)
+                        { "NavyHeader", "#1A237E" },
+                        { "OrangeAccent", "#E88A1A" },
+                        { "CardBg", "#FFFFFF" },
+                        { "AltRowBg", "#F5F5F5" },
+                        { "SubtleFg", "#888888" },
+                        { "InfoBlue", "#1976D2" },
+                        { "RowHover", "#FDF0E0" },
                     }
                 },
                 {
@@ -81,6 +88,14 @@ namespace StingTools.UI
                         { "TabFg", "#5D4E3C" },
                         { "TabSelectedBg", "#FFFDF8" },
                         { "TabSelectedFg", "#3E3428" },
+                        // Brand + dashboard extras (shared with DMD / BCC)
+                        { "NavyHeader", "#5D4037" },
+                        { "OrangeAccent", "#D46A14" },
+                        { "CardBg", "#FFFDF8" },
+                        { "AltRowBg", "#F5EDE0" },
+                        { "SubtleFg", "#8D7B66" },
+                        { "InfoBlue", "#5D7B9C" },
+                        { "RowHover", "#F5E6D3" },
                     }
                 },
                 {
@@ -104,6 +119,14 @@ namespace StingTools.UI
                         { "TabFg", "#4A5568" },
                         { "TabSelectedBg", "#F8FAFC" },
                         { "TabSelectedFg", "#2D3748" },
+                        // Brand + dashboard extras (shared with DMD / BCC)
+                        { "NavyHeader", "#1A365D" },
+                        { "OrangeAccent", "#3182CE" },
+                        { "CardBg", "#FFFFFF" },
+                        { "AltRowBg", "#F2F6FA" },
+                        { "SubtleFg", "#718096" },
+                        { "InfoBlue", "#3182CE" },
+                        { "RowHover", "#E3EEF8" },
                     }
                 },
                 {
