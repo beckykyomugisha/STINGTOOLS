@@ -1166,7 +1166,8 @@ public sealed class PlanscapeServerClient : IDisposable
         string? revision = null,
         string units = "mm",
         int? elementCount = null,
-        double[]? bounds = null)
+        double[]? bounds = null,
+        bool force = false)
     {
         if (!await EnsureAuthenticatedAsync()) return (false, Guid.Empty, LastError, false);
         if (!File.Exists(modelFilePath))       return (false, Guid.Empty, $"Model file not found: {modelFilePath}", false);
@@ -1202,6 +1203,7 @@ public sealed class PlanscapeServerClient : IDisposable
             AddField("Discipline", discipline);
             AddField("Revision", revision);
             AddField("Units", units);
+            if (force) AddField("Force", "true");
             if (elementCount.HasValue) AddField("ElementCount", elementCount.Value.ToString());
             if (bounds != null && bounds.Length == 6)
             {

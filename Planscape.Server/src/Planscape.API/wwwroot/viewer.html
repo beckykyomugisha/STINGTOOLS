@@ -77,8 +77,13 @@ else {
 
   if (meta) {
     status("Downloading model…");
-    const fileUrl = `/api/projects/${projectId}/models/${modelId}/file?access_token=${encodeURIComponent(token || "")}`;
+    // Pass the JWT via Authorization header rather than ?access_token=
+    // — keeps tokens out of URL bars, nginx access logs and browser
+    // history, and avoids relying on a path-specific allowlist on the
+    // server's JwtBearerEvents.OnMessageReceived handler.
+    const fileUrl = `/api/projects/${projectId}/models/${modelId}/file`;
     const loader = new GLTFLoader();
+    loader.requestHeader = { "Authorization": "Bearer " + token };
     loader.load(
       fileUrl,
       (gltf) => {

@@ -96,13 +96,54 @@ namespace StingTools.BIMManager
 
                 if (result.alreadyExisted)
                 {
-                    TaskDialog.Show(
-                        "Publish Model to Planscape",
-                        $"This model is already published — the server returned the existing entry instead of creating a duplicate.\n\n" +
-                        $"File: {Path.GetFileName(modelPath)}\n" +
-                        $"Project: {projectId}\n" +
-                        $"Existing model id: {result.modelId}\n\n" +
-                        "If you intended to publish a new revision, change the geometry (re-export the 3D view, or pick a different file) and try again.");
+                    var dlg = new TaskDialog("Publish Model to Planscape")
+                    {
+                        MainInstruction = "This model is already published",
+                        MainContent =
+                            $"The server has an existing entry with the same SHA-256 content hash:\n\n" +
+                            $"  File:    {Path.GetFileName(modelPath)}\n" +
+                            $"  Project: {projectId}\n" +
+                            $"  Existing model id: {result.modelId}\n\n" +
+                            "Renaming the file on disk doesn't change the bytes, so the dedup still triggers.",
+                        CommonButtons = TaskDialogCommonButtons.Close,
+                        DefaultButton = TaskDialogResult.Close,
+                    };
+                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                        "Republish anyway as a new revision",
+                        "Bypasses the SHA-256 dedup and creates a new entry with the same bytes (useful when only the element map / metadata has changed).");
+                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                        "Open the existing entry",
+                        "Use the model the server already has — no upload.");
+                    var r = dlg.Show();
+                    if (r == TaskDialogResult.CommandLink1)
+                    {
+                        var forced = Task.Run(() => client.UploadModelAsync(
+                            projectId,
+                            modelPath,
+                            mapPath,
+                            name: doc.Title,
+                            description: $"Re-published from Revit {doc.Application.VersionName}",
+                            discipline: DetectDocDiscipline(doc),
+                            revision: PhaseAutoDetect.DetectProjectRevision(doc),
+                            units: "mm",
+                            elementCount: elementCount,
+                            bounds: bounds,
+                            force: true)).GetAwaiter().GetResult();
+                        if (!forced.ok)
+                        {
+                            TaskDialog.Show("Publish Model", $"Forced republish failed: {forced.error}");
+                            StingLog.Warn($"Planscape: forced model upload failed — {forced.error}");
+                            return Result.Failed;
+                        }
+                        TaskDialog.Show(
+                            "Publish Model to Planscape",
+                            $"Republished as a new revision.\n\n" +
+                            $"Elements mapped: {elementCount}\n" +
+                            $"Project: {projectId}\n" +
+                            $"New model id: {forced.modelId}");
+                        StingLog.Info($"Planscape: model force-republished → {forced.modelId}");
+                        return Result.Succeeded;
+                    }
                     StingLog.Info($"Planscape: model already published (dedup) → {result.modelId}");
                     return Result.Succeeded;
                 }
@@ -260,14 +301,23 @@ namespace StingTools.BIMManager
                     boundsContributors++;
                 }
 
-                if (string.IsNullOrEmpty(tag)) continue; // only include tagged elements in the map JSON
+                // Always include the element in the map even when the STING
+                // tag pipeline hasn't run yet — the viewer needs the
+                // UniqueId → name/category mapping for tooltips and
+                // discipline filtering on every element it can render.
+                // Skipping untagged elements meant a fresh project always
+                // shipped an empty map ("Elements mapped: 0") and the
+                // viewer lost its overlay until users re-published *after*
+                // tagging. Tag/disc/loc/lvl are empty strings when not yet
+                // populated; republishing after the tag pipeline runs
+                // upgrades the map in place.
                 var disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                 var loc  = ParameterHelpers.GetString(el, ParamRegistry.LOC);
                 var lvl  = ParameterHelpers.GetString(el, ParamRegistry.LVL);
 
                 map[guid] = new JObject
                 {
-                    ["tag"]        = tag,
+                    ["tag"]        = tag ?? "",
                     ["name"]       = el.Name ?? "",
                     ["category"]   = el.Category?.Name ?? "",
                     ["discipline"] = disc,
