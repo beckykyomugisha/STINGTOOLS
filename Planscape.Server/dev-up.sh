@@ -8,9 +8,15 @@
 #
 # Usage:
 #   ./Planscape.Server/dev-up.sh                # default: migrate
-#   ./Planscape.Server/dev-up.sh init           # one-step first-run bootstrap
-#   ./Planscape.Server/dev-up.sh stack up       # docker compose up with DB_PASSWORD synced
-#   ./Planscape.Server/dev-up.sh stack reset    # nuke volumes + recreate (clean slate)
+#   ./Planscape.Server/dev-up.sh init               # one-step first-run bootstrap
+#   ./Planscape.Server/dev-up.sh stack up           # ← DAILY WORK MODE
+#                                                     full stack in docker (api, db, redis, worker)
+#                                                     auto-restarts on reboot
+#   ./Planscape.Server/dev-up.sh stack down         # stop the stack (keep volumes)
+#   ./Planscape.Server/dev-up.sh stack reset        # wipe volumes + recreate
+#   ./Planscape.Server/dev-up.sh stack db-only      # only postgres+redis (for dev-mode run)
+#   ./Planscape.Server/dev-up.sh stack rebuild      # force --no-cache rebuild of api+worker
+#   ./Planscape.Server/dev-up.sh status             # show container health
 #   ./Planscape.Server/dev-up.sh migrate        # apply pending migrations
 #   ./Planscape.Server/dev-up.sh run            # dotnet run the API
 #   ./Planscape.Server/dev-up.sh build          # dotnet build only
@@ -43,6 +49,15 @@ die()  { echo "${RED}✗${OFF} $*" >&2; exit 1; }
 warn() { echo "${YEL}!${OFF} $*" >&2; }
 ok()   { echo "${GRN}✓${OFF} $*"; }
 info() { echo "${DIM}→${OFF} $*"; }
+
+# ── help handled before the .env.local existence check ────────────
+# (running `help` on a fresh checkout must work without bootstrapping)
+case "${1:-}" in
+  -h|--help|help)
+    sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'
+    exit 0
+    ;;
+esac
 
 # ── init handled before the .env.local existence check ─────────────
 # (running `init` when .env.local already exists must NOT clobber it)
@@ -197,40 +212,87 @@ case "$cmd" in
     ;;
 
   stack)
-    # Brings up Postgres + Redis with DB_PASSWORD synchronised to whatever
-    # is in .env.local — fixes the recurring 28P01 password mismatch
-    # caused by stray DB_PASSWORD exports leaking into docker compose.
+    # Brings up the full Planscape stack via docker-compose:
+    #   api · worker · postgres · redis · converter · otel-collector
+    # restart: unless-stopped is set on every service, so the API
+    # survives terminal close, log-out, and OS reboot. THIS is the
+    # daily-work mode — `dev-up.sh run` is for foreground debugging
+    # only. The recurring "Authentication failed: nothing is listening
+    # on http://localhost:5000" Revit dialog is what happens when
+    # daily work runs `dev-up.sh run` and then closes the terminal.
+    #
+    # Subcommands:
+    #   up         — full stack (api on :5000, postgres :5432, redis :6379)
+    #   down       — stop everything, keep volumes
+    #   reset      — nuke volumes + recreate (clean slate)
+    #   db-only    — postgres + redis only (for dev-mode `dotnet run`)
     sub="${2:-up}"
-    # Parse Password=... out of ConnectionStrings__Default. The connection
-    # string format is Host=...;Port=...;Database=...;Username=...;Password=X
-    # — we want X. cut on '=' splits on every =, so use parameter expansion.
     pw_field="${ConnectionStrings__Default##*Password=}"
     pw="${pw_field%%;*}"
     if [[ -z "$pw" ]]; then
       die "Could not parse Password=... out of ConnectionStrings__Default"
     fi
-    info "Using DB_PASSWORD from .env.local (${#pw} chars)"
+    if [[ -z "${Jwt__Key:-}" ]]; then
+      die "Jwt__Key not loaded from .env.local — run ./dev-up.sh init"
+    fi
+    info "Using DB_PASSWORD (${#pw} chars) and JWT_KEY (${#Jwt__Key} chars) from .env.local"
     pushd "$SCRIPT_DIR/docker" >/dev/null
+    # Both compose-required vars exported inline so they win over any
+    # stale shell exports (DB_PASSWORD leak fix from commit d209e9f).
     case "$sub" in
       up)
-        DB_PASSWORD="$pw" docker compose up -d postgres redis
-        ok "Stack up. Wait ~5s for postgres init, then ./dev-up.sh migrate"
+        info "Bringing up full stack with --build (incremental — only rebuilds changed layers)…"
+        # --build is essential: `docker compose up -d` alone does NOT
+        # rebuild even when source files have changed since the last
+        # build. With --build, Docker rebuilds only the layers whose
+        # inputs changed (typically the dotnet publish step picking up
+        # new .cs files); unchanged layers are reused from cache.
+        # First run on a fresh checkout takes 3-8 min; subsequent
+        # incremental rebuilds after a `git pull` take 30-90 s.
+        DB_PASSWORD="$pw" JWT_KEY="$Jwt__Key" docker compose up -d --build
+        ok "Stack up. API will be reachable at http://localhost:5000 once healthy."
+        info "  ./dev-up.sh status        # check container health"
+        info "  ./dev-up.sh stack rebuild # force a clean rebuild (--no-cache)"
+        info "  ./dev-up.sh stack down    # stop"
         ;;
       down)
-        DB_PASSWORD="$pw" docker compose down
+        DB_PASSWORD="$pw" JWT_KEY="$Jwt__Key" docker compose down
         ok "Stack down (volumes preserved)"
         ;;
       reset)
         warn "Wiping volumes — all demo data will be lost."
-        DB_PASSWORD="$pw" docker compose down -v
-        DB_PASSWORD="$pw" docker compose up -d postgres redis
-        ok "Stack reset. Wait ~5s for postgres init, then ./dev-up.sh migrate"
+        DB_PASSWORD="$pw" JWT_KEY="$Jwt__Key" docker compose down -v
+        DB_PASSWORD="$pw" JWT_KEY="$Jwt__Key" docker compose up -d
+        ok "Stack reset — full stack recreated with a fresh DB."
+        ;;
+      db-only)
+        DB_PASSWORD="$pw" JWT_KEY="$Jwt__Key" docker compose up -d postgres redis
+        ok "DB stack up (postgres + redis only). Now you can './dev-up.sh run' against it."
+        ;;
+      rebuild)
+        # Force a clean image rebuild (--no-cache). Useful when:
+        #  * the dotnet publish layer cached a broken state
+        #  * a NuGet package version bump didn't pick up
+        #  * Dockerfile changes added new system packages
+        # 3-8 min just like the very first build.
+        warn "Force rebuilding api + worker images with --no-cache (3-8 min)…"
+        DB_PASSWORD="$pw" JWT_KEY="$Jwt__Key" docker compose build --no-cache api worker
+        DB_PASSWORD="$pw" JWT_KEY="$Jwt__Key" docker compose up -d
+        ok "Rebuild complete. Run './dev-up.sh status' to confirm."
         ;;
       *)
         popd >/dev/null
-        die "Unknown stack subcommand: $sub  (try: up | down | reset)"
+        die "Unknown stack subcommand: $sub  (try: up | down | reset | db-only | rebuild)"
         ;;
     esac
+    popd >/dev/null
+    ;;
+
+  status)
+    # Show health of every container so the user can see at a glance
+    # whether the API is up + which port it's serving on.
+    pushd "$SCRIPT_DIR/docker" >/dev/null
+    docker compose ps
     popd >/dev/null
     ;;
 
@@ -244,6 +306,6 @@ case "$cmd" in
     ;;
 
   *)
-    die "Unknown command: $cmd  (try: init | stack | check | migrate | run | build | shell | help)"
+    die "Unknown command: $cmd  (try: init | stack | status | check | migrate | run | kill | build | shell | help)"
     ;;
 esac
