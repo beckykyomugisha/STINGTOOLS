@@ -12,6 +12,11 @@
 //   3. CDE state + suitability + revision mirror across.
 //   4. Failures log a warning and are dropped — the next 5-min SyncScheduler
 //      tick (or the next coordinator action) retries automatically.
+//
+// ReconcileAsync (Phase 177-B): walks deliverables.json and pushes any row
+// whose ServerSyncedAt is missing or older than its row UpdatedAt. Called
+// on login + each SyncScheduler tick so an event that fired while offline
+// still reaches the server even if the user stops touching the project.
 
 using System;
 using System.IO;
@@ -52,15 +57,24 @@ namespace Planscape.Docs.Templates
                 };
                 if (string.IsNullOrEmpty(payload.docNumber)) return;
 
+                string docNumberCapture = payload.docNumber;
+                Document docCapture = doc;
                 _ = Task.Run(async () =>
                 {
                     try
                     {
                         bool ok = await PlanscapeServerClient.Instance
                             .SyncDeliverableFromPluginAsync(projectId, payload);
-                        if (!ok)
-                            StingLog.Warn($"DeliverableServerSync {action} for {payload.docNumber} failed: " +
+                        if (ok)
+                        {
+                            try { StampSyncedAt(docCapture, docNumberCapture, DateTime.UtcNow); }
+                            catch (Exception ex) { StingLog.Warn($"StampSyncedAt failed: {ex.Message}"); }
+                        }
+                        else
+                        {
+                            StingLog.Warn($"DeliverableServerSync {action} for {docNumberCapture} failed: " +
                                           $"{PlanscapeServerClient.Instance.LastError}");
+                        }
                     }
                     catch (Exception ex) { StingLog.Warn($"DeliverableServerSync exception: {ex.Message}"); }
                 });
@@ -101,7 +115,157 @@ namespace Planscape.Docs.Templates
             catch (Exception ex) { StingLog.Warn($"DeliverableServerSync.PushAudit: {ex.Message}"); }
         }
 
+        /// <summary>
+        /// Phase 177-B — pull deliverables.json off disk and push every row
+        /// whose ServerSyncedAt is missing or earlier than its UpdatedAt
+        /// (or its rev-history's most recent timestamp). Called on login
+        /// success and on every periodic sync tick so a lifecycle event
+        /// that fired while offline still reaches the server even if the
+        /// user never touches the project again.
+        ///
+        /// Bounded to 50 rows per call so a never-synced project doesn't
+        /// hammer the server in one go. The next tick mops up the next 50.
+        /// </summary>
+        public static async Task<int> ReconcileAsync(Document doc)
+        {
+            try
+            {
+                Guid projectId = ResolvePlanscapeProjectId(doc);
+                if (projectId == Guid.Empty) return 0;
+
+                string path = DeliverablesJsonPath(doc);
+                if (!File.Exists(path)) return 0;
+
+                JArray arr;
+                try { arr = JArray.Parse(File.ReadAllText(path)); }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"ReconcileAsync — deliverables.json parse failed: {ex.Message}");
+                    return 0;
+                }
+
+                int pushed = 0;
+                foreach (var token in arr)
+                {
+                    if (pushed >= 50) break;
+                    if (token is not JObject row) continue;
+                    if (!NeedsSync(row)) continue;
+
+                    string docNumber = row.Value<string>("DocNumber") ?? row.Value<string>("Code");
+                    if (string.IsNullOrEmpty(docNumber)) continue;
+
+                    var payload = new
+                    {
+                        docNumber       = docNumber,
+                        title           = row.Value<string>("Title")      ?? row.Value<string>("Description"),
+                        discipline      = row.Value<string>("Discipline") ?? row.Value<string>("DISC"),
+                        originator      = row.Value<string>("Originator") ?? row.Value<string>("OrgCode"),
+                        revision        = row.Value<string>("Revision"),
+                        templateId      = row.Value<string>("TemplateId"),
+                        newCdeStatus    = row.Value<string>("CDE"),
+                        suitabilityCode = row.Value<string>("Suitability"),
+                        action          = "reconcile",
+                        reason          = "offline_replay"
+                    };
+
+                    bool ok = await PlanscapeServerClient.Instance
+                        .SyncDeliverableFromPluginAsync(projectId, payload);
+                    if (!ok)
+                    {
+                        StingLog.Warn($"Reconcile {docNumber} failed: " +
+                                      $"{PlanscapeServerClient.Instance.LastError}");
+                        // Stop on first failure so we don't burn round-trips
+                        // when the server is throwing 5xx — next tick retries.
+                        break;
+                    }
+
+                    row["ServerSyncedAt"] = DateTime.UtcNow;
+                    pushed++;
+                }
+
+                if (pushed > 0)
+                {
+                    string tmp = path + ".tmp";
+                    File.WriteAllText(tmp, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    if (File.Exists(path)) File.Delete(path);
+                    File.Move(tmp, path);
+                    StingLog.Info($"DeliverableServerSync.Reconcile pushed {pushed} row(s).");
+                }
+                return pushed;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ReconcileAsync: {ex.Message}");
+                return 0;
+            }
+        }
+
         // ── Helpers ────────────────────────────────────────────────────────
+
+        private static bool NeedsSync(JObject row)
+        {
+            DateTime synced = row["ServerSyncedAt"]?.Type == JTokenType.Date
+                ? row["ServerSyncedAt"].Value<DateTime>()
+                : DateTime.MinValue;
+
+            // The lifecycle bumps revision history; treat the latest history
+            // entry's timestamp as the row's "updatedAt" if no explicit field.
+            DateTime updated = row["UpdatedAt"]?.Type == JTokenType.Date
+                ? row["UpdatedAt"].Value<DateTime>()
+                : DateTime.MinValue;
+
+            if (row["RevisionHistory"] is JArray history && history.Count > 0)
+            {
+                var last = history[history.Count - 1] as JObject;
+                if (last?["Timestamp"] != null
+                    && DateTime.TryParse(last["Timestamp"].Value<string>(), out var ts))
+                    if (ts > updated) updated = ts;
+            }
+
+            // Never-synced rows always need a push if we have any signal of activity.
+            if (synced == DateTime.MinValue) return updated > DateTime.MinValue;
+            return updated > synced;
+        }
+
+        private static void StampSyncedAt(Document doc, string docNumber, DateTime ts)
+        {
+            string path = DeliverablesJsonPath(doc);
+            if (!File.Exists(path)) return;
+            JArray arr = JArray.Parse(File.ReadAllText(path));
+            for (int i = 0; i < arr.Count; i++)
+            {
+                if (arr[i] is JObject o
+                    && string.Equals(o.Value<string>("DocNumber") ?? o.Value<string>("Code"),
+                                     docNumber, StringComparison.Ordinal))
+                {
+                    o["ServerSyncedAt"] = ts;
+                    string tmp = path + ".tmp";
+                    File.WriteAllText(tmp, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    if (File.Exists(path)) File.Delete(path);
+                    File.Move(tmp, path);
+                    return;
+                }
+            }
+        }
+
+        private static string DeliverablesJsonPath(Document doc)
+        {
+            try
+            {
+                string consolidated = StingTools.Core.ProjectFolderEngine.GetDataPath(doc);
+                if (!string.IsNullOrEmpty(consolidated))
+                    return Path.Combine(consolidated, "_BIM_COORD", "deliverables.json");
+            }
+            catch { /* ignored */ }
+            try
+            {
+                string p = doc?.PathName;
+                if (!string.IsNullOrEmpty(p))
+                    return Path.Combine(Path.GetDirectoryName(p) ?? "", "_BIM_COORD", "deliverables.json");
+            }
+            catch { /* ignored */ }
+            return Path.Combine(Path.GetTempPath(), "Planscape", "BIMCoord", "deliverables.json");
+        }
 
         private static Guid ResolvePlanscapeProjectId(Document doc)
         {

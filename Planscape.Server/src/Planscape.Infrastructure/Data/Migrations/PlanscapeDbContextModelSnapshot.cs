@@ -20,6 +20,59 @@ namespace Planscape.Infrastructure.Data.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63)
                 .UseIdentityByDefaultColumns();
 
+            modelBuilder.Entity("Planscape.Core.Entities.AccessProfile", b =>
+            {
+                b.Property<Guid>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("uuid");
+
+                b.Property<string>("AllowedCdeStates")
+                    .HasColumnType("text");
+
+                b.Property<string>("AllowedDisciplines")
+                    .HasColumnType("text");
+
+                b.Property<string>("AllowedSuitabilities")
+                    .HasColumnType("text");
+
+                b.Property<DateTime>("CreatedAt")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<string>("CreatedBy")
+                    .HasColumnType("text");
+
+                b.Property<string>("DefaultIso19650Role")
+                    .IsRequired()
+                    .HasMaxLength(8)
+                    .HasColumnType("character varying(8)");
+
+                b.Property<string>("DefaultProjectRole")
+                    .IsRequired()
+                    .HasMaxLength(32)
+                    .HasColumnType("character varying(32)");
+
+                b.Property<string>("Description")
+                    .HasMaxLength(500)
+                    .HasColumnType("character varying(500)");
+
+                b.Property<bool>("IsActive")
+                    .HasColumnType("boolean");
+
+                b.Property<string>("Name")
+                    .IsRequired()
+                    .HasMaxLength(120)
+                    .HasColumnType("character varying(120)");
+
+                b.Property<Guid>("TenantId")
+                    .HasColumnType("uuid");
+
+                b.HasKey("Id");
+
+                b.HasIndex("TenantId", "Name").IsUnique();
+
+                b.ToTable("AccessProfiles");
+            });
+
             modelBuilder.Entity("Planscape.Core.Entities.AuditLog", b =>
             {
                 b.Property<long>("Id")
@@ -1317,6 +1370,17 @@ namespace Planscape.Infrastructure.Data.Migrations
             });
 
             // ── Relationships ──
+
+            modelBuilder.Entity("Planscape.Core.Entities.AccessProfile", b =>
+            {
+                b.HasOne("Planscape.Core.Entities.Tenant", "Tenant")
+                    .WithMany()
+                    .HasForeignKey("TenantId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.Navigation("Tenant");
+            });
 
             modelBuilder.Entity("Planscape.Core.Entities.AppUser", b =>
             {

@@ -658,7 +658,14 @@ public class DocumentsController : ControllerBase
             $"{{\"oldState\":\"{oldState}\",\"newState\":\"{req.NewState}\"}}");
 
         // C2 — real-time push so coordinators in Revit + mobile viewers refresh.
-        _ = _hub.Clients.Group($"project-{projectId}").SendAsync("DocumentUpdated", new
+        // Phase 177 — broadcast to BOTH the source and target CDE subgroups so
+        // a member who could see the doc at oldState (and is therefore tracking
+        // it on their UI) gets the "it just left WIP" event, AND a member who
+        // can only see it now-that-it's-SHARED still receives the arrival.
+        await _hub.Clients.Groups(
+                $"project-{projectId}-cde-{oldState}",
+                $"project-{projectId}-cde-{doc.CdeStatus}")
+            .SendAsync("DocumentUpdated", new
         {
             projectId, documentId = docId,
             fileName = doc.FileName, cdeStatus = doc.CdeStatus,
@@ -971,7 +978,9 @@ public class DocumentsController : ControllerBase
                 revision  = doc.Revision
             }));
 
-        _ = _hub.Clients.Group($"project-{projectId}").SendAsync("DocumentUpdated", new
+        // Phase 177 — broadcast only to members whose ACL covers the new state.
+        await _hub.Clients.Group($"project-{projectId}-cde-{doc.CdeStatus}")
+            .SendAsync("DocumentUpdated", new
         {
             projectId, documentId = doc.Id,
             fileName = doc.FileName, cdeStatus = doc.CdeStatus,

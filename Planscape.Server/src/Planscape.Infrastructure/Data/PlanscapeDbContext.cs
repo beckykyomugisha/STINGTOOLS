@@ -101,6 +101,7 @@ public class PlanscapeDbContext : DbContext
     public DbSet<Transmittal> Transmittals => Set<Transmittal>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<ProjectMember> ProjectMembers => Set<ProjectMember>();
+    public DbSet<AccessProfile> AccessProfiles => Set<AccessProfile>();
     public DbSet<DevicePushToken> DevicePushTokens => Set<DevicePushToken>();
     public DbSet<UserNotificationPreferences> UserNotificationPreferences => Set<UserNotificationPreferences>();
     public DbSet<IssueAttachment> IssueAttachments => Set<IssueAttachment>();
@@ -527,6 +528,18 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(m => new { m.ProjectId, m.UserId }).IsUnique();
             e.HasOne(m => m.Project).WithMany().HasForeignKey(m => m.ProjectId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(m => m.User).WithMany().HasForeignKey(m => m.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── AccessProfile (Phase 177-D) ──
+        modelBuilder.Entity<AccessProfile>(e =>
+        {
+            e.HasKey(a => a.Id);
+            e.HasIndex(a => new { a.TenantId, a.Name }).IsUnique();
+            e.HasOne(a => a.Tenant).WithMany().HasForeignKey(a => a.TenantId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(a => a.Name).HasMaxLength(120).IsRequired();
+            e.Property(a => a.Description).HasMaxLength(500);
+            e.Property(a => a.DefaultProjectRole).HasMaxLength(32).IsRequired();
+            e.Property(a => a.DefaultIso19650Role).HasMaxLength(8).IsRequired();
         });
 
         // ── DevicePushToken ──

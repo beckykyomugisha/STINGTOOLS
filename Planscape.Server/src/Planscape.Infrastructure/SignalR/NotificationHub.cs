@@ -66,6 +66,26 @@ public class NotificationHub : Hub
 
         await Groups.AddToGroupAsync(Context.ConnectionId, $"project-{projectId}");
 
+        // Phase 177 — per-CDE-state sub-groups so CDE transition events
+        // ("DocumentUpdated" with kind in cde_transition / plugin_sync /
+        // approval_decided) only fan out to members whose ACL slice
+        // covers the *target* state. Lookup walks the same allow-list
+        // CSV the documents API enforces; falls open ("subscribe to all
+        // states") for Admin/Owner/SecurityOfficer or members with a
+        // null AllowedCdeStates column.
+        var member = await db.ProjectMembers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(m => m.ProjectId == pid && m.UserId == userId.Value && m.IsActive);
+
+        var role = Context.User?.FindFirst("role")?.Value ?? "";
+        var bypass = role is "Admin" or "Owner" or "SecurityOfficer" || member == null;
+        var allowedStates = bypass
+            ? new[] { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" }
+            : (Planscape.Core.Entities.ProjectMember.ParseAllowList(member!.AllowedCdeStates)
+                ?? new[] { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" });
+        foreach (var s in allowedStates)
+            await Groups.AddToGroupAsync(Context.ConnectionId, $"project-{projectId}-cde-{s}");
+
         // T3 — presence: record the user + broadcast the delta.
         var displayName = Context.User?.FindFirst("display_name")?.Value
                        ?? Context.User?.Identity?.Name
@@ -83,6 +103,10 @@ public class NotificationHub : Hub
     public async Task LeaveProject(string projectId)
     {
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"project-{projectId}");
+        // Phase 177 — leave every per-CDE-state subgroup we may have joined.
+        // SignalR ignores unknown groups, so a blanket remove is safe.
+        foreach (var s in new[] { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" })
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"project-{projectId}-cde-{s}");
         // T3 — drop from the presence tracker + fire a delta.
         var affected = _presence.Leave(Context.ConnectionId);
         foreach (var pid in affected)

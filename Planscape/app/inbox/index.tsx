@@ -20,6 +20,7 @@ import { useRouter } from 'expo-router';
 import { theme, getPriorityColor } from '@/utils/theme';
 import { getMyActions, type MyActionsPayload } from '@/api/endpoints';
 import { useProjectStore } from '@/stores/projectStore';
+import { useInboxStore } from '@/stores/inboxStore';
 
 export default function InboxScreen() {
   const router = useRouter();
@@ -45,7 +46,10 @@ export default function InboxScreen() {
     }
   }, [projectId]);
 
-  useEffect(() => { load(); }, [load]);
+  // Phase 177-C — re-load when an action elsewhere bumps the inbox version
+  // (currently: approve/reject from /inbox/approvals).
+  const inboxVersion = useInboxStore((s) => s.version);
+  useEffect(() => { load(); }, [load, inboxVersion]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);

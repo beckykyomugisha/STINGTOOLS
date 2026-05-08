@@ -483,6 +483,34 @@ export function getMyProjectAccess(projectId: string): Promise<MyProjectAccess> 
   return apiFetch(`/api/projects/${projectId}/members/me`);
 }
 
+// Phase 177-D — tenant-scoped named ACL presets. PMs pick a profile from a
+// dropdown when inviting / updating members; the server folds the preset
+// allow-lists onto the member row in one call.
+export interface AccessProfile {
+  id: string;
+  name: string;
+  description: string | null;
+  allowedCdeStates: string[];
+  allowedDisciplines: string[];
+  allowedSuitabilities: string[];
+  defaultProjectRole: string;
+  defaultIso19650Role: string;
+  createdAt: string;
+  createdBy: string | null;
+}
+export function listAccessProfiles(): Promise<AccessProfile[]> {
+  return apiFetch(`/api/access-profiles`);
+}
+export function createAccessProfile(body: Partial<AccessProfile>): Promise<AccessProfile> {
+  return apiFetch(`/api/access-profiles`, { method: 'POST', body: JSON.stringify(body) });
+}
+export function updateAccessProfile(id: string, body: Partial<AccessProfile>): Promise<AccessProfile> {
+  return apiFetch(`/api/access-profiles/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+export function deleteAccessProfile(id: string): Promise<void> {
+  return apiFetch(`/api/access-profiles/${id}`, { method: 'DELETE' });
+}
+
 // ── My Actions (Phase 142) ──────────────────────────────────────────────
 // Aggregator endpoint for the BIM/Construction Manager's morning inbox view.
 // Returns counts + the first N rows from each bucket (issues / meeting actions /

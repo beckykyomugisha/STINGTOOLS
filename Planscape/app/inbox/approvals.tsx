@@ -18,6 +18,7 @@ import {
   getMyActions, decideDocumentApproval, type MyActionsPayload,
 } from '@/api/endpoints';
 import { useProjectStore } from '@/stores/projectStore';
+import { useInboxStore } from '@/stores/inboxStore';
 
 type Approval = MyActionsPayload['approvals'][number];
 
@@ -58,6 +59,9 @@ export default function ApprovalsScreen() {
       await decideDocumentApproval(projectId, ap.documentId, ap.id, decision, comments[ap.id]);
       setApprovals((cur) => cur.filter((a) => a.id !== ap.id));
       setComments((c) => { const next = { ...c }; delete next[ap.id]; return next; });
+      // Phase 177-C — invalidate sibling MyActions screens so the home tab
+      // count + inbox index list refresh next time they're focused.
+      useInboxStore.getState().bump();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       Alert.alert('Approval failed', msg);
