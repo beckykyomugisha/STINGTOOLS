@@ -215,12 +215,13 @@
         </div>
 
         <div class="filter-row" id="fr-clashes">
-          <!-- X1 — status and type are independent axes. Status is a
-               single-select within its group, Type is a single-select
-               within its group. "Any" in either group disables that axis. -->
+          <!-- X1 — status and type are independent axes. R12 — pill
+               counts are uniformly TOTALS across the whole list; the
+               post-filter "showing N of M" lives in a separate label
+               so the semantics are unambiguous. -->
           <div id="clashStatusFilters" style="display:flex;gap:4px;align-items:center">
             <span style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-right:2px">Status</span>
-            <button class="filter-btn active" data-status="any">Any <span id="clashesFilterCount">0</span></button>
+            <button class="filter-btn active" data-status="any">Any</button>
             <button class="filter-btn" data-status="NEW">New <span id="clashesNew">0</span></button>
             <button class="filter-btn" data-status="OPEN">Open <span id="clashesOpen">0</span></button>
             <button class="filter-btn" data-status="RESOLVED">Resolved <span id="clashesResolved">0</span></button>
@@ -232,6 +233,8 @@
             <button class="filter-btn" data-type="HARD">Hard</button>
             <button class="filter-btn" data-type="SOFT">Soft</button>
           </div>
+          <span class="sep"></span>
+          <span id="clashesShowing" style="font-size:11px;color:var(--text-secondary);font-family:var(--font-mono)"></span>
           <div class="right">
             <button class="btn sm subtle" id="btnExportCsv">Export CSV</button>
             <button class="btn sm" id="btnRunDetect">Run clash detection</button>
@@ -686,6 +689,11 @@
     get modelBounds()     { return modelBounds; },
     set modelBounds(v)     { modelBounds = v; },
     get highlightedMesh() { return highlightedMesh; },
+    // R13 — expose pinGroup + pinMeta so the coordination layer can add
+    // its own pins to the same pipeline the engine raycasts. The engine
+    // already emits `pinTap` for any uuid it finds in pinMeta on click,
+    // so this avoids a duplicate raycast in coordination-viewer.js.
+    pinGroup, pinMeta,
     dracoLoader: null, meshoptDecoder: null
   };
   try {

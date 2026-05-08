@@ -255,21 +255,41 @@
       // GLB as a blob with a normal Authorization header, then hand
       // GLTFLoader a blob URL. This keeps the token out of browser
       // history, server access logs, and the Referer header.
+      // R3 — wrap in the same AbortController + 401-redirect contract
+      // the api() helper uses, with a longer 60s timeout because GLBs
+      // can be 50-200 MB.
       if (projectId && modelId) {
         const fileUrl = `${apiBase}/api/projects/${projectId}/models/${modelId}/file`;
+        const headers = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const tenantId = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_tenant')) || state.tenantId;
+        if (tenantId) headers['X-Tenant'] = tenantId;
+        const ctl = new AbortController();
+        const t = setTimeout(() => ctl.abort(), 60000);
         try {
-          const headers = {};
-          if (token) headers['Authorization'] = `Bearer ${token}`;
-          if (state.tenantId) headers['X-Tenant'] = state.tenantId;
-          const res = await fetch(fileUrl, { headers, cache: 'no-store' });
+          const res = await fetch(fileUrl, { headers, cache: 'no-store', signal: ctl.signal });
+          if (res.status === 401 && !authChallenged) {
+            authChallenged = true;
+            toast('Sign-in expired — redirecting to login…', 'error');
+            try { localStorage.removeItem('planscape_token'); } catch (_) {}
+            if (!embedMode) {
+              const next = encodeURIComponent(location.pathname + location.search);
+              setTimeout(() => { location.href = `${apiBase}/login?next=${next}`; }, 1500);
+            }
+            return;
+          }
           if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
           const blob = await res.blob();
           const blobUrl = URL.createObjectURL(blob);
           state.lastBlobUrl = blobUrl;
           handleHostCommand({ type: 'load', payload: { url: blobUrl } });
         } catch (err) {
-          console.warn('[coord] GLB fetch failed', err);
-          toast('Failed to load model file', 'error');
+          const aborted = err && err.name === 'AbortError';
+          console.warn('[coord] GLB fetch failed', aborted ? 'timeout' : err.message);
+          toast(aborted ? 'Model download timed out — retry?' : 'Failed to load model file', 'error');
+          $('#bootLoader')?.style.setProperty('display', 'none');
+        } finally {
+          clearTimeout(t);
         }
       }
 
@@ -371,12 +391,19 @@
 
     // ── Models + discipline chips ──────────────────────────────────────
     function buildDisciplineChips() {
-      const disciplines = new Set(['ARCH','STR','MECH','ELEC','PLMB','FIRE']);
-      Object.values(state.elementMap || {}).forEach(m => {
-        if (m && m.discipline) disciplines.add(String(m.discipline).toUpperCase().slice(0, 4));
-      });
       const wrap = $('#discChips');
       wrap.innerHTML = '';
+      // R10 — without an element-map there's nothing to filter against,
+      // so the chips would be visually present but functionally inert.
+      // Hide them entirely until we have real metas and reveal once the
+      // map arrives (re-called by bootstrap and the boot observer).
+      const haveMap = state.elementMap && Object.keys(state.elementMap).length > 0;
+      wrap.style.display = haveMap ? '' : 'none';
+      if (!haveMap) return;
+      const disciplines = new Set();
+      Object.values(state.elementMap).forEach(m => {
+        if (m && m.discipline) disciplines.add(String(m.discipline).toUpperCase().slice(0, 4));
+      });
       Array.from(disciplines).sort().forEach(d => {
         const chip = el('button', { class: 'disc-chip', 'data-disc': d }, d);
         chip.addEventListener('click', (e) => {
@@ -582,13 +609,23 @@
         root.appendChild(buildNode(lvl, lvlChildren, lvlCount));
       });
 
+      // R9 — when the search query is cleared, restore the default
+      // collapsed state instead of leaving every branch expanded.
       $('#treeSearch').addEventListener('input', (e) => {
         const q = e.target.value.trim().toLowerCase();
         $$('.tree-node', root).forEach(n => {
           const txt = n.textContent.toLowerCase();
           const match = !q || txt.includes(q);
           n.style.display = match ? '' : 'none';
-          if (q && match) { n.classList.remove('closed'); n.classList.add('open'); }
+          if (q) {
+            // expand matches so users can see hits in context
+            if (match) { n.classList.remove('closed'); n.classList.add('open'); }
+          } else {
+            // search cleared — collapse non-leaf branches back to default
+            if (n.querySelector('.tree-children')) {
+              n.classList.add('closed'); n.classList.remove('open');
+            }
+          }
         });
       });
     }
@@ -629,6 +666,35 @@
       const b = V.modelBounds;
       if (!b || b.isEmpty()) return;
       const min = b.min.y, max = b.max.y;
+      // R8 — prefer real elevations from the element-map when available.
+      // We accept any of these per-element fields (in metres):
+      //   levelElevation | levelElevationM | levelTopM | levelBaseM
+      // For each unique level, take the median of all reported
+      // elevations as the level's base height; band tops are the next
+      // level's base (or modelBounds.max for the topmost).
+      const levelHeights = new Map();
+      Object.values(state.elementMap || {}).forEach(m => {
+        if (!m || !m.level) return;
+        const h = m.levelElevation ?? m.levelElevationM ?? m.levelBaseM ?? m.levelTopM;
+        if (h == null || isNaN(+h)) return;
+        if (!levelHeights.has(m.level)) levelHeights.set(m.level, []);
+        levelHeights.get(m.level).push(+h);
+      });
+      const haveElevations = levelHeights.size >= Math.max(2, levels.length - 1);
+      if (haveElevations) {
+        const sorted = levels.map(lvl => {
+          const samples = (levelHeights.get(lvl) || []).slice().sort((a, b) => a - b);
+          const base = samples.length ? samples[Math.floor(samples.length / 2)] : null;
+          return { level: lvl, base };
+        }).filter(x => x.base != null).sort((a, b) => a.base - b.base);
+        state.levelBands = sorted.map((row, i) => ({
+          level: row.level,
+          min: row.base,
+          max: i + 1 < sorted.length ? sorted[i + 1].base : max
+        }));
+        if (state.levelBands.length) return;
+      }
+      // Fallback: equal slices when no elevation data is supplied.
       const step = (max - min) / Math.max(1, levels.length);
       state.levelBands = levels.map((l, i) => ({
         level: l, min: min + i * step, max: min + (i + 1) * step
@@ -766,6 +832,11 @@
     // ── Comments tab (U2) ──────────────────────────────────────────────
     // When an issue is selected, load its thread; otherwise show a hint.
     let commentsCache = new Map();        // issueId → comment[]
+    // R4 — keep the pending comment screenshot in module scope, NOT on
+    // the textarea's dataset. Setting a 500 KB base64 string as a DOM
+    // attribute thrashes layout / mutation observers; a closure variable
+    // costs nothing.
+    let pendingAttachment = null;
     async function renderComments() {
       const pane = $('#pane-comments');
       const issueId = state.selectedIssueId;
@@ -792,10 +863,9 @@
         </div>`;
       $('#commentSubmit').addEventListener('click', () => postComment(issueId));
       $('#commentAttach').addEventListener('click', () => {
-        const b64 = downscaleScreenshot(V.renderer.domElement, 1280, 0.85);
+        pendingAttachment = downscaleScreenshot(V.renderer.domElement, 1280, 0.85);
         const ta = $('#commentInput');
         ta.value = (ta.value ? ta.value + '\n\n' : '') + '[screenshot attached]';
-        ta.dataset.attachment = b64;
       });
 
       const listEl = $('#commentsList');
@@ -825,7 +895,8 @@
       const ta = $('#commentInput');
       const body = (ta?.value || '').trim();
       if (!body) return;
-      const payload = { body, attachment: ta.dataset.attachment || null };
+      const payload = { body, attachment: pendingAttachment };
+      pendingAttachment = null;          // R4 — drop after read
       const result = await api(`/api/projects/${projectId}/issues/${issueId}/comments`, {
         method: 'POST', body: JSON.stringify(payload)
       });
@@ -893,13 +964,18 @@
       const isPerfKey = k => /(flow|pressure|capacity|voltage|current|power|temperature|cooling|heating|wattage|kw|lps|cfm|pa)/i.test(k);
       let dims = Object.entries(meta.dimensions  || {}).filter(([, v]) => v != null);
       let perfs = Object.entries(meta.performance || {}).filter(([, v]) => v != null);
-      if (!dims.length || !perfs.length) {
-        Object.entries(meta).forEach(([k, v]) => {
-          if (RESERVED.has(k) || v == null || typeof v === 'object') return;
-          if (!dims.length  && isDimKey(k))  dims.push([k, v]);
-          if (!perfs.length && isPerfKey(k)) perfs.push([k, v]);
-        });
-      }
+      // R11 — accumulate any leftover scalar keys into a generic
+      // "Properties" bucket so sparse element-map responses still show
+      // useful data instead of dropping it.
+      const claimedDims  = new Set(dims.map(([k]) => k));
+      const claimedPerfs = new Set(perfs.map(([k]) => k));
+      const others = [];
+      Object.entries(meta).forEach(([k, v]) => {
+        if (RESERVED.has(k) || v == null || typeof v === 'object') return;
+        if (!dims.length  && isDimKey(k))  { dims.push([k, v]);  claimedDims.add(k); return; }
+        if (!perfs.length && isPerfKey(k)) { perfs.push([k, v]); claimedPerfs.add(k); return; }
+        if (!claimedDims.has(k) && !claimedPerfs.has(k)) others.push([k, v]);
+      });
 
       pane.innerHTML = `
         <div class="prop-section-label">Element</div>
@@ -913,6 +989,8 @@
           dims.map(([k, v]) => `<div class="prop-row"><span class="k">${k}</span><span class="v">${escapeHtml(v)}</span></div>`).join('') : ''}
         ${perfs.length ? '<div class="prop-section-label">Performance</div>' +
           perfs.map(([k, v]) => `<div class="prop-row"><span class="k">${k}</span><span class="v">${escapeHtml(v)}</span></div>`).join('') : ''}
+        ${others.length ? '<div class="prop-section-label">Properties</div>' +
+          others.map(([k, v]) => `<div class="prop-row"><span class="k">${escapeHtml(k)}</span><span class="v">${escapeHtml(v)}</span></div>`).join('') : ''}
         <div class="action-stack">
           <button class="btn full" id="actCreateIssue">🚩 Create issue</button>
           <button class="btn ghost full" id="actFindClashes">🔍 Find clashes for this</button>
@@ -984,9 +1062,18 @@
         ];
       }
       const pick = () => guids[Math.floor(Math.random() * guids.length)];
+      const pickPair = () => {
+        // R6 — never clash an element with itself; retry up to a bounded
+        // number of times before giving up (real models have far more
+        // than 2 elements so this almost always succeeds first try).
+        let a = pick(), b = pick(), guard = 6;
+        while (a === b && guard-- > 0) b = pick();
+        return [a, b];
+      };
       const out = [];
       for (let i = 1; i <= 12; i++) {
-        const a = pick(), b = pick();
+        const [a, b] = pickPair();
+        if (a === b) continue;
         const ma = state.elementMap[a] || {}, mb = state.elementMap[b] || {};
         out.push({
           id: `CLH-${String(i).padStart(3, '0')}`,
@@ -1002,8 +1089,14 @@
     }
 
     function placeClashPins() {
-      // Clear existing
-      state.clashPins.forEach(m => V.scene.remove(m));
+      // R13 — push into the engine's pinGroup + pinMeta so the engine's
+      // existing raycaster handles pin clicks (single raycast per click,
+      // pinTap event delivered through V.bridge).
+      const host = V.pinGroup || V.scene;
+      state.clashPins.forEach((m, id) => {
+        host.remove(m);
+        if (V.pinMeta) V.pinMeta.delete(m.uuid);
+      });
       state.clashPins.clear();
       if (!V.modelRoot) return;
       const size = V.modelBounds.isEmpty() ? 1 : V.modelBounds.getSize(new THREE_.Vector3()).length() * 0.012;
@@ -1019,7 +1112,8 @@
         wire.renderOrder = 998;
         wire.position.copy(pos);
         wire.userData.clashId = c.id;
-        V.scene.add(wire);
+        host.add(wire);
+        if (V.pinMeta) V.pinMeta.set(wire.uuid, { __coord: 'clash', clashId: c.id });
         state.clashPins.set(c.id, wire);
       });
     }
@@ -1114,7 +1208,10 @@
         });
         body.appendChild(table);
       }
-      $('#clashesFilterCount').textContent = rows.length;
+      // R12 — uniformly total counts on the per-status pills, plus a
+      // separate "Showing N of M" indicator that respects both axes.
+      const showing = $('#clashesShowing');
+      if (showing) showing.textContent = `Showing ${rows.length} of ${state.clashes.length}`;
       $('#clashesTotal').textContent = state.clashes.length;
       $('#clashesNew').textContent = state.clashes.filter(c => c.status === 'NEW').length;
       $('#clashesOpen').textContent = state.clashes.filter(c => c.status === 'OPEN').length;
@@ -1145,8 +1242,15 @@
             <button class="btn sm" data-act="issue">→ Create issue</button>
           </div>
         `;
-        $('button[data-act=view]', card).addEventListener('click', () => focusClash(c));
-        $('button[data-act=issue]', card).addEventListener('click', () => openIssueModal({ clash: c }));
+        // R5 — the card's CSS sets cursor:pointer; honour that by wiring
+        // the body to focusClash. Buttons stop propagation so they keep
+        // their distinct actions.
+        card.addEventListener('click', (e) => {
+          if (e.target.closest('button')) return;
+          focusClash(c);
+        });
+        $('button[data-act=view]', card).addEventListener('click', (e) => { e.stopPropagation(); focusClash(c); });
+        $('button[data-act=issue]', card).addEventListener('click', (e) => { e.stopPropagation(); openIssueModal({ clash: c }); });
         pane.appendChild(card);
       });
     }
@@ -1206,7 +1310,12 @@
     }
 
     function placeIssuePins() {
-      state.issuePins.forEach(m => V.scene.remove(m));
+      // R13 — same pinGroup + pinMeta path as placeClashPins.
+      const host = V.pinGroup || V.scene;
+      state.issuePins.forEach(m => {
+        host.remove(m);
+        if (V.pinMeta) V.pinMeta.delete(m.uuid);
+      });
       state.issuePins.clear();
       const size = V.modelBounds.isEmpty() ? 0.4 : V.modelBounds.getSize(new THREE_.Vector3()).length() * 0.008;
       const PRIORITY = { CRITICAL: 0xEF4444, HIGH: 0xF97316, MEDIUM: 0xF59E0B, LOW: 0x60A5FA, RESOLVED: 0x22C55E };
@@ -1220,7 +1329,8 @@
         sphere.position.set(i.position.x, i.position.y, i.position.z);
         sphere.userData.issueId = i.id;
         sphere.renderOrder = 999;
-        V.scene.add(sphere);
+        host.add(sphere);
+        if (V.pinMeta) V.pinMeta.set(sphere.uuid, { __coord: 'issue', issueId: i.id, priority: i.priority });
         state.issuePins.set(i.id, sphere);
       });
     }
@@ -1260,7 +1370,10 @@
         body.appendChild(table);
       }
       $('#issuesTotal').textContent = state.issues.length;
-      $('#issuesMine').textContent = state.issues.filter(i => i.assigneeId === 'me').length;
+      // R1 — match the same myId logic the filter uses, otherwise the
+      // "Mine" badge always shows 0 in production where assigneeId is a
+      // real UUID, never the placeholder "me".
+      $('#issuesMine').textContent = state.issues.filter(i => i.assigneeId === myId || i.assigneeId === 'me').length;
       $('#issuesOverdue').textContent = state.issues.filter(i => i.slaBreached || (i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'RESOLVED')).length;
       renderRightIssues();
       updateRightTabCounts();
@@ -1295,8 +1408,14 @@
             ${i.status !== 'RESOLVED' ? '<button class="btn sm" data-act="resolve">Resolve</button>' : ''}
           </div>
         `;
-        $('button[data-act=view]', card)?.addEventListener('click', () => focusIssue(i));
-        $('button[data-act=resolve]', card)?.addEventListener('click', () => updateIssue(i.id, { status: 'RESOLVED' }));
+        // R5 — same treatment as the clash cards: card body focuses the
+        // issue, buttons keep their explicit actions.
+        card.addEventListener('click', (e) => {
+          if (e.target.closest('button')) return;
+          focusIssue(i);
+        });
+        $('button[data-act=view]', card)?.addEventListener('click', (e) => { e.stopPropagation(); focusIssue(i); });
+        $('button[data-act=resolve]', card)?.addEventListener('click', (e) => { e.stopPropagation(); updateIssue(i.id, { status: 'RESOLVED' }); });
         pane.appendChild(card);
       });
     }
@@ -1635,30 +1754,19 @@
         ptr.x = ((e.clientX - r.left) / r.width) * 2 - 1;
         ptr.y = -((e.clientY - r.top) / r.height) * 2 + 1;
         ray.setFromCamera(ptr, V.camera);
+        // R14 — if the click landed on a pin, do NOT update lastClickPoint
+        // from the model surface behind it. Pin hits go through the
+        // engine's pinTap event instead.
+        if (V.pinGroup) {
+          const pinHits = ray.intersectObject(V.pinGroup, true);
+          if (pinHits.length) return;
+        }
         const hits = ray.intersectObject(V.modelRoot, true);
         if (hits.length) lastClickPoint = hits[0].point.clone();
       });
-      // Click pin → handle
-      dom.addEventListener('click', (e) => {
-        const r = dom.getBoundingClientRect();
-        ptr.x = ((e.clientX - r.left) / r.width) * 2 - 1;
-        ptr.y = -((e.clientY - r.top) / r.height) * 2 + 1;
-        ray.setFromCamera(ptr, V.camera);
-        const targets = [];
-        state.issuePins.forEach(m => targets.push(m));
-        state.clashPins.forEach(m => targets.push(m));
-        const hits = ray.intersectObjects(targets, false);
-        if (hits.length) {
-          const u = hits[0].object.userData;
-          if (u.issueId) {
-            const i = state.issues.find(x => x.id === u.issueId);
-            if (i) focusIssue(i);
-          } else if (u.clashId) {
-            const c = state.clashes.find(x => x.id === u.clashId);
-            if (c) focusClash(c);
-          }
-        }
-      });
+      // R13 — drop the standalone pin-click raycaster. The engine already
+      // raycasts pinGroup on every click and emits 'pinTap' via the
+      // bridge for any uuid in pinMeta. We listen for it below.
 
       window.addEventListener('resize', onResize);
       setupMinimap();
@@ -1669,6 +1777,19 @@
           state.selectedElementGuid = payload.guid;
           renderProperties(payload.guid);
           updateRightTabCounts();          // X2
+        }
+        // R13 — engine emits pinTap for any pin in pinMeta. Coord pins
+        // tagged with __coord = 'issue' / 'clash' route into our focus
+        // handlers; legacy pins (priority-only payload) keep working
+        // for any external embedders.
+        if (type === 'pinTap' && payload) {
+          if (payload.__coord === 'issue' && payload.issueId) {
+            const i = state.issues.find(x => x.id === payload.issueId);
+            if (i) focusIssue(i);
+          } else if (payload.__coord === 'clash' && payload.clashId) {
+            const c = state.clashes.find(x => x.id === payload.clashId);
+            if (c) focusClash(c);
+          }
         }
         return origSend.call(V.bridge, type, payload);
       };
@@ -1815,7 +1936,13 @@
         // selection / highlights.
         if ($('#issueModal')?.classList.contains('open')) return;
         if (k === 'Escape') {
-          $('.help-overlay').classList.remove('open');
+          // R7 — help overlay swallows Esc so closing it doesn't ALSO
+          // wipe the user's selection / highlights.
+          const help = $('.help-overlay');
+          if (help && help.classList.contains('open')) {
+            help.classList.remove('open');
+            return;
+          }
           handleHostCommand({ type: 'clearHighlight' });
           clearAllHighlights();          // L6
           state.selectedElementGuid = null;
@@ -1947,7 +2074,9 @@
         }
       }
       ping();                                          // immediate
-      setInterval(ping, 15000);                         // every 15s
+      // R2 — keep the timer handle on state so the beforeunload cleanup
+      // (which clears state.heartbeatTimer) actually does something.
+      state.heartbeatTimer = setInterval(ping, 15000);  // every 15s
       window.addEventListener('online',  ping);
       window.addEventListener('offline', () => setOnline(false));
       document.addEventListener('visibilitychange', () => { if (!document.hidden) ping(); });
@@ -1963,9 +2092,18 @@
       const is = guid
         ? state.issues.filter(i => Array.isArray(i.elementGuids) && i.elementGuids.includes(guid))
         : state.issues.filter(i => i.status !== 'RESOLVED');
-      const cmnt = state.selectedIssueId
-        ? (commentsCache.get(state.selectedIssueId)?.length || 0)
-        : 0;
+      // R15 — prefer the cached length once loaded; otherwise fall back
+      // to the issue's commentCount field from the API so the badge shows
+      // useful info before the user opens the Comments tab.
+      let cmnt = 0;
+      if (state.selectedIssueId) {
+        const cached = commentsCache.get(state.selectedIssueId);
+        if (cached) cmnt = cached.length;
+        else {
+          const issue = state.issues.find(i => i.id === state.selectedIssueId);
+          cmnt = (issue && (issue.commentCount ?? issue.comments_count ?? issue.commentsCount)) || 0;
+        }
+      }
       const set = (id, n) => {
         const e = $('#' + id); if (!e) return;
         e.textContent = n ? `(${n})` : '';
