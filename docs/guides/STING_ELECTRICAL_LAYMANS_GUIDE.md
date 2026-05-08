@@ -200,6 +200,58 @@ department to derive these tokens. If your project uses linked rooms (rooms
 in the architectural model), STING's `SpatialAutoDetect` reads them through
 the link automatically.
 
+### 5.4a Define MEP **Distribution Systems** *before* placing any panel
+
+Revit's electrical engine uses **Distribution Systems** to define
+voltage / phases / poles. **You cannot circuit anything until at least one
+Distribution System exists.** New starters trip on this constantly: they
+place a panel, try to connect a light, and Revit silently refuses.
+
+Open `Manage → MEP Settings → Electrical Settings → Distribution Systems`
+and create one per voltage/phase combination on the project:
+
+| Phase config        | L-N (V) | L-L (V) | Use for                                    |
+|---------------------|---------|---------|--------------------------------------------|
+| 1-phase 2-wire      | 230     | —       | Domestic supply, small consumer units      |
+| 1-phase 3-wire      | 230     | —       | Split-phase neutrals (rare in UK)          |
+| 3-phase 4-wire WYE  | 230     | 415     | **UK commercial standard**                 |
+| 3-phase 5-wire WYE  | 230     | 415     | UK commercial with separate earth          |
+| 3-phase 4-wire WYE  | 277     | 480     | US commercial                              |
+| 3-phase 3-wire DELTA| —       | 415     | Industrial motor loads (no neutral)        |
+
+Then on each panel set the `Distribution System` parameter to the matching
+type. Without this, the panel's circuit list stays empty no matter how many
+fixtures you wire.
+
+### 5.4b Voltage-drop budget and demand-factor assumptions
+
+Two project-wide settings determine whether your cables and panels will be
+under- or over-sized. Set them before placing equipment so STING's auto-drop
+sizes correctly first time.
+
+**Voltage-drop budget** (BS 7671 Appendix 4 — write into Project Information):
+
+| Circuit type     | Max Vd from origin | Why                                      |
+|------------------|--------------------|------------------------------------------|
+| Lighting         | 3 %                | Lower drop = stable colour temperature   |
+| Power / general  | 5 %                | Tolerated swing on appliances            |
+| Total end-to-end | 8 %                | Absolute ceiling per BS 7671             |
+
+**Demand (diversity) factors** — set per panel via the `Demand Factor`
+parameter. Typical UK office:
+
+| Load type        | Factor | Why                                            |
+|------------------|--------|------------------------------------------------|
+| Office lighting  | 1.0    | All on during occupancy                        |
+| Office power     | 0.6    | Sockets rarely all loaded simultaneously       |
+| Server room      | 1.0    | 24/7 base load                                 |
+| Comfort cooling  | 0.9    | Steady once at setpoint                        |
+| Lifts            | 0.5    | Start currents spread across phases            |
+| Catering kitchen | 0.6–0.7| BS 7671 Appendix 16                            |
+
+The panel schedule's *Total Estimated Demand* equals
+`Σ(connected load × demand factor)` and drives upstream cable sizing.
+
 ### 5.5 Place the **distribution boards** first
 
 Every circuit ends at a DB. Place the boards before anything else so when
@@ -430,6 +482,219 @@ shipped) and applies them automatically. Examples:
 You can edit the rules JSON or write project overrides at
 `<project>/_BIM_COORD/placement_rules.json`.
 
+### 7.6 Lighting Grid — the math that drives the layout
+
+The **Lumen Method** is the textbook calc for interior lighting. STING's
+Lighting Grid command applies it automatically per room:
+
+```
+N = (E × A) / (Φ × MF × UF)
+```
+
+| Symbol | Meaning                              | Where it comes from                        |
+|--------|--------------------------------------|--------------------------------------------|
+| N      | Number of luminaires                 | The output (rounded up to grid)            |
+| E      | Required lux on the working plane    | Room *function* → CIBSE LG7 lookup         |
+| A      | Room area (m²)                       | Room boundary                              |
+| Φ      | Lumens per luminaire                 | Family parameter `LMP_LUMENS`              |
+| MF     | Maintenance Factor (0.7–0.85)        | Project setting (`MAINTENANCE_FACTOR`)     |
+| UF     | Utilisation Factor                   | Manufacturer table on K + reflectances     |
+
+**Room Cavity Ratio** drives UF:
+
+```
+K = (L × W) / [Hm × (L + W)]
+```
+
+where `L`, `W` are room length & width and `Hm` is mounting height *above
+the working plane* (working plane = 0.85 m AFFL for desks, 0 m for
+warehouses, 1.0 m for benches).
+
+STING reads UF tables from `LIGHTING_LUMINAIRE_DATA.json` or from the
+luminaire family's `UF_TABLE` parameter. If neither exists it falls back to
+0.5 — a safe, slightly pessimistic default.
+
+**CIBSE LG7 target lux** (excerpt — STING auto-fills from room *function*):
+
+| Room function   | E (lux) | Notes                                  |
+|-----------------|---------|----------------------------------------|
+| Open office     | 500     | Task plane                             |
+| Cellular office | 500     | Task plane                             |
+| Meeting room    | 500     | Plus dimming for AV                    |
+| Corridor        | 100     | 150 in care/medical                    |
+| Stair           | 150     | 200 at landings                        |
+| WC              | 200     | Wall-mounted vanity preferred          |
+| Plant room      | 200     | 300 at controls                        |
+| Reception       | 300     | Plus accent feature lighting           |
+| Retail floor    | 750     | Plus 1500 lx accent                    |
+| Operating theatre| 1000   | + 100 000 lx focal task lighting       |
+| Warehouse aisle | 200     | Vertical plane                         |
+| Classroom       | 300–500 | 500 on board                           |
+
+### 7.7 Lighting Grid settings that change the layout
+
+Eight knobs in the dialog — tune them in this order for predictable results:
+
+| Setting                    | Default               | Effect when changed                                    |
+|----------------------------|-----------------------|--------------------------------------------------------|
+| Target lux (E)             | from room function    | Doubles → twice the fixtures                           |
+| Working plane height       | 0.85 m (BS EN 12464)  | 0 m for warehouses, 1.0 m for benches                  |
+| Mounting height (Hm)       | ceiling – WP          | Lower → more fixtures (worse UF)                       |
+| MF (maintenance)           | 0.8                   | 0.85 in clean offices, 0.7 in dusty/factory            |
+| UF override                | auto from K + reflectances | Override only if family lacks tables               |
+| Spacing-to-Mounting Height ratio (SHR) | 1.5:1     | 1:1 = uniform but 50 % more fixtures; 2:1 = patchy     |
+| Pattern                    | Grid                  | Staggered for entrances, Perimeter for retail          |
+| Edge offset                | half-spacing          | Set to wall thickness for narrow corridors             |
+
+> **Rule of thumb for "perfect"**: target uniformity Uo ≥ 0.6 (min/avg lux)
+> and UGR ≤ 19 for offices, ≤ 25 for warehouses. Tighten SHR to 1:1 if Uo
+> falls short. Re-run after each change.
+
+### 7.8 Smart-place rule JSON — anatomy of one rule
+
+`STING_PLACEMENT_RULES.json` is the single source of truth for rule-driven
+placement. Each rule looks like this:
+
+```json
+{
+  "id": "office-twin-socket-perimeter",
+  "discipline": "E",
+  "category": "ElectricalFixtures",
+  "family": "Twin Socket - Switched",
+  "trigger": {
+    "spaceFunction": ["Office", "Open Office", "Meeting"],
+    "minArea_m2": 6,
+    "phase": ["NEW", "EXISTING"]
+  },
+  "anchor": "PerimeterWall",
+  "spacing": { "type": "linear", "interval_mm": 3000 },
+  "offsets": {
+    "fromCorner_mm": 600,
+    "mountingHeight_mm": 450
+  },
+  "side": "Inside",
+  "pattern": "AlongPerimeter",
+  "score": {
+    "weights": {
+      "distanceToCorner": 1.0,
+      "distanceToOtherSocket": 0.5,
+      "distanceToDoor": 2.0,
+      "distanceToWindow": 0.3,
+      "wallAlignment": 1.5
+    },
+    "minScore": 0.4
+  },
+  "exclusions": [
+    "Within 600 mm of door swing",
+    "Behind wall-fixed furniture",
+    "On glazed walls",
+    "Within 300 mm of corner"
+  ],
+  "priority": 50
+}
+```
+
+**Anchor types** the engine understands:
+
+| Anchor          | What it means                                                |
+|-----------------|--------------------------------------------------------------|
+| `PerimeterWall` | Along the inside face of the room's perimeter walls           |
+| `ColumnGrid`    | At the intersections of the structural grid                  |
+| `CeilingGrid`   | At the centres of suspended-ceiling tiles (600/1200 modules) |
+| `RoomCenter`    | Single fixture at the geometric centre                        |
+| `EquidistantArray` | Even spacing across the floor (lighting fallback)         |
+| `ScopeBox`      | At the bounds of a named scope box                           |
+| `LevelDatum`    | At fixed offsets from a level line (risers, panels)          |
+
+### 7.9 Family authoring — what a fixture needs to be auto-place-friendly
+
+Six parameters added in v4 MVP let the engine know *where* a fixture should
+sit *relative to its host*. Missing parameters → engine falls back to the
+family's insertion point (which is often the wrong place):
+
+| Parameter            | Type   | Purpose                                        |
+|----------------------|--------|------------------------------------------------|
+| `PLACE_ANCHOR`       | text   | "Wall", "Ceiling", "Floor", "Furniture"        |
+| `PLACE_OFFSET_X_MM`  | length | Horizontal offset from anchor                  |
+| `PLACE_OFFSET_Y_MM`  | length | Vertical offset (above floor / below ceiling)  |
+| `PLACE_SIDE`         | text   | "Inside", "Outside", "Either"                  |
+| `PLACE_PRIORITY`     | int    | Higher wins when two rules collide             |
+| `PLACE_GROUP`        | text   | Siblings that should align (e.g. row of pendants) |
+
+Two more authoring rules are non-negotiable for accurate auto-routing:
+
+1. **Connector position must equal the actual electrical termination.**
+   If the connector point sits 50 mm inside the body, every conduit drop
+   routes 50 mm short and the model looks correct but the BOQ is wrong.
+2. **Lookup-table lumens / wattage for lighting families.** Place
+   `LMP_LUMENS`, `LMP_WATTAGE`, `LMP_CCT_K`, `LMP_CRI` as type parameters so
+   the Lighting Grid math has data to read.
+
+### 7.10 Project overrides for placement rules
+
+Drop `<project>/_BIM_COORD/placement_rules.json` next to the model.
+Same schema. Project rules **win by `id`** — to override the corporate
+"office-twin-socket-perimeter" rule, declare a project rule with the same
+id and STING merges the project's fields on top of the corporate baseline.
+
+### 7.11 Tuning the scorer for "perfect" auto-layouts
+
+The scorer ranks every candidate position. When two layouts both *look*
+fine, the higher-scored one wins. Tune the weights to bias toward your
+office's house style:
+
+| Bias for                     | Increase weight on                       |
+|------------------------------|------------------------------------------|
+| Even spacing                 | `distanceToOtherSocket` (0.5 → 1.0)      |
+| Alignment with column grid   | `wallAlignment`, `gridAlignment`         |
+| Avoiding doors               | `distanceToDoor` (2.0 → 4.0)             |
+| Hiding behind furniture lines| `furnitureAlignment`                     |
+| Symmetry                     | `centerlineAlignment`                    |
+
+Save tuned weights as a project rule override. Set `minScore` higher (0.4 →
+0.6) to *prevent* ugly fallback placements — at the cost of some elements
+being skipped (engine flags them in the result panel).
+
+### 7.12 Emergency lighting auto-place (BS 5266-1)
+
+Smart-place ships a `BS5266` rule pack that produces compliant emergency
+lighting layouts:
+
+- ≤ 2 m of every change of escape-route direction.
+- ≤ 2 m of each final exit door.
+- ≤ 2 m of each first-aid post / fire-fighting equipment.
+- ≤ 2 m of each toilet > 8 m².
+- Maximum 12 m apart along a straight escape route.
+- 1 lux minimum on the escape-route centerline (open areas: 0.5 lux).
+- Anti-panic uplift: 0.5 lux floor coverage in lifts/risers.
+
+The pack runs *alongside* the lumen-method grid and inserts a parallel
+emergency-luminaire layer; emergency fixtures don't count toward the
+general-lighting target lux. Emergency luminaires are tagged with
+`PROD = EMG` and are picked up automatically by the
+`elec-fire-alarm-A1-1to100` and `elec-lighting-A1-1to100` drawing types.
+
+### 7.13 UK mounting-height reference
+
+Defaults baked into STING's families (override per project under
+`<project>/_BIM_COORD/mounting_heights.json`):
+
+| Element                       | Height AFFL (mm) | Standard            |
+|-------------------------------|------------------|---------------------|
+| 13 A socket (general)         | 450              | BS 8300 / Part M    |
+| 13 A socket (kitchen worktop) | 1050             | BS 7671             |
+| Light switch                  | 1200             | BS 8300             |
+| Fire-alarm break-glass call point | 1400         | BS 5839-1           |
+| Fire-alarm sounder/beacon     | 2400 (high-level)| BS 5839-1           |
+| Smoke detector (ceiling)      | 0 (host)         | BS 5839-1           |
+| Heat detector (ceiling)       | 0 (host)         | BS 5839-1           |
+| Emergency luminaire (ceiling) | 0 (host)         | BS 5266-1           |
+| Data outlet (with socket)     | 450              | spec / BCO          |
+| Thermostat                    | 1500             | spec                |
+| Door access reader            | 1000             | spec / Part M       |
+| Disabled-toilet alarm pull    | 100 (low)        | BS 8300 — accessible|
+| Disabled-toilet ceiling pull cord | 0 (ceiling)  | BS 8300             |
+
 ---
 
 ## 8. Routing things
@@ -479,6 +744,142 @@ STING models all three when the auto-drop sees the right family present.
   fire stopping. Auto-drop ignores compartment lines — flag them manually.
 - **Aesthetic concerns.** Long horizontal runs in exposed-soffit ceilings
   may need to be moved for visual reasons.
+
+### 8.5 Cable sizing — the BS 7671 method
+
+A cable size is **acceptable** only when *all four* tests pass simultaneously:
+
+| Test                       | Inequality                  | Meaning                                                |
+|----------------------------|-----------------------------|--------------------------------------------------------|
+| 1. Carrying capacity       | `Iz ≥ In`                   | Cable's safe current ≥ breaker rating                  |
+| 2. Protection coordination | `In ≥ Ib`                   | Breaker rating ≥ design current                        |
+| 3. Voltage drop            | `Vd ≤ budget`               | End-to-end drop within Appendix 4 limits               |
+| 4. Fault disconnection     | `Zs × Ia ≤ U₀`              | Loop impedance × trip current ≤ supply voltage         |
+
+Where:
+- `Ib` = design current (load current after diversity)
+- `In` = nominal breaker rating (next standard size up from `Ib`)
+- `Iz` = cable's effective current-carrying capacity *after* derating
+- `Vd` = voltage drop end-to-end
+- `Zs` = earth-fault loop impedance
+- `Ia` = current that causes the breaker to trip in 0.4 s (final) / 5 s (distribution)
+- `U₀` = nominal phase-earth voltage (230 V in UK)
+
+`Iz` is *derated* from the tabulated value:
+
+```
+Iz = It × Cg × Ca × Ci × Cs
+```
+
+| Factor | Meaning                          | Typical                          |
+|--------|----------------------------------|----------------------------------|
+| Cg     | Grouping (BS 7671 Table 4C1)     | 0.80 for 4 circuits in tray      |
+| Ca     | Ambient temperature (Table 4B1)  | 0.94 at 35 °C                    |
+| Ci     | Thermal insulation (Table 52.2)  | 0.50 in completely-insulated wall|
+| Cs     | Soil resistivity (buried cables) | 0.85 in clay                     |
+
+STING's auto-drop reads `Ib` from the circuit's connected load × demand
+factor, picks the next-standard `In`, looks up `It` from BS 7671 Table 4D5
+(twin-and-earth) / 4E1 (singles in conduit) / 4F1A (multicore in tray),
+applies the derating chain, and selects the smallest size that passes all
+four tests. Where the cable size is forced larger by voltage drop, the
+result panel reports *"upsized for Vd from 2.5 mm² to 4.0 mm²"*.
+
+### 8.6 Voltage-drop calculation
+
+Per circuit:
+
+```
+Vd = (mV/A/m × L × Ib) / 1000          (single phase)
+Vd = (mV/A/m × L × Ib × √3) / 1000     (three phase, no neutral)
+```
+
+`mV/A/m` comes from BS 7671 Table 4D5 (column 3 single-phase, column 4
+three-phase). `L` is the **route length**, not the straight-line distance —
+STING reads it from the conduit/tray segment lengths it dropped in §8.1.
+
+End-to-end `Vd_total` is the sum across the supply chain:
+
+```
+Vd_total = Vd_main_to_SDB + Vd_SDB_to_FDB + Vd_FDB_to_outlet
+```
+
+STING accumulates this through the panel hierarchy. If `Vd_total > budget`,
+the validator flags the offending circuit and suggests upsizing the *first*
+section that produces enough headroom (usually the main feeder, not the
+final circuit).
+
+### 8.7 Fault level and breaker discrimination
+
+Two checks every electrical engineer must do, and STING automates both:
+
+**Breaker breaking capacity.** At the panel terminals the *prospective
+fault current* `Ipf = U / Z_loop`. The breaker's **kA rating** must exceed
+`Ipf`. Common values:
+
+| Location               | Typical Ipf | Breaker kA needed |
+|------------------------|-------------|-------------------|
+| Domestic CU            | 6 kA        | 6 kA              |
+| Small-commercial DB    | 10 kA       | 10 kA             |
+| LV main panel          | 25–50 kA    | 25 kA / 50 kA     |
+| Industrial main switchgear | 50–100 kA | 65 kA / 100 kA   |
+
+**Discrimination (selectivity).** An upstream breaker should NOT trip
+before the downstream one. Achieved by:
+
+- Current ratio `In_up / In_down ≥ 1.6`
+- Trip-curve compatibility (upstream Type C / D, downstream Type B / C)
+- Time delay on upstream MCCBs (S-curve)
+
+The Spec validator flags both violations.
+
+### 8.8 Earthing and bonding
+
+Every metal enclosure (panels, conduits, trays, equipment cases) must be
+tied back to the **Main Earth Terminal (MET)** so a fault current trips the
+breaker before touching anyone.
+
+**CPC (Circuit Protective Conductor) sizes** per BS 7671 Table 54.7
+(adiabatic equation), applied automatically to STING's `CPC_SZ_MM`:
+
+| Phase conductor (mm²) | CPC (mm²)        |
+|-----------------------|------------------|
+| ≤ 16                  | = phase          |
+| 25 – 35               | 16               |
+| ≥ 50                  | phase ÷ 2        |
+
+**Main protective bonding** (Reg 411.3.1.2) — gas, water, oil, structural
+steel, lightning protection — sized per Table 54.8 (commonly 10 mm² for
+TN-S/TN-C-S installs).
+
+**Supplementary bonding** in special locations (BS 7671 Section 701/702/
+704) — bathrooms, swimming pools, kitchens — 4 mm² minimum between exposed
+and extraneous metalwork. STING's smart-place pack `BS7671-Bonding`
+auto-inserts bonding straps when a Room's *function* matches a special
+location.
+
+### 8.9 Cable schedule export
+
+`DOCS → Doc Automation → Cable Schedule` (or `BIM → Excel Link → Export
+Schedules`) produces one row per circuit:
+
+| Column            | Source                                                   |
+|-------------------|----------------------------------------------------------|
+| Cable reference   | TAG (`E-BLD1-Z01-L02-LTG-LTG-LFL-0042`)                  |
+| From              | Panel name + circuit number                              |
+| To                | Fixture description + tag                                |
+| Cable type        | XLPE / PVC / MICC / FP200 / SWA                          |
+| Cores × size      | mm² (e.g. `3C × 2.5` or `4C × 16 + E`)                   |
+| Length            | Sum of conduit/tray segment lengths (route, not straight)|
+| Ib / In / Iz      | Computed                                                 |
+| Vd %              | Computed                                                 |
+| Zs                | Computed                                                 |
+| Origin            | Substation / origin point                                |
+| Cable code        | Manufacturer reference                                   |
+| Notes             | Fire rating (Cca / B2ca), LSZH, armour, drum number     |
+
+This is the QS handover document, the contractor's pricing schedule, and
+the as-built record all in one. Treat it as a deliverable, not a by-product.
 
 ---
 
@@ -618,6 +1019,411 @@ Once you have 200 sheets, someone will accidentally change a view's scale.
 (`SCALE`, `DETAIL`, `TEMPLATE`, `MANAGED_TEMPLATE`, `TOKEN_PROFILE`), and
 restores the profile values. Run it before every issue.
 
+### 11.6 The DrawingType POCO — every field that matters
+
+A drawing type is a JSON bundle. Here are the fields you'll actually tune
+to get a perfect auto-layout, in roughly the order you'll meet them:
+
+| Field                | What it controls                                  | Tuning advice                                            |
+|----------------------|---------------------------------------------------|----------------------------------------------------------|
+| `id`                 | Stable identifier (e.g. `elec-lighting-A1-1to100`)| Reusable across projects — pick once and stick           |
+| `name`               | Human label                                       | Browser display                                          |
+| `purpose`            | Plan / RCP / Section / Schedule / Spool / Coord   | Drives the routing dispatch                              |
+| `discipline`         | `Electrical`, `Mechanical`, `*` wildcard          | Use `*` only for cross-disc legends                       |
+| `phase`              | `Construction` / `As-Built` / `Demolition` / `*`  | Routes a refurb model to the right type set              |
+| `paperSize`          | A0 / A1 / A2 / A3                                 | A1 for layouts, A3 for details, A2 for risers            |
+| `titleBlockFamily`   | Specific `.rfa` family name                       | **Always declare** — fallback picks "first available"    |
+| `orientation`        | Landscape / Portrait                              | Landscape is standard, Portrait for risers               |
+| `scale`              | 1:50, 1:100, 1:200, 1:500                         | 1:100 layouts, 1:50 plant rooms, 1:200 site, 1:500 context |
+| `detailLevel`        | Coarse / Medium / Fine                            | Fine for fab + plant rooms, Medium for layouts           |
+| `viewTemplateName`   | Existing Revit template by name                    | Or use a *managed* pack (§11.9)                          |
+| `viewportTypeName`   | Title-on-sheet style                               | Always set — default Revit titles are ugly               |
+| `sheetNumberPattern` | `"E-{lvl}-{seq:D3}"`                              | See §11.12 — never type sheet numbers                    |
+| `sheetNamePattern`   | `"Lighting Plan — {lvl}"`                          | Matches your office numbering                            |
+| `crop`               | Strategy + margin                                  | See §11.13 — biggest lever for tightness                 |
+| `sectionMarker`      | Family + mark prefix + bubble style + farClipMm    | Section / elevation / callout symbol set                 |
+| `viewStylePackId`    | Reference to a pack                                | See §11.8                                                |
+| `tokenProfile`       | Tag depth + style preset + segment mask + colour   | Phase 135 — controls auto-tag appearance                 |
+| `titleBlockParams`   | Map of param→value template                        | See §11.12 — auto-fills the title block                  |
+| `annotation`         | AutoDim, AutoTag, dim style, per-cat tag families  | See §11.11                                               |
+| `print`              | Colour scheme, line-weight scale, halftone links   | 0.85 line scale for layouts, 1.0 for fab                  |
+| `extends`            | Parent profile id                                  | Inherit from a base, override what differs               |
+| `slots[]`            | Normalised viewport positions                      | See §11.7 — paper-size-independent                        |
+| `origin`             | `corporate` (checksum-locked) / `project`          | Set automatically — don't touch manually                  |
+
+### 11.7 Slots — viewport positions in normalised coordinates
+
+A slot describes *where on the sheet* a viewport sits, in **0..1 over the
+drawable zone** (the area the title block leaves for content — *not* paper
+edges). Same definition, different paper sizes, different physical spots:
+
+```json
+"slots": [
+  { "id": "main",     "x": 0.0,  "y": 0.0,  "w": 0.7,  "h": 1.0 },
+  { "id": "key-plan", "x": 0.75, "y": 0.7,  "w": 0.25, "h": 0.25, "scaleOverride": 500 },
+  { "id": "legend",   "x": 0.75, "y": 0.35, "w": 0.25, "h": 0.30 },
+  { "id": "notes",    "x": 0.75, "y": 0.0,  "w": 0.25, "h": 0.30 }
+]
+```
+
+| Slot field          | Purpose                                                |
+|---------------------|--------------------------------------------------------|
+| `id`                | Identifier, used by the slot resolver                  |
+| `x`, `y`, `w`, `h`  | 0..1 over drawable zone (origin top-left)              |
+| `scaleOverride`     | Override profile scale on this slot only (key plans)   |
+| `detailLevelOverride`| Coarse / Medium / Fine                                |
+| `viewTemplateOverride`| Different template on this slot (e.g. uncoloured key plan) |
+| `viewportTypeOverride`| Different viewport title                             |
+
+**Layouts that work for electrical**:
+
+- *Lighting plan*: `main` 70 % left + `key-plan` top-right + `legend` middle-right + `notes` bottom-right.
+- *Power plan*: same as lighting (consistency aids reviewers).
+- *Riser*: single full-bleed slot, portrait A2.
+- *Panel schedule*: single slot (Revit panel-schedule view fills the sheet).
+- *Fire-alarm plan*: 60 % main + 25 % key-plan + 15 % zone-list table.
+
+### 11.8 View Style Packs — the shared visual layer
+
+A *pack* factors graphic settings out of DrawingTypes so 80+ drawing types
+share ~11 packs. Electrical-relevant ones:
+
+| Pack                         | Use for                                             |
+|------------------------------|-----------------------------------------------------|
+| `corp-base`                  | Root pack — every other extends from this           |
+| `corp-standard-plan`         | Power / lighting / fire-alarm layouts               |
+| `corp-coordination`          | Services + clash visualisation (3D coord views)     |
+| `corp-presentation-rich`     | Client-facing 3D / axonometric                      |
+| `corp-presentation-mono`     | Mono client elevations                              |
+| `corp-fabrication-shop`      | Fab packages (containment spools, panel internals)  |
+
+Each pack defines `vg` (visibility graphics), `filters`, `detailLevel`,
+`discipline` (View Discipline — Electrical, Mechanical, Coord), `visualStyle`,
+`phaseFilter`, `phaseName`, `annotationCrop`, `farClipMm`, `viewRange`, and
+`underlay`. Packs `extend` parent packs (loop-detected) — child fields
+override parent fields.
+
+**Tuning a pack for electrical layouts**:
+
+- Set `discipline = Electrical` so Revit dims non-electrical items.
+- Set `detailLevel = Medium`.
+- Add filters: power circuits (project line colour by phase), fire-alarm
+  circuits (red), comms (purple), emergency lighting (green), regular
+  lighting (default).
+- Set `farClipMm = 0` for ceiling-projected views.
+- Halftone the architectural / structural categories so electrical reads
+  as foreground.
+
+### 11.9 Managed view templates (the new way) vs external (the old way)
+
+Each pack carries a `templateMode`:
+
+| Mode      | What happens                                                                |
+|-----------|-----------------------------------------------------------------------------|
+| `managed` | STING auto-generates and maintains a Revit template named `STING:<pack-id>:<ViewType>` from the pack JSON. Idempotent — absent → create; present + drift → re-apply. |
+| `external`| Pack references a hand-built template by name. You maintain it manually.    |
+
+**Managed mode is the recommended default.** Edit the JSON, run
+`DrawingTypes_RegeneratePackTemplates`, every view stays in sync. Two
+shared parameters mark managed templates for drift detection:
+`STING_PACK_ID_TXT`, `STING_PACK_CHECKSUM_TXT`.
+
+Migration commands: `ConvertPackToManaged`, `DetachFromManaged`,
+`RegeneratePackTemplates`.
+
+> **Caveat**: `displayOptions` (shadows, sketchy lines, ambient shadows)
+> are flagged warnings — Revit has no public API for these.
+
+### 11.10 The 199-filter Corporate Library
+
+`STING_AEC_FILTERS.json` ships 199 corporate-baseline filters. The pack
+`corp-coordination` references 21 of them, `corp-standard-plan` references
+19. Electrical-relevant filters out of the box:
+
+| Group           | Filters                                                          |
+|-----------------|------------------------------------------------------------------|
+| Power circuits  | By phase (L1 / L2 / L3), by voltage band, by panel               |
+| Lighting        | By luminaire type (LED / fluorescent / emergency / decorative)   |
+| Fire alarm      | By zone, by device type (detector / sounder / call point)        |
+| Containment     | By route (cable basket / conduit / trunking / bus-bar)           |
+| Voltage band    | LV (≤ 1000 V), ELV (≤ 50 V), SELV (battery / data)               |
+| Status          | Existing / New / Demolished / Temporary (for refurb projects)    |
+| Suitability     | S0 / S1 / S2 / S3 / S4 (CDE state)                              |
+
+Filters are *lazy-created* on demand by `ViewStylePackApplier` — you don't
+have to pre-mint them. A field-by-field merge applies your pack's
+`StyleFilterRule` first, registry defaults next, Revit defaults last.
+
+### 11.11 Annotation Rule Packs — auto-dim and auto-tag per profile
+
+The `annotation` block tells STING what to *do* on the view after the
+template is applied:
+
+```json
+"annotation": {
+  "autoDim": true,
+  "dimStrategy": "ChainOnGrid",
+  "autoTag": true,
+  "tagFamilies": {
+    "ElectricalFixtures":  "STING - Electrical Tag",
+    "LightingFixtures":    "STING - Lighting Tag",
+    "FireAlarmDevices":    "STING - Fire Alarm Tag",
+    "ConduitFittings":     "STING - Conduit Tag",
+    "CableTrayFittings":   "STING - Tray Tag",
+    "ElectricalEquipment": "STING - Panel Tag"
+  },
+  "denseUntilScale": 50
+}
+```
+
+| Field             | Effect                                                              |
+|-------------------|---------------------------------------------------------------------|
+| `autoDim`         | Auto-place dimensions per `dimStrategy`                              |
+| `dimStrategy`     | `ChainOnGrid`, `Bay`, `EdgeToCentreline`, `RoomDiagonal`, `None`    |
+| `autoTag`         | Auto-place IndependentTags using the smart-placement engine          |
+| `tagFamilies`     | Per-category tag family override                                     |
+| `denseUntilScale` | At scales finer (e.g. 1:50) than this, tag everything; coarser, only major equipment |
+
+> **#1 cause of unreadable plans**: tagging every socket at 1:200. Honour
+> `denseUntilScale` — at 1:200 you only need DBs and major equipment.
+
+### 11.12 Token substitution — sheet numbers and title-block bindings
+
+Sheet numbers / names use string templates with **token substitution**.
+Available tokens:
+
+| Token         | Source                                            | Example       |
+|---------------|---------------------------------------------------|---------------|
+| `{disc}`      | Single-letter discipline                          | `E`           |
+| `{discipline}`| Full discipline name                              | `Electrical`  |
+| `{lvl}`       | Level code                                        | `L02`         |
+| `{sys}`       | Sanitised system code                             | `LTG`         |
+| `{spool}`     | Spool number (fab)                                | `SP-014`      |
+| `{mark}`      | Section / elevation / callout mark                | `A`           |
+| `{seq}`       | Zero-padded 4-digit sequence (default)            | `0042`        |
+| `{seq:D2}`    | Sequence with width 2                             | `42`          |
+| `{seq:D3}`    | Sequence with width 3                             | `042`         |
+
+Title-block parameters bind **declaratively** via `titleBlockParams`. Two
+substitution kinds:
+
+| Substitution form         | Source                                                |
+|---------------------------|-------------------------------------------------------|
+| `${PRJ_ORG_xxx}`          | `ProjectInformation` parameter named `PRJ_ORG_xxx`    |
+| `{disc}` / `{lvl}` / `{seq:Dn}` etc. | Caller-supplied token dictionary           |
+
+Example for a UK office's electrical lighting type:
+
+```json
+"titleBlockParams": {
+  "Project Number":    "${PRJ_ORG_PROJECT_CODE}",
+  "Project Name":      "${PRJ_ORG_PROJECT_NAME}",
+  "Client":            "${PRJ_ORG_CLIENT_NAME}",
+  "Originator":        "${PRJ_ORG_ORIGINATOR_CODE}",
+  "Suitability":       "${PRJ_ORG_PHASE}",
+  "Sheet Number":      "{disc}-{lvl}-LTG-{seq:D3}",
+  "Sheet Name":        "Lighting Plan — {lvl}",
+  "Discipline":        "Electrical",
+  "Drawing Type":      "Lighting Layout",
+  "Revision":          "${PRJ_ORG_REV}",
+  "Drawn By":          "${PRJ_ORG_DRAWN_BY}",
+  "Checked By":        "${PRJ_ORG_CHECKED_BY}"
+}
+```
+
+Unknown tokens pass through literally. String / Integer / Double storage
+types are auto-handled. Numeric parameters that fail to parse warn, then
+write the default.
+
+### 11.13 Scope-box auto-binding — the naming convention
+
+This is the closest STING gets to magic. Name a scope box:
+
+```
+STING::<drawing-type-id>::<level-code?>::<tag?>
+```
+
+Examples:
+
+```
+STING::elec-lighting-A1-1to100::L02::west
+STING::elec-power-A1-1to100::L02::east
+STING::elec-fire-alarm-A1-1to100::GF
+STING::elec-riser-A2-1to100::ALL::main
+```
+
+Run `DrawingTypes_FromScopeBoxes`. STING:
+
+1. Parses the name → `drawingTypeId`, `levelCode`, `tag`.
+2. Creates a view of the right `ViewType` (FloorPlan / Section / 3D etc.).
+3. Applies the profile (template, scale, crop, style pack).
+4. Crops to the scope box.
+5. Creates the sheet (sheet number = pattern with substituted tokens).
+6. Places the viewport in slot `main` (or as configured).
+7. Stamps the title block via `titleBlockParams`.
+8. Adds the new sheet to the drawing register.
+
+Idempotent — re-run finds existing stamped views (by
+`STING_DRAWING_TYPE_ID_TXT`) and updates them rather than duplicating.
+
+> **The most efficient electrical workflow** is: get the architect's scope
+> boxes, rename them with the STING:: convention for every electrical
+> drawing you need (one per level per type), run
+> `DrawingTypes_FromScopeBoxes` once, walk away with a complete sheet set.
+
+### 11.14 Crop strategies — the "tightness" lever
+
+`crop` chooses *what* the view shows. Five strategies:
+
+| Strategy           | Behaviour                                                         | Use for                              |
+|--------------------|-------------------------------------------------------------------|--------------------------------------|
+| `ScopeBox`         | Crop to a named scope box                                          | All discipline plans                 |
+| `ScopeBoxOrBbox`   | Scope box if found, else element bounding box + margin            | Auto-generated from selection        |
+| `TightBbox`        | Bounding box of all elements + margin                              | Detail callouts, fab spools          |
+| `RoomBoundary`     | Crop to a single room outline (falls back to TightBbox if no rooms)| Single-room electrical sheets        |
+| `None`             | Do not crop                                                        | Riser elevations, full-floor plans   |
+
+Margin is set in mm (e.g. `"margin_mm": 50`). The difference between a
+tight crop and a sloppy one is usually one number.
+
+### 11.15 Section markers and view-range
+
+`sectionMarker` controls section / elevation / callout cosmetics:
+
+```json
+"sectionMarker": {
+  "family":     "STING - Section Marker A1",
+  "markPrefix": "S",
+  "bubbleStyle":"Filled",
+  "farClipMm":  3000
+}
+```
+
+For electrical risers and panel-internal sections, set `farClipMm` short
+(1–3 m) to prevent picking up containment from adjacent zones.
+
+### 11.16 Browser Organizer + drift kinds
+
+`DrawingTypes_BrowserOrganize` creates `'STING - by Drawing Type'`
+organisations for views *and* sheets, keyed off `STING_DRAWING_TYPE_ID_TXT`.
+Worth its weight in gold once you exceed 50 sheets.
+
+`DrawingDriftDetector` reports five drift kinds:
+
+| Kind                   | What it means                                              | Fix                          |
+|------------------------|------------------------------------------------------------|------------------------------|
+| `SCALE`                | View scale ≠ profile scale                                 | SyncStyles                   |
+| `DETAIL`               | Detail level ≠ profile detailLevel                         | SyncStyles                   |
+| `TEMPLATE`             | View template detached / replaced                          | SyncStyles                   |
+| `MANAGED_TEMPLATE`     | Pack JSON updated, template still on previous checksum     | SyncStyles                   |
+| `TOKEN_PROFILE_DRIFT`  | TokenProfile changed, but tags not re-tagged with new style | RetagStale → SyncStyles      |
+
+Run before every issue. Locked views (`STING_STYLE_LOCKED_BOOL = 1`) are
+skipped — set this on hand-crafted hero views you don't want syncing to touch.
+
+### 11.17 Profile inheritance — `extends`
+
+Author one parent, customise children:
+
+```json
+{
+  "id": "elec-lighting-emergency-A1-1to100",
+  "extends": "elec-lighting-A1-1to100",
+  "annotation": {
+    "tagFamilies": {
+      "LightingFixtures": "STING - Emergency Tag (Green)"
+    }
+  },
+  "viewStylePackId": "corp-emergency-lighting"
+}
+```
+
+Child fields fill nulls in the parent and override declared parents
+field-by-field. Loop-detected. Same mechanism applies to View Style Packs.
+
+### 11.18 Conditional routing rules
+
+A routing rule maps `(discipline, phase, docType, level, projectCode) →
+drawingTypeId`. Five **regex** predicates (all set predicates must match,
+logical AND):
+
+```json
+{
+  "disciplineMatches":   "E|LV|FP",
+  "phaseMatches":        "AsBuilt|Construction",
+  "docTypeMatches":      "LIGHTING|POWER",
+  "levelMatches":        "L0[1-3]",
+  "projectCodeMatches":  "^EDC-",
+  "drawingTypeId":       "elec-lighting-A1-1to100"
+}
+```
+
+First-match-wins. Project rules are **prepended** to the corporate baseline
+when the override JSON loads, so project rules always have first crack.
+
+### 11.19 Riser diagram — electrical-specific setup
+
+`elec-riser-A2-1to100` is portrait A2, scale 1:100, view template
+`STING - Electrical Riser`. To populate it:
+
+1. Create one **Section View** oriented vertically through the riser shaft.
+2. Set the section's *view range* to the full building height
+   (`Top = Top of building`, `Bottom = Lowest level`).
+3. Apply the profile (`DrawingTypes_FromScopeBoxes` if a riser scope box
+   exists, else `Sheet Manager → Create From Template → elec-riser-A2-1to100`).
+4. STING:
+   - Crops to the scope box.
+   - Tags every panel and major piece of switchgear it crosses.
+   - Adds level-line annotations at each storey.
+   - Stamps panel feeder cables with cable size and length.
+   - Places the diagram on the sheet via the riser slot layout.
+
+### 11.20 The full apply pipeline — 10 steps
+
+`DrawingTypePresentation.Apply(doc, view, dt)` runs in this exact order
+(every step try/catch-wrapped; warnings collect but the run continues):
+
+1. **Lock check** — `STING_STYLE_LOCKED_BOOL = 1` → skip view.
+2. **Stamp** drawing-type id (`STING_DRAWING_TYPE_ID_TXT`).
+3. **Scale** — `view.Scale = dt.Scale`.
+4. **Detail level** — `view.DetailLevel = dt.DetailLevel`.
+5. **View template** — apply by name (or run managed-pack syncer).
+6. **Crop strategy** — `DrawingCropApplier` runs the chosen crop.
+7. **View style pack** — resolve + `ViewStylePackApplier.Apply`
+   (filters, VG, line/text/dim styles, tag-family map).
+7.5 **Token profile** — `TokenProfileApplier` so auto-tags inherit the
+    profile's tag depth + segment mask + colour scheme.
+8. **Annotation pass** — `AnnotationRunner` (auto-dim + auto-tag using
+   `tagFamilies` from the rule pack).
+
+For **sheet creation** an extra pair runs after the sheet is minted:
+
+9. **Sheet stamp** — `DrawingTypeStamper.Stamp(sheet, dt.Id)`.
+10. **Title-block param binding** — `TitleBlockParamApplier.Apply`.
+
+### 11.21 Tuning a profile for "perfect" auto-layouts
+
+What separates a *good* drawing-type from a *perfect* one:
+
+- **Always set `viewportTypeName`** — default Revit viewport titles look
+  unfinished.
+- **Set `crop.margin_mm` deliberately** — 50 mm is a sensible default; 25
+  mm if your title block is generous; 75 mm if you have lots of leader
+  notes outside the view.
+- **Set `print.lineWeightScale = 0.85`** for layouts (pdf print legibility),
+  `1.0` for fab.
+- **Honour `denseUntilScale`** — at 1:200, only DBs + major plant; at 1:50,
+  tag everything.
+- **Always declare every `titleBlockParams` entry** the title block has — a
+  half-bound title block is worse than a fully-manual one.
+- **Use `extends`** — author one parent profile per discipline/purpose
+  (`elec-lighting-A1-1to100`), and have child profiles for variants
+  (`-emergency`, `-fire-alarm-overlay`, `-power-coord`).
+- **Author scope boxes once, run `FromScopeBoxes` forever.**
+- **Run `SyncStyles` before every drop** — drift is silent and cumulative.
+- **Lock hero views** (`STING_STYLE_LOCKED_BOOL = 1`) to protect manual
+  composition from automated sync.
+
 ---
 
 ## 12. Fabrication, BOQs and handover
@@ -662,6 +1468,17 @@ lives in the building owner's CAFM software for the next 30 years.
 | Mixing systems on one circuit (e.g. fire alarm + power)                | BS 7671 violation, fire-alarm dropouts                        | Spec validator                                           |
 | Forgetting emergency lighting                                          | Building Control fail                                          | `Placement_PlaceFixtures` rule pack adds them automatically |
 | Not setting room functions                                             | Lighting Grid uses default 300 lx everywhere                  | `Spatial Validation` audit                               |
+| Not creating a Distribution System before placing panels                | Revit silently refuses to circuit fixtures                    | Panel audit + dock-panel status bar warning              |
+| Forgetting to set `Demand Factor` on each panel                         | Panel schedule shows 100 % connected as design current — oversized cable everywhere | Spec validator (overspec warning)              |
+| Hand-typing sheet numbers                                              | Inconsistency, gaps, duplicates                                | Use `sheetNumberPattern` + `titleBlockParams`            |
+| Not honouring `denseUntilScale`                                        | Tag soup at 1:200 — unreadable plans                           | `Tag Overlap Analysis` reports collisions per scale      |
+| Editing a managed view template by hand                                | SyncStyles wipes it on next run                                | Set the pack to `external` mode if you really must edit  |
+| Naming scope boxes without the `STING::` prefix                        | `FromScopeBoxes` skips them                                    | Run `Sheet Audit` — surfaces unbound scope boxes         |
+| Authoring tag families without `LMP_LUMENS` / `PLACE_ANCHOR`           | Lighting Grid math fails / smart-place defaults to insertion point | `Family Audit` flags missing parameters             |
+| Mixing `managed` and `external` packs in one project                   | Drift detection inconsistent                                   | Pick one mode per pack and stick                          |
+| Drawing risers in 2D                                                   | Section view auto-tagging finds nothing                        | Use a real Section View per §11.19                       |
+| Forgetting to apply derating (Cg, Ca, Ci) when grouping cables in tray | Cables overheat under fault — fire risk                        | Spec validator Cg-aware sizing                           |
+| Not validating discrimination on the upstream/downstream pair          | Whole panel trips on a single circuit fault                    | Spec validator                                            |
 
 ---
 
@@ -698,6 +1515,31 @@ lives in the building owner's CAFM software for the next 30 years.
 | SLD     | Single-Line Diagram (the schematic of the whole electrical system)       |
 | SOK     | Socket outlet                                                            |
 | Uniclass| UK construction classification system                                    |
+| Cg / Ca / Ci | Cable derating for grouping / ambient / insulation (BS 7671)        |
+| Ib / In / Iz | Design / nominal-breaker / cable-effective current                  |
+| Vd      | Voltage drop                                                             |
+| Zs      | Earth-fault loop impedance (BS 7671)                                     |
+| MET     | Main Earth Terminal                                                      |
+| CPC     | Circuit Protective Conductor (the earth wire)                            |
+| MF / UF / SHR | Maintenance / Utilisation / Spacing-to-mounting-height ratio        |
+| K       | Room Cavity Ratio (lighting calc)                                        |
+| Uo / UGR| Lighting Uniformity / Unified Glare Rating (CIBSE / EN 12464)            |
+| LG7     | CIBSE Lighting Guide 7 (offices)                                         |
+| LSZH    | Low-Smoke Zero-Halogen cable jacketing                                   |
+| MICC    | Mineral Insulated Copper Clad cable (fire survival)                      |
+| FP200   | Fire-rated cable (typical fire-alarm)                                    |
+| TN-S / TN-C-S / TT | Earthing system types (UK supplies)                              |
+| RCBO    | Residual Current Breaker with Overload (combined RCD + MCB)              |
+| MCCB    | Moulded-Case Circuit Breaker (large feeders, often with S-curve)         |
+| DALI    | Digital Addressable Lighting Interface (control protocol)                |
+| CCT     | Correlated Colour Temperature (Kelvin)                                   |
+| CRI     | Colour Rendering Index (0–100, ≥ 80 for offices)                         |
+| AFFL    | Above Finished Floor Level                                               |
+| DT      | Drawing Type — STING profile id (e.g. `elec-lighting-A1-1to100`)         |
+| VSP     | View Style Pack — STING shared visual layer                              |
+| Slot    | Normalised viewport position on a sheet (0..1 over drawable zone)        |
+| Drift   | Difference between a view's current state and its profile expectation     |
+| Scope box | Revit object that bounds views — STING uses naming convention to bind to DTs |
 
 ---
 
