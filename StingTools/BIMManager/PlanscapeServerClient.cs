@@ -1240,7 +1240,14 @@ public sealed class PlanscapeServerClient : IDisposable
                 }
                 var json = JObject.Parse(body);
                 var id = json["id"]?.Value<string>() ?? "";
-                return (true, Guid.TryParse(id, out var g) ? g : Guid.Empty, null, false);
+                // The server now answers 200 (not 409) for hash-deduped uploads
+                // and includes { duplicate: true, sidecarsRefreshed: bool } so
+                // re-published models can refresh their element-map sidecar
+                // even when the GLB itself is byte-identical. Old behaviour
+                // (409 with duplicate_content) is still handled above for
+                // back-compat with older server builds.
+                bool isDuplicate = json["duplicate"]?.Value<bool>() == true;
+                return (true, Guid.TryParse(id, out var g) ? g : Guid.Empty, null, isDuplicate);
             }
             finally
             {
