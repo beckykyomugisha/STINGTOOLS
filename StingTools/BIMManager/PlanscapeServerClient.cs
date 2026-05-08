@@ -1334,6 +1334,131 @@ public sealed class PlanscapeServerClient : IDisposable
             _ => "application/octet-stream",
         };
     }
+
+    /// <summary>
+    /// Refresh an existing model's element-map / metadata WITHOUT re-uploading
+    /// the geometry. Used by the "Refresh metadata only" publish mode in
+    /// PublishModelCommand. Hits <c>PATCH /api/projects/{id}/models/{mid}/metadata</c>.
+    /// </summary>
+    public async Task<(bool ok, string? error)> RefreshModelMetadataAsync(
+        Guid projectId,
+        Guid modelId,
+        string? elementMapPath = null,
+        string? name = null,
+        string? description = null,
+        string? discipline = null,
+        string? revision = null,
+        int? elementCount = null)
+    {
+        if (!await EnsureAuthenticatedAsync()) return (false, LastError);
+        try
+        {
+            using var content = new System.Net.Http.MultipartFormDataContent();
+            FileStream? mapStream = null;
+            System.Net.Http.StreamContent? mapContent = null;
+            if (!string.IsNullOrEmpty(elementMapPath) && File.Exists(elementMapPath))
+            {
+                mapStream = File.OpenRead(elementMapPath!);
+                mapContent = new System.Net.Http.StreamContent(mapStream);
+                mapContent.Headers.ContentType = new MediaTypeWithQualityHeaderValue("application/json");
+                content.Add(mapContent, "ElementMap", Path.GetFileName(elementMapPath!));
+            }
+            void AddField(string key, string? value)
+            {
+                if (value != null) content.Add(new System.Net.Http.StringContent(value, Encoding.UTF8), key);
+            }
+            AddField("Name", name);
+            AddField("Description", description);
+            AddField("Discipline", discipline);
+            AddField("Revision", revision);
+            if (elementCount.HasValue) AddField("ElementCount", elementCount.Value.ToString());
+
+            try
+            {
+                using var req = new System.Net.Http.HttpRequestMessage(
+                    new System.Net.Http.HttpMethod("PATCH"),
+                    $"/api/projects/{projectId}/models/{modelId}/metadata") { Content = content };
+                using var resp = await _http!.SendAsync(req).ConfigureAwait(false);
+                var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                if (!resp.IsSuccessStatusCode)
+                    return (false, $"HTTP {(int)resp.StatusCode}: {body}");
+                return (true, null);
+            }
+            finally
+            {
+                mapContent?.Dispose();
+                mapStream?.Dispose();
+            }
+        }
+        catch (Exception ex)
+        {
+            LastError = ex.Message;
+            StingLog.Error("Planscape: RefreshModelMetadataAsync failed", ex);
+            return (false, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Soft-delete an existing model. Used by the "Replace existing" publish
+    /// mode — caller deletes the prior row, then uploads a fresh one.
+    /// Hits <c>DELETE /api/projects/{id}/models/{mid}</c>.
+    /// </summary>
+    public async Task<(bool ok, string? error)> DeleteModelAsync(Guid projectId, Guid modelId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return (false, LastError);
+        try
+        {
+            using var resp = await _http!.DeleteAsync($"/api/projects/{projectId}/models/{modelId}").ConfigureAwait(false);
+            if (!resp.IsSuccessStatusCode)
+            {
+                var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                return (false, $"HTTP {(int)resp.StatusCode}: {body}");
+            }
+            return (true, null);
+        }
+        catch (Exception ex)
+        {
+            LastError = ex.Message;
+            StingLog.Error("Planscape: DeleteModelAsync failed", ex);
+            return (false, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Look up the most recent model row for a project that has the same
+    /// content hash. Used by the "Refresh metadata only" mode to find the
+    /// target model id without making the user pick from a list.
+    /// </summary>
+    public async Task<Guid?> FindModelByHashAsync(Guid projectId, string contentHash)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            using var resp = await _http!.GetAsync($"/api/projects/{projectId}/models").ConfigureAwait(false);
+            if (!resp.IsSuccessStatusCode) return null;
+            var arr = JArray.Parse(await resp.Content.ReadAsStringAsync().ConfigureAwait(false));
+            foreach (var m in arr)
+            {
+                if (string.Equals(m["contentHash"]?.Value<string>(), contentHash, StringComparison.OrdinalIgnoreCase)
+                    && Guid.TryParse(m["id"]?.Value<string>(), out var id))
+                    return id;
+            }
+            return null;
+        }
+        catch (Exception ex)
+        {
+            StingLog.Warn("Planscape: FindModelByHashAsync failed — " + ex.Message);
+            return null;
+        }
+    }
+
+    /// <summary>SHA-256 of a file as lowercase hex — matches the server's hash format.</summary>
+    public static string ComputeSha256(string path)
+    {
+        using var sha = System.Security.Cryptography.SHA256.Create();
+        using var fs = File.OpenRead(path);
+        return Convert.ToHexString(sha.ComputeHash(fs)).ToLowerInvariant();
+    }
 }
 
 // ────────────────────────────────────────────────────────────────────────────────

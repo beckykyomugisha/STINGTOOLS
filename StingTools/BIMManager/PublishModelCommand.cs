@@ -36,6 +36,45 @@ namespace StingTools.BIMManager
     /// names come from the glTF userData), but rich tooltips + discipline
     /// filter need the mapping.
     /// </summary>
+    /// <summary>
+    /// Publish modes offered by the up-front picker. Each maps to a
+    /// different combination of server endpoints and dedup behaviour so
+    /// coordinators can fit the operation to what's actually changed.
+    /// </summary>
+    public enum PublishMode
+    {
+        /// <summary>
+        /// Default. Hash-dedup — if the bytes match an existing entry the
+        /// server refreshes the element-map / metadata on that row;
+        /// otherwise it creates a new entry. The "least-surprise" mode
+        /// for everyday re-publishes after re-tagging.
+        /// </summary>
+        Auto,
+
+        /// <summary>
+        /// Always create a new ProjectModel row, even when the geometry
+        /// hash matches. Used when a coordinator wants a discrete new
+        /// revision label even though the bytes haven't changed (e.g.
+        /// for an issue-for-coordination snapshot).
+        /// </summary>
+        ForceNewRevision,
+
+        /// <summary>
+        /// Soft-delete the latest model on the server, then upload a
+        /// fresh one. Useful when an old broken row is poisoning the
+        /// viewer (e.g. StorageMissing on an entry whose original GLB
+        /// no longer exists locally).
+        /// </summary>
+        ReplaceExisting,
+
+        /// <summary>
+        /// Push a new element-map / thumbnail / metadata against an
+        /// existing model id WITHOUT re-uploading geometry. Bandwidth-
+        /// friendly when only the tag overlay has changed.
+        /// </summary>
+        RefreshMetadataOnly,
+    }
+
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
     public class PublishModelCommand : IExternalCommand
@@ -60,11 +99,22 @@ namespace StingTools.BIMManager
             var projectId = PickProject(client);
             if (projectId == Guid.Empty) return Result.Cancelled;
 
-            // ── Step 3: pick or export geometry ────────────────────────
+            // ── Step 3: pick the publish mode up front ─────────────────
+            // Showing every option BEFORE we generate / upload anything
+            // means coordinators with a slow connection don't waste a
+            // GLB export only to discover the dedup path didn't do what
+            // they wanted.
+            var mode = PromptForPublishMode();
+            if (mode == null) return Result.Cancelled;
+
+            // ── Step 4: pick or export geometry ────────────────────────
+            // RefreshMetadataOnly still needs a path so we can hash it
+            // and find the existing model id on the server — but we
+            // never actually upload the bytes in that mode.
             var modelPath = PromptForModelFileOrExport(doc);
             if (string.IsNullOrEmpty(modelPath)) return Result.Cancelled;
 
-            // ── Step 4: collect element map ────────────────────────────
+            // ── Step 5: build element map sidecar ──────────────────────
             string? mapPath = null;
             try
             {
@@ -74,56 +124,22 @@ namespace StingTools.BIMManager
                 BuildElementMap(doc, mapPath, out var elementCount, out var bounds);
                 StingLog.Info($"Planscape: element map generated ({elementCount} elements) → {mapPath}");
 
-                // ── Step 5: upload to server ───────────────────────────
-                var result = Task.Run(() => client.UploadModelAsync(
-                    projectId,
-                    modelPath,
-                    mapPath,
-                    name: doc.Title,
-                    description: $"Published from Revit {doc.Application.VersionName}",
-                    discipline: DetectDocDiscipline(doc),
-                    revision: PhaseAutoDetect.DetectProjectRevision(doc),
-                    units: "mm",
-                    elementCount: elementCount,
-                    bounds: bounds)).GetAwaiter().GetResult();
-
-                if (!result.ok)
+                return mode switch
                 {
-                    TaskDialog.Show("Publish Model", $"Upload failed: {result.error}");
-                    StingLog.Warn($"Planscape: model upload failed — {result.error}");
-                    return Result.Failed;
-                }
+                    PublishMode.RefreshMetadataOnly => DoRefreshMetadata(
+                        client, projectId, modelPath!, mapPath, doc, elementCount),
 
-                if (result.alreadyExisted)
-                {
-                    // Modern server (commits 1b7ff61+) refreshes the element-
-                    // map / thumbnail / bounds / revision on the existing row
-                    // even when the GLB hash is identical, so this branch is
-                    // now the "re-publish to refresh sidecars" success path,
-                    // not a dead-end. Coordinators expect re-publishing to
-                    // pick up new tagging / new map data.
-                    TaskDialog.Show(
-                        "Publish Model to Planscape",
-                        $"Geometry already published — element-map and metadata refreshed on the existing entry.\n\n" +
-                        $"File: {Path.GetFileName(modelPath)}\n" +
-                        $"Project: {projectId}\n" +
-                        $"Model id: {result.modelId}\n\n" +
-                        "The viewer + mobile app will pick up the new element-map on next open. " +
-                        "To create a NEW revision instead of refreshing, change the geometry first " +
-                        "(re-export the 3D view) and re-publish.");
-                    StingLog.Info($"Planscape: model sidecars refreshed (dedup) → {result.modelId}");
-                    return Result.Succeeded;
-                }
+                    PublishMode.ReplaceExisting => DoReplaceExisting(
+                        client, projectId, modelPath!, mapPath, doc, elementCount, bounds),
 
-                TaskDialog.Show(
-                    "Publish Model to Planscape",
-                    $"Published {Path.GetFileName(modelPath)}\n\n" +
-                    $"Elements published: {elementCount}\n" +
-                    $"Project: {projectId}\n" +
-                    $"Model id:   {result.modelId}\n\n" +
-                    "Site users can now open the model from the Planscape mobile app → Models.");
-                StingLog.Info($"Planscape: model published → {result.modelId}");
-                return Result.Succeeded;
+                    PublishMode.ForceNewRevision => DoUpload(
+                        client, projectId, modelPath!, mapPath, doc, elementCount, bounds, force: true,
+                        successHeadline: "Published as a new revision (forced)"),
+
+                    _ => DoUpload(
+                        client, projectId, modelPath!, mapPath, doc, elementCount, bounds, force: false,
+                        successHeadline: "Published"),
+                };
             }
             catch (Exception ex)
             {
@@ -131,6 +147,174 @@ namespace StingTools.BIMManager
                 StingLog.Error("Planscape: publish model failed", ex);
                 return Result.Failed;
             }
+        }
+
+        // ── Mode picker ────────────────────────────────────────────────
+
+        private static PublishMode? PromptForPublishMode()
+        {
+            var dlg = new TaskDialog("Publish Model to Planscape")
+            {
+                MainInstruction = "How do you want to publish this model?",
+                CommonButtons = TaskDialogCommonButtons.Cancel,
+                DefaultButton = TaskDialogResult.CommandLink1,
+            };
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Auto — smart dedup (recommended)",
+                "If the geometry hash matches an existing entry, the server refreshes its element-map " +
+                "and metadata on the existing row. Otherwise a new entry is created. Best for everyday re-publishes.");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Force new revision",
+                "Always create a new ProjectModel row, even when the bytes match. Use this when you want a " +
+                "discrete revision label for an unchanged GLB (e.g. an issue-for-coordination snapshot).");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Replace existing — delete & re-upload",
+                "Soft-deletes the matching model on the server first, then uploads a fresh one. Use when an old " +
+                "row is poisoning the viewer (e.g. its bytes were wiped and you want a clean slate).");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Refresh metadata only — no re-upload",
+                "Pushes a new element-map / thumbnail / revision label against the matching existing entry " +
+                "without re-uploading the GLB. Bandwidth-friendly when only the tag overlay has changed.");
+            var r = dlg.Show();
+            return r switch
+            {
+                TaskDialogResult.CommandLink1 => PublishMode.Auto,
+                TaskDialogResult.CommandLink2 => PublishMode.ForceNewRevision,
+                TaskDialogResult.CommandLink3 => PublishMode.ReplaceExisting,
+                TaskDialogResult.CommandLink4 => PublishMode.RefreshMetadataOnly,
+                _ => null,
+            };
+        }
+
+        // ── Mode dispatchers ───────────────────────────────────────────
+
+        private static Result DoUpload(
+            PlanscapeServerClient client, Guid projectId,
+            string modelPath, string? mapPath, Document doc,
+            int elementCount, double[] bounds,
+            bool force, string successHeadline)
+        {
+            var result = Task.Run(() => client.UploadModelAsync(
+                projectId,
+                modelPath,
+                mapPath,
+                name: doc.Title,
+                description: $"Published from Revit {doc.Application.VersionName}",
+                discipline: DetectDocDiscipline(doc),
+                revision: PhaseAutoDetect.DetectProjectRevision(doc),
+                units: "mm",
+                elementCount: elementCount,
+                bounds: bounds,
+                force: force)).GetAwaiter().GetResult();
+
+            if (!result.ok)
+            {
+                TaskDialog.Show("Publish Model", $"Upload failed: {result.error}");
+                StingLog.Warn($"Planscape: model upload failed — {result.error}");
+                return Result.Failed;
+            }
+
+            // The server's hash-dedup branch returns 200 with `duplicate=true`
+            // when bytes already exist; the plugin's UploadModelAsync surfaces
+            // that as alreadyExisted=true. In Auto mode we treat this as a
+            // refresh success; in ForceNewRevision mode it's an oddity (the
+            // server would have created a new row anyway) so we just report
+            // the standard success.
+            var refreshed = result.alreadyExisted && !force;
+            var headline = refreshed
+                ? "Geometry already published — element-map and metadata refreshed on the existing entry."
+                : successHeadline;
+            TaskDialog.Show(
+                "Publish Model to Planscape",
+                $"{headline}\n\n" +
+                $"File: {Path.GetFileName(modelPath)}\n" +
+                $"Project: {projectId}\n" +
+                $"Model id: {result.modelId}\n" +
+                $"Elements mapped: {elementCount}\n\n" +
+                (refreshed
+                    ? "The viewer + mobile app will pick up the new element-map on next open. " +
+                      "To create a NEW revision instead of refreshing, run Publish again and pick 'Force new revision'."
+                    : "Site users can now open the model from the Planscape mobile app → Models, or from the web viewer."));
+            StingLog.Info($"Planscape: model published ({(refreshed ? "refreshed" : (force ? "forced" : "new"))}) → {result.modelId}");
+            return Result.Succeeded;
+        }
+
+        private static Result DoRefreshMetadata(
+            PlanscapeServerClient client, Guid projectId,
+            string modelPath, string? mapPath, Document doc, int elementCount)
+        {
+            // Find the existing model row by content hash so the user
+            // doesn't have to pick from a list. If the model doesn't
+            // exist on the server yet, fall back to a normal upload —
+            // refresh-metadata-only on a missing row would be confusing.
+            string hash = PlanscapeServerClient.ComputeSha256(modelPath);
+            var modelId = Task.Run(() => client.FindModelByHashAsync(projectId, hash)).GetAwaiter().GetResult();
+            if (modelId == null)
+            {
+                var fallback = new TaskDialog("Refresh Metadata")
+                {
+                    MainInstruction = "No matching model found on the server",
+                    MainContent =
+                        "There's no published entry with the same SHA-256 as this file, so there's nothing to " +
+                        "refresh against. Upload the geometry instead?",
+                    CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                    DefaultButton = TaskDialogResult.Yes,
+                };
+                if (fallback.Show() != TaskDialogResult.Yes) return Result.Cancelled;
+                return DoUpload(client, projectId, modelPath, mapPath, doc, elementCount,
+                    new[] { 0d, 0d, 0d, 0d, 0d, 0d }, force: false, successHeadline: "Published");
+            }
+
+            var result = Task.Run(() => client.RefreshModelMetadataAsync(
+                projectId, modelId.Value,
+                elementMapPath: mapPath,
+                name: doc.Title,
+                discipline: DetectDocDiscipline(doc),
+                revision: PhaseAutoDetect.DetectProjectRevision(doc),
+                elementCount: elementCount)).GetAwaiter().GetResult();
+            if (!result.ok)
+            {
+                TaskDialog.Show("Refresh Metadata", $"Failed: {result.error}");
+                StingLog.Warn($"Planscape: refresh-metadata failed — {result.error}");
+                return Result.Failed;
+            }
+            TaskDialog.Show(
+                "Publish Model to Planscape",
+                $"Element-map and metadata refreshed on the existing entry.\n\n" +
+                $"Project: {projectId}\n" +
+                $"Model id: {modelId}\n" +
+                $"Elements mapped: {elementCount}\n\n" +
+                "The geometry on the server is unchanged. The viewer will pick up the new element-map on next open.");
+            StingLog.Info($"Planscape: model metadata refreshed → {modelId}");
+            return Result.Succeeded;
+        }
+
+        private static Result DoReplaceExisting(
+            PlanscapeServerClient client, Guid projectId,
+            string modelPath, string? mapPath, Document doc,
+            int elementCount, double[] bounds)
+        {
+            // Find existing row by hash; if it's there, soft-delete it so
+            // the new upload doesn't trigger the dedup branch. If no
+            // matching row exists, this collapses to a normal upload.
+            string hash = PlanscapeServerClient.ComputeSha256(modelPath);
+            var existingId = Task.Run(() => client.FindModelByHashAsync(projectId, hash)).GetAwaiter().GetResult();
+            if (existingId.HasValue)
+            {
+                var del = Task.Run(() => client.DeleteModelAsync(projectId, existingId.Value)).GetAwaiter().GetResult();
+                if (!del.ok)
+                {
+                    TaskDialog.Show("Replace Model", $"Couldn't delete the old entry: {del.error}");
+                    StingLog.Warn($"Planscape: delete-before-replace failed — {del.error}");
+                    return Result.Failed;
+                }
+                StingLog.Info($"Planscape: replaced existing model {existingId} for project {projectId}");
+            }
+            return DoUpload(client, projectId, modelPath, mapPath, doc,
+                elementCount, bounds, force: true,
+                successHeadline: existingId.HasValue
+                    ? "Old entry deleted; new model published"
+                    : "Published (no matching prior entry)");
         }
 
         // ── Project picker ─────────────────────────────────────────────
