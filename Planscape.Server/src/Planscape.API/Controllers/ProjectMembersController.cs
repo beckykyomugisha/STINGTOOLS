@@ -54,12 +54,54 @@ public class ProjectMembersController : ControllerBase
                 m.ProjectRole,
                 m.Iso19650Role,
                 m.JoinedAt,
-                m.InvitedBy
+                m.InvitedBy,
+                // Phase 177 — surface the per-folder ACLs so the admin UI
+                // (BCC Project Members tab + mobile project-settings) can
+                // edit them without an extra round-trip per row.
+                m.AllowedCdeStates,
+                m.AllowedDisciplines,
+                m.AllowedSuitabilities
             })
             .OrderBy(m => m.DisplayName)
             .ToListAsync();
 
         return Ok(members);
+    }
+
+    // ── Phase 177 — return *my* ACL slice for this project ─────────────────
+    //
+    // Plugin (BCC Deliverables tab) and mobile (documents.tsx) call this on
+    // project load to learn which CDE-state tabs / discipline filters /
+    // suitability dropdowns the user is permitted to see, so the UI can hide
+    // controls the server would 404 on anyway.
+
+    [HttpGet("me")]
+    public async Task<ActionResult> GetMyAccess(Guid projectId)
+    {
+        if (!await CanAccessProjectAsync(projectId)) return NotFound();
+
+        var subClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value;
+        if (!Guid.TryParse(subClaim, out var userId)) return Unauthorized();
+
+        var role = User.FindFirst("role")?.Value ?? "";
+        var bypass = role is "Admin" or "Owner" or "SecurityOfficer";
+
+        var member = await _db.ProjectMembers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.UserId == userId && m.IsActive);
+
+        return Ok(new
+        {
+            projectId,
+            userId,
+            bypassesAcl          = bypass || member == null,
+            projectRole          = member?.ProjectRole,
+            iso19650Role         = member?.Iso19650Role,
+            allowedCdeStates     = ProjectMember.ParseAllowList(member?.AllowedCdeStates)     ?? Array.Empty<string>(),
+            allowedDisciplines   = ProjectMember.ParseAllowList(member?.AllowedDisciplines)   ?? Array.Empty<string>(),
+            allowedSuitabilities = ProjectMember.ParseAllowList(member?.AllowedSuitabilities) ?? Array.Empty<string>(),
+        });
     }
 
     // ── Add a user to the project ──────────────────────────────────────────────
@@ -90,6 +132,9 @@ public class ProjectMembersController : ControllerBase
             existing.Iso19650Role = req.Iso19650Role ?? "M";
             existing.JoinedAt     = DateTime.UtcNow;
             existing.InvitedBy    = GetCurrentUserName();
+            existing.AllowedCdeStates     = ToCsv(req.AllowedCdeStates);
+            existing.AllowedDisciplines   = ToCsv(req.AllowedDisciplines);
+            existing.AllowedSuitabilities = ToCsv(req.AllowedSuitabilities);
 
             var userId1 = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid1) ? uid1 : (Guid?)null;
             _db.AuditLogs.Add(new AuditLog
@@ -114,7 +159,10 @@ public class ProjectMembersController : ControllerBase
             UserId       = req.UserId,
             ProjectRole  = req.ProjectRole  ?? "Contributor",
             Iso19650Role = req.Iso19650Role ?? "M",
-            InvitedBy    = GetCurrentUserName()
+            InvitedBy    = GetCurrentUserName(),
+            AllowedCdeStates     = ToCsv(req.AllowedCdeStates),
+            AllowedDisciplines   = ToCsv(req.AllowedDisciplines),
+            AllowedSuitabilities = ToCsv(req.AllowedSuitabilities)
         };
         _db.ProjectMembers.Add(member);
 
@@ -217,6 +265,9 @@ public class ProjectMembersController : ControllerBase
         if (existing != null)
         {
             existing.IsActive = true; existing.JoinedAt = DateTime.UtcNow;
+            existing.AllowedCdeStates     = ToCsv(req.AllowedCdeStates);
+            existing.AllowedDisciplines   = ToCsv(req.AllowedDisciplines);
+            existing.AllowedSuitabilities = ToCsv(req.AllowedSuitabilities);
         }
         else
         {
@@ -225,7 +276,10 @@ public class ProjectMembersController : ControllerBase
                 ProjectId    = projectId, UserId = user.Id,
                 ProjectRole  = req.ProjectRole  ?? "Contributor",
                 Iso19650Role = req.Iso19650Role ?? "M",
-                InvitedBy    = GetCurrentUserName()
+                InvitedBy    = GetCurrentUserName(),
+                AllowedCdeStates     = ToCsv(req.AllowedCdeStates),
+                AllowedDisciplines   = ToCsv(req.AllowedDisciplines),
+                AllowedSuitabilities = ToCsv(req.AllowedSuitabilities)
             });
         }
 
@@ -265,6 +319,11 @@ public class ProjectMembersController : ControllerBase
 
         if (req.ProjectRole  != null) member.ProjectRole  = req.ProjectRole;
         if (req.Iso19650Role != null) member.Iso19650Role = req.Iso19650Role;
+        // Phase 177 — pass null array to leave a column unchanged; pass an
+        // empty array to clear it; pass a non-empty array to overwrite.
+        if (req.AllowedCdeStates     != null) member.AllowedCdeStates     = ToCsv(req.AllowedCdeStates);
+        if (req.AllowedDisciplines   != null) member.AllowedDisciplines   = ToCsv(req.AllowedDisciplines);
+        if (req.AllowedSuitabilities != null) member.AllowedSuitabilities = ToCsv(req.AllowedSuitabilities);
 
         var userId3 = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid3) ? uid3 : (Guid?)null;
         _db.AuditLogs.Add(new AuditLog
@@ -369,10 +428,43 @@ public class ProjectMembersController : ControllerBase
         var role = User.FindFirst("role")?.Value ?? "";
         return role is "Manager" or "Admin" or "Owner";
     }
+
+    // Phase 177 — normalise inbound array → CSV; null/empty array means
+    // "no narrowing for this axis" so it persists as null.
+    private static string? ToCsv(string[]? arr)
+    {
+        if (arr == null) return null;
+        var cleaned = arr.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).ToArray();
+        return cleaned.Length == 0 ? null : string.Join(',', cleaned);
+    }
 }
 
 // ── Request DTOs ───────────────────────────────────────────────────────────────
+//
+// Phase 177 — three optional ACL allow-lists are accepted as either CSV
+// ("WIP,SHARED") or string[] from the mobile JSON serialiser. The
+// controller normalises both to CSV before persisting.
 
-public record AddMemberRequest(Guid UserId, string? ProjectRole, string? Iso19650Role);
-public record InviteByEmailRequest(string Email, string? DisplayName, string? ProjectRole, string? Iso19650Role);
-public record UpdateMemberRequest(string? ProjectRole, string? Iso19650Role);
+public record AddMemberRequest(
+    Guid    UserId,
+    string? ProjectRole,
+    string? Iso19650Role,
+    string[]? AllowedCdeStates     = null,
+    string[]? AllowedDisciplines   = null,
+    string[]? AllowedSuitabilities = null);
+
+public record InviteByEmailRequest(
+    string  Email,
+    string? DisplayName,
+    string? ProjectRole,
+    string? Iso19650Role,
+    string[]? AllowedCdeStates     = null,
+    string[]? AllowedDisciplines   = null,
+    string[]? AllowedSuitabilities = null);
+
+public record UpdateMemberRequest(
+    string? ProjectRole,
+    string? Iso19650Role,
+    string[]? AllowedCdeStates     = null,
+    string[]? AllowedDisciplines   = null,
+    string[]? AllowedSuitabilities = null);

@@ -691,6 +691,15 @@ namespace Planscape.Infrastructure.Data.Migrations
                     .ValueGeneratedOnAdd()
                     .HasColumnType("uuid");
 
+                b.Property<string>("AllowedCdeStates")
+                    .HasColumnType("text");
+
+                b.Property<string>("AllowedDisciplines")
+                    .HasColumnType("text");
+
+                b.Property<string>("AllowedSuitabilities")
+                    .HasColumnType("text");
+
                 b.Property<string>("InvitedBy")
                     .HasColumnType("text");
 

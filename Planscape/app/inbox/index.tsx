@@ -129,14 +129,14 @@ export default function InboxScreen() {
         ))}
       </Section>
 
-      {/* Document approvals */}
+      {/* Document approvals — Phase 177 routes to the inline approve/reject screen */}
       <Section title="Pending document approvals" empty={!data?.approvals.length}>
         {data?.approvals.map((ap) => (
           <TouchableOpacity
             key={ap.id}
             style={styles.row}
-            onPress={() => router.push('/(tabs)/documents')}
-            accessibilityLabel={`Open document ${ap.fileName}`}
+            onPress={() => router.push('/inbox/approvals')}
+            accessibilityLabel={`Approve or reject ${ap.fileName}`}
           >
             <View style={[styles.priorityDot, { backgroundColor: theme.colors.priorityMedium }]} />
             <View style={styles.rowBody}>

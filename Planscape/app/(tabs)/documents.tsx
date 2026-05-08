@@ -12,7 +12,7 @@ import {
   Alert,
 } from 'react-native';
 import { theme, getCDEColor } from '@/utils/theme';
-import { listProjects, listDocuments, transitionCDE, requestDocumentApproval, decideDocumentApproval } from '@/api/endpoints';
+import { listProjects, listDocuments, transitionCDE, requestDocumentApproval, decideDocumentApproval, getMyProjectAccess, type MyProjectAccess } from '@/api/endpoints';
 import type { DocumentRecord, Project, CDEStatus } from '@/types/api';
 import { crashReporter } from '@/services/crashReporter';
 import { useAuthStore } from '@/stores/authStore';
@@ -65,6 +65,8 @@ export default function DocumentsScreen() {
   const [cdeFilter, setCdeFilter] = useState<CDEFilter>('ALL');
   const [selectedDoc, setSelectedDoc] = useState<DocumentRecord | null>(null);
   const [transitioning, setTransitioning] = useState(false);
+  // Phase 177 — per-folder ACL slice for the active user; null = unloaded.
+  const [acl, setAcl] = useState<MyProjectAccess | null>(null);
 
   const loadData = useCallback(async (projectId?: string) => {
     try {
@@ -79,8 +81,15 @@ export default function DocumentsScreen() {
         ? projectList.find((p) => p.id === projectId) ?? projectList[0]
         : projectList[0];
       setActiveProject(target);
-      const docs = await listDocuments(target.id);
+      // Phase 177 — fetch ACL slice in parallel with docs so the chip filter
+      // can hide CDE states the user has no access to. Falls back to a
+      // bypass slice on error so the screen never breaks on a server hiccup.
+      const [docs, aclSlice] = await Promise.all([
+        listDocuments(target.id),
+        getMyProjectAccess(target.id).catch(() => null),
+      ]);
       setDocuments(docs);
+      setAcl(aclSlice);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to load documents';
       setError(msg);
@@ -257,11 +266,16 @@ export default function DocumentsScreen() {
         />
       )}
 
-      {/* CDE status filter strip */}
+      {/* CDE status filter strip — Phase 177 hides chips the user can't access */}
       <FlatList
         horizontal
         showsHorizontalScrollIndicator={false}
-        data={(['ALL', ...CDE_STATES] as CDEFilter[])}
+        data={(['ALL', ...CDE_STATES] as CDEFilter[]).filter((s) => {
+          if (s === 'ALL') return true;
+          if (!acl || acl.bypassesAcl) return true;
+          if (acl.allowedCdeStates.length === 0) return true; // null = all
+          return acl.allowedCdeStates.includes(s);
+        })}
         keyExtractor={(s) => s}
         style={styles.filterStrip}
         contentContainerStyle={styles.filterStripContent}
