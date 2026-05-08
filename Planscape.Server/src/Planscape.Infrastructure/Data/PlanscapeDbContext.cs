@@ -134,6 +134,12 @@ public class PlanscapeDbContext : DbContext
     // Phase 165 (NEW-08) — outbound webhook subscriptions.
     public DbSet<OutboundWebhook> OutboundWebhooks => Set<OutboundWebhook>();
 
+    // Healthcare Pack H-22 — clinical / facility-engineering log tables.
+    public DbSet<HealthcarePressureLog>       HealthcarePressureLogs       => Set<HealthcarePressureLog>();
+    public DbSet<HealthcareMgasVerification>  HealthcareMgasVerifications  => Set<HealthcareMgasVerification>();
+    public DbSet<HealthcareAntiLigatureAudit> HealthcareAntiLigatureAudits => Set<HealthcareAntiLigatureAudit>();
+    public DbSet<HealthcareRdsSnapshot>       HealthcareRdsSnapshots       => Set<HealthcareRdsSnapshot>();
+
     // S2.1 — billing entities (provider-agnostic).
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<Invoice>      Invoices      => Set<Invoice>();
