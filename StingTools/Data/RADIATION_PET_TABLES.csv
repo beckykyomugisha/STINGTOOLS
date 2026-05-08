@@ -1,0 +1,7 @@
+Material,kVp_or_MeV,TenthValueLayerMm,Notes
+Concrete,0.511,205,PET 511 keV — single TVL
+Concrete,0.511,410,PET — two TVL (factor 100)
+Lead,0.511,16.6,PET 511 keV
+Steel,0.511,30,PET 511 keV
+Concrete,0.140,40,SPECT 140 keV Tc-99m
+Lead,0.140,1.0,SPECT 140 keV

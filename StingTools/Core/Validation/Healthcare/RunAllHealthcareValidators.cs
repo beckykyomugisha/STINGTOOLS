@@ -3,9 +3,10 @@ using System.Collections.Generic;
 
 namespace StingTools.Core.Validation.Healthcare
 {
-    /// <summary>Aggregates all 8 healthcare validators into a single sweep.
+    /// <summary>Aggregates every healthcare validator into a single sweep.
     /// Gated on PRJ_ORG_HEALTH_FACILITY_TYPE_TXT being non-empty so generic
-    /// projects do not pay the cost.</summary>
+    /// projects do not pay the cost. Individual validators are filtered
+    /// by HealthcareValidatorGate against PRJ_ORG_HEALTH_PACK_PROFILE_TXT.</summary>
     public static class RunAllHealthcareValidators
     {
         public static List<ValidationResult> Validate(Document doc)
@@ -13,7 +14,6 @@ namespace StingTools.Core.Validation.Healthcare
             var all = new List<ValidationResult>();
             if (doc == null) return all;
 
-            // Gate: skip entirely when the facility-type stamp is empty.
             string facType = "";
             try
             {
@@ -25,14 +25,28 @@ namespace StingTools.Core.Validation.Healthcare
             catch { }
             if (string.IsNullOrEmpty(facType)) return all;
 
-            all.AddRange(new PressureRegimeValidator().Validate(doc));
-            all.AddRange(new MgasFlowValidator().Validate(doc));
-            all.AddRange(new EesBranchValidator().Validate(doc));
-            all.AddRange(new WaterSafetyValidator().Validate(doc));
-            all.AddRange(new RadShieldValidator().Validate(doc));
-            all.AddRange(new AdjacencyValidator().Validate(doc));
-            all.AddRange(new AntiLigatureValidator().Validate(doc));
-            all.AddRange(new RdsCompletenessValidator().Validate(doc));
+            var allowed = HealthcareValidatorGate.AllowedValidators(doc);
+            void Run(HealthcareValidatorBase v)
+            {
+                if (allowed.Contains(v.Name)) all.AddRange(v.Validate(doc));
+            }
+
+            Run(new PressureRegimeValidator());
+            Run(new MgasFlowValidator());
+            Run(new EesBranchValidator());
+            Run(new WaterSafetyValidator());
+            Run(new RadShieldValidator());
+            Run(new AdjacencyValidator());
+            Run(new AntiLigatureValidator());
+            Run(new RdsCompletenessValidator());
+            Run(new IoTStalenessValidator());
+            Run(new StructuralLoadValidator());
+            Run(new AcousticValidator());
+            Run(new AdvancedRadShieldValidator());
+            Run(new EndoscopeTraceValidator());
+            Run(new EesResilienceValidator());
+            Run(new RtlsCoverageValidator());
+            Run(new WasteFlowValidator());
             return all;
         }
     }

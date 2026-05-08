@@ -2835,3 +2835,31 @@ PARAM	c8d4f6e2-1512-4d27-8c61-0e7a3f9ba012	PRJ_ORG_HEALTH_AE_ELEC_TXT	TEXT		13	1
 PARAM	c8d4f6e2-1513-4d27-8c61-0e7a3f9ba013	PRJ_ORG_HEALTH_HTM_REGION_TXT	TEXT		13	1	Regional HTM variant: NHS-England / SHTM / WHTM / NHS-NI	1
 PARAM	c8d4f6e2-1514-4d27-8c61-0e7a3f9ba014	PRJ_ORG_HEALTH_IHFG_BOOL	YESNO		13	1	iHFG (International Health Facility Guidelines) authority applies	1
 PARAM	c8d4f6e2-1515-4d27-8c61-0e7a3f9ba015	PRJ_ORG_HEALTH_PACK_PROFILE_TXT	TEXT		13	1	Healthcare pack profile (acute / community / mental / standalone) for validator gating	1
+PARAM	c8d4f6e2-2001-4d27-8c61-0e7a3f9bb001	CLN_FLOOR_LOAD_KN_M2_NR	NUMBER		28	1	Imposed floor load (kN/m²) for heavy imaging equipment [H-23]	1
+PARAM	c8d4f6e2-2002-4d27-8c61-0e7a3f9bb002	CLN_VIB_VM_NR	NUMBER		28	1	Vibration criterion (µm/s rms VC band) [H-23]	1
+PARAM	c8d4f6e2-2003-4d27-8c61-0e7a3f9bb003	CLN_EQUIP_WEIGHT_KG_NR	NUMBER		28	1	Heavy-equipment design weight (kg) [H-23]	1
+PARAM	c8d4f6e2-2004-4d27-8c61-0e7a3f9bb004	CLN_STRUCT_SIGN_OFF_TXT	TEXT		28	1	Structural Engineer sign-off name [H-23]	1
+PARAM	c8d4f6e2-2005-4d27-8c61-0e7a3f9bb005	CLN_STRUCT_SIGN_OFF_DT	TEXT		28	1	Structural Engineer sign-off date [H-23]	1
+PARAM	c8d4f6e2-2006-4d27-8c61-0e7a3f9bb006	CLN_DEFLECTION_LIMIT_MM_NR	NUMBER		28	1	Deflection limit for sensitive equipment (mm) [H-23]	1
+PARAM	c8d4f6e2-2007-4d27-8c61-0e7a3f9bb007	CLN_TRANSPORT_PATH_TXT	TEXT		28	1	Heavy-equipment transport path designation [H-23]	1
+PARAM	c8d4f6e2-2101-4d27-8c61-0e7a3f9bc001	CLN_RT60_TARGET_S_NR	NUMBER		28	1	Reverberation T60 target (s) per HTM 08-01 [H-24]	1
+PARAM	c8d4f6e2-2102-4d27-8c61-0e7a3f9bc002	HVC_NC_CURVE_INT	INTEGER		5	1	HVAC noise criterion NC curve target [H-24]	1
+PARAM	c8d4f6e2-2201-4d27-8c61-0e7a3f9bd001	CEQ_ENDO_SCOPE_ID_TXT	TEXT		31	1	Endoscope unique ID for HTM 01-06 traceability [H-26]	1
+PARAM	c8d4f6e2-2202-4d27-8c61-0e7a3f9bd002	CEQ_ENDO_AER_REF_TXT	TEXT		31	1	Owning automated endoscope reprocessor [H-26]	1
+PARAM	c8d4f6e2-2203-4d27-8c61-0e7a3f9bd003	CEQ_ENDO_CYCLE_COUNT_INT	INTEGER		31	1	Reprocessing cycle count [H-26]	1
+PARAM	c8d4f6e2-2204-4d27-8c61-0e7a3f9bd004	CEQ_ENDO_LAST_REPRO_DT	TEXT		31	1	Last reprocessing timestamp ISO 8601 [H-26]	1
+PARAM	c8d4f6e2-2205-4d27-8c61-0e7a3f9bd005	ICT_ENDO_READER_ID_TXT	TEXT		3	1	RFID reader at endoscope decon station [H-26]	1
+PARAM	c8d4f6e2-2301-4d27-8c61-0e7a3f9be001	ELC_GEN_TEST_LOG_REF_TXT	TEXT		4	1	Generator test log document reference [H-27 / NFPA 110]	1
+PARAM	c8d4f6e2-2302-4d27-8c61-0e7a3f9be002	ELC_ATS_TEST_LOG_REF_TXT	TEXT		4	1	ATS test log document reference [H-27]	1
+PARAM	c8d4f6e2-2303-4d27-8c61-0e7a3f9be003	ELC_UPS_REPLACE_DT	TEXT		4	1	UPS battery replacement date ISO 8601 [H-27]	1
+PARAM	c8d4f6e2-2401-4d27-8c61-0e7a3f9bf001	ICT_RTLS_ANCHOR_ID_TXT	TEXT		3	1	RTLS anchor / reader ID [H-29]	1
+PARAM	c8d4f6e2-2402-4d27-8c61-0e7a3f9bf002	ICT_RTLS_TECH_TXT	TEXT		3	1	RTLS tech: BLE / UWB / Wi-Fi-RSSI / IR / RFID-1356 [H-29]	1
+PARAM	c8d4f6e2-2403-4d27-8c61-0e7a3f9bf003	ICT_RTLS_TX_POWER_DBM_NR	NUMBER		3	1	RTLS anchor TX power (dBm) [H-29]	1
+PARAM	c8d4f6e2-2404-4d27-8c61-0e7a3f9bf004	ICT_RTLS_COVERAGE_M_NR	NUMBER		3	1	RTLS anchor effective coverage radius (m) [H-29]	1
+PARAM	c8d4f6e2-2501-4d27-8c61-0e7a3f9c0001	CLN_WASTE_CLASS_TXT	TEXT		28	1	Clinical waste class: HC1-General/HC2-Offensive/HC3-Infectious/HC4-Anatomical/HC5-Cytotoxic/HC6-Radioactive [H-30]	1
+PARAM	c8d4f6e2-2502-4d27-8c61-0e7a3f9c0002	CLN_WASTE_ROUTE_TXT	TEXT		28	1	Waste segregation route id [H-30]	1
+PARAM	c8d4f6e2-2503-4d27-8c61-0e7a3f9c0003	CLN_WASTE_BIN_BIM_ID_TXT	TEXT		28	1	IoT smart bin BIM element id [H-30]	1
+PARAM	c8d4f6e2-2601-4d27-8c61-0e7a3f9c1001	ICT_HEALTHIOT_DEVICE_ID_TXT	TEXT		3	1	Generic healthcare IoT device ID (consumed by IoTDeviceRegistry) [H-20]	1
+PARAM	c8d4f6e2-2602-4d27-8c61-0e7a3f9c1002	ICT_HEALTHIOT_PROTOCOL_TXT	TEXT		3	1	IoT protocol BACNET/OPC-UA/MODBUS/REST/PROPRIETARY [H-20]	1
+PARAM	c8d4f6e2-2603-4d27-8c61-0e7a3f9c1003	ICT_HEALTHIOT_ENDPOINT_TXT	TEXT		3	1	IoT endpoint URI [H-20]	1
+PARAM	c8d4f6e2-2604-4d27-8c61-0e7a3f9c1004	ICT_HEALTHIOT_ALERT_BAND_TXT	TEXT		3	1	IoT alert band free-text [H-20]	1

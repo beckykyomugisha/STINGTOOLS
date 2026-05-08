@@ -1,0 +1,19 @@
+RoomClass,NRTarget,RT60TargetS,STCMin,Notes
+WARD-INPT,35,0.6,45,HTM 08-01
+ICU,35,0.6,50,HTM 08-01 / FGI
+NICU,35,0.5,50,HBN 09-03 — quieter
+OR-CONV,40,0.7,50,HTM 08-01
+OR-ULTRA,40,0.6,50,
+CATHLAB,40,0.6,50,
+PSY-BED,30,0.6,50,Anti-disturbance
+EXAM,35,0.6,45,HIPAA / FGI privacy
+CONS,30,0.6,50,Speech privacy
+MAT-LDR,35,0.6,45,
+NICU-COUPLET,35,0.5,50,
+PH-CSP-797,40,0.7,40,Cleanroom NC
+PH-CSP-800,40,0.7,40,
+MRI,45,0.7,55,High STC for quench acoustics
+LINAC,45,0.7,55,
+MORT,45,0.8,40,
+HSDU-W,50,0.8,40,Plant noise tolerated
+HSDU-P,40,0.7,45,
