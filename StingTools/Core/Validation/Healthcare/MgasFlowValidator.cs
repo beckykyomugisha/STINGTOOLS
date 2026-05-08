@@ -41,9 +41,6 @@ namespace StingTools.Core.Validation.Healthcare
                 }
 
                 // Terminal unit BS 5682 indexing.
-                var isTu = el.Category != null &&
-                    el.Category.Id.IntegerValue == (int)BuiltInCategory.OST_PlumbingFixtures &&
-                    GetParam(el, "CEQ_CATEGORY_TXT").StartsWith("TU", System.StringComparison.OrdinalIgnoreCase) is bool b && b;
                 var tuFlag = GetParamBool(el, "MGS_TU_BS5682_BOOL");
                 var idxFlag = GetParamBool(el, "MGS_TU_INDEXED_BOOL");
                 if (tuFlag && !idxFlag)

@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useProjectStore } from '@/stores/projectStore';
-import { theme } from '@/utils/theme';
 
 type Card = { id: string; title: string; rag: 'R' | 'A' | 'G'; metric: string; route?: string };
 
