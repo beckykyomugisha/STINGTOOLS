@@ -1,7 +1,8 @@
 // Healthcare Pack H-21 — Read-only Room Data Sheet viewer (mobile).
 import { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { useProjectStore } from '@/stores/projectStore';
+import { getRdsSnapshot } from '@/api/endpoints';
 
 export default function RdsViewerScreen() {
   const { activeProject } = useProjectStore();
@@ -10,12 +11,27 @@ export default function RdsViewerScreen() {
 
   const load = async () => {
     if (!roomId) return;
-    // GET /api/projects/{id}/healthcare/rds/{roomId} (Phase H-22)
-    setRds({
-      roomId, name: '—', class: '—', area: '—', achReq: '—',
-      pressRegime: '—', deltaPa: '—', infectClass: '—', tempC: '—',
-      services: [], equipment: [], finishes: []
-    });
+    if (!activeProject?.id) { Alert.alert('No project', 'Select a project first.'); return; }
+    try {
+      const raw: any = await getRdsSnapshot(activeProject.id, roomId);
+      const ctx = raw?.contextJson ? JSON.parse(raw.contextJson) : {};
+      setRds({
+        roomId,
+        name: raw?.roomName ?? ctx.doc?.name ?? '—',
+        class: raw?.roomClass ?? ctx.doc?.health_class ?? '—',
+        area: ctx.doc?.area ?? '—',
+        achReq: ctx.doc?.['ach.req'] ?? '—',
+        pressRegime: ctx.doc?.['press.regime'] ?? '—',
+        deltaPa: ctx.doc?.['press.delta_pa'] ?? '—',
+        infectClass: ctx.doc?.['infect.class'] ?? '—',
+        tempC: ctx.doc?.['temp.design_c'] ?? '—',
+        services: ctx.services ?? [],
+        equipment: ctx.equipment ?? [],
+        finishes: ctx.finishes ?? [],
+      });
+    } catch (e: any) {
+      Alert.alert('Not found', `No RDS snapshot for ${roomId} on the server. ${e?.message ?? ''}`);
+    }
   };
 
   return (

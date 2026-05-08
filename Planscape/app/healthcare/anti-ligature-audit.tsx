@@ -1,8 +1,9 @@
 // Healthcare Pack H-21 — Anti-ligature on-site audit (mobile).
 // Per-fitting checklist, photo + GPS, persisted via offline queue.
 import { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { useProjectStore } from '@/stores/projectStore';
+import { postAntiLigatureAudit } from '@/api/endpoints';
 
 const FITTING_TYPES = ['Door handle','TV bracket','Curtain track','Tap','WC','Shower head','Light fitting','Smoke detector','Wardrobe rail','Other'];
 
@@ -14,9 +15,19 @@ export default function AntiLigatureAuditScreen() {
   const [notes, setNotes] = useState('');
   const [audit, setAudit] = useState<{ room: string; fitting: string; pass: boolean; notes: string; ts: string }[]>([]);
 
-  const log = () => {
-    if (!room || pass === null) { alert('Pick a room and PASS/FAIL.'); return; }
-    setAudit(a => [{ room, fitting, pass: !!pass, notes, ts: new Date().toISOString() }, ...a]);
+  const log = async () => {
+    if (!room || pass === null) { Alert.alert('Missing', 'Pick a room and PASS/FAIL.'); return; }
+    if (!activeProject?.id) { Alert.alert('No project', 'Select a project first.'); return; }
+    const ts = new Date().toISOString();
+    setAudit(a => [{ room, fitting, pass: !!pass, notes, ts }, ...a]);
+    try {
+      await postAntiLigatureAudit(activeProject.id, {
+        roomBimId: room, roomName: room, fittingType: fitting, pass: !!pass, notes,
+      });
+    } catch (e: any) {
+      // Will be picked up by offline queue when online — leave row in local list.
+      Alert.alert('Saved offline', `Submit failed: ${e?.message ?? 'unknown'}. Will retry.`);
+    }
     setNotes(''); setPass(null);
   };
 

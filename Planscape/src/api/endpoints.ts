@@ -1020,3 +1020,92 @@ export function validateDocumentName(
   );
 }
 
+
+// ── Healthcare Pack H-22 ──
+
+export type HealthcarePressureLog = {
+  id?: string;
+  roomBimId: string;
+  roomName: string;
+  roomClass: string;
+  designRegime: 'NEG' | 'POS' | 'NEUTRAL';
+  designDeltaPa: number;
+  liveDeltaPa: number;
+  inBand: boolean;
+  capturedAt?: string;
+  capturedBy?: string;
+  source?: 'BACNET' | 'OPC-UA' | 'MANUAL';
+};
+
+export type HealthcareMgasVerification = {
+  id?: string;
+  zone: string;
+  gasCode: string;
+  verifierName: string;
+  verifierAsse6030Id?: string;
+  certReference?: string;
+  capturedAt?: string;
+  overallPass: boolean;
+  passCount: number;
+  failCount: number;
+  checkResultsJson: string;
+  notes?: string;
+};
+
+export type HealthcareAntiLigatureAudit = {
+  id?: string;
+  roomBimId: string;
+  roomName: string;
+  fittingType: string;
+  pass: boolean;
+  notes?: string;
+  photoBlobId?: string;
+  gpsLat?: number;
+  gpsLon?: number;
+  capturedAt?: string;
+  capturedBy?: string;
+};
+
+export type HealthcareDashboard = {
+  pressure: { totalLast7d: number; breachLast7d: number; rag: 'R' | 'A' | 'G' };
+  mgas: { latest: string | null; pass: boolean; rag: 'R' | 'A' | 'G' };
+  antiLigature: { totalAudits: number; failed: number; rag: 'R' | 'A' | 'G' };
+  rdsCount: number;
+};
+
+export function getHealthcareDashboard(projectId: string): Promise<HealthcareDashboard> {
+  return apiFetch(`/api/projects/${projectId}/healthcare/dashboard`);
+}
+
+export function postPressureLog(projectId: string, body: HealthcarePressureLog): Promise<HealthcarePressureLog> {
+  return apiFetch(`/api/projects/${projectId}/healthcare/pressure-log`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function listPressureLog(projectId: string, since?: string, roomBimId?: string): Promise<HealthcarePressureLog[]> {
+  const q: string[] = [];
+  if (since) q.push(`since=${encodeURIComponent(since)}`);
+  if (roomBimId) q.push(`roomBimId=${encodeURIComponent(roomBimId)}`);
+  const qs = q.length ? `?${q.join('&')}` : '';
+  return apiFetch(`/api/projects/${projectId}/healthcare/pressure-log${qs}`);
+}
+
+export function postMgasVerification(projectId: string, body: HealthcareMgasVerification): Promise<HealthcareMgasVerification> {
+  return apiFetch(`/api/projects/${projectId}/healthcare/mgas-verification`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function postAntiLigatureAudit(projectId: string, body: HealthcareAntiLigatureAudit): Promise<HealthcareAntiLigatureAudit> {
+  return apiFetch(`/api/projects/${projectId}/healthcare/anti-ligature-audit`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function getRdsSnapshot(projectId: string, roomBimId: string): Promise<unknown> {
+  return apiFetch(`/api/projects/${projectId}/healthcare/rds/${encodeURIComponent(roomBimId)}`);
+}
