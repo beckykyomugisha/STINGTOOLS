@@ -30,3 +30,19 @@ ICT-DATA,Structured Cabling,ICT,Cat6A structured cabling system,Ss_60_10_20,CIBS
 ICT-WIFI,Wireless Network,ICT,Wi-Fi access point system,Ss_60_10_20,CIBSE-IT02,LV,ICT,ICT,"Access Point,Controller,Switch,PoE Injector",Coverage area,Controller failover
 VT-LIFT,Passenger Lift,Transport,Passenger lift installation,Ss_70_80_47,CIBSE-VT01,M,GEN,GEN,"Lift Car,Motor,Controller,Doors,Safety Gear",Persons/speed,None
 VT-ESC,Escalator,Transport,Escalator installation,Ss_70_80_27,CIBSE-VT02,M,GEN,GEN,"Escalator Unit,Motor,Controller,Safety Switch",Width/speed,None
+MGS-O2,Medical Oxygen,Medical Gas,Oxygen pipeline 400 kPa,Pr_70_60_28,N/A,MG,MGAS-O2,SUP,"Manifold,VIE,ZVB,AAP,Pipework,TU","Per HTM 02-01 sizing","Duty/Standby"
+MGS-MA4,Medical Air 400 kPa,Medical Gas,Medical air pipeline,Pr_70_60_28,N/A,MG,MGAS-MA4,SUP,"Compressor,Dryer,Receiver,ZVB,AAP","Per HTM 02-01","Duplex"
+MGS-MA7,Surgical Air 700 kPa,Medical Gas,Surgical air for power tools,Pr_70_60_28,N/A,MG,MGAS-MA7,SUP,"Compressor,Receiver,ZVB,AAP","Per HTM 02-01","Duplex"
+MGS-N2O,Nitrous Oxide,Medical Gas,N2O pipeline,Pr_70_60_28,N/A,MG,MGAS-N2O,SUP,"Manifold,ZVB,AAP","Per HTM 02-01","Duplex"
+MGS-VAC,Medical Vacuum,Medical Gas,Vacuum pipeline,Pr_70_60_28,N/A,MG,MGAS-VAC,EXH,"Pump,Receiver,Filter,ZVB,AAP","Per HTM 02-01","Duplex"
+MGS-AGS,AGS,Medical Gas,Anaesthetic gas scavenging,Pr_70_60_28,N/A,MG,MGAS-AGS,EXH,"Receiver,ZVB","Per HTM 02-01","Single"
+MGS-CO2,Carbon Dioxide,Medical Gas,CO2 pipeline,Pr_70_60_28,N/A,MG,MGAS-CO2,SUP,"Manifold,ZVB","Per HTM 02-01","Duplex"
+MGS-N2,Surgical Nitrogen,Medical Gas,N2 pipeline 1100 kPa,Pr_70_60_28,N/A,MG,MGAS-N2,SUP,"Manifold,ZVB","Per HTM 02-01","Duplex"
+EES-LS,Essential Power - Life Safety,Electrical,NFPA 99 Life Safety branch,Ss_70_30_30,CIBSE-EL01,E,EES-LS,LIFE-SAF,"Generator,ATS,Panelboard,Receptacle","Per NFPA 99","Generator + UPS"
+EES-CR,Essential Power - Critical,Electrical,NFPA 99 Critical branch (patient care),Ss_70_30_30,CIBSE-EL01,E,EES-CR,CRIT,"Generator,ATS,Panelboard,Receptacle","Per NFPA 99","Generator + UPS"
+EES-EQ,Essential Power - Equipment,Electrical,NFPA 99 Equipment branch,Ss_70_30_30,CIBSE-EL01,E,EES-EQ,EQP-BR,"Generator,ATS,Panelboard","Per NFPA 99","Generator"
+IPS-WET,Isolated Power - Wet Location,Electrical,NEC 517.19 IPS for OR/ICU,Ss_70_30_30,CIBSE-EL01,E,IPS-WET,IPS,"Isolation Transformer,LIM,Receptacle","Per NEC 517","Single"
+WAT-DIA-RO,Dialysis RO Loop,Plumbing,Reverse-osmosis loop for dialysis,Ss_55_60_55,CIBSE-PH01,P,WAT-DCW-TMV,DCW,"RO Plant,Pipework,Drop","Per HBN 07-02","Single"
+RAD-X,Radiation Controlled Area,Radiation Protection,X-ray controlled area envelope,N/A,N/A,RP,RAD-X,RAD-CONT,"Walls,Doors,Windows","Per NCRP 147","Per QE"
+RAD-MV,Megavoltage Controlled Area,Radiation Protection,LINAC megavoltage envelope,N/A,N/A,RP,RAD-MV,RAD-LINAC,"Walls,Maze","Per NCRP 151","Per QE"
+RAD-MRI,MRI Faraday Cage,Radiation Protection,RF Faraday cage envelope,N/A,N/A,RP,RAD-MRI,RAD-MRI,"Faraday Panels","Per IEC 60601-2-33","Per QE"
