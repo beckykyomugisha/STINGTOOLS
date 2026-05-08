@@ -78,10 +78,22 @@ namespace StingTools.Core.Clash
             {
                 if (!(doc.ActiveView is View3D view3d) || view3d.IsTemplate)
                 {
+                    // Prefer the broadest non-template 3D view: views with no
+                    // active section box come first (they see the whole model);
+                    // among those with section boxes, pick the largest by
+                    // bounding-box volume. Stable secondary order on Name so the
+                    // fallback is deterministic. Prior code took the collector's
+                    // first match, which on projects with several coordination
+                    // views could land on a tiny single-room slice and silently
+                    // produce an empty clash run.
                     var fallback = new FilteredElementCollector(doc)
                         .OfClass(typeof(View3D))
                         .Cast<View3D>()
-                        .FirstOrDefault(v => !v.IsTemplate);
+                        .Where(v => !v.IsTemplate)
+                        .OrderBy(v => v.IsSectionBoxActive ? 1 : 0)
+                        .ThenByDescending(SectionBoxVolumeFt3)
+                        .ThenBy(v => v.Name, StringComparer.Ordinal)
+                        .FirstOrDefault();
                     if (fallback == null)
                     {
                         if (!silent)
@@ -90,6 +102,8 @@ namespace StingTools.Core.Clash
                         return Result.Cancelled;
                     }
                     view3d = fallback;
+                    if (!silent)
+                        StingLog.Info($"ClashRunCommand: active view not 3D, fell back to '{view3d.Name}' (sectionBoxActive={view3d.IsSectionBoxActive})");
                 }
 
                 var overall = Stopwatch.StartNew();
@@ -711,6 +725,26 @@ namespace StingTools.Core.Clash
             // SeedFromRun's diff. We only need to assert flag=1 here.
             LiveClashFlag.Apply(doc, flagged, Array.Empty<int>());
             StingLog.Info($"WriteColdInitLiveFlags: wrote CLASH_LIVE_FLAG=1 on {flagged.Count} elements");
+        }
+
+        /// <summary>
+        /// Section-box volume in ft³, or 0 when the section box is inactive or
+        /// throws (very old views can return null bounds). Used by the View3D
+        /// fallback ordering so the largest visible-extent view wins.
+        /// </summary>
+        private static double SectionBoxVolumeFt3(View3D v)
+        {
+            try
+            {
+                if (v == null || !v.IsSectionBoxActive) return 0;
+                var bb = v.GetSectionBox();
+                if (bb == null) return 0;
+                double dx = Math.Max(0, bb.Max.X - bb.Min.X);
+                double dy = Math.Max(0, bb.Max.Y - bb.Min.Y);
+                double dz = Math.Max(0, bb.Max.Z - bb.Min.Z);
+                return dx * dy * dz;
+            }
+            catch { return 0; }
         }
 
         /// <summary>

@@ -46,6 +46,7 @@
     <Compile Include="..\StingTools\Clash\ClashHistory.cs"         Link="Clash\ClashHistory.cs" />
     <Compile Include="..\StingTools\Clash\ClashGrouper.cs"         Link="Clash\ClashGrouper.cs" />
     <Compile Include="..\StingTools\Clash\ResolutionHeuristics.cs" Link="Clash\ResolutionHeuristics.cs" />
+    <Compile Include="..\StingTools\Clash\BcfMarkupBuilder.cs"     Link="Clash\BcfMarkupBuilder.cs" />
     <!-- AabbSweep logs via StingTools.Core.StingLog. TestHelpers/StingLogShim.cs
          is auto-included by the net8.0 SDK default Compile glob; no explicit
          <Compile> entry needed. -->

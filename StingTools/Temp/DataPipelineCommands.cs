@@ -2600,10 +2600,15 @@ namespace StingTools.Temp
     // ════════════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Rule-based clash detection using Revit API geometry intersection.
-    /// Detects pipe-duct, duct-beam, MEP-wall, and MEP-MEP interference.
-    /// Exports clash report to CSV with element IDs, categories, and locations.
+    /// Legacy AABB-only clash detection retained for direct external callers.
+    /// Superseded by <see cref="StingTools.Core.Clash.ClashRunCommand"/>, which
+    /// runs the full pipeline (mesh extraction → OBB tree narrow phase →
+    /// matrix + rule classify → identity-stable history merge → grouping →
+    /// triage → persistence to clashes.json). All STING button tags
+    /// ("ClashDetect", "ClashDetection", "ClashRun") and workflow presets
+    /// now route to ClashRunCommand.
     /// </summary>
+    [Obsolete("Use StingTools.Core.Clash.ClashRunCommand. This legacy bounding-box-only path produces no clashes.json and no triage data.", false)]
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
     public class ClashDetectionCommand : IExternalCommand
