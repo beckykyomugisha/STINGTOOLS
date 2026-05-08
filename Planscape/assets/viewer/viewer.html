@@ -179,6 +179,9 @@
       <!-- Toast tray -->
       <div class="toasts" id="toasts"></div>
 
+      <!-- Pin hover tooltip (U1) -->
+      <div class="pin-tooltip" id="pinTooltip"></div>
+
       <!-- Help overlay -->
       <div class="help-overlay">
         <div class="help-card">
@@ -413,7 +416,13 @@
   const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 10000);
   camera.position.set(10, 10, 10);
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true, alpha: false,
+    // C1 — required so coordination-viewer.js can call toDataURL() for the
+    // issue-modal screenshot capture. Without this flag the back buffer is
+    // cleared after every frame and toDataURL returns a blank image.
+    preserveDrawingBuffer: true
+  });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.localClippingEnabled = true;
   // The renderer canvas lives inside the new viewport-wrap, NOT directly on body.

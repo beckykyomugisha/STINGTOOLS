@@ -12,9 +12,33 @@
   const USE_MOCK_CLASHES = true;   // server endpoint may not exist yet
 
   // ── Boot guard — wait for STING_VIEWER to be ready ────────────────────
+  // C3: bail with a visible error card after 30s so dependency failures
+  // don't leave the user staring at an infinite spinner.
   function whenReady(cb) {
-    if (window.STING_VIEWER && window.STING_VIEWER.scene) return cb();
-    setTimeout(() => whenReady(cb), 50);
+    const start = Date.now();
+    (function poll() {
+      if (window.STING_VIEWER && window.STING_VIEWER.scene) return cb();
+      if (Date.now() - start > 30000) return showBootError();
+      setTimeout(poll, 50);
+    })();
+  }
+  function showBootError() {
+    const div = document.createElement('div');
+    div.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:#111318;color:#E8EAF0;font-family:Inter,sans-serif;padding:32px;text-align:center';
+    div.innerHTML = `
+      <div style="max-width:480px">
+        <div style="font-size:32px;color:#EF4444;margin-bottom:12px">⚠</div>
+        <h2 style="margin:0 0 8px;font-size:16px">Viewer failed to start</h2>
+        <p style="color:#8892A4;font-size:13px;line-height:1.5">
+          Three.js or the GLTF loader could not be loaded from
+          <code style="background:#1C1F26;padding:2px 6px;border-radius:3px">assets/viewer/</code>.
+          Check the network tab and that <code>three.min.js</code>,
+          <code>GLTFLoader.js</code>, and <code>OrbitControls.js</code> are present.
+        </p>
+        <button onclick="location.reload()"
+          style="margin-top:14px;padding:8px 16px;background:#0078D4;color:#fff;border:0;border-radius:6px;cursor:pointer">Retry</button>
+      </div>`;
+    document.body.appendChild(div);
   }
   whenReady(initCoordination);
 
@@ -26,6 +50,16 @@
     const modelId   = params.get('model')   || '';
     const apiBase   = window.__PLANSCAPE_API__ || 'http://localhost:5000';
     const token     = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_token')) || '';
+
+    // C2: when the viewer is loaded as a bundled asset inside the React
+    // Native WebView (Asset.fromModule → file://) the host app supplies all
+    // data via the existing bridge — fetching from http://localhost:5000
+    // just spams CORS errors and falls back to mock data even when real
+    // data is on its way through the bridge. Disable the network client
+    // entirely in that case.
+    const isFileScheme  = location.protocol === 'file:';
+    const isWebView     = !!window.ReactNativeWebView;
+    const apiEnabled    = !isFileScheme && !isWebView;
 
     // ── State ───────────────────────────────────────────────────────────
     const state = {
@@ -48,6 +82,7 @@
       activeNav: 'orbit',
       issuesFilter: 'all',
       clashesFilter: 'all',
+      currentUser: null,
       bottomTab: 'clashes',
       rightTab: 'properties',
       savedViews: [],
@@ -61,11 +96,18 @@
     window.__COORD = state;  // debug handle
 
     // ── API helpers ─────────────────────────────────────────────────────
+    let authChallenged = false;   // toast 401 once per session
     async function api(path, opts = {}) {
+      if (!apiEnabled) return null;        // C2 — short-circuit on file:// / RN
       const headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
       if (token) headers['Authorization'] = `Bearer ${token}`;
       try {
         const res = await fetch(`${apiBase}${path}`, Object.assign({}, opts, { headers }));
+        if (res.status === 401 && !authChallenged) {
+          authChallenged = true;
+          toast('Sign-in expired — please log in again', 'error');
+          // Don't auto-redirect; viewer can be embedded.
+        }
         if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
         const ct = res.headers.get('content-type') || '';
         return ct.includes('application/json') ? res.json() : res.text();
@@ -127,6 +169,27 @@
     bootstrap().catch(e => console.error('[coord] bootstrap', e));
 
     async function bootstrap() {
+      // L2 / user chip — learn who's logged in so "Mine" filter and avatar
+      // initials are correct in production.
+      if (apiEnabled) {
+        const me = await api('/api/auth/me');
+        if (me && (me.id || me.userId)) {
+          state.currentUser = me;
+          const id = me.id || me.userId;
+          const name = me.displayName || me.name || me.email || 'You';
+          const initials = (name || 'YO').split(/[\s@]+/).filter(Boolean).map(s => s[0]).slice(0, 2).join('').toUpperCase();
+          $('#userChip').textContent = initials || 'YO';
+          $('#userChip').title = name;
+          // Replace the placeholder "me" member with the real one.
+          state.members = [{ id, name, initials }, ...state.members.filter(m => m.id !== 'me')];
+        }
+      }
+      if (apiEnabled && !projectId) {
+        // U5 — no project / model in URL: show empty-state CTA on first paint.
+        showEmptyStateCTA();
+        return;     // nothing else to bootstrap
+      }
+
       const project = projectId ? await api(`/api/projects/${projectId}`) : null;
       if (project && project.name) {
         state.projectName = project.name;
@@ -305,18 +368,50 @@
       });
     }
 
-    function ghostMaterial(mesh) {
+    // L5 — track materials we've cloned/replaced so we can dispose them.
+    // Each entry is { original, replacement } so we restore the original
+    // and free the replacement's GPU resources on clear.
+    function rememberOriginal(mesh) {
       if (!state.elementMaterials.has(mesh.uuid)) {
-        state.elementMaterials.set(mesh.uuid, mesh.material);
+        state.elementMaterials.set(mesh.uuid, { original: mesh.material, replacement: null });
       }
-      mesh.material = new THREE_.MeshStandardMaterial({
+    }
+    function setReplacement(mesh, mat) {
+      rememberOriginal(mesh);
+      const slot = state.elementMaterials.get(mesh.uuid);
+      // Dispose any previous replacement (avoids GPU leak when the same
+      // mesh gets ghosted then highlighted then ghosted again).
+      if (slot.replacement && typeof slot.replacement.dispose === 'function') {
+        try { slot.replacement.dispose(); } catch (_) {}
+      }
+      slot.replacement = mat;
+      mesh.material = mat;
+    }
+    function ghostMaterial(mesh) {
+      setReplacement(mesh, new THREE_.MeshStandardMaterial({
         color: 0x888888, transparent: true, opacity: 0.12,
         depthWrite: false, side: THREE_.DoubleSide
-      });
+      }));
     }
     function restoreOriginalMaterial(mesh) {
-      const orig = state.elementMaterials.get(mesh.uuid);
-      if (orig) { mesh.material = orig; state.elementMaterials.delete(mesh.uuid); }
+      const slot = state.elementMaterials.get(mesh.uuid);
+      if (!slot) return;
+      mesh.material = slot.original;
+      if (slot.replacement && typeof slot.replacement.dispose === 'function') {
+        try { slot.replacement.dispose(); } catch (_) {}
+      }
+      state.elementMaterials.delete(mesh.uuid);
+    }
+    // L6 — wipe every active highlight / ghost across the scene. Called
+    // whenever the user focuses a different clash or issue.
+    function clearAllHighlights() {
+      if (!V.modelRoot) { state.elementMaterials.clear(); return; }
+      const ids = Array.from(state.elementMaterials.keys());
+      V.modelRoot.traverse(o => {
+        if (o.isMesh && state.elementMaterials.has(o.uuid)) restoreOriginalMaterial(o);
+      });
+      // Anything left (e.g., disposed mesh) — drop it.
+      ids.forEach(id => state.elementMaterials.delete(id));
     }
 
     function renderModels() {
@@ -479,21 +574,32 @@
       }));
     }
 
+    // L7 — cache mesh centroid-Y per mesh.uuid so level filtering is
+    // instant on large models (4k+ elements). The cache is invalidated
+    // when the model is replaced (handled in the boot observer below).
+    const centroidYCache = new Map();
+    function getCentroidY(mesh) {
+      const cached = centroidYCache.get(mesh.uuid);
+      if (cached != null) return cached;
+      const bb = new THREE_.Box3().setFromObject(mesh);
+      const y = (bb.min.y + bb.max.y) / 2;
+      centroidYCache.set(mesh.uuid, y);
+      return y;
+    }
+    function invalidateCentroidCache() { centroidYCache.clear(); }
+
     function applyLevelFilter() {
       const active = $$('.level-pill.active').map(p => p.dataset.lvl);
       if (!active.length) {
         V.renderer.clippingPlanes = [];
+        if (V.modelRoot) V.modelRoot.traverse(o => { if (o.isMesh) o.visible = true; });
         return;
       }
-      // Build clipping planes that allow only the selected bands.
-      // Three.js supports multiple planes only as INTERSECTION; for OR-of-bands
-      // we approximate by mesh visibility per Y centroid.
       const wanted = state.levelBands.filter(b => active.includes(b.level));
       if (!V.modelRoot || !wanted.length) return;
       V.modelRoot.traverse(obj => {
         if (!obj.isMesh) return;
-        const bb = new THREE_.Box3().setFromObject(obj);
-        const cy = (bb.min.y + bb.max.y) / 2;
+        const cy = getCentroidY(obj);
         obj.visible = wanted.some(w => cy >= w.min - 0.01 && cy <= w.max + 0.01);
       });
     }
@@ -665,6 +771,9 @@
 
     // ── Clashes ────────────────────────────────────────────────────────
     async function loadClashes() {
+      // U4 — show inline loader while the request is in flight.
+      const body = $('#clashesBody');
+      if (body) body.innerHTML = '<div class="inline-loader"><span class="dot-spin"></span>Loading clashes…</div>';
       let data = null;
       if (!USE_MOCK_CLASHES && projectId) {
         data = await api(`/api/projects/${projectId}/clashes`);
@@ -834,9 +943,9 @@
 
     function focusClash(c) {
       state.selectedClashId = c.id;
+      clearAllHighlights();              // L6
       const pos = clashCentroid(c);
       if (pos) flyTo(pos);
-      // highlight pair
       const a = findMeshByGuid(c.elementA?.guid);
       const b = findMeshByGuid(c.elementB?.guid);
       if (a) emissive(a, 0xEF4444);
@@ -845,21 +954,24 @@
     }
 
     function emissive(mesh, hex) {
-      if (!state.elementMaterials.has(mesh.uuid)) {
-        state.elementMaterials.set(mesh.uuid, mesh.material);
-      }
-      mesh.material = new THREE_.MeshStandardMaterial({
+      setReplacement(mesh, new THREE_.MeshStandardMaterial({
         color: hex, emissive: hex, emissiveIntensity: 0.45
-      });
+      }));
     }
 
+    // L4 — only one flyTo animation may run at a time. Each new fly bumps
+    // the token; the previous animation sees the bump and bails on its
+    // next frame.
+    let flyToken = 0;
     function flyTo(pos) {
+      const myToken = ++flyToken;
       const start = V.camera.position.clone();
       const targetCam = pos.clone().add(new THREE_.Vector3(8, 6, 8));
       const startTgt = V.controls.target.clone();
       const t0 = performance.now();
       const dur = 600;
       function step() {
+        if (myToken !== flyToken) return;        // superseded
         const t = Math.min(1, (performance.now() - t0) / dur);
         const e = 0.5 - 0.5 * Math.cos(t * Math.PI);
         V.camera.position.lerpVectors(start, targetCam, e);
@@ -873,6 +985,9 @@
     // ── Issues ─────────────────────────────────────────────────────────
     async function loadIssues() {
       if (!projectId) { state.issues = []; renderIssues(); return; }
+      // U4 — show inline loader while the request is in flight.
+      const body = $('#issuesBody');
+      if (body) body.innerHTML = '<div class="inline-loader"><span class="dot-spin"></span>Loading issues…</div>';
       const data = await api(`/api/projects/${projectId}/issues`);
       state.issues = Array.isArray(data) ? data : (data?.items || []);
       placeIssuePins();
@@ -903,7 +1018,10 @@
     function renderIssues() {
       const body = $('#issuesBody');
       let rows = state.issues;
-      if (state.issuesFilter === 'mine') rows = rows.filter(i => i.assigneeId === 'me');
+      // L2 — match against the real signed-in user id, with 'me' as fallback
+      // for offline / pre-auth state so the placeholder demo data still works.
+      const myId = state.currentUser?.id || state.currentUser?.userId || 'me';
+      if (state.issuesFilter === 'mine') rows = rows.filter(i => i.assigneeId === myId || i.assigneeId === 'me');
       else if (state.issuesFilter === 'overdue') rows = rows.filter(i => i.slaBreached || (i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'RESOLVED'));
       body.innerHTML = rows.length ? '' : '<div class="empty-state">No issues</div>';
       if (rows.length) {
@@ -974,6 +1092,7 @@
 
     function focusIssue(i) {
       state.selectedIssueId = i.id;
+      clearAllHighlights();              // L6
       if (i.position) flyTo(new THREE_.Vector3(i.position.x, i.position.y, i.position.z));
       if (Array.isArray(i.elementGuids)) {
         i.elementGuids.forEach(g => {
@@ -1196,6 +1315,7 @@
       const readout = $('#coordReadout');
       const ray = new THREE_.Raycaster();
       const ptr = new THREE_.Vector2();
+      const tooltip = $('#pinTooltip');
       dom.addEventListener('pointermove', (e) => {
         if (!V.modelRoot) return;
         const r = dom.getBoundingClientRect();
@@ -1207,8 +1327,49 @@
           const p = hits[0].point;
           readout.innerHTML = `<span class="x">X</span> ${p.x.toFixed(2)}m  <span class="y">Y</span> ${p.y.toFixed(2)}m  <span class="z">Z</span> ${p.z.toFixed(2)}m`;
         }
+        // U1 — hover tooltip on issue / clash pins.
+        const pinTargets = [];
+        state.issuePins.forEach(m => pinTargets.push(m));
+        state.clashPins.forEach(m => pinTargets.push(m));
+        const pinHits = pinTargets.length ? ray.intersectObjects(pinTargets, false) : [];
+        if (pinHits.length && tooltip) {
+          const u = pinHits[0].object.userData;
+          let html = '';
+          if (u.issueId) {
+            const issue = state.issues.find(x => x.id === u.issueId);
+            if (issue) html = `<div class="ttitle">${escapeHtml(issue.title || 'Issue')}</div>
+              <div class="tmeta">${escapeHtml(issue.code || u.issueId)} · ${escapeHtml(issue.priority || 'MED')} · ${escapeHtml(issue.status || 'NEW')}</div>`;
+          } else if (u.clashId) {
+            const cl = state.clashes.find(x => x.id === u.clashId);
+            if (cl) html = `<div class="ttitle">${escapeHtml(cl.elementA?.name)} ✕ ${escapeHtml(cl.elementB?.name)}</div>
+              <div class="tmeta">${escapeHtml(cl.id)} · ${cl.type} · ${cl.overlap_mm}mm · ${escapeHtml(cl.status)}</div>`;
+          }
+          if (html) {
+            tooltip.innerHTML = html;
+            tooltip.style.display = 'block';
+            tooltip.style.left = (e.clientX - r.left + 14) + 'px';
+            tooltip.style.top  = (e.clientY - r.top  + 14) + 'px';
+          } else {
+            tooltip.style.display = 'none';
+          }
+        } else if (tooltip) {
+          tooltip.style.display = 'none';
+        }
       });
+      dom.addEventListener('pointerleave', () => { if (tooltip) tooltip.style.display = 'none'; });
+      // L3 — capture the press location at pointer-down, only commit it
+      // to lastClickPoint on pointer-up if the pointer barely moved
+      // (otherwise the user was orbiting / panning).
+      let pressPx = null;
       dom.addEventListener('pointerdown', (e) => {
+        pressPx = { x: e.clientX, y: e.clientY };
+      });
+      dom.addEventListener('pointerup', (e) => {
+        if (!pressPx) return;
+        const moved = Math.hypot(e.clientX - pressPx.x, e.clientY - pressPx.y);
+        pressPx = null;
+        if (moved > 6) return;                  // drag, not a click
+        if (!V.modelRoot) return;
         const r = dom.getBoundingClientRect();
         ptr.x = ((e.clientX - r.left) / r.width) * 2 - 1;
         ptr.y = -((e.clientY - r.top) / r.height) * 2 + 1;
@@ -1253,6 +1414,7 @@
 
     function selectElementByGuid(guid) {
       state.selectedElementGuid = guid;
+      clearAllHighlights();              // L6
       const m = findMeshByGuid(guid);
       if (m) {
         const bb = new THREE_.Box3().setFromObject(m);
@@ -1368,6 +1530,7 @@
           $('#issueModal').classList.remove('open');
           $('.help-overlay').classList.remove('open');
           handleHostCommand({ type: 'clearHighlight' });
+          clearAllHighlights();          // L6
           state.selectedElementGuid = null; renderProperties(null);
         } else if (k === 'f' || k === 'F') {
           if (state.selectedElementGuid) selectElementByGuid(state.selectedElementGuid);
@@ -1405,6 +1568,27 @@
     }
 
     // ── Misc helpers ───────────────────────────────────────────────────
+    // U5 — gentle nudge when the viewer is opened without query params.
+    function showEmptyStateCTA() {
+      if (document.getElementById('noProjectCta')) return;
+      const wrap = $('.viewport-wrap'); if (!wrap) return;
+      const cta = el('div', { class: 'no-project-cta', id: 'noProjectCta' });
+      cta.innerHTML = `
+        <div class="card">
+          <h2>Pick a project to get started</h2>
+          <p>The coordination viewer needs a project and model id in the URL.
+             Open a project from the dashboard, or append
+             <code>?project=&lt;id&gt;&amp;model=&lt;id&gt;</code> to this URL.</p>
+          <button class="btn" id="ctaBackToProjects">Open projects list</button>
+        </div>`;
+      wrap.appendChild(cta);
+      $('#ctaBackToProjects', cta).addEventListener('click', () => {
+        location.href = (apiBase || '') + '/projects';
+      });
+      // Hide the boot loader behind it so it doesn't double-spin.
+      const bl = $('#bootLoader'); if (bl) bl.style.display = 'none';
+    }
+
     function takeScreenshot() {
       const b64 = V.renderer.domElement.toDataURL('image/png');
       const a = document.createElement('a'); a.href = b64; a.download = `${state.modelName || 'view'}-${Date.now()}.png`; a.click();
@@ -1442,15 +1626,19 @@
     }
 
     // ── Hide the boot loader once the scene has a model ───────────────
+    // L1 — only re-run the level / tree / chip builds once, after the
+    // first model load completes; bootstrap() already populated them
+    // from the element-map, but bounds-based bands need real geometry.
+    let bootRan = false;
     const bootObserver = setInterval(() => {
+      if (bootRan) return;
       if (V.modelRoot && !V.modelBounds.isEmpty()) {
+        bootRan = true;
         $('#bootLoader')?.style.setProperty('display', 'none');
-        // Pin placement was deferred until model bounds are known.
+        invalidateCentroidCache();   // L7 — fresh model, fresh cache
         placeIssuePins();
         placeClashPins();
-        buildLevelStrip();
-        buildModelTree();
-        buildDisciplineChips();
+        buildLevelStrip();           // re-run with real bounds for Y bands
         clearInterval(bootObserver);
       }
     }, 400);
