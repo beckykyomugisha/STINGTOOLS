@@ -9,6 +9,8 @@
 # Usage:
 #   ./Planscape.Server/dev-up.sh                # default: migrate
 #   ./Planscape.Server/dev-up.sh init           # one-step first-run bootstrap
+#   ./Planscape.Server/dev-up.sh stack up       # docker compose up with DB_PASSWORD synced
+#   ./Planscape.Server/dev-up.sh stack reset    # nuke volumes + recreate (clean slate)
 #   ./Planscape.Server/dev-up.sh migrate        # apply pending migrations
 #   ./Planscape.Server/dev-up.sh run            # dotnet run the API
 #   ./Planscape.Server/dev-up.sh build          # dotnet build only
@@ -160,6 +162,44 @@ case "$cmd" in
     ok "Build complete"
     ;;
 
+  stack)
+    # Brings up Postgres + Redis with DB_PASSWORD synchronised to whatever
+    # is in .env.local — fixes the recurring 28P01 password mismatch
+    # caused by stray DB_PASSWORD exports leaking into docker compose.
+    sub="${2:-up}"
+    # Parse Password=... out of ConnectionStrings__Default. The connection
+    # string format is Host=...;Port=...;Database=...;Username=...;Password=X
+    # — we want X. cut on '=' splits on every =, so use parameter expansion.
+    pw_field="${ConnectionStrings__Default##*Password=}"
+    pw="${pw_field%%;*}"
+    if [[ -z "$pw" ]]; then
+      die "Could not parse Password=... out of ConnectionStrings__Default"
+    fi
+    info "Using DB_PASSWORD from .env.local (${#pw} chars)"
+    pushd "$SCRIPT_DIR/docker" >/dev/null
+    case "$sub" in
+      up)
+        DB_PASSWORD="$pw" docker compose up -d postgres redis
+        ok "Stack up. Wait ~5s for postgres init, then ./dev-up.sh migrate"
+        ;;
+      down)
+        DB_PASSWORD="$pw" docker compose down
+        ok "Stack down (volumes preserved)"
+        ;;
+      reset)
+        warn "Wiping volumes — all demo data will be lost."
+        DB_PASSWORD="$pw" docker compose down -v
+        DB_PASSWORD="$pw" docker compose up -d postgres redis
+        ok "Stack reset. Wait ~5s for postgres init, then ./dev-up.sh migrate"
+        ;;
+      *)
+        popd >/dev/null
+        die "Unknown stack subcommand: $sub  (try: up | down | reset)"
+        ;;
+    esac
+    popd >/dev/null
+    ;;
+
   shell)
     info "Spawning sub-shell with .env.local loaded. Type 'exit' to leave."
     exec "${SHELL:-bash}"
@@ -170,6 +210,6 @@ case "$cmd" in
     ;;
 
   *)
-    die "Unknown command: $cmd  (try: init | check | migrate | run | build | shell | help)"
+    die "Unknown command: $cmd  (try: init | stack | check | migrate | run | build | shell | help)"
     ;;
 esac
