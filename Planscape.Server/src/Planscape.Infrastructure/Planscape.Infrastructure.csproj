@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <NoWarn>$(NoWarn);NU1902</NoWarn>
     <TargetFramework>net8.0</TargetFramework>
+    <NoWarn>NU1902</NoWarn>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>Planscape.Infrastructure</RootNamespace>
