@@ -23,6 +23,13 @@ namespace Planscape.API.Controllers;
 /// to that user and ignore any conflicting <c>userId</c> claim in the body.
 /// The server is authoritative for tenant + user; the plugin is
 /// authoritative for action/entity/details/timestamp.
+///
+/// Hardening:
+///   • Every persisted Action is normalised to a <c>plugin.</c> prefix so a
+///     malicious plugin can't smuggle a row that looks like a server-side
+///     event (<c>admin_login</c>, <c>token_revoked</c>, …).
+///   • EntityType is whitelisted to a known set; unknown types are rejected
+///     so an attacker can't pollute the audit table with arbitrary "types".
 /// </summary>
 [ApiController]
 [Route("api/projects/{projectId}/audit-events")]
@@ -32,6 +39,17 @@ namespace Planscape.API.Controllers;
 public class AuditEventsController : ControllerBase
 {
     private const int MaxBatch = 200;
+
+    // Phase 177 — only these EntityTypes are accepted from the plugin. Anything
+    // else (e.g. "AppUser", "AuditLog") is dropped silently and counted as
+    // rejected so the metric reveals abuse attempts.
+    private static readonly HashSet<string> AllowedEntityTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Deliverable", "Document", "Transmittal", "Workflow", "Meeting",
+    };
+
+    // Action namespace forced on every plugin-sourced row.
+    private const string PluginActionPrefix = "plugin.";
 
     private readonly PlanscapeDbContext _db;
     private readonly ILogger<AuditEventsController> _log;
@@ -60,34 +78,57 @@ public class AuditEventsController : ControllerBase
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
 
         var rows = new List<AuditLog>(req.Events.Count);
+        var rejected = 0;
+        var now = DateTime.UtcNow;
+        var floor = now.AddDays(-30);   // backdating older than 30 days is dropped
+        var ceil  = now.AddMinutes(5);  // small clock-skew window forward
+
         foreach (var ev in req.Events)
         {
             if (string.IsNullOrWhiteSpace(ev.Action) || string.IsNullOrWhiteSpace(ev.EntityType))
-                continue;
+            { rejected++; continue; }
+            if (!AllowedEntityTypes.Contains(ev.EntityType))
+            { rejected++; continue; }
+
+            // Force the plugin. namespace — strip any pre-existing prefix so
+            // an attacker can't smuggle "admin_login" or "token_revoked".
+            var rawAction = ev.Action.Trim();
+            if (rawAction.StartsWith(PluginActionPrefix, StringComparison.OrdinalIgnoreCase))
+                rawAction = rawAction.Substring(PluginActionPrefix.Length);
+            var normalisedAction = PluginActionPrefix + rawAction;
+
+            // Clamp the timestamp to a sane window so a backdated event can't
+            // poison the audit chain ordering.
+            var ts = ev.Timestamp ?? now;
+            if (ts < floor || ts > ceil) ts = now;
 
             rows.Add(new AuditLog
             {
                 TenantId    = tenantId,
                 ProjectId   = projectId,
                 UserId      = userId,
-                Action      = Truncate(ev.Action, 100),
-                EntityType  = Truncate(ev.EntityType, 80),
+                Action      = Truncate(normalisedAction, 100)!,
+                EntityType  = Truncate(ev.EntityType, 80)!,
                 EntityId    = Truncate(ev.EntityId, 200),
                 DetailsJson = Truncate(ev.DetailsJson, 8000),
                 IpAddress   = ipAddress,
-                Timestamp   = ev.Timestamp ?? DateTime.UtcNow,
+                Timestamp   = ts,
                 Source      = "plugin",
                 DeviceId    = Truncate(ev.DeviceId, 100),
             });
         }
 
         if (rows.Count == 0)
-            return BadRequest(new { message = "no valid events in batch" });
+            return BadRequest(new { message = "no valid events in batch", rejected });
 
         _db.AuditLogs.AddRange(rows);
         await _db.SaveChangesAsync();
 
-        return Ok(new { accepted = rows.Count, rejected = req.Events.Count - rows.Count });
+        if (rejected > 0)
+            _log.LogWarning("AuditEvents: {Rejected}/{Total} plugin events rejected (entityType / clock window)",
+                rejected, req.Events.Count);
+
+        return Ok(new { accepted = rows.Count, rejected });
     }
 
     private static string? Truncate(string? s, int max)

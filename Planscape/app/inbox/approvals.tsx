@@ -28,13 +28,15 @@ export default function ApprovalsScreen() {
 
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [decidingId, setDecidingId] = useState<string | null>(null);
   const [comments, setComments] = useState<Record<string, string>>({});
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (isRefresh = false) => {
     if (!projectId) return;
     setError(null);
+    if (isRefresh) setRefreshing(true);
     try {
       const data = await getMyActions(projectId, 100);
       setApprovals(data.approvals ?? []);
@@ -43,6 +45,7 @@ export default function ApprovalsScreen() {
       setError(msg);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [projectId]);
 
@@ -94,7 +97,7 @@ export default function ApprovalsScreen() {
     <ScrollView
       style={styles.root}
       contentContainerStyle={styles.scroll}
-      refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
     >
       {error && <Text style={styles.error}>{error}</Text>}
 

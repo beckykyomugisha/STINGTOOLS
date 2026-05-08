@@ -159,6 +159,8 @@ public class DocumentsController : ControllerBase
         var tenantId = GetTenantId();
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound();
+        // Phase 177 — match Upload/CreateDocument: ACL on bootstrap state + discipline.
+        if (await RequireAclCreateAsync(projectId, req.Discipline) is { } aclDenied) return aclDenied;
 
         // Verify the upload actually landed in storage.
         if (!await _storage.ExistsAsync(req.ObjectKey))
@@ -222,6 +224,8 @@ public class DocumentsController : ControllerBase
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
         if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
+        // Phase 177 — caller must hold WIP + the requested discipline.
+        if (await RequireAclCreateAsync(projectId, req.Discipline) is { } aclDenied) return aclDenied;
 
         var doc = new DocumentRecord
         {
@@ -270,6 +274,8 @@ public class DocumentsController : ControllerBase
             .FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
         if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
+        // Phase 177 — block uploads outside the caller's CDE/discipline slice.
+        if (await RequireAclCreateAsync(projectId, discipline) is { } aclDenied) return aclDenied;
 
         // S7 — geofence parity with IssuesController.CreateIssue. A user
         // off-site shouldn't be uploading documents that purport to be
@@ -551,6 +557,7 @@ public class DocumentsController : ControllerBase
         var doc = await _db.Documents
             .FirstOrDefaultAsync(d => d.Id == docId && d.ProjectId == projectId && d.Project!.TenantId == tenantId);
         if (doc == null) return NotFound();
+        if (await RequireAclAsync(projectId, doc) is { } aclDenied) return aclDenied;
 
         var versions = await _db.DocumentVersions
             .Where(v => v.DocumentId == docId)
@@ -581,6 +588,7 @@ public class DocumentsController : ControllerBase
         var doc = await _db.Documents
             .FirstOrDefaultAsync(d => d.Id == docId && d.ProjectId == projectId && d.Project!.TenantId == tenantId);
         if (doc == null) return NotFound();
+        if (await RequireAclAsync(projectId, doc) is { } aclDenied) return aclDenied;
 
         var version = await _db.DocumentVersions
             .FirstOrDefaultAsync(v => v.DocumentId == docId && v.VersionNumber == versionNumber);
@@ -885,6 +893,9 @@ public class DocumentsController : ControllerBase
         var isCreate = doc == null;
         if (isCreate)
         {
+            // Phase 177 — first-time create is gated like a regular upload.
+            if (await RequireAclCreateAsync(projectId, req.Discipline) is { } aclCreateDenied)
+                return aclCreateDenied;
             doc = new DocumentRecord
             {
                 ProjectId       = projectId,
@@ -1005,6 +1016,22 @@ public class DocumentsController : ControllerBase
     {
         var acl = await Planscape.API.Authorization.ProjectMemberAcl.ResolveAsync(_db, projectId, User);
         if (!acl.AllowsDocument(doc)) return NotFound();
+        return null;
+    }
+
+    /// <summary>
+    /// Phase 177 — gate document *creation* on the caller's ACL slice for
+    /// the bootstrap state (always WIP for upload paths) and the requested
+    /// discipline. Users with a discipline allow-list that excludes the
+    /// requested discipline can't smuggle a doc into WIP via upload.
+    /// </summary>
+    private async Task<ActionResult?> RequireAclCreateAsync(Guid projectId, string? discipline, string bootstrapState = "WIP")
+    {
+        var acl = await Planscape.API.Authorization.ProjectMemberAcl.ResolveAsync(_db, projectId, User);
+        if (!acl.AllowsCde(bootstrapState))
+            return StatusCode(403, new { message = $"Your access does not include the {bootstrapState} CDE state." });
+        if (!acl.AllowsDiscipline(discipline))
+            return StatusCode(403, new { message = $"Your access does not include discipline {discipline ?? "(unset)"}." });
         return null;
     }
 
