@@ -1181,7 +1181,7 @@ namespace StingTools.UI
                     // ── Advanced Automation ──
                     case "AnomalyAutoFix": RunCommand<Organise.AnomalyAutoFixCommand>(app); break;
                     case "RevisionCloudAuto": RunCommand<Docs.RevisionCloudAutoCreateCommand>(app); break;
-                    case "ClashDetect": RunCommand<Temp.ClashDetectionCommand>(app); break;
+                    case "ClashDetect": RunCommand<Core.Clash.ClashRunCommand>(app); break;
                     case "IFCExport": RunCommand<Temp.IFCExportCommand>(app); break;
                     case "ExcelImport": RunCommand<Temp.ExcelBOQImportCommand>(app); break;
                     case "ExcelBOQImport": RunCommand<Temp.ExcelBOQImportCommand>(app); break;
@@ -2779,7 +2779,7 @@ namespace StingTools.UI
                     case "SpaceManagement": RunCommand<Temp.SpaceManagementCommand>(app); break;
 
                     // ── Temp: Data Validation ──
-                    case "ClashDetection": RunCommand<Temp.ClashDetectionCommand>(app); break;
+                    case "ClashDetection": RunCommand<Core.Clash.ClashRunCommand>(app); break;
                     case "CrossModelClash": RunCommand<Temp.CrossModelClashCommand>(app); break;
                     case "NamingAudit": RunCommand<Temp.NamingConventionAuditCommand>(app); break;
                     case "MEPClearance": RunCommand<Temp.MEPClearanceValidationCommand>(app); break;
