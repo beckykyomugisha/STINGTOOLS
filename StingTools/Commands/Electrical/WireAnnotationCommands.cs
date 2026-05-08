@@ -412,12 +412,17 @@ namespace StingTools.Commands.Electrical
                 .OrderBy(x => x.size)
                 .ToList();
 
-            return candidates.Count > 0
-                ? candidates[0].type
-                : all.OrderBy(t => {
+            if (candidates.Count > 0) return candidates[0].type;
+
+            // Fallback: smallest-text TextNoteType in the project. Guarded so
+            // a brand-new project with no annotation types doesn't NRE here —
+            // caller checks for null and surfaces a clearer error.
+            return all.Count > 0
+                ? all.OrderBy(t => {
                       var p = t.get_Parameter(BuiltInParameter.TEXT_SIZE);
                       return p != null ? p.AsDouble() : double.MaxValue;
-                  }).First();
+                  }).First()
+                : null;
         }
 
         public static bool EndConnectsToPanel(Element conduit, XYZ endPt)
