@@ -1,120 +1,397 @@
 <!--
-  MODEL-VIEWER — Self-contained three.js glTF viewer hosted in a WebView.
+  PLANSCAPE COORDINATION VIEWER — corporate-grade, panel-based 3D viewer.
 
-  This page is loaded from the app bundle via `Asset.fromModule(...).uri`
-  and receives commands from React Native via window.addEventListener('message').
-  Two-way bridge — the page posts selection / measure / pin events back to RN
-  via window.ReactNativeWebView.postMessage(JSON.stringify(...)).
+  Hosted in a React Native WebView (via Asset.fromModule + ModelViewer.tsx)
+  AND served standalone at  /viewer.html?project=<id>&model=<id>  for
+  desktop-browser coordination sessions.
 
-  Features implemented inline (no build step):
-    - OrbitControls (touch: 1-finger rotate, 2-finger pan+zoom)
-    - GLB / glTF loading from a URL or data URI
-    - Element pick (raycast) — emits "pick" to RN
-    - Section plane (horizontal clip, slider-driven)
-    - Measure tool (two-tap distance in model units)
-    - Issue pins (billboards at XYZ, tap → emits "pinTap")
-    - Long-press → emits "placeIssue" with element GUID + XYZ
-    - Layer toggle (discipline → mesh visibility)
+  Layout:
+    HEADER  · brand · breadcrumb · session pill · toolbar groups · badges · user
+    LEFT    · models + discipline chips · model tree · saved views · history
+    CENTER  · 3D canvas + level strip + minimap + nav controls + coord readout
+    BOTTOM  · clashes / issues / timeline trays
+    RIGHT   · properties / clashes / issues / comments tabs
+    MODAL   · issue creation form
+    HELP    · keyboard-shortcut overlay
 
-  Dependencies are loaded from `./three.min.js`, `./GLTFLoader.js`, and
-  `./OrbitControls.js` next to this HTML. The build pipeline is responsible
-  for populating those files — the fetch script at the bottom of this file
-  tries each asset and logs a friendly error if any are missing.
+  The original Three.js engine + RN bridge + STING_VIEWER export live below
+  inside <div class="legacy-host"> — the only changes vs. the previous
+  viewer.html are:
+    - canvas is appended to #viewerCanvas (the new viewport-wrap div)
+    - the old hud / toolbar / section-slider DOM is hidden via CSS
+    - assignElementIds also stamps userData.discipline / level / system from
+      the elementMap so the new tree + chips can group accurately
+    - elementMap merges with anything already loaded so the bridge can
+      keep its old contract while the coordination layer reads richer data
+
+  Every existing RN bridge command (load, elementMap, setTool, fit,
+  clearMeasure, clearHighlight, addPin, setPins, clearPins, setDiscipline,
+  setBackground, loadFederation, setSectionPlane, setWalkthrough, startArea,
+  addAreaPoint, finishArea, measureVolume) still works unchanged.
 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
-<title>Planscape 3D viewer</title>
-<style>
-  html, body { margin: 0; padding: 0; height: 100%; background: #1a1a1a; overflow: hidden; }
-  canvas { display: block; touch-action: none; }
-
-  .hud {
-    position: absolute; top: 12px; left: 12px; right: 12px;
-    display: flex; justify-content: space-between; pointer-events: none;
-    font: 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.6);
-  }
-  .hud .chip {
-    padding: 6px 10px; border-radius: 14px; background: rgba(0,0,0,0.55);
-    pointer-events: auto;
-  }
-  .status { font-size: 11px; opacity: .85; }
-
-  .toolbar {
-    position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
-    display: flex; gap: 6px; padding: 6px;
-    background: rgba(0,0,0,0.55); border-radius: 28px;
-  }
-  .toolbar button {
-    width: 44px; height: 44px; border: 0; border-radius: 50%;
-    background: transparent; color: #fff; font-size: 18px;
-  }
-  .toolbar button.active { background: #E8912D; }
-  .toolbar button:active { opacity: .6; }
-
-  .section-slider {
-    position: absolute; right: 12px; top: 60px; bottom: 100px;
-    display: flex; flex-direction: column; align-items: center; gap: 8px;
-    pointer-events: auto;
-  }
-  .section-slider input { -webkit-appearance: slider-vertical; writing-mode: bt-lr;
-    width: 24px; height: 100%; }
-  .section-slider.hidden { display: none; }
-
-  .loading, .error {
-    position: absolute; inset: 0; display: flex;
-    align-items: center; justify-content: center;
-    color: #fff; background: rgba(0,0,0,.8); padding: 40px; text-align: center;
-  }
-  .error code { background: rgba(255,255,255,.1); padding: 2px 6px; border-radius: 4px; }
-</style>
+<title>Planscape · Coordination viewer</title>
+<link rel="stylesheet" href="./coordination-viewer.css" />
 </head>
 <body>
 
-<div id="loading" class="loading">
-  <div><div style="font-weight:600">Loading model…</div>
-  <div id="loadingProgress" class="status">0%</div></div>
+<!-- ─────────────────────── App shell ─────────────────────── -->
+<div class="app-shell">
+
+  <!-- HEADER -->
+  <header class="header">
+    <button class="tbtn" id="btnToggleLeft" title="Toggle left panel">☰</button>
+    <span class="brand"><span class="logo">P</span>PLANSCAPE</span>
+    <span class="breadcrumb">
+      <span class="sep">▸</span>
+      <span id="breadcrumbProject">—</span>
+      <span class="sep">▸</span>
+      <span id="breadcrumbModel">—</span>
+    </span>
+    <span class="session-pill" id="sessionPill"><span class="dot"></span>Live</span>
+
+    <nav class="toolbar">
+      <div class="toolbar-group">
+        <button class="tbtn" id="btnMeasure" title="Measure">📐 Measure <span class="caret">▾</span></button>
+      </div>
+      <div class="toolbar-group">
+        <button class="tbtn" id="btnSection" title="Section">✂ Section <span class="caret">▾</span></button>
+      </div>
+      <div class="toolbar-group">
+        <button class="tbtn" id="btnView" title="View mode">👁 View <span class="caret">▾</span></button>
+      </div>
+      <div class="toolbar-group">
+        <button class="tbtn" id="btnIssues" title="Issues">🚩 Issues <span class="caret">▾</span></button>
+      </div>
+      <div class="toolbar-group">
+        <button class="tbtn" id="btnMarkup" title="Markup">✏ Markup <span class="caret">▾</span></button>
+      </div>
+
+      <div class="toolbar-group">
+        <button class="tbtn" id="btnClashes" title="Open clash tray">⚠ <span id="clashBadge" class="badge muted">0</span></button>
+        <button class="tbtn" id="btnIssueBadge" title="Open issue tray">🚩 <span id="issueBadge" class="badge warn muted">0</span></button>
+        <button class="tbtn" id="btnNotifs" title="Notifications">🔔 <span id="notifBadge" class="badge muted">0</span></button>
+        <button class="tbtn" id="btnSettings" title="Settings">⚙</button>
+        <button class="tbtn" id="btnHelp" title="Keyboard shortcuts">?</button>
+        <span class="user-chip" id="userChip">SD</span>
+        <button class="tbtn" id="btnToggleRight" title="Toggle right panel">›</button>
+      </div>
+    </nav>
+  </header>
+
+  <!-- LEFT PANEL -->
+  <aside class="left-panel">
+
+    <section class="panel-section open">
+      <div class="panel-section-header">
+        <span class="chev">▶</span>Models &amp; Disciplines
+        <span class="add-btn" title="Upload model">+</span>
+      </div>
+      <div class="panel-section-body">
+        <div class="disc-chips" id="discChips"></div>
+        <div id="modelsList"></div>
+      </div>
+    </section>
+
+    <section class="panel-section closed">
+      <div class="panel-section-header">
+        <span class="chev">▶</span>Model tree
+        <span class="count" id="treeCount"></span>
+      </div>
+      <div class="panel-section-body">
+        <input class="tree-search" id="treeSearch" placeholder="Search elements…" />
+        <div id="modelTree"></div>
+      </div>
+    </section>
+
+    <section class="panel-section closed">
+      <div class="panel-section-header">
+        <span class="chev">▶</span>Saved views
+        <span class="add-btn" id="btnAddView" title="Save current view">+</span>
+      </div>
+      <div class="panel-section-body">
+        <div id="savedViewsList"></div>
+        <button class="btn ghost full" id="btnPresent" style="margin-top:8px">▶ Present mode</button>
+      </div>
+    </section>
+
+    <section class="panel-section closed">
+      <div class="panel-section-header">
+        <span class="chev">▶</span>Session history
+      </div>
+      <div class="panel-section-body">
+        <div id="sessionHistory"></div>
+      </div>
+    </section>
+
+  </aside>
+
+  <!-- CENTER -->
+  <div class="center">
+    <div class="viewport-wrap" id="viewerCanvas">
+
+      <!-- Boot loader -->
+      <div class="boot-loader" id="bootLoader">
+        <div class="spinner"></div>
+        <div class="msg">Loading model</div>
+        <div class="pct" id="loadingProgress">0%</div>
+      </div>
+
+      <!-- Section control card -->
+      <div class="section-card" id="sectionCard" style="display:none">
+        <div class="head">SECTION PLANES <button class="close" id="sectionClose">✕</button></div>
+        <div class="body">
+          <div class="actions">
+            <button class="btn sm subtle" id="sectionAddX">+ Plane X</button>
+            <button class="btn sm subtle" id="sectionAddY">+ Plane Y</button>
+            <button class="btn sm subtle" id="sectionAddZ">+ Plane Z</button>
+            <button class="btn sm danger" id="sectionClear">Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Coordinate readout -->
+      <div class="coord-readout" id="coordReadout">
+        <span class="x">X</span> 0.00m  <span class="y">Y</span> 0.00m  <span class="z">Z</span> 0.00m
+      </div>
+
+      <!-- Level selector -->
+      <div class="level-strip" id="levelStrip"></div>
+
+      <!-- Nav controls -->
+      <div class="nav-controls">
+        <button class="nav-btn active" data-mode="orbit">◯ Orbit</button>
+        <button class="nav-btn" data-mode="pan">↖ Pan</button>
+        <button class="nav-btn" data-mode="walk">🚶 Walk</button>
+        <button class="nav-btn" data-mode="focus">⌖ Focus</button>
+      </div>
+
+      <!-- Minimap -->
+      <div class="minimap" id="minimap">
+        <button class="minimap-toggle" id="minimapToggle" title="Collapse">▢</button>
+        <canvas id="minimapCanvas"></canvas>
+      </div>
+
+      <!-- Toast tray -->
+      <div class="toasts" id="toasts"></div>
+
+      <!-- Pin hover tooltip (U1) -->
+      <div class="pin-tooltip" id="pinTooltip"></div>
+
+      <!-- Help overlay -->
+      <div class="help-overlay">
+        <div class="help-card">
+          <h2>Keyboard shortcuts</h2>
+          <table>
+            <tr><td>Esc</td><td>Deselect / close modal / clear highlight</td></tr>
+            <tr><td>Space</td><td>Reset camera (fit view)</td></tr>
+            <tr><td>F</td><td>Focus camera on selected element</td></tr>
+            <tr><td>H</td><td>Hide / show selected</td></tr>
+            <tr><td>I</td><td>Isolate selected (hide all others)</td></tr>
+            <tr><td>A</td><td>Show all</td></tr>
+            <tr><td>G</td><td>Toggle ghosted view</td></tr>
+            <tr><td>O / W</td><td>Orbit / Walk navigation</td></tr>
+            <tr><td>M</td><td>Measure tool</td></tr>
+            <tr><td>1–7</td><td>Jump to level</td></tr>
+            <tr><td>Ctrl+S</td><td>Save current view</td></tr>
+          </table>
+          <button class="btn ghost close-help">Close</button>
+        </div>
+      </div>
+
+      <!-- Bottom panel sits over the viewport (z-index 30) -->
+      <div class="bottom-panel" id="bottomPanel">
+        <div class="bottom-tabs">
+          <button class="btab active" data-tab="clashes">Clashes <span class="count" id="clashesTotal">0</span></button>
+          <button class="btab" data-tab="issues">Issues <span class="count" id="issuesTotal">0</span></button>
+          <button class="btab" data-tab="timeline">Timeline</button>
+          <div class="right">
+            <button class="bottom-collapse" id="bottomCollapse" title="Collapse">▾</button>
+          </div>
+        </div>
+
+        <div class="filter-row" id="fr-clashes">
+          <!-- X1 — status and type are independent axes. R12 — pill
+               counts are uniformly TOTALS across the whole list; the
+               post-filter "showing N of M" lives in a separate label
+               so the semantics are unambiguous. -->
+          <div id="clashStatusFilters" style="display:flex;gap:4px;align-items:center">
+            <span style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-right:2px">Status</span>
+            <button class="filter-btn active" data-status="any">Any</button>
+            <button class="filter-btn" data-status="NEW">New <span id="clashesNew">0</span></button>
+            <button class="filter-btn" data-status="OPEN">Open <span id="clashesOpen">0</span></button>
+            <button class="filter-btn" data-status="RESOLVED">Resolved <span id="clashesResolved">0</span></button>
+          </div>
+          <span class="sep"></span>
+          <div id="clashTypeFilters" style="display:flex;gap:4px;align-items:center">
+            <span style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-right:2px">Type</span>
+            <button class="filter-btn active" data-type="any">Any</button>
+            <button class="filter-btn" data-type="HARD">Hard</button>
+            <button class="filter-btn" data-type="SOFT">Soft</button>
+          </div>
+          <span class="sep"></span>
+          <span id="clashesShowing" style="font-size:11px;color:var(--text-secondary);font-family:var(--font-mono)"></span>
+          <div class="right">
+            <button class="btn sm subtle" id="btnExportCsv">Export CSV</button>
+            <button class="btn sm" id="btnRunDetect">Run clash detection</button>
+          </div>
+        </div>
+
+        <div class="filter-row" id="fr-issues" style="display:none">
+          <div id="issueFilters" style="display:flex;gap:6px">
+            <button class="filter-btn active" data-f="all">All</button>
+            <button class="filter-btn" data-f="mine">Mine <span id="issuesMine">0</span></button>
+            <button class="filter-btn" data-f="overdue">Overdue <span id="issuesOverdue">0</span></button>
+          </div>
+          <div class="right">
+            <button class="btn sm subtle" id="btnExportIssues">Export</button>
+            <button class="btn sm" id="btnNewIssue">+ Create issue</button>
+          </div>
+        </div>
+
+        <div class="filter-row" id="fr-timeline" style="display:none">
+          <span style="color:var(--text-muted);font-size:11px">Coordination progress trend (mock data — wire to /workflows/trend)</span>
+        </div>
+
+        <div class="bottom-body">
+          <div id="bp-clashes" class="bottom-pane active"><div id="clashesBody"></div></div>
+          <div id="bp-issues"  class="bottom-pane">         <div id="issuesBody"></div></div>
+          <div id="bp-timeline" class="bottom-pane" style="padding:12px">
+            <canvas id="timelineCanvas" style="width:100%;height:160px;border-radius:6px"></canvas>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <aside class="right-panel">
+    <div class="tab-bar">
+      <button class="tab active" data-tab="properties">Properties</button>
+      <button class="tab" data-tab="clashes">Clashes <span class="count" id="rightTabClashesCount"></span></button>
+      <button class="tab" data-tab="issues">Issues <span class="count" id="rightTabIssuesCount"></span></button>
+      <button class="tab" data-tab="comments">Comments <span class="count" id="rightTabCommentsCount"></span></button>
+    </div>
+    <div id="pane-properties" class="tab-pane active"></div>
+    <div id="pane-clashes"    class="tab-pane"></div>
+    <div id="pane-issues"     class="tab-pane"></div>
+    <div id="pane-comments"   class="tab-pane">
+      <div class="empty-state"><span class="glyph">💬</span>No comments yet</div>
+    </div>
+  </aside>
 </div>
 
-<div class="hud">
-  <div class="chip" id="elementChip" style="display:none"></div>
-  <div class="chip status" id="statusChip">ready</div>
+<!-- ─────────────────────── Issue creation modal ─────────────────────── -->
+<div class="modal-backdrop" id="issueModal">
+  <div class="modal">
+    <div class="head"><h2>Create issue</h2><button class="close" id="imClose">✕</button></div>
+    <div class="body">
+      <label>Title</label>
+      <input id="imTitle" placeholder="Short summary" />
+
+      <label>Priority</label>
+      <div class="choice-group" id="imPriority">
+        <div class="choice" data-v="CRITICAL">Critical</div>
+        <div class="choice active" data-v="HIGH">High</div>
+        <div class="choice" data-v="MEDIUM">Medium</div>
+        <div class="choice" data-v="LOW">Low</div>
+      </div>
+
+      <label>Type</label>
+      <div class="choice-group" id="imType">
+        <div class="choice active" data-v="RFI">RFI</div>
+        <div class="choice" data-v="NCR">NCR</div>
+        <div class="choice" data-v="SI">SI</div>
+        <div class="choice" data-v="COMMENT">Comment</div>
+      </div>
+
+      <label>Linked elements</label>
+      <div class="linked-elements" id="imLinked"></div>
+
+      <label>Assignee</label>
+      <select id="imAssignee"></select>
+
+      <label>Due date</label>
+      <input id="imDue" type="date" />
+
+      <label>Description</label>
+      <textarea id="imDesc" placeholder="Describe the issue, expected resolution, and any standards references"></textarea>
+
+      <label>Screenshot</label>
+      <button class="btn ghost" id="imScreenshotBtn">📷 Capture current view</button>
+      <div class="screenshot-preview" id="imScreenshot"></div>
+    </div>
+    <div class="foot">
+      <button class="btn subtle" id="imCancel">Cancel</button>
+      <button class="btn" id="imSubmit">Create issue →</button>
+    </div>
+  </div>
 </div>
 
-<div class="section-slider hidden" id="sectionSlider">
-  <div style="color:#fff;font-size:11px">cut</div>
-  <input type="range" min="0" max="100" value="100" id="sectionRange" />
+<!-- ─────────────────────── Generic toolbar dropdowns ─────────────────────── -->
+<div class="menu" id="menuMeasure">
+  <div class="menu-item" id="mPP">📍 Point to point</div>
+  <div class="menu-item" id="mArea">▱ Area</div>
+  <div class="menu-item" id="mAngle">∠ Angle</div>
+  <div class="menu-sep"></div>
+  <div class="menu-item danger" id="mClear">Clear all measurements</div>
+</div>
+<div class="menu" id="menuSection">
+  <div class="menu-item" id="sX">▤ Plane X</div>
+  <div class="menu-item" id="sY">▥ Plane Y</div>
+  <div class="menu-item" id="sZ">▦ Plane Z</div>
+  <div class="menu-item" id="sFree">↗ Free plane</div>
+  <div class="menu-item" id="sBox">⊟ Section box</div>
+  <div class="menu-sep"></div>
+  <div class="menu-item danger" id="sClr">Clear all sections</div>
+</div>
+<div class="menu" id="menuView">
+  <div class="menu-item" id="vShaded">● Shaded</div>
+  <div class="menu-item" id="vWire">▦ Wireframe</div>
+  <div class="menu-item" id="vXray">◌ X-Ray</div>
+  <div class="menu-item" id="vGhost">◑ Ghosted</div>
+</div>
+<div class="menu" id="menuIssues">
+  <div class="menu-item" id="iCreate">＋ Create issue</div>
+  <div class="menu-item" id="iMine">👤 My issues</div>
+  <div class="menu-item" id="iAll">📋 All issues</div>
+</div>
+<div class="menu" id="menuMarkup">
+  <div class="menu-item" id="mkDraw">✎ Draw</div>
+  <div class="menu-item" id="mkArrow">→ Arrow</div>
+  <div class="menu-item" id="mkText">T Text</div>
+  <div class="menu-sep"></div>
+  <div class="menu-item" id="mkScreenshot">📷 Screenshot</div>
+  <div class="menu-item" id="mkShare">🔗 Share view link</div>
 </div>
 
-<div class="toolbar">
-  <button id="toolHome"    title="Fit view">⌂</button>
-  <button id="toolPick"    title="Pick element" class="active">⊙</button>
-  <button id="toolMeasure" title="Measure">↔</button>
-  <button id="toolSection" title="Section">⊟</button>
-  <button id="toolPin"     title="Drop pin">📍</button>
+<!-- ─────────────────────── Legacy DOM kept hidden so original code can still find it ─────────────────────── -->
+<div style="display:none">
+  <div id="loading"><div id="loadingProgress2">0%</div></div>
+  <div id="elementChip"></div>
+  <div id="statusChip"></div>
+  <div id="sectionSlider"><input type="range" min="0" max="100" value="100" id="sectionRange" /></div>
+  <button id="toolHome"></button><button id="toolPick"></button>
+  <button id="toolMeasure"></button><button id="toolSection"></button><button id="toolPin"></button>
 </div>
 
-<!--
-  Three.js + loaders live next to this HTML. See assets/viewer/README.md for
-  how to populate these files. The viewer falls back gracefully when any are
-  missing so the rest of the app keeps working.
--->
+<!-- ─────────────────────── three.js dependencies ─────────────────────── -->
 <script src="./three.min.js"></script>
 <script src="./GLTFLoader.js"></script>
 <script src="./OrbitControls.js"></script>
-<!-- Optional: Draco + Meshopt decoders. Loaded best-effort — viewer keeps
-     working when the files are absent. -->
 <script src="./DRACOLoader.js" onerror="window.__noDraco=1"></script>
 <script src="./MeshoptDecoder.js" onerror="window.__noMeshopt=1"></script>
 
+<!-- ─────────────────────── Original viewer engine (RN bridge + Three.js core) ─────────────────────── -->
 <script>
 (() => {
   'use strict';
 
-  // ── RN bridge ───────────────────────────────────────────────────────
   const bridge = {
     send(type, payload) {
       const msg = JSON.stringify({ type, payload });
@@ -126,74 +403,76 @@
     try { handleCommand(JSON.parse(ev.data)); }
     catch (err) { console.warn('[viewer] bad command:', ev.data, err); }
   });
-  // Android delivers WebView→page messages on document.
   document.addEventListener('message', (ev) => {
-    try { handleCommand(JSON.parse(ev.data)); }
-    catch (err) {}
+    try { handleCommand(JSON.parse(ev.data)); } catch (err) {}
   });
 
   if (typeof THREE === 'undefined') {
-    showError('three.js is missing from <code>assets/viewer/</code>. See the README alongside this file.');
+    const e = document.createElement('div');
+    e.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;background:#111;padding:32px;text-align:center;font-family:Inter,sans-serif';
+    e.innerHTML = 'three.js is missing from <code>assets/viewer/</code>. See README.';
+    document.body.appendChild(e);
     return;
   }
 
   // ── Scene setup ─────────────────────────────────────────────────────
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x1a1a1a);
+  scene.background = new THREE.Color(0x111318);
 
-  const hemi = new THREE.HemisphereLight(0xffffff, 0x404060, 0.9);
-  scene.add(hemi);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x404060, 0.9));
   const dir = new THREE.DirectionalLight(0xffffff, 0.7);
-  dir.position.set(5, 10, 3);
-  scene.add(dir);
+  dir.position.set(5, 10, 3); scene.add(dir);
   scene.add(new THREE.AmbientLight(0xffffff, 0.15));
 
-  const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.01, 10000);
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 10000);
   camera.position.set(10, 10, 10);
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true, alpha: false,
+    // C1 — required so coordination-viewer.js can call toDataURL() for the
+    // issue-modal screenshot capture. Without this flag the back buffer is
+    // cleared after every frame and toDataURL returns a blank image.
+    preserveDrawingBuffer: true
+  });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.localClippingEnabled = true;
-  document.body.appendChild(renderer.domElement);
+  // The renderer canvas lives inside the new viewport-wrap, NOT directly on body.
+  const host = document.getElementById('viewerCanvas') || document.body;
+  host.appendChild(renderer.domElement);
+  function sizeRenderer() {
+    const w = host.clientWidth || window.innerWidth;
+    const h = host.clientHeight || window.innerHeight;
+    camera.aspect = w / Math.max(1, h);
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h, false);
+  }
+  sizeRenderer();
 
   const controls = new THREE.OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.08;
+  controls.enableDamping = true; controls.dampingFactor = 0.08;
 
-  // Clip plane for section mode (disabled by default).
   const clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
   renderer.clippingPlanes = [];
 
-  // Pin group — always rendered on top.
-  const pinGroup = new THREE.Group();
-  pinGroup.renderOrder = 999;
-  scene.add(pinGroup);
-
-  const measureGroup = new THREE.Group();
-  scene.add(measureGroup);
+  const pinGroup = new THREE.Group(); pinGroup.renderOrder = 999; scene.add(pinGroup);
+  const measureGroup = new THREE.Group(); scene.add(measureGroup);
 
   let modelRoot = null;
   let modelBounds = new THREE.Box3();
-  let elementMap = null;                // guid → { tag, name, category, discipline }
-  let pinMeta = new Map();               // mesh.uuid → { issueId, priority }
+  let elementMap = null;
+  let pinMeta = new Map();
   let measurePoints = [];
-  let activeTool = 'pick';               // 'pick' | 'measure' | 'section' | 'pin'
+  let activeTool = 'pick';
   let lastPickEl = null;
   let pressTimer = null;
 
-  // ── Loading ─────────────────────────────────────────────────────────
   function loadModel(url) {
     const loader = new THREE.GLTFLoader();
-    // Hook optional Draco / Meshopt decoders if the extras module wired them up.
     try {
       const v = window.STING_VIEWER;
       if (v && v.dracoLoader && loader.setDRACOLoader) loader.setDRACOLoader(v.dracoLoader);
       if (v && v.meshoptDecoder && loader.setMeshoptDecoder) loader.setMeshoptDecoder(v.meshoptDecoder);
-    } catch (_) { /* graceful */ }
-    setStatus('loading');
-    document.getElementById('loading').style.display = 'flex';
-
+    } catch (_) {}
     loader.load(
       url,
       (gltf) => {
@@ -203,28 +482,29 @@
         scene.add(modelRoot);
         modelBounds.setFromObject(modelRoot);
         fitCamera();
-        document.getElementById('loading').style.display = 'none';
-        setStatus('loaded ' + countMeshes(modelRoot) + ' meshes');
-        bridge.send('loaded', { elementCount: countMeshes(modelRoot),
-                                bounds: bbToArray(modelBounds) });
+        const loader = document.getElementById('bootLoader');
+        if (loader) loader.style.display = 'none';
+        bridge.send('loaded', {
+          elementCount: countMeshes(modelRoot),
+          bounds: bbToArray(modelBounds)
+        });
       },
       (progress) => {
         if (progress.total > 0) {
           const pct = Math.round(progress.loaded / progress.total * 100);
-          document.getElementById('loadingProgress').textContent = pct + '%';
+          const elp = document.getElementById('loadingProgress');
+          if (elp) elp.textContent = pct + '%';
         }
       },
       (err) => {
-        document.getElementById('loading').style.display = 'none';
-        showError('Failed to load model: ' + (err && err.message ? err.message : err));
+        console.error('[viewer] load fail', err);
+        const loader = document.getElementById('bootLoader');
+        if (loader) loader.querySelector('.msg').textContent = 'Failed to load model';
       }
     );
   }
 
   function assignElementIds(root) {
-    // glTF exporters typically store the Revit GUID under userData.extras.guid
-    // or userData.name. Walk the tree and fall back to Object.uuid so every
-    // mesh has *some* stable id we can emit to RN.
     root.traverse(obj => {
       if (!obj.isMesh) return;
       const g = obj.userData && (obj.userData.guid || (obj.userData.extras && obj.userData.extras.guid));
@@ -243,7 +523,7 @@
     controls.update();
   }
 
-  // ── Interactions ────────────────────────────────────────────────────
+  // ── Picking + interactions ──────────────────────────────────────────
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   let pointerDown = { x: 0, y: 0, t: 0 };
@@ -254,24 +534,20 @@
   });
   renderer.domElement.addEventListener('pointerup', (e) => {
     const moved = Math.hypot(e.clientX - pointerDown.x, e.clientY - pointerDown.y);
-    const duration = Date.now() - pointerDown.t;
     const longPress = pressTimer === 'fired';
     if (pressTimer) clearTimeout(pressTimer);
-    if (moved > 6) return;               // treat as an orbit / pan drag
+    if (moved > 6) return;
 
     setPointer(e);
     const hits = raycast();
     if (hits.length === 0) return;
     const hit = hits[0];
 
-    if (longPress) {
-      emitPlaceIssue(hit);
-      return;
-    }
-    if (activeTool === 'pick')     emitPick(hit);
+    if (longPress) { emitPlaceIssue(hit); return; }
+    if (activeTool === 'pick')         emitPick(hit);
     else if (activeTool === 'measure') addMeasurePoint(hit);
-    else if (activeTool === 'pin') emitPlaceIssue(hit);
-    else emitPick(hit);
+    else if (activeTool === 'pin')     emitPlaceIssue(hit);
+    else                                emitPick(hit);
   });
 
   function setPointer(ev) {
@@ -294,21 +570,14 @@
     lastPickEl = guid;
     const meta = elementMap && elementMap[guid] ? elementMap[guid] : null;
     bridge.send('pick', { guid, point: hit.point.toArray(), name: hit.object.name, meta });
-    const chip = document.getElementById('elementChip');
-    chip.textContent = meta && meta.tag ? meta.tag : (hit.object.name || guid.slice(0, 8));
-    chip.style.display = 'inline-block';
     highlight(hit.object);
   }
-
   function emitPlaceIssue(hit) {
     const guid = hit.object.userData.elementGuid;
     const meta = elementMap && elementMap[guid] ? elementMap[guid] : null;
-    bridge.send('placeIssue', {
-      guid, meta, point: hit.point.toArray()
-    });
+    bridge.send('placeIssue', { guid, meta, point: hit.point.toArray() });
   }
 
-  // ── Highlight ───────────────────────────────────────────────────────
   let highlightedMesh = null, originalMat = null;
   function highlight(mesh) {
     if (highlightedMesh === mesh) return;
@@ -316,199 +585,128 @@
     highlightedMesh = mesh;
     originalMat = mesh.material;
     mesh.material = new THREE.MeshStandardMaterial({
-      color: 0xE8912D, emissive: 0xE8912D, emissiveIntensity: 0.35,
-      transparent: false
+      color: 0xF97316, emissive: 0xF97316, emissiveIntensity: 0.45
     });
   }
   function clearHighlight() {
-    if (highlightedMesh && originalMat) {
-      highlightedMesh.material = originalMat;
-    }
+    if (highlightedMesh && originalMat) highlightedMesh.material = originalMat;
     highlightedMesh = null; originalMat = null;
-    document.getElementById('elementChip').style.display = 'none';
   }
 
-  // ── Measure tool ────────────────────────────────────────────────────
   function addMeasurePoint(hit) {
     const p = hit.point.clone();
     measurePoints.push(p);
-    addMeasureMarker(p);
-    if (measurePoints.length === 2) {
-      const d = measurePoints[0].distanceTo(measurePoints[1]);
-      drawMeasureLine(measurePoints[0], measurePoints[1]);
-      bridge.send('measure', { distance: d, points: measurePoints.map(v => v.toArray()) });
-      setStatus('distance = ' + d.toFixed(3) + ' model-units');
-      measurePoints = [];
-    }
-  }
-  function addMeasureMarker(p) {
     const sphere = new THREE.Mesh(
       new THREE.SphereGeometry(0.1, 12, 12),
-      new THREE.MeshBasicMaterial({ color: 0xffcc00 })
+      new THREE.MeshBasicMaterial({ color: 0x0078D4 })
     );
-    sphere.position.copy(p);
-    measureGroup.add(sphere);
-  }
-  function drawMeasureLine(a, b) {
-    const g = new THREE.BufferGeometry().setFromPoints([a, b]);
-    const m = new THREE.LineBasicMaterial({ color: 0xffcc00, linewidth: 2 });
-    measureGroup.add(new THREE.Line(g, m));
+    sphere.position.copy(p); measureGroup.add(sphere);
+    if (measurePoints.length === 2) {
+      const d = measurePoints[0].distanceTo(measurePoints[1]);
+      const g = new THREE.BufferGeometry().setFromPoints(measurePoints);
+      measureGroup.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0x0078D4 })));
+      bridge.send('measure', { distance: d, points: measurePoints.map(v => v.toArray()) });
+      measurePoints = [];
+    }
   }
   function clearMeasure() {
     while (measureGroup.children.length) measureGroup.remove(measureGroup.children[0]);
     measurePoints = [];
   }
 
-  // ── Section plane ───────────────────────────────────────────────────
   function enableSection(enabled) {
     if (enabled) {
-      const size = modelBounds.getSize(new THREE.Vector3());
       const top = modelBounds.max.y;
       clipPlane.constant = top;
       renderer.clippingPlanes = [clipPlane];
-      const slider = document.getElementById('sectionRange');
-      slider.value = 100;
-      document.getElementById('sectionSlider').classList.remove('hidden');
-      slider.oninput = () => {
-        const frac = slider.value / 100;
-        const min = modelBounds.min.y, max = modelBounds.max.y;
-        clipPlane.constant = min + (max - min) * frac;
-      };
     } else {
       renderer.clippingPlanes = [];
-      document.getElementById('sectionSlider').classList.add('hidden');
     }
   }
 
-  // ── Pins ────────────────────────────────────────────────────────────
   function addPin({ id, x, y, z, priority = 'MEDIUM' }) {
-    const color = priorityColor(priority);
-    const sprite = new THREE.Sprite(
-      new THREE.SpriteMaterial({ color, depthTest: false })
-    );
-    const scale = modelBounds.isEmpty() ? 1
-      : modelBounds.getSize(new THREE.Vector3()).length() * 0.015;
-    sprite.scale.set(scale, scale, scale);
-    sprite.position.set(x, y, z);
-    pinGroup.add(sprite);
-    pinMeta.set(sprite.uuid, { issueId: id, priority });
+    const PRIORITY = { CRITICAL: 0xEF4444, HIGH: 0xF97316, MEDIUM: 0xF59E0B, LOW: 0x60A5FA };
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ color: PRIORITY[priority] || 0x60A5FA, depthTest: false }));
+    const scale = modelBounds.isEmpty() ? 1 : modelBounds.getSize(new THREE.Vector3()).length() * 0.012;
+    sprite.scale.set(scale, scale, scale); sprite.position.set(x, y, z);
+    pinGroup.add(sprite); pinMeta.set(sprite.uuid, { issueId: id, priority });
   }
-  function clearPins() {
-    while (pinGroup.children.length) pinGroup.remove(pinGroup.children[0]);
-    pinMeta.clear();
-  }
-  function priorityColor(p) {
-    switch (p) {
-      case 'CRITICAL': return 0xD32F2F;
-      case 'HIGH':     return 0xF57C00;
-      case 'MEDIUM':   return 0xFBC02D;
-      case 'LOW':      return 0x7CB342;
-      default:         return 0x2196F3;
-    }
-  }
+  function clearPins() { while (pinGroup.children.length) pinGroup.remove(pinGroup.children[0]); pinMeta.clear(); }
 
-  // ── Layers (discipline filter) ──────────────────────────────────────
   function setDisciplineVisible(discipline, visible) {
     if (!modelRoot || !elementMap) return;
     modelRoot.traverse(obj => {
       if (!obj.isMesh) return;
-      const guid = obj.userData.elementGuid;
-      const meta = elementMap[guid];
+      const meta = elementMap[obj.userData.elementGuid];
       if (meta && meta.discipline === discipline) obj.visible = visible;
     });
   }
 
-  // ── Commands from RN ────────────────────────────────────────────────
   function handleCommand(cmd) {
+    if (!cmd || !cmd.type) return;
     switch (cmd.type) {
       case 'load':            loadModel(cmd.payload.url); break;
-      case 'elementMap':      elementMap = cmd.payload.map; break;
+      case 'elementMap':      elementMap = Object.assign(elementMap || {}, cmd.payload.map || {}); break;
       case 'setTool':         setTool(cmd.payload.tool); break;
-      case 'fit':             fitCamera(); break;
-      case 'clearMeasure':    clearMeasure(); break;
-      case 'clearHighlight':  clearHighlight(); break;
-      case 'addPin':          addPin(cmd.payload); break;
-      case 'setPins':         clearPins(); (cmd.payload || []).forEach(addPin); break;
-      case 'clearPins':       clearPins(); break;
-      case 'setDiscipline':   setDisciplineVisible(cmd.payload.discipline, cmd.payload.visible); break;
-      case 'setBackground':   scene.background = new THREE.Color(cmd.payload.color || 0x1a1a1a); break;
+      case 'fit':              fitCamera(); break;
+      case 'clearMeasure':     clearMeasure(); break;
+      case 'clearHighlight':   clearHighlight(); break;
+      case 'addPin':           addPin(cmd.payload); break;
+      case 'setPins':          clearPins(); (cmd.payload || []).forEach(addPin); break;
+      case 'clearPins':        clearPins(); break;
+      case 'setDiscipline':    setDisciplineVisible(cmd.payload.discipline, cmd.payload.visible); break;
+      case 'setBackground':    scene.background = new THREE.Color(cmd.payload.color || 0x111318); break;
     }
   }
 
   function setTool(t) {
     activeTool = t;
-    for (const id of ['toolPick', 'toolMeasure', 'toolSection', 'toolPin']) {
-      document.getElementById(id).classList.remove('active');
-    }
-    const btn = { pick: 'toolPick', measure: 'toolMeasure',
-                  section: 'toolSection', pin: 'toolPin' }[t];
-    if (btn) document.getElementById(btn).classList.add('active');
     enableSection(t === 'section');
     if (t !== 'measure') clearMeasure();
     bridge.send('toolChanged', { tool: t });
   }
 
-  // Toolbar buttons.
-  document.getElementById('toolHome').addEventListener('click', () => { fitCamera(); clearHighlight(); });
-  document.getElementById('toolPick').addEventListener('click', () => setTool('pick'));
-  document.getElementById('toolMeasure').addEventListener('click', () => setTool('measure'));
-  document.getElementById('toolSection').addEventListener('click', () =>
-    setTool(activeTool === 'section' ? 'pick' : 'section'));
-  document.getElementById('toolPin').addEventListener('click', () => setTool('pin'));
+  // Resize on window AND host element changes.
+  window.addEventListener('resize', sizeRenderer);
+  if (window.ResizeObserver) new ResizeObserver(sizeRenderer).observe(host);
 
-  // ── Resize + render loop ────────────────────────────────────────────
-  window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  });
   (function animate() {
     requestAnimationFrame(animate);
     controls.update();
     renderer.render(scene, camera);
   })();
 
-  // ── Utils ───────────────────────────────────────────────────────────
-  function setStatus(text) { document.getElementById('statusChip').textContent = text; }
   function countMeshes(obj) { let n = 0; obj.traverse(o => { if (o.isMesh) n++; }); return n; }
   function bbToArray(b) { return [b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z]; }
-  function showError(html) {
-    const el = document.createElement('div');
-    el.className = 'error';
-    el.innerHTML = html;
-    document.body.appendChild(el);
-  }
 
-  // Expose a small host surface so viewer-extras.js (federation /
-  // walkthrough / oblique sections / area+volume measure / auto-LOD) can
-  // operate against the same scene without re-implementing setup.
+  // STING_VIEWER export — exact same surface viewer-extras + coordination
+  // viewer expect.
   window.STING_VIEWER = {
     scene, camera, renderer, controls, bridge,
     fitCamera, assignElementIds,
-    get modelRoot()        { return modelRoot; },
+    get modelRoot()       { return modelRoot; },
     set modelRoot(v)       { modelRoot = v; },
-    get modelBounds()      { return modelBounds; },
+    get modelBounds()     { return modelBounds; },
     set modelBounds(v)     { modelBounds = v; },
-    get highlightedMesh()  { return highlightedMesh; },
-    dracoLoader: null,
-    meshoptDecoder: null,
+    get highlightedMesh() { return highlightedMesh; },
+    // R13 — expose pinGroup + pinMeta so the coordination layer can add
+    // its own pins to the same pipeline the engine raycasts. The engine
+    // already emits `pinTap` for any uuid it finds in pinMeta on click,
+    // so this avoids a duplicate raycast in coordination-viewer.js.
+    pinGroup, pinMeta,
+    dracoLoader: null, meshoptDecoder: null
   };
-
-  // Wire optional decoders onto a fresh GLTFLoader factory the extras can use.
   try {
-    if (typeof THREE !== 'undefined' && THREE.DRACOLoader && !window.__noDraco) {
-      const dl = new THREE.DRACOLoader();
-      if (dl.setDecoderPath) dl.setDecoderPath('./');
+    if (THREE.DRACOLoader && !window.__noDraco) {
+      const dl = new THREE.DRACOLoader(); if (dl.setDecoderPath) dl.setDecoderPath('./');
       window.STING_VIEWER.dracoLoader = dl;
     }
     if (typeof MeshoptDecoder !== 'undefined' && !window.__noMeshopt) {
       window.STING_VIEWER.meshoptDecoder = MeshoptDecoder;
     }
-  } catch (_) { /* graceful */ }
+  } catch (_) {}
 
-  // Extras hook into commands they own. Defensive payload access — RN can
-  // post messages with missing/empty payloads while the viewer is still
-  // booting and we don't want a TypeError to take down the message loop.
+  // Forward extras commands.
   const _origHandle = handleCommand;
   handleCommand = function (cmd) {
     const x = window.STING_VIEWER_EXTRAS;
@@ -527,18 +725,18 @@
     return _origHandle(cmd);
   };
 
-  // Tell RN we're ready to receive a `load` command.
   bridge.send('ready', { platform: 'webview' });
 })();
 </script>
 <script src="./viewer-extras.js"></script>
 <script>
-  // Drive the auto-LOD ticker from a low-frequency interval so it doesn't
-  // gate the render loop. The extras module owns the FPS sampling.
   setInterval(() => {
     const x = window.STING_VIEWER_EXTRAS;
     if (x && typeof x.tickFps === 'function') x.tickFps();
   }, 50);
 </script>
+
+<!-- Coordination layer — panels, API, clash + issue management. -->
+<script src="./coordination-viewer.js"></script>
 </body>
 </html>
