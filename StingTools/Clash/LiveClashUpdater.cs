@@ -43,7 +43,7 @@ namespace StingTools.Core.Clash
             }
         }
 
-        public static void Register(UIControlledApplication uiApp, Document sampleDoc)
+        public static void Register(UIControlledApplication uiApp)
         {
             try
             {
