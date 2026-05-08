@@ -96,14 +96,22 @@ namespace StingTools.BIMManager
 
                 if (result.alreadyExisted)
                 {
+                    // Modern server (commits 1b7ff61+) refreshes the element-
+                    // map / thumbnail / bounds / revision on the existing row
+                    // even when the GLB hash is identical, so this branch is
+                    // now the "re-publish to refresh sidecars" success path,
+                    // not a dead-end. Coordinators expect re-publishing to
+                    // pick up new tagging / new map data.
                     TaskDialog.Show(
                         "Publish Model to Planscape",
-                        $"This model is already published — the server returned the existing entry instead of creating a duplicate.\n\n" +
+                        $"Geometry already published — element-map and metadata refreshed on the existing entry.\n\n" +
                         $"File: {Path.GetFileName(modelPath)}\n" +
                         $"Project: {projectId}\n" +
-                        $"Existing model id: {result.modelId}\n\n" +
-                        "If you intended to publish a new revision, change the geometry (re-export the 3D view, or pick a different file) and try again.");
-                    StingLog.Info($"Planscape: model already published (dedup) → {result.modelId}");
+                        $"Model id: {result.modelId}\n\n" +
+                        "The viewer + mobile app will pick up the new element-map on next open. " +
+                        "To create a NEW revision instead of refreshing, change the geometry first " +
+                        "(re-export the 3D view) and re-publish.");
+                    StingLog.Info($"Planscape: model sidecars refreshed (dedup) → {result.modelId}");
                     return Result.Succeeded;
                 }
 

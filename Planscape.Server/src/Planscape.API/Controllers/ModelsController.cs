@@ -109,12 +109,53 @@ public class ModelsController : ControllerBase
         {
             hash = await ComputeHashAsync(hashStream, ct);
         }
-        var existing = await _db.ProjectModels.AsNoTracking()
+        var existing = await _db.ProjectModels
             .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.ContentHash == hash && m.DeletedAt == null, ct);
         if (existing != null)
         {
-            _logger.LogInformation("Model upload skipped — duplicate hash {Hash} for project {ProjectId}", hash, projectId);
-            return Conflict(new { error = "duplicate_content", id = existing.Id });
+            // Geometry hash is identical, so the GLB itself is already on
+            // disk — skip the costly re-upload. BUT: refresh the ELEMENT-MAP
+            // and THUMBNAIL sidecars (they're cheap, and they're often the
+            // reason a coordinator re-publishes — schema changes, new
+            // tagging, etc.). This avoids the recurring "I re-published
+            // and the viewer still shows the old element-map" trap.
+            bool sidecarChanged = false;
+            if (req.ElementMap != null && req.ElementMap.Length > 0)
+            {
+                if (req.ElementMap.Length > 5 * 1024 * 1024)
+                    return BadRequest(new { error = "element_map_too_large", maxMb = 5 });
+                using var s = req.ElementMap.OpenReadStream();
+                existing.ElementMapPath = await _storage.SaveAsync(
+                    tenantSlug, $"{projectCode}/models", req.ElementMap.FileName, s, ct);
+                sidecarChanged = true;
+            }
+            if (req.Thumbnail != null && req.Thumbnail.Length > 0)
+            {
+                if (req.Thumbnail.Length > 2 * 1024 * 1024)
+                    return BadRequest(new { error = "thumbnail_too_large", maxMb = 2 });
+                using var s = req.Thumbnail.OpenReadStream();
+                existing.ThumbnailPath = await _storage.SaveAsync(
+                    tenantSlug, $"{projectCode}/models", req.Thumbnail.FileName, s, ct);
+                sidecarChanged = true;
+            }
+            // Refresh the cheap row-level fields too, since the same Revit
+            // view can ship a new ElementCount / Bounds / Revision label.
+            if (req.ElementCount > 0) { existing.ElementCount = req.ElementCount; sidecarChanged = true; }
+            if (!string.IsNullOrEmpty(req.Revision)) { existing.Revision = req.Revision; sidecarChanged = true; }
+            if (req.BoundsMaxX != 0 || req.BoundsMinX != 0)
+            {
+                existing.BoundsMinX = req.BoundsMinX; existing.BoundsMinY = req.BoundsMinY; existing.BoundsMinZ = req.BoundsMinZ;
+                existing.BoundsMaxX = req.BoundsMaxX; existing.BoundsMaxY = req.BoundsMaxY; existing.BoundsMaxZ = req.BoundsMaxZ;
+                sidecarChanged = true;
+            }
+            if (sidecarChanged) await _db.SaveChangesAsync(ct);
+            _logger.LogInformation(
+                "Model upload — duplicate geometry hash {Hash}; sidecars {Sc} for {ModelId}",
+                hash, sidecarChanged ? "REFRESHED" : "unchanged", existing.Id);
+            return Ok(new { id = existing.Id, duplicate = true, sidecarsRefreshed = sidecarChanged,
+                            message = sidecarChanged
+                                ? "Geometry already published — element-map and metadata refreshed."
+                                : "Geometry already published — no new sidecars to refresh." });
         }
 
         // Store geometry.
