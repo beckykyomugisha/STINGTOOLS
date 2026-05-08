@@ -215,14 +215,22 @@
         </div>
 
         <div class="filter-row" id="fr-clashes">
-          <div id="clashFilters" style="display:flex;gap:6px">
-            <button class="filter-btn active" data-f="all">All <span id="clashesFilterCount">0</span></button>
-            <button class="filter-btn" data-f="new">New <span id="clashesNew">0</span></button>
-            <button class="filter-btn" data-f="open">Open <span id="clashesOpen">0</span></button>
-            <button class="filter-btn" data-f="resolved">Resolved <span id="clashesResolved">0</span></button>
-            <span class="sep"></span>
-            <button class="filter-btn" data-f="hard">Hard</button>
-            <button class="filter-btn" data-f="soft">Soft</button>
+          <!-- X1 — status and type are independent axes. Status is a
+               single-select within its group, Type is a single-select
+               within its group. "Any" in either group disables that axis. -->
+          <div id="clashStatusFilters" style="display:flex;gap:4px;align-items:center">
+            <span style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-right:2px">Status</span>
+            <button class="filter-btn active" data-status="any">Any <span id="clashesFilterCount">0</span></button>
+            <button class="filter-btn" data-status="NEW">New <span id="clashesNew">0</span></button>
+            <button class="filter-btn" data-status="OPEN">Open <span id="clashesOpen">0</span></button>
+            <button class="filter-btn" data-status="RESOLVED">Resolved <span id="clashesResolved">0</span></button>
+          </div>
+          <span class="sep"></span>
+          <div id="clashTypeFilters" style="display:flex;gap:4px;align-items:center">
+            <span style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-right:2px">Type</span>
+            <button class="filter-btn active" data-type="any">Any</button>
+            <button class="filter-btn" data-type="HARD">Hard</button>
+            <button class="filter-btn" data-type="SOFT">Soft</button>
           </div>
           <div class="right">
             <button class="btn sm subtle" id="btnExportCsv">Export CSV</button>
@@ -262,9 +270,9 @@
   <aside class="right-panel">
     <div class="tab-bar">
       <button class="tab active" data-tab="properties">Properties</button>
-      <button class="tab" data-tab="clashes">Clashes</button>
-      <button class="tab" data-tab="issues">Issues</button>
-      <button class="tab" data-tab="comments">Comments</button>
+      <button class="tab" data-tab="clashes">Clashes <span class="count" id="rightTabClashesCount"></span></button>
+      <button class="tab" data-tab="issues">Issues <span class="count" id="rightTabIssuesCount"></span></button>
+      <button class="tab" data-tab="comments">Comments <span class="count" id="rightTabCommentsCount"></span></button>
     </div>
     <div id="pane-properties" class="tab-pane active"></div>
     <div id="pane-clashes"    class="tab-pane"></div>

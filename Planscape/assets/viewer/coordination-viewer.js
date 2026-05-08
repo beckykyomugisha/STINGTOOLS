@@ -60,6 +60,10 @@
     const isFileScheme  = location.protocol === 'file:';
     const isWebView     = !!window.ReactNativeWebView;
     const apiEnabled    = !isFileScheme && !isWebView;
+    // U8 — embedders (e.g., a parent dashboard rendering the viewer in an
+    // iframe) can pass ?embed=1 to suppress the auto-redirect on 401 and
+    // handle re-auth themselves.
+    const embedMode     = params.get('embed') === '1';
 
     // ── State ───────────────────────────────────────────────────────────
     const state = {
@@ -81,7 +85,9 @@
       levelBands: [],
       activeNav: 'orbit',
       issuesFilter: 'all',
-      clashesFilter: 'all',
+      // X1 — clash filters are now two independent axes.
+      clashStatusFilter: 'any',  // any | NEW | OPEN | RESOLVED
+      clashTypeFilter:   'any',  // any | HARD | SOFT
       currentUser: null,
       bottomTab: 'clashes',
       rightTab: 'properties',
@@ -97,23 +103,44 @@
 
     // ── API helpers ─────────────────────────────────────────────────────
     let authChallenged = false;   // toast 401 once per session
+    const API_TIMEOUT_MS = 12000;
     async function api(path, opts = {}) {
       if (!apiEnabled) return null;        // C2 — short-circuit on file:// / RN
       const headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
       if (token) headers['Authorization'] = `Bearer ${token}`;
+      // T1 — multi-tenant: forward the user's selected tenant (if any).
+      const tenantId = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_tenant')) || '';
+      if (tenantId) { headers['X-Tenant'] = tenantId; state.tenantId = tenantId; }
+      // B11 — abort the request after 12s so a hung backend doesn't leave
+      // spinners stuck forever. Each call gets its own controller.
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
       try {
-        const res = await fetch(`${apiBase}${path}`, Object.assign({}, opts, { headers }));
+        const res = await fetch(`${apiBase}${path}`,
+          Object.assign({ signal: controller.signal }, opts, { headers }));
         if (res.status === 401 && !authChallenged) {
           authChallenged = true;
-          toast('Sign-in expired — please log in again', 'error');
-          // Don't auto-redirect; viewer can be embedded.
+          // U8 — toast immediately, then redirect to /login after a short
+          // grace window so the user sees what happened. Embedders pass
+          // ?embed=1 to keep the viewer mounted and re-auth themselves.
+          toast('Sign-in expired — redirecting to login…', 'error');
+          if (typeof localStorage !== 'undefined') {
+            try { localStorage.removeItem('planscape_token'); } catch (_) {}
+          }
+          if (!embedMode) {
+            const next = encodeURIComponent(location.pathname + location.search);
+            setTimeout(() => { location.href = `${apiBase}/login?next=${next}`; }, 1500);
+          }
         }
         if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
         const ct = res.headers.get('content-type') || '';
         return ct.includes('application/json') ? res.json() : res.text();
       } catch (err) {
-        console.warn('[coord] api', path, err.message);
+        const aborted = err && err.name === 'AbortError';
+        console.warn('[coord] api', path, aborted ? 'timeout' : err.message);
         return null;
+      } finally {
+        clearTimeout(timer);
       }
     }
 
@@ -161,9 +188,11 @@
     setupNavControls();
     setupSectionCard();
     setupHelp();
+    setupHeartbeat();
     renderProperties(null);
     renderHistory();
     updateBadges();
+    updateRightTabCounts();              // X2 — initial empty counts
 
     // ── Bootstrap data ─────────────────────────────────────────────────
     bootstrap().catch(e => console.error('[coord] bootstrap', e));
@@ -222,9 +251,26 @@
       buildLevelStrip();
 
       // Load model GLB
+      // B1 — security: never put the JWT in the query string. Fetch the
+      // GLB as a blob with a normal Authorization header, then hand
+      // GLTFLoader a blob URL. This keeps the token out of browser
+      // history, server access logs, and the Referer header.
       if (projectId && modelId) {
-        const fileUrl = `${apiBase}/api/projects/${projectId}/models/${modelId}/file${token ? `?access_token=${encodeURIComponent(token)}` : ''}`;
-        handleHostCommand({ type: 'load', payload: { url: fileUrl } });
+        const fileUrl = `${apiBase}/api/projects/${projectId}/models/${modelId}/file`;
+        try {
+          const headers = {};
+          if (token) headers['Authorization'] = `Bearer ${token}`;
+          if (state.tenantId) headers['X-Tenant'] = state.tenantId;
+          const res = await fetch(fileUrl, { headers, cache: 'no-store' });
+          if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+          const blob = await res.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          state.lastBlobUrl = blobUrl;
+          handleHostCommand({ type: 'load', payload: { url: blobUrl } });
+        } catch (err) {
+          console.warn('[coord] GLB fetch failed', err);
+          toast('Failed to load model file', 'error');
+        }
       }
 
       // Issues + clashes
@@ -511,7 +557,22 @@
           let discCount = 0;
           Object.keys(tree[lvl][disc]).sort().forEach(sys => {
             const items = tree[lvl][disc][sys];
-            const sysKids = items.slice(0, 200).map(it => buildNode(it.name, [], null, true, it));
+            // U3 — render a deterministic page (200) and surface a "+ N more"
+            // affordance when there's overflow, instead of silently truncating.
+            const PAGE = 200;
+            const visible = items.slice(0, PAGE);
+            const sysKids = visible.map(it => buildNode(it.name, [], null, true, it));
+            if (items.length > PAGE) {
+              const more = el('div', { class: 'tree-row', style: 'color:var(--accent);cursor:pointer;font-style:italic' },
+                `+ ${items.length - PAGE} more — load all`);
+              more.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                const parent = more.parentElement;
+                items.slice(PAGE).forEach(it => parent.appendChild(buildNode(it.name, [], null, true, it)));
+                more.remove();
+              });
+              sysKids.push(more);
+            }
             discChildren.push(buildNode(sys, sysKids, items.length));
             discCount += items.length;
           });
@@ -628,6 +689,17 @@
       V.camera.position.fromArray(s.camPos);
       V.controls.target.fromArray(s.camTarget);
       V.controls.update();
+      // B5 — restore the full snapshot, not just camera. Disciplines +
+      // levels are re-applied via the same chip / pill click flow so
+      // visibility + ghost states match exactly.
+      if (Array.isArray(s.disciplines)) {
+        $$('.disc-chip').forEach(c => c.classList.toggle('active', s.disciplines.includes(c.dataset.disc)));
+        applyDisciplineFilter(s.disciplines);
+      }
+      if (Array.isArray(s.levels)) {
+        $$('.level-pill').forEach(p => p.classList.toggle('active', s.levels.includes(p.dataset.lvl)));
+        applyLevelFilter();
+      }
     }
     function renderSavedViews() {
       const list = $('#savedViewsList');
@@ -686,8 +758,92 @@
           state.rightTab = t.dataset.tab;
           if (t.dataset.tab === 'clashes') renderRightClashes();
           if (t.dataset.tab === 'issues')  renderRightIssues();
+          if (t.dataset.tab === 'comments') renderComments();
         });
       });
+    }
+
+    // ── Comments tab (U2) ──────────────────────────────────────────────
+    // When an issue is selected, load its thread; otherwise show a hint.
+    let commentsCache = new Map();        // issueId → comment[]
+    async function renderComments() {
+      const pane = $('#pane-comments');
+      const issueId = state.selectedIssueId;
+      if (!issueId) {
+        pane.innerHTML = `
+          <div class="empty-state">
+            <span class="glyph">💬</span>
+            Select an issue from the bottom tray to view and reply to its thread.
+          </div>`;
+        return;
+      }
+      const issue = state.issues.find(i => i.id === issueId);
+      pane.innerHTML = `
+        <div class="prop-section-label">${escapeHtml(issue?.code || issueId)} comments</div>
+        <div class="comments-list" id="commentsList">
+          <div class="inline-loader"><span class="dot-spin"></span>Loading…</div>
+        </div>
+        <div class="comment-compose">
+          <textarea id="commentInput" placeholder="Reply to this issue… (use @ to mention)"></textarea>
+          <div class="row">
+            <button class="btn ghost sm" id="commentAttach">📷 Attach view</button>
+            <button class="btn sm" id="commentSubmit">Post</button>
+          </div>
+        </div>`;
+      $('#commentSubmit').addEventListener('click', () => postComment(issueId));
+      $('#commentAttach').addEventListener('click', () => {
+        const b64 = downscaleScreenshot(V.renderer.domElement, 1280, 0.85);
+        const ta = $('#commentInput');
+        ta.value = (ta.value ? ta.value + '\n\n' : '') + '[screenshot attached]';
+        ta.dataset.attachment = b64;
+      });
+
+      const listEl = $('#commentsList');
+      let items = commentsCache.get(issueId);
+      if (!items) {
+        const data = await api(`/api/projects/${projectId}/issues/${issueId}/comments`);
+        items = Array.isArray(data) ? data : (data?.items || []);
+        commentsCache.set(issueId, items);
+      }
+      if (!items.length) {
+        listEl.innerHTML = '<div class="empty-state" style="padding:14px"><span style="opacity:.6">No replies yet</span></div>';
+        return;
+      }
+      listEl.innerHTML = '';
+      items.forEach(c => {
+        const who = escapeHtml(c.authorName || c.author || 'Unknown');
+        const when = c.createdAt ? new Date(c.createdAt).toLocaleString() : '';
+        const item = el('div', { class: 'comment-item' });
+        item.innerHTML = `
+          <div class="meta"><span class="who">${who}</span><span>${escapeHtml(when)}</span></div>
+          <div class="body">${escapeHtml(c.body || c.text || '')}</div>`;
+        listEl.appendChild(item);
+      });
+    }
+
+    async function postComment(issueId) {
+      const ta = $('#commentInput');
+      const body = (ta?.value || '').trim();
+      if (!body) return;
+      const payload = { body, attachment: ta.dataset.attachment || null };
+      const result = await api(`/api/projects/${projectId}/issues/${issueId}/comments`, {
+        method: 'POST', body: JSON.stringify(payload)
+      });
+      const created = result || {
+        id: 'local-' + Date.now(),
+        body,
+        authorName: state.currentUser?.displayName || 'You',
+        createdAt: new Date().toISOString()
+      };
+      const list = commentsCache.get(issueId) || [];
+      list.push(created);
+      commentsCache.set(issueId, list);
+      renderComments();
+      updateRightTabCounts();            // X2
+      // X9 (light) — auto-scroll the freshly rendered list to the bottom
+      // so the new message is visible without manual scrolling.
+      const listEl = $('#commentsList');
+      if (listEl) listEl.scrollTop = listEl.scrollHeight;
     }
 
     // ── Properties tab ─────────────────────────────────────────────────
@@ -719,8 +875,10 @@
       }
       const meta = state.elementMap[guid] || {};
       const tag = meta.tag || meta.STING_TAG || '';
-      const dim = meta.dimensions || {};
-      const perf = meta.performance || {};
+      // Polish — accept either nested {dimensions:{}, performance:{}} or
+      // flat keys (width_mm, flow_lps, etc.) coming back from
+      // ModelsController.GetElementMap. Identity / dimension / performance
+      // groups are inferred by suffix if the response is flat.
       const idCard = [
         ['Discipline', meta.discipline],
         ['System',     meta.system],
@@ -730,8 +888,18 @@
         ['Type',       meta.type],
         ['Mark',       meta.mark]
       ].filter(([, v]) => v != null && v !== '');
-      const dims = Object.entries(dim).filter(([, v]) => v != null);
-      const perfs = Object.entries(perf).filter(([, v]) => v != null);
+      const RESERVED = new Set(['name','category','tag','STING_TAG','discipline','system','status','level','family','type','mark','dimensions','performance']);
+      const isDimKey  = k => /(_mm|_m|width|height|depth|length|diameter|thickness|area)$/i.test(k);
+      const isPerfKey = k => /(flow|pressure|capacity|voltage|current|power|temperature|cooling|heating|wattage|kw|lps|cfm|pa)/i.test(k);
+      let dims = Object.entries(meta.dimensions  || {}).filter(([, v]) => v != null);
+      let perfs = Object.entries(meta.performance || {}).filter(([, v]) => v != null);
+      if (!dims.length || !perfs.length) {
+        Object.entries(meta).forEach(([k, v]) => {
+          if (RESERVED.has(k) || v == null || typeof v === 'object') return;
+          if (!dims.length  && isDimKey(k))  dims.push([k, v]);
+          if (!perfs.length && isPerfKey(k)) perfs.push([k, v]);
+        });
+      }
 
       pane.innerHTML = `
         <div class="prop-section-label">Element</div>
@@ -761,12 +929,32 @@
       $$('.copy', pane).forEach(c => c.addEventListener('click', () => copyText(c.dataset.copy)));
     }
 
+    // U7 — clipboard.writeText is unavailable in non-secure contexts
+    // (file:// inside RN WebView, http:// in older browsers). Fall back
+    // to the historic textarea + execCommand("copy") trick so the Copy
+    // STING Tag / Share view link buttons keep working there too.
     function copyText(t) {
       if (!t) return;
-      navigator.clipboard?.writeText(t).then(
-        () => toast('Copied: ' + t, 'success'),
-        () => toast('Copy failed', 'error')
-      );
+      const okMsg = 'Copied: ' + t;
+      const failMsg = 'Copy failed';
+      const useExecFallback = () => {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = t;
+          ta.setAttribute('readonly', '');
+          ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0';
+          document.body.appendChild(ta);
+          ta.focus(); ta.select();
+          const ok = document.execCommand('copy');
+          document.body.removeChild(ta);
+          toast(ok ? okMsg : failMsg, ok ? 'success' : 'error');
+        } catch (_) { toast(failMsg, 'error'); }
+      };
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(t).then(() => toast(okMsg, 'success'), useExecFallback);
+      } else {
+        useExecFallback();
+      }
     }
 
     // ── Clashes ────────────────────────────────────────────────────────
@@ -851,25 +1039,44 @@
       return c1;
     }
 
+    // B7 — build a GUID→mesh index once per model load instead of doing
+    // a full traverse on every clash / pin / focus call. Reduces the
+    // 12-clash × 4000-mesh placement cost from ~96k traversals to ~24
+    // hash lookups.
+    const guidIndex = new Map();
+    function rebuildGuidIndex() {
+      guidIndex.clear();
+      if (!V.modelRoot) return;
+      V.modelRoot.traverse(obj => {
+        if (obj.isMesh && obj.userData.elementGuid) {
+          guidIndex.set(obj.userData.elementGuid, obj);
+        }
+      });
+    }
     function findMeshByGuid(guid) {
-      if (!guid || !V.modelRoot) return null;
+      if (!guid) return null;
+      const cached = guidIndex.get(guid);
+      if (cached) return cached;
+      // Lazy fallback for the rare case where the index was built before
+      // a glTF added meshes (e.g., federation deferred-load).
+      if (!V.modelRoot) return null;
       let found = null;
       V.modelRoot.traverse(obj => {
         if (!found && obj.isMesh && obj.userData.elementGuid === guid) found = obj;
       });
+      if (found) guidIndex.set(guid, found);
       return found;
     }
 
     function renderClashes() {
       // Bottom-panel table
       const body = $('#clashesBody');
-      const filter = state.clashesFilter;
+      // X1 — combine the two independent axes; "any" means don't filter
+      // on that axis. Coordinators can now pick e.g. "Hard New".
+      const sf = state.clashStatusFilter, tf = state.clashTypeFilter;
       let rows = state.clashes;
-      if (filter === 'new')      rows = rows.filter(c => c.status === 'NEW');
-      else if (filter === 'open') rows = rows.filter(c => c.status === 'OPEN');
-      else if (filter === 'resolved') rows = rows.filter(c => c.status === 'RESOLVED');
-      else if (filter === 'hard') rows = rows.filter(c => c.type === 'HARD');
-      else if (filter === 'soft') rows = rows.filter(c => c.type === 'SOFT');
+      if (sf !== 'any') rows = rows.filter(c => c.status === sf);
+      if (tf !== 'any') rows = rows.filter(c => c.type === tf);
 
       body.innerHTML = rows.length ? '' : '<div class="empty-state">No clashes match the filter</div>';
       if (rows.length) {
@@ -899,8 +1106,10 @@
             if (e.target.closest('button')) return;
             focusClash(c);
           });
-          $('button[data-act=view]', tr).addEventListener('click', () => focusClash(c));
-          $('button[data-act=issue]', tr).addEventListener('click', () => openIssueModal({ clash: c }));
+          // B3 — stopPropagation so clicking "→ Issue" doesn't ALSO fire
+          // the row's focusClash and fly the camera away from the modal.
+          $('button[data-act=view]', tr).addEventListener('click', (e) => { e.stopPropagation(); focusClash(c); });
+          $('button[data-act=issue]', tr).addEventListener('click', (e) => { e.stopPropagation(); openIssueModal({ clash: c }); });
           tbody.appendChild(tr);
         });
         body.appendChild(table);
@@ -911,6 +1120,7 @@
       $('#clashesOpen').textContent = state.clashes.filter(c => c.status === 'OPEN').length;
       $('#clashesResolved').textContent = state.clashes.filter(c => c.status === 'RESOLVED').length;
       renderRightClashes();
+      updateRightTabCounts();
     }
 
     function renderRightClashes() {
@@ -1053,6 +1263,7 @@
       $('#issuesMine').textContent = state.issues.filter(i => i.assigneeId === 'me').length;
       $('#issuesOverdue').textContent = state.issues.filter(i => i.slaBreached || (i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'RESOLVED')).length;
       renderRightIssues();
+      updateRightTabCounts();
     }
 
     function renderRightIssues() {
@@ -1101,6 +1312,9 @@
       }
       // switch right panel
       const tab = $('.tab-bar .tab[data-tab=issues]'); tab?.click();
+      // U2 — if Comments tab is active, refresh thread for the new issue.
+      if (state.rightTab === 'comments') renderComments();
+      updateRightTabCounts();            // X2
       logHistory(`Inspected ${i.code || i.id}`);
     }
 
@@ -1148,6 +1362,15 @@
       const sel = $('#imAssignee');
       sel.innerHTML = '<option value="">— Unassigned —</option>' +
         state.members.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+
+      // B12 — focus the title field so the user can start typing
+      // immediately, and remember the previously focused element so we
+      // can restore it on close.
+      modal.dataset.open = '1';
+      modal.dataset.returnFocus = '';
+      const prev = document.activeElement;
+      if (prev && prev !== document.body) modal.dataset.returnFocusId = prev.id || '';
+      setTimeout(() => $('#imTitle')?.focus(), 30);
     }
 
     function renderLinkedElements(arr) {
@@ -1168,10 +1391,26 @@
     }
 
     function setupModalHandlers() {
-      $('#imClose').addEventListener('click', () => $('#issueModal').classList.remove('open'));
-      $('#imCancel').addEventListener('click', () => $('#issueModal').classList.remove('open'));
-      $('#issueModal').addEventListener('click', (e) => {
-        if (e.target.id === 'issueModal') $('#issueModal').classList.remove('open');
+      const modal = $('#issueModal');
+      const closeModal = () => { modal.classList.remove('open'); modal.dataset.open = ''; };
+      $('#imClose').addEventListener('click', closeModal);
+      $('#imCancel').addEventListener('click', closeModal);
+      modal.addEventListener('click', (e) => {
+        if (e.target.id === 'issueModal') closeModal();
+      });
+      // B12 — focus trap + Esc close. The global Esc handler intentionally
+      // skips when the modal is open so dismissing the modal doesn't also
+      // wipe the user's selection / highlights.
+      modal.addEventListener('keydown', (e) => {
+        if (!modal.classList.contains('open')) return;
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeModal(); return; }
+        if (e.key !== 'Tab') return;
+        const focusables = $$('input, textarea, select, button, [tabindex]:not([tabindex="-1"])', modal)
+          .filter(el => !el.disabled && el.offsetParent !== null);
+        if (!focusables.length) return;
+        const first = focusables[0], last = focusables[focusables.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
       });
       $$('#imPriority .choice').forEach(c => c.addEventListener('click', () => {
         $$('#imPriority .choice').forEach(x => x.classList.remove('active'));
@@ -1182,7 +1421,11 @@
         c.classList.add('active');
       }));
       $('#imScreenshotBtn').addEventListener('click', () => {
-        const b64 = V.renderer.domElement.toDataURL('image/png');
+        // B14 — downscale to <= 1280px wide JPEG before posting. A raw 4K
+        // PNG can hit 8-12 MB base64; the issues endpoint and Postgres
+        // bytea column don't enjoy that. JPEG q=0.85 keeps screenshots
+        // legible while staying well under 500 KB.
+        const b64 = downscaleScreenshot(V.renderer.domElement, 1280, 0.85);
         const wrap = $('#imScreenshot');
         wrap.innerHTML = `<img src="${b64}" alt="screenshot"/>`;
         wrap.dataset.b64 = b64;
@@ -1243,10 +1486,17 @@
       $('#btnExportIssues').addEventListener('click', exportIssuesCsv);
       $('#btnNewIssue').addEventListener('click', () => openIssueModal());
 
-      $$('#clashFilters .filter-btn').forEach(b => b.addEventListener('click', () => {
-        $$('#clashFilters .filter-btn').forEach(x => x.classList.remove('active'));
+      // X1 — bind status + type axes independently.
+      $$('#clashStatusFilters .filter-btn').forEach(b => b.addEventListener('click', () => {
+        $$('#clashStatusFilters .filter-btn').forEach(x => x.classList.remove('active'));
         b.classList.add('active');
-        state.clashesFilter = b.dataset.f;
+        state.clashStatusFilter = b.dataset.status;
+        renderClashes();
+      }));
+      $$('#clashTypeFilters .filter-btn').forEach(b => b.addEventListener('click', () => {
+        $$('#clashTypeFilters .filter-btn').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        state.clashTypeFilter = b.dataset.type;
         renderClashes();
       }));
       $$('#issueFilters .filter-btn').forEach(b => b.addEventListener('click', () => {
@@ -1262,7 +1512,11 @@
       $$('.bottom-pane').forEach(p => p.classList.toggle('active', p.id === 'bp-' + name));
       $$('#bottomPanel .filter-row').forEach(r => r.style.display = (r.id === 'fr-' + name) ? '' : 'none');
       if (name === 'timeline') renderTimeline();
+      // B4 — keep the .viewport-wrap.bp-collapsed class in sync with the
+      // actual bottom-panel state, so the level strip / nav controls /
+      // coord readout / minimap don't end up floating mid-air.
       $('#bottomPanel').classList.remove('collapsed');
+      $('.viewport-wrap')?.classList.remove('bp-collapsed');
       onResize();
     }
 
@@ -1277,8 +1531,15 @@
       downloadCsv('issues.csv', rows);
     }
     function downloadCsv(name, rows) {
-      const blob = new Blob([rows.map(r => r.map(x => `"${String(x ?? '').replace(/"/g, '""')}"`).join(',')).join('\n')], { type: 'text/csv' });
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+      // B10 — UTF-8 BOM so Excel renders mm/° and accented assignee names
+      // correctly instead of garbling them as Windows-1252.
+      // B9 — revoke the object URL after the synthetic click so the blob
+      // isn't pinned in memory until the tab closes.
+      const csv = '﻿' + rows.map(r => r.map(x => `"${String(x ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = name; a.click();
+      setTimeout(() => { try { URL.revokeObjectURL(url); } catch (_) {} }, 0);
     }
 
     function renderTimeline() {
@@ -1407,6 +1668,7 @@
         if (type === 'pick' && payload && payload.guid) {
           state.selectedElementGuid = payload.guid;
           renderProperties(payload.guid);
+          updateRightTabCounts();          // X2
         }
         return origSend.call(V.bridge, type, payload);
       };
@@ -1422,6 +1684,7 @@
         emissive(m, 0xF97316);
       }
       renderProperties(guid);
+      updateRightTabCounts();            // X2
     }
 
     function setupMinimap() {
@@ -1460,15 +1723,30 @@
     }
 
     function setupNavControls() {
+      // Capture OrbitControls' default mouse-button bindings so Pan ↔ Orbit
+      // toggling can restore them.
+      const defaultButtons = V.controls.mouseButtons
+        ? Object.assign({}, V.controls.mouseButtons)
+        : null;
       $$('.nav-btn').forEach(b => b.addEventListener('click', () => {
         $$('.nav-btn').forEach(x => x.classList.remove('active'));
         b.classList.add('active');
         const m = b.dataset.mode;
         state.activeNav = m;
-        if (m === 'walk') {
-          handleHostCommand({ type: 'setWalkthrough', payload: { enabled: true } });
-        } else {
-          handleHostCommand({ type: 'setWalkthrough', payload: { enabled: false } });
+        // Walk mode delegates to viewer-extras' first-person controls.
+        handleHostCommand({ type: 'setWalkthrough', payload: { enabled: m === 'walk' } });
+        // Polish — Pan mode rebinds left mouse to PAN so coordinators can
+        // shove the model around with one finger / left-drag without
+        // remembering the right-click pan modifier. Orbit restores defaults.
+        if (V.controls && V.controls.mouseButtons && THREE_.MOUSE) {
+          if (m === 'pan') {
+            V.controls.mouseButtons.LEFT  = THREE_.MOUSE.PAN;
+            V.controls.mouseButtons.RIGHT = THREE_.MOUSE.ROTATE;
+          } else if (defaultButtons) {
+            V.controls.mouseButtons.LEFT   = defaultButtons.LEFT;
+            V.controls.mouseButtons.MIDDLE = defaultButtons.MIDDLE;
+            V.controls.mouseButtons.RIGHT  = defaultButtons.RIGHT;
+          }
         }
         if (m === 'focus' && state.selectedElementGuid) {
           selectElementByGuid(state.selectedElementGuid);
@@ -1482,20 +1760,26 @@
 
     function setRenderMode(mode) {
       if (!V.modelRoot) return;
+      // B8 — dispose the previous replacement before swapping in a new
+      // one, otherwise toggling shaded → wire → xray → ghost a few times
+      // leaks N MeshStandardMaterial allocations on the GPU per cycle.
       V.modelRoot.traverse(o => {
         if (!o.isMesh) return;
         if (!o.userData._origMat) o.userData._origMat = o.material;
         const orig = o.userData._origMat;
-        if (mode === 'shaded') {
-          o.material = orig;
-        } else if (mode === 'wire') {
-          o.material = new THREE_.MeshBasicMaterial({ color: 0x60A5FA, wireframe: true });
-        } else if (mode === 'xray') {
-          o.material = new THREE_.MeshStandardMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.25, depthWrite: false });
-        } else if (mode === 'ghost') {
-          o.material = new THREE_.MeshStandardMaterial({ color: 0x888888, transparent: true, opacity: 0.35, depthWrite: false });
+        const prev = o.material;
+        let next;
+        if (mode === 'shaded') next = orig;
+        else if (mode === 'wire')  next = new THREE_.MeshBasicMaterial({ color: 0x60A5FA, wireframe: true });
+        else if (mode === 'xray')  next = new THREE_.MeshStandardMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.25, depthWrite: false });
+        else if (mode === 'ghost') next = new THREE_.MeshStandardMaterial({ color: 0x888888, transparent: true, opacity: 0.35, depthWrite: false });
+        else next = orig;
+        if (prev && prev !== orig && prev !== next && typeof prev.dispose === 'function') {
+          try { prev.dispose(); } catch (_) {}
         }
+        o.material = next;
       });
+      state.renderMode = mode;
       toast('View: ' + mode);
     }
 
@@ -1526,12 +1810,18 @@
       document.addEventListener('keydown', (e) => {
         if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
         const k = e.key;
+        // B12 — when the modal is open, its own keydown handler owns Esc
+        // (and Tab) so dismissing it doesn't also wipe the user's
+        // selection / highlights.
+        if ($('#issueModal')?.classList.contains('open')) return;
         if (k === 'Escape') {
-          $('#issueModal').classList.remove('open');
           $('.help-overlay').classList.remove('open');
           handleHostCommand({ type: 'clearHighlight' });
           clearAllHighlights();          // L6
-          state.selectedElementGuid = null; renderProperties(null);
+          state.selectedElementGuid = null;
+          state.selectedIssueId = null;
+          renderProperties(null);
+          updateRightTabCounts();        // X2
         } else if (k === 'f' || k === 'F') {
           if (state.selectedElementGuid) selectElementByGuid(state.selectedElementGuid);
         } else if (k === 'h' || k === 'H') {
@@ -1589,15 +1879,100 @@
       const bl = $('#bootLoader'); if (bl) bl.style.display = 'none';
     }
 
+    // B14 — shared screenshot helper. Source canvas is the live WebGL
+    // canvas; we draw it into a 2D canvas at the target width and emit
+    // JPEG. Returns a data URL.
+    function downscaleScreenshot(srcCanvas, maxWidth, quality) {
+      try {
+        const sw = srcCanvas.width, sh = srcCanvas.height;
+        if (!sw || !sh) return srcCanvas.toDataURL('image/png');
+        const scale = Math.min(1, maxWidth / sw);
+        const tw = Math.round(sw * scale), th = Math.round(sh * scale);
+        const c = document.createElement('canvas');
+        c.width = tw; c.height = th;
+        c.getContext('2d').drawImage(srcCanvas, 0, 0, tw, th);
+        return c.toDataURL('image/jpeg', quality || 0.85);
+      } catch (_) {
+        return srcCanvas.toDataURL('image/png');
+      }
+    }
+
     function takeScreenshot() {
-      const b64 = V.renderer.domElement.toDataURL('image/png');
-      const a = document.createElement('a'); a.href = b64; a.download = `${state.modelName || 'view'}-${Date.now()}.png`; a.click();
+      const b64 = downscaleScreenshot(V.renderer.domElement, 2560, 0.92);
+      const a = document.createElement('a');
+      a.href = b64;
+      a.download = `${state.modelName || 'view'}-${Date.now()}.jpg`;
+      a.click();
       toast('Screenshot saved', 'success');
     }
     function shareCurrentView() {
+      // B2 — route through copyText so non-secure contexts (file://, old
+      // WebView) get the textarea + execCommand fallback instead of a
+      // silent no-op + a misleading "copied" toast.
       const url = `${location.origin}${location.pathname}?project=${projectId}&model=${modelId}`;
-      navigator.clipboard?.writeText(url);
-      toast('View URL copied to clipboard', 'success');
+      copyText(url);
+    }
+
+    // ── Connectivity heartbeat (U6) ────────────────────────────────────
+    // Lightweight: ping /health every 15s and toggle the session pill.
+    // SignalR proper would need the full @microsoft/signalr browser bundle;
+    // this gives the coordinator a real "Live / Offline" signal without
+    // pulling in 100KB of dependencies. Browser online/offline events
+    // short-circuit the next ping.
+    function setupHeartbeat() {
+      const pill = $('#sessionPill');
+      if (!pill) return;
+      function setOnline(ok) {
+        pill.classList.toggle('offline', !ok);
+        pill.lastChild.nodeValue = ok ? 'Live' : 'Offline';
+        pill.title = ok ? 'Server reachable' : 'Server unreachable — retrying…';
+      }
+      // If the API is disabled (file://, RN WebView), the host owns
+      // connectivity — show neutral state instead of polling.
+      if (!apiEnabled) {
+        pill.classList.toggle('offline', false);
+        pill.lastChild.nodeValue = isWebView ? 'Bridged' : 'Local';
+        pill.title = isWebView ? 'Connected via React Native bridge' : 'Standalone mode';
+        return;
+      }
+      let alive = true;
+      async function ping() {
+        try {
+          const res = await fetch(`${apiBase}/health`, { method: 'GET', cache: 'no-store' });
+          setOnline(res.ok);
+          alive = res.ok;
+        } catch (_) {
+          setOnline(false);
+          alive = false;
+        }
+      }
+      ping();                                          // immediate
+      setInterval(ping, 15000);                         // every 15s
+      window.addEventListener('online',  ping);
+      window.addEventListener('offline', () => setOnline(false));
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) ping(); });
+    }
+
+    // X2 — right-panel tab counts. Numbers reflect what's relevant to
+    // the selected element when one is selected, else the totals.
+    function updateRightTabCounts() {
+      const guid = state.selectedElementGuid;
+      const cl = guid
+        ? state.clashes.filter(c => c.elementA?.guid === guid || c.elementB?.guid === guid)
+        : state.clashes;
+      const is = guid
+        ? state.issues.filter(i => Array.isArray(i.elementGuids) && i.elementGuids.includes(guid))
+        : state.issues.filter(i => i.status !== 'RESOLVED');
+      const cmnt = state.selectedIssueId
+        ? (commentsCache.get(state.selectedIssueId)?.length || 0)
+        : 0;
+      const set = (id, n) => {
+        const e = $('#' + id); if (!e) return;
+        e.textContent = n ? `(${n})` : '';
+      };
+      set('rightTabClashesCount',  cl.length);
+      set('rightTabIssuesCount',   is.length);
+      set('rightTabCommentsCount', cmnt);
     }
 
     function updateBadges() {
@@ -1636,12 +2011,27 @@
         bootRan = true;
         $('#bootLoader')?.style.setProperty('display', 'none');
         invalidateCentroidCache();   // L7 — fresh model, fresh cache
+        rebuildGuidIndex();          // B7 — GUID→mesh map for fast lookups
         placeIssuePins();
         placeClashPins();
         buildLevelStrip();           // re-run with real bounds for Y bands
         clearInterval(bootObserver);
+        // B1 — GLTFLoader has consumed the blob URL, free it now to avoid
+        // pinning the original GLB bytes in memory for the rest of the
+        // session.
+        if (state.lastBlobUrl) {
+          try { URL.revokeObjectURL(state.lastBlobUrl); } catch (_) {}
+          state.lastBlobUrl = null;
+        }
       }
     }, 400);
+
+    // B15 — clean up timers and blob URLs on unload.
+    window.addEventListener('beforeunload', () => {
+      if (state.lastBlobUrl) try { URL.revokeObjectURL(state.lastBlobUrl); } catch (_) {}
+      if (presentTimer) clearInterval(presentTimer);
+      if (state.heartbeatTimer) clearInterval(state.heartbeatTimer);
+    });
 
     // First paint
     setTimeout(onResize, 100);

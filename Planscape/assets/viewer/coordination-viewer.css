@@ -704,6 +704,44 @@ canvas { display: block; touch-action: none; }
   animation: spin 0.7s linear infinite;
 }
 
+/* Comments thread (U2) */
+.comments-list { display: flex; flex-direction: column; gap: 10px; margin: 10px 0; }
+.comment-item {
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+}
+.comment-item .meta {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 10.5px; color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+.comment-item .meta .who { color: var(--text-primary); font-weight: 600; }
+.comment-item .body { font-size: 12px; color: var(--text-primary); line-height: 1.45; word-break: break-word; }
+.comment-compose {
+  display: flex; flex-direction: column; gap: 6px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+}
+.comment-compose textarea {
+  background: var(--bg-canvas);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  padding: 7px 9px;
+  font-size: 12px;
+  resize: vertical;
+  min-height: 60px;
+  outline: none;
+  font-family: inherit;
+}
+.comment-compose textarea:focus { border-color: var(--accent); }
+.comment-compose .row {
+  display: flex; align-items: center; gap: 6px; justify-content: flex-end;
+}
+
 /* U5 — empty-state CTA when no project/model is in the URL */
 .no-project-cta {
   position: absolute;
