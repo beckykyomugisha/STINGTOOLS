@@ -120,8 +120,8 @@
           Object.assign({ signal: controller.signal }, opts, { headers }));
         if (res.status === 401 && !authChallenged) {
           authChallenged = true;
-          // U8 — toast immediately, then redirect to /login after a short
-          // grace window so the user sees what happened. Embedders pass
+          // U8 — toast immediately, then redirect to / (the office dashboard's
+          // login overlay) after a short grace window. Embedders pass
           // ?embed=1 to keep the viewer mounted and re-auth themselves.
           toast('Sign-in expired — redirecting to login…', 'error');
           if (typeof localStorage !== 'undefined') {
@@ -129,7 +129,7 @@
           }
           if (!embedMode) {
             const next = encodeURIComponent(location.pathname + location.search);
-            setTimeout(() => { location.href = `${apiBase}/login?next=${next}`; }, 1500);
+            setTimeout(() => { location.href = `${apiBase}/?next=${next}`; }, 1500);
           }
         }
         if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
@@ -274,7 +274,7 @@
             try { localStorage.removeItem('planscape_token'); } catch (_) {}
             if (!embedMode) {
               const next = encodeURIComponent(location.pathname + location.search);
-              setTimeout(() => { location.href = `${apiBase}/login?next=${next}`; }, 1500);
+              setTimeout(() => { location.href = `${apiBase}/?next=${next}`; }, 1500);
             }
             return;
           }
