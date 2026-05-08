@@ -11,7 +11,7 @@ This is a research + design document. **No code yet.** Every file path
 listed under "Where it lands" is an *intended* location; the actual
 implementation should follow the phasing in §10.
 
-> Last refreshed 2026-05-08. Branch: `claude/research-hospital-design-0Uxbi`.
+> Last refreshed 2026-05-08 (gap analysis + IoT cross-check complete — §19 added, H-23..H-30 phased). Branch: `claude/research-hospital-design-0Uxbi`.
 
 ---
 
@@ -96,6 +96,21 @@ every artefact slots into an existing extension point.
 | CDC | Guidelines for Environmental Infection Control | AIIR / PE / decon | Room-class enum |
 | iHFG | Parts A/B/C/D | International Health Facility Guidelines (TAHPI) | Specialist room types |
 | SFG20 | Healthcare schedule pack (100+) | Maintenance schedules | COBie job-template overlay |
+| NHS England | HTM 01-01 | Decontamination in primary care (non-dental) | Washer-disinfector params + flow validator |
+| NHS England | HTM 01-05 | Decontamination in primary care dental | Dental decon room type |
+| NHS England | HTM 01-06 Pts A/B/C | Decontamination of flexible endoscopes | Endoscope RFID traceability (H-26) |
+| NHS England | HTM 06-02 | Medical electrical equipment | Safety clearance params + `ELC_MED_ELEC_CLEARANCE_M_NR` |
+| NHS Scotland | SHTM 01-06 (adds TOE probe) | Scottish decon variants | Regional flag `PRJ_ORG_HEALTH_HTM_REGION_TXT` |
+| NHS Wales | WHTM series | Welsh HTM variants | Same regional flag |
+| NHS Northern Ireland | Regional guidance | NI variants | Same regional flag |
+| ASSE | 6030 / 6040 | Medical gas verifier / maintenance credentials | `MGS_VERIFY_ASSE_CERT_TXT` on verification log |
+| JCI | EC.02.05 / EC.02.06 | Environment of Care; pre-construction risk | Infection-control barrier params; construction-phase risk enum |
+| IEC | 60601-1 | Medical electrical equipment safety | Safety clearance; `ELC_IPS_BOOL` already covers Part 2-25 |
+| ISO | 15189 | Medical laboratory accreditation | Lab room class `LAB-WET` / `LAB-DRY` params |
+| NFPA | 13 | Sprinkler systems | Healthcare sprinkler exemptions by room class |
+| ASHRAE | 188 | Legionella prevention in building water | `PLM_SENTINEL_BOOL` + dead-leg validator |
+| NFPA | 110 | Emergency and standby power | Generator test log; `ELC_GEN_TEST_LOG_REF_TXT` |
+| ASSE | 6030 / 6040 | MGPS verifier credentials | `MGS_VERIFY_ASSE_CERT_TXT` |
 
 The pack ships **schemas and hooks**, never the licensed prose. Where a
 standard sits behind a paywall (SFG20, ADB content), the pack carries
@@ -203,7 +218,19 @@ ownership belongs to the clinical fit-out package.
 `PH-CSP-797`, `PH-CSP-800`, `PH-NSP`, `LAB-WET`, `LAB-DRY`, `BSL2`,
 `BSL3`, `MORT`, `POST`, `DECON-D`, `DECON-C`, `HSDU-W`, `HSDU-P`,
 `DIAL`, `PSY-BED`, `PSY-OBS`, `SECL`, `BARI`, `NEONAT-ROOM`,
-`MILK-KIT`, `BIRTH-POOL`, `HBO`.
+`MILK-KIT`, `BIRTH-POOL`, `HBO`,
+`EP-LAB` (electrophysiology / cardiac ablation — high RF shielding + IPS),
+`ENDOSCOPY` (GI endoscopy suite — HTM 01-06 decon flow),
+`SURG-ROBOT` (robotic surgery suite — ceiling-zone + boom clearance),
+`PET-HOT-LAB` (nuclear medicine dose calibration — 511 keV shielding + ventilation),
+`NM-SCAN` (nuclear medicine scanner room — SPECT / gamma camera),
+`BRACHYTHERAPY` (sealed-source radiotherapy — afterloading vault),
+`BSL4` (biosafety level 4 — suit lab, separate ventilation),
+`BONE-MARROW` (stem cell / BMT — HEPA PE, distinct from AIIR),
+`STROKE-HYPER` (hyperacute stroke unit — time-critical ED↔CT adjacency),
+`BIRTH-CTR` (midwife-led birth centre, distinct from `MAT-DEL`),
+`CYSTO` (cystoscopy — endoscopy + fluoroscopy hybrid),
+`TELEHEAL` (telehealth consultation room — camera, audio, lighting spec).
 
 ---
 
@@ -331,8 +358,31 @@ and need no new group.
 | `CLN_NURSECALL_TYPE_TXT` | TEXT | `STD / EMG / ASSAULT / CARDIAC` |
 | `CLN_PRIVACY_LVL_TXT` | TEXT | `OPEN / SEMI / SINGLE / SECURE` |
 | `CLN_NOISE_NR_NR` | INTEGER | NR rating (mint only if NR ≠ existing `PER_ACOUSTICS_BACKGROUND_NOISE_DB` semantics; otherwise drop) |
+| `CLN_ROOM_ACOUSTIC_CLASS_TXT` | TEXT | HTM 08-01 sensitivity tier: `SENSITIVE / MEDIUM / NOT-SENSITIVE` |
+| `CLN_STC_RATING_NR` | NUMBER | Required Sound Transmission Class of the room boundary assembly |
+| `CLN_SOUND_MASKING_BOOL` | YESNO | White-noise / speech-masking system installed |
+| `CLN_SELF_CLOSE_DOOR_BOOL` | YESNO | All doors self-closing (pressure-regime prerequisite) |
+| `CLN_DOOR_SWEEP_BOOL` | YESNO | Door-bottom sweep seal fitted |
+| `CLN_FLOOR_INTEGRAL_COVE_BOOL` | YESNO | Integral floor/wall coving (infection control) |
+| `CLN_HANDWASH_COUNT_INT` | INTEGER | Number of clinical handwash basins in room (HBN minimum) |
+| `CLN_ABR_DISPENSER_COUNT_INT` | INTEGER | Number of alcohol-based rub dispensers |
+| `CLN_PASS_THROUGH_BOOL` | YESNO | Pass-through hatch (clean/soiled) fitted |
+| `CLN_WASTE_CLASS_TXT` | TEXT | Dominant waste stream: `CLINICAL/ANATOMICAL/PHARMACEUTICAL/CYTOTOXIC/SHARPS/RADIOACTIVE/DOMESTIC` |
+| `CLN_WASTE_ROUTE_TXT` | TEXT | Waste collection point / chute reference |
+| `CLN_FHIR_LOCATION_ID_TXT` | TEXT | HL7 FHIR Location resource ID (links BIM room to EHR patient location) |
+| `CLN_RTLS_ZONE_ID_TXT` | TEXT | RTLS zone reference for this room (position engine training) |
+| `CLN_IHFG_ROOM_CODE_TXT` | TEXT | iHFG (TAHPI) room code for international projects |
+| `CLN_IHFG_REF_TXT` | TEXT | iHFG section reference (parallel to `CLN_HBN_REF_TXT`) |
+| `CLN_TELEHEAL_BOOL` | YESNO | Room is telehealth-capable (camera, audio, lux spec apply) |
+| `CLN_BMS_PRESS_OBJ_TXT` | TEXT | BACnet/IP object ref — differential pressure sensor |
+| `CLN_BMS_ACH_OBJ_TXT` | TEXT | BACnet/IP object ref — supply airflow (converted to ACH in code) |
+| `CLN_BMS_TEMP_OBJ_TXT` | TEXT | BACnet/IP object ref — room temperature sensor |
+| `CLN_BMS_RH_OBJ_TXT` | TEXT | BACnet/IP object ref — room relative humidity sensor |
+| `CLN_BMS_CO2_OBJ_TXT` | TEXT | BACnet/IP object ref — CO₂ sensor (occupancy proxy) |
+| `CLN_BMS_FAN_STATUS_OBJ_TXT` | TEXT | BACnet/IP binary object ref — supply fan run status (prevents false pressure-validator positives when unit is offline for maintenance) |
+| `CLN_BMS_LAST_SEEN_DT` | TEXT (ISO datetime) | Timestamp of last successful BMS poll (staleness guard — >30 min triggers sensor-fault warning) |
 
-(19 params in CLN — down from 32 in the first draft.)
+(44 params in CLN — grown from original 19 to accommodate acoustic, infection-control detail, IoT sensor refs, FHIR, RTLS, iHFG, telehealth, and waste fields.)
 
 ### 5.2 Medical gas (group 29 `MGS_SYSTEMS`, binds to Pipes / Mech Equipment / Plumbing Fixtures)
 
@@ -422,6 +472,83 @@ and need no new group.
 
 (7 params — make/model/serial/PPM/warranty/cost all reuse `ASS_*` and `MNT_*`.)
 
+### 5.12 Structural loading for heavy medical equipment (extends group 28 `CLN_CLINICAL`, binds to Rooms)
+
+Heavy imaging equipment (MRI up to 15 t, CT gantry, LINAC) drives structural requirements distinct from standard live-load tables. These parameters are separate from shielding (§5.6) — a room can satisfy NCRP 147 barriers while failing on floor deflection.
+
+| Parameter | Type | Purpose |
+|---|---|---|
+| `CLN_FLOOR_LOAD_KN_M2_NR` | NUMBER | Design floor live load (kN/m²) for this room |
+| `CLN_FLOOR_LOAD_POINT_KN_NR` | NUMBER | Concentrated point load from heaviest equipment item (kN) |
+| `CLN_VIB_VM_NR` | NUMBER | Vibration velocity criterion (µm/s) — imaging-suite tolerance (MRI typically VC-D/E) |
+| `CLN_VIB_ISOLATION_BOOL` | YESNO | Vibration isolation pads / inertia block specified |
+| `CLN_SLAB_FLATNESS_MM_NR` | NUMBER | Maximum allowed floor flatness deviation (mm) — MRI typically ±2–3 mm |
+| `CLN_STRUCT_SIGN_OFF_TXT` | TEXT | Structural engineer name / practice |
+| `CLN_STRUCT_SIGN_OFF_DT` | TEXT (ISO date) | Date of structural engineer sign-off |
+
+(7 params, all new. Suggest **H-23** phase.)
+
+### 5.13 Acoustic compliance (extends group 28 `CLN_CLINICAL` — acoustic sub-fields, binds to Rooms / Walls)
+
+HTM 08-01 specifies NR targets by room type; FGI/HIPAA mandates speech privacy. `CLN_ROOM_ACOUSTIC_CLASS_TXT`, `CLN_NOISE_NR_NR`, `CLN_STC_RATING_NR`, and `CLN_SOUND_MASKING_BOOL` are already in §5.1. The following additional params bind to **Wall / Floor / Ceiling** elements:
+
+| Parameter | Type | Purpose |
+|---|---|---|
+| `CLN_RT60_TARGET_S_NR` | NUMBER | Target reverberation time RT60 (s) at 500 Hz mid-band |
+| `HVC_NC_CURVE_INT` | INTEGER | Noise Criteria curve target for HVAC background noise (NC-25 to NC-45) — extends group 5 |
+
+(2 additional params. `HVC_NC_CURVE_INT` lands in group 5 `HVC_SYSTEMS`; RT60 in CLN. Suggest **H-24** phase.)
+
+### 5.14 IoT device and network refs (new group 33 `ICT_HEALTHIOT`, binds to GenericModel / Mechanical Equipment / Specialty Equipment)
+
+Parameters for IoT anchor devices that are modelled as BIM families (RTLS beacons, nurse call nodes, energy meters, radiation monitors, TMV sensors, endoscope RFID readers, infant security readers).
+
+| Parameter | Type | Purpose |
+|---|---|---|
+| `ICT_RTLS_ANCHOR_ID_TXT` | TEXT | RTLS beacon / anchor device ID |
+| `ICT_RTLS_TECH_TXT` | TEXT | `BLE / UWB / Wi-Fi / IR` |
+| `ICT_RTLS_TX_POWER_DBM_NR` | NUMBER | Transmit power (dBm) for coverage radius calculation |
+| `ICT_RTLS_COVERAGE_M_NR` | NUMBER | Nominal coverage radius (m) at design sensitivity |
+| `ICT_NC_NODE_REF_TXT` | TEXT | Nurse call controller node address (IP-SIP, 900 MHz, or analogue pair) |
+| `ICT_NC_PROTOCOL_TXT` | TEXT | `IP-SIP / ANALOGUE / HYBRID` |
+| `ICT_NC_RTLS_DISPATCH_BOOL` | YESNO | Nurse call integrates with RTLS for auto-staff-dispatch |
+| `ICT_DOSIMETRY_SYSTEM_TXT` | TEXT | Radiation personnel dosimetry contractor / platform (TLD, electronic) |
+| `ICT_INFANT_RFID_READER_ID_TXT` | TEXT | Infant anti-abduction RFID reader ID on door / window family |
+| `ICT_CAM_MOUNT_TXT` | TEXT | Telehealth camera mount type: `PTZ-CEILING / PTZ-WALL / FIXED` |
+| `ICT_TELEHEAL_BW_MBPS_NR` | NUMBER | Required uplink bandwidth (Mbps) for telehealth |
+| `ICT_TELEHEAL_LUX_NR` | NUMBER | Required face illuminance (lux) — minimum 500 lux at seat height |
+| `ICT_TELEHEAL_PLATFORM_TXT` | TEXT | `ZOOM / WEBEX / EPIC / CERNER / PROPRIETARY` |
+| `ELC_SUBMETER_ID_TXT` | TEXT | Sub-meter device ID on electrical panel (Revit panel mark → meter ID) — extends group 4 |
+| `ELC_METER_PROTOCOL_TXT` | TEXT | `MODBUS-TCP / BACNET / DLMS` |
+| `ELC_GEN_TEST_LOG_REF_TXT` | TEXT | Reference to NFPA 110 weekly generator test log — extends group 4 |
+| `ELC_UPS_REPLACE_DT` | TEXT (ISO date) | UPS battery replacement due date — extends group 4 |
+| `ELC_ATS_TEST_LOG_REF_TXT` | TEXT | NFPA 99 §6.4.2 monthly ATS transfer test log ref — extends group 4 |
+| `MGS_ALARM_PROTOCOL_TXT` | TEXT | MGPS alarm panel protocol: `BACNET / MODBUS-RTU / RS485-PROPR / RS232` — extends group 29 |
+| `MGS_ALARM_GATEWAY_IP_TXT` | TEXT | Serial-to-Ethernet gateway IP address (if RS-485 / RS-232 panel) — extends group 29 |
+| `MGS_VERIFY_ASSE_CERT_TXT` | TEXT | ASSE 6030 / 6040 verifier certification number — extends group 29 |
+| `RAD_MONITOR_DEVICE_ID_TXT` | TEXT | Area radiation monitor device ID — extends group 30 |
+| `RAD_MONITOR_PROTOCOL_TXT` | TEXT | `BACNET / HTTP-API / PROPRIETARY` — extends group 30 |
+| `RAD_DOSE_RATE_USV_HR_NR` | NUMBER | Live area dose rate read-back (µSv/hr, read-only from IoT) — extends group 30 |
+| `RAD_DOSE_ALERT_USV_HR_NR` | NUMBER | Dose rate alert threshold (default 500 µSv/hr) — extends group 30 |
+| `CLN_MRI_QUENCH_OPC_TXT` | TEXT | OPC-UA node ID for quench-in-progress status (life-safety) — extends group 28 |
+| `CLN_MRI_CRYO_LEVEL_OPC_TXT` | TEXT | OPC-UA node ID for cryogen fill level (%) — extends group 28 |
+| `PLM_TMV_SENSOR_ID_TXT` | TEXT | Smart TMV sensor device ID — extends group 6 |
+| `PLM_TMV_PROTOCOL_TXT` | TEXT | `BACNET / MODBUS / PROPRIETARY` — extends group 6 |
+| `PLM_TMV_TEMP_ACTUAL_C_NR` | NUMBER | Live TMV outlet temperature read-back (°C, read-only) — extends group 6 |
+| `PLM_TMV_ALERT_LOW_C_NR` | NUMBER | Low-temp alert threshold (default 40 °C — Legionella risk) — extends group 6 |
+| `PLM_TMV_ALERT_HIGH_C_NR` | NUMBER | High-temp alert threshold (default 45 °C — scald risk) — extends group 6 |
+| `CEQ_ENDO_SCOPE_ID_TXT` | TEXT | Endoscope asset ID (HTM 01-06 traceability) — extends group 31 |
+| `CEQ_ENDO_AER_REF_TXT` | TEXT | Linked washer-disinfector (AER) device ID — extends group 31 |
+| `CEQ_ENDO_READER_ID_TXT` | TEXT | RFID reader ID at transfer point (soak/wash/dry/store) — extends group 31 |
+| `CEQ_ENDO_CYCLE_COUNT_INT` | INTEGER | Reprocessing cycle count (lifetime) — extends group 31 |
+| `CEQ_ENDO_LAST_REPROCESS_DT` | TEXT (ISO date) | Last reprocessing date — extends group 31 |
+| `HVC_HEPA_DP_SENSOR_REF_TXT` | TEXT | BMS object ref for HEPA filter differential pressure — maintenance trigger — extends group 5 |
+| `HVC_ISO_CLASS_INT` | INTEGER | ISO 14644-1 cleanroom class (1–8) — USP 797/800 monitoring — extends group 5 |
+| `CLN_ENV_MONITOR_INTERVAL_MIN_NR` | NUMBER | Environmental monitoring sample interval (min) — USP 797/800 — extends group 28 |
+| `CLN_ENV_CERT_DUE_DT` | TEXT (ISO date) | Cleanroom next recertification due date (USP 6-month cycle) — extends group 28 |
+
+(41 params — most extend existing groups 4/5/6/28/29/30/31; new group 33 `ICT_HEALTHIOT` carries the RTLS anchor, nurse call, and telehealth device refs.)
+
 Calibration extensions in group 25 `COMMISSIONING`:
 
 | Parameter | Type | Purpose |
@@ -467,14 +594,17 @@ Calibration extensions in group 25 `COMMISSIONING`:
 | `PRJ_ORG_HEALTH_AE_MGAS_TXT` | TEXT | AE — Medical Gas |
 | `PRJ_ORG_HEALTH_AE_WATER_TXT` | TEXT | AE — Water Safety |
 | `PRJ_ORG_HEALTH_AE_ELEC_TXT` | TEXT | AE — Electrical |
+| `PRJ_ORG_HEALTH_HTM_REGION_TXT` | TEXT | Regional HTM variant: `ENGLAND / SCOTLAND / WALES / NORTHERN-IRELAND / OTHER` — controls whether SHTM or WHTM rule variants apply (e.g. SHTM 01-06 adds TOE probe decon step) |
+| `PRJ_ORG_HEALTH_IHFG_BOOL` | YESNO | Project uses iHFG (TAHPI) as its primary design guideline (Africa / ME / Australasia) — enables iHFG room-code fields and FGI cross-references |
+| `PRJ_ORG_HEALTH_PACK_PROFILE_TXT` | TEXT | Healthcare pack profile: `FULL / ACUTE / COMMUNITY / DENTAL / IMAGING-ONLY` — gates which validators and drawing types are activated; prevents community-clinic projects from requiring LINAC vault calculators |
 
-(12 params — uses `PRJ_ORG_*` Phase 112 convention.)
+(15 params — uses `PRJ_ORG_*` Phase 112 convention. Three new params added for regional standard variants, iHFG, and pack scoping.)
 
 ### 5.11 Net-new parameter count
 
 | Sub-pack | New params | Reuse existing |
 |---|---|---|
-| 5.1 CLN_CLINICAL (room-bound clinical) | **19** | `ASS_ROOM_*`, `BLE_ROOM_FINISH_*`, `ASS_DESIGN_OCCUPANCY_INT`, `BLE_ROOM_FIRE_ESCAPE_CAPACITY_NR`, `RGL_ACCESS_REFUGE_AREA_TXT`, `MEP_DELTA_PRESS_PA`, `PER_ACOUSTICS_*`, `PER_ENVIRONMENTAL_TEMP_DESIGN_C`, `PER_ENVIRONMENTAL_HUMIDITY_DESIGN_PCT`, `LTG_DESIGN_ILLUMINANCE_LUX`, `LTG_CLR_TEMP_K`, `BLE_DOOR_ACOUSTIC_*` |
+| 5.1 CLN_CLINICAL (room-bound clinical — expanded) | **44** | `ASS_ROOM_*`, `BLE_ROOM_FINISH_*`, `ASS_DESIGN_OCCUPANCY_INT`, `BLE_ROOM_FIRE_ESCAPE_CAPACITY_NR`, `RGL_ACCESS_REFUGE_AREA_TXT`, `MEP_DELTA_PRESS_PA`, `PER_ACOUSTICS_*`, `PER_ENVIRONMENTAL_TEMP_DESIGN_C`, `PER_ENVIRONMENTAL_HUMIDITY_DESIGN_PCT`, `LTG_DESIGN_ILLUMINANCE_LUX`, `LTG_CLR_TEMP_K`, `BLE_DOOR_ACOUSTIC_*` |
 | 5.2 MGS_SYSTEMS | **13** | `ASS_TIEIN_*`, `ASS_TEST_PRESSURE_BAR`, `HVC_PIPE_PRESSURE_KPA` |
 | 5.3 ELC_PWR (EES extensions) | **7** | `ELC_EMERG_COVERED_BOOL`, `ELC_PANEL_SCHEDULE_REF_TXT`, `ELC_CIRCUIT_REF_TXT`, `ELC_FAT_CERT_REF_TXT` |
 | 5.4 PLM_DRN (water-safety extensions) | **7** | `PLM_HOTWTR_TEMP_C` |
@@ -483,12 +613,17 @@ Calibration extensions in group 25 `COMMISSIONING`:
 | 5.7 CEQ_CLINICAL | **7** + 2 calibration in MNT | `ASS_MANUFACTURER_TXT`, `ASS_MODEL_NR_TXT`, `ASS_SERIAL_NR_TXT`, `ASS_BARCODE_TXT`, `ASS_MAINTENANCE_FREQUENCY_MONTHS`, `ASS_MAINT_INTERVAL_TXT`, `ASS_MAINTENANCE_SCHEDULE_TXT`, `ASS_WARRANTY_*`, `MNT_*`, `CST_DELIVERY_LEAD_TIME_DAYS`, `CST_SUP_PROCUREMENT_LEAD_TIME_DAYS`, `ASS_OMNICLASS_TXT`, `ASS_UNICLASS_2015_TXT`, `ASS_UNIFORMAT_TXT`, `ASS_KEYNOTE_TXT` |
 | 5.8 LIG_BEHAVIOURAL | **5** | — |
 | 5.9 FLS_LIFE_SFTY (fire compartment) | **1** | `PER_FIRE_RATING_*`, `PROP_FIRE_RATING`, `RGL_FIRE_RATING_TXT`, `FLS_EVACUATION_TIME_MIN`, `FLS_EXIT_TRAVEL_DIST_M`, `FLS_SFTY_OCCUPANT_LOAD_NR` |
-| 5.10 PRJ_ORG_HEALTH | **12** | All other `PRJ_ORG_*` |
-| **Total net-new** | **~85** | (~30 existing parameters reused) |
+| 5.10 PRJ_ORG_HEALTH (expanded) | **15** | All other `PRJ_ORG_*` |
+| 5.12 Structural loading (CLN sub-fields) | **7** | — |
+| 5.13 Acoustic compliance (CLN + HVC sub-fields) | **2** | `PER_ACOUSTICS_BACKGROUND_NOISE_DB`, `BLE_DOOR_ACOUSTIC_RATING_DB`, `BLE_FLR_IMPACT_SOUND_INS_DB` |
+| 5.14 IoT device refs (new group 33 `ICT_HEALTHIOT` + extends to groups 4/5/6/28/29/30/31) | **41** | `ELC_*` (group 4 existing), `HVC_*` (group 5 existing), `PLM_*` (group 6 existing), `MGS_*` (group 29), `RAD_*` (group 30), `CEQ_*` (group 31) |
+| **Total net-new** | **~175** | (~30 existing parameters reused across all sub-packs) |
 
-The first draft cited "~140" net-new params — the corrected count is
-roughly **40 % smaller**, with the difference reabsorbed into existing
-parameters.
+The first draft cited "~140" net-new params; the §5.0 crosscheck
+reduced that to ~85 by eliminating duplicates. The gap analysis and
+IoT cross-check (§19) then added 44 expanded CLN_CLINICAL fields,
+7 structural, 2 acoustic, 41 IoT device-ref, and 3 new PRJ params —
+bringing the revised net-new total to roughly **175**.
 
 ---
 
@@ -509,6 +644,10 @@ single-validator commands for triage.
 | `AdjacencyValidator` | Rooms grouped by `ROM_HEALTH_CLASS_TXT` | HBN-derived: ED ↔ Imaging ≤ 3 doors; OR ↔ HSDU same compartment; mortuary remote; pharmacy central; clean / dirty flow non-crossing |
 | `AntiLigatureValidator` | Family instances in `PSY-*` rooms | Every fitting carries `LIG_PRODUCT_RATING_TXT`; observation line-of-sight intact; en-suite door anti-barricade; no exposed pipes |
 | `RdsCompletenessValidator` | Rooms | All ADB / HBN-required parameters populated; equipment groups accounted for; finishes match clinical class; signed off by clinician |
+| `AcousticValidator` | Rooms + Walls / Floors / Ceilings | HTM 08-01 NR target by room class; FGI / HIPAA speech-privacy STC threshold; RT60 target vs CLN_RT60_TARGET_S_NR; NC curve vs HVC_NC_CURVE_INT; masking system present when STC < 45 |
+| `StructuralLoadValidator` | Rooms with `CLN_FLOOR_LOAD_KN_M2_NR` or `CLN_FLOOR_LOAD_POINT_KN_NR` | Declared floor load ≥ equipment weight lookup from CEQ_CLINICAL classification; vibration criterion (CLN_VIB_VM_NR) flagged for imaging rooms if VC-D or stricter is not specified; structural sign-off date required before handover (`CLN_STRUCT_SIGN_OFF_DT` must be populated) |
+| `AdvancedRadShieldValidator` | Walls / Doors / Windows in PET-HOT-LAB / NM-SCAN / BRACHYTHERAPY rooms | 511 keV PET two-photon geometry; SPECT/gamma camera scatter energy (140 keV Tc-99m); afterloading brachytherapy vault dose-rate calculation; all three require RAD_LEAD_MM_NR to account for energy-specific transmission, not just NCRP 147 kV shielding curves |
+| `IoTStalenessValidator` | Rooms with `CLN_BMS_LAST_SEEN_DT` or `PLM_TMV_SENSOR_ID_TXT` | BMS last-seen timestamp > 30 min triggers sensor-fault warning; PLM_TMV_TEMP_ACTUAL_C_NR outside alert band triggers scald / Legionella warning; CLN_ENV_CERT_DUE_DT past-due raises cleanroom re-certification flag; RAD_DOSE_RATE_USV_HR_NR above RAD_DOSE_ALERT_USV_HR_NR raises life-safety alert |
 
 The existing **Connectivity / Fill / Spec / Termination / Slope**
 validators are reused — the healthcare validators chain on top, never
@@ -539,6 +678,12 @@ Added to `Data/STING_DRAWING_TYPES.json`. All routed via the existing
 | `health-ligature-pln-A1-1to50`| A1 / 1:50 | Anti-ligature plan with risk levels |
 | `health-bedhead-elev-A2-1to20`| A2 / 1:20| Bedhead trunking elevations |
 | `health-or-ceiling-A2-1to20` | A2 / 1:20 | OR ceiling reflected plan with pendant booms |
+| `health-acoustic-pln-A1-1to100` | A1 / 1:100 | Acoustic zoning plan — NR targets per room, STC of separating walls, masking zones |
+| `health-struct-loads-A1-1to50` | A1 / 1:50 | Structural loading plan — floor live-load zones, point-load callouts, vibration-isolation pads |
+| `health-infection-ctrl-A1-1to100` | A1 / 1:100 | Infection-control classification plan — room colour by class (AIIR/PE/Standard), coving, pass-through, handwash count |
+| `health-waste-flow-A1-1to100` | A1 / 1:100 | Waste flow diagram — segregation by waste class, chute / collection routes, disposal points |
+| `health-rtls-coverage-A1-1to100` | A1 / 1:100 | RTLS anchor coverage plan — beacon locations, technology type (BLE/UWB/IR), coverage radii, RF dead zones (shielded rooms) |
+| `health-nm-schem-A1` | A1 / NA | Nuclear medicine / PET schematic — dose-calibrator, hot lab, decay storage, exhaust route, dose-rate contours |
 
 Each drawing type binds to an appropriate ViewStylePack (§8) and
 publishes a routing rule keyed on `(discipline=H/MG/RP, docType=*)`.
@@ -553,6 +698,8 @@ publishes a routing rule keyed on `(discipline=H/MG/RP, docType=*)`.
 | `corp-healthcare-shielding` | `corp-standard-plan` | Pb-equivalent walls dashed-thick; X-ray hazard hatch; MRI 5-Gauss line as red dashed circle; controlled-area signage as halo |
 | `corp-healthcare-pressure` | `corp-standard-plan` | Negative rooms blue tint, positive red, neutral grey, anterooms striped; pressure arrows as detail components |
 | `corp-healthcare-fire` | `corp-coordination` | Fire compartments in primary colours; PHE refuge zones halftoned; smoke-rated lines distinct from fire-rated |
+| `corp-healthcare-acoustic` | `corp-standard-plan` | Room boundaries tinted by acoustic class (sensitive / medium / not-sensitive); STC callout annotation visible at coarse; sound-masking zones as overlay pattern |
+| `corp-healthcare-structural` | `corp-coordination` | Floor-load zone polygons in graduated fill intensity; point-load symbols prominent at 1:50; vibration-isolation elements as hatched pattern |
 
 All in `managed` template mode so STING auto-creates and maintains the
 underlying Revit view templates.
@@ -575,6 +722,12 @@ overrides supplied so they work without per-pack tuning.
 | **Fire / PHE** | `STING - Fire Compartment <id>`, `... PHE Refuge`, `... Smoke-Rated`, `... 60-min`, `... 120-min` |
 | **Anti-ligature** | `STING - Lig High Risk`, `... Med Risk`, `... Low Risk`, `... Observation LOS Required` |
 | **Clinical equipment** | `STING - Clinical Asset`, `... Critical (Spaulding)`, `... Semi-Critical`, `... Bariatric`, `... Hoist-tracked` |
+| **Acoustic** | `STING - Acoustic Sensitive`, `... Acoustic Medium`, `... Acoustic Not-Sensitive`, `... STC Deficient`, `... Masking Required`, `... RT60 Out-of-Spec` |
+| **Structural loads** | `STING - Heavy Equipment Zone (>5 kN/m²)`, `... Point Load ≥ 50 kN`, `... Vibration Sensitive (VC-D/E)`, `... Structural Sign-off Missing` |
+| **RTLS / IoT** | `STING - RTLS BLE Anchor`, `... RTLS UWB Anchor`, `... RTLS IR Anchor`, `... Infant Security Reader`, `... Nurse Call Node`, `... IoT BMS Sensor`, `... IoT BMS Sensor Stale (>30 min)` |
+| **Waste** | `STING - Waste Clinical`, `... Waste Anatomical`, `... Waste Pharmaceutical`, `... Waste Cytotoxic`, `... Waste Radioactive`, `... Waste Sharps` |
+
+Total expanded to approximately **80 healthcare filters** across **12 groups** (up from the original 60 across 8 groups).
 
 ---
 
@@ -604,10 +757,19 @@ overrides supplied so they work without per-pack tuning.
 | **H-20** | Digital twin / IoT bridge | BACnet / OPC-UA pressure read-back; MGPS verification log; SignalR live dashboards on the BIM Coordination Centre Healthcare tab |
 | **H-21** | Mobile commissioning app | New `Planscape/app/healthcare/` tab — on-site MGPS verification checklist, pressure-cascade live read, water-flushing logs |
 | **H-22** | Server APIs | `Planscape.API/Controllers/HealthcareController.cs` — pressure logs, MGPS verifications, RDS retrieval, anti-ligature audit submissions |
+| **H-23** | Structural loads for heavy equipment | §5.12 params; `StructuralLoadValidator`; `health-struct-loads-A1-1to50` drawing type; `corp-healthcare-structural` pack; structural filter group; phase notes §11 |
+| **H-24** | Acoustic compliance | §5.13 params; `AcousticValidator`; `health-acoustic-pln-A1-1to100` drawing type; `corp-healthcare-acoustic` pack; acoustic filter group; HTM 08-01 NR table per room class |
+| **H-25** | Advanced imaging shielding (PET / NM / brachytherapy) | `AdvancedRadShieldValidator` for 511 keV / SPECT / afterloading; `health-nm-schem-A1` drawing type; PET-HOT-LAB / NM-SCAN / BRACHYTHERAPY room class params; NCRP 151 supplementary tables |
+| **H-26** | HTM 01-06 endoscope traceability | §5.14 endoscope IoT params (`CEQ_ENDO_*`); RFID reader BIM families; `ENDOSCOPY` room class; endoscope-scope-to-patient-to-procedure chain validator; decon flow drawing type; workflow JSON |
+| **H-27** | Resilience and business continuity | EES generator test log params (`ELC_GEN_TEST_LOG_REF_TXT`, `ELC_ATS_TEST_LOG_REF_TXT`, `ELC_UPS_REPLACE_DT`); NFPA 110 compliance dashboard; server-side weekly-test log ingestion endpoint |
+| **H-28** | Healthcare-lite profiles | `PRJ_ORG_HEALTH_PACK_PROFILE_TXT` runtime gating; `COMMUNITY` / `DENTAL` / `IMAGING-ONLY` sub-profiles that suppress irrelevant validators, drawing types, and COBie presets; reduce load for non-acute projects |
+| **H-29** | RTLS infrastructure | §5.14 RTLS params; `health-rtls-coverage-A1-1to100` drawing type; RTLS filter group; `Core/Placement/` rules for BLE/UWB anchor placement (coverage radius optimisation, RF dead-zone flagging in shielded rooms); anchor-to-zone-ID link validator |
+| **H-30** | Waste-management IoT | §5.14 waste IoT extension; `health-waste-flow-A1-1to100` drawing type; waste filter group; smart-bin device ID params; IoT alert routing for cytotoxic / radioactive waste container breach |
 
 H-1..H-3 are pure-data prerequisites; everything else depends only on
 those three. H-7..H-19 are independent special-case packs that can be
-shipped in any order after the common foundation.
+shipped in any order after the common foundation. H-23..H-30 are gap-analysis
+additions; each is independent and can ship in any order after H-1..H-3.
 
 ---
 
@@ -948,6 +1110,181 @@ audited via the existing `AuditLog` chain (SHA-256 tamper-evidence).
 Push notifications fire on pressure breaches and MGPS alarms via the
 existing `INotificationService`.
 
+### Phase H-23 — Structural loads for heavy medical equipment
+
+**Where it lands**
+
+```
+StingTools/Data/MR_PARAMETERS.txt                     (+7 CLN_STRUCT_* params — §5.12)
+StingTools/Data/PARAMETER_REGISTRY.json               (+7 entries in group 28)
+StingTools/Core/Validation/Healthcare/StructuralLoadValidator.cs
+StingTools/Commands/Validation/Healthcare/StructuralLoadValidatorCommand.cs
+StingTools/Data/STING_DRAWING_TYPES.json              (+health-struct-loads-A1-1to50)
+StingTools/Data/STING_VIEW_STYLE_PACKS.json           (+corp-healthcare-structural)
+StingTools/Data/STING_AEC_FILTERS.json                (+4 structural filters)
+StingTools/Data/HEALTHCARE_EQUIPMENT_WEIGHTS.csv      (NEW — reference weights for MRI/CT/LINAC/PET/fluoroscopy)
+```
+
+**Acceptance**
+
+- `StructuralLoadValidator` warns when a room classified as `IMG-MRI`
+  has `CLN_FLOOR_LOAD_KN_M2_NR` < 15 kN/m² or `CLN_VIB_VM_NR` >
+  VC-C threshold (8 µm/s).
+- `CLN_STRUCT_SIGN_OFF_DT` empty on handover raises a blocking
+  `RdsCompletenessValidator` error.
+- Note: the validator reports drift only — it does not certify the
+  structure. The Structural Engineer's sign-off (`CLN_STRUCT_SIGN_OFF_TXT`)
+  is mandatory before handover.
+
+### Phase H-24 — Acoustic compliance
+
+**Where it lands**
+
+```
+StingTools/Data/MR_PARAMETERS.txt                     (+2 params: CLN_RT60_TARGET_S_NR, HVC_NC_CURVE_INT)
+StingTools/Core/Validation/Healthcare/AcousticValidator.cs
+StingTools/Commands/Validation/Healthcare/AcousticValidatorCommand.cs
+StingTools/Data/STING_DRAWING_TYPES.json              (+health-acoustic-pln-A1-1to100)
+StingTools/Data/STING_VIEW_STYLE_PACKS.json           (+corp-healthcare-acoustic)
+StingTools/Data/STING_AEC_FILTERS.json                (+6 acoustic filters)
+StingTools/Data/HEALTHCARE_ACOUSTIC_NR_TARGETS.csv    (NEW — HTM 08-01 NR target table by room class)
+```
+
+**Key reference data**
+
+HTM 08-01 Table 1 NR targets (excerpt): wards NR 35, consulting rooms
+NR 35, operating theatres NR 40, ICU NR 35, mental health NR 30.
+FGI / HIPAA speech-privacy STC thresholds: STC 45 for exam rooms,
+STC 50 for private consultation. The acoustic filter pack colour-codes
+rooms below threshold red.
+
+### Phase H-25 — Advanced imaging shielding (PET / NM / brachytherapy)
+
+**Where it lands**
+
+```
+StingTools/Core/Radiation/AdvancedRadShieldValidator.cs
+StingTools/Core/Radiation/Pet511Calculator.cs         (511 keV two-photon geometry)
+StingTools/Core/Radiation/SpectCalculator.cs          (140 keV Tc-99m scatter)
+StingTools/Core/Radiation/BrachyVaultCalculator.cs    (afterloading dose-rate calc)
+StingTools/Commands/Radiation/AdvancedRadCalcCommand.cs
+StingTools/Data/STING_DRAWING_TYPES.json              (+health-nm-schem-A1)
+StingTools/Data/RADIATION_PET_TABLES.csv              (NEW — 511 keV concrete/Pb/steel attenuation)
+StingTools/Data/RADIATION_BRACHY_SOURCES.csv          (NEW — common afterloading source data)
+```
+
+**Caveats**
+
+PET 511 keV, SPECT, and brachytherapy shielding require significantly
+more concrete than diagnostic X-ray for equivalent Pb values. The
+`AdvancedRadShieldValidator` warns any RAD_LEAD_MM_NR entered on a
+PET room that was derived from NCRP 147 (kV) curves without energy
+correction. All outputs require QE sign-off (`RAD_QE_NAME_TXT`).
+
+### Phase H-26 — HTM 01-06 endoscope decontamination traceability
+
+**Where it lands**
+
+```
+StingTools/Data/MR_PARAMETERS.txt                     (+5 CEQ_ENDO_* params — §5.14)
+StingTools/Core/Validation/Healthcare/EndoscopeTraceValidator.cs
+StingTools/Commands/Healthcare/Endoscopy/
+  EndoscopeTraceAuditCommand.cs
+  EndoscopeDeconFlowCommand.cs
+StingTools/Data/STING_DRAWING_TYPES.json              (+health-decon-flow-A1-1to50 already in §7; supplement with endo detail)
+StingTools/Data/HEALTHCARE_ENDOSCOPE_TYPES.csv        (NEW — HTM 01-06 Annex C scope types + decon method)
+WORKFLOW_HTM-01-06-EndoReprocess.json                 (NEW — soak → wash → AER → drying → storage RFID chain)
+```
+
+**Scope / RFID chain**
+
+The validator checks that each `ENDOSCOPY` room has at minimum 4 RFID
+reader positions modelled (`ICT_ENDO_READER_ID_TXT` on door/storage
+families): soak sink, washer-disinfector (AER) inlet, drying cabinet,
+and sterile storage. Each scope asset carries `CEQ_ENDO_SCOPE_ID_TXT`,
+`CEQ_ENDO_AER_REF_TXT`, and `CEQ_ENDO_CYCLE_COUNT_INT`. The RFID
+chain is the BIM contract topology — the live event log is pushed to
+Planscape Server.
+
+### Phase H-27 — Resilience and business continuity
+
+**Where it lands**
+
+```
+StingTools/Data/MR_PARAMETERS.txt                     (+ELC_GEN_TEST_LOG_REF_TXT, ELC_ATS_TEST_LOG_REF_TXT, ELC_UPS_REPLACE_DT)
+StingTools/Core/Validation/Healthcare/EesResilienceValidator.cs
+StingTools/Commands/Healthcare/Resilience/EesResilienceDashboardCommand.cs
+Planscape.Server/Controllers/HealthcareController.cs  (+POST .../generator-test, +GET .../resilience-dashboard)
+WORKFLOW_NFPA110-GeneratorTest.json                   (NEW — weekly run test → record runtime → upload log)
+```
+
+NFPA 110 and NFPA 99 mandate monthly ATS transfer tests and weekly
+generator exercise runs for Level 1 systems. The resilience validator
+flags any EES circuit whose `ELC_GEN_TEST_LOG_REF_TXT` has not been
+updated within 35 days (7-day test + 4-week buffer).
+
+### Phase H-28 — Healthcare-lite profiles (pack scoping)
+
+**Where it lands**
+
+```
+StingTools/Core/ParamRegistry.cs                      (+PRJ_ORG_HEALTH_PACK_PROFILE_TXT constant)
+StingTools/Core/Validation/Healthcare/HealthcareValidatorGate.cs
+                                                      (reads pack profile, returns bool IsInScope(validatorType))
+StingTools/Core/Drawing/DrawingTypeRegistry.cs        (profile-filtered Resolve overload)
+StingTools/Data/HEALTHCARE_PACK_PROFILES.json         (NEW — FULL/ACUTE/COMMUNITY/DENTAL/IMAGING-ONLY gate tables)
+```
+
+A `COMMUNITY` profile suppresses LINAC vault, HBO, BSL4, and advanced
+imaging validators. An `IMAGING-ONLY` profile activates only radiation,
+MRI, RTLS, and structural-load validators. A `DENTAL` profile activates
+dental-compressed-air terminal units, MGPS-DENT system, and HTM 01-05
+decon flow. Gate logic runs in `HealthcareValidatorGate` so individual
+validator `Validate()` implementations never inspect project info — the
+gate injects a filtered list at the call site.
+
+### Phase H-29 — RTLS infrastructure
+
+**Where it lands**
+
+```
+StingTools/Data/MR_PARAMETERS.txt                     (+ICT_RTLS_ANCHOR_ID_TXT, ICT_RTLS_TECH_TXT,
+                                                          ICT_RTLS_TX_POWER_DBM_NR, ICT_RTLS_COVERAGE_M_NR — §5.14)
+StingTools/Data/STING_DRAWING_TYPES.json              (+health-rtls-coverage-A1-1to100)
+StingTools/Data/STING_AEC_FILTERS.json                (+7 RTLS filters)
+StingTools/Core/Placement/RtlsAnchorPlacementRules.json (+rules for BLE/UWB minimum anchor density)
+StingTools/Core/Validation/Healthcare/RtlsCoverageValidator.cs
+```
+
+**RF dead zones**
+
+The `RtlsCoverageValidator` flags RTLS anchors placed in rooms with
+`CLN_RF_SHIELD_BOOL = true` (MRI Faraday cage, lead-lined radiology,
+EP lab) with a WARNING: BLE/Wi-Fi signals do not penetrate these rooms;
+UWB and IR are the only viable options. Each anchor family's
+`ICT_RTLS_TECH_TXT` is validated against the room's shielding type.
+MRI zones Z3/Z4 prohibit all active wireless transmitters —
+`RtlsCoverageValidator` raises a BLOCKING error for any non-IR anchor
+within `CLN_MRI_ZONE_INT ≥ 3`.
+
+### Phase H-30 — Waste-management IoT
+
+**Where it lands**
+
+```
+StingTools/Data/MR_PARAMETERS.txt                     (+CLN_WASTE_CLASS_TXT, CLN_WASTE_ROUTE_TXT already in §5.1)
+StingTools/Data/STING_DRAWING_TYPES.json              (+health-waste-flow-A1-1to100)
+StingTools/Data/STING_AEC_FILTERS.json                (+6 waste filters)
+StingTools/Data/HEALTHCARE_ALERT_ROUTING.json         (NEW — alert routing table; waste-breach alerts route to
+                                                          INotificationService for cytotoxic/radioactive containers;
+                                                          see §19 for full schema)
+StingTools/Core/Validation/Healthcare/WasteFlowValidator.cs
+                                                      (checks CLN_WASTE_CLASS_TXT populated per HBN; routing
+                                                          from clinical waste points to segregation store non-crossing
+                                                          with patient / clean supply flow; radioactive waste rooms
+                                                          require CLN_RAD_CONTROLLED_BOOL = true)
+```
+
 ---
 
 ## 12. BIM Coordination Centre — Healthcare tab (new)
@@ -966,9 +1303,17 @@ existing `INotificationService`.
 | **RDS completeness** | `RdsCompletenessValidator` | Issue all RDS, export register |
 | **Adjacency** | `AdjacencyValidator` + `CleanDirtyFlowSolver` | Run audit, open adjacency matrix |
 | **Commissioning gantt** | Healthcare commissioning workflow | Open gantt, mark milestone, push to schedule |
+| **Structural loads** | `StructuralLoadValidator` | Run audit, open structural-loads drawing, flag missing sign-off |
+| **Acoustic compliance** | `AcousticValidator` | Run audit, open acoustic-zones drawing, export NR deficiency report |
+| **RTLS coverage** | `RtlsCoverageValidator` + anchor families | Open RTLS-coverage plan, flag RF dead zones, show anchor count per zone |
+| **EES branch load** | `EesBranchValidator` + `EesResilienceValidator` | Show LS / CR / EQ branch load by panel, generator test log age, UPS replace date |
+| **IoT device health** | `IoTStalenessValidator` + BACnet/OPC-UA read-back | Show stale BMS sensors (>30 min), TMV alerts, HEPA ΔP alarms, radiation area monitor status |
+| **Endoscope status** | `EndoscopeTraceValidator` | Show scope count by room, last-reprocessed date, cycle-count warnings, AER faults |
 
-Tab visibility is gated on `PRJ_HEALTH_FACILITY_TYPE_TXT` ≠ empty so
-non-healthcare projects don't see it.
+Tab visibility is gated on `PRJ_ORG_HEALTH_FACILITY_TYPE_TXT` ≠ empty so
+non-healthcare projects don't see it. Individual cards are further gated
+on `PRJ_ORG_HEALTH_PACK_PROFILE_TXT` — e.g. the RTLS and Endoscope cards
+are hidden on `IMAGING-ONLY` and `DENTAL` profiles.
 
 ---
 
@@ -1016,6 +1361,17 @@ All consumed by the existing `WorkflowEngine` — no engine changes required.
 | Behavioural seclusion | `SECL` | HBN 03-01, FGI Pt 2 | Anti-ligature throughout; observation LOS 100 %; soft furnishings |
 | Behavioural bedroom | `PSY-BED` | HBN 03-01 | LR rated fittings; nurse-call EMG; min camera coverage if applicable |
 | Bariatric room | `BARI` | iHFG, HBN 04-01 | SWL ≥ 270 kg; 1.5 m clearance both sides; reinforced ceiling track |
+| Electrophysiology lab | `EP-LAB` | HBN 12, NEC 517 | RF-shielded room (12-lead mapping + ablation RF interference); IPS mandatory; ceiling cable grid for EP catheters; EES-LS branch throughout; lead control room |
+| GI endoscopy suite | `ENDOSCOPY` | HTM 01-06, HBN 12 | Decon dirty-clean-sterile flow (separate wash, drying, storage bays); RFID reader points at each transfer; ventilation –10 Pa to adjacent corridor; HTM 01-06 AER clearance |
+| Robotic surgery suite | `SURG-ROBOT` | FGI Hybrid OR Design Basics | ≥ 56 m² (600 ft²) free floor for Da Vinci / Mako envelope; ceiling-zone clearance for boom, lights, robot arm, camera column co-ordination; IPS + EES-LS; vibration isolation under slab |
+| PET hot lab / dose calibration | `PET-HOT-LAB` | NCRP 151, IRR17 | 511 keV shielding (concrete-equivalent; not Pb-per-NCRP-147); negative ventilation to active waste drain; lead-glass dispensing hood; RAD_CONTROLLED_BOOL = true; CLN_PRESS_REGIME = NEG |
+| Nuclear medicine scan room | `NM-SCAN` | NCRP 151, HTM 06-01, IRR17 | SPECT / gamma-camera clearances; 140 keV Tc-99m scatter shielding; patient toilet adjacent (radioactive waste drainage); no ferrous fixtures for SPECT table lateral movement |
+| Brachytherapy vault | `BRACHYTHERAPY` | NCRP 151, IRR17 | Afterloading source vault; interlocked door beam-off; dose-rate area monitor mandatory (`RAD_MONITOR_DEVICE_ID_TXT`); CLN_MRI_QUENCH_OPC_TXT not applicable but CLN_RAD_CONTROLLED_BOOL = true; OPC-UA readback for source position |
+| Stem-cell / BMT room | `BONE-MARROW` | HBN 09-03, CDC | HEPA H14 positive-pressure PE (distinct from AIIR — immune-compromised not infectious); ACH ≥ 12; dedicated exhaust not required; CLN_INFECT_CLASS = PE; CLN_ENV_CERT_DUE_DT required |
+| Hyperacute stroke unit | `STROKE-HYPER` | NICE guidelines, NHS HASU standards | Time-critical CT adjacency (door-to-CT ≤ 4 min walk); EES-CR for all CT power; direct link to interventional suite; LVO screening room adjacent |
+| Midwife-led birth centre | `BIRTH-CTR` | HBN 21, Birthplace in England | Freestanding or alongside (not OU); birthing pool option; no piped nitrous oxide (Entonox only — portable); O₂ + Entonox terminal units; maternal resuscitation call point (not cardiac-arrest type) |
+| Cystoscopy room | `CYSTO` | HBN 12 | Flexible + rigid cystoscopy; fluoroscopy capable (lead lining for hybrid use); HTM 01-06 decon flow for flexible scopes; EES-LS for imaging; urology table clearances |
+| Telehealth consultation room | `TELEHEAL` | NHS Digital / NHS Estates guidance | Camera mount (PTZ or fixed), CLN_TELEHEAL_BOOL = true; ICT_TELEHEAL_BW_MBPS_NR ≥ 4; ICT_TELEHEAL_LUX_NR ≥ 500 lux at face level; ICT_TELEHEAL_PLATFORM_TXT set; acoustic class SENSITIVE (no echo); no window behind clinician |
 
 Every room class above ships with a default ADB / HBN cross-reference,
 default values for `ROM_PRESS_*`, `ROM_ACH_*`, `ROM_HEPA_*`,
@@ -1053,6 +1409,11 @@ default values for `ROM_PRESS_*`, `ROM_ACH_*`, `ROM_HEPA_*`,
 | `docs/HEALTHCARE_PACK_DESIGN.md` | this | this design document |
 | `docs/ROADMAP.md` | H-1 | + Healthcare Pack section linking back here |
 | `docs/CHANGELOG.md` | per-phase | + entry per shipped phase |
+| `StingTools/Data/MR_PARAMETERS.txt` | H-23/H-24/H-25/H-26 | + group 33 `ICT_HEALTHIOT` (41 params) + 7 structural + 2 acoustic + 5 endoscope = 55 additional params beyond H-1..H-22 |
+| `StingTools/Core/Twin/IoTDeviceRegistry.cs` | H-20 (extend) | Per-room lookup of all ICT_HEALTHIOT device IDs → protocol → last-seen timestamp; used by `IoTStalenessValidator` and BCC IoT-device-health card |
+| `StingTools/Data/HEALTHCARE_ALERT_ROUTING.json` | H-30 | JSON routing table: alert type → notification channel → roles; covers MGPS alarm, pressure breach, TMV temperature, radiation area monitor, quench, USP cert expiry, waste breach, IoT staleness — see §19 |
+| `StingTools/Data/HEALTHCARE_PACK_PROFILES.json` | H-28 | Pack profile gate tables: `FULL`, `ACUTE`, `COMMUNITY`, `DENTAL`, `IMAGING-ONLY`; maps profile → active validators → active drawing types |
+| `StingTools/Core/Validation/Healthcare/HealthcareValidatorGate.cs` | H-28 | Reads `PRJ_ORG_HEALTH_PACK_PROFILE_TXT` and returns the filtered validator list |
 
 Nothing in the table requires re-architecting existing subsystems —
 every change is an *extension* of an existing extension point.
@@ -1098,37 +1459,286 @@ every change is an *extension* of an existing extension point.
     H-5 validators run on demand, not in `IUpdater`. H-20 BACnet polling
     runs in a background thread, throttled, with circuit-breaker on
     failure.
+11. **SHTM / WHTM regional divergence** — Scottish HTM (SHTM) and Welsh
+    HTM (WHTM) series diverge from NHS England HTM on specific topics
+    (e.g. SHTM 01-06 adds a TOE probe decon step absent from the England
+    edition). The `PRJ_ORG_HEALTH_HTM_REGION_TXT` flag gates
+    region-specific validator rule variants in H-26 (endoscope decon) and
+    H-7 (MGPS verification). Northern Ireland uses its own regional
+    guidance for some areas. The iHFG flag (`PRJ_ORG_HEALTH_IHFG_BOOL`)
+    enables the iHFG room-code fields and suppresses HBN-only rules for
+    international projects (Africa, ME, Australasia).
+12. **Structural loading is advisory only** — `StructuralLoadValidator`
+    reports parameter drift (declared load < equipment weight reference)
+    and missing sign-off, but never certifies structural adequacy. The
+    declared values are BIM design intent; the civil/structural engineer's
+    stamp (`CLN_STRUCT_SIGN_OFF_TXT` + `_DT`) is the sole authority.
+    Point loads and vibration criteria for imaging equipment must be
+    confirmed with manufacturer specifications — the reference weights
+    in `HEALTHCARE_EQUIPMENT_WEIGHTS.csv` are typical, not contractual.
+13. **RTLS RF dead zones in shielded rooms** — MRI Faraday cages and
+    lead-lined radiology rooms block BLE, Wi-Fi, and UWB signals. The
+    `RtlsCoverageValidator` flags any non-IR RTLS anchor in a room with
+    `CLN_RF_SHIELD_BOOL = true`. Any RTLS anchor inside MRI zone ≥ Z3
+    raises a BLOCKING error — active wireless transmitters within the
+    5-Gauss line can quench the magnet or introduce image artefacts.
+    IR-based RTLS (infrared badge readers on the door frame) is the only
+    viable technology inside shielded rooms.
+14. **MRI quench is the highest-severity IoT alert** — `CLN_MRI_QUENCH_OPC_TXT`
+    OPC-UA readback feeds the `IoTStalenessValidator` and the BCC
+    IoT-device-health card. A quench event releases several hundred litres
+    of liquid helium at 4 K; `HEALTHCARE_ALERT_ROUTING.json` routes a
+    quench alert to every role in the project (`broadcast: true`) with
+    push priority `HIGH` and no rate-limit. This is a life-safety event
+    and must not be suppressed or filtered by the notification gateway.
+15. **BACnet / OPC-UA protocol coverage** — Phase H-20 BACnet/IP read-back
+    targets ASHRAE 135 object types (AI, AO, BI, BO, AV, BV, MSV).
+    Area alarm panels that use Modbus RTU or RS-485 proprietary protocols
+    require a serial-to-Ethernet gateway (IP address stored in
+    `MGS_ALARM_GATEWAY_IP_TXT`); the plugin never directly drives the
+    serial bus. OPC-UA is used only for MRI quench / cryogen status where
+    the magnet manufacturer exposes an OPC-UA server interface (Siemens
+    MAGNETOM, Philips Ingenia, GE Signa) — not all manufacturers do.
+    Fallback is a Modbus register read-back via the BMS.
+16. **USP 797 / 800 recertification cycle** — ISO 14644-1 cleanroom
+    classification and USP 797 / 800 environmental monitoring require
+    6-monthly recertification. `CLN_ENV_CERT_DUE_DT` must be populated
+    for all rooms with `CLN_ROOM_CLASS_TXT = PH-CSP-797` or `PH-CSP-800`;
+    `IoTStalenessValidator` raises an escalating warning when the cert due
+    date is within 30 days, and a blocking error when it is overdue.
 
 ---
 
-## 17. Backlog candidates (post-H-22)
+## 17. Backlog candidates (post-H-30)
 
-Things worth tracking but not yet phased:
+Items now phased (moved from backlog to roadmap):
+- **Indoor positioning (RTLS / BLE / UWB)** → **Phase H-29** (anchor placement, RF dead zones, coverage validator)
+- **Endoscopy decontamination (HTM 01-06)** → **Phase H-26** (RFID traceability chain, validator)
+- **Medical-IT network model (HL7 / FHIR)** → Partial — `CLN_FHIR_LOCATION_ID_TXT` in §5.1 links BIM rooms to EHR Location resources; full DICOM/HL7 endpoint tagging remains below.
+
+Remaining backlog (not yet phased):
 
 - **Surgical robot bay** (Da Vinci, Mako) — clearance envelope, cable
-  management, sterile draping route.
-- **Endoscopy decontamination** (HTM 01-06) — separate validator family.
+  management, sterile draping route. Room class `SURG-ROBOT` is now in
+  §4.5 and §14; Phase H-12 (Hybrid OR / Cath / IR) covers equipment
+  collision only — a dedicated robotic-surgery clearance tool is deferred.
 - **Cleanroom recovery test (ISO 14644-3)** — auto-generate the test
-  procedure document and accept the pass/fail upload.
+  procedure document and accept the pass/fail upload from particle
+  counters. `HVC_HEPA_LAST_TST_DT` is the landing param; the recovery
+  test procedure generator is post-H-30.
 - **Forensic / secure unit** — observation, isolation, ligature, plus
-  prison-grade fittings.
+  prison-grade fittings not covered by HBN 03-01 alone.
 - **Veterinary hospitals** — same MGPS / shielding rules but different
   room types and biosafety.
 - **Mobile / modular hospital** (NHS field-hospital pattern) — a
   templated drop of all H-1..H-3 artefacts pre-tuned to a 50-bed
   modular ward.
-- **Cleanroom particle-count import** — IFC-tracked particle counter
-  feeds into `ROM_HEPA_LAST_TST_DT` and recovery-test result.
-- **Medical-IT network model** — HL7 / DICOM / FHIR endpoint tagging on
-  imaging modalities and EHR access points.
-- **Indoor positioning (RTLS / BLE / UWB)** — reader placement
-  optimisation in the `Core/Placement/` engine.
+- **Full DICOM / HL7 endpoint tagging** — imaging modalities (PACS
+  AE titles, worklist server), EHR access points, and DICOM SR
+  destination routing as BIM family parameters beyond the `CLN_FHIR_LOCATION_ID_TXT`
+  link already in §5.1.
 - **Patient-flow simulation hook** — export room graph + door capacity
   to a discrete-event sim (e.g. Simio, AnyLogic) for ED throughput
   analysis.
 - **Energy & carbon healthcare overlay** — extend
   `Model/SustainabilityEngine.cs` (BREEAM / BS EN 15978) with NHS
   Net Zero Building Standard adjustments.
+- **Pneumatic-tube network validator** — extend `PathPlanner.cs`
+  (Phase H-10) to validate PTS blower capacity against station count,
+  tube diameter, and travel distance per the manufacturer's design guide.
+- **Decontamination room / dirty-utility network** — linked soiled-utility
+  room to sluice-room topology validator for HTM 07-01 compliance.
+- **Smart-bed integration** — Linet / Stryker smart-bed device IDs on
+  room families; nurse-call integration via `ICT_NC_RTLS_DISPATCH_BOOL`
+  extension for auto-escalation when bed-exit sensor fires.
+
+---
+
+## 19. IoT Architecture
+
+This section consolidates the IoT design decisions across §5.1, §5.14,
+Phase H-20, H-26, H-27, H-29, H-30, and the caveats in §16. It is a
+companion to the code layer — no code yet, design only.
+
+### 19.1 IoT domains and protocols
+
+| Domain | Technology | Protocol | Direction | Phase |
+|---|---|---|---|---|
+| BMS (pressure / ACH / temperature / RH / CO₂ / fan status) | BACnet/IP (ASHRAE 135) | UDP/IP — BACnet APDU; object per quantity | Read-only poll | H-20 |
+| MRI quench / cryogen level | OPC-UA (IEC 62541) | TCP/IP — subscription model | Read-only subscribe | H-20 |
+| MGPS area alarm panels | BACnet, Modbus RTU, RS-485 proprietary, or RS-232 | See `MGS_ALARM_PROTOCOL_TXT`; proprietary panels need serial-to-IP gateway | Read-only subscribe / poll | H-20 |
+| Smart TMV temperature sensors | BACnet, Modbus TCP, or proprietary | See `PLM_TMV_PROTOCOL_TXT` | Read-only poll | H-20 |
+| RTLS beacons / anchors | BLE (Bluetooth 5.1 AoA), UWB (IEEE 802.15.4z), Wi-Fi RSSI, IR | Vendor cloud or on-prem RTLS middleware API | Read-only (position events) | H-29 |
+| Nurse call nodes | IP-SIP, 900 MHz DECT, analogue pair | See `ICT_NC_PROTOCOL_TXT` | Read-only event | H-20 / H-29 |
+| Infant anti-abduction RFID | 125 kHz or 13.56 MHz RFID | Proprietary IP reader gateway | Read-only event | H-29 |
+| Energy sub-meters | Modbus TCP, BACnet, DLMS/COSEM | See `ELC_METER_PROTOCOL_TXT` | Read-only periodic | H-27 |
+| Generator / ATS test logs | NFPA 110 log book (manual upload) | JSON POST to Planscape Server | Write (plugin pushes) | H-27 |
+| Endoscope RFID readers | 13.56 MHz ISO 14443 / ISO 15693 | Proprietary IP reader → REST gateway | Read-only event | H-26 |
+| Radiation area monitors | BACnet, HTTP/REST API, proprietary | See `RAD_MONITOR_PROTOCOL_TXT` | Read-only continuous | H-25 |
+| HEPA filter ΔP sensors | BACnet AI object | `HVC_HEPA_DP_SENSOR_REF_TXT` object ref | Read-only poll | H-20 |
+| USP cleanroom environmental monitors | BACnet or proprietary | Particle count, temp, RH | Read-only periodic | H-25 |
+| Waste IoT / smart bins | HTTP/REST or proprietary | Bin-full status, cytotoxic / radioactive breach | Read-only event | H-30 |
+| Telehealth AV | REST / WebSocket (platform-specific) | Zoom / Epic / Cerner / Webex APIs | n/a (platform manages) | H-28 |
+
+### 19.2 IoTDeviceRegistry design
+
+`StingTools/Core/Twin/IoTDeviceRegistry.cs` (Phase H-20 extension) is a
+per-project registry that maps BIM element IDs to IoT device endpoints.
+It is populated at runtime from the param values of ICT_HEALTHIOT group
+elements, not from a separate config file.
+
+```
+IoTDeviceRegistry
+  ├── GetDevicesForRoom(roomId) → IEnumerable<IoTDeviceRef>
+  ├── GetDeviceByBimId(elementId) → IoTDeviceRef
+  ├── GetStaleDevices(threshold=TimeSpan.FromMinutes(30)) → IEnumerable<IoTDeviceRef>
+  └── IoTDeviceRef { BimElementId, DeviceId, Protocol, LastSeen, AlertBand }
+```
+
+The registry is built lazily on first access and invalidated when the
+document is saved (in case param values were edited). It is consumed by:
+- `IoTStalenessValidator` (staleness check)
+- `BacnetReadback` (building the poll list from BACnet object refs)
+- BCC Healthcare tab IoT-device-health card
+- Mobile commissioning app (live read-back endpoints)
+
+### 19.3 HEALTHCARE_ALERT_ROUTING.json schema
+
+Each alert type maps to: notification channel (push / SignalR / email),
+target roles, priority, and rate-limit. The file lives at
+`StingTools/Data/HEALTHCARE_ALERT_ROUTING.json` and is loaded by the
+existing `INotificationService` infrastructure.
+
+```json
+{
+  "alerts": [
+    {
+      "id": "MGAS_ALARM",
+      "description": "MGPS area alarm panel fault or gas failure",
+      "channel": ["push", "signalr"],
+      "roles": ["AE-MGAS", "Estates", "FM"],
+      "priority": "HIGH",
+      "rateLimit": null
+    },
+    {
+      "id": "PRESSURE_BREACH",
+      "description": "Room pressure regime outside design band",
+      "channel": ["push", "signalr"],
+      "roles": ["AE-VENT", "Infection-Control", "Estates"],
+      "priority": "MEDIUM",
+      "rateLimit": "PT5M"
+    },
+    {
+      "id": "MRI_QUENCH",
+      "description": "MRI quench in progress — cryogen release",
+      "channel": ["push", "signalr"],
+      "roles": ["ALL"],
+      "broadcast": true,
+      "priority": "HIGH",
+      "rateLimit": null
+    },
+    {
+      "id": "TMV_TEMP_OUT_OF_BAND",
+      "description": "Smart TMV outlet temperature outside 40–45 °C band",
+      "channel": ["push"],
+      "roles": ["AE-WATER", "Estates"],
+      "priority": "MEDIUM",
+      "rateLimit": "PT15M"
+    },
+    {
+      "id": "RAD_DOSE_ALERT",
+      "description": "Radiation area monitor exceeds dose-rate alert threshold",
+      "channel": ["push", "signalr"],
+      "roles": ["QE-RAD", "Radiation-Protection", "Estates"],
+      "priority": "HIGH",
+      "rateLimit": null
+    },
+    {
+      "id": "USP_CERT_EXPIRY",
+      "description": "Cleanroom environmental certification overdue",
+      "channel": ["push"],
+      "roles": ["Pharmacy-Manager", "Estates"],
+      "priority": "LOW",
+      "rateLimit": "P1D"
+    },
+    {
+      "id": "BMS_SENSOR_STALE",
+      "description": "BMS sensor last-seen > 30 minutes — possible sensor fault",
+      "channel": ["signalr"],
+      "roles": ["Estates", "FM"],
+      "priority": "LOW",
+      "rateLimit": "PT30M"
+    },
+    {
+      "id": "WASTE_CYTOTOXIC_BREACH",
+      "description": "Cytotoxic waste container fault or breach detected",
+      "channel": ["push", "signalr"],
+      "roles": ["Pharmacy-Manager", "Infection-Control", "Estates"],
+      "priority": "HIGH",
+      "rateLimit": null
+    },
+    {
+      "id": "WASTE_RADIOACTIVE_BREACH",
+      "description": "Radioactive waste container fault or breach detected",
+      "channel": ["push", "signalr"],
+      "roles": ["QE-RAD", "Radiation-Protection", "Estates"],
+      "priority": "HIGH",
+      "rateLimit": null
+    },
+    {
+      "id": "EES_GENERATOR_TEST_OVERDUE",
+      "description": "NFPA 110 weekly generator exercise test not logged within 35 days",
+      "channel": ["push"],
+      "roles": ["AE-ELEC", "Estates"],
+      "priority": "MEDIUM",
+      "rateLimit": "P1D"
+    }
+  ]
+}
+```
+
+### 19.4 BACnet object reference convention
+
+Each `CLN_BMS_*_OBJ_TXT` parameter stores a BACnet OBJECT IDENTIFIER
+string in the form `<ObjectType>:<InstanceNumber>` as registered in the
+BMS controller. The plugin parses this at runtime to construct the
+BACnet ReadProperty APDU.
+
+| Parameter | BACnet Object Type | Unit |
+|---|---|---|
+| `CLN_BMS_PRESS_OBJ_TXT` | Analog Input (AI) | Pa |
+| `CLN_BMS_ACH_OBJ_TXT` | Analog Input (AI) | m³/h (plugin converts to ACH using room volume) |
+| `CLN_BMS_TEMP_OBJ_TXT` | Analog Input (AI) | °C |
+| `CLN_BMS_RH_OBJ_TXT` | Analog Input (AI) | % RH |
+| `CLN_BMS_CO2_OBJ_TXT` | Analog Input (AI) | ppm |
+| `CLN_BMS_FAN_STATUS_OBJ_TXT` | Binary Input (BI) | 0 = off, 1 = running |
+
+The BACnet read-back runs in a background thread (30-second poll
+interval by default, configurable). On BACnet COV notification support
+the poll falls back to subscription (BACnet COV-Subscribe). The plugin
+never writes BACnet objects — read-only enforcement is in `BacnetReadback.cs`.
+
+### 19.5 OPC-UA node ref convention
+
+`CLN_MRI_QUENCH_OPC_TXT` and `CLN_MRI_CRYO_LEVEL_OPC_TXT` store OPC-UA
+Node IDs in the standard string form `ns=<namespace>;s=<identifier>` or
+`ns=<namespace>;i=<numeric-id>`. The `OpcUaReadback` client connects to
+the MRI manufacturer's OPC-UA server endpoint (configured at
+`<project>/_BIM_COORD/healthcare/iot_config.json`) and subscribes to
+these nodes. On quench detection (quench node transitions to `true`)
+the client raises an immediate `MRI_QUENCH` alert via
+`INotificationService` (no rate limit, no suppression).
+
+### 19.6 Push notification routing
+
+The `HEALTHCARE_ALERT_ROUTING.json` file is consumed by
+`Planscape.Server/src/Planscape.Infrastructure/Services/NotificationService.cs`
+via a healthcare-specific routing layer. At Phase H-20, the existing
+`INotificationService` is extended to accept an `alertId` parameter that
+looks up the routing table before dispatching FCM / APNs pushes. The
+Planscape mobile app's `notificationTapRouter.ts` is extended with
+healthcare alert deep-links (e.g. `MRI_QUENCH` → `healthcare/pressure-live`,
+`MGAS_ALARM` → `healthcare/mgas-checklist`).
 
 ---
 
