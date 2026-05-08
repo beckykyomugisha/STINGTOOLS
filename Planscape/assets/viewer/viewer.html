@@ -164,10 +164,11 @@
 
       <!-- Nav controls -->
       <div class="nav-controls">
-        <button class="nav-btn active" data-mode="orbit">◯ Orbit</button>
-        <button class="nav-btn" data-mode="pan">↖ Pan</button>
-        <button class="nav-btn" data-mode="walk">🚶 Walk</button>
-        <button class="nav-btn" data-mode="focus">⌖ Focus</button>
+        <button class="nav-btn active" data-mode="orbit" title="Orbit (drag to rotate)">◯ Orbit</button>
+        <button class="nav-btn" data-mode="pan"   title="Pan (drag to slide)">↖ Pan</button>
+        <button class="nav-btn" data-mode="walk"  title="First-person walk (W)">🚶 Walk</button>
+        <button class="nav-btn" data-mode="focus" title="Click model to set orbit pivot">⌖ Pivot</button>
+        <button class="nav-btn" id="btnFitView"   title="Zoom to fit (Space)">⛶ Fit</button>
       </div>
 
       <!-- Minimap -->
@@ -188,8 +189,14 @@
           <h2>Keyboard shortcuts</h2>
           <table>
             <tr><td>Esc</td><td>Deselect / close modal / clear highlight</td></tr>
-            <tr><td>Space</td><td>Reset camera (fit view)</td></tr>
+            <tr><td>Space / Home</td><td>Zoom to fit</td></tr>
+            <tr><td>Arrows</td><td>Pan camera (held = continuous)</td></tr>
+            <tr><td>Shift+Arrows</td><td>Orbit around pivot</td></tr>
+            <tr><td>PgUp / PgDn</td><td>Dolly in / out</td></tr>
             <tr><td>F</td><td>Focus camera on selected element</td></tr>
+            <tr><td>Click</td><td>(in Pivot mode) — set orbit pivot at clicked point</td></tr>
+            <tr><td>Dbl-click</td><td>Set orbit pivot anywhere on the model</td></tr>
+            <tr><td>Shift+Dbl</td><td>Frame the clicked element</td></tr>
             <tr><td>H</td><td>Hide / show selected</td></tr>
             <tr><td>I</td><td>Isolate selected (hide all others)</td></tr>
             <tr><td>A</td><td>Show all</td></tr>
@@ -424,7 +431,10 @@
   dir.position.set(5, 10, 3); scene.add(dir);
   scene.add(new THREE.AmbientLight(0xffffff, 0.15));
 
-  const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 10000);
+  // Near/far set conservatively here; fitCamera() recomputes them
+  // from the model bounds so survey-coordinated buildings (Revit's
+  // huge true-north offsets) don't get clipped.
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 1e7);
   camera.position.set(10, 10, 10);
 
   const renderer = new THREE.WebGLRenderer({
@@ -449,7 +459,18 @@
   sizeRenderer();
 
   const controls = new THREE.OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true; controls.dampingFactor = 0.08;
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  // ACC / Navisworks parity — wheel zooms toward the cursor (not the
+  // current orbit target). screenSpacePanning keeps drag-pan locked to
+  // the screen plane regardless of camera tilt.
+  controls.zoomToCursor      = true;
+  controls.screenSpacePanning = true;
+  controls.rotateSpeed = 0.9;
+  controls.zoomSpeed   = 1.2;
+  controls.panSpeed    = 1.0;
+  // Stop the user from rolling the camera under the model.
+  controls.maxPolarAngle = Math.PI * 0.95;
 
   const clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
   renderer.clippingPlanes = [];
@@ -512,14 +533,44 @@
     });
   }
 
-  function fitCamera() {
-    if (modelBounds.isEmpty()) return;
-    const size = modelBounds.getSize(new THREE.Vector3());
-    const centre = modelBounds.getCenter(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z);
+  function fitCamera(target) {
+    // 'target' lets callers fit to a sub-region (e.g. a single selected
+    // element's bounding box). Defaults to the whole-model bounds.
+    const box = target || modelBounds;
+    if (!box || box.isEmpty()) return;
+    const size = box.getSize(new THREE.Vector3());
+    const centre = box.getCenter(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z) || 1;
     const dist = maxDim * 1.8;
-    camera.position.copy(centre).add(new THREE.Vector3(dist, dist * 0.8, dist));
-    controls.target.copy(centre);
+    // Re-derive near/far from the actual bounds so Revit survey-coord
+    // models (origin 100s of km from world origin in mm units) don't
+    // clip. Far must comfortably exceed dist + the model diagonal.
+    camera.near = Math.max(maxDim * 0.001, 0.01);
+    camera.far  = Math.max(maxDim * 200, 1e6);
+    camera.updateProjectionMatrix();
+    // Ease-in animation so the user sees the transition (was an
+    // instant snap before — disorienting on big jumps).
+    const startPos = camera.position.clone();
+    const startTgt = controls.target.clone();
+    const endPos   = centre.clone().add(new THREE.Vector3(dist, dist * 0.8, dist));
+    const endTgt   = centre.clone();
+    const t0 = performance.now(), dur = 450;
+    (function tween() {
+      const k = Math.min(1, (performance.now() - t0) / dur);
+      const e = 0.5 - 0.5 * Math.cos(k * Math.PI);
+      camera.position.lerpVectors(startPos, endPos, e);
+      controls.target.lerpVectors(startTgt, endTgt, e);
+      controls.update();
+      if (k < 1) requestAnimationFrame(tween);
+    })();
+  }
+
+  // setOrbitPivot — moves the orbit target to a world-space point WITHOUT
+  // jumping the camera. Click-to-set-orbit-center calls this so subsequent
+  // wheel zoom + drag rotate happens around the clicked spot. ACC-style.
+  function setOrbitPivot(point) {
+    if (!point) return;
+    controls.target.copy(point);
     controls.update();
   }
 
