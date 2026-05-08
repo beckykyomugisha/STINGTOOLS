@@ -1762,7 +1762,53 @@
           if (pinHits.length) return;
         }
         const hits = ray.intersectObject(V.modelRoot, true);
-        if (hits.length) lastClickPoint = hits[0].point.clone();
+        if (hits.length) {
+          lastClickPoint = hits[0].point.clone();
+          // Focus / Pivot mode — clicking the model sets the orbit pivot
+          // (ACC-style). Subsequent wheel-zoom + drag-rotate happen
+          // around that point. Plain pick-mode handlers keep their job
+          // (element selection, properties tab, etc.).
+          if (state.activeNav === 'focus') {
+            V.controls.target.copy(lastClickPoint);
+            V.controls.update();
+            toast('Orbit pivot set', 'success');
+          }
+        }
+      });
+
+      // Double-click anywhere on the model — set orbit pivot regardless
+      // of the active nav mode. Mirrors the Navisworks "F" / ACC dbl-tap
+      // pattern. Frame-fit on dblclick of an element bounding box is
+      // routed through the engine's existing fit() command for
+      // consistency with the keyboard 'F' shortcut.
+      dom.addEventListener('dblclick', (e) => {
+        if (!V.modelRoot) return;
+        const r = dom.getBoundingClientRect();
+        ptr.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+        ptr.y = -((e.clientY - r.top) / r.height) * 2 + 1;
+        ray.setFromCamera(ptr, V.camera);
+        const hits = ray.intersectObject(V.modelRoot, true);
+        if (!hits.length) return;
+        // Shift+dblclick → fit camera to the clicked element's bounding
+        // box (instead of just setting pivot). Useful for jumping to
+        // small components inside a huge model.
+        if (e.shiftKey) {
+          const m = hits[0].object;
+          if (m && m.isMesh) {
+            const bb = new THREE_.Box3().setFromObject(m);
+            // Re-use the engine's fitCamera by calling it through the
+            // bridge with a synthetic 'fit' command — the engine reads
+            // modelBounds, so we temporarily widen it. Cleaner: call
+            // fitCamera(bb) directly via the exposed STING_VIEWER if
+            // available.
+            try { (window.STING_VIEWER && window.STING_VIEWER.fitCamera ? window.STING_VIEWER.fitCamera : null)?.(bb); }
+            catch (_) {}
+            return;
+          }
+        }
+        V.controls.target.copy(hits[0].point);
+        V.controls.update();
+        toast('Orbit pivot set', 'success');
       });
       // R13 — drop the standalone pin-click raycaster. The engine already
       // raycasts pinGroup on every click and emits 'pinTap' via the
@@ -1849,8 +1895,13 @@
       const defaultButtons = V.controls.mouseButtons
         ? Object.assign({}, V.controls.mouseButtons)
         : null;
-      $$('.nav-btn').forEach(b => b.addEventListener('click', () => {
-        $$('.nav-btn').forEach(x => x.classList.remove('active'));
+      // Fit View — action button, NOT a mode. Don't change active state.
+      $('#btnFitView')?.addEventListener('click', () => {
+        handleHostCommand({ type: 'fit' });
+        toast('Zoomed to fit', 'success');
+      });
+      $$('.nav-btn[data-mode]').forEach(b => b.addEventListener('click', () => {
+        $$('.nav-btn[data-mode]').forEach(x => x.classList.remove('active'));
         b.classList.add('active');
         const m = b.dataset.mode;
         state.activeNav = m;
@@ -2153,6 +2204,11 @@
         placeIssuePins();
         placeClashPins();
         buildLevelStrip();           // re-run with real bounds for Y bands
+        // Auto-fit on first model load — Revit survey-coord models can
+        // have huge XY offsets (135 km in test data) which leave the
+        // default camera (10,10,10) outside the model entirely. fit
+        // recomputes camera near/far from bounds in the same call.
+        handleHostCommand({ type: 'fit' });
         clearInterval(bootObserver);
         // B1 — GLTFLoader has consumed the blob URL, free it now to avoid
         // pinning the original GLB bytes in memory for the rest of the
