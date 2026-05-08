@@ -1,0 +1,63 @@
+#!SCHEMA_VERSION=5.0
+# STING_TAG_CONFIG_v5_0_HEALTH.csv
+# Healthcare Pack — Tag families across H/MG/RP disciplines
+# Phase H-1, branch claude/research-hospital-design-0Uxbi
+# Format: TagFamilyName,TagDiscipline,Category,RoomBound,DefaultLabel,Description
+TAG_FAMILY,STING - Clinical Room Tag,H,Rooms,1,CLN_ROOM_CLASS_TXT,Clinical room class label
+TAG_FAMILY,STING - Pressure Regime Tag,H,Rooms,1,CLN_PRESS_REGIME_TXT,Pressure cascade arrow + Δp
+TAG_FAMILY,STING - Infection Class Tag,H,Rooms,1,CLN_INFECT_CLASS_TXT,AIIR/PE banner
+TAG_FAMILY,STING - MRI Zone Tag,H,Generic Models,0,CLN_MRI_ZONE_INT,MRI Z1..Z4 zoning marker
+TAG_FAMILY,STING - Anti-Ligature Tag,H,Doors,0,LIG_PRODUCT_RATING_TXT,Anti-ligature fitting rating
+TAG_FAMILY,STING - Anti-Ligature Tag,H,Plumbing Fixtures,0,LIG_PRODUCT_RATING_TXT,Anti-ligature fitting rating
+TAG_FAMILY,STING - Anti-Ligature Tag,H,Lighting Fixtures,0,LIG_PRODUCT_RATING_TXT,Anti-ligature fitting rating
+TAG_FAMILY,STING - Bedhead Trunking Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,Bedhead trunking/services unit
+TAG_FAMILY,STING - Pendant Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,Operating room / ICU pendant
+TAG_FAMILY,STING - Scrub Trough Tag,H,Plumbing Fixtures,0,CEQ_CATEGORY_TXT,Pre-operative scrub trough
+TAG_FAMILY,STING - Hoist Track Tag,H,Generic Models,0,CLN_HOIST_TRACK_BOOL,Ceiling hoist track
+TAG_FAMILY,STING - Bariatric Tag,H,Rooms,1,CLN_BARI_DESIGN_KG_NR,Bariatric SWL marker
+TAG_FAMILY,STING - Nurse Call Tag,H,Specialty Equipment,0,CLN_NURSECALL_TYPE_TXT,Nurse call station/post
+TAG_FAMILY,STING - Crash Cart Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,Crash cart location
+TAG_FAMILY,STING - AED Cabinet Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,AED cabinet
+TAG_FAMILY,STING - Hand-Rub Dispenser Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,Hand-rub dispenser
+TAG_FAMILY,STING - PTS Station Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,Pneumatic tube station
+TAG_FAMILY,STING - AGV Dock Tag,H,Generic Models,0,CEQ_CATEGORY_TXT,AGV docking point
+TAG_FAMILY,STING - Mortuary Fridge Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,Mortuary refrigeration
+TAG_FAMILY,STING - Imaging Modality Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,CT/MRI/X-ray/PET/Linac
+TAG_FAMILY,STING - Dialysis Station Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,Dialysis chair / RO drop
+TAG_FAMILY,STING - Incubator Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,Neonatal incubator
+TAG_FAMILY,STING - Warming Cot Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,Warming cot
+TAG_FAMILY,STING - Autoclave Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,Sterilizer / autoclave
+TAG_FAMILY,STING - Washer Disinfector Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,Washer-disinfector (HSDU)
+TAG_FAMILY,STING - Bedpan Washer Tag,H,Plumbing Fixtures,0,CEQ_CATEGORY_TXT,Bedpan washer
+TAG_FAMILY,STING - Patient Monitor Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,Patient monitoring device
+TAG_FAMILY,STING - Medical Refrigerator Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,Medical refrigerator (pharmacy / lab)
+TAG_FAMILY,STING - Pharmacy Isolator Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,USP <797> / <800> isolator
+TAG_FAMILY,STING - Operating Light Tag,H,Lighting Fixtures,0,CEQ_CATEGORY_TXT,Operating room surgical light
+TAG_FAMILY,STING - Examination Light Tag,H,Lighting Fixtures,0,CEQ_CATEGORY_TXT,Mobile / mounted exam light
+TAG_FAMILY,STING - HBO Chamber Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,Hyperbaric oxygen chamber
+TAG_FAMILY,STING - Birth Pool Tag,H,Plumbing Fixtures,0,CEQ_CATEGORY_TXT,Maternity birthing pool
+TAG_FAMILY,STING - IVF Workstation Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,IVF / ART laminar flow workstation
+TAG_FAMILY,STING - Cytotoxic Hood Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,Cytotoxic compounding hood
+TAG_FAMILY,STING - Lab Fume Hood Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,Laboratory fume hood (pathology)
+TAG_FAMILY,STING - Biosafety Cabinet Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,BSC Class II/III
+TAG_FAMILY,STING - Endoscope Reprocessor Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,Endoscope reprocessor (HTM 01-06)
+TAG_FAMILY,STING - Surgical Robot Bay Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,Surgical robot envelope
+TAG_FAMILY,STING - RTLS Reader Tag,H,Specialty Equipment,0,CEQ_CATEGORY_TXT,Real-time location reader
+TAG_FAMILY,STING - Medical Gas Pipeline Tag,MG,Pipes,0,MGS_GAS_TYPE_TXT,MGPS pipework
+TAG_FAMILY,STING - Medical Gas Terminal Unit Tag,MG,Plumbing Fixtures,0,MGS_GAS_TYPE_TXT,BS 5682 terminal unit
+TAG_FAMILY,STING - Zone Valve Box Tag,MG,Pipe Accessories,0,MGS_ZVB_REF_TXT,MGPS zone valve box
+TAG_FAMILY,STING - Area Alarm Panel Tag,MG,Plumbing Fixtures,0,MGS_AAP_REF_TXT,MGPS area alarm panel
+TAG_FAMILY,STING - Master Alarm Panel Tag,MG,Plumbing Fixtures,0,MGS_AAP_REF_TXT,MGPS master alarm panel
+TAG_FAMILY,STING - Manifold Tag,MG,Mechanical Equipment,0,MGS_GAS_TYPE_TXT,MGPS manifold / cylinder bank
+TAG_FAMILY,STING - VIE Tag,MG,Mechanical Equipment,0,MGS_GAS_TYPE_TXT,Vacuum Insulated Evaporator (LOX)
+TAG_FAMILY,STING - Medical Air Plant Tag,MG,Mechanical Equipment,0,MGS_GAS_TYPE_TXT,Medical air compressor plant
+TAG_FAMILY,STING - Medical Vacuum Plant Tag,MG,Mechanical Equipment,0,MGS_GAS_TYPE_TXT,Medical vacuum pump plant
+TAG_FAMILY,STING - AGS Plant Tag,MG,Mechanical Equipment,0,MGS_GAS_TYPE_TXT,AGS receiver plant
+TAG_FAMILY,STING - X-ray Barrier Tag,RP,Walls,0,RAD_LEAD_MM_NR,X-ray shielded wall (mm Pb)
+TAG_FAMILY,STING - X-ray Door Tag,RP,Doors,0,RAD_LEAD_MM_NR,X-ray shielded door (mm Pb)
+TAG_FAMILY,STING - X-ray Window Tag,RP,Windows,0,RAD_LEAD_MM_NR,X-ray viewing window (mm Pb)
+TAG_FAMILY,STING - Linac Maze Tag,RP,Walls,0,RAD_LEAD_MM_NR,LINAC maze barrier
+TAG_FAMILY,STING - MRI Faraday Cage Tag,RP,Walls,0,CLN_RF_SHIELD_BOOL,MRI Faraday cage panel
+TAG_FAMILY,STING - 5-Gauss Marker Tag,RP,Generic Models,0,CLN_MRI_ZONE_INT,MRI 5-Gauss boundary marker
+TAG_FAMILY,STING - Controlled Area Sign Tag,RP,Generic Models,0,RAD_DOSE_DESIGN_GOAL_TXT,Controlled / supervised area signage
+TAG_FAMILY,STING - Dosimetry Post Tag,RP,Generic Models,0,RAD_DOSE_DESIGN_GOAL_TXT,Dosimetry monitoring post
