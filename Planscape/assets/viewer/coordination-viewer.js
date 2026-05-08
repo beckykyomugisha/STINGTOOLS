@@ -85,7 +85,9 @@
       levelBands: [],
       activeNav: 'orbit',
       issuesFilter: 'all',
-      clashesFilter: 'all',
+      // X1 — clash filters are now two independent axes.
+      clashStatusFilter: 'any',  // any | NEW | OPEN | RESOLVED
+      clashTypeFilter:   'any',  // any | HARD | SOFT
       currentUser: null,
       bottomTab: 'clashes',
       rightTab: 'properties',
@@ -101,12 +103,21 @@
 
     // ── API helpers ─────────────────────────────────────────────────────
     let authChallenged = false;   // toast 401 once per session
+    const API_TIMEOUT_MS = 12000;
     async function api(path, opts = {}) {
       if (!apiEnabled) return null;        // C2 — short-circuit on file:// / RN
       const headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
       if (token) headers['Authorization'] = `Bearer ${token}`;
+      // T1 — multi-tenant: forward the user's selected tenant (if any).
+      const tenantId = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_tenant')) || '';
+      if (tenantId) { headers['X-Tenant'] = tenantId; state.tenantId = tenantId; }
+      // B11 — abort the request after 12s so a hung backend doesn't leave
+      // spinners stuck forever. Each call gets its own controller.
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
       try {
-        const res = await fetch(`${apiBase}${path}`, Object.assign({}, opts, { headers }));
+        const res = await fetch(`${apiBase}${path}`,
+          Object.assign({ signal: controller.signal }, opts, { headers }));
         if (res.status === 401 && !authChallenged) {
           authChallenged = true;
           // U8 — toast immediately, then redirect to /login after a short
@@ -125,8 +136,11 @@
         const ct = res.headers.get('content-type') || '';
         return ct.includes('application/json') ? res.json() : res.text();
       } catch (err) {
-        console.warn('[coord] api', path, err.message);
+        const aborted = err && err.name === 'AbortError';
+        console.warn('[coord] api', path, aborted ? 'timeout' : err.message);
         return null;
+      } finally {
+        clearTimeout(timer);
       }
     }
 
@@ -178,6 +192,7 @@
     renderProperties(null);
     renderHistory();
     updateBadges();
+    updateRightTabCounts();              // X2 — initial empty counts
 
     // ── Bootstrap data ─────────────────────────────────────────────────
     bootstrap().catch(e => console.error('[coord] bootstrap', e));
@@ -236,9 +251,26 @@
       buildLevelStrip();
 
       // Load model GLB
+      // B1 — security: never put the JWT in the query string. Fetch the
+      // GLB as a blob with a normal Authorization header, then hand
+      // GLTFLoader a blob URL. This keeps the token out of browser
+      // history, server access logs, and the Referer header.
       if (projectId && modelId) {
-        const fileUrl = `${apiBase}/api/projects/${projectId}/models/${modelId}/file${token ? `?access_token=${encodeURIComponent(token)}` : ''}`;
-        handleHostCommand({ type: 'load', payload: { url: fileUrl } });
+        const fileUrl = `${apiBase}/api/projects/${projectId}/models/${modelId}/file`;
+        try {
+          const headers = {};
+          if (token) headers['Authorization'] = `Bearer ${token}`;
+          if (state.tenantId) headers['X-Tenant'] = state.tenantId;
+          const res = await fetch(fileUrl, { headers, cache: 'no-store' });
+          if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+          const blob = await res.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          state.lastBlobUrl = blobUrl;
+          handleHostCommand({ type: 'load', payload: { url: blobUrl } });
+        } catch (err) {
+          console.warn('[coord] GLB fetch failed', err);
+          toast('Failed to load model file', 'error');
+        }
       }
 
       // Issues + clashes
@@ -657,6 +689,17 @@
       V.camera.position.fromArray(s.camPos);
       V.controls.target.fromArray(s.camTarget);
       V.controls.update();
+      // B5 — restore the full snapshot, not just camera. Disciplines +
+      // levels are re-applied via the same chip / pill click flow so
+      // visibility + ghost states match exactly.
+      if (Array.isArray(s.disciplines)) {
+        $$('.disc-chip').forEach(c => c.classList.toggle('active', s.disciplines.includes(c.dataset.disc)));
+        applyDisciplineFilter(s.disciplines);
+      }
+      if (Array.isArray(s.levels)) {
+        $$('.level-pill').forEach(p => p.classList.toggle('active', s.levels.includes(p.dataset.lvl)));
+        applyLevelFilter();
+      }
     }
     function renderSavedViews() {
       const list = $('#savedViewsList');
@@ -749,7 +792,7 @@
         </div>`;
       $('#commentSubmit').addEventListener('click', () => postComment(issueId));
       $('#commentAttach').addEventListener('click', () => {
-        const b64 = V.renderer.domElement.toDataURL('image/png');
+        const b64 = downscaleScreenshot(V.renderer.domElement, 1280, 0.85);
         const ta = $('#commentInput');
         ta.value = (ta.value ? ta.value + '\n\n' : '') + '[screenshot attached]';
         ta.dataset.attachment = b64;
@@ -796,6 +839,11 @@
       list.push(created);
       commentsCache.set(issueId, list);
       renderComments();
+      updateRightTabCounts();            // X2
+      // X9 (light) — auto-scroll the freshly rendered list to the bottom
+      // so the new message is visible without manual scrolling.
+      const listEl = $('#commentsList');
+      if (listEl) listEl.scrollTop = listEl.scrollHeight;
     }
 
     // ── Properties tab ─────────────────────────────────────────────────
@@ -991,25 +1039,44 @@
       return c1;
     }
 
+    // B7 — build a GUID→mesh index once per model load instead of doing
+    // a full traverse on every clash / pin / focus call. Reduces the
+    // 12-clash × 4000-mesh placement cost from ~96k traversals to ~24
+    // hash lookups.
+    const guidIndex = new Map();
+    function rebuildGuidIndex() {
+      guidIndex.clear();
+      if (!V.modelRoot) return;
+      V.modelRoot.traverse(obj => {
+        if (obj.isMesh && obj.userData.elementGuid) {
+          guidIndex.set(obj.userData.elementGuid, obj);
+        }
+      });
+    }
     function findMeshByGuid(guid) {
-      if (!guid || !V.modelRoot) return null;
+      if (!guid) return null;
+      const cached = guidIndex.get(guid);
+      if (cached) return cached;
+      // Lazy fallback for the rare case where the index was built before
+      // a glTF added meshes (e.g., federation deferred-load).
+      if (!V.modelRoot) return null;
       let found = null;
       V.modelRoot.traverse(obj => {
         if (!found && obj.isMesh && obj.userData.elementGuid === guid) found = obj;
       });
+      if (found) guidIndex.set(guid, found);
       return found;
     }
 
     function renderClashes() {
       // Bottom-panel table
       const body = $('#clashesBody');
-      const filter = state.clashesFilter;
+      // X1 — combine the two independent axes; "any" means don't filter
+      // on that axis. Coordinators can now pick e.g. "Hard New".
+      const sf = state.clashStatusFilter, tf = state.clashTypeFilter;
       let rows = state.clashes;
-      if (filter === 'new')      rows = rows.filter(c => c.status === 'NEW');
-      else if (filter === 'open') rows = rows.filter(c => c.status === 'OPEN');
-      else if (filter === 'resolved') rows = rows.filter(c => c.status === 'RESOLVED');
-      else if (filter === 'hard') rows = rows.filter(c => c.type === 'HARD');
-      else if (filter === 'soft') rows = rows.filter(c => c.type === 'SOFT');
+      if (sf !== 'any') rows = rows.filter(c => c.status === sf);
+      if (tf !== 'any') rows = rows.filter(c => c.type === tf);
 
       body.innerHTML = rows.length ? '' : '<div class="empty-state">No clashes match the filter</div>';
       if (rows.length) {
@@ -1039,8 +1106,10 @@
             if (e.target.closest('button')) return;
             focusClash(c);
           });
-          $('button[data-act=view]', tr).addEventListener('click', () => focusClash(c));
-          $('button[data-act=issue]', tr).addEventListener('click', () => openIssueModal({ clash: c }));
+          // B3 — stopPropagation so clicking "→ Issue" doesn't ALSO fire
+          // the row's focusClash and fly the camera away from the modal.
+          $('button[data-act=view]', tr).addEventListener('click', (e) => { e.stopPropagation(); focusClash(c); });
+          $('button[data-act=issue]', tr).addEventListener('click', (e) => { e.stopPropagation(); openIssueModal({ clash: c }); });
           tbody.appendChild(tr);
         });
         body.appendChild(table);
@@ -1051,6 +1120,7 @@
       $('#clashesOpen').textContent = state.clashes.filter(c => c.status === 'OPEN').length;
       $('#clashesResolved').textContent = state.clashes.filter(c => c.status === 'RESOLVED').length;
       renderRightClashes();
+      updateRightTabCounts();
     }
 
     function renderRightClashes() {
@@ -1193,6 +1263,7 @@
       $('#issuesMine').textContent = state.issues.filter(i => i.assigneeId === 'me').length;
       $('#issuesOverdue').textContent = state.issues.filter(i => i.slaBreached || (i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'RESOLVED')).length;
       renderRightIssues();
+      updateRightTabCounts();
     }
 
     function renderRightIssues() {
@@ -1243,6 +1314,7 @@
       const tab = $('.tab-bar .tab[data-tab=issues]'); tab?.click();
       // U2 — if Comments tab is active, refresh thread for the new issue.
       if (state.rightTab === 'comments') renderComments();
+      updateRightTabCounts();            // X2
       logHistory(`Inspected ${i.code || i.id}`);
     }
 
@@ -1290,6 +1362,15 @@
       const sel = $('#imAssignee');
       sel.innerHTML = '<option value="">— Unassigned —</option>' +
         state.members.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+
+      // B12 — focus the title field so the user can start typing
+      // immediately, and remember the previously focused element so we
+      // can restore it on close.
+      modal.dataset.open = '1';
+      modal.dataset.returnFocus = '';
+      const prev = document.activeElement;
+      if (prev && prev !== document.body) modal.dataset.returnFocusId = prev.id || '';
+      setTimeout(() => $('#imTitle')?.focus(), 30);
     }
 
     function renderLinkedElements(arr) {
@@ -1310,10 +1391,26 @@
     }
 
     function setupModalHandlers() {
-      $('#imClose').addEventListener('click', () => $('#issueModal').classList.remove('open'));
-      $('#imCancel').addEventListener('click', () => $('#issueModal').classList.remove('open'));
-      $('#issueModal').addEventListener('click', (e) => {
-        if (e.target.id === 'issueModal') $('#issueModal').classList.remove('open');
+      const modal = $('#issueModal');
+      const closeModal = () => { modal.classList.remove('open'); modal.dataset.open = ''; };
+      $('#imClose').addEventListener('click', closeModal);
+      $('#imCancel').addEventListener('click', closeModal);
+      modal.addEventListener('click', (e) => {
+        if (e.target.id === 'issueModal') closeModal();
+      });
+      // B12 — focus trap + Esc close. The global Esc handler intentionally
+      // skips when the modal is open so dismissing the modal doesn't also
+      // wipe the user's selection / highlights.
+      modal.addEventListener('keydown', (e) => {
+        if (!modal.classList.contains('open')) return;
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeModal(); return; }
+        if (e.key !== 'Tab') return;
+        const focusables = $$('input, textarea, select, button, [tabindex]:not([tabindex="-1"])', modal)
+          .filter(el => !el.disabled && el.offsetParent !== null);
+        if (!focusables.length) return;
+        const first = focusables[0], last = focusables[focusables.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
       });
       $$('#imPriority .choice').forEach(c => c.addEventListener('click', () => {
         $$('#imPriority .choice').forEach(x => x.classList.remove('active'));
@@ -1324,7 +1421,11 @@
         c.classList.add('active');
       }));
       $('#imScreenshotBtn').addEventListener('click', () => {
-        const b64 = V.renderer.domElement.toDataURL('image/png');
+        // B14 — downscale to <= 1280px wide JPEG before posting. A raw 4K
+        // PNG can hit 8-12 MB base64; the issues endpoint and Postgres
+        // bytea column don't enjoy that. JPEG q=0.85 keeps screenshots
+        // legible while staying well under 500 KB.
+        const b64 = downscaleScreenshot(V.renderer.domElement, 1280, 0.85);
         const wrap = $('#imScreenshot');
         wrap.innerHTML = `<img src="${b64}" alt="screenshot"/>`;
         wrap.dataset.b64 = b64;
@@ -1385,10 +1486,17 @@
       $('#btnExportIssues').addEventListener('click', exportIssuesCsv);
       $('#btnNewIssue').addEventListener('click', () => openIssueModal());
 
-      $$('#clashFilters .filter-btn').forEach(b => b.addEventListener('click', () => {
-        $$('#clashFilters .filter-btn').forEach(x => x.classList.remove('active'));
+      // X1 — bind status + type axes independently.
+      $$('#clashStatusFilters .filter-btn').forEach(b => b.addEventListener('click', () => {
+        $$('#clashStatusFilters .filter-btn').forEach(x => x.classList.remove('active'));
         b.classList.add('active');
-        state.clashesFilter = b.dataset.f;
+        state.clashStatusFilter = b.dataset.status;
+        renderClashes();
+      }));
+      $$('#clashTypeFilters .filter-btn').forEach(b => b.addEventListener('click', () => {
+        $$('#clashTypeFilters .filter-btn').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        state.clashTypeFilter = b.dataset.type;
         renderClashes();
       }));
       $$('#issueFilters .filter-btn').forEach(b => b.addEventListener('click', () => {
@@ -1404,7 +1512,11 @@
       $$('.bottom-pane').forEach(p => p.classList.toggle('active', p.id === 'bp-' + name));
       $$('#bottomPanel .filter-row').forEach(r => r.style.display = (r.id === 'fr-' + name) ? '' : 'none');
       if (name === 'timeline') renderTimeline();
+      // B4 — keep the .viewport-wrap.bp-collapsed class in sync with the
+      // actual bottom-panel state, so the level strip / nav controls /
+      // coord readout / minimap don't end up floating mid-air.
       $('#bottomPanel').classList.remove('collapsed');
+      $('.viewport-wrap')?.classList.remove('bp-collapsed');
       onResize();
     }
 
@@ -1419,8 +1531,15 @@
       downloadCsv('issues.csv', rows);
     }
     function downloadCsv(name, rows) {
-      const blob = new Blob([rows.map(r => r.map(x => `"${String(x ?? '').replace(/"/g, '""')}"`).join(',')).join('\n')], { type: 'text/csv' });
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+      // B10 — UTF-8 BOM so Excel renders mm/° and accented assignee names
+      // correctly instead of garbling them as Windows-1252.
+      // B9 — revoke the object URL after the synthetic click so the blob
+      // isn't pinned in memory until the tab closes.
+      const csv = '﻿' + rows.map(r => r.map(x => `"${String(x ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = name; a.click();
+      setTimeout(() => { try { URL.revokeObjectURL(url); } catch (_) {} }, 0);
     }
 
     function renderTimeline() {
@@ -1549,6 +1668,7 @@
         if (type === 'pick' && payload && payload.guid) {
           state.selectedElementGuid = payload.guid;
           renderProperties(payload.guid);
+          updateRightTabCounts();          // X2
         }
         return origSend.call(V.bridge, type, payload);
       };
@@ -1564,6 +1684,7 @@
         emissive(m, 0xF97316);
       }
       renderProperties(guid);
+      updateRightTabCounts();            // X2
     }
 
     function setupMinimap() {
@@ -1639,20 +1760,26 @@
 
     function setRenderMode(mode) {
       if (!V.modelRoot) return;
+      // B8 — dispose the previous replacement before swapping in a new
+      // one, otherwise toggling shaded → wire → xray → ghost a few times
+      // leaks N MeshStandardMaterial allocations on the GPU per cycle.
       V.modelRoot.traverse(o => {
         if (!o.isMesh) return;
         if (!o.userData._origMat) o.userData._origMat = o.material;
         const orig = o.userData._origMat;
-        if (mode === 'shaded') {
-          o.material = orig;
-        } else if (mode === 'wire') {
-          o.material = new THREE_.MeshBasicMaterial({ color: 0x60A5FA, wireframe: true });
-        } else if (mode === 'xray') {
-          o.material = new THREE_.MeshStandardMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.25, depthWrite: false });
-        } else if (mode === 'ghost') {
-          o.material = new THREE_.MeshStandardMaterial({ color: 0x888888, transparent: true, opacity: 0.35, depthWrite: false });
+        const prev = o.material;
+        let next;
+        if (mode === 'shaded') next = orig;
+        else if (mode === 'wire')  next = new THREE_.MeshBasicMaterial({ color: 0x60A5FA, wireframe: true });
+        else if (mode === 'xray')  next = new THREE_.MeshStandardMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.25, depthWrite: false });
+        else if (mode === 'ghost') next = new THREE_.MeshStandardMaterial({ color: 0x888888, transparent: true, opacity: 0.35, depthWrite: false });
+        else next = orig;
+        if (prev && prev !== orig && prev !== next && typeof prev.dispose === 'function') {
+          try { prev.dispose(); } catch (_) {}
         }
+        o.material = next;
       });
+      state.renderMode = mode;
       toast('View: ' + mode);
     }
 
@@ -1683,12 +1810,18 @@
       document.addEventListener('keydown', (e) => {
         if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
         const k = e.key;
+        // B12 — when the modal is open, its own keydown handler owns Esc
+        // (and Tab) so dismissing it doesn't also wipe the user's
+        // selection / highlights.
+        if ($('#issueModal')?.classList.contains('open')) return;
         if (k === 'Escape') {
-          $('#issueModal').classList.remove('open');
           $('.help-overlay').classList.remove('open');
           handleHostCommand({ type: 'clearHighlight' });
           clearAllHighlights();          // L6
-          state.selectedElementGuid = null; renderProperties(null);
+          state.selectedElementGuid = null;
+          state.selectedIssueId = null;
+          renderProperties(null);
+          updateRightTabCounts();        // X2
         } else if (k === 'f' || k === 'F') {
           if (state.selectedElementGuid) selectElementByGuid(state.selectedElementGuid);
         } else if (k === 'h' || k === 'H') {
@@ -1746,15 +1879,38 @@
       const bl = $('#bootLoader'); if (bl) bl.style.display = 'none';
     }
 
+    // B14 — shared screenshot helper. Source canvas is the live WebGL
+    // canvas; we draw it into a 2D canvas at the target width and emit
+    // JPEG. Returns a data URL.
+    function downscaleScreenshot(srcCanvas, maxWidth, quality) {
+      try {
+        const sw = srcCanvas.width, sh = srcCanvas.height;
+        if (!sw || !sh) return srcCanvas.toDataURL('image/png');
+        const scale = Math.min(1, maxWidth / sw);
+        const tw = Math.round(sw * scale), th = Math.round(sh * scale);
+        const c = document.createElement('canvas');
+        c.width = tw; c.height = th;
+        c.getContext('2d').drawImage(srcCanvas, 0, 0, tw, th);
+        return c.toDataURL('image/jpeg', quality || 0.85);
+      } catch (_) {
+        return srcCanvas.toDataURL('image/png');
+      }
+    }
+
     function takeScreenshot() {
-      const b64 = V.renderer.domElement.toDataURL('image/png');
-      const a = document.createElement('a'); a.href = b64; a.download = `${state.modelName || 'view'}-${Date.now()}.png`; a.click();
+      const b64 = downscaleScreenshot(V.renderer.domElement, 2560, 0.92);
+      const a = document.createElement('a');
+      a.href = b64;
+      a.download = `${state.modelName || 'view'}-${Date.now()}.jpg`;
+      a.click();
       toast('Screenshot saved', 'success');
     }
     function shareCurrentView() {
+      // B2 — route through copyText so non-secure contexts (file://, old
+      // WebView) get the textarea + execCommand fallback instead of a
+      // silent no-op + a misleading "copied" toast.
       const url = `${location.origin}${location.pathname}?project=${projectId}&model=${modelId}`;
-      navigator.clipboard?.writeText(url);
-      toast('View URL copied to clipboard', 'success');
+      copyText(url);
     }
 
     // ── Connectivity heartbeat (U6) ────────────────────────────────────
@@ -1797,6 +1953,28 @@
       document.addEventListener('visibilitychange', () => { if (!document.hidden) ping(); });
     }
 
+    // X2 — right-panel tab counts. Numbers reflect what's relevant to
+    // the selected element when one is selected, else the totals.
+    function updateRightTabCounts() {
+      const guid = state.selectedElementGuid;
+      const cl = guid
+        ? state.clashes.filter(c => c.elementA?.guid === guid || c.elementB?.guid === guid)
+        : state.clashes;
+      const is = guid
+        ? state.issues.filter(i => Array.isArray(i.elementGuids) && i.elementGuids.includes(guid))
+        : state.issues.filter(i => i.status !== 'RESOLVED');
+      const cmnt = state.selectedIssueId
+        ? (commentsCache.get(state.selectedIssueId)?.length || 0)
+        : 0;
+      const set = (id, n) => {
+        const e = $('#' + id); if (!e) return;
+        e.textContent = n ? `(${n})` : '';
+      };
+      set('rightTabClashesCount',  cl.length);
+      set('rightTabIssuesCount',   is.length);
+      set('rightTabCommentsCount', cmnt);
+    }
+
     function updateBadges() {
       const newClashes = state.clashes.filter(c => c.status === 'NEW').length;
       const totalClashes = state.clashes.length;
@@ -1833,12 +2011,27 @@
         bootRan = true;
         $('#bootLoader')?.style.setProperty('display', 'none');
         invalidateCentroidCache();   // L7 — fresh model, fresh cache
+        rebuildGuidIndex();          // B7 — GUID→mesh map for fast lookups
         placeIssuePins();
         placeClashPins();
         buildLevelStrip();           // re-run with real bounds for Y bands
         clearInterval(bootObserver);
+        // B1 — GLTFLoader has consumed the blob URL, free it now to avoid
+        // pinning the original GLB bytes in memory for the rest of the
+        // session.
+        if (state.lastBlobUrl) {
+          try { URL.revokeObjectURL(state.lastBlobUrl); } catch (_) {}
+          state.lastBlobUrl = null;
+        }
       }
     }, 400);
+
+    // B15 — clean up timers and blob URLs on unload.
+    window.addEventListener('beforeunload', () => {
+      if (state.lastBlobUrl) try { URL.revokeObjectURL(state.lastBlobUrl); } catch (_) {}
+      if (presentTimer) clearInterval(presentTimer);
+      if (state.heartbeatTimer) clearInterval(state.heartbeatTimer);
+    });
 
     // First paint
     setTimeout(onResize, 100);
