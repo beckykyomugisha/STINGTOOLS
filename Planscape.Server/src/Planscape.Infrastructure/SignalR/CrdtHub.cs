@@ -103,17 +103,20 @@ public class CrdtHub : Hub
     {
         if (string.IsNullOrWhiteSpace(docKey)) return null;
 
+        // Plain string ops here so we don't need C# 13's "ref-struct in
+        // async" feature. The docKeys are short (≤ 50 chars) so the two
+        // small string allocations are irrelevant.
         if (docKey.StartsWith("project:", StringComparison.Ordinal))
         {
-            var afterPrefix = docKey.AsSpan(8);
-            var sep = afterPrefix.IndexOf(':');
-            var guidPart = sep >= 0 ? afterPrefix[..sep].ToString() : afterPrefix.ToString();
+            var rest = docKey.Substring(8);
+            var sep = rest.IndexOf(':');
+            var guidPart = sep >= 0 ? rest.Substring(0, sep) : rest;
             return Guid.TryParse(guidPart, out var pid) ? pid : null;
         }
 
         if (docKey.StartsWith("issue:", StringComparison.Ordinal))
         {
-            var guidPart = docKey.AsSpan(6).ToString();
+            var guidPart = docKey.Substring(6);
             if (!Guid.TryParse(guidPart, out var iid)) return null;
             return await _db.Issues.AsNoTracking()
                 .Where(i => i.Id == iid)

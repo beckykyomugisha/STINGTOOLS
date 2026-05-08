@@ -107,6 +107,23 @@ if [[ "$errors" -gt 0 ]]; then
   die "$errors required env var(s) missing or invalid — edit $ENV_FILE"
 fi
 
+# ── tool-manifest restore (idempotent) ───────────────────────────────
+# `dotnet ef` is pinned in Planscape.Server/.config/dotnet-tools.json as
+# a local tool. The discovery logic walks UP from the current directory
+# looking for .config/dotnet-tools.json, so all dotnet calls below run
+# from $SCRIPT_DIR to make sure the manifest is found regardless of
+# where the user invoked the script. ensure_tools() restores the local
+# tools the first time (or any time the .NET CLI says they're missing),
+# so users don't have to remember a separate `dotnet tool restore` step.
+ensure_tools() {
+  pushd "$SCRIPT_DIR" >/dev/null
+  if ! dotnet tool list 2>/dev/null | grep -qi 'dotnet-ef'; then
+    info "Installing pinned local tools (dotnet-ef)…"
+    dotnet tool restore
+  fi
+  popd >/dev/null
+}
+
 # ── dispatch ─────────────────────────────────────────────────────────
 cmd="${1:-migrate}"
 case "$cmd" in
@@ -117,15 +134,18 @@ case "$cmd" in
     ;;
 
   migrate)
+    ensure_tools
     info "Applying EF Core migrations…"
     # Use the direct (non-pooled) connection string for DDL — same trick
     # docker/migrate.sh uses in production.
     if [[ -n "${ConnectionStrings__Migrations:-}" ]]; then
       export ConnectionStrings__Default="$ConnectionStrings__Migrations"
     fi
+    pushd "$SCRIPT_DIR" >/dev/null
     dotnet ef database update \
       --project "$INFRA" \
       --startup-project "$API"
+    popd >/dev/null
     ok "Migrations applied"
     ;;
 
