@@ -2,6 +2,72 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 183 — Style-Pack template fallback + pattern-dialog refresh + corporate JSON alignment)
+
+Closes three reported gaps in the Drawing Template Manager surfaced by
+field testing of the editor:
+
+**1. Pack-template fallback was documented but never wired.** Phase 136
+added `viewTemplate` / `packDetailLevel` / `scaleHint` / `colorScheme`
+to `ViewStylePack` so a pack could supply defaults for any DrawingType
+that left those slots blank, but `DrawingTypePresentation.Apply` never
+read them — only managed-mode (Phase 137) packs influenced the view
+template. Profiles that didn't set their own template ended up with no
+template at all. Fixed by resolving the bound pack up-front in
+`Apply()`, then deriving `effectiveScale` / `effectiveDetailLevel` /
+`effectiveTemplateName` from `dt.* ?? pack.*` before each step. Managed
+packs still mint their `STING:{packId}:{ViewType}` template after the
+external fallback runs, so the existing precedence
+(DrawingType > pack > nothing for external; managed always overrides)
+is preserved. Cached pack resolution is reused so the lower
+managed/external apply branch doesn't double-look-up.
+(`Core/Drawing/DrawingTypePresentation.cs`,
+new helper `TryParseScaleHint`.)
+
+**2. The "…" Pattern button was a dead end.** Both `VgFillPatternDialog`
+and `VgLineGraphicsDialog` showed only a TaskDialog instructing users
+to author patterns via Revit's Manage tab — but the dropdown stayed
+stale until the editor was closed and reopened. Added an optional
+`Func<IList<string>> refreshFromDoc` parameter to both dialogs that
+re-scans `FillPatternElement` / `LinePatternElement` from the live
+document and repopulates the comboboxes in place, preserving the
+current selection. `RevitVgEditor` provides the callbacks
+(`RefreshFillPatternsFromDoc` / `RefreshLinePatternsFromDoc`) and
+also rebuilds its own `_fillPatterns` / `_linePatterns` caches so
+subsequent dialog opens stay in sync. The "…" tooltip + TaskDialog
+copy now points users to the new ↻ Refresh button.
+(`UI/VgFillPatternDialog.cs`, `UI/VgLineGraphicsDialog.cs`,
+`UI/RevitVgEditor.cs`.)
+
+**3. Corporate `STING_VIEW_STYLE_PACKS.json` had stale and missing
+template metadata.** Three managed corporate packs (`corp-standard-plan`,
+`corp-coordination`, `corp-fabrication-shop`) carried a `viewTemplate`
+field that managed mode silently ignores — moved to the new
+`externalFallbackTemplate` slot so the value survives as a Detach hint
+without misleading the editor. `pres-base` (the parent of 11 themed
+presentation packs) had no `viewTemplate` / `packDetailLevel` /
+`scaleHint` / `colorScheme`, so every child fell through to nothing
+once the new fallback wiring was active — populated with
+`STING - Presentation Plan` / Fine / 1:100 / PresentationRich.
+`proj-arch-presentation` and `proj-mep-coordination` (managed) and
+`proj-structural` (external) gained explicit template hints + detail
+level + scale so the editor "View template name" cell is no longer
+empty for the project-level overlays. `corp-presentation-rich` /
+`corp-presentation-mono` had template names that contradicted their
+scope — renamed to `STING - Presentation Rich` / `STING - Presentation
+Mono`. Schema bumped to `1.4`. (`Data/STING_VIEW_STYLE_PACKS.json`,
+`Core/Drawing/ViewStylePack.cs` POCO field.)
+
+The view-template duplication question users keep asking ("why is the
+template field on both DrawingType and Pack?"): they serve different
+roles. `DrawingType.ViewTemplateName` is the per-profile explicit
+choice and always wins. `ViewStylePack.ViewTemplate` is the shared
+fallback default for every DrawingType bound to that pack. Managed
+packs ignore both and auto-mint `STING:{packId}:{ViewType}` via
+`ManagedTemplateSyncer`. The fallback ladder (DrawingType → pack →
+managed override) now matches the documented intent for the first
+time.
+
 #### Completed (Phase 180+181 — Photometric Library + DIALux Round-Trip Loop)
 
 Closes the design loop for lighting: engineer models luminaires in Revit

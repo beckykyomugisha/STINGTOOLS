@@ -41,6 +41,15 @@ namespace StingTools.Core.Drawing
         // bound to them when the profile leaves the slot empty. ──
         [JsonProperty("viewTemplate", NullValueHandling = NullValueHandling.Ignore)]
         public string ViewTemplate { get; set; }
+
+        // Phase 183 — managed-mode external-fallback hint. When TemplateMode
+        // is "managed" the pack mints "STING:{packId}:{ViewType}" itself, so
+        // an explicit ViewTemplate field is dead config. This sister field
+        // lets users / migrations record the pre-managed template name (the
+        // one Detach should restore) without confusing the runtime fallback
+        // chain. Read-only at apply time — it is never assigned to a view.
+        [JsonProperty("externalFallbackTemplate", NullValueHandling = NullValueHandling.Ignore)]
+        public string ExternalFallbackTemplate { get; set; }
         [JsonProperty("packDetailLevel", NullValueHandling = NullValueHandling.Ignore)]
         public string DetailLevel { get; set; }
         [JsonProperty("scaleHint", NullValueHandling = NullValueHandling.Ignore)]
