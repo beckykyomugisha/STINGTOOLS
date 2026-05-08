@@ -1655,7 +1655,7 @@ namespace StingTools.Core
                 case "SheetNamingCheck":        return new Docs.SheetNamingCheckCommand();
                 case "TemplateAudit":           return new Temp.TemplateAuditCommand();
                 case "TemplateComplianceScore": return new Temp.TemplateComplianceScoreCommand();
-                case "ClashDetection":          return new Temp.ClashDetectionCommand();
+                case "ClashDetection":          return new Core.Clash.ClashRunCommand();
                 // Phase 5 clash engine — BCC Clash-tab buttons route through
                 // BIMCoordinationCenterCommand.DispatchCoordAction which uses
                 // WorkflowEngine.GetCommandInstance to resolve a Tag to an

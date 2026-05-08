@@ -103,7 +103,10 @@ public class ModelsController : ControllerBase
         var tenantSlug = await TenantSlug(ct);
         var projectCode = string.IsNullOrWhiteSpace(project.Code) ? project.Id.ToString("N") : project.Code;
 
-        // Hash first so we can short-circuit duplicate uploads.
+        // Hash first so we can short-circuit duplicate uploads — unless
+        // the caller explicitly set Force=true (e.g. Revit plugin's
+        // "republish anyway" flow when bytes haven't changed but the
+        // user wants a new revision row).
         string hash;
         using (var hashStream = req.File.OpenReadStream())
         {
@@ -113,13 +116,29 @@ public class ModelsController : ControllerBase
             .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.ContentHash == hash && m.DeletedAt == null, ct);
         if (existing != null)
         {
-            // Geometry hash is identical, so the GLB itself is already on
-            // disk — skip the costly re-upload. BUT: refresh the ELEMENT-MAP
-            // and THUMBNAIL sidecars (they're cheap, and they're often the
-            // reason a coordinator re-publishes — schema changes, new
-            // tagging, etc.). This avoids the recurring "I re-published
+            // Geometry hash is identical, so the GLB itself is normally
+            // already on disk — skip the costly re-upload. BUT: refresh the
+            // ELEMENT-MAP and THUMBNAIL sidecars (they're cheap, and they're
+            // often the reason a coordinator re-publishes — schema changes,
+            // new tagging, etc.). This avoids the recurring "I re-published
             // and the viewer still shows the old element-map" trap.
+            //
+            // Self-healing: when the row was previously flagged
+            // StorageMissing (bytes wiped by a container rebuild without
+            // the persistent volume), re-save the geometry now so the
+            // republish actually restores the file on disk instead of
+            // silently keeping a broken row.
             bool sidecarChanged = false;
+            if (existing.StorageMissingAt != null)
+            {
+                using var fs = req.File.OpenReadStream();
+                existing.StoragePath = await _storage.SaveAsync(
+                    tenantSlug, $"{projectCode}/models", req.File.FileName, fs, ct);
+                _logger.LogInformation(
+                    "Model {ModelId} bytes restored from re-publish — was StorageMissing since {When}",
+                    existing.Id, existing.StorageMissingAt);
+                sidecarChanged = true;
+            }
             if (req.ElementMap != null && req.ElementMap.Length > 0)
             {
                 if (req.ElementMap.Length > 5 * 1024 * 1024)
@@ -148,6 +167,11 @@ public class ModelsController : ControllerBase
                 existing.BoundsMaxX = req.BoundsMaxX; existing.BoundsMaxY = req.BoundsMaxY; existing.BoundsMaxZ = req.BoundsMaxZ;
                 sidecarChanged = true;
             }
+            // Re-publishing the same bytes also restores the geometry file
+            // on disk via the SaveAsync above (when bytes match an existing
+            // entry, the storage layer is idempotent), so any prior
+            // "missing" flag is now stale and should be cleared.
+            if (existing.StorageMissingAt != null) { existing.StorageMissingAt = null; sidecarChanged = true; }
             if (sidecarChanged) await _db.SaveChangesAsync(ct);
             _logger.LogInformation(
                 "Model upload — duplicate geometry hash {Hash}; sidecars {Sc} for {ModelId}",
@@ -223,11 +247,43 @@ public class ModelsController : ControllerBase
     public async Task<IActionResult> DownloadFile(Guid projectId, Guid modelId, CancellationToken ct)
     {
         if (!await ProjectInTenant(projectId, ct)) return Forbid();
-        var row = await _db.ProjectModels.AsNoTracking()
+        var row = await _db.ProjectModels
             .FirstOrDefaultAsync(m => m.Id == modelId && m.ProjectId == projectId && m.DeletedAt == null, ct);
-        if (row == null) return NotFound();
+        if (row == null) return NotFound(new { error = "model_not_found" });
+
         var stream = await _storage.GetAsync(row.StoragePath, ct);
-        if (stream == null) return NotFound();
+        if (stream == null)
+        {
+            // Row exists but bytes are gone (typical cause: container
+            // rebuild without the persistent storage volume mount). Flag
+            // the row so federation-status / dashboard can surface it
+            // and the viewer can show an actionable "Republish from
+            // Revit" CTA instead of a generic 404.
+            if (row.StorageMissingAt == null)
+            {
+                row.StorageMissingAt = DateTime.UtcNow;
+                await _db.SaveChangesAsync(ct);
+                _logger.LogWarning(
+                    "Model {ModelId} flagged StorageMissing — StoragePath '{Path}' returned null from storage",
+                    row.Id, row.StoragePath);
+            }
+            return NotFound(new
+            {
+                error    = "storage_missing",
+                id       = row.Id,
+                fileName = row.FileName,
+                message  = "The model row exists but the geometry file is no longer on the server. " +
+                           "Republish from Revit (BIM tab → Publish Model) to restore it.",
+                missingSince = row.StorageMissingAt,
+            });
+        }
+
+        // Storage is healthy — clear any stale "missing" flag.
+        if (row.StorageMissingAt != null)
+        {
+            row.StorageMissingAt = null;
+            await _db.SaveChangesAsync(ct);
+        }
         return File(stream, GetMimeType(row.Format), row.FileName, enableRangeProcessing: true);
     }
 
@@ -268,6 +324,69 @@ public class ModelsController : ControllerBase
         row.DeletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
         return NoContent();
+    }
+
+    // ── Metadata-only refresh ──────────────────────────────────────────
+
+    /// <summary>
+    /// Refresh an existing model's element-map / thumbnail / row-level
+    /// metadata WITHOUT re-uploading the geometry. This is one of the
+    /// flexible publish modes the Revit plugin offers — useful when a
+    /// coordinator has new tagging or a fresh sidecar but the GLB itself
+    /// hasn't changed and they don't want to spend bandwidth on a
+    /// re-upload. Bytes on disk are not touched. The StorageMissing flag
+    /// is preserved (clearing it requires real bytes via Upload).
+    /// </summary>
+    [HttpPatch("{modelId:guid}/metadata")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    [RequestFormLimits(MultipartBodyLengthLimit = 10 * 1024 * 1024,
+                       ValueLengthLimit = int.MaxValue)]
+    [Authorize(Roles = "Admin,Owner,Coordinator")]
+    public async Task<IActionResult> PatchMetadata(
+        Guid projectId, Guid modelId,
+        [FromForm] PatchMetadataRequest req,
+        CancellationToken ct)
+    {
+        if (!await ProjectInTenant(projectId, ct)) return Forbid();
+        var row = await _db.ProjectModels
+            .FirstOrDefaultAsync(m => m.Id == modelId && m.ProjectId == projectId && m.DeletedAt == null, ct);
+        if (row == null) return NotFound(new { error = "model_not_found" });
+
+        var tenantSlug = await TenantSlug(ct);
+        var project = await _db.Projects.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == projectId, ct);
+        if (project == null) return NotFound(new { error = "project_not_found" });
+        var projectCode = string.IsNullOrWhiteSpace(project.Code) ? project.Id.ToString("N") : project.Code;
+
+        bool changed = false;
+        if (req.ElementMap != null && req.ElementMap.Length > 0)
+        {
+            if (req.ElementMap.Length > 5 * 1024 * 1024)
+                return BadRequest(new { error = "element_map_too_large", maxMb = 5 });
+            using var s = req.ElementMap.OpenReadStream();
+            row.ElementMapPath = await _storage.SaveAsync(
+                tenantSlug, $"{projectCode}/models", req.ElementMap.FileName, s, ct);
+            changed = true;
+        }
+        if (req.Thumbnail != null && req.Thumbnail.Length > 0)
+        {
+            if (req.Thumbnail.Length > 2 * 1024 * 1024)
+                return BadRequest(new { error = "thumbnail_too_large", maxMb = 2 });
+            using var s = req.Thumbnail.OpenReadStream();
+            row.ThumbnailPath = await _storage.SaveAsync(
+                tenantSlug, $"{projectCode}/models", req.Thumbnail.FileName, s, ct);
+            changed = true;
+        }
+        if (!string.IsNullOrEmpty(req.Name)) { row.Name = req.Name!; changed = true; }
+        if (req.Description != null) { row.Description = req.Description; changed = true; }
+        if (!string.IsNullOrEmpty(req.Discipline)) { row.Discipline = req.Discipline; changed = true; }
+        if (!string.IsNullOrEmpty(req.Revision)) { row.Revision = req.Revision; changed = true; }
+        if (req.ElementCount.HasValue) { row.ElementCount = req.ElementCount; changed = true; }
+
+        if (!changed) return BadRequest(new { error = "no_changes" });
+        await _db.SaveChangesAsync(ct);
+        _logger.LogInformation("Model metadata patched — {ModelId}", row.Id);
+        return Ok(ToMetaDto(row));
     }
 
     // ── Federation status (Phase 143) ──────────────────────────────────
@@ -363,7 +482,9 @@ public class ModelsController : ControllerBase
         m.ElementCount, m.Units, m.Revision,
         m.BoundsMinX, m.BoundsMinY, m.BoundsMinZ,
         m.BoundsMaxX, m.BoundsMaxY, m.BoundsMaxZ,
-        m.UploadedBy, m.UploadedAt);
+        m.UploadedBy, m.UploadedAt,
+        StorageOk: m.StorageMissingAt == null,
+        StorageMissingAt: m.StorageMissingAt);
 
     private static ModelFormat InferFormat(string fileName)
     {
@@ -436,6 +557,30 @@ public class UploadModelRequest
     public double? BoundsMaxX { get; set; }
     public double? BoundsMaxY { get; set; }
     public double? BoundsMaxZ { get; set; }
+    /// <summary>
+    /// When true, bypasses the SHA-256 content-hash dedup and creates a
+    /// new ProjectModel row even if an entry with the same bytes
+    /// already exists. Used by the Revit plugin's "republish anyway"
+    /// flow when a user wants to re-issue an unchanged GLB as a new
+    /// revision (e.g. updated element map only).
+    /// </summary>
+    public bool Force { get; set; }
+}
+
+/// <summary>
+/// Body of <c>PATCH /api/projects/{id}/models/{modelId}/metadata</c>.
+/// Used by the plugin's "Refresh metadata only" publish mode — every
+/// field is optional, only the supplied ones are applied.
+/// </summary>
+public class PatchMetadataRequest
+{
+    public IFormFile? ElementMap { get; set; }
+    public IFormFile? Thumbnail { get; set; }
+    public string? Name { get; set; }
+    public string? Description { get; set; }
+    public string? Discipline { get; set; }
+    public string? Revision { get; set; }
+    public int? ElementCount { get; set; }
 }
 
 public record ModelMetaDto(
@@ -456,4 +601,6 @@ public record ModelMetaDto(
     double? BoundsMinX, double? BoundsMinY, double? BoundsMinZ,
     double? BoundsMaxX, double? BoundsMaxY, double? BoundsMaxZ,
     string UploadedBy,
-    DateTime UploadedAt);
+    DateTime UploadedAt,
+    bool StorageOk,
+    DateTime? StorageMissingAt);

@@ -279,7 +279,27 @@
             }
             return;
           }
-          if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+          if (!res.ok) {
+            // The server returns 404 + JSON {error:"storage_missing"} when
+            // the ProjectModel row exists but its GLB has been wiped from
+            // disk (typical cause: container rebuild without the
+            // persistent storage volume mount). Surface that as an
+            // actionable CTA instead of the generic "Failed to load
+            // model file" toast that gives coordinators no recovery
+            // path.
+            let body = null;
+            try { body = await res.clone().json(); } catch (_) {}
+            if (res.status === 404 && body && body.error === 'storage_missing') {
+              const msg =
+                "Model bytes missing on the server — please republish from Revit " +
+                "(BIM tab → Publish Model → 'Replace existing' or 'Auto').";
+              toast(msg, 'error');
+              console.warn('[coord] storage_missing for model', modelId, body);
+              $('#bootLoader')?.style.setProperty('display', 'none');
+              return;
+            }
+            throw new Error(`${res.status} ${res.statusText}`);
+          }
           const blob = await res.blob();
           const blobUrl = URL.createObjectURL(blob);
           state.lastBlobUrl = blobUrl;

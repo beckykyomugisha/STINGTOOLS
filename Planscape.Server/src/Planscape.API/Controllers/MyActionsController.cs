@@ -122,9 +122,33 @@ public class MyActionsController : ControllerBase
         // Pending document approvals on the project — anyone with the permission
         // claim can pick one up, so we surface ALL pending approvals to all
         // members rather than gating on RequestedBy.
+        //
+        // Phase 177 — narrow by the caller's per-folder ACL slice so an
+        // approval for a doc they can't see in the documents list never
+        // appears in the inbox either. Discipline + suitability + target
+        // CDE state of the transition are all checked.
+        var acl = await ProjectMemberAcl.ResolveAsync(_db, projectId, User);
+
         var approvalsQuery = _db.DocumentApprovals
             .AsNoTracking()
+            .Include(a => a.Document)
             .Where(a => a.ProjectId == projectId && a.Status == "PENDING");
+
+        // Apply ACL discipline + suitability + transition-target filters in SQL
+        // to avoid pulling rows the user can't act on.
+        if (!acl.BypassesAcl)
+        {
+            if (acl.Disciplines is { Length: > 0 } disc)
+                approvalsQuery = approvalsQuery.Where(a => a.Document != null
+                    && a.Document.Discipline != null
+                    && disc.Contains(a.Document.Discipline));
+            if (acl.Suitabilities is { Length: > 0 } suit)
+                approvalsQuery = approvalsQuery.Where(a => a.Document != null
+                    && suit.Contains(a.Document.SuitabilityCode));
+            if (acl.Cde is { Length: > 0 } cde)
+                approvalsQuery = approvalsQuery.Where(a => a.Document != null
+                    && cde.Contains(a.Document.CdeStatus));
+        }
 
         var approvalCount = await approvalsQuery.CountAsync();
         var approvals = await approvalsQuery

@@ -41,6 +41,14 @@ services:
       redis:
         condition: service_started
     restart: unless-stopped
+    volumes:
+      # MODEL-VIEWER — persist uploaded model bytes across container
+      # rebuilds. Without this volume, LocalFileStorageService writes
+      # to /app/storage INSIDE the container, which is wiped every
+      # `docker compose build`. The DB row survives (pgdata is volumed)
+      # so the dashboard keeps showing a "published" entry pointing at
+      # bytes that no longer exist → /api/.../models/.../file → 404.
+      - storage:/app/storage
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
@@ -114,6 +122,10 @@ services:
       - postgres
       - redis
     restart: unless-stopped
+    volumes:
+      # Worker shares the api's storage volume so background jobs (e.g.
+      # IFC→glTF derivative generation) can read uploaded models.
+      - storage:/app/storage
 
   # ── Observability stack (MON-01/02/03) ─────────────────────────────────
   # Opt-in via profile so they never run by default:
@@ -202,3 +214,4 @@ volumes:
   promdata:
   grafanadata:
   clamavdb:
+  storage:   # MODEL-VIEWER — uploaded model bytes; survives rebuilds.

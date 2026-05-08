@@ -20,6 +20,7 @@ import {
 } from '@/api/endpoints';
 import type { DashboardData, Project, BimIssue } from '@/types/api';
 import { useProjectStore } from '@/stores/projectStore';
+import { useInboxStore } from '@/stores/inboxStore';
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -103,6 +104,20 @@ export default function DashboardScreen() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Phase 177-C — refresh the My Actions tile after the user approves /
+  // rejects something elsewhere in the app. The store is bumped by the
+  // approvals screen; we re-fetch only the small MyActions slice rather
+  // than the full dashboard which is expensive.
+  const inboxVersion = useInboxStore((s) => s.version);
+  useEffect(() => {
+    if (!activeProject) return;
+    getMyActions(activeProject.id, 1).then(
+      (ma) => { setMyActionsTotal(ma.counts.total); setSlaCount(ma.counts.slaBreached); },
+      () => { /* leave previous values */ },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inboxVersion]);
 
   function onRefresh() {
     setRefreshing(true);

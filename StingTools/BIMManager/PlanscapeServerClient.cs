@@ -608,6 +608,60 @@ public sealed class PlanscapeServerClient : IDisposable
         catch (Exception ex) { LastError = ex.Message; return false; }
     }
 
+    /// <summary>
+    /// Phase 177 — mirror a plugin DeliverableLifecycle event into the server's
+    /// DocumentRecord/DocumentApproval state. Idempotent (find-or-create on
+    /// DocNumber). Fail-soft: returns false on any error so the plugin keeps
+    /// working offline; the next sync tick can retry.
+    /// </summary>
+    public async Task<bool> SyncDeliverableFromPluginAsync(Guid projectId, object payload)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync(
+                $"/api/projects/{projectId}/documents/sync-from-plugin", payload);
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
+    /// <summary>
+    /// Phase 177 — fetch the calling user's per-folder ACL slice for the
+    /// project. Mirrors <c>GET /api/projects/{id}/members/me</c>; the BCC
+    /// uses the result to hide CDE tabs / discipline filters the user
+    /// can't access.
+    /// </summary>
+    public async Task<JObject?> GetMyAccessAsync(Guid projectId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await GetAsync($"/api/projects/{projectId}/members/me");
+            return resp.ok ? JObject.Parse(resp.body) : null;
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    /// <summary>
+    /// Phase 177 — batch-push audit events recorded by the local
+    /// <c>Planscape.Docs.Workflow.AuditLog</c> JSONL chain so the server's
+    /// AuditLog table has the union, not just server-originated rows.
+    /// Capped at 200 events per call by the server.
+    /// </summary>
+    public async Task<bool> PushAuditEventsAsync(Guid projectId, IEnumerable<object> events)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync(
+                $"/api/projects/{projectId}/audit-events/batch",
+                new { events });
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
     // ── Meetings ───────────────────────────────────────────────────────────────
 
     public async Task<JArray?> GetMeetingsAsync(Guid projectId, bool upcomingOnly = true)
@@ -1166,7 +1220,8 @@ public sealed class PlanscapeServerClient : IDisposable
         string? revision = null,
         string units = "mm",
         int? elementCount = null,
-        double[]? bounds = null)
+        double[]? bounds = null,
+        bool force = false)
     {
         if (!await EnsureAuthenticatedAsync()) return (false, Guid.Empty, LastError, false);
         if (!File.Exists(modelFilePath))       return (false, Guid.Empty, $"Model file not found: {modelFilePath}", false);
@@ -1202,6 +1257,7 @@ public sealed class PlanscapeServerClient : IDisposable
             AddField("Discipline", discipline);
             AddField("Revision", revision);
             AddField("Units", units);
+            if (force) AddField("Force", "true");
             if (elementCount.HasValue) AddField("ElementCount", elementCount.Value.ToString());
             if (bounds != null && bounds.Length == 6)
             {
@@ -1277,6 +1333,131 @@ public sealed class PlanscapeServerClient : IDisposable
             ".fbx"  => "application/octet-stream",
             _ => "application/octet-stream",
         };
+    }
+
+    /// <summary>
+    /// Refresh an existing model's element-map / metadata WITHOUT re-uploading
+    /// the geometry. Used by the "Refresh metadata only" publish mode in
+    /// PublishModelCommand. Hits <c>PATCH /api/projects/{id}/models/{mid}/metadata</c>.
+    /// </summary>
+    public async Task<(bool ok, string? error)> RefreshModelMetadataAsync(
+        Guid projectId,
+        Guid modelId,
+        string? elementMapPath = null,
+        string? name = null,
+        string? description = null,
+        string? discipline = null,
+        string? revision = null,
+        int? elementCount = null)
+    {
+        if (!await EnsureAuthenticatedAsync()) return (false, LastError);
+        try
+        {
+            using var content = new System.Net.Http.MultipartFormDataContent();
+            FileStream? mapStream = null;
+            System.Net.Http.StreamContent? mapContent = null;
+            if (!string.IsNullOrEmpty(elementMapPath) && File.Exists(elementMapPath))
+            {
+                mapStream = File.OpenRead(elementMapPath!);
+                mapContent = new System.Net.Http.StreamContent(mapStream);
+                mapContent.Headers.ContentType = new MediaTypeWithQualityHeaderValue("application/json");
+                content.Add(mapContent, "ElementMap", Path.GetFileName(elementMapPath!));
+            }
+            void AddField(string key, string? value)
+            {
+                if (value != null) content.Add(new System.Net.Http.StringContent(value, Encoding.UTF8), key);
+            }
+            AddField("Name", name);
+            AddField("Description", description);
+            AddField("Discipline", discipline);
+            AddField("Revision", revision);
+            if (elementCount.HasValue) AddField("ElementCount", elementCount.Value.ToString());
+
+            try
+            {
+                using var req = new System.Net.Http.HttpRequestMessage(
+                    new System.Net.Http.HttpMethod("PATCH"),
+                    $"/api/projects/{projectId}/models/{modelId}/metadata") { Content = content };
+                using var resp = await _http!.SendAsync(req).ConfigureAwait(false);
+                var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                if (!resp.IsSuccessStatusCode)
+                    return (false, $"HTTP {(int)resp.StatusCode}: {body}");
+                return (true, null);
+            }
+            finally
+            {
+                mapContent?.Dispose();
+                mapStream?.Dispose();
+            }
+        }
+        catch (Exception ex)
+        {
+            LastError = ex.Message;
+            StingLog.Error("Planscape: RefreshModelMetadataAsync failed", ex);
+            return (false, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Soft-delete an existing model. Used by the "Replace existing" publish
+    /// mode — caller deletes the prior row, then uploads a fresh one.
+    /// Hits <c>DELETE /api/projects/{id}/models/{mid}</c>.
+    /// </summary>
+    public async Task<(bool ok, string? error)> DeleteModelAsync(Guid projectId, Guid modelId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return (false, LastError);
+        try
+        {
+            using var resp = await _http!.DeleteAsync($"/api/projects/{projectId}/models/{modelId}").ConfigureAwait(false);
+            if (!resp.IsSuccessStatusCode)
+            {
+                var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                return (false, $"HTTP {(int)resp.StatusCode}: {body}");
+            }
+            return (true, null);
+        }
+        catch (Exception ex)
+        {
+            LastError = ex.Message;
+            StingLog.Error("Planscape: DeleteModelAsync failed", ex);
+            return (false, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Look up the most recent model row for a project that has the same
+    /// content hash. Used by the "Refresh metadata only" mode to find the
+    /// target model id without making the user pick from a list.
+    /// </summary>
+    public async Task<Guid?> FindModelByHashAsync(Guid projectId, string contentHash)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            using var resp = await _http!.GetAsync($"/api/projects/{projectId}/models").ConfigureAwait(false);
+            if (!resp.IsSuccessStatusCode) return null;
+            var arr = JArray.Parse(await resp.Content.ReadAsStringAsync().ConfigureAwait(false));
+            foreach (var m in arr)
+            {
+                if (string.Equals(m["contentHash"]?.Value<string>(), contentHash, StringComparison.OrdinalIgnoreCase)
+                    && Guid.TryParse(m["id"]?.Value<string>(), out var id))
+                    return id;
+            }
+            return null;
+        }
+        catch (Exception ex)
+        {
+            StingLog.Warn("Planscape: FindModelByHashAsync failed — " + ex.Message);
+            return null;
+        }
+    }
+
+    /// <summary>SHA-256 of a file as lowercase hex — matches the server's hash format.</summary>
+    public static string ComputeSha256(string path)
+    {
+        using var sha = System.Security.Cryptography.SHA256.Create();
+        using var fs = File.OpenRead(path);
+        return Convert.ToHexString(sha.ComputeHash(fs)).ToLowerInvariant();
     }
 }
 

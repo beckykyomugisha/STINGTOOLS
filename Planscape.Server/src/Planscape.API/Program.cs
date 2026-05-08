@@ -181,7 +181,17 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             {
                 var accessToken = context.Request.Query["access_token"];
                 var path = context.HttpContext.Request.Path;
-                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                // SignalR WebSockets and the 3D model viewer (Three.js GLTFLoader,
+                // <img> thumbnails) cannot set Authorization headers, so they pass
+                // the JWT in the query string. Without this allowlist the model
+                // download / element-map / thumbnail endpoints reject the viewer
+                // with 401 even when the user is signed in.
+                if (!string.IsNullOrEmpty(accessToken) &&
+                    (path.StartsWithSegments("/hubs") ||
+                     (path.HasValue && path.Value!.Contains("/models/", StringComparison.Ordinal) &&
+                      (path.Value.EndsWith("/file", StringComparison.Ordinal) ||
+                       path.Value.EndsWith("/element-map", StringComparison.Ordinal) ||
+                       path.Value.EndsWith("/thumbnail", StringComparison.Ordinal)))))
                     context.Token = accessToken;
                 return Task.CompletedTask;
             },
@@ -499,6 +509,25 @@ else
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+// MODEL-VIEWER — raise the multipart form parser cap to 200 MB so the
+// model upload endpoint actually receives the bytes its [RequestSizeLimit]
+// already permits. ASP.NET Core's default MultipartBodyLengthLimit is 128
+// MiB (134217728), which the form parser enforces *before* the action's
+// [RequestFormLimits] attribute is honoured by some middleware paths — a
+// global ceiling avoids the silent 128 MB cliff on every large upload
+// endpoint (models, BCF imports, document uploads, attachments).
+const long MaxUploadBytes = 200L * 1024 * 1024;
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(o =>
+{
+    o.MultipartBodyLengthLimit = MaxUploadBytes;
+    o.ValueLengthLimit = int.MaxValue;
+    o.MultipartHeadersLengthLimit = int.MaxValue;
+});
+builder.WebHost.ConfigureKestrel(o =>
+{
+    o.Limits.MaxRequestBodySize = MaxUploadBytes;
+});
 
 // PR2 — HSTS: 1 year, include subdomains, mark for browser preload list.
 // Skipping the preload header until the cert is on a stable production domain.
@@ -838,6 +867,31 @@ app.UseCors("Mobile");
 app.UseApiVersionRewriter();
 // S7.2 — count every response into rolling SLA buckets in Redis.
 app.UseSlaMetrics();
+
+// MODEL-VIEWER — The 3D viewer's GLTFLoader can't always set custom
+// headers (some Three.js builds, redirected requests, <img> thumbnails),
+// so it falls back to ?access_token=<jwt> in the URL. Bridge that to the
+// standard Authorization header BEFORE UseAuthentication runs so the
+// normal JWT bearer pipeline picks it up — no special-case handling
+// inside JwtBearerEvents, no per-endpoint allowlist to keep in sync.
+// Scoped tightly to model download endpoints so we don't widen the
+// attack surface elsewhere (tokens in URLs leak to access logs and
+// browser history).
+app.Use(async (ctx, next) =>
+{
+    var pathVal = ctx.Request.Path.Value;
+    if (pathVal != null
+        && pathVal.Contains("/api/projects/", StringComparison.OrdinalIgnoreCase)
+        && pathVal.Contains("/models/", StringComparison.OrdinalIgnoreCase)
+        && !ctx.Request.Headers.ContainsKey("Authorization")
+        && ctx.Request.Query.TryGetValue("access_token", out var qt)
+        && !string.IsNullOrEmpty(qt))
+    {
+        ctx.Request.Headers["Authorization"] = $"Bearer {qt}";
+    }
+    await next();
+});
+
 app.UseAuthentication();
 // S9 — push correlation ID + tenant + user into Serilog LogContext.
 // Must run AFTER UseAuthentication so the JWT claims are populated.

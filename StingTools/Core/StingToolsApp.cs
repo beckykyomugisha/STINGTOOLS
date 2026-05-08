@@ -16,7 +16,7 @@ using Autodesk.Revit.Attributes;
 using Newtonsoft.Json.Linq;
 using StingTools.UI;
 using StingTools.BIMManager;
-using StingTools.Clash;
+using StingTools.Core.Clash;
 using Planscape.PluginSync;
 
 namespace StingTools.Core
@@ -108,10 +108,19 @@ namespace StingTools.Core
                     StingLog.Warn($"SLDSyncUpdater register failed: {sldEx.Message}");
                 }
 
-                // Phase 106: reserve the Live Clash Updater id. Triggers are
-                // deferred to a follow-on phase so models that don't use clash
-                // detection pay zero cost at startup.
+                // Register the real Core.Clash live updater (9-category geometry/
+                // addition/deletion triggers). Replaces the prior Phase-106 stub
+                // call which resolved via `using StingTools.Clash;` to a no-op
+                // updater that never populated DirtyQueue.
                 LiveClashUpdater.Register(application);
+
+                // Subscribe DocumentChanged → drain LiveClashUpdater.DirtyQueue
+                // by raising LiveClashHandler.Event. Without this, edits queue
+                // forever and the live + scheduled clash paths never run after
+                // the first scheduler tick (the scheduler's dirty gate reads
+                // ClashSession.LastDirtyAtUtc, which is only advanced inside
+                // RefreshElement/RemoveElement on the live path).
+                LiveClashWireup.Subscribe(application);
 
                 // CRASH FIX: Eagerly load ParamRegistry at startup instead of lazy-loading
                 // on first command. This ensures:

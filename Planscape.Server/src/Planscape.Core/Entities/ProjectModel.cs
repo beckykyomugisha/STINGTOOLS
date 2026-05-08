@@ -74,6 +74,16 @@ public class ProjectModel : ITenantScoped
     /// <summary>Soft-delete — kept for audit; file is purged by a Hangfire job after 30 days.</summary>
     public DateTime? DeletedAt { get; set; }
 
+    /// <summary>
+    /// Set when a /file fetch finds the row but the bytes are gone from
+    /// storage (typical cause: container rebuild without the persistent
+    /// volume mount). The viewer surfaces this as an actionable
+    /// "Republish from Revit" CTA instead of a generic 404, and the
+    /// dashboard / federation-status endpoint can flag broken entries.
+    /// Cleared on the next successful republish.
+    /// </summary>
+    public DateTime? StorageMissingAt { get; set; }
+
     public Project? Project { get; set; }
     public AppUser? UploadedByUser { get; set; }
 }

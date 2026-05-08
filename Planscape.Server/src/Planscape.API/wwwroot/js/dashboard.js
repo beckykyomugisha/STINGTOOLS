@@ -967,18 +967,86 @@
       ${rows.length === 0 ? `<div class="empty">No models published yet. Use the Revit plugin's "Publish Model to Planscape" command.</div>` : ""}
       <div class="kpi-grid">
         ${rows.map(m => `
-          <div class="card" style="margin-bottom:0">
+          <div class="card" style="margin-bottom:0" data-model-id="${m.id}">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
               <span style="font-size:24px">${m.format === "Glb" || m.format === "Gltf" ? "🧊" : "📦"}</span>
               <strong>${esc(m.name)}</strong>
             </div>
             <div style="font-size:12px;color:#666">${esc(m.format)} · ${(m.fileSizeBytes/1024/1024).toFixed(1)} MB${m.discipline ? " · " + esc(m.discipline) : ""}</div>
-            <button class="ghost" style="margin-top:10px;color:var(--primary);border-color:var(--primary)"
-              onclick="window.open('/viewer.html?project=${state.projectId}&model=${m.id}','_blank')">
-              Open in viewer
-            </button>
+            <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+              <button class="ghost" style="color:var(--primary);border-color:var(--primary)"
+                data-action="open" data-id="${m.id}">Open in viewer</button>
+              <button class="ghost" style="color:var(--danger);border-color:var(--danger)"
+                data-action="delete" data-id="${m.id}" data-name="${esc(m.name)}">🗑 Delete</button>
+            </div>
           </div>`).join("")}
+      </div>
+      <div id="modal-mount"></div>`;
+
+    main.querySelectorAll('[data-action="open"]').forEach(b => {
+      b.onclick = () => window.open(`/viewer.html?project=${state.projectId}&model=${b.dataset.id}`, "_blank");
+    });
+    main.querySelectorAll('[data-action="delete"]').forEach(b => {
+      b.onclick = () => openDeleteModelModal(main, { id: b.dataset.id, name: b.dataset.name });
+    });
+  }
+
+  // Wrong-model rescue: the Revit plugin SHA-256-dedups uploads, so a
+  // user who published the wrong file is locked out of republishing the
+  // *correct* file with the same geometry until the existing entry is
+  // gone. Mirrors the Archive-project confirm flow — retype the file
+  // name so a slip of the mouse can't wipe a real publish.
+  function openDeleteModelModal(main, model) {
+    const mount = main.querySelector("#modal-mount") || document.getElementById("modal-mount");
+    if (!mount) return;
+    const name = model.name || "this model";
+    mount.innerHTML = `
+      <div class="modal-overlay" id="delModelOverlay">
+        <div class="modal-box">
+          <h2>Delete 3D model</h2>
+          <p style="color:var(--muted);font-size:13px;margin:0 0 12px">
+            This will remove <strong>${esc(name)}</strong> from this project.
+            The Revit plugin's SHA-256 dedup will then accept a republish
+            of the same geometry — useful when the wrong file was
+            published. The bytes are soft-deleted on the server and can
+            be recovered by an admin.
+          </p>
+          <p style="color:var(--muted);font-size:13px;margin:0 0 8px">
+            To confirm, type the model name <code style="background:var(--slate-100);padding:1px 6px;border-radius:4px">${esc(name)}</code> below.
+          </p>
+          <div class="field">
+            <input id="delModelConfirm" type="text" placeholder="${esc(name)}" autocomplete="off" />
+          </div>
+          <div class="actions">
+            <button type="button" class="btn-cancel" id="delModelCancel">Cancel</button>
+            <button type="button" class="btn-primary" id="delModelGo" disabled style="background:var(--danger)">Delete model</button>
+          </div>
+        </div>
       </div>`;
+    const overlay = document.getElementById("delModelOverlay");
+    const close = () => { mount.innerHTML = ""; };
+    document.getElementById("delModelCancel").onclick = close;
+    overlay.onclick = (e) => { if (e.target === overlay) close(); };
+
+    const input = document.getElementById("delModelConfirm");
+    const go    = document.getElementById("delModelGo");
+    input.addEventListener("input", () => {
+      go.disabled = input.value.trim() !== name;
+    });
+    input.focus();
+
+    go.onclick = async () => {
+      go.disabled = true;
+      try {
+        await api(`/api/projects/${state.projectId}/models/${model.id}`, { method: "DELETE" });
+        close();
+        showToast("Model deleted ✓");
+        renderModels(main);
+      } catch (e) {
+        go.disabled = false;
+        showToast("Could not delete — check your permissions and try again.");
+      }
+    };
   }
 
   async function renderCost(main) {

@@ -2409,6 +2409,16 @@ namespace StingTools.BIMManager
 
                     queue.Enqueue(payload);
                     StingLog.Info($"PluginSyncTickBridge tick: enqueued payload with {count:N0} tagged elements for {doc.Title} (queue depth: {queue.Count})");
+
+                    // Phase 177-B — reconcile any deliverables.json rows
+                    // whose ServerSyncedAt is missing or stale. Fire-and-
+                    // forget; ReconcileAsync caps each pass at 50 rows.
+                    var docCapture = doc;
+                    _ = Task.Run(async () =>
+                    {
+                        try { await Planscape.Docs.Templates.DeliverableServerSync.ReconcileAsync(docCapture); }
+                        catch (Exception ex) { StingLog.Warn($"DeliverableServerSync.Reconcile: {ex.Message}"); }
+                    });
                 }
                 catch (Exception ex)
                 {
