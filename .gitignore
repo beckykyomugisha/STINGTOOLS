@@ -55,3 +55,11 @@ STING_WORKFLOW_LOG.json
 .env
 *.env
 !*.env.template
+
+# Local-dev secrets — Planscape.Server/.env.local carries Jwt__Key +
+# ConnectionStrings__Default. The .example template stays tracked; the
+# real .env.local must NOT be committed.
+.env.local
+.env.*.local
+**/.env.local
+**/.env.*.local
