@@ -7,6 +7,6 @@
     { "tag": "Healthcare_BatchRDS",         "description": "Issue Room Data Sheets for every clinical room" },
     { "tag": "Healthcare_AdjacencyAudit",   "description": "Adjacency + clean/dirty flow audit" },
     { "tag": "Healthcare_MgasAudit",        "description": "MGPS network audit" },
-    { "tag": "BIMManager_COBieExport",      "description": "COBie export with healthcare overlay" }
+    { "tag": "COBieExport",                 "description": "COBie export with healthcare overlay" }
   ]
 }

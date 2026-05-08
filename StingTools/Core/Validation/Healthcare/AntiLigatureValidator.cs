@@ -23,7 +23,7 @@ namespace StingTools.Core.Validation.Healthcare
                 .ToList();
             if (rooms.Count == 0) return res;
 
-            var ligRoomIds = rooms.Select(r => r.Id.IntegerValue).ToHashSet();
+            var ligRoomIds = rooms.Select(r => r.Id.Value).ToHashSet();
 
             // Categories of fittings to inspect.
             var cats = new[] {
@@ -40,7 +40,7 @@ namespace StingTools.Core.Validation.Healthcare
                 var loc = fi.Location as LocationPoint;
                 if (loc == null) continue;
                 Element room = doc.GetRoomAtPoint(loc.Point);
-                if (room == null || !ligRoomIds.Contains(room.Id.IntegerValue)) continue;
+                if (room == null || !ligRoomIds.Contains(room.Id.Value)) continue;
 
                 if (string.IsNullOrEmpty(GetParam(el, "LIG_PRODUCT_RATING_TXT")))
                 {

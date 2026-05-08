@@ -69,7 +69,7 @@ namespace StingTools.Core.MedGas
         private static string ClassifyRole(Element el)
         {
             if (el.Category == null) return "OTHER";
-            switch ((BuiltInCategory)el.Category.Id.IntegerValue)
+            switch ((BuiltInCategory)(int)el.Category.Id.Value)
             {
                 case BuiltInCategory.OST_PipeCurves:        return "PIPE";
                 case BuiltInCategory.OST_PipeFitting:       return "FIT";

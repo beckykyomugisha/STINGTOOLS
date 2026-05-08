@@ -48,6 +48,9 @@ namespace Planscape.Docs.Templates
             ("D14", "meeting_minutes.docx",         "D", "meeting_minutes",    null, "Meeting Minutes"),
             ("D15", "progress_report.docx",         "D", "progress_report",    null, "Progress Report"),
             ("D16", "handover_certificate.docx",    "D", "handover",           null, "Handover Certificate"),
+
+            // Healthcare Pack H-8 — Room Data Sheet (NHS ADB / HBN-driven)
+            ("E17", "healthcare_rds.docx",          "E", "rds",                null, "Room Data Sheet"),
         };
 
         /// <summary>Streams embedded files + writes defaults on first run (idempotent).</summary>

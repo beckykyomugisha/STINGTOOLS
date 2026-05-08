@@ -52,7 +52,7 @@ namespace StingTools.Core.Validation.Healthcare
                 }
 
                 // Pipe brazed flag — must be true for any MGPS pipework.
-                if (el.Category != null && el.Category.Id.IntegerValue == (int)BuiltInCategory.OST_PipeCurves)
+                if (el.Category != null && (int)el.Category.Id.Value == (int)BuiltInCategory.OST_PipeCurves)
                 {
                     if (!GetParamBool(el, "MGS_PIPE_BRAZED_BOOL"))
                     {

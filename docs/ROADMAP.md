@@ -405,3 +405,37 @@ ground truth so future estimates do not re-bid these line items.**
 | FOLDER-03 | Multi-model workspace — when two `.rvt` files (e.g. `TROKON FRIEND.rvt` + `TROKON FRIEND 2.rvt`) share one project code, both should resolve to the same `{ProjectCode}\` root deterministically; today's sibling-folder scan in `LoadOrDetectSetup` is best-effort. | Medium |
 | FOLDER-04 | Folder-watcher toggle — surface `ProjectFolderEngine.StartWatching` from the dockable panel so external Explorer drops auto-trigger CDE classification. | Low |
 | FOLDER-05 | Schema versioning — add `SchemaVersion` to `ProjectSetup` + migration step so future schema changes can read old `project_setup.json` and upgrade in place. | Low |
+
+### Future Enhancement Gaps — Healthcare Pack (H-1..H-30 follow-ups)
+
+Items left open after the H-1..H-30 implementation sweep on branch
+`claude/research-hospital-design-0Uxbi`. Each is additive — none
+blocks a healthcare project from using the pack today.
+
+| ID | Description | Priority |
+|---|---|---|
+| HC-01 | **WPF Healthcare tab** — the dock panel does not yet have a Healthcare ribbon / tab. Commands dispatch via `WorkflowEngine.ResolveCommand` + `StingCommandHandler` tags only; clinicians need a visible button surface. | High |
+| HC-02 | **BIM Coordination Centre 14th tab** — design doc §12 specifies 9 RAG cards (Pressure / MGPS / EES / Water / Radiation / Anti-Lig / RDS / Adjacency / Commissioning Gantt) gated on `PRJ_ORG_HEALTH_FACILITY_TYPE_TXT`. Not yet built. | High |
+| HC-03 | **`healthcare_rds.docx` template authoring** — the field-map is committed but the .docx itself is a README placeholder. RDS render currently logs a "resource missing" warning. | High |
+| HC-04 | **MGS family library** — 6 family stubs (Manifold / VIE / ZVB / AAP / MAP / TU) ship parameter specs only. Real `.rfa` from manufacturers. | High |
+| HC-05 | **`TwinReadback` BACnet + OPC-UA transports** — `BacnetReadback` and `OpcUaReadback` are abstract stubs; they wire `IoTDeviceRegistry` correctly but never poll. Plug in `yabe`/CAS-BACnet and `opcfoundation/UA-.NETStandard` behind the existing interface. | High |
+| HC-06 | **EF migration `HealthcarePack`** — 4 new entities + DbSets are registered but `dotnet ef migrations add HealthcarePack` not yet run against `Planscape.Server`. | High |
+| HC-07 | **DocumentOpened morning briefing** — `StingToolsApp.OnDocumentOpened` runs `ComplianceScan` on open; should detect healthcare facility-type and surface healthcare validator counts in the status bar / morning briefing. | Medium |
+| HC-08 | **`ProjectSetupWizard` healthcare branch** — wizard does not ask if the project is a healthcare facility; user must populate `PRJ_ORG_HEALTH_*` parameters by hand to unlock the validator chain. | Medium |
+| HC-09 | **`MasterSetupCommand` healthcare extension** — the 15-step master setup does not load healthcare params or apply COBie-Healthcare overlay; manual COBie preset selection required. | Medium |
+| HC-10 | **AutoTagger / StingStaleMarker healthcare categories** — `OST_SpecialityEquipment` is already in the IUpdater categories so clinical FF&E auto-tags. Verify on a sample hospital project; widen if pendants/bedheads sit under unusual categories. | Medium |
+| HC-11 | **Mobile offline-queue integration** — healthcare screens POST directly. Failures trigger `Alert.alert` only. Queue them via the existing `OfflineQueue` so MGPS verifications / pressure logs / anti-lig audits captured offline land on the server when connectivity returns. | Medium |
+| HC-12 | **HEALTHCARE_PACK_PROFILES.json UX** — gate works but no UI exposes `PRJ_ORG_HEALTH_PACK_PROFILE_TXT`. Add a project-info panel control so a coordinator can switch ACUTE → COMMUNITY → IMAGING-ONLY without text-editing. | Medium |
+| HC-13 | **Healthcare workflow auto-run on open** — `AUTO_RUN_WORKFLOW_ON_OPEN` config exists; healthcare projects should default to `HealthcareCommissioning` (or the workflow appropriate for the active pack profile). | Low |
+| HC-14 | **Issue tracker healthcare categories** — `BimIssue` accepts free-text categories; add a healthcare picklist (Infection-Control / MGPS-Defect / Anti-Lig-Failure / Calibration-Due / RDS-Drift). | Low |
+| HC-15 | **HBN room-type catalogue auto-populator** — given a `CLN_ROOM_CLASS_TXT`, auto-populate the design ACH / pressure / temp / RH / NR / lighting lux from the standards lookup tables. Saves manual transcription per room. | High |
+| HC-16 | **CommandRegistry framework migration** — `INT-02` introduced `ICommandModule`; healthcare commands could be a self-registering `HealthcareCommandModule` so the `StingCommandHandler` switch shrinks. | Low |
+| HC-17 | **PARAMETER_REGISTRY.json container_groups** — tag-container metadata for the 5 new groups (CLN/MGS/RAD/CEQ/LIG) lives only in `TAG_CONFIG_v5_0_CONTAINERS.csv`. Mirror into the registry JSON so `TagPipelineHelper.WriteContainers` writes healthcare tag containers automatically. | Medium |
+| HC-18 | **Briefcase / Sticky note hooks** — RDS / MGPS verification logs can be useful in the briefcase. Audit `BriefcaseAddFile` to ensure healthcare folders are scannable. | Low |
+| HC-19 | **iHFG (TAHPI) fully populated** — `Standards/iHFG/` not built; international healthcare projects fall back to FGI defaults. | Medium |
+| HC-20 | **WHTM / SHTM / NHS-NI variant tables** — `PRJ_ORG_HEALTH_HTM_REGION_TXT` accepts the variant codes but the standards modules carry only NHS England HTMs; regional variants need their own lookup tables. | Low |
+| HC-21 | **STING Healthcare Title Block family** — 22 healthcare drawing types reference `STING - Healthcare Title Block`. Family is not authored yet; existing default title block falls through. | Medium |
+| HC-22 | **SignalR HealthcareHub for live pressure cascade** — `pressure-live.tsx` mobile screen renders empty state until a SignalR hub is added server-side and the BACnet bridge pushes live Δp. | Medium |
+| HC-23 | **CCTV / observation LOS computational geometry** — `LIG_AREA_OBS_LOS_TXT` is a TEXT code today. A proper visibility-cone solver would let the validator compute LOS percentage automatically against `MinObservationLOSPercent` per behavioural-health room class. | Low |
+| HC-24 | **Pneumatic tube / AGV path optimiser** — design doc §11 H-10 mentions a path planner; current implementation only does adjacency BFS. AGV path optimisation against `Core/Routing/DropEngineBase` is a future enhancement. | Low |
+| HC-25 | **iHFG / FGI 2026 facility code adoption tracking** — FGI 2026 transitions from guidance to enforceable code. As clauses become mandatory in jurisdictions, validators should escalate from `Warning` to `Error` automatically. | Low |

@@ -42,6 +42,10 @@ namespace StingTools.Commands.Validation
                 all.AddRange(new MaintenanceClashValidator().Validate(doc));
                 // §5.5 — reads UNICLASS_* / NBS_CODE_TXT / ASSET_RFI_URL_TXT.
                 all.AddRange(new ClassificationAuditValidator().Validate(doc));
+                // Healthcare Pack H-1..H-30 — RunAllHealthcareValidators is gated
+                // on PRJ_ORG_HEALTH_FACILITY_TYPE_TXT being non-empty so non-
+                // healthcare projects skip the entire chain (zero cost).
+                all.AddRange(StingTools.Core.Validation.Healthcare.RunAllHealthcareValidators.Validate(doc));
             }
             catch (Exception ex)
             {

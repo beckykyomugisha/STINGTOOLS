@@ -39,11 +39,11 @@ namespace StingTools.Core.Twin
                     var el = _doc.GetElement(d.BimElementId);
                     if (el is FamilyInstance fi)
                     {
-                        if (fi.Room?.Id?.IntegerValue == roomId.IntegerValue) return true;
+                        if (fi.Room?.Id?.Value == roomId.Value) return true;
                         if (fi.Location is LocationPoint lp)
                         {
                             var room = _doc.GetRoomAtPoint(lp.Point);
-                            return room?.Id?.IntegerValue == roomId.IntegerValue;
+                            return room?.Id?.Value == roomId.Value;
                         }
                     }
                 } catch { }
