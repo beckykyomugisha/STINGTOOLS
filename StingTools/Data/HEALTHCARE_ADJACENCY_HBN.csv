@@ -1,0 +1,20 @@
+RoomClassA,RoomClassB,Target,SourceRef,Notes
+ED,IMAGING,2,HBN 11-01,Mandatory direct adjacency
+ED,ICU,2,HBN 09-02,Mandatory direct adjacency
+ED,OR,1,HBN 26,Preferred adjacency
+OR,HSDU-P,2,HBN 13,Sterile supply route
+OR,RECOV-1,2,HBN 26,Phase I recovery direct from OR
+OR,ICU,1,HBN 09-02,Preferred for post-op critical
+ICU,IMAGING,1,HBN 09-02,Preferred for portable + transfer
+PHARMACY,WARD-INPT,1,HBN 14,Central distribution
+HSDU-W,HSDU-P,1,HBN 13,Adjacent but separate compartments
+MAT-LDR,NICU,1,HBN 21,Maternity-NICU couplet care
+MORT,WARD-INPT,0,HBN 16,Mortuary remote from clinical
+MORT,OPD,0,HBN 16,Mortuary remote from public
+MORT,ED,0,HBN 16,Mortuary remote from ED main
+ED,MORT,1,HBN 16,Discreet body-handling route allowed
+PSY-BED,SECL,1,HBN 03-01,Seclusion accessible from bedroom area
+PH-CSP-797,PH-CSP-800,0,USP 800,Strict separation of sterile vs hazardous
+DIAL,RO-PLT,2,HBN 07-02,Dialysis direct from RO loop
+HSDU-P,OR,2,HBN 13,Sterile supply window
+OR-HYBRID,CONTROL-ROOM,2,FGI Hybrid OR,Imaging control-room adjacency
