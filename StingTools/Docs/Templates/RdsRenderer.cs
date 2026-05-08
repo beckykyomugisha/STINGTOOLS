@@ -23,7 +23,7 @@ namespace Planscape.Docs.Templates
 
             var roomNum = ReadString(room, "ASS_ROOM_NUM_TXT")
                           ?? ReadString(room, "Number")
-                          ?? room.Id.IntegerValue.ToString();
+                          ?? room.Id.Value.ToString();
             var safe = SafeName(roomNum);
             var outPath = Path.Combine(outDir, $"{safe}_RDS.docx");
 

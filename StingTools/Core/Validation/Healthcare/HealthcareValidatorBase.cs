@@ -31,7 +31,7 @@ namespace StingTools.Core.Validation.Healthcare
                 if (p.StorageType == StorageType.String) return p.AsString() ?? "";
                 if (p.StorageType == StorageType.Double) return p.AsDouble().ToString("F4");
                 if (p.StorageType == StorageType.Integer) return p.AsInteger().ToString();
-                if (p.StorageType == StorageType.ElementId) return p.AsElementId().IntegerValue.ToString();
+                if (p.StorageType == StorageType.ElementId) return p.AsElementId().Value.ToString();
                 return p.AsValueString() ?? "";
             }
             catch { return ""; }

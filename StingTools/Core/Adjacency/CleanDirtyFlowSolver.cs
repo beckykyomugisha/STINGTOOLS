@@ -11,8 +11,8 @@ namespace StingTools.Core.Adjacency
 {
     public class FlowFinding
     {
-        public int FromRoomId;
-        public int ToRoomId;
+        public long FromRoomId;
+        public long ToRoomId;
         public string FromClass;
         public string ToClass;
         public string Severity;
@@ -35,7 +35,7 @@ namespace StingTools.Core.Adjacency
             if (doc == null) return findings;
             var g = RoomGraphBuilder.Build(doc);
 
-            string ClassOf(int rid) => g.Rooms.TryGetValue(rid, out var r) ? GetParam(r, "CLN_ROOM_CLASS_TXT") : "";
+            string ClassOf(long rid) => g.Rooms.TryGetValue(rid, out var r) ? GetParam(r, "CLN_ROOM_CLASS_TXT") : "";
 
             foreach (var (rid, room) in g.Rooms)
             {
@@ -43,9 +43,9 @@ namespace StingTools.Core.Adjacency
                 if (string.IsNullOrEmpty(rc) || !DirtySources.Contains(rc)) continue;
 
                 // BFS up to depth 3.
-                var queue = new Queue<(int id, int depth, bool bufferSeen)>();
+                var queue = new Queue<(long id, int depth, bool bufferSeen)>();
                 queue.Enqueue((rid, 0, false));
-                var seen = new HashSet<int> { rid };
+                var seen = new HashSet<long> { rid };
                 while (queue.Count > 0)
                 {
                     var (id, depth, buffered) = queue.Dequeue();

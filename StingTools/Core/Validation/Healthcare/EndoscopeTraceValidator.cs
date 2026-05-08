@@ -36,7 +36,7 @@ namespace StingTools.Core.Validation.Healthcare
                     {
                         var rm = fi.Room ?? (fi.Location is LocationPoint lp
                                               ? doc.GetRoomAtPoint(lp.Point) : null);
-                        return rm != null && rm.Id.IntegerValue == room.Id.IntegerValue;
+                        return rm != null && rm.Id.Value == room.Id.Value;
                     }
                     return false;
                 });

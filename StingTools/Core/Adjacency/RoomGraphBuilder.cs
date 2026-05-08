@@ -12,11 +12,11 @@ namespace StingTools.Core.Adjacency
 {
     public class RoomGraph
     {
-        public Dictionary<int, HashSet<int>> Adj = new();   // roomId → connected roomIds
-        public Dictionary<int, Element> Rooms = new();      // roomId → Room
+        public Dictionary<long, HashSet<long>> Adj = new();   // roomId.Value → connected roomIds
+        public Dictionary<long, Element> Rooms = new();       // roomId.Value → Room
 
-        public IEnumerable<int> Neighbours(int roomId) =>
-            Adj.TryGetValue(roomId, out var n) ? n : System.Linq.Enumerable.Empty<int>();
+        public IEnumerable<long> Neighbours(long roomId) =>
+            Adj.TryGetValue(roomId, out var n) ? n : System.Linq.Enumerable.Empty<long>();
     }
 
     public static class RoomGraphBuilder
@@ -30,8 +30,8 @@ namespace StingTools.Core.Adjacency
                                 .OfCategory(BuiltInCategory.OST_Rooms)
                                 .WhereElementIsNotElementType().ToElements())
             {
-                g.Rooms[r.Id.IntegerValue] = r;
-                g.Adj[r.Id.IntegerValue] = new HashSet<int>();
+                g.Rooms[r.Id.Value] = r;
+                g.Adj[r.Id.Value] = new HashSet<long>();
             }
 
             var doors = new FilteredElementCollector(doc)
@@ -44,8 +44,8 @@ namespace StingTools.Core.Adjacency
                 Element fromRoom = null, toRoom = null;
                 try { fromRoom = d.FromRoom; toRoom = d.ToRoom; } catch { }
                 if (fromRoom == null || toRoom == null) continue;
-                int a = fromRoom.Id.IntegerValue;
-                int b = toRoom.Id.IntegerValue;
+                long a = fromRoom.Id.Value;
+                long b = toRoom.Id.Value;
                 if (g.Adj.ContainsKey(a) && g.Adj.ContainsKey(b))
                 {
                     g.Adj[a].Add(b);
