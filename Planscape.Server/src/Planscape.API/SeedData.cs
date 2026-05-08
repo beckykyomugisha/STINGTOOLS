@@ -248,7 +248,7 @@ public static class SeedData
                 Email         = $"{iso.ToLowerInvariant()}-lead@planscape.demo",
                 DisplayName   = label,
                 PasswordHash  = BCrypt.Net.BCrypt.HashPassword("demo-lead", workFactor: 12),
-                Role          = UserRole.User,
+                Role          = UserRole.Contributor,
                 Iso19650Role  = iso
             };
             db.Users.Add(u);
