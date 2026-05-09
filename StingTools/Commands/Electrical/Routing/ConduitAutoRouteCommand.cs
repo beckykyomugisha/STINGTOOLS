@@ -186,6 +186,23 @@ namespace StingTools.Commands.Electrical.Routing
                         tx2.Start();
                         var recs = StingTools.Core.Routing.SlabPenetrationDetector.Detect(doc, routedIds);
                         penetrations = recs.Count;
+
+                        // Wave E4 — auto-place STING_SEED_SpecialityEquipment
+                        // (or its swapped manufacturer family) at every
+                        // penetration record. When the seed isn't loaded,
+                        // FrpPenetrationPlacer.Place degrades gracefully
+                        // — surfaces a warning + stamps the member-side
+                        // PEN_CONTROL_NUMBER_TXT so the register schedule
+                        // still works.
+                        try
+                        {
+                            var place = StingTools.Core.Routing.FrpPenetrationPlacer.Place(doc, recs);
+                            foreach (var w in place.Warnings) StingLog.Info($"FRP placer: {w}");
+                            if (place.Placed > 0)
+                                StingLog.Info($"FRP placer: placed {place.Placed} family instance(s).");
+                        }
+                        catch (Exception ex) { StingLog.Warn($"FrpPenetrationPlacer: {ex.Message}"); }
+
                         tx2.Commit();
                     }
                 }
