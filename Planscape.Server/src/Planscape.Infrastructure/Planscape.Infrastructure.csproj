@@ -34,6 +34,12 @@
     <!-- P8 — used by GltfBoundsThumbnailGenerator to render placeholder previews. -->
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.6" />
     <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="2.1.5" />
+    <!-- Phase 178 — site-photo redaction pipeline (face / plate blur +
+         watermark composition). SkiaSharp's blur ImageFilter is faster
+         and easier than ImageSharp's region pipeline; the native binary
+         (~10 MB on Linux) ships in the worker container, not the API. -->
+    <PackageReference Include="SkiaSharp" Version="2.88.8" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.88.8" />
     <!-- S2.5.1 — Unicode-safe invoice PDF rendering. Apache 2.0 / community
          license is fine for our use; no Pro license needed for invoices. -->
     <PackageReference Include="QuestPDF" Version="2024.10.2" />

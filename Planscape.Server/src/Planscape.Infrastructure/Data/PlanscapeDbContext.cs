@@ -108,6 +108,7 @@ public class PlanscapeDbContext : DbContext
     public DbSet<IssueCustomFieldSchema> IssueCustomFieldSchemas => Set<IssueCustomFieldSchema>();
     public DbSet<ProjectModel> ProjectModels => Set<ProjectModel>();
     public DbSet<IssueComment> IssueComments => Set<IssueComment>();
+    public DbSet<SitePhoto> SitePhotos => Set<SitePhoto>();
     public DbSet<DocumentMarkup> DocumentMarkups => Set<DocumentMarkup>();
     public DbSet<ScheduleTask> ScheduleTasks => Set<ScheduleTask>();
     public DbSet<CostItem> CostItems => Set<CostItem>();
@@ -216,6 +217,35 @@ public class PlanscapeDbContext : DbContext
             e.Property(x => x.Source).HasMaxLength(20);
             e.HasOne(x => x.Issue).WithMany().HasForeignKey(x => x.IssueId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.AuthorUser).WithMany().HasForeignKey(x => x.AuthorUserId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ── SitePhoto (Phase 178 — site photo workflow) ──
+        modelBuilder.Entity<SitePhoto>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => new { x.ProjectId, x.Audience });
+            e.HasIndex(x => new { x.ProjectId, x.Reason });
+            e.HasIndex(x => x.CapturedAt);
+            e.HasIndex(x => x.PairKey);
+            e.HasIndex(x => x.AnchorElementGuid);
+            e.Property(x => x.Reason).HasMaxLength(20).IsRequired();
+            e.Property(x => x.Audience).HasMaxLength(20).IsRequired();
+            e.Property(x => x.BlurStatus).HasMaxLength(20).IsRequired();
+            e.Property(x => x.Caption).HasMaxLength(2000);
+            e.Property(x => x.Source).HasMaxLength(20);
+            e.Property(x => x.LevelCode).HasMaxLength(40);
+            e.Property(x => x.ZoneCode).HasMaxLength(40);
+            e.Property(x => x.AnchorElementGuid).HasMaxLength(80);
+            e.Property(x => x.PairKey).HasMaxLength(80);
+            e.Property(x => x.RedactedFilePath).HasMaxLength(500);
+            e.Property(x => x.RejectedReason).HasMaxLength(500);
+            e.Property(x => x.ClassifierSignals).HasColumnType("jsonb");
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Document).WithMany().HasForeignKey(x => x.DocumentId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.CapturedByUser).WithMany().HasForeignKey(x => x.CapturedByUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.ApprovedByUser).WithMany().HasForeignKey(x => x.ApprovedByUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.AnchorIssue).WithMany().HasForeignKey(x => x.AnchorIssueId).OnDelete(DeleteBehavior.SetNull);
         });
 
         // ── DocumentMarkup (P3) ──
