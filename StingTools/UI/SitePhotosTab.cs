@@ -180,8 +180,12 @@ namespace StingTools.UI
             footer.Tag = "BulkFooter";
             root.Children.Add(footer);
 
-            // Initial load + auto-refresh wiring
-            owner.Dispatcher.BeginInvoke(new Action(async () =>
+            // Initial load + auto-refresh wiring. Fire-and-forget by
+            // design — the dispatcher operation is queued at Background
+            // priority so the rest of the tab paints first; we discard
+            // the returned DispatcherOperation with `_ =` so the compiler
+            // sees the intent and doesn't raise CS4014.
+            _ = owner.Dispatcher.BeginInvoke(new Action(async () =>
             {
                 await ReloadAsync(owner, state, listPanel, footer);
                 StartAutoRefresh(owner, state, listPanel, footer);
