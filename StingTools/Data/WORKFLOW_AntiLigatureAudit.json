@@ -1,0 +1,8 @@
+{
+  "id": "AntiLigatureAudit",
+  "name": "Anti-ligature audit (HBN 03-01 / FGI Pt 2)",
+  "steps": [
+    { "tag": "Healthcare_AntiLigature",  "description": "Run AntiLigatureValidator on every PSY-* room" },
+    { "tag": "Healthcare_BehaviouralHealth","description": "Run behavioural-health audit" }
+  ]
+}

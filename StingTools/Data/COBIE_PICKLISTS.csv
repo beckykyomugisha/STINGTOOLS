@@ -122,3 +122,73 @@ ConnectionType,Ductwork,Duct/fitting connection
 CoordinateType,point,Single XYZ point
 CoordinateType,box-lowerleft,Bounding box lower-left point
 CoordinateType,box-upperright,Bounding box upper-right point
+HealthcareFacilityType,Acute,General acute care hospital
+HealthcareFacilityType,Mental,Mental health unit
+HealthcareFacilityType,Community,Community / outpatient
+HealthcareFacilityType,Rehab,Rehabilitation
+HealthcareFacilityType,Day,Day surgery / day case
+HealthcareFacilityType,FM,FM / handover
+ClinicalRoomClass,OR-ULTRA,Ultra-clean operating theatre
+ClinicalRoomClass,OR-CONV,Conventional operating theatre
+ClinicalRoomClass,OR-HYBRID,Hybrid operating theatre
+ClinicalRoomClass,CATHLAB,Cardiac cath lab
+ClinicalRoomClass,IR,Interventional radiology
+ClinicalRoomClass,ICU,ICU bay
+ClinicalRoomClass,HDU,High-dependency unit
+ClinicalRoomClass,NICU,Neonatal ICU room
+ClinicalRoomClass,MAT-LDR,Maternity LDR
+ClinicalRoomClass,RECOV-1,Phase I recovery
+ClinicalRoomClass,WARD-INPT,Inpatient ward
+ClinicalRoomClass,AIIR,Airborne infection isolation
+ClinicalRoomClass,PE-PROT,Protective environment
+ClinicalRoomClass,ANTERM,Anteroom
+ClinicalRoomClass,EXAM,Examination room
+ClinicalRoomClass,IMG-CT,CT room
+ClinicalRoomClass,IMG-MRI,MRI suite
+ClinicalRoomClass,IMG-XRY,X-ray room
+ClinicalRoomClass,IMG-LIN,Linac vault
+ClinicalRoomClass,PH-CSP-797,USP <797> sterile compounding
+ClinicalRoomClass,PH-CSP-800,USP <800> hazardous compounding
+ClinicalRoomClass,MORT,Mortuary
+ClinicalRoomClass,POST,Post-mortem
+ClinicalRoomClass,DIAL,Dialysis station
+ClinicalRoomClass,PSY-BED,Mental health bedroom
+ClinicalRoomClass,SECL,Seclusion room
+ClinicalRoomClass,BARI,Bariatric room
+ClinicalRoomClass,HBO,Hyperbaric chamber
+ClinicalRoomClass,HSDU-W,HSDU wash
+ClinicalRoomClass,HSDU-P,HSDU pack
+PressureRegime,POS,Positive pressure
+PressureRegime,NEG,Negative pressure
+PressureRegime,NEUTRAL,Neutral
+InfectionClass,STD,Standard
+InfectionClass,AIIR,Airborne infection isolation
+InfectionClass,PE,Protective environment
+InfectionClass,CLASS-N,Class N (TB)
+InfectionClass,CLASS-P,Class P (PE)
+EESBranch,LIFE-SAF,Life Safety
+EESBranch,CRIT,Critical
+EESBranch,EQP-BR,Equipment
+EESBranch,NORMAL,Normal
+SpauldingTier,CRITICAL,Penetrates sterile tissue
+SpauldingTier,SEMI,Contacts mucous membrane
+SpauldingTier,NON-CRITICAL,Contacts intact skin
+LigatureRisk,VERY-HIGH,Very high risk (seclusion / observation)
+LigatureRisk,HIGH,High risk (psy-bed / en-suite)
+LigatureRisk,MED,Medium risk
+LigatureRisk,LOW,Low risk
+HEPAGrade,H13,EN 1822 H13 99.95%
+HEPAGrade,H14,EN 1822 H14 99.995%
+HEPAGrade,U15,EN 1822 U15 99.9995%
+HEPAGrade,U16,EN 1822 U16 99.99995%
+TMVType,TMV2,TMV2 — domestic / non-augmented
+TMVType,TMV3,TMV3 — augmented care
+TMVType,NONE,No TMV
+NurseCallType,STD,Standard call
+NurseCallType,EMG,Emergency call
+NurseCallType,ASSAULT,Assault alarm
+NurseCallType,CARDIAC,Cardiac arrest call
+PrivacyLevel,OPEN,Open / multi-bed
+PrivacyLevel,SEMI,Semi-private
+PrivacyLevel,SINGLE,Single occupancy
+PrivacyLevel,SECURE,Secure / locked
