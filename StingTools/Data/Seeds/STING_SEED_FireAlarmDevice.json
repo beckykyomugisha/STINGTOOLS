@@ -13,27 +13,171 @@
       "hosting": "FaceBased",
       "symbolSize": 5.0,
       "parameters": [
-        { "name": "STING_SEED_FAMILY_TXT",   "type": "Text", "shared": true, "isInstance": true,  "default": "STING_SEED_FireAlarmDevice" },
-        { "name": "STING_DESIGN_REF_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "STING_SWAP_HISTORY_TXT",  "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "ASS_TAG_1",               "type": "Text", "shared": true, "isInstance": true },
-        { "name": "ASS_DISCIPLINE_COD_TXT",  "type": "Text", "shared": true, "isInstance": true,  "default": "FP" },
-        { "name": "ASS_PRODCT_COD_TXT",      "type": "Text", "shared": true, "isInstance": true,  "default": "SMK" },
-        { "name": "FLS_DEV_TYPE_TXT",        "type": "Text", "shared": true, "isInstance": true,  "default": "SMOKE_OPTICAL" },
-        { "name": "FLS_DEV_MOUNT_TXT",       "type": "Text", "shared": true, "isInstance": true,  "default": "CEILING" },
-        { "name": "FLS_DEV_ZONE_TXT",        "type": "Text", "shared": true, "isInstance": true,  "default": "ZONE_01" },
-        { "name": "FLS_DEV_LOOP_TXT",        "type": "Text", "shared": true, "isInstance": true,  "default": "L1" },
-        { "name": "FLS_DEV_CERT_TXT",        "type": "Text", "shared": true, "isInstance": false, "default": "BS EN 54-7" },
-        { "name": "ELC_CIRCUIT_GROUP_TXT",   "type": "Text", "shared": true, "isInstance": true,  "default": "fire-alarm" }
+        {
+          "name": "STING_SEED_FAMILY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "STING_SEED_FireAlarmDevice"
+        },
+        {
+          "name": "STING_DESIGN_REF_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "STING_SWAP_HISTORY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "ASS_TAG_1",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true
+        },
+        {
+          "name": "ASS_DISCIPLINE_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "FP"
+        },
+        {
+          "name": "ASS_PRODCT_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "SMK"
+        },
+        {
+          "name": "FLS_DEV_TYPE_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "SMOKE_OPTICAL"
+        },
+        {
+          "name": "FLS_DEV_MOUNT_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "CEILING"
+        },
+        {
+          "name": "FLS_DEV_ZONE_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "ZONE_01"
+        },
+        {
+          "name": "FLS_DEV_LOOP_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "L1"
+        },
+        {
+          "name": "FLS_DEV_CERT_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "BS EN 54-7"
+        },
+        {
+          "name": "ELC_CIRCUIT_GROUP_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "fire-alarm"
+        }
       ],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.5,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
         "lines": [
-          { "x1": -0.35, "y1": -0.35, "x2":  0.35, "y2":  0.35 },
-          { "x1": -0.35, "y1":  0.35, "x2":  0.35, "y2": -0.35 }
+          {
+            "x1": -0.35,
+            "y1": -0.35,
+            "x2": 0.35,
+            "y2": 0.35
+          },
+          {
+            "x1": -0.35,
+            "y1": 0.35,
+            "x2": 0.35,
+            "y2": -0.35
+          }
         ]
       },
-      "solid3D": { "type": "Box", "widthMm": 110, "depthMm": 110, "heightMm": 50 }
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 110,
+        "depthMm": 110,
+        "heightMm": 50
+      },
+      "typeVariants": [
+        {
+          "name": "SMOKE_OPTICAL",
+          "params": {
+            "FLS_DEV_TYPE_TXT": "SMOKE_OPTICAL",
+            "ASS_PRODCT_COD_TXT": "SMK",
+            "FLS_DEV_CERT_TXT": "BS EN 54-7"
+          }
+        },
+        {
+          "name": "HEAT_DETECTOR",
+          "params": {
+            "FLS_DEV_TYPE_TXT": "HEAT_DETECTOR",
+            "ASS_PRODCT_COD_TXT": "HEA",
+            "FLS_DEV_CERT_TXT": "BS EN 54-5"
+          }
+        },
+        {
+          "name": "MULTI_SENSOR",
+          "params": {
+            "FLS_DEV_TYPE_TXT": "MULTI_SENSOR",
+            "ASS_PRODCT_COD_TXT": "MSD",
+            "FLS_DEV_CERT_TXT": "BS EN 54-29"
+          }
+        },
+        {
+          "name": "CALL_POINT_MCP",
+          "params": {
+            "FLS_DEV_TYPE_TXT": "CALL_POINT_MCP",
+            "ASS_PRODCT_COD_TXT": "MCP",
+            "FLS_DEV_CERT_TXT": "BS EN 54-11"
+          }
+        },
+        {
+          "name": "SOUNDER_BEACON_VAD",
+          "params": {
+            "FLS_DEV_TYPE_TXT": "SOUNDER_BEACON_VAD",
+            "ASS_PRODCT_COD_TXT": "SVC",
+            "FLS_DEV_CERT_TXT": "BS EN 54-3 / 54-23"
+          }
+        },
+        {
+          "name": "BEAM_DETECTOR",
+          "params": {
+            "FLS_DEV_TYPE_TXT": "BEAM_DETECTOR",
+            "ASS_PRODCT_COD_TXT": "BMD",
+            "FLS_DEV_CERT_TXT": "BS EN 54-12"
+          }
+        }
+      ]
     }
   ]
 }

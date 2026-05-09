@@ -13,31 +13,183 @@
       "hosting": "CeilingBased",
       "symbolSize": 6.0,
       "parameters": [
-        { "name": "STING_SEED_FAMILY_TXT",   "type": "Text", "shared": true, "isInstance": true,  "default": "STING_SEED_AirTerminal" },
-        { "name": "STING_DESIGN_REF_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "STING_SWAP_HISTORY_TXT",  "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "ASS_TAG_1",               "type": "Text", "shared": true, "isInstance": true },
-        { "name": "ASS_DISCIPLINE_COD_TXT",  "type": "Text", "shared": true, "isInstance": true,  "default": "M" },
-        { "name": "ASS_PRODCT_COD_TXT",      "type": "Text", "shared": true, "isInstance": true,  "default": "DIF" },
-        { "name": "HVC_TERM_TYPE_TXT",       "type": "Text", "shared": true, "isInstance": true,  "default": "SUPPLY_DIFFUSER_SQ" },
-        { "name": "HVC_TERM_FLOW_LS",        "type": "Text", "shared": true, "isInstance": true,  "default": "100" },
-        { "name": "HVC_TERM_NECK_DN_MM",     "type": "Text", "shared": true, "isInstance": false, "default": "200" },
-        { "name": "HVC_TERM_THROW_M",        "type": "Text", "shared": true, "isInstance": false, "default": "3" },
-        { "name": "HVC_TERM_NOISE_DBA",      "type": "Text", "shared": true, "isInstance": false, "default": "30" }
+        {
+          "name": "STING_SEED_FAMILY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "STING_SEED_AirTerminal"
+        },
+        {
+          "name": "STING_DESIGN_REF_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "STING_SWAP_HISTORY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "ASS_TAG_1",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true
+        },
+        {
+          "name": "ASS_DISCIPLINE_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "M"
+        },
+        {
+          "name": "ASS_PRODCT_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "DIF"
+        },
+        {
+          "name": "HVC_TERM_TYPE_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "SUPPLY_DIFFUSER_SQ"
+        },
+        {
+          "name": "HVC_TERM_FLOW_LS",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "100"
+        },
+        {
+          "name": "HVC_TERM_NECK_DN_MM",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "200"
+        },
+        {
+          "name": "HVC_TERM_THROW_M",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "3"
+        },
+        {
+          "name": "HVC_TERM_NOISE_DBA",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "30"
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": -0.5, "x2":  0.5, "y2": -0.5 },
-          { "x1":  0.5, "y1": -0.5, "x2":  0.5, "y2":  0.5 },
-          { "x1":  0.5, "y1":  0.5, "x2": -0.5, "y2":  0.5 },
-          { "x1": -0.5, "y1":  0.5, "x2": -0.5, "y2": -0.5 },
-          { "x1": -0.25, "y1":  0.0, "x2":  0.25, "y2":  0.0 },
-          { "x1":  0.0,  "y1": -0.25, "x2":  0.0, "y2":  0.25 },
-          { "x1": -0.18, "y1": -0.18, "x2":  0.18, "y2":  0.18 },
-          { "x1": -0.18, "y1":  0.18, "x2":  0.18, "y2": -0.18 }
+          {
+            "x1": -0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": -0.25,
+            "y1": 0.0,
+            "x2": 0.25,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.0,
+            "y1": -0.25,
+            "x2": 0.0,
+            "y2": 0.25
+          },
+          {
+            "x1": -0.18,
+            "y1": -0.18,
+            "x2": 0.18,
+            "y2": 0.18
+          },
+          {
+            "x1": -0.18,
+            "y1": 0.18,
+            "x2": 0.18,
+            "y2": -0.18
+          }
         ]
       },
-      "solid3D": { "type": "Box", "widthMm": 595, "depthMm": 595, "heightMm": 60 }
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 595,
+        "depthMm": 595,
+        "heightMm": 60
+      },
+      "typeVariants": [
+        {
+          "name": "SUPPLY_DIFFUSER_SQ",
+          "params": {
+            "HVC_TERM_TYPE_TXT": "SUPPLY_DIFFUSER_SQ",
+            "ASS_PRODCT_COD_TXT": "DIF",
+            "HVC_TERM_FLOW_LS": "100"
+          }
+        },
+        {
+          "name": "SLOT_DIFFUSER",
+          "params": {
+            "HVC_TERM_TYPE_TXT": "SLOT_DIFFUSER",
+            "ASS_PRODCT_COD_TXT": "SLT",
+            "HVC_TERM_FLOW_LS": "75"
+          }
+        },
+        {
+          "name": "SUPPLY_GRILLE",
+          "params": {
+            "HVC_TERM_TYPE_TXT": "SUPPLY_GRILLE",
+            "ASS_PRODCT_COD_TXT": "GRL",
+            "HVC_TERM_FLOW_LS": "120"
+          }
+        },
+        {
+          "name": "EXTRACT_GRILLE",
+          "params": {
+            "HVC_TERM_TYPE_TXT": "EXTRACT_GRILLE",
+            "ASS_PRODCT_COD_TXT": "EXG",
+            "HVC_TERM_FLOW_LS": "100"
+          }
+        },
+        {
+          "name": "LOUVRE",
+          "params": {
+            "HVC_TERM_TYPE_TXT": "LOUVRE",
+            "ASS_PRODCT_COD_TXT": "LVR",
+            "HVC_TERM_FLOW_LS": "500"
+          }
+        }
+      ]
     }
   ]
 }

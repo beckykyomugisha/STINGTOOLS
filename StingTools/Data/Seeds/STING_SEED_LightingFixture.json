@@ -23,33 +23,199 @@
       "hosting": "CeilingBased",
       "symbolSize": 6.0,
       "parameters": [
-        { "name": "STING_SEED_FAMILY_TXT",     "type": "Text", "shared": true, "isInstance": true,  "default": "STING_SEED_LightingFixture" },
-        { "name": "STING_DESIGN_REF_TXT",      "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "STING_SWAP_HISTORY_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "ASS_TAG_1",                 "type": "Text", "shared": true, "isInstance": true },
-        { "name": "ASS_DISCIPLINE_COD_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "E" },
-        { "name": "ASS_PRODCT_COD_TXT",        "type": "Text", "shared": true, "isInstance": true,  "default": "LUM" },
-        { "name": "LTG_TYPE_TXT",              "type": "Text", "shared": true, "isInstance": true,  "default": "RECESSED" },
-        { "name": "ELC_PHOTO_LUMENS",          "type": "Text", "shared": true, "isInstance": false, "default": "4000" },
-        { "name": "ELC_PHOTO_WATTS",           "type": "Text", "shared": true, "isInstance": false, "default": "32" },
-        { "name": "ELC_PHOTO_FILE_PATH",       "type": "Text", "shared": true, "isInstance": false, "default": "" },
-        { "name": "ELC_PHOTO_CCT",             "type": "Text", "shared": true, "isInstance": false, "default": "4000" },
-        { "name": "ELC_PHOTO_CRI",             "type": "Text", "shared": true, "isInstance": false, "default": "80" },
-        { "name": "ELC_LIGHTING_UF_FACTOR",    "type": "Text", "shared": true, "isInstance": false, "default": "0.6" },
-        { "name": "ELC_LIGHTING_MF_FACTOR",    "type": "Text", "shared": true, "isInstance": false, "default": "0.8" },
-        { "name": "ELC_CIRCUIT_GROUP_TXT",     "type": "Text", "shared": true, "isInstance": true,  "default": "" }
+        {
+          "name": "STING_SEED_FAMILY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "STING_SEED_LightingFixture"
+        },
+        {
+          "name": "STING_DESIGN_REF_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "STING_SWAP_HISTORY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "ASS_TAG_1",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true
+        },
+        {
+          "name": "ASS_DISCIPLINE_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "E"
+        },
+        {
+          "name": "ASS_PRODCT_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "LUM"
+        },
+        {
+          "name": "LTG_TYPE_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "RECESSED"
+        },
+        {
+          "name": "ELC_PHOTO_LUMENS",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "4000"
+        },
+        {
+          "name": "ELC_PHOTO_WATTS",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "32"
+        },
+        {
+          "name": "ELC_PHOTO_FILE_PATH",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": ""
+        },
+        {
+          "name": "ELC_PHOTO_CCT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "4000"
+        },
+        {
+          "name": "ELC_PHOTO_CRI",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "80"
+        },
+        {
+          "name": "ELC_LIGHTING_UF_FACTOR",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "0.6"
+        },
+        {
+          "name": "ELC_LIGHTING_MF_FACTOR",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "0.8"
+        },
+        {
+          "name": "ELC_CIRCUIT_GROUP_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": -0.5, "x2":  0.5, "y2": -0.5 },
-          { "x1":  0.5, "y1": -0.5, "x2":  0.5, "y2":  0.5 },
-          { "x1":  0.5, "y1":  0.5, "x2": -0.5, "y2":  0.5 },
-          { "x1": -0.5, "y1":  0.5, "x2": -0.5, "y2": -0.5 },
-          { "x1": -0.5, "y1": -0.5, "x2":  0.5, "y2":  0.5 },
-          { "x1": -0.5, "y1":  0.5, "x2":  0.5, "y2": -0.5 }
+          {
+            "x1": -0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.5,
+            "x2": 0.5,
+            "y2": -0.5
+          }
         ]
       },
-      "solid3D": { "type": "Box", "widthMm": 600, "depthMm": 600, "heightMm": 100 }
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 600,
+        "depthMm": 600,
+        "heightMm": 100
+      },
+      "typeVariants": [
+        {
+          "name": "RECESSED_LED_600x600",
+          "params": {
+            "LTG_TYPE_TXT": "RECESSED",
+            "ELC_PHOTO_LUMENS": "4000",
+            "ELC_PHOTO_WATTS": "32"
+          }
+        },
+        {
+          "name": "DOWNLIGHT",
+          "params": {
+            "LTG_TYPE_TXT": "DOWNLIGHT",
+            "ELC_PHOTO_LUMENS": "1200",
+            "ELC_PHOTO_WATTS": "12"
+          }
+        },
+        {
+          "name": "PENDANT",
+          "params": {
+            "LTG_TYPE_TXT": "PENDANT",
+            "ELC_PHOTO_LUMENS": "3000",
+            "ELC_PHOTO_WATTS": "24"
+          }
+        },
+        {
+          "name": "LINEAR_LED",
+          "params": {
+            "LTG_TYPE_TXT": "LINEAR_LED",
+            "ELC_PHOTO_LUMENS": "6000",
+            "ELC_PHOTO_WATTS": "50"
+          }
+        },
+        {
+          "name": "EMERGENCY",
+          "params": {
+            "LTG_TYPE_TXT": "EMERGENCY",
+            "ELC_PHOTO_LUMENS": "200",
+            "ELC_PHOTO_WATTS": "4"
+          }
+        }
+      ]
     }
   ]
 }

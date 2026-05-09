@@ -13,28 +13,169 @@
       "hosting": "FaceBased",
       "symbolSize": 6.0,
       "parameters": [
-        { "name": "STING_SEED_FAMILY_TXT",   "type": "Text", "shared": true, "isInstance": true,  "default": "STING_SEED_PlumbingFixture" },
-        { "name": "STING_DESIGN_REF_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "STING_SWAP_HISTORY_TXT",  "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "ASS_TAG_1",               "type": "Text", "shared": true, "isInstance": true },
-        { "name": "ASS_DISCIPLINE_COD_TXT",  "type": "Text", "shared": true, "isInstance": true,  "default": "P" },
-        { "name": "ASS_PRODCT_COD_TXT",      "type": "Text", "shared": true, "isInstance": true,  "default": "WC" },
-        { "name": "PLM_FIX_TYPE_TXT",        "type": "Text", "shared": true, "isInstance": true,  "default": "WC" },
-        { "name": "PLM_FIX_FLOWRATE_LMIN",   "type": "Text", "shared": true, "isInstance": false, "default": "9" },
-        { "name": "PLM_FIX_HOT_COLD_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "COLD" },
-        { "name": "PLM_FIX_DRAIN_DN_MM",     "type": "Text", "shared": true, "isInstance": false, "default": "100" }
+        {
+          "name": "STING_SEED_FAMILY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "STING_SEED_PlumbingFixture"
+        },
+        {
+          "name": "STING_DESIGN_REF_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "STING_SWAP_HISTORY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "ASS_TAG_1",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true
+        },
+        {
+          "name": "ASS_DISCIPLINE_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "P"
+        },
+        {
+          "name": "ASS_PRODCT_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "WC"
+        },
+        {
+          "name": "PLM_FIX_TYPE_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "WC"
+        },
+        {
+          "name": "PLM_FIX_FLOWRATE_LMIN",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "9"
+        },
+        {
+          "name": "PLM_FIX_HOT_COLD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "COLD"
+        },
+        {
+          "name": "PLM_FIX_DRAIN_DN_MM",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "100"
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.4, "y1": -0.5, "x2":  0.4, "y2": -0.5 },
-          { "x1":  0.4, "y1": -0.5, "x2":  0.5, "y2":  0.0 },
-          { "x1":  0.5, "y1":  0.0, "x2":  0.4, "y2":  0.5 },
-          { "x1":  0.4, "y1":  0.5, "x2": -0.4, "y2":  0.5 },
-          { "x1": -0.4, "y1":  0.5, "x2": -0.5, "y2":  0.0 },
-          { "x1": -0.5, "y1":  0.0, "x2": -0.4, "y2": -0.5 }
+          {
+            "x1": -0.4,
+            "y1": -0.5,
+            "x2": 0.4,
+            "y2": -0.5
+          },
+          {
+            "x1": 0.4,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.0,
+            "x2": 0.4,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.5,
+            "x2": -0.4,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": 0.0
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.0,
+            "x2": -0.4,
+            "y2": -0.5
+          }
         ]
       },
-      "solid3D": { "type": "Box", "widthMm": 400, "depthMm": 600, "heightMm": 400 }
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 400,
+        "depthMm": 600,
+        "heightMm": 400
+      },
+      "typeVariants": [
+        {
+          "name": "WC",
+          "params": {
+            "PLM_FIX_TYPE_TXT": "WC",
+            "ASS_PRODCT_COD_TXT": "WC",
+            "PLM_FIX_FLOWRATE_LMIN": "9",
+            "PLM_FIX_DRAIN_DN_MM": "100"
+          }
+        },
+        {
+          "name": "BASIN",
+          "params": {
+            "PLM_FIX_TYPE_TXT": "BASIN",
+            "ASS_PRODCT_COD_TXT": "BAS",
+            "PLM_FIX_FLOWRATE_LMIN": "6",
+            "PLM_FIX_DRAIN_DN_MM": "40"
+          }
+        },
+        {
+          "name": "URINAL",
+          "params": {
+            "PLM_FIX_TYPE_TXT": "URINAL",
+            "ASS_PRODCT_COD_TXT": "URI",
+            "PLM_FIX_FLOWRATE_LMIN": "4",
+            "PLM_FIX_DRAIN_DN_MM": "40"
+          }
+        },
+        {
+          "name": "SHOWER",
+          "params": {
+            "PLM_FIX_TYPE_TXT": "SHOWER",
+            "ASS_PRODCT_COD_TXT": "SHW",
+            "PLM_FIX_FLOWRATE_LMIN": "12",
+            "PLM_FIX_DRAIN_DN_MM": "40"
+          }
+        },
+        {
+          "name": "SINK",
+          "params": {
+            "PLM_FIX_TYPE_TXT": "SINK",
+            "ASS_PRODCT_COD_TXT": "SNK",
+            "PLM_FIX_FLOWRATE_LMIN": "8",
+            "PLM_FIX_DRAIN_DN_MM": "40"
+          }
+        }
+      ]
     }
   ]
 }

@@ -183,6 +183,19 @@ namespace StingTools.Core.Symbols
                     {
                         TryAddSeedMarker(fdoc, def);
                     }
+
+                    // Wave G1 — type-variant injection. Each
+                    // TypeVariantDefinition becomes a duplicate of the
+                    // default family type; the duplicate's parameters
+                    // are overridden per the JSON spec. Saves the
+                    // author from manually duplicating types in
+                    // Family Editor for the FR30/FR60/FR90/FR120 +
+                    // PENDANT/RECESSED/etc. variants documented in the
+                    // layman's guide.
+                    if (def.TypeVariants != null && def.TypeVariants.Count > 0)
+                    {
+                        AddTypeVariants(fdoc, def, result);
+                    }
                     tx.Commit();
                 }
 
@@ -417,6 +430,109 @@ namespace StingTools.Core.Symbols
                 }
             }
             catch (Exception ex) { StingLog.Warn($"TryAddSeedMarker {def.Id}: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Wave G1 — duplicate the default type once per
+        /// TypeVariantDefinition and stamp the per-variant parameter
+        /// values. Saves the author from manually creating each variant
+        /// in Family Editor; per the layman's guide the visual polish
+        /// (2D symbology + 3D mass refinement) still happens manually,
+        /// but the parameter scaffolding lands programmatically so
+        /// schedules + swap candidates work the moment the .rfa loads.
+        /// </summary>
+        private static void AddTypeVariants(Document fdoc, SymbolDefinition def, SymbolCreationResult result)
+        {
+            if (!fdoc.IsFamilyDocument) return;
+            var fm = fdoc.FamilyManager;
+
+            // Identify the default type (the only one that exists at
+            // this point — the .rft template ships a single type and
+            // we haven't added any). Some templates ship without any
+            // types at all; in that case create one named "Default"
+            // so the duplicate path has a source.
+            FamilyType seed = fm.CurrentType;
+            if (seed == null)
+            {
+                try { seed = fm.NewType("Default"); fm.CurrentType = seed; }
+                catch (Exception ex)
+                {
+                    result.Warnings.Add($"{def.Id}: NewType seed failed — {ex.Message}");
+                    return;
+                }
+            }
+
+            foreach (var variant in def.TypeVariants)
+            {
+                if (variant == null || string.IsNullOrWhiteSpace(variant.Name)) continue;
+                try
+                {
+                    fm.CurrentType = seed;
+                    var duplicate = fm.NewType(variant.Name);
+                    fm.CurrentType = duplicate;
+
+                    if (variant.Parameters != null)
+                    {
+                        foreach (var kv in variant.Parameters)
+                        {
+                            try
+                            {
+                                var p = fm.get_Parameter(kv.Key);
+                                if (p == null)
+                                {
+                                    result.Warnings.Add($"{def.Id} variant '{variant.Name}': param '{kv.Key}' not bound — skipped.");
+                                    continue;
+                                }
+                                SetVariantParam(fm, p, kv.Value);
+                            }
+                            catch (Exception ex)
+                            {
+                                result.Warnings.Add($"{def.Id} variant '{variant.Name}' param '{kv.Key}': {ex.Message}");
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    result.Warnings.Add($"{def.Id}: variant '{variant.Name}' creation failed — {ex.Message}");
+                }
+            }
+
+            // Restore the default type so the family's "current"
+            // selection matches the seed when first loaded.
+            try { fm.CurrentType = seed; } catch { }
+        }
+
+        private static void SetVariantParam(FamilyManager fm, FamilyParameter p, string value)
+        {
+            if (p == null || value == null) return;
+            try
+            {
+                switch (p.StorageType)
+                {
+                    case StorageType.String:
+                        fm.Set(p, value);
+                        break;
+                    case StorageType.Integer:
+                        if (int.TryParse(value, out int i)) fm.Set(p, i);
+                        break;
+                    case StorageType.Double:
+                        if (double.TryParse(value,
+                            System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture,
+                            out double d)) fm.Set(p, d);
+                        break;
+                    case StorageType.ElementId:
+                        // Variant params don't yet support ElementId
+                        // values — schedule + swap registry don't need
+                        // them. Skip silently rather than fail.
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SetVariantParam {p?.Definition?.Name}: {ex.Message}");
+            }
         }
 
         private static void AddParameters(Document fdoc, SymbolDefinition def, SymbolCreationResult result)

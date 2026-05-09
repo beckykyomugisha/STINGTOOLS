@@ -23,43 +23,225 @@
       "hosting": "Standalone",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "STING_SEED_FAMILY_TXT",     "type": "Text", "shared": true, "isInstance": true,  "default": "STING_SEED_JunctionBox" },
-        { "name": "STING_DESIGN_REF_TXT",      "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "STING_SWAP_HISTORY_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "ASS_TAG_1",                 "type": "Text", "shared": true, "isInstance": true },
-        { "name": "ASS_DISCIPLINE_COD_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "E" },
-        { "name": "ASS_PRODCT_COD_TXT",        "type": "Text", "shared": true, "isInstance": true,  "default": "JB" },
-        { "name": "ELC_JB_TYPE_TXT",           "type": "Text", "shared": true, "isInstance": true,  "default": "PULL_BOX" },
-        { "name": "ELC_JB_SIZE_MM",            "type": "Text", "shared": true, "isInstance": true,  "default": "100x100x60" },
-        { "name": "ELC_JB_IP_RATING_TXT",      "type": "Text", "shared": true, "isInstance": false, "default": "IP54" },
-        { "name": "ELC_JB_FIRE_RATING_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "ELC_JB_AUTO_PLACED_BOOL",   "type": "Text", "shared": true, "isInstance": true,  "default": "0" },
-        { "name": "ELC_JB_REASON_TXT",         "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "ELC_JB_UPSTREAM_REF_TXT",   "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "ELC_JB_DOWNSTREAM_REF_TXT", "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "ELC_CIRCUIT_GROUP_TXT",     "type": "Text", "shared": true, "isInstance": true,  "default": "" }
+        {
+          "name": "STING_SEED_FAMILY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "STING_SEED_JunctionBox"
+        },
+        {
+          "name": "STING_DESIGN_REF_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "STING_SWAP_HISTORY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "ASS_TAG_1",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true
+        },
+        {
+          "name": "ASS_DISCIPLINE_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "E"
+        },
+        {
+          "name": "ASS_PRODCT_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "JB"
+        },
+        {
+          "name": "ELC_JB_TYPE_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "PULL_BOX"
+        },
+        {
+          "name": "ELC_JB_SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "100x100x60"
+        },
+        {
+          "name": "ELC_JB_IP_RATING_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "IP54"
+        },
+        {
+          "name": "ELC_JB_FIRE_RATING_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "ELC_JB_AUTO_PLACED_BOOL",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "0"
+        },
+        {
+          "name": "ELC_JB_REASON_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "ELC_JB_UPSTREAM_REF_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "ELC_JB_DOWNSTREAM_REF_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "ELC_CIRCUIT_GROUP_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        }
       ],
       "connectors": [
-        { "domain": "Electrical", "x": -0.5, "y":  0.0, "z": 0.0, "direction": "x-",
-          "_notes": "Upstream connector — incoming conduit from supply side" },
-        { "domain": "Electrical", "x":  0.5, "y":  0.0, "z": 0.0, "direction": "x+",
-          "_notes": "Downstream connector — outgoing conduit to load side" },
-        { "domain": "Electrical", "x":  0.0, "y": -0.5, "z": 0.0, "direction": "y-",
-          "_notes": "Side branch connector (for tee/cross junctions)" },
-        { "domain": "Electrical", "x":  0.0, "y":  0.5, "z": 0.0, "direction": "y+",
-          "_notes": "Side branch connector (for tee/cross junctions)" }
+        {
+          "domain": "Electrical",
+          "x": -0.5,
+          "y": 0.0,
+          "z": 0.0,
+          "direction": "x-",
+          "_notes": "Upstream connector — incoming conduit from supply side"
+        },
+        {
+          "domain": "Electrical",
+          "x": 0.5,
+          "y": 0.0,
+          "z": 0.0,
+          "direction": "x+",
+          "_notes": "Downstream connector — outgoing conduit to load side"
+        },
+        {
+          "domain": "Electrical",
+          "x": 0.0,
+          "y": -0.5,
+          "z": 0.0,
+          "direction": "y-",
+          "_notes": "Side branch connector (for tee/cross junctions)"
+        },
+        {
+          "domain": "Electrical",
+          "x": 0.0,
+          "y": 0.5,
+          "z": 0.0,
+          "direction": "y+",
+          "_notes": "Side branch connector (for tee/cross junctions)"
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": -0.5, "x2":  0.5, "y2": -0.5 },
-          { "x1":  0.5, "y1": -0.5, "x2":  0.5, "y2":  0.5 },
-          { "x1":  0.5, "y1":  0.5, "x2": -0.5, "y2":  0.5 },
-          { "x1": -0.5, "y1":  0.5, "x2": -0.5, "y2": -0.5 },
-          { "x1": -0.3, "y1":  0.0, "x2":  0.3, "y2":  0.0 },
-          { "x1":  0.0, "y1": -0.3, "x2":  0.0, "y2":  0.3 }
+          {
+            "x1": -0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.0,
+            "x2": 0.3,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.0,
+            "y1": -0.3,
+            "x2": 0.0,
+            "y2": 0.3
+          }
         ]
       },
-      "solid3D": { "type": "Box", "widthMm": 100, "depthMm": 100, "heightMm": 60 }
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 100,
+        "depthMm": 100,
+        "heightMm": 60
+      },
+      "typeVariants": [
+        {
+          "name": "PULL_BOX",
+          "params": {
+            "ELC_JB_TYPE_TXT": "PULL_BOX",
+            "ELC_JB_SIZE_MM": "100x100x60",
+            "ELC_JB_IP_RATING_TXT": "IP54"
+          }
+        },
+        {
+          "name": "DRAW_IN_BOX",
+          "params": {
+            "ELC_JB_TYPE_TXT": "DRAW_IN_BOX",
+            "ELC_JB_SIZE_MM": "200x200x80",
+            "ELC_JB_IP_RATING_TXT": "IP54"
+          }
+        },
+        {
+          "name": "ADAPTABLE_BOX",
+          "params": {
+            "ELC_JB_TYPE_TXT": "ADAPTABLE_BOX",
+            "ELC_JB_SIZE_MM": "300x300x100",
+            "ELC_JB_IP_RATING_TXT": "IP54"
+          }
+        },
+        {
+          "name": "TEE_BOX",
+          "params": {
+            "ELC_JB_TYPE_TXT": "TEE_BOX",
+            "ELC_JB_SIZE_MM": "150x150x80",
+            "ELC_JB_IP_RATING_TXT": "IP54"
+          }
+        }
+      ]
     }
   ]
 }
