@@ -2190,18 +2190,58 @@
       }
       const attachBtn = $('#imAttachBtn');
       const attachInput = $('#imAttachInput');
-      if (attachBtn && attachInput) {
-        attachBtn.addEventListener('click', () => attachInput.click());
-        attachInput.addEventListener('change', () => {
-          for (const f of attachInput.files) {
-            if (f.size > 50 * 1024 * 1024) {
-              toast(`${f.name} exceeds 50 MB — skipped`, 'warn');
-              continue;
-            }
-            pendingIssueAttachments.push(f);
+      const dropZone = $('#imAttachDrop');
+      // Centralise the "stage these files for upload" loop so click-to-browse
+      // and drag-drop hit the exact same path (validation, oversize toast,
+      // empty-input guard).
+      function stageFiles(files) {
+        if (!files) return;
+        for (const f of files) {
+          if (f.size > 50 * 1024 * 1024) {
+            toast(`${f.name} exceeds 50 MB — skipped`, 'warn');
+            continue;
           }
+          pendingIssueAttachments.push(f);
+        }
+        renderAttachmentList();
+      }
+      if (attachBtn && attachInput) {
+        attachBtn.addEventListener('click', (ev) => {
+          ev.stopPropagation();           // don't double-fire via dropzone
+          attachInput.click();
+        });
+        attachInput.addEventListener('change', () => {
+          stageFiles(attachInput.files);
           attachInput.value = '';        // allow same file to be re-picked
-          renderAttachmentList();
+        });
+      }
+      // Drag-and-drop dropzone — matches mobile expo-image-picker ergonomics
+      // for desktop users dragging photos out of Finder / Explorer / Slack.
+      if (dropZone && attachInput) {
+        dropZone.addEventListener('click', () => attachInput.click());
+        dropZone.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); attachInput.click(); }
+        });
+        ['dragenter', 'dragover'].forEach(evt => {
+          dropZone.addEventListener(evt, (ev) => {
+            ev.preventDefault(); ev.stopPropagation();
+            dropZone.classList.add('dragover');
+          });
+        });
+        ['dragleave', 'drop'].forEach(evt => {
+          dropZone.addEventListener(evt, (ev) => {
+            ev.preventDefault(); ev.stopPropagation();
+            dropZone.classList.remove('dragover');
+          });
+        });
+        dropZone.addEventListener('drop', (ev) => {
+          const files = ev.dataTransfer?.files;
+          stageFiles(files);
+        });
+        // Suppress browser default of navigating to the dropped file when
+        // the user misses the drop zone — common with folder drags.
+        ['dragover', 'drop'].forEach(evt => {
+          modal.addEventListener(evt, (ev) => { ev.preventDefault(); });
         });
       }
       $('#imScreenshotBtn').addEventListener('click', () => {
@@ -2316,8 +2356,9 @@
       if (expandBtn) {
         expandBtn.addEventListener('click', () => {
           const bp = $('#bottomPanel');
+          const wrap = $('.viewport-wrap');
           bp.classList.remove('collapsed');
-          $('.viewport-wrap')?.classList.remove('bp-collapsed');
+          wrap?.classList.remove('bp-collapsed');
           bp.classList.toggle('expanded');
           // Clear any inline height the resize-drag set so the .expanded
           // CSS class wins; toggling expanded back off restores the
@@ -2325,6 +2366,13 @@
           if (bp.classList.contains('expanded')) {
             bp.style.removeProperty('height');
           }
+          // Mirror .expanded onto the viewport-wrap so the floating
+          // overlays (level strip, nav controls, coord readout, minimap)
+          // shift up to clear the 60vh tray instead of being covered.
+          // Without this they end up trapped underneath because their
+          // `bottom: calc(var(--bottom-panel-height) + …)` was computed
+          // against the default 220 px var.
+          wrap?.classList.toggle('bp-expanded', bp.classList.contains('expanded'));
           expandBtn.textContent = bp.classList.contains('expanded') ? '⤓' : '⛶';
           expandBtn.title = bp.classList.contains('expanded')
             ? 'Restore default height'
@@ -2363,8 +2411,11 @@
           if (bp.classList.contains('collapsed')) return;
           // Drag breaks the .expanded preset — once you've manually
           // resized, you've "taken over" the height, same as a normal
-          // window drag in any IDE.
+          // window drag in any IDE. Drop the mirror class on the
+          // viewport-wrap too so the floating overlays return to their
+          // default --bottom-panel-height-driven offsets.
           bp.classList.remove('expanded');
+          $('.viewport-wrap')?.classList.remove('bp-expanded');
           bp.classList.add('resizing');
           dragStartY = ev.clientY;
           dragStartHeight = bp.getBoundingClientRect().height;

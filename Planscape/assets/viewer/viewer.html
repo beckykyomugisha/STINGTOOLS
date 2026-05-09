@@ -178,16 +178,16 @@
 
       <!-- Nav controls — Orbit / Pan / Walk / Pivot / Fit + walk-speed wheel -->
       <div class="nav-controls" id="navControls">
-        <button class="nav-btn active" data-mode="orbit">◯ Orbit</button>
-        <button class="nav-btn" data-mode="pan">↖ Pan</button>
-        <button class="nav-btn" data-mode="walk">🚶 Walk</button>
-        <button class="nav-btn" data-mode="pivot">⊕ Pivot</button>
-        <button class="nav-btn" data-mode="fit"  title="Fit selection or model (F)">⌖ Fit</button>
+        <button class="nav-btn active" data-mode="orbit" title="Orbit mode (O) — drag to rotate" aria-label="Orbit mode">◯ Orbit</button>
+        <button class="nav-btn" data-mode="pan"  title="Pan mode — drag to translate"             aria-label="Pan mode">↖ Pan</button>
+        <button class="nav-btn" data-mode="walk" title="Walk mode (W) — first-person navigation"  aria-label="Walk mode">🚶 Walk</button>
+        <button class="nav-btn" data-mode="pivot" title="Pivot mode — orbit around selection"     aria-label="Pivot mode">⊕ Pivot</button>
+        <button class="nav-btn" data-mode="fit"  title="Fit selection or model (F)"               aria-label="Fit camera">⌖ Fit</button>
         <span class="speed-wrap" id="walkSpeedWrap" title="Walk speed — scroll wheel or +/− buttons">
           <span class="lbl">SPD</span>
-          <button id="walkSpeedDown">−</button>
-          <span class="val" id="walkSpeedVal">1.0×</span>
-          <button id="walkSpeedUp">+</button>
+          <button id="walkSpeedDown" aria-label="Decrease walk speed" title="Decrease walk speed">−</button>
+          <span class="val" id="walkSpeedVal" aria-live="polite">1.0×</span>
+          <button id="walkSpeedUp"   aria-label="Increase walk speed" title="Increase walk speed">+</button>
         </span>
       </div>
 
@@ -413,7 +413,11 @@
 
       <label>Attachments</label>
       <input id="imAttachInput" type="file" multiple style="display:none" />
-      <button class="btn ghost" id="imAttachBtn">📎 Add files (photos, PDFs, drawings)</button>
+      <div id="imAttachDrop" class="attachment-drop" tabindex="0"
+           role="button" aria-label="Drop files here or click to browse">
+        <button class="btn ghost" id="imAttachBtn" type="button">📎 Add files (photos, PDFs, drawings)</button>
+        <div class="hint">…or drop files anywhere in this box</div>
+      </div>
       <div class="attachment-list" id="imAttachList"></div>
     </div>
     <div class="foot">

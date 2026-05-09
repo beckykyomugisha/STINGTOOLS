@@ -555,7 +555,7 @@ canvas { display: block; touch-action: none; }
   font-size: 11.5px;
   color: var(--text-primary);
   box-shadow: var(--shadow-md);
-  z-index: 200;
+  z-index: 2550;     /* above help-overlay (2500), below modal (3000) */
   display: none;
   max-width: 240px;
   line-height: 1.35;
@@ -852,6 +852,15 @@ canvas { display: block; touch-action: none; }
 .viewport-wrap.bp-collapsed .coord-readout { bottom: calc(32px + 12px); }
 .viewport-wrap.bp-collapsed .minimap       { bottom: calc(32px + 12px); }
 
+/* Mirror class for the EXPANDED state (60vh). Without this, the floating
+   overlays computed against `--bottom-panel-height` (default 220px) end up
+   *underneath* the expanded tray. We push them above the 60vh ceiling so
+   the level strip + nav controls + coord readout + minimap stay reachable. */
+.viewport-wrap.bp-expanded .level-strip    { bottom: calc(60vh + 56px); }
+.viewport-wrap.bp-expanded .nav-controls   { bottom: calc(60vh + 14px); }
+.viewport-wrap.bp-expanded .coord-readout  { bottom: calc(60vh + 12px); }
+.viewport-wrap.bp-expanded .minimap        { bottom: calc(60vh + 12px); }
+
 .bottom-tabs {
   display: flex; align-items: center;
   border-bottom: 1px solid var(--border-subtle);
@@ -1054,6 +1063,23 @@ canvas { display: block; touch-action: none; }
 }
 .watcher-chip .x { cursor: pointer; opacity: 0.6; padding-left: 2px; }
 .watcher-chip .x:hover { opacity: 1; }
+.attachment-drop {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  border: 1px dashed var(--border-strong); border-radius: var(--radius-md);
+  padding: 12px; margin-top: 4px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  cursor: pointer; outline: none;
+}
+.attachment-drop:hover { border-color: var(--accent); }
+.attachment-drop:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(232,145,45,0.25); }
+.attachment-drop.dragover {
+  border-color: var(--accent); border-style: solid;
+  background: rgba(232,145,45,0.08);
+}
+.attachment-drop .hint {
+  font-size: 10px; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
 .attachment-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
 .attachment-row {
   display: flex; align-items: center; gap: 8px;
@@ -1113,12 +1139,16 @@ canvas { display: block; touch-action: none; }
 
 /* ── Selection toolbar (appears when ≥1 element selected) ───── */
 .selection-toolbar {
-  position: absolute; left: 50%; top: 24px; transform: translateX(-50%);
-  display: flex; align-items: center; gap: 4px;
+  position: absolute; left: 50%; top: 16px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
   background: var(--bg-panel); border: 1px solid var(--border);
   border-radius: 999px; padding: 4px 6px;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.4); z-index: 20;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.4); z-index: 25;
   font-size: 11px;
+  /* Cap the toolbar at 92% of the viewport so it never clips off-screen
+     on tablets / split-screen layouts. flex-wrap above lets the buttons
+     reflow to a second row when there isn't enough horizontal room. */
+  max-width: 92vw;
 }
 .selection-toolbar .sel-count {
   padding: 2px 10px; font-family: var(--font-mono);
@@ -1221,3 +1251,26 @@ canvas { display: block; touch-action: none; }
 @media (max-width: 1100px) {
   :root { --panel-left-width: 240px; --panel-right-width: 260px; }
 }
+
+/* Tablet / small-laptop polish — five nav buttons + speed widget were
+   designed for ≥1100 px. Below 900 px we need to tighten button padding
+   and font size or the speed wheel and Pivot/Fit buttons get clipped. */
+@media (max-width: 900px) {
+  .nav-btn { padding: 4px 7px; font-size: 10px; }
+  .nav-controls .speed-wrap { font-size: 9px; padding: 1px 4px; }
+  .nav-controls .speed-wrap button { width: 16px; height: 18px; font-size: 11px; }
+  .nav-controls .speed-wrap .val { min-width: 32px; font-size: 9px; }
+  .selection-toolbar { font-size: 10px; padding: 2px 4px; }
+  .selection-toolbar .sel-btn { padding: 3px 7px; font-size: 10px; }
+}
+
+/* Keyboard-focus ring on the row context menu items so coordinators
+   navigating the right-click menu via Tab/Arrow keys see where they are.
+   Hover already had its own background; focus-visible adds a clear
+   accent outline that doesn't fire for plain mouse clicks. */
+.row-menu .item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  background: var(--bg-canvas);
+}
+.row-menu .item:focus { outline: none; }   /* fall back to focus-visible */

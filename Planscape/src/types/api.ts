@@ -84,6 +84,11 @@ export interface BimIssue {
   modelX?: number | null;
   modelY?: number | null;
   modelZ?: number | null;
+  // WATCHERS — array of AppUser ids who get push notifications on every
+  // status change, comment, and attachment upload, in addition to the
+  // assignee. Server stores it as a JSON-encoded string and emits it as
+  // `string` in GetIssues responses; on the wire we accept both shapes.
+  watcherUserIds?: string[] | string | null;
 }
 
 /** NEW-INFO-06/07 — Activity timeline entries surfaced from AuditLog. */
