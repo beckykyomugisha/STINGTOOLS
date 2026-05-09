@@ -105,6 +105,45 @@ namespace StingTools.Core.Drawing.Dimensioning
             return false;
         }
 
+        private static double GetWallThicknessFt(Pipe pipe)
+        {
+            const double mmToFt = 1.0 / 304.8;
+            try
+            {
+                var p = pipe.LookupParameter("PLM_PPE_WALL_THK_MM");
+                if (p != null && p.HasValue && p.StorageType == StorageType.Double)
+                {
+                    double v = p.AsDouble();
+                    if (v > 0) return v * mmToFt;
+                }
+            }
+            catch { }
+
+            string mat = "";
+            try
+            {
+                var matParam = pipe.LookupParameter("PLM_MAT_TXT");
+                if (matParam != null && matParam.StorageType == StorageType.String)
+                    mat = matParam.AsString() ?? "";
+                if (string.IsNullOrEmpty(mat))
+                {
+                    var typeName = pipe.PipeType?.Name ?? "";
+                    mat = typeName;
+                }
+            }
+            catch { }
+            mat = (mat ?? "").ToUpperInvariant();
+
+            double mm =
+                mat.Contains("CLAY") || mat.Contains("VC")            ? 15.0 :
+                mat.Contains("CAST") || mat.Contains("CI")            ? 6.0  :
+                mat.Contains("COPPER") || mat.Contains("CU")          ? 1.5  :
+                (mat.Contains("PVC") || mat.Contains("HDPE") || mat.Contains("PE") || mat.Contains("ABS"))
+                                                                       ? 3.2  :
+                3.0;
+            return mm * mmToFt;
+        }
+
         private static ElementId ResolveSpotSymbolId(Document doc, string preferredName)
         {
             try
@@ -137,13 +176,15 @@ namespace StingTools.Core.Drawing.Dimensioning
             if (!(pipe.Location is LocationCurve lc) || lc.Curve == null) return;
 
             var midPt = (lc.Curve.GetEndPoint(0) + lc.Curve.GetEndPoint(1)) * 0.5;
-            // Invert = centreline Z - radius. SpotElevation reads Z off
-            // the picked face/reference, so dropping origin to invert
-            // before NewSpotElevation gets the right number even when the
-            // reference is the centreline.
+            // True invert = centreline Z - (radius + wall thickness).
+            // Phase 178a hardening — radius alone is the inside-of-pipe
+            // bottom; the externally-visible invert (which BS EN 12056
+            // and Approved Document H reference for clearances) sits one
+            // wall-thickness lower.
             double radius = 0;
             try { radius = pipe.Diameter * 0.5; } catch { }
-            var invert = new XYZ(midPt.X, midPt.Y, midPt.Z - radius);
+            double wallFt = GetWallThicknessFt(pipe);
+            var invert = new XYZ(midPt.X, midPt.Y, midPt.Z - radius - wallFt);
 
             // Bend / end / refPt offsets — small in-plane offsets so the
             // leader sits clear of the centreline.
