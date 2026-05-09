@@ -207,7 +207,7 @@ namespace StingTools.Commands.Electrical.Routing
             {
                 if (c.RouteTrayIds == null || c.RouteTrayIds.Count == 0) continue;
                 rep = c;
-                firstConduitId = new ElementId((int)c.RouteTrayIds[0]);
+                firstConduitId = new ElementId(c.RouteTrayIds[0]);
                 break;
             }
             if (rep == null) return;
@@ -227,7 +227,7 @@ namespace StingTools.Commands.Electrical.Routing
                 {
                     try
                     {
-                        var el = doc.GetElement(new ElementId((int)lid));
+                        var el = doc.GetElement(new ElementId(lid));
                         if (el == null) continue;
                         doc.Delete(el.Id);
                         result.DeletedConduits++;

@@ -296,12 +296,12 @@ namespace StingTools.Core.Calc
                     {
                         if (other.Owner == null) continue;
                         if (other.Owner.Id == pipe.Id) continue;
-                        var cat = other.Owner.Category?.Id?.IntegerValue ?? 0;
-                        if (cat == (int)BuiltInCategory.OST_PipeFitting ||
-                            cat == (int)BuiltInCategory.OST_PipeAccessory ||
-                            cat == (int)BuiltInCategory.OST_PlumbingFixtures ||
-                            cat == (int)BuiltInCategory.OST_MechanicalEquipment ||
-                            cat == (int)BuiltInCategory.OST_PipeCurves)
+                        long cat = other.Owner.Category?.Id?.Value ?? 0;
+                        if (cat == (long)BuiltInCategory.OST_PipeFitting ||
+                            cat == (long)BuiltInCategory.OST_PipeAccessory ||
+                            cat == (long)BuiltInCategory.OST_PlumbingFixtures ||
+                            cat == (long)BuiltInCategory.OST_MechanicalEquipment ||
+                            cat == (long)BuiltInCategory.OST_PipeCurves)
                         {
                             neighbourId = other.Owner.Id;
                             return true;
