@@ -1212,6 +1212,50 @@ canvas { display: block; touch-action: none; }
   font-family: var(--font-mono); font-size: 10px; color: var(--accent);
 }
 
+/* ── Inline prompt (replaces window.prompt) ──────────────── */
+.modal-backdrop.inline-prompt-bd { z-index: 2700; }
+.modal.inline-prompt {
+  width: 460px; max-width: 92vw;
+  background: var(--bg-panel); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+  display: flex; flex-direction: column; max-height: 90vh;
+}
+.modal.inline-prompt .head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px; border-bottom: 1px solid var(--border);
+}
+.modal.inline-prompt .head h2 { margin: 0; font-size: 14px; font-weight: 600; }
+.modal.inline-prompt .head .close {
+  background: transparent; border: 0; color: var(--text-secondary);
+  font-size: 14px; cursor: pointer; padding: 4px 6px;
+}
+.modal.inline-prompt .body { padding: 14px; display: flex; flex-direction: column; gap: 6px; }
+.modal.inline-prompt .body label {
+  font-size: 11px; color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.modal.inline-prompt input,
+.modal.inline-prompt textarea {
+  width: 100%; padding: 8px 10px; font-size: 13px;
+  background: var(--bg-canvas); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-family: inherit; resize: vertical; min-height: 36px;
+}
+.modal.inline-prompt input:focus,
+.modal.inline-prompt textarea:focus {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(232,145,45,0.25);
+}
+.inline-prompt-counter {
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--text-muted); align-self: flex-end;
+}
+.inline-prompt-counter.warn { color: #f59e0b; }
+.modal.inline-prompt .foot {
+  display: flex; gap: 6px; justify-content: flex-end;
+  padding: 10px 14px; border-top: 1px solid var(--border);
+}
+
 /* ── Hide original viewer chrome ─────────────────────────── */
 .hud, .toolbar.legacy, .section-slider {
   display: none !important;

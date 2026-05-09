@@ -40,6 +40,11 @@
          (~10 MB on Linux) ships in the worker container, not the API. -->
     <PackageReference Include="SkiaSharp" Version="2.88.8" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.88.8" />
+    <!-- Phase 178b — ONNX face detector (YuNet) for the worker container.
+         The .onnx model file is NOT in source control; the worker image
+         downloads it at build time per Dockerfile (see ENV
+         PLANSCAPE_FACE_MODEL_PATH). API process never loads ONNX. -->
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.18.1" />
     <!-- S2.5.1 — Unicode-safe invoice PDF rendering. Apache 2.0 / community
          license is fine for our use; no Pro license needed for invoices. -->
     <PackageReference Include="QuestPDF" Version="2024.10.2" />

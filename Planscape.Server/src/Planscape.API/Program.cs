@@ -465,15 +465,17 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoPipeline.IPhot
     Planscape.Infrastructure.Services.PhotoPipeline.SkiaPhotoRedactionPipeline>();
 if (isWorker)
 {
-    // Worker container runs the real detectors. Today these are still
-    // the null impls — Phase 178 follow-up swaps in YuNet/RetinaFace
-    // ONNX bindings without changing the calling pipeline. Keeping the
-    // contract stable means swapping detectors won't churn the worker
-    // image's IP surface.
+    // Phase 178b — Worker container loads YuNet (ONNX, ~225 KB) for
+    // face detection and a colour-plus-aspect heuristic for number
+    // plates. Both bind as singletons so the InferenceSession is loaded
+    // once and shared. If the YuNet model file is missing the
+    // OnnxFaceDetector logs a warning at boot and behaves as a no-op
+    // (face blur skipped, watermark still applied — fail-open on the
+    // detection step, fail-closed on the publish step elsewhere).
     builder.Services.AddSingleton<Planscape.Infrastructure.Services.PhotoPipeline.IFaceDetector,
-        Planscape.Infrastructure.Services.PhotoPipeline.NullFaceDetector>();
+        Planscape.Infrastructure.Services.PhotoPipeline.OnnxFaceDetector>();
     builder.Services.AddSingleton<Planscape.Infrastructure.Services.PhotoPipeline.INumberPlateDetector,
-        Planscape.Infrastructure.Services.PhotoPipeline.NullNumberPlateDetector>();
+        Planscape.Infrastructure.Services.PhotoPipeline.HeuristicNumberPlateDetector>();
 }
 else
 {

@@ -255,7 +255,7 @@ public class SitePhotosController : ControllerBase
             }
         }
 
-        return CreatedAtAction(nameof(GetOne), new { projectId, photoId = photo.Id }, ToDto(photo));
+        return CreatedAtAction(nameof(GetOne), new { projectId, photoId = photo.Id }, await ToDtoAsync(photo, ct));
     }
 
     // ── GET / list ────────────────────────────────────────────────────
@@ -291,22 +291,46 @@ public class SitePhotosController : ControllerBase
         if (to.HasValue)   q = q.Where(p => p.CapturedAt <= to.Value);
 
         var total = await q.CountAsync(ct);
-        var rows = await q
+
+        // Two-step pattern: window the page IDs first, THEN join, so EF
+        // Core 8 reliably pushes ORDER BY / LIMIT into a subquery before
+        // the LEFT JOINs. The single-step LINQ syntax with into +
+        // DefaultIfEmpty over a windowed source can fall back to client
+        // evaluation in EF 8 (the translator is conservative there).
+        // Two round-trips, both indexed: total cost is unchanged.
+        var pageIds = await q
             .OrderByDescending(p => p.CapturedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(p => new SitePhotoDto(
-                p.Id, p.ProjectId, p.DocumentId,
-                p.Reason, p.Audience, p.BlurStatus, p.WatermarkApplied,
-                p.Caption, p.CapturedAt, p.CapturedByUserId,
-                p.LevelCode, p.ZoneCode, p.AnchorIssueId, p.AnchorElementGuid,
-                p.ModelId, p.ModelX, p.ModelY, p.ModelZ,
-                p.PairKey, p.ClassifierConfidence,
-                p.ApprovedAt, p.ApprovedByUserId,
-                p.RejectedAt, p.RejectedReason,
-                p.Latitude, p.Longitude
-            ))
+            .Select(p => p.Id)
             .ToListAsync(ct);
+
+        var rows = pageIds.Count == 0
+            ? new List<SitePhotoDto>()
+            : await (
+                from p in _db.SitePhotos.AsNoTracking()
+                where pageIds.Contains(p.Id)
+                join u in _db.Users.AsNoTracking() on p.CapturedByUserId equals u.Id into ug
+                from u in ug.DefaultIfEmpty()
+                join i in _db.Issues.AsNoTracking() on p.AnchorIssueId equals i.Id into ig
+                from i in ig.DefaultIfEmpty()
+                select new SitePhotoDto(
+                    p.Id, p.ProjectId, p.DocumentId,
+                    p.Reason, p.Audience, p.BlurStatus, p.WatermarkApplied,
+                    p.Caption, p.CapturedAt, p.CapturedByUserId,
+                    p.LevelCode, p.ZoneCode, p.AnchorIssueId, p.AnchorElementGuid,
+                    p.ModelId, p.ModelX, p.ModelY, p.ModelZ,
+                    p.PairKey, p.ClassifierConfidence,
+                    p.ApprovedAt, p.ApprovedByUserId,
+                    p.RejectedAt, p.RejectedReason,
+                    p.Latitude, p.Longitude,
+                    u != null ? u.DisplayName : null,
+                    i != null ? i.Discipline : null
+                )).ToListAsync(ct);
+
+        // Reconstruct the requested ordering — Contains() doesn't preserve
+        // pageIds ordering across DBs, so re-sort by CapturedAt desc.
+        rows = rows.OrderByDescending(r => r.CapturedAt).ToList();
 
         return Ok(new { items = rows, total, page, pageSize });
     }
@@ -318,7 +342,7 @@ public class SitePhotosController : ControllerBase
         var photo = await LoadPhotoAsync(projectId, photoId, ct);
         if (photo == null) return NotFound();
         if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
-        return Ok(ToDto(photo));
+        return Ok(await ToDtoAsync(photo, ct));
     }
 
     // ── GET /file — original (internal) or redacted (client) ──────────
@@ -387,7 +411,7 @@ public class SitePhotosController : ControllerBase
         await _audit.LogAsync("UPDATE", "SitePhoto", photoId.ToString(),
             System.Text.Json.JsonSerializer.Serialize(new { audience = new { from = prev, to = photo.Audience } }));
 
-        return Ok(ToDto(photo));
+        return Ok(await ToDtoAsync(photo, ct));
     }
 
     // ── POST /approve ─────────────────────────────────────────────────
@@ -427,7 +451,7 @@ public class SitePhotosController : ControllerBase
         // time). The worker flips Audience → ClientPortal on success.
         _jobs.Enqueue<RedactPublishedPhotoJob>(j => j.RunAsync(photoId, CancellationToken.None));
 
-        return Ok(ToDto(photo));
+        return Ok(await ToDtoAsync(photo, ct));
     }
 
     // ── POST /reject ──────────────────────────────────────────────────
@@ -451,7 +475,7 @@ public class SitePhotosController : ControllerBase
         await _audit.LogAsync("REJECT", "SitePhoto", photoId.ToString(),
             System.Text.Json.JsonSerializer.Serialize(new { reason = photo.RejectedReason, rejector = actorId }));
 
-        return Ok(ToDto(photo));
+        return Ok(await ToDtoAsync(photo, ct));
     }
 
     // ── POST /withdraw ────────────────────────────────────────────────
@@ -474,7 +498,7 @@ public class SitePhotosController : ControllerBase
         await _audit.LogAsync("WITHDRAW", "SitePhoto", photoId.ToString(),
             System.Text.Json.JsonSerializer.Serialize(new { withdrawer = actorId }));
 
-        return Ok(ToDto(photo));
+        return Ok(await ToDtoAsync(photo, ct));
     }
 
     // ── POST /bulk-approve ────────────────────────────────────────────
@@ -609,16 +633,43 @@ public class SitePhotosController : ControllerBase
         return $"{type}-{next:D4}";
     }
 
-    private static SitePhotoDto ToDto(SitePhoto p) => new(
-        p.Id, p.ProjectId, p.DocumentId,
-        p.Reason, p.Audience, p.BlurStatus, p.WatermarkApplied,
-        p.Caption, p.CapturedAt, p.CapturedByUserId,
-        p.LevelCode, p.ZoneCode, p.AnchorIssueId, p.AnchorElementGuid,
-        p.ModelId, p.ModelX, p.ModelY, p.ModelZ,
-        p.PairKey, p.ClassifierConfidence,
-        p.ApprovedAt, p.ApprovedByUserId,
-        p.RejectedAt, p.RejectedReason,
-        p.Latitude, p.Longitude);
+    /// <summary>
+    /// Build a SitePhotoDto for a single photo. When CapturedByUserId
+    /// or AnchorIssueId is set, an extra round-trip resolves the
+    /// captured-by display name + discipline so the BCC / viewer rows
+    /// don't have to do their own lookups. Skipped when both keys are
+    /// null (no joins needed).
+    /// </summary>
+    private async Task<SitePhotoDto> ToDtoAsync(SitePhoto p, CancellationToken ct)
+    {
+        string? capturedByName = null;
+        string? discipline = null;
+        if (p.CapturedByUserId.HasValue)
+        {
+            capturedByName = await _db.Users.AsNoTracking()
+                .Where(u => u.Id == p.CapturedByUserId.Value)
+                .Select(u => u.DisplayName)
+                .FirstOrDefaultAsync(ct);
+        }
+        if (p.AnchorIssueId.HasValue)
+        {
+            discipline = await _db.Issues.AsNoTracking()
+                .Where(i => i.Id == p.AnchorIssueId.Value)
+                .Select(i => i.Discipline)
+                .FirstOrDefaultAsync(ct);
+        }
+        return new SitePhotoDto(
+            p.Id, p.ProjectId, p.DocumentId,
+            p.Reason, p.Audience, p.BlurStatus, p.WatermarkApplied,
+            p.Caption, p.CapturedAt, p.CapturedByUserId,
+            p.LevelCode, p.ZoneCode, p.AnchorIssueId, p.AnchorElementGuid,
+            p.ModelId, p.ModelX, p.ModelY, p.ModelZ,
+            p.PairKey, p.ClassifierConfidence,
+            p.ApprovedAt, p.ApprovedByUserId,
+            p.RejectedAt, p.RejectedReason,
+            p.Latitude, p.Longitude,
+            capturedByName, discipline);
+    }
 }
 
 // ── DTOs ──────────────────────────────────────────────────────────────
@@ -680,4 +731,13 @@ public record SitePhotoDto(
     DateTime? RejectedAt,
     string?  RejectedReason,
     double?  Latitude,
-    double?  Longitude);
+    double?  Longitude,
+    // ── Resolved at projection time (NOT stored on SitePhoto) ─────────
+    // CapturedByName joins AppUser.DisplayName via CapturedByUserId so
+    // the BCC + viewer rows can render "Captured by …" without a second
+    // round-trip per row. Discipline is derived from the linked
+    // BimIssue.Discipline when AnchorIssueId is set, else null. Both
+    // are nullable strings so older clients that don't read them keep
+    // working.
+    string?  CapturedByName,
+    string?  Discipline);

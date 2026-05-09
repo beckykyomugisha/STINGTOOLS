@@ -965,6 +965,12 @@
   }, 50);
 </script>
 
+<!-- Phase 178 — SignalR hub shim. Loads @microsoft/signalr from CDN
+     and exposes window.__planscapeHub BEFORE the coordination layer
+     calls setupPhotoRealtime(). Skipped automatically inside the React
+     Native WebView (mobile owns its own RealtimeClient). -->
+<script src="./signalr-shim.js"></script>
+
 <!-- Coordination layer — panels, API, clash + issue management. -->
 <script src="./coordination-viewer.js"></script>
 </body>

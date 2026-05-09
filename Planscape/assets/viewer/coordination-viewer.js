@@ -925,8 +925,15 @@
     }
 
     // ── Saved views ────────────────────────────────────────────────────
-    $('#btnAddView').addEventListener('click', () => {
-      const name = prompt('Saved view name', `View ${state.savedViews.length + 1}`);
+    $('#btnAddView').addEventListener('click', async () => {
+      const name = await promptInline({
+        title: 'Save current view',
+        label: 'Name',
+        placeholder: 'e.g. Plant room — main entry',
+        defaultValue: `View ${state.savedViews.length + 1}`,
+        minLength: 1, maxLength: 80,
+        okLabel: 'Save view',
+      });
       if (!name) return;
       state.savedViews.push({ id: 'v' + Date.now(), name, snapshot: captureViewState() });
       renderSavedViews();
@@ -1340,6 +1347,86 @@
     // (file:// inside RN WebView, http:// in older browsers). Fall back
     // to the historic textarea + execCommand("copy") trick so the Copy
     // STING Tag / Share view link buttons keep working there too.
+    // ── Inline prompt (replacement for window.prompt) ────────────────
+    // window.prompt is blocked or styled inconsistently across browsers
+    // (mobile WebKit hides it entirely; Chrome's looks like a 1996 Java
+    // applet). This helper renders a small in-app modal that fits the
+    // viewer's design language, supports a multi-line textarea + min/max
+    // length validation, and resolves with the entered string or null.
+    //
+    // opts: { title, label?, placeholder?, defaultValue?, multiline?,
+    //         minLength?, maxLength?, okLabel?, cancelLabel? }
+    // Returns: Promise<string | null>
+    function promptInline(opts) {
+      const {
+        title, label = '', placeholder = '', defaultValue = '',
+        multiline = false, minLength = 0, maxLength = 2000,
+        okLabel = 'OK', cancelLabel = 'Cancel',
+      } = opts || {};
+      return new Promise((resolve) => {
+        const back = el('div', { class: 'modal-backdrop open inline-prompt-bd' });
+        const card = el('div', { class: 'modal inline-prompt' });
+        const head = el('div', { class: 'head' }, [
+          el('h2', {}, title || 'Enter value'),
+          el('button', { class: 'close', title: 'Cancel' }, '✕')
+        ]);
+        const body = el('div', { class: 'body' });
+        if (label) body.appendChild(el('label', {}, label));
+        const input = multiline
+          ? el('textarea', { rows: '3', placeholder })
+          : el('input', { type: 'text', placeholder });
+        input.value = defaultValue || '';
+        body.appendChild(input);
+        const counter = el('div', { class: 'inline-prompt-counter' }, '');
+        body.appendChild(counter);
+        const foot = el('div', { class: 'foot' }, [
+          el('button', { class: 'btn subtle' }, cancelLabel),
+          el('button', { class: 'btn' }, okLabel)
+        ]);
+        card.appendChild(head); card.appendChild(body); card.appendChild(foot);
+        back.appendChild(card);
+        document.body.appendChild(back);
+
+        const okBtn = $('.btn:not(.subtle)', foot);
+        const cancelBtn = $('.btn.subtle', foot);
+        const closeBtn = $('.close', head);
+
+        function paintCounter() {
+          const len = (input.value || '').trim().length;
+          counter.textContent = `${len} / ${maxLength}${minLength > 0 ? ` (min ${minLength})` : ''}`;
+          counter.classList.toggle('warn', minLength > 0 && len < minLength);
+          okBtn.disabled = (minLength > 0 && len < minLength) || len > maxLength;
+        }
+        paintCounter();
+        input.addEventListener('input', paintCounter);
+        // Submit on Enter (single-line) / Ctrl-Enter (multiline).
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' && (!multiline || e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            if (!okBtn.disabled) okBtn.click();
+          }
+        });
+
+        let done = false;
+        function close(value) {
+          if (done) return;
+          done = true;
+          back.remove();
+          resolve(value);
+        }
+        okBtn.addEventListener('click', () => close(input.value));
+        cancelBtn.addEventListener('click', () => close(null));
+        closeBtn.addEventListener('click', () => close(null));
+        back.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') { e.preventDefault(); close(null); }
+        });
+        back.addEventListener('click', (e) => {
+          if (e.target === back) close(null);
+        });
+        setTimeout(() => input.focus(), 30);
+      });
+    }
+
     function copyText(t) {
       if (!t) return;
       const okMsg = 'Copied: ' + t;
@@ -1865,7 +1952,14 @@
       }
       items.push('-');
       items.push({ glyph: '✏', label: 'Edit caption', run: async () => {
-        const cap = prompt('Edit caption:', p.caption || '');
+        const cap = await promptInline({
+          title: 'Edit caption',
+          label: 'What does this photo show?',
+          placeholder: 'e.g. Riser sleeves cast on Level 02',
+          defaultValue: p.caption || '',
+          multiline: true, minLength: 0, maxLength: 2000,
+          okLabel: 'Save caption',
+        });
         if (cap == null) return;
         // No dedicated patch endpoint yet; an approve(caption) on a
         // PendingReview photo doubles as caption-set. For other audiences
@@ -1883,7 +1977,17 @@
         items.push('-');
         if (p.audience === 'PendingReview' || p.audience === 'Internal') {
           items.push({ glyph: '✓', label: 'Approve', run: async () => {
-            const cap = (p.caption || '').trim().length >= 3 ? p.caption : prompt('Approval caption (≥ 3 chars):', p.caption || '');
+            let cap = p.caption || '';
+            if (cap.trim().length < 3) {
+              cap = await promptInline({
+                title: 'Approve photo',
+                label: 'Approval caption (visible to client)',
+                placeholder: 'Describe what the client should see',
+                defaultValue: cap,
+                multiline: true, minLength: 3, maxLength: 2000,
+                okLabel: 'Approve & publish',
+              });
+            }
             if (!cap || cap.trim().length < 3) return;
             const r = await approveSitePhoto(p.id, cap);
             if (r) { Object.assign(p, r); renderPhotos(); }
@@ -1891,7 +1995,14 @@
         }
         if (p.audience === 'PendingReview' || p.audience === 'Approved') {
           items.push({ glyph: '✗', label: 'Reject', run: async () => {
-            const reason = prompt('Rejection reason (optional):', '');
+            const reason = await promptInline({
+              title: 'Reject photo',
+              label: 'Reason (shown to the capturer)',
+              placeholder: 'e.g. off-topic / poor quality / privacy',
+              defaultValue: '',
+              multiline: true, minLength: 0, maxLength: 500,
+              okLabel: 'Reject',
+            });
             if (reason === null) return;
             const r = await rejectSitePhoto(p.id, reason);
             if (r) { Object.assign(p, r); renderPhotos(); }
@@ -2715,16 +2826,31 @@
         card.addEventListener('dblclick', () => focusPhoto(p));
         $('button[data-act=approve]', card)?.addEventListener('click', async (e) => {
           e.stopPropagation();
-          const cap = (p.caption || '').trim().length >= 3
-            ? p.caption
-            : prompt('Approval caption (≥ 3 chars):', p.caption || '');
+          let cap = p.caption || '';
+          if (cap.trim().length < 3) {
+            cap = await promptInline({
+              title: 'Approve photo',
+              label: 'Approval caption (visible to client)',
+              placeholder: 'Describe what the client should see',
+              defaultValue: cap,
+              multiline: true, minLength: 3, maxLength: 2000,
+              okLabel: 'Approve & publish',
+            });
+          }
           if (!cap || cap.trim().length < 3) return;
           const updated = await approveSitePhoto(id, cap);
           if (updated) { Object.assign(p, updated); renderPhotos(); }
         });
         $('button[data-act=reject]', card)?.addEventListener('click', async (e) => {
           e.stopPropagation();
-          const reason = prompt('Rejection reason (optional):', '');
+          const reason = await promptInline({
+            title: 'Reject photo',
+            label: 'Reason (shown to the capturer)',
+            placeholder: 'e.g. off-topic / poor quality / privacy',
+            defaultValue: '',
+            multiline: true, minLength: 0, maxLength: 500,
+            okLabel: 'Reject',
+          });
           if (reason === null) return;
           const updated = await rejectSitePhoto(id, reason);
           if (updated) { Object.assign(p, updated); renderPhotos(); }
@@ -2952,7 +3078,14 @@
       $$('button[data-act=reject]', list).forEach(btn => {
         btn.addEventListener('click', async (e) => {
           e.preventDefault(); e.stopPropagation();
-          const reason = prompt('Rejection reason (optional):', '');
+          const reason = await promptInline({
+            title: 'Reject photo',
+            label: 'Reason (shown to the capturer)',
+            placeholder: 'e.g. off-topic / poor quality / privacy',
+            defaultValue: '',
+            multiline: true, minLength: 0, maxLength: 500,
+            okLabel: 'Reject',
+          });
           if (reason === null) return;
           await rejectSitePhoto(btn.dataset.id, reason);
           refreshPhotoReviewList();
@@ -3006,35 +3139,55 @@
       fab.style.display = 'none';
     }
 
-    // SignalR-style live update hook. The viewer doesn't ship a SignalR
-    // client (see U6 heartbeat note); this function is exposed on
-    // window.__planscapePhotoRealtime so a host harness OR a polled hub
-    // wrapper can call refresh() when it sees SitePhotoCaptured /
-    // SitePhotoApproved for the active project.
+    // SignalR-style live update hook. The signalr-shim.js loaded from
+    // viewer.html mounts window.__planscapeHub before this runs; this
+    // function binds the hub events to local state refreshers. When the
+    // shim is missing (CDN unreachable / running inside RN WebView /
+    // file:// scheme), the periodic loaders keep working as a fallback.
     function setupPhotoRealtime() {
-      const refresh = (event) => {
-        // Only refresh if we're attached to a real project; ignore stray pings.
-        if (!projectId) return;
-        // Mutate in-place so currently-rendered tab keeps its scroll position
-        // when no add/remove is needed; re-fetch list to pick up server-side
-        // audience flips that wouldn't be visible from the event payload.
-        loadSitePhotos();
+      if (!projectId) return;
+      const refreshPhotos = () => loadSitePhotos();
+      const refreshIssues = (payload) => {
+        // Only refetch when the event is for the active project.
+        if (payload && payload.projectId && payload.projectId !== projectId) return;
+        loadIssues();
       };
-      window.__planscapePhotoRealtime = {
-        onSitePhotoCaptured: refresh,
-        onSitePhotoApproved: refresh,
-        refresh,
-      };
-      // If a higher-level hub wrapper is mounted (e.g., a small @microsoft/
-      // signalr shim added later), bind to it now. The shim must match the
-      // Mobile RealtimeClient signature: .on(event, handler).
-      try {
-        const hub = window.__planscapeHub;
-        if (hub && typeof hub.on === 'function') {
-          hub.on('SitePhotoCaptured', refresh);
-          hub.on('SitePhotoApproved', refresh);
+      const refreshComments = (payload) => {
+        if (payload && payload.projectId && payload.projectId !== projectId) return;
+        // Comments thread is loaded on demand when the right-rail tab
+        // is opened; only repaint if the user is currently looking at
+        // the affected issue's comments.
+        if (state.rightTab === 'comments' && state.selectedIssueId &&
+            payload && payload.issueId === state.selectedIssueId) {
+          renderComments();
         }
-      } catch (_) {}
+      };
+
+      // Public hook so external host harnesses (or test suites) can
+      // simulate a refresh without a real hub event.
+      window.__planscapePhotoRealtime = {
+        onSitePhotoCaptured: refreshPhotos,
+        onSitePhotoApproved: refreshPhotos,
+        refresh: refreshPhotos,
+      };
+
+      // Bind to the shim if it's already mounted, OR register a
+      // rebind callback that the shim will call once the CDN script
+      // arrives. Either path is safe — bindHub is idempotent.
+      const bound = new WeakSet();
+      function bindHub() {
+        const hub = window.__planscapeHub;
+        if (!hub || typeof hub.on !== 'function') return;
+        if (bound.has(hub)) return;
+        bound.add(hub);
+        hub.on('SitePhotoCaptured', refreshPhotos);
+        hub.on('SitePhotoApproved', refreshPhotos);
+        hub.on('IssueCreated', refreshIssues);
+        hub.on('IssueUpdated', refreshIssues);
+        hub.on('CommentAdded',  refreshComments);
+      }
+      bindHub();
+      window.__planscapeRebindHub = bindHub;
     }
 
     // ── Bottom panel ───────────────────────────────────────────────────
