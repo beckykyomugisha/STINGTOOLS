@@ -21,6 +21,7 @@
     "expo": "~52.0.0",
     "expo-application": "^55.0.14",
     "expo-asset": "~11.0.0",
+    "expo-av": "~15.0.0",
     "expo-camera": "~16.0.0",
     "expo-device": "~7.0.0",
     "expo-file-system": "^55.0.16",

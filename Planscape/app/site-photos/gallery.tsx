@@ -136,6 +136,18 @@ export default function GalleryScreen() {
 
   return (
     <View style={styles.root}>
+      {/* T3-4 — Actions row. Currently exposes the daily digest preview;
+          add additional gallery-level actions here as new ones land. */}
+      <View style={styles.actionsRow}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => router.push('/site-photos/digest')}
+          accessibilityLabel="View today's digest"
+        >
+          <Text style={styles.actionButtonText}>View today&apos;s digest</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Filter strip */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterBar}>
         {REASON_OPTIONS.map((r) => (
@@ -393,6 +405,19 @@ const styles = StyleSheet.create({
   emptyText: { color: theme.colors.textSecondary, textAlign: 'center' },
   emptyCard: { backgroundColor: theme.colors.surface, borderRadius: theme.borderRadius.md, padding: theme.spacing.lg, alignItems: 'center', margin: theme.spacing.md },
   error: { backgroundColor: '#FFEBEE', color: theme.colors.danger, padding: theme.spacing.sm, borderRadius: theme.borderRadius.sm, margin: theme.spacing.md },
+
+  actionsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
+  },
+  actionButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.accent,
+  },
+  actionButtonText: { color: '#fff', fontSize: theme.fontSize.sm, fontWeight: '600' },
 
   filterBar: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.sm, maxHeight: 44 },
   chip: {

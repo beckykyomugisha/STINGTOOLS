@@ -79,6 +79,15 @@ export default function InboxScreen() {
     >
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
+      {/* T3-16 — link to the cross-project aggregator. */}
+      <TouchableOpacity
+        style={crossProjectStyles.crossProjectLink}
+        onPress={() => router.push('/inbox/all-projects')}
+        accessibilityLabel="View actions across all projects"
+      >
+        <Text style={crossProjectStyles.crossProjectText}>View across all projects ›</Text>
+      </TouchableOpacity>
+
       {/* Summary tiles */}
       <View style={styles.tilesRow}>
         <SummaryTile label="Issues" value={data?.counts.issues ?? 0} color={theme.colors.priorityHigh} />
@@ -213,6 +222,25 @@ function formatTime(iso: string): string {
     return d.toLocaleTimeString();
   } catch { return iso; }
 }
+
+// T3-16 — local styles for the cross-project link, kept separate so the
+// existing styles object stays untouched.
+const crossProjectStyles = StyleSheet.create({
+  crossProjectLink: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+  },
+  crossProjectText: {
+    color: theme.colors.accent,
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+  },
+});
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.colors.background },

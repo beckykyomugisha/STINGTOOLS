@@ -24,6 +24,7 @@ import type { BimIssue, Project, ProjectMember } from '@/types/api';
 import { imageService, CapturedImage } from '@/services/imageService';
 import { locationService } from '@/services/locationService';
 import { MemberPicker } from '@/components/MemberPicker';
+import { AudioRecorder } from '@/components/AudioRecorder';
 import * as Application from 'expo-application';
 import * as Device from 'expo-device';
 import { crashReporter } from '@/services/crashReporter';
@@ -757,6 +758,20 @@ export default function IssuesScreen() {
               multiline
               numberOfLines={3}
             />
+            {/* T3-7 — Voice-to-text dictation. Recording is queued under
+                ATTACH_AUDIO with issueId="__pending__"; an issue-create
+                follow-up server PR will need to backfill the queued action
+                once the new issue id is known. For now the queued action
+                surfaces in the conflict-triage screen if the upload
+                404s, so nothing is silently lost.
+                TODO-SERVER: see endpoints.ts uploadAudioNote — receiver
+                endpoint not yet in place; will 404 until S6.1 lands. */}
+            {activeProject ? (
+              <AudioRecorder
+                projectId={activeProject.id}
+                contextTag="issue-create-description"
+              />
+            ) : null}
 
             <Text style={styles.inputLabel}>Type</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typeRow}>

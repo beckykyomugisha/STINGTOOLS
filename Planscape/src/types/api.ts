@@ -205,7 +205,11 @@ export interface OfflineAction {
     | 'ATTACH_AUDIO'
     | 'ATTACH_MARKUP'
     // Phase 178 — site-photo capture, queued when offline.
-    | 'CAPTURE_SITE_PHOTO';
+    | 'CAPTURE_SITE_PHOTO'
+    // T3-17 — mobile deliverable CRUD + transition, queued when offline.
+    | 'CREATE_DELIVERABLE'
+    | 'UPDATE_DELIVERABLE'
+    | 'TRANSITION_DELIVERABLE';
   payload: Record<string, unknown>;
   createdAt: string;
   synced: boolean;

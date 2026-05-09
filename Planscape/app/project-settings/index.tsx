@@ -17,7 +17,9 @@ import {
   ActivityIndicator,
   Switch,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { theme } from '@/utils/theme';
 import {
   getProjectSettings,
@@ -27,6 +29,7 @@ import {
 import { useProjectStore } from '@/stores/projectStore';
 
 export default function ProjectSettingsScreen() {
+  const router = useRouter();
   const projectId = useProjectStore((s) => s.active?.id);
   const [settings, setSettings] = useState<ProjectSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -94,6 +97,18 @@ export default function ProjectSettingsScreen() {
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.scroll}>
       {error ? <Text style={styles.error}>{error}</Text> : null}
+
+      {/* T3-20 — link to member roster + ACL editor. */}
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>Project Members</Text>
+        <TouchableOpacity
+          style={memberLinkStyles.row}
+          onPress={() => router.push('/project-settings/members')}
+          accessibilityLabel="Open project members"
+        >
+          <Text style={memberLinkStyles.text}>Manage roles &amp; access ›</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* ── ISO 19650 information governance ── */}
       <Section
@@ -177,6 +192,13 @@ function KV({ k, v }: { k: string; v: string }) {
     </View>
   );
 }
+
+// T3-20 — local styles for the members link, kept separate to keep the
+// existing styles object pristine.
+const memberLinkStyles = StyleSheet.create({
+  row: { paddingVertical: theme.spacing.sm },
+  text: { color: theme.colors.accent, fontSize: theme.fontSize.sm, fontWeight: '600' },
+});
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.colors.background },

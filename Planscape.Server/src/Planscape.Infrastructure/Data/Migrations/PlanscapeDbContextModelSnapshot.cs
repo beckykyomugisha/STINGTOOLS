@@ -441,6 +441,68 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.ToTable("IssueAttachments");
             });
 
+            // ── Phase 178c (T3-12) — ApprovalChain ──
+            modelBuilder.Entity("Planscape.Core.Entities.ApprovalChain", b =>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<Guid>("TenantId").HasColumnType("uuid");
+                b.Property<Guid>("ProjectId").HasColumnType("uuid");
+                b.Property<Guid>("DocumentId").HasColumnType("uuid");
+                b.Property<string>("Transition").IsRequired().HasMaxLength(80).HasColumnType("character varying(80)");
+                b.Property<string>("Status").IsRequired().HasMaxLength(20).HasColumnType("character varying(20)");
+                b.Property<string>("CreatedBy").IsRequired().HasMaxLength(120).HasColumnType("character varying(120)");
+                b.Property<DateTime>("CreatedAt").HasColumnType("timestamp with time zone");
+                b.Property<DateTime?>("CompletedAt").HasColumnType("timestamp with time zone");
+                b.Property<string>("Description").HasMaxLength(500).HasColumnType("character varying(500)");
+                b.HasKey("Id");
+                b.HasIndex("DocumentId", "Transition", "Status");
+                b.HasIndex("ProjectId");
+                b.HasIndex("TenantId");
+                b.ToTable("ApprovalChains");
+            });
+
+            // ── Phase 178c (T3-12) — ApprovalStage ──
+            modelBuilder.Entity("Planscape.Core.Entities.ApprovalStage", b =>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<Guid>("TenantId").HasColumnType("uuid");
+                b.Property<Guid>("ChainId").HasColumnType("uuid");
+                b.Property<int>("Order").HasColumnType("integer");
+                b.Property<string>("Mode").IsRequired().HasMaxLength(16).HasColumnType("character varying(16)");
+                b.Property<string>("RequiredApproversJson").IsRequired().HasColumnType("text");
+                b.Property<string>("Status").IsRequired().HasMaxLength(16).HasColumnType("character varying(16)");
+                b.Property<string>("DecisionsJson").IsRequired().HasColumnType("text");
+                b.Property<DateTime?>("StartedAt").HasColumnType("timestamp with time zone");
+                b.Property<DateTime?>("CompletedAt").HasColumnType("timestamp with time zone");
+                b.Property<string>("Label").HasMaxLength(120).HasColumnType("character varying(120)");
+                b.HasKey("Id");
+                b.HasIndex("ChainId", "Order");
+                b.HasIndex("TenantId");
+                b.ToTable("ApprovalStages");
+            });
+
+            // ── Phase 178c (T3-24) — DocumentRevision ──
+            modelBuilder.Entity("Planscape.Core.Entities.DocumentRevision", b =>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<Guid>("TenantId").HasColumnType("uuid");
+                b.Property<Guid>("DocumentId").HasColumnType("uuid");
+                b.Property<string>("Revision").IsRequired().HasMaxLength(16).HasColumnType("character varying(16)");
+                b.Property<string>("CdeStateAtRevision").IsRequired().HasMaxLength(20).HasColumnType("character varying(20)");
+                b.Property<string>("SuitabilityAtRevision").HasMaxLength(8).HasColumnType("character varying(8)");
+                b.Property<string>("FilePath").HasMaxLength(500).HasColumnType("character varying(500)");
+                b.Property<long?>("FileSizeBytes").HasColumnType("bigint");
+                b.Property<string>("ContentHash").HasMaxLength(128).HasColumnType("character varying(128)");
+                b.Property<string>("CreatedBy").IsRequired().HasMaxLength(120).HasColumnType("character varying(120)");
+                b.Property<DateTime>("CreatedAt").HasColumnType("timestamp with time zone");
+                b.Property<string>("CommentSummary").HasMaxLength(2000).HasColumnType("character varying(2000)");
+                b.Property<string>("Source").IsRequired().HasMaxLength(40).HasColumnType("character varying(40)");
+                b.HasKey("Id");
+                b.HasIndex("DocumentId", "CreatedAt");
+                b.HasIndex("TenantId");
+                b.ToTable("DocumentRevisions");
+            });
+
             modelBuilder.Entity("Planscape.Core.Entities.DocumentRecord", b =>
             {
                 b.Property<Guid>("Id")
