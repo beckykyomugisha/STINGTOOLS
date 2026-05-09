@@ -1,0 +1,7 @@
+{
+  "id": "HTM-01-06-EndoReprocess",
+  "name": "Endoscope reprocess RFID chain audit",
+  "steps": [
+    { "tag": "Healthcare_EndoscopeTrace", "description": "EndoscopeTraceValidator: ≥ 4 RFID readers per decon room" }
+  ]
+}

@@ -2652,3 +2652,151 @@ Generic Models,ELC_JB_SIZE_MM,ef8192ab-cdb2-3e4f-5061-7283940516b7,TEXT,ELC_PWR,
 Generic Models,ELC_JB_AUTO_PLACED_BOOL,f0a293bc-decb-4f50-6172-839405162718,TEXT,ELC_PWR,Instance,"True (1) when the box was auto-placed by JunctionBoxAutoPlacer at a bend-count or run-length break-point. False (0) for manually-placed boxes.",False,,,MULTI,1,0
 Generic Models,ELC_JB_REASON_TXT,a1b3a4cd-efdc-5061-7283-940516271829,TEXT,ELC_PWR,Instance,"Reason auto-placer put the box here: BENDS_EXCESS / RUN_TOO_LONG / FILL_OVER / WALL_PENETRATION / MANUAL. Surfaced in the Penetration / Pull-Box register schedule.",False,,,MULTI,1,0
 Generic Models,ELC_CDT_BREAKPOINT_TXT,b2c4a5dd-fe1d-6172-8394-051627182930,TEXT,ELC_PWR,Instance,"Reference stamped on a conduit by JunctionBoxAutoPlacer when the run hits a BS 7671 §522.8.5 break-point. Format: JB:<id>@<reason> when a box was placed; NEEDED:<reason>@<xyz> when the seed family wasn't loaded.",False,,,MULTI,1,0
+Generic Models,CEQ_CATEGORY_TXT,c8d4f6e2-d001-4d27-8c61-0e7a3f9b3001,TEXT,CEQ_CLINICAL,Type,Clinical equipment category: PENDANT / BEDHEAD / IMAGING / PHARMACY / DIAL / MORT / MOBIL,False,,,HEALTHCARE,1,0
+Generic Models,CEQ_CLINICAL_BOOL,c8d4f6e2-d005-4d27-8c61-0e7a3f9b3005,YESNO,CEQ_CLINICAL,Type,Counts towards clinical asset register,False,,,HEALTHCARE,1,0
+Generic Models,CEQ_DECON_METHOD_TXT,c8d4f6e2-d007-4d27-8c61-0e7a3f9b3007,TEXT,CEQ_CLINICAL,Type,Decontamination route,False,,,HEALTHCARE,1,0
+Generic Models,CEQ_ENDO_AER_REF_TXT,c8d4f6e2-2202-4d27-8c61-0e7a3f9bd002,TEXT,CEQ_CLINICAL,Type,Owning automated endoscope reprocessor [H-26],False,,,HEALTHCARE,1,0
+Generic Models,CEQ_ENDO_CYCLE_COUNT_INT,c8d4f6e2-2203-4d27-8c61-0e7a3f9bd003,INTEGER,CEQ_CLINICAL,Type,Reprocessing cycle count [H-26],False,,,HEALTHCARE,1,0
+Generic Models,CEQ_ENDO_LAST_REPRO_DT,c8d4f6e2-2204-4d27-8c61-0e7a3f9bd004,TEXT,CEQ_CLINICAL,Type,Last reprocessing timestamp ISO 8601 [H-26],False,,,HEALTHCARE,1,0
+Generic Models,CEQ_ENDO_SCOPE_ID_TXT,c8d4f6e2-2201-4d27-8c61-0e7a3f9bd001,TEXT,CEQ_CLINICAL,Type,Endoscope unique ID for HTM 01-06 traceability [H-26],False,,,HEALTHCARE,1,0
+Generic Models,CEQ_GMDN_CODE_TXT,c8d4f6e2-d002-4d27-8c61-0e7a3f9b3002,TEXT,CEQ_CLINICAL,Type,Global Medical Device Nomenclature code,False,,,HEALTHCARE,1,0
+Generic Models,CEQ_INFECT_TIER_TXT,c8d4f6e2-d006-4d27-8c61-0e7a3f9b3006,TEXT,CEQ_CLINICAL,Type,Spaulding classification: CRITICAL / SEMI / NON-CRITICAL,False,,,HEALTHCARE,1,0
+Generic Models,CEQ_SFG20_REF_TXT,c8d4f6e2-d004-4d27-8c61-0e7a3f9b3004,TEXT,CEQ_CLINICAL,Type,SFG20 healthcare schedule id,False,,,HEALTHCARE,1,0
+Generic Models,CEQ_UMDNS_CODE_TXT,c8d4f6e2-d003-4d27-8c61-0e7a3f9b3003,TEXT,CEQ_CLINICAL,Type,ECRI Universal Medical Device Nomenclature System code,False,,,HEALTHCARE,1,0
+Generic Models,CLN_ADB_CODE_TXT,c8d4f6e2-a005-4d27-8c61-0e7a3f9b0005,TEXT,CLN_CLINICAL,Type,NHS ADB (Activity DataBase) room code,False,,,HEALTHCARE,1,0
+Generic Models,CLN_ANTERM_LINKED_ID_TXT,c8d4f6e2-a009-4d27-8c61-0e7a3f9b0009,TEXT,CLN_CLINICAL,Type,ElementId of paired anteroom for AIIR/PE cascade,False,,,HEALTHCARE,1,0
+Generic Models,CLN_BARI_DESIGN_KG_NR,c8d4f6e2-a016-4d27-8c61-0e7a3f9b0016,NUMBER,CLN_CLINICAL,Type,Bariatric Safe Working Load (kg) [iHFG / HBN 04-01],False,,,HEALTHCARE,1,0
+Generic Models,CLN_DEFLECTION_LIMIT_MM_NR,c8d4f6e2-2006-4d27-8c61-0e7a3f9bb006,NUMBER,CLN_CLINICAL,Type,Deflection limit for sensitive equipment (mm) [H-23],False,,,HEALTHCARE,1,0
+Generic Models,CLN_EQUIP_WEIGHT_KG_NR,c8d4f6e2-2003-4d27-8c61-0e7a3f9bb003,NUMBER,CLN_CLINICAL,Type,Heavy-equipment design weight (kg) [H-23],False,,,HEALTHCARE,1,0
+Generic Models,CLN_FGI_REF_TXT,c8d4f6e2-a003-4d27-8c61-0e7a3f9b0003,TEXT,CLN_CLINICAL,Type,FGI Guidelines section reference,False,,,HEALTHCARE,1,0
+Generic Models,CLN_FLOOR_LOAD_KN_M2_NR,c8d4f6e2-2001-4d27-8c61-0e7a3f9bb001,NUMBER,CLN_CLINICAL,Type,Imposed floor load (kN/m²) for heavy imaging equipment [H-23],False,,,HEALTHCARE,1,0
+Generic Models,CLN_HBN_REF_TXT,c8d4f6e2-a002-4d27-8c61-0e7a3f9b0002,TEXT,CLN_CLINICAL,Type,HBN reference (e.g. HBN 04-01 R-1234),False,,,HEALTHCARE,1,0
+Generic Models,CLN_HOIST_TRACK_BOOL,c8d4f6e2-a017-4d27-8c61-0e7a3f9b0017,YESNO,CLN_CLINICAL,Type,Ceiling-hoist track installed,False,,,HEALTHCARE,1,0
+Generic Models,CLN_HTM_REF_TXT,c8d4f6e2-a004-4d27-8c61-0e7a3f9b0004,TEXT,CLN_CLINICAL,Type,HTM (Health Technical Memorandum) reference,False,,,HEALTHCARE,1,0
+Generic Models,CLN_INFECT_CLASS_TXT,c8d4f6e2-a008-4d27-8c61-0e7a3f9b0008,TEXT,CLN_CLINICAL,Type,"Infection-control class: STD / AIIR / PE / CLASS-N / CLASS-P [CDC, HBN 04-01]",False,,,HEALTHCARE,1,0
+Generic Models,CLN_LIGATURE_RES_BOOL,c8d4f6e2-a014-4d27-8c61-0e7a3f9b0014,YESNO,CLN_CLINICAL,Type,Anti-ligature design applies [HBN 03-01 / FGI Pt 2],False,,,HEALTHCARE,1,0
+Generic Models,CLN_LIG_RISK_LVL_TXT,c8d4f6e2-a015-4d27-8c61-0e7a3f9b0015,TEXT,CLN_CLINICAL,Type,Ligature risk level: LOW / MED / HIGH / VERY-HIGH,False,,,HEALTHCARE,1,0
+Generic Models,CLN_MRI_ZONE_INT,c8d4f6e2-a012-4d27-8c61-0e7a3f9b0012,INTEGER,CLN_CLINICAL,Type,MRI safety zone 1..4 [IEC 60601-2-33],False,,,HEALTHCARE,1,0
+Generic Models,CLN_NOISE_NR_NR,c8d4f6e2-a020-4d27-8c61-0e7a3f9b0020,INTEGER,CLN_CLINICAL,Type,Noise rating NR (when distinct from PER_ACOUSTICS_BACKGROUND_NOISE_DB),False,,,HEALTHCARE,1,0
+Generic Models,CLN_NURSECALL_TYPE_TXT,c8d4f6e2-a018-4d27-8c61-0e7a3f9b0018,TEXT,CLN_CLINICAL,Type,Nurse-call type: STD / EMG / ASSAULT / CARDIAC,False,,,HEALTHCARE,1,0
+Generic Models,CLN_OCC_VISITOR_INT,c8d4f6e2-a010-4d27-8c61-0e7a3f9b0010,INTEGER,CLN_CLINICAL,Type,Visitor headcount (clinical occupancy reuses ASS_DESIGN_OCCUPANCY_INT),False,,,HEALTHCARE,1,0
+Generic Models,CLN_PRESS_DELTA_DESIGN_PA_NR,c8d4f6e2-a007-4d27-8c61-0e7a3f9b0007,NUMBER,CLN_CLINICAL,Type,Required design differential pressure in Pa (field-tested rides MEP_DELTA_PRESS_PA),False,,,HEALTHCARE,1,0
+Generic Models,CLN_PRESS_REGIME_TXT,c8d4f6e2-a006-4d27-8c61-0e7a3f9b0006,TEXT,CLN_CLINICAL,Type,Pressure regime: NEG / POS / NEUTRAL [HTM 03-01 / ASHRAE 170],False,,,HEALTHCARE,1,0
+Generic Models,CLN_PRIVACY_LVL_TXT,c8d4f6e2-a019-4d27-8c61-0e7a3f9b0019,TEXT,CLN_CLINICAL,Type,Privacy level: OPEN / SEMI / SINGLE / SECURE,False,,,HEALTHCARE,1,0
+Generic Models,CLN_RAD_CONTROLLED_BOOL,c8d4f6e2-a011-4d27-8c61-0e7a3f9b0011,YESNO,CLN_CLINICAL,Type,IRR17 controlled area? [UK Ionising Radiations Regulations 2017],False,,,HEALTHCARE,1,0
+Generic Models,CLN_RF_SHIELD_BOOL,c8d4f6e2-a013-4d27-8c61-0e7a3f9b0013,YESNO,CLN_CLINICAL,Type,RF Faraday cage present (MRI suite),False,,,HEALTHCARE,1,0
+Generic Models,CLN_ROOM_CLASS_TXT,c8d4f6e2-a001-4d27-8c61-0e7a3f9b0001,TEXT,CLN_CLINICAL,Type,"Clinical room class (OR-ULTRA, OR-CONV, OR-HYBRID, ICU, AIIR, PE-PROT, etc.) [HBN/FGI]",False,,,HEALTHCARE,1,0
+Generic Models,CLN_RT60_TARGET_S_NR,c8d4f6e2-2101-4d27-8c61-0e7a3f9bc001,NUMBER,CLN_CLINICAL,Type,Reverberation T60 target (s) per HTM 08-01 [H-24],False,,,HEALTHCARE,1,0
+Generic Models,CLN_STRUCT_SIGN_OFF_DT,c8d4f6e2-2005-4d27-8c61-0e7a3f9bb005,TEXT,CLN_CLINICAL,Type,Structural Engineer sign-off date [H-23],False,,,HEALTHCARE,1,0
+Generic Models,CLN_STRUCT_SIGN_OFF_TXT,c8d4f6e2-2004-4d27-8c61-0e7a3f9bb004,TEXT,CLN_CLINICAL,Type,Structural Engineer sign-off name [H-23],False,,,HEALTHCARE,1,0
+Generic Models,CLN_TRANSPORT_PATH_TXT,c8d4f6e2-2007-4d27-8c61-0e7a3f9bb007,TEXT,CLN_CLINICAL,Type,Heavy-equipment transport path designation [H-23],False,,,HEALTHCARE,1,0
+Generic Models,CLN_VIB_VM_NR,c8d4f6e2-2002-4d27-8c61-0e7a3f9bb002,NUMBER,CLN_CLINICAL,Type,Vibration criterion (µm/s rms VC band) [H-23],False,,,HEALTHCARE,1,0
+Generic Models,CLN_WASTE_BIN_BIM_ID_TXT,c8d4f6e2-2503-4d27-8c61-0e7a3f9c0003,TEXT,CLN_CLINICAL,Type,IoT smart bin BIM element id [H-30],False,,,HEALTHCARE,1,0
+Generic Models,CLN_WASTE_CLASS_TXT,c8d4f6e2-2501-4d27-8c61-0e7a3f9c0001,TEXT,CLN_CLINICAL,Type,Clinical waste class: HC1-General/HC2-Offensive/HC3-Infectious/HC4-Anatomical/HC5-Cytotoxic/HC6-Radioactive [H-30],False,,,HEALTHCARE,1,0
+Generic Models,CLN_WASTE_ROUTE_TXT,c8d4f6e2-2502-4d27-8c61-0e7a3f9c0002,TEXT,CLN_CLINICAL,Type,Waste segregation route id [H-30],False,,,HEALTHCARE,1,0
+Generic Models,ELC_ATS_TEST_LOG_REF_TXT,c8d4f6e2-2302-4d27-8c61-0e7a3f9be002,TEXT,ELC_PWR,Type,ATS test log document reference [H-27],False,,,ELECTRICAL,1,0
+Generic Models,ELC_ATS_TIME_S_NR,c8d4f6e2-f002-4d27-8c61-0e7a3f9b5002,NUMBER,ELC_PWR,Type,Required Automatic Transfer Switch time (s) — NFPA 99 ≤10 s for LS/CR,False,,,ELECTRICAL,1,0
+Generic Models,ELC_EES_BRANCH_TXT,c8d4f6e2-f001-4d27-8c61-0e7a3f9b5001,TEXT,ELC_PWR,Type,NFPA 99 Essential Electrical System branch: LIFE-SAF / CRIT / EQP-BR / NORMAL,False,,,ELECTRICAL,1,0
+Generic Models,ELC_GEN_RUN_HRS_TGT_NR,c8d4f6e2-f006-4d27-8c61-0e7a3f9b5006,NUMBER,ELC_PWR,Type,Required generator runtime (h) at full load [NFPA 110],False,,,ELECTRICAL,1,0
+Generic Models,ELC_GEN_TEST_LOG_REF_TXT,c8d4f6e2-2301-4d27-8c61-0e7a3f9be001,TEXT,ELC_PWR,Type,Generator test log document reference [H-27 / NFPA 110],False,,,ELECTRICAL,1,0
+Generic Models,ELC_IPS_BOOL,c8d4f6e2-f003-4d27-8c61-0e7a3f9b5003,YESNO,ELC_PWR,Type,Powered from Isolated Power System (NEC 517),False,,,ELECTRICAL,1,0
+Generic Models,ELC_IT_CARDIAC_BOOL,c8d4f6e2-f004-4d27-8c61-0e7a3f9b5004,YESNO,ELC_PWR,Type,Cardiac-protected outlet (IT-network NEC 517.19),False,,,ELECTRICAL,1,0
+Generic Models,ELC_LPS_COMPLIANCE_STATUS_TXT,b1c4e8d3-7f5a-5d2c-9e6b-3a4f5c8d2b1e,TEXT,ELC_PWR,Type,Plugin-written LPS compliance verdict (PASS / WARN / FAIL / SPACING FAIL / SEP DIST FAIL / EARTH FAIL),False,,,ELECTRICAL,1,0
+Generic Models,ELC_LPS_CONDUCTOR_MATERIAL_TXT,c2d5f9e4-8a6b-5e3d-a07c-4b5d6e9c3f2a,TEXT,ELC_PWR,Type,Down conductor material (COPPER / ALUMINIUM / STEEL) for separation distance km factor,False,,,ELECTRICAL,1,0
+Generic Models,ELC_LPS_PROJECT_NG_OVERRIDE_NR,d3e6fa05-9b7c-5e4d-b18d-5c6e7fad4321,NUMBER,ELC_PWR,Type,Project ground flash density Ng (flashes/km2/year) override from lightning location service,False,,,ELECTRICAL,1,0
+Generic Models,ELC_LSC_TIER_TXT,c8d4f6e2-f007-4d27-8c61-0e7a3f9b5007,TEXT,ELC_PWR,Type,NEC 517 / NFPA 99 Tier: 1 / 2 / 3,False,,,ELECTRICAL,1,0
+Generic Models,ELC_RECEPT_TYPE_TXT,c8d4f6e2-f005-4d27-8c61-0e7a3f9b5005,TEXT,ELC_PWR,Type,Receptacle type: HOSP-GR / TR / ISO / EMG-RED,False,,,ELECTRICAL,1,0
+Generic Models,ELC_UPS_REPLACE_DT,c8d4f6e2-2303-4d27-8c61-0e7a3f9be003,TEXT,ELC_PWR,Type,UPS battery replacement date ISO 8601 [H-27],False,,,ELECTRICAL,1,0
+Generic Models,FLS_COMPARTMENT_ID_TXT,c8d4f6e2-1301-4d27-8c61-0e7a3f9b8001,TEXT,FLS_LIFE_SFTY,Type,Fire compartment membership ID [HTM 05-02 / BS 9999 — PHE],False,,,FIRE,1,0
+Generic Models,HVC_ACH_OUTSIDE_NR,c8d4f6e2-1104-4d27-8c61-0e7a3f9b6004,INTEGER,HVC_SYSTEMS,Type,Outside-air ACH component (total ACH reuses HVC_AIR_CHANGES_PER_HR),False,,,HVAC,1,0
+Generic Models,HVC_HEPA_GRADE_TXT,c8d4f6e2-1102-4d27-8c61-0e7a3f9b6002,TEXT,HVC_SYSTEMS,Type,HEPA grade: H13 / H14 / U15 / U16 [BS EN 1822],False,,,HVAC,1,0
+Generic Models,HVC_HEPA_LAST_TST_DT,c8d4f6e2-1103-4d27-8c61-0e7a3f9b6003,TEXT,HVC_SYSTEMS,Type,Last DOP / PAO test date (ISO 8601),False,,,HVAC,1,0
+Generic Models,HVC_HEPA_REQ_BOOL,c8d4f6e2-1101-4d27-8c61-0e7a3f9b6001,YESNO,HVC_SYSTEMS,Type,HEPA terminal required [HTM 03-01 / ASHRAE 170],False,,,HVAC,1,0
+Generic Models,HVC_NC_CURVE_INT,c8d4f6e2-2102-4d27-8c61-0e7a3f9bc002,INTEGER,HVC_SYSTEMS,Type,HVAC noise criterion NC curve target [H-24],False,,,HVAC,1,0
+Generic Models,ICT_ENDO_READER_ID_TXT,c8d4f6e2-2205-4d27-8c61-0e7a3f9bd005,TEXT,COM_DAT,Type,RFID reader at endoscope decon station [H-26],False,,,MULTI,1,0
+Generic Models,ICT_HEALTHIOT_ALERT_BAND_TXT,c8d4f6e2-2604-4d27-8c61-0e7a3f9c1004,TEXT,COM_DAT,Type,IoT alert band free-text [H-20],False,,,MULTI,1,0
+Generic Models,ICT_HEALTHIOT_DEVICE_ID_TXT,c8d4f6e2-2601-4d27-8c61-0e7a3f9c1001,TEXT,COM_DAT,Type,Generic healthcare IoT device ID (consumed by IoTDeviceRegistry) [H-20],False,,,MULTI,1,0
+Generic Models,ICT_HEALTHIOT_ENDPOINT_TXT,c8d4f6e2-2603-4d27-8c61-0e7a3f9c1003,TEXT,COM_DAT,Type,IoT endpoint URI [H-20],False,,,MULTI,1,0
+Generic Models,ICT_HEALTHIOT_PROTOCOL_TXT,c8d4f6e2-2602-4d27-8c61-0e7a3f9c1002,TEXT,COM_DAT,Type,IoT protocol BACNET/OPC-UA/MODBUS/REST/PROPRIETARY [H-20],False,,,MULTI,1,0
+Generic Models,ICT_RTLS_ANCHOR_ID_TXT,c8d4f6e2-2401-4d27-8c61-0e7a3f9bf001,TEXT,COM_DAT,Type,RTLS anchor / reader ID [H-29],False,,,MULTI,1,0
+Generic Models,ICT_RTLS_COVERAGE_M_NR,c8d4f6e2-2404-4d27-8c61-0e7a3f9bf004,NUMBER,COM_DAT,Type,RTLS anchor effective coverage radius (m) [H-29],False,,,MULTI,1,0
+Generic Models,ICT_RTLS_TECH_TXT,c8d4f6e2-2402-4d27-8c61-0e7a3f9bf002,TEXT,COM_DAT,Type,RTLS tech: BLE / UWB / Wi-Fi-RSSI / IR / RFID-1356 [H-29],False,,,MULTI,1,0
+Generic Models,ICT_RTLS_TX_POWER_DBM_NR,c8d4f6e2-2403-4d27-8c61-0e7a3f9bf003,NUMBER,COM_DAT,Type,RTLS anchor TX power (dBm) [H-29],False,,,MULTI,1,0
+Generic Models,LIG_AREA_OBS_LOS_TXT,c8d4f6e2-e005-4d27-8c61-0e7a3f9b4005,TEXT,LIG_BEHAVIOURAL,Type,Observation line-of-sight code,False,,,MULTI,1,0
+Generic Models,LIG_FORCE_LIMIT_KG_NR,c8d4f6e2-e004-4d27-8c61-0e7a3f9b4004,NUMBER,LIG_BEHAVIOURAL,Type,Release threshold (kg),False,,,MULTI,1,0
+Generic Models,LIG_PRESSURE_REL_BOOL,c8d4f6e2-e003-4d27-8c61-0e7a3f9b4003,YESNO,LIG_BEHAVIOURAL,Type,Releases under load,False,,,MULTI,1,0
+Generic Models,LIG_PRODUCT_RATING_TXT,c8d4f6e2-e001-4d27-8c61-0e7a3f9b4001,TEXT,LIG_BEHAVIOURAL,Type,Anti-ligature product rating (BS 9263 LR1..LR4 or US grade),False,,,MULTI,1,0
+Generic Models,LIG_SELF_CLOSE_BOOL,c8d4f6e2-e002-4d27-8c61-0e7a3f9b4002,YESNO,LIG_BEHAVIOURAL,Type,Self-closing fitting,False,,,MULTI,1,0
+Generic Models,MGS_AAP_REF_TXT,c8d4f6e2-b008-4d27-8c61-0e7a3f9b1008,TEXT,MGS_SYSTEMS,Type,Owning area alarm panel ID,False,,,MULTI,1,0
+Generic Models,MGS_DESIGN_FLOW_LPM_NR,c8d4f6e2-b003-4d27-8c61-0e7a3f9b1003,NUMBER,MGS_SYSTEMS,Type,"Design flow l/min, free air [HTM 02-01]",False,,,MULTI,1,0
+Generic Models,MGS_DIVERSITY_PCT_NR,c8d4f6e2-b004-4d27-8c61-0e7a3f9b1004,NUMBER,MGS_SYSTEMS,Type,Diversity factor (%) [HTM 02-01 sizing],False,,,MULTI,1,0
+Generic Models,MGS_GAS_TYPE_TXT,c8d4f6e2-b001-4d27-8c61-0e7a3f9b1001,TEXT,MGS_SYSTEMS,Type,Medical gas type: O2 / MA4 / MA7 / N2O / N2 / CO2 / HE / VAC / AGS / DENT [HTM 02-01 / NFPA 99],False,,,MULTI,1,0
+Generic Models,MGS_NOM_PRESS_KPA_NR,c8d4f6e2-b002-4d27-8c61-0e7a3f9b1002,NUMBER,MGS_SYSTEMS,Type,Nominal design pressure (kPa) [BS EN ISO 7396-1],False,,,MULTI,1,0
+Generic Models,MGS_PIPE_BRAZED_BOOL,c8d4f6e2-b009-4d27-8c61-0e7a3f9b1009,YESNO,MGS_SYSTEMS,Type,Brazed under inert-gas purge [HTM 02-01],False,,,MULTI,1,0
+Generic Models,MGS_TU_BS5682_BOOL,c8d4f6e2-b005-4d27-8c61-0e7a3f9b1005,YESNO,MGS_SYSTEMS,Type,Terminal unit complies with BS 5682,False,,,MULTI,1,0
+Generic Models,MGS_TU_INDEXED_BOOL,c8d4f6e2-b006-4d27-8c61-0e7a3f9b1006,YESNO,MGS_SYSTEMS,Type,Has gas-specific NIST/DISS indexing,False,,,MULTI,1,0
+Generic Models,MGS_VERIFY_BY_TXT,c8d4f6e2-b011-4d27-8c61-0e7a3f9b1011,TEXT,MGS_SYSTEMS,Type,ASSE 6030 verifier name,False,,,MULTI,1,0
+Generic Models,MGS_VERIFY_CERT_REF_TXT,c8d4f6e2-b013-4d27-8c61-0e7a3f9b1013,TEXT,MGS_SYSTEMS,Type,Verification certificate reference (mirrors ELC_FAT_CERT_REF_TXT),False,,,MULTI,1,0
+Generic Models,MGS_VERIFY_DT,c8d4f6e2-b010-4d27-8c61-0e7a3f9b1010,TEXT,MGS_SYSTEMS,Type,NFPA 99 §5.1.12 verification date (ISO 8601),False,,,MULTI,1,0
+Generic Models,MGS_VERIFY_PASS_BOOL,c8d4f6e2-b012-4d27-8c61-0e7a3f9b1012,YESNO,MGS_SYSTEMS,Type,Latest verification passed,False,,,MULTI,1,0
+Generic Models,MGS_ZVB_REF_TXT,c8d4f6e2-b007-4d27-8c61-0e7a3f9b1007,TEXT,MGS_SYSTEMS,Type,Owning zone valve box ID (denormalised; canonical link rides ASS_TIEIN_REF_TXT),False,,,MULTI,1,0
+Generic Models,MNT_CAL_LAST_DT,c8d4f6e2-1401-4d27-8c61-0e7a3f9b9001,TEXT,COMMISSIONING,Type,Last calibration date (ISO 8601) — distinct from service date,False,,,MULTI,1,0
+Generic Models,MNT_CAL_NEXT_DT,c8d4f6e2-1402-4d27-8c61-0e7a3f9b9002,TEXT,COMMISSIONING,Type,Next calibration due (ISO 8601),False,,,MULTI,1,0
+Generic Models,PLM_AUG_CARE_BOOL,c8d4f6e2-1203-4d27-8c61-0e7a3f9b7003,YESNO,PLM_DRN,Type,Augmented-care wing rules apply [HTM 04-01 Pt C — Pseudomonas],False,,,PLUMBING,1,0
+Generic Models,PLM_DEAD_LEG_M_NR,c8d4f6e2-1202-4d27-8c61-0e7a3f9b7002,NUMBER,PLM_DRN,Type,Distance from main to outlet (m) [HTM 04-01 ≤ 1 m for sentinel],False,,,PLUMBING,1,0
+Generic Models,PLM_FLUSH_LOG_REF_TXT,c8d4f6e2-1206-4d27-8c61-0e7a3f9b7006,TEXT,PLM_DRN,Type,Flushing-log document reference,False,,,PLUMBING,1,0
+Generic Models,PLM_POU_FILTER_BOOL,c8d4f6e2-1204-4d27-8c61-0e7a3f9b7004,YESNO,PLM_DRN,Type,Point-of-use filter fitted [HTM 04-01],False,,,PLUMBING,1,0
+Generic Models,PLM_RO_LOOP_BOOL,c8d4f6e2-1207-4d27-8c61-0e7a3f9b7007,YESNO,PLM_DRN,Type,Belongs to dialysis Reverse Osmosis loop,False,,,PLUMBING,1,0
+Generic Models,PLM_SENTINEL_BOOL,c8d4f6e2-1205-4d27-8c61-0e7a3f9b7005,YESNO,PLM_DRN,Type,Sentinel temperature monitoring point [HTM 04-01],False,,,PLUMBING,1,0
+Generic Models,PLM_TMV_TYPE_TXT,c8d4f6e2-1201-4d27-8c61-0e7a3f9b7001,TEXT,PLM_DRN,Type,Thermostatic mixing valve type: TMV2 / TMV3 / NONE [HTM 04-01],False,,,PLUMBING,1,0
+Generic Models,PRJ_ORG_COORD_SYSTEM_TXT,27a03309-63b6-5b89-9545-0e5fc5124d33,TEXT,PRJ_INFORMATION,Type,"Project geodetic coordinate system, e.g. 'OS GB / British National Grid' / 'WGS 84 UTM 36N' / 'Uganda Cassini-Soldner' — surveyors / GIS reference [BS 7666-2:2006]",False,,,MULTI,1,0
+Generic Models,PRJ_ORG_GROUND_LEVEL_TXT,9411ed93-d511-5a71-adbf-24a75f958e73,TEXT,PRJ_INFORMATION,Type,"Project finished ground level reference, e.g. '+114.250 m AOD' — survey datum for the project [BS EN ISO 4463-1:2021]",False,,,MULTI,1,0
+Generic Models,PRJ_ORG_HEALTH_AE_ELEC_TXT,c8d4f6e2-1512-4d27-8c61-0e7a3f9ba012,TEXT,PRJ_INFORMATION,Type,Authorising Engineer — Electrical,False,,,MULTI,1,0
+Generic Models,PRJ_ORG_HEALTH_AE_MGAS_TXT,c8d4f6e2-1510-4d27-8c61-0e7a3f9ba010,TEXT,PRJ_INFORMATION,Type,Authorising Engineer — Medical Gas,False,,,MULTI,1,0
+Generic Models,PRJ_ORG_HEALTH_AE_VENT_TXT,c8d4f6e2-1509-4d27-8c61-0e7a3f9ba009,TEXT,PRJ_INFORMATION,Type,Authorising Engineer — Ventilation,False,,,MULTI,1,0
+Generic Models,PRJ_ORG_HEALTH_AE_WATER_TXT,c8d4f6e2-1511-4d27-8c61-0e7a3f9ba011,TEXT,PRJ_INFORMATION,Type,Authorising Engineer — Water Safety,False,,,MULTI,1,0
+Generic Models,PRJ_ORG_HEALTH_AHJ_TXT,c8d4f6e2-1507-4d27-8c61-0e7a3f9ba007,TEXT,PRJ_INFORMATION,Type,Authority Having Jurisdiction,False,,,MULTI,1,0
+Generic Models,PRJ_ORG_HEALTH_AREA_M2_NR,c8d4f6e2-1506-4d27-8c61-0e7a3f9ba006,NUMBER,PRJ_INFORMATION,Type,Gross internal area (m²),False,,,MULTI,1,0
+Generic Models,PRJ_ORG_HEALTH_BEDS_INT,c8d4f6e2-1502-4d27-8c61-0e7a3f9ba002,INTEGER,PRJ_INFORMATION,Type,Bed count,False,,,MULTI,1,0
+Generic Models,PRJ_ORG_HEALTH_CODE_BASE_TXT,c8d4f6e2-1505-4d27-8c61-0e7a3f9ba005,TEXT,PRJ_INFORMATION,Type,"Code base: HBN/HTM, FGI, iHFG, Other",False,,,MULTI,1,0
+Generic Models,PRJ_ORG_HEALTH_FACILITY_TYPE_TXT,c8d4f6e2-1501-4d27-8c61-0e7a3f9ba001,TEXT,PRJ_INFORMATION,Type,Healthcare facility type: Acute / Mental / Community / Rehab / Day / FM,False,,,MULTI,1,0
+Generic Models,PRJ_ORG_HEALTH_HTM_REGION_TXT,c8d4f6e2-1513-4d27-8c61-0e7a3f9ba013,TEXT,PRJ_INFORMATION,Type,Regional HTM variant: NHS-England / SHTM / WHTM / NHS-NI,False,,,MULTI,1,0
+Generic Models,PRJ_ORG_HEALTH_ICU_INT,c8d4f6e2-1504-4d27-8c61-0e7a3f9ba004,INTEGER,PRJ_INFORMATION,Type,ICU bed count,False,,,MULTI,1,0
+Generic Models,PRJ_ORG_HEALTH_IHFG_BOOL,c8d4f6e2-1514-4d27-8c61-0e7a3f9ba014,YESNO,PRJ_INFORMATION,Type,iHFG (International Health Facility Guidelines) authority applies,False,,,MULTI,1,0
+Generic Models,PRJ_ORG_HEALTH_OR_INT,c8d4f6e2-1503-4d27-8c61-0e7a3f9ba003,INTEGER,PRJ_INFORMATION,Type,Operating room count,False,,,MULTI,1,0
+Generic Models,PRJ_ORG_HEALTH_PACK_PROFILE_TXT,c8d4f6e2-1515-4d27-8c61-0e7a3f9ba015,TEXT,PRJ_INFORMATION,Type,Healthcare pack profile (acute / community / mental / standalone) for validator gating,False,,,MULTI,1,0
+Generic Models,PRJ_ORG_HEALTH_QE_TXT,c8d4f6e2-1508-4d27-8c61-0e7a3f9ba008,TEXT,PRJ_INFORMATION,Type,Qualified Expert (radiation),False,,,MULTI,1,0
+Generic Models,PRJ_ORG_PROJECT_ADDRESS_TXT,85e93a80-42bc-535e-a9e3-bcd76b7c07a0,TEXT,PRJ_INFORMATION,Type,Project / site address shown on the title block [STING Phase 171],False,,,MULTI,1,0
+Generic Models,PRJ_ORG_PROJECT_NAME_TXT,33188c51-0a4f-52e7-ad2a-37e68ca7ddda,TEXT,PRJ_INFORMATION,Type,Project name shown on the title block [STING Phase 171],False,,,MULTI,1,0
+Generic Models,PRJ_ORG_PROJECT_NORTH_TXT,783db6dd-fccc-5efa-b126-b724db119f8f,TEXT,PRJ_INFORMATION,Type,"Project north angle relative to true north, e.g. '12.5° E of true north' — for sheet-level coordination + wayfinding [ISO 19650-1:2018]",False,,,MULTI,1,0
+Generic Models,PRJ_ORG_PROJECT_NUMBER_TXT,0c7cd8c7-ae84-5f31-a3ac-cfeffff97954,TEXT,PRJ_INFORMATION,Type,Project number / job number shown on the title block [STING Phase 171],False,,,MULTI,1,0
+Generic Models,PRJ_ORG_RIBA_STAGE_TXT,b34a1ffa-4c71-5469-9806-8fc01315f8a6,TEXT,PRJ_INFORMATION,Type,RIBA work stage (0-7) shown on the title block [STING Phase 171],False,,,MULTI,1,0
+Generic Models,PRJ_ORG_SECURITY_CLASS_TXT,6df039a3-d57c-53c5-be3b-e5a69cae709f,TEXT,PRJ_INFORMATION,Type,"Information security classification, e.g. 'OFFICIAL' / 'OFFICIAL-SENSITIVE' / 'SECRET' / 'PUBLIC' — drives PDF watermarks + CDE access controls [ISO 27001:2022, NPSA / CPNI guidance]",False,,,MULTI,1,0
+Generic Models,PRJ_ORG_UNICLASS_CO_TXT,d09f3202-3748-5fcd-ae64-9531b2e71db1,TEXT,PRJ_INFORMATION,Type,"Project Uniclass 2015 Complex (Co_) classification, e.g. 'Co_25_30 Office buildings' — provides the project's industry-standard taxonomy on the title block [Uniclass 2015]",False,,,MULTI,1,0
+Generic Models,PRJ_TB_MEP_CONSULTANTS_ADDRESS_TXT,72432a96-c7b4-5459-8579-18d5f095edd8,TEXT,PRJ_INFORMATION,Type,MEP consultant office address shown on title block — paired with PRJ_TB_MEP_CONSULTANTS_NAME_TXT [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,PRJ_TB_STRUCTURAL_CONSULTANTS_ADDRESS_TXT,87cdf4f5-91e9-562d-9deb-0532fc642705,TEXT,PRJ_INFORMATION,Type,Structural consultant office address shown on title block — paired with PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,RAD_BARRIER_TYPE_TXT,c8d4f6e2-c002-4d27-8c61-0e7a3f9b2002,TEXT,RAD_PROTECTION,Type,Barrier type: PRIMARY / SECONDARY / SCATTER / LEAKAGE [NCRP 147],False,,,HEALTHCARE,1,0
+Generic Models,RAD_DOSE_DESIGN_GOAL_TXT,c8d4f6e2-c006-4d27-8c61-0e7a3f9b2006,TEXT,RAD_PROTECTION,Type,Dose design goal: CONTROLLED (5 mGy/yr) / UNCONTROLLED (1 mGy/yr) [NCRP 147],False,,,HEALTHCARE,1,0
+Generic Models,RAD_LEAD_MM_NR,c8d4f6e2-c001-4d27-8c61-0e7a3f9b2001,NUMBER,RAD_PROTECTION,Type,Pb-equivalent thickness in this element (mm) [NCRP 147],False,,,HEALTHCARE,1,0
+Generic Models,RAD_OCC_FACTOR_NR,c8d4f6e2-c005-4d27-8c61-0e7a3f9b2005,NUMBER,RAD_PROTECTION,Type,NCRP 147 Occupancy factor T,False,,,HEALTHCARE,1,0
+Generic Models,RAD_QE_DT,c8d4f6e2-c008-4d27-8c61-0e7a3f9b2008,TEXT,RAD_PROTECTION,Type,QE sign-off date (ISO 8601),False,,,HEALTHCARE,1,0
+Generic Models,RAD_QE_NAME_TXT,c8d4f6e2-c007-4d27-8c61-0e7a3f9b2007,TEXT,RAD_PROTECTION,Type,Qualified Expert (medical / health physicist) signing off,False,,,HEALTHCARE,1,0
+Generic Models,RAD_USE_FACTOR_NR,c8d4f6e2-c004-4d27-8c61-0e7a3f9b2004,NUMBER,RAD_PROTECTION,Type,NCRP 147 Use factor U,False,,,HEALTHCARE,1,0
+Generic Models,RAD_WORKLOAD_MAWK_NR,c8d4f6e2-c003-4d27-8c61-0e7a3f9b2003,NUMBER,RAD_PROTECTION,Type,Workload (mA·min/wk) [NCRP 147],False,,,HEALTHCARE,1,0
+Generic Models,STING_AUTHORISED_BY_TXT,862eb92a-b8c6-5429-9330-e43afd73744b,TEXT,PRJ_INFORMATION,Type,"4-eyes authorisation signature — distinct from APVD (which can be the same person who approved). Used for high-risk deliverables (CDM, statutory submissions) where a separate authoriser must counter-sign [ISO 19650-1:2018 §5.6.2]",False,,,MULTI,1,0
+Generic Models,STING_AUTHORISED_DATE_TXT,380b2001-f9db-5977-be90-a98d214353cc,TEXT,PRJ_INFORMATION,Type,Date of 4-eyes authorisation signature — paired with STING_AUTHORISED_BY_TXT [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,STING_BOX_LOCATION_ID,c7a3f2e1-9b04-4d88-b5a1-3e6f8d2c1047,TEXT,ASS_MNG,Type,Phase 139.2 — GUID linking first-fix conduit/BESA box (Construction phase) to its second-fix device (Completion phase) for two-phase placement,False,,,MULTI,1,0
+Generic Models,STING_FEDERATION_STATUS_TXT,9ba3db45-85dd-5f83-92e3-6b9f5a07b52d,TEXT,PRJ_INFORMATION,Type,"Federation status of the sheet's host model at issue time — e.g. 'Federated v.4', 'Discipline-isolated', 'Coordination-pending' [ISO 19650-2:2018]",False,,,MULTI,1,0
+Generic Models,STING_LOIN_LOD_TXT,3a2b846f-94ae-5dfd-8ab2-aa5800d48f92,TEXT,PRJ_INFORMATION,Type,Level of Information Need / Level of Detail at issue — e.g. 'LOD 300' / 'LOIN-3' / 'LOD 350' [BS EN 17412-1:2020],False,,,MULTI,1,0
+Generic Models,STING_NOGGIN_REQUIRED,d8b4a3f2-7c05-4e99-c6b2-4f7b9e3d2158,YESNO,ASS_MNG,Type,Phase 139.2 — flag set on a placed pendant/downlight when no joist is within JoistClearanceMm; export via Placement_ExportNogginRequirements,False,,,MULTI,1,0
+Generic Models,STING_SHEET_BIM_MODE_TXT,c6796da5-3755-5074-b19f-493318188ac8,TEXT,PRJ_INFORMATION,Type,"Per-sheet BIM mode marker — 'BIM' or 'NONBIM' — set as default value by the title-block family the sheet uses. TitleBlock_ToggleBIMMode swaps the title-block family between BIM/NONBIM variants, this param keeps a record of the current variant for audit purposes [title block factory v2.0 two-family architecture]",False,,,MULTI,1,0
+Generic Models,STING_SHEET_FULL_REF_TXT,fdb62488-a957-546e-9c2c-95eb4c605559,TEXT,PRJ_INFORMATION,Type,ISO 19650 full 7-segment sheet ID — concatenation of PROJECT-ORIG-VOLUME-LEVEL-TYPE-ROLE-SEQ (e.g. 'STG-PLNS-ZZ-01-DR-A-0001'). Populated by SetString when any segment changes — Revit family-formula parser doesn't reliably support text concat in this context [BS EN ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,STING_SHEET_LEVEL_TXT,43a870ab-1356-5f0e-977e-d9df46688a3b,TEXT,PRJ_INFORMATION,Type,"ISO 19650 7-segment sheet ID — segment 4 (level / location, e.g. '01' / 'GF' / 'ZZ'). Sheet-instance scope [BS EN ISO 19650-2:2018 §5.1.6]",False,,,MULTI,1,0
+Generic Models,STING_SHEET_OF_TOTAL_TXT,da8b102d-0dcc-5dce-83d1-82abc3bdbab5,TEXT,PRJ_INFORMATION,Type,'Sheet n of total' string for the title block (e.g. '03 / 12'). Auto-updated by SheetCountAutoUpdate command from PRJ_TB_TOTAL_NO_SHEETS_TXT and Revit's built-in Sheet Number [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,STING_SHEET_ORIG_TXT,94cb197e-5358-5bdb-9759-7aca37d9c15c,TEXT,PRJ_INFORMATION,Type,"ISO 19650 7-segment sheet ID — segment 2 (originator code, e.g. 'PLNS'). Sheet-instance scope [BS EN ISO 19650-2:2018 §5.1.6]",False,,,MULTI,1,0
+Generic Models,STING_SHEET_PROJECT_TXT,d6b56315-8f12-5bc5-b984-039d2b46bb77,TEXT,PRJ_INFORMATION,Type,"ISO 19650 7-segment sheet ID — segment 1 (project code, e.g. 'STG'). Sheet-instance scope, populated per sheet [BS EN ISO 19650-2:2018 §5.1.6]",False,,,MULTI,1,0
+Generic Models,STING_SHEET_ROLE_TXT,75667436-72f2-5b47-af1a-2d861e754989,TEXT,PRJ_INFORMATION,Type,"ISO 19650 7-segment sheet ID — segment 6 (role, e.g. 'A' architect / 'S' structural / 'M' mechanical / 'E' electrical / 'P' plumbing / 'FP' fire / 'LV' landscape / 'G' general). Sheet-instance scope [BS EN ISO 19650-2:2018 §5.1.6]",False,,,MULTI,1,0
+Generic Models,STING_SHEET_SEQ_TXT,b11bf925-8cf7-5941-b8aa-9ccea031253d,TEXT,PRJ_INFORMATION,Type,"ISO 19650 7-segment sheet ID — segment 7 (4-digit zero-padded sequence number, e.g. '0001'). Sheet-instance scope [BS EN ISO 19650-2:2018 §5.1.6]",False,,,MULTI,1,0
+Generic Models,STING_SHEET_TYPE_TXT,c5c9de9a-9ad8-5de7-8ee6-0149cd674a6a,TEXT,PRJ_INFORMATION,Type,"ISO 19650 7-segment sheet ID — segment 5 (type, e.g. 'DR' drawing / 'M3' model / 'SH' schedule). Sheet-instance scope [BS EN ISO 19650-2:2018 §5.1.6]",False,,,MULTI,1,0
+Generic Models,STING_SHEET_VOLUME_TXT,498273b7-a814-57e4-8316-8359609a8bdd,TEXT,PRJ_INFORMATION,Type,"ISO 19650 7-segment sheet ID — segment 3 (volume / system, e.g. 'ZZ' / '01' / 'M01'). Sheet-instance scope [BS EN ISO 19650-2:2018 §5.1.6]",False,,,MULTI,1,0
+Generic Models,STING_SUITABILITY_DESC_TXT,7d12b6b6-9c62-515e-a611-92ab4e74e93f,TEXT,PRJ_INFORMATION,Type,"Descriptive label paired with PRJ_DWG_SUITABILITY_COD_TXT — e.g. for 'S2' the description is 'Shared, Non-contractual' [BS EN ISO 19650-2:2018 §5.6 Annex A]",False,,,MULTI,1,0

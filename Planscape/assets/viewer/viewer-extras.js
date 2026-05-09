@@ -125,9 +125,19 @@
 
   function eyeFromBounds(b) {
     const sz = b.getSize(new THREE.Vector3());
-    // 1.7 metres in mm-units; if the scene looks tiny (units in metres) fall
-    // back to 1.7 absolute. Heuristic: floor span > 100 → mm.
-    return Math.max(sz.x, sz.z) > 100 ? 1700 : 1.7;
+    // Default human eye height in metres (~1.7 m above floor for an
+    // average adult; 1.6–1.8 m is the standard range used by IFC + ISO
+    // 19650 walkthrough specs). Coordinators can override via the viewer
+    // Settings popover; we read the persisted value from localStorage so
+    // the override survives reloads.
+    let metres = 1.7;
+    try {
+      const stored = parseFloat(window.localStorage?.getItem('planscape_eye_height_m'));
+      if (!isNaN(stored) && stored > 0.5 && stored < 3) metres = stored;
+    } catch (_) {}
+    // If the scene looks tiny (units in metres) fall back to the metre
+    // value directly. Heuristic: floor span > 100 → assume mm units.
+    return Math.max(sz.x, sz.z) > 100 ? metres * 1000 : metres;
   }
 
   function attachWalkInput(h) {
@@ -175,7 +185,13 @@
   }
   function stepWalk(h) {
     const dt = walkClock.getDelta();
-    const speed = Math.max(h.modelBounds.getSize(new THREE.Vector3()).length() * 0.05, 1);
+    // Base speed scales with model size; the speed-wheel multiplier
+    // (driven by the +/- buttons + scroll wheel in the coordination
+    // viewer's nav-controls bar) lets coordinators move at human pace
+    // (1.0×) or fast-fly across a hospital wing (4×–8×).
+    const mul = (typeof window.__walkSpeedMul === 'number' && window.__walkSpeedMul > 0)
+      ? window.__walkSpeedMul : 1.0;
+    const speed = Math.max(h.modelBounds.getSize(new THREE.Vector3()).length() * 0.05, 1) * mul;
     const fwd = new THREE.Vector3();
     h.camera.getWorldDirection(fwd);
     // Project fwd onto the plane perpendicular to walkUp so movement stays

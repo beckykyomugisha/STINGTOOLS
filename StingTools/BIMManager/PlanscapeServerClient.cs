@@ -926,6 +926,152 @@ public sealed class PlanscapeServerClient : IDisposable
     }
 
     // ────────────────────────────────────────────────────────────────────────────
+    //  Site Photos (Slice 4a — BCC desktop review surface)
+    //
+    //  The plugin acts only as a REVIEW client — capture happens on mobile.
+    //  Desktop coordinator triages incoming photos by Reason taxonomy and
+    //  approves / rejects / withdraws / bulk-approves. Server enforces the
+    //  5-state Audience machine; we just trigger transitions.
+    // ────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// List site photos for a project with optional filters. Server returns a
+    /// paginated envelope: { items, total, page, pageSize }. We surface the
+    /// items list directly; callers can re-paginate by passing page/pageSize.
+    /// </summary>
+    public async Task<List<SitePhotoDto>> ListSitePhotosAsync(
+        Guid projectId,
+        string? reason     = null,
+        string? audience   = null,
+        string? levelCode  = null,
+        string? zoneCode   = null,
+        DateTime? from     = null,
+        DateTime? to       = null,
+        int page           = 1,
+        int pageSize       = 50)
+    {
+        var empty = new List<SitePhotoDto>();
+        if (!await EnsureAuthenticatedAsync()) return empty;
+        try
+        {
+            var qs = new List<string>();
+            if (!string.IsNullOrEmpty(reason))    qs.Add($"reason={Uri.EscapeDataString(reason)}");
+            if (!string.IsNullOrEmpty(audience))  qs.Add($"audience={Uri.EscapeDataString(audience)}");
+            if (!string.IsNullOrEmpty(levelCode)) qs.Add($"levelCode={Uri.EscapeDataString(levelCode)}");
+            if (!string.IsNullOrEmpty(zoneCode))  qs.Add($"zoneCode={Uri.EscapeDataString(zoneCode)}");
+            if (from.HasValue)                    qs.Add($"from={Uri.EscapeDataString(from.Value.ToString("o"))}");
+            if (to.HasValue)                      qs.Add($"to={Uri.EscapeDataString(to.Value.ToString("o"))}");
+            qs.Add($"page={page}");
+            qs.Add($"pageSize={pageSize}");
+            var path = $"/api/projects/{projectId}/photos?{string.Join("&", qs)}";
+
+            var resp = await GetAsync(path);
+            if (!resp.ok) { LastError = $"ListSitePhotos: HTTP {resp.status}"; return empty; }
+
+            // Envelope: { items: [...], total, page, pageSize }
+            var json = JObject.Parse(resp.body);
+            var items = json["items"] as JArray;
+            if (items == null) return empty;
+            var list = items.ToObject<List<SitePhotoDto>>();
+            return list ?? empty;
+        }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"ListSitePhotosAsync: {ex.Message}"); return empty; }
+    }
+
+    /// <summary>Download the redacted/watermarked photo bytes for thumbnail or full-size view.
+    /// Returns null on failure (caller should render a placeholder).</summary>
+    public async Task<byte[]?> DownloadSitePhotoAsync(Guid projectId, Guid photoId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var http = SnapshotHttpClient();
+            if (http == null) return null;
+            var resp = await http.GetAsync($"/api/projects/{projectId}/photos/{photoId}/file").ConfigureAwait(false);
+            if (!resp.IsSuccessStatusCode) { LastError = $"DownloadSitePhoto: HTTP {(int)resp.StatusCode}"; return null; }
+            TouchActivity();
+            return await resp.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"DownloadSitePhotoAsync: {ex.Message}"); return null; }
+    }
+
+    /// <summary>Approve a single photo with caption; server transitions audience to ClientReady (or per state machine).</summary>
+    public async Task<SitePhotoDto?> ApproveSitePhotoAsync(Guid projectId, Guid photoId, string caption)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await PostJsonAsync(
+                $"/api/projects/{projectId}/photos/{photoId}/approve", new { caption });
+            if (!resp.ok) { LastError = $"ApproveSitePhoto: HTTP {resp.status} {resp.body}"; return null; }
+            return JsonConvert.DeserializeObject<SitePhotoDto>(resp.body);
+        }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"ApproveSitePhotoAsync: {ex.Message}"); return null; }
+    }
+
+    /// <summary>Reject a photo with a reason; server transitions audience to Rejected.</summary>
+    public async Task<SitePhotoDto?> RejectSitePhotoAsync(Guid projectId, Guid photoId, string reason)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await PostJsonAsync(
+                $"/api/projects/{projectId}/photos/{photoId}/reject", new { reason });
+            if (!resp.ok) { LastError = $"RejectSitePhoto: HTTP {resp.status} {resp.body}"; return null; }
+            return JsonConvert.DeserializeObject<SitePhotoDto>(resp.body);
+        }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"RejectSitePhotoAsync: {ex.Message}"); return null; }
+    }
+
+    /// <summary>Withdraw a previously published photo from the Client Portal back to PendingReview.</summary>
+    public async Task<bool> WithdrawSitePhotoAsync(Guid projectId, Guid photoId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync(
+                $"/api/projects/{projectId}/photos/{photoId}/withdraw", new { });
+            if (!resp.ok) LastError = $"WithdrawSitePhoto: HTTP {resp.status} {resp.body}";
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"WithdrawSitePhotoAsync: {ex.Message}"); return false; }
+    }
+
+    /// <summary>Bulk-approve a set of photos sharing the same caption. Returns (approved, skipped) counts
+    /// from the server; skipped covers photos that failed validation or were already not in PendingReview.</summary>
+    public async Task<(int approved, int skipped)> BulkApproveSitePhotosAsync(
+        Guid projectId, IEnumerable<Guid> photoIds, string caption)
+    {
+        if (!await EnsureAuthenticatedAsync()) return (0, 0);
+        try
+        {
+            var ids = photoIds?.Select(g => g.ToString()).ToList() ?? new List<string>();
+            if (ids.Count == 0) return (0, 0);
+            var resp = await PostJsonAsync(
+                $"/api/projects/{projectId}/photos/bulk-approve", new { photoIds = ids, caption });
+            if (!resp.ok) { LastError = $"BulkApproveSitePhotos: HTTP {resp.status} {resp.body}"; return (0, ids.Count); }
+            var json = JObject.Parse(resp.body);
+            int approved = json["approved"]?.Value<int?>() ?? json["Approved"]?.Value<int?>() ?? 0;
+            int skipped  = json["skipped"]?.Value<int?>()  ?? json["Skipped"]?.Value<int?>()  ?? 0;
+            return (approved, skipped);
+        }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"BulkApproveSitePhotosAsync: {ex.Message}"); return (0, 0); }
+    }
+
+    /// <summary>Preview today's client digest — what would ship if the digest were sent now.</summary>
+    public async Task<DigestPreviewDto?> GetDigestPreviewAsync(Guid projectId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await GetAsync($"/api/projects/{projectId}/photos/digest-preview");
+            if (!resp.ok) { LastError = $"GetDigestPreview: HTTP {resp.status}"; return null; }
+            return JsonConvert.DeserializeObject<DigestPreviewDto>(resp.body);
+        }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"GetDigestPreviewAsync: {ex.Message}"); return null; }
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────
     //  Private helpers
     // ────────────────────────────────────────────────────────────────────────────
 
@@ -1453,4 +1599,75 @@ public sealed class SyncResult
     public double CompliancePercent { get; set; }
     public string RagStatus         { get; set; } = "";
     public string? Error            { get; set; }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  Site Photos (Slice 4a)
+//
+//  DTO mirrors the server's SitePhotoDto. Field names match the camelCase
+//  JSON contract documented in the API spec. Nullable fields stay nullable
+//  so we don't paper over missing values; callers display "—" / "(none)".
+// ──────────────────────────────────────────────────────────────────────────────
+
+/// <summary>One site photo as returned by GET /api/projects/{pid}/photos.
+/// Fields map 1:1 to the server DTO; see Slice 4a spec.</summary>
+public sealed class SitePhotoDto
+{
+    [JsonProperty("id")]                   public Guid     Id                  { get; set; }
+    [JsonProperty("projectId")]            public Guid     ProjectId           { get; set; }
+    [JsonProperty("documentId")]           public Guid?    DocumentId          { get; set; }
+
+    /// <summary>Six-Reason taxonomy: Progress | Issue | Defect | Safety | AsBuilt | Reference.</summary>
+    [JsonProperty("reason")]               public string   Reason              { get; set; } = "";
+
+    /// <summary>5-state audience machine: PendingReview | ClientReady | InternalOnly | Rejected | Withdrawn.</summary>
+    [JsonProperty("audience")]             public string   Audience            { get; set; } = "";
+
+    [JsonProperty("blurStatus")]           public string?  BlurStatus          { get; set; }
+    [JsonProperty("watermarkApplied")]     public bool     WatermarkApplied    { get; set; }
+    [JsonProperty("caption")]              public string?  Caption             { get; set; }
+    [JsonProperty("capturedAt")]           public DateTime CapturedAt          { get; set; }
+    [JsonProperty("capturedByUserId")]     public Guid?    CapturedByUserId    { get; set; }
+    [JsonProperty("capturedByName")]       public string?  CapturedByName      { get; set; }
+
+    [JsonProperty("levelCode")]            public string?  LevelCode           { get; set; }
+    [JsonProperty("zoneCode")]             public string?  ZoneCode            { get; set; }
+    [JsonProperty("discipline")]           public string?  Discipline          { get; set; }
+
+    /// <summary>Set when the photo is a Defect tied to an existing Issue — clicking the
+    /// "Open in Issues tab" button on the row navigates BCC to that issue.</summary>
+    [JsonProperty("anchorIssueId")]        public Guid?    AnchorIssueId       { get; set; }
+
+    /// <summary>Set when the photo is As-built / Reference and an element was anchored
+    /// in the model. Plugin uses this to select + zoom in the active Revit view.</summary>
+    [JsonProperty("anchorElementGuid")]    public string?  AnchorElementGuid   { get; set; }
+    [JsonProperty("modelId")]              public Guid?    ModelId             { get; set; }
+    [JsonProperty("modelX")]               public double?  ModelX              { get; set; }
+    [JsonProperty("modelY")]               public double?  ModelY              { get; set; }
+    [JsonProperty("modelZ")]               public double?  ModelZ              { get; set; }
+
+    [JsonProperty("pairKey")]              public string?  PairKey             { get; set; }
+    [JsonProperty("classifierConfidence")] public double?  ClassifierConfidence{ get; set; }
+
+    [JsonProperty("approvedAt")]           public DateTime? ApprovedAt         { get; set; }
+    [JsonProperty("approvedByUserId")]     public Guid?     ApprovedByUserId   { get; set; }
+    [JsonProperty("rejectedAt")]           public DateTime? RejectedAt         { get; set; }
+    [JsonProperty("rejectedReason")]       public string?   RejectedReason     { get; set; }
+
+    [JsonProperty("latitude")]             public double?  Latitude            { get; set; }
+    [JsonProperty("longitude")]            public double?  Longitude           { get; set; }
+}
+
+/// <summary>Preview of what today's client digest would contain.
+/// Server may add fields over time; we lazily expose what we know.</summary>
+public sealed class DigestPreviewDto
+{
+    [JsonProperty("projectId")]   public Guid     ProjectId    { get; set; }
+    [JsonProperty("date")]        public DateTime Date         { get; set; }
+    [JsonProperty("totalPhotos")] public int      TotalPhotos  { get; set; }
+    [JsonProperty("byReason")]    public Dictionary<string, int> ByReason { get; set; } = new();
+    [JsonProperty("photos")]      public List<SitePhotoDto> Photos { get; set; } = new();
+    [JsonProperty("recipients")]  public List<string> Recipients { get; set; } = new();
+    [JsonProperty("subject")]     public string?  Subject       { get; set; }
+    [JsonProperty("preview")]     public string?  Preview       { get; set; }
 }

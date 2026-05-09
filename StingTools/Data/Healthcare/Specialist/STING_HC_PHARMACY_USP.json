@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1.0,
+  "description": "H-13 — USP <797> / <800> pharmacy cleanroom rules.",
+  "sterileCascade": [
+    {"code":"PEC-797","iso":"ISO 5","achMin":0},
+    {"code":"BUF-797","iso":"ISO 7","achMin":30,"deltaPaToAnteroomMin":5,"polarity":"POS"},
+    {"code":"ANT-797","iso":"ISO 7","achMin":30,"deltaPaToCorridorMin":5,"polarity":"POS"}
+  ],
+  "hazardousCascade": [
+    {"code":"CPEC-800","iso":"ISO 5","achMin":0,"externalExhaust":true},
+    {"code":"CSEC-800","iso":"ISO 7","achMin":30,"deltaPaToAnteroomMin":2.5,"polarity":"NEG","externalExhaust":true},
+    {"code":"ANT-800","iso":"ISO 7","achMin":30,"deltaPaToCorridorMin":5,"polarity":"POS"}
+  ],
+  "recertificationCycleMonths": 6
+}

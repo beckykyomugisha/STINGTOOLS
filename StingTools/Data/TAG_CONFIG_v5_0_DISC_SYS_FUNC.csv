@@ -216,3 +216,85 @@ SLV_PROD,Generic Models,P,RWD,PEN,SLV,STING - MEP Sleeve Tag
 SLV_PROD,Generic Models,E,LV,PEN,SLV,STING - MEP Sleeve Tag
 SLV_PROD,Generic Models,FP,FP,PEN,SLV,STING - MEP Sleeve Tag
 SLV_PROD,Generic Models,P,GAS,PEN,SLV,STING - MEP Sleeve Tag
+#
+# Section 14: HEALTHCARE PACK (Phase H-1) — Disciplines, Systems, Functions, Products
+# Branch: claude/research-hospital-design-0Uxbi
+#
+DISC,Specialty Equipment,H,Healthcare clinical equipment (pendants, bed-heads, hoists)
+DISC,Mechanical Equipment,MG,Medical gas pipeline systems (when type code starts MGS-)
+DISC,Generic Models,RP,Radiation protection (lead barriers, MRI fences, dosimetry)
+SYS,Pipes,MGS-O2,Medical Oxygen 400 kPa (HTM 02-01 / NFPA 99)
+SYS,Pipes,MGS-MA4,Medical Air 400 kPa
+SYS,Pipes,MGS-MA7,Surgical Air 700 kPa
+SYS,Pipes,MGS-N2O,Nitrous Oxide
+SYS,Pipes,MGS-N2,Surgical Nitrogen
+SYS,Pipes,MGS-CO2,Carbon Dioxide
+SYS,Pipes,MGS-HE,Helium / Heliox
+SYS,Pipes,MGS-VAC,Medical Vacuum
+SYS,Pipes,MGS-AGS,Anaesthetic Gas Scavenging
+SYS,Pipes,MGS-DENT,Dental compressed air / vacuum
+SYS,Electrical Circuits,EES-LS,Essential Power — Life Safety branch
+SYS,Electrical Circuits,EES-CR,Essential Power — Critical branch
+SYS,Electrical Circuits,EES-EQ,Essential Power — Equipment branch
+SYS,Electrical Circuits,IPS-WET,Isolated Power Systems — wet location
+SYS,Electrical Circuits,IT-CARD,IT-network — cardiac protected
+SYS,Pipes,WAT-DCW-TMV,TMV-tempered cold water
+SYS,Pipes,WAT-DHW-AC,Augmented-care DHW
+SYS,Walls,RAD-X,X-ray controlled area (lead barrier)
+SYS,Walls,RAD-MV,Megavoltage controlled area (LINAC)
+SYS,Walls,RAD-MRI,MRI Faraday cage
+FUNC,MGS-O2,SUP,Supply
+FUNC,MGS-VAC,EXH,Exhaust / extract
+FUNC,EES-LS,LIFE-SAF,Life safety branch loads (egress / alarm)
+FUNC,EES-CR,CRIT,Critical branch loads (patient care)
+FUNC,EES-EQ,EQP-BR,Equipment branch loads
+FUNC,IPS-WET,IPS,Isolated power
+FUNC,IT-CARD,IT-CP,Cardiac-protected IT-network
+FUNC,WAT-DCW-TMV,DCW,Domestic cold water
+FUNC,WAT-DHW-AC,DHW,Domestic hot water (augmented care)
+FUNC,RAD-X,RAD-CONT,Radiation controlled area
+FUNC,RAD-MV,RAD-LINAC,Megavoltage radiotherapy
+FUNC,RAD-MRI,RAD-MRI,MRI Faraday cage
+PROD,Specialty Equipment,H,GEN,STD,BHP,Bed-head pendant
+PROD,Specialty Equipment,H,GEN,STD,CP-OR,Operating room ceiling pendant
+PROD,Specialty Equipment,H,GEN,STD,CP-ICU,ICU column pendant
+PROD,Specialty Equipment,H,GEN,STD,CP-ANES,Anaesthesia boom
+PROD,Plumbing Fixtures,H,GEN,STD,SCR,Scrub trough
+PROD,Plumbing Fixtures,H,GEN,STD,SCRD,Scrub-in dispenser
+PROD,Plumbing Fixtures,H,GEN,STD,BPW,Bedpan washer
+PROD,Medical Equipment,H,GEN,STD,WD,Washer-disinfector
+PROD,Medical Equipment,H,GEN,STD,STZ,Sterilizer / autoclave
+PROD,Medical Equipment,H,GEN,STD,RO-DIA,Dialysis Reverse Osmosis unit
+PROD,Medical Equipment,H,GEN,STD,MRI,MRI bore unit
+PROD,Medical Equipment,H,GEN,STD,LIN,Linear accelerator
+PROD,Medical Equipment,H,GEN,STD,CT,CT scanner
+PROD,Medical Equipment,H,GEN,STD,PET,PET scanner
+PROD,Medical Equipment,H,GEN,STD,XRY,X-ray imaging
+PROD,Medical Equipment,H,GEN,STD,FLR,Fluoroscopy
+PROD,Medical Equipment,H,GEN,STD,CTH,Cath-lab equipment
+PROD,Specialty Equipment,H,GEN,STD,CRT,Crash trolley
+PROD,Nurse Call Devices,H,GEN,STD,NCS,Nurse-call station
+PROD,Nurse Call Devices,H,GEN,STD,NCP,Nurse-call post
+PROD,Specialty Equipment,H,GEN,STD,AED,Automated External Defibrillator
+PROD,Specialty Equipment,H,GEN,STD,HRD,Hand-rub dispenser
+PROD,Specialty Equipment,H,GEN,STD,PTS,Pneumatic tube station
+PROD,Specialty Equipment,H,GEN,STD,AGV-D,AGV docking station
+PROD,Specialty Equipment,H,GEN,STD,DUM,Dumb waiter
+PROD,Specialty Equipment,H,GEN,STD,MORT-FRG,Mortuary refrigerator
+PROD,Specialty Equipment,H,GEN,STD,POST-MTBL,Post-mortem table
+PROD,Medical Equipment,H,GEN,STD,INC,Incubator
+PROD,Medical Equipment,H,GEN,STD,WCT,Warming cot
+PROD,Pipe Accessories,MG,MGS-O2,SUP,ZVB,Zone valve box
+PROD,Plumbing Fixtures,MG,MGS-O2,SUP,AAP,Area alarm panel
+PROD,Plumbing Fixtures,MG,MGS-O2,SUP,MAP,Master alarm panel
+PROD,Plumbing Fixtures,MG,MGS-O2,SUP,TU-O2,Oxygen terminal unit (BS 5682)
+PROD,Plumbing Fixtures,MG,MGS-MA4,SUP,TU-MA4,Medical air 4-bar terminal unit
+PROD,Plumbing Fixtures,MG,MGS-MA7,SUP,TU-MA7,Surgical air 7-bar terminal unit
+PROD,Plumbing Fixtures,MG,MGS-N2O,SUP,TU-N2O,Nitrous oxide terminal unit
+PROD,Plumbing Fixtures,MG,MGS-VAC,EXH,TU-VAC,Vacuum terminal unit
+PROD,Plumbing Fixtures,MG,MGS-AGS,EXH,TU-AGS,AGS terminal unit
+PROD,Walls,RP,RAD-X,RAD-CONT,RAD-PB,Lead-equivalent shielded barrier
+PROD,Generic Models,RP,RAD-X,RAD-CONT,RAD-CRT,Lead curtain
+PROD,Generic Models,RP,RAD-MRI,RAD-MRI,MR-FNC,MRI 5-Gauss fence / boundary marker
+PROD,Doors,H,GEN,LIG-RES,LIG-DR,Anti-ligature door
+PROD,Plumbing Fixtures,H,GEN,LIG-RES,LIG-WC,Anti-ligature WC / sink

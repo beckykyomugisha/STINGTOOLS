@@ -99,6 +99,10 @@ public class IssuesController : ControllerBase
                 // additive at the wire level (existing clients ignore unknown
                 // properties).
                 i.ModelId, i.ModelElementGuid, i.ModelX, i.ModelY, i.ModelZ,
+                // WATCHERS — JSON array of user IDs. Clients render these
+                // as chips next to the assignee badge so it's visible who
+                // is following the issue.
+                i.WatcherUserIds,
                 IsOverdue = i.DueDate.HasValue && i.DueDate < DateTime.UtcNow && i.Status != "CLOSED" && i.Status != "RESOLVED",
                 DaysOpen = (int)(DateTime.UtcNow - i.CreatedAt).TotalDays
             })
@@ -202,6 +206,26 @@ public class IssuesController : ControllerBase
         var source = req.Source
             ?? (Request.Headers.ContainsKey("X-Device-Id") ? "mobile" : "web");
 
+        // WATCHERS — validate every supplied id is an active project member,
+        // skipping unknown ids with a warning rather than failing the whole
+        // create. Empty after filtering = stored as null.
+        // Perf: hand the deduped set to EF as a HashSet so the .Contains
+        // probe is O(1) per candidate row instead of O(n) in-memory.
+        Guid[] validWatchers = Array.Empty<Guid>();
+        if (req.WatcherUserIds != null && req.WatcherUserIds.Length > 0)
+        {
+            var requested = new HashSet<Guid>(req.WatcherUserIds.Where(g => g != Guid.Empty));
+            if (requested.Count > 0)
+            {
+                validWatchers = await _db.ProjectMembers
+                    .Where(m => m.ProjectId == projectId
+                             && m.IsActive
+                             && requested.Contains(m.UserId))
+                    .Select(m => m.UserId)
+                    .ToArrayAsync();
+            }
+        }
+
         var issue = new BimIssue
         {
             ProjectId = projectId,
@@ -210,6 +234,7 @@ public class IssuesController : ControllerBase
             Title = req.Title,
             Description = req.Description,
             Priority = req.Priority ?? "MEDIUM",
+            Status = string.IsNullOrWhiteSpace(req.Status) ? "OPEN" : req.Status!,
             Assignee = assigneeUser?.DisplayName ?? req.Assignee,
             AssigneeEmail = assigneeUser?.Email ?? req.AssigneeEmail,
             AssigneeUserId = assigneeUser?.Id,
@@ -229,6 +254,7 @@ public class IssuesController : ControllerBase
             ModelX = req.ModelX,
             ModelY = req.ModelY,
             ModelZ = req.ModelZ,
+            WatcherUserIds = BimIssue.SerializeWatcherIds(validWatchers),
         };
 
         // NEW-LOGIC-01/02 — Save with retry on UNIQUE(ProjectId, IssueCode) collision.
@@ -275,31 +301,25 @@ public class IssuesController : ControllerBase
             issue.Title,
             new { issue.Id, issue.IssueCode, issue.Type, issue.Priority, projectId });
 
-        // If assigned, send targeted push to assignee.
-        // Prefer the resolved FK (NEW-SRV-23); fall back to legacy DisplayName lookup.
-        if (issue.AssigneeUserId.HasValue || !string.IsNullOrEmpty(issue.Assignee))
+        // WATCHERS — fan out a "watching" push to every validated watcher
+        // (excluding the assignee, who already gets the targeted push
+        // below, and excluding the creator, who already saw the toast).
+        if (validWatchers.Length > 0)
         {
-            AppUser? assignee = null;
-            if (issue.AssigneeUserId.HasValue)
+            var skipIds = new HashSet<Guid>();
+            if (issue.AssigneeUserId.HasValue) skipIds.Add(issue.AssigneeUserId.Value);
+            if (creatorId.HasValue) skipIds.Add(creatorId.Value);
+            foreach (var watcherId in validWatchers)
             {
-                assignee = await _db.Users.FirstOrDefaultAsync(u =>
-                    u.Id == issue.AssigneeUserId.Value && u.TenantId == tenantId);
-            }
-            if (assignee == null && !string.IsNullOrEmpty(issue.Assignee))
-            {
-                assignee = await _db.Users.FirstOrDefaultAsync(u =>
-                    u.DisplayName == issue.Assignee && u.TenantId == tenantId);
-            }
-            if (assignee != null)
-            {
-                _ = _push.SendToUserAsync(assignee.Id, new Planscape.Core.Interfaces.PushPayload
+                if (skipIds.Contains(watcherId)) continue;
+                _ = _push.SendToUserAsync(watcherId, new Planscape.Core.Interfaces.PushPayload
                 {
-                    Title = $"Assigned: {issue.IssueCode} [{issue.Priority}]",
+                    Title = $"Watching: {issue.IssueCode} [{issue.Priority}]",
                     Body = issue.Title,
                     Channel = "issues",
                     Data = new Dictionary<string, string>
                     {
-                        ["type"] = "issue_assigned",
+                        ["type"] = "issue_watching",
                         ["issueId"] = issue.Id.ToString(),
                         ["issueCode"] = issue.IssueCode,
                         ["priority"] = issue.Priority,
@@ -307,6 +327,27 @@ public class IssuesController : ControllerBase
                     }
                 });
             }
+        }
+
+        // If assigned, send targeted push to assignee. Reuse the
+        // `assigneeUser` resolved + validated above so we don't issue
+        // a redundant tenant-scoped lookup right after creation.
+        if (assigneeUser != null)
+        {
+            _ = _push.SendToUserAsync(assigneeUser.Id, new Planscape.Core.Interfaces.PushPayload
+            {
+                Title = $"Assigned: {issue.IssueCode} [{issue.Priority}]",
+                Body = issue.Title,
+                Channel = "issues",
+                Data = new Dictionary<string, string>
+                {
+                    ["type"] = "issue_assigned",
+                    ["issueId"] = issue.Id.ToString(),
+                    ["issueCode"] = issue.IssueCode,
+                    ["priority"] = issue.Priority,
+                    ["projectId"] = projectId.ToString()
+                }
+            });
         }
 
         return CreatedAtAction(nameof(GetIssues), new { projectId }, issue);
@@ -346,8 +387,60 @@ public class IssuesController : ControllerBase
             diff["Description"] = new { changed = true };
             issue.Description = req.Description;
         }
+        if (req.WatcherUserIds != null)
+        {
+            // null = leave alone; empty array = clear; non-empty = replace
+            // (after validation against project membership).
+            Guid[] validNew = Array.Empty<Guid>();
+            if (req.WatcherUserIds.Length > 0)
+            {
+                var requested = new HashSet<Guid>(req.WatcherUserIds.Where(g => g != Guid.Empty));
+                if (requested.Count > 0)
+                {
+                    validNew = await _db.ProjectMembers
+                        .Where(m => m.ProjectId == projectId
+                                 && m.IsActive
+                                 && requested.Contains(m.UserId))
+                        .Select(m => m.UserId)
+                        .ToArrayAsync();
+                }
+            }
+            var serialized = BimIssue.SerializeWatcherIds(validNew);
+            if (serialized != issue.WatcherUserIds)
+            {
+                diff["WatcherUserIds"] = new { from = issue.WatcherUserIds, to = serialized };
+                issue.WatcherUserIds = serialized;
+            }
+        }
 
         await _db.SaveChangesAsync();
+
+        // WATCHERS — notify every current watcher of the update so they
+        // don't have to poll. Skip the user who made the change.
+        if (diff.Count > 0)
+        {
+            var actorClaim = User.FindFirst("user_id")?.Value;
+            Guid? actorId = Guid.TryParse(actorClaim, out var aid) ? aid : (Guid?)null;
+            var watcherIds = BimIssue.ParseWatcherIds(issue.WatcherUserIds);
+            foreach (var watcherId in watcherIds)
+            {
+                if (actorId.HasValue && watcherId == actorId.Value) continue;
+                _ = _push.SendToUserAsync(watcherId, new Planscape.Core.Interfaces.PushPayload
+                {
+                    Title = $"Update: {issue.IssueCode} [{issue.Priority}]",
+                    Body = $"{issue.Status} · {issue.Title}",
+                    Channel = "issues",
+                    Data = new Dictionary<string, string>
+                    {
+                        ["type"] = "issue_updated",
+                        ["issueId"] = issue.Id.ToString(),
+                        ["issueCode"] = issue.IssueCode,
+                        ["status"] = issue.Status,
+                        ["projectId"] = projectId.ToString()
+                    }
+                });
+            }
+        }
 
         var detailsJson = diff.Count > 0
             ? System.Text.Json.JsonSerializer.Serialize(diff)
@@ -381,9 +474,16 @@ public class IssuesController : ControllerBase
         if (!exists) return NotFound();
 
         var idString = issueId.ToString();
+        // Activity timeline = every audit log row whose EntityId is this
+        // issue, regardless of EntityType. Comment + attachment writes
+        // log under the parent issue id (with sub-entity identifiers in
+        // DetailsJson) so coordinators see status changes, comments, and
+        // attachment uploads on a single chronological strip.
+        var entityTypes = new[] { "Issue", "IssueComment", "IssueAttachment" };
         var entries = await _db.AuditLogs
+            .AsNoTracking()
             .Where(a => a.TenantId == tenantId
-                && a.EntityType == "Issue"
+                && entityTypes.Contains(a.EntityType)
                 && a.EntityId == idString)
             .OrderBy(a => a.Timestamp)
             .Select(a => new
@@ -487,7 +587,53 @@ public class IssuesController : ControllerBase
         };
         _db.IssueAttachments.Add(attachment);
         await _db.SaveChangesAsync();
-        await _audit.LogAsync("CREATE", "IssueAttachment", attachment.Id.ToString());
+        // EntityId = issueId (not attachment.Id) so the issue Activity
+        // timeline picks this up when filtering on a single EntityId; the
+        // attachment id + filename live in DetailsJson for traceability.
+        await _audit.LogAsync("CREATE", "IssueAttachment", issueId.ToString(),
+            System.Text.Json.JsonSerializer.Serialize(new {
+                attachmentId = attachment.Id,
+                documentId = doc.Id,
+                fileName = doc.FileName,
+                fileSizeBytes = doc.FileSizeBytes
+            }));
+
+        // Fan out a "new attachment" push to every watcher + the assignee
+        // (excluding the uploader themselves). Watchers care about
+        // attachments because they often signal progress / evidence in
+        // RFI / NCR workflows; without this they only see the row appear
+        // when they next refresh.
+        try
+        {
+            var actorClaim = User.FindFirst("user_id")?.Value;
+            Guid? actorId = Guid.TryParse(actorClaim, out var aid) ? aid : (Guid?)null;
+            var audience = new HashSet<Guid>();
+            if (issue.AssigneeUserId.HasValue) audience.Add(issue.AssigneeUserId.Value);
+            foreach (var w in BimIssue.ParseWatcherIds(issue.WatcherUserIds)) audience.Add(w);
+            if (actorId.HasValue) audience.Remove(actorId.Value);
+            foreach (var uid in audience)
+            {
+                _ = _push.SendToUserAsync(uid, new Planscape.Core.Interfaces.PushPayload
+                {
+                    Title = $"📎 {issue.IssueCode}",
+                    Body = $"New attachment: {doc.FileName}",
+                    Channel = "issues",
+                    Data = new Dictionary<string, string>
+                    {
+                        ["type"] = "issue_attachment",
+                        ["issueId"] = issueId.ToString(),
+                        ["issueCode"] = issue.IssueCode,
+                        ["attachmentId"] = attachment.Id.ToString(),
+                        ["projectId"] = projectId.ToString()
+                    }
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            // Notification fan-out must never break the upload itself.
+            _logger.LogWarning(ex, "Watcher push fan-out failed for attachment {AttachmentId}", attachment.Id);
+        }
 
         // S04 — generate JPEG thumbnails (150/300/600 px) and extract EXIF GPS for image uploads.
         // Thumbnails are persisted via the same storage abstraction, using a sibling "thumbnails"
@@ -575,14 +721,53 @@ public class IssuesController : ControllerBase
         var tenantId = GetTenantId();
         var attachment = await _db.IssueAttachments
             .Include(a => a.Issue)
+            .Include(a => a.Document)
             .FirstOrDefaultAsync(a => a.Id == attachmentId && a.IssueId == issueId
                 && a.Issue!.ProjectId == projectId && a.Issue.Project!.TenantId == tenantId);
         if (attachment == null) return NotFound();
         if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
+        // Snapshot the storage path BEFORE we drop the rows so the cleanup
+        // pass can locate originals + sibling thumbnails (each thumbnail
+        // is sized at /thumbnails/{baseName}_{size}.jpg per UploadAttachment).
+        var doc = attachment.Document;
+        var originalPath = doc?.FilePath;
+        var fileName = doc?.FileName ?? "(unknown)";
+
         _db.IssueAttachments.Remove(attachment);
+        // Drop the underlying DocumentRecord too — IssueAttachment is the
+        // join row; without removing the document the row stays orphaned
+        // and counts against the project's storage quota.
+        if (doc != null) _db.Documents.Remove(doc);
         await _db.SaveChangesAsync();
-        await _audit.LogAsync("DELETE", "IssueAttachment", attachmentId.ToString());
+
+        // Best-effort filesystem / object-storage cleanup. Failures here
+        // must not unwind the row deletion (the audit row still needs to
+        // be written), so swallow any storage exception with a warning.
+        if (!string.IsNullOrEmpty(originalPath))
+        {
+            try
+            {
+                await _storage.DeleteAsync(originalPath);
+                var dir = System.IO.Path.GetDirectoryName(originalPath)?.Replace('\\', '/') ?? "";
+                var baseName = System.IO.Path.GetFileNameWithoutExtension(originalPath);
+                foreach (var size in ValidThumbSizes)
+                {
+                    var thumbPath = $"{dir}/thumbnails/{baseName}_{size}.jpg";
+                    try { await _storage.DeleteAsync(thumbPath); } catch { /* missing thumb is fine */ }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Storage cleanup failed for attachment {AttachmentId} ({Path})",
+                    attachmentId, originalPath);
+            }
+        }
+
+        await _audit.LogAsync("DELETE", "IssueAttachment", issueId.ToString(),
+            System.Text.Json.JsonSerializer.Serialize(new {
+                attachmentId, documentId = doc?.Id, fileName
+            }));
         return NoContent();
     }
 
@@ -851,6 +1036,25 @@ public record CreateIssueRequest(
     string? ModelElementGuid,
     double? ModelX,
     double? ModelY,
-    double? ModelZ);
-public record UpdateIssueRequest(string? Status, string? Priority, string? Assignee, string? Description);
+    double? ModelZ,
+    // ── Additive fields below this line ───────────────────────────────────
+    // New positional record parameters MUST go at the end so existing
+    // positional callers (other plugins, external integrations, future
+    // forks) keep compiling. JSON callers ignore parameter order.
+    //
+    // WATCHERS — list of AppUser ids who get push notifications for every
+    // status change and comment on this issue, in addition to the assignee.
+    // Validated against project membership before persisting.
+    Guid[]? WatcherUserIds,
+    // Explicit lifecycle status from the viewer / mobile create form
+    // (defaults to OPEN server-side when null/empty).
+    string? Status);
+public record UpdateIssueRequest(
+    string? Status,
+    string? Priority,
+    string? Assignee,
+    string? Description,
+    // ── Additive fields below this line ───────────────────────────────────
+    // Replace the watcher list (null = leave unchanged; empty array = clear).
+    Guid[]? WatcherUserIds);
 public record LinkAttachmentRequest(Guid DocumentId);

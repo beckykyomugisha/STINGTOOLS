@@ -396,23 +396,25 @@ namespace StingTools.BIMManager
             },
             ["HEALTHCARE_NHS"] = new COBiePreset
             {
-                Name = "Healthcare (NHS)", Description = "NHS hospital/clinic — HTM/HBN compliant, full medical equipment tracking",
+                Name = "Healthcare (NHS)", Description = "NHS hospital/clinic — HTM/HBN compliant; integrates Healthcare Pack H-1..H-30 clinical equipment overlay",
                 RequiredSheets = new[] { "Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Assembly", "Connection", "Spare", "Resource", "Job", "Impact", "Document", "Attribute", "Coordinate", "Issue", "PickLists" },
-                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Plumbing Fixtures", "Medical Equipment", "Fire Alarm Devices", "Sprinklers" },
+                // "Specialty Equipment" matches Revit's display name (the BuiltInCategory enum is OST_SpecialityEquipment).
+                // It stays as a fallback for FF&E that's not strictly medical (pendants, bedhead trunking, scrub troughs, isolators).
+                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Plumbing Fixtures", "Medical Equipment", "Nurse Call Devices", "Specialty Equipment", "Fire Alarm Devices", "Sprinklers", "Pipes", "Pipe Accessories" },
                 AssetTypes = new[] { "Fixed", "Moveable", "Portable" },
-                ZoneTypes = new[] { "Clinical Zone", "Ward", "Theatre", "Clean Room", "Fire Zone", "Decontamination Zone" },
-                MaintenanceEmphasis = "Critical — HTM 00/01 risk-based maintenance",
-                Notes = "NHS Premises Assurance Model (PAM). Department of Health (HTM/HBN) compliance required. Medical gas, ventilation validation, nurse call, and infection control zones tracked."
+                ZoneTypes = new[] { "Clinical Zone", "Ward", "Theatre", "Clean Room", "Fire Zone", "Decontamination Zone", "AIIR", "Protective Environment", "MRI Suite", "USP Cleanroom" },
+                MaintenanceEmphasis = "Critical — HTM 00/01 risk-based maintenance + SFG20-Healthcare schedules",
+                Notes = "NHS Premises Assurance Model (PAM). HTM/HBN compliance required. Healthcare Pack tracks medical gas (HTM 02-01), ventilation (HTM 03-01), water safety (HTM 04-01), fire (HTM 05-02), electrical (HTM 06-01), waste (HTM 07-01), acoustics (HTM 08-01), endoscopy (HTM 01-06)."
             },
             ["HEALTHCARE_PRIVATE"] = new COBiePreset
             {
                 Name = "Healthcare (Private)", Description = "Private hospital/clinic — CQC compliant asset management",
                 RequiredSheets = new[] { "Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Assembly", "Connection", "Spare", "Resource", "Job", "Impact", "Document", "Attribute", "Coordinate", "Issue", "PickLists" },
-                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Plumbing Fixtures", "Fire Alarm Devices", "Sprinklers" },
+                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Plumbing Fixtures", "Medical Equipment", "Nurse Call Devices", "Specialty Equipment", "Fire Alarm Devices", "Sprinklers" },
                 AssetTypes = new[] { "Fixed", "Moveable" },
                 ZoneTypes = new[] { "Clinical Zone", "Patient Area", "Fire Zone", "HVAC Zone" },
                 MaintenanceEmphasis = "CQC statutory maintenance compliance",
-                Notes = "Care Quality Commission (CQC) compliance. Similar to NHS but simplified governance."
+                Notes = "Care Quality Commission (CQC) compliance. Similar to NHS but simplified governance. Healthcare Pack overlay applies."
             },
             ["EDUCATION_SCHOOL"] = new COBiePreset
             {

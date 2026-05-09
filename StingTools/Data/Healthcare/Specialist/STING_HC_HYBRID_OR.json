@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1.0,
+  "description": "H-12 — Hybrid OR / Cath / IR clearance envelopes.",
+  "minAreaM2": { "OR-HYBRID": 70, "CATHLAB": 40, "IR": 38 },
+  "ceilingZones": {
+    "OR-HYBRID": ["fluoroscopy", "anaesthesia-boom", "surgical-light", "monitor-array", "laminar-canopy"],
+    "CATHLAB":   ["c-arm", "monitor-array", "boom"]
+  },
+  "minClearancesMmFromTable": {
+    "OR-HYBRID": { "fluoroscopy": 1500, "boom": 1200, "monitors": 2200 }
+  },
+  "controlRoomAdjacencyRequired": ["OR-HYBRID","CATHLAB","IR","IMG-XRY","IMG-FLR"]
+}

@@ -1826,6 +1826,47 @@ namespace StingTools.Core
                 case "DesignOptions_Dashboard":           return new Commands.DesignOptions.OptionsDashboardCommand();
                 case "DesignOptions_ExportComparison":    return new Commands.DesignOptions.ExportOptionComparisonCommand();
 
+                // ── Healthcare Pack H-1..H-30 ──
+                case "Healthcare_RunAllValidators":  return new Commands.Healthcare.HealthcareRunAllValidatorsCommand();
+                case "Healthcare_PressureAudit":     return new Commands.Healthcare.HealthcarePressureAuditCommand();
+                case "Healthcare_WaterSafety":       return new Commands.Healthcare.HealthcareWaterSafetyCommand();
+                case "Healthcare_EesBranch":         return new Commands.Healthcare.HealthcareEesBranchAuditCommand();
+                case "Healthcare_RadShield":         return new Commands.Healthcare.HealthcareRadShieldAuditCommand();
+                case "Healthcare_AdvancedRadShield": return new Commands.Healthcare.HealthcareAdvancedRadShieldCommand();
+                case "Healthcare_RdsCompleteness":   return new Commands.Healthcare.HealthcareRdsCompletenessCommand();
+                case "Healthcare_IoTStaleness":      return new Commands.Healthcare.HealthcareIoTStalenessCommand();
+                case "Healthcare_StructuralLoad":    return new Commands.Healthcare.HealthcareStructuralLoadCommand();
+                case "Healthcare_Acoustic":          return new Commands.Healthcare.HealthcareAcousticCommand();
+                case "Healthcare_EndoscopeTrace":    return new Commands.Healthcare.HealthcareEndoscopeTraceCommand();
+                case "Healthcare_EesResilience":     return new Commands.Healthcare.HealthcareEesResilienceCommand();
+                case "Healthcare_RtlsCoverage":      return new Commands.Healthcare.HealthcareRtlsCoverageCommand();
+                case "Healthcare_WasteFlow":         return new Commands.Healthcare.HealthcareWasteFlowCommand();
+
+                case "Healthcare_IssueRDS":          return new Commands.Healthcare.IssueRoomDataSheetCommand();
+                case "Healthcare_BatchRDS":          return new Commands.Healthcare.BatchIssueRoomDataSheetsCommand();
+
+                case "Healthcare_MgasAudit":         return new Commands.MedGas.MgasNetworkAuditCommand();
+                case "Healthcare_MgasVerify":        return new Commands.MedGas.MgasVerifyCommand();
+
+                case "Healthcare_AdjacencyAudit":    return new Commands.Adjacency.AdjacencyAuditCommand();
+
+                case "Healthcare_RadCalcChest":      return new Commands.Radiation.RadCalcChestRoomCommand();
+                case "Healthcare_RadCalcCt":         return new Commands.Radiation.RadCalcCtRoomCommand();
+                case "Healthcare_RadCalcLinac":      return new Commands.Radiation.RadCalcLinacVaultCommand();
+                case "Healthcare_MriZoneAudit":      return new Commands.Radiation.MriZoneAuditCommand();
+
+                case "Healthcare_IoTRegistry":       return new Commands.Twin.IoTRegistryCommand();
+
+                case "Healthcare_AntiLigature":      return new Commands.Healthcare.Specialist.AntiLigatureAuditCommand();
+                case "Healthcare_HybridOr":          return new Commands.Healthcare.Specialist.HybridOrCheckCommand();
+                case "Healthcare_PharmacyUsp":       return new Commands.Healthcare.Specialist.PharmacyUspAuditCommand();
+                case "Healthcare_BehaviouralHealth": return new Commands.Healthcare.Specialist.BehaviouralHealthAuditCommand();
+                case "Healthcare_Mortuary":          return new Commands.Healthcare.Specialist.MortuaryAuditCommand();
+                case "Healthcare_MaternityNicu":    return new Commands.Healthcare.Specialist.MaternityNicuAuditCommand();
+                case "Healthcare_Hsdu":              return new Commands.Healthcare.Specialist.HsduAuditCommand();
+                case "Healthcare_Dialysis":          return new Commands.Healthcare.Specialist.DialysisAuditCommand();
+                case "Healthcare_Hbo":               return new Commands.Healthcare.Specialist.HboAuditCommand();
+
                 default: return null;
             }
         }

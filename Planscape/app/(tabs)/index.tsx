@@ -21,6 +21,7 @@ import {
 import type { DashboardData, Project, BimIssue } from '@/types/api';
 import { useProjectStore } from '@/stores/projectStore';
 import { useInboxStore } from '@/stores/inboxStore';
+import { SitePhotoFab } from '@/components/SitePhotoFab';
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -158,6 +159,7 @@ export default function DashboardScreen() {
   const ragColor = getRAGColor(compliancePct);
 
   return (
+    <View style={{ flex: 1 }}>
     <ScrollView
       style={styles.root}
       contentContainerStyle={styles.scroll}
@@ -328,6 +330,7 @@ export default function DashboardScreen() {
         <QuickAction label="Meetings" emoji="📅" onPress={() => router.push('/meetings' as any)} />
         <QuickAction label="Transmittals" emoji="📤" onPress={() => router.push('/transmittals' as any)} />
         <QuickAction label="Warnings" emoji="⚠️" onPress={() => router.push('/warnings' as any)} />
+        <QuickAction label="Healthcare" emoji="🏥" onPress={() => router.push('/healthcare' as any)} />
       </View>
 
       {/* Discipline breakdown */}
@@ -361,6 +364,9 @@ export default function DashboardScreen() {
         </View>
       )}
     </ScrollView>
+    {/* Phase 178 — site-photo capture FAB anchored to dashboard. */}
+    <SitePhotoFab />
+    </View>
   );
 }
 

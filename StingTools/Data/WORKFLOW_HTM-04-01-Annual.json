@@ -1,0 +1,8 @@
+{
+  "id": "HTM-04-01-Annual",
+  "name": "Annual HTM 04-01 water-safety review",
+  "steps": [
+    { "tag": "Healthcare_WaterSafety",   "description": "WaterSafetyValidator: TMV3 / aug-care / sentinel / RO-loop" },
+    { "tag": "Healthcare_BatchRDS",      "description": "Re-render RDS for every clinical room with current water data" }
+  ]
+}

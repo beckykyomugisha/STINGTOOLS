@@ -520,6 +520,36 @@ a default `manifest.json` seeded from `ProjectInformation` and
    `PRJ_ORG_AI_EXTRACT_ENABLED_BOOL` are already defined so enabling
    them is additive only.
 
+## Healthcare Pack (H-1..H-30)
+
+**Status**: full pack landed on branch `claude/research-hospital-design-0Uxbi` across ~22 commits. Built clean on Windows with 0 warnings. See [`docs/HEALTHCARE_PACK_DESIGN.md`](docs/HEALTHCARE_PACK_DESIGN.md) for the full spec; [`docs/CHANGELOG.md`](docs/CHANGELOG.md) for the per-phase summary.
+
+### What it adds at a glance
+
+- **5 new shared-parameter groups** (28 `CLN_CLINICAL`, 29 `MGS_SYSTEMS`, 30 `RAD_PROTECTION`, 31 `CEQ_CLINICAL`, 32 `LIG_BEHAVIOURAL`) plus extensions to existing groups 4 / 5 / 6 / 8 / 13 / 25; ~100 net-new shared parameters in `MR_PARAMETERS.txt`.
+- **3 new disciplines** in the tag taxonomy (`H` Healthcare, `MG` Medical Gas, `RP` Radiation Protection); ~30 healthcare PROD codes; 60 tag families in `STING_TAG_CONFIG_v5_0_HEALTH.csv`.
+- **16 healthcare validators** under `Core/Validation/Healthcare/` (Pressure / MGPS / EES / Water / Radiation / Adjacency / Anti-Ligature / RDS / IoT-staleness / Structural / Acoustic / Advanced-Rad / Endoscope / EES-Resilience / RTLS / Waste) gated through `HealthcareValidatorGate` against `PRJ_ORG_HEALTH_PACK_PROFILE_TXT` (FULL / ACUTE / COMMUNITY / DENTAL / IMAGING-ONLY / MENTAL-HEALTH).
+- **7 standards modules** under `StingTools.Standards/{HTM, HBN, FGI, NFPA99, NCRP147, ASHRAE170, USP797800}` — stateless lookup tables + checklist generators + an NCRP 147 W·U·T → mm-Pb calculator (Archer α/β/γ digitised for 70/100/125/150/200 kVp lead).
+- **22 corporate Drawing Types** (RDS / EQP / MGPS / pressure / EES riser / IPS / decon / mortuary / fire / radiation / MRI / ligature / bedhead / OR-RCP / water-safety / acoustic / structural / RTLS / waste / nuclear-medicine) with routing rules; 8 ViewStylePacks; 58 healthcare filters in `STING_AEC_FILTERS.json`.
+- **MGPS package** (`Core/MedGas/`) — `MgasNetwork` graph builder, `MgasFlowSolver` (NFPA 99 §5.1.13 diversity), `MgasVerificationLog` (persists 12-step NFPA 99 §5.1.12 records to `_BIM_COORD/healthcare/mgas_verifications/`).
+- **RDS engine** (`Docs/Templates/Rds*`) — token-context builder + MiniWord renderer; one .docx per clinical room; mandatory parameter set enforced by `RdsCompletenessValidator`.
+- **40+ commands** under `Commands/Healthcare/`, `Commands/MedGas/`, `Commands/Adjacency/`, `Commands/Twin/`, `Commands/Radiation/` — 14 thin validator wrappers plus 9 specialist audits (anti-lig / hybrid OR / USP / behavioural / mortuary / maternity / HSDU / dialysis / HBO).
+- **8 workflow JSON presets** (`WORKFLOW_HealthcareCommissioning`, `MgasVerification`, `PressureRegimeAudit`, `RdsIssue`, `HTM-04-01-Annual`, `AntiLigatureAudit`, `NFPA110-GeneratorTest`, `HTM-01-06-EndoReprocess`) — auto-discovered by `WorkflowEngine.AppendUserPresets`.
+- **COBie healthcare overlay** — 50 clinical equipment types, 16 systems, 70 picklist values, 35 PPM templates, 12 doc types, 26 spare-part templates added to the existing `COBIE_*.csv` files; existing `HEALTHCARE_NHS` and `HEALTHCARE_PRIVATE` presets updated with the correct Speciality Equipment focus category.
+- **Mobile commissioning app** — new `Planscape/app/healthcare/` tab with 6 screens (overview / mgas-checklist / pressure-live / water-flush / anti-ligature-audit / rds-viewer) calling typed wrappers in `Planscape/src/api/endpoints.ts`.
+- **Server APIs** — `Planscape.Server/src/Planscape.API/Controllers/HealthcareController.cs` + 4 entities (`HealthcarePressureLog`, `HealthcareMgasVerification`, `HealthcareAntiLigatureAudit`, `HealthcareRdsSnapshot`) all `ITenantScoped`. Run `dotnet ef migrations add HealthcarePack` against `Planscape.Server` once before deploying.
+- **NLP processor** — 19 healthcare patterns added to `Tags/NLPCommandProcessor.cs` so users can type "run pressure audit" / "mgps verify" / "rds completeness" etc.
+- **Integration with the unified `RunAllValidatorsCommand`** — the v4 validator chain now runs `RunAllHealthcareValidators` after the 8 v4 validators (gated on facility-type so non-healthcare projects pay 0 cost).
+
+### Caveats
+
+1. `healthcare_rds.docx` template ships only as a README authoring guide; the .docx itself is authored separately.
+2. MGS family stubs (Manifold / VIE / ZVB / AAP / MAP / TU) ship parameter specs only — real `.rfa` files come from manufacturers (Beaconmedaes, Pattons, GCE, Wandsworth, Static Systems).
+3. `TwinReadback` BACnet / OPC-UA transports are abstract stubs — real transports plug in behind the same interface (no third-party libs bundled).
+4. `RAD_QE_NAME_TXT` sign-off remains mandatory before the radiation calculators are treated as authoritative — STING does not certify shielding.
+5. EF migration not run yet — `dotnet ef migrations add HealthcarePack` is the next deployment step.
+6. Dock-panel UI does not yet have a Healthcare tab — commands dispatch via `WorkflowEngine.ResolveCommand` and `StingCommandHandler` button tags only. A WPF Healthcare tab is the natural next phase.
+
 ## v4 MVP
 
 **Status**: Phase 1 (parameters) → Phase 5 (fabrication) implemented across ~50 commits on branch `claude/sting-tools-v4-mvp-SiPGw`. Code committed without `dotnet build` verification (Linux sandbox, no .NET / Revit API). Verify in Revit before merge.

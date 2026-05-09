@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1.0,
+  "description": "H-18 — Dialysis (HBN 07-02).",
+  "stationClearanceMinMm": 1500,
+  "roWaterStandard": "ISO 23500 / AAMI RD52",
+  "endotoxinLimitEU_mL_max": 0.25,
+  "tcMaxCfu_mL_max": 100,
+  "drainAirGapRequired": true,
+  "loopVelocityMinMs": 0.5,
+  "deadLegMaxMm": 200,
+  "sanitisationCycleDays": 28
+}

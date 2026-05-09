@@ -199,6 +199,41 @@ namespace StingTools.UI
                     case "DesignOptions_Dashboard":           RunCommand<Commands.DesignOptions.OptionsDashboardCommand>(app); break;
                     case "DesignOptions_ExportComparison":    RunCommand<Commands.DesignOptions.ExportOptionComparisonCommand>(app); break;
 
+                    // ── Healthcare Pack H-1..H-30 ──
+                    case "Healthcare_RunAllValidators":  RunCommand<Commands.Healthcare.HealthcareRunAllValidatorsCommand>(app); break;
+                    case "Healthcare_PressureAudit":     RunCommand<Commands.Healthcare.HealthcarePressureAuditCommand>(app); break;
+                    case "Healthcare_WaterSafety":       RunCommand<Commands.Healthcare.HealthcareWaterSafetyCommand>(app); break;
+                    case "Healthcare_EesBranch":         RunCommand<Commands.Healthcare.HealthcareEesBranchAuditCommand>(app); break;
+                    case "Healthcare_RadShield":         RunCommand<Commands.Healthcare.HealthcareRadShieldAuditCommand>(app); break;
+                    case "Healthcare_AdvancedRadShield": RunCommand<Commands.Healthcare.HealthcareAdvancedRadShieldCommand>(app); break;
+                    case "Healthcare_RdsCompleteness":   RunCommand<Commands.Healthcare.HealthcareRdsCompletenessCommand>(app); break;
+                    case "Healthcare_IoTStaleness":      RunCommand<Commands.Healthcare.HealthcareIoTStalenessCommand>(app); break;
+                    case "Healthcare_StructuralLoad":    RunCommand<Commands.Healthcare.HealthcareStructuralLoadCommand>(app); break;
+                    case "Healthcare_Acoustic":          RunCommand<Commands.Healthcare.HealthcareAcousticCommand>(app); break;
+                    case "Healthcare_EndoscopeTrace":    RunCommand<Commands.Healthcare.HealthcareEndoscopeTraceCommand>(app); break;
+                    case "Healthcare_EesResilience":     RunCommand<Commands.Healthcare.HealthcareEesResilienceCommand>(app); break;
+                    case "Healthcare_RtlsCoverage":      RunCommand<Commands.Healthcare.HealthcareRtlsCoverageCommand>(app); break;
+                    case "Healthcare_WasteFlow":         RunCommand<Commands.Healthcare.HealthcareWasteFlowCommand>(app); break;
+                    case "Healthcare_IssueRDS":          RunCommand<Commands.Healthcare.IssueRoomDataSheetCommand>(app); break;
+                    case "Healthcare_BatchRDS":          RunCommand<Commands.Healthcare.BatchIssueRoomDataSheetsCommand>(app); break;
+                    case "Healthcare_MgasAudit":         RunCommand<Commands.MedGas.MgasNetworkAuditCommand>(app); break;
+                    case "Healthcare_MgasVerify":        RunCommand<Commands.MedGas.MgasVerifyCommand>(app); break;
+                    case "Healthcare_AdjacencyAudit":    RunCommand<Commands.Adjacency.AdjacencyAuditCommand>(app); break;
+                    case "Healthcare_RadCalcChest":      RunCommand<Commands.Radiation.RadCalcChestRoomCommand>(app); break;
+                    case "Healthcare_RadCalcCt":         RunCommand<Commands.Radiation.RadCalcCtRoomCommand>(app); break;
+                    case "Healthcare_RadCalcLinac":      RunCommand<Commands.Radiation.RadCalcLinacVaultCommand>(app); break;
+                    case "Healthcare_MriZoneAudit":      RunCommand<Commands.Radiation.MriZoneAuditCommand>(app); break;
+                    case "Healthcare_IoTRegistry":       RunCommand<Commands.Twin.IoTRegistryCommand>(app); break;
+                    case "Healthcare_AntiLigature":      RunCommand<Commands.Healthcare.Specialist.AntiLigatureAuditCommand>(app); break;
+                    case "Healthcare_HybridOr":          RunCommand<Commands.Healthcare.Specialist.HybridOrCheckCommand>(app); break;
+                    case "Healthcare_PharmacyUsp":       RunCommand<Commands.Healthcare.Specialist.PharmacyUspAuditCommand>(app); break;
+                    case "Healthcare_BehaviouralHealth": RunCommand<Commands.Healthcare.Specialist.BehaviouralHealthAuditCommand>(app); break;
+                    case "Healthcare_Mortuary":          RunCommand<Commands.Healthcare.Specialist.MortuaryAuditCommand>(app); break;
+                    case "Healthcare_MaternityNicu":    RunCommand<Commands.Healthcare.Specialist.MaternityNicuAuditCommand>(app); break;
+                    case "Healthcare_Hsdu":              RunCommand<Commands.Healthcare.Specialist.HsduAuditCommand>(app); break;
+                    case "Healthcare_Dialysis":          RunCommand<Commands.Healthcare.Specialist.DialysisAuditCommand>(app); break;
+                    case "Healthcare_Hbo":               RunCommand<Commands.Healthcare.Specialist.HboAuditCommand>(app); break;
+
                     // ── Lightning Protection System (BS EN 62305) ──
                     case "LPS_ClassSetup":           RunCommand<Commands.Lightning.LpsClassSetupCommand>(app); break;
                     case "LPS_ComplianceCheck":      RunCommand<Commands.Lightning.LpsComplianceCheckCommand>(app); break;
@@ -1744,6 +1779,59 @@ namespace StingTools.UI
                     case "UpdateIssue": RunCommand<BIMManager.UpdateIssueCommand>(app); break;
                     case "SelectIssueElements": RunCommand<BIMManager.SelectIssueElementsCommand>(app); break;
                     case "IssuesBulkClose": RunCommand<BIMManager.BulkCloseIssuesCommand>(app); break;
+
+                    // Slice 4a — Site Photos cross-link: select a single element
+                    // by its UniqueId in the active Revit view + zoom to it.
+                    // Triggered from BIMCoordinationCenter.SelectElementInRevitPub
+                    // when the user clicks "📂 Element" on an As-built / Reference
+                    // photo row. Element UniqueId is passed via the
+                    // "ElementGuid" extra-param.
+                    case "SelectByElementGuid":
+                    {
+                        try
+                        {
+                            string uniqueId = GetExtraParam("ElementGuid");
+                            if (string.IsNullOrEmpty(uniqueId))
+                            {
+                                Autodesk.Revit.UI.TaskDialog.Show("Site Photos",
+                                    "No element id provided.");
+                                break;
+                            }
+                            var uidoc = app?.ActiveUIDocument;
+                            var doc   = uidoc?.Document;
+                            if (uidoc == null || doc == null)
+                            {
+                                Autodesk.Revit.UI.TaskDialog.Show("Site Photos",
+                                    "No active Revit document — open the model first.");
+                                break;
+                            }
+                            var el = doc.GetElement(uniqueId);
+                            if (el == null)
+                            {
+                                Autodesk.Revit.UI.TaskDialog.Show("Site Photos",
+                                    $"Element {uniqueId} not found in this model.\n\n" +
+                                    "The photo may have been anchored in a different model — switch the host doc and try again.");
+                                break;
+                            }
+                            uidoc.Selection.SetElementIds(new List<Autodesk.Revit.DB.ElementId> { el.Id });
+                            // Zoom to selection — UIView.ZoomToFit on the active view.
+                            try
+                            {
+                                var uiView = uidoc.GetOpenUIViews()
+                                    .FirstOrDefault(v => v.ViewId == uidoc.ActiveView.Id);
+                                uiView?.ZoomToFit();
+                            }
+                            catch (Exception ex) { StingLog.Warn($"SelectByElementGuid zoom: {ex.Message}"); }
+                            uidoc.ShowElements(el);
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"SelectByElementGuid: {ex.Message}");
+                            Autodesk.Revit.UI.TaskDialog.Show("Site Photos",
+                                $"Could not select element: {ex.Message}");
+                        }
+                        break;
+                    }
 
                     // Template engine v1.1 — deliverable lifecycle (S12) + orchestrator (S13)
                     case "IssueDeliverable":       RunCommand<Planscape.Docs.Templates.IssueDeliverableCommand>(app); break;
