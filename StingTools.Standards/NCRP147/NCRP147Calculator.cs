@@ -42,15 +42,26 @@ namespace StingTools.Standards.NCRP147
             { "Ceiling", 0.0625 } // chest x-ray ceiling primary
         };
 
-        // Approximate transmission (B = 1/T) curves digitised from NCRP 147 Figs.
-        // Returns required mm Pb for a given barrier transmission factor B and kVp.
-        // Polynomial coefficients (alpha, beta, gamma) per Archer model:
-        //   B = (1 + (beta/alpha)) * exp(alpha * gamma * x) - (beta/alpha)
-        // Excerpts here cover 100/125/150 kVp lead.
+        /// <summary>
+        /// Returns the required mm of Pb for a given barrier transmission factor
+        /// and tube kVp using the Archer three-parameter model:
+        ///   B = ((1 + β/α)·e^(α·γ·x) − β/α)^(−1/γ)
+        ///
+        /// IMPORTANT — the α/β/γ values below are *approximate* digitisations
+        /// of NCRP 147 Tables B.1–B.5 and AAPM 147 supplement curves. Real
+        /// designs MUST use the published NCRP 147 / AAPM TG-108 values
+        /// (the constants vary by manufacturer, beam quality, and self-attenuation).
+        /// The output of this method is a draft for QE review (RAD_QE_NAME_TXT)
+        /// and is explicitly NOT a certified shielding calculation.
+        /// </summary>
         public static double RequiredLeadMm(double transmission, int kVp)
         {
             if (transmission <= 0 || transmission >= 1) return 0;
-            // Digitised α, β, γ for lead at given kVp (approximate).
+            // Approximate Archer α, β, γ for lead at the given kVp.
+            // The literature (NCRP 147 / AAPM TG-108) tabulates more granular
+            // coefficients per modality (radiographic, fluoroscopic, mammographic,
+            // dental, CT, interventional) — substitute when QE-validated values
+            // are available for the project.
             double alpha, beta, gamma;
             switch (kVp)
             {

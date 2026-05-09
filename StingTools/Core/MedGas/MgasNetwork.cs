@@ -32,10 +32,17 @@ namespace StingTools.Core.MedGas
         public Dictionary<string, List<MgasEdge>> Edges = new();
         public string[] GasCodes;
 
+        // Healthcare Pack — Phase H-7 accuracy fix: solver needs the document
+        // to read MGS_DESIGN_FLOW_LPM_NR per terminal unit. The reference is
+        // weak (we never touch it across transactions) but lets the flow
+        // solver report real diversified zone loads instead of zeros.
+        public Document SourceDoc { get; private set; }
+
         public static MgasNetwork Build(Document doc)
         {
             var net = new MgasNetwork();
             if (doc == null) return net;
+            net.SourceDoc = doc;
             var gases = new[] {"O2","MA4","MA7","N2O","N2","CO2","HE","VAC","AGS","DENT"};
             net.GasCodes = gases;
             foreach (var g in gases) { net.Nodes[g] = new(); net.Edges[g] = new(); }

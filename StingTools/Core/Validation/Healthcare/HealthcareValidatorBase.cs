@@ -14,6 +14,7 @@
 using Autodesk.Revit.DB;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace StingTools.Core.Validation.Healthcare
 {
@@ -66,6 +67,61 @@ namespace StingTools.Core.Validation.Healthcare
                 return false;
             }
             catch { return false; }
+        }
+
+        // ── Cache-aware helpers (opt-in) ────────────────────────────────────
+        // When called inside RunAllHealthcareValidators the active
+        // HealthcareValidatorContext supplies pre-collected rooms + the
+        // CLN_ROOM_CLASS_TXT lookup; outside the chain (single-validator
+        // commands) the helpers fall back to a fresh FilteredElementCollector.
+
+        /// <summary>Returns every Room in the active document.</summary>
+        protected static IEnumerable<Element> GetAllRoomsCached(Document doc)
+        {
+            var ctx = HealthcareValidatorContext.Active;
+            if (ctx != null && ctx.Document == doc)
+                return ctx.RoomById.Values.Select(t => t.room);
+            return new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_Rooms)
+                .WhereElementIsNotElementType().ToElements();
+        }
+
+        /// <summary>Returns the subset of rooms that have CLN_ROOM_CLASS_TXT populated.</summary>
+        protected static IEnumerable<Element> GetClinicalRoomsCached(Document doc)
+        {
+            var ctx = HealthcareValidatorContext.Active;
+            if (ctx != null && ctx.Document == doc) return ctx.ClinicalRooms;
+            return GetAllRoomsCached(doc).Where(r => !string.IsNullOrEmpty(GetParam(r, "CLN_ROOM_CLASS_TXT")));
+        }
+
+        /// <summary>Reads CLN_ROOM_CLASS_TXT from cache (single dictionary lookup) or
+        /// directly from the room element when no context is active.</summary>
+        protected static string GetRoomClassCached(Element room)
+        {
+            if (room == null) return "";
+            var ctx = HealthcareValidatorContext.Active;
+            if (ctx != null && ctx.RoomById.TryGetValue(room.Id.Value, out var t))
+                return t.roomClass ?? "";
+            return GetParam(room, "CLN_ROOM_CLASS_TXT");
+        }
+
+        /// <summary>Returns Medical Equipment + Nurse Call Devices + Specialty
+        /// Equipment in one shot — collected once when the context is active.</summary>
+        protected static IEnumerable<Element> GetClinicalEquipmentCached(Document doc)
+        {
+            var ctx = HealthcareValidatorContext.Active;
+            if (ctx != null && ctx.Document == doc) return ctx.ClinicalEquipment;
+            try
+            {
+                var cats = new ElementMulticategoryFilter(new[] {
+                    BuiltInCategory.OST_MedicalEquipment,
+                    BuiltInCategory.OST_NurseCallDevices,
+                    BuiltInCategory.OST_SpecialityEquipment
+                });
+                return new FilteredElementCollector(doc).WherePasses(cats)
+                    .WhereElementIsNotElementType().ToElements();
+            }
+            catch { return System.Linq.Enumerable.Empty<Element>(); }
         }
     }
 }

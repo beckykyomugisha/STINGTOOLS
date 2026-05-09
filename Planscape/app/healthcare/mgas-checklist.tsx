@@ -20,7 +20,7 @@ const STEPS = [
 ];
 
 export default function MgasChecklistScreen() {
-  const { activeProject } = useProjectStore();
+  const activeProject = useProjectStore((s) => s.active);
   const [results, setResults] = useState<Record<number, 'PASS'|'FAIL'|null>>({});
   const setStep = (i: number, v: 'PASS'|'FAIL') =>
     setResults(prev => ({ ...prev, [i]: v }));

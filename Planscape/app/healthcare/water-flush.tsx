@@ -4,7 +4,7 @@ import { View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity } from 
 import { useProjectStore } from '@/stores/projectStore';
 
 export default function WaterFlushScreen() {
-  const { activeProject } = useProjectStore();
+  const activeProject = useProjectStore((s) => s.active);
   const [outletId, setOutletId] = useState('');
   const [tempC, setTempC] = useState('');
   const [duration, setDuration] = useState('');

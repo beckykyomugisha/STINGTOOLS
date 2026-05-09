@@ -843,6 +843,29 @@ namespace StingTools.Core
                 }
                 catch (Exception slaEx) { StingLog.Warn($"Morning briefing SLA: {slaEx.Message}"); }
 
+                // Healthcare Pack HC-07 — surface healthcare facility-type and run
+                // a quick gated healthcare validator sweep. Hits the cache built
+                // by RunAllHealthcareValidators so the cost is bounded.
+                bool isHealthcareProject = false;
+                int healthcareErrors = 0, healthcareWarnings = 0;
+                try
+                {
+                    var p = doc.ProjectInformation?.LookupParameter("PRJ_ORG_HEALTH_FACILITY_TYPE_TXT");
+                    string facType = "";
+                    if (p != null && p.HasValue && p.StorageType == StorageType.String)
+                        facType = (p.AsString() ?? "").Trim();
+                    if (!string.IsNullOrEmpty(facType))
+                    {
+                        isHealthcareProject = true;
+                        var hcResults = Core.Validation.Healthcare.RunAllHealthcareValidators.Validate(doc);
+                        healthcareErrors   = hcResults.Count(r => r.Severity == Core.Validation.ValidationSeverity.Error);
+                        healthcareWarnings = hcResults.Count(r => r.Severity == Core.Validation.ValidationSeverity.Warning);
+                        briefing.AppendLine($"Healthcare ({facType}): {hcResults.Count} findings — {healthcareErrors} errors, {healthcareWarnings} warnings");
+                        if (healthcareErrors > 0) hasAlerts = true;
+                    }
+                }
+                catch (Exception hcEx) { StingLog.Warn($"Morning briefing healthcare: {hcEx.Message}"); }
+
                 // 4. Show briefing only if alerts — now safe to show TaskDialog (not in event handler)
                 if (hasAlerts)
                 {
@@ -853,6 +876,9 @@ namespace StingTools.Core
                     dlg.MainContent = briefing.ToString();
                     dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
                         "Run Morning Health Check workflow", "Auto-fix stale elements, warnings, and validate tags");
+                    if (isHealthcareProject)
+                        dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                            "Run Healthcare Commissioning workflow", "Healthcare validators + Room Data Sheets + COBie export");
                     dlg.CommonButtons = TaskDialogCommonButtons.Close;
                     var dlgResult = dlg.Show();
 
@@ -860,6 +886,11 @@ namespace StingTools.Core
                     {
                         UI.StingCommandHandler.SetExtraParam("WorkflowPresetName", "MorningHealthCheck");
                         StingLog.Info("Morning briefing: user requested MorningHealthCheck workflow");
+                    }
+                    else if (dlgResult == TaskDialogResult.CommandLink2 && isHealthcareProject)
+                    {
+                        UI.StingCommandHandler.SetExtraParam("WorkflowPresetName", "HealthcareCommissioning");
+                        StingLog.Info("Morning briefing: user requested HealthcareCommissioning workflow");
                     }
                 }
                 else

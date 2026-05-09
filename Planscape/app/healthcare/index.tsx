@@ -18,7 +18,7 @@ type Card = { id: string; title: string; rag: 'R' | 'A' | 'G'; metric: string; r
 
 export default function HealthcareIndex() {
   const router = useRouter();
-  const { activeProject } = useProjectStore();
+  const activeProject = useProjectStore((s) => s.active);
   const [loading, setLoading] = useState(true);
   const [cards, setCards] = useState<Card[]>([]);
 

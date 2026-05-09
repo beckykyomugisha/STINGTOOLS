@@ -25,7 +25,9 @@ namespace StingTools.Commands.Healthcare.Specialist
                 } catch { }
                 int requiredBays = (int)Math.Max(4, Math.Ceiling(beds * 0.005));
                 var clinicalCats = new ElementMulticategoryFilter(new[] {
-                    BuiltInCategory.OST_MedicalEquipment, BuiltInCategory.OST_SpecialityEquipment });
+                    BuiltInCategory.OST_MedicalEquipment,
+                    BuiltInCategory.OST_NurseCallDevices,
+                    BuiltInCategory.OST_SpecialityEquipment });
                 int actualBays = new FilteredElementCollector(doc)
                     .WherePasses(clinicalCats)
                     .WhereElementIsNotElementType().ToElements()

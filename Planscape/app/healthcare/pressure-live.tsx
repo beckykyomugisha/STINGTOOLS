@@ -17,7 +17,7 @@ type RoomPressure = {
 };
 
 export default function PressureLiveScreen() {
-  const { activeProject } = useProjectStore();
+  const activeProject = useProjectStore((s) => s.active);
   const [rows, setRows] = useState<RoomPressure[]>([]);
   const [loading, setLoading] = useState(true);
 

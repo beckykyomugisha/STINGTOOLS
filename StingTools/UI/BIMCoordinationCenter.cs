@@ -84,6 +84,8 @@ namespace StingTools.UI
         private const string TabTeam           = "TEAM";           // legacy alias → PROJECT MEMBERS
         private const string TabProjectMembers = "PROJECT MEMBERS";
         private const string TabCoordLog       = "COORD LOG";
+        // Healthcare Pack HC-02 — 14th tab gated on PRJ_ORG_HEALTH_FACILITY_TYPE_TXT.
+        private const string TabHealthcare     = "HEALTHCARE";
 
         // ── Data ──
         internal CoordData _data;
@@ -267,7 +269,7 @@ namespace StingTools.UI
         // BCC-HIGH-01: Live-data tabs are cleared from cache on NavigateTo so they always reflect current state.
         // Layout-only tabs (PLATFORM, 4D/5D, DELIVERABLES, PERMISSIONS, COORD LOG, TEAM, MEETINGS) are cached.
         private static readonly HashSet<string> _liveDataTabs = new HashSet<string>(StringComparer.Ordinal)
-            { TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions, TabWorkflows, TabQA };
+            { TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions, TabWorkflows, TabQA, TabHealthcare };
 
         /// <summary>Result action tag returned to the command handler.</summary>
         public string ResultAction { get; set; }
@@ -1069,9 +1071,15 @@ namespace StingTools.UI
             var nav = new StackPanel { Background = Br(CNavBg) };
             nav.Children.Add(new Border { Height = 8 }); // top spacer
 
-            string[] tabs = { TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions, TabPlatform, TabWorkflows, TabQA, Tab4D5D, TabDeliverables, TabMeetings, TabProjectMembers, TabCoordLog };
+            // Healthcare Pack HC-02 — append the HEALTHCARE tab only when the
+            // facility-type stamp is non-empty (PRJ_ORG_HEALTH_FACILITY_TYPE_TXT).
+            // Non-healthcare projects don't see it.
+            bool isHealthcare = !string.IsNullOrEmpty(GetHealthcareFacilityType());
+            string[] tabs = isHealthcare
+                ? new[] { TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions, TabPlatform, TabWorkflows, TabQA, Tab4D5D, TabDeliverables, TabMeetings, TabProjectMembers, TabCoordLog, TabHealthcare }
+                : new[] { TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions, TabPlatform, TabWorkflows, TabQA, Tab4D5D, TabDeliverables, TabMeetings, TabProjectMembers, TabCoordLog };
             int memberCount = _data.Roles.Count + _data.TeamMembers.Count;
-            string[] badges = {
+            var badgesList = new System.Collections.Generic.List<string> {
                 "", $"{_data.ModelHealthScore}/100",
                 _data.WarningTotal > 0 ? _data.WarningTotal.ToString() : "",
                 _data.IssuesOpen > 0 ? _data.IssuesOpen.ToString() : "",
@@ -1085,6 +1093,8 @@ namespace StingTools.UI
                 memberCount > 0 ? memberCount.ToString() : "", // PROJECT MEMBERS
                 _data.CoordLog.Count > 0 ? _data.CoordLog.Count.ToString() : ""
             };
+            if (isHealthcare) badgesList.Add(GetHealthcareFacilityType()); // HEALTHCARE
+            string[] badges = badgesList.ToArray();
 
             for (int i = 0; i < tabs.Length; i++)
             {
@@ -1198,6 +1208,7 @@ namespace StingTools.UI
                     TabTeam           => BuildProjectMembersTab(),  // legacy alias
                     TabProjectMembers => BuildProjectMembersTab(),
                     TabCoordLog       => BuildCoordLogTab(),
+                    TabHealthcare     => BuildHealthcareTab(),
                     _               => new TextBlock { Text = $"Unknown tab: {tabName}" }
                 };
                 _tabCache[tabName] = tabContent;
@@ -7551,6 +7562,158 @@ namespace StingTools.UI
                 root.Children.Add(infoCard);
             }
             return root;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // Healthcare Pack HC-02 — Healthcare tab
+        // ════════════════════════════════════════════════════════════════
+
+        /// <summary>Reads PRJ_ORG_HEALTH_FACILITY_TYPE_TXT from the active doc.
+        /// Returns "" if absent — the BCC then suppresses the Healthcare tab.</summary>
+        private string GetHealthcareFacilityType()
+        {
+            try
+            {
+                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                var p = doc?.ProjectInformation?.LookupParameter("PRJ_ORG_HEALTH_FACILITY_TYPE_TXT");
+                if (p != null && p.HasValue && p.StorageType == Autodesk.Revit.DB.StorageType.String)
+                    return (p.AsString() ?? "").Trim();
+            }
+            catch { }
+            return "";
+        }
+
+        private UIElement BuildHealthcareTab()
+        {
+            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(20) };
+            var stack = new StackPanel();
+
+            // Live facility-type chip strip
+            var headerWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 12) };
+            string facType = GetHealthcareFacilityType();
+            if (!string.IsNullOrEmpty(facType))
+                headerWrap.Children.Add(MakeMetricChip($"Facility: {facType}", Br(Color.FromRgb(0x00, 0x83, 0x8F))));
+            // Profile chip if pack profile is set.
+            try
+            {
+                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                var p = doc?.ProjectInformation?.LookupParameter("PRJ_ORG_HEALTH_PACK_PROFILE_TXT");
+                if (p != null && p.HasValue && p.StorageType == Autodesk.Revit.DB.StorageType.String)
+                {
+                    var prof = (p.AsString() ?? "").Trim();
+                    if (!string.IsNullOrEmpty(prof))
+                        headerWrap.Children.Add(MakeMetricChip($"Profile: {prof}", Br(Color.FromRgb(0x6A, 0x1B, 0x9A))));
+                }
+            }
+            catch { }
+            // Code-base chip (HBN/HTM, FGI, iHFG, Other).
+            try
+            {
+                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                var p = doc?.ProjectInformation?.LookupParameter("PRJ_ORG_HEALTH_CODE_BASE_TXT");
+                if (p != null && p.HasValue && p.StorageType == Autodesk.Revit.DB.StorageType.String)
+                {
+                    var cb = (p.AsString() ?? "").Trim();
+                    if (!string.IsNullOrEmpty(cb))
+                        headerWrap.Children.Add(MakeMetricChip($"Code base: {cb}", Br(CHeaderBg)));
+                }
+            }
+            catch { }
+            stack.Children.Add(headerWrap);
+
+            // Intro card
+            var intro = MakeCard();
+            var introStack = new StackPanel { Margin = new Thickness(14) };
+            introStack.Children.Add(new TextBlock {
+                Text = "Healthcare Pack — Hospital Design / FM",
+                FontSize = 14, FontWeight = FontWeights.Bold,
+                Foreground = Br(Color.FromRgb(0x00, 0x83, 0x8F)),
+                Margin = new Thickness(0, 0, 0, 6)
+            });
+            introStack.Children.Add(new TextBlock {
+                Text = "16 healthcare validators (HTM 02-01 / HTM 03-01 / HTM 04-01 / NFPA 99 / NCRP 147 / ASHRAE 170 / USP 797-800 / HBN 03-01 / HBN 13 / HTM 01-06 / NFPA 110) gated through HealthcareValidatorGate. Use the buttons below to drill into a specific check or run the full sweep.",
+                TextWrapping = TextWrapping.Wrap, FontSize = 11, Foreground = Brushes.Gray
+            });
+            intro.Child = introStack;
+            stack.Children.Add(intro);
+            stack.Children.Add(new Border { Height = 12 });
+
+            // Validation chain
+            stack.Children.Add(MakeSectionHeader("VALIDATION CHAIN"));
+            var valWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+            valWrap.Children.Add(MakeActionButton("Run All Healthcare", "Healthcare_RunAllValidators", Br(Color.FromRgb(0x00, 0x83, 0x8F)), "Run every healthcare validator (16) through the profile gate."));
+            valWrap.Children.Add(MakeActionButton("Pressure Regime",   "Healthcare_PressureAudit",       Br(Color.FromRgb(0x15, 0x65, 0xC0)), "HTM 03-01 / ASHRAE 170 — pressure regime + Δp + ACH."));
+            valWrap.Children.Add(MakeActionButton("MGPS Audit",        "Healthcare_MgasAudit",           Br(Color.FromRgb(0x43, 0xA0, 0x47)), "HTM 02-01 / NFPA 99 — MGPS network walk."));
+            valWrap.Children.Add(MakeActionButton("MGPS Verify",       "Healthcare_MgasVerify",          Br(Color.FromRgb(0x2E, 0x7D, 0x32)), "NFPA 99 §5.1.12 — 12-step verification."));
+            valWrap.Children.Add(MakeActionButton("EES Branches",      "Healthcare_EesBranch",           Br(Color.FromRgb(0xF4, 0x51, 0x1E)), "NFPA 99 / NEC 517 — EES branch + ATS + IPS."));
+            valWrap.Children.Add(MakeActionButton("Water Safety",      "Healthcare_WaterSafety",         Br(Color.FromRgb(0x02, 0x77, 0xBD)), "HTM 04-01 — TMV / dead-leg / aug-care / RO-loop."));
+            valWrap.Children.Add(MakeActionButton("Rad Shield",        "Healthcare_RadShield",           Br(Color.FromRgb(0xFB, 0xC0, 0x2D)), "NCRP 147 — required vs provided mm Pb."));
+            valWrap.Children.Add(MakeActionButton("Adv Rad",           "Healthcare_AdvancedRadShield",   Br(Color.FromRgb(0xF5, 0x7F, 0x17)), "PET 511 keV / SPECT / brachy."));
+            valWrap.Children.Add(MakeActionButton("Adjacency / Flow",  "Healthcare_AdjacencyAudit",      Br(Color.FromRgb(0x37, 0x47, 0x4F)), "HBN-derived adjacency + clean/dirty flow BFS."));
+            valWrap.Children.Add(MakeActionButton("Anti-Ligature",     "Healthcare_AntiLigature",        Br(Color.FromRgb(0xC6, 0x28, 0x28)), "HBN 03-01 / FGI Pt 2."));
+            valWrap.Children.Add(MakeActionButton("Structural Loads",  "Healthcare_StructuralLoad",      Br(Color.FromRgb(0x6A, 0x1B, 0x9A)), "Imaging floor load + VC vibration."));
+            valWrap.Children.Add(MakeActionButton("Acoustic",          "Healthcare_Acoustic",            Br(Color.FromRgb(0x00, 0x69, 0x7C)), "HTM 08-01 NR + RT60."));
+            valWrap.Children.Add(MakeActionButton("Endoscope Trace",   "Healthcare_EndoscopeTrace",      Br(Color.FromRgb(0x4E, 0x34, 0x2E)), "HTM 01-06 — RFID chain."));
+            valWrap.Children.Add(MakeActionButton("EES Resilience",    "Healthcare_EesResilience",       Br(Color.FromRgb(0xBF, 0x36, 0x0C)), "NFPA 110 generator / ATS / UPS log freshness."));
+            valWrap.Children.Add(MakeActionButton("RTLS Coverage",     "Healthcare_RtlsCoverage",        Br(Color.FromRgb(0x7B, 0x1F, 0xA2)), "RTLS RF dead-zone + MRI Z3/Z4 prohibition."));
+            valWrap.Children.Add(MakeActionButton("Waste Flow",        "Healthcare_WasteFlow",           Br(Color.FromRgb(0x5D, 0x40, 0x37)), "HTM 07-01 HC1..HC6 class + radioactive area."));
+            valWrap.Children.Add(MakeActionButton("IoT Devices",       "Healthcare_IoTRegistry",         Br(Color.FromRgb(0x45, 0x50, 0x6E)), "IoT device registry by protocol."));
+            valWrap.Children.Add(MakeActionButton("IoT Staleness",     "Healthcare_IoTStaleness",        Br(Color.FromRgb(0x9E, 0x9E, 0x9E)), "Devices not seen in > 30 min."));
+            stack.Children.Add(valWrap);
+            stack.Children.Add(new Border { Height = 8 });
+
+            // Room Data Sheets
+            stack.Children.Add(MakeSectionHeader("ROOM DATA SHEETS (H-8)"));
+            var rdsWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+            rdsWrap.Children.Add(MakeActionButton("Issue RDS (one room)", "Healthcare_IssueRDS",        Br(Color.FromRgb(0x00, 0x83, 0x8F)), "Pick a Room and render its A2 RDS."));
+            rdsWrap.Children.Add(MakeActionButton("Batch RDS (all)",      "Healthcare_BatchRDS",        Br(Color.FromRgb(0x00, 0x69, 0x7C)), "Render an RDS for every clinical room."));
+            rdsWrap.Children.Add(MakeActionButton("RDS Completeness",     "Healthcare_RdsCompleteness", Br(Color.FromRgb(0x00, 0x60, 0x64)), "Audit mandatory parameters per clinical room."));
+            stack.Children.Add(rdsWrap);
+            stack.Children.Add(new Border { Height = 8 });
+
+            // Radiation
+            stack.Children.Add(MakeSectionHeader("RADIATION (NCRP 147 / 151)"));
+            var radWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+            radWrap.Children.Add(MakeActionButton("Chest Room Calc", "Healthcare_RadCalcChest", Br(Color.FromRgb(0xFB, 0xC0, 0x2D)), "NCRP 147 chest radiography example."));
+            radWrap.Children.Add(MakeActionButton("CT Room Calc",    "Healthcare_RadCalcCt",    Br(Color.FromRgb(0xF5, 0x7F, 0x17)), "NCRP 147 CT secondary-barrier example."));
+            radWrap.Children.Add(MakeActionButton("LINAC Vault",     "Healthcare_RadCalcLinac", Br(Color.FromRgb(0xE6, 0x51, 0x00)), "NCRP 151 first-pass LINAC vault."));
+            radWrap.Children.Add(MakeActionButton("MRI Zoning",      "Healthcare_MriZoneAudit", Br(Color.FromRgb(0x4A, 0x14, 0x8C)), "Z1..Z4 + Faraday cage flag."));
+            stack.Children.Add(radWrap);
+            stack.Children.Add(new Border { Height = 8 });
+
+            // Specialist
+            stack.Children.Add(MakeSectionHeader("SPECIALIST AUDITS"));
+            var specWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+            specWrap.Children.Add(MakeActionButton("Hybrid OR / Cath",  "Healthcare_HybridOr",          Br(Color.FromRgb(0x15, 0x65, 0xC0)), "Hybrid OR / Cath / IR area + clearance."));
+            specWrap.Children.Add(MakeActionButton("Pharmacy USP",      "Healthcare_PharmacyUsp",       Br(Color.FromRgb(0x1A, 0x23, 0x7E)), "USP <797> / <800> pressure cascade."));
+            specWrap.Children.Add(MakeActionButton("Behavioural",       "Healthcare_BehaviouralHealth", Br(Color.FromRgb(0xC6, 0x28, 0x28)), "FGI Pt 2 / HBN 03-01."));
+            specWrap.Children.Add(MakeActionButton("Mortuary",          "Healthcare_Mortuary",          Br(Color.FromRgb(0x37, 0x47, 0x4F)), "HBN 16 capacity (0.5 % beds, min 4)."));
+            specWrap.Children.Add(MakeActionButton("Maternity / NICU",  "Healthcare_MaternityNicu",     Br(Color.FromRgb(0xAD, 0x14, 0x57)), "HBN 21 / 09-03."));
+            specWrap.Children.Add(MakeActionButton("HSDU",              "Healthcare_Hsdu",              Br(Color.FromRgb(0x4A, 0x14, 0x8C)), "HBN 13 — wash / pack / sterile."));
+            specWrap.Children.Add(MakeActionButton("Dialysis",          "Healthcare_Dialysis",          Br(Color.FromRgb(0x33, 0x69, 0x1E)), "HBN 07-02 RO-loop."));
+            specWrap.Children.Add(MakeActionButton("Hyperbaric / IVF",  "Healthcare_Hbo",               Br(Color.FromRgb(0x00, 0x69, 0x5C)), "NFPA 99 Ch.14 + USP cytotoxic + IVF."));
+            stack.Children.Add(specWrap);
+            stack.Children.Add(new Border { Height = 8 });
+
+            // Workflow presets
+            stack.Children.Add(MakeSectionHeader("WORKFLOW PRESETS"));
+            var wfWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+            wfWrap.Children.Add(MakeActionButton("List Workflows", "ListWorkflowPresets", Br(Color.FromRgb(0x6A, 0x1B, 0x9A)), "Show every workflow preset; healthcare ones include HealthcareCommissioning, MgasVerification, PressureRegimeAudit, RdsIssue, HTM-04-01-Annual, AntiLigatureAudit, NFPA110-GeneratorTest, HTM-01-06-EndoReprocess."));
+            wfWrap.Children.Add(MakeActionButton("Workflow Trend", "WorkflowTrend",       Br(Color.FromRgb(0x45, 0x50, 0x6E)), "Healthcare workflow run-history trend."));
+            stack.Children.Add(wfWrap);
+
+            // Footer note
+            stack.Children.Add(new Border { Height = 12 });
+            var footer = new TextBlock {
+                Text = "All audits surface findings via TaskDialog + StingTools.log. Sign-off " +
+                       "(MGS_VERIFY_BY_TXT, RAD_QE_NAME_TXT) is mandatory before commissioning.",
+                FontSize = 10, FontStyle = FontStyles.Italic, Foreground = Brushes.Gray,
+                TextWrapping = TextWrapping.Wrap
+            };
+            stack.Children.Add(footer);
+
+            scroll.Content = stack;
+            return scroll;
         }
 
         // ════════════════════════════════════════════════════════════════

@@ -35,11 +35,7 @@ namespace StingTools.Core.Validation.Healthcare
             var res = new List<ValidationResult>();
             if (doc == null) return res;
 
-            var rooms = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms)
-                .WhereElementIsNotElementType().ToElements()
-                .Where(r => !string.IsNullOrEmpty(GetParam(r, "CLN_ROOM_CLASS_TXT")));
-
-            foreach (var r in rooms)
+            foreach (var r in GetClinicalRoomsCached(doc))
             {
                 var missing = new List<string>();
                 foreach (var p in RequiredParams)

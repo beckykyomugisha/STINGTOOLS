@@ -32,7 +32,9 @@ namespace StingTools.Commands.Healthcare
                 int wrn = findings.Count(f => f.Severity == ValidationSeverity.Warning);
                 int inf = findings.Count(f => f.Severity == ValidationSeverity.Info);
                 sb.AppendLine($"Findings: {findings.Count}  (errors {err}, warnings {wrn}, info {inf})").AppendLine();
-                foreach (var f in findings.Take(50))
+                // Sort by severity desc so errors are never truncated behind warnings/info.
+                // ValidationSeverity is an enum: Info=0, Warning=1, Error=2 → OrderByDescending shows errors first.
+                foreach (var f in findings.OrderByDescending(f => (int)f.Severity).Take(50))
                     sb.AppendLine($"[{f.Severity,-7}] {f.Code,-25} {f.Message}");
                 if (findings.Count > 50)
                     sb.AppendLine($"... +{findings.Count - 50} more (see StingTools.log)");

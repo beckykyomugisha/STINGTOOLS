@@ -15,9 +15,13 @@ namespace StingTools.Core.Validation.Healthcare
 {
     public static class HealthcareValidatorGate
     {
-        public static HashSet<string> AllowedValidators(Document doc)
-        {
-            var all = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
+        // Cache the parsed profiles JSON keyed by (path, mtime) so we don't re-read +
+        // re-parse on every Validate call. Refreshes automatically when the file is edited.
+        private static (string path, DateTime mtime, JObject profiles) _cache;
+        private static readonly object _cacheLock = new object();
+
+        private static readonly HashSet<string> _allValidators =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
                 "PressureRegimeValidator","MgasFlowValidator","EesBranchValidator",
                 "WaterSafetyValidator","RadShieldValidator","AdjacencyValidator",
                 "AntiLigatureValidator","RdsCompletenessValidator","IoTStalenessValidator",
@@ -25,34 +29,57 @@ namespace StingTools.Core.Validation.Healthcare
                 "EndoscopeTraceValidator","EesResilienceValidator","WasteFlowValidator",
                 "RtlsCoverageValidator"
             };
+
+        public static HashSet<string> AllowedValidators(Document doc)
+        {
+            // Read the requested profile from project info.
             string profile = "FULL";
             try {
                 var p = doc?.ProjectInformation?.LookupParameter("PRJ_ORG_HEALTH_PACK_PROFILE_TXT");
                 if (p?.HasValue == true && p.StorageType == StorageType.String)
                     profile = (p.AsString() ?? "FULL").Trim().ToUpperInvariant();
             } catch { }
-            if (profile == "FULL" || string.IsNullOrEmpty(profile)) return all;
+            if (profile == "FULL" || string.IsNullOrEmpty(profile))
+                return new HashSet<string>(_allValidators, StringComparer.OrdinalIgnoreCase);
 
             try
             {
-                var path = Path.Combine(StingToolsApp.DataPath, "HEALTHCARE_PACK_PROFILES.json");
-                if (!File.Exists(path)) return all;
-                var root = JObject.Parse(File.ReadAllText(path));
-                var profilesNode = root["profiles"] as JObject;
-                if (profilesNode == null) return all;
-                if (!(profilesNode[profile] is JObject prof)) return all;
+                var profilesNode = LoadCachedProfiles();
+                if (profilesNode == null || !(profilesNode[profile] is JObject prof))
+                    return new HashSet<string>(_allValidators, StringComparer.OrdinalIgnoreCase);
                 var list = prof["validators"] as JArray;
-                if (list == null) return all;
+                if (list == null) return new HashSet<string>(_allValidators, StringComparer.OrdinalIgnoreCase);
                 var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var t in list)
                 {
                     var s = t?.ToString() ?? "";
-                    if (s.Equals("all", StringComparison.OrdinalIgnoreCase)) return all;
+                    if (s.Equals("all", StringComparison.OrdinalIgnoreCase))
+                        return new HashSet<string>(_allValidators, StringComparer.OrdinalIgnoreCase);
                     allowed.Add(s);
                 }
                 return allowed;
             }
-            catch (Exception ex) { StingLog.Warn($"HealthcareValidatorGate fallback to FULL: {ex.Message}"); return all; }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"HealthcareValidatorGate fallback to FULL: {ex.Message}");
+                return new HashSet<string>(_allValidators, StringComparer.OrdinalIgnoreCase);
+            }
+        }
+
+        private static JObject LoadCachedProfiles()
+        {
+            var path = Path.Combine(StingToolsApp.DataPath, "HEALTHCARE_PACK_PROFILES.json");
+            if (!File.Exists(path)) return null;
+            var mtime = File.GetLastWriteTimeUtc(path);
+            lock (_cacheLock)
+            {
+                if (_cache.profiles != null && _cache.path == path && _cache.mtime == mtime)
+                    return _cache.profiles;
+                var root = JObject.Parse(File.ReadAllText(path));
+                var profilesNode = root["profiles"] as JObject;
+                _cache = (path, mtime, profilesNode);
+                return profilesNode;
+            }
         }
     }
 }

@@ -19,7 +19,9 @@ namespace StingTools.Commands.Healthcare.Specialist
             {
                 var doc = commandData.Application.ActiveUIDocument.Document;
                 var clinicalCats = new ElementMulticategoryFilter(new[] {
-                    BuiltInCategory.OST_MedicalEquipment, BuiltInCategory.OST_SpecialityEquipment });
+                    BuiltInCategory.OST_MedicalEquipment,
+                    BuiltInCategory.OST_NurseCallDevices,
+                    BuiltInCategory.OST_SpecialityEquipment });
                 var hboChambers = new FilteredElementCollector(doc).WherePasses(clinicalCats)
                     .WhereElementIsNotElementType().ToElements()
                     .Where(e => Get(e,"ASS_PRODCT_COD_TXT")=="HBO").ToList();

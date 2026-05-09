@@ -33,7 +33,8 @@ namespace StingTools.Core.Validation.Healthcare
                 // Patient-care receptacles must declare an EES branch.
                 var receptType = GetParam(el, "ELC_RECEPT_TYPE_TXT");
                 var hostRoom = TryGetHostRoom(doc, el);
-                var hostClass = hostRoom != null ? GetParam(hostRoom, "CLN_ROOM_CLASS_TXT") : "";
+                // Cache-aware: O(1) dictionary hit when running in the chain.
+                var hostClass = hostRoom != null ? GetRoomClassCached(hostRoom) : "";
 
                 bool isPatientCare = !string.IsNullOrEmpty(hostClass) &&
                     (hostClass.StartsWith("OR") || hostClass == "ICU" || hostClass == "CATHLAB" ||

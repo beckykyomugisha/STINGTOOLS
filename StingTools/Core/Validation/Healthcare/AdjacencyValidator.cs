@@ -23,16 +23,26 @@ namespace StingTools.Core.Validation.Healthcare
             var res = new List<ValidationResult>();
             if (doc == null) return res;
 
-            var rooms = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms)
-                .WhereElementIsNotElementType().ToElements()
-                .Where(r => !string.IsNullOrEmpty(GetParam(r, "CLN_ROOM_CLASS_TXT")))
-                .ToList();
-            if (rooms.Count < 2) return res;
-
-            // Group by class.
-            var byClass = rooms.GroupBy(r => GetParam(r, "CLN_ROOM_CLASS_TXT"))
+            // Cache-aware: when running inside RunAllHealthcareValidators the
+            // RoomsByClass map is pre-computed (one collector pass instead of N).
+            var ctx = HealthcareValidatorContext.Active;
+            Dictionary<string, List<Element>> byClass;
+            if (ctx != null && ctx.Document == doc)
+            {
+                byClass = ctx.RoomsByClass;
+                if (byClass.Count < 2) return res;
+            }
+            else
+            {
+                var rooms = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms)
+                    .WhereElementIsNotElementType().ToElements()
+                    .Where(r => !string.IsNullOrEmpty(GetParam(r, "CLN_ROOM_CLASS_TXT")))
+                    .ToList();
+                if (rooms.Count < 2) return res;
+                byClass = rooms.GroupBy(r => GetParam(r, "CLN_ROOM_CLASS_TXT"))
                                .ToDictionary(g => g.Key, g => g.ToList(),
                                              System.StringComparer.OrdinalIgnoreCase);
+            }
 
             foreach (var kv in HBNStandards.AdjacencyTargets)
             {

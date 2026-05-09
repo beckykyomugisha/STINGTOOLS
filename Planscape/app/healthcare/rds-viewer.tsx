@@ -5,7 +5,7 @@ import { useProjectStore } from '@/stores/projectStore';
 import { getRdsSnapshot } from '@/api/endpoints';
 
 export default function RdsViewerScreen() {
-  const { activeProject } = useProjectStore();
+  const activeProject = useProjectStore((s) => s.active);
   const [roomId, setRoomId] = useState('');
   const [rds, setRds] = useState<any>(null);
 

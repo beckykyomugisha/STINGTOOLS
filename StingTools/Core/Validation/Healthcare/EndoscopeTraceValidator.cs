@@ -15,10 +15,8 @@ namespace StingTools.Core.Validation.Healthcare
             var res = new List<ValidationResult>();
             if (doc == null) return res;
 
-            var endoRooms = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms)
-                .WhereElementIsNotElementType().ToElements()
-                .Where(r => GetParam(r, "CLN_ROOM_CLASS_TXT") == "ENDOSCOPY"
-                         || GetParam(r, "CLN_ROOM_CLASS_TXT") == "ENDO-DECON")
+            var endoRooms = GetClinicalRoomsCached(doc)
+                .Where(r => GetRoomClassCached(r) is "ENDOSCOPY" or "ENDO-DECON")
                 .ToList();
             if (endoRooms.Count == 0) return res;
 

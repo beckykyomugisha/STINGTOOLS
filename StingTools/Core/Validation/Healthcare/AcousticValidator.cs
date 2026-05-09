@@ -28,13 +28,10 @@ namespace StingTools.Core.Validation.Healthcare
         {
             var res = new List<ValidationResult>();
             if (doc == null) return res;
-            var rooms = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms)
-                .WhereElementIsNotElementType().ToElements()
-                .Where(r => NrTarget.ContainsKey(GetParam(r, "CLN_ROOM_CLASS_TXT")))
-                .ToList();
-            foreach (var r in rooms)
+            foreach (var r in GetClinicalRoomsCached(doc))
             {
-                var rc = GetParam(r, "CLN_ROOM_CLASS_TXT");
+                var rc = GetRoomClassCached(r);
+                if (!NrTarget.ContainsKey(rc)) continue;
                 var nrAct = GetParamDouble(r, "CLN_ROOM_NOISE_NR_NR")
                             ?? GetParamDouble(r, "PER_ACOUSTICS_BACKGROUND_NOISE_DB");
                 var nrTgt = NrTarget[rc];
