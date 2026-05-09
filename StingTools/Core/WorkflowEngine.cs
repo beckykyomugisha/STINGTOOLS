@@ -1462,6 +1462,7 @@ namespace StingTools.Core
                 case "Cable_Calculate":         return new Commands.Electrical.CableSizer.CableSizerCommand();
                 case "Cable_ConduitFill":       return new Commands.Electrical.ConduitFillValidateCommand();
                 case "Cable_ConsolidateConduits": return new Commands.Electrical.Routing.ConduitConsolidatorCommand();
+                case "Cable_BuildSchedule":      return new Commands.Electrical.Routing.CableScheduleBuilderCommand();
                 case "Seeds_Build":              return new Commands.Symbols.BuildSeedFamiliesCommand();
                 case "Seeds_SwapToManufacturer": return new Commands.Symbols.SwapToManufacturerCommand();
                 case "Validation_BS7671":       return new Commands.Electrical.ElectricalStandardsValidatorCommand();
