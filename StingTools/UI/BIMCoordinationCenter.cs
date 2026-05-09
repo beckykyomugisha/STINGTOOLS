@@ -87,9 +87,9 @@ namespace StingTools.UI
 
         // ── Data ──
         internal CoordData _data;
-        private readonly ContentControl _contentArea;
-        private readonly TextBlock _statusBar;
-        private readonly StackPanel _navPanel;
+        private ContentControl _contentArea;
+        private TextBlock _statusBar;
+        private StackPanel _navPanel;
         private Button _activeNav;
 
         // Phase 75: Persist last-viewed tab across dialog reopens
