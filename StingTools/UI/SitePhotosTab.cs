@@ -180,20 +180,17 @@ namespace StingTools.UI
             footer.Tag = "BulkFooter";
             root.Children.Add(footer);
 
-            // Initial load + auto-refresh wiring. Fire-and-forget by
-            // design — the dispatcher operation is queued at Background
-            // priority so the rest of the tab paints first. The pragma
-            // makes the intent unambiguous to every Roslyn version
-            // (the `_ =` discard alone doesn't always suppress CS4014
-            // when the callee is a non-Task DispatcherOperation that
-            // wraps an async-void lambda).
-#pragma warning disable CS4014
-            owner.Dispatcher.BeginInvoke(new Action(async () =>
+            // Initial load + auto-refresh wiring. We deliberately
+            // fire-and-forget so the rest of the tab paints first.
+            // Extracted into a local async method so the discard
+            // (`_ =`) syntax produces a well-defined Task discard the
+            // compiler can't misclassify.
+            async Task BootAsync()
             {
                 await ReloadAsync(owner, state, listPanel, footer);
                 StartAutoRefresh(owner, state, listPanel, footer);
-            }), DispatcherPriority.Background);
-#pragma warning restore CS4014
+            }
+            _ = BootAsync();
 
             // Cancel auto-refresh when BCC closes
             owner.Closed += (_, _) => state.RefreshTimer?.Stop();
@@ -554,12 +551,12 @@ namespace StingTools.UI
 
             // Lazy-load thumbnails after the layout pass — keeps the initial
             // render snappy even with 50 photos (default page size).
-            // Fire-and-forget; the async lambda's own try/catch handles
-            // per-thumbnail failures. CS4014 suppressed via pragma because
-            // a `_ =` discard alone doesn't always silence the warning
-            // for non-Task DispatcherOperations wrapping async-void.
-#pragma warning disable CS4014
-            owner.Dispatcher.BeginInvoke(new Action(async () =>
+            // Fire-and-forget via a local async method so the `_ =`
+            // discard is unambiguous (vs Dispatcher.BeginInvoke wrapping
+            // an async-void lambda, which Roslyn analyzers occasionally
+            // mis-classify and raise CS4014 on). Per-thumb failures are
+            // swallowed by the try/catch inside the loop body.
+            async Task LoadThumbsAsync()
             {
                 foreach (var r in rows)
                 {
@@ -583,8 +580,8 @@ namespace StingTools.UI
                         StingLog.Warn($"SitePhotosTab thumbnail decode {r.Dto.Id}: {ex.Message}");
                     }
                 }
-            }), DispatcherPriority.Background);
-#pragma warning restore CS4014
+            }
+            _ = LoadThumbsAsync();
         }
 
         private static UIElement BuildReasonGroupHeader(
