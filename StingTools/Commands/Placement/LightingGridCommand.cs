@@ -68,6 +68,7 @@ namespace StingTools.Commands.Placement
             var calc = new LightingGridCalculator();
             string photoFilePath = null;
             bool photoUsed = false;
+            bool ufFromFamily = false, mfFromFamily = false;
             try
             {
                 double famLumens = ReadDoubleParam(symbol, ParamRegistry.ELC_PHOTO_LUMENS);
@@ -77,6 +78,17 @@ namespace StingTools.Commands.Placement
                     photoUsed = true;
                 }
                 photoFilePath = ParameterHelpers.GetString(symbol, ParamRegistry.ELC_PHOTO_FILE_PATH);
+
+                // Family-level utilisation factor (UF) and maintenance factor (MF)
+                // — when set on the type, override the calculator defaults so
+                // designers can encode reflectance/maintenance assumptions per
+                // luminaire family without editing C# constants.
+                double famUf = ReadDoubleParam(symbol, "ELC_LIGHTING_UF_FACTOR");
+                if (famUf > 0 && famUf <= 1.0)
+                { calc.UtilisationFactor = famUf; ufFromFamily = true; }
+                double famMf = ReadDoubleParam(symbol, "ELC_LIGHTING_MF_FACTOR");
+                if (famMf > 0 && famMf <= 1.0)
+                { calc.MaintenanceFactor = famMf; mfFromFamily = true; }
             }
             catch (Exception ex) { StingLog.Warn($"LightingGrid photo lookup: {ex.Message}"); }
 
@@ -119,15 +131,17 @@ namespace StingTools.Commands.Placement
             string photoLine = !string.IsNullOrEmpty(photoFilePath) && File.Exists(photoFilePath)
                 ? $"Photometric file: {Path.GetFileName(photoFilePath)} (.ies/.ldt resolved)"
                 : "Photometric file: not set — run 'Assign Photometric' before final design";
+            string ufmfLine =
+                $"UF {calc.UtilisationFactor:F2} ({(ufFromFamily ? "family ELC_LIGHTING_UF_FACTOR" : "default")}), " +
+                $"MF {calc.MaintenanceFactor:F2} ({(mfFromFamily ? "family ELC_LIGHTING_MF_FACTOR" : "default")})";
 
             var confirm = new TaskDialog("STING Lighting Grid — Preview")
             {
                 MainInstruction = $"Place {totalFixtures} luminaire(s) across {plans.Count} room(s)?",
                 MainContent =
                     $"Family: {symbol.FamilyName} : {symbol.Name}\n" +
-                    $"{lumensLine}\n{photoLine}\n\n" +
-                    "Targets follow BS EN 12464-1 / CIBSE LG7 via LUX_TARGETS_EN12464.csv.\n" +
-                    "UF 0.60, MF 0.80 — adjust calculator constants if your reflectances/maintenance differ.",
+                    $"{lumensLine}\n{photoLine}\n{ufmfLine}\n\n" +
+                    "Targets follow BS EN 12464-1 / CIBSE LG7 via LUX_TARGETS_EN12464.csv.",
                 CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No
             };
             if (confirm.Show() != TaskDialogResult.Yes)

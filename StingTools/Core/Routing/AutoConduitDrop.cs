@@ -157,6 +157,21 @@ namespace StingTools.Core.Routing
 
                 TrySetString(cdt, "ELC_CDT_INSTALL_METHOD_TXT", InstallMethod);
                 TrySetString(cdt, "ELC_CDT_FAB_METHOD_TXT",     FabMethod);
+
+                // Stamp run length so ElectricalStandardsValidator + downstream
+                // QA can read it without recomputing from LocationCurve. Bend
+                // count starts at 0 (this is a single straight drop) and is
+                // re-evaluated by the validator's geometric fallback when
+                // fittings get added later.
+                try
+                {
+                    double mm = from.DistanceTo(to) * 304.8; // ft → mm
+                    TrySetString(cdt, "ELC_CDT_RUN_LENGTH_M",
+                        (mm / 1000.0).ToString("F3", System.Globalization.CultureInfo.InvariantCulture));
+                    TrySetString(cdt, "ELC_CDT_BEND_COUNT_NR", "0");
+                }
+                catch (Exception ex) { result.Warnings.Add($"Stamp run-length: {ex.Message}"); }
+
                 return cdt.Id;
             }
             catch (Exception ex)

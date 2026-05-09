@@ -412,6 +412,11 @@
                                 <Button Content="▶ Apply Balance" Margin="0,4,0,0"
                                         Style="{StaticResource ElecPrimaryBtn}"
                                         Tag="Circuit_Balance" Click="Cmd_Click"/>
+                                <Separator Margin="0,8,0,4"/>
+                                <Button Content="🤖 Auto-assign Unassigned Circuits" Margin="0,4,0,0"
+                                        Style="{StaticResource ElecActionBtn}"
+                                        Tag="Circuit_AssignAuto" Click="Cmd_Click"
+                                        ToolTip="Greedy load balancer — picks the smallest voltage-compatible panel with free slots (and least connected load) for every ElectricalSystem with no BaseEquipment. Always previews before applying; uses ElectricalSystem.SelectPanel + writes ELC_PANEL_REF_TXT for tag pipelines."/>
                             </StackPanel>
                         </Expander>
                     </StackPanel>
@@ -843,6 +848,9 @@
                                 <Button Content="▶ Validate containment fill in model" Style="{StaticResource ElecActionBtn}"
                                         Tag="Cable_ValidateConduitFill" Click="Cmd_Click"
                                         ToolTip="Audit every conduit / tray against the regulatory fill limit (alias of Validate Model Conduits)."/>
+                                <Button Content="📐 BS 7671 Compliance Check" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Validation_BS7671" Click="Cmd_Click"
+                                        ToolTip="Run the ElectricalStandardsValidator across every conduit + fitting in the model. Checks bend count (§522.8.5), run length between draw-in points (§522.8.4), cable fill ceilings (BS EN 61386 — 40% straight / 35% with bends), and non-standard bend angles. Thresholds load from STING_FAB_RULES.json so projects can override the BS 7671 defaults."/>
                             </StackPanel>
                         </Expander>
 

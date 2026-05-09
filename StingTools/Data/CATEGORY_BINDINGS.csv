@@ -7299,6 +7299,11 @@ ELC_CDT_MAT_TXT,Conduit Fittings,Type,True
 ELC_CDT_INSTALL_METHOD_TXT,Conduits,Type,True
 ELC_CDT_INSTALL_METHOD_TXT,Conduit Fittings,Type,True
 ELC_CDT_CBL_FILL_PCT,Conduits,Type,True
+ELC_CDT_BEND_ANGLE_DEG,Conduits,Type,True
+ELC_CDT_BEND_ANGLE_DEG,Conduit Fittings,Type,True
+ELC_CDT_BEND_COUNT_NR,Conduits,Type,True
+ELC_CDT_RUN_LENGTH_M,Conduits,Type,True
+ELC_CDT_CABLE_COUNT_NR,Conduits,Type,True
 ELC_CDT_TAG_01_TXT,Conduits,Type,True
 ELC_CDT_TAG_01_TXT,Conduit Fittings,Type,True
 ELC_CDT_TAG_02_TXT,Conduits,Type,True
