@@ -108,12 +108,15 @@ export default function AllProjectsInboxScreen() {
   }, [load]);
 
   // Tap a row → set active project + deep-link to its tab.
+  // expo-router v4's typed-routes flag complains about variable strings, so
+  // we cast the destination at the boundary; we don't accept user input here.
   const goTo = (bucket: ProjectBucket, path: string) => {
     setActiveProject({
       id: bucket.project.id,
       name: bucket.project.name,
       code: bucket.project.code,
     });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     router.push(path as never);
   };
 

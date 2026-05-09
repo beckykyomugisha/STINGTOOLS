@@ -608,6 +608,69 @@ export function getIssueActivity(projectId: string, issueId: string): Promise<Is
   return apiFetch(`/api/projects/${projectId}/issues/${issueId}/activity`);
 }
 
+// T3-15 — 2D document markup (PDFs / sheets). The DocumentMarkup entity
+// already exists server-side (Planscape.Core/Entities/DocumentMarkup.cs);
+// we surface a thin typed wrapper here so the mobile sheet viewer can
+// list / create / update / delete vector overlays. Shapes are stored as
+// a JSON array on `shapesJson`; the renderer + the eventual web viewer
+// both speak the same shape catalogue.
+export interface DocumentMarkup {
+  id: string;
+  documentId: string;
+  shapesJson: string;
+  pageNumber: number;
+  summary?: string | null;
+  createdByUserId?: string | null;
+  createdByName: string;
+  createdAt: string;
+  updatedAt?: string | null;
+  previousMarkupId?: string | null;
+}
+export interface MarkupShape {
+  /** Discriminated union: pen / arrow / text / circle. v1 keeps the catalogue
+   *  small so the renderer can stay declarative; new tools extend by adding
+   *  a new `kind` here, never by reusing an existing kind. */
+  kind: 'pen' | 'arrow' | 'text' | 'circle';
+  color: string;
+  strokeWidth?: number;
+  /** `pen` — array of normalised x/y points (0..1 within the page bounds). */
+  points?: { x: number; y: number }[];
+  /** `arrow` — start + end. */
+  from?: { x: number; y: number };
+  to?:   { x: number; y: number };
+  /** `text` — anchor + body. */
+  at?:   { x: number; y: number };
+  text?: string;
+  fontSize?: number;
+  /** `circle` — centre + radius. */
+  centre?: { x: number; y: number };
+  radius?: number;
+}
+export function listDocumentMarkups(projectId: string, documentId: string): Promise<DocumentMarkup[]> {
+  return apiFetch(`/api/projects/${projectId}/documents/${documentId}/markups`);
+}
+export function createDocumentMarkup(
+  projectId: string, documentId: string,
+  body: { shapesJson: string; pageNumber?: number; summary?: string; previousMarkupId?: string }
+): Promise<DocumentMarkup> {
+  return apiFetch(`/api/projects/${projectId}/documents/${documentId}/markups`, {
+    method: 'POST', body: JSON.stringify(body),
+  });
+}
+export function updateDocumentMarkup(
+  projectId: string, documentId: string, markupId: string,
+  body: { shapesJson?: string; pageNumber?: number; summary?: string }
+): Promise<DocumentMarkup> {
+  return apiFetch(`/api/projects/${projectId}/documents/${documentId}/markups/${markupId}`, {
+    method: 'PUT', body: JSON.stringify(body),
+  });
+}
+export function deleteDocumentMarkup(projectId: string, documentId: string, markupId: string): Promise<void> {
+  return apiFetch(`/api/projects/${projectId}/documents/${documentId}/markups/${markupId}`, {
+    method: 'DELETE',
+  });
+}
+
 // Document approval (NEW-INT-15)
 export function requestDocumentApproval(projectId: string, documentId: string, targetState: string): Promise<unknown> {
   return apiFetch(`/api/projects/${projectId}/documents/${documentId}/approvals`, {

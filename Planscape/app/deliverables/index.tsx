@@ -112,7 +112,7 @@ export default function DeliverablesListScreen() {
             <TouchableOpacity
               key={d.id}
               style={styles.row}
-              onPress={() => router.push(`/deliverables/${d.id}`)}
+              onPress={() => router.push({ pathname: '/deliverables/[id]', params: { id: d.id } })}
               accessibilityLabel={`Open deliverable ${d.code}`}
             >
               <View style={[styles.statusPill, { backgroundColor: statusColor(d.status) }]}>

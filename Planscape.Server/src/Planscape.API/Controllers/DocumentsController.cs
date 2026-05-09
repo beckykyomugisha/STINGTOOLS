@@ -653,6 +653,22 @@ public class DocumentsController : ControllerBase
         });
         doc.StatusHistoryJson = JsonConvert.SerializeObject(history);
 
+        // Phase 178c (T3-24) — auto-mint a DocumentRevision snapshot at every CDE transition.
+        _db.DocumentRevisions.Add(new DocumentRevision
+        {
+            TenantId              = tenantId,
+            DocumentId            = doc.Id,
+            Revision              = doc.Revision ?? "P01",
+            CdeStateAtRevision    = doc.CdeStatus,
+            SuitabilityAtRevision = doc.SuitabilityCode,
+            FilePath              = doc.FilePath,
+            FileSizeBytes         = doc.FileSizeBytes,
+            ContentHash           = doc.ContentHash,
+            CreatedBy             = User.FindFirst("display_name")?.Value ?? "Unknown",
+            CommentSummary        = $"CDE transition {oldState} → {req.NewState}",
+            Source                = "auto_cde_transition",
+        });
+
         await _db.SaveChangesAsync();
         await _audit.LogAsync("TRANSITION", "Document", doc.Id.ToString(),
             $"{{\"oldState\":\"{oldState}\",\"newState\":\"{req.NewState}\"}}");
@@ -732,6 +748,22 @@ public class DocumentsController : ControllerBase
             user = User.FindFirst("display_name")?.Value ?? "Unknown"
         });
         doc.StatusHistoryJson = JsonConvert.SerializeObject(history);
+
+        // Phase 178c (T3-24) — auto-mint a DocumentRevision snapshot at every CDE transition.
+        _db.DocumentRevisions.Add(new DocumentRevision
+        {
+            TenantId              = tenantId,
+            DocumentId            = doc.Id,
+            Revision              = doc.Revision ?? "P01",
+            CdeStateAtRevision    = doc.CdeStatus,
+            SuitabilityAtRevision = doc.SuitabilityCode,
+            FilePath              = doc.FilePath,
+            FileSizeBytes         = doc.FileSizeBytes,
+            ContentHash           = doc.ContentHash,
+            CreatedBy             = User.FindFirst("display_name")?.Value ?? "Unknown",
+            CommentSummary        = $"CDE transition {oldState} → {req.NewStatus} (mobile)",
+            Source                = "auto_cde_transition",
+        });
 
         await _db.SaveChangesAsync();
         await _audit.LogAsync("TRANSITION", "Document", doc.Id.ToString(),

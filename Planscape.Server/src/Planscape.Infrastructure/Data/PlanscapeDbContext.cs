@@ -159,6 +159,12 @@ public class PlanscapeDbContext : DbContext
     // S6.3 — CRDT update log for collaborative pin / issue editing.
     public DbSet<PinCrdtUpdate> PinCrdtUpdates => Set<PinCrdtUpdate>();
 
+    // Phase 178c (T3-12) — Multi-step / parallel approval chains for CDE transitions.
+    public DbSet<ApprovalChain> ApprovalChains => Set<ApprovalChain>();
+    public DbSet<ApprovalStage> ApprovalStages => Set<ApprovalStage>();
+    // Phase 178c (T3-24) — Document revision history (per-CDE-transition snapshots).
+    public DbSet<DocumentRevision> DocumentRevisions => Set<DocumentRevision>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -476,6 +482,18 @@ public class PlanscapeDbContext : DbContext
             e.HasOne(a => a.Document).WithMany().HasForeignKey(a => a.DocumentId).OnDelete(DeleteBehavior.Cascade);
         });
 
+        // ── IssueAudioNote (Phase 178c T3-19 — DocumentId FK + new columns) ──
+        modelBuilder.Entity<IssueAudioNote>(e =>
+        {
+            e.HasKey(n => n.Id);
+            e.HasIndex(n => n.IssueId);
+            e.HasOne(n => n.Document).WithMany().HasForeignKey(n => n.DocumentId).OnDelete(DeleteBehavior.SetNull);
+            e.Property(n => n.StoragePath).HasMaxLength(500).IsRequired();
+            e.Property(n => n.Language).HasMaxLength(8);
+            e.Property(n => n.MimeType).HasMaxLength(40).IsRequired();
+            e.Property(n => n.CreatedBy).HasMaxLength(120);
+        });
+
         // ── DocumentRecord ──
         modelBuilder.Entity<DocumentRecord>(e =>
         {
@@ -495,6 +513,46 @@ public class PlanscapeDbContext : DbContext
             e.HasOne(a => a.Document).WithMany().HasForeignKey(a => a.DocumentId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(a => a.Project).WithMany().HasForeignKey(a => a.ProjectId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(a => new { a.DocumentId, a.Transition, a.Status });
+        });
+
+        // ── Phase 178c (T3-12) — ApprovalChain + ApprovalStage ──
+        modelBuilder.Entity<ApprovalChain>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.HasOne(c => c.Document).WithMany().HasForeignKey(c => c.DocumentId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(c => c.Project).WithMany().HasForeignKey(c => c.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(c => new { c.DocumentId, c.Transition, c.Status });
+            e.Property(c => c.Transition).HasMaxLength(80).IsRequired();
+            e.Property(c => c.Status).HasMaxLength(20).IsRequired();
+            e.Property(c => c.CreatedBy).HasMaxLength(120);
+            e.Property(c => c.Description).HasMaxLength(500);
+        });
+        modelBuilder.Entity<ApprovalStage>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.HasOne(s => s.Chain).WithMany(c => c.Stages).HasForeignKey(s => s.ChainId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(s => new { s.ChainId, s.Order });
+            e.Property(s => s.Mode).HasMaxLength(16).IsRequired();
+            e.Property(s => s.Status).HasMaxLength(16).IsRequired();
+            e.Property(s => s.RequiredApproversJson).IsRequired();
+            e.Property(s => s.DecisionsJson).IsRequired();
+            e.Property(s => s.Label).HasMaxLength(120);
+        });
+
+        // ── Phase 178c (T3-24) — DocumentRevision ──
+        modelBuilder.Entity<DocumentRevision>(e =>
+        {
+            e.HasKey(r => r.Id);
+            e.HasOne(r => r.Document).WithMany().HasForeignKey(r => r.DocumentId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(r => new { r.DocumentId, r.CreatedAt }).IsDescending(false, true);
+            e.Property(r => r.Revision).HasMaxLength(16).IsRequired();
+            e.Property(r => r.CdeStateAtRevision).HasMaxLength(20).IsRequired();
+            e.Property(r => r.SuitabilityAtRevision).HasMaxLength(8);
+            e.Property(r => r.FilePath).HasMaxLength(500);
+            e.Property(r => r.ContentHash).HasMaxLength(128);
+            e.Property(r => r.CreatedBy).HasMaxLength(120);
+            e.Property(r => r.CommentSummary).HasMaxLength(2000);
+            e.Property(r => r.Source).HasMaxLength(40).IsRequired();
         });
 
         // ── LicenseKey ──

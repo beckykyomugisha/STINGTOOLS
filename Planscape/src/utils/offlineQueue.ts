@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import { createIssue, updateIssue, transitionCDE, uploadIssueAttachment, captureSitePhoto } from '@/api/endpoints';
+import type { DeliverableUpsertArgs } from '@/api/endpoints';
 import type { OfflineAction, SitePhotoCaptureMeta } from '@/types/api';
 
 const QUEUE_KEY = 'planscape_offline_queue';
@@ -297,7 +298,7 @@ async function replayAction(action: OfflineAction): Promise<void> {
       const { createDeliverable } = await import('@/api/endpoints');
       await createDeliverable(
         p.projectId as string,
-        p.body as Record<string, unknown>,
+        p.body as DeliverableUpsertArgs,
       );
       break;
     }
@@ -306,7 +307,7 @@ async function replayAction(action: OfflineAction): Promise<void> {
       await updateDeliverable(
         p.projectId as string,
         p.deliverableId as string,
-        p.body as Record<string, unknown>,
+        p.body as DeliverableUpsertArgs,
       );
       break;
     }

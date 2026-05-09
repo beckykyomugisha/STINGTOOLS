@@ -60,7 +60,7 @@ export default function NewDeliverableScreen() {
       const online = await isOnline();
       if (online) {
         const created = await createDeliverable(projectId, body);
-        router.replace(`/deliverables/${created.id}`);
+        router.replace({ pathname: '/deliverables/[id]', params: { id: created.id } });
       } else {
         await enqueue('CREATE_DELIVERABLE', { projectId, body });
         Alert.alert('Queued', 'You are offline — the deliverable will be created when network is back.');

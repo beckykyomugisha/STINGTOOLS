@@ -334,6 +334,10 @@ builder.Services.AddScoped<Planscape.Core.Interfaces.IGeofenceValidationService,
 builder.Services.AddScoped<Planscape.API.Services.IThumbnailService, Planscape.API.Services.ImageSharpThumbnailService>();
 builder.Services.AddScoped<Planscape.API.Services.IAuditService, Planscape.API.Services.AuditService>();
 
+// Phase 178c (T3-22) — Maintenance task scheduler (registered as Scoped
+// so Hangfire activates a fresh DbContext per job invocation).
+builder.Services.AddScoped<Planscape.API.BackgroundJobs.MaintenanceTaskSchedulerJob>();
+
 // ── Platform Connectors ──
 builder.Services.AddSingleton<Planscape.Core.Interfaces.IPlatformConnector, Planscape.Infrastructure.Services.AccConnector>();
 builder.Services.AddSingleton<Planscape.Core.Interfaces.IPlatformConnector, Planscape.Infrastructure.Services.ProcoreConnector>();
@@ -1236,6 +1240,14 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.SlaBurnRateJob>(
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DataErasureJob>(
     "data-erasure", j => j.ExecuteAsync(CancellationToken.None),
     "0 4 * * *", new RecurringJobOptions { QueueName = "default" });
+
+// Phase 178c (T3-22) — daily maintenance task scheduler.
+// 06:00 UTC (08:00 BST / 09:00 EAT) — early enough that FM teams see
+// alerts at the start of their working day, late enough that any
+// completed-overnight tasks have been recorded.
+RecurringJob.AddOrUpdate<Planscape.API.BackgroundJobs.MaintenanceTaskSchedulerJob>(
+    "maintenance-task-scheduler", j => j.ExecuteAsync(),
+    "0 6 * * *", new RecurringJobOptions { QueueName = "default" });
 
 // Seed the well-known 'planscape' platform tenant idempotently on startup
 // so /api/platform/revenue + SlaBurnRateJob alerts find their target.
