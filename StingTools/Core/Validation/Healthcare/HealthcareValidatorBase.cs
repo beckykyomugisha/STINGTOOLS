@@ -104,5 +104,24 @@ namespace StingTools.Core.Validation.Healthcare
                 return t.roomClass ?? "";
             return GetParam(room, "CLN_ROOM_CLASS_TXT");
         }
+
+        /// <summary>Returns Medical Equipment + Nurse Call Devices + Specialty
+        /// Equipment in one shot — collected once when the context is active.</summary>
+        protected static IEnumerable<Element> GetClinicalEquipmentCached(Document doc)
+        {
+            var ctx = HealthcareValidatorContext.Active;
+            if (ctx != null && ctx.Document == doc) return ctx.ClinicalEquipment;
+            try
+            {
+                var cats = new ElementMulticategoryFilter(new[] {
+                    BuiltInCategory.OST_MedicalEquipment,
+                    BuiltInCategory.OST_NurseCallDevices,
+                    BuiltInCategory.OST_SpecialityEquipment
+                });
+                return new FilteredElementCollector(doc).WherePasses(cats)
+                    .WhereElementIsNotElementType().ToElements();
+            }
+            catch { return System.Linq.Enumerable.Empty<Element>(); }
+        }
     }
 }

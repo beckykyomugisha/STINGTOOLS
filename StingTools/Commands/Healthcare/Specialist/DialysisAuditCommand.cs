@@ -18,8 +18,13 @@ namespace StingTools.Commands.Healthcare.Specialist
             try
             {
                 var doc = commandData.Application.ActiveUIDocument.Document;
+                // Specialist audits are read-only one-shot commands; they don't
+                // run inside RunAllHealthcareValidators, so they build a quick
+                // multi-category collector themselves.
                 var clinicalCats = new ElementMulticategoryFilter(new[] {
-                    BuiltInCategory.OST_MedicalEquipment, BuiltInCategory.OST_SpecialityEquipment });
+                    BuiltInCategory.OST_MedicalEquipment,
+                    BuiltInCategory.OST_NurseCallDevices,
+                    BuiltInCategory.OST_SpecialityEquipment });
                 var stations = new FilteredElementCollector(doc).WherePasses(clinicalCats)
                     .WhereElementIsNotElementType().ToElements()
                     .Where(e => Get(e,"ASS_PRODCT_COD_TXT")=="RO-DIA")

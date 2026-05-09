@@ -37,6 +37,11 @@ namespace StingTools.Core.Validation.Healthcare
         public Dictionary<string, List<Element>> RoomsByClass { get; } =
             new Dictionary<string, List<Element>>(StringComparer.OrdinalIgnoreCase);
 
+        // Clinical / medical equipment + nurse-call cache, gathered with one
+        // multi-category collector so individual validators don't re-scan.
+        public IReadOnlyList<Element> ClinicalEquipment { get; private set; } =
+            new List<Element>();
+
         // Thread-static "active context" so individual validators can opt in
         // without changing their public Validate(Document) signature.
         [ThreadStatic] private static HealthcareValidatorContext _active;
@@ -77,6 +82,20 @@ namespace StingTools.Core.Validation.Healthcare
                 }
             }
             catch { /* best-effort cache; validators fall back to their own collector */ }
+
+            // Clinical-equipment scan — one multi-category pass.
+            try
+            {
+                var equipCats = new ElementMulticategoryFilter(new[] {
+                    BuiltInCategory.OST_MedicalEquipment,
+                    BuiltInCategory.OST_NurseCallDevices,
+                    BuiltInCategory.OST_SpecialityEquipment
+                });
+                ctx.ClinicalEquipment = new FilteredElementCollector(doc)
+                    .WherePasses(equipCats).WhereElementIsNotElementType()
+                    .ToElements().ToList();
+            }
+            catch { /* fallback to per-validator collectors */ }
             return ctx;
         }
     }

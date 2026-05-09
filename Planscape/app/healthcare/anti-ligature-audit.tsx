@@ -8,7 +8,7 @@ import { postAntiLigatureAudit } from '@/api/endpoints';
 const FITTING_TYPES = ['Door handle','TV bracket','Curtain track','Tap','WC','Shower head','Light fitting','Smoke detector','Wardrobe rail','Other'];
 
 export default function AntiLigatureAuditScreen() {
-  const { activeProject } = useProjectStore();
+  const activeProject = useProjectStore((s) => s.active);
   const [room, setRoom] = useState('');
   const [fitting, setFitting] = useState(FITTING_TYPES[0]);
   const [pass, setPass] = useState<boolean | null>(null);
