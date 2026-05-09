@@ -1,0 +1,7 @@
+{
+  "id": "NFPA110-GeneratorTest",
+  "name": "NFPA 110 weekly generator + monthly ATS test",
+  "steps": [
+    { "tag": "Healthcare_EesResilience", "description": "EesResilienceValidator: log freshness check" }
+  ]
+}

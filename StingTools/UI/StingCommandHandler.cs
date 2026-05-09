@@ -199,6 +199,41 @@ namespace StingTools.UI
                     case "DesignOptions_Dashboard":           RunCommand<Commands.DesignOptions.OptionsDashboardCommand>(app); break;
                     case "DesignOptions_ExportComparison":    RunCommand<Commands.DesignOptions.ExportOptionComparisonCommand>(app); break;
 
+                    // ── Healthcare Pack H-1..H-30 ──
+                    case "Healthcare_RunAllValidators":  RunCommand<Commands.Healthcare.HealthcareRunAllValidatorsCommand>(app); break;
+                    case "Healthcare_PressureAudit":     RunCommand<Commands.Healthcare.HealthcarePressureAuditCommand>(app); break;
+                    case "Healthcare_WaterSafety":       RunCommand<Commands.Healthcare.HealthcareWaterSafetyCommand>(app); break;
+                    case "Healthcare_EesBranch":         RunCommand<Commands.Healthcare.HealthcareEesBranchAuditCommand>(app); break;
+                    case "Healthcare_RadShield":         RunCommand<Commands.Healthcare.HealthcareRadShieldAuditCommand>(app); break;
+                    case "Healthcare_AdvancedRadShield": RunCommand<Commands.Healthcare.HealthcareAdvancedRadShieldCommand>(app); break;
+                    case "Healthcare_RdsCompleteness":   RunCommand<Commands.Healthcare.HealthcareRdsCompletenessCommand>(app); break;
+                    case "Healthcare_IoTStaleness":      RunCommand<Commands.Healthcare.HealthcareIoTStalenessCommand>(app); break;
+                    case "Healthcare_StructuralLoad":    RunCommand<Commands.Healthcare.HealthcareStructuralLoadCommand>(app); break;
+                    case "Healthcare_Acoustic":          RunCommand<Commands.Healthcare.HealthcareAcousticCommand>(app); break;
+                    case "Healthcare_EndoscopeTrace":    RunCommand<Commands.Healthcare.HealthcareEndoscopeTraceCommand>(app); break;
+                    case "Healthcare_EesResilience":     RunCommand<Commands.Healthcare.HealthcareEesResilienceCommand>(app); break;
+                    case "Healthcare_RtlsCoverage":      RunCommand<Commands.Healthcare.HealthcareRtlsCoverageCommand>(app); break;
+                    case "Healthcare_WasteFlow":         RunCommand<Commands.Healthcare.HealthcareWasteFlowCommand>(app); break;
+                    case "Healthcare_IssueRDS":          RunCommand<Commands.Healthcare.IssueRoomDataSheetCommand>(app); break;
+                    case "Healthcare_BatchRDS":          RunCommand<Commands.Healthcare.BatchIssueRoomDataSheetsCommand>(app); break;
+                    case "Healthcare_MgasAudit":         RunCommand<Commands.MedGas.MgasNetworkAuditCommand>(app); break;
+                    case "Healthcare_MgasVerify":        RunCommand<Commands.MedGas.MgasVerifyCommand>(app); break;
+                    case "Healthcare_AdjacencyAudit":    RunCommand<Commands.Adjacency.AdjacencyAuditCommand>(app); break;
+                    case "Healthcare_RadCalcChest":      RunCommand<Commands.Radiation.RadCalcChestRoomCommand>(app); break;
+                    case "Healthcare_RadCalcCt":         RunCommand<Commands.Radiation.RadCalcCtRoomCommand>(app); break;
+                    case "Healthcare_RadCalcLinac":      RunCommand<Commands.Radiation.RadCalcLinacVaultCommand>(app); break;
+                    case "Healthcare_MriZoneAudit":      RunCommand<Commands.Radiation.MriZoneAuditCommand>(app); break;
+                    case "Healthcare_IoTRegistry":       RunCommand<Commands.Twin.IoTRegistryCommand>(app); break;
+                    case "Healthcare_AntiLigature":      RunCommand<Commands.Healthcare.Specialist.AntiLigatureAuditCommand>(app); break;
+                    case "Healthcare_HybridOr":          RunCommand<Commands.Healthcare.Specialist.HybridOrCheckCommand>(app); break;
+                    case "Healthcare_PharmacyUsp":       RunCommand<Commands.Healthcare.Specialist.PharmacyUspAuditCommand>(app); break;
+                    case "Healthcare_BehaviouralHealth": RunCommand<Commands.Healthcare.Specialist.BehaviouralHealthAuditCommand>(app); break;
+                    case "Healthcare_Mortuary":          RunCommand<Commands.Healthcare.Specialist.MortuaryAuditCommand>(app); break;
+                    case "Healthcare_MaternityNicu":    RunCommand<Commands.Healthcare.Specialist.MaternityNicuAuditCommand>(app); break;
+                    case "Healthcare_Hsdu":              RunCommand<Commands.Healthcare.Specialist.HsduAuditCommand>(app); break;
+                    case "Healthcare_Dialysis":          RunCommand<Commands.Healthcare.Specialist.DialysisAuditCommand>(app); break;
+                    case "Healthcare_Hbo":               RunCommand<Commands.Healthcare.Specialist.HboAuditCommand>(app); break;
+
                     // ── Lightning Protection System (BS EN 62305) ──
                     case "LPS_ClassSetup":           RunCommand<Commands.Lightning.LpsClassSetupCommand>(app); break;
                     case "LPS_ComplianceCheck":      RunCommand<Commands.Lightning.LpsComplianceCheckCommand>(app); break;

@@ -36,3 +36,29 @@ DR-03,"Door Closer",Closer,DC-FD30-01,DCSET-DR,"Overhead door closer BS EN 1154"
 DR-03,"Intumescent Strip",Seal,ITM-15-01,ITMSET-DR,"Intumescent strip 15x4mm",Generic
 DR-03,"Smoke Seal",Seal,SMK-SEAL-01,SEALSET-DR,"Cold smoke seal brush/blade",Generic
 FLV-*,"Fire Damper Fusible Link",Link,FL-72-01,FLSET-FDM,"Fusible link 72°C",Generic
+MGS-TU-*,"BS 5682 Service Kit",Service Kit,SK-5682,SK-MGS,"Service kit per BS 5682",Generic
+MGS-MA-PLT,"Medical Air Coalescing Filter",Filter,FLT-MA-COAL,FLT-MA-PLT,"Coalescing filter element",Generic
+MGS-MA-PLT,"Medical Air Bacteriological Filter",Filter,FLT-MA-BACT,FLT-MA-PLT,"0.01 µm bact filter",Generic
+MGS-VAC-PLT,"Vacuum Pump Oil",Lubricant,OIL-VAC-PUMP,OIL-VAC,"Vacuum pump oil 5L",Generic
+MGS-VAC-PLT,"Vacuum Bacteriological Filter",Filter,FLT-VAC-BACT,FLT-VAC-PLT,"Vacuum bact filter",Generic
+MGS-VIE,"VIE Pressure Relief Valve",Valve,PRV-VIE,VLV-VIE,"Pressure relief valve",Generic
+CEQ-PEND-*,"Pendant Brake Pad Set",Mechanical,BRK-PEND,BRKSET-PEND,"Brake pad set for ceiling pendant",Generic
+CEQ-AUTOCLAVE,"Door Seal",Seal,SEAL-AUTO,SEAL-AUTOCLAVE,"Autoclave door gasket",Generic
+CEQ-AUTOCLAVE,"Steam Generator Element",Heater,EL-STEAM,EL-AUTOCLAVE,"Heater element",Generic
+CEQ-WD,"Wash Pump",Pump,PMP-WD,PMP-WD,"Wash circulation pump",Generic
+CEQ-MRI-*,"Quench Vent Burst Disk",Safety,BD-MRI-QV,BD-MRI,"Quench vent burst disk",Generic
+CEQ-LINAC,"Output Constancy Phantom",QA,QAP-LINAC,QA-LINAC,"Daily output constancy phantom",Generic
+CEQ-DIAL-RO,"RO Membrane",Filter,RO-MEM-50,RO-MEM-DIA,"50 GPM RO membrane",Generic
+CEQ-DIAL-RO,"Endotoxin Filter",Filter,FLT-ENDO,FLT-DIA,"Endotoxin filter post RO",Generic
+CEQ-NCS,"Nurse Call Pull Cord",Cord,CORD-NCS,CORD-NCS,"Replacement pull cord",Generic
+CEQ-AED,"AED Pad Set",Consumable,PAD-AED-AD,PAD-AED,"Adult electrode pad pair",Generic
+CEQ-AED,"AED Battery",Battery,BAT-AED,BAT-AED,"AED battery pack",Generic
+CEQ-PTS-STN,"PTS Carrier",Consumable,PTS-CARR,PTS-CARR,"Pneumatic tube carrier",Generic
+CEQ-MORT-FRG,"Door Seal",Seal,SEAL-MORT-FRG,SEAL-MORT,"Mortuary fridge door gasket",Generic
+CEQ-USP797-ISO,"HEPA Filter",Filter,HEPA-ISO-797,HEPA-797,"HEPA H14 isolator filter",Generic
+CEQ-USP800-CPEC,"HEPA Filter (Containment)",Filter,HEPA-CPEC-800,HEPA-800,"HEPA H14 containment filter",Generic
+CEQ-CYTO-HOOD,"HEPA Filter",Filter,HEPA-CYTO,HEPA-CYTO,"HEPA H14 cytotoxic filter",Generic
+CEQ-BSC-2,"HEPA Filter (Both)",Filter,HEPA-BSC-2,HEPA-BSC,"HEPA H14 BSC supply + exhaust",Generic
+CEQ-FUME-PATH,"Carbon Filter",Filter,CARB-FUME,FLT-FUME,"Carbon scrubber",Generic
+CEQ-ENDO-REPRO,"Sterilant Cartridge",Consumable,STER-ENDO,STER-ENDO,"Endoscope reprocessor sterilant",Generic
+CEQ-SCRUB,"TMV3 Cartridge",Plumbing,TMV3-CART,TMV3-SCRUB,"TMV3 thermostatic cartridge",Generic

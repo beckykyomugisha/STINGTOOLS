@@ -1,0 +1,11 @@
+EquipmentCode,EquipmentName,WeightKg,FloorLoadKnM2Min,VibrationVcBand,Notes
+MRI-15T,MRI 1.5T,5500,15,VC-C,Includes shielding ring; vendor-specific
+MRI-3T,MRI 3T,8000,18,VC-C,Heavier shielding for cryogen
+CT-64,CT 64-slice,2200,12,VC-B,
+CT-256,CT 256-slice,2800,15,VC-B,
+PET-CT,PET-CT combined,3500,15,VC-B,
+LIN-XX,Linear accelerator,18000,30,VC-A,Massive bunker; bunker slab usually >500 mm
+FLR-01,Fluoroscopy room,1200,10,VC-B,
+XRY-RAD-DR,Radiography DR,800,8,VC-D,
+HBO-MULTI,Multi-place hyperbaric,4500,15,VC-D,Pressure vessel
+RO-DIA,Dialysis RO plant,1100,8,VC-D,

@@ -2,6 +2,36 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Healthcare Pack H-1..H-30 — Hospital design content layer)
+
+Delivers the full Healthcare Pack against [`HEALTHCARE_PACK_DESIGN.md`](HEALTHCARE_PACK_DESIGN.md).
+Branch: `claude/research-hospital-design-0Uxbi`.
+
+| Phase | Scope | Highlights |
+|---|---|---|
+| **H-1** | Vocabulary + parameter pack | 5 new groups (28 CLN_CLINICAL / 29 MGS_SYSTEMS / 30 RAD_PROTECTION / 31 CEQ_CLINICAL / 32 LIG_BEHAVIOURAL) + ~100 net-new shared parameters; H/MG/RP disciplines; 60 healthcare tag families |
+| **H-2** | Filters + ViewStylePacks | 58 filters + 8 packs (clinical / shielding / pressure / fire / mgs / ees / water / ligature) + 12 routing rules |
+| **H-3** | Drawing Type catalogue | 22 healthcare drawing types + 22 routing rules (RDS / MGPS / pressure / EES / IPS / decon / mortuary / fire / radiation / MRI / ligature / bedhead / OR-RCP / water-safety / acoustic / structural / RTLS / waste / nuclear-medicine) |
+| **H-4** | Standards-API skeleton | 7 modules: HTM / HBN / FGI / NFPA99 / NCRP147 / ASHRAE170 / USP797800 |
+| **H-5** | Healthcare validators (8) | PressureRegime / MgasFlow / EesBranch / WaterSafety / RadShield / Adjacency / AntiLigature / RdsCompleteness + RunAllHealthcareValidators gated on facility-type |
+| **H-6** | COBie healthcare overlay | 50 equipment types + 16 systems + 70 picklist values + 35 PPM templates + 12 doc types + 26 spare-part templates |
+| **H-7** | Medical-gas package | MgasNetwork / MgasFlowSolver / MgasVerificationLog + 2 commands + BS 5682 TU table + HTM 02-01 pipe-sizing + family stubs |
+| **H-8** | RDS engine | RdsContextBuilder + RdsRenderer + 2 commands + 50-token field map |
+| **H-9** | Radiation & MRI | NCRP 147 / 151 calc commands (chest / CT / LINAC) + MriZoneEngine + MriZoneAuditCommand |
+| **H-10** | Adjacency + flow | RoomGraphBuilder (door graph) + CleanDirtyFlowSolver (BFS depth 3) + AdjacencyAuditCommand + HBN adjacency CSV |
+| **H-11..H-19** | 9 specialist packs | Anti-ligature / Hybrid-OR / USP / Behavioural / Mortuary / Maternity-NICU / HSDU / Dialysis / HBO — 9 audit commands + 9 rule JSONs |
+| **H-20** | Digital twin / IoT | IoTDeviceRegistry + TwinReadback (BACnet / OPC-UA stubs) + IoTStalenessValidator + IoTRegistryCommand + HEALTHCARE_ALERT_ROUTING.json (10 alert types) |
+| **H-21** | Mobile commissioning | 6 screens under `Planscape/app/healthcare/` (overview / mgas-checklist / pressure-live / water-flush / anti-ligature-audit / rds-viewer) |
+| **H-22** | Server APIs | 4 entities (PressureLog / MgasVerification / AntiLigatureAudit / RdsSnapshot) + HealthcareController with 9 endpoints + DbContext registration |
+| **H-23..H-30** | Structural / Acoustic / Advanced-rad / Endoscope / EES-resilience / Pack-profiles / RTLS / Waste | 8 new validators + 1 gate + Pet511 / SPECT / Brachy calculators + 6 reference data files |
+| **+** | Workflow presets | 8 JSON presets covering commissioning / MGPS verify / pressure audit / RDS issue / HTM 04-01 annual / anti-ligature / NFPA 110 generator / HTM 01-06 endoscope |
+
+Total: ~70 commits; ~3,000 net-new lines of C# + ~1,500 lines of data
+files + ~400 lines of TS for the mobile app + the design doc itself.
+
+Built without `dotnet build` verification (Linux sandbox). Verify in
+Revit before merge to `master`.
+
 #### Completed (Phase 180+181 — Photometric Library + DIALux Round-Trip Loop)
 
 Closes the design loop for lighting: engineer models luminaires in Revit
