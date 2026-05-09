@@ -2780,3 +2780,45 @@ c8d4f6e2-2601-4d27-8c61-0e7a3f9c1001,ICT_HEALTHIOT_DEVICE_ID_TXT,TEXT,,3,COM_DAT
 c8d4f6e2-2602-4d27-8c61-0e7a3f9c1002,ICT_HEALTHIOT_PROTOCOL_TXT,TEXT,,3,COM_DAT,1,IoT protocol BACNET/OPC-UA/MODBUS/REST/PROPRIETARY [H-20],1
 c8d4f6e2-2603-4d27-8c61-0e7a3f9c1003,ICT_HEALTHIOT_ENDPOINT_TXT,TEXT,,3,COM_DAT,1,IoT endpoint URI [H-20],1
 c8d4f6e2-2604-4d27-8c61-0e7a3f9c1004,ICT_HEALTHIOT_ALERT_BAND_TXT,TEXT,,3,COM_DAT,1,IoT alert band free-text [H-20],1
+9468e66a-ee14-50bb-b0e9-00005ea06497,PLM_DFU_COUNT_INT,INTEGER,,6,PLM_DRN,1,IPC 2021 Drainage Fixture Units assigned to fixture or pipe segment [Phase 178b],1
+689d24e8-c9b5-5705-8f7f-57a3e6436c19,PLM_WSFU_COUNT_INT,INTEGER,,6,PLM_DRN,1,IPC 2021 Water Supply Fixture Units [Phase 178b],1
+6389d133-18f9-549b-81b2-a7854cc06dff,PLM_TRAP_TYPE_TXT,TEXT,,6,PLM_DRN,1,Trap type P-TRAP/BOTTLE-TRAP/DEEP-SEAL/INTEGRAL [BS EN 12056-2 Phase 178b],1
+cde11f1f-ce97-59b6-9e31-88733c0074bc,PLM_TRAP_SEAL_DEPTH_MM,TEXT,,6,PLM_DRN,1,Trap water seal depth mm minimum 50 [BS EN 12056-2 Phase 178b],1
+ce6f77ba-72d5-5904-ba1a-b01d6a09274c,PLM_VENT_SIZE_DN,INTEGER,,6,PLM_DRN,1,Vent pipe nominal diameter mm [IPC 2021 Table 916.1 Phase 178b],1
+cd10ebf4-3e56-5f81-bde7-5a7efbb3312d,PLM_AAV_REQUIRED_BOOL,YESNO,,6,PLM_DRN,1,Air Admittance Valve required [BS EN 12380 Phase 178b],1
+6ff40ae1-9a6a-59d7-93aa-1b3ea27b3f28,PLM_CALC_DN_MM,INTEGER,,6,PLM_DRN,1,Auto-calculated minimum pipe diameter mm DrainageSizer output [Phase 178b],1
+5a6613d4-2b44-5f13-b023-74ad817ca427,PLM_CALC_SLOPE_PCT,TEXT,,6,PLM_DRN,1,Auto-calculated minimum slope percent DrainageSizer output [Phase 178b],1
+4d30cc88-36ca-56bc-b070-9eda111b4ca4,PLM_DEMAND_FLOW_LPS,TEXT,,6,PLM_DRN,1,Design flow rate l/s for pipe or branch [Phase 178b],1
+12bdb567-8260-51e3-9048-c853ad1536e1,PLM_VELOCITY_MPS,TEXT,,6,PLM_DRN,1,Design flow velocity m/s [Phase 178b],1
+2dd14866-68c7-5f8b-8541-2760a011e644,PLM_FRICTION_LOSS_PA_M,TEXT,,6,PLM_DRN,1,Friction head loss Pa per metre [Phase 178b],1
+bc0dcd88-a1a4-58c3-aa26-900b3a1658c2,PLM_PRESSURE_TEST_KPA,INTEGER,,6,PLM_DRN,1,Test pressure kPa default 100 [BS EN 12056-5 Phase 178b],1
+453c0b62-3bc7-57f4-b099-277e022d40e0,PLM_FLUID_CATEGORY_TXT,TEXT,,6,PLM_DRN,1,BS EN 1717 fluid category 1-5 [Phase 178b],1
+7e293a2c-4851-5677-bbb2-99be80e47d54,PLM_VLV_BACKFLOW_TYPE_TXT,TEXT,,6,PLM_DRN,1,Backflow prevention device CHK-SC/CHK-DC/VLV-RPZ/GAP-AA [BS EN 1717 Phase 178b],1
+39ef8603-2ac1-5bba-9de1-b770f304098b,PLM_PPE_STANDARD_TXT,TEXT,,6,PLM_DRN,1,Pipe material standard EN 1057/EN 10255/EN 1452/EN 877/EN 12201 [Phase 178b],1
+66c4b030-073b-5ae3-a0d9-2c15f6b88b8a,PLM_PPE_SCHEDULE_TXT,TEXT,,6,PLM_DRN,1,Pipe schedule SCH 10/40/80 SDR 11/17 [Phase 178b],1
+b56727b6-4e83-5e65-85f9-6fcce50ee8cf,PLM_PPE_GRADE_TXT,TEXT,,6,PLM_DRN,1,Material grade R220 R250 316L 304L PE100 [Phase 178b],1
+9bf49b76-7b80-5403-b9b6-5519ab4cb7e7,PLM_PPE_WRAS_APPROVED_BOOL,YESNO,,6,PLM_DRN,1,WRAS approved product [Phase 178b],1
+1f327972-191d-55e5-98fb-8c6a46d84d3b,PLM_PPE_COLOR_BS1710_TXT,TEXT,,6,PLM_DRN,1,Pipe identification colour per BS 1710 [Phase 178b],1
+e4412254-bea7-5a5e-9113-fee0ee9f5ff2,PLM_PPE_WALL_THK_MM,TEXT,,6,PLM_DRN,1,Pipe wall thickness mm for invert calc [Phase 178b],1
+75ebc9f4-666a-507e-8ea2-b72040578982,PLM_MAT_TXT,TEXT,,6,PLM_DRN,1,Pipe material code CU_R250_X MDPE_PE80_BLUE etc [Phase 178b],1
+d6a7f909-d625-5513-9ed5-7cb61ab29ae9,PLM_RWH_ROOF_AREA_M2,TEXT,,6,PLM_DRN,1,Roof contributing area for rainwater harvesting m2 [BS 8515 Phase 178b],1
+75da88b8-9ae8-5c9a-9c24-002d8cb141d3,PLM_RWH_TANK_VOL_M3,TEXT,,6,PLM_DRN,1,Calculated RWH tank volume m3 [BS 8515 Phase 178b],1
+a359f448-eca1-5ad1-83ce-d55cbcce0e0c,PLM_RWH_ANNUAL_YIELD_M3,TEXT,,6,PLM_DRN,1,Calculated annual rainwater yield m3 [BS 8515 Phase 178b],1
+4933f620-561d-5fdd-8563-2dd9c69d5000,PLM_SUDS_ATTEN_VOL_M3,TEXT,,6,PLM_DRN,1,SuDS attenuation volume m3 [CIRIA C753 Phase 178b],1
+61260170-e6e4-5676-8b47-a51e08ae36b4,PLM_SEPTIC_TANK_VOL_L,TEXT,,6,PLM_DRN,1,Septic tank volume litres [BS EN 12566-1 Phase 178b],1
+06dab377-9f9e-59be-b442-a9832e492400,PLM_PRV_SET_PRESSURE_KPA,TEXT,,6,PLM_DRN,1,PRV set-point pressure kPa [Phase 178b],1
+572fcbbd-495e-52b2-8dec-731734e94aab,PLM_PRV_INLET_PRESSURE_KPA,TEXT,,6,PLM_DRN,1,PRV inlet upstream pressure kPa [Phase 178b],1
+00fdeb95-2512-5aec-afed-6eca926c9666,PLM_PRESSURE_ZONE_TXT,TEXT,,6,PLM_DRN,1,Pressure zone LOW/MID/HIGH/BOOSTED [Phase 178b],1
+f6957339-9364-575d-b916-28a31bede75e,PLM_TMV_CLASS_TXT,TEXT,,6,PLM_DRN,1,TMV class TMV2 TMV3 [BS 7942 Phase 178b],1
+1cc13cfc-9059-538d-8c2d-02c9384ef850,PLM_TMV_BLEND_TEMP_C,TEXT,,6,PLM_DRN,1,TMV blended outlet temperature setpoint C [Phase 178b],1
+dc00317c-d340-56b9-9f61-3604459d0289,PLM_VLV_SET_PRESSURE_BAR,TEXT,,6,PLM_DRN,1,Valve set pressure bar PRV / safety valves [Phase 178b],1
+cde9d6ca-3327-585b-a8f7-6260416747c8,PLM_VLV_DESIGN_FLOW_LS,TEXT,,6,PLM_DRN,1,Valve design flow rate l/s [Phase 178b],1
+a0daacb6-3075-5571-adac-f16dd4986012,PLM_VLV_DESIGN_DP_KPA,TEXT,,6,PLM_DRN,1,Valve design pressure drop kPa [Phase 178b],1
+83e44d79-e601-5250-bcbc-d63193ac441f,PLM_VLV_FAIL_POSITION_TXT,TEXT,,6,PLM_DRN,1,Valve fail-safe position OPEN/CLOSED/LAST [Phase 178b],1
+ab46d616-d864-572c-8d9d-5bb51ccaab79,PLM_VLV_WRAS_APPROVED_BOOL,YESNO,,6,PLM_DRN,1,Valve WRAS-approved [Phase 178b],1
+af8461f1-b314-5f60-8e8d-e38963de14f8,PLM_DEAD_LEG_LENGTH_M,TEXT,,6,PLM_DRN,1,Dead-leg length m flagged by DeadLegDetector [HSG 274 Phase 178b],1
+a243bacd-1f2a-5c23-aa4e-f3c60c1ee37a,PLM_AUG_CARE_BOOL,YESNO,,6,PLM_DRN,1,Augmented-care zone fixture HTM 04-01 Part B [Phase 178b],1
+bbab9ac4-5a21-5970-bab2-43532234f241,PLM_RO_LOOP_BOOL,YESNO,,6,PLM_DRN,1,Member of dialysis RO recirculation loop [HTM 04-01 Part D Phase 178b],1
+59bd061b-2641-55e1-8e05-21f1f5dfd56b,PLM_POU_FILTER_BOOL,YESNO,,6,PLM_DRN,1,Point-of-use filter fitted [HTM 04-01 Phase 178b],1
+56f58de8-d502-585d-9f3b-57f169c6c7a2,PLM_SENTINEL_BOOL,YESNO,,6,PLM_DRN,1,TMV sentinel monitoring point [Phase 178b],1
+98ab6e19-8d12-53c0-b388-8705f9413373,PLM_PRJ_PLUMBING_CODE_TXT,TEXT,,1,ASS_MNG,1,Project plumbing-code toggle BS-UK / IPC-US / UPC-US [Phase 178b],1
