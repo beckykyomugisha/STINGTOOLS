@@ -936,7 +936,7 @@ namespace StingTools.Core.Placement
             {
                 case PlacementRuleKind.Density:
                 {
-                    int byArea = 0, byOcc = 0;
+                    int byArea = 0, byOcc = 0, byBed = 0, byCubicle = 0, byPupil = 0, byWs = 0;
                     if (rule.PerAreaM2 > 0)
                     {
                         double areaM2 = 0;
@@ -945,21 +945,36 @@ namespace StingTools.Core.Placement
                     }
                     if (rule.PerOccupant > 0)
                     {
-                        int occ = 0;
-                        try
-                        {
-                            var p = room.LookupParameter("STING_OCC_COUNT_INT");
-                            if (p != null && p.HasValue && p.StorageType == StorageType.Integer) occ = p.AsInteger();
-                        }
-                        catch { }
+                        int occ = ReadRoomIntParam(room,
+                            string.IsNullOrWhiteSpace(rule.OccupancyParamName) ? "STING_OCC_COUNT_INT" : rule.OccupancyParamName);
                         if (occ > 0) byOcc = Math.Max(1, (int)Math.Ceiling((double)occ / rule.PerOccupant));
                     }
-                    cap = Math.Max(byArea, byOcc);
-                    // Phase 139.4 — Density rule with neither PerAreaM2 nor PerOccupant
-                    // (or with both = 0) used to fall through with cap=1, then later
-                    // collapse to candidateCount once MaxPerRoom = 0. Treat the rule
-                    // as misconfigured: place at most one and warn upstream via the
-                    // rule-loader validation pass (#39 below).
+                    // Phase 178a hardening — PerBed / PerToiletCubicle / PerPupil
+                    // / PerWorkstation were declared on PlacementRule but ignored
+                    // here, so healthcare/sanitary/education/office density rules
+                    // fell through to cap=1.
+                    if (rule.PerBed > 0)
+                    {
+                        int beds = ReadRoomIntParam(room, "STING_BED_COUNT_INT");
+                        if (beds > 0) byBed = Math.Max(1, (int)Math.Ceiling((double)beds / rule.PerBed));
+                    }
+                    if (rule.PerToiletCubicle > 0)
+                    {
+                        int cubicles = ReadRoomIntParam(room, "STING_CUBICLE_COUNT_INT");
+                        if (cubicles > 0) byCubicle = Math.Max(1, (int)Math.Ceiling((double)cubicles / rule.PerToiletCubicle));
+                    }
+                    if (rule.PerPupil > 0)
+                    {
+                        int pupils = ReadRoomIntParam(room, "STING_PUPIL_COUNT_INT");
+                        if (pupils > 0) byPupil = Math.Max(1, (int)Math.Ceiling((double)pupils / rule.PerPupil));
+                    }
+                    if (rule.PerWorkstation > 0)
+                    {
+                        int ws = ReadRoomIntParam(room, "STING_WORKSTATION_COUNT_INT");
+                        if (ws > 0) byWs = Math.Max(1, (int)Math.Ceiling((double)ws / rule.PerWorkstation));
+                    }
+                    cap = Math.Max(Math.Max(byArea, byOcc),
+                          Math.Max(Math.Max(byBed, byCubicle), Math.Max(byPupil, byWs)));
                     if (cap == 0) cap = 1;
                     break;
                 }
@@ -1545,6 +1560,25 @@ namespace StingTools.Core.Placement
                 return 2 * (w + d);
             }
             catch (Exception ex) { StingLog.Warn($"ComputeRoomPerimeterMetres: {ex.Message}"); return 0; }
+        }
+
+        private static int ReadRoomIntParam(Room room, string paramName)
+        {
+            if (room == null || string.IsNullOrWhiteSpace(paramName)) return 0;
+            try
+            {
+                var p = room.LookupParameter(paramName);
+                if (p == null || !p.HasValue) return 0;
+                if (p.StorageType == StorageType.Integer) return p.AsInteger();
+                if (p.StorageType == StorageType.Double)  return (int)Math.Round(p.AsDouble());
+                if (p.StorageType == StorageType.String)
+                {
+                    var s = p.AsString();
+                    if (int.TryParse(s, out int v)) return v;
+                }
+            }
+            catch { }
+            return 0;
         }
 
         private static string SafeRoomName(Room room)
