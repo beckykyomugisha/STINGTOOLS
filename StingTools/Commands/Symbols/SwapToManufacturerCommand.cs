@@ -115,8 +115,10 @@ namespace StingTools.Commands.Symbols
 
             // 4) Apply.
             int swapped = 0, skipped = 0, errors = 0;
+            int rejoined = 0;
             string operatorName = SafeUserName();
             string ts = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
+            var swappedIds = new List<ElementId>();
 
             using (var tg = new TransactionGroup(doc, "STING Swap to Manufacturer"))
             {
@@ -145,6 +147,7 @@ namespace StingTools.Commands.Symbols
                                 AppendSwapHistory(el, ts, operatorName, srcFamily,
                                     $"{winner.ResolvedFamilyName} : {winner.ResolvedTypeName}");
                                 swapped++;
+                                swappedIds.Add(id);
                             }
                             catch (Exception ex)
                             {
@@ -155,15 +158,44 @@ namespace StingTools.Commands.Symbols
                     }
                     tx.Commit();
                 }
+
+                // Wave F3 — auto re-stitch. Revit's ChangeTypeId
+                // preserves connections that survive type-shape changes,
+                // but if the destination family has fewer connectors or
+                // they sit in different positions some connections
+                // dropped silently. RestitchSwappedConnectors walks the
+                // newly-swapped instances, finds open connectors near
+                // each other, and attempts a fitting-mediated rejoin.
+                // Runs in its own transaction inside the same
+                // TransactionGroup so a re-stitch failure can't roll
+                // back the swap itself.
+                if (swappedIds.Count > 0)
+                {
+                    using (var tx2 = new Transaction(doc, "STING Re-stitch swapped connectors"))
+                    {
+                        try
+                        {
+                            tx2.Start();
+                            rejoined = RestitchSwappedConnectors(doc, swappedIds);
+                            tx2.Commit();
+                        }
+                        catch (Exception ex)
+                        {
+                            if (tx2.HasStarted() && !tx2.HasEnded()) tx2.RollBack();
+                            StingLog.Warn($"Re-stitch: {ex.Message}");
+                        }
+                    }
+                }
+
                 tg.Assimilate();
             }
 
             try { ActionAuditLog.Record("Family_Swap",
-                $"swapped={swapped} skipped={skipped} errors={errors}"); }
+                $"swapped={swapped} skipped={skipped} errors={errors} rejoined={rejoined}"); }
             catch (Exception ex) { StingLog.Warn($"audit: {ex.Message}"); }
             try { ComplianceScan.InvalidateCache(); } catch { }
 
-            ShowResult(plans, swapped, skipped, errors);
+            ShowResult(plans, swapped, skipped, errors, rejoined);
             return Result.Succeeded;
         }
 
@@ -340,6 +372,107 @@ namespace StingTools.Commands.Symbols
             try { return Environment.UserName ?? "?"; } catch { return "?"; }
         }
 
+        /// <summary>
+        /// Wave F3 — re-stitch open connectors on swapped instances.
+        ///
+        /// After ChangeTypeId, the destination family's connectors land
+        /// at the position the source family's connectors had. When the
+        /// destination has FEWER connectors or they sit in DIFFERENT
+        /// positions, Revit drops the orphaned connection. This pass
+        /// walks every swapped instance, indexes its open (unconnected)
+        /// connectors, and attempts to re-pair them by spatial proximity
+        /// to other open connectors in the swapped set.
+        ///
+        /// Pairing rule:
+        ///   * Both connectors must be free (IsConnected == false).
+        ///   * Same Domain (Electrical / Piping / HVAC).
+        ///   * Distance &lt; 600 mm — same threshold the legacy
+        ///     AutoJoinMepConnectors uses; covers the typical realignment
+        ///     a manufacturer-family swap induces.
+        /// Returns the number of connectors successfully rejoined.
+        /// </summary>
+        private static int RestitchSwappedConnectors(Document doc, IList<ElementId> swappedIds)
+        {
+            if (doc == null || swappedIds == null || swappedIds.Count == 0) return 0;
+            const double radiusFt   = 600.0 / 304.8;
+            const double radiusFtSq = (600.0 / 304.8) * (600.0 / 304.8);
+
+            // Collect every open connector on every swapped instance.
+            // Owner kept alongside so we don't re-pair connectors on
+            // the same instance (would form a tight loop).
+            var open = new List<(Connector c, ElementId owner)>();
+            foreach (var id in swappedIds)
+            {
+                FamilyInstance fi = null;
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch { }
+                if (fi == null) continue;
+                var mgr = fi.MEPModel?.ConnectorManager;
+                if (mgr == null) continue;
+                try
+                {
+                    foreach (Connector c in mgr.Connectors)
+                    {
+                        if (c == null || c.IsConnected) continue;
+                        if (c.Domain == Domain.DomainUndefined) continue;
+                        open.Add((c, id));
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Restitch collect {id}: {ex.Message}"); }
+            }
+            if (open.Count < 2) return 0;
+
+            int rejoined = 0;
+            // Greedy O(n^2) pairing — n is the open-connector count for
+            // the swapped set, which is small (rarely > 100). Keeping it
+            // simple beats over-engineering a spatial index for the
+            // expected size.
+            for (int i = 0; i < open.Count; i++)
+            {
+                var (a, ownerA) = open[i];
+                if (a.IsConnected) continue;
+                for (int j = i + 1; j < open.Count; j++)
+                {
+                    var (b, ownerB) = open[j];
+                    if (b.IsConnected) continue;
+                    if (ownerA == ownerB) continue;
+                    if (a.Domain != b.Domain) continue;
+
+                    double dx = a.Origin.X - b.Origin.X;
+                    double dy = a.Origin.Y - b.Origin.Y;
+                    double dz = a.Origin.Z - b.Origin.Z;
+                    if (dx * dx + dy * dy + dz * dz > radiusFtSq) continue;
+
+                    try
+                    {
+                        // Direct ConnectTo first — when connectors are
+                        // co-located within 5 mm a fitting is unnecessary.
+                        if (a.Origin.DistanceTo(b.Origin) < (5.0 / 304.8))
+                        {
+                            a.ConnectTo(b);
+                            rejoined++;
+                            break;
+                        }
+                        // Fitting-mediated for slightly-displaced pairs.
+                        // doc.Create.NewElbowFitting / NewUnionFitting /
+                        // NewTransitionFitting are the candidates; we
+                        // try elbow first since it's the most-tolerant.
+                        FamilyInstance fitting = null;
+                        try { fitting = doc.Create.NewElbowFitting(a, b); }
+                        catch { }
+                        if (fitting == null)
+                        {
+                            try { fitting = doc.Create.NewUnionFitting(a, b); }
+                            catch { }
+                        }
+                        if (fitting != null) rejoined++;
+                    }
+                    catch (Exception ex) { StingLog.Info($"Restitch pair: {ex.Message}"); }
+                    break;
+                }
+            }
+            return rejoined;
+        }
+
         private static void AppendSwapHistory(Element el, string ts, string op, string src, string dst)
         {
             try
@@ -352,14 +485,16 @@ namespace StingTools.Commands.Symbols
             catch (Exception ex) { StingLog.Warn($"AppendSwapHistory {el?.Id}: {ex.Message}"); }
         }
 
-        private static void ShowResult(List<SwapPlan> plans, int swapped, int skipped, int errors)
+        private static void ShowResult(List<SwapPlan> plans, int swapped, int skipped, int errors, int rejoined)
         {
             var panel = StingResultPanel.Create("Swap to Manufacturer — Result");
-            panel.SetSubtitle($"{swapped} swapped · {skipped} skipped · {errors} errors");
+            panel.SetSubtitle($"{swapped} swapped · {skipped} skipped · {errors} errors · {rejoined} connectors rejoined");
             panel.AddSection("SUMMARY")
                 .MetricHighlight("Swapped", swapped.ToString())
                 .Metric("Skipped (no candidate)", skipped.ToString())
-                .MetricError("Errors", errors.ToString());
+                .MetricError("Errors", errors.ToString())
+                .Metric("Connectors rejoined", rejoined.ToString(),
+                    "auto re-stitched after swap (within 600 mm, same domain)");
             panel.AddSection("BY SEED");
             foreach (var p in plans)
             {
@@ -368,7 +503,9 @@ namespace StingTools.Commands.Symbols
                     c != null ? $"→ {c.ResolvedFamilyName} : {c.ResolvedTypeName}" : "no manufacturer family loaded");
             }
             panel.AddSection("NEXT STEPS")
-                .Text("Run AutoJoinMepConnectors / Auto-Route Conduit to re-stitch connections.")
+                .Text(rejoined > 0
+                    ? $"{rejoined} connector(s) auto-rejoined inside the swap transaction. Re-run Auto-Route Conduit only if any cable still surfaces as unrouted."
+                    : "Re-run Auto-Route Conduit if any cable still surfaces as unrouted (the auto re-stitch found nothing within 600 mm to pair).")
                 .Text("Run BS 7671 validation — fill / bend / radius re-evaluate against the new family.")
                 .Text("STING_SWAP_HISTORY_TXT carries the audit trail; export via the Penetration Register schedule.");
             panel.Show();
