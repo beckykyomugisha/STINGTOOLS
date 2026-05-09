@@ -92,6 +92,13 @@
             <Setter Property="Margin" Value="0,3,0,1"/>
             <Setter Property="Opacity" Value="0.7"/>
         </Style>
+        <!-- Used by the Healthcare tab to lay out rows of ActionBtn buttons.
+             Missing this definition is what fired the StaticResourceExtension
+             error that crashed RegisterDockablePane and hid the ribbon tab. -->
+        <Style x:Key="ButtonWrap" TargetType="WrapPanel">
+            <Setter Property="Orientation" Value="Horizontal"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
     </Page.Resources>
 
     <Grid>
