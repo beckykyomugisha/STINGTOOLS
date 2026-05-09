@@ -930,7 +930,6 @@ public record CreateIssueRequest(
     string Title,
     string? Description,
     string? Priority,
-    string? Status,             // viewer / mobile may post explicit status (defaults to OPEN)
     string? Assignee,
     string? AssigneeEmail,
     Guid? AssigneeUserId,
@@ -951,15 +950,24 @@ public record CreateIssueRequest(
     double? ModelX,
     double? ModelY,
     double? ModelZ,
+    // ── Additive fields below this line ───────────────────────────────────
+    // New positional record parameters MUST go at the end so existing
+    // positional callers (other plugins, external integrations, future
+    // forks) keep compiling. JSON callers ignore parameter order.
+    //
     // WATCHERS — list of AppUser ids who get push notifications for every
     // status change and comment on this issue, in addition to the assignee.
     // Validated against project membership before persisting.
-    Guid[]? WatcherUserIds);
+    Guid[]? WatcherUserIds,
+    // Explicit lifecycle status from the viewer / mobile create form
+    // (defaults to OPEN server-side when null/empty).
+    string? Status);
 public record UpdateIssueRequest(
     string? Status,
     string? Priority,
     string? Assignee,
     string? Description,
+    // ── Additive fields below this line ───────────────────────────────────
     // Replace the watcher list (null = leave unchanged; empty array = clear).
     Guid[]? WatcherUserIds);
 public record LinkAttachmentRequest(Guid DocumentId);
