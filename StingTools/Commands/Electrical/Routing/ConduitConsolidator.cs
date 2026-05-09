@@ -50,6 +50,18 @@ namespace StingTools.Commands.Electrical.Routing
         public int    SaveableConduitCount { get; set; }
     }
 
+    public sealed class ConsolidationApplyResult
+    {
+        /// <summary>Number of groups successfully consolidated.</summary>
+        public int ConsolidatedCount { get; set; }
+        /// <summary>Per-cable conduits removed from the model.</summary>
+        public int DeletedConduits { get; set; }
+        /// <summary>Consolidated conduit segments newly created.</summary>
+        public int NewConsolidatedConduits { get; set; }
+        public int Errors { get; set; }
+        public List<string> Warnings { get; } = new List<string>();
+    }
+
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class ConduitConsolidatorCommand : IExternalCommand
@@ -82,14 +94,220 @@ namespace StingTools.Commands.Electrical.Routing
                 return Result.Succeeded;
             }
 
-            // Stage 2 — preview / confirm.
-            var preview = StingResultPanel.Create("Conduit Consolidation — Preview");
+            // Stage 2 — preview + Apply confirmation.
+            var dlg = new TaskDialog("STING Consolidator")
+            {
+                MainInstruction = $"Consolidate {groups.Count} group(s)?",
+                MainContent =
+                    $"{groups.Sum(g => g.Members.Count)} cable(s) currently routed in " +
+                    $"{groups.Sum(g => g.Members.Count)} separate conduits will be merged into " +
+                    $"{groups.Count} consolidated conduit run(s) sized to ≤40% fill (BS EN 61386).\n\n" +
+                    "DESTRUCTIVE: Apply deletes the existing per-cable conduits and routes a single " +
+                    "larger conduit per group. The cable manifest is updated so each member cable's " +
+                    "RouteTrayIds points at the new consolidated run.\n\n" +
+                    "Cancel = preview-only run (no changes).",
+                CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No
+            };
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Preview only", "Show the plan without modifying the model.");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Apply consolidation", "Delete + re-route. One TransactionGroup → fully reversible via undo.");
+            var choice = dlg.Show();
+
+            if (choice == TaskDialogResult.CommandLink1 || choice == TaskDialogResult.Cancel ||
+                choice == TaskDialogResult.No)
+            {
+                ShowPreviewPanel(groups, totalSaved, manifest, applyResult: null);
+                return Result.Succeeded;
+            }
+
+            // Stage 3 — Apply.
+            var applyR = ApplyConsolidation(doc, groups, manifest);
+            try { manifest.Save(doc); } catch (Exception ex) { StingLog.Warn($"Manifest save: {ex.Message}"); }
+            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ActionAuditLog.Record("Consolidate_Apply",
+                $"groups={groups.Count} consolidated={applyR.ConsolidatedCount} " +
+                $"deletedConduits={applyR.DeletedConduits} errors={applyR.Errors}"); }
+            catch (Exception ex) { StingLog.Warn($"audit: {ex.Message}"); }
+
+            ShowPreviewPanel(groups, totalSaved, manifest, applyR);
+            return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Destructively consolidate every group. For each: pick a
+        /// representative source/destination XYZ from the first member
+        /// cable, delete every member's per-cable conduits, route a
+        /// single conduit at the union diameter, update each member's
+        /// RouteTrayIds. Wrapped in a TransactionGroup so the whole
+        /// apply rolls back on fatal failure.
+        /// </summary>
+        public static ConsolidationApplyResult ApplyConsolidation(
+            Document doc, IList<ConsolidationGroup> groups, CableManifest manifest)
+        {
+            var result = new ConsolidationApplyResult();
+            if (doc == null || groups == null || groups.Count == 0) return result;
+
+            var conduitType = new FilteredElementCollector(doc)
+                .OfClass(typeof(ConduitType)).Cast<ConduitType>().FirstOrDefault();
+            if (conduitType == null)
+            {
+                result.Errors++;
+                result.Warnings.Add("No ConduitType in project — cannot create consolidated runs.");
+                return result;
+            }
+
+            using (var tg = new TransactionGroup(doc, "STING Consolidate Conduits"))
+            {
+                tg.Start();
+                using (var tx = new Transaction(doc, "Delete + Re-route consolidated"))
+                {
+                    tx.Start();
+                    foreach (var group in groups)
+                    {
+                        try
+                        {
+                            ApplyOneGroup(doc, group, conduitType.Id, manifest, result);
+                            result.ConsolidatedCount++;
+                        }
+                        catch (Exception ex)
+                        {
+                            result.Errors++;
+                            result.Warnings.Add($"{group.PanelName}/{group.Segregation}: {ex.Message}");
+                            StingLog.Warn($"Consolidate group: {ex.Message}");
+                        }
+                    }
+                    tx.Commit();
+                }
+                tg.Assimilate();
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Apply a single group: collect all member cables' existing
+        /// per-cable conduit ids, pick one representative member's
+        /// start/end (their cables share source + dest), delete every
+        /// existing member conduit, route ONE consolidated conduit at
+        /// the group's UnionDiameterMm, update every member cable's
+        /// RouteTrayIds to point at the new consolidated run.
+        /// </summary>
+        private static void ApplyOneGroup(
+            Document doc, ConsolidationGroup group, ElementId conduitTypeId,
+            CableManifest manifest, ConsolidationApplyResult result)
+        {
+            // 1) Pick representative endpoints from the first member cable
+            //    that has at least one routed conduit. We could compute
+            //    bbox-of-all-conduits as the bounding run, but for the
+            //    common case where group members go panel→same-load, the
+            //    first member's path is the canonical one.
+            StingCable rep = null;
+            ElementId firstConduitId = ElementId.InvalidElementId;
+            foreach (var c in group.Members)
+            {
+                if (c.RouteTrayIds == null || c.RouteTrayIds.Count == 0) continue;
+                rep = c;
+                firstConduitId = new ElementId((int)c.RouteTrayIds[0]);
+                break;
+            }
+            if (rep == null) return;
+
+            var firstCurve = (doc.GetElement(firstConduitId) as MEPCurve)?.Location as LocationCurve;
+            if (firstCurve?.Curve == null) return;
+            XYZ start = firstCurve.Curve.GetEndPoint(0);
+            XYZ end   = firstCurve.Curve.GetEndPoint(1);
+            ElementId levelId = (doc.GetElement(firstConduitId) as MEPCurve)?.LevelId
+                                ?? doc.ActiveView?.GenLevel?.Id ?? ElementId.InvalidElementId;
+
+            // 2) Delete every member cable's existing per-cable conduits.
+            foreach (var c in group.Members)
+            {
+                if (c.RouteTrayIds == null) continue;
+                foreach (long lid in c.RouteTrayIds)
+                {
+                    try
+                    {
+                        var el = doc.GetElement(new ElementId((int)lid));
+                        if (el == null) continue;
+                        doc.Delete(el.Id);
+                        result.DeletedConduits++;
+                    }
+                    catch (Exception ex)
+                    {
+                        result.Warnings.Add($"Delete conduit {lid}: {ex.Message}");
+                    }
+                }
+                c.RouteTrayIds = new List<long>();
+            }
+
+            // 3) Route a single consolidated conduit at the union diameter.
+            var segments = ConduitRouteEngine.ComputeRoute(start, end,
+                group.UnionDiameterMm, $"CONSOLIDATED:{group.PanelName}");
+            var newIds = new List<long>();
+            int bends = ConduitRouteEngine.CountBends(segments);
+            foreach (var seg in segments)
+            {
+                if (seg.Start.DistanceTo(seg.End) < 0.01) continue;
+                try
+                {
+                    var conduit = Conduit.Create(doc, conduitTypeId, seg.Start, seg.End, levelId);
+                    if (conduit != null)
+                    {
+                        try
+                        {
+                            ParameterHelpers.SetString(conduit, ParamRegistry.ELC_CONDUIT_ROUTE,
+                                $"CONSOLIDATED:{group.PanelName}", overwrite: true);
+                            ParameterHelpers.SetString(conduit, "ELC_CDT_BEND_COUNT_NR",
+                                bends.ToString(), overwrite: true);
+                            double mm = seg.Start.DistanceTo(seg.End) * 304.8;
+                            ParameterHelpers.SetString(conduit, "ELC_CDT_RUN_LENGTH_M",
+                                (mm / 1000.0).ToString("F3",
+                                    System.Globalization.CultureInfo.InvariantCulture),
+                                overwrite: true);
+                            // Stamp cable count so the BS 7671 fill validator
+                            // (Wave A in the routing roadmap) picks the right
+                            // table row when this run is audited later.
+                            ParameterHelpers.SetString(conduit, "ELC_CDT_CABLE_COUNT_NR",
+                                group.Members.Count.ToString(), overwrite: true);
+                        }
+                        catch { }
+                        newIds.Add(conduit.Id.Value);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    result.Warnings.Add($"Conduit.Create consolidated: {ex.Message}");
+                }
+            }
+
+            // 4) Point every member cable at the new consolidated run.
+            foreach (var c in group.Members) c.RouteTrayIds = new List<long>(newIds);
+            result.NewConsolidatedConduits += newIds.Count;
+        }
+
+        // ── Result rendering ────────────────────────────────────────────
+
+        private static void ShowPreviewPanel(IList<ConsolidationGroup> groups, int totalSaved,
+            CableManifest manifest, ConsolidationApplyResult applyResult)
+        {
+            bool applied = applyResult != null;
+            var preview = StingResultPanel.Create(applied
+                ? "Conduit Consolidation — Applied"
+                : "Conduit Consolidation — Preview");
             preview.SetSubtitle($"{groups.Count} group(s), saving up to {totalSaved} duplicate conduit run(s)");
             preview.AddSection("SUMMARY")
                 .Metric("Groups",                groups.Count.ToString())
                 .Metric("Saveable conduit runs", totalSaved.ToString())
                 .Metric("Cable count after",     manifest.Cables.Count.ToString(),
                     "(unchanged — only the conduit envelope changes)");
+            if (applied)
+            {
+                preview.MetricHighlight("Consolidated", applyResult.ConsolidatedCount.ToString());
+                preview.Metric("Deleted conduits",      applyResult.DeletedConduits.ToString());
+                preview.Metric("New consolidated runs", applyResult.NewConsolidatedConduits.ToString());
+                if (applyResult.Errors > 0)
+                    preview.MetricError("Errors", applyResult.Errors.ToString());
+            }
 
             preview.AddSection("GROUPS");
             foreach (var g in groups.OrderByDescending(x => x.SaveableConduitCount).Take(20))
@@ -100,11 +318,27 @@ namespace StingTools.Commands.Electrical.Routing
                     $"new ⌀={g.UnionDiameterMm:F0} mm, save {g.SaveableConduitCount} duplicates");
             }
 
-            preview.AddSection("APPLY")
-                .Text("This is a preview only. Apply consolidation by running the same command again with the 'Apply' modifier (Shift+Click on the button), or via WORKFLOW_ConduitConsolidate.json — the actual conduit deletion + re-route lands in the next sub-phase to keep this preview a safe read-only.");
+            if (!applied)
+            {
+                preview.AddSection("APPLY")
+                    .Text("Re-run the command and choose 'Apply consolidation' to commit.")
+                    .Text("Apply runs in one TransactionGroup — full Ctrl-Z undo if you don't like the result.");
+            }
+            else
+            {
+                preview.AddSection("NEXT STEPS")
+                    .Text("Run 'BS 7671 Compliance Check' — the consolidated runs honor the same fill / bend / length rules and may surface fresh findings.")
+                    .Text("Run 'Junction Box Auto-Place' — a thicker consolidated conduit may exceed bend caps that per-cable runs didn't.")
+                    .Text("Re-run 'Auto-Route Conduit' if any unconnected cable surfaces in the result panel.");
+                if (applyResult.Warnings.Count > 0)
+                {
+                    preview.AddSection("WARNINGS");
+                    foreach (var w in applyResult.Warnings.Take(15)) preview.Text(w);
+                    if (applyResult.Warnings.Count > 15)
+                        preview.Text($"+{applyResult.Warnings.Count - 15} more (StingLog).");
+                }
+            }
             preview.Show();
-
-            return Result.Succeeded;
         }
 
         /// <summary>
