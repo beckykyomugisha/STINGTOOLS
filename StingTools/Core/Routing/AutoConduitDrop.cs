@@ -172,6 +172,19 @@ namespace StingTools.Core.Routing
                 }
                 catch (Exception ex) { result.Warnings.Add($"Stamp run-length: {ex.Message}"); }
 
+                // Phase A — validate every connected bend's radius
+                // against the manufacturer minimum (BS EN 61386 by
+                // material). Findings flow to result.Warnings so the
+                // user sees them in the conduit-drop result panel.
+                try
+                {
+                    var findings = BendRadiusValidator.ValidateRun(Doc, cdt);
+                    foreach (var f in findings)
+                        result.Warnings.Add($"Bend radius: {f.Reason}");
+                }
+                catch (Exception ex)
+                { result.Warnings.Add($"BendRadiusValidator: {ex.Message}"); }
+
                 return cdt.Id;
             }
             catch (Exception ex)

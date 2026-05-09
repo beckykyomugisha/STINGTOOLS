@@ -93,6 +93,26 @@ namespace StingTools.Commands.Electrical.Routing
                         double diamMm = ConduitRouteEngine.SelectConduitDiameterMm(
                             new List<StingCable> { cable });
                         var segments = ConduitRouteEngine.ComputeRoute(startPt, endPt, diamMm, cable.CircuitId);
+
+                        // BS 7671 §522.8.5 — max 3 bends between draw-in
+                        // points. Pre-flight: if the proposed run exceeds
+                        // the cap, surface a finding so the user can
+                        // either pick a different start/end or add
+                        // junction boxes manually. We continue with
+                        // creation regardless — failing closed would
+                        // block the auto-router on the most common
+                        // real-world layouts. The gate's role is to
+                        // SURFACE the violation, not silently swallow it.
+                        const int MaxBendsBetweenDrawIn = 3;
+                        int bends = ConduitRouteEngine.CountBends(segments);
+                        if (bends > MaxBendsBetweenDrawIn)
+                        {
+                            StingLog.Warn(
+                                $"AutoRoute cable {cable.CircuitId}: route has {bends} bends, " +
+                                $"exceeds BS 7671 §522.8.5 limit of {MaxBendsBetweenDrawIn}. " +
+                                "Add a draw-in / junction box to break the run.");
+                        }
+
                         var routeIds = new List<long>();
                         foreach (var seg in segments)
                         {
@@ -106,8 +126,23 @@ namespace StingTools.Commands.Electrical.Routing
                                     seg.Start, seg.End, levelId);
                                 if (conduit != null)
                                 {
-                                    try { ParameterHelpers.SetString(conduit, ParamRegistry.ELC_CONDUIT_ROUTE,
-                                        $"AUTO:{cable.CircuitId}", overwrite: true); }
+                                    try
+                                    {
+                                        ParameterHelpers.SetString(conduit, ParamRegistry.ELC_CONDUIT_ROUTE,
+                                            $"AUTO:{cable.CircuitId}", overwrite: true);
+                                        // Stamp the bend count + run length so
+                                        // ElectricalStandardsValidator + downstream
+                                        // QA can read them without recomputing.
+                                        ParameterHelpers.SetString(conduit,
+                                            "ELC_CDT_BEND_COUNT_NR", bends.ToString(),
+                                            overwrite: true);
+                                        double mm = seg.Start.DistanceTo(seg.End) * 304.8;
+                                        ParameterHelpers.SetString(conduit,
+                                            "ELC_CDT_RUN_LENGTH_M",
+                                            (mm / 1000.0).ToString("F3",
+                                                System.Globalization.CultureInfo.InvariantCulture),
+                                            overwrite: true);
+                                    }
                                     catch { }
                                     routeIds.Add(conduit.Id.Value);
                                 }
