@@ -26,20 +26,37 @@ public class HealthcareController : ControllerBase
     public async Task<IActionResult> Dashboard(Guid projectId)
     {
         var since = DateTime.UtcNow.AddDays(-7);
-        var pressure = await _db.Set<HealthcarePressureLog>()
-            .Where(x => x.ProjectId == projectId && x.CapturedAt >= since).CountAsync();
-        var pressureFail = await _db.Set<HealthcarePressureLog>()
-            .Where(x => x.ProjectId == projectId && x.CapturedAt >= since && !x.InBand).CountAsync();
+        // Two GroupBy queries cover the four count-style aggregates that
+        // came from independent CountAsync calls, halving round-trips
+        // and letting Postgres aggregate in-place. The MGPS "latest"
+        // and RDS count stay separate (they need different orderings /
+        // semantics). 6 sequential queries → 3.
+        var pressureCounts = await _db.Set<HealthcarePressureLog>()
+            .Where(x => x.ProjectId == projectId && x.CapturedAt >= since)
+            .GroupBy(x => 1)
+            .Select(g => new {
+                Total = g.Count(),
+                Fail  = g.Count(x => !x.InBand)
+            })
+            .FirstOrDefaultAsync();
+        var ligCounts = await _db.Set<HealthcareAntiLigatureAudit>()
+            .Where(x => x.ProjectId == projectId)
+            .GroupBy(x => 1)
+            .Select(g => new {
+                Total = g.Count(),
+                Fail  = g.Count(x => !x.Pass)
+            })
+            .FirstOrDefaultAsync();
         var mgasLatest = await _db.Set<HealthcareMgasVerification>()
             .Where(x => x.ProjectId == projectId)
             .OrderByDescending(x => x.CapturedAt)
             .FirstOrDefaultAsync();
-        var ligTotal = await _db.Set<HealthcareAntiLigatureAudit>()
-            .Where(x => x.ProjectId == projectId).CountAsync();
-        var ligFail  = await _db.Set<HealthcareAntiLigatureAudit>()
-            .Where(x => x.ProjectId == projectId && !x.Pass).CountAsync();
         var rdsCount = await _db.Set<HealthcareRdsSnapshot>()
             .Where(x => x.ProjectId == projectId).CountAsync();
+        var pressure = pressureCounts?.Total ?? 0;
+        var pressureFail = pressureCounts?.Fail ?? 0;
+        var ligTotal = ligCounts?.Total ?? 0;
+        var ligFail  = ligCounts?.Fail ?? 0;
         return Ok(new {
             pressure = new { totalLast7d = pressure, breachLast7d = pressureFail,
                               rag = pressureFail > 0 ? "R" : "G" },

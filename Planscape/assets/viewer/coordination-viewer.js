@@ -48,8 +48,23 @@
     const params = new URLSearchParams(location.search);
     const projectId = params.get('project') || '';
     const modelId   = params.get('model')   || '';
-    const apiBase   = window.__PLANSCAPE_API__ || 'http://localhost:5000';
+    // U10 — resolve the API base from (in order): explicit window override
+    // for embedders, user-saved Settings popover value (LAN/staging/on-prem),
+    // build-time injected EXPO_PUBLIC_API_BASE, the URL ?api= param for
+    // share-links from another origin, and finally the localhost fallback
+    // so a fresh git-clone still works on dev. The Settings menu writes
+    // `planscape_api_base` and reloads.
+    const storedApi = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_api_base')) || '';
+    const apiBase   = window.__PLANSCAPE_API__
+                   || storedApi
+                   || params.get('api')
+                   || 'http://localhost:5000';
     const token     = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_token')) || '';
+    // Apply persisted theme on first paint so re-loads don't flash white.
+    try {
+      const t = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_theme')) || 'dark';
+      document.documentElement.dataset.theme = t;
+    } catch (_) {}
 
     // C2: when the viewer is loaded as a bundled asset inside the React
     // Native WebView (Asset.fromModule → file://) the host app supplies all
@@ -77,7 +92,12 @@
                 { id: 'sd', name: 'Sting Davis', initials: 'SD' },
                 { id: 'se', name: 'Sentongo E.', initials: 'SE' }],
       activeDisciplines: new Set(),   // empty = all visible
-      selectedElementGuid: null,
+      selectedElementGuid: null,      // PRIMARY (last-clicked) — kept for
+                                      // backward-compat with downstream
+                                      // single-element call sites.
+      selectedElementGuids: new Set(),// FULL multi-selection set; supports
+                                      // ctrl/cmd-click toggle, shift-click
+                                      // range, and tree-multi-select.
       selectedElementMesh: null,
       selectedClashId: null,
       selectedIssueId: null,
@@ -95,6 +115,11 @@
       history: [],
       issuePins: new Map(),    // issueId → mesh
       clashPins: new Map(),    // clashId → mesh
+      photoPins: new Map(),    // Slice 4b — photoId → mesh
+      photos: [],              // Slice 4b — list of SitePhotoDto rows
+      photoFilters: { reason: 'any', audience: 'any' },
+      photoCaptureSeed: {},
+      photoReviewSelected: new Set(),
       elementMaterials: new Map(), // mesh.uuid → original material (for ghost / highlight)
       ghostMode: false,
       apiBase, projectId, modelId, token
@@ -189,6 +214,12 @@
     setupSectionCard();
     setupHelp();
     setupHeartbeat();
+    setupSelectionToolbar();
+    setupRowContextMenu();
+    setupPhotoCaptureModal();
+    setupPhotoReviewModal();
+    setupPhotoFab();
+    setupPhotoRealtime();
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -293,9 +324,40 @@
         }
       }
 
-      // Issues + clashes
+      // Project members — populates assignee + watcher pickers with the
+      // real org/project roster instead of the hardcoded "Sting Davis /
+      // Sentongo E." demo seed. Falls back silently to the seed list when
+      // the endpoint is unavailable (offline, permission denied, etc.).
+      await loadProjectMembers();
+
+      // Issues + clashes + site photos (Slice 4b)
       await loadIssues();
       await loadClashes();
+      await loadSitePhotos();
+    }
+
+    async function loadProjectMembers() {
+      if (!projectId) return;
+      const data = await api(`/api/projects/${projectId}/members`);
+      const list = Array.isArray(data) ? data : (data?.items || data?.members || []);
+      if (!list.length) return;     // keep demo seed when API empty/unauth
+      const me = state.currentUser;
+      const meId = me && (me.id || me.userId);
+      const mapped = list.map(m => {
+        const id   = m.userId || m.UserId || m.id || m.Id;
+        const name = m.displayName || m.DisplayName || m.email || m.Email || 'User';
+        const email = m.email || m.Email || '';
+        const role = m.iso19650Role || m.Iso19650Role || m.projectRole || m.ProjectRole || '';
+        const initials = (name || 'U').split(/[\s@]+/).filter(Boolean).map(s => s[0]).slice(0, 2).join('').toUpperCase();
+        return { id, name, email, role, initials };
+      });
+      // Keep "me" pinned at top of the list for ergonomics.
+      const sorted = mapped.sort((a, b) => {
+        if (a.id === meId) return -1;
+        if (b.id === meId) return 1;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+      state.members = sorted;
     }
 
     // Forward a command to the original viewer's handleCommand by dispatching
@@ -355,8 +417,107 @@
       $('#btnClashes').addEventListener('click', () => switchBottomTab('clashes'));
       $('#btnIssueBadge').addEventListener('click', () => switchBottomTab('issues'));
       $('#btnHelp').addEventListener('click', () => $('.help-overlay').classList.add('open'));
-      $('#btnSettings').addEventListener('click', () => toast('Settings — TODO'));
+      $('#btnSettings').addEventListener('click', (e) => { e.stopPropagation(); openSettingsMenu(); });
       $('#btnNotifs').addEventListener('click', () => toast(`${state.issues.filter(i => i.status !== 'RESOLVED').length} open issues`));
+
+      // ── Navigation: brand and breadcrumb make the viewer feel like part
+      // of the wider Planscape app instead of a leaf page. They link to
+      // the parent shell (the static planscape-site / API "/app" route)
+      // when one is reachable, and otherwise fall back gracefully.
+      const brand = $('#brandHome');
+      if (brand) brand.addEventListener('click', (e) => {
+        e.preventDefault();
+        // Prefer the API host's /app/projects route, else the current
+        // origin's /app/projects, else just /index.html.
+        const target = (apiBase ? `${apiBase}/app/projects` : '/app/projects');
+        if (window.ReactNativeWebView) {
+          // Inside the mobile WebView, post a "navigate home" message and
+          // let the React Native host pop the navigation stack.
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'navigateHome' }));
+        } else {
+          location.href = target;
+        }
+      });
+      const crumb = $('#breadcrumbProject');
+      if (crumb) crumb.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (!projectId) return;
+        const target = (apiBase ? `${apiBase}/app/projects/${projectId}` : `/app/projects/${projectId}`);
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'navigateProject', projectId }));
+        } else {
+          location.href = target;
+        }
+      });
+
+      setupSettingsMenu();
+    }
+
+    // ── Settings popover ─────────────────────────────────────────────────
+    // Replaces the previous "TODO" no-op. Persists API base + tenant +
+    // theme to localStorage; reload makes them effective on next bootstrap.
+    function setupSettingsMenu() {
+      const menu = $('#settingsMenu');
+      if (!menu) return;
+      // Hydrate inputs from current config + storage.
+      const api = ($('#settingApiBase')); if (api) api.value = apiBase || '';
+      const tenant = ($('#settingTenant'));
+      if (tenant) tenant.value = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_tenant')) || '';
+      const theme = ($('#settingTheme'));
+      if (theme) theme.value = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_theme')) || 'dark';
+      // Eye height + walk speed hydrate from the same keys viewer-extras +
+      // setupNavControls read at runtime.
+      const eyeH = $('#settingEyeHeight');
+      if (eyeH) {
+        const stored = parseFloat(localStorage.getItem('planscape_eye_height_m'));
+        eyeH.value = !isNaN(stored) && stored > 0 ? stored : '';
+      }
+      const ws = $('#settingWalkSpeed');
+      if (ws) {
+        const stored = parseFloat(localStorage.getItem('planscape_walk_speed'));
+        ws.value = !isNaN(stored) && stored > 0 ? stored : '';
+      }
+
+      $('#settingsCancel')?.addEventListener('click', () => menu.classList.remove('open'));
+      $('#settingsSave')?.addEventListener('click', () => {
+        try {
+          const apiVal    = $('#settingApiBase')?.value.trim() || '';
+          const tenantVal = $('#settingTenant')?.value.trim() || '';
+          const themeVal  = $('#settingTheme')?.value || 'dark';
+          const eyeVal    = parseFloat($('#settingEyeHeight')?.value || '');
+          const wsVal     = parseFloat($('#settingWalkSpeed')?.value || '');
+          if (apiVal)    localStorage.setItem('planscape_api_base', apiVal);
+          else           localStorage.removeItem('planscape_api_base');
+          if (tenantVal) localStorage.setItem('planscape_tenant', tenantVal);
+          else           localStorage.removeItem('planscape_tenant');
+          localStorage.setItem('planscape_theme', themeVal);
+          if (!isNaN(eyeVal) && eyeVal >= 0.6 && eyeVal <= 2.4) {
+            localStorage.setItem('planscape_eye_height_m', String(eyeVal));
+          } else if ($('#settingEyeHeight')?.value === '') {
+            localStorage.removeItem('planscape_eye_height_m');
+          }
+          if (!isNaN(wsVal) && wsVal > 0 && wsVal <= 8) {
+            localStorage.setItem('planscape_walk_speed', String(wsVal));
+            window.__walkSpeedMul = wsVal;
+          }
+          document.documentElement.dataset.theme = themeVal;
+          toast('Settings saved — reloading…', 'success');
+          setTimeout(() => location.reload(), 600);
+        } catch (e) {
+          toast('Could not save settings: ' + (e.message || e), 'error');
+        }
+      });
+      // Close on outside click.
+      document.addEventListener('click', (ev) => {
+        if (!menu.classList.contains('open')) return;
+        if (ev.target.closest('#settingsMenu') || ev.target.closest('#btnSettings')) return;
+        menu.classList.remove('open');
+      });
+    }
+    function openSettingsMenu() {
+      const menu = $('#settingsMenu');
+      if (!menu) return;
+      menu.classList.toggle('open');
     }
 
     function bindMenu(triggerSel, menuSel, items) {
@@ -572,7 +733,39 @@
             node.classList.toggle('open'); node.classList.toggle('closed');
           });
         } else {
-          row.addEventListener('click', () => selectElementByGuid(payload.guid));
+          // Ctrl/Cmd-click toggles the leaf in the multi-selection set.
+          // Plain click replaces. Shift-click (range select) is best-effort:
+          // we walk the visible tree-row siblings between this row and the
+          // most recent primary and add them all.
+          row.addEventListener('click', (ev) => {
+            if (ev.ctrlKey || ev.metaKey) {
+              selectElementByGuid(payload.guid, 'toggle');
+            } else if (ev.shiftKey && state.selectedElementGuid) {
+              // Range select within the same parent group of leaves.
+              const parent = node.parentElement;
+              if (parent) {
+                const siblings = $$('.tree-node', parent).filter(n => n.querySelector('.chev')?.textContent === '');
+                const rows = siblings.map(s => s);
+                const startIdx = rows.indexOf(node);
+                // Find the prior primary's row to anchor the range.
+                let anchorIdx = -1;
+                rows.forEach((r, i) => {
+                  if (r._guid === state.selectedElementGuid) anchorIdx = i;
+                });
+                if (anchorIdx >= 0) {
+                  const [a, b] = anchorIdx < startIdx ? [anchorIdx, startIdx] : [startIdx, anchorIdx];
+                  for (let i = a; i <= b; i++) {
+                    if (rows[i]._guid) selectElementByGuid(rows[i]._guid, 'add');
+                  }
+                  return;
+                }
+              }
+              selectElementByGuid(payload.guid, 'add');
+            } else {
+              selectElementByGuid(payload.guid, 'replace');
+            }
+          });
+          node._guid = payload.guid;        // for shift-range lookup
         }
         return node;
       }
@@ -732,8 +925,15 @@
     }
 
     // ── Saved views ────────────────────────────────────────────────────
-    $('#btnAddView').addEventListener('click', () => {
-      const name = prompt('Saved view name', `View ${state.savedViews.length + 1}`);
+    $('#btnAddView').addEventListener('click', async () => {
+      const name = await promptInline({
+        title: 'Save current view',
+        label: 'Name',
+        placeholder: 'e.g. Plant room — main entry',
+        defaultValue: `View ${state.savedViews.length + 1}`,
+        minLength: 1, maxLength: 80,
+        okLabel: 'Save view',
+      });
       if (!name) return;
       state.savedViews.push({ id: 'v' + Date.now(), name, snapshot: captureViewState() });
       renderSavedViews();
@@ -824,9 +1024,70 @@
           state.rightTab = t.dataset.tab;
           if (t.dataset.tab === 'clashes') renderRightClashes();
           if (t.dataset.tab === 'issues')  renderRightIssues();
+          if (t.dataset.tab === 'photos')  { loadSitePhotos(); renderPhotos(); }
           if (t.dataset.tab === 'comments') renderComments();
+          if (t.dataset.tab === 'activity') renderActivityTimeline();
         });
       });
+    }
+
+    // ── Activity timeline (issue audit trail) ──────────────────────────
+    async function renderActivityTimeline() {
+      const pane = $('#pane-activity');
+      if (!pane) return;
+      const issueId = state.selectedIssueId;
+      if (!issueId) {
+        pane.innerHTML = '<div class="empty-state"><span class="glyph">🕓</span>Select an issue to see its activity</div>';
+        return;
+      }
+      const issue = state.issues.find(i => i.id === issueId);
+      pane.innerHTML = `
+        <div class="prop-section-label">${escapeHtml(issue?.code || issueId)} activity</div>
+        <div class="activity-list" id="activityList">
+          <div class="inline-loader"><span class="dot-spin"></span>Loading…</div>
+        </div>`;
+      const data = await api(`/api/projects/${projectId}/issues/${issueId}/activity`);
+      const entries = Array.isArray(data) ? data : (data?.items || []);
+      const list = $('#activityList');
+      if (!list) return;
+      if (!entries.length) {
+        list.innerHTML = '<div class="empty-state">No activity yet</div>';
+        return;
+      }
+      list.innerHTML = '';
+      entries.forEach(e => {
+        const when = e.timestamp || e.Timestamp || e.createdAt || '';
+        const action = e.action || e.Action || '';
+        const details = e.detailsJson || e.DetailsJson || '';
+        const row = el('div', { class: 'activity-row' }, [
+          el('span', { class: 'when' }, when ? new Date(when).toLocaleString() : ''),
+          el('span', { class: 'what' }, formatActivity(action, details))
+        ]);
+        list.appendChild(row);
+      });
+    }
+
+    function formatActivity(action, detailsJson) {
+      if (!action) return '';
+      let detail = '';
+      if (detailsJson) {
+        try {
+          const obj = JSON.parse(detailsJson);
+          const parts = [];
+          for (const k in obj) {
+            const v = obj[k];
+            if (v && typeof v === 'object' && 'from' in v && 'to' in v) {
+              parts.push(`${k}: ${v.from} → ${v.to}`);
+            } else if (v && typeof v === 'object' && 'changed' in v) {
+              parts.push(`${k} updated`);
+            } else {
+              parts.push(`${k}: ${v}`);
+            }
+          }
+          detail = parts.length ? ' — ' + parts.join(', ') : '';
+        } catch (_) { /* leave detail blank */ }
+      }
+      return `${action}${detail}`;
     }
 
     // ── Comments tab (U2) ──────────────────────────────────────────────
@@ -918,8 +1179,83 @@
     }
 
     // ── Properties tab ─────────────────────────────────────────────────
+    // Compute the intersection of property keys across multiple elements,
+    // keeping only entries where the value is identical for every element.
+    // Returns { name, count, kvs: [[k, v], ...] } so the UI can render
+    // a single "common properties" view for batched edits / inspection.
+    function computeCommonProperties(guids) {
+      const arr = guids.map(g => state.elementMap[g] || {});
+      if (!arr.length) return { name: '—', count: 0, kvs: [] };
+      const flatten = (m) => {
+        const out = {};
+        Object.entries(m || {}).forEach(([k, v]) => {
+          if (v == null) return;
+          if (typeof v === 'object') {
+            Object.entries(v).forEach(([kk, vv]) => { if (vv != null && typeof vv !== 'object') out[`${k}.${kk}`] = vv; });
+          } else {
+            out[k] = v;
+          }
+        });
+        return out;
+      };
+      const flats = arr.map(flatten);
+      const keys = Object.keys(flats[0] || {});
+      const common = [];
+      keys.forEach(k => {
+        const v0 = flats[0][k];
+        if (flats.every(f => f[k] === v0)) common.push([k, v0]);
+      });
+      // Surface common category / discipline at the top so the user
+      // immediately sees what they've grabbed.
+      const categories = new Set(arr.map(m => m.category || ''));
+      const disciplines = new Set(arr.map(m => m.discipline || ''));
+      return {
+        count: arr.length,
+        kvs: common,
+        categorySummary: categories.size === 1 ? [...categories][0] : `${categories.size} categories`,
+        disciplineSummary: disciplines.size === 1 ? [...disciplines][0] : `${disciplines.size} disciplines`
+      };
+    }
+
     function renderProperties(guid) {
       const pane = $('#pane-properties');
+      // Multi-select branch — show common-properties summary instead of
+      // a single element card, with the multi-aware action stack.
+      const sel = state.selectedElementGuids;
+      if (sel && sel.size > 1) {
+        const guids = [...sel];
+        const c = computeCommonProperties(guids);
+        const RESERVED = new Set(['name','category','tag','STING_TAG']);
+        const rows = c.kvs.filter(([k]) => !RESERVED.has(k));
+        pane.innerHTML = `
+          <div class="prop-section-label">Selection</div>
+          <div class="prop-title">${c.count} elements</div>
+          <div class="prop-row"><span class="k">Categories</span><span class="v">${escapeHtml(c.categorySummary || '—')}</span></div>
+          <div class="prop-row"><span class="k">Disciplines</span><span class="v">${escapeHtml(c.disciplineSummary || '—')}</span></div>
+          <div class="prop-section-label">Common properties (${rows.length})</div>
+          ${rows.length
+            ? rows.map(([k, v]) => `<div class="prop-row"><span class="k">${escapeHtml(k)}</span><span class="v">${escapeHtml(String(v))}</span></div>`).join('')
+            : '<div class="prop-row" style="opacity:0.6">No properties shared by every element</div>'}
+          <div class="action-stack">
+            <button class="btn full" id="actMultiCreateIssue">🚩 Create issue from selection</button>
+            <button class="btn ghost full" id="actMultiFit">🎯 Fit to selection</button>
+            <button class="btn ghost full" id="actMultiIsolate">◎ Isolate</button>
+            <button class="btn subtle full" id="actMultiHide">⊘ Hide</button>
+            <button class="btn subtle full" id="actMultiClear">✕ Clear selection</button>
+          </div>`;
+        $('#actMultiCreateIssue', pane)?.addEventListener('click', () => {
+          openIssueModal({
+            guid: state.selectedElementGuid,
+            meta: state.elementMap[state.selectedElementGuid] || {},
+            multi: guids
+          });
+        });
+        $('#actMultiFit', pane)?.addEventListener('click', () => fitToSelection());
+        $('#actMultiIsolate', pane)?.addEventListener('click', () => isolateSelection());
+        $('#actMultiHide', pane)?.addEventListener('click', () => hideSelection());
+        $('#actMultiClear', pane)?.addEventListener('click', () => selectElementByGuid(null));
+        return;
+      }
       if (!guid) {
         const issuesOpen = state.issues.filter(i => i.status !== 'RESOLVED').length;
         const overdue = state.issues.filter(i => i.slaBreached || (i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'RESOLVED')).length;
@@ -1011,6 +1347,86 @@
     // (file:// inside RN WebView, http:// in older browsers). Fall back
     // to the historic textarea + execCommand("copy") trick so the Copy
     // STING Tag / Share view link buttons keep working there too.
+    // ── Inline prompt (replacement for window.prompt) ────────────────
+    // window.prompt is blocked or styled inconsistently across browsers
+    // (mobile WebKit hides it entirely; Chrome's looks like a 1996 Java
+    // applet). This helper renders a small in-app modal that fits the
+    // viewer's design language, supports a multi-line textarea + min/max
+    // length validation, and resolves with the entered string or null.
+    //
+    // opts: { title, label?, placeholder?, defaultValue?, multiline?,
+    //         minLength?, maxLength?, okLabel?, cancelLabel? }
+    // Returns: Promise<string | null>
+    function promptInline(opts) {
+      const {
+        title, label = '', placeholder = '', defaultValue = '',
+        multiline = false, minLength = 0, maxLength = 2000,
+        okLabel = 'OK', cancelLabel = 'Cancel',
+      } = opts || {};
+      return new Promise((resolve) => {
+        const back = el('div', { class: 'modal-backdrop open inline-prompt-bd' });
+        const card = el('div', { class: 'modal inline-prompt' });
+        const head = el('div', { class: 'head' }, [
+          el('h2', {}, title || 'Enter value'),
+          el('button', { class: 'close', title: 'Cancel' }, '✕')
+        ]);
+        const body = el('div', { class: 'body' });
+        if (label) body.appendChild(el('label', {}, label));
+        const input = multiline
+          ? el('textarea', { rows: '3', placeholder })
+          : el('input', { type: 'text', placeholder });
+        input.value = defaultValue || '';
+        body.appendChild(input);
+        const counter = el('div', { class: 'inline-prompt-counter' }, '');
+        body.appendChild(counter);
+        const foot = el('div', { class: 'foot' }, [
+          el('button', { class: 'btn subtle' }, cancelLabel),
+          el('button', { class: 'btn' }, okLabel)
+        ]);
+        card.appendChild(head); card.appendChild(body); card.appendChild(foot);
+        back.appendChild(card);
+        document.body.appendChild(back);
+
+        const okBtn = $('.btn:not(.subtle)', foot);
+        const cancelBtn = $('.btn.subtle', foot);
+        const closeBtn = $('.close', head);
+
+        function paintCounter() {
+          const len = (input.value || '').trim().length;
+          counter.textContent = `${len} / ${maxLength}${minLength > 0 ? ` (min ${minLength})` : ''}`;
+          counter.classList.toggle('warn', minLength > 0 && len < minLength);
+          okBtn.disabled = (minLength > 0 && len < minLength) || len > maxLength;
+        }
+        paintCounter();
+        input.addEventListener('input', paintCounter);
+        // Submit on Enter (single-line) / Ctrl-Enter (multiline).
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' && (!multiline || e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            if (!okBtn.disabled) okBtn.click();
+          }
+        });
+
+        let done = false;
+        function close(value) {
+          if (done) return;
+          done = true;
+          back.remove();
+          resolve(value);
+        }
+        okBtn.addEventListener('click', () => close(input.value));
+        cancelBtn.addEventListener('click', () => close(null));
+        closeBtn.addEventListener('click', () => close(null));
+        back.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') { e.preventDefault(); close(null); }
+        });
+        back.addEventListener('click', (e) => {
+          if (e.target === back) close(null);
+        });
+        setTimeout(() => input.focus(), 30);
+      });
+    }
+
     function copyText(t) {
       if (!t) return;
       const okMsg = 'Copied: ' + t;
@@ -1181,7 +1597,8 @@
         </tr></thead><tbody></tbody>`;
         const tbody = $('tbody', table);
         rows.forEach(c => {
-          const tr = el('tr', { 'data-id': c.id });
+          const tr = el('tr', { 'data-id': c.id, 'data-kind': 'clash' });
+          tr._clash = c;       // setupRowContextMenu reads this
           tr.innerHTML = `
             <td>${escapeHtml(c.id)}</td>
             <td><span class="tag ${c.type === 'HARD' ? 'hard' : 'soft'}">${c.type}</span></td>
@@ -1199,6 +1616,11 @@
           tr.addEventListener('click', (e) => {
             if (e.target.closest('button')) return;
             focusClash(c);
+          });
+          tr.addEventListener('dblclick', (e) => {
+            if (e.target.closest('button')) return;
+            focusClash(c);                         // zoom + isolate the pair
+            isolateClashPair(c);
           });
           // B3 — stopPropagation so clicking "→ Issue" doesn't ALSO fire
           // the row's focusClash and fly the camera away from the modal.
@@ -1296,6 +1718,336 @@
       requestAnimationFrame(step);
     }
 
+    // ── Selection-aware helpers (used by toolbar + multi-select pane) ──
+    // All operate on `state.selectedElementGuids` so behaviour is the same
+    // whether the user grabbed one element by clicking the canvas or 30
+    // by ctrl/shift-clicking through the model tree.
+    function selectedMeshes() {
+      const out = [];
+      state.selectedElementGuids.forEach(g => {
+        const m = findMeshByGuid(g); if (m) out.push(m);
+      });
+      return out;
+    }
+
+    function fitToSelection() {
+      const meshes = selectedMeshes();
+      if (!meshes.length) return toast('Nothing selected', 'warn');
+      const bb = new THREE_.Box3();
+      meshes.forEach(m => bb.expandByObject(m));
+      if (bb.isEmpty()) return;
+      const c = bb.getCenter(new THREE_.Vector3());
+      flyTo(c);
+    }
+
+    function isolateSelection() {
+      if (!V.modelRoot) return;
+      const set = state.selectedElementGuids;
+      if (!set.size) return toast('Nothing selected', 'warn');
+      V.modelRoot.traverse(o => {
+        if (!o.isMesh) return;
+        o.visible = set.has(o.userData.elementGuid);
+      });
+      toast(`Isolated ${set.size} element${set.size === 1 ? '' : 's'}`);
+    }
+
+    function hideSelection() {
+      if (!V.modelRoot) return;
+      const set = state.selectedElementGuids;
+      if (!set.size) return toast('Nothing selected', 'warn');
+      V.modelRoot.traverse(o => {
+        if (!o.isMesh) return;
+        if (set.has(o.userData.elementGuid)) o.visible = false;
+      });
+      toast(`Hid ${set.size} element${set.size === 1 ? '' : 's'}`);
+    }
+
+    function showAllElements() {
+      if (!V.modelRoot) return;
+      V.modelRoot.traverse(o => { if (o.isMesh) o.visible = true; });
+      toast('All elements visible');
+    }
+
+    function renderSelectionToolbar() {
+      const tb = $('#selectionToolbar');
+      if (!tb) return;
+      const n = state.selectedElementGuids.size;
+      if (!n) { tb.style.display = 'none'; return; }
+      tb.style.display = 'flex';
+      const cnt = $('#selCount');
+      if (cnt) cnt.textContent = `${n} selected`;
+    }
+
+    // Isolate just the two meshes involved in a clash (used by dblclick
+    // on a clash row). Falls back to plain focus when meshes can't be
+    // resolved (e.g. element-map response missed them).
+    function isolateClashPair(c) {
+      if (!V.modelRoot) return;
+      const aGuid = c.elementA?.guid;
+      const bGuid = c.elementB?.guid;
+      const set = new Set([aGuid, bGuid].filter(Boolean));
+      if (!set.size) return;
+      V.modelRoot.traverse(o => {
+        if (!o.isMesh) return;
+        o.visible = set.has(o.userData.elementGuid);
+      });
+      toast(`Isolated clash pair (${set.size})`);
+    }
+
+    // ── Right-click + double-click context menu for clash + issue rows ──
+    // Industry references: BIMcollab Zoom + Solibri Office both expose a
+    // right-click "Zoom · Isolate · Hide · Mark resolved · Copy ID" menu
+    // on coordination rows. We use the same mental model so coordinators
+    // moving from those tools find it without training.
+    let activeRowMenu = null;
+    function setupRowContextMenu() {
+      // Re-usable popover element — kept around at the document root so
+      // it's not affected by the panel's own resize / scroll containers.
+      const menu = el('div', { class: 'row-menu', id: 'rowMenu' });
+      document.body.appendChild(menu);
+
+      // Delegate so dynamically-rendered rows (re-render on filter change)
+      // don't need their own listeners.
+      $('#bottomPanel')?.addEventListener('contextmenu', (e) => {
+        const tr = e.target.closest('tr[data-kind]');
+        if (!tr) return;
+        e.preventDefault();
+        const kind = tr.dataset.kind;
+        if (kind === 'clash' && tr._clash) openClashRowMenu(menu, tr._clash, e.clientX, e.clientY);
+        else if (kind === 'issue' && tr._issue) openIssueRowMenu(menu, tr._issue, e.clientX, e.clientY);
+      });
+      // Slice 4b — photo cards live in the right rail, not the bottom panel.
+      // Mirror the row-menu behaviour for `.photo-card[data-kind=photo]`.
+      $('#pane-photos')?.addEventListener('contextmenu', (e) => {
+        const card = e.target.closest('.photo-card[data-kind="photo"]');
+        if (!card || !card._photo) return;
+        e.preventDefault();
+        openPhotoRowMenu(menu, card._photo, e.clientX, e.clientY);
+      });
+      // Click anywhere else to dismiss.
+      document.addEventListener('click', (e) => {
+        if (activeRowMenu && !e.target.closest('.row-menu')) {
+          activeRowMenu.classList.remove('open');
+          activeRowMenu = null;
+        }
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && activeRowMenu) {
+          activeRowMenu.classList.remove('open');
+          activeRowMenu = null;
+        }
+      });
+    }
+
+    function showRowMenuAt(menu, items, x, y) {
+      menu.innerHTML = '';
+      items.forEach(it => {
+        if (it === '-') {
+          menu.appendChild(el('div', { class: 'sep' }));
+          return;
+        }
+        const row = el('div', { class: 'item' + (it.danger ? ' danger' : '') }, [
+          el('span', { class: 'glyph' }, it.glyph || ''),
+          el('span', {}, it.label),
+          it.hot ? el('span', { class: 'hot' }, it.hot) : null
+        ]);
+        row.addEventListener('click', () => {
+          menu.classList.remove('open');
+          activeRowMenu = null;
+          try { it.run(); } catch (err) { console.warn('[row-menu]', err); }
+        });
+        menu.appendChild(row);
+      });
+      // Position with a viewport-edge guard so the menu never clips off-screen.
+      const W = window.innerWidth, H = window.innerHeight;
+      const w = 220, h = items.length * 32;
+      menu.style.left = Math.min(x, W - w - 8) + 'px';
+      menu.style.top  = Math.min(y, H - h - 8) + 'px';
+      menu.classList.add('open');
+      activeRowMenu = menu;
+    }
+
+    function openClashRowMenu(menu, c, x, y) {
+      const aGuid = c.elementA?.guid, bGuid = c.elementB?.guid;
+      showRowMenuAt(menu, [
+        { glyph: '🎯', label: 'Zoom to clash',     run: () => focusClash(c) },
+        { glyph: '◎',  label: 'Isolate pair',      run: () => isolateClashPair(c) },
+        { glyph: '⊘',  label: 'Hide both',         run: () => {
+            if (!V.modelRoot) return;
+            V.modelRoot.traverse(o => { if (o.isMesh && (o.userData.elementGuid === aGuid || o.userData.elementGuid === bGuid)) o.visible = false; });
+            toast('Hid clash pair');
+        }},
+        { glyph: '⊙',  label: 'Show all',          run: () => showAllElements() },
+        '-',
+        { glyph: '🚩', label: 'Create issue from clash', run: () => openIssueModal({ clash: c }) },
+        { glyph: '✓',  label: 'Mark resolved',     run: () => {
+            c.status = 'RESOLVED';
+            renderClashes(); placeClashPins();
+            toast(`${c.id} marked resolved`, 'success');
+        }},
+        '-',
+        { glyph: '📋', label: 'Copy clash ID',     run: () => copyText(c.id) },
+        { glyph: '📤', label: 'Copy element pair', run: () => copyText(`${c.elementA?.name || ''}  ✕  ${c.elementB?.name || ''}`) },
+      ], x, y);
+    }
+
+    function openIssueRowMenu(menu, i, x, y) {
+      const isResolved = i.status === 'RESOLVED' || i.status === 'CLOSED';
+      showRowMenuAt(menu, [
+        { glyph: '🎯', label: 'Zoom to issue',         run: () => focusIssue(i) },
+        { glyph: '◎',  label: 'Isolate linked elements', run: () => {
+            if (!V.modelRoot || !Array.isArray(i.elementGuids)) return;
+            const set = new Set(i.elementGuids);
+            V.modelRoot.traverse(o => {
+              if (!o.isMesh) return;
+              o.visible = set.has(o.userData.elementGuid);
+            });
+            toast(`Isolated ${set.size} linked element${set.size === 1 ? '' : 's'}`);
+        }},
+        { glyph: '⊙',  label: 'Show all',              run: () => showAllElements() },
+        '-',
+        { glyph: '💬', label: 'Open comments',         run: () => {
+            focusIssue(i);
+            const tab = $$('.tab-bar .tab').find(t => t.dataset.tab === 'comments');
+            if (tab) tab.click();
+        }},
+        { glyph: '🕓', label: 'View activity',         run: () => {
+            focusIssue(i);
+            const tab = $$('.tab-bar .tab').find(t => t.dataset.tab === 'activity');
+            if (tab) tab.click();
+        }},
+        '-',
+        ...(isResolved ? [
+          { glyph: '↺', label: 'Re-open issue',        run: () => updateIssue(i.id, { status: 'OPEN' }) },
+        ] : [
+          { glyph: '▶', label: 'Mark in-progress',     run: () => updateIssue(i.id, { status: 'IN_PROGRESS' }) },
+          { glyph: '✓', label: 'Mark resolved',        run: () => updateIssue(i.id, { status: 'RESOLVED' }) },
+          { glyph: '🔒', label: 'Close issue',          run: () => updateIssue(i.id, { status: 'CLOSED' }) },
+        ]),
+        '-',
+        { glyph: '📋', label: 'Copy issue ID',         run: () => copyText(i.code || i.id) },
+        { glyph: '🔗', label: 'Copy permalink',         run: () => {
+            const url = `${location.origin}${location.pathname}?project=${projectId}&model=${modelId}&issue=${i.id}`;
+            copyText(url);
+        }},
+      ], x, y);
+    }
+
+    function openPhotoRowMenu(menu, p, x, y) {
+      const reviewer = isPhotoApprover();
+      const items = [
+        { glyph: '🎯', label: 'Zoom to photo', run: () => focusPhoto(p) },
+      ];
+      if (p.anchorElementGuid) {
+        items.push({ glyph: '◎', label: 'Zoom to anchored element', run: () => {
+          const m = findMeshByGuid(p.anchorElementGuid);
+          if (m) {
+            const bb = new THREE_.Box3().setFromObject(m);
+            flyTo(bb.getCenter(new THREE_.Vector3()));
+            emissive(m, 0xF97316);
+          } else {
+            toast('Anchored element not in current model', 'warn');
+          }
+        }});
+      }
+      items.push('-');
+      items.push({ glyph: '✏', label: 'Edit caption', run: async () => {
+        const cap = await promptInline({
+          title: 'Edit caption',
+          label: 'What does this photo show?',
+          placeholder: 'e.g. Riser sleeves cast on Level 02',
+          defaultValue: p.caption || '',
+          multiline: true, minLength: 0, maxLength: 2000,
+          okLabel: 'Save caption',
+        });
+        if (cap == null) return;
+        // No dedicated patch endpoint yet; an approve(caption) on a
+        // PendingReview photo doubles as caption-set. For other audiences
+        // we surface a notice — the canonical edit path lives on the
+        // server slice 4a (not yet wired into this viewer slice).
+        if (p.audience === 'PendingReview') {
+          if (cap.trim().length < 3) { toast('Caption ≥ 3 chars to approve', 'warn'); return; }
+          const r = await approveSitePhoto(p.id, cap.trim());
+          if (r) { Object.assign(p, r); renderPhotos(); }
+        } else {
+          toast('Caption editing for non-pending photos lands in slice 5', 'warn');
+        }
+      }});
+      if (reviewer) {
+        items.push('-');
+        if (p.audience === 'PendingReview' || p.audience === 'Internal') {
+          items.push({ glyph: '✓', label: 'Approve', run: async () => {
+            let cap = p.caption || '';
+            if (cap.trim().length < 3) {
+              cap = await promptInline({
+                title: 'Approve photo',
+                label: 'Approval caption (visible to client)',
+                placeholder: 'Describe what the client should see',
+                defaultValue: cap,
+                multiline: true, minLength: 3, maxLength: 2000,
+                okLabel: 'Approve & publish',
+              });
+            }
+            if (!cap || cap.trim().length < 3) return;
+            const r = await approveSitePhoto(p.id, cap);
+            if (r) { Object.assign(p, r); renderPhotos(); }
+          }});
+        }
+        if (p.audience === 'PendingReview' || p.audience === 'Approved') {
+          items.push({ glyph: '✗', label: 'Reject', run: async () => {
+            const reason = await promptInline({
+              title: 'Reject photo',
+              label: 'Reason (shown to the capturer)',
+              placeholder: 'e.g. off-topic / poor quality / privacy',
+              defaultValue: '',
+              multiline: true, minLength: 0, maxLength: 500,
+              okLabel: 'Reject',
+            });
+            if (reason === null) return;
+            const r = await rejectSitePhoto(p.id, reason);
+            if (r) { Object.assign(p, r); renderPhotos(); }
+          }});
+        }
+        if (p.audience === 'ClientPortal') {
+          items.push({ glyph: '↶', label: 'Withdraw from portal', run: async () => {
+            if (!confirm('Withdraw this photo from the client portal?')) return;
+            const r = await withdrawSitePhoto(p.id);
+            if (r) { Object.assign(p, r); renderPhotos(); }
+          }});
+        }
+      }
+      items.push('-');
+      items.push({ glyph: '📋', label: 'Copy photo ID', run: () => copyText(p.id) });
+      items.push({ glyph: '🔗', label: 'Copy permalink', run: () => {
+        const url = `${location.origin}${location.pathname}?project=${projectId}&model=${modelId}&photo=${p.id}`;
+        copyText(url);
+      }});
+      showRowMenuAt(menu, items, x, y);
+    }
+
+    function setupSelectionToolbar() {
+      const tb = $('#selectionToolbar');
+      if (!tb) return;
+      $('#selFit', tb)?.addEventListener('click', () => fitToSelection());
+      $('#selIsolate', tb)?.addEventListener('click', () => isolateSelection());
+      $('#selHide', tb)?.addEventListener('click', () => hideSelection());
+      $('#selShowAll', tb)?.addEventListener('click', () => showAllElements());
+      $('#selGhost', tb)?.addEventListener('click', () => {
+        state.ghostMode = !state.ghostMode;
+        setRenderMode(state.ghostMode ? 'ghost' : 'shaded');
+      });
+      $('#selIssue', tb)?.addEventListener('click', () => {
+        const guids = [...state.selectedElementGuids];
+        const primary = state.selectedElementGuid || guids[0];
+        openIssueModal({
+          guid: primary,
+          meta: state.elementMap[primary] || {},
+          multi: guids
+        });
+      });
+      $('#selClose', tb)?.addEventListener('click', () => selectElementByGuid(null));
+    }
+
     // ── Issues ─────────────────────────────────────────────────────────
     async function loadIssues() {
       if (!projectId) { state.issues = []; renderIssues(); return; }
@@ -1352,7 +2104,8 @@
         </tr></thead><tbody></tbody>`;
         const tbody = $('tbody', table);
         rows.forEach(i => {
-          const tr = el('tr', { 'data-id': i.id });
+          const tr = el('tr', { 'data-id': i.id, 'data-kind': 'issue' });
+          tr._issue = i;       // setupRowContextMenu reads this
           const priority = i.priority || 'MEDIUM';
           const overdue = i.slaBreached || (i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'RESOLVED');
           tr.innerHTML = `
@@ -1365,6 +2118,13 @@
             <td>${overdue ? '<span class="tag overdue">OVERDUE</span>' : '—'}</td>
           `;
           tr.addEventListener('click', () => focusIssue(i));
+          tr.addEventListener('dblclick', () => {
+            focusIssue(i);
+            // Also pop the right-rail comments tab so the user can
+            // start replying immediately.
+            const tab = $$('.tab-bar .tab').find(t => t.dataset.tab === 'comments');
+            if (tab) tab.click();
+          });
           tbody.appendChild(tr);
         });
         body.appendChild(table);
@@ -1452,16 +2212,24 @@
     }
 
     // ── Issue creation modal ───────────────────────────────────────────
+    // Pending attachments collected before submit so the user can stage
+    // photos / PDFs / drawings without uploading until the issue exists.
+    let pendingIssueAttachments = [];
     function openIssueModal(seed = {}) {
       const modal = $('#issueModal');
       modal.classList.add('open');
       $('#imTitle').value = '';
       $('#imDesc').value  = '';
+      const initialEl = $('#imInitialComment'); if (initialEl) initialEl.value = '';
       $('#imScreenshot').innerHTML = '';
       $('#imScreenshot').dataset.b64 = '';
-      // priority default
+      pendingIssueAttachments = [];
+      const attachListEl = $('#imAttachList'); if (attachListEl) attachListEl.innerHTML = '';
+      // priority + type + status defaults
       $$('#imPriority .choice').forEach(c => c.classList.toggle('active', c.dataset.v === 'HIGH'));
       $$('#imType .choice').forEach(c => c.classList.toggle('active', c.dataset.v === 'RFI'));
+      $$('#imStatus .choice').forEach(c => c.classList.toggle('active', c.dataset.v === 'OPEN'));
+      const discEl = $('#imDiscipline'); if (discEl) discEl.value = seed.discipline || '';
       // linked elements
       const link = $('#imLinked'); link.innerHTML = '';
       const linked = [];
@@ -1473,14 +2241,28 @@
         if (a) linked.push({ guid: a.guid, name: a.name });
         if (b) linked.push({ guid: b.guid, name: b.name });
         $('#imTitle').value = `${seed.clash.discPair} clash — ${a?.name} vs ${b?.name}`;
+        // For clash issues, pre-select CLASH as the type and pre-fill
+        // discipline from the dominant side of the pair (e.g. "M-S" → M).
+        $$('#imType .choice').forEach(c => c.classList.toggle('active', c.dataset.v === 'CLASH'));
+        if (discEl && seed.clash.discPair) discEl.value = (seed.clash.discPair.split('-')[0] || '').toUpperCase();
       }
       modal.dataset.linked = JSON.stringify(linked);
       renderLinkedElements(linked);
 
-      // member dropdown
-      const sel = $('#imAssignee');
-      sel.innerHTML = '<option value="">— Unassigned —</option>' +
-        state.members.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+      // assignee + watcher pickers — populated from project members API
+      // (see loadProjectMembers in bootstrap), with the demo-seed members
+      // as fallback so first-time / offline runs aren't empty.
+      const assigneeSel = $('#imAssignee');
+      assigneeSel.innerHTML = '<option value="">— Unassigned —</option>' +
+        state.members.map(m => `<option value="${m.id}">${escapeHtml(m.name)}${m.role ? ' · ' + escapeHtml(m.role) : ''}</option>`).join('');
+
+      const watchSel = $('#imWatchersSelect');
+      if (watchSel) {
+        watchSel.innerHTML = '<option value="">— Add a watcher —</option>' +
+          state.members.map(m => `<option value="${m.id}">${escapeHtml(m.name)}${m.role ? ' · ' + escapeHtml(m.role) : ''}</option>`).join('');
+      }
+      modal.dataset.watchers = '[]';
+      const chips = $('#imWatcherChips'); if (chips) chips.innerHTML = '';
 
       // B12 — focus the title field so the user can start typing
       // immediately, and remember the previously focused element so we
@@ -1490,6 +2272,54 @@
       const prev = document.activeElement;
       if (prev && prev !== document.body) modal.dataset.returnFocusId = prev.id || '';
       setTimeout(() => $('#imTitle')?.focus(), 30);
+    }
+
+    function renderWatcherChips() {
+      const chips = $('#imWatcherChips');
+      if (!chips) return;
+      const ids = JSON.parse($('#issueModal').dataset.watchers || '[]');
+      chips.innerHTML = '';
+      ids.forEach((id, i) => {
+        const m = state.members.find(x => x.id === id);
+        if (!m) return;
+        const chip = el('span', { class: 'watcher-chip' }, [
+          el('span', { class: 'initials' }, m.initials || ''),
+          el('span', { class: 'name' }, ' ' + m.name + ' '),
+          el('span', { class: 'x', title: 'Remove' }, '✕')
+        ]);
+        $('.x', chip).addEventListener('click', () => {
+          const arr = ids.slice(); arr.splice(i, 1);
+          $('#issueModal').dataset.watchers = JSON.stringify(arr);
+          renderWatcherChips();
+        });
+        chips.appendChild(chip);
+      });
+    }
+
+    function renderAttachmentList() {
+      const list = $('#imAttachList');
+      if (!list) return;
+      list.innerHTML = '';
+      pendingIssueAttachments.forEach((f, i) => {
+        const row = el('div', { class: 'attachment-row' }, [
+          el('span', { class: 'name' }, f.name),
+          el('span', { class: 'size' }, formatBytes(f.size)),
+          el('span', { class: 'x', title: 'Remove' }, '✕')
+        ]);
+        $('.x', row).addEventListener('click', () => {
+          pendingIssueAttachments.splice(i, 1);
+          renderAttachmentList();
+        });
+        list.appendChild(row);
+      });
+    }
+
+    function formatBytes(n) {
+      if (!n) return '0 B';
+      const u = ['B','KB','MB','GB'];
+      let i = 0; let v = n;
+      while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+      return v.toFixed(v < 10 && i > 0 ? 1 : 0) + ' ' + u[i];
     }
 
     function renderLinkedElements(arr) {
@@ -1539,6 +2369,79 @@
         $$('#imType .choice').forEach(x => x.classList.remove('active'));
         c.classList.add('active');
       }));
+      $$('#imStatus .choice').forEach(c => c.addEventListener('click', () => {
+        $$('#imStatus .choice').forEach(x => x.classList.remove('active'));
+        c.classList.add('active');
+      }));
+      const watchSel = $('#imWatchersSelect');
+      if (watchSel) {
+        watchSel.addEventListener('change', () => {
+          const id = watchSel.value;
+          watchSel.value = '';
+          if (!id) return;
+          const ids = JSON.parse(modal.dataset.watchers || '[]');
+          if (ids.includes(id)) return;
+          ids.push(id);
+          modal.dataset.watchers = JSON.stringify(ids);
+          renderWatcherChips();
+        });
+      }
+      const attachBtn = $('#imAttachBtn');
+      const attachInput = $('#imAttachInput');
+      const dropZone = $('#imAttachDrop');
+      // Centralise the "stage these files for upload" loop so click-to-browse
+      // and drag-drop hit the exact same path (validation, oversize toast,
+      // empty-input guard).
+      function stageFiles(files) {
+        if (!files) return;
+        for (const f of files) {
+          if (f.size > 50 * 1024 * 1024) {
+            toast(`${f.name} exceeds 50 MB — skipped`, 'warn');
+            continue;
+          }
+          pendingIssueAttachments.push(f);
+        }
+        renderAttachmentList();
+      }
+      if (attachBtn && attachInput) {
+        attachBtn.addEventListener('click', (ev) => {
+          ev.stopPropagation();           // don't double-fire via dropzone
+          attachInput.click();
+        });
+        attachInput.addEventListener('change', () => {
+          stageFiles(attachInput.files);
+          attachInput.value = '';        // allow same file to be re-picked
+        });
+      }
+      // Drag-and-drop dropzone — matches mobile expo-image-picker ergonomics
+      // for desktop users dragging photos out of Finder / Explorer / Slack.
+      if (dropZone && attachInput) {
+        dropZone.addEventListener('click', () => attachInput.click());
+        dropZone.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); attachInput.click(); }
+        });
+        ['dragenter', 'dragover'].forEach(evt => {
+          dropZone.addEventListener(evt, (ev) => {
+            ev.preventDefault(); ev.stopPropagation();
+            dropZone.classList.add('dragover');
+          });
+        });
+        ['dragleave', 'drop'].forEach(evt => {
+          dropZone.addEventListener(evt, (ev) => {
+            ev.preventDefault(); ev.stopPropagation();
+            dropZone.classList.remove('dragover');
+          });
+        });
+        dropZone.addEventListener('drop', (ev) => {
+          const files = ev.dataTransfer?.files;
+          stageFiles(files);
+        });
+        // Suppress browser default of navigating to the dropped file when
+        // the user misses the drop zone — common with folder drags.
+        ['dragover', 'drop'].forEach(evt => {
+          modal.addEventListener(evt, (ev) => { ev.preventDefault(); });
+        });
+      }
       $('#imScreenshotBtn').addEventListener('click', () => {
         // B14 — downscale to <= 1280px wide JPEG before posting. A raw 4K
         // PNG can hit 8-12 MB base64; the issues endpoint and Postgres
@@ -1553,20 +2456,40 @@
     }
 
     async function submitIssue() {
-      const linked = JSON.parse($('#issueModal').dataset.linked || '[]');
+      const modal = $('#issueModal');
+      const linked = JSON.parse(modal.dataset.linked || '[]');
+      const watcherIds = JSON.parse(modal.dataset.watchers || '[]');
       const priority = $('#imPriority .choice.active')?.dataset.v || 'MEDIUM';
       const type     = $('#imType .choice.active')?.dataset.v || 'RFI';
+      const status   = $('#imStatus .choice.active')?.dataset.v || 'OPEN';
+      const discipline = $('#imDiscipline')?.value || null;
+      const initialComment = ($('#imInitialComment')?.value || '').trim();
       const payload = {
         title: $('#imTitle').value.trim(),
-        priority, type,
+        priority, type, status, discipline,
         elementGuids: linked.map(l => l.guid),
-        assigneeId: $('#imAssignee').value || null,
+        // Match server CreateIssueRequest field names where possible so the
+        // payload is forward-compatible with the typed DTO. The server
+        // accepts both legacy `linkedElementIds` (string) and the camelCase
+        // form below; viewer prefers explicit GUID list for clarity.
+        linkedElementIds: linked.length ? JSON.stringify(linked.map(l => l.guid)) : null,
+        assigneeUserId: $('#imAssignee').value || null,
+        watcherUserIds: watcherIds,
         dueDate: $('#imDue').value || null,
         description: $('#imDesc').value,
         screenshotBase64: $('#imScreenshot').dataset.b64 || null,
-        position: lastClickPoint ? { x: lastClickPoint.x, y: lastClickPoint.y, z: lastClickPoint.z } : undefined
+        source: 'web-viewer',
+        // 3D anchor — stamps where in the model the issue was raised so
+        // pins re-render on next load.
+        position: lastClickPoint ? { x: lastClickPoint.x, y: lastClickPoint.y, z: lastClickPoint.z } : undefined,
+        modelId: state.modelId || modelId || null,
+        modelElementGuid: linked[0]?.guid || null,
+        modelX: lastClickPoint?.x ?? null,
+        modelY: lastClickPoint?.y ?? null,
+        modelZ: lastClickPoint?.z ?? null,
       };
       if (!payload.title) return toast('Title required', 'warn');
+
       let result;
       if (projectId) {
         result = await api(`/api/projects/${projectId}/issues`, {
@@ -1576,14 +2499,699 @@
       const created = result || Object.assign({
         id: 'local-' + Date.now(),
         code: 'ISS-LOCAL-' + (state.issues.length + 1),
-        status: 'NEW',
+        status: status,
         slaBreached: false
       }, payload);
+
+      // Upload any attachments + post the initial comment now the issue
+      // exists. Both are best-effort — failures don't unwind the issue.
+      if (projectId && created.id && !String(created.id).startsWith('local-')) {
+        for (const f of pendingIssueAttachments) {
+          try {
+            const fd = new FormData();
+            fd.append('file', f, f.name);
+            const resp = await fetch(`${apiBase}/api/projects/${projectId}/issues/${created.id}/attachments`, {
+              method: 'POST',
+              headers: token ? { 'Authorization': 'Bearer ' + token } : {},
+              body: fd
+            });
+            if (!resp.ok) toast(`Attachment ${f.name} failed (${resp.status})`, 'warn');
+          } catch (e) {
+            console.warn('[coord] attachment upload failed', f.name, e);
+          }
+        }
+        if (initialComment) {
+          await api(`/api/projects/${projectId}/issues/${created.id}/comments`, {
+            method: 'POST',
+            body: JSON.stringify({ body: initialComment, source: 'web-viewer' })
+          });
+        }
+      }
+      pendingIssueAttachments = [];
+
       state.issues.unshift(created);
       placeIssuePins(); renderIssues(); updateBadges();
-      $('#issueModal').classList.remove('open');
+      modal.classList.remove('open');
       toast(`Issue ${created.code || created.id} created`, 'success');
       logHistory(`Created ${created.code || 'issue'}`);
+    }
+
+    // ── Site photos (Slice 4b) ─────────────────────────────────────────
+    // Six-Reason taxonomy from server: Progress / Issue / Defect / Safety /
+    // AsBuilt / Reference. Photos can be filtered by reason + audience and
+    // optionally restricted to the currently-selected element. PM/Admin/Owner
+    // get the bulk-approve reviewer pane.
+    const PHOTO_REASONS = ['Progress','Issue','Defect','Safety','AsBuilt','Reference'];
+    const PHOTO_AUDIENCES = ['Internal','PendingReview','Approved','ClientPortal','Withdrawn'];
+    const PHOTO_PIN_COLOUR = 0xFBBF24;       // gold (matches design lock)
+    const PHOTO_BLOB_CACHE = new Map();      // photoId → object URL (revoked on cleanup)
+
+    // (state.photos / photoFilters / photoPins / photoCaptureSeed /
+    // photoReviewSelected initialised inside the main `state` object above
+    // so updateRightTabCounts can read them on the first paint before this
+    // block has run.)
+    let pendingPhotoFile = null;             // staged file in capture modal
+    let pendingPhotoObjectUrl = null;        // preview url to revoke on close
+
+    // ── API helpers — match the existing loadIssues / loadClashes pattern ──
+    async function loadSitePhotos(filters = {}) {
+      if (!projectId) { state.photos = []; renderPhotos(); return state.photos; }
+      const qs = new URLSearchParams();
+      const merged = Object.assign({}, state.photoFilters, filters);
+      if (merged.reason && merged.reason !== 'any') qs.set('reason', merged.reason);
+      if (merged.audience && merged.audience !== 'any') qs.set('audience', merged.audience);
+      if (state.selectedElementGuid) qs.set('anchorElementGuid', state.selectedElementGuid);
+      qs.set('pageSize', '200');
+      const path = `/api/projects/${projectId}/photos${qs.toString() ? '?' + qs.toString() : ''}`;
+      const data = await api(path);
+      const items = Array.isArray(data) ? data : (data?.items || []);
+      state.photos = items;
+      placePhotoPins();
+      if (state.rightTab === 'photos') renderPhotos();
+      updateRightTabCounts();
+      return items;
+    }
+
+    async function captureSitePhoto(formData) {
+      // Multipart POST — DO NOT set Content-Type; the browser fills the
+      // multipart boundary correctly when omitted. We bypass api() because
+      // it stamps application/json on every call.
+      if (!projectId) { toast('No active project — cannot capture', 'error'); return null; }
+      try {
+        const headers = {};
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+        const tenantId = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_tenant')) || state.tenantId;
+        if (tenantId) headers['X-Tenant'] = tenantId;
+        const ctl = new AbortController();
+        const timer = setTimeout(() => ctl.abort(), 60000);  // 60s — phone-camera JPEG can be 5-15 MB
+        const res = await fetch(`${apiBase}/api/projects/${projectId}/photos/capture`, {
+          method: 'POST', headers, body: formData, signal: ctl.signal
+        });
+        clearTimeout(timer);
+        if (!res.ok) {
+          let msg = `${res.status} ${res.statusText}`;
+          try { const err = await res.json(); if (err?.error) msg = err.error + (err.allowed ? ` (allowed: ${err.allowed.join(', ')})` : ''); } catch (_) {}
+          toast(`Capture failed — ${msg}`, 'error');
+          return null;
+        }
+        return await res.json();
+      } catch (e) {
+        const aborted = e && e.name === 'AbortError';
+        toast(aborted ? 'Capture timed out — retry?' : 'Capture failed — ' + (e.message || e), 'error');
+        return null;
+      }
+    }
+
+    async function approveSitePhoto(id, caption) {
+      const r = await api(`/api/projects/${projectId}/photos/${id}/approve`, {
+        method: 'POST', body: JSON.stringify({ caption: caption || null })
+      });
+      if (r) toast('Photo approved', 'success');
+      return r;
+    }
+    async function rejectSitePhoto(id, reason) {
+      const r = await api(`/api/projects/${projectId}/photos/${id}/reject`, {
+        method: 'POST', body: JSON.stringify({ reason: reason || null })
+      });
+      if (r) toast('Photo rejected', 'success');
+      return r;
+    }
+    async function withdrawSitePhoto(id) {
+      const r = await api(`/api/projects/${projectId}/photos/${id}/withdraw`, {
+        method: 'POST', body: JSON.stringify({})
+      });
+      if (r) toast('Photo withdrawn', 'success');
+      return r;
+    }
+    async function bulkApproveSitePhotos(ids, caption) {
+      if (!ids || !ids.length) return null;
+      if (!caption || caption.trim().length < 3) {
+        toast('Approval caption must be ≥ 3 chars', 'warn');
+        return null;
+      }
+      const r = await api(`/api/projects/${projectId}/photos/bulk-approve`, {
+        method: 'POST', body: JSON.stringify({ photoIds: ids, caption: caption.trim() })
+      });
+      if (r) toast(`Approved ${ids.length} photo${ids.length === 1 ? '' : 's'}`, 'success');
+      return r;
+    }
+
+    // Approver gate mirrors server: Admin / Owner / PM (project role).
+    function isPhotoApprover() {
+      const u = state.currentUser || {};
+      const role = (u.role || u.Role || '').toString();
+      if (role === 'Admin' || role === 'Owner') return true;
+      // ProjectMember role check — populated by loadProjectMembers().
+      const myId = u.id || u.userId;
+      if (!myId) return false;
+      const me = state.members.find(m => m.id === myId);
+      return !!me && (me.role === 'PM' || me.role === 'pm');
+    }
+
+    // ── 3D pin handling — mirrors placeIssuePins / placeClashPins ─────
+    function placePhotoPins() {
+      const host = V.pinGroup || V.scene;
+      state.photoPins.forEach(m => {
+        host.remove(m);
+        if (V.pinMeta) V.pinMeta.delete(m.uuid);
+      });
+      state.photoPins.clear();
+      if (!V.modelBounds || V.modelBounds.isEmpty()) return;
+      const size = V.modelBounds.getSize(new THREE_.Vector3()).length() * 0.0072;
+      state.photos.forEach(p => {
+        if (p.modelX == null || p.modelY == null || p.modelZ == null) return;
+        const sphere = new THREE_.Mesh(
+          new THREE_.SphereGeometry(size, 16, 16),
+          new THREE_.MeshStandardMaterial({
+            color: PHOTO_PIN_COLOUR, emissive: PHOTO_PIN_COLOUR,
+            emissiveIntensity: 0.55, depthTest: false
+          })
+        );
+        sphere.position.set(p.modelX, p.modelY, p.modelZ);
+        sphere.userData.photoId = p.id;
+        sphere.renderOrder = 999;
+        host.add(sphere);
+        if (V.pinMeta) V.pinMeta.set(sphere.uuid, { __coord: 'photo', photoId: p.id, reason: p.reason });
+        state.photoPins.set(p.id, sphere);
+      });
+    }
+
+    function focusPhoto(p) {
+      if (!p) return;
+      // Switch to Photos tab + scroll the matching card into view.
+      const tab = $$('.tab-bar .tab').find(t => t.dataset.tab === 'photos');
+      if (tab) tab.click();
+      if (p.modelX != null && p.modelY != null && p.modelZ != null) {
+        flyTo(new THREE_.Vector3(p.modelX, p.modelY, p.modelZ));
+      } else if (p.anchorElementGuid) {
+        const m = findMeshByGuid(p.anchorElementGuid);
+        if (m) {
+          const bb = new THREE_.Box3().setFromObject(m);
+          flyTo(bb.getCenter(new THREE_.Vector3()));
+        }
+      }
+      setTimeout(() => {
+        const card = $(`.photo-card[data-id="${p.id}"]`);
+        if (card) {
+          card.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          card.classList.add('focused');
+          setTimeout(() => card.classList.remove('focused'), 1600);
+        }
+      }, 50);
+      logHistory(`Inspected photo · ${p.reason || ''}`);
+    }
+
+    // Build a thumbnail src — fetches the protected file once via api()
+    // (Authorization header), turns it into a blob URL, caches it. The
+    // alternative (token in query string) was rejected per B1.
+    function ensurePhotoThumbSrc(photoId, imgEl) {
+      if (!imgEl) return;
+      const cached = PHOTO_BLOB_CACHE.get(photoId);
+      if (cached) { imgEl.src = cached; return; }
+      // Lazy-load on first paint so a 50-photo gallery doesn't fetch
+      // every original up-front.
+      const fetcher = async () => {
+        try {
+          const headers = {};
+          if (token) headers['Authorization'] = 'Bearer ' + token;
+          const tenantId = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_tenant')) || state.tenantId;
+          if (tenantId) headers['X-Tenant'] = tenantId;
+          const res = await fetch(`${apiBase}/api/projects/${projectId}/photos/${photoId}/file`, { headers });
+          if (!res.ok) throw new Error(`${res.status}`);
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          PHOTO_BLOB_CACHE.set(photoId, url);
+          imgEl.src = url;
+        } catch (e) {
+          imgEl.style.display = 'none';
+          const ph = imgEl.nextElementSibling;
+          if (ph && ph.classList?.contains('thumb-fallback')) ph.style.display = 'flex';
+        }
+      };
+      // IntersectionObserver — only kick the fetch when the thumb scrolls
+      // into view. Falls back to immediate fetch if IO is unavailable.
+      if (typeof IntersectionObserver === 'function') {
+        const io = new IntersectionObserver((entries) => {
+          if (entries.some(e => e.isIntersecting)) {
+            io.disconnect();
+            fetcher();
+          }
+        });
+        io.observe(imgEl);
+      } else {
+        fetcher();
+      }
+    }
+
+    // ── Photos right-rail tab ─────────────────────────────────────────
+    function renderPhotos() {
+      const pane = $('#pane-photos');
+      if (!pane) return;
+      const filterEl = state.selectedElementGuid;
+      const elementMeta = filterEl ? (state.elementMap[filterEl] || {}) : null;
+      const pendingCount = state.photos.filter(p => p.audience === 'PendingReview').length;
+      const reviewerVisible = isPhotoApprover();
+      const totalLabel = filterEl ? `${state.photos.length} for selected element` : `${state.photos.length} in project`;
+
+      pane.innerHTML = `
+        <div class="prop-section-label">Site photos</div>
+        ${filterEl ? `<div class="photo-filter-context">
+          Filtered to <strong>${escapeHtml(elementMeta?.name || elementMeta?.tag || filterEl.slice(0, 8))}</strong>
+          <button class="btn ghost xs" id="photoClearAnchor" title="Show all project photos">✕ Clear</button>
+        </div>` : ''}
+        <div class="photo-toolbar">
+          <span class="hint">${escapeHtml(totalLabel)}</span>
+          <div class="right">
+            <button class="btn sm subtle" id="photoRefresh" title="Refresh from server">↻</button>
+            <button class="btn sm" id="photoQuickCapture">📷 Capture</button>
+          </div>
+        </div>
+        ${reviewerVisible ? `<button class="btn ghost full review-bar" id="photoOpenReview">
+          🛡 Review queue <span class="count">${pendingCount}</span>
+        </button>` : ''}
+        <div class="photo-filters">
+          <div class="row">
+            <span class="lbl">Reason</span>
+            <button class="filter-btn ${state.photoFilters.reason === 'any' ? 'active' : ''}" data-reason="any">Any</button>
+            ${PHOTO_REASONS.map(r => `<button class="filter-btn reason-chip rc-${r.toLowerCase()} ${state.photoFilters.reason === r ? 'active' : ''}" data-reason="${r}">${escapeHtml(r)}</button>`).join('')}
+          </div>
+          <div class="row">
+            <span class="lbl">Audience</span>
+            <select class="filter-select" id="photoAudienceFilter">
+              <option value="any" ${state.photoFilters.audience === 'any' ? 'selected' : ''}>Any audience</option>
+              ${PHOTO_AUDIENCES.map(a => `<option value="${a}" ${state.photoFilters.audience === a ? 'selected' : ''}>${escapeHtml(a)}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="photo-list" id="photoList">
+          ${state.photos.length === 0
+            ? '<div class="empty-state"><span class="glyph">📷</span>No site photos match these filters</div>'
+            : state.photos.map(p => renderPhotoCard(p, reviewerVisible)).join('')}
+        </div>
+      `;
+
+      // Wire top toolbar
+      $('#photoRefresh', pane)?.addEventListener('click', () => loadSitePhotos());
+      $('#photoQuickCapture', pane)?.addEventListener('click', () => openPhotoCaptureModal());
+      $('#photoOpenReview', pane)?.addEventListener('click', () => openPhotoReviewModal());
+      $('#photoClearAnchor', pane)?.addEventListener('click', () => {
+        selectElementByGuid(null);
+        loadSitePhotos();
+      });
+
+      // Wire reason chips
+      $$('.photo-filters .filter-btn', pane).forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.photoFilters.reason = btn.dataset.reason;
+          loadSitePhotos();
+        });
+      });
+      $('#photoAudienceFilter', pane)?.addEventListener('change', (e) => {
+        state.photoFilters.audience = e.target.value;
+        loadSitePhotos();
+      });
+
+      // Wire each card
+      $$('.photo-card', pane).forEach(card => {
+        const id = card.dataset.id;
+        const p = state.photos.find(x => x.id === id);
+        if (!p) return;
+        card._photo = p;            // setupRowContextMenu reads this
+        const img = $('img', card);
+        if (img) ensurePhotoThumbSrc(id, img);
+        card.addEventListener('click', (e) => {
+          if (e.target.closest('button')) return;
+          focusPhoto(p);
+        });
+        card.addEventListener('dblclick', () => focusPhoto(p));
+        $('button[data-act=approve]', card)?.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          let cap = p.caption || '';
+          if (cap.trim().length < 3) {
+            cap = await promptInline({
+              title: 'Approve photo',
+              label: 'Approval caption (visible to client)',
+              placeholder: 'Describe what the client should see',
+              defaultValue: cap,
+              multiline: true, minLength: 3, maxLength: 2000,
+              okLabel: 'Approve & publish',
+            });
+          }
+          if (!cap || cap.trim().length < 3) return;
+          const updated = await approveSitePhoto(id, cap);
+          if (updated) { Object.assign(p, updated); renderPhotos(); }
+        });
+        $('button[data-act=reject]', card)?.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const reason = await promptInline({
+            title: 'Reject photo',
+            label: 'Reason (shown to the capturer)',
+            placeholder: 'e.g. off-topic / poor quality / privacy',
+            defaultValue: '',
+            multiline: true, minLength: 0, maxLength: 500,
+            okLabel: 'Reject',
+          });
+          if (reason === null) return;
+          const updated = await rejectSitePhoto(id, reason);
+          if (updated) { Object.assign(p, updated); renderPhotos(); }
+        });
+        $('button[data-act=withdraw]', card)?.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (!confirm('Withdraw this photo from the client portal?')) return;
+          const updated = await withdrawSitePhoto(id);
+          if (updated) { Object.assign(p, updated); renderPhotos(); }
+        });
+      });
+    }
+
+    function renderPhotoCard(p, reviewerVisible) {
+      const reason = p.reason || 'Reference';
+      const audience = p.audience || 'Internal';
+      const captured = p.capturedAt ? new Date(p.capturedAt).toLocaleString() : '';
+      const lvlZone = [p.levelCode, p.zoneCode].filter(Boolean).join(' · ') || '';
+      const caption = p.caption || '';
+      const canApprove = reviewerVisible && audience === 'PendingReview';
+      const canReject  = reviewerVisible && (audience === 'PendingReview' || audience === 'Approved');
+      const canWithdraw = reviewerVisible && audience === 'ClientPortal';
+      return `
+        <div class="photo-card" data-id="${escapeHtml(p.id)}" data-kind="photo">
+          <div class="thumb">
+            <img alt="${escapeHtml(caption || 'Site photo')}" loading="lazy" />
+            <div class="thumb-fallback" style="display:none">📷</div>
+            <span class="reason-chip rc-${reason.toLowerCase()}">${escapeHtml(reason)}</span>
+            <span class="audience-chip aud-${audience.toLowerCase()}">${escapeHtml(audience)}</span>
+          </div>
+          <div class="meta">
+            <div class="cap">${caption ? escapeHtml(caption) : '<em class="muted">No caption</em>'}</div>
+            <div class="sub">${escapeHtml(captured)}${lvlZone ? ' · ' + escapeHtml(lvlZone) : ''}</div>
+            ${p.anchorElementGuid ? `<div class="sub anchor">⚓ ${escapeHtml((state.elementMap[p.anchorElementGuid]?.name) || p.anchorElementGuid.slice(0, 8))}</div>` : ''}
+          </div>
+          ${(canApprove || canReject || canWithdraw) ? `<div class="actions">
+            ${canApprove ? '<button class="btn xs" data-act="approve">✓ Approve</button>' : ''}
+            ${canReject  ? '<button class="btn xs subtle" data-act="reject">✗ Reject</button>' : ''}
+            ${canWithdraw ? '<button class="btn xs subtle" data-act="withdraw">↶ Withdraw</button>' : ''}
+          </div>` : ''}
+        </div>
+      `;
+    }
+
+    // ── Capture modal ─────────────────────────────────────────────────
+    function inferDefaultReason() {
+      // Auto-pre-select per the brief: element selected → AsBuilt; clash open
+      // → Defect; otherwise Reference.
+      if (state.selectedClashId) return 'Defect';
+      if (state.selectedElementGuid) return 'AsBuilt';
+      return 'Reference';
+    }
+
+    function openPhotoCaptureModal(seed = {}) {
+      const modal = $('#photoCaptureModal');
+      if (!modal) return;
+      pendingPhotoFile = null;
+      if (pendingPhotoObjectUrl) { try { URL.revokeObjectURL(pendingPhotoObjectUrl); } catch (_) {} pendingPhotoObjectUrl = null; }
+      $('#pcCaption').value = '';
+      $('#pcLevel').value   = seed.levelCode || '';
+      $('#pcZone').value    = seed.zoneCode  || '';
+      $('#pcPreview').innerHTML = '';
+      const reason = seed.reason || inferDefaultReason();
+      $$('#pcReason .choice').forEach(c => c.classList.toggle('active', c.dataset.v === reason));
+      // Anchor pills — show what we've captured automatically.
+      const elGuid = seed.guid || state.selectedElementGuid;
+      const elMeta = elGuid ? (state.elementMap[elGuid] || {}) : null;
+      $('#pcAnchorElement').textContent = 'Element: ' + (elMeta?.name || elMeta?.tag || (elGuid ? elGuid.slice(0, 8) : '—'));
+      $('#pcAnchorElement').classList.toggle('on', !!elGuid);
+      const haveXyz = !!lastClickPoint;
+      $('#pcAnchorPoint').textContent = haveXyz
+        ? `3D: ${lastClickPoint.x.toFixed(2)}, ${lastClickPoint.y.toFixed(2)}, ${lastClickPoint.z.toFixed(2)}`
+        : '3D point: —';
+      $('#pcAnchorPoint').classList.toggle('on', haveXyz);
+      $('#pcAnchorModel').textContent = state.modelName ? 'Model: ' + state.modelName : 'Model: —';
+      $('#pcAnchorModel').classList.toggle('on', !!modelId);
+      state.photoCaptureSeed = { guid: elGuid, reason };
+      modal.classList.add('open');
+    }
+    function closePhotoCaptureModal() {
+      const modal = $('#photoCaptureModal');
+      if (!modal) return;
+      modal.classList.remove('open');
+      pendingPhotoFile = null;
+      if (pendingPhotoObjectUrl) { try { URL.revokeObjectURL(pendingPhotoObjectUrl); } catch (_) {} pendingPhotoObjectUrl = null; }
+    }
+
+    function setupPhotoCaptureModal() {
+      const modal = $('#photoCaptureModal');
+      if (!modal) return;
+      $('#pcClose').addEventListener('click', closePhotoCaptureModal);
+      $('#pcCancel').addEventListener('click', closePhotoCaptureModal);
+      modal.addEventListener('click', (e) => { if (e.target.id === 'photoCaptureModal') closePhotoCaptureModal(); });
+      modal.addEventListener('keydown', (e) => {
+        if (!modal.classList.contains('open')) return;
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closePhotoCaptureModal(); }
+      });
+
+      // Reason chip toggle
+      $$('#pcReason .choice').forEach(c => c.addEventListener('click', () => {
+        $$('#pcReason .choice').forEach(x => x.classList.remove('active'));
+        c.classList.add('active');
+      }));
+
+      // File picker + drag-drop (same pattern as imAttachDrop)
+      const drop = $('#pcDrop');
+      const input = $('#pcFileInput');
+      const pickBtn = $('#pcPickBtn');
+      function stagePhoto(file) {
+        if (!file) return;
+        if (file.size > 25 * 1024 * 1024) { toast(`${file.name} > 25 MB — skipped`, 'warn'); return; }
+        if (!file.type || !file.type.startsWith('image/')) { toast('Only image files accepted', 'warn'); return; }
+        pendingPhotoFile = file;
+        if (pendingPhotoObjectUrl) { try { URL.revokeObjectURL(pendingPhotoObjectUrl); } catch (_) {} }
+        pendingPhotoObjectUrl = URL.createObjectURL(file);
+        $('#pcPreview').innerHTML = `<img src="${pendingPhotoObjectUrl}" alt="preview" />`;
+      }
+      pickBtn?.addEventListener('click', (ev) => { ev.stopPropagation(); input.click(); });
+      input.addEventListener('change', () => { stagePhoto(input.files?.[0]); input.value = ''; });
+      drop.addEventListener('click', () => input.click());
+      drop.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); input.click(); } });
+      ['dragenter','dragover'].forEach(evt => drop.addEventListener(evt, (ev) => { ev.preventDefault(); ev.stopPropagation(); drop.classList.add('dragover'); }));
+      ['dragleave','drop'].forEach(evt => drop.addEventListener(evt, (ev) => { ev.preventDefault(); ev.stopPropagation(); drop.classList.remove('dragover'); }));
+      drop.addEventListener('drop', (ev) => stagePhoto(ev.dataTransfer?.files?.[0]));
+      ['dragover','drop'].forEach(evt => modal.addEventListener(evt, (ev) => { ev.preventDefault(); }));
+
+      $('#pcSubmit').addEventListener('click', submitPhotoCapture);
+    }
+
+    async function submitPhotoCapture() {
+      if (!pendingPhotoFile) { toast('Pick or capture a photo first', 'warn'); return; }
+      const reason = $('#pcReason .choice.active')?.dataset.v || 'Reference';
+      const caption = ($('#pcCaption').value || '').trim();
+      const level   = ($('#pcLevel').value || '').trim();
+      const zone    = ($('#pcZone').value || '').trim();
+      const elGuid  = state.photoCaptureSeed?.guid || state.selectedElementGuid;
+
+      const fd = new FormData();
+      fd.append('file', pendingPhotoFile, pendingPhotoFile.name || 'capture.jpg');
+      fd.append('reason', reason);
+      if (caption) fd.append('caption', caption);
+      if (level)   fd.append('levelCode', level);
+      if (zone)    fd.append('zoneCode', zone);
+      if (elGuid)  fd.append('anchorElementGuid', elGuid);
+      if (modelId) fd.append('modelId', modelId);
+      if (lastClickPoint) {
+        fd.append('modelX', String(lastClickPoint.x));
+        fd.append('modelY', String(lastClickPoint.y));
+        fd.append('modelZ', String(lastClickPoint.z));
+      }
+      fd.append('source', 'web-viewer');
+      fd.append('capturedAt', new Date().toISOString());
+
+      // Disable button while in flight so the user can't double-submit on
+      // a slow connection.
+      const btn = $('#pcSubmit'); if (btn) { btn.disabled = true; btn.textContent = 'Uploading…'; }
+      const created = await captureSitePhoto(fd);
+      if (btn) { btn.disabled = false; btn.textContent = 'Capture →'; }
+      if (!created) return;
+      // Add to the front of the in-memory list, repaint pin + tab.
+      state.photos.unshift(created);
+      placePhotoPins();
+      renderPhotos();
+      updateRightTabCounts();
+      closePhotoCaptureModal();
+      toast(`Photo captured · ${created.reason}${created.audience === 'PendingReview' ? ' · Pending review' : ''}`, 'success');
+      logHistory(`Captured ${created.reason} photo`);
+    }
+
+    // ── Reviewer mini-pane (PM/Admin/Owner bulk approve) ──────────────
+    function openPhotoReviewModal() {
+      const modal = $('#photoReviewModal');
+      if (!modal) return;
+      if (!isPhotoApprover()) { toast('Only PM / Admin / Owner can review photos', 'warn'); return; }
+      state.photoReviewSelected.clear();
+      $('#prBulkCaption').value = '';
+      modal.classList.add('open');
+      refreshPhotoReviewList();
+    }
+    function closePhotoReviewModal() {
+      const modal = $('#photoReviewModal');
+      if (!modal) return;
+      modal.classList.remove('open');
+      state.photoReviewSelected.clear();
+    }
+
+    async function refreshPhotoReviewList() {
+      const list = $('#prList');
+      const lbl = $('#prCountLabel');
+      if (!list || !lbl) return;
+      list.innerHTML = '<div class="inline-loader"><span class="dot-spin"></span>Loading pending photos…</div>';
+      const data = await api(`/api/projects/${projectId}/photos?audience=PendingReview&pageSize=200`);
+      const items = Array.isArray(data) ? data : (data?.items || []);
+      lbl.textContent = items.length ? `${items.length} pending photo${items.length === 1 ? '' : 's'}` : 'Queue empty';
+      if (!items.length) {
+        list.innerHTML = '<div class="empty-state"><span class="glyph">✓</span>Nothing pending review</div>';
+        return;
+      }
+      list.innerHTML = items.map(p => `
+        <label class="review-row" data-id="${escapeHtml(p.id)}">
+          <input type="checkbox" data-id="${escapeHtml(p.id)}" ${state.photoReviewSelected.has(p.id) ? 'checked' : ''} />
+          <div class="thumb"><img alt="" loading="lazy" /><div class="thumb-fallback" style="display:none">📷</div></div>
+          <div class="meta">
+            <div class="cap">${p.caption ? escapeHtml(p.caption) : '<em class="muted">No caption</em>'}</div>
+            <div class="sub">
+              <span class="reason-chip rc-${(p.reason || 'reference').toLowerCase()}">${escapeHtml(p.reason || 'Reference')}</span>
+              <span class="hint">${escapeHtml(p.capturedAt ? new Date(p.capturedAt).toLocaleString() : '')}</span>
+              ${p.levelCode ? `<span class="hint">· ${escapeHtml(p.levelCode)}</span>` : ''}
+              ${p.zoneCode  ? `<span class="hint">· ${escapeHtml(p.zoneCode)}</span>` : ''}
+            </div>
+          </div>
+          <button class="btn xs subtle" data-act="reject" data-id="${escapeHtml(p.id)}" title="Reject">✗</button>
+        </label>
+      `).join('');
+      // Lazy thumbs
+      $$('.review-row .thumb img', list).forEach((img, i) => ensurePhotoThumbSrc(items[i].id, img));
+      // Checkbox bind
+      $$('input[type=checkbox]', list).forEach(cb => {
+        cb.addEventListener('change', () => {
+          if (cb.checked) state.photoReviewSelected.add(cb.dataset.id);
+          else state.photoReviewSelected.delete(cb.dataset.id);
+        });
+      });
+      // Per-row reject
+      $$('button[data-act=reject]', list).forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault(); e.stopPropagation();
+          const reason = await promptInline({
+            title: 'Reject photo',
+            label: 'Reason (shown to the capturer)',
+            placeholder: 'e.g. off-topic / poor quality / privacy',
+            defaultValue: '',
+            multiline: true, minLength: 0, maxLength: 500,
+            okLabel: 'Reject',
+          });
+          if (reason === null) return;
+          await rejectSitePhoto(btn.dataset.id, reason);
+          refreshPhotoReviewList();
+          loadSitePhotos();
+        });
+      });
+    }
+
+    function setupPhotoReviewModal() {
+      const modal = $('#photoReviewModal');
+      if (!modal) return;
+      $('#prClose').addEventListener('click', closePhotoReviewModal);
+      $('#prBulkCancel').addEventListener('click', closePhotoReviewModal);
+      modal.addEventListener('click', (e) => { if (e.target.id === 'photoReviewModal') closePhotoReviewModal(); });
+      modal.addEventListener('keydown', (e) => {
+        if (!modal.classList.contains('open')) return;
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closePhotoReviewModal(); }
+      });
+      $('#prRefresh').addEventListener('click', refreshPhotoReviewList);
+      $('#prSelectAll').addEventListener('click', () => {
+        $$('#prList input[type=checkbox]').forEach(cb => {
+          cb.checked = true;
+          state.photoReviewSelected.add(cb.dataset.id);
+        });
+      });
+      $('#prSelectNone').addEventListener('click', () => {
+        state.photoReviewSelected.clear();
+        $$('#prList input[type=checkbox]').forEach(cb => cb.checked = false);
+      });
+      $('#prBulkApprove').addEventListener('click', async () => {
+        const ids = Array.from(state.photoReviewSelected);
+        if (!ids.length) { toast('Select at least one photo', 'warn'); return; }
+        const cap = ($('#prBulkCaption').value || '').trim();
+        if (cap.length < 3) { toast('Shared caption must be ≥ 3 chars', 'warn'); return; }
+        const r = await bulkApproveSitePhotos(ids, cap);
+        if (r) {
+          state.photoReviewSelected.clear();
+          await refreshPhotoReviewList();
+          await loadSitePhotos();
+        }
+      });
+    }
+
+    // ── Capture FAB wiring ────────────────────────────────────────────
+    function setupPhotoFab() {
+      const fab = $('#photoFab');
+      if (!fab) return;
+      fab.addEventListener('click', () => openPhotoCaptureModal());
+      // Hide until model is loaded so we don't tease the user with a button
+      // they can't anchor properly. Re-enabled by the boot observer below.
+      fab.style.display = 'none';
+    }
+
+    // SignalR-style live update hook. The signalr-shim.js loaded from
+    // viewer.html mounts window.__planscapeHub before this runs; this
+    // function binds the hub events to local state refreshers. When the
+    // shim is missing (CDN unreachable / running inside RN WebView /
+    // file:// scheme), the periodic loaders keep working as a fallback.
+    function setupPhotoRealtime() {
+      if (!projectId) return;
+      const refreshPhotos = () => loadSitePhotos();
+      const refreshIssues = (payload) => {
+        // Only refetch when the event is for the active project.
+        if (payload && payload.projectId && payload.projectId !== projectId) return;
+        loadIssues();
+      };
+      const refreshComments = (payload) => {
+        if (payload && payload.projectId && payload.projectId !== projectId) return;
+        // Comments thread is loaded on demand when the right-rail tab
+        // is opened; only repaint if the user is currently looking at
+        // the affected issue's comments.
+        if (state.rightTab === 'comments' && state.selectedIssueId &&
+            payload && payload.issueId === state.selectedIssueId) {
+          renderComments();
+        }
+      };
+
+      // Public hook so external host harnesses (or test suites) can
+      // simulate a refresh without a real hub event.
+      window.__planscapePhotoRealtime = {
+        onSitePhotoCaptured: refreshPhotos,
+        onSitePhotoApproved: refreshPhotos,
+        refresh: refreshPhotos,
+      };
+
+      // Bind to the shim if it's already mounted, OR register a
+      // rebind callback that the shim will call once the CDN script
+      // arrives. The "bound" tracker lives on window so a second
+      // setupPhotoRealtime() invocation (page reload, hot-reload)
+      // doesn't re-register every handler against the same hub
+      // singleton — closure-scoped tracking would reset to empty on
+      // each call and produce duplicates.
+      window.__planscapeHubBound = window.__planscapeHubBound || new WeakSet();
+      function bindHub() {
+        const hub = window.__planscapeHub;
+        if (!hub || typeof hub.on !== 'function') return;
+        if (window.__planscapeHubBound.has(hub)) return;
+        window.__planscapeHubBound.add(hub);
+        hub.on('SitePhotoCaptured', refreshPhotos);
+        hub.on('SitePhotoApproved', refreshPhotos);
+        hub.on('IssueCreated', refreshIssues);
+        hub.on('IssueUpdated', refreshIssues);
+        hub.on('CommentAdded',  refreshComments);
+      }
+      bindHub();
+      window.__planscapeRebindHub = bindHub;
     }
 
     // ── Bottom panel ───────────────────────────────────────────────────
@@ -1594,9 +3202,90 @@
       $('#bottomCollapse').addEventListener('click', () => {
         const bp = $('#bottomPanel');
         bp.classList.toggle('collapsed');
+        bp.classList.remove('expanded');
         $('.viewport-wrap')?.classList.toggle('bp-collapsed', bp.classList.contains('collapsed'));
         onResize();
       });
+
+      // ── Expand button (max state — toggles 60vh) ─────────────────────
+      const expandBtn = $('#bottomExpand');
+      if (expandBtn) {
+        expandBtn.addEventListener('click', () => {
+          const bp = $('#bottomPanel');
+          const wrap = $('.viewport-wrap');
+          bp.classList.remove('collapsed');
+          wrap?.classList.remove('bp-collapsed');
+          bp.classList.toggle('expanded');
+          // Clear any inline height the resize-drag set so the .expanded
+          // CSS class wins; toggling expanded back off restores the
+          // CSS-variable-driven default height.
+          if (bp.classList.contains('expanded')) {
+            bp.style.removeProperty('height');
+          }
+          // Mirror .expanded onto the viewport-wrap so the floating
+          // overlays (level strip, nav controls, coord readout, minimap)
+          // shift up to clear the 60vh tray instead of being covered.
+          // Without this they end up trapped underneath because their
+          // `bottom: calc(var(--bottom-panel-height) + …)` was computed
+          // against the default 220 px var.
+          wrap?.classList.toggle('bp-expanded', bp.classList.contains('expanded'));
+          expandBtn.textContent = bp.classList.contains('expanded') ? '⤓' : '⛶';
+          expandBtn.title = bp.classList.contains('expanded')
+            ? 'Restore default height'
+            : 'Expand to 60% of viewport';
+          onResize();
+        });
+      }
+
+      // ── Drag-to-resize on the top edge ───────────────────────────────
+      // We change the CSS variable in :root so the floating overlays
+      // (level strip, nav controls, coord readout, minimap) keep their
+      // bottom: calc(var(--bottom-panel-height) + …) offsets aligned.
+      const resizeHandle = $('#bottomResize');
+      if (resizeHandle) {
+        let dragStartY = 0;
+        let dragStartHeight = 0;
+        const minH = 80;
+        const maxH = () => Math.max(120, window.innerHeight * 0.85);
+        const onMove = (ev) => {
+          const dy = dragStartY - ev.clientY;       // up = bigger panel
+          const next = Math.min(maxH(), Math.max(minH, dragStartHeight + dy));
+          const bp = $('#bottomPanel');
+          bp.style.height = next + 'px';
+          // Push the same value into the root var so floating overlays
+          // recompute their bottom: calc(...).
+          document.documentElement.style.setProperty('--bottom-panel-height', next + 'px');
+        };
+        const onUp = () => {
+          $('#bottomPanel').classList.remove('resizing');
+          document.removeEventListener('pointermove', onMove);
+          document.removeEventListener('pointerup', onUp);
+          onResize();                                 // canvas re-fit
+        };
+        resizeHandle.addEventListener('pointerdown', (ev) => {
+          const bp = $('#bottomPanel');
+          if (bp.classList.contains('collapsed')) return;
+          // Drag breaks the .expanded preset — once you've manually
+          // resized, you've "taken over" the height, same as a normal
+          // window drag in any IDE. Drop the mirror class on the
+          // viewport-wrap too so the floating overlays return to their
+          // default --bottom-panel-height-driven offsets.
+          bp.classList.remove('expanded');
+          $('.viewport-wrap')?.classList.remove('bp-expanded');
+          bp.classList.add('resizing');
+          dragStartY = ev.clientY;
+          dragStartHeight = bp.getBoundingClientRect().height;
+          document.addEventListener('pointermove', onMove);
+          document.addEventListener('pointerup', onUp, { once: true });
+          ev.preventDefault();
+        });
+        // Double-click the grip to reset to the CSS-default height.
+        resizeHandle.addEventListener('dblclick', () => {
+          $('#bottomPanel').style.removeProperty('height');
+          document.documentElement.style.removeProperty('--bottom-panel-height');
+          onResize();
+        });
+      }
       $('#btnRunDetect').addEventListener('click', () => {
         toast('Running clash detection… (mock)', 'warn');
         setTimeout(() => { state.clashes = mockClashes(); placeClashPins(); renderClashes(); toast('Clash detection complete', 'success'); }, 1200);
@@ -1711,6 +3400,7 @@
         const pinTargets = [];
         state.issuePins.forEach(m => pinTargets.push(m));
         state.clashPins.forEach(m => pinTargets.push(m));
+        state.photoPins.forEach(m => pinTargets.push(m));
         const pinHits = pinTargets.length ? ray.intersectObjects(pinTargets, false) : [];
         if (pinHits.length && tooltip) {
           const u = pinHits[0].object.userData;
@@ -1723,6 +3413,10 @@
             const cl = state.clashes.find(x => x.id === u.clashId);
             if (cl) html = `<div class="ttitle">${escapeHtml(cl.elementA?.name)} ✕ ${escapeHtml(cl.elementB?.name)}</div>
               <div class="tmeta">${escapeHtml(cl.id)} · ${cl.type} · ${cl.overlap_mm}mm · ${escapeHtml(cl.status)}</div>`;
+          } else if (u.photoId) {
+            const p = state.photos.find(x => x.id === u.photoId);
+            if (p) html = `<div class="ttitle">${escapeHtml(p.caption || 'Site photo')}</div>
+              <div class="tmeta">${escapeHtml(p.reason || '')} · ${escapeHtml(p.audience || '')} · ${escapeHtml(p.capturedAt ? new Date(p.capturedAt).toLocaleDateString() : '')}</div>`;
           }
           if (html) {
             tooltip.innerHTML = html;
@@ -1774,9 +3468,15 @@
       const origSend = V.bridge.send;
       V.bridge.send = function (type, payload) {
         if (type === 'pick' && payload && payload.guid) {
-          state.selectedElementGuid = payload.guid;
-          renderProperties(payload.guid);
-          updateRightTabCounts();          // X2
+          // Route canvas-picks through the multi-select-aware selector so
+          // clearing happens correctly and the floating selection toolbar
+          // / multi-property pane stay in sync. Ctrl/Cmd-pick toggles into
+          // the existing set; Shift-pick adds; plain pick replaces.
+          const ev = payload.event || {};
+          const mode = (ev.ctrlKey || ev.metaKey) ? 'toggle'
+                     : ev.shiftKey               ? 'add'
+                     : 'replace';
+          selectElementByGuid(payload.guid, mode);
         }
         // R13 — engine emits pinTap for any pin in pinMeta. Coord pins
         // tagged with __coord = 'issue' / 'clash' route into our focus
@@ -1789,23 +3489,73 @@
           } else if (payload.__coord === 'clash' && payload.clashId) {
             const c = state.clashes.find(x => x.id === payload.clashId);
             if (c) focusClash(c);
+          } else if (payload.__coord === 'photo' && payload.photoId) {
+            const p = state.photos.find(x => x.id === payload.photoId);
+            if (p) focusPhoto(p);
           }
         }
         return origSend.call(V.bridge, type, payload);
       };
     }
 
-    function selectElementByGuid(guid) {
-      state.selectedElementGuid = guid;
-      clearAllHighlights();              // L6
-      const m = findMeshByGuid(guid);
-      if (m) {
-        const bb = new THREE_.Box3().setFromObject(m);
-        flyTo(bb.getCenter(new THREE_.Vector3()));
-        emissive(m, 0xF97316);
+    // Multi-select aware selector. mode=
+    //   "replace" → standard click; clear set, set primary to guid
+    //   "toggle"  → Ctrl/Cmd-click; add or remove guid from set
+    //   "add"     → Shift-click / programmatic; ensure guid in set
+    function selectElementByGuid(guid, mode = 'replace') {
+      if (!guid) {
+        state.selectedElementGuid = null;
+        state.selectedElementGuids.clear();
+        clearAllHighlights();
+        renderProperties(null);
+        updateRightTabCounts();
+        renderSelectionToolbar();
+        return;
       }
-      renderProperties(guid);
-      updateRightTabCounts();            // X2
+      if (mode === 'toggle') {
+        if (state.selectedElementGuids.has(guid)) {
+          state.selectedElementGuids.delete(guid);
+          if (state.selectedElementGuid === guid) {
+            // Promote any remaining selection to primary, else clear.
+            const it = state.selectedElementGuids.values().next();
+            state.selectedElementGuid = it.done ? null : it.value;
+          }
+        } else {
+          state.selectedElementGuids.add(guid);
+          state.selectedElementGuid = guid;
+        }
+      } else if (mode === 'add') {
+        state.selectedElementGuids.add(guid);
+        state.selectedElementGuid = guid;
+      } else {
+        state.selectedElementGuid = guid;
+        state.selectedElementGuids.clear();
+        state.selectedElementGuids.add(guid);
+      }
+      // Re-paint highlights from scratch so removed elements lose their
+      // emissive material.
+      clearAllHighlights();
+      let lastCentre = null;
+      state.selectedElementGuids.forEach(g => {
+        const m = findMeshByGuid(g);
+        if (m) {
+          emissive(m, 0xF97316);
+          // R-R12 — only fly to the union centre when selection size
+          // changes via tree (mode != toggle). For toggle (incremental),
+          // skip the camera move so the user keeps spatial context.
+          if (g === state.selectedElementGuid) {
+            const bb = new THREE_.Box3().setFromObject(m);
+            lastCentre = bb.getCenter(new THREE_.Vector3());
+          }
+        }
+      });
+      if (mode !== 'toggle' && lastCentre) flyTo(lastCentre);
+      renderProperties(state.selectedElementGuid);
+      updateRightTabCounts();
+      renderSelectionToolbar();
+      // Slice 4b — if Photos tab is active, refetch with the anchor filter
+      // applied so the gallery narrows to photos for the selected element.
+      if (state.rightTab === 'photos') loadSitePhotos();
     }
 
     function setupMinimap() {
@@ -1849,16 +3599,26 @@
       const defaultButtons = V.controls.mouseButtons
         ? Object.assign({}, V.controls.mouseButtons)
         : null;
+      const navEl = $('#navControls');
       $$('.nav-btn').forEach(b => b.addEventListener('click', () => {
+        const m = b.dataset.mode;
+        // "fit" is a one-shot action (fly the camera) rather than a
+        // persistent mode — flash the button but don't keep it active.
+        if (m === 'fit') {
+          if (state.selectedElementGuids.size) fitToSelection();
+          else if (V.modelBounds && !V.modelBounds.isEmpty()) {
+            flyTo(V.modelBounds.getCenter(new THREE_.Vector3()));
+          }
+          return;
+        }
         $$('.nav-btn').forEach(x => x.classList.remove('active'));
         b.classList.add('active');
-        const m = b.dataset.mode;
         state.activeNav = m;
         // Walk mode delegates to viewer-extras' first-person controls.
         handleHostCommand({ type: 'setWalkthrough', payload: { enabled: m === 'walk' } });
-        // Polish — Pan mode rebinds left mouse to PAN so coordinators can
-        // shove the model around with one finger / left-drag without
-        // remembering the right-click pan modifier. Orbit restores defaults.
+        // Toggle navControls.walking class so the speed-wheel highlights.
+        if (navEl) navEl.classList.toggle('walking', m === 'walk');
+        // Pan mode rebinds left mouse to PAN; Orbit restores defaults.
         if (V.controls && V.controls.mouseButtons && THREE_.MOUSE) {
           if (m === 'pan') {
             V.controls.mouseButtons.LEFT  = THREE_.MOUSE.PAN;
@@ -1869,10 +3629,60 @@
             V.controls.mouseButtons.RIGHT  = defaultButtons.RIGHT;
           }
         }
-        if (m === 'focus' && state.selectedElementGuid) {
-          selectElementByGuid(state.selectedElementGuid);
+        // Pivot = orbit camera around the selected element (or its centre).
+        // Was previously labelled "focus"; we keep the underlying behaviour
+        // and just expose a clearer label.
+        if (m === 'pivot' && state.selectedElementGuid) {
+          selectElementByGuid(state.selectedElementGuid, 'replace');
         }
       }));
+
+      // ── Walk-speed widget ─────────────────────────────────────────────
+      // Three input paths into the same multiplier:
+      //   1. +/- buttons in the nav-controls speed-wheel widget
+      //   2. Mouse-wheel scroll while walk mode is active
+      //   3. Settings menu "Default walk speed" persisted in localStorage
+      // viewer-extras.js reads window.__walkSpeedMul on every step.
+      if (typeof window.__walkSpeedMul !== 'number') window.__walkSpeedMul = 1.0;
+      try {
+        const persisted = parseFloat(localStorage.getItem('planscape_walk_speed'));
+        if (!isNaN(persisted) && persisted > 0) window.__walkSpeedMul = persisted;
+      } catch (_) {}
+      function paintSpeed() {
+        const v = $('#walkSpeedVal');
+        if (v) v.textContent = window.__walkSpeedMul.toFixed(2).replace(/\.?0+$/, '') + '×';
+      }
+      function bumpSpeed(delta) {
+        const next = Math.min(8, Math.max(0.1, window.__walkSpeedMul + delta));
+        window.__walkSpeedMul = Math.round(next * 100) / 100;
+        try { localStorage.setItem('planscape_walk_speed', String(window.__walkSpeedMul)); } catch (_) {}
+        paintSpeed();
+      }
+      $('#walkSpeedDown')?.addEventListener('click', (e) => { e.stopPropagation(); bumpSpeed(-0.25); });
+      $('#walkSpeedUp')?.addEventListener('click',   (e) => { e.stopPropagation(); bumpSpeed(+0.25); });
+      paintSpeed();
+
+      // Scroll wheel during walk mode adjusts speed instead of zoom.
+      // We listen at window level (capture) and only act when the
+      // walk button is .active so Orbit / Pan zoom keep their normal
+      // wheel-zoom behaviour. Form fields keep native scroll.
+      window.addEventListener('wheel', (ev) => {
+        if (state.activeNav !== 'walk') return;
+        const tgt = ev.target;
+        if (tgt && /INPUT|TEXTAREA|SELECT/.test(tgt.tagName)) return;
+        // Skip when the scroll happens inside a scrollable side pane so
+        // coordinators can still scroll the issues table or model tree
+        // while walk mode is technically active.
+        if (tgt && tgt.closest && (
+            tgt.closest('.left-panel') ||
+            tgt.closest('.right-panel') ||
+            tgt.closest('.bottom-panel'))) return;
+        // Modifier-aware: plain scroll = 5% per notch (fine); shift = 25%.
+        const fine = ev.shiftKey ? 0.25 : 0.05;
+        const sign = ev.deltaY < 0 ? +1 : -1;
+        bumpSpeed(sign * fine);
+        ev.preventDefault();
+      }, { passive: false });
     }
 
     function setActiveTool(t) {
@@ -1935,6 +3745,18 @@
         // (and Tab) so dismissing it doesn't also wipe the user's
         // selection / highlights.
         if ($('#issueModal')?.classList.contains('open')) return;
+        if ($('#photoCaptureModal')?.classList.contains('open')) return;
+        if ($('#photoReviewModal')?.classList.contains('open')) return;
+        // P = open the photo capture modal — fast keyboard shortcut for
+        // coordinators who want to grab a screenshot/upload without
+        // reaching for the FAB.
+        if (k === 'p' || k === 'P') {
+          if (state.modelName || state.elementMap) {
+            openPhotoCaptureModal();
+            e.preventDefault();
+            return;
+          }
+        }
         if (k === 'Escape') {
           // R7 — help overlay swallows Esc so closing it doesn't ALSO
           // wipe the user's selection / highlights.
@@ -1943,23 +3765,38 @@
             help.classList.remove('open');
             return;
           }
+          // Row-menu (clash/issue right-click popover) also swallows Esc
+          // for the same reason — closing the menu shouldn't also clear
+          // the selection it was opened against.
+          const rowMenu = $('#rowMenu');
+          if (rowMenu && rowMenu.classList.contains('open')) {
+            return;     // setupRowContextMenu's own keydown handler closes it
+          }
           handleHostCommand({ type: 'clearHighlight' });
           clearAllHighlights();          // L6
           state.selectedElementGuid = null;
+          state.selectedElementGuids.clear();
           state.selectedIssueId = null;
           renderProperties(null);
           updateRightTabCounts();        // X2
+          renderSelectionToolbar();
         } else if (k === 'f' || k === 'F') {
-          if (state.selectedElementGuid) selectElementByGuid(state.selectedElementGuid);
+          // F = fit selection (multi-aware). With nothing selected, fit the
+          // whole model. Matches the new "Fit" button in nav-controls.
+          if (state.selectedElementGuids.size) fitToSelection();
+          else if (V.modelBounds && !V.modelBounds.isEmpty()) {
+            flyTo(V.modelBounds.getCenter(new THREE_.Vector3()));
+          }
         } else if (k === 'h' || k === 'H') {
-          const m = findMeshByGuid(state.selectedElementGuid); if (m) m.visible = !m.visible;
+          // H = hide selected. Multi-aware: hides every mesh in the
+          // selection set, not just the primary.
+          if (state.selectedElementGuids.size) hideSelection();
         } else if (k === 'i' || k === 'I') {
-          if (!V.modelRoot) return;
-          const g = state.selectedElementGuid; if (!g) return;
-          V.modelRoot.traverse(o => { if (o.isMesh) o.visible = (o.userData.elementGuid === g); });
+          // I = isolate selection (multi-aware). Plain `I` is reserved for
+          // isolate; Shift+I (handled below) creates a new issue.
+          if (e.shiftKey) {} else if (state.selectedElementGuids.size) isolateSelection();
         } else if (k === 'a' || k === 'A') {
-          if (!V.modelRoot) return;
-          V.modelRoot.traverse(o => { if (o.isMesh) o.visible = true; });
+          showAllElements();
         } else if (k === 'g' || k === 'G') {
           state.ghostMode = !state.ghostMode;
           setRenderMode(state.ghostMode ? 'ghost' : 'shaded');
@@ -1974,6 +3811,13 @@
           e.preventDefault();
         } else if ((e.ctrlKey || e.metaKey) && (k === 's' || k === 'S')) {
           e.preventDefault(); $('#btnAddView').click();
+        } else if (e.shiftKey && (k === 'I' || k === 'i')) {
+          // Shift+I — create a new issue. The bare 'I' shortcut is already
+          // taken (isolate selected element), so this is the new-issue
+          // variant. Pre-seeds the linked element if one is selected.
+          e.preventDefault();
+          const sel = state.selectedElementGuid;
+          openIssueModal(sel ? { guid: sel, meta: state.elementMap?.[sel] || {} } : {});
         } else if (k >= '1' && k <= '7') {
           const pills = $$('.level-pill'); const p = pills[parseInt(k, 10) - 1]; if (p) p.click();
         }
@@ -2111,6 +3955,14 @@
       set('rightTabClashesCount',  cl.length);
       set('rightTabIssuesCount',   is.length);
       set('rightTabCommentsCount', cmnt);
+      // Slice 4b — photos count is anchor-aware: when an element is
+      // selected we already filter the request to that anchor server-side
+      // so state.photos.length is the correct number to display.
+      // (state.photos is initialised inside the photo block; guard for the
+      // very first updateRightTabCounts() call at boot which fires before
+      // that mutation has run.)
+      const ph = Array.isArray(state.photos) ? state.photos : [];
+      set('rightTabPhotosCount', ph.length);
     }
 
     function updateBadges() {
@@ -2152,6 +4004,8 @@
         rebuildGuidIndex();          // B7 — GUID→mesh map for fast lookups
         placeIssuePins();
         placeClashPins();
+        placePhotoPins();             // Slice 4b — photo pins after model bounds known
+        const fab = $('#photoFab'); if (fab) fab.style.display = '';
         buildLevelStrip();           // re-run with real bounds for Y bands
         clearInterval(bootObserver);
         // B1 — GLTFLoader has consumed the blob URL, free it now to avoid
@@ -2169,6 +4023,10 @@
       if (state.lastBlobUrl) try { URL.revokeObjectURL(state.lastBlobUrl); } catch (_) {}
       if (presentTimer) clearInterval(presentTimer);
       if (state.heartbeatTimer) clearInterval(state.heartbeatTimer);
+      // Slice 4b — release photo thumbnail blob URLs + the staged
+      // capture preview if the user closes mid-capture.
+      try { PHOTO_BLOB_CACHE.forEach(u => URL.revokeObjectURL(u)); PHOTO_BLOB_CACHE.clear(); } catch (_) {}
+      if (pendingPhotoObjectUrl) try { URL.revokeObjectURL(pendingPhotoObjectUrl); } catch (_) {}
     });
 
     // First paint
