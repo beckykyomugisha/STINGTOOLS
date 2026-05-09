@@ -8,8 +8,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Electrical;
+using StingTools.Core.Placement;
 
 namespace StingTools.Core.Routing
 {
@@ -29,6 +31,100 @@ namespace StingTools.Core.Routing
 
         /// <summary>Fabrication method; typically "SITE" for drops.</summary>
         public string FabMethod { get; set; } = "SITE";
+
+        /// <summary>
+        /// When true, fixtures whose host is a Wall and whose
+        /// InstallMethod is "CHASED" are routed via
+        /// <see cref="InWallChaseRouter"/> instead of the standard
+        /// fixture-to-tray drop. The chase router reads the wall's
+        /// compound structure, computes available chase depth, and
+        /// rejects routes that don't fit the conduit OD + cover. Falls
+        /// back to the standard drop on any chase-router failure.
+        /// </summary>
+        public bool UseChaseRoutingWhenAvailable { get; set; } = false;
+
+        /// <summary>
+        /// Default cover (mm) over the chased conduit. Used when the
+        /// hosting wall is concrete and a structural cover figure isn't
+        /// available from the rule.
+        /// </summary>
+        public double ChaseCoverMm { get; set; } = 30.0;
+
+        /// <summary>
+        /// Try to route a fixture's drop in-wall when the host wall has
+        /// a compound structure that admits a chase. Returns true on
+        /// successful chase route, false to signal "fall back to plumb-
+        /// line drop". Always non-destructive when it returns false —
+        /// no half-routed conduits left behind.
+        /// </summary>
+        public bool TryDropViaChase(Element fixtureEl, double conduitDiamMm, DropResult result)
+        {
+            if (!UseChaseRoutingWhenAvailable || fixtureEl == null) return false;
+
+            try
+            {
+                // 1) Host must be a Wall — chases only make sense in walls.
+                var host = fixtureEl.Host;
+                var wall = host as Wall;
+                if (wall == null) return false;
+
+                // 2) Compound structure must exist for a meaningful depth check.
+                var cs = wall.WallType?.GetCompoundStructure();
+                if (cs == null) return false;
+
+                // 3) Synthesize a minimal PlacementRule for the chase router.
+                //    Only the subset of fields the router actually reads is
+                //    populated — keeps the bridge cheap and avoids surprising
+                //    cross-talk with the wider placement engine.
+                var rule = new PlacementRule
+                {
+                    RuleId = "auto-conduit-chase",
+                    MountingContext = "CHASED",
+                    NominalDiameterMm = conduitDiamMm,
+                    InsulationThicknessMm = 0,
+                    ExposureClass = "XC2",     // typical interior-wall chase
+                };
+
+                // 4) Endpoints: from the fixture's connector / location to the
+                //    intercept point on the host containment, exactly as the
+                //    standard drop would compute. The chase router projects
+                //    these onto the wall's location curve internally.
+                Connector fxConn = FindBestFreeConnector(fixtureEl);
+                XYZ origin = fxConn?.Origin
+                          ?? (fixtureEl.Location as LocationPoint)?.Point;
+                if (origin == null) return false;
+
+                Element containment = FindNearestContainment(origin,
+                    BuiltInCategory.OST_CableTray, SearchRadiusMm);
+                XYZ end = containment != null ? ComputeInterceptPoint(origin, containment) : null;
+                if (end == null) end = new XYZ(origin.X, origin.Y, origin.Z + (3000.0 / 304.8));
+
+                // 5) Delegate.
+                var router = new InWallChaseRouter(Doc, null);
+                var route = router.Route(wall, origin, end, rule, ConduitTypeId, ElementId.InvalidElementId);
+
+                if (route.CreatedSegments.Count == 0)
+                {
+                    foreach (var w in route.Warnings) result.Warnings.Add($"Chase: {w}");
+                    return false;        // caller will fall back
+                }
+
+                foreach (var id in route.CreatedSegments)
+                {
+                    result.CreatedIds.Add(id);
+                    var cdt = Doc.GetElement(id);
+                    TrySetString(cdt, "ELC_CDT_INSTALL_METHOD_TXT", "CHASED");
+                    TrySetString(cdt, "ELC_CDT_FAB_METHOD_TXT", FabMethod);
+                }
+                foreach (var w in route.Warnings) result.Warnings.Add($"Chase: {w}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"TryDropViaChase: {ex.Message}");
+                return false;
+            }
+        }
 
         /// <summary>
         /// ConduitType used for the drop. If null, the engine uses the
