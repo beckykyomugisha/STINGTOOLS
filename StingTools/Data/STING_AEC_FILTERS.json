@@ -7309,6 +7309,119 @@
       ],
       "standard": "HBN 07-02",
       "notes": ""
+    },
+    {
+      "id": "plumb-dead-legs",
+      "name": "STING - Plumb: Dead Legs (HSG 274)",
+      "categories": [
+        "OST_PipeCurves",
+        "OST_PipeFitting"
+      ],
+      "rule": {
+        "param": "PLM_DEAD_LEG_LENGTH_M",
+        "kind": "shared",
+        "op": "greater_than",
+        "value": "0",
+        "type": "double"
+      },
+      "override": {
+        "projColor": "#FF00FF",
+        "cutColor": "#FF00FF",
+        "projWeight": 5,
+        "halftone": true
+      },
+      "tags": [
+        "plumb",
+        "legionella",
+        "qa"
+      ],
+      "standard": "HSG 274",
+      "notes": "Dead legs flagged by DeadLegDetector — leg length > 5×D or > 5 m."
+    },
+    {
+      "id": "plumb-pou-filter",
+      "name": "STING - Plumb: Point-of-Use Filter Outlets",
+      "categories": [
+        "OST_PlumbingFixtures"
+      ],
+      "rule": {
+        "param": "PLM_POU_FILTER_BOOL",
+        "kind": "shared",
+        "op": "equals",
+        "value": "1",
+        "type": "yesno"
+      },
+      "override": {
+        "projColor": "#00BCD4",
+        "projWeight": 4
+      },
+      "tags": [
+        "plumb",
+        "healthcare",
+        "filter"
+      ],
+      "standard": "HTM 04-01",
+      "notes": ""
+    },
+    {
+      "id": "plumb-high-pressure-zone",
+      "name": "STING - Plumb: High Pressure / Boosted Zone",
+      "categories": [
+        "OST_PipeCurves",
+        "OST_PipeFitting",
+        "OST_PipeAccessory"
+      ],
+      "rule": {
+        "kind": "compound",
+        "op": "or",
+        "operands": [
+          { "param": "PLM_PRESSURE_ZONE_TXT", "kind": "shared", "op": "equals", "value": "HIGH",     "type": "string" },
+          { "param": "PLM_PRESSURE_ZONE_TXT", "kind": "shared", "op": "equals", "value": "BOOSTED",  "type": "string" }
+        ]
+      },
+      "override": {
+        "projColor": "#8B0000",
+        "cutColor": "#8B0000",
+        "projWeight": 5
+      },
+      "tags": [
+        "plumb",
+        "pressure",
+        "qa"
+      ],
+      "standard": "BS 8558",
+      "notes": "Static head exceeds zone threshold — PRV downstream required."
+    },
+    {
+      "id": "plumb-backflow-risk",
+      "name": "STING - Plumb: Backflow Risk (Fluid Cat 3/4/5)",
+      "categories": [
+        "OST_PipeCurves",
+        "OST_PipeFitting",
+        "OST_PlumbingFixtures",
+        "OST_PipeAccessory"
+      ],
+      "rule": {
+        "kind": "compound",
+        "op": "or",
+        "operands": [
+          { "param": "PLM_FLUID_CATEGORY_TXT", "kind": "shared", "op": "equals", "value": "3", "type": "string" },
+          { "param": "PLM_FLUID_CATEGORY_TXT", "kind": "shared", "op": "equals", "value": "4", "type": "string" },
+          { "param": "PLM_FLUID_CATEGORY_TXT", "kind": "shared", "op": "equals", "value": "5", "type": "string" }
+        ]
+      },
+      "override": {
+        "projColor": "#FFB300",
+        "cutColor": "#FFB300",
+        "projWeight": 4
+      },
+      "tags": [
+        "plumb",
+        "backflow",
+        "qa"
+      ],
+      "standard": "BS EN 1717",
+      "notes": "Fluid category 3+ requires DCV / RPZ / air gap upstream."
     }
   ]
 }

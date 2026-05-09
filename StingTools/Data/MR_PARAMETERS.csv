@@ -2800,3 +2800,45 @@ Generic Models,STING_SHEET_SEQ_TXT,b11bf925-8cf7-5941-b8aa-9ccea031253d,TEXT,PRJ
 Generic Models,STING_SHEET_TYPE_TXT,c5c9de9a-9ad8-5de7-8ee6-0149cd674a6a,TEXT,PRJ_INFORMATION,Type,"ISO 19650 7-segment sheet ID — segment 5 (type, e.g. 'DR' drawing / 'M3' model / 'SH' schedule). Sheet-instance scope [BS EN ISO 19650-2:2018 §5.1.6]",False,,,MULTI,1,0
 Generic Models,STING_SHEET_VOLUME_TXT,498273b7-a814-57e4-8316-8359609a8bdd,TEXT,PRJ_INFORMATION,Type,"ISO 19650 7-segment sheet ID — segment 3 (volume / system, e.g. 'ZZ' / '01' / 'M01'). Sheet-instance scope [BS EN ISO 19650-2:2018 §5.1.6]",False,,,MULTI,1,0
 Generic Models,STING_SUITABILITY_DESC_TXT,7d12b6b6-9c62-515e-a611-92ab4e74e93f,TEXT,PRJ_INFORMATION,Type,"Descriptive label paired with PRJ_DWG_SUITABILITY_COD_TXT — e.g. for 'S2' the description is 'Shared, Non-contractual' [BS EN ISO 19650-2:2018 §5.6 Annex A]",False,,,MULTI,1,0
+Generic Models,PLM_DFU_COUNT_INT,9468e66a-ee14-50bb-b0e9-00005ea06497,INTEGER,PLM_DRN,Type,IPC 2021 Drainage Fixture Units assigned to fixture or pipe segment [Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_WSFU_COUNT_INT,689d24e8-c9b5-5705-8f7f-57a3e6436c19,INTEGER,PLM_DRN,Type,IPC 2021 Water Supply Fixture Units [Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_TRAP_TYPE_TXT,6389d133-18f9-549b-81b2-a7854cc06dff,TEXT,PLM_DRN,Type,Trap type P-TRAP/BOTTLE-TRAP/DEEP-SEAL/INTEGRAL [BS EN 12056-2 Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_TRAP_SEAL_DEPTH_MM,cde11f1f-ce97-59b6-9e31-88733c0074bc,TEXT,PLM_DRN,Type,Trap water seal depth mm minimum 50 [BS EN 12056-2 Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_VENT_SIZE_DN,ce6f77ba-72d5-5904-ba1a-b01d6a09274c,INTEGER,PLM_DRN,Type,Vent pipe nominal diameter mm [IPC 2021 Table 916.1 Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_AAV_REQUIRED_BOOL,cd10ebf4-3e56-5f81-bde7-5a7efbb3312d,YESNO,PLM_DRN,Type,Air Admittance Valve required [BS EN 12380 Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_CALC_DN_MM,6ff40ae1-9a6a-59d7-93aa-1b3ea27b3f28,INTEGER,PLM_DRN,Type,Auto-calculated minimum pipe diameter mm DrainageSizer output [Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_CALC_SLOPE_PCT,5a6613d4-2b44-5f13-b023-74ad817ca427,TEXT,PLM_DRN,Type,Auto-calculated minimum slope percent DrainageSizer output [Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_DEMAND_FLOW_LPS,4d30cc88-36ca-56bc-b070-9eda111b4ca4,TEXT,PLM_DRN,Type,Design flow rate l/s for pipe or branch [Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_VELOCITY_MPS,12bdb567-8260-51e3-9048-c853ad1536e1,TEXT,PLM_DRN,Type,Design flow velocity m/s [Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_FRICTION_LOSS_PA_M,2dd14866-68c7-5f8b-8541-2760a011e644,TEXT,PLM_DRN,Type,Friction head loss Pa per metre [Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_PRESSURE_TEST_KPA,bc0dcd88-a1a4-58c3-aa26-900b3a1658c2,INTEGER,PLM_DRN,Type,Test pressure kPa default 100 [BS EN 12056-5 Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_FLUID_CATEGORY_TXT,453c0b62-3bc7-57f4-b099-277e022d40e0,TEXT,PLM_DRN,Type,BS EN 1717 fluid category 1-5 [Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_VLV_BACKFLOW_TYPE_TXT,7e293a2c-4851-5677-bbb2-99be80e47d54,TEXT,PLM_DRN,Type,Backflow prevention device CHK-SC/CHK-DC/VLV-RPZ/GAP-AA [BS EN 1717 Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_PPE_STANDARD_TXT,39ef8603-2ac1-5bba-9de1-b770f304098b,TEXT,PLM_DRN,Type,Pipe material standard EN 1057/EN 10255/EN 1452/EN 877/EN 12201 [Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_PPE_SCHEDULE_TXT,66c4b030-073b-5ae3-a0d9-2c15f6b88b8a,TEXT,PLM_DRN,Type,Pipe schedule SCH 10/40/80 SDR 11/17 [Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_PPE_GRADE_TXT,b56727b6-4e83-5e65-85f9-6fcce50ee8cf,TEXT,PLM_DRN,Type,Material grade R220 R250 316L 304L PE100 [Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_PPE_WRAS_APPROVED_BOOL,9bf49b76-7b80-5403-b9b6-5519ab4cb7e7,YESNO,PLM_DRN,Type,WRAS approved product [Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_PPE_COLOR_BS1710_TXT,1f327972-191d-55e5-98fb-8c6a46d84d3b,TEXT,PLM_DRN,Type,Pipe identification colour per BS 1710 [Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_PPE_WALL_THK_MM,e4412254-bea7-5a5e-9113-fee0ee9f5ff2,TEXT,PLM_DRN,Type,Pipe wall thickness mm for invert calc [Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_MAT_TXT,75ebc9f4-666a-507e-8ea2-b72040578982,TEXT,PLM_DRN,Type,Pipe material code CU_R250_X MDPE_PE80_BLUE etc [Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_RWH_ROOF_AREA_M2,d6a7f909-d625-5513-9ed5-7cb61ab29ae9,TEXT,PLM_DRN,Type,Roof contributing area for rainwater harvesting m2 [BS 8515 Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_RWH_TANK_VOL_M3,75da88b8-9ae8-5c9a-9c24-002d8cb141d3,TEXT,PLM_DRN,Type,Calculated RWH tank volume m3 [BS 8515 Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_RWH_ANNUAL_YIELD_M3,a359f448-eca1-5ad1-83ce-d55cbcce0e0c,TEXT,PLM_DRN,Type,Calculated annual rainwater yield m3 [BS 8515 Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_SUDS_ATTEN_VOL_M3,4933f620-561d-5fdd-8563-2dd9c69d5000,TEXT,PLM_DRN,Type,SuDS attenuation volume m3 [CIRIA C753 Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_SEPTIC_TANK_VOL_L,61260170-e6e4-5676-8b47-a51e08ae36b4,TEXT,PLM_DRN,Type,Septic tank volume litres [BS EN 12566-1 Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_PRV_SET_PRESSURE_KPA,06dab377-9f9e-59be-b442-a9832e492400,TEXT,PLM_DRN,Type,PRV set-point pressure kPa [Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_PRV_INLET_PRESSURE_KPA,572fcbbd-495e-52b2-8dec-731734e94aab,TEXT,PLM_DRN,Type,PRV inlet upstream pressure kPa [Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_PRESSURE_ZONE_TXT,00fdeb95-2512-5aec-afed-6eca926c9666,TEXT,PLM_DRN,Type,Pressure zone LOW/MID/HIGH/BOOSTED [Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_TMV_CLASS_TXT,f6957339-9364-575d-b916-28a31bede75e,TEXT,PLM_DRN,Type,TMV class TMV2 TMV3 [BS 7942 Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_TMV_BLEND_TEMP_C,1cc13cfc-9059-538d-8c2d-02c9384ef850,TEXT,PLM_DRN,Type,TMV blended outlet temperature setpoint C [Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_VLV_SET_PRESSURE_BAR,dc00317c-d340-56b9-9f61-3604459d0289,TEXT,PLM_DRN,Type,Valve set pressure bar PRV / safety valves [Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_VLV_DESIGN_FLOW_LS,cde9d6ca-3327-585b-a8f7-6260416747c8,TEXT,PLM_DRN,Type,Valve design flow rate l/s [Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_VLV_DESIGN_DP_KPA,a0daacb6-3075-5571-adac-f16dd4986012,TEXT,PLM_DRN,Type,Valve design pressure drop kPa [Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_VLV_FAIL_POSITION_TXT,83e44d79-e601-5250-bcbc-d63193ac441f,TEXT,PLM_DRN,Type,Valve fail-safe position OPEN/CLOSED/LAST [Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_VLV_WRAS_APPROVED_BOOL,ab46d616-d864-572c-8d9d-5bb51ccaab79,YESNO,PLM_DRN,Type,Valve WRAS-approved [Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_DEAD_LEG_LENGTH_M,af8461f1-b314-5f60-8e8d-e38963de14f8,TEXT,PLM_DRN,Type,Dead-leg length m flagged by DeadLegDetector [HSG 274 Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_AUG_CARE_BOOL,a243bacd-1f2a-5c23-aa4e-f3c60c1ee37a,YESNO,PLM_DRN,Type,Augmented-care zone fixture HTM 04-01 Part B [Phase 178b],False,,,HEALTHCARE,1,0
+Generic Models,PLM_RO_LOOP_BOOL,bbab9ac4-5a21-5970-bab2-43532234f241,YESNO,PLM_DRN,Type,Member of dialysis RO recirculation loop [HTM 04-01 Part D Phase 178b],False,,,HEALTHCARE,1,0
+Generic Models,PLM_POU_FILTER_BOOL,59bd061b-2641-55e1-8e05-21f1f5dfd56b,YESNO,PLM_DRN,Type,Point-of-use filter fitted [HTM 04-01 Phase 178b],False,,,HEALTHCARE,1,0
+Generic Models,PLM_SENTINEL_BOOL,56f58de8-d502-585d-9f3b-57f169c6c7a2,YESNO,PLM_DRN,Type,TMV sentinel monitoring point [Phase 178b],False,,,PLUMBING,1,0
+Generic Models,PLM_PRJ_PLUMBING_CODE_TXT,98ab6e19-8d12-53c0-b388-8705f9413373,TEXT,ASS_MNG,Type,Project plumbing-code toggle BS-UK / IPC-US / UPC-US [Phase 178b],False,,,MULTI,1,0

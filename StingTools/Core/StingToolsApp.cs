@@ -76,6 +76,7 @@ namespace StingTools.Core
                 // Register the dockable panel — the single unified UI
                 RegisterDockablePanel(application);
                 RegisterElectricalPanel(application);
+                RegisterPlumbingPanel(application);
 
                 // Register the real-time auto-tagger (IUpdater) — starts disabled
                 StingAutoTagger.Register(application);
@@ -1439,6 +1440,32 @@ namespace StingTools.Core
             }
         }
 
+        // ── Phase 178c — STING Plumbing Center registration ─────────────
+        private void RegisterPlumbingPanel(UIControlledApplication application)
+        {
+            try
+            {
+                StingTools.UI.Plumbing.StingPlumbingCommandHandler.Initialise(application);
+                var provider = new StingTools.UI.Plumbing.StingPlumbingPanelProvider();
+                application.RegisterDockablePane(
+                    StingTools.UI.Plumbing.StingPlumbingPanelProvider.PaneId,
+                    "💧 STING Plumbing",
+                    provider);
+
+                const string tabName = "STING Tools";
+                string asmPath = AssemblyPath;
+                var plumbPanel = application.CreateRibbonPanel(tabName, "💧 Plumbing");
+                AddButton(plumbPanel, "btnTogglePlumbing", "STING\nPlumbing",
+                    asmPath, typeof(TogglePlumbingPanelCommand).FullName,
+                    "Show/hide the STING Plumbing Center dockable panel.");
+                StingLog.Info("Plumbing dockable panel registered successfully");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Failed to register Plumbing dockable panel", ex);
+            }
+        }
+
         /* Ribbon panels removed — all commands now accessible via the dockable panel.
            Original panels: Select (22 cmds), Docs (17 cmds), Tags (28 cmds),
            Organise (32 cmds), Temp (64 cmds). */
@@ -1800,6 +1827,37 @@ namespace StingTools.Core
             catch (Exception ex)
             {
                 StingLog.Error("Toggle Electrical panel failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Phase 178c — toggle the STING Plumbing Center dockable panel.
+    /// </summary>
+    [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.ReadOnly)]
+    public class TogglePlumbingPanelCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var pane = ParameterHelpers.GetApp(commandData)
+                    .GetDockablePane(StingTools.UI.Plumbing.StingPlumbingPanelProvider.PaneId);
+                if (pane == null)
+                {
+                    TaskDialog.Show("STING Plumbing",
+                        "Plumbing panel not found. Restart Revit to register it.");
+                    return Result.Failed;
+                }
+                if (pane.IsShown()) pane.Hide(); else pane.Show();
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Toggle Plumbing panel failed", ex);
                 message = ex.Message;
                 return Result.Failed;
             }

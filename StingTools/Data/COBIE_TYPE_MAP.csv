@@ -123,3 +123,12 @@ CEQ-ENDO-REPRO,Endoscope Reprocessor,Decon,Fixed,Generic,ENDO-AER-01,5,28000,15,
 CEQ-RTLS,RTLS Reader,IT,Fixed,Generic,RTLS-RDR-01,3,1100,10,year,12,RTLS reader (RFID/BLE/UWB),ABS,N/A,3-MED-95,Pr_70_55_38,Specialty Equipment,H,GEN,STD,NCS,CEQ-RTLS
 CEQ-CRT,Crash Cart,Clinical Equipment,Moveable,Generic,CRT-01,5,3200,10,year,12,Resuscitation crash cart,Painted Steel,N/A,3-MED-100,Pr_75_50_29,Specialty Equipment,H,GEN,STD,CRT,CEQ-CART
 CEQ-HRD,Hand-Rub Dispenser,Clinical Equipment,Fixed,Generic,HRD-01,5,80,10,year,12,Wall hand-rub dispenser,ABS,N/A,3-MED-101,Pr_75_50_29,Specialty Equipment,H,GEN,STD,HRD,CEQ-HRD
+VLV-PRV,Pressure Reducing Valve,Plumbing,Fixed,Generic,PRV-01,10,650,25,year,12,Pressure reducing valve BS EN 1567,Brass DZR,N/A,3-26-15,Pr_70_65_98_64,Pipe Accessories,P,DCW,SUP,PRV,VLV-PRV
+VLV-RPZ,Reduced Pressure Zone Backflow Preventer,Plumbing,Fixed,Generic,RPZ-01,5,1850,15,year,12,RPZ Type BA backflow preventer BS EN 12729,Bronze,N/A,3-26-15,Pr_70_65_98_64,Pipe Accessories,P,DCW,SUP,RPZ,VLV-RPZ
+VLV-BFP,Backflow Preventer Check Valve,Plumbing,Fixed,Generic,DCV-01,10,180,20,year,24,Double check valve EB BS EN 13959,Brass DZR,N/A,3-26-15,Pr_70_65_98_64,Pipe Accessories,P,DCW,SUP,DCV,VLV-BFP
+TNK-RWH,Rainwater Harvesting Tank,Plumbing,Fixed,Generic,RWH-TNK-01,10,3500,40,year,12,Below-ground RWH storage tank BS 8515,GRP,N/A,3-26-50,Pr_75_50_72,Plumbing Fixtures,P,RWH,RWH,TNK,TNK-RWH
+EQP-SOFTENER,Water Softener,Plumbing,Fixed,Generic,WS-01,5,2400,15,year,6,Twin-tank ion-exchange water softener,Polyethylene,N/A,3-26-65,Pr_70_70_98,Mechanical Equipment,P,DCW,TRT,WSF,EQP-WSF
+EQP-UV,UV Steriliser Unit,Plumbing,Fixed,Generic,UV-01,2,1850,10,year,12,UV steriliser for water treatment,Stainless 316L,N/A,3-26-65,Pr_70_70_98,Mechanical Equipment,P,DCW,TRT,UVS,EQP-UVS
+EQP-HX,Heat Exchanger Plate Frame,Plumbing,Fixed,Generic,HX-PHE-01,10,4200,25,year,12,Plate heat exchanger DHW primary/secondary,Stainless 316L,N/A,3-26-30,Pr_70_70_29,Mechanical Equipment,P,DHW,HTG,HXP,EQP-HXP
+PMP-BOOSTER,Booster Pump Set Packaged,Plumbing,Fixed,Generic,BPS-DD-01,10,12500,15,year,6,Duty/standby boosted cold water pump set,Stainless 316L,N/A,3-26-26,Pr_75_50_72_30,Mechanical Equipment,P,DCW,SUP,BPS,PMP-BPS
+EQP-RO,Reverse Osmosis Unit,Plumbing,Fixed,Generic,RO-01,5,8500,15,year,3,RO unit for lab / dialysis water HTM 04-01 Part D,Stainless 316L,N/A,3-26-65,Pr_70_70_98,Mechanical Equipment,P,LBW,LAB,ROU,EQP-RO
