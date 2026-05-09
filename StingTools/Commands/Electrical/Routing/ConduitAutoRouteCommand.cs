@@ -189,6 +189,44 @@ namespace StingTools.Commands.Electrical.Routing
                         var jbResult = StingTools.Core.Routing.JunctionBoxAutoPlacer.Place(doc, jbConduitIds);
                         junctionBoxes = jbResult.Placed;
                         foreach (var w in jbResult.Warnings) StingLog.Info($"JB placer: {w}");
+
+                        // Wave H4 — after JB placement, propagate the
+                        // placed-box ids back into each cable's manifest
+                        // entry so downstream tools (cable schedule, FRP
+                        // register, swap planner) see the correct routing
+                        // topology. Map break-point.ConduitId → cables
+                        // whose RouteTrayIds contains that conduit, then
+                        // append the placed JB id.
+                        try
+                        {
+                            var byConduit = new Dictionary<long, List<long>>();
+                            foreach (var bp in jbResult.Points)
+                            {
+                                if (bp.PlacedBoxId == null ||
+                                    bp.PlacedBoxId == ElementId.InvalidElementId) continue;
+                                long key = bp.ConduitId.Value;
+                                if (!byConduit.TryGetValue(key, out var list))
+                                { list = new List<long>(); byConduit[key] = list; }
+                                if (!list.Contains(bp.PlacedBoxId.Value))
+                                    list.Add(bp.PlacedBoxId.Value);
+                            }
+                            foreach (var c in manifest.Cables)
+                            {
+                                if (c.RouteTrayIds == null || c.RouteTrayIds.Count == 0) continue;
+                                if (c.JunctionBoxIds == null) c.JunctionBoxIds = new List<long>();
+                                foreach (long routeId in c.RouteTrayIds)
+                                {
+                                    if (byConduit.TryGetValue(routeId, out var jbIds))
+                                    {
+                                        foreach (long jb in jbIds)
+                                            if (!c.JunctionBoxIds.Contains(jb))
+                                                c.JunctionBoxIds.Add(jb);
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception ex) { StingLog.Warn($"JB → manifest sync: {ex.Message}"); }
+
                         tx2.Commit();
                     }
                 }

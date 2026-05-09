@@ -16044,3 +16044,141 @@ ELC_JB_AUTO_PLACED_BOOL,Electrical Equipment,Instance,True
 ELC_JB_REASON_TXT,Electrical Equipment,Instance,True
 ELC_CDT_BREAKPOINT_TXT,Conduits,Instance,True
 ELC_CDT_BREAKPOINT_TXT,Conduit Fittings,Instance,True
+CEQ_CATEGORY_TXT,Specialty Equipment,Instance,True
+CEQ_CATEGORY_TXT,Mechanical Equipment,Instance,True
+CEQ_CLINICAL_BOOL,Specialty Equipment,Instance,True
+CEQ_CLINICAL_BOOL,Mechanical Equipment,Instance,True
+CEQ_DECON_METHOD_TXT,Specialty Equipment,Instance,True
+CEQ_DECON_METHOD_TXT,Mechanical Equipment,Instance,True
+CEQ_ENDO_AER_REF_TXT,Specialty Equipment,Instance,True
+CEQ_ENDO_AER_REF_TXT,Mechanical Equipment,Instance,True
+CEQ_ENDO_CYCLE_COUNT_INT,Specialty Equipment,Instance,True
+CEQ_ENDO_CYCLE_COUNT_INT,Mechanical Equipment,Instance,True
+CEQ_ENDO_LAST_REPRO_DT,Specialty Equipment,Instance,True
+CEQ_ENDO_LAST_REPRO_DT,Mechanical Equipment,Instance,True
+CEQ_ENDO_SCOPE_ID_TXT,Specialty Equipment,Instance,True
+CEQ_ENDO_SCOPE_ID_TXT,Mechanical Equipment,Instance,True
+CEQ_GMDN_CODE_TXT,Specialty Equipment,Instance,True
+CEQ_GMDN_CODE_TXT,Mechanical Equipment,Instance,True
+CEQ_INFECT_TIER_TXT,Specialty Equipment,Instance,True
+CEQ_INFECT_TIER_TXT,Mechanical Equipment,Instance,True
+CEQ_SFG20_REF_TXT,Specialty Equipment,Instance,True
+CEQ_SFG20_REF_TXT,Mechanical Equipment,Instance,True
+CEQ_UMDNS_CODE_TXT,Specialty Equipment,Instance,True
+CEQ_UMDNS_CODE_TXT,Mechanical Equipment,Instance,True
+CLN_ADB_CODE_TXT,Rooms,Instance,True
+CLN_ANTERM_LINKED_ID_TXT,Rooms,Instance,True
+CLN_BARI_DESIGN_KG_NR,Rooms,Instance,True
+CLN_DEFLECTION_LIMIT_MM_NR,Rooms,Instance,True
+CLN_EQUIP_WEIGHT_KG_NR,Rooms,Instance,True
+CLN_FGI_REF_TXT,Rooms,Instance,True
+CLN_FLOOR_LOAD_KN_M2_NR,Rooms,Instance,True
+CLN_HBN_REF_TXT,Rooms,Instance,True
+CLN_HOIST_TRACK_BOOL,Rooms,Instance,True
+CLN_HTM_REF_TXT,Rooms,Instance,True
+CLN_INFECT_CLASS_TXT,Rooms,Instance,True
+CLN_LIGATURE_RES_BOOL,Rooms,Instance,True
+CLN_LIG_RISK_LVL_TXT,Rooms,Instance,True
+CLN_MRI_ZONE_INT,Rooms,Instance,True
+CLN_NOISE_NR_NR,Rooms,Instance,True
+CLN_NURSECALL_TYPE_TXT,Rooms,Instance,True
+CLN_OCC_VISITOR_INT,Rooms,Instance,True
+CLN_PRESS_DELTA_DESIGN_PA_NR,Rooms,Instance,True
+CLN_PRESS_REGIME_TXT,Rooms,Instance,True
+CLN_PRIVACY_LVL_TXT,Rooms,Instance,True
+CLN_RAD_CONTROLLED_BOOL,Rooms,Instance,True
+CLN_RF_SHIELD_BOOL,Rooms,Instance,True
+CLN_ROOM_CLASS_TXT,Rooms,Instance,True
+CLN_RT60_TARGET_S_NR,Rooms,Instance,True
+CLN_STRUCT_SIGN_OFF_DT,Rooms,Instance,True
+CLN_STRUCT_SIGN_OFF_TXT,Rooms,Instance,True
+CLN_TRANSPORT_PATH_TXT,Rooms,Instance,True
+CLN_VIB_VM_NR,Rooms,Instance,True
+CLN_WASTE_BIN_BIM_ID_TXT,Rooms,Instance,True
+CLN_WASTE_CLASS_TXT,Rooms,Instance,True
+CLN_WASTE_ROUTE_TXT,Rooms,Instance,True
+HEALTH_SCORE_DATE_TXT,Project Information,Instance,True
+HEALTH_SCORE_LAST_NR,Project Information,Instance,True
+MNT_CAL_LAST_DT,Specialty Equipment,Instance,True
+MNT_CAL_LAST_DT,Mechanical Equipment,Instance,True
+MNT_CAL_LAST_DT,Electrical Equipment,Instance,True
+MNT_CAL_NEXT_DT,Specialty Equipment,Instance,True
+MNT_CAL_NEXT_DT,Mechanical Equipment,Instance,True
+MNT_CAL_NEXT_DT,Electrical Equipment,Instance,True
+PLM_AUG_CARE_BOOL,Plumbing Fixtures,Instance,True
+PLM_AUG_CARE_BOOL,Pipes,Type,True
+PLM_DEAD_LEG_M_NR,Plumbing Fixtures,Instance,True
+PLM_DEAD_LEG_M_NR,Pipes,Type,True
+PLM_FLUSH_LOG_REF_TXT,Plumbing Fixtures,Instance,True
+PLM_FLUSH_LOG_REF_TXT,Pipes,Type,True
+PLM_POU_FILTER_BOOL,Plumbing Fixtures,Instance,True
+PLM_POU_FILTER_BOOL,Pipes,Type,True
+PLM_RO_LOOP_BOOL,Plumbing Fixtures,Instance,True
+PLM_RO_LOOP_BOOL,Pipes,Type,True
+PLM_SENTINEL_BOOL,Plumbing Fixtures,Instance,True
+PLM_SENTINEL_BOOL,Pipes,Type,True
+PLM_TMV_TYPE_TXT,Plumbing Fixtures,Instance,True
+PLM_TMV_TYPE_TXT,Pipes,Type,True
+PRJ_ORG_COORD_SYSTEM_TXT,Project Information,Instance,True
+PRJ_ORG_GROUND_LEVEL_TXT,Project Information,Instance,True
+PRJ_ORG_HEALTH_AE_ELEC_TXT,Project Information,Instance,True
+PRJ_ORG_HEALTH_AE_MGAS_TXT,Project Information,Instance,True
+PRJ_ORG_HEALTH_AE_VENT_TXT,Project Information,Instance,True
+PRJ_ORG_HEALTH_AE_WATER_TXT,Project Information,Instance,True
+PRJ_ORG_HEALTH_AHJ_TXT,Project Information,Instance,True
+PRJ_ORG_HEALTH_AREA_M2_NR,Project Information,Instance,True
+PRJ_ORG_HEALTH_BEDS_INT,Project Information,Instance,True
+PRJ_ORG_HEALTH_CODE_BASE_TXT,Project Information,Instance,True
+PRJ_ORG_HEALTH_FACILITY_TYPE_TXT,Project Information,Instance,True
+PRJ_ORG_HEALTH_HTM_REGION_TXT,Project Information,Instance,True
+PRJ_ORG_HEALTH_ICU_INT,Project Information,Instance,True
+PRJ_ORG_HEALTH_IHFG_BOOL,Project Information,Instance,True
+PRJ_ORG_HEALTH_OR_INT,Project Information,Instance,True
+PRJ_ORG_HEALTH_PACK_PROFILE_TXT,Project Information,Instance,True
+PRJ_ORG_HEALTH_QE_TXT,Project Information,Instance,True
+PRJ_ORG_PROJECT_ADDRESS_TXT,Project Information,Instance,True
+PRJ_ORG_PROJECT_CODE_TXT,Project Information,Instance,True
+PRJ_ORG_PROJECT_NAME_TXT,Project Information,Instance,True
+PRJ_ORG_PROJECT_NORTH_TXT,Project Information,Instance,True
+PRJ_ORG_PROJECT_NUMBER_TXT,Project Information,Instance,True
+PRJ_ORG_RIBA_STAGE_TXT,Project Information,Instance,True
+PRJ_ORG_SECURITY_CLASS_TXT,Project Information,Instance,True
+PRJ_ORG_UNICLASS_CO_TXT,Project Information,Instance,True
+PRJ_TB_MEP_CONSULTANTS_ADDRESS_TXT,Title Blocks,Instance,True
+PRJ_TB_MEP_CONSULTANTS_ADDRESS_TXT,Project Information,Instance,True
+PRJ_TB_STRUCTURAL_CONSULTANTS_ADDRESS_TXT,Title Blocks,Instance,True
+PRJ_TB_STRUCTURAL_CONSULTANTS_ADDRESS_TXT,Project Information,Instance,True
+RAD_BARRIER_TYPE_TXT,Rooms,Instance,True
+RAD_BARRIER_TYPE_TXT,Specialty Equipment,Instance,True
+RAD_DOSE_DESIGN_GOAL_TXT,Rooms,Instance,True
+RAD_DOSE_DESIGN_GOAL_TXT,Specialty Equipment,Instance,True
+RAD_LEAD_MM_NR,Rooms,Instance,True
+RAD_LEAD_MM_NR,Specialty Equipment,Instance,True
+RAD_OCC_FACTOR_NR,Rooms,Instance,True
+RAD_OCC_FACTOR_NR,Specialty Equipment,Instance,True
+RAD_QE_DT,Rooms,Instance,True
+RAD_QE_DT,Specialty Equipment,Instance,True
+RAD_QE_NAME_TXT,Rooms,Instance,True
+RAD_QE_NAME_TXT,Specialty Equipment,Instance,True
+RAD_USE_FACTOR_NR,Rooms,Instance,True
+RAD_USE_FACTOR_NR,Specialty Equipment,Instance,True
+RAD_WORKLOAD_MAWK_NR,Rooms,Instance,True
+RAD_WORKLOAD_MAWK_NR,Specialty Equipment,Instance,True
+STING_AUTHORISED_BY_TXT,Project Information,Instance,True
+STING_AUTHORISED_DATE_TXT,Project Information,Instance,True
+STING_BOX_LOCATION_ID,Project Information,Instance,True
+STING_FEDERATION_STATUS_TXT,Project Information,Instance,True
+STING_LOIN_LOD_TXT,Project Information,Instance,True
+STING_NOGGIN_REQUIRED,Generic Models,Instance,True
+STING_SHEET_BIM_MODE_TXT,Sheets,Instance,True
+STING_SHEET_FULL_REF_TXT,Sheets,Instance,True
+STING_SHEET_LEVEL_TXT,Sheets,Instance,True
+STING_SHEET_OF_TOTAL_TXT,Sheets,Instance,True
+STING_SHEET_ORIG_TXT,Sheets,Instance,True
+STING_SHEET_PROJECT_TXT,Sheets,Instance,True
+STING_SHEET_ROLE_TXT,Sheets,Instance,True
+STING_SHEET_SEQUENCE_INT,Sheets,Instance,True
+STING_SHEET_SEQ_TXT,Sheets,Instance,True
+STING_SHEET_TYPE_TXT,Sheets,Instance,True
+STING_SHEET_VOLUME_TXT,Sheets,Instance,True
+STING_SUITABILITY_DESC_TXT,Project Information,Instance,True

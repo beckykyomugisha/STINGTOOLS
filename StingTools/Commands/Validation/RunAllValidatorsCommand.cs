@@ -69,11 +69,61 @@ namespace StingTools.Commands.Validation
             }
             catch (Exception sx) { StingLog.Warn($"Suppression filter: {sx.Message}"); }
 
-            ShowResult(all, suppressed);
+            // Wave H2 — deduplicate findings that fired for the same root
+            // cause across two validators. Common case: a healthcare conduit
+            // run that violates BS 7671 §522.8.5 will trip both
+            // ElectricalStandardsValidator (ELEC.BENDS.EXCESS) and a
+            // healthcare-pack validator (e.g. structural-load on the same
+            // conduit). Without dedup the user sees two warnings for the
+            // same physical issue and can't tell which to action first.
+            // Strategy: group by (ElementId, Code prefix) — the prefix
+            // segment before the first dot identifies the root domain
+            // (ELEC / HC / FILL / SPEC / SLOPE / etc.). When duplicates
+            // appear, keep the highest-severity finding and tag the rest
+            // as MERGED in the validator name so users can still see the
+            // count.
+            int duplicatesMerged = 0;
+            try
+            {
+                var keyed = all.GroupBy(r => DedupKey(r)).ToList();
+                var deduped = new List<ValidationResult>(all.Count);
+                foreach (var g in keyed)
+                {
+                    if (g.Count() == 1) { deduped.Add(g.First()); continue; }
+                    // Pick the worst-severity finding as the primary; merge the
+                    // others' validator names + messages into it so the user
+                    // sees both root domains contributed.
+                    var primary = g.OrderByDescending(x => (int)x.Severity).First();
+                    var contributors = g.Where(x => x != primary).Select(x => x.Validator).Distinct();
+                    primary.Validator = primary.Validator + " + " + string.Join(", ", contributors);
+                    deduped.Add(primary);
+                    duplicatesMerged += g.Count() - 1;
+                }
+                all = deduped;
+            }
+            catch (Exception ex) { StingLog.Warn($"Dedup: {ex.Message}"); }
+
+            ShowResult(all, suppressed, duplicatesMerged);
             return Result.Succeeded;
         }
 
-        private void ShowResult(List<ValidationResult> all, int suppressed = 0)
+        /// <summary>
+        /// Dedup key: ElementId + the high-level code domain (segment
+        /// before the first dot). Falls back to (id, full-code) when no
+        /// dot is present so codes like "ELEC.BENDS.EXCESS" group with
+        /// "ELEC.RUN.LONG" only when they fire on the same element AND
+        /// share the ELEC root, leaving SLOPE / FILL / etc. independent.
+        /// </summary>
+        private static string DedupKey(ValidationResult r)
+        {
+            string c = r?.Code ?? "";
+            int dot = c.IndexOf('.');
+            string root = dot > 0 ? c.Substring(0, dot) : c;
+            string id = r?.ElementId?.Value.ToString() ?? "?";
+            return $"{id}|{root}";
+        }
+
+        private void ShowResult(List<ValidationResult> all, int suppressed, int duplicatesMerged)
         {
             int errors   = all.Count(r => r.Severity == ValidationSeverity.Error);
             int warnings = all.Count(r => r.Severity == ValidationSeverity.Warning);
@@ -87,6 +137,10 @@ namespace StingTools.Commands.Validation
                  .Metric("Errors",   errors.ToString())
                  .Metric("Warnings", warnings.ToString())
                  .Metric("Suppressed", suppressed.ToString())
+                 .Metric("Deduped",   duplicatesMerged.ToString(),
+                    duplicatesMerged > 0
+                        ? "duplicate findings merged — same element + root code"
+                        : "")
                  .Metric("Info",     infos.ToString());
 
             // Group by validator for legibility

@@ -108,10 +108,19 @@ namespace StingTools.Commands.Symbols
             var dlg = new TaskDialog("STING Swap")
             {
                 MainInstruction = $"Swap {plans.Sum(p => p.InstanceIds.Count)} instance(s)?",
-                MainContent = "Apply uses each plan's top-priority candidate. Cancel to keep seeds in place.",
-                CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No
+                MainContent = "Apply uses each plan's top-priority candidate. Cancel to keep seeds in place.\n\n" +
+                              "Apply + Re-validate runs the full validator chain after the swap so non-compliant " +
+                              "manufacturer choices (e.g. swap to a smaller pull-box exceeds 40% cable fill) are " +
+                              "surfaced before they ship.",
+                CommonButtons = TaskDialogCommonButtons.Cancel
             };
-            if (dlg.Show() != TaskDialogResult.Yes) { preview.Show(); return Result.Cancelled; }
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Apply", "Swap + auto re-stitch connectors. Skip the validator re-run.");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Apply + Re-validate", "Swap + re-stitch + run RunAllValidators on the swapped instances.");
+            var choice = dlg.Show();
+            if (choice == TaskDialogResult.Cancel) { preview.Show(); return Result.Cancelled; }
+            bool revalidate = choice == TaskDialogResult.CommandLink2;
 
             // 4) Apply.
             int swapped = 0, skipped = 0, errors = 0;
@@ -195,7 +204,24 @@ namespace StingTools.Commands.Symbols
             catch (Exception ex) { StingLog.Warn($"audit: {ex.Message}"); }
             try { ComplianceScan.InvalidateCache(); } catch { }
 
-            ShowResult(plans, swapped, skipped, errors, rejoined);
+            // Wave H3 — opt-in post-swap re-validation. Manufacturer
+            // families may have different conduit sizes / cable capacity /
+            // bend radii than the seed; re-running the validator chain
+            // catches non-compliance before the user discovers it on
+            // schedule export. The re-validate path runs the full
+            // RunAllValidators pipeline (electrical + healthcare gated)
+            // and surfaces findings in a dedicated panel.
+            int revalidationFindings = 0;
+            if (revalidate)
+            {
+                try
+                {
+                    revalidationFindings = RevalidateSwappedInstances(doc, swappedIds);
+                }
+                catch (Exception ex) { StingLog.Warn($"Post-swap revalidation: {ex.Message}"); }
+            }
+
+            ShowResult(plans, swapped, skipped, errors, rejoined, revalidationFindings, revalidate);
             return Result.Succeeded;
         }
 
@@ -373,6 +399,47 @@ namespace StingTools.Commands.Symbols
         }
 
         /// <summary>
+        /// Wave H3 — post-swap revalidation. Runs the full STING
+        /// validator chain (electrical BS 7671 + healthcare-gated +
+        /// generic) and counts findings whose ElementId matches the
+        /// swapped set. Returns the count so the result panel can
+        /// surface "swap introduced N new violations." On failure,
+        /// returns 0 — never block the swap report just because the
+        /// validator re-run had a hiccup.
+        /// </summary>
+        private static int RevalidateSwappedInstances(Document doc, IList<ElementId> swappedIds)
+        {
+            if (doc == null || swappedIds == null || swappedIds.Count == 0) return 0;
+            var swappedSet = new HashSet<long>(swappedIds.Where(i => i != null).Select(i => i.Value));
+            int hits = 0;
+            try
+            {
+                var findings = new List<StingTools.Core.Validation.ValidationResult>();
+                findings.AddRange(new StingTools.Core.Validation.ConnectivityValidator().Validate(doc));
+                findings.AddRange(new StingTools.Core.Validation.FillValidator().Validate(doc));
+                findings.AddRange(new StingTools.Core.Validation.SpecValidator().Validate(doc));
+                findings.AddRange(new StingTools.Core.Validation.TerminationValidator().Validate(doc));
+                findings.AddRange(new StingTools.Core.Validation.ElectricalStandardsValidator().Validate(doc));
+                // Healthcare validators are gated internally on the
+                // facility-type project parameter so calling them here is
+                // a no-op for non-healthcare projects.
+                try
+                {
+                    findings.AddRange(StingTools.Core.Validation.Healthcare.RunAllHealthcareValidators.Validate(doc));
+                }
+                catch (Exception ex) { StingLog.Warn($"Healthcare revalidation: {ex.Message}"); }
+
+                foreach (var f in findings)
+                {
+                    if (f?.ElementId == null) continue;
+                    if (swappedSet.Contains(f.ElementId.Value)) hits++;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"RevalidateSwappedInstances: {ex.Message}"); }
+            return hits;
+        }
+
+        /// <summary>
         /// Wave F3 — re-stitch open connectors on swapped instances.
         ///
         /// After ChangeTypeId, the destination family's connectors land
@@ -485,16 +552,28 @@ namespace StingTools.Commands.Symbols
             catch (Exception ex) { StingLog.Warn($"AppendSwapHistory {el?.Id}: {ex.Message}"); }
         }
 
-        private static void ShowResult(List<SwapPlan> plans, int swapped, int skipped, int errors, int rejoined)
+        private static void ShowResult(List<SwapPlan> plans, int swapped, int skipped, int errors,
+            int rejoined, int revalidationFindings, bool revalidated)
         {
             var panel = StingResultPanel.Create("Swap to Manufacturer — Result");
-            panel.SetSubtitle($"{swapped} swapped · {skipped} skipped · {errors} errors · {rejoined} connectors rejoined");
+            string subtitle = $"{swapped} swapped · {skipped} skipped · {errors} errors · {rejoined} connectors rejoined";
+            if (revalidated) subtitle += $" · {revalidationFindings} re-validate findings";
+            panel.SetSubtitle(subtitle);
             panel.AddSection("SUMMARY")
                 .MetricHighlight("Swapped", swapped.ToString())
                 .Metric("Skipped (no candidate)", skipped.ToString())
                 .MetricError("Errors", errors.ToString())
                 .Metric("Connectors rejoined", rejoined.ToString(),
                     "auto re-stitched after swap (within 600 mm, same domain)");
+            if (revalidated)
+            {
+                if (revalidationFindings > 0)
+                    panel.MetricWarn("Re-validation findings", revalidationFindings.ToString(),
+                        "swap introduced new BS 7671 / healthcare violations on swapped instances");
+                else
+                    panel.Metric("Re-validation findings", "0",
+                        "no new violations on swapped instances");
+            }
             panel.AddSection("BY SEED");
             foreach (var p in plans)
             {
