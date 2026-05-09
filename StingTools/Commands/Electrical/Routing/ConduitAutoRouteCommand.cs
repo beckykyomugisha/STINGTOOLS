@@ -162,10 +162,42 @@ namespace StingTools.Commands.Electrical.Routing
             try { manifest.Save(doc); } catch (Exception ex) { StingLog.Warn($"Manifest save: {ex.Message}"); }
             try { ComplianceScan.InvalidateCache(); } catch { }
 
+            // Phase Wave D — slab-penetration detection. Walks every
+            // newly-created conduit, finds floor crossings, stamps
+            // STING_PENETRATION_REF_TXT + STING_PENETRATION_FIRE_RATING_TXT
+            // so the FRP register can identify every fire-stop the
+            // contractor needs to install. Runs in its own transaction
+            // because it only writes parameters (not geometry) and we
+            // want it visible in the journal as a separate undo step.
+            int penetrations = 0;
+            try
+            {
+                var routedIds = new List<ElementId>();
+                foreach (var c in manifest.Cables)
+                {
+                    if (c.RouteTrayIds == null) continue;
+                    foreach (long lid in c.RouteTrayIds)
+                        routedIds.Add(new ElementId((int)lid));
+                }
+                if (routedIds.Count > 0)
+                {
+                    using (var tx2 = new Transaction(doc, "STING Slab Penetration Stamp"))
+                    {
+                        tx2.Start();
+                        var recs = StingTools.Core.Routing.SlabPenetrationDetector.Detect(doc, routedIds);
+                        penetrations = recs.Count;
+                        tx2.Commit();
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"SlabPenetrationDetector: {ex.Message}"); }
+
             TaskDialog.Show("STING Auto-Route",
-                $"Routed {routed} of {unrouted.Count} cable(s).\n\n" +
+                $"Routed {routed} of {unrouted.Count} cable(s).\n" +
+                $"Slab penetrations stamped: {penetrations}.\n\n" +
                 "Note: routes use simplified L-shaped paths.\n" +
-                "Review and adjust in Revit for clash avoidance.");
+                "Review and adjust in Revit for clash avoidance.\n" +
+                "Penetration parameters stamped — FRP_PENETRATION family will install over each marked point once the family ships.");
             return Result.Succeeded;
         }
     }

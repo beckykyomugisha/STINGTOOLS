@@ -117,6 +117,24 @@ namespace StingTools.Core.Routing
         /// </summary>
         public int RoutingSeed { get; set; } = 1234;
 
+        /// <summary>
+        /// When true, the intercept Z is snapped to the soffit of any
+        /// false ceiling sitting between origin and intercept (using
+        /// CeilingAwareSnapper). Drops then land in the service void
+        /// rather than spearing through the ceiling. Default true —
+        /// architecturally-correct routing with negligible cost.
+        /// Set false when the host project doesn't model false
+        /// ceilings (saves a per-drop FilteredElementCollector pass).
+        /// </summary>
+        public bool SnapToCeilingSoffit { get; set; } = true;
+
+        /// <summary>
+        /// Buffer (mm) above the ceiling soffit when SnapToCeilingSoffit
+        /// is enabled. Defaults to CIBSE Guide B4's 50 mm — enough for
+        /// access-tile clearance.
+        /// </summary>
+        public double CeilingSoffitBufferMm { get; set; } = 50.0;
+
         // Lazy-built StructuralAwareness for soffit clash. Per-engine
         // instance — DropEngineBase isn't shared across runs.
         private StingTools.Core.Placement.StructuralAwareness _soffitAwareness;
@@ -453,6 +471,18 @@ namespace StingTools.Core.Routing
 
             // Stage 2.5: corridor-band snap + separation check.
             to = MaybeSnapToCorridorBand(origin, to, result);
+
+            // Stage 2.6: false-ceiling soffit snap. Without this the
+            // drop's intercept can sit BELOW a suspended ceiling — the
+            // conduit then visibly speers through the ceiling tile in
+            // the model. CeilingAwareSnapper finds any ceiling between
+            // origin and intercept and lifts the intercept to ceiling
+            // top + buffer (default 50 mm CIBSE clearance).
+            if (SnapToCeilingSoffit)
+            {
+                try { to = CeilingAwareSnapper.Snap(Doc, origin, to, CeilingSoffitBufferMm); }
+                catch (Exception ex) { result.Warnings.Add($"CeilingAwareSnapper: {ex.Message}"); }
+            }
             if (EnforceSeparation && !string.IsNullOrEmpty(ServiceId))
             {
                 try
