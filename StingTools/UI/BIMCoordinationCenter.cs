@@ -2600,6 +2600,91 @@ namespace StingTools.UI
                 };
                 VirtualizingPanel.SetIsVirtualizing(dg, true);
                 VirtualizingPanel.SetVirtualizationMode(dg, VirtualizationMode.Recycling);
+
+                // T3-18 — Bulk multi-select checkbox column. The viewer's
+                // multi-select set is a Set<string>; we mirror that with a
+                // HashSet keyed off IssueRow.Id. The DataGrid's own
+                // SelectedItems collection covers Ctrl/Shift gestures, but
+                // the explicit checkboxes give touch users a hit target and
+                // make it crystal-clear how many issues will be acted on.
+                var bulkSelectedIssues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var bulkFooter = new Border
+                {
+                    Visibility = Visibility.Collapsed,
+                    Background = Br(Color.FromRgb(0xEC, 0xEF, 0xF1)),
+                    BorderBrush = Br(CBorder),
+                    BorderThickness = new Thickness(0, 1, 0, 0),
+                    Padding = new Thickness(10, 6, 10, 6),
+                    Margin = new Thickness(0, 0, 0, 8),
+                };
+                var bulkRow = new StackPanel { Orientation = Orientation.Horizontal };
+                var bulkCount = new TextBlock { Text = "0 selected", FontSize = 11, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
+                bulkRow.Children.Add(bulkCount);
+                Action refreshBulkFooter = () =>
+                {
+                    bulkCount.Text = $"{bulkSelectedIssues.Count} selected";
+                    bulkFooter.Visibility = bulkSelectedIssues.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+                };
+                Button MakeBulkBtn(string label, Color c)
+                {
+                    return new Button
+                    {
+                        Content = label,
+                        Background = Br(c),
+                        Foreground = Brushes.White,
+                        BorderThickness = new Thickness(0),
+                        Padding = new Thickness(10, 3, 10, 3),
+                        FontSize = 11,
+                        Cursor = Cursors.Hand,
+                        Margin = new Thickness(0, 0, 6, 0),
+                    };
+                }
+                var bulkReassign = MakeBulkBtn("Reassign", Color.FromRgb(0xE8, 0x91, 0x2D));
+                bulkReassign.Click += (s, e) => DispatchAction("BulkIssueReassign|" + string.Join(",", bulkSelectedIssues));
+                var bulkResolve  = MakeBulkBtn("Bulk Resolve", Color.FromRgb(0x2E, 0x7D, 0x32));
+                bulkResolve.Click += (s, e) => DispatchAction("BulkIssueResolve|" + string.Join(",", bulkSelectedIssues));
+                var bulkExportBtn = MakeBulkBtn("Export CSV", Color.FromRgb(0x45, 0x50, 0x6E));
+                bulkExportBtn.Click += (s, e) => DispatchAction("BulkIssueExport|" + string.Join(",", bulkSelectedIssues));
+                var bulkClear = new Button
+                {
+                    Content = "Clear", Background = Brushes.Transparent, BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
+                    Padding = new Thickness(8, 2, 8, 2), FontSize = 11, Cursor = Cursors.Hand
+                };
+                bulkClear.Click += (s, e) => { bulkSelectedIssues.Clear(); refreshBulkFooter(); dg.Items.Refresh(); };
+                bulkRow.Children.Add(bulkReassign);
+                bulkRow.Children.Add(bulkResolve);
+                bulkRow.Children.Add(bulkExportBtn);
+                bulkRow.Children.Add(bulkClear);
+                bulkFooter.Child = bulkRow;
+
+                // Checkbox column. We use a template column with explicit
+                // Click handler rather than DataGridCheckBoxColumn because
+                // we need access to the row context (`IssueRow`) to update
+                // bulkSelectedIssues — and DataGridCheckBoxColumn fires its
+                // bind path against IsReadOnly cells in odd ways.
+                var cbColTemplate = new DataTemplate();
+                var cbFactory = new FrameworkElementFactory(typeof(CheckBox));
+                cbFactory.SetValue(CheckBox.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+                cbFactory.SetValue(CheckBox.VerticalAlignmentProperty, VerticalAlignment.Center);
+                cbFactory.SetValue(CheckBox.MarginProperty, new Thickness(0));
+                cbFactory.AddHandler(CheckBox.ClickEvent, new RoutedEventHandler((s, e) =>
+                {
+                    if (s is CheckBox cb && cb.DataContext is IssueRow row)
+                    {
+                        if (cb.IsChecked == true) bulkSelectedIssues.Add(row.Id);
+                        else                     bulkSelectedIssues.Remove(row.Id);
+                        refreshBulkFooter();
+                    }
+                }));
+                // Bind IsChecked to the live set so re-render keeps state.
+                cbFactory.SetBinding(CheckBox.IsCheckedProperty,
+                    new Binding("Id") { Converter = new IsCheckedSetConverter(bulkSelectedIssues), Mode = BindingMode.OneWay });
+                cbColTemplate.VisualTree = cbFactory;
+                dg.Columns.Add(new DataGridTemplateColumn
+                {
+                    Header = "", Width = 30, CellTemplate = cbColTemplate, CanUserSort = false, CanUserReorder = false,
+                });
+
                 dg.Columns.Add(new DataGridTextColumn { Header = "ID", Binding = new Binding("Id"), Width = 80 });
                 dg.Columns.Add(new DataGridTextColumn { Header = "Title", Binding = new Binding("Title"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
                 dg.Columns.Add(new DataGridTextColumn { Header = "Type", Binding = new Binding("Type"), Width = 50 });
@@ -2653,12 +2738,28 @@ namespace StingTools.UI
                 rowStyle.Triggers.Add(closedT);
                 dg.RowStyle = rowStyle;
 
-                // Context menu
+                // Context menu — T3-18 mirrors the viewer's openIssueRowMenu:
+                // Zoom-to-element / Open detail / Mark resolved / Copy ID /
+                // Copy permalink — plus the existing assign + meeting actions
+                // because BCC desktop coordinators rely on them.
                 var issueCtx = new ContextMenu();
-                var zoomMi = new MenuItem { Header = "Zoom to 3D Section Box" };
-                zoomMi.Click += (s2, e2) => { if (dg.SelectedItem is IssueRow iss) { DispatchAction($"ZoomToIssue_{iss.Id}"); } };
+                IssueRow CtxRow() => dg.SelectedItem as IssueRow;
+                var zoomMi = new MenuItem { Header = "🎯 Zoom to element" };
+                zoomMi.Click += (s2, e2) => { var r = CtxRow(); if (r != null) DispatchAction($"ZoomToIssue_{r.Id}"); };
+                var openMi = new MenuItem { Header = "📂 Open detail" };
+                openMi.Click += (s2, e2) => { var r = CtxRow(); if (r != null) DispatchAction($"OpenIssueDetail_{r.Id}"); };
+                var resolveMi = new MenuItem { Header = "✓ Mark resolved" };
+                resolveMi.Click += (s2, e2) => { var r = CtxRow(); if (r != null) DispatchAction($"ResolveIssue_{r.Id}"); };
+                var copyIdMi = new MenuItem { Header = "📋 Copy ID" };
+                copyIdMi.Click += (s2, e2) => { var r = CtxRow(); if (r != null) { try { Clipboard.SetText(r.Id ?? string.Empty); } catch { } } };
+                var copyLinkMi = new MenuItem { Header = "🔗 Copy permalink" };
+                copyLinkMi.Click += (s2, e2) =>
+                {
+                    var r = CtxRow();
+                    if (r != null) { try { Clipboard.SetText($"planscape://issue/{r.Id}"); } catch { } }
+                };
                 var selectMi = new MenuItem { Header = "Select Linked Elements" };
-                selectMi.Click += (s2, e2) => { if (dg.SelectedItem is IssueRow iss) { DispatchAction($"SelectIssue_{iss.Id}"); } };
+                selectMi.Click += (s2, e2) => { var r = CtxRow(); if (r != null) DispatchAction($"SelectIssue_{r.Id}"); };
                 var updateMi = new MenuItem { Header = "Update Issue Status" };
                 updateMi.Click += (s2, e2) => { DispatchAction("UpdateIssue"); };
                 var assignMi = new MenuItem { Header = "Assign / Reassign" };
@@ -2668,16 +2769,22 @@ namespace StingTools.UI
                 var transmitMi = new MenuItem { Header = "Link to Transmittal" };
                 transmitMi.Click += (s2, e2) => { DispatchAction("CreateTransmittal"); };
                 issueCtx.Items.Add(zoomMi);
+                issueCtx.Items.Add(openMi);
                 issueCtx.Items.Add(selectMi);
                 issueCtx.Items.Add(new Separator());
+                issueCtx.Items.Add(resolveMi);
                 issueCtx.Items.Add(updateMi);
                 issueCtx.Items.Add(assignMi);
+                issueCtx.Items.Add(new Separator());
+                issueCtx.Items.Add(copyIdMi);
+                issueCtx.Items.Add(copyLinkMi);
                 issueCtx.Items.Add(new Separator());
                 issueCtx.Items.Add(meetingMi);
                 issueCtx.Items.Add(transmitMi);
                 dg.ContextMenu = issueCtx;
 
                 root.Children.Add(dg);
+                root.Children.Add(bulkFooter);
             }
             else
             {
