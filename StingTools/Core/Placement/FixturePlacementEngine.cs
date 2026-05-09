@@ -948,18 +948,74 @@ namespace StingTools.Core.Placement
                         int occ = 0;
                         try
                         {
-                            var p = room.LookupParameter("STING_OCC_COUNT_INT");
+                            string occParam = string.IsNullOrEmpty(rule.OccupancyParamName)
+                                ? "STING_OCC_COUNT_INT" : rule.OccupancyParamName;
+                            var p = room.LookupParameter(occParam);
                             if (p != null && p.HasValue && p.StorageType == StorageType.Integer) occ = p.AsInteger();
                         }
                         catch { }
                         if (occ > 0) byOcc = Math.Max(1, (int)Math.Ceiling((double)occ / rule.PerOccupant));
                     }
-                    cap = Math.Max(byArea, byOcc);
-                    // Phase 139.4 — Density rule with neither PerAreaM2 nor PerOccupant
-                    // (or with both = 0) used to fall through with cap=1, then later
-                    // collapse to candidateCount once MaxPerRoom = 0. Treat the rule
-                    // as misconfigured: place at most one and warn upstream via the
-                    // rule-loader validation pass (#39 below).
+
+                    // Healthcare: 1 fixture per N beds.
+                    int byBed = 0;
+                    if (rule.PerBed > 0)
+                    {
+                        int beds = 0;
+                        try
+                        {
+                            var p = room.LookupParameter("STING_BED_COUNT_INT");
+                            if (p != null && p.HasValue && p.StorageType == StorageType.Integer) beds = p.AsInteger();
+                        }
+                        catch { }
+                        if (beds > 0) byBed = Math.Max(1, (int)Math.Ceiling((double)beds / rule.PerBed));
+                    }
+
+                    // Office: 1 fixture per N workstations.
+                    int byWorkstation = 0;
+                    if (rule.PerWorkstation > 0)
+                    {
+                        int ws = 0;
+                        try
+                        {
+                            var p = room.LookupParameter("STING_WORKSTATION_COUNT_INT");
+                            if (p != null && p.HasValue && p.StorageType == StorageType.Integer) ws = p.AsInteger();
+                        }
+                        catch { }
+                        if (ws > 0) byWorkstation = Math.Max(1, (int)Math.Ceiling((double)ws / rule.PerWorkstation));
+                    }
+
+                    // Education: 1 fixture per N pupils.
+                    int byPupil = 0;
+                    if (rule.PerPupil > 0)
+                    {
+                        int pupils = 0;
+                        try
+                        {
+                            var p = room.LookupParameter("STING_PUPIL_COUNT_INT");
+                            if (p != null && p.HasValue && p.StorageType == StorageType.Integer) pupils = p.AsInteger();
+                        }
+                        catch { }
+                        if (pupils > 0) byPupil = Math.Max(1, (int)Math.Ceiling((double)pupils / rule.PerPupil));
+                    }
+
+                    // Sanitary: N wash basins per WC cubicle.
+                    int byWcCubicle = 0;
+                    if (rule.PerToiletCubicle > 0)
+                    {
+                        int cubicles = 0;
+                        try
+                        {
+                            var p = room.LookupParameter("STING_WC_CUBICLE_COUNT_INT");
+                            if (p != null && p.HasValue && p.StorageType == StorageType.Integer) cubicles = p.AsInteger();
+                        }
+                        catch { }
+                        if (cubicles > 0) byWcCubicle = Math.Max(1, (int)Math.Ceiling((double)cubicles / rule.PerToiletCubicle));
+                    }
+
+                    cap = Math.Max(byArea, Math.Max(byOcc, Math.Max(byBed, Math.Max(byWorkstation, Math.Max(byPupil, byWcCubicle)))));
+                    // Phase 139.4 — Density rule with no density field set: treat as
+                    // misconfigured, place at most one and warn via rule-loader validation.
                     if (cap == 0) cap = 1;
                     break;
                 }
