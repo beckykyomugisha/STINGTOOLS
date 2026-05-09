@@ -138,10 +138,10 @@ namespace StingTools.Core.Validation
                     {
                         try
                         {
-                            string raw = ParameterHelpers.GetString(el, "Outside Diameter")
+                            string odRaw = ParameterHelpers.GetString(el, "Outside Diameter")
                                 ?? ParameterHelpers.GetString(el, "Diameter") ?? "";
                             double odMm = 0;
-                            double.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out odMm);
+                            double.TryParse(odRaw, NumberStyles.Any, CultureInfo.InvariantCulture, out odMm);
                             string mat = ParameterHelpers.GetString(el, "ELC_CDT_MAT_TXT") ?? "";
                             effectiveCap = StingTools.Core.Routing.JunctionBoxAutoPlacer
                                 .MaxBendsForConduit(odMm, mat);
