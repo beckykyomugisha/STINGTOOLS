@@ -31,11 +31,34 @@ namespace StingTools.Core.Symbols
         [JsonProperty("name")]        public string Name { get; set; }
         [JsonProperty("category")]    public string Category { get; set; }
 
-        /// <summary>GenericAnnotation | MEPAccessory | MEPEquipment</summary>
+        /// <summary>GenericAnnotation | MEPAccessory | MEPEquipment | SeedFamily</summary>
         [JsonProperty("familyType")]  public string FamilyType { get; set; }
 
         [JsonProperty("discipline")]  public string Discipline { get; set; }
         [JsonProperty("subcategory")] public string Subcategory { get; set; }
+
+        /// <summary>
+        /// Hosting strategy. Drives the .rft template lookup so the
+        /// creator can pick face-based / wall-based / ceiling-based
+        /// templates instead of the freestanding default. Recognised:
+        ///   "Standalone" (default) — Generic Model.rft / category.rft
+        ///   "FaceBased"            — Generic Model face based.rft + variants
+        ///   "WallBased"            — wall-hosted templates
+        ///   "CeilingBased"         — ceiling-hosted templates
+        ///   "WorkPlaneBased"       — work-plane-based variants
+        /// </summary>
+        [JsonProperty("hosting")]     public string Hosting { get; set; } = "Standalone";
+
+        /// <summary>
+        /// Marks the family as a STING seed — a category-level
+        /// placeholder carrying the standard parameter scheme + tag
+        /// containers + minimal symbology, intended to be swapped to a
+        /// manufacturer-specific family later via
+        /// SwapToManufacturerCommand. Seeds get STING_SEED_FAMILY_TXT
+        /// stamped on the family + every instance for swap-registry
+        /// matching.
+        /// </summary>
+        [JsonProperty("isSeed")]      public bool IsSeed { get; set; } = false;
 
         /// <summary>Visible symbol size in millimetres at 1:100 (drives geometry scale).</summary>
         [JsonProperty("symbolSize")]  public double SymbolSize { get; set; } = 3.0;
@@ -52,6 +75,33 @@ namespace StingTools.Core.Symbols
 
         [JsonProperty("solid3D", NullValueHandling = NullValueHandling.Ignore)]
         public Solid3DDefinition Solid3D { get; set; }
+
+        /// <summary>
+        /// Optional type-variant duplicates added to the family. The
+        /// SymbolLibraryCreator duplicates the default type once per
+        /// entry, names the duplicate with this entry's Name, and
+        /// stamps every Parameter override on the new type. Used by
+        /// seed families to ship the variant list documented in
+        /// Families/Seeds/README.md without manual Family-Editor work —
+        /// e.g. the SpecialityEquipment seed emits FR30 / FR60 / FR90 /
+        /// FR120 / SLEEVE_GENERIC variants with PEN_FIRE_RATING_TXT
+        /// stamped per type.
+        /// </summary>
+        [JsonProperty("typeVariants", NullValueHandling = NullValueHandling.Ignore)]
+        public List<TypeVariantDefinition> TypeVariants { get; set; }
+            = new List<TypeVariantDefinition>();
+    }
+
+    public sealed class TypeVariantDefinition
+    {
+        /// <summary>Name of the new family type (e.g. "FR60", "PENDANT").</summary>
+        [JsonProperty("name")]   public string Name { get; set; }
+
+        /// <summary>Parameter overrides applied to this type only. Keys
+        /// must match parameter names declared in the parent symbol's
+        /// Parameters list — unknown keys surface as warnings.</summary>
+        [JsonProperty("params")] public Dictionary<string, string> Parameters { get; set; }
+            = new Dictionary<string, string>();
     }
 
     public sealed class ParameterDefinition

@@ -77,6 +77,14 @@ namespace StingTools.Core.Routing
         private readonly BoundingBoxXYZ _outline;
         private readonly List<VoxelCell> _cells = new List<VoxelCell>();
         private readonly RBush<VoxelCell> _index = new RBush<VoxelCell>();
+
+        // O(1) neighbour lookup. Keyed by packed (Ix, Iy, Iz). Built
+        // alongside _cells in Build() so Neighbours(cell) does six
+        // dictionary probes instead of walking every cell. Required
+        // before A* is reachable from production drops — without this
+        // a 50m × 50m × 5m model at 200 mm cells (~1.5M cells) makes
+        // every A* expansion O(n) and the overall solver O(n²).
+        private readonly Dictionary<long, VoxelCell> _byIndex = new Dictionary<long, VoxelCell>();
         private readonly List<Outline> _obstacles;
 
         public IReadOnlyList<VoxelCell> Cells => _cells;
@@ -95,6 +103,7 @@ namespace StingTools.Core.Routing
         public int Build()
         {
             _cells.Clear();
+            _byIndex.Clear();
             double defFt    = DefaultSideMm / 304.8;
             double denseFt  = DenseSideMm   / 304.8;
             double sparseFt = SparseSideMm  / 304.8;
@@ -127,6 +136,12 @@ namespace StingTools.Core.Routing
                         var c = new VoxelCell(ix, iy, iz, x, y, z, side)
                         { IsObstacle = blocked, CostMultiplier = cost };
                         _cells.Add(c);
+                        long k = PackKey(ix, iy, iz);
+                        // Last-cell-wins on collision (shouldn't happen with
+                        // the integer-stride iteration above, but be safe so
+                        // a future refactor that introduces sub-stepping
+                        // can't quietly corrupt the lookup table).
+                        _byIndex[k] = c;
                         ix++;
                     }
                     iy++;
@@ -140,6 +155,19 @@ namespace StingTools.Core.Routing
             // RBush 4.x NuGet, signature stable since 2022).
             _index.BulkLoad(_cells);
             return _cells.Count;
+        }
+
+        // Pack the integer cell index into a single long. Each axis is
+        // clamped to the bottom 21 bits (max ~2M cells per axis, plenty
+        // for any building model). Packed key uses unsigned slots so
+        // negative grid offsets — should they ever appear — don't alias.
+        private static long PackKey(int ix, int iy, int iz)
+        {
+            const int M = 0x1FFFFF;             // 21 bits
+            long ax = (long)(ix & M);
+            long ay = (long)(iy & M);
+            long az = (long)(iz & M);
+            return (ax << 42) | (ay << 21) | az;
         }
 
         /// <summary>Euclidean distance from (x,y,z) to the nearest
@@ -159,19 +187,29 @@ namespace StingTools.Core.Routing
             return best;
         }
 
-        /// <summary>Neighbours of cell c in 6-connected adjacency
-        /// (±x, ±y, ±z). Diagonal moves handled by ACO smoother.</summary>
+        /// <summary>
+        /// Neighbours of cell c in 6-connected adjacency (±x, ±y, ±z).
+        /// Six dictionary probes instead of walking the entire cell list —
+        /// turns A* expansion from O(n) to O(1) per call. Diagonal moves
+        /// are handled by ACO + 3-opt smoothers downstream.
+        /// </summary>
         public IEnumerable<VoxelCell> Neighbours(VoxelCell c)
         {
-            foreach (var n in _cells)
-            {
-                if (n == c) continue;
-                int ax = Math.Abs(n.Ix - c.Ix);
-                int ay = Math.Abs(n.Iy - c.Iy);
-                int az = Math.Abs(n.Iz - c.Iz);
-                int sum = ax + ay + az;
-                if (sum == 1) yield return n;
-            }
+            if (c == null) yield break;
+            VoxelCell n;
+            if (_byIndex.TryGetValue(PackKey(c.Ix - 1, c.Iy, c.Iz), out n)) yield return n;
+            if (_byIndex.TryGetValue(PackKey(c.Ix + 1, c.Iy, c.Iz), out n)) yield return n;
+            if (_byIndex.TryGetValue(PackKey(c.Ix, c.Iy - 1, c.Iz), out n)) yield return n;
+            if (_byIndex.TryGetValue(PackKey(c.Ix, c.Iy + 1, c.Iz), out n)) yield return n;
+            if (_byIndex.TryGetValue(PackKey(c.Ix, c.Iy, c.Iz - 1), out n)) yield return n;
+            if (_byIndex.TryGetValue(PackKey(c.Ix, c.Iy, c.Iz + 1), out n)) yield return n;
+        }
+
+        /// <summary>O(1) lookup by integer grid index.</summary>
+        public VoxelCell GetCell(int ix, int iy, int iz)
+        {
+            _byIndex.TryGetValue(PackKey(ix, iy, iz), out var c);
+            return c;
         }
     }
 }

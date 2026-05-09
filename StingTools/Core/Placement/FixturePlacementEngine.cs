@@ -14,6 +14,7 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.DB.Structure;
+using StingTools.Core;
 
 namespace StingTools.Core.Placement
 {
@@ -1785,6 +1786,72 @@ namespace StingTools.Core.Placement
         /// than per-instance noise. Pre-139.27 placed instances had zero
         /// connector joins and shipped to COBie / schedules as orphaned.
         /// </summary>
+        /// <summary>
+        /// Bridge to the conduit-routing engine: run AutoConduitDrop
+        /// across every fixture placed under a rule whose RoutingMode
+        /// is "AUTO_CONDUIT". Returns the number of fixtures the drop
+        /// engine successfully routed. Errors are surfaced into
+        /// result.Warnings so the placement-result panel still renders
+        /// — a routing failure must never abort the placement run.
+        ///
+        /// The routing options are read from the rule:
+        ///   - InstallMethod:  CHASED / CLIPPED / TRAY / EMBEDDED / IN-FLOOR
+        ///                     (drives the drop engine's UseChaseRouting)
+        ///   - NominalDiameterMm: feeds the chase-depth check
+        /// </summary>
+        private static int RouteAfterPlacement(
+            Document doc, IList<PlacementRule> autoConduitRules, PlacementResult result)
+        {
+            if (doc == null || autoConduitRules == null || autoConduitRules.Count == 0) return 0;
+            int totalRouted = 0;
+
+            // Resolve placed fixtures back to their rule via Diagnostics.
+            // Two passes: per-rule we know how many fixtures fired, then
+            // we hand the rule's full placed-id list to the drop engine.
+            foreach (var rule in autoConduitRules)
+            {
+                List<Element> fixtures = new List<Element>();
+                foreach (var id in result.PlacedIds)
+                {
+                    var el = doc.GetElement(id);
+                    if (el == null) continue;
+                    // Fixture's RuleId param (set by FixturePlacementEngine
+                    // post-place) ties it back to the rule we're routing.
+                    string fxRule = ParameterHelpers.GetString(el, "ASS_PLACEMENT_RULE_TXT");
+                    if (string.Equals(fxRule, rule.RuleId, StringComparison.OrdinalIgnoreCase))
+                        fixtures.Add(el);
+                }
+                if (fixtures.Count == 0) continue;
+
+                try
+                {
+                    bool isChased = string.Equals(rule.MountingContext, "CHASED",
+                        StringComparison.OrdinalIgnoreCase);
+
+                    var engine = new StingTools.Core.Routing.AutoConduitDrop(doc)
+                    {
+                        ServiceId = "ELC_PWR",
+                        InstallMethod = isChased ? "CHASED" : "CLIPPED",
+                        UseChaseRoutingWhenAvailable = isChased,
+                        UsePathfinder = false,        // opt-in flag; placement bridge stays
+                                                      // on the safe L/Z path until the host
+                                                      // project explicitly requests A*.
+                    };
+                    var dr = engine.Execute(fixtures);
+                    totalRouted += dr.CreatedIds.Count;
+                    foreach (var w in dr.Warnings)
+                        result.Warnings.Add($"[{rule.RuleId}] {w}");
+                }
+                catch (Exception ex)
+                {
+                    result.Warnings.Add($"[{rule.RuleId}] AutoConduitDrop: {ex.Message}");
+                }
+            }
+
+            try { ComplianceScan.InvalidateCache(); } catch { }
+            return totalRouted;
+        }
+
         private static void AutoJoinMepConnectors(
             Document doc, IList<PlacementRule> rules, PlacementResult result)
         {
@@ -1802,6 +1869,43 @@ namespace StingTools.Core.Placement
                 }
             }
             if (!anyRouting) return;
+
+            // Wave B Wire 3 — bridge placement → routing.
+            // Previously, when a rule declared RoutingMode != NONE we
+            // landed here and ran the connector-join pass below, which
+            // only stitched fixtures within a 600 mm radius. The
+            // intended action — actually routing conduit from the
+            // placed fixtures up to a tray — was missing. The silent
+            // return on the original line 1770 has been replaced by a
+            // dispatch into AutoConduitDrop for any rule whose
+            // RoutingMode == "AUTO_CONDUIT". Other modes (NONE / TRAY /
+            // CABLE / CUSTOM) fall through to the legacy connector-
+            // join pass below, preserving existing behaviour.
+            try
+            {
+                var autoConduitRules = new List<PlacementRule>();
+                if (rules != null)
+                {
+                    foreach (var r in rules)
+                    {
+                        if (r == null) continue;
+                        if (string.Equals(r.RoutingMode, "AUTO_CONDUIT",
+                                StringComparison.OrdinalIgnoreCase))
+                            autoConduitRules.Add(r);
+                    }
+                }
+                if (autoConduitRules.Count > 0)
+                {
+                    int routed = RouteAfterPlacement(doc, autoConduitRules, result);
+                    if (routed > 0)
+                        result.Warnings.Add($"Auto-routed conduit drops for {routed} placed fixture(s).");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"RouteAfterPlacement: {ex.Message}");
+                result.Warnings.Add($"Auto-route failed: {ex.Message}");
+            }
 
             const double joinRadiusFt = 600.0 / 304.8;
             double radSq = joinRadiusFt * joinRadiusFt;

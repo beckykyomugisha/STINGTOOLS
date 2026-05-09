@@ -7299,6 +7299,29 @@ ELC_CDT_MAT_TXT,Conduit Fittings,Type,True
 ELC_CDT_INSTALL_METHOD_TXT,Conduits,Type,True
 ELC_CDT_INSTALL_METHOD_TXT,Conduit Fittings,Type,True
 ELC_CDT_CBL_FILL_PCT,Conduits,Type,True
+ELC_CDT_BEND_ANGLE_DEG,Conduits,Type,True
+ELC_CDT_BEND_ANGLE_DEG,Conduit Fittings,Type,True
+ELC_CDT_BEND_COUNT_NR,Conduits,Type,True
+ELC_CDT_RUN_LENGTH_M,Conduits,Type,True
+ELC_CDT_CABLE_COUNT_NR,Conduits,Type,True
+ELC_CIRCUIT_GROUP_TXT,Electrical Equipment,Instance,True
+ELC_CIRCUIT_GROUP_TXT,Electrical Fixtures,Instance,True
+ELC_CIRCUIT_GROUP_TXT,Lighting Fixtures,Instance,True
+ELC_CIRCUIT_GROUP_TXT,Lighting Devices,Instance,True
+ELC_CIRCUIT_GROUP_TXT,Fire Alarm Devices,Instance,True
+ELC_CIRCUIT_GROUP_TXT,Communication Devices,Instance,True
+ELC_CIRCUIT_GROUP_TXT,Data Devices,Instance,True
+ELC_PNL_CIRCUIT_GROUP_TXT,Electrical Equipment,Type,True
+STING_WALL_ROUTING_FLAG,Walls,Type,True
+STING_SLAB_ROUTING_FLAG,Floors,Type,True
+STING_PENETRATION_REF_TXT,Conduits,Instance,True
+STING_PENETRATION_REF_TXT,Pipes,Instance,True
+STING_PENETRATION_REF_TXT,Ducts,Instance,True
+STING_PENETRATION_FIRE_RATING_TXT,Conduits,Instance,True
+STING_PENETRATION_FIRE_RATING_TXT,Pipes,Instance,True
+STING_PENETRATION_FIRE_RATING_TXT,Ducts,Instance,True
+STING_FIRE_RATING_TXT,Walls,Type,True
+STING_FIRE_RATING_TXT,Floors,Type,True
 ELC_CDT_TAG_01_TXT,Conduits,Type,True
 ELC_CDT_TAG_01_TXT,Conduit Fittings,Type,True
 ELC_CDT_TAG_02_TXT,Conduits,Type,True
@@ -15976,3 +15999,48 @@ ELC_PHOTO_LUX_RELUX_NR,Rooms,Instance,True
 ELC_PHOTO_UNIFORMITY_NR,Rooms,Instance,True
 ELC_PHOTO_LAST_ENGINE_TXT,Rooms,Instance,True
 ELC_PHOTO_LAST_CALC_DATE_TXT,Rooms,Instance,True
+STING_SEED_FAMILY_TXT,Lighting Fixtures,Instance,True
+STING_SEED_FAMILY_TXT,Electrical Fixtures,Instance,True
+STING_SEED_FAMILY_TXT,Electrical Equipment,Instance,True
+STING_SEED_FAMILY_TXT,Fire Alarm Devices,Instance,True
+STING_SEED_FAMILY_TXT,Sprinklers,Instance,True
+STING_SEED_FAMILY_TXT,Plumbing Fixtures,Instance,True
+STING_SEED_FAMILY_TXT,Air Terminals,Instance,True
+STING_SEED_FAMILY_TXT,Mechanical Equipment,Instance,True
+STING_SEED_FAMILY_TXT,Communication Devices,Instance,True
+STING_SEED_FAMILY_TXT,Data Devices,Instance,True
+STING_SEED_FAMILY_TXT,Security Devices,Instance,True
+STING_SEED_FAMILY_TXT,Specialty Equipment,Instance,True
+STING_SEED_FAMILY_TXT,Generic Models,Instance,True
+STING_DESIGN_REF_TXT,Lighting Fixtures,Instance,True
+STING_DESIGN_REF_TXT,Electrical Fixtures,Instance,True
+STING_DESIGN_REF_TXT,Electrical Equipment,Instance,True
+STING_DESIGN_REF_TXT,Fire Alarm Devices,Instance,True
+STING_DESIGN_REF_TXT,Sprinklers,Instance,True
+STING_DESIGN_REF_TXT,Plumbing Fixtures,Instance,True
+STING_DESIGN_REF_TXT,Air Terminals,Instance,True
+STING_DESIGN_REF_TXT,Mechanical Equipment,Instance,True
+STING_DESIGN_REF_TXT,Communication Devices,Instance,True
+STING_DESIGN_REF_TXT,Data Devices,Instance,True
+STING_DESIGN_REF_TXT,Security Devices,Instance,True
+STING_DESIGN_REF_TXT,Specialty Equipment,Instance,True
+STING_DESIGN_REF_TXT,Generic Models,Instance,True
+STING_SWAP_HISTORY_TXT,Lighting Fixtures,Instance,True
+STING_SWAP_HISTORY_TXT,Electrical Fixtures,Instance,True
+STING_SWAP_HISTORY_TXT,Electrical Equipment,Instance,True
+STING_SWAP_HISTORY_TXT,Fire Alarm Devices,Instance,True
+STING_SWAP_HISTORY_TXT,Sprinklers,Instance,True
+STING_SWAP_HISTORY_TXT,Plumbing Fixtures,Instance,True
+STING_SWAP_HISTORY_TXT,Air Terminals,Instance,True
+STING_SWAP_HISTORY_TXT,Mechanical Equipment,Instance,True
+STING_SWAP_HISTORY_TXT,Communication Devices,Instance,True
+STING_SWAP_HISTORY_TXT,Data Devices,Instance,True
+STING_SWAP_HISTORY_TXT,Security Devices,Instance,True
+STING_SWAP_HISTORY_TXT,Specialty Equipment,Instance,True
+STING_SWAP_HISTORY_TXT,Generic Models,Instance,True
+ELC_JB_TYPE_TXT,Electrical Equipment,Instance,True
+ELC_JB_SIZE_MM,Electrical Equipment,Instance,True
+ELC_JB_AUTO_PLACED_BOOL,Electrical Equipment,Instance,True
+ELC_JB_REASON_TXT,Electrical Equipment,Instance,True
+ELC_CDT_BREAKPOINT_TXT,Conduits,Instance,True
+ELC_CDT_BREAKPOINT_TXT,Conduit Fittings,Instance,True

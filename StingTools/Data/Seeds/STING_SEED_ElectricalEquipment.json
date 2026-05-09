@@ -1,0 +1,221 @@
+{
+  "version": "1.0",
+  "standard": "STING SEED FAMILY — Electrical Equipment (BS 7671, BS EN 61439)",
+  "_notes": [
+    "Panels, distribution boards, switchgear, junction boxes, isolators.",
+    "Connector-bearing — supports auto-routing termination + the panel-",
+    "schedule pipeline (ELC_PNL_*). Standalone hosting since panels are",
+    "typically wall-mounted but the family ships unhosted so it can be",
+    "placed in plant rooms / on Reference Lines / against work planes."
+  ],
+  "symbols": [
+    {
+      "id": "STING_SEED_ElectricalEquipment",
+      "name": "STING Seed — Electrical Equipment",
+      "category": "Electrical Equipment",
+      "familyType": "SeedFamily",
+      "discipline": "Electrical",
+      "subcategory": "STING_SEED",
+      "isSeed": true,
+      "hosting": "Standalone",
+      "symbolSize": 8.0,
+      "parameters": [
+        {
+          "name": "STING_SEED_FAMILY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "STING_SEED_ElectricalEquipment"
+        },
+        {
+          "name": "STING_DESIGN_REF_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "STING_SWAP_HISTORY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "ASS_TAG_1",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true
+        },
+        {
+          "name": "ASS_DISCIPLINE_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "E"
+        },
+        {
+          "name": "ASS_PRODCT_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "DB"
+        },
+        {
+          "name": "ELC_PNL_NAME",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true
+        },
+        {
+          "name": "ELC_PNL_VOLTAGE",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "230"
+        },
+        {
+          "name": "ELC_PNL_LOAD",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "0"
+        },
+        {
+          "name": "ELC_PNL_FED_FROM",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true
+        },
+        {
+          "name": "ELC_MAIN_BRK",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "63"
+        },
+        {
+          "name": "ELC_WAYS",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "12"
+        },
+        {
+          "name": "ELC_PNL_CIRCUIT_GROUP_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false
+        }
+      ],
+      "connectors": [
+        {
+          "domain": "Electrical",
+          "x": 0.0,
+          "y": 0.0,
+          "z": -0.5,
+          "direction": "z-",
+          "_notes": "Top supply connector — incoming feeder from upstream panel"
+        },
+        {
+          "domain": "Electrical",
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.5,
+          "direction": "z+",
+          "_notes": "Bottom load connector — outgoing to circuits / sub-DBs"
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.0,
+            "x2": 0.4,
+            "y2": 0.0
+          }
+        ]
+      },
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 400,
+        "depthMm": 200,
+        "heightMm": 600
+      },
+      "typeVariants": [
+        {
+          "name": "DISTRIBUTION_BOARD_DB",
+          "params": {
+            "ASS_PRODCT_COD_TXT": "DB",
+            "ELC_WAYS": "12",
+            "ELC_MAIN_BRK": "63"
+          }
+        },
+        {
+          "name": "MAIN_SWITCHBOARD_MSB",
+          "params": {
+            "ASS_PRODCT_COD_TXT": "MSB",
+            "ELC_WAYS": "24",
+            "ELC_MAIN_BRK": "400",
+            "ELC_PNL_VOLTAGE": "400"
+          }
+        },
+        {
+          "name": "CONSUMER_UNIT",
+          "params": {
+            "ASS_PRODCT_COD_TXT": "CU",
+            "ELC_WAYS": "6",
+            "ELC_MAIN_BRK": "100",
+            "ELC_PNL_VOLTAGE": "230"
+          }
+        },
+        {
+          "name": "ISOLATOR",
+          "params": {
+            "ASS_PRODCT_COD_TXT": "ISO",
+            "ELC_WAYS": "0",
+            "ELC_MAIN_BRK": "63"
+          }
+        },
+        {
+          "name": "JUNCTION_BOX",
+          "params": {
+            "ASS_PRODCT_COD_TXT": "JB",
+            "ELC_WAYS": "0"
+          }
+        },
+        {
+          "name": "TRANSFORMER",
+          "params": {
+            "ASS_PRODCT_COD_TXT": "TX",
+            "ELC_PNL_VOLTAGE": "11000"
+          }
+        }
+      ]
+    }
+  ]
+}

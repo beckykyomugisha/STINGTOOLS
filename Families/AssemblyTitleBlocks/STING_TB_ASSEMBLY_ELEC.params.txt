@@ -1,0 +1,54 @@
+# STING — Title block parameter stub for STING_TB_ASSEMBLY_ELEC.rfa
+#
+# STATUS: Optional bespoke variant for electrical fabrication shop drawings.
+# The drawing type elec-spool-A1-1to50 currently routes to
+# STING_TB_ASSEMBLY_COND (which already accepts "Electrical" as a
+# DISCIPLINE value), so this stub is documentation for a future
+# author who wants distinct cells for cable / glanding / IP-rating
+# data that aren't relevant on the conduit assembly title block.
+#
+# Author the actual .rfa in Revit Family Editor. Required parameters
+# below must exist as Title Block instance parameters bound to the
+# shared parameters in StingTools.Core.Fabrication.AssyParams + the
+# ELC_* shared params from MR_PARAMETERS.txt.
+
+REQUIRED PARAMETERS (inherited from STING_TB_ASSEMBLY_COND)
+ASS_SPOOL_NR_TXT          (Text, Instance) — Auto-populated by ShopDrawingComposer
+ASS_WEIGHT_KG             (Number / Mass, Instance)
+ASS_FAB_LOC_TXT           (Text, Instance) — WORKSHOP / SITE
+ASS_FAB_SEQ_NR            (Integer, Instance)
+ASS_FAB_STATUS_TXT        (Text, Instance) — DRAFT / IFC / IFA / IFR
+ASS_BOM_REV_TXT           (Text, Instance) — P01 / P02 / C01...
+ASS_QC_INSPECTOR_TXT      (Text, Instance)
+ASS_BOLT_COUNT_NR         (Integer, Instance)
+ASS_FITTING_COUNT_NR      (Integer, Instance)
+ASS_LENGTH_TOTAL_MM       (Length, Instance)
+ASS_SUPPORT_COUNT_NR      (Integer, Instance)
+ASS_SPOOL_DRAWING_REF_TXT (Text, Instance)
+DISCIPLINE                (Text, Instance) — fixed to "Electrical"
+
+ELECTRICAL-SPECIFIC PARAMETERS (the reason to fork from COND)
+ELC_CDT_BEND_COUNT_NR     (Text, Instance) — number of bends in this assembly
+ELC_CDT_RUN_LENGTH_M      (Text, Instance) — total conduit run length (m)
+ELC_CDT_CABLE_COUNT_NR    (Text, Instance) — total cable count (BS EN 61386 fill table key)
+ELC_CDT_CBL_FILL_PCT      (Text, Instance) — worst-case fill percentage
+ELC_CDT_INSTALL_METHOD_TXT(Text, Instance) — CLIPPED / TRAY / EMBEDDED / CHASED
+ELC_PNL_NAME              (Text, Instance) — feeding panel reference
+ELC_PNL_VOLTAGE           (Text, Instance) — panel voltage class
+ELC_PNL_FED_FROM          (Text, Instance) — upstream supply
+ELC_GLAND_COUNT_NR        (Text, Instance) — count of cable glands (IP-rated assemblies)
+ELC_IP_RATING_TXT         (Text, Instance) — assembly enclosure IP rating
+
+LAYOUT NOTES
+- A1 landscape (841 mm × 594 mm)
+- Right-hand strip 200 mm wide reserved for BOM schedule
+- Title block at bottom 80 mm — adds an extra 30 mm row above the BOM
+  for the cable + fill + IP cells (these don't exist on the COND/PIPE
+  variants).
+- 5 viewport slots laid out by ShopDrawingComposer
+  (PLAN, ISO, ELEV0, ELEV90, 3D — same as PIPE variant)
+
+# NOTE: until this .rfa is authored, elec-spool-A1-1to50 falls back to
+# STING_TB_ASSEMBLY_COND.rfa via the change in STING_DRAWING_TYPES.json.
+# When the bespoke .rfa lands, flip elec-spool-A1-1to50.titleBlockFamily
+# back to "STING_TB_ASSEMBLY_ELEC".
