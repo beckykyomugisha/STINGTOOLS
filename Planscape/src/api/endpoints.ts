@@ -1020,3 +1020,202 @@ export function validateDocumentName(
   );
 }
 
+
+// ── Site Photos (Phase 178, slice 3) ────────────────────────────────────
+// Six-Reason taxonomy + 5-state Audience machine. Server contract lives in
+// Planscape.Server/src/Planscape.API/Controllers/SitePhotosController.cs.
+
+import type {
+  SitePhoto,
+  SitePhotoListResponse,
+  SitePhotoListFilters,
+  SitePhotoDigestPreview,
+  SitePhotoCaptureMeta,
+} from '../types/api';
+
+export interface CaptureSitePhotoArgs {
+  projectId: string;
+  uri: string;
+  fileName: string;
+  contentType: string;
+  meta: SitePhotoCaptureMeta;
+}
+
+/**
+ * POST /api/projects/{pid}/photos/capture as multipart/form-data. Mirrors
+ * the controller's `CaptureForm` (file + reason + optional metadata).
+ *
+ * Performs in-foreground retries (250ms / 750ms / 2s) for 5xx and network
+ * failures so a single 3G timeout doesn't dump the photo into the offline
+ * queue when one more attempt would have succeeded. 4xx is treated as
+ * fatal — the caller can decide whether to enqueue or surface to the user.
+ */
+const PHOTO_UPLOAD_RETRY_DELAYS_MS = [250, 750, 2000];
+
+export async function captureSitePhoto(args: CaptureSitePhotoArgs): Promise<SitePhoto> {
+  const base = await getBaseUrl();
+  const token = await getToken();
+
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= PHOTO_UPLOAD_RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      const form = new FormData();
+      form.append('file', {
+        uri: args.uri,
+        name: args.fileName,
+        type: args.contentType,
+      } as unknown as Blob);
+
+      form.append('reason', args.meta.reason);
+      if (args.meta.caption !== undefined) form.append('caption', args.meta.caption);
+      if (args.meta.levelCode !== undefined) form.append('levelCode', args.meta.levelCode);
+      if (args.meta.zoneCode !== undefined) form.append('zoneCode', args.meta.zoneCode);
+      if (args.meta.latitude !== undefined) form.append('latitude', String(args.meta.latitude));
+      if (args.meta.longitude !== undefined) form.append('longitude', String(args.meta.longitude));
+      if (args.meta.accuracyM !== undefined) form.append('accuracyM', String(args.meta.accuracyM));
+      if (args.meta.pairKey !== undefined) form.append('pairKey', args.meta.pairKey);
+      if (args.meta.classifierConfidence !== undefined)
+        form.append('classifierConfidence', String(args.meta.classifierConfidence));
+      if (args.meta.classifierSignals !== undefined)
+        form.append('classifierSignals', JSON.stringify(args.meta.classifierSignals));
+      if (args.meta.capturedAt !== undefined) form.append('capturedAt', args.meta.capturedAt);
+      if (args.meta.deviceId !== undefined) form.append('deviceId', args.meta.deviceId);
+      if (args.meta.source !== undefined) form.append('source', args.meta.source);
+      if (args.meta.queuedClient !== undefined)
+        form.append('queuedClient', String(args.meta.queuedClient));
+      if (args.meta.anchorIssueId !== undefined) form.append('anchorIssueId', args.meta.anchorIssueId);
+      if (args.meta.anchorElementGuid !== undefined)
+        form.append('anchorElementGuid', args.meta.anchorElementGuid);
+      if (args.meta.modelId !== undefined) form.append('modelId', args.meta.modelId);
+      if (args.meta.modelX !== undefined) form.append('modelX', String(args.meta.modelX));
+      if (args.meta.modelY !== undefined) form.append('modelY', String(args.meta.modelY));
+      if (args.meta.modelZ !== undefined) form.append('modelZ', String(args.meta.modelZ));
+
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (args.meta.deviceId) headers['X-Device-Id'] = args.meta.deviceId;
+      headers['X-Client-Type'] = 'mobile';
+
+      const res = await fetch(
+        `${base}/api/projects/${args.projectId}/photos/capture`,
+        { method: 'POST', headers, body: form },
+      );
+
+      if (res.status >= 400 && res.status < 500) {
+        const text = await res.text();
+        throw new Error(text || `Photo capture failed: HTTP ${res.status}`);
+      }
+      if (!res.ok) {
+        const text = await res.text();
+        lastErr = new Error(text || `Photo capture failed: HTTP ${res.status}`);
+      } else {
+        return (await res.json()) as SitePhoto;
+      }
+    } catch (err) {
+      lastErr = err;
+    }
+    if (attempt < PHOTO_UPLOAD_RETRY_DELAYS_MS.length) {
+      await new Promise((r) => setTimeout(r, PHOTO_UPLOAD_RETRY_DELAYS_MS[attempt]));
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error('Photo capture failed after retries');
+}
+
+export function listSitePhotos(
+  projectId: string,
+  filters: SitePhotoListFilters = {},
+): Promise<SitePhotoListResponse> {
+  const q = new URLSearchParams();
+  if (filters.reason) q.set('reason', filters.reason);
+  if (filters.audience) q.set('audience', filters.audience);
+  if (filters.levelCode) q.set('levelCode', filters.levelCode);
+  if (filters.zoneCode) q.set('zoneCode', filters.zoneCode);
+  if (filters.anchorElementGuid) q.set('anchorElementGuid', filters.anchorElementGuid);
+  if (filters.from) q.set('from', filters.from);
+  if (filters.to) q.set('to', filters.to);
+  if (filters.page) q.set('page', String(filters.page));
+  if (filters.pageSize) q.set('pageSize', String(filters.pageSize));
+  const suffix = q.toString();
+  return apiFetch(`/api/projects/${projectId}/photos${suffix ? `?${suffix}` : ''}`);
+}
+
+export function getSitePhoto(projectId: string, photoId: string): Promise<SitePhoto> {
+  return apiFetch(`/api/projects/${projectId}/photos/${photoId}`);
+}
+
+/** Build an authenticated URL for the photo bytes. The image consumer must
+ *  supply the `Authorization` header itself (RN <Image source={{uri,headers}}>
+ *  pattern), so this returns a plain URL string rather than fetching the blob. */
+export async function getSitePhotoFile(
+  projectId: string,
+  photoId: string,
+): Promise<{ url: string; headers: Record<string, string> }> {
+  const base = await getBaseUrl();
+  const token = await getToken();
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return {
+    url: `${base}/api/projects/${projectId}/photos/${photoId}/file`,
+    headers,
+  };
+}
+
+export function setSitePhotoAudience(
+  projectId: string,
+  photoId: string,
+  audience: 'Internal' | 'PendingReview',
+): Promise<SitePhoto> {
+  return apiFetch(`/api/projects/${projectId}/photos/${photoId}/audience`, {
+    method: 'PUT',
+    body: JSON.stringify({ audience }),
+  });
+}
+
+export function approveSitePhoto(
+  projectId: string,
+  photoId: string,
+  caption: string,
+): Promise<SitePhoto> {
+  return apiFetch(`/api/projects/${projectId}/photos/${photoId}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({ caption }),
+  });
+}
+
+export function rejectSitePhoto(
+  projectId: string,
+  photoId: string,
+  reason: string,
+): Promise<SitePhoto> {
+  return apiFetch(`/api/projects/${projectId}/photos/${photoId}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
+}
+
+export function withdrawSitePhoto(projectId: string, photoId: string): Promise<SitePhoto> {
+  return apiFetch(`/api/projects/${projectId}/photos/${photoId}/withdraw`, {
+    method: 'POST',
+  });
+}
+
+export interface BulkApproveSitePhotosResult {
+  approved: number;
+  skipped: number;
+  skippedDetail: Array<{ id: string; reason: string; current?: string }>;
+}
+
+export function bulkApproveSitePhotos(
+  projectId: string,
+  photoIds: string[],
+  caption: string,
+): Promise<BulkApproveSitePhotosResult> {
+  return apiFetch(`/api/projects/${projectId}/photos/bulk-approve`, {
+    method: 'POST',
+    body: JSON.stringify({ photoIds, caption }),
+  });
+}
+
+export function getSitePhotoDigestPreview(projectId: string): Promise<SitePhotoDigestPreview> {
+  return apiFetch(`/api/projects/${projectId}/photos/digest-preview`);
+}

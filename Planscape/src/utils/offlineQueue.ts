@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createIssue, updateIssue, transitionCDE, uploadIssueAttachment } from '@/api/endpoints';
-import type { OfflineAction } from '@/types/api';
+import * as FileSystem from 'expo-file-system/legacy';
+import { createIssue, updateIssue, transitionCDE, uploadIssueAttachment, captureSitePhoto } from '@/api/endpoints';
+import type { OfflineAction, SitePhotoCaptureMeta } from '@/types/api';
 
 const QUEUE_KEY = 'planscape_offline_queue';
 const LAST_SYNC_KEY = 'planscape_last_sync';
@@ -267,6 +268,122 @@ async function replayAction(action: OfflineAction): Promise<void> {
       });
       break;
     }
+
+    // Phase 178 — replay a queued site-photo capture. The photo bytes
+    // live on disk under FileSystem.documentDirectory + queued-photos/
+    // so AsyncStorage doesn't bloat with base64. On success we delete
+    // the local file; on permanent failure (4xx) the file is dropped
+    // when the action moves to the failed side-queue (see drainFailedFiles).
+    case 'CAPTURE_SITE_PHOTO': {
+      const localUri = p.localUri as string;
+      const fileName = (p.fileName as string) ?? `photo-${Date.now()}.jpg`;
+      const contentType = (p.mimeType as string) ?? 'image/jpeg';
+      const meta = p.meta as SitePhotoCaptureMeta;
+      await captureSitePhoto({
+        projectId: p.projectId as string,
+        uri: localUri,
+        fileName,
+        contentType,
+        meta: { ...meta, queuedClient: true },
+      });
+      // Best-effort cleanup — failure to delete the local copy is
+      // non-fatal; drainQueuedPhotoFiles() reaps stragglers later.
+      try { await FileSystem.deleteAsync(localUri, { idempotent: true }); } catch { /* ignore */ }
+      break;
+    }
+  }
+}
+
+// ── Queued photo file management (Phase 178) ────────────────────────────
+// Photos are persisted to FileSystem.documentDirectory + queued-photos/
+// so we don't blow out AsyncStorage with base64 strings. The capture flow
+// calls `persistPhotoForQueue` to copy the camera URI into a stable path
+// before enqueuing the action; the replay handler calls
+// `FileSystem.deleteAsync` on success.
+
+const QUEUED_PHOTO_DIR = `${FileSystem.documentDirectory ?? ''}queued-photos/`;
+const QUEUED_PHOTO_WARN_AT = 200;
+const QUEUED_PHOTO_HARD_CAP = 500;
+
+/** Make sure the queued-photos directory exists. Idempotent. */
+export async function ensureQueuedPhotoDir(): Promise<string> {
+  if (!FileSystem.documentDirectory) throw new Error('No document directory on this platform');
+  const info = await FileSystem.getInfoAsync(QUEUED_PHOTO_DIR);
+  if (!info.exists) {
+    await FileSystem.makeDirectoryAsync(QUEUED_PHOTO_DIR, { intermediates: true });
+  }
+  return QUEUED_PHOTO_DIR;
+}
+
+/** Copy a camera/picker URI into a stable path under queued-photos/.
+ *  Returns the on-disk URI; caller stores it on the OfflineAction payload. */
+export async function persistPhotoForQueue(srcUri: string, suffix = '.jpg'): Promise<string> {
+  const dir = await ensureQueuedPhotoDir();
+  const id = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const dest = `${dir}${id}${suffix}`;
+  await FileSystem.copyAsync({ from: srcUri, to: dest });
+  return dest;
+}
+
+export interface QueuedPhotoStats {
+  count: number;
+  bytes: number;
+  warn: boolean;
+  hardCap: boolean;
+}
+
+/** Cheap stats for the capture flow's "you have N queued, Wi-Fi recommended" hint. */
+export async function queuedPhotoStats(): Promise<QueuedPhotoStats> {
+  try {
+    if (!FileSystem.documentDirectory) return { count: 0, bytes: 0, warn: false, hardCap: false };
+    const info = await FileSystem.getInfoAsync(QUEUED_PHOTO_DIR);
+    if (!info.exists) return { count: 0, bytes: 0, warn: false, hardCap: false };
+    const files = await FileSystem.readDirectoryAsync(QUEUED_PHOTO_DIR);
+    let bytes = 0;
+    for (const f of files) {
+      const fi = await FileSystem.getInfoAsync(`${QUEUED_PHOTO_DIR}${f}`);
+      if (fi.exists && !fi.isDirectory) bytes += (fi.size ?? 0);
+    }
+    return {
+      count: files.length,
+      bytes,
+      warn: files.length >= QUEUED_PHOTO_WARN_AT,
+      hardCap: files.length >= QUEUED_PHOTO_HARD_CAP,
+    };
+  } catch {
+    return { count: 0, bytes: 0, warn: false, hardCap: false };
+  }
+}
+
+/** Reap orphan files: any file under queued-photos/ NOT referenced by an
+ *  action in the live or failed queue. Called opportunistically after a
+ *  drain; prevents orphans from accumulating after a permanent failure. */
+export async function reapOrphanQueuedPhotos(): Promise<number> {
+  try {
+    if (!FileSystem.documentDirectory) return 0;
+    const info = await FileSystem.getInfoAsync(QUEUED_PHOTO_DIR);
+    if (!info.exists) return 0;
+    const files = await FileSystem.readDirectoryAsync(QUEUED_PHOTO_DIR);
+    if (files.length === 0) return 0;
+    const live = await loadQueue();
+    const failed = await loadFailedQueue();
+    const referenced = new Set<string>();
+    for (const a of [...live, ...failed]) {
+      if (a.type === 'CAPTURE_SITE_PHOTO') {
+        const uri = a.payload?.localUri as string | undefined;
+        if (uri) referenced.add(uri);
+      }
+    }
+    let reaped = 0;
+    for (const f of files) {
+      const full = `${QUEUED_PHOTO_DIR}${f}`;
+      if (!referenced.has(full)) {
+        try { await FileSystem.deleteAsync(full, { idempotent: true }); reaped++; } catch { /* ignore */ }
+      }
+    }
+    return reaped;
+  } catch {
+    return 0;
   }
 }
 

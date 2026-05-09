@@ -203,7 +203,9 @@ export interface OfflineAction {
     | 'DIARY_ENTRY'
     | 'STAGE_SIGNOFF'
     | 'ATTACH_AUDIO'
-    | 'ATTACH_MARKUP';
+    | 'ATTACH_MARKUP'
+    // Phase 178 — site-photo capture, queued when offline.
+    | 'CAPTURE_SITE_PHOTO';
   payload: Record<string, unknown>;
   createdAt: string;
   synced: boolean;
@@ -373,4 +375,112 @@ export interface NotificationPreferences {
   quietHoursEnd?: string;
   timeZone?: string;
   updatedAt: string;
+}
+
+// ── Site Photos (Phase 178, slice 3) ───────────────────────────────────
+//
+// Mirrors `SitePhotoDto` in Planscape.Server/.../SitePhotosController.cs.
+// Six-Reason taxonomy: Progress | Issue | Defect | Safety | AsBuilt | Reference.
+// 5-state Audience machine: Internal → PendingReview → Approved → ClientPortal → Withdrawn.
+
+export type SitePhotoReason =
+  | 'Progress'
+  | 'Issue'
+  | 'Defect'
+  | 'Safety'
+  | 'AsBuilt'
+  | 'Reference';
+
+export type SitePhotoAudience =
+  | 'Internal'
+  | 'PendingReview'
+  | 'Approved'
+  | 'ClientPortal'
+  | 'Withdrawn';
+
+export interface SitePhoto {
+  id: string;
+  projectId: string;
+  documentId: string;
+  reason: SitePhotoReason;
+  audience: SitePhotoAudience;
+  blurStatus: string;
+  watermarkApplied: boolean;
+  caption: string | null;
+  capturedAt: string;
+  capturedByUserId: string | null;
+  levelCode: string | null;
+  zoneCode: string | null;
+  anchorIssueId: string | null;
+  anchorElementGuid: string | null;
+  modelId: string | null;
+  modelX: number | null;
+  modelY: number | null;
+  modelZ: number | null;
+  pairKey: string | null;
+  classifierConfidence: number;
+  approvedAt: string | null;
+  approvedByUserId: string | null;
+  rejectedAt: string | null;
+  rejectedReason: string | null;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+export interface SitePhotoListResponse {
+  items: SitePhoto[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface SitePhotoListFilters {
+  reason?: SitePhotoReason;
+  audience?: SitePhotoAudience;
+  levelCode?: string;
+  zoneCode?: string;
+  anchorElementGuid?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface SitePhotoDigestPreview {
+  projectId: string;
+  windowStart: string;
+  count: number;
+  items: Array<{
+    id: string;
+    reason: SitePhotoReason;
+    caption: string | null;
+    levelCode: string | null;
+    zoneCode: string | null;
+    capturedAt: string;
+    approvedAt: string | null;
+  }>;
+}
+
+/** Optional capture metadata posted with the multipart body. */
+export interface SitePhotoCaptureMeta {
+  reason: SitePhotoReason;
+  caption?: string;
+  levelCode?: string;
+  zoneCode?: string;
+  latitude?: number;
+  longitude?: number;
+  accuracyM?: number;
+  pairKey?: string;
+  classifierConfidence?: number;
+  classifierSignals?: Record<string, unknown>;
+  capturedAt?: string;
+  deviceId?: string;
+  source?: string;
+  queuedClient?: boolean;
+  anchorIssueId?: string;
+  anchorElementGuid?: string;
+  modelId?: string;
+  modelX?: number;
+  modelY?: number;
+  modelZ?: number;
 }
