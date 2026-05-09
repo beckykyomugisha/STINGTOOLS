@@ -188,8 +188,62 @@ export function lookupElement(
 
 // ── Project Members (NEW-MOB-13) ──
 
+/**
+ * T3-20 — richer row shape returned by the GET /members endpoint.
+ * Server returns memberId (`Id`), userId, ACL CSV columns, and joinedAt;
+ * the lean `ProjectMember` type doesn't capture those fields, so we expose
+ * a richer alias here for screens that need them (project-settings ACL
+ * editor). Existing callers using `listProjectMembers` are unaffected —
+ * the extra fields are dropped at the type boundary, not at runtime.
+ */
+export interface ProjectMemberRow {
+  id: string;
+  userId: string;
+  email: string;
+  displayName: string;
+  projectRole: string;
+  iso19650Role: string;
+  joinedAt?: string;
+  invitedBy?: string | null;
+  /** Server stores allow-lists as comma-separated strings; null = "all". */
+  allowedCdeStates: string | null;
+  allowedDisciplines: string | null;
+  allowedSuitabilities: string | null;
+}
+
 export function listProjectMembers(projectId: string): Promise<ProjectMember[]> {
   return apiFetch(`/api/projects/${projectId}/members`);
+}
+
+/** Same call, typed for screens that need the rich payload. */
+export function listProjectMembersFull(projectId: string): Promise<ProjectMemberRow[]> {
+  return apiFetch(`/api/projects/${projectId}/members`);
+}
+
+/** T3-20 — update a project member's role + per-folder ACLs.
+ *  Server route is by memberId (ProjectMember.Id), NOT by userId. */
+export interface UpdateProjectMemberArgs {
+  projectRole?: string;
+  iso19650Role?: string;
+  allowedCdeStates?: string[];
+  allowedDisciplines?: string[];
+  allowedSuitabilities?: string[];
+  accessProfileId?: string;
+}
+export function updateProjectMember(
+  projectId: string,
+  memberId: string,
+  body: UpdateProjectMemberArgs,
+): Promise<{ id: string; projectRole: string; iso19650Role: string }> {
+  return apiFetch(`/api/projects/${projectId}/members/${memberId}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+}
+
+/** T3-20 — remove a member from the project (server hard-deletes). */
+export function removeProjectMember(projectId: string, memberId: string): Promise<void> {
+  return apiFetch(`/api/projects/${projectId}/members/${memberId}`, { method: 'DELETE' });
 }
 
 // ── Issue Attachments (NEW-MOB-15) ──
@@ -289,6 +343,108 @@ export async function uploadIssueAttachment(
     }
   }
   throw lastErr instanceof Error ? lastErr : new Error('Upload failed after retries');
+}
+
+// ── Audio notes (T3-7 voice-to-text dictation) ─────────────────────────
+//
+// Uploads an audio recording captured by expo-av to the server, where it
+// will be transcribed and the transcript appended to the linked issue's
+// description / notes thread. The mobile bundle deliberately does NOT carry
+// any STT model — transcription is a server concern (Whisper, Azure Speech,
+// or Google Cloud Speech-to-Text behind a feature flag).
+//
+// TODO-SERVER: endpoint /api/projects/{pid}/issues/{iid}/audio-notes does not
+//   exist yet. Server work needed:
+//     1. Multipart receiver matching this contract (file + durationSec + idempotencyKey).
+//     2. Background job that pulls bytes through the configured STT provider.
+//     3. SignalR notification ("audioNoteTranscribed") so the issue detail
+//        screen can refresh once the transcript lands.
+//   Until then, replays of `ATTACH_AUDIO` will 404 and move to the failed
+//   side-queue after MAX_RETRIES_PER_ACTION attempts (graceful degradation).
+
+export interface UploadAudioNoteArgs {
+  projectId: string;
+  issueId: string;
+  uri: string;
+  fileName: string;
+  contentType: string;
+  durationSec?: number;
+  idempotencyKey?: string;
+}
+
+const AUDIO_UPLOAD_RETRY_DELAYS_MS = [250, 750, 2000];
+
+export async function uploadAudioNote(args: UploadAudioNoteArgs): Promise<{ id: string; status: string }> {
+  const base = await getBaseUrl();
+  const token = await getToken();
+
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= AUDIO_UPLOAD_RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      const form = new FormData();
+      form.append('file', {
+        uri: args.uri,
+        name: args.fileName,
+        type: args.contentType,
+      } as unknown as Blob);
+      if (args.durationSec !== undefined) {
+        form.append('durationSec', String(args.durationSec));
+      }
+
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (args.idempotencyKey) headers['X-Idempotency-Key'] = args.idempotencyKey;
+      headers['X-Client-Type'] = 'mobile';
+
+      const res = await fetch(
+        `${base}/api/projects/${args.projectId}/issues/${args.issueId}/audio-notes`,
+        { method: 'POST', headers, body: form },
+      );
+
+      if (res.status >= 400 && res.status < 500) {
+        const text = await res.text();
+        throw new Error(text || `Audio upload failed: HTTP ${res.status}`);
+      }
+      if (!res.ok) {
+        const text = await res.text();
+        lastErr = new Error(text || `Audio upload failed: HTTP ${res.status}`);
+      } else {
+        return (await res.json()) as { id: string; status: string };
+      }
+    } catch (err) {
+      lastErr = err;
+    }
+    if (attempt < AUDIO_UPLOAD_RETRY_DELAYS_MS.length) {
+      await new Promise((r) => setTimeout(r, AUDIO_UPLOAD_RETRY_DELAYS_MS[attempt]));
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error('Audio upload failed after retries');
+}
+
+// ── 3D model markup (S6.2 — referenced by ATTACH_MARKUP queue replay) ──
+//
+// TODO-SERVER: endpoint /api/projects/{pid}/models/{mid}/markups does not
+//   yet exist. Stub kept here so the ATTACH_MARKUP replay path doesn't
+//   throw `Cannot find module` at import time. When the server endpoint
+//   lands, swap the body for a real multipart/JSON POST.
+
+export interface UploadModelMarkupArgs {
+  projectId: string;
+  modelId: string;
+  polylines: Array<{ points: number[][]; color: string; thickness: number }>;
+  label?: string;
+  idempotencyKey?: string;
+}
+
+export async function uploadModelMarkup(args: UploadModelMarkupArgs): Promise<{ id: string }> {
+  return apiFetch(`/api/projects/${args.projectId}/models/${args.modelId}/markups`, {
+    method: 'POST',
+    body: JSON.stringify({
+      polylines: args.polylines,
+      label: args.label,
+      idempotencyKey: args.idempotencyKey,
+    }),
+  });
 }
 
 // ── Push token registration (NEW-MOB-18) ──
@@ -917,6 +1073,49 @@ export function transitionDeliverable(
   return apiFetch(`/api/projects/${projectId}/deliverables/${deliverableId}/transition`, {
     method: 'POST',
     body: JSON.stringify({ newStatus, documentId: args.documentId, reason: args.reason }),
+  });
+}
+
+// T3-17 — mobile deliverable CRUD. Server already exposes Get/Create/Update;
+// only `listDeliverables` was wired previously.
+
+export function getDeliverable(
+  projectId: string,
+  deliverableId: string,
+): Promise<DeliverableSummary> {
+  return apiFetch(`/api/projects/${projectId}/deliverables/${deliverableId}`);
+}
+
+export interface DeliverableUpsertArgs {
+  code?: string;
+  title?: string;
+  description?: string;
+  type?: string;
+  ownerRole?: string;
+  discipline?: string | null;
+  suitabilityTarget?: string | null;
+  dueDate?: string;
+  stageGateId?: string | null;
+}
+
+export function createDeliverable(
+  projectId: string,
+  body: DeliverableUpsertArgs,
+): Promise<DeliverableSummary> {
+  return apiFetch(`/api/projects/${projectId}/deliverables`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateDeliverable(
+  projectId: string,
+  deliverableId: string,
+  body: DeliverableUpsertArgs,
+): Promise<DeliverableSummary> {
+  return apiFetch(`/api/projects/${projectId}/deliverables/${deliverableId}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
   });
 }
 

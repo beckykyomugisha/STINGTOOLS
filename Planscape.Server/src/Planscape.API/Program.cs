@@ -441,11 +441,19 @@ builder.Services.AddHangfire(config => config
 // burst of approvals at digest time can't starve API request CPU.
 var planscapeRole = (Environment.GetEnvironmentVariable("PLANSCAPE_ROLE") ?? "api").ToLowerInvariant();
 var isWorker = planscapeRole == "worker";
+// Phase 178b — Heavy-job queue (T2-26). Workloads that spike CPU /
+// disk I/O are routed onto a dedicated "heavy" queue that the API
+// process does NOT subscribe to. This keeps API p50 latency stable
+// even when ModelDerivativeJob is converting an IFC, the nightly
+// DatabaseBackupJob is dumping Postgres, or ClamAvScannerJob is
+// streaming 200 MB attachments through the AV scanner. Worker
+// container picks up "heavy" + "photo-redaction" (and the rest);
+// API picks "default", "compliance", "notifications", "platform-sync".
 builder.Services.AddHangfireServer(options =>
 {
     options.WorkerCount = isWorker ? Math.Max(4, Environment.ProcessorCount) : 2;
     options.Queues = isWorker
-        ? new[] { "photo-redaction", "default", "compliance", "notifications", "platform-sync" }
+        ? new[] { "photo-redaction", "heavy", "default", "compliance", "notifications", "platform-sync" }
         : new[] { "default", "compliance", "notifications", "platform-sync" };
 });
 builder.Services.AddScoped<Planscape.Infrastructure.Services.ComplianceCheckJob>();
@@ -1139,25 +1147,37 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.StaleWarningCleanupJo
 // MinutelyCron is the floor. 30s would require a custom scheduler,
 // so we settle for 1m which still keeps the upload→available
 // latency tight enough for the office dashboard.
+// Phase 178b — moved off the API process onto the dedicated "heavy"
+// queue. ClamAV streams every uploaded attachment through clamscan,
+// which can spike CPU + disk for several seconds per scan. Worker
+// container picks this up; API process never blocks on it.
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.ClamAvScannerJob>(
     "clamav-scan-pending", j => j.ExecuteAsync(CancellationToken.None),
-    Cron.Minutely, new RecurringJobOptions { QueueName = "default" });
+    Cron.Minutely, new RecurringJobOptions { QueueName = "heavy" });
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PlatformSyncJob>(
     "platform-sync", j => j.ExecuteAsync(CancellationToken.None),
     "*/30 * * * *", new RecurringJobOptions { QueueName = "platform-sync" });
 // BACKUP-01 — nightly 02:15 UTC Postgres dump. Runs only when Backup:Enabled=true.
+// Phase 178b — moved to "heavy" queue (worker-only). pg_dump on a
+// 50 GB tenant database is many minutes of disk + CPU; running it on
+// the API process previously caused noticeable latency spikes during
+// the dump window.
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DatabaseBackupJob>(
     "database-backup", j => j.ExecuteAsync(CancellationToken.None),
-    "15 2 * * *", new RecurringJobOptions { QueueName = "default" });
+    "15 2 * * *", new RecurringJobOptions { QueueName = "heavy" });
 // FLEX-13 — nightly 03:15 UTC purge of custom fields past the 30-day grace period.
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>(
     "custom-fields-purge", j => j.ExecuteAsync(CancellationToken.None),
     "15 3 * * *", new RecurringJobOptions { QueueName = "default" });
 // P7 + P8 — every 10 minutes, produce glTF + thumbnail derivatives for
 // freshly-uploaded IFC/RVT models so the mobile viewer can render them.
+// Phase 178b — IFC → glTF conversion is the single biggest CPU
+// burner in the platform; one large model can consume 100% of one
+// core for 5+ minutes. Routed to "heavy" queue (worker-only) so
+// it can never starve API request CPU.
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.ModelDerivativeJob>(
     "model-derivatives", j => j.ExecuteAsync(CancellationToken.None),
-    "*/10 * * * *", new RecurringJobOptions { QueueName = "default" });
+    "*/10 * * * *", new RecurringJobOptions { QueueName = "heavy" });
 
 // Phase 178 — Daily site-photo digest. Sends each project a single
 // email summarising new client-portal photos + open review queue

@@ -331,6 +331,9 @@ export default function DashboardScreen() {
         <QuickAction label="Transmittals" emoji="📤" onPress={() => router.push('/transmittals' as any)} />
         <QuickAction label="Warnings" emoji="⚠️" onPress={() => router.push('/warnings' as any)} />
         <QuickAction label="Healthcare" emoji="🏥" onPress={() => router.push('/healthcare' as any)} />
+        {/* T3-6 — Punchlist mode entry point. Lives next to Diary/Meetings
+            so on-site supervisors find it on the same row of muscle memory. */}
+        <QuickAction label="Punchlist" emoji="🎯" onPress={() => router.push('/punchlist' as any)} />
       </View>
 
       {/* Discipline breakdown */}

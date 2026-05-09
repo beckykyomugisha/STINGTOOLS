@@ -18,6 +18,8 @@ export default function SitePhotosLayout() {
       <Stack.Screen name="capture" options={{ title: 'Capture Photo' }} />
       <Stack.Screen name="review" options={{ title: 'Review Photos' }} />
       <Stack.Screen name="gallery" options={{ title: 'Project Gallery' }} />
+      {/* T3-4 — daily digest preview, opened from the gallery header. */}
+      <Stack.Screen name="digest" options={{ title: "Today's Digest" }} />
     </Stack>
   );
 }

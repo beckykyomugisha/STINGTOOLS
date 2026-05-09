@@ -1056,15 +1056,113 @@
       }
       list.innerHTML = '';
       entries.forEach(e => {
-        const when = e.timestamp || e.Timestamp || e.createdAt || '';
-        const action = e.action || e.Action || '';
-        const details = e.detailsJson || e.DetailsJson || '';
-        const row = el('div', { class: 'activity-row' }, [
-          el('span', { class: 'when' }, when ? new Date(when).toLocaleString() : ''),
-          el('span', { class: 'what' }, formatActivity(action, details))
-        ]);
-        list.appendChild(row);
+        list.appendChild(renderActivityCard(e));
       });
+    }
+
+    /** T3-14 — Build a rich activity card. The same JSON shape (action +
+     *  details + userName + timestamp) feeds the BCC desktop and the mobile
+     *  issue-detail screen, so the renderer here is the canonical reference
+     *  for the visual layout. */
+    function renderActivityCard(entry) {
+      const when    = entry.timestamp || entry.Timestamp || entry.createdAt || '';
+      const action  = entry.action || entry.Action || '';
+      const userN   = entry.userName || entry.UserName || entry.author || 'System';
+      const dRaw    = entry.detailsJson || entry.DetailsJson || entry.details || '';
+      const details = (typeof dRaw === 'string') ? safeParse(dRaw) : (dRaw || {});
+
+      const card = el('div', { class: 'activity-card' });
+      card.appendChild(el('div', { class: 'avatar', style: `background:${avatarColor(userN)}` }, initials(userN)));
+
+      const body = el('div', { class: 'body' });
+      const head = el('div', { class: 'head' });
+      head.appendChild(el('span', { class: 'who'  }, userN));
+      head.appendChild(el('span', { class: 'verb' }, ' ' + verbForAction(action, details)));
+      head.appendChild(el('span', { class: 'when', title: when }, relativeTime(when)));
+      body.appendChild(head);
+
+      const inline = inlineDetail(action, details);
+      if (inline) body.appendChild(el('div', { class: 'detail' }, inline));
+
+      // Contextual chip — priority badge / status pill / file thumbnail.
+      const chip = chipForActivity(action, details);
+      if (chip) body.appendChild(chip);
+
+      card.appendChild(body);
+      return card;
+    }
+
+    function safeParse(s) {
+      if (!s) return {};
+      try { return JSON.parse(s); } catch (_) { return {}; }
+    }
+    function initials(name) {
+      const parts = String(name || '?').trim().split(/\s+/).slice(0, 2);
+      return parts.map(p => p[0]?.toUpperCase() || '').join('') || '?';
+    }
+    function avatarColor(name) {
+      // Deterministic hue from the user-name so the same person always
+      // gets the same swatch across cards.
+      let h = 0; for (const ch of String(name || '')) h = (h * 31 + ch.charCodeAt(0)) | 0;
+      return `hsl(${Math.abs(h) % 360} 55% 38%)`;
+    }
+    function relativeTime(iso) {
+      if (!iso) return '';
+      const d = new Date(iso); if (isNaN(d.getTime())) return iso;
+      const s = Math.round((Date.now() - d.getTime()) / 1000);
+      if (s < 60)        return s + 's ago';
+      if (s < 3600)      return Math.round(s / 60) + 'm ago';
+      if (s < 86400)     return Math.round(s / 3600) + 'h ago';
+      if (s < 86400 * 7) return Math.round(s / 86400) + 'd ago';
+      return d.toLocaleDateString();
+    }
+    function verbForAction(action, details) {
+      const a = String(action || '').toUpperCase();
+      if (a === 'CREATE')          return 'created the issue';
+      if (a === 'COMMENT')         return 'commented';
+      if (a === 'ATTACH' || a === 'ATTACHMENT_ADD') return 'attached a file';
+      if (a === 'ATTACHMENT_DELETE') return 'removed an attachment';
+      if (a === 'STATUS')          return 'changed status';
+      if (a === 'PRIORITY')        return 'changed priority';
+      if (a === 'ASSIGN')          return 'changed assignee';
+      if (a === 'RESOLVE')         return 'marked resolved';
+      if (a === 'CLOSE')           return 'closed the issue';
+      if (a === 'REOPEN')          return 're-opened the issue';
+      if (a === 'UPDATE')          return 'updated the issue';
+      return action || 'updated';
+    }
+    function inlineDetail(action, details) {
+      // Render only field-level diffs as inline text; the chip below carries
+      // the visual badge (priority pill, status pill, thumbnail).
+      if (!details || typeof details !== 'object') return '';
+      const parts = [];
+      for (const k of Object.keys(details)) {
+        if (k === 'priority' || k === 'status' || k === 'thumbnailUrl' || k === 'fileName') continue;
+        const v = details[k];
+        if (v && typeof v === 'object' && 'from' in v && 'to' in v) parts.push(`${k}: ${v.from} → ${v.to}`);
+        else if (k === 'body' || k === 'comment') parts.push(String(v));
+        else if (typeof v === 'string' && v.length < 200) parts.push(`${k}: ${v}`);
+      }
+      return parts.join(' · ');
+    }
+    function chipForActivity(action, details) {
+      if (!details || typeof details !== 'object') return null;
+      // Attachment thumbnail — render an inline preview if the server
+      // surfaced a thumbnailUrl. Falls back to a filename chip.
+      if (details.thumbnailUrl || details.fileName) {
+        if (details.thumbnailUrl) {
+          const img = el('img', { class: 'thumb', src: details.thumbnailUrl, alt: details.fileName || 'attachment' });
+          return img;
+        }
+        return el('span', { class: 'chip' }, '📎 ' + (details.fileName || 'attachment'));
+      }
+      // Priority chip on PRIORITY change events.
+      const pri = details.priority?.to || details.priority;
+      if (typeof pri === 'string') return el('span', { class: 'chip priority-' + pri.toUpperCase() }, pri.toUpperCase());
+      // Status chip on STATUS change events.
+      const st  = details.status?.to || details.status;
+      if (typeof st === 'string') return el('span', { class: 'chip status-' + st.toUpperCase() }, st.toUpperCase());
+      return null;
     }
 
     function formatActivity(action, detailsJson) {
@@ -2087,6 +2185,14 @@
       });
     }
 
+    // T3-18 — Bulk multi-selection set for the issues grid. Mirrors the
+    // 3D viewer's selectedElementGuids set: ctrl/cmd-click toggles, shift-
+    // click extends a contiguous range, plain click clears + selects one.
+    // Lives outside renderIssues so the set survives re-renders triggered
+    // by filter changes; we prune ids that no longer exist on each render.
+    state.bulkIssueIds = state.bulkIssueIds || new Set();
+    state.bulkLastIssueId = state.bulkLastIssueId || null;
+
     function renderIssues() {
       const body = $('#issuesBody');
       let rows = state.issues;
@@ -2095,10 +2201,18 @@
       const myId = state.currentUser?.id || state.currentUser?.userId || 'me';
       if (state.issuesFilter === 'mine') rows = rows.filter(i => i.assigneeId === myId || i.assigneeId === 'me');
       else if (state.issuesFilter === 'overdue') rows = rows.filter(i => i.slaBreached || (i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'RESOLVED'));
+
+      // Prune stale ids before re-rendering — happens when an issue is
+      // resolved+filtered out under "Mine" / "Overdue" but the bulk set
+      // still references it.
+      const visibleIds = new Set(rows.map(r => r.id));
+      for (const id of [...state.bulkIssueIds]) if (!visibleIds.has(id)) state.bulkIssueIds.delete(id);
+
       body.innerHTML = rows.length ? '' : '<div class="empty-state">No issues</div>';
       if (rows.length) {
         const table = el('table', { class: 'dtable' });
         table.innerHTML = `<thead><tr>
+          <th style="width:24px"><input type="checkbox" class="bulk-check" id="bulkCheckAll" title="Select all visible"></th>
           <th>ID</th><th>Title</th><th>Priority</th><th>Assignee</th>
           <th>Due</th><th>Status</th><th>SLA</th>
         </tr></thead><tbody></tbody>`;
@@ -2108,7 +2222,10 @@
           tr._issue = i;       // setupRowContextMenu reads this
           const priority = i.priority || 'MEDIUM';
           const overdue = i.slaBreached || (i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'RESOLVED');
+          const checked = state.bulkIssueIds.has(i.id) ? 'checked' : '';
+          if (checked) tr.classList.add('row-selected');
           tr.innerHTML = `
+            <td><input type="checkbox" class="bulk-check" data-row-check="${i.id}" ${checked}></td>
             <td>${escapeHtml(i.code || i.id?.slice(0, 8))}</td>
             <td>${escapeHtml(i.title || '')}</td>
             <td><span class="tag ${priority}">${priority}</span></td>
@@ -2117,7 +2234,39 @@
             <td><span class="tag ${(i.status || 'NEW').toLowerCase()}">${i.status || 'NEW'}</span></td>
             <td>${overdue ? '<span class="tag overdue">OVERDUE</span>' : '—'}</td>
           `;
-          tr.addEventListener('click', () => focusIssue(i));
+
+          // Checkbox cell — toggle without bubbling to focusIssue. Shift-
+          // click on the checkbox extends the range from bulkLastIssueId.
+          const cb = tr.querySelector('input.bulk-check[data-row-check]');
+          cb.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            if (ev.shiftKey && state.bulkLastIssueId) toggleIssueRange(rows, state.bulkLastIssueId, i.id, true);
+            else toggleIssueBulk(i.id, cb.checked);
+            state.bulkLastIssueId = i.id;
+            renderBulkFooter();
+            // Reflect row selection class without a full re-render.
+            tr.classList.toggle('row-selected', state.bulkIssueIds.has(i.id));
+          });
+
+          tr.addEventListener('click', (e) => {
+            // T3-18 — replicate the viewer's multi-select gesture set on
+            // the row body itself so power users don't have to aim at the
+            // 14-pixel checkbox.
+            if (e.target.closest('input.bulk-check')) return;
+            if (e.metaKey || e.ctrlKey) {
+              toggleIssueBulk(i.id, !state.bulkIssueIds.has(i.id));
+              state.bulkLastIssueId = i.id;
+              renderIssues();
+              return;
+            }
+            if (e.shiftKey && state.bulkLastIssueId) {
+              toggleIssueRange(rows, state.bulkLastIssueId, i.id, true);
+              state.bulkLastIssueId = i.id;
+              renderIssues();
+              return;
+            }
+            focusIssue(i);
+          });
           tr.addEventListener('dblclick', () => {
             focusIssue(i);
             // Also pop the right-rail comments tab so the user can
@@ -2128,6 +2277,22 @@
           tbody.appendChild(tr);
         });
         body.appendChild(table);
+
+        // Header checkbox — toggles every visible row in/out of the set.
+        const headerCb = $('#bulkCheckAll', body);
+        if (headerCb) {
+          headerCb.checked = rows.every(r => state.bulkIssueIds.has(r.id)) && rows.length > 0;
+          headerCb.addEventListener('change', () => {
+            if (headerCb.checked) rows.forEach(r => state.bulkIssueIds.add(r.id));
+            else rows.forEach(r => state.bulkIssueIds.delete(r.id));
+            renderIssues();
+          });
+        }
+
+        renderBulkFooter();
+      } else {
+        // No rows; ensure footer is wiped.
+        renderBulkFooter();
       }
       $('#issuesTotal').textContent = state.issues.length;
       // R1 — match the same myId logic the filter uses, otherwise the
@@ -2137,6 +2302,114 @@
       $('#issuesOverdue').textContent = state.issues.filter(i => i.slaBreached || (i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'RESOLVED')).length;
       renderRightIssues();
       updateRightTabCounts();
+    }
+
+    // T3-18 — toggle a single id in/out of the bulk set.
+    function toggleIssueBulk(id, on) {
+      if (on) state.bulkIssueIds.add(id); else state.bulkIssueIds.delete(id);
+    }
+    // Range-select between two visible row ids, mirroring the viewer's
+    // shift-click extend behaviour. `add` controls add-or-replace.
+    function toggleIssueRange(rows, fromId, toId, add) {
+      const ids = rows.map(r => r.id);
+      const a = ids.indexOf(fromId), b = ids.indexOf(toId);
+      if (a < 0 || b < 0) { state.bulkIssueIds.add(toId); return; }
+      const lo = Math.min(a, b), hi = Math.max(a, b);
+      if (!add) state.bulkIssueIds.clear();
+      for (let k = lo; k <= hi; k++) state.bulkIssueIds.add(ids[k]);
+    }
+    /** Sticky bulk footer with N selected · Reassign · Bulk Resolve · Export CSV. */
+    function renderBulkFooter() {
+      const host = $('#issuesBody'); if (!host) return;
+      let footer = host.querySelector('.bulk-footer');
+      const n = state.bulkIssueIds.size;
+      if (n === 0) { if (footer) footer.remove(); return; }
+      if (!footer) {
+        footer = el('div', { class: 'bulk-footer' });
+        host.appendChild(footer);
+      }
+      footer.innerHTML = '';
+      footer.appendChild(el('span', { class: 'count' }, `${n} selected`));
+      footer.appendChild(el('span', { class: 'grow' }));
+      const btnReassign = el('button', { class: 'btn sm subtle' }, 'Reassign');
+      btnReassign.addEventListener('click', () => bulkReassign());
+      const btnResolve  = el('button', { class: 'btn sm' }, 'Bulk Resolve');
+      btnResolve.addEventListener('click', () => bulkResolve());
+      const btnExport   = el('button', { class: 'btn sm subtle' }, 'Export CSV');
+      btnExport.addEventListener('click', () => bulkExportCsv());
+      const btnClear    = el('button', { class: 'btn sm subtle' }, 'Clear');
+      btnClear.addEventListener('click', () => { state.bulkIssueIds.clear(); renderIssues(); });
+      footer.appendChild(btnReassign);
+      footer.appendChild(btnResolve);
+      footer.appendChild(btnExport);
+      footer.appendChild(btnClear);
+    }
+    /** T3-18 — bulk resolve. Calls updateIssue per row but caps concurrency
+     *  at 10 to spare the server's audit-log writers (each PUT triggers a
+     *  SignalR broadcast and an AuditLog INSERT). */
+    async function bulkResolve() {
+      const ids = [...state.bulkIssueIds];
+      if (!ids.length) return;
+      if (!confirm(`Mark ${ids.length} issue${ids.length === 1 ? '' : 's'} as RESOLVED?`)) return;
+      const CAP = 10;
+      let done = 0, failed = 0;
+      for (let i = 0; i < ids.length; i += CAP) {
+        const chunk = ids.slice(i, i + CAP);
+        await Promise.all(chunk.map(async (id) => {
+          try {
+            await api(`/api/projects/${projectId}/issues/${id}`, {
+              method: 'PUT', body: JSON.stringify({ status: 'RESOLVED' })
+            });
+            const idx = state.issues.findIndex(x => x.id === id);
+            if (idx >= 0) state.issues[idx].status = 'RESOLVED';
+            done++;
+          } catch (_) { failed++; }
+        }));
+      }
+      state.bulkIssueIds.clear();
+      renderIssues(); placeIssuePins?.(); updateBadges?.();
+      toast(`Resolved ${done}${failed ? ` · ${failed} failed` : ''}`, failed ? 'warn' : 'success');
+    }
+    async function bulkReassign() {
+      const ids = [...state.bulkIssueIds];
+      if (!ids.length) return;
+      const who = prompt(`Reassign ${ids.length} issue(s) to (display name or email):`);
+      if (!who) return;
+      const CAP = 10;
+      let done = 0, failed = 0;
+      for (let i = 0; i < ids.length; i += CAP) {
+        const chunk = ids.slice(i, i + CAP);
+        await Promise.all(chunk.map(async (id) => {
+          try {
+            await api(`/api/projects/${projectId}/issues/${id}`, {
+              method: 'PUT', body: JSON.stringify({ assignee: who })
+            });
+            const idx = state.issues.findIndex(x => x.id === id);
+            if (idx >= 0) state.issues[idx].assigneeName = who;
+            done++;
+          } catch (_) { failed++; }
+        }));
+      }
+      state.bulkIssueIds.clear();
+      renderIssues();
+      toast(`Reassigned ${done}${failed ? ` · ${failed} failed` : ''}`, failed ? 'warn' : 'success');
+    }
+    function bulkExportCsv() {
+      const ids = [...state.bulkIssueIds];
+      const rows = state.issues.filter(i => ids.includes(i.id));
+      if (!rows.length) return;
+      const cols = ['code', 'title', 'priority', 'status', 'assigneeName', 'dueDate', 'createdAt'];
+      const csv  = [cols.join(',')].concat(rows.map(r => cols.map(c => csvCell(r[c])).join(','))).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url  = URL.createObjectURL(blob);
+      const a    = el('a', { href: url, download: `issues-${new Date().toISOString().slice(0, 10)}.csv` });
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    }
+    function csvCell(v) {
+      if (v == null) return '';
+      const s = String(v).replace(/"/g, '""');
+      return /[",\n]/.test(s) ? `"${s}"` : s;
     }
 
     function renderRightIssues() {

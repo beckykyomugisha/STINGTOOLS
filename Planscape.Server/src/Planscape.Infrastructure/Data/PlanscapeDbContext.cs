@@ -109,6 +109,8 @@ public class PlanscapeDbContext : DbContext
     public DbSet<ProjectModel> ProjectModels => Set<ProjectModel>();
     public DbSet<IssueComment> IssueComments => Set<IssueComment>();
     public DbSet<SitePhoto> SitePhotos => Set<SitePhoto>();
+    // Phase 178b — T2-5 saved views (camera + visibility + section state).
+    public DbSet<SavedView> SavedViews => Set<SavedView>();
     public DbSet<DocumentMarkup> DocumentMarkups => Set<DocumentMarkup>();
     public DbSet<ScheduleTask> ScheduleTasks => Set<ScheduleTask>();
     public DbSet<CostItem> CostItems => Set<CostItem>();
@@ -764,6 +766,25 @@ public class PlanscapeDbContext : DbContext
         modelBuilder.Entity<SitePhoto>(e =>
         {
             e.HasIndex(x => new { x.ProjectId, x.PairKey });
+        });
+
+        // Phase 178b — T2-5 SavedView. Indexed on (ProjectId, CreatedAt)
+        // for the saved-views-list pagination, and on LinkedActionItemId
+        // for the meeting-detail back-link lookup.
+        modelBuilder.Entity<SavedView>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.CreatedAt });
+            e.HasIndex(x => x.LinkedActionItemId);
+            e.HasIndex(x => x.LinkedMeetingId);
+            e.Property(x => x.Name).HasMaxLength(120).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(1000);
+            e.Property(x => x.CapturedByName).HasMaxLength(200);
+            e.Property(x => x.StateJson).HasColumnType("jsonb");
+            e.Property(x => x.ThumbnailB64).HasColumnType("text");
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.CapturedByUser).WithMany().HasForeignKey(x => x.CapturedByUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.LinkedMeeting).WithMany().HasForeignKey(x => x.LinkedMeetingId).OnDelete(DeleteBehavior.SetNull);
         });
     }
 

@@ -291,6 +291,35 @@ async function replayAction(action: OfflineAction): Promise<void> {
       try { await FileSystem.deleteAsync(localUri, { idempotent: true }); } catch { /* ignore */ }
       break;
     }
+
+    // T3-17 — deliverable CRUD + transition.
+    case 'CREATE_DELIVERABLE': {
+      const { createDeliverable } = await import('@/api/endpoints');
+      await createDeliverable(
+        p.projectId as string,
+        p.body as Record<string, unknown>,
+      );
+      break;
+    }
+    case 'UPDATE_DELIVERABLE': {
+      const { updateDeliverable } = await import('@/api/endpoints');
+      await updateDeliverable(
+        p.projectId as string,
+        p.deliverableId as string,
+        p.body as Record<string, unknown>,
+      );
+      break;
+    }
+    case 'TRANSITION_DELIVERABLE': {
+      const { transitionDeliverable } = await import('@/api/endpoints');
+      await transitionDeliverable(
+        p.projectId as string,
+        p.deliverableId as string,
+        p.newStatus as string,
+        { documentId: p.documentId as string | undefined, reason: p.reason as string | undefined },
+      );
+      break;
+    }
   }
 }
 

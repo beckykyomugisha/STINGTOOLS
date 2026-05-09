@@ -1088,19 +1088,27 @@ public class DocumentsController : ControllerBase
     /// <summary>
     /// Check approval gate for transitions that require prior approval (e.g. SHARED→PUBLISHED).
     /// Returns null if no approval required or approval exists, or an error ActionResult if blocked.
+    ///
+    /// Phase 178c (T3-12) — also satisfied by a COMPLETED <see cref="ApprovalChain"/>
+    /// for the same transition. Documents may use the legacy single-approver path
+    /// or the new multi-step chain interchangeably.
     /// </summary>
     private async Task<ActionResult?> CheckApprovalGate(string oldState, string newState, Guid docId)
     {
         var transitionKey = $"{oldState}->{newState}";
         if (ApprovalRequiredTransitions.Contains(transitionKey))
         {
-            var hasApproval = await _db.DocumentApprovals
+            var hasLegacyApproval = await _db.DocumentApprovals
                 .AnyAsync(a => a.DocumentId == docId && a.Transition == transitionKey && a.Status == "APPROVED");
-            if (!hasApproval)
+            var hasCompletedChain = await _db.ApprovalChains
+                .AnyAsync(c => c.DocumentId == docId && c.Transition == transitionKey && c.Status == "COMPLETED");
+            if (!hasLegacyApproval && !hasCompletedChain)
                 return BadRequest(new
                 {
-                    message = $"Transition {transitionKey} requires an approved DocumentApproval record per ISO 19650-2 §5.6. " +
-                              "Use POST {docId}/approval-request to initiate the approval workflow."
+                    message = $"Transition {transitionKey} requires an approved DocumentApproval " +
+                              "record (or a COMPLETED ApprovalChain) per ISO 19650-2 §5.6. " +
+                              "Use POST {docId}/approval-request for the legacy single-approver path " +
+                              "or POST {docId}/approval-chain for a multi-step chain."
                 });
         }
         return null;

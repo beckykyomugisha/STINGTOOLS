@@ -18,6 +18,17 @@ public class UserNotificationPreferences : ITenantScoped
     public bool MeetingsEnabled { get; set; } = true;
     public bool SlaBreachesEnabled { get; set; } = true;
 
+    // Phase 178b — T2-13. Daily site-photo digest opt-in. Default ON for
+    // ClientGuest (read-only client portal) and project members; OFF
+    // wins when the user explicitly unsubscribes via Settings → Email
+    // preferences. The digest job (DailyPhotoDigestJob) skips users
+    // whose flag is false.
+    public bool EmailDigestEnabled { get; set; } = true;
+    /// <summary>Hour-of-day (0–23 UTC) the daily digest is sent. Project
+    /// override (Project.DigestHour) wins when set; this is the per-user
+    /// fallback. Default 17:00 UTC ≈ end-of-day across most time zones.</summary>
+    public int  EmailDigestHourUtc { get; set; } = 17;
+
     // Delivery channel preference — "push" | "email" | "signalr" | "all"
     public string Channel { get; set; } = "all";
 
