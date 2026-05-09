@@ -546,7 +546,12 @@ namespace StingTools.UI
 
             // Lazy-load thumbnails after the layout pass — keeps the initial
             // render snappy even with 50 photos (default page size).
-            owner.Dispatcher.BeginInvoke(new Action(async () =>
+            //
+            // Fire-and-forget by design: `_ =` discards the
+            // DispatcherOperation so the compiler sees the intent and
+            // doesn't raise CS4014. The async lambda's own try/catch
+            // handles per-thumb failures.
+            _ = owner.Dispatcher.BeginInvoke(new Action(async () =>
             {
                 foreach (var r in rows)
                 {
