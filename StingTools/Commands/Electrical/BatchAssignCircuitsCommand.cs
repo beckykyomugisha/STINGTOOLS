@@ -105,6 +105,8 @@ namespace StingTools.Commands.Electrical
                 list.Add(s);
             }
 
+            var pState = panels.Select(p => new PanelState(p, circuitsByPanel)).ToList();
+
             // Compute panel-room/level once so the grouping policy can prefer
             // panels in the same room or on the same level as the circuit's
             // load. This is the cheap precondition for "kitchen sockets stay
@@ -181,6 +183,7 @@ namespace StingTools.Commands.Electrical
                 {
                     SystemId = sys.Id,
                     SystemName = sys.Name ?? "(?)",
+                    PanelId = fit.Id,
                     PanelName = fit.Name,
                     Group = circuitGroup,
                     Reason = $"fit slots={fit.RemainingSlots} after, panelLoad={fit.ConnectedVa/1000:F1} kVA" +
@@ -220,7 +223,16 @@ namespace StingTools.Commands.Electrical
                     {
                         var sys = doc.GetElement(a.SystemId) as ElectricalSystem;
                         if (sys == null) { failed++; continue; }
-                        sys.SelectPanel(a.PanelName);
+                        var panelFi = (a.PanelId != null && a.PanelId != ElementId.InvalidElementId)
+                            ? doc.GetElement(a.PanelId) as FamilyInstance
+                            : null;
+                        if (panelFi == null)
+                        {
+                            failed++;
+                            StingLog.Warn($"BatchAssignCircuits '{a.SystemName}' → '{a.PanelName}': panel instance not found");
+                            continue;
+                        }
+                        sys.SelectPanel(panelFi);
                         applied++;
 
                         // Stamp ELC_PANEL_REF_TXT on the circuit so STING tag
@@ -335,6 +347,7 @@ namespace StingTools.Commands.Electrical
         {
             public ElementId SystemId;
             public string SystemName;
+            public ElementId PanelId;
             public string PanelName;
             public string Group;
             public string Reason;
