@@ -129,9 +129,25 @@ namespace StingTools.Core.Routing
         // ---- containment search -------------------------------------------------
 
         /// <summary>
+        /// When true, FindNearestContainment scores tray-network
+        /// connectivity in addition to raw XY distance. A tray that is
+        /// part of an existing connected run scores better than an
+        /// equally-close isolated stub, because dropping onto the
+        /// connected run actually puts cables on infrastructure that
+        /// goes somewhere — the stub leaves them stranded. The score
+        /// halves the effective distance per connected neighbour
+        /// (capped at 4 neighbours) so a connected tray always beats
+        /// an isolated one within the same search radius.
+        /// </summary>
+        public bool PreferConnectedTrays { get; set; } = true;
+
+        /// <summary>
         /// Find the MEPCurve of the given category whose centreline
         /// passes closest (in 2D XY) to the origin and is within
-        /// maxSearchMm. Returns null if nothing is found.
+        /// maxSearchMm. When PreferConnectedTrays is on (default), the
+        /// score is biased toward trays that participate in an existing
+        /// connector network rather than isolated stubs. Returns null
+        /// if nothing is found.
         /// </summary>
         protected Element FindNearestContainment(
             XYZ origin,
@@ -140,7 +156,7 @@ namespace StingTools.Core.Routing
         {
             if (origin == null) return null;
             double maxFt = maxSearchMm * MmToFt;
-            double best = double.MaxValue;
+            double bestScore = double.MaxValue;
             Element winner = null;
 
             try
@@ -165,9 +181,23 @@ namespace StingTools.Core.Routing
                     if (proj == null) continue;
 
                     double d = proj.XYZPoint.DistanceTo(origin);
-                    if (d < best && d <= maxFt)
+                    if (d > maxFt) continue;
+
+                    double score = d;
+                    if (PreferConnectedTrays)
                     {
-                        best = d;
+                        int neighbours = CountConnectedNeighbours(el);
+                        // Cap at 4 — diminishing returns past that.
+                        if (neighbours > 4) neighbours = 4;
+                        // Each neighbour cuts the effective distance
+                        // by 12.5% (½^¼). A 4-neighbour tray at full
+                        // search radius scores like a half-radius
+                        // isolated stub.
+                        score *= Math.Pow(0.875, neighbours);
+                    }
+                    if (score < bestScore)
+                    {
+                        bestScore = score;
                         winner = el;
                     }
                 }
@@ -177,6 +207,33 @@ namespace StingTools.Core.Routing
                 StingLog.Warn($"DropEngineBase: FindNearestContainment failed: {ex.Message}");
             }
             return winner;
+        }
+
+        /// <summary>
+        /// Count direct connector neighbours of an MEP curve. Used by
+        /// FindNearestContainment to bias toward already-connected
+        /// trays. Cheap O(connectors) probe — no graph walk.
+        /// </summary>
+        private static int CountConnectedNeighbours(Element el)
+        {
+            int n = 0;
+            try
+            {
+                var mgr = (el as MEPCurve)?.ConnectorManager;
+                if (mgr == null) return 0;
+                foreach (Connector c in mgr.Connectors)
+                {
+                    if (c == null) continue;
+                    foreach (Connector other in c.AllRefs)
+                    {
+                        if (other?.Owner == null) continue;
+                        if (other.Owner.Id == el.Id) continue;
+                        n++;
+                    }
+                }
+            }
+            catch { }
+            return n;
         }
 
         /// <summary>

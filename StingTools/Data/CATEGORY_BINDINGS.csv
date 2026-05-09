@@ -7312,6 +7312,8 @@ ELC_CIRCUIT_GROUP_TXT,Fire Alarm Devices,Instance,True
 ELC_CIRCUIT_GROUP_TXT,Communication Devices,Instance,True
 ELC_CIRCUIT_GROUP_TXT,Data Devices,Instance,True
 ELC_PNL_CIRCUIT_GROUP_TXT,Electrical Equipment,Type,True
+STING_WALL_ROUTING_FLAG,Walls,Type,True
+STING_SLAB_ROUTING_FLAG,Floors,Type,True
 ELC_CDT_TAG_01_TXT,Conduits,Type,True
 ELC_CDT_TAG_01_TXT,Conduit Fittings,Type,True
 ELC_CDT_TAG_02_TXT,Conduits,Type,True
