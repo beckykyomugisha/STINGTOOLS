@@ -17,8 +17,8 @@ namespace StingTools.Core.Validation.Healthcare
             if (doc == null) return res;
 
             // Build set of room ElementIds whose CLN_LIGATURE_RES_BOOL == 1.
-            var rooms = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms)
-                .WhereElementIsNotElementType().ToElements()
+            // Cache-aware — uses pre-collected rooms when running in the chain.
+            var rooms = GetAllRoomsCached(doc)
                 .Where(r => GetParamBool(r, "CLN_LIGATURE_RES_BOOL"))
                 .ToList();
             if (rooms.Count == 0) return res;

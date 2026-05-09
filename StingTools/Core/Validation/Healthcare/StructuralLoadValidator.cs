@@ -26,13 +26,10 @@ namespace StingTools.Core.Validation.Healthcare
         {
             var res = new List<ValidationResult>();
             if (doc == null) return res;
-            var rooms = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms)
-                .WhereElementIsNotElementType().ToElements()
-                .Where(r => MinKnM2.ContainsKey(GetParam(r, "CLN_ROOM_CLASS_TXT")))
-                .ToList();
-            foreach (var r in rooms)
+            foreach (var r in GetClinicalRoomsCached(doc))
             {
-                var rc = GetParam(r, "CLN_ROOM_CLASS_TXT");
+                var rc = GetRoomClassCached(r);
+                if (!MinKnM2.ContainsKey(rc)) continue;
                 var loadActual = GetParamDouble(r, "CLN_FLOOR_LOAD_KN_M2_NR") ?? 0;
                 var minLoad = MinKnM2[rc];
                 if (loadActual > 0 && loadActual < minLoad)

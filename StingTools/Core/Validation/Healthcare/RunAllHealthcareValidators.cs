@@ -25,29 +25,43 @@ namespace StingTools.Core.Validation.Healthcare
             catch { }
             if (string.IsNullOrEmpty(facType)) return all;
 
-            var allowed = HealthcareValidatorGate.AllowedValidators(doc);
-            void Run(HealthcareValidatorBase v)
+            // Build the shared cache once for the whole chain so each individual
+            // validator skips its own room collector + CLN_ROOM_CLASS_TXT pass.
+            // Stashed in a [ThreadStatic] so each Validate(doc) implementation
+            // can opt in via HealthcareValidatorContext.Active without
+            // changing the public Validate(Document) signature.
+            var ctx = HealthcareValidatorContext.Build(doc);
+            HealthcareValidatorContext.SetActive(ctx);
+            try
             {
-                if (allowed.Contains(v.Name)) all.AddRange(v.Validate(doc));
-            }
+                var allowed = HealthcareValidatorGate.AllowedValidators(doc);
+                void Run(HealthcareValidatorBase v)
+                {
+                    if (allowed.Contains(v.Name)) all.AddRange(v.Validate(doc));
+                }
 
-            Run(new PressureRegimeValidator());
-            Run(new MgasFlowValidator());
-            Run(new EesBranchValidator());
-            Run(new WaterSafetyValidator());
-            Run(new RadShieldValidator());
-            Run(new AdjacencyValidator());
-            Run(new AntiLigatureValidator());
-            Run(new RdsCompletenessValidator());
-            Run(new IoTStalenessValidator());
-            Run(new StructuralLoadValidator());
-            Run(new AcousticValidator());
-            Run(new AdvancedRadShieldValidator());
-            Run(new EndoscopeTraceValidator());
-            Run(new EesResilienceValidator());
-            Run(new RtlsCoverageValidator());
-            Run(new WasteFlowValidator());
-            return all;
+                Run(new PressureRegimeValidator());
+                Run(new MgasFlowValidator());
+                Run(new EesBranchValidator());
+                Run(new WaterSafetyValidator());
+                Run(new RadShieldValidator());
+                Run(new AdjacencyValidator());
+                Run(new AntiLigatureValidator());
+                Run(new RdsCompletenessValidator());
+                Run(new IoTStalenessValidator());
+                Run(new StructuralLoadValidator());
+                Run(new AcousticValidator());
+                Run(new AdvancedRadShieldValidator());
+                Run(new EndoscopeTraceValidator());
+                Run(new EesResilienceValidator());
+                Run(new RtlsCoverageValidator());
+                Run(new WasteFlowValidator());
+                return all;
+            }
+            finally
+            {
+                HealthcareValidatorContext.ClearActive();
+            }
         }
     }
 }

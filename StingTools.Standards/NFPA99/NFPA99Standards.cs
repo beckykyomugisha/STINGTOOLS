@@ -65,7 +65,14 @@ namespace StingTools.Standards.NFPA99
             string.IsNullOrEmpty(gasCode) ? (double?)null :
             NominalGasPressureKPa.TryGetValue(gasCode, out var v) ? v : (double?)null;
 
-        // NFPA 99 §5.1.13 — diversity factors for medical gas pipe sizing.
+        // NFPA 99 §5.1.13 / HTM 02-01 Annex E — diversity factors for medical
+        // gas pipe sizing. Indicative only: real design diversity is per gas
+        // AND per zone type (theatre / ICU / ward / OPD / dental) AND per
+        // simultaneous-use assumption (pipework feeding 50 + ICU beds uses a
+        // different diversity to a 4-bed recovery bay). The values below are
+        // a single-point average suitable for first-pass sizing audits; project
+        // engineers must substitute the table from HTM 02-01 Pt A Table 8 or
+        // NFPA 99 Table 5.1.13.3.4 for the real authority of jurisdiction.
         public static readonly Dictionary<string, double> DiversityFactor =
             new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
         {

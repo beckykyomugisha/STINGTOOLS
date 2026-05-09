@@ -16,14 +16,10 @@ namespace StingTools.Core.Validation.Healthcare
             var res = new List<ValidationResult>();
             if (doc == null) return res;
 
-            var rooms = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms)
-                .WhereElementIsNotElementType().ToElements()
-                .Where(r => GetParam(r, "CLN_ROOM_CLASS_TXT") is "IMG-PET" or "IMG-LIN" or "IMG-NM" or "IMG-BRACHY")
-                .ToList();
-
-            foreach (var r in rooms)
+            foreach (var r in GetClinicalRoomsCached(doc))
             {
-                var rc = GetParam(r, "CLN_ROOM_CLASS_TXT");
+                var rc = GetRoomClassCached(r);
+                if (rc is not ("IMG-PET" or "IMG-LIN" or "IMG-NM" or "IMG-BRACHY")) continue;
                 // PET / NM rooms need much thicker concrete — Pb-only design under-shields.
                 // Encourage explicit RAD_BARRIER_TYPE_TXT review and QE sign-off.
                 if (string.IsNullOrEmpty(GetParam(r, "RAD_QE_NAME_TXT")))

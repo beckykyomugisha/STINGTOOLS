@@ -18,8 +18,9 @@ namespace StingTools.Core.Validation.Healthcare
         {
             var res = new List<ValidationResult>();
             if (doc == null) return res;
-            var rooms = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms)
-                .WhereElementIsNotElementType().ToElements().ToList();
+            // Waste-flow checks every room (HC1-General can apply to any), not
+            // just clinical ones — use the broader cached set.
+            var rooms = GetAllRoomsCached(doc);
 
             foreach (var r in rooms)
             {

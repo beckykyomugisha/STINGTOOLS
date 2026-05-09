@@ -18,14 +18,11 @@ namespace StingTools.Core.Validation.Healthcare
             var res = new List<ValidationResult>();
             if (doc == null) return res;
 
-            var rooms = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_Rooms)
-                .WhereElementIsNotElementType()
-                .ToElements();
-
-            foreach (var r in rooms)
+            // Cache-aware: pulls from HealthcareValidatorContext when running
+            // inside RunAllHealthcareValidators; falls back to its own collector otherwise.
+            foreach (var r in GetClinicalRoomsCached(doc))
             {
-                var rc = GetParam(r, "CLN_ROOM_CLASS_TXT");
+                var rc = GetRoomClassCached(r);
                 if (string.IsNullOrEmpty(rc)) continue;
 
                 // 1. Pressure regime vs HTM design table.
