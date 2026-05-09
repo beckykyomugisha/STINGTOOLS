@@ -99,6 +99,10 @@ public class IssuesController : ControllerBase
                 // additive at the wire level (existing clients ignore unknown
                 // properties).
                 i.ModelId, i.ModelElementGuid, i.ModelX, i.ModelY, i.ModelZ,
+                // WATCHERS — JSON array of user IDs. Clients render these
+                // as chips next to the assignee badge so it's visible who
+                // is following the issue.
+                i.WatcherUserIds,
                 IsOverdue = i.DueDate.HasValue && i.DueDate < DateTime.UtcNow && i.Status != "CLOSED" && i.Status != "RESOLVED",
                 DaysOpen = (int)(DateTime.UtcNow - i.CreatedAt).TotalDays
             })
@@ -202,6 +206,21 @@ public class IssuesController : ControllerBase
         var source = req.Source
             ?? (Request.Headers.ContainsKey("X-Device-Id") ? "mobile" : "web");
 
+        // WATCHERS — validate every supplied id is an active project member,
+        // skipping unknown ids with a warning rather than failing the whole
+        // create. Empty after filtering = stored as null.
+        Guid[] validWatchers = Array.Empty<Guid>();
+        if (req.WatcherUserIds != null && req.WatcherUserIds.Length > 0)
+        {
+            var requested = req.WatcherUserIds.Where(g => g != Guid.Empty).Distinct().ToArray();
+            validWatchers = await _db.ProjectMembers
+                .Where(m => m.ProjectId == projectId
+                         && m.IsActive
+                         && requested.Contains(m.UserId))
+                .Select(m => m.UserId)
+                .ToArrayAsync();
+        }
+
         var issue = new BimIssue
         {
             ProjectId = projectId,
@@ -210,6 +229,7 @@ public class IssuesController : ControllerBase
             Title = req.Title,
             Description = req.Description,
             Priority = req.Priority ?? "MEDIUM",
+            Status = string.IsNullOrWhiteSpace(req.Status) ? "OPEN" : req.Status!,
             Assignee = assigneeUser?.DisplayName ?? req.Assignee,
             AssigneeEmail = assigneeUser?.Email ?? req.AssigneeEmail,
             AssigneeUserId = assigneeUser?.Id,
@@ -229,6 +249,7 @@ public class IssuesController : ControllerBase
             ModelX = req.ModelX,
             ModelY = req.ModelY,
             ModelZ = req.ModelZ,
+            WatcherUserIds = BimIssue.SerializeWatcherIds(validWatchers),
         };
 
         // NEW-LOGIC-01/02 — Save with retry on UNIQUE(ProjectId, IssueCode) collision.
@@ -274,6 +295,34 @@ public class IssuesController : ControllerBase
             $"New {issue.Type}: {issue.IssueCode}",
             issue.Title,
             new { issue.Id, issue.IssueCode, issue.Type, issue.Priority, projectId });
+
+        // WATCHERS — fan out a "watching" push to every validated watcher
+        // (excluding the assignee, who already gets the targeted push
+        // below, and excluding the creator, who already saw the toast).
+        if (validWatchers.Length > 0)
+        {
+            var skipIds = new HashSet<Guid>();
+            if (issue.AssigneeUserId.HasValue) skipIds.Add(issue.AssigneeUserId.Value);
+            if (creatorId.HasValue) skipIds.Add(creatorId.Value);
+            foreach (var watcherId in validWatchers)
+            {
+                if (skipIds.Contains(watcherId)) continue;
+                _ = _push.SendToUserAsync(watcherId, new Planscape.Core.Interfaces.PushPayload
+                {
+                    Title = $"Watching: {issue.IssueCode} [{issue.Priority}]",
+                    Body = issue.Title,
+                    Channel = "issues",
+                    Data = new Dictionary<string, string>
+                    {
+                        ["type"] = "issue_watching",
+                        ["issueId"] = issue.Id.ToString(),
+                        ["issueCode"] = issue.IssueCode,
+                        ["priority"] = issue.Priority,
+                        ["projectId"] = projectId.ToString()
+                    }
+                });
+            }
+        }
 
         // If assigned, send targeted push to assignee.
         // Prefer the resolved FK (NEW-SRV-23); fall back to legacy DisplayName lookup.
@@ -346,8 +395,57 @@ public class IssuesController : ControllerBase
             diff["Description"] = new { changed = true };
             issue.Description = req.Description;
         }
+        if (req.WatcherUserIds != null)
+        {
+            // null = leave alone; empty array = clear; non-empty = replace
+            // (after validation against project membership).
+            Guid[] validNew = Array.Empty<Guid>();
+            if (req.WatcherUserIds.Length > 0)
+            {
+                var requested = req.WatcherUserIds.Where(g => g != Guid.Empty).Distinct().ToArray();
+                validNew = await _db.ProjectMembers
+                    .Where(m => m.ProjectId == projectId
+                             && m.IsActive
+                             && requested.Contains(m.UserId))
+                    .Select(m => m.UserId)
+                    .ToArrayAsync();
+            }
+            var serialized = BimIssue.SerializeWatcherIds(validNew);
+            if (serialized != issue.WatcherUserIds)
+            {
+                diff["WatcherUserIds"] = new { from = issue.WatcherUserIds, to = serialized };
+                issue.WatcherUserIds = serialized;
+            }
+        }
 
         await _db.SaveChangesAsync();
+
+        // WATCHERS — notify every current watcher of the update so they
+        // don't have to poll. Skip the user who made the change.
+        if (diff.Count > 0)
+        {
+            var actorClaim = User.FindFirst("user_id")?.Value;
+            Guid? actorId = Guid.TryParse(actorClaim, out var aid) ? aid : (Guid?)null;
+            var watcherIds = BimIssue.ParseWatcherIds(issue.WatcherUserIds);
+            foreach (var watcherId in watcherIds)
+            {
+                if (actorId.HasValue && watcherId == actorId.Value) continue;
+                _ = _push.SendToUserAsync(watcherId, new Planscape.Core.Interfaces.PushPayload
+                {
+                    Title = $"Update: {issue.IssueCode} [{issue.Priority}]",
+                    Body = $"{issue.Status} · {issue.Title}",
+                    Channel = "issues",
+                    Data = new Dictionary<string, string>
+                    {
+                        ["type"] = "issue_updated",
+                        ["issueId"] = issue.Id.ToString(),
+                        ["issueCode"] = issue.IssueCode,
+                        ["status"] = issue.Status,
+                        ["projectId"] = projectId.ToString()
+                    }
+                });
+            }
+        }
 
         var detailsJson = diff.Count > 0
             ? System.Text.Json.JsonSerializer.Serialize(diff)
@@ -832,6 +930,7 @@ public record CreateIssueRequest(
     string Title,
     string? Description,
     string? Priority,
+    string? Status,             // viewer / mobile may post explicit status (defaults to OPEN)
     string? Assignee,
     string? AssigneeEmail,
     Guid? AssigneeUserId,
@@ -851,6 +950,16 @@ public record CreateIssueRequest(
     string? ModelElementGuid,
     double? ModelX,
     double? ModelY,
-    double? ModelZ);
-public record UpdateIssueRequest(string? Status, string? Priority, string? Assignee, string? Description);
+    double? ModelZ,
+    // WATCHERS — list of AppUser ids who get push notifications for every
+    // status change and comment on this issue, in addition to the assignee.
+    // Validated against project membership before persisting.
+    Guid[]? WatcherUserIds);
+public record UpdateIssueRequest(
+    string? Status,
+    string? Priority,
+    string? Assignee,
+    string? Description,
+    // Replace the watcher list (null = leave unchanged; empty array = clear).
+    Guid[]? WatcherUserIds);
 public record LinkAttachmentRequest(Guid DocumentId);

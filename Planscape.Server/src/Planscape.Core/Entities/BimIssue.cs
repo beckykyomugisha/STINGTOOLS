@@ -30,6 +30,45 @@ public class BimIssue : ITenantScoped
     public string? LinkedElementIds { get; set; } // JSON array of Revit element IDs
     public string? BcfGuid { get; set; } // BCF 2.1 topic GUID
 
+    // WATCHERS — comma-or-JSON list of AppUser ids who receive every status
+    // change + comment for this issue (in addition to the assignee). Stored
+    // as a JSON array of GUID strings to mirror the LinkedElementIds shape
+    // and avoid a join table; downstream code uses
+    // <see cref="ParseWatcherIds"/> / <see cref="SerializeWatcherIds"/>.
+    // Migration: add a nullable text column WatcherUserIds when bringing
+    // the production database forward (dotnet ef migrations add AddBimIssueWatchers).
+    public string? WatcherUserIds { get; set; }
+
+    public static IReadOnlyList<Guid> ParseWatcherIds(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return Array.Empty<Guid>();
+        var trimmed = raw.Trim();
+        try
+        {
+            if (trimmed.StartsWith("["))
+            {
+                var arr = System.Text.Json.JsonSerializer.Deserialize<string[]>(trimmed) ?? Array.Empty<string>();
+                return arr.Where(s => Guid.TryParse(s, out _))
+                          .Select(Guid.Parse)
+                          .Distinct()
+                          .ToList();
+            }
+        }
+        catch { /* fall through to comma form */ }
+        return trimmed.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                      .Where(s => Guid.TryParse(s, out _))
+                      .Select(Guid.Parse)
+                      .Distinct()
+                      .ToList();
+    }
+
+    public static string? SerializeWatcherIds(IEnumerable<Guid>? ids)
+    {
+        if (ids == null) return null;
+        var list = ids.Where(g => g != Guid.Empty).Distinct().Select(g => g.ToString()).ToArray();
+        return list.Length == 0 ? null : System.Text.Json.JsonSerializer.Serialize(list);
+    }
+
     // SRV-03 — site location captured at the moment of issue creation
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }

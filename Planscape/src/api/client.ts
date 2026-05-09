@@ -5,7 +5,21 @@ const TOKEN_KEY = 'planscape_token';
 const REFRESH_KEY = 'planscape_refresh';
 const BASE_URL_KEY = 'planscape_base_url';
 
-const DEFAULT_BASE_URL = 'http://localhost:5000';
+// Resolution order for the API base URL:
+//   1. SecureStore (user picked one in Settings — wins so they can roam between
+//      LAN dev / staging / production without a rebuild).
+//   2. EXPO_PUBLIC_API_BASE / EXPO_PUBLIC_PLANSCAPE_API — baked at build time
+//      via .env / eas.json so a release APK/IPA points at the right host
+//      out of the box. This is the line that fixes "won't open on phones":
+//      a phone can't reach the dev machine's localhost, so we need an
+//      explicit LAN/internet host before the first launch.
+//   3. localhost fallback for fresh git-clone dev runs on the same machine.
+const ENV_BASE_URL =
+  (typeof process !== 'undefined' && (
+    process.env?.EXPO_PUBLIC_API_BASE
+    || process.env?.EXPO_PUBLIC_PLANSCAPE_API
+  )) || '';
+const DEFAULT_BASE_URL = ENV_BASE_URL || 'http://localhost:5000';
 
 let cachedBaseUrl: string | null = null;
 

@@ -48,8 +48,23 @@
     const params = new URLSearchParams(location.search);
     const projectId = params.get('project') || '';
     const modelId   = params.get('model')   || '';
-    const apiBase   = window.__PLANSCAPE_API__ || 'http://localhost:5000';
+    // U10 — resolve the API base from (in order): explicit window override
+    // for embedders, user-saved Settings popover value (LAN/staging/on-prem),
+    // build-time injected EXPO_PUBLIC_API_BASE, the URL ?api= param for
+    // share-links from another origin, and finally the localhost fallback
+    // so a fresh git-clone still works on dev. The Settings menu writes
+    // `planscape_api_base` and reloads.
+    const storedApi = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_api_base')) || '';
+    const apiBase   = window.__PLANSCAPE_API__
+                   || storedApi
+                   || params.get('api')
+                   || 'http://localhost:5000';
     const token     = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_token')) || '';
+    // Apply persisted theme on first paint so re-loads don't flash white.
+    try {
+      const t = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_theme')) || 'dark';
+      document.documentElement.dataset.theme = t;
+    } catch (_) {}
 
     // C2: when the viewer is loaded as a bundled asset inside the React
     // Native WebView (Asset.fromModule → file://) the host app supplies all
@@ -294,9 +309,39 @@
         }
       }
 
+      // Project members — populates assignee + watcher pickers with the
+      // real org/project roster instead of the hardcoded "Sting Davis /
+      // Sentongo E." demo seed. Falls back silently to the seed list when
+      // the endpoint is unavailable (offline, permission denied, etc.).
+      await loadProjectMembers();
+
       // Issues + clashes
       await loadIssues();
       await loadClashes();
+    }
+
+    async function loadProjectMembers() {
+      if (!projectId) return;
+      const data = await api(`/api/projects/${projectId}/members`);
+      const list = Array.isArray(data) ? data : (data?.items || data?.members || []);
+      if (!list.length) return;     // keep demo seed when API empty/unauth
+      const me = state.currentUser;
+      const meId = me && (me.id || me.userId);
+      const mapped = list.map(m => {
+        const id   = m.userId || m.UserId || m.id || m.Id;
+        const name = m.displayName || m.DisplayName || m.email || m.Email || 'User';
+        const email = m.email || m.Email || '';
+        const role = m.iso19650Role || m.Iso19650Role || m.projectRole || m.ProjectRole || '';
+        const initials = (name || 'U').split(/[\s@]+/).filter(Boolean).map(s => s[0]).slice(0, 2).join('').toUpperCase();
+        return { id, name, email, role, initials };
+      });
+      // Keep "me" pinned at top of the list for ergonomics.
+      const sorted = mapped.sort((a, b) => {
+        if (a.id === meId) return -1;
+        if (b.id === meId) return 1;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+      state.members = sorted;
     }
 
     // Forward a command to the original viewer's handleCommand by dispatching
@@ -356,8 +401,84 @@
       $('#btnClashes').addEventListener('click', () => switchBottomTab('clashes'));
       $('#btnIssueBadge').addEventListener('click', () => switchBottomTab('issues'));
       $('#btnHelp').addEventListener('click', () => $('.help-overlay').classList.add('open'));
-      $('#btnSettings').addEventListener('click', () => toast('Settings — TODO'));
+      $('#btnSettings').addEventListener('click', (e) => { e.stopPropagation(); openSettingsMenu(); });
       $('#btnNotifs').addEventListener('click', () => toast(`${state.issues.filter(i => i.status !== 'RESOLVED').length} open issues`));
+
+      // ── Navigation: brand and breadcrumb make the viewer feel like part
+      // of the wider Planscape app instead of a leaf page. They link to
+      // the parent shell (the static planscape-site / API "/app" route)
+      // when one is reachable, and otherwise fall back gracefully.
+      const brand = $('#brandHome');
+      if (brand) brand.addEventListener('click', (e) => {
+        e.preventDefault();
+        // Prefer the API host's /app/projects route, else the current
+        // origin's /app/projects, else just /index.html.
+        const target = (apiBase ? `${apiBase}/app/projects` : '/app/projects');
+        if (window.ReactNativeWebView) {
+          // Inside the mobile WebView, post a "navigate home" message and
+          // let the React Native host pop the navigation stack.
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'navigateHome' }));
+        } else {
+          location.href = target;
+        }
+      });
+      const crumb = $('#breadcrumbProject');
+      if (crumb) crumb.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (!projectId) return;
+        const target = (apiBase ? `${apiBase}/app/projects/${projectId}` : `/app/projects/${projectId}`);
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'navigateProject', projectId }));
+        } else {
+          location.href = target;
+        }
+      });
+
+      setupSettingsMenu();
+    }
+
+    // ── Settings popover ─────────────────────────────────────────────────
+    // Replaces the previous "TODO" no-op. Persists API base + tenant +
+    // theme to localStorage; reload makes them effective on next bootstrap.
+    function setupSettingsMenu() {
+      const menu = $('#settingsMenu');
+      if (!menu) return;
+      // Hydrate inputs from current config + storage.
+      const api = ($('#settingApiBase')); if (api) api.value = apiBase || '';
+      const tenant = ($('#settingTenant'));
+      if (tenant) tenant.value = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_tenant')) || '';
+      const theme = ($('#settingTheme'));
+      if (theme) theme.value = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_theme')) || 'dark';
+
+      $('#settingsCancel')?.addEventListener('click', () => menu.classList.remove('open'));
+      $('#settingsSave')?.addEventListener('click', () => {
+        try {
+          const apiVal    = $('#settingApiBase')?.value.trim() || '';
+          const tenantVal = $('#settingTenant')?.value.trim() || '';
+          const themeVal  = $('#settingTheme')?.value || 'dark';
+          if (apiVal)    localStorage.setItem('planscape_api_base', apiVal);
+          else           localStorage.removeItem('planscape_api_base');
+          if (tenantVal) localStorage.setItem('planscape_tenant', tenantVal);
+          else           localStorage.removeItem('planscape_tenant');
+          localStorage.setItem('planscape_theme', themeVal);
+          document.documentElement.dataset.theme = themeVal;
+          toast('Settings saved — reloading…', 'success');
+          setTimeout(() => location.reload(), 600);
+        } catch (e) {
+          toast('Could not save settings: ' + (e.message || e), 'error');
+        }
+      });
+      // Close on outside click.
+      document.addEventListener('click', (ev) => {
+        if (!menu.classList.contains('open')) return;
+        if (ev.target.closest('#settingsMenu') || ev.target.closest('#btnSettings')) return;
+        menu.classList.remove('open');
+      });
+    }
+    function openSettingsMenu() {
+      const menu = $('#settingsMenu');
+      if (!menu) return;
+      menu.classList.toggle('open');
     }
 
     function bindMenu(triggerSel, menuSel, items) {
@@ -826,8 +947,68 @@
           if (t.dataset.tab === 'clashes') renderRightClashes();
           if (t.dataset.tab === 'issues')  renderRightIssues();
           if (t.dataset.tab === 'comments') renderComments();
+          if (t.dataset.tab === 'activity') renderActivityTimeline();
         });
       });
+    }
+
+    // ── Activity timeline (issue audit trail) ──────────────────────────
+    async function renderActivityTimeline() {
+      const pane = $('#pane-activity');
+      if (!pane) return;
+      const issueId = state.selectedIssueId;
+      if (!issueId) {
+        pane.innerHTML = '<div class="empty-state"><span class="glyph">🕓</span>Select an issue to see its activity</div>';
+        return;
+      }
+      const issue = state.issues.find(i => i.id === issueId);
+      pane.innerHTML = `
+        <div class="prop-section-label">${escapeHtml(issue?.code || issueId)} activity</div>
+        <div class="activity-list" id="activityList">
+          <div class="inline-loader"><span class="dot-spin"></span>Loading…</div>
+        </div>`;
+      const data = await api(`/api/projects/${projectId}/issues/${issueId}/activity`);
+      const entries = Array.isArray(data) ? data : (data?.items || []);
+      const list = $('#activityList');
+      if (!list) return;
+      if (!entries.length) {
+        list.innerHTML = '<div class="empty-state">No activity yet</div>';
+        return;
+      }
+      list.innerHTML = '';
+      entries.forEach(e => {
+        const when = e.timestamp || e.Timestamp || e.createdAt || '';
+        const action = e.action || e.Action || '';
+        const details = e.detailsJson || e.DetailsJson || '';
+        const row = el('div', { class: 'activity-row' }, [
+          el('span', { class: 'when' }, when ? new Date(when).toLocaleString() : ''),
+          el('span', { class: 'what' }, formatActivity(action, details))
+        ]);
+        list.appendChild(row);
+      });
+    }
+
+    function formatActivity(action, detailsJson) {
+      if (!action) return '';
+      let detail = '';
+      if (detailsJson) {
+        try {
+          const obj = JSON.parse(detailsJson);
+          const parts = [];
+          for (const k in obj) {
+            const v = obj[k];
+            if (v && typeof v === 'object' && 'from' in v && 'to' in v) {
+              parts.push(`${k}: ${v.from} → ${v.to}`);
+            } else if (v && typeof v === 'object' && 'changed' in v) {
+              parts.push(`${k} updated`);
+            } else {
+              parts.push(`${k}: ${v}`);
+            }
+          }
+          detail = parts.length ? ' — ' + parts.join(', ') : '';
+        } catch (_) { /* leave detail blank */ }
+      }
+      return `${action}${detail}`;
     }
 
     // ── Comments tab (U2) ──────────────────────────────────────────────
@@ -1453,16 +1634,24 @@
     }
 
     // ── Issue creation modal ───────────────────────────────────────────
+    // Pending attachments collected before submit so the user can stage
+    // photos / PDFs / drawings without uploading until the issue exists.
+    let pendingIssueAttachments = [];
     function openIssueModal(seed = {}) {
       const modal = $('#issueModal');
       modal.classList.add('open');
       $('#imTitle').value = '';
       $('#imDesc').value  = '';
+      const initialEl = $('#imInitialComment'); if (initialEl) initialEl.value = '';
       $('#imScreenshot').innerHTML = '';
       $('#imScreenshot').dataset.b64 = '';
-      // priority default
+      pendingIssueAttachments = [];
+      const attachListEl = $('#imAttachList'); if (attachListEl) attachListEl.innerHTML = '';
+      // priority + type + status defaults
       $$('#imPriority .choice').forEach(c => c.classList.toggle('active', c.dataset.v === 'HIGH'));
       $$('#imType .choice').forEach(c => c.classList.toggle('active', c.dataset.v === 'RFI'));
+      $$('#imStatus .choice').forEach(c => c.classList.toggle('active', c.dataset.v === 'OPEN'));
+      const discEl = $('#imDiscipline'); if (discEl) discEl.value = seed.discipline || '';
       // linked elements
       const link = $('#imLinked'); link.innerHTML = '';
       const linked = [];
@@ -1474,14 +1663,28 @@
         if (a) linked.push({ guid: a.guid, name: a.name });
         if (b) linked.push({ guid: b.guid, name: b.name });
         $('#imTitle').value = `${seed.clash.discPair} clash — ${a?.name} vs ${b?.name}`;
+        // For clash issues, pre-select CLASH as the type and pre-fill
+        // discipline from the dominant side of the pair (e.g. "M-S" → M).
+        $$('#imType .choice').forEach(c => c.classList.toggle('active', c.dataset.v === 'CLASH'));
+        if (discEl && seed.clash.discPair) discEl.value = (seed.clash.discPair.split('-')[0] || '').toUpperCase();
       }
       modal.dataset.linked = JSON.stringify(linked);
       renderLinkedElements(linked);
 
-      // member dropdown
-      const sel = $('#imAssignee');
-      sel.innerHTML = '<option value="">— Unassigned —</option>' +
-        state.members.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+      // assignee + watcher pickers — populated from project members API
+      // (see loadProjectMembers in bootstrap), with the demo-seed members
+      // as fallback so first-time / offline runs aren't empty.
+      const assigneeSel = $('#imAssignee');
+      assigneeSel.innerHTML = '<option value="">— Unassigned —</option>' +
+        state.members.map(m => `<option value="${m.id}">${escapeHtml(m.name)}${m.role ? ' · ' + escapeHtml(m.role) : ''}</option>`).join('');
+
+      const watchSel = $('#imWatchersSelect');
+      if (watchSel) {
+        watchSel.innerHTML = '<option value="">— Add a watcher —</option>' +
+          state.members.map(m => `<option value="${m.id}">${escapeHtml(m.name)}${m.role ? ' · ' + escapeHtml(m.role) : ''}</option>`).join('');
+      }
+      modal.dataset.watchers = '[]';
+      const chips = $('#imWatcherChips'); if (chips) chips.innerHTML = '';
 
       // B12 — focus the title field so the user can start typing
       // immediately, and remember the previously focused element so we
@@ -1491,6 +1694,54 @@
       const prev = document.activeElement;
       if (prev && prev !== document.body) modal.dataset.returnFocusId = prev.id || '';
       setTimeout(() => $('#imTitle')?.focus(), 30);
+    }
+
+    function renderWatcherChips() {
+      const chips = $('#imWatcherChips');
+      if (!chips) return;
+      const ids = JSON.parse($('#issueModal').dataset.watchers || '[]');
+      chips.innerHTML = '';
+      ids.forEach((id, i) => {
+        const m = state.members.find(x => x.id === id);
+        if (!m) return;
+        const chip = el('span', { class: 'watcher-chip' }, [
+          el('span', { class: 'initials' }, m.initials || ''),
+          el('span', { class: 'name' }, ' ' + m.name + ' '),
+          el('span', { class: 'x', title: 'Remove' }, '✕')
+        ]);
+        $('.x', chip).addEventListener('click', () => {
+          const arr = ids.slice(); arr.splice(i, 1);
+          $('#issueModal').dataset.watchers = JSON.stringify(arr);
+          renderWatcherChips();
+        });
+        chips.appendChild(chip);
+      });
+    }
+
+    function renderAttachmentList() {
+      const list = $('#imAttachList');
+      if (!list) return;
+      list.innerHTML = '';
+      pendingIssueAttachments.forEach((f, i) => {
+        const row = el('div', { class: 'attachment-row' }, [
+          el('span', { class: 'name' }, f.name),
+          el('span', { class: 'size' }, formatBytes(f.size)),
+          el('span', { class: 'x', title: 'Remove' }, '✕')
+        ]);
+        $('.x', row).addEventListener('click', () => {
+          pendingIssueAttachments.splice(i, 1);
+          renderAttachmentList();
+        });
+        list.appendChild(row);
+      });
+    }
+
+    function formatBytes(n) {
+      if (!n) return '0 B';
+      const u = ['B','KB','MB','GB'];
+      let i = 0; let v = n;
+      while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+      return v.toFixed(v < 10 && i > 0 ? 1 : 0) + ' ' + u[i];
     }
 
     function renderLinkedElements(arr) {
@@ -1540,6 +1791,39 @@
         $$('#imType .choice').forEach(x => x.classList.remove('active'));
         c.classList.add('active');
       }));
+      $$('#imStatus .choice').forEach(c => c.addEventListener('click', () => {
+        $$('#imStatus .choice').forEach(x => x.classList.remove('active'));
+        c.classList.add('active');
+      }));
+      const watchSel = $('#imWatchersSelect');
+      if (watchSel) {
+        watchSel.addEventListener('change', () => {
+          const id = watchSel.value;
+          watchSel.value = '';
+          if (!id) return;
+          const ids = JSON.parse(modal.dataset.watchers || '[]');
+          if (ids.includes(id)) return;
+          ids.push(id);
+          modal.dataset.watchers = JSON.stringify(ids);
+          renderWatcherChips();
+        });
+      }
+      const attachBtn = $('#imAttachBtn');
+      const attachInput = $('#imAttachInput');
+      if (attachBtn && attachInput) {
+        attachBtn.addEventListener('click', () => attachInput.click());
+        attachInput.addEventListener('change', () => {
+          for (const f of attachInput.files) {
+            if (f.size > 50 * 1024 * 1024) {
+              toast(`${f.name} exceeds 50 MB — skipped`, 'warn');
+              continue;
+            }
+            pendingIssueAttachments.push(f);
+          }
+          attachInput.value = '';        // allow same file to be re-picked
+          renderAttachmentList();
+        });
+      }
       $('#imScreenshotBtn').addEventListener('click', () => {
         // B14 — downscale to <= 1280px wide JPEG before posting. A raw 4K
         // PNG can hit 8-12 MB base64; the issues endpoint and Postgres
@@ -1554,20 +1838,40 @@
     }
 
     async function submitIssue() {
-      const linked = JSON.parse($('#issueModal').dataset.linked || '[]');
+      const modal = $('#issueModal');
+      const linked = JSON.parse(modal.dataset.linked || '[]');
+      const watcherIds = JSON.parse(modal.dataset.watchers || '[]');
       const priority = $('#imPriority .choice.active')?.dataset.v || 'MEDIUM';
       const type     = $('#imType .choice.active')?.dataset.v || 'RFI';
+      const status   = $('#imStatus .choice.active')?.dataset.v || 'OPEN';
+      const discipline = $('#imDiscipline')?.value || null;
+      const initialComment = ($('#imInitialComment')?.value || '').trim();
       const payload = {
         title: $('#imTitle').value.trim(),
-        priority, type,
+        priority, type, status, discipline,
         elementGuids: linked.map(l => l.guid),
-        assigneeId: $('#imAssignee').value || null,
+        // Match server CreateIssueRequest field names where possible so the
+        // payload is forward-compatible with the typed DTO. The server
+        // accepts both legacy `linkedElementIds` (string) and the camelCase
+        // form below; viewer prefers explicit GUID list for clarity.
+        linkedElementIds: linked.length ? JSON.stringify(linked.map(l => l.guid)) : null,
+        assigneeUserId: $('#imAssignee').value || null,
+        watcherUserIds: watcherIds,
         dueDate: $('#imDue').value || null,
         description: $('#imDesc').value,
         screenshotBase64: $('#imScreenshot').dataset.b64 || null,
-        position: lastClickPoint ? { x: lastClickPoint.x, y: lastClickPoint.y, z: lastClickPoint.z } : undefined
+        source: 'web-viewer',
+        // 3D anchor — stamps where in the model the issue was raised so
+        // pins re-render on next load.
+        position: lastClickPoint ? { x: lastClickPoint.x, y: lastClickPoint.y, z: lastClickPoint.z } : undefined,
+        modelId: state.modelId || modelId || null,
+        modelElementGuid: linked[0]?.guid || null,
+        modelX: lastClickPoint?.x ?? null,
+        modelY: lastClickPoint?.y ?? null,
+        modelZ: lastClickPoint?.z ?? null,
       };
       if (!payload.title) return toast('Title required', 'warn');
+
       let result;
       if (projectId) {
         result = await api(`/api/projects/${projectId}/issues`, {
@@ -1577,12 +1881,39 @@
       const created = result || Object.assign({
         id: 'local-' + Date.now(),
         code: 'ISS-LOCAL-' + (state.issues.length + 1),
-        status: 'NEW',
+        status: status,
         slaBreached: false
       }, payload);
+
+      // Upload any attachments + post the initial comment now the issue
+      // exists. Both are best-effort — failures don't unwind the issue.
+      if (projectId && created.id && !String(created.id).startsWith('local-')) {
+        for (const f of pendingIssueAttachments) {
+          try {
+            const fd = new FormData();
+            fd.append('file', f, f.name);
+            const resp = await fetch(`${apiBase}/api/projects/${projectId}/issues/${created.id}/attachments`, {
+              method: 'POST',
+              headers: token ? { 'Authorization': 'Bearer ' + token } : {},
+              body: fd
+            });
+            if (!resp.ok) toast(`Attachment ${f.name} failed (${resp.status})`, 'warn');
+          } catch (e) {
+            console.warn('[coord] attachment upload failed', f.name, e);
+          }
+        }
+        if (initialComment) {
+          await api(`/api/projects/${projectId}/issues/${created.id}/comments`, {
+            method: 'POST',
+            body: JSON.stringify({ body: initialComment, source: 'web-viewer' })
+          });
+        }
+      }
+      pendingIssueAttachments = [];
+
       state.issues.unshift(created);
       placeIssuePins(); renderIssues(); updateBadges();
-      $('#issueModal').classList.remove('open');
+      modal.classList.remove('open');
       toast(`Issue ${created.code || created.id} created`, 'success');
       logHistory(`Created ${created.code || 'issue'}`);
     }
@@ -2107,6 +2438,13 @@
           e.preventDefault();
         } else if ((e.ctrlKey || e.metaKey) && (k === 's' || k === 'S')) {
           e.preventDefault(); $('#btnAddView').click();
+        } else if (e.shiftKey && (k === 'I' || k === 'i')) {
+          // Shift+I — create a new issue. The bare 'I' shortcut is already
+          // taken (isolate selected element), so this is the new-issue
+          // variant. Pre-seeds the linked element if one is selected.
+          e.preventDefault();
+          const sel = state.selectedElementGuid;
+          openIssueModal(sel ? { guid: sel, meta: state.elementMap?.[sel] || {} } : {});
         } else if (k >= '1' && k <= '7') {
           const pills = $$('.level-pill'); const p = pills[parseInt(k, 10) - 1]; if (p) p.click();
         }

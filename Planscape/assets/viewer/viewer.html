@@ -45,10 +45,12 @@
   <!-- HEADER -->
   <header class="header">
     <button class="tbtn" id="btnToggleLeft" title="Toggle left panel">☰</button>
-    <span class="brand"><span class="logo">P</span>PLANSCAPE</span>
+    <a class="brand" id="brandHome" href="#" title="Back to projects">
+      <span class="logo">P</span>PLANSCAPE
+    </a>
     <span class="breadcrumb">
       <span class="sep">▸</span>
-      <span id="breadcrumbProject">—</span>
+      <a class="crumb" id="breadcrumbProject" href="#" title="Project home">—</a>
       <span class="sep">▸</span>
       <span id="breadcrumbModel">—</span>
     </span>
@@ -283,6 +285,7 @@
       <button class="tab" data-tab="clashes">Clashes <span class="count" id="rightTabClashesCount"></span></button>
       <button class="tab" data-tab="issues">Issues <span class="count" id="rightTabIssuesCount"></span></button>
       <button class="tab" data-tab="comments">Comments <span class="count" id="rightTabCommentsCount"></span></button>
+      <button class="tab" data-tab="activity">Activity</button>
     </div>
     <div id="pane-properties" class="tab-pane active"></div>
     <div id="pane-clashes"    class="tab-pane"></div>
@@ -290,10 +293,13 @@
     <div id="pane-comments"   class="tab-pane">
       <div class="empty-state"><span class="glyph">💬</span>No comments yet</div>
     </div>
+    <div id="pane-activity"   class="tab-pane">
+      <div class="empty-state"><span class="glyph">🕓</span>Select an issue to see its activity</div>
+    </div>
   </aside>
 </div>
 
-<!-- ─────────────────────── Issue creation modal ─────────────────────── -->
+<!-- ─────────────────────── Issue creation modal (BCC parity) ─────────────────── -->
 <div class="modal-backdrop" id="issueModal">
   <div class="modal">
     <div class="head"><h2>Create issue</h2><button class="close" id="imClose">✕</button></div>
@@ -309,29 +315,76 @@
         <div class="choice" data-v="LOW">Low</div>
       </div>
 
-      <label>Type</label>
+      <label>Type <span class="hint">(matches BCC palette)</span></label>
       <div class="choice-group" id="imType">
-        <div class="choice active" data-v="RFI">RFI</div>
-        <div class="choice" data-v="NCR">NCR</div>
-        <div class="choice" data-v="SI">SI</div>
-        <div class="choice" data-v="COMMENT">Comment</div>
+        <div class="choice active" data-v="RFI" title="Request For Information">RFI</div>
+        <div class="choice" data-v="NCR" title="Non-Conformance Report">NCR</div>
+        <div class="choice" data-v="SI" title="Site Instruction">SI</div>
+        <div class="choice" data-v="TQ" title="Technical Query">TQ</div>
+        <div class="choice" data-v="DESIGN" title="Design issue">DESIGN</div>
+        <div class="choice" data-v="SAFETY" title="Health &amp; Safety">SAFETY</div>
+        <div class="choice" data-v="CLASH" title="Clash / Coordination">CLASH</div>
+        <div class="choice" data-v="COMMENT" title="General comment">Comment</div>
       </div>
+
+      <label>Status</label>
+      <div class="choice-group" id="imStatus">
+        <div class="choice active" data-v="OPEN">Open</div>
+        <div class="choice" data-v="IN_PROGRESS">In progress</div>
+        <div class="choice" data-v="RESOLVED">Resolved</div>
+        <div class="choice" data-v="CLOSED">Closed</div>
+      </div>
+
+      <label>Discipline <span class="hint">(ISO 19650 single-letter)</span></label>
+      <select id="imDiscipline">
+        <option value="">— Auto-detect —</option>
+        <option value="A">A — Architectural</option>
+        <option value="S">S — Structural</option>
+        <option value="M">M — Mechanical / HVAC</option>
+        <option value="E">E — Electrical</option>
+        <option value="P">P — Plumbing / Public Health</option>
+        <option value="FP">FP — Fire Protection</option>
+        <option value="LV">LV — Low Voltage / Comms</option>
+        <option value="G">G — General / Other</option>
+        <option value="Z">Z — Unspecified</option>
+      </select>
 
       <label>Linked elements</label>
       <div class="linked-elements" id="imLinked"></div>
 
-      <label>Assignee</label>
-      <select id="imAssignee"></select>
+      <div class="row-2">
+        <div>
+          <label>Assignee</label>
+          <select id="imAssignee"></select>
+        </div>
+        <div>
+          <label>Due date</label>
+          <input id="imDue" type="date" />
+        </div>
+      </div>
 
-      <label>Due date</label>
-      <input id="imDue" type="date" />
+      <label>Notify / Watchers <span class="hint">(receive every status change &amp; comment)</span></label>
+      <div class="watcher-picker">
+        <select id="imWatchersSelect">
+          <option value="">— Add a watcher —</option>
+        </select>
+        <div class="watcher-chips" id="imWatcherChips"></div>
+      </div>
 
       <label>Description</label>
       <textarea id="imDesc" placeholder="Describe the issue, expected resolution, and any standards references"></textarea>
 
+      <label>Initial comment <span class="hint">(optional — posted as the first comment after creation)</span></label>
+      <textarea id="imInitialComment" rows="2" placeholder="@mention teammates by typing their name…"></textarea>
+
       <label>Screenshot</label>
       <button class="btn ghost" id="imScreenshotBtn">📷 Capture current view</button>
       <div class="screenshot-preview" id="imScreenshot"></div>
+
+      <label>Attachments</label>
+      <input id="imAttachInput" type="file" multiple style="display:none" />
+      <button class="btn ghost" id="imAttachBtn">📎 Add files (photos, PDFs, drawings)</button>
+      <div class="attachment-list" id="imAttachList"></div>
     </div>
     <div class="foot">
       <button class="btn subtle" id="imCancel">Cancel</button>
@@ -375,6 +428,35 @@
   <div class="menu-sep"></div>
   <div class="menu-item" id="mkScreenshot">📷 Screenshot</div>
   <div class="menu-item" id="mkShare">🔗 Share view link</div>
+</div>
+
+<!-- Settings popover (was a no-op TaskDialog) -->
+<div class="settings-menu" id="settingsMenu">
+  <div class="row">
+    <label>API server</label>
+    <input id="settingApiBase" type="text" placeholder="https://api.planscape.app" />
+    <small style="opacity:0.6;font-size:10px;display:block;margin-top:2px">
+      Override the API host for LAN / staging / on-prem deployments.
+    </small>
+  </div>
+  <div class="sep"></div>
+  <div class="row">
+    <label>Tenant ID</label>
+    <input id="settingTenant" type="text" placeholder="(default)" />
+  </div>
+  <div class="sep"></div>
+  <div class="row">
+    <label>Theme</label>
+    <select id="settingTheme">
+      <option value="dark">Dark (default)</option>
+      <option value="light">Light</option>
+      <option value="contrast">High contrast</option>
+    </select>
+  </div>
+  <div class="actions">
+    <button class="btn subtle" id="settingsCancel">Close</button>
+    <button class="btn" id="settingsSave">Save &amp; reload</button>
+  </div>
 </div>
 
 <!-- ─────────────────────── Legacy DOM kept hidden so original code can still find it ─────────────────────── -->
