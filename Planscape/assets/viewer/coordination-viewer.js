@@ -92,7 +92,12 @@
                 { id: 'sd', name: 'Sting Davis', initials: 'SD' },
                 { id: 'se', name: 'Sentongo E.', initials: 'SE' }],
       activeDisciplines: new Set(),   // empty = all visible
-      selectedElementGuid: null,
+      selectedElementGuid: null,      // PRIMARY (last-clicked) — kept for
+                                      // backward-compat with downstream
+                                      // single-element call sites.
+      selectedElementGuids: new Set(),// FULL multi-selection set; supports
+                                      // ctrl/cmd-click toggle, shift-click
+                                      // range, and tree-multi-select.
       selectedElementMesh: null,
       selectedClashId: null,
       selectedIssueId: null,
@@ -204,6 +209,8 @@
     setupSectionCard();
     setupHelp();
     setupHeartbeat();
+    setupSelectionToolbar();
+    setupRowContextMenu();
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -448,6 +455,18 @@
       if (tenant) tenant.value = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_tenant')) || '';
       const theme = ($('#settingTheme'));
       if (theme) theme.value = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_theme')) || 'dark';
+      // Eye height + walk speed hydrate from the same keys viewer-extras +
+      // setupNavControls read at runtime.
+      const eyeH = $('#settingEyeHeight');
+      if (eyeH) {
+        const stored = parseFloat(localStorage.getItem('planscape_eye_height_m'));
+        eyeH.value = !isNaN(stored) && stored > 0 ? stored : '';
+      }
+      const ws = $('#settingWalkSpeed');
+      if (ws) {
+        const stored = parseFloat(localStorage.getItem('planscape_walk_speed'));
+        ws.value = !isNaN(stored) && stored > 0 ? stored : '';
+      }
 
       $('#settingsCancel')?.addEventListener('click', () => menu.classList.remove('open'));
       $('#settingsSave')?.addEventListener('click', () => {
@@ -455,11 +474,22 @@
           const apiVal    = $('#settingApiBase')?.value.trim() || '';
           const tenantVal = $('#settingTenant')?.value.trim() || '';
           const themeVal  = $('#settingTheme')?.value || 'dark';
+          const eyeVal    = parseFloat($('#settingEyeHeight')?.value || '');
+          const wsVal     = parseFloat($('#settingWalkSpeed')?.value || '');
           if (apiVal)    localStorage.setItem('planscape_api_base', apiVal);
           else           localStorage.removeItem('planscape_api_base');
           if (tenantVal) localStorage.setItem('planscape_tenant', tenantVal);
           else           localStorage.removeItem('planscape_tenant');
           localStorage.setItem('planscape_theme', themeVal);
+          if (!isNaN(eyeVal) && eyeVal >= 0.6 && eyeVal <= 2.4) {
+            localStorage.setItem('planscape_eye_height_m', String(eyeVal));
+          } else if ($('#settingEyeHeight')?.value === '') {
+            localStorage.removeItem('planscape_eye_height_m');
+          }
+          if (!isNaN(wsVal) && wsVal > 0 && wsVal <= 8) {
+            localStorage.setItem('planscape_walk_speed', String(wsVal));
+            window.__walkSpeedMul = wsVal;
+          }
           document.documentElement.dataset.theme = themeVal;
           toast('Settings saved — reloading…', 'success');
           setTimeout(() => location.reload(), 600);
@@ -693,7 +723,39 @@
             node.classList.toggle('open'); node.classList.toggle('closed');
           });
         } else {
-          row.addEventListener('click', () => selectElementByGuid(payload.guid));
+          // Ctrl/Cmd-click toggles the leaf in the multi-selection set.
+          // Plain click replaces. Shift-click (range select) is best-effort:
+          // we walk the visible tree-row siblings between this row and the
+          // most recent primary and add them all.
+          row.addEventListener('click', (ev) => {
+            if (ev.ctrlKey || ev.metaKey) {
+              selectElementByGuid(payload.guid, 'toggle');
+            } else if (ev.shiftKey && state.selectedElementGuid) {
+              // Range select within the same parent group of leaves.
+              const parent = node.parentElement;
+              if (parent) {
+                const siblings = $$('.tree-node', parent).filter(n => n.querySelector('.chev')?.textContent === '');
+                const rows = siblings.map(s => s);
+                const startIdx = rows.indexOf(node);
+                // Find the prior primary's row to anchor the range.
+                let anchorIdx = -1;
+                rows.forEach((r, i) => {
+                  if (r._guid === state.selectedElementGuid) anchorIdx = i;
+                });
+                if (anchorIdx >= 0) {
+                  const [a, b] = anchorIdx < startIdx ? [anchorIdx, startIdx] : [startIdx, anchorIdx];
+                  for (let i = a; i <= b; i++) {
+                    if (rows[i]._guid) selectElementByGuid(rows[i]._guid, 'add');
+                  }
+                  return;
+                }
+              }
+              selectElementByGuid(payload.guid, 'add');
+            } else {
+              selectElementByGuid(payload.guid, 'replace');
+            }
+          });
+          node._guid = payload.guid;        // for shift-range lookup
         }
         return node;
       }
@@ -1099,8 +1161,83 @@
     }
 
     // ── Properties tab ─────────────────────────────────────────────────
+    // Compute the intersection of property keys across multiple elements,
+    // keeping only entries where the value is identical for every element.
+    // Returns { name, count, kvs: [[k, v], ...] } so the UI can render
+    // a single "common properties" view for batched edits / inspection.
+    function computeCommonProperties(guids) {
+      const arr = guids.map(g => state.elementMap[g] || {});
+      if (!arr.length) return { name: '—', count: 0, kvs: [] };
+      const flatten = (m) => {
+        const out = {};
+        Object.entries(m || {}).forEach(([k, v]) => {
+          if (v == null) return;
+          if (typeof v === 'object') {
+            Object.entries(v).forEach(([kk, vv]) => { if (vv != null && typeof vv !== 'object') out[`${k}.${kk}`] = vv; });
+          } else {
+            out[k] = v;
+          }
+        });
+        return out;
+      };
+      const flats = arr.map(flatten);
+      const keys = Object.keys(flats[0] || {});
+      const common = [];
+      keys.forEach(k => {
+        const v0 = flats[0][k];
+        if (flats.every(f => f[k] === v0)) common.push([k, v0]);
+      });
+      // Surface common category / discipline at the top so the user
+      // immediately sees what they've grabbed.
+      const categories = new Set(arr.map(m => m.category || ''));
+      const disciplines = new Set(arr.map(m => m.discipline || ''));
+      return {
+        count: arr.length,
+        kvs: common,
+        categorySummary: categories.size === 1 ? [...categories][0] : `${categories.size} categories`,
+        disciplineSummary: disciplines.size === 1 ? [...disciplines][0] : `${disciplines.size} disciplines`
+      };
+    }
+
     function renderProperties(guid) {
       const pane = $('#pane-properties');
+      // Multi-select branch — show common-properties summary instead of
+      // a single element card, with the multi-aware action stack.
+      const sel = state.selectedElementGuids;
+      if (sel && sel.size > 1) {
+        const guids = [...sel];
+        const c = computeCommonProperties(guids);
+        const RESERVED = new Set(['name','category','tag','STING_TAG']);
+        const rows = c.kvs.filter(([k]) => !RESERVED.has(k));
+        pane.innerHTML = `
+          <div class="prop-section-label">Selection</div>
+          <div class="prop-title">${c.count} elements</div>
+          <div class="prop-row"><span class="k">Categories</span><span class="v">${escapeHtml(c.categorySummary || '—')}</span></div>
+          <div class="prop-row"><span class="k">Disciplines</span><span class="v">${escapeHtml(c.disciplineSummary || '—')}</span></div>
+          <div class="prop-section-label">Common properties (${rows.length})</div>
+          ${rows.length
+            ? rows.map(([k, v]) => `<div class="prop-row"><span class="k">${escapeHtml(k)}</span><span class="v">${escapeHtml(String(v))}</span></div>`).join('')
+            : '<div class="prop-row" style="opacity:0.6">No properties shared by every element</div>'}
+          <div class="action-stack">
+            <button class="btn full" id="actMultiCreateIssue">🚩 Create issue from selection</button>
+            <button class="btn ghost full" id="actMultiFit">🎯 Fit to selection</button>
+            <button class="btn ghost full" id="actMultiIsolate">◎ Isolate</button>
+            <button class="btn subtle full" id="actMultiHide">⊘ Hide</button>
+            <button class="btn subtle full" id="actMultiClear">✕ Clear selection</button>
+          </div>`;
+        $('#actMultiCreateIssue', pane)?.addEventListener('click', () => {
+          openIssueModal({
+            guid: state.selectedElementGuid,
+            meta: state.elementMap[state.selectedElementGuid] || {},
+            multi: guids
+          });
+        });
+        $('#actMultiFit', pane)?.addEventListener('click', () => fitToSelection());
+        $('#actMultiIsolate', pane)?.addEventListener('click', () => isolateSelection());
+        $('#actMultiHide', pane)?.addEventListener('click', () => hideSelection());
+        $('#actMultiClear', pane)?.addEventListener('click', () => selectElementByGuid(null));
+        return;
+      }
       if (!guid) {
         const issuesOpen = state.issues.filter(i => i.status !== 'RESOLVED').length;
         const overdue = state.issues.filter(i => i.slaBreached || (i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'RESOLVED')).length;
@@ -1362,7 +1499,8 @@
         </tr></thead><tbody></tbody>`;
         const tbody = $('tbody', table);
         rows.forEach(c => {
-          const tr = el('tr', { 'data-id': c.id });
+          const tr = el('tr', { 'data-id': c.id, 'data-kind': 'clash' });
+          tr._clash = c;       // setupRowContextMenu reads this
           tr.innerHTML = `
             <td>${escapeHtml(c.id)}</td>
             <td><span class="tag ${c.type === 'HARD' ? 'hard' : 'soft'}">${c.type}</span></td>
@@ -1380,6 +1518,11 @@
           tr.addEventListener('click', (e) => {
             if (e.target.closest('button')) return;
             focusClash(c);
+          });
+          tr.addEventListener('dblclick', (e) => {
+            if (e.target.closest('button')) return;
+            focusClash(c);                         // zoom + isolate the pair
+            isolateClashPair(c);
           });
           // B3 — stopPropagation so clicking "→ Issue" doesn't ALSO fire
           // the row's focusClash and fly the camera away from the modal.
@@ -1477,6 +1620,236 @@
       requestAnimationFrame(step);
     }
 
+    // ── Selection-aware helpers (used by toolbar + multi-select pane) ──
+    // All operate on `state.selectedElementGuids` so behaviour is the same
+    // whether the user grabbed one element by clicking the canvas or 30
+    // by ctrl/shift-clicking through the model tree.
+    function selectedMeshes() {
+      const out = [];
+      state.selectedElementGuids.forEach(g => {
+        const m = findMeshByGuid(g); if (m) out.push(m);
+      });
+      return out;
+    }
+
+    function fitToSelection() {
+      const meshes = selectedMeshes();
+      if (!meshes.length) return toast('Nothing selected', 'warn');
+      const bb = new THREE_.Box3();
+      meshes.forEach(m => bb.expandByObject(m));
+      if (bb.isEmpty()) return;
+      const c = bb.getCenter(new THREE_.Vector3());
+      flyTo(c);
+    }
+
+    function isolateSelection() {
+      if (!V.modelRoot) return;
+      const set = state.selectedElementGuids;
+      if (!set.size) return toast('Nothing selected', 'warn');
+      V.modelRoot.traverse(o => {
+        if (!o.isMesh) return;
+        o.visible = set.has(o.userData.elementGuid);
+      });
+      toast(`Isolated ${set.size} element${set.size === 1 ? '' : 's'}`);
+    }
+
+    function hideSelection() {
+      if (!V.modelRoot) return;
+      const set = state.selectedElementGuids;
+      if (!set.size) return toast('Nothing selected', 'warn');
+      V.modelRoot.traverse(o => {
+        if (!o.isMesh) return;
+        if (set.has(o.userData.elementGuid)) o.visible = false;
+      });
+      toast(`Hid ${set.size} element${set.size === 1 ? '' : 's'}`);
+    }
+
+    function showAllElements() {
+      if (!V.modelRoot) return;
+      V.modelRoot.traverse(o => { if (o.isMesh) o.visible = true; });
+      toast('All elements visible');
+    }
+
+    function renderSelectionToolbar() {
+      const tb = $('#selectionToolbar');
+      if (!tb) return;
+      const n = state.selectedElementGuids.size;
+      if (!n) { tb.style.display = 'none'; return; }
+      tb.style.display = 'flex';
+      const cnt = $('#selCount');
+      if (cnt) cnt.textContent = `${n} selected`;
+    }
+
+    // Isolate just the two meshes involved in a clash (used by dblclick
+    // on a clash row). Falls back to plain focus when meshes can't be
+    // resolved (e.g. element-map response missed them).
+    function isolateClashPair(c) {
+      if (!V.modelRoot) return;
+      const aGuid = c.elementA?.guid;
+      const bGuid = c.elementB?.guid;
+      const set = new Set([aGuid, bGuid].filter(Boolean));
+      if (!set.size) return;
+      V.modelRoot.traverse(o => {
+        if (!o.isMesh) return;
+        o.visible = set.has(o.userData.elementGuid);
+      });
+      toast(`Isolated clash pair (${set.size})`);
+    }
+
+    // ── Right-click + double-click context menu for clash + issue rows ──
+    // Industry references: BIMcollab Zoom + Solibri Office both expose a
+    // right-click "Zoom · Isolate · Hide · Mark resolved · Copy ID" menu
+    // on coordination rows. We use the same mental model so coordinators
+    // moving from those tools find it without training.
+    let activeRowMenu = null;
+    function setupRowContextMenu() {
+      // Re-usable popover element — kept around at the document root so
+      // it's not affected by the panel's own resize / scroll containers.
+      const menu = el('div', { class: 'row-menu', id: 'rowMenu' });
+      document.body.appendChild(menu);
+
+      // Delegate so dynamically-rendered rows (re-render on filter change)
+      // don't need their own listeners.
+      $('#bottomPanel')?.addEventListener('contextmenu', (e) => {
+        const tr = e.target.closest('tr[data-kind]');
+        if (!tr) return;
+        e.preventDefault();
+        const kind = tr.dataset.kind;
+        if (kind === 'clash' && tr._clash) openClashRowMenu(menu, tr._clash, e.clientX, e.clientY);
+        else if (kind === 'issue' && tr._issue) openIssueRowMenu(menu, tr._issue, e.clientX, e.clientY);
+      });
+      // Click anywhere else to dismiss.
+      document.addEventListener('click', (e) => {
+        if (activeRowMenu && !e.target.closest('.row-menu')) {
+          activeRowMenu.classList.remove('open');
+          activeRowMenu = null;
+        }
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && activeRowMenu) {
+          activeRowMenu.classList.remove('open');
+          activeRowMenu = null;
+        }
+      });
+    }
+
+    function showRowMenuAt(menu, items, x, y) {
+      menu.innerHTML = '';
+      items.forEach(it => {
+        if (it === '-') {
+          menu.appendChild(el('div', { class: 'sep' }));
+          return;
+        }
+        const row = el('div', { class: 'item' + (it.danger ? ' danger' : '') }, [
+          el('span', { class: 'glyph' }, it.glyph || ''),
+          el('span', {}, it.label),
+          it.hot ? el('span', { class: 'hot' }, it.hot) : null
+        ]);
+        row.addEventListener('click', () => {
+          menu.classList.remove('open');
+          activeRowMenu = null;
+          try { it.run(); } catch (err) { console.warn('[row-menu]', err); }
+        });
+        menu.appendChild(row);
+      });
+      // Position with a viewport-edge guard so the menu never clips off-screen.
+      const W = window.innerWidth, H = window.innerHeight;
+      const w = 220, h = items.length * 32;
+      menu.style.left = Math.min(x, W - w - 8) + 'px';
+      menu.style.top  = Math.min(y, H - h - 8) + 'px';
+      menu.classList.add('open');
+      activeRowMenu = menu;
+    }
+
+    function openClashRowMenu(menu, c, x, y) {
+      const aGuid = c.elementA?.guid, bGuid = c.elementB?.guid;
+      showRowMenuAt(menu, [
+        { glyph: '🎯', label: 'Zoom to clash',     run: () => focusClash(c) },
+        { glyph: '◎',  label: 'Isolate pair',      run: () => isolateClashPair(c) },
+        { glyph: '⊘',  label: 'Hide both',         run: () => {
+            if (!V.modelRoot) return;
+            V.modelRoot.traverse(o => { if (o.isMesh && (o.userData.elementGuid === aGuid || o.userData.elementGuid === bGuid)) o.visible = false; });
+            toast('Hid clash pair');
+        }},
+        { glyph: '⊙',  label: 'Show all',          run: () => showAllElements() },
+        '-',
+        { glyph: '🚩', label: 'Create issue from clash', run: () => openIssueModal({ clash: c }) },
+        { glyph: '✓',  label: 'Mark resolved',     run: () => {
+            c.status = 'RESOLVED';
+            renderClashes(); placeClashPins();
+            toast(`${c.id} marked resolved`, 'success');
+        }},
+        '-',
+        { glyph: '📋', label: 'Copy clash ID',     run: () => copyText(c.id) },
+        { glyph: '📤', label: 'Copy element pair', run: () => copyText(`${c.elementA?.name || ''}  ✕  ${c.elementB?.name || ''}`) },
+      ], x, y);
+    }
+
+    function openIssueRowMenu(menu, i, x, y) {
+      const isResolved = i.status === 'RESOLVED' || i.status === 'CLOSED';
+      showRowMenuAt(menu, [
+        { glyph: '🎯', label: 'Zoom to issue',         run: () => focusIssue(i) },
+        { glyph: '◎',  label: 'Isolate linked elements', run: () => {
+            if (!V.modelRoot || !Array.isArray(i.elementGuids)) return;
+            const set = new Set(i.elementGuids);
+            V.modelRoot.traverse(o => {
+              if (!o.isMesh) return;
+              o.visible = set.has(o.userData.elementGuid);
+            });
+            toast(`Isolated ${set.size} linked element${set.size === 1 ? '' : 's'}`);
+        }},
+        { glyph: '⊙',  label: 'Show all',              run: () => showAllElements() },
+        '-',
+        { glyph: '💬', label: 'Open comments',         run: () => {
+            focusIssue(i);
+            const tab = $$('.tab-bar .tab').find(t => t.dataset.tab === 'comments');
+            if (tab) tab.click();
+        }},
+        { glyph: '🕓', label: 'View activity',         run: () => {
+            focusIssue(i);
+            const tab = $$('.tab-bar .tab').find(t => t.dataset.tab === 'activity');
+            if (tab) tab.click();
+        }},
+        '-',
+        ...(isResolved ? [
+          { glyph: '↺', label: 'Re-open issue',        run: () => updateIssue(i.id, { status: 'OPEN' }) },
+        ] : [
+          { glyph: '▶', label: 'Mark in-progress',     run: () => updateIssue(i.id, { status: 'IN_PROGRESS' }) },
+          { glyph: '✓', label: 'Mark resolved',        run: () => updateIssue(i.id, { status: 'RESOLVED' }) },
+          { glyph: '🔒', label: 'Close issue',          run: () => updateIssue(i.id, { status: 'CLOSED' }) },
+        ]),
+        '-',
+        { glyph: '📋', label: 'Copy issue ID',         run: () => copyText(i.code || i.id) },
+        { glyph: '🔗', label: 'Copy permalink',         run: () => {
+            const url = `${location.origin}${location.pathname}?project=${projectId}&model=${modelId}&issue=${i.id}`;
+            copyText(url);
+        }},
+      ], x, y);
+    }
+
+    function setupSelectionToolbar() {
+      const tb = $('#selectionToolbar');
+      if (!tb) return;
+      $('#selFit', tb)?.addEventListener('click', () => fitToSelection());
+      $('#selIsolate', tb)?.addEventListener('click', () => isolateSelection());
+      $('#selHide', tb)?.addEventListener('click', () => hideSelection());
+      $('#selShowAll', tb)?.addEventListener('click', () => showAllElements());
+      $('#selGhost', tb)?.addEventListener('click', () => {
+        state.ghostMode = !state.ghostMode;
+        setRenderMode(state.ghostMode ? 'ghost' : 'shaded');
+      });
+      $('#selIssue', tb)?.addEventListener('click', () => {
+        const guids = [...state.selectedElementGuids];
+        const primary = state.selectedElementGuid || guids[0];
+        openIssueModal({
+          guid: primary,
+          meta: state.elementMap[primary] || {},
+          multi: guids
+        });
+      });
+      $('#selClose', tb)?.addEventListener('click', () => selectElementByGuid(null));
+    }
+
     // ── Issues ─────────────────────────────────────────────────────────
     async function loadIssues() {
       if (!projectId) { state.issues = []; renderIssues(); return; }
@@ -1533,7 +1906,8 @@
         </tr></thead><tbody></tbody>`;
         const tbody = $('tbody', table);
         rows.forEach(i => {
-          const tr = el('tr', { 'data-id': i.id });
+          const tr = el('tr', { 'data-id': i.id, 'data-kind': 'issue' });
+          tr._issue = i;       // setupRowContextMenu reads this
           const priority = i.priority || 'MEDIUM';
           const overdue = i.slaBreached || (i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'RESOLVED');
           tr.innerHTML = `
@@ -1546,6 +1920,13 @@
             <td>${overdue ? '<span class="tag overdue">OVERDUE</span>' : '—'}</td>
           `;
           tr.addEventListener('click', () => focusIssue(i));
+          tr.addEventListener('dblclick', () => {
+            focusIssue(i);
+            // Also pop the right-rail comments tab so the user can
+            // start replying immediately.
+            const tab = $$('.tab-bar .tab').find(t => t.dataset.tab === 'comments');
+            if (tab) tab.click();
+          });
           tbody.appendChild(tr);
         });
         body.appendChild(table);
@@ -1925,9 +2306,79 @@
       $('#bottomCollapse').addEventListener('click', () => {
         const bp = $('#bottomPanel');
         bp.classList.toggle('collapsed');
+        bp.classList.remove('expanded');
         $('.viewport-wrap')?.classList.toggle('bp-collapsed', bp.classList.contains('collapsed'));
         onResize();
       });
+
+      // ── Expand button (max state — toggles 60vh) ─────────────────────
+      const expandBtn = $('#bottomExpand');
+      if (expandBtn) {
+        expandBtn.addEventListener('click', () => {
+          const bp = $('#bottomPanel');
+          bp.classList.remove('collapsed');
+          $('.viewport-wrap')?.classList.remove('bp-collapsed');
+          bp.classList.toggle('expanded');
+          // Clear any inline height the resize-drag set so the .expanded
+          // CSS class wins; toggling expanded back off restores the
+          // CSS-variable-driven default height.
+          if (bp.classList.contains('expanded')) {
+            bp.style.removeProperty('height');
+          }
+          expandBtn.textContent = bp.classList.contains('expanded') ? '⤓' : '⛶';
+          expandBtn.title = bp.classList.contains('expanded')
+            ? 'Restore default height'
+            : 'Expand to 60% of viewport';
+          onResize();
+        });
+      }
+
+      // ── Drag-to-resize on the top edge ───────────────────────────────
+      // We change the CSS variable in :root so the floating overlays
+      // (level strip, nav controls, coord readout, minimap) keep their
+      // bottom: calc(var(--bottom-panel-height) + …) offsets aligned.
+      const resizeHandle = $('#bottomResize');
+      if (resizeHandle) {
+        let dragStartY = 0;
+        let dragStartHeight = 0;
+        const minH = 80;
+        const maxH = () => Math.max(120, window.innerHeight * 0.85);
+        const onMove = (ev) => {
+          const dy = dragStartY - ev.clientY;       // up = bigger panel
+          const next = Math.min(maxH(), Math.max(minH, dragStartHeight + dy));
+          const bp = $('#bottomPanel');
+          bp.style.height = next + 'px';
+          // Push the same value into the root var so floating overlays
+          // recompute their bottom: calc(...).
+          document.documentElement.style.setProperty('--bottom-panel-height', next + 'px');
+        };
+        const onUp = () => {
+          $('#bottomPanel').classList.remove('resizing');
+          document.removeEventListener('pointermove', onMove);
+          document.removeEventListener('pointerup', onUp);
+          onResize();                                 // canvas re-fit
+        };
+        resizeHandle.addEventListener('pointerdown', (ev) => {
+          const bp = $('#bottomPanel');
+          if (bp.classList.contains('collapsed')) return;
+          // Drag breaks the .expanded preset — once you've manually
+          // resized, you've "taken over" the height, same as a normal
+          // window drag in any IDE.
+          bp.classList.remove('expanded');
+          bp.classList.add('resizing');
+          dragStartY = ev.clientY;
+          dragStartHeight = bp.getBoundingClientRect().height;
+          document.addEventListener('pointermove', onMove);
+          document.addEventListener('pointerup', onUp, { once: true });
+          ev.preventDefault();
+        });
+        // Double-click the grip to reset to the CSS-default height.
+        resizeHandle.addEventListener('dblclick', () => {
+          $('#bottomPanel').style.removeProperty('height');
+          document.documentElement.style.removeProperty('--bottom-panel-height');
+          onResize();
+        });
+      }
       $('#btnRunDetect').addEventListener('click', () => {
         toast('Running clash detection… (mock)', 'warn');
         setTimeout(() => { state.clashes = mockClashes(); placeClashPins(); renderClashes(); toast('Clash detection complete', 'success'); }, 1200);
@@ -2105,9 +2556,15 @@
       const origSend = V.bridge.send;
       V.bridge.send = function (type, payload) {
         if (type === 'pick' && payload && payload.guid) {
-          state.selectedElementGuid = payload.guid;
-          renderProperties(payload.guid);
-          updateRightTabCounts();          // X2
+          // Route canvas-picks through the multi-select-aware selector so
+          // clearing happens correctly and the floating selection toolbar
+          // / multi-property pane stay in sync. Ctrl/Cmd-pick toggles into
+          // the existing set; Shift-pick adds; plain pick replaces.
+          const ev = payload.event || {};
+          const mode = (ev.ctrlKey || ev.metaKey) ? 'toggle'
+                     : ev.shiftKey               ? 'add'
+                     : 'replace';
+          selectElementByGuid(payload.guid, mode);
         }
         // R13 — engine emits pinTap for any pin in pinMeta. Coord pins
         // tagged with __coord = 'issue' / 'clash' route into our focus
@@ -2126,17 +2583,61 @@
       };
     }
 
-    function selectElementByGuid(guid) {
-      state.selectedElementGuid = guid;
-      clearAllHighlights();              // L6
-      const m = findMeshByGuid(guid);
-      if (m) {
-        const bb = new THREE_.Box3().setFromObject(m);
-        flyTo(bb.getCenter(new THREE_.Vector3()));
-        emissive(m, 0xF97316);
+    // Multi-select aware selector. mode=
+    //   "replace" → standard click; clear set, set primary to guid
+    //   "toggle"  → Ctrl/Cmd-click; add or remove guid from set
+    //   "add"     → Shift-click / programmatic; ensure guid in set
+    function selectElementByGuid(guid, mode = 'replace') {
+      if (!guid) {
+        state.selectedElementGuid = null;
+        state.selectedElementGuids.clear();
+        clearAllHighlights();
+        renderProperties(null);
+        updateRightTabCounts();
+        renderSelectionToolbar();
+        return;
       }
-      renderProperties(guid);
-      updateRightTabCounts();            // X2
+      if (mode === 'toggle') {
+        if (state.selectedElementGuids.has(guid)) {
+          state.selectedElementGuids.delete(guid);
+          if (state.selectedElementGuid === guid) {
+            // Promote any remaining selection to primary, else clear.
+            const it = state.selectedElementGuids.values().next();
+            state.selectedElementGuid = it.done ? null : it.value;
+          }
+        } else {
+          state.selectedElementGuids.add(guid);
+          state.selectedElementGuid = guid;
+        }
+      } else if (mode === 'add') {
+        state.selectedElementGuids.add(guid);
+        state.selectedElementGuid = guid;
+      } else {
+        state.selectedElementGuid = guid;
+        state.selectedElementGuids.clear();
+        state.selectedElementGuids.add(guid);
+      }
+      // Re-paint highlights from scratch so removed elements lose their
+      // emissive material.
+      clearAllHighlights();
+      let lastCentre = null;
+      state.selectedElementGuids.forEach(g => {
+        const m = findMeshByGuid(g);
+        if (m) {
+          emissive(m, 0xF97316);
+          // R-R12 — only fly to the union centre when selection size
+          // changes via tree (mode != toggle). For toggle (incremental),
+          // skip the camera move so the user keeps spatial context.
+          if (g === state.selectedElementGuid) {
+            const bb = new THREE_.Box3().setFromObject(m);
+            lastCentre = bb.getCenter(new THREE_.Vector3());
+          }
+        }
+      });
+      if (mode !== 'toggle' && lastCentre) flyTo(lastCentre);
+      renderProperties(state.selectedElementGuid);
+      updateRightTabCounts();
+      renderSelectionToolbar();
     }
 
     function setupMinimap() {
@@ -2180,16 +2681,26 @@
       const defaultButtons = V.controls.mouseButtons
         ? Object.assign({}, V.controls.mouseButtons)
         : null;
+      const navEl = $('#navControls');
       $$('.nav-btn').forEach(b => b.addEventListener('click', () => {
+        const m = b.dataset.mode;
+        // "fit" is a one-shot action (fly the camera) rather than a
+        // persistent mode — flash the button but don't keep it active.
+        if (m === 'fit') {
+          if (state.selectedElementGuids.size) fitToSelection();
+          else if (V.modelBounds && !V.modelBounds.isEmpty()) {
+            flyTo(V.modelBounds.getCenter(new THREE_.Vector3()));
+          }
+          return;
+        }
         $$('.nav-btn').forEach(x => x.classList.remove('active'));
         b.classList.add('active');
-        const m = b.dataset.mode;
         state.activeNav = m;
         // Walk mode delegates to viewer-extras' first-person controls.
         handleHostCommand({ type: 'setWalkthrough', payload: { enabled: m === 'walk' } });
-        // Polish — Pan mode rebinds left mouse to PAN so coordinators can
-        // shove the model around with one finger / left-drag without
-        // remembering the right-click pan modifier. Orbit restores defaults.
+        // Toggle navControls.walking class so the speed-wheel highlights.
+        if (navEl) navEl.classList.toggle('walking', m === 'walk');
+        // Pan mode rebinds left mouse to PAN; Orbit restores defaults.
         if (V.controls && V.controls.mouseButtons && THREE_.MOUSE) {
           if (m === 'pan') {
             V.controls.mouseButtons.LEFT  = THREE_.MOUSE.PAN;
@@ -2200,10 +2711,60 @@
             V.controls.mouseButtons.RIGHT  = defaultButtons.RIGHT;
           }
         }
-        if (m === 'focus' && state.selectedElementGuid) {
-          selectElementByGuid(state.selectedElementGuid);
+        // Pivot = orbit camera around the selected element (or its centre).
+        // Was previously labelled "focus"; we keep the underlying behaviour
+        // and just expose a clearer label.
+        if (m === 'pivot' && state.selectedElementGuid) {
+          selectElementByGuid(state.selectedElementGuid, 'replace');
         }
       }));
+
+      // ── Walk-speed widget ─────────────────────────────────────────────
+      // Three input paths into the same multiplier:
+      //   1. +/- buttons in the nav-controls speed-wheel widget
+      //   2. Mouse-wheel scroll while walk mode is active
+      //   3. Settings menu "Default walk speed" persisted in localStorage
+      // viewer-extras.js reads window.__walkSpeedMul on every step.
+      if (typeof window.__walkSpeedMul !== 'number') window.__walkSpeedMul = 1.0;
+      try {
+        const persisted = parseFloat(localStorage.getItem('planscape_walk_speed'));
+        if (!isNaN(persisted) && persisted > 0) window.__walkSpeedMul = persisted;
+      } catch (_) {}
+      function paintSpeed() {
+        const v = $('#walkSpeedVal');
+        if (v) v.textContent = window.__walkSpeedMul.toFixed(2).replace(/\.?0+$/, '') + '×';
+      }
+      function bumpSpeed(delta) {
+        const next = Math.min(8, Math.max(0.1, window.__walkSpeedMul + delta));
+        window.__walkSpeedMul = Math.round(next * 100) / 100;
+        try { localStorage.setItem('planscape_walk_speed', String(window.__walkSpeedMul)); } catch (_) {}
+        paintSpeed();
+      }
+      $('#walkSpeedDown')?.addEventListener('click', (e) => { e.stopPropagation(); bumpSpeed(-0.25); });
+      $('#walkSpeedUp')?.addEventListener('click',   (e) => { e.stopPropagation(); bumpSpeed(+0.25); });
+      paintSpeed();
+
+      // Scroll wheel during walk mode adjusts speed instead of zoom.
+      // We listen at window level (capture) and only act when the
+      // walk button is .active so Orbit / Pan zoom keep their normal
+      // wheel-zoom behaviour. Form fields keep native scroll.
+      window.addEventListener('wheel', (ev) => {
+        if (state.activeNav !== 'walk') return;
+        const tgt = ev.target;
+        if (tgt && /INPUT|TEXTAREA|SELECT/.test(tgt.tagName)) return;
+        // Skip when the scroll happens inside a scrollable side pane so
+        // coordinators can still scroll the issues table or model tree
+        // while walk mode is technically active.
+        if (tgt && tgt.closest && (
+            tgt.closest('.left-panel') ||
+            tgt.closest('.right-panel') ||
+            tgt.closest('.bottom-panel'))) return;
+        // Modifier-aware: plain scroll = 5% per notch (fine); shift = 25%.
+        const fine = ev.shiftKey ? 0.25 : 0.05;
+        const sign = ev.deltaY < 0 ? +1 : -1;
+        bumpSpeed(sign * fine);
+        ev.preventDefault();
+      }, { passive: false });
     }
 
     function setActiveTool(t) {
@@ -2274,23 +2835,38 @@
             help.classList.remove('open');
             return;
           }
+          // Row-menu (clash/issue right-click popover) also swallows Esc
+          // for the same reason — closing the menu shouldn't also clear
+          // the selection it was opened against.
+          const rowMenu = $('#rowMenu');
+          if (rowMenu && rowMenu.classList.contains('open')) {
+            return;     // setupRowContextMenu's own keydown handler closes it
+          }
           handleHostCommand({ type: 'clearHighlight' });
           clearAllHighlights();          // L6
           state.selectedElementGuid = null;
+          state.selectedElementGuids.clear();
           state.selectedIssueId = null;
           renderProperties(null);
           updateRightTabCounts();        // X2
+          renderSelectionToolbar();
         } else if (k === 'f' || k === 'F') {
-          if (state.selectedElementGuid) selectElementByGuid(state.selectedElementGuid);
+          // F = fit selection (multi-aware). With nothing selected, fit the
+          // whole model. Matches the new "Fit" button in nav-controls.
+          if (state.selectedElementGuids.size) fitToSelection();
+          else if (V.modelBounds && !V.modelBounds.isEmpty()) {
+            flyTo(V.modelBounds.getCenter(new THREE_.Vector3()));
+          }
         } else if (k === 'h' || k === 'H') {
-          const m = findMeshByGuid(state.selectedElementGuid); if (m) m.visible = !m.visible;
+          // H = hide selected. Multi-aware: hides every mesh in the
+          // selection set, not just the primary.
+          if (state.selectedElementGuids.size) hideSelection();
         } else if (k === 'i' || k === 'I') {
-          if (!V.modelRoot) return;
-          const g = state.selectedElementGuid; if (!g) return;
-          V.modelRoot.traverse(o => { if (o.isMesh) o.visible = (o.userData.elementGuid === g); });
+          // I = isolate selection (multi-aware). Plain `I` is reserved for
+          // isolate; Shift+I (handled below) creates a new issue.
+          if (e.shiftKey) {} else if (state.selectedElementGuids.size) isolateSelection();
         } else if (k === 'a' || k === 'A') {
-          if (!V.modelRoot) return;
-          V.modelRoot.traverse(o => { if (o.isMesh) o.visible = true; });
+          showAllElements();
         } else if (k === 'g' || k === 'G') {
           state.ghostMode = !state.ghostMode;
           setRenderMode(state.ghostMode ? 'ghost' : 'shaded');

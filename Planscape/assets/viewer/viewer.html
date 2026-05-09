@@ -156,6 +156,18 @@
         </div>
       </div>
 
+<!-- Selection toolbar — appears when one or more elements are selected -->
+      <div class="selection-toolbar" id="selectionToolbar" style="display:none">
+        <span class="sel-count" id="selCount">0 selected</span>
+        <button class="sel-btn" id="selFit"        title="Fit camera (F)">🎯 Fit</button>
+        <button class="sel-btn" id="selIsolate"    title="Isolate selection (I)">◎ Isolate</button>
+        <button class="sel-btn" id="selHide"       title="Hide selection (H)">⊘ Hide</button>
+        <button class="sel-btn" id="selShowAll"    title="Show all (A)">⊙ Show all</button>
+        <button class="sel-btn" id="selGhost"      title="Ghost others (G)">👻 Ghost</button>
+        <button class="sel-btn primary" id="selIssue" title="Create issue from selection">🚩 Issue</button>
+        <button class="sel-btn close" id="selClose" title="Clear selection (Esc)">✕</button>
+      </div>
+
       <!-- Coordinate readout -->
       <div class="coord-readout" id="coordReadout">
         <span class="x">X</span> 0.00m  <span class="y">Y</span> 0.00m  <span class="z">Z</span> 0.00m
@@ -164,12 +176,19 @@
       <!-- Level selector -->
       <div class="level-strip" id="levelStrip"></div>
 
-      <!-- Nav controls -->
-      <div class="nav-controls">
+      <!-- Nav controls — Orbit / Pan / Walk / Pivot / Fit + walk-speed wheel -->
+      <div class="nav-controls" id="navControls">
         <button class="nav-btn active" data-mode="orbit">◯ Orbit</button>
         <button class="nav-btn" data-mode="pan">↖ Pan</button>
         <button class="nav-btn" data-mode="walk">🚶 Walk</button>
-        <button class="nav-btn" data-mode="focus">⌖ Focus</button>
+        <button class="nav-btn" data-mode="pivot">⊕ Pivot</button>
+        <button class="nav-btn" data-mode="fit"  title="Fit selection or model (F)">⌖ Fit</button>
+        <span class="speed-wrap" id="walkSpeedWrap" title="Walk speed — scroll wheel or +/− buttons">
+          <span class="lbl">SPD</span>
+          <button id="walkSpeedDown">−</button>
+          <span class="val" id="walkSpeedVal">1.0×</span>
+          <button id="walkSpeedUp">+</button>
+        </span>
       </div>
 
       <!-- Minimap -->
@@ -189,16 +208,27 @@
         <div class="help-card">
           <h2>Keyboard shortcuts</h2>
           <table>
-            <tr><td>Esc</td><td>Deselect / close modal / clear highlight</td></tr>
-            <tr><td>Space</td><td>Reset camera (fit view)</td></tr>
-            <tr><td>F</td><td>Focus camera on selected element</td></tr>
-            <tr><td>H</td><td>Hide / show selected</td></tr>
-            <tr><td>I</td><td>Isolate selected (hide all others)</td></tr>
-            <tr><td>A</td><td>Show all</td></tr>
+            <tr><td colspan="2" style="font-weight:600;color:var(--accent);padding-top:6px">Selection &amp; visibility</td></tr>
+            <tr><td>Click</td><td>Select element (replaces selection)</td></tr>
+            <tr><td>Ctrl/⌘+Click</td><td>Toggle in multi-selection</td></tr>
+            <tr><td>Shift+Click</td><td>Range-select within tree group</td></tr>
+            <tr><td>Esc</td><td>Clear selection / close modal</td></tr>
+            <tr><td>F</td><td>Fit camera to selection (or model)</td></tr>
+            <tr><td>H</td><td>Hide selection</td></tr>
+            <tr><td>I</td><td>Isolate selection (hide everything else)</td></tr>
+            <tr><td>A</td><td>Show all elements</td></tr>
             <tr><td>G</td><td>Toggle ghosted view</td></tr>
-            <tr><td>O / W</td><td>Orbit / Walk navigation</td></tr>
-            <tr><td>M</td><td>Measure tool</td></tr>
+            <tr><td colspan="2" style="font-weight:600;color:var(--accent);padding-top:8px">Navigation</td></tr>
+            <tr><td>O / W</td><td>Orbit / Walk mode</td></tr>
+            <tr><td>Wheel (Walk)</td><td>Adjust walk speed (Shift = coarse)</td></tr>
+            <tr><td>+ / − (Walk)</td><td>Walk speed via on-screen wheel</td></tr>
+            <tr><td>Space</td><td>Reset camera</td></tr>
             <tr><td>1–7</td><td>Jump to level</td></tr>
+            <tr><td colspan="2" style="font-weight:600;color:var(--accent);padding-top:8px">Coordination</td></tr>
+            <tr><td>Right-click row</td><td>Clash / issue context menu</td></tr>
+            <tr><td>Double-click row</td><td>Zoom + isolate (clash) · open comments (issue)</td></tr>
+            <tr><td>Shift+I</td><td>Create new issue from selection</td></tr>
+            <tr><td>M</td><td>Measure tool</td></tr>
             <tr><td>Ctrl+S</td><td>Save current view</td></tr>
           </table>
           <button class="btn ghost close-help">Close</button>
@@ -207,11 +237,18 @@
 
       <!-- Bottom panel sits over the viewport (z-index 30) -->
       <div class="bottom-panel" id="bottomPanel">
+        <!-- Drag handle: hover anywhere on the top 6px to grab + resize the
+             whole tray vertically. Doubles as a visual "you can pull this"
+             affordance via the orange grip glyph in the centre. -->
+        <div class="bottom-resize" id="bottomResize" title="Drag to resize · double-click to reset">
+          <span class="grip"></span>
+        </div>
         <div class="bottom-tabs">
           <button class="btab active" data-tab="clashes">Clashes <span class="count" id="clashesTotal">0</span></button>
           <button class="btab" data-tab="issues">Issues <span class="count" id="issuesTotal">0</span></button>
           <button class="btab" data-tab="timeline">Timeline</button>
           <div class="right">
+            <button class="bottom-collapse" id="bottomExpand" title="Expand to 60% of viewport">⛶</button>
             <button class="bottom-collapse" id="bottomCollapse" title="Collapse">▾</button>
           </div>
         </div>
@@ -445,6 +482,23 @@
       <option value="light">Light</option>
       <option value="contrast">High contrast</option>
     </select>
+  </div>
+  <div class="sep"></div>
+  <div class="row">
+    <label>Walk eye-height (metres above floor)</label>
+    <input id="settingEyeHeight" type="number" step="0.05" min="0.6" max="2.4" placeholder="1.70" />
+    <small style="opacity:0.6;font-size:10px;display:block;margin-top:2px">
+      Default 1.70 m. Children's facilities use 1.20–1.40 m;
+      site-walk inspections often use 1.60–1.80 m. Range: 0.6–2.4 m.
+    </small>
+  </div>
+  <div class="sep"></div>
+  <div class="row">
+    <label>Default walk speed</label>
+    <input id="settingWalkSpeed" type="number" step="0.1" min="0.1" max="8" placeholder="1.0" />
+    <small style="opacity:0.6;font-size:10px;display:block;margin-top:2px">
+      Multiplier on the model-scaled base speed. 1.0 ≈ human walk; 4.0 ≈ jog through a hospital wing.
+    </small>
   </div>
   <div class="actions">
     <button class="btn subtle" id="settingsCancel">Close</button>
