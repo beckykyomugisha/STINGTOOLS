@@ -61,6 +61,35 @@ namespace StingTools.Core.Routing
         public const double DefaultMaxRunMm      = 6000.0;
 
         /// <summary>
+        /// Wave J4 — size-aware max-bend lookup per IET Guidance Note 1
+        /// (2024 edition). BS 7671 §522.8.5 sets a baseline of 3, but
+        /// the practical limit varies with conduit size and material:
+        ///
+        ///   * Small (≤25 mm) — 3 bends regardless of material.
+        ///     Pulling cables through tight curves is hard.
+        ///   * Medium (32–40 mm steel) — 4 bends. Bigger lumen, more
+        ///     room for the pulling rope to swing through.
+        ///   * Large (≥50 mm rigid steel) — 4 bends. IET GN1 Table 7.4.
+        ///   * Rigid PVC at any size — 3 bends; PVC has higher friction.
+        ///   * Flexible conduit — 2 bends; flex bunches at every bend.
+        ///
+        /// Returns the size-appropriate cap. Caller can override via
+        /// the maxBends parameter on Place() — when the override is
+        /// &gt; 0, this function is bypassed.
+        /// </summary>
+        public static int MaxBendsForConduit(double odMm, string material)
+        {
+            string mat = (material ?? "").Trim().ToUpperInvariant();
+            if (mat.Contains("FLEX")) return 2;          // flexible — always 2
+            if (mat.Contains("PVC") || mat.Contains("UPVC")) return 3;  // PVC — always 3
+            // Steel / aluminium / unspecified — size-dependent.
+            if (odMm <= 0)        return DefaultMaxBends;
+            if (odMm <= 25.5)     return 3;              // ≤25 mm steel — 3
+            if (odMm <  50.0)     return 4;              // 32 / 40 mm steel — 4
+            return 4;                                    // ≥50 mm steel — 4 (IET GN1 §7.4)
+        }
+
+        /// <summary>
         /// Walk every conduit in the supplied list, find runs that
         /// violate either bend or length caps, and place a junction
         /// box at the violation point.
@@ -175,6 +204,20 @@ namespace StingTools.Core.Routing
             int bends = ReadStampedInt(conduit, "ELC_CDT_BEND_COUNT_NR");
             double lengthMm = ReadStampedDoubleM(conduit, "ELC_CDT_RUN_LENGTH_M") * 1000.0;
 
+            // Wave J4 — size-aware max-bend cap. The caller's maxBends
+            // is treated as a global default when set; when it's the
+            // hardcoded DefaultMaxBends (3) we look up a per-conduit
+            // value so 50 mm steel risers don't get JBs they don't
+            // strictly need.
+            if (maxBends == DefaultMaxBends)
+            {
+                double odMm = ReadStampedDoubleM(conduit, "Outside Diameter") * 1000.0;
+                if (odMm <= 0) odMm = ReadStampedDoubleM(conduit, "Diameter") * 1000.0;
+                string mat = ParameterHelpers.GetString(conduit, "ELC_CDT_MAT_TXT") ?? "";
+                int sizeAware = MaxBendsForConduit(odMm, mat);
+                if (sizeAware != DefaultMaxBends) maxBends = sizeAware;
+            }
+
             // Geometric fallbacks for conduits without stamped values.
             if (lengthMm <= 0)
             {
@@ -188,14 +231,40 @@ namespace StingTools.Core.Routing
             bool tooLong      = lengthMm > maxRunMm;
             if (!tooManyBends && !tooLong) return null;
 
-            // Place the box at the conduit midpoint. A more sophisticated
-            // implementation would walk the run's connector graph and find
-            // the precise nth-bend point; for the first cut, midpoint is
-            // a credible placement that the user can fine-tune.
-            var curve = (conduit.Location as LocationCurve)?.Curve;
-            XYZ mid = curve != null
-                ? curve.Evaluate(0.5, /* normalized */ true)
-                : ((conduit as Element)?.get_BoundingBox(null)?.Min ?? XYZ.Zero);
+            // Wave J2 — pick the precise placement point. Three
+            // strategies, in priority order:
+            //   1. Bends-exceed: walk the connector graph to find the
+            //      Nth bend (where N = maxBends). The box lands AFTER
+            //      that bend so the upstream segment has exactly the
+            //      allowed number of bends.
+            //   2. Run-too-long: place at maxRunMm along the curve
+            //      from the start so the upstream segment is exactly
+            //      maxRunMm long.
+            //   3. Both: take the EARLIER of the two — whichever
+            //      violation hits first along the run.
+            //   4. Fallback: midpoint when neither resolves cleanly.
+            var curve = (conduit as MEPCurve)?.Location is LocationCurve lc ? lc.Curve : null;
+
+            XYZ placement = null;
+            if (tooManyBends)
+            {
+                placement = LocateAfterNthBend(conduit as MEPCurve, maxBends);
+            }
+            if (placement == null && tooLong && curve != null)
+            {
+                double tCurve = Math.Min(1.0, (maxRunMm / 304.8) / Math.Max(curve.Length, 1e-6));
+                try { placement = curve.Evaluate(tCurve, /* normalized */ true); }
+                catch (Exception ex) { StingLog.Warn($"Evaluate at maxRun: {ex.Message}"); }
+            }
+            if (placement == null)
+            {
+                // Fallback: midpoint when neither precise strategy
+                // resolves (e.g. the conduit has no MEPCurve, or its
+                // connector graph is broken).
+                placement = curve != null
+                    ? curve.Evaluate(0.5, /* normalized */ true)
+                    : ((conduit as Element)?.get_BoundingBox(null)?.Min ?? XYZ.Zero);
+            }
 
             string reason = tooManyBends && tooLong
                 ? "BENDS_EXCESS+RUN_TOO_LONG"
@@ -204,11 +273,147 @@ namespace StingTools.Core.Routing
             return new JunctionBoxBreakPoint
             {
                 ConduitId          = conduitId,
-                Location           = mid,
+                Location           = placement,
                 BendCountAtPoint   = bends,
                 RunLengthAtPointMm = lengthMm,
                 Reason             = reason,
             };
+        }
+
+        /// <summary>
+        /// Wave J2 — walk the conduit's connector graph forward and
+        /// return the XYZ just after the Nth direction-changing
+        /// fitting (a "bend" — ConduitFitting whose ELC_CDT_BEND_ANGLE
+        /// _DEG &gt; 0). When the graph yields fewer than N bends,
+        /// returns null so the caller can fall back to the run-length
+        /// or midpoint strategy.
+        ///
+        /// The walk is intentionally bounded — at most 50 hops — so a
+        /// degenerate cyclic graph can't spin the algorithm. 50 hops
+        /// covers any plausible conduit run; production runs rarely
+        /// exceed 10 fittings between draw-in points.
+        /// </summary>
+        private static XYZ LocateAfterNthBend(MEPCurve seedCurve, int n)
+        {
+            if (seedCurve == null || n <= 0) return null;
+            var doc = seedCurve.Document;
+            if (doc == null) return null;
+
+            try
+            {
+                var visited = new HashSet<long> { seedCurve.Id.Value };
+                MEPCurve cursor = seedCurve;
+                int bendsSeen = 0;
+                int hops = 0;
+                while (hops++ < 50)
+                {
+                    // Find the connector at the "downstream" end of
+                    // cursor — the one not pointing back at the run's
+                    // upstream direction. Picking by AllRefs.Count
+                    // works for typical pull-paths (one inbound, one
+                    // outbound).
+                    Connector outbound = null;
+                    foreach (Connector c in cursor.ConnectorManager.Connectors)
+                    {
+                        bool reverse = false;
+                        foreach (Connector other in c.AllRefs)
+                        {
+                            if (other?.Owner == null) continue;
+                            if (visited.Contains(other.Owner.Id.Value)) { reverse = true; break; }
+                        }
+                        if (!reverse) { outbound = c; break; }
+                    }
+                    if (outbound == null) return null;
+
+                    // Find the next element via the outbound connector.
+                    Element next = null;
+                    foreach (Connector other in outbound.AllRefs)
+                    {
+                        if (other?.Owner == null) continue;
+                        if (visited.Contains(other.Owner.Id.Value)) continue;
+                        next = other.Owner;
+                        break;
+                    }
+                    if (next == null) return null;
+                    visited.Add(next.Id.Value);
+
+                    // If the next element is a ConduitFitting whose
+                    // bend-angle is non-zero, we just crossed a bend.
+                    if (next.Category?.Id?.Value == (long)BuiltInCategory.OST_ConduitFitting)
+                    {
+                        double? deg = ReadFittingBendAngleDeg(next);
+                        if (deg.HasValue && deg.Value > 0)
+                        {
+                            bendsSeen++;
+                            if (bendsSeen >= n)
+                            {
+                                // Place the box just past this bend's
+                                // outbound connector.
+                                Connector cont = null;
+                                if (next is FamilyInstance fi && fi.MEPModel?.ConnectorManager != null)
+                                {
+                                    foreach (Connector c in fi.MEPModel.ConnectorManager.Connectors)
+                                    {
+                                        bool isInbound = false;
+                                        foreach (Connector other in c.AllRefs)
+                                        {
+                                            if (other?.Owner?.Id == cursor.Id) { isInbound = true; break; }
+                                        }
+                                        if (!isInbound) { cont = c; break; }
+                                    }
+                                }
+                                return cont?.Origin ?? (next.Location as LocationPoint)?.Point;
+                            }
+                        }
+                        // Find the conduit beyond the fitting.
+                        next = WalkPastFitting(next, visited);
+                    }
+
+                    cursor = next as MEPCurve;
+                    if (cursor == null) return null;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LocateAfterNthBend: {ex.Message}"); }
+            return null;
+        }
+
+        private static double? ReadFittingBendAngleDeg(Element fitting)
+        {
+            try
+            {
+                string s = ParameterHelpers.GetString(fitting, "ELC_CDT_BEND_ANGLE_DEG");
+                if (!string.IsNullOrEmpty(s) && double.TryParse(s,
+                    System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out double d) && d > 0) return d;
+                // Fallback to the fitting's "Angle" parameter.
+                var p = fitting.LookupParameter("Angle");
+                if (p != null && p.StorageType == StorageType.Double) return p.AsDouble() * (180.0 / Math.PI);
+            }
+            catch { }
+            return null;
+        }
+
+        private static Element WalkPastFitting(Element fitting, HashSet<long> visited)
+        {
+            try
+            {
+                if (!(fitting is FamilyInstance fi)) return null;
+                var mgr = fi.MEPModel?.ConnectorManager;
+                if (mgr == null) return null;
+                foreach (Connector c in mgr.Connectors)
+                {
+                    foreach (Connector other in c.AllRefs)
+                    {
+                        if (other?.Owner == null) continue;
+                        if (visited.Contains(other.Owner.Id.Value)) continue;
+                        visited.Add(other.Owner.Id.Value);
+                        return other.Owner;
+                    }
+                }
+            }
+            catch { }
+            return null;
         }
 
         private static int CountConnectedFittings(MEPCurve curve)

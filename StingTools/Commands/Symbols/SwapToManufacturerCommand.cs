@@ -40,6 +40,26 @@ namespace StingTools.Commands.Symbols
     public sealed class SwapCandidate
     {
         public string FamilyNamePattern { get; set; } = "";
+
+        /// <summary>
+        /// Wave J1 — optional regex matched against the manufacturer
+        /// type name (FamilySymbol.Name). Empty = match any type
+        /// variant. When set, lets the swap registry route per-variant
+        /// — e.g. swap PENDANT lighting variants to manufacturer A,
+        /// RECESSED variants to manufacturer B. Combined with
+        /// SeedVariantPattern (matched against the source seed type
+        /// name) this enables full variant-to-variant routing.
+        /// </summary>
+        public string TypeNamePattern { get; set; } = "";
+
+        /// <summary>
+        /// Wave J1 — optional regex matched against the source seed's
+        /// type name (e.g. "PENDANT", "FR60"). Empty = match any
+        /// seed type variant. When set, the candidate only fires for
+        /// instances whose source type name matches this pattern.
+        /// </summary>
+        public string SeedVariantPattern { get; set; } = "";
+
         public string Label { get; set; } = "";
         public int    Priority { get; set; } = 999;
         public ElementId ResolvedTypeId { get; set; }
@@ -310,21 +330,55 @@ namespace StingTools.Commands.Symbols
 
         private static List<SwapPlan> BuildPlans(Document doc, IList<Element> seeds, JObject registry)
         {
+            // Wave J1 — group by (SeedId, sourceTypeVariant) so per-
+            // variant routing works. PENDANT instances become a
+            // separate plan from RECESSED instances; each plan picks
+            // candidates whose SeedVariantPattern matches the variant
+            // (or have no pattern, in which case they apply to all
+            // variants of the seed).
             var plans = new Dictionary<string, SwapPlan>(StringComparer.OrdinalIgnoreCase);
             foreach (var el in seeds)
             {
                 string seedId = ParameterHelpers.GetString(el, "STING_SEED_FAMILY_TXT");
                 if (string.IsNullOrEmpty(seedId)) seedId = SafeFamilyName(el);
-                if (!plans.TryGetValue(seedId, out var p))
+                string variantType = SafeTypeName(el);
+                string planKey = $"{seedId}|{variantType}";
+                if (!plans.TryGetValue(planKey, out var p))
                 {
-                    p = new SwapPlan { SeedId = seedId, Category = el.Category?.Name ?? "" };
-                    plans[seedId] = p;
+                    p = new SwapPlan
+                    {
+                        SeedId   = seedId,
+                        Category = el.Category?.Name ?? "",
+                    };
+                    plans[planKey] = p;
                     foreach (var c in ResolveCandidates(doc, registry, seedId))
-                        p.Candidates.Add(c);
+                    {
+                        if (CandidateAppliesToVariant(c, variantType))
+                            p.Candidates.Add(c);
+                    }
                 }
                 p.InstanceIds.Add(el.Id);
             }
             return plans.Values.ToList();
+        }
+
+        private static bool CandidateAppliesToVariant(SwapCandidate c, string sourceTypeName)
+        {
+            if (c == null) return false;
+            if (string.IsNullOrEmpty(c.SeedVariantPattern)) return true;
+            try { return Regex.IsMatch(sourceTypeName ?? "", c.SeedVariantPattern); }
+            catch { return false; }
+        }
+
+        private static string SafeTypeName(Element el)
+        {
+            try
+            {
+                if (el is FamilyInstance fi) return fi.Symbol?.Name ?? "";
+                var t = el?.Document?.GetElement(el.GetTypeId()) as FamilySymbol;
+                return t?.Name ?? "";
+            }
+            catch { return ""; }
         }
 
         private static List<SwapCandidate> ResolveCandidates(Document doc, JObject registry, string seedId)
@@ -355,19 +409,30 @@ namespace StingTools.Commands.Symbols
                 {
                     var cand = new SwapCandidate
                     {
-                        FamilyNamePattern = (string)c["familyNamePattern"] ?? "",
-                        Label             = (string)c["label"] ?? "",
-                        Priority          = (int?)c["priority"] ?? 999,
+                        FamilyNamePattern    = (string)c["familyNamePattern"]   ?? "",
+                        TypeNamePattern      = (string)c["typeNamePattern"]     ?? "",
+                        SeedVariantPattern   = (string)c["seedVariantPattern"]  ?? "",
+                        Label                = (string)c["label"] ?? "",
+                        Priority             = (int?)c["priority"] ?? 999,
                     };
                     if (string.IsNullOrEmpty(cand.FamilyNamePattern)) continue;
-                    Regex rx;
-                    try { rx = new Regex(cand.FamilyNamePattern); }
+                    Regex rxFamily;
+                    try { rxFamily = new Regex(cand.FamilyNamePattern); }
                     catch { continue; }
 
-                    // Take the first matching FamilySymbol; activate it
-                    // lazily on apply (Revit requires symbol.IsActive==true
-                    // before ChangeTypeId honours it).
-                    var hit = allTypes.FirstOrDefault(fs => rx.IsMatch(fs.FamilyName ?? ""));
+                    Regex rxType = null;
+                    if (!string.IsNullOrEmpty(cand.TypeNamePattern))
+                    {
+                        try { rxType = new Regex(cand.TypeNamePattern); }
+                        catch { continue; }
+                    }
+
+                    // Wave J1 — match against (familyName, typeName)
+                    // tuple. Type pattern is optional; when empty, any
+                    // type variant of a name-matching family wins.
+                    var hit = allTypes.FirstOrDefault(fs =>
+                        rxFamily.IsMatch(fs.FamilyName ?? "") &&
+                        (rxType == null || rxType.IsMatch(fs.Name ?? "")));
                     if (hit == null) continue;
                     cand.ResolvedTypeId = hit.Id;
                     cand.ResolvedFamilyName = hit.FamilyName ?? "";
