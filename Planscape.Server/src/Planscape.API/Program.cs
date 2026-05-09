@@ -475,6 +475,16 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.RedactPublishedPhot
 builder.Services.AddScoped<Planscape.Infrastructure.Services.DailyPhotoDigestJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoPipeline.IPhotoRedactionPipeline,
     Planscape.Infrastructure.Services.PhotoPipeline.SkiaPhotoRedactionPipeline>();
+
+// T4-27 — IFC property ingester. xbim.Essentials handles IFC2x3
+// + IFC4 schema dispatch and uses Esent on Windows / in-memory on
+// Linux for read-only ingest. Scoped because IfcStore isn't
+// thread-safe; each ingest call wants its own model handle.
+// Geometry + clash detection (xbim.Geometry) deferred — needs a
+// ~500 MB native dep + worker build pipeline.
+builder.Services.AddScoped<Planscape.Core.Interfaces.IIfcIngester,
+    Planscape.Infrastructure.Services.XbimIfcIngester>();
+
 if (isWorker)
 {
     // Phase 178b — Worker container loads YuNet (ONNX, ~225 KB) for

@@ -11,6 +11,7 @@ import {
   Modal,
   Alert,
 } from 'react-native';
+import { router } from 'expo-router';
 import { theme, getCDEColor } from '@/utils/theme';
 import { listProjects, listDocuments, transitionCDE, requestDocumentApproval, decideDocumentApproval, getMyProjectAccess, type MyProjectAccess } from '@/api/endpoints';
 import type { DocumentRecord, Project, CDEStatus } from '@/types/api';
@@ -344,6 +345,7 @@ export default function DocumentsScreen() {
       {selectedDoc && (
         <DocumentDetailModal
           doc={selectedDoc}
+          projectId={activeProject?.id}
           transitioning={transitioning}
           onTransition={handleTransition}
           onClose={() => setSelectedDoc(null)}
@@ -393,11 +395,13 @@ function DocumentCard({ doc, onPress }: { doc: DocumentRecord; onPress: () => vo
 
 function DocumentDetailModal({
   doc,
+  projectId,
   transitioning,
   onTransition,
   onClose,
 }: {
   doc: DocumentRecord;
+  projectId?: string;
   transitioning: boolean;
   onTransition: (doc: DocumentRecord, status: CDEStatus) => void;
   onClose: () => void;
@@ -475,6 +479,30 @@ function DocumentDetailModal({
               <Text style={styles.transitionHint}>This document is in its final CDE state.</Text>
             </View>
           )}
+
+          {/* T3-15 — 2D markup. Currently restricted to PDFs because the
+              shipped renderer (react-native-pdf) won't open .docx / .dwg.
+              Image documents could be added in v2 by branching the route
+              on contentType. */}
+          {projectId && doc.fileName?.toLowerCase().endsWith('.pdf') ? (
+            <View style={styles.transitionSection}>
+              <TouchableOpacity
+                style={[styles.transitionBtn, { backgroundColor: theme.colors.accent }]}
+                onPress={() => {
+                  onClose();
+                  router.push({
+                    pathname: '/documents/markup',
+                    params: { projectId, documentId: doc.id, fileName: doc.fileName },
+                  });
+                }}
+              >
+                <Text style={styles.transitionBtnText}>📝 Open Markup</Text>
+              </TouchableOpacity>
+              <Text style={styles.transitionHint}>
+                Add pen / arrow / text / circle annotations to the drawing.
+              </Text>
+            </View>
+          ) : null}
         </View>
       </View>
     </Modal>

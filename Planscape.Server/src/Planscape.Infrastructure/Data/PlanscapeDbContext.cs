@@ -111,6 +111,9 @@ public class PlanscapeDbContext : DbContext
     public DbSet<SitePhoto> SitePhotos => Set<SitePhoto>();
     // Phase 178b — T2-5 saved views (camera + visibility + section state).
     public DbSet<SavedView> SavedViews => Set<SavedView>();
+    // T4-28 — Generic Asset Data Sheet engine (template-driven).
+    public DbSet<AssetDataSheet>         AssetDataSheets         => Set<AssetDataSheet>();
+    public DbSet<AssetDataSheetTemplate> AssetDataSheetTemplates => Set<AssetDataSheetTemplate>();
     public DbSet<DocumentMarkup> DocumentMarkups => Set<DocumentMarkup>();
     public DbSet<ScheduleTask> ScheduleTasks => Set<ScheduleTask>();
     public DbSet<CostItem> CostItems => Set<CostItem>();
@@ -843,6 +846,35 @@ public class PlanscapeDbContext : DbContext
             e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.CapturedByUser).WithMany().HasForeignKey(x => x.CapturedByUserId).OnDelete(DeleteBehavior.SetNull);
             e.HasOne(x => x.LinkedMeeting).WithMany().HasForeignKey(x => x.LinkedMeetingId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // T4-28 — Generic Asset Data Sheet engine
+        modelBuilder.Entity<AssetDataSheet>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.AnchorKind, x.AnchorKey });
+            e.HasIndex(x => new { x.ProjectId, x.Status });
+            e.HasIndex(x => x.TemplateId);
+            e.Property(x => x.AnchorKind).HasMaxLength(20).IsRequired();
+            e.Property(x => x.AnchorKey).HasMaxLength(120);
+            e.Property(x => x.Status).HasMaxLength(20).IsRequired();
+            e.Property(x => x.AuthorName).HasMaxLength(200);
+            e.Property(x => x.RejectedReason).HasMaxLength(500);
+            e.Property(x => x.ValuesJson).HasColumnType("jsonb");
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Author).WithMany().HasForeignKey(x => x.AuthorUserId).OnDelete(DeleteBehavior.SetNull);
+        });
+        modelBuilder.Entity<AssetDataSheetTemplate>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.IsActive });
+            e.Property(x => x.Code).HasMaxLength(60).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(1000);
+            e.Property(x => x.AnchorKind).HasMaxLength(20).IsRequired();
+            e.Property(x => x.SchemaJson).HasColumnType("jsonb");
+            e.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 
