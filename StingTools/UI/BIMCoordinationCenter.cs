@@ -226,15 +226,15 @@ namespace StingTools.UI
         // (who-did-what + relative time + optional chip / thumbnail).
         private FrameworkElement BuildActivityCard(Newtonsoft.Json.Linq.JObject e)
         {
-            string when    = e["timestamp"]?.Value<string>() ?? e["createdAt"]?.Value<string>() ?? "";
-            string action  = e["action"]?.Value<string>() ?? "";
-            string userN   = e["userName"]?.Value<string>() ?? "System";
+            string when    = (string)e["timestamp"] ?? (string)e["createdAt"] ?? "";
+            string action  = (string)e["action"] ?? "";
+            string userN   = (string)e["userName"] ?? "System";
             var detailsTok = e["details"];
             Newtonsoft.Json.Linq.JObject details = null;
             if (detailsTok is Newtonsoft.Json.Linq.JObject jo) details = jo;
             else if (detailsTok != null && detailsTok.Type == Newtonsoft.Json.Linq.JTokenType.String)
             {
-                try { details = Newtonsoft.Json.Linq.JObject.Parse(detailsTok.Value<string>() ?? "{}"); }
+                try { details = Newtonsoft.Json.Linq.JObject.Parse((string)detailsTok ?? "{}"); }
                 catch { details = null; }
             }
 
@@ -355,10 +355,10 @@ namespace StingTools.UI
                 if (v is Newtonsoft.Json.Linq.JObject obj && obj["from"] != null && obj["to"] != null)
                     parts.Add($"{k}: {obj["from"]} → {obj["to"]}");
                 else if ((k == "body" || k == "comment") && v.Type == Newtonsoft.Json.Linq.JTokenType.String)
-                    parts.Add(v.Value<string>() ?? "");
+                    parts.Add((string)v ?? "");
                 else if (v.Type == Newtonsoft.Json.Linq.JTokenType.String)
                 {
-                    var sv = v.Value<string>() ?? "";
+                    var sv = (string)v ?? "";
                     if (sv.Length < 200) parts.Add($"{k}: {sv}");
                 }
             }
@@ -371,14 +371,14 @@ namespace StingTools.UI
             {
                 var t = details[field];
                 if (t == null) return null;
-                if (t is Newtonsoft.Json.Linq.JObject jo && jo["to"] != null) return jo["to"].Value<string>();
-                if (t.Type == Newtonsoft.Json.Linq.JTokenType.String) return t.Value<string>();
+                if (t is Newtonsoft.Json.Linq.JObject jo && jo["to"] != null) return (string)jo["to"];
+                if (t.Type == Newtonsoft.Json.Linq.JTokenType.String) return (string)t;
                 return null;
             }
             string priority = Take("priority");
             string status   = Take("status");
-            string thumb    = details["thumbnailUrl"]?.Value<string>();
-            string fileN    = details["fileName"]?.Value<string>();
+            string thumb    = (string)details["thumbnailUrl"];
+            string fileN    = (string)details["fileName"];
 
             if (!string.IsNullOrEmpty(priority))
             {
