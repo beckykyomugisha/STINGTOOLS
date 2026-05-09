@@ -1,0 +1,9 @@
+{
+  "id": "PressureRegimeAudit",
+  "name": "Pressure cascade audit (HTM 03-01)",
+  "description": "Runs PressureRegimeValidator + AdjacencyValidator and produces a per-room report.",
+  "steps": [
+    { "tag": "Healthcare_PressureAudit", "description": "Run PressureRegimeValidator" },
+    { "tag": "Healthcare_AdjacencyAudit","description": "Adjacency confirms anteroom links" }
+  ]
+}

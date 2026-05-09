@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1.0,
+  "description": "H-17 — Decontamination / HSDU (HBN 13 / HTM 01-01 / HTM 01-06).",
+  "compartments": ["HSDU-W","HSDU-P","HSDU-S"],
+  "polarity": { "HSDU-W": "NEG", "HSDU-P": "POS", "HSDU-S": "POS" },
+  "achMin": { "HSDU-W": 10, "HSDU-P": 10, "HSDU-S": 25 },
+  "passThroughBetween": [["HSDU-W","HSDU-P"],["HSDU-P","HSDU-S"]],
+  "endoscopyReprocessorReference": "HTM 01-06",
+  "validationDocs": ["BS EN ISO 15883","BS EN 285","HTM 01-01"]
+}

@@ -1,0 +1,9 @@
+{
+  "id": "MgasVerification",
+  "name": "MGPS NFPA 99 §5.1.12 verification",
+  "description": "Walks an operator through the 12-step verification + persists log.",
+  "steps": [
+    { "tag": "Healthcare_MgasAudit",  "description": "Pre-flight network audit" },
+    { "tag": "Healthcare_MgasVerify", "description": "12-step checklist + verifier sign-off" }
+  ]
+}

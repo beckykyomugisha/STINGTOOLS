@@ -330,6 +330,7 @@ export default function DashboardScreen() {
         <QuickAction label="Meetings" emoji="📅" onPress={() => router.push('/meetings' as any)} />
         <QuickAction label="Transmittals" emoji="📤" onPress={() => router.push('/transmittals' as any)} />
         <QuickAction label="Warnings" emoji="⚠️" onPress={() => router.push('/warnings' as any)} />
+        <QuickAction label="Healthcare" emoji="🏥" onPress={() => router.push('/healthcare' as any)} />
       </View>
 
       {/* Discipline breakdown */}

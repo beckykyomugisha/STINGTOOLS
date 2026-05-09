@@ -1,0 +1,4 @@
+SourceCode,Description,EnergyMeV,HalfLifeDays,DoseConstant,ShieldRefMm
+HDR-Ir192,High-dose-rate Iridium-192,0.355,73.83,4.69,Pb 50 mm
+LDR-Cs137,Low-dose-rate Caesium-137,0.662,11000,8.0,Pb 65 mm
+PDR-Ir192,Pulsed-dose-rate Iridium-192,0.355,73.83,4.69,Pb 50 mm

@@ -1,0 +1,8 @@
+ScopeCode,ScopeName,DeconMethod,SpaldingTier,CycleTimeMin,Notes
+GIE-COL,Colonoscope,Wash + AER,Semi-Critical,30,HTM 01-06
+GIE-GAS,Gastroscope,Wash + AER,Semi-Critical,30,HTM 01-06
+ERCP,ERCP duodenoscope,Wash + AER + dry storage,Semi-Critical,45,FDA enhanced reprocessing
+CYS,Cystoscope,Wash + AER,Semi-Critical,25,
+BRO,Bronchoscope,Wash + AER + dry storage,Semi-Critical,30,
+ULT,Ultrasound endoscope,Wash + AER,Semi-Critical,25,
+EUS,Endoscopic ultrasound,Wash + AER,Semi-Critical,40,
