@@ -546,7 +546,7 @@ namespace StingTools.UI
 
             // Lazy-load thumbnails after the layout pass — keeps the initial
             // render snappy even with 50 photos (default page size).
-            owner.Dispatcher.BeginInvoke(new Action(async () =>
+            _ = owner.Dispatcher.BeginInvoke(new Action(async () =>
             {
                 foreach (var r in rows)
                 {

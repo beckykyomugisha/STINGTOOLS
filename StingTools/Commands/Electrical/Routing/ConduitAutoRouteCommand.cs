@@ -179,7 +179,7 @@ namespace StingTools.Commands.Electrical.Routing
                 {
                     if (c.RouteTrayIds == null) continue;
                     foreach (long lid in c.RouteTrayIds)
-                        jbConduitIds.Add(new ElementId((int)lid));
+                        jbConduitIds.Add(new ElementId(lid));
                 }
                 if (jbConduitIds.Count > 0)
                 {
@@ -210,7 +210,7 @@ namespace StingTools.Commands.Electrical.Routing
                 {
                     if (c.RouteTrayIds == null) continue;
                     foreach (long lid in c.RouteTrayIds)
-                        routedIds.Add(new ElementId((int)lid));
+                        routedIds.Add(new ElementId(lid));
                 }
                 if (routedIds.Count > 0)
                 {
