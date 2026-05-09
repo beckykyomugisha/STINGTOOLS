@@ -6247,6 +6247,118 @@
         "halftoneLinks": true,
         "lineWeightScale": 1.0
       }
+    },
+    {
+      "id": "elec-spool-A1-1to50",
+      "name": "Electrical Spool — A1 @ 1:50",
+      "origin": "corporate",
+      "purpose": "Spool",
+      "discipline": "E",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_ASSEMBLY_ELEC",
+      "scale": 50,
+      "detailLevel": "Fine",
+      "viewTemplateName": "STING - Electrical Shop Drawing",
+      "viewStylePackId": "corp-fabrication-shop",
+      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
+      "sheetNamePattern": "{discipline} spool {spool}",
+      "productionRules": [
+        { "idx": 0, "viewType": "FloorPlan", "slotIndex": 0, "required": true,  "nameSuffix": " - PLAN" },
+        { "idx": 1, "viewType": "ThreeD",    "slotIndex": 1, "required": true,  "nameSuffix": " - ISO"  },
+        { "idx": 2, "viewType": "Schedule",  "slotIndex": 2, "required": false, "nameSuffix": " - BOM"  }
+      ],
+      "crop": { "kind": "TightBbox", "marginMm": 300 },
+      "tokenProfile": {
+        "presentationMode": "FullSpec",
+        "paraDepth": 7,
+        "tagSize": "3",
+        "tagStyle": "BOLD",
+        "tagColor": "BLACK",
+        "colorScheme": "System",
+        "segmentMask": "10000101",
+        "displayMode": 4,
+        "patternMode": "DC",
+        "sectionVisibility": { "A": true, "B": true, "C": false, "D": false, "E": true, "F": true }
+      },
+      "slots": [
+        { "label": "Plan", "viewType": "Plan",     "normX": 0.05, "normY": 0.55, "normW": 0.40, "normH": 0.40 },
+        { "label": "ISO",  "viewType": "ISO",      "normX": 0.55, "normY": 0.55, "normW": 0.40, "normH": 0.40, "scale": 25, "detailLevel": "Fine" },
+        { "label": "BOM",  "viewType": "Schedule", "normX": 0.05, "normY": 0.10, "normW": 0.90, "normH": 0.40 }
+      ],
+      "annotation": {
+        "tagFamilies": {
+          "ElectricalEquipment": "STING_TAG_ELEC",
+          "Conduits":            "STING_TAG_CONDUIT",
+          "CableTrays":          "STING_TAG_TRAY"
+        },
+        "rules": [
+          { "category": "Conduits",            "ruleType": "AutoTag", "enabled": true },
+          { "category": "Cable Trays",         "ruleType": "AutoTag", "enabled": true },
+          { "category": "Electrical Equipment","ruleType": "AutoTag", "enabled": true },
+          { "category": "Conduit Fittings",    "ruleType": "AutoTag", "enabled": true }
+        ],
+        "autoTag": true
+      },
+      "isoNaming": { "volume": "01", "type": "DR", "role": "E", "suitability": "S2", "revision": "P01" },
+      "print": { "colourScheme": "Monochrome", "lineWeightScale": 1.0, "halftoneLinks": false }
+    },
+    {
+      "id": "elec-coord-A1-1to50",
+      "name": "Electrical Coordination — A1 @ 1:50",
+      "origin": "corporate",
+      "purpose": "Coordination",
+      "discipline": "E",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 50,
+      "detailLevel": "Fine",
+      "viewTemplateName": "STING - Electrical Coordination",
+      "viewStylePackId": "corp-coordination",
+      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
+      "sheetNamePattern": "ELECTRICAL COORDINATION — {lvl}",
+      "crop": { "kind": "ScopeBoxOrBbox", "marginMm": 200 },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 4,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "ORANGE",
+        "colorScheme": "System",
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": { "A": true, "B": true, "C": true, "D": true, "E": false, "F": false }
+      },
+      "slots": [
+        { "label": "Main", "viewType": "Plan",   "normX": 0.03, "normY": 0.05, "normW": 0.75, "normH": 0.90, "required": true },
+        { "label": "Key",  "viewType": "Legend", "normX": 0.80, "normY": 0.05, "normW": 0.18, "normH": 0.90 }
+      ],
+      "annotation": {
+        "tagFamilies": {
+          "ElectricalEquipment": "STING_TAG_ELEC",
+          "Conduits":            "STING_TAG_CONDUIT",
+          "CableTrays":          "STING_TAG_TRAY",
+          "LightingFixtures":    "STING_TAG_LIGHT",
+          "FireAlarmDevices":    "STING_TAG_FA"
+        },
+        "rules": [
+          { "category": "Grids",              "ruleType": "AutoDim", "enabled": true },
+          { "category": "Levels",             "ruleType": "AutoDim", "enabled": true },
+          { "category": "Conduits",           "ruleType": "AutoTag", "enabled": true },
+          { "category": "Cable Trays",        "ruleType": "AutoTag", "enabled": true },
+          { "category": "Electrical Equipment","ruleType": "AutoTag","enabled": true },
+          { "category": "Electrical Fixtures","ruleType": "AutoTag", "enabled": true },
+          { "category": "Lighting Fixtures",  "ruleType": "AutoTag", "enabled": true },
+          { "category": "Fire Alarm Devices", "ruleType": "AutoTag", "enabled": true },
+          { "category": "Mechanical Equipment","ruleType":"AutoTag", "enabled": true },
+          { "category": "Pipes",              "ruleType": "AutoTag", "enabled": true },
+          { "category": "Ducts",              "ruleType": "AutoTag", "enabled": true }
+        ],
+        "autoTag": true,
+        "denseUntilScale": 100
+      },
+      "isoNaming": { "volume": "01", "type": "DR", "role": "E", "suitability": "S2", "revision": "P01" },
+      "print": { "colourScheme": "Monochrome", "lineWeightScale": 1.0, "halftoneLinks": false }
     }
   ],
   "routing": [
@@ -6513,6 +6625,30 @@
       "phase": "*",
       "docType": "FIRE_ALARM",
       "drawingTypeId": "elec-fire-alarm-A1-1to100"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "SPOOL",
+      "drawingTypeId": "elec-spool-A1-1to50"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "COORD",
+      "drawingTypeId": "elec-coord-A1-1to50"
+    },
+    {
+      "discipline": "Electrical",
+      "phase": "*",
+      "docType": "SPOOL",
+      "drawingTypeId": "elec-spool-A1-1to50"
+    },
+    {
+      "discipline": "Electrical",
+      "phase": "*",
+      "docType": "COORD",
+      "drawingTypeId": "elec-coord-A1-1to50"
     },
     {
       "discipline": "P",

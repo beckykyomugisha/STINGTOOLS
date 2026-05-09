@@ -1451,6 +1451,24 @@ namespace StingTools.Core
                 case "Panel_SpacesToSpares":    return new Commands.Panels.ConvertSpacesToSparesCommand();
                 case "Panel_ClearSparesSpaces": return new Commands.Panels.ClearSparesAndSpacesCommand();
 
+                // Electrical workflow tags (used by WORKFLOW_ElectricalQA.json)
+                case "Circuit_Balance":         return new Commands.Electrical.PhaseBalanceCommand();
+                case "Circuit_AutoDesc":        return new Commands.Electrical.CircuitDescriptionCommand();
+                case "Calc_LoadSummary":        return new Commands.Electrical.ElecLoadSummaryCommand();
+                case "Calc_VoltageDrop":        return new Commands.Electrical.VoltageDrop.VoltageDropCommand();
+                case "Calc_FlagVD":             return new Commands.Electrical.VoltageDrop.VoltageDropFlagCommand();
+                case "Calc_SizeBreakers":       return new Commands.Electrical.BreakerSizerCommand();
+                case "Calc_ApplyBreakers":      return new Commands.Electrical.BreakerSizerApplyCommand();
+                case "Cable_Calculate":         return new Commands.Electrical.CableSizer.CableSizerCommand();
+                case "Cable_ConduitFill":       return new Commands.Electrical.ConduitFillValidateCommand();
+                case "Validation_BS7671":       return new Commands.Electrical.ElectricalStandardsValidatorCommand();
+                case "Circuit_AssignAuto":      return new Commands.Electrical.BatchAssignCircuitsCommand();
+                case "Lite_CreateSchedule":     return new Commands.Electrical.ElecLightingScheduleCommand();
+                case "Rprt_Audit":              return new Commands.Panels.PanelScheduleAuditCommand();
+                case "Rprt_ExcelExport":        return new Commands.Panels.ExportPanelSchedulesToExcelCommand();
+                case "Rprt_ExcelImport":        return new Commands.Panels.ImportPanelSchedulesFromExcelCommand();
+                case "Rprt_CircuitExport":      return new Commands.Electrical.ExportCircuitsCommand();
+
                 // Tagging
                 case "AutoTag": return new Tags.AutoTagCommand();
                 case "BatchTag": return new Tags.BatchTagCommand();

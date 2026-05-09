@@ -256,6 +256,9 @@ Generic Models,ELC_CDT_SZ_MM,3ab3a279-b143-42ae-ace3-8b3997dcc8a4,TEXT,ELC_PWR,T
 Generic Models,ELC_CDT_MAT_TXT,1d4c7468-66e8-4ee7-a13f-25fd28d4a875,TEXT,ELC_PWR,Type,Conduit material: GS-GALV/UPVC/SS316/AL-FLEX/EMT [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_CDT_INSTALL_METHOD_TXT,a6443de3-f5b7-4279-b348-1e6fbac12e88,TEXT,ELC_PWR,Type,Conduit install method: SURF-MTD/CONC-EMB/TRAY/BRAC/IN-FLOOR [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_CDT_CBL_FILL_PCT,2fdc3987-8e87-4d81-ada8-47514e7b50f2,TEXT,ELC_PWR,Type,Cable fill percentage of conduit cross-section (design value) [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,ELC_CDT_BEND_ANGLE_DEG,c7f5a2e1-9b3d-4e1c-8a2f-7d6b3e4c5a90,TEXT,ELC_PWR,Type,"Conduit bend angle in degrees: 11.25/22.5/30/45/60/90/120 [BS 7671:2018+A2:2022 §522.8]",False,,,MULTI,1,0
+Generic Models,ELC_CDT_BEND_COUNT_NR,d8e6b3f2-ac4e-5f2d-9b3e-8e7c4f5d6b01,TEXT,ELC_PWR,Type,Number of bends in this conduit run (BS 7671 §522.8.5 limits to 3 between draw-in points),False,,,MULTI,1,0
+Generic Models,ELC_CDT_RUN_LENGTH_M,e9f7c4f3-bd5f-6f3e-ac4f-9f8d5e6e7c12,TEXT,ELC_PWR,Type,Conduit run length in metres (BS 7671 max ~6m between draw-in points),False,,,MULTI,1,0
 Generic Models,ELC_CDT_TAG_01_TXT,f867c60f-1fda-4f3f-a052-cf81268c0600,TEXT,ELC_PWR,Type,"Conduit spec tag: size, material, install method [ISO 19650-1:2018]",False,,,MULTI,1,0
 Generic Models,ELC_CDT_TAG_02_TXT,aab93953-601b-4bab-8d52-079193f71524,TEXT,ELC_PWR,Type,Conduit fill + cable ref + installation detail tag [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_CTR_WIDTH_MM,d1f2feb5-c03b-44df-8b3d-41adf0720aa7,TEXT,ELC_PWR,Type,Cable tray width: 100/150/300/450/600/900mm [ISO 19650-1:2018],False,,,MULTI,1,0

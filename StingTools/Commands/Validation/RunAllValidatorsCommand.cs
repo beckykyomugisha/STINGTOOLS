@@ -42,6 +42,8 @@ namespace StingTools.Commands.Validation
                 all.AddRange(new MaintenanceClashValidator().Validate(doc));
                 // §5.5 — reads UNICLASS_* / NBS_CODE_TXT / ASSET_RFI_URL_TXT.
                 all.AddRange(new ClassificationAuditValidator().Validate(doc));
+                // BS 7671:2018+A2:2022 — conduit bends, run length, fill ceilings.
+                all.AddRange(new ElectricalStandardsValidator().Validate(doc));
             }
             catch (Exception ex)
             {
@@ -74,7 +76,7 @@ namespace StingTools.Commands.Validation
             int infos    = all.Count(r => r.Severity == ValidationSeverity.Info);
 
             var panel = StingResultPanel.Create("v4 Validation Suite");
-            panel.SetSubtitle("ConnectivityValidator + FillValidator + SpecValidator + TerminationValidator + SlopeValidator + ClearanceValidator + MaintenanceClashValidator + ClassificationAuditValidator");
+            panel.SetSubtitle("ConnectivityValidator + FillValidator + SpecValidator + TerminationValidator + SlopeValidator + ClearanceValidator + MaintenanceClashValidator + ClassificationAuditValidator + ElectricalStandardsValidator");
 
             panel.AddSection("SUMMARY")
                  .Metric("Total findings", all.Count.ToString())

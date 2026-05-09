@@ -8,7 +8,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Autodesk.Revit.DB;
+using StingTools.Core;
 
 namespace StingTools.Core.Fabrication.Electrical
 {
@@ -72,16 +74,37 @@ namespace StingTools.Core.Fabrication.Electrical
             string path = Path.Combine(outDir, "STING_v4_electrical_bends.csv");
             using (var w = new StreamWriter(path, false))
             {
-                w.WriteLine("element_id,category,name,is_bend,bend_deg,assembly");
+                w.WriteLine("element_id,category,name,is_bend,bend_deg,bend_source,assembly");
                 foreach (var id in ids)
                 {
                     var el = doc.GetElement(id);
                     if (el == null) continue;
                     string nm = (el.Name ?? "").Replace(',', ';');
                     string cat = el.Category?.Name ?? "";
-                    bool isBend = nm.ToUpperInvariant().Contains("ELBOW") || nm.ToUpperInvariant().Contains("BEND");
-                    string deg = nm.Contains("90") ? "90" : nm.Contains("45") ? "45" : "";
-                    w.WriteLine($"{id.Value},{cat},{nm},{isBend},{deg},");
+                    string upper = nm.ToUpperInvariant();
+                    bool isBend = upper.Contains("ELBOW") || upper.Contains("BEND");
+
+                    // Prefer the parameter; fall back to family-name regex only when
+                    // the parameter is missing or unparseable. ELC_CDT_BEND_ANGLE_DEG
+                    // is the registry alias used by AutoConduitDrop and the fabricator.
+                    string deg = "";
+                    string source = "";
+                    string paramVal = ParameterHelpers.GetString(el, ParamRegistry.ELC_CDT_BEND_ANGLE_DEG);
+                    if (!string.IsNullOrEmpty(paramVal) &&
+                        double.TryParse(paramVal, System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture, out double d) && d > 0)
+                    {
+                        deg = ((int)Math.Round(d)).ToString();
+                        source = "param";
+                    }
+                    else if (isBend)
+                    {
+                        // Match the FIRST plausible angle in the name: 11, 22, 30, 45, 60, 90, 120.
+                        var m = Regex.Match(nm, @"\b(11(?:\.25)?|22(?:\.5)?|30|45|60|90|120)\b");
+                        if (m.Success) { deg = m.Groups[1].Value; source = "name-regex"; }
+                    }
+
+                    w.WriteLine($"{id.Value},{cat},{nm},{isBend},{deg},{source},");
                 }
             }
             result.Warnings.Add($"Bend schedule -> {path}");
