@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Planscape.API.Services;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.SignalR;
 using Planscape.API.Authorization;
 
 namespace Planscape.API.Controllers;
@@ -17,8 +19,13 @@ namespace Planscape.API.Controllers;
 public class WarningsController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
+    private readonly IHubContext<NotificationHub> _hub;
 
-    public WarningsController(PlanscapeDbContext db) => _db = db;
+    public WarningsController(PlanscapeDbContext db, IHubContext<NotificationHub> hub)
+    {
+        _db = db;
+        _hub = hub;
+    }
 
     /// <summary>
     /// Push a warning report/baseline from the Revit plugin.
@@ -32,8 +39,22 @@ public class WarningsController : ControllerBase
         if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
         // Update project cached warning count
+        var prev = project.WarningCount;
         project.WarningCount = req.TotalWarnings;
         await _db.SaveChangesAsync();
+
+        // Phase 178b — broadcast so the BCC dashboard, mobile inbox,
+        // and viewer status pill all surface a warning-count change
+        // without polling. Includes the delta so subscribers can
+        // highlight regressions vs improvements.
+        _ = _hub.Clients.Group($"project-{projectId}").SendAsync("WarningsReported", new {
+            projectId,
+            totalWarnings = req.TotalWarnings,
+            previousWarnings = prev,
+            delta = req.TotalWarnings - prev,
+            healthScore = req.HealthScore,
+            reportedAt = DateTime.UtcNow
+        });
 
         return CreatedAtAction(nameof(GetTrend), new { projectId }, new
         {

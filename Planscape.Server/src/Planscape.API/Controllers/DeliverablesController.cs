@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Planscape.API.Services;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.SignalR;
 using Planscape.Infrastructure.Workflow;
 using Planscape.API.Authorization;
 
@@ -33,6 +35,7 @@ public class DeliverablesController : ControllerBase
     private readonly PlanscapeDbContext _db;
     private readonly IAuditService _audit;
     private readonly INotificationService _notifications;
+    private readonly IHubContext<NotificationHub> _hub;
     private readonly ILogger<DeliverablesController> _logger;
     private readonly Planscape.Infrastructure.Workflow.IPlatformKeywordRegistry _platformKeywords;
     private readonly Planscape.Infrastructure.Workflow.ITenantKeywordResolver _tenantKeywords;
@@ -41,6 +44,7 @@ public class DeliverablesController : ControllerBase
         PlanscapeDbContext db,
         IAuditService audit,
         INotificationService notifications,
+        IHubContext<NotificationHub> hub,
         ILogger<DeliverablesController> logger,
         Planscape.Infrastructure.Workflow.IPlatformKeywordRegistry platformKeywords,
         Planscape.Infrastructure.Workflow.ITenantKeywordResolver tenantKeywords)
@@ -48,6 +52,7 @@ public class DeliverablesController : ControllerBase
         _db = db;
         _audit = audit;
         _notifications = notifications;
+        _hub = hub;
         _platformKeywords = platformKeywords;
         _tenantKeywords = tenantKeywords;
         _logger = logger;
@@ -149,6 +154,11 @@ public class DeliverablesController : ControllerBase
         _db.InformationDeliverables.Add(d);
         await _db.SaveChangesAsync();
         await _audit.LogAsync("CREATE", "InformationDeliverable", d.Id.ToString());
+        // Phase 178b — real-time fan-out so every project member's
+        // dashboard / inbox refreshes without polling.
+        _ = _hub.Clients.Group($"project-{projectId}").SendAsync("DeliverableCreated", new {
+            projectId, deliverableId = d.Id, d.Title, d.Status, d.Discipline, d.DueDate
+        });
         return CreatedAtAction(nameof(Get), new { projectId, deliverableId = d.Id }, d);
     }
 
@@ -180,6 +190,9 @@ public class DeliverablesController : ControllerBase
 
         await _db.SaveChangesAsync();
         await _audit.LogAsync("UPDATE", "InformationDeliverable", d.Id.ToString());
+        _ = _hub.Clients.Group($"project-{projectId}").SendAsync("DeliverableUpdated", new {
+            projectId, deliverableId = d.Id, d.Title, d.Status, d.Discipline, d.DueDate
+        });
         return Ok(d);
     }
 
@@ -224,6 +237,7 @@ public class DeliverablesController : ControllerBase
             });
         }
 
+        var previousStatus = d.Status;
         d.Status = target;
         d.UpdatedAt = DateTime.UtcNow;
         var actor = User.FindFirst("display_name")?.Value ?? "Unknown";
@@ -261,6 +275,14 @@ public class DeliverablesController : ControllerBase
             $"Deliverable {d.Code} → {target}",
             d.Title,
             new { d.Id, d.Code, d.Status, projectId });
+
+        // Phase 178b — real-time event for cross-project inboxes /
+        // dashboards subscribed to project-{id}.
+        _ = _hub.Clients.Group($"project-{projectId}").SendAsync("DeliverableTransitioned", new {
+            projectId, deliverableId = d.Id, d.Code, d.Title, d.Status,
+            from = previousStatus, to = target,
+            transitionedAt = DateTime.UtcNow
+        });
 
         return Ok(d);
     }

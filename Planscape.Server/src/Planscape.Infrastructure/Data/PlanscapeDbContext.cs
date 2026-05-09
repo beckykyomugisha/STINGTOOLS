@@ -731,6 +731,40 @@ public class PlanscapeDbContext : DbContext
         // Ensure every tenant-scoped entity has an index on TenantId so the
         // query filter doesn't degenerate into a sequential scan.
         AddTenantIdIndexes(modelBuilder);
+
+        // Phase 178b — Healthcare Pack composite indexes.
+        // HealthcareController.Dashboard filters by (ProjectId, CapturedAt)
+        // for the pressure-log + ligature aggregates. Without composite
+        // indexes the dashboard does index scans against the ProjectId
+        // index then re-filters by CapturedAt in memory; the composite
+        // collapses both into a single index seek.
+        modelBuilder.Entity<HealthcarePressureLog>(e =>
+        {
+            e.HasIndex(x => new { x.ProjectId, x.CapturedAt });
+            e.HasIndex(x => new { x.ProjectId, x.RoomBimId });
+        });
+        modelBuilder.Entity<HealthcareMgasVerification>(e =>
+        {
+            e.HasIndex(x => new { x.ProjectId, x.CapturedAt });
+        });
+        modelBuilder.Entity<HealthcareAntiLigatureAudit>(e =>
+        {
+            e.HasIndex(x => new { x.ProjectId, x.CapturedAt });
+            e.HasIndex(x => new { x.ProjectId, x.Pass });
+        });
+        modelBuilder.Entity<HealthcareRdsSnapshot>(e =>
+        {
+            e.HasIndex(x => new { x.ProjectId, x.RoomBimId });
+        });
+
+        // Phase 178b — SitePhoto compound (ProjectId, PairKey) for
+        // before/after pair lookups. The single-column PairKey index
+        // exists already; the compound version skips a second-pass
+        // ProjectId filter when the dashboard groups by pair.
+        modelBuilder.Entity<SitePhoto>(e =>
+        {
+            e.HasIndex(x => new { x.ProjectId, x.PairKey });
+        });
     }
 
     private void ApplyTenantQueryFilters(ModelBuilder modelBuilder)
