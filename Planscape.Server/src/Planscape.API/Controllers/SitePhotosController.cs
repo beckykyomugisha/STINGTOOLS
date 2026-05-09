@@ -309,7 +309,13 @@ public class SitePhotosController : ControllerBase
             ? new List<SitePhotoDto>()
             : await (
                 from p in _db.SitePhotos.AsNoTracking()
-                where pageIds.Contains(p.Id)
+                // Defense-in-depth: pageIds is already project-scoped
+                // (and project IDs are tenant-scoped in the first query),
+                // but a caller refactor that ever decoupled those would
+                // open a tenant-leak path. The explicit project-id filter
+                // here makes the second query independently tenant-safe
+                // even if someone hand-feeds attacker-controlled IDs.
+                where pageIds.Contains(p.Id) && p.ProjectId == projectId
                 join u in _db.Users.AsNoTracking() on p.CapturedByUserId equals u.Id into ug
                 from u in ug.DefaultIfEmpty()
                 join i in _db.Issues.AsNoTracking() on p.AnchorIssueId equals i.Id into ig
