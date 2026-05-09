@@ -79,7 +79,25 @@ namespace StingTools.Commands.Electrical
                 return Result.Cancelled;
             }
 
-            var pState = panels.Select(p => new PanelState(p, allSystems)).ToList();
+            // Pre-group every assigned circuit by its base-equipment id so
+            // PanelState's constructor is O(1) per panel instead of O(S).
+            // For a 50-panel / 500-circuit project this drops construction
+            // from O(P*S)=25,000 ops to O(P+S)=550.
+            var circuitsByPanel = new Dictionary<long, List<ElectricalSystem>>();
+            foreach (var s in allSystems)
+            {
+                var be = SafeBaseEquipment(s);
+                if (be == null) continue;
+                long key = be.Id.Value;
+                if (!circuitsByPanel.TryGetValue(key, out var list))
+                {
+                    list = new List<ElectricalSystem>();
+                    circuitsByPanel[key] = list;
+                }
+                list.Add(s);
+            }
+
+            var pState = panels.Select(p => new PanelState(p, circuitsByPanel)).ToList();
 
             // ── 2. Greedy assignment ─────────────────────────────────
             var plan = new List<Assignment>();
@@ -246,16 +264,17 @@ namespace StingTools.Commands.Electrical
             public double ConnectedVa { get; private set; }
             public double NominalVoltage { get; }
 
-            public PanelState(FamilyInstance fi, IList<ElectricalSystem> allSystems)
+            public PanelState(FamilyInstance fi, Dictionary<long, List<ElectricalSystem>> circuitsByPanel)
             {
                 Id = fi.Id;
                 Name = SafeName(fi);
                 TotalSlots = SafeReadInt(fi, "Number Of Circuits", 42);
-                int used = allSystems.Count(s => SafeBaseEquipment(s)?.Id == fi.Id);
+                circuitsByPanel.TryGetValue(fi.Id.Value, out var owned);
+                int used = owned?.Count ?? 0;
                 RemainingSlots = Math.Max(0, TotalSlots - used);
-                ConnectedVa = allSystems
-                    .Where(s => SafeBaseEquipment(s)?.Id == fi.Id)
-                    .Sum(SafeApparentVA);
+                double sum = 0;
+                if (owned != null) foreach (var s in owned) sum += SafeApparentVA(s);
+                ConnectedVa = sum;
                 NominalVoltage = SafePanelVoltage(fi);
             }
 

@@ -16,6 +16,13 @@ namespace StingTools.Core.Fabrication.Electrical
 {
     public class ElectricalFabricator
     {
+        // Compiled once per process — bend-name regex used in the CSV
+        // emit loop below. Recompiling per element is a measurable cost
+        // when projects ship thousands of conduit fittings.
+        private static readonly Regex _bendAngleRx = new Regex(
+            @"\b(11(?:\.25)?|22(?:\.5)?|30|45|60|90|120)\b",
+            RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
         public void Fabricate(Document doc, IList<ElementId> elementIds, FabricationResult result)
         {
             if (doc == null || elementIds == null || elementIds.Count == 0) return;
@@ -100,7 +107,7 @@ namespace StingTools.Core.Fabrication.Electrical
                     else if (isBend)
                     {
                         // Match the FIRST plausible angle in the name: 11, 22, 30, 45, 60, 90, 120.
-                        var m = Regex.Match(nm, @"\b(11(?:\.25)?|22(?:\.5)?|30|45|60|90|120)\b");
+                        var m = _bendAngleRx.Match(nm);
                         if (m.Success) { deg = m.Groups[1].Value; source = "name-regex"; }
                     }
 

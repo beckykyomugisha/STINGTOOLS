@@ -27,10 +27,12 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Electrical;
+using Newtonsoft.Json.Linq;
 
 namespace StingTools.Core.Validation
 {
@@ -39,27 +41,52 @@ namespace StingTools.Core.Validation
         public string Name => "ElectricalStandardsValidator";
         private const string ValidatorTag = "ElectricalStandardsValidator";
 
+        // Standard angles per BS EN 61386 / IEC 61386. Cached so the
+        // hot path doesn't allocate per-element. Tolerance = ±0.5°.
+        private static readonly double[] _allowedBendAngles = { 11.25, 22.5, 30, 45, 60, 90, 120 };
+
+        // Compiled once — used by the family-name fallback parser. Match
+        // FIRST plausible angle in the name; "EMT-90-EL" → 90.
+        private static readonly Regex _bendAngleRx = new Regex(
+            @"\b(11(?:\.25)?|22(?:\.5)?|30|45|60|90|120)\b",
+            RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+        // Lazy-loaded threshold cache — populated from STING_FAB_RULES.json
+        // on first Validate() call. Falls back to BS 7671 / BS EN 61386
+        // defaults when the JSON is missing or malformed so the validator
+        // still works on stock projects.
+        private static volatile Thresholds _cached;
+
         /// <summary>BS 7671 §522.8.5 — max bends between draw-in points.</summary>
-        public int MaxBendsBetweenDrawIn { get; set; } = 3;
+        public int MaxBendsBetweenDrawIn { get; set; } = -1;
 
         /// <summary>Conservative max run length between draw-in points (mm).</summary>
-        public double MaxRunLengthMm { get; set; } = 6000.0;
+        public double MaxRunLengthMm { get; set; } = -1;
 
         /// <summary>Manufacturer-typical fill ceiling for straight runs.</summary>
-        public double MaxFillStraightPct { get; set; } = 40.0;
+        public double MaxFillStraightPct { get; set; } = -1;
 
         /// <summary>Manufacturer-typical fill ceiling with one or more bends.</summary>
-        public double MaxFillWithBendsPct { get; set; } = 35.0;
+        public double MaxFillWithBendsPct { get; set; } = -1;
 
         public List<ValidationResult> Validate(Document doc)
         {
             var results = new List<ValidationResult>();
             if (doc == null) return results;
 
+            ApplyDefaults(LoadThresholds());
+
             try
             {
-                ValidateConduits(doc, results);
-                ValidateConduitFill(doc, results);
+                // One collector pass — share results across the conduit
+                // length, bend count and fill checks instead of issuing
+                // three separate FilteredElementCollector queries.
+                var conduits = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_Conduit)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+                ValidateConduits(conduits, results);
+
                 ValidateBendAngles(doc, results);
             }
             catch (Exception ex)
@@ -69,15 +96,19 @@ namespace StingTools.Core.Validation
             return results;
         }
 
-        private void ValidateConduits(Document doc, List<ValidationResult> results)
+        private void ApplyDefaults(Thresholds t)
         {
-            var conduits = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_Conduit)
-                .WhereElementIsNotElementType()
-                .ToList();
+            if (MaxBendsBetweenDrawIn < 0) MaxBendsBetweenDrawIn = t.MaxBends;
+            if (MaxRunLengthMm       < 0) MaxRunLengthMm       = t.MaxLengthMm;
+            if (MaxFillStraightPct   < 0) MaxFillStraightPct   = t.MaxFillStraightPct;
+            if (MaxFillWithBendsPct  < 0) MaxFillWithBendsPct  = t.MaxFillWithBendsPct;
+        }
 
+        private void ValidateConduits(List<Element> conduits, List<ValidationResult> results)
+        {
             foreach (var el in conduits)
             {
+                int bends = ReadBendCount(el);   // read once, share with fill check below
                 try
                 {
                     double lengthMm = ReadLengthMm(el);
@@ -89,13 +120,34 @@ namespace StingTools.Core.Validation
                             ValidatorTag));
                     }
 
-                    int bends = ReadBendCount(el);
                     if (bends > MaxBendsBetweenDrawIn)
                     {
                         results.Add(new ValidationResult(el.Id, ValidationSeverity.Error,
                             "ELEC.BENDS.EXCESS",
                             $"{bends} bends between draw-in points (BS 7671 §522.8.5 limits to {MaxBendsBetweenDrawIn})",
                             ValidatorTag));
+                    }
+
+                    string raw = ParameterHelpers.GetString(el, ParamRegistry.ELC_CONDUIT_FILL_PCT);
+                    if (!string.IsNullOrEmpty(raw) &&
+                        double.TryParse(raw.Trim().TrimEnd('%'),
+                            NumberStyles.Any, CultureInfo.InvariantCulture, out double pct))
+                    {
+                        double limit = bends > 0 ? MaxFillWithBendsPct : MaxFillStraightPct;
+                        if (pct > limit)
+                        {
+                            results.Add(new ValidationResult(el.Id, ValidationSeverity.Error,
+                                "ELEC.FILL.OVER",
+                                $"Cable fill {pct:F1}% exceeds {limit:F0}% manufacturer limit (BS EN 61386)",
+                                ValidatorTag));
+                        }
+                        else if (pct > limit * 0.9)
+                        {
+                            results.Add(new ValidationResult(el.Id, ValidationSeverity.Warning,
+                                "ELEC.FILL.NEAR",
+                                $"Cable fill {pct:F1}% within 10% of {limit:F0}% manufacturer limit",
+                                ValidatorTag));
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -105,53 +157,11 @@ namespace StingTools.Core.Validation
             }
         }
 
-        private void ValidateConduitFill(Document doc, List<ValidationResult> results)
-        {
-            var col = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_Conduit)
-                .WhereElementIsNotElementType();
-
-            foreach (var el in col)
-            {
-                try
-                {
-                    string raw = ParameterHelpers.GetString(el, ParamRegistry.ELC_CONDUIT_FILL_PCT);
-                    if (string.IsNullOrEmpty(raw)) continue;
-                    if (!double.TryParse(raw.Trim().TrimEnd('%'),
-                        NumberStyles.Any, CultureInfo.InvariantCulture, out double pct))
-                        continue;
-
-                    int bends = ReadBendCount(el);
-                    double limit = bends > 0 ? MaxFillWithBendsPct : MaxFillStraightPct;
-
-                    if (pct > limit)
-                    {
-                        results.Add(new ValidationResult(el.Id, ValidationSeverity.Error,
-                            "ELEC.FILL.OVER",
-                            $"Cable fill {pct:F1}% exceeds {limit:F0}% manufacturer limit (BS EN 61386)",
-                            ValidatorTag));
-                    }
-                    else if (pct > limit * 0.9)
-                    {
-                        results.Add(new ValidationResult(el.Id, ValidationSeverity.Warning,
-                            "ELEC.FILL.NEAR",
-                            $"Cable fill {pct:F1}% within 10% of {limit:F0}% manufacturer limit",
-                            ValidatorTag));
-                    }
-                }
-                catch (Exception ex)
-                {
-                    StingLog.Warn($"ElectricalStandardsValidator fill {el?.Id}: {ex.Message}");
-                }
-            }
-        }
-
         private void ValidateBendAngles(Document doc, List<ValidationResult> results)
         {
             // Conduit fittings (bends) — flag any bend whose angle the
             // standard doesn't recognise. Standard angles per BS EN 61386
             // are 11.25, 22.5, 30, 45, 60, 90, 120 degrees.
-            var allowed = new[] { 11.25, 22.5, 30, 45, 60, 90, 120 };
             var col = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_ConduitFitting)
                 .WhereElementIsNotElementType();
@@ -161,7 +171,9 @@ namespace StingTools.Core.Validation
                 {
                     double? deg = ReadBendAngleDeg(el);
                     if (!deg.HasValue) continue;
-                    bool standard = allowed.Any(a => Math.Abs(a - deg.Value) < 0.5);
+                    bool standard = false;
+                    foreach (double a in _allowedBendAngles)
+                        if (Math.Abs(a - deg.Value) < 0.5) { standard = true; break; }
                     if (!standard)
                     {
                         results.Add(new ValidationResult(el.Id, ValidationSeverity.Warning,
@@ -233,18 +245,68 @@ namespace StingTools.Core.Validation
             }
             catch { }
 
-            // Family-name regex fallback.
+            // Family-name regex fallback (compiled regex cached at class scope).
             try
             {
                 string nm = (el.Name ?? "");
                 if (string.IsNullOrEmpty(nm)) return null;
-                var m = Regex.Match(nm, @"\b(11(?:\.25)?|22(?:\.5)?|30|45|60|90|120)\b");
+                var m = _bendAngleRx.Match(nm);
                 if (m.Success && double.TryParse(m.Groups[1].Value,
                     NumberStyles.Any, CultureInfo.InvariantCulture, out double d2))
                     return d2;
             }
             catch { }
             return null;
+        }
+
+        // ── Threshold loader ────────────────────────────────────────────
+        // Reads STING_FAB_RULES.json's Conduit (preferred) or Electrical
+        // section so projects can override BS 7671 defaults without code
+        // changes. Cached process-wide; call ResetThresholds() in tests
+        // or after editing the JSON on disk.
+
+        public static void ResetThresholds() { _cached = null; }
+
+        private static Thresholds LoadThresholds()
+        {
+            var c = _cached;
+            if (c != null) return c;
+
+            var t = new Thresholds();
+            try
+            {
+                string path = StingToolsApp.FindDataFile("STING_FAB_RULES.json");
+                if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                {
+                    var root = JObject.Parse(File.ReadAllText(path));
+                    var node = root["Conduit"] ?? root["Electrical"];
+                    if (node != null)
+                    {
+                        if (node["MaxBends"]    != null) t.MaxBends    = (int)node["MaxBends"];
+                        if (node["MaxLengthMm"] != null) t.MaxLengthMm = (double)node["MaxLengthMm"];
+                        if (node["MaxFillStraightPct"] != null)
+                            t.MaxFillStraightPct = (double)node["MaxFillStraightPct"];
+                        if (node["MaxFillWithBendsPct"] != null)
+                            t.MaxFillWithBendsPct = (double)node["MaxFillWithBendsPct"];
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ElectricalStandardsValidator: STING_FAB_RULES.json parse failed: {ex.Message}");
+            }
+            _cached = t;
+            return t;
+        }
+
+        private sealed class Thresholds
+        {
+            // BS 7671:2018+A2:2022 §522.8 / BS EN 61386 defaults — used
+            // when STING_FAB_RULES.json is missing or malformed.
+            public int    MaxBends             = 3;
+            public double MaxLengthMm          = 6000.0;
+            public double MaxFillStraightPct   = 40.0;
+            public double MaxFillWithBendsPct  = 35.0;
         }
     }
 }
