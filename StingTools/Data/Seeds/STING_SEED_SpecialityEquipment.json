@@ -1,0 +1,226 @@
+{
+  "version": "1.0",
+  "standard": "STING SEED FAMILY — Specialty Equipment (FRP penetrations + sleeves + bespoke fittings)",
+  "_notes": [
+    "Most flexible seed — Specialty Equipment is the catch-all where",
+    "fire-stops, sleeves, MEP penetration markers and other site-",
+    "specific items live. Type variants ship FR30 / FR60 / FR90 /",
+    "FR120 + a SLEEVE_GENERIC variant. SlabPenetrationDetector now",
+    "places this seed (PEN_FIRE_RATING_TXT picks the type variant);",
+    "users swap to Hilti / Promat / etc. via SwapToManufacturer once",
+    "the fire-stop product is selected."
+  ],
+  "symbols": [
+    {
+      "id": "STING_SEED_SpecialityEquipment",
+      "name": "STING Seed — Specialty Equipment / FRP Penetration",
+      "category": "Specialty Equipment",
+      "familyType": "SeedFamily",
+      "discipline": "Generic",
+      "subcategory": "STING_SEED",
+      "isSeed": true,
+      "hosting": "FaceBased",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "STING_SEED_FAMILY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "STING_SEED_SpecialityEquipment"
+        },
+        {
+          "name": "STING_DESIGN_REF_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "STING_SWAP_HISTORY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "ASS_TAG_1",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true
+        },
+        {
+          "name": "PEN_FIRE_RATING_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "FR60"
+        },
+        {
+          "name": "PEN_SEALANT_TYPE_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "INTUMESCENT"
+        },
+        {
+          "name": "PEN_OD_MM",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "32"
+        },
+        {
+          "name": "PEN_HOST_REF_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "PEN_MEMBER_ID_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "PEN_CERTIFICATION_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "BS 476-20 / EN 1366-3"
+        },
+        {
+          "name": "PEN_INSTALL_STATUS_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "DRAFT"
+        },
+        {
+          "name": "PEN_INSTALLER_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "PEN_INSTALL_DATE",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "PEN_INSPECTOR_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "PEN_INSPECTION_DATE",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "PEN_CONTROL_NUMBER_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.5,
+            "startDeg": 0,
+            "endDeg": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.35,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.45,
+            "y1": 0.0,
+            "x2": -0.35,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.35,
+            "y1": 0.0,
+            "x2": 0.45,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.0,
+            "y1": -0.45,
+            "x2": 0.0,
+            "y2": -0.35
+          },
+          {
+            "x1": 0.0,
+            "y1": 0.35,
+            "x2": 0.0,
+            "y2": 0.45
+          }
+        ]
+      },
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 80,
+        "depthMm": 80,
+        "heightMm": 200
+      },
+      "typeVariants": [
+        {
+          "name": "FR30",
+          "params": {
+            "PEN_FIRE_RATING_TXT": "FR30",
+            "PEN_CERTIFICATION_TXT": "BS 476-20 / EN 1366-3 (30 min)"
+          }
+        },
+        {
+          "name": "FR60",
+          "params": {
+            "PEN_FIRE_RATING_TXT": "FR60",
+            "PEN_CERTIFICATION_TXT": "BS 476-20 / EN 1366-3 (60 min)"
+          }
+        },
+        {
+          "name": "FR90",
+          "params": {
+            "PEN_FIRE_RATING_TXT": "FR90",
+            "PEN_CERTIFICATION_TXT": "BS 476-20 / EN 1366-3 (90 min)"
+          }
+        },
+        {
+          "name": "FR120",
+          "params": {
+            "PEN_FIRE_RATING_TXT": "FR120",
+            "PEN_CERTIFICATION_TXT": "BS 476-20 / EN 1366-3 (120 min)"
+          }
+        },
+        {
+          "name": "SLEEVE_GENERIC",
+          "params": {
+            "PEN_FIRE_RATING_TXT": "",
+            "PEN_SEALANT_TYPE_TXT": "NONE"
+          }
+        }
+      ]
+    }
+  ]
+}

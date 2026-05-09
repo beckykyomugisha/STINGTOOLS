@@ -1451,6 +1451,27 @@ namespace StingTools.Core
                 case "Panel_SpacesToSpares":    return new Commands.Panels.ConvertSpacesToSparesCommand();
                 case "Panel_ClearSparesSpaces": return new Commands.Panels.ClearSparesAndSpacesCommand();
 
+                // Electrical workflow tags (used by WORKFLOW_ElectricalQA.json)
+                case "Circuit_Balance":         return new Commands.Electrical.PhaseBalanceCommand();
+                case "Circuit_AutoDesc":        return new Commands.Electrical.CircuitDescriptionCommand();
+                case "Calc_LoadSummary":        return new Commands.Electrical.ElecLoadSummaryCommand();
+                case "Calc_VoltageDrop":        return new Commands.Electrical.VoltageDrop.VoltageDropCommand();
+                case "Calc_FlagVD":             return new Commands.Electrical.VoltageDrop.VoltageDropFlagCommand();
+                case "Calc_SizeBreakers":       return new Commands.Electrical.BreakerSizerCommand();
+                case "Calc_ApplyBreakers":      return new Commands.Electrical.BreakerSizerApplyCommand();
+                case "Cable_Calculate":         return new Commands.Electrical.CableSizer.CableSizerCommand();
+                case "Cable_ConduitFill":       return new Commands.Electrical.ConduitFillValidateCommand();
+                case "Cable_ConsolidateConduits": return new Commands.Electrical.Routing.ConduitConsolidatorCommand();
+                case "Seeds_Build":              return new Commands.Symbols.BuildSeedFamiliesCommand();
+                case "Seeds_SwapToManufacturer": return new Commands.Symbols.SwapToManufacturerCommand();
+                case "Validation_BS7671":       return new Commands.Electrical.ElectricalStandardsValidatorCommand();
+                case "Circuit_AssignAuto":      return new Commands.Electrical.BatchAssignCircuitsCommand();
+                case "Lite_CreateSchedule":     return new Commands.Electrical.ElecLightingScheduleCommand();
+                case "Rprt_Audit":              return new Commands.Panels.PanelScheduleAuditCommand();
+                case "Rprt_ExcelExport":        return new Commands.Panels.ExportPanelSchedulesToExcelCommand();
+                case "Rprt_ExcelImport":        return new Commands.Panels.ImportPanelSchedulesFromExcelCommand();
+                case "Rprt_CircuitExport":      return new Commands.Electrical.ExportCircuitsCommand();
+
                 // Tagging
                 case "AutoTag": return new Tags.AutoTagCommand();
                 case "BatchTag": return new Tags.BatchTagCommand();
@@ -1959,6 +1980,50 @@ namespace StingTools.Core
                             .WhereElementIsNotElementType().GetElementCount() > 0;
                     case "has_sheets":
                         return new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)).GetElementCount() > 0;
+                    case "has_conduits":
+                        return new FilteredElementCollector(doc)
+                            .OfCategory(BuiltInCategory.OST_Conduit)
+                            .WhereElementIsNotElementType()
+                            .GetElementCount() > 0;
+                    case "has_unassigned_circuits":
+                        // For WORKFLOW_ElectricalQA Circuit_AssignAuto gate. Cheap
+                        // best-effort scan: any ElectricalSystem whose
+                        // BaseEquipment is null is an unassigned circuit.
+                        try
+                        {
+                            foreach (var sys in new FilteredElementCollector(doc)
+                                .OfClass(typeof(Autodesk.Revit.DB.Electrical.ElectricalSystem))
+                                .Cast<Autodesk.Revit.DB.Electrical.ElectricalSystem>())
+                            {
+                                try { if (sys.BaseEquipment == null) return true; }
+                                catch { /* read-only soft-fail per system */ }
+                            }
+                        }
+                        catch (Exception ex) { StingLog.Warn($"has_unassigned_circuits: {ex.Message}"); }
+                        return false;
+                    case "load_summary_complete":
+                        // True once any panel carries the load-summary marker
+                        // parameter that ElecLoadSummaryCommand stamps. Falls
+                        // back to "false" when the parameter doesn't exist
+                        // so Calc_VoltageDrop is correctly gated until the
+                        // load summary has actually been computed.
+                        try
+                        {
+                            foreach (var panel in new FilteredElementCollector(doc)
+                                .OfCategory(BuiltInCategory.OST_ElectricalEquipment)
+                                .WhereElementIsNotElementType())
+                            {
+                                string s = ParameterHelpers.GetString(panel, "ELC_PNL_LOAD_SUMMARY_COMPLETE_BOOL");
+                                if (s == "1" || string.Equals(s, "true", StringComparison.OrdinalIgnoreCase))
+                                    return true;
+                                // Fallback: any panel with non-empty connected-load is a sign the
+                                // summary has run at least once.
+                                string load = ParameterHelpers.GetString(panel, ParamRegistry.ELC_PNL_LOAD);
+                                if (!string.IsNullOrEmpty(load) && load != "0") return true;
+                            }
+                        }
+                        catch (Exception ex) { StingLog.Warn($"load_summary_complete: {ex.Message}"); }
+                        return false;
                     default:
                         // WF-001 FIX: Unknown conditions now return false (fail-safe).
                         // Previously returned true, silently executing gated steps on typos.

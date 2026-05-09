@@ -1,0 +1,198 @@
+{
+  "version": "1.0",
+  "standard": "STING SEED FAMILY — Mechanical Equipment (CIBSE Guide B, BS EN 1886)",
+  "symbols": [
+    {
+      "id": "STING_SEED_MechanicalEquipment",
+      "name": "STING Seed — Mechanical Equipment",
+      "category": "Mechanical Equipment",
+      "familyType": "SeedFamily",
+      "discipline": "Mechanical",
+      "subcategory": "STING_SEED",
+      "isSeed": true,
+      "hosting": "Standalone",
+      "symbolSize": 12.0,
+      "parameters": [
+        {
+          "name": "STING_SEED_FAMILY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "STING_SEED_MechanicalEquipment"
+        },
+        {
+          "name": "STING_DESIGN_REF_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "STING_SWAP_HISTORY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "ASS_TAG_1",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true
+        },
+        {
+          "name": "ASS_DISCIPLINE_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "M"
+        },
+        {
+          "name": "ASS_PRODCT_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "AHU"
+        },
+        {
+          "name": "HVC_EQP_TYPE_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "AHU"
+        },
+        {
+          "name": "HVC_EQP_DUTY_KW",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "0"
+        },
+        {
+          "name": "HVC_EQP_FLOW_LS",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "0"
+        },
+        {
+          "name": "HVC_EQP_NOISE_DBA",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "65"
+        },
+        {
+          "name": "HVC_EQP_REFRIG_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "R32"
+        }
+      ],
+      "connectors": [
+        {
+          "domain": "HVAC",
+          "x": -0.5,
+          "y": 0.0,
+          "z": 0.0,
+          "direction": "x-",
+          "_notes": "Supply air connector (left)"
+        },
+        {
+          "domain": "HVAC",
+          "x": 0.5,
+          "y": 0.0,
+          "z": 0.0,
+          "direction": "x+",
+          "_notes": "Return air connector (right)"
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": -0.4,
+            "x2": 0.5,
+            "y2": -0.4
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.4,
+            "x2": 0.5,
+            "y2": 0.4
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.4,
+            "x2": -0.5,
+            "y2": 0.4
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.4,
+            "x2": -0.5,
+            "y2": -0.4
+          },
+          {
+            "x1": 0.0,
+            "y1": -0.4,
+            "x2": 0.0,
+            "y2": 0.4
+          }
+        ]
+      },
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 1200,
+        "depthMm": 600,
+        "heightMm": 800
+      },
+      "typeVariants": [
+        {
+          "name": "AHU",
+          "params": {
+            "HVC_EQP_TYPE_TXT": "AHU",
+            "ASS_PRODCT_COD_TXT": "AHU",
+            "HVC_EQP_DUTY_KW": "15",
+            "HVC_EQP_FLOW_LS": "500"
+          }
+        },
+        {
+          "name": "FCU",
+          "params": {
+            "HVC_EQP_TYPE_TXT": "FCU",
+            "ASS_PRODCT_COD_TXT": "FCU",
+            "HVC_EQP_DUTY_KW": "3",
+            "HVC_EQP_FLOW_LS": "100"
+          }
+        },
+        {
+          "name": "CHILLER",
+          "params": {
+            "HVC_EQP_TYPE_TXT": "CHILLER",
+            "ASS_PRODCT_COD_TXT": "CHL",
+            "HVC_EQP_DUTY_KW": "200",
+            "HVC_EQP_REFRIG_TXT": "R32"
+          }
+        },
+        {
+          "name": "BOILER",
+          "params": {
+            "HVC_EQP_TYPE_TXT": "BOILER",
+            "ASS_PRODCT_COD_TXT": "BLR",
+            "HVC_EQP_DUTY_KW": "100"
+          }
+        },
+        {
+          "name": "PUMP",
+          "params": {
+            "HVC_EQP_TYPE_TXT": "PUMP",
+            "ASS_PRODCT_COD_TXT": "PMP",
+            "HVC_EQP_DUTY_KW": "5"
+          }
+        }
+      ]
+    }
+  ]
+}

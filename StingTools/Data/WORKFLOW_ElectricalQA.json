@@ -1,16 +1,22 @@
 {
   "id": "ElectricalQA",
   "name": "Electrical QA Workflow",
-  "description": "Audit panels, balance phases, size breakers, check voltage drop, and generate a compliance report. Run periodically during electrical design.",
-  "version": "1.0",
+  "description": "Audit panels, balance phases, size breakers, check voltage drop, BS 7671 compliance, and generate a report. Steps gate on data presence so the run is fast on partial models — Validation_BS7671 only fires when conduits exist; voltage drop only fires after the load summary has been computed; the BS 7671 step skips if the model is unchanged since the last successful run.",
+  "version": "1.2",
   "phase": 177,
+  "rollback_on_failure": false,
   "steps": [
-    { "order": 1, "tag": "Panel_Audit",       "label": "Audit panel schedules",      "continueOnFail": true  },
-    { "order": 2, "tag": "Calc_LoadSummary",  "label": "Compute load summary",       "continueOnFail": true  },
-    { "order": 3, "tag": "Circuit_Balance",   "label": "Balance three-phase loads",  "continueOnFail": false },
-    { "order": 4, "tag": "Calc_SizeBreakers", "label": "Preview breaker sizing",     "continueOnFail": true  },
-    { "order": 5, "tag": "Calc_VoltageDrop",  "label": "Calculate voltage drop",     "continueOnFail": true  },
-    { "order": 6, "tag": "Rprt_Audit",        "label": "Generate compliance audit",  "continueOnFail": true  },
-    { "order": 7, "tag": "Rprt_ExcelExport",  "label": "Export panel schedules",     "continueOnFail": true  }
+    { "commandTag": "Panel_Audit",       "label": "Audit panel schedules",      "optional": false },
+    { "commandTag": "Calc_LoadSummary",  "label": "Compute load summary",       "optional": true  },
+    { "commandTag": "Circuit_AssignAuto","label": "Auto-assign circuits to panels (greedy load balancer)",
+      "optional": true, "condition": "has_unassigned_circuits" },
+    { "commandTag": "Circuit_Balance",   "label": "Balance three-phase loads",  "optional": false },
+    { "commandTag": "Calc_SizeBreakers", "label": "Preview breaker sizing",     "optional": true  },
+    { "commandTag": "Calc_VoltageDrop",  "label": "Calculate voltage drop",     "optional": true,
+      "condition": "load_summary_complete" },
+    { "commandTag": "Validation_BS7671", "label": "BS 7671 §522.8 standards validation",
+      "optional": true, "condition": "has_conduits", "skipIfDataUnchanged": true },
+    { "commandTag": "Rprt_Audit",        "label": "Generate compliance audit",  "optional": true  },
+    { "commandTag": "Rprt_ExcelExport",  "label": "Export panel schedules",     "optional": true  }
   ]
 }
