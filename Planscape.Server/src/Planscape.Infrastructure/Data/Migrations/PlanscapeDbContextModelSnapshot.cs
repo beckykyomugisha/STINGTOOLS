@@ -259,6 +259,9 @@ namespace Planscape.Infrastructure.Data.Migrations
                     .IsRequired()
                     .HasColumnType("text");
 
+                b.Property<string>("WatcherUserIds")
+                    .HasColumnType("text");
+
                 b.HasKey("Id");
 
                 b.HasIndex("DueDate")

@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { CheckCircle2, ArrowRight } from 'lucide-react';
 import { useState } from 'react';
+import AfricaProjectMap from './AfricaProjectMap';
 
 const cities = [
   { name: 'Kampala, Uganda', x: 218, y: 220 },
@@ -88,12 +89,20 @@ export default function AfricaSection() {
           transition={{ duration: 0.7, ease: 'easeOut' }}
           className="flex flex-col items-center"
         >
-          <div className="relative">
+          {/* Live Mapbox map of Planscape projects (East + West Africa) when
+              NEXT_PUBLIC_MAPBOX_TOKEN is configured. The component renders
+              its own no-token fallback message; the SVG illustration below
+              is kept for visual continuity on builds without a token. */}
+          <AfricaProjectMap />
+
+          {/* Decorative SVG outline kept as a secondary visual; the live map
+              above is the source of truth when a token is configured. */}
+          <div className="relative mt-8 hidden md:block" aria-hidden>
             <svg
               viewBox="0 0 300 380"
-              className="h-auto w-full max-w-md"
+              className="h-auto w-full max-w-xs opacity-70"
               role="img"
-              aria-label="Map of Africa with active project markers"
+              aria-label="Stylised outline of the African continent"
             >
               <path
                 d={AFRICA_PATH}

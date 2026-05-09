@@ -1019,6 +1019,79 @@ canvas { display: block; touch-action: none; }
 }
 .screenshot-preview img { width: 100%; display: block; }
 
+/* ── Issue modal — BCC-parity additions ─────────────────────── */
+.modal label .hint {
+  font-weight: 400; opacity: 0.7; font-size: 10px; margin-left: 6px;
+}
+.modal .row-2 {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+.watcher-picker { display: flex; flex-direction: column; gap: 6px; }
+.watcher-chips { display: flex; flex-wrap: wrap; gap: 4px; min-height: 4px; }
+.watcher-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--bg-canvas); border: 1px solid var(--border);
+  border-radius: 999px; padding: 2px 8px; font-size: 11px;
+}
+.watcher-chip .x { cursor: pointer; opacity: 0.6; padding-left: 2px; }
+.watcher-chip .x:hover { opacity: 1; }
+.attachment-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.attachment-row {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg-canvas); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 4px 8px; font-size: 11px;
+}
+.attachment-row .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attachment-row .size { opacity: 0.6; font-family: var(--font-mono); font-size: 10px; }
+.attachment-row .x { cursor: pointer; opacity: 0.6; }
+.attachment-row .x:hover { opacity: 1; }
+
+/* Right-rail comments tab + activity timeline */
+.comments-list { display: flex; flex-direction: column; gap: 8px; padding: 8px; }
+.comment-item {
+  background: var(--bg-canvas); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 8px 10px;
+}
+.comment-item .head {
+  display: flex; align-items: center; gap: 6px; font-size: 11px; margin-bottom: 4px;
+}
+.comment-item .author { font-weight: 600; }
+.comment-item .when { opacity: 0.6; font-size: 10px; }
+.comment-item .body { font-size: 12px; white-space: pre-wrap; }
+.comment-composer { padding: 8px; border-top: 1px solid var(--border); }
+.comment-composer textarea {
+  width: 100%; min-height: 60px; resize: vertical;
+  background: var(--bg-canvas); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 8px;
+  font-family: inherit; font-size: 12px;
+}
+.activity-list { padding: 8px; font-size: 12px; }
+.activity-row {
+  display: flex; align-items: flex-start; gap: 8px; padding: 4px 0;
+  border-bottom: 1px dashed var(--border);
+}
+.activity-row .when { opacity: 0.6; font-size: 10px; min-width: 80px; font-family: var(--font-mono); }
+.activity-row .what { flex: 1; }
+
+/* Settings menu (was previously a no-op TaskDialog) */
+.settings-menu {
+  display: none; position: absolute; right: 14px; top: 48px;
+  background: var(--bg-panel); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 6px; z-index: 2400;
+  min-width: 240px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+.settings-menu.open { display: block; }
+.settings-menu .row { padding: 8px; font-size: 12px; }
+.settings-menu .row label { display: block; margin-bottom: 4px; opacity: 0.7; }
+.settings-menu .row input,
+.settings-menu .row select {
+  width: 100%; background: var(--bg-canvas); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 4px 6px; font-size: 12px;
+}
+.settings-menu .actions { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--border); }
+.settings-menu .sep { border-bottom: 1px solid var(--border); margin: 4px 0; }
+
 /* ── Hide original viewer chrome ─────────────────────────── */
 .hud, .toolbar.legacy, .section-slider {
   display: none !important;
