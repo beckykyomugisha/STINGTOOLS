@@ -37,6 +37,12 @@ public sealed class OnnxFaceDetector : IFaceDetector, IDisposable
     private readonly ILogger<OnnxFaceDetector> _logger;
     private readonly InferenceSession? _session;
     private readonly string? _inputName;
+    // One-time diagnostic latch — first run logs the model's actual
+    // output tensor shape so an unexpected variant (e.g. raw 3-stage
+    // heads instead of post-processed [N,15]) surfaces in logs the
+    // first time the worker handles a photo. Avoids a flood when the
+    // model is genuinely just finding zero faces.
+    private int _outputShapeLogged = 0;
 
     public OnnxFaceDetector(ILogger<OnnxFaceDetector> logger)
     {
@@ -81,16 +87,35 @@ public sealed class OnnxFaceDetector : IFaceDetector, IDisposable
             var input  = NamedOnnxValue.CreateFromTensor(_inputName, tensor);
             using var results = _session.Run(new[] { input });
 
-            // YuNet outputs three (loc, iou, conf) heads at strides 8/16/32.
-            // The simplest path — and the one OpenCV's FaceDetectorYN uses
-            // internally — is to read the merged output if the model has
-            // been exported with post-processing baked in. The 2023mar
-            // variant ships post-processed outputs with shape [N, 15] where
-            // each row = [x0, y0, w, h, lmk1x, lmk1y, …, conf].
-            // We probe for the simplest shape first.
+            // YuNet 2023mar (OpenCV Zoo) ships its ONNX export with
+            // post-processing baked in: a single output of shape
+            // [N, 15] where each row =
+            //   [x0, y0, w, h, lmk1x, lmk1y, …, lmk5x, lmk5y, conf].
+            // The DecodePostProcessed reader assumes that shape; if a
+            // future export reverts to the raw three-stage head format
+            // (loc / iou / conf at strides 8/16/32) the dims check at
+            // line ~165 returns []. The first-run logger above prints
+            // the actual shape so the operator notices the mismatch.
             var primary = results.FirstOrDefault();
             if (primary?.Value is not Tensor<float> tensorOut)
                 return Task.FromResult<IReadOnlyList<SKRectI>>(Array.Empty<SKRectI>());
+
+            // First-run diagnostic: log every output's shape so a model
+            // export that doesn't match the [N, 15] post-processed
+            // assumption is immediately visible (and the operator can
+            // swap models or extend the decoder). Uses Interlocked so
+            // the log fires exactly once even under parallel jobs.
+            if (System.Threading.Interlocked.Exchange(ref _outputShapeLogged, 1) == 0)
+            {
+                foreach (var r in results)
+                {
+                    if (r.Value is Tensor<float> t)
+                    {
+                        _logger.LogInformation("OnnxFaceDetector: output '{Name}' shape={Dims}",
+                            r.Name, string.Join("x", t.Dimensions.ToArray()));
+                    }
+                }
+            }
 
             var boxes = DecodePostProcessed(tensorOut, scaleX, scaleY, source.Width, source.Height);
             // Apply non-max suppression so overlapping detections of the

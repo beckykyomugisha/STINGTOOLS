@@ -24,7 +24,12 @@ public sealed class HeuristicNumberPlateDetector : INumberPlateDetector
     private const float MinAspect = 1.8f;
     private const float MaxAspect = 5.5f;
     private const int   MinSidePx = 24;          // smaller than 24 px → noise
-    private const int   ScanStridePx = 4;        // sub-sample stride for speed
+    // Stride-2 sub-sampling halves the chance two adjacent plates
+    // (e.g. articulated lorry rear bar with stacked plates) flood-fill
+    // into a single 9.4:1 merged blob that fails the MaxAspect gate.
+    // Cost: ~4× CPU vs stride-4, still well under the worker's per-photo
+    // budget on a 1600 × 1200 image (~50 ms full sweep).
+    private const int   ScanStridePx = 2;
 
     private readonly ILogger<HeuristicNumberPlateDetector> _logger;
 

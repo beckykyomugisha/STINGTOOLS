@@ -425,6 +425,13 @@ export interface SitePhoto {
   rejectedReason: string | null;
   latitude: number | null;
   longitude: number | null;
+  // Phase 178 FU1 — resolved at projection time (NOT stored on SitePhoto):
+  //   capturedByName joins AppUser.DisplayName via capturedByUserId so
+  //   rows can render "Captured by …" without a second round-trip.
+  //   discipline is derived from the linked BimIssue.Discipline when
+  //   anchorIssueId is set, else null.
+  capturedByName?: string | null;
+  discipline?: string | null;
 }
 
 export interface SitePhotoListResponse {

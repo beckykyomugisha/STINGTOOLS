@@ -3173,13 +3173,17 @@
 
       // Bind to the shim if it's already mounted, OR register a
       // rebind callback that the shim will call once the CDN script
-      // arrives. Either path is safe — bindHub is idempotent.
-      const bound = new WeakSet();
+      // arrives. The "bound" tracker lives on window so a second
+      // setupPhotoRealtime() invocation (page reload, hot-reload)
+      // doesn't re-register every handler against the same hub
+      // singleton — closure-scoped tracking would reset to empty on
+      // each call and produce duplicates.
+      window.__planscapeHubBound = window.__planscapeHubBound || new WeakSet();
       function bindHub() {
         const hub = window.__planscapeHub;
         if (!hub || typeof hub.on !== 'function') return;
-        if (bound.has(hub)) return;
-        bound.add(hub);
+        if (window.__planscapeHubBound.has(hub)) return;
+        window.__planscapeHubBound.add(hub);
         hub.on('SitePhotoCaptured', refreshPhotos);
         hub.on('SitePhotoApproved', refreshPhotos);
         hub.on('IssueCreated', refreshIssues);
