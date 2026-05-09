@@ -162,6 +162,39 @@ namespace StingTools.Commands.Electrical.Routing
             try { manifest.Save(doc); } catch (Exception ex) { StingLog.Warn($"Manifest save: {ex.Message}"); }
             try { ComplianceScan.InvalidateCache(); } catch { }
 
+            // Wave F1 — junction box auto-placement. Runs BEFORE slab
+            // penetration so any JB-induced split also gets penetration
+            // detection on its sub-segments. Walks every routed conduit,
+            // identifies BS 7671 §522.8.5 break-points (>3 bends or
+            // >6 m run length), places STING_SEED_JunctionBox at each
+            // violation point, stamps the conduit with a back-reference.
+            // When the seed family isn't loaded, stamps the would-be
+            // location on the conduit as ELC_CDT_BREAKPOINT_TXT and
+            // surfaces a warning — the schedule still flags the run.
+            int junctionBoxes = 0;
+            try
+            {
+                var jbConduitIds = new List<ElementId>();
+                foreach (var c in manifest.Cables)
+                {
+                    if (c.RouteTrayIds == null) continue;
+                    foreach (long lid in c.RouteTrayIds)
+                        jbConduitIds.Add(new ElementId((int)lid));
+                }
+                if (jbConduitIds.Count > 0)
+                {
+                    using (var tx2 = new Transaction(doc, "STING Junction Box Auto-Place"))
+                    {
+                        tx2.Start();
+                        var jbResult = StingTools.Core.Routing.JunctionBoxAutoPlacer.Place(doc, jbConduitIds);
+                        junctionBoxes = jbResult.Placed;
+                        foreach (var w in jbResult.Warnings) StingLog.Info($"JB placer: {w}");
+                        tx2.Commit();
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"JunctionBoxAutoPlacer: {ex.Message}"); }
+
             // Phase Wave D — slab-penetration detection. Walks every
             // newly-created conduit, finds floor crossings, stamps
             // STING_PENETRATION_REF_TXT + STING_PENETRATION_FIRE_RATING_TXT
@@ -211,6 +244,7 @@ namespace StingTools.Commands.Electrical.Routing
 
             TaskDialog.Show("STING Auto-Route",
                 $"Routed {routed} of {unrouted.Count} cable(s).\n" +
+                $"Junction boxes auto-placed: {junctionBoxes}.\n" +
                 $"Slab penetrations stamped: {penetrations}.\n\n" +
                 "Note: routes use simplified L-shaped paths.\n" +
                 "Review and adjust in Revit for clash avoidance.\n" +

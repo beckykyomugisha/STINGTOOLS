@@ -51,6 +51,20 @@
       ]
     },
     {
+      "seedId": "STING_SEED_JunctionBox",
+      "category": "Electrical Equipment",
+      "_notes": "Auto-placed by JunctionBoxAutoPlacer at every BS 7671 §522.8.5 break-point. Swap to a manufacturer pull-box family once a product line is selected.",
+      "candidates": [
+        { "familyNamePattern": "(?i)hensel.*(box|kvk)",       "label": "Hensel KVK",                 "priority": 10 },
+        { "familyNamePattern": "(?i)wiska",                   "label": "Wiska Combi",                "priority": 15 },
+        { "familyNamePattern": "(?i)spelsberg",               "label": "Spelsberg Abox",             "priority": 20 },
+        { "familyNamePattern": "(?i)pull.*box",               "label": "Pull box",                   "priority": 30 },
+        { "familyNamePattern": "(?i)draw.*in.*box",           "label": "Draw-in box",                "priority": 35 },
+        { "familyNamePattern": "(?i)junction.*box|j-?box",    "label": "Generic junction box",       "priority": 50 },
+        { "familyNamePattern": "(?i)adaptable.*box",          "label": "Adaptable box",              "priority": 60 }
+      ]
+    },
+    {
       "seedId": "STING_SEED_FireAlarmDevice",
       "category": "Fire Alarm Devices",
       "candidates": [

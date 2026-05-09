@@ -16038,3 +16038,9 @@ STING_SWAP_HISTORY_TXT,Data Devices,Instance,True
 STING_SWAP_HISTORY_TXT,Security Devices,Instance,True
 STING_SWAP_HISTORY_TXT,Specialty Equipment,Instance,True
 STING_SWAP_HISTORY_TXT,Generic Models,Instance,True
+ELC_JB_TYPE_TXT,Electrical Equipment,Instance,True
+ELC_JB_SIZE_MM,Electrical Equipment,Instance,True
+ELC_JB_AUTO_PLACED_BOOL,Electrical Equipment,Instance,True
+ELC_JB_REASON_TXT,Electrical Equipment,Instance,True
+ELC_CDT_BREAKPOINT_TXT,Conduits,Instance,True
+ELC_CDT_BREAKPOINT_TXT,Conduit Fittings,Instance,True

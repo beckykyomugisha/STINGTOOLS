@@ -56,6 +56,8 @@ namespace StingTools.Commands.Symbols
             "STING_SEED_MechanicalEquipment.json",
             "STING_SEED_Sprinkler.json",
             "STING_SEED_CommunicationDevice.json",
+            // Automation seed — auto-placed at BS 7671 §522.8.5 break-points
+            "STING_SEED_JunctionBox.json",
         };
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
