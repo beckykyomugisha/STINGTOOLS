@@ -1,0 +1,187 @@
+{
+  "version": "1.0",
+  "standard": "STING SEED FAMILY — Communication Devices (BS EN 50173, BICSI ANSI/TIA-568)",
+  "symbols": [
+    {
+      "id": "STING_SEED_CommunicationDevice",
+      "name": "STING Seed — Communication Device",
+      "category": "Communication Devices",
+      "familyType": "SeedFamily",
+      "discipline": "Electrical",
+      "subcategory": "STING_SEED",
+      "isSeed": true,
+      "hosting": "FaceBased",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "STING_SEED_FAMILY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "STING_SEED_CommunicationDevice"
+        },
+        {
+          "name": "STING_DESIGN_REF_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "STING_SWAP_HISTORY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "ASS_TAG_1",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true
+        },
+        {
+          "name": "ASS_DISCIPLINE_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "E"
+        },
+        {
+          "name": "ASS_PRODCT_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "WAP"
+        },
+        {
+          "name": "COM_DEV_TYPE_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "WIFI_AP"
+        },
+        {
+          "name": "COM_DEV_PORTS_NR",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "1"
+        },
+        {
+          "name": "COM_DEV_POE_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "POE+"
+        },
+        {
+          "name": "COM_DEV_VLAN_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "VLAN10"
+        },
+        {
+          "name": "COM_DEV_PATCH_REF_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": -0.5
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.15,
+            "startDeg": 0,
+            "endDeg": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startDeg": 0,
+            "endDeg": 180
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.45,
+            "startDeg": 0,
+            "endDeg": 180
+          }
+        ]
+      },
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 220,
+        "depthMm": 220,
+        "heightMm": 40
+      },
+      "typeVariants": [
+        {
+          "name": "WIFI_AP",
+          "params": {
+            "COM_DEV_TYPE_TXT": "WIFI_AP",
+            "ASS_PRODCT_COD_TXT": "WAP",
+            "COM_DEV_PORTS_NR": "1",
+            "COM_DEV_POE_TXT": "POE+"
+          }
+        },
+        {
+          "name": "DATA_OUTLET_RJ45",
+          "params": {
+            "COM_DEV_TYPE_TXT": "DATA_OUTLET_RJ45",
+            "ASS_PRODCT_COD_TXT": "DAT",
+            "COM_DEV_PORTS_NR": "2"
+          }
+        },
+        {
+          "name": "PATCH_PANEL",
+          "params": {
+            "COM_DEV_TYPE_TXT": "PATCH_PANEL",
+            "ASS_PRODCT_COD_TXT": "PAT",
+            "COM_DEV_PORTS_NR": "24"
+          }
+        },
+        {
+          "name": "CCTV_CAMERA",
+          "params": {
+            "COM_DEV_TYPE_TXT": "CCTV_CAMERA",
+            "ASS_PRODCT_COD_TXT": "CAM",
+            "COM_DEV_POE_TXT": "POE+"
+          }
+        }
+      ]
+    }
+  ]
+}

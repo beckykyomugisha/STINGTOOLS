@@ -46,6 +46,73 @@ namespace StingTools.Commands.Electrical.Routing
             return segs;
         }
 
+        /// <summary>
+        /// Count direction changes along a route. A direction change is
+        /// a bend the contractor will have to fabricate as a fitting.
+        /// Used by ConduitAutoRouteCommand to pre-flight against the
+        /// BS 7671 §522.8.5 max-3-bends-per-draw-in rule before any
+        /// Conduit elements are created.
+        /// </summary>
+        public static int CountBends(IList<RouteSegment> segs)
+        {
+            if (segs == null || segs.Count < 2) return 0;
+            int bends = 0;
+            XYZ prevDir = (segs[0].End - segs[0].Start).Normalize();
+            for (int i = 1; i < segs.Count; i++)
+            {
+                XYZ d = (segs[i].End - segs[i].Start);
+                double len = d.GetLength();
+                if (len < 1e-6) continue;
+                XYZ dir = d.Normalize();
+                // Treat any deviation > 5° as a bend so colinear sub-
+                // segments inserted by smoothers don't double-count.
+                if (dir.DotProduct(prevDir) < Math.Cos(5.0 * Math.PI / 180.0))
+                    bends++;
+                prevDir = dir;
+            }
+            return bends;
+        }
+
+        /// <summary>
+        /// Insert draw-in waypoints so no draw-in segment exceeds the
+        /// supplied bend cap. Each call produces at most maxBends
+        /// direction changes per output sub-route — the boundary cells
+        /// become "natural" draw-in box locations the user can visit
+        /// in Revit and replace with junction-box families. Empty when
+        /// bend count already satisfies the cap.
+        /// </summary>
+        public static List<List<RouteSegment>> SplitAtBendCap(IList<RouteSegment> segs, int maxBends)
+        {
+            var groups = new List<List<RouteSegment>>();
+            if (segs == null || segs.Count == 0) return groups;
+            if (maxBends <= 0)
+            {
+                groups.Add(new List<RouteSegment>(segs));
+                return groups;
+            }
+            var current = new List<RouteSegment> { segs[0] };
+            int bends = 0;
+            XYZ prevDir = (segs[0].End - segs[0].Start).Normalize();
+            for (int i = 1; i < segs.Count; i++)
+            {
+                XYZ d = (segs[i].End - segs[i].Start);
+                if (d.GetLength() < 1e-6) continue;
+                XYZ dir = d.Normalize();
+                bool bendHere = dir.DotProduct(prevDir) < Math.Cos(5.0 * Math.PI / 180.0);
+                if (bendHere) bends++;
+                if (bends > maxBends)
+                {
+                    groups.Add(current);
+                    current = new List<RouteSegment>();
+                    bends = 0;
+                }
+                current.Add(segs[i]);
+                prevDir = dir;
+            }
+            if (current.Count > 0) groups.Add(current);
+            return groups;
+        }
+
         public static double SelectConduitDiameterMm(IEnumerable<StingCable> cables)
         {
             if (cables == null) return 20;

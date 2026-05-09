@@ -1,0 +1,176 @@
+{
+  "version": "1.0",
+  "standard": "STING SEED FAMILY — Sprinklers (BS EN 12845, BS 9251, LPC Rules)",
+  "symbols": [
+    {
+      "id": "STING_SEED_Sprinkler",
+      "name": "STING Seed — Sprinkler",
+      "category": "Sprinklers",
+      "familyType": "SeedFamily",
+      "discipline": "FireProtection",
+      "subcategory": "STING_SEED",
+      "isSeed": true,
+      "hosting": "CeilingBased",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "STING_SEED_FAMILY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "STING_SEED_Sprinkler"
+        },
+        {
+          "name": "STING_DESIGN_REF_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "STING_SWAP_HISTORY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "ASS_TAG_1",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true
+        },
+        {
+          "name": "ASS_DISCIPLINE_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "FP"
+        },
+        {
+          "name": "ASS_PRODCT_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "SPR"
+        },
+        {
+          "name": "FLS_SPR_TYPE_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "PENDANT"
+        },
+        {
+          "name": "FLS_SPR_K_FACTOR",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "80"
+        },
+        {
+          "name": "FLS_SPR_TEMP_C",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "68"
+        },
+        {
+          "name": "FLS_SPR_HAZARD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "OH1"
+        },
+        {
+          "name": "FLS_SPR_COVER_M2",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "12"
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.4,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0.0,
+            "x2": -0.4,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.0,
+            "x2": 0.5,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.0,
+            "y1": -0.5,
+            "x2": 0.0,
+            "y2": -0.4
+          },
+          {
+            "x1": 0.0,
+            "y1": 0.4,
+            "x2": 0.0,
+            "y2": 0.5
+          }
+        ]
+      },
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 50,
+        "depthMm": 50,
+        "heightMm": 80
+      },
+      "typeVariants": [
+        {
+          "name": "PENDANT",
+          "params": {
+            "FLS_SPR_TYPE_TXT": "PENDANT",
+            "ASS_PRODCT_COD_TXT": "SPR",
+            "FLS_SPR_K_FACTOR": "80",
+            "FLS_SPR_TEMP_C": "68"
+          }
+        },
+        {
+          "name": "UPRIGHT",
+          "params": {
+            "FLS_SPR_TYPE_TXT": "UPRIGHT",
+            "ASS_PRODCT_COD_TXT": "SPR",
+            "FLS_SPR_K_FACTOR": "80",
+            "FLS_SPR_TEMP_C": "68"
+          }
+        },
+        {
+          "name": "SIDEWALL",
+          "params": {
+            "FLS_SPR_TYPE_TXT": "SIDEWALL",
+            "ASS_PRODCT_COD_TXT": "SPR",
+            "FLS_SPR_K_FACTOR": "80",
+            "FLS_SPR_TEMP_C": "68"
+          }
+        },
+        {
+          "name": "CONCEALED",
+          "params": {
+            "FLS_SPR_TYPE_TXT": "CONCEALED",
+            "ASS_PRODCT_COD_TXT": "SPR",
+            "FLS_SPR_K_FACTOR": "80",
+            "FLS_SPR_TEMP_C": "68"
+          }
+        }
+      ]
+    }
+  ]
+}

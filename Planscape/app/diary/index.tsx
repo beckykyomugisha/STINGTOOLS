@@ -17,6 +17,7 @@ import { useRouter } from 'expo-router';
 import { theme } from '@/utils/theme';
 import { listSiteDiaries, type SiteDiarySummary } from '@/api/endpoints';
 import { useProjectStore } from '@/stores/projectStore';
+import { SitePhotoFab } from '@/components/SitePhotoFab';
 
 export default function DiaryListScreen() {
   const router = useRouter();
@@ -107,6 +108,10 @@ export default function DiaryListScreen() {
       >
         <Text style={styles.fabPlus}>＋</Text>
       </TouchableOpacity>
+
+      {/* Phase 178 — site-photo FAB stacked above the diary FAB so site
+          supervisors can capture progress shots straight from the diary list. */}
+      <SitePhotoFab bottom={theme.spacing.lg + 72} />
     </View>
   );
 }

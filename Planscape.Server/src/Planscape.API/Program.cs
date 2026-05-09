@@ -434,10 +434,19 @@ builder.Services.AddHangfire(config => config
     .UseRecommendedSerializerSettings()
     .UsePostgreSqlStorage(o => o.UseNpgsqlConnection(
         builder.Configuration.GetConnectionString("Default"))));
+// Phase 178 — Worker-vs-API split. When PLANSCAPE_ROLE = "worker" the
+// process additionally subscribes to the heavy photo-redaction queue
+// (face/plate detect + watermark composition) and gets bigger worker
+// counts. The default API role never picks photo-redaction jobs, so a
+// burst of approvals at digest time can't starve API request CPU.
+var planscapeRole = (Environment.GetEnvironmentVariable("PLANSCAPE_ROLE") ?? "api").ToLowerInvariant();
+var isWorker = planscapeRole == "worker";
 builder.Services.AddHangfireServer(options =>
 {
-    options.WorkerCount = 2;
-    options.Queues = new[] { "default", "compliance", "notifications", "platform-sync" };
+    options.WorkerCount = isWorker ? Math.Max(4, Environment.ProcessorCount) : 2;
+    options.Queues = isWorker
+        ? new[] { "photo-redaction", "default", "compliance", "notifications", "platform-sync" }
+        : new[] { "default", "compliance", "notifications", "platform-sync" };
 });
 builder.Services.AddScoped<Planscape.Infrastructure.Services.ComplianceCheckJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.SlaEscalationJob>();
@@ -446,6 +455,37 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.DatabaseBackupJob>(
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PlatformSyncJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.ModelDerivativeJob>();
+// Phase 178 — Site photo workflow: redaction worker + daily digest job.
+// The pipeline is split out (PhotoPipeline/IPhotoRedactionPipeline) so
+// the worker container can override the detector bindings with real
+// ONNX models without dragging the dependency into the API process.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.RedactPublishedPhotoJob>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.DailyPhotoDigestJob>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoPipeline.IPhotoRedactionPipeline,
+    Planscape.Infrastructure.Services.PhotoPipeline.SkiaPhotoRedactionPipeline>();
+if (isWorker)
+{
+    // Phase 178b — Worker container loads YuNet (ONNX, ~225 KB) for
+    // face detection and a colour-plus-aspect heuristic for number
+    // plates. Both bind as singletons so the InferenceSession is loaded
+    // once and shared. If the YuNet model file is missing the
+    // OnnxFaceDetector logs a warning at boot and behaves as a no-op
+    // (face blur skipped, watermark still applied — fail-open on the
+    // detection step, fail-closed on the publish step elsewhere).
+    builder.Services.AddSingleton<Planscape.Infrastructure.Services.PhotoPipeline.IFaceDetector,
+        Planscape.Infrastructure.Services.PhotoPipeline.OnnxFaceDetector>();
+    builder.Services.AddSingleton<Planscape.Infrastructure.Services.PhotoPipeline.INumberPlateDetector,
+        Planscape.Infrastructure.Services.PhotoPipeline.HeuristicNumberPlateDetector>();
+}
+else
+{
+    // API binds the null detectors so the DI graph builds even though
+    // the API never instantiates the pipeline.
+    builder.Services.AddSingleton<Planscape.Infrastructure.Services.PhotoPipeline.IFaceDetector,
+        Planscape.Infrastructure.Services.PhotoPipeline.NullFaceDetector>();
+    builder.Services.AddSingleton<Planscape.Infrastructure.Services.PhotoPipeline.INumberPlateDetector,
+        Planscape.Infrastructure.Services.PhotoPipeline.NullNumberPlateDetector>();
+}
 // S1.4 — quota guard service used by [Quota(...)] action filter + controllers.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.IQuotaGuardService,
     Planscape.Infrastructure.Services.QuotaGuardService>();
@@ -1118,6 +1158,15 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.ModelDerivativeJob>(
     "model-derivatives", j => j.ExecuteAsync(CancellationToken.None),
     "*/10 * * * *", new RecurringJobOptions { QueueName = "default" });
+
+// Phase 178 — Daily site-photo digest. Sends each project a single
+// email summarising new client-portal photos + open review queue
+// depth. 17:00 UTC default; per-project override planned via
+// Project.DigestHour follow-up. Stays on the "default" queue (not
+// "photo-redaction") because rendering thumbnails is light.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DailyPhotoDigestJob>(
+    "site-photo-digest", j => j.ExecuteAsync(CancellationToken.None),
+    "0 17 * * *", new RecurringJobOptions { QueueName = "default" });
 
 // S1.6 — daily trial state machine. Sends 7d/3d/1d reminders, freezes
 // expired tenants, prompts dunning. Runs at 06:00 UTC ≈ 09:00 EAT.

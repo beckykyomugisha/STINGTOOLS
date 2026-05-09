@@ -87,6 +87,9 @@ namespace StingTools.UI
         // Healthcare Pack HC-02 — 14th tab gated on PRJ_ORG_HEALTH_FACILITY_TYPE_TXT.
         private const string TabHealthcare     = "HEALTHCARE";
 
+        // Slice 4a — Site Photos review surface (14th tab). See UI/SitePhotosTab.cs.
+        private const string TabSitePhotos     = "SITE PHOTOS";
+
         // ── Data ──
         internal CoordData _data;
         private ContentControl _contentArea;
@@ -269,7 +272,8 @@ namespace StingTools.UI
         // BCC-HIGH-01: Live-data tabs are cleared from cache on NavigateTo so they always reflect current state.
         // Layout-only tabs (PLATFORM, 4D/5D, DELIVERABLES, PERMISSIONS, COORD LOG, TEAM, MEETINGS) are cached.
         private static readonly HashSet<string> _liveDataTabs = new HashSet<string>(StringComparer.Ordinal)
-            { TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions, TabWorkflows, TabQA, TabHealthcare };
+            { TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions, TabWorkflows, TabQA,
+              TabSitePhotos, TabHealthcare };
 
         /// <summary>Result action tag returned to the command handler.</summary>
         public string ResultAction { get; set; }
@@ -1071,13 +1075,20 @@ namespace StingTools.UI
             var nav = new StackPanel { Background = Br(CNavBg) };
             nav.Children.Add(new Border { Height = 8 }); // top spacer
 
-            // Healthcare Pack HC-02 — append the HEALTHCARE tab only when the
-            // facility-type stamp is non-empty (PRJ_ORG_HEALTH_FACILITY_TYPE_TXT).
-            // Non-healthcare projects don't see it.
+            // Site Photos = always present (Phase 178). Healthcare = appended
+            // only when PRJ_ORG_HEALTH_FACILITY_TYPE_TXT is non-empty so
+            // non-healthcare projects don't see the clinical tab. Both can
+            // coexist; ordering is Site Photos before Healthcare so the
+            // photo capture surface stays in a consistent slot regardless
+            // of project type.
             bool isHealthcare = !string.IsNullOrEmpty(GetHealthcareFacilityType());
-            string[] tabs = isHealthcare
-                ? new[] { TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions, TabPlatform, TabWorkflows, TabQA, Tab4D5D, TabDeliverables, TabMeetings, TabProjectMembers, TabCoordLog, TabHealthcare }
-                : new[] { TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions, TabPlatform, TabWorkflows, TabQA, Tab4D5D, TabDeliverables, TabMeetings, TabProjectMembers, TabCoordLog };
+            var tabsList = new System.Collections.Generic.List<string> {
+                TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions,
+                TabPlatform, TabWorkflows, TabQA, Tab4D5D, TabDeliverables,
+                TabMeetings, TabProjectMembers, TabCoordLog, TabSitePhotos
+            };
+            if (isHealthcare) tabsList.Add(TabHealthcare);
+            string[] tabs = tabsList.ToArray();
             int memberCount = _data.Roles.Count + _data.TeamMembers.Count;
             var badgesList = new System.Collections.Generic.List<string> {
                 "", $"{_data.ModelHealthScore}/100",
@@ -1091,7 +1102,8 @@ namespace StingTools.UI
                 _data.DeliverablesOverdue > 0 ? _data.DeliverablesOverdue.ToString() : $"{_data.DeliverablesApproved}/{_data.Deliverables.Count}",
                 "", // MEETINGS
                 memberCount > 0 ? memberCount.ToString() : "", // PROJECT MEMBERS
-                _data.CoordLog.Count > 0 ? _data.CoordLog.Count.ToString() : ""
+                _data.CoordLog.Count > 0 ? _data.CoordLog.Count.ToString() : "",
+                ""  // SITE PHOTOS — pending count is loaded async, no static badge
             };
             if (isHealthcare) badgesList.Add(GetHealthcareFacilityType()); // HEALTHCARE
             string[] badges = badgesList.ToArray();
@@ -1208,12 +1220,72 @@ namespace StingTools.UI
                     TabTeam           => BuildProjectMembersTab(),  // legacy alias
                     TabProjectMembers => BuildProjectMembersTab(),
                     TabCoordLog       => BuildCoordLogTab(),
+                    TabSitePhotos     => BuildSitePhotosTab(),
                     TabHealthcare     => BuildHealthcareTab(),
                     _               => new TextBlock { Text = $"Unknown tab: {tabName}" }
                 };
                 _tabCache[tabName] = tabContent;
             }
             _contentArea.Content = tabContent;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  SITE PHOTOS TAB (Slice 4a) — see UI/SitePhotosTab.cs for the impl.
+        //  Thin wrapper so the existing 13-tab BCC file doesn't grow another
+        //  ~1,000-line tab body.
+        // ════════════════════════════════════════════════════════════════
+
+        private UIElement BuildSitePhotosTab() => SitePhotosTab.BuildTab(this);
+
+        // ── Internal accessors used by SitePhotosTab.cs ─────────────────
+        // SitePhotosTab is a separate file; it consumes our brushes and
+        // cross-link helpers via these `*Pub` shims so we don't have to
+        // expose the private theme palette directly.
+        internal SolidColorBrush AccentBrushPub => Br(CAccent);
+        internal SolidColorBrush HeaderBrushPub => Br(CHeaderBg);
+        internal SolidColorBrush CardBrushPub   => Br(CCardBg);
+        internal SolidColorBrush BorderBrushPub => Br(CBorder);
+        internal SolidColorBrush PageBrushPub   => Br(CPageBg);
+        internal SolidColorBrush GreenBrushPub  => Br(CGreen);
+        internal Color           GreenColourPub => CGreen;
+        internal SolidColorBrush RagBrushPub(string rag) => RagBrush(rag);
+
+        /// <summary>Cross-link from a Defect/Issue photo into the existing ISSUES tab.
+        /// Mirrors the BCC's existing inter-tab navigation pattern: cache-bust the
+        /// target tab so it picks up any new state, store the issue id for the tab
+        /// to consume on render, then NavigateTo.</summary>
+        internal void NavigateToIssuePub(Guid issueId)
+        {
+            try
+            {
+                if (issueId == Guid.Empty) return;
+                StingCommandHandler.SetExtraParam("FocusIssueId", issueId.ToString());
+                if (_tabCache.ContainsKey(TabIssues)) _tabCache.Remove(TabIssues);
+                NavigateTo(TabIssues);
+            }
+            catch (Exception ex) { StingLog.Warn($"NavigateToIssuePub: {ex.Message}"); }
+        }
+
+        /// <summary>Cross-link from an As-built / Reference photo into the active
+        /// Revit view. Reuses the existing SelectIssueElements dispatch path —
+        /// that command already handles the "look up an element by guid, select
+        /// it in the current UI document, zoom the active 3D view to it" flow.
+        /// Stores the unique-id under the same `IssueId` extra-param key the
+        /// command reads so we don't have to add a new server endpoint.</summary>
+        internal void SelectElementInRevitPub(string anchorElementGuid)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(anchorElementGuid)) return;
+                // The SelectIssueElements path expects an issue id; for a
+                // pure unique-id selection we route through the new
+                // SelectByElementGuid extra-param instead. ActionDispatcher
+                // wires this through the existing ExternalEvent pipeline so
+                // the actual element lookup runs on the Revit API thread.
+                StingCommandHandler.SetExtraParam("ElementGuid", anchorElementGuid);
+                ActionDispatcher?.Invoke("SelectByElementGuid");
+            }
+            catch (Exception ex) { StingLog.Warn($"SelectElementInRevitPub: {ex.Message}"); }
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -1273,6 +1345,20 @@ namespace StingTools.UI
             qaWrap.Children.Add(MakeActionButton("✓ Run Compliance",   "CompletenessDashboard", Br(CGreen), "Run tag completeness compliance check"));
             qaWrap.Children.Add(MakeActionButton("⚑ Create Issue",    "RaiseIssue", Br(CRed), "Raise a new issue"));
             qaWrap.Children.Add(MakeActionButton("📅 New Meeting",     "NewMeeting", Br(Color.FromRgb(0x6A, 0x1B, 0x9A)), "Schedule a new BIM coordination meeting"));
+
+            // Slice 4a — direct jump to the site-photos review queue.
+            // Doesn't dispatch through ActionDispatcher because navigation
+            // is a pure WPF concern; just opens the 14th tab.
+            var sitePhotosBtn = new Button
+            {
+                Content = "📷 Site Photos", Height = 30, Padding = new Thickness(14, 0, 14, 0),
+                Margin = new Thickness(0, 0, 6, 6),
+                Background = Br(Color.FromRgb(0x00, 0x69, 0x7C)), Foreground = Brushes.White,
+                BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand,
+                ToolTip = "Open the Site Photos review queue — approve / reject / withdraw incoming field photos"
+            };
+            sitePhotosBtn.Click += (_, _) => NavigateTo(TabSitePhotos);
+            qaWrap.Children.Add(sitePhotosBtn);
             stack.Children.Add(qaWrap);
 
             // Extended Quick Actions

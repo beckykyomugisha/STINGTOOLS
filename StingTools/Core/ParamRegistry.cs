@@ -546,6 +546,10 @@ namespace StingTools.Core
         public static string ELC_CKT_VD_PCT        => Ext("ELC_CKT_VD_PCT");        // → ELC_VLT_DROP_PCT (existing)
         public static string ELC_CKT_CSA_MM2       => Ext("ELC_CKT_CSA_MM2");       // → ELC_CBL_SZ_MM (existing)
         public static string ELC_CONDUIT_FILL_PCT  => Ext("ELC_CONDUIT_FILL_PCT");  // → ELC_CDT_CBL_FILL_PCT (existing)
+        public static string ELC_CDT_BEND_ANGLE_DEG => Ext("ELC_CDT_BEND_ANGLE_DEG"); // BS 7671 §522.8 bend angle on conduit fittings
+        public static string ELC_CDT_BEND_COUNT_NR  => Ext("ELC_CDT_BEND_COUNT_NR");  // BS 7671 §522.8.5 — max 3 between draw-in points
+        public static string ELC_CDT_RUN_LENGTH_M   => Ext("ELC_CDT_RUN_LENGTH_M");   // BS 7671 — typical max 6m between draw-in points
+        public static string ELC_CDT_CABLE_COUNT_NR => Ext("ELC_CDT_CABLE_COUNT_NR"); // BS EN 61386 — fill table varies by cable count (1/2/3+)
         public static string ELC_EMERG_COVERED     => Ext("ELC_EMERG_COVERED");     // → ELC_EMERG_COVERED_BOOL (new)
         public static string ELC_LPD_W_M2          => Ext("ELC_LPD_W_M2");          // → ELC_LPD_W_PER_M2 (new)
         public static string ELC_LPD_LIMIT_W_M2    => Ext("ELC_LPD_LIMIT_W_M2");    // → ELC_LPD_LIMIT_W_PER_M2 (new)
@@ -2205,6 +2209,10 @@ namespace StingTools.Core
             _extendedParams["ELC_CKT_VD_PCT"]        = "ELC_VLT_DROP_PCT";
             _extendedParams["ELC_CKT_CSA_MM2"]       = "ELC_CBL_SZ_MM";
             _extendedParams["ELC_CONDUIT_FILL_PCT"]  = "ELC_CDT_CBL_FILL_PCT";
+            _extendedParams["ELC_CDT_BEND_ANGLE_DEG"] = "ELC_CDT_BEND_ANGLE_DEG";
+            _extendedParams["ELC_CDT_BEND_COUNT_NR"]  = "ELC_CDT_BEND_COUNT_NR";
+            _extendedParams["ELC_CDT_RUN_LENGTH_M"]   = "ELC_CDT_RUN_LENGTH_M";
+            _extendedParams["ELC_CDT_CABLE_COUNT_NR"] = "ELC_CDT_CABLE_COUNT_NR";
             _extendedParams["ELC_EMERG_COVERED"]     = "ELC_EMERG_COVERED_BOOL";
             _extendedParams["ELC_LPD_W_M2"]          = "ELC_LPD_W_PER_M2";
             _extendedParams["ELC_LPD_LIMIT_W_M2"]    = "ELC_LPD_LIMIT_W_PER_M2";

@@ -203,6 +203,14 @@
       <!-- Pin hover tooltip (U1) -->
       <div class="pin-tooltip" id="pinTooltip"></div>
 
+      <!-- Capture FAB (Slice 4b) — floating circular button bottom-left of
+           viewport, clear of joystick area. Opens the capture modal. Hidden
+           until the model has loaded so the empty-state isn't visually noisy. -->
+      <button class="photo-fab" id="photoFab" title="Capture site photo (P)" aria-label="Capture site photo">
+        <span class="glyph">📷</span>
+        <span class="lbl">Capture</span>
+      </button>
+
       <!-- Help overlay -->
       <div class="help-overlay">
         <div class="help-card">
@@ -314,12 +322,16 @@
       <button class="tab active" data-tab="properties">Properties</button>
       <button class="tab" data-tab="clashes">Clashes <span class="count" id="rightTabClashesCount"></span></button>
       <button class="tab" data-tab="issues">Issues <span class="count" id="rightTabIssuesCount"></span></button>
+      <button class="tab" data-tab="photos">Photos <span class="count" id="rightTabPhotosCount"></span></button>
       <button class="tab" data-tab="comments">Comments <span class="count" id="rightTabCommentsCount"></span></button>
       <button class="tab" data-tab="activity">Activity</button>
     </div>
     <div id="pane-properties" class="tab-pane active"></div>
     <div id="pane-clashes"    class="tab-pane"></div>
     <div id="pane-issues"     class="tab-pane"></div>
+    <div id="pane-photos"     class="tab-pane">
+      <div class="empty-state"><span class="glyph">📷</span>No site photos yet</div>
+    </div>
     <div id="pane-comments"   class="tab-pane">
       <div class="empty-state"><span class="glyph">💬</span>No comments yet</div>
     </div>
@@ -423,6 +435,83 @@
     <div class="foot">
       <button class="btn subtle" id="imCancel">Cancel</button>
       <button class="btn" id="imSubmit">Create issue →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────── Site-photo capture modal (Slice 4b) ─────────────────── -->
+<div class="modal-backdrop photo-modal" id="photoCaptureModal">
+  <div class="modal">
+    <div class="head"><h2>Capture site photo</h2><button class="close" id="pcClose">✕</button></div>
+    <div class="body">
+      <label>Reason <span class="hint">(drives default audience &amp; auto-issue routing)</span></label>
+      <div class="choice-group reason-group" id="pcReason">
+        <div class="choice reason-chip rc-progress"  data-v="Progress"  title="Progress photo — auto-routes to PendingReview">📈 Progress</div>
+        <div class="choice reason-chip rc-issue"     data-v="Issue"     title="Issue — auto-creates RFI">⚠ Issue</div>
+        <div class="choice reason-chip rc-defect"    data-v="Defect"    title="Defect — auto-creates NCR">🔧 Defect</div>
+        <div class="choice reason-chip rc-safety"    data-v="Safety"    title="Safety — auto-creates SAFETY high-priority issue">🦺 Safety</div>
+        <div class="choice reason-chip rc-asbuilt"   data-v="AsBuilt"   title="As-built record — auto-routes to PendingReview">📐 As-built</div>
+        <div class="choice reason-chip rc-reference" data-v="Reference" title="Reference — internal only">🗂 Reference</div>
+      </div>
+
+      <label>Photo</label>
+      <input id="pcFileInput" type="file" accept="image/*" capture="environment" style="display:none" />
+      <div id="pcDrop" class="attachment-drop" tabindex="0"
+           role="button" aria-label="Tap to pick / take a photo, or drop a file here">
+        <button class="btn ghost" id="pcPickBtn" type="button">📷 Take photo / pick file</button>
+        <div class="hint">JPEG / PNG · max 25 MB · drop a file here or use the camera on mobile</div>
+      </div>
+      <div id="pcPreview" class="photo-preview"></div>
+
+      <label>Caption <span class="hint">(optional at capture; required to approve)</span></label>
+      <textarea id="pcCaption" rows="2" placeholder="Short note describing what's in shot"></textarea>
+
+      <div class="row-2">
+        <div>
+          <label>Level</label>
+          <input id="pcLevel" placeholder="e.g. L02" />
+        </div>
+        <div>
+          <label>Zone</label>
+          <input id="pcZone" placeholder="e.g. Z01" />
+        </div>
+      </div>
+
+      <div class="anchor-strip" id="pcAnchorStrip">
+        <span class="lbl">Anchor</span>
+        <span class="pill" id="pcAnchorElement">Element: —</span>
+        <span class="pill" id="pcAnchorPoint">3D point: —</span>
+        <span class="pill" id="pcAnchorModel">Model: —</span>
+      </div>
+    </div>
+    <div class="foot">
+      <button class="btn subtle" id="pcCancel">Cancel</button>
+      <button class="btn" id="pcSubmit">Capture →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────── Site-photo review queue modal (PM/Admin/Owner) ──────────── -->
+<div class="modal-backdrop photo-modal" id="photoReviewModal">
+  <div class="modal">
+    <div class="head"><h2>Photo review queue</h2><button class="close" id="prClose">✕</button></div>
+    <div class="body">
+      <div class="review-toolbar">
+        <span id="prCountLabel" class="hint">Loading…</span>
+        <div class="right">
+          <button class="btn sm subtle" id="prRefresh">↻ Refresh</button>
+          <button class="btn sm subtle" id="prSelectAll">Select all</button>
+          <button class="btn sm subtle" id="prSelectNone">Clear</button>
+        </div>
+      </div>
+      <div id="prList" class="review-list">
+        <div class="inline-loader"><span class="dot-spin"></span>Loading pending photos…</div>
+      </div>
+    </div>
+    <div class="foot foot-bulk">
+      <input id="prBulkCaption" placeholder="Shared caption for selected photos (≥ 3 chars to approve)" />
+      <button class="btn subtle" id="prBulkCancel">Close</button>
+      <button class="btn" id="prBulkApprove">✓ Approve selected</button>
     </div>
   </div>
 </div>
@@ -875,6 +964,12 @@
     if (x && typeof x.tickFps === 'function') x.tickFps();
   }, 50);
 </script>
+
+<!-- Phase 178 — SignalR hub shim. Loads @microsoft/signalr from CDN
+     and exposes window.__planscapeHub BEFORE the coordination layer
+     calls setupPhotoRealtime(). Skipped automatically inside the React
+     Native WebView (mobile owns its own RealtimeClient). -->
+<script src="./signalr-shim.js"></script>
 
 <!-- Coordination layer — panels, API, clash + issue management. -->
 <script src="./coordination-viewer.js"></script>

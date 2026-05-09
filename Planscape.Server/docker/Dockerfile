@@ -52,6 +52,23 @@ RUN if [ "$IFCCONVERT_URL" != "skip" ]; then \
 
 COPY --from=build /app .
 
+# Phase 178b — YuNet ONNX face-detection model for the photo redaction
+# worker. Skipped by default (worker-only path; the API process never
+# loads ONNX). To bake the model into a worker-role image, build with:
+#
+#   docker build --build-arg PLANSCAPE_FACE_MODEL=true ...
+#
+# The model is fetched from the OpenCV Zoo public CDN (Apache-2.0)
+# and persisted at /var/lib/planscape/onnx — the same path the
+# OnnxFaceDetector reads via PLANSCAPE_FACE_MODEL_PATH default.
+ARG PLANSCAPE_FACE_MODEL=skip
+RUN if [ "$PLANSCAPE_FACE_MODEL" = "true" ]; then \
+        mkdir -p /var/lib/planscape/onnx && \
+        curl -fL -o /var/lib/planscape/onnx/face_detection_yunet_2023mar.onnx \
+            https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx && \
+        echo "YuNet model installed at /var/lib/planscape/onnx" ; \
+    fi
+
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 

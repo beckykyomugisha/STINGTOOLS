@@ -115,6 +115,11 @@
       history: [],
       issuePins: new Map(),    // issueId → mesh
       clashPins: new Map(),    // clashId → mesh
+      photoPins: new Map(),    // Slice 4b — photoId → mesh
+      photos: [],              // Slice 4b — list of SitePhotoDto rows
+      photoFilters: { reason: 'any', audience: 'any' },
+      photoCaptureSeed: {},
+      photoReviewSelected: new Set(),
       elementMaterials: new Map(), // mesh.uuid → original material (for ghost / highlight)
       ghostMode: false,
       apiBase, projectId, modelId, token
@@ -211,6 +216,10 @@
     setupHeartbeat();
     setupSelectionToolbar();
     setupRowContextMenu();
+    setupPhotoCaptureModal();
+    setupPhotoReviewModal();
+    setupPhotoFab();
+    setupPhotoRealtime();
     renderProperties(null);
     renderHistory();
     updateBadges();
@@ -321,9 +330,10 @@
       // the endpoint is unavailable (offline, permission denied, etc.).
       await loadProjectMembers();
 
-      // Issues + clashes
+      // Issues + clashes + site photos (Slice 4b)
       await loadIssues();
       await loadClashes();
+      await loadSitePhotos();
     }
 
     async function loadProjectMembers() {
@@ -915,8 +925,15 @@
     }
 
     // ── Saved views ────────────────────────────────────────────────────
-    $('#btnAddView').addEventListener('click', () => {
-      const name = prompt('Saved view name', `View ${state.savedViews.length + 1}`);
+    $('#btnAddView').addEventListener('click', async () => {
+      const name = await promptInline({
+        title: 'Save current view',
+        label: 'Name',
+        placeholder: 'e.g. Plant room — main entry',
+        defaultValue: `View ${state.savedViews.length + 1}`,
+        minLength: 1, maxLength: 80,
+        okLabel: 'Save view',
+      });
       if (!name) return;
       state.savedViews.push({ id: 'v' + Date.now(), name, snapshot: captureViewState() });
       renderSavedViews();
@@ -1007,6 +1024,7 @@
           state.rightTab = t.dataset.tab;
           if (t.dataset.tab === 'clashes') renderRightClashes();
           if (t.dataset.tab === 'issues')  renderRightIssues();
+          if (t.dataset.tab === 'photos')  { loadSitePhotos(); renderPhotos(); }
           if (t.dataset.tab === 'comments') renderComments();
           if (t.dataset.tab === 'activity') renderActivityTimeline();
         });
@@ -1329,6 +1347,86 @@
     // (file:// inside RN WebView, http:// in older browsers). Fall back
     // to the historic textarea + execCommand("copy") trick so the Copy
     // STING Tag / Share view link buttons keep working there too.
+    // ── Inline prompt (replacement for window.prompt) ────────────────
+    // window.prompt is blocked or styled inconsistently across browsers
+    // (mobile WebKit hides it entirely; Chrome's looks like a 1996 Java
+    // applet). This helper renders a small in-app modal that fits the
+    // viewer's design language, supports a multi-line textarea + min/max
+    // length validation, and resolves with the entered string or null.
+    //
+    // opts: { title, label?, placeholder?, defaultValue?, multiline?,
+    //         minLength?, maxLength?, okLabel?, cancelLabel? }
+    // Returns: Promise<string | null>
+    function promptInline(opts) {
+      const {
+        title, label = '', placeholder = '', defaultValue = '',
+        multiline = false, minLength = 0, maxLength = 2000,
+        okLabel = 'OK', cancelLabel = 'Cancel',
+      } = opts || {};
+      return new Promise((resolve) => {
+        const back = el('div', { class: 'modal-backdrop open inline-prompt-bd' });
+        const card = el('div', { class: 'modal inline-prompt' });
+        const head = el('div', { class: 'head' }, [
+          el('h2', {}, title || 'Enter value'),
+          el('button', { class: 'close', title: 'Cancel' }, '✕')
+        ]);
+        const body = el('div', { class: 'body' });
+        if (label) body.appendChild(el('label', {}, label));
+        const input = multiline
+          ? el('textarea', { rows: '3', placeholder })
+          : el('input', { type: 'text', placeholder });
+        input.value = defaultValue || '';
+        body.appendChild(input);
+        const counter = el('div', { class: 'inline-prompt-counter' }, '');
+        body.appendChild(counter);
+        const foot = el('div', { class: 'foot' }, [
+          el('button', { class: 'btn subtle' }, cancelLabel),
+          el('button', { class: 'btn' }, okLabel)
+        ]);
+        card.appendChild(head); card.appendChild(body); card.appendChild(foot);
+        back.appendChild(card);
+        document.body.appendChild(back);
+
+        const okBtn = $('.btn:not(.subtle)', foot);
+        const cancelBtn = $('.btn.subtle', foot);
+        const closeBtn = $('.close', head);
+
+        function paintCounter() {
+          const len = (input.value || '').trim().length;
+          counter.textContent = `${len} / ${maxLength}${minLength > 0 ? ` (min ${minLength})` : ''}`;
+          counter.classList.toggle('warn', minLength > 0 && len < minLength);
+          okBtn.disabled = (minLength > 0 && len < minLength) || len > maxLength;
+        }
+        paintCounter();
+        input.addEventListener('input', paintCounter);
+        // Submit on Enter (single-line) / Ctrl-Enter (multiline).
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' && (!multiline || e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            if (!okBtn.disabled) okBtn.click();
+          }
+        });
+
+        let done = false;
+        function close(value) {
+          if (done) return;
+          done = true;
+          back.remove();
+          resolve(value);
+        }
+        okBtn.addEventListener('click', () => close(input.value));
+        cancelBtn.addEventListener('click', () => close(null));
+        closeBtn.addEventListener('click', () => close(null));
+        back.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') { e.preventDefault(); close(null); }
+        });
+        back.addEventListener('click', (e) => {
+          if (e.target === back) close(null);
+        });
+        setTimeout(() => input.focus(), 30);
+      });
+    }
+
     function copyText(t) {
       if (!t) return;
       const okMsg = 'Copied: ' + t;
@@ -1718,6 +1816,14 @@
         if (kind === 'clash' && tr._clash) openClashRowMenu(menu, tr._clash, e.clientX, e.clientY);
         else if (kind === 'issue' && tr._issue) openIssueRowMenu(menu, tr._issue, e.clientX, e.clientY);
       });
+      // Slice 4b — photo cards live in the right rail, not the bottom panel.
+      // Mirror the row-menu behaviour for `.photo-card[data-kind=photo]`.
+      $('#pane-photos')?.addEventListener('contextmenu', (e) => {
+        const card = e.target.closest('.photo-card[data-kind="photo"]');
+        if (!card || !card._photo) return;
+        e.preventDefault();
+        openPhotoRowMenu(menu, card._photo, e.clientX, e.clientY);
+      });
       // Click anywhere else to dismiss.
       document.addEventListener('click', (e) => {
         if (activeRowMenu && !e.target.closest('.row-menu')) {
@@ -1825,6 +1931,98 @@
             copyText(url);
         }},
       ], x, y);
+    }
+
+    function openPhotoRowMenu(menu, p, x, y) {
+      const reviewer = isPhotoApprover();
+      const items = [
+        { glyph: '🎯', label: 'Zoom to photo', run: () => focusPhoto(p) },
+      ];
+      if (p.anchorElementGuid) {
+        items.push({ glyph: '◎', label: 'Zoom to anchored element', run: () => {
+          const m = findMeshByGuid(p.anchorElementGuid);
+          if (m) {
+            const bb = new THREE_.Box3().setFromObject(m);
+            flyTo(bb.getCenter(new THREE_.Vector3()));
+            emissive(m, 0xF97316);
+          } else {
+            toast('Anchored element not in current model', 'warn');
+          }
+        }});
+      }
+      items.push('-');
+      items.push({ glyph: '✏', label: 'Edit caption', run: async () => {
+        const cap = await promptInline({
+          title: 'Edit caption',
+          label: 'What does this photo show?',
+          placeholder: 'e.g. Riser sleeves cast on Level 02',
+          defaultValue: p.caption || '',
+          multiline: true, minLength: 0, maxLength: 2000,
+          okLabel: 'Save caption',
+        });
+        if (cap == null) return;
+        // No dedicated patch endpoint yet; an approve(caption) on a
+        // PendingReview photo doubles as caption-set. For other audiences
+        // we surface a notice — the canonical edit path lives on the
+        // server slice 4a (not yet wired into this viewer slice).
+        if (p.audience === 'PendingReview') {
+          if (cap.trim().length < 3) { toast('Caption ≥ 3 chars to approve', 'warn'); return; }
+          const r = await approveSitePhoto(p.id, cap.trim());
+          if (r) { Object.assign(p, r); renderPhotos(); }
+        } else {
+          toast('Caption editing for non-pending photos lands in slice 5', 'warn');
+        }
+      }});
+      if (reviewer) {
+        items.push('-');
+        if (p.audience === 'PendingReview' || p.audience === 'Internal') {
+          items.push({ glyph: '✓', label: 'Approve', run: async () => {
+            let cap = p.caption || '';
+            if (cap.trim().length < 3) {
+              cap = await promptInline({
+                title: 'Approve photo',
+                label: 'Approval caption (visible to client)',
+                placeholder: 'Describe what the client should see',
+                defaultValue: cap,
+                multiline: true, minLength: 3, maxLength: 2000,
+                okLabel: 'Approve & publish',
+              });
+            }
+            if (!cap || cap.trim().length < 3) return;
+            const r = await approveSitePhoto(p.id, cap);
+            if (r) { Object.assign(p, r); renderPhotos(); }
+          }});
+        }
+        if (p.audience === 'PendingReview' || p.audience === 'Approved') {
+          items.push({ glyph: '✗', label: 'Reject', run: async () => {
+            const reason = await promptInline({
+              title: 'Reject photo',
+              label: 'Reason (shown to the capturer)',
+              placeholder: 'e.g. off-topic / poor quality / privacy',
+              defaultValue: '',
+              multiline: true, minLength: 0, maxLength: 500,
+              okLabel: 'Reject',
+            });
+            if (reason === null) return;
+            const r = await rejectSitePhoto(p.id, reason);
+            if (r) { Object.assign(p, r); renderPhotos(); }
+          }});
+        }
+        if (p.audience === 'ClientPortal') {
+          items.push({ glyph: '↶', label: 'Withdraw from portal', run: async () => {
+            if (!confirm('Withdraw this photo from the client portal?')) return;
+            const r = await withdrawSitePhoto(p.id);
+            if (r) { Object.assign(p, r); renderPhotos(); }
+          }});
+        }
+      }
+      items.push('-');
+      items.push({ glyph: '📋', label: 'Copy photo ID', run: () => copyText(p.id) });
+      items.push({ glyph: '🔗', label: 'Copy permalink', run: () => {
+        const url = `${location.origin}${location.pathname}?project=${projectId}&model=${modelId}&photo=${p.id}`;
+        copyText(url);
+      }});
+      showRowMenuAt(menu, items, x, y);
     }
 
     function setupSelectionToolbar() {
@@ -2338,6 +2536,664 @@
       logHistory(`Created ${created.code || 'issue'}`);
     }
 
+    // ── Site photos (Slice 4b) ─────────────────────────────────────────
+    // Six-Reason taxonomy from server: Progress / Issue / Defect / Safety /
+    // AsBuilt / Reference. Photos can be filtered by reason + audience and
+    // optionally restricted to the currently-selected element. PM/Admin/Owner
+    // get the bulk-approve reviewer pane.
+    const PHOTO_REASONS = ['Progress','Issue','Defect','Safety','AsBuilt','Reference'];
+    const PHOTO_AUDIENCES = ['Internal','PendingReview','Approved','ClientPortal','Withdrawn'];
+    const PHOTO_PIN_COLOUR = 0xFBBF24;       // gold (matches design lock)
+    const PHOTO_BLOB_CACHE = new Map();      // photoId → object URL (revoked on cleanup)
+
+    // (state.photos / photoFilters / photoPins / photoCaptureSeed /
+    // photoReviewSelected initialised inside the main `state` object above
+    // so updateRightTabCounts can read them on the first paint before this
+    // block has run.)
+    let pendingPhotoFile = null;             // staged file in capture modal
+    let pendingPhotoObjectUrl = null;        // preview url to revoke on close
+
+    // ── API helpers — match the existing loadIssues / loadClashes pattern ──
+    async function loadSitePhotos(filters = {}) {
+      if (!projectId) { state.photos = []; renderPhotos(); return state.photos; }
+      const qs = new URLSearchParams();
+      const merged = Object.assign({}, state.photoFilters, filters);
+      if (merged.reason && merged.reason !== 'any') qs.set('reason', merged.reason);
+      if (merged.audience && merged.audience !== 'any') qs.set('audience', merged.audience);
+      if (state.selectedElementGuid) qs.set('anchorElementGuid', state.selectedElementGuid);
+      qs.set('pageSize', '200');
+      const path = `/api/projects/${projectId}/photos${qs.toString() ? '?' + qs.toString() : ''}`;
+      const data = await api(path);
+      const items = Array.isArray(data) ? data : (data?.items || []);
+      state.photos = items;
+      placePhotoPins();
+      if (state.rightTab === 'photos') renderPhotos();
+      updateRightTabCounts();
+      return items;
+    }
+
+    async function captureSitePhoto(formData) {
+      // Multipart POST — DO NOT set Content-Type; the browser fills the
+      // multipart boundary correctly when omitted. We bypass api() because
+      // it stamps application/json on every call.
+      if (!projectId) { toast('No active project — cannot capture', 'error'); return null; }
+      try {
+        const headers = {};
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+        const tenantId = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_tenant')) || state.tenantId;
+        if (tenantId) headers['X-Tenant'] = tenantId;
+        const ctl = new AbortController();
+        const timer = setTimeout(() => ctl.abort(), 60000);  // 60s — phone-camera JPEG can be 5-15 MB
+        const res = await fetch(`${apiBase}/api/projects/${projectId}/photos/capture`, {
+          method: 'POST', headers, body: formData, signal: ctl.signal
+        });
+        clearTimeout(timer);
+        if (!res.ok) {
+          let msg = `${res.status} ${res.statusText}`;
+          try { const err = await res.json(); if (err?.error) msg = err.error + (err.allowed ? ` (allowed: ${err.allowed.join(', ')})` : ''); } catch (_) {}
+          toast(`Capture failed — ${msg}`, 'error');
+          return null;
+        }
+        return await res.json();
+      } catch (e) {
+        const aborted = e && e.name === 'AbortError';
+        toast(aborted ? 'Capture timed out — retry?' : 'Capture failed — ' + (e.message || e), 'error');
+        return null;
+      }
+    }
+
+    async function approveSitePhoto(id, caption) {
+      const r = await api(`/api/projects/${projectId}/photos/${id}/approve`, {
+        method: 'POST', body: JSON.stringify({ caption: caption || null })
+      });
+      if (r) toast('Photo approved', 'success');
+      return r;
+    }
+    async function rejectSitePhoto(id, reason) {
+      const r = await api(`/api/projects/${projectId}/photos/${id}/reject`, {
+        method: 'POST', body: JSON.stringify({ reason: reason || null })
+      });
+      if (r) toast('Photo rejected', 'success');
+      return r;
+    }
+    async function withdrawSitePhoto(id) {
+      const r = await api(`/api/projects/${projectId}/photos/${id}/withdraw`, {
+        method: 'POST', body: JSON.stringify({})
+      });
+      if (r) toast('Photo withdrawn', 'success');
+      return r;
+    }
+    async function bulkApproveSitePhotos(ids, caption) {
+      if (!ids || !ids.length) return null;
+      if (!caption || caption.trim().length < 3) {
+        toast('Approval caption must be ≥ 3 chars', 'warn');
+        return null;
+      }
+      const r = await api(`/api/projects/${projectId}/photos/bulk-approve`, {
+        method: 'POST', body: JSON.stringify({ photoIds: ids, caption: caption.trim() })
+      });
+      if (r) toast(`Approved ${ids.length} photo${ids.length === 1 ? '' : 's'}`, 'success');
+      return r;
+    }
+
+    // Approver gate mirrors server: Admin / Owner / PM (project role).
+    function isPhotoApprover() {
+      const u = state.currentUser || {};
+      const role = (u.role || u.Role || '').toString();
+      if (role === 'Admin' || role === 'Owner') return true;
+      // ProjectMember role check — populated by loadProjectMembers().
+      const myId = u.id || u.userId;
+      if (!myId) return false;
+      const me = state.members.find(m => m.id === myId);
+      return !!me && (me.role === 'PM' || me.role === 'pm');
+    }
+
+    // ── 3D pin handling — mirrors placeIssuePins / placeClashPins ─────
+    function placePhotoPins() {
+      const host = V.pinGroup || V.scene;
+      state.photoPins.forEach(m => {
+        host.remove(m);
+        if (V.pinMeta) V.pinMeta.delete(m.uuid);
+      });
+      state.photoPins.clear();
+      if (!V.modelBounds || V.modelBounds.isEmpty()) return;
+      const size = V.modelBounds.getSize(new THREE_.Vector3()).length() * 0.0072;
+      state.photos.forEach(p => {
+        if (p.modelX == null || p.modelY == null || p.modelZ == null) return;
+        const sphere = new THREE_.Mesh(
+          new THREE_.SphereGeometry(size, 16, 16),
+          new THREE_.MeshStandardMaterial({
+            color: PHOTO_PIN_COLOUR, emissive: PHOTO_PIN_COLOUR,
+            emissiveIntensity: 0.55, depthTest: false
+          })
+        );
+        sphere.position.set(p.modelX, p.modelY, p.modelZ);
+        sphere.userData.photoId = p.id;
+        sphere.renderOrder = 999;
+        host.add(sphere);
+        if (V.pinMeta) V.pinMeta.set(sphere.uuid, { __coord: 'photo', photoId: p.id, reason: p.reason });
+        state.photoPins.set(p.id, sphere);
+      });
+    }
+
+    function focusPhoto(p) {
+      if (!p) return;
+      // Switch to Photos tab + scroll the matching card into view.
+      const tab = $$('.tab-bar .tab').find(t => t.dataset.tab === 'photos');
+      if (tab) tab.click();
+      if (p.modelX != null && p.modelY != null && p.modelZ != null) {
+        flyTo(new THREE_.Vector3(p.modelX, p.modelY, p.modelZ));
+      } else if (p.anchorElementGuid) {
+        const m = findMeshByGuid(p.anchorElementGuid);
+        if (m) {
+          const bb = new THREE_.Box3().setFromObject(m);
+          flyTo(bb.getCenter(new THREE_.Vector3()));
+        }
+      }
+      setTimeout(() => {
+        const card = $(`.photo-card[data-id="${p.id}"]`);
+        if (card) {
+          card.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          card.classList.add('focused');
+          setTimeout(() => card.classList.remove('focused'), 1600);
+        }
+      }, 50);
+      logHistory(`Inspected photo · ${p.reason || ''}`);
+    }
+
+    // Build a thumbnail src — fetches the protected file once via api()
+    // (Authorization header), turns it into a blob URL, caches it. The
+    // alternative (token in query string) was rejected per B1.
+    function ensurePhotoThumbSrc(photoId, imgEl) {
+      if (!imgEl) return;
+      const cached = PHOTO_BLOB_CACHE.get(photoId);
+      if (cached) { imgEl.src = cached; return; }
+      // Lazy-load on first paint so a 50-photo gallery doesn't fetch
+      // every original up-front.
+      const fetcher = async () => {
+        try {
+          const headers = {};
+          if (token) headers['Authorization'] = 'Bearer ' + token;
+          const tenantId = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_tenant')) || state.tenantId;
+          if (tenantId) headers['X-Tenant'] = tenantId;
+          const res = await fetch(`${apiBase}/api/projects/${projectId}/photos/${photoId}/file`, { headers });
+          if (!res.ok) throw new Error(`${res.status}`);
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          PHOTO_BLOB_CACHE.set(photoId, url);
+          imgEl.src = url;
+        } catch (e) {
+          imgEl.style.display = 'none';
+          const ph = imgEl.nextElementSibling;
+          if (ph && ph.classList?.contains('thumb-fallback')) ph.style.display = 'flex';
+        }
+      };
+      // IntersectionObserver — only kick the fetch when the thumb scrolls
+      // into view. Falls back to immediate fetch if IO is unavailable.
+      if (typeof IntersectionObserver === 'function') {
+        const io = new IntersectionObserver((entries) => {
+          if (entries.some(e => e.isIntersecting)) {
+            io.disconnect();
+            fetcher();
+          }
+        });
+        io.observe(imgEl);
+      } else {
+        fetcher();
+      }
+    }
+
+    // ── Photos right-rail tab ─────────────────────────────────────────
+    function renderPhotos() {
+      const pane = $('#pane-photos');
+      if (!pane) return;
+      const filterEl = state.selectedElementGuid;
+      const elementMeta = filterEl ? (state.elementMap[filterEl] || {}) : null;
+      const pendingCount = state.photos.filter(p => p.audience === 'PendingReview').length;
+      const reviewerVisible = isPhotoApprover();
+      const totalLabel = filterEl ? `${state.photos.length} for selected element` : `${state.photos.length} in project`;
+
+      pane.innerHTML = `
+        <div class="prop-section-label">Site photos</div>
+        ${filterEl ? `<div class="photo-filter-context">
+          Filtered to <strong>${escapeHtml(elementMeta?.name || elementMeta?.tag || filterEl.slice(0, 8))}</strong>
+          <button class="btn ghost xs" id="photoClearAnchor" title="Show all project photos">✕ Clear</button>
+        </div>` : ''}
+        <div class="photo-toolbar">
+          <span class="hint">${escapeHtml(totalLabel)}</span>
+          <div class="right">
+            <button class="btn sm subtle" id="photoRefresh" title="Refresh from server">↻</button>
+            <button class="btn sm" id="photoQuickCapture">📷 Capture</button>
+          </div>
+        </div>
+        ${reviewerVisible ? `<button class="btn ghost full review-bar" id="photoOpenReview">
+          🛡 Review queue <span class="count">${pendingCount}</span>
+        </button>` : ''}
+        <div class="photo-filters">
+          <div class="row">
+            <span class="lbl">Reason</span>
+            <button class="filter-btn ${state.photoFilters.reason === 'any' ? 'active' : ''}" data-reason="any">Any</button>
+            ${PHOTO_REASONS.map(r => `<button class="filter-btn reason-chip rc-${r.toLowerCase()} ${state.photoFilters.reason === r ? 'active' : ''}" data-reason="${r}">${escapeHtml(r)}</button>`).join('')}
+          </div>
+          <div class="row">
+            <span class="lbl">Audience</span>
+            <select class="filter-select" id="photoAudienceFilter">
+              <option value="any" ${state.photoFilters.audience === 'any' ? 'selected' : ''}>Any audience</option>
+              ${PHOTO_AUDIENCES.map(a => `<option value="${a}" ${state.photoFilters.audience === a ? 'selected' : ''}>${escapeHtml(a)}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="photo-list" id="photoList">
+          ${state.photos.length === 0
+            ? '<div class="empty-state"><span class="glyph">📷</span>No site photos match these filters</div>'
+            : state.photos.map(p => renderPhotoCard(p, reviewerVisible)).join('')}
+        </div>
+      `;
+
+      // Wire top toolbar
+      $('#photoRefresh', pane)?.addEventListener('click', () => loadSitePhotos());
+      $('#photoQuickCapture', pane)?.addEventListener('click', () => openPhotoCaptureModal());
+      $('#photoOpenReview', pane)?.addEventListener('click', () => openPhotoReviewModal());
+      $('#photoClearAnchor', pane)?.addEventListener('click', () => {
+        selectElementByGuid(null);
+        loadSitePhotos();
+      });
+
+      // Wire reason chips
+      $$('.photo-filters .filter-btn', pane).forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.photoFilters.reason = btn.dataset.reason;
+          loadSitePhotos();
+        });
+      });
+      $('#photoAudienceFilter', pane)?.addEventListener('change', (e) => {
+        state.photoFilters.audience = e.target.value;
+        loadSitePhotos();
+      });
+
+      // Wire each card
+      $$('.photo-card', pane).forEach(card => {
+        const id = card.dataset.id;
+        const p = state.photos.find(x => x.id === id);
+        if (!p) return;
+        card._photo = p;            // setupRowContextMenu reads this
+        const img = $('img', card);
+        if (img) ensurePhotoThumbSrc(id, img);
+        card.addEventListener('click', (e) => {
+          if (e.target.closest('button')) return;
+          focusPhoto(p);
+        });
+        card.addEventListener('dblclick', () => focusPhoto(p));
+        $('button[data-act=approve]', card)?.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          let cap = p.caption || '';
+          if (cap.trim().length < 3) {
+            cap = await promptInline({
+              title: 'Approve photo',
+              label: 'Approval caption (visible to client)',
+              placeholder: 'Describe what the client should see',
+              defaultValue: cap,
+              multiline: true, minLength: 3, maxLength: 2000,
+              okLabel: 'Approve & publish',
+            });
+          }
+          if (!cap || cap.trim().length < 3) return;
+          const updated = await approveSitePhoto(id, cap);
+          if (updated) { Object.assign(p, updated); renderPhotos(); }
+        });
+        $('button[data-act=reject]', card)?.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const reason = await promptInline({
+            title: 'Reject photo',
+            label: 'Reason (shown to the capturer)',
+            placeholder: 'e.g. off-topic / poor quality / privacy',
+            defaultValue: '',
+            multiline: true, minLength: 0, maxLength: 500,
+            okLabel: 'Reject',
+          });
+          if (reason === null) return;
+          const updated = await rejectSitePhoto(id, reason);
+          if (updated) { Object.assign(p, updated); renderPhotos(); }
+        });
+        $('button[data-act=withdraw]', card)?.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (!confirm('Withdraw this photo from the client portal?')) return;
+          const updated = await withdrawSitePhoto(id);
+          if (updated) { Object.assign(p, updated); renderPhotos(); }
+        });
+      });
+    }
+
+    function renderPhotoCard(p, reviewerVisible) {
+      const reason = p.reason || 'Reference';
+      const audience = p.audience || 'Internal';
+      const captured = p.capturedAt ? new Date(p.capturedAt).toLocaleString() : '';
+      const lvlZone = [p.levelCode, p.zoneCode].filter(Boolean).join(' · ') || '';
+      const caption = p.caption || '';
+      const canApprove = reviewerVisible && audience === 'PendingReview';
+      const canReject  = reviewerVisible && (audience === 'PendingReview' || audience === 'Approved');
+      const canWithdraw = reviewerVisible && audience === 'ClientPortal';
+      return `
+        <div class="photo-card" data-id="${escapeHtml(p.id)}" data-kind="photo">
+          <div class="thumb">
+            <img alt="${escapeHtml(caption || 'Site photo')}" loading="lazy" />
+            <div class="thumb-fallback" style="display:none">📷</div>
+            <span class="reason-chip rc-${reason.toLowerCase()}">${escapeHtml(reason)}</span>
+            <span class="audience-chip aud-${audience.toLowerCase()}">${escapeHtml(audience)}</span>
+          </div>
+          <div class="meta">
+            <div class="cap">${caption ? escapeHtml(caption) : '<em class="muted">No caption</em>'}</div>
+            <div class="sub">${escapeHtml(captured)}${lvlZone ? ' · ' + escapeHtml(lvlZone) : ''}</div>
+            ${p.anchorElementGuid ? `<div class="sub anchor">⚓ ${escapeHtml((state.elementMap[p.anchorElementGuid]?.name) || p.anchorElementGuid.slice(0, 8))}</div>` : ''}
+          </div>
+          ${(canApprove || canReject || canWithdraw) ? `<div class="actions">
+            ${canApprove ? '<button class="btn xs" data-act="approve">✓ Approve</button>' : ''}
+            ${canReject  ? '<button class="btn xs subtle" data-act="reject">✗ Reject</button>' : ''}
+            ${canWithdraw ? '<button class="btn xs subtle" data-act="withdraw">↶ Withdraw</button>' : ''}
+          </div>` : ''}
+        </div>
+      `;
+    }
+
+    // ── Capture modal ─────────────────────────────────────────────────
+    function inferDefaultReason() {
+      // Auto-pre-select per the brief: element selected → AsBuilt; clash open
+      // → Defect; otherwise Reference.
+      if (state.selectedClashId) return 'Defect';
+      if (state.selectedElementGuid) return 'AsBuilt';
+      return 'Reference';
+    }
+
+    function openPhotoCaptureModal(seed = {}) {
+      const modal = $('#photoCaptureModal');
+      if (!modal) return;
+      pendingPhotoFile = null;
+      if (pendingPhotoObjectUrl) { try { URL.revokeObjectURL(pendingPhotoObjectUrl); } catch (_) {} pendingPhotoObjectUrl = null; }
+      $('#pcCaption').value = '';
+      $('#pcLevel').value   = seed.levelCode || '';
+      $('#pcZone').value    = seed.zoneCode  || '';
+      $('#pcPreview').innerHTML = '';
+      const reason = seed.reason || inferDefaultReason();
+      $$('#pcReason .choice').forEach(c => c.classList.toggle('active', c.dataset.v === reason));
+      // Anchor pills — show what we've captured automatically.
+      const elGuid = seed.guid || state.selectedElementGuid;
+      const elMeta = elGuid ? (state.elementMap[elGuid] || {}) : null;
+      $('#pcAnchorElement').textContent = 'Element: ' + (elMeta?.name || elMeta?.tag || (elGuid ? elGuid.slice(0, 8) : '—'));
+      $('#pcAnchorElement').classList.toggle('on', !!elGuid);
+      const haveXyz = !!lastClickPoint;
+      $('#pcAnchorPoint').textContent = haveXyz
+        ? `3D: ${lastClickPoint.x.toFixed(2)}, ${lastClickPoint.y.toFixed(2)}, ${lastClickPoint.z.toFixed(2)}`
+        : '3D point: —';
+      $('#pcAnchorPoint').classList.toggle('on', haveXyz);
+      $('#pcAnchorModel').textContent = state.modelName ? 'Model: ' + state.modelName : 'Model: —';
+      $('#pcAnchorModel').classList.toggle('on', !!modelId);
+      state.photoCaptureSeed = { guid: elGuid, reason };
+      modal.classList.add('open');
+    }
+    function closePhotoCaptureModal() {
+      const modal = $('#photoCaptureModal');
+      if (!modal) return;
+      modal.classList.remove('open');
+      pendingPhotoFile = null;
+      if (pendingPhotoObjectUrl) { try { URL.revokeObjectURL(pendingPhotoObjectUrl); } catch (_) {} pendingPhotoObjectUrl = null; }
+    }
+
+    function setupPhotoCaptureModal() {
+      const modal = $('#photoCaptureModal');
+      if (!modal) return;
+      $('#pcClose').addEventListener('click', closePhotoCaptureModal);
+      $('#pcCancel').addEventListener('click', closePhotoCaptureModal);
+      modal.addEventListener('click', (e) => { if (e.target.id === 'photoCaptureModal') closePhotoCaptureModal(); });
+      modal.addEventListener('keydown', (e) => {
+        if (!modal.classList.contains('open')) return;
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closePhotoCaptureModal(); }
+      });
+
+      // Reason chip toggle
+      $$('#pcReason .choice').forEach(c => c.addEventListener('click', () => {
+        $$('#pcReason .choice').forEach(x => x.classList.remove('active'));
+        c.classList.add('active');
+      }));
+
+      // File picker + drag-drop (same pattern as imAttachDrop)
+      const drop = $('#pcDrop');
+      const input = $('#pcFileInput');
+      const pickBtn = $('#pcPickBtn');
+      function stagePhoto(file) {
+        if (!file) return;
+        if (file.size > 25 * 1024 * 1024) { toast(`${file.name} > 25 MB — skipped`, 'warn'); return; }
+        if (!file.type || !file.type.startsWith('image/')) { toast('Only image files accepted', 'warn'); return; }
+        pendingPhotoFile = file;
+        if (pendingPhotoObjectUrl) { try { URL.revokeObjectURL(pendingPhotoObjectUrl); } catch (_) {} }
+        pendingPhotoObjectUrl = URL.createObjectURL(file);
+        $('#pcPreview').innerHTML = `<img src="${pendingPhotoObjectUrl}" alt="preview" />`;
+      }
+      pickBtn?.addEventListener('click', (ev) => { ev.stopPropagation(); input.click(); });
+      input.addEventListener('change', () => { stagePhoto(input.files?.[0]); input.value = ''; });
+      drop.addEventListener('click', () => input.click());
+      drop.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); input.click(); } });
+      ['dragenter','dragover'].forEach(evt => drop.addEventListener(evt, (ev) => { ev.preventDefault(); ev.stopPropagation(); drop.classList.add('dragover'); }));
+      ['dragleave','drop'].forEach(evt => drop.addEventListener(evt, (ev) => { ev.preventDefault(); ev.stopPropagation(); drop.classList.remove('dragover'); }));
+      drop.addEventListener('drop', (ev) => stagePhoto(ev.dataTransfer?.files?.[0]));
+      ['dragover','drop'].forEach(evt => modal.addEventListener(evt, (ev) => { ev.preventDefault(); }));
+
+      $('#pcSubmit').addEventListener('click', submitPhotoCapture);
+    }
+
+    async function submitPhotoCapture() {
+      if (!pendingPhotoFile) { toast('Pick or capture a photo first', 'warn'); return; }
+      const reason = $('#pcReason .choice.active')?.dataset.v || 'Reference';
+      const caption = ($('#pcCaption').value || '').trim();
+      const level   = ($('#pcLevel').value || '').trim();
+      const zone    = ($('#pcZone').value || '').trim();
+      const elGuid  = state.photoCaptureSeed?.guid || state.selectedElementGuid;
+
+      const fd = new FormData();
+      fd.append('file', pendingPhotoFile, pendingPhotoFile.name || 'capture.jpg');
+      fd.append('reason', reason);
+      if (caption) fd.append('caption', caption);
+      if (level)   fd.append('levelCode', level);
+      if (zone)    fd.append('zoneCode', zone);
+      if (elGuid)  fd.append('anchorElementGuid', elGuid);
+      if (modelId) fd.append('modelId', modelId);
+      if (lastClickPoint) {
+        fd.append('modelX', String(lastClickPoint.x));
+        fd.append('modelY', String(lastClickPoint.y));
+        fd.append('modelZ', String(lastClickPoint.z));
+      }
+      fd.append('source', 'web-viewer');
+      fd.append('capturedAt', new Date().toISOString());
+
+      // Disable button while in flight so the user can't double-submit on
+      // a slow connection.
+      const btn = $('#pcSubmit'); if (btn) { btn.disabled = true; btn.textContent = 'Uploading…'; }
+      const created = await captureSitePhoto(fd);
+      if (btn) { btn.disabled = false; btn.textContent = 'Capture →'; }
+      if (!created) return;
+      // Add to the front of the in-memory list, repaint pin + tab.
+      state.photos.unshift(created);
+      placePhotoPins();
+      renderPhotos();
+      updateRightTabCounts();
+      closePhotoCaptureModal();
+      toast(`Photo captured · ${created.reason}${created.audience === 'PendingReview' ? ' · Pending review' : ''}`, 'success');
+      logHistory(`Captured ${created.reason} photo`);
+    }
+
+    // ── Reviewer mini-pane (PM/Admin/Owner bulk approve) ──────────────
+    function openPhotoReviewModal() {
+      const modal = $('#photoReviewModal');
+      if (!modal) return;
+      if (!isPhotoApprover()) { toast('Only PM / Admin / Owner can review photos', 'warn'); return; }
+      state.photoReviewSelected.clear();
+      $('#prBulkCaption').value = '';
+      modal.classList.add('open');
+      refreshPhotoReviewList();
+    }
+    function closePhotoReviewModal() {
+      const modal = $('#photoReviewModal');
+      if (!modal) return;
+      modal.classList.remove('open');
+      state.photoReviewSelected.clear();
+    }
+
+    async function refreshPhotoReviewList() {
+      const list = $('#prList');
+      const lbl = $('#prCountLabel');
+      if (!list || !lbl) return;
+      list.innerHTML = '<div class="inline-loader"><span class="dot-spin"></span>Loading pending photos…</div>';
+      const data = await api(`/api/projects/${projectId}/photos?audience=PendingReview&pageSize=200`);
+      const items = Array.isArray(data) ? data : (data?.items || []);
+      lbl.textContent = items.length ? `${items.length} pending photo${items.length === 1 ? '' : 's'}` : 'Queue empty';
+      if (!items.length) {
+        list.innerHTML = '<div class="empty-state"><span class="glyph">✓</span>Nothing pending review</div>';
+        return;
+      }
+      list.innerHTML = items.map(p => `
+        <label class="review-row" data-id="${escapeHtml(p.id)}">
+          <input type="checkbox" data-id="${escapeHtml(p.id)}" ${state.photoReviewSelected.has(p.id) ? 'checked' : ''} />
+          <div class="thumb"><img alt="" loading="lazy" /><div class="thumb-fallback" style="display:none">📷</div></div>
+          <div class="meta">
+            <div class="cap">${p.caption ? escapeHtml(p.caption) : '<em class="muted">No caption</em>'}</div>
+            <div class="sub">
+              <span class="reason-chip rc-${(p.reason || 'reference').toLowerCase()}">${escapeHtml(p.reason || 'Reference')}</span>
+              <span class="hint">${escapeHtml(p.capturedAt ? new Date(p.capturedAt).toLocaleString() : '')}</span>
+              ${p.levelCode ? `<span class="hint">· ${escapeHtml(p.levelCode)}</span>` : ''}
+              ${p.zoneCode  ? `<span class="hint">· ${escapeHtml(p.zoneCode)}</span>` : ''}
+            </div>
+          </div>
+          <button class="btn xs subtle" data-act="reject" data-id="${escapeHtml(p.id)}" title="Reject">✗</button>
+        </label>
+      `).join('');
+      // Lazy thumbs
+      $$('.review-row .thumb img', list).forEach((img, i) => ensurePhotoThumbSrc(items[i].id, img));
+      // Checkbox bind
+      $$('input[type=checkbox]', list).forEach(cb => {
+        cb.addEventListener('change', () => {
+          if (cb.checked) state.photoReviewSelected.add(cb.dataset.id);
+          else state.photoReviewSelected.delete(cb.dataset.id);
+        });
+      });
+      // Per-row reject
+      $$('button[data-act=reject]', list).forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault(); e.stopPropagation();
+          const reason = await promptInline({
+            title: 'Reject photo',
+            label: 'Reason (shown to the capturer)',
+            placeholder: 'e.g. off-topic / poor quality / privacy',
+            defaultValue: '',
+            multiline: true, minLength: 0, maxLength: 500,
+            okLabel: 'Reject',
+          });
+          if (reason === null) return;
+          await rejectSitePhoto(btn.dataset.id, reason);
+          refreshPhotoReviewList();
+          loadSitePhotos();
+        });
+      });
+    }
+
+    function setupPhotoReviewModal() {
+      const modal = $('#photoReviewModal');
+      if (!modal) return;
+      $('#prClose').addEventListener('click', closePhotoReviewModal);
+      $('#prBulkCancel').addEventListener('click', closePhotoReviewModal);
+      modal.addEventListener('click', (e) => { if (e.target.id === 'photoReviewModal') closePhotoReviewModal(); });
+      modal.addEventListener('keydown', (e) => {
+        if (!modal.classList.contains('open')) return;
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closePhotoReviewModal(); }
+      });
+      $('#prRefresh').addEventListener('click', refreshPhotoReviewList);
+      $('#prSelectAll').addEventListener('click', () => {
+        $$('#prList input[type=checkbox]').forEach(cb => {
+          cb.checked = true;
+          state.photoReviewSelected.add(cb.dataset.id);
+        });
+      });
+      $('#prSelectNone').addEventListener('click', () => {
+        state.photoReviewSelected.clear();
+        $$('#prList input[type=checkbox]').forEach(cb => cb.checked = false);
+      });
+      $('#prBulkApprove').addEventListener('click', async () => {
+        const ids = Array.from(state.photoReviewSelected);
+        if (!ids.length) { toast('Select at least one photo', 'warn'); return; }
+        const cap = ($('#prBulkCaption').value || '').trim();
+        if (cap.length < 3) { toast('Shared caption must be ≥ 3 chars', 'warn'); return; }
+        const r = await bulkApproveSitePhotos(ids, cap);
+        if (r) {
+          state.photoReviewSelected.clear();
+          await refreshPhotoReviewList();
+          await loadSitePhotos();
+        }
+      });
+    }
+
+    // ── Capture FAB wiring ────────────────────────────────────────────
+    function setupPhotoFab() {
+      const fab = $('#photoFab');
+      if (!fab) return;
+      fab.addEventListener('click', () => openPhotoCaptureModal());
+      // Hide until model is loaded so we don't tease the user with a button
+      // they can't anchor properly. Re-enabled by the boot observer below.
+      fab.style.display = 'none';
+    }
+
+    // SignalR-style live update hook. The signalr-shim.js loaded from
+    // viewer.html mounts window.__planscapeHub before this runs; this
+    // function binds the hub events to local state refreshers. When the
+    // shim is missing (CDN unreachable / running inside RN WebView /
+    // file:// scheme), the periodic loaders keep working as a fallback.
+    function setupPhotoRealtime() {
+      if (!projectId) return;
+      const refreshPhotos = () => loadSitePhotos();
+      const refreshIssues = (payload) => {
+        // Only refetch when the event is for the active project.
+        if (payload && payload.projectId && payload.projectId !== projectId) return;
+        loadIssues();
+      };
+      const refreshComments = (payload) => {
+        if (payload && payload.projectId && payload.projectId !== projectId) return;
+        // Comments thread is loaded on demand when the right-rail tab
+        // is opened; only repaint if the user is currently looking at
+        // the affected issue's comments.
+        if (state.rightTab === 'comments' && state.selectedIssueId &&
+            payload && payload.issueId === state.selectedIssueId) {
+          renderComments();
+        }
+      };
+
+      // Public hook so external host harnesses (or test suites) can
+      // simulate a refresh without a real hub event.
+      window.__planscapePhotoRealtime = {
+        onSitePhotoCaptured: refreshPhotos,
+        onSitePhotoApproved: refreshPhotos,
+        refresh: refreshPhotos,
+      };
+
+      // Bind to the shim if it's already mounted, OR register a
+      // rebind callback that the shim will call once the CDN script
+      // arrives. The "bound" tracker lives on window so a second
+      // setupPhotoRealtime() invocation (page reload, hot-reload)
+      // doesn't re-register every handler against the same hub
+      // singleton — closure-scoped tracking would reset to empty on
+      // each call and produce duplicates.
+      window.__planscapeHubBound = window.__planscapeHubBound || new WeakSet();
+      function bindHub() {
+        const hub = window.__planscapeHub;
+        if (!hub || typeof hub.on !== 'function') return;
+        if (window.__planscapeHubBound.has(hub)) return;
+        window.__planscapeHubBound.add(hub);
+        hub.on('SitePhotoCaptured', refreshPhotos);
+        hub.on('SitePhotoApproved', refreshPhotos);
+        hub.on('IssueCreated', refreshIssues);
+        hub.on('IssueUpdated', refreshIssues);
+        hub.on('CommentAdded',  refreshComments);
+      }
+      bindHub();
+      window.__planscapeRebindHub = bindHub;
+    }
+
     // ── Bottom panel ───────────────────────────────────────────────────
     function setupBottomPanel() {
       $$('.btab').forEach(t => {
@@ -2544,6 +3400,7 @@
         const pinTargets = [];
         state.issuePins.forEach(m => pinTargets.push(m));
         state.clashPins.forEach(m => pinTargets.push(m));
+        state.photoPins.forEach(m => pinTargets.push(m));
         const pinHits = pinTargets.length ? ray.intersectObjects(pinTargets, false) : [];
         if (pinHits.length && tooltip) {
           const u = pinHits[0].object.userData;
@@ -2556,6 +3413,10 @@
             const cl = state.clashes.find(x => x.id === u.clashId);
             if (cl) html = `<div class="ttitle">${escapeHtml(cl.elementA?.name)} ✕ ${escapeHtml(cl.elementB?.name)}</div>
               <div class="tmeta">${escapeHtml(cl.id)} · ${cl.type} · ${cl.overlap_mm}mm · ${escapeHtml(cl.status)}</div>`;
+          } else if (u.photoId) {
+            const p = state.photos.find(x => x.id === u.photoId);
+            if (p) html = `<div class="ttitle">${escapeHtml(p.caption || 'Site photo')}</div>
+              <div class="tmeta">${escapeHtml(p.reason || '')} · ${escapeHtml(p.audience || '')} · ${escapeHtml(p.capturedAt ? new Date(p.capturedAt).toLocaleDateString() : '')}</div>`;
           }
           if (html) {
             tooltip.innerHTML = html;
@@ -2628,6 +3489,9 @@
           } else if (payload.__coord === 'clash' && payload.clashId) {
             const c = state.clashes.find(x => x.id === payload.clashId);
             if (c) focusClash(c);
+          } else if (payload.__coord === 'photo' && payload.photoId) {
+            const p = state.photos.find(x => x.id === payload.photoId);
+            if (p) focusPhoto(p);
           }
         }
         return origSend.call(V.bridge, type, payload);
@@ -2689,6 +3553,9 @@
       renderProperties(state.selectedElementGuid);
       updateRightTabCounts();
       renderSelectionToolbar();
+      // Slice 4b — if Photos tab is active, refetch with the anchor filter
+      // applied so the gallery narrows to photos for the selected element.
+      if (state.rightTab === 'photos') loadSitePhotos();
     }
 
     function setupMinimap() {
@@ -2878,6 +3745,18 @@
         // (and Tab) so dismissing it doesn't also wipe the user's
         // selection / highlights.
         if ($('#issueModal')?.classList.contains('open')) return;
+        if ($('#photoCaptureModal')?.classList.contains('open')) return;
+        if ($('#photoReviewModal')?.classList.contains('open')) return;
+        // P = open the photo capture modal — fast keyboard shortcut for
+        // coordinators who want to grab a screenshot/upload without
+        // reaching for the FAB.
+        if (k === 'p' || k === 'P') {
+          if (state.modelName || state.elementMap) {
+            openPhotoCaptureModal();
+            e.preventDefault();
+            return;
+          }
+        }
         if (k === 'Escape') {
           // R7 — help overlay swallows Esc so closing it doesn't ALSO
           // wipe the user's selection / highlights.
@@ -3076,6 +3955,14 @@
       set('rightTabClashesCount',  cl.length);
       set('rightTabIssuesCount',   is.length);
       set('rightTabCommentsCount', cmnt);
+      // Slice 4b — photos count is anchor-aware: when an element is
+      // selected we already filter the request to that anchor server-side
+      // so state.photos.length is the correct number to display.
+      // (state.photos is initialised inside the photo block; guard for the
+      // very first updateRightTabCounts() call at boot which fires before
+      // that mutation has run.)
+      const ph = Array.isArray(state.photos) ? state.photos : [];
+      set('rightTabPhotosCount', ph.length);
     }
 
     function updateBadges() {
@@ -3117,6 +4004,8 @@
         rebuildGuidIndex();          // B7 — GUID→mesh map for fast lookups
         placeIssuePins();
         placeClashPins();
+        placePhotoPins();             // Slice 4b — photo pins after model bounds known
+        const fab = $('#photoFab'); if (fab) fab.style.display = '';
         buildLevelStrip();           // re-run with real bounds for Y bands
         clearInterval(bootObserver);
         // B1 — GLTFLoader has consumed the blob URL, free it now to avoid
@@ -3134,6 +4023,10 @@
       if (state.lastBlobUrl) try { URL.revokeObjectURL(state.lastBlobUrl); } catch (_) {}
       if (presentTimer) clearInterval(presentTimer);
       if (state.heartbeatTimer) clearInterval(state.heartbeatTimer);
+      // Slice 4b — release photo thumbnail blob URLs + the staged
+      // capture preview if the user closes mid-capture.
+      try { PHOTO_BLOB_CACHE.forEach(u => URL.revokeObjectURL(u)); PHOTO_BLOB_CACHE.clear(); } catch (_) {}
+      if (pendingPhotoObjectUrl) try { URL.revokeObjectURL(pendingPhotoObjectUrl); } catch (_) {}
     });
 
     // First paint

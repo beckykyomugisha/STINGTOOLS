@@ -173,6 +173,29 @@ namespace StingTools.Core.Symbols
                     {
                         AddSolid3D(fdoc, def, result);
                     }
+
+                    // Stamp seed-family identity. STING_SEED_FAMILY_TXT
+                    // becomes the swap-registry key; SwapToManufacturer
+                    // reads it on every instance to find candidate
+                    // replacements when the user picks a real
+                    // manufacturer family.
+                    if (def.IsSeed)
+                    {
+                        TryAddSeedMarker(fdoc, def);
+                    }
+
+                    // Wave G1 — type-variant injection. Each
+                    // TypeVariantDefinition becomes a duplicate of the
+                    // default family type; the duplicate's parameters
+                    // are overridden per the JSON spec. Saves the
+                    // author from manually duplicating types in
+                    // Family Editor for the FR30/FR60/FR90/FR120 +
+                    // PENDANT/RECESSED/etc. variants documented in the
+                    // layman's guide.
+                    if (def.TypeVariants != null && def.TypeVariants.Count > 0)
+                    {
+                        AddTypeVariants(fdoc, def, result);
+                    }
                     tx.Commit();
                 }
 
@@ -358,6 +381,159 @@ namespace StingTools.Core.Symbols
         // ─────────────────────────────────────────────────────────────────
         // Parameters
         // ─────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Stamp STING_SEED_FAMILY_TXT (instance) on the family with the
+        /// seed's id. Read by SwapToManufacturerCommand to identify
+        /// every placed seed instance + look up replacement candidates
+        /// in STING_FAMILY_SWAP_REGISTRY.json. Fails silently — seeds
+        /// remain useful even if the parameter isn't bound (the .rfa
+        /// itself still ships with the seed-name, which is the swap
+        /// key's secondary lookup).
+        /// </summary>
+        private static void TryAddSeedMarker(Document fdoc, SymbolDefinition def)
+        {
+            if (!fdoc.IsFamilyDocument) return;
+            try
+            {
+                var fm = fdoc.FamilyManager;
+                if (fm.get_Parameter("STING_SEED_FAMILY_TXT") == null)
+                {
+                    fm.AddParameter("STING_SEED_FAMILY_TXT",
+                        GroupTypeId.IdentityData, SpecTypeId.String.Text, /* isInstance */ true);
+                }
+                if (fm.get_Parameter("STING_DESIGN_REF_TXT") == null)
+                {
+                    fm.AddParameter("STING_DESIGN_REF_TXT",
+                        GroupTypeId.IdentityData, SpecTypeId.String.Text, /* isInstance */ true);
+                }
+                if (fm.get_Parameter("STING_SWAP_HISTORY_TXT") == null)
+                {
+                    fm.AddParameter("STING_SWAP_HISTORY_TXT",
+                        GroupTypeId.IdentityData, SpecTypeId.String.Text, /* isInstance */ true);
+                }
+                // Default the seed-id parameter on every type variant so
+                // even the empty seed family (no instances yet) carries
+                // the registry key on its types.
+                var seedParam = fm.get_Parameter("STING_SEED_FAMILY_TXT");
+                if (seedParam != null && fm.Types != null)
+                {
+                    foreach (FamilyType t in fm.Types)
+                    {
+                        try
+                        {
+                            fm.CurrentType = t;
+                            fm.Set(seedParam, def.Id ?? "");
+                        }
+                        catch { /* per-type set is best-effort */ }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"TryAddSeedMarker {def.Id}: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Wave G1 — duplicate the default type once per
+        /// TypeVariantDefinition and stamp the per-variant parameter
+        /// values. Saves the author from manually creating each variant
+        /// in Family Editor; per the layman's guide the visual polish
+        /// (2D symbology + 3D mass refinement) still happens manually,
+        /// but the parameter scaffolding lands programmatically so
+        /// schedules + swap candidates work the moment the .rfa loads.
+        /// </summary>
+        private static void AddTypeVariants(Document fdoc, SymbolDefinition def, SymbolCreationResult result)
+        {
+            if (!fdoc.IsFamilyDocument) return;
+            var fm = fdoc.FamilyManager;
+
+            // Identify the default type (the only one that exists at
+            // this point — the .rft template ships a single type and
+            // we haven't added any). Some templates ship without any
+            // types at all; in that case create one named "Default"
+            // so the duplicate path has a source.
+            FamilyType seed = fm.CurrentType;
+            if (seed == null)
+            {
+                try { seed = fm.NewType("Default"); fm.CurrentType = seed; }
+                catch (Exception ex)
+                {
+                    result.Warnings.Add($"{def.Id}: NewType seed failed — {ex.Message}");
+                    return;
+                }
+            }
+
+            foreach (var variant in def.TypeVariants)
+            {
+                if (variant == null || string.IsNullOrWhiteSpace(variant.Name)) continue;
+                try
+                {
+                    fm.CurrentType = seed;
+                    var duplicate = fm.NewType(variant.Name);
+                    fm.CurrentType = duplicate;
+
+                    if (variant.Parameters != null)
+                    {
+                        foreach (var kv in variant.Parameters)
+                        {
+                            try
+                            {
+                                var p = fm.get_Parameter(kv.Key);
+                                if (p == null)
+                                {
+                                    result.Warnings.Add($"{def.Id} variant '{variant.Name}': param '{kv.Key}' not bound — skipped.");
+                                    continue;
+                                }
+                                SetVariantParam(fm, p, kv.Value);
+                            }
+                            catch (Exception ex)
+                            {
+                                result.Warnings.Add($"{def.Id} variant '{variant.Name}' param '{kv.Key}': {ex.Message}");
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    result.Warnings.Add($"{def.Id}: variant '{variant.Name}' creation failed — {ex.Message}");
+                }
+            }
+
+            // Restore the default type so the family's "current"
+            // selection matches the seed when first loaded.
+            try { fm.CurrentType = seed; } catch { }
+        }
+
+        private static void SetVariantParam(FamilyManager fm, FamilyParameter p, string value)
+        {
+            if (p == null || value == null) return;
+            try
+            {
+                switch (p.StorageType)
+                {
+                    case StorageType.String:
+                        fm.Set(p, value);
+                        break;
+                    case StorageType.Integer:
+                        if (int.TryParse(value, out int i)) fm.Set(p, i);
+                        break;
+                    case StorageType.Double:
+                        if (double.TryParse(value,
+                            System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture,
+                            out double d)) fm.Set(p, d);
+                        break;
+                    case StorageType.ElementId:
+                        // Variant params don't yet support ElementId
+                        // values — schedule + swap registry don't need
+                        // them. Skip silently rather than fail.
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SetVariantParam {p?.Definition?.Name}: {ex.Message}");
+            }
+        }
 
         private static void AddParameters(Document fdoc, SymbolDefinition def, SymbolCreationResult result)
         {
@@ -730,12 +906,106 @@ namespace StingTools.Core.Symbols
 
         private static string[] CandidateTemplateNames(SymbolDefinition def)
         {
-            string ft = (def.FamilyType ?? "").Trim();
+            string ft   = (def.FamilyType ?? "").Trim();
             string disc = (def.Discipline ?? "").Trim();
+            string host = (def.Hosting    ?? "Standalone").Trim();
+            string cat  = (def.Category   ?? "").Trim();
 
+            // ── Hosting overrides come first. A FaceBased / WallBased /
+            // CeilingBased seed needs the matching template regardless
+            // of whether it's MEP or Generic — Revit's host face wiring
+            // depends on the template, not the runtime category.
+            if (string.Equals(host, "FaceBased", StringComparison.OrdinalIgnoreCase))
+            {
+                // Category-aware face-based templates first; falls back
+                // to the generic face-based template when the category-
+                // specific one isn't available.
+                var list = new List<string>();
+                if (cat.IndexOf("Lighting", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    list.Add("Metric Lighting Fixture ceiling based.rft");
+                    list.Add("Lighting Fixture ceiling based.rft");
+                }
+                if (cat.IndexOf("Specialty", StringComparison.OrdinalIgnoreCase) >= 0
+                    || cat.IndexOf("Speciality", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    list.Add("Metric Specialty Equipment face based.rft");
+                    list.Add("Specialty Equipment face based.rft");
+                }
+                if (string.Equals(disc, "Electrical", StringComparison.OrdinalIgnoreCase))
+                {
+                    list.Add("Metric Electrical Fixture face based.rft");
+                    list.Add("Electrical Fixture face based.rft");
+                }
+                if (string.Equals(disc, "Plumbing", StringComparison.OrdinalIgnoreCase))
+                {
+                    list.Add("Metric Plumbing Fixture face based.rft");
+                    list.Add("Plumbing Fixture face based.rft");
+                }
+                list.Add("Metric Generic Model face based.rft");
+                list.Add("Generic Model face based.rft");
+                return list.ToArray();
+            }
+            if (string.Equals(host, "WallBased", StringComparison.OrdinalIgnoreCase))
+            {
+                return new[]
+                {
+                    "Metric Generic Model wall based.rft",
+                    "Generic Model wall based.rft",
+                    "Metric Electrical Fixture wall based.rft",
+                };
+            }
+            if (string.Equals(host, "CeilingBased", StringComparison.OrdinalIgnoreCase))
+            {
+                return new[]
+                {
+                    "Metric Generic Model ceiling based.rft",
+                    "Generic Model ceiling based.rft",
+                    "Metric Lighting Fixture ceiling based.rft",
+                };
+            }
+            if (string.Equals(host, "WorkPlaneBased", StringComparison.OrdinalIgnoreCase))
+            {
+                return new[]
+                {
+                    "Metric Generic Model.rft",   // work-plane-based default
+                    "Generic Model.rft",
+                };
+            }
+
+            // ── Original FamilyType-based path (preserved unchanged
+            // for back-compat with existing JSON spec packs).
             if (string.Equals(ft, "GenericAnnotation", StringComparison.OrdinalIgnoreCase))
             {
                 return new[] { "Generic Annotation.rft", "Metric Generic Annotation.rft" };
+            }
+            if (string.Equals(ft, "SeedFamily", StringComparison.OrdinalIgnoreCase))
+            {
+                // Seed family — pick the most discipline/category-
+                // appropriate freestanding template. The Hosting check
+                // above already covered face / wall / ceiling.
+                if (cat.IndexOf("Lighting Fixtures", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return new[] { "Metric Lighting Fixture.rft", "Lighting Fixture.rft" };
+                if (cat.IndexOf("Electrical Fixtures", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return new[] { "Metric Electrical Fixture.rft", "Electrical Fixture.rft" };
+                if (cat.IndexOf("Electrical Equipment", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return new[] { "Metric Electrical Fixture.rft",  // closest available
+                                   "Metric Generic Model.rft", "Generic Model.rft" };
+                if (cat.IndexOf("Fire Alarm", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return new[] { "Metric Fire Alarm Device.rft" };
+                if (cat.IndexOf("Sprinkler", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return new[] { "Metric Sprinkler.rft" };
+                if (cat.IndexOf("Plumbing", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return new[] { "Metric Plumbing Fixture.rft" };
+                if (cat.IndexOf("Air Terminal", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return new[] { "Metric Air Terminal.rft" };
+                if (cat.IndexOf("Mechanical", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return new[] { "Metric Mechanical Equipment.rft" };
+                if (cat.IndexOf("Communication", StringComparison.OrdinalIgnoreCase) >= 0
+                    || cat.IndexOf("Data", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return new[] { "Metric Data Device.rft", "Metric Communication Device.rft",
+                                   "Metric Generic Model.rft" };
+                return new[] { "Metric Generic Model.rft", "Generic Model.rft" };
             }
             if (string.Equals(ft, "MEPAccessory", StringComparison.OrdinalIgnoreCase))
             {

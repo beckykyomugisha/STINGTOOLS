@@ -49,18 +49,25 @@ namespace StingTools.Commands.Panels
             }
 
             var existingByPanel = new Dictionary<long, PanelScheduleView>();
-            try
+            int existingPsvErrors = 0;
+            foreach (var psv in new FilteredElementCollector(doc)
+                .OfClass(typeof(PanelScheduleView))
+                .Cast<PanelScheduleView>())
             {
-                foreach (var psv in new FilteredElementCollector(doc)
-                    .OfClass(typeof(PanelScheduleView))
-                    .Cast<PanelScheduleView>())
+                try
                 {
                     var pid = psv.GetPanel();
                     if (pid != null && pid != ElementId.InvalidElementId)
                         existingByPanel[pid.Value] = psv;
                 }
+                catch (Exception ex)
+                {
+                    existingPsvErrors++;
+                    StingLog.Warn($"Existing PSV index '{psv?.Name}': {ex.Message}");
+                }
             }
-            catch (Exception ex) { StingLog.Warn($"Existing PSV index: {ex.Message}"); }
+            if (existingPsvErrors > 0)
+                StingLog.Warn($"BatchPanelSchedules: {existingPsvErrors} existing PanelScheduleView(s) failed to index.");
 
             int created = 0, skippedExisting = 0, skippedPattern = 0,
                 failed = 0, noTemplate = 0, paramsStamped = 0, drawingTypeStamped = 0,
@@ -138,7 +145,11 @@ namespace StingTools.Commands.Panels
 
                     if (StampDrawingType(psv)) drawingTypeStamped++;
                     if (StampPanelParams(panel, psv)) paramsStamped++;
-                    circuitRefsStamped += StampCircuitBackrefs(doc, panel, psv.Name);
+                    string psvName = null;
+                    try { psvName = psv.Name; }
+                    catch (Exception ex) { StingLog.Warn($"psv.Name read on '{panelName}': {ex.Message}"); }
+                    if (!string.IsNullOrEmpty(psvName))
+                        circuitRefsStamped += StampCircuitBackrefs(doc, panel, psvName);
                 }
                 tx.Commit();
             }
