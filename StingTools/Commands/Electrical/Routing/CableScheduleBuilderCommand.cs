@@ -251,7 +251,7 @@ namespace StingTools.Commands.Electrical.Routing
                 r.BoxLines.Add(new CableBomLine
                 {
                     Description   = kv.Value.desc,
-                    Sku           = $"JB_{kv.Key.Replace('|', '_').Replace(' ', '_').Replace(':', '')}",
+                    Sku           = $"JB_{kv.Key.Replace('|', '_').Replace(' ', '_').Replace(":", "")}",
                     InstanceCount = kv.Value.qty,
                     Notes         = "auto-placed by JunctionBoxAutoPlacer",
                 });
