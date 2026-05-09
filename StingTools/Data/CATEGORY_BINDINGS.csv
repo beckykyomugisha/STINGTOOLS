@@ -7304,6 +7304,14 @@ ELC_CDT_BEND_ANGLE_DEG,Conduit Fittings,Type,True
 ELC_CDT_BEND_COUNT_NR,Conduits,Type,True
 ELC_CDT_RUN_LENGTH_M,Conduits,Type,True
 ELC_CDT_CABLE_COUNT_NR,Conduits,Type,True
+ELC_CIRCUIT_GROUP_TXT,Electrical Equipment,Instance,True
+ELC_CIRCUIT_GROUP_TXT,Electrical Fixtures,Instance,True
+ELC_CIRCUIT_GROUP_TXT,Lighting Fixtures,Instance,True
+ELC_CIRCUIT_GROUP_TXT,Lighting Devices,Instance,True
+ELC_CIRCUIT_GROUP_TXT,Fire Alarm Devices,Instance,True
+ELC_CIRCUIT_GROUP_TXT,Communication Devices,Instance,True
+ELC_CIRCUIT_GROUP_TXT,Data Devices,Instance,True
+ELC_PNL_CIRCUIT_GROUP_TXT,Electrical Equipment,Type,True
 ELC_CDT_TAG_01_TXT,Conduits,Type,True
 ELC_CDT_TAG_01_TXT,Conduit Fittings,Type,True
 ELC_CDT_TAG_02_TXT,Conduits,Type,True

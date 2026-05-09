@@ -21,11 +21,15 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.DB.Electrical;
 using Autodesk.Revit.UI;
+using Newtonsoft.Json.Linq;
 using StingTools.Core;
 using StingTools.UI;
 
@@ -35,10 +39,14 @@ namespace StingTools.Commands.Electrical
     [Regeneration(RegenerationOption.Manual)]
     public class BatchAssignCircuitsCommand : IExternalCommand
     {
-        // Voltage tolerance bands. Two voltages are "compatible" if both
-        // sit in the same band; this mirrors how IEC / BS 7671 treats
-        // nominal supply ranges.
-        private static readonly (double low, double high, string label)[] _voltageBands = new[]
+        // Voltage tolerance bands. Loaded from STING_ELECTRICAL_ASSIGNMENT.json
+        // on first call; falls back to BS 7671 / IEC nominal-supply defaults
+        // when the JSON is missing. Two voltages are "compatible" if both
+        // sit in the same band — this mirrors how the standards treat
+        // nominal supply ranges (e.g. 230V band absorbs ±10% mains).
+        private static volatile AssignmentConfig _cachedConfig;
+
+        private static readonly (double low, double high, string label)[] _defaultVoltageBands = new[]
         {
             (   0.0,  60.0,  "ELV"   ),
             (  90.0, 140.0,  "120V"  ),
@@ -97,7 +105,14 @@ namespace StingTools.Commands.Electrical
                 list.Add(s);
             }
 
-            var pState = panels.Select(p => new PanelState(p, circuitsByPanel)).ToList();
+            // Compute panel-room/level once so the grouping policy can prefer
+            // panels in the same room or on the same level as the circuit's
+            // load. This is the cheap precondition for "kitchen sockets stay
+            // on one panel" — first the group rule narrows to panels carrying
+            // the same group; then the same-room / same-level preference
+            // breaks ties between equally-good candidates.
+            foreach (var ps in pState) ps.PrimeRoomLevel(doc);
+            var cfg = LoadConfig();
 
             // ── 2. Greedy assignment ─────────────────────────────────
             var plan = new List<Assignment>();
@@ -111,13 +126,38 @@ namespace StingTools.Commands.Electrical
                 double va = SafeApparentVA(sys);
                 int    poles = SafePoles(sys);
                 double volts = SafeCircuitVoltage(sys);
+                string circuitGroup = ResolveCircuitGroup(doc, sys, cfg);
+                string circuitRoom  = TryReadCircuitRoomName(doc, sys);
+                string circuitLevel = TryReadCircuitLevelCode(doc, sys);
 
-                var fit = pState
+                // Two-stage candidate search. Stage 1 narrows to panels that
+                // already host (or have nothing yet hosting) the same circuit
+                // group, so kitchen / emergency-lighting / fire-alarm circuits
+                // converge on a single panel. Stage 2 falls back to the wider
+                // pool when stage 1 finds nothing — controlled by
+                // GroupingPolicy.AllowFallbackToAnyPanel so strict projects
+                // can disable it.
+                var groupFit = pState
                     .Where(ps => ps.RemainingSlots >= Math.Max(poles, 1))
-                    .Where(ps => VoltageCompatible(volts, ps.NominalVoltage))
-                    .OrderBy(ps => ps.RemainingSlots)         // tightest fit first
-                    .ThenBy(ps => ps.ConnectedVa)             // least-loaded panel
+                    .Where(ps => VoltageCompatible(volts, ps.NominalVoltage, cfg))
+                    .Where(ps => string.IsNullOrEmpty(circuitGroup) || ps.AcceptsGroup(circuitGroup))
+                    .OrderBy(ps => string.IsNullOrEmpty(ps.GroupTag) ? 1 : 0)   // already-grouped panels first
+                    .ThenByDescending(ps => SameRoomBonus(ps, circuitRoom, cfg))
+                    .ThenByDescending(ps => SameLevelBonus(ps, circuitLevel, cfg))
+                    .ThenBy(ps => ps.RemainingSlots)
+                    .ThenBy(ps => ps.ConnectedVa)
                     .FirstOrDefault();
+
+                var fit = groupFit;
+                if (fit == null && cfg.AllowFallbackToAnyPanel)
+                {
+                    fit = pState
+                        .Where(ps => ps.RemainingSlots >= Math.Max(poles, 1))
+                        .Where(ps => VoltageCompatible(volts, ps.NominalVoltage, cfg))
+                        .OrderBy(ps => ps.RemainingSlots)
+                        .ThenBy(ps => ps.ConnectedVa)
+                        .FirstOrDefault();
+                }
 
                 if (fit == null)
                 {
@@ -126,20 +166,25 @@ namespace StingTools.Commands.Electrical
                         SystemId = sys.Id,
                         SystemName = sys.Name ?? "(?)",
                         PanelName = null,
-                        Reason = poles > 1
-                            ? $"No panel with ≥ {poles} free slots at {volts:F0} V"
-                            : $"No panel with free slot at {volts:F0} V"
+                        Group = circuitGroup,
+                        Reason = !string.IsNullOrEmpty(circuitGroup) && !cfg.AllowFallbackToAnyPanel
+                            ? $"Group '{circuitGroup}' has no panel with ≥ {poles} free slots at {volts:F0} V (strict mode)"
+                            : poles > 1
+                                ? $"No panel with ≥ {poles} free slots at {volts:F0} V"
+                                : $"No panel with free slot at {volts:F0} V"
                     });
                     continue;
                 }
 
-                fit.Reserve(va, poles);
+                fit.Reserve(va, poles, circuitGroup);
                 plan.Add(new Assignment
                 {
                     SystemId = sys.Id,
                     SystemName = sys.Name ?? "(?)",
                     PanelName = fit.Name,
-                    Reason = $"fit slots={fit.RemainingSlots} after, panelLoad={fit.ConnectedVa/1000:F1} kVA"
+                    Group = circuitGroup,
+                    Reason = $"fit slots={fit.RemainingSlots} after, panelLoad={fit.ConnectedVa/1000:F1} kVA" +
+                             (string.IsNullOrEmpty(circuitGroup) ? "" : $", group={circuitGroup}")
                 });
             }
 
@@ -182,6 +227,28 @@ namespace StingTools.Commands.Electrical
                         // pipelines see the back-reference even before the
                         // panel schedule is regenerated.
                         ParameterHelpers.SetString(sys, "ELC_PANEL_REF_TXT", a.PanelName, overwrite: true);
+
+                        // Persist the resolved group so re-runs converge:
+                        // stamp ELC_CIRCUIT_GROUP_TXT on the circuit and
+                        // ELC_PNL_CIRCUIT_GROUP_TXT on the panel. Future
+                        // runs read these before re-evaluating the rules,
+                        // so manual overrides + first-pass rule resolution
+                        // are honoured stably.
+                        if (!string.IsNullOrEmpty(a.Group))
+                        {
+                            ParameterHelpers.SetString(sys, "ELC_CIRCUIT_GROUP_TXT", a.Group, overwrite: false);
+                            try
+                            {
+                                var panelEl = new FilteredElementCollector(doc)
+                                    .OfCategory(BuiltInCategory.OST_ElectricalEquipment)
+                                    .WhereElementIsNotElementType()
+                                    .OfType<FamilyInstance>()
+                                    .FirstOrDefault(p => string.Equals(SafeName(p), a.PanelName, StringComparison.OrdinalIgnoreCase));
+                                if (panelEl != null)
+                                    ParameterHelpers.SetString(panelEl, "ELC_PNL_CIRCUIT_GROUP_TXT", a.Group, overwrite: false);
+                            }
+                            catch (Exception ex2) { StingLog.Warn($"Stamp panel group: {ex2.Message}"); }
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -225,7 +292,24 @@ namespace StingTools.Commands.Electrical
             {
                 panel.AddSection("BY PANEL");
                 foreach (var g in byPanel)
-                    panel.Metric(g.Key, g.Count().ToString(), $"circuits");
+                {
+                    var groups = g.Where(x => !string.IsNullOrEmpty(x.Group)).Select(x => x.Group).Distinct().ToList();
+                    string subtitle = groups.Count == 0
+                        ? "circuits"
+                        : groups.Count == 1
+                            ? $"circuits — group: {groups[0]}"
+                            : $"circuits — groups: {string.Join("/", groups)}";
+                    panel.Metric(g.Key, g.Count().ToString(), subtitle);
+                }
+            }
+
+            var byGroup = plan.Where(a => !string.IsNullOrEmpty(a.Group)).GroupBy(a => a.Group).OrderByDescending(g => g.Count()).ToList();
+            if (byGroup.Count > 0)
+            {
+                panel.AddSection("BY GROUP")
+                     .Text("Loads matched to a logical group via STING_ELECTRICAL_ASSIGNMENT.json (kitchen / emergency-lighting / fire-alarm / comms-room) or ELC_CIRCUIT_GROUP_TXT manual overrides. Same-group circuits share a panel where slot space allows.");
+                foreach (var g in byGroup)
+                    panel.Metric(g.Key, g.Count().ToString(), "circuits");
             }
 
             var skipped = plan.Where(a => a.PanelName == null).Take(20).ToList();
@@ -252,6 +336,7 @@ namespace StingTools.Commands.Electrical
             public ElementId SystemId;
             public string SystemName;
             public string PanelName;
+            public string Group;
             public string Reason;
         }
 
@@ -263,9 +348,16 @@ namespace StingTools.Commands.Electrical
             public int RemainingSlots { get; private set; }
             public double ConnectedVa { get; private set; }
             public double NominalVoltage { get; }
+            public string GroupTag { get; private set; } = "";
+            public string RoomName { get; private set; } = "";
+            public string LevelCode { get; private set; } = "";
+            public ElementId LevelId { get; }
+            public XYZ Location { get; }
+            private FamilyInstance _fi;
 
             public PanelState(FamilyInstance fi, Dictionary<long, List<ElectricalSystem>> circuitsByPanel)
             {
+                _fi = fi;
                 Id = fi.Id;
                 Name = SafeName(fi);
                 TotalSlots = SafeReadInt(fi, "Number Of Circuits", 42);
@@ -276,12 +368,41 @@ namespace StingTools.Commands.Electrical
                 if (owned != null) foreach (var s in owned) sum += SafeApparentVA(s);
                 ConnectedVa = sum;
                 NominalVoltage = SafePanelVoltage(fi);
+                LevelId = fi.LevelId ?? ElementId.InvalidElementId;
+                try { Location = (fi.Location as LocationPoint)?.Point; } catch { }
+
+                // Pre-existing group tag from a prior run lets a re-run remain
+                // stable: panels already accumulating a group keep getting that
+                // group's circuits rather than scattering on each invocation.
+                GroupTag = ParameterHelpers.GetString(fi, "ELC_PNL_CIRCUIT_GROUP_TXT") ?? "";
             }
 
-            public void Reserve(double va, int poles)
+            public void PrimeRoomLevel(Document doc)
+            {
+                try
+                {
+                    var lvl = doc.GetElement(LevelId) as Level;
+                    LevelCode = lvl?.Name ?? "";
+                    var room = ParameterHelpers.GetRoomAtElement(doc, _fi);
+                    if (room != null)
+                        RoomName = room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? room.Name ?? "";
+                }
+                catch (Exception ex) { StingLog.Warn($"PrimeRoomLevel {Name}: {ex.Message}"); }
+            }
+
+            public bool AcceptsGroup(string group)
+            {
+                if (string.IsNullOrEmpty(group)) return true;
+                if (string.IsNullOrEmpty(GroupTag)) return true;        // empty panel takes any group
+                return string.Equals(GroupTag, group, StringComparison.OrdinalIgnoreCase);
+            }
+
+            public void Reserve(double va, int poles, string group = null)
             {
                 RemainingSlots = Math.Max(0, RemainingSlots - Math.Max(poles, 1));
                 ConnectedVa += va;
+                if (string.IsNullOrEmpty(GroupTag) && !string.IsNullOrEmpty(group))
+                    GroupTag = group;
             }
 
             private static string SafeName(FamilyInstance fi)
@@ -323,6 +444,12 @@ namespace StingTools.Commands.Electrical
 
         // ── Static helpers ─────────────────────────────────────────────
 
+        private static string SafeName(FamilyInstance fi)
+        {
+            if (fi == null) return "";
+            try { return fi.Name ?? fi.Id.ToString(); } catch { return fi.Id.ToString(); }
+        }
+
         private static FamilyInstance SafeBaseEquipment(ElectricalSystem s)
         {
             try { return s?.BaseEquipment as FamilyInstance; } catch { return null; }
@@ -343,16 +470,219 @@ namespace StingTools.Commands.Electrical
             try { return s?.Voltage ?? 0; } catch { return 0; }
         }
 
-        private static bool VoltageCompatible(double a, double b)
+        private static bool VoltageCompatible(double a, double b, AssignmentConfig cfg = null)
         {
             if (a <= 0 || b <= 0) return true; // unknown — let it through
-            foreach (var band in _voltageBands)
+            var bands = cfg?.VoltageBands ?? _defaultVoltageBands;
+            foreach (var band in bands)
             {
                 bool inA = a >= band.low && a <= band.high;
                 bool inB = b >= band.low && b <= band.high;
                 if (inA && inB) return true;
             }
             return false;
+        }
+
+        // ── Grouping ────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Resolve a circuit's group tag in this priority order:
+        ///   1. ELC_CIRCUIT_GROUP_TXT on the system itself (manual override).
+        ///   2. ELC_CIRCUIT_GROUP_TXT on the first connected load.
+        ///   3. First matching rule in STING_ELECTRICAL_ASSIGNMENT.json
+        ///      (room-name + category + system-name regexes).
+        /// Returns "" if no group rule fires.
+        /// </summary>
+        private static string ResolveCircuitGroup(Document doc, ElectricalSystem sys, AssignmentConfig cfg)
+        {
+            try
+            {
+                string manual = ParameterHelpers.GetString(sys, "ELC_CIRCUIT_GROUP_TXT");
+                if (!string.IsNullOrEmpty(manual)) return manual;
+            }
+            catch { }
+
+            // Probe first load for the manual override.
+            Element firstLoad = null;
+            try
+            {
+                foreach (Element el in sys.Elements) { firstLoad = el; break; }
+                if (firstLoad != null)
+                {
+                    string fromLoad = ParameterHelpers.GetString(firstLoad, "ELC_CIRCUIT_GROUP_TXT");
+                    if (!string.IsNullOrEmpty(fromLoad)) return fromLoad;
+                }
+            }
+            catch { }
+
+            // Rule-based resolution against the project config.
+            if (cfg?.GroupingRules == null) return "";
+            string roomName = TryReadCircuitRoomName(doc, sys);
+            string sysName = "";
+            try { sysName = sys.Name ?? ""; } catch { }
+            string category = "";
+            try { category = firstLoad?.Category?.Name ?? ""; } catch { }
+
+            foreach (var rule in cfg.GroupingRules)
+            {
+                if (rule.Categories != null && rule.Categories.Count > 0 &&
+                    !rule.Categories.Any(c => string.Equals(c, category, StringComparison.OrdinalIgnoreCase)))
+                    continue;
+                if (!string.IsNullOrEmpty(rule.RoomNamePattern) &&
+                    !RegexMatch(rule.RoomNamePattern, roomName)) continue;
+                if (!string.IsNullOrEmpty(rule.SystemNamePattern) &&
+                    !RegexMatch(rule.SystemNamePattern, sysName)) continue;
+                return rule.GroupId;
+            }
+            return "";
+        }
+
+        private static string TryReadCircuitRoomName(Document doc, ElectricalSystem sys)
+        {
+            try
+            {
+                foreach (Element el in sys.Elements)
+                {
+                    var room = ParameterHelpers.GetRoomAtElement(doc, el);
+                    if (room != null)
+                        return room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? room.Name ?? "";
+                }
+            }
+            catch { }
+            return "";
+        }
+
+        private static string TryReadCircuitLevelCode(Document doc, ElectricalSystem sys)
+        {
+            try
+            {
+                foreach (Element el in sys.Elements)
+                {
+                    var lvl = doc.GetElement(el.LevelId) as Level;
+                    if (lvl != null) return lvl.Name ?? "";
+                }
+            }
+            catch { }
+            return "";
+        }
+
+        private static int SameRoomBonus(PanelState ps, string circuitRoom, AssignmentConfig cfg)
+        {
+            if (cfg == null || !cfg.PreferSameRoom) return 0;
+            return !string.IsNullOrEmpty(circuitRoom) &&
+                   string.Equals(ps.RoomName, circuitRoom, StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+        }
+
+        private static int SameLevelBonus(PanelState ps, string circuitLevel, AssignmentConfig cfg)
+        {
+            if (cfg == null || !cfg.PreferSameLevel) return 0;
+            return !string.IsNullOrEmpty(circuitLevel) &&
+                   string.Equals(ps.LevelCode, circuitLevel, StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+        }
+
+        private static bool RegexMatch(string pattern, string actual)
+        {
+            if (string.IsNullOrEmpty(pattern)) return true;
+            if (string.IsNullOrEmpty(actual)) return false;
+            try { return Regex.IsMatch(actual, pattern); }
+            catch (Exception ex) { StingLog.Warn($"Group regex '{pattern}': {ex.Message}"); return false; }
+        }
+
+        // ── Config loader ──────────────────────────────────────────────
+
+        public static void ResetConfig() { _cachedConfig = null; }
+
+        private static AssignmentConfig LoadConfig()
+        {
+            var c = _cachedConfig;
+            if (c != null) return c;
+
+            var cfg = new AssignmentConfig
+            {
+                VoltageBands = _defaultVoltageBands,
+                PreferSameRoom = true,
+                PreferSameLevel = true,
+                AllowFallbackToAnyPanel = true,
+                GroupingRules = new List<GroupingRule>()
+            };
+
+            try
+            {
+                string path = StingToolsApp.FindDataFile("STING_ELECTRICAL_ASSIGNMENT.json");
+                if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                    cfg = ParseConfig(File.ReadAllText(path), cfg);
+            }
+            catch (Exception ex) { StingLog.Warn($"BatchAssignCircuits: corp config load: {ex.Message}"); }
+
+            _cachedConfig = cfg;
+            return cfg;
+        }
+
+        private static AssignmentConfig ParseConfig(string json, AssignmentConfig fallback)
+        {
+            try
+            {
+                var root = JObject.Parse(json);
+                var bandsArr = root["VoltageBands"] as JArray;
+                if (bandsArr != null)
+                {
+                    var bands = new List<(double low, double high, string label)>();
+                    foreach (var b in bandsArr)
+                    {
+                        bands.Add((
+                            (double?)b["Min"]   ?? 0,
+                            (double?)b["Max"]   ?? 0,
+                            (string)b["Label"]  ?? ""));
+                    }
+                    if (bands.Count > 0) fallback.VoltageBands = bands.ToArray();
+                }
+
+                var rulesArr = root["GroupingRules"] as JArray;
+                if (rulesArr != null)
+                {
+                    fallback.GroupingRules = new List<GroupingRule>();
+                    foreach (var r in rulesArr)
+                    {
+                        var gr = new GroupingRule
+                        {
+                            GroupId            = (string)r["GroupId"] ?? "",
+                            RoomNamePattern    = (string)r["RoomNamePattern"] ?? "",
+                            SystemNamePattern  = (string)r["SystemNamePattern"] ?? "",
+                        };
+                        var cats = r["Categories"] as JArray;
+                        if (cats != null)
+                            gr.Categories = cats.Select(t => (string)t).Where(s => !string.IsNullOrEmpty(s)).ToList();
+                        if (!string.IsNullOrEmpty(gr.GroupId)) fallback.GroupingRules.Add(gr);
+                    }
+                }
+
+                var pol = root["GroupingPolicy"] as JObject;
+                if (pol != null)
+                {
+                    fallback.PreferSameRoom          = (bool?)pol["PreferSameRoom"]          ?? fallback.PreferSameRoom;
+                    fallback.PreferSameLevel         = (bool?)pol["PreferSameLevel"]         ?? fallback.PreferSameLevel;
+                    fallback.AllowFallbackToAnyPanel = (bool?)pol["AllowFallbackToAnyPanel"] ?? fallback.AllowFallbackToAnyPanel;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BatchAssignCircuits: parse config: {ex.Message}"); }
+            return fallback;
+        }
+
+        private sealed class AssignmentConfig
+        {
+            public (double low, double high, string label)[] VoltageBands;
+            public List<GroupingRule> GroupingRules = new List<GroupingRule>();
+            public bool PreferSameRoom          = true;
+            public bool PreferSameLevel         = true;
+            public bool AllowFallbackToAnyPanel = true;
+        }
+
+        private sealed class GroupingRule
+        {
+            public string GroupId           = "";
+            public string RoomNamePattern   = "";
+            public string SystemNamePattern = "";
+            public List<string> Categories  = new List<string>();
         }
     }
 }

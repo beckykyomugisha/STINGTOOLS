@@ -111,6 +111,7 @@ namespace StingTools.Commands.Placement
 
             var plans = new List<RoomPlan>();
             int totalFixtures = 0;
+            int totalBlocked = 0;
             foreach (var room in rooms)
             {
                 LightingGridResult gr;
@@ -120,8 +121,37 @@ namespace StingTools.Commands.Placement
                     StingLog.Warn($"LightingGrid Compute room {room?.Id}: {ex.Message}");
                     continue;
                 }
+
+                // Reject any computed point whose XY collides with a ceiling
+                // obstruction (diffuser / sprinkler / detector / speaker /
+                // furniture / casework / suspended duct or pipe). Buffer
+                // defaults to CIBSE Guide B4 §3.6 350 mm. Without this the
+                // calculator may site a luminaire directly under a sprinkler
+                // head — which violates BS 5306 ≥ 600 mm separation and
+                // makes the fixture impossible to commission.
+                int blocked = 0;
+                try
+                {
+                    var exclusions = ObstructionIndex.BuildForRoom(room.Document, room);
+                    if (exclusions.Count > 0)
+                    {
+                        int before = gr.Points.Count;
+                        var kept = ObstructionIndex.FilterPoints(gr.Points, exclusions);
+                        blocked = before - kept.Count;
+                        if (blocked > 0)
+                        {
+                            gr.Points.Clear();
+                            foreach (var p in kept) gr.Points.Add(p);
+                            gr.FixturesPlaced = gr.Points.Count;
+                            gr.Warnings.Add($"ObstructionIndex rejected {blocked} of {before} grid points (sprinklers / diffusers / casework).");
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"ObstructionIndex room {room?.Id}: {ex.Message}"); }
+
                 plans.Add(new RoomPlan { Room = room, Result = gr });
                 totalFixtures += gr.FixturesPlaced;
+                totalBlocked  += blocked;
             }
 
             // ── Confirm ──────────────────────────────────────────────
@@ -146,7 +176,7 @@ namespace StingTools.Commands.Placement
             };
             if (confirm.Show() != TaskDialogResult.Yes)
             {
-                ShowResult(plans, placed: 0, dryRun: true, doc);
+                ShowResult(plans, placed: 0, dryRun: true, doc, totalBlocked);
                 return Result.Cancelled;
             }
 
@@ -202,7 +232,7 @@ namespace StingTools.Commands.Placement
             catch (Exception ex) { StingLog.Warn($"audit: {ex.Message}"); }
             try { ComplianceScan.InvalidateCache(); } catch { }
 
-            ShowResult(plans, placed, dryRun: false, doc);
+            ShowResult(plans, placed, dryRun: false, doc, totalBlocked);
             return Result.Succeeded;
         }
 
@@ -265,7 +295,7 @@ namespace StingTools.Commands.Placement
             return (total, lumens, photo);
         }
 
-        private static void ShowResult(List<RoomPlan> plans, int placed, bool dryRun, Document doc)
+        private static void ShowResult(List<RoomPlan> plans, int placed, bool dryRun, Document doc, int blockedByObstructions)
         {
             int totalRequired = plans.Sum(p => p.Result.FixturesRequired);
             int totalPlanned  = plans.Sum(p => p.Result.FixturesPlaced);
@@ -277,6 +307,9 @@ namespace StingTools.Commands.Placement
                  .Metric("Rooms processed", plans.Count.ToString())
                  .Metric("Required (lumen-method)", totalRequired.ToString())
                  .MetricHighlight("Plan: planned points", totalPlanned.ToString());
+            if (blockedByObstructions > 0)
+                panel.MetricWarn("Blocked by obstructions", blockedByObstructions.ToString(),
+                    "diffusers / sprinklers / detectors / casework — CIBSE Guide B4 §3.6 350 mm clearance");
             if (!dryRun) panel.Metric("Actually placed", placed.ToString());
 
             // Photometric library audit — surfaces the gap that

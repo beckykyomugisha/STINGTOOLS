@@ -1,0 +1,45 @@
+{
+  "Version": "v1",
+  "Description": "STING electrical assignment + balancing config. Voltage bands let BatchAssignCircuitsCommand decide whether a circuit and panel are 'electrically compatible' before considering slot space. Circuit grouping rules let related loads (kitchen sockets, emergency lighting) stay on one panel rather than scatter. Drop a project copy under <project>/_BIM_COORD/electrical_assignment.json to override; project values are merged on top of the corporate baseline (project wins on collision).",
+  "VoltageBands": [
+    { "Min":   0.0, "Max":  60.0, "Label": "ELV"  },
+    { "Min":  90.0, "Max": 140.0, "Label": "120V" },
+    { "Min": 200.0, "Max": 250.0, "Label": "230V" },
+    { "Min": 380.0, "Max": 420.0, "Label": "400V" },
+    { "Min": 460.0, "Max": 530.0, "Label": "480V" },
+    { "Min": 580.0, "Max": 720.0, "Label": "600V" }
+  ],
+  "GroupingRules": [
+    {
+      "GroupId": "kitchen",
+      "Description": "Kitchen sockets share one panel for ring-final assembly + RCD coordination.",
+      "RoomNamePattern": "(?i)kitchen|kitchenette|tea ?point|pantry",
+      "Categories": ["Electrical Fixtures"]
+    },
+    {
+      "GroupId": "emergency-lighting",
+      "Description": "BS 5266-1 — emergency lighting on a dedicated panel + DB so single-panel failure doesn't extinguish escape routes.",
+      "RoomNamePattern": "(?i).*",
+      "Categories": ["Lighting Fixtures"],
+      "SystemNamePattern": "(?i)emergency|EM_|escape"
+    },
+    {
+      "GroupId": "fire-alarm",
+      "Description": "BS 5839-1 — fire alarm devices on a dedicated supply.",
+      "RoomNamePattern": "(?i).*",
+      "Categories": ["Fire Alarm Devices"]
+    },
+    {
+      "GroupId": "comms-room",
+      "Description": "Comms / IT / BMS equipment grouped per room so a single UPS feeds them.",
+      "RoomNamePattern": "(?i)comms|server|MER|IDF|MDF|patch|bms",
+      "Categories": ["Electrical Equipment", "Communication Devices", "Data Devices"]
+    }
+  ],
+  "GroupingPolicy": {
+    "PreferSameRoom": true,
+    "PreferSameLevel": true,
+    "AllowFallbackToAnyPanel": true,
+    "_notes": "AllowFallbackToAnyPanel=true means a grouped load that can't fit a panel matching its group falls back to the standard greedy fit. Set to false for strict mode (group failures become unmatched in the report)."
+  }
+}

@@ -260,6 +260,8 @@ Generic Models,ELC_CDT_BEND_ANGLE_DEG,c7f5a2e1-9b3d-4e1c-8a2f-7d6b3e4c5a90,TEXT,
 Generic Models,ELC_CDT_BEND_COUNT_NR,d8e6b3f2-ac4e-5f2d-9b3e-8e7c4f5d6b01,TEXT,ELC_PWR,Type,Number of bends in this conduit run (BS 7671 §522.8.5 limits to 3 between draw-in points),False,,,MULTI,1,0
 Generic Models,ELC_CDT_RUN_LENGTH_M,e9f7c4f3-bd5f-6f3e-ac4f-9f8d5e6e7c12,TEXT,ELC_PWR,Type,Conduit run length in metres (BS 7671 max ~6m between draw-in points),False,,,MULTI,1,0
 Generic Models,ELC_CDT_CABLE_COUNT_NR,fa1b8d54-ce6f-7f4f-bd5f-af9e6f7f8d23,TEXT,ELC_PWR,Type,"Number of cables drawn in this conduit (BS EN 61386 fill: 1=53%/43%, 2=31%/20%, 3+=40%/35%)",False,,,MULTI,1,0
+Generic Models,ELC_CIRCUIT_GROUP_TXT,b1c2d3e4-fd6f-8e0d-ce7e-be0f7f8e9f34,TEXT,ELC_PWR,Instance,"Logical circuit group key (kitchen / emergency-lighting / fire-alarm / comms-room) — circuits with the same value tend to land on the same panel. Resolved by STING_ELECTRICAL_ASSIGNMENT.json or stamped manually.",False,,,MULTI,1,0
+Generic Models,ELC_PNL_CIRCUIT_GROUP_TXT,c2d3e4f5-1e7f-9f1e-df8f-cf1f8f9faf45,TEXT,ELC_PWR,Type,"Group key carried by a panel after the first BatchAssignCircuits run — pins the panel to a single logical group so subsequent runs converge.",False,,,MULTI,1,0
 Generic Models,ELC_CDT_TAG_01_TXT,f867c60f-1fda-4f3f-a052-cf81268c0600,TEXT,ELC_PWR,Type,"Conduit spec tag: size, material, install method [ISO 19650-1:2018]",False,,,MULTI,1,0
 Generic Models,ELC_CDT_TAG_02_TXT,aab93953-601b-4bab-8d52-079193f71524,TEXT,ELC_PWR,Type,Conduit fill + cable ref + installation detail tag [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_CTR_WIDTH_MM,d1f2feb5-c03b-44df-8b3d-41adf0720aa7,TEXT,ELC_PWR,Type,Cable tray width: 100/150/300/450/600/900mm [ISO 19650-1:2018],False,,,MULTI,1,0

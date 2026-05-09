@@ -12,7 +12,8 @@ parameters (bound to the shared parameters in
 |---|---|---|
 | `STING_TB_ASSEMBLY_PIPE.rfa`   | `ShopDrawingComposer.ResolveTitleBlock` | Pipe / Plumbing |
 | `STING_TB_ASSEMBLY_DUCT.rfa`   | `ShopDrawingComposer.ResolveTitleBlock` | Duct / HVAC |
-| `STING_TB_ASSEMBLY_COND.rfa`   | `ShopDrawingComposer.ResolveTitleBlock` | Electrical |
+| `STING_TB_ASSEMBLY_COND.rfa`   | `ShopDrawingComposer.ResolveTitleBlock` (and elec-spool-A1-1to50 fallback) | Electrical |
+| `STING_TB_ASSEMBLY_ELEC.rfa`   | Optional bespoke variant for elec-spool-A1-1to50 — adds cable / glanding / IP-rating cells. **Stub only**; falls back to `STING_TB_ASSEMBLY_COND` until authored. | Electrical |
 | `STING_TB_ASSEMBLY_HANGER.rfa` | Future hanger-only assemblies | Hanger |
 
 ## Authority submission title blocks
