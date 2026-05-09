@@ -21,6 +21,7 @@ import {
 import type { DashboardData, Project, BimIssue } from '@/types/api';
 import { useProjectStore } from '@/stores/projectStore';
 import { useInboxStore } from '@/stores/inboxStore';
+import { SitePhotoFab } from '@/components/SitePhotoFab';
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -158,6 +159,7 @@ export default function DashboardScreen() {
   const ragColor = getRAGColor(compliancePct);
 
   return (
+    <View style={{ flex: 1 }}>
     <ScrollView
       style={styles.root}
       contentContainerStyle={styles.scroll}
@@ -361,6 +363,9 @@ export default function DashboardScreen() {
         </View>
       )}
     </ScrollView>
+    {/* Phase 178 — site-photo capture FAB anchored to dashboard. */}
+    <SitePhotoFab />
+    </View>
   );
 }
 

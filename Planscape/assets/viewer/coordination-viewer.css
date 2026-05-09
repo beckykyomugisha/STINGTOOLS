@@ -1274,3 +1274,345 @@ canvas { display: block; touch-action: none; }
   background: var(--bg-canvas);
 }
 .row-menu .item:focus { outline: none; }   /* fall back to focus-visible */
+
+/* ─────────────────────── Site photos (Slice 4b) ───────────────────────────
+   Photos right-rail tab, capture FAB, capture modal, reviewer modal, photo
+   cards, six-reason chips. Matches existing .coord-card / .row-menu /
+   .attachment-drop visual language so the new surface looks native. */
+
+/* The six reason colours are the design-locked taxonomy. They double as
+   border-left for cards, background for chips, and pin colour cue. */
+.reason-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 999px;
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.04em;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.reason-chip.rc-progress  { background: rgba(34,197,94,0.15);  color: #4ADE80; border-color: rgba(34,197,94,0.4);  }
+.reason-chip.rc-issue     { background: rgba(245,158,11,0.15); color: #FBBF24; border-color: rgba(245,158,11,0.4); }
+.reason-chip.rc-defect    { background: rgba(239,68,68,0.15);  color: #F87171; border-color: rgba(239,68,68,0.4);  }
+.reason-chip.rc-safety    { background: rgba(244,63,94,0.18);  color: #FB7185; border-color: rgba(244,63,94,0.45);  }
+.reason-chip.rc-asbuilt   { background: rgba(0,120,212,0.18);  color: #60A5FA; border-color: rgba(0,120,212,0.45);  }
+.reason-chip.rc-reference { background: rgba(125,131,150,0.16); color: #B0B7C8; border-color: rgba(125,131,150,0.4);}
+
+.audience-chip {
+  display: inline-flex; align-items: center;
+  padding: 2px 6px; border-radius: 4px;
+  font-size: 9.5px; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  background: rgba(0,0,0,0.45); color: #E8EAF0;
+  backdrop-filter: blur(4px);
+}
+.audience-chip.aud-internal      { color: #B0B7C8; }
+.audience-chip.aud-pendingreview { color: #FBBF24; }
+.audience-chip.aud-approved      { color: #4ADE80; }
+.audience-chip.aud-clientportal  { color: #60A5FA; }
+.audience-chip.aud-withdrawn     { color: #F87171; }
+
+/* ── Capture FAB — circular bottom-left button, clear of joystick area ── */
+.photo-fab {
+  position: absolute;
+  left: 16px;
+  bottom: 24px;
+  z-index: 25;                 /* above coord readout (10), below modals (2700) */
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 16px 10px 12px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #FBBF24, #F59E0B);
+  color: #1A1410; border: 0;
+  font-size: 12px; font-weight: 700;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(245,158,11,0.45), 0 0 0 1px rgba(0,0,0,0.25);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.photo-fab:hover { transform: translateY(-1px); box-shadow: 0 8px 28px rgba(245,158,11,0.55), 0 0 0 1px rgba(0,0,0,0.3); }
+.photo-fab:active { transform: translateY(0); }
+.photo-fab .glyph { font-size: 16px; line-height: 1; }
+.photo-fab .lbl { font-size: 11px; }
+/* Walking mode collapses the joystick lower-right; FAB stays put bottom-left
+   but goes label-only on small viewports to avoid stacking weirdness. */
+@media (max-width: 900px) {
+  .photo-fab { left: 10px; bottom: 14px; padding: 8px 12px 8px 10px; }
+  .photo-fab .lbl { display: none; }
+}
+
+/* ── Photos right-rail tab ───────────────────────────────────────────── */
+.photo-filter-context {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px; margin: 6px 0 10px;
+  background: var(--accent-soft);
+  border: 1px solid rgba(0,120,212,0.35);
+  border-radius: var(--radius-md);
+  font-size: 11px; color: var(--text-primary);
+}
+.photo-filter-context strong { color: var(--accent); font-weight: 600; }
+.photo-filter-context .btn.xs { margin-left: auto; padding: 2px 7px; font-size: 10px; }
+
+.photo-toolbar {
+  display: flex; align-items: center; gap: 8px;
+  margin: 6px 0;
+  font-size: 11px; color: var(--text-secondary);
+}
+.photo-toolbar .right { margin-left: auto; display: flex; gap: 4px; }
+.photo-toolbar .hint { color: var(--text-secondary); }
+
+.review-bar {
+  display: flex; align-items: center; justify-content: center;
+  gap: 6px; margin: 4px 0 10px;
+  background: rgba(245,158,11,0.10);
+  border: 1px solid rgba(245,158,11,0.35);
+  color: #FBBF24;
+  font-weight: 600;
+}
+.review-bar .count {
+  background: rgba(245,158,11,0.5); color: #1A1410;
+  border-radius: 999px; padding: 1px 8px; font-size: 11px; font-weight: 700;
+}
+
+.photo-filters {
+  display: flex; flex-direction: column; gap: 6px;
+  margin: 8px 0 12px;
+  padding: 8px;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+.photo-filters .row {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 4px;
+}
+.photo-filters .lbl {
+  font-size: 9.5px; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin-right: 4px;
+}
+.photo-filters .filter-btn {
+  padding: 3px 8px; font-size: 10.5px; border-radius: 999px;
+  background: transparent; border: 1px solid var(--border);
+  color: var(--text-secondary); cursor: pointer;
+}
+.photo-filters .filter-btn.active {
+  background: var(--accent-soft); border-color: var(--accent); color: var(--accent);
+}
+.photo-filters .filter-btn.reason-chip.active { color: inherit; }
+.photo-filters .filter-select {
+  padding: 4px 8px;
+  background: var(--bg-canvas); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: 4px;
+  font-size: 11px;
+}
+
+.photo-list {
+  display: flex; flex-direction: column; gap: 8px;
+  padding-bottom: 12px;
+}
+.photo-card {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 10px;
+  padding: 8px;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease, transform 0.12s ease;
+}
+.photo-card:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-panel);
+}
+.photo-card.focused {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+  transform: scale(1.005);
+}
+.photo-card .thumb {
+  position: relative;
+  width: 100px; height: 100px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-canvas);
+  display: flex; align-items: center; justify-content: center;
+}
+.photo-card .thumb img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.photo-card .thumb .thumb-fallback {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); font-size: 28px;
+}
+.photo-card .thumb .reason-chip {
+  position: absolute; top: 4px; left: 4px;
+  font-size: 9.5px;
+  backdrop-filter: blur(2px);
+}
+.photo-card .thumb .audience-chip {
+  position: absolute; bottom: 4px; right: 4px;
+  font-size: 9px;
+}
+.photo-card .meta {
+  min-width: 0;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.photo-card .meta .cap {
+  font-size: 12px; color: var(--text-primary);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.4;
+}
+.photo-card .meta .cap em.muted { color: var(--text-muted); font-style: italic; }
+.photo-card .meta .sub {
+  font-size: 10.5px; color: var(--text-secondary);
+}
+.photo-card .meta .sub.anchor {
+  color: var(--accent); font-family: var(--font-mono);
+  font-size: 10px;
+}
+.photo-card .actions {
+  grid-column: 1 / -1;
+  display: flex; gap: 4px; flex-wrap: wrap;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border-subtle);
+}
+.photo-card .actions .btn.xs {
+  padding: 3px 8px; font-size: 10px; line-height: 1.2;
+  border-radius: 4px;
+}
+
+/* Per-card border-left tints by reason for at-a-glance scanning. */
+.photo-card[data-id]                                                        { border-left-color: var(--border-strong); }
+.photo-card:has(.reason-chip.rc-progress)                                    { border-left-color: #22C55E; }
+.photo-card:has(.reason-chip.rc-issue)                                       { border-left-color: #F59E0B; }
+.photo-card:has(.reason-chip.rc-defect)                                      { border-left-color: #EF4444; }
+.photo-card:has(.reason-chip.rc-safety)                                      { border-left-color: #F43F5E; }
+.photo-card:has(.reason-chip.rc-asbuilt)                                     { border-left-color: #0078D4; }
+.photo-card:has(.reason-chip.rc-reference)                                   { border-left-color: #7D8396; }
+
+/* ── Capture modal ──────────────────────────────────────────────────── */
+.photo-modal .reason-group {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+}
+.photo-modal .choice.reason-chip {
+  justify-content: center;
+  padding: 8px 6px;
+  font-size: 11px;
+  border: 1px solid var(--border);
+  background: var(--bg-canvas);
+  cursor: pointer;
+  text-align: center;
+  border-radius: var(--radius-md);
+}
+.photo-modal .choice.reason-chip.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.photo-modal .photo-preview {
+  margin-top: 8px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-subtle);
+  min-height: 0;
+  max-height: 280px;
+  display: flex; align-items: center; justify-content: center;
+}
+.photo-modal .photo-preview:empty { display: none; }
+.photo-modal .photo-preview img { max-width: 100%; max-height: 280px; display: block; }
+.photo-modal .anchor-strip {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+  margin-top: 10px;
+  padding: 8px;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  font-size: 10.5px;
+}
+.photo-modal .anchor-strip .lbl {
+  font-size: 9.5px; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin-right: 4px;
+}
+.photo-modal .anchor-strip .pill {
+  padding: 2px 8px; border-radius: 999px;
+  background: var(--bg-canvas); border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+.photo-modal .anchor-strip .pill.on {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* ── Reviewer modal ─────────────────────────────────────────────────── */
+.photo-modal .review-toolbar {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 10px;
+}
+.photo-modal .review-toolbar .right { margin-left: auto; display: flex; gap: 4px; }
+.photo-modal .review-list {
+  display: flex; flex-direction: column; gap: 6px;
+  max-height: 50vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.photo-modal .review-row {
+  display: grid;
+  grid-template-columns: 24px 80px 1fr 28px;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.photo-modal .review-row:hover { border-color: var(--border-strong); }
+.photo-modal .review-row .thumb {
+  width: 80px; height: 60px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--bg-panel);
+  position: relative;
+}
+.photo-modal .review-row .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-modal .review-row .thumb .thumb-fallback {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); font-size: 22px;
+}
+.photo-modal .review-row .meta { min-width: 0; }
+.photo-modal .review-row .meta .cap {
+  font-size: 12px; color: var(--text-primary);
+  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.photo-modal .review-row .meta .sub {
+  display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
+  font-size: 10.5px; color: var(--text-secondary);
+  margin-top: 2px;
+}
+.photo-modal .foot.foot-bulk {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px; align-items: center;
+}
+.photo-modal .foot.foot-bulk input {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--bg-canvas); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 12px;
+}
+
+/* Reduce capture modal width — three reason columns x 6 chips fits in 480 px. */
+.photo-modal .modal { max-width: 560px; width: 92%; }
+

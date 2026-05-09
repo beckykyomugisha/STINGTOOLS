@@ -107,6 +107,7 @@ export function describeReason(r: SitePhotoReason): string {
     case 'Safety':    return 'Safety hazard — auto-creates a SAFETY issue.';
     case 'AsBuilt':   return 'As-built record for handover.';
     case 'Reference': return 'Internal reference shot — never reaches the client.';
+    default:          return '';
   }
 }
 

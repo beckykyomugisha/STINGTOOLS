@@ -1745,6 +1745,59 @@ namespace StingTools.UI
                     case "SelectIssueElements": RunCommand<BIMManager.SelectIssueElementsCommand>(app); break;
                     case "IssuesBulkClose": RunCommand<BIMManager.BulkCloseIssuesCommand>(app); break;
 
+                    // Slice 4a — Site Photos cross-link: select a single element
+                    // by its UniqueId in the active Revit view + zoom to it.
+                    // Triggered from BIMCoordinationCenter.SelectElementInRevitPub
+                    // when the user clicks "📂 Element" on an As-built / Reference
+                    // photo row. Element UniqueId is passed via the
+                    // "ElementGuid" extra-param.
+                    case "SelectByElementGuid":
+                    {
+                        try
+                        {
+                            string uniqueId = GetExtraParam("ElementGuid");
+                            if (string.IsNullOrEmpty(uniqueId))
+                            {
+                                Autodesk.Revit.UI.TaskDialog.Show("Site Photos",
+                                    "No element id provided.");
+                                break;
+                            }
+                            var uidoc = app?.ActiveUIDocument;
+                            var doc   = uidoc?.Document;
+                            if (uidoc == null || doc == null)
+                            {
+                                Autodesk.Revit.UI.TaskDialog.Show("Site Photos",
+                                    "No active Revit document — open the model first.");
+                                break;
+                            }
+                            var el = doc.GetElement(uniqueId);
+                            if (el == null)
+                            {
+                                Autodesk.Revit.UI.TaskDialog.Show("Site Photos",
+                                    $"Element {uniqueId} not found in this model.\n\n" +
+                                    "The photo may have been anchored in a different model — switch the host doc and try again.");
+                                break;
+                            }
+                            uidoc.Selection.SetElementIds(new List<Autodesk.Revit.DB.ElementId> { el.Id });
+                            // Zoom to selection — UIView.ZoomToFit on the active view.
+                            try
+                            {
+                                var uiView = uidoc.GetOpenUIViews()
+                                    .FirstOrDefault(v => v.ViewId == uidoc.ActiveView.Id);
+                                uiView?.ZoomToFit();
+                            }
+                            catch (Exception ex) { StingLog.Warn($"SelectByElementGuid zoom: {ex.Message}"); }
+                            uidoc.ShowElements(el);
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"SelectByElementGuid: {ex.Message}");
+                            Autodesk.Revit.UI.TaskDialog.Show("Site Photos",
+                                $"Could not select element: {ex.Message}");
+                        }
+                        break;
+                    }
+
                     // Template engine v1.1 — deliverable lifecycle (S12) + orchestrator (S13)
                     case "IssueDeliverable":       RunCommand<Planscape.Docs.Templates.IssueDeliverableCommand>(app); break;
                     case "ReIssueDeliverable":     RunCommand<Planscape.Docs.Templates.ReIssueDeliverableCommand>(app); break;
