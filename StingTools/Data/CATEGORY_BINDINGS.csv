@@ -15999,3 +15999,42 @@ ELC_PHOTO_LUX_RELUX_NR,Rooms,Instance,True
 ELC_PHOTO_UNIFORMITY_NR,Rooms,Instance,True
 ELC_PHOTO_LAST_ENGINE_TXT,Rooms,Instance,True
 ELC_PHOTO_LAST_CALC_DATE_TXT,Rooms,Instance,True
+STING_SEED_FAMILY_TXT,Lighting Fixtures,Instance,True
+STING_SEED_FAMILY_TXT,Electrical Fixtures,Instance,True
+STING_SEED_FAMILY_TXT,Electrical Equipment,Instance,True
+STING_SEED_FAMILY_TXT,Fire Alarm Devices,Instance,True
+STING_SEED_FAMILY_TXT,Sprinklers,Instance,True
+STING_SEED_FAMILY_TXT,Plumbing Fixtures,Instance,True
+STING_SEED_FAMILY_TXT,Air Terminals,Instance,True
+STING_SEED_FAMILY_TXT,Mechanical Equipment,Instance,True
+STING_SEED_FAMILY_TXT,Communication Devices,Instance,True
+STING_SEED_FAMILY_TXT,Data Devices,Instance,True
+STING_SEED_FAMILY_TXT,Security Devices,Instance,True
+STING_SEED_FAMILY_TXT,Specialty Equipment,Instance,True
+STING_SEED_FAMILY_TXT,Generic Models,Instance,True
+STING_DESIGN_REF_TXT,Lighting Fixtures,Instance,True
+STING_DESIGN_REF_TXT,Electrical Fixtures,Instance,True
+STING_DESIGN_REF_TXT,Electrical Equipment,Instance,True
+STING_DESIGN_REF_TXT,Fire Alarm Devices,Instance,True
+STING_DESIGN_REF_TXT,Sprinklers,Instance,True
+STING_DESIGN_REF_TXT,Plumbing Fixtures,Instance,True
+STING_DESIGN_REF_TXT,Air Terminals,Instance,True
+STING_DESIGN_REF_TXT,Mechanical Equipment,Instance,True
+STING_DESIGN_REF_TXT,Communication Devices,Instance,True
+STING_DESIGN_REF_TXT,Data Devices,Instance,True
+STING_DESIGN_REF_TXT,Security Devices,Instance,True
+STING_DESIGN_REF_TXT,Specialty Equipment,Instance,True
+STING_DESIGN_REF_TXT,Generic Models,Instance,True
+STING_SWAP_HISTORY_TXT,Lighting Fixtures,Instance,True
+STING_SWAP_HISTORY_TXT,Electrical Fixtures,Instance,True
+STING_SWAP_HISTORY_TXT,Electrical Equipment,Instance,True
+STING_SWAP_HISTORY_TXT,Fire Alarm Devices,Instance,True
+STING_SWAP_HISTORY_TXT,Sprinklers,Instance,True
+STING_SWAP_HISTORY_TXT,Plumbing Fixtures,Instance,True
+STING_SWAP_HISTORY_TXT,Air Terminals,Instance,True
+STING_SWAP_HISTORY_TXT,Mechanical Equipment,Instance,True
+STING_SWAP_HISTORY_TXT,Communication Devices,Instance,True
+STING_SWAP_HISTORY_TXT,Data Devices,Instance,True
+STING_SWAP_HISTORY_TXT,Security Devices,Instance,True
+STING_SWAP_HISTORY_TXT,Specialty Equipment,Instance,True
+STING_SWAP_HISTORY_TXT,Generic Models,Instance,True

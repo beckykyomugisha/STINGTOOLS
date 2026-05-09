@@ -31,11 +31,34 @@ namespace StingTools.Core.Symbols
         [JsonProperty("name")]        public string Name { get; set; }
         [JsonProperty("category")]    public string Category { get; set; }
 
-        /// <summary>GenericAnnotation | MEPAccessory | MEPEquipment</summary>
+        /// <summary>GenericAnnotation | MEPAccessory | MEPEquipment | SeedFamily</summary>
         [JsonProperty("familyType")]  public string FamilyType { get; set; }
 
         [JsonProperty("discipline")]  public string Discipline { get; set; }
         [JsonProperty("subcategory")] public string Subcategory { get; set; }
+
+        /// <summary>
+        /// Hosting strategy. Drives the .rft template lookup so the
+        /// creator can pick face-based / wall-based / ceiling-based
+        /// templates instead of the freestanding default. Recognised:
+        ///   "Standalone" (default) — Generic Model.rft / category.rft
+        ///   "FaceBased"            — Generic Model face based.rft + variants
+        ///   "WallBased"            — wall-hosted templates
+        ///   "CeilingBased"         — ceiling-hosted templates
+        ///   "WorkPlaneBased"       — work-plane-based variants
+        /// </summary>
+        [JsonProperty("hosting")]     public string Hosting { get; set; } = "Standalone";
+
+        /// <summary>
+        /// Marks the family as a STING seed — a category-level
+        /// placeholder carrying the standard parameter scheme + tag
+        /// containers + minimal symbology, intended to be swapped to a
+        /// manufacturer-specific family later via
+        /// SwapToManufacturerCommand. Seeds get STING_SEED_FAMILY_TXT
+        /// stamped on the family + every instance for swap-registry
+        /// matching.
+        /// </summary>
+        [JsonProperty("isSeed")]      public bool IsSeed { get; set; } = false;
 
         /// <summary>Visible symbol size in millimetres at 1:100 (drives geometry scale).</summary>
         [JsonProperty("symbolSize")]  public double SymbolSize { get; set; } = 3.0;
