@@ -224,7 +224,7 @@ namespace StingTools.Core.Routing
 
             try
             {
-                var parent = doc.GetElement(new ElementId((int)parentId));
+                var parent = doc.GetElement(new ElementId((long)parentId));
                 if (parent == null) return;
 
                 // Copy fire rating + ref onto the sub-segment if it

@@ -166,7 +166,7 @@ namespace StingTools.Commands.Electrical.Routing
             foreach (long id in allConduitIds)
             {
                 Element el = null;
-                try { el = doc.GetElement(new ElementId((int)id)); } catch { }
+                try { el = doc.GetElement(new ElementId((long)id)); } catch { }
                 if (el == null) continue;
                 var loc = el.Location as LocationCurve;
                 double mm = loc?.Curve?.Length * 304.8 ?? 0;
@@ -216,7 +216,7 @@ namespace StingTools.Commands.Electrical.Routing
             foreach (long id in allBoxIds)
             {
                 Element el = null;
-                try { el = doc.GetElement(new ElementId((int)id)); } catch { }
+                try { el = doc.GetElement(new ElementId((long)id)); } catch { }
                 if (el == null) continue;
 
                 string famName = "JB";
@@ -276,7 +276,7 @@ namespace StingTools.Commands.Electrical.Routing
                 {
                     try
                     {
-                        var el = doc.GetElement(new ElementId((int)id));
+                        var el = doc.GetElement(new ElementId((long)id));
                         var loc = el?.Location as LocationCurve;
                         if (loc?.Curve != null) total += loc.Curve.Length * 0.3048; // ft → m
                     }

@@ -526,7 +526,6 @@ namespace StingTools.Commands.Symbols
         private static int RestitchSwappedConnectors(Document doc, IList<ElementId> swappedIds)
         {
             if (doc == null || swappedIds == null || swappedIds.Count == 0) return 0;
-            const double radiusFt   = 600.0 / 304.8;
             const double radiusFtSq = (600.0 / 304.8) * (600.0 / 304.8);
 
             // Collect every open connector on every swapped instance.
