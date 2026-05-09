@@ -182,14 +182,18 @@ namespace StingTools.UI
 
             // Initial load + auto-refresh wiring. Fire-and-forget by
             // design — the dispatcher operation is queued at Background
-            // priority so the rest of the tab paints first; we discard
-            // the returned DispatcherOperation with `_ =` so the compiler
-            // sees the intent and doesn't raise CS4014.
-            _ = owner.Dispatcher.BeginInvoke(new Action(async () =>
+            // priority so the rest of the tab paints first. The pragma
+            // makes the intent unambiguous to every Roslyn version
+            // (the `_ =` discard alone doesn't always suppress CS4014
+            // when the callee is a non-Task DispatcherOperation that
+            // wraps an async-void lambda).
+#pragma warning disable CS4014
+            owner.Dispatcher.BeginInvoke(new Action(async () =>
             {
                 await ReloadAsync(owner, state, listPanel, footer);
                 StartAutoRefresh(owner, state, listPanel, footer);
             }), DispatcherPriority.Background);
+#pragma warning restore CS4014
 
             // Cancel auto-refresh when BCC closes
             owner.Closed += (_, _) => state.RefreshTimer?.Stop();
@@ -550,12 +554,12 @@ namespace StingTools.UI
 
             // Lazy-load thumbnails after the layout pass — keeps the initial
             // render snappy even with 50 photos (default page size).
-            //
-            // Fire-and-forget by design: `_ =` discards the
-            // DispatcherOperation so the compiler sees the intent and
-            // doesn't raise CS4014. The async lambda's own try/catch
-            // handles per-thumb failures.
-            _ = owner.Dispatcher.BeginInvoke(new Action(async () =>
+            // Fire-and-forget; the async lambda's own try/catch handles
+            // per-thumbnail failures. CS4014 suppressed via pragma because
+            // a `_ =` discard alone doesn't always silence the warning
+            // for non-Task DispatcherOperations wrapping async-void.
+#pragma warning disable CS4014
+            owner.Dispatcher.BeginInvoke(new Action(async () =>
             {
                 foreach (var r in rows)
                 {
@@ -580,6 +584,7 @@ namespace StingTools.UI
                     }
                 }
             }), DispatcherPriority.Background);
+#pragma warning restore CS4014
         }
 
         private static UIElement BuildReasonGroupHeader(
