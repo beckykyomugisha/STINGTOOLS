@@ -1,0 +1,40 @@
+{
+  "version": "1.0",
+  "standard": "STING SEED FAMILY — Plumbing Fixtures (BS EN 12056, BS 6465, BS 8558)",
+  "symbols": [
+    {
+      "id": "STING_SEED_PlumbingFixture",
+      "name": "STING Seed — Plumbing Fixture",
+      "category": "Plumbing Fixtures",
+      "familyType": "SeedFamily",
+      "discipline": "Plumbing",
+      "subcategory": "STING_SEED",
+      "isSeed": true,
+      "hosting": "FaceBased",
+      "symbolSize": 6.0,
+      "parameters": [
+        { "name": "STING_SEED_FAMILY_TXT",   "type": "Text", "shared": true, "isInstance": true,  "default": "STING_SEED_PlumbingFixture" },
+        { "name": "STING_DESIGN_REF_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "STING_SWAP_HISTORY_TXT",  "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "ASS_TAG_1",               "type": "Text", "shared": true, "isInstance": true },
+        { "name": "ASS_DISCIPLINE_COD_TXT",  "type": "Text", "shared": true, "isInstance": true,  "default": "P" },
+        { "name": "ASS_PRODCT_COD_TXT",      "type": "Text", "shared": true, "isInstance": true,  "default": "WC" },
+        { "name": "PLM_FIX_TYPE_TXT",        "type": "Text", "shared": true, "isInstance": true,  "default": "WC" },
+        { "name": "PLM_FIX_FLOWRATE_LMIN",   "type": "Text", "shared": true, "isInstance": false, "default": "9" },
+        { "name": "PLM_FIX_HOT_COLD_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "COLD" },
+        { "name": "PLM_FIX_DRAIN_DN_MM",     "type": "Text", "shared": true, "isInstance": false, "default": "100" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.4, "y1": -0.5, "x2":  0.4, "y2": -0.5 },
+          { "x1":  0.4, "y1": -0.5, "x2":  0.5, "y2":  0.0 },
+          { "x1":  0.5, "y1":  0.0, "x2":  0.4, "y2":  0.5 },
+          { "x1":  0.4, "y1":  0.5, "x2": -0.4, "y2":  0.5 },
+          { "x1": -0.4, "y1":  0.5, "x2": -0.5, "y2":  0.0 },
+          { "x1": -0.5, "y1":  0.0, "x2": -0.4, "y2": -0.5 }
+        ]
+      },
+      "solid3D": { "type": "Box", "widthMm": 400, "depthMm": 600, "heightMm": 400 }
+    }
+  ]
+}

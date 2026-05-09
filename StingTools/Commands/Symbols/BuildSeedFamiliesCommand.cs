@@ -38,18 +38,24 @@ namespace StingTools.Commands.Symbols
     [Regeneration(RegenerationOption.Manual)]
     public class BuildSeedFamiliesCommand : IExternalCommand
     {
-        // The five tier-1 seed specs ship with this command. Tier-2
-        // adds another five (PlumbingFixture, AirTerminal, MechanicalEquipment,
-        // Sprinkler, CommunicationDevice) — all live under Data/Seeds/
-        // and are picked up automatically by ResolveSpecs() so a project
-        // wanting an extra seed only adds a JSON file.
+        // Canonical seed list — tier-1 + tier-2. Used as the fallback
+        // ordering when ResolveSpecs() can't scan Data/Seeds/ at runtime.
+        // Adding an 11th seed = drop the JSON spec into Data/Seeds/, no
+        // code change required.
         private static readonly string[] _tier1Specs = new[]
         {
+            // Tier 1
             "STING_SEED_LightingFixture.json",
             "STING_SEED_ElectricalFixture.json",
             "STING_SEED_ElectricalEquipment.json",
             "STING_SEED_FireAlarmDevice.json",
             "STING_SEED_SpecialityEquipment.json",
+            // Tier 2
+            "STING_SEED_PlumbingFixture.json",
+            "STING_SEED_AirTerminal.json",
+            "STING_SEED_MechanicalEquipment.json",
+            "STING_SEED_Sprinkler.json",
+            "STING_SEED_CommunicationDevice.json",
         };
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
