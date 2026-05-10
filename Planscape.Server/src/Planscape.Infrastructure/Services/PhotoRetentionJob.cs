@@ -116,7 +116,7 @@ public class PhotoRetentionJob
         {
             var project = await _db.Projects.AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == pol.ProjectId, ct);
-            if (project?.Status == "HANDOVER")
+            if (project?.Status == Planscape.Core.Entities.ProjectStatus.Handed_Over)
             {
                 var progress = await _db.SitePhotos
                     .Where(p => p.ProjectId == pol.ProjectId
