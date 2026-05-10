@@ -35,6 +35,8 @@ GROUP	29	MGS_SYSTEMS
 GROUP	30	RAD_PROTECTION
 GROUP	31	CEQ_CLINICAL
 GROUP	32	LIG_BEHAVIOURAL
+GROUP	33	Identity
+GROUP	34	Routing
 *PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE
 PARAM	f8fe813a-44e9-5e47-9109-921171dc53b6	ASS_CAT_TXT	TEXT		1	1	Ass Cat Txt [ISO 19650-3:2020]	1
 PARAM	3c189e63-383c-5011-b7d9-873faed4e6c6	ASS_CST_QUANTITY_NR	TEXT		1	1	Ass Cst Quantity Nr [ISO 19650-3:2020]	1
@@ -2859,3 +2861,60 @@ PARAM	c8d4f6e2-2601-4d27-8c61-0e7a3f9c1001	ICT_HEALTHIOT_DEVICE_ID_TXT	TEXT		3	1
 PARAM	c8d4f6e2-2602-4d27-8c61-0e7a3f9c1002	ICT_HEALTHIOT_PROTOCOL_TXT	TEXT		3	1	IoT protocol BACNET/OPC-UA/MODBUS/REST/PROPRIETARY [H-20]	1
 PARAM	c8d4f6e2-2603-4d27-8c61-0e7a3f9c1003	ICT_HEALTHIOT_ENDPOINT_TXT	TEXT		3	1	IoT endpoint URI [H-20]	1
 PARAM	c8d4f6e2-2604-4d27-8c61-0e7a3f9c1004	ICT_HEALTHIOT_ALERT_BAND_TXT	TEXT		3	1	IoT alert band free-text [H-20]	1
+PARAM	c7f5a2e1-9b3d-4e1c-8a2f-7d6b3e4c5a90	ELC_CDT_BEND_ANGLE_DEG	TEXT		4	1	Conduit bend angle in degrees: 11.25/22.5/30/45/60/90/120 [BS 7671:2018+A2:2022 §522.8]	1
+PARAM	d8e6b3f2-ac4e-5f2d-9b3e-8e7c4f5d6b01	ELC_CDT_BEND_COUNT_NR	TEXT		4	1	Number of bends in this conduit run (BS 7671 §522.8.5 limits to 3 between draw-in points)	1
+PARAM	e9f7c4f3-bd5f-6f3e-ac4f-9f8d5e6e7c12	ELC_CDT_RUN_LENGTH_M	TEXT		4	1	Conduit run length in metres (BS 7671 max ~6m between draw-in points)	1
+PARAM	fa1b8d54-ce6f-7f4f-bd5f-af9e6f7f8d23	ELC_CDT_CABLE_COUNT_NR	TEXT		4	1	Number of cables drawn in this conduit (BS EN 61386 fill: 1=53%/43%, 2=31%/20%, 3+=40%/35%)	1
+PARAM	b1c2d3e4-fd6f-8e0d-ce7e-be0f7f8e9f34	ELC_CIRCUIT_GROUP_TXT	TEXT		4	1	Logical circuit group key (kitchen / emergency-lighting / fire-alarm / comms-room) — circuits with the same value tend to land on the same panel. Resolved by STING_ELECTRICAL_ASSIGNMENT.json or stamped manually.	1
+PARAM	c2d3e4f5-1e7f-9f1e-df8f-cf1f8f9faf45	ELC_PNL_CIRCUIT_GROUP_TXT	TEXT		4	1	Group key carried by a panel after the first BatchAssignCircuits run — pins the panel to a single logical group so subsequent runs converge.	1
+PARAM	d4e5f607-2f80-af2f-e1a0-d020909fc056	STING_WALL_ROUTING_FLAG	TEXT		34	1	When set to ALLOW, tells the auto-router that conduit / pipe runs MAY pass through this wall (chase / penetration / removable cover). DENY (default) leaves the wall as a hard obstacle. Read by RoutingPathfinder.CollectObstaclesInAABB.	1
+PARAM	e5f60718-3091-b03f-f2b1-e131a1a01067	STING_SLAB_ROUTING_FLAG	TEXT		34	1	Slab counterpart of STING_WALL_ROUTING_FLAG. ALLOW lets a vertical drop pass through this floor (slab penetration). DENY treats the slab as a hard obstacle.	1
+PARAM	f6071829-41a2-c150-038c-f242b2b12178	STING_PENETRATION_REF_TXT	TEXT		34	1	Identifier stamped on a conduit / pipe / duct that crosses a fire-rated floor or wall. Format: FLR:<id>@<rating>. Drives FRP_PENETRATION family placement + register schedule.	1
+PARAM	07182a3a-52b3-d261-149d-035303c23289	STING_PENETRATION_FIRE_RATING_TXT	TEXT		34	1	Required fire rating at the penetration point — copied from the host floor / wall (BS 9999 / BS 476). Empty defaults to FR60 typical floor rating.	1
+PARAM	18293b4b-63c4-e372-25ae-146414d34390	STING_FIRE_RATING_TXT	TEXT		34	1	Fire rating of the host wall / floor — FR30 / FR60 / FR90 / FR120. Read by SlabPenetrationDetector to stamp the required rating on every penetration.	1
+PARAM	abc4d5e6-7f8a-9b0c-1d2e-3f4a5b6c7d8e	STING_SEED_FAMILY_TXT	TEXT		33	1	Seed family identifier (e.g. STING_SEED_LightingFixture). Stamped by SymbolLibraryCreator on every seed; SwapToManufacturerCommand reads it to find replacement candidates in STING_FAMILY_SWAP_REGISTRY.json.	1
+PARAM	bcd5e6f7-8a9b-0c1d-2e3f-4a5b6c7d8e9f	STING_DESIGN_REF_TXT	TEXT		33	1	Original seed identity preserved when an instance is swapped to a manufacturer family. Lets schedules + audits trace which design intent every real fixture replaces.	1
+PARAM	cde6f708-9b0c-1d2e-3f4a-5b6c7d8e9fa0	STING_SWAP_HISTORY_TXT	TEXT		33	1	Swap audit trail: pipe-delimited entries timestamp|operator|sourceFamily|destFamily. Append-only; SwapToManufacturerCommand prepends one entry per swap.	1
+PARAM	def7081a-9ac1-2d3e-4f50-6172839405a6	ELC_JB_TYPE_TXT	TEXT		4	1	Junction box type: PULL_BOX / DRAW_IN_BOX / ADAPTABLE_BOX / TEE_BOX. Drives type-variant selection for the JB seed.	1
+PARAM	ef8192ab-cdb2-3e4f-5061-7283940516b7	ELC_JB_SIZE_MM	TEXT		4	1	Trade-size of the junction box in W x D x H millimetres. Default 100x100x60.	1
+PARAM	f0a293bc-decb-4f50-6172-839405162718	ELC_JB_AUTO_PLACED_BOOL	TEXT		4	1	True (1) when the box was auto-placed by JunctionBoxAutoPlacer at a bend-count or run-length break-point. False (0) for manually-placed boxes.	1
+PARAM	a1b3a4cd-efdc-5061-7283-940516271829	ELC_JB_REASON_TXT	TEXT		4	1	Reason auto-placer put the box here: BENDS_EXCESS / RUN_TOO_LONG / FILL_OVER / WALL_PENETRATION / MANUAL. Surfaced in the Penetration / Pull-Box register schedule.	1
+PARAM	b2c4a5dd-fe1d-6172-8394-051627182930	ELC_CDT_BREAKPOINT_TXT	TEXT		4	1	Reference stamped on a conduit by JunctionBoxAutoPlacer when the run hits a BS 7671 §522.8.5 break-point. Format: JB:<id>@<reason> when a box was placed; NEEDED:<reason>@<xyz> when the seed family wasn't loaded.	1
+PARAM	9468e66a-ee14-50bb-b0e9-00005ea06497	PLM_DFU_COUNT_INT	INTEGER		6	1	IPC 2021 Drainage Fixture Units assigned to fixture or pipe segment [Phase 178b]	1
+PARAM	689d24e8-c9b5-5705-8f7f-57a3e6436c19	PLM_WSFU_COUNT_INT	INTEGER		6	1	IPC 2021 Water Supply Fixture Units [Phase 178b]	1
+PARAM	cde11f1f-ce97-59b6-9e31-88733c0074bc	PLM_TRAP_SEAL_DEPTH_MM	TEXT		6	1	Trap water seal depth mm minimum 50 [BS EN 12056-2 Phase 178b]	1
+PARAM	ce6f77ba-72d5-5904-ba1a-b01d6a09274c	PLM_VENT_SIZE_DN	INTEGER		6	1	Vent pipe nominal diameter mm [IPC 2021 Table 916.1 Phase 178b]	1
+PARAM	cd10ebf4-3e56-5f81-bde7-5a7efbb3312d	PLM_AAV_REQUIRED_BOOL	YESNO		6	1	Air Admittance Valve required [BS EN 12380 Phase 178b]	1
+PARAM	6ff40ae1-9a6a-59d7-93aa-1b3ea27b3f28	PLM_CALC_DN_MM	INTEGER		6	1	Auto-calculated minimum pipe diameter mm DrainageSizer output [Phase 178b]	1
+PARAM	5a6613d4-2b44-5f13-b023-74ad817ca427	PLM_CALC_SLOPE_PCT	TEXT		6	1	Auto-calculated minimum slope percent DrainageSizer output [Phase 178b]	1
+PARAM	4d30cc88-36ca-56bc-b070-9eda111b4ca4	PLM_DEMAND_FLOW_LPS	TEXT		6	1	Design flow rate l/s for pipe or branch [Phase 178b]	1
+PARAM	12bdb567-8260-51e3-9048-c853ad1536e1	PLM_VELOCITY_MPS	TEXT		6	1	Design flow velocity m/s [Phase 178b]	1
+PARAM	2dd14866-68c7-5f8b-8541-2760a011e644	PLM_FRICTION_LOSS_PA_M	TEXT		6	1	Friction head loss Pa per metre [Phase 178b]	1
+PARAM	bc0dcd88-a1a4-58c3-aa26-900b3a1658c2	PLM_PRESSURE_TEST_KPA	INTEGER		6	1	Test pressure kPa default 100 [BS EN 12056-5 Phase 178b]	1
+PARAM	453c0b62-3bc7-57f4-b099-277e022d40e0	PLM_FLUID_CATEGORY_TXT	TEXT		6	1	BS EN 1717 fluid category 1-5 [Phase 178b]	1
+PARAM	7e293a2c-4851-5677-bbb2-99be80e47d54	PLM_VLV_BACKFLOW_TYPE_TXT	TEXT		6	1	Backflow prevention device CHK-SC/CHK-DC/VLV-RPZ/GAP-AA [BS EN 1717 Phase 178b]	1
+PARAM	39ef8603-2ac1-5bba-9de1-b770f304098b	PLM_PPE_STANDARD_TXT	TEXT		6	1	Pipe material standard EN 1057/EN 10255/EN 1452/EN 877/EN 12201 [Phase 178b]	1
+PARAM	66c4b030-073b-5ae3-a0d9-2c15f6b88b8a	PLM_PPE_SCHEDULE_TXT	TEXT		6	1	Pipe schedule SCH 10/40/80 SDR 11/17 [Phase 178b]	1
+PARAM	b56727b6-4e83-5e65-85f9-6fcce50ee8cf	PLM_PPE_GRADE_TXT	TEXT		6	1	Material grade R220 R250 316L 304L PE100 [Phase 178b]	1
+PARAM	9bf49b76-7b80-5403-b9b6-5519ab4cb7e7	PLM_PPE_WRAS_APPROVED_BOOL	YESNO		6	1	WRAS approved product [Phase 178b]	1
+PARAM	1f327972-191d-55e5-98fb-8c6a46d84d3b	PLM_PPE_COLOR_BS1710_TXT	TEXT		6	1	Pipe identification colour per BS 1710 [Phase 178b]	1
+PARAM	e4412254-bea7-5a5e-9113-fee0ee9f5ff2	PLM_PPE_WALL_THK_MM	TEXT		6	1	Pipe wall thickness mm for invert calc [Phase 178b]	1
+PARAM	75ebc9f4-666a-507e-8ea2-b72040578982	PLM_MAT_TXT	TEXT		6	1	Pipe material code CU_R250_X MDPE_PE80_BLUE etc [Phase 178b]	1
+PARAM	d6a7f909-d625-5513-9ed5-7cb61ab29ae9	PLM_RWH_ROOF_AREA_M2	TEXT		6	1	Roof contributing area for rainwater harvesting m2 [BS 8515 Phase 178b]	1
+PARAM	75da88b8-9ae8-5c9a-9c24-002d8cb141d3	PLM_RWH_TANK_VOL_M3	TEXT		6	1	Calculated RWH tank volume m3 [BS 8515 Phase 178b]	1
+PARAM	a359f448-eca1-5ad1-83ce-d55cbcce0e0c	PLM_RWH_ANNUAL_YIELD_M3	TEXT		6	1	Calculated annual rainwater yield m3 [BS 8515 Phase 178b]	1
+PARAM	4933f620-561d-5fdd-8563-2dd9c69d5000	PLM_SUDS_ATTEN_VOL_M3	TEXT		6	1	SuDS attenuation volume m3 [CIRIA C753 Phase 178b]	1
+PARAM	61260170-e6e4-5676-8b47-a51e08ae36b4	PLM_SEPTIC_TANK_VOL_L	TEXT		6	1	Septic tank volume litres [BS EN 12566-1 Phase 178b]	1
+PARAM	06dab377-9f9e-59be-b442-a9832e492400	PLM_PRV_SET_PRESSURE_KPA	TEXT		6	1	PRV set-point pressure kPa [Phase 178b]	1
+PARAM	572fcbbd-495e-52b2-8dec-731734e94aab	PLM_PRV_INLET_PRESSURE_KPA	TEXT		6	1	PRV inlet upstream pressure kPa [Phase 178b]	1
+PARAM	00fdeb95-2512-5aec-afed-6eca926c9666	PLM_PRESSURE_ZONE_TXT	TEXT		6	1	Pressure zone LOW/MID/HIGH/BOOSTED [Phase 178b]	1
+PARAM	f6957339-9364-575d-b916-28a31bede75e	PLM_TMV_CLASS_TXT	TEXT		6	1	TMV class TMV2 TMV3 [BS 7942 Phase 178b]	1
+PARAM	1cc13cfc-9059-538d-8c2d-02c9384ef850	PLM_TMV_BLEND_TEMP_C	TEXT		6	1	TMV blended outlet temperature setpoint C [Phase 178b]	1
+PARAM	dc00317c-d340-56b9-9f61-3604459d0289	PLM_VLV_SET_PRESSURE_BAR	TEXT		6	1	Valve set pressure bar PRV / safety valves [Phase 178b]	1
+PARAM	cde9d6ca-3327-585b-a8f7-6260416747c8	PLM_VLV_DESIGN_FLOW_LS	TEXT		6	1	Valve design flow rate l/s [Phase 178b]	1
+PARAM	a0daacb6-3075-5571-adac-f16dd4986012	PLM_VLV_DESIGN_DP_KPA	TEXT		6	1	Valve design pressure drop kPa [Phase 178b]	1
+PARAM	83e44d79-e601-5250-bcbc-d63193ac441f	PLM_VLV_FAIL_POSITION_TXT	TEXT		6	1	Valve fail-safe position OPEN/CLOSED/LAST [Phase 178b]	1
+PARAM	ab46d616-d864-572c-8d9d-5bb51ccaab79	PLM_VLV_WRAS_APPROVED_BOOL	YESNO		6	1	Valve WRAS-approved [Phase 178b]	1
+PARAM	af8461f1-b314-5f60-8e8d-e38963de14f8	PLM_DEAD_LEG_LENGTH_M	TEXT		6	1	Dead-leg length m flagged by DeadLegDetector [HSG 274 Phase 178b]	1
+PARAM	98ab6e19-8d12-53c0-b388-8705f9413373	PLM_PRJ_PLUMBING_CODE_TXT	TEXT		1	1	Project plumbing-code toggle BS-UK / IPC-US / UPC-US [Phase 178b]	1
+PARAM	c3d5b6ee-0f2e-7283-9405-162718304a5b	ELC_CDT_PENETRATION_COUNT_NR	TEXT		4	1	Number of fire-rated barriers (floors / walls) this conduit crosses. Stamped by SlabPenetrationDetector each time a crossing is recorded. Drives the FRP penetration register schedule and JBAutoPlacer's avoid-collision logic (Wave J3).	1
