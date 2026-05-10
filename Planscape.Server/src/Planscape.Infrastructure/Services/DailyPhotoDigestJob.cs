@@ -91,33 +91,62 @@ public class DailyPhotoDigestJob
             .CountAsync(p => p.ProjectId == projectId && p.Audience == "PendingReview", ct);
 
         // (1) Client-portal email — gated on EmailDigestEnabled (T2-13).
-        // The digest is opt-out; ClientGuests who toggle it off in
-        // Settings will be skipped here. Project members get the same
-        // gate via the explicit LEFT JOIN to UserNotificationPreferences.
+        // Phase 180 — when the project's PhotoPolicy names a
+        // DigestDistributionGroupId, recipients come from that group
+        // instead of "every project ClientGuest". This lets the BIM
+        // manager direct the daily digest at a specific list (e.g.
+        // "Client weekly" group with 4 emails) rather than every
+        // tenant client guest, which is rarely what the team wants.
         if (publishedToday.Count > 0)
         {
-            var clientGuests = await (
-                from m in _db.ProjectMembers.AsNoTracking()
-                where m.ProjectId == projectId && m.IsActive && m.ProjectRole == "ClientGuest"
-                join u in _db.Users.AsNoTracking() on m.UserId equals u.Id
-                join p in _db.UserNotificationPreferences.AsNoTracking() on u.Id equals p.UserId into pg
-                from p in pg.DefaultIfEmpty()
-                select new { u.Email, u.DisplayName,
-                             OptIn = p == null || p.EmailDigestEnabled })
-                .ToListAsync(ct);
-            int sent = 0, skipped = 0;
-            foreach (var guest in clientGuests)
+            var policy = await _db.PhotoPolicies.AsNoTracking()
+                .FirstOrDefaultAsync(p => p.ProjectId == projectId, ct);
+            List<(string Email, string? DisplayName, bool OptIn)> recipients;
+            if (policy?.DigestDistributionGroupId is { } dgId)
             {
-                if (string.IsNullOrWhiteSpace(guest.Email)) { skipped++; continue; }
-                if (!guest.OptIn) { skipped++; continue; }
+                // Resolve from distribution group: internal users + external emails.
+                var members = await _db.DistributionGroupMembers.AsNoTracking()
+                    .Where(m => m.DistributionGroupId == dgId)
+                    .ToListAsync(ct);
+                var internalUserIds = members.Where(m => m.UserId.HasValue).Select(m => m.UserId!.Value).ToList();
+                var users = await _db.Users.AsNoTracking()
+                    .Where(u => internalUserIds.Contains(u.Id))
+                    .ToDictionaryAsync(u => u.Id, ct);
+                recipients = members.Select(m =>
+                {
+                    if (m.UserId.HasValue && users.TryGetValue(m.UserId.Value, out var u))
+                        return (u.Email ?? "", u.DisplayName as string, true);
+                    return (m.ExternalEmail ?? "", m.DisplayName, true);
+                }).ToList();
+            }
+            else
+            {
+                recipients = await (
+                    from m in _db.ProjectMembers.AsNoTracking()
+                    where m.ProjectId == projectId && m.IsActive && m.ProjectRole == "ClientGuest"
+                    join u in _db.Users.AsNoTracking() on m.UserId equals u.Id
+                    join p in _db.UserNotificationPreferences.AsNoTracking() on u.Id equals p.UserId into pg
+                    from p in pg.DefaultIfEmpty()
+                    select new ValueTuple<string, string?, bool>(
+                        u.Email ?? "",
+                        u.DisplayName,
+                        p == null || p.EmailDigestEnabled))
+                    .ToListAsync(ct);
+            }
+            int sent = 0, skipped = 0;
+            foreach (var (email, _, optIn) in recipients)
+            {
+                if (string.IsNullOrWhiteSpace(email)) { skipped++; continue; }
+                if (!optIn) { skipped++; continue; }
                 var subject = $"{publishedToday.Count} new progress photos · {project.Name}";
                 var body    = ClientDigestHtml(project, publishedToday);
-                await _email.SendNotificationAsync(guest.Email, subject, body, ct);
+                await _email.SendNotificationAsync(email, subject, body, ct);
                 sent++;
             }
             _logger.LogInformation(
-                "DailyPhotoDigest: project {ProjectId} client digest sent={Sent} skipped={Skipped}",
-                projectId, sent, skipped);
+                "DailyPhotoDigest: project {ProjectId} client digest sent={Sent} skipped={Skipped} via={Via}",
+                projectId, sent, skipped,
+                policy?.DigestDistributionGroupId is null ? "client-guests" : "distribution-group");
         }
 
         // (3) Approver nudge — same opt-out gate.

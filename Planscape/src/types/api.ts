@@ -209,7 +209,12 @@ export interface OfflineAction {
     // T3-17 — mobile deliverable CRUD + transition, queued when offline.
     | 'CREATE_DELIVERABLE'
     | 'UPDATE_DELIVERABLE'
-    | 'TRANSITION_DELIVERABLE';
+    | 'TRANSITION_DELIVERABLE'
+    // Phase 179.2 — checklist auto-fulfilment from the capture flow.
+    // Queued when capture happens offline; replayed once the photo
+    // upload server-side completes (we use the photo id we get back
+    // from the queued capture replay as the link target).
+    | 'FULFIL_CHECKLIST_ITEM';
   payload: Record<string, unknown>;
   createdAt: string;
   synced: boolean;
@@ -443,6 +448,11 @@ export interface SitePhotoListResponse {
   total: number;
   page: number;
   pageSize: number;
+  /** Phase 179.2 — ids of photos in `items` that the caller must
+   *  accept the project NDA for before the photo bytes will load.
+   *  Empty when the caller bypasses ACL (Admin / Owner / SecurityOfficer)
+   *  or no listed photo carries an NDA-required PhotoAccessRule. */
+  ndaRequiredIds?: string[];
 }
 
 export interface SitePhotoListFilters {

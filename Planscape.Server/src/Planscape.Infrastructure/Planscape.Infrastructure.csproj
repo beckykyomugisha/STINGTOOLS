@@ -26,6 +26,11 @@
     <!-- IHostEnvironment used by EmailTemplateRenderer + I18nService (FLEX-03/15) -->
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.1" />
     <PackageReference Include="ClosedXML" Version="0.104.2" />
+    <!-- Phase 179 — PDF album export rendered with QuestPDF.
+         Community license is free for OSS / personal / sub-1M-USD revenue;
+         server bootstrap sets QuestPDF.Settings.License = LicenseType.Community
+         in Program.cs. Native runtime ships inside the NuGet package. -->
+    <PackageReference Include="QuestPDF" Version="2024.3.0" />
     <PackageReference Include="MailKit" Version="4.8.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <!-- STORAGE-01 — S3-compatible object storage (AWS S3, MinIO, R2, Spaces) -->

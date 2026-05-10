@@ -2,6 +2,182 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 179.3 + Phase 180 A–G — Site-photo workflow review hardening)
+
+Closes 40 findings from the Phase 179 workflow review pass. Branch:
+`claude/enhance-photos-workflow-T6vMA`. Slice index:
+
+| Slice | What |
+|---|---|
+| 179.3 | Critical correctness/security: fix `Client` visibility `\|\| true` typo; pipe album-detail through `PhotoAclGate`; resolve `DistributionGroupMember` by email OR userId; discipline list match; stream ZIP/PDF directly to `Response.Body`; atomic share-link `FetchCount`; `/album` counts toward `MaxFetches`. |
+| 180.A | Wire previously-inert `PhotoPolicy` fields: `AllowedReasons`, `DefaultAudienceByReason`, `Geofence`/`OffsiteAudience`, watermark template + `WatermarkRequired`, `DigestDistributionGroupId`, `ApprovalChain` (TwoStepSafety / TwoStepAll via new `PhotoApprovalSignoffs` table). |
+| 180.B | `GET /photo-audit` — read-only window over the photo audit-log family; SignalR emissions on Reject / Withdraw / BulkApprove; notifications on rejection, share-link first/last fetch, checklist first-fulfilment; `PhotoChecklistDueJob` (Hangfire 07:00 UTC). |
+| 180.C | `PhotoAlbum.SavedFilterJson` (smart album) + `PhotoSmartAlbumMaterialiseJob` (02:00 UTC); `PhotoPolicy.DefaultAlbumByReasonJson` auto-add on capture; `PhotoPolicy.NdaText`. |
+| 180.D | `PhotoAclGate` request-scoped cache via `HttpContext.Items`; parallel thumb fetches in BCC and mobile gallery (`SemaphoreSlim(8)` / `Promise.all`); `SitePhotoOfflineCache` capped at 200 entries. |
+| 180.E | Mobile NdaPromptModal lazy-fetches `PhotoPolicy.NdaText`; mobile albums create-modal adds 4-radio Visibility picker; mobile capture surfaces a "For: <item title>" pill when launched from a checklist; new BCC `SitePhotosNdaPrompt` modal + 🔒 lock tile in the Grid sub-tab. |
+| 180.F | `GET /issues/{iid}/photos` + `GET /site-diaries/{did}/photos`; new webhook event types `PhotoCaptured/Approved/Rejected/Withdrawn/ChecklistClosed/ShareLinkOpened`; `WORKFLOW_DailyFieldWalk.json` preset. |
+| 180.G | Capture endpoint: SHA-256 dedupe + `PhotoExifSniffer` for EXIF DateTimeOriginal drift detection (>5min triggers `exifDriftFlagged` audit); `PhotoRetentionJob` T-7-day pre-warning notifications; mobile `pair-timeline.tsx` (before/after grouping by `pairKey`); mobile `bulk-import.tsx` (camera-roll dump → classify → edit → sequential upload). |
+
+**Migrations**: `20260514200000_AddPhotoApprovalSignoffs`,
+`20260514300000_AddSmartAlbumAndAutoAddAndNdaText`. Both additive; the
+existing `SitePhotos` table is untouched throughout.
+
+**Per-section caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox, no Revit
+   API). Verify in Revit before merge.
+2. The EF model snapshot file is not regenerated — first deploy must
+   run `dotnet ef migrations add` to refresh
+   `PlanscapeDbContextModelSnapshot.cs`. See deploy runbook.
+3. Bulk-import upload is sequential, not parallel — most phones throttle
+   concurrent multipart so this is intentional, not a perf bug.
+
+**Phase 180.H — `EnforceChecklistOnShiftEnd` wired (warn-only)**
+
+Treats `SiteDiary` submission as the shift-end signal. When the
+project's `PhotoPolicy.EnforceChecklistOnShiftEnd` is true and any
+`PhotoChecklist.Status="Active"` carries an unfulfilled, unwaived,
+required item, the submit endpoint:
+
+- Still succeeds (non-blocking by design).
+- Returns a `shiftEndWarnings` array on the response listing the
+  pending checklists + items so the mobile/desktop submit UI can
+  render a banner.
+- Pings the diary author via `INotificationService` ("Diary submitted
+  with open photo items — N items remain open").
+- Writes a `SHIFT_END_WARNING` row to the audit log.
+
+The choice between blocking / warning was deliberate — see the review
+trade-off discussion. Switching to blocking is a one-line change in
+the controller (return `UnprocessableEntity(...)` instead of `Ok`)
+when the team's UX preference flips.
+
+#### Completed (Phase 179 — Site-photo workflow enhancements)
+
+Closes the gaps surfaced during the BCC site-photo review pass. Branch:
+`claude/enhance-photos-workflow-T6vMA`.
+
+**Server (11 new tables + 8 new controllers + 1 service + 1 job)**
+
+| Area | Files | Notes |
+|---|---|---|
+| Domain | `PhotoAlbum`, `PhotoAlbumPhoto`, `DistributionGroup`, `DistributionGroupMember`, `PhotoAccessRule`, `PhotoChecklist`, `PhotoChecklistItem`, `PhotoAnnotation`, `PhotoVoiceNote`, `PhotoShareLink`, `PhotoPolicy` | All tenant-scoped; cascade-delete from Project; PhotoAccessRule cascade-deletes from SitePhoto |
+| Migration | `20260514000000_AddPhotoWorkflowEnhancements.cs` | All additive — existing SitePhotos table untouched |
+| Controllers | `PhotoAlbumsController`, `DistributionGroupsController`, `PhotoChecklistsController`, `PhotoShareLinkAdminController`, `PhotoShareLinkPublicController`, `PhotoPolicyController`, `SitePhotosExtController`, `PhotoExportController` | Mutation gates: tenant Admin/Owner OR project PM; share-link consumer is anonymous (token-as-credential) |
+| Services | `PhotoBulkExportService` (in-memory ZIP: photos + index.csv + album.html + manifest.json + per-photo annotations) | Capped at 500 photos per request; ClientGuest never gets originals |
+| Recurring | `PhotoRetentionJob` | Daily 03:30 UTC via Hangfire — withdraws Approved/ClientPortal photos older than RetentionDays, autoarchives Progress photos at HANDOVER status, applies per-album AutoArchiveAfterDays |
+| DI | `Program.cs` | Both new services + recurring job registered |
+
+**Desktop (BCC SitePhotosTab redesign)**
+
+The Phase 178 review queue now sits as the first sub-tab in a 5-tab
+TabControl: Review queue · Grid (4-column contact-sheet) · Albums
+(two-pane curate + share + export-zip) · Checklists (RAG list) ·
+Admin (bulk reclassify / reanchor / distribution groups). New files:
+`SitePhotosGridSubTab.cs`, `SitePhotosAlbumsSubTab.cs`,
+`SitePhotosChecklistsSubTab.cs`, `SitePhotosAdminSubTab.cs`. Selection
+state is shared across tabs via `TabState.SelectedIds`.
+
+`PlanscapeServerClient` gained 12 endpoint helpers + 5 new DTOs
+(PhotoAlbumDto, PhotoAlbumDetailDto, DistributionGroupDto,
+PhotoChecklistDto, PhotoShareLinkDto) covering every Phase 179 server
+route.
+
+`SitePhotoOfflineCache` writes the last successful ListSitePhotos page
+plus per-photo JPEG thumbs to
+`%LOCALAPPDATA%\StingTools\photo-cache\{projectId}\` so the Review
+queue paints a useful "Offline — showing N cached at …" page when the
+server is unreachable (was: blank panel as in the BCC screenshot).
+
+**Mobile (5 new screens + 12 typed endpoint wrappers)**
+
+Stack route group `app/site-photos/` extended with `albums.tsx`,
+`album-detail.tsx`, `checklists.tsx`, `checklist-detail.tsx`,
+`annotate.tsx`. `endpoints.ts` adds typed wrappers for every Phase 179
+controller (albums, distribution groups, checklists, annotations,
+voice notes, share links). The annotate screen produces normalised
+0..1 shape coords so the same JSON renders identically on desktop /
+PDF / mobile.
+
+**What this unlocks**
+
+- **Albums** are the missing curation primitive — sharing, digest
+  scoping, handover bundles, snag lists all hang off this one entity.
+- **Distribution groups** + **PhotoAccessRules** give per-photo /
+  per-album visibility (discipline, role, time-bounded, NDA gate)
+  layered on top of the existing audience state machine. The two
+  gates AND at read time.
+- **Checklists** turn the workflow from "passively review whatever
+  arrives" into "ensure these specific shots get taken" — drives
+  capture compliance for inspections, pours, handovers.
+- **Annotations + voice notes** persist the markup pipeline that the
+  capture screen already had wired into AudioRecorder but never
+  uploaded.
+- **Share links** + **bulk-export ZIP** cover both ad-hoc sharing
+  with outside-tenant engineers and the handover bundle case.
+- **Retention + auto-archive** + **per-project PhotoPolicy** give
+  BIM Managers control over watermark / face-blur / digest hour /
+  approval-chain shape without redeploying.
+- **Re-redact / restore / bulk-force-state** + **bulk-reclassify /
+  re-anchor** cover the admin recovery cases that surfaced in the
+  review pass.
+
+**Phase 179.1 — caveat clearance (same branch)**
+
+- **PDF export** wired up via QuestPDF — `PhotoPdfExportService`
+  renders cover + index + 2-up body grid. Reachable via
+  `POST /api/projects/{id}/photo-export?format=pdf` and from the BCC
+  Albums tab Save dialog (filter index 2). Capped at 200 photos per
+  render; bigger jobs need a Hangfire follow-up.
+- **v1 list/single/file ACL gate** added — `PhotoAclGate` AND-s the
+  audience state machine with the per-photo `PhotoAccessRule` rows
+  on every v1 endpoint (`GET /photos`, `GET /photos/{id}`,
+  `GET /photos/{id}/file`). Photos with zero rules pass through
+  untouched (pre-Phase-179 behaviour). Tenant Admin / Owner /
+  SecurityOfficer bypass.
+- **Deploy runbook** at [`docs/PHOTO_WORKFLOW_DEPLOY.md`](PHOTO_WORKFLOW_DEPLOY.md)
+  documents `dotnet build`, EF snapshot regeneration, migration
+  smoke-test, plugin compile, mobile type-check, and rollback.
+
+**Phase 179.2 — follow-up clearance (same branch)**
+
+- **NDA gate at fetch time** — new `PhotoNdaAcceptances` table
+  (composite PK on PhotoId+UserId, FK cascade from both); new
+  `POST /api/projects/{pid}/photos/{phid}/accept-nda` endpoint
+  (idempotent, captures IP + UA + optional accepted-text SHA256);
+  `PhotoAclGate.AclProbe` pre-fetches the user's accepted-photo set
+  in one query; `RulePasses` rejects when a rule has
+  `RequiresNdaAcceptance = true` and the user is not in the set.
+  v1 `/file` and `/photos/{id}` return `403 { error: "nda_required",
+  photoId }` when the gate trips; v1 list returns a sibling
+  `ndaRequiredIds` array so smart clients can render the lock badge
+  without round-tripping. New helper
+  `PhotoAclGate.NdaRequiredAsync()` centralises the check.
+- **Mobile NDA acceptance UI** — new
+  `src/components/site-photos/NdaPromptModal.tsx` (one-tap accept
+  with audit logging); `gallery.tsx` paints a 🔒 NDA tile for
+  every id in the new `ndaRequiredIds` array, tapping opens the
+  modal, accept POSTs `/accept-nda`, the list reloads, and the
+  viewer opens automatically. Existing `acceptPhotoNda()` wrapper
+  added to `endpoints.ts`.
+- **Mobile checklist auto-link** — `checklist-detail.tsx` now
+  passes `checklistId`, `checklistItemId`, and `defaultReason`
+  through to capture. `capture.tsx` pre-selects the item's
+  default reason, auto-calls `fulfilChecklistItem` after a
+  successful upload, and shows a "✓ Linked to your checklist
+  item" confirmation. Offline path queues a new
+  `FULFIL_CHECKLIST_ITEM` action plus stashes the ids in the
+  `CAPTURE_SITE_PHOTO` payload so replay calls fulfilment as soon
+  as the photo lands.
+
+**Remaining caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox, no Revit
+   API). Verify in Revit before merge — see
+   `docs/PHOTO_WORKFLOW_DEPLOY.md` for the full sequence.
+2. The EF model snapshot file is not regenerated — first deploy must
+   run `dotnet ef migrations add` to refresh
+   `PlanscapeDbContextModelSnapshot.cs`. See deploy runbook step 2.
 #### Completed (Phase 179 — Plumbing panel enhancement: 8 tabs · 27 commands · 10 engines)
 
 Lifts the STING Plumbing Center from the Phase 178c 6-tab / 8-button
