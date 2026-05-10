@@ -185,14 +185,35 @@ namespace StingTools.Core.Plumbing
             catch (Exception ex) { StingLog.Warn($"PlumbingBOQEnricher.{category}: {ex.Message}"); }
         }
 
+        // Tracks divergence-warning emissions so a single session never
+        // floods the log with the same key. Reset implicitly per process
+        // (Revit restart).
+        private static readonly HashSet<string> _divergenceLogged = new HashSet<string>();
+
         // SYSTEM-tab override → TagConfig key → fallback constant. The
         // PlumbingSystemConfig.BoqDefault* fields persist with the rest of
         // the plumbing system config in _BIM_COORD/plumbing_system_config.json,
         // so a project's QS-set rate survives across sessions and beats the
-        // process-wide TagConfig key.
+        // process-wide TagConfig key. When both are set to different values
+        // a one-shot StingLog.Info explains which one won, so a user
+        // investigating "why didn't my override apply?" finds the answer.
         private static double ResolveRate(double? sysOverrideUgx, string tagConfigKey, double fallbackUgx)
         {
-            if (sysOverrideUgx.HasValue && sysOverrideUgx.Value > 0) return sysOverrideUgx.Value;
+            if (sysOverrideUgx.HasValue && sysOverrideUgx.Value > 0)
+            {
+                // GetConfigDouble returns the default when the key isn't set.
+                // Pass NaN as the sentinel so we can detect explicit values
+                // without a separate "is key present" probe.
+                double tagConfigVal = TagConfig.GetConfigDouble(tagConfigKey, double.NaN);
+                if (!double.IsNaN(tagConfigVal)
+                    && Math.Abs(tagConfigVal - sysOverrideUgx.Value) > 0.5
+                    && _divergenceLogged.Add(tagConfigKey))
+                {
+                    StingLog.Info($"PlumbingBOQEnricher: SYSTEM override {sysOverrideUgx.Value:F0} wins over "
+                                + $"TagConfig {tagConfigKey}={tagConfigVal:F0}");
+                }
+                return sysOverrideUgx.Value;
+            }
             return TagConfig.GetConfigDouble(tagConfigKey, fallbackUgx);
         }
     }

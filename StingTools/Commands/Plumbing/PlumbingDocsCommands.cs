@@ -461,18 +461,22 @@ namespace StingTools.Commands.Plumbing
             catch { return FlowDirectionType.Bidirectional; }
         }
 
-        // For a Bidirectional chamber connector, find the connected pipe and
-        // compare its two end Z values. The end nearer the chamber connector
-        // is the "near" end; the other is "far". For drainage:
-        //   far Z > near Z → water comes IN to the chamber from this pipe (US)
-        //   far Z < near Z → water leaves the chamber via this pipe (DS)
-        //   far Z ≈ near Z → flat, can't tell — return Bidirectional.
+        // For a Bidirectional chamber connector, walk every connected pipe in
+        // AllRefs and vote: each connected pipe contributes one In or Out
+        // vote based on slope (far end higher than the chamber → In, far
+        // end lower → Out, flat within ~1 mm tolerance abstains). Majority
+        // wins. Ties or all-flat returns Bidirectional so the caller falls
+        // through to the max/min bucket. Voting (rather than first-pipe-wins)
+        // makes the inference robust to cap-then-extend reroutes that briefly
+        // leave two pipes sharing a chamber connector.
         private static FlowDirectionType InferFlowFromConnectedPipe(Connector chamberConn)
         {
+            int inVotes = 0, outVotes = 0;
             try
             {
                 var refs = chamberConn.AllRefs;
                 if (refs == null) return FlowDirectionType.Bidirectional;
+                const double flatToleranceFt = 0.0033; // ≈1 mm
                 foreach (Connector other in refs)
                 {
                     if (other?.Owner == null) continue;
@@ -486,12 +490,13 @@ namespace StingTools.Commands.Plumbing
                     double dEnd   = pEnd.DistanceTo(chamberConn.Origin);
                     var nearZ = dStart <= dEnd ? pStart.Z : pEnd.Z;
                     var farZ  = dStart <= dEnd ? pEnd.Z   : pStart.Z;
-                    const double flatToleranceFt = 0.0033; // ≈1 mm
-                    if (Math.Abs(farZ - nearZ) < flatToleranceFt) return FlowDirectionType.Bidirectional;
-                    return farZ > nearZ ? FlowDirectionType.In : FlowDirectionType.Out;
+                    if (Math.Abs(farZ - nearZ) < flatToleranceFt) continue;
+                    if (farZ > nearZ) inVotes++; else outVotes++;
                 }
             }
             catch { }
+            if (inVotes > outVotes) return FlowDirectionType.In;
+            if (outVotes > inVotes) return FlowDirectionType.Out;
             return FlowDirectionType.Bidirectional;
         }
     }
