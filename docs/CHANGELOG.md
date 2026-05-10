@@ -25,6 +25,261 @@ identified in the deep code-base review. Branch:
 
 Built without `dotnet build` verification (Linux sandbox). Verify in Revit before merge to `master`.
 
+#### Completed (Phase 178f — Deferred-list completion: damper / acoustic / UL / mobile / formula / section)
+
+Closes the five items deferred at the end of Phase 178e. All
+implemented in priority order against the plan I'd posted.
+
+**#15 — Mark formula injection.** New `FormulaBinding` schema entry on
+`SymbolDefinition.FormulaBindings`. `SymbolLibraryCreator.AddFormulaBindings`
+calls `FamilyManager.SetFormula` with `BuiltInParameter.ALL_MODEL_MARK`
+fallback. The SpecialityEquipment seed now ships
+`{ target: "Mark", expression: "PEN_CONTROL_NUMBER_TXT" }` so every
+firestop instance's Mark mirrors its control number — tag schedules
+read it for free.
+
+**#14 — Section symbology auto-gen.** New `SectionSymbology` block on
+`SymbolGeometry.Section` with optional view filter (Front / Back /
+Left / Right / All). `SymbolLibraryCreator.DrawSectionGeometry` walks
+the family doc's elevation views, builds a vertical sketch plane
+matching each view's normal, and renders lines / arcs / text into the
+elevation. SpecialityEquipment seed gets a 200 mm vertical bar with
+in/out arrows (matches the README guidance for section views).
+
+**#11 — Fire damper + acoustic seal.** Two new seeds:
+`STING_SEED_FireDamper.json` (BS EN 1366-2 / BS EN 15650; FR60 / FR90
+/ FR120 / motorised / combined-smoke variants; FD_*-prefix params for
+actuation / trigger temp / EN-15650 class) and
+`STING_SEED_AcousticSeal.json` (BS 8233 / Approved Doc E; Rw45 / Rw55
+/ Rw63 / flexible-boot variants). Both wired into the BuildSeedFamilies
+tier list. New `Core/Routing/PenetrationProductSelector` picks the
+right product family per (member-category, host-rating-type) — ducts
+through fire-rated barriers go to fire dampers, acoustically-rated
+hosts (with `STING_ACOUSTIC_RW_DB > 0`) go to acoustic seals, beams
+stay on SLEEVE_GENERIC for structural review only.
+`FrpPenetrationPlacer` now resolves three families up front and
+dispatches via the selector; `StampInstance` pulls the family name
+off the placed symbol so dampers / seals carry their own
+`STING_SEED_FAMILY_TXT`. `PenetrationCoverageValidator` recognises
+all three seeds.
+
+**#13 — UL-system framework.** Extended `STING_FAMILY_SWAP_REGISTRY.json`
+with optional `ulSystemMatch[]` blocks per candidate carrying
+`fireRatingPattern` / `hostTypePattern` / `minOdMm` / `maxOdMm` /
+`ulSystem` rules. Initial dataset covers Hilti, Promat, Nullifire,
+STI, 3M for firestops; Hilti, TROX, Halton, Ruskin for fire dampers;
+CMS, Kingspan / Isover for acoustic seals — about 25 named systems.
+New `Core/Symbols/ULSystemMatcher` walks the rules against a placed
+penetration's `PEN_FIRE_RATING_TXT` + `PEN_HOST_TYPE_TXT` + `PEN_OD_MM`
+and returns the matching UL / EN-1366-3 reference.
+`SwapToManufacturerCommand.SwapCandidate.RawNode` now carries the
+JSON candidate; the swap loop calls the matcher post-`ChangeTypeId`
+and stamps `PEN_CERTIFICATION_TXT` with the chosen system.
+
+**#12 — Mobile commissioning sign-off.** Server: new
+`PenetrationSignoff` entity (`ITenantScoped`) + `PenetrationsController`
+with `PUT /api/projects/{id}/penetrations/{controlNumber}/signoff`
+(idempotent on control-number + UUID), `GET /signoff`, `GET` (list,
+filter by status / hostType), `GET /dashboard` aggregator;
+`PlanscapeDbContext.PenetrationSignoffs` `DbSet`. Mobile: new
+`Planscape/app/penetrations/` flow with `index.tsx` (dashboard +
+recent rows) and `signoff.tsx` (QR scan via `expo-camera`,
+photo via `expo-image-picker`, GPS via `expo-location`, status chips
+DRAFT / INSTALLED / INSPECTED / SIGNED-OFF / REWORK, idempotent PUT
+with offline-queue fallback). QR payload format:
+`STING-PEN|<controlNumber>|<pfvUuid>|<projectId>`. Endpoint wrappers
+`putPenetrationSignoff` / `getPenetrationSignoff` /
+`listPenetrationSignoffs` / `getPenetrationDashboard` added to
+`Planscape/src/api/endpoints.ts`.
+
+Files: `StingTools/Core/Symbols/SymbolDefinition.cs` +
+`SymbolLibraryCreator.cs` (formula bindings + section renderer +
+per-variant connector minting); `STING_SEED_SpecialityEquipment.json`
+(formula binding + section block); new
+`Core/Symbols/ULSystemMatcher.cs`; new
+`Core/Routing/PenetrationProductSelector.cs`;
+`Core/Routing/FrpPenetrationPlacer.cs` (three-family dispatch);
+`Core/Validation/PenetrationCoverageValidator.cs` (recognise three
+seeds); new `STING_SEED_FireDamper.json` + `STING_SEED_AcousticSeal.json`;
+`STING_FAMILY_SWAP_REGISTRY.json` (UL system rules);
+`Commands/Symbols/SwapToManufacturerCommand.cs` (UL stamp on swap);
+`Commands/Symbols/BuildSeedFamiliesCommand.cs` (+2 specs);
+new `Planscape.Server/src/Planscape.Core/Entities/PenetrationSignoff.cs`;
+new `Planscape.Server/src/Planscape.API/Controllers/PenetrationsController.cs`;
+`Planscape.Server/src/Planscape.Infrastructure/Data/PlanscapeDbContext.cs`
+(`DbSet<PenetrationSignoff>`); new `Planscape/app/penetrations/{_layout,index,signoff}.tsx`;
+appended `Planscape/src/api/endpoints.ts`. Code committed without
+`dotnet build` / `dotnet ef migrations` — run
+`dotnet ef migrations add Phase178f_PenetrationSignoff` against
+`Planscape.Server` once before deploy. Mobile builds without `npx expo
+start` verification.
+
+Standards basis: BS EN 1366-2 / BS EN 15650 (fire dampers, EI##S
+classification), BS 8233 + Approved Document E + DW/144 (acoustic
+penetration sealing), UL Building Materials Directory + UL 555
+(damper listings), the named UL systems above (Hilti / Promat / STI /
+3M / Nullifire / TROX / Halton / Ruskin / CMS Danskin / Kingspan-Isover),
+BS 9999 + Building Safety Act 2022 (golden-thread record).
+
+#### Completed (Phase 178e — Multi-service drops + plumbing/medgas/lab seeds)
+
+Continuation of Phase 178d. Closes the remaining items in the priority
+order from the seed-and-penetration review.
+
+**Multi-service drop pipeline.** `DropEngineBase` gains
+`MultiServiceMode` flag + `TryDropFromFixtureAllConnectors` helper +
+`TryDropFromFixtureUsingConnector` per-connector driver +
+`ServiceIdForConnector` virtual hook. `AutoPipeDrop` flips the flag on
+and overrides the hook to map `Connector.PipeSystemType` to the right
+`ServiceId` (`DomesticCold → PLM_CWS`, `DomesticHot → PLM_DHW`,
+`Sanitary → PLM_SAN`, `Vent → PLM_VEN`, `FireProtect* → PLM_FPS`,
+`Storm → PLM_RWD`, hydronic supply/return). `AutoDuctDrop` does the
+same for `DuctSystemType` (`SupplyAir → HVC_SA`, `ReturnAir → HVC_RA`,
+`ExhaustAir → HVC_EA`). A basin now drops cold + hot + waste in one
+pass; an AHU drops supply + return + outdoor + relief; each drop
+claims its own corridor band.
+
+**Three new seeds (tier-3).** `STING_SEED_PlumbingEquipment.json` —
+seven variants for central water-handling plant (calorifier / DHW
+cylinder / electric water heater / booster set / manifold / expansion
+vessel / inline pump) with a 4-connector union (DCW + DHW + LTHW
+supply + LTHW return). `STING_SEED_MedGasOutlet.json` — seven HTM
+02-01 / EN ISO 7396-1 variants (O₂ / N₂O / Med Air / Surg Air / Vac
+terminal units + 5-gas AVSU + area alarm panel) with a 4-connector
+union and `MGS_*` parameter pack (gas list, BS 5682 socket, operating
+kPa, hospital area, AVSU zone). `STING_SEED_LabFixture.json` — eight
+BS EN 14056 / ANSI Z358.1 / BS 7258 variants (fume hood / low-flow
+fume hood / BSL3 cabinet / eyewash / emergency shower / combo /
+lab gas tap / DI water tap) with a 6-connector union covering
+DCW + DHW + waste + 2 lab services + duct exhaust. All three wired
+into `BuildSeedFamiliesCommand` tier-3 list — re-run builds them.
+
+**Discipline router extended.** `AutoDropCommand.DisciplineFor` adds
+`OST_PlumbingEquipment` + `OST_PipeAccessory` to plumbing scope and
+`OST_DuctAccessory` to HVAC scope. Selecting a calorifier or a duct
+damper now routes through the right drop engine.
+
+**PlumbingConnectorCompletenessValidator.** Audits every plumbing
+fixture against an expected-connector-count lookup keyed on
+`PLM_FIX_TYPE_TXT` (WC=2, basin=3, shower=3, kitchen-sink=4, etc.).
+Catches the swap-to-manufacturer regression where a vendor family
+ships fewer connectors than the seed authored — AutoPipeDrop would
+silently leave the fixture only partly wired. Codes:
+`PLM.CONN.MISSING` / `PLM.CONN.EXTRA` / `PLM.CONN.UNTYPED` /
+`PLM.CONN.NO_TYPE`. Appended to `RunAllValidatorsCommand`.
+
+**SymbolLibraryCreator per-variant connectors.** `AddConnectors` now
+folds `def.TypeVariants[].Connectors` into the family doc alongside
+`def.Connectors`, with the source label visible in any warning.
+Connector-mint gate updated so a variant-only declaration still
+fires.
+
+**BuildSeedFamiliesCommand connector audit.** Post-build step opens
+each loaded seed family (`Document.EditFamily`), counts
+`ConnectorElement` instances, and surfaces a warning when the count
+is below the JSON-declared count. Catches silent connector-mint
+failures without forcing the user to inspect every .rfa.
+
+Files: `Core/Routing/DropEngineBase.cs` (multi-service helper +
+per-connector driver + ServiceIdForConnector hook);
+`Core/Routing/AutoPipeDrop.cs` + `AutoDuctDrop.cs` (multi-service
+mode + per-connector ServiceId map);
+`Commands/Routing/AutoDropCommand.cs` (DisciplineFor +3 categories);
+new `STING_SEED_PlumbingEquipment.json` + `STING_SEED_MedGasOutlet.json` +
+`STING_SEED_LabFixture.json`;
+`Commands/Symbols/BuildSeedFamiliesCommand.cs` (+3 specs + connector
+audit step); `Core/Symbols/SymbolLibraryCreator.cs` (per-variant
+connector minting);
+new `Core/Validation/PlumbingConnectorCompletenessValidator.cs`;
+`Commands/Validation/RunAllValidatorsCommand.cs` (+ validator).
+Code committed without `dotnet build` verification.
+
+Standards basis: BS 6465-2 (fixture-unit + connector counts),
+BS 8558 / BS 6700 (DCW/DHW supply, dead-leg control), HTM 02-01 +
+EN ISO 7396-1 + BS 5682 (medical-gas terminals, AVSU, alarm panels),
+BS EN 14056 + BS 7258 + ANSI Z358.1 + BS EN 1717 (lab fixture
+backflow categories, deluge flow rates, fume-hood face velocity).
+
+#### Completed (Phase 178d — Penetration coverage: floors + walls + beams)
+
+Closes the gaps identified in the Phase 178c seed-and-penetration review.
+Branch: `claude/review-sting-equipment-aV6qM`.
+
+**Shared parameter pack (group 33: PEN_PENETRATION).** 19 new parameters
+in `MR_PARAMETERS.txt` with stable UUIDv5-style GUIDs in the Planscape
+namespace: `PEN_FIRE_RATING_TXT`, `PEN_SEALANT_TYPE_TXT`, `PEN_OD_MM`,
+`PEN_HOST_REF_TXT`, `PEN_HOST_TYPE_TXT`, `PEN_MEMBER_ID_TXT`,
+`PEN_CERTIFICATION_TXT`, `PEN_INSTALL_STATUS_TXT`, `PEN_INSTALLER_TXT`,
+`PEN_INSTALL_DATE`, `PEN_INSPECTOR_TXT`, `PEN_INSPECTION_DATE`,
+`PEN_CONTROL_NUMBER_TXT`, `PEN_PFV_UUID_TXT`, `PEN_BEAM_OFFSET_PCT`,
+`PEN_BEAM_DEPTH_RATIO`, `PEN_STRUCTURAL_FLAG_TXT`, plus
+`STING_PENETRATION_REF_TXT` and `STING_PENETRATION_FIRE_RATING_TXT` as
+member-side stamps. `LoadSharedParamsCommand` binds them on first run.
+
+**Three detectors (was: floors only).** `SlabPenetrationDetector` keeps
+its existing 30°-from-vertical filter for vertical drops; new
+`WallPenetrationDetector` covers fire-rated compartment walls (skips
+non-rated partitions to keep the register clean) via 2-D segment
+intersection against `Wall.Location`; new `BeamPenetrationDetector`
+runs a 3-D segment-vs-segment shortest-distance test, reads beam
+material + depth, and classifies per AISC Design Guide 2 + BS EN 1992
+location/size limits (`STRUCT_OK` / `STRUCT_REVIEW` / `STRUCT_FAIL`).
+
+**FrpPenetrationPlacer generalised.** Single entry point dispatches on
+`rec.HostKind` to floor / wall / beam face-resolution strategies, all
+using one `PenetrationRecord` schema. Adds `PEN_PFV_UUID_TXT` keyed on
+UUIDv5(host, member) for cross-pipeline pairing with `SleeveEngine`.
+Idempotent — re-runs update the existing instance via the UUID lookup
+instead of duplicating.
+
+**Seed connectors.** `STING_SEED_PlumbingFixture.json` now declares
+DCW + DHW + Sanitary connectors at the symbol level so `AutoPipeDrop`
+can wire each fixture into all three services. `STING_SEED_AirTerminal`
+and `STING_SEED_Sprinkler` get one connector each (supply-air,
+fire-water-wet). `TypeVariantDefinition.Connectors` added as a forward-
+compatible field for variant-specific overrides.
+
+**Two new commands.** `Penetrations_DetectAndPlace` runs the full
+sweep against selection or active-view scope; `Validation_PenetrationCoverage`
+is a read-only audit surfacing orphan members, orphan FRP instances,
+beam structural-review findings, and missing fire ratings. Both
+dispatched through `StingCommandHandler`. `AutoDropCommand` triggers
+the three-detector sweep + placer in the same transaction (previously
+fired only from `ConduitAutoRouteCommand`). `RunAllValidatorsCommand`
+appends `PenetrationCoverageValidator` so the daily-QA preset catches
+uncovered penetrations + structural violations alongside the existing
+clearance / maintenance / classification findings.
+
+**Penetration Register schedule.** New `STING - Penetration Register`
+row in `MR_SCHEDULES.csv` with 18 columns covering identity, host,
+rating, dimensions, install / inspect, beam structural review, and
+swap history. Grouped by `PEN_HOST_TYPE_TXT` so floors / walls / beams
+read as distinct sections.
+
+**Workflow presets.** `WORKFLOW_PenetrationSweep.json` (5 steps: build
+seeds → load params → detect & place → coverage audit → register
+schedule). `WORKFLOW_PlumbingRoughIn.json` (8 steps chaining the
+existing plumbing audit + sizing commands with the new penetration
+sweep so multi-service drops + firestop placement happen together).
+
+Files: `MR_PARAMETERS.txt` (+19 PEN_* + new GROUP 33);
+`Core/Routing/{WallPenetrationDetector,BeamPenetrationDetector}.cs`
+(new); generalised `FrpPenetrationPlacer.cs` +
+`SlabPenetrationDetector.cs`;
+`Commands/Routing/PenetrationsDetectAndPlaceCommand.cs` (new);
+`Core/Validation/PenetrationCoverageValidator.cs` (new);
+`Commands/Validation/PenetrationCoverageCommand.cs` (new); schedule row;
+two workflow JSONs; updated seed JSONs (Plumbing / AirTerminal / Sprinkler);
+updated `Families/Seeds/README.md`. Code committed without `dotnet build`
+verification (Linux sandbox); verify in Revit before merge.
+
+Standards basis: AISC Design Guide 2 §3 (steel beam web openings, ≤ 0.7 d,
+≥ max(d, span/10) clearance from supports); BS EN 1992-1-1 + IStructE
+practice (RC beam openings ≤ 0.4 d for OK without ad-hoc reinforcement);
+BS 9999 / Approved Document B (fire-rated compartmentation); BS 476-20 /
+EN 1366-3 (firestop certification); UUIDv5 deterministic identity from
+the existing `SleeveEngine` schema for cross-pipeline pairing.
+
 #### Completed (Healthcare Pack H-1..H-30 — Hospital design content layer)
 
 Delivers the full Healthcare Pack against [`HEALTHCARE_PACK_DESIGN.md`](HEALTHCARE_PACK_DESIGN.md).

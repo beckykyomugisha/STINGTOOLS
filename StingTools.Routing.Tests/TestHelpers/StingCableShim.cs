@@ -18,5 +18,6 @@ namespace StingTools.Core.Electrical
         public string SourceEquipmentId { get; set; } = "";
         public string SegregationClass  { get; set; } = "UTP";
         public List<long> RouteTrayIds  { get; set; } = new List<long>();
+        public List<long> JunctionBoxIds { get; set; } = new List<long>();
     }
 }

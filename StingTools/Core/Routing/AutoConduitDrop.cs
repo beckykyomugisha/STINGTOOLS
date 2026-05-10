@@ -64,8 +64,9 @@ namespace StingTools.Core.Routing
             try
             {
                 // 1) Host must be a Wall — chases only make sense in walls.
-                var host = fixtureEl.Host;
-                var wall = host as Wall;
+                //    Element doesn't expose Host; FamilyInstance does.
+                var fi = fixtureEl as FamilyInstance;
+                var wall = fi?.Host as Wall;
                 if (wall == null) return false;
 
                 // 2) Compound structure must exist for a meaningful depth check.

@@ -83,6 +83,41 @@
           "default": "100"
         }
       ],
+      "connectors": [
+        {
+          "domain": "Piping",
+          "systemType": "DomesticCold",
+          "shape": "Round",
+          "sizeMm": 15,
+          "direction": "In",
+          "offsetX": -0.25,
+          "offsetY": 0.0,
+          "offsetZ": 0.5,
+          "facing": "+Z"
+        },
+        {
+          "domain": "Piping",
+          "systemType": "DomesticHot",
+          "shape": "Round",
+          "sizeMm": 15,
+          "direction": "In",
+          "offsetX": 0.25,
+          "offsetY": 0.0,
+          "offsetZ": 0.5,
+          "facing": "+Z"
+        },
+        {
+          "domain": "Piping",
+          "systemType": "Sanitary",
+          "shape": "Round",
+          "sizeMm": 100,
+          "direction": "Out",
+          "offsetX": 0.0,
+          "offsetY": 0.5,
+          "offsetZ": -0.5,
+          "facing": "-Z"
+        }
+      ],
       "geometry": {
         "lines": [
           {

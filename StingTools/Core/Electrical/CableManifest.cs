@@ -33,6 +33,17 @@ namespace StingTools.Core.Electrical
         public string SourceEquipmentId { get; set; } = "";
         public string DestEquipmentId   { get; set; } = "";
         public List<long> RouteTrayIds  { get; set; } = new List<long>();
+
+        /// <summary>
+        /// Junction / pull / draw-in box ElementIds placed along this
+        /// cable's route by JunctionBoxAutoPlacer (Wave F1) — auto-
+        /// stamped after every auto-route pass that fires the BS 7671
+        /// §522.8.5 break-point rule. Independent from RouteTrayIds so
+        /// a downstream cable schedule can quote conduit metres + box
+        /// count separately. Empty for runs with no break-points.
+        /// </summary>
+        public List<long> JunctionBoxIds { get; set; } = new List<long>();
+
         public double TotalLengthM     { get; set; }
         public double VoltageDropPct   { get; set; }
 
