@@ -50,6 +50,7 @@ public class SitePhotosController : ControllerBase
     private readonly IHubContext<NotificationHub> _hub;
     private readonly IBackgroundJobClient _jobs;
     private readonly PhotoPolicyResolver _policy;
+    private readonly OutboundWebhookDispatcher _webhooks;
     private readonly ILogger<SitePhotosController> _logger;
 
     public SitePhotosController(
@@ -61,6 +62,7 @@ public class SitePhotosController : ControllerBase
         IHubContext<NotificationHub> hub,
         IBackgroundJobClient jobs,
         PhotoPolicyResolver policy,
+        OutboundWebhookDispatcher webhooks,
         ILogger<SitePhotosController> logger)
     {
         _db = db;
@@ -71,6 +73,7 @@ public class SitePhotosController : ControllerBase
         _hub = hub;
         _jobs = jobs;
         _policy = policy;
+        _webhooks = webhooks;
         _logger = logger;
     }
 
@@ -222,6 +225,10 @@ public class SitePhotosController : ControllerBase
         _ = _hub.Clients.Group($"project-{projectId}").SendAsync("SitePhotoCaptured", new {
             projectId, photoId = photo.Id, reason = photo.Reason, audience = photo.Audience,
         }, ct);
+        _webhooks.FireAndForget(tenantId, projectId, WebhookEventType.PhotoCaptured, new {
+            photoId = photo.Id, reason = photo.Reason, audience = photo.Audience,
+            levelCode = photo.LevelCode, zoneCode = photo.ZoneCode, offsiteFlagged
+        });
 
         // Phase 180 — auto-add to the album named in
         // PhotoPolicy.DefaultAlbumByReasonJson, if any. Failure here is
@@ -616,6 +623,9 @@ public class SitePhotosController : ControllerBase
         _ = _hub.Clients.Group($"project-{projectId}").SendAsync("SitePhotoApproved", new {
             projectId, photoId, reason = photo.Reason
         }, ct);
+        _webhooks.FireAndForget(GetTenantId(), projectId, WebhookEventType.PhotoApproved, new {
+            photoId, reason = photo.Reason, caption
+        });
 
         return Ok(await ToDtoAsync(photo, ct));
     }
@@ -667,6 +677,9 @@ public class SitePhotosController : ControllerBase
         _ = _hub.Clients.Group($"project-{projectId}").SendAsync("SitePhotoRejected", new {
             projectId, photoId, reason = photo.RejectedReason
         }, ct);
+        _webhooks.FireAndForget(GetTenantId(), projectId, WebhookEventType.PhotoRejected, new {
+            photoId, reason = photo.RejectedReason
+        });
 
         return Ok(await ToDtoAsync(photo, ct));
     }
@@ -695,6 +708,9 @@ public class SitePhotosController : ControllerBase
         _ = _hub.Clients.Group($"project-{projectId}").SendAsync("SitePhotoWithdrawn", new {
             projectId, photoId
         }, ct);
+        _webhooks.FireAndForget(GetTenantId(), projectId, WebhookEventType.PhotoWithdrawn, new {
+            photoId
+        });
 
         return Ok(await ToDtoAsync(photo, ct));
     }

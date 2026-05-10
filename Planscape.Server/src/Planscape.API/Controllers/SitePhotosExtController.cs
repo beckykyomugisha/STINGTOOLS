@@ -273,6 +273,75 @@ public class SitePhotosExtController : ControllerBase
         return NoContent();
     }
 
+    // ── Issue ↔ photo strip + diary ↔ photo strip ────────────────────
+
+    /// <summary>
+    /// Phase 180 — Photos linked to a specific issue. Returns the same
+    /// shape as the v1 list so the mobile + BCC issue-detail screens
+    /// can show a thumbnail strip without a second join. NDA-required
+    /// ids surface in the envelope so the renderer can lock those.
+    /// </summary>
+    [HttpGet("/api/projects/{projectId:guid}/issues/{issueId:guid}/photos")]
+    public async Task<ActionResult> ListForIssue(
+        Guid projectId, Guid issueId,
+        [FromQuery] int take = 50,
+        CancellationToken ct = default)
+    {
+        if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
+        take = Math.Clamp(take, 1, 200);
+        var rows = await _db.SitePhotos.AsNoTracking()
+            .Where(p => p.ProjectId == projectId && p.AnchorIssueId == issueId)
+            .OrderByDescending(p => p.CapturedAt).Take(take)
+            .Select(p => new {
+                p.Id, p.Reason, p.Audience, p.Caption,
+                p.LevelCode, p.ZoneCode, p.CapturedAt
+            })
+            .ToListAsync(ct);
+
+        var probe = await PhotoAclGate.ResolveProbeAsync(_db, projectId, User, ct, HttpContext);
+        var ids   = rows.Select(r => r.Id).ToList();
+        var visible = await PhotoAclGate.FilterVisibleAsync(_db, ids, probe, ct);
+        var nda     = await PhotoAclGate.NdaRequiredAsync(_db, ids, probe, ct);
+        var filtered = rows.Where(r => visible.Contains(r.Id) || nda.Contains(r.Id)).ToList();
+        return Ok(new { items = filtered, ndaRequiredIds = nda.ToArray() });
+    }
+
+    /// <summary>
+    /// Phase 180 — Photos captured on the same project + same calendar
+    /// day as a SiteDiary entry, scoped to the diary's date. Used by
+    /// the diary detail screen to surface "today's site photos" without
+    /// a manual link table.
+    /// </summary>
+    [HttpGet("/api/projects/{projectId:guid}/site-diaries/{diaryId:guid}/photos")]
+    public async Task<ActionResult> ListForDiary(
+        Guid projectId, Guid diaryId,
+        CancellationToken ct = default)
+    {
+        if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
+        var diary = await _db.SiteDiaries.AsNoTracking()
+            .FirstOrDefaultAsync(d => d.Id == diaryId && d.ProjectId == projectId, ct);
+        if (diary == null) return NotFound();
+        var dayStart = diary.DiaryDate.Date.ToUniversalTime();
+        var dayEnd   = dayStart.AddDays(1);
+        var rows = await _db.SitePhotos.AsNoTracking()
+            .Where(p => p.ProjectId == projectId
+                     && p.CapturedAt >= dayStart && p.CapturedAt < dayEnd
+                     && (p.Audience == "Approved" || p.Audience == "ClientPortal" || p.Audience == "PendingReview"))
+            .OrderBy(p => p.CapturedAt)
+            .Select(p => new {
+                p.Id, p.Reason, p.Audience, p.Caption,
+                p.LevelCode, p.ZoneCode, p.CapturedAt
+            })
+            .ToListAsync(ct);
+
+        var probe = await PhotoAclGate.ResolveProbeAsync(_db, projectId, User, ct, HttpContext);
+        var ids   = rows.Select(r => r.Id).ToList();
+        var visible = await PhotoAclGate.FilterVisibleAsync(_db, ids, probe, ct);
+        var nda     = await PhotoAclGate.NdaRequiredAsync(_db, ids, probe, ct);
+        var filtered = rows.Where(r => visible.Contains(r.Id) || nda.Contains(r.Id)).ToList();
+        return Ok(new { items = filtered, ndaRequiredIds = nda.ToArray() });
+    }
+
     // ── Audit log query ──────────────────────────────────────────────
 
     /// <summary>
