@@ -22,25 +22,34 @@ namespace StingTools.Commands.Healthcare
         {
             var sb = new StringBuilder();
             sb.AppendLine($"STING — {title}").AppendLine();
-            if (findings == null || findings.Count == 0)
+
+            int total = findings?.Count ?? 0;
+            int err = 0, wrn = 0, inf = 0;
+            if (total == 0)
             {
                 sb.AppendLine("OK — no findings.");
             }
             else
             {
-                int err = findings.Count(f => f.Severity == ValidationSeverity.Error);
-                int wrn = findings.Count(f => f.Severity == ValidationSeverity.Warning);
-                int inf = findings.Count(f => f.Severity == ValidationSeverity.Info);
-                sb.AppendLine($"Findings: {findings.Count}  (errors {err}, warnings {wrn}, info {inf})").AppendLine();
+                err = findings.Count(f => f.Severity == ValidationSeverity.Error);
+                wrn = findings.Count(f => f.Severity == ValidationSeverity.Warning);
+                inf = findings.Count(f => f.Severity == ValidationSeverity.Info);
+                sb.AppendLine($"Findings: {total}  (errors {err}, warnings {wrn}, info {inf})").AppendLine();
                 // Sort by severity desc so errors are never truncated behind warnings/info.
                 // ValidationSeverity is an enum: Info=0, Warning=1, Error=2 → OrderByDescending shows errors first.
                 foreach (var f in findings.OrderByDescending(f => (int)f.Severity).Take(50))
                     sb.AppendLine($"[{f.Severity,-7}] {f.Code,-25} {f.Message}");
-                if (findings.Count > 50)
-                    sb.AppendLine($"... +{findings.Count - 50} more (see StingTools.log)");
+                if (total > 50)
+                    sb.AppendLine($"... +{total - 50} more (see StingTools.log)");
             }
             StingLog.Info(sb.ToString());
-            TaskDialog.Show($"STING — {title}", sb.ToString());
+
+            // Inline result strip on the dock panel takes precedence over a
+            // TaskDialog popup when the panel is open. Falls back gracefully
+            // if the panel isn't realised (e.g. command run from ribbon).
+            bool pushed = StingTools.UI.StingDockPanel.PushHcResult(title, total, err, wrn, inf);
+            if (!pushed)
+                TaskDialog.Show($"STING — {title}", sb.ToString());
             return Result.Succeeded;
         }
     }
@@ -49,8 +58,21 @@ namespace StingTools.Commands.Healthcare
     public class HealthcareRunAllValidatorsCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cd, ref string m, ElementSet e) {
-            try { return HealthcareValidatorReporter.Report("Healthcare — Run All Validators",
-                RunAllHealthcareValidators.Validate(cd.Application.ActiveUIDocument.Document)); }
+            try {
+                var doc = cd.Application.ActiveUIDocument.Document;
+                // If the dock-panel Validators grid has rows ticked, run only
+                // those (Healthcare_RunSelected dispatch path). Otherwise fall
+                // back to the legacy "run every gated validator" sweep.
+                var picked = HcOptions.SelectedValidators();
+                if (picked.Count > 0)
+                {
+                    return HealthcareValidatorReporter.Report(
+                        $"Healthcare — Run Selected ({picked.Count})",
+                        RunSelectedHealthcareValidators.Validate(doc, picked));
+                }
+                return HealthcareValidatorReporter.Report("Healthcare — Run All Validators",
+                    RunAllHealthcareValidators.Validate(doc));
+            }
             catch (Exception ex) { StingLog.Error("Healthcare_RunAllValidators failed", ex); m = ex.Message; return Result.Failed; }
         }
     }
@@ -119,8 +141,21 @@ namespace StingTools.Commands.Healthcare
     public class HealthcareIoTStalenessCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cd, ref string m, ElementSet e) {
-            try { return HealthcareValidatorReporter.Report("Healthcare — IoT Device Staleness",
-                new IoTStalenessValidator().Validate(cd.Application.ActiveUIDocument.Document)); }
+            try {
+                // Reference for adopting Hc.* threshold params: command sets
+                // the validator's public Threshold field from HcOptions.IotStaleMins
+                // (slider lives on the Healthcare tab → Validators → Advanced
+                // thresholds expander). Other validators that take thresholds
+                // can follow the same pattern.
+                int mins = HcOptions.IotStaleMins;
+                var v = new IoTStalenessValidator
+                {
+                    Threshold = TimeSpan.FromMinutes(mins > 0 ? mins : 30)
+                };
+                return HealthcareValidatorReporter.Report(
+                    $"Healthcare — IoT Device Staleness ({mins}m)",
+                    v.Validate(cd.Application.ActiveUIDocument.Document));
+            }
             catch (Exception ex) { StingLog.Error("Healthcare_IoTStaleness failed", ex); m = ex.Message; return Result.Failed; }
         }
     }

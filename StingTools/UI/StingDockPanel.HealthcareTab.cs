@@ -4,6 +4,8 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace StingTools.UI
 {
@@ -263,6 +265,66 @@ namespace StingTools.UI
             catch (Exception ex)
             {
                 Core.StingLog.Warn($"SetHealthcareOptions: {ex.Message}");
+            }
+        }
+
+        // ── Inline result strip ────────────────────────────────────────
+        //
+        // Commands (e.g. HealthcareValidatorReporter.Report) call
+        // StingDockPanel.PushHcResult(...) to show a one-line summary in
+        // the bottom strip without opening a TaskDialog. Thread-safe —
+        // marshals to the WPF dispatcher.
+        //
+        // ragPct: 0 (all errors) → 100 (clean). Drives the bar fill width;
+        //         >= 80 green, >= 50 amber, otherwise red.
+
+        public static bool PushHcResult(string title, int total, int errors, int warnings, int info)
+        {
+            var inst = LastInstance;
+            if (inst == null) return false;        // panel not open — caller falls back to TaskDialog
+
+            // Compute a single % score: errors and warnings discount the total.
+            // 1.0 per error, 0.5 per warning, 0 per info.
+            double penalty = errors + 0.5 * warnings;
+            double effective = total > 0 ? Math.Max(0.0, total - penalty) : 0.0;
+            double pct = total > 0 ? Math.Round(100.0 * effective / total, 1) : 100.0;
+            string ts = DateTime.Now.ToString("HH:mm");
+
+            void Apply()
+            {
+                try
+                {
+                    if (inst.lblHcLastRun != null)
+                    {
+                        inst.lblHcLastRun.Text = $"Last run {ts} · {title} · {total} findings · errors {errors} · warnings {warnings} · info {info}";
+                    }
+                    if (inst.prgHcRag != null)
+                    {
+                        inst.prgHcRag.Value = pct;
+                        Color c = pct >= 80 ? Color.FromRgb(76, 175, 80)    // green
+                                : pct >= 50 ? Color.FromRgb(255, 152, 0)   // amber
+                                            : Color.FromRgb(244, 67, 54);  // red
+                        var brush = new SolidColorBrush(c);
+                        brush.Freeze();
+                        inst.prgHcRag.Foreground = brush;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Core.StingLog.Warn($"PushHcResult Apply: {ex.Message}");
+                }
+            }
+
+            try
+            {
+                if (inst.Dispatcher.CheckAccess()) Apply();
+                else inst.Dispatcher.BeginInvoke(DispatcherPriority.Normal, new Action(Apply));
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Core.StingLog.Warn($"PushHcResult dispatch: {ex.Message}");
+                return false;
             }
         }
 
