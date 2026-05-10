@@ -26,6 +26,9 @@ export default function SitePhotosLayout() {
       <Stack.Screen name="checklists" options={{ title: 'Photo Checklists' }} />
       <Stack.Screen name="checklist-detail" options={{ title: 'Checklist' }} />
       <Stack.Screen name="annotate" options={{ title: 'Annotate Photo' }} />
+      {/* Phase 180 — pair timeline (before/after grouping) + bulk-import. */}
+      <Stack.Screen name="pair-timeline" options={{ title: 'Pair timeline' }} />
+      <Stack.Screen name="bulk-import" options={{ title: 'Bulk import' }} />
     </Stack>
   );
 }

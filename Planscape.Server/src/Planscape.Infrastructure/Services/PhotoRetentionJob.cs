@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Planscape.Core.Entities;
+using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
 
 namespace Planscape.Infrastructure.Services;
@@ -25,11 +26,15 @@ namespace Planscape.Infrastructure.Services;
 public class PhotoRetentionJob
 {
     private readonly PlanscapeDbContext _db;
+    private readonly INotificationService _notif;
     private readonly ILogger<PhotoRetentionJob> _logger;
 
-    public PhotoRetentionJob(PlanscapeDbContext db, ILogger<PhotoRetentionJob> logger)
+    public PhotoRetentionJob(
+        PlanscapeDbContext db,
+        INotificationService notif,
+        ILogger<PhotoRetentionJob> logger)
     {
-        _db = db; _logger = logger;
+        _db = db; _notif = notif; _logger = logger;
     }
 
     public async Task ExecuteAsync(CancellationToken ct)
@@ -75,6 +80,36 @@ public class PhotoRetentionJob
             }
             processed += stale.Count;
             await _db.SaveChangesAsync(ct);
+
+            // Phase 180 — pre-warning pass. Photos that will hit the
+            // retention cap in the next 7 days notify their author so
+            // they can extend / archive intentionally instead of seeing
+            // content silently disappear at midnight.
+            var warnFrom = DateTime.UtcNow.AddDays(-pol.RetentionDays.Value).AddDays(7);
+            var warnTo   = DateTime.UtcNow.AddDays(-pol.RetentionDays.Value);
+            var soon = await _db.SitePhotos.AsNoTracking()
+                .Where(p => p.ProjectId == pol.ProjectId
+                         && (p.Audience == "Approved" || p.Audience == "ClientPortal")
+                         && p.CapturedAt > warnTo && p.CapturedAt < warnFrom
+                         && p.CapturedByUserId != null)
+                .GroupBy(p => p.CapturedByUserId!.Value)
+                .Select(g => new { UserId = g.Key, Count = g.Count() })
+                .ToListAsync(ct);
+            foreach (var s in soon)
+            {
+                try
+                {
+                    await _notif.NotifyUserAsync(s.UserId,
+                        title: "Photos approaching retention cap",
+                        message: $"{s.Count} of your photo(s) on this project will withdraw within 7 days under the current retention policy.",
+                        data: new { projectId = pol.ProjectId, count = s.Count, retentionDays = pol.RetentionDays },
+                        ct: ct);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "PhotoRetentionJob: notify {UserId} failed", s.UserId);
+                }
+            }
         }
 
         if (pol.AutoArchiveAfterHandover)

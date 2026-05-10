@@ -127,7 +127,47 @@ public class SitePhotosController : ControllerBase
             return BadRequest(new { error = "image_content_mismatch" });
 
         memStream.Position = 0;
-        var contentHash = Convert.ToHexString(SHA256.HashData(memStream.ToArray())).ToLowerInvariant();
+        var fileBytes = memStream.ToArray();
+        var contentHash = Convert.ToHexString(SHA256.HashData(fileBytes)).ToLowerInvariant();
+        // Phase 180 — sniff EXIF DateTimeOriginal. When the client
+        // supplies a CapturedAt that disagrees by more than 5 minutes
+        // we trust the EXIF (the camera) over the client (which can be
+        // post-dated). When EXIF is absent or unreadable we keep the
+        // client value or fall back to UtcNow.
+        var exifDate = PhotoExifSniffer.TryReadDateTimeOriginal(fileBytes);
+        bool exifDriftFlagged = false;
+        DateTime resolvedCapturedAt;
+        if (exifDate.HasValue)
+        {
+            if (form.CapturedAt.HasValue &&
+                Math.Abs((form.CapturedAt.Value - exifDate.Value).TotalMinutes) > 5)
+            {
+                exifDriftFlagged = true;
+            }
+            resolvedCapturedAt = exifDate.Value;
+        }
+        else
+        {
+            resolvedCapturedAt = form.CapturedAt ?? DateTime.UtcNow;
+        }
+
+        // Phase 180 — duplicate detection. The offline queue can replay
+        // a photo that already uploaded successfully; without this check
+        // we'd create a second SitePhoto + Document + Issue. We match by
+        // (project, content hash) and short-circuit with the existing
+        // photo's DTO so the client treats the request as success.
+        var dupe = await (
+            from p in _db.SitePhotos.AsNoTracking()
+            join d in _db.Documents.AsNoTracking() on p.DocumentId equals d.Id
+            where p.ProjectId == projectId && d.ContentHash == contentHash
+            select p).FirstOrDefaultAsync(ct);
+        if (dupe != null)
+        {
+            _logger.LogInformation(
+                "Capture: duplicate hash {Hash} on project {ProjectId} — returning existing photo {PhotoId}",
+                contentHash, projectId, dupe.Id);
+            return Ok(await ToDtoAsync(dupe, ct));
+        }
 
         var safeName = Planscape.Infrastructure.Security.FileContentValidator.SanitiseFileName(
             form.File.FileName, fallback: $"photo-{DateTime.UtcNow:yyyyMMddHHmmss}");
@@ -188,7 +228,7 @@ public class SitePhotosController : ControllerBase
             Audience             = audience,
             BlurStatus           = "NotRequired",
             Caption              = string.IsNullOrWhiteSpace(form.Caption) ? null : form.Caption.Trim(),
-            CapturedAt           = form.CapturedAt ?? DateTime.UtcNow,
+            CapturedAt           = resolvedCapturedAt,
             CapturedByUserId     = capturerId,
             DeviceId             = form.DeviceId ?? Request.Headers["X-Device-Id"].ToString(),
             Source               = form.Source ?? (Request.Headers.ContainsKey("X-Device-Id") ? "mobile" : "web"),
@@ -217,7 +257,9 @@ public class SitePhotosController : ControllerBase
                 photo.LevelCode, photo.ZoneCode,
                 fileName = doc.FileName, fileSizeBytes = doc.FileSizeBytes,
                 queuedOffline = form.QueuedClient ?? false,
-                offsiteFlagged
+                offsiteFlagged,
+                exifDriftFlagged,
+                exifDateTimeOriginal = exifDate
             }));
 
         // Real-time push — every project member subscribed to the project
