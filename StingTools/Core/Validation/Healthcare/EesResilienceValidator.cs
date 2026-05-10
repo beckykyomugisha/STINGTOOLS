@@ -13,6 +13,10 @@ namespace StingTools.Core.Validation.Healthcare
         public override string Name => "EesResilienceValidator";
         private const string Tag = "EesResilienceValidator";
 
+        // Hc.UpsMaxAgeYrs slider override. Default 4 yrs mirrors NFPA 110
+        // VRLA-battery service-life guidance.
+        public int UpsMaxAgeYrs { get; set; } = 4;
+
         public override List<ValidationResult> Validate(Document doc)
         {
             var res = new List<ValidationResult>();
@@ -25,8 +29,8 @@ namespace StingTools.Core.Validation.Healthcare
                 "EES.GEN.TEST_STALE", "Generator test log not updated within 35 days [NFPA 110]", res);
             CheckLogFreshness(pi, "ELC_ATS_TEST_LOG_REF_TXT", 35,
                 "EES.ATS.TEST_STALE", "ATS test log not updated within 35 days [NFPA 110]", res);
-            CheckLogFreshness(pi, "ELC_UPS_REPLACE_DT", 365 * 4,
-                "EES.UPS.OLD", "UPS battery replacement older than 4 years", res);
+            CheckLogFreshness(pi, "ELC_UPS_REPLACE_DT", 365 * UpsMaxAgeYrs,
+                "EES.UPS.OLD", $"UPS battery replacement older than {UpsMaxAgeYrs} years", res);
             return res;
         }
 

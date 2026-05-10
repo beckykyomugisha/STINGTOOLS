@@ -17,17 +17,22 @@ namespace StingTools.Commands.Radiation
         {
             try
             {
-                // Worked-example defaults — chest radiographic room per NCRP 147 §A.1.
-                double workload = 50.0;       // mA·min/wk patient-typical
-                double useFactor = 1.0;       // wall behind chest stand = primary
-                double occFactor = 1.0;       // adjacent corridor / waiting
-                double distance = 2.0;        // m
-                int kVp = 125;
+                // Hc.Rad.* overrides come from the Healthcare tab → Radiation
+                // sub-tab inputs grid. Defaults match the historic worked
+                // example (NCRP 147 §A.1) so callers who never opened the dock
+                // get the same numbers as before.
+                double workload  = HcOptions.RadW;     // 50 default
+                double useFactor = HcOptions.RadU;     // 1.0
+                double occFactor = HcOptions.RadT;     // 1.0
+                double distance  = HcOptions.RadD;     // 2 m
+                int    kVp       = (int)HcOptions.RadKvp;  // 125
+                string area      = string.Equals(HcOptions.RadArea, "Controlled",
+                                       StringComparison.OrdinalIgnoreCase) ? "CONTROLLED" : "UNCONTROLLED";
                 double providedPb = 1.6;      // mm typical
-                var calc = NCRP147Calculator.Compute("PRIMARY", "UNCONTROLLED",
+                var calc = NCRP147Calculator.Compute("PRIMARY", area,
                     workload, useFactor, occFactor, distance, kVp, providedPb);
                 var sb = new StringBuilder();
-                sb.AppendLine("STING — NCRP 147 Chest Room Shielding (worked example)");
+                sb.AppendLine($"STING — NCRP 147 Chest Room Shielding ({area})");
                 sb.AppendLine();
                 sb.AppendLine($"Workload W={workload} mA·min/wk");
                 sb.AppendLine($"Use factor U={useFactor}, Occupancy T={occFactor}");
