@@ -103,6 +103,47 @@ namespace StingTools.Core
         // ── Specialist ─────────────────────────────────────────────────
         public static string SpecialistKind => Get("Hc.Specialist.Kind", "HybridOr");
 
+        // HybridOr / CathLab / IR
+        public static string HorRoom        => Get   ("Hc.Specialist.Hor.Room", "");
+        public static double HorMinAreaM2   => GetDouble("Hc.Specialist.Hor.MinAreaM2", 70.0);
+        public static bool   HorIncludeIr   => GetBool("Hc.Specialist.Hor.IncludeIr", false);
+
+        // Pharmacy USP <797> / <800>
+        public static string UspStandard    => Get("Hc.Specialist.Usp.Standard", "USP-797");
+        public static double UspAchMin      => GetDouble("Hc.Specialist.Usp.AchMin", 30.0);
+        public static double UspDpPa        => GetDouble("Hc.Specialist.Usp.DpPa", 2.5);
+        public static bool   UspHasBuffer   => GetBool("Hc.Specialist.Usp.HasBuffer", true);
+        public static bool   UspHasAnteroom => GetBool("Hc.Specialist.Usp.HasAnteroom", true);
+
+        // Behavioural health
+        public static bool   BhUseFgi       => GetBool("Hc.Specialist.Bh.UseFgi", true);
+        public static bool   BhUseHbn       => GetBool("Hc.Specialist.Bh.UseHbn", true);
+        public static int    BhRiskLevel    => (int)GetDouble("Hc.Specialist.Bh.RiskLevel", 3);
+
+        // Mortuary
+        public static int    MortBeds       => (int)GetDouble("Hc.Specialist.Mort.BedCount", 0);
+        public static double MortPctBays    => GetDouble("Hc.Specialist.Mort.PctBaysOfBeds", 0.5);
+
+        // Maternity / NICU
+        public static bool   MatMaternity   => GetBool("Hc.Specialist.Mat.Maternity", true);
+        public static bool   MatNicu        => GetBool("Hc.Specialist.Mat.Nicu", true);
+        public static int    MatNrLimit     => (int)GetDouble("Hc.Specialist.Mat.NicuNrLimit", 35);
+
+        // HSDU
+        public static string HsduRoom        => Get("Hc.Specialist.Hsdu.Room", "");
+        public static bool   HsduWashCheck   => GetBool("Hc.Specialist.Hsdu.Wash", true);
+        public static bool   HsduPackCheck   => GetBool("Hc.Specialist.Hsdu.Pack", true);
+        public static bool   HsduSterileCheck => GetBool("Hc.Specialist.Hsdu.Sterile", true);
+
+        // Dialysis
+        public static int    DialStations         => (int)GetDouble("Hc.Specialist.Dial.Stations", 0);
+        public static bool   DialRoLoopRequired   => GetBool("Hc.Specialist.Dial.RequireRoLoop", true);
+
+        // Hyperbaric / Cytotoxic / IVF
+        /// <summary>"HBO" / "Cytotoxic" / "IVF".</summary>
+        public static string HboMode        => Get("Hc.Specialist.Hbo.Mode", "HBO");
+        public static bool   HboRequireNfpa14 => GetBool("Hc.Specialist.Hbo.RequireNfpa14", true);
+
         // ── Workflow ───────────────────────────────────────────────────
         public static string WorkflowPreset => Get   ("Hc.Wf.Preset", "");
         public static bool   WorkflowDryRun => GetBool("Hc.Wf.DryRun", false);

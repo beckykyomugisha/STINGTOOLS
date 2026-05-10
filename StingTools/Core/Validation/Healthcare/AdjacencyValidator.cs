@@ -20,6 +20,12 @@ namespace StingTools.Core.Validation.Healthcare
         // Threshold (m) over which forbidden adjacency is satisfied.
         public double MinForbiddenDistanceM { get; set; } = 30.0;
 
+        // Forward-prep for Phase H-10. The wrapping command always sets this
+        // from HcOptions.AdjacencyDepth so that when door-graph BFS lands the
+        // calling sites need no further changes — only the implementation of
+        // Validate() switches over from centroid distance to BFS hop count.
+        public int BfsDepth { get; set; } = 3;
+
         public override List<ValidationResult> Validate(Document doc)
         {
             var res = new List<ValidationResult>();

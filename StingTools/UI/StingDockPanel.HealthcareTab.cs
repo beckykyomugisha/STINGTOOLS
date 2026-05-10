@@ -254,8 +254,54 @@ namespace StingTools.UI
                     StingCommandHandler.SetExtraParam("Hc.Rds.PickedRooms", string.Join(",", picked));
                 }
 
-                // Specialist
+                // Specialist — kind selector + every per-card control. Cards
+                // not on screen still flush so their wrapping commands always
+                // see a non-empty value (defaults match HcOptions).
                 StingCommandHandler.SetExtraParam("Hc.Specialist.Kind", SelectedComboTag(cmbHcSpecialistKind, "HybridOr"));
+
+                // HybridOr / CathLab / IR
+                StingCommandHandler.SetExtraParam("Hc.Specialist.Hor.Room",       cmbHcHorRoom?.Text ?? "");
+                StingCommandHandler.SetExtraParam("Hc.Specialist.Hor.MinAreaM2",  NumStr(sldHcHorMinAreaM2?.Value, 70));
+                StingCommandHandler.SetExtraParam("Hc.Specialist.Hor.IncludeIr",  BoolStr(chkHcHorIncludeIr?.IsChecked));
+
+                // Pharmacy USP
+                string uspStd = (rbHcUsp800?.IsChecked == true) ? "USP-800" : "USP-797";
+                StingCommandHandler.SetExtraParam("Hc.Specialist.Usp.Standard",   uspStd);
+                StingCommandHandler.SetExtraParam("Hc.Specialist.Usp.AchMin",     NumStr(sldHcUspAch?.Value, 30));
+                StingCommandHandler.SetExtraParam("Hc.Specialist.Usp.DpPa",       NumStr(sldHcUspDp?.Value, 2.5));
+                StingCommandHandler.SetExtraParam("Hc.Specialist.Usp.HasBuffer",  BoolStr(chkHcUspBuffer?.IsChecked));
+                StingCommandHandler.SetExtraParam("Hc.Specialist.Usp.HasAnteroom",BoolStr(chkHcUspAnteroom?.IsChecked));
+
+                // Behavioural
+                StingCommandHandler.SetExtraParam("Hc.Specialist.Bh.UseFgi",      BoolStr(chkHcBhFgi?.IsChecked));
+                StingCommandHandler.SetExtraParam("Hc.Specialist.Bh.UseHbn",      BoolStr(chkHcBhHbn?.IsChecked));
+                StingCommandHandler.SetExtraParam("Hc.Specialist.Bh.RiskLevel",   NumStr(sldHcBhRiskLevel?.Value, 3));
+
+                // Mortuary
+                StingCommandHandler.SetExtraParam("Hc.Specialist.Mort.BedCount",     txtHcMortBeds?.Text ?? "");
+                StingCommandHandler.SetExtraParam("Hc.Specialist.Mort.PctBaysOfBeds",NumStr(sldHcMortPctBays?.Value, 0.5));
+
+                // Maternity / NICU
+                StingCommandHandler.SetExtraParam("Hc.Specialist.Mat.Maternity",  BoolStr(chkHcMatMaternity?.IsChecked));
+                StingCommandHandler.SetExtraParam("Hc.Specialist.Mat.Nicu",       BoolStr(chkHcMatNicu?.IsChecked));
+                StingCommandHandler.SetExtraParam("Hc.Specialist.Mat.NicuNrLimit",NumStr(sldHcMatNrLimit?.Value, 35));
+
+                // HSDU
+                StingCommandHandler.SetExtraParam("Hc.Specialist.Hsdu.Room",     cmbHcHsduRoom?.Text ?? "");
+                StingCommandHandler.SetExtraParam("Hc.Specialist.Hsdu.Wash",     BoolStr(chkHcHsduWashCheck?.IsChecked));
+                StingCommandHandler.SetExtraParam("Hc.Specialist.Hsdu.Pack",     BoolStr(chkHcHsduPackCheck?.IsChecked));
+                StingCommandHandler.SetExtraParam("Hc.Specialist.Hsdu.Sterile",  BoolStr(chkHcHsduSterileCheck?.IsChecked));
+
+                // Dialysis
+                StingCommandHandler.SetExtraParam("Hc.Specialist.Dial.Stations",      txtHcDialStations?.Text ?? "");
+                StingCommandHandler.SetExtraParam("Hc.Specialist.Dial.RequireRoLoop", BoolStr(chkHcDialRoLoopRequired?.IsChecked));
+
+                // Hyperbaric / Cytotoxic / IVF
+                string hboMode = "HBO";
+                if (rbHcHboCytotoxic?.IsChecked == true) hboMode = "Cytotoxic";
+                else if (rbHcHboIvf?.IsChecked == true)  hboMode = "IVF";
+                StingCommandHandler.SetExtraParam("Hc.Specialist.Hbo.Mode",          hboMode);
+                StingCommandHandler.SetExtraParam("Hc.Specialist.Hbo.RequireNfpa14", BoolStr(chkHcHboNfpaCh14?.IsChecked));
 
                 // Workflow sub-tab
                 StingCommandHandler.SetExtraParam("Hc.Wf.Preset",     SelectedComboTag(cmbHcWorkflowPreset, ""));

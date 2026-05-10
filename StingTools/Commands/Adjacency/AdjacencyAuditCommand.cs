@@ -32,6 +32,9 @@ namespace StingTools.Commands.Adjacency
                 {
                     MaxMandatoryDistanceM = distM,
                     MinForbiddenDistanceM = distM,
+                    // Forward-prep — Phase H-10 BFS implementation will start
+                    // consuming this without further changes here.
+                    BfsDepth = depth,
                 };
                 var adjFindings = adj.Validate(doc);
                 sb.AppendLine($"HBN adjacency findings (depth proxy {distM:F0} m): {adjFindings.Count}");

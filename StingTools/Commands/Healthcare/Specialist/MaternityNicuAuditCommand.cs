@@ -24,11 +24,26 @@ namespace StingTools.Commands.Healthcare.Specialist
             try
             {
                 var doc = commandData.Application.ActiveUIDocument.Document;
+
+                // Hc.Specialist.Mat.* overrides:
+                //   Maternity / Nicu → toggle the two scope halves independently.
+                //   NicuNrLimit      → slider for the NICU background-noise threshold
+                //                      (HBN 09-03 default 35 dB).
+                bool wantMat  = HcOptions.MatMaternity;
+                bool wantNicu = HcOptions.MatNicu;
+                int  nrLimit  = HcOptions.MatNrLimit;
+                bool IsNicu(string rc) => string.Equals(rc, "NICU", StringComparison.OrdinalIgnoreCase);
+                bool ScopeMatch(string rc)
+                    => MinAreaM2.ContainsKey(rc)
+                       && ((IsNicu(rc) && wantNicu) || (!IsNicu(rc) && wantMat));
+
                 var rooms = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms)
                     .WhereElementIsNotElementType().ToElements()
-                    .Where(r => MinAreaM2.ContainsKey(Get(r,"CLN_ROOM_CLASS_TXT"))).ToList();
+                    .Where(r => ScopeMatch(Get(r,"CLN_ROOM_CLASS_TXT"))).ToList();
                 var sb = new StringBuilder();
-                sb.AppendLine("STING — Maternity / NICU Audit").AppendLine();
+                string scope = (wantMat && wantNicu) ? "Maternity + NICU" : (wantNicu ? "NICU" : (wantMat ? "Maternity" : "(none)"));
+                sb.AppendLine($"STING — {scope} Audit (NR ≤ {nrLimit} dB)").AppendLine();
+                if (!wantMat && !wantNicu) sb.AppendLine("Both scope toggles off — nothing to audit.");
                 if (rooms.Count == 0) sb.AppendLine("No maternity / NICU rooms detected.");
                 foreach (var r in rooms)
                 {
@@ -41,10 +56,10 @@ namespace StingTools.Commands.Healthcare.Specialist
                         sb.AppendLine($"[OK     ] MAT.AREA   {r.Name} ({rc}) area {area:F1} m²");
                     if (rc == "NICU")
                     {
-                        // Noise check.
+                        // Noise check — threshold from panel.
                         if (Get(r,"PER_ACOUSTICS_BACKGROUND_NOISE_DB") is var n && !string.IsNullOrEmpty(n) &&
-                            double.TryParse(n, out var nv) && nv > 35)
-                            sb.AppendLine($"[WARNING] MAT.NICU.NR {r.Name} background noise {nv:F0} dB > 35 (HBN 09-03)");
+                            double.TryParse(n, out var nv) && nv > nrLimit)
+                            sb.AppendLine($"[WARNING] MAT.NICU.NR {r.Name} background noise {nv:F0} dB > {nrLimit} (HBN 09-03)");
                     }
                 }
                 StingLog.Info(sb.ToString());
