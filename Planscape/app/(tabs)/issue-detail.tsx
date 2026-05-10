@@ -49,11 +49,12 @@ import {
   listAvailableXkts,
   updateIssue,
   listProjectMembers,
+  getIssueActivity,
 } from '@/api/endpoints';
 import { apiFetch, getToken } from '@/api/client';
 import { getModel, modelFileUrl } from '@/api/models';
 import { ModelViewer } from '@/components/ModelViewer';
-import type { BimIssue, IssueAttachment, Project, ProjectMember } from '@/types/api';
+import type { BimIssue, IssueAttachment, Project, ProjectMember, IssueActivityEntry } from '@/types/api';
 import type { ModelMeta, ModelPin } from '@/types/models';
 import { theme, getPriorityColor } from '@/utils/theme';
 import { imageService } from '@/services/imageService';
@@ -101,6 +102,11 @@ export default function IssueDetailScreen() {
   const [transitioning, setTransitioning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  // T3-14 — activity timeline. Same /issues/{iid}/activity endpoint the
+  // viewer + BCC consume; here we render a stacked rich-card list under
+  // the existing Linked Elements block.
+  const [activity, setActivity] = useState<IssueActivityEntry[]>([]);
+  const [activityLoading, setActivityLoading] = useState(false);
 
   const authUserId = useAuthStore((s) => s.userId);
 
@@ -194,6 +200,27 @@ export default function IssueDetailScreen() {
       loadAttachments(project.id, issue.id);
     }
   }, [issue, project, loadAttachments]);
+
+  // T3-14 — Pull the activity timeline whenever the issue is (re)loaded.
+  // Errors are non-fatal; the section just stays empty rather than blocking
+  // the rest of the screen.
+  useEffect(() => {
+    if (!issue || !project) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        setActivityLoading(true);
+        const rows = await getIssueActivity(project.id, issue.id);
+        if (!cancelled) setActivity(rows || []);
+      } catch (e) {
+        crashReporter.warn('issue-detail.tsx:loadActivity', { e: String(e) });
+        if (!cancelled) setActivity([]);
+      } finally {
+        if (!cancelled) setActivityLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [issue, project]);
 
   // MODEL-VIEWER — load the linked model + auth-tokened URL whenever the
   // issue's modelId changes. Failure (model deleted, network down) is
@@ -799,10 +826,196 @@ export default function IssueDetailScreen() {
             <Text style={styles.elementsValue}>{issue.elementIds}</Text>
           </View>
         ) : null}
+
+        {/* T3-14 — Activity timeline. The same /activity endpoint the viewer
+            and BCC consume; here we render rich cards: avatar + verb +
+            relative time + contextual chip (priority/status/file). */}
+        <View style={styles.activitySection}>
+          <Text style={styles.activityHeader}>
+            Activity ({activity.length})
+          </Text>
+          {activityLoading && activity.length === 0 ? (
+            <ActivityIndicator color={theme.colors.accent} size="small" />
+          ) : activity.length === 0 ? (
+            <Text style={styles.activityEmpty}>No activity yet.</Text>
+          ) : (
+            activity.map((entry) => (
+              <ActivityCard key={entry.id || `${entry.timestamp}-${entry.action}`} entry={entry} />
+            ))
+          )}
+        </View>
       </ScrollView>
     </View>
   );
 }
+
+/**
+ * T3-14 — Rich activity timeline card. Mirrors the viewer's
+ * `renderActivityCard` JS implementation so the visual language stays
+ * consistent across surfaces. Same JSON contract: action / userName /
+ * timestamp / details(.priority|.status|.thumbnailUrl|.fileName).
+ */
+function ActivityCard({ entry }: { entry: IssueActivityEntry }) {
+  const userName = entry.userName ?? 'System';
+  const action = entry.action ?? '';
+  const detailsRaw = entry.details ?? {};
+  const details: Record<string, unknown> =
+    typeof detailsRaw === 'string'
+      ? (() => { try { return JSON.parse(detailsRaw as string); } catch { return {}; } })()
+      : (detailsRaw as Record<string, unknown>);
+
+  const verb = activityVerb(action);
+  const inline = activityInlineDetail(details);
+  const chip = activityChip(details);
+  const thumb = (details.thumbnailUrl as string | undefined) ?? null;
+  const fileName = (details.fileName as string | undefined) ?? null;
+
+  return (
+    <View style={activityStyles.card}>
+      <View style={[activityStyles.avatar, { backgroundColor: avatarColor(userName) }]}>
+        <Text style={activityStyles.avatarText}>{initials(userName)}</Text>
+      </View>
+      <View style={activityStyles.body}>
+        <View style={activityStyles.headRow}>
+          <Text style={activityStyles.who}>{userName}</Text>
+          <Text style={activityStyles.verb}>{' ' + verb}</Text>
+          <Text style={activityStyles.when}>{relativeTime(entry.timestamp)}</Text>
+        </View>
+        {inline ? <Text style={activityStyles.detail}>{inline}</Text> : null}
+        {thumb ? (
+          <Image source={{ uri: thumb }} style={activityStyles.thumb} resizeMode="cover" />
+        ) : null}
+        {chip ? (
+          <View style={[activityStyles.chip, chip.style]}>
+            <Text style={[activityStyles.chipText, chip.textStyle]}>{chip.label}</Text>
+          </View>
+        ) : null}
+        {!chip && !thumb && fileName ? (
+          <Text style={activityStyles.fileChip}>📎 {fileName}</Text>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+function activityVerb(action: string): string {
+  const a = String(action || '').toUpperCase();
+  if (a === 'CREATE') return 'created the issue';
+  if (a === 'COMMENT') return 'commented';
+  if (a === 'ATTACH' || a === 'ATTACHMENT_ADD') return 'attached a file';
+  if (a === 'ATTACHMENT_DELETE') return 'removed an attachment';
+  if (a === 'STATUS') return 'changed status';
+  if (a === 'PRIORITY') return 'changed priority';
+  if (a === 'ASSIGN') return 'changed assignee';
+  if (a === 'RESOLVE') return 'marked resolved';
+  if (a === 'CLOSE') return 'closed the issue';
+  if (a === 'REOPEN') return 're-opened the issue';
+  if (a === 'UPDATE') return 'updated the issue';
+  return action || 'updated';
+}
+function activityInlineDetail(details: Record<string, unknown>): string {
+  const parts: string[] = [];
+  for (const k of Object.keys(details || {})) {
+    if (k === 'priority' || k === 'status' || k === 'thumbnailUrl' || k === 'fileName') continue;
+    const v = details[k] as unknown;
+    if (v && typeof v === 'object' && 'from' in (v as object) && 'to' in (v as object)) {
+      const tv = v as { from: unknown; to: unknown };
+      parts.push(`${k}: ${tv.from} → ${tv.to}`);
+    } else if (k === 'body' || k === 'comment') {
+      parts.push(String(v));
+    } else if (typeof v === 'string' && v.length < 200) {
+      parts.push(`${k}: ${v}`);
+    }
+  }
+  return parts.join(' · ');
+}
+function activityChip(details: Record<string, unknown>): { label: string; style: any; textStyle: any } | null {
+  const pri = (details.priority as { to?: string } | string | undefined);
+  const priVal = typeof pri === 'string' ? pri : pri?.to;
+  if (priVal) {
+    const k = String(priVal).toUpperCase();
+    return {
+      label: k,
+      style: priorityChipStyle(k),
+      textStyle: { color: '#fff' },
+    };
+  }
+  const st = (details.status as { to?: string } | string | undefined);
+  const stVal = typeof st === 'string' ? st : st?.to;
+  if (stVal) {
+    const k = String(stVal).toUpperCase();
+    return {
+      label: k,
+      style: { backgroundColor: '#3a4a5e' },
+      textStyle: { color: '#fff' },
+    };
+  }
+  return null;
+}
+function priorityChipStyle(p: string) {
+  const c = getPriorityColor(p);
+  return { backgroundColor: c };
+}
+function initials(name: string) {
+  const parts = String(name || '?').trim().split(/\s+/).slice(0, 2);
+  return parts.map((p) => p[0]?.toUpperCase() ?? '').join('') || '?';
+}
+function avatarColor(name: string) {
+  let h = 0;
+  for (const ch of String(name || '')) h = (h * 31 + ch.charCodeAt(0)) | 0;
+  return `hsl(${Math.abs(h) % 360}, 55%, 38%)`;
+}
+function relativeTime(iso?: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  const s = Math.round((Date.now() - d.getTime()) / 1000);
+  if (s < 60) return s + 's ago';
+  if (s < 3600) return Math.round(s / 60) + 'm ago';
+  if (s < 86400) return Math.round(s / 3600) + 'h ago';
+  if (s < 86400 * 7) return Math.round(s / 86400) + 'd ago';
+  return d.toLocaleDateString();
+}
+
+const activityStyles = StyleSheet.create({
+  card: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.border,
+  },
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  avatarText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  body: { flex: 1, minWidth: 0 },
+  headRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
+  who: { fontSize: 13, fontWeight: '600', color: theme.colors.text },
+  verb: { fontSize: 13, color: theme.colors.text, flex: 1 },
+  when: { fontSize: 10, color: theme.colors.disabled },
+  detail: { fontSize: 12, color: theme.colors.disabled, marginTop: 2 },
+  thumb: {
+    width: 220,
+    height: 130,
+    borderRadius: 6,
+    marginTop: 6,
+    backgroundColor: theme.colors.border,
+  },
+  chip: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginTop: 4,
+  },
+  chipText: { fontSize: 10, fontWeight: '700' },
+  fileChip: { fontSize: 11, color: theme.colors.text, marginTop: 4 },
+});
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
@@ -1155,5 +1368,24 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.sm,
     color: theme.colors.text,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+
+  // T3-14 activity timeline section.
+  activitySection: {
+    margin: theme.spacing.md,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+  },
+  activityHeader: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: theme.spacing.sm,
+  },
+  activityEmpty: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.disabled,
+    fontStyle: 'italic',
   },
 });

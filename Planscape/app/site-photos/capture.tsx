@@ -39,6 +39,7 @@ import {
 } from '@/components/site-photos/classifier';
 import { captureSitePhoto } from '@/api/endpoints';
 import { enqueue, persistPhotoForQueue, queuedPhotoStats } from '@/utils/offlineQueue';
+import { AudioRecorder } from '@/components/AudioRecorder';
 import type { SitePhotoCaptureMeta, SitePhotoReason } from '@/types/api';
 
 const RATIONALE_SEEN_KEY = 'planscape_site_photo_rationale_seen_v1';
@@ -458,6 +459,17 @@ export default function CaptureSitePhotoScreen() {
           onChangeText={setCaption}
           multiline
           numberOfLines={3}
+        />
+        {/* T3-7 — Voice-to-text dictation alongside the caption. The
+            recording is queued as ATTACH_AUDIO; if this capture has an
+            anchor issue id we link it directly, otherwise it queues under
+            "__pending__" and surfaces in conflict triage if the receiver
+            endpoint isn't there yet.
+            TODO-SERVER: receiver endpoint stubbed in endpoints.ts. */}
+        <AudioRecorder
+          projectId={projectId}
+          issueId={params.anchorIssueId}
+          contextTag="site-photo-caption"
         />
 
         {/* Save row */}

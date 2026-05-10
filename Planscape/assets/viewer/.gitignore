@@ -1,0 +1,8 @@
+# T4-29 — Viewer build artifacts. The repo ships the source files
+# (coordination-viewer.js / .css / signalr-shim.js / viewer-extras.js
+# / viewer.html); the build pipeline produces the same paths under
+# dist/ for deployment. Both `node_modules/` and `dist/` stay out of
+# version control.
+node_modules/
+dist/
+*.log

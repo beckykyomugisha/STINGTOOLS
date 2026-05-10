@@ -165,6 +165,256 @@ namespace StingTools.UI
                 System.Windows.Threading.DispatcherPriority.Background);
         }
 
+        // T3-14 — Async helper that fetches the issue activity timeline via
+        // PlanscapeServerClient and renders the same rich-card layout the
+        // viewer + mobile use (avatar + verb + relative time + chip).
+        // Failure (no server / not signed in) is non-fatal: we render an
+        // inline status string and leave the rest of the BCC untouched.
+        private async System.Threading.Tasks.Task LoadIssueActivityIntoAsync(StackPanel host, IssueRow iss)
+        {
+            try
+            {
+                host.Children.Clear();
+                if (iss == null || string.IsNullOrEmpty(iss.Id))
+                {
+                    host.Children.Add(new TextBlock { Text = "No issue selected.", FontSize = 11, Foreground = Brushes.Gray });
+                    return;
+                }
+                var client = StingTools.BIMManager.PlanscapeServerClient.Instance;
+                if (client == null || !client.IsConnected)
+                {
+                    host.Children.Add(new TextBlock
+                    {
+                        Text = "Sign in to Planscape Server (BIM tab → Connect) to load the activity timeline.",
+                        FontSize = 11, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap
+                    });
+                    return;
+                }
+                Guid projectGuid = client.CurrentProjectId;
+                if (projectGuid == Guid.Empty || !Guid.TryParse(iss.Id, out var issueGuid))
+                {
+                    host.Children.Add(new TextBlock
+                    {
+                        Text = "Activity timeline requires a server-synced issue (cloud project + GUID issue id).",
+                        FontSize = 11, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap
+                    });
+                    return;
+                }
+                var entries = await client.GetIssueActivityAsync(projectGuid, issueGuid).ConfigureAwait(true);
+                host.Children.Clear();
+                if (entries == null || entries.Count == 0)
+                {
+                    host.Children.Add(new TextBlock { Text = "No activity yet.", FontSize = 11, FontStyle = FontStyles.Italic, Foreground = Brushes.Gray });
+                    return;
+                }
+                foreach (var t in entries)
+                {
+                    if (t is Newtonsoft.Json.Linq.JObject jo)
+                        host.Children.Add(BuildActivityCard(jo));
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BCC activity load failed: {ex.Message}");
+                host.Children.Clear();
+                host.Children.Add(new TextBlock { Text = "Failed to load activity: " + ex.Message, FontSize = 11, Foreground = Br(CRed), TextWrapping = TextWrapping.Wrap });
+            }
+        }
+
+        // Build one rich activity card. Layout mirrors the viewer's
+        // .activity-card CSS: avatar (initials, deterministic hue) + body
+        // (who-did-what + relative time + optional chip / thumbnail).
+        private FrameworkElement BuildActivityCard(Newtonsoft.Json.Linq.JObject e)
+        {
+            string when    = (string)e["timestamp"] ?? (string)e["createdAt"] ?? "";
+            string action  = (string)e["action"] ?? "";
+            string userN   = (string)e["userName"] ?? "System";
+            var detailsTok = e["details"];
+            Newtonsoft.Json.Linq.JObject details = null;
+            if (detailsTok is Newtonsoft.Json.Linq.JObject jo) details = jo;
+            else if (detailsTok != null && detailsTok.Type == Newtonsoft.Json.Linq.JTokenType.String)
+            {
+                try { details = Newtonsoft.Json.Linq.JObject.Parse((string)detailsTok ?? "{}"); }
+                catch { details = null; }
+            }
+
+            var card = new Grid { Margin = new Thickness(0, 4, 0, 4) };
+            card.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
+            card.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            // Avatar
+            var avatarColor = ActivityAvatarColour(userN);
+            var avatar = new Border
+            {
+                Width = 28, Height = 28, CornerRadius = new CornerRadius(14),
+                Background = Br(avatarColor), VerticalAlignment = VerticalAlignment.Top,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Child = new TextBlock
+                {
+                    Text = ActivityInitials(userN),
+                    Foreground = Brushes.White, FontWeight = FontWeights.Bold, FontSize = 11,
+                    HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center
+                }
+            };
+            Grid.SetColumn(avatar, 0);
+            card.Children.Add(avatar);
+
+            var body = new StackPanel { Margin = new Thickness(2, 0, 0, 0) };
+            var headRow = new StackPanel { Orientation = Orientation.Horizontal };
+            headRow.Children.Add(new TextBlock { Text = userN, FontWeight = FontWeights.SemiBold, FontSize = 12 });
+            headRow.Children.Add(new TextBlock { Text = "  " + ActivityVerb(action), FontSize = 12 });
+            headRow.Children.Add(new TextBlock
+            {
+                Text = ActivityRelativeTime(when),
+                FontSize = 10, Foreground = Brushes.Gray, FontFamily = new FontFamily("Consolas"),
+                Margin = new Thickness(8, 2, 0, 0)
+            });
+            body.Children.Add(headRow);
+
+            string inline = ActivityInlineDetail(details);
+            if (!string.IsNullOrEmpty(inline))
+                body.Children.Add(new TextBlock { Text = inline, FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(0, 2, 0, 0), TextWrapping = TextWrapping.Wrap });
+
+            var chip = ActivityChip(details);
+            if (chip != null) body.Children.Add(chip);
+
+            Grid.SetColumn(body, 1);
+            card.Children.Add(body);
+            return card;
+        }
+        private static string ActivityInitials(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return "?";
+            var parts = name.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 0) return "?";
+            string a = parts[0].Substring(0, 1).ToUpperInvariant();
+            string b = parts.Length > 1 ? parts[1].Substring(0, 1).ToUpperInvariant() : "";
+            return a + b;
+        }
+        private static Color ActivityAvatarColour(string name)
+        {
+            int h = 0; foreach (var ch in name ?? "") h = unchecked(h * 31 + ch);
+            // Map hue 0..359 to a saturated dim swatch (HSL approximation).
+            int hue = Math.Abs(h) % 360;
+            // Convert HSL(hue, 55%, 38%) → RGB.
+            double s = 0.55, l = 0.38;
+            double c = (1 - Math.Abs(2 * l - 1)) * s;
+            double x = c * (1 - Math.Abs((hue / 60.0) % 2 - 1));
+            double m = l - c / 2;
+            double r1, g1, b1;
+            if (hue < 60)       { r1 = c; g1 = x; b1 = 0; }
+            else if (hue < 120) { r1 = x; g1 = c; b1 = 0; }
+            else if (hue < 180) { r1 = 0; g1 = c; b1 = x; }
+            else if (hue < 240) { r1 = 0; g1 = x; b1 = c; }
+            else if (hue < 300) { r1 = x; g1 = 0; b1 = c; }
+            else                { r1 = c; g1 = 0; b1 = x; }
+            byte R = (byte)Math.Round((r1 + m) * 255);
+            byte G = (byte)Math.Round((g1 + m) * 255);
+            byte B = (byte)Math.Round((b1 + m) * 255);
+            return Color.FromRgb(R, G, B);
+        }
+        private static string ActivityRelativeTime(string iso)
+        {
+            if (string.IsNullOrWhiteSpace(iso)) return "";
+            if (!DateTime.TryParse(iso, null, System.Globalization.DateTimeStyles.RoundtripKind, out var d)) return iso;
+            var s = (DateTime.UtcNow - d.ToUniversalTime()).TotalSeconds;
+            if (s < 60)        return ((int)s) + "s ago";
+            if (s < 3600)      return ((int)(s / 60)) + "m ago";
+            if (s < 86400)     return ((int)(s / 3600)) + "h ago";
+            if (s < 86400 * 7) return ((int)(s / 86400)) + "d ago";
+            return d.ToString("yyyy-MM-dd");
+        }
+        private static string ActivityVerb(string action)
+        {
+            string a = (action ?? "").ToUpperInvariant();
+            return a switch
+            {
+                "CREATE"             => "created the issue",
+                "COMMENT"            => "commented",
+                "ATTACH"             => "attached a file",
+                "ATTACHMENT_ADD"     => "attached a file",
+                "ATTACHMENT_DELETE"  => "removed an attachment",
+                "STATUS"             => "changed status",
+                "PRIORITY"           => "changed priority",
+                "ASSIGN"             => "changed assignee",
+                "RESOLVE"            => "marked resolved",
+                "CLOSE"              => "closed the issue",
+                "REOPEN"             => "re-opened the issue",
+                "UPDATE"             => "updated the issue",
+                _                    => string.IsNullOrEmpty(action) ? "updated" : action,
+            };
+        }
+        private static string ActivityInlineDetail(Newtonsoft.Json.Linq.JObject details)
+        {
+            if (details == null) return "";
+            var parts = new System.Collections.Generic.List<string>();
+            foreach (var p in details.Properties())
+            {
+                var k = p.Name;
+                if (k == "priority" || k == "status" || k == "thumbnailUrl" || k == "fileName") continue;
+                var v = p.Value;
+                if (v is Newtonsoft.Json.Linq.JObject obj && obj["from"] != null && obj["to"] != null)
+                    parts.Add($"{k}: {obj["from"]} → {obj["to"]}");
+                else if ((k == "body" || k == "comment") && v.Type == Newtonsoft.Json.Linq.JTokenType.String)
+                    parts.Add((string)v ?? "");
+                else if (v.Type == Newtonsoft.Json.Linq.JTokenType.String)
+                {
+                    var sv = (string)v ?? "";
+                    if (sv.Length < 200) parts.Add($"{k}: {sv}");
+                }
+            }
+            return string.Join(" · ", parts);
+        }
+        private FrameworkElement ActivityChip(Newtonsoft.Json.Linq.JObject details)
+        {
+            if (details == null) return null;
+            string Take(string field)
+            {
+                var t = details[field];
+                if (t == null) return null;
+                if (t is Newtonsoft.Json.Linq.JObject jo && jo["to"] != null) return (string)jo["to"];
+                if (t.Type == Newtonsoft.Json.Linq.JTokenType.String) return (string)t;
+                return null;
+            }
+            string priority = Take("priority");
+            string status   = Take("status");
+            string thumb    = (string)details["thumbnailUrl"];
+            string fileN    = (string)details["fileName"];
+
+            if (!string.IsNullOrEmpty(priority))
+            {
+                var c = priority.ToUpperInvariant() switch
+                {
+                    "CRITICAL" => Color.FromRgb(0xC6, 0x28, 0x28),
+                    "HIGH"     => Color.FromRgb(0xE8, 0x91, 0x2D),
+                    "MEDIUM"   => Color.FromRgb(0x15, 0x65, 0xC0),
+                    "LOW"      => Color.FromRgb(0x2E, 0x7D, 0x32),
+                    _          => Color.FromRgb(0x45, 0x50, 0x6E)
+                };
+                return new Border
+                {
+                    Background = Br(c), CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(8, 1, 8, 1), Margin = new Thickness(0, 4, 0, 0),
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    Child = new TextBlock { Text = priority.ToUpperInvariant(), FontSize = 10, FontWeight = FontWeights.Bold, Foreground = Brushes.White }
+                };
+            }
+            if (!string.IsNullOrEmpty(status))
+            {
+                return new Border
+                {
+                    Background = Br(Color.FromRgb(0x3A, 0x4A, 0x5E)),
+                    CornerRadius = new CornerRadius(8), Padding = new Thickness(8, 1, 8, 1),
+                    Margin = new Thickness(0, 4, 0, 0), HorizontalAlignment = HorizontalAlignment.Left,
+                    Child = new TextBlock { Text = status.ToUpperInvariant(), FontSize = 10, FontWeight = FontWeights.Bold, Foreground = Brushes.White }
+                };
+            }
+            if (!string.IsNullOrEmpty(thumb) || !string.IsNullOrEmpty(fileN))
+            {
+                return new TextBlock { Text = "📎 " + (fileN ?? "attachment"), FontSize = 10, Foreground = Brushes.Gray, Margin = new Thickness(0, 4, 0, 0) };
+            }
+            return null;
+        }
+
         // Phase 78 Section 2.1: Canonical ISO 19650-aligned issue type registry
         // Single source of truth — all dropdowns, brushes, and wizards derive from this.
         internal static readonly (string Code, string Label, string Description, Color Colour)[] IsoIssueTypes =
@@ -717,6 +967,13 @@ namespace StingTools.UI
         private BIMCoordinationCenter(CoordData data)
         {
             _data = data;
+            // Make sure the ThemeManager has at least Corporate seeded before
+            // we start baking palette colours into the visual tree below — a
+            // freshly-launched session may open the BCC before the dock panel
+            // (which normally calls InitialiseResources) has been shown.
+            try { ThemeManager.EnsureInitialised(); }
+            catch (Exception exTheme) { StingLog.Warn($"BCC theme init: {exTheme.Message}"); }
+
             // Phase 104: Rebranded — drop "STING" prefix per user request. The window is now
             // titled just "BIM Coordination Center" so it reads as a role-based tool rather
             // than a product feature. "STINGTOOLS BCC" appears in logs/audit trail only.
@@ -888,6 +1145,48 @@ namespace StingTools.UI
             // Phase 76: Register singleton instance
             CurrentInstance = this;
             Closed += OnClosed;
+
+            // Theme-switching: BCC bakes palette colours into its visual tree
+            // at construction time (Br(CHeaderBg), Br(CPageBg), etc.), so
+            // cycling the theme on the dock panel cannot retro-update an
+            // already-open BCC. Subscribe to ThemeManager.ThemeChanged and
+            // schedule a self-rebuild via close+reopen (data is preserved
+            // and _lastViewedTab keeps the user on the same tab). Any
+            // failure inside the handler falls back to Corporate so the
+            // window never renders without a palette.
+            ThemeManager.ThemeChanged += OnThemeChanged;
+        }
+
+        // Theme-change handler: rebuild the BCC so the new palette takes
+        // effect on the open window. The Closed handler clears
+        // CurrentInstance so Show(data) reconstructs cleanly with the active
+        // theme. Wrapped in try/catch to honour the "fall back to Corporate"
+        // contract — any failure forces Corporate and a final reopen attempt.
+        private void OnThemeChanged(string newTheme)
+        {
+            try
+            {
+                if (!IsLoaded) return; // ignore stray events during construction
+                var data = _data;
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    try
+                    {
+                        Close();
+                        Show(data);
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Error("BCC OnThemeChanged: rebuild failed — forcing Corporate", ex);
+                        try { ThemeManager.ApplyTheme(ThemeManager.FallbackTheme); } catch { /* no-op */ }
+                        try { Show(data); } catch { /* nothing more we can do */ }
+                    }
+                }), System.Windows.Threading.DispatcherPriority.Background);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BCC OnThemeChanged outer: {ex.Message}");
+            }
         }
 
         private string BuildStatusText()
@@ -2600,6 +2899,91 @@ namespace StingTools.UI
                 };
                 VirtualizingPanel.SetIsVirtualizing(dg, true);
                 VirtualizingPanel.SetVirtualizationMode(dg, VirtualizationMode.Recycling);
+
+                // T3-18 — Bulk multi-select checkbox column. The viewer's
+                // multi-select set is a Set<string>; we mirror that with a
+                // HashSet keyed off IssueRow.Id. The DataGrid's own
+                // SelectedItems collection covers Ctrl/Shift gestures, but
+                // the explicit checkboxes give touch users a hit target and
+                // make it crystal-clear how many issues will be acted on.
+                var bulkSelectedIssues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var bulkFooter = new Border
+                {
+                    Visibility = Visibility.Collapsed,
+                    Background = Br(Color.FromRgb(0xEC, 0xEF, 0xF1)),
+                    BorderBrush = Br(CBorder),
+                    BorderThickness = new Thickness(0, 1, 0, 0),
+                    Padding = new Thickness(10, 6, 10, 6),
+                    Margin = new Thickness(0, 0, 0, 8),
+                };
+                var bulkRow = new StackPanel { Orientation = Orientation.Horizontal };
+                var bulkCount = new TextBlock { Text = "0 selected", FontSize = 11, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
+                bulkRow.Children.Add(bulkCount);
+                Action refreshBulkFooter = () =>
+                {
+                    bulkCount.Text = $"{bulkSelectedIssues.Count} selected";
+                    bulkFooter.Visibility = bulkSelectedIssues.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+                };
+                Button MakeBulkBtn(string label, Color c)
+                {
+                    return new Button
+                    {
+                        Content = label,
+                        Background = Br(c),
+                        Foreground = Brushes.White,
+                        BorderThickness = new Thickness(0),
+                        Padding = new Thickness(10, 3, 10, 3),
+                        FontSize = 11,
+                        Cursor = Cursors.Hand,
+                        Margin = new Thickness(0, 0, 6, 0),
+                    };
+                }
+                var bulkReassign = MakeBulkBtn("Reassign", Color.FromRgb(0xE8, 0x91, 0x2D));
+                bulkReassign.Click += (s, e) => DispatchAction("BulkIssueReassign|" + string.Join(",", bulkSelectedIssues));
+                var bulkResolve  = MakeBulkBtn("Bulk Resolve", Color.FromRgb(0x2E, 0x7D, 0x32));
+                bulkResolve.Click += (s, e) => DispatchAction("BulkIssueResolve|" + string.Join(",", bulkSelectedIssues));
+                var bulkExportBtn = MakeBulkBtn("Export CSV", Color.FromRgb(0x45, 0x50, 0x6E));
+                bulkExportBtn.Click += (s, e) => DispatchAction("BulkIssueExport|" + string.Join(",", bulkSelectedIssues));
+                var bulkClear = new Button
+                {
+                    Content = "Clear", Background = Brushes.Transparent, BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
+                    Padding = new Thickness(8, 2, 8, 2), FontSize = 11, Cursor = Cursors.Hand
+                };
+                bulkClear.Click += (s, e) => { bulkSelectedIssues.Clear(); refreshBulkFooter(); dg.Items.Refresh(); };
+                bulkRow.Children.Add(bulkReassign);
+                bulkRow.Children.Add(bulkResolve);
+                bulkRow.Children.Add(bulkExportBtn);
+                bulkRow.Children.Add(bulkClear);
+                bulkFooter.Child = bulkRow;
+
+                // Checkbox column. We use a template column with explicit
+                // Click handler rather than DataGridCheckBoxColumn because
+                // we need access to the row context (`IssueRow`) to update
+                // bulkSelectedIssues — and DataGridCheckBoxColumn fires its
+                // bind path against IsReadOnly cells in odd ways.
+                var cbColTemplate = new DataTemplate();
+                var cbFactory = new FrameworkElementFactory(typeof(CheckBox));
+                cbFactory.SetValue(CheckBox.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+                cbFactory.SetValue(CheckBox.VerticalAlignmentProperty, VerticalAlignment.Center);
+                cbFactory.SetValue(CheckBox.MarginProperty, new Thickness(0));
+                cbFactory.AddHandler(CheckBox.ClickEvent, new RoutedEventHandler((s, e) =>
+                {
+                    if (s is CheckBox cb && cb.DataContext is IssueRow row)
+                    {
+                        if (cb.IsChecked == true) bulkSelectedIssues.Add(row.Id);
+                        else                     bulkSelectedIssues.Remove(row.Id);
+                        refreshBulkFooter();
+                    }
+                }));
+                // Bind IsChecked to the live set so re-render keeps state.
+                cbFactory.SetBinding(CheckBox.IsCheckedProperty,
+                    new Binding("Id") { Converter = new IsCheckedSetConverter(bulkSelectedIssues), Mode = BindingMode.OneWay });
+                cbColTemplate.VisualTree = cbFactory;
+                dg.Columns.Add(new DataGridTemplateColumn
+                {
+                    Header = "", Width = 30, CellTemplate = cbColTemplate, CanUserSort = false, CanUserReorder = false,
+                });
+
                 dg.Columns.Add(new DataGridTextColumn { Header = "ID", Binding = new Binding("Id"), Width = 80 });
                 dg.Columns.Add(new DataGridTextColumn { Header = "Title", Binding = new Binding("Title"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
                 dg.Columns.Add(new DataGridTextColumn { Header = "Type", Binding = new Binding("Type"), Width = 50 });
@@ -2653,12 +3037,75 @@ namespace StingTools.UI
                 rowStyle.Triggers.Add(closedT);
                 dg.RowStyle = rowStyle;
 
-                // Context menu
+                // T3-14 — Issue detail panel with an Activity tab. Selecting
+                // a row inflates a TabControl below the grid: Overview |
+                // Activity. Activity pulls from
+                // /api/projects/{pid}/issues/{iid}/activity (same endpoint
+                // the viewer + mobile consume) and renders rich cards.
+                var detailHost = new Border
+                {
+                    Visibility = Visibility.Collapsed,
+                    Background = Br(CCardBg), BorderBrush = Br(CBorder),
+                    BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4),
+                    Margin = new Thickness(0, 6, 0, 8), Padding = new Thickness(0)
+                };
+                var detailTabs = new TabControl { BorderThickness = new Thickness(0), Background = Brushes.Transparent };
+                var overviewTab = new TabItem { Header = "Overview" };
+                var overviewBody = new StackPanel { Margin = new Thickness(10, 8, 10, 8) };
+                overviewTab.Content = overviewBody;
+                var activityTab = new TabItem { Header = "Activity" };
+                var activityBody = new StackPanel { Margin = new Thickness(10, 8, 10, 8), MinHeight = 120 };
+                activityTab.Content = new ScrollViewer { Content = activityBody, MaxHeight = 280, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+                detailTabs.Items.Add(overviewTab);
+                detailTabs.Items.Add(activityTab);
+                detailHost.Child = detailTabs;
+
+                dg.SelectionChanged += (s, e) =>
+                {
+                    if (dg.SelectedItem is not IssueRow iss) { detailHost.Visibility = Visibility.Collapsed; return; }
+                    detailHost.Visibility = Visibility.Visible;
+                    overviewBody.Children.Clear();
+                    overviewBody.Children.Add(new TextBlock { Text = iss.Title ?? "(no title)", FontWeight = FontWeights.Bold, FontSize = 13, TextWrapping = TextWrapping.Wrap });
+                    overviewBody.Children.Add(new TextBlock { Text = $"{iss.Type} · {iss.Priority} · {iss.Status} · Assigned: {iss.AssigneeDisplay}", FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(0, 2, 0, 0) });
+                    overviewBody.Children.Add(new TextBlock { Text = $"ID: {iss.Id} · Created {iss.Created} · Age {iss.DaysOpen}", FontSize = 10, Foreground = Brushes.Gray, FontFamily = new FontFamily("Consolas"), Margin = new Thickness(0, 4, 0, 0) });
+
+                    // Lazily fetch activity only when the tab is selected.
+                    activityBody.Children.Clear();
+                    activityBody.Children.Add(new TextBlock { Text = "Select Activity tab to load timeline…", FontSize = 11, Foreground = Brushes.Gray });
+                };
+                activityTab.RequestBringIntoView += (s, e) => { /* tab focus event */ };
+                detailTabs.SelectionChanged += async (s, e) =>
+                {
+                    if (e.OriginalSource != detailTabs) return;
+                    if (!ReferenceEquals(detailTabs.SelectedItem, activityTab)) return;
+                    if (dg.SelectedItem is not IssueRow iss) return;
+                    activityBody.Children.Clear();
+                    activityBody.Children.Add(new TextBlock { Text = "Loading…", FontSize = 11, Foreground = Brushes.Gray });
+                    await LoadIssueActivityIntoAsync(activityBody, iss);
+                };
+
+                // Context menu — T3-18 mirrors the viewer's openIssueRowMenu:
+                // Zoom-to-element / Open detail / Mark resolved / Copy ID /
+                // Copy permalink — plus the existing assign + meeting actions
+                // because BCC desktop coordinators rely on them.
                 var issueCtx = new ContextMenu();
-                var zoomMi = new MenuItem { Header = "Zoom to 3D Section Box" };
-                zoomMi.Click += (s2, e2) => { if (dg.SelectedItem is IssueRow iss) { DispatchAction($"ZoomToIssue_{iss.Id}"); } };
+                IssueRow CtxRow() => dg.SelectedItem as IssueRow;
+                var zoomMi = new MenuItem { Header = "🎯 Zoom to element" };
+                zoomMi.Click += (s2, e2) => { var r = CtxRow(); if (r != null) DispatchAction($"ZoomToIssue_{r.Id}"); };
+                var openMi = new MenuItem { Header = "📂 Open detail" };
+                openMi.Click += (s2, e2) => { var r = CtxRow(); if (r != null) DispatchAction($"OpenIssueDetail_{r.Id}"); };
+                var resolveMi = new MenuItem { Header = "✓ Mark resolved" };
+                resolveMi.Click += (s2, e2) => { var r = CtxRow(); if (r != null) DispatchAction($"ResolveIssue_{r.Id}"); };
+                var copyIdMi = new MenuItem { Header = "📋 Copy ID" };
+                copyIdMi.Click += (s2, e2) => { var r = CtxRow(); if (r != null) { try { Clipboard.SetText(r.Id ?? string.Empty); } catch { } } };
+                var copyLinkMi = new MenuItem { Header = "🔗 Copy permalink" };
+                copyLinkMi.Click += (s2, e2) =>
+                {
+                    var r = CtxRow();
+                    if (r != null) { try { Clipboard.SetText($"planscape://issue/{r.Id}"); } catch { } }
+                };
                 var selectMi = new MenuItem { Header = "Select Linked Elements" };
-                selectMi.Click += (s2, e2) => { if (dg.SelectedItem is IssueRow iss) { DispatchAction($"SelectIssue_{iss.Id}"); } };
+                selectMi.Click += (s2, e2) => { var r = CtxRow(); if (r != null) DispatchAction($"SelectIssue_{r.Id}"); };
                 var updateMi = new MenuItem { Header = "Update Issue Status" };
                 updateMi.Click += (s2, e2) => { DispatchAction("UpdateIssue"); };
                 var assignMi = new MenuItem { Header = "Assign / Reassign" };
@@ -2668,16 +3115,23 @@ namespace StingTools.UI
                 var transmitMi = new MenuItem { Header = "Link to Transmittal" };
                 transmitMi.Click += (s2, e2) => { DispatchAction("CreateTransmittal"); };
                 issueCtx.Items.Add(zoomMi);
+                issueCtx.Items.Add(openMi);
                 issueCtx.Items.Add(selectMi);
                 issueCtx.Items.Add(new Separator());
+                issueCtx.Items.Add(resolveMi);
                 issueCtx.Items.Add(updateMi);
                 issueCtx.Items.Add(assignMi);
+                issueCtx.Items.Add(new Separator());
+                issueCtx.Items.Add(copyIdMi);
+                issueCtx.Items.Add(copyLinkMi);
                 issueCtx.Items.Add(new Separator());
                 issueCtx.Items.Add(meetingMi);
                 issueCtx.Items.Add(transmitMi);
                 dg.ContextMenu = issueCtx;
 
                 root.Children.Add(dg);
+                root.Children.Add(bulkFooter);
+                root.Children.Add(detailHost);
             }
             else
             {
@@ -6754,6 +7208,10 @@ namespace StingTools.UI
         // Phase 78 Section 10.6: Proper resource cleanup on window close
         private void OnClosed(object sender, EventArgs e)
         {
+            // Detach the ThemeChanged subscription added in the constructor —
+            // otherwise a closed BCC keeps a static reference alive and reopens
+            // would stack handlers.
+            try { ThemeManager.ThemeChanged -= OnThemeChanged; } catch { /* best effort */ }
             ActionDispatcher = null;
             CurrentInstance = null;
             _tabCache.Clear();
@@ -7273,9 +7731,76 @@ namespace StingTools.UI
                 {
                     AutoGenerateColumns = false, IsReadOnly = true, HeadersVisibility = DataGridHeadersVisibility.Column,
                     GridLinesVisibility = DataGridGridLinesVisibility.Horizontal, CanUserSortColumns = true,
-                    SelectionMode = DataGridSelectionMode.Single, FontSize = 11, MaxHeight = 300,
+                    SelectionMode = DataGridSelectionMode.Extended, FontSize = 11, MaxHeight = 300,
                     BorderBrush = Br(CBorder), BorderThickness = new Thickness(1), RowHeaderWidth = 0
                 };
+
+                // T3-18 — bulk multi-select on deliverables. Same pattern as
+                // the issues grid above; HashSet keyed off the deliverable
+                // Code (deliverables don't have GUIDs in the local model).
+                var bulkSelectedDels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var bulkFooter = new Border
+                {
+                    Visibility = Visibility.Collapsed,
+                    Background = Br(Color.FromRgb(0xEC, 0xEF, 0xF1)),
+                    BorderBrush = Br(CBorder),
+                    BorderThickness = new Thickness(0, 1, 0, 0),
+                    Padding = new Thickness(10, 6, 10, 6),
+                    Margin = new Thickness(0, 0, 0, 8),
+                };
+                var bulkRow = new StackPanel { Orientation = Orientation.Horizontal };
+                var bulkCount = new TextBlock { Text = "0 selected", FontSize = 11, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
+                bulkRow.Children.Add(bulkCount);
+                Action refreshBulkFooter = () =>
+                {
+                    bulkCount.Text = $"{bulkSelectedDels.Count} selected";
+                    bulkFooter.Visibility = bulkSelectedDels.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+                };
+                Button MakeBulkBtn(string label, Color c) => new Button
+                {
+                    Content = label, Background = Br(c), Foreground = Brushes.White,
+                    BorderThickness = new Thickness(0), Padding = new Thickness(10, 3, 10, 3),
+                    FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 6, 0)
+                };
+                var bulkReassign = MakeBulkBtn("Reassign Owner", Color.FromRgb(0xE8, 0x91, 0x2D));
+                bulkReassign.Click += (s, e) => DispatchAction("BulkDeliverableReassign|" + string.Join(",", bulkSelectedDels));
+                var bulkApprove  = MakeBulkBtn("Bulk Resolve", Color.FromRgb(0x2E, 0x7D, 0x32));
+                bulkApprove.Click += (s, e) => DispatchAction("BulkDeliverableApprove|" + string.Join(",", bulkSelectedDels));
+                var bulkExportBtn = MakeBulkBtn("Export CSV", Color.FromRgb(0x45, 0x50, 0x6E));
+                bulkExportBtn.Click += (s, e) => DispatchAction("BulkDeliverableExport|" + string.Join(",", bulkSelectedDels));
+                var bulkClear = new Button
+                {
+                    Content = "Clear", Background = Brushes.Transparent, BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
+                    Padding = new Thickness(8, 2, 8, 2), FontSize = 11, Cursor = Cursors.Hand
+                };
+                bulkClear.Click += (s, e) => { bulkSelectedDels.Clear(); refreshBulkFooter(); dg.Items.Refresh(); };
+                bulkRow.Children.Add(bulkReassign);
+                bulkRow.Children.Add(bulkApprove);
+                bulkRow.Children.Add(bulkExportBtn);
+                bulkRow.Children.Add(bulkClear);
+                bulkFooter.Child = bulkRow;
+
+                var cbColTemplateD = new DataTemplate();
+                var cbFactoryD = new FrameworkElementFactory(typeof(CheckBox));
+                cbFactoryD.SetValue(CheckBox.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+                cbFactoryD.SetValue(CheckBox.VerticalAlignmentProperty, VerticalAlignment.Center);
+                cbFactoryD.AddHandler(CheckBox.ClickEvent, new RoutedEventHandler((s, e) =>
+                {
+                    if (s is CheckBox cb && cb.DataContext is DeliverableRow row)
+                    {
+                        if (cb.IsChecked == true) bulkSelectedDels.Add(row.Code);
+                        else                     bulkSelectedDels.Remove(row.Code);
+                        refreshBulkFooter();
+                    }
+                }));
+                cbFactoryD.SetBinding(CheckBox.IsCheckedProperty,
+                    new Binding("Code") { Converter = new IsCheckedSetConverter(bulkSelectedDels), Mode = BindingMode.OneWay });
+                cbColTemplateD.VisualTree = cbFactoryD;
+                dg.Columns.Add(new DataGridTemplateColumn
+                {
+                    Header = "", Width = 30, CellTemplate = cbColTemplateD, CanUserSort = false, CanUserReorder = false,
+                });
+
                 dg.Columns.Add(new DataGridTextColumn { Header = "Code",       Binding = new Binding("Code"),       Width = 120 });
                 dg.Columns.Add(new DataGridTextColumn { Header = "Name",       Binding = new Binding("Name"),       Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
                 dg.Columns.Add(new DataGridTextColumn { Header = "Disc.",      Binding = new Binding("Discipline"), Width = 45 });
@@ -7309,11 +7834,24 @@ namespace StingTools.UI
                     { DispatchAction("ViewDocument_" + del.Code); }
                 };
 
-                // Right-click context menu
+                // Right-click context menu — T3-18 mirrors the viewer's
+                // deliverable-equivalent options: open detail / mark
+                // resolved / copy ID / copy permalink / standard actions.
                 var dgCtx = new ContextMenu();
-                var ctxView = new MenuItem { Header = "View Document Details" };
-                ctxView.Click += (s, e) => { if (dg.SelectedItem is DeliverableRow d2) { DispatchAction("ViewDocument_" + d2.Code); } };
+                DeliverableRow CtxDelRow() => dg.SelectedItem as DeliverableRow;
+                var ctxView = new MenuItem { Header = "📂 Open detail" };
+                ctxView.Click += (s, e) => { var r = CtxDelRow(); if (r != null) DispatchAction("ViewDocument_" + r.Code); };
                 dgCtx.Items.Add(ctxView);
+                var ctxResolve = new MenuItem { Header = "✓ Mark resolved (Approved)" };
+                ctxResolve.Click += (s, e) => { var r = CtxDelRow(); if (r != null) DispatchAction("ApproveDeliverable_" + r.Code); };
+                dgCtx.Items.Add(ctxResolve);
+                var ctxCopyId = new MenuItem { Header = "📋 Copy ID" };
+                ctxCopyId.Click += (s, e) => { var r = CtxDelRow(); if (r != null) { try { Clipboard.SetText(r.Code ?? string.Empty); } catch { } } };
+                dgCtx.Items.Add(ctxCopyId);
+                var ctxCopyLink = new MenuItem { Header = "🔗 Copy permalink" };
+                ctxCopyLink.Click += (s, e) => { var r = CtxDelRow(); if (r != null) { try { Clipboard.SetText($"planscape://deliverable/{r.Code}"); } catch { } } };
+                dgCtx.Items.Add(ctxCopyLink);
+                dgCtx.Items.Add(new Separator());
                 var ctxCDE = new MenuItem { Header = "Update CDE Status" };
                 ctxCDE.Click += (s, e) => { DispatchAction("CDEStatus"); };
                 dgCtx.Items.Add(ctxCDE);
@@ -7351,6 +7889,7 @@ namespace StingTools.UI
                 filterDisc.SelectionChanged   += (s, e) => applyFilter();
 
                 root.Children.Add(dg);
+                root.Children.Add(bulkFooter);
             }
             else
             {
@@ -9850,5 +10389,23 @@ namespace StingTools.UI
             ApplyOwner(w);
             w.Show();
         }
+    }
+
+    /// <summary>
+    /// T3-18 — One-way binding converter that maps a row id to a CheckBox
+    /// IsChecked state by consulting a shared HashSet. Used by the BCC bulk
+    /// multi-select columns on the issue + deliverable grids; both grids
+    /// virtualize, so we cannot rely on a per-row mutable IsChecked field
+    /// without lifting the rows to INotifyPropertyChanged. Keeping the
+    /// authoritative state in a HashSet sidesteps that for free.
+    /// </summary>
+    public sealed class IsCheckedSetConverter : System.Windows.Data.IValueConverter
+    {
+        private readonly System.Collections.Generic.HashSet<string> _set;
+        public IsCheckedSetConverter(System.Collections.Generic.HashSet<string> set) { _set = set; }
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => value is string s && _set.Contains(s);
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => System.Windows.Data.Binding.DoNothing;
     }
 }

@@ -230,7 +230,125 @@ public class SlaEscalationJob
         if (escalated > 0)
             await db.SaveChangesAsync(ct);
 
-        _logger.LogInformation("SlaEscalationJob completed — {Count} issues escalated", escalated);
+        // Phase 178b — T2-11 escalation chains. After the priority bump
+        // above, additionally fire a "manager escalation" wave for issues
+        // that have been CRITICAL + overdue past a threshold. This gives
+        // the chain three steps:
+        //   step 1  (existing): priority bump + push to assignee
+        //   step 2  (new):      notify project PMs once issue is
+        //                       CRITICAL AND overdue ≥ 24 h
+        //   step 3  (new):      notify project Owner / Admin once issue
+        //                       is CRITICAL AND overdue ≥ 72 h
+        // Each escalation is logged to AuditLog so the chain is
+        // visible on the issue's activity timeline. The thresholds are
+        // intentionally relative to *now*, not the SLA breach moment,
+        // so a re-opened CRITICAL issue gets the same treatment.
+        var stuckCritical = await db.Issues
+            .Include(i => i.Project)
+            .Where(i => i.Priority == "CRITICAL"
+                     && i.Status != "CLOSED"
+                     && i.Status != "RESOLVED"
+                     && i.DueDate != null
+                     && i.DueDate < now)
+            .ToListAsync(ct);
+
+        int chainStep2 = 0, chainStep3 = 0;
+        foreach (var issue in stuckCritical)
+        {
+            var overdueHours = (now - issue.DueDate!.Value).TotalHours;
+            var tenantId = issue.Project?.TenantId ?? Guid.Empty;
+            if (tenantId == Guid.Empty) continue;
+
+            // Step 3 — Owner / Admin notification (≥ 72 h)
+            if (overdueHours >= 72 && !await EscalationFiredAsync(db, issue.Id, "ESCALATE_STEP_3", ct))
+            {
+                var ownerIds = await db.ProjectMembers
+                    .AsNoTracking()
+                    .Where(m => m.ProjectId == issue.ProjectId && m.IsActive
+                             && (m.ProjectRole == "Owner" || m.ProjectRole == "Admin"))
+                    .Select(m => m.UserId)
+                    .Distinct()
+                    .ToListAsync(ct);
+                foreach (var uid in ownerIds)
+                {
+                    if (push != null)
+                    {
+                        _ = push.SendToUserAsync(uid, new PushPayload {
+                            Title = $"⛔ {issue.IssueCode} — 72h overdue",
+                            Body = $"CRITICAL issue past escalation threshold: {issue.Title}",
+                            Channel = "sla_breach",
+                            Data = new Dictionary<string, string> {
+                                ["type"] = "sla_escalation_step3",
+                                ["issueId"] = issue.Id.ToString(),
+                                ["issueCode"] = issue.IssueCode,
+                                ["projectId"] = issue.ProjectId.ToString(),
+                            }
+                        }, ct);
+                    }
+                }
+                db.AuditLogs.Add(new AuditLog {
+                    TenantId = tenantId, ProjectId = issue.ProjectId,
+                    Action = "ESCALATE_STEP_3", EntityType = "Issue", EntityId = issue.Id.ToString(),
+                    DetailsJson = System.Text.Json.JsonSerializer.Serialize(new {
+                        overdueHours = (int)overdueHours, recipientCount = ownerIds.Count
+                    }),
+                    Timestamp = now,
+                });
+                chainStep3++;
+            }
+            // Step 2 — PM notification (≥ 24 h, not yet step-3'd)
+            else if (overdueHours >= 24 && !await EscalationFiredAsync(db, issue.Id, "ESCALATE_STEP_2", ct))
+            {
+                var pmIds = await db.ProjectMembers
+                    .AsNoTracking()
+                    .Where(m => m.ProjectId == issue.ProjectId && m.IsActive && m.ProjectRole == "PM")
+                    .Select(m => m.UserId)
+                    .Distinct()
+                    .ToListAsync(ct);
+                foreach (var uid in pmIds)
+                {
+                    if (push != null)
+                    {
+                        _ = push.SendToUserAsync(uid, new PushPayload {
+                            Title = $"⚠ {issue.IssueCode} — 24h overdue",
+                            Body = $"CRITICAL issue: {issue.Title}",
+                            Channel = "sla_breach",
+                            Data = new Dictionary<string, string> {
+                                ["type"] = "sla_escalation_step2",
+                                ["issueId"] = issue.Id.ToString(),
+                                ["issueCode"] = issue.IssueCode,
+                                ["projectId"] = issue.ProjectId.ToString(),
+                            }
+                        }, ct);
+                    }
+                }
+                db.AuditLogs.Add(new AuditLog {
+                    TenantId = tenantId, ProjectId = issue.ProjectId,
+                    Action = "ESCALATE_STEP_2", EntityType = "Issue", EntityId = issue.Id.ToString(),
+                    DetailsJson = System.Text.Json.JsonSerializer.Serialize(new {
+                        overdueHours = (int)overdueHours, recipientCount = pmIds.Count
+                    }),
+                    Timestamp = now,
+                });
+                chainStep2++;
+            }
+        }
+        if (chainStep2 + chainStep3 > 0) await db.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "SlaEscalationJob completed — {Bumped} priority-bumped, {Step2} PM-notified, {Step3} Owner-notified",
+            escalated, chainStep2, chainStep3);
+    }
+
+    /// <summary>
+    /// Idempotency guard: an escalation step fires at most once per issue.
+    /// Probes AuditLog for a row with the same (Action, EntityId).
+    /// </summary>
+    private static async Task<bool> EscalationFiredAsync(PlanscapeDbContext db, Guid issueId, string action, CancellationToken ct)
+    {
+        var idStr = issueId.ToString();
+        return await db.AuditLogs.AsNoTracking()
+            .AnyAsync(a => a.EntityType == "Issue" && a.EntityId == idStr && a.Action == action, ct);
     }
 }
 

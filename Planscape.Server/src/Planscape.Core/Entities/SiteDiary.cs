@@ -53,6 +53,24 @@ public class SiteDiary : ITenantScoped
     public string? SafetyIncidents { get; set; }
     public string? DelaysAndDisruption { get; set; }
 
+    // ── Phase 178b — Reason taxonomy (mirrors SitePhoto) ──
+    /// <summary>
+    /// One of <see cref="SitePhoto.ValidReasons"/> — Progress | Issue | Defect |
+    /// Safety | AsBuilt | Reference. Drives auto-routing on submit:
+    /// Defect → auto-create NCR linked to this diary; Safety → priority
+    /// Safety issue + push to safety officer + 4h SLA. Default
+    /// "Reference" preserves pre-Phase-178b behaviour (no auto-route).
+    /// </summary>
+    public string Reason { get; set; } = "Reference";
+
+    /// <summary>
+    /// When auto-routing creates an issue at submit time, the resulting
+    /// <see cref="BimIssue"/> id is recorded here so the diary detail
+    /// view + audit timeline link straight back to the auto-created
+    /// issue without a fresh search.
+    /// </summary>
+    public Guid? AutoCreatedIssueId { get; set; }
+
     // ── Lifecycle ──
     /// <summary>DRAFT, SUBMITTED, ACKNOWLEDGED, ARCHIVED. Submission triggers
     /// project-scoped notification; archival is a manager-only operation.</summary>

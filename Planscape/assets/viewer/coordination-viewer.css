@@ -1118,6 +1118,76 @@ canvas { display: block; touch-action: none; }
 .activity-row .when { opacity: 0.6; font-size: 10px; min-width: 80px; font-family: var(--font-mono); }
 .activity-row .what { flex: 1; }
 
+/* T3-14 — Rich activity cards. Avatar + verb + relative time + chip. The
+   shared shape is reused on mobile (issue-detail.tsx) and the BCC issue
+   detail panel; the JSON fed by /api/projects/{pid}/issues/{iid}/activity
+   is identical, so any visual tweak here lands consistently. */
+.activity-card {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 8px; border-bottom: 1px solid var(--border);
+}
+.activity-card:last-child { border-bottom: none; }
+.activity-card .avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: #fff;
+  flex-shrink: 0; user-select: none;
+}
+.activity-card .body { flex: 1; min-width: 0; }
+.activity-card .head {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font-size: 12px; line-height: 1.4;
+}
+.activity-card .who { font-weight: 600; color: var(--text-primary); }
+.activity-card .verb { color: var(--text-primary); }
+.activity-card .when {
+  font-size: 10px; opacity: 0.6; margin-left: auto;
+  font-family: var(--font-mono); white-space: nowrap;
+}
+.activity-card .detail {
+  font-size: 11px; color: var(--text-muted, #888); margin-top: 2px;
+  white-space: pre-wrap; word-break: break-word;
+}
+.activity-card .chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600;
+  background: var(--bg-canvas); border: 1px solid var(--border);
+  margin-top: 4px; max-width: 100%;
+}
+.activity-card .chip.priority-CRITICAL { background: #5e1a1a; border-color: #b71c1c; color: #fecaca; }
+.activity-card .chip.priority-HIGH     { background: #4a2a0d; border-color: #e8912d; color: #fde0a8; }
+.activity-card .chip.priority-MEDIUM   { background: #2a3a4a; border-color: #2d6da6; color: #cde0ee; }
+.activity-card .chip.priority-LOW      { background: #1f3a26; border-color: #2e7d32; color: #c8e6c9; }
+.activity-card .chip.status-OPEN        { background: #2a3a4a; color: #cde0ee; }
+.activity-card .chip.status-IN_PROGRESS { background: #4a2a0d; color: #fde0a8; }
+.activity-card .chip.status-RESOLVED    { background: #1f3a26; color: #c8e6c9; }
+.activity-card .chip.status-CLOSED      { background: #333;     color: #bbb; }
+.activity-card .thumb {
+  width: 100%; max-width: 220px; height: auto; max-height: 140px;
+  border-radius: var(--radius-sm); margin-top: 6px;
+  border: 1px solid var(--border); object-fit: cover;
+}
+
+/* T3-18 — Bulk selection footer for grids (mirrors viewer multi-select UX
+   on the issues + clashes tables). Slides up from the bottom of the
+   panel when N >= 1 rows are checked. */
+.bulk-footer {
+  position: sticky; bottom: 0; left: 0; right: 0; z-index: 30;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; background: var(--bg-panel);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -4px 12px rgba(0,0,0,0.35);
+}
+.bulk-footer .count { font-weight: 600; font-size: 12px; }
+.bulk-footer .grow { flex: 1; }
+.bulk-footer .btn { padding: 4px 10px; font-size: 11px; }
+.bulk-check {
+  width: 14px; height: 14px; cursor: pointer;
+  vertical-align: middle;
+}
+tr.row-selected { background: rgba(59, 130, 246, 0.18) !important; }
+tr.row-selected td { color: var(--text-primary); }
+
 /* Settings menu (was previously a no-op TaskDialog) */
 .settings-menu {
   display: none; position: absolute; right: 14px; top: 48px;
