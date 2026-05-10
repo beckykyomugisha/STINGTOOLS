@@ -12,9 +12,11 @@ using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using System.Text.RegularExpressions;
 using StingTools.Core;
 using StingTools.Core.Plumbing;
 using StingTools.UI;
+using StingTools.UI.Plumbing;
 
 namespace StingTools.Commands.Plumbing
 {
@@ -29,12 +31,32 @@ namespace StingTools.Commands.Plumbing
             var b = PlumbingBOQBuilder.Build(ctx.Doc);
             var pipeRows = b.Rows.Where(r => r.Unit == "m").ToList();
 
+            var rows = pipeRows.Select(r =>
+            {
+                ParseDescription(r.Description, out var system, out var dn, out var material);
+                return new DocsPipeScheduleRow
+                {
+                    System   = system,
+                    Dn       = dn,
+                    Material = string.IsNullOrEmpty(material) ? r.Description : material,
+                    LengthM  = r.Qty
+                };
+            }).ToList();
+            string status = $"Pipe schedule · {b.PipesCounted} pipes · {pipeRows.Count} rows · "
+                          + $"{pipeRows.Sum(r => r.Qty):F1} m total";
+
+            var inst = StingPlumbingPanel.Instance;
+            if (inst != null)
+            {
+                inst.SetDocsPipeScheduleResult(rows, status);
+                return Result.Succeeded;
+            }
+
             var panel = StingResultPanel.Create("Plumbing Pipe Schedule");
             panel.AddSection("SUMMARY")
                  .Metric("Pipes counted", b.PipesCounted.ToString())
                  .Metric("Distinct rows", pipeRows.Count.ToString())
                  .Metric("Total length (m)", pipeRows.Sum(r => r.Qty).ToString("F1"));
-
             if (pipeRows.Any())
             {
                 panel.AddSection("ROWS (first 80)");
@@ -43,6 +65,30 @@ namespace StingTools.Commands.Plumbing
             }
             panel.Show();
             return Result.Succeeded;
+        }
+
+        // BOQ description format established by PlumbingBOQBuilder is roughly
+        // "{material} pipe DN{size} ({system N})". We split heuristically; if
+        // the parse fails the caller falls back to the full description in the
+        // Material column so no information is lost.
+        private static void ParseDescription(string desc, out string system, out int dn, out string material)
+        {
+            system = ""; dn = 0; material = "";
+            if (string.IsNullOrEmpty(desc)) return;
+            var m = Regex.Match(desc, @"^(?<mat>.*?)\s*pipe\s*DN(?<dn>\d+)\s*\((?<sys>[^)]+)\)\s*$",
+                                RegexOptions.IgnoreCase);
+            if (m.Success)
+            {
+                material = m.Groups["mat"].Value.Trim();
+                int.TryParse(m.Groups["dn"].Value, out dn);
+                system   = m.Groups["sys"].Value.Trim();
+                return;
+            }
+            // Looser fallback: just pull the DN if present so the column at
+            // least shows the diameter on rows the regex didn't match.
+            var m2 = Regex.Match(desc, @"DN(?<dn>\d+)", RegexOptions.IgnoreCase);
+            if (m2.Success) int.TryParse(m2.Groups["dn"].Value, out dn);
+            material = desc;
         }
     }
 
@@ -56,13 +102,29 @@ namespace StingTools.Commands.Plumbing
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var b = PlumbingBOQBuilder.Build(ctx.Doc);
 
+            var rows = b.Rows.Select(r => new DocsBoqRow
+            {
+                Item        = r.Code,
+                Description = r.Description,
+                Qty         = r.Qty,
+                Unit        = r.Unit
+            }).ToList();
+            string status = $"BOQ · {b.PipesCounted} pipes · {b.FittingsCounted} fittings · "
+                          + $"{b.AccessoriesCounted} accessories · {b.Rows.Count} rows";
+
+            var inst = StingPlumbingPanel.Instance;
+            if (inst != null)
+            {
+                inst.SetDocsBoqResult(rows, status);
+                return Result.Succeeded;
+            }
+
             var panel = StingResultPanel.Create("Plumbing BOQ");
             panel.AddSection("SUMMARY")
                  .Metric("Pipes",        b.PipesCounted.ToString())
                  .Metric("Fittings",     b.FittingsCounted.ToString())
                  .Metric("Accessories",  b.AccessoriesCounted.ToString())
                  .Metric("Total rows",   b.Rows.Count.ToString());
-
             if (b.Rows.Any())
             {
                 panel.AddSection("BOQ ROWS (first 100)");
@@ -100,6 +162,35 @@ namespace StingTools.Commands.Plumbing
                     return n.Contains("MANHOLE") || n.Contains("INSPECTION") || n.Contains("CHAMBER") || n.Contains("MH");
                 })
                 .ToList();
+
+            var rows = manholes.Select(el =>
+            {
+                double invIn = 0, invOut = 0, cover = 0, depth = 0;
+                try
+                {
+                    var pIn  = el.LookupParameter(ParamRegistry.PLM_DRN_INV_US)?.AsDouble();
+                    var pOut = el.LookupParameter(ParamRegistry.PLM_DRN_INV_DS)?.AsDouble();
+                    if (pIn  != null) invIn  = pIn.Value  * 0.3048;  // ft → m
+                    if (pOut != null) invOut = pOut.Value * 0.3048;
+                }
+                catch { }
+                return new DocsManholeRow
+                {
+                    Ref     = $"{el.Id.Value} {el.Name}",
+                    InvInM  = invIn,
+                    InvOutM = invOut,
+                    CoverM  = cover,
+                    DepthM  = depth
+                };
+            }).ToList();
+            string status = $"Manholes · {manholes.Count} chambers";
+
+            var inst = StingPlumbingPanel.Instance;
+            if (inst != null)
+            {
+                inst.SetDocsManholeResult(rows, status);
+                return Result.Succeeded;
+            }
 
             var panel = StingResultPanel.Create("Manhole / Access Chamber Schedule");
             panel.AddSection("SUMMARY")

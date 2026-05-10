@@ -672,6 +672,7 @@ namespace StingTools.UI.Plumbing
         // ── SPECIALTY tab — backflow matrix + cross-connections + material flags ──
         private ComboBox _spcBackflowThreshold;
         private CheckBox _spcMatGalvanic, _spcMatJointing, _spcMatWras, _spcMatAll;
+        private Expander _spcFluidMatrixExpander, _spcCrossConnExpander;
         public DataGrid SpecialtyFluidMatrixGrid { get; private set; }
         public DataGrid SpecialtyCrossConnGrid   { get; private set; }
 
@@ -688,11 +689,11 @@ namespace StingTools.UI.Plumbing
             AddBtn(sp, "Plumbing_BackflowAudit", "Fluid Category Audit",
                 "Classify pipes Cat 1-5 and recommend SCV/DCV/RPZ/Air-gap.");
             SpecialtyFluidMatrixGrid = NewResultGrid(("Cat", "Cat"), ("Description", "Description"), ("Required device", "RequiredDevice"), ("Found", "Found"));
-            sp.Children.Add(NewExpander("Fluid category matrix", WithEmptyHint(SpecialtyFluidMatrixGrid, "(run Fluid Category Audit to populate)"), expanded: false));
+            sp.Children.Add(_spcFluidMatrixExpander = NewExpander("Fluid category matrix", WithEmptyHint(SpecialtyFluidMatrixGrid, "(run Fluid Category Audit to populate)"), expanded: false));
             AddBtn(sp, "Plumbing_CrossConnection", "Cross-Connection Scan",
                 "Graph walk potable → non-potable.");
             SpecialtyCrossConnGrid = NewResultGrid(("System A", "SystemA"), ("System B", "SystemB"), ("Separation", "Separation"), ("Risk", "Risk"));
-            sp.Children.Add(NewExpander("Cross-connections", WithEmptyHint(SpecialtyCrossConnGrid, "(run Cross-Connection Scan to populate)"), expanded: false));
+            sp.Children.Add(_spcCrossConnExpander = NewExpander("Cross-connections", WithEmptyHint(SpecialtyCrossConnGrid, "(run Cross-Connection Scan to populate)"), expanded: false));
 
             AddCard(sp, "Materials & jointing");
             var matFlags = new WrapPanel { Margin = new Thickness(0, 2, 0, 4) };
@@ -729,9 +730,11 @@ namespace StingTools.UI.Plumbing
         });
 
         // ── AUDIT tab — 5-tile RAG dashboard + per-domain drill-down grids ──
-        private readonly Dictionary<string, TextBlock> _auditPctLabels = new Dictionary<string, TextBlock>();
-        private readonly Dictionary<string, ProgressBar> _auditBars     = new Dictionary<string, ProgressBar>();
-        private readonly Dictionary<string, TextBlock> _auditSubLabels = new Dictionary<string, TextBlock>();
+        private readonly Dictionary<string, TextBlock>   _auditPctLabels = new Dictionary<string, TextBlock>();
+        private readonly Dictionary<string, ProgressBar> _auditBars      = new Dictionary<string, ProgressBar>();
+        private readonly Dictionary<string, TextBlock>   _auditSubLabels = new Dictionary<string, TextBlock>();
+        private readonly Dictionary<string, DataGrid>    _auditGrids     = new Dictionary<string, DataGrid>();
+        private readonly Dictionary<string, Expander>    _auditExpanders = new Dictionary<string, Expander>();
         public DataGrid AuditSupplyGrid   { get; private set; }
         public DataGrid AuditDrainageGrid { get; private set; }
         public DataGrid AuditVentsGrid    { get; private set; }
@@ -766,11 +769,21 @@ namespace StingTools.UI.Plumbing
             AuditVentsGrid    = NewResultGrid(auditCols);
             AuditBackflowGrid = NewResultGrid(auditCols);
             AuditHtmGrid      = NewResultGrid(auditCols);
-            sp.Children.Add(NewExpander("Supply",       WithEmptyHint(AuditSupplyGrid,   "(run Full Audit)"), expanded: false));
-            sp.Children.Add(NewExpander("Drainage",     WithEmptyHint(AuditDrainageGrid, "(run Full Audit)"), expanded: false));
-            sp.Children.Add(NewExpander("Vents",        WithEmptyHint(AuditVentsGrid,    "(run Full Audit)"), expanded: false));
-            sp.Children.Add(NewExpander("Backflow",     WithEmptyHint(AuditBackflowGrid, "(run Full Audit)"), expanded: false));
-            sp.Children.Add(NewExpander("HTM 04-01",    WithEmptyHint(AuditHtmGrid,      "(run Full Audit)"), expanded: false));
+            var auditSupplyExp   = NewExpander("Supply",    WithEmptyHint(AuditSupplyGrid,   "(run Full Audit)"), expanded: false);
+            var auditDrainageExp = NewExpander("Drainage",  WithEmptyHint(AuditDrainageGrid, "(run Full Audit)"), expanded: false);
+            var auditVentsExp    = NewExpander("Vents",     WithEmptyHint(AuditVentsGrid,    "(run Full Audit)"), expanded: false);
+            var auditBackflowExp = NewExpander("Backflow",  WithEmptyHint(AuditBackflowGrid, "(run Full Audit)"), expanded: false);
+            var auditHtmExp      = NewExpander("HTM 04-01", WithEmptyHint(AuditHtmGrid,      "(run Full Audit)"), expanded: false);
+            sp.Children.Add(auditSupplyExp);
+            sp.Children.Add(auditDrainageExp);
+            sp.Children.Add(auditVentsExp);
+            sp.Children.Add(auditBackflowExp);
+            sp.Children.Add(auditHtmExp);
+            _auditGrids["Supply"]    = AuditSupplyGrid;    _auditExpanders["Supply"]    = auditSupplyExp;
+            _auditGrids["Drainage"]  = AuditDrainageGrid;  _auditExpanders["Drainage"]  = auditDrainageExp;
+            _auditGrids["Vents"]     = AuditVentsGrid;     _auditExpanders["Vents"]     = auditVentsExp;
+            _auditGrids["Backflow"]  = AuditBackflowGrid;  _auditExpanders["Backflow"]  = auditBackflowExp;
+            _auditGrids["HTM 04-01"] = AuditHtmGrid;       _auditExpanders["HTM 04-01"] = auditHtmExp;
 
             AddCard(sp, "Per-domain audits (legacy)");
             AddBtn(sp, "Plumbing_TrapVentAudit",   "Trap & Vent Audit", "");
@@ -782,6 +795,28 @@ namespace StingTools.UI.Plumbing
             t.Content = WrapScroll(sp);
             return t;
         }
+
+        public void SetAuditFindings(string domain, IList<AuditIssueRow> rows)
+        {
+            if (!_auditGrids.TryGetValue(domain, out var grid)) return;
+            _auditExpanders.TryGetValue(domain, out var exp);
+            ApplyResult(grid, exp, (System.Collections.IList)rows, null);
+        }
+
+        public void SetSpecialtyFluidMatrixResult(IList<SpecialtyFluidMatrixRow> rows, string status) =>
+            ApplyResult(SpecialtyFluidMatrixGrid, _spcFluidMatrixExpander, (System.Collections.IList)rows, status);
+
+        public void SetSpecialtyCrossConnResult(IList<SpecialtyCrossConnRow> rows, string status) =>
+            ApplyResult(SpecialtyCrossConnGrid, _spcCrossConnExpander, (System.Collections.IList)rows, status);
+
+        public void SetDocsPipeScheduleResult(IList<DocsPipeScheduleRow> rows, string status) =>
+            ApplyResult(DocsPipeScheduleGrid, _docsPipeScheduleExpander, (System.Collections.IList)rows, status);
+
+        public void SetDocsManholeResult(IList<DocsManholeRow> rows, string status) =>
+            ApplyResult(DocsManholeGrid, _docsManholeExpander, (System.Collections.IList)rows, status);
+
+        public void SetDocsBoqResult(IList<DocsBoqRow> rows, string status) =>
+            ApplyResult(DocsBoqGrid, _docsBoqExpander, (System.Collections.IList)rows, status);
 
         // Updates one of the five RAG tiles. RAG colour follows ComplianceScan
         // convention: <50 red · 50–80 amber · ≥80 green.
@@ -805,6 +840,7 @@ namespace StingTools.UI.Plumbing
         private ComboBox _docsIsoSystem;
         private CheckBox _docsIsoDims, _docsIsoInverts;
         private CheckBox _docsCmFlush, _docsCmChlor, _docsCmPress, _docsCmLegRA;
+        private Expander _docsPipeScheduleExpander, _docsManholeExpander, _docsBoqExpander;
         public DataGrid DocsPipeScheduleGrid { get; private set; }
         public DataGrid DocsManholeGrid      { get; private set; }
         public DataGrid DocsBoqGrid          { get; private set; }
@@ -818,12 +854,12 @@ namespace StingTools.UI.Plumbing
             AddBtn(sp, "Plumb_PipeSchedule", "Pipe Schedule",
                 "Group pipes by system + DN + material with totals.");
             DocsPipeScheduleGrid = NewResultGrid(("System", "System"), ("DN", "Dn"), ("Material", "Material"), ("Length (m)", "LengthM"));
-            sp.Children.Add(NewExpander("Pipe schedule preview", WithEmptyHint(DocsPipeScheduleGrid, "(run Pipe Schedule to populate)"), expanded: false));
+            sp.Children.Add(_docsPipeScheduleExpander = NewExpander("Pipe schedule preview", WithEmptyHint(DocsPipeScheduleGrid, "(run Pipe Schedule to populate)"), expanded: false));
 
             AddBtn(sp, "Plumb_ManholeSchedule", "Manhole / Access Chamber Schedule",
                 "Reads PLM_DRN_INV_* params from manholes / inspection chambers.");
             DocsManholeGrid = NewResultGrid(("Ref", "Ref"), ("Inv In", "InvInM"), ("Inv Out", "InvOutM"), ("Cover", "CoverM"), ("Depth", "DepthM"));
-            sp.Children.Add(NewExpander("Manhole schedule preview", WithEmptyHint(DocsManholeGrid, "(run Manhole Schedule to populate)"), expanded: false));
+            sp.Children.Add(_docsManholeExpander = NewExpander("Manhole schedule preview", WithEmptyHint(DocsManholeGrid, "(run Manhole Schedule to populate)"), expanded: false));
 
             AddBtn(sp, "Plumb_TMVRegister", "TMV Register",
                 "Cross-listed with the SUPPLY tab.");
@@ -832,7 +868,7 @@ namespace StingTools.UI.Plumbing
             AddBtn(sp, "Plumb_BOQ", "Plumbing BOQ",
                 "Pipes (m) + fittings (nr) + accessories (nr) — full BoQ row dump.");
             DocsBoqGrid = NewResultGrid(("Item", "Item"), ("Description", "Description"), ("Qty", "Qty"), ("Unit", "Unit"));
-            sp.Children.Add(NewExpander("BOQ preview", WithEmptyHint(DocsBoqGrid, "(run Plumbing BOQ to populate)"), expanded: false));
+            sp.Children.Add(_docsBoqExpander = NewExpander("BOQ preview", WithEmptyHint(DocsBoqGrid, "(run Plumbing BOQ to populate)"), expanded: false));
 
             var isoOpts = NewFormGrid();
             AddFormRow(isoOpts, 0, "System",

@@ -180,6 +180,32 @@ namespace StingTools.Commands.Plumbing
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var r = PlumbingComplianceScanner.Scan(ctx.Doc);
 
+            var inst = StingPlumbingPanel.Instance;
+            if (inst != null)
+            {
+                // Update each of the 5 RAG tiles + drill-down grids. Domain key
+                // strings must match the keys registered in StingPlumbingPanel
+                // BuildAuditTab (Supply / Drainage / Vents / Backflow / HTM 04-01).
+                void Push(string domain, PlumbingDomainScore d)
+                {
+                    inst.SetAuditRag(domain, d.PercentPass, d.Warn + d.Fail);
+                    var rows = d.TopFindings.Select(f => new AuditIssueRow
+                    {
+                        Element = "", Issue = f, Severity = d.Severity
+                    }).ToList();
+                    inst.SetAuditFindings(domain, rows);
+                }
+                Push("Supply",    r.Supply);
+                Push("Drainage",  r.Drainage);
+                Push("Vents",     r.Vents);
+                Push("Backflow",  r.Backflow);
+                Push("HTM 04-01", r.Htm);
+                int totalWarn = r.Supply.Warn + r.Drainage.Warn + r.Vents.Warn + r.Backflow.Warn + r.Htm.Warn;
+                int totalFail = r.Supply.Fail + r.Drainage.Fail + r.Vents.Fail + r.Backflow.Fail + r.Htm.Fail;
+                inst.SetStatus($"Audit · {r.ScanUtc:HH:mm} · warn {totalWarn} · fail {totalFail}");
+                return Result.Succeeded;
+            }
+
             var panel = StingResultPanel.Create("Plumbing Full Audit");
             panel.SetSubtitle($"Scan: {r.ScanUtc:u}");
             panel.AddSection("RAG DASHBOARD")
