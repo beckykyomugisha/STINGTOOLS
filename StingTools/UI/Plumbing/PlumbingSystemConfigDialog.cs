@@ -171,7 +171,7 @@ namespace StingTools.UI.Plumbing
         {
             Text = "── " + label.ToUpperInvariant() + " ──",
             FontWeight = FontWeights.SemiBold,
-            Foreground = new SolidColorBrush(Color.FromRgb(33, 64, 96)),
+            Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(33, 64, 96)),
             Margin = new Thickness(0, 12, 0, 6)
         };
 
