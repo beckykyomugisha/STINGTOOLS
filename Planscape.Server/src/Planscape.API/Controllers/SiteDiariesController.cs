@@ -200,7 +200,81 @@ public class SiteDiariesController : ControllerBase
             $"{diary.AuthorName} posted today's diary ({diary.ManpowerCount} on site).",
             new { diary.Id, diary.DiaryDate, diary.AuthorName, projectId });
 
-        return Ok(new { diary.Id, diary.Status, diary.SubmittedAt });
+        // Phase 178b — Reason-driven auto-routing (mirrors SitePhoto):
+        //   Defect → mint NCR with the diary as the source.
+        //   Safety → mint SAFETY issue, HIGH priority, 4h SLA.
+        // The created issue's id is recorded on the diary so the UI can
+        // link straight back to it. Failure to auto-create never blocks
+        // the submit itself.
+        if (SitePhoto.CreatesIssue(diary.Reason) && diary.AutoCreatedIssueId == null)
+        {
+            try
+            {
+                var issueType = diary.Reason switch
+                {
+                    "Defect" => "NCR",
+                    "Safety" => "SAFETY",
+                    _        => "RFI",
+                };
+                var priority = diary.Reason == "Safety" ? "HIGH" : "MEDIUM";
+                var dueHours = diary.Reason == "Safety" ? 4 : 48;
+                var titlePrefix = diary.Reason switch
+                {
+                    "Defect" => "Defect on site diary",
+                    "Safety" => "Safety incident on site diary",
+                    _        => "Issue raised in site diary",
+                };
+                var newIssue = new BimIssue
+                {
+                    ProjectId        = projectId,
+                    Type             = issueType,
+                    IssueCode        = await NextIssueCodeAsync(projectId, issueType),
+                    Title            = $"{titlePrefix} — {diary.DiaryDate:yyyy-MM-dd}",
+                    Description      = diary.SafetyIncidents ?? diary.Narrative,
+                    Priority         = priority,
+                    Status           = "OPEN",
+                    CreatedBy        = diary.AuthorName,
+                    CreatedByUserId  = diary.AuthorUserId,
+                    DueDate          = DateTime.UtcNow.AddHours(dueHours),
+                    Latitude         = diary.Latitude,
+                    Longitude        = diary.Longitude,
+                };
+                _db.Issues.Add(newIssue);
+                diary.AutoCreatedIssueId = newIssue.Id;
+                await _db.SaveChangesAsync();
+                await _audit.LogAsync("CREATE", "Issue", newIssue.Id.ToString(),
+                    System.Text.Json.JsonSerializer.Serialize(new {
+                        autoCreatedFromSiteDiary = diary.Id, reason = diary.Reason
+                    }));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Auto-issue creation failed for site diary {DiaryId}", diary.Id);
+            }
+        }
+
+        return Ok(new { diary.Id, diary.Status, diary.SubmittedAt, diary.AutoCreatedIssueId });
+    }
+
+    /// <summary>
+    /// Generate the next issue code for a given type within a project.
+    /// Mirrors the pattern in IssuesController + SitePhotosController to
+    /// keep the format aligned (e.g., NCR-0042, SAFETY-0007).
+    /// </summary>
+    private async Task<string> NextIssueCodeAsync(Guid projectId, string type)
+    {
+        var last = await _db.Issues
+            .Where(i => i.ProjectId == projectId && i.Type == type)
+            .OrderByDescending(i => i.IssueCode)
+            .Select(i => i.IssueCode)
+            .FirstOrDefaultAsync();
+        int next = 1;
+        if (!string.IsNullOrEmpty(last))
+        {
+            var idx = last.LastIndexOf('-');
+            if (idx > 0 && int.TryParse(last.AsSpan(idx + 1), out var n)) next = n + 1;
+        }
+        return $"{type}-{next:D4}";
     }
 
     [HttpPost("{diaryId}/acknowledge")]
@@ -283,6 +357,15 @@ public class SiteDiariesController : ControllerBase
         diary.DelaysAndDisruption = req.DelaysAndDisruption;
         diary.Latitude = req.Latitude;
         diary.Longitude = req.Longitude;
+        // Phase 178b — Reason taxonomy. Validate against the canonical
+        // SitePhoto.ValidReasons; unknown values fall back to "Reference"
+        // so a misbehaving client can't silently route a routine diary
+        // through the auto-issue path.
+        if (!string.IsNullOrWhiteSpace(req.Reason)
+            && SitePhoto.ValidReasons.Contains(req.Reason))
+        {
+            diary.Reason = req.Reason;
+        }
     }
 
     private Guid GetUserId() =>
@@ -310,7 +393,12 @@ public record CreateSiteDiaryRequest(
     string? SafetyIncidents,
     string? DelaysAndDisruption,
     double? Latitude,
-    double? Longitude
+    double? Longitude,
+    // Phase 178b — Reason taxonomy mirroring SitePhoto. Defect / Safety
+    // entries auto-create an issue at submit time. Defaults to
+    // "Reference" so older mobile builds that omit the field don't
+    // accidentally trigger auto-routing.
+    string? Reason
 );
 
 public record LinkDiaryAttachmentRequest(Guid DocumentId, string? Caption);

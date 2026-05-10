@@ -1,0 +1,153 @@
+{
+  "version": "1.0",
+  "standard": "STING SEED FAMILY — Lab Fixtures (BS EN 14056, BS 7258, ANSI Z358.1, BS EN 1717)",
+  "_notes": [
+    "Lab + emergency-fixture seed: fume hoods, eye-wash stations, emergency",
+    "showers, deluge stations, lab gas taps, lab water taps. The full",
+    "connector union is large (cold + hot + waste + lab-DI + lab-gas +",
+    "vacuum + duct exhaust) so AutoPipeDrop and AutoDuctDrop together",
+    "can wire any variant in one pass. Variants disable services they",
+    "don't need via SwapToManufacturer with the real product family."
+  ],
+  "symbols": [
+    {
+      "id": "STING_SEED_LabFixture",
+      "name": "STING Seed — Lab Fixture",
+      "category": "Specialty Equipment",
+      "familyType": "SeedFamily",
+      "discipline": "Plumbing",
+      "subcategory": "STING_SEED",
+      "isSeed": true,
+      "hosting": "FaceBased",
+      "symbolSize": 7.0,
+      "parameters": [
+        { "name": "STING_SEED_FAMILY_TXT",     "type": "Text", "shared": true, "isInstance": true, "default": "STING_SEED_LabFixture" },
+        { "name": "STING_DESIGN_REF_TXT",      "type": "Text", "shared": true, "isInstance": true, "default": "" },
+        { "name": "STING_SWAP_HISTORY_TXT",    "type": "Text", "shared": true, "isInstance": true, "default": "" },
+        { "name": "ASS_TAG_1",                 "type": "Text", "shared": true, "isInstance": true },
+        { "name": "ASS_DISCIPLINE_COD_TXT",    "type": "Text", "shared": true, "isInstance": true, "default": "P" },
+        { "name": "ASS_PRODCT_COD_TXT",        "type": "Text", "shared": true, "isInstance": true, "default": "FH" },
+        { "name": "LAB_FIX_TYPE_TXT",          "type": "Text", "shared": true, "isInstance": true, "default": "FUME_HOOD" },
+        { "name": "LAB_FIX_FACE_VEL_MS",       "type": "Text", "shared": true, "isInstance": false, "default": "0.5" },
+        { "name": "LAB_FIX_AIR_FLOW_LS",       "type": "Text", "shared": true, "isInstance": false, "default": "500" },
+        { "name": "LAB_FIX_DELUGE_LMIN",       "type": "Text", "shared": true, "isInstance": false, "default": "76" },
+        { "name": "LAB_FIX_HAZARD_CLASS_TXT",  "type": "Text", "shared": true, "isInstance": true, "default": "BSL2" },
+        { "name": "LAB_FIX_BACKFLOW_CAT_TXT",  "type": "Text", "shared": true, "isInstance": true, "default": "5" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.5, "x2": 0.5, "y2": -0.5 },
+          { "x1": 0.5, "y1": -0.5, "x2": 0.5, "y2": 0.5 },
+          { "x1": 0.5, "y1": 0.5, "x2": -0.5, "y2": 0.5 },
+          { "x1": -0.5, "y1": 0.5, "x2": -0.5, "y2": -0.5 },
+          { "x1": -0.4, "y1": -0.4, "x2": 0.4, "y2": 0.4 },
+          { "x1": -0.4, "y1": 0.4, "x2": 0.4, "y2": -0.4 }
+        ]
+      },
+      "solid3D": { "type": "Box", "widthMm": 1500, "depthMm": 800, "heightMm": 2400 },
+      "connectors": [
+        {
+          "domain": "Piping", "systemType": "DomesticCold", "shape": "Round",
+          "sizeMm": 15, "direction": "In",
+          "offsetX": -0.4, "offsetY": 0.0, "offsetZ": 0.5, "facing": "+Z"
+        },
+        {
+          "domain": "Piping", "systemType": "DomesticHot", "shape": "Round",
+          "sizeMm": 15, "direction": "In",
+          "offsetX": -0.2, "offsetY": 0.0, "offsetZ": 0.5, "facing": "+Z"
+        },
+        {
+          "domain": "Piping", "systemType": "Sanitary", "shape": "Round",
+          "sizeMm": 50, "direction": "Out",
+          "offsetX": 0.0, "offsetY": 0.5, "offsetZ": -0.5, "facing": "-Z"
+        },
+        {
+          "domain": "Piping", "systemType": "OtherPipe", "shape": "Round",
+          "sizeMm": 15, "direction": "In",
+          "offsetX":  0.2, "offsetY": 0.0, "offsetZ": 0.5, "facing": "+Z"
+        },
+        {
+          "domain": "Piping", "systemType": "OtherPipe", "shape": "Round",
+          "sizeMm": 15, "direction": "In",
+          "offsetX":  0.4, "offsetY": 0.0, "offsetZ": 0.5, "facing": "+Z"
+        },
+        {
+          "domain": "HVAC", "systemType": "ExhaustAir", "shape": "Round",
+          "sizeMm": 250, "direction": "Out",
+          "offsetX": 0.0, "offsetY": 0.0, "offsetZ": 0.5, "facing": "+Z"
+        }
+      ],
+      "typeVariants": [
+        {
+          "name": "FUME_HOOD",
+          "params": {
+            "LAB_FIX_TYPE_TXT": "FUME_HOOD",
+            "ASS_PRODCT_COD_TXT": "FH",
+            "LAB_FIX_FACE_VEL_MS": "0.5",
+            "LAB_FIX_AIR_FLOW_LS": "500",
+            "LAB_FIX_HAZARD_CLASS_TXT": "BSL2"
+          }
+        },
+        {
+          "name": "FUME_HOOD_LOW_FLOW",
+          "params": {
+            "LAB_FIX_TYPE_TXT": "FUME_HOOD_LOW_FLOW",
+            "ASS_PRODCT_COD_TXT": "FH-LF",
+            "LAB_FIX_FACE_VEL_MS": "0.3",
+            "LAB_FIX_AIR_FLOW_LS": "200"
+          }
+        },
+        {
+          "name": "BIOSAFETY_CABINET_II",
+          "params": {
+            "LAB_FIX_TYPE_TXT": "BIOSAFETY_CABINET_II",
+            "ASS_PRODCT_COD_TXT": "BSC-II",
+            "LAB_FIX_HAZARD_CLASS_TXT": "BSL3"
+          }
+        },
+        {
+          "name": "EYEWASH_STATION",
+          "params": {
+            "LAB_FIX_TYPE_TXT": "EYEWASH_STATION",
+            "ASS_PRODCT_COD_TXT": "EW",
+            "LAB_FIX_DELUGE_LMIN": "6",
+            "LAB_FIX_BACKFLOW_CAT_TXT": "5"
+          }
+        },
+        {
+          "name": "EMERGENCY_SHOWER",
+          "params": {
+            "LAB_FIX_TYPE_TXT": "EMERGENCY_SHOWER",
+            "ASS_PRODCT_COD_TXT": "ES",
+            "LAB_FIX_DELUGE_LMIN": "76",
+            "LAB_FIX_BACKFLOW_CAT_TXT": "5"
+          }
+        },
+        {
+          "name": "COMBO_SHOWER_EYEWASH",
+          "params": {
+            "LAB_FIX_TYPE_TXT": "COMBO_SHOWER_EYEWASH",
+            "ASS_PRODCT_COD_TXT": "ES-EW",
+            "LAB_FIX_DELUGE_LMIN": "82",
+            "LAB_FIX_BACKFLOW_CAT_TXT": "5"
+          }
+        },
+        {
+          "name": "LAB_GAS_TAP",
+          "params": {
+            "LAB_FIX_TYPE_TXT": "LAB_GAS_TAP",
+            "ASS_PRODCT_COD_TXT": "LGT"
+          }
+        },
+        {
+          "name": "LAB_DI_WATER_TAP",
+          "params": {
+            "LAB_FIX_TYPE_TXT": "LAB_DI_WATER_TAP",
+            "ASS_PRODCT_COD_TXT": "LDI",
+            "LAB_FIX_BACKFLOW_CAT_TXT": "5"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -180,12 +180,17 @@ namespace StingTools.UI
             footer.Tag = "BulkFooter";
             root.Children.Add(footer);
 
-            // Initial load + auto-refresh wiring
-            owner.Dispatcher.BeginInvoke(new Action(async () =>
+            // Initial load + auto-refresh wiring. We deliberately
+            // fire-and-forget so the rest of the tab paints first.
+            // Extracted into a local async method so the discard
+            // (`_ =`) syntax produces a well-defined Task discard the
+            // compiler can't misclassify.
+            async Task BootAsync()
             {
                 await ReloadAsync(owner, state, listPanel, footer);
                 StartAutoRefresh(owner, state, listPanel, footer);
-            }), DispatcherPriority.Background);
+            }
+            _ = BootAsync();
 
             // Cancel auto-refresh when BCC closes
             owner.Closed += (_, _) => state.RefreshTimer?.Stop();
@@ -546,7 +551,12 @@ namespace StingTools.UI
 
             // Lazy-load thumbnails after the layout pass — keeps the initial
             // render snappy even with 50 photos (default page size).
-            owner.Dispatcher.BeginInvoke(new Action(async () =>
+            // Fire-and-forget via a local async method so the `_ =`
+            // discard is unambiguous (vs Dispatcher.BeginInvoke wrapping
+            // an async-void lambda, which Roslyn analyzers occasionally
+            // mis-classify and raise CS4014 on). Per-thumb failures are
+            // swallowed by the try/catch inside the loop body.
+            async Task LoadThumbsAsync()
             {
                 foreach (var r in rows)
                 {
@@ -570,7 +580,8 @@ namespace StingTools.UI
                         StingLog.Warn($"SitePhotosTab thumbnail decode {r.Dto.Id}: {ex.Message}");
                     }
                 }
-            }), DispatcherPriority.Background);
+            }
+            _ = LoadThumbsAsync();
         }
 
         private static UIElement BuildReasonGroupHeader(

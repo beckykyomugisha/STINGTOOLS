@@ -144,6 +144,16 @@ Set connector domain *Electrical*, classification *Power* on the supply side, *P
 **Hosting:** Face-based · **Template:** `Metric Specialty Equipment face based.rft` · **Symbol size at 1:100:** 5 mm  
 **The most important seed — drives the auto-generated Penetration Register.**
 
+> **Phase 178d** — the placer now hosts on **floors, walls, and structural beams**.
+> `WallPenetrationDetector` covers fire-rated compartment walls (BS 9999 / Approved Document B).
+> `BeamPenetrationDetector` reads beam material (steel / concrete) and writes
+> `PEN_BEAM_OFFSET_PCT` (% of span from nearest support) and
+> `PEN_BEAM_DEPTH_RATIO` (member-OD ÷ beam-depth), classifying every crossing as
+> `STRUCT_OK` / `STRUCT_REVIEW` / `STRUCT_FAIL` per AISC Design Guide 2 + BS EN 1992.
+> Idempotence is keyed off `PEN_PFV_UUID_TXT` (UUIDv5 of host + member) — re-runs
+> update existing instances instead of duplicating. The same UUID is shared with
+> `SleeveEngine`, so a sleeve and an FRP for the same physical hole pair up.
+
 ### 2D plan symbol
 - Concentric circles (Ø500 outer, Ø350 inner — auto-generated) with four short tick lines crossing the gap at 0°/90°/180°/270°. Reads as a sleeve-through.
 - For section view, add a 200 mm vertical bar with horizontal arrows pointing in/out — represents the seal extending through the host.
@@ -168,6 +178,12 @@ Set connector domain *Electrical*, classification *Power* on the supply side, *P
 ## STING_SEED_PlumbingFixture (Plumbing Fixtures)
 
 **Hosting:** Face-based · **Template:** `Metric Plumbing Fixture face based.rft` · **Symbol size at 1:100:** 6 mm
+
+> **Phase 178d** — the seed now declares three connectors at the symbol level
+> (DCW + DHW supply + Sanitary outlet) so `AutoPipeDrop` can wire each fixture
+> into all three services in one pass. WC and urinal variants don't *need* the
+> DHW connector but inherit it as a no-op cap; SwapToManufacturer replaces the
+> seed with the real product whose connector set is fixture-correct.
 
 ### 2D plan symbol
 - Auto-generated hexagonal-ish outline reads as generic sanitary fixture. Add a small dot at the connection point (typically centre-back).

@@ -648,21 +648,30 @@ public class SitePhotosController : ControllerBase
     /// </summary>
     private async Task<SitePhotoDto> ToDtoAsync(SitePhoto p, CancellationToken ct)
     {
+        // Phase 178b — single round-trip hydration. Previously this fired
+        // up to TWO separate queries per photo (one for the captured-by
+        // user, one for the anchor issue's discipline). For single-record
+        // endpoints (approve / reject / withdraw / capture) the latency
+        // cost was already 2× a tenant-scoped lookup; the new shape
+        // collapses both into a single anonymous projection that EF
+        // translates to a single SELECT with two LEFT JOINs.
         string? capturedByName = null;
         string? discipline = null;
-        if (p.CapturedByUserId.HasValue)
+        if (p.CapturedByUserId.HasValue || p.AnchorIssueId.HasValue)
         {
-            capturedByName = await _db.Users.AsNoTracking()
-                .Where(u => u.Id == p.CapturedByUserId.Value)
-                .Select(u => u.DisplayName)
+            var userId  = p.CapturedByUserId ?? Guid.Empty;
+            var issueId = p.AnchorIssueId    ?? Guid.Empty;
+            var probe = await (
+                from u in _db.Users.AsNoTracking().Where(x => x.Id == userId).DefaultIfEmpty()
+                from i in _db.Issues.AsNoTracking().Where(x => x.Id == issueId).DefaultIfEmpty()
+                select new { UserName = u != null ? u.DisplayName : null,
+                             Discipline = i != null ? i.Discipline : null })
                 .FirstOrDefaultAsync(ct);
-        }
-        if (p.AnchorIssueId.HasValue)
-        {
-            discipline = await _db.Issues.AsNoTracking()
-                .Where(i => i.Id == p.AnchorIssueId.Value)
-                .Select(i => i.Discipline)
-                .FirstOrDefaultAsync(ct);
+            if (probe != null)
+            {
+                capturedByName = probe.UserName;
+                discipline = probe.Discipline;
+            }
         }
         return new SitePhotoDto(
             p.Id, p.ProjectId, p.DocumentId,

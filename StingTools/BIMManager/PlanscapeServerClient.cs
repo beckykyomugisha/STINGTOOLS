@@ -71,6 +71,12 @@ public sealed class PlanscapeServerClient : IDisposable
     public Guid TenantId { get; private set; }
     public Guid UserId   { get; private set; }
 
+    /// <summary>T3-14 — Active project GUID. Set externally by the BCC /
+    /// SyncScheduler whenever the user picks a server project; consumed by
+    /// the activity-timeline loader so it doesn't have to round-trip
+    /// through the projects list every time a user inspects an issue.</summary>
+    public Guid CurrentProjectId { get; set; } = Guid.Empty;
+
     private PlanscapeServerClient() { }
 
     // ────────────────────────────────────────────────────────────────────────────
@@ -921,6 +927,56 @@ public sealed class PlanscapeServerClient : IDisposable
             var resp = await PostJsonAsync(
                 $"/api/projects/{projectId}/issues/{issueId}/comments", new { body });
             return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
+    /// <summary>
+    /// T3-14 — Fetch the activity timeline for an issue. Returns the raw
+    /// JArray (each entry: id / action / userName / timestamp / details).
+    /// Same endpoint the mobile app + viewer consume.
+    /// </summary>
+    public async Task<JArray?> GetIssueActivityAsync(Guid projectId, Guid issueId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await GetAsync($"/api/projects/{projectId}/issues/{issueId}/activity");
+            if (!resp.ok) { LastError = $"Activity fetch failed: {resp.status}"; return null; }
+            // The server emits either a top-level array or {items:[...]}; both shapes
+            // round-trip cleanly through JArray.Parse on the array case, otherwise we
+            // probe for `items`.
+            var t = JToken.Parse(resp.body);
+            if (t is JArray arr) return arr;
+            if (t is JObject obj && obj["items"] is JArray inner) return inner;
+            return new JArray();
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    /// <summary>
+    /// T3-18 — Update an issue (status / priority / assignee / etc.). Caller
+    /// passes a partial dict; null fields are stripped. Used by BCC bulk
+    /// resolve + reassign actions.
+    /// </summary>
+    public async Task<bool> UpdateIssueAsync(Guid projectId, Guid issueId, object patch)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var http = SnapshotHttpClient();
+            if (http == null) { LastError = "HttpClient not initialised"; return false; }
+            var content = new StringContent(
+                JsonConvert.SerializeObject(patch, new JsonSerializerSettings
+                {
+                    NullValueHandling = NullValueHandling.Ignore,
+                    DefaultValueHandling = DefaultValueHandling.Ignore
+                }),
+                Encoding.UTF8, "application/json");
+            var resp = await http.PutAsync($"/api/projects/{projectId}/issues/{issueId}", content).ConfigureAwait(false);
+            var ok = (int)resp.StatusCode >= 200 && (int)resp.StatusCode < 300;
+            if (!ok) LastError = $"Update issue failed: {(int)resp.StatusCode}";
+            return ok;
         }
         catch (Exception ex) { LastError = ex.Message; return false; }
     }

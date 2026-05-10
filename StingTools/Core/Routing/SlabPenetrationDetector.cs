@@ -31,15 +31,49 @@ using Autodesk.Revit.DB;
 
 namespace StingTools.Core.Routing
 {
+    /// <summary>
+    /// Class of host element being penetrated. Drives the placer's
+    /// face-resolution strategy (slab bottom face / wall outer face /
+    /// beam web face) and structural-review path.
+    /// </summary>
+    public enum PenetrationHostKind
+    {
+        Floor,
+        Wall,
+        Beam,
+        Ceiling,
+        Roof,
+    }
+
     public sealed class PenetrationRecord
     {
         public ElementId MemberId         { get; set; }      // the conduit / pipe / duct
-        public ElementId HostFloorId      { get; set; }      // the slab being penetrated
+        // Generic host id (replaces the floor-only field — kept as
+        // HostFloorId alias for back-compat with FrpPenetrationPlacer
+        // and the existing routing pipeline).
+        public ElementId HostId           { get; set; }
+        // Back-compat alias — older callers (FrpPenetrationPlacer,
+        // ConduitAutoRouteCommand) still read HostFloorId.
+        public ElementId HostFloorId
+        {
+            get => HostId;
+            set => HostId = value;
+        }
+        public PenetrationHostKind HostKind { get; set; } = PenetrationHostKind.Floor;
         public XYZ       Location         { get; set; }      // approximate crossing point
-        public double    SlabThicknessMm  { get; set; }
+        public double    SlabThicknessMm  { get; set; }      // host through-thickness (mm)
         public string    FireRating       { get; set; } = "FR60";
         public string    MemberCategory   { get; set; } = "";
         public double    MemberDiameterMm { get; set; }
+
+        // Beam-only structural-review fields. Populated by
+        // BeamPenetrationDetector against AISC DG2 + BS EN 1992 limits;
+        // empty when the host is a slab or wall.
+        public double    BeamSpanMm           { get; set; }
+        public double    BeamDepthMm          { get; set; }
+        public double    DistanceFromSupportMm { get; set; }
+        /// <summary>STRUCT_OK / STRUCT_REVIEW / STRUCT_FAIL — see BeamPenetrationDetector for thresholds.</summary>
+        public string    StructuralFlag       { get; set; } = "";
     }
 
     public static class SlabPenetrationDetector
@@ -133,7 +167,8 @@ namespace StingTools.Core.Routing
                     var rec = new PenetrationRecord
                     {
                         MemberId        = id,
-                        HostFloorId     = floor.Id,
+                        HostId          = floor.Id,
+                        HostKind        = PenetrationHostKind.Floor,
                         Location        = crossing,
                         SlabThicknessMm = (bb.Max.Z - bb.Min.Z) * 304.8,
                         FireRating      = ResolveFireRating(floor),

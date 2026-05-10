@@ -1,0 +1,19 @@
+{
+  "name": "planscape-viewer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Build pipeline for the Planscape coordination viewer (T4-29). Vite + ESBuild produce minified, tree-shaken bundles drop-in compatible with the existing viewer.html script tags.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "node --check coordination-viewer.js && node --check signalr-shim.js && node --check viewer-extras.js"
+  },
+  "devDependencies": {
+    "vite": "^5.4.10",
+    "esbuild": "^0.24.0",
+    "@microsoft/signalr": "^8.0.7",
+    "three": "^0.169.0"
+  }
+}

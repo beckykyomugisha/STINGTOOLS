@@ -109,6 +109,11 @@ public class PlanscapeDbContext : DbContext
     public DbSet<ProjectModel> ProjectModels => Set<ProjectModel>();
     public DbSet<IssueComment> IssueComments => Set<IssueComment>();
     public DbSet<SitePhoto> SitePhotos => Set<SitePhoto>();
+    // Phase 178b — T2-5 saved views (camera + visibility + section state).
+    public DbSet<SavedView> SavedViews => Set<SavedView>();
+    // T4-28 — Generic Asset Data Sheet engine (template-driven).
+    public DbSet<AssetDataSheet>         AssetDataSheets         => Set<AssetDataSheet>();
+    public DbSet<AssetDataSheetTemplate> AssetDataSheetTemplates => Set<AssetDataSheetTemplate>();
     public DbSet<DocumentMarkup> DocumentMarkups => Set<DocumentMarkup>();
     public DbSet<ScheduleTask> ScheduleTasks => Set<ScheduleTask>();
     public DbSet<CostItem> CostItems => Set<CostItem>();
@@ -141,6 +146,11 @@ public class PlanscapeDbContext : DbContext
     public DbSet<HealthcareAntiLigatureAudit> HealthcareAntiLigatureAudits => Set<HealthcareAntiLigatureAudit>();
     public DbSet<HealthcareRdsSnapshot>       HealthcareRdsSnapshots       => Set<HealthcareRdsSnapshot>();
 
+    // Phase 178f — penetration commissioning sign-off captured by the
+    // mobile app on-site. One row per FRP / fire damper / acoustic
+    // seal instance keyed on PenetrationControlNumber + PfvUuid.
+    public DbSet<PenetrationSignoff>          PenetrationSignoffs          => Set<PenetrationSignoff>();
+
     // S2.1 — billing entities (provider-agnostic).
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<Invoice>      Invoices      => Set<Invoice>();
@@ -156,6 +166,12 @@ public class PlanscapeDbContext : DbContext
     public DbSet<ModelMarkup> ModelMarkups => Set<ModelMarkup>();
     // S6.3 — CRDT update log for collaborative pin / issue editing.
     public DbSet<PinCrdtUpdate> PinCrdtUpdates => Set<PinCrdtUpdate>();
+
+    // Phase 178c (T3-12) — Multi-step / parallel approval chains for CDE transitions.
+    public DbSet<ApprovalChain> ApprovalChains => Set<ApprovalChain>();
+    public DbSet<ApprovalStage> ApprovalStages => Set<ApprovalStage>();
+    // Phase 178c (T3-24) — Document revision history (per-CDE-transition snapshots).
+    public DbSet<DocumentRevision> DocumentRevisions => Set<DocumentRevision>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -474,6 +490,18 @@ public class PlanscapeDbContext : DbContext
             e.HasOne(a => a.Document).WithMany().HasForeignKey(a => a.DocumentId).OnDelete(DeleteBehavior.Cascade);
         });
 
+        // ── IssueAudioNote (Phase 178c T3-19 — DocumentId FK + new columns) ──
+        modelBuilder.Entity<IssueAudioNote>(e =>
+        {
+            e.HasKey(n => n.Id);
+            e.HasIndex(n => n.IssueId);
+            e.HasOne(n => n.Document).WithMany().HasForeignKey(n => n.DocumentId).OnDelete(DeleteBehavior.SetNull);
+            e.Property(n => n.StoragePath).HasMaxLength(500).IsRequired();
+            e.Property(n => n.Language).HasMaxLength(8);
+            e.Property(n => n.MimeType).HasMaxLength(40).IsRequired();
+            e.Property(n => n.CreatedBy).HasMaxLength(120);
+        });
+
         // ── DocumentRecord ──
         modelBuilder.Entity<DocumentRecord>(e =>
         {
@@ -493,6 +521,46 @@ public class PlanscapeDbContext : DbContext
             e.HasOne(a => a.Document).WithMany().HasForeignKey(a => a.DocumentId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(a => a.Project).WithMany().HasForeignKey(a => a.ProjectId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(a => new { a.DocumentId, a.Transition, a.Status });
+        });
+
+        // ── Phase 178c (T3-12) — ApprovalChain + ApprovalStage ──
+        modelBuilder.Entity<ApprovalChain>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.HasOne(c => c.Document).WithMany().HasForeignKey(c => c.DocumentId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(c => c.Project).WithMany().HasForeignKey(c => c.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(c => new { c.DocumentId, c.Transition, c.Status });
+            e.Property(c => c.Transition).HasMaxLength(80).IsRequired();
+            e.Property(c => c.Status).HasMaxLength(20).IsRequired();
+            e.Property(c => c.CreatedBy).HasMaxLength(120);
+            e.Property(c => c.Description).HasMaxLength(500);
+        });
+        modelBuilder.Entity<ApprovalStage>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.HasOne(s => s.Chain).WithMany(c => c.Stages).HasForeignKey(s => s.ChainId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(s => new { s.ChainId, s.Order });
+            e.Property(s => s.Mode).HasMaxLength(16).IsRequired();
+            e.Property(s => s.Status).HasMaxLength(16).IsRequired();
+            e.Property(s => s.RequiredApproversJson).IsRequired();
+            e.Property(s => s.DecisionsJson).IsRequired();
+            e.Property(s => s.Label).HasMaxLength(120);
+        });
+
+        // ── Phase 178c (T3-24) — DocumentRevision ──
+        modelBuilder.Entity<DocumentRevision>(e =>
+        {
+            e.HasKey(r => r.Id);
+            e.HasOne(r => r.Document).WithMany().HasForeignKey(r => r.DocumentId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(r => new { r.DocumentId, r.CreatedAt }).IsDescending(false, true);
+            e.Property(r => r.Revision).HasMaxLength(16).IsRequired();
+            e.Property(r => r.CdeStateAtRevision).HasMaxLength(20).IsRequired();
+            e.Property(r => r.SuitabilityAtRevision).HasMaxLength(8);
+            e.Property(r => r.FilePath).HasMaxLength(500);
+            e.Property(r => r.ContentHash).HasMaxLength(128);
+            e.Property(r => r.CreatedBy).HasMaxLength(120);
+            e.Property(r => r.CommentSummary).HasMaxLength(2000);
+            e.Property(r => r.Source).HasMaxLength(40).IsRequired();
         });
 
         // ── LicenseKey ──
@@ -731,6 +799,88 @@ public class PlanscapeDbContext : DbContext
         // Ensure every tenant-scoped entity has an index on TenantId so the
         // query filter doesn't degenerate into a sequential scan.
         AddTenantIdIndexes(modelBuilder);
+
+        // Phase 178b — Healthcare Pack composite indexes.
+        // HealthcareController.Dashboard filters by (ProjectId, CapturedAt)
+        // for the pressure-log + ligature aggregates. Without composite
+        // indexes the dashboard does index scans against the ProjectId
+        // index then re-filters by CapturedAt in memory; the composite
+        // collapses both into a single index seek.
+        modelBuilder.Entity<HealthcarePressureLog>(e =>
+        {
+            e.HasIndex(x => new { x.ProjectId, x.CapturedAt });
+            e.HasIndex(x => new { x.ProjectId, x.RoomBimId });
+        });
+        modelBuilder.Entity<HealthcareMgasVerification>(e =>
+        {
+            e.HasIndex(x => new { x.ProjectId, x.CapturedAt });
+        });
+        modelBuilder.Entity<HealthcareAntiLigatureAudit>(e =>
+        {
+            e.HasIndex(x => new { x.ProjectId, x.CapturedAt });
+            e.HasIndex(x => new { x.ProjectId, x.Pass });
+        });
+        modelBuilder.Entity<HealthcareRdsSnapshot>(e =>
+        {
+            e.HasIndex(x => new { x.ProjectId, x.RoomBimId });
+        });
+
+        // Phase 178b — SitePhoto compound (ProjectId, PairKey) for
+        // before/after pair lookups. The single-column PairKey index
+        // exists already; the compound version skips a second-pass
+        // ProjectId filter when the dashboard groups by pair.
+        modelBuilder.Entity<SitePhoto>(e =>
+        {
+            e.HasIndex(x => new { x.ProjectId, x.PairKey });
+        });
+
+        // Phase 178b — T2-5 SavedView. Indexed on (ProjectId, CreatedAt)
+        // for the saved-views-list pagination, and on LinkedActionItemId
+        // for the meeting-detail back-link lookup.
+        modelBuilder.Entity<SavedView>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.CreatedAt });
+            e.HasIndex(x => x.LinkedActionItemId);
+            e.HasIndex(x => x.LinkedMeetingId);
+            e.Property(x => x.Name).HasMaxLength(120).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(1000);
+            e.Property(x => x.CapturedByName).HasMaxLength(200);
+            e.Property(x => x.StateJson).HasColumnType("jsonb");
+            e.Property(x => x.ThumbnailB64).HasColumnType("text");
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.CapturedByUser).WithMany().HasForeignKey(x => x.CapturedByUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.LinkedMeeting).WithMany().HasForeignKey(x => x.LinkedMeetingId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // T4-28 — Generic Asset Data Sheet engine
+        modelBuilder.Entity<AssetDataSheet>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.AnchorKind, x.AnchorKey });
+            e.HasIndex(x => new { x.ProjectId, x.Status });
+            e.HasIndex(x => x.TemplateId);
+            e.Property(x => x.AnchorKind).HasMaxLength(20).IsRequired();
+            e.Property(x => x.AnchorKey).HasMaxLength(120);
+            e.Property(x => x.Status).HasMaxLength(20).IsRequired();
+            e.Property(x => x.AuthorName).HasMaxLength(200);
+            e.Property(x => x.RejectedReason).HasMaxLength(500);
+            e.Property(x => x.ValuesJson).HasColumnType("jsonb");
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Author).WithMany().HasForeignKey(x => x.AuthorUserId).OnDelete(DeleteBehavior.SetNull);
+        });
+        modelBuilder.Entity<AssetDataSheetTemplate>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.IsActive });
+            e.Property(x => x.Code).HasMaxLength(60).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(1000);
+            e.Property(x => x.AnchorKind).HasMaxLength(20).IsRequired();
+            e.Property(x => x.SchemaJson).HasColumnType("jsonb");
+            e.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+        });
     }
 
     private void ApplyTenantQueryFilters(ModelBuilder modelBuilder)

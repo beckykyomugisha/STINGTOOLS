@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import { createIssue, updateIssue, transitionCDE, uploadIssueAttachment, captureSitePhoto } from '@/api/endpoints';
+import type { DeliverableUpsertArgs } from '@/api/endpoints';
 import type { OfflineAction, SitePhotoCaptureMeta } from '@/types/api';
 
 const QUEUE_KEY = 'planscape_offline_queue';
@@ -289,6 +290,35 @@ async function replayAction(action: OfflineAction): Promise<void> {
       // Best-effort cleanup — failure to delete the local copy is
       // non-fatal; drainQueuedPhotoFiles() reaps stragglers later.
       try { await FileSystem.deleteAsync(localUri, { idempotent: true }); } catch { /* ignore */ }
+      break;
+    }
+
+    // T3-17 — deliverable CRUD + transition.
+    case 'CREATE_DELIVERABLE': {
+      const { createDeliverable } = await import('@/api/endpoints');
+      await createDeliverable(
+        p.projectId as string,
+        p.body as DeliverableUpsertArgs,
+      );
+      break;
+    }
+    case 'UPDATE_DELIVERABLE': {
+      const { updateDeliverable } = await import('@/api/endpoints');
+      await updateDeliverable(
+        p.projectId as string,
+        p.deliverableId as string,
+        p.body as DeliverableUpsertArgs,
+      );
+      break;
+    }
+    case 'TRANSITION_DELIVERABLE': {
+      const { transitionDeliverable } = await import('@/api/endpoints');
+      await transitionDeliverable(
+        p.projectId as string,
+        p.deliverableId as string,
+        p.newStatus as string,
+        { documentId: p.documentId as string | undefined, reason: p.reason as string | undefined },
+      );
       break;
     }
   }

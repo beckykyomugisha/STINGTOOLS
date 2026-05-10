@@ -34,6 +34,43 @@ namespace StingTools.Core.Routing
         {
             ConnectorDomain = Domain.DomainPiping;
             ServiceId       = "PLM_CWS"; // default — overridable from command
+            // Phase 178e: multi-service plumbing — a basin needs cold +
+            // hot + waste; a WC needs cold + soil. The base class loops
+            // every free connector when this flag is on.
+            MultiServiceMode = true;
+        }
+
+        /// <summary>
+        /// Map a connector's MEP system to the ServiceId used by
+        /// RoutingRules + STING_SERVICE_CORRIDORS so each drop claims
+        /// its corridor band (cold below, hot above, soil at floor
+        /// level). Falls back to the engine-wide ServiceId for unknown
+        /// systems.
+        /// </summary>
+        protected override string ServiceIdForConnector(Connector c)
+        {
+            if (c == null) return ServiceId;
+            try
+            {
+                var pst = c.PipeSystemType;
+                switch (pst)
+                {
+                    case PipeSystemType.DomesticColdWater:    return "PLM_CWS";
+                    case PipeSystemType.DomesticHotWater:     return "PLM_DHW";
+                    case PipeSystemType.Sanitary:             return "PLM_SAN";
+                    case PipeSystemType.Vent:                 return "PLM_VEN";
+                    case PipeSystemType.FireProtectWet:
+                    case PipeSystemType.FireProtectDry:
+                    case PipeSystemType.FireProtectPreaction:
+                    case PipeSystemType.FireProtectOther:     return "PLM_FPS";
+                    case PipeSystemType.Storm:                return "PLM_RWD";
+                    case PipeSystemType.SupplyHydronic:       return "PLM_LTHW";
+                    case PipeSystemType.ReturnHydronic:       return "PLM_LTHWR";
+                    case PipeSystemType.OtherPipe:            break;
+                }
+            }
+            catch { }
+            return ServiceId;
         }
 
         public DropResult Execute(IList<Element> fixtures)
@@ -87,7 +124,10 @@ namespace StingTools.Core.Routing
                     {
                         try
                         {
-                            TryDropFromFixture(fx, BuiltInCategory.OST_PipeCurves, SearchRadiusMm, result);
+                            if (MultiServiceMode)
+                                TryDropFromFixtureAllConnectors(fx, BuiltInCategory.OST_PipeCurves, SearchRadiusMm, result);
+                            else
+                                TryDropFromFixture(fx, BuiltInCategory.OST_PipeCurves, SearchRadiusMm, result);
                         }
                         catch (Exception ex)
                         {

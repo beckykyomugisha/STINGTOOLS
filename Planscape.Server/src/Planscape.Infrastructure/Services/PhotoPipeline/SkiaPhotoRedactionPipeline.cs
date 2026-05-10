@@ -50,6 +50,12 @@ public class SkiaPhotoRedactionPipeline : IPhotoRedactionPipeline
     {
         try
         {
+            // Phase 178 — single decode, shared bitmap. SKBitmap.Decode is
+            // the only JPEG/PNG decompression call in the pipeline; both
+            // detectors and the canvas composition below reuse this
+            // decoded bitmap. The face detector internally `Resize()`s to
+            // 320×320 for ONNX input — that's an in-memory pixel resample,
+            // not a re-decode.
             using var input = SKBitmap.Decode(source);
             if (input == null)
             {
