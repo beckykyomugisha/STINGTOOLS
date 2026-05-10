@@ -25,6 +25,13 @@
         <KeyBinding Key="Delete" Command="{x:Static local:PlacementCentreCommands.DeleteSelected}"/>
     </Window.InputBindings>
     <Window.Resources>
+        <!-- Converters declared in XAML so they exist at parse time. The
+             code-behind EnsureResources() falls through silently inside Revit
+             because Application.Current is null in a Revit add-in host. -->
+        <local:DirtyDotConverter             x:Key="DirtyDotConverter"/>
+        <local:HexToBrushConverter           x:Key="HexToBrushConverter"/>
+        <local:EmptyStringToVisibilityConverter x:Key="EmptyStringToVisibility"/>
+
         <Style x:Key="ToolBtn" TargetType="Button">
             <Setter Property="Padding" Value="10,4"/>
             <Setter Property="Margin"  Value="2,0"/>
