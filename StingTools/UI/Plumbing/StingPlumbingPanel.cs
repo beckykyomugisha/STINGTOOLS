@@ -11,8 +11,10 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using Autodesk.Revit.UI;
 using StingTools.Core.Plumbing;
-using ComboBox = System.Windows.Controls.ComboBox;
-using TextBox  = System.Windows.Controls.TextBox;
+using ComboBox    = System.Windows.Controls.ComboBox;
+using TextBox     = System.Windows.Controls.TextBox;
+using ContextMenu = System.Windows.Controls.ContextMenu;
+using MenuItem    = System.Windows.Controls.MenuItem;
 
 namespace StingTools.UI.Plumbing
 {
