@@ -206,7 +206,7 @@ namespace StingTools.UI.Plumbing
                 if (int.TryParse(_sysBeds?.Text,          out var bd)) c.BedsOrWorkstations = bd;
                 if (double.TryParse(_sysSupplyPres?.Text, out var sp)) c.SupplyPressureBarAtEntry = sp;
                 if (double.TryParse(_sysBoqPipeIns?.Text, out var bp)) c.BoqDefaultPipeInsulationUgxPerM = bp;
-                if (double.TryParse(_sysBoqDuctIns?.Text, out var bd)) c.BoqDefaultDuctInsulationUgxPerM = bd;
+                if (double.TryParse(_sysBoqDuctIns?.Text, out var bdi)) c.BoqDefaultDuctInsulationUgxPerM = bdi;
                 if (double.TryParse(_sysBoqSleeve?.Text,  out var bs)) c.BoqDefaultSleeveUgxEach         = bs;
                 if (double.TryParse(_sysBoqHanger?.Text,  out var bh)) c.BoqDefaultHangerUgxEach         = bh;
                 c.Materials   = _sysMaterials.ToDictionary(kv => kv.Key, kv => (kv.Value.SelectedItem as string) ?? "");
