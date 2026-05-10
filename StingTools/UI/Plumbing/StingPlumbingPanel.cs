@@ -419,6 +419,30 @@ namespace StingTools.UI.Plumbing
         public void SetDrainageInvertResult(IList<DrainageInvertRow> rows, string status) =>
             ApplyResult(DrainageInvertGrid, _drnInvertExpander, (System.Collections.IList)rows, status);
 
+        // STORM tab — single-line result rows (no DataGrids; calc results
+        // are scalar). Each setter colours the line green and reverts the
+        // italic placeholder style, then updates the panel status strip.
+
+        public void SetStormRoofResult(string text, string status)   => SetStormLine(_stRoofResult,   text, status);
+        public void SetStormSudsResult(string text, string status)   => SetStormLine(_stSudsResult,   text, status);
+        public void SetStormRwhResult(string text, string status)    => SetStormLine(_stRwhResult,    text, status);
+        public void SetStormSoakResult(string text, string status)   => SetStormLine(_stSoakResult,   text, status);
+        public void SetStormSepticResult(string text, string status) => SetStormLine(_stSepticResult, text, status);
+
+        private void SetStormLine(TextBlock tb, string text, string status)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (tb != null)
+                {
+                    tb.Text = text;
+                    tb.Foreground = new SolidColorBrush(Color.FromRgb(20, 90, 40));
+                    tb.FontStyle = FontStyles.Normal;
+                }
+                if (!string.IsNullOrEmpty(status)) SetStatus(status);
+            });
+        }
+
         // ── ROUTE tab — option panels feed AutoDrop / PTraps / Sleeves / Hangers ──
         private StackPanel _routeAutoScope, _routePTrapScope, _routeSleeveScope, _routeHangerScope;
         private TextBox    _routeMaxRadius, _routeSleeveMinOd;
@@ -558,6 +582,7 @@ namespace StingTools.UI.Plumbing
         private ComboBox _stSoakGeometry;
         private TextBox  _stSepticPersons;
         private ComboBox _stSepticTertiary;
+        private TextBlock _stRoofResult, _stSudsResult, _stRwhResult, _stSoakResult, _stSepticResult;
 
         private TabItem BuildStormTab()
         {
@@ -574,6 +599,7 @@ namespace StingTools.UI.Plumbing
             sp.Children.Add(roofGrid);
             AddBtn(sp, "Plumb_RoofDrainage", "Roof Drainage (BS EN 12056-3)",
                 "Q_r = A · C_r · r · f. Computes outlet DN + count from inputs above.");
+            sp.Children.Add(_stRoofResult = NewResultLine("(run Roof Drainage)"));
 
             AddCard(sp, "Surface water & SuDS");
             var sudsGrid = NewFormGrid();
@@ -585,6 +611,7 @@ namespace StingTools.UI.Plumbing
             sp.Children.Add(sudsGrid);
             AddBtn(sp, "Plumb_SuDS", "SuDS Attenuation (CIRIA C753)",
                 "Post-dev minus pre-dev runoff over storm duration with climate uplift.");
+            sp.Children.Add(_stSudsResult = NewResultLine("(run SuDS Attenuation)"));
 
             AddCard(sp, "Rainwater harvesting");
             var rwhGrid = NewFormGrid();
@@ -596,6 +623,7 @@ namespace StingTools.UI.Plumbing
             sp.Children.Add(rwhGrid);
             AddBtn(sp, "Plumb_RWH", "RWH Yield (BS 8515)",
                 "Annual yield + recommended storage volume from roof area + rainfall.");
+            sp.Children.Add(_stRwhResult = NewResultLine("(run RWH Yield)"));
             AddBtn(sp, "Plumbing_RainwaterCalc", "RWH / SuDS / Soakaway / Septic (legacy)",
                 "Pre-existing combined calculator — retained.");
 
@@ -609,6 +637,7 @@ namespace StingTools.UI.Plumbing
             sp.Children.Add(soakGrid);
             AddBtn(sp, "Plumb_Soakaway", "Soakaway (BRE Digest 365)",
                 "Catchment + infiltration → soakaway volume.");
+            sp.Children.Add(_stSoakResult = NewResultLine("(run Soakaway)"));
 
             AddCard(sp, "Septic tank");
             var septicGrid = NewFormGrid();
@@ -618,6 +647,7 @@ namespace StingTools.UI.Plumbing
             sp.Children.Add(septicGrid);
             AddBtn(sp, "Plumb_SepticTank", "Septic Tank (BS EN 12566-1)",
                 "Primary chamber sizing from population equivalent. V_tank = 1500 + 190·P L.");
+            sp.Children.Add(_stSepticResult = NewResultLine("(run Septic Tank)"));
 
             t.Content = WrapScroll(sp);
             return t;
@@ -938,6 +968,18 @@ namespace StingTools.UI.Plumbing
             IsChecked = isChecked,
             VerticalAlignment = VerticalAlignment.Center,
             FontWeight = FontWeights.Normal
+        };
+
+        // Single-line inline result row used by STORM cards: italic grey
+        // placeholder until a command updates it via SetStorm*Result.
+        private static TextBlock NewResultLine(string placeholder) => new TextBlock
+        {
+            Text = placeholder,
+            Margin = new Thickness(6, 2, 6, 6),
+            Foreground = Brushes.Gray,
+            FontStyle = FontStyles.Italic,
+            FontSize = 11,
+            TextWrapping = TextWrapping.Wrap
         };
 
         // Empty result grid with the given (header, propertyPath) columns + a
