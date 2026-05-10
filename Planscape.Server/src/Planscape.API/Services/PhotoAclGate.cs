@@ -48,13 +48,23 @@ public static class PhotoAclGate
         HashSet<Guid>    NdaAcceptedPhotoIds);
 
     /// <summary>Build the per-request probe: caller's role / user-id /
-    /// group memberships / first discipline. Hits two indexed queries.</summary>
+    /// group memberships / disciplines / NDA-accepted set.
+    ///
+    /// Phase 180 — when <paramref name="cacheCtx"/> is supplied, the
+    /// resolved probe is cached on <c>HttpContext.Items</c> keyed by
+    /// projectId so List → /file → annotations on the same request
+    /// share one DB round-trip set.</summary>
     public static async Task<AclProbe> ResolveProbeAsync(
         PlanscapeDbContext db,
         Guid projectId,
         System.Security.Claims.ClaimsPrincipal user,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        Microsoft.AspNetCore.Http.HttpContext? cacheCtx = null)
     {
+        var cacheKey = $"acl_probe:{projectId}";
+        if (cacheCtx is not null && cacheCtx.Items.TryGetValue(cacheKey, out var cached) && cached is AclProbe hit)
+            return hit;
+
         var role = user.FindFirst("role")?.Value ?? "";
         var bypass = role is "Admin" or "Owner" or "SecurityOfficer";
 
@@ -112,7 +122,9 @@ public static class PhotoAclGate
                 .ToHashSet();
         }
 
-        return new AclProbe(bypass, role, userId, email, groups, disciplines, ndaAccepted);
+        var probe = new AclProbe(bypass, role, userId, email, groups, disciplines, ndaAccepted);
+        if (cacheCtx is not null) cacheCtx.Items[cacheKey] = probe;
+        return probe;
     }
 
     /// <summary>

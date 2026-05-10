@@ -106,13 +106,17 @@ export default function GalleryScreen() {
       // after the user accepts and the list refreshes.
       setNdaRequired(new Set(res.ndaRequiredIds ?? []));
 
+      // Phase 180 — parallelise thumb URL resolution. getSitePhotoFile
+      // is a synchronous helper today (returns {url, headers}) so the
+      // Promise.all chain below mainly hides token refresh latency,
+      // but it keeps the loading time linear in token-fetch rather
+      // than N*round-trip if the helper grows expensive later.
       const next: ResolvedThumbRecord = {};
-      for (const p of res.items) {
-        // Skip thumbnail fetch for NDA-gated photos — the server would
-        // return 403 nda_required and Image would render a broken icon.
-        if ((res.ndaRequiredIds ?? []).includes(p.id)) continue;
-        next[p.id] = await getSitePhotoFile(projectId, p.id);
-      }
+      const fetchable = res.items.filter(p => !(res.ndaRequiredIds ?? []).includes(p.id));
+      await Promise.all(fetchable.map(async (p) => {
+        try { next[p.id] = await getSitePhotoFile(projectId, p.id); }
+        catch { /* per-photo failures don't poison the page */ }
+      }));
       setThumbs(next);
 
       // If the route was opened with ?focus=<id>, jump straight into viewer.

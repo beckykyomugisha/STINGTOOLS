@@ -146,7 +146,7 @@ public class PhotoAlbumsController : ControllerBase
         // per-photo PhotoAccessRule rows are honoured here too.
         // Without this, putting a strictly-ACL'd photo in a Members-
         // visible album would defeat the rule.
-        var probe   = await PhotoAclGate.ResolveProbeAsync(_db, projectId, User, ct);
+        var probe   = await PhotoAclGate.ResolveProbeAsync(_db, projectId, User, ct, HttpContext);
         var allIds  = raw.Select(r => r.PhotoId).ToList();
         var visible = await PhotoAclGate.FilterVisibleAsync(_db, allIds, probe, ct);
         var ndaPending = await PhotoAclGate.NdaRequiredAsync(_db, allIds, probe, ct);

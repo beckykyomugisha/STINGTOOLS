@@ -640,33 +640,43 @@ namespace StingTools.UI
             // an async-void lambda, which Roslyn analyzers occasionally
             // mis-classify and raise CS4014 on). Per-thumb failures are
             // swallowed by the try/catch inside the loop body.
+            // Phase 180 — parallelise thumb fetches with a small
+            // concurrency cap so the BCC review queue paints quickly
+            // even on a 50-photo page (was strictly sequential — N
+            // round-trips of latency).
             async Task LoadThumbsAsync()
             {
-                foreach (var r in rows)
+                using var sem = new System.Threading.SemaphoreSlim(8);
+                var todo = rows.Where(r => r.Thumbnail == null).ToList();
+                var tasks = todo.Select(async r =>
                 {
-                    if (r.Thumbnail != null) continue;
-                    var bytes = await PlanscapeServerClient.Instance
-                        .DownloadSitePhotoAsync(state.ProjectId, r.Dto.Id);
-                    if (bytes == null) continue;
+                    await sem.WaitAsync();
                     try
                     {
-                        var img = new BitmapImage();
-                        img.BeginInit();
-                        img.CacheOption = BitmapCacheOption.OnLoad;
-                        img.DecodePixelWidth = 160; // 2x for retina; rendered at 80
-                        img.StreamSource = new MemoryStream(bytes);
-                        img.EndInit();
-                        img.Freeze();
-                        r.Thumbnail = img;
-                        // Phase 179 — stash the bytes for offline render.
-                        try { SitePhotoOfflineCache.SaveThumbBytes(state.ProjectId, r.Dto.Id, bytes); }
-                        catch { /* best-effort */ }
+                        var bytes = await PlanscapeServerClient.Instance
+                            .DownloadSitePhotoAsync(state.ProjectId, r.Dto.Id);
+                        if (bytes == null) return;
+                        try
+                        {
+                            var img = new BitmapImage();
+                            img.BeginInit();
+                            img.CacheOption = BitmapCacheOption.OnLoad;
+                            img.DecodePixelWidth = 160;
+                            img.StreamSource = new MemoryStream(bytes);
+                            img.EndInit();
+                            img.Freeze();
+                            r.Thumbnail = img;
+                            try { SitePhotoOfflineCache.SaveThumbBytes(state.ProjectId, r.Dto.Id, bytes); }
+                            catch { /* best-effort */ }
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"SitePhotosTab thumbnail decode {r.Dto.Id}: {ex.Message}");
+                        }
                     }
-                    catch (Exception ex)
-                    {
-                        StingLog.Warn($"SitePhotosTab thumbnail decode {r.Dto.Id}: {ex.Message}");
-                    }
-                }
+                    finally { sem.Release(); }
+                }).ToList();
+                await Task.WhenAll(tasks);
             }
             _ = LoadThumbsAsync();
         }

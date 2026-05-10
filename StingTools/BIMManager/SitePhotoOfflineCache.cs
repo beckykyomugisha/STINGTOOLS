@@ -40,6 +40,11 @@ namespace StingTools.BIMManager
             public List<SitePhotoDto> Photos     { get; set; } = new();
         }
 
+        // Phase 180 — bound the JSON file size by trimming to the most
+        // recent N photos. With 1000+ photos a project the on-disk
+        // file grew to multi-MB and degraded BCC start time.
+        private const int MaxCachedPhotos = 200;
+
         public static void Save(Guid projectId, IEnumerable<SitePhotoDto> photos)
         {
             try
@@ -47,10 +52,17 @@ namespace StingTools.BIMManager
                 lock (_gate)
                 {
                     var path = Path.Combine(CacheDir(projectId), "photos.json");
+                    // Newest first — the offline reader uses CapturedAt
+                    // descending anyway. Trim to MaxCachedPhotos before
+                    // serialising.
+                    var trimmed = photos
+                        .OrderByDescending(p => p.CapturedAt)
+                        .Take(MaxCachedPhotos)
+                        .ToList();
                     var payload = new CachedPage
                     {
                         SavedAtUtc = DateTime.UtcNow,
-                        Photos     = new List<SitePhotoDto>(photos)
+                        Photos     = trimmed,
                     };
                     File.WriteAllText(path, JsonConvert.SerializeObject(payload));
                 }

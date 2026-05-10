@@ -368,7 +368,7 @@ public class SitePhotosController : ControllerBase
         // Phase 179 — apply the per-photo PhotoAccessRule gate. v1
         // callers that don't read the rule rows still get back a
         // tighter list, but the response shape is unchanged.
-        var probe = await PhotoAclGate.ResolveProbeAsync(_db, projectId, User, ct);
+        var probe = await PhotoAclGate.ResolveProbeAsync(_db, projectId, User, ct, HttpContext);
         // Phase 179.2 — surface NDA-pending ids as a sibling array so
         // smart clients can render the "Accept & view" prompt without
         // hitting /file and parsing the 403. NDA-pending ids stay in
@@ -427,7 +427,7 @@ public class SitePhotosController : ControllerBase
         if (photo == null) return NotFound();
         if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
         // Phase 179 — AND the audience state with the per-photo ACL.
-        var probe = await PhotoAclGate.ResolveProbeAsync(_db, projectId, User, ct);
+        var probe = await PhotoAclGate.ResolveProbeAsync(_db, projectId, User, ct, HttpContext);
         var ndaPending = await PhotoAclGate.NdaRequiredAsync(_db, new[] { photoId }, probe, ct);
         if (ndaPending.Contains(photoId))
             return StatusCode(403, new { error = "nda_required", photoId });
@@ -465,7 +465,7 @@ public class SitePhotosController : ControllerBase
             // Project members get the original; require active membership.
             if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
             // Phase 179 — AND the audience state with the per-photo ACL.
-            var probe = await PhotoAclGate.ResolveProbeAsync(_db, projectId, User, ct);
+            var probe = await PhotoAclGate.ResolveProbeAsync(_db, projectId, User, ct, HttpContext);
             // Phase 179.2 — distinguish NDA-pending from other denials so
             // the UI can surface an "Accept & view" prompt instead of a
             // generic 403.
