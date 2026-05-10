@@ -72,9 +72,20 @@ namespace StingTools.UI
         public StingDockPanel()
         {
             InitializeComponent();
-            // Register this panel as the theme target before seeding resources
-            ThemeManager.RegisterTarget(this);
-            ThemeManager.InitialiseResources();
+            // Register this panel as the theme target before seeding resources.
+            // Any failure during seed → fall back to Corporate so the panel
+            // never renders against an empty resource dictionary.
+            try
+            {
+                ThemeManager.RegisterTarget(this);
+                ThemeManager.InitialiseResources();
+            }
+            catch (Exception exTheme)
+            {
+                StingLog.Error("StingDockPanel: theme init failed — forcing Corporate", exTheme);
+                try { ThemeManager.ApplyTheme(ThemeManager.FallbackTheme); }
+                catch { /* nothing more we can do */ }
+            }
 
             // CRASH FIX: Immediately after XAML parsing, detach content from all
             // non-active tabs BEFORE the first WPF layout pass (Measure/Arrange).
@@ -269,13 +280,36 @@ namespace StingTools.UI
                     SetCategoryFilterParams();
                 }
 
-                // Handle theme cycling directly in WPF thread (no Revit API needed)
+                // Handle theme cycling directly in WPF thread (no Revit API needed).
+                // Wrapped in try/catch with a Corporate fallback per the
+                // "if theme switching fails, default to Corporate" rule —
+                // any WPF resource resolution glitch in the hosted pane is
+                // contained here rather than crashing the panel.
                 if (cmdTag == "CycleTheme")
                 {
-                    string next = ThemeManager.CycleTheme();
-                    // Force WPF to re-evaluate DynamicResource bindings in Revit's hosted pane
-                    InvalidateVisual();
-                    UpdateLayout();
+                    string next;
+                    try
+                    {
+                        next = ThemeManager.CycleTheme();
+                    }
+                    catch (Exception exTheme)
+                    {
+                        StingLog.Error("StingDockPanel: CycleTheme failed — forcing Corporate", exTheme);
+                        try { ThemeManager.ApplyTheme(ThemeManager.FallbackTheme); } catch { /* no-op */ }
+                        next = ThemeManager.CurrentTheme;
+                    }
+                    // Force WPF to re-evaluate DynamicResource bindings in Revit's hosted pane.
+                    // Revit's WPF host occasionally drops DynamicResource updates if the
+                    // visual tree is not invalidated explicitly, so do both passes.
+                    try
+                    {
+                        InvalidateVisual();
+                        UpdateLayout();
+                    }
+                    catch (Exception exRefresh)
+                    {
+                        StingLog.Warn($"StingDockPanel: theme refresh failed: {exRefresh.Message}");
+                    }
                     UpdateStatus($"Theme: {next}");
                     return;
                 }

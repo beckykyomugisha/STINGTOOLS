@@ -26,7 +26,23 @@ namespace StingTools.UI
         // with the theme toggle button; the order below starts with Corporate.
         public static string CurrentTheme { get; private set; } = "Corporate";
 
+        /// <summary>
+        /// The mandatory fallback theme. Any failure during ApplyTheme falls
+        /// back to this — see <see cref="ApplyTheme(string)"/>.
+        /// </summary>
+        public const string FallbackTheme = "Corporate";
+
         private static readonly string[] ThemeOrder = { "Corporate", "Light", "Warm", "Cool" };
+
+        /// <summary>
+        /// Fires after a successful theme apply (or after a fallback to
+        /// Corporate). Listeners — windows that bake colours into their
+        /// visual tree at construction time, e.g. <c>BIMCoordinationCenter</c>
+        /// and the document management dialog — can subscribe and rebuild
+        /// themselves so theme cycling works for already-open windows. The
+        /// payload is the theme name that ended up active.
+        /// </summary>
+        public static event Action<string> ThemeChanged;
 
         /// <summary>
         /// Reference to the host Page/FrameworkElement for direct resource setting.
@@ -156,33 +172,62 @@ namespace StingTools.UI
             RegisterTarget(host);
         }
 
-        /// <summary>Apply a named theme to both the panel and Application resources.</summary>
+        /// <summary>Apply a named theme to both the panel and Application resources.
+        /// On any failure (unknown theme, brush parse error, etc.) the manager
+        /// silently falls back to the Corporate theme so callers always get a
+        /// usable palette — windows must never render with a half-applied or
+        /// empty resource dictionary.</summary>
         public static void ApplyTheme(string themeName)
         {
-            if (!Themes.ContainsKey(themeName))
+            // Unknown theme → silently switch to Corporate (was: Light). This
+            // honours the "if it fails default to Corporate" rule.
+            if (string.IsNullOrEmpty(themeName) || !Themes.ContainsKey(themeName))
             {
-                StingLog.Warn($"ThemeManager: unknown theme '{themeName}', falling back to Light");
-                themeName = "Light";
+                StingLog.Warn($"ThemeManager: unknown theme '{themeName}', falling back to '{FallbackTheme}'");
+                themeName = FallbackTheme;
             }
 
-            var theme = Themes[themeName];
-
-            // H-03: Merge corporate overrides at apply-time without mutating base theme
-            if (themeName.Equals("Corporate", StringComparison.OrdinalIgnoreCase) && _corporateOverrides.Count > 0)
+            try
             {
-                theme = new Dictionary<string, string>(theme, StringComparer.OrdinalIgnoreCase);
-                foreach (var ov in _corporateOverrides)
-                    theme[ov.Key] = ov.Value;
+                var theme = Themes[themeName];
+
+                // H-03: Merge corporate overrides at apply-time without mutating base theme
+                if (themeName.Equals("Corporate", StringComparison.OrdinalIgnoreCase) && _corporateOverrides.Count > 0)
+                {
+                    theme = new Dictionary<string, string>(theme, StringComparer.OrdinalIgnoreCase);
+                    foreach (var ov in _corporateOverrides)
+                        theme[ov.Key] = ov.Value;
+                }
+
+                // Set resources on the host element FIRST (direct, always works in Revit)
+                ApplyToTarget(theme, _targetElement?.Resources);
+
+                // Also set on Application.Current for any child windows/dialogs
+                ApplyToTarget(theme, Application.Current?.Resources);
+
+                CurrentTheme = themeName;
+                StingLog.Info($"ThemeManager: applied '{themeName}' theme");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"ThemeManager: ApplyTheme('{themeName}') failed — falling back to '{FallbackTheme}'", ex);
+                if (!themeName.Equals(FallbackTheme, StringComparison.OrdinalIgnoreCase))
+                {
+                    // Recursive fall back to Corporate — guaranteed to exist in Themes.
+                    ApplyTheme(FallbackTheme);
+                    return;
+                }
+                // If even Corporate failed something is very wrong — leave
+                // CurrentTheme alone so the fallback brushes from GetBrush()
+                // still resolve against the in-memory Corporate map.
+                CurrentTheme = FallbackTheme;
             }
 
-            // Set resources on the host element FIRST (direct, always works in Revit)
-            ApplyToTarget(theme, _targetElement?.Resources);
-
-            // Also set on Application.Current for any child windows/dialogs
-            ApplyToTarget(theme, Application.Current?.Resources);
-
-            CurrentTheme = themeName;
-            StingLog.Info($"ThemeManager: applied '{themeName}' theme");
+            // Notify listeners (e.g. BCC) that the active theme changed so
+            // windows that baked colours into their visual tree at construction
+            // time can rebuild themselves.
+            try { ThemeChanged?.Invoke(CurrentTheme); }
+            catch (Exception ex) { StingLog.Warn($"ThemeManager: ThemeChanged handler threw: {ex.Message}"); }
         }
 
         private static void ApplyToTarget(Dictionary<string, string> theme, ResourceDictionary resources)
@@ -207,21 +252,53 @@ namespace StingTools.UI
         /// <summary>
         /// Seed all theme resource keys at startup.
         /// Must be called after InitializeComponent() and RegisterTarget().
+        /// Falls back to Corporate (not Light) if the active theme name is unknown.
         /// </summary>
         public static void InitialiseResources()
         {
-            if (!Themes.ContainsKey(CurrentTheme)) CurrentTheme = "Light";
+            if (!Themes.ContainsKey(CurrentTheme)) CurrentTheme = FallbackTheme;
             ApplyTheme(CurrentTheme);
         }
 
-        /// <summary>Cycle to the next theme in order: Light -> Warm -> Cool -> Corporate.</summary>
+        /// <summary>
+        /// Seed Application + target resources to Corporate if they have not
+        /// been initialised yet. Safe to call from any window constructor:
+        /// no-op once a theme has been applied. Also wires Application.Current
+        /// so child dialogs that don't register a target still get brushes.
+        /// </summary>
+        public static void EnsureInitialised()
+        {
+            try
+            {
+                var app = Application.Current?.Resources;
+                if (app != null && app.Contains("AccentBrush")) return;
+                ApplyTheme(string.IsNullOrEmpty(CurrentTheme) ? FallbackTheme : CurrentTheme);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ThemeManager.EnsureInitialised: {ex.Message}");
+                try { ApplyTheme(FallbackTheme); } catch { /* nothing more we can do */ }
+            }
+        }
+
+        /// <summary>Cycle to the next theme in order: Corporate -> Light -> Warm -> Cool.
+        /// Returns the theme name that ended up active (Corporate if cycling failed).</summary>
         public static string CycleTheme()
         {
-            int idx = Array.IndexOf(ThemeOrder, CurrentTheme);
-            int next = (idx + 1) % ThemeOrder.Length;
-            string nextTheme = ThemeOrder[next];
-            ApplyTheme(nextTheme);
-            return nextTheme;
+            try
+            {
+                int idx = Array.IndexOf(ThemeOrder, CurrentTheme);
+                int next = (idx + 1) % ThemeOrder.Length;
+                string nextTheme = ThemeOrder[next];
+                ApplyTheme(nextTheme);
+                return CurrentTheme; // ApplyTheme may have fallen back to Corporate
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("ThemeManager: CycleTheme failed — forcing Corporate", ex);
+                ApplyTheme(FallbackTheme);
+                return CurrentTheme;
+            }
         }
 
         /// <summary>Apply corporate theme with custom accent/primary from config.</summary>
