@@ -75,6 +75,41 @@ namespace StingTools.Commands.Plumbing
                 }
             }
 
+            // Inline panel path: populate DU-scan, sizing, vent and slope grids
+            // in one shot so the user sees every engine's output without a
+            // popup. Fall through to StingResultPanel only when the dock
+            // panel is closed (ribbon / NLP entry).
+            var inst = StingPlumbingPanel.Instance;
+            if (inst != null)
+            {
+                var sizingRows = sizing.Results.Select(res => new DrainageSizingRow
+                {
+                    Pipe        = res.PipeId.Value.ToString(),
+                    SigmaDu     = res.Dfu,
+                    Dn          = res.RecommendedDnMm,
+                    VelocityMps = res.SelfCleansingVelocityMps,
+                    HdRatio     = 0.0,
+                    Status      = (res.SelfCleansingOk ? "OK" : "WARN")
+                                  + $" · DN{res.CurrentDnMm}→{res.RecommendedDnMm}"
+                                  + $" · slope {res.SlopePct:F2}%"
+                }).ToList();
+                var ventRows = vents.Select(v => new DrainageVentRow
+                {
+                    Drain   = $"{v.DrainPipeId.Value} DN{v.DrainDnMm}",
+                    Du      = v.Dfu,
+                    VentDn  = v.RecommendedVentDnMm,
+                    MaxLenM = v.MaxVentLengthM,
+                    Flag    = (v.RequiresAav ? "AAV" : "")
+                              + (v.RequiresReliefVent ? (v.RequiresAav ? " · RELIEF" : "RELIEF") : "")
+                }).ToList();
+                inst.SetDrainageSizingResult(sizingRows,
+                    $"AutoSize · {sizing.PipesAnalysed} pipes · {sizing.PipesUpsized} upsize · "
+                    + $"{stackReport.StacksFlagged} stacks flagged"
+                    + (dryRun ? " (dry run)" : ""));
+                inst.SetDrainageVentResult(ventRows, null);
+                return Result.Succeeded;
+            }
+
             var panel = StingResultPanel.Create("Auto-Size Drainage");
             panel.SetSubtitle($"Code: {sizing.CodeUsed} · {dfuMap.PipesTagged} pipes tagged from {dfuMap.FixturesScanned} fixtures");
             panel.AddSection("SUMMARY")
@@ -225,19 +260,25 @@ namespace StingTools.Commands.Plumbing
                 .WhereElementIsNotElementType().ToElements();
 
             int matches = 0, mismatches = 0, missing = 0;
-            var panel = StingResultPanel.Create("Trap & Vent Audit");
-            panel.AddSection("FIXTURES (first 50)");
+            var lines = new List<string>();
             foreach (var el in fixtures.Take(50))
             {
                 var sel = TrapDesigner.SelectTrap(el);
                 string current = "";
                 try { current = el.LookupParameter(ParamRegistry.PLM_TRAP_TYPE)?.AsString() ?? ""; } catch { }
                 bool match = string.Equals(current, sel.TrapType, StringComparison.OrdinalIgnoreCase);
-                if (string.IsNullOrEmpty(current)) { missing++; }
-                else if (match)                    { matches++; }
-                else                                { mismatches++; }
-                panel.Text($"{el.Id.Value} {el.Name} → trap {sel.TrapType} seal {sel.SealDepthMm} mm · current '{current}' {(string.IsNullOrEmpty(current) ? "✗" : match ? "✓" : "⚠")}");
+                if (string.IsNullOrEmpty(current)) missing++;
+                else if (match) matches++; else mismatches++;
+                lines.Add($"{el.Id.Value} {el.Name} → trap {sel.TrapType} seal {sel.SealDepthMm} mm · current '{current}' {(string.IsNullOrEmpty(current) ? "✗" : match ? "✓" : "⚠")}");
             }
+            string status = $"Trap & Vent · {fixtures.Count} fixtures · "
+                          + $"{matches} ✓ · {mismatches} ⚠ · {missing} ✗";
+            var inst = StingPlumbingPanel.Instance;
+            if (inst != null) { inst.SetStatus(status); return Result.Succeeded; }
+
+            var panel = StingResultPanel.Create("Trap & Vent Audit");
+            panel.AddSection("FIXTURES (first 50)");
+            foreach (var line in lines) panel.Text(line);
             panel.AddSection("SUMMARY")
                  .Metric("Fixtures scanned", fixtures.Count.ToString())
                  .Metric("Matches",          matches.ToString())
@@ -264,10 +305,8 @@ namespace StingTools.Commands.Plumbing
             const double rho = 1000, g = 9.81;
             double inletElevFt = levels.FirstOrDefault()?.Elevation ?? 0;
 
-            var panel = StingResultPanel.Create("Pressure Zone / PRV Schedule");
-            panel.SetSubtitle("Static pressure per level · 500 kPa Approved Doc G ceiling");
-            panel.AddSection("PER LEVEL");
             int prvCount = 0;
+            var lines = new List<string>();
             foreach (var lvl in levels)
             {
                 double dHm = (lvl.Elevation - inletElevFt) * 0.3048;
@@ -277,8 +316,16 @@ namespace StingTools.Commands.Plumbing
                 string zone = pStaticKpa > 500 ? "BOOSTED" :
                               pStaticKpa > 350 ? "HIGH"    :
                               pStaticKpa > 200 ? "MID"     : "LOW";
-                panel.Text($"{lvl.Name} (Δh {dHm:F1} m) · static {pStaticKpa:F0} kPa · zone {zone} {(prv ? "· PRV required" : "")}");
+                lines.Add($"{lvl.Name} (Δh {dHm:F1} m) · static {pStaticKpa:F0} kPa · zone {zone} {(prv ? "· PRV required" : "")}");
             }
+            string status = $"PRV · {levels.Count} levels · {prvCount} PRV recommendations";
+            var inst = StingPlumbingPanel.Instance;
+            if (inst != null) { inst.SetStatus(status); return Result.Succeeded; }
+
+            var panel = StingResultPanel.Create("Pressure Zone / PRV Schedule");
+            panel.SetSubtitle("Static pressure per level · 500 kPa Approved Doc G ceiling");
+            panel.AddSection("PER LEVEL");
+            foreach (var line in lines) panel.Text(line);
             panel.AddSection("SUMMARY")
                  .Metric("Levels analysed", levels.Count.ToString())
                  .Metric("PRV recommendations", prvCount.ToString());
@@ -302,6 +349,10 @@ namespace StingTools.Commands.Plumbing
                 r = DeadLegDetector.Scan(ctx.Doc, writeBack: true);
                 tx.Commit();
             }
+            string status = $"Dead-Leg · {r.PipesScanned} pipes · {r.LegsFlagged} flagged · {r.PipesWritten} written";
+            var inst = StingPlumbingPanel.Instance;
+            if (inst != null) { inst.SetStatus(status); return Result.Succeeded; }
+
             var panel = StingResultPanel.Create("Dead-Leg Scan (HSG 274)");
             panel.AddSection("SUMMARY")
                  .Metric("Pipes scanned", r.PipesScanned.ToString())
@@ -371,6 +422,12 @@ namespace StingTools.Commands.Plumbing
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var r = RecircLoopBalancer.Analyse(ctx.Doc);
+            string status = string.IsNullOrEmpty(r.SystemName)
+                ? "Recirc · no recirc system found"
+                : $"Recirc · {r.SystemName} · loss {r.TotalHeatLossW:F0} W · pump {r.PumpDutyLpm:F1} l/min · {r.Branches.Count} branches";
+            var inst = StingPlumbingPanel.Instance;
+            if (inst != null) { inst.SetStatus(status); return Result.Succeeded; }
+
             var panel = StingResultPanel.Create("DHW Recirculation Loop Balance");
             panel.SetSubtitle(string.IsNullOrEmpty(r.SystemName) ? "(no recirc system found)" : $"System: {r.SystemName}");
             panel.AddSection("LOOP")
@@ -398,6 +455,11 @@ namespace StingTools.Commands.Plumbing
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var dfu = FixtureUnitAggregator.BuildDfuMap(ctx.Doc);
             var rep = StackCapacityValidator.Validate(ctx.Doc, dfu);
+            string status = $"Stack · {rep.StacksScanned} scanned · {rep.StacksFlagged} flagged · "
+                          + $"{rep.StacksOverCapacity} over capacity";
+            var inst = StingPlumbingPanel.Instance;
+            if (inst != null) { inst.SetStatus(status); return Result.Succeeded; }
+
             var panel = StingResultPanel.Create("Stack Capacity (BS EN 12056-2 Table 11)");
             panel.AddSection("SUMMARY")
                  .Metric("Stacks scanned",     rep.StacksScanned.ToString())

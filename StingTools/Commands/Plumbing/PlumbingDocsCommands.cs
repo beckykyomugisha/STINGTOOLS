@@ -322,10 +322,29 @@ namespace StingTools.Commands.Plumbing
                 double invIn = 0, invOut = 0, cover = 0, depth = 0;
                 try
                 {
+                    // Invert params are stored in feet (Revit internal units)
+                    // even when the stamp originated as mAOD — the displacement
+                    // we ultimately care about (CoverM − InvOutM = depth) is
+                    // metric and consistent regardless of datum convention.
                     var pIn  = el.LookupParameter(ParamRegistry.PLM_DRN_INV_US)?.AsDouble();
                     var pOut = el.LookupParameter(ParamRegistry.PLM_DRN_INV_DS)?.AsDouble();
-                    if (pIn  != null) invIn  = pIn.Value  * 0.3048;  // ft → m
+                    if (pIn  != null) invIn  = pIn.Value  * 0.3048;
                     if (pOut != null) invOut = pOut.Value * 0.3048;
+
+                    // Cover = chamber's host-level elevation (project zero).
+                    // Depth = Cover − lowest invert. Both internally consistent
+                    // even when the project elevation isn't mAOD-aligned.
+                    if (el.LevelId != null && el.LevelId.Value > 0)
+                    {
+                        var lvl = ctx.Doc.GetElement(el.LevelId) as Level;
+                        if (lvl != null) cover = lvl.Elevation * 0.3048;
+                    }
+                    double lowestInv = (invIn > 0 || invOut > 0)
+                        ? Math.Min(invIn  > 0 ? invIn  : double.MaxValue,
+                                   invOut > 0 ? invOut : double.MaxValue)
+                        : 0;
+                    if (cover > 0 && lowestInv > 0 && lowestInv != double.MaxValue)
+                        depth = cover - lowestInv;
                 }
                 catch { }
                 return new DocsManholeRow
