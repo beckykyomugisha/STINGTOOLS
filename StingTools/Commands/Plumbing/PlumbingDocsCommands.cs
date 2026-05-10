@@ -11,6 +11,7 @@ using System.IO;
 using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Plumbing;
 using Autodesk.Revit.UI;
 using System.Text.RegularExpressions;
 using StingTools.BOQ;
@@ -405,11 +406,19 @@ namespace StingTools.Commands.Plumbing
         // Walks the chamber's piping connectors and returns (US, DS) inverts
         // in metres relative to project zero. Z minus pipe radius gives the
         // invert (lowest internal point of the bore) at the chamber face.
-        // Prefers Connector.Flow (In = US, Out = DS) when set so drop chambers
-        // and offset connections classify correctly; falls back to highest/
-        // lowest of all piping connectors when flow info is absent. Returns
-        // (0,0) when the family has no piping connectors so the caller can
-        // fall back to the stamped PLM_DRN_INV_* params.
+        //
+        // Classification cascade (per connector):
+        //   1. Connector.Flow set to In/Out — trust it.
+        //   2. Bidirectional / unset — walk to the connected pipe and infer
+        //      from its slope: opposite end higher than the chamber → water
+        //      enters here (In/US); opposite end lower → water exits (Out/DS).
+        //      Catches off-the-shelf manhole families that flag every
+        //      connector Bidirectional.
+        //   3. Still ambiguous — drop into max=US/min=DS bucket as a last
+        //      resort so depth math still produces a sensible value.
+        //
+        // Returns (0,0) when the family has no piping connectors so the
+        // caller can fall back to the stamped PLM_DRN_INV_* params.
         private static (double invInM, double invOutM) ResolveInvertsFromConnectors(Element el)
         {
             try
@@ -427,16 +436,18 @@ namespace StingTools.Commands.Plumbing
                     try { radiusM = c.Radius * 0.3048; } catch { }
                     double invertM = c.Origin.Z * 0.3048 - radiusM;
                     anyAll.Add(invertM);
+
                     var flow = SafeFlow(c);
-                    if (flow == FlowDirectionType.In)       inAll.Add(invertM);
-                    else if (flow == FlowDirectionType.Out) outAll.Add(invertM);
+                    if (flow == FlowDirectionType.In)       { inAll.Add(invertM);  continue; }
+                    if (flow == FlowDirectionType.Out)      { outAll.Add(invertM); continue; }
+
+                    // Bidirectional / unset: ask the connected pipe.
+                    var inferred = InferFlowFromConnectedPipe(c);
+                    if (inferred == FlowDirectionType.In)  inAll.Add(invertM);
+                    else if (inferred == FlowDirectionType.Out) outAll.Add(invertM);
                 }
                 if (anyAll.Count == 0) return (0, 0);
 
-                // Prefer flow-classified inverts. When the chamber sets only
-                // one direction or both come back empty (Bidirectional /
-                // unset), fall back to the conventional max=US / min=DS rule
-                // applied to whichever buckets have data.
                 double us = inAll.Count  > 0 ? inAll.Max()  : anyAll.Max();
                 double ds = outAll.Count > 0 ? outAll.Min() : anyAll.Min();
                 return (us, ds);
@@ -448,6 +459,40 @@ namespace StingTools.Commands.Plumbing
         {
             try { return c.Flow; }
             catch { return FlowDirectionType.Bidirectional; }
+        }
+
+        // For a Bidirectional chamber connector, find the connected pipe and
+        // compare its two end Z values. The end nearer the chamber connector
+        // is the "near" end; the other is "far". For drainage:
+        //   far Z > near Z → water comes IN to the chamber from this pipe (US)
+        //   far Z < near Z → water leaves the chamber via this pipe (DS)
+        //   far Z ≈ near Z → flat, can't tell — return Bidirectional.
+        private static FlowDirectionType InferFlowFromConnectedPipe(Connector chamberConn)
+        {
+            try
+            {
+                var refs = chamberConn.AllRefs;
+                if (refs == null) return FlowDirectionType.Bidirectional;
+                foreach (Connector other in refs)
+                {
+                    if (other?.Owner == null) continue;
+                    if (!(other.Owner is Pipe p)) continue;
+                    var lc = p.Location as LocationCurve;
+                    var curve = lc?.Curve;
+                    if (curve == null) continue;
+                    var pStart = curve.GetEndPoint(0);
+                    var pEnd   = curve.GetEndPoint(1);
+                    double dStart = pStart.DistanceTo(chamberConn.Origin);
+                    double dEnd   = pEnd.DistanceTo(chamberConn.Origin);
+                    var nearZ = dStart <= dEnd ? pStart.Z : pEnd.Z;
+                    var farZ  = dStart <= dEnd ? pEnd.Z   : pStart.Z;
+                    const double flatToleranceFt = 0.0033; // ≈1 mm
+                    if (Math.Abs(farZ - nearZ) < flatToleranceFt) return FlowDirectionType.Bidirectional;
+                    return farZ > nearZ ? FlowDirectionType.In : FlowDirectionType.Out;
+                }
+            }
+            catch { }
+            return FlowDirectionType.Bidirectional;
         }
     }
 

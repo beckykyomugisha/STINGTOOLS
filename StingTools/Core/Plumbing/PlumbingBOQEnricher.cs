@@ -52,20 +52,24 @@ namespace StingTools.Core.Plumbing
             var ugxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
             var skip = excludeRevitElementIds ?? new HashSet<long>();
 
-            // Resolution priority: cost_rates_5d.csv (per-category rate)
-            //   → PlumbingSystemConfig (project-saved override, persisted via
-            //     SYSTEM tab → Save System Config)
-            //   → TagConfig key (back-compat / external override)
+            // Resolution priority: cost_rates_5d.csv (per-category rate, applied
+            //   inside the Collect* methods)
+            //   → PlumbingSystemConfig (project-saved override via SYSTEM tab)
+            //   → TagConfig key (external automation / scripted override)
             //   → fallback constant.
+            //
+            // The SYSTEM-tab UI is the canonical surface for project rates so
+            // it wins over the TagConfig key — flip the order back if you
+            // want scripted overrides to dominate.
             var sys = PlumbingSystemConfig.Load(doc);
-            double pipeInsRate = TagConfig.GetConfigDouble("PLUMB_BOQ_DEFAULT_PIPE_INSULATION_UGX_M",
-                sys?.BoqDefaultPipeInsulationUgxPerM > 0 ? sys.BoqDefaultPipeInsulationUgxPerM : FallbackPipeInsulationUgxPerM);
-            double ductInsRate = TagConfig.GetConfigDouble("PLUMB_BOQ_DEFAULT_DUCT_INSULATION_UGX_M",
-                sys?.BoqDefaultDuctInsulationUgxPerM > 0 ? sys.BoqDefaultDuctInsulationUgxPerM : FallbackDuctInsulationUgxPerM);
-            double sleeveRate  = TagConfig.GetConfigDouble("PLUMB_BOQ_DEFAULT_SLEEVE_UGX_EACH",
-                sys?.BoqDefaultSleeveUgxEach         > 0 ? sys.BoqDefaultSleeveUgxEach         : FallbackSleeveUgxEach);
-            double hangerRate  = TagConfig.GetConfigDouble("PLUMB_BOQ_DEFAULT_HANGER_UGX_EACH",
-                sys?.BoqDefaultHangerUgxEach         > 0 ? sys.BoqDefaultHangerUgxEach         : FallbackHangerUgxEach);
+            double pipeInsRate = ResolveRate(sys?.BoqDefaultPipeInsulationUgxPerM,
+                "PLUMB_BOQ_DEFAULT_PIPE_INSULATION_UGX_M", FallbackPipeInsulationUgxPerM);
+            double ductInsRate = ResolveRate(sys?.BoqDefaultDuctInsulationUgxPerM,
+                "PLUMB_BOQ_DEFAULT_DUCT_INSULATION_UGX_M", FallbackDuctInsulationUgxPerM);
+            double sleeveRate  = ResolveRate(sys?.BoqDefaultSleeveUgxEach,
+                "PLUMB_BOQ_DEFAULT_SLEEVE_UGX_EACH",       FallbackSleeveUgxEach);
+            double hangerRate  = ResolveRate(sys?.BoqDefaultHangerUgxEach,
+                "PLUMB_BOQ_DEFAULT_HANGER_UGX_EACH",       FallbackHangerUgxEach);
 
             CollectInsulation(doc, items, rates, ugxPerUsd, skip, BuiltInCategory.OST_PipeInsulations,
                 "Pipe Insulations", pipeInsRate, "33", "M");
@@ -181,5 +185,15 @@ namespace StingTools.Core.Plumbing
             catch (Exception ex) { StingLog.Warn($"PlumbingBOQEnricher.{category}: {ex.Message}"); }
         }
 
+        // SYSTEM-tab override → TagConfig key → fallback constant. The
+        // PlumbingSystemConfig.BoqDefault* fields persist with the rest of
+        // the plumbing system config in _BIM_COORD/plumbing_system_config.json,
+        // so a project's QS-set rate survives across sessions and beats the
+        // process-wide TagConfig key.
+        private static double ResolveRate(double? sysOverrideUgx, string tagConfigKey, double fallbackUgx)
+        {
+            if (sysOverrideUgx.HasValue && sysOverrideUgx.Value > 0) return sysOverrideUgx.Value;
+            return TagConfig.GetConfigDouble(tagConfigKey, fallbackUgx);
+        }
     }
 }
