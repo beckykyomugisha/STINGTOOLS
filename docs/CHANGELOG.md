@@ -2,6 +2,93 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 179 — Site-photo workflow enhancements)
+
+Closes the gaps surfaced during the BCC site-photo review pass. Branch:
+`claude/enhance-photos-workflow-T6vMA`.
+
+**Server (11 new tables + 8 new controllers + 1 service + 1 job)**
+
+| Area | Files | Notes |
+|---|---|---|
+| Domain | `PhotoAlbum`, `PhotoAlbumPhoto`, `DistributionGroup`, `DistributionGroupMember`, `PhotoAccessRule`, `PhotoChecklist`, `PhotoChecklistItem`, `PhotoAnnotation`, `PhotoVoiceNote`, `PhotoShareLink`, `PhotoPolicy` | All tenant-scoped; cascade-delete from Project; PhotoAccessRule cascade-deletes from SitePhoto |
+| Migration | `20260514000000_AddPhotoWorkflowEnhancements.cs` | All additive — existing SitePhotos table untouched |
+| Controllers | `PhotoAlbumsController`, `DistributionGroupsController`, `PhotoChecklistsController`, `PhotoShareLinkAdminController`, `PhotoShareLinkPublicController`, `PhotoPolicyController`, `SitePhotosExtController`, `PhotoExportController` | Mutation gates: tenant Admin/Owner OR project PM; share-link consumer is anonymous (token-as-credential) |
+| Services | `PhotoBulkExportService` (in-memory ZIP: photos + index.csv + album.html + manifest.json + per-photo annotations) | Capped at 500 photos per request; ClientGuest never gets originals |
+| Recurring | `PhotoRetentionJob` | Daily 03:30 UTC via Hangfire — withdraws Approved/ClientPortal photos older than RetentionDays, autoarchives Progress photos at HANDOVER status, applies per-album AutoArchiveAfterDays |
+| DI | `Program.cs` | Both new services + recurring job registered |
+
+**Desktop (BCC SitePhotosTab redesign)**
+
+The Phase 178 review queue now sits as the first sub-tab in a 5-tab
+TabControl: Review queue · Grid (4-column contact-sheet) · Albums
+(two-pane curate + share + export-zip) · Checklists (RAG list) ·
+Admin (bulk reclassify / reanchor / distribution groups). New files:
+`SitePhotosGridSubTab.cs`, `SitePhotosAlbumsSubTab.cs`,
+`SitePhotosChecklistsSubTab.cs`, `SitePhotosAdminSubTab.cs`. Selection
+state is shared across tabs via `TabState.SelectedIds`.
+
+`PlanscapeServerClient` gained 12 endpoint helpers + 5 new DTOs
+(PhotoAlbumDto, PhotoAlbumDetailDto, DistributionGroupDto,
+PhotoChecklistDto, PhotoShareLinkDto) covering every Phase 179 server
+route.
+
+`SitePhotoOfflineCache` writes the last successful ListSitePhotos page
+plus per-photo JPEG thumbs to
+`%LOCALAPPDATA%\StingTools\photo-cache\{projectId}\` so the Review
+queue paints a useful "Offline — showing N cached at …" page when the
+server is unreachable (was: blank panel as in the BCC screenshot).
+
+**Mobile (5 new screens + 12 typed endpoint wrappers)**
+
+Stack route group `app/site-photos/` extended with `albums.tsx`,
+`album-detail.tsx`, `checklists.tsx`, `checklist-detail.tsx`,
+`annotate.tsx`. `endpoints.ts` adds typed wrappers for every Phase 179
+controller (albums, distribution groups, checklists, annotations,
+voice notes, share links). The annotate screen produces normalised
+0..1 shape coords so the same JSON renders identically on desktop /
+PDF / mobile.
+
+**What this unlocks**
+
+- **Albums** are the missing curation primitive — sharing, digest
+  scoping, handover bundles, snag lists all hang off this one entity.
+- **Distribution groups** + **PhotoAccessRules** give per-photo /
+  per-album visibility (discipline, role, time-bounded, NDA gate)
+  layered on top of the existing audience state machine. The two
+  gates AND at read time.
+- **Checklists** turn the workflow from "passively review whatever
+  arrives" into "ensure these specific shots get taken" — drives
+  capture compliance for inspections, pours, handovers.
+- **Annotations + voice notes** persist the markup pipeline that the
+  capture screen already had wired into AudioRecorder but never
+  uploaded.
+- **Share links** + **bulk-export ZIP** cover both ad-hoc sharing
+  with outside-tenant engineers and the handover bundle case.
+- **Retention + auto-archive** + **per-project PhotoPolicy** give
+  BIM Managers control over watermark / face-blur / digest hour /
+  approval-chain shape without redeploying.
+- **Re-redact / restore / bulk-force-state** + **bulk-reclassify /
+  re-anchor** cover the admin recovery cases that surfaced in the
+  review pass.
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox, no Revit
+   API). Verify in Revit before merge.
+2. The EF model snapshot file is not regenerated — first deploy must
+   run `dotnet ef migrations script` or the runtime will fall back to
+   the hand-written migration.
+3. PDF export (vs the current HTML+ZIP) needs PdfSharp / QuestPDF —
+   deferred. The shipped `album.html` covers the same case for now.
+4. Mobile checklist fulfilment hands off to capture; auto-linking the
+   resulting photo to the originating item is a follow-up.
+5. PhotoAccessRule read-time enforcement (the AND gate) is wired
+   through the new endpoints; the existing v1 list endpoint keeps its
+   pre-Phase-179 behaviour for back-compat. Migration of the v1 path
+   is a follow-up so any existing client that depends on the
+   unfiltered list keeps working until it's updated.
+
 #### Completed (Healthcare Pack H-1..H-30 — Hospital design content layer)
 
 Delivers the full Healthcare Pack against [`HEALTHCARE_PACK_DESIGN.md`](HEALTHCARE_PACK_DESIGN.md).
