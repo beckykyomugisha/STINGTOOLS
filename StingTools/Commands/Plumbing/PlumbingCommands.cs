@@ -14,6 +14,7 @@
 //   Plumbing_MaterialAudit      — material × jointing × service compat
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using Autodesk.Revit.Attributes;
@@ -433,10 +434,12 @@ namespace StingTools.Commands.Plumbing
             {
                 findings = rep.Findings.Where(f =>
                 {
-                    var k = (f.Kind ?? "").ToUpperInvariant();
-                    if (opts.MatGalvanic && k.Contains("GALVANIC"))     return true;
-                    if (opts.MatJointing && k.Contains("JOINT"))        return true;
-                    if (opts.MatWras     && k.Contains("WRAS"))         return true;
+                    // PlumbingFinding is an enum; map the panel CheckBoxes to
+                    // its members so the user's scope flags filter correctly.
+                    var k = f.Kind.ToString().ToUpperInvariant();
+                    if (opts.MatGalvanic && k.Contains("GALVANIC")) return true;
+                    if (opts.MatJointing && k.Contains("JOINT"))    return true;
+                    if (opts.MatWras     && k.Contains("WRAS"))     return true;
                     return !(opts.MatGalvanic || opts.MatJointing || opts.MatWras);
                 });
             }
