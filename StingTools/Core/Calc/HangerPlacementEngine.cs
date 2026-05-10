@@ -118,6 +118,14 @@ namespace StingTools.Core.Calc
             HangerSpacingQuery q = BuildQuery(el);
             if (q == null) return;
             var spacing = HangerSpacingTable.Query(q);
+            if (spacing.NoHangersRequired)
+            {
+                // Buried / bedded mains — skip placement quietly; not a defect
+                // so don't add a warning. RunsScanned is already incremented
+                // wholesale via Plan(...) before this loop runs, so no count
+                // is lost.
+                return;
+            }
             if (spacing.MaxSpanMm <= 0)
             {
                 result.Warnings.Add($"Run {el.Id}: no spacing table match (kind={q.Kind}, dia={q.DiameterMm:F0}mm)");
