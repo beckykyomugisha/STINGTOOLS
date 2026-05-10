@@ -23,7 +23,7 @@ namespace StingTools.UI
     /// with colored headers, metrics, tables, pass/fail checklists, RAG bars,
     /// and action buttons.
     /// </summary>
-    internal static class StingResultPanel
+    public static class StingResultPanel
     {
         // ── Theme (M-07 FIX: All brushes frozen for thread safety) ──
         private static SolidColorBrush FZ(SolidColorBrush b) { b.Freeze(); return b; }

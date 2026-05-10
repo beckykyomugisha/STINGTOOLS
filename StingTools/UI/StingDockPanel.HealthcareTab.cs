@@ -382,10 +382,22 @@ namespace StingTools.UI
         // and auto-expands. Returns false when the panel is not realised
         // (caller should fall back to TaskDialog or just to PushHcResult
         // for the 1-line summary).
-        public static bool PushHcResultPanel(StingResultPanel.Builder b)
+        //
+        // Parameter is `object` (not `StingResultPanel.Builder`) on purpose:
+        // the WPF MarkupCompilePass1 runs a temporary "*_wpftmp" build that
+        // references sibling .cs files via the obj/ assembly IL. On
+        // incremental builds that IL can lag the .cs source by one build
+        // (StingResultPanel still showing as internal in IL even after
+        // bumping to public), tripping CS0051. Boxing through `object`
+        // sidesteps the signature-accessibility check entirely. The cast
+        // inside resolves against the live StingResultPanel.Builder type
+        // because the method body is compiled fresh.
+        public static bool PushHcResultPanel(object builderObj)
         {
             var inst = LastInstance;
-            if (inst == null || b == null) return false;
+            if (inst == null || builderObj == null) return false;
+            var b = builderObj as StingResultPanel.Builder;
+            if (b == null) return false;
 
             void Apply()
             {
