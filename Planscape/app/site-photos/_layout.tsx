@@ -20,6 +20,12 @@ export default function SitePhotosLayout() {
       <Stack.Screen name="gallery" options={{ title: 'Project Gallery' }} />
       {/* T3-4 — daily digest preview, opened from the gallery header. */}
       <Stack.Screen name="digest" options={{ title: "Today's Digest" }} />
+      {/* Phase 179 — albums + checklists + annotations. */}
+      <Stack.Screen name="albums" options={{ title: 'Albums' }} />
+      <Stack.Screen name="album-detail" options={{ title: 'Album' }} />
+      <Stack.Screen name="checklists" options={{ title: 'Photo Checklists' }} />
+      <Stack.Screen name="checklist-detail" options={{ title: 'Checklist' }} />
+      <Stack.Screen name="annotate" options={{ title: 'Annotate Photo' }} />
     </Stack>
   );
 }
