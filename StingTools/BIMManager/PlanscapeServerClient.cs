@@ -1127,6 +1127,273 @@ public sealed class PlanscapeServerClient : IDisposable
         catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"GetDigestPreviewAsync: {ex.Message}"); return null; }
     }
 
+    // ════════════════════════════════════════════════════════════════════════════
+    //  Phase 179 — site-photo workflow enhancements
+    // ════════════════════════════════════════════════════════════════════════════
+
+    // ── Albums ──────────────────────────────────────────────────────────────────
+
+    public async Task<List<PhotoAlbumDto>> ListPhotoAlbumsAsync(
+        Guid projectId, string? kind = null, string? visibility = null)
+    {
+        var empty = new List<PhotoAlbumDto>();
+        if (!await EnsureAuthenticatedAsync()) return empty;
+        try
+        {
+            var qs = new List<string>();
+            if (!string.IsNullOrEmpty(kind))       qs.Add($"kind={Uri.EscapeDataString(kind)}");
+            if (!string.IsNullOrEmpty(visibility)) qs.Add($"visibility={Uri.EscapeDataString(visibility)}");
+            var path = $"/api/projects/{projectId}/photo-albums" + (qs.Count > 0 ? "?" + string.Join("&", qs) : "");
+            var resp = await GetAsync(path);
+            if (!resp.ok) { LastError = $"ListPhotoAlbums: HTTP {resp.status}"; return empty; }
+            return JsonConvert.DeserializeObject<List<PhotoAlbumDto>>(resp.body) ?? empty;
+        }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"ListPhotoAlbumsAsync: {ex.Message}"); return empty; }
+    }
+
+    public async Task<PhotoAlbumDetailDto?> GetPhotoAlbumAsync(Guid projectId, Guid albumId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await GetAsync($"/api/projects/{projectId}/photo-albums/{albumId}");
+            if (!resp.ok) { LastError = $"GetPhotoAlbum: HTTP {resp.status}"; return null; }
+            return JsonConvert.DeserializeObject<PhotoAlbumDetailDto>(resp.body);
+        }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"GetPhotoAlbumAsync: {ex.Message}"); return null; }
+    }
+
+    public async Task<PhotoAlbumDto?> CreatePhotoAlbumAsync(
+        Guid projectId, string name, string? description = null,
+        string visibility = "Members", Guid? distributionGroupId = null,
+        string? kind = null, int? autoArchiveAfterDays = null)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/photo-albums", new {
+                name, description, visibility,
+                distributionGroupId, kind, autoArchiveAfterDays
+            });
+            if (!resp.ok) { LastError = $"CreatePhotoAlbum: HTTP {resp.status} {resp.body}"; return null; }
+            return JsonConvert.DeserializeObject<PhotoAlbumDto>(resp.body);
+        }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"CreatePhotoAlbumAsync: {ex.Message}"); return null; }
+    }
+
+    public async Task<bool> AddPhotosToAlbumAsync(Guid projectId, Guid albumId, IEnumerable<Guid> photoIds)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var ids = photoIds?.Select(g => g.ToString()).ToList() ?? new List<string>();
+            if (ids.Count == 0) return true;
+            var resp = await PostJsonAsync(
+                $"/api/projects/{projectId}/photo-albums/{albumId}/photos", new { photoIds = ids });
+            if (!resp.ok) LastError = $"AddPhotosToAlbum: HTTP {resp.status} {resp.body}";
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"AddPhotosToAlbumAsync: {ex.Message}"); return false; }
+    }
+
+    public async Task<bool> RemovePhotoFromAlbumAsync(Guid projectId, Guid albumId, Guid photoId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var http = SnapshotHttpClient();
+            if (http == null) return false;
+            var resp = await http.DeleteAsync(
+                $"/api/projects/{projectId}/photo-albums/{albumId}/photos/{photoId}").ConfigureAwait(false);
+            if (!resp.IsSuccessStatusCode) LastError = $"RemovePhotoFromAlbum: HTTP {(int)resp.StatusCode}";
+            TouchActivity();
+            return resp.IsSuccessStatusCode;
+        }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"RemovePhotoFromAlbumAsync: {ex.Message}"); return false; }
+    }
+
+    public async Task<bool> LockPhotoAlbumAsync(Guid projectId, Guid albumId, bool locked)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var path = locked ? "lock" : "unlock";
+            var resp = await PostJsonAsync(
+                $"/api/projects/{projectId}/photo-albums/{albumId}/{path}", new { });
+            if (!resp.ok) LastError = $"LockPhotoAlbum: HTTP {resp.status}";
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"LockPhotoAlbumAsync: {ex.Message}"); return false; }
+    }
+
+    // ── Distribution groups ─────────────────────────────────────────────────────
+
+    public async Task<List<DistributionGroupDto>> ListDistributionGroupsAsync(Guid projectId)
+    {
+        var empty = new List<DistributionGroupDto>();
+        if (!await EnsureAuthenticatedAsync()) return empty;
+        try
+        {
+            var resp = await GetAsync($"/api/projects/{projectId}/distribution-groups");
+            if (!resp.ok) { LastError = $"ListDistributionGroups: HTTP {resp.status}"; return empty; }
+            return JsonConvert.DeserializeObject<List<DistributionGroupDto>>(resp.body) ?? empty;
+        }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"ListDistributionGroupsAsync: {ex.Message}"); return empty; }
+    }
+
+    public async Task<DistributionGroupDto?> CreateDistributionGroupAsync(
+        Guid projectId, string name, string? description = null, string kind = "Internal",
+        bool? includeInDailyDigest = null, bool? forceRedacted = null)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/distribution-groups", new {
+                name, description, kind, includeInDailyDigest, forceRedacted
+            });
+            if (!resp.ok) { LastError = $"CreateDistributionGroup: HTTP {resp.status} {resp.body}"; return null; }
+            return JsonConvert.DeserializeObject<DistributionGroupDto>(resp.body);
+        }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"CreateDistributionGroupAsync: {ex.Message}"); return null; }
+    }
+
+    // ── Checklists ──────────────────────────────────────────────────────────────
+
+    public async Task<List<PhotoChecklistDto>> ListPhotoChecklistsAsync(
+        Guid projectId, string? status = null)
+    {
+        var empty = new List<PhotoChecklistDto>();
+        if (!await EnsureAuthenticatedAsync()) return empty;
+        try
+        {
+            var path = $"/api/projects/{projectId}/photo-checklists" +
+                       (string.IsNullOrEmpty(status) ? "" : $"?status={Uri.EscapeDataString(status!)}");
+            var resp = await GetAsync(path);
+            if (!resp.ok) { LastError = $"ListPhotoChecklists: HTTP {resp.status}"; return empty; }
+            return JsonConvert.DeserializeObject<List<PhotoChecklistDto>>(resp.body) ?? empty;
+        }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"ListPhotoChecklistsAsync: {ex.Message}"); return empty; }
+    }
+
+    // ── Annotations ─────────────────────────────────────────────────────────────
+
+    public async Task<bool> AddPhotoAnnotationAsync(Guid projectId, Guid photoId, string shapesJson, string? summary)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync(
+                $"/api/projects/{projectId}/photos/{photoId}/annotations", new { shapesJson, summary });
+            if (!resp.ok) LastError = $"AddPhotoAnnotation: HTTP {resp.status} {resp.body}";
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"AddPhotoAnnotationAsync: {ex.Message}"); return false; }
+    }
+
+    // ── Bulk admin actions ──────────────────────────────────────────────────────
+
+    public async Task<int> BulkReclassifyPhotosAsync(
+        Guid projectId, IEnumerable<Guid> photoIds, string toReason)
+    {
+        if (!await EnsureAuthenticatedAsync()) return 0;
+        try
+        {
+            var ids = photoIds?.Select(g => g.ToString()).ToList() ?? new List<string>();
+            if (ids.Count == 0) return 0;
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/photos/bulk-reclassify",
+                new { photoIds = ids, toReason });
+            if (!resp.ok) { LastError = $"BulkReclassify: HTTP {resp.status} {resp.body}"; return 0; }
+            var json = JObject.Parse(resp.body);
+            return json["updated"]?.Value<int?>() ?? 0;
+        }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"BulkReclassifyPhotosAsync: {ex.Message}"); return 0; }
+    }
+
+    public async Task<int> BulkReanchorPhotosAsync(
+        Guid projectId, IEnumerable<Guid> photoIds,
+        string? levelCode = null, string? zoneCode = null, Guid? workPackageId = null)
+    {
+        if (!await EnsureAuthenticatedAsync()) return 0;
+        try
+        {
+            var ids = photoIds?.Select(g => g.ToString()).ToList() ?? new List<string>();
+            if (ids.Count == 0) return 0;
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/photos/bulk-reanchor",
+                new { photoIds = ids, levelCode, zoneCode, workPackageId });
+            if (!resp.ok) { LastError = $"BulkReanchor: HTTP {resp.status} {resp.body}"; return 0; }
+            var json = JObject.Parse(resp.body);
+            return json["updated"]?.Value<int?>() ?? 0;
+        }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"BulkReanchorPhotosAsync: {ex.Message}"); return 0; }
+    }
+
+    // ── Share links ─────────────────────────────────────────────────────────────
+
+    public async Task<PhotoShareLinkDto?> CreatePhotoShareLinkAsync(
+        Guid projectId, Guid? photoId = null, Guid? albumId = null,
+        string? label = null, DateTime? expiresAt = null,
+        bool? forceRedacted = null, int? maxFetches = null)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/photo-share-links", new {
+                photoId, albumId, label,
+                expiresAt = expiresAt?.ToString("o"),
+                forceRedacted, maxFetches,
+            });
+            if (!resp.ok) { LastError = $"CreatePhotoShareLink: HTTP {resp.status} {resp.body}"; return null; }
+            return JsonConvert.DeserializeObject<PhotoShareLinkDto>(resp.body);
+        }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"CreatePhotoShareLinkAsync: {ex.Message}"); return null; }
+    }
+
+    // ── Bulk export (ZIP bundle) ────────────────────────────────────────────────
+
+    /// <summary>
+    /// Stream a ZIP export of selected photos (or an entire album) to disk.
+    /// Returns the saved path on success or null on failure.
+    /// </summary>
+    public async Task<string?> ExportPhotosAsync(
+        Guid projectId, string outputPath,
+        IEnumerable<Guid>? photoIds = null, Guid? albumId = null,
+        bool includeOriginals = true, bool includeRedacted = false,
+        bool includeAnnotations = true, bool includeHtmlIndex = true)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var ids = photoIds?.Select(g => g.ToString()).ToList();
+            var resp = await PostJsonRawAsync($"/api/projects/{projectId}/photo-export", new {
+                photoIds = ids, albumId,
+                includeOriginals, includeRedacted, includeAnnotations, includeHtmlIndex
+            });
+            if (resp == null || !resp.IsSuccessStatusCode)
+            {
+                LastError = $"ExportPhotos: HTTP {(int?)resp?.StatusCode}";
+                return null;
+            }
+            await using var fs = System.IO.File.Create(outputPath);
+            await resp.Content.CopyToAsync(fs);
+            return outputPath;
+        }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"ExportPhotosAsync: {ex.Message}"); return null; }
+    }
+
+    /// <summary>POST returning the raw HttpResponseMessage so the caller can
+    /// stream binary content. Mirrors PostJsonAsync's auth handling.</summary>
+    private async Task<System.Net.Http.HttpResponseMessage?> PostJsonRawAsync(string path, object body)
+    {
+        var http = SnapshotHttpClient();
+        if (http == null) return null;
+        var json = JsonConvert.SerializeObject(body);
+        var content = new System.Net.Http.StringContent(json,
+            System.Text.Encoding.UTF8, "application/json");
+        var resp = await http.PostAsync(path, content).ConfigureAwait(false);
+        TouchActivity();
+        return resp;
+    }
+
     // ────────────────────────────────────────────────────────────────────────────
     //  Private helpers
     // ────────────────────────────────────────────────────────────────────────────
@@ -1726,4 +1993,92 @@ public sealed class DigestPreviewDto
     [JsonProperty("recipients")]  public List<string> Recipients { get; set; } = new();
     [JsonProperty("subject")]     public string?  Subject       { get; set; }
     [JsonProperty("preview")]     public string?  Preview       { get; set; }
+}
+
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  Phase 179 — site-photo workflow enhancement DTOs.
+//
+//  Each DTO mirrors the server response shape one-for-one. Names follow the
+//  camelCase JSON contract; nullable fields stay nullable so the BCC can
+//  render "—" / "(none)" placeholders instead of papering over missing data.
+// ──────────────────────────────────────────────────────────────────────────────
+
+public sealed class PhotoAlbumDto
+{
+    [JsonProperty("id")]                  public Guid     Id                  { get; set; }
+    [JsonProperty("projectId")]           public Guid     ProjectId           { get; set; }
+    [JsonProperty("name")]                public string   Name                { get; set; } = "";
+    [JsonProperty("description")]         public string?  Description         { get; set; }
+    [JsonProperty("visibility")]          public string   Visibility          { get; set; } = "Members";
+    [JsonProperty("kind")]                public string?  Kind                { get; set; }
+    [JsonProperty("distributionGroupId")] public Guid?    DistributionGroupId { get; set; }
+    [JsonProperty("distributionGroupName")] public string? DistributionGroupName { get; set; }
+    [JsonProperty("coverPhotoId")]        public Guid?    CoverPhotoId        { get; set; }
+    [JsonProperty("isLocked")]            public bool     IsLocked            { get; set; }
+    [JsonProperty("lockedAt")]            public DateTime? LockedAt           { get; set; }
+    [JsonProperty("autoArchiveAfterDays")] public int?    AutoArchiveAfterDays { get; set; }
+    [JsonProperty("createdAt")]           public DateTime CreatedAt           { get; set; }
+    [JsonProperty("createdByUserId")]     public Guid?    CreatedByUserId     { get; set; }
+    [JsonProperty("photoCount")]          public int      PhotoCount          { get; set; }
+}
+
+public sealed class PhotoAlbumDetailDto
+{
+    [JsonProperty("album")]  public PhotoAlbumDto?               Album  { get; set; }
+    [JsonProperty("photos")] public List<PhotoAlbumPhotoEntry>   Photos { get; set; } = new();
+}
+
+public sealed class PhotoAlbumPhotoEntry
+{
+    [JsonProperty("photoId")]   public Guid     PhotoId   { get; set; }
+    [JsonProperty("sortOrder")] public int      SortOrder { get; set; }
+    [JsonProperty("addedAt")]   public DateTime AddedAt   { get; set; }
+}
+
+public sealed class DistributionGroupDto
+{
+    [JsonProperty("id")]                   public Guid    Id          { get; set; }
+    [JsonProperty("projectId")]            public Guid    ProjectId   { get; set; }
+    [JsonProperty("name")]                 public string  Name        { get; set; } = "";
+    [JsonProperty("description")]          public string? Description { get; set; }
+    [JsonProperty("kind")]                 public string  Kind        { get; set; } = "Internal";
+    [JsonProperty("includeInDailyDigest")] public bool    IncludeInDailyDigest { get; set; }
+    [JsonProperty("forceRedacted")]        public bool    ForceRedacted        { get; set; }
+    [JsonProperty("memberCount")]          public int     MemberCount { get; set; }
+    [JsonProperty("createdAt")]            public DateTime CreatedAt  { get; set; }
+}
+
+public sealed class PhotoChecklistDto
+{
+    [JsonProperty("id")]              public Guid     Id              { get; set; }
+    [JsonProperty("projectId")]       public Guid     ProjectId       { get; set; }
+    [JsonProperty("name")]            public string   Name            { get; set; } = "";
+    [JsonProperty("description")]     public string?  Description     { get; set; }
+    [JsonProperty("kind")]            public string?  Kind            { get; set; }
+    [JsonProperty("status")]          public string   Status          { get; set; } = "Draft";
+    [JsonProperty("levelCode")]       public string?  LevelCode       { get; set; }
+    [JsonProperty("zoneCode")]        public string?  ZoneCode        { get; set; }
+    [JsonProperty("workPackageId")]   public Guid?    WorkPackageId   { get; set; }
+    [JsonProperty("dueAt")]           public DateTime? DueAt          { get; set; }
+    [JsonProperty("createdAt")]       public DateTime CreatedAt       { get; set; }
+    [JsonProperty("closedAt")]        public DateTime? ClosedAt       { get; set; }
+    [JsonProperty("total")]           public int      Total           { get; set; }
+    [JsonProperty("done")]            public int      Done            { get; set; }
+}
+
+public sealed class PhotoShareLinkDto
+{
+    [JsonProperty("id")]            public Guid     Id          { get; set; }
+    [JsonProperty("projectId")]     public Guid     ProjectId   { get; set; }
+    [JsonProperty("photoId")]       public Guid?    PhotoId     { get; set; }
+    [JsonProperty("albumId")]       public Guid?    AlbumId     { get; set; }
+    [JsonProperty("token")]         public string   Token       { get; set; } = "";
+    [JsonProperty("label")]         public string?  Label       { get; set; }
+    [JsonProperty("expiresAt")]     public DateTime? ExpiresAt  { get; set; }
+    [JsonProperty("forceRedacted")] public bool     ForceRedacted { get; set; }
+    [JsonProperty("maxFetches")]    public int?     MaxFetches  { get; set; }
+    [JsonProperty("fetchCount")]    public int      FetchCount  { get; set; }
+    [JsonProperty("createdAt")]     public DateTime CreatedAt   { get; set; }
+    [JsonProperty("revokedAt")]     public DateTime? RevokedAt  { get; set; }
 }
