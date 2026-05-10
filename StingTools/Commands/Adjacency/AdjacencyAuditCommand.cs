@@ -22,9 +22,19 @@ namespace StingTools.Commands.Adjacency
                 var sb = new StringBuilder();
                 sb.AppendLine("STING — Adjacency + Clean/Dirty Flow Audit").AppendLine();
 
-                // Adjacency targets.
-                var adjFindings = new AdjacencyValidator().Validate(doc);
-                sb.AppendLine($"HBN adjacency findings: {adjFindings.Count}");
+                // Adjacency targets. Distance threshold derives from the
+                // Hc.AdjacencyDepth combo (1..4) as a stand-in for proper
+                // door-graph BFS depth (Phase H-10): depth × 10 m.
+                int depth = HcOptions.AdjacencyDepth;
+                if (depth < 1) depth = 1;
+                double distM = depth * 10.0;
+                var adj = new AdjacencyValidator
+                {
+                    MaxMandatoryDistanceM = distM,
+                    MinForbiddenDistanceM = distM,
+                };
+                var adjFindings = adj.Validate(doc);
+                sb.AppendLine($"HBN adjacency findings (depth proxy {distM:F0} m): {adjFindings.Count}");
                 foreach (var f in adjFindings)
                     sb.AppendLine($"  [{f.Severity,-7}] {f.Code} {f.Message}");
                 sb.AppendLine();

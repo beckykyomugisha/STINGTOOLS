@@ -14,9 +14,11 @@ namespace StingTools.Core.Validation.Healthcare
         private const string Tag = "AdjacencyValidator";
 
         // Threshold (m) under which two rooms are considered "directly accessible".
-        private const double MaxMandatoryDistanceM = 30.0;
+        // Hc.AdjacencyDepth (1..4) maps to ×10 m here as a stand-in until door-graph
+        // BFS lands in Phase H-10. Wrapping command sets these from HcOptions.
+        public double MaxMandatoryDistanceM { get; set; } = 30.0;
         // Threshold (m) over which forbidden adjacency is satisfied.
-        private const double MinForbiddenDistanceM = 30.0;
+        public double MinForbiddenDistanceM { get; set; } = 30.0;
 
         public override List<ValidationResult> Validate(Document doc)
         {

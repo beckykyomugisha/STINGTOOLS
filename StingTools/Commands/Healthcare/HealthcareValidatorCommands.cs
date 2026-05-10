@@ -44,11 +44,58 @@ namespace StingTools.Commands.Healthcare
             }
             StingLog.Info(sb.ToString());
 
-            // Inline result strip on the dock panel takes precedence over a
-            // TaskDialog popup when the panel is open. Falls back gracefully
-            // if the panel isn't realised (e.g. command run from ribbon).
-            bool pushed = StingTools.UI.StingDockPanel.PushHcResult(title, total, err, wrn, inf);
-            if (!pushed)
+            // Compact 1-line strip — always-visible at-a-glance summary.
+            bool stripPushed = StingTools.UI.StingDockPanel.PushHcResult(title, total, err, wrn, inf);
+
+            // Rich inline panel — sections + metrics + RAG bar + findings table,
+            // hosted in the bottom-bar Expander. Auto-expands on push so the
+            // user sees details without leaving the dock.
+            try
+            {
+                double pct = total > 0
+                    ? Math.Round(100.0 * Math.Max(0.0, total - err - 0.5 * wrn) / total, 1)
+                    : 100.0;
+
+                var rb = StingTools.UI.StingResultPanel.Create(title)
+                    .SetSubtitle(total == 0
+                            ? "OK — no findings"
+                            : $"errors {err} · warnings {wrn} · info {inf} · total {total}")
+                    .SetOverallPct(pct)
+                    .AddSection("Summary")
+                    .Metric("Total findings", total.ToString());
+                if (err > 0) rb.MetricError("Errors",   err.ToString());
+                else         rb.Metric("Errors", err.ToString());
+                if (wrn > 0) rb.MetricWarn ("Warnings", wrn.ToString());
+                else         rb.Metric("Warnings", wrn.ToString());
+                rb.Metric("Info", inf.ToString());
+
+                if (total > 0)
+                {
+                    var rows = findings
+                        .OrderByDescending(f => (int)f.Severity)
+                        .Take(50)
+                        .Select(f => new[] {
+                            f.Severity.ToString(),
+                            f.Code ?? "",
+                            f.Message ?? ""
+                        })
+                        .ToList();
+                    rb.AddSection(total > 50 ? "Findings (top 50)" : "Findings")
+                      .Table(new[] { "Severity", "Code", "Message" }, rows);
+                    if (total > 50)
+                        rb.Info($"+{total - 50} more findings written to StingTools.log");
+                }
+                StingTools.UI.StingDockPanel.PushHcResultPanel(rb);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Healthcare inline panel push: {ex.Message}");
+            }
+
+            // TaskDialog only fires when the dock panel is not open at all
+            // (command run from ribbon / headless). Otherwise the inline
+            // strip + rich panel cover both at-a-glance and detailed views.
+            if (!stripPushed)
                 TaskDialog.Show($"STING — {title}", sb.ToString());
             return Result.Succeeded;
         }
@@ -81,8 +128,17 @@ namespace StingTools.Commands.Healthcare
     public class HealthcarePressureAuditCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cd, ref string m, ElementSet e) {
-            try { return HealthcareValidatorReporter.Report("Healthcare — Pressure Regime",
-                new PressureRegimeValidator().Validate(cd.Application.ActiveUIDocument.Document)); }
+            try {
+                var v = new PressureRegimeValidator
+                {
+                    DpMinFloorPa   = HcOptions.DpMinPa,
+                    AchMinFloor    = HcOptions.AchMin,
+                    AnteroomStrict = HcOptions.AnteroomStrict,
+                };
+                return HealthcareValidatorReporter.Report(
+                    $"Healthcare — Pressure Regime (ΔP≥{v.DpMinFloorPa:F1} · ACH≥{v.AchMinFloor:F0} · ant {(v.AnteroomStrict ? "strict" : "soft")})",
+                    v.Validate(cd.Application.ActiveUIDocument.Document));
+            }
             catch (Exception ex) { StingLog.Error("Healthcare_PressureAudit failed", ex); m = ex.Message; return Result.Failed; }
         }
     }
@@ -91,8 +147,12 @@ namespace StingTools.Commands.Healthcare
     public class HealthcareWaterSafetyCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cd, ref string m, ElementSet e) {
-            try { return HealthcareValidatorReporter.Report("Healthcare — Water Safety (HTM 04-01)",
-                new WaterSafetyValidator().Validate(cd.Application.ActiveUIDocument.Document)); }
+            try {
+                var v = new WaterSafetyValidator { DeadLegMaxM = HcOptions.DeadLegMaxM };
+                return HealthcareValidatorReporter.Report(
+                    $"Healthcare — Water Safety (HTM 04-01, dead-leg ≤ {v.DeadLegMaxM:F1} m)",
+                    v.Validate(cd.Application.ActiveUIDocument.Document));
+            }
             catch (Exception ex) { StingLog.Error("Healthcare_WaterSafety failed", ex); m = ex.Message; return Result.Failed; }
         }
     }
@@ -111,8 +171,12 @@ namespace StingTools.Commands.Healthcare
     public class HealthcareRadShieldAuditCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cd, ref string m, ElementSet e) {
-            try { return HealthcareValidatorReporter.Report("Healthcare — Radiation Shielding",
-                new RadShieldValidator().Validate(cd.Application.ActiveUIDocument.Document)); }
+            try {
+                var v = new RadShieldValidator { RequireQeSignoff = HcOptions.RadRequireQe };
+                return HealthcareValidatorReporter.Report(
+                    $"Healthcare — Radiation Shielding (QE {(v.RequireQeSignoff ? "required" : "deferred")})",
+                    v.Validate(cd.Application.ActiveUIDocument.Document));
+            }
             catch (Exception ex) { StingLog.Error("Healthcare_RadShield failed", ex); m = ex.Message; return Result.Failed; }
         }
     }
@@ -184,8 +248,12 @@ namespace StingTools.Commands.Healthcare
     public class HealthcareEndoscopeTraceCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cd, ref string m, ElementSet e) {
-            try { return HealthcareValidatorReporter.Report("Healthcare — Endoscope Trace (HTM 01-06)",
-                new EndoscopeTraceValidator().Validate(cd.Application.ActiveUIDocument.Document)); }
+            try {
+                var v = new EndoscopeTraceValidator { MinReaders = HcOptions.EndoMinReaders };
+                return HealthcareValidatorReporter.Report(
+                    $"Healthcare — Endoscope Trace (HTM 01-06, ≥{v.MinReaders} readers)",
+                    v.Validate(cd.Application.ActiveUIDocument.Document));
+            }
             catch (Exception ex) { StingLog.Error("Healthcare_EndoscopeTrace failed", ex); m = ex.Message; return Result.Failed; }
         }
     }
@@ -194,8 +262,12 @@ namespace StingTools.Commands.Healthcare
     public class HealthcareEesResilienceCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cd, ref string m, ElementSet e) {
-            try { return HealthcareValidatorReporter.Report("Healthcare — EES Resilience (NFPA 110)",
-                new EesResilienceValidator().Validate(cd.Application.ActiveUIDocument.Document)); }
+            try {
+                var v = new EesResilienceValidator { UpsMaxAgeYrs = HcOptions.UpsMaxAgeYrs };
+                return HealthcareValidatorReporter.Report(
+                    $"Healthcare — EES Resilience (NFPA 110, UPS ≤ {v.UpsMaxAgeYrs} yrs)",
+                    v.Validate(cd.Application.ActiveUIDocument.Document));
+            }
             catch (Exception ex) { StingLog.Error("Healthcare_EesResilience failed", ex); m = ex.Message; return Result.Failed; }
         }
     }

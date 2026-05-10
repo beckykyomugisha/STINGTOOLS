@@ -328,6 +328,48 @@ namespace StingTools.UI
             }
         }
 
+        // ── Rich inline result panel ───────────────────────────────────
+        //
+        // Hosts a full StingResultPanel content tree (sections / metrics /
+        // tables / RAG bars) inside the Expander on the sticky bottom bar.
+        // Caller builds a StingResultPanel.Builder, this method swaps it in
+        // and auto-expands. Returns false when the panel is not realised
+        // (caller should fall back to TaskDialog or just to PushHcResult
+        // for the 1-line summary).
+        public static bool PushHcResultPanel(StingResultPanel.Builder b)
+        {
+            var inst = LastInstance;
+            if (inst == null || b == null) return false;
+
+            void Apply()
+            {
+                try
+                {
+                    var element = StingResultPanel.BuildInlineContent(b);
+                    if (inst.hostHcResultPanel != null)
+                        inst.hostHcResultPanel.Content = element;
+                    if (inst.expHcResultDetails != null)
+                        inst.expHcResultDetails.IsExpanded = true;
+                }
+                catch (Exception ex)
+                {
+                    Core.StingLog.Warn($"PushHcResultPanel Apply: {ex.Message}");
+                }
+            }
+
+            try
+            {
+                if (inst.Dispatcher.CheckAccess()) Apply();
+                else inst.Dispatcher.BeginInvoke(DispatcherPriority.Normal, new Action(Apply));
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Core.StingLog.Warn($"PushHcResultPanel dispatch: {ex.Message}");
+                return false;
+            }
+        }
+
         // ── Helpers ────────────────────────────────────────────────────
         private static string BoolStr(bool? v) => (v == true) ? "1" : "0";
 

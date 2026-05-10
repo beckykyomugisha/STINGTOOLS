@@ -5055,6 +5055,13 @@
                             </WrapPanel>
                             <TextBlock x:Name="lblHcLastRun" FontSize="9" Foreground="#666" Margin="2,4,2,2" Text="No run yet."/>
                             <ProgressBar x:Name="prgHcRag" Height="4" Minimum="0" Maximum="100" Value="0"/>
+                            <!-- Rich inline result host. Auto-expands when a command pushes
+                                 a Builder via StingDockPanel.PushHcResultPanel. Caps the
+                                 panel height at 380 px so the dock stays compact. -->
+                            <Expander x:Name="expHcResultDetails" Header="Details" FontSize="9"
+                                      Margin="0,4,0,0" IsExpanded="False">
+                                <ContentControl x:Name="hostHcResultPanel"/>
+                            </Expander>
                         </StackPanel>
                     </Border>
 
