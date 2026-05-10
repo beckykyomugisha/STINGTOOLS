@@ -29,11 +29,28 @@ existing `SitePhotos` table is untouched throughout.
 2. The EF model snapshot file is not regenerated — first deploy must
    run `dotnet ef migrations add` to refresh
    `PlanscapeDbContextModelSnapshot.cs`. See deploy runbook.
-3. `PhotoPolicy.EnforceChecklistOnShiftEnd` exposed but not yet
-   enforced (no shift-end concept exists in the plugin); flagged for a
-   future slice.
-4. Bulk-import upload is sequential, not parallel — most phones throttle
+3. Bulk-import upload is sequential, not parallel — most phones throttle
    concurrent multipart so this is intentional, not a perf bug.
+
+**Phase 180.H — `EnforceChecklistOnShiftEnd` wired (warn-only)**
+
+Treats `SiteDiary` submission as the shift-end signal. When the
+project's `PhotoPolicy.EnforceChecklistOnShiftEnd` is true and any
+`PhotoChecklist.Status="Active"` carries an unfulfilled, unwaived,
+required item, the submit endpoint:
+
+- Still succeeds (non-blocking by design).
+- Returns a `shiftEndWarnings` array on the response listing the
+  pending checklists + items so the mobile/desktop submit UI can
+  render a banner.
+- Pings the diary author via `INotificationService` ("Diary submitted
+  with open photo items — N items remain open").
+- Writes a `SHIFT_END_WARNING` row to the audit log.
+
+The choice between blocking / warning was deliberate — see the review
+trade-off discussion. Switching to blocking is a one-line change in
+the controller (return `UnprocessableEntity(...)` instead of `Ok`)
+when the team's UX preference flips.
 
 #### Completed (Phase 179 — Site-photo workflow enhancements)
 

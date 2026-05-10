@@ -194,6 +194,57 @@ public class SiteDiariesController : ControllerBase
         await _db.SaveChangesAsync();
         await _audit.LogAsync("SUBMIT", "SiteDiary", diary.Id.ToString());
 
+        // Phase 180 — warn-only checklist gate. When the project's
+        // PhotoPolicy.EnforceChecklistOnShiftEnd is true and active
+        // checklists have unfulfilled required items, we still let
+        // the submit succeed (per design choice — non-blocking) but
+        // surface a warning array in the response and notify the
+        // diary author so the items don't slip silently.
+        var policy = await _db.PhotoPolicies.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.ProjectId == projectId);
+        var pendingChecklists = new List<object>();
+        if (policy?.EnforceChecklistOnShiftEnd == true)
+        {
+            var pendingRows = await (
+                from c in _db.PhotoChecklists.AsNoTracking()
+                where c.ProjectId == projectId && c.Status == "Active"
+                join i in _db.PhotoChecklistItems.AsNoTracking() on c.Id equals i.ChecklistId
+                where i.IsRequired && !i.IsWaived && i.FulfilledByPhotoId == null
+                select new { c.Id, c.Name, ItemId = i.Id, ItemTitle = i.Title })
+                .ToListAsync();
+            if (pendingRows.Count > 0)
+            {
+                pendingChecklists = pendingRows
+                    .GroupBy(r => new { r.Id, r.Name })
+                    .Select(g => (object)new {
+                        checklistId   = g.Key.Id,
+                        checklistName = g.Key.Name,
+                        pendingItems  = g.Select(x => new { x.ItemId, x.ItemTitle }).ToList(),
+                    })
+                    .ToList();
+                // Best-effort author push — don't fail the submit when
+                // the notification stack is down.
+                if (diary.AuthorUserId.HasValue)
+                {
+                    try
+                    {
+                        await _notifications.NotifyUserAsync(diary.AuthorUserId.Value,
+                            title: "Diary submitted with open photo items",
+                            message: $"{pendingRows.Count} required photo-checklist item(s) " +
+                                     "remain open after today's diary. Capture or waive each before close-out.",
+                            data: new { projectId, diaryId, pending = pendingRows.Count },
+                            ct: default);
+                    }
+                    catch { /* swallow */ }
+                }
+                await _audit.LogAsync("SHIFT_END_WARNING", "SiteDiary", diary.Id.ToString(),
+                    System.Text.Json.JsonSerializer.Serialize(new {
+                        pendingCount = pendingRows.Count,
+                        checklists   = pendingChecklists,
+                    }));
+            }
+        }
+
         // Project-scoped push so the team sees the day's report without polling.
         _ = _notifications.NotifyProjectAsync(projectId, "site_diary",
             $"Site diary submitted — {diary.DiaryDate:yyyy-MM-dd}",
@@ -253,7 +304,13 @@ public class SiteDiariesController : ControllerBase
             }
         }
 
-        return Ok(new { diary.Id, diary.Status, diary.SubmittedAt, diary.AutoCreatedIssueId });
+        return Ok(new {
+            diary.Id, diary.Status, diary.SubmittedAt, diary.AutoCreatedIssueId,
+            // Phase 180 — empty array when policy off or no pending items;
+            // the mobile/desktop submit screens render a banner only when
+            // the array has entries.
+            shiftEndWarnings = pendingChecklists,
+        });
     }
 
     /// <summary>
