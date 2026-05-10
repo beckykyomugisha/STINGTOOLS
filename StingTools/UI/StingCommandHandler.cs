@@ -183,6 +183,10 @@ namespace StingTools.UI
                     case "Routing_GenerateLayout":   RunCommand<Commands.Routing.GenerateLayoutCommand>(app); break;
                     case "Routing_ValidateFills":    RunCommand<Commands.Routing.ValidateFillsCommand>(app); break;
 
+                    // ── Phase 178d: penetration sweep (slab + wall + beam) ──
+                    case "Penetrations_DetectAndPlace": RunCommand<Commands.Routing.PenetrationsDetectAndPlaceCommand>(app); break;
+                    case "Validation_PenetrationCoverage": RunCommand<Commands.Validation.PenetrationCoverageCommand>(app); break;
+
                     // ── v4 MVP: validators (Phase 4) ──
                     case "Validation_RunAll":        RunCommand<Commands.Validation.RunAllValidatorsCommand>(app); break;
 

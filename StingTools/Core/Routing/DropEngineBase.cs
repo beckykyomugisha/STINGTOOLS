@@ -424,6 +424,177 @@ namespace StingTools.Core.Routing
         protected virtual bool SupportsTakeoff => true;
 
         /// <summary>
+        /// Phase 178e — when true, the engine drops one MEPCurve per
+        /// free connector on the fixture, not just the first one.
+        /// Required for plumbing (a basin needs cold + hot + waste) and
+        /// for medical-gas terminal units (O2 + N2O + Air + Vac on a
+        /// single back-plate). Off by default to keep existing
+        /// behaviour stable — opt in per discipline by setting
+        /// <c>MultiServiceMode = true</c> in the engine constructor.
+        /// </summary>
+        public bool MultiServiceMode { get; set; } = false;
+
+        /// <summary>
+        /// Subclass hook: derive a per-connector ServiceId so the
+        /// corridor-band snap + separation checker get the right
+        /// service-corridor key for each drop in multi-service mode.
+        /// Default returns the engine-wide ServiceId — engines that
+        /// want per-system corridor lookup (AutoPipeDrop) override it.
+        /// </summary>
+        protected virtual string ServiceIdForConnector(Connector c) => ServiceId;
+
+        /// <summary>
+        /// Multi-service variant of TryDropFromFixture. Loops every
+        /// free connector on the fixture matching the engine's domain
+        /// and creates one drop per connector. Each drop uses the
+        /// ServiceId returned by <see cref="ServiceIdForConnector"/> so
+        /// hot / cold / soil pipes claim distinct corridor bands.
+        /// </summary>
+        protected int TryDropFromFixtureAllConnectors(Element fixtureEl, BuiltInCategory containmentCat,
+            double maxSearchMm, DropResult result)
+        {
+            if (fixtureEl == null) { result.SkippedCount++; return 0; }
+            int dropped = 0;
+            foreach (var fxConn in EnumerateFreeConnectorsForDomain(fixtureEl))
+            {
+                string savedServiceId = ServiceId;
+                try
+                {
+                    ServiceId = ServiceIdForConnector(fxConn) ?? savedServiceId;
+                    if (TryDropFromFixtureUsingConnector(fixtureEl, fxConn, containmentCat, maxSearchMm, result))
+                        dropped++;
+                }
+                catch (Exception ex)
+                {
+                    result.Warnings.Add($"Multi-service drop {fixtureEl.Id} (conn {fxConn?.Id}): {ex.Message}");
+                }
+                finally { ServiceId = savedServiceId; }
+            }
+            if (dropped == 0) result.SkippedCount++;
+            return dropped;
+        }
+
+        private IEnumerable<Connector> EnumerateFreeConnectorsForDomain(Element el)
+        {
+            var list = new List<Connector>();
+            foreach (var c in GetAllConnectors(el))
+            {
+                bool connected;
+                try { connected = c.IsConnected; } catch { continue; }
+                if (connected) continue;
+                if (ConnectorDomain == Domain.DomainUndefined) { list.Add(c); continue; }
+                Domain d;
+                try { d = c.Domain; } catch { d = Domain.DomainUndefined; }
+                if (d == ConnectorDomain) list.Add(c);
+            }
+            // Stable order: by connector id so re-runs produce the same
+            // sequence of drops (matters for SEQ-based naming downstream).
+            list.Sort((a, b) =>
+            {
+                try { return a.Id.CompareTo(b.Id); } catch { return 0; }
+            });
+            return list;
+        }
+
+        /// <summary>
+        /// Single-connector variant of the drop pipeline used by
+        /// multi-service mode. Behaves identically to <see cref="TryDropFromFixture"/>
+        /// from Stage 2 onward; only Stage 1 differs (caller supplies
+        /// the connector instead of letting the engine pick).
+        /// </summary>
+        protected bool TryDropFromFixtureUsingConnector(Element fixtureEl, Connector fxConn,
+            BuiltInCategory containmentCat, double maxSearchMm, DropResult result)
+        {
+            if (fixtureEl == null || fxConn == null) return false;
+            XYZ origin;
+            try { origin = fxConn.Origin; } catch { origin = null; }
+            if (origin == null && fixtureEl.Location is LocationPoint lp && lp.Point != null)
+                origin = lp.Point;
+            if (origin == null) { result.SkippedCount++; return false; }
+
+            Element host = FindNearestContainment(origin, containmentCat, maxSearchMm);
+            if (host == null)
+            {
+                result.Warnings.Add($"No {containmentCat} found within {maxSearchMm}mm of fixture {fixtureEl.Id} (connector {fxConn.Id}, service {ServiceId})");
+                result.SkippedCount++;
+                return false;
+            }
+            XYZ to = ComputeInterceptPoint(origin, host);
+            to = MaybeSnapToCorridorBand(origin, to, result);
+            if (SnapToCeilingSoffit)
+            {
+                try { to = CeilingAwareSnapper.Snap(Doc, origin, to, CeilingSoffitBufferMm); }
+                catch (Exception ex) { result.Warnings.Add($"CeilingAwareSnapper: {ex.Message}"); }
+            }
+            if (EnforceSeparation && !string.IsNullOrEmpty(ServiceId))
+            {
+                try
+                {
+                    var violations = SeparationChecker.Check(Doc, origin, to, ServiceId);
+                    foreach (var v in violations) result.Warnings.Add($"Separation: {v}");
+                }
+                catch (Exception ex) { result.Warnings.Add($"SeparationChecker: {ex.Message}"); }
+            }
+
+            var pathPoints = ResolveRouteToHost(origin, to, host, result);
+            var createdIds = new List<ElementId>();
+            for (int i = 0; i < pathPoints.Count - 1; i++)
+            {
+                XYZ a = pathPoints[i];
+                XYZ b = pathPoints[i + 1];
+                Element segHost = (i == pathPoints.Count - 2) ? host : null;
+                ElementId segId = CreateRunBetween(a, b, segHost, result);
+                if (segId == null || segId == ElementId.InvalidElementId)
+                {
+                    foreach (var bad in createdIds)
+                    { try { Doc.Delete(bad); } catch (Exception ex) { StingLog.Warn($"Roll back {bad}: {ex.Message}"); } }
+                    createdIds.Clear();
+                    if (pathPoints.Count > 2)
+                    {
+                        result.Warnings.Add($"Pathfinder segment {i + 1}/{pathPoints.Count - 1} failed; falling back to plumb-line drop.");
+                        var fallback = CreateRunBetween(origin, to, host, result);
+                        if (fallback != null && fallback != ElementId.InvalidElementId) createdIds.Add(fallback);
+                    }
+                    break;
+                }
+                createdIds.Add(segId);
+            }
+            if (createdIds.Count == 0) { result.FailedCount++; return false; }
+            result.CreatedIds.AddRange(createdIds);
+
+            var firstCurve = Doc.GetElement(createdIds[0]) as MEPCurve;
+            var lastCurve  = Doc.GetElement(createdIds[createdIds.Count - 1]) as MEPCurve;
+            if (firstCurve != null)
+            {
+                var nearConn = GetConnectorNearestTo(firstCurve, origin);
+                if (nearConn != null) TryConnect(fxConn, nearConn, result);
+            }
+            for (int i = 0; i + 1 < createdIds.Count; i++)
+            {
+                var c1 = Doc.GetElement(createdIds[i])     as MEPCurve;
+                var c2 = Doc.GetElement(createdIds[i + 1]) as MEPCurve;
+                if (c1 == null || c2 == null) continue;
+                XYZ joint = pathPoints[i + 1];
+                var f1 = GetConnectorNearestTo(c1, joint);
+                var n2 = GetConnectorNearestTo(c2, joint);
+                if (f1 != null && n2 != null) TryConnect(f1, n2, result);
+            }
+            if (lastCurve != null)
+            {
+                var farConn = GetConnectorNearestTo(lastCurve, to);
+                if (SupportsTakeoff && host is MEPCurve hostCurve && farConn != null)
+                    TryCreateTakeoff(farConn, hostCurve, result);
+                else if (host is MEPCurve hostCurveAlt && farConn != null)
+                {
+                    var hostConn = GetConnectorNearestTo(hostCurveAlt, to);
+                    if (hostConn != null && farConn.Origin.DistanceTo(hostConn.Origin) < 2.0)
+                        TryConnect(farConn, hostConn, result);
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
         /// Shared per-element driver. Four stages:
         ///   1. Locate fixture connector (domain-filtered, free).
         ///   2. Find host containment; compute plumb-line intercept.

@@ -128,6 +128,43 @@ namespace StingTools.Commands.Routing
                 return Result.Failed;
             }
 
+            // Phase 178d — auto-stamp penetrations on every newly-routed
+            // segment (slab + wall + beam hosts). Mirrors the path
+            // ConduitAutoRouteCommand has had since the FRP wiring
+            // landed, but generalised so plumbing pipes and HVAC ducts
+            // also pick up firestop placement + structural review.
+            try
+            {
+                var routedIds = new List<ElementId>();
+                foreach (var dr in allResults)
+                    if (dr?.CreatedIds != null) routedIds.AddRange(dr.CreatedIds);
+                if (routedIds.Count > 0)
+                {
+                    using (var tx = new Transaction(doc, "STING Penetration Sweep"))
+                    {
+                        tx.Start();
+                        var slab = StingTools.Core.Routing.SlabPenetrationDetector.Detect(doc, routedIds);
+                        var wall = StingTools.Core.Routing.WallPenetrationDetector.Detect(doc, routedIds);
+                        var beam = StingTools.Core.Routing.BeamPenetrationDetector.Detect(doc, routedIds);
+                        var all = new List<StingTools.Core.Routing.PenetrationRecord>(slab.Count + wall.Count + beam.Count);
+                        all.AddRange(slab); all.AddRange(wall); all.AddRange(beam);
+                        var place = StingTools.Core.Routing.FrpPenetrationPlacer.Place(doc, all);
+                        tx.Commit();
+                        if (allResults.Count > 0)
+                        {
+                            allResults[0].Warnings.Add(
+                                $"Penetrations: slab={slab.Count} wall={wall.Count} beam={beam.Count} → " +
+                                $"placed={place.Placed} updated={place.Stamped} skipped={place.Skipped} errors={place.Errors}.");
+                            int sFail = beam.FindAll(b => b.StructuralFlag == "STRUCT_FAIL").Count;
+                            if (sFail > 0)
+                                allResults[0].Warnings.Add(
+                                    $"⚠ {sFail} beam penetration(s) violate AISC DG2 / BS EN 1992 — reroute before fabrication.");
+                        }
+                    }
+                }
+            }
+            catch (Exception pex) { StingLog.Warn($"AutoDrop penetration sweep: {pex.Message}"); }
+
             // Phase 139.28 — auto-emit supports per BS 5572 / MSS SP-58.
             // Each engine returns a DropResult with CreatedIds; we pass
             // those into RoutingSupportPlacer with a synthetic SUSPENDED
@@ -210,10 +247,13 @@ namespace StingTools.Commands.Routing
                     return "Electrical";
 
                 case BuiltInCategory.OST_PlumbingFixtures:
+                case BuiltInCategory.OST_PlumbingEquipment:
+                case BuiltInCategory.OST_PipeAccessory:
                 case BuiltInCategory.OST_Sprinklers:
                     return "Plumbing";
 
                 case BuiltInCategory.OST_DuctTerminal:
+                case BuiltInCategory.OST_DuctAccessory:
                 case BuiltInCategory.OST_MechanicalEquipment:
                     return "HVAC";
             }

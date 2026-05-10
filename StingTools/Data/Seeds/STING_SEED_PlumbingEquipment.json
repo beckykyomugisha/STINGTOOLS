@@ -1,0 +1,132 @@
+{
+  "version": "1.0",
+  "standard": "STING SEED FAMILY — Plumbing Equipment (BS 8558, BS 6700, HSG 274)",
+  "_notes": [
+    "Plumbing-equipment seed for water-handling plant: calorifiers / DHW",
+    "cylinders, booster sets, manifolds, expansion vessels, water heaters,",
+    "pumps. Sits between plumbing fixtures (terminal) and the central",
+    "plant. Connectors authored in pairs (cold-in / hot-out) so",
+    "AutoPipeDrop wires both services in one pass."
+  ],
+  "symbols": [
+    {
+      "id": "STING_SEED_PlumbingEquipment",
+      "name": "STING Seed — Plumbing Equipment",
+      "category": "Plumbing Equipment",
+      "familyType": "SeedFamily",
+      "discipline": "Plumbing",
+      "subcategory": "STING_SEED",
+      "isSeed": true,
+      "hosting": "Standalone",
+      "symbolSize": 8.0,
+      "parameters": [
+        { "name": "STING_SEED_FAMILY_TXT",     "type": "Text", "shared": true, "isInstance": true, "default": "STING_SEED_PlumbingEquipment" },
+        { "name": "STING_DESIGN_REF_TXT",      "type": "Text", "shared": true, "isInstance": true, "default": "" },
+        { "name": "STING_SWAP_HISTORY_TXT",    "type": "Text", "shared": true, "isInstance": true, "default": "" },
+        { "name": "ASS_TAG_1",                 "type": "Text", "shared": true, "isInstance": true },
+        { "name": "ASS_DISCIPLINE_COD_TXT",    "type": "Text", "shared": true, "isInstance": true, "default": "P" },
+        { "name": "ASS_PRODCT_COD_TXT",        "type": "Text", "shared": true, "isInstance": true, "default": "CAL" },
+        { "name": "PLM_EQP_TYPE_TXT",          "type": "Text", "shared": true, "isInstance": true, "default": "CALORIFIER" },
+        { "name": "PLM_EQP_CAPACITY_LITRES",   "type": "Text", "shared": true, "isInstance": false, "default": "300" },
+        { "name": "PLM_EQP_HEAT_OUTPUT_KW",    "type": "Text", "shared": true, "isInstance": false, "default": "9" },
+        { "name": "PLM_EQP_PRESSURE_BAR",      "type": "Text", "shared": true, "isInstance": false, "default": "6" },
+        { "name": "PLM_EQP_INLET_DN_MM",       "type": "Text", "shared": true, "isInstance": false, "default": "22" },
+        { "name": "PLM_EQP_OUTLET_DN_MM",      "type": "Text", "shared": true, "isInstance": false, "default": "22" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.5, "x2": 0.5, "y2": -0.5 },
+          { "x1": 0.5, "y1": -0.5, "x2": 0.5, "y2": 0.5 },
+          { "x1": 0.5, "y1": 0.5, "x2": -0.5, "y2": 0.5 },
+          { "x1": -0.5, "y1": 0.5, "x2": -0.5, "y2": -0.5 },
+          { "x1": -0.5, "y1": 0.0, "x2": 0.5, "y2": 0.0 }
+        ]
+      },
+      "solid3D": { "type": "Box", "widthMm": 600, "depthMm": 600, "heightMm": 1500 },
+      "connectors": [
+        {
+          "domain": "Piping", "systemType": "DomesticCold", "shape": "Round",
+          "sizeMm": 22, "direction": "In",
+          "offsetX": -0.4, "offsetY": 0.0, "offsetZ": 0.5, "facing": "+Z"
+        },
+        {
+          "domain": "Piping", "systemType": "DomesticHot", "shape": "Round",
+          "sizeMm": 22, "direction": "Out",
+          "offsetX": 0.4, "offsetY": 0.0, "offsetZ": 0.5, "facing": "+Z"
+        },
+        {
+          "domain": "Piping", "systemType": "SupplyHydronic", "shape": "Round",
+          "sizeMm": 28, "direction": "In",
+          "offsetX": 0.0, "offsetY": -0.5, "offsetZ": 0.0, "facing": "-Y"
+        },
+        {
+          "domain": "Piping", "systemType": "ReturnHydronic", "shape": "Round",
+          "sizeMm": 28, "direction": "Out",
+          "offsetX": 0.0, "offsetY": -0.5, "offsetZ": -0.3, "facing": "-Y"
+        }
+      ],
+      "typeVariants": [
+        {
+          "name": "CALORIFIER",
+          "params": {
+            "PLM_EQP_TYPE_TXT": "CALORIFIER",
+            "ASS_PRODCT_COD_TXT": "CAL",
+            "PLM_EQP_CAPACITY_LITRES": "300",
+            "PLM_EQP_HEAT_OUTPUT_KW": "9"
+          }
+        },
+        {
+          "name": "DHW_CYLINDER_UNVENTED",
+          "params": {
+            "PLM_EQP_TYPE_TXT": "DHW_CYLINDER_UNVENTED",
+            "ASS_PRODCT_COD_TXT": "CYL",
+            "PLM_EQP_CAPACITY_LITRES": "200",
+            "PLM_EQP_HEAT_OUTPUT_KW": "3"
+          }
+        },
+        {
+          "name": "WATER_HEATER_ELECTRIC",
+          "params": {
+            "PLM_EQP_TYPE_TXT": "WATER_HEATER_ELECTRIC",
+            "ASS_PRODCT_COD_TXT": "WHE",
+            "PLM_EQP_CAPACITY_LITRES": "100",
+            "PLM_EQP_HEAT_OUTPUT_KW": "3"
+          }
+        },
+        {
+          "name": "BOOSTER_SET",
+          "params": {
+            "PLM_EQP_TYPE_TXT": "BOOSTER_SET",
+            "ASS_PRODCT_COD_TXT": "BST",
+            "PLM_EQP_PRESSURE_BAR": "8"
+          }
+        },
+        {
+          "name": "MANIFOLD",
+          "params": {
+            "PLM_EQP_TYPE_TXT": "MANIFOLD",
+            "ASS_PRODCT_COD_TXT": "MAN",
+            "PLM_EQP_INLET_DN_MM": "28",
+            "PLM_EQP_OUTLET_DN_MM": "15"
+          }
+        },
+        {
+          "name": "EXPANSION_VESSEL",
+          "params": {
+            "PLM_EQP_TYPE_TXT": "EXPANSION_VESSEL",
+            "ASS_PRODCT_COD_TXT": "EXV",
+            "PLM_EQP_CAPACITY_LITRES": "24",
+            "PLM_EQP_PRESSURE_BAR": "3"
+          }
+        },
+        {
+          "name": "PUMP_INLINE",
+          "params": {
+            "PLM_EQP_TYPE_TXT": "PUMP_INLINE",
+            "ASS_PRODCT_COD_TXT": "PMP"
+          }
+        }
+      ]
+    }
+  ]
+}
