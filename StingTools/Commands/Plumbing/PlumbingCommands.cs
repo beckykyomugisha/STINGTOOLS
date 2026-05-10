@@ -119,6 +119,40 @@ namespace StingTools.Commands.Plumbing
             var classified = BackflowClassifier.ClassifyAll(ctx.Doc);
             var crossConn  = CrossConnectionChecker.Scan(ctx.Doc);
 
+            var byCat = classified.GroupBy(x => (int)x.Category).ToDictionary(g => g.Key, g => g.Count());
+            var matrix = new[]
+            {
+                (Cat: 1, Desc: "Wholesome water",         Dev: "—"),
+                (Cat: 2, Desc: "Slight aesthetic risk",   Dev: "SCV (single check)"),
+                (Cat: 3, Desc: "Slight health risk",      Dev: "DCV (double check)"),
+                (Cat: 4, Desc: "Significant health risk", Dev: "RPZ (Type BA)"),
+                (Cat: 5, Desc: "Serious health risk",     Dev: "Air gap (AA / AB)")
+            };
+            var fluidRows = matrix.Select(m => new SpecialtyFluidMatrixRow
+            {
+                Cat = m.Cat, Description = m.Desc, RequiredDevice = m.Dev,
+                Found = (byCat.TryGetValue(m.Cat, out var n) ? n : 0).ToString()
+            }).ToList();
+            var crossRows = crossConn.OrderByDescending(x => x.NonPotableCategory).Select(c => new SpecialtyCrossConnRow
+            {
+                SystemA    = $"Potable {c.PotableElementId.Value}",
+                SystemB    = $"Cat-{(int)c.NonPotableCategory} {c.NonPotableElementId.Value}",
+                Separation = "",
+                Risk       = $"[{c.Severity}] {c.Notes}"
+            }).ToList();
+            string status = $"Backflow · {classified.Count} pipes · "
+                          + $"Cat-1 {fluidRows[0].Found} · Cat-2 {fluidRows[1].Found} · Cat-3 {fluidRows[2].Found} · "
+                          + $"Cat-4 {fluidRows[3].Found} · Cat-5 {fluidRows[4].Found} · "
+                          + $"{crossConn.Count} cross-connections";
+
+            var inst = StingPlumbingPanel.Instance;
+            if (inst != null)
+            {
+                inst.SetSpecialtyFluidMatrixResult(fluidRows, status);
+                inst.SetSpecialtyCrossConnResult(crossRows, null);
+                return Result.Succeeded;
+            }
+
             var panel = StingResultPanel.Create("Backflow Audit (BS EN 1717)");
             panel.AddSection("CATEGORY DISTRIBUTION");
             foreach (var grp in classified.GroupBy(x => x.Category).OrderBy(g => g.Key))
@@ -292,11 +326,30 @@ namespace StingTools.Commands.Plumbing
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var findings = CrossConnectionChecker.Scan(ctx.Doc);
+
+            var rows = findings.OrderByDescending(x => x.NonPotableCategory).Select(f => new SpecialtyCrossConnRow
+            {
+                SystemA    = $"Potable {f.PotableElementId.Value}",
+                SystemB    = $"Cat-{(int)f.NonPotableCategory} {f.NonPotableElementId.Value}",
+                Separation = "",
+                Risk       = $"[{f.Severity}] {f.Notes}"
+            }).ToList();
+            int critical = findings.Count(f => f.Severity == "CRITICAL");
+            int error    = findings.Count(f => f.Severity == "ERROR");
+            string status = $"Cross-conn · {findings.Count} findings · CRITICAL {critical} · ERROR {error}";
+
+            var inst = StingPlumbingPanel.Instance;
+            if (inst != null)
+            {
+                inst.SetSpecialtyCrossConnResult(rows, status);
+                return Result.Succeeded;
+            }
+
             var panel = StingResultPanel.Create("Cross-Connection Scan (BS EN 1717)");
             panel.AddSection("SUMMARY")
                  .Metric("Findings",   findings.Count.ToString())
-                 .Metric("CRITICAL",   findings.Count(f => f.Severity == "CRITICAL").ToString())
-                 .Metric("ERROR",      findings.Count(f => f.Severity == "ERROR").ToString());
+                 .Metric("CRITICAL",   critical.ToString())
+                 .Metric("ERROR",      error.ToString());
             if (findings.Any())
             {
                 panel.AddSection("FINDINGS");
@@ -368,19 +421,45 @@ namespace StingTools.Commands.Plumbing
         {
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
-            var rep = PlumbingMaterialValidator.Validate(ctx.Doc);
+
+            var inst = StingPlumbingPanel.Instance;
+            var opts = inst?.ReadSpecialtyOptions();
+            var rep  = PlumbingMaterialValidator.Validate(ctx.Doc);
+
+            // Apply scope flags from the SPECIALTY tab — when MatAll is on we
+            // surface every finding; otherwise drop kinds the user unticked.
+            IEnumerable<PlumbingValidationFinding> findings = rep.Findings;
+            if (opts != null && !opts.MatAll)
+            {
+                findings = rep.Findings.Where(f =>
+                {
+                    var k = (f.Kind ?? "").ToUpperInvariant();
+                    if (opts.MatGalvanic && k.Contains("GALVANIC"))     return true;
+                    if (opts.MatJointing && k.Contains("JOINT"))        return true;
+                    if (opts.MatWras     && k.Contains("WRAS"))         return true;
+                    return !(opts.MatGalvanic || opts.MatJointing || opts.MatWras);
+                });
+            }
+            var list = findings.OrderByDescending(x => x.Severity).ToList();
+            int critical = list.Count(f => f.Severity == "CRITICAL");
+            int error    = list.Count(f => f.Severity == "ERROR");
+            int warn     = list.Count(f => f.Severity == "WARN");
+            string status = $"Material · {rep.ElementsScanned} elements · {list.Count} findings · "
+                          + $"CRITICAL {critical} · ERROR {error} · WARN {warn}";
+            if (inst != null) { inst.SetStatus(status); return Result.Succeeded; }
+
             var panel = StingResultPanel.Create("Plumbing Material & Jointing Audit");
             panel.SetSubtitle($"Rules: {rep.RulesSource}");
             panel.AddSection("SUMMARY")
                  .Metric("Elements scanned", rep.ElementsScanned.ToString())
-                 .Metric("Findings",         rep.Findings.Count.ToString())
-                 .Metric("CRITICAL",         rep.Findings.Count(f => f.Severity == "CRITICAL").ToString())
-                 .Metric("ERROR",            rep.Findings.Count(f => f.Severity == "ERROR").ToString())
-                 .Metric("WARN",             rep.Findings.Count(f => f.Severity == "WARN").ToString());
-            if (rep.Findings.Any())
+                 .Metric("Findings",         list.Count.ToString())
+                 .Metric("CRITICAL",         critical.ToString())
+                 .Metric("ERROR",            error.ToString())
+                 .Metric("WARN",             warn.ToString());
+            if (list.Any())
             {
                 panel.AddSection("FINDINGS (first 80)");
-                foreach (var f in rep.Findings.OrderByDescending(x => x.Severity).Take(80))
+                foreach (var f in list.Take(80))
                     panel.Text($"[{f.Severity}] {f.ElementId.Value} · {f.Kind} · mat={f.Material} joint={f.Joint} svc={f.Service} — {f.Notes}");
             }
             panel.Show();
