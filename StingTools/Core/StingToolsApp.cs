@@ -73,7 +73,17 @@ namespace StingTools.Core
                 // via StingIdlingScheduler.Enqueue(job).
                 StingIdlingScheduler.Register(application);
 
-                // Register the dockable panel — the single unified UI
+                // Register the dockable panel — the single unified UI.
+                // Create the shared "STING Tools" ribbon tab FIRST and in its
+                // own try/catch so a failure inside any single panel
+                // registration can never deprive the others of a tab to attach
+                // to. Without this, a throw in StingDockPanel.Initialise or
+                // RegisterDockablePane would skip CreateRibbonTab and then
+                // silently take down both follow-up panels too — the Plumbing
+                // pane would still appear (cached UIState) but its ribbon
+                // button, the Electrical button and the main STING Panel
+                // button would all be missing.
+                EnsureStingRibbonTab(application);
                 RegisterDockablePanel(application);
                 RegisterElectricalPanel(application);
                 RegisterPlumbingPanel(application);
@@ -1371,42 +1381,73 @@ namespace StingTools.Core
 
         // ── Dockable Panel Registration ──────────────────────────────
 
-        private void RegisterDockablePanel(UIControlledApplication application)
+        // Shared ribbon tab name used by all three dockable panels.
+        private const string StingRibbonTabName = "STING Tools";
+
+        /// <summary>
+        /// Create the shared "STING Tools" ribbon tab once. Wrapped in its own
+        /// try/catch so a duplicate-tab exception (the .addin file accidentally
+        /// being loaded from both the per-user and per-machine Addins folders,
+        /// or from a cached previous load) doesn't prevent the three panel
+        /// registrations from attaching their ribbon panels.
+        /// </summary>
+        private static void EnsureStingRibbonTab(UIControlledApplication application)
         {
             try
             {
-                // Initialise the external event handler for panel button dispatching
-                StingDockPanel.Initialise(application);
+                application.CreateRibbonTab(StingRibbonTabName);
+            }
+            catch (Exception ex)
+            {
+                // Most common cause: tab already exists from a prior load.
+                // That's fine — subsequent CreateRibbonPanel calls will still
+                // succeed because the tab is present. Only log so we have a
+                // breadcrumb if something more interesting went wrong.
+                StingLog.Info($"CreateRibbonTab('{StingRibbonTabName}') skipped: {ex.Message}");
+            }
+        }
 
-                // Register the dockable pane with Revit
+        private void RegisterDockablePanel(UIControlledApplication application)
+        {
+            string asmPath = AssemblyPath;
+
+            // Step 1 — external event handler. Independent try/catch so a
+            // throw here doesn't stop the dockable-pane register or the
+            // toggle button being added.
+            try { StingDockPanel.Initialise(application); }
+            catch (Exception ex) { StingLog.Error("StingDockPanel.Initialise", ex); }
+
+            // Step 2 — dockable pane register.
+            try
+            {
                 var provider = new StingDockPanelProvider();
                 application.RegisterDockablePane(
                     StingDockPanelProvider.PaneId,
                     "STING Tools",
                     provider);
+            }
+            catch (Exception ex) { StingLog.Error("RegisterDockablePane (STING Tools)", ex); }
 
-                // Create a minimal ribbon tab with just a toggle button
-                const string tabName = "STING Tools";
-                application.CreateRibbonTab(tabName);
-                string asmPath = AssemblyPath;
-
-                // STING Hub — quick-launch panel (added FIRST so it sits at the
-                // left end of the tab). 9 small stacked buttons with runtime-
-                // drawn letter icons; no image files on disk.
-                RibbonPanel hubPanel = application.CreateRibbonPanel(tabName, "STING Hub");
+            // Step 3 — STING Hub ribbon panel (12 letter-icon shortcuts).
+            try
+            {
+                RibbonPanel hubPanel = application.CreateRibbonPanel(StingRibbonTabName, "STING Hub");
                 BuildHubPanel(hubPanel);
+            }
+            catch (Exception ex) { StingLog.Error("BuildHubPanel", ex); }
 
-                var togglePanel = application.CreateRibbonPanel(tabName, "Panel");
+            // Step 4 — STING Panel toggle button. MUST run even if the hub
+            // panel above failed, otherwise the user has no way to open the
+            // main dockable panel from the ribbon.
+            try
+            {
+                var togglePanel = application.CreateRibbonPanel(StingRibbonTabName, "Panel");
                 AddButton(togglePanel, "btnTogglePanel", "STING\nPanel",
                     asmPath, typeof(ToggleDockPanelCommand).FullName,
                     "Show/hide the STING Tools dockable panel");
-
-                StingLog.Info("Dockable panel registered successfully");
+                StingLog.Info("STING Tools dockable panel registered successfully");
             }
-            catch (Exception ex)
-            {
-                StingLog.Error("Failed to register dockable panel", ex);
-            }
+            catch (Exception ex) { StingLog.Error("STING Panel toggle button", ex); }
         }
 
         // ── Phase 177 — STING Electrical Center registration ────────────
@@ -1418,6 +1459,9 @@ namespace StingTools.Core
         /// </summary>
         private void RegisterElectricalPanel(UIControlledApplication application)
         {
+            string asmPath = AssemblyPath;
+
+            // Step 1 — dockable pane register.
             try
             {
                 var provider = new StingTools.UI.StingElectricalPanelProvider();
@@ -1425,45 +1469,54 @@ namespace StingTools.Core
                     StingTools.UI.StingElectricalPanelProvider.PaneId,
                     "⚡ STING Electrical",
                     provider);
+            }
+            catch (Exception ex) { StingLog.Error("RegisterDockablePane (Electrical)", ex); }
 
-                const string tabName = "STING Tools";
-                string asmPath = AssemblyPath;
-                var elecPanel = application.CreateRibbonPanel(tabName, "⚡ Electrical");
+            // Step 2 — toggle button. Independent so a pane-register failure
+            // doesn't suppress the ribbon button (and vice versa).
+            try
+            {
+                var elecPanel = application.CreateRibbonPanel(StingRibbonTabName, "⚡ Electrical");
                 AddButton(elecPanel, "btnToggleElectrical", "STING\nElectrical",
                     asmPath, typeof(ToggleElectricalPanelCommand).FullName,
                     "Show/hide the STING Electrical Center dockable panel.");
                 StingLog.Info("Electrical dockable panel registered successfully");
             }
-            catch (Exception ex)
-            {
-                StingLog.Error("Failed to register Electrical dockable panel", ex);
-            }
+            catch (Exception ex) { StingLog.Error("Electrical toggle button", ex); }
         }
 
         // ── Phase 178c — STING Plumbing Center registration ─────────────
         private void RegisterPlumbingPanel(UIControlledApplication application)
         {
+            string asmPath = AssemblyPath;
+
+            // Step 1 — eager handler init (matches the pattern used by the
+            // main STING panel; the Plumbing panel's button clicks rely on
+            // the ExternalEvent being live before the WPF page is realised).
+            try { StingTools.UI.Plumbing.StingPlumbingCommandHandler.Initialise(application); }
+            catch (Exception ex) { StingLog.Error("StingPlumbingCommandHandler.Initialise", ex); }
+
+            // Step 2 — dockable pane register.
             try
             {
-                StingTools.UI.Plumbing.StingPlumbingCommandHandler.Initialise(application);
                 var provider = new StingTools.UI.Plumbing.StingPlumbingPanelProvider();
                 application.RegisterDockablePane(
                     StingTools.UI.Plumbing.StingPlumbingPanelProvider.PaneId,
                     "💧 STING Plumbing",
                     provider);
+            }
+            catch (Exception ex) { StingLog.Error("RegisterDockablePane (Plumbing)", ex); }
 
-                const string tabName = "STING Tools";
-                string asmPath = AssemblyPath;
-                var plumbPanel = application.CreateRibbonPanel(tabName, "💧 Plumbing");
+            // Step 3 — toggle button.
+            try
+            {
+                var plumbPanel = application.CreateRibbonPanel(StingRibbonTabName, "💧 Plumbing");
                 AddButton(plumbPanel, "btnTogglePlumbing", "STING\nPlumbing",
                     asmPath, typeof(TogglePlumbingPanelCommand).FullName,
                     "Show/hide the STING Plumbing Center dockable panel.");
                 StingLog.Info("Plumbing dockable panel registered successfully");
             }
-            catch (Exception ex)
-            {
-                StingLog.Error("Failed to register Plumbing dockable panel", ex);
-            }
+            catch (Exception ex) { StingLog.Error("Plumbing toggle button", ex); }
         }
 
         /* Ribbon panels removed — all commands now accessible via the dockable panel.
