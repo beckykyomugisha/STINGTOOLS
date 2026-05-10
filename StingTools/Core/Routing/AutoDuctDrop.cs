@@ -61,7 +61,7 @@ namespace StingTools.Core.Routing
                     case DuctSystemType.SupplyAir:    return "HVC_SA";
                     case DuctSystemType.ReturnAir:    return "HVC_RA";
                     case DuctSystemType.ExhaustAir:   return "HVC_EA";
-                    case DuctSystemType.FittingAndAccessory: break;
+                    // Note: Revit 2025 API removed DuctSystemType.FittingAndAccessory.
                     case DuctSystemType.OtherAir:     break;
                 }
             }

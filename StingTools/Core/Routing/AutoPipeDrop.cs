@@ -63,7 +63,9 @@ namespace StingTools.Core.Routing
                     case PipeSystemType.FireProtectDry:
                     case PipeSystemType.FireProtectPreaction:
                     case PipeSystemType.FireProtectOther:     return "PLM_FPS";
-                    case PipeSystemType.Storm:                return "PLM_RWD";
+                    // Note: Revit 2025 API removed PipeSystemType.Storm.
+                    // Storm-water classification now happens via the
+                    // PipingSystem name (PLM_RWD) at the routing layer.
                     case PipeSystemType.SupplyHydronic:       return "PLM_LTHW";
                     case PipeSystemType.ReturnHydronic:       return "PLM_LTHWR";
                     case PipeSystemType.OtherPipe:            break;
