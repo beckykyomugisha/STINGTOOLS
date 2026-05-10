@@ -1,11 +1,10 @@
 // PlumbingSystemCommands — Phase 179a SYSTEM tab.
 //
-// Plumb_SaveSystemConfig — modeless dialog → PlumbingSystemConfig.Save.
-// Plumb_LoadSystemConfig — read existing config + push to ProjectInformation.
+// Plumb_SaveSystemConfig — read inline panel inputs → PlumbingSystemConfig.Save.
+// Plumb_LoadSystemConfig — read existing config + refresh inline panel inputs.
 
 using System;
 using System.Linq;
-using System.Windows;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -24,24 +23,37 @@ namespace StingTools.Commands.Plumbing
         {
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
-            var existing = PlumbingSystemConfig.Load(ctx.Doc);
-            var dlg = new PlumbingSystemConfigDialog(ctx.Doc, existing) { Owner = null };
-            try { dlg.ShowDialog(); } catch (Exception ex) { TaskDialog.Show("STING Plumbing", "Dialog error: " + ex.Message); return Result.Failed; }
-            if (!dlg.Saved) return Result.Cancelled;
+
+            // Inputs come from the SYSTEM tab inline form (Phase 179d). When the
+            // dock panel isn't open we fall back to the saved config so the
+            // command stays usable from ribbon / NLP entry points.
+            var cfg = StingPlumbingPanel.Instance?.ReadSystemConfigFromInputs()
+                      ?? PlumbingSystemConfig.Load(ctx.Doc);
+
+            string savedPath;
+            using (var tx = new Transaction(ctx.Doc, "STING Plumbing — Save System Config"))
+            {
+                tx.Start();
+                savedPath = PlumbingSystemConfig.Save(ctx.Doc, cfg);
+                tx.Commit();
+            }
 
             var panel = StingResultPanel.Create("Plumbing System Config Saved");
-            panel.SetSubtitle($"Path: {PlumbingSystemConfig.ProjectConfigPath(ctx.Doc) ?? "(project not saved)"}");
+            panel.SetSubtitle($"Path: {savedPath ?? "(project not saved — config skipped)"}");
             panel.AddSection("ACTIVE")
-                 .Metric("Building",         dlg.Result.BuildingType)
-                 .Metric("K factor",         dlg.Result.KFactor.ToString("F2"))
-                 .Metric("Drainage standard", dlg.Result.DrainStandard)
-                 .Metric("Supply standard",   dlg.Result.SupplyStandard)
-                 .Metric("DCW material",      dlg.Result.MaterialFor("DCW"))
-                 .Metric("DHW material",      dlg.Result.MaterialFor("DHW"))
-                 .Metric("Drain material",    dlg.Result.MaterialFor("Drainage"))
-                 .Metric("Vent material",     dlg.Result.MaterialFor("Vent"))
-                 .Metric("Supply pressure",   dlg.Result.SupplyPressureBarAtEntry.ToString("F2") + " bar");
+                 .Metric("Building",          cfg.BuildingType)
+                 .Metric("K factor",          cfg.KFactor.ToString("F2"))
+                 .Metric("Drainage standard", cfg.DrainStandard)
+                 .Metric("Supply standard",   cfg.SupplyStandard)
+                 .Metric("DCW material",      cfg.MaterialFor("DCW"))
+                 .Metric("DHW material",      cfg.MaterialFor("DHW"))
+                 .Metric("Drain material",    cfg.MaterialFor("Drainage"))
+                 .Metric("Vent material",     cfg.MaterialFor("Vent"))
+                 .Metric("Supply pressure",   cfg.SupplyPressureBarAtEntry.ToString("F2") + " bar");
             panel.Show();
+
+            StingPlumbingPanel.Instance?.SetStatus(
+                $"STING Plumbing — {cfg.BuildingType} · {cfg.DrainStandard} · {cfg.SupplyStandard} · K={cfg.KFactor:F2}");
             return Result.Succeeded;
         }
     }
@@ -81,6 +93,10 @@ namespace StingTools.Commands.Plumbing
                 panel.Metric(kv.Key, kv.Value.ToString("F2"));
 
             panel.Show();
+
+            // Refresh the SYSTEM tab inline form so what's on screen matches
+            // the just-loaded config (Phase 179d). No-op when panel is closed.
+            StingPlumbingPanel.Instance?.LoadSystemConfigIntoInputs(cfg);
             return Result.Succeeded;
         }
     }

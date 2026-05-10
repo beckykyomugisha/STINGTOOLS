@@ -3,19 +3,26 @@
 // StingPlumbingCommandHandler on the Revit API thread.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using Autodesk.Revit.UI;
+using StingTools.Core.Plumbing;
 
 namespace StingTools.UI.Plumbing
 {
     public class StingPlumbingPanel : Page
     {
+        public static StingPlumbingPanel Instance { get; private set; }
+
         public StingPlumbingPanel()
         {
             Title = "STING Plumbing";
             Content = BuildRoot();
+            Instance = this;
         }
 
         private FrameworkElement BuildRoot()
@@ -39,6 +46,7 @@ namespace StingTools.UI.Plumbing
             root.Children.Add(status);
 
             var tabs = new TabControl { Margin = new Thickness(2) };
+            ApplyTwoRowTabStrip(tabs);            // 8 tabs at ~260px panel width — 4+4 grid header
             tabs.Items.Add(BuildSystemTab());     // 179a
             tabs.Items.Add(BuildSupplyTab());     // 179b
             tabs.Items.Add(BuildDrainageTab());   // 179b/d
@@ -59,20 +67,162 @@ namespace StingTools.UI.Plumbing
             try { _statusText.Text = text; } catch { }
         }
 
+        // ── SYSTEM tab — inline foundation config (no modal dialog) ──
+        // Controls populated from PlumbingSystemConfig.Defaults() at construction;
+        // refreshed by Plumb_LoadSystemConfig command via LoadSystemConfigIntoInputs;
+        // read by Plumb_SaveSystemConfig command via ReadSystemConfigFromInputs.
+
+        private ComboBox _sysBldgType, _sysDrainStd, _sysSupplyStd;
+        private TextBox  _sysKFactor, _sysOccupancy, _sysBeds, _sysSupplyPres;
+        private CheckBox _sysFlushValve;
+        private readonly Dictionary<string, ComboBox> _sysMaterials = new Dictionary<string, ComboBox>();
+        private readonly Dictionary<string, TextBox>  _sysVelocity  = new Dictionary<string, TextBox>();
+        private readonly Dictionary<string, TextBox>  _sysSlope     = new Dictionary<string, TextBox>();
+
         private TabItem BuildSystemTab()
         {
             var t = new TabItem { Header = "SYSTEM" };
             var sp = NewSection();
-            AddCard(sp, "Project & Standards");
-            AddBtn(sp, "Plumb_SaveSystemConfig", "Configure System (Building / Standards / Materials)…",
-                "Open the multi-section config dialog: building type → K factor, drainage / supply standard, pipe materials per service, velocity + slope limits.");
-            AddBtn(sp, "Plumb_LoadSystemConfig", "Show Current System Config",
-                "Read-only summary of the saved plumbing system config from _BIM_COORD/plumbing_system_config.json.");
-            AddCard(sp, "Workflows");
-            AddBtn(sp, "Plumb_FullAudit", "Run Full Plumbing Audit (RAG)",
-                "Runs all five compliance domains (Supply / Drainage / Vents / Backflow / HTM 04-01) and produces the RAG dashboard.");
+            var seed = PlumbingSystemConfig.Defaults();
+
+            // ── Project & Standards ──
+            var projGrid = NewFormGrid();
+            AddFormRow(projGrid, 0, "Building",
+                _sysBldgType = NewCombo(new[] { "Dwelling", "Office", "Hospital", "School", "Hotel",
+                                                "Restaurant", "Factory", "Sports", "PublicWC", "Custom" },
+                                        seed.BuildingType));
+            _sysBldgType.SelectionChanged += (s, e) =>
+            {
+                if (_sysBldgType.SelectedItem is string bt)
+                    _sysKFactor.Text = PlumbingSystemConfig.DefaultsForBuildingType(bt).KFactor.ToString("F2");
+            };
+            AddFormRow(projGrid, 1, "Drainage std",
+                _sysDrainStd = NewCombo(new[] { "BS-EN-12056", "IPC-2021", "MANUAL" }, seed.DrainStandard));
+            AddFormRow(projGrid, 2, "Supply std",
+                _sysSupplyStd = NewCombo(new[] { "BS-EN-806", "HUNTER-WSFU", "MANUAL" }, seed.SupplyStandard));
+            AddFormRow(projGrid, 3, "K factor",
+                _sysKFactor = NewTextBox(seed.KFactor.ToString("F2")));
+            AddFormRow(projGrid, 4, "Flush-valve majority",
+                _sysFlushValve = NewCheck(seed.FlushValveMajority));
+            AddFormRow(projGrid, 5, "Occupancy",
+                _sysOccupancy = NewTextBox(seed.OccupancyCount.ToString()));
+            AddFormRow(projGrid, 6, "Beds / Workst.",
+                _sysBeds = NewTextBox(seed.BedsOrWorkstations.ToString()));
+            sp.Children.Add(NewExpander("Project & Standards", projGrid, expanded: true));
+
+            // ── Pipe materials ──
+            var matGrid = NewFormGrid();
+            var matKeys = new[] { "DCW", "DHW", "Drainage", "Storm", "Vent" };
+            var matOptions = (PlumbingTables.Materials != null && PlumbingTables.Materials.Count > 0)
+                ? PlumbingTables.Materials.Select(m => m.Key).ToArray()
+                : new[] { "COPPER_R250", "UPVC_DRAIN", "MDPE_BLUE", "PEX_AL_PEX" };
+            for (int i = 0; i < matKeys.Length; i++)
+            {
+                var key = matKeys[i];
+                var current = seed.Materials.TryGetValue(key, out var m) ? m : matOptions.FirstOrDefault();
+                var combo = NewCombo(matOptions, current);
+                _sysMaterials[key] = combo;
+                AddFormRow(matGrid, i, key, combo);
+            }
+            sp.Children.Add(NewExpander("Pipe Materials", matGrid, expanded: false));
+
+            // ── Velocity limits (m/s) ──
+            var velGrid = NewFormGrid();
+            var velKeys = new[] { "DCW_Max", "DHW_Max", "Drain_SelfCleansing", "Drain_Max" };
+            for (int i = 0; i < velKeys.Length; i++)
+            {
+                var k = velKeys[i];
+                var v = seed.VelocityMps.TryGetValue(k, out var vv) ? vv : 2.0;
+                var tb = NewTextBox(v.ToString("F2"));
+                _sysVelocity[k] = tb;
+                AddFormRow(velGrid, i, k.Replace('_', ' '), tb);
+            }
+            sp.Children.Add(NewExpander("Velocity Limits (m/s)", velGrid, expanded: false));
+
+            // ── Slope (%) ──
+            var slopeGrid = NewFormGrid();
+            var slopeKeys = new[] { "DN32_50", "DN75_100", "DN150", "Target" };
+            for (int i = 0; i < slopeKeys.Length; i++)
+            {
+                var k = slopeKeys[i];
+                var v = seed.SlopePctMin.TryGetValue(k, out var vv) ? vv : 1.0;
+                var tb = NewTextBox(v.ToString("F2"));
+                _sysSlope[k] = tb;
+                AddFormRow(slopeGrid, i, k.Replace('_', '–'), tb);
+            }
+            sp.Children.Add(NewExpander("Slope (%)", slopeGrid, expanded: false));
+
+            // ── Supply pressure ──
+            var presGrid = NewFormGrid();
+            AddFormRow(presGrid, 0, "Entry pressure (bar)",
+                _sysSupplyPres = NewTextBox(seed.SupplyPressureBarAtEntry.ToString("F2")));
+            sp.Children.Add(NewExpander("Supply Pressure", presGrid, expanded: false));
+
+            // ── Action buttons ──
+            AddCard(sp, "Actions");
+            AddBtn(sp, "Plumb_SaveSystemConfig", "▶ Save System Config",
+                "Reads the inputs above and writes _BIM_COORD/plumbing_system_config.json + stamps PRJ_ORG_PLM_* parameters.");
+            AddBtn(sp, "Plumb_LoadSystemConfig", "⟳ Load from Project",
+                "Re-reads the saved plumbing system config from disk + ProjectInformation and refreshes the inputs above.");
+            AddBtn(sp, "Plumb_FullAudit", "⚐ Run Full Plumbing Audit (RAG)",
+                "Runs all five compliance domains (Supply / Drainage / Vents / Backflow / HTM 04-01).");
+
             t.Content = WrapScroll(sp);
             return t;
+        }
+
+        // Builds a PlumbingSystemConfig from the SYSTEM-tab inputs. Called by
+        // PlumbSaveSystemConfigCommand on the Revit thread, so we marshal the
+        // read back to the WPF dispatcher to avoid cross-thread access errors.
+        public PlumbingSystemConfig ReadSystemConfigFromInputs()
+        {
+            return Dispatcher.Invoke(() =>
+            {
+                var c = PlumbingSystemConfig.Defaults();
+                c.BuildingType   = (_sysBldgType?.SelectedItem  as string) ?? c.BuildingType;
+                c.DrainStandard  = (_sysDrainStd?.SelectedItem  as string) ?? c.DrainStandard;
+                c.SupplyStandard = (_sysSupplyStd?.SelectedItem as string) ?? c.SupplyStandard;
+                c.FlushValveMajority = _sysFlushValve?.IsChecked == true;
+                if (double.TryParse(_sysKFactor?.Text,    out var k))  c.KFactor = k;
+                if (int.TryParse(_sysOccupancy?.Text,     out var oc)) c.OccupancyCount = oc;
+                if (int.TryParse(_sysBeds?.Text,          out var bd)) c.BedsOrWorkstations = bd;
+                if (double.TryParse(_sysSupplyPres?.Text, out var sp)) c.SupplyPressureBarAtEntry = sp;
+                c.Materials   = _sysMaterials.ToDictionary(kv => kv.Key, kv => (kv.Value.SelectedItem as string) ?? "");
+                c.VelocityMps = _sysVelocity .ToDictionary(kv => kv.Key, kv => double.TryParse(kv.Value.Text, out var d) ? d : 0);
+                c.SlopePctMin = _sysSlope    .ToDictionary(kv => kv.Key, kv => double.TryParse(kv.Value.Text, out var d) ? d : 0);
+                return c;
+            });
+        }
+
+        // Pushes a loaded config back into the SYSTEM-tab inputs. Called by
+        // PlumbLoadSystemConfigCommand after PlumbingSystemConfig.Load().
+        public void LoadSystemConfigIntoInputs(PlumbingSystemConfig cfg)
+        {
+            if (cfg == null) return;
+            Dispatcher.Invoke(() =>
+            {
+                if (_sysBldgType   != null && _sysBldgType .Items.Contains(cfg.BuildingType))   _sysBldgType .SelectedItem = cfg.BuildingType;
+                if (_sysDrainStd   != null && _sysDrainStd .Items.Contains(cfg.DrainStandard))  _sysDrainStd .SelectedItem = cfg.DrainStandard;
+                if (_sysSupplyStd  != null && _sysSupplyStd.Items.Contains(cfg.SupplyStandard)) _sysSupplyStd.SelectedItem = cfg.SupplyStandard;
+                if (_sysKFactor    != null) _sysKFactor.Text     = cfg.KFactor.ToString("F2");
+                if (_sysFlushValve != null) _sysFlushValve.IsChecked = cfg.FlushValveMajority;
+                if (_sysOccupancy  != null) _sysOccupancy.Text   = cfg.OccupancyCount.ToString();
+                if (_sysBeds       != null) _sysBeds.Text        = cfg.BedsOrWorkstations.ToString();
+                if (_sysSupplyPres != null) _sysSupplyPres.Text  = cfg.SupplyPressureBarAtEntry.ToString("F2");
+                if (cfg.Materials != null)
+                    foreach (var kv in _sysMaterials)
+                        if (cfg.Materials.TryGetValue(kv.Key, out var v) && kv.Value.Items.Contains(v))
+                            kv.Value.SelectedItem = v;
+                if (cfg.VelocityMps != null)
+                    foreach (var kv in _sysVelocity)
+                        if (cfg.VelocityMps.TryGetValue(kv.Key, out var v))
+                            kv.Value.Text = v.ToString("F2");
+                if (cfg.SlopePctMin != null)
+                    foreach (var kv in _sysSlope)
+                        if (cfg.SlopePctMin.TryGetValue(kv.Key, out var v))
+                            kv.Value.Text = v.ToString("F2");
+                SetStatus($"STING Plumbing — {cfg.BuildingType} · {cfg.DrainStandard} · {cfg.SupplyStandard} · K={cfg.KFactor:F2}");
+            });
         }
 
         private TabItem BuildSupplyTab()
@@ -250,6 +400,24 @@ namespace StingTools.UI.Plumbing
             return t;
         }
 
+        // Default TabPanel lays headers in a single row and clips / scrolls when
+        // they overflow. At ~260px panel width with 8 tabs that's unreadable —
+        // swap to a UniformGrid (2 rows × 4 cols) so every header stays visible.
+        private static void ApplyTwoRowTabStrip(TabControl tabs)
+        {
+            var panel = new FrameworkElementFactory(typeof(UniformGrid));
+            panel.SetValue(UniformGrid.RowsProperty, 2);
+            panel.SetValue(UniformGrid.ColumnsProperty, 4);
+            tabs.ItemsPanel = new ItemsPanelTemplate { VisualTree = panel };
+
+            var tabItemStyle = new Style(typeof(TabItem));
+            tabItemStyle.Setters.Add(new Setter(TabItem.PaddingProperty, new Thickness(2, 4, 2, 4)));
+            tabItemStyle.Setters.Add(new Setter(TabItem.FontSizeProperty, 10.0));
+            tabItemStyle.Setters.Add(new Setter(TabItem.HorizontalContentAlignmentProperty, HorizontalAlignment.Center));
+            tabItemStyle.Setters.Add(new Setter(TabItem.HorizontalAlignmentProperty, HorizontalAlignment.Stretch));
+            tabs.Resources.Add(typeof(TabItem), tabItemStyle);
+        }
+
         private static StackPanel NewSection() => new StackPanel { Margin = new Thickness(8) };
 
         private static ScrollViewer WrapScroll(UIElement content) =>
@@ -265,6 +433,73 @@ namespace StingTools.UI.Plumbing
                 Foreground = new SolidColorBrush(Color.FromRgb(33, 64, 96))
             });
         }
+
+        // ── Inline form-control helpers ──
+
+        private static Expander NewExpander(string header, FrameworkElement content, bool expanded)
+        {
+            return new Expander
+            {
+                Header     = header,
+                IsExpanded = expanded,
+                Content    = content,
+                Margin     = new Thickness(2, 8, 2, 0),
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(33, 64, 96))
+            };
+        }
+
+        private static Grid NewFormGrid()
+        {
+            // Two-column form: 110px label + remaining for control.
+            // Tuned for ~260px panel width with 8px outer margin on each side.
+            var g = new Grid { Margin = new Thickness(4, 4, 4, 4) };
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            return g;
+        }
+
+        private static void AddFormRow(Grid g, int row, string label, FrameworkElement control)
+        {
+            g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var lbl = new TextBlock
+            {
+                Text = label,
+                Margin = new Thickness(0, 4, 6, 2),
+                VerticalAlignment = VerticalAlignment.Center,
+                FontWeight = FontWeights.Normal,
+                FontSize = 11
+            };
+            Grid.SetColumn(lbl, 0); Grid.SetRow(lbl, row);
+            g.Children.Add(lbl);
+            control.Margin = new Thickness(0, 2, 0, 2);
+            Grid.SetColumn(control, 1); Grid.SetRow(control, row);
+            g.Children.Add(control);
+        }
+
+        private static ComboBox NewCombo(IEnumerable<string> items, string selected)
+        {
+            var c = new ComboBox { FontSize = 11, FontWeight = FontWeights.Normal };
+            foreach (var i in items) c.Items.Add(i);
+            if (!string.IsNullOrEmpty(selected) && c.Items.Contains(selected)) c.SelectedItem = selected;
+            else if (c.Items.Count > 0) c.SelectedIndex = 0;
+            return c;
+        }
+
+        private static TextBox NewTextBox(string value) => new TextBox
+        {
+            Text = value ?? "",
+            Padding = new Thickness(4, 2, 4, 2),
+            FontSize = 11,
+            FontWeight = FontWeights.Normal
+        };
+
+        private static CheckBox NewCheck(bool isChecked) => new CheckBox
+        {
+            IsChecked = isChecked,
+            VerticalAlignment = VerticalAlignment.Center,
+            FontWeight = FontWeights.Normal
+        };
 
         private static void AddBtn(Panel host, string tag, string label, string tooltip)
         {
