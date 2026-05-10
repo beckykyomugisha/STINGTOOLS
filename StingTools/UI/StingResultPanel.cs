@@ -231,7 +231,10 @@ namespace StingTools.UI
         // Width is host-driven; the embedded ScrollViewer caps height at
         // 380 px so the panel doesn't dominate the dock.
 
-        public static FrameworkElement BuildInlineContent(Builder b)
+        // internal — see PushHcResultPanel comment. Builder is nested in
+        // an internal class so this method's declared accessibility cannot
+        // exceed internal.
+        internal static FrameworkElement BuildInlineContent(Builder b)
         {
             var stack = new StackPanel { Margin = new Thickness(0) };
 
