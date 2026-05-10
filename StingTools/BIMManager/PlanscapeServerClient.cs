@@ -1029,10 +1029,33 @@ public sealed class PlanscapeServerClient : IDisposable
             var items = json["items"] as JArray;
             if (items == null) return empty;
             var list = items.ToObject<List<SitePhotoDto>>();
+            // Phase 180 — surface ndaRequiredIds so callers can render
+            // a 🔒 lock badge on photos awaiting NDA acceptance.
+            var ndaIdsJson = json["ndaRequiredIds"] as JArray;
+            if (ndaIdsJson != null)
+            {
+                LastNdaRequiredIds = ndaIdsJson
+                    .Select(t => (string?)t)
+                    .Where(s => Guid.TryParse(s, out _))
+                    .Select(s => Guid.Parse(s!))
+                    .ToHashSet();
+            }
+            else
+            {
+                LastNdaRequiredIds = new HashSet<Guid>();
+            }
             return list ?? empty;
         }
         catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"ListSitePhotosAsync: {ex.Message}"); return empty; }
     }
+
+    /// <summary>
+    /// Phase 180 — set after the most recent <see cref="ListSitePhotosAsync"/>
+    /// call. Holds the photo ids that the server flagged as
+    /// <c>ndaRequiredIds</c> for the calling user. Empty when the user
+    /// bypasses ACL or no listed photo carries an NDA-required rule.
+    /// </summary>
+    public HashSet<Guid> LastNdaRequiredIds { get; private set; } = new();
 
     /// <summary>Download the redacted/watermarked photo bytes for thumbnail or full-size view.
     /// Returns null on failure (caller should render a placeholder).</summary>
@@ -1346,6 +1369,45 @@ public sealed class PlanscapeServerClient : IDisposable
             return JsonConvert.DeserializeObject<PhotoShareLinkDto>(resp.body);
         }
         catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"CreatePhotoShareLinkAsync: {ex.Message}"); return null; }
+    }
+
+    // ── Phase 180 — NDA acceptance + policy ─────────────────────────────────────
+
+    public sealed class PhotoPolicyDto
+    {
+        [JsonProperty("id")]            public Guid    Id        { get; set; }
+        [JsonProperty("projectId")]     public Guid    ProjectId { get; set; }
+        [JsonProperty("ndaText")]       public string? NdaText   { get; set; }
+        [JsonProperty("approvalChain")] public string? ApprovalChain { get; set; }
+        [JsonProperty("digestHourLocal")] public int   DigestHourLocal { get; set; }
+        [JsonProperty("retentionDays")] public int?   RetentionDays   { get; set; }
+        [JsonProperty("watermarkRequired")] public bool WatermarkRequired { get; set; }
+    }
+
+    public async Task<PhotoPolicyDto?> GetPhotoPolicyAsync(Guid projectId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await GetAsync($"/api/projects/{projectId}/photo-policy");
+            if (!resp.ok) { LastError = $"GetPhotoPolicy: HTTP {resp.status}"; return null; }
+            return JsonConvert.DeserializeObject<PhotoPolicyDto>(resp.body);
+        }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"GetPhotoPolicyAsync: {ex.Message}"); return null; }
+    }
+
+    public async Task<bool> AcceptPhotoNdaAsync(Guid projectId, Guid photoId, string? acceptedTextSha256 = null)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync(
+                $"/api/projects/{projectId}/photos/{photoId}/accept-nda",
+                new { acceptedTextSha256 });
+            if (!resp.ok) LastError = $"AcceptPhotoNda: HTTP {resp.status} {resp.body}";
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"AcceptPhotoNdaAsync: {ex.Message}"); return false; }
     }
 
     // ── Bulk export (ZIP bundle) ────────────────────────────────────────────────

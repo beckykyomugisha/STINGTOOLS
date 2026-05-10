@@ -37,6 +37,11 @@ export default function AlbumsScreen() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState('');
+  // Phase 180 — visibility picker on the create modal so a coordinator
+  // doesn't have to round-trip via the BCC to make a Client-visible
+  // album. Defaults to Members which matches the prior behaviour.
+  const [newVisibility, setNewVisibility] =
+    useState<'Internal' | 'Members' | 'Client' | 'Distribution'>('Members');
   const [creating, setCreating] = useState(false);
 
   const load = useCallback(async () => {
@@ -59,8 +64,12 @@ export default function AlbumsScreen() {
     if (!projectId || !newName.trim()) return;
     setCreating(true);
     try {
-      const album = await createPhotoAlbum(projectId, { name: newName.trim(), visibility: 'Members' });
+      const album = await createPhotoAlbum(projectId, {
+        name: newName.trim(),
+        visibility: newVisibility,
+      });
       setNewName('');
+      setNewVisibility('Members');
       setCreateOpen(false);
       router.push({ pathname: '/site-photos/album-detail', params: { albumId: album.id } });
     } catch (err: unknown) {
@@ -121,6 +130,17 @@ export default function AlbumsScreen() {
               onChangeText={setNewName}
               autoFocus
             />
+            <Text style={styles.visLabel}>Visibility</Text>
+            <View style={styles.visRow}>
+              {(['Internal', 'Members', 'Client', 'Distribution'] as const).map((v) => (
+                <TouchableOpacity
+                  key={v}
+                  onPress={() => setNewVisibility(v)}
+                  style={[styles.visChip, newVisibility === v && styles.visChipActive]}>
+                  <Text style={[styles.visChipText, newVisibility === v && styles.visChipTextActive]}>{v}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
             <View style={styles.modalRow}>
               <TouchableOpacity onPress={() => setCreateOpen(false)} style={styles.modalCancel}>
                 <Text style={styles.modalCancelText}>Cancel</Text>
@@ -176,4 +196,13 @@ const styles = StyleSheet.create({
   modalCancelText: { color: theme.colors.textSecondary, fontSize: 14 },
   modalOk: { backgroundColor: theme.colors.accent, padding: theme.spacing.sm, borderRadius: 4, paddingHorizontal: theme.spacing.md },
   modalOkText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  visLabel: { fontSize: 12, color: theme.colors.textSecondary, marginBottom: 4 },
+  visRow: { flexDirection: 'row', gap: 6, marginBottom: theme.spacing.md },
+  visChip: {
+    paddingVertical: 6, paddingHorizontal: 10, borderRadius: 14,
+    borderWidth: 1, borderColor: theme.colors.border,
+  },
+  visChipActive: { backgroundColor: theme.colors.accent, borderColor: theme.colors.accent },
+  visChipText: { fontSize: 11, color: theme.colors.text },
+  visChipTextActive: { color: '#fff', fontWeight: '600' },
 });

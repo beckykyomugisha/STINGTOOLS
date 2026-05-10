@@ -9,13 +9,13 @@
 // Acceptance is per-photo + per-user; the server treats re-posts as
 // idempotent so this is safe to call even if the cache desyncs.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Modal, View, Text, ScrollView, TouchableOpacity, ActivityIndicator,
   StyleSheet,
 } from 'react-native';
 import { theme } from '@/utils/theme';
-import { acceptPhotoNda } from '@/api/endpoints';
+import { acceptPhotoNda, getPhotoPolicy } from '@/api/endpoints';
 
 const DEFAULT_NDA_TEXT =
   'This photo is provided under a non-disclosure agreement.\n\n' +
@@ -42,6 +42,22 @@ export function NdaPromptModal({
 }: NdaPromptModalProps) {
   const [accepting, setAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Phase 180 — fetch the project's NdaText override on mount when the
+  // caller didn't supply one. Falls back to the hardcoded default
+  // when both fail (modal still functional even if the policy fetch
+  // 404s on a project without a configured policy row).
+  const [policyText, setPolicyText] = useState<string | undefined>(ndaText);
+  useEffect(() => {
+    if (!visible || ndaText || policyText) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const pol = await getPhotoPolicy(projectId);
+        if (!cancelled && pol?.ndaText) setPolicyText(pol.ndaText);
+      } catch { /* default text covers the fallback case */ }
+    })();
+    return () => { cancelled = true; };
+  }, [visible, projectId, ndaText, policyText]);
 
   const onAccept = async () => {
     setAccepting(true);
@@ -62,7 +78,7 @@ export function NdaPromptModal({
         <View style={styles.card}>
           <Text style={styles.title}>NDA acceptance required</Text>
           <ScrollView style={styles.body}>
-            <Text style={styles.bodyText}>{ndaText ?? DEFAULT_NDA_TEXT}</Text>
+            <Text style={styles.bodyText}>{policyText ?? ndaText ?? DEFAULT_NDA_TEXT}</Text>
           </ScrollView>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <View style={styles.actions}>

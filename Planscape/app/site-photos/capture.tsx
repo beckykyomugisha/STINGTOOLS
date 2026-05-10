@@ -67,6 +67,7 @@ export default function CaptureSitePhotoScreen() {
     // through so the upload can auto-fulfil the originating item.
     checklistId?: string;
     checklistItemId?: string;
+    checklistItemTitle?: string;
     defaultReason?: string;
   }>();
   const activeProject = useProjectStore((s) => s.active);
@@ -377,6 +378,16 @@ export default function CaptureSitePhotoScreen() {
           style={{ flex: 1 }}
           facing="back"
         />
+        {/* Phase 180 — context pill so the user knows which checklist
+            item the photo will fulfil. Hidden when not launched from
+            a checklist. */}
+        {params.checklistItemTitle ? (
+          <View style={styles.contextPill}>
+            <Text style={styles.contextPillText} numberOfLines={1}>
+              For: {params.checklistItemTitle}
+            </Text>
+          </View>
+        ) : null}
         <View style={styles.cameraBar}>
           <TouchableOpacity
             style={styles.cancelBtn}
@@ -601,6 +612,12 @@ const styles = StyleSheet.create({
   },
   cancelBtn: { padding: theme.spacing.sm },
   cancelText: { color: '#fff', fontSize: theme.fontSize.md },
+  contextPill: {
+    position: 'absolute', top: 12, left: 12, right: 12,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingVertical: 8, paddingHorizontal: 14, borderRadius: 18,
+  },
+  contextPillText: { color: '#fff', fontSize: 13, fontWeight: '600', textAlign: 'center' },
   shutter: {
     width: 72, height: 72, borderRadius: 36,
     backgroundColor: 'rgba(255,255,255,0.2)',

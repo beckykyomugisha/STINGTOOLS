@@ -1738,6 +1738,35 @@ export function createPhotoShareLink(
   });
 }
 
+// ── Phase 180 — Photo policy ─────────────────────────────────────────
+
+export type PhotoPolicy = {
+  id: string;
+  projectId: string;
+  allowedReasonsJson?: string;
+  defaultAudienceByReasonJson?: string;
+  watermarkLogoPath?: string;
+  watermarkFooterTemplate?: string;
+  watermarkRequired: boolean;
+  faceBlurRequired: boolean;
+  plateBlurRequired: boolean;
+  retentionDays?: number;
+  autoArchiveAfterHandover: boolean;
+  geofenceWkt?: string;
+  offsiteAudience?: string;
+  digestHourLocal: number;
+  digestDistributionGroupId?: string;
+  approvalChain: string;
+  enforceChecklistOnShiftEnd: boolean;
+  defaultAlbumByReasonJson?: string;
+  ndaText?: string;
+  updatedAt: string;
+};
+
+export function getPhotoPolicy(projectId: string): Promise<PhotoPolicy> {
+  return apiFetch(`/api/projects/${projectId}/photo-policy`);
+}
+
 // ── Phase 179.2 — NDA acceptance ─────────────────────────────────────
 
 export type PhotoNdaAcceptance = {

@@ -54,6 +54,9 @@ export default function ChecklistDetailScreen() {
             context: 'checklist',
             checklistId,
             checklistItemId: itemId,
+            // Phase 180 — surface the item's name in the camera UI so
+            // the user knows which item the photo will fulfil.
+            checklistItemTitle: itemTitle,
             defaultReason,
           },
         }),

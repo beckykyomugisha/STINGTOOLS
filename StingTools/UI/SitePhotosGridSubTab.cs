@@ -136,8 +136,11 @@ namespace StingTools.UI
                     return;
                 }
 
+                // Phase 180 — capture the NDA-required set BEFORE we
+                // re-order so the per-tile gate is accurate.
+                var ndaIds = PlanscapeServerClient.Instance.LastNdaRequiredIds;
                 foreach (var p in photos.OrderByDescending(p => p.CapturedAt))
-                    wrap.Children.Add(BuildTile(owner, state, p));
+                    wrap.Children.Add(BuildTile(owner, state, p, ndaIds.Contains(p.Id)));
 
                 // Lazy-load thumbnails after the grid lays out so layout
                 // doesn't block on N HTTP fetches.
@@ -184,7 +187,8 @@ namespace StingTools.UI
         }
 
         private static UIElement BuildTile(
-            BIMCoordinationCenter owner, SitePhotosTab.TabState state, SitePhotoDto p)
+            BIMCoordinationCenter owner, SitePhotosTab.TabState state, SitePhotoDto p,
+            bool isNdaGated = false)
         {
             var border = new Border
             {
@@ -206,9 +210,20 @@ namespace StingTools.UI
             var thumbBorder = new Border
             {
                 Width = TileSize, Height = TileSize,
-                Background = new SolidColorBrush(Color.FromRgb(0xEC, 0xEF, 0xF1)),
+                Background = new SolidColorBrush(
+                    isNdaGated ? Color.FromRgb(0x37, 0x47, 0x4F)
+                               : Color.FromRgb(0xEC, 0xEF, 0xF1)),
                 ClipToBounds = true,
-                Child = tag.ThumbImage
+                Child = isNdaGated
+                    ? (UIElement)new TextBlock
+                        {
+                            Text = "🔒 NDA",
+                            FontSize = 16, FontWeight = FontWeights.Bold,
+                            Foreground = Brushes.White,
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            VerticalAlignment = VerticalAlignment.Center,
+                        }
+                    : tag.ThumbImage
             };
             tag.ThumbImage.Stretch = Stretch.UniformToFill;
             DockPanel.SetDock(thumbBorder, Dock.Top);
@@ -252,13 +267,40 @@ namespace StingTools.UI
             }
             ApplySelectionVisual();
 
-            border.MouseLeftButtonUp += (_, _) =>
+            border.MouseLeftButtonUp += async (_, _) =>
             {
+                if (isNdaGated)
+                {
+                    // Phase 180 — route through the NDA modal; on
+                    // accept the parent owner re-renders so the lock
+                    // disappears and the user can interact normally.
+                    var accepted = await SitePhotosNdaPrompt.ShowAsync(owner, state.ProjectId, p.Id);
+                    if (accepted) Trigger(owner);
+                    return;
+                }
                 if (state.SelectedIds.Contains(p.Id)) state.SelectedIds.Remove(p.Id);
                 else state.SelectedIds.Add(p.Id);
                 ApplySelectionVisual();
             };
             return border;
+        }
+
+        /// <summary>
+        /// Force the BCC tab content to re-render so the NDA-accepted
+        /// photo refreshes without the user manually tapping Refresh.
+        /// </summary>
+        private static void Trigger(BIMCoordinationCenter owner)
+        {
+            try
+            {
+                // Best-effort: BCC exposes a public RefreshActiveTab on
+                // the same surface used by every other tab. Do nothing if
+                // not present — the user can still tap ↻.
+                var mi = owner.GetType().GetMethod("RefreshActiveTab",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                mi?.Invoke(owner, null);
+            }
+            catch { /* fallback: rely on auto-refresh timer */ }
         }
 
         private static Border MakeReasonChip(string? reason)
