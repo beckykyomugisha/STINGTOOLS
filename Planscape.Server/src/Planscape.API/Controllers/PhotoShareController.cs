@@ -150,10 +150,40 @@ public class PhotoShareLinkPublicController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
     private readonly IFileStorageService _storage;
+    private readonly INotificationService _notif;
 
-    public PhotoShareLinkPublicController(PlanscapeDbContext db, IFileStorageService storage)
+    public PhotoShareLinkPublicController(
+        PlanscapeDbContext db,
+        IFileStorageService storage,
+        INotificationService notif)
     {
-        _db = db; _storage = storage;
+        _db = db; _storage = storage; _notif = notif;
+    }
+
+    /// <summary>
+    /// Phase 180 — push the share-link issuer when the link is opened
+    /// for the first time and again on the last allowed fetch (helps
+    /// the issuer notice unauthorised forwarding). Fire-and-forget; a
+    /// notification failure never breaks the consumer fetch.
+    /// </summary>
+    private async Task NotifyIssuerOnFirstAndLastFetch(PhotoShareLink link, CancellationToken ct)
+    {
+        try
+        {
+            if (link.CreatedByUserId is null) return;
+            var isFirst = link.FetchCount == 1;
+            var isLast  = link.MaxFetches.HasValue && link.FetchCount == link.MaxFetches.Value;
+            if (!isFirst && !isLast) return;
+            var label = string.IsNullOrEmpty(link.Label) ? "(unlabeled)" : link.Label!;
+            await _notif.NotifyUserAsync(link.CreatedByUserId.Value,
+                title: isLast ? "Share link reached fetch cap" : "Share link opened",
+                message: isLast
+                    ? $"Share link \"{label}\" reached its {link.MaxFetches}-fetch cap."
+                    : $"Share link \"{label}\" was opened for the first time.",
+                data: new { linkId = link.Id, link.PhotoId, link.AlbumId, link.FetchCount },
+                ct: ct);
+        }
+        catch { /* swallow — public consumer must not see auth-side failures */ }
     }
 
     [HttpGet]
@@ -192,6 +222,7 @@ public class PhotoShareLinkPublicController : ControllerBase
         // can no longer both see the cap as un-hit.
         var link = await ConsumeOneFetchAsync(token, ct);
         if (link == null) return NotFound();
+        await NotifyIssuerOnFirstAndLastFetch(link, ct);
         if (link.AlbumId.HasValue) return BadRequest(new { error = "album_share_use_album_endpoint" });
         var photo = await _db.SitePhotos.AsNoTracking()
             .Include(p => p.Document)
@@ -224,6 +255,7 @@ public class PhotoShareLinkPublicController : ControllerBase
         // browsed unlimited times via this endpoint.
         var link = await ConsumeOneFetchAsync(token, ct);
         if (link == null || !link.AlbumId.HasValue) return NotFound();
+        await NotifyIssuerOnFirstAndLastFetch(link, ct);
         var photoIds = await _db.PhotoAlbumPhotos.AsNoTracking()
             .Where(ap => ap.AlbumId == link.AlbumId.Value)
             .OrderBy(ap => ap.SortOrder)

@@ -479,6 +479,7 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoPdfExportServi
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoRetentionJob>();
 // Phase 180 — single read-side facade over PhotoPolicy.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoPolicyResolver>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoChecklistDueJob>();
 // QuestPDF community licence — set once per process. Free for OSS /
 // personal / sub-1M USD revenue companies; switch to .Professional and
 // add the licence key at GA if revenue threshold is crossed.
@@ -1213,6 +1214,11 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PhotoRetentionJob>(
     "photo-retention",
     j => j.ExecuteAsync(CancellationToken.None),
     "30 3 * * *", new RecurringJobOptions { QueueName = "default" });
+// Phase 180 — daily 07:00 UTC checklist-due nudge.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PhotoChecklistDueJob>(
+    "photo-checklist-due",
+    j => j.ExecuteAsync(CancellationToken.None),
+    "0 7 * * *", new RecurringJobOptions { QueueName = "default" });
 
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DailyPhotoDigestJob>(
     "site-photo-digest", j => j.ExecuteAsync(CancellationToken.None),

@@ -273,6 +273,47 @@ public class SitePhotosExtController : ControllerBase
         return NoContent();
     }
 
+    // ── Audit log query ──────────────────────────────────────────────
+
+    /// <summary>
+    /// Phase 180 — Read-only audit window for everything the photo
+    /// workflow logs. Filters across SitePhoto / PhotoAlbum /
+    /// PhotoChecklist / PhotoShareLink / PhotoNdaAcceptance entities so
+    /// the BCC + mobile can render a single timeline.
+    /// </summary>
+    [HttpGet("/api/projects/{projectId:guid}/photo-audit")]
+    public async Task<ActionResult> Audit(
+        Guid projectId,
+        [FromQuery] Guid? photoId,
+        [FromQuery] string? action,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] int take = 100,
+        CancellationToken ct = default)
+    {
+        if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
+        take = Math.Clamp(take, 1, 500);
+        var entities = new[] {
+            "SitePhoto", "PhotoAlbum", "PhotoChecklist", "PhotoChecklistItem",
+            "PhotoShareLink", "PhotoNdaAcceptance", "PhotoAccessRule",
+        };
+        var q = _db.AuditLogs.AsNoTracking()
+            .Where(a => entities.Contains(a.EntityType));
+        if (photoId.HasValue)
+            q = q.Where(a => a.EntityId == photoId.Value.ToString());
+        if (!string.IsNullOrWhiteSpace(action))
+            q = q.Where(a => a.Action == action);
+        if (from.HasValue) q = q.Where(a => a.Timestamp >= from.Value);
+        if (to.HasValue)   q = q.Where(a => a.Timestamp <= to.Value);
+        var rows = await q.OrderByDescending(a => a.Timestamp).Take(take)
+            .Select(a => new {
+                a.Id, a.Action, a.EntityType, a.EntityId,
+                a.UserId, a.Timestamp, a.DetailsJson
+            })
+            .ToListAsync(ct);
+        return Ok(new { items = rows, count = rows.Count });
+    }
+
     // ── NDA acceptance ───────────────────────────────────────────────
 
     /// <summary>

@@ -621,6 +621,20 @@ public class SitePhotosController : ControllerBase
         await _audit.LogAsync("REJECT", "SitePhoto", photoId.ToString(),
             System.Text.Json.JsonSerializer.Serialize(new { reason = photo.RejectedReason, rejector = actorId }));
 
+        // Phase 180 — push to author so the rejection is visible without a refresh,
+        // and broadcast to project listeners so review queues stay in sync.
+        if (photo.CapturedByUserId.HasValue)
+        {
+            await _notif.NotifyUserAsync(photo.CapturedByUserId.Value,
+                title: "Photo rejected",
+                message: $"{photo.Reason} photo rejected: {photo.RejectedReason}",
+                data: new { photoId, projectId, kind = "photo_rejected" },
+                ct: ct);
+        }
+        _ = _hub.Clients.Group($"project-{projectId}").SendAsync("SitePhotoRejected", new {
+            projectId, photoId, reason = photo.RejectedReason
+        }, ct);
+
         return Ok(await ToDtoAsync(photo, ct));
     }
 
@@ -643,6 +657,11 @@ public class SitePhotosController : ControllerBase
 
         await _audit.LogAsync("WITHDRAW", "SitePhoto", photoId.ToString(),
             System.Text.Json.JsonSerializer.Serialize(new { withdrawer = actorId }));
+
+        // Phase 180 — broadcast to project listeners.
+        _ = _hub.Clients.Group($"project-{projectId}").SendAsync("SitePhotoWithdrawn", new {
+            projectId, photoId
+        }, ct);
 
         return Ok(await ToDtoAsync(photo, ct));
     }
@@ -702,6 +721,13 @@ public class SitePhotosController : ControllerBase
                 bulk = true, approved, skipped, skippedDetail, caption, approver = actorId
             }));
 
+        // Phase 180 — broadcast a single bulk event so listeners can
+        // refresh once instead of N times.
+        if (approved > 0)
+        {
+            _ = _hub.Clients.Group($"project-{projectId}").SendAsync("SitePhotoBulkApproved",
+                new { projectId, count = approved }, ct);
+        }
         return Ok(new { approved, skipped, skippedDetail });
     }
 

@@ -35,10 +35,14 @@ public class PhotoChecklistsController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
     private readonly IAuditService _audit;
+    private readonly INotificationService _notif;
 
-    public PhotoChecklistsController(PlanscapeDbContext db, IAuditService audit)
+    public PhotoChecklistsController(
+        PlanscapeDbContext db,
+        IAuditService audit,
+        INotificationService notif)
     {
-        _db = db; _audit = audit;
+        _db = db; _audit = audit; _notif = notif;
     }
 
     [HttpGet]
@@ -239,6 +243,28 @@ public class PhotoChecklistsController : ControllerBase
         await _db.SaveChangesAsync(ct);
         await _audit.LogAsync("FULFIL", "PhotoChecklistItem", itemId.ToString(),
             System.Text.Json.JsonSerializer.Serialize(new { fromPhotoId = prev, toPhotoId = req.PhotoId }));
+
+        // Phase 180 — notify the checklist author so they can see
+        // progress without polling. Only on first fulfilment to avoid
+        // notification spam when a coordinator re-links to a better photo.
+        if (prev is null)
+        {
+            var checklist = await _db.PhotoChecklists.AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == checklistId, ct);
+            if (checklist?.CreatedByUserId is { } authorId &&
+                authorId != CurrentUserIdOrNull())
+            {
+                try
+                {
+                    await _notif.NotifyUserAsync(authorId,
+                        title: $"Checklist item fulfilled",
+                        message: $"\"{item.Title}\" was fulfilled in {checklist.Name}.",
+                        data: new { projectId, checklistId, itemId, photoId = req.PhotoId },
+                        ct: ct);
+                }
+                catch { /* notification failure must not break fulfilment */ }
+            }
+        }
         return Ok(item);
     }
 
