@@ -12,7 +12,6 @@ using System.Windows.Media;
 using Autodesk.Revit.DB;
 using StingTools.Core;
 using StingTools.Core.Calc;
-using MediaColor = System.Windows.Media.Color;
 
 namespace StingTools.UI.Plumbing
 {
@@ -61,7 +60,7 @@ namespace StingTools.UI.Plumbing
                 CanUserDeleteRows = false,
                 IsReadOnly = false,
                 HeadersVisibility = DataGridHeadersVisibility.Column,
-                AlternatingRowBackground = new SolidColorBrush(MediaColor.FromRgb(245, 247, 250)),
+                AlternatingRowBackground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(245, 247, 250)),
                 Margin = new Thickness(8)
             };
             grid.Columns.Add(new DataGridCheckBoxColumn { Header = "Apply", Binding = new System.Windows.Data.Binding("Selected") { Mode = System.Windows.Data.BindingMode.TwoWay } });
@@ -81,7 +80,7 @@ namespace StingTools.UI.Plumbing
             DockPanel.SetDock(bar, Dock.Bottom);
             var cancel = new Button { Content = "Cancel", Width = 90, Margin = new Thickness(6, 0, 0, 0) };
             var apply  = new Button { Content = "Apply Selected", Width = 130, Margin = new Thickness(6, 0, 0, 0) };
-            var all    = new Button { Content = "Apply All", Width = 100, Margin = new Thickness(6, 0, 0, 0), Background = new SolidColorBrush(MediaColor.FromRgb(34, 139, 34)), Foreground = Brushes.White };
+            var all    = new Button { Content = "Apply All", Width = 100, Margin = new Thickness(6, 0, 0, 0), Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(34, 139, 34)), Foreground = Brushes.White };
             cancel.Click += (s, e) => { result.Decision = SlopeFixDecision.Cancel; win.Close(); };
             apply.Click  += (s, e) =>
             {
