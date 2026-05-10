@@ -2,6 +2,102 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 178f — Deferred-list completion: damper / acoustic / UL / mobile / formula / section)
+
+Closes the five items deferred at the end of Phase 178e. All
+implemented in priority order against the plan I'd posted.
+
+**#15 — Mark formula injection.** New `FormulaBinding` schema entry on
+`SymbolDefinition.FormulaBindings`. `SymbolLibraryCreator.AddFormulaBindings`
+calls `FamilyManager.SetFormula` with `BuiltInParameter.ALL_MODEL_MARK`
+fallback. The SpecialityEquipment seed now ships
+`{ target: "Mark", expression: "PEN_CONTROL_NUMBER_TXT" }` so every
+firestop instance's Mark mirrors its control number — tag schedules
+read it for free.
+
+**#14 — Section symbology auto-gen.** New `SectionSymbology` block on
+`SymbolGeometry.Section` with optional view filter (Front / Back /
+Left / Right / All). `SymbolLibraryCreator.DrawSectionGeometry` walks
+the family doc's elevation views, builds a vertical sketch plane
+matching each view's normal, and renders lines / arcs / text into the
+elevation. SpecialityEquipment seed gets a 200 mm vertical bar with
+in/out arrows (matches the README guidance for section views).
+
+**#11 — Fire damper + acoustic seal.** Two new seeds:
+`STING_SEED_FireDamper.json` (BS EN 1366-2 / BS EN 15650; FR60 / FR90
+/ FR120 / motorised / combined-smoke variants; FD_*-prefix params for
+actuation / trigger temp / EN-15650 class) and
+`STING_SEED_AcousticSeal.json` (BS 8233 / Approved Doc E; Rw45 / Rw55
+/ Rw63 / flexible-boot variants). Both wired into the BuildSeedFamilies
+tier list. New `Core/Routing/PenetrationProductSelector` picks the
+right product family per (member-category, host-rating-type) — ducts
+through fire-rated barriers go to fire dampers, acoustically-rated
+hosts (with `STING_ACOUSTIC_RW_DB > 0`) go to acoustic seals, beams
+stay on SLEEVE_GENERIC for structural review only.
+`FrpPenetrationPlacer` now resolves three families up front and
+dispatches via the selector; `StampInstance` pulls the family name
+off the placed symbol so dampers / seals carry their own
+`STING_SEED_FAMILY_TXT`. `PenetrationCoverageValidator` recognises
+all three seeds.
+
+**#13 — UL-system framework.** Extended `STING_FAMILY_SWAP_REGISTRY.json`
+with optional `ulSystemMatch[]` blocks per candidate carrying
+`fireRatingPattern` / `hostTypePattern` / `minOdMm` / `maxOdMm` /
+`ulSystem` rules. Initial dataset covers Hilti, Promat, Nullifire,
+STI, 3M for firestops; Hilti, TROX, Halton, Ruskin for fire dampers;
+CMS, Kingspan / Isover for acoustic seals — about 25 named systems.
+New `Core/Symbols/ULSystemMatcher` walks the rules against a placed
+penetration's `PEN_FIRE_RATING_TXT` + `PEN_HOST_TYPE_TXT` + `PEN_OD_MM`
+and returns the matching UL / EN-1366-3 reference.
+`SwapToManufacturerCommand.SwapCandidate.RawNode` now carries the
+JSON candidate; the swap loop calls the matcher post-`ChangeTypeId`
+and stamps `PEN_CERTIFICATION_TXT` with the chosen system.
+
+**#12 — Mobile commissioning sign-off.** Server: new
+`PenetrationSignoff` entity (`ITenantScoped`) + `PenetrationsController`
+with `PUT /api/projects/{id}/penetrations/{controlNumber}/signoff`
+(idempotent on control-number + UUID), `GET /signoff`, `GET` (list,
+filter by status / hostType), `GET /dashboard` aggregator;
+`PlanscapeDbContext.PenetrationSignoffs` `DbSet`. Mobile: new
+`Planscape/app/penetrations/` flow with `index.tsx` (dashboard +
+recent rows) and `signoff.tsx` (QR scan via `expo-camera`,
+photo via `expo-image-picker`, GPS via `expo-location`, status chips
+DRAFT / INSTALLED / INSPECTED / SIGNED-OFF / REWORK, idempotent PUT
+with offline-queue fallback). QR payload format:
+`STING-PEN|<controlNumber>|<pfvUuid>|<projectId>`. Endpoint wrappers
+`putPenetrationSignoff` / `getPenetrationSignoff` /
+`listPenetrationSignoffs` / `getPenetrationDashboard` added to
+`Planscape/src/api/endpoints.ts`.
+
+Files: `StingTools/Core/Symbols/SymbolDefinition.cs` +
+`SymbolLibraryCreator.cs` (formula bindings + section renderer +
+per-variant connector minting); `STING_SEED_SpecialityEquipment.json`
+(formula binding + section block); new
+`Core/Symbols/ULSystemMatcher.cs`; new
+`Core/Routing/PenetrationProductSelector.cs`;
+`Core/Routing/FrpPenetrationPlacer.cs` (three-family dispatch);
+`Core/Validation/PenetrationCoverageValidator.cs` (recognise three
+seeds); new `STING_SEED_FireDamper.json` + `STING_SEED_AcousticSeal.json`;
+`STING_FAMILY_SWAP_REGISTRY.json` (UL system rules);
+`Commands/Symbols/SwapToManufacturerCommand.cs` (UL stamp on swap);
+`Commands/Symbols/BuildSeedFamiliesCommand.cs` (+2 specs);
+new `Planscape.Server/src/Planscape.Core/Entities/PenetrationSignoff.cs`;
+new `Planscape.Server/src/Planscape.API/Controllers/PenetrationsController.cs`;
+`Planscape.Server/src/Planscape.Infrastructure/Data/PlanscapeDbContext.cs`
+(`DbSet<PenetrationSignoff>`); new `Planscape/app/penetrations/{_layout,index,signoff}.tsx`;
+appended `Planscape/src/api/endpoints.ts`. Code committed without
+`dotnet build` / `dotnet ef migrations` — run
+`dotnet ef migrations add Phase178f_PenetrationSignoff` against
+`Planscape.Server` once before deploy. Mobile builds without `npx expo
+start` verification.
+
+Standards basis: BS EN 1366-2 / BS EN 15650 (fire dampers, EI##S
+classification), BS 8233 + Approved Document E + DW/144 (acoustic
+penetration sealing), UL Building Materials Directory + UL 555
+(damper listings), the named UL systems above (Hilti / Promat / STI /
+3M / Nullifire / TROX / Halton / Ruskin / CMS Danskin / Kingspan-Isover),
+BS 9999 + Building Safety Act 2022 (golden-thread record).
+
 #### Completed (Phase 178e — Multi-service drops + plumbing/medgas/lab seeds)
 
 Continuation of Phase 178d. Closes the remaining items in the priority

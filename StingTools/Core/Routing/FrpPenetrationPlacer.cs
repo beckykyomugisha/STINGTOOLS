@@ -103,7 +103,9 @@ namespace StingTools.Core.Routing
                 return r;
             }
 
-            // Index types by rating once.
+            // Index types by rating on the firestop seed (back-compat
+            // path used when PenetrationProductSelector chooses
+            // PenetrationProductKind.Firestop or SleeveGeneric).
             var typesByRating = new Dictionary<string, FamilySymbol>(StringComparer.OrdinalIgnoreCase);
             foreach (var symId in seedFamily.GetFamilySymbolIds())
             {
@@ -115,9 +117,16 @@ namespace StingTools.Core.Routing
                     if (nm.IndexOf(kv.Value, StringComparison.OrdinalIgnoreCase) >= 0)
                     { typesByRating[kv.Key] = sym; break; }
                 }
-                // Default fallback: first symbol seen if no rating match.
                 if (!typesByRating.ContainsKey("__default__")) typesByRating["__default__"] = sym;
             }
+
+            // Phase 178f — pre-resolve the fire-damper and acoustic-
+            // seal seeds. Non-fatal when missing — selector falls back
+            // to firestop and a warning lands in the result panel.
+            var damperFamily   = ResolveSeedFamilyByName(doc, "STING_SEED_FireDamper");
+            var acousticFamily = ResolveSeedFamilyByName(doc, "STING_SEED_AcousticSeal");
+            var damperTypes    = IndexFamilySymbols(doc, damperFamily);
+            var acousticTypes  = IndexFamilySymbols(doc, acousticFamily);
 
             // Build idempotence index — every existing penetration
             // instance keyed by its PEN_PFV_UUID_TXT. Re-runs of the
@@ -149,20 +158,40 @@ namespace StingTools.Core.Routing
                         continue;
                     }
 
+                    // Phase 178f — dispatch via PenetrationProductSelector.
+                    // Picks the right family (firestop / fire damper /
+                    // acoustic seal / generic sleeve) for this record's
+                    // member-class × host-rating combo. Falls back to
+                    // the legacy firestop seed when the chosen family
+                    // isn't loaded.
+                    var choice = PenetrationProductSelector.Select(doc, rec);
+                    Dictionary<string, FamilySymbol> chosenIndex = typesByRating;
+                    if (choice.Kind == PenetrationProductKind.FireDamper && damperTypes != null && damperTypes.Count > 0)
+                        chosenIndex = damperTypes;
+                    else if (choice.Kind == PenetrationProductKind.AcousticSeal && acousticTypes != null && acousticTypes.Count > 0)
+                        chosenIndex = acousticTypes;
+                    else if (choice.Kind == PenetrationProductKind.FireDamper)
+                        r.Warnings.Add($"Duct penetration of {rec.FireRating} barrier needs a fire damper but STING_SEED_FireDamper isn't loaded — falling back to firestop. Run BuildSeedFamilies.");
+                    else if (choice.Kind == PenetrationProductKind.AcousticSeal)
+                        r.Warnings.Add("Acoustic-only host but STING_SEED_AcousticSeal isn't loaded — falling back to firestop. Run BuildSeedFamilies.");
+
+                    string variantHint = choice.TypeVariantHint ?? "";
                     string rating = rec.FireRating ?? "";
-                    // Beams without a fire rating get the SLEEVE_GENERIC
-                    // variant — they're structural holes, not firestops.
                     if (rec.HostKind == PenetrationHostKind.Beam && string.IsNullOrEmpty(rating))
                         rating = "";
                     else if (string.IsNullOrEmpty(rating))
                         rating = "FR60";
 
-                    if (!typesByRating.TryGetValue(rating, out var sym))
-                    {
-                        if (!typesByRating.TryGetValue("__default__", out sym))
-                        { r.Skipped++; continue; }
-                        r.Warnings.Add($"FRP type variant '{rating}' missing — used default for member {rec.MemberId?.Value}.");
-                    }
+                    FamilySymbol sym = null;
+                    // Prefer the variant hint chosen by the selector.
+                    if (!string.IsNullOrEmpty(variantHint))
+                        chosenIndex.TryGetValue(variantHint, out sym);
+                    if (sym == null)
+                        chosenIndex.TryGetValue(rating, out sym);
+                    if (sym == null && !chosenIndex.TryGetValue("__default__", out sym))
+                    { r.Skipped++; continue; }
+                    if (variantHint != null && sym?.Name?.IndexOf(variantHint, StringComparison.OrdinalIgnoreCase) < 0)
+                        r.Warnings.Add($"Penetration product variant '{variantHint}' missing on family — used '{sym.Name}' for member {rec.MemberId?.Value}.");
 
                     if (!sym.IsActive)
                     {
@@ -318,6 +347,47 @@ namespace StingTools.Core.Routing
 
         // ── Helpers ─────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Phase 178f — locate any STING seed family by exact name.
+        /// Used to find the fire-damper and acoustic-seal seeds the
+        /// PenetrationProductSelector dispatches to.
+        /// </summary>
+        private static Family ResolveSeedFamilyByName(Document doc, string name)
+        {
+            if (doc == null || string.IsNullOrEmpty(name)) return null;
+            try
+            {
+                return new FilteredElementCollector(doc)
+                    .OfClass(typeof(Family))
+                    .Cast<Family>()
+                    .FirstOrDefault(f => string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase));
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveSeedFamilyByName({name}): {ex.Message}"); return null; }
+        }
+
+        /// <summary>
+        /// Index a family's symbols by name + add a "__default__" key
+        /// so the placer can pick a fallback when no variant matches.
+        /// </summary>
+        private static Dictionary<string, FamilySymbol> IndexFamilySymbols(Document doc, Family fam)
+        {
+            var idx = new Dictionary<string, FamilySymbol>(StringComparer.OrdinalIgnoreCase);
+            if (doc == null || fam == null) return idx;
+            try
+            {
+                foreach (var symId in fam.GetFamilySymbolIds())
+                {
+                    var sym = doc.GetElement(symId) as FamilySymbol;
+                    if (sym == null) continue;
+                    string nm = sym.Name ?? "";
+                    if (!idx.ContainsKey(nm)) idx[nm] = sym;
+                    if (!idx.ContainsKey("__default__")) idx["__default__"] = sym;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"IndexFamilySymbols({fam?.Name}): {ex.Message}"); }
+            return idx;
+        }
+
         private static Family ResolveSeedFamily(Document doc)
         {
             try
@@ -392,7 +462,14 @@ namespace StingTools.Core.Routing
                 ParameterHelpers.SetString(fi, "PEN_CONTROL_NUMBER_TXT",    controlNumber, overwrite: true);
                 ParameterHelpers.SetString(fi, "PEN_INSTALL_STATUS_TXT",    "DRAFT", overwrite: false);
                 ParameterHelpers.SetString(fi, "PEN_PFV_UUID_TXT",          pfvUuid ?? "", overwrite: true);
-                ParameterHelpers.SetString(fi, "STING_SEED_FAMILY_TXT",     "STING_SEED_SpecialityEquipment", overwrite: false);
+                // Stamp the family identity from the actual placed
+                // symbol — fire dampers and acoustic seals carry their
+                // own seed name (Phase 178f) so the swap registry and
+                // coverage validator can tell them apart from
+                // firestops.
+                string seedName = fi.Symbol?.Family?.Name;
+                if (string.IsNullOrEmpty(seedName)) seedName = "STING_SEED_SpecialityEquipment";
+                ParameterHelpers.SetString(fi, "STING_SEED_FAMILY_TXT", seedName, overwrite: false);
 
                 // Beam-only fields. Empty strings on slab / wall hosts.
                 if (rec.HostKind == PenetrationHostKind.Beam)

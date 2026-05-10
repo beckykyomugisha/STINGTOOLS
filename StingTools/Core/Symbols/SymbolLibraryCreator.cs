@@ -199,6 +199,15 @@ namespace StingTools.Core.Symbols
                     {
                         AddTypeVariants(fdoc, def, result);
                     }
+
+                    // Phase 178f — bind family-formula expressions
+                    // declared in the JSON spec. Most common use:
+                    // Mark = PEN_CONTROL_NUMBER_TXT on the firestop
+                    // seed so tags read it without extra wiring.
+                    if (def.FormulaBindings != null && def.FormulaBindings.Count > 0)
+                    {
+                        AddFormulaBindings(fdoc, def, result);
+                    }
                     tx.Commit();
                 }
 
@@ -256,6 +265,70 @@ namespace StingTools.Core.Symbols
             if (geo.Text != null)
                 foreach (var t in geo.Text)
                     DrawText(fdoc, planView, t, s, result, def.Id);
+
+            // Phase 178f — section-view symbology. The README's
+            // "200 mm vertical bar with arrows" for SpecialityEquipment
+            // sections lands programmatically when the seed JSON
+            // declares geometry.section.
+            if (geo.Section != null)
+            {
+                DrawSectionGeometry(fdoc, def, geo.Section, s, result);
+            }
+        }
+
+        /// <summary>
+        /// Render a SectionSymbology block onto the family's elevation
+        /// views. The view name is matched via Revit's standard four
+        /// "Elevations" templates ship (Front / Back / Left / Right).
+        /// "All" applies to every elevation view found.
+        /// </summary>
+        private static void DrawSectionGeometry(Document fdoc, SymbolDefinition def,
+            SectionSymbology section, double symMm, SymbolCreationResult result)
+        {
+            try
+            {
+                var views = new List<View>();
+                foreach (var v in new FilteredElementCollector(fdoc).OfClass(typeof(View)))
+                {
+                    if (!(v is View view)) continue;
+                    if (view.IsTemplate) continue;
+                    if (view.ViewType != ViewType.Elevation) continue;
+                    string nm = view.Name ?? "";
+                    bool match =
+                        string.Equals(section.View, "All", StringComparison.OrdinalIgnoreCase) ||
+                        nm.IndexOf(section.View ?? "Front", StringComparison.OrdinalIgnoreCase) >= 0;
+                    if (match) views.Add(view);
+                }
+                if (views.Count == 0)
+                {
+                    result.Warnings.Add($"{def.Id}: no elevation view '{section.View}' for section symbology — skipped.");
+                    return;
+                }
+
+                foreach (var v in views)
+                {
+                    // Section sketches live on a vertical plane facing the
+                    // elevation. Use the view's right-direction × up-direction
+                    // normal so model curves render in the elevation plane.
+                    XYZ origin = XYZ.Zero;
+                    XYZ normal;
+                    try { normal = v.ViewDirection; } catch { normal = XYZ.BasisY; }
+                    SketchPlane sketch;
+                    try { sketch = SketchPlane.Create(fdoc, Plane.CreateByNormalAndOrigin(normal, origin)); }
+                    catch (Exception ex) { result.Warnings.Add($"{def.Id} section sketch '{v.Name}': {ex.Message}"); continue; }
+
+                    if (section.Lines != null)
+                        foreach (var l in section.Lines)
+                            DrawLine(fdoc, v, sketch, l, symMm, result, def.Id + " (section)");
+                    if (section.Arcs != null)
+                        foreach (var a in section.Arcs)
+                            DrawArc(fdoc, v, sketch, a, symMm, result, def.Id + " (section)");
+                    if (section.Text != null)
+                        foreach (var t in section.Text)
+                            DrawText(fdoc, v, t, symMm, result, def.Id + " (section)");
+                }
+            }
+            catch (Exception ex) { result.Warnings.Add($"{def.Id}: section render failed — {ex.Message}"); }
         }
 
         private static void DrawLine(Document fdoc, View view, SketchPlane sketch,
@@ -535,6 +608,49 @@ namespace StingTools.Core.Symbols
             catch (Exception ex)
             {
                 StingLog.Warn($"SetVariantParam {p?.Definition?.Name}: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Phase 178f — bind family-formula expressions. Resolves
+        /// "Mark" against BuiltInParameter.ALL_MODEL_MARK first, then
+        /// falls back to a name lookup. Other targets are looked up
+        /// by name on the family parameter set.
+        /// </summary>
+        private static void AddFormulaBindings(Document fdoc, SymbolDefinition def, SymbolCreationResult result)
+        {
+            if (!fdoc.IsFamilyDocument) return;
+            if (def.FormulaBindings == null || def.FormulaBindings.Count == 0) return;
+            var fm = fdoc.FamilyManager;
+
+            foreach (var b in def.FormulaBindings)
+            {
+                if (b == null || string.IsNullOrWhiteSpace(b.Target) || string.IsNullOrWhiteSpace(b.Expression))
+                    continue;
+                try
+                {
+                    FamilyParameter target = null;
+                    if (string.Equals(b.Target, "Mark", StringComparison.OrdinalIgnoreCase))
+                    {
+                        try { target = fm.get_Parameter(BuiltInParameter.ALL_MODEL_MARK); } catch { target = null; }
+                    }
+                    if (target == null) target = fm.get_Parameter(b.Target);
+                    if (target == null)
+                    {
+                        result.Warnings.Add($"{def.Id}: formula binding target '{b.Target}' not found — skipped.");
+                        continue;
+                    }
+                    if (target.IsReporting)
+                    {
+                        result.Warnings.Add($"{def.Id}: formula binding target '{b.Target}' is a reporting parameter — formulas not allowed.");
+                        continue;
+                    }
+                    fm.SetFormula(target, b.Expression);
+                }
+                catch (Exception ex)
+                {
+                    result.Warnings.Add($"{def.Id}: formula binding '{b.Target}={b.Expression}' failed — {ex.Message}");
+                }
             }
         }
 

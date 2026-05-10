@@ -56,7 +56,11 @@ namespace StingTools.Core.Validation
                 {
                     if (!(el is FamilyInstance fi)) continue;
                     string seedTag = ParameterHelpers.GetString(fi, "STING_SEED_FAMILY_TXT");
-                    if (!string.Equals(seedTag, "STING_SEED_SpecialityEquipment", StringComparison.OrdinalIgnoreCase)
+                    bool isPenetrationFamily =
+                        string.Equals(seedTag, "STING_SEED_SpecialityEquipment", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(seedTag, "STING_SEED_FireDamper",          StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(seedTag, "STING_SEED_AcousticSeal",        StringComparison.OrdinalIgnoreCase);
+                    if (!isPenetrationFamily
                         && string.IsNullOrEmpty(ParameterHelpers.GetString(fi, "PEN_CONTROL_NUMBER_TXT")))
                         continue;
 

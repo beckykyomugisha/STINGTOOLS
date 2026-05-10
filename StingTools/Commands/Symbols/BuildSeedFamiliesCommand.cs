@@ -65,6 +65,12 @@ namespace StingTools.Commands.Symbols
             "STING_SEED_PlumbingEquipment.json",
             "STING_SEED_MedGasOutlet.json",
             "STING_SEED_LabFixture.json",
+            // Phase 178f — penetration product expansion. Fire damper
+            // for ducts crossing fire-rated barriers (BS EN 1366-2);
+            // acoustic seal for non-rated but acoustically-sensitive
+            // hosts (BS 8233 / Approved Doc E).
+            "STING_SEED_FireDamper.json",
+            "STING_SEED_AcousticSeal.json",
         };
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)

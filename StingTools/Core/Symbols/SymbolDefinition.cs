@@ -77,6 +77,18 @@ namespace StingTools.Core.Symbols
         public Solid3DDefinition Solid3D { get; set; }
 
         /// <summary>
+        /// Phase 178f. Optional family-formula bindings. Each entry
+        /// sets the formula on a target family parameter to the
+        /// expression (typically another parameter name) — saves the
+        /// author from manually wiring "Mark = PEN_CONTROL_NUMBER_TXT"
+        /// per the SpecialityEquipment README. SymbolLibraryCreator
+        /// runs FamilyManager.SetFormula for every entry. Failures
+        /// surface as warnings, never aborts the family build.
+        /// </summary>
+        [JsonProperty("formulaBindings", NullValueHandling = NullValueHandling.Ignore)]
+        public List<FormulaBinding> FormulaBindings { get; set; }
+
+        /// <summary>
         /// Optional type-variant duplicates added to the family. The
         /// SymbolLibraryCreator duplicates the default type once per
         /// entry, names the duplicate with this entry's Name, and
@@ -90,6 +102,20 @@ namespace StingTools.Core.Symbols
         [JsonProperty("typeVariants", NullValueHandling = NullValueHandling.Ignore)]
         public List<TypeVariantDefinition> TypeVariants { get; set; }
             = new List<TypeVariantDefinition>();
+    }
+
+    /// <summary>
+    /// One family-formula binding. <c>Target</c> is the family parameter
+    /// whose formula gets set; <c>Expression</c> is the formula source
+    /// (usually another parameter name). For example
+    /// <c>{ target: "Mark", expression: "PEN_CONTROL_NUMBER_TXT" }</c>
+    /// makes every instance's Mark mirror its PEN control number so
+    /// tag schedules read it without extra wiring.
+    /// </summary>
+    public sealed class FormulaBinding
+    {
+        [JsonProperty("target")]     public string Target { get; set; }
+        [JsonProperty("expression")] public string Expression { get; set; }
     }
 
     public sealed class TypeVariantDefinition
@@ -139,6 +165,37 @@ namespace StingTools.Core.Symbols
 
         [JsonProperty("connectionLines", NullValueHandling = NullValueHandling.Ignore)]
         public List<LineDefinition> ConnectionLines { get; set; }
+
+        [JsonProperty("text", NullValueHandling = NullValueHandling.Ignore)]
+        public List<TextDefinition> Text { get; set; }
+
+        /// <summary>
+        /// Phase 178f — optional section-view symbology authored as
+        /// the same lines / arcs / text mix as the plan view but
+        /// drawn into the family's elevation views (Front by default).
+        /// SymbolLibraryCreator iterates the elevation views and
+        /// renders these onto each. Used by the SpecialityEquipment
+        /// seed to draw the "200 mm vertical bar with arrows" the
+        /// SpecialityEquipment README describes for section views.
+        /// </summary>
+        [JsonProperty("section", NullValueHandling = NullValueHandling.Ignore)]
+        public SectionSymbology Section { get; set; }
+    }
+
+    public sealed class SectionSymbology
+    {
+        /// <summary>
+        /// Which elevation view to draw on. "Front" / "Back" / "Left"
+        /// / "Right" / "All". Default "Front" — matches the standard
+        /// section through a face-based family.
+        /// </summary>
+        [JsonProperty("view")] public string View { get; set; } = "Front";
+
+        [JsonProperty("lines", NullValueHandling = NullValueHandling.Ignore)]
+        public List<LineDefinition> Lines { get; set; }
+
+        [JsonProperty("arcs", NullValueHandling = NullValueHandling.Ignore)]
+        public List<ArcDefinition> Arcs { get; set; }
 
         [JsonProperty("text", NullValueHandling = NullValueHandling.Ignore)]
         public List<TextDefinition> Text { get; set; }

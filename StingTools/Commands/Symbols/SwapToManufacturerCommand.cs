@@ -45,6 +45,13 @@ namespace StingTools.Commands.Symbols
         public ElementId ResolvedTypeId { get; set; }
         public string ResolvedFamilyName { get; set; } = "";
         public string ResolvedTypeName   { get; set; } = "";
+        /// <summary>
+        /// Phase 178f — raw JSON candidate node, kept around so the
+        /// post-swap step can introspect ulSystemMatch[] and pick the
+        /// right UL / EN-1366-3 system reference for the instance's
+        /// fire rating + host type + OD.
+        /// </summary>
+        public Newtonsoft.Json.Linq.JObject RawNode { get; set; }
     }
 
     public sealed class SwapPlan
@@ -146,6 +153,21 @@ namespace StingTools.Commands.Symbols
                                 el.ChangeTypeId(winner.ResolvedTypeId);
                                 AppendSwapHistory(el, ts, operatorName, srcFamily,
                                     $"{winner.ResolvedFamilyName} : {winner.ResolvedTypeName}");
+
+                                // Phase 178f — UL-system stamp. When the
+                                // candidate carries ulSystemMatch[] rules
+                                // and the instance is a penetration, pick
+                                // the matching UL/EN-1366-3 system and
+                                // write it onto PEN_CERTIFICATION_TXT.
+                                if (el is FamilyInstance fi && winner.RawNode != null)
+                                {
+                                    var match = StingTools.Core.Symbols.ULSystemMatcher.Match(winner.RawNode, fi);
+                                    if (match != null && !string.IsNullOrEmpty(match.UlSystem))
+                                    {
+                                        ParameterHelpers.SetString(el, "PEN_CERTIFICATION_TXT",
+                                            match.UlSystem, overwrite: true);
+                                    }
+                                }
                                 swapped++;
                                 swappedIds.Add(id);
                             }
@@ -346,6 +368,7 @@ namespace StingTools.Commands.Symbols
                     cand.ResolvedTypeId = hit.Id;
                     cand.ResolvedFamilyName = hit.FamilyName ?? "";
                     cand.ResolvedTypeName   = hit.Name ?? "";
+                    cand.RawNode            = c;
                     result.Add(cand);
                 }
                 result.Sort((a, b) => a.Priority.CompareTo(b.Priority));
