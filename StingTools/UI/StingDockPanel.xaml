@@ -92,6 +92,15 @@
             <Setter Property="Margin" Value="0,3,0,1"/>
             <Setter Property="Opacity" Value="0.7"/>
         </Style>
+        <!-- Healthcare tab and any other ScrollViewer-hosted button row uses
+             this. Missing key was throwing System.Windows.StaticResourceExtension
+             during the page constructor's InitializeComponent(), which then
+             cascaded into Failed to register dockable panel + Unexpected tab
+             on the Electrical / Plumbing registers. -->
+        <Style x:Key="ButtonWrap" TargetType="WrapPanel">
+            <Setter Property="Margin" Value="0,2,0,4"/>
+            <Setter Property="Orientation" Value="Horizontal"/>
+        </Style>
     </Page.Resources>
 
     <Grid>
