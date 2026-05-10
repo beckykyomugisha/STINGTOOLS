@@ -242,7 +242,7 @@ namespace StingTools.UI.Plumbing
             AddCard(sp, "Fixture unit scan");
             AddBtn(sp, "Plumb_ScanFixtures", "Scan Fixtures (DU / LU / WSFU)",
                 "Walks OST_PlumbingFixtures, matches against the registry, writes PLM_DRN_DU / PLM_SUP_LU_CW / PLM_SUP_LU_HW / PLM_SUP_WSFU.");
-            SupplyFixtureScanGrid = NewResultGrid("Fixture", "Count", "LU CW", "LU HW");
+            SupplyFixtureScanGrid = NewResultGrid(("Fixture", "Fixture"), ("Count", "Count"), ("LU CW", "LuCw"), ("LU HW", "LuHw"));
             sp.Children.Add(NewExpander("Scan results", WithEmptyHint(SupplyFixtureScanGrid, "(run Scan Fixtures to populate)"), expanded: false));
 
             AddCard(sp, "Cold + hot water sizing");
@@ -254,7 +254,7 @@ namespace StingTools.UI.Plumbing
             sp.Children.Add(supOpts);
             AddBtn(sp, "Plumb_SizeSupply", "Size DCW / DHW pipes",
                 "Hazen-Williams + Swamee-Jain. Uses BS EN 806-3 LU table or Hunter WSFU per SYSTEM config (override above).");
-            SupplySizingGrid = NewResultGrid("Section", "DLU", "DN", "V", "Status");
+            SupplySizingGrid = NewResultGrid(("Section", "Section"), ("ΣLU", "SigmaLu"), ("DN", "Dn"), ("V", "VelocityMps"), ("Status", "Status"));
             sp.Children.Add(NewExpander("Sizing results", WithEmptyHint(SupplySizingGrid, "(run Size DCW / DHW to populate)"), expanded: false));
 
             AddCard(sp, "DHW recirculation");
@@ -274,7 +274,7 @@ namespace StingTools.UI.Plumbing
             AddCard(sp, "TMV register");
             AddBtn(sp, "Plumb_TMVRegister", "Build TMV Register",
                 "Scans elements with PLM_TMV_CLASS_TXT set and reports the register.");
-            SupplyTmvGrid = NewResultGrid("Ref", "Location", "Set");
+            SupplyTmvGrid = NewResultGrid(("Ref", "Ref"), ("Location", "Location"), ("Set °C", "SetC"));
             sp.Children.Add(NewExpander("TMV register", WithEmptyHint(SupplyTmvGrid, "(run Build TMV Register to populate)"), expanded: false));
 
             AddCard(sp, "Legionella");
@@ -311,7 +311,7 @@ namespace StingTools.UI.Plumbing
             AddCard(sp, "Fixture unit aggregation");
             AddBtn(sp, "Plumb_ScanFixtures", "Scan Fixtures (DU)",
                 "Same scanner as SUPPLY tab — reports the DU column for drainage.");
-            DrainageDuScanGrid = NewResultGrid("Fixture", "Count", "DU each", "DU");
+            DrainageDuScanGrid = NewResultGrid(("Fixture", "Fixture"), ("Count", "Count"), ("DU each", "DuEach"), ("ΣDU", "SigmaDu"));
             sp.Children.Add(NewExpander("DU scan", WithEmptyHint(DrainageDuScanGrid, "(run Scan Fixtures to populate)"), expanded: false));
 
             AddCard(sp, "Pipe sizing");
@@ -325,13 +325,13 @@ namespace StingTools.UI.Plumbing
                 "DU accumulation → branch / stack DN → slope / self-cleansing audit.");
             AddBtn(sp, "Plumbing_AutoSizeDrainage", "Auto-Size Drainage (full pipeline)",
                 "DU → DN → slope correct → vent design → stack capacity (preview / apply).");
-            DrainageSizingGrid = NewResultGrid("Pipe", "DU", "DN", "V", "HD", "Status");
+            DrainageSizingGrid = NewResultGrid(("Pipe", "Pipe"), ("ΣDU", "SigmaDu"), ("DN", "Dn"), ("V", "VelocityMps"), ("H/D", "HdRatio"), ("Status", "Status"));
             sp.Children.Add(NewExpander("Sizing results", WithEmptyHint(DrainageSizingGrid, "(run Size Drainage to populate)"), expanded: false));
 
             AddCard(sp, "Slope correction");
             AddBtn(sp, "Plumb_FixSlopes", "Fix Slopes (auto-correct)",
                 "Wraps SlopeAutoCorrector with TransactionGroup rollback. Use the link below for the wide preview dialog with connector-impact detail.");
-            DrainageSlopeGrid = NewResultGrid("Apply", "Pipe", "D-elev");
+            DrainageSlopeGrid = NewSlopeFixGrid();
             sp.Children.Add(NewExpander("Slope fix preview (compact)", WithEmptyHint(DrainageSlopeGrid, "(run Fix Slopes to populate; click Show full preview… for connector-impact columns)"), expanded: false));
 
             AddCard(sp, "Trap & vent");
@@ -347,7 +347,7 @@ namespace StingTools.UI.Plumbing
             AddCard(sp, "Invert levels");
             AddBtn(sp, "Plumb_InvertLevels", "Calculate Invert Levels",
                 "InvertLevelEngine — US/DS invert + cover depth, optional writeback to PLM_DRN_INV_*.");
-            DrainageInvertGrid = NewResultGrid("Pipe", "US inv", "DS inv", "Cover");
+            DrainageInvertGrid = NewResultGrid(("Pipe", "Pipe"), ("US inv", "UsInvM"), ("DS inv", "DsInvM"), ("Cover", "CoverM"));
             sp.Children.Add(NewExpander("Invert levels", WithEmptyHint(DrainageInvertGrid, "(run Calculate Invert Levels to populate)"), expanded: false));
 
             t.Content = WrapScroll(sp);
@@ -602,11 +602,11 @@ namespace StingTools.UI.Plumbing
             sp.Children.Add(bfOpts);
             AddBtn(sp, "Plumbing_BackflowAudit", "Fluid Category Audit",
                 "Classify pipes Cat 1-5 and recommend SCV/DCV/RPZ/Air-gap.");
-            SpecialtyFluidMatrixGrid = NewResultGrid("Cat", "Description", "Required device", "Found");
+            SpecialtyFluidMatrixGrid = NewResultGrid(("Cat", "Cat"), ("Description", "Description"), ("Required device", "RequiredDevice"), ("Found", "Found"));
             sp.Children.Add(NewExpander("Fluid category matrix", WithEmptyHint(SpecialtyFluidMatrixGrid, "(run Fluid Category Audit to populate)"), expanded: false));
             AddBtn(sp, "Plumbing_CrossConnection", "Cross-Connection Scan",
                 "Graph walk potable → non-potable.");
-            SpecialtyCrossConnGrid = NewResultGrid("System A", "System B", "Separation", "Risk");
+            SpecialtyCrossConnGrid = NewResultGrid(("System A", "SystemA"), ("System B", "SystemB"), ("Separation", "Separation"), ("Risk", "Risk"));
             sp.Children.Add(NewExpander("Cross-connections", WithEmptyHint(SpecialtyCrossConnGrid, "(run Cross-Connection Scan to populate)"), expanded: false));
 
             AddCard(sp, "Materials & jointing");
@@ -675,11 +675,12 @@ namespace StingTools.UI.Plumbing
                 "Runs all five compliance domains (Supply / Drainage / Vents / Backflow / HTM 04-01) and updates the dashboard above.");
 
             AddCard(sp, "Per-domain drill-down");
-            AuditSupplyGrid   = NewResultGrid("Element", "Issue", "Severity");
-            AuditDrainageGrid = NewResultGrid("Element", "Issue", "Severity");
-            AuditVentsGrid    = NewResultGrid("Element", "Issue", "Severity");
-            AuditBackflowGrid = NewResultGrid("Element", "Issue", "Severity");
-            AuditHtmGrid      = NewResultGrid("Element", "Issue", "Severity");
+            (string, string)[] auditCols = { ("Element", "Element"), ("Issue", "Issue"), ("Severity", "Severity") };
+            AuditSupplyGrid   = NewResultGrid(auditCols);
+            AuditDrainageGrid = NewResultGrid(auditCols);
+            AuditVentsGrid    = NewResultGrid(auditCols);
+            AuditBackflowGrid = NewResultGrid(auditCols);
+            AuditHtmGrid      = NewResultGrid(auditCols);
             sp.Children.Add(NewExpander("Supply",       WithEmptyHint(AuditSupplyGrid,   "(run Full Audit)"), expanded: false));
             sp.Children.Add(NewExpander("Drainage",     WithEmptyHint(AuditDrainageGrid, "(run Full Audit)"), expanded: false));
             sp.Children.Add(NewExpander("Vents",        WithEmptyHint(AuditVentsGrid,    "(run Full Audit)"), expanded: false));
@@ -731,12 +732,12 @@ namespace StingTools.UI.Plumbing
             AddCard(sp, "Schedules");
             AddBtn(sp, "Plumb_PipeSchedule", "Pipe Schedule",
                 "Group pipes by system + DN + material with totals.");
-            DocsPipeScheduleGrid = NewResultGrid("System", "DN", "Material", "Length (m)");
+            DocsPipeScheduleGrid = NewResultGrid(("System", "System"), ("DN", "Dn"), ("Material", "Material"), ("Length (m)", "LengthM"));
             sp.Children.Add(NewExpander("Pipe schedule preview", WithEmptyHint(DocsPipeScheduleGrid, "(run Pipe Schedule to populate)"), expanded: false));
 
             AddBtn(sp, "Plumb_ManholeSchedule", "Manhole / Access Chamber Schedule",
                 "Reads PLM_DRN_INV_* params from manholes / inspection chambers.");
-            DocsManholeGrid = NewResultGrid("Ref", "Inv In", "Inv Out", "Cover", "Depth");
+            DocsManholeGrid = NewResultGrid(("Ref", "Ref"), ("Inv In", "InvInM"), ("Inv Out", "InvOutM"), ("Cover", "CoverM"), ("Depth", "DepthM"));
             sp.Children.Add(NewExpander("Manhole schedule preview", WithEmptyHint(DocsManholeGrid, "(run Manhole Schedule to populate)"), expanded: false));
 
             AddBtn(sp, "Plumb_TMVRegister", "TMV Register",
@@ -745,7 +746,7 @@ namespace StingTools.UI.Plumbing
             AddCard(sp, "BOQ + isometrics");
             AddBtn(sp, "Plumb_BOQ", "Plumbing BOQ",
                 "Pipes (m) + fittings (nr) + accessories (nr) — full BoQ row dump.");
-            DocsBoqGrid = NewResultGrid("Item", "Description", "Qty", "Unit");
+            DocsBoqGrid = NewResultGrid(("Item", "Item"), ("Description", "Description"), ("Qty", "Qty"), ("Unit", "Unit"));
             sp.Children.Add(NewExpander("BOQ preview", WithEmptyHint(DocsBoqGrid, "(run Plumbing BOQ to populate)"), expanded: false));
 
             var isoOpts = NewFormGrid();
@@ -884,10 +885,12 @@ namespace StingTools.UI.Plumbing
             FontWeight = FontWeights.Normal
         };
 
-        // Empty result grid with the given column headers + a hint row that
-        // disappears once a command sets ItemsSource. Tuned for ~260 px width:
-        // every column auto-sizes; horizontal scroll is enabled for wide grids.
-        private static DataGrid NewResultGrid(params string[] headers)
+        // Empty result grid with the given (header, propertyPath) columns + a
+        // hint row that disappears once a command sets ItemsSource. Tuned for
+        // ~260 px width: every column auto-sizes; horizontal scroll on overflow.
+        // Property paths are the names commands must use on populated row DTOs
+        // (see Plumbing*Row classes at end of file).
+        private static DataGrid NewResultGrid(params (string Header, string Path)[] cols)
         {
             var dg = new DataGrid
             {
@@ -901,13 +904,53 @@ namespace StingTools.UI.Plumbing
                 MaxHeight = 180,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Auto
             };
-            foreach (var h in headers)
+            foreach (var (header, path) in cols)
                 dg.Columns.Add(new DataGridTextColumn
                 {
-                    Header = h,
-                    Binding = new System.Windows.Data.Binding(h.Replace(" ", "").Replace("/", "").Replace("(", "").Replace(")", "").Replace("%", "Pct").Replace("Δ", "D")),
-                    Width = DataGridLength.SizeToHeader
+                    Header  = header,
+                    Binding = new System.Windows.Data.Binding(path),
+                    Width   = DataGridLength.SizeToHeader
                 });
+            return dg;
+        }
+
+        // Slope-fix preview grid — Apply (CheckBox, two-way) + Pipe + Δ-elev.
+        // Δ-elev's header carries a non-identifier glyph + dash that aren't
+        // legal in a Binding path, so the grid is built explicitly here.
+        private static DataGrid NewSlopeFixGrid()
+        {
+            var dg = new DataGrid
+            {
+                AutoGenerateColumns = false,
+                CanUserAddRows = false,
+                CanUserDeleteRows = false,
+                IsReadOnly = false,
+                HeadersVisibility = DataGridHeadersVisibility.Column,
+                AlternatingRowBackground = new SolidColorBrush(Color.FromRgb(245, 247, 250)),
+                FontSize = 10,
+                MaxHeight = 180,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto
+            };
+            dg.Columns.Add(new DataGridCheckBoxColumn
+            {
+                Header = "Apply",
+                Binding = new System.Windows.Data.Binding(nameof(DrainageSlopeRow.Apply))
+                    { Mode = System.Windows.Data.BindingMode.TwoWay }
+            });
+            dg.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Pipe",
+                Binding = new System.Windows.Data.Binding(nameof(DrainageSlopeRow.Pipe)),
+                IsReadOnly = true,
+                Width = DataGridLength.SizeToHeader
+            });
+            dg.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Δ-elev (mm)",
+                Binding = new System.Windows.Data.Binding(nameof(DrainageSlopeRow.DElevMm)),
+                IsReadOnly = true,
+                Width = DataGridLength.SizeToHeader
+            });
             return dg;
         }
 
@@ -1104,5 +1147,115 @@ namespace StingTools.UI.Plumbing
         public bool CommChlorination { get; set; }
         public bool CommPressureTest { get; set; }
         public bool CommLegionellaRA { get; set; }
+    }
+
+    // ── Result-grid row DTOs ──
+    // Property names match the binding paths declared on each result grid in
+    // StingPlumbingPanel; commands assign List<TRow> to the corresponding
+    // public DataGrid property's ItemsSource.
+
+    public class SupplyFixtureScanRow
+    {
+        public string Fixture { get; set; }
+        public int    Count   { get; set; }
+        public double LuCw    { get; set; }
+        public double LuHw    { get; set; }
+    }
+
+    public class SupplySizingRow
+    {
+        public string Section { get; set; }
+        public double SigmaLu { get; set; }
+        public int    Dn      { get; set; }
+        public double VelocityMps { get; set; }
+        public string Status  { get; set; }
+    }
+
+    public class SupplyTmvRow
+    {
+        public string Ref      { get; set; }
+        public string Location { get; set; }
+        public double SetC     { get; set; }
+    }
+
+    public class DrainageDuScanRow
+    {
+        public string Fixture { get; set; }
+        public int    Count   { get; set; }
+        public double DuEach  { get; set; }
+        public double SigmaDu { get; set; }
+    }
+
+    public class DrainageSizingRow
+    {
+        public string Pipe    { get; set; }
+        public double SigmaDu { get; set; }
+        public int    Dn      { get; set; }
+        public double VelocityMps { get; set; }
+        public double HdRatio { get; set; }
+        public string Status  { get; set; }
+    }
+
+    public class DrainageSlopeRow
+    {
+        public bool   Apply   { get; set; }
+        public string Pipe    { get; set; }
+        public double DElevMm { get; set; }
+    }
+
+    public class DrainageInvertRow
+    {
+        public string Pipe   { get; set; }
+        public double UsInvM { get; set; }
+        public double DsInvM { get; set; }
+        public double CoverM { get; set; }
+    }
+
+    public class SpecialtyFluidMatrixRow
+    {
+        public int    Cat            { get; set; }
+        public string Description    { get; set; }
+        public string RequiredDevice { get; set; }
+        public string Found          { get; set; }
+    }
+
+    public class SpecialtyCrossConnRow
+    {
+        public string SystemA    { get; set; }
+        public string SystemB    { get; set; }
+        public string Separation { get; set; }
+        public string Risk       { get; set; }
+    }
+
+    public class AuditIssueRow
+    {
+        public string Element  { get; set; }
+        public string Issue    { get; set; }
+        public string Severity { get; set; }
+    }
+
+    public class DocsPipeScheduleRow
+    {
+        public string System   { get; set; }
+        public int    Dn       { get; set; }
+        public string Material { get; set; }
+        public double LengthM  { get; set; }
+    }
+
+    public class DocsManholeRow
+    {
+        public string Ref      { get; set; }
+        public double InvInM   { get; set; }
+        public double InvOutM  { get; set; }
+        public double CoverM   { get; set; }
+        public double DepthM   { get; set; }
+    }
+
+    public class DocsBoqRow
+    {
+        public string Item        { get; set; }
+        public string Description { get; set; }
+        public double Qty         { get; set; }
+        public string Unit        { get; set; }
     }
 }
