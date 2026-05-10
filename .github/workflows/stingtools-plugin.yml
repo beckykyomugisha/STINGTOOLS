@@ -2,51 +2,138 @@ name: StingTools Plugin — Build
 
 on:
   push:
-    branches: [main]
+    branches: [main, "claude/**"]
     paths:
       - 'StingTools/**'
+      - 'tools/revit-stubs/**'
+      - 'StingTools.Standards/**'
+      - 'Planscape.Server/src/Planscape.Shared/**'
+      - 'Planscape.Server/src/Planscape.PluginSync/**'
       - '.github/workflows/stingtools-plugin.yml'
   pull_request:
     branches: [main]
     paths:
       - 'StingTools/**'
+      - 'tools/revit-stubs/**'
+      - 'StingTools.Standards/**'
+      - '.github/workflows/stingtools-plugin.yml'
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: '1'
+  DOTNET_NOLOGO: '1'
 
 jobs:
   build:
     name: Build StingTools Plugin
-    runs-on: windows-latest  # Windows required — Revit API references are Windows-only
+    # Windows required — UseWPF=true and UseWindowsForms=true need Windows SDK
+    runs-on: windows-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup .NET 8
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Restore Revit API stubs
-        # Revit API DLLs are not distributed. We use NuGet stubs for CI.
-        # The stubs provide type definitions only — no Revit install required.
+      # ── Step 1: Build Revit API stubs ───────────────────────────────────────
+      # The real Revit API DLLs ship only with Autodesk Revit (not redistributable).
+      # We maintain a set of minimal type-only stubs in tools/revit-stubs/ so the
+      # plugin can be compiled for CI. The stubs are compile-time-only — at runtime
+      # Revit loads the real assemblies from its own installation directory.
+      - name: Build Revit API stubs
         run: |
-          dotnet add StingTools/StingTools.csproj package Revit.SDK --version 2025.0.0 2>&1 || true
-          echo "Note: If Revit.SDK stub is unavailable, build with RevitApiPath pointing to mock assemblies."
+          $stubsDir = "tools\revit-stubs"
+          $outDir   = "$stubsDir\bin"
+          New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 
-      - name: Build (with Revit API stubs)
-        working-directory: StingTools
-        run: |
-          dotnet build StingTools.csproj \
-            -p:RevitApiPath="$env:USERPROFILE\.nuget\packages\revit.sdk\2025.0.0\lib" \
-            --configuration Release \
-            --no-restore 2>&1 || \
-          echo "Build skipped — Revit API stubs not available in CI. Run locally to verify."
+          # Build RevitAPI stub
+          dotnet build "$stubsDir\RevitAPI\RevitAPI.csproj" `
+            --configuration Release `
+            --output $outDir `
+            --nologo `
+            -v minimal
+
+          # Build RevitAPIUI stub (depends on RevitAPI)
+          dotnet build "$stubsDir\RevitAPIUI\RevitAPIUI.csproj" `
+            --configuration Release `
+            --output $outDir `
+            --nologo `
+            -v minimal
         shell: pwsh
-        continue-on-error: true  # Revit API not available in CI — informational only
 
-      - name: Check for compilation errors (non-Revit files)
-        working-directory: StingTools
-        run: |
-          # At minimum, verify project file is valid
-          dotnet restore StingTools.csproj
-          echo "Project restore succeeded — project file is valid."
+      # ── Step 2: Restore NuGet packages for dependent projects ───────────────
+      - name: Restore dependencies (Planscape.Shared)
+        run: dotnet restore Planscape.Server/src/Planscape.Shared/Planscape.Shared.csproj
         shell: pwsh
+
+      - name: Restore dependencies (Planscape.PluginSync)
+        run: dotnet restore Planscape.Server/src/Planscape.PluginSync/Planscape.PluginSync.csproj
+        shell: pwsh
+
+      - name: Restore dependencies (StingTools.Standards)
+        run: dotnet restore StingTools.Standards/StingTools.Standards.csproj
+        shell: pwsh
+
+      - name: Restore dependencies (StingTools plugin)
+        run: |
+          dotnet restore StingTools/StingTools.csproj `
+            -p:RevitApiStubsDir="${{ github.workspace }}\tools\revit-stubs\bin"
+        shell: pwsh
+
+      # ── Step 3: Build the plugin ────────────────────────────────────────────
+      - name: Build StingTools plugin (with stubs)
+        run: |
+          dotnet build StingTools/StingTools.csproj `
+            --configuration Release `
+            --no-restore `
+            -p:RevitApiStubsDir="${{ github.workspace }}\tools\revit-stubs\bin" `
+            --nologo `
+            -v minimal
+        shell: pwsh
+
+      # ── Step 4: Deploy to CompiledPlugin/ ───────────────────────────────────
+      - name: Package plugin output
+        run: |
+          $buildOut   = "StingTools\bin\Release"
+          $deployDir  = "CompiledPlugin"
+          $dataDir    = "$deployDir\data"
+          New-Item -ItemType Directory -Force -Path $deployDir | Out-Null
+          New-Item -ItemType Directory -Force -Path $dataDir   | Out-Null
+
+          # Main DLL
+          Copy-Item "$buildOut\StingTools.dll" $deployDir -Force
+
+          # Dependency DLLs (exclude Revit API stubs — not needed at runtime)
+          Get-ChildItem "$buildOut\*.dll" |
+            Where-Object { $_.Name -notin @('RevitAPI.dll','RevitAPIUI.dll') } |
+            Copy-Item -Destination $deployDir -Force
+
+          # Data files
+          if (Test-Path "$buildOut\data") {
+            Copy-Item "$buildOut\data\*" $dataDir -Recurse -Force
+          } elseif (Test-Path "StingTools\Data") {
+            Copy-Item "StingTools\Data\*" $dataDir -Recurse -Force
+          }
+
+          # Addin manifest
+          Copy-Item "StingTools.addin" $deployDir -Force
+
+          $dllCount  = (Get-ChildItem "$deployDir\*.dll").Count
+          $dataCount = (Get-ChildItem $dataDir -Recurse -File).Count
+          Write-Host ""
+          Write-Host "=== PLUGIN PACKAGED ==="
+          Write-Host "Location  : $deployDir"
+          Write-Host "DLLs      : $dllCount"
+          Write-Host "Data files: $dataCount"
+        shell: pwsh
+
+      # ── Step 5: Upload artifact ─────────────────────────────────────────────
+      - name: Upload plugin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: StingTools-Plugin-${{ github.sha }}
+          path: CompiledPlugin/
+          retention-days: 14
