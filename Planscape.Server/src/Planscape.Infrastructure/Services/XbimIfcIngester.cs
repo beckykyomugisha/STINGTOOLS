@@ -46,7 +46,7 @@ public class XbimIfcIngester : IIfcIngester
         // Open with default settings — xbim picks Esent on Windows,
         // in-memory on Linux. For property-only ingest we don't need
         // geometry, so we skip the (slow) geometric model load.
-        await using var model = IfcStore.Open(ifcPath, null, null, null, Xbim.IO.XbimDBAccess.Read);
+        using var model = IfcStore.Open(ifcPath, null, null, null, Xbim.IO.XbimDBAccess.Read);
         ct.ThrowIfCancellationRequested();
 
         var schemaVersion = model.SchemaVersion switch
@@ -86,7 +86,7 @@ public class XbimIfcIngester : IIfcIngester
                     var psetName = pset.Name?.Value as string ?? "Pset";
                     foreach (var prop in pset.HasProperties.OfType<IIfcPropertySingleValue>())
                     {
-                        var pname = prop.Name?.Value as string;
+                        var pname = prop.Name.Value as string;
                         if (string.IsNullOrEmpty(pname)) continue;
                         var pvalue = prop.NominalValue?.Value?.ToString();
                         if (pvalue == null) continue;

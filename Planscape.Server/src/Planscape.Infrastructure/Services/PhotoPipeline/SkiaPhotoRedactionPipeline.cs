@@ -155,7 +155,8 @@ public class SkiaPhotoRedactionPipeline : IPhotoRedactionPipeline
         using var textPaint = new SKPaint { Color = SKColors.White, IsAntialias = true };
         // Measure text to size the band horizontally — leave 12 px gutter
         // each side of the text so the band is never tightly clipped.
-        var width = font.MeasureText(text);
+        // SkiaSharp 3.x removed SKFont.MeasureText(string); use the char-span overload.
+        var width = font.MeasureText(text.AsSpan());
         var bandWidth = width + pad * 2;
 
         var left = w - bandWidth;
