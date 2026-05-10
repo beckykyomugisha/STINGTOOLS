@@ -8,19 +8,19 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-> Last refreshed after Phase 174 — full unmerged-branch consolidation
-> (75 feature branches merged into the working tree, conflicts resolved
-> with `--ours` against the Phase 168–173 baseline).
+> Last refreshed after Phase 179 — STING Plumbing Center + Electrical Waves H–J
+> (plumbing engine suite, standalone dockable panel, 55 electrical commands,
+> BOQ module, Clash engine, SLD generator, ExLink expansion, LPS, V6).
 
-- **Repository total**: 1,421 tracked files · 737,171 lines · 44 MB working tree (216 MB including `.git`)
-- **Plugin assembly** `StingTools/`: 581 source files (576 C# + 4 XAML + 1 .csproj-adjacent), 370,758 lines across 17 sub-directories
-- **C# across the whole solution** (plugin + server + tests + tooling): 935 `.cs` files, 435,298 lines
+- **Repository total**: ~1,600+ tracked files · ~431,000 lines in plugin alone · 44 MB+ working tree
+- **Plugin assembly** `StingTools/`: 823 C# source files + 8 XAML, ~421,000 lines across 30+ sub-directories
+- **C# across the whole solution** (plugin + server + tests + tooling): 1,252 `.cs` files, 431,000+ lines
 - **Server backend** `Planscape.Server/`: 280 C# files, 38,581 lines (ASP.NET Core 8 + EF Core + SignalR + Hangfire)
 - **Mobile app** `Planscape/`: 93 TS/TSX files, 17,019 lines (React Native + Expo SDK 52)
-- **Documentation**: 68 `.md` files, 40,261 lines (CLAUDE.md + docs/CHANGELOG.md + docs/ROADMAP.md + per-feature guides under `docs/`, `Planscape.Server/docs/`, `Planscape/docs/`)
-- **`IExternalCommand` classes**: 1,106 (up from 763+) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
-- **Runtime / embedded data files** under `StingTools/Data/`: 128 (CSV, JSON, TXT, XLSX, PY, MD, DOCX) — includes the template engine v1.1 pack (16 templates + 5 workflow definitions + `manifest.json`)
-- **WPF dockable panel** (9 tabs, primary UI) + 1 BIM Coordination Center (13 tabs) + 1 Material Manager (7 tabs) + 1 Document Management Center (8 tabs) + ribbon retained for legacy compat
+- **Documentation**: 70+ `.md` files (CLAUDE.md + docs/CHANGELOG.md + docs/ROADMAP.md + per-feature guides)
+- **`IExternalCommand` classes**: 1,301 + `IPanelCommand` classes + 1 `IExternalApplication` + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
+- **Runtime / embedded data files** under `StingTools/Data/`: 140+ (CSV, JSON, TXT, XLSX, PY, MD, DOCX) — includes the template engine v1.1 pack (16 templates + 5 workflow definitions + `manifest.json`), plumbing tables, seed family JSONs
+- **WPF dockable panels**: main 9-tab panel + STING Plumbing Center (8-tab standalone) + BIM Coordination Center (13 tabs) + Material Manager (7 tabs) + Document Management Center (8 tabs) + Placement Center + ribbon retained for legacy compat
 - **Top-level workspace** ships 15 directories: `StingTools/` · `Planscape/` · `Planscape.Server/` · `StingBIM.Server/` · `StingTools.Clash.Tests/` · `StingTools.Dynamo/` · `StingTools.Headless/` · `StingTools.Standards/` · `Tests/` · `Families/` · `CompiledPlugin/` · `docs/` · `docs-site/` · `marketing-site/` · `tools/`
 
 ### Phase 174 — Branch consolidation
@@ -36,6 +36,128 @@ HEAD copy was kept. Sixty-four branches fast-forwarded or auto-merged
 cleanly; eleven required `ours` conflict resolution. After consolidation
 `git branch -r --no-merged HEAD` reports zero remote branches with
 unique commits not in HEAD. Verify in Revit before merging to `main`.
+
+### Phase 175 — SLD Generator + rung labels + label-ID migration
+
+Single-line diagram (SLD) generator for electrical hierarchies. Produces
+a Revit drafting view that mirrors the project's panel-and-circuit tree
+with compound compound symbols. Includes rung-label rendering, bay-width
+auto-sizing for dense rungs, and a one-shot `MigrateSLDLabelIdsCommand`
+that stamps `STING_SYMBOL_LABEL_ID` onto existing SLD symbols without a
+stamped ID.
+
+**New folders**: `StingTools/Core/SLD/`, `StingTools/Commands/SLD/`
+
+**New classes**: `SLDGenerator`, `SLDCircuitTraverser`, `SLDLayoutEngine`,
+`SLDAnnotationPlacer`, `SLDSyncUpdater` (IUpdater for live re-sync).
+
+**New commands (8)**:
+
+| Tag | Class | Description |
+|---|---|---|
+| `SLD_Generate` | `GenerateSLDCommand` | Generate SLD drafting view from active electrical hierarchy |
+| `SLD_GenerateWithOptions` | `GenerateSLDWithOptionsCommand` | Generate with standard / scale picker |
+| `SLD_Update` | `UpdateSLDCommand` | Refresh existing SLD view (delta sync) |
+| `SLD_SyncToggle` | `SLDSyncToggleCommand` | Toggle live IUpdater re-sync on element change |
+| `SLD_Validate` | `SLDValidateCommand` | Validate SLD completeness against circuit hierarchy |
+| `SLD_MigrateLabels` | `MigrateSLDLabelIdsCommand` | One-shot stamp `STING_SYMBOL_LABEL_ID` on legacy SLD symbols |
+| `SLD_Riser` | `SLDRiserDiagramCommand` | Generate riser diagram from selected circuits |
+| `SLD_UpdateRiser` | `SLDUpdateRiserCommand` | Refresh riser diagram |
+
+### Phase 176 — Electrical Panel Schedules (see full section below)
+
+### Phase 176 (tagging) — Tagging-workflow review fixes
+
+Six targeted fixes to token toggling, leader & style functions, scale tiers,
+and per-discipline paragraph depth. Key additions: `STING_VIEW_TOKEN_MASK_TXT`
+per-view segment mask, mode-6 narrative fallback logging, `SetBool` storage
+diagnostics, 128-pack audit in `AuditTagFamiliesCommand`, scale-tier
+auto-apply via `StingDocumentChangedHandler`, and discipline-scoped paragraph
+depth. See `docs/CHANGELOG.md` Phase 176 for the full diff.
+
+### Phase 178 — STING Plumbing (data foundation + standards + engine suite)
+
+Full public-health / drainage engineering module. Built across sub-phases 178a–178f.
+
+**Status**: Landed on branch `claude/plumbing-enhancements-phase-17-UVb6z`. Built
+without `dotnet build` verification (Linux sandbox). Verify in Revit before merge.
+
+**New folders**:
+
+| Path | Purpose |
+|---|---|
+| `StingTools/Core/Plumbing/` | 20 plumbing engine classes |
+| `StingTools/Commands/Plumbing/` | 36 IExternalCommand classes across 6 files |
+| `StingTools/UI/Plumbing/` | Standalone `StingPlumbingPanel` WPF panel (8 tabs) + `SlopeFixPreviewDialog` + `StingPlumbingCommandHandler` |
+| `StingTools/Data/Plumbing/` | `STING_PLUMBING_SUPPLY_TABLES.json`, `STING_PLUMBING_DRAINAGE_TABLES.json`, `STING_PIPE_MATERIALS_HYDRAULIC.json`, `STING_PLUMBING_MATERIAL_RULES.json`, `STING_BS5422_INSULATION.csv` |
+
+**Core engines** (`StingTools/Core/Plumbing/`):
+
+| Class | Purpose |
+|---|---|
+| `WaterSupplySizer` | BS EN 806-3 / CIBSE Guide G loading units → pipe sizing |
+| `DrainageSizer` | BS EN 12056-2 / IPC 2021 DFU → diameter + slope + self-cleansing velocity |
+| `FixtureUnitAggregator` | Builds DFU map from `PlumbingFixture` instances in the model |
+| `FixtureUnitScanner` | Per-fixture DFU lookup table (BS EN 12056-2 Annex A) |
+| `VentDesigner` | Vent type selection + DN sizing per BS EN 12056-2 §8 |
+| `TrapDesigner` | Trap type + seal depth audit per BS EN 12056-2 |
+| `StackCapacityValidator` | BS EN 12056-2 §7 stack capacity checks |
+| `BackflowClassifier` | BS EN 1717 fluid category assessment + mitigation |
+| `DeadLegDetector` | HSG 274 dead-leg detection (Legionella risk) |
+| `RecircLoopBalancer` | DHW recirc heat-loss + DRV pre-set values |
+| `ExpansionVesselSizer` | System expansion vessel sizing (BS EN 13831) |
+| `InvertLevelEngine` | Drainage invert-level annotation + BIM stamping |
+| `RainwaterHarvestingCalc` | RWH yield model + SuDS attenuation + soakaway + septic sizing |
+| `PlumbingComplianceScanner` | Project-wide BS/ISO compliance sweep |
+| `PlumbingMaterialValidator` | Material × jointing × service-type compatibility matrix |
+| `PlumbingSustainabilityCalc` | Water efficiency metrics (BREEAM Wat 01 / WELL v2) |
+| `PlumbingBOQBuilder` | Plumbing-specific BOQ line generation |
+| `PlumbingSystemConfig` | JSON-persisted system configuration (pressure zones, codes) |
+| `PlumbingTables` | Static lookup tables (velocities, roughness, DU values) |
+| `PlumbingPlacementProfile` | Placement heuristics for fixture family insertion |
+
+**Commands (36)** across 6 files:
+
+| File | Tab | Commands |
+|---|---|---|
+| `PlumbingCommands.cs` | AUDIT | AutoSizeDrainage, BackflowAudit, RainwaterCalc, TrapVentAudit, PRVSchedule, DeadLegScan, CrossConnectionScan, RecircBalance, StackCapacity, MaterialAudit |
+| `PlumbingSystemCommands.cs` | SYSTEM | PlumbSaveSystemConfig, PlumbLoadSystemConfig |
+| `PlumbingSizingCommands.cs` | SUPPLY + DRAINAGE | PlumbScanFixtures, PlumbSizeSupply, PlumbSizeDrainage, PlumbPressureCheck, PlumbExpVessel, PlumbTMVRegister |
+| `PlumbingRoutingCommands.cs` | ROUTE | PlumbAutoRoute, PlumbFixSlopes, PlumbInsertPTraps, PlumbPlaceSleeves, PlumbPlaceHangers |
+| `PlumbingDrainageDetailCommands.cs` | DRAINAGE detail | PlumbVentDesign, PlumbInvertLevels |
+| `PlumbingStormAndAuditCommands.cs` | STORM + AUDIT | PlumbRwh, PlumbSuDS, PlumbSoakaway, PlumbSepticTank, PlumbRoofDrainage, PlumbFullAudit |
+| `PlumbingDocsCommands.cs` | DOCS | PlumbPipeSchedule, PlumbBOQ, PlumbManholeSchedule, PlumbIsometric, PlumbCommPack |
+
+**Standalone dockable panel**: `StingPlumbingPanel` (8 tabs: SYSTEM / SUPPLY / DRAINAGE / ROUTE / STORM / AUDIT / DOCS / SETTINGS). Registered via `StingPlumbingPanelProvider`. Dispatches through `StingPlumbingCommandHandler`.
+
+**MR_PARAMETERS.txt**: +57 plumbing shared parameters across 2 new groups (PLM_DRAINAGE, PLM_SUPPLY). Mirrored to `MR_PARAMETERS.csv`.
+
+### Phase 178f — Electrical damper + acoustic + UL + mobile + formula sub-phase
+
+Extends Electrical Waves H/I with: fire-damper auto-placement wired into `RoutingExtCommands.AutoFireDamperCommand`, acoustic attenuation pass in `MEPIntelligenceEngine`, UL 508A panel compliance stub in `ElectricalStandardsValidator`, mobile IFC-results viewer, formula engine extended with 12 electrical formulas.
+
+### Phase 179 — STING Plumbing Center (8-tab panel, 27 additional commands)
+
+Extends the Phase 178 plumbing module with a full 8-tab dockable panel
+(distinct from the main STING dock panel) and 27 additional IExternalCommand
+classes. The existing 36 Phase 178 commands are wired into this panel.
+
+**New commands added in Phase 179 sub-phases (179a–179f)**:
+
+| Sub-phase | Tab | New commands |
+|---|---|---|
+| 179a | SYSTEM | PlumbSaveSystemConfig, PlumbLoadSystemConfig |
+| 179b | SUPPLY + DRAINAGE | PlumbScanFixtures, PlumbSizeSupply, PlumbSizeDrainage, PlumbPressureCheck, PlumbExpVessel, PlumbTMVRegister |
+| 179c | ROUTE | PlumbAutoRoute, PlumbFixSlopes, PlumbInsertPTraps, PlumbPlaceSleeves, PlumbPlaceHangers |
+| 179d | DRAINAGE detail | PlumbVentDesign, PlumbInvertLevels |
+| 179e | STORM | PlumbRwh, PlumbSuDS, PlumbSoakaway, PlumbSepticTank, PlumbRoofDrainage |
+| 179f | DOCS | PlumbPipeSchedule, PlumbBOQ, PlumbManholeSchedule, PlumbIsometric, PlumbCommPack; + PlumbFullAudit |
+
+**Caveats**
+1. Built without `dotnet build` verification (Linux sandbox).
+2. `PlumbAutoRoute` and `PlumbPlaceSleeves` / `PlumbPlaceHangers` ship the planning pass only — actual family insertion is deferred to the 179g follow-up.
+3. The 5 plumbing data JSON files reference pipe-material families by name; families must be loaded in the host `.rvt`.
+4. `PlumbCommPack` lists planned commissioning artefacts; the rendered PDF output is a 180-follow-up.
 
 ## Documentation Map
 
@@ -156,6 +278,299 @@ When you finish a piece of work, log it in `docs/CHANGELOG.md` rather than exten
 1. The 5 named templates in the JSON (`STING - Switchboard Schedule`, etc.) must exist in the host `.rvt`. Without them the registry falls back to "first available template".
 2. `PanelTypeMatches` in `PanelScheduleTemplateRegistry` invokes `GetPanelConfiguration` via reflection. If the method signature differs between Revit versions, configuration-aware fallback degrades to no-op (rule-name + global-fallback still work).
 3. Excel import preserves Revit data when the xlsx cell is blank but the Revit cell is non-empty (anti-erasure guard). To intentionally clear a cell, use the Revit Panel Schedule UI directly.
+
+## Electrical Engineering Module (Waves A–J)
+
+A full electrical design and analysis suite built incrementally across Waves A–J.
+Commands live under `StingTools/Commands/Electrical/` (with sub-directories per
+discipline) and engines under `StingTools/Core/Electrical/`.
+
+**Status**: Waves A–J landed across multiple branches. Build errors from Revit API
+obsoletion and C# ambiguities were fixed (`Color`, `Grid` qualification; `CS0117`
+enum removal; `CS4014` async warnings). Verify in Revit before merging to `main`.
+
+### New folders
+
+| Path | Purpose |
+|---|---|
+| `StingTools/Commands/Electrical/` | Top-level commands (cable, circuits, panels, standards, conduit) |
+| `StingTools/Commands/Electrical/ArcFlash/` | Arc-flash hazard analysis + label sheets + schedules |
+| `StingTools/Commands/Electrical/Busbar/` | Busbar modeling + sizer engine |
+| `StingTools/Commands/Electrical/CableSizer/` | BS 7671 cable sizer engine |
+| `StingTools/Commands/Electrical/CircuitWizard/` | Guided circuit creation wizard |
+| `StingTools/Commands/Electrical/Coordination/` | Selective coordination checker |
+| `StingTools/Commands/Electrical/Export/` | ETAP, EasyPower, DIALux export |
+| `StingTools/Commands/Electrical/FaultCurrent/` | IEC 60909 fault-current calculator + AIC rating |
+| `StingTools/Commands/Electrical/FeederSizing/` | Feeder sizing engine |
+| `StingTools/Commands/Electrical/IfcResults/` | IFC simulation results import + multi-engine aggregator |
+| `StingTools/Commands/Electrical/Lighting/` | Lighting power density + emergency lighting audit |
+| `StingTools/Commands/Electrical/Photometric/` | IES/LDT file import, DIALux round-trip, design review, preflight |
+| `StingTools/Commands/Electrical/Reports/` | Fault-current schedule, demand factor report, voltage-drop schedule |
+| `StingTools/Commands/Electrical/Routing/` | Conduit auto-route, conduit consolidator, cable schedule builder |
+| `StingTools/Commands/Electrical/VoltageDrop/` | Voltage-drop calculation + flagging |
+| `StingTools/Core/Electrical/` | `CableManifest`, `CableRouter`, `CircuitScheduleExporter`, `TrayFillCalculator` |
+| `StingTools/Core/SLD/` | SLD generator: `SLDGenerator`, `SLDCircuitTraverser`, `SLDLayoutEngine`, `SLDAnnotationPlacer`, `SLDSyncUpdater` |
+| `StingTools/Core/Lightning/` | Lightning protection engine (`LpsEngine`) |
+| `StingTools/Commands/SLD/` | SLD commands (8 — see Phase 175 above) |
+| `StingTools/Commands/Lightning/` | 18 LPS commands |
+| `StingTools/Photometrics/` | `IesParser`, `LdtParser`, `PhotometricFile`, `PhotometricLibrary` |
+| `StingTools/IfcResults/` | `IfcSimpleParser`, `StingLightingPSet` |
+
+### Electrical commands (55)
+
+| Command | Class | Description |
+|---|---|---|
+| `AddCableCommand` | `AddCableCommand` | Add cable to manifest |
+| `ListCablesCommand` | `ListCablesCommand` | List cables from manifest |
+| `AutoUpsizeWiresCommand` | `AutoUpsizeWiresCommand` | Auto-upsize wires for voltage drop |
+| `BreakerSizerCommand` | `BreakerSizerCommand` | Size breakers per NEC/BS 7671 |
+| `BreakerSizerApplyCommand` | `BreakerSizerApplyCommand` | Apply breaker sizing to model |
+| `BatchAssignCircuitsCommand` | `BatchAssignCircuitsCommand` | Batch-assign elements to circuits |
+| `ConduitFillValidateCommand` | `ConduitFillValidateCommand` | Validate conduit fill % |
+| `ExportCircuitsCommand` | `ExportCircuitsCommand` | Export circuit data to CSV/XLSX |
+| `WireAnnotateCommand` | `WireAnnotateCommand` | Annotate wire sizes on single element |
+| `WireAnnotateBatchCommand` | `WireAnnotateBatchCommand` | Batch wire size annotation |
+| `HomeRunArrowCommand` | `HomeRunArrowCommand` | Place home-run arrows |
+| `ClearWireAnnotationsCommand` | `ClearWireAnnotationsCommand` | Clear wire annotations |
+| `PhaseBalanceCommand` | `PhaseBalanceCommand` | Phase balance report |
+| `CircuitDescriptionCommand` | `CircuitDescriptionCommand` | Generate circuit descriptions |
+| `ElectricalStandardsValidatorCommand` | `ElectricalStandardsValidatorCommand` | BS 7671 / NEC standards validation |
+| `ShowTrayFillCommand` | `ShowTrayFillCommand` | Show cable tray fill % overlay |
+| `ElecPanelParamSyncCommand` | `ElecPanelParamSyncCommand` | Sync panel parameters |
+| `ElecPanelWriteParamsCommand` | `ElecPanelWriteParamsCommand` | Write calculated params to panels |
+| `ElecCircuitRenumberCommand` | `ElecCircuitRenumberCommand` | Renumber circuits |
+| `ElecLoadSummaryCommand` | `ElecLoadSummaryCommand` | Load summary report |
+| `ElecLightingScheduleCommand` | `ElecLightingScheduleCommand` | Generate lighting schedule |
+| `ArcFlashCommand` | `ArcFlashCommand` | IEEE 1584 arc-flash analysis |
+| `ArcFlashLabelSheetCommand` | `ArcFlashLabelSheetCommand` | Create arc-flash label sheet |
+| `ArcFlashScheduleCommand` | `ArcFlashScheduleCommand` | Arc-flash schedule |
+| `BusbarModelingCommand` | `BusbarModelingCommand` | Busbar modeling |
+| `CableSizerCommand` | `CableSizerCommand` | BS 7671 cable sizer |
+| `CircuitWizardCommand` | `CircuitWizardCommand` | Guided circuit creation |
+| `SelectiveCoordCommand` | `SelectiveCoordCommand` | Selective coordination check |
+| `EtapExportCommand` | `EtapExportCommand` | Export to ETAP |
+| `EasyPowerExportCommand` | `EasyPowerExportCommand` | Export to EasyPower |
+| `DIALuxExportCommand` | `DIALuxExportCommand` | Export to DIALux |
+| `FaultCurrentCommand` | `FaultCurrentCommand` | IEC 60909 fault-current calculation |
+| `AicRatingCommand` | `AicRatingCommand` | AIC rating check |
+| `FeederSizerCommand` | `FeederSizerCommand` | Feeder sizing |
+| `IfcResultsImportCommand` | `IfcResultsImportCommand` | Import IFC simulation results |
+| `MultiEngineAggregatorCommand` | `MultiEngineAggregatorCommand` | Multi-engine results aggregator |
+| `LightingPowerDensityCommand` | `LightingPowerDensityCommand` | LPD calculation + code comparison |
+| `LpdColorCommand` | `LpdColorCommand` | Color-code elements by LPD |
+| `EmergencyLightingAuditCommand` | `EmergencyLightingAuditCommand` | Emergency lighting coverage audit |
+| `EmergencyLightingMarkCommand` | `EmergencyLightingMarkCommand` | Mark emergency luminaires |
+| `AssignPhotometricCommand` | `AssignPhotometricCommand` | Assign IES/LDT file to luminaire |
+| `PhotometricLibraryCommand` | `PhotometricLibraryCommand` | Browse photometric library |
+| `PhotometricDesignReviewCommand` | `PhotometricDesignReviewCommand` | Photometric design review |
+| `PhotometricLinkCommand` | `PhotometricLinkCommand` | Link photometric file to family |
+| `DialuxRoundTripCommand` | `DialuxRoundTripCommand` | DIALux round-trip import |
+| `PhotometricPreflightCommand` | `PhotometricPreflightCommand` | Photometric preflight check |
+| `FaultCurrentScheduleCommand` | `FaultCurrentScheduleCommand` | Fault-current schedule |
+| `DemandFactorReportCommand` | `DemandFactorReportCommand` | Demand factor report |
+| `VoltageDropScheduleCommand` | `VoltageDropScheduleCommand` | Voltage-drop schedule |
+| `ConduitAutoRouteCommand` | `ConduitAutoRouteCommand` | Auto-route conduits |
+| `CableScheduleBuilderCommand` | `CableScheduleBuilderCommand` | Build cable BOM + conduit BOM + box BOM |
+| `ConduitConsolidatorCommand` | `ConduitConsolidatorCommand` | Consolidate parallel conduits |
+| `VoltageDropCommand` | `VoltageDropCommand` | Voltage-drop analysis |
+| `VoltageDropFlagCommand` | `VoltageDropFlagCommand` | Flag over-limit voltage drops |
+| `PanelViewScheduleCommand` | `PanelViewScheduleCommand` | Panel view schedule |
+
+### Lightning Protection (LPS) commands (18)
+
+| Class | Description |
+|---|---|
+| `LpsClassSetupCommand` | Set up LPL class + risk assessment |
+| `LpsComplianceCheckCommand` | BS EN 62305 compliance check |
+| `LpsDownConductorCheckerCommand` | Down-conductor spacing + cross-section audit |
+| `LpsEarthResistanceValidatorCommand` | Earth resistance measurement validation |
+| `LpsBondingInventoryCommand` | Equipotential bonding inventory |
+| `LpsRoomZoneTagCommand` | Tag rooms with LPZ classification |
+| `LpsPlanViewVisualizerCommand` | Strike collection overlay on plan view |
+| `LpsSeparationDistanceCheckerCommand` | Separation distance (s) calculation |
+| `LpsInspectionSchedulerCommand` | Inspection interval schedule |
+| `LpsFullReportCommand` | Full LPS compliance report |
+| `LpsDashboardCommand` | LPS dashboard |
+| `LpsMarkElementTypesCommand` | Mark element types (air terminal, conductor, earth) |
+| `LpsRecalcKcFactorCommand` | Recalculate Kc factor |
+| `LpsColourZonesCommand` | Colour-code LPZ zones |
+| `LpsClearZoneColoursCommand` | Clear LPZ colour overrides |
+| `LpsCreateRevitScheduleCommand` | Create Revit schedule from LPS data |
+| `LpsSyncToServerCommand` | Push LPS data to Planscape Server |
+| `LpsRollingSphere3DCommand` | 3D rolling sphere visualisation |
+
+### Caveats (Electrical)
+
+1. Built without `dotnet build` verification (Linux sandbox). Revit API obsoletion
+   warnings (`IntegerValue` → `Value`, `ParameterType` → `ForgeTypeId`) addressed.
+2. `DIALuxExportCommand`, `EtapExportCommand`, `EasyPowerExportCommand` produce
+   intermediary files; actual import into the target application is manual.
+3. `PhotometricPreflightCommand` and `DialuxRoundTripCommand` require luminaire
+   families to carry `IES_FILE_PATH_TXT` shared parameter.
+
+## BOQ & Cost Manager
+
+**Status**: Built across multiple phases (Phases 6–9 of the BOQ sub-plan). Located
+in `StingTools/BOQ/`. Full NRM2-structured bill of quantities with multi-sheet XLSX
+export, provisional sums reconciliation, snapshot comparison, and BIM parameter
+write-back.
+
+### New folder
+
+`StingTools/BOQ/` — 11 files.
+
+**Commands (15)**:
+
+| Class | Description |
+|---|---|
+| `BOQExportCommand` | Multi-sheet XLSX: BOQ + material schedule + provisional sums + NRM2 ref + carbon + audit + comparison |
+| `BOQProfessionalExportCommand` | Professional-grade export with company branding + NRM2 compliance |
+| `BOQPrepForExportCommand` | Pre-export: write `CST_*` + `ASS_BOQ_*` params onto modelled elements |
+| `BOQRefreshCommand` | Rebuild BOQ from live model |
+| `BOQSetBudgetCommand` | Set project budget target |
+| `BOQSnapshotSaveCommand` | Save BOQ snapshot to JSON |
+| `BOQSnapshotCompareCommand` | Compare two BOQ snapshots |
+| `BOQAddManualRowCommand` | Add provisional sum / manual row |
+| `BOQSelectInRevitCommand` | Select elements for a BOQ line item |
+| `BOQImportCommand` | Import BOQ from XLSX (round-trip) |
+| `BOQReconcileProvisionalsCommand` | Reconcile provisional sums against outturn costs |
+| `BOQWriteItemParamsCommand` | Write BOQ classification params to elements |
+| `BOQRateSourceHeatMapCommand` | Heat-map view by rate source (PC / sub / estimate) |
+| `BOQBccRefreshCommand` | Refresh BOQ data in BIM Coordination Center |
+
+**Supporting classes**: `BOQCostManager` (build + aggregate), `BOQModels` (POCOs),
+`BOQParagraphEnhancer` (NRM2 paragraph resolution), `BOQTemplateLibraryExtensions`
+(template registry integration), `BOQTenderConfig` (tender-level settings).
+
+**Caveats**: Paragraph-coverage gate warns when < 80% of items have resolved NRM2
+descriptions. `BOQTenderConfig` fields are project-scoped overrides.
+
+## Clash Detection Engine
+
+**Status**: Full in-process clash kernel in `StingTools/Clash/`. Built without
+`dotnet build` verification. Verify in Revit before merge.
+
+### New folder
+
+`StingTools/Clash/` — 30+ files including `ClashKernel`, `AabbSweep`, `MollerSat`
+(Möller–Trumbore SAT triangle intersection), `ObbTree` (oriented bounding box),
+`ClashGrouper`, `ClashRuleEngine`, `ClashHistory`, `ClashPersistence`,
+`LiveClashHandler` + `LiveClashUpdater` (IUpdater-based live detection),
+`ClashScheduler` (Hangfire-based periodic re-scan), `ClashSlaIntegration`,
+`AccIssuesClient` (push to ACC Issues API).
+
+**Commands (6)**:
+
+| Class | Description |
+|---|---|
+| `ClashRunCommand` | Run full clash detection and store session |
+| `ClashBcfExportCommand` | Export clash session to BCF 2.1 |
+| `ClashXlsxExportCommand` | Export clash report to XLSX |
+| `ClashSessionRefreshCommand` | Refresh existing clash session |
+| `ClashSessionClearCommand` | Clear clash session |
+| `ClashMatrixEditCommand` | Edit clash rule matrix |
+
+**Live detection**: `LiveClashHandler` + `LiveClashWireup` register an IUpdater
+that re-checks elements on geometry change and raises `ClashNotifications` via
+SignalR. `ClashScheduler` can run batch re-scans on a schedule.
+
+**V6 extensions** (`StingTools/V6/`): `ClashTriageEngine`, `ClashResolutionSuggester`,
+`FederationLinkedWalker`, `AsBuiltReconciler`, `ExcelBidirectionalSync`,
+`FourdGanttReader`, `HealthDashboardEngine`, `QRCommissioningWorkflow`,
+`LabourHoursEngine` — 5 additional commands: `HealthDashboardExportHtmlCommand`,
+`QRAdvanceCommissioningCommand`, `QRCommissioningReportCommand`,
+`ApplyLabourHoursCommand`, `ExportLabourHoursCommand`.
+
+## ExLink — Extended Data Exchange
+
+**Status**: Located in `StingTools/ExLink/`. Full bidirectional model-data exchange
+plus browser/automation suite.
+
+### Commands (34)
+
+| Class | Description |
+|---|---|
+| `ExLinkBrowserCommand` | Browse linked data sources |
+| `ExLinkExportCommand` | Export to linked target |
+| `ExLinkImportCommand` | Import from linked source |
+| `ExLinkMultiExportCommand` | Multi-target export |
+| `ExLinkQuickViewCommand` | Quick view of linked data |
+| `ExLinkBatchExportCommand` | Batch export all links |
+| `ExLinkCustomLinkCommand` | Define custom link |
+| `ExLinkQTOCommand` | Quantity take-off via ExLink |
+| `ExLinkDocIssuanceCommand` | Document issuance pipeline |
+| `ExLinkCOBieSyncCommand` | COBie sync via ExLink |
+| `ExLinkDynamicPDFCommand` | Dynamic PDF export |
+| `ExLinkDynamicDWGCommand` | Dynamic DWG export |
+| `ExLinkDynamicNWCCommand` | Dynamic NWC export |
+| `ISBDoorScheduleCommand` | ISB door schedule |
+| `ISBWindowScheduleCommand` | ISB window schedule |
+| `ISBRoomFinishCommand` | ISB room finish schedule |
+| `ISBWallTypeCommand` | ISB wall-type schedule |
+| `ISBFloorTypeCommand` | ISB floor-type schedule |
+| `ISBEquipmentScheduleCommand` | ISB equipment schedule |
+| `ISBLightingScheduleCommand` | ISB lighting schedule |
+| `ISBPlumbingScheduleCommand` | ISB plumbing schedule |
+| `ISBElectricalScheduleCommand` | ISB electrical schedule |
+| `ISBKeyPlanCommand` | ISB key plan |
+| `FamilyBrowserCommand` | Family browser |
+| `TypeBrowserCommand` | Type browser |
+| `UnusedElementsCommand` | Detect unused elements |
+| `CADImportDetectorCommand` | Detect CAD imports |
+| `InPlaceFamilyDetectorCommand` | Detect in-place families |
+| `BatchPDFExportCommand` | Batch PDF export |
+| `BatchDWGExportCommand` | Batch DWG export |
+| `BatchNWCExportCommand` | Batch NWC export |
+| `BatchIFCExportCommand` | Batch IFC export |
+| `AutomationModelAuditCommand` | Automated model audit |
+| `AutomationModelCompactCommand` | Model compaction |
+| `AutomationBackupCleanupCommand` | Backup file cleanup |
+| `AutomationFamilyUpgradeCommand` | Family upgrade batch |
+| `AutomationModelStatsCommand` | Model statistics report |
+| `AutomationBatchParamExportCommand` | Batch parameter export |
+| `StickyNoteCreateCommand` | Create sticky note |
+| `StickyNoteDashboardCommand` | Sticky note dashboard |
+| `StickyNoteExportCommand` | Export sticky notes |
+| `StickyNoteBulkUpdateCommand` | Bulk update sticky notes |
+
+## Placement Center
+
+**Status**: Located in `StingTools/UI/PlacementCenter/`. WPF placement rules editor
+with Excel import, family hints bridge, and history bridge.
+
+| File | Purpose |
+|---|---|
+| `StingPlacementCenter.xaml` / `.xaml.cs` | Placement rules editor WPF panel |
+| `PlacementCentreCommands.cs` | Commands to open/manage placement center |
+| `PlacementExcelCommands.cs` | Excel-based placement rule import/export |
+| `FamilyHintsBridge.cs` | Bridge between placement engine and family catalog |
+| `HistoryBridge.cs` | Placement history tracking |
+| `PlacementCenterBridge.cs` | Data binding bridge |
+| `PlacementRuleViewModel.cs` / `PlacementRulesViewModel.cs` | MVVM view models |
+
+## AVF Heatmap Visualization
+
+**Status**: Located in `StingTools/Commands/Visualization/`. Analysis Visualization
+Framework (AVF) heatmaps using Revit's built-in display style engine.
+
+**Commands (5)**:
+
+| Class | Description |
+|---|---|
+| `VisualiseComplianceHeatmapCommand` | Tag completeness heatmap by element position |
+| `VisualiseFillHeatmapCommand` | Conduit/duct fill % heatmap |
+| `VisualiseCarbonHeatmapCommand` | Embodied carbon heatmap |
+| `VisualiseAcousticHeatmapCommand` | Acoustic performance heatmap |
+| `ClearHeatmapCommand` | Clear all AVF heatmaps |
+
+## Extensible Storage Migration
+
+**Status**: Located in `StingTools/Commands/Storage/`.
+
+| Class | Description |
+|---|---|
+| `MigrateToExtensibleStorageCommand` | Migrate project data to Revit Extensible Storage schemas |
+| `EsStorageDiagnosticCommand` | Diagnose Extensible Storage entities in the project |
 
 ## Drawing Template Manager (Phase 113)
 
@@ -875,7 +1290,110 @@ STINGTOOLS/
     │   ├── mr_default.json             # Draft → Submitted → Approved/Rejected
     │   └── deliverable_issue_default.json # WIP → Shared → Published → Archived
     │
-    └── Data/                           # Runtime data files (49 files)
+    ├── Commands/                       # Discipline-specific command sub-directories (Phase 178+)
+    │   ├── Electrical/                 # 55 electrical commands across 15 sub-dirs (cable, circuits, arc flash, busbar, SLD, etc.)
+    │   ├── Plumbing/                   # 36 plumbing commands across 6 files (drainage, supply, routing, storm, docs)
+    │   ├── SLD/                        # 8 single-line diagram commands
+    │   ├── Lightning/                  # 18 lightning protection (LPS) commands
+    │   ├── Visualization/              # 5 AVF heatmap commands
+    │   ├── Storage/                    # 2 Extensible Storage migration commands
+    │   ├── TagStudio/                  # StyleAuditCommand, MigrateTagFamiliesCommand
+    │   ├── RoutingExt/                 # 7 extended routing commands (Manhattan layout, clash avoid, cable bundle, etc.)
+    │   ├── PlacementExt/               # 7 extended placement commands (sprinkler grid, accessible WC, fire extinguisher, etc.)
+    │   └── (+ existing Healthcare, MedGas, Radiation, Adjacency, Drawing, Fabrication, Placement, Routing, Validation, etc.)
+    │
+    ├── Core/                           # (+ new sub-dirs added post Phase 174)
+    │   ├── Electrical/                 # CableManifest, CableRouter, CircuitScheduleExporter, TrayFillCalculator
+    │   ├── SLD/                        # SLDGenerator, SLDCircuitTraverser, SLDLayoutEngine, SLDAnnotationPlacer, SLDSyncUpdater
+    │   ├── Lightning/                  # LpsEngine
+    │   └── Plumbing/                   # 20 plumbing engine classes (see Phase 178 section)
+    │
+    ├── BOQ/                            # Bill of Quantities module (11 files, 15 commands)
+    │   ├── BOQCostManager.cs           # Build + aggregate BOQ from model elements
+    │   ├── BOQModels.cs                # POCOs: BOQDocument, BOQItem, BOQSnapshot
+    │   ├── BOQExportCommand.cs         # Multi-sheet XLSX export (BOQ + NRM2 + carbon + audit)
+    │   ├── BOQProfessionalExportCommand.cs # Branded professional export
+    │   ├── BOQPrepForExportCommand.cs  # Write CST_* + ASS_BOQ_* params to elements pre-export
+    │   ├── BOQSupportCommands.cs       # Refresh, SetBudget, SnapshotSave, SnapshotCompare, AddManualRow, SelectInRevit, Import, ReconcileProvisionals, WriteItemParams
+    │   ├── BOQRateSourceHeatMapCommand.cs # Heat-map by rate source
+    │   ├── BOQParagraphEnhancer.cs     # NRM2 paragraph resolution (coverage gate at 80%)
+    │   ├── BOQTemplateLibraryExtensions.cs # Drawing Template Manager integration
+    │   ├── BOQTenderConfig.cs          # Tender-level configuration
+    │   └── BOQBccBridge.cs             # BIM Coordination Center bridge command
+    │
+    ├── Clash/                          # In-process clash detection engine (30+ files)
+    │   ├── ClashKernel.cs              # Core AABB → OBB → mesh SAT pipeline
+    │   ├── AabbSweep.cs                # Broad-phase sweep-and-prune
+    │   ├── MollerSat.cs                # Möller–Trumbore triangle intersection
+    │   ├── ObbTree.cs                  # Oriented bounding box tree
+    │   ├── ClashGrouper.cs             # Group clashes by proximity + rule
+    │   ├── ClashRuleEngine.cs          # JSON-driven clash rule evaluation
+    │   ├── ClashHistory.cs             # Session history + trend
+    │   ├── ClashPersistence.cs         # JSON persistence per project
+    │   ├── LiveClashHandler.cs         # IUpdater-based live re-check on geometry change
+    │   ├── ClashScheduler.cs           # Periodic batch re-scan
+    │   ├── ClashSlaIntegration.cs      # SLA breach linking
+    │   ├── AccIssuesClient.cs          # Push clashes to ACC Issues API
+    │   ├── ClashRunCommand.cs          # Run full clash session
+    │   ├── ClashBcfExportCommand.cs    # BCF 2.1 export
+    │   ├── ClashXlsxExportCommand.cs   # XLSX report export
+    │   └── ClashSessionCommands.cs     # Refresh, Clear, MatrixEdit commands
+    │
+    ├── ExLink/                         # Extended data exchange (42 commands, 6 files)
+    │   ├── ExLinkEngine.cs             # Core bidirectional exchange engine
+    │   ├── ExLinkCommands.cs           # 13 ExLink commands (browser, export, import, QTO, COBie, PDF/DWG/NWC dynamic)
+    │   ├── ISBAppsCommands.cs          # 10 ISB schedule/plan commands
+    │   ├── ExplorerCommands.cs         # 5 family/type browser + model audit commands
+    │   ├── AutomationEngine.cs         # 10 batch automation commands (PDF/DWG/NWC/IFC/audit/compact/family upgrade)
+    │   └── StickyNotesEngine.cs        # 4 sticky note commands
+    │
+    ├── V6/                             # V6 advanced features (5 commands, 10 engine classes)
+    │   ├── ClashTriageEngine.cs        # AI-assisted clash triage
+    │   ├── ClashResolutionSuggester.cs # Resolution suggestion engine
+    │   ├── HealthDashboardEngine.cs    # HTML health dashboard + export command
+    │   ├── QRCommissioningWorkflow.cs  # QR-code commissioning workflow
+    │   ├── QRCommissioningCommands.cs  # QRAdvanceCommissioning, QRCommissioningReport
+    │   ├── LabourHoursEngine.cs        # Labour hours estimation engine
+    │   └── LabourHoursCommands.cs      # ApplyLabourHours, ExportLabourHours
+    │
+    ├── Photometrics/                   # Photometric file parsing (IES/LDT)
+    │   ├── IesParser.cs                # IESNA LM-63 parser
+    │   ├── LdtParser.cs                # EULUMDAT LDT parser
+    │   ├── PhotometricFile.cs          # Unified photometric file model
+    │   └── PhotometricLibrary.cs       # Photometric library manager
+    │
+    ├── IfcResults/                     # IFC simulation results integration
+    │   ├── IfcSimpleParser.cs          # Lightweight IFC reader for results
+    │   └── StingLightingPSet.cs        # STING lighting property set definition
+    │
+    ├── Presets/                        # Preset combination engine
+    │   ├── PresetCombinationEngine.cs  # Combine multiple presets
+    │   └── PresetCombinationCommands.cs # Commands to manage preset combinations
+    │
+    ├── UI/Clash/                       # Clash tab WPF UI
+    │   ├── ClashRowViewModel.cs        # Data binding for clash rows
+    │   └── ClashTab_xaml.cs            # Clash tab code-behind
+    │
+    ├── UI/Plumbing/                    # Standalone STING Plumbing Panel WPF UI
+    │   ├── StingPlumbingPanel.cs       # 8-tab standalone dockable panel
+    │   ├── StingPlumbingPanelProvider.cs # IDockablePaneProvider for plumbing panel
+    │   ├── StingPlumbingCommandHandler.cs # IExternalEventHandler for plumbing dispatch
+    │   ├── PlumbingSystemConfigDialog.cs # System configuration dialog
+    │   └── SlopeFixPreviewDialog.cs    # Slope auto-correction preview dialog
+    │
+    ├── UI/PlacementCenter/             # Placement rules editor WPF panel
+    │   ├── StingPlacementCenter.xaml   # WPF markup for placement rules editor
+    │   ├── StingPlacementCenter.xaml.cs # Code-behind
+    │   ├── PlacementCentreCommands.cs  # Open/manage placement center commands
+    │   ├── PlacementExcelCommands.cs   # Excel-based rule import/export
+    │   ├── FamilyHintsBridge.cs        # Family catalog hints bridge
+    │   ├── HistoryBridge.cs            # Placement history tracking
+    │   ├── PlacementCenterBridge.cs    # Data binding bridge
+    │   └── PlacementRuleViewModel.cs / PlacementRulesViewModel.cs # MVVM view models
+    │
+    └── Data/                           # Runtime data files (140+ files)
+        ├── Plumbing/                   # Phase 178 plumbing data (STING_PLUMBING_SUPPLY_TABLES.json, DRAINAGE_TABLES.json, PIPE_MATERIALS_HYDRAULIC.json, MATERIAL_RULES.json, BS5422_INSULATION.csv)
+        ├── Seeds/                      # 16 seed family JSONs (STING_SEED_*.json) for Placement Center
         ├── BLE_MATERIALS.csv           # 815 building-element materials
         ├── MEP_MATERIALS.csv           # 464 MEP materials
         ├── MR_PARAMETERS.txt           # Shared parameter file (2,555 params, 26 groups, all data files cross-referenced — Phase 129 alignment)
@@ -924,7 +1442,8 @@ STINGTOOLS/
         ├── TAGGING_GUIDE.md            # Complete tagging guide documentation (1,300+ lines)
         ├── TAG_FAMILY_CREATION_GUIDE.md # End-to-end tag family creation workflow guide
         ├── BIM_COORDINATION_WORKFLOW_GUIDE.md # Comprehensive BIM coordinator workflow guide (2,000+ lines, 22 sections)
-        └── DWG_TO_BIM_GUIDE.md        # DWG-to-structural BIM conversion guide
+        ├── DWG_TO_BIM_GUIDE.md        # DWG-to-structural BIM conversion guide
+        └── STING_ELECTRICAL_LAYMANS_GUIDE.md # End-to-end layman's guide for Electrical Waves A–J workflows
 ```
 
 ## Ribbon UI Architecture (Legacy)
