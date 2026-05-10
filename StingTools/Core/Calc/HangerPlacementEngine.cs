@@ -28,6 +28,7 @@ using Autodesk.Revit.DB.Mechanical;
 using Autodesk.Revit.DB.Plumbing;
 using Autodesk.Revit.DB.Electrical;
 using Autodesk.Revit.DB.Structure;
+using StingTools.Core.Plumbing;
 
 namespace StingTools.Core.Calc
 {
@@ -247,7 +248,16 @@ namespace StingTools.Core.Calc
             if (el is Pipe p)
             {
                 double d = p.Diameter * FtToMm;
-                string mat = ReadParam(p, "PLM_PPE_MAT_TXT", "STEEL").ToUpperInvariant();
+                // Per-pipe stamp wins; fall back to the project's
+                // PlumbingSystemConfig material for the pipe's MEP system
+                // (Drainage / Storm / Vent / DHW / DCW) so projects that
+                // don't write PLM_PPE_MAT_TXT on every pipe still drive
+                // material-specific hanger logic (buried mains skipped,
+                // plastic vs steel spacing, etc.). Hardcoded "STEEL" stays
+                // as the last-resort default.
+                string mat = ReadParam(p, "PLM_PPE_MAT_TXT", "").ToUpperInvariant();
+                if (string.IsNullOrEmpty(mat))
+                    mat = ResolveMaterialFromSystemConfig(p)?.ToUpperInvariant() ?? "STEEL";
                 return new HangerSpacingQuery
                 {
                     Kind         = HangerRunKind.Pipe,
@@ -393,6 +403,71 @@ namespace StingTools.Core.Calc
                 };
             }
             catch { return def; }
+        }
+
+        // ── PlumbingSystemConfig fallback for missing pipe materials ───
+        // PlumbingSystemConfig.Load reads from disk on every call; cache the
+        // last-loaded config keyed by the JSON path so hanger planning across
+        // a few hundred pipes doesn't re-parse for each one. Cache invalidates
+        // when the document changes (different ProjectConfigPath) or when
+        // the user re-saves (path is the same but Load returns fresh data —
+        // mtime-based invalidation is overkill here, so we accept stale
+        // values for the duration of a single hanger run).
+
+        private static readonly object  _cfgLock = new object();
+        private static string           _cachedCfgPath;
+        private static PlumbingSystemConfig _cachedCfg;
+
+        private static string ResolveMaterialFromSystemConfig(Pipe p)
+        {
+            try
+            {
+                if (p?.Document == null) return null;
+                string sys;
+                try { sys = (p.MEPSystem?.Name ?? "").ToUpperInvariant(); }
+                catch { return null; }
+                if (string.IsNullOrEmpty(sys)) return null;
+
+                PlumbingSystemConfig cfg;
+                lock (_cfgLock)
+                {
+                    string path = PlumbingSystemConfig.ProjectConfigPath(p.Document);
+                    if (_cachedCfg == null || !string.Equals(_cachedCfgPath, path, StringComparison.OrdinalIgnoreCase))
+                    {
+                        _cachedCfg = PlumbingSystemConfig.Load(p.Document);
+                        _cachedCfgPath = path;
+                    }
+                    cfg = _cachedCfg;
+                }
+                if (cfg == null) return null;
+
+                string svc = ResolveServiceKind(sys);
+                return string.IsNullOrEmpty(svc) ? null : cfg.MaterialFor(svc);
+            }
+            catch { return null; }
+        }
+
+        // Map common Revit MEP-system names to PlumbingSystemConfig.Materials
+        // keys (DCW / DHW / Drainage / Storm / Vent). Drain / storm / vent
+        // patterns are tested BEFORE the supply patterns so a system named
+        // "Cold Water (Drain)" classifies as drainage rather than DCW.
+        private static string ResolveServiceKind(string sysNameUpper)
+        {
+            if (sysNameUpper.Contains("DRAIN") || sysNameUpper.Contains("SAN") ||
+                sysNameUpper.Contains("WASTE") || sysNameUpper.Contains("FOUL") ||
+                sysNameUpper.Contains("SOIL"))
+                return "Drainage";
+            if (sysNameUpper.Contains("STORM") || sysNameUpper.Contains("RAIN"))
+                return "Storm";
+            if (sysNameUpper.Contains("VENT"))
+                return "Vent";
+            if (sysNameUpper.Contains("HOT")   || sysNameUpper.Contains("DHW")   ||
+                sysNameUpper.Contains("HWS")   || sysNameUpper.Contains("RECIRC"))
+                return "DHW";
+            if (sysNameUpper.Contains("COLD")  || sysNameUpper.Contains("DCW")   ||
+                sysNameUpper.Contains("MAINS") || sysNameUpper.Contains("CWS"))
+                return "DCW";
+            return null;
         }
     }
 }
