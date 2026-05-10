@@ -2,6 +2,39 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 179.3 + Phase 180 A–G — Site-photo workflow review hardening)
+
+Closes 40 findings from the Phase 179 workflow review pass. Branch:
+`claude/enhance-photos-workflow-T6vMA`. Slice index:
+
+| Slice | What |
+|---|---|
+| 179.3 | Critical correctness/security: fix `Client` visibility `\|\| true` typo; pipe album-detail through `PhotoAclGate`; resolve `DistributionGroupMember` by email OR userId; discipline list match; stream ZIP/PDF directly to `Response.Body`; atomic share-link `FetchCount`; `/album` counts toward `MaxFetches`. |
+| 180.A | Wire previously-inert `PhotoPolicy` fields: `AllowedReasons`, `DefaultAudienceByReason`, `Geofence`/`OffsiteAudience`, watermark template + `WatermarkRequired`, `DigestDistributionGroupId`, `ApprovalChain` (TwoStepSafety / TwoStepAll via new `PhotoApprovalSignoffs` table). |
+| 180.B | `GET /photo-audit` — read-only window over the photo audit-log family; SignalR emissions on Reject / Withdraw / BulkApprove; notifications on rejection, share-link first/last fetch, checklist first-fulfilment; `PhotoChecklistDueJob` (Hangfire 07:00 UTC). |
+| 180.C | `PhotoAlbum.SavedFilterJson` (smart album) + `PhotoSmartAlbumMaterialiseJob` (02:00 UTC); `PhotoPolicy.DefaultAlbumByReasonJson` auto-add on capture; `PhotoPolicy.NdaText`. |
+| 180.D | `PhotoAclGate` request-scoped cache via `HttpContext.Items`; parallel thumb fetches in BCC and mobile gallery (`SemaphoreSlim(8)` / `Promise.all`); `SitePhotoOfflineCache` capped at 200 entries. |
+| 180.E | Mobile NdaPromptModal lazy-fetches `PhotoPolicy.NdaText`; mobile albums create-modal adds 4-radio Visibility picker; mobile capture surfaces a "For: <item title>" pill when launched from a checklist; new BCC `SitePhotosNdaPrompt` modal + 🔒 lock tile in the Grid sub-tab. |
+| 180.F | `GET /issues/{iid}/photos` + `GET /site-diaries/{did}/photos`; new webhook event types `PhotoCaptured/Approved/Rejected/Withdrawn/ChecklistClosed/ShareLinkOpened`; `WORKFLOW_DailyFieldWalk.json` preset. |
+| 180.G | Capture endpoint: SHA-256 dedupe + `PhotoExifSniffer` for EXIF DateTimeOriginal drift detection (>5min triggers `exifDriftFlagged` audit); `PhotoRetentionJob` T-7-day pre-warning notifications; mobile `pair-timeline.tsx` (before/after grouping by `pairKey`); mobile `bulk-import.tsx` (camera-roll dump → classify → edit → sequential upload). |
+
+**Migrations**: `20260514200000_AddPhotoApprovalSignoffs`,
+`20260514300000_AddSmartAlbumAndAutoAddAndNdaText`. Both additive; the
+existing `SitePhotos` table is untouched throughout.
+
+**Per-section caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox, no Revit
+   API). Verify in Revit before merge.
+2. The EF model snapshot file is not regenerated — first deploy must
+   run `dotnet ef migrations add` to refresh
+   `PlanscapeDbContextModelSnapshot.cs`. See deploy runbook.
+3. `PhotoPolicy.EnforceChecklistOnShiftEnd` exposed but not yet
+   enforced (no shift-end concept exists in the plugin); flagged for a
+   future slice.
+4. Bulk-import upload is sequential, not parallel — most phones throttle
+   concurrent multipart so this is intentional, not a perf bug.
+
 #### Completed (Phase 179 — Site-photo workflow enhancements)
 
 Closes the gaps surfaced during the BCC site-photo review pass. Branch:
