@@ -477,6 +477,8 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.DailyPhotoDigestJob
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoBulkExportService>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoPdfExportService>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoRetentionJob>();
+// Phase 180 — single read-side facade over PhotoPolicy.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoPolicyResolver>();
 // QuestPDF community licence — set once per process. Free for OSS /
 // personal / sub-1M USD revenue companies; switch to .Professional and
 // add the licence key at GA if revenue threshold is crossed.

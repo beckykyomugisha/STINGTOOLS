@@ -181,6 +181,7 @@ public class PlanscapeDbContext : DbContext
     public DbSet<PhotoShareLink>          PhotoShareLinks          => Set<PhotoShareLink>();
     public DbSet<PhotoPolicy>             PhotoPolicies            => Set<PhotoPolicy>();
     public DbSet<PhotoNdaAcceptance>      PhotoNdaAcceptances      => Set<PhotoNdaAcceptance>();
+    public DbSet<PhotoApprovalSignoff>    PhotoApprovalSignoffs    => Set<PhotoApprovalSignoff>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -412,6 +413,18 @@ public class PlanscapeDbContext : DbContext
             e.Property(x => x.AcceptedTextSha256).HasMaxLength(64);
             e.HasOne(x => x.Photo).WithMany().HasForeignKey(x => x.PhotoId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PhotoApprovalSignoff>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.PhotoId);
+            e.HasIndex(x => new { x.PhotoId, x.Stage }).IsUnique();
+            e.Property(x => x.Stage).HasMaxLength(40).IsRequired();
+            e.Property(x => x.Caption).HasMaxLength(2000);
+            e.Property(x => x.Notes).HasMaxLength(2000);
+            e.HasOne(x => x.Photo).WithMany().HasForeignKey(x => x.PhotoId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.SignedByUser).WithMany().HasForeignKey(x => x.SignedByUserId).OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<PhotoPolicy>(e =>
