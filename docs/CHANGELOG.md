@@ -2,6 +2,29 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 179 — Plumbing panel enhancement: 8 tabs · 27 commands · 10 engines)
+
+Lifts the STING Plumbing Center from the Phase 178c 6-tab / 8-button
+prototype to a consultant-grade 8-tab / 36-button workflow that wires
+every existing engine to the panel and fills the foundation gaps
+identified in the deep code-base review. Branch:
+`claude/plumbing-enhancements-phase-17-UVb6z`.
+
+| Sub-phase | Scope |
+|---|---|
+| **179a — Foundation** | SYSTEM tab + `PlumbingSystemConfig` POCO + 3 JSON tables (`STING_PLUMBING_DRAINAGE_TABLES.json`, `STING_PLUMBING_SUPPLY_TABLES.json`, `STING_PIPE_MATERIALS_HYDRAULIC.json`) + `PlumbingTables` loader + 31 net-new `PLM_*` params (`PLM_DRN_DU` … `PLM_AUDIT_DATE`) + `PlumbingSystemConfigDialog` (modal WPF) + 2 commands (`Plumb_SaveSystemConfig`, `Plumb_LoadSystemConfig`). |
+| **179b — Sizing engines** | `FixtureUnitScanner` (per-type histogram + write `PLM_DRN_DU/PLM_SUP_LU/PLM_SUP_WSFU`); `WaterSupplySizer` (Hazen-Williams + Hunter / BS EN 806-3 picker + velocity / Pa-per-m audit); `ExpansionVesselSizer` (BS 7074-1); 6 commands (`Plumb_ScanFixtures`, `Plumb_SizeSupply`, `Plumb_SizeDrainage`, `Plumb_PressureCheck`, `Plumb_ExpVessel`, `Plumb_TMVRegister`). |
+| **179c — Routing** | `PTrapInserter` (idempotent connector-graph trap detector + STING_SEED-style family resolver); 5 wrapper commands (`Plumb_AutoRoute` → `AutoPipeDrop`, `Plumb_FixSlopes` → `SlopeAutoCorrector`, `Plumb_InsertPTraps`, `Plumb_PlaceSleeves` → `SleeveEngine`, `Plumb_PlaceHangers` → `HangerPlacementEngine`). |
+| **179d — Vent + Inverts** | `InvertLevelEngine` (US/DS invert mAOD + cover depth + writeback to `PLM_DRN_INV_*`); 2 commands (`Plumb_VentDesign`, `Plumb_InvertLevels`). |
+| **179e — Audit + Storm** | `PlumbingComplianceScanner` aggregating Supply / Drainage / Vents / Backflow / HTM 04-01 into a single `PlumbingComplianceResult` (RAG dashboard tile feed); `PlumbingSustainabilityCalc` façade (BS 8515 / CIRIA C753 / BRE 365 / BS EN 12566-1 / BS EN 12056-3); 6 commands (`Plumb_RWH`, `Plumb_SuDS`, `Plumb_Soakaway`, `Plumb_SepticTank`, `Plumb_RoofDrainage`, `Plumb_FullAudit`). |
+| **179f — Documentation** | `PlumbingBOQBuilder` (pipes-by-system+DN+material, fittings, accessories); 5 commands (`Plumb_PipeSchedule`, `Plumb_BOQ`, `Plumb_ManholeSchedule`, `Plumb_Isometric`, `Plumb_CommPack`). |
+| **+ Workflow presets** | `WORKFLOW_PlumbingDesign.json` (12-step end-to-end), `WORKFLOW_PlumbingAudit.json` (6-step read-only). |
+| **+ Wiring** | `StingPlumbingPanel.cs` rebuilt to 8 tabs (SYSTEM / SUPPLY / DRAINAGE / ROUTE / STORM / SPECIALTY / AUDIT / DOCS); `StingPlumbingCommandHandler` switch covers all 27 new tags + retains all 10 Phase 178c tags; `WorkflowEngine.ResolveCommand` extended with all 37 plumbing tags. |
+
+**Engines reused without modification**: `SleeveEngine`, `SlopeAutoCorrector`, `AutoPipeDrop`, `HangerPlacementEngine`, `BackflowClassifier`, `CrossConnectionChecker`, `DeadLegDetector`, `RecircLoopBalancer`, `StackCapacityValidator`, `PlumbingMaterialValidator`, `RainwaterHarvestingCalc`, `TrapDesigner`, `VentDesigner`, `DrainageSizer`, `FixtureUnitAggregator`. Phase 178c commands (`Plumbing_*`) remain unchanged and still wired.
+
+Built without `dotnet build` verification (Linux sandbox). Verify in Revit before merge to `master`.
+
 #### Completed (Phase 178f — Deferred-list completion: damper / acoustic / UL / mobile / formula / section)
 
 Closes the five items deferred at the end of Phase 178e. All

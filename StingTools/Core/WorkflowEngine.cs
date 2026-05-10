@@ -1451,6 +1451,44 @@ namespace StingTools.Core
                 case "Panel_SpacesToSpares":    return new Commands.Panels.ConvertSpacesToSparesCommand();
                 case "Panel_ClearSparesSpaces": return new Commands.Panels.ClearSparesAndSpacesCommand();
 
+                // ── Plumbing (Phase 178c → 179) ──
+                case "Plumbing_AutoSizeDrainage": return new Commands.Plumbing.AutoSizeDrainageCommand();
+                case "Plumbing_BackflowAudit":    return new Commands.Plumbing.BackflowAuditCommand();
+                case "Plumbing_RainwaterCalc":    return new Commands.Plumbing.RainwaterCalcCommand();
+                case "Plumbing_TrapVentAudit":    return new Commands.Plumbing.TrapAndVentAuditCommand();
+                case "Plumbing_PRVSchedule":      return new Commands.Plumbing.PRVScheduleCommand();
+                case "Plumbing_DeadLegScan":      return new Commands.Plumbing.DeadLegScanCommand();
+                case "Plumbing_CrossConnection":  return new Commands.Plumbing.CrossConnectionScanCommand();
+                case "Plumbing_RecircBalance":    return new Commands.Plumbing.RecircBalanceCommand();
+                case "Plumbing_StackCapacity":    return new Commands.Plumbing.StackCapacityCommand();
+                case "Plumbing_MaterialAudit":    return new Commands.Plumbing.MaterialAuditCommand();
+                case "Plumb_SaveSystemConfig":    return new Commands.Plumbing.PlumbSaveSystemConfigCommand();
+                case "Plumb_LoadSystemConfig":    return new Commands.Plumbing.PlumbLoadSystemConfigCommand();
+                case "Plumb_ScanFixtures":        return new Commands.Plumbing.PlumbScanFixturesCommand();
+                case "Plumb_SizeSupply":          return new Commands.Plumbing.PlumbSizeSupplyCommand();
+                case "Plumb_SizeDrainage":        return new Commands.Plumbing.PlumbSizeDrainageCommand();
+                case "Plumb_PressureCheck":       return new Commands.Plumbing.PlumbPressureCheckCommand();
+                case "Plumb_ExpVessel":           return new Commands.Plumbing.PlumbExpVesselCommand();
+                case "Plumb_TMVRegister":         return new Commands.Plumbing.PlumbTMVRegisterCommand();
+                case "Plumb_AutoRoute":           return new Commands.Plumbing.PlumbAutoRouteCommand();
+                case "Plumb_FixSlopes":           return new Commands.Plumbing.PlumbFixSlopesCommand();
+                case "Plumb_InsertPTraps":        return new Commands.Plumbing.PlumbInsertPTrapsCommand();
+                case "Plumb_PlaceSleeves":        return new Commands.Plumbing.PlumbPlaceSleevesCommand();
+                case "Plumb_PlaceHangers":        return new Commands.Plumbing.PlumbPlaceHangersCommand();
+                case "Plumb_VentDesign":          return new Commands.Plumbing.PlumbVentDesignCommand();
+                case "Plumb_InvertLevels":        return new Commands.Plumbing.PlumbInvertLevelsCommand();
+                case "Plumb_RWH":                 return new Commands.Plumbing.PlumbRwhCommand();
+                case "Plumb_SuDS":                return new Commands.Plumbing.PlumbSuDSCommand();
+                case "Plumb_Soakaway":            return new Commands.Plumbing.PlumbSoakawayCommand();
+                case "Plumb_SepticTank":          return new Commands.Plumbing.PlumbSepticTankCommand();
+                case "Plumb_RoofDrainage":        return new Commands.Plumbing.PlumbRoofDrainageCommand();
+                case "Plumb_FullAudit":           return new Commands.Plumbing.PlumbFullAuditCommand();
+                case "Plumb_PipeSchedule":        return new Commands.Plumbing.PlumbPipeScheduleCommand();
+                case "Plumb_BOQ":                 return new Commands.Plumbing.PlumbBOQCommand();
+                case "Plumb_ManholeSchedule":     return new Commands.Plumbing.PlumbManholeScheduleCommand();
+                case "Plumb_Isometric":           return new Commands.Plumbing.PlumbIsometricCommand();
+                case "Plumb_CommPack":            return new Commands.Plumbing.PlumbCommPackCommand();
+
                 // Electrical workflow tags (used by WORKFLOW_ElectricalQA.json)
                 case "Circuit_Balance":         return new Commands.Electrical.PhaseBalanceCommand();
                 case "Circuit_AutoDesc":        return new Commands.Electrical.CircuitDescriptionCommand();
