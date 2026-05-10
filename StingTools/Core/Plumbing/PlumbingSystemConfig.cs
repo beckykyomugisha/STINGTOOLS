@@ -56,6 +56,15 @@ namespace StingTools.Core.Plumbing
         public double FittingsEquivLengthFactor { get; set; } = 1.30;
         public string LastSavedUtc  { get; set; } = "";
 
+        // BOQ default rates used by PlumbingBOQEnricher for the categories
+        // BOQCostManager doesn't cover (insulation, sleeves, hangers). Rates
+        // here override TagConfig keys; cost_rates_5d.csv still wins when a
+        // matching row is present so the QS pack stays authoritative.
+        public double BoqDefaultPipeInsulationUgxPerM { get; set; } = 55_500;
+        public double BoqDefaultDuctInsulationUgxPerM { get; set; } = 74_000;
+        public double BoqDefaultSleeveUgxEach         { get; set; } = 185_000;
+        public double BoqDefaultHangerUgxEach         { get; set; } = 111_000;
+
         // ── Defaults ──
         public static PlumbingSystemConfig Defaults() => new PlumbingSystemConfig();
 

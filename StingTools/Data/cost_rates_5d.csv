@@ -16,6 +16,13 @@ Lighting Fixtures,LUM,E,180.00,666000,each,Standard luminaire
 Cable Trays,CTR,E,35.00,129500,m,Cable tray per linear metre
 Conduits,CDT,E,25.00,92500,m,Conduit per linear metre
 Plumbing Fixtures,SNY,P,650.00,2405000,each,Sanitary fixture installed
+Plumbing Equipment,PEQ,P,1200.00,4440000,each,Plumbing equipment (calorifier / pump / pressure vessel)
+Pipe Fittings,PFT,M,12.00,44400,each,Pipe fitting (elbow / tee / reducer / coupling / cap)
+Pipe Accessories,PAC,M,35.00,129500,each,Pipe accessory (valve / trap / strainer / gauge / TMV)
+Pipe Insulations,PIN,M,15.00,55500,m,Pipe insulation per linear metre
+Duct Insulations,DIN,M,20.00,74000,m,Duct insulation per linear metre
+Pipe Sleeve,PSL,M,50.00,185000,each,Pipe sleeve / fire-rated penetration
+Pipe Hanger,PHG,M,30.00,111000,each,Pipe hanger / support assembly
 Sprinklers,SPK,FP,120.00,444000,each,Sprinkler head installed
 Fire Alarm Devices,FAD,FP,250.00,925000,each,Fire alarm device installed
 Rooms,RM,A,0.00,0,each,Room (no direct cost)

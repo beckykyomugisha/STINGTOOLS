@@ -77,6 +77,7 @@ namespace StingTools.UI.Plumbing
         private ComboBox _sysBldgType, _sysDrainStd, _sysSupplyStd;
         private TextBox  _sysKFactor, _sysOccupancy, _sysBeds, _sysSupplyPres;
         private CheckBox _sysFlushValve;
+        private TextBox  _sysBoqPipeIns, _sysBoqDuctIns, _sysBoqSleeve, _sysBoqHanger;
         private readonly Dictionary<string, ComboBox> _sysMaterials = new Dictionary<string, ComboBox>();
         private readonly Dictionary<string, TextBox>  _sysVelocity  = new Dictionary<string, TextBox>();
         private readonly Dictionary<string, TextBox>  _sysSlope     = new Dictionary<string, TextBox>();
@@ -160,6 +161,21 @@ namespace StingTools.UI.Plumbing
                 _sysSupplyPres = NewTextBox(seed.SupplyPressureBarAtEntry.ToString("F2")));
             sp.Children.Add(NewExpander("Supply Pressure", presGrid, expanded: false));
 
+            // ── BOQ defaults ──
+            // Override the Plumbing BOQ enricher's fallback rates. Persisted
+            // by Save System Config (alongside everything else on this tab) so
+            // the values survive across sessions and follow the project file.
+            var boqGrid = NewFormGrid();
+            AddFormRow(boqGrid, 0, "Pipe insul (UGX/m)",
+                _sysBoqPipeIns = NewTextBox(seed.BoqDefaultPipeInsulationUgxPerM.ToString("F0")));
+            AddFormRow(boqGrid, 1, "Duct insul (UGX/m)",
+                _sysBoqDuctIns = NewTextBox(seed.BoqDefaultDuctInsulationUgxPerM.ToString("F0")));
+            AddFormRow(boqGrid, 2, "Sleeve (UGX/each)",
+                _sysBoqSleeve  = NewTextBox(seed.BoqDefaultSleeveUgxEach.ToString("F0")));
+            AddFormRow(boqGrid, 3, "Hanger (UGX/each)",
+                _sysBoqHanger  = NewTextBox(seed.BoqDefaultHangerUgxEach.ToString("F0")));
+            sp.Children.Add(NewExpander("BOQ Defaults (Insulation / Sleeves / Hangers)", boqGrid, expanded: false));
+
             // ── Action buttons ──
             AddCard(sp, "Actions");
             AddBtn(sp, "Plumb_SaveSystemConfig", "▶ Save System Config",
@@ -189,6 +205,10 @@ namespace StingTools.UI.Plumbing
                 if (int.TryParse(_sysOccupancy?.Text,     out var oc)) c.OccupancyCount = oc;
                 if (int.TryParse(_sysBeds?.Text,          out var bd)) c.BedsOrWorkstations = bd;
                 if (double.TryParse(_sysSupplyPres?.Text, out var sp)) c.SupplyPressureBarAtEntry = sp;
+                if (double.TryParse(_sysBoqPipeIns?.Text, out var bp)) c.BoqDefaultPipeInsulationUgxPerM = bp;
+                if (double.TryParse(_sysBoqDuctIns?.Text, out var bd)) c.BoqDefaultDuctInsulationUgxPerM = bd;
+                if (double.TryParse(_sysBoqSleeve?.Text,  out var bs)) c.BoqDefaultSleeveUgxEach         = bs;
+                if (double.TryParse(_sysBoqHanger?.Text,  out var bh)) c.BoqDefaultHangerUgxEach         = bh;
                 c.Materials   = _sysMaterials.ToDictionary(kv => kv.Key, kv => (kv.Value.SelectedItem as string) ?? "");
                 c.VelocityMps = _sysVelocity .ToDictionary(kv => kv.Key, kv => double.TryParse(kv.Value.Text, out var d) ? d : 0);
                 c.SlopePctMin = _sysSlope    .ToDictionary(kv => kv.Key, kv => double.TryParse(kv.Value.Text, out var d) ? d : 0);
@@ -211,6 +231,10 @@ namespace StingTools.UI.Plumbing
                 if (_sysOccupancy  != null) _sysOccupancy.Text   = cfg.OccupancyCount.ToString();
                 if (_sysBeds       != null) _sysBeds.Text        = cfg.BedsOrWorkstations.ToString();
                 if (_sysSupplyPres != null) _sysSupplyPres.Text  = cfg.SupplyPressureBarAtEntry.ToString("F2");
+                if (_sysBoqPipeIns != null) _sysBoqPipeIns.Text  = cfg.BoqDefaultPipeInsulationUgxPerM.ToString("F0");
+                if (_sysBoqDuctIns != null) _sysBoqDuctIns.Text  = cfg.BoqDefaultDuctInsulationUgxPerM.ToString("F0");
+                if (_sysBoqSleeve  != null) _sysBoqSleeve.Text   = cfg.BoqDefaultSleeveUgxEach.ToString("F0");
+                if (_sysBoqHanger  != null) _sysBoqHanger.Text   = cfg.BoqDefaultHangerUgxEach.ToString("F0");
                 if (cfg.Materials != null)
                     foreach (var kv in _sysMaterials)
                         if (cfg.Materials.TryGetValue(kv.Key, out var v) && kv.Value.Items.Contains(v))
@@ -299,6 +323,7 @@ namespace StingTools.UI.Plumbing
         // ── DRAINAGE tab — DU aggregation + sizing + slope + vents + inverts ──
         private ComboBox   _drnSizingStandard;
         private TextBox    _drnMaxHd;
+        private CheckBox   _drnAutoSizeApply;
         private StackPanel _drnSlopeScope;
         private Expander   _drnDuScanExpander, _drnSizingExpander, _drnSlopeExpander, _drnVentExpander, _drnInvertExpander;
         public DataGrid DrainageDuScanGrid { get; private set; }
@@ -327,8 +352,18 @@ namespace StingTools.UI.Plumbing
             sp.Children.Add(drnOpts);
             AddBtn(sp, "Plumb_SizeDrainage", "Size Drainage (BS EN 12056-2 / IPC)",
                 "DU accumulation → branch / stack DN → slope / self-cleansing audit.");
+            var autoSizeRow = new WrapPanel { Margin = new Thickness(0, 2, 0, 4) };
+            _drnAutoSizeApply = new CheckBox
+            {
+                Content = "Apply changes (off = dry run)",
+                IsChecked = false,
+                Margin = new Thickness(2, 4, 8, 4),
+                FontSize = 11
+            };
+            autoSizeRow.Children.Add(_drnAutoSizeApply);
+            sp.Children.Add(autoSizeRow);
             AddBtn(sp, "Plumbing_AutoSizeDrainage", "Auto-Size Drainage (full pipeline)",
-                "DU → DN → slope correct → vent design → stack capacity (preview / apply).");
+                "DU → DN → slope correct → vent design → stack capacity. Reads the Apply checkbox above; off runs dry-run preview.");
             DrainageSizingGrid = NewResultGrid(("Pipe", "Pipe"), ("ΣDU", "SigmaDu"), ("DN", "Dn"), ("V", "VelocityMps"), ("H/D", "HdRatio"), ("Status", "Status"));
             sp.Children.Add(_drnSizingExpander = NewExpander("Sizing results", WithEmptyHint(DrainageSizingGrid, "(run Size Drainage to populate)"), expanded: false));
 
@@ -373,6 +408,11 @@ namespace StingTools.UI.Plumbing
         }
 
         public string ReadDrainageSlopeScope() => Dispatcher.Invoke(() => ReadRadioGroup(_drnSlopeScope));
+
+        // True = apply changes, false = dry-run preview. Drives the inline
+        // Plumbing_AutoSizeDrainage path so the TaskDialog disappears when
+        // the dock panel is open.
+        public bool ReadDrainageAutoSizeApply() => Dispatcher.Invoke(() => _drnAutoSizeApply?.IsChecked == true);
 
         // ── Inline result rendering (replaces StingResultPanel.Show popups) ──
         // Each Set*Result method is a thin wrapper around ApplyResult, which

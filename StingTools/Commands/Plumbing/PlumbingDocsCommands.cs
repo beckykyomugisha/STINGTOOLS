@@ -11,8 +11,10 @@ using System.IO;
 using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Plumbing;
 using Autodesk.Revit.UI;
 using System.Text.RegularExpressions;
+using StingTools.BOQ;
 using StingTools.Core;
 using StingTools.Core.Plumbing;
 using StingTools.UI;
@@ -28,10 +30,58 @@ namespace StingTools.Commands.Plumbing
         {
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
+
+            // Same delegation as Plumb_BOQ — main NRM2 pipeline first, fall
+            // back to PlumbingBOQBuilder when it can't run.
+            BOQDocument boq = null;
+            try { boq = BOQCostManager.BuildBOQDocument(ctx.Doc); }
+            catch (Exception ex) { StingLog.Warn("PlumbPipeSchedule: main BOQ build failed, falling back: " + ex.Message); }
+
+            // Pipe schedule deliberately excludes the enricher's sleeve/hanger
+            // rows (those aren't pipe runs). Insulation rows are also excluded
+            // by IsPipeRun's "no INSULATION in category" rule, so calling the
+            // enricher here is unnecessary — leave it to PlumbBOQCommand.
+
+            List<BOQLineItem> pipeItems = null;
+            if (boq != null)
+            {
+                pipeItems = boq.AllItems
+                    .Where(PlumbBOQCommand.IsPlumbingItem)
+                    .Where(IsPipeRun)
+                    .ToList();
+            }
+
+            var inst = StingPlumbingPanel.Instance;
+            if (pipeItems != null && pipeItems.Count > 0)
+            {
+                var rows = pipeItems
+                    .OrderBy(i => i.NRM2Section).ThenBy(i => i.SortOrder)
+                    .Select(i => new DocsPipeScheduleRow
+                    {
+                        System   = ExtractSystem(i),
+                        Dn       = ExtractDn(i),
+                        Material = string.IsNullOrEmpty(i.FamilyName) ? PlumbBOQCommand.ComposeDescription(i) : i.FamilyName,
+                        LengthM  = i.Quantity
+                    }).ToList();
+                double totalLength = pipeItems.Sum(i => i.Quantity);
+                string status = $"Pipe schedule · NRM2 · {pipeItems.Count} runs · {totalLength:F1} m total";
+                if (inst != null) { inst.SetDocsPipeScheduleResult(rows, status); return Result.Succeeded; }
+
+                var panel = StingResultPanel.Create("Plumbing Pipe Schedule (NRM2)");
+                panel.AddSection("SUMMARY")
+                     .Metric("Runs",             pipeItems.Count.ToString())
+                     .Metric("Total length (m)", totalLength.ToString("F1"));
+                panel.AddSection("ROWS (first 80)");
+                foreach (var i in pipeItems.Take(80))
+                    panel.Text($"{i.BOQLineRef ?? i.NRM2Section} · {PlumbBOQCommand.ComposeDescription(i),-50} · {i.Quantity,8:F1} m");
+                panel.Show();
+                return Result.Succeeded;
+            }
+
+            // Fallback to the legacy plumbing-only builder.
             var b = PlumbingBOQBuilder.Build(ctx.Doc);
             var pipeRows = b.Rows.Where(r => r.Unit == "m").ToList();
-
-            var rows = pipeRows.Select(r =>
+            var fbRows = pipeRows.Select(r =>
             {
                 ParseDescription(r.Description, out var system, out var dn, out var material);
                 return new DocsPipeScheduleRow
@@ -42,35 +92,61 @@ namespace StingTools.Commands.Plumbing
                     LengthM  = r.Qty
                 };
             }).ToList();
-            string status = $"Pipe schedule · {b.PipesCounted} pipes · {pipeRows.Count} rows · "
-                          + $"{pipeRows.Sum(r => r.Qty):F1} m total";
+            string fbStatus = $"Pipe schedule (legacy) · {b.PipesCounted} pipes · "
+                            + $"{pipeRows.Count} rows · {pipeRows.Sum(r => r.Qty):F1} m total";
+            if (inst != null) { inst.SetDocsPipeScheduleResult(fbRows, fbStatus); return Result.Succeeded; }
 
-            var inst = StingPlumbingPanel.Instance;
-            if (inst != null)
-            {
-                inst.SetDocsPipeScheduleResult(rows, status);
-                return Result.Succeeded;
-            }
-
-            var panel = StingResultPanel.Create("Plumbing Pipe Schedule");
-            panel.AddSection("SUMMARY")
+            var fbPanel = StingResultPanel.Create("Plumbing Pipe Schedule (legacy fallback)");
+            fbPanel.AddSection("SUMMARY")
                  .Metric("Pipes counted", b.PipesCounted.ToString())
                  .Metric("Distinct rows", pipeRows.Count.ToString())
                  .Metric("Total length (m)", pipeRows.Sum(r => r.Qty).ToString("F1"));
             if (pipeRows.Any())
             {
-                panel.AddSection("ROWS (first 80)");
+                fbPanel.AddSection("ROWS (first 80)");
                 foreach (var row in pipeRows.Take(80))
-                    panel.Text($"{row.Code} · {row.Description,-50} · {row.Qty,8:F1} {row.Unit}");
+                    fbPanel.Text($"{row.Code} · {row.Description,-50} · {row.Qty,8:F1} {row.Unit}");
             }
-            panel.Show();
+            fbPanel.Show();
             return Result.Succeeded;
         }
 
-        // BOQ description format established by PlumbingBOQBuilder is roughly
-        // "{material} pipe DN{size} ({system N})". We split heuristically; if
-        // the parse fails the caller falls back to the full description in the
-        // Material column so no information is lost.
+        private static bool IsPipeRun(BOQLineItem i)
+        {
+            if (i == null) return false;
+            if (i.Unit != "m") return false;                          // pipe lengths only
+            var c = (i.Category ?? "").ToUpperInvariant();
+            return c.Contains("PIPE")
+                && !c.Contains("FITTING")
+                && !c.Contains("ACCESSORY")
+                && !c.Contains("INSULATION");
+        }
+
+        // System code comes from BOQLineItem.Location (room / spatial code)
+        // when set; fall back to parens parsed out of TypeName / ItemName.
+        private static string ExtractSystem(BOQLineItem i)
+        {
+            if (!string.IsNullOrWhiteSpace(i.Location)) return i.Location;
+            var src = i.TypeName ?? i.ItemName ?? "";
+            var m = Regex.Match(src, @"\((?<sys>[^)]+)\)\s*$");
+            return m.Success ? m.Groups["sys"].Value.Trim() : "";
+        }
+
+        // DN parsed from TypeName / ItemName / NRM2 paragraph: any of those may
+        // carry "DN{n}" depending on the rate source.
+        private static int ExtractDn(BOQLineItem i)
+        {
+            foreach (var src in new[] { i.TypeName, i.ItemName, i.ResolvedNRM2Paragraph })
+            {
+                if (string.IsNullOrEmpty(src)) continue;
+                var m = Regex.Match(src, @"DN\s*(?<dn>\d+)", RegexOptions.IgnoreCase);
+                if (m.Success && int.TryParse(m.Groups["dn"].Value, out var n)) return n;
+            }
+            return 0;
+        }
+
+        // Legacy fallback parser for PlumbingBOQBuilder description shape:
+        // "{material} pipe DN{size} ({system N})".
         private static void ParseDescription(string desc, out string system, out int dn, out string material)
         {
             system = ""; dn = 0; material = "";
@@ -84,8 +160,6 @@ namespace StingTools.Commands.Plumbing
                 system   = m.Groups["sys"].Value.Trim();
                 return;
             }
-            // Looser fallback: just pull the DN if present so the column at
-            // least shows the diameter on rows the regex didn't match.
             var m2 = Regex.Match(desc, @"DN(?<dn>\d+)", RegexOptions.IgnoreCase);
             if (m2.Success) int.TryParse(m2.Groups["dn"].Value, out dn);
             material = desc;
@@ -100,44 +174,128 @@ namespace StingTools.Commands.Plumbing
         {
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
-            var b = PlumbingBOQBuilder.Build(ctx.Doc);
 
-            var rows = b.Rows.Select(r => new DocsBoqRow
+            // Delegate to the main NRM2 BOQ pipeline so plumbing rows carry
+            // NRM2 section + paragraph, rate-source classification and snapshot
+            // continuity. The plumbing-specific PlumbingBOQBuilder remains as a
+            // fallback when the main pipeline can't run (e.g. missing rate
+            // tables) so the panel always shows something.
+            BOQDocument boq = null;
+            try { boq = BOQCostManager.BuildBOQDocument(ctx.Doc); }
+            catch (Exception ex) { StingLog.Warn("PlumbBOQ: main BOQ build failed, falling back: " + ex.Message); }
+
+            List<BOQLineItem> plumbingItems = null;
+            if (boq != null)
+            {
+                plumbingItems = boq.AllItems.Where(IsPlumbingItem).ToList();
+            }
+            if (plumbingItems == null) plumbingItems = new List<BOQLineItem>();
+
+            // Supplemental rows the main pipeline doesn't cover for plumbing
+            // scope (insulation, sleeves, hangers). The exclude-set carries
+            // every Revit id already counted by the main BOQ so projects that
+            // model sleeves under OST_PipeAccessory (which the main pipeline
+            // does collect) don't get double-rated by the enricher.
+            var excludeIds = new HashSet<long>(plumbingItems
+                .Where(i => i.RevitElementId > 0)
+                .Select(i => i.RevitElementId));
+            plumbingItems.AddRange(PlumbingBOQEnricher.Build(ctx.Doc, excludeIds));
+
+            var inst = StingPlumbingPanel.Instance;
+            if (plumbingItems.Count > 0)
+            {
+                var rows = plumbingItems
+                    .OrderBy(i => i.NRM2Section).ThenBy(i => i.SortOrder)
+                    .Select(i => new DocsBoqRow
+                    {
+                        Item        = string.IsNullOrEmpty(i.BOQLineRef) ? i.NRM2Section : i.BOQLineRef,
+                        Description = ComposeDescription(i),
+                        Qty         = i.Quantity,
+                        Unit        = i.Unit
+                    }).ToList();
+                int sections   = plumbingItems.Select(i => i.NRM2Section).Distinct().Count();
+                double totalUgx = plumbingItems.Sum(i => i.TotalUGX);
+                string status   = $"BOQ · NRM2 · {plumbingItems.Count} rows across {sections} sections · "
+                                + $"UGX {totalUgx:N0}";
+                if (inst != null) { inst.SetDocsBoqResult(rows, status); return Result.Succeeded; }
+
+                var panel = StingResultPanel.Create("Plumbing BOQ (NRM2)");
+                panel.SetSubtitle($"Source: BOQCostManager · {sections} sections · {plumbingItems.Count} items");
+                panel.AddSection("SUMMARY")
+                     .Metric("Items",          plumbingItems.Count.ToString())
+                     .Metric("Sections",       sections.ToString())
+                     .Metric("Total UGX",      totalUgx.ToString("N0"))
+                     .Metric("Total USD",      plumbingItems.Sum(i => i.TotalUSD).ToString("N0"));
+                panel.AddSection("ITEMS (first 100)");
+                foreach (var i in plumbingItems.Take(100))
+                    panel.Text($"{i.BOQLineRef ?? i.NRM2Section} · {ComposeDescription(i),-50} · {i.Quantity,8:F2} {i.Unit}");
+                panel.Show();
+                return Result.Succeeded;
+            }
+
+            // Fallback: legacy PlumbingBOQBuilder (no NRM2 phrasing). Used when
+            // BOQCostManager couldn't build (e.g. missing cost tables on a fresh
+            // project) so the panel still shows the plumbing inventory.
+            var b = PlumbingBOQBuilder.Build(ctx.Doc);
+            var fbRows = b.Rows.Select(r => new DocsBoqRow
             {
                 Item        = r.Code,
                 Description = r.Description,
                 Qty         = r.Qty,
                 Unit        = r.Unit
             }).ToList();
-            string status = $"BOQ · {b.PipesCounted} pipes · {b.FittingsCounted} fittings · "
-                          + $"{b.AccessoriesCounted} accessories · {b.Rows.Count} rows";
+            string fbStatus = $"BOQ (legacy) · {b.PipesCounted} pipes · {b.FittingsCounted} fittings · "
+                            + $"{b.AccessoriesCounted} accessories · {b.Rows.Count} rows";
+            if (inst != null) { inst.SetDocsBoqResult(fbRows, fbStatus); return Result.Succeeded; }
 
-            var inst = StingPlumbingPanel.Instance;
-            if (inst != null)
-            {
-                inst.SetDocsBoqResult(rows, status);
-                return Result.Succeeded;
-            }
-
-            var panel = StingResultPanel.Create("Plumbing BOQ");
-            panel.AddSection("SUMMARY")
+            var fbPanel = StingResultPanel.Create("Plumbing BOQ (legacy fallback)");
+            fbPanel.AddSection("SUMMARY")
                  .Metric("Pipes",        b.PipesCounted.ToString())
                  .Metric("Fittings",     b.FittingsCounted.ToString())
                  .Metric("Accessories",  b.AccessoriesCounted.ToString())
                  .Metric("Total rows",   b.Rows.Count.ToString());
             if (b.Rows.Any())
             {
-                panel.AddSection("BOQ ROWS (first 100)");
+                fbPanel.AddSection("BOQ ROWS (first 100)");
                 foreach (var r in b.Rows.Take(100))
-                    panel.Text($"{r.Code} · {r.Description,-46} · {r.Qty,8:F2} {r.Unit}");
+                    fbPanel.Text($"{r.Code} · {r.Description,-46} · {r.Qty,8:F2} {r.Unit}");
             }
             if (b.Warnings.Any())
             {
-                panel.AddSection("WARNINGS");
-                foreach (var w in b.Warnings.Take(20)) panel.Text(w);
+                fbPanel.AddSection("WARNINGS");
+                foreach (var w in b.Warnings.Take(20)) fbPanel.Text(w);
             }
-            panel.Show();
+            fbPanel.Show();
             return Result.Succeeded;
+        }
+
+        // ── Plumbing slice of the main BOQ ─────────────────────────────
+        // We trust the Discipline field first (BOQCostManager assigns "P" for
+        // plumbing); fall back to the Revit category names so legacy snapshots
+        // and partially-classified models still surface here. STING-emitted
+        // sleeves and hangers usually live in OST_GenericModel — catch them by
+        // family-name prefix so they appear alongside the rest of the plumbing
+        // scope when the Phase 179f BOQ Enricher hasn't already injected them.
+        internal static bool IsPlumbingItem(BOQLineItem i)
+        {
+            if (i == null) return false;
+            if (string.Equals(i.Discipline, "P", StringComparison.OrdinalIgnoreCase)) return true;
+            var c = (i.Category ?? "").ToUpperInvariant();
+            if (c.Contains("PIPE") || c.Contains("PLUMBING") || c.Contains("INSULATION")) return true;
+            var f = (i.FamilyName ?? "").ToUpperInvariant();
+            if (f.StartsWith("STING_SLEEVE_")  ||
+                f.StartsWith("STING_HANGER_")  ||
+                f.StartsWith("STING_TRAPEZE_") ||
+                f.StartsWith("STING_PROVISION_VOID")) return true;
+            return false;
+        }
+
+        internal static string ComposeDescription(BOQLineItem i)
+        {
+            if (!string.IsNullOrWhiteSpace(i.ResolvedNRM2Paragraph)) return i.ResolvedNRM2Paragraph;
+            if (!string.IsNullOrWhiteSpace(i.ItemName))
+                return string.IsNullOrWhiteSpace(i.TypeName) ? i.ItemName : $"{i.ItemName} — {i.TypeName}";
+            return i.FamilyName ?? "";
         }
     }
 
@@ -168,10 +326,41 @@ namespace StingTools.Commands.Plumbing
                 double invIn = 0, invOut = 0, cover = 0, depth = 0;
                 try
                 {
+                    // Stamped invert params win when present — they're the
+                    // authoritative QS-checked values.
                     var pIn  = el.LookupParameter(ParamRegistry.PLM_DRN_INV_US)?.AsDouble();
                     var pOut = el.LookupParameter(ParamRegistry.PLM_DRN_INV_DS)?.AsDouble();
-                    if (pIn  != null) invIn  = pIn.Value  * 0.3048;  // ft → m
+                    if (pIn  != null) invIn  = pIn.Value  * 0.3048;
                     if (pOut != null) invOut = pOut.Value * 0.3048;
+
+                    // When the stamps are missing (typical before
+                    // Plumb_InvertLevels has been run), derive directly from
+                    // the connected drainage pipes' connector Z. Each pipe
+                    // connector's Z minus the pipe radius gives the invert at
+                    // the chamber face — highest is US, lowest is DS. This
+                    // means the schedule still produces meaningful Cover /
+                    // Depth even on a brand-new model.
+                    if (invIn <= 0 && invOut <= 0)
+                    {
+                        var (cIn, cOut) = ResolveInvertsFromConnectors(el);
+                        if (invIn  <= 0) invIn  = cIn;
+                        if (invOut <= 0) invOut = cOut;
+                    }
+
+                    // Cover = chamber's host-level elevation (project zero).
+                    // Depth = Cover − lowest invert. Both internally consistent
+                    // even when the project elevation isn't mAOD-aligned.
+                    if (el.LevelId != null && el.LevelId.Value > 0)
+                    {
+                        var lvl = ctx.Doc.GetElement(el.LevelId) as Level;
+                        if (lvl != null) cover = lvl.Elevation * 0.3048;
+                    }
+                    double lowestInv = (invIn > 0 || invOut > 0)
+                        ? Math.Min(invIn  > 0 ? invIn  : double.MaxValue,
+                                   invOut > 0 ? invOut : double.MaxValue)
+                        : 0;
+                    if (cover > 0 && lowestInv > 0 && lowestInv != double.MaxValue)
+                        depth = cover - lowestInv;
                 }
                 catch { }
                 return new DocsManholeRow
@@ -212,6 +401,103 @@ namespace StingTools.Commands.Plumbing
             }
             panel.Show();
             return Result.Succeeded;
+        }
+
+        // Walks the chamber's piping connectors and returns (US, DS) inverts
+        // in metres relative to project zero. Z minus pipe radius gives the
+        // invert (lowest internal point of the bore) at the chamber face.
+        //
+        // Classification cascade (per connector):
+        //   1. Connector.Flow set to In/Out — trust it.
+        //   2. Bidirectional / unset — walk to the connected pipe and infer
+        //      from its slope: opposite end higher than the chamber → water
+        //      enters here (In/US); opposite end lower → water exits (Out/DS).
+        //      Catches off-the-shelf manhole families that flag every
+        //      connector Bidirectional.
+        //   3. Still ambiguous — drop into max=US/min=DS bucket as a last
+        //      resort so depth math still produces a sensible value.
+        //
+        // Returns (0,0) when the family has no piping connectors so the
+        // caller can fall back to the stamped PLM_DRN_INV_* params.
+        private static (double invInM, double invOutM) ResolveInvertsFromConnectors(Element el)
+        {
+            try
+            {
+                var fi = el as FamilyInstance;
+                var mgr = fi?.MEPModel?.ConnectorManager;
+                if (mgr == null) return (0, 0);
+                var inAll = new List<double>();
+                var outAll = new List<double>();
+                var anyAll = new List<double>();
+                foreach (Connector c in mgr.Connectors)
+                {
+                    if (c?.Domain != Domain.DomainPiping) continue;
+                    double radiusM = 0;
+                    try { radiusM = c.Radius * 0.3048; } catch { }
+                    double invertM = c.Origin.Z * 0.3048 - radiusM;
+                    anyAll.Add(invertM);
+
+                    var flow = SafeFlow(c);
+                    if (flow == FlowDirectionType.In)       { inAll.Add(invertM);  continue; }
+                    if (flow == FlowDirectionType.Out)      { outAll.Add(invertM); continue; }
+
+                    // Bidirectional / unset: ask the connected pipe.
+                    var inferred = InferFlowFromConnectedPipe(c);
+                    if (inferred == FlowDirectionType.In)  inAll.Add(invertM);
+                    else if (inferred == FlowDirectionType.Out) outAll.Add(invertM);
+                }
+                if (anyAll.Count == 0) return (0, 0);
+
+                double us = inAll.Count  > 0 ? inAll.Max()  : anyAll.Max();
+                double ds = outAll.Count > 0 ? outAll.Min() : anyAll.Min();
+                return (us, ds);
+            }
+            catch { return (0, 0); }
+        }
+
+        private static FlowDirectionType SafeFlow(Connector c)
+        {
+            try { return c.Flow; }
+            catch { return FlowDirectionType.Bidirectional; }
+        }
+
+        // For a Bidirectional chamber connector, walk every connected pipe in
+        // AllRefs and vote: each connected pipe contributes one In or Out
+        // vote based on slope (far end higher than the chamber → In, far
+        // end lower → Out, flat within ~1 mm tolerance abstains). Majority
+        // wins. Ties or all-flat returns Bidirectional so the caller falls
+        // through to the max/min bucket. Voting (rather than first-pipe-wins)
+        // makes the inference robust to cap-then-extend reroutes that briefly
+        // leave two pipes sharing a chamber connector.
+        private static FlowDirectionType InferFlowFromConnectedPipe(Connector chamberConn)
+        {
+            int inVotes = 0, outVotes = 0;
+            try
+            {
+                var refs = chamberConn.AllRefs;
+                if (refs == null) return FlowDirectionType.Bidirectional;
+                const double flatToleranceFt = 0.0033; // ≈1 mm
+                foreach (Connector other in refs)
+                {
+                    if (other?.Owner == null) continue;
+                    if (!(other.Owner is Pipe p)) continue;
+                    var lc = p.Location as LocationCurve;
+                    var curve = lc?.Curve;
+                    if (curve == null) continue;
+                    var pStart = curve.GetEndPoint(0);
+                    var pEnd   = curve.GetEndPoint(1);
+                    double dStart = pStart.DistanceTo(chamberConn.Origin);
+                    double dEnd   = pEnd.DistanceTo(chamberConn.Origin);
+                    var nearZ = dStart <= dEnd ? pStart.Z : pEnd.Z;
+                    var farZ  = dStart <= dEnd ? pEnd.Z   : pStart.Z;
+                    if (Math.Abs(farZ - nearZ) < flatToleranceFt) continue;
+                    if (farZ > nearZ) inVotes++; else outVotes++;
+                }
+            }
+            catch { }
+            if (inVotes > outVotes) return FlowDirectionType.In;
+            if (outVotes > inVotes) return FlowDirectionType.Out;
+            return FlowDirectionType.Bidirectional;
         }
     }
 
