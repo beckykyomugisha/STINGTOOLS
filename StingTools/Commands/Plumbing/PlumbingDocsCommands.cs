@@ -36,6 +36,11 @@ namespace StingTools.Commands.Plumbing
             try { boq = BOQCostManager.BuildBOQDocument(ctx.Doc); }
             catch (Exception ex) { StingLog.Warn("PlumbPipeSchedule: main BOQ build failed, falling back: " + ex.Message); }
 
+            // Pipe schedule deliberately excludes the enricher's sleeve/hanger
+            // rows (those aren't pipe runs). Insulation rows are also excluded
+            // by IsPipeRun's "no INSULATION in category" rule, so calling the
+            // enricher here is unnecessary — leave it to PlumbBOQCommand.
+
             List<BOQLineItem> pipeItems = null;
             if (boq != null)
             {
@@ -110,7 +115,10 @@ namespace StingTools.Commands.Plumbing
             if (i == null) return false;
             if (i.Unit != "m") return false;                          // pipe lengths only
             var c = (i.Category ?? "").ToUpperInvariant();
-            return c.Contains("PIPE") && !c.Contains("FITTING") && !c.Contains("ACCESSORY");
+            return c.Contains("PIPE")
+                && !c.Contains("FITTING")
+                && !c.Contains("ACCESSORY")
+                && !c.Contains("INSULATION");
         }
 
         // System code comes from BOQLineItem.Location (room / spatial code)
@@ -175,14 +183,22 @@ namespace StingTools.Commands.Plumbing
             try { boq = BOQCostManager.BuildBOQDocument(ctx.Doc); }
             catch (Exception ex) { StingLog.Warn("PlumbBOQ: main BOQ build failed, falling back: " + ex.Message); }
 
+            // Supplemental rows the main pipeline doesn't cover for plumbing
+            // scope (insulation, sleeves, hangers). Always added — they live in
+            // categories outside SharedParamGuids.AllCategoryEnums so the QS
+            // total only reconciles when both surfaces include them.
+            List<BOQLineItem> supplemental = PlumbingBOQEnricher.Build(ctx.Doc);
+
             List<BOQLineItem> plumbingItems = null;
             if (boq != null)
             {
                 plumbingItems = boq.AllItems.Where(IsPlumbingItem).ToList();
             }
+            if (plumbingItems == null) plumbingItems = new List<BOQLineItem>();
+            plumbingItems.AddRange(supplemental);
 
             var inst = StingPlumbingPanel.Instance;
-            if (plumbingItems != null && plumbingItems.Count > 0)
+            if (plumbingItems.Count > 0)
             {
                 var rows = plumbingItems
                     .OrderBy(i => i.NRM2Section).ThenBy(i => i.SortOrder)
@@ -252,13 +268,22 @@ namespace StingTools.Commands.Plumbing
         // ── Plumbing slice of the main BOQ ─────────────────────────────
         // We trust the Discipline field first (BOQCostManager assigns "P" for
         // plumbing); fall back to the Revit category names so legacy snapshots
-        // and partially-classified models still surface here.
+        // and partially-classified models still surface here. STING-emitted
+        // sleeves and hangers usually live in OST_GenericModel — catch them by
+        // family-name prefix so they appear alongside the rest of the plumbing
+        // scope when the Phase 179f BOQ Enricher hasn't already injected them.
         internal static bool IsPlumbingItem(BOQLineItem i)
         {
             if (i == null) return false;
             if (string.Equals(i.Discipline, "P", StringComparison.OrdinalIgnoreCase)) return true;
             var c = (i.Category ?? "").ToUpperInvariant();
-            return c.Contains("PIPE") || c.Contains("PLUMBING");
+            if (c.Contains("PIPE") || c.Contains("PLUMBING") || c.Contains("INSULATION")) return true;
+            var f = (i.FamilyName ?? "").ToUpperInvariant();
+            if (f.StartsWith("STING_SLEEVE_")  ||
+                f.StartsWith("STING_HANGER_")  ||
+                f.StartsWith("STING_TRAPEZE_") ||
+                f.StartsWith("STING_PROVISION_VOID")) return true;
+            return false;
         }
 
         internal static string ComposeDescription(BOQLineItem i)
