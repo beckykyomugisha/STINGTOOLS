@@ -223,6 +223,39 @@ public class SitePhotosController : ControllerBase
             projectId, photoId = photo.Id, reason = photo.Reason, audience = photo.Audience,
         }, ct);
 
+        // Phase 180 — auto-add to the album named in
+        // PhotoPolicy.DefaultAlbumByReasonJson, if any. Failure here is
+        // non-fatal — capture must always succeed.
+        if (policy?.DefaultAlbumByReasonJson is { } adJson && !string.IsNullOrWhiteSpace(adJson))
+        {
+            try
+            {
+                var dict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(adJson);
+                if (dict != null && dict.TryGetValue(form.Reason, out var albumIdStr) &&
+                    Guid.TryParse(albumIdStr, out var albumId))
+                {
+                    var albumOk = await _db.PhotoAlbums.AsNoTracking()
+                        .AnyAsync(a => a.Id == albumId && a.ProjectId == projectId && !a.IsLocked, ct);
+                    if (albumOk)
+                    {
+                        var nextSort = (await _db.PhotoAlbumPhotos
+                            .Where(ap => ap.AlbumId == albumId)
+                            .Select(ap => (int?)ap.SortOrder).MaxAsync(ct) ?? 0) + 100;
+                        _db.PhotoAlbumPhotos.Add(new PhotoAlbumPhoto
+                        {
+                            AlbumId = albumId, PhotoId = photo.Id,
+                            SortOrder = nextSort, AddedByUserId = capturerId,
+                        });
+                        await _db.SaveChangesAsync(ct);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Auto-add-to-album failed for photo {PhotoId}", photo.Id);
+            }
+        }
+
         // Auto-create issue when Reason ∈ {Issue, Defect, Safety} and no
         // explicit anchorIssueId was supplied. Defects → NCR, Safety →
         // SAFETY type with high priority. The created issue gets the

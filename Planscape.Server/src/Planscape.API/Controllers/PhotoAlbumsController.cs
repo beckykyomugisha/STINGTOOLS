@@ -116,6 +116,7 @@ public class PhotoAlbumsController : ControllerBase
             DistributionGroupId = req.DistributionGroupId,
             Kind                = string.IsNullOrWhiteSpace(req.Kind) ? null : req.Kind.Trim(),
             AutoArchiveAfterDays = req.AutoArchiveAfterDays,
+            SavedFilterJson     = string.IsNullOrWhiteSpace(req.SavedFilterJson) ? null : req.SavedFilterJson,
             CreatedByUserId     = CurrentUserIdOrNull(),
         };
         _db.PhotoAlbums.Add(album);
@@ -185,6 +186,8 @@ public class PhotoAlbumsController : ControllerBase
         if (req.Kind != null) album.Kind = string.IsNullOrWhiteSpace(req.Kind) ? null : req.Kind.Trim();
         if (req.CoverPhotoId.HasValue) album.CoverPhotoId = req.CoverPhotoId.Value;
         if (req.AutoArchiveAfterDays.HasValue) album.AutoArchiveAfterDays = req.AutoArchiveAfterDays.Value;
+        if (req.SavedFilterJson != null) album.SavedFilterJson = string.IsNullOrWhiteSpace(req.SavedFilterJson) ? null : req.SavedFilterJson;
+        if (req.ClearSavedFilter == true) album.SavedFilterJson = null;
         album.UpdatedAt = DateTime.UtcNow;
         album.UpdatedByUserId = CurrentUserIdOrNull();
 
@@ -239,6 +242,10 @@ public class PhotoAlbumsController : ControllerBase
             .FirstOrDefaultAsync(a => a.Id == albumId && a.ProjectId == projectId, ct);
         if (album == null) return NotFound();
         if (album.IsLocked) return BadRequest(new { error = "album_locked" });
+        // Phase 180 — smart albums reject manual mutation; the
+        // PhotoSmartAlbumMaterialiseJob is the only writer to membership.
+        if (!string.IsNullOrEmpty(album.SavedFilterJson))
+            return BadRequest(new { error = "smart_album_managed", clearSavedFilter = "use PUT with clearSavedFilter=true to make manual" });
 
         // Defense: every photo must belong to the same project.
         var idSet = new HashSet<Guid>(req.PhotoIds);
@@ -301,6 +308,8 @@ public class PhotoAlbumsController : ControllerBase
             .FirstOrDefaultAsync(a => a.Id == albumId && a.ProjectId == projectId, ct);
         if (album == null) return NotFound();
         if (album.IsLocked) return BadRequest(new { error = "album_locked" });
+        if (!string.IsNullOrEmpty(album.SavedFilterJson))
+            return BadRequest(new { error = "smart_album_managed" });
 
         var ap = await _db.PhotoAlbumPhotos.FirstOrDefaultAsync(x => x.AlbumId == albumId && x.PhotoId == photoId, ct);
         if (ap == null) return NotFound();
@@ -437,7 +446,8 @@ public record CreateAlbumRequest(
     string? Visibility,            // Internal | Members | Client | Distribution
     Guid?   DistributionGroupId,
     string? Kind,
-    int?    AutoArchiveAfterDays);
+    int?    AutoArchiveAfterDays,
+    string? SavedFilterJson);
 
 public record UpdateAlbumRequest(
     string? Name,
@@ -447,7 +457,9 @@ public record UpdateAlbumRequest(
     bool?   ClearDistributionGroup,
     string? Kind,
     Guid?   CoverPhotoId,
-    int?    AutoArchiveAfterDays);
+    int?    AutoArchiveAfterDays,
+    string? SavedFilterJson,
+    bool?   ClearSavedFilter);
 
 public record AddPhotosRequest(Guid[] PhotoIds);
 public record ReorderRequest(Guid[] Order);

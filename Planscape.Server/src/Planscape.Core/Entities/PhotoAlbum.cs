@@ -49,6 +49,26 @@ public class PhotoAlbum : ITenantScoped
     /// <summary>When set, photos auto-archive (Audience→Withdrawn) this many days after AlbumCreatedAt.</summary>
     public int? AutoArchiveAfterDays { get; set; }
 
+    /// <summary>
+    /// Phase 180 — Smart-album filter spec. When set, the album is
+    /// "auto-curated": a Hangfire job (PhotoSmartAlbumMaterialiseJob)
+    /// re-evaluates this filter and resets the album membership to the
+    /// matching photos. Membership cannot be hand-edited while a smart
+    /// filter is active (the job resets it).
+    ///
+    /// Schema (JSON):
+    ///   {
+    ///     "reason":      "Defect"   // optional, exact match
+    ///     "level":       "L02"      // optional
+    ///     "zone":        "Z01"      // optional
+    ///     "discipline":  "M"        // optional, joined via Issue.Discipline
+    ///     "audienceIn":  ["Approved","ClientPortal"]   // optional
+    ///     "fromDays":    14         // optional, capturedAt within last N days
+    ///     "limit":       100        // optional, defaults to 200
+    ///   }
+    /// </summary>
+    public string? SavedFilterJson { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public Guid?    CreatedByUserId { get; set; }
     public DateTime? UpdatedAt { get; set; }

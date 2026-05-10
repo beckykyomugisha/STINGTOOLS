@@ -81,6 +81,8 @@ public class PhotoPolicyController : ControllerBase
         if (req.DigestDistributionGroupId.HasValue) pol.DigestDistributionGroupId = req.DigestDistributionGroupId;
         if (req.ApprovalChain != null) pol.ApprovalChain = req.ApprovalChain;
         if (req.EnforceChecklistOnShiftEnd.HasValue) pol.EnforceChecklistOnShiftEnd = req.EnforceChecklistOnShiftEnd.Value;
+        if (req.DefaultAlbumByReasonJson != null) pol.DefaultAlbumByReasonJson = req.DefaultAlbumByReasonJson;
+        if (req.NdaText != null) pol.NdaText = req.NdaText;
 
         pol.UpdatedAt = DateTime.UtcNow;
         pol.UpdatedByUserId = actor;
@@ -126,4 +128,6 @@ public record UpdatePhotoPolicyRequest(
     int?    DigestHourLocal,
     Guid?   DigestDistributionGroupId,
     string? ApprovalChain,
-    bool?   EnforceChecklistOnShiftEnd);
+    bool?   EnforceChecklistOnShiftEnd,
+    string? DefaultAlbumByReasonJson,
+    string? NdaText);

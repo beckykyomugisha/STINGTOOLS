@@ -52,6 +52,22 @@ public class PhotoPolicy : ITenantScoped
     /// <summary>Block end-of-shift if any required-photo-checklist item is unfulfilled.</summary>
     public bool EnforceChecklistOnShiftEnd { get; set; } = false;
 
+    /// <summary>
+    /// Phase 180 — JSON dict {"Progress":"&lt;albumId&gt;", …} so a project
+    /// can auto-add captures of a given Reason to the named album. The
+    /// capture endpoint reads this once per project per request via
+    /// <see cref="PhotoPolicyResolver"/> and inserts a single
+    /// <see cref="PhotoAlbumPhoto"/> row before returning.
+    /// </summary>
+    public string? DefaultAlbumByReasonJson { get; set; }
+
+    /// <summary>
+    /// Phase 180 — Optional NDA boilerplate text shown to the user
+    /// before they accept an NDA-gated photo. Empty / null falls back
+    /// to the mobile component's built-in default.
+    /// </summary>
+    public string? NdaText { get; set; }
+
     public DateTime UpdatedAt        { get; set; } = DateTime.UtcNow;
     public Guid?    UpdatedByUserId  { get; set; }
 
