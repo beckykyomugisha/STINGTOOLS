@@ -57,6 +57,8 @@ namespace StingTools.Core
         public static int    EndoMinReaders => (int)GetDouble("Hc.EndoMinReaders", 4);
         public static int    UpsMaxAgeYrs   => (int)GetDouble("Hc.UpsMaxAgeYrs",   5);
         public static int    IotStaleMins   => (int)GetDouble("Hc.IotStaleMins",   30);
+        /// <summary>Empty string ⇒ all protocols. BACnet/OPC-UA/Modbus/REST/MQTT.</summary>
+        public static string IotProtocol   => Get("Hc.IotProtocol", "");
         public static bool   RadRequireQe   => GetBool  ("Hc.RadRequireQe", true);
 
         // ── MGPS ───────────────────────────────────────────────────────

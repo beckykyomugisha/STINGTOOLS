@@ -5073,26 +5073,30 @@
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
                                 <StackPanel Margin="4">
 
-                                    <TextBlock Text="VALIDATOR CHAIN" FontWeight="Bold" FontSize="10" Foreground="#00838F" Margin="0,2,0,4"/>
-                                    <DataGrid x:Name="dgHcValidators"
-                                              AutoGenerateColumns="False"
-                                              CanUserAddRows="False"
-                                              CanUserDeleteRows="False"
-                                              CanUserResizeRows="False"
-                                              HeadersVisibility="Column"
-                                              GridLinesVisibility="Horizontal"
-                                              FontSize="9"
-                                              RowHeight="22"
-                                              MaxHeight="320">
-                                        <DataGrid.Columns>
-                                            <DataGridCheckBoxColumn Header="Run"        Binding="{Binding Run, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="34"/>
-                                            <DataGridTextColumn     Header="Validator"  Binding="{Binding DisplayName}" Width="160" IsReadOnly="True"/>
-                                            <DataGridTextColumn     Header="Standard"   Binding="{Binding Standard}"    Width="170" IsReadOnly="True"/>
-                                            <DataGridTextColumn     Header="Status"     Binding="{Binding Status}"      Width="60"  IsReadOnly="True"/>
-                                            <DataGridTextColumn     Header="Result"     Binding="{Binding Result}"      Width="80"  IsReadOnly="True"/>
-                                            <DataGridTextColumn     Header="Last run"   Binding="{Binding LastRun}"     Width="*"   IsReadOnly="True"/>
-                                        </DataGrid.Columns>
-                                    </DataGrid>
+                                    <!-- Collapsible validator chain (default expanded) -->
+                                    <Expander x:Name="expHcValidatorChain" Header="VALIDATOR CHAIN  (tick rows, then Run selected)"
+                                              FontWeight="Bold" FontSize="10" Foreground="#00838F"
+                                              IsExpanded="True" Margin="0,2,0,4">
+                                        <DataGrid x:Name="dgHcValidators"
+                                                  AutoGenerateColumns="False"
+                                                  CanUserAddRows="False"
+                                                  CanUserDeleteRows="False"
+                                                  CanUserResizeRows="False"
+                                                  HeadersVisibility="Column"
+                                                  GridLinesVisibility="Horizontal"
+                                                  FontSize="9"
+                                                  RowHeight="22"
+                                                  MaxHeight="320">
+                                            <DataGrid.Columns>
+                                                <DataGridCheckBoxColumn Header="Run"        Binding="{Binding Run, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="34"/>
+                                                <DataGridTextColumn     Header="Validator"  Binding="{Binding DisplayName}" Width="160" IsReadOnly="True"/>
+                                                <DataGridTextColumn     Header="Standard"   Binding="{Binding Standard}"    Width="170" IsReadOnly="True"/>
+                                                <DataGridTextColumn     Header="Status"     Binding="{Binding Status}"      Width="60"  IsReadOnly="True"/>
+                                                <DataGridTextColumn     Header="Result"     Binding="{Binding Result}"      Width="80"  IsReadOnly="True"/>
+                                                <DataGridTextColumn     Header="Last run"   Binding="{Binding LastRun}"     Width="*"   IsReadOnly="True"/>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </Expander>
 
                                     <Expander x:Name="expHcAdvThresholds" Header="Advanced thresholds (HTM 03-01 / ASHRAE 170 / HTM 04-01)" Margin="0,6,0,0" FontSize="9">
                                         <Border Style="{StaticResource GroupBorder}">
@@ -5149,26 +5153,66 @@
                                         </Border>
                                     </Expander>
 
-                                    <!-- Per-row launch buttons (single-validator runs) -->
+                                    <!-- Per-row launch buttons (single-validator runs). Tinted
+                                         GroupBorder gives the row visual presence (was: bare
+                                         WrapPanel of grey ActionBtns — felt lifeless). Discipline-
+                                         coded button styles surface the validator family at a
+                                         glance: blue = HVAC, green = water, purple = electrical,
+                                         orange = radiation, teal = IoT, red = adjacency / waste. -->
                                     <TextBlock Text="QUICK SINGLE-VALIDATOR LAUNCHERS" FontWeight="Bold" FontSize="9" Foreground="#888" Margin="0,8,0,4"/>
-                                    <WrapPanel>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Pressure"   Tag="Healthcare_PressureAudit"     Click="Cmd_Click"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="MGPS Audit" Tag="Healthcare_MgasAudit"         Click="Cmd_Click"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="EES Branch" Tag="Healthcare_EesBranch"         Click="Cmd_Click"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Water"      Tag="Healthcare_WaterSafety"       Click="Cmd_Click"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Rad Shield" Tag="Healthcare_RadShield"         Click="Cmd_Click"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Adv Rad"    Tag="Healthcare_AdvancedRadShield" Click="Cmd_Click"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Adjacency"  Tag="Healthcare_AdjacencyAudit"    Click="Cmd_Click"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Anti-Lig"   Tag="Healthcare_AntiLigature"      Click="Cmd_Click"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Structural" Tag="Healthcare_StructuralLoad"    Click="Cmd_Click"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Acoustic"   Tag="Healthcare_Acoustic"          Click="Cmd_Click"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Endo Trace" Tag="Healthcare_EndoscopeTrace"    Click="Cmd_Click"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="EES Resil"  Tag="Healthcare_EesResilience"     Click="Cmd_Click"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="RTLS"       Tag="Healthcare_RtlsCoverage"      Click="Cmd_Click"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Waste"      Tag="Healthcare_WasteFlow"         Click="Cmd_Click"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="IoT Stale"  Tag="Healthcare_IoTStaleness"      Click="Cmd_Click"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="IoT List"   Tag="Healthcare_IoTRegistry"       Click="Cmd_Click"/>
-                                    </WrapPanel>
+                                    <Border Style="{StaticResource GroupBorder}" BorderBrush="#B2DFDB" Background="#E0F2F1">
+                                        <WrapPanel>
+                                            <Button Style="{StaticResource BlueBtn}"   Content="Pressure"   Tag="Healthcare_PressureAudit"     Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource BlueBtn}"   Content="MGPS Audit" Tag="Healthcare_MgasAudit"         Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource PurpleBtn}" Content="EES Branch" Tag="Healthcare_EesBranch"         Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource GreenBtn}"  Content="Water"      Tag="Healthcare_WaterSafety"       Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource OrangeBtn}" Content="Rad Shield" Tag="Healthcare_RadShield"         Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource OrangeBtn}" Content="Adv Rad"    Tag="Healthcare_AdvancedRadShield" Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource RedBtn}"    Content="Adjacency"  Tag="Healthcare_AdjacencyAudit"    Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource RedBtn}"    Content="Anti-Lig"   Tag="Healthcare_AntiLigature"      Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Structural" Tag="Healthcare_StructuralLoad"    Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Acoustic"   Tag="Healthcare_Acoustic"          Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource BlueBtn}"   Content="Endo Trace" Tag="Healthcare_EndoscopeTrace"    Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource PurpleBtn}" Content="EES Resil"  Tag="Healthcare_EesResilience"     Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource TealBtn}"   Content="RTLS"       Tag="Healthcare_RtlsCoverage"      Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource RedBtn}"    Content="Waste"      Tag="Healthcare_WasteFlow"         Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource TealBtn}"   Content="IoT Stale"  Tag="Healthcare_IoTStaleness"      Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                            <Button Style="{StaticResource TealBtn}"   Content="IoT List"   Tag="Healthcare_IoTRegistry"       Click="Cmd_Click" Margin="2" MinWidth="76" Height="24"/>
+                                        </WrapPanel>
+                                    </Border>
+
+                                    <!-- IoT Functions — additional device-side ops reusing existing
+                                         dispatch tags from the IoT/Twin namespace. Default collapsed
+                                         so the launcher row above stays the focal action. -->
+                                    <Expander x:Name="expHcIotFunctions" Header="IoT Functions  (BACnet / OPC-UA / Modbus / REST)"
+                                              FontSize="9" Margin="0,8,0,0">
+                                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#80CBC4" Background="#E0F2F1">
+                                            <StackPanel>
+                                                <TextBlock FontSize="9" Foreground="#666" TextWrapping="Wrap"
+                                                           Text="Device-side IoT ops. Stale threshold lives in Advanced thresholds above and is read live from Hc.IotStaleMins on every call."/>
+                                                <WrapPanel Margin="0,4,0,0">
+                                                    <Button Style="{StaticResource TealBtn}"   Content="Registry"     Tag="Healthcare_IoTRegistry"  Click="Cmd_Click" Margin="2" MinWidth="86" Height="24" ToolTip="Inventory of IoT devices grouped by protocol."/>
+                                                    <Button Style="{StaticResource TealBtn}"   Content="Staleness"    Tag="Healthcare_IoTStaleness" Click="Cmd_Click" Margin="2" MinWidth="86" Height="24" ToolTip="Devices not seen within the panel-set threshold."/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Sensor Link"  Tag="IoTSensorLink"           Click="Cmd_Click" Margin="2" MinWidth="86" Height="24" ToolTip="Link a Revit element to an IoT sensor record (AssetConditionCommand)."/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Dashboard"    Tag="IoTDashboard"            Click="Cmd_Click" Margin="2" MinWidth="86" Height="24" ToolTip="Open IoT maintenance dashboard."/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Alert Config" Tag="IoTAlertConfig"          Click="Cmd_Click" Margin="2" MinWidth="86" Height="24" ToolTip="Configure threshold / staleness alerts (EnergyAnalysisCommand surface)."/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Export CSV"   Tag="IoTHistoryExport"        Click="Cmd_Click" Margin="2" MinWidth="86" Height="24" ToolTip="Export IoT device history / digital-twin snapshot."/>
+                                                </WrapPanel>
+                                                <Grid Margin="0,6,0,0">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Group by protocol" FontSize="9" VerticalAlignment="Center"/>
+                                                    <ComboBox Grid.Column="1" x:Name="cmbHcIotProtocol" FontSize="9" Height="22">
+                                                        <ComboBoxItem Content="(any)"  Tag=""        IsSelected="True"/>
+                                                        <ComboBoxItem Content="BACnet" Tag="BACnet"/>
+                                                        <ComboBoxItem Content="OPC-UA" Tag="OPC-UA"/>
+                                                        <ComboBoxItem Content="Modbus" Tag="Modbus"/>
+                                                        <ComboBoxItem Content="REST"   Tag="REST"/>
+                                                        <ComboBoxItem Content="MQTT"   Tag="MQTT"/>
+                                                    </ComboBox>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+                                    </Expander>
                                 </StackPanel>
                             </ScrollViewer>
                         </TabItem>

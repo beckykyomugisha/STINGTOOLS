@@ -217,6 +217,7 @@ namespace StingTools.UI
                 StingCommandHandler.SetExtraParam("Hc.EndoMinReaders",NumStr(sldHcRfidMin?.Value, 4));
                 StingCommandHandler.SetExtraParam("Hc.UpsMaxAgeYrs",  NumStr(sldHcUpsMaxAgeYrs?.Value, 5));
                 StingCommandHandler.SetExtraParam("Hc.IotStaleMins",  NumStr(sldHcIotStaleMins?.Value, 30));
+                StingCommandHandler.SetExtraParam("Hc.IotProtocol",   SelectedComboTag(cmbHcIotProtocol, ""));
                 StingCommandHandler.SetExtraParam("Hc.RadRequireQe",  BoolStr(chkHcRadRequireQeSignoff?.IsChecked));
 
                 // MGPS sub-tab
