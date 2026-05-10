@@ -38,6 +38,18 @@ namespace StingTools.Commands.Plumbing
                 tx.Commit();
             }
 
+            // Inline path: status strip carries the confirmation; no popup
+            // because the user already sees every saved value on the SYSTEM
+            // tab they just clicked Save from.
+            var inst = StingPlumbingPanel.Instance;
+            if (inst != null)
+            {
+                inst.SetStatus(savedPath != null
+                    ? $"Saved · {cfg.BuildingType} · {cfg.DrainStandard} · {cfg.SupplyStandard} · K={cfg.KFactor:F2}"
+                    : "STING Plumbing — config NOT saved (project file not yet saved on disk)");
+                return Result.Succeeded;
+            }
+
             var panel = StingResultPanel.Create("Plumbing System Config Saved");
             panel.SetSubtitle($"Path: {savedPath ?? "(project not saved — config skipped)"}");
             panel.AddSection("ACTIVE")
@@ -51,9 +63,6 @@ namespace StingTools.Commands.Plumbing
                  .Metric("Vent material",     cfg.MaterialFor("Vent"))
                  .Metric("Supply pressure",   cfg.SupplyPressureBarAtEntry.ToString("F2") + " bar");
             panel.Show();
-
-            StingPlumbingPanel.Instance?.SetStatus(
-                $"STING Plumbing — {cfg.BuildingType} · {cfg.DrainStandard} · {cfg.SupplyStandard} · K={cfg.KFactor:F2}");
             return Result.Succeeded;
         }
     }
@@ -68,31 +77,34 @@ namespace StingTools.Commands.Plumbing
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var cfg = PlumbingSystemConfig.Load(ctx.Doc);
 
-            var panel = StingResultPanel.Create("Plumbing System Config (current)");
-            panel.SetSubtitle($"Path: {PlumbingSystemConfig.ProjectConfigPath(ctx.Doc) ?? "(no project file)"}");
-            panel.AddSection("PROJECT")
-                 .Metric("Building",            cfg.BuildingType)
-                 .Metric("K factor",            cfg.KFactor.ToString("F2"))
-                 .Metric("Drainage standard",   cfg.DrainStandard)
-                 .Metric("Supply standard",     cfg.SupplyStandard)
-                 .Metric("Flush valve majority", cfg.FlushValveMajority ? "yes" : "no")
-                 .Metric("Occupancy",           cfg.OccupancyCount.ToString())
-                 .Metric("Beds / workstations", cfg.BedsOrWorkstations.ToString())
-                 .Metric("Saved (UTC)",         string.IsNullOrEmpty(cfg.LastSavedUtc) ? "(never)" : cfg.LastSavedUtc);
-
-            panel.AddSection("MATERIALS");
-            foreach (var kv in cfg.Materials.OrderBy(k => k.Key))
-                panel.Metric(kv.Key, kv.Value);
-
-            panel.AddSection("VELOCITY LIMITS (m/s)");
-            foreach (var kv in cfg.VelocityMps.OrderBy(k => k.Key))
-                panel.Metric(kv.Key, kv.Value.ToString("F2"));
-
-            panel.AddSection("MIN SLOPE (%)");
-            foreach (var kv in cfg.SlopePctMin.OrderBy(k => k.Key))
-                panel.Metric(kv.Key, kv.Value.ToString("F2"));
-
-            panel.Show();
+            // Inline path: pushing the loaded values into the SYSTEM-tab
+            // inputs (below) is the user-visible feedback. Status strip
+            // carries a one-line summary; no popup.
+            var inst = StingPlumbingPanel.Instance;
+            if (inst == null)
+            {
+                var panel = StingResultPanel.Create("Plumbing System Config (current)");
+                panel.SetSubtitle($"Path: {PlumbingSystemConfig.ProjectConfigPath(ctx.Doc) ?? "(no project file)"}");
+                panel.AddSection("PROJECT")
+                     .Metric("Building",            cfg.BuildingType)
+                     .Metric("K factor",            cfg.KFactor.ToString("F2"))
+                     .Metric("Drainage standard",   cfg.DrainStandard)
+                     .Metric("Supply standard",     cfg.SupplyStandard)
+                     .Metric("Flush valve majority", cfg.FlushValveMajority ? "yes" : "no")
+                     .Metric("Occupancy",           cfg.OccupancyCount.ToString())
+                     .Metric("Beds / workstations", cfg.BedsOrWorkstations.ToString())
+                     .Metric("Saved (UTC)",         string.IsNullOrEmpty(cfg.LastSavedUtc) ? "(never)" : cfg.LastSavedUtc);
+                panel.AddSection("MATERIALS");
+                foreach (var kv in cfg.Materials.OrderBy(k => k.Key))
+                    panel.Metric(kv.Key, kv.Value);
+                panel.AddSection("VELOCITY LIMITS (m/s)");
+                foreach (var kv in cfg.VelocityMps.OrderBy(k => k.Key))
+                    panel.Metric(kv.Key, kv.Value.ToString("F2"));
+                panel.AddSection("MIN SLOPE (%)");
+                foreach (var kv in cfg.SlopePctMin.OrderBy(k => k.Key))
+                    panel.Metric(kv.Key, kv.Value.ToString("F2"));
+                panel.Show();
+            }
 
             // Refresh the SYSTEM tab inline form so what's on screen matches
             // the just-loaded config (Phase 179d). No-op when panel is closed.

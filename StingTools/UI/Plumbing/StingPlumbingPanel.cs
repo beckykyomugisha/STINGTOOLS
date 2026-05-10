@@ -92,7 +92,10 @@ namespace StingTools.UI.Plumbing
             var projGrid = NewFormGrid();
             AddFormRow(projGrid, 0, "Building",
                 _sysBldgType = NewCombo(new[] { "Dwelling", "Office", "Hospital", "School", "Hotel",
-                                                "Restaurant", "Factory", "Sports", "PublicWC", "Custom" },
+                                                "Restaurant", "Factory", "Sports", "PublicWC",
+                                                "Retail", "Warehouse", "DataCentre", "Laboratory",
+                                                "Airport", "Stadium", "Prison", "CareHome",
+                                                "MixedUse", "Custom" },
                                         seed.BuildingType));
             _sysBldgType.SelectionChanged += (s, e) =>
             {
@@ -506,7 +509,7 @@ namespace StingTools.UI.Plumbing
             var autoOpts = NewFormGrid();
             AddFormRow(autoOpts, 0, "Max radius (mm)", _routeMaxRadius = NewTextBox("3000"));
             AddFormRow(autoOpts, 1, "Route preference",
-                _routePref = NewCombo(new[] { "Shortest", "Corridor-preferred", "Wall-chase" }, "Shortest"));
+                _routePref = NewCombo(new[] { "Shortest", "Corridor-preferred", "Wall-chase", "Above-ceiling", "Below-floor", "Service shaft" }, "Shortest"));
             AddFormRow(autoOpts, 2, "Enforce slope",      _routeEnforceSlope = NewCheck(true));
             AddFormRow(autoOpts, 3, "Auto-insert P-trap", _routeAutoTrap     = NewCheck(true));
             AddFormRow(autoOpts, 4, "Emit hangers",       _routeEmitHangers  = NewCheck(true));
@@ -559,7 +562,7 @@ namespace StingTools.UI.Plumbing
                 new[] { "Selected", "View", "Project" }, "View"));
             var hgOpts = NewFormGrid();
             AddFormRow(hgOpts, 0, "Rod size",
-                _routeHangerRod = NewCombo(new[] { "Auto", "M8", "M10", "M12" }, "Auto"));
+                _routeHangerRod = NewCombo(new[] { "Auto", "M8", "M10", "M12", "M16", "M20", "M24" }, "Auto"));
             AddFormRow(hgOpts, 1, "Horizontal",     _routeHangerHorz     = NewCheck(true));
             AddFormRow(hgOpts, 2, "Vertical",       _routeHangerVert     = NewCheck(true));
             AddFormRow(hgOpts, 3, "Temp correction", _routeHangerTempCorr = NewCheck(true));
@@ -657,7 +660,13 @@ namespace StingTools.UI.Plumbing
             var rwhGrid = NewFormGrid();
             AddFormRow(rwhGrid, 0, "Roof area (m²)",     _stRwhArea     = NewTextBox(""));
             AddFormRow(rwhGrid, 1, "Roof material",
-                _stRwhMaterial = NewCombo(new[] { "Tiles (Cv 0.75)", "Flat membrane (Cv 0.90)" }, "Tiles (Cv 0.75)"));
+                _stRwhMaterial = NewCombo(new[] {
+                    "Tiles (Cv 0.75)",
+                    "Concrete tiles (Cv 0.80)",
+                    "Slate (Cv 0.85)",
+                    "Metal sheet (Cv 0.85)",
+                    "Flat membrane (Cv 0.90)",
+                    "Green roof (Cv 0.30)" }, "Tiles (Cv 0.75)"));
             AddFormRow(rwhGrid, 2, "Annual rainfall (mm)", _stRwhRainfall = NewTextBox("700"));
             AddFormRow(rwhGrid, 3, "Annual demand (L)",   _stRwhDemand   = NewTextBox(""));
             sp.Children.Add(rwhGrid);
@@ -912,7 +921,7 @@ namespace StingTools.UI.Plumbing
 
             var isoOpts = NewFormGrid();
             AddFormRow(isoOpts, 0, "System",
-                _docsIsoSystem = NewCombo(new[] { "All", "DCW", "DHW", "Sanitary", "Storm", "Selection" }, "All"));
+                _docsIsoSystem = NewCombo(new[] { "All", "DCW", "DHW", "DHW Recirc", "Sanitary", "Vent", "Storm", "Combined", "Selection" }, "All"));
             AddFormRow(isoOpts, 1, "Dimensions", _docsIsoDims    = NewCheck(true));
             AddFormRow(isoOpts, 2, "Inverts",    _docsIsoInverts = NewCheck(true));
             sp.Children.Add(isoOpts);
@@ -1061,6 +1070,8 @@ namespace StingTools.UI.Plumbing
         // Empty result grid with the given (header, propertyPath) columns + a
         // hint row that disappears once a command sets ItemsSource. Tuned for
         // ~260 px width: every column auto-sizes; horizontal scroll on overflow.
+        // MinHeight reserves visible row space when the grid is empty so the
+        // user can see where data will land instead of just a flat header row.
         // Property paths are the names commands must use on populated row DTOs
         // (see Plumbing*Row classes at end of file).
         private static DataGrid NewResultGrid(params (string Header, string Path)[] cols)
@@ -1074,8 +1085,10 @@ namespace StingTools.UI.Plumbing
                 HeadersVisibility = DataGridHeadersVisibility.Column,
                 AlternatingRowBackground = new SolidColorBrush(Color.FromRgb(245, 247, 250)),
                 FontSize = 10,
+                MinHeight = 90,
                 MaxHeight = 180,
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto
             };
             foreach (var (header, path) in cols)
                 dg.Columns.Add(new DataGridTextColumn
@@ -1090,6 +1103,8 @@ namespace StingTools.UI.Plumbing
         // Slope-fix preview grid — Apply (CheckBox, two-way) + Pipe + Δ-elev.
         // Δ-elev's header carries a non-identifier glyph + dash that aren't
         // legal in a Binding path, so the grid is built explicitly here.
+        // MinHeight matches NewResultGrid so the empty state reserves visible
+        // row space.
         private static DataGrid NewSlopeFixGrid()
         {
             var dg = new DataGrid
@@ -1101,8 +1116,10 @@ namespace StingTools.UI.Plumbing
                 HeadersVisibility = DataGridHeadersVisibility.Column,
                 AlternatingRowBackground = new SolidColorBrush(Color.FromRgb(245, 247, 250)),
                 FontSize = 10,
+                MinHeight = 90,
                 MaxHeight = 180,
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto
             };
             dg.Columns.Add(new DataGridCheckBoxColumn
             {

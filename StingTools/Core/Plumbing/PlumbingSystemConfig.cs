@@ -74,16 +74,33 @@ namespace StingTools.Core.Plumbing
             c.BuildingType = buildingType ?? "Office";
             switch ((buildingType ?? "").ToUpperInvariant())
             {
+                // K = 0.5 — intermittent low-frequency use
                 case "DWELLING":
-                case "OFFICE":      c.KFactor = 0.5; break;
+                case "OFFICE":
+                case "WAREHOUSE":
+                case "DATACENTRE":
+                case "RETAIL":      c.KFactor = 0.5; break;
+
+                // K = 0.7 — frequent commercial / institutional
                 case "HOSPITAL":
                 case "SCHOOL":
-                case "HOTEL":       c.KFactor = 0.7; break;
+                case "HOTEL":
+                case "CAREHOME":
+                case "LABORATORY":
+                case "PRISON":
+                case "MIXEDUSE":    c.KFactor = 0.7; break;
+
+                // K = 1.0 — congested / high-frequency
                 case "RESTAURANT":
                 case "FACTORY":
-                case "SPORTS":      c.KFactor = 1.0; break;
+                case "SPORTS":
+                case "AIRPORT":
+                case "STADIUM":     c.KFactor = 1.0; break;
+
+                // K = 1.2 — peak-event public sanitary
                 case "PUBLICWC":
                 case "PUBLIC WC":   c.KFactor = 1.2; break;
+
                 default:            c.KFactor = 0.7; break;
             }
             return c;
