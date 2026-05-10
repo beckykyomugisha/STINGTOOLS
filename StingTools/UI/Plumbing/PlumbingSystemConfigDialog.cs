@@ -175,21 +175,21 @@ namespace StingTools.UI.Plumbing
             Margin = new Thickness(0, 12, 0, 6)
         };
 
-        private static Grid NewGrid()
+        private static System.Windows.Controls.Grid NewGrid()
         {
-            var g = new Grid { Margin = new Thickness(2, 0, 2, 4) };
+            var g = new System.Windows.Controls.Grid { Margin = new Thickness(2, 0, 2, 4) };
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(220) });
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             return g;
         }
 
-        private static void AddRow(Grid g, int row, string label, FrameworkElement control)
+        private static void AddRow(System.Windows.Controls.Grid g, int row, string label, FrameworkElement control)
         {
             g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             var lbl = new TextBlock { Text = label, Margin = new Thickness(0, 6, 8, 4), VerticalAlignment = VerticalAlignment.Center };
-            Grid.SetColumn(lbl, 0); Grid.SetRow(lbl, row);
+            System.Windows.Controls.Grid.SetColumn(lbl, 0); System.Windows.Controls.Grid.SetRow(lbl, row);
             g.Children.Add(lbl);
-            Grid.SetColumn(control, 1); Grid.SetRow(control, row);
+            System.Windows.Controls.Grid.SetColumn(control, 1); System.Windows.Controls.Grid.SetRow(control, row);
             control.Margin = new Thickness(0, 4, 0, 4);
             g.Children.Add(control);
         }
