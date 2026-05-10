@@ -737,12 +737,12 @@ namespace StingTools.UI.Plumbing
             sp.Children.Add(bfOpts);
             AddBtn(sp, "Plumbing_BackflowAudit", "Fluid Category Audit",
                 "Classify pipes Cat 1-5 and recommend SCV/DCV/RPZ/Air-gap.");
-            SpecialtyFluidMatrixGrid = NewResultGrid(("Cat", "Cat"), ("Description", "Description"), ("Required device", "RequiredDevice"), ("Found", "Found"));
-            sp.Children.Add(_spcFluidMatrixExpander = NewExpander("Fluid category matrix", WithEmptyHint(SpecialtyFluidMatrixGrid, "(run Fluid Category Audit to populate)"), expanded: false));
+            SpecialtyFluidMatrixGrid = NewEditableResultGrid(("Cat", "Cat"), ("Description", "Description"), ("Required device", "RequiredDevice"), ("Found", "Found"));
+            sp.Children.Add(_spcFluidMatrixExpander = NewExpander("Fluid category matrix", WithEmptyHint(SpecialtyFluidMatrixGrid, "(run Fluid Category Audit to populate — rows are editable)"), expanded: false));
             AddBtn(sp, "Plumbing_CrossConnection", "Cross-Connection Scan",
                 "Graph walk potable → non-potable.");
-            SpecialtyCrossConnGrid = NewResultGrid(("System A", "SystemA"), ("System B", "SystemB"), ("Separation", "Separation"), ("Risk", "Risk"));
-            sp.Children.Add(_spcCrossConnExpander = NewExpander("Cross-connections", WithEmptyHint(SpecialtyCrossConnGrid, "(run Cross-Connection Scan to populate)"), expanded: false));
+            SpecialtyCrossConnGrid = NewEditableResultGrid(("System A", "SystemA"), ("System B", "SystemB"), ("Separation", "Separation"), ("Risk", "Risk"));
+            sp.Children.Add(_spcCrossConnExpander = NewExpander("Cross-connections", WithEmptyHint(SpecialtyCrossConnGrid, "(run Cross-Connection Scan to populate — rows are editable)"), expanded: false));
 
             AddCard(sp, "Materials & jointing");
             var matFlags = new WrapPanel { Margin = new Thickness(0, 2, 0, 4) };
@@ -813,11 +813,11 @@ namespace StingTools.UI.Plumbing
 
             AddCard(sp, "Per-domain drill-down");
             (string, string)[] auditCols = { ("Element", "Element"), ("Issue", "Issue"), ("Severity", "Severity") };
-            AuditSupplyGrid   = NewResultGrid(auditCols);
-            AuditDrainageGrid = NewResultGrid(auditCols);
-            AuditVentsGrid    = NewResultGrid(auditCols);
-            AuditBackflowGrid = NewResultGrid(auditCols);
-            AuditHtmGrid      = NewResultGrid(auditCols);
+            AuditSupplyGrid   = NewEditableResultGrid(auditCols);
+            AuditDrainageGrid = NewEditableResultGrid(auditCols);
+            AuditVentsGrid    = NewEditableResultGrid(auditCols);
+            AuditBackflowGrid = NewEditableResultGrid(auditCols);
+            AuditHtmGrid      = NewEditableResultGrid(auditCols);
             var auditSupplyExp   = NewExpander("Supply",    WithEmptyHint(AuditSupplyGrid,   "(run Full Audit)"), expanded: false);
             var auditDrainageExp = NewExpander("Drainage",  WithEmptyHint(AuditDrainageGrid, "(run Full Audit)"), expanded: false);
             var auditVentsExp    = NewExpander("Vents",     WithEmptyHint(AuditVentsGrid,    "(run Full Audit)"), expanded: false);
@@ -1100,6 +1100,75 @@ namespace StingTools.UI.Plumbing
             return dg;
         }
 
+        // Editable variant of NewResultGrid: cells are editable, rows are
+        // selectable (FullRow Extended), columns fill horizontally with a
+        // Star + minimum width so empty grids still show body rows. Used
+        // by the AUDIT drill-downs and SPECIALTY matrix/cross-connection
+        // grids where the user wants to mark issues resolved, add notes,
+        // toggle severity etc. without bouncing back to the command
+        // dialog.
+        private static DataGrid NewEditableResultGrid(params (string Header, string Path)[] cols)
+        {
+            var dg = new DataGrid
+            {
+                AutoGenerateColumns = false,
+                CanUserAddRows = true,           // empty-row at bottom for additions
+                CanUserDeleteRows = true,
+                CanUserReorderColumns = true,
+                CanUserResizeColumns = true,
+                CanUserSortColumns = true,
+                IsReadOnly = false,
+                SelectionMode = DataGridSelectionMode.Extended,
+                SelectionUnit = DataGridSelectionUnit.FullRow,
+                GridLinesVisibility = DataGridGridLinesVisibility.All,
+                HeadersVisibility = DataGridHeadersVisibility.Column,
+                AlternatingRowBackground = new SolidColorBrush(Color.FromRgb(245, 247, 250)),
+                FontSize = 10,
+                MinHeight = 96,                  // ALWAYS reserve body space —
+                MaxHeight = 220,                 //   fixes "no rows space" gripe
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                VerticalScrollBarVisibility   = ScrollBarVisibility.Auto
+            };
+            foreach (var (header, path) in cols)
+                dg.Columns.Add(new DataGridTextColumn
+                {
+                    Header   = header,
+                    Binding  = new System.Windows.Data.Binding(path)
+                        { Mode = System.Windows.Data.BindingMode.TwoWay,
+                          UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.LostFocus },
+                    Width    = new DataGridLength(1, DataGridLengthUnitType.Star),
+                    MinWidth = 60
+                });
+
+            // Copy selection to clipboard with Ctrl+C (default behaviour, but
+            // make it explicit so users see selection works). Right-click
+            // context menu adds Copy + Delete + Select-All.
+            dg.ClipboardCopyMode = DataGridClipboardCopyMode.IncludeHeader;
+            var ctx = new ContextMenu();
+            var miCopy = new MenuItem { Header = "Copy" };
+            miCopy.Click += (s, e) => System.Windows.Input.ApplicationCommands.Copy.Execute(null, dg);
+            ctx.Items.Add(miCopy);
+            var miDel = new MenuItem { Header = "Delete row(s)" };
+            miDel.Click += (s, e) =>
+            {
+                try
+                {
+                    var rows = new System.Collections.Generic.List<object>();
+                    foreach (var it in dg.SelectedItems) if (it != null) rows.Add(it);
+                    if (dg.ItemsSource is System.Collections.IList src)
+                        foreach (var r in rows) src.Remove(r);
+                }
+                catch { }
+            };
+            ctx.Items.Add(miDel);
+            var miAll = new MenuItem { Header = "Select all" };
+            miAll.Click += (s, e) => dg.SelectAllCells();
+            ctx.Items.Add(miAll);
+            dg.ContextMenu = ctx;
+
+            return dg;
+        }
+
         // Slope-fix preview grid — Apply (CheckBox, two-way) + Pipe + Δ-elev.
         // Δ-elev's header carries a non-identifier glyph + dash that aren't
         // legal in a Binding path, so the grid is built explicitly here.
@@ -1144,27 +1213,36 @@ namespace StingTools.UI.Plumbing
             return dg;
         }
 
-        // Wraps a DataGrid with an empty-state hint shown until the grid has rows.
+        // Wraps a DataGrid with an empty-state hint OVERLAID on the grid body
+        // (Grid container so the hint sits on top of an empty grid). The grid
+        // itself keeps its MinHeight so the body area is always visible —
+        // fixes the "tables/grids without rows space" gripe where placeholder
+        // hint text was pushing the (zero-height) grid below it off-screen.
         private static FrameworkElement WithEmptyHint(DataGrid grid, string hint)
         {
-            var sp = new StackPanel();
+            var host = new Grid();
+            host.Children.Add(grid);                       // bottom: the grid itself
             var tb = new TextBlock
             {
                 Text = hint,
-                Margin = new Thickness(6, 4, 6, 4),
+                Margin = new Thickness(8, 24, 8, 8),       // sits below header row
                 Foreground = Brushes.Gray,
                 FontStyle = FontStyles.Italic,
                 FontSize = 11,
-                TextWrapping = TextWrapping.Wrap
+                TextWrapping = TextWrapping.Wrap,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Top,
+                IsHitTestVisible = false                   // don't swallow grid clicks
             };
-            sp.Children.Add(tb);
-            sp.Children.Add(grid);
-            grid.LayoutUpdated += (s, e) =>
+            host.Children.Add(tb);                         // top: hint overlay
+
+            void Refresh()
             {
                 try { tb.Visibility = (grid.Items != null && grid.Items.Count > 0) ? Visibility.Collapsed : Visibility.Visible; }
                 catch { }
-            };
-            return sp;
+            }
+            grid.LayoutUpdated  += (s, e) => Refresh();
+            return host;
         }
 
         // Builds a horizontal RadioButton group bound to a single-string output.
