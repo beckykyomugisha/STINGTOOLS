@@ -90,6 +90,19 @@
           "default": "12"
         }
       ],
+      "connectors": [
+        {
+          "domain": "Piping",
+          "systemType": "FireProtectWet",
+          "shape": "Round",
+          "sizeMm": 25,
+          "direction": "In",
+          "offsetX": 0.0,
+          "offsetY": 0.0,
+          "offsetZ": 0.5,
+          "facing": "+Z"
+        }
+      ],
       "geometry": {
         "arcs": [
           {

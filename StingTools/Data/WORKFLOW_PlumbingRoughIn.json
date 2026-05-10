@@ -1,0 +1,54 @@
+{
+  "version": "1.0",
+  "id": "PlumbingRoughIn",
+  "name": "Plumbing Rough-In Pipeline",
+  "description": "Eight-step plumbing pipeline strung from existing commands: seed setup → fixture placement → multi-service drops → penetration sweep → drainage sizing → trap/vent audit → backflow audit → stack capacity check.",
+  "steps": [
+    {
+      "id": "build-seeds",
+      "name": "Build plumbing seed family",
+      "command": "BuildSeedFamilies",
+      "skipIfFamilyLoaded": "STING_SEED_PlumbingFixture",
+      "_notes": "Generates STING_SEED_PlumbingFixture.rfa with 3-connector union (DCW/DHW/Sanitary) so AutoPipeDrop has terminals to wire to."
+    },
+    {
+      "id": "place-fixtures",
+      "name": "Place fixtures from room rules",
+      "command": "Placement_PlaceFixtures",
+      "_notes": "FixturePlacementEngine reads STING_PLACEMENT_RULES + room types. WC / basin / shower / urinal / sink land at the right wall positions per BS 6465."
+    },
+    {
+      "id": "auto-drop",
+      "name": "Auto-drop pipes (cold + hot + soil)",
+      "command": "Routing_AutoDrop",
+      "_notes": "AutoPipeDrop runs once per fixture connector — 2-3 drops per WC/basin/sink. AutoDropCommand triggers SlabPenetrationDetector + WallPenetrationDetector + BeamPenetrationDetector + FrpPenetrationPlacer in the same transaction."
+    },
+    {
+      "id": "drainage-size",
+      "name": "Auto-size drainage (BS EN 12056-2 / IPC 2021)",
+      "command": "Plumbing_AutoSizeDrainage",
+      "_notes": "DfuMap → DrainageSizer → VentDesigner → SlopeAutoCorrector. Sets DN on each soil run."
+    },
+    {
+      "id": "trap-vent",
+      "name": "Trap + vent audit",
+      "command": "Plumbing_TrapVentAudit"
+    },
+    {
+      "id": "backflow",
+      "name": "Backflow audit (BS EN 1717)",
+      "command": "Plumbing_BackflowAudit"
+    },
+    {
+      "id": "stack-capacity",
+      "name": "Stack capacity (BS EN 12056-2)",
+      "command": "Plumbing_StackCapacity"
+    },
+    {
+      "id": "validate-all",
+      "name": "Run full validator suite",
+      "command": "Validation_RunAll",
+      "_notes": "Includes PenetrationCoverageValidator so any plumbing run that crossed a fire-rated barrier without a placed FRP shows up in the dashboard."
+    }
+  ]
+}

@@ -102,6 +102,17 @@ namespace StingTools.Core.Symbols
         /// Parameters list — unknown keys surface as warnings.</summary>
         [JsonProperty("params")] public Dictionary<string, string> Parameters { get; set; }
             = new Dictionary<string, string>();
+
+        /// <summary>
+        /// Optional connectors authored on the variant in addition to
+        /// the parent symbol's <see cref="SymbolDefinition.Connectors"/>.
+        /// Useful when service counts vary by variant (e.g. WC = cold +
+        /// soil; basin = cold + hot + waste; shower = cold + hot + waste;
+        /// kitchen sink = cold + hot + waste + pre-rinse). When null /
+        /// empty the variant inherits the parent's connector set.
+        /// </summary>
+        [JsonProperty("connectors", NullValueHandling = NullValueHandling.Ignore)]
+        public List<ConnectorDefinition> Connectors { get; set; }
     }
 
     public sealed class ParameterDefinition

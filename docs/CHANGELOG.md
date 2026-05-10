@@ -2,6 +2,86 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 178d — Penetration coverage: floors + walls + beams)
+
+Closes the gaps identified in the Phase 178c seed-and-penetration review.
+Branch: `claude/review-sting-equipment-aV6qM`.
+
+**Shared parameter pack (group 33: PEN_PENETRATION).** 19 new parameters
+in `MR_PARAMETERS.txt` with stable UUIDv5-style GUIDs in the Planscape
+namespace: `PEN_FIRE_RATING_TXT`, `PEN_SEALANT_TYPE_TXT`, `PEN_OD_MM`,
+`PEN_HOST_REF_TXT`, `PEN_HOST_TYPE_TXT`, `PEN_MEMBER_ID_TXT`,
+`PEN_CERTIFICATION_TXT`, `PEN_INSTALL_STATUS_TXT`, `PEN_INSTALLER_TXT`,
+`PEN_INSTALL_DATE`, `PEN_INSPECTOR_TXT`, `PEN_INSPECTION_DATE`,
+`PEN_CONTROL_NUMBER_TXT`, `PEN_PFV_UUID_TXT`, `PEN_BEAM_OFFSET_PCT`,
+`PEN_BEAM_DEPTH_RATIO`, `PEN_STRUCTURAL_FLAG_TXT`, plus
+`STING_PENETRATION_REF_TXT` and `STING_PENETRATION_FIRE_RATING_TXT` as
+member-side stamps. `LoadSharedParamsCommand` binds them on first run.
+
+**Three detectors (was: floors only).** `SlabPenetrationDetector` keeps
+its existing 30°-from-vertical filter for vertical drops; new
+`WallPenetrationDetector` covers fire-rated compartment walls (skips
+non-rated partitions to keep the register clean) via 2-D segment
+intersection against `Wall.Location`; new `BeamPenetrationDetector`
+runs a 3-D segment-vs-segment shortest-distance test, reads beam
+material + depth, and classifies per AISC Design Guide 2 + BS EN 1992
+location/size limits (`STRUCT_OK` / `STRUCT_REVIEW` / `STRUCT_FAIL`).
+
+**FrpPenetrationPlacer generalised.** Single entry point dispatches on
+`rec.HostKind` to floor / wall / beam face-resolution strategies, all
+using one `PenetrationRecord` schema. Adds `PEN_PFV_UUID_TXT` keyed on
+UUIDv5(host, member) for cross-pipeline pairing with `SleeveEngine`.
+Idempotent — re-runs update the existing instance via the UUID lookup
+instead of duplicating.
+
+**Seed connectors.** `STING_SEED_PlumbingFixture.json` now declares
+DCW + DHW + Sanitary connectors at the symbol level so `AutoPipeDrop`
+can wire each fixture into all three services. `STING_SEED_AirTerminal`
+and `STING_SEED_Sprinkler` get one connector each (supply-air,
+fire-water-wet). `TypeVariantDefinition.Connectors` added as a forward-
+compatible field for variant-specific overrides.
+
+**Two new commands.** `Penetrations_DetectAndPlace` runs the full
+sweep against selection or active-view scope; `Validation_PenetrationCoverage`
+is a read-only audit surfacing orphan members, orphan FRP instances,
+beam structural-review findings, and missing fire ratings. Both
+dispatched through `StingCommandHandler`. `AutoDropCommand` triggers
+the three-detector sweep + placer in the same transaction (previously
+fired only from `ConduitAutoRouteCommand`). `RunAllValidatorsCommand`
+appends `PenetrationCoverageValidator` so the daily-QA preset catches
+uncovered penetrations + structural violations alongside the existing
+clearance / maintenance / classification findings.
+
+**Penetration Register schedule.** New `STING - Penetration Register`
+row in `MR_SCHEDULES.csv` with 18 columns covering identity, host,
+rating, dimensions, install / inspect, beam structural review, and
+swap history. Grouped by `PEN_HOST_TYPE_TXT` so floors / walls / beams
+read as distinct sections.
+
+**Workflow presets.** `WORKFLOW_PenetrationSweep.json` (5 steps: build
+seeds → load params → detect & place → coverage audit → register
+schedule). `WORKFLOW_PlumbingRoughIn.json` (8 steps chaining the
+existing plumbing audit + sizing commands with the new penetration
+sweep so multi-service drops + firestop placement happen together).
+
+Files: `MR_PARAMETERS.txt` (+19 PEN_* + new GROUP 33);
+`Core/Routing/{WallPenetrationDetector,BeamPenetrationDetector}.cs`
+(new); generalised `FrpPenetrationPlacer.cs` +
+`SlabPenetrationDetector.cs`;
+`Commands/Routing/PenetrationsDetectAndPlaceCommand.cs` (new);
+`Core/Validation/PenetrationCoverageValidator.cs` (new);
+`Commands/Validation/PenetrationCoverageCommand.cs` (new); schedule row;
+two workflow JSONs; updated seed JSONs (Plumbing / AirTerminal / Sprinkler);
+updated `Families/Seeds/README.md`. Code committed without `dotnet build`
+verification (Linux sandbox); verify in Revit before merge.
+
+Standards basis: AISC Design Guide 2 §3 (steel beam web openings, ≤ 0.7 d,
+≥ max(d, span/10) clearance from supports); BS EN 1992-1-1 + IStructE
+practice (RC beam openings ≤ 0.4 d for OK without ad-hoc reinforcement);
+BS 9999 / Approved Document B (fire-rated compartmentation); BS 476-20 /
+EN 1366-3 (firestop certification); UUIDv5 deterministic identity from
+the existing `SleeveEngine` schema for cross-pipeline pairing.
+
 #### Completed (Healthcare Pack H-1..H-30 — Hospital design content layer)
 
 Delivers the full Healthcare Pack against [`HEALTHCARE_PACK_DESIGN.md`](HEALTHCARE_PACK_DESIGN.md).

@@ -48,6 +48,8 @@ namespace StingTools.Commands.Validation
                 // on PRJ_ORG_HEALTH_FACILITY_TYPE_TXT being non-empty so non-
                 // healthcare projects skip the entire chain (zero cost).
                 all.AddRange(StingTools.Core.Validation.Healthcare.RunAllHealthcareValidators.Validate(doc));
+                // Phase 178d — penetration coverage (slab + wall + beam fire-stop sweep).
+                all.AddRange(StingTools.Core.Validation.PenetrationCoverageValidator.Validate(doc));
             }
             catch (Exception ex)
             {
