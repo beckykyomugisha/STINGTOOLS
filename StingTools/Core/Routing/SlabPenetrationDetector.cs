@@ -31,15 +31,49 @@ using Autodesk.Revit.DB;
 
 namespace StingTools.Core.Routing
 {
+    /// <summary>
+    /// Class of host element being penetrated. Drives the placer's
+    /// face-resolution strategy (slab bottom face / wall outer face /
+    /// beam web face) and structural-review path.
+    /// </summary>
+    public enum PenetrationHostKind
+    {
+        Floor,
+        Wall,
+        Beam,
+        Ceiling,
+        Roof,
+    }
+
     public sealed class PenetrationRecord
     {
         public ElementId MemberId         { get; set; }      // the conduit / pipe / duct
-        public ElementId HostFloorId      { get; set; }      // the slab being penetrated
+        // Generic host id (replaces the floor-only field — kept as
+        // HostFloorId alias for back-compat with FrpPenetrationPlacer
+        // and the existing routing pipeline).
+        public ElementId HostId           { get; set; }
+        // Back-compat alias — older callers (FrpPenetrationPlacer,
+        // ConduitAutoRouteCommand) still read HostFloorId.
+        public ElementId HostFloorId
+        {
+            get => HostId;
+            set => HostId = value;
+        }
+        public PenetrationHostKind HostKind { get; set; } = PenetrationHostKind.Floor;
         public XYZ       Location         { get; set; }      // approximate crossing point
-        public double    SlabThicknessMm  { get; set; }
+        public double    SlabThicknessMm  { get; set; }      // host through-thickness (mm)
         public string    FireRating       { get; set; } = "FR60";
         public string    MemberCategory   { get; set; } = "";
         public double    MemberDiameterMm { get; set; }
+
+        // Beam-only structural-review fields. Populated by
+        // BeamPenetrationDetector against AISC DG2 + BS EN 1992 limits;
+        // empty when the host is a slab or wall.
+        public double    BeamSpanMm           { get; set; }
+        public double    BeamDepthMm          { get; set; }
+        public double    DistanceFromSupportMm { get; set; }
+        /// <summary>STRUCT_OK / STRUCT_REVIEW / STRUCT_FAIL — see BeamPenetrationDetector for thresholds.</summary>
+        public string    StructuralFlag       { get; set; } = "";
     }
 
     public static class SlabPenetrationDetector
@@ -73,6 +107,27 @@ namespace StingTools.Core.Routing
                 MEPCurve curve = null;
                 try { curve = doc.GetElement(id) as MEPCurve; } catch { }
                 if (curve == null) continue;
+
+                // Wave J3 — split-segment metadata inheritance. When a
+                // conduit was split by JBAutoPlacer, ELC_CDT_BREAKPOINT_TXT
+                // carries a "JB:<id>@<reason>" reference. The split sub-
+                // segments don't have their own penetration history yet,
+                // but the parent might have crossed a slab that we'd
+                // miss if we only check the new segment's geometry.
+                // Inherit the parent's penetration record up-front so
+                // every sub-segment carries the right fire-rating
+                // metadata, then continue with normal geometric
+                // detection in case the split itself crossed a NEW
+                // slab the parent hadn't.
+                try
+                {
+                    string brk = ParameterHelpers.GetString(curve, "ELC_CDT_BREAKPOINT_TXT");
+                    if (!string.IsNullOrEmpty(brk))
+                    {
+                        InheritParentPenetration(doc, curve, brk, records);
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Parent penetration inherit: {ex.Message}"); }
 
                 LocationCurve loc = curve.Location as LocationCurve;
                 if (loc?.Curve == null) continue;
@@ -112,7 +167,8 @@ namespace StingTools.Core.Routing
                     var rec = new PenetrationRecord
                     {
                         MemberId        = id,
-                        HostFloorId     = floor.Id,
+                        HostId          = floor.Id,
+                        HostKind        = PenetrationHostKind.Floor,
                         Location        = crossing,
                         SlabThicknessMm = (bb.Max.Z - bb.Min.Z) * 304.8,
                         FireRating      = ResolveFireRating(floor),
@@ -123,13 +179,23 @@ namespace StingTools.Core.Routing
 
                     // Stamp the penetration reference on the member so the
                     // FRP register schedule + validators see it without
-                    // re-running the detector.
+                    // re-running the detector. Wave J3 also stamps a
+                    // running count so JBAutoPlacer's next pass knows
+                    // the conduit had crossings — useful for ordering
+                    // splits so the JB doesn't land at the same XY as
+                    // an existing FRP.
                     try
                     {
                         ParameterHelpers.SetString(curve, "STING_PENETRATION_REF_TXT",
                             $"FLR:{floor.Id.Value}@{rec.FireRating}", overwrite: true);
                         ParameterHelpers.SetString(curve, "STING_PENETRATION_FIRE_RATING_TXT",
                             rec.FireRating, overwrite: false);
+                        // Wave J3 — running count visible in tags / schedules
+                        int existing = 0;
+                        string c = ParameterHelpers.GetString(curve, "ELC_CDT_PENETRATION_COUNT_NR");
+                        if (!string.IsNullOrEmpty(c)) int.TryParse(c, out existing);
+                        ParameterHelpers.SetString(curve, "ELC_CDT_PENETRATION_COUNT_NR",
+                            (existing + 1).ToString(), overwrite: true);
                     }
                     catch (Exception ex) { StingLog.Warn($"Stamp penetration: {ex.Message}"); }
 
@@ -167,6 +233,47 @@ namespace StingTools.Core.Routing
             }
             catch { }
             return "FR60";
+        }
+
+        /// <summary>
+        /// Wave J3 — inherit penetration metadata from a parent
+        /// conduit when the current member was split off by
+        /// JBAutoPlacer. Walks ELC_CDT_BREAKPOINT_TXT (format
+        /// "JB:&lt;id&gt;@&lt;reason&gt;"), looks up the JB's
+        /// upstream conduit, and copies its penetration metadata
+        /// onto the current sub-segment. Idempotent — re-running on
+        /// already-stamped members is a no-op via the SetIfEmpty
+        /// pattern.
+        /// </summary>
+        private static void InheritParentPenetration(Document doc, MEPCurve sub, string breakpointRef,
+            List<PenetrationRecord> records)
+        {
+            if (string.IsNullOrEmpty(breakpointRef)) return;
+            // Parse "JB:<id>@<reason>"; tolerate "NEEDED:..." (the
+            // fallback stamp when no JB family was placed).
+            int colon = breakpointRef.IndexOf(':');
+            int at    = breakpointRef.IndexOf('@');
+            if (colon < 0 || at <= colon) return;
+            string idStr = breakpointRef.Substring(colon + 1, at - colon - 1);
+            if (!long.TryParse(idStr, out long parentId)) return;
+
+            try
+            {
+                var parent = doc.GetElement(new ElementId((long)parentId));
+                if (parent == null) return;
+
+                // Copy fire rating + ref onto the sub-segment if it
+                // doesn't already have its own. Sub-segments that DO
+                // have their own ref (e.g. the JB landed exactly on a
+                // slab) keep theirs.
+                string parentFireRating = ParameterHelpers.GetString(parent, "STING_PENETRATION_FIRE_RATING_TXT");
+                string parentRef        = ParameterHelpers.GetString(parent, "STING_PENETRATION_REF_TXT");
+                if (!string.IsNullOrEmpty(parentRef))
+                    ParameterHelpers.SetString(sub, "STING_PENETRATION_REF_TXT", parentRef, overwrite: false);
+                if (!string.IsNullOrEmpty(parentFireRating))
+                    ParameterHelpers.SetString(sub, "STING_PENETRATION_FIRE_RATING_TXT", parentFireRating, overwrite: false);
+            }
+            catch (Exception ex) { StingLog.Warn($"InheritParentPenetration: {ex.Message}"); }
         }
 
         private static double ReadDiameterMm(MEPCurve curve)

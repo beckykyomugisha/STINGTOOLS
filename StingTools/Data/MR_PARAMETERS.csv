@@ -2842,3 +2842,4 @@ Generic Models,PLM_RO_LOOP_BOOL,bbab9ac4-5a21-5970-bab2-43532234f241,YESNO,PLM_D
 Generic Models,PLM_POU_FILTER_BOOL,59bd061b-2641-55e1-8e05-21f1f5dfd56b,YESNO,PLM_DRN,Type,Point-of-use filter fitted [HTM 04-01 Phase 178b],False,,,HEALTHCARE,1,0
 Generic Models,PLM_SENTINEL_BOOL,56f58de8-d502-585d-9f3b-57f169c6c7a2,YESNO,PLM_DRN,Type,TMV sentinel monitoring point [Phase 178b],False,,,PLUMBING,1,0
 Generic Models,PLM_PRJ_PLUMBING_CODE_TXT,98ab6e19-8d12-53c0-b388-8705f9413373,TEXT,ASS_MNG,Type,Project plumbing-code toggle BS-UK / IPC-US / UPC-US [Phase 178b],False,,,MULTI,1,0
+Generic Models,ELC_CDT_PENETRATION_COUNT_NR,c3d5b6ee-0f2e-7283-9405-162718304a5b,TEXT,ELC_PWR,Instance,"Number of fire-rated barriers (floors / walls) this conduit crosses. Stamped by SlabPenetrationDetector each time a crossing is recorded. Drives the FRP penetration register schedule and JBAutoPlacer's avoid-collision logic (Wave J3).",False,,,MULTI,1,0

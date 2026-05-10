@@ -90,6 +90,19 @@
           "default": "30"
         }
       ],
+      "connectors": [
+        {
+          "domain": "HVAC",
+          "systemType": "SupplyAir",
+          "shape": "Round",
+          "sizeMm": 200,
+          "direction": "In",
+          "offsetX": 0.0,
+          "offsetY": 0.0,
+          "offsetZ": 0.5,
+          "facing": "+Z"
+        }
+      ],
       "geometry": {
         "lines": [
           {

@@ -1,0 +1,143 @@
+{
+  "version": "1.0",
+  "standard": "STING SEED FAMILY — Medical Gas Terminal Units (HTM 02-01, BS 5682, EN ISO 7396-1)",
+  "_notes": [
+    "Medical-gas seed for HTM 02-01 / NFPA 99 / EN ISO 7396 terminal",
+    "units, area-valve service units (AVSU), and alarm panels.",
+    "Connectors authored as the worst-case 5-service union (O2 / N2O /",
+    "Med Air / Vac / SurgAir) so a hospital theatre's full panel wires",
+    "in one AutoPipeDrop pass. Variants restrict the visible service",
+    "set per parameter — SwapToManufacturer replaces with the real",
+    "Beaconmedaes / Pattons / GCE / Wandsworth product.",
+    "MGS_* parameters track piggyback HTM 02-01 metadata: gas type,",
+    "operational pressure, BS 5682 socket reference, certification."
+  ],
+  "symbols": [
+    {
+      "id": "STING_SEED_MedGasOutlet",
+      "name": "STING Seed — Medical Gas Outlet",
+      "category": "Specialty Equipment",
+      "familyType": "SeedFamily",
+      "discipline": "Plumbing",
+      "subcategory": "STING_SEED",
+      "isSeed": true,
+      "hosting": "FaceBased",
+      "symbolSize": 5.0,
+      "parameters": [
+        { "name": "STING_SEED_FAMILY_TXT",     "type": "Text", "shared": true, "isInstance": true, "default": "STING_SEED_MedGasOutlet" },
+        { "name": "STING_DESIGN_REF_TXT",      "type": "Text", "shared": true, "isInstance": true, "default": "" },
+        { "name": "STING_SWAP_HISTORY_TXT",    "type": "Text", "shared": true, "isInstance": true, "default": "" },
+        { "name": "ASS_TAG_1",                 "type": "Text", "shared": true, "isInstance": true },
+        { "name": "ASS_DISCIPLINE_COD_TXT",    "type": "Text", "shared": true, "isInstance": true, "default": "MG" },
+        { "name": "ASS_PRODCT_COD_TXT",        "type": "Text", "shared": true, "isInstance": true, "default": "TU" },
+        { "name": "MGS_TU_TYPE_TXT",           "type": "Text", "shared": true, "isInstance": true, "default": "TERMINAL_UNIT" },
+        { "name": "MGS_GASES_TXT",             "type": "Text", "shared": true, "isInstance": true, "default": "O2,MEDAIR,VAC" },
+        { "name": "MGS_SOCKET_STD_TXT",        "type": "Text", "shared": true, "isInstance": false, "default": "BS_5682" },
+        { "name": "MGS_OPERATING_KPA",         "type": "Text", "shared": true, "isInstance": false, "default": "414" },
+        { "name": "MGS_CERT_TXT",              "type": "Text", "shared": true, "isInstance": false, "default": "HTM 02-01 / EN ISO 7396-1" },
+        { "name": "MGS_HOSPITAL_AREA_TXT",     "type": "Text", "shared": true, "isInstance": true, "default": "WARD" },
+        { "name": "MGS_AVSU_ZONE_TXT",         "type": "Text", "shared": true, "isInstance": true, "default": "" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.3, "x2": 0.5, "y2": -0.3 },
+          { "x1": 0.5, "y1": -0.3, "x2": 0.5, "y2": 0.3 },
+          { "x1": 0.5, "y1": 0.3, "x2": -0.5, "y2": 0.3 },
+          { "x1": -0.5, "y1": 0.3, "x2": -0.5, "y2": -0.3 }
+        ],
+        "arcs": [
+          { "cx": -0.3, "cy": 0.0, "r": 0.08, "startDeg": 0, "endDeg": 360 },
+          { "cx": -0.1, "cy": 0.0, "r": 0.08, "startDeg": 0, "endDeg": 360 },
+          { "cx":  0.1, "cy": 0.0, "r": 0.08, "startDeg": 0, "endDeg": 360 },
+          { "cx":  0.3, "cy": 0.0, "r": 0.08, "startDeg": 0, "endDeg": 360 }
+        ]
+      },
+      "solid3D": { "type": "Box", "widthMm": 400, "depthMm": 80, "heightMm": 200 },
+      "connectors": [
+        {
+          "domain": "Piping", "systemType": "OtherPipe", "shape": "Round",
+          "sizeMm": 8, "direction": "In",
+          "offsetX": -0.3, "offsetY": 0.0, "offsetZ": -0.5, "facing": "-Z"
+        },
+        {
+          "domain": "Piping", "systemType": "OtherPipe", "shape": "Round",
+          "sizeMm": 8, "direction": "In",
+          "offsetX": -0.1, "offsetY": 0.0, "offsetZ": -0.5, "facing": "-Z"
+        },
+        {
+          "domain": "Piping", "systemType": "OtherPipe", "shape": "Round",
+          "sizeMm": 8, "direction": "In",
+          "offsetX":  0.1, "offsetY": 0.0, "offsetZ": -0.5, "facing": "-Z"
+        },
+        {
+          "domain": "Piping", "systemType": "OtherPipe", "shape": "Round",
+          "sizeMm": 12, "direction": "Out",
+          "offsetX":  0.3, "offsetY": 0.0, "offsetZ": -0.5, "facing": "-Z"
+        }
+      ],
+      "typeVariants": [
+        {
+          "name": "TERMINAL_UNIT_O2",
+          "params": {
+            "MGS_TU_TYPE_TXT": "TERMINAL_UNIT",
+            "MGS_GASES_TXT": "O2",
+            "ASS_PRODCT_COD_TXT": "TU-O2",
+            "MGS_OPERATING_KPA": "414"
+          }
+        },
+        {
+          "name": "TERMINAL_UNIT_N2O",
+          "params": {
+            "MGS_TU_TYPE_TXT": "TERMINAL_UNIT",
+            "MGS_GASES_TXT": "N2O",
+            "ASS_PRODCT_COD_TXT": "TU-N2O",
+            "MGS_OPERATING_KPA": "414"
+          }
+        },
+        {
+          "name": "TERMINAL_UNIT_MEDAIR",
+          "params": {
+            "MGS_TU_TYPE_TXT": "TERMINAL_UNIT",
+            "MGS_GASES_TXT": "MEDAIR",
+            "ASS_PRODCT_COD_TXT": "TU-MA",
+            "MGS_OPERATING_KPA": "414"
+          }
+        },
+        {
+          "name": "TERMINAL_UNIT_SURGAIR",
+          "params": {
+            "MGS_TU_TYPE_TXT": "TERMINAL_UNIT",
+            "MGS_GASES_TXT": "SURGAIR",
+            "ASS_PRODCT_COD_TXT": "TU-SA",
+            "MGS_OPERATING_KPA": "800"
+          }
+        },
+        {
+          "name": "TERMINAL_UNIT_VAC",
+          "params": {
+            "MGS_TU_TYPE_TXT": "TERMINAL_UNIT",
+            "MGS_GASES_TXT": "VAC",
+            "ASS_PRODCT_COD_TXT": "TU-VAC",
+            "MGS_OPERATING_KPA": "-40"
+          }
+        },
+        {
+          "name": "AVSU_BOX_5GAS",
+          "params": {
+            "MGS_TU_TYPE_TXT": "AVSU",
+            "MGS_GASES_TXT": "O2,N2O,MEDAIR,SURGAIR,VAC",
+            "ASS_PRODCT_COD_TXT": "AVSU"
+          }
+        },
+        {
+          "name": "ALARM_PANEL_AREA",
+          "params": {
+            "MGS_TU_TYPE_TXT": "ALARM_PANEL",
+            "MGS_GASES_TXT": "O2,N2O,MEDAIR,VAC",
+            "ASS_PRODCT_COD_TXT": "AP-AREA"
+          }
+        }
+      ]
+    }
+  ]
+}
