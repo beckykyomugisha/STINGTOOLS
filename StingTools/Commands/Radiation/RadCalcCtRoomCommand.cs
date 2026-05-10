@@ -17,17 +17,21 @@ namespace StingTools.Commands.Radiation
         {
             try
             {
-                // Worked example: CT 64-slice secondary barrier per NCRP 147 Tables A.4/A.5
-                double workload = 600.0;     // mA·min/wk DLP-equivalent (high-throughput)
-                double useFactor = 0.25;     // secondary barrier
-                double occFactor = 0.5;      // staff lounge adjacent
-                double distance = 3.0;       // m
-                int kVp = 150;
+                // Hc.Rad.* overrides come from the Healthcare tab → Radiation
+                // inputs grid. Panel defaults match the historic worked example
+                // (NCRP 147 Tables A.4 / A.5: kVp 150, W 600, U 0.25, T 0.5, d 3 m).
+                double workload  = HcOptions.RadW;
+                double useFactor = HcOptions.RadU;
+                double occFactor = HcOptions.RadT;
+                double distance  = HcOptions.RadD;
+                int    kVp       = (int)HcOptions.RadKvp;
+                string area      = string.Equals(HcOptions.RadArea, "Uncontrolled",
+                                       StringComparison.OrdinalIgnoreCase) ? "UNCONTROLLED" : "CONTROLLED";
                 double providedPb = 2.0;
-                var calc = NCRP147Calculator.Compute("SECONDARY", "CONTROLLED",
+                var calc = NCRP147Calculator.Compute("SECONDARY", area,
                     workload, useFactor, occFactor, distance, kVp, providedPb);
                 var sb = new StringBuilder();
-                sb.AppendLine("STING — NCRP 147 CT Room Secondary Barrier (worked example)");
+                sb.AppendLine($"STING — NCRP 147 CT Room Secondary Barrier ({area})");
                 sb.AppendLine();
                 sb.AppendLine($"Workload W={workload} mA·min/wk DLP-equiv");
                 sb.AppendLine($"Use factor U={useFactor}, Occupancy T={occFactor}");

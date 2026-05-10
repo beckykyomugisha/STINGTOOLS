@@ -19,12 +19,27 @@ namespace StingTools.Commands.Healthcare.Specialist
             try
             {
                 var doc = commandData.Application.ActiveUIDocument.Document;
+
+                // Hc.Specialist.Bh.* overrides:
+                //   UseFgi/UseHbn → at least one must be on; both off ⇒ skip.
+                //   RiskLevel     → flags rooms whose CLN_LIG_RISK_LVL_TXT
+                //                   numeric value is below the panel level.
+                bool useFgi   = HcOptions.BhUseFgi;
+                bool useHbn   = HcOptions.BhUseHbn;
+                int  riskMin  = HcOptions.BhRiskLevel;
+
                 var rooms = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms)
                     .WhereElementIsNotElementType().ToElements()
-                    .Where(r => FGIStandards.RequiresAntiLigature(Get(r,"CLN_ROOM_CLASS_TXT")))
+                    .Where(r => (useFgi && FGIStandards.RequiresAntiLigature(Get(r,"CLN_ROOM_CLASS_TXT")))
+                             || (useHbn && Get(r,"CLN_LIGATURE_RES_BOOL") == "1"))
                     .ToList();
                 var sb = new StringBuilder();
-                sb.AppendLine("STING — Behavioural Health Safety Risk Audit").AppendLine();
+                string srcs = (useFgi && useHbn) ? "FGI + HBN" : (useFgi ? "FGI" : (useHbn ? "HBN" : "none"));
+                sb.AppendLine($"STING — Behavioural Health Safety Risk Audit (sources {srcs}, risk ≥ {riskMin})").AppendLine();
+                if (!useFgi && !useHbn)
+                {
+                    sb.AppendLine("Both FGI and HBN sources are disabled on the panel — no rules will fire.");
+                }
                 if (rooms.Count == 0) sb.AppendLine("No behavioural-health rooms detected.");
                 foreach (var r in rooms)
                 {
@@ -34,6 +49,8 @@ namespace StingTools.Commands.Healthcare.Specialist
                     var risk = Get(r,"CLN_LIG_RISK_LVL_TXT");
                     if (string.IsNullOrEmpty(risk))
                         sb.AppendLine($"[WARNING] BH.RISK.UNSET {r.Name} ({rc}) CLN_LIG_RISK_LVL_TXT empty");
+                    else if (int.TryParse(risk, out int rv) && rv < riskMin)
+                        sb.AppendLine($"[WARNING] BH.RISK.LOW   {r.Name} ({rc}) risk {rv} < panel min {riskMin}");
                     if (Get(r,"CLN_PRIVACY_LVL_TXT") == "OPEN" && rc == "SECL")
                         sb.AppendLine($"[ERROR  ] BH.PRIV.SECL {r.Name} seclusion classified as OPEN privacy");
                 }

@@ -219,6 +219,53 @@ namespace StingTools.UI
         public static Builder Create(string title) => new Builder { Title = title };
 
         // ══════════════════════════════════════════════════════════════════
+        //  INLINE CONTENT BUILDER
+        // ══════════════════════════════════════════════════════════════════
+        //
+        // Returns a FrameworkElement that hosts the same section / metric /
+        // table / RAG-bar tree built by ShowDialog, but without window chrome
+        // (no title bar, no Close / Copy / CSV footer, no action bar). Used
+        // by the Healthcare dock-panel tab to render rich results inline so
+        // users don't leave the panel.
+        //
+        // Width is host-driven; the embedded ScrollViewer caps height at
+        // 380 px so the panel doesn't dominate the dock.
+
+        public static FrameworkElement BuildInlineContent(Builder b)
+        {
+            var stack = new StackPanel { Margin = new Thickness(0) };
+
+            if (!string.IsNullOrEmpty(b.Subtitle))
+            {
+                stack.Children.Add(new TextBlock
+                {
+                    Text = b.Subtitle, FontSize = 11,
+                    Foreground = b.SubtitleBrush ?? BrHeader,
+                    Margin = new Thickness(0, 0, 0, 4), TextWrapping = TextWrapping.Wrap
+                });
+            }
+            if (b.OverallPct.HasValue)
+            {
+                var bar = BuildRAGBar(b.OverallPct.Value, 240, 12);
+                bar.Margin = new Thickness(0, 2, 0, 6);
+                stack.Children.Add(bar);
+            }
+            foreach (var section in b.Sections)
+            {
+                stack.Children.Add(BuildSection(section));
+            }
+
+            return new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                Content = stack,
+                MaxHeight = 380,
+                Padding = new Thickness(0)
+            };
+        }
+
+        // ══════════════════════════════════════════════════════════════════
         //  DIALOG BUILDER
         // ══════════════════════════════════════════════════════════════════
 

@@ -5016,79 +5016,631 @@
 
             <!-- ═══════════════════ HEALTHCARE TAB (H-1..H-30) ═══════════════════ -->
             <TabItem Header="HEALTHCARE">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
-                    <StackPanel>
+                <!-- Inline-interactive Healthcare tab.
+                     Sticky context bar (top), 6 sub-tabs (centre), sticky action bar (bottom).
+                     Named controls flushed to StingCommandHandler.SetExtraParam by
+                     StingDockPanel.SetHealthcareOptions() before any Healthcare_* dispatches. -->
+                <DockPanel LastChildFill="True">
 
-                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00838F">
-                            <StackPanel>
-                                <TextBlock Style="{StaticResource SectionLabel}" Text="HEALTHCARE PACK — Hospital Design / FM" Foreground="#00838F"/>
-                                <TextBlock FontSize="9" Foreground="#666" TextWrapping="Wrap" Margin="0,0,0,6"
-                                           Text="HTM / HBN / FGI / NFPA 99 / NCRP 147 / ASHRAE 170 / USP 797-800 / SFG20 healthcare overlay. Gated on PRJ_ORG_HEALTH_FACILITY_TYPE_TXT."/>
-                            </StackPanel>
-                        </Border>
+                    <!-- ─── STICKY CONTEXT BAR (top) ─── -->
+                    <Border DockPanel.Dock="Top" Style="{StaticResource GroupBorder}" BorderBrush="#00838F" Margin="4,4,4,2">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SectionLabel}" Text="HEALTHCARE PACK — HTM / HBN / FGI / NFPA 99 / NCRP 147" Foreground="#00838F"/>
+                            <Grid Margin="0,2,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="60"/>
+                                    <ColumnDefinition Width="140"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Facility" FontSize="9" VerticalAlignment="Center"/>
+                                <ComboBox Grid.Column="1" x:Name="cmbHcFacility" FontSize="9" Height="22" ToolTip="Sets PRJ_ORG_HEALTH_FACILITY_TYPE_TXT — gates the validator chain.">
+                                    <ComboBoxItem Content="ACUTE" Tag="ACUTE" IsSelected="True"/>
+                                    <ComboBoxItem Content="FULL" Tag="FULL"/>
+                                    <ComboBoxItem Content="COMMUNITY" Tag="COMMUNITY"/>
+                                    <ComboBoxItem Content="DENTAL" Tag="DENTAL"/>
+                                    <ComboBoxItem Content="IMAGING-ONLY" Tag="IMAGING-ONLY"/>
+                                    <ComboBoxItem Content="MENTAL-HEALTH" Tag="MENTAL-HEALTH"/>
+                                </ComboBox>
+                                <TextBlock Grid.Column="2" x:Name="lblHcProfile" FontSize="9" Foreground="#666" Margin="8,0,0,0" VerticalAlignment="Center" Text="Profile applied: derived from facility"/>
+                            </Grid>
+                            <WrapPanel Margin="0,4,0,0">
+                                <TextBlock Text="Scope" FontSize="9" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                <RadioButton Content="Project"    GroupName="HcScope" x:Name="rbHcScopeProject"   IsChecked="True" Margin="2,0" FontSize="9"/>
+                                <RadioButton Content="Active view" GroupName="HcScope" x:Name="rbHcScopeView"      Margin="2,0" FontSize="9"/>
+                                <RadioButton Content="Selection"  GroupName="HcScope" x:Name="rbHcScopeSelection" Margin="2,0" FontSize="9"/>
+                                <CheckBox Content="Skip rooms without CLN_ROOM_CLASS" x:Name="chkHcSkipUnclassified" IsChecked="True" Margin="12,0,4,0" FontSize="9"/>
+                                <CheckBox Content="Include linked models" x:Name="chkHcIncludeLinks" Margin="4,0" FontSize="9"/>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
 
-                        <!-- VALIDATION (H-5 + H-23..H-30) -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="VALIDATION CHAIN"/>
-                        <WrapPanel Style="{StaticResource ButtonWrap}">
-                            <Button Style="{StaticResource ActionBtn}" Content="Run All Healthcare" Tag="Healthcare_RunAllValidators" Click="Cmd_Click" ToolTip="Run every healthcare validator (16) through the profile gate. Gated on PRJ_ORG_HEALTH_FACILITY_TYPE_TXT — non-healthcare projects skip the chain."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Pressure Regime"     Tag="Healthcare_PressureAudit"    Click="Cmd_Click" ToolTip="HTM 03-01 / ASHRAE 170 — pressure regime + Δp + ACH + AIIR/PE anteroom cascade."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="MGPS Audit"          Tag="Healthcare_MgasAudit"        Click="Cmd_Click" ToolTip="HTM 02-01 / NFPA 99 — medical-gas network walk + diversified zone loads."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="MGPS Verify"         Tag="Healthcare_MgasVerify"       Click="Cmd_Click" ToolTip="NFPA 99 §5.1.12 — 12-step verification walk-through with verifier sign-off; persists log to _BIM_COORD/healthcare/mgas_verifications/."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="EES Branches"        Tag="Healthcare_EesBranch"        Click="Cmd_Click" ToolTip="NFPA 99 §6.4 / NEC 517 — Life Safety / Critical / Equipment branch tagging + ATS time + IPS in wet locations."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Water Safety"        Tag="Healthcare_WaterSafety"      Click="Cmd_Click" ToolTip="HTM 04-01 — TMV3, sentinel dead-leg ≤ 1 m, augmented-care POU filter, RO-loop topology."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Rad Shield"          Tag="Healthcare_RadShield"        Click="Cmd_Click" ToolTip="NCRP 147 — required vs provided mm Pb on every barrier element with QE sign-off."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Adv Rad (PET/NM)"    Tag="Healthcare_AdvancedRadShield" Click="Cmd_Click" ToolTip="PET 511 keV / SPECT / brachy — flags Pb-only designs that need concrete correction."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Adjacency / Flow"    Tag="Healthcare_AdjacencyAudit"   Click="Cmd_Click" ToolTip="HBN-derived adjacency targets + door-graph BFS for clean/dirty flow."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Anti-Ligature"       Tag="Healthcare_AntiLigature"     Click="Cmd_Click" ToolTip="HBN 03-01 / FGI Pt 2 — every fitting in a ligature-resistant room must carry LIG_PRODUCT_RATING_TXT."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Structural Loads"    Tag="Healthcare_StructuralLoad"   Click="Cmd_Click" ToolTip="Heavy imaging — floor load + VC vibration band + Structural Engineer sign-off."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Acoustic"            Tag="Healthcare_Acoustic"         Click="Cmd_Click" ToolTip="HTM 08-01 NR + RT60 targets per room class."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Endoscope Trace"     Tag="Healthcare_EndoscopeTrace"   Click="Cmd_Click" ToolTip="HTM 01-06 — RFID chain ≥ 4 readers per decon room (soak / AER / drying / storage)."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="EES Resilience"      Tag="Healthcare_EesResilience"    Click="Cmd_Click" ToolTip="NFPA 110 — generator + ATS test log freshness + UPS battery age."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="RTLS Coverage"       Tag="Healthcare_RtlsCoverage"     Click="Cmd_Click" ToolTip="RTLS — RF dead-zone + MRI Z3/Z4 wireless prohibition."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Waste Flow"          Tag="Healthcare_WasteFlow"        Click="Cmd_Click" ToolTip="HTM 07-01 — HC1..HC6 class + radioactive controlled-area flag."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="IoT Devices"         Tag="Healthcare_IoTRegistry"      Click="Cmd_Click" ToolTip="IoT device inventory grouped by protocol (BACnet / OPC-UA / Modbus / REST)."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="IoT Staleness"       Tag="Healthcare_IoTStaleness"     Click="Cmd_Click" ToolTip="Reports IoT devices not seen in &gt; 30 min."/>
-                        </WrapPanel>
+                    <!-- ─── STICKY ACTION BAR (bottom) ─── -->
+                    <Border DockPanel.Dock="Bottom" Style="{StaticResource GroupBorder}" BorderBrush="#00838F" Margin="4,2,4,4">
+                        <StackPanel>
+                            <WrapPanel>
+                                <Button x:Name="btnHcRunSelected" Style="{StaticResource GreenBtn}" Content="Run selected"  Tag="Healthcare_RunSelected"      Click="Cmd_Click" Width="96" Height="28" ToolTip="Run only the validators ticked in the Validators sub-tab. Reads Hc.SelectedValidators."/>
+                                <Button x:Name="btnHcRunAll"      Style="{StaticResource ActionBtn}" Content="Run all"      Tag="Healthcare_RunAllValidators" Click="Cmd_Click" Width="80" Height="28" ToolTip="Run every healthcare validator through the profile gate."/>
+                                <Button x:Name="btnHcCancel"      Style="{StaticResource ActionBtn}" Content="Cancel"       Tag="Healthcare_Cancel"           Click="Cmd_Click" Width="60" Height="28" ToolTip="Set the cancel flag — the next validator step will return early."/>
+                            </WrapPanel>
+                            <TextBlock x:Name="lblHcLastRun" FontSize="9" Foreground="#666" Margin="2,4,2,2" Text="No run yet."/>
+                            <ProgressBar x:Name="prgHcRag" Height="4" Minimum="0" Maximum="100" Value="0"/>
+                            <!-- Rich inline result host. Auto-expands when a command pushes
+                                 a Builder via StingDockPanel.PushHcResultPanel. Caps the
+                                 panel height at 380 px so the dock stays compact. -->
+                            <Expander x:Name="expHcResultDetails" Header="Details" FontSize="9"
+                                      Margin="0,4,0,0" IsExpanded="False">
+                                <ContentControl x:Name="hostHcResultPanel"/>
+                            </Expander>
+                        </StackPanel>
+                    </Border>
 
-                        <!-- ROOM DATA SHEETS (H-8) -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="ROOM DATA SHEETS (H-8)"/>
-                        <WrapPanel Style="{StaticResource ButtonWrap}">
-                            <Button Style="{StaticResource ActionBtn}" Content="Issue RDS (one room)" Tag="Healthcare_IssueRDS"        Click="Cmd_Click" ToolTip="Pick a Room and render its A2 RDS (HBN/ADB driven)."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Batch RDS (all)"      Tag="Healthcare_BatchRDS"        Click="Cmd_Click" ToolTip="Render an RDS for every clinical room with CLN_ROOM_CLASS_TXT populated."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="RDS Completeness"     Tag="Healthcare_RdsCompleteness" Click="Cmd_Click" ToolTip="Audit: every clinical room must carry the 14 mandatory parameters before its RDS can be issued."/>
-                        </WrapPanel>
+                    <!-- ─── 6 SUB-TABS ─── -->
+                    <TabControl x:Name="hcSubTabs" FontSize="10" Padding="2">
 
-                        <!-- RADIATION CALCULATORS (H-9 / H-25) -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="RADIATION (NCRP 147 / 151)"/>
-                        <WrapPanel Style="{StaticResource ButtonWrap}">
-                            <Button Style="{StaticResource ActionBtn}" Content="Chest Room Calc" Tag="Healthcare_RadCalcChest" Click="Cmd_Click" ToolTip="NCRP 147 — chest radiography barrier example (UNCONTROLLED, 125 kVp, W=50 mA·min/wk, U=1, T=1, d=2 m)."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="CT Room Calc"    Tag="Healthcare_RadCalcCt"    Click="Cmd_Click" ToolTip="NCRP 147 — CT secondary-barrier example (CONTROLLED, 150 kVp, W=600 mA·min/wk, U=0.25, T=0.5, d=3 m)."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="LINAC Vault"     Tag="Healthcare_RadCalcLinac" Click="Cmd_Click" ToolTip="NCRP 151 — first-pass LINAC vault primary + maze (10 MV concrete)."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="MRI Zoning"      Tag="Healthcare_MriZoneAudit" Click="Cmd_Click" ToolTip="MRI Z1..Z4 + Faraday cage flag audit (IEC 60601-2-33)."/>
-                        </WrapPanel>
+                        <!-- ============ 1. VALIDATORS ============ -->
+                        <TabItem Header="Validators">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel Margin="4">
 
-                        <!-- SPECIALIST AUDITS (H-11..H-19) -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="SPECIALIST AUDITS"/>
-                        <WrapPanel Style="{StaticResource ButtonWrap}">
-                            <Button Style="{StaticResource ActionBtn}" Content="Hybrid OR / Cath" Tag="Healthcare_HybridOr"          Click="Cmd_Click" ToolTip="OR-HYBRID / CATHLAB / IR area minimums (FGI / VA)."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Pharmacy USP"     Tag="Healthcare_PharmacyUsp"       Click="Cmd_Click" ToolTip="USP &lt;797&gt; / &lt;800&gt; pressure cascade + ACH."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Behavioural"      Tag="Healthcare_BehaviouralHealth" Click="Cmd_Click" ToolTip="FGI Pt 2 / HBN 03-01 — anti-ligature flag + risk + privacy."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Mortuary"         Tag="Healthcare_Mortuary"          Click="Cmd_Click" ToolTip="HBN 16 — mortuary capacity (0.5 % beds, min 4 bays)."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Maternity / NICU" Tag="Healthcare_MaternityNicu"     Click="Cmd_Click" ToolTip="HBN 21 / 09-03 — room areas + NICU NR ≤ 35."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="HSDU"             Tag="Healthcare_Hsdu"              Click="Cmd_Click" ToolTip="HBN 13 — wash / pack / sterile compartment polarity."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Dialysis"         Tag="Healthcare_Dialysis"          Click="Cmd_Click" ToolTip="HBN 07-02 — RO-loop integrity + station / plant counts."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Hyperbaric / IVF" Tag="Healthcare_Hbo"               Click="Cmd_Click" ToolTip="NFPA 99 Ch.14 hyperbaric + USP cytotoxic + IVF."/>
-                        </WrapPanel>
+                                    <TextBlock Text="VALIDATOR CHAIN" FontWeight="Bold" FontSize="10" Foreground="#00838F" Margin="0,2,0,4"/>
+                                    <DataGrid x:Name="dgHcValidators"
+                                              AutoGenerateColumns="False"
+                                              CanUserAddRows="False"
+                                              CanUserDeleteRows="False"
+                                              CanUserResizeRows="False"
+                                              HeadersVisibility="Column"
+                                              GridLinesVisibility="Horizontal"
+                                              FontSize="9"
+                                              RowHeight="22"
+                                              MaxHeight="320">
+                                        <DataGrid.Columns>
+                                            <DataGridCheckBoxColumn Header="Run"        Binding="{Binding Run, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="34"/>
+                                            <DataGridTextColumn     Header="Validator"  Binding="{Binding DisplayName}" Width="160" IsReadOnly="True"/>
+                                            <DataGridTextColumn     Header="Standard"   Binding="{Binding Standard}"    Width="170" IsReadOnly="True"/>
+                                            <DataGridTextColumn     Header="Status"     Binding="{Binding Status}"      Width="60"  IsReadOnly="True"/>
+                                            <DataGridTextColumn     Header="Result"     Binding="{Binding Result}"      Width="80"  IsReadOnly="True"/>
+                                            <DataGridTextColumn     Header="Last run"   Binding="{Binding LastRun}"     Width="*"   IsReadOnly="True"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
 
-                        <!-- WORKFLOWS (8 healthcare workflow JSONs) -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="WORKFLOW PRESETS"/>
-                        <WrapPanel Style="{StaticResource ButtonWrap}">
-                            <Button Style="{StaticResource ActionBtn}" Content="List Workflows" Tag="ListWorkflowPresets" Click="Cmd_Click" ToolTip="Show every workflow preset; healthcare ones include HealthcareCommissioning, MgasVerification, PressureRegimeAudit, RdsIssue, HTM-04-01-Annual, AntiLigatureAudit, NFPA110-GeneratorTest, HTM-01-06-EndoReprocess."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Workflow Trend" Tag="WorkflowTrend"       Click="Cmd_Click" ToolTip="View healthcare workflow run-history trend (last 100 runs)."/>
-                        </WrapPanel>
+                                    <Expander x:Name="expHcAdvThresholds" Header="Advanced thresholds (HTM 03-01 / ASHRAE 170 / HTM 04-01)" Margin="0,6,0,0" FontSize="9">
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <Grid Margin="0,2,0,0">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="ΔP min (Pa)" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldHcDpMin" Minimum="0" Maximum="10" Value="2.5" TickFrequency="0.5" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldHcDpMin, StringFormat={}{0:F1} Pa}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="ACH min" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldHcAchMin" Minimum="2" Maximum="25" Value="12" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldHcAchMin, StringFormat={}{0:F0}}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <CheckBox Content="Anteroom cascade strict" x:Name="chkHcAnteroomStrict" IsChecked="True" Margin="0,4,0,0" FontSize="9"/>
+                                                <Grid Margin="0,4,0,0">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Dead-leg max (m)" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldHcDeadLegMaxM" Minimum="0.5" Maximum="3" Value="1" TickFrequency="0.1" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldHcDeadLegMaxM, StringFormat={}{0:F1} m}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,4,0,0">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Adjacency BFS depth" FontSize="9" VerticalAlignment="Center"/>
+                                                    <ComboBox Grid.Column="1" x:Name="cmbHcAdjacencyDepth" FontSize="9" Height="22">
+                                                        <ComboBoxItem Content="1" Tag="1"/>
+                                                        <ComboBoxItem Content="2" Tag="2"/>
+                                                        <ComboBoxItem Content="3" Tag="3" IsSelected="True"/>
+                                                        <ComboBoxItem Content="4" Tag="4"/>
+                                                    </ComboBox>
+                                                </Grid>
+                                                <Grid Margin="0,4,0,0">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Endo RFID min readers" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldHcRfidMin" Minimum="2" Maximum="8" Value="4" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldHcRfidMin, StringFormat={}{0:F0}}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,4,0,0">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="UPS max age (yrs)" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldHcUpsMaxAgeYrs" Minimum="1" Maximum="10" Value="5" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldHcUpsMaxAgeYrs, StringFormat={}{0:F0} yr}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,4,0,0">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="IoT stale (mins)" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldHcIotStaleMins" Minimum="10" Maximum="120" Value="30" TickFrequency="5" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldHcIotStaleMins, StringFormat={}{0:F0} m}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <CheckBox Content="Rad shield requires QE sign-off"  x:Name="chkHcRadRequireQeSignoff" IsChecked="True" Margin="0,6,0,0" FontSize="9"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </Expander>
 
-                    </StackPanel>
-                </ScrollViewer>
+                                    <!-- Per-row launch buttons (single-validator runs) -->
+                                    <TextBlock Text="QUICK SINGLE-VALIDATOR LAUNCHERS" FontWeight="Bold" FontSize="9" Foreground="#888" Margin="0,8,0,4"/>
+                                    <WrapPanel>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Pressure"   Tag="Healthcare_PressureAudit"     Click="Cmd_Click"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="MGPS Audit" Tag="Healthcare_MgasAudit"         Click="Cmd_Click"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="EES Branch" Tag="Healthcare_EesBranch"         Click="Cmd_Click"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Water"      Tag="Healthcare_WaterSafety"       Click="Cmd_Click"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Rad Shield" Tag="Healthcare_RadShield"         Click="Cmd_Click"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Adv Rad"    Tag="Healthcare_AdvancedRadShield" Click="Cmd_Click"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Adjacency"  Tag="Healthcare_AdjacencyAudit"    Click="Cmd_Click"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Anti-Lig"   Tag="Healthcare_AntiLigature"      Click="Cmd_Click"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Structural" Tag="Healthcare_StructuralLoad"    Click="Cmd_Click"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Acoustic"   Tag="Healthcare_Acoustic"          Click="Cmd_Click"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Endo Trace" Tag="Healthcare_EndoscopeTrace"    Click="Cmd_Click"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="EES Resil"  Tag="Healthcare_EesResilience"     Click="Cmd_Click"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="RTLS"       Tag="Healthcare_RtlsCoverage"      Click="Cmd_Click"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Waste"      Tag="Healthcare_WasteFlow"         Click="Cmd_Click"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="IoT Stale"  Tag="Healthcare_IoTStaleness"      Click="Cmd_Click"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="IoT List"   Tag="Healthcare_IoTRegistry"       Click="Cmd_Click"/>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- ============ 2. MGPS ============ -->
+                        <TabItem Header="MGPS">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel Margin="4">
+                                    <TextBlock Text="MEDICAL GAS — HTM 02-01 / NFPA 99 §5.1" FontWeight="Bold" FontSize="10" Foreground="#00838F" Margin="0,2,0,4"/>
+                                    <Border Style="{StaticResource GroupBorder}">
+                                        <StackPanel>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Gas" FontSize="9" VerticalAlignment="Center"/>
+                                                <ComboBox Grid.Column="1" x:Name="cmbHcMgasGas" FontSize="9" Height="22">
+                                                    <ComboBoxItem Content="O₂ — Oxygen"          Tag="O2" IsSelected="True"/>
+                                                    <ComboBoxItem Content="N₂O — Nitrous oxide"  Tag="N2O"/>
+                                                    <ComboBoxItem Content="MA4 — Medical air 4 bar"  Tag="MA4"/>
+                                                    <ComboBoxItem Content="MA7 — Medical air 7 bar"  Tag="MA7"/>
+                                                    <ComboBoxItem Content="VAC — Medical vacuum" Tag="VAC"/>
+                                                    <ComboBoxItem Content="WAGD — Anaesthetic gas" Tag="WAGD"/>
+                                                    <ComboBoxItem Content="CO₂ — Carbon dioxide" Tag="CO2"/>
+                                                    <ComboBoxItem Content="AIR-DRY — Surgical air" Tag="AIR-DRY"/>
+                                                </ComboBox>
+                                            </Grid>
+                                            <Grid Margin="0,4,0,0">
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Zone" FontSize="9" VerticalAlignment="Center"/>
+                                                <ComboBox Grid.Column="1" x:Name="cmbHcMgasZone" FontSize="9" Height="22" IsEditable="True"
+                                                          ToolTip="Type or pick a zone code (loaded at runtime from MgsZone family instances)."/>
+                                            </Grid>
+                                            <TextBlock x:Name="lblHcMgasTerminalCount" FontSize="9" Foreground="#666" Margin="0,4,0,0" Text="Terminals — pick a zone to populate"/>
+                                            <TextBlock x:Name="lblHcMgasFlowResult"   FontSize="9" Foreground="#666" Margin="0,1,0,0" Text="Diversified flow — runs on Audit"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Expander Header="Terminal-unit grid (lazy-loads on Audit)" Margin="0,6,0,0" FontSize="9">
+                                        <DataGrid x:Name="dgHcMgasTerminals"
+                                                  AutoGenerateColumns="False"
+                                                  CanUserAddRows="False"
+                                                  HeadersVisibility="Column"
+                                                  FontSize="9"
+                                                  MaxHeight="200">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="TU"            Binding="{Binding TuId}"          Width="80"  IsReadOnly="True"/>
+                                                <DataGridTextColumn Header="Type"          Binding="{Binding Type}"          Width="100" IsReadOnly="True"/>
+                                                <DataGridTextColumn Header="Designed L/m"  Binding="{Binding DesignedFlow}"  Width="80"  IsReadOnly="True"/>
+                                                <DataGridTextColumn Header="Diversified"   Binding="{Binding DiversifiedFlow}" Width="80" IsReadOnly="True"/>
+                                                <DataGridTextColumn Header="Status"        Binding="{Binding Status}"        Width="*"   IsReadOnly="True"/>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </Expander>
+
+                                    <TextBlock Text="VERIFICATION (NFPA 99 §5.1.12)" FontWeight="Bold" FontSize="9" Foreground="#888" Margin="0,8,0,4"/>
+                                    <Border Style="{StaticResource GroupBorder}">
+                                        <StackPanel>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Verifier" FontSize="9" VerticalAlignment="Center"/>
+                                                <TextBox Grid.Column="1" x:Name="txtHcMgasVerifier" FontSize="9" Height="22"/>
+                                            </Grid>
+                                            <Grid Margin="0,4,0,0">
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Step" FontSize="9" VerticalAlignment="Center"/>
+                                                <ComboBox Grid.Column="1" x:Name="cmbHcMgasStep" FontSize="9" Height="22">
+                                                    <ComboBoxItem Content="1 — Pressure decay"     Tag="1" IsSelected="True"/>
+                                                    <ComboBoxItem Content="2 — Cross-connection"   Tag="2"/>
+                                                    <ComboBoxItem Content="3 — Valve identification" Tag="3"/>
+                                                    <ComboBoxItem Content="4 — Alarm identification" Tag="4"/>
+                                                    <ComboBoxItem Content="5 — Piping purge"        Tag="5"/>
+                                                    <ComboBoxItem Content="6 — Piping particulate"  Tag="6"/>
+                                                    <ComboBoxItem Content="7 — Piping purity"       Tag="7"/>
+                                                    <ComboBoxItem Content="8 — Final tie-in"        Tag="8"/>
+                                                    <ComboBoxItem Content="9 — Operational pressure" Tag="9"/>
+                                                    <ComboBoxItem Content="10 — Medical gas concentration" Tag="10"/>
+                                                    <ComboBoxItem Content="11 — Medical air purity" Tag="11"/>
+                                                    <ComboBoxItem Content="12 — Final tie-in to source" Tag="12"/>
+                                                </ComboBox>
+                                            </Grid>
+                                            <CheckBox Content="Sign at completion" x:Name="chkHcMgasSignAtEnd" IsChecked="True" Margin="0,4,0,0" FontSize="9"/>
+                                            <WrapPanel Margin="0,6,0,0">
+                                                <Button Style="{StaticResource GreenBtn}" Content="Run audit"  Tag="Healthcare_MgasAudit"        Click="Cmd_Click" Width="80" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Run step"   Tag="Healthcare_MgasVerifyStep"   Click="Cmd_Click" Width="80" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Full verify" Tag="Healthcare_MgasVerify"      Click="Cmd_Click" Width="80" Height="26"/>
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- ============ 3. RADIATION ============ -->
+                        <TabItem Header="Radiation">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel Margin="4">
+                                    <TextBlock Text="RADIATION SHIELDING — NCRP 147 / 151 / IEC 60601-2-33" FontWeight="Bold" FontSize="10" Foreground="#00838F" Margin="0,2,0,4"/>
+                                    <Border Style="{StaticResource GroupBorder}">
+                                        <StackPanel>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Calc type" FontSize="9" VerticalAlignment="Center"/>
+                                                <ComboBox Grid.Column="1" x:Name="cmbHcRadCalc" FontSize="9" Height="22">
+                                                    <ComboBoxItem Content="Chest room (NCRP 147)"     Tag="Chest"/>
+                                                    <ComboBoxItem Content="CT room (NCRP 147 secondary)" Tag="CT" IsSelected="True"/>
+                                                    <ComboBoxItem Content="LINAC vault (NCRP 151)"    Tag="LINAC"/>
+                                                    <ComboBoxItem Content="Custom (inline inputs)"    Tag="Custom"/>
+                                                </ComboBox>
+                                            </Grid>
+                                            <WrapPanel Margin="0,4,0,0">
+                                                <RadioButton Content="UNCONTROLLED area" GroupName="HcRadArea" x:Name="rbHcRadAreaUncontrolled" IsChecked="True" Margin="2" FontSize="9"/>
+                                                <RadioButton Content="CONTROLLED area"   GroupName="HcRadArea" x:Name="rbHcRadAreaControlled"   Margin="2" FontSize="9"/>
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <TextBlock Text="INPUTS (editable — live preview below)" FontWeight="Bold" FontSize="9" Foreground="#888" Margin="0,8,0,4"/>
+                                    <Border Style="{StaticResource GroupBorder}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="160"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="kVp"                  FontSize="9" Margin="2"/>
+                                            <TextBox   Grid.Row="0" Grid.Column="1" x:Name="txtHcRadKvp"  Text="150"  FontSize="9" Margin="2" Height="22"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="W (mA·min/wk)"        FontSize="9" Margin="2"/>
+                                            <TextBox   Grid.Row="1" Grid.Column="1" x:Name="txtHcRadW"    Text="600"  FontSize="9" Margin="2" Height="22"/>
+                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="U (use factor)"       FontSize="9" Margin="2"/>
+                                            <TextBox   Grid.Row="2" Grid.Column="1" x:Name="txtHcRadU"    Text="0.25" FontSize="9" Margin="2" Height="22"/>
+                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="T (occupancy)"        FontSize="9" Margin="2"/>
+                                            <TextBox   Grid.Row="3" Grid.Column="1" x:Name="txtHcRadT"    Text="0.5"  FontSize="9" Margin="2" Height="22"/>
+                                            <TextBlock Grid.Row="4" Grid.Column="0" Text="d (m, source→target)" FontSize="9" Margin="2"/>
+                                            <TextBox   Grid.Row="4" Grid.Column="1" x:Name="txtHcRadD"    Text="3.0"  FontSize="9" Margin="2" Height="22"/>
+                                            <TextBlock Grid.Row="5" Grid.Column="0" Text="QE name (sign-off)"   FontSize="9" Margin="2"/>
+                                            <TextBox   Grid.Row="5" Grid.Column="1" x:Name="txtHcRadQeName" FontSize="9" Margin="2" Height="22"/>
+                                            <CheckBox  Grid.Row="6" Grid.ColumnSpan="2" x:Name="chkHcRadAutoApply" Content="Auto-apply RAD_PB_REQUIRED_MM to selected wall on Run" Margin="2,4,2,2" FontSize="9"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <Border Style="{StaticResource GroupBorder}" Margin="0,6,0,0" BorderBrush="#FFB300">
+                                        <StackPanel>
+                                            <TextBlock x:Name="lblHcRadRequiredPb" FontSize="11" FontWeight="Bold" Foreground="#5D4037" Text="Required Pb — enter inputs"/>
+                                            <TextBlock x:Name="lblHcRadProvidedPb" FontSize="9"  Foreground="#666"   Text="Provided Pb — from selected wall"/>
+                                            <TextBlock x:Name="lblHcRadVerdict"    FontSize="9"  Foreground="#666"   Text="Verdict will populate after Run"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <WrapPanel Margin="0,6,0,0">
+                                        <Button Style="{StaticResource GreenBtn}"  Content="Run inline" Tag="Healthcare_RadCalcInline" Click="Cmd_Click" Width="86" Height="26"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Chest"      Tag="Healthcare_RadCalcChest"  Click="Cmd_Click" Width="60" Height="26"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="CT"         Tag="Healthcare_RadCalcCt"     Click="Cmd_Click" Width="50" Height="26"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="LINAC"      Tag="Healthcare_RadCalcLinac"  Click="Cmd_Click" Width="60" Height="26"/>
+                                    </WrapPanel>
+
+                                    <TextBlock Text="MRI ZONING (IEC 60601-2-33)" FontWeight="Bold" FontSize="9" Foreground="#888" Margin="0,10,0,4"/>
+                                    <Border Style="{StaticResource GroupBorder}">
+                                        <StackPanel>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="MRI zone" FontSize="9" VerticalAlignment="Center"/>
+                                                <ComboBox Grid.Column="1" x:Name="cmbHcMriZone" FontSize="9" Height="22">
+                                                    <ComboBoxItem Content="Z1 — Public access" Tag="Z1" IsSelected="True"/>
+                                                    <ComboBoxItem Content="Z2 — Reception"     Tag="Z2"/>
+                                                    <ComboBoxItem Content="Z3 — Restricted"    Tag="Z3"/>
+                                                    <ComboBoxItem Content="Z4 — Magnet room"   Tag="Z4"/>
+                                                </ComboBox>
+                                            </Grid>
+                                            <CheckBox Content="Faraday cage flag (RAD_MRI_FARADAY_BOOL)" x:Name="chkHcMriFaradayFlag" Margin="0,4,0,0" FontSize="9"/>
+                                            <WrapPanel Margin="0,4,0,0">
+                                                <Button Style="{StaticResource ActionBtn}" Content="Run MRI audit" Tag="Healthcare_MriZoneAudit" Click="Cmd_Click" Width="100" Height="26"/>
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- ============ 4. ROOMS / RDS ============ -->
+                        <TabItem Header="Rooms / RDS">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel Margin="4">
+                                    <TextBlock Text="ROOM DATA SHEETS — H-8" FontWeight="Bold" FontSize="10" Foreground="#00838F" Margin="0,2,0,4"/>
+                                    <Border Style="{StaticResource GroupBorder}">
+                                        <StackPanel>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Class filter" FontSize="9" VerticalAlignment="Center"/>
+                                                <ComboBox Grid.Column="1" x:Name="cmbHcRoomClassFilter" FontSize="9" Height="22">
+                                                    <ComboBoxItem Content="All"           Tag="All" IsSelected="True"/>
+                                                    <ComboBoxItem Content="AIIR"          Tag="AIIR"/>
+                                                    <ComboBoxItem Content="PE"            Tag="PE"/>
+                                                    <ComboBoxItem Content="Endo-AER"      Tag="Endo-AER"/>
+                                                    <ComboBoxItem Content="Bedroom"       Tag="Bedroom"/>
+                                                    <ComboBoxItem Content="OR"            Tag="OR"/>
+                                                    <ComboBoxItem Content="OR-HYBRID"     Tag="OR-HYBRID"/>
+                                                    <ComboBoxItem Content="CathLab"       Tag="CathLab"/>
+                                                    <ComboBoxItem Content="Pharmacy USP-797" Tag="USP-797"/>
+                                                    <ComboBoxItem Content="Pharmacy USP-800" Tag="USP-800"/>
+                                                    <ComboBoxItem Content="Mortuary"      Tag="Mortuary"/>
+                                                    <ComboBoxItem Content="NICU"          Tag="NICU"/>
+                                                    <ComboBoxItem Content="Dialysis"      Tag="Dialysis"/>
+                                                    <ComboBoxItem Content="HBO"           Tag="HBO"/>
+                                                    <ComboBoxItem Content="IVF"           Tag="IVF"/>
+                                                </ComboBox>
+                                            </Grid>
+                                            <Grid Margin="0,4,0,0">
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Search" FontSize="9" VerticalAlignment="Center"/>
+                                                <TextBox Grid.Column="1" x:Name="txtHcRoomSearch" FontSize="9" Height="22"/>
+                                            </Grid>
+                                            <CheckBox Content="Only rooms with missing mandatory params" x:Name="chkHcRoomMissingOnly" Margin="0,4,0,0" FontSize="9"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <TextBlock Text="ROOM REGISTER (editable)" FontWeight="Bold" FontSize="9" Foreground="#888" Margin="0,8,0,4"/>
+                                    <DataGrid x:Name="dgHcRooms"
+                                              AutoGenerateColumns="False"
+                                              CanUserAddRows="False"
+                                              CanUserDeleteRows="False"
+                                              HeadersVisibility="Column"
+                                              GridLinesVisibility="Horizontal"
+                                              FontSize="9"
+                                              RowHeight="22"
+                                              MaxHeight="320">
+                                        <DataGrid.Columns>
+                                            <DataGridCheckBoxColumn Header="Run"        Binding="{Binding Run, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="34"/>
+                                            <DataGridTextColumn     Header="Room #"     Binding="{Binding RoomNumber}" Width="60"  IsReadOnly="True"/>
+                                            <DataGridTextColumn     Header="Name"       Binding="{Binding RoomName}"   Width="160" IsReadOnly="True"/>
+                                            <DataGridTextColumn     Header="Class"      Binding="{Binding ClassCode}"  Width="90"/>
+                                            <DataGridTextColumn     Header="ΔP (Pa)"    Binding="{Binding PressurePa}" Width="60"/>
+                                            <DataGridTextColumn     Header="ACH"        Binding="{Binding Ach}"        Width="50"/>
+                                            <DataGridCheckBoxColumn Header="TMV3"       Binding="{Binding Tmv3}"       Width="50"/>
+                                            <DataGridTextColumn     Header="RDS"        Binding="{Binding RdsIssued}"  Width="*" IsReadOnly="True"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                    <TextBlock x:Name="lblHcRoomsCounts" FontSize="9" Foreground="#666" Margin="2,4,0,0" Text="Pick rooms above and use the buttons below"/>
+
+                                    <WrapPanel Margin="0,6,0,0">
+                                        <Button Style="{StaticResource GreenBtn}"  Content="Issue selected"  Tag="Healthcare_IssueSelectedRds"  Click="Cmd_Click" Width="110" Height="28"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Issue (one room)" Tag="Healthcare_IssueRDS"          Click="Cmd_Click" Width="110" Height="28"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Issue all"        Tag="Healthcare_BatchRDS"          Click="Cmd_Click" Width="80"  Height="28"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Completeness"     Tag="Healthcare_RdsCompleteness"   Click="Cmd_Click" Width="100" Height="28"/>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- ============ 5. SPECIALIST ============ -->
+                        <TabItem Header="Specialist">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel Margin="4">
+                                    <TextBlock Text="SPECIALIST AUDITS" FontWeight="Bold" FontSize="10" Foreground="#00838F" Margin="0,2,0,4"/>
+
+                                    <Border Style="{StaticResource GroupBorder}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                            <TextBlock Text="Audit" FontSize="9" VerticalAlignment="Center"/>
+                                            <ComboBox Grid.Column="1" x:Name="cmbHcSpecialistKind" FontSize="9" Height="22">
+                                                <ComboBoxItem Content="Hybrid OR / CathLab" Tag="HybridOr" IsSelected="True"/>
+                                                <ComboBoxItem Content="Pharmacy USP"        Tag="PharmacyUsp"/>
+                                                <ComboBoxItem Content="Behavioural health"  Tag="BehaviouralHealth"/>
+                                                <ComboBoxItem Content="Mortuary"            Tag="Mortuary"/>
+                                                <ComboBoxItem Content="Maternity / NICU"    Tag="MaternityNicu"/>
+                                                <ComboBoxItem Content="HSDU"                Tag="Hsdu"/>
+                                                <ComboBoxItem Content="Dialysis"            Tag="Dialysis"/>
+                                                <ComboBoxItem Content="Hyperbaric / IVF"    Tag="Hbo"/>
+                                            </ComboBox>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Cards: only the selected one is Visible. UpdateSpecialistCardVisibility() in code-behind. -->
+                                    <Border x:Name="cardHcHybridOr" Style="{StaticResource GroupBorder}" Margin="0,6,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="Hybrid OR / CathLab — FGI / VA" FontWeight="Bold" FontSize="9" Foreground="#5D4037"/>
+                                            <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Room" FontSize="9" VerticalAlignment="Center"/>
+                                                <ComboBox Grid.Column="1" x:Name="cmbHcHorRoom" FontSize="9" Height="22" IsEditable="True"/>
+                                            </Grid>
+                                            <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Min area (m²)" FontSize="9" VerticalAlignment="Center"/>
+                                                <Slider Grid.Column="1" x:Name="sldHcHorMinAreaM2" Minimum="30" Maximum="80" Value="70" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldHcHorMinAreaM2, StringFormat={}{0:F0} m²}" FontSize="9" VerticalAlignment="Center"/>
+                                            </Grid>
+                                            <CheckBox Content="Include IR / Cath" x:Name="chkHcHorIncludeIr" Margin="0,4,0,0" FontSize="9"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border x:Name="cardHcPharmacyUsp" Style="{StaticResource GroupBorder}" Margin="0,6,0,0" Visibility="Collapsed">
+                                        <StackPanel>
+                                            <TextBlock Text="Pharmacy — USP &lt;797&gt; / &lt;800&gt;" FontWeight="Bold" FontSize="9" Foreground="#5D4037"/>
+                                            <WrapPanel Margin="0,4,0,0">
+                                                <RadioButton Content="USP &lt;797&gt;" GroupName="HcUsp" x:Name="rbHcUsp797" IsChecked="True" Margin="2" FontSize="9"/>
+                                                <RadioButton Content="USP &lt;800&gt;" GroupName="HcUsp" x:Name="rbHcUsp800" Margin="2" FontSize="9"/>
+                                            </WrapPanel>
+                                            <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="ACH min" FontSize="9" VerticalAlignment="Center"/>
+                                                <Slider Grid.Column="1" x:Name="sldHcUspAch" Minimum="6" Maximum="60" Value="30" TickFrequency="1"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldHcUspAch, StringFormat={}{0:F0}}" FontSize="9" VerticalAlignment="Center"/>
+                                            </Grid>
+                                            <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="ΔP (Pa)" FontSize="9" VerticalAlignment="Center"/>
+                                                <Slider Grid.Column="1" x:Name="sldHcUspDp" Minimum="-20" Maximum="20" Value="2.5" TickFrequency="0.5"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldHcUspDp, StringFormat={}{0:F1}}" FontSize="9" VerticalAlignment="Center"/>
+                                            </Grid>
+                                            <CheckBox Content="Has buffer room"  x:Name="chkHcUspBuffer"   IsChecked="True" Margin="0,4,0,0" FontSize="9"/>
+                                            <CheckBox Content="Has anteroom"     x:Name="chkHcUspAnteroom" IsChecked="True" Margin="0,2,0,0" FontSize="9"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border x:Name="cardHcBehavioural" Style="{StaticResource GroupBorder}" Margin="0,6,0,0" Visibility="Collapsed">
+                                        <StackPanel>
+                                            <TextBlock Text="Behavioural health — FGI Pt 2 / HBN 03-01" FontWeight="Bold" FontSize="9" Foreground="#5D4037"/>
+                                            <WrapPanel Margin="0,4,0,0">
+                                                <CheckBox Content="Use FGI Pt 2" x:Name="chkHcBhFgi" IsChecked="True" Margin="2" FontSize="9"/>
+                                                <CheckBox Content="Use HBN 03-01" x:Name="chkHcBhHbn" IsChecked="True" Margin="2" FontSize="9"/>
+                                            </WrapPanel>
+                                            <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Risk level" FontSize="9" VerticalAlignment="Center"/>
+                                                <Slider Grid.Column="1" x:Name="sldHcBhRiskLevel" Minimum="1" Maximum="5" Value="3" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldHcBhRiskLevel, StringFormat={}{0:F0}}" FontSize="9" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border x:Name="cardHcMortuary" Style="{StaticResource GroupBorder}" Margin="0,6,0,0" Visibility="Collapsed">
+                                        <StackPanel>
+                                            <TextBlock Text="Mortuary — HBN 16" FontWeight="Bold" FontSize="9" Foreground="#5D4037"/>
+                                            <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Bed count" FontSize="9" VerticalAlignment="Center"/>
+                                                <TextBox Grid.Column="1" x:Name="txtHcMortBeds" Text="200" FontSize="9" Height="22"/>
+                                            </Grid>
+                                            <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/><ColumnDefinition Width="60"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Bays % of beds" FontSize="9" VerticalAlignment="Center"/>
+                                                <Slider Grid.Column="1" x:Name="sldHcMortPctBays" Minimum="0.3" Maximum="1.0" Value="0.5" TickFrequency="0.1"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldHcMortPctBays, StringFormat={}{0:F2} %}" FontSize="9" VerticalAlignment="Center"/>
+                                            </Grid>
+                                            <TextBlock x:Name="lblHcMortRequired" FontSize="9" Foreground="#666" Margin="0,4,0,0" Text="Min bays will compute on Run"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border x:Name="cardHcMaternity" Style="{StaticResource GroupBorder}" Margin="0,6,0,0" Visibility="Collapsed">
+                                        <StackPanel>
+                                            <TextBlock Text="Maternity / NICU — HBN 21 / 09-03" FontWeight="Bold" FontSize="9" Foreground="#5D4037"/>
+                                            <WrapPanel Margin="0,4,0,0">
+                                                <CheckBox Content="Maternity"  x:Name="chkHcMatMaternity" IsChecked="True" Margin="2" FontSize="9"/>
+                                                <CheckBox Content="NICU"       x:Name="chkHcMatNicu"      IsChecked="True" Margin="2" FontSize="9"/>
+                                            </WrapPanel>
+                                            <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="NICU NR limit" FontSize="9" VerticalAlignment="Center"/>
+                                                <Slider Grid.Column="1" x:Name="sldHcMatNrLimit" Minimum="25" Maximum="45" Value="35" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldHcMatNrLimit, StringFormat={}NR≤{0:F0}}" FontSize="9" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border x:Name="cardHcHsdu" Style="{StaticResource GroupBorder}" Margin="0,6,0,0" Visibility="Collapsed">
+                                        <StackPanel>
+                                            <TextBlock Text="HSDU — HBN 13" FontWeight="Bold" FontSize="9" Foreground="#5D4037"/>
+                                            <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Room" FontSize="9" VerticalAlignment="Center"/>
+                                                <ComboBox Grid.Column="1" x:Name="cmbHcHsduRoom" FontSize="9" Height="22" IsEditable="True"/>
+                                            </Grid>
+                                            <WrapPanel Margin="0,4,0,0">
+                                                <CheckBox Content="Wash"     x:Name="chkHcHsduWashCheck"    IsChecked="True" Margin="2" FontSize="9"/>
+                                                <CheckBox Content="Pack"     x:Name="chkHcHsduPackCheck"    IsChecked="True" Margin="2" FontSize="9"/>
+                                                <CheckBox Content="Sterile"  x:Name="chkHcHsduSterileCheck" IsChecked="True" Margin="2" FontSize="9"/>
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border x:Name="cardHcDialysis" Style="{StaticResource GroupBorder}" Margin="0,6,0,0" Visibility="Collapsed">
+                                        <StackPanel>
+                                            <TextBlock Text="Dialysis — HBN 07-02" FontWeight="Bold" FontSize="9" Foreground="#5D4037"/>
+                                            <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Stations" FontSize="9" VerticalAlignment="Center"/>
+                                                <TextBox Grid.Column="1" x:Name="txtHcDialStations" Text="20" FontSize="9" Height="22"/>
+                                            </Grid>
+                                            <CheckBox Content="Require RO loop integrity" x:Name="chkHcDialRoLoopRequired" IsChecked="True" Margin="0,4,0,0" FontSize="9"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border x:Name="cardHcHbo" Style="{StaticResource GroupBorder}" Margin="0,6,0,0" Visibility="Collapsed">
+                                        <StackPanel>
+                                            <TextBlock Text="Hyperbaric / Cytotoxic / IVF — NFPA 99 Ch.14" FontWeight="Bold" FontSize="9" Foreground="#5D4037"/>
+                                            <WrapPanel Margin="0,4,0,0">
+                                                <RadioButton Content="HBO chamber"   GroupName="HcHboMode" x:Name="rbHcHboHbo"        IsChecked="True" Margin="2" FontSize="9"/>
+                                                <RadioButton Content="Cytotoxic"     GroupName="HcHboMode" x:Name="rbHcHboCytotoxic"  Margin="2" FontSize="9"/>
+                                                <RadioButton Content="IVF"           GroupName="HcHboMode" x:Name="rbHcHboIvf"        Margin="2" FontSize="9"/>
+                                            </WrapPanel>
+                                            <CheckBox Content="Require NFPA 99 Ch.14 compliance" x:Name="chkHcHboNfpaCh14" IsChecked="True" Margin="0,4,0,0" FontSize="9"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <WrapPanel Margin="0,8,0,0">
+                                        <Button x:Name="btnHcSpecialistRun" Style="{StaticResource GreenBtn}" Content="Run specialist audit" Tag="Healthcare_HybridOr" Click="HcSpecialistRun_Click" Width="160" Height="28"/>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- ============ 6. WORKFLOWS ============ -->
+                        <TabItem Header="Workflows">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel Margin="4">
+                                    <TextBlock Text="HEALTHCARE WORKFLOW PRESETS" FontWeight="Bold" FontSize="10" Foreground="#00838F" Margin="0,2,0,4"/>
+                                    <Border Style="{StaticResource GroupBorder}">
+                                        <StackPanel>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="Preset" FontSize="9" VerticalAlignment="Center"/>
+                                                <ComboBox Grid.Column="1" x:Name="cmbHcWorkflowPreset" FontSize="9" Height="22">
+                                                    <ComboBoxItem Content="HealthcareCommissioning" Tag="HealthcareCommissioning" IsSelected="True"/>
+                                                    <ComboBoxItem Content="MgasVerification"        Tag="MgasVerification"/>
+                                                    <ComboBoxItem Content="PressureRegimeAudit"     Tag="PressureRegimeAudit"/>
+                                                    <ComboBoxItem Content="RdsIssue"                Tag="RdsIssue"/>
+                                                    <ComboBoxItem Content="HTM-04-01-Annual"        Tag="HTM-04-01-Annual"/>
+                                                    <ComboBoxItem Content="AntiLigatureAudit"       Tag="AntiLigatureAudit"/>
+                                                    <ComboBoxItem Content="NFPA110-GeneratorTest"   Tag="NFPA110-GeneratorTest"/>
+                                                    <ComboBoxItem Content="HTM-01-06-EndoReprocess" Tag="HTM-01-06-EndoReprocess"/>
+                                                </ComboBox>
+                                            </Grid>
+                                            <WrapPanel Margin="0,4,0,0">
+                                                <CheckBox Content="Dry run"        x:Name="chkHcWfDryRun"     Margin="2" FontSize="9"/>
+                                                <CheckBox Content="Stop on fail"   x:Name="chkHcWfStopOnFail" IsChecked="True" Margin="2" FontSize="9"/>
+                                            </WrapPanel>
+                                            <WrapPanel Margin="0,6,0,0">
+                                                <Button Style="{StaticResource GreenBtn}"  Content="Run preset"     Tag="WorkflowPreset"      Click="Cmd_Click" Width="90" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="List"           Tag="ListWorkflowPresets" Click="Cmd_Click" Width="60" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Trend"          Tag="WorkflowTrend"       Click="Cmd_Click" Width="60" Height="26"/>
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <TextBlock Text="RECENT RUNS" FontWeight="Bold" FontSize="9" Foreground="#888" Margin="0,8,0,4"/>
+                                    <DataGrid x:Name="dgHcWfHistory"
+                                              AutoGenerateColumns="False"
+                                              CanUserAddRows="False"
+                                              IsReadOnly="True"
+                                              FontSize="9"
+                                              MaxHeight="200">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Timestamp" Binding="{Binding Timestamp}" Width="140"/>
+                                            <DataGridTextColumn Header="Preset"    Binding="{Binding Preset}"    Width="160"/>
+                                            <DataGridTextColumn Header="OK / Fail" Binding="{Binding StepCount}" Width="80"/>
+                                            <DataGridTextColumn Header="Duration"  Binding="{Binding Duration}"  Width="80"/>
+                                            <DataGridTextColumn Header="Δ %"       Binding="{Binding ComplianceDelta}" Width="*"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                    <TextBlock x:Name="lblHcWfNextSla" FontSize="9" Foreground="#666" Margin="2,4,0,0" Text="SLA scanner — wired in Workflows tab"/>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                    </TabControl>
+                </DockPanel>
             </TabItem>
 
         </TabControl>

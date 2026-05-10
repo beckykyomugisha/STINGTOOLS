@@ -13,6 +13,18 @@ namespace StingTools.Core.Validation.Healthcare
         public override string Name => "PressureRegimeValidator";
         private const string Tag = "PressureRegimeValidator";
 
+        // ── Configurable thresholds (Hc.* slider/checkbox bound) ────────
+        // Defaults preserve historic behaviour. Wrapping command sets these
+        // from HcOptions before Validate(doc).
+        //   DpMinFloorPa  > 0  ⇒  also flag rooms whose actual ΔP is below
+        //                         this floor when no per-class HTM design value
+        //                         exists. 0 disables.
+        //   AchMinFloor   > 0  ⇒  same idea for ACH.
+        //   AnteroomStrict false ⇒ rule 5 demoted to Info severity (still surfaced).
+        public double DpMinFloorPa { get; set; } = 0;
+        public double AchMinFloor  { get; set; } = 0;
+        public bool   AnteroomStrict { get; set; } = true;
+
         public override List<ValidationResult> Validate(Document doc)
         {
             var res = new List<ValidationResult>();
@@ -75,9 +87,31 @@ namespace StingTools.Core.Validation.Healthcare
                 if ((infect == "AIIR" || infect == "PE") &&
                     string.IsNullOrEmpty(GetParam(r, "CLN_ANTERM_LINKED_ID_TXT")))
                 {
-                    res.Add(new ValidationResult(r.Id, ValidationSeverity.Warning,
+                    res.Add(new ValidationResult(r.Id,
+                        AnteroomStrict ? ValidationSeverity.Warning : ValidationSeverity.Info,
                         "CLN.ANTERM.MISSING",
                         $"{infect} room {r.Name} missing linked anteroom (CLN_ANTERM_LINKED_ID_TXT empty)",
+                        Tag));
+                }
+
+                // 6. Global ΔP / ACH floor (Hc.DpMinPa / Hc.AchMin sliders).
+                // Only fires when (a) the slider is non-zero, AND (b) HTM has
+                // no per-class design value to compare against — so we don't
+                // contradict the per-class checks above.
+                if (DpMinFloorPa > 0 && !dPaDesign.HasValue && dPaActual.HasValue
+                    && dPaActual.Value < DpMinFloorPa)
+                {
+                    res.Add(new ValidationResult(r.Id, ValidationSeverity.Info,
+                        "CLN.PRESS.DELTA_BELOW_FLOOR",
+                        $"Room {r.Name} ΔP={dPaActual:F1} Pa < panel floor {DpMinFloorPa:F1} Pa",
+                        Tag));
+                }
+                if (AchMinFloor > 0 && !achMin.HasValue && achActual.HasValue
+                    && achActual.Value < AchMinFloor)
+                {
+                    res.Add(new ValidationResult(r.Id, ValidationSeverity.Info,
+                        "CLN.ACH.BELOW_FLOOR",
+                        $"Room {r.Name} ACH={achActual:F1} < panel floor {AchMinFloor:F0}",
                         Tag));
                 }
             }
