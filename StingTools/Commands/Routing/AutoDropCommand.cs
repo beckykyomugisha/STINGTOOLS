@@ -247,10 +247,13 @@ namespace StingTools.Commands.Routing
                     return "Electrical";
 
                 case BuiltInCategory.OST_PlumbingFixtures:
+                case BuiltInCategory.OST_PlumbingEquipment:
+                case BuiltInCategory.OST_PipeAccessory:
                 case BuiltInCategory.OST_Sprinklers:
                     return "Plumbing";
 
                 case BuiltInCategory.OST_DuctTerminal:
+                case BuiltInCategory.OST_DuctAccessory:
                 case BuiltInCategory.OST_MechanicalEquipment:
                     return "HVAC";
             }

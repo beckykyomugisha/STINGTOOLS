@@ -163,7 +163,10 @@ namespace StingTools.Core.Symbols
                     tx.Start();
                     DrawGeometry(fdoc, def, result);
                     AddParameters(fdoc, def, result);
-                    if (def.Connectors != null && def.Connectors.Count > 0
+                    bool hasSymbolConnectors  = def.Connectors != null && def.Connectors.Count > 0;
+                    bool hasVariantConnectors = def.TypeVariants != null
+                        && def.TypeVariants.Exists(v => v?.Connectors != null && v.Connectors.Count > 0);
+                    if ((hasSymbolConnectors || hasVariantConnectors)
                         && !string.Equals(def.FamilyType, "GenericAnnotation", StringComparison.OrdinalIgnoreCase))
                     {
                         AddConnectors(fdoc, def, result);
@@ -580,10 +583,31 @@ namespace StingTools.Core.Symbols
 
         private static void AddConnectors(Document fdoc, SymbolDefinition def, SymbolCreationResult result)
         {
+            AddConnectorList(fdoc, def, def.Connectors, result, sourceLabel: "symbol");
+            // Phase 178e — fold variant-level connector declarations
+            // into the same family doc. Connectors live on the family,
+            // not on a type, so the union of all variants ends up
+            // visible to every variant; per-variant differentiation
+            // happens via parameter values (size / system type) that
+            // AutoPipeDrop reads at routing time.
+            if (def.TypeVariants != null)
+            {
+                foreach (var v in def.TypeVariants)
+                {
+                    if (v?.Connectors == null || v.Connectors.Count == 0) continue;
+                    AddConnectorList(fdoc, def, v.Connectors, result, sourceLabel: $"variant '{v.Name}'");
+                }
+            }
+        }
+
+        private static void AddConnectorList(Document fdoc, SymbolDefinition def,
+            List<ConnectorDefinition> connectors, SymbolCreationResult result, string sourceLabel)
+        {
             if (!fdoc.IsFamilyDocument) return;
+            if (connectors == null) return;
             double s = def.SymbolSize > 0 ? def.SymbolSize : 3.0;
 
-            foreach (var c in def.Connectors)
+            foreach (var c in connectors)
             {
                 if (c == null) continue;
                 try
@@ -631,7 +655,7 @@ namespace StingTools.Core.Symbols
                                 refLine.GeometryCurve.GetEndPointReference(0));
                             break;
                         default:
-                            result.Warnings.Add($"{def.Id}: unsupported connector domain '{c.Domain}'");
+                            result.Warnings.Add($"{def.Id} [{sourceLabel}]: unsupported connector domain '{c.Domain}'");
                             break;
                     }
 
@@ -643,7 +667,7 @@ namespace StingTools.Core.Symbols
                 }
                 catch (Exception ex)
                 {
-                    result.Warnings.Add($"{def.Id}: connector ({c.Domain}/{c.SystemType}) failed — {ex.Message}");
+                    result.Warnings.Add($"{def.Id} [{sourceLabel}]: connector ({c.Domain}/{c.SystemType}) failed — {ex.Message}");
                 }
             }
         }

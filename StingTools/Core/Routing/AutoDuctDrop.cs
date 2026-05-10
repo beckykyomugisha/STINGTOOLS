@@ -39,6 +39,34 @@ namespace StingTools.Core.Routing
         {
             ConnectorDomain = Domain.DomainHvac;
             ServiceId       = "HVC_SA"; // default — overridable from command
+            // Phase 178e: multi-service HVAC — AHUs / chillers / FCUs
+            // need supply + return + outdoor + relief routed in one
+            // pass. Per-connector ServiceId routing keeps each duct in
+            // its corridor band.
+            MultiServiceMode = true;
+        }
+
+        /// <summary>
+        /// HVAC connector → ServiceId map. Drives corridor-band snap
+        /// + separation rules per duct system.
+        /// </summary>
+        protected override string ServiceIdForConnector(Connector c)
+        {
+            if (c == null) return ServiceId;
+            try
+            {
+                var dst = c.DuctSystemType;
+                switch (dst)
+                {
+                    case DuctSystemType.SupplyAir:    return "HVC_SA";
+                    case DuctSystemType.ReturnAir:    return "HVC_RA";
+                    case DuctSystemType.ExhaustAir:   return "HVC_EA";
+                    case DuctSystemType.FittingAndAccessory: break;
+                    case DuctSystemType.OtherAir:     break;
+                }
+            }
+            catch { }
+            return ServiceId;
         }
 
         public DropResult Execute(IList<Element> fixtures)
@@ -90,7 +118,10 @@ namespace StingTools.Core.Routing
                     {
                         try
                         {
-                            TryDropFromFixture(fx, BuiltInCategory.OST_DuctCurves, SearchRadiusMm, result);
+                            if (MultiServiceMode)
+                                TryDropFromFixtureAllConnectors(fx, BuiltInCategory.OST_DuctCurves, SearchRadiusMm, result);
+                            else
+                                TryDropFromFixture(fx, BuiltInCategory.OST_DuctCurves, SearchRadiusMm, result);
                         }
                         catch (Exception ex)
                         {

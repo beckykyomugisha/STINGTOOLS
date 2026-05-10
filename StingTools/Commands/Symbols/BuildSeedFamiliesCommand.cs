@@ -58,6 +58,13 @@ namespace StingTools.Commands.Symbols
             "STING_SEED_CommunicationDevice.json",
             // Automation seed — auto-placed at BS 7671 §522.8.5 break-points
             "STING_SEED_JunctionBox.json",
+            // Phase 178e tier-3 — central plumbing plant, medical-gas
+            // outlets, and emergency / lab fixtures. Each ships the
+            // worst-case connector union so AutoPipeDrop wires every
+            // service in one pass.
+            "STING_SEED_PlumbingEquipment.json",
+            "STING_SEED_MedGasOutlet.json",
+            "STING_SEED_LabFixture.json",
         };
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
@@ -105,6 +112,18 @@ namespace StingTools.Commands.Symbols
                     perSeed.Add((seedName, 0, 1, 0));
                 }
             }
+
+            // Phase 178e — connector audit. Walks each loaded seed
+            // family and confirms the connector count declared in the
+            // JSON matches what landed on the .rfa. Catches the
+            // ConnectorElement.Create… reflection failures that
+            // SymbolLibraryCreator silently warns on.
+            try
+            {
+                var auditWarnings = AuditLoadedSeedConnectors(doc, specs);
+                aggregate.Warnings.AddRange(auditWarnings);
+            }
+            catch (Exception ex) { StingLog.Warn($"Connector audit: {ex.Message}"); }
 
             ShowResult(aggregate, perSeed, outRoot);
 
@@ -206,6 +225,91 @@ namespace StingTools.Commands.Symbols
                 .Text("Run 'Swap to Manufacturer' to replace seeds with real families once procurement decides.")
                 .Text("Re-run this command after editing JSON specs — existing .rfa files are overwritten.");
             panel.Show();
+        }
+
+        /// <summary>
+        /// Phase 178e — connector audit. For each seed JSON, count the
+        /// connectors declared at symbol level + every variant level,
+        /// then walk the matching loaded family in the project doc and
+        /// confirm at least that many connectors landed. Returns a
+        /// list of warning strings; empty when every seed matches.
+        /// </summary>
+        private static List<string> AuditLoadedSeedConnectors(Autodesk.Revit.DB.Document doc, IList<string> specs)
+        {
+            var warnings = new List<string>();
+            if (doc == null || specs == null) return warnings;
+
+            foreach (var specPath in specs)
+            {
+                try
+                {
+                    if (!File.Exists(specPath)) continue;
+                    string raw = File.ReadAllText(specPath);
+                    var token = Newtonsoft.Json.Linq.JToken.Parse(raw);
+                    var symbols = token["symbols"] as Newtonsoft.Json.Linq.JArray;
+                    if (symbols == null) continue;
+                    foreach (var sym in symbols)
+                    {
+                        string id = (string)sym["id"];
+                        if (string.IsNullOrEmpty(id)) continue;
+                        int declared = 0;
+                        var symConn = sym["connectors"] as Newtonsoft.Json.Linq.JArray;
+                        if (symConn != null) declared += symConn.Count;
+                        var variants = sym["typeVariants"] as Newtonsoft.Json.Linq.JArray;
+                        if (variants != null)
+                        {
+                            foreach (var v in variants)
+                            {
+                                var vc = v["connectors"] as Newtonsoft.Json.Linq.JArray;
+                                if (vc != null) declared += vc.Count;
+                            }
+                        }
+                        if (declared == 0) continue; // nothing to audit
+
+                        // Locate the matching family in the active document.
+                        Autodesk.Revit.DB.Family fam = null;
+                        try
+                        {
+                            foreach (var f in new Autodesk.Revit.DB.FilteredElementCollector(doc)
+                                .OfClass(typeof(Autodesk.Revit.DB.Family)))
+                            {
+                                if (f is Autodesk.Revit.DB.Family ff &&
+                                    string.Equals(ff.Name, id, StringComparison.OrdinalIgnoreCase))
+                                { fam = ff; break; }
+                            }
+                        }
+                        catch { fam = null; }
+                        if (fam == null)
+                        {
+                            warnings.Add($"Connector audit: family '{id}' is not loaded — skipped.");
+                            continue;
+                        }
+
+                        // Open the family doc, count ConnectorElements.
+                        int actual = 0;
+                        try
+                        {
+                            var fdoc = doc.EditFamily(fam);
+                            try
+                            {
+                                actual = new Autodesk.Revit.DB.FilteredElementCollector(fdoc)
+                                    .OfClass(typeof(Autodesk.Revit.DB.ConnectorElement))
+                                    .GetElementCount();
+                            }
+                            finally { try { fdoc.Close(false); } catch { } }
+                        }
+                        catch (Exception ex) { warnings.Add($"Connector audit: '{id}' — open family failed: {ex.Message}"); continue; }
+
+                        if (actual < declared)
+                        {
+                            warnings.Add($"Connector audit: '{id}' declares {declared} connector(s) " +
+                                $"but the loaded family has {actual} — verify ConnectorElement minting + family-editor finish.");
+                        }
+                    }
+                }
+                catch (Exception ex) { warnings.Add($"Connector audit on '{specPath}': {ex.Message}"); }
+            }
+            return warnings;
         }
     }
 }

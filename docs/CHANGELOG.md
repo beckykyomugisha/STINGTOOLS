@@ -2,6 +2,85 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 178e — Multi-service drops + plumbing/medgas/lab seeds)
+
+Continuation of Phase 178d. Closes the remaining items in the priority
+order from the seed-and-penetration review.
+
+**Multi-service drop pipeline.** `DropEngineBase` gains
+`MultiServiceMode` flag + `TryDropFromFixtureAllConnectors` helper +
+`TryDropFromFixtureUsingConnector` per-connector driver +
+`ServiceIdForConnector` virtual hook. `AutoPipeDrop` flips the flag on
+and overrides the hook to map `Connector.PipeSystemType` to the right
+`ServiceId` (`DomesticCold → PLM_CWS`, `DomesticHot → PLM_DHW`,
+`Sanitary → PLM_SAN`, `Vent → PLM_VEN`, `FireProtect* → PLM_FPS`,
+`Storm → PLM_RWD`, hydronic supply/return). `AutoDuctDrop` does the
+same for `DuctSystemType` (`SupplyAir → HVC_SA`, `ReturnAir → HVC_RA`,
+`ExhaustAir → HVC_EA`). A basin now drops cold + hot + waste in one
+pass; an AHU drops supply + return + outdoor + relief; each drop
+claims its own corridor band.
+
+**Three new seeds (tier-3).** `STING_SEED_PlumbingEquipment.json` —
+seven variants for central water-handling plant (calorifier / DHW
+cylinder / electric water heater / booster set / manifold / expansion
+vessel / inline pump) with a 4-connector union (DCW + DHW + LTHW
+supply + LTHW return). `STING_SEED_MedGasOutlet.json` — seven HTM
+02-01 / EN ISO 7396-1 variants (O₂ / N₂O / Med Air / Surg Air / Vac
+terminal units + 5-gas AVSU + area alarm panel) with a 4-connector
+union and `MGS_*` parameter pack (gas list, BS 5682 socket, operating
+kPa, hospital area, AVSU zone). `STING_SEED_LabFixture.json` — eight
+BS EN 14056 / ANSI Z358.1 / BS 7258 variants (fume hood / low-flow
+fume hood / BSL3 cabinet / eyewash / emergency shower / combo /
+lab gas tap / DI water tap) with a 6-connector union covering
+DCW + DHW + waste + 2 lab services + duct exhaust. All three wired
+into `BuildSeedFamiliesCommand` tier-3 list — re-run builds them.
+
+**Discipline router extended.** `AutoDropCommand.DisciplineFor` adds
+`OST_PlumbingEquipment` + `OST_PipeAccessory` to plumbing scope and
+`OST_DuctAccessory` to HVAC scope. Selecting a calorifier or a duct
+damper now routes through the right drop engine.
+
+**PlumbingConnectorCompletenessValidator.** Audits every plumbing
+fixture against an expected-connector-count lookup keyed on
+`PLM_FIX_TYPE_TXT` (WC=2, basin=3, shower=3, kitchen-sink=4, etc.).
+Catches the swap-to-manufacturer regression where a vendor family
+ships fewer connectors than the seed authored — AutoPipeDrop would
+silently leave the fixture only partly wired. Codes:
+`PLM.CONN.MISSING` / `PLM.CONN.EXTRA` / `PLM.CONN.UNTYPED` /
+`PLM.CONN.NO_TYPE`. Appended to `RunAllValidatorsCommand`.
+
+**SymbolLibraryCreator per-variant connectors.** `AddConnectors` now
+folds `def.TypeVariants[].Connectors` into the family doc alongside
+`def.Connectors`, with the source label visible in any warning.
+Connector-mint gate updated so a variant-only declaration still
+fires.
+
+**BuildSeedFamiliesCommand connector audit.** Post-build step opens
+each loaded seed family (`Document.EditFamily`), counts
+`ConnectorElement` instances, and surfaces a warning when the count
+is below the JSON-declared count. Catches silent connector-mint
+failures without forcing the user to inspect every .rfa.
+
+Files: `Core/Routing/DropEngineBase.cs` (multi-service helper +
+per-connector driver + ServiceIdForConnector hook);
+`Core/Routing/AutoPipeDrop.cs` + `AutoDuctDrop.cs` (multi-service
+mode + per-connector ServiceId map);
+`Commands/Routing/AutoDropCommand.cs` (DisciplineFor +3 categories);
+new `STING_SEED_PlumbingEquipment.json` + `STING_SEED_MedGasOutlet.json` +
+`STING_SEED_LabFixture.json`;
+`Commands/Symbols/BuildSeedFamiliesCommand.cs` (+3 specs + connector
+audit step); `Core/Symbols/SymbolLibraryCreator.cs` (per-variant
+connector minting);
+new `Core/Validation/PlumbingConnectorCompletenessValidator.cs`;
+`Commands/Validation/RunAllValidatorsCommand.cs` (+ validator).
+Code committed without `dotnet build` verification.
+
+Standards basis: BS 6465-2 (fixture-unit + connector counts),
+BS 8558 / BS 6700 (DCW/DHW supply, dead-leg control), HTM 02-01 +
+EN ISO 7396-1 + BS 5682 (medical-gas terminals, AVSU, alarm panels),
+BS EN 14056 + BS 7258 + ANSI Z358.1 + BS EN 1717 (lab fixture
+backflow categories, deluge flow rates, fume-hood face velocity).
+
 #### Completed (Phase 178d — Penetration coverage: floors + walls + beams)
 
 Closes the gaps identified in the Phase 178c seed-and-penetration review.

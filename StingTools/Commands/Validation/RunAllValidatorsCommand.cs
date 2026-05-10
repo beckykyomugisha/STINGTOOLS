@@ -50,6 +50,10 @@ namespace StingTools.Commands.Validation
                 all.AddRange(StingTools.Core.Validation.Healthcare.RunAllHealthcareValidators.Validate(doc));
                 // Phase 178d — penetration coverage (slab + wall + beam fire-stop sweep).
                 all.AddRange(StingTools.Core.Validation.PenetrationCoverageValidator.Validate(doc));
+                // Phase 178e — plumbing-fixture connector completeness (catches
+                // swap-to-manufacturer regressions where a vendor family ships
+                // fewer connectors than the seed authored).
+                all.AddRange(StingTools.Core.Validation.PlumbingConnectorCompletenessValidator.Validate(doc));
             }
             catch (Exception ex)
             {
