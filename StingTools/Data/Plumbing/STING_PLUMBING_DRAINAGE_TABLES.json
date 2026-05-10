@@ -1,0 +1,99 @@
+{
+  "version": "179a",
+  "description": "BS EN 12056-2 / IPC 2021 drainage sizing tables. Driven by DrainageSizer + VentDesigner + StackCapacityValidator. Phase 179a foundation.",
+  "kFactors": {
+    "Dwelling":     0.5,
+    "Office":       0.5,
+    "Hospital":     0.7,
+    "School":       0.7,
+    "Hotel":        0.7,
+    "Restaurant":   1.0,
+    "Factory":      1.0,
+    "Sports":       1.0,
+    "PublicWC":     1.2,
+    "Custom":       0.7
+  },
+  "kFactorLabels": {
+    "0.5":  "Intermittent (BS EN 12056-2 §6.3.1)",
+    "0.7":  "Frequent",
+    "1.0":  "Congested",
+    "1.2":  "Special / public WC"
+  },
+  "fixtureUnits": [
+    { "key": "WC_6L",                 "displayName": "WC (6 L cistern)",            "du": 2.0,  "luCw": 1.0, "luHw": 0.0, "wsfu": 5.0,  "trapMm": 50, "categoryHints": ["wc","toilet","water closet"] },
+    { "key": "WC_4L",                 "displayName": "WC (4 L cistern)",            "du": 1.8,  "luCw": 1.0, "luHw": 0.0, "wsfu": 4.0,  "trapMm": 50, "categoryHints": ["wc 4l"] },
+    { "key": "WC_FLUSH_VALVE",        "displayName": "WC (flush valve)",            "du": 2.5,  "luCw": 4.0, "luHw": 0.0, "wsfu": 10.0, "trapMm": 50, "categoryHints": ["flushometer","flush valve wc"] },
+    { "key": "URINAL_BOWL",           "displayName": "Urinal (bowl)",               "du": 0.5,  "luCw": 0.5, "luHw": 0.0, "wsfu": 1.0,  "trapMm": 38, "categoryHints": ["urinal"] },
+    { "key": "URINAL_TROUGH_PERSON",  "displayName": "Urinal trough (per person)",  "du": 0.2,  "luCw": 0.2, "luHw": 0.0, "wsfu": 0.5,  "trapMm": 38, "categoryHints": ["trough"] },
+    { "key": "BASIN",                 "displayName": "Wash basin",                  "du": 0.5,  "luCw": 1.0, "luHw": 1.0, "wsfu": 0.7,  "trapMm": 32, "categoryHints": ["basin","whb","lavatory"] },
+    { "key": "BIDET",                 "displayName": "Bidet",                       "du": 0.5,  "luCw": 1.0, "luHw": 1.0, "wsfu": 1.0,  "trapMm": 32, "categoryHints": ["bidet"] },
+    { "key": "BATH",                  "displayName": "Bath",                        "du": 0.8,  "luCw": 4.0, "luHw": 4.0, "wsfu": 2.0,  "trapMm": 40, "categoryHints": ["bath","tub"] },
+    { "key": "SHOWER_NO_PLUG",        "displayName": "Shower (no plug)",            "du": 0.6,  "luCw": 2.0, "luHw": 2.0, "wsfu": 1.4,  "trapMm": 40, "categoryHints": ["shower"] },
+    { "key": "SHOWER_WITH_PLUG",      "displayName": "Shower (with plug)",          "du": 0.8,  "luCw": 2.0, "luHw": 2.0, "wsfu": 1.4,  "trapMm": 40, "categoryHints": ["shower plug"] },
+    { "key": "KITCHEN_SINK",          "displayName": "Kitchen sink",                "du": 0.8,  "luCw": 2.0, "luHw": 2.0, "wsfu": 1.5,  "trapMm": 40, "categoryHints": ["sink","kitchen"] },
+    { "key": "DISHWASHER_DOM",        "displayName": "Dishwasher (domestic)",       "du": 0.8,  "luCw": 1.0, "luHw": 0.0, "wsfu": 1.4,  "trapMm": 40, "categoryHints": ["dishwasher"] },
+    { "key": "WASHING_MACHINE_DOM",   "displayName": "Washing machine (domestic)",  "du": 0.8,  "luCw": 2.0, "luHw": 2.0, "wsfu": 1.4,  "trapMm": 40, "categoryHints": ["washing","laundry"] },
+    { "key": "WASHING_MACHINE_COMM",  "displayName": "Washing machine (commercial)","du": 1.5,  "luCw": 4.0, "luHw": 4.0, "wsfu": 4.0,  "trapMm": 50, "categoryHints": ["clothes washer","commercial laundry"] },
+    { "key": "FLOOR_DRAIN_50",        "displayName": "Floor drain DN50",            "du": 0.8,  "luCw": 0.0, "luHw": 0.0, "wsfu": 0.0,  "trapMm": 50, "categoryHints": ["floor drain"] },
+    { "key": "FLOOR_DRAIN_75",        "displayName": "Floor drain DN75",            "du": 1.5,  "luCw": 0.0, "luHw": 0.0, "wsfu": 0.0,  "trapMm": 75, "categoryHints": ["gully"] },
+    { "key": "FLOOR_DRAIN_100",       "displayName": "Floor drain DN100",           "du": 2.0,  "luCw": 0.0, "luHw": 0.0, "wsfu": 0.0,  "trapMm": 100,"categoryHints": ["channel drain"] },
+    { "key": "BUTLER_SINK",           "displayName": "Butler sink",                 "du": 1.5,  "luCw": 3.0, "luHw": 3.0, "wsfu": 2.5,  "trapMm": 40, "categoryHints": ["butler"] },
+    { "key": "MOP_SINK",              "displayName": "Mop / cleaner's sink",        "du": 1.5,  "luCw": 3.0, "luHw": 3.0, "wsfu": 2.5,  "trapMm": 50, "categoryHints": ["mop","janitor"] }
+  ],
+  "minSlopePct": [
+    { "dnMm": 32,   "branchPct": 2.0, "mainPct": 4.0 },
+    { "dnMm": 40,   "branchPct": 2.0, "mainPct": 4.0 },
+    { "dnMm": 50,   "branchPct": 2.0, "mainPct": 4.0 },
+    { "dnMm": 75,   "branchPct": 1.25,"mainPct": 2.5 },
+    { "dnMm": 100,  "branchPct": 1.0, "mainPct": 2.0 },
+    { "dnMm": 125,  "branchPct": 0.5, "mainPct": 1.0 },
+    { "dnMm": 150,  "branchPct": 0.67,"mainPct": 1.0 }
+  ],
+  "branchSizeBsEn": [
+    { "duMax": 0.5,  "dnMm": 32 },
+    { "duMax": 1.5,  "dnMm": 40 },
+    { "duMax": 4.0,  "dnMm": 50 },
+    { "duMax": 6.0,  "dnMm": 75 },
+    { "duMax": 20.0, "dnMm": 100 },
+    { "duMax": 9999, "dnMm": 125 }
+  ],
+  "stackCapacity": [
+    { "dnMm": 50,  "duMax": 1.5 },
+    { "dnMm": 75,  "duMax": 4.0 },
+    { "dnMm": 100, "duMax": 6.0 },
+    { "dnMm": 125, "duMax": 12.0 },
+    { "dnMm": 150, "duMax": 20.0 },
+    { "dnMm": 200, "duMax": 50.0 },
+    { "dnMm": 250, "duMax": 100.0 }
+  ],
+  "trapArmMaxLengthM": [
+    { "dnMm": 32,  "lengthM": 1.7 },
+    { "dnMm": 40,  "lengthM": 3.0 },
+    { "dnMm": 50,  "lengthM": 4.0 },
+    { "dnMm": 75,  "lengthM": 5.0 },
+    { "dnMm": 100, "lengthM": 6.0 }
+  ],
+  "aavMaxDuClass": [
+    { "class": "A1", "duMax": 6.0,   "scope": "single fixture / single branch" },
+    { "class": "A2", "duMax": 24.0,  "scope": "branch / small stack" },
+    { "class": "A3", "duMax": 90.0,  "scope": "stack / building drain" }
+  ],
+  "ventSizeBsEn": [
+    { "drainDnMm": 50,  "ventDnMm": 32 },
+    { "drainDnMm": 75,  "ventDnMm": 40 },
+    { "drainDnMm": 100, "ventDnMm": 50 },
+    { "drainDnMm": 125, "ventDnMm": 65 },
+    { "drainDnMm": 150, "ventDnMm": 75 }
+  ],
+  "fillingRatio": {
+    "maxNormalHd": 0.50,
+    "maxVentilatedHd": 0.70,
+    "selfCleansingMinMps": 0.7,
+    "maxMps": 3.5
+  },
+  "burialMinMm": {
+    "highway":       1200,
+    "softLandscape": 600,
+    "underBuilding": 150
+  }
+}
