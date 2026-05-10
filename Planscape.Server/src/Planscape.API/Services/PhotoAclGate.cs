@@ -39,11 +39,12 @@ public static class PhotoAclGate
     };
 
     public sealed record AclProbe(
-        bool        BypassesAcl,
-        string      Role,
-        Guid?       UserId,
+        bool          BypassesAcl,
+        string        Role,
+        Guid?         UserId,
         HashSet<Guid> MemberOfGroupIds,
-        string?     DisciplineHint);
+        string?       DisciplineHint,
+        HashSet<Guid> NdaAcceptedPhotoIds);
 
     /// <summary>Build the per-request probe: caller's role / user-id /
     /// group memberships / first discipline. Hits two indexed queries.</summary>
@@ -89,7 +90,19 @@ public static class PhotoAclGate
                 discipline = ProjectMember.ParseAllowList(member.AllowedDisciplines)?.FirstOrDefault();
         }
 
-        return new AclProbe(bypass, role, userId, groups, discipline);
+        // NDA acceptance set — only fetched for non-bypass callers since
+        // bypass skips the rule check entirely.
+        HashSet<Guid> ndaAccepted = new();
+        if (!bypass && userId.HasValue)
+        {
+            ndaAccepted = (await db.PhotoNdaAcceptances.AsNoTracking()
+                .Where(a => a.UserId == userId.Value)
+                .Select(a => a.PhotoId)
+                .ToListAsync(ct))
+                .ToHashSet();
+        }
+
+        return new AclProbe(bypass, role, userId, groups, discipline, ndaAccepted);
     }
 
     /// <summary>
@@ -122,14 +135,14 @@ public static class PhotoAclGate
             bool allowed = true;
             foreach (var rule in ruleSet)
             {
-                if (!RulePasses(rule, probe, now)) { allowed = false; break; }
+                if (!RulePasses(rule, pid, probe, now)) { allowed = false; break; }
             }
             if (allowed) visible.Add(pid);
         }
         return visible;
     }
 
-    private static bool RulePasses(PhotoAccessRule rule, AclProbe probe, DateTime nowUtc)
+    private static bool RulePasses(PhotoAccessRule rule, Guid photoId, AclProbe probe, DateTime nowUtc)
     {
         if (rule.VisibleFrom.HasValue && nowUtc < rule.VisibleFrom.Value) return false;
         if (rule.VisibleUntil.HasValue && nowUtc > rule.VisibleUntil.Value) return false;
@@ -153,10 +166,35 @@ public static class PhotoAclGate
             if (!allowed.Any(d => string.Equals(d, probe.DisciplineHint, StringComparison.OrdinalIgnoreCase))) return false;
         }
 
-        // RequiresNdaAcceptance — for now we don't gate fetch on prior
-        // acceptance (the audit-trail flag exists but acceptance UI is a
-        // follow-up). Returning true here matches the documented Phase
-        // 179 behaviour.
+        // Phase 179.2 — NDA gate. When the rule requires acceptance,
+        // the caller must have a row in PhotoNdaAcceptances for this
+        // photo. The probe pre-fetched the user's accepted set so this
+        // is a cheap HashSet lookup.
+        if (rule.RequiresNdaAcceptance)
+        {
+            if (!probe.NdaAcceptedPhotoIds.Contains(photoId)) return false;
+        }
         return true;
+    }
+
+    /// <summary>
+    /// Returns the subset of input photo ids that REQUIRE NDA acceptance
+    /// from the calling user (i.e. at least one rule has
+    /// <c>RequiresNdaAcceptance = true</c> and the user has not yet
+    /// accepted). Mobile / desktop UIs use this to surface the
+    /// "Accept &amp; view" prompt before the fetch.
+    /// </summary>
+    public static async Task<HashSet<Guid>> NdaRequiredAsync(
+        PlanscapeDbContext db,
+        IReadOnlyCollection<Guid> photoIds,
+        AclProbe probe,
+        CancellationToken ct = default)
+    {
+        if (photoIds.Count == 0 || probe.BypassesAcl) return new HashSet<Guid>();
+        var rules = await db.PhotoAccessRules.AsNoTracking()
+            .Where(r => photoIds.Contains(r.PhotoId) && r.RequiresNdaAcceptance)
+            .Select(r => r.PhotoId)
+            .ToListAsync(ct);
+        return rules.Where(id => !probe.NdaAcceptedPhotoIds.Contains(id)).ToHashSet();
     }
 }

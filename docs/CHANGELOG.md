@@ -89,19 +89,45 @@ PDF / mobile.
   documents `dotnet build`, EF snapshot regeneration, migration
   smoke-test, plugin compile, mobile type-check, and rollback.
 
+**Phase 179.2 — follow-up clearance (same branch)**
+
+- **NDA gate at fetch time** — new `PhotoNdaAcceptances` table
+  (composite PK on PhotoId+UserId, FK cascade from both); new
+  `POST /api/projects/{pid}/photos/{phid}/accept-nda` endpoint
+  (idempotent, captures IP + UA + optional accepted-text SHA256);
+  `PhotoAclGate.AclProbe` pre-fetches the user's accepted-photo set
+  in one query; `RulePasses` rejects when a rule has
+  `RequiresNdaAcceptance = true` and the user is not in the set.
+  v1 `/file` and `/photos/{id}` return `403 { error: "nda_required",
+  photoId }` when the gate trips; v1 list returns a sibling
+  `ndaRequiredIds` array so smart clients can render the lock badge
+  without round-tripping. New helper
+  `PhotoAclGate.NdaRequiredAsync()` centralises the check.
+- **Mobile NDA acceptance UI** — new
+  `src/components/site-photos/NdaPromptModal.tsx` (one-tap accept
+  with audit logging); `gallery.tsx` paints a 🔒 NDA tile for
+  every id in the new `ndaRequiredIds` array, tapping opens the
+  modal, accept POSTs `/accept-nda`, the list reloads, and the
+  viewer opens automatically. Existing `acceptPhotoNda()` wrapper
+  added to `endpoints.ts`.
+- **Mobile checklist auto-link** — `checklist-detail.tsx` now
+  passes `checklistId`, `checklistItemId`, and `defaultReason`
+  through to capture. `capture.tsx` pre-selects the item's
+  default reason, auto-calls `fulfilChecklistItem` after a
+  successful upload, and shows a "✓ Linked to your checklist
+  item" confirmation. Offline path queues a new
+  `FULFIL_CHECKLIST_ITEM` action plus stashes the ids in the
+  `CAPTURE_SITE_PHOTO` payload so replay calls fulfilment as soon
+  as the photo lands.
+
 **Remaining caveats**
 
 1. Built without `dotnet build` verification (Linux sandbox, no Revit
-   API). Verify in Revit before merge — see `docs/PHOTO_WORKFLOW_DEPLOY.md`
-   for the full sequence.
+   API). Verify in Revit before merge — see
+   `docs/PHOTO_WORKFLOW_DEPLOY.md` for the full sequence.
 2. The EF model snapshot file is not regenerated — first deploy must
    run `dotnet ef migrations add` to refresh
    `PlanscapeDbContextModelSnapshot.cs`. See deploy runbook step 2.
-3. Mobile checklist fulfilment hands off to capture; auto-linking the
-   resulting photo to the originating item is a follow-up.
-4. `PhotoAccessRule.RequiresNdaAcceptance` is wired into the data
-   model + audit log but is **not** gated at fetch time yet.
-   Acceptance UI is a follow-up.
 
 #### Completed (Healthcare Pack H-1..H-30 — Hospital design content layer)
 

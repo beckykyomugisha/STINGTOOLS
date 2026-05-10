@@ -37,17 +37,25 @@ export default function ChecklistDetailScreen() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const onCaptureFor = (itemTitle: string, defaultReason: string) => {
-    if (!projectId) return;
-    // Hand off to capture; the user comes back here when the photo
-    // lands and taps "fulfil with photo …" on the corresponding item.
-    Alert.alert('Capture for item', `Open the camera and capture a photo for "${itemTitle}".\nReason will default to "${defaultReason}".`, [
+  const onCaptureFor = (itemId: string, itemTitle: string, defaultReason: string) => {
+    if (!projectId || !checklistId) return;
+    // Phase 179.2 — pass checklistId + itemId + defaultReason through
+    // so the capture screen can auto-fulfil the originating item once
+    // the upload succeeds. Old behaviour (no auto-link) is preserved
+    // when these params aren't set.
+    Alert.alert('Capture for item', `Open the camera for "${itemTitle}". Reason defaults to "${defaultReason}".`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Open camera',
         onPress: () => router.push({
           pathname: '/site-photos/capture',
-          params: { projectId, context: 'checklist' },
+          params: {
+            projectId,
+            context: 'checklist',
+            checklistId,
+            checklistItemId: itemId,
+            defaultReason,
+          },
         }),
       },
     ]);
@@ -85,7 +93,7 @@ export default function ChecklistDetailScreen() {
               </Text>
             </View>
             {!done && (
-              <TouchableOpacity style={styles.captureBtn} onPress={() => onCaptureFor(item.title, item.defaultReason)}>
+              <TouchableOpacity style={styles.captureBtn} onPress={() => onCaptureFor(item.id, item.title, item.defaultReason)}>
                 <Text style={styles.captureBtnText}>📷</Text>
               </TouchableOpacity>
             )}

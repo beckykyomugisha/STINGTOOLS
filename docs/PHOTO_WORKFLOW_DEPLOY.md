@@ -175,13 +175,6 @@ dotnet ef database update <previous-migration-name> `
   memory bounded. Bigger jobs should move to a Hangfire job that
   writes to storage and emails a signed URL. Tracked under Phase
   179.1 (not yet scheduled).
-- **NDA gate** — `PhotoAccessRule.RequiresNdaAcceptance` is honoured
-  in audit but not yet enforced at fetch time. Acceptance UI is a
-  follow-up.
-- **Mobile checklist auto-link** — the `checklist-detail.tsx` capture
-  hand-off currently opens the camera but the resulting photo
-  doesn't auto-link back to the originating item. Manual link via
-  the existing fulfilment endpoint works in the meantime.
 
 ## Caveats cleared by this runbook
 
@@ -189,5 +182,7 @@ dotnet ef database update <previous-migration-name> `
 |---|---|
 | `dotnet build` not run on Linux sandbox | Step 1 |
 | EF model snapshot not regenerated | Step 2 |
-| PDF export deferred (HTML+ZIP only) | Cleared in same commit; renderer is `PhotoPdfExportService` (QuestPDF). Verify with the smoke-test in Step 4. |
-| v1 list endpoint pre-Phase-179 behaviour | Cleared in same commit; `PhotoAclGate` AND-s the audience state with `PhotoAccessRule` rows on every v1 list / single GET / `/file` fetch. |
+| PDF export deferred (HTML+ZIP only) | Cleared in 179.1; renderer is `PhotoPdfExportService` (QuestPDF). Verify with the smoke-test in Step 4. |
+| v1 list endpoint pre-Phase-179 behaviour | Cleared in 179.1; `PhotoAclGate` AND-s the audience state with `PhotoAccessRule` rows on every v1 list / single GET / `/file` fetch. |
+| `RequiresNdaAcceptance` not gated at fetch time | Cleared in 179.2; `PhotoAclGate.NdaRequiredAsync` + `PhotoNdaAcceptances` table; v1 returns `ndaRequiredIds` sibling array; mobile `NdaPromptModal` and `gallery.tsx` lock-tile UX. |
+| Mobile checklist auto-link absent | Cleared in 179.2; capture flow reads `checklistId`/`checklistItemId` from route params and auto-fulfils online or via the new `FULFIL_CHECKLIST_ITEM` queue action offline. |

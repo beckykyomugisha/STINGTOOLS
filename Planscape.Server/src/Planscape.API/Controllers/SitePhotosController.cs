@@ -309,8 +309,16 @@ public class SitePhotosController : ControllerBase
         // callers that don't read the rule rows still get back a
         // tighter list, but the response shape is unchanged.
         var probe = await PhotoAclGate.ResolveProbeAsync(_db, projectId, User, ct);
-        var visible = await PhotoAclGate.FilterVisibleAsync(_db, pageIds, probe, ct);
-        pageIds = pageIds.Where(id => visible.Contains(id)).ToList();
+        // Phase 179.2 — surface NDA-pending ids as a sibling array so
+        // smart clients can render the "Accept & view" prompt without
+        // hitting /file and parsing the 403. NDA-pending ids stay in
+        // the list (so the user sees the lock); other denials get
+        // filtered out.
+        var ndaPending = await PhotoAclGate.NdaRequiredAsync(_db, pageIds, probe, ct);
+        var visible    = await PhotoAclGate.FilterVisibleAsync(_db, pageIds, probe, ct);
+        // Pending NDA: keep the row but the caller knows it's gated.
+        // Non-pending denials: drop entirely.
+        pageIds = pageIds.Where(id => visible.Contains(id) || ndaPending.Contains(id)).ToList();
 
         var rows = pageIds.Count == 0
             ? new List<SitePhotoDto>()
@@ -345,7 +353,10 @@ public class SitePhotosController : ControllerBase
         // pageIds ordering across DBs, so re-sort by CapturedAt desc.
         rows = rows.OrderByDescending(r => r.CapturedAt).ToList();
 
-        return Ok(new { items = rows, total, page, pageSize });
+        return Ok(new {
+            items = rows, total, page, pageSize,
+            ndaRequiredIds = ndaPending.ToArray(),
+        });
     }
 
     // ── GET / single ──────────────────────────────────────────────────
@@ -357,6 +368,9 @@ public class SitePhotosController : ControllerBase
         if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
         // Phase 179 — AND the audience state with the per-photo ACL.
         var probe = await PhotoAclGate.ResolveProbeAsync(_db, projectId, User, ct);
+        var ndaPending = await PhotoAclGate.NdaRequiredAsync(_db, new[] { photoId }, probe, ct);
+        if (ndaPending.Contains(photoId))
+            return StatusCode(403, new { error = "nda_required", photoId });
         var visible = await PhotoAclGate.FilterVisibleAsync(_db, new[] { photoId }, probe, ct);
         if (!visible.Contains(photoId)) return Forbid();
         return Ok(await ToDtoAsync(photo, ct));
@@ -392,6 +406,12 @@ public class SitePhotosController : ControllerBase
             if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
             // Phase 179 — AND the audience state with the per-photo ACL.
             var probe = await PhotoAclGate.ResolveProbeAsync(_db, projectId, User, ct);
+            // Phase 179.2 — distinguish NDA-pending from other denials so
+            // the UI can surface an "Accept & view" prompt instead of a
+            // generic 403.
+            var ndaPending = await PhotoAclGate.NdaRequiredAsync(_db, new[] { photoId }, probe, ct);
+            if (ndaPending.Contains(photoId))
+                return StatusCode(403, new { error = "nda_required", photoId });
             var visible = await PhotoAclGate.FilterVisibleAsync(_db, new[] { photoId }, probe, ct);
             if (!visible.Contains(photoId)) return Forbid();
             path = photo.Document.FilePath!;

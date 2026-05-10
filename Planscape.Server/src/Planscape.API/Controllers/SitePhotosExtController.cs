@@ -273,6 +273,54 @@ public class SitePhotosExtController : ControllerBase
         return NoContent();
     }
 
+    // ── NDA acceptance ───────────────────────────────────────────────
+
+    /// <summary>
+    /// Record the calling user's acceptance of an NDA-gated photo.
+    /// Idempotent — re-posting returns the existing row. Required
+    /// before the user can fetch any photo whose access rules include
+    /// <c>RequiresNdaAcceptance = true</c> (the gate enforces).
+    /// </summary>
+    [HttpPost("{photoId:guid}/accept-nda")]
+    public async Task<ActionResult> AcceptNda(
+        Guid projectId, Guid photoId,
+        [FromBody] AcceptNdaRequest? req,
+        CancellationToken ct = default)
+    {
+        if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
+        var userId = CurrentUserIdOrNull();
+        if (userId == null) return Forbid();
+        var photo = await _db.SitePhotos.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == photoId && p.ProjectId == projectId, ct);
+        if (photo == null) return NotFound();
+
+        var existing = await _db.PhotoNdaAcceptances
+            .FirstOrDefaultAsync(a => a.PhotoId == photoId && a.UserId == userId.Value, ct);
+        if (existing != null) return Ok(existing);
+
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var ua = Request.Headers.UserAgent.ToString();
+        var acceptance = new PhotoNdaAcceptance
+        {
+            PhotoId            = photoId,
+            UserId             = userId.Value,
+            IpAddress          = ip,
+            UserAgent          = string.IsNullOrEmpty(ua) ? null : (ua.Length > 500 ? ua[..500] : ua),
+            AcceptedTextSha256 = req?.AcceptedTextSha256,
+        };
+        _db.PhotoNdaAcceptances.Add(acceptance);
+        try { await _db.SaveChangesAsync(ct); }
+        catch (DbUpdateException)
+        {
+            // Concurrent acceptance; re-read and return.
+            return Ok(await _db.PhotoNdaAcceptances.AsNoTracking()
+                .FirstAsync(a => a.PhotoId == photoId && a.UserId == userId.Value, ct));
+        }
+        await _audit.LogAsync("ACCEPT_NDA", "SitePhoto", photoId.ToString(),
+            System.Text.Json.JsonSerializer.Serialize(new { user = userId, ip, ua = acceptance.UserAgent }));
+        return Ok(acceptance);
+    }
+
     // ── Re-redact + restore (admin) ──────────────────────────────────
 
     [HttpPost("{photoId:guid}/re-redact")]
@@ -463,6 +511,7 @@ public class SitePhotosExtController : ControllerBase
 }
 
 public record CreateAnnotationRequest(string ShapesJson, string? Summary);
+public record AcceptNdaRequest(string? AcceptedTextSha256);
 
 public class CreateVoiceNoteForm
 {

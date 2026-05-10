@@ -1738,6 +1738,28 @@ export function createPhotoShareLink(
   });
 }
 
+// ── Phase 179.2 — NDA acceptance ─────────────────────────────────────
+
+export type PhotoNdaAcceptance = {
+  photoId: string;
+  userId: string;
+  acceptedAt: string;
+  ipAddress?: string;
+  userAgent?: string;
+  acceptedTextSha256?: string;
+};
+
+/** Idempotent — re-posting returns the existing acceptance row. */
+export function acceptPhotoNda(
+  projectId: string, photoId: string, acceptedTextSha256?: string,
+): Promise<PhotoNdaAcceptance> {
+  return apiFetch(`/api/projects/${projectId}/photos/${photoId}/accept-nda`, {
+    method: 'POST',
+    body: JSON.stringify({ acceptedTextSha256 }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
 // ── Healthcare Pack H-22 ──
 
 export type HealthcarePressureLog = {

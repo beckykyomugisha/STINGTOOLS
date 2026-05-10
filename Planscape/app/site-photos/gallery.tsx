@@ -23,6 +23,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { theme } from '@/utils/theme';
 import { useProjectStore } from '@/stores/projectStore';
+import { NdaPromptModal } from '@/components/site-photos/NdaPromptModal';
 import {
   listSitePhotos,
   getSitePhotoFile,
@@ -72,6 +73,10 @@ export default function GalleryScreen() {
   const [error, setError] = useState<string | null>(null);
   const [focused, setFocused] = useState<SitePhoto | null>(null);
   const [isApprover, setIsApprover] = useState(false);
+  // Phase 179.2 — NDA-gated photos in the current page; tile click
+  // routes through the NdaPromptModal until acceptance lands.
+  const [ndaRequired, setNdaRequired] = useState<Set<string>>(new Set());
+  const [ndaPrompt, setNdaPrompt] = useState<string | null>(null);
 
   const filters: SitePhotoListFilters = useMemo(() => ({
     reason: reason === 'All' ? undefined : reason,
@@ -96,9 +101,16 @@ export default function GalleryScreen() {
       setError(null);
       const res = await listSitePhotos(projectId, filters);
       setPhotos(res.items);
+      // Phase 179.2 — surface the lock badge on tiles whose photo
+      // requires NDA acceptance. The id is removed from this set
+      // after the user accepts and the list refreshes.
+      setNdaRequired(new Set(res.ndaRequiredIds ?? []));
 
       const next: ResolvedThumbRecord = {};
       for (const p of res.items) {
+        // Skip thumbnail fetch for NDA-gated photos — the server would
+        // return 403 nda_required and Image would render a broken icon.
+        if ((res.ndaRequiredIds ?? []).includes(p.id)) continue;
         next[p.id] = await getSitePhotoFile(projectId, p.id);
       }
       setThumbs(next);
@@ -210,27 +222,35 @@ export default function GalleryScreen() {
           </View>
         ) : (
           <View style={styles.grid}>
-            {photos.map((p) => (
-              <TouchableOpacity
-                key={p.id}
-                style={styles.gridCell}
-                onPress={() => setFocused(p)}
-              >
-                {thumbs[p.id] ? (
-                  <Image
-                    source={{ uri: thumbs[p.id].url, headers: thumbs[p.id].headers }}
-                    style={styles.thumb}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <View style={[styles.thumb, styles.thumbPlaceholder]} />
-                )}
-                <View style={styles.gridCellMeta}>
-                  <Text style={styles.gridCellReason} numberOfLines={1}>{p.reason}</Text>
-                  <Text style={styles.gridCellDate} numberOfLines={1}>{shortDate(p.capturedAt)}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+            {photos.map((p) => {
+              const isNdaGated = ndaRequired.has(p.id);
+              return (
+                <TouchableOpacity
+                  key={p.id}
+                  style={styles.gridCell}
+                  onPress={() => isNdaGated ? setNdaPrompt(p.id) : setFocused(p)}
+                >
+                  {isNdaGated ? (
+                    <View style={[styles.thumb, styles.ndaThumb]}>
+                      <Text style={styles.ndaLock}>🔒</Text>
+                      <Text style={styles.ndaLabel}>NDA</Text>
+                    </View>
+                  ) : thumbs[p.id] ? (
+                    <Image
+                      source={{ uri: thumbs[p.id].url, headers: thumbs[p.id].headers }}
+                      style={styles.thumb}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={[styles.thumb, styles.thumbPlaceholder]} />
+                  )}
+                  <View style={styles.gridCellMeta}>
+                    <Text style={styles.gridCellReason} numberOfLines={1}>{p.reason}</Text>
+                    <Text style={styles.gridCellDate} numberOfLines={1}>{shortDate(p.capturedAt)}</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
       </ScrollView>
@@ -244,6 +264,23 @@ export default function GalleryScreen() {
           projectId={projectId}
           onClose={() => setFocused(null)}
           onChanged={async () => { await load(); setFocused(null); }}
+        />
+      ) : null}
+
+      {/* Phase 179.2 — NDA acceptance modal */}
+      {ndaPrompt && projectId ? (
+        <NdaPromptModal
+          visible
+          projectId={projectId}
+          photoId={ndaPrompt}
+          onCancel={() => setNdaPrompt(null)}
+          onAccepted={async () => {
+            const acceptedId = ndaPrompt;
+            setNdaPrompt(null);
+            await load();
+            const target = photos.find((p) => p.id === acceptedId);
+            if (target) setFocused(target);
+          }}
         />
       ) : null}
     </View>
@@ -446,6 +483,10 @@ const styles = StyleSheet.create({
   },
   thumb: { width: '100%', height: THUMB_SIZE },
   thumbPlaceholder: { backgroundColor: theme.colors.border },
+  // Phase 179.2 — locked tile for NDA-gated photos.
+  ndaThumb: { backgroundColor: '#37474F', alignItems: 'center', justifyContent: 'center' },
+  ndaLock: { fontSize: 28 },
+  ndaLabel: { color: '#fff', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginTop: 4 },
   gridCellMeta: { paddingHorizontal: 6, paddingVertical: 4 },
   gridCellReason: { fontSize: theme.fontSize.xs, fontWeight: '700', color: theme.colors.text },
   gridCellDate: { fontSize: theme.fontSize.xs, color: theme.colors.textSecondary },
