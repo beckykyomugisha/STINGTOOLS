@@ -23,7 +23,7 @@ namespace StingTools.UI
     /// with colored headers, metrics, tables, pass/fail checklists, RAG bars,
     /// and action buttons.
     /// </summary>
-    internal static class StingResultPanel
+    public static class StingResultPanel
     {
         // ── Theme (M-07 FIX: All brushes frozen for thread safety) ──
         private static SolidColorBrush FZ(SolidColorBrush b) { b.Freeze(); return b; }
@@ -231,10 +231,7 @@ namespace StingTools.UI
         // Width is host-driven; the embedded ScrollViewer caps height at
         // 380 px so the panel doesn't dominate the dock.
 
-        // internal — see PushHcResultPanel comment. Builder is nested in
-        // an internal class so this method's declared accessibility cannot
-        // exceed internal.
-        internal static FrameworkElement BuildInlineContent(Builder b)
+        public static FrameworkElement BuildInlineContent(Builder b)
         {
             var stack = new StackPanel { Margin = new Thickness(0) };
 

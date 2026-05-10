@@ -382,11 +382,7 @@ namespace StingTools.UI
         // and auto-expands. Returns false when the panel is not realised
         // (caller should fall back to TaskDialog or just to PushHcResult
         // for the 1-line summary).
-        // internal because StingResultPanel.Builder is nested inside an
-        // internal class — public would trigger CS0051 ("parameter type
-        // is less accessible than method"). Same-assembly call sites are
-        // the only consumers anyway.
-        internal static bool PushHcResultPanel(StingResultPanel.Builder b)
+        public static bool PushHcResultPanel(StingResultPanel.Builder b)
         {
             var inst = LastInstance;
             if (inst == null || b == null) return false;
