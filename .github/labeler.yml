@@ -1,0 +1,50 @@
+# GitHub Actions labeler config — maps changed paths to PR labels
+# Docs: https://github.com/actions/labeler
+
+plugin:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'StingTools/**'
+      - 'StingTools.addin'
+      - 'extract_plugin.sh'
+      - 'build.bat'
+
+server:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'Planscape.Server/**'
+
+mobile:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'Planscape/app/**'
+      - 'Planscape/src/**'
+      - 'Planscape/package.json'
+
+viewer:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'Planscape/assets/viewer/**'
+
+ci:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '.github/**'
+
+docs:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.md'
+      - 'docs/**'
+
+data:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'StingTools/Data/**'
+
+healthcare:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'StingTools/Commands/Healthcare/**'
+      - 'StingTools/Core/Validation/Healthcare/**'
+      - 'StingTools/Standards/**'
