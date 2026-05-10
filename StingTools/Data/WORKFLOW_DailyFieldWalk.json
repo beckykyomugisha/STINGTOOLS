@@ -1,0 +1,47 @@
+{
+  "name": "DailyFieldWalk",
+  "description": "End-of-day site-photo workflow for the BIM coordinator: review the day's pending photos, bulk-approve eligible ones, preview the client digest, then push the latest deliverable register to Planscape so the daily 17:00 UTC digest job has fresh content.",
+  "rollback_on_failure": false,
+  "rollback_on_optional_failure": false,
+  "steps": [
+    {
+      "commandTag": "OpenSitePhotos",
+      "label": "1. Open BCC SITE PHOTOS tab",
+      "optional": false
+    },
+    {
+      "commandTag": "RefreshPhotos",
+      "label": "2. Refresh review queue from server",
+      "optional": false,
+      "retryCount": 2,
+      "retryDelayMs": 1000
+    },
+    {
+      "commandTag": "PhotoChecklistAudit",
+      "label": "3. Audit active photo checklists for this project",
+      "optional": true
+    },
+    {
+      "commandTag": "BulkApprovePending",
+      "label": "4. Bulk-approve pending photos with default caption",
+      "optional": true
+    },
+    {
+      "commandTag": "DigestPreview",
+      "label": "5. Preview tonight's client digest",
+      "optional": false
+    },
+    {
+      "commandTag": "PushDeliverableRegister",
+      "label": "6. Push the latest deliverable register so the digest finds it fresh",
+      "optional": true,
+      "retryCount": 1,
+      "retryDelayMs": 1000
+    },
+    {
+      "commandTag": "WorkflowComplete",
+      "label": "7. Done — daily field walk complete",
+      "optional": false
+    }
+  ]
+}

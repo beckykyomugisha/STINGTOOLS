@@ -280,16 +280,37 @@ async function replayAction(action: OfflineAction): Promise<void> {
       const fileName = (p.fileName as string) ?? `photo-${Date.now()}.jpg`;
       const contentType = (p.mimeType as string) ?? 'image/jpeg';
       const meta = p.meta as SitePhotoCaptureMeta;
-      await captureSitePhoto({
+      const created = await captureSitePhoto({
         projectId: p.projectId as string,
         uri: localUri,
         fileName,
         contentType,
         meta: { ...meta, queuedClient: true },
       });
+      // Phase 179.2 — when the original capture was launched from a
+      // checklist item, the queued payload carried the checklist /
+      // item ids. Auto-fulfil now that we have a photo id back.
+      const checklistId = p.checklistId as string | undefined;
+      const checklistItemId = p.checklistItemId as string | undefined;
+      if (checklistId && checklistItemId && created?.id) {
+        try {
+          const { fulfilChecklistItem } = await import('@/api/endpoints');
+          await fulfilChecklistItem(p.projectId as string, checklistId, checklistItemId, created.id);
+        } catch { /* fulfilment is best-effort; user can re-link manually */ }
+      }
       // Best-effort cleanup — failure to delete the local copy is
       // non-fatal; drainQueuedPhotoFiles() reaps stragglers later.
       try { await FileSystem.deleteAsync(localUri, { idempotent: true }); } catch { /* ignore */ }
+      break;
+    }
+    case 'FULFIL_CHECKLIST_ITEM': {
+      const { fulfilChecklistItem } = await import('@/api/endpoints');
+      await fulfilChecklistItem(
+        p.projectId as string,
+        p.checklistId as string,
+        p.itemId as string,
+        p.photoId as string,
+      );
       break;
     }
 

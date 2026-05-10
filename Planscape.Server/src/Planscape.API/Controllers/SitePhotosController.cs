@@ -49,6 +49,8 @@ public class SitePhotosController : ControllerBase
     private readonly INotificationService _notif;
     private readonly IHubContext<NotificationHub> _hub;
     private readonly IBackgroundJobClient _jobs;
+    private readonly PhotoPolicyResolver _policy;
+    private readonly OutboundWebhookDispatcher _webhooks;
     private readonly ILogger<SitePhotosController> _logger;
 
     public SitePhotosController(
@@ -59,6 +61,8 @@ public class SitePhotosController : ControllerBase
         INotificationService notif,
         IHubContext<NotificationHub> hub,
         IBackgroundJobClient jobs,
+        PhotoPolicyResolver policy,
+        OutboundWebhookDispatcher webhooks,
         ILogger<SitePhotosController> logger)
     {
         _db = db;
@@ -68,6 +72,8 @@ public class SitePhotosController : ControllerBase
         _notif = notif;
         _hub = hub;
         _jobs = jobs;
+        _policy = policy;
+        _webhooks = webhooks;
         _logger = logger;
     }
 
@@ -100,8 +106,14 @@ public class SitePhotosController : ControllerBase
 
         if (form.File == null || form.File.Length == 0) return BadRequest(new { error = "file_required" });
         if (form.File.Length > MaxPhotoSize)            return BadRequest(new { error = "file_too_large", limitBytes = MaxPhotoSize });
-        if (string.IsNullOrWhiteSpace(form.Reason) || !SitePhoto.ValidReasons.Contains(form.Reason))
-            return BadRequest(new { error = "invalid_reason", allowed = SitePhoto.ValidReasons });
+
+        // Phase 180 — per-project allowed-reasons override on top of
+        // SitePhoto.ValidReasons. BIM manager can disable Reference or
+        // add custom reasons via PhotoPolicy.AllowedReasonsJson.
+        var policy = await _policy.GetAsync(projectId, ct);
+        var allowedReasons = PhotoPolicyResolver.AllowedReasonsOrDefault(policy);
+        if (string.IsNullOrWhiteSpace(form.Reason) || !allowedReasons.Contains(form.Reason))
+            return BadRequest(new { error = "invalid_reason", allowed = allowedReasons });
 
         // Image-only — site photos are never PDFs / docx.
         if (string.IsNullOrEmpty(form.File.ContentType) || !form.File.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
@@ -115,7 +127,47 @@ public class SitePhotosController : ControllerBase
             return BadRequest(new { error = "image_content_mismatch" });
 
         memStream.Position = 0;
-        var contentHash = Convert.ToHexString(SHA256.HashData(memStream.ToArray())).ToLowerInvariant();
+        var fileBytes = memStream.ToArray();
+        var contentHash = Convert.ToHexString(SHA256.HashData(fileBytes)).ToLowerInvariant();
+        // Phase 180 — sniff EXIF DateTimeOriginal. When the client
+        // supplies a CapturedAt that disagrees by more than 5 minutes
+        // we trust the EXIF (the camera) over the client (which can be
+        // post-dated). When EXIF is absent or unreadable we keep the
+        // client value or fall back to UtcNow.
+        var exifDate = PhotoExifSniffer.TryReadDateTimeOriginal(fileBytes);
+        bool exifDriftFlagged = false;
+        DateTime resolvedCapturedAt;
+        if (exifDate.HasValue)
+        {
+            if (form.CapturedAt.HasValue &&
+                Math.Abs((form.CapturedAt.Value - exifDate.Value).TotalMinutes) > 5)
+            {
+                exifDriftFlagged = true;
+            }
+            resolvedCapturedAt = exifDate.Value;
+        }
+        else
+        {
+            resolvedCapturedAt = form.CapturedAt ?? DateTime.UtcNow;
+        }
+
+        // Phase 180 — duplicate detection. The offline queue can replay
+        // a photo that already uploaded successfully; without this check
+        // we'd create a second SitePhoto + Document + Issue. We match by
+        // (project, content hash) and short-circuit with the existing
+        // photo's DTO so the client treats the request as success.
+        var dupe = await (
+            from p in _db.SitePhotos.AsNoTracking()
+            join d in _db.Documents.AsNoTracking() on p.DocumentId equals d.Id
+            where p.ProjectId == projectId && d.ContentHash == contentHash
+            select p).FirstOrDefaultAsync(ct);
+        if (dupe != null)
+        {
+            _logger.LogInformation(
+                "Capture: duplicate hash {Hash} on project {ProjectId} — returning existing photo {PhotoId}",
+                contentHash, projectId, dupe.Id);
+            return Ok(await ToDtoAsync(dupe, ct));
+        }
 
         var safeName = Planscape.Infrastructure.Security.FileContentValidator.SanitiseFileName(
             form.File.FileName, fallback: $"photo-{DateTime.UtcNow:yyyyMMddHHmmss}");
@@ -141,9 +193,26 @@ public class SitePhotosController : ControllerBase
         };
         _db.Documents.Add(doc);
 
-        // Audience default by reason — Progress / AsBuilt go to review,
-        // everything else stays Internal until the user toggles.
-        var audience = SitePhoto.DefaultToReview(form.Reason) ? "PendingReview" : "Internal";
+        // Phase 180 — per-policy default audience (when set), otherwise
+        // the built-in DefaultToReview rule. Geofence: photos with GPS
+        // outside the project polygon flip to OffsiteAudience (or
+        // "Quarantine" if unset) — flagged loudly in the audit log.
+        var audience = PhotoPolicyResolver.DefaultAudienceFor(policy, form.Reason)
+            ?? (SitePhoto.DefaultToReview(form.Reason) ? "PendingReview" : "Internal");
+        bool inFence = PhotoPolicyResolver.InGeofence(policy, form.Latitude, form.Longitude);
+        bool offsiteFlagged = false;
+        if (!inFence)
+        {
+            audience = policy?.OffsiteAudience switch
+            {
+                "Quarantine"    => "Internal",   // hold; admin must release
+                "Internal"      => "Internal",
+                "PendingReview" => "PendingReview",
+                _               => "Internal",
+            };
+            offsiteFlagged = true;
+        }
+        if (!SitePhoto.ValidAudiences.Contains(audience)) audience = "Internal";
 
         var capturerClaim = User.FindFirst("user_id")?.Value
                          ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
@@ -159,7 +228,7 @@ public class SitePhotosController : ControllerBase
             Audience             = audience,
             BlurStatus           = "NotRequired",
             Caption              = string.IsNullOrWhiteSpace(form.Caption) ? null : form.Caption.Trim(),
-            CapturedAt           = form.CapturedAt ?? DateTime.UtcNow,
+            CapturedAt           = resolvedCapturedAt,
             CapturedByUserId     = capturerId,
             DeviceId             = form.DeviceId ?? Request.Headers["X-Device-Id"].ToString(),
             Source               = form.Source ?? (Request.Headers.ContainsKey("X-Device-Id") ? "mobile" : "web"),
@@ -187,7 +256,10 @@ public class SitePhotosController : ControllerBase
                 projectId, photo.Reason, photo.Audience,
                 photo.LevelCode, photo.ZoneCode,
                 fileName = doc.FileName, fileSizeBytes = doc.FileSizeBytes,
-                queuedOffline = form.QueuedClient ?? false
+                queuedOffline = form.QueuedClient ?? false,
+                offsiteFlagged,
+                exifDriftFlagged,
+                exifDateTimeOriginal = exifDate
             }));
 
         // Real-time push — every project member subscribed to the project
@@ -195,6 +267,43 @@ public class SitePhotosController : ControllerBase
         _ = _hub.Clients.Group($"project-{projectId}").SendAsync("SitePhotoCaptured", new {
             projectId, photoId = photo.Id, reason = photo.Reason, audience = photo.Audience,
         }, ct);
+        _webhooks.FireAndForget(tenantId, projectId, WebhookEventType.PhotoCaptured, new {
+            photoId = photo.Id, reason = photo.Reason, audience = photo.Audience,
+            levelCode = photo.LevelCode, zoneCode = photo.ZoneCode, offsiteFlagged
+        });
+
+        // Phase 180 — auto-add to the album named in
+        // PhotoPolicy.DefaultAlbumByReasonJson, if any. Failure here is
+        // non-fatal — capture must always succeed.
+        if (policy?.DefaultAlbumByReasonJson is { } adJson && !string.IsNullOrWhiteSpace(adJson))
+        {
+            try
+            {
+                var dict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(adJson);
+                if (dict != null && dict.TryGetValue(form.Reason, out var albumIdStr) &&
+                    Guid.TryParse(albumIdStr, out var albumId))
+                {
+                    var albumOk = await _db.PhotoAlbums.AsNoTracking()
+                        .AnyAsync(a => a.Id == albumId && a.ProjectId == projectId && !a.IsLocked, ct);
+                    if (albumOk)
+                    {
+                        var nextSort = (await _db.PhotoAlbumPhotos
+                            .Where(ap => ap.AlbumId == albumId)
+                            .Select(ap => (int?)ap.SortOrder).MaxAsync(ct) ?? 0) + 100;
+                        _db.PhotoAlbumPhotos.Add(new PhotoAlbumPhoto
+                        {
+                            AlbumId = albumId, PhotoId = photo.Id,
+                            SortOrder = nextSort, AddedByUserId = capturerId,
+                        });
+                        await _db.SaveChangesAsync(ct);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Auto-add-to-album failed for photo {PhotoId}", photo.Id);
+            }
+        }
 
         // Auto-create issue when Reason ∈ {Issue, Defect, Safety} and no
         // explicit anchorIssueId was supplied. Defects → NCR, Safety →
@@ -305,6 +414,21 @@ public class SitePhotosController : ControllerBase
             .Select(p => p.Id)
             .ToListAsync(ct);
 
+        // Phase 179 — apply the per-photo PhotoAccessRule gate. v1
+        // callers that don't read the rule rows still get back a
+        // tighter list, but the response shape is unchanged.
+        var probe = await PhotoAclGate.ResolveProbeAsync(_db, projectId, User, ct, HttpContext);
+        // Phase 179.2 — surface NDA-pending ids as a sibling array so
+        // smart clients can render the "Accept & view" prompt without
+        // hitting /file and parsing the 403. NDA-pending ids stay in
+        // the list (so the user sees the lock); other denials get
+        // filtered out.
+        var ndaPending = await PhotoAclGate.NdaRequiredAsync(_db, pageIds, probe, ct);
+        var visible    = await PhotoAclGate.FilterVisibleAsync(_db, pageIds, probe, ct);
+        // Pending NDA: keep the row but the caller knows it's gated.
+        // Non-pending denials: drop entirely.
+        pageIds = pageIds.Where(id => visible.Contains(id) || ndaPending.Contains(id)).ToList();
+
         var rows = pageIds.Count == 0
             ? new List<SitePhotoDto>()
             : await (
@@ -338,7 +462,10 @@ public class SitePhotosController : ControllerBase
         // pageIds ordering across DBs, so re-sort by CapturedAt desc.
         rows = rows.OrderByDescending(r => r.CapturedAt).ToList();
 
-        return Ok(new { items = rows, total, page, pageSize });
+        return Ok(new {
+            items = rows, total, page, pageSize,
+            ndaRequiredIds = ndaPending.ToArray(),
+        });
     }
 
     // ── GET / single ──────────────────────────────────────────────────
@@ -348,6 +475,13 @@ public class SitePhotosController : ControllerBase
         var photo = await LoadPhotoAsync(projectId, photoId, ct);
         if (photo == null) return NotFound();
         if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
+        // Phase 179 — AND the audience state with the per-photo ACL.
+        var probe = await PhotoAclGate.ResolveProbeAsync(_db, projectId, User, ct, HttpContext);
+        var ndaPending = await PhotoAclGate.NdaRequiredAsync(_db, new[] { photoId }, probe, ct);
+        if (ndaPending.Contains(photoId))
+            return StatusCode(403, new { error = "nda_required", photoId });
+        var visible = await PhotoAclGate.FilterVisibleAsync(_db, new[] { photoId }, probe, ct);
+        if (!visible.Contains(photoId)) return Forbid();
         return Ok(await ToDtoAsync(photo, ct));
     }
 
@@ -379,6 +513,16 @@ public class SitePhotosController : ControllerBase
         {
             // Project members get the original; require active membership.
             if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
+            // Phase 179 — AND the audience state with the per-photo ACL.
+            var probe = await PhotoAclGate.ResolveProbeAsync(_db, projectId, User, ct, HttpContext);
+            // Phase 179.2 — distinguish NDA-pending from other denials so
+            // the UI can surface an "Accept & view" prompt instead of a
+            // generic 403.
+            var ndaPending = await PhotoAclGate.NdaRequiredAsync(_db, new[] { photoId }, probe, ct);
+            if (ndaPending.Contains(photoId))
+                return StatusCode(403, new { error = "nda_required", photoId });
+            var visible = await PhotoAclGate.FilterVisibleAsync(_db, new[] { photoId }, probe, ct);
+            if (!visible.Contains(photoId)) return Forbid();
             path = photo.Document.FilePath!;
         }
 
@@ -421,11 +565,24 @@ public class SitePhotosController : ControllerBase
     }
 
     // ── POST /approve ─────────────────────────────────────────────────
+    /// <summary>
+    /// Approve the photo and flip its audience.
+    ///
+    /// Phase 180 — when the project's <see cref="PhotoPolicy.ApprovalChain"/>
+    /// requires more than one signoff for the photo's reason
+    /// (TwoStepSafety / TwoStepAll), this endpoint records the named
+    /// <paramref name="stage"/>'s signoff and returns the updated photo
+    /// with the audience kept at <c>PendingReview</c> until every
+    /// required stage has signed. Only the LAST signoff flips the
+    /// audience to Approved and enqueues the blur worker.
+    /// Single-step chains keep the Phase-178 behaviour.
+    /// </summary>
     [HttpPost("{photoId:guid}/approve")]
     public async Task<ActionResult> Approve(
         Guid projectId, Guid photoId,
         [FromBody] ApproveRequest req,
-        CancellationToken ct)
+        [FromQuery] string stage = "Site",
+        CancellationToken ct = default)
     {
         if (!await IsApproverAsync(projectId, ct)) return Forbid();
         var photo = await LoadPhotoAsync(projectId, photoId, ct);
@@ -441,6 +598,54 @@ public class SitePhotosController : ControllerBase
             return BadRequest(new { error = "withdrawn_must_reset_first" });
 
         var actorId = CurrentUserIdOrNull();
+        var policy = await _policy.GetAsync(projectId, ct);
+        var chainStages = ChainStages(policy, photo.Reason);
+
+        if (chainStages.Length > 1)
+        {
+            // Multi-step path. Record this signoff (or short-circuit
+            // when re-posting the same stage), then check if every
+            // required stage has signed.
+            if (!chainStages.Contains(stage, StringComparer.OrdinalIgnoreCase))
+                return BadRequest(new { error = "invalid_stage", chainStages });
+            var existing = await _db.PhotoApprovalSignoffs
+                .FirstOrDefaultAsync(s => s.PhotoId == photoId && s.Stage == stage, ct);
+            if (existing == null)
+            {
+                _db.PhotoApprovalSignoffs.Add(new PhotoApprovalSignoff
+                {
+                    PhotoId        = photoId,
+                    Stage          = stage,
+                    SignedByUserId = actorId,
+                    Caption        = caption,
+                });
+                photo.Caption = caption;
+                await _db.SaveChangesAsync(ct);
+            }
+
+            var signedStages = await _db.PhotoApprovalSignoffs
+                .Where(s => s.PhotoId == photoId)
+                .Select(s => s.Stage).ToListAsync(ct);
+            var pending = chainStages.Except(signedStages, StringComparer.OrdinalIgnoreCase).ToArray();
+
+            await _audit.LogAsync("APPROVE_STAGE", "SitePhoto", photoId.ToString(),
+                System.Text.Json.JsonSerializer.Serialize(new {
+                    stage, approver = actorId, pending, chainStages
+                }));
+
+            if (pending.Length > 0)
+            {
+                // Hold at PendingReview until every stage signs.
+                photo.Audience = "PendingReview";
+                await _db.SaveChangesAsync(ct);
+                return Ok(new {
+                    photo = await ToDtoAsync(photo, ct),
+                    pendingStages = pending,
+                });
+            }
+            // All stages signed — fall through to the normal flip.
+        }
+
         photo.Caption          = caption;
         photo.Audience         = "Approved";
         photo.BlurStatus       = "Pending";        // worker picks it up
@@ -449,15 +654,35 @@ public class SitePhotosController : ControllerBase
         await _db.SaveChangesAsync(ct);
 
         await _audit.LogAsync("APPROVE", "SitePhoto", photoId.ToString(),
-            System.Text.Json.JsonSerializer.Serialize(new { caption, approver = actorId }));
+            System.Text.Json.JsonSerializer.Serialize(new { caption, approver = actorId, chainStages }));
 
         // Enqueue blur+watermark worker on the dedicated photo-redaction
-        // queue so it runs on the separate worker container (not on the
-        // API process — protects API CPU when a batch lands at digest
-        // time). The worker flips Audience → ClientPortal on success.
+        // queue. The worker flips Audience → ClientPortal on success.
         _jobs.Enqueue<RedactPublishedPhotoJob>(j => j.RunAsync(photoId, CancellationToken.None));
 
+        // Phase 180 — push real-time event so any open BCC / mobile
+        // gallery refreshes without polling.
+        _ = _hub.Clients.Group($"project-{projectId}").SendAsync("SitePhotoApproved", new {
+            projectId, photoId, reason = photo.Reason
+        }, ct);
+        _webhooks.FireAndForget(GetTenantId(), projectId, WebhookEventType.PhotoApproved, new {
+            photoId, reason = photo.Reason, caption
+        });
+
         return Ok(await ToDtoAsync(photo, ct));
+    }
+
+    /// <summary>
+    /// Returns the ordered list of approval stages for the policy +
+    /// reason combo. Single-step chains return ["Site"]; TwoStepSafety
+    /// returns ["Site","HSEQ"] for Reason=Safety only; TwoStepAll
+    /// returns ["Site","HSEQ"] for every reason.
+    /// </summary>
+    private static string[] ChainStages(PhotoPolicy? policy, string reason)
+    {
+        if (PhotoPolicyResolver.RequiresSecondApprover(policy, reason))
+            return new[] { "Site", "HSEQ" };
+        return new[] { "Site" };
     }
 
     // ── POST /reject ──────────────────────────────────────────────────
@@ -481,6 +706,23 @@ public class SitePhotosController : ControllerBase
         await _audit.LogAsync("REJECT", "SitePhoto", photoId.ToString(),
             System.Text.Json.JsonSerializer.Serialize(new { reason = photo.RejectedReason, rejector = actorId }));
 
+        // Phase 180 — push to author so the rejection is visible without a refresh,
+        // and broadcast to project listeners so review queues stay in sync.
+        if (photo.CapturedByUserId.HasValue)
+        {
+            await _notif.NotifyUserAsync(photo.CapturedByUserId.Value,
+                title: "Photo rejected",
+                message: $"{photo.Reason} photo rejected: {photo.RejectedReason}",
+                data: new { photoId, projectId, kind = "photo_rejected" },
+                ct: ct);
+        }
+        _ = _hub.Clients.Group($"project-{projectId}").SendAsync("SitePhotoRejected", new {
+            projectId, photoId, reason = photo.RejectedReason
+        }, ct);
+        _webhooks.FireAndForget(GetTenantId(), projectId, WebhookEventType.PhotoRejected, new {
+            photoId, reason = photo.RejectedReason
+        });
+
         return Ok(await ToDtoAsync(photo, ct));
     }
 
@@ -503,6 +745,14 @@ public class SitePhotosController : ControllerBase
 
         await _audit.LogAsync("WITHDRAW", "SitePhoto", photoId.ToString(),
             System.Text.Json.JsonSerializer.Serialize(new { withdrawer = actorId }));
+
+        // Phase 180 — broadcast to project listeners.
+        _ = _hub.Clients.Group($"project-{projectId}").SendAsync("SitePhotoWithdrawn", new {
+            projectId, photoId
+        }, ct);
+        _webhooks.FireAndForget(GetTenantId(), projectId, WebhookEventType.PhotoWithdrawn, new {
+            photoId
+        });
 
         return Ok(await ToDtoAsync(photo, ct));
     }
@@ -562,6 +812,13 @@ public class SitePhotosController : ControllerBase
                 bulk = true, approved, skipped, skippedDetail, caption, approver = actorId
             }));
 
+        // Phase 180 — broadcast a single bulk event so listeners can
+        // refresh once instead of N times.
+        if (approved > 0)
+        {
+            _ = _hub.Clients.Group($"project-{projectId}").SendAsync("SitePhotoBulkApproved",
+                new { projectId, count = approved }, ct);
+        }
         return Ok(new { approved, skipped, skippedDetail });
     }
 
