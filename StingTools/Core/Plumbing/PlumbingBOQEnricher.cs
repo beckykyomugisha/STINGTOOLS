@@ -186,31 +186,43 @@ namespace StingTools.Core.Plumbing
         }
 
         // Tracks divergence-warning emissions so a single session never
-        // floods the log with the same key. Reset implicitly per process
-        // (Revit restart).
+        // floods the log with the same key. Process-scoped on purpose: a
+        // user editing the SYSTEM config mid-session and seeing the
+        // warning once is the right cadence — Revit restart resets it
+        // implicitly.
         private static readonly HashSet<string> _divergenceLogged = new HashSet<string>();
 
         // SYSTEM-tab override → TagConfig key → fallback constant. The
         // PlumbingSystemConfig.BoqDefault* fields persist with the rest of
         // the plumbing system config in _BIM_COORD/plumbing_system_config.json,
         // so a project's QS-set rate survives across sessions and beats the
-        // process-wide TagConfig key. When both are set to different values
-        // a one-shot StingLog.Info explains which one won, so a user
-        // investigating "why didn't my override apply?" finds the answer.
+        // process-wide TagConfig key. When both are set to materially
+        // different values a one-shot StingLog.Info explains which one won
+        // so a user investigating "why didn't my override apply?" finds
+        // the answer without grepping.
         private static double ResolveRate(double? sysOverrideUgx, string tagConfigKey, double fallbackUgx)
         {
             if (sysOverrideUgx.HasValue && sysOverrideUgx.Value > 0)
             {
-                // GetConfigDouble returns the default when the key isn't set.
-                // Pass NaN as the sentinel so we can detect explicit values
-                // without a separate "is key present" probe.
-                double tagConfigVal = TagConfig.GetConfigDouble(tagConfigKey, double.NaN);
-                if (!double.IsNaN(tagConfigVal)
-                    && Math.Abs(tagConfigVal - sysOverrideUgx.Value) > 0.5
-                    && _divergenceLogged.Add(tagConfigKey))
+                // Probe explicitly via GetConfigValue (returns null when the
+                // key isn't present) so the divergence check can't get a
+                // false positive from a NaN-coerced parse failure.
+                var raw = TagConfig.GetConfigValue(tagConfigKey);
+                if (!string.IsNullOrEmpty(raw)
+                    && double.TryParse(raw, System.Globalization.NumberStyles.Any,
+                                       System.Globalization.CultureInfo.InvariantCulture, out var tagConfigVal))
                 {
-                    StingLog.Info($"PlumbingBOQEnricher: SYSTEM override {sysOverrideUgx.Value:F0} wins over "
-                                + $"TagConfig {tagConfigKey}={tagConfigVal:F0}");
+                    // Threshold is the larger of 0.5 UGX absolute or 0.1%
+                    // relative — so the warning fires sensibly across both
+                    // small per-fitting rates and large per-equipment rates
+                    // without false positives from currency rounding.
+                    double threshold = Math.Max(0.5, Math.Abs(sysOverrideUgx.Value) * 0.001);
+                    if (Math.Abs(tagConfigVal - sysOverrideUgx.Value) > threshold
+                        && _divergenceLogged.Add(tagConfigKey))
+                    {
+                        StingLog.Info($"PlumbingBOQEnricher: SYSTEM override {sysOverrideUgx.Value:F0} wins over "
+                                    + $"TagConfig {tagConfigKey}={tagConfigVal:F0}");
+                    }
                 }
                 return sysOverrideUgx.Value;
             }
