@@ -38,18 +38,31 @@ namespace StingTools.Commands.Plumbing
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
 
-            var td = new TaskDialog("STING Plumbing — Auto-Size Drainage")
+            // Dry-run choice: when the dock panel is open, read the DRAINAGE-tab
+            // 'Apply changes' CheckBox so the inline path skips the TaskDialog
+            // entirely. Closed-panel callers (ribbon / NLP) keep the dialog so
+            // they still get to choose without a panel surface.
+            bool dryRun;
+            var instAuto = StingPlumbingPanel.Instance;
+            if (instAuto != null)
             {
-                MainInstruction = "Run drainage auto-sizing pipeline?",
-                MainContent = "Builds DFU map, sizes pipes (BS EN 12056-2 / IPC 2021), evaluates self-cleansing velocity, designs vents, and previews slope corrections.",
-                CommonButtons = TaskDialogCommonButtons.Cancel,
-                DefaultButton = TaskDialogResult.Cancel
-            };
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Dry run (preview only)");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Apply (writeback)");
-            var pick = td.Show();
-            bool dryRun = pick == TaskDialogResult.CommandLink1;
-            if (pick != TaskDialogResult.CommandLink1 && pick != TaskDialogResult.CommandLink2) return Result.Cancelled;
+                dryRun = !instAuto.ReadDrainageAutoSizeApply();
+            }
+            else
+            {
+                var td = new TaskDialog("STING Plumbing — Auto-Size Drainage")
+                {
+                    MainInstruction = "Run drainage auto-sizing pipeline?",
+                    MainContent = "Builds DFU map, sizes pipes (BS EN 12056-2 / IPC 2021), evaluates self-cleansing velocity, designs vents, and previews slope corrections.",
+                    CommonButtons = TaskDialogCommonButtons.Cancel,
+                    DefaultButton = TaskDialogResult.Cancel
+                };
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Dry run (preview only)");
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Apply (writeback)");
+                var pick = td.Show();
+                dryRun = pick == TaskDialogResult.CommandLink1;
+                if (pick != TaskDialogResult.CommandLink1 && pick != TaskDialogResult.CommandLink2) return Result.Cancelled;
+            }
 
             DfuMapResult dfuMap;
             DrainageSizingReport sizing;

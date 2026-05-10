@@ -52,10 +52,20 @@ namespace StingTools.Core.Plumbing
             var ugxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
             var skip = excludeRevitElementIds ?? new HashSet<long>();
 
-            double pipeInsRate = TagConfig.GetConfigDouble("PLUMB_BOQ_DEFAULT_PIPE_INSULATION_UGX_M", FallbackPipeInsulationUgxPerM);
-            double ductInsRate = TagConfig.GetConfigDouble("PLUMB_BOQ_DEFAULT_DUCT_INSULATION_UGX_M", FallbackDuctInsulationUgxPerM);
-            double sleeveRate  = TagConfig.GetConfigDouble("PLUMB_BOQ_DEFAULT_SLEEVE_UGX_EACH",       FallbackSleeveUgxEach);
-            double hangerRate  = TagConfig.GetConfigDouble("PLUMB_BOQ_DEFAULT_HANGER_UGX_EACH",       FallbackHangerUgxEach);
+            // Resolution priority: cost_rates_5d.csv (per-category rate)
+            //   → PlumbingSystemConfig (project-saved override, persisted via
+            //     SYSTEM tab → Save System Config)
+            //   → TagConfig key (back-compat / external override)
+            //   → fallback constant.
+            var sys = PlumbingSystemConfig.Load(doc);
+            double pipeInsRate = TagConfig.GetConfigDouble("PLUMB_BOQ_DEFAULT_PIPE_INSULATION_UGX_M",
+                sys?.BoqDefaultPipeInsulationUgxPerM > 0 ? sys.BoqDefaultPipeInsulationUgxPerM : FallbackPipeInsulationUgxPerM);
+            double ductInsRate = TagConfig.GetConfigDouble("PLUMB_BOQ_DEFAULT_DUCT_INSULATION_UGX_M",
+                sys?.BoqDefaultDuctInsulationUgxPerM > 0 ? sys.BoqDefaultDuctInsulationUgxPerM : FallbackDuctInsulationUgxPerM);
+            double sleeveRate  = TagConfig.GetConfigDouble("PLUMB_BOQ_DEFAULT_SLEEVE_UGX_EACH",
+                sys?.BoqDefaultSleeveUgxEach         > 0 ? sys.BoqDefaultSleeveUgxEach         : FallbackSleeveUgxEach);
+            double hangerRate  = TagConfig.GetConfigDouble("PLUMB_BOQ_DEFAULT_HANGER_UGX_EACH",
+                sys?.BoqDefaultHangerUgxEach         > 0 ? sys.BoqDefaultHangerUgxEach         : FallbackHangerUgxEach);
 
             CollectInsulation(doc, items, rates, ugxPerUsd, skip, BuiltInCategory.OST_PipeInsulations,
                 "Pipe Insulations", pipeInsRate, "33", "M");

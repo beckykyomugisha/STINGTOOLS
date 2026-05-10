@@ -404,10 +404,12 @@ namespace StingTools.Commands.Plumbing
 
         // Walks the chamber's piping connectors and returns (US, DS) inverts
         // in metres relative to project zero. Z minus pipe radius gives the
-        // invert (lowest internal point of the bore) at the chamber face;
-        // highest of all connections is US, lowest is DS. Returns (0,0) when
-        // the family has no piping connectors so the caller can fall back to
-        // the stamped params.
+        // invert (lowest internal point of the bore) at the chamber face.
+        // Prefers Connector.Flow (In = US, Out = DS) when set so drop chambers
+        // and offset connections classify correctly; falls back to highest/
+        // lowest of all piping connectors when flow info is absent. Returns
+        // (0,0) when the family has no piping connectors so the caller can
+        // fall back to the stamped PLM_DRN_INV_* params.
         private static (double invInM, double invOutM) ResolveInvertsFromConnectors(Element el)
         {
             try
@@ -415,18 +417,37 @@ namespace StingTools.Commands.Plumbing
                 var fi = el as FamilyInstance;
                 var mgr = fi?.MEPModel?.ConnectorManager;
                 if (mgr == null) return (0, 0);
-                var inverts = new List<double>();
+                var inAll = new List<double>();
+                var outAll = new List<double>();
+                var anyAll = new List<double>();
                 foreach (Connector c in mgr.Connectors)
                 {
                     if (c?.Domain != Domain.DomainPiping) continue;
                     double radiusM = 0;
                     try { radiusM = c.Radius * 0.3048; } catch { }
-                    inverts.Add(c.Origin.Z * 0.3048 - radiusM);
+                    double invertM = c.Origin.Z * 0.3048 - radiusM;
+                    anyAll.Add(invertM);
+                    var flow = SafeFlow(c);
+                    if (flow == FlowDirectionType.In)       inAll.Add(invertM);
+                    else if (flow == FlowDirectionType.Out) outAll.Add(invertM);
                 }
-                if (inverts.Count == 0) return (0, 0);
-                return (inverts.Max(), inverts.Min());
+                if (anyAll.Count == 0) return (0, 0);
+
+                // Prefer flow-classified inverts. When the chamber sets only
+                // one direction or both come back empty (Bidirectional /
+                // unset), fall back to the conventional max=US / min=DS rule
+                // applied to whichever buckets have data.
+                double us = inAll.Count  > 0 ? inAll.Max()  : anyAll.Max();
+                double ds = outAll.Count > 0 ? outAll.Min() : anyAll.Min();
+                return (us, ds);
             }
             catch { return (0, 0); }
+        }
+
+        private static FlowDirectionType SafeFlow(Connector c)
+        {
+            try { return c.Flow; }
+            catch { return FlowDirectionType.Bidirectional; }
         }
     }
 
