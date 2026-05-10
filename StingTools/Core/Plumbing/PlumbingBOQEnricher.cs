@@ -13,7 +13,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Plumbing;
@@ -24,45 +23,57 @@ namespace StingTools.Core.Plumbing
 {
     public static class PlumbingBOQEnricher
     {
-        // Defaults used when cost_rates_5d.csv has no entry for a category.
-        // Mirrors the new rows added in Phase 179f so the engine still produces
-        // useful totals on a project shipping an older cost sheet.
-        private const double DefaultPipeInsulationUgxPerM = 55_500;
-        private const double DefaultDuctInsulationUgxPerM = 74_000;
-        private const double DefaultSleeveUgxEach         = 185_000;
-        private const double DefaultHangerUgxEach         = 111_000;
+        // Default rates used when cost_rates_5d.csv has no entry for a
+        // category. Surfaced through TagConfig so a project can override per
+        // its own cost sheet without editing the shipped CSV — the panel
+        // status strip flags every defaulted row via RateSource = "Default".
+        private const double FallbackPipeInsulationUgxPerM = 55_500;
+        private const double FallbackDuctInsulationUgxPerM = 74_000;
+        private const double FallbackSleeveUgxEach         = 185_000;
+        private const double FallbackHangerUgxEach         = 111_000;
 
         /// <summary>
         /// Builds the supplemental BOQ rows — insulation runs, sleeves, hangers.
-        /// Quantity for insulation is taken from PipeInsulation.GetInsulatedElementId
-        /// → host pipe length when available, falling back to BIP CURVE_ELEM_LENGTH.
-        /// Sleeves and hangers count as 1 each.
+        /// Quantity for insulation is the BIP CURVE_ELEM_LENGTH on each
+        /// PipeInsulation / DuctInsulation element. Sleeves and hangers count
+        /// as 1 each. Rates resolve via the shared BOQCostManager CSV reader,
+        /// falling back to TagConfig overrides then to the constants above.
         /// </summary>
-        public static List<BOQLineItem> Build(Document doc)
+        /// <param name="excludeRevitElementIds">Optional set of Revit element
+        /// ids already accounted for by the main BOQ pipeline — the enricher
+        /// skips any element whose id is present so sleeves/hangers modelled
+        /// under OST_PipeAccessory don't double-count.</param>
+        public static List<BOQLineItem> Build(Document doc, HashSet<long> excludeRevitElementIds = null)
         {
             var items = new List<BOQLineItem>();
             if (doc == null) return items;
 
-            var rates = LoadRates();
+            var rates = BOQCostManager.LoadCsvRates();
             var ugxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
+            var skip = excludeRevitElementIds ?? new HashSet<long>();
 
-            CollectInsulation(doc, items, rates, ugxPerUsd, BuiltInCategory.OST_PipeInsulations,
-                "Pipe Insulations", DefaultPipeInsulationUgxPerM, "33", "M");
-            CollectInsulation(doc, items, rates, ugxPerUsd, BuiltInCategory.OST_DuctInsulations,
-                "Duct Insulations", DefaultDuctInsulationUgxPerM, "33", "M");
+            double pipeInsRate = TagConfig.GetConfigDouble("PLUMB_BOQ_DEFAULT_PIPE_INSULATION_UGX_M", FallbackPipeInsulationUgxPerM);
+            double ductInsRate = TagConfig.GetConfigDouble("PLUMB_BOQ_DEFAULT_DUCT_INSULATION_UGX_M", FallbackDuctInsulationUgxPerM);
+            double sleeveRate  = TagConfig.GetConfigDouble("PLUMB_BOQ_DEFAULT_SLEEVE_UGX_EACH",       FallbackSleeveUgxEach);
+            double hangerRate  = TagConfig.GetConfigDouble("PLUMB_BOQ_DEFAULT_HANGER_UGX_EACH",       FallbackHangerUgxEach);
 
-            CollectGenericByFamily(doc, items, rates, ugxPerUsd,
+            CollectInsulation(doc, items, rates, ugxPerUsd, skip, BuiltInCategory.OST_PipeInsulations,
+                "Pipe Insulations", pipeInsRate, "33", "M");
+            CollectInsulation(doc, items, rates, ugxPerUsd, skip, BuiltInCategory.OST_DuctInsulations,
+                "Duct Insulations", ductInsRate, "33", "M");
+
+            CollectGenericByFamily(doc, items, rates, ugxPerUsd, skip,
                 familyPrefixes: new[] { "STING_SLEEVE_", "STING_PROVISION_VOID" },
                 category: "Pipe Sleeve",
                 rateKey: "Pipe Sleeve",
-                defaultUgx: DefaultSleeveUgxEach,
+                defaultUgx: sleeveRate,
                 nrm2: "32", discipline: "M");
 
-            CollectGenericByFamily(doc, items, rates, ugxPerUsd,
+            CollectGenericByFamily(doc, items, rates, ugxPerUsd, skip,
                 familyPrefixes: new[] { "STING_HANGER_", "STING_TRAPEZE_" },
                 category: "Pipe Hanger",
                 rateKey: "Pipe Hanger",
-                defaultUgx: DefaultHangerUgxEach,
+                defaultUgx: hangerRate,
                 nrm2: "33", discipline: "M");
 
             return items;
@@ -70,7 +81,8 @@ namespace StingTools.Core.Plumbing
 
         private static void CollectInsulation(Document doc, List<BOQLineItem> items,
             Dictionary<string, (double rate, string unit)> rates, double ugxPerUsd,
-            BuiltInCategory bic, string categoryName, double defaultRateUgx, string nrm2, string discipline)
+            HashSet<long> skip, BuiltInCategory bic, string categoryName,
+            double defaultRateUgx, string nrm2, string discipline)
         {
             try
             {
@@ -80,6 +92,8 @@ namespace StingTools.Core.Plumbing
                 int sortOrder = 0;
                 foreach (var el in collector)
                 {
+                    long rid = el.Id?.Value ?? -1;
+                    if (rid > 0 && skip.Contains(rid)) continue;
                     double lengthFt = 0;
                     var p = el.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH);
                     if (p != null && p.HasValue) lengthFt = p.AsDouble();
@@ -113,8 +127,8 @@ namespace StingTools.Core.Plumbing
 
         private static void CollectGenericByFamily(Document doc, List<BOQLineItem> items,
             Dictionary<string, (double rate, string unit)> rates, double ugxPerUsd,
-            string[] familyPrefixes, string category, string rateKey, double defaultUgx,
-            string nrm2, string discipline)
+            HashSet<long> skip, string[] familyPrefixes, string category, string rateKey,
+            double defaultUgx, string nrm2, string discipline)
         {
             try
             {
@@ -124,6 +138,8 @@ namespace StingTools.Core.Plumbing
                 int sortOrder = 0;
                 foreach (var el in collector.OfType<FamilyInstance>())
                 {
+                    long rid = el.Id?.Value ?? -1;
+                    if (rid > 0 && skip.Contains(rid)) continue;
                     var famName = el.Symbol?.Family?.Name ?? "";
                     bool match = false;
                     foreach (var prefix in familyPrefixes)
@@ -155,33 +171,5 @@ namespace StingTools.Core.Plumbing
             catch (Exception ex) { StingLog.Warn($"PlumbingBOQEnricher.{category}: {ex.Message}"); }
         }
 
-        // Lightweight CSV reader so the enricher doesn't depend on
-        // BOQCostManager internals. Same 7-column shape as cost_rates_5d.csv.
-        private static Dictionary<string, (double rate, string unit)> LoadRates()
-        {
-            var rates = new Dictionary<string, (double rate, string unit)>(StringComparer.OrdinalIgnoreCase);
-            try
-            {
-                string path = StingToolsApp.FindDataFile("cost_rates_5d.csv");
-                if (string.IsNullOrEmpty(path) || !File.Exists(path)) return rates;
-                var lines = File.ReadAllLines(path);
-                if (lines.Length < 2) return rates;
-                bool is7Col = lines[0].ToLowerInvariant().Contains("mat_code");
-                for (int i = 1; i < lines.Length; i++)
-                {
-                    var cols = StingToolsApp.ParseCsvLine(lines[i]);
-                    if (cols.Length < 3) continue;
-                    if (is7Col && cols.Length >= 7
-                        && double.TryParse(cols[4], System.Globalization.NumberStyles.Any,
-                                           System.Globalization.CultureInfo.InvariantCulture, out var ugx))
-                    {
-                        rates[cols[0].Trim()] = (ugx, cols[5].Trim());
-                        if (!string.IsNullOrEmpty(cols[1])) rates[cols[1].Trim()] = (ugx, cols[5].Trim());
-                    }
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"PlumbingBOQEnricher.LoadRates: {ex.Message}"); }
-            return rates;
-        }
     }
 }

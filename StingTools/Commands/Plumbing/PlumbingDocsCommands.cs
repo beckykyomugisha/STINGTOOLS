@@ -183,19 +183,22 @@ namespace StingTools.Commands.Plumbing
             try { boq = BOQCostManager.BuildBOQDocument(ctx.Doc); }
             catch (Exception ex) { StingLog.Warn("PlumbBOQ: main BOQ build failed, falling back: " + ex.Message); }
 
-            // Supplemental rows the main pipeline doesn't cover for plumbing
-            // scope (insulation, sleeves, hangers). Always added — they live in
-            // categories outside SharedParamGuids.AllCategoryEnums so the QS
-            // total only reconciles when both surfaces include them.
-            List<BOQLineItem> supplemental = PlumbingBOQEnricher.Build(ctx.Doc);
-
             List<BOQLineItem> plumbingItems = null;
             if (boq != null)
             {
                 plumbingItems = boq.AllItems.Where(IsPlumbingItem).ToList();
             }
             if (plumbingItems == null) plumbingItems = new List<BOQLineItem>();
-            plumbingItems.AddRange(supplemental);
+
+            // Supplemental rows the main pipeline doesn't cover for plumbing
+            // scope (insulation, sleeves, hangers). The exclude-set carries
+            // every Revit id already counted by the main BOQ so projects that
+            // model sleeves under OST_PipeAccessory (which the main pipeline
+            // does collect) don't get double-rated by the enricher.
+            var excludeIds = new HashSet<long>(plumbingItems
+                .Where(i => i.RevitElementId > 0)
+                .Select(i => i.RevitElementId));
+            plumbingItems.AddRange(PlumbingBOQEnricher.Build(ctx.Doc, excludeIds));
 
             var inst = StingPlumbingPanel.Instance;
             if (plumbingItems.Count > 0)
@@ -322,14 +325,26 @@ namespace StingTools.Commands.Plumbing
                 double invIn = 0, invOut = 0, cover = 0, depth = 0;
                 try
                 {
-                    // Invert params are stored in feet (Revit internal units)
-                    // even when the stamp originated as mAOD — the displacement
-                    // we ultimately care about (CoverM − InvOutM = depth) is
-                    // metric and consistent regardless of datum convention.
+                    // Stamped invert params win when present — they're the
+                    // authoritative QS-checked values.
                     var pIn  = el.LookupParameter(ParamRegistry.PLM_DRN_INV_US)?.AsDouble();
                     var pOut = el.LookupParameter(ParamRegistry.PLM_DRN_INV_DS)?.AsDouble();
                     if (pIn  != null) invIn  = pIn.Value  * 0.3048;
                     if (pOut != null) invOut = pOut.Value * 0.3048;
+
+                    // When the stamps are missing (typical before
+                    // Plumb_InvertLevels has been run), derive directly from
+                    // the connected drainage pipes' connector Z. Each pipe
+                    // connector's Z minus the pipe radius gives the invert at
+                    // the chamber face — highest is US, lowest is DS. This
+                    // means the schedule still produces meaningful Cover /
+                    // Depth even on a brand-new model.
+                    if (invIn <= 0 && invOut <= 0)
+                    {
+                        var (cIn, cOut) = ResolveInvertsFromConnectors(el);
+                        if (invIn  <= 0) invIn  = cIn;
+                        if (invOut <= 0) invOut = cOut;
+                    }
 
                     // Cover = chamber's host-level elevation (project zero).
                     // Depth = Cover − lowest invert. Both internally consistent
@@ -385,6 +400,33 @@ namespace StingTools.Commands.Plumbing
             }
             panel.Show();
             return Result.Succeeded;
+        }
+
+        // Walks the chamber's piping connectors and returns (US, DS) inverts
+        // in metres relative to project zero. Z minus pipe radius gives the
+        // invert (lowest internal point of the bore) at the chamber face;
+        // highest of all connections is US, lowest is DS. Returns (0,0) when
+        // the family has no piping connectors so the caller can fall back to
+        // the stamped params.
+        private static (double invInM, double invOutM) ResolveInvertsFromConnectors(Element el)
+        {
+            try
+            {
+                var fi = el as FamilyInstance;
+                var mgr = fi?.MEPModel?.ConnectorManager;
+                if (mgr == null) return (0, 0);
+                var inverts = new List<double>();
+                foreach (Connector c in mgr.Connectors)
+                {
+                    if (c?.Domain != Domain.DomainPiping) continue;
+                    double radiusM = 0;
+                    try { radiusM = c.Radius * 0.3048; } catch { }
+                    inverts.Add(c.Origin.Z * 0.3048 - radiusM);
+                }
+                if (inverts.Count == 0) return (0, 0);
+                return (inverts.Max(), inverts.Min());
+            }
+            catch { return (0, 0); }
         }
     }
 

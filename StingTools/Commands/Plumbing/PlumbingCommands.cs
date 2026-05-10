@@ -64,24 +64,23 @@ namespace StingTools.Commands.Plumbing
             var vents = VentDesigner.DesignVents(doc, dfuMap.PipeDfu);
             var stackReport = StackCapacityValidator.Validate(doc, dfuMap);
 
-            if (!dryRun)
-            {
-                var preview = SlopeAutoCorrector.Preview(doc);
-                if (preview.Fixes.Count > 0)
-                {
-                    var decision = SlopeFixPreviewDialog.Show(preview);
-                    if (decision.Decision == SlopeFixDecision.ApplyAll)
-                        SlopeAutoCorrector.RunFix(doc, dryRun: false);
-                }
-            }
-
             // Inline panel path: populate DU-scan, sizing, vent and slope grids
             // in one shot so the user sees every engine's output without a
-            // popup. Fall through to StingResultPanel only when the dock
-            // panel is closed (ribbon / NLP entry).
+            // popup. Slope fixes are previewed and (in apply mode) committed
+            // through SlopeAutoCorrector.RunFix — its TransactionGroup rolls
+            // back on per-pipe failures, so unsafe topology never lands.
+            // Fall through to StingResultPanel only when the dock panel is
+            // closed (ribbon / NLP entry); the wide SlopeFixPreviewDialog is
+            // still available there for connector-impact detail.
+            SlopeAutoCorrectionResult slopeResult = null;
             var inst = StingPlumbingPanel.Instance;
             if (inst != null)
             {
+                if (!dryRun)
+                    slopeResult = SlopeAutoCorrector.RunFix(doc, dryRun: false);
+                else
+                    slopeResult = SlopeAutoCorrector.Preview(doc);
+
                 var sizingRows = sizing.Results.Select(res => new DrainageSizingRow
                 {
                     Pipe        = res.PipeId.Value.ToString(),
@@ -102,12 +101,36 @@ namespace StingTools.Commands.Plumbing
                     Flag    = (v.RequiresAav ? "AAV" : "")
                               + (v.RequiresReliefVent ? (v.RequiresAav ? " · RELIEF" : "RELIEF") : "")
                 }).ToList();
+                var slopeRows = slopeResult.Fixes
+                    .Where(f => f.Action == "FLIP" || f.Action == "DEPRESS")
+                    .Select(f => new DrainageSlopeRow
+                    {
+                        Apply   = f.Success && f.ConnectorImpact != ConnectorImpact.SkippedConnected,
+                        Pipe    = f.PipeId?.Value.ToString() ?? "",
+                        DElevMm = f.DeltaZFt * 304.8
+                    }).ToList();
                 inst.SetDrainageSizingResult(sizingRows,
                     $"AutoSize · {sizing.PipesAnalysed} pipes · {sizing.PipesUpsized} upsize · "
                     + $"{stackReport.StacksFlagged} stacks flagged"
                     + (dryRun ? " (dry run)" : ""));
                 inst.SetDrainageVentResult(ventRows, null);
+                inst.SetDrainageSlopeResult(slopeRows,
+                    $"Slope · flipped {slopeResult.PipesFlipped} · depressed {slopeResult.PipesDepressed} · "
+                    + $"unchanged {slopeResult.PipesUnchanged} · skipped {slopeResult.PipesSkippedConnectedBothEnds} · "
+                    + $"failed {slopeResult.PipesFailed}");
                 return Result.Succeeded;
+            }
+
+            // Closed-panel path: keep the legacy dialog flow.
+            if (!dryRun)
+            {
+                var preview = SlopeAutoCorrector.Preview(doc);
+                if (preview.Fixes.Count > 0)
+                {
+                    var decision = SlopeFixPreviewDialog.Show(preview);
+                    if (decision.Decision == SlopeFixDecision.ApplyAll)
+                        SlopeAutoCorrector.RunFix(doc, dryRun: false);
+                }
             }
 
             var panel = StingResultPanel.Create("Auto-Size Drainage");
