@@ -21,30 +21,52 @@ namespace Planscape.API.Controllers;
 public class PhotoExportController : ControllerBase
 {
     private const int MaxPhotosPerExport = 500;
+    private const int MaxPhotosPerPdf    = 200;
     private readonly PlanscapeDbContext _db;
     private readonly PhotoBulkExportService _exporter;
+    private readonly PhotoPdfExportService  _pdfExporter;
 
-    public PhotoExportController(PlanscapeDbContext db, PhotoBulkExportService exporter)
+    public PhotoExportController(
+        PlanscapeDbContext db,
+        PhotoBulkExportService exporter,
+        PhotoPdfExportService pdfExporter)
     {
-        _db = db; _exporter = exporter;
+        _db = db; _exporter = exporter; _pdfExporter = pdfExporter;
     }
 
     [HttpPost]
     public async Task<IActionResult> Export(
         Guid projectId,
         [FromBody] PhotoExportRequest req,
+        [FromQuery] string format = "zip",
         CancellationToken ct = default)
     {
         if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
         if (req.PhotoIds == null && req.AlbumId == null)
             return BadRequest(new { error = "ids_or_album_required" });
-        if (req.PhotoIds != null && req.PhotoIds.Length > MaxPhotosPerExport)
-            return BadRequest(new { error = "batch_too_large", max = MaxPhotosPerExport });
 
         var includeOriginals = req.IncludeOriginals ?? IsApprover();
         // ClientGuest can never include originals.
         var role = User.FindFirst("role")?.Value ?? "";
         if (role == "ClientGuest") includeOriginals = false;
+
+        if (string.Equals(format, "pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            if (req.PhotoIds != null && req.PhotoIds.Length > MaxPhotosPerPdf)
+                return BadRequest(new { error = "batch_too_large_for_pdf", max = MaxPhotosPerPdf });
+            var pdf = await _pdfExporter.RenderAsync(new PhotoPdfExportService.PdfRequest(
+                ProjectId:         projectId,
+                PhotoIds:          req.PhotoIds,
+                AlbumId:           req.AlbumId,
+                IncludeRedacted:   !includeOriginals,
+                CallerDisplayName: User.FindFirst("display_name")?.Value),
+                ct);
+            pdf.PdfStream.Position = 0;
+            return File(pdf.PdfStream, "application/pdf", pdf.FileName);
+        }
+
+        if (req.PhotoIds != null && req.PhotoIds.Length > MaxPhotosPerExport)
+            return BadRequest(new { error = "batch_too_large", max = MaxPhotosPerExport });
 
         var result = await _exporter.ExportAsync(new PhotoBulkExportService.ExportRequest(
             ProjectId:          projectId,

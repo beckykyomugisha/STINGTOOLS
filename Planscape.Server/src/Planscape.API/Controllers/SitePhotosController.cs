@@ -305,6 +305,13 @@ public class SitePhotosController : ControllerBase
             .Select(p => p.Id)
             .ToListAsync(ct);
 
+        // Phase 179 — apply the per-photo PhotoAccessRule gate. v1
+        // callers that don't read the rule rows still get back a
+        // tighter list, but the response shape is unchanged.
+        var probe = await PhotoAclGate.ResolveProbeAsync(_db, projectId, User, ct);
+        var visible = await PhotoAclGate.FilterVisibleAsync(_db, pageIds, probe, ct);
+        pageIds = pageIds.Where(id => visible.Contains(id)).ToList();
+
         var rows = pageIds.Count == 0
             ? new List<SitePhotoDto>()
             : await (
@@ -348,6 +355,10 @@ public class SitePhotosController : ControllerBase
         var photo = await LoadPhotoAsync(projectId, photoId, ct);
         if (photo == null) return NotFound();
         if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
+        // Phase 179 — AND the audience state with the per-photo ACL.
+        var probe = await PhotoAclGate.ResolveProbeAsync(_db, projectId, User, ct);
+        var visible = await PhotoAclGate.FilterVisibleAsync(_db, new[] { photoId }, probe, ct);
+        if (!visible.Contains(photoId)) return Forbid();
         return Ok(await ToDtoAsync(photo, ct));
     }
 
@@ -379,6 +390,10 @@ public class SitePhotosController : ControllerBase
         {
             // Project members get the original; require active membership.
             if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
+            // Phase 179 — AND the audience state with the per-photo ACL.
+            var probe = await PhotoAclGate.ResolveProbeAsync(_db, projectId, User, ct);
+            var visible = await PhotoAclGate.FilterVisibleAsync(_db, new[] { photoId }, probe, ct);
+            if (!visible.Contains(photoId)) return Forbid();
             path = photo.Document.FilePath!;
         }
 

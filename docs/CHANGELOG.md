@@ -72,22 +72,36 @@ PDF / mobile.
   re-anchor** cover the admin recovery cases that surfaced in the
   review pass.
 
-**Caveats**
+**Phase 179.1 — caveat clearance (same branch)**
+
+- **PDF export** wired up via QuestPDF — `PhotoPdfExportService`
+  renders cover + index + 2-up body grid. Reachable via
+  `POST /api/projects/{id}/photo-export?format=pdf` and from the BCC
+  Albums tab Save dialog (filter index 2). Capped at 200 photos per
+  render; bigger jobs need a Hangfire follow-up.
+- **v1 list/single/file ACL gate** added — `PhotoAclGate` AND-s the
+  audience state machine with the per-photo `PhotoAccessRule` rows
+  on every v1 endpoint (`GET /photos`, `GET /photos/{id}`,
+  `GET /photos/{id}/file`). Photos with zero rules pass through
+  untouched (pre-Phase-179 behaviour). Tenant Admin / Owner /
+  SecurityOfficer bypass.
+- **Deploy runbook** at [`docs/PHOTO_WORKFLOW_DEPLOY.md`](PHOTO_WORKFLOW_DEPLOY.md)
+  documents `dotnet build`, EF snapshot regeneration, migration
+  smoke-test, plugin compile, mobile type-check, and rollback.
+
+**Remaining caveats**
 
 1. Built without `dotnet build` verification (Linux sandbox, no Revit
-   API). Verify in Revit before merge.
+   API). Verify in Revit before merge — see `docs/PHOTO_WORKFLOW_DEPLOY.md`
+   for the full sequence.
 2. The EF model snapshot file is not regenerated — first deploy must
-   run `dotnet ef migrations script` or the runtime will fall back to
-   the hand-written migration.
-3. PDF export (vs the current HTML+ZIP) needs PdfSharp / QuestPDF —
-   deferred. The shipped `album.html` covers the same case for now.
-4. Mobile checklist fulfilment hands off to capture; auto-linking the
+   run `dotnet ef migrations add` to refresh
+   `PlanscapeDbContextModelSnapshot.cs`. See deploy runbook step 2.
+3. Mobile checklist fulfilment hands off to capture; auto-linking the
    resulting photo to the originating item is a follow-up.
-5. PhotoAccessRule read-time enforcement (the AND gate) is wired
-   through the new endpoints; the existing v1 list endpoint keeps its
-   pre-Phase-179 behaviour for back-compat. Migration of the v1 path
-   is a follow-up so any existing client that depends on the
-   unfiltered list keeps working until it's updated.
+4. `PhotoAccessRule.RequiresNdaAcceptance` is wired into the data
+   model + audit log but is **not** gated at fetch time yet.
+   Acceptance UI is a follow-up.
 
 #### Completed (Healthcare Pack H-1..H-30 — Hospital design content layer)
 

@@ -475,7 +475,12 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.RedactPublishedPhot
 builder.Services.AddScoped<Planscape.Infrastructure.Services.DailyPhotoDigestJob>();
 // Phase 179 — site-photo workflow enhancements
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoBulkExportService>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoPdfExportService>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoRetentionJob>();
+// QuestPDF community licence — set once per process. Free for OSS /
+// personal / sub-1M USD revenue companies; switch to .Professional and
+// add the licence key at GA if revenue threshold is crossed.
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoPipeline.IPhotoRedactionPipeline,
     Planscape.Infrastructure.Services.PhotoPipeline.SkiaPhotoRedactionPipeline>();
 

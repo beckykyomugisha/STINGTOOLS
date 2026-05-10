@@ -218,12 +218,14 @@ namespace StingTools.UI
                 {
                     var dlg = new Microsoft.Win32.SaveFileDialog
                     {
-                        Filter = "ZIP archive (*.zip)|*.zip",
+                        Filter = "ZIP archive (*.zip)|*.zip|PDF document (*.pdf)|*.pdf",
                         FileName = $"album-{selected!.Name}-{DateTime.Now:yyyyMMddHHmmss}.zip"
                     };
                     if (dlg.ShowDialog() != true) return;
+                    // Filter index 1 = ZIP, 2 = PDF (1-based in WPF SaveFileDialog).
+                    var format = dlg.FilterIndex == 2 ? "pdf" : "zip";
                     var path = await PlanscapeServerClient.Instance.ExportPhotosAsync(
-                        state.ProjectId, dlg.FileName, albumId: selected.Id);
+                        state.ProjectId, dlg.FileName, albumId: selected.Id, format: format);
                     Autodesk.Revit.UI.TaskDialog.Show("Export",
                         path != null ? $"Wrote {path}" : (PlanscapeServerClient.Instance.LastError ?? "(no detail)"));
                 };

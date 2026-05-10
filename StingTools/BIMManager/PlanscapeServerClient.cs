@@ -1358,13 +1358,15 @@ public sealed class PlanscapeServerClient : IDisposable
         Guid projectId, string outputPath,
         IEnumerable<Guid>? photoIds = null, Guid? albumId = null,
         bool includeOriginals = true, bool includeRedacted = false,
-        bool includeAnnotations = true, bool includeHtmlIndex = true)
+        bool includeAnnotations = true, bool includeHtmlIndex = true,
+        string format = "zip")
     {
         if (!await EnsureAuthenticatedAsync()) return null;
         try
         {
             var ids = photoIds?.Select(g => g.ToString()).ToList();
-            var resp = await PostJsonRawAsync($"/api/projects/{projectId}/photo-export", new {
+            var qs = string.IsNullOrEmpty(format) || format == "zip" ? "" : $"?format={Uri.EscapeDataString(format)}";
+            var resp = await PostJsonRawAsync($"/api/projects/{projectId}/photo-export{qs}", new {
                 photoIds = ids, albumId,
                 includeOriginals, includeRedacted, includeAnnotations, includeHtmlIndex
             });
