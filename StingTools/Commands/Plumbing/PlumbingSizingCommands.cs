@@ -237,10 +237,8 @@ namespace StingTools.Commands.Plumbing
             double inletBar = cfg.SupplyPressureBarAtEntry;
             double inletElevFt = levels.FirstOrDefault()?.Elevation ?? 0;
 
-            var panel = StingResultPanel.Create("Pressure Check");
-            panel.SetSubtitle($"Entry {inletBar:F2} bar · ρg = 9.81 kPa/m · BS 8558 minimums");
-            panel.AddSection("STATIC PRESSURE PER LEVEL");
             int prvCount = 0, fail = 0;
+            var lines = new List<string>();
             foreach (var lvl in levels)
             {
                 double dHm = (lvl.Elevation - inletElevFt) * 0.3048;
@@ -254,8 +252,17 @@ namespace StingTools.Commands.Plumbing
                 if (prv) flags += " · PRV recommended";
                 if (worstThermo) flags += " · ⚠ thermostatic shower";
                 if (worstUnvented) flags += " · ⚠ unvented cylinder";
-                panel.Text($"{lvl.Name}  Δh {dHm:F1} m  p {pBar:F2} bar{flags}");
+                lines.Add($"{lvl.Name}  Δh {dHm:F1} m  p {pBar:F2} bar{flags}");
             }
+            string status = $"Pressure · {levels.Count} levels · entry {inletBar:F2} bar · "
+                          + $"{prvCount} PRV · {fail} fail";
+            var inst = StingPlumbingPanel.Instance;
+            if (inst != null) { inst.SetStatus(status); return Result.Succeeded; }
+
+            var panel = StingResultPanel.Create("Pressure Check");
+            panel.SetSubtitle($"Entry {inletBar:F2} bar · ρg = 9.81 kPa/m · BS 8558 minimums");
+            panel.AddSection("STATIC PRESSURE PER LEVEL");
+            foreach (var line in lines) panel.Text(line);
             panel.AddSection("SUMMARY")
                  .Metric("Levels analysed", levels.Count.ToString())
                  .Metric("PRV recommended", prvCount.ToString())
@@ -278,6 +285,11 @@ namespace StingTools.Commands.Plumbing
             double vsysL = 200.0;
             double tCold = 10, tHot = 60;
             var r = ExpansionVesselSizer.Size(vsysL, tCold, tHot);
+
+            string status = $"Exp vessel · V_sys {vsysL:F0} L · ΔT {r.DeltaTC:F0}°C · "
+                          + $"V_tank {r.VTankL:F0} L · {r.RecommendedFamily}";
+            var inst = StingPlumbingPanel.Instance;
+            if (inst != null) { inst.SetStatus(status); return Result.Succeeded; }
 
             var panel = StingResultPanel.Create("Expansion Vessel (BS 7074-1)");
             panel.SetSubtitle($"System volume {vsysL:F0} L · ΔT {r.DeltaTC:F0} °C");
