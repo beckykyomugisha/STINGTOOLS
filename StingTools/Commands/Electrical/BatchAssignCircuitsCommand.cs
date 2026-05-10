@@ -184,6 +184,7 @@ namespace StingTools.Commands.Electrical
                     SystemId = sys.Id,
                     PanelId  = fit.Id,
                     SystemName = sys.Name ?? "(?)",
+                    PanelId = fit.Id,
                     PanelName = fit.Name,
                     Group = circuitGroup,
                     Reason = $"fit slots={fit.RemainingSlots} after, panelLoad={fit.ConnectedVa/1000:F1} kVA" +
@@ -226,9 +227,16 @@ namespace StingTools.Commands.Electrical
                         // Revit 2024+ requires FamilyInstance, not the panel name string.
                         // Resolve once here so any pre-existing string-based callers still
                         // get clean error reporting via the catch block below.
-                        var panelInst = doc.GetElement(a.PanelId) as FamilyInstance;
-                        if (panelInst == null) { failed++; continue; }
-                        sys.SelectPanel(panelInst);
+                        var panelFi = (a.PanelId != null && a.PanelId != ElementId.InvalidElementId)
+                            ? doc.GetElement(a.PanelId) as FamilyInstance
+                            : null;
+                        if (panelFi == null)
+                        {
+                            failed++;
+                            StingLog.Warn($"BatchAssignCircuits '{a.SystemName}' → '{a.PanelName}': panel instance not found");
+                            continue;
+                        }
+                        sys.SelectPanel(panelFi);
                         applied++;
 
                         // Stamp ELC_PANEL_REF_TXT on the circuit so STING tag
@@ -341,6 +349,7 @@ namespace StingTools.Commands.Electrical
             public ElementId SystemId;
             public ElementId PanelId;     // Revit 2024+ SelectPanel takes FamilyInstance, not string
             public string SystemName;
+            public ElementId PanelId;
             public string PanelName;
             public string Group;
             public string Reason;

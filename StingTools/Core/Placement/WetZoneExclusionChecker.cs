@@ -3,6 +3,10 @@
 // Implements BS 7671 / IEC 60364-7-701 bath/shower zone geometry to
 // reject placement candidates that fall within Zone 0/1/2 around water
 // fixtures.  Per-room cache means the heavy collector runs once.
+//
+// Phase 178a hardening: PlacementDiscipline flag inverts the rule for
+// plumbing — basins, WCs, showers, sinks should *prefer* wet zones,
+// not avoid them. Electrical callers default to the original behaviour.
 
 using System;
 using System.Collections.Generic;
@@ -12,9 +16,16 @@ using Autodesk.Revit.DB.Architecture;
 
 namespace StingTools.Core.Placement
 {
+    public enum PlacementDiscipline
+    {
+        Electrical,
+        Plumbing
+    }
+
     public class WetZoneExclusionChecker
     {
         private const double MmToFt = 1.0 / 304.8;
+        public PlacementDiscipline Discipline { get; set; } = PlacementDiscipline.Electrical;
 
         /// <summary>One exclusion volume around a single water fixture.</summary>
         public class ExclusionZone
@@ -149,14 +160,40 @@ namespace StingTools.Core.Placement
                 return result;
 
             var zones = BuildForRoom(room);
-            if (zones.Count == 0) return result;
+            if (zones.Count == 0)
+            {
+                // Plumbing fixtures in a room with no plumbing context
+                // (no bath/shower/basin/sink/wc) — nothing to prefer.
+                if (Discipline == PlacementDiscipline.Plumbing)
+                    result.Rejected = false;
+                return result;
+            }
 
-            // Determine which zone severity level the rule excludes.
-            int severity = 0; // 0=none
+            int severity = 0;
             string upper = wetZoneExclusion.ToUpperInvariant();
             if (upper.Contains("Z0")) severity = 1;
             if (upper.Contains("Z1")) severity = 2;
             if (upper.Contains("Z2")) severity = 3;
+
+            if (Discipline == PlacementDiscipline.Plumbing)
+            {
+                // Inverted logic: candidate must fall INSIDE a wet zone of
+                // the requested severity tier or below to be acceptable.
+                foreach (var z in zones)
+                {
+                    int zoneSev = ZoneSeverity(z.ZoneName);
+                    if (zoneSev > severity) continue;
+                    if (z.Contains(candidate))
+                    {
+                        result.Rejected = false;
+                        result.ZoneHit  = z.ZoneName;
+                        result.FixtureId = z.SourceFixtureId;
+                        return result;
+                    }
+                }
+                result.Rejected = true;
+                return result;
+            }
 
             foreach (var z in zones)
             {
