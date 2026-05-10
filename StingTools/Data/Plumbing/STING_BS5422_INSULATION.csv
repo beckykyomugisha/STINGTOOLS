@@ -1,0 +1,50 @@
+# BS 5422:2009 — Method for specifying thermal insulating materials for pipes, tanks, ducts.
+# Minimum insulation thickness lookup. Service codes:
+#   DCW_FROST          — DCW frost protection (unheated voids, external)
+#   DCW_COND           — DCW condensation control (below dewpoint, chilled rooms)
+#   DHW_HEATLOSS       — DHW heat-loss compliance (Building Regs Part L)
+#   HWS_HEATLOSS       — DHW recirculation heat-loss
+#   LTHW_HEATLOSS      — LTHW flow / return heat-loss
+#   CHW_COND           — Chilled water condensation control
+#   STM_HEATLOSS       — Steam main heat-loss
+# Thickness columns by thermal conductivity λ (W/m·K) at the service mean temperature.
+# Values rounded to nearest 5 mm; consult full BS 5422 Tables 4-15 for definitive design.
+Service,OD_MM_MIN,OD_MM_MAX,Lambda_0p030,Lambda_0p035,Lambda_0p040,Lambda_0p045,Notes
+DCW_FROST,0,17,15,20,25,30,Pipes ≤ 17 mm OD
+DCW_FROST,17,28,20,25,30,40,
+DCW_FROST,28,42,25,30,35,45,
+DCW_FROST,42,60,30,40,45,55,
+DCW_FROST,60,89,35,45,55,65,
+DCW_FROST,89,200,40,50,60,75,
+DCW_COND,0,17,15,20,25,30,Closed-cell elastomeric required (vapour barrier)
+DCW_COND,17,28,15,20,25,32,
+DCW_COND,28,42,19,25,32,40,
+DCW_COND,42,60,25,32,40,50,
+DCW_COND,60,200,32,40,50,60,
+DHW_HEATLOSS,0,17,20,25,30,40,DHW 60-65 C
+DHW_HEATLOSS,17,28,25,30,40,50,
+DHW_HEATLOSS,28,42,32,40,50,60,
+DHW_HEATLOSS,42,60,40,50,60,75,
+DHW_HEATLOSS,60,89,50,60,75,90,
+DHW_HEATLOSS,89,200,60,75,90,100,
+HWS_HEATLOSS,0,17,25,30,40,50,Recirc 55-60 C
+HWS_HEATLOSS,17,28,32,40,50,60,
+HWS_HEATLOSS,28,42,40,50,60,75,
+HWS_HEATLOSS,42,60,50,60,75,90,
+HWS_HEATLOSS,60,200,60,75,90,100,
+LTHW_HEATLOSS,0,17,25,30,40,50,Flow 75 C / Return 65 C typical
+LTHW_HEATLOSS,17,28,32,40,50,60,
+LTHW_HEATLOSS,28,42,40,50,60,75,
+LTHW_HEATLOSS,42,60,50,60,75,90,
+LTHW_HEATLOSS,60,200,60,75,100,125,
+CHW_COND,0,17,15,20,25,32,Chilled 6-12 C dewpoint risk; closed-cell elastomeric mandatory
+CHW_COND,17,28,19,25,32,40,
+CHW_COND,28,42,25,32,40,50,
+CHW_COND,42,60,32,40,50,60,
+CHW_COND,60,200,40,50,60,75,
+STM_HEATLOSS,0,17,40,50,60,75,LP/MP steam — calcium silicate or mineral wool
+STM_HEATLOSS,17,28,50,60,75,90,
+STM_HEATLOSS,28,42,60,75,90,100,
+STM_HEATLOSS,42,60,75,90,100,125,
+STM_HEATLOSS,60,89,90,100,125,150,
+STM_HEATLOSS,89,200,100,125,150,175,

@@ -82,16 +82,15 @@ namespace StingTools.Core.Calc
 
                 r.SegmentsChecked++;
 
-                // Treat vertical (within 5° of plumb) as exempt — drops
-                // and stacks are inherently OK for gravity flow.
-                if (horizMm < 50.0 && riseMm > 100.0)
+                double totalLenFt = Math.Sqrt(dxFt * dxFt + dyFt * dyFt + dzFt * dzFt);
+                double verticalFraction = totalLenFt > 1e-6 ? Math.Abs(dzFt) / totalLenFt : 0.0;
+                if (verticalFraction > 0.8 || (horizMm < 50.0 && riseMm > 100.0))
                 {
                     r.VerticalSegments++;
                     continue;
                 }
                 if (horizMm < 1.0)
                 {
-                    // Degenerate / zero-length — skip.
                     continue;
                 }
 

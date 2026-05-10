@@ -1,20 +1,12 @@
-// StingTools v4 MVP — BS EN 12056 slope auto-corrector.
+// BS EN 12056 slope auto-corrector. Phase 178a hardening:
+// connector-preserving fix path for connected pipe ends.
 //
-// SlopeValidator reports drainage pipes below the required gradient.
-// This companion class FIXES them: walks every drainage pipe, detects
-// endpoints where the flow is in the wrong direction (upstream end
-// is lower than downstream end) and swaps the pipe's LocationCurve
-// endpoints to match. For pipes with zero slope, it applies a minimum
-// 1:80 drop over the run length by depressing the downstream end.
-//
-// BS EN 12056-2 minimums enforced:
-//   Sanitary/soil (DN75–DN100):   1:100 to 1:40 (1.0%–2.5%)
-//   Rainwater:                    1:100
-//   Self-cleansing velocity:      0.7 m/s — flagged not auto-fixed
-//
-// Uses ElementTransformUtils.MoveElement on the pipe endpoint in a
-// TransactionGroup. If any fix fails, the group rolls back so the
-// user never ends up with a partially-fixed network.
+// Topology-safety rule: rewriting LocationCurve.Curve on a pipe whose
+// end is connected to a fitting silently disconnects the connector
+// pair. We detect connected ends and use ElementTransformUtils.MoveElement
+// on the attached fitting so Revit drags the pipe end along and keeps
+// the connection alive. Free ends fall through to the LocationCurve
+// path (safe — no connector to break).
 
 using System;
 using System.Collections.Generic;
@@ -24,6 +16,14 @@ using Autodesk.Revit.DB.Plumbing;
 
 namespace StingTools.Core.Calc
 {
+    public enum ConnectorImpact
+    {
+        NoConnections,       // both ends free — LocationCurve rewrite safe
+        FlipDirection,       // endpoints unchanged; connector roles re-evaluated
+        MovedAttachedFitting,// connected fitting moved to preserve topology
+        SkippedConnected     // both ends connected; manual intervention required
+    }
+
     public class SlopeFix
     {
         public ElementId PipeId     { get; set; } = ElementId.InvalidElementId;
@@ -33,6 +33,9 @@ namespace StingTools.Core.Calc
         public string Action        { get; set; } = "";
         public bool   Success       { get; set; }
         public string FailureReason { get; set; } = "";
+        public ConnectorImpact ConnectorImpact { get; set; } = ConnectorImpact.NoConnections;
+        public ElementId MovedFittingId { get; set; } = ElementId.InvalidElementId;
+        public double DeltaZFt      { get; set; }
     }
 
     public class SlopeAutoCorrectionResult
@@ -42,6 +45,8 @@ namespace StingTools.Core.Calc
         public int PipesDepressed   { get; set; }
         public int PipesUnchanged   { get; set; }
         public int PipesFailed      { get; set; }
+        public int PipesSkippedConnectedBothEnds { get; set; }
+        public int PipesFittingsMoved { get; set; }
         public List<SlopeFix> Fixes { get; } = new List<SlopeFix>();
         public List<string> Warnings { get; } = new List<string>();
     }
@@ -51,6 +56,12 @@ namespace StingTools.Core.Calc
         private const double MinSlopeSanitaryPct = 1.0;
         private const double MinSlopeRainwaterPct = 1.0;
         private const double SelfCleansingVelocityMs = 0.7;
+
+        // Phase 178c preview path: caller can request the planned fix list
+        // without committing, then re-invoke with applySelected = the subset
+        // the user accepted in the SyncStyles-style preview grid.
+        public static SlopeAutoCorrectionResult Preview(Document doc)
+            => RunFix(doc, dryRun: true);
 
         public static SlopeAutoCorrectionResult RunFix(Document doc, bool dryRun)
         {
@@ -78,10 +89,15 @@ namespace StingTools.Core.Calc
                         result.Fixes.Add(fix);
                         if (!fix.Success)
                         {
-                            result.PipesFailed++;
+                            if (fix.ConnectorImpact == ConnectorImpact.SkippedConnected)
+                                result.PipesSkippedConnectedBothEnds++;
+                            else
+                                result.PipesFailed++;
                             result.Warnings.Add($"{pipe.Id}: {fix.FailureReason}");
                             continue;
                         }
+                        if (fix.ConnectorImpact == ConnectorImpact.MovedAttachedFitting)
+                            result.PipesFittingsMoved++;
                         switch (fix.Action)
                         {
                             case "FLIP":        result.PipesFlipped++;   break;
@@ -177,7 +193,13 @@ namespace StingTools.Core.Calc
                 fix.OriginalPct = slopePct;
                 fix.TargetPct   = MinSlopeSanitaryPct;
 
-                // Wrong direction: swap endpoints.
+                bool startConnected = HasConnectedNeighbour(pipe, s, out var startFittingId);
+                bool endConnected   = HasConnectedNeighbour(pipe, e, out var endFittingId);
+
+                // Wrong direction: swap endpoints. Reversing a pipe's
+                // LocationCurve does not change the physical end positions —
+                // Revit re-evaluates connector roles, so this is safe even
+                // for connected pipes.
                 if (dz > 0 && slopePct >= MinSlopeSanitaryPct)
                 {
                     if (!dryRun)
@@ -185,9 +207,12 @@ namespace StingTools.Core.Calc
                         var reversed = Line.CreateBound(e, s);
                         lc.Curve = reversed;
                     }
-                    fix.Action     = "FLIP";
-                    fix.AppliedPct = slopePct;
-                    fix.Success    = true;
+                    fix.Action          = "FLIP";
+                    fix.AppliedPct      = slopePct;
+                    fix.Success         = true;
+                    fix.ConnectorImpact = (startConnected || endConnected)
+                        ? ConnectorImpact.FlipDirection
+                        : ConnectorImpact.NoConnections;
                     return fix;
                 }
 
@@ -199,19 +224,41 @@ namespace StingTools.Core.Calc
                     return fix;
                 }
 
-                // Slope too shallow or flat — depress the end that is
-                // currently higher, by (targetPct/100 × dxy) minus the
-                // existing drop.
                 double targetDropFt = (MinSlopeSanitaryPct / 100.0) * dxy;
                 double currentDrop  = Math.Abs(dz);
                 double additional   = targetDropFt - currentDrop;
                 if (additional < 0) additional = 0;
+                fix.DeltaZFt = additional;
+
+                bool secondEndIsDown = e.Z <= s.Z;
+                bool downEndConnected = secondEndIsDown ? endConnected : startConnected;
+                ElementId downFittingId = secondEndIsDown ? endFittingId : startFittingId;
+
+                if (downEndConnected && (secondEndIsDown ? startConnected : endConnected))
+                {
+                    fix.Action          = "SKIP";
+                    fix.Success         = false;
+                    fix.FailureReason   = "Both ends connected — manual intervention required";
+                    fix.ConnectorImpact = ConnectorImpact.SkippedConnected;
+                    return fix;
+                }
+
+                if (downEndConnected && downFittingId != ElementId.InvalidElementId)
+                {
+                    if (!dryRun && additional > 1e-6)
+                    {
+                        ElementTransformUtils.MoveElement(doc, downFittingId, new XYZ(0, 0, -additional));
+                    }
+                    fix.Action          = "DEPRESS";
+                    fix.AppliedPct      = MinSlopeSanitaryPct;
+                    fix.Success         = true;
+                    fix.ConnectorImpact = ConnectorImpact.MovedAttachedFitting;
+                    fix.MovedFittingId  = downFittingId;
+                    return fix;
+                }
 
                 if (!dryRun && additional > 1e-6)
                 {
-                    // Pick the downstream end: the one that is currently
-                    // lower, or if flat, end 1.
-                    bool secondEndIsDown = e.Z <= s.Z;
                     var downEndPoint = secondEndIsDown ? e : s;
                     var newPoint = new XYZ(downEndPoint.X, downEndPoint.Y,
                                            downEndPoint.Z - additional);
@@ -221,9 +268,10 @@ namespace StingTools.Core.Calc
                     lc.Curve = newCurve;
                 }
 
-                fix.Action     = "DEPRESS";
-                fix.AppliedPct = MinSlopeSanitaryPct;
-                fix.Success    = true;
+                fix.Action          = "DEPRESS";
+                fix.AppliedPct      = MinSlopeSanitaryPct;
+                fix.Success         = true;
+                fix.ConnectorImpact = ConnectorImpact.NoConnections;
                 return fix;
             }
             catch (Exception ex)
@@ -231,6 +279,38 @@ namespace StingTools.Core.Calc
                 fix.FailureReason = ex.Message;
                 return fix;
             }
+        }
+
+        private static bool HasConnectedNeighbour(Pipe pipe, XYZ endPt, out ElementId neighbourId)
+        {
+            neighbourId = ElementId.InvalidElementId;
+            try
+            {
+                var cm = pipe.ConnectorManager;
+                if (cm == null) return false;
+                foreach (Connector c in cm.Connectors)
+                {
+                    if (c.Origin.DistanceTo(endPt) > 0.005) continue;
+                    if (!c.IsConnected) return false;
+                    foreach (Connector other in c.AllRefs)
+                    {
+                        if (other.Owner == null) continue;
+                        if (other.Owner.Id == pipe.Id) continue;
+                        var cat = other.Owner.Category?.Id?.Value ?? 0;
+                        if (cat == (long)BuiltInCategory.OST_PipeFitting ||
+                            cat == (long)BuiltInCategory.OST_PipeAccessory ||
+                            cat == (long)BuiltInCategory.OST_PlumbingFixtures ||
+                            cat == (long)BuiltInCategory.OST_MechanicalEquipment ||
+                            cat == (long)BuiltInCategory.OST_PipeCurves)
+                        {
+                            neighbourId = other.Owner.Id;
+                            return true;
+                        }
+                    }
+                }
+            }
+            catch { }
+            return false;
         }
     }
 }
