@@ -160,7 +160,7 @@ public class PhotoShareLinkPublicController : ControllerBase
     [AllowAnonymous]
     public async Task<ActionResult> Meta(string token, CancellationToken ct = default)
     {
-        var link = await ResolveAsync(token, ct);
+        var link = await PeekLinkAsync(token, ct);
         if (link == null) return NotFound();
         if (link.AlbumId.HasValue)
         {
@@ -187,7 +187,10 @@ public class PhotoShareLinkPublicController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> File(string token, CancellationToken ct = default)
     {
-        var link = await ResolveAsync(token, ct);
+        // Phase 179.3 — atomic increment-then-check via UPDATE … WHERE
+        // FetchCount < MaxFetches RETURNING. Two concurrent requests
+        // can no longer both see the cap as un-hit.
+        var link = await ConsumeOneFetchAsync(token, ct);
         if (link == null) return NotFound();
         if (link.AlbumId.HasValue) return BadRequest(new { error = "album_share_use_album_endpoint" });
         var photo = await _db.SitePhotos.AsNoTracking()
@@ -195,8 +198,6 @@ public class PhotoShareLinkPublicController : ControllerBase
             .FirstOrDefaultAsync(p => p.Id == link.PhotoId!.Value, ct);
         if (photo?.Document?.FilePath == null) return NotFound();
 
-        // Forced redaction: send the redacted derivative if available;
-        // otherwise refuse rather than leak the original.
         string path;
         if (link.ForceRedacted)
         {
@@ -211,10 +212,6 @@ public class PhotoShareLinkPublicController : ControllerBase
 
         var stream = await _storage.GetAsync(path, ct, bypassTenantCheck: true);
         if (stream == null) return NotFound();
-
-        // Atomic fetch increment + cap enforcement.
-        link.FetchCount++;
-        await _db.SaveChangesAsync(ct);
         return File(stream, "image/jpeg", photo.Document.FileName);
     }
 
@@ -222,7 +219,10 @@ public class PhotoShareLinkPublicController : ControllerBase
     [AllowAnonymous]
     public async Task<ActionResult> Album(string token, CancellationToken ct = default)
     {
-        var link = await ResolveAsync(token, ct);
+        // Phase 179.3 — same atomic increment as /file. Album browses
+        // also count toward MaxFetches now so a 10-fetch album can't be
+        // browsed unlimited times via this endpoint.
+        var link = await ConsumeOneFetchAsync(token, ct);
         if (link == null || !link.AlbumId.HasValue) return NotFound();
         var photoIds = await _db.PhotoAlbumPhotos.AsNoTracking()
             .Where(ap => ap.AlbumId == link.AlbumId.Value)
@@ -239,15 +239,44 @@ public class PhotoShareLinkPublicController : ControllerBase
         return Ok(photos);
     }
 
-    private async Task<PhotoShareLink?> ResolveAsync(string token, CancellationToken ct)
+    /// <summary>
+    /// Read-only peek for the metadata endpoint. Does NOT increment the
+    /// fetch counter. Returns null when the link is revoked, expired,
+    /// or already over-cap (so the meta page hides the same as the file).
+    /// </summary>
+    private async Task<PhotoShareLink?> PeekLinkAsync(string token, CancellationToken ct)
     {
-        var link = await _db.PhotoShareLinks
+        var link = await _db.PhotoShareLinks.AsNoTracking()
             .FirstOrDefaultAsync(l => l.Token == token, ct);
         if (link == null) return null;
         if (link.RevokedAt != null) return null;
         if (link.ExpiresAt.HasValue && link.ExpiresAt.Value < DateTime.UtcNow) return null;
         if (link.MaxFetches.HasValue && link.FetchCount >= link.MaxFetches.Value) return null;
         return link;
+    }
+
+    /// <summary>
+    /// Atomically advance the fetch counter for the given token. Returns
+    /// the post-update <see cref="PhotoShareLink"/> when the link was
+    /// live and within its cap; null when revoked, expired, or
+    /// over-cap. Implemented via raw SQL <c>UPDATE … WHERE</c> so two
+    /// concurrent requests can never both pass the cap check.
+    /// </summary>
+    private async Task<PhotoShareLink?> ConsumeOneFetchAsync(string token, CancellationToken ct)
+    {
+        // Single round-trip: increments FetchCount and returns the row
+        // when (RevokedAt IS NULL) AND (ExpiresAt IS NULL OR ExpiresAt > now)
+        // AND (MaxFetches IS NULL OR FetchCount < MaxFetches).
+        var rows = await _db.Database.SqlQuery<PhotoShareLink>($@"
+            UPDATE ""PhotoShareLinks""
+            SET ""FetchCount"" = ""FetchCount"" + 1
+            WHERE ""Token"" = {token}
+              AND ""RevokedAt"" IS NULL
+              AND (""ExpiresAt"" IS NULL OR ""ExpiresAt"" > NOW())
+              AND (""MaxFetches"" IS NULL OR ""FetchCount"" < ""MaxFetches"")
+            RETURNING *;
+        ").ToListAsync(ct);
+        return rows.FirstOrDefault();
     }
 }
 

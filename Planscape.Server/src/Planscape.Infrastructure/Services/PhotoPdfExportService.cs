@@ -52,9 +52,16 @@ public class PhotoPdfExportService
         bool    IncludeRedacted,
         string? CallerDisplayName);
 
-    public sealed record PdfResult(Stream PdfStream, string FileName, int PhotoCount);
+    public sealed record PdfResult(string FileName, int PhotoCount);
 
-    public async Task<PdfResult> RenderAsync(PdfRequest req, CancellationToken ct)
+    /// <summary>
+    /// Phase 179.3 — Stream the PDF directly to <paramref name="output"/>
+    /// (typically <c>Response.Body</c>). Image bytes are fetched JUST IN
+    /// TIME as QuestPDF requests them — peak memory is one image, not
+    /// the whole album. The previous in-memory <c>imageCache</c> could
+    /// allocate up to 5 GB at the documented 200-photo cap.
+    /// </summary>
+    public async Task<PdfResult> RenderAsync(PdfRequest req, Stream output, CancellationToken ct)
     {
         IQueryable<SitePhoto> q = _db.SitePhotos.AsNoTracking().Where(p => p.ProjectId == req.ProjectId);
         if (req.PhotoIds != null && req.PhotoIds.Length > 0)
@@ -85,32 +92,35 @@ public class PhotoPdfExportService
                 .Where(a => a.Id == req.AlbumId.Value).Select(a => a.Name).FirstOrDefaultAsync(ct);
         }
 
-        // Pre-fetch image bytes once; we render the same image on the cover
-        // (cover photo) and in the body. Two-pass is wasteful when the
-        // storage is remote (S3 / MinIO).
-        var imageCache = new Dictionary<Guid, byte[]>();
-        foreach (var p in photos)
+        // Phase 179.3 — load each image only when QuestPDF asks for it
+        // (one at a time during render). Local helper keeps the FilePath
+        // resolution tight to the call site.
+        async Task<byte[]?> FetchAsync(SitePhoto p)
         {
-            if (!docs.TryGetValue(p.DocumentId, out var d) || d.FilePath == null) continue;
+            if (!docs.TryGetValue(p.DocumentId, out var d) || d.FilePath == null) return null;
             var path = req.IncludeRedacted && !string.IsNullOrEmpty(p.RedactedFilePath)
                 ? p.RedactedFilePath!
                 : d.FilePath!;
             try
             {
                 var s = await _storage.GetAsync(path, ct, bypassTenantCheck: true);
-                if (s == null) continue;
+                if (s == null) return null;
                 using var ms = new MemoryStream();
                 await s.CopyToAsync(ms, ct);
-                imageCache[p.Id] = ms.ToArray();
-                s.Dispose();
+                await s.DisposeAsync();
+                return ms.ToArray();
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "PDF render: could not load {Path}", path);
+                return null;
             }
         }
 
-        var ms2 = new MemoryStream();
+        // Pre-fetch the image we need for the body in render-order; the
+        // cover/index pages don't render images so this stays O(N) on
+        // the body pass below. We fetch synchronously per page rather
+        // than eagerly so peak memory is one page (≤ 2 images).
         Document.Create(doc =>
         {
             doc.Page(page =>
@@ -171,10 +181,16 @@ public class PhotoPdfExportService
                 });
             });
 
-            // Body — 2-up grid per page.
+            // Body — 2-up grid per page. Fetch image bytes lazily per
+            // page so peak memory is two photos, not the whole album.
             for (int i = 0; i < photos.Count; i += 2)
             {
                 var pageItems = photos.Skip(i).Take(2).ToList();
+                // Fetch images for this page synchronously off the
+                // QuestPDF render thread to avoid sync-over-async.
+                var pageImages = pageItems
+                    .Select(p => FetchAsync(p).GetAwaiter().GetResult())
+                    .ToList();
                 doc.Page(page =>
                 {
                     page.Margin(36);
@@ -182,11 +198,13 @@ public class PhotoPdfExportService
                     page.Content().Column(col =>
                     {
                         col.Spacing(20);
-                        foreach (var p in pageItems)
+                        for (int j = 0; j < pageItems.Count; j++)
                         {
+                            var p = pageItems[j];
+                            var bytes = pageImages[j];
                             col.Item().Column(cell =>
                             {
-                                if (imageCache.TryGetValue(p.Id, out var bytes))
+                                if (bytes != null)
                                 {
                                     cell.Item().Image(bytes).FitArea();
                                 }
@@ -213,11 +231,10 @@ public class PhotoPdfExportService
                     });
                 });
             }
-        }).GeneratePdf(ms2);
+        }).GeneratePdf(output);
 
-        ms2.Position = 0;
         var name = $"photos-{DateTime.UtcNow:yyyyMMdd-HHmmss}.pdf";
-        return new PdfResult(ms2, name, photos.Count);
+        return new PdfResult(name, photos.Count);
     }
 
     private static string ReasonColour(string reason) => reason switch

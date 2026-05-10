@@ -135,13 +135,28 @@ public class PhotoAlbumsController : ControllerBase
         if (album == null) return NotFound();
         if (!await CanViewAlbumAsync(album, ct)) return Forbid();
 
-        var photos = await _db.PhotoAlbumPhotos.AsNoTracking()
+        var raw = await _db.PhotoAlbumPhotos.AsNoTracking()
             .Where(ap => ap.AlbumId == albumId)
             .OrderBy(ap => ap.SortOrder).ThenBy(ap => ap.AddedAt)
             .Select(ap => new { ap.PhotoId, ap.SortOrder, ap.AddedAt })
             .ToListAsync(ct);
 
-        return Ok(new { album, photos });
+        // Phase 179.3 — pipe the photo ids through PhotoAclGate so
+        // per-photo PhotoAccessRule rows are honoured here too.
+        // Without this, putting a strictly-ACL'd photo in a Members-
+        // visible album would defeat the rule.
+        var probe   = await PhotoAclGate.ResolveProbeAsync(_db, projectId, User, ct);
+        var allIds  = raw.Select(r => r.PhotoId).ToList();
+        var visible = await PhotoAclGate.FilterVisibleAsync(_db, allIds, probe, ct);
+        var ndaPending = await PhotoAclGate.NdaRequiredAsync(_db, allIds, probe, ct);
+        var photos = raw
+            .Where(r => visible.Contains(r.PhotoId) || ndaPending.Contains(r.PhotoId))
+            .ToList();
+
+        return Ok(new {
+            album, photos,
+            ndaRequiredIds = ndaPending.ToArray(),
+        });
     }
 
     // ── PUT / update ──────────────────────────────────────────────────
@@ -373,25 +388,34 @@ public class PhotoAlbumsController : ControllerBase
 
     /// <summary>
     /// Read gate: project member always sees Internal/Members; Client
-    /// audience needs ClientGuest role; Distribution audience needs
-    /// membership of the linked group.
+    /// audience also exposes to ClientGuest; Distribution audience needs
+    /// membership of the linked group (matched by user-id OR by the
+    /// caller's verified email claim for external recipients).
     /// </summary>
     private async Task<bool> CanViewAlbumAsync(PhotoAlbum album, CancellationToken ct)
     {
         var role = User.FindFirst("role")?.Value ?? "";
         if (role is "Admin" or "Owner") return true;
-        if (album.Visibility is "Internal" or "Members") return true;
-        if (album.Visibility == "Client") return role == "ClientGuest" || true; // members + clients
+        // Internal / Members: any project member already passed the
+        // RequireProjectMemberAsync gate above so we only need to gate
+        // out ClientGuest principals here.
+        if (album.Visibility == "Internal") return role != "ClientGuest";
+        if (album.Visibility == "Members")  return role != "ClientGuest";
+        // Client visibility = project members AND ClientGuest readers.
+        if (album.Visibility == "Client") return true;
         if (album.Visibility == "Distribution")
         {
             if (!album.DistributionGroupId.HasValue) return false;
             var userId = CurrentUserIdOrNull();
-            if (userId == null) return false;
+            var email  = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+                       ?? User.FindFirst("email")?.Value;
             return await _db.DistributionGroupMembers.AsNoTracking()
-                .AnyAsync(m => m.DistributionGroupId == album.DistributionGroupId.Value
-                            && m.UserId == userId.Value, ct);
+                .AnyAsync(m => m.DistributionGroupId == album.DistributionGroupId.Value &&
+                    ((userId.HasValue && m.UserId == userId.Value) ||
+                     (email != null && m.ExternalEmail != null &&
+                      m.ExternalEmail.ToLower() == email.ToLower())), ct);
         }
-        return true;
+        return false;
     }
 
     private Guid? CurrentUserIdOrNull()

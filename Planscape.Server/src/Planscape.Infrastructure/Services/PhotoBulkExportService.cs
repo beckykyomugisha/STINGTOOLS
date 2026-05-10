@@ -51,18 +51,22 @@ public class PhotoBulkExportService
         string? CallerDisplayName);
 
     public sealed record ExportResult(
-        Stream ZipStream,
         string FileName,
         int    PhotoCount,
         long   ApproxBytes);
 
     /// <summary>
-    /// Build the ZIP into a memory stream. Caller streams it back out as
-    /// the response body. For very large exports (&gt; 200 MB) this should
-    /// be moved to a Hangfire job that writes to storage and emails the
-    /// signed URL — the in-memory path is fine for ≤ 200 photos at 25 MB.
+    /// Phase 179.3 — Stream the ZIP DIRECTLY to the supplied output
+    /// stream (typically <c>Response.Body</c>), one entry at a time,
+    /// from the storage stream straight into the entry stream. Peak
+    /// memory is now bounded by ZipArchive's deflate buffer (~64 KB)
+    /// plus one HTTP read buffer per photo — not the whole bundle.
+    ///
+    /// Old in-memory path could allocate up to 12 GB at the documented
+    /// 500-photo cap × 25 MB each.
     /// </summary>
-    public async Task<ExportResult> ExportAsync(ExportRequest req, CancellationToken ct)
+    public async Task<ExportResult> ExportAsync(
+        ExportRequest req, Stream output, CancellationToken ct)
     {
         // Resolve target photos
         IQueryable<SitePhoto> q = _db.SitePhotos.AsNoTracking().Where(p => p.ProjectId == req.ProjectId);
@@ -89,20 +93,18 @@ public class PhotoBulkExportService
                 .ToListAsync(ct)
             : new List<PhotoAnnotation>();
 
-        var ms = new MemoryStream();
-        using (var zip = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
+        long approxBytes = 0;
+        // leaveOpen=true: caller (controller) manages output. We only own the zip handle.
+        using (var zip = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
         {
-            // index.csv
             var csv = new StringBuilder();
             csv.AppendLine("seq,id,reason,audience,caption,levelCode,zoneCode,capturedAt,fileName,latitude,longitude");
             int seq = 0;
-            long approxBytes = 0;
             foreach (var p in photos)
             {
                 seq++;
                 if (!docs.TryGetValue(p.DocumentId, out var d) || d.FilePath == null) continue;
 
-                // Choose source path based on flags + audience.
                 string? path = null;
                 if (req.IncludeRedacted && !string.IsNullOrEmpty(p.RedactedFilePath))
                     path = p.RedactedFilePath!;
@@ -124,32 +126,29 @@ public class PhotoBulkExportService
                 var entry = zip.CreateEntry(entryName, CompressionLevel.NoCompression);
                 using (var es = entry.Open())
                 {
-                    await src.CopyToAsync(es, ct);
+                    // Stream straight from storage to the entry — never
+                    // pulls the whole image into a managed buffer.
+                    await src.CopyToAsync(es, 81920, ct);
                 }
                 approxBytes += d.FileSizeBytes;
-                src.Dispose();
+                await src.DisposeAsync();
 
                 csv.AppendLine(string.Join(',',
-                    seq,
-                    p.Id,
-                    Csv(p.Reason),
-                    Csv(p.Audience),
-                    Csv(p.Caption),
-                    Csv(p.LevelCode),
-                    Csv(p.ZoneCode),
-                    p.CapturedAt.ToString("o"),
-                    Csv(entryName),
-                    p.Latitude?.ToString() ?? "",
-                    p.Longitude?.ToString() ?? ""));
+                    seq, p.Id, Csv(p.Reason), Csv(p.Audience), Csv(p.Caption),
+                    Csv(p.LevelCode), Csv(p.ZoneCode),
+                    p.CapturedAt.ToString("o"), Csv(entryName),
+                    p.Latitude?.ToString() ?? "", p.Longitude?.ToString() ?? ""));
 
-                // Per-photo annotations
-                var annsForPhoto = annotations.Where(a => a.PhotoId == p.Id).ToList();
-                if (annsForPhoto.Count > 0 && req.IncludeAnnotations)
+                if (req.IncludeAnnotations)
                 {
-                    var annEntry = zip.CreateEntry($"annotations/{p.Id}.json");
-                    using var aw = new StreamWriter(annEntry.Open());
-                    await aw.WriteAsync(System.Text.Json.JsonSerializer.Serialize(
-                        annsForPhoto.Select(a => new { a.Id, a.ShapesJson, a.Summary, a.CreatedAt, a.CreatedByName })));
+                    var annsForPhoto = annotations.Where(a => a.PhotoId == p.Id).ToList();
+                    if (annsForPhoto.Count > 0)
+                    {
+                        var annEntry = zip.CreateEntry($"annotations/{p.Id}.json");
+                        using var aw = new StreamWriter(annEntry.Open());
+                        await aw.WriteAsync(System.Text.Json.JsonSerializer.Serialize(
+                            annsForPhoto.Select(a => new { a.Id, a.ShapesJson, a.Summary, a.CreatedAt, a.CreatedByName })));
+                    }
                 }
             }
 
@@ -165,7 +164,6 @@ public class PhotoBulkExportService
                 await hw.WriteAsync(html);
             }
 
-            // Signed manifest — small JSON the consumer can verify came from us.
             var manifest = new
             {
                 exportedAt   = DateTime.UtcNow,
@@ -178,13 +176,11 @@ public class PhotoBulkExportService
             var mEntry = zip.CreateEntry("manifest.json");
             using (var mw = new StreamWriter(mEntry.Open()))
                 await mw.WriteAsync(System.Text.Json.JsonSerializer.Serialize(manifest));
-
-            return new ExportResult(
-                ZipStream: ms,
-                FileName: $"photos-{DateTime.UtcNow:yyyyMMdd-HHmmss}.zip",
-                PhotoCount: photos.Count,
-                ApproxBytes: approxBytes);
         }
+        return new ExportResult(
+            FileName: $"photos-{DateTime.UtcNow:yyyyMMdd-HHmmss}.zip",
+            PhotoCount: photos.Count,
+            ApproxBytes: approxBytes);
     }
 
     private static string Short(Guid g) => g.ToString("N").Substring(0, 8);

@@ -39,12 +39,13 @@ public static class PhotoAclGate
     };
 
     public sealed record AclProbe(
-        bool          BypassesAcl,
-        string        Role,
-        Guid?         UserId,
-        HashSet<Guid> MemberOfGroupIds,
-        string?       DisciplineHint,
-        HashSet<Guid> NdaAcceptedPhotoIds);
+        bool             BypassesAcl,
+        string           Role,
+        Guid?            UserId,
+        string?          Email,
+        HashSet<Guid>    MemberOfGroupIds,
+        HashSet<string>  Disciplines,
+        HashSet<Guid>    NdaAcceptedPhotoIds);
 
     /// <summary>Build the per-request probe: caller's role / user-id /
     /// group memberships / first discipline. Hits two indexed queries.</summary>
@@ -61,33 +62,42 @@ public static class PhotoAclGate
             ?? user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
             ?? user.FindFirst("sub")?.Value;
         Guid? userId = Guid.TryParse(subClaim, out var u) ? u : null;
+        var email = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+                  ?? user.FindFirst("email")?.Value;
 
-        HashSet<Guid> groups;
-        if (userId.HasValue)
+        // Phase 179.3 — group membership now resolves user-id OR
+        // verified external-email so DistributionGroups built around
+        // sub-contractor emails actually gate.
+        HashSet<Guid> groups = new();
+        if (userId.HasValue || !string.IsNullOrEmpty(email))
         {
+            var emailLower = email?.ToLowerInvariant();
             groups = (await db.DistributionGroupMembers.AsNoTracking()
-                .Where(m => m.UserId == userId.Value)
+                .Where(m =>
+                    (userId.HasValue && m.UserId == userId.Value) ||
+                    (emailLower != null && m.ExternalEmail != null &&
+                     m.ExternalEmail.ToLower() == emailLower))
                 .Select(m => m.DistributionGroupId)
                 .ToListAsync(ct))
                 .ToHashSet();
         }
-        else
-        {
-            groups = new HashSet<Guid>();
-        }
 
-        // Discipline hint comes from the project member ACL slice — we
-        // take the first allowed discipline. Null when the caller isn't
-        // narrowed (and therefore fails any VisibleDisciplines rule by
-        // strict default — set the override per-rule if you want the
-        // looser behaviour).
-        string? discipline = null;
+        // Phase 179.3 — full discipline set (was first-only).
+        // Empty set means "caller has no discipline narrowing on this
+        // project"; rules with VisibleDisciplines reject in that case
+        // (strict default), set MinRoleToView=Admin if you want a
+        // looser bypass.
+        var disciplines = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         if (userId.HasValue)
         {
             var member = await db.ProjectMembers.AsNoTracking()
                 .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.UserId == userId.Value && m.IsActive, ct);
             if (!string.IsNullOrEmpty(member?.AllowedDisciplines))
-                discipline = ProjectMember.ParseAllowList(member.AllowedDisciplines)?.FirstOrDefault();
+            {
+                var parsed = ProjectMember.ParseAllowList(member.AllowedDisciplines);
+                if (parsed != null)
+                    foreach (var d in parsed) disciplines.Add(d);
+            }
         }
 
         // NDA acceptance set — only fetched for non-bypass callers since
@@ -102,7 +112,7 @@ public static class PhotoAclGate
                 .ToHashSet();
         }
 
-        return new AclProbe(bypass, role, userId, groups, discipline, ndaAccepted);
+        return new AclProbe(bypass, role, userId, email, groups, disciplines, ndaAccepted);
     }
 
     /// <summary>
@@ -161,9 +171,11 @@ public static class PhotoAclGate
 
         if (!string.IsNullOrEmpty(rule.VisibleDisciplines))
         {
-            if (string.IsNullOrEmpty(probe.DisciplineHint)) return false;
+            if (probe.Disciplines.Count == 0) return false;
             var allowed = rule.VisibleDisciplines.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            if (!allowed.Any(d => string.Equals(d, probe.DisciplineHint, StringComparison.OrdinalIgnoreCase))) return false;
+            // Phase 179.3 — pass when ANY of the user's disciplines is
+            // in the rule's allow-list (was: first-only string match).
+            if (!allowed.Any(d => probe.Disciplines.Contains(d))) return false;
         }
 
         // Phase 179.2 — NDA gate. When the rule requires acceptance,
