@@ -7,6 +7,7 @@
 // Plumb_CommPack        — generates commissioning shell file index.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Autodesk.Revit.Attributes;
@@ -408,7 +409,7 @@ namespace StingTools.Commands.Plumbing
         // invert (lowest internal point of the bore) at the chamber face.
         //
         // Classification cascade (per connector):
-        //   1. Connector.Flow set to In/Out — trust it.
+        //   1. Connector.Direction set to In/Out — trust it.
         //   2. Bidirectional / unset — walk to the connected pipe and infer
         //      from its slope: opposite end higher than the chamber → water
         //      enters here (In/US); opposite end lower → water exits (Out/DS).
@@ -419,6 +420,9 @@ namespace StingTools.Commands.Plumbing
         //
         // Returns (0,0) when the family has no piping connectors so the
         // caller can fall back to the stamped PLM_DRN_INV_* params.
+        //
+        // NOTE: Connector.Flow is a double (flow rate). Connector.Direction
+        // is the FlowDirectionType enum we want here.
         private static (double invInM, double invOutM) ResolveInvertsFromConnectors(Element el)
         {
             try
@@ -437,9 +441,9 @@ namespace StingTools.Commands.Plumbing
                     double invertM = c.Origin.Z * 0.3048 - radiusM;
                     anyAll.Add(invertM);
 
-                    var flow = SafeFlow(c);
-                    if (flow == FlowDirectionType.In)       { inAll.Add(invertM);  continue; }
-                    if (flow == FlowDirectionType.Out)      { outAll.Add(invertM); continue; }
+                    var dir = SafeDirection(c);
+                    if (dir == FlowDirectionType.In)        { inAll.Add(invertM);  continue; }
+                    if (dir == FlowDirectionType.Out)       { outAll.Add(invertM); continue; }
 
                     // Bidirectional / unset: ask the connected pipe.
                     var inferred = InferFlowFromConnectedPipe(c);
@@ -455,9 +459,9 @@ namespace StingTools.Commands.Plumbing
             catch { return (0, 0); }
         }
 
-        private static FlowDirectionType SafeFlow(Connector c)
+        private static FlowDirectionType SafeDirection(Connector c)
         {
-            try { return c.Flow; }
+            try { return c.Direction; }
             catch { return FlowDirectionType.Bidirectional; }
         }
 
