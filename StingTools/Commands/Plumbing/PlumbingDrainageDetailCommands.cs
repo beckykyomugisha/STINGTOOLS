@@ -11,6 +11,7 @@ using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Plumbing;
 using StingTools.UI;
+using StingTools.UI.Plumbing;
 
 namespace StingTools.Commands.Plumbing
 {
@@ -25,13 +26,34 @@ namespace StingTools.Commands.Plumbing
             var dfuMap = FixtureUnitAggregator.BuildDfuMap(ctx.Doc);
             var vents  = VentDesigner.DesignVents(ctx.Doc, dfuMap.PipeDfu);
 
+            int aavCount    = vents.Count(v => v.RequiresAav);
+            int reliefCount = vents.Count(v => v.RequiresReliefVent);
+            var rows = vents.Select(v => new DrainageVentRow
+            {
+                Drain   = $"{v.DrainPipeId.Value} DN{v.DrainDnMm}",
+                Du      = v.Dfu,
+                VentDn  = v.RecommendedVentDnMm,
+                MaxLenM = v.MaxVentLengthM,
+                Flag    = (v.RequiresAav ? "AAV" : "")
+                          + (v.RequiresReliefVent ? (v.RequiresAav ? " · RELIEF" : "RELIEF") : "")
+            }).ToList();
+            string status = $"Vents · {dfuMap.PipeDfu.Count} drains · {vents.Count} records"
+                          + (aavCount    > 0 ? $" · AAV {aavCount}"       : "")
+                          + (reliefCount > 0 ? $" · RELIEF {reliefCount}" : "");
+
+            var inst = StingPlumbingPanel.Instance;
+            if (inst != null)
+            {
+                inst.SetDrainageVentResult(rows, status);
+                return Result.Succeeded;
+            }
+
             var panel = StingResultPanel.Create("Vent Design");
             panel.AddSection("SUMMARY")
                  .Metric("Drains analysed", dfuMap.PipeDfu.Count.ToString())
                  .Metric("Vent records",    vents.Count.ToString())
-                 .Metric("AAV required",    vents.Count(v => v.RequiresAav).ToString())
-                 .Metric("Relief vents",    vents.Count(v => v.RequiresReliefVent).ToString());
-
+                 .Metric("AAV required",    aavCount.ToString())
+                 .Metric("Relief vents",    reliefCount.ToString());
             if (vents.Any())
             {
                 panel.AddSection("VENT REQUIREMENTS (first 30)");
@@ -72,6 +94,26 @@ namespace StingTools.Commands.Plumbing
                 r = InvertLevelEngine.Calculate(ctx.Doc, datumMaOd: 0.0, writeBack: write);
                 if (write) tx.Commit(); else tx.RollBack();
             }
+
+            var rows = r.Rows.Select(row => new DrainageInvertRow
+            {
+                Pipe   = $"{row.PipeId.Value} DN{row.DnMm}",
+                UsInvM = row.UsInvertM,
+                DsInvM = row.DsInvertM,
+                CoverM = Math.Min(row.CoverUsM, row.CoverDsM)
+            }).ToList();
+            string status = $"Inverts · datum {r.DatumMaOd:F2} mAOD · "
+                          + $"{r.PipesAnalysed} pipes · {r.PipesWritten} written"
+                          + (r.CoverViolations > 0 ? $" · {r.CoverViolations} cover-fail" : "")
+                          + (write ? "" : " (preview)");
+
+            var inst = StingPlumbingPanel.Instance;
+            if (inst != null)
+            {
+                inst.SetDrainageInvertResult(rows, status);
+                return Result.Succeeded;
+            }
+
             var panel = StingResultPanel.Create("Invert Level Calculation");
             panel.SetSubtitle($"Datum: {r.DatumMaOd:F2} mAOD");
             panel.AddSection("SUMMARY")

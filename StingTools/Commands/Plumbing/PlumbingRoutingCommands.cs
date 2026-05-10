@@ -73,23 +73,59 @@ namespace StingTools.Commands.Plumbing
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
 
-            var preview = SlopeAutoCorrector.Preview(ctx.Doc);
+            // Resolve scope from the DRAINAGE-tab radio group ("Selected" /
+            // "View" / "Project"). Null scope => engine collects every drainage
+            // pipe in the document (legacy behaviour).
+            var inst  = StingPlumbingPanel.Instance;
+            string scopeName = inst?.ReadDrainageSlopeScope() ?? "Project";
+            IEnumerable<Pipe> scope = ResolveSlopeScope(ctx, scopeName);
+
+            var preview = SlopeAutoCorrector.Preview(ctx.Doc, scope);
             int flagged = preview.Fixes.Count(f => f.Action == "FLIP" || f.Action == "DEPRESS");
             if (flagged == 0)
             {
+                string none = $"Slope · {scopeName} · {preview.PipesScanned} pipes · 0 to fix";
+                if (inst != null)
+                {
+                    inst.SetDrainageSlopeResult(new List<DrainageSlopeRow>(), none);
+                    return Result.Succeeded;
+                }
                 TaskDialog.Show("STING Plumbing — Slope Fix",
                     "No drainage pipes need slope correction.\n\n" +
                     $"Pipes scanned: {preview.PipesScanned}\n" +
                     $"Pipes already OK: {preview.PipesUnchanged}");
                 return Result.Succeeded;
             }
-            var dec = SlopeFixPreviewDialog.Show(preview);
-            if (dec.Decision != SlopeFixDecision.ApplyAll)
-            {
-                return Result.Cancelled;
-            }
-            var fixResult = SlopeAutoCorrector.RunFix(ctx.Doc, dryRun: false);
 
+            // Inline panel path: populate the compact grid with the preview
+            // and let the user opt-in to the wide dialog only when they want
+            // connector-impact detail.
+            if (inst != null)
+            {
+                var previewRows = preview.Fixes
+                    .Where(f => f.Action == "FLIP" || f.Action == "DEPRESS")
+                    .Select(f => new DrainageSlopeRow
+                    {
+                        Apply   = f.Success && f.ConnectorImpact != ConnectorImpact.SkippedConnected,
+                        Pipe    = f.PipeId?.Value.ToString() ?? "",
+                        DElevMm = f.DeltaZFt * 304.8
+                    }).ToList();
+                inst.SetDrainageSlopeResult(previewRows,
+                    $"Slope · {scopeName} · {preview.PipesScanned} scanned · {flagged} to fix (preview)");
+
+                var dec = SlopeFixPreviewDialog.Show(preview);
+                if (dec.Decision != SlopeFixDecision.ApplyAll) return Result.Cancelled;
+                var fixed1 = SlopeAutoCorrector.RunFix(ctx.Doc, scope, dryRun: false);
+                inst.SetDrainageSlopeResult(previewRows,
+                    $"Slope · {scopeName} · flipped {fixed1.PipesFlipped} · depressed {fixed1.PipesDepressed} · "
+                    + $"unchanged {fixed1.PipesUnchanged} · skipped {fixed1.PipesSkippedConnectedBothEnds} · failed {fixed1.PipesFailed}");
+                return Result.Succeeded;
+            }
+
+            // Legacy popup path
+            var dec2 = SlopeFixPreviewDialog.Show(preview);
+            if (dec2.Decision != SlopeFixDecision.ApplyAll) return Result.Cancelled;
+            var fixResult = SlopeAutoCorrector.RunFix(ctx.Doc, scope, dryRun: false);
             var panel = StingResultPanel.Create("Slope Auto-Fix");
             panel.AddSection("SUMMARY")
                  .Metric("Pipes scanned",   fixResult.PipesScanned.ToString())
@@ -100,6 +136,25 @@ namespace StingTools.Commands.Plumbing
                  .Metric("Pipes failed",    fixResult.PipesFailed.ToString());
             panel.Show();
             return Result.Succeeded;
+        }
+
+        private static IEnumerable<Pipe> ResolveSlopeScope(StingCommandContext ctx, string scope)
+        {
+            switch ((scope ?? "").ToUpperInvariant())
+            {
+                case "SELECTED":
+                    return ctx.UIDoc.Selection.GetElementIds()
+                        .Select(id => ctx.Doc.GetElement(id))
+                        .OfType<Pipe>()
+                        .ToList();
+                case "VIEW":
+                    var view = ctx.Doc.ActiveView;
+                    if (view == null) return null;
+                    return new FilteredElementCollector(ctx.Doc, view.Id)
+                        .OfClass(typeof(Pipe)).Cast<Pipe>().ToList();
+                default:
+                    return null; // Project — engine collects every drainage pipe
+            }
         }
     }
 

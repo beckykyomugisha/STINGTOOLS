@@ -230,6 +230,7 @@ namespace StingTools.UI.Plumbing
         // ── SUPPLY tab — fixture scan + DCW/DHW sizing + result grids ──
         private ComboBox _supSizingStandard;
         private TextBox  _supMaxDpPam;
+        private Expander _supplyFixtureScanExpander, _supplySizingExpander, _supplyTmvExpander;
         public DataGrid SupplyFixtureScanGrid { get; private set; }
         public DataGrid SupplySizingGrid     { get; private set; }
         public DataGrid SupplyTmvGrid        { get; private set; }
@@ -243,7 +244,7 @@ namespace StingTools.UI.Plumbing
             AddBtn(sp, "Plumb_ScanFixtures", "Scan Fixtures (DU / LU / WSFU)",
                 "Walks OST_PlumbingFixtures, matches against the registry, writes PLM_DRN_DU / PLM_SUP_LU_CW / PLM_SUP_LU_HW / PLM_SUP_WSFU.");
             SupplyFixtureScanGrid = NewResultGrid(("Fixture", "Fixture"), ("Count", "Count"), ("LU CW", "LuCw"), ("LU HW", "LuHw"));
-            sp.Children.Add(NewExpander("Scan results", WithEmptyHint(SupplyFixtureScanGrid, "(run Scan Fixtures to populate)"), expanded: false));
+            sp.Children.Add(_supplyFixtureScanExpander = NewExpander("Scan results", WithEmptyHint(SupplyFixtureScanGrid, "(run Scan Fixtures to populate)"), expanded: false));
 
             AddCard(sp, "Cold + hot water sizing");
             var supOpts = NewFormGrid();
@@ -255,7 +256,7 @@ namespace StingTools.UI.Plumbing
             AddBtn(sp, "Plumb_SizeSupply", "Size DCW / DHW pipes",
                 "Hazen-Williams + Swamee-Jain. Uses BS EN 806-3 LU table or Hunter WSFU per SYSTEM config (override above).");
             SupplySizingGrid = NewResultGrid(("Section", "Section"), ("ΣLU", "SigmaLu"), ("DN", "Dn"), ("V", "VelocityMps"), ("Status", "Status"));
-            sp.Children.Add(NewExpander("Sizing results", WithEmptyHint(SupplySizingGrid, "(run Size DCW / DHW to populate)"), expanded: false));
+            sp.Children.Add(_supplySizingExpander = NewExpander("Sizing results", WithEmptyHint(SupplySizingGrid, "(run Size DCW / DHW to populate)"), expanded: false));
 
             AddCard(sp, "DHW recirculation");
             AddBtn(sp, "Plumbing_RecircBalance", "Recirc loop + DRV pre-set",
@@ -275,7 +276,7 @@ namespace StingTools.UI.Plumbing
             AddBtn(sp, "Plumb_TMVRegister", "Build TMV Register",
                 "Scans elements with PLM_TMV_CLASS_TXT set and reports the register.");
             SupplyTmvGrid = NewResultGrid(("Ref", "Ref"), ("Location", "Location"), ("Set °C", "SetC"));
-            sp.Children.Add(NewExpander("TMV register", WithEmptyHint(SupplyTmvGrid, "(run Build TMV Register to populate)"), expanded: false));
+            sp.Children.Add(_supplyTmvExpander = NewExpander("TMV register", WithEmptyHint(SupplyTmvGrid, "(run Build TMV Register to populate)"), expanded: false));
 
             AddCard(sp, "Legionella");
             AddBtn(sp, "Plumbing_DeadLegScan", "Dead-Leg Scan",
@@ -295,12 +296,15 @@ namespace StingTools.UI.Plumbing
             });
         }
 
-        // ── DRAINAGE tab — DU aggregation + sizing + slope preview + inverts ──
-        private ComboBox _drnSizingStandard;
-        private TextBox  _drnMaxHd;
+        // ── DRAINAGE tab — DU aggregation + sizing + slope + vents + inverts ──
+        private ComboBox   _drnSizingStandard;
+        private TextBox    _drnMaxHd;
+        private StackPanel _drnSlopeScope;
+        private Expander   _drnDuScanExpander, _drnSizingExpander, _drnSlopeExpander, _drnVentExpander, _drnInvertExpander;
         public DataGrid DrainageDuScanGrid { get; private set; }
         public DataGrid DrainageSizingGrid { get; private set; }
         public DataGrid DrainageSlopeGrid  { get; private set; }
+        public DataGrid DrainageVentGrid   { get; private set; }
         public DataGrid DrainageInvertGrid { get; private set; }
 
         private TabItem BuildDrainageTab()
@@ -312,7 +316,7 @@ namespace StingTools.UI.Plumbing
             AddBtn(sp, "Plumb_ScanFixtures", "Scan Fixtures (DU)",
                 "Same scanner as SUPPLY tab — reports the DU column for drainage.");
             DrainageDuScanGrid = NewResultGrid(("Fixture", "Fixture"), ("Count", "Count"), ("DU each", "DuEach"), ("ΣDU", "SigmaDu"));
-            sp.Children.Add(NewExpander("DU scan", WithEmptyHint(DrainageDuScanGrid, "(run Scan Fixtures to populate)"), expanded: false));
+            sp.Children.Add(_drnDuScanExpander = NewExpander("DU scan", WithEmptyHint(DrainageDuScanGrid, "(run Scan Fixtures to populate)"), expanded: false));
 
             AddCard(sp, "Pipe sizing");
             var drnOpts = NewFormGrid();
@@ -326,17 +330,21 @@ namespace StingTools.UI.Plumbing
             AddBtn(sp, "Plumbing_AutoSizeDrainage", "Auto-Size Drainage (full pipeline)",
                 "DU → DN → slope correct → vent design → stack capacity (preview / apply).");
             DrainageSizingGrid = NewResultGrid(("Pipe", "Pipe"), ("ΣDU", "SigmaDu"), ("DN", "Dn"), ("V", "VelocityMps"), ("H/D", "HdRatio"), ("Status", "Status"));
-            sp.Children.Add(NewExpander("Sizing results", WithEmptyHint(DrainageSizingGrid, "(run Size Drainage to populate)"), expanded: false));
+            sp.Children.Add(_drnSizingExpander = NewExpander("Sizing results", WithEmptyHint(DrainageSizingGrid, "(run Size Drainage to populate)"), expanded: false));
 
             AddCard(sp, "Slope correction");
+            sp.Children.Add(_drnSlopeScope = NewRadioGroup("DrainageSlopeScope",
+                new[] { "Selected", "View", "Project" }, "Project"));
             AddBtn(sp, "Plumb_FixSlopes", "Fix Slopes (auto-correct)",
-                "Wraps SlopeAutoCorrector with TransactionGroup rollback. Use the link below for the wide preview dialog with connector-impact detail.");
+                "Wraps SlopeAutoCorrector with TransactionGroup rollback. Reads scope above. The compact grid below populates after each run.");
             DrainageSlopeGrid = NewSlopeFixGrid();
-            sp.Children.Add(NewExpander("Slope fix preview (compact)", WithEmptyHint(DrainageSlopeGrid, "(run Fix Slopes to populate; click Show full preview… for connector-impact columns)"), expanded: false));
+            sp.Children.Add(_drnSlopeExpander = NewExpander("Slope fix preview (compact)", WithEmptyHint(DrainageSlopeGrid, "(run Fix Slopes to populate)"), expanded: false));
 
             AddCard(sp, "Trap & vent");
             AddBtn(sp, "Plumb_VentDesign", "Design Vents",
                 "BS EN 12056-2 Annex B vent sizing per drain DU.");
+            DrainageVentGrid = NewResultGrid(("Drain", "Drain"), ("DU", "Du"), ("Vent DN", "VentDn"), ("Max len (m)", "MaxLenM"), ("Flag", "Flag"));
+            sp.Children.Add(_drnVentExpander = NewExpander("Vent design results", WithEmptyHint(DrainageVentGrid, "(run Design Vents to populate)"), expanded: false));
             AddBtn(sp, "Plumbing_TrapVentAudit", "Trap & Vent Audit",
                 "Audit trap type + seal depth + max branch length + vent DN.");
 
@@ -348,7 +356,7 @@ namespace StingTools.UI.Plumbing
             AddBtn(sp, "Plumb_InvertLevels", "Calculate Invert Levels",
                 "InvertLevelEngine — US/DS invert + cover depth, optional writeback to PLM_DRN_INV_*.");
             DrainageInvertGrid = NewResultGrid(("Pipe", "Pipe"), ("US inv", "UsInvM"), ("DS inv", "DsInvM"), ("Cover", "CoverM"));
-            sp.Children.Add(NewExpander("Invert levels", WithEmptyHint(DrainageInvertGrid, "(run Calculate Invert Levels to populate)"), expanded: false));
+            sp.Children.Add(_drnInvertExpander = NewExpander("Invert levels", WithEmptyHint(DrainageInvertGrid, "(run Calculate Invert Levels to populate)"), expanded: false));
 
             t.Content = WrapScroll(sp);
             return t;
@@ -363,6 +371,53 @@ namespace StingTools.UI.Plumbing
                 return (std, hd);
             });
         }
+
+        public string ReadDrainageSlopeScope() => Dispatcher.Invoke(() => ReadRadioGroup(_drnSlopeScope));
+
+        // ── Inline result rendering (replaces StingResultPanel.Show popups) ──
+        // Each Set*Result method is a thin wrapper around ApplyResult, which
+        // marshals to the WPF dispatcher, sets ItemsSource on the grid, opens
+        // the surrounding Expander, and updates the status strip with a
+        // one-line summary. Commands fall back to the popup result panel only
+        // when StingPlumbingPanel.Instance is null (e.g. ribbon entry).
+
+        private void ApplyResult(DataGrid grid, Expander exp, System.Collections.IList rows, string status)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (grid != null)
+                {
+                    grid.ItemsSource = null;
+                    grid.ItemsSource = rows;
+                }
+                if (exp != null) exp.IsExpanded = true;
+                if (!string.IsNullOrEmpty(status)) SetStatus(status);
+            });
+        }
+
+        public void SetSupplyFixtureScanResult(IList<SupplyFixtureScanRow> rows, string status) =>
+            ApplyResult(SupplyFixtureScanGrid, _supplyFixtureScanExpander, (System.Collections.IList)rows, status);
+
+        public void SetSupplySizingResult(IList<SupplySizingRow> rows, string status) =>
+            ApplyResult(SupplySizingGrid, _supplySizingExpander, (System.Collections.IList)rows, status);
+
+        public void SetSupplyTmvResult(IList<SupplyTmvRow> rows, string status) =>
+            ApplyResult(SupplyTmvGrid, _supplyTmvExpander, (System.Collections.IList)rows, status);
+
+        public void SetDrainageDuScanResult(IList<DrainageDuScanRow> rows, string status) =>
+            ApplyResult(DrainageDuScanGrid, _drnDuScanExpander, (System.Collections.IList)rows, status);
+
+        public void SetDrainageSizingResult(IList<DrainageSizingRow> rows, string status) =>
+            ApplyResult(DrainageSizingGrid, _drnSizingExpander, (System.Collections.IList)rows, status);
+
+        public void SetDrainageSlopeResult(IList<DrainageSlopeRow> rows, string status) =>
+            ApplyResult(DrainageSlopeGrid, _drnSlopeExpander, (System.Collections.IList)rows, status);
+
+        public void SetDrainageVentResult(IList<DrainageVentRow> rows, string status) =>
+            ApplyResult(DrainageVentGrid, _drnVentExpander, (System.Collections.IList)rows, status);
+
+        public void SetDrainageInvertResult(IList<DrainageInvertRow> rows, string status) =>
+            ApplyResult(DrainageInvertGrid, _drnInvertExpander, (System.Collections.IList)rows, status);
 
         // ── ROUTE tab — option panels feed AutoDrop / PTraps / Sleeves / Hangers ──
         private StackPanel _routeAutoScope, _routePTrapScope, _routeSleeveScope, _routeHangerScope;
@@ -1209,6 +1264,15 @@ namespace StingTools.UI.Plumbing
         public double UsInvM { get; set; }
         public double DsInvM { get; set; }
         public double CoverM { get; set; }
+    }
+
+    public class DrainageVentRow
+    {
+        public string Drain   { get; set; }
+        public double Du      { get; set; }
+        public int    VentDn  { get; set; }
+        public double MaxLenM { get; set; }
+        public string Flag    { get; set; }
     }
 
     public class SpecialtyFluidMatrixRow
