@@ -5,6 +5,7 @@
 using System;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using Autodesk.Revit.UI;
 
@@ -39,6 +40,7 @@ namespace StingTools.UI.Plumbing
             root.Children.Add(status);
 
             var tabs = new TabControl { Margin = new Thickness(2) };
+            ApplyTwoRowTabStrip(tabs);            // 8 tabs at ~260px panel width — 4+4 grid header
             tabs.Items.Add(BuildSystemTab());     // 179a
             tabs.Items.Add(BuildSupplyTab());     // 179b
             tabs.Items.Add(BuildDrainageTab());   // 179b/d
@@ -248,6 +250,24 @@ namespace StingTools.UI.Plumbing
                 "Plans the commissioning artefact folder under _BIM_COORD/plumbing/commissioning.");
             t.Content = WrapScroll(sp);
             return t;
+        }
+
+        // Default TabPanel lays headers in a single row and clips / scrolls when
+        // they overflow. At ~260px panel width with 8 tabs that's unreadable —
+        // swap to a UniformGrid (2 rows × 4 cols) so every header stays visible.
+        private static void ApplyTwoRowTabStrip(TabControl tabs)
+        {
+            var panel = new FrameworkElementFactory(typeof(UniformGrid));
+            panel.SetValue(UniformGrid.RowsProperty, 2);
+            panel.SetValue(UniformGrid.ColumnsProperty, 4);
+            tabs.ItemsPanel = new ItemsPanelTemplate { VisualTree = panel };
+
+            var tabItemStyle = new Style(typeof(TabItem));
+            tabItemStyle.Setters.Add(new Setter(TabItem.PaddingProperty, new Thickness(2, 4, 2, 4)));
+            tabItemStyle.Setters.Add(new Setter(TabItem.FontSizeProperty, 10.0));
+            tabItemStyle.Setters.Add(new Setter(TabItem.HorizontalContentAlignmentProperty, HorizontalAlignment.Center));
+            tabItemStyle.Setters.Add(new Setter(TabItem.HorizontalAlignmentProperty, HorizontalAlignment.Stretch));
+            tabs.Resources.Add(typeof(TabItem), tabItemStyle);
         }
 
         private static StackPanel NewSection() => new StackPanel { Margin = new Thickness(8) };
