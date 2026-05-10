@@ -473,6 +473,9 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.ModelDerivativeJob>
 // ONNX models without dragging the dependency into the API process.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.RedactPublishedPhotoJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.DailyPhotoDigestJob>();
+// Phase 179 — site-photo workflow enhancements
+builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoBulkExportService>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoRetentionJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoPipeline.IPhotoRedactionPipeline,
     Planscape.Infrastructure.Services.PhotoPipeline.SkiaPhotoRedactionPipeline>();
 
@@ -1198,6 +1201,12 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.ModelDerivativeJob>(
 // depth. 17:00 UTC default; per-project override planned via
 // Project.DigestHour follow-up. Stays on the "default" queue (not
 // "photo-redaction") because rendering thumbnails is light.
+// Phase 179 — daily retention sweep at 03:30 UTC, ahead of digest at 17:00.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PhotoRetentionJob>(
+    "photo-retention",
+    j => j.ExecuteAsync(CancellationToken.None),
+    "30 3 * * *", new RecurringJobOptions { QueueName = "default" });
+
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DailyPhotoDigestJob>(
     "site-photo-digest", j => j.ExecuteAsync(CancellationToken.None),
     "0 17 * * *", new RecurringJobOptions { QueueName = "default" });
