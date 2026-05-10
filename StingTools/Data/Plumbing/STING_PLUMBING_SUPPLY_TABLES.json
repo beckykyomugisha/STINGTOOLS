@@ -1,0 +1,113 @@
+{
+  "version": "179a",
+  "description": "BS EN 806-3 LU + Hunter WSFU supply sizing lookup. Used by WaterSupplySizer + FixtureUnitAggregator. Phase 179a.",
+  "luToQdLpsBsEn806": [
+    { "luTotal": 1,    "qdLps": 0.10 },
+    { "luTotal": 5,    "qdLps": 0.30 },
+    { "luTotal": 10,   "qdLps": 0.45 },
+    { "luTotal": 20,   "qdLps": 0.65 },
+    { "luTotal": 50,   "qdLps": 1.00 },
+    { "luTotal": 100,  "qdLps": 1.40 },
+    { "luTotal": 200,  "qdLps": 2.00 },
+    { "luTotal": 500,  "qdLps": 3.20 },
+    { "luTotal": 1000, "qdLps": 4.50 },
+    { "luTotal": 2000, "qdLps": 6.50 },
+    { "luTotal": 5000, "qdLps": 10.0 }
+  ],
+  "wsfuToGpmHunter": [
+    { "wsfu": 1,    "gpmTank": 3.0,  "gpmFlush": 12.0 },
+    { "wsfu": 5,    "gpmTank": 6.0,  "gpmFlush": 19.0 },
+    { "wsfu": 10,   "gpmTank": 8.0,  "gpmFlush": 27.0 },
+    { "wsfu": 20,   "gpmTank": 14.0, "gpmFlush": 36.0 },
+    { "wsfu": 50,   "gpmTank": 28.0, "gpmFlush": 51.0 },
+    { "wsfu": 100,  "gpmTank": 44.0, "gpmFlush": 65.0 },
+    { "wsfu": 200,  "gpmTank": 65.0, "gpmFlush": 92.0 },
+    { "wsfu": 500,  "gpmTank": 124.0,"gpmFlush": 154.0 },
+    { "wsfu": 1000, "gpmTank": 208.0,"gpmFlush": 208.0 },
+    { "wsfu": 2000, "gpmTank": 322.0,"gpmFlush": 322.0 }
+  ],
+  "minPressureBar": {
+    "WC_Cistern":             0.10,
+    "WC_FlushValve":          1.00,
+    "Basin":                  0.10,
+    "Bath":                   0.30,
+    "Shower_Mixer":           1.00,
+    "Shower_Thermostatic":    0.50,
+    "KitchenSink":            0.20,
+    "DishwasherCommercial":   1.50,
+    "WashingMachine":         1.00,
+    "UnventedCylinder":       1.50,
+    "ElectricShower":         1.50
+  },
+  "velocityLimitsMps": {
+    "DCW_Max":            2.0,
+    "DCW_NoiseSensitive": 1.5,
+    "DHW_Max":            1.5,
+    "DHW_Recirc":         1.0,
+    "Pump_Suction":       1.2
+  },
+  "pressureDropLimitsPaM": {
+    "Default":         300,
+    "NoiseSensitive":  150
+  },
+  "fittingsEquivLengthFactor": 1.30,
+  "dnSeriesMm": [15, 20, 22, 25, 28, 32, 35, 40, 50, 65, 80, 100, 125, 150, 200],
+  "dhwTempLimitsC": {
+    "CalorifierMin":      60,
+    "DrawOffMinHtm0401":  55,
+    "DrawOffMinBs8558":   50,
+    "PasteurisationMin":  70,
+    "ScaldRisk":          43,
+    "TmvOutletMaxBath":   44,
+    "TmvOutletMaxShower": 41,
+    "TmvOutletMaxBasin":  41
+  },
+  "deadLegLimitsM": {
+    "Domestic":           2.0,
+    "SentinelHtm0401Cw":  0.30,
+    "SentinelHtm0401Hw":  2.00
+  },
+  "fluidCategoryDevices": {
+    "Cat1": { "device": "None",            "code": "—",      "notes": "Wholesome supply (BS EN 1717 §5.1)" },
+    "Cat2": { "device": "Single check",    "code": "EB",     "notes": "Slightly contaminated — check valve" },
+    "Cat3": { "device": "Double check",    "code": "ED/CA",  "notes": "Significantly contaminated — DCV / CA" },
+    "Cat4": { "device": "RPZ verifiable",  "code": "BA",     "notes": "Seriously contaminated — verifiable backflow preventer" },
+    "Cat5": { "device": "Air gap",         "code": "AA/AB",  "notes": "Very seriously contaminated — air gap mandatory" }
+  },
+  "fluidCategoryByFixture": {
+    "WC_Cistern":           "Cat3",
+    "WC_FlushValve":        "Cat2",
+    "Basin":                "Cat2",
+    "Bath":                 "Cat2",
+    "Shower":               "Cat2",
+    "BidetUprising":        "Cat5",
+    "BidetOverhead":        "Cat3",
+    "DishwasherCommercial": "Cat4",
+    "WashingMachine":       "Cat3",
+    "GardenTap":            "Cat3",
+    "GardenTapHose":        "Cat4",
+    "IrrigationBuried":     "Cat4",
+    "FireSuppressionDry":   "Cat4",
+    "FireSuppressionWet":   "Cat5",
+    "WaterSoftener":        "Cat3",
+    "ChemicalDosing":       "Cat5",
+    "DentalChair":          "Cat5",
+    "MortuaryService":      "Cat5",
+    "RWHTank":              "Cat5",
+    "GreyWater":            "Cat5"
+  },
+  "expansionVesselBs7074": {
+    "expansionCoeffByDeltaT": {
+      "10": 0.00027,
+      "20": 0.00079,
+      "30": 0.00150,
+      "40": 0.00250,
+      "50": 0.00370,
+      "60": 0.00500,
+      "70": 0.00650,
+      "80": 0.00820
+    },
+    "fillPressureBarDefault":      1.0,
+    "maxSystemPressureBarDefault": 3.0
+  }
+}

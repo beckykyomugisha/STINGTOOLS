@@ -40,11 +40,38 @@ namespace StingTools.Commands.Symbols
     public sealed class SwapCandidate
     {
         public string FamilyNamePattern { get; set; } = "";
+
+        /// <summary>
+        /// Wave J1 — optional regex matched against the manufacturer
+        /// type name (FamilySymbol.Name). Empty = match any type
+        /// variant. When set, lets the swap registry route per-variant
+        /// — e.g. swap PENDANT lighting variants to manufacturer A,
+        /// RECESSED variants to manufacturer B. Combined with
+        /// SeedVariantPattern (matched against the source seed type
+        /// name) this enables full variant-to-variant routing.
+        /// </summary>
+        public string TypeNamePattern { get; set; } = "";
+
+        /// <summary>
+        /// Wave J1 — optional regex matched against the source seed's
+        /// type name (e.g. "PENDANT", "FR60"). Empty = match any
+        /// seed type variant. When set, the candidate only fires for
+        /// instances whose source type name matches this pattern.
+        /// </summary>
+        public string SeedVariantPattern { get; set; } = "";
+
         public string Label { get; set; } = "";
         public int    Priority { get; set; } = 999;
         public ElementId ResolvedTypeId { get; set; }
         public string ResolvedFamilyName { get; set; } = "";
         public string ResolvedTypeName   { get; set; } = "";
+        /// <summary>
+        /// Phase 178f — raw JSON candidate node, kept around so the
+        /// post-swap step can introspect ulSystemMatch[] and pick the
+        /// right UL / EN-1366-3 system reference for the instance's
+        /// fire rating + host type + OD.
+        /// </summary>
+        public Newtonsoft.Json.Linq.JObject RawNode { get; set; }
     }
 
     public sealed class SwapPlan
@@ -108,10 +135,19 @@ namespace StingTools.Commands.Symbols
             var dlg = new TaskDialog("STING Swap")
             {
                 MainInstruction = $"Swap {plans.Sum(p => p.InstanceIds.Count)} instance(s)?",
-                MainContent = "Apply uses each plan's top-priority candidate. Cancel to keep seeds in place.",
-                CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No
+                MainContent = "Apply uses each plan's top-priority candidate. Cancel to keep seeds in place.\n\n" +
+                              "Apply + Re-validate runs the full validator chain after the swap so non-compliant " +
+                              "manufacturer choices (e.g. swap to a smaller pull-box exceeds 40% cable fill) are " +
+                              "surfaced before they ship.",
+                CommonButtons = TaskDialogCommonButtons.Cancel
             };
-            if (dlg.Show() != TaskDialogResult.Yes) { preview.Show(); return Result.Cancelled; }
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Apply", "Swap + auto re-stitch connectors. Skip the validator re-run.");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Apply + Re-validate", "Swap + re-stitch + run RunAllValidators on the swapped instances.");
+            var choice = dlg.Show();
+            if (choice == TaskDialogResult.Cancel) { preview.Show(); return Result.Cancelled; }
+            bool revalidate = choice == TaskDialogResult.CommandLink2;
 
             // 4) Apply.
             int swapped = 0, skipped = 0, errors = 0;
@@ -146,6 +182,21 @@ namespace StingTools.Commands.Symbols
                                 el.ChangeTypeId(winner.ResolvedTypeId);
                                 AppendSwapHistory(el, ts, operatorName, srcFamily,
                                     $"{winner.ResolvedFamilyName} : {winner.ResolvedTypeName}");
+
+                                // Phase 178f — UL-system stamp. When the
+                                // candidate carries ulSystemMatch[] rules
+                                // and the instance is a penetration, pick
+                                // the matching UL/EN-1366-3 system and
+                                // write it onto PEN_CERTIFICATION_TXT.
+                                if (el is FamilyInstance fi && winner.RawNode != null)
+                                {
+                                    var match = StingTools.Core.Symbols.ULSystemMatcher.Match(winner.RawNode, fi);
+                                    if (match != null && !string.IsNullOrEmpty(match.UlSystem))
+                                    {
+                                        ParameterHelpers.SetString(el, "PEN_CERTIFICATION_TXT",
+                                            match.UlSystem, overwrite: true);
+                                    }
+                                }
                                 swapped++;
                                 swappedIds.Add(id);
                             }
@@ -195,7 +246,24 @@ namespace StingTools.Commands.Symbols
             catch (Exception ex) { StingLog.Warn($"audit: {ex.Message}"); }
             try { ComplianceScan.InvalidateCache(); } catch { }
 
-            ShowResult(plans, swapped, skipped, errors, rejoined);
+            // Wave H3 — opt-in post-swap re-validation. Manufacturer
+            // families may have different conduit sizes / cable capacity /
+            // bend radii than the seed; re-running the validator chain
+            // catches non-compliance before the user discovers it on
+            // schedule export. The re-validate path runs the full
+            // RunAllValidators pipeline (electrical + healthcare gated)
+            // and surfaces findings in a dedicated panel.
+            int revalidationFindings = 0;
+            if (revalidate)
+            {
+                try
+                {
+                    revalidationFindings = RevalidateSwappedInstances(doc, swappedIds);
+                }
+                catch (Exception ex) { StingLog.Warn($"Post-swap revalidation: {ex.Message}"); }
+            }
+
+            ShowResult(plans, swapped, skipped, errors, rejoined, revalidationFindings, revalidate);
             return Result.Succeeded;
         }
 
@@ -284,21 +352,55 @@ namespace StingTools.Commands.Symbols
 
         private static List<SwapPlan> BuildPlans(Document doc, IList<Element> seeds, JObject registry)
         {
+            // Wave J1 — group by (SeedId, sourceTypeVariant) so per-
+            // variant routing works. PENDANT instances become a
+            // separate plan from RECESSED instances; each plan picks
+            // candidates whose SeedVariantPattern matches the variant
+            // (or have no pattern, in which case they apply to all
+            // variants of the seed).
             var plans = new Dictionary<string, SwapPlan>(StringComparer.OrdinalIgnoreCase);
             foreach (var el in seeds)
             {
                 string seedId = ParameterHelpers.GetString(el, "STING_SEED_FAMILY_TXT");
                 if (string.IsNullOrEmpty(seedId)) seedId = SafeFamilyName(el);
-                if (!plans.TryGetValue(seedId, out var p))
+                string variantType = SafeTypeName(el);
+                string planKey = $"{seedId}|{variantType}";
+                if (!plans.TryGetValue(planKey, out var p))
                 {
-                    p = new SwapPlan { SeedId = seedId, Category = el.Category?.Name ?? "" };
-                    plans[seedId] = p;
+                    p = new SwapPlan
+                    {
+                        SeedId   = seedId,
+                        Category = el.Category?.Name ?? "",
+                    };
+                    plans[planKey] = p;
                     foreach (var c in ResolveCandidates(doc, registry, seedId))
-                        p.Candidates.Add(c);
+                    {
+                        if (CandidateAppliesToVariant(c, variantType))
+                            p.Candidates.Add(c);
+                    }
                 }
                 p.InstanceIds.Add(el.Id);
             }
             return plans.Values.ToList();
+        }
+
+        private static bool CandidateAppliesToVariant(SwapCandidate c, string sourceTypeName)
+        {
+            if (c == null) return false;
+            if (string.IsNullOrEmpty(c.SeedVariantPattern)) return true;
+            try { return Regex.IsMatch(sourceTypeName ?? "", c.SeedVariantPattern); }
+            catch { return false; }
+        }
+
+        private static string SafeTypeName(Element el)
+        {
+            try
+            {
+                if (el is FamilyInstance fi) return fi.Symbol?.Name ?? "";
+                var t = el?.Document?.GetElement(el.GetTypeId()) as FamilySymbol;
+                return t?.Name ?? "";
+            }
+            catch { return ""; }
         }
 
         private static List<SwapCandidate> ResolveCandidates(Document doc, JObject registry, string seedId)
@@ -329,23 +431,35 @@ namespace StingTools.Commands.Symbols
                 {
                     var cand = new SwapCandidate
                     {
-                        FamilyNamePattern = (string)c["familyNamePattern"] ?? "",
-                        Label             = (string)c["label"] ?? "",
-                        Priority          = (int?)c["priority"] ?? 999,
+                        FamilyNamePattern    = (string)c["familyNamePattern"]   ?? "",
+                        TypeNamePattern      = (string)c["typeNamePattern"]     ?? "",
+                        SeedVariantPattern   = (string)c["seedVariantPattern"]  ?? "",
+                        Label                = (string)c["label"] ?? "",
+                        Priority             = (int?)c["priority"] ?? 999,
                     };
                     if (string.IsNullOrEmpty(cand.FamilyNamePattern)) continue;
-                    Regex rx;
-                    try { rx = new Regex(cand.FamilyNamePattern); }
+                    Regex rxFamily;
+                    try { rxFamily = new Regex(cand.FamilyNamePattern); }
                     catch { continue; }
 
-                    // Take the first matching FamilySymbol; activate it
-                    // lazily on apply (Revit requires symbol.IsActive==true
-                    // before ChangeTypeId honours it).
-                    var hit = allTypes.FirstOrDefault(fs => rx.IsMatch(fs.FamilyName ?? ""));
+                    Regex rxType = null;
+                    if (!string.IsNullOrEmpty(cand.TypeNamePattern))
+                    {
+                        try { rxType = new Regex(cand.TypeNamePattern); }
+                        catch { continue; }
+                    }
+
+                    // Wave J1 — match against (familyName, typeName)
+                    // tuple. Type pattern is optional; when empty, any
+                    // type variant of a name-matching family wins.
+                    var hit = allTypes.FirstOrDefault(fs =>
+                        rxFamily.IsMatch(fs.FamilyName ?? "") &&
+                        (rxType == null || rxType.IsMatch(fs.Name ?? "")));
                     if (hit == null) continue;
                     cand.ResolvedTypeId = hit.Id;
                     cand.ResolvedFamilyName = hit.FamilyName ?? "";
                     cand.ResolvedTypeName   = hit.Name ?? "";
+                    cand.RawNode            = c;
                     result.Add(cand);
                 }
                 result.Sort((a, b) => a.Priority.CompareTo(b.Priority));
@@ -373,6 +487,47 @@ namespace StingTools.Commands.Symbols
         }
 
         /// <summary>
+        /// Wave H3 — post-swap revalidation. Runs the full STING
+        /// validator chain (electrical BS 7671 + healthcare-gated +
+        /// generic) and counts findings whose ElementId matches the
+        /// swapped set. Returns the count so the result panel can
+        /// surface "swap introduced N new violations." On failure,
+        /// returns 0 — never block the swap report just because the
+        /// validator re-run had a hiccup.
+        /// </summary>
+        private static int RevalidateSwappedInstances(Document doc, IList<ElementId> swappedIds)
+        {
+            if (doc == null || swappedIds == null || swappedIds.Count == 0) return 0;
+            var swappedSet = new HashSet<long>(swappedIds.Where(i => i != null).Select(i => i.Value));
+            int hits = 0;
+            try
+            {
+                var findings = new List<StingTools.Core.Validation.ValidationResult>();
+                findings.AddRange(new StingTools.Core.Validation.ConnectivityValidator().Validate(doc));
+                findings.AddRange(new StingTools.Core.Validation.FillValidator().Validate(doc));
+                findings.AddRange(new StingTools.Core.Validation.SpecValidator().Validate(doc));
+                findings.AddRange(new StingTools.Core.Validation.TerminationValidator().Validate(doc));
+                findings.AddRange(new StingTools.Core.Validation.ElectricalStandardsValidator().Validate(doc));
+                // Healthcare validators are gated internally on the
+                // facility-type project parameter so calling them here is
+                // a no-op for non-healthcare projects.
+                try
+                {
+                    findings.AddRange(StingTools.Core.Validation.Healthcare.RunAllHealthcareValidators.Validate(doc));
+                }
+                catch (Exception ex) { StingLog.Warn($"Healthcare revalidation: {ex.Message}"); }
+
+                foreach (var f in findings)
+                {
+                    if (f?.ElementId == null) continue;
+                    if (swappedSet.Contains(f.ElementId.Value)) hits++;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"RevalidateSwappedInstances: {ex.Message}"); }
+            return hits;
+        }
+
+        /// <summary>
         /// Wave F3 — re-stitch open connectors on swapped instances.
         ///
         /// After ChangeTypeId, the destination family's connectors land
@@ -394,7 +549,6 @@ namespace StingTools.Commands.Symbols
         private static int RestitchSwappedConnectors(Document doc, IList<ElementId> swappedIds)
         {
             if (doc == null || swappedIds == null || swappedIds.Count == 0) return 0;
-            const double radiusFt   = 600.0 / 304.8;
             const double radiusFtSq = (600.0 / 304.8) * (600.0 / 304.8);
 
             // Collect every open connector on every swapped instance.
@@ -485,16 +639,28 @@ namespace StingTools.Commands.Symbols
             catch (Exception ex) { StingLog.Warn($"AppendSwapHistory {el?.Id}: {ex.Message}"); }
         }
 
-        private static void ShowResult(List<SwapPlan> plans, int swapped, int skipped, int errors, int rejoined)
+        private static void ShowResult(List<SwapPlan> plans, int swapped, int skipped, int errors,
+            int rejoined, int revalidationFindings, bool revalidated)
         {
             var panel = StingResultPanel.Create("Swap to Manufacturer — Result");
-            panel.SetSubtitle($"{swapped} swapped · {skipped} skipped · {errors} errors · {rejoined} connectors rejoined");
+            string subtitle = $"{swapped} swapped · {skipped} skipped · {errors} errors · {rejoined} connectors rejoined";
+            if (revalidated) subtitle += $" · {revalidationFindings} re-validate findings";
+            panel.SetSubtitle(subtitle);
             panel.AddSection("SUMMARY")
                 .MetricHighlight("Swapped", swapped.ToString())
                 .Metric("Skipped (no candidate)", skipped.ToString())
                 .MetricError("Errors", errors.ToString())
                 .Metric("Connectors rejoined", rejoined.ToString(),
                     "auto re-stitched after swap (within 600 mm, same domain)");
+            if (revalidated)
+            {
+                if (revalidationFindings > 0)
+                    panel.MetricWarn("Re-validation findings", revalidationFindings.ToString(),
+                        "swap introduced new BS 7671 / healthcare violations on swapped instances");
+                else
+                    panel.Metric("Re-validation findings", "0",
+                        "no new violations on swapped instances");
+            }
             panel.AddSection("BY SEED");
             foreach (var p in plans)
             {

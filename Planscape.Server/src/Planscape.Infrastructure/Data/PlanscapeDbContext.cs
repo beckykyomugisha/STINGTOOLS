@@ -146,6 +146,11 @@ public class PlanscapeDbContext : DbContext
     public DbSet<HealthcareAntiLigatureAudit> HealthcareAntiLigatureAudits => Set<HealthcareAntiLigatureAudit>();
     public DbSet<HealthcareRdsSnapshot>       HealthcareRdsSnapshots       => Set<HealthcareRdsSnapshot>();
 
+    // Phase 178f — penetration commissioning sign-off captured by the
+    // mobile app on-site. One row per FRP / fire damper / acoustic
+    // seal instance keyed on PenetrationControlNumber + PfvUuid.
+    public DbSet<PenetrationSignoff>          PenetrationSignoffs          => Set<PenetrationSignoff>();
+
     // S2.1 — billing entities (provider-agnostic).
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<Invoice>      Invoices      => Set<Invoice>();

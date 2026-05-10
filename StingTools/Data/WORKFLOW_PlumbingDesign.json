@@ -1,0 +1,20 @@
+{
+  "name": "PlumbingDesign",
+  "displayName": "Plumbing Design (Phase 179)",
+  "description": "End-to-end plumbing design pipeline: configure SYSTEM → scan fixtures → size supply + drainage → fix slopes → design vents → place sleeves + hangers → full audit → produce BOQ.",
+  "version": "179",
+  "steps": [
+    { "label": "1. Save System Config",      "commandTag": "Plumb_SaveSystemConfig" },
+    { "label": "2. Scan Fixtures",           "commandTag": "Plumb_ScanFixtures" },
+    { "label": "3. Size Supply",             "commandTag": "Plumb_SizeSupply" },
+    { "label": "4. Size Drainage",           "commandTag": "Plumb_SizeDrainage" },
+    { "label": "5. Fix Slopes",              "commandTag": "Plumb_FixSlopes" },
+    { "label": "6. Design Vents",            "commandTag": "Plumb_VentDesign" },
+    { "label": "7. Calculate Inverts",       "commandTag": "Plumb_InvertLevels" },
+    { "label": "8. Insert P-Traps",          "commandTag": "Plumb_InsertPTraps" },
+    { "label": "9. Place Sleeves",           "commandTag": "Plumb_PlaceSleeves" },
+    { "label": "10. Plan Hangers",           "commandTag": "Plumb_PlaceHangers" },
+    { "label": "11. Full Audit",             "commandTag": "Plumb_FullAudit" },
+    { "label": "12. Generate BOQ",           "commandTag": "Plumb_BOQ" }
+  ]
+}

@@ -1877,3 +1877,52 @@ export function postAntiLigatureAudit(projectId: string, body: HealthcareAntiLig
 export function getRdsSnapshot(projectId: string, roomBimId: string): Promise<unknown> {
   return apiFetch(`/api/projects/${projectId}/healthcare/rds/${encodeURIComponent(roomBimId)}`);
 }
+
+// ── Phase 178f — penetration commissioning sign-off (FRP / damper / acoustic seal). ──
+
+export interface PenetrationSignoff {
+  penetrationControlNumber: string;
+  pfvUuid?: string;
+  hostType?: string;          // FLOOR / WALL / BEAM / CEILING / ROOF
+  fireRating?: string;        // FR30 / FR60 / FR90 / FR120 / ''
+  certification?: string;     // UL system / EN 1366-3 reference
+  productKind?: string;       // FIRESTOP / FIRE_DAMPER / ACOUSTIC_SEAL / SLEEVE_GENERIC
+  installerName?: string;
+  installerCompany?: string;
+  installedAt?: string;       // ISO 8601
+  inspectorName?: string;
+  inspectedAt?: string;
+  status?: string;            // DRAFT / INSTALLED / INSPECTED / SIGNED-OFF / REWORK
+  notes?: string;
+  photoBlobId?: string;
+  gpsLat?: number;
+  gpsLon?: number;
+}
+
+export function putPenetrationSignoff(projectId: string, controlNumber: string,
+    body: PenetrationSignoff): Promise<PenetrationSignoff> {
+  return apiFetch(`/api/projects/${projectId}/penetrations/${encodeURIComponent(controlNumber)}/signoff`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+}
+
+export function getPenetrationSignoff(projectId: string, controlNumber: string): Promise<PenetrationSignoff> {
+  return apiFetch(`/api/projects/${projectId}/penetrations/${encodeURIComponent(controlNumber)}/signoff`);
+}
+
+export function listPenetrationSignoffs(projectId: string,
+    filters?: { status?: string; hostType?: string }): Promise<PenetrationSignoff[]> {
+  const params = new URLSearchParams();
+  if (filters?.status) params.append('status', filters.status);
+  if (filters?.hostType) params.append('hostType', filters.hostType);
+  const qs = params.toString();
+  return apiFetch(`/api/projects/${projectId}/penetrations${qs ? '?' + qs : ''}`);
+}
+
+export function getPenetrationDashboard(projectId: string): Promise<{
+  byStatus: { status: string; count: number }[];
+  byHost:   { hostType: string; count: number }[];
+}> {
+  return apiFetch(`/api/projects/${projectId}/penetrations/dashboard`);
+}

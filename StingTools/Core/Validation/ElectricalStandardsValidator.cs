@@ -128,15 +128,36 @@ namespace StingTools.Core.Validation
                             ValidatorTag));
                     }
 
-                    if (bends > MaxBendsBetweenDrawIn)
+                    // Wave J4 — size-aware bend cap per IET Guidance Note 1.
+                    // 50 mm+ rigid steel conduit tolerates 4 bends per
+                    // GN1 §7.4; smaller / PVC / flex tighter. Defer to
+                    // the per-conduit lookup when MaxBendsBetweenDrawIn
+                    // is left at its default (3).
+                    int effectiveCap = MaxBendsBetweenDrawIn;
+                    if (effectiveCap == 3)
                     {
-                        int excess = bends - MaxBendsBetweenDrawIn;
+                        try
+                        {
+                            string odRaw = ParameterHelpers.GetString(el, "Outside Diameter")
+                                ?? ParameterHelpers.GetString(el, "Diameter") ?? "";
+                            double odMm = 0;
+                            double.TryParse(odRaw, NumberStyles.Any, CultureInfo.InvariantCulture, out odMm);
+                            string mat = ParameterHelpers.GetString(el, "ELC_CDT_MAT_TXT") ?? "";
+                            effectiveCap = StingTools.Core.Routing.JunctionBoxAutoPlacer
+                                .MaxBendsForConduit(odMm, mat);
+                        }
+                        catch { /* fall through to baseline cap */ }
+                    }
+
+                    if (bends > effectiveCap)
+                    {
+                        int excess = bends - effectiveCap;
                         string fix = excess == 1
-                            ? "Add a draw-in box after the 3rd bend, then continue."
-                            : $"Add {excess} draw-in boxes (one after every {MaxBendsBetweenDrawIn} bends).";
+                            ? $"Add a draw-in box after the {effectiveCap}rd bend, then continue."
+                            : $"Add {excess} draw-in boxes (one after every {effectiveCap} bends).";
                         results.Add(new ValidationResult(el.Id, ValidationSeverity.Error,
                             "ELEC.BENDS.EXCESS",
-                            $"{bends} bends between draw-in points (BS 7671 §522.8.5 limits to {MaxBendsBetweenDrawIn}). {fix}",
+                            $"{bends} bends between draw-in points (limit {effectiveCap} — BS 7671 §522.8.5 + IET GN1 §7.4 size-aware). {fix}",
                             ValidatorTag));
                     }
 

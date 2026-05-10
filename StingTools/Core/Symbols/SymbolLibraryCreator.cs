@@ -163,7 +163,10 @@ namespace StingTools.Core.Symbols
                     tx.Start();
                     DrawGeometry(fdoc, def, result);
                     AddParameters(fdoc, def, result);
-                    if (def.Connectors != null && def.Connectors.Count > 0
+                    bool hasSymbolConnectors  = def.Connectors != null && def.Connectors.Count > 0;
+                    bool hasVariantConnectors = def.TypeVariants != null
+                        && def.TypeVariants.Exists(v => v?.Connectors != null && v.Connectors.Count > 0);
+                    if ((hasSymbolConnectors || hasVariantConnectors)
                         && !string.Equals(def.FamilyType, "GenericAnnotation", StringComparison.OrdinalIgnoreCase))
                     {
                         AddConnectors(fdoc, def, result);
@@ -195,6 +198,15 @@ namespace StingTools.Core.Symbols
                     if (def.TypeVariants != null && def.TypeVariants.Count > 0)
                     {
                         AddTypeVariants(fdoc, def, result);
+                    }
+
+                    // Phase 178f — bind family-formula expressions
+                    // declared in the JSON spec. Most common use:
+                    // Mark = PEN_CONTROL_NUMBER_TXT on the firestop
+                    // seed so tags read it without extra wiring.
+                    if (def.FormulaBindings != null && def.FormulaBindings.Count > 0)
+                    {
+                        AddFormulaBindings(fdoc, def, result);
                     }
                     tx.Commit();
                 }
@@ -253,6 +265,70 @@ namespace StingTools.Core.Symbols
             if (geo.Text != null)
                 foreach (var t in geo.Text)
                     DrawText(fdoc, planView, t, s, result, def.Id);
+
+            // Phase 178f — section-view symbology. The README's
+            // "200 mm vertical bar with arrows" for SpecialityEquipment
+            // sections lands programmatically when the seed JSON
+            // declares geometry.section.
+            if (geo.Section != null)
+            {
+                DrawSectionGeometry(fdoc, def, geo.Section, s, result);
+            }
+        }
+
+        /// <summary>
+        /// Render a SectionSymbology block onto the family's elevation
+        /// views. The view name is matched via Revit's standard four
+        /// "Elevations" templates ship (Front / Back / Left / Right).
+        /// "All" applies to every elevation view found.
+        /// </summary>
+        private static void DrawSectionGeometry(Document fdoc, SymbolDefinition def,
+            SectionSymbology section, double symMm, SymbolCreationResult result)
+        {
+            try
+            {
+                var views = new List<View>();
+                foreach (var v in new FilteredElementCollector(fdoc).OfClass(typeof(View)))
+                {
+                    if (!(v is View view)) continue;
+                    if (view.IsTemplate) continue;
+                    if (view.ViewType != ViewType.Elevation) continue;
+                    string nm = view.Name ?? "";
+                    bool match =
+                        string.Equals(section.View, "All", StringComparison.OrdinalIgnoreCase) ||
+                        nm.IndexOf(section.View ?? "Front", StringComparison.OrdinalIgnoreCase) >= 0;
+                    if (match) views.Add(view);
+                }
+                if (views.Count == 0)
+                {
+                    result.Warnings.Add($"{def.Id}: no elevation view '{section.View}' for section symbology — skipped.");
+                    return;
+                }
+
+                foreach (var v in views)
+                {
+                    // Section sketches live on a vertical plane facing the
+                    // elevation. Use the view's right-direction × up-direction
+                    // normal so model curves render in the elevation plane.
+                    XYZ origin = XYZ.Zero;
+                    XYZ normal;
+                    try { normal = v.ViewDirection; } catch { normal = XYZ.BasisY; }
+                    SketchPlane sketch;
+                    try { sketch = SketchPlane.Create(fdoc, Plane.CreateByNormalAndOrigin(normal, origin)); }
+                    catch (Exception ex) { result.Warnings.Add($"{def.Id} section sketch '{v.Name}': {ex.Message}"); continue; }
+
+                    if (section.Lines != null)
+                        foreach (var l in section.Lines)
+                            DrawLine(fdoc, v, sketch, l, symMm, result, def.Id + " (section)");
+                    if (section.Arcs != null)
+                        foreach (var a in section.Arcs)
+                            DrawArc(fdoc, v, sketch, a, symMm, result, def.Id + " (section)");
+                    if (section.Text != null)
+                        foreach (var t in section.Text)
+                            DrawText(fdoc, v, t, symMm, result, def.Id + " (section)");
+                }
+            }
+            catch (Exception ex) { result.Warnings.Add($"{def.Id}: section render failed — {ex.Message}"); }
         }
 
         private static void DrawLine(Document fdoc, View view, SketchPlane sketch,
@@ -535,6 +611,49 @@ namespace StingTools.Core.Symbols
             }
         }
 
+        /// <summary>
+        /// Phase 178f — bind family-formula expressions. Resolves
+        /// "Mark" against BuiltInParameter.ALL_MODEL_MARK first, then
+        /// falls back to a name lookup. Other targets are looked up
+        /// by name on the family parameter set.
+        /// </summary>
+        private static void AddFormulaBindings(Document fdoc, SymbolDefinition def, SymbolCreationResult result)
+        {
+            if (!fdoc.IsFamilyDocument) return;
+            if (def.FormulaBindings == null || def.FormulaBindings.Count == 0) return;
+            var fm = fdoc.FamilyManager;
+
+            foreach (var b in def.FormulaBindings)
+            {
+                if (b == null || string.IsNullOrWhiteSpace(b.Target) || string.IsNullOrWhiteSpace(b.Expression))
+                    continue;
+                try
+                {
+                    FamilyParameter target = null;
+                    if (string.Equals(b.Target, "Mark", StringComparison.OrdinalIgnoreCase))
+                    {
+                        try { target = fm.get_Parameter(BuiltInParameter.ALL_MODEL_MARK); } catch { target = null; }
+                    }
+                    if (target == null) target = fm.get_Parameter(b.Target);
+                    if (target == null)
+                    {
+                        result.Warnings.Add($"{def.Id}: formula binding target '{b.Target}' not found — skipped.");
+                        continue;
+                    }
+                    if (target.IsReporting)
+                    {
+                        result.Warnings.Add($"{def.Id}: formula binding target '{b.Target}' is a reporting parameter — formulas not allowed.");
+                        continue;
+                    }
+                    fm.SetFormula(target, b.Expression);
+                }
+                catch (Exception ex)
+                {
+                    result.Warnings.Add($"{def.Id}: formula binding '{b.Target}={b.Expression}' failed — {ex.Message}");
+                }
+            }
+        }
+
         private static void AddParameters(Document fdoc, SymbolDefinition def, SymbolCreationResult result)
         {
             if (def.Parameters == null || def.Parameters.Count == 0) return;
@@ -580,10 +699,31 @@ namespace StingTools.Core.Symbols
 
         private static void AddConnectors(Document fdoc, SymbolDefinition def, SymbolCreationResult result)
         {
+            AddConnectorList(fdoc, def, def.Connectors, result, sourceLabel: "symbol");
+            // Phase 178e — fold variant-level connector declarations
+            // into the same family doc. Connectors live on the family,
+            // not on a type, so the union of all variants ends up
+            // visible to every variant; per-variant differentiation
+            // happens via parameter values (size / system type) that
+            // AutoPipeDrop reads at routing time.
+            if (def.TypeVariants != null)
+            {
+                foreach (var v in def.TypeVariants)
+                {
+                    if (v?.Connectors == null || v.Connectors.Count == 0) continue;
+                    AddConnectorList(fdoc, def, v.Connectors, result, sourceLabel: $"variant '{v.Name}'");
+                }
+            }
+        }
+
+        private static void AddConnectorList(Document fdoc, SymbolDefinition def,
+            List<ConnectorDefinition> connectors, SymbolCreationResult result, string sourceLabel)
+        {
             if (!fdoc.IsFamilyDocument) return;
+            if (connectors == null) return;
             double s = def.SymbolSize > 0 ? def.SymbolSize : 3.0;
 
-            foreach (var c in def.Connectors)
+            foreach (var c in connectors)
             {
                 if (c == null) continue;
                 try
@@ -631,7 +771,7 @@ namespace StingTools.Core.Symbols
                                 refLine.GeometryCurve.GetEndPointReference(0));
                             break;
                         default:
-                            result.Warnings.Add($"{def.Id}: unsupported connector domain '{c.Domain}'");
+                            result.Warnings.Add($"{def.Id} [{sourceLabel}]: unsupported connector domain '{c.Domain}'");
                             break;
                     }
 
@@ -643,7 +783,7 @@ namespace StingTools.Core.Symbols
                 }
                 catch (Exception ex)
                 {
-                    result.Warnings.Add($"{def.Id}: connector ({c.Domain}/{c.SystemType}) failed — {ex.Message}");
+                    result.Warnings.Add($"{def.Id} [{sourceLabel}]: connector ({c.Domain}/{c.SystemType}) failed — {ex.Message}");
                 }
             }
         }

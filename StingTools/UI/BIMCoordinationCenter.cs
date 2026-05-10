@@ -967,6 +967,13 @@ namespace StingTools.UI
         private BIMCoordinationCenter(CoordData data)
         {
             _data = data;
+            // Make sure the ThemeManager has at least Corporate seeded before
+            // we start baking palette colours into the visual tree below — a
+            // freshly-launched session may open the BCC before the dock panel
+            // (which normally calls InitialiseResources) has been shown.
+            try { ThemeManager.EnsureInitialised(); }
+            catch (Exception exTheme) { StingLog.Warn($"BCC theme init: {exTheme.Message}"); }
+
             // Phase 104: Rebranded — drop "STING" prefix per user request. The window is now
             // titled just "BIM Coordination Center" so it reads as a role-based tool rather
             // than a product feature. "STINGTOOLS BCC" appears in logs/audit trail only.
@@ -1138,6 +1145,48 @@ namespace StingTools.UI
             // Phase 76: Register singleton instance
             CurrentInstance = this;
             Closed += OnClosed;
+
+            // Theme-switching: BCC bakes palette colours into its visual tree
+            // at construction time (Br(CHeaderBg), Br(CPageBg), etc.), so
+            // cycling the theme on the dock panel cannot retro-update an
+            // already-open BCC. Subscribe to ThemeManager.ThemeChanged and
+            // schedule a self-rebuild via close+reopen (data is preserved
+            // and _lastViewedTab keeps the user on the same tab). Any
+            // failure inside the handler falls back to Corporate so the
+            // window never renders without a palette.
+            ThemeManager.ThemeChanged += OnThemeChanged;
+        }
+
+        // Theme-change handler: rebuild the BCC so the new palette takes
+        // effect on the open window. The Closed handler clears
+        // CurrentInstance so Show(data) reconstructs cleanly with the active
+        // theme. Wrapped in try/catch to honour the "fall back to Corporate"
+        // contract — any failure forces Corporate and a final reopen attempt.
+        private void OnThemeChanged(string newTheme)
+        {
+            try
+            {
+                if (!IsLoaded) return; // ignore stray events during construction
+                var data = _data;
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    try
+                    {
+                        Close();
+                        Show(data);
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Error("BCC OnThemeChanged: rebuild failed — forcing Corporate", ex);
+                        try { ThemeManager.ApplyTheme(ThemeManager.FallbackTheme); } catch { /* no-op */ }
+                        try { Show(data); } catch { /* nothing more we can do */ }
+                    }
+                }), System.Windows.Threading.DispatcherPriority.Background);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BCC OnThemeChanged outer: {ex.Message}");
+            }
         }
 
         private string BuildStatusText()
@@ -7159,6 +7208,10 @@ namespace StingTools.UI
         // Phase 78 Section 10.6: Proper resource cleanup on window close
         private void OnClosed(object sender, EventArgs e)
         {
+            // Detach the ThemeChanged subscription added in the constructor —
+            // otherwise a closed BCC keeps a static reference alive and reopens
+            // would stack handlers.
+            try { ThemeManager.ThemeChanged -= OnThemeChanged; } catch { /* best effort */ }
             ActionDispatcher = null;
             CurrentInstance = null;
             _tabCache.Clear();

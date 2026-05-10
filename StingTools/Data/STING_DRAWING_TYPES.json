@@ -8044,6 +8044,138 @@
       "docTypeMatches": "^NUC-MED$",
       "drawingTypeId": "health-nuclear-medicine-A1"
     },
+    {
+      "discipline": "H",
+      "phase": "*",
+      "docType": "RDS",
+      "drawingTypeId": "health-rds-A2"
+    },
+    {
+      "discipline": "H",
+      "phase": "*",
+      "docType": "EQP_LAYOUT",
+      "drawingTypeId": "health-eqp-pln-A1-1to50"
+    },
+    {
+      "discipline": "M",
+      "phase": "*",
+      "docType": "HEALTHCARE_COORD",
+      "drawingTypeId": "health-mep-coord-A1-1to50"
+    },
+    {
+      "discipline": "MG",
+      "phase": "*",
+      "docType": "PLAN",
+      "drawingTypeId": "health-medgas-pln-A1-1to100"
+    },
+    {
+      "discipline": "MG",
+      "phase": "*",
+      "docType": "SCHEMATIC",
+      "drawingTypeId": "health-medgas-schem-A1"
+    },
+    {
+      "discipline": "H",
+      "phase": "*",
+      "docType": "PRESSURE",
+      "drawingTypeId": "health-pressure-pln-A1-1to100"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "ESS_RISER",
+      "drawingTypeId": "health-ess-power-riser-A1"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "IPS",
+      "drawingTypeId": "health-ips-pln-A1-1to50"
+    },
+    {
+      "discipline": "H",
+      "phase": "*",
+      "docType": "DECON_FLOW",
+      "drawingTypeId": "health-decon-flow-A1-1to50"
+    },
+    {
+      "discipline": "H",
+      "phase": "*",
+      "docType": "MORTUARY",
+      "drawingTypeId": "health-mortuary-pln-A2-1to50"
+    },
+    {
+      "discipline": "A",
+      "phase": "*",
+      "docType": "FIRE_COMPARTMENT",
+      "drawingTypeId": "health-fire-comp-A1-1to100"
+    },
+    {
+      "discipline": "RP",
+      "phase": "*",
+      "docType": "SHIELDING",
+      "drawingTypeId": "health-rad-shield-A1-1to50"
+    },
+    {
+      "discipline": "RP",
+      "phase": "*",
+      "docType": "MRI_ZONING",
+      "drawingTypeId": "health-mri-zoning-A1-1to50"
+    },
+    {
+      "discipline": "H",
+      "phase": "*",
+      "docType": "LIGATURE",
+      "drawingTypeId": "health-ligature-pln-A1-1to50"
+    },
+    {
+      "discipline": "H",
+      "phase": "*",
+      "docType": "BEDHEAD",
+      "drawingTypeId": "health-bedhead-elev-A2-1to20"
+    },
+    {
+      "discipline": "H",
+      "phase": "*",
+      "docType": "OR_CEILING",
+      "drawingTypeId": "health-or-ceiling-A2-1to20"
+    },
+    {
+      "discipline": "P",
+      "phase": "*",
+      "docType": "WATER_SAFETY",
+      "drawingTypeId": "health-water-safety-A1-1to100"
+    },
+    {
+      "discipline": "A",
+      "phase": "*",
+      "docType": "ACOUSTIC",
+      "drawingTypeId": "health-acoustic-A1-1to100"
+    },
+    {
+      "discipline": "S",
+      "phase": "*",
+      "docType": "HEALTHCARE_LOADS",
+      "drawingTypeId": "health-struct-loads-A1-1to100"
+    },
+    {
+      "discipline": "H",
+      "phase": "*",
+      "docType": "RTLS",
+      "drawingTypeId": "health-rtls-coverage-A1-1to100"
+    },
+    {
+      "discipline": "H",
+      "phase": "*",
+      "docType": "WASTE_FLOW",
+      "drawingTypeId": "health-waste-flow-A1-1to100"
+    },
+    {
+      "discipline": "RP",
+      "phase": "*",
+      "docType": "NUCLEAR_MEDICINE",
+      "drawingTypeId": "health-nuclear-medicine-A1"
+    },
     { "discipline": "Plumbing", "phase": "*", "docType": "DCW_SCHEMATIC",     "drawingTypeId": "plumb-dcw-schematic-A1-NTS" },
     { "discipline": "Plumbing", "phase": "*", "docType": "DHW_SCHEMATIC",     "drawingTypeId": "plumb-dhw-schematic-A1-NTS" },
     { "discipline": "Plumbing", "phase": "*", "docType": "LTHW_SCHEMATIC",    "drawingTypeId": "plumb-lthw-schematic-A1-NTS" },

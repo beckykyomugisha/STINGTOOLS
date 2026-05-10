@@ -136,47 +136,26 @@
       ],
       "geometry": {
         "arcs": [
-          {
-            "cx": 0,
-            "cy": 0,
-            "r": 0.5,
-            "startDeg": 0,
-            "endDeg": 360
-          },
-          {
-            "cx": 0,
-            "cy": 0,
-            "r": 0.35,
-            "startDeg": 0,
-            "endDeg": 360
-          }
+          { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 },
+          { "cx": 0, "cy": 0, "r": 0.35, "startDeg": 0, "endDeg": 360 }
         ],
         "lines": [
-          {
-            "x1": -0.45,
-            "y1": 0.0,
-            "x2": -0.35,
-            "y2": 0.0
-          },
-          {
-            "x1": 0.35,
-            "y1": 0.0,
-            "x2": 0.45,
-            "y2": 0.0
-          },
-          {
-            "x1": 0.0,
-            "y1": -0.45,
-            "x2": 0.0,
-            "y2": -0.35
-          },
-          {
-            "x1": 0.0,
-            "y1": 0.35,
-            "x2": 0.0,
-            "y2": 0.45
-          }
-        ]
+          { "x1": -0.45, "y1": 0.0, "x2": -0.35, "y2": 0.0 },
+          { "x1":  0.35, "y1": 0.0, "x2":  0.45, "y2": 0.0 },
+          { "x1": 0.0, "y1": -0.45, "x2": 0.0, "y2": -0.35 },
+          { "x1": 0.0, "y1":  0.35, "x2": 0.0, "y2":  0.45 }
+        ],
+        "section": {
+          "view": "Front",
+          "lines": [
+            { "x1": 0.0,  "y1": -1.0, "x2": 0.0,  "y2":  1.0 },
+            { "x1": -0.4, "y1":  0.0, "x2":  0.4, "y2":  0.0 },
+            { "x1": -0.4, "y1":  0.0, "x2": -0.3, "y2":  0.1 },
+            { "x1": -0.4, "y1":  0.0, "x2": -0.3, "y2": -0.1 },
+            { "x1":  0.4, "y1":  0.0, "x2":  0.3, "y2":  0.1 },
+            { "x1":  0.4, "y1":  0.0, "x2":  0.3, "y2": -0.1 }
+          ]
+        }
       },
       "solid3D": {
         "type": "Box",
@@ -184,6 +163,14 @@
         "depthMm": 80,
         "heightMm": 200
       },
+      "formulaBindings": [
+        {
+          "target": "Mark",
+          "expression": "PEN_CONTROL_NUMBER_TXT",
+          "_notes": "Phase 178f — auto-binds Mark so existing tag families pick up the FRP control number without further wiring."
+        }
+      ],
+      "_section": "Phase 178f — section symbology lands on the family's Front elevation view: 200mm vertical bar with horizontal arrows pointing in/out, matching the SpecialityEquipment README guidance for section views.",
       "typeVariants": [
         {
           "name": "FR30",

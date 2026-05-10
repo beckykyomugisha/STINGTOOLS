@@ -105,6 +105,8 @@ namespace StingTools.Commands.Electrical
                 list.Add(s);
             }
 
+            var pState = panels.Select(p => new PanelState(p, circuitsByPanel)).ToList();
+
             // Compute panel-room/level once so the grouping policy can prefer
             // panels in the same room or on the same level as the circuit's
             // load. This is the cheap precondition for "kitchen sockets stay
@@ -180,6 +182,7 @@ namespace StingTools.Commands.Electrical
                 plan.Add(new Assignment
                 {
                     SystemId = sys.Id,
+                    PanelId  = fit.Id,
                     SystemName = sys.Name ?? "(?)",
                     PanelName = fit.Name,
                     Group = circuitGroup,
@@ -220,7 +223,12 @@ namespace StingTools.Commands.Electrical
                     {
                         var sys = doc.GetElement(a.SystemId) as ElectricalSystem;
                         if (sys == null) { failed++; continue; }
-                        sys.SelectPanel(a.PanelName);
+                        // Revit 2024+ requires FamilyInstance, not the panel name string.
+                        // Resolve once here so any pre-existing string-based callers still
+                        // get clean error reporting via the catch block below.
+                        var panelInst = doc.GetElement(a.PanelId) as FamilyInstance;
+                        if (panelInst == null) { failed++; continue; }
+                        sys.SelectPanel(panelInst);
                         applied++;
 
                         // Stamp ELC_PANEL_REF_TXT on the circuit so STING tag
@@ -237,15 +245,12 @@ namespace StingTools.Commands.Electrical
                         if (!string.IsNullOrEmpty(a.Group))
                         {
                             ParameterHelpers.SetString(sys, "ELC_CIRCUIT_GROUP_TXT", a.Group, overwrite: false);
+                            // Direct id lookup — no need to walk the project
+                            // collector by name now that PanelId is on Assignment.
                             try
                             {
-                                var panelEl = new FilteredElementCollector(doc)
-                                    .OfCategory(BuiltInCategory.OST_ElectricalEquipment)
-                                    .WhereElementIsNotElementType()
-                                    .OfType<FamilyInstance>()
-                                    .FirstOrDefault(p => string.Equals(SafeName(p), a.PanelName, StringComparison.OrdinalIgnoreCase));
-                                if (panelEl != null)
-                                    ParameterHelpers.SetString(panelEl, "ELC_PNL_CIRCUIT_GROUP_TXT", a.Group, overwrite: false);
+                                if (panelInst != null)
+                                    ParameterHelpers.SetString(panelInst, "ELC_PNL_CIRCUIT_GROUP_TXT", a.Group, overwrite: false);
                             }
                             catch (Exception ex2) { StingLog.Warn($"Stamp panel group: {ex2.Message}"); }
                         }
@@ -334,6 +339,7 @@ namespace StingTools.Commands.Electrical
         private class Assignment
         {
             public ElementId SystemId;
+            public ElementId PanelId;     // Revit 2024+ SelectPanel takes FamilyInstance, not string
             public string SystemName;
             public string PanelName;
             public string Group;
@@ -443,12 +449,6 @@ namespace StingTools.Commands.Electrical
         }
 
         // ── Static helpers ─────────────────────────────────────────────
-
-        private static string SafeName(FamilyInstance fi)
-        {
-            if (fi == null) return "";
-            try { return fi.Name ?? fi.Id.ToString(); } catch { return fi.Id.ToString(); }
-        }
 
         private static FamilyInstance SafeBaseEquipment(ElectricalSystem s)
         {

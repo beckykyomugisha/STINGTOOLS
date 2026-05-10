@@ -1,0 +1,45 @@
+{
+  "version": "1.0",
+  "id": "PenetrationSweep",
+  "name": "Penetration Sweep + Register Build",
+  "description": "End-to-end firestop coverage pipeline: detect every slab / wall / beam crossing, place or update the FRP family, audit coverage, schedule the register. Re-runnable — idempotent on PEN_PFV_UUID_TXT.",
+  "steps": [
+    {
+      "id": "build-seeds",
+      "name": "Build seed families (idempotent)",
+      "command": "BuildSeedFamilies",
+      "skipIfFamilyLoaded": "STING_SEED_SpecialityEquipment",
+      "_notes": "First-time setup. No-op when the seed family is already in the project."
+    },
+    {
+      "id": "load-shared-params",
+      "name": "Load shared parameters (PEN_*)",
+      "command": "LoadSharedParams",
+      "_notes": "Binds the 19 PEN_* shared params to Specialty Equipment + the routed MEP categories so the detector and placer can stamp them."
+    },
+    {
+      "id": "detect-and-place",
+      "name": "Detect crossings and place / update FRP instances",
+      "command": "Penetrations_DetectAndPlace",
+      "_notes": "Runs SlabPenetrationDetector + WallPenetrationDetector + BeamPenetrationDetector against every MEP curve in the active view. FrpPenetrationPlacer drops face-based instances at each crossing and stamps the parameter pack. Idempotent — re-runs update existing instances rather than duplicate."
+    },
+    {
+      "id": "coverage-audit",
+      "name": "Audit firestop coverage + structural review",
+      "command": "Validation_PenetrationCoverage",
+      "_notes": "Read-only audit. Surfaces orphan members, orphan FRP instances, and beam STRUCT_FAIL / STRUCT_REVIEW findings."
+    },
+    {
+      "id": "schedule",
+      "name": "Build / refresh Penetration Register schedule",
+      "command": "BatchSchedules",
+      "scheduleNameFilter": "STING - Penetration Register",
+      "_notes": "Builds the Penetration Register from MR_SCHEDULES.csv — one row per FRP instance, grouped by host type."
+    }
+  ],
+  "_postNotes": [
+    "After the sweep completes, run SwapToManufacturer to replace the seed families with vendor-specific firestops (Hilti / Promat / STI / 3M).",
+    "Mobile installers stamp PEN_INSTALL_DATE / PEN_INSTALLER_TXT / PEN_INSPECTION_DATE on-site through the Planscape mobile sign-off flow.",
+    "Beam STRUCT_FAIL findings must be resolved before fabrication — re-route the offending pipe / duct or move the beam location."
+  ]
+}
