@@ -184,7 +184,6 @@ namespace StingTools.Commands.Electrical
                     SystemId = sys.Id,
                     PanelId  = fit.Id,
                     SystemName = sys.Name ?? "(?)",
-                    PanelId = fit.Id,
                     PanelName = fit.Name,
                     Group = circuitGroup,
                     Reason = $"fit slots={fit.RemainingSlots} after, panelLoad={fit.ConnectedVa/1000:F1} kVA" +
@@ -257,8 +256,8 @@ namespace StingTools.Commands.Electrical
                             // collector by name now that PanelId is on Assignment.
                             try
                             {
-                                if (panelInst != null)
-                                    ParameterHelpers.SetString(panelInst, "ELC_PNL_CIRCUIT_GROUP_TXT", a.Group, overwrite: false);
+                                if (panelFi != null)
+                                    ParameterHelpers.SetString(panelFi, "ELC_PNL_CIRCUIT_GROUP_TXT", a.Group, overwrite: false);
                             }
                             catch (Exception ex2) { StingLog.Warn($"Stamp panel group: {ex2.Message}"); }
                         }
