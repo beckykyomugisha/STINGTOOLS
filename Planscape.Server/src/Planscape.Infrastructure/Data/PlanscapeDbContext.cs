@@ -82,6 +82,14 @@ public class PlanscapeDbContext : DbContext
                     entry.Entity.TenantId = tid;
             }
         }
+        // F3 — auto-stamp UpdatedAt on every Modified Tenant entry so the
+        // admin dashboard doesn't have to query AuditLog just to get "last changed".
+        foreach (var entry in ChangeTracker.Entries<Tenant>()
+            .Where(e => e.State == EntityState.Modified))
+        {
+            entry.Entity.UpdatedAt = DateTime.UtcNow;
+        }
+
         return await base.SaveChangesAsync(cancellationToken);
     }
 
@@ -436,8 +444,16 @@ public class PlanscapeDbContext : DbContext
         modelBuilder.Entity<AppUser>(e =>
         {
             e.HasKey(u => u.Id);
-            e.HasIndex(u => u.Email).IsUnique();
+            // F1 — email uniqueness is per-tenant, not global. Two different tenants
+            // can legitimately have the same email address (e.g. a consultant on both).
+            // Changed from single-column unique to composite (TenantId, Email).
+            e.HasIndex(u => new { u.TenantId, u.Email }).IsUnique();
             e.HasOne(u => u.Tenant).WithMany(t => t.Users).HasForeignKey(u => u.TenantId);
+            // F2 — global query filter hides soft-deleted users from all normal
+            // queries. Admin/background jobs that need deleted users must call
+            // .IgnoreQueryFilters() explicitly. Paired with F5's Restrict deletes
+            // so the row is never hard-removed while memberships/tokens exist.
+            e.HasQueryFilter(u => !u.IsDeleted);
         });
 
         // ── Project ──
@@ -631,7 +647,11 @@ public class PlanscapeDbContext : DbContext
             e.HasKey(m => m.Id);
             e.HasIndex(m => new { m.ProjectId, m.UserId }).IsUnique();
             e.HasOne(m => m.Project).WithMany().HasForeignKey(m => m.ProjectId).OnDelete(DeleteBehavior.Cascade);
-            e.HasOne(m => m.User).WithMany().HasForeignKey(m => m.UserId).OnDelete(DeleteBehavior.Cascade);
+            // F5 — Restrict (not Cascade) on the User FK. Now that F2 adds soft-delete,
+            // hard-deleting a user is blocked unless memberships are removed first.
+            // This prevents silent orphaning of project membership records and forces
+            // callers to explicitly clean up memberships before retiring a user account.
+            e.HasOne(m => m.User).WithMany().HasForeignKey(m => m.UserId).OnDelete(DeleteBehavior.Restrict);
         });
 
         // ── AccessProfile (Phase 177-D) ──
@@ -652,7 +672,11 @@ public class PlanscapeDbContext : DbContext
             e.HasKey(d => d.Id);
             e.HasIndex(d => new { d.UserId, d.Token }).IsUnique();
             e.HasIndex(d => d.TenantId);
-            e.HasOne(d => d.User).WithMany().HasForeignKey(d => d.UserId).OnDelete(DeleteBehavior.Cascade);
+            // F5 — Restrict (not Cascade) on the User FK. A soft-deleted user's push
+            // tokens must be explicitly removed by the deletion workflow; this prevents
+            // an accidental hard-delete from silently dropping tokens that the cleanup
+            // job or audit trail still references.
+            e.HasOne(d => d.User).WithMany().HasForeignKey(d => d.UserId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(d => d.Tenant).WithMany().HasForeignKey(d => d.TenantId).OnDelete(DeleteBehavior.Cascade);
             e.Property(d => d.Token).HasMaxLength(512);
             e.Property(d => d.DeviceName).HasMaxLength(200);

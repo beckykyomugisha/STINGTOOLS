@@ -31,6 +31,7 @@ import {
   rejectSitePhoto,
   withdrawSitePhoto,
   getMyProjectAccess,
+  getIssue,
 } from '@/api/endpoints';
 import type {
   SitePhoto,
@@ -379,10 +380,15 @@ function PhotoViewer({
             {photo.anchorIssueId ? (
               <TouchableOpacity
                 style={styles.metaRow}
-                onPress={() => {
-                  Vibration.vibrate(20);
-                  onClose();
-                  router.push(`/issue-detail?id=${photo.anchorIssueId}&projectId=${projectId}` as never);
+                onPress={async () => {
+                  try {
+                    await getIssue(projectId, photo.anchorIssueId!);
+                    Vibration.vibrate(20);
+                    onClose();
+                    router.push(`/issue-detail?id=${photo.anchorIssueId}&projectId=${projectId}` as never);
+                  } catch {
+                    Alert.alert('Issue not found', 'The linked issue may have been deleted.');
+                  }
                 }}
                 accessibilityLabel="Open linked issue"
               >
@@ -403,7 +409,9 @@ function PhotoViewer({
                 value={caption}
                 onChangeText={setCaption}
                 multiline
+                maxLength={500}
               />
+              <Text style={styles.captionCounter}>{caption.length}/500</Text>
               <Text style={styles.viewerActionLabel}>Reject reason (if rejecting)</Text>
               <TextInput
                 style={styles.viewerCaption}
@@ -569,4 +577,5 @@ const styles = StyleSheet.create({
   captionBlock: { backgroundColor: theme.colors.surface, padding: theme.spacing.md },
   captionLabel: { fontSize: theme.fontSize.sm, color: theme.colors.textSecondary },
   captionBody: { fontSize: theme.fontSize.md, color: theme.colors.text, marginTop: 4 },
+  captionCounter: { fontSize: 10, color: theme.colors.disabled, textAlign: 'right', marginTop: 2 },
 });

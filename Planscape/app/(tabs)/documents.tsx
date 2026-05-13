@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { theme, getCDEColor } from '@/utils/theme';
-import { listProjects, listDocuments, transitionCDE, requestDocumentApproval, decideDocumentApproval, getMyProjectAccess, type MyProjectAccess } from '@/api/endpoints';
+import { listProjects, listDocuments, transitionCDE, requestDocumentApproval, decideDocumentApproval, getMyProjectAccess, type MyProjectAccess, type ListDocumentsFilters } from '@/api/endpoints';
 import type { DocumentRecord, Project, CDEStatus } from '@/types/api';
 import { crashReporter } from '@/services/crashReporter';
 import { useAuthStore } from '@/stores/authStore';
@@ -69,7 +69,7 @@ export default function DocumentsScreen() {
   // Phase 177 — per-folder ACL slice for the active user; null = unloaded.
   const [acl, setAcl] = useState<MyProjectAccess | null>(null);
 
-  const loadData = useCallback(async (projectId?: string) => {
+  const loadData = useCallback(async (projectId?: string, docFilters?: ListDocumentsFilters) => {
     try {
       setError(null);
       const projectList = await listProjects();
@@ -86,7 +86,7 @@ export default function DocumentsScreen() {
       // can hide CDE states the user has no access to. Falls back to a
       // bypass slice on error so the screen never breaks on a server hiccup.
       const [docs, aclSlice] = await Promise.all([
-        listDocuments(target.id),
+        listDocuments(target.id, docFilters),
         getMyProjectAccess(target.id).catch(() => null),
       ]);
       setDocuments(docs);
@@ -106,7 +106,8 @@ export default function DocumentsScreen() {
 
   function onRefresh() {
     setRefreshing(true);
-    loadData(activeProject?.id);
+    // FIX-15: pass the current search query to the server on refresh too.
+    loadData(activeProject?.id, search.trim() ? { search: search.trim() } : undefined);
   }
 
   const cdeCounts = useMemo(() => {
@@ -305,18 +306,29 @@ export default function DocumentsScreen() {
         }}
       />
 
-      {/* Search */}
+      {/* Search — FIX-15: value also forwarded to server as ?search= param */}
       <View style={styles.searchRow}>
         <TextInput
           style={styles.searchInput}
           placeholder="Search documents..."
           placeholderTextColor={theme.colors.disabled}
           value={search}
-          onChangeText={setSearch}
+          onChangeText={(v) => {
+            setSearch(v);
+            // Pass the query to the server so large corpora can be filtered
+            // server-side rather than loading all documents first.
+            loadData(activeProject?.id, v.trim() ? { search: v.trim() } : undefined);
+          }}
           autoCapitalize="none"
         />
         {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')} style={styles.clearBtn}>
+          <TouchableOpacity
+            onPress={() => {
+              setSearch('');
+              loadData(activeProject?.id);
+            }}
+            style={styles.clearBtn}
+          >
             <Text style={styles.clearBtnText}>X</Text>
           </TouchableOpacity>
         )}

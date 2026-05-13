@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { theme, getRAGColor, getPriorityColor } from '@/utils/theme';
 import {
   listProjects,
@@ -67,28 +67,36 @@ export default function DashboardScreen() {
         code: target.code,
         tenantId: (target as any).tenantId,
       });
-      const data = await getProjectDashboard(target.id);
-      setDashboard(data);
 
-      // Phase 142 — fetch the My Actions count in parallel with the dashboard.
-      // Best-effort: a stale token, missing membership row, or 5xx silently
-      // leaves the badge null and the card hidden, never blocking the dashboard.
-      try {
-        const ma = await getMyActions(target.id, 1);
-        setMyActionsTotal(ma.counts.total);
-        setSlaCount(ma.counts.slaBreached);
-      } catch {
+      // D1 — use Promise.allSettled so a failure in any one call shows partial
+      // data rather than blanking the entire dashboard.
+      const [dashRes, actionsRes, fedRes, confRes] = await Promise.allSettled([
+        getProjectDashboard(target.id),
+        getMyActions(target.id, 1),
+        getFederationStatus(target.id, 14),
+        listSyncConflicts(target.id, { resolution: 'PENDING', pageSize: 1 }),
+      ]);
+
+      // Dashboard data — only show the error banner when the primary call fails.
+      if (dashRes.status === 'fulfilled') {
+        setDashboard(dashRes.value);
+      } else {
+        const msg = dashRes.reason instanceof Error
+          ? dashRes.reason.message
+          : 'Failed to load dashboard';
+        setError(msg);
+      }
+
+      // Phase 142 — My Actions count. Best-effort; null hides the card.
+      if (actionsRes.status === 'fulfilled') {
+        setMyActionsTotal(actionsRes.value.counts.total);
+        setSlaCount(actionsRes.value.counts.slaBreached);
+      } else {
         setMyActionsTotal(null);
         setSlaCount(0);
       }
 
       // Phase 143 — BIM Coordinator surfaces. Same best-effort pattern.
-      // Federation + conflicts run in parallel since they hit independent
-      // tables and we want minimum latency on dashboard cold start.
-      const [fedRes, confRes] = await Promise.allSettled([
-        getFederationStatus(target.id, 14),
-        listSyncConflicts(target.id, { resolution: 'PENDING', pageSize: 1 }),
-      ]);
       setFederation(fedRes.status === 'fulfilled' ? fedRes.value : null);
       setPendingConflicts(
         confRes.status === 'fulfilled' ? (confRes.value.summary.pending ?? 0) : 0,
@@ -105,6 +113,15 @@ export default function DashboardScreen() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // D2 — refresh dashboard data whenever this tab is re-focused (e.g. returning
+  // from Issues, Documents, or any other screen). The existing useEffect handles
+  // the initial load; useFocusEffect covers every subsequent re-focus.
+  useFocusEffect(
+    useCallback(() => {
+      if (activeProject) loadData(activeProject.id);
+    }, [activeProject?.id, loadData]),
+  );
 
   // Phase 177-C — refresh the My Actions tile after the user approves /
   // rejects something elsewhere in the app. The store is bumped by the

@@ -15,6 +15,14 @@ public class AppUser : ITenantScoped
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt { get; set; }
+
+    // F2 — soft-delete support. Use IsDeleted/DeletedAt instead of hard-deleting
+    // users so audit logs, issue assignments and project memberships remain intact.
+    // A global query filter in PlanscapeDbContext excludes deleted users from all
+    // normal queries. DeletedByUserId is the admin who performed the deletion.
+    public bool IsDeleted { get; set; } = false;
+    public DateTime? DeletedAt { get; set; }
+    public string? DeletedByUserId { get; set; }
     public string? RefreshToken { get; set; }
     public DateTime? RefreshTokenExpiresAt { get; set; }
 

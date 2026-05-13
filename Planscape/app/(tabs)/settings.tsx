@@ -17,6 +17,9 @@ import * as Device from 'expo-device';
 import { theme } from '@/utils/theme';
 import { getBaseUrl, setBaseUrl, clearTokens } from '@/api/client';
 import { getMe } from '@/api/endpoints';
+import { useAuthStore } from '@/stores/authStore';
+import { realtime } from '@/services/realtimeClient';
+import { useProjectStore } from '@/stores/projectStore';
 import { useOfflineQueue } from '@/hooks/useOfflineQueue';
 import type { UserProfile } from '@/types/api';
 import { crashReporter } from '@/services/crashReporter';
@@ -147,7 +150,12 @@ export default function SettingsScreen() {
         text: 'Logout',
         style: 'destructive',
         onPress: async () => {
+          // A6 — clear auth state BEFORE disconnecting SignalR so any
+          // in-flight reconnect attempt finds no token and aborts.
+          useAuthStore.getState().clear();
+          useProjectStore.getState().clear();
           await clearTokens();
+          realtime.disconnect().catch(() => {});
           router.replace('/login');
         },
       },

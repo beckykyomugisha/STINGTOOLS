@@ -101,6 +101,7 @@ namespace StingTools.UI
         private string _currentTab;
 
         // Phase 76: Static warning element IDs selected from BCC Warnings DataGrid (stored as long values)
+        // FIX-6: Cleared in OnClosed so IDs do not leak across BCC window reopens / new sessions.
         public static IReadOnlyList<long> SelectedWarningIds { get; private set; } = new List<long>();
 
         internal static void SetSelectedWarningIds(IEnumerable<long> ids)
@@ -1110,6 +1111,20 @@ namespace StingTools.UI
                     else { ResultAction = "ExportReport"; Close(); }
                     e.Handled = true;
                 }
+                // FIX-8: Ctrl+S — sync/save (BCC sync action)
+                if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.S
+                    && (Keyboard.Modifiers & ModifierKeys.Shift) == 0)
+                {
+                    StingLog.Info("BCC: Ctrl+S — sync/save not yet wired to a single action; use BIM > Export or Platform > Sync.");
+                    e.Handled = true;
+                }
+                // FIX-8: Ctrl+P — print / export report
+                if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.P)
+                {
+                    if (ActionDispatcher != null) ActionDispatcher("ExportReport");
+                    else { ResultAction = "ExportReport"; Close(); }
+                    e.Handled = true;
+                }
                 if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.Q)
                 { NavigateTo(TabQA); e.Handled = true; }
                 if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift) && e.Key == Key.S)
@@ -1970,9 +1985,9 @@ namespace StingTools.UI
                 var trendCard = MakeCard();
                 var trendStack = new StackPanel();
 
-                // Direction indicator
-                double firstPct = _data.ComplianceTrend.First().Pct;
-                double lastPct = _data.ComplianceTrend.Last().Pct;
+                // Direction indicator — guard against an empty list before indexing
+                double firstPct = _data.ComplianceTrend.Count > 0 ? _data.ComplianceTrend[0].Pct : 0.0;
+                double lastPct  = _data.ComplianceTrend.Count > 0 ? _data.ComplianceTrend[_data.ComplianceTrend.Count - 1].Pct : 0.0;
                 double delta = lastPct - firstPct;
                 string arrow = delta > 1 ? "\u2191" : delta < -1 ? "\u2193" : "\u2192";
                 var trendColor = delta > 1 ? CGreen : delta < -1 ? CRed : CAmber;
@@ -6208,15 +6223,17 @@ namespace StingTools.UI
                     {
                         try
                         {
-                            var selDoc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
-                            var selIds = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Selection?.GetElementIds();
-                            if (selDoc != null && selIds != null && selIds.Count > 0)
+                            var uidoc = StingCommandHandler.CurrentApp?.ActiveUIDocument;
+                            if (uidoc == null) { StingLog.Warn("BCC: no active document for selection auto-populate"); return; }
+                            var selDoc = uidoc.Document;
+                            var selIds = uidoc.Selection?.GetElementIds() ?? new List<Autodesk.Revit.DB.ElementId>();
+                            if (selDoc != null && selIds.Count > 0)
                             {
                                 string autoLoc = AutoPopulateIssueLocation(selDoc, selIds);
                                 if (!string.IsNullOrEmpty(autoLoc)) locBox.Text = autoLoc;
                             }
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"BCC: issue location auto-populate: {ex.Message}"); }
                     };
                     var locBtn = new Button { Content = "📍 Capture from View", Height = 24, Padding = new Thickness(6, 0, 6, 0), FontSize = 10, Cursor = Cursors.Hand, Margin = new Thickness(4, 0, 0, 0) };
                     locBtn.Click += (s, e) => { DispatchAction("AttachIssueLocation"); locBox.Text = "(Location captured)"; };
@@ -7162,6 +7179,9 @@ namespace StingTools.UI
             ActionDispatcher = null;
             CurrentInstance = null;
             _tabCache.Clear();
+            // FIX-6: Clear static SelectedWarningIds so IDs do not leak into
+            // subsequent BCC window opens or new Revit sessions.
+            SelectedWarningIds = new List<long>();
             StingLog.Info("BIMCoordinationCenter closed and resources released.");
         }
 
@@ -8145,7 +8165,7 @@ namespace StingTools.UI
                         headerWrap.Children.Add(MakeMetricChip($"Profile: {prof}", Br(Color.FromRgb(0x6A, 0x1B, 0x9A))));
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"BCC BuildHealthcareTab: {ex.Message}"); }
             // Code-base chip (HBN/HTM, FGI, iHFG, Other).
             try
             {
@@ -8158,7 +8178,7 @@ namespace StingTools.UI
                         headerWrap.Children.Add(MakeMetricChip($"Code base: {cb}", Br(CHeaderBg)));
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"BCC BuildHealthcareTab: {ex.Message}"); }
             stack.Children.Add(headerWrap);
 
             // Intro card

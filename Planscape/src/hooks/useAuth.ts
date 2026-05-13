@@ -5,6 +5,7 @@ import type { UserProfile } from '@/types/api';
 import { notificationService } from '@/services/notificationService';
 import { crashReporter } from '@/services/crashReporter';
 import { useAuthStore } from '@/stores/authStore';
+import { realtime } from '@/services/realtimeClient';
 
 export function useAuth() {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -49,9 +50,11 @@ export function useAuth() {
   );
 
   const logout = useCallback(async () => {
-    await clearTokens();
-    setUser(null);
+    // A6 — clear auth state FIRST so any reconnect attempt finds no token.
     useAuthStore.getState().clear();
+    setUser(null);
+    await clearTokens();
+    realtime.disconnect().catch(() => {});
   }, []);
 
   const restoreSession = useCallback(async () => {
