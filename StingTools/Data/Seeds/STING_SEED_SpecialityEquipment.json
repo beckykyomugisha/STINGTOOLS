@@ -2,13 +2,13 @@
   "version": "1.0",
   "standard": "STING SEED FAMILY — Specialty Equipment (FRP penetrations + sleeves + bespoke fittings)",
   "_notes": [
-    "Most flexible seed — Specialty Equipment is the catch-all where",
-    "fire-stops, sleeves, MEP penetration markers and other site-",
-    "specific items live. Type variants ship FR30 / FR60 / FR90 /",
-    "FR120 + a SLEEVE_GENERIC variant. SlabPenetrationDetector now",
-    "places this seed (PEN_FIRE_RATING_TXT picks the type variant);",
-    "users swap to Hilti / Promat / etc. via SwapToManufacturer once",
-    "the fire-stop product is selected."
+    "11 type variants: fire-rated penetrations FR30/FR60/FR90/FR120/FR240,",
+    "multi-service FR30, cavity barrier FR60, acoustic-fire combo seal,",
+    "intumescent collar (pipe-specific), expanding foam fill (services void),",
+    "and a generic unrated sleeve.",
+    "SlabPenetrationDetector places this seed; PEN_FIRE_RATING_TXT picks",
+    "the type variant. Swap to Hilti / Promat / STI / Rockwool via",
+    "SwapToManufacturerCommand once the fire-stop product is specified."
   ],
   "symbols": [
     {
@@ -19,163 +19,93 @@
       "discipline": "Generic",
       "subcategory": "STING_SEED",
       "isSeed": true,
+      "protectExisting": true,
       "hosting": "FaceBased",
       "symbolSize": 5.0,
       "parameters": [
-        {
-          "name": "STING_SEED_FAMILY_TXT",
-          "type": "Text",
-          "shared": true,
-          "isInstance": true,
-          "default": "STING_SEED_SpecialityEquipment"
-        },
-        {
-          "name": "STING_DESIGN_REF_TXT",
-          "type": "Text",
-          "shared": true,
-          "isInstance": true,
-          "default": ""
-        },
-        {
-          "name": "STING_SWAP_HISTORY_TXT",
-          "type": "Text",
-          "shared": true,
-          "isInstance": true,
-          "default": ""
-        },
-        {
-          "name": "ASS_TAG_1",
-          "type": "Text",
-          "shared": true,
-          "isInstance": true
-        },
-        {
-          "name": "PEN_FIRE_RATING_TXT",
-          "type": "Text",
-          "shared": true,
-          "isInstance": false,
-          "default": "FR60"
-        },
-        {
-          "name": "PEN_SEALANT_TYPE_TXT",
-          "type": "Text",
-          "shared": true,
-          "isInstance": true,
-          "default": "INTUMESCENT"
-        },
-        {
-          "name": "PEN_OD_MM",
-          "type": "Text",
-          "shared": true,
-          "isInstance": true,
-          "default": "32"
-        },
-        {
-          "name": "PEN_HOST_REF_TXT",
-          "type": "Text",
-          "shared": true,
-          "isInstance": true,
-          "default": ""
-        },
-        {
-          "name": "PEN_MEMBER_ID_TXT",
-          "type": "Text",
-          "shared": true,
-          "isInstance": true,
-          "default": ""
-        },
-        {
-          "name": "PEN_CERTIFICATION_TXT",
-          "type": "Text",
-          "shared": true,
-          "isInstance": false,
-          "default": "BS 476-20 / EN 1366-3"
-        },
-        {
-          "name": "PEN_INSTALL_STATUS_TXT",
-          "type": "Text",
-          "shared": true,
-          "isInstance": true,
-          "default": "DRAFT"
-        },
-        {
-          "name": "PEN_INSTALLER_TXT",
-          "type": "Text",
-          "shared": true,
-          "isInstance": true,
-          "default": ""
-        },
-        {
-          "name": "PEN_INSTALL_DATE",
-          "type": "Text",
-          "shared": true,
-          "isInstance": true,
-          "default": ""
-        },
-        {
-          "name": "PEN_INSPECTOR_TXT",
-          "type": "Text",
-          "shared": true,
-          "isInstance": true,
-          "default": ""
-        },
-        {
-          "name": "PEN_INSPECTION_DATE",
-          "type": "Text",
-          "shared": true,
-          "isInstance": true,
-          "default": ""
-        },
-        {
-          "name": "PEN_CONTROL_NUMBER_TXT",
-          "type": "Text",
-          "shared": true,
-          "isInstance": true,
-          "default": ""
-        }
+        { "name": "STING_SEED_FAMILY_TXT",     "type": "Text", "shared": true, "isInstance": true,  "default": "STING_SEED_SpecialityEquipment" },
+        { "name": "STING_DESIGN_REF_TXT",      "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "STING_SWAP_HISTORY_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "ASS_TAG_1",                 "type": "Text", "shared": true, "isInstance": true },
+        { "name": "PEN_FIRE_RATING_TXT",       "type": "Text", "shared": true, "isInstance": false, "default": "FR60" },
+        { "name": "PEN_SEALANT_TYPE_TXT",      "type": "Text", "shared": true, "isInstance": true,  "default": "INTUMESCENT" },
+        { "name": "PEN_OD_MM",                 "type": "Text", "shared": true, "isInstance": true,  "default": "32" },
+        { "name": "PEN_HOST_REF_TXT",          "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "PEN_MEMBER_ID_TXT",         "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "PEN_CERTIFICATION_TXT",     "type": "Text", "shared": true, "isInstance": false, "default": "BS 476-20 / EN 1366-3" },
+        { "name": "PEN_INSTALL_STATUS_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "DRAFT" },
+        { "name": "PEN_INSTALLER_TXT",         "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "PEN_INSTALL_DATE",          "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "PEN_INSPECTOR_TXT",         "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "PEN_INSPECTION_DATE",       "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "PEN_CONTROL_NUMBER_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "" }
       ],
       "geometry": {
         "arcs": [
-          { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 },
+          { "cx": 0, "cy": 0, "r": 0.5,  "startDeg": 0, "endDeg": 360 },
           { "cx": 0, "cy": 0, "r": 0.35, "startDeg": 0, "endDeg": 360 }
         ],
         "lines": [
-          { "x1": -0.45, "y1": 0.0, "x2": -0.35, "y2": 0.0 },
-          { "x1":  0.35, "y1": 0.0, "x2":  0.45, "y2": 0.0 },
-          { "x1": 0.0, "y1": -0.45, "x2": 0.0, "y2": -0.35 },
-          { "x1": 0.0, "y1":  0.35, "x2": 0.0, "y2":  0.45 }
+          { "x1": -0.45, "y1":  0.0, "x2": -0.35, "y2":  0.0 },
+          { "x1":  0.35, "y1":  0.0, "x2":  0.45, "y2":  0.0 },
+          { "x1":  0.0,  "y1": -0.45, "x2":  0.0, "y2": -0.35 },
+          { "x1":  0.0,  "y1":  0.35, "x2":  0.0, "y2":  0.45 }
         ],
         "section": {
           "view": "Front",
           "lines": [
-            { "x1": 0.0,  "y1": -1.0, "x2": 0.0,  "y2":  1.0 },
-            { "x1": -0.4, "y1":  0.0, "x2":  0.4, "y2":  0.0 },
-            { "x1": -0.4, "y1":  0.0, "x2": -0.3, "y2":  0.1 },
-            { "x1": -0.4, "y1":  0.0, "x2": -0.3, "y2": -0.1 },
-            { "x1":  0.4, "y1":  0.0, "x2":  0.3, "y2":  0.1 },
-            { "x1":  0.4, "y1":  0.0, "x2":  0.3, "y2": -0.1 }
+            { "x1":  0.0,  "y1": -1.0, "x2":  0.0,  "y2":  1.0 },
+            { "x1": -0.4,  "y1":  0.0, "x2":  0.4,  "y2":  0.0 },
+            { "x1": -0.4,  "y1":  0.0, "x2": -0.3,  "y2":  0.1 },
+            { "x1": -0.4,  "y1":  0.0, "x2": -0.3,  "y2": -0.1 },
+            { "x1":  0.4,  "y1":  0.0, "x2":  0.3,  "y2":  0.1 },
+            { "x1":  0.4,  "y1":  0.0, "x2":  0.3,  "y2": -0.1 }
           ]
         }
       },
-      "solid3D": {
-        "type": "Box",
-        "widthMm": 80,
-        "depthMm": 80,
-        "heightMm": 200
-      },
+      "solid3D": { "type": "Box", "widthMm": 80, "depthMm": 80, "heightMm": 200 },
       "formulaBindings": [
+        { "target": "Mark", "expression": "PEN_CONTROL_NUMBER_TXT" }
+      ],
+      "swapCandidates": [
         {
-          "target": "Mark",
-          "expression": "PEN_CONTROL_NUMBER_TXT",
-          "_notes": "Phase 178f — auto-binds Mark so existing tag families pick up the FRP control number without further wiring."
+          "label": "Hilti CFS-SIL / FS-ONE Intumescent",
+          "familyPath": "",
+          "variantPattern": "FR*",
+          "priority": 1,
+          "autoLoad": false
+        },
+        {
+          "label": "Promat CAFCO / Durasteel Penetration Seal",
+          "familyPath": "",
+          "variantPattern": "FR*",
+          "priority": 2,
+          "autoLoad": false
+        },
+        {
+          "label": "STI / Specified Technologies FireStop Collar",
+          "familyPath": "",
+          "variantPattern": "INTUMESCENT_COLLAR",
+          "priority": 3,
+          "autoLoad": false
+        },
+        {
+          "label": "Rockwool Multi-Service Firestop",
+          "familyPath": "",
+          "variantPattern": "FR30_MULTI|FR60_MULTI",
+          "priority": 4,
+          "autoLoad": false
         }
       ],
-      "_section": "Phase 178f — section symbology lands on the family's Front elevation view: 200mm vertical bar with horizontal arrows pointing in/out, matching the SpecialityEquipment README guidance for section views.",
       "typeVariants": [
+        {
+          "_group": "--- SINGLE-SERVICE FIRE-RATED PENETRATIONS (EN 1366-3) ---"
+        },
         {
           "name": "FR30",
           "params": {
             "PEN_FIRE_RATING_TXT": "FR30",
+            "PEN_SEALANT_TYPE_TXT": "INTUMESCENT",
             "PEN_CERTIFICATION_TXT": "BS 476-20 / EN 1366-3 (30 min)"
           }
         },
@@ -183,6 +113,7 @@
           "name": "FR60",
           "params": {
             "PEN_FIRE_RATING_TXT": "FR60",
+            "PEN_SEALANT_TYPE_TXT": "INTUMESCENT",
             "PEN_CERTIFICATION_TXT": "BS 476-20 / EN 1366-3 (60 min)"
           }
         },
@@ -190,6 +121,7 @@
           "name": "FR90",
           "params": {
             "PEN_FIRE_RATING_TXT": "FR90",
+            "PEN_SEALANT_TYPE_TXT": "INTUMESCENT",
             "PEN_CERTIFICATION_TXT": "BS 476-20 / EN 1366-3 (90 min)"
           }
         },
@@ -197,14 +129,73 @@
           "name": "FR120",
           "params": {
             "PEN_FIRE_RATING_TXT": "FR120",
+            "PEN_SEALANT_TYPE_TXT": "INTUMESCENT",
             "PEN_CERTIFICATION_TXT": "BS 476-20 / EN 1366-3 (120 min)"
           }
+        },
+        {
+          "name": "FR240",
+          "params": {
+            "PEN_FIRE_RATING_TXT": "FR240",
+            "PEN_SEALANT_TYPE_TXT": "INTUMESCENT_BOARD",
+            "PEN_CERTIFICATION_TXT": "BS 476-20 / EN 1366-3 (240 min)"
+          }
+        },
+        {
+          "_group": "--- MULTI-SERVICE / CAVITY BARRIER ---"
+        },
+        {
+          "name": "FR30_MULTI",
+          "params": {
+            "PEN_FIRE_RATING_TXT": "FR30",
+            "PEN_SEALANT_TYPE_TXT": "INTUMESCENT_WRAP",
+            "PEN_CERTIFICATION_TXT": "EN 1366-3 multi-service (30 min)"
+          }
+        },
+        {
+          "name": "FR60_CAVITY_BARRIER",
+          "params": {
+            "PEN_FIRE_RATING_TXT": "FR60",
+            "PEN_SEALANT_TYPE_TXT": "INTUMESCENT_CAVITY_BARRIER",
+            "PEN_CERTIFICATION_TXT": "BS 476-20 / BS 9999 cavity barrier (60 min)"
+          }
+        },
+        {
+          "_group": "--- SPECIALIST PRODUCTS ---"
+        },
+        {
+          "name": "ACOUSTIC_FIRE_SEAL",
+          "params": {
+            "PEN_FIRE_RATING_TXT": "FR60",
+            "PEN_SEALANT_TYPE_TXT": "ACOUSTIC_FIRE_COMPOUND",
+            "PEN_CERTIFICATION_TXT": "EN 1366-3 (60 min) + BS 8233 acoustic"
+          }
+        },
+        {
+          "name": "INTUMESCENT_COLLAR",
+          "params": {
+            "PEN_FIRE_RATING_TXT": "FR60",
+            "PEN_SEALANT_TYPE_TXT": "INTUMESCENT_COLLAR",
+            "PEN_CERTIFICATION_TXT": "EN 1366-3 plastic pipe collar (60 min)"
+          }
+        },
+        {
+          "name": "EXPANDING_FOAM_FILL",
+          "params": {
+            "PEN_FIRE_RATING_TXT": "FR30",
+            "PEN_SEALANT_TYPE_TXT": "FIRE_RATED_FOAM",
+            "PEN_CERTIFICATION_TXT": "EN 1366-3 foam sealant (30 min)"
+          }
+        },
+        {
+          "_group": "--- UNRATED SLEEVE ---"
         },
         {
           "name": "SLEEVE_GENERIC",
           "params": {
             "PEN_FIRE_RATING_TXT": "",
-            "PEN_SEALANT_TYPE_TXT": "NONE"
+            "PEN_SEALANT_TYPE_TXT": "NONE",
+            "PEN_CERTIFICATION_TXT": ""
           }
         }
       ]

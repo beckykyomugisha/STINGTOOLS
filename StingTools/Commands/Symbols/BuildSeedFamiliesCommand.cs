@@ -79,6 +79,11 @@ namespace StingTools.Commands.Symbols
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
 
+            // ── Rebuild mode picker ───────────────────────────────────────
+            var mode = PromptRebuildMode();
+            if (mode == null) return Result.Cancelled;
+            var rebuildMode = mode.Value;
+
             string outRoot = ResolveSeedOutputFolder(doc);
             Directory.CreateDirectory(outRoot);
 
@@ -93,31 +98,37 @@ namespace StingTools.Commands.Symbols
 
             var aggregate = new SymbolCreationResult();
             int built = 0, failed = 0;
-            var perSeed = new List<(string seed, int created, int failed, int warnings)>();
+            var perSeed = new List<(string seed, int created, int failed, int warnings, int prot)>();
 
             foreach (var spec in specs)
             {
                 string seedName = Path.GetFileNameWithoutExtension(spec);
                 try
                 {
-                    var r = SymbolLibraryCreator.CreateAllFromFile(doc, spec, outRoot, loadIntoProject: true);
-                    aggregate.Created += r.Created;
-                    aggregate.Existed += r.Existed;
-                    aggregate.Failed  += r.Failed;
+                    var r = SymbolLibraryCreator.CreateAllFromFile(doc, spec, outRoot,
+                        loadIntoProject: true, rebuildMode: rebuildMode);
+                    aggregate.Created   += r.Created;
+                    aggregate.Existed   += r.Existed;
+                    aggregate.Failed    += r.Failed;
+                    aggregate.Protected += r.Protected;
                     aggregate.Warnings.AddRange(r.Warnings);
                     aggregate.Errors.AddRange(r.Errors);
                     aggregate.CreatedRfaPaths.AddRange(r.CreatedRfaPaths);
                     built  += r.Created;
                     failed += r.Failed;
-                    perSeed.Add((seedName, r.Created, r.Failed, r.Warnings.Count));
+                    perSeed.Add((seedName, r.Created, r.Failed, r.Warnings.Count, r.Protected));
                 }
                 catch (Exception ex)
                 {
                     aggregate.Errors.Add($"{seedName}: {ex.Message}");
                     failed++;
-                    perSeed.Add((seedName, 0, 1, 0));
+                    perSeed.Add((seedName, 0, 1, 0, 0));
                 }
             }
+
+            // ── Auto-register swap candidates ──────────────────────────────
+            try { AutoRegisterSwapCandidates(specs, outRoot, aggregate); }
+            catch (Exception ex) { StingLog.Warn($"AutoRegisterSwapCandidates: {ex.Message}"); }
 
             // Phase 178e — connector audit. Walks each loaded seed
             // family and confirms the connector count declared in the
@@ -131,16 +142,151 @@ namespace StingTools.Commands.Symbols
             }
             catch (Exception ex) { StingLog.Warn($"Connector audit: {ex.Message}"); }
 
-            ShowResult(aggregate, perSeed, outRoot);
+            ShowResult(aggregate, perSeed, outRoot, rebuildMode);
 
             try { ActionAuditLog.Record("BuildSeedFamilies",
-                $"built={built} failed={failed} outRoot={outRoot}"); }
+                $"mode={rebuildMode} built={built} failed={failed} protected={aggregate.Protected} outRoot={outRoot}"); }
             catch (Exception ex) { StingLog.Warn($"audit: {ex.Message}"); }
 
             return aggregate.Errors.Count == 0 ? Result.Succeeded : Result.Succeeded;
         }
 
         // ── Helpers ─────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Shows a TaskDialog that lets the user pick MissingOnly /
+        /// RebuildUnfinalized / RebuildAll. Returns null when the user
+        /// cancels. RebuildAll requires an extra confirmation because it
+        /// will overwrite hand-polished families.
+        /// </summary>
+        private static SeedRebuildMode? PromptRebuildMode()
+        {
+            var td = new TaskDialog("STING Seed Families — Rebuild Mode")
+            {
+                MainInstruction = "Choose which seeds to build",
+                MainContent =
+                    "Missing Only — create seeds that don't exist yet (safe default).\n" +
+                    "Rebuild Unfinalized — skip only seeds with a .sting-finalized sidecar; rebuild all others.\n" +
+                    "Rebuild All — regenerate every seed including finalized ones (destroys manual polish).",
+                CommonButtons = TaskDialogCommonButtons.Cancel,
+                DefaultButton  = TaskDialogResult.Cancel,
+            };
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Missing Only",
+                "Create seeds whose .rfa does not exist. Protected families are never touched.");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Rebuild Unfinalized",
+                "Regenerate seeds that have not been marked as finalized. Finalized seeds are skipped.");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Rebuild All",
+                "Regenerate ALL seeds. WARNING: overwrites any manual polish. You will be asked to confirm.");
+
+            var result = td.Show();
+            switch (result)
+            {
+                case TaskDialogResult.CommandLink1: return SeedRebuildMode.MissingOnly;
+                case TaskDialogResult.CommandLink2: return SeedRebuildMode.RebuildUnfinalized;
+                case TaskDialogResult.CommandLink3:
+                {
+                    var confirm = TaskDialog.Show("Confirm Rebuild All",
+                        "This will overwrite ALL seed .rfa files on disk, including any you have hand-polished.\n\n" +
+                        "Are you sure?",
+                        TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No);
+                    return confirm == TaskDialogResult.Yes
+                        ? SeedRebuildMode.RebuildAll
+                        : (SeedRebuildMode?)null;
+                }
+                default: return null;
+            }
+        }
+
+        /// <summary>
+        /// Reads the swapCandidates[] array from every seed JSON spec and
+        /// merges the entries into STING_FAMILY_SWAP_REGISTRY.json next to
+        /// the seed output folder. Existing registry entries with the same
+        /// seedId + label are updated in place; new entries are appended.
+        /// The merge is additive — manually added entries are never removed.
+        /// </summary>
+        private static void AutoRegisterSwapCandidates(IList<string> specs, string outRoot, SymbolCreationResult result)
+        {
+            string registryPath = Path.Combine(outRoot, "..", "STING_FAMILY_SWAP_REGISTRY.json");
+            registryPath = Path.GetFullPath(registryPath);
+
+            // Load or create the registry JSON object.
+            Newtonsoft.Json.Linq.JObject registry;
+            try
+            {
+                registry = File.Exists(registryPath)
+                    ? Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(registryPath))
+                    : new Newtonsoft.Json.Linq.JObject();
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"Swap registry load failed: {ex.Message}");
+                return;
+            }
+
+            var entries = registry["entries"] as Newtonsoft.Json.Linq.JArray
+                ?? new Newtonsoft.Json.Linq.JArray();
+            int added = 0, updated = 0;
+
+            foreach (var specPath in specs)
+            {
+                try
+                {
+                    if (!File.Exists(specPath)) continue;
+                    var lib = Newtonsoft.Json.JsonConvert.DeserializeObject<
+                        StingTools.Core.Symbols.SymbolLibrary>(File.ReadAllText(specPath));
+                    if (lib?.Symbols == null) continue;
+
+                    foreach (var sym in lib.Symbols)
+                    {
+                        if (sym?.SwapCandidates == null || sym.SwapCandidates.Count == 0) continue;
+                        foreach (var cand in sym.SwapCandidates)
+                        {
+                            if (string.IsNullOrWhiteSpace(cand?.FamilyPath)) continue;
+                            // Find existing entry (match by seedId + label).
+                            Newtonsoft.Json.Linq.JObject existing = null;
+                            foreach (var e in entries)
+                            {
+                                if ((string)e["seedId"] == sym.Id && (string)e["label"] == cand.Label)
+                                { existing = e as Newtonsoft.Json.Linq.JObject; break; }
+                            }
+                            if (existing != null)
+                            {
+                                existing["familyNamePattern"] = cand.FamilyPath;
+                                existing["typeNamePattern"]   = cand.TypePattern ?? "";
+                                existing["seedVariantPattern"]= cand.VariantPattern ?? "";
+                                existing["priority"]          = cand.Priority;
+                                updated++;
+                            }
+                            else
+                            {
+                                var node = new Newtonsoft.Json.Linq.JObject
+                                {
+                                    ["seedId"]             = sym.Id,
+                                    ["label"]             = cand.Label,
+                                    ["familyNamePattern"] = cand.FamilyPath,
+                                    ["typeNamePattern"]   = cand.TypePattern   ?? "",
+                                    ["seedVariantPattern"]= cand.VariantPattern ?? "",
+                                    ["priority"]          = cand.Priority,
+                                };
+                                entries.Add(node);
+                                added++;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex) { result.Warnings.Add($"SwapCandidates parse '{Path.GetFileName(specPath)}': {ex.Message}"); }
+            }
+
+            if (added + updated == 0) return;
+            registry["entries"] = entries;
+            registry["_updated"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
+            try
+            {
+                File.WriteAllText(registryPath, registry.ToString(Newtonsoft.Json.Formatting.Indented));
+                result.Warnings.Add($"Swap registry: {added} added, {updated} updated → {registryPath}");
+            }
+            catch (Exception ex) { result.Warnings.Add($"Swap registry save failed: {ex.Message}"); }
+        }
 
         private static string ResolveSeedOutputFolder(Document doc)
         {
@@ -191,33 +337,42 @@ namespace StingTools.Commands.Symbols
         }
 
         private static void ShowResult(SymbolCreationResult r,
-            List<(string seed, int created, int failed, int warnings)> perSeed, string outRoot)
+            List<(string seed, int created, int failed, int warnings, int prot)> perSeed,
+            string outRoot, SeedRebuildMode mode)
         {
             var panel = StingResultPanel.Create("Seed Families — Build");
-            panel.SetSubtitle($"{r.Created} created, {r.Existed} existed, {r.Failed} failed");
+            panel.SetSubtitle($"Mode: {mode}  |  {r.Created} created, {r.Existed} existed, " +
+                              $"{r.Protected} protected, {r.Failed} failed");
 
             panel.AddSection("SUMMARY")
-                .Metric("Created",  r.Created.ToString())
-                .Metric("Existed",  r.Existed.ToString())
-                .Metric("Failed",   r.Failed.ToString())
-                .Metric("Warnings", r.Warnings.Count.ToString())
-                .Metric("Output",   outRoot);
+                .Metric("Mode",       mode.ToString())
+                .Metric("Created",    r.Created.ToString())
+                .Metric("Existed",    r.Existed.ToString())
+                .Metric("Protected",  r.Protected.ToString())
+                .Metric("Failed",     r.Failed.ToString())
+                .Metric("Warnings",   r.Warnings.Count.ToString())
+                .Metric("Output",     outRoot);
 
             if (perSeed.Count > 0)
             {
                 panel.AddSection("BY SEED");
                 foreach (var s in perSeed)
-                    panel.Metric(s.seed,
-                        s.created.ToString(),
-                        s.failed > 0 ? $"failed={s.failed}, warnings={s.warnings}" :
-                        s.warnings > 0 ? $"warnings={s.warnings}" : "OK");
+                {
+                    string detail = s.failed > 0   ? $"FAILED ({s.failed})" :
+                                    s.prot  > 0    ? $"protected ({s.prot})" :
+                                    s.created > 0  ? "created" :
+                                    s.warnings > 0 ? $"existed — {s.warnings} warn" : "existed / skipped";
+                    if (s.warnings > 0 && s.failed == 0 && s.prot == 0 && s.created > 0)
+                        detail += $" ({s.warnings} warn)";
+                    panel.Metric(s.seed, s.created.ToString(), detail);
+                }
             }
 
             if (r.Warnings.Count > 0)
             {
                 panel.AddSection("WARNINGS");
-                foreach (var w in r.Warnings.Take(15)) panel.Text(w);
-                if (r.Warnings.Count > 15) panel.Text($"+{r.Warnings.Count - 15} more (StingLog).");
+                foreach (var w in r.Warnings.Take(20)) panel.Text(w);
+                if (r.Warnings.Count > 20) panel.Text($"+{r.Warnings.Count - 20} more (StingLog).");
             }
 
             if (r.Errors.Count > 0)
@@ -226,10 +381,17 @@ namespace StingTools.Commands.Symbols
                 foreach (var e in r.Errors.Take(15)) panel.Text(e);
             }
 
+            panel.AddSection("PROTECTION NOTES")
+                .Text("Finalize a seed: place a file named '<seed>.rfa.sting-finalized' alongside the .rfa.")
+                .Text("  Future runs in any mode will skip that seed unless you delete the sidecar.")
+                .Text("protectExisting:true in the JSON spec blocks Rebuild All as an extra safety net.")
+                .Text("Use 'Rebuild Unfinalized' after editing a JSON spec to pick up changes safely.");
+
             panel.AddSection("NEXT STEPS")
-                .Text("Open the produced .rfa files in Family Editor and finish per Families/Seeds/README.md.")
-                .Text("Run 'Swap to Manufacturer' to replace seeds with real families once procurement decides.")
-                .Text("Re-run this command after editing JSON specs — existing .rfa files are overwritten.");
+                .Text("Open produced .rfa files in Family Editor for visual polish per Families/Seeds/README.md.")
+                .Text("To import a pre-built family as the seed base, set sourceFamilyPath in the JSON spec.")
+                .Text("Pre-register manufacturer swap variants via swapCandidates[] in the JSON spec.")
+                .Text("Run 'Swap to Manufacturer' once procurement decides on real product families.");
             panel.Show();
         }
 

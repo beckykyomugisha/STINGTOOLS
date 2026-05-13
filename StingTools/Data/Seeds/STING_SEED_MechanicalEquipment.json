@@ -1,6 +1,12 @@
 {
   "version": "1.0",
   "standard": "STING SEED FAMILY — Mechanical Equipment (CIBSE Guide B, BS EN 1886)",
+  "_notes": [
+    "15 type variants covering: AHU, FCU, chiller, boiler, pump,",
+    "heat pumps (air-source / ground-source), cooling tower, plate HEX,",
+    "buffer vessel, VRF outdoor/indoor units, pressurisation unit,",
+    "calorifier (hot-water), roof extract fan."
+  ],
   "symbols": [
     {
       "id": "STING_SEED_MechanicalEquipment",
@@ -10,6 +16,7 @@
       "discipline": "Mechanical",
       "subcategory": "STING_SEED",
       "isSeed": true,
+      "protectExisting": true,
       "hosting": "Standalone",
       "symbolSize": 12.0,
       "parameters": [
@@ -83,6 +90,13 @@
           "default": "65"
         },
         {
+          "name": "HVC_EQP_COP_FACTOR",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "0"
+        },
+        {
           "name": "HVC_EQP_REFRIG_TXT",
           "type": "Text",
           "shared": true,
@@ -110,36 +124,11 @@
       ],
       "geometry": {
         "lines": [
-          {
-            "x1": -0.5,
-            "y1": -0.4,
-            "x2": 0.5,
-            "y2": -0.4
-          },
-          {
-            "x1": 0.5,
-            "y1": -0.4,
-            "x2": 0.5,
-            "y2": 0.4
-          },
-          {
-            "x1": 0.5,
-            "y1": 0.4,
-            "x2": -0.5,
-            "y2": 0.4
-          },
-          {
-            "x1": -0.5,
-            "y1": 0.4,
-            "x2": -0.5,
-            "y2": -0.4
-          },
-          {
-            "x1": 0.0,
-            "y1": -0.4,
-            "x2": 0.0,
-            "y2": 0.4
-          }
+          { "x1": -0.5, "y1": -0.4, "x2": 0.5, "y2": -0.4 },
+          { "x1": 0.5, "y1": -0.4, "x2": 0.5, "y2": 0.4 },
+          { "x1": 0.5, "y1": 0.4, "x2": -0.5, "y2": 0.4 },
+          { "x1": -0.5, "y1": 0.4, "x2": -0.5, "y2": -0.4 },
+          { "x1": 0.0, "y1": -0.4, "x2": 0.0, "y2": 0.4 }
         ]
       },
       "solid3D": {
@@ -148,7 +137,33 @@
         "depthMm": 600,
         "heightMm": 800
       },
+      "swapCandidates": [
+        {
+          "label": "Daikin / Mitsubishi VRF Outdoor",
+          "familyPath": "",
+          "variantPattern": "VRF_OUTDOOR_UNIT",
+          "priority": 1,
+          "autoLoad": false
+        },
+        {
+          "label": "Carrier / Trane AHU",
+          "familyPath": "",
+          "variantPattern": "AHU",
+          "priority": 2,
+          "autoLoad": false
+        },
+        {
+          "label": "Mitsubishi / Samsung Heat Pump",
+          "familyPath": "",
+          "variantPattern": "HEAT_PUMP_*",
+          "priority": 3,
+          "autoLoad": false
+        }
+      ],
       "typeVariants": [
+        {
+          "_group": "--- AIR HANDLING ---"
+        },
         {
           "name": "AHU",
           "params": {
@@ -168,6 +183,18 @@
           }
         },
         {
+          "name": "ROOF_EXTRACT_FAN",
+          "params": {
+            "HVC_EQP_TYPE_TXT": "ROOF_EXTRACT_FAN",
+            "ASS_PRODCT_COD_TXT": "REF",
+            "HVC_EQP_FLOW_LS": "300",
+            "HVC_EQP_DUTY_KW": "1.5"
+          }
+        },
+        {
+          "_group": "--- CHILLERS ---"
+        },
+        {
           "name": "CHILLER",
           "params": {
             "HVC_EQP_TYPE_TXT": "CHILLER",
@@ -175,6 +202,60 @@
             "HVC_EQP_DUTY_KW": "200",
             "HVC_EQP_REFRIG_TXT": "R32"
           }
+        },
+        {
+          "name": "COOLING_TOWER",
+          "params": {
+            "HVC_EQP_TYPE_TXT": "COOLING_TOWER",
+            "ASS_PRODCT_COD_TXT": "CTW",
+            "HVC_EQP_DUTY_KW": "250"
+          }
+        },
+        {
+          "_group": "--- HEAT PUMPS ---"
+        },
+        {
+          "name": "HEAT_PUMP_AIR_SOURCE",
+          "params": {
+            "HVC_EQP_TYPE_TXT": "HEAT_PUMP_ASHP",
+            "ASS_PRODCT_COD_TXT": "ASHP",
+            "HVC_EQP_DUTY_KW": "12",
+            "HVC_EQP_REFRIG_TXT": "R32",
+            "HVC_EQP_COP_FACTOR": "3.2"
+          }
+        },
+        {
+          "name": "HEAT_PUMP_GROUND_SOURCE",
+          "params": {
+            "HVC_EQP_TYPE_TXT": "HEAT_PUMP_GSHP",
+            "ASS_PRODCT_COD_TXT": "GSHP",
+            "HVC_EQP_DUTY_KW": "20",
+            "HVC_EQP_REFRIG_TXT": "R32",
+            "HVC_EQP_COP_FACTOR": "4.0"
+          }
+        },
+        {
+          "_group": "--- VRF ---"
+        },
+        {
+          "name": "VRF_OUTDOOR_UNIT",
+          "params": {
+            "HVC_EQP_TYPE_TXT": "VRF_OUTDOOR",
+            "ASS_PRODCT_COD_TXT": "VRF-O",
+            "HVC_EQP_DUTY_KW": "28",
+            "HVC_EQP_REFRIG_TXT": "R32"
+          }
+        },
+        {
+          "name": "VRF_INDOOR_UNIT",
+          "params": {
+            "HVC_EQP_TYPE_TXT": "VRF_INDOOR",
+            "ASS_PRODCT_COD_TXT": "VRF-I",
+            "HVC_EQP_DUTY_KW": "3.5"
+          }
+        },
+        {
+          "_group": "--- BOILERS / HOT WATER ---"
         },
         {
           "name": "BOILER",
@@ -185,11 +266,46 @@
           }
         },
         {
+          "name": "CALORIFIER",
+          "params": {
+            "HVC_EQP_TYPE_TXT": "CALORIFIER",
+            "ASS_PRODCT_COD_TXT": "CAL",
+            "HVC_EQP_DUTY_KW": "30"
+          }
+        },
+        {
+          "_group": "--- PUMPS / VESSELS ---"
+        },
+        {
           "name": "PUMP",
           "params": {
             "HVC_EQP_TYPE_TXT": "PUMP",
             "ASS_PRODCT_COD_TXT": "PMP",
             "HVC_EQP_DUTY_KW": "5"
+          }
+        },
+        {
+          "name": "PLATE_HEAT_EXCHANGER",
+          "params": {
+            "HVC_EQP_TYPE_TXT": "PLATE_HEX",
+            "ASS_PRODCT_COD_TXT": "PHX",
+            "HVC_EQP_DUTY_KW": "100"
+          }
+        },
+        {
+          "name": "BUFFER_VESSEL",
+          "params": {
+            "HVC_EQP_TYPE_TXT": "BUFFER_VESSEL",
+            "ASS_PRODCT_COD_TXT": "BVS",
+            "HVC_EQP_DUTY_KW": "0"
+          }
+        },
+        {
+          "name": "PRESSURISATION_UNIT",
+          "params": {
+            "HVC_EQP_TYPE_TXT": "PRESSURISATION_UNIT",
+            "ASS_PRODCT_COD_TXT": "PRU",
+            "HVC_EQP_DUTY_KW": "0.5"
           }
         }
       ]
