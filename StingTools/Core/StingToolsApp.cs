@@ -109,6 +109,17 @@ namespace StingTools.Core
                     StingLog.Warn($"SLDSyncUpdater register failed: {sldEx.Message}");
                 }
 
+                // Register CableManifestUpdater (conduit/tray change → manifest sync)
+                try
+                {
+                    StingTools.Core.Routing.CableManifestUpdater.Register(application);
+                    StingLog.Info("CableManifestUpdater registered.");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"CableManifestUpdater.Register failed: {ex.Message}");
+                }
+
                 // Register the real Core.Clash live updater (9-category geometry/
                 // addition/deletion triggers). Replaces the prior Phase-106 stub
                 // call which resolved via `using StingTools.Clash;` to a no-op
@@ -1197,6 +1208,7 @@ namespace StingTools.Core
             StingPluginHooks.ClearAll();
             StingAutoTagger.Unregister();
             StingTag7NarrativeUpdater.Unregister();
+            try { StingTools.Core.Routing.CableManifestUpdater.Unregister(); } catch { }
 
             // Phase 175 — unregister the SLD sync updater.
             try

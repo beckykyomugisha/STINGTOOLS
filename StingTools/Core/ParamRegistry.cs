@@ -221,6 +221,11 @@ namespace StingTools.Core
         public const string STING_PRODUCTION_RULE_IDX  = "STING_PRODUCTION_RULE_IDX_INT";
         public const string STING_SHEET_SEQUENCE       = "STING_SHEET_SEQUENCE_INT";
 
+        // ── Annotation marker constants (Phase 179) ──────────────────────
+        public const string STING_WIRE_ANNOT_MARKER   = "STING_WIRE_ANNOT";
+        public const string STING_HOMERUN_MARKER      = "STING_WIRE_HOMERUN";
+        public const string STING_TICK_MARKER         = "STING_WIRE_TICK";
+
         // ── Phase 168 — Match-line subsystem ─────────────────────────────
         // Stamped onto every auto-placed match-line DetailCurve + caption
         // tag by MatchLineEngine.PlacePair. STING_MATCH_REF_TXT carries
@@ -586,6 +591,12 @@ namespace StingTools.Core
         public static string ELC_PHOTO_UNIFORMITY     => Ext("ELC_PHOTO_UNIFORMITY");     // → ELC_PHOTO_UNIFORMITY_NR
         public static string ELC_PHOTO_LAST_ENGINE    => Ext("ELC_PHOTO_LAST_ENGINE");    // → ELC_PHOTO_LAST_ENGINE_TXT
         public static string ELC_PHOTO_LAST_CALC_DATE => Ext("ELC_PHOTO_LAST_CALC_DATE"); // → ELC_PHOTO_LAST_CALC_DATE_TXT
+
+        // ── Wire annotation / conduit-fill new params (Phase 179) ──
+        public const string ELC_WIRE_BEND_COUNT_INT        = "ELC_WIRE_BEND_COUNT_INT";
+        public const string ELC_CDT_STALE_ANNOT_BOOL       = "ELC_CDT_STALE_ANNOT_BOOL";
+        public const string ELC_RECONCILE_DRIFT_BOOL       = "ELC_RECONCILE_DRIFT_BOOL";
+        public const string STING_CONDUIT_FILL_SUMMARY_TXT = "STING_CONDUIT_FILL_SUMMARY_TXT";
 
         // ── Lighting parameters ──────────────────────────────────────────
         public static string LTG_WATTAGE    => Ext("LTG_WATTAGE");
