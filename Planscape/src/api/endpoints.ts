@@ -158,10 +158,24 @@ export function updateIssue(
   });
 }
 
+export function getIssue(projectId: string, issueId: string): Promise<BimIssue> {
+  return apiFetch(`/api/projects/${projectId}/issues/${issueId}`);
+}
+
 // ── Documents ──
 
-export function listDocuments(projectId: string): Promise<DocumentRecord[]> {
-  return apiFetch(`/api/projects/${projectId}/documents`);
+export interface ListDocumentsFilters {
+  search?: string;
+}
+
+export function listDocuments(
+  projectId: string,
+  filters?: ListDocumentsFilters,
+): Promise<DocumentRecord[]> {
+  const params = new URLSearchParams();
+  if (filters?.search) params.append('search', filters.search);
+  const qs = params.toString();
+  return apiFetch(`/api/projects/${projectId}/documents${qs ? `?${qs}` : ''}`);
 }
 
 export function transitionCDE(

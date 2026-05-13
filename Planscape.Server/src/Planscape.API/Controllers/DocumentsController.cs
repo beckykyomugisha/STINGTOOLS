@@ -152,11 +152,21 @@ public class DocumentsController : ControllerBase
     [HttpPost("finalize")]
     public async Task<ActionResult> FinalizeUpload(Guid projectId, [FromBody] FinalizeUploadRequest req)
     {
+        // FIX 20 — Scope mismatch between presign and finalise. The objectKey
+        // MUST begin with the path segment that was minted during PresignUpload:
+        //   uploads/raw/t_{tenantId}/{projectId}/...
+        // Both tenantId and projectId come from the AUTHENTICATED JWT claims
+        // (via GetTenantId() and the route parameter) — NOT from the request
+        // body — so a client cannot finalise a document scoped to a different
+        // tenant or project by forging the objectKey. Return Forbid (not
+        // BadRequest) so the caller knows this is an authorisation failure.
+        var tenantIdForCheck = GetTenantId();
+        var expectedPrefix = $"uploads/raw/t_{tenantIdForCheck:N}/{projectId:N}/";
         if (string.IsNullOrWhiteSpace(req.ObjectKey)
-            || !req.ObjectKey.StartsWith($"uploads/raw/t_{GetTenantId():N}/{projectId:N}/", StringComparison.Ordinal))
-            return BadRequest(new { message = "objectKey did not match the presign tenant/project scope." });
+            || !req.ObjectKey.StartsWith(expectedPrefix, StringComparison.Ordinal))
+            return Forbid(); // scope mismatch — do not reveal expected prefix in response
 
-        var tenantId = GetTenantId();
+        var tenantId = tenantIdForCheck; // already resolved above for the scope check
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound();
         // Phase 177 — match Upload/CreateDocument: ACL on bootstrap state + discipline.
@@ -199,6 +209,7 @@ public class DocumentsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult> GetDocuments(Guid projectId,
         [FromQuery] string? cdeStatus = null, [FromQuery] string? discipline = null,
+        [FromQuery] string? search = null,
         [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
         var tenantId = GetTenantId();
@@ -206,6 +217,14 @@ public class DocumentsController : ControllerBase
 
         if (!string.IsNullOrEmpty(cdeStatus)) query = query.Where(d => d.CdeStatus == cdeStatus);
         if (!string.IsNullOrEmpty(discipline)) query = query.Where(d => d.Discipline == discipline);
+        // FIX 20 (mobile Fix 15) — full-text search across FileName, DocumentType, and Description.
+        // Uses Contains which maps to LIKE '%...%' on Postgres — index-assisted when a pg_trgm
+        // GIN index exists on these columns. Safe for small corpora; add the index before
+        // enabling this on large document registers.
+        if (!string.IsNullOrWhiteSpace(search))
+            query = query.Where(d => d.FileName.Contains(search) ||
+                                     d.DocumentType.Contains(search) ||
+                                     (d.Description != null && d.Description.Contains(search)));
 
         // Phase 177 — narrow by per-folder/per-discipline/per-suitability ACL.
         var acl = await Planscape.API.Authorization.ProjectMemberAcl.ResolveAsync(_db, projectId, User);

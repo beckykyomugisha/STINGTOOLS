@@ -127,6 +127,25 @@ public class IssuesController : ControllerBase
             return BadRequest(new { error = "Type must be 2-6 uppercase letters (e.g. RFI, NCR, SI, TQ, CLASH, DEFECT)" });
         }
 
+        // FIX 18 — Guard the LinkedElementIds array length. The field is stored
+        // as a JSON string; we check the deserialised element count so a client
+        // cannot embed 50 000 Revit ids, causing unbounded DB column writes and
+        // slow downstream Revit-sync queries. 500 elements per issue is already
+        // generous for any real clash / DEFECT scenario.
+        if (!string.IsNullOrWhiteSpace(req.LinkedElementIds))
+        {
+            try
+            {
+                var ids = System.Text.Json.JsonSerializer.Deserialize<string[]>(req.LinkedElementIds);
+                if (ids?.Length > 500)
+                    return BadRequest(new { error = "LinkedElementIds array cannot exceed 500 entries per request." });
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                return BadRequest(new { error = "LinkedElementIds must be a valid JSON array of element ID strings." });
+            }
+        }
+
         // MODEL-VIEWER — validate ModelId belongs to this project. Stops a
         // malicious client linking an issue to a model in a different project
         // (which would still upload but later 404 on the viewer file fetch).
@@ -140,15 +159,36 @@ public class IssuesController : ControllerBase
                 return BadRequest(new { error = "ModelId does not belong to this project" });
         }
 
+        // FIX 14 — Geofence enforcement must not be bypassable by clients that
+        // omit the X-Latitude / X-Longitude headers. If the project has a
+        // BoundaryPolygon defined, coordinates are MANDATORY regardless of client
+        // type. Non-mobile callers (e.g. web dashboard) that have no GPS must
+        // receive a structured error so the integrator knows they need to supply
+        // coordinates or ask the project admin to remove the boundary.
+        // TODO: add GeofenceEnabled bool to Project entity so the project admin
+        //       can enable/disable enforcement independently of BoundaryPolygon.
+        var hasGpsBoundary = !string.IsNullOrWhiteSpace(project.BoundaryPolygon);
+        HttpContext.Items.TryGetValue("Latitude", out var latObj);
+        HttpContext.Items.TryGetValue("Longitude", out var lngObj);
+        var latParsed = latObj is double latVal;
+        var lngParsed = lngObj is double lngVal;
+
+        if (hasGpsBoundary && (!latParsed || !lngParsed))
+        {
+            _logger.LogWarning(
+                "Issue created without GPS coordinates on geofenced project {ProjectId}", projectId);
+            return BadRequest(new { error = "Geofence enforcement is active. Location coordinates are required." });
+        }
+
         // NEW-LOGIC-08 — Validate lat/lng ranges before geofence check.
         // MobileContextMiddleware parses headers but never range-checks them.
-        if (HttpContext.Items.TryGetValue("Latitude", out var latObj) &&
-            HttpContext.Items.TryGetValue("Longitude", out var lngObj) &&
-            latObj is double lat && lngObj is double lng)
+        if (latParsed && lngParsed)
         {
+            var lat = (double)latObj!;
+            var lng = (double)lngObj!;
             if (double.IsNaN(lat) || double.IsNaN(lng) || Math.Abs(lat) > 90 || Math.Abs(lng) > 180)
                 return BadRequest(new { error = "Invalid latitude/longitude range" });
-            if (!_geofence.IsInsideBoundary(project.BoundaryPolygon, lat, lng))
+            if (hasGpsBoundary && !_geofence.IsInsideBoundary(project.BoundaryPolygon, lat, lng))
                 return StatusCode(403, new { error = "Device location is outside the project geofence boundary" });
         }
 
