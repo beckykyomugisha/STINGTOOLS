@@ -54,7 +54,7 @@ namespace StingTools.UI
         }
 
         /// <summary>
-        /// Default slot label catalogue. Used when no STING-aware title
+        /// 22 default slot labels. Used when no STING-aware title
         /// block declares a slot list, so the dropdown is never empty.
         /// </summary>
         public static readonly IReadOnlyList<string> DefaultSlotLabels = new List<string>

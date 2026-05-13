@@ -1744,7 +1744,7 @@
       "id": "elec-riser-A2-1to100",
       "name": "Electrical Riser \u2014 A2 @ 1:100",
       "origin": "corporate",
-      "purpose": "Plan",
+      "purpose": "Schematic",
       "discipline": "E",
       "paperSize": "A1",
       "titleBlockFamily": "STING_TB_SHEET_A1",
@@ -4175,7 +4175,7 @@
       "name": "Presentation Perspective \u2014 A1",
       "origin": "corporate",
       "purpose": "3D",
-      "discipline": "A",
+      "discipline": "*",
       "paperSize": "A1",
       "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
       "scale": 100,
@@ -4305,7 +4305,7 @@
       "name": "Presentation Exterior Elevation \u2014 A1",
       "origin": "corporate",
       "purpose": "Elevation",
-      "discipline": "A",
+      "discipline": "*",
       "paperSize": "A1",
       "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
       "scale": 100,
@@ -4387,7 +4387,7 @@
       "name": "Presentation Render Board \u2014 A1 (4-up)",
       "origin": "corporate",
       "purpose": "3D",
-      "discipline": "A",
+      "discipline": "*",
       "paperSize": "A1",
       "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
       "scale": 100,
@@ -4473,7 +4473,7 @@
       "name": "Presentation Context / Site \u2014 A1 @ 1:500",
       "origin": "corporate",
       "purpose": "Plan",
-      "discipline": "A",
+      "discipline": "*",
       "paperSize": "A1",
       "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
       "scale": 500,
@@ -4564,7 +4564,7 @@
       "name": "Clarification / Markup Plan \u2014 A1",
       "origin": "corporate",
       "purpose": "Plan",
-      "discipline": "A",
+      "discipline": "*",
       "paperSize": "A1",
       "titleBlockFamily": "STING_TB_SHEET_A1",
       "scale": 100,
@@ -4745,7 +4745,7 @@
       "name": "Design Intent Presentation \u2014 A1",
       "origin": "corporate",
       "purpose": "Plan",
-      "discipline": "A",
+      "discipline": "*",
       "paperSize": "A1",
       "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
       "scale": 100,
@@ -4854,7 +4854,7 @@
       "titleBlockFamily": "STING_TB_SHEET_A1",
       "scale": 50,
       "detailLevel": "Fine",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Architectural Plan",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "{disc}-{lvl}-SP-{seq:D4}",
       "sheetNamePattern": "Setting Out Plan \u2014 Level {lvl}",
@@ -4934,7 +4934,7 @@
       "titleBlockFamily": "STING_TB_SHEET_A1",
       "scale": 50,
       "detailLevel": "Fine",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Architectural Plan",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "{disc}-{lvl}-PL-{seq:D4}",
       "sheetNamePattern": "Partition Layout \u2014 Level {lvl}",
@@ -5012,7 +5012,7 @@
       "titleBlockFamily": "STING_TB_SHEET_A1",
       "scale": 100,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Architectural Plan",
       "viewStylePackId": "corp-demolition-phase",
       "sheetNumberPattern": "{disc}-{lvl}-DP-{seq:D4}",
       "sheetNamePattern": "Demolition Plan \u2014 Level {lvl}",
@@ -5080,7 +5080,7 @@
       "titleBlockFamily": "STING_TB_SHEET_A1",
       "scale": 50,
       "detailLevel": "Fine",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Architectural Plan",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "{disc}-{lvl}-SL-{seq:D4}",
       "sheetNamePattern": "Sanitary Layout \u2014 Level {lvl}",
@@ -5153,7 +5153,7 @@
       "titleBlockFamily": "STING_TB_SHEET_A1",
       "scale": 50,
       "detailLevel": "Fine",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Architectural Plan",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "{disc}-{lvl}-RF-{seq:D4}",
       "sheetNamePattern": "Raised Access Floor \u2014 Level {lvl}",
@@ -5221,7 +5221,7 @@
       "titleBlockFamily": "STING_TB_SHEET_A1",
       "scale": 10,
       "detailLevel": "Fine",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Architectural Detail",
       "viewStylePackId": "corp-standard-detail",
       "sheetNumberPattern": "{disc}-DT-FL-{seq:D4}",
       "sheetNamePattern": "Floor Build-Up Detail",
@@ -5296,7 +5296,7 @@
       "titleBlockFamily": "STING_TB_SHEET_A1",
       "scale": 200,
       "detailLevel": "Coarse",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Architectural Plan",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "{disc}-{lvl}-AP-{seq:D4}",
       "sheetNamePattern": "Area Plan \u2014 Level {lvl}",
@@ -5369,14 +5369,14 @@
       "description": "Client presentation floor plan. Rich material colours, room tags only, no dimensions.",
       "origin": "corporate",
       "purpose": "Plan",
-      "discipline": "A",
+      "discipline": "*",
       "phase": "PRESENTATION",
       "paperSize": "A1",
       "orientation": "Landscape",
       "titleBlockFamily": "STING_TB_SHEET_A1",
       "scale": 100,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Presentation",
       "viewStylePackId": "corp-presentation-rich",
       "sheetNumberPattern": "{disc}-{lvl}-PR-{seq:D4}",
       "sheetNamePattern": "Presentation Floor Plan \u2014 Level {lvl}",
@@ -6567,7 +6567,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 50,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "{disc}-EQP-{lvl}-{seq:D3}",
@@ -6577,7 +6577,33 @@
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.72,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Key Plan",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.65,
+          "normW": 0.19,
+          "normH": 0.3
+        },
+        {
+          "label": "Notes",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.05,
+          "normW": 0.19,
+          "normH": 0.55
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -6599,7 +6625,7 @@
       "name": "Healthcare \u2014 MEP Coordination + Shielding (A1 1:50)",
       "origin": "corporate",
       "purpose": "Coordination",
-      "discipline": "M",
+      "discipline": "H",
       "phase": "*",
       "paperSize": "A1",
       "orientation": "Landscape",
@@ -6638,14 +6664,14 @@
       "name": "Healthcare \u2014 Medical Gas Layout (A1 1:100)",
       "origin": "corporate",
       "purpose": "Plan",
-      "discipline": "MG",
+      "discipline": "H",
       "phase": "*",
       "paperSize": "A1",
       "orientation": "Landscape",
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 100,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-mgs",
       "sheetNumberPattern": "MG-LAY-{lvl}-{seq:D3}",
@@ -6655,7 +6681,33 @@
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.72,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Key Plan",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.65,
+          "normW": 0.19,
+          "normH": 0.3
+        },
+        {
+          "label": "Notes",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.05,
+          "normW": 0.19,
+          "normH": 0.55
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -6677,7 +6729,7 @@
       "name": "Healthcare \u2014 Medical Gas Schematic (A1)",
       "origin": "corporate",
       "purpose": "Schematic",
-      "discipline": "MG",
+      "discipline": "H",
       "phase": "*",
       "paperSize": "A1",
       "orientation": "Landscape",
@@ -6723,7 +6775,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 100,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-pressure",
       "sheetNumberPattern": "H-PRS-{lvl}-{seq:D3}",
@@ -6733,7 +6785,33 @@
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.72,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Key Plan",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.65,
+          "normW": 0.19,
+          "normH": 0.3
+        },
+        {
+          "label": "Notes",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.05,
+          "normW": 0.19,
+          "normH": 0.55
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -6755,7 +6833,7 @@
       "name": "Healthcare \u2014 Essential Power Single-Line (A1)",
       "origin": "corporate",
       "purpose": "Schematic",
-      "discipline": "E",
+      "discipline": "H",
       "phase": "*",
       "paperSize": "A1",
       "orientation": "Portrait",
@@ -6794,14 +6872,14 @@
       "name": "Healthcare \u2014 Isolated Power Plan (A1 1:50)",
       "origin": "corporate",
       "purpose": "Plan",
-      "discipline": "E",
+      "discipline": "H",
       "phase": "*",
       "paperSize": "A1",
       "orientation": "Landscape",
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 50,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-ees",
       "sheetNumberPattern": "E-IPS-{lvl}-{seq:D3}",
@@ -6811,7 +6889,33 @@
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.72,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Key Plan",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.65,
+          "normW": 0.19,
+          "normH": 0.3
+        },
+        {
+          "label": "Notes",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.05,
+          "normW": 0.19,
+          "normH": 0.55
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -6840,7 +6944,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 50,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "H-DEC-{lvl}-{seq:D3}",
@@ -6850,7 +6954,33 @@
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.72,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Key Plan",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.65,
+          "normW": 0.19,
+          "normH": 0.3
+        },
+        {
+          "label": "Notes",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.05,
+          "normW": 0.19,
+          "normH": 0.55
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -6879,7 +7009,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 50,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "H-MOR-{lvl}-{seq:D3}",
@@ -6889,7 +7019,33 @@
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.72,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Key Plan",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.65,
+          "normW": 0.19,
+          "normH": 0.3
+        },
+        {
+          "label": "Notes",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.05,
+          "normW": 0.19,
+          "normH": 0.55
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -6911,14 +7067,14 @@
       "name": "Healthcare \u2014 Fire Compartment + PHE Plan (A1 1:100)",
       "origin": "corporate",
       "purpose": "Plan",
-      "discipline": "A",
+      "discipline": "H",
       "phase": "*",
       "paperSize": "A1",
       "orientation": "Landscape",
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 100,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-fire",
       "sheetNumberPattern": "A-FIR-{lvl}-{seq:D3}",
@@ -6928,7 +7084,33 @@
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.72,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Key Plan",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.65,
+          "normW": 0.19,
+          "normH": 0.3
+        },
+        {
+          "label": "Notes",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.05,
+          "normW": 0.19,
+          "normH": 0.55
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -6950,14 +7132,14 @@
       "name": "Healthcare \u2014 Radiation Shielding Plan (A1 1:50)",
       "origin": "corporate",
       "purpose": "Plan",
-      "discipline": "RP",
+      "discipline": "H",
       "phase": "*",
       "paperSize": "A1",
       "orientation": "Landscape",
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 50,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-shielding",
       "sheetNumberPattern": "RP-SHD-{lvl}-{seq:D3}",
@@ -6967,7 +7149,33 @@
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.72,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Key Plan",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.65,
+          "normW": 0.19,
+          "normH": 0.3
+        },
+        {
+          "label": "Notes",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.05,
+          "normW": 0.19,
+          "normH": 0.55
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -6989,14 +7197,14 @@
       "name": "Healthcare \u2014 MRI Suite Zoning (A1 1:50)",
       "origin": "corporate",
       "purpose": "Plan",
-      "discipline": "RP",
+      "discipline": "H",
       "phase": "*",
       "paperSize": "A1",
       "orientation": "Landscape",
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 50,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-shielding",
       "sheetNumberPattern": "RP-MRI-{lvl}-{seq:D3}",
@@ -7006,7 +7214,33 @@
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.72,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Key Plan",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.65,
+          "normW": 0.19,
+          "normH": 0.3
+        },
+        {
+          "label": "Notes",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.05,
+          "normW": 0.19,
+          "normH": 0.55
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -7035,7 +7269,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 50,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-ligature",
       "sheetNumberPattern": "H-LIG-{lvl}-{seq:D3}",
@@ -7045,7 +7279,33 @@
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.72,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Key Plan",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.65,
+          "normW": 0.19,
+          "normH": 0.3
+        },
+        {
+          "label": "Notes",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.05,
+          "normW": 0.19,
+          "normH": 0.55
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -7074,7 +7334,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 20,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Elevation",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "H-BHD-{lvl}-{seq:D3}",
@@ -7084,7 +7344,49 @@
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Elevation N",
+          "viewType": "Elevation",
+          "normX": 0.03,
+          "normY": 0.55,
+          "normW": 0.44,
+          "normH": 0.4,
+          "required": true
+        },
+        {
+          "label": "Elevation S",
+          "viewType": "Elevation",
+          "normX": 0.53,
+          "normY": 0.55,
+          "normW": 0.44,
+          "normH": 0.4
+        },
+        {
+          "label": "Elevation E",
+          "viewType": "Elevation",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.44,
+          "normH": 0.4
+        },
+        {
+          "label": "Elevation W",
+          "viewType": "Elevation",
+          "normX": 0.53,
+          "normY": 0.05,
+          "normW": 0.44,
+          "normH": 0.4
+        },
+        {
+          "label": "Notes",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.05,
+          "normW": 0.19,
+          "normH": 0.9
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -7113,7 +7415,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 20,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare RCP",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "H-RCP-{lvl}-{seq:D3}",
@@ -7123,7 +7425,33 @@
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "RCP",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.72,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Key Plan",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.65,
+          "normW": 0.19,
+          "normH": 0.3
+        },
+        {
+          "label": "Notes",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.05,
+          "normW": 0.19,
+          "normH": 0.55
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -7145,14 +7473,14 @@
       "name": "Healthcare \u2014 Water Safety Plan (A1 1:100)",
       "origin": "corporate",
       "purpose": "Plan",
-      "discipline": "P",
+      "discipline": "H",
       "phase": "*",
       "paperSize": "A1",
       "orientation": "Landscape",
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 100,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-water",
       "sheetNumberPattern": "P-HWS-{lvl}-{seq:D3}",
@@ -7162,7 +7490,33 @@
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.72,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Key Plan",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.65,
+          "normW": 0.19,
+          "normH": 0.3
+        },
+        {
+          "label": "Notes",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.05,
+          "normW": 0.19,
+          "normH": 0.55
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -7184,14 +7538,14 @@
       "name": "Healthcare \u2014 Acoustic Strategy Plan (A1 1:100)",
       "origin": "corporate",
       "purpose": "Plan",
-      "discipline": "A",
+      "discipline": "H",
       "phase": "*",
       "paperSize": "A1",
       "orientation": "Landscape",
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 100,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "A-ACO-{lvl}-{seq:D3}",
@@ -7201,7 +7555,33 @@
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.72,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Key Plan",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.65,
+          "normW": 0.19,
+          "normH": 0.3
+        },
+        {
+          "label": "Notes",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.05,
+          "normW": 0.19,
+          "normH": 0.55
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -7223,14 +7603,14 @@
       "name": "Healthcare \u2014 Imaging Equipment Structural Loads (A1 1:100)",
       "origin": "corporate",
       "purpose": "Plan",
-      "discipline": "S",
+      "discipline": "H",
       "phase": "*",
       "paperSize": "A1",
       "orientation": "Landscape",
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 100,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "S-IMG-{lvl}-{seq:D3}",
@@ -7240,7 +7620,33 @@
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.72,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Key Plan",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.65,
+          "normW": 0.19,
+          "normH": 0.3
+        },
+        {
+          "label": "Notes",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.05,
+          "normW": 0.19,
+          "normH": 0.55
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -7269,7 +7675,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 100,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "H-RTL-{lvl}-{seq:D3}",
@@ -7279,7 +7685,33 @@
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.72,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Key Plan",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.65,
+          "normW": 0.19,
+          "normH": 0.3
+        },
+        {
+          "label": "Notes",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.05,
+          "normW": 0.19,
+          "normH": 0.55
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -7308,7 +7740,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 100,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "H-WST-{lvl}-{seq:D3}",
@@ -7318,7 +7750,33 @@
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.72,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Key Plan",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.65,
+          "normW": 0.19,
+          "normH": 0.3
+        },
+        {
+          "label": "Notes",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.05,
+          "normW": 0.19,
+          "normH": 0.55
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -7340,7 +7798,7 @@
       "name": "Healthcare \u2014 Nuclear Medicine Schematic (A1)",
       "origin": "corporate",
       "purpose": "Schematic",
-      "discipline": "RP",
+      "discipline": "H",
       "phase": "*",
       "paperSize": "A1",
       "orientation": "Landscape",

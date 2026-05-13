@@ -1032,6 +1032,7 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Migrate CSV" Tag="DrawingTypes_MigrateCsv" Click="Cmd_Click" ToolTip="Phase 168 — Export TITLE_BLOCK.csv as a recipe-ready JSON snippet (baseline + per-discipline deltas) ready to paste into the Drawing Types editor."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Migrate TB Params" Tag="DrawingTypes_MigrateParams" Click="Cmd_Click" ToolTip="One-time migration: copy PRJ_TB_* values from title blocks into PRJ_ORG_* on ProjectInformation, then re-stamp all sheets."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Audit TB Params" Tag="DrawingTypes_AuditLegacyParams" Click="Cmd_Click" ToolTip="Read-only audit: shows which PRJ_TB_* values would be migrated without writing anything."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sync Rev Strip" Tag="DrawingTypes_SyncRevisions" Click="Cmd_Click" ToolTip="Sync Revit Revision sequence into title-block revision-strip rows (PRJ_TB_REV_COL_n / DATE / DESC) on all STING-stamped sheets."/>
                                 </WrapPanel>
                                 <!-- Phase 137 — Production -->
                                 <Separator/>

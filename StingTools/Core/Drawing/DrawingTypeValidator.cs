@@ -219,6 +219,9 @@ namespace StingTools.Core.Drawing
             //    actually embedded in the title-block family loaded in the doc ──
             ValidateTitleBlockSlotsVsFamily(doc, dt, r);
 
+            // ── GAP-M: detect overlapping slot bounding boxes ──
+            ValidateSlotOverlaps(dt, r);
+
             return r;
         }
 
@@ -659,6 +662,37 @@ namespace StingTools.Core.Drawing
                             "Viewport placement will fall back to sheet origin.",
                             $"Update the slot label to match one of: {liveLabelList}, or add the " +
                             $"missing slot to the title-block family's TB_VIEWPORT_SLOTS_JSON_TXT.");
+                    }
+                }
+            }
+            catch { /* validator must never throw */ }
+        }
+
+        private static void ValidateSlotOverlaps(DrawingType dt, ValidationReport r)
+        {
+            if (dt?.Slots == null || dt.Slots.Count < 2) return;
+            try
+            {
+                for (int i = 0; i < dt.Slots.Count; i++)
+                {
+                    for (int j = i + 1; j < dt.Slots.Count; j++)
+                    {
+                        var a = dt.Slots[i];
+                        var b = dt.Slots[j];
+                        if (a == null || b == null) continue;
+                        // AABB overlap test
+                        bool overlapX = a.NormX < b.NormX + b.NormW && a.NormX + a.NormW > b.NormX;
+                        bool overlapY = a.NormY < b.NormY + b.NormH && a.NormY + a.NormH > b.NormY;
+                        if (overlapX && overlapY)
+                        {
+                            // Compute overlap area as a fraction of page
+                            double ox = Math.Min(a.NormX + a.NormW, b.NormX + b.NormW) - Math.Max(a.NormX, b.NormX);
+                            double oy = Math.Min(a.NormY + a.NormH, b.NormY + b.NormH) - Math.Max(a.NormY, b.NormY);
+                            double area = Math.Round(ox * oy * 100, 1);
+                            r.Add(ValidationSeverity.Warning, "DT-SLT-03",
+                                $"Slots [{i}] '{a.Label ?? $"slot{i}"}' and [{j}] '{b.Label ?? $"slot{j}"}' overlap by {area}% of sheet area.",
+                                "Adjust normX/normY/normW/normH to eliminate overlap, or confirm intentional side-by-side layout (e.g. BOM strip adjacent to ISO view).");
+                        }
                     }
                 }
             }

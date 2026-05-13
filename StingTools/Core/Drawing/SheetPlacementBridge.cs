@@ -75,8 +75,20 @@ namespace StingTools.Core.Drawing
         {
             var pr = new PlacementResult();
             if (doc == null || sheet == null || dt == null || viewIds == null) return pr;
+            int slotCount = dt.Slots?.Count ?? 0;
+            var skippedViews = new List<ElementId>();
             for (int i = 0; i < viewIds.Count; i++)
             {
+                // Skip views that have no slot defined — do NOT fall back to
+                // Slots[0] as that causes multiple viewports stacked at the
+                // same coordinate silently.
+                if (slotCount > 0 && i >= slotCount)
+                {
+                    StingTools.Core.StingLog.Warn($"SheetPlacementBridge: view {i + 1} of {viewIds.Count} has no slot — DrawingType '{dt.Id}' defines only {slotCount} slot(s). View skipped. Add more slots to the profile.");
+                    skippedViews.Add(viewIds[i]);
+                    continue;
+                }
+
                 try
                 {
                     var pt = GetSlotPosition(doc, sheet.Id, dt, i, result);
@@ -84,6 +96,7 @@ namespace StingTools.Core.Drawing
                     {
                         var ol = sheet.Outline;
                         pt = ol != null ? new XYZ((ol.Min.U + ol.Max.U) / 2.0, (ol.Min.V + ol.Max.V) / 2.0, 0) : XYZ.Zero;
+                        StingTools.Core.StingLog.Warn($"SheetPlacementBridge.GetSlotPosition: no title-block bounding box for sheet '{sheet?.SheetNumber}' — slot '{(dt.Slots != null && i < dt.Slots.Count ? dt.Slots[i]?.Label : null)}' falling back to sheet centre. Ensure a title block is placed on the sheet.");
                     }
 
                     // Per-slot Scale / DetailLevel / ViewTemplate overrides
@@ -113,6 +126,8 @@ namespace StingTools.Core.Drawing
                 }
                 catch (Exception ex) { pr.Warnings.Add($"PlaceAccordingToSlots[{i}]: {ex.Message}"); }
             }
+            if (skippedViews.Count > 0)
+                StingTools.Core.StingLog.Warn($"SheetPlacementBridge: {skippedViews.Count} view(s) had no slot and were skipped on sheet '{sheet?.SheetNumber}'. Profile: '{dt?.Id}'.");
             return pr;
         }
     }
