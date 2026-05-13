@@ -507,6 +507,7 @@ namespace StingTools.UI
                     case "DrawingTypes_MigrateParams":     RunCommand<Commands.Drawing.TitleBlockParamMigrateCommand>(app); break;
                     case "DrawingTypes_AuditLegacyParams": RunCommand<Commands.Drawing.TitleBlockParamMigrateAuditCommand>(app); break;
                     case "DrawingTypes_SyncRevisions": RunCommand<Commands.Drawing.TitleBlockRevisionSyncCommand>(app); break;
+                    case "DrawingTypes_BulkReStamp":  RunCommand<Commands.Drawing.BulkReStampDrawingTypeCommand>(app); break;
 
                     // ── Drawing Template Manager · Phase 137 — production engine ──
                     case "DrawingTypes_ProducePerLevel":           RunCommand<Commands.Drawing.ProduceViewsPerLevelCommand>(app); break;
