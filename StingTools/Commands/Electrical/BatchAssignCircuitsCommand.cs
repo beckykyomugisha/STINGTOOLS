@@ -349,7 +349,6 @@ namespace StingTools.Commands.Electrical
             public ElementId SystemId;
             public ElementId PanelId;     // Revit 2024+ SelectPanel takes FamilyInstance, not string
             public string SystemName;
-            public ElementId PanelId;
             public string PanelName;
             public string Group;
             public string Reason;
