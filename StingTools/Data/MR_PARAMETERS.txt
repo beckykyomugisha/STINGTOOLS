@@ -35,12 +35,9 @@ GROUP	29	MGS_SYSTEMS
 GROUP	30	RAD_PROTECTION
 GROUP	31	CEQ_CLINICAL
 GROUP	32	LIG_BEHAVIOURAL
-<<<<<<< HEAD
 GROUP	33	Identity
 GROUP	34	Routing
-=======
-GROUP	33	PEN_PENETRATION
->>>>>>> origin/claude/review-sting-equipment-aV6qM
+GROUP	35	PEN_PENETRATION
 *PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE
 PARAM	f8fe813a-44e9-5e47-9109-921171dc53b6	ASS_CAT_TXT	TEXT		1	1	Ass Cat Txt [ISO 19650-3:2020]	1
 PARAM	3c189e63-383c-5011-b7d9-873faed4e6c6	ASS_CST_QUANTITY_NR	TEXT		1	1	Ass Cst Quantity Nr [ISO 19650-3:2020]	1
@@ -2499,6 +2496,8 @@ PARAM	e8f9a0b1-c2d3-4e4f-ca5b-6c7d8e9fa0b1	PLM_PPE_INSULATION_THK_MM	NUMBER		6	1
 PARAM	f9a0b1c2-d3e4-4f5a-db6c-7d8e9fa0b1c2	PLM_SLOPE_PCT	TEXT		6	1	Drainage pipe slope percentage per BS EN 12056 (1:80 default for sanitary)	1
 PARAM	c7a3f2e1-9b04-4d88-b5a1-3e6f8d2c1047	STING_BOX_LOCATION_ID	TEXT		1	1	Phase 139.2 — GUID linking first-fix conduit/BESA box (Construction phase) to its second-fix device (Completion phase) for two-phase placement	1
 PARAM	d8b4a3f2-7c05-4e99-c6b2-4f7b9e3d2158	STING_NOGGIN_REQUIRED	YESNO		1	1	Phase 139.2 — flag set on a placed pendant/downlight when no joist is within JoistClearanceMm; export via Placement_ExportNogginRequirements	1
+PARAM	e9c3a2f1-8b07-4f11-a7c4-6d8e9f0a1b2c	STING_HANGER_TRAPEZE_BOOL	YESNO		1	1	True when PlaceHangersCommand has placed a trapeze (twin-pipe / multi-service) hanger for this element; prevents duplicate placement on re-run [STING v4 Routing]	1
+PARAM	fa04d3c6-9c18-4e22-b8d5-7e9f0a1b2c3d	STING_HANGER_COUPLER_BOOL	YESNO		1	1	True when PlaceHangersCommand has placed a coupler / clamp hanger for this element; used by RoutingSupportPlacer to track already-placed support hardware [STING v4 Routing]	1
 PARAM	1a4353be-eaaa-5e46-95ee-b64a74667194	ASS_SPOOL_NR_TXT	TEXT		1	1	Spool or bundle number assigned by AssemblyBuilder	1
 PARAM	eacedb67-b65b-58f7-a5b7-f1b0253ac6c9	ASS_WEIGHT_KG	NUMBER		1	1	Assembly total weight in kilograms (sum of member volume x material density)	1
 PARAM	3e3624d3-c79d-5dd5-8014-46c8d273b9ea	ASS_TEST_PRESSURE_BAR	NUMBER		1	1	Hydrostatic or pneumatic test pressure for the assembly in bar	1
@@ -2672,9 +2671,12 @@ PARAM	a7c0b2e4-4d91-4a55-9c7e-aa0001000002	STING_DRAWING_PACKAGE_ID_TXT	TEXT		27
 PARAM	a7c0b2e4-4d91-4a55-9c7e-aa0001000003	STING_AUTO_PLACED_BOOL	YESNO		27	1	Flags views auto-placed onto sheets by the STING production engine [STING DT v137]	1
 PARAM	a7c0b2e4-4d91-4a55-9c7e-aa0001000004	STING_PRODUCTION_RULE_IDX_INT	INTEGER		27	1	ProductionRule index that produced this view [STING DT v137]	1
 PARAM	a7c0b2e4-4d91-4a55-9c7e-aa0001000005	STING_SHEET_SEQUENCE_INT	INTEGER		27	1	Production sheet sequence number [STING DT v137]	1
-PARAM	a8f3c1d2-4e56-7890-abcd-ef1234567801	HANDOVER_MODE_HANDOVER_BOOL	YESNO		25	1	Pattern selector — Handover / FM T4-T10 payload visible [STING Phase 165]	1
-PARAM	a8f3c1d2-4e56-7890-abcd-ef1234567802	HANDOVER_MODE_DC_BOOL	YESNO		25	1	Pattern selector — Design & Construction T4-T10 payload visible [STING Phase 165]	1
-PARAM	a8f3c1d2-4e56-7890-abcd-ef1234567803	HANDOVER_MODE_CUSTOM_BOOL	YESNO		25	1	Pattern selector — Custom (user-defined) T4-T10 payload visible [STING Phase 165]	1
+PARAM	a7c0b2e4-4d91-4a55-9c7e-aa0001000006	STING_DRAWING_TYPE_ID_TXT	TEXT		27	1	Drawing type profile id stamped on every view/sheet by DrawingTypeStamper (DrawingType.Id) [STING DT v113]	1
+PARAM	a7c0b2e4-4d91-4a55-9c7e-aa0001000007	STING_STYLE_LOCKED_BOOL	YESNO		27	1	When true prevents DrawingTypePresentation.Apply from re-applying the profile — set manually to lock a view's graphic state [STING DT v113]	1
+PARAM	a7c0b2e4-4d91-4a55-9c7e-aa0001000008	STING_PLACED_BY_SYMBOL_PLACER_BOOL	YESNO		27	1	Stamped by IsoSymbolPlacer on every detail item placed from STING_ISO_SYMBOLS_INDEX — prevents duplicate placement on re-run [STING v4 Fabrication]	1
+PARAM	a8f3c1d2-4e56-7890-abcd-ef1234567801	HANDOVER_MODE_HANDOVER_BOOL	TEXT		25	1	Pattern selector — Handover / FM T4-T10 payload visible [STING Phase 165] — TEXT not YESNO: Revit tag family labels can only bind TEXT parameters	1
+PARAM	a8f3c1d2-4e56-7890-abcd-ef1234567802	HANDOVER_MODE_DC_BOOL	TEXT		25	1	Pattern selector — Design & Construction T4-T10 payload visible [STING Phase 165] — TEXT not YESNO: Revit tag family labels can only bind TEXT parameters	1
+PARAM	a8f3c1d2-4e56-7890-abcd-ef1234567803	HANDOVER_MODE_CUSTOM_BOOL	TEXT		25	1	Pattern selector — Custom (user-defined) T4-T10 payload visible [STING Phase 165] — TEXT not YESNO: Revit tag family labels can only bind TEXT parameters	1
 PARAM	33188c51-0a4f-52e7-ad2a-37e68ca7ddda	PRJ_ORG_PROJECT_NAME_TXT	TEXT		13	1	Project name shown on the title block [STING Phase 171]	1
 PARAM	85e93a80-42bc-535e-a9e3-bcd76b7c07a0	PRJ_ORG_PROJECT_ADDRESS_TXT	TEXT		13	1	Project / site address shown on the title block [STING Phase 171]	1
 PARAM	0c7cd8c7-ae84-5f31-a3ac-cfeffff97954	PRJ_ORG_PROJECT_NUMBER_TXT	TEXT		13	1	Project number / job number shown on the title block [STING Phase 171]	1
@@ -2865,7 +2867,6 @@ PARAM	c8d4f6e2-2601-4d27-8c61-0e7a3f9c1001	ICT_HEALTHIOT_DEVICE_ID_TXT	TEXT		3	1
 PARAM	c8d4f6e2-2602-4d27-8c61-0e7a3f9c1002	ICT_HEALTHIOT_PROTOCOL_TXT	TEXT		3	1	IoT protocol BACNET/OPC-UA/MODBUS/REST/PROPRIETARY [H-20]	1
 PARAM	c8d4f6e2-2603-4d27-8c61-0e7a3f9c1003	ICT_HEALTHIOT_ENDPOINT_TXT	TEXT		3	1	IoT endpoint URI [H-20]	1
 PARAM	c8d4f6e2-2604-4d27-8c61-0e7a3f9c1004	ICT_HEALTHIOT_ALERT_BAND_TXT	TEXT		3	1	IoT alert band free-text [H-20]	1
-<<<<<<< HEAD
 PARAM	c7f5a2e1-9b3d-4e1c-8a2f-7d6b3e4c5a90	ELC_CDT_BEND_ANGLE_DEG	TEXT		4	1	Conduit bend angle in degrees: 11.25/22.5/30/45/60/90/120 [BS 7671:2018+A2:2022 §522.8]	1
 PARAM	d8e6b3f2-ac4e-5f2d-9b3e-8e7c4f5d6b01	ELC_CDT_BEND_COUNT_NR	TEXT		4	1	Number of bends in this conduit run (BS 7671 §522.8.5 limits to 3 between draw-in points)	1
 PARAM	e9f7c4f3-bd5f-6f3e-ac4f-9f8d5e6e7c12	ELC_CDT_RUN_LENGTH_M	TEXT		4	1	Conduit run length in metres (BS 7671 max ~6m between draw-in points)	1
@@ -2923,24 +2924,21 @@ PARAM	ab46d616-d864-572c-8d9d-5bb51ccaab79	PLM_VLV_WRAS_APPROVED_BOOL	YESNO		6	1
 PARAM	af8461f1-b314-5f60-8e8d-e38963de14f8	PLM_DEAD_LEG_LENGTH_M	TEXT		6	1	Dead-leg length m flagged by DeadLegDetector [HSG 274 Phase 178b]	1
 PARAM	98ab6e19-8d12-53c0-b388-8705f9413373	PLM_PRJ_PLUMBING_CODE_TXT	TEXT		1	1	Project plumbing-code toggle BS-UK / IPC-US / UPC-US [Phase 178b]	1
 PARAM	c3d5b6ee-0f2e-7283-9405-162718304a5b	ELC_CDT_PENETRATION_COUNT_NR	TEXT		4	1	Number of fire-rated barriers (floors / walls) this conduit crosses. Stamped by SlabPenetrationDetector each time a crossing is recorded. Drives the FRP penetration register schedule and JBAutoPlacer's avoid-collision logic (Wave J3).	1
-=======
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1001	PEN_FIRE_RATING_TXT	TEXT		33	1	Required fire rating of the penetration: FR30/FR60/FR90/FR120/blank for non-rated [BS 9999, BS 476-20, EN 1366-3]	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1002	PEN_SEALANT_TYPE_TXT	TEXT		33	1	Sealant system: INTUMESCENT/SILICONE/MORTAR/PILLOW/COLLAR/WRAP/NONE [BS 9999]	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1003	PEN_OD_MM	NUMBER		33	1	Penetrating member outside diameter (mm)	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1004	PEN_HOST_REF_TXT	TEXT		33	1	Host reference: FLR:<id> / WAL:<id> / BEM:<id>	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1005	PEN_HOST_TYPE_TXT	TEXT		33	1	Host element class: FLOOR/WALL/BEAM/CEILING/ROOF	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1006	PEN_MEMBER_ID_TXT	TEXT		33	1	Penetrating member element id (Pipe/Duct/Conduit/CableTray)	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1007	PEN_CERTIFICATION_TXT	TEXT		33	1	UL system / BS 476-20 / EN 1366-3 reference for the firestop assembly	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1008	PEN_INSTALL_STATUS_TXT	TEXT		33	1	Install status: DRAFT/INSTALLED/INSPECTED/SIGNED-OFF/REWORK	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1009	PEN_INSTALLER_TXT	TEXT		33	1	Installer name / company	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d100a	PEN_INSTALL_DATE	TEXT		33	1	Install date ISO 8601 (YYYY-MM-DD) - stamped by mobile commissioning sign-off	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d100b	PEN_INSPECTOR_TXT	TEXT		33	1	Inspector name / company	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d100c	PEN_INSPECTION_DATE	TEXT		33	1	Inspection date ISO 8601 (YYYY-MM-DD)	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d100d	PEN_CONTROL_NUMBER_TXT	TEXT		33	1	Project-unique penetration control number (FRP-NNNN). Bind to Mark for tag use.	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d100e	PEN_PFV_UUID_TXT	TEXT		33	1	Deterministic UUIDv5(host,member) - shared with sleeve schema for cross-pipeline idempotence	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d100f	PEN_BEAM_OFFSET_PCT	NUMBER		33	1	Beam-host only: distance from nearest support as %% of span (BS EN 1992 / AISC DG2 prefer >=10%%, ideally 20-33%%)	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1010	PEN_BEAM_DEPTH_RATIO	NUMBER		33	1	Beam-host only: penetration diameter / beam depth - AISC DG2 limit 0.7, BS EN 1992 prudent limit 0.4	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1011	PEN_STRUCTURAL_FLAG_TXT	TEXT		33	1	Beam-host only: STRUCT_OK / STRUCT_REVIEW / STRUCT_FAIL based on AISC DG2 + BS EN 1992 location/size rules	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1012	STING_PENETRATION_REF_TXT	TEXT		33	1	Stamped on each MEPCurve that crosses a fire-rated barrier. Format: HOST:<id>@<rating>#<control>	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1013	STING_PENETRATION_FIRE_RATING_TXT	TEXT		33	1	Mirror of host fire rating on the penetrating member - drives validator gates	1
->>>>>>> origin/claude/review-sting-equipment-aV6qM
+# ── Group 35: PEN_PENETRATION — detailed firestop / penetration sleeve parameters ──────────────
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1001	PEN_FIRE_RATING_TXT	TEXT		35	1	Required fire rating of the penetration: FR30/FR60/FR90/FR120/blank for non-rated [BS 9999, BS 476-20, EN 1366-3]	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1002	PEN_SEALANT_TYPE_TXT	TEXT		35	1	Sealant system: INTUMESCENT/SILICONE/MORTAR/PILLOW/COLLAR/WRAP/NONE [BS 9999]	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1003	PEN_OD_MM	NUMBER		35	1	Penetrating member outside diameter (mm)	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1004	PEN_HOST_REF_TXT	TEXT		35	1	Host reference: FLR:<id> / WAL:<id> / BEM:<id>	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1005	PEN_HOST_TYPE_TXT	TEXT		35	1	Host element class: FLOOR/WALL/BEAM/CEILING/ROOF	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1006	PEN_MEMBER_ID_TXT	TEXT		35	1	Penetrating member element id (Pipe/Duct/Conduit/CableTray)	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1007	PEN_CERTIFICATION_TXT	TEXT		35	1	UL system / BS 476-20 / EN 1366-3 reference for the firestop assembly	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1008	PEN_INSTALL_STATUS_TXT	TEXT		35	1	Install status: DRAFT/INSTALLED/INSPECTED/SIGNED-OFF/REWORK	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1009	PEN_INSTALLER_TXT	TEXT		35	1	Installer name / company	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d100a	PEN_INSTALL_DATE	TEXT		35	1	Install date ISO 8601 (YYYY-MM-DD) - stamped by mobile commissioning sign-off	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d100b	PEN_INSPECTOR_TXT	TEXT		35	1	Inspector name / company	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d100c	PEN_INSPECTION_DATE	TEXT		35	1	Inspection date ISO 8601 (YYYY-MM-DD)	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d100d	PEN_CONTROL_NUMBER_TXT	TEXT		35	1	Project-unique penetration control number (FRP-NNNN). Bind to Mark for tag use.	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d100e	PEN_PFV_UUID_TXT	TEXT		35	1	Deterministic UUIDv5(host,member) - shared with sleeve schema for cross-pipeline idempotence	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d100f	PEN_BEAM_OFFSET_PCT	NUMBER		35	1	Beam-host only: distance from nearest support as %% of span (BS EN 1992 / AISC DG2 prefer >=10%%, ideally 20-33%%)	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1010	PEN_BEAM_DEPTH_RATIO	NUMBER		35	1	Beam-host only: penetration diameter / beam depth - AISC DG2 limit 0.7, BS EN 1992 prudent limit 0.4	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1011	PEN_STRUCTURAL_FLAG_TXT	TEXT		35	1	Beam-host only: STRUCT_OK / STRUCT_REVIEW / STRUCT_FAIL based on AISC DG2 + BS EN 1992 location/size rules	1
