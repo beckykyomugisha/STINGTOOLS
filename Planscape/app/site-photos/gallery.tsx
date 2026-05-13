@@ -19,6 +19,7 @@ import {
   Modal,
   Alert,
   Dimensions,
+  Vibration,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { theme } from '@/utils/theme';
@@ -41,6 +42,16 @@ import type {
 const REASON_OPTIONS: Array<SitePhotoReason | 'All'> = [
   'All', 'Progress', 'Issue', 'Defect', 'Safety', 'AsBuilt', 'Reference',
 ];
+
+// BCC SitePhotosTab reason-colour taxonomy (matches BCC exactly).
+const REASON_COLOUR: Record<string, string> = {
+  Safety:    '#C62828',
+  Defect:    '#E65C00',
+  Issue:     '#E8912D',
+  Progress:  '#1565C0',
+  AsBuilt:   '#2E7D32',
+  Reference: '#45506E',
+};
 const AUDIENCE_OPTIONS: Array<SitePhotoAudience | 'All'> = [
   'All', 'Internal', 'PendingReview', 'Approved', 'ClientPortal', 'Withdrawn',
 ];
@@ -150,15 +161,26 @@ export default function GalleryScreen() {
 
       {/* Filter strip */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterBar}>
-        {REASON_OPTIONS.map((r) => (
-          <TouchableOpacity
-            key={`r-${r}`}
-            style={[styles.chip, reason === r && styles.chipActive]}
-            onPress={() => setReason(r)}
-          >
-            <Text style={[styles.chipText, reason === r && styles.chipTextActive]}>{r}</Text>
-          </TouchableOpacity>
-        ))}
+        {REASON_OPTIONS.map((r) => {
+          const colour = r !== 'All' ? REASON_COLOUR[r] : undefined;
+          const isActive = reason === r;
+          return (
+            <TouchableOpacity
+              key={`r-${r}`}
+              style={[
+                styles.chip,
+                colour && !isActive && { borderColor: colour },
+                isActive && (colour ? { backgroundColor: colour, borderColor: colour } : styles.chipActive),
+              ]}
+              onPress={() => setReason(r)}
+            >
+              {colour && !isActive ? (
+                <View style={[styles.reasonDot, { backgroundColor: colour }]} />
+              ) : null}
+              <Text style={[styles.chipText, isActive && styles.chipTextActive]}>{r}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterBar}>
         {AUDIENCE_OPTIONS.map((a) => (
@@ -210,27 +232,45 @@ export default function GalleryScreen() {
           </View>
         ) : (
           <View style={styles.grid}>
-            {photos.map((p) => (
-              <TouchableOpacity
-                key={p.id}
-                style={styles.gridCell}
-                onPress={() => setFocused(p)}
-              >
-                {thumbs[p.id] ? (
-                  <Image
-                    source={{ uri: thumbs[p.id].url, headers: thumbs[p.id].headers }}
-                    style={styles.thumb}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <View style={[styles.thumb, styles.thumbPlaceholder]} />
-                )}
-                <View style={styles.gridCellMeta}>
-                  <Text style={styles.gridCellReason} numberOfLines={1}>{p.reason}</Text>
-                  <Text style={styles.gridCellDate} numberOfLines={1}>{shortDate(p.capturedAt)}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+            {photos.map((p) => {
+              const reasonColour = REASON_COLOUR[p.reason];
+              return (
+                <TouchableOpacity
+                  key={p.id}
+                  style={styles.gridCell}
+                  onPress={() => { Vibration.vibrate(20); setFocused(p); }}
+                >
+                  <View style={{ position: 'relative' }}>
+                    {thumbs[p.id] ? (
+                      <Image
+                        source={{ uri: thumbs[p.id].url, headers: thumbs[p.id].headers }}
+                        style={styles.thumb}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={[styles.thumb, styles.thumbPlaceholder]} />
+                    )}
+                    {reasonColour ? (
+                      <View style={[styles.thumbReasonBadge, { backgroundColor: reasonColour }]}>
+                        <Text style={styles.thumbReasonText}>{p.reason}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <View style={styles.gridCellMeta}>
+                    <Text
+                      style={[
+                        styles.gridCellReason,
+                        reasonColour ? { color: reasonColour } : null,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {p.reason}
+                    </Text>
+                    <Text style={styles.gridCellDate} numberOfLines={1}>{shortDate(p.capturedAt)}</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
       </ScrollView>
@@ -260,6 +300,7 @@ function PhotoViewer({
   onClose: () => void;
   onChanged: () => Promise<void>;
 }) {
+  const router = useRouter();
   const [working, setWorking] = useState(false);
   const [caption, setCaption] = useState(photo.caption ?? '');
   const [rejectReason, setRejectReason] = useState('');
@@ -301,13 +342,22 @@ function PhotoViewer({
     } finally { setWorking(false); }
   }
 
+  const reasonColour = REASON_COLOUR[photo.reason];
+
   return (
     <Modal visible animationType="slide" onRequestClose={onClose}>
       <View style={styles.viewerRoot}>
         <ScrollView contentContainerStyle={{ paddingBottom: theme.spacing.xl }}>
           <View style={styles.viewerHeader}>
             <TouchableOpacity onPress={onClose}><Text style={styles.viewerClose}>✕</Text></TouchableOpacity>
-            <Text style={styles.viewerHeaderText}>{photo.reason} · {photo.audience}</Text>
+            <View style={styles.viewerHeaderCenter}>
+              {reasonColour ? (
+                <View style={[styles.viewerReasonPill, { backgroundColor: reasonColour }]}>
+                  <Text style={styles.viewerReasonPillText}>{photo.reason}</Text>
+                </View>
+              ) : null}
+              <Text style={styles.viewerHeaderText}>{photo.audience}</Text>
+            </View>
             <View style={{ width: 32 }} />
           </View>
           {thumb ? (
@@ -319,11 +369,27 @@ function PhotoViewer({
           ) : null}
           <View style={styles.viewerMeta}>
             <Meta label="Captured" value={formatTime(photo.capturedAt)} />
+            {photo.capturedByName ? (
+              <Meta label="Captured by" value={photo.capturedByName} />
+            ) : null}
             <Meta label="Level / Zone" value={`${photo.levelCode ?? '—'} / ${photo.zoneCode ?? '—'}`} />
             {photo.latitude !== null && photo.longitude !== null ? (
               <Meta label="GPS" value={`${photo.latitude!.toFixed(5)}, ${photo.longitude!.toFixed(5)}`} />
             ) : null}
-            {photo.anchorIssueId ? <Meta label="Linked issue" value={photo.anchorIssueId} /> : null}
+            {photo.anchorIssueId ? (
+              <TouchableOpacity
+                style={styles.metaRow}
+                onPress={() => {
+                  Vibration.vibrate(20);
+                  onClose();
+                  router.push(`/issue-detail?id=${photo.anchorIssueId}&projectId=${projectId}` as never);
+                }}
+                accessibilityLabel="Open linked issue"
+              >
+                <Text style={styles.metaLabel}>Linked issue</Text>
+                <Text style={[styles.metaValue, styles.metaLink]}>View issue ›</Text>
+              </TouchableOpacity>
+            ) : null}
             {photo.rejectedReason ? <Meta label="Last reject reason" value={photo.rejectedReason} /> : null}
           </View>
 
@@ -421,13 +487,15 @@ const styles = StyleSheet.create({
 
   filterBar: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.sm, maxHeight: 44 },
   chip: {
+    flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16,
-    backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface, borderWidth: 1.5, borderColor: theme.colors.border,
     marginRight: theme.spacing.xs,
   },
   chipActive: { backgroundColor: theme.colors.accent, borderColor: theme.colors.accent },
   chipText: { color: theme.colors.text, fontSize: theme.fontSize.sm, fontWeight: '600' },
   chipTextActive: { color: '#fff' },
+  reasonDot: { width: 8, height: 8, borderRadius: 4, marginRight: 5 },
 
   filterRow: { flexDirection: 'row', paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.sm },
   filterInput: {
@@ -446,6 +514,11 @@ const styles = StyleSheet.create({
   },
   thumb: { width: '100%', height: THUMB_SIZE },
   thumbPlaceholder: { backgroundColor: theme.colors.border },
+  thumbReasonBadge: {
+    position: 'absolute', bottom: 4, left: 4,
+    paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4,
+  },
+  thumbReasonText: { color: '#fff', fontSize: 9, fontWeight: '700' },
   gridCellMeta: { paddingHorizontal: 6, paddingVertical: 4 },
   gridCellReason: { fontSize: theme.fontSize.xs, fontWeight: '700', color: theme.colors.text },
   gridCellDate: { fontSize: theme.fontSize.xs, color: theme.colors.textSecondary },
@@ -453,13 +526,19 @@ const styles = StyleSheet.create({
   // Viewer
   viewerRoot: { flex: 1, backgroundColor: '#000' },
   viewerHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: theme.spacing.md, paddingTop: 48 },
+  viewerHeaderCenter: { flex: 1, alignItems: 'center', gap: 4 },
   viewerClose: { color: '#fff', fontSize: 24, width: 32, textAlign: 'center' },
-  viewerHeaderText: { color: '#fff', fontSize: theme.fontSize.md, fontWeight: '600' },
+  viewerHeaderText: { color: '#fff', fontSize: theme.fontSize.sm, fontWeight: '500' },
+  viewerReasonPill: {
+    paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12,
+  },
+  viewerReasonPillText: { color: '#fff', fontSize: theme.fontSize.xs, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   viewerImage: { width: SCREEN_WIDTH, height: SCREEN_WIDTH * 1.2, backgroundColor: '#000' },
   viewerMeta: { backgroundColor: '#1A1A1A', padding: theme.spacing.md },
   metaRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
   metaLabel: { color: '#9E9E9E', fontSize: theme.fontSize.sm },
   metaValue: { color: '#fff', fontSize: theme.fontSize.sm, flexShrink: 1, textAlign: 'right' },
+  metaLink: { color: theme.colors.accent, textDecorationLine: 'underline' },
   viewerActions: { backgroundColor: theme.colors.surface, padding: theme.spacing.md },
   viewerActionLabel: { fontSize: theme.fontSize.sm, color: theme.colors.textSecondary, marginTop: theme.spacing.sm, marginBottom: 4 },
   viewerCaption: {
