@@ -148,7 +148,7 @@ namespace StingTools.Commands.Symbols
                 $"mode={rebuildMode} built={built} failed={failed} protected={aggregate.Protected} outRoot={outRoot}"); }
             catch (Exception ex) { StingLog.Warn($"audit: {ex.Message}"); }
 
-            return aggregate.Errors.Count == 0 ? Result.Succeeded : Result.Succeeded;
+            return aggregate.Errors.Count == 0 ? Result.Succeeded : Result.Failed;
         }
 
         // ── Helpers ─────────────────────────────────────────────────────

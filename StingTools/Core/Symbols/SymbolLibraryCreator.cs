@@ -153,7 +153,7 @@ namespace StingTools.Core.Symbols
                     else if (def.ProtectExisting && exists)
                     {
                         result.Protected++;
-                        result.Warnings.Add($"{def.Id}: protectExisting=true and .rfa exists — skipped.");
+                        result.Warnings.Add($"{def.Id}: protectExisting=true in JSON spec — skipped even in RebuildUnfinalized mode. Remove the flag or use RebuildAll to force.");
                         skip = true;
                     }
                 }
@@ -908,6 +908,7 @@ namespace StingTools.Core.Symbols
             if (!fdoc.IsFamilyDocument) return;
             var fm = fdoc.FamilyManager;
 
+            // Pass 1 — add any parameters not already present.
             foreach (var p in def.Parameters)
             {
                 if (string.IsNullOrWhiteSpace(p?.Name)) continue;
@@ -922,6 +923,25 @@ namespace StingTools.Core.Symbols
                 catch (Exception ex)
                 {
                     result.Warnings.Add($"{def.Id}: param '{p.Name}' add failed — {ex.Message}");
+                }
+            }
+
+            // Pass 2 — apply "default" values declared in the JSON on the seed
+            // (template) type. AddTypeVariants duplicates from this type, so
+            // defaults propagate automatically; per-variant overrides applied
+            // later in SetVariantParam win over these seeds.
+            foreach (var p in def.Parameters)
+            {
+                if (string.IsNullOrWhiteSpace(p?.Name) || p.Default == null) continue;
+                try
+                {
+                    var fp = fm.get_Parameter(p.Name);
+                    if (fp != null && !fp.IsReadOnly && fm.CurrentType != null)
+                        SetVariantParam(fm, fp, p.Default);
+                }
+                catch (Exception ex)
+                {
+                    result.Warnings.Add($"{def.Id}: param '{p.Name}' default failed — {ex.Message}");
                 }
             }
         }

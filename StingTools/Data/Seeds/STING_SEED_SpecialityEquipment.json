@@ -27,10 +27,13 @@
         { "name": "STING_DESIGN_REF_TXT",      "type": "Text", "shared": true, "isInstance": true,  "default": "" },
         { "name": "STING_SWAP_HISTORY_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "" },
         { "name": "ASS_TAG_1",                 "type": "Text", "shared": true, "isInstance": true },
+        { "name": "ASS_DISCIPLINE_COD_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "G" },
+        { "name": "ASS_PRODCT_COD_TXT",        "type": "Text", "shared": true, "isInstance": true,  "default": "FRP" },
         { "name": "PEN_FIRE_RATING_TXT",       "type": "Text", "shared": true, "isInstance": false, "default": "FR60" },
         { "name": "PEN_SEALANT_TYPE_TXT",      "type": "Text", "shared": true, "isInstance": true,  "default": "INTUMESCENT" },
         { "name": "PEN_OD_MM",                 "type": "Text", "shared": true, "isInstance": true,  "default": "32" },
         { "name": "PEN_HOST_REF_TXT",          "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "PEN_HOST_TYPE_TXT",         "type": "Text", "shared": true, "isInstance": true,  "default": "" },
         { "name": "PEN_MEMBER_ID_TXT",         "type": "Text", "shared": true, "isInstance": true,  "default": "" },
         { "name": "PEN_CERTIFICATION_TXT",     "type": "Text", "shared": true, "isInstance": false, "default": "BS 476-20 / EN 1366-3" },
         { "name": "PEN_INSTALL_STATUS_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "DRAFT" },
@@ -38,7 +41,8 @@
         { "name": "PEN_INSTALL_DATE",          "type": "Text", "shared": true, "isInstance": true,  "default": "" },
         { "name": "PEN_INSPECTOR_TXT",         "type": "Text", "shared": true, "isInstance": true,  "default": "" },
         { "name": "PEN_INSPECTION_DATE",       "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "PEN_CONTROL_NUMBER_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "" }
+        { "name": "PEN_CONTROL_NUMBER_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "PEN_PFV_UUID_TXT",          "type": "Text", "shared": true, "isInstance": true,  "default": "" }
       ],
       "geometry": {
         "arcs": [

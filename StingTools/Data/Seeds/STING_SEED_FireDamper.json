@@ -146,7 +146,7 @@
             "ASS_PRODCT_COD_TXT": "FD",
             "FD_BSEN15650_CLASS_TXT": "EI60S",
             "FD_ACTUATION_TXT": "MOTORISED_24V",
-            "FD_TRIGGER_TEMP_C": "72"
+            "FD_TRIGGER_TEMP_C": "N/A"
           }
         },
         {
@@ -156,7 +156,7 @@
             "ASS_PRODCT_COD_TXT": "FD",
             "FD_BSEN15650_CLASS_TXT": "EI120S",
             "FD_ACTUATION_TXT": "MOTORISED_24V",
-            "FD_TRIGGER_TEMP_C": "72"
+            "FD_TRIGGER_TEMP_C": "N/A"
           }
         },
         {
@@ -168,7 +168,8 @@
             "PEN_FIRE_RATING_TXT": "FR30",
             "ASS_PRODCT_COD_TXT": "FD",
             "FD_BSEN15650_CLASS_TXT": "EI30S",
-            "FD_ACTUATION_TXT": "MOTORISED_24V"
+            "FD_ACTUATION_TXT": "MOTORISED_24V",
+            "FD_TRIGGER_TEMP_C": "N/A"
           }
         },
         {
@@ -177,7 +178,8 @@
             "PEN_FIRE_RATING_TXT": "FR60",
             "ASS_PRODCT_COD_TXT": "FD",
             "FD_BSEN15650_CLASS_TXT": "EI60S",
-            "FD_ACTUATION_TXT": "MOTORISED_24V"
+            "FD_ACTUATION_TXT": "MOTORISED_24V",
+            "FD_TRIGGER_TEMP_C": "N/A"
           }
         },
         {
@@ -186,7 +188,8 @@
             "PEN_FIRE_RATING_TXT": "FR90",
             "ASS_PRODCT_COD_TXT": "FD",
             "FD_BSEN15650_CLASS_TXT": "EI90S",
-            "FD_ACTUATION_TXT": "MOTORISED_24V"
+            "FD_ACTUATION_TXT": "MOTORISED_24V",
+            "FD_TRIGGER_TEMP_C": "N/A"
           }
         },
         {
@@ -195,7 +198,8 @@
             "PEN_FIRE_RATING_TXT": "FR120",
             "ASS_PRODCT_COD_TXT": "FD",
             "FD_BSEN15650_CLASS_TXT": "EI120S",
-            "FD_ACTUATION_TXT": "MOTORISED_24V"
+            "FD_ACTUATION_TXT": "MOTORISED_24V",
+            "FD_TRIGGER_TEMP_C": "N/A"
           }
         },
         {
@@ -207,7 +211,8 @@
             "PEN_FIRE_RATING_TXT": "SMOKE_ONLY",
             "ASS_PRODCT_COD_TXT": "SD",
             "FD_BSEN15650_CLASS_TXT": "ES",
-            "FD_ACTUATION_TXT": "MOTORISED_24V"
+            "FD_ACTUATION_TXT": "MOTORISED_24V",
+            "FD_TRIGGER_TEMP_C": "N/A"
           }
         },
         {
@@ -216,7 +221,8 @@
             "PEN_FIRE_RATING_TXT": "FR60",
             "ASS_PRODCT_COD_TXT": "FSD",
             "FD_BSEN15650_CLASS_TXT": "EIS60",
-            "FD_ACTUATION_TXT": "MOTORISED_24V_FUSIBLE_LINK"
+            "FD_ACTUATION_TXT": "MOTORISED_24V_FUSIBLE_LINK",
+            "FD_TRIGGER_TEMP_C": "72"
           }
         },
         {
@@ -225,7 +231,8 @@
             "PEN_FIRE_RATING_TXT": "FR120",
             "ASS_PRODCT_COD_TXT": "FSD",
             "FD_BSEN15650_CLASS_TXT": "EIS120",
-            "FD_ACTUATION_TXT": "MOTORISED_24V_FUSIBLE_LINK"
+            "FD_ACTUATION_TXT": "MOTORISED_24V_FUSIBLE_LINK",
+            "FD_TRIGGER_TEMP_C": "72"
           }
         },
         {
@@ -237,7 +244,8 @@
             "PEN_FIRE_RATING_TXT": "FR60",
             "ASS_PRODCT_COD_TXT": "FD-C",
             "FD_BSEN15650_CLASS_TXT": "EI60",
-            "FD_ACTUATION_TXT": "GRAVITY_FUSIBLE_LINK"
+            "FD_ACTUATION_TXT": "GRAVITY_FUSIBLE_LINK",
+            "FD_TRIGGER_TEMP_C": "72"
           }
         }
       ]
