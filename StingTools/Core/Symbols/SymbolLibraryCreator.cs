@@ -410,6 +410,8 @@ namespace StingTools.Core.Symbols
                 {
                     tx.Start();
                     DrawGeometry(fdoc, def, result);
+                    if (!string.IsNullOrWhiteSpace(def.Subcategory))
+                        ApplySubcategory(fdoc, def, result);
                     AddParameters(fdoc, def, result);
                     bool hasSymbolConnectors  = def.Connectors != null && def.Connectors.Count > 0;
                     bool hasVariantConnectors = def.TypeVariants != null
@@ -588,14 +590,15 @@ namespace StingTools.Core.Symbols
                 XYZ p2 = new XYZ(Scale(l.X2, symMm), Scale(l.Y2, symMm), 0);
                 if (p1.DistanceTo(p2) < 1e-6) return;
                 Line line = Line.CreateBound(p1, p2);
-                if (fdoc.IsFamilyDocument)
+                // TODO-VERIFY-API: NewSymbolicCurve for family annotation; falls back to NewDetailCurve.
+                DetailCurve dc = fdoc.IsFamilyDocument
+                    ? fdoc.FamilyCreate.NewDetailCurve(view, line)
+                    : fdoc.Create.NewDetailCurve(view, line);
+                // Apply the declared line style when the JSON spec names one.
+                if (dc != null && !string.IsNullOrWhiteSpace(l.Style))
                 {
-                    // TODO-VERIFY-API: NewSymbolicCurve for family annotation; falls back to NewDetailCurve.
-                    fdoc.FamilyCreate.NewDetailCurve(view, line);
-                }
-                else
-                {
-                    fdoc.Create.NewDetailCurve(view, line);
+                    var gs = ResolveGraphicsStyle(fdoc, l.Style);
+                    if (gs != null) try { dc.LineStyle = gs; } catch { }
                 }
             }
             catch (Exception ex)
@@ -627,10 +630,15 @@ namespace StingTools.Core.Symbols
                     curve = Arc.Create(centre, r, startRad, endRad, XYZ.BasisX, XYZ.BasisY);
                 }
 
-                if (fdoc.IsFamilyDocument)
-                    fdoc.FamilyCreate.NewDetailCurve(view, curve);
-                else
-                    fdoc.Create.NewDetailCurve(view, curve);
+                DetailCurve dc = fdoc.IsFamilyDocument
+                    ? fdoc.FamilyCreate.NewDetailCurve(view, curve)
+                    : fdoc.Create.NewDetailCurve(view, curve);
+                // Apply the declared line style when the JSON spec names one.
+                if (dc != null && !string.IsNullOrWhiteSpace(a.Style))
+                {
+                    var gs = ResolveGraphicsStyle(fdoc, a.Style);
+                    if (gs != null) try { dc.LineStyle = gs; } catch { }
+                }
             }
             catch (Exception ex)
             {
@@ -658,9 +666,7 @@ namespace StingTools.Core.Symbols
                 if (curves.Count < 3) return;
 
                 var loop = CurveLoop.Create(curves);
-                ElementId frTypeId = new FilteredElementCollector(fdoc)
-                    .OfClass(typeof(FilledRegionType))
-                    .FirstElementId();
+                ElementId frTypeId = ResolveFilledRegionType(fdoc, fr.FillType);
                 if (frTypeId == ElementId.InvalidElementId)
                 {
                     result.Warnings.Add($"{id}: no FilledRegionType in template.");
@@ -681,9 +687,9 @@ namespace StingTools.Core.Symbols
             try
             {
                 XYZ origin = new XYZ(Scale(t.X, symMm), Scale(t.Y, symMm), 0);
-                ElementId textTypeId = new FilteredElementCollector(fdoc)
-                    .OfClass(typeof(TextNoteType))
-                    .FirstElementId();
+                // Resolve a TextNoteType that matches the requested height; create one
+                // by duplicating the template default when no exact match exists.
+                ElementId textTypeId = ResolveTextNoteType(fdoc, t.HeightMm);
                 if (textTypeId == ElementId.InvalidElementId)
                 {
                     result.Warnings.Add($"{id}: no TextNoteType in template.");
@@ -918,6 +924,15 @@ namespace StingTools.Core.Symbols
 
                     var groupTypeId = GroupTypeId.IdentityData; // TODO-VERIFY-API
                     var specTypeId  = ResolveSpecTypeId(p.Type);
+
+                    // When the JSON spec marks a parameter as shared, look it up
+                    // in MR_PARAMETERS.txt and add it as an ExternallyDefinedParameter
+                    // so the instance matches the shared-parameter GUID required by
+                    // tag families and the COBie/ISO 19650 schedule filters.
+                    // Falls back to a plain project parameter when not found in the file.
+                    if (p.IsShared && TryAddSharedParameter(fdoc, fm, p, groupTypeId, result, def.Id))
+                        continue;
+
                     fm.AddParameter(p.Name, groupTypeId, specTypeId, p.IsInstance);
                 }
                 catch (Exception ex)
@@ -1003,6 +1018,13 @@ namespace StingTools.Core.Symbols
                     SketchPlane sp = SketchPlane.Create(fdoc, plane);
 
                     Domain domain = ResolveDomain(c.Domain);
+                    // Pre-flight: reject bad domain/systemType pairings before the API
+                    // call produces a cryptic exception at runtime.
+                    if (!ValidateDomainSystemType(domain, c.SystemType, out string pairError))
+                    {
+                        result.Warnings.Add($"{def.Id} [{sourceLabel}]: connector skipped — {pairError}");
+                        continue;
+                    }
                     // TODO-VERIFY-API: Connector creation requires reference geometry in 2025.
                     // We create a small reference line at the connector origin perpendicular
                     // to the facing direction, then mint the connector against its endpoint.
@@ -1054,6 +1076,239 @@ namespace StingTools.Core.Symbols
                     result.Warnings.Add($"{def.Id} [{sourceLabel}]: connector ({c.Domain}/{c.SystemType}) failed — {ex.Message}");
                 }
             }
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // Geometry helpers — style / fill-type / text-height resolution
+        // ─────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Finds a projection GraphicsStyle by name (case-insensitive).
+        /// Returns null when the style doesn't exist in the document.
+        /// </summary>
+        private static GraphicsStyle ResolveGraphicsStyle(Document fdoc, string styleName)
+        {
+            if (string.IsNullOrWhiteSpace(styleName)) return null;
+            return new FilteredElementCollector(fdoc)
+                .OfClass(typeof(GraphicsStyle))
+                .Cast<GraphicsStyle>()
+                .FirstOrDefault(gs => gs.GraphicsStyleType == GraphicsStyleType.Projection
+                    && string.Equals(gs.Name, styleName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// Finds a FilledRegionType by name; falls back to the first available
+        /// type when no name is specified or the name is not found.
+        /// </summary>
+        private static ElementId ResolveFilledRegionType(Document fdoc, string fillTypeName)
+        {
+            if (!string.IsNullOrWhiteSpace(fillTypeName))
+            {
+                var namedType = new FilteredElementCollector(fdoc)
+                    .OfClass(typeof(FilledRegionType))
+                    .Cast<FilledRegionType>()
+                    .FirstOrDefault(t => string.Equals(t.Name, fillTypeName, StringComparison.OrdinalIgnoreCase));
+                if (namedType != null) return namedType.Id;
+            }
+            return new FilteredElementCollector(fdoc).OfClass(typeof(FilledRegionType)).FirstElementId();
+        }
+
+        /// <summary>
+        /// Finds a TextNoteType whose TEXT_SIZE is within 0.01 mm of the
+        /// requested height; when no exact match exists, duplicates the first
+        /// type and sets its height. Falls back to the first type when
+        /// heightMm ≤ 0 or duplication fails.
+        /// </summary>
+        private static ElementId ResolveTextNoteType(Document fdoc, double heightMm)
+        {
+            if (heightMm > 0)
+            {
+                double targetFt = MmToFt(heightMm);
+                var types = new FilteredElementCollector(fdoc)
+                    .OfClass(typeof(TextNoteType))
+                    .Cast<TextNoteType>()
+                    .ToList();
+
+                var match = types.FirstOrDefault(tnt =>
+                {
+                    var p = tnt.get_Parameter(BuiltInParameter.TEXT_SIZE);
+                    return p != null && Math.Abs(p.AsDouble() - targetFt) < MmToFt(0.01);
+                });
+                if (match != null) return match.Id;
+
+                // Duplicate the first type and stamp the target height.
+                var first = types.FirstOrDefault();
+                if (first != null)
+                {
+                    try
+                    {
+                        var dup = first.Duplicate($"STING Text {heightMm}mm") as TextNoteType;
+                        if (dup != null)
+                        {
+                            dup.get_Parameter(BuiltInParameter.TEXT_SIZE)?.Set(targetFt);
+                            return dup.Id;
+                        }
+                    }
+                    catch { /* fall through to first-type fallback */ }
+                }
+            }
+            return new FilteredElementCollector(fdoc).OfClass(typeof(TextNoteType)).FirstElementId();
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // Subcategory
+        // ─────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Gets or creates the subcategory declared in the JSON spec and
+        /// assigns it to every CurveElement and FilledRegion in the family
+        /// document. The STING_SEED subcategory lets VG overrides in host
+        /// projects target all seed geometry independently of the host
+        /// element category.
+        /// </summary>
+        private static void ApplySubcategory(Document fdoc, SymbolDefinition def, SymbolCreationResult result)
+        {
+            if (!fdoc.IsFamilyDocument) return;
+            try
+            {
+                Category ownerCat = fdoc.OwnerFamily?.FamilyCategory;
+                if (ownerCat == null)
+                {
+                    result.Warnings.Add($"{def.Id}: subcategory '{def.Subcategory}' — could not resolve family category.");
+                    return;
+                }
+
+                Category subCat = ownerCat.SubCategories.Contains(def.Subcategory)
+                    ? ownerCat.SubCategories.get_Item(def.Subcategory)
+                    : fdoc.Settings.Categories.NewSubcategory(ownerCat, def.Subcategory);
+                if (subCat == null) return;
+
+                int assigned = 0;
+                foreach (var ce in new FilteredElementCollector(fdoc)
+                    .OfClass(typeof(CurveElement)).Cast<CurveElement>())
+                {
+                    try
+                    {
+                        var p = ce.get_Parameter(BuiltInParameter.FAMILY_ELEM_SUBCATEGORY);
+                        if (p != null && !p.IsReadOnly) { p.Set(subCat.Id); assigned++; }
+                    }
+                    catch { }
+                }
+                foreach (var fr in new FilteredElementCollector(fdoc)
+                    .OfClass(typeof(FilledRegion)).Cast<FilledRegion>())
+                {
+                    try
+                    {
+                        var p = fr.get_Parameter(BuiltInParameter.FAMILY_ELEM_SUBCATEGORY);
+                        if (p != null && !p.IsReadOnly) { p.Set(subCat.Id); assigned++; }
+                    }
+                    catch { }
+                }
+                if (assigned > 0)
+                    result.Warnings.Add($"{def.Id}: subcategory '{def.Subcategory}' assigned to {assigned} elements.");
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"{def.Id}: subcategory '{def.Subcategory}' failed — {ex.Message}");
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // Shared parameters
+        // ─────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Attempts to add a parameter as an ExternallyDefinedParameter by
+        /// looking it up in the STING shared-parameter file (MR_PARAMETERS.txt).
+        /// The application's SharedParametersFilename is saved and restored
+        /// around the call so other open family documents aren't affected.
+        /// Returns true and adds the parameter when found; returns false so
+        /// the caller can fall back to a plain project parameter.
+        /// </summary>
+        private static bool TryAddSharedParameter(Document fdoc, FamilyManager fm,
+            ParameterDefinition p, GroupTypeId groupTypeId,
+            SymbolCreationResult result, string defId)
+        {
+            try
+            {
+                var app = fdoc.Application;
+                string stingFile = null;
+                try { stingFile = Path.Combine(StingToolsApp.DataPath ?? "", "MR_PARAMETERS.txt"); }
+                catch { }
+                if (string.IsNullOrEmpty(stingFile) || !File.Exists(stingFile)) return false;
+
+                string saved = app.SharedParametersFilename;
+                try
+                {
+                    app.SharedParametersFilename = stingFile;
+                    DefinitionFile defFile = app.OpenSharedParameterFile();
+                    if (defFile == null) return false;
+
+                    foreach (DefinitionGroup grp in defFile.Groups)
+                    {
+                        var extDef = grp.Definitions.get_Item(p.Name) as ExternalDefinition;
+                        if (extDef != null)
+                        {
+                            fm.AddExternallyDefinedParameter(extDef, groupTypeId, p.IsInstance);
+                            return true;
+                        }
+                    }
+                }
+                finally
+                {
+                    try { app.SharedParametersFilename = saved; } catch { }
+                }
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"{defId}: shared param '{p.Name}' lookup failed ({ex.Message}); falling back to project param.");
+            }
+            return false;
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // Connector validation
+        // ─────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Returns false with a descriptive error when the systemType string
+        /// is not compatible with the resolved domain. Called before
+        /// ConnectorElement.Create* to surface mismatches as human-readable
+        /// warnings rather than cryptic Revit API exceptions.
+        /// </summary>
+        private static bool ValidateDomainSystemType(Domain domain, string systemType, out string error)
+        {
+            error = null;
+            if (string.IsNullOrEmpty(systemType)) return true; // undefined is always accepted
+
+            var hvac = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                { "SupplyAir", "ReturnAir", "ExhaustAir", "OutsideAir", "UndefinedSystemType" };
+            var piping = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                { "DomesticColdWater", "DomesticHotWater", "Sanitary", "FireProtectionWet",
+                  "FireProtectionDry", "FireProtectionPreaction", "ChilledWaterSupply",
+                  "ChilledWaterReturn", "HotWaterSupply", "HotWaterReturn", "Hydronic",
+                  "UndefinedSystemType" };
+            var electrical = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                { "PowerCircuit", "PowerBalanced", "PowerUnBalanced", "Data", "FireAlarm",
+                  "Controls", "Communication", "Nurse", "Security", "Telephone",
+                  "UndefinedSystemType" };
+
+            switch (domain)
+            {
+                case Domain.DomainHvac:
+                    if (!hvac.Contains(systemType))
+                    { error = $"'{systemType}' is not valid for HVAC domain. Expected one of: {string.Join(", ", hvac)}"; return false; }
+                    break;
+                case Domain.DomainPiping:
+                    if (!piping.Contains(systemType))
+                    { error = $"'{systemType}' is not valid for Piping domain. Expected one of: {string.Join(", ", piping)}"; return false; }
+                    break;
+                case Domain.DomainElectrical:
+                    if (!electrical.Contains(systemType))
+                    { error = $"'{systemType}' is not valid for Electrical domain. Expected one of: {string.Join(", ", electrical)}"; return false; }
+                    break;
+            }
+            return true;
         }
 
         private static void SetConnectorSize(ConnectorElement ce, ConnectorDefinition c)

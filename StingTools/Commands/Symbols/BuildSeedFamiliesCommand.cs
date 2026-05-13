@@ -201,8 +201,11 @@ namespace StingTools.Commands.Symbols
         /// Reads the swapCandidates[] array from every seed JSON spec and
         /// merges the entries into STING_FAMILY_SWAP_REGISTRY.json next to
         /// the seed output folder. Existing registry entries with the same
-        /// seedId + label are updated in place; new entries are appended.
-        /// The merge is additive — manually added entries are never removed.
+        /// seedId + label are updated in place; new entries are appended
+        /// and tagged with <c>"source": "auto"</c>. Entries that were
+        /// previously auto-registered but are no longer present in any
+        /// current spec are pruned, preserving manually added entries
+        /// (those without a "source" field, or with "source" != "auto").
         /// </summary>
         private static void AutoRegisterSwapCandidates(IList<string> specs, string outRoot, SymbolCreationResult result)
         {
@@ -225,8 +228,36 @@ namespace StingTools.Commands.Symbols
 
             var entries = registry["entries"] as Newtonsoft.Json.Linq.JArray
                 ?? new Newtonsoft.Json.Linq.JArray();
-            int added = 0, updated = 0;
+            int added = 0, updated = 0, pruned = 0;
 
+            // Build the complete set of (seedId, label) pairs declared in
+            // current specs so the post-loop prune pass can identify stale
+            // auto-registered entries.  Only candidates with a non-empty
+            // FamilyPath are eligible for auto-registration (same gate as the
+            // merge loop below).
+            var currentPairs = new HashSet<(string seedId, string label)>();
+            foreach (var specPath in specs)
+            {
+                try
+                {
+                    if (!File.Exists(specPath)) continue;
+                    var lib = Newtonsoft.Json.JsonConvert.DeserializeObject<
+                        StingTools.Core.Symbols.SymbolLibrary>(File.ReadAllText(specPath));
+                    if (lib?.Symbols == null) continue;
+                    foreach (var sym in lib.Symbols)
+                    {
+                        if (sym?.SwapCandidates == null) continue;
+                        foreach (var cand in sym.SwapCandidates)
+                        {
+                            if (!string.IsNullOrWhiteSpace(cand?.FamilyPath))
+                                currentPairs.Add((sym.Id ?? "", cand.Label ?? ""));
+                        }
+                    }
+                }
+                catch { /* parse errors surfaced in the merge loop below */ }
+            }
+
+            // Merge loop — add / update entries from the current spec set.
             foreach (var specPath in specs)
             {
                 try
@@ -255,6 +286,7 @@ namespace StingTools.Commands.Symbols
                                 existing["typeNamePattern"]   = cand.TypePattern ?? "";
                                 existing["seedVariantPattern"]= cand.VariantPattern ?? "";
                                 existing["priority"]          = cand.Priority;
+                                existing["source"]            = "auto"; // tag for future prune passes
                                 updated++;
                             }
                             else
@@ -267,6 +299,7 @@ namespace StingTools.Commands.Symbols
                                     ["typeNamePattern"]   = cand.TypePattern   ?? "",
                                     ["seedVariantPattern"]= cand.VariantPattern ?? "",
                                     ["priority"]          = cand.Priority,
+                                    ["source"]            = "auto",
                                 };
                                 entries.Add(node);
                                 added++;
@@ -277,13 +310,27 @@ namespace StingTools.Commands.Symbols
                 catch (Exception ex) { result.Warnings.Add($"SwapCandidates parse '{Path.GetFileName(specPath)}': {ex.Message}"); }
             }
 
-            if (added + updated == 0) return;
+            // Prune pass — remove auto-registered entries that are no longer
+            // declared in any current spec.  Entries without a "source" field,
+            // or with source != "auto", are treated as manually added and
+            // are never removed.
+            var toRemove = new List<Newtonsoft.Json.Linq.JToken>();
+            foreach (var e in entries)
+            {
+                string src = (string)e["source"];
+                if (!string.Equals(src, "auto", StringComparison.OrdinalIgnoreCase)) continue;
+                var key = ((string)e["seedId"] ?? "", (string)e["label"] ?? "");
+                if (!currentPairs.Contains(key)) toRemove.Add(e);
+            }
+            foreach (var e in toRemove) { entries.Remove(e); pruned++; }
+
+            if (added + updated + pruned == 0) return;
             registry["entries"] = entries;
             registry["_updated"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
             try
             {
                 File.WriteAllText(registryPath, registry.ToString(Newtonsoft.Json.Formatting.Indented));
-                result.Warnings.Add($"Swap registry: {added} added, {updated} updated → {registryPath}");
+                result.Warnings.Add($"Swap registry: {added} added, {updated} updated, {pruned} pruned → {registryPath}");
             }
             catch (Exception ex) { result.Warnings.Add($"Swap registry save failed: {ex.Message}"); }
         }
