@@ -109,9 +109,19 @@ export default function GalleryScreen() {
       const res = await listSitePhotos(projectId, filters);
       setPhotos(res.items);
 
+      const thumbEntries = await Promise.all(
+        res.items.map(async (p) => {
+          try {
+            const thumb = await getSitePhotoFile(projectId, p.id);
+            return [p.id, thumb] as const;
+          } catch {
+            return [p.id, null] as const;
+          }
+        })
+      );
       const next: ResolvedThumbRecord = {};
-      for (const p of res.items) {
-        next[p.id] = await getSitePhotoFile(projectId, p.id);
+      for (const [id, thumb] of thumbEntries) {
+        if (thumb) next[id] = thumb;
       }
       setThumbs(next);
 
@@ -248,8 +258,12 @@ export default function GalleryScreen() {
                         style={styles.thumb}
                         resizeMode="cover"
                       />
-                    ) : (
+                    ) : loading || refreshing ? (
                       <View style={[styles.thumb, styles.thumbPlaceholder]} />
+                    ) : (
+                      <View style={[styles.thumb, styles.thumbError]}>
+                        <Text style={styles.thumbErrorText}>✕</Text>
+                      </View>
                     )}
                     {reasonColour ? (
                       <View style={[styles.thumbReasonBadge, { backgroundColor: reasonColour }]}>
@@ -305,6 +319,7 @@ function PhotoViewer({
   const [working, setWorking] = useState(false);
   const [caption, setCaption] = useState(photo.caption ?? '');
   const [rejectReason, setRejectReason] = useState('');
+  const [navigatingToIssue, setNavigatingToIssue] = useState(false);
 
   async function approve() {
     if (caption.trim().length < 3) {
@@ -379,8 +394,10 @@ function PhotoViewer({
             ) : null}
             {photo.anchorIssueId ? (
               <TouchableOpacity
-                style={styles.metaRow}
+                style={[styles.metaRow, navigatingToIssue && { opacity: 0.5 }]}
                 onPress={async () => {
+                  if (navigatingToIssue) return;
+                  setNavigatingToIssue(true);
                   try {
                     await getIssue(projectId, photo.anchorIssueId!);
                     Vibration.vibrate(20);
@@ -388,12 +405,18 @@ function PhotoViewer({
                     router.push(`/issue-detail?id=${photo.anchorIssueId}&projectId=${projectId}` as never);
                   } catch {
                     Alert.alert('Issue not found', 'The linked issue may have been deleted.');
+                  } finally {
+                    setNavigatingToIssue(false);
                   }
                 }}
+                disabled={navigatingToIssue}
                 accessibilityLabel="Open linked issue"
               >
                 <Text style={styles.metaLabel}>Linked issue</Text>
-                <Text style={[styles.metaValue, styles.metaLink]}>View issue ›</Text>
+                {navigatingToIssue
+                  ? <ActivityIndicator size="small" color={theme.colors.accent} />
+                  : <Text style={[styles.metaValue, styles.metaLink]}>View issue ›</Text>
+                }
               </TouchableOpacity>
             ) : null}
             {photo.rejectedReason ? <Meta label="Last reject reason" value={photo.rejectedReason} /> : null}
@@ -522,6 +545,8 @@ const styles = StyleSheet.create({
   },
   thumb: { width: '100%', height: THUMB_SIZE },
   thumbPlaceholder: { backgroundColor: theme.colors.border },
+  thumbError: { backgroundColor: '#2a1a1a', justifyContent: 'center', alignItems: 'center' },
+  thumbErrorText: { color: '#666', fontSize: 16 },
   thumbReasonBadge: {
     position: 'absolute', bottom: 4, left: 4,
     paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4,
