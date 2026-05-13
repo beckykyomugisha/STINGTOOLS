@@ -6022,7 +6022,7 @@
       {
         "key": "COMM_STATE",
         "param_name": "COMM_STATE_TXT",
-        "guid": "5753b5aa-0004-4000-8000-000000000001",
+        "guid": "8486f13f-f340-5937-a1a0-2052c085fe89",
         "description": "Commissioning state (Draft / Pre-C / Witness / Final)",
         "categories": [
           "ALL"
@@ -6032,7 +6032,7 @@
       {
         "key": "COMM_DATE",
         "param_name": "COMM_DATE_TXT",
-        "guid": "5753b5aa-0004-4000-8000-000000000002",
+        "guid": "976ec939-fe4c-5af3-bdda-2edb342950ea",
         "description": "Commissioning date (ISO 8601) \u2014 when state was last stamped",
         "categories": [
           "ALL"
@@ -6042,7 +6042,7 @@
       {
         "key": "COMM_OPERATIVE",
         "param_name": "COMM_OPERATIVE_TXT",
-        "guid": "5753b5aa-0004-4000-8000-000000000003",
+        "guid": "65c612b4-4649-5a1b-a1b0-8c6d4d7aeb7a",
         "description": "Commissioning operative \u2014 name / ID of engineer who stamped the asset",
         "categories": [
           "ALL"
@@ -6082,7 +6082,7 @@
       {
         "key": "CBN_A1_A3",
         "param_name": "CBN_A1_A3_KG_CO2E",
-        "guid": "5753b5aa-0006-4000-8000-000000000001",
+        "guid": "023cd04f-f470-559f-9649-b1b5a1845003",
         "description": "Product stage carbon A1-A3 (kgCO2e) \u2014 cradle-to-gate embodied",
         "categories": [
           "ALL"
@@ -6092,7 +6092,7 @@
       {
         "key": "CBN_A4",
         "param_name": "CBN_A4_KG_CO2E",
-        "guid": "5753b5aa-0006-4000-8000-000000000002",
+        "guid": "7442f641-99f2-57fb-ba17-7179157dd04c",
         "description": "Transport stage carbon A4 (kgCO2e) \u2014 factory-to-site haulage",
         "categories": [
           "ALL"
@@ -6102,7 +6102,7 @@
       {
         "key": "CBN_B6",
         "param_name": "CBN_B6_KG_CO2E_YR",
-        "guid": "5753b5aa-0006-4000-8000-000000000003",
+        "guid": "f2b69b7d-ec13-54b0-8fa0-3cef044d2a02",
         "description": "Operational energy carbon B6 (kgCO2e/yr) \u2014 annual in-use emissions",
         "categories": [
           "ALL"
@@ -6142,7 +6142,7 @@
       {
         "key": "CLASH_TRIAGE_SEV",
         "param_name": "CLASH_TRIAGE_SEVERITY_NR",
-        "guid": "5753b5aa-0008-4000-8000-000000000001",
+        "guid": "3b894a39-cde3-5e9e-8074-bb6c46f29163",
         "description": "Clash triage severity (0-5) \u2014 higher = more blocking",
         "categories": [
           "ALL"
@@ -6152,7 +6152,7 @@
       {
         "key": "CLASH_TRIAGE_CAT",
         "param_name": "CLASH_TRIAGE_CATEGORY_TXT",
-        "guid": "5753b5aa-0008-4000-8000-000000000002",
+        "guid": "eea079dc-7f02-5f3c-b89a-89d07ce899eb",
         "description": "Clash triage category (Hard / Soft / Tolerance / Workflow)",
         "categories": [
           "ALL"
@@ -6162,7 +6162,7 @@
       {
         "key": "CLASH_RES_STATUS",
         "param_name": "CLASH_RESOLUTION_STATUS_TXT",
-        "guid": "5753b5aa-0008-4000-8000-000000000003",
+        "guid": "a151544f-4c23-58f5-b024-4ca993f3ab72",
         "description": "Clash resolution status (Open / Under Review / Resolved / Accepted)",
         "categories": [
           "ALL"
@@ -6172,7 +6172,7 @@
       {
         "key": "ASBUILT_DEV",
         "param_name": "ASBUILT_DEVIATION_MM",
-        "guid": "5753b5aa-0009-4000-8000-000000000001",
+        "guid": "5f481bdc-c860-5ab4-bcbb-cb91b1b4008b",
         "description": "As-built deviation (mm) \u2014 delta vs design position from reality capture",
         "categories": [
           "ALL"
@@ -6182,7 +6182,7 @@
       {
         "key": "ASBUILT_DATE",
         "param_name": "ASBUILT_CAPTURE_DATE_TXT",
-        "guid": "5753b5aa-0009-4000-8000-000000000002",
+        "guid": "28a9229c-9cac-508d-ae82-a173c3ab7505",
         "description": "As-built capture date (ISO 8601) \u2014 when reality-capture snapshot was taken",
         "categories": [
           "ALL"
@@ -6192,7 +6192,7 @@
       {
         "key": "HEALTH_SCORE",
         "param_name": "HEALTH_SCORE_LAST_NR",
-        "guid": "5753b5aa-0009-4000-8000-000000000003",
+        "guid": "d4b84d5f-f0d3-5a69-8401-3d453665a34b",
         "description": "Model health score (0-100) \u2014 last computed compliance / data quality rating",
         "categories": [
           "ALL"
@@ -6202,7 +6202,7 @@
       {
         "key": "IFC_PSET_OVERRIDE",
         "param_name": "IFC_PSET_OVERRIDE_TXT",
-        "guid": "5753b5aa-000a-4000-8000-000000000001",
+        "guid": "72c4ee3c-6614-57b3-8309-44fe00cb8103",
         "description": "IFC PSet override \u2014 custom IFC property set / value mapping for export",
         "categories": [
           "ALL"
@@ -6212,7 +6212,7 @@
       {
         "key": "ACC_ISSUE_ID",
         "param_name": "ACC_ISSUE_ID_TXT",
-        "guid": "5753b5aa-000a-4000-8000-000000000002",
+        "guid": "b9a6bc92-77a7-5a43-8524-dacaf688f178",
         "description": "ACC Issue ID \u2014 Autodesk Construction Cloud Issue round-trip reference",
         "categories": [
           "ALL"
@@ -6222,7 +6222,7 @@
       {
         "key": "ACC_SYNC_STATUS",
         "param_name": "ACC_SYNC_STATUS_TXT",
-        "guid": "5753b5aa-000a-4000-8000-000000000003",
+        "guid": "4a80d4f1-f2c1-548b-a77b-2c632586baa2",
         "description": "ACC sync status (Pending / Synced / Conflict / Failed)",
         "categories": [
           "ALL"
@@ -6232,7 +6232,7 @@
       {
         "key": "COMM_WITNESS",
         "param_name": "COMM_WITNESS_TXT",
-        "guid": "5753b5aa-0004-4000-8000-000000000010",
+        "guid": "e48f7316-380e-5e5a-b376-149eab440ad3",
         "description": "Commissioning witness \u2014 name / ID of client/third-party observer",
         "categories": [
           "ALL"
@@ -6242,7 +6242,7 @@
       {
         "key": "COMM_NOTES",
         "param_name": "COMM_NOTES_TXT",
-        "guid": "5753b5aa-0004-4000-8000-000000000011",
+        "guid": "6bafd748-d05f-5df4-bae9-ce3ed4ce34f4",
         "description": "Commissioning free-text notes (defects, overrides, escalations)",
         "categories": [
           "ALL"
@@ -6252,7 +6252,7 @@
       {
         "key": "CST_INSTALL_HRS",
         "param_name": "CST_INSTALL_HRS",
-        "guid": "5753b5aa-0005-4000-8000-000000000010",
+        "guid": "3195619a-3d2d-54c4-8109-8b6a2adeeccd",
         "description": "Installation labour hours (N-G12) \u2014 estimated man-hours for install",
         "categories": [
           "ALL"
@@ -6262,7 +6262,7 @@
       {
         "key": "CST_LABOUR_CREW",
         "param_name": "CST_LABOUR_CREW_TXT",
-        "guid": "5753b5aa-0005-4000-8000-000000000011",
+        "guid": "f4fe5c91-af91-563a-b81b-ebb4fc428045",
         "description": "Labour crew identifier \u2014 crew code assigned to install",
         "categories": [
           "ALL"
@@ -6272,7 +6272,7 @@
       {
         "key": "CST_LABOUR_RATE_GBP",
         "param_name": "CST_LABOUR_RATE_GBP",
-        "guid": "5753b5aa-0005-4000-8000-000000000012",
+        "guid": "0f0fab76-bf7f-5c08-8193-964533b88ad9",
         "description": "Labour rate (GBP/hr) \u2014 override for cost roll-up",
         "categories": [
           "ALL"
@@ -6282,7 +6282,7 @@
       {
         "key": "CBN_A5",
         "param_name": "CBN_A5_KG_CO2E",
-        "guid": "5753b5aa-0006-4000-8000-000000000010",
+        "guid": "7921cbb6-5509-5011-9880-e910a7e70a08",
         "description": "Construction stage carbon A5 (kgCO2e) \u2014 site installation emissions",
         "categories": [
           "ALL"
@@ -6292,7 +6292,7 @@
       {
         "key": "CBN_C1",
         "param_name": "CBN_C1_KG_CO2E",
-        "guid": "5753b5aa-0006-4000-8000-000000000011",
+        "guid": "8ec17879-48d2-59c2-a931-cc6e615a26fe",
         "description": "End-of-life carbon C1 (kgCO2e) \u2014 demolition energy",
         "categories": [
           "ALL"
@@ -6302,7 +6302,7 @@
       {
         "key": "CBN_C2",
         "param_name": "CBN_C2_KG_CO2E",
-        "guid": "5753b5aa-0006-4000-8000-000000000012",
+        "guid": "899430fe-0ee2-5a8e-8ea9-f6050e2f266c",
         "description": "End-of-life carbon C2 (kgCO2e) \u2014 transport to waste processing",
         "categories": [
           "ALL"
@@ -6312,7 +6312,7 @@
       {
         "key": "CBN_C3_C4",
         "param_name": "CBN_C3_C4_KG_CO2E",
-        "guid": "5753b5aa-0006-4000-8000-000000000013",
+        "guid": "41ab6b2d-7cb4-5df8-b8c9-298516e37e69",
         "description": "End-of-life carbon C3-C4 (kgCO2e) \u2014 waste processing + disposal",
         "categories": [
           "ALL"
@@ -6322,7 +6322,7 @@
       {
         "key": "CLASH_TRIAGE_SCORE",
         "param_name": "CLASH_TRIAGE_SCORE",
-        "guid": "5753b5aa-0008-4000-8000-000000000010",
+        "guid": "74014c76-011d-568c-bdf6-eb57e92c9108",
         "description": "Clash triage composite score (0-100) \u2014 weighted severity x business impact",
         "categories": [
           "ALL"
@@ -6332,7 +6332,7 @@
       {
         "key": "CLASH_RES_ACTION",
         "param_name": "CLASH_RESOLUTION_ACTION_TXT",
-        "guid": "5753b5aa-0008-4000-8000-000000000011",
+        "guid": "ec2a5f88-7506-5b73-afa1-2aacc13210a3",
         "description": "Clash resolution action \u2014 remediation action taken or planned",
         "categories": [
           "ALL"
@@ -6342,7 +6342,7 @@
       {
         "key": "HEALTH_SCORE_DATE",
         "param_name": "HEALTH_SCORE_DATE_TXT",
-        "guid": "5753b5aa-0009-4000-8000-000000000010",
+        "guid": "aae3fbc7-95f1-5619-b041-5e5669256223",
         "description": "Model health score capture date (ISO 8601)",
         "categories": [
           "ALL"

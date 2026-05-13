@@ -35,12 +35,9 @@ GROUP	29	MGS_SYSTEMS
 GROUP	30	RAD_PROTECTION
 GROUP	31	CEQ_CLINICAL
 GROUP	32	LIG_BEHAVIOURAL
-<<<<<<< HEAD
 GROUP	33	Identity
 GROUP	34	Routing
-=======
-GROUP	33	PEN_PENETRATION
->>>>>>> origin/claude/review-sting-equipment-aV6qM
+GROUP	35	PEN_PENETRATION
 *PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE
 PARAM	f8fe813a-44e9-5e47-9109-921171dc53b6	ASS_CAT_TXT	TEXT		1	1	Ass Cat Txt [ISO 19650-3:2020]	1
 PARAM	3c189e63-383c-5011-b7d9-873faed4e6c6	ASS_CST_QUANTITY_NR	TEXT		1	1	Ass Cst Quantity Nr [ISO 19650-3:2020]	1
@@ -887,7 +884,7 @@ PARAM	aaf5d9d2-0a4c-5c18-9314-04b97678f27e	PER_THERM_PASSIVE_DESIGN_TXT	TEXT		9	
 PARAM	782924d4-c5c9-42a5-9b3e-e4ab82e357b7	VT_FILTERS_APPLIED_TXT	TEXT		11	1	Filters applied to template [ISO 19650-1:2018]	1
 PARAM	34c84ad4-3a5c-5222-9abb-981bf9b53980	MAT_THICKNESS_MM	TEXT		12	1	Mat Thickness Mm [ISO 19650-1:2018]	1
 PARAM	ae3fc1d4-ae94-4b3f-9101-1b1411c42eed	CST_UNIT_PRICE_GROUT_UGX	TEXT		3	1	Unit price per kilogram grout in UGX [ISO 19650-3:2020]	1
-PARAM	a1b2c3d4-e5f6-7890-abcd-1234567890a1	FLS_SFTY_K_FACTOR_NR	TEXT		8	1	Sprinkler K-factor discharge coefficient [ISO 19650-1:2018]	1
+PARAM	dd088a9b-6ba9-5148-8f05-a2901cbd6ef8	FLS_SFTY_K_FACTOR_NR	TEXT		8	1	Sprinkler K-factor discharge coefficient [ISO 19650-1:2018]	1
 PARAM	1d5e82d6-e988-4e9d-8be1-e195f2782041	MAT_TAG_4_TXT	TEXT		12	1	Material cost tag: code, unit cost UGX, durability [ISO 19650-1:2018]	1
 PARAM	e9f9cfd6-e086-5eff-93a3-97eb552693a1	PROP_FIRE_RATING	TEXT		14	1	Prop Fire Rating [ISO 19650-1:2018]	1
 PARAM	811a5bd7-c79f-4a97-95cc-32164c8ba420	SYS_PRESSURE_NR	NUMBER		11	1	System design pressure [ISO 19650-1:2018]	1
@@ -1497,47 +1494,47 @@ PARAM	8eb03b28-aaf9-5803-8e87-f0655afbf08d	TAG_PARA_STATE_7_BOOL	TEXT		17	1	Para
 PARAM	dd2f491c-8806-5cd2-bb21-d3b915646070	TAG_PARA_STATE_8_BOOL	TEXT		17	1	Paragraph depth state tier 8 [ISO 19650-3:2020]	1
 PARAM	482475c4-be76-5db3-87a6-8aac4a53dc74	TAG_PARA_STATE_9_BOOL	TEXT		17	1	Paragraph depth state tier 9 [ISO 19650-3:2020]	1
 PARAM	8be3ef27-42ab-5668-8cd0-a376578c805a	TAG_PARA_STATE_10_BOOL	TEXT		17	1	Paragraph depth state tier 10 [ISO 19650-3:2020]	1
-PARAM	a1b2c3d4-5001-4a01-b001-000000000101	ASS_MATERIAL_TXT	TEXT		1	1	Asset material description [COBie V2.4]	1
-PARAM	a1b2c3d4-5002-4a01-b001-000000000102	ASS_SUPPLIER_TXT	TEXT		1	1	Asset supplier name [COBie V2.4]	1
-PARAM	a1b2c3d4-5003-4a01-b001-000000000103	ASS_BARCODE_TXT	TEXT		1	1	Asset barcode identifier [COBie V2.4]	1
-PARAM	a1b2c3d4-5004-4a01-b001-000000000104	ASS_ASSET_ID_TXT	TEXT		1	1	Unique asset identifier [COBie V2.4]	1
-PARAM	a1b2c3d4-5005-4a01-b001-000000000105	ASS_CONDITION_TXT	TEXT		1	1	Asset condition assessment [COBie V2.4]	1
-PARAM	a1b2c3d4-5007-4a01-b001-000000000107	ASS_WARR_GUAR_PARTS_TXT	TEXT		1	1	Warranty guarantor for parts [COBie V2.4]	1
-PARAM	a1b2c3d4-5008-4a01-b001-000000000108	ASS_WARR_DUR_PARTS_TXT	TEXT		1	1	Warranty duration for parts [COBie V2.4]	1
-PARAM	a1b2c3d4-5009-4a01-b001-000000000109	ASS_WARR_GUAR_LABOR_TXT	TEXT		1	1	Warranty guarantor for labor [COBie V2.4]	1
-PARAM	a1b2c3d4-500a-4a01-b001-000000000110	ASS_WARR_DUR_LABOR_TXT	TEXT		1	1	Warranty duration for labor [COBie V2.4]	1
-PARAM	a1b2c3d4-500b-4a01-b001-000000000111	ASS_WARR_DUR_UNIT_TXT	TEXT		1	1	Warranty duration unit (year/month) [COBie V2.4]	1
-PARAM	a1b2c3d4-500c-4a01-b001-000000000112	ASS_DUR_UNIT_TXT	TEXT		1	1	Expected life duration unit [COBie V2.4]	1
-PARAM	a1b2c3d4-500e-4a01-b001-000000000114	ASS_NOM_LENGTH_TXT	TEXT		1	1	Nominal length [COBie V2.4]	1
-PARAM	a1b2c3d4-500f-4a01-b001-000000000115	ASS_NOM_WIDTH_TXT	TEXT		1	1	Nominal width [COBie V2.4]	1
-PARAM	a1b2c3d4-5010-4a01-b001-000000000116	ASS_NOM_HEIGHT_TXT	TEXT		1	1	Nominal height [COBie V2.4]	1
-PARAM	a1b2c3d4-5011-4a01-b001-000000000117	ASS_MODEL_REF_TXT	TEXT		1	1	Model reference identifier [COBie V2.4]	1
-PARAM	a1b2c3d4-5012-4a01-b001-000000000118	ASS_SHAPE_TXT	TEXT		1	1	Asset shape description [COBie V2.4]	1
-PARAM	a1b2c3d4-5013-4a01-b001-000000000119	ASS_COLOR_TXT	TEXT		1	1	Asset color description [COBie V2.4]	1
-PARAM	a1b2c3d4-5014-4a01-b001-000000000120	ASS_FINISH_TXT	TEXT		1	1	Asset surface finish [COBie V2.4]	1
-PARAM	a1b2c3d4-5015-4a01-b001-000000000121	ASS_GRADE_TXT	TEXT		1	1	Asset material grade [COBie V2.4]	1
-PARAM	a1b2c3d4-5016-4a01-b001-000000000122	ASS_CONSTITUENTS_TXT	TEXT		1	1	Material constituents [COBie V2.4]	1
-PARAM	a1b2c3d4-5017-4a01-b001-000000000123	ASS_FEATURES_TXT	TEXT		1	1	Notable features description [COBie V2.4]	1
-PARAM	a1b2c3d4-5018-4a01-b001-000000000124	ASS_ACCESS_PERF_TXT	TEXT		1	1	Accessibility performance rating [COBie V2.4]	1
-PARAM	a1b2c3d4-5019-4a01-b001-000000000125	ASS_CODE_PERF_TXT	TEXT		1	1	Code compliance performance [COBie V2.4]	1
-PARAM	a1b2c3d4-501a-4a01-b001-000000000126	ASS_SUSTAIN_PERF_TXT	TEXT		1	1	Sustainability performance rating [COBie V2.4]	1
+PARAM	05c1980e-a922-5d78-b7b5-16f7d46da7cf	ASS_MATERIAL_TXT	TEXT		1	1	Asset material description [COBie V2.4]	1
+PARAM	3289596a-4945-5797-a341-01ab4dcecf94	ASS_SUPPLIER_TXT	TEXT		1	1	Asset supplier name [COBie V2.4]	1
+PARAM	0a433532-9782-5199-88c1-86f6067cd8ff	ASS_BARCODE_TXT	TEXT		1	1	Asset barcode identifier [COBie V2.4]	1
+PARAM	1615b135-e668-5654-b20a-83b37decb7ae	ASS_ASSET_ID_TXT	TEXT		1	1	Unique asset identifier [COBie V2.4]	1
+PARAM	6d203776-292f-5bc8-b175-eff46846db76	ASS_CONDITION_TXT	TEXT		1	1	Asset condition assessment [COBie V2.4]	1
+PARAM	c2c9ab08-b843-5313-be49-ea889d0f2e8f	ASS_WARR_GUAR_PARTS_TXT	TEXT		1	1	Warranty guarantor for parts [COBie V2.4]	1
+PARAM	d81052d2-55b9-55b5-a052-c85e700c8a70	ASS_WARR_DUR_PARTS_TXT	TEXT		1	1	Warranty duration for parts [COBie V2.4]	1
+PARAM	8093ab59-f9d8-565c-a3c1-2eaefce9a0a6	ASS_WARR_GUAR_LABOR_TXT	TEXT		1	1	Warranty guarantor for labor [COBie V2.4]	1
+PARAM	5408fe98-298f-50fb-ab33-c755eeb2d746	ASS_WARR_DUR_LABOR_TXT	TEXT		1	1	Warranty duration for labor [COBie V2.4]	1
+PARAM	be4f4165-c813-5035-a1f0-60dd0a68f884	ASS_WARR_DUR_UNIT_TXT	TEXT		1	1	Warranty duration unit (year/month) [COBie V2.4]	1
+PARAM	3aea8853-0bfa-5ba8-8667-9f5ec1ffa97b	ASS_DUR_UNIT_TXT	TEXT		1	1	Expected life duration unit [COBie V2.4]	1
+PARAM	986aa12e-0298-5bee-814b-7d3b153f8fb7	ASS_NOM_LENGTH_TXT	TEXT		1	1	Nominal length [COBie V2.4]	1
+PARAM	70fc6606-5441-515e-a639-69b993115212	ASS_NOM_WIDTH_TXT	TEXT		1	1	Nominal width [COBie V2.4]	1
+PARAM	4d5349c7-2509-56f5-a318-33655e4f8acc	ASS_NOM_HEIGHT_TXT	TEXT		1	1	Nominal height [COBie V2.4]	1
+PARAM	bef2fcbb-f165-552f-9542-495c3b13e413	ASS_MODEL_REF_TXT	TEXT		1	1	Model reference identifier [COBie V2.4]	1
+PARAM	d10524b2-4bff-5eba-ad8b-5b8ca8e6e0b9	ASS_SHAPE_TXT	TEXT		1	1	Asset shape description [COBie V2.4]	1
+PARAM	91d9aad2-3397-549f-88db-94997ff5e909	ASS_COLOR_TXT	TEXT		1	1	Asset color description [COBie V2.4]	1
+PARAM	0860ebb9-eefe-5e5a-9625-a2cd7216fad5	ASS_FINISH_TXT	TEXT		1	1	Asset surface finish [COBie V2.4]	1
+PARAM	8e656313-e634-5b92-8b6d-d0c5c32f3431	ASS_GRADE_TXT	TEXT		1	1	Asset material grade [COBie V2.4]	1
+PARAM	5261eb2d-790f-5114-94da-f07d8714852a	ASS_CONSTITUENTS_TXT	TEXT		1	1	Material constituents [COBie V2.4]	1
+PARAM	dad0e68d-3d48-5d05-82df-0deab84af2c3	ASS_FEATURES_TXT	TEXT		1	1	Notable features description [COBie V2.4]	1
+PARAM	a4f526bb-71d8-579f-bf38-46488a71c447	ASS_ACCESS_PERF_TXT	TEXT		1	1	Accessibility performance rating [COBie V2.4]	1
+PARAM	5c1159d8-0fef-55da-8dea-5b76f25034fa	ASS_CODE_PERF_TXT	TEXT		1	1	Code compliance performance [COBie V2.4]	1
+PARAM	a7fbcb2d-fcca-52d6-a45a-a8a62a3b83df	ASS_SUSTAIN_PERF_TXT	TEXT		1	1	Sustainability performance rating [COBie V2.4]	1
 PARAM	b3c4d5e6-f7a8-4b9c-0d1e-2f3a4b5c6d7a	ASS_WARRANTY_TXT	TEXT		1	1	Warranty description [COBie V2.4]	1
-PARAM	a1b2c3d4-501b-4a01-b001-000000000127	ASS_FAMILY_NAME_TXT	TEXT		1	1	Revit family name	1
-PARAM	a1b2c3d4-501c-4a01-b001-000000000128	ASS_TYPE_NAME_TXT	TEXT		1	1	Revit type name	1
-PARAM	a1b2c3d4-501d-4a01-b001-000000000129	ASS_TYPE_MARK_TXT	TEXT		1	1	Type mark identifier	1
-PARAM	a1b2c3d4-501e-4a01-b001-000000000130	ASS_TYPE_COMMENTS_TXT	TEXT		1	1	Type comments	1
-PARAM	a1b2c3d4-501f-4a01-b001-000000000131	ASS_KEYNOTE_TXT	TEXT		1	1	Keynote reference	1
-PARAM	a1b2c3d4-5020-4a01-b001-000000000132	ASS_UNIFORMAT_TXT	TEXT		1	1	UniFormat classification code	1
-PARAM	a1b2c3d4-5021-4a01-b001-000000000133	ASS_UNIFORMAT_DESC_TXT	TEXT		1	1	UniFormat classification description	1
-PARAM	a1b2c3d4-5022-4a01-b001-000000000134	ASS_OMNICLASS_TXT	TEXT		1	1	OmniClass classification code	1
-PARAM	a1b2c3d4-5023-4a01-b001-000000000135	ASS_SIZE_TXT	TEXT		1	1	Element size description	1
-PARAM	a1b2c3d4-5024-4a01-b001-000000000136	ASS_ORIGIN_TXT	TEXT		1	1	Asset origin (Manufactured/Imported/Local)	1
-PARAM	a1b2c3d4-5025-4a01-b001-000000000137	ASS_PROJECT_TXT	TEXT		1	1	Project name	1
-PARAM	a1b2c3d4-5026-4a01-b001-000000000138	ASS_REV_TXT	TEXT		1	1	Current revision code (display label, GROUP 1). See also ASS_REV_COD_TXT (GROUP 17) for the ISO 19650 tag container token.	1
-PARAM	a1b2c3d4-5027-4a01-b001-000000000139	ASS_VOL_TXT	TEXT		1	1	Volume/zone code for ISO 19650 naming	1
-PARAM	a1b2c3d4-5028-4a01-b001-000000000140	ASS_ROOM_NAME_TXT	TEXT		1	1	Room name from spatial lookup	1
-PARAM	a1b2c3d4-5029-4a01-b001-000000000141	ASS_ROOM_NUM_TXT	TEXT		1	1	Room number from spatial lookup	1
-PARAM	a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d	ASS_LOC_SOURCE_TXT	TEXT		1	1	LOC detection source (Room/Project/Manual)	1
+PARAM	408d882a-5b3e-5e17-aa36-463cc0e1e800	ASS_FAMILY_NAME_TXT	TEXT		1	1	Revit family name	1
+PARAM	183e83e8-df82-5592-a1dd-bcb21e6872fa	ASS_TYPE_NAME_TXT	TEXT		1	1	Revit type name	1
+PARAM	25f5e297-7fb4-54f3-92e0-ce3d3fc8c0e4	ASS_TYPE_MARK_TXT	TEXT		1	1	Type mark identifier	1
+PARAM	7d639c92-b401-5424-8da8-717e5b1398df	ASS_TYPE_COMMENTS_TXT	TEXT		1	1	Type comments	1
+PARAM	ebaeb984-a33a-5be5-8a02-5b247e39db1c	ASS_KEYNOTE_TXT	TEXT		1	1	Keynote reference	1
+PARAM	1211053b-0560-5919-9998-e77d0bd23f1b	ASS_UNIFORMAT_TXT	TEXT		1	1	UniFormat classification code	1
+PARAM	36287884-eeb2-542a-8e10-1d8059cacfaf	ASS_UNIFORMAT_DESC_TXT	TEXT		1	1	UniFormat classification description	1
+PARAM	7d594d3c-d35b-5346-af58-33d920a8d06e	ASS_OMNICLASS_TXT	TEXT		1	1	OmniClass classification code	1
+PARAM	1a9e31f3-e4d4-5c00-995f-bca37306cbba	ASS_SIZE_TXT	TEXT		1	1	Element size description	1
+PARAM	eb6ac926-4041-5b3c-bb22-0da081fc1ed5	ASS_ORIGIN_TXT	TEXT		1	1	Asset origin (Manufactured/Imported/Local)	1
+PARAM	faf46420-6ad3-5edf-b22f-f3a22e948e4d	ASS_PROJECT_TXT	TEXT		1	1	Project name	1
+PARAM	8e345c22-c20e-5260-9202-5137666b07f1	ASS_REV_TXT	TEXT		1	1	Current revision code (display label, GROUP 1). See also ASS_REV_COD_TXT (GROUP 17) for the ISO 19650 tag container token.	1
+PARAM	32a3a62e-e37a-500e-bcaa-6061dfc80e27	ASS_VOL_TXT	TEXT		1	1	Volume/zone code for ISO 19650 naming	1
+PARAM	f00544ee-e77e-5031-a7bd-e7344e6945b4	ASS_ROOM_NAME_TXT	TEXT		1	1	Room name from spatial lookup	1
+PARAM	5910517d-2961-5c58-a78e-869f03527ead	ASS_ROOM_NUM_TXT	TEXT		1	1	Room number from spatial lookup	1
+PARAM	f69a6caa-81c4-5df4-bce5-ef54d0a91ee0	ASS_LOC_SOURCE_TXT	TEXT		1	1	LOC detection source (Room/Project/Manual)	1
 PARAM	a2b3c4d5-e6f7-4a8b-9c0d-1e2f3a4b5c6e	ASS_ZONE_SOURCE_TXT	TEXT		1	1	ZONE detection source (Department/Room/Manual)	1
 PARAM	a3b4c5d6-e7f8-4a9b-0c1d-2e3f4a5b6c7f	ASS_SYS_DETECT_LAYER_INT	TEXT		1	1	SYS detection layer (1=MEP API, 2=Connector, 3=Proximity, 4=Category)	1
 PARAM	c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f	ASS_PROD_DETECT_TXT	TEXT		1	1	PROD code detection source	1
@@ -1550,64 +1547,64 @@ PARAM	c7d8e9fa-abbc-4cde-4e5f-6a7b8c9daebf	ASS_GRID_Y_ID_INT	TEXT		1	1	Nearest Y
 PARAM	c8d9eafb-acbd-4cef-5e6f-7a8b9cadbecf	ASS_GRID_DIST_NR	TEXT		1	1	Distance to nearest grid intersection	1
 PARAM	c9daebfc-adbe-4cfa-6e7f-8a9bacbdced0	ASS_MEP_SYS_NAME_TXT	TEXT		1	1	MEP system name from Revit MEP System API	1
 PARAM	cadbecfd-aecf-4d0b-7e8f-9aabbbccddee	ASS_HOST_TYPE_TXT	TEXT		1	1	Host element type name	1
-PARAM	a1b2c3d4-502a-4a01-b001-000000000142	ASS_TAG_7_TXT	TEXT		1	1	TAG7 comprehensive descriptive narrative	1
-PARAM	a1b2c3d4-502b-4a01-b001-000000000143	ASS_TAG_7A_TXT	TEXT		1	1	TAG7 Section A: Identity Header	1
-PARAM	a1b2c3d4-502c-4a01-b001-000000000144	ASS_TAG_7B_TXT	TEXT		1	1	TAG7 Section B: System and Function	1
-PARAM	a1b2c3d4-502d-4a01-b001-000000000145	ASS_TAG_7C_TXT	TEXT		1	1	TAG7 Section C: Spatial Context	1
-PARAM	a1b2c3d4-502e-4a01-b001-000000000146	ASS_TAG_7D_TXT	TEXT		1	1	TAG7 Section D: Lifecycle and Status	1
-PARAM	a1b2c3d4-502f-4a01-b001-000000000147	ASS_TAG_7E_TXT	TEXT		1	1	TAG7 Section E: Technical Specifications	1
-PARAM	a1b2c3d4-5030-4a01-b001-000000000148	ASS_TAG_7F_TXT	TEXT		1	1	TAG7 Section F: Classification and Reference	1
-PARAM	a1b2c3d4-5031-4a01-b001-000000000149	ASS_TAG_7_PARA_EQUIP_TXT	TEXT		1	1	TAG7 paragraph container for general equipment	1
+PARAM	124d9abb-bae0-5b9d-bbe5-93fab5ca86a5	ASS_TAG_7_TXT	TEXT		1	1	TAG7 comprehensive descriptive narrative	1
+PARAM	07ce5a2d-9eb6-5086-afd8-139e621bd304	ASS_TAG_7A_TXT	TEXT		1	1	TAG7 Section A: Identity Header	1
+PARAM	ca844ce6-dbcb-59e8-9aca-3aeb5fe363f4	ASS_TAG_7B_TXT	TEXT		1	1	TAG7 Section B: System and Function	1
+PARAM	edb864f6-ee68-505f-a1e0-4d41caf62066	ASS_TAG_7C_TXT	TEXT		1	1	TAG7 Section C: Spatial Context	1
+PARAM	e73772b1-7a4f-5e56-9be3-c15a05b9fcc8	ASS_TAG_7D_TXT	TEXT		1	1	TAG7 Section D: Lifecycle and Status	1
+PARAM	a7905938-d98b-5e47-857e-fb062519ce42	ASS_TAG_7E_TXT	TEXT		1	1	TAG7 Section E: Technical Specifications	1
+PARAM	470a987d-1245-52a9-a4a9-27e719327e1d	ASS_TAG_7F_TXT	TEXT		1	1	TAG7 Section F: Classification and Reference	1
+PARAM	269345e6-eb76-589d-8725-16c7796b4ac7	ASS_TAG_7_PARA_EQUIP_TXT	TEXT		1	1	TAG7 paragraph container for general equipment	1
 PARAM	c9d0e1f2-a3b4-4c5d-8e6f-7a8b9c0d1e2f	STING_STALE_BOOL	YESNO		17	1	Element stale flag (geometry/level changed since last tag)	1
 PARAM	d1e2f3a4-b5c6-4d7e-8f9a-0b1c2d3e4f5a	STING_CLUSTER_COUNT	INTEGER		17	1	Number of elements in tag cluster	1
 PARAM	d2e3f4a5-b6c7-4d8e-9f0a-1b2c3d4e5f6b	STING_CLUSTER_LABEL	TEXT		17	1	Cluster representative label text	1
-PARAM	a1b2c3d4-5032-4a01-b001-000000000150	STING_CLUSTER_MEMBER_POS_TXT	TEXT		17	1	Cluster member bounding box centers (pipe-delimited)	1
+PARAM	a0402094-723e-5c2c-8c8a-bac340363e9e	STING_CLUSTER_MEMBER_POS_TXT	TEXT		17	1	Cluster member bounding box centers (pipe-delimited)	1
 PARAM	d0e1f2a3-b4c5-4d6e-8f7a-8b9c0d1e2f3a	STING_DISPLAY_MODE	INTEGER		17	1	Display mode (1=SEQ, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ, 5=Full)	1
 PARAM	e1f2a3b4-c5d6-4e7f-8a9b-0c1d2e3f4a5b	STING_TAG_POS	INTEGER		17	1	Tag position (1-16 compass positions)	1
 PARAM	e2f3a4b5-c6d7-4e8f-9a0b-1c2d3e4f5a6c	STING_VIEW_TAG_STYLE	TEXT		17	1	View-level tag style routing (Discipline/Monochrome/Warm/Cool)	1
 PARAM	f3a4b5c6-d7e8-4f9a-0b1c-2d3e4f5a6b7d	TAG_SEG_MASK_TXT	TEXT		17	1	Token segment visibility mask (8-char format e.g. 10110101)	1
-PARAM	a1b2c3d4-5033-4a01-b001-000000000151	TAG_STYLE_SIZE_INT	INTEGER		17	1	Tag text size index (2/2.5/3/3.5)	1
-PARAM	a1b2c3d4-5034-4a01-b001-000000000152	TAG_STYLE_WEIGHT_INT	INTEGER		17	1	Tag text weight index	1
-PARAM	a1b2c3d4-5035-4a01-b001-000000000153	TAG_BOX_COLOR_R_INT	INTEGER		17	1	Tag box fill color red channel (0-255)	1
-PARAM	a1b2c3d4-5036-4a01-b001-000000000154	TAG_BOX_COLOR_G_INT	INTEGER		17	1	Tag box fill color green channel (0-255)	1
-PARAM	a1b2c3d4-5037-4a01-b001-000000000155	TAG_BOX_COLOR_B_INT	INTEGER		17	1	Tag box fill color blue channel (0-255)	1
-PARAM	a1b2c3d4-5038-4a01-b001-000000000156	TAG_BOX_STYLE_TXT	TEXT		17	1	Tag box style (SOLID/DASHED/NONE/ROUND)	1
-PARAM	a1b2c3d4-5039-4a01-b001-000000000157	TAG_LEADER_COLOR_R_INT	INTEGER		17	1	Tag leader line color red channel (0-255)	1
-PARAM	a1b2c3d4-503a-4a01-b001-000000000158	TAG_LEADER_COLOR_G_INT	INTEGER		17	1	Tag leader line color green channel (0-255)	1
-PARAM	a1b2c3d4-503b-4a01-b001-000000000159	TAG_LEADER_COLOR_B_INT	INTEGER		17	1	Tag leader line color blue channel (0-255)	1
+PARAM	6bb8506a-09a1-585b-9d26-61bd30c85ff4	TAG_STYLE_SIZE_INT	INTEGER		17	1	Tag text size index (2/2.5/3/3.5)	1
+PARAM	bed3ba17-9692-515b-ac0d-71a48f66003a	TAG_STYLE_WEIGHT_INT	INTEGER		17	1	Tag text weight index	1
+PARAM	f765b44d-b9fb-567a-90a1-14c1651cfc0d	TAG_BOX_COLOR_R_INT	INTEGER		17	1	Tag box fill color red channel (0-255)	1
+PARAM	0f30b032-4122-5b2f-ae62-9f942d744b8f	TAG_BOX_COLOR_G_INT	INTEGER		17	1	Tag box fill color green channel (0-255)	1
+PARAM	557eb883-73c0-5b00-8ee4-8034b6968962	TAG_BOX_COLOR_B_INT	INTEGER		17	1	Tag box fill color blue channel (0-255)	1
+PARAM	6fe0d510-ed99-57ae-9705-45aed18c8769	TAG_BOX_STYLE_TXT	TEXT		17	1	Tag box style (SOLID/DASHED/NONE/ROUND)	1
+PARAM	c3fe4d8d-751b-508e-b5f8-06102140dd46	TAG_LEADER_COLOR_R_INT	INTEGER		17	1	Tag leader line color red channel (0-255)	1
+PARAM	c85d83a6-1a42-5e23-8c86-66628447648f	TAG_LEADER_COLOR_G_INT	INTEGER		17	1	Tag leader line color green channel (0-255)	1
+PARAM	f65243bc-3b82-52ad-9248-2b0924a6a335	TAG_LEADER_COLOR_B_INT	INTEGER		17	1	Tag leader line color blue channel (0-255)	1
 PARAM	b7f3e2a1-0001-4a01-b001-000000090001	TAG_SCALE_TIER_AUTO_BOOL	TEXT		17	1	Tag scale tier auto-selection flag	1
 PARAM	b7f3e2a1-0002-4a01-b001-000000090002	TAG_DEPTH_TIER_INT	INTEGER		17	1	Active paragraph depth tier cached on tag family type (1-10)	1
-PARAM	a1b2c3d4-503c-4a01-b001-000000000160	BLE_DOOR_FUNCTION_TXT	TEXT		2	1	Door functional type (Entry/Exit/Fire/Service)	1
-PARAM	a1b2c3d4-503d-4a01-b001-000000000161	BLE_DOOR_HEAD_HEIGHT_MM	TEXT		2	1	Door head height from floor in mm	1
-PARAM	a1b2c3d4-503e-4a01-b001-000000000162	BLE_ROOM_FINISH_BASE_TXT	TEXT		2	1	Room base finish material	1
-PARAM	a1b2c3d4-503f-4a01-b001-000000000163	BLE_ROOM_FINISH_CEILING_TXT	TEXT		2	1	Room ceiling finish material	1
-PARAM	a1b2c3d4-5040-4a01-b001-000000000164	BLE_ROOM_FINISH_FLOOR_TXT	TEXT		2	1	Room floor finish material	1
-PARAM	a1b2c3d4-5041-4a01-b001-000000000165	BLE_ROOM_FINISH_WALL_TXT	TEXT		2	1	Room wall finish material	1
-PARAM	a1b2c3d4-5042-4a01-b001-000000000166	BLE_WINDOW_HEAD_HEIGHT_MM	TEXT		2	1	Window head height from floor in mm	1
-PARAM	a1b2c3d4-5043-4a01-b001-000000000167	BLE_ELE_LENGTH_M	TEXT		2	1	Element length in metres	1
-PARAM	a1b2c3d4-5044-4a01-b001-000000000168	BLE_ELE_VOLUME_CU_M	TEXT		2	1	Element volume in cubic metres	1
-PARAM	a1b2c3d4-5046-4a01-b001-000000000170	HVC_DCT_HEIGHT_MM	TEXT		5	1	Duct height in mm	1
-PARAM	a1b2c3d4-5047-4a01-b001-000000000171	HVC_DCT_WIDTH_MM	TEXT		5	1	Duct width in mm	1
-PARAM	a1b2c3d4-5048-4a01-b001-000000000172	HVC_INS_THICKNESS_MM	TEXT		5	1	HVAC insulation thickness in mm	1
-PARAM	a1b2c3d4-5049-4a01-b001-000000000173	HVC_DCT_LENGTH_M	TEXT		5	1	Duct length in metres	1
-PARAM	a1b2c3d4-504a-4a01-b001-000000000174	HVC_PRESSURE_DROP_PA	TEXT		5	1	HVAC pressure drop in Pascals	1
-PARAM	a1b2c3d4-504b-4a01-b001-000000000175	HVC_AIRFLOW_LPS	TEXT		5	1	HVAC airflow in litres per second	1
-PARAM	a1b2c3d4-504c-4a01-b001-000000000176	ELC_CIRCUIT_NR	TEXT		4	1	Electrical circuit number	1
-PARAM	a1b2c3d4-504d-4a01-b001-000000000177	ELC_PNL_FED_FROM	TEXT		4	1	Panel fed from source	1
-PARAM	a1b2c3d4-504f-4a01-b001-000000000179	LTG_FIX_LAMP_TYPE_TXT	TEXT		7	1	Lamp type (LED/Fluorescent/HID/Incandescent)	1
-PARAM	a1b2c3d4-5050-4a01-b001-000000000180	LTG_FIX_EFFICACY_LM_W	TEXT		7	1	Luminaire efficacy in lumens per watt	1
-PARAM	a1b2c3d4-5054-4a01-b001-000000000184	PLM_FLOW_RATE_LPS	TEXT		6	1	Plumbing flow rate in litres per second	1
-PARAM	a1b2c3d4-5055-4a01-b001-000000000185	NCL_TAG_7_PARA_TXT	TEXT		3	1	TAG7 paragraph container for nurse call	1
-PARAM	a1b2c3d4-5056-4a01-b001-000000000186	SEC_TAG_7_PARA_TXT	TEXT		3	1	TAG7 paragraph container for security	1
-PARAM	a1b2c3d4-5057-4a01-b001-000000000187	PER_TAG_7_PARA_ENV_TXT	TEXT		9	1	TAG7 paragraph container for environment	1
-PARAM	a1b2c3d4-5058-4a01-b001-000000000188	RGL_TAG_7_PARA_CMPL_TXT	TEXT		15	1	TAG7 paragraph container for regulatory compliance	1
-PARAM	a1b2c3d4-5059-4a01-b001-000000000189	CST_TAG_7_PARA_CONC_TXT	TEXT		2	1	TAG7 paragraph container for concrete	1
-PARAM	a1b2c3d4-505a-4a01-b001-000000000190	PLM_TAG_7_PARA_EQUIP_TXT	TEXT		6	1	TAG7 paragraph container for plumbing equipment	1
-PARAM	a1b2c3d4-505b-4a01-b001-000000000191	PRJ_PROJECT_COD_TXT	TEXT		13	1	ISO 19650 project code	1
-PARAM	a1b2c3d4-505c-4a01-b001-000000000192	PRJ_ORIGINATOR_COD_TXT	TEXT		13	1	ISO 19650 originator code	1
-PARAM	a1b2c3d4-505d-4a01-b001-000000000193	PRJ_VOLUME_COD_TXT	TEXT		13	1	ISO 19650 volume code	1
-PARAM	a1b2c3d4-505e-4a01-b001-000000000194	PRJ_STATUS_COD_TXT	TEXT		13	1	ISO 19650 document status code	1
-PARAM	a1b2c3d4-505f-4a01-b001-000000000195	PRJ_REV_COD_TXT	TEXT		13	1	ISO 19650 revision code	1
+PARAM	72783280-f280-55f4-a1b2-90c0ca97d235	BLE_DOOR_FUNCTION_TXT	TEXT		2	1	Door functional type (Entry/Exit/Fire/Service)	1
+PARAM	f0980a11-52c1-5188-aca0-17be24928cf4	BLE_DOOR_HEAD_HEIGHT_MM	TEXT		2	1	Door head height from floor in mm	1
+PARAM	15303642-aa11-5835-b7c5-77e53f383d5f	BLE_ROOM_FINISH_BASE_TXT	TEXT		2	1	Room base finish material	1
+PARAM	24f30410-8c5a-5341-bfe5-28bf88eafda2	BLE_ROOM_FINISH_CEILING_TXT	TEXT		2	1	Room ceiling finish material	1
+PARAM	99eb2a8e-63b4-5ae6-8fe0-25ed0cc094c3	BLE_ROOM_FINISH_FLOOR_TXT	TEXT		2	1	Room floor finish material	1
+PARAM	523744b5-2743-5bfa-8dfe-a78c2b816274	BLE_ROOM_FINISH_WALL_TXT	TEXT		2	1	Room wall finish material	1
+PARAM	cd661182-a587-53dc-83c7-1ae2c0cd732c	BLE_WINDOW_HEAD_HEIGHT_MM	TEXT		2	1	Window head height from floor in mm	1
+PARAM	23c26434-30d9-5977-a613-b9e7633f1dd1	BLE_ELE_LENGTH_M	TEXT		2	1	Element length in metres	1
+PARAM	78b7bc59-a70e-5f8f-842d-163941d8545a	BLE_ELE_VOLUME_CU_M	TEXT		2	1	Element volume in cubic metres	1
+PARAM	9d18b4ec-2c15-50fc-93c3-e73bcdffe89d	HVC_DCT_HEIGHT_MM	TEXT		5	1	Duct height in mm	1
+PARAM	2440e8d6-3e5d-54d8-9988-effee8cba048	HVC_DCT_WIDTH_MM	TEXT		5	1	Duct width in mm	1
+PARAM	3f502da6-e935-5730-a605-96c438140a7c	HVC_INS_THICKNESS_MM	TEXT		5	1	HVAC insulation thickness in mm	1
+PARAM	fea2eb85-7aba-5c18-977f-856e5f1942c6	HVC_DCT_LENGTH_M	TEXT		5	1	Duct length in metres	1
+PARAM	50443a79-6ebf-591b-a9d4-4c07e9bc3ca4	HVC_PRESSURE_DROP_PA	TEXT		5	1	HVAC pressure drop in Pascals	1
+PARAM	b3c17472-3aef-5bc9-8782-ab989071449d	HVC_AIRFLOW_LPS	TEXT		5	1	HVAC airflow in litres per second	1
+PARAM	5655c635-77e0-566d-93e6-d301c276ae28	ELC_CIRCUIT_NR	TEXT		4	1	Electrical circuit number	1
+PARAM	82d443b9-42fe-5102-acb6-939a2a4a8a14	ELC_PNL_FED_FROM	TEXT		4	1	Panel fed from source	1
+PARAM	40870c53-4af0-52e3-a191-b14cee9bf101	LTG_FIX_LAMP_TYPE_TXT	TEXT		7	1	Lamp type (LED/Fluorescent/HID/Incandescent)	1
+PARAM	49bb96ee-0a6d-5467-9342-da91f7f365f5	LTG_FIX_EFFICACY_LM_W	TEXT		7	1	Luminaire efficacy in lumens per watt	1
+PARAM	a15406d7-6edc-5783-bebc-44da85f9ea55	PLM_FLOW_RATE_LPS	TEXT		6	1	Plumbing flow rate in litres per second	1
+PARAM	c1451ec4-0108-5559-bd5b-4c20df1b1528	NCL_TAG_7_PARA_TXT	TEXT		3	1	TAG7 paragraph container for nurse call	1
+PARAM	1f163351-bbb8-5225-aeb9-1a38e04f6ea5	SEC_TAG_7_PARA_TXT	TEXT		3	1	TAG7 paragraph container for security	1
+PARAM	575c8f85-49b2-5f2c-a864-1da0f304081a	PER_TAG_7_PARA_ENV_TXT	TEXT		9	1	TAG7 paragraph container for environment	1
+PARAM	4b6a528d-0607-53c9-b8a4-7fcd9a3d70ff	RGL_TAG_7_PARA_CMPL_TXT	TEXT		15	1	TAG7 paragraph container for regulatory compliance	1
+PARAM	5e9ef654-06a6-5a2c-9be7-0a6f187cb213	CST_TAG_7_PARA_CONC_TXT	TEXT		2	1	TAG7 paragraph container for concrete	1
+PARAM	b8cbf43a-baa1-5ec8-9511-0365691e9721	PLM_TAG_7_PARA_EQUIP_TXT	TEXT		6	1	TAG7 paragraph container for plumbing equipment	1
+PARAM	b4e90d6e-0f81-57bf-a954-aa06b3134dd0	PRJ_PROJECT_COD_TXT	TEXT		13	1	ISO 19650 project code	1
+PARAM	db8a4bea-257e-5199-8ca4-a30e4f575c11	PRJ_ORIGINATOR_COD_TXT	TEXT		13	1	ISO 19650 originator code	1
+PARAM	a21d4dd4-57c5-5295-b665-f72e702c8274	PRJ_VOLUME_COD_TXT	TEXT		13	1	ISO 19650 volume code	1
+PARAM	e9da4f5e-5702-5f25-bf6e-4a42e78d6cad	PRJ_STATUS_COD_TXT	TEXT		13	1	ISO 19650 document status code	1
+PARAM	c016975a-5438-5a13-9b4b-0b642370e4d2	PRJ_REV_COD_TXT	TEXT		13	1	ISO 19650 revision code	1
 # ══════════════════════════════════════════════════════════════════════════
 # MISSING PARAMETERS APPENDIX — Added 2026-03-18
 # Cross-checked with: StingD85/transfer/MISSING_PARAMETERS.txt (430 params)
@@ -2499,6 +2496,8 @@ PARAM	e8f9a0b1-c2d3-4e4f-ca5b-6c7d8e9fa0b1	PLM_PPE_INSULATION_THK_MM	NUMBER		6	1
 PARAM	f9a0b1c2-d3e4-4f5a-db6c-7d8e9fa0b1c2	PLM_SLOPE_PCT	TEXT		6	1	Drainage pipe slope percentage per BS EN 12056 (1:80 default for sanitary)	1
 PARAM	c7a3f2e1-9b04-4d88-b5a1-3e6f8d2c1047	STING_BOX_LOCATION_ID	TEXT		1	1	Phase 139.2 — GUID linking first-fix conduit/BESA box (Construction phase) to its second-fix device (Completion phase) for two-phase placement	1
 PARAM	d8b4a3f2-7c05-4e99-c6b2-4f7b9e3d2158	STING_NOGGIN_REQUIRED	YESNO		1	1	Phase 139.2 — flag set on a placed pendant/downlight when no joist is within JoistClearanceMm; export via Placement_ExportNogginRequirements	1
+PARAM	e9c3a2f1-8b07-4f11-a7c4-6d8e9f0a1b2c	STING_HANGER_TRAPEZE_BOOL	YESNO		1	1	True when PlaceHangersCommand has placed a trapeze (twin-pipe / multi-service) hanger for this element; prevents duplicate placement on re-run [STING v4 Routing]	1
+PARAM	fa04d3c6-9c18-4e22-b8d5-7e9f0a1b2c3d	STING_HANGER_COUPLER_BOOL	YESNO		1	1	True when PlaceHangersCommand has placed a coupler / clamp hanger for this element; used by RoutingSupportPlacer to track already-placed support hardware [STING v4 Routing]	1
 PARAM	1a4353be-eaaa-5e46-95ee-b64a74667194	ASS_SPOOL_NR_TXT	TEXT		1	1	Spool or bundle number assigned by AssemblyBuilder	1
 PARAM	eacedb67-b65b-58f7-a5b7-f1b0253ac6c9	ASS_WEIGHT_KG	NUMBER		1	1	Assembly total weight in kilograms (sum of member volume x material density)	1
 PARAM	3e3624d3-c79d-5dd5-8014-46c8d273b9ea	ASS_TEST_PRESSURE_BAR	NUMBER		1	1	Hydrostatic or pneumatic test pressure for the assembly in bar	1
@@ -2550,33 +2549,33 @@ PARAM	3d736d48-cba0-570b-a521-844539bd998c	CST_LABOUR_RATE_UGX	NUMBER		2	1	Labou
 PARAM	5758facf-7a3f-5900-b3ea-abf487990b25	CST_SHIPPING_UGX	NUMBER		2	1	Shipping cost component in UGX	1
 PARAM	c26d2b96-a012-50d6-bcb9-6a32f24212e0	CST_DUTY_PCT	NUMBER		2	1	Import duty percentage applied to USD price	1
 PARAM	4de58d8f-38e2-584f-b8aa-5a5744a80fcd	CST_QUOTE_REF_TXT	TEXT		2	1	Supplier quote reference number	1
-PARAM	5753b5aa-0005-4000-8000-000000000010	CST_INSTALL_HRS	NUMBER		2	1	Install time in hours per element for labour takeoff	1
-PARAM	5753b5aa-0006-4000-8000-000000000001	CBN_A1_A3_KG_CO2E	NUMBER		9	1	Embodied carbon A1-A3 product stage (manufacturing) kgCO2e	1
-PARAM	5753b5aa-0006-4000-8000-000000000002	CBN_A4_KG_CO2E	NUMBER		9	1	Embodied carbon A4 transport to site kgCO2e	1
-PARAM	5753b5aa-0006-4000-8000-000000000010	CBN_A5_KG_CO2E	NUMBER		9	1	Embodied carbon A5 construction-install kgCO2e	1
-PARAM	5753b5aa-0006-4000-8000-000000000003	CBN_B6_KG_CO2E_YR	NUMBER		9	1	Operational carbon B6 energy annual kgCO2e/yr	1
-PARAM	5753b5aa-0006-4000-8000-000000000011	CBN_C1_KG_CO2E	NUMBER		9	1	End-of-life C1 deconstruction kgCO2e	1
-PARAM	5753b5aa-0006-4000-8000-000000000012	CBN_C2_KG_CO2E	NUMBER		9	1	End-of-life C2 transport to disposal kgCO2e	1
-PARAM	5753b5aa-0006-4000-8000-000000000013	CBN_C3_C4_KG_CO2E	NUMBER		9	1	End-of-life C3-C4 waste processing and disposal kgCO2e	1
-PARAM	5753b5aa-0008-4000-8000-000000000001	CLASH_TRIAGE_SEVERITY_NR	INTEGER		20	1	Clash triage severity 1 (lowest) to 5 (highest)	1
-PARAM	5753b5aa-0008-4000-8000-000000000010	CLASH_TRIAGE_SCORE	NUMBER		20	1	Clash triage weighted score 0 to 100	1
-PARAM	5753b5aa-0008-4000-8000-000000000002	CLASH_TRIAGE_CATEGORY_TXT	TEXT		20	1	Clash triage category (STRUCTURAL / SERVICES / NON_CRITICAL)	1
-PARAM	5753b5aa-0008-4000-8000-000000000003	CLASH_RESOLUTION_STATUS_TXT	TEXT		20	1	Clash resolution status (PENDING / APPLIED / ACCEPTED)	1
-PARAM	5753b5aa-0008-4000-8000-000000000011	CLASH_RESOLUTION_ACTION_TXT	TEXT		20	1	Chosen resolution action (MOVE / REROUTE / ACCEPT)	1
-PARAM	5753b5aa-0009-4000-8000-000000000001	ASBUILT_DEVIATION_MM	NUMBER		24	1	As-built vs as-designed deviation in millimetres	1
-PARAM	5753b5aa-0009-4000-8000-000000000002	ASBUILT_CAPTURE_DATE_TXT	TEXT		24	1	ISO 8601 date when as-built data captured from Planscape mobile	1
-PARAM	5753b5aa-000a-4000-8000-000000000002	ACC_ISSUE_ID_TXT	TEXT		21	1	Autodesk Construction Cloud Issue GUID for bidirectional sync	1
-PARAM	5753b5aa-000a-4000-8000-000000000003	ACC_SYNC_STATUS_TXT	TEXT		21	1	ACC sync status (SYNCED / PENDING / ERROR)	1
-PARAM	5753b5aa-000a-4000-8000-000000000001	IFC_PSET_OVERRIDE_TXT	TEXT		22	1	Manual IFC property set override pipe-delimited (Pset_Name=Value)	1
-PARAM	5753b5aa-0009-4000-8000-000000000003	HEALTH_SCORE_LAST_NR	NUMBER		23	1	Last model health score 0 to 100	1
-PARAM	5753b5aa-0009-4000-8000-000000000010	HEALTH_SCORE_DATE_TXT	TEXT		23	1	ISO 8601 timestamp of last health score evaluation	1
-PARAM	5753b5aa-0005-4000-8000-000000000011	CST_LABOUR_CREW_TXT	TEXT		2	1	Labour crew name or role (e.g. PIPEFITTER_2P, ELECTRICIAN_LEAD) used by crew-aware labour takeoff	1
-PARAM	5753b5aa-0005-4000-8000-000000000012	CST_LABOUR_RATE_GBP	NUMBER		2	1	Labour rate in GBP per hour (override for UK projects)	1
-PARAM	5753b5aa-0004-4000-8000-000000000001	COMM_STATE_TXT	TEXT		25	1	Commissioning state (NOT_STARTED / PRE_COMM / FUNCTIONAL_TEST / WITNESSED / ACCEPTED / HANDED_OVER)	1
-PARAM	5753b5aa-0004-4000-8000-000000000002	COMM_DATE_TXT	TEXT		25	1	ISO 8601 date of commissioning state change	1
-PARAM	5753b5aa-0004-4000-8000-000000000003	COMM_OPERATIVE_TXT	TEXT		25	1	Commissioning operative name or ID who performed the test	1
-PARAM	5753b5aa-0004-4000-8000-000000000010	COMM_WITNESS_TXT	TEXT		25	1	Commissioning witness name or ID (client / CA representative)	1
-PARAM	5753b5aa-0004-4000-8000-000000000011	COMM_NOTES_TXT	TEXT		25	1	Free-text commissioning notes captured from the QR workflow	1
+PARAM	3195619a-3d2d-54c4-8109-8b6a2adeeccd	CST_INSTALL_HRS	NUMBER		2	1	Install time in hours per element for labour takeoff	1
+PARAM	023cd04f-f470-559f-9649-b1b5a1845003	CBN_A1_A3_KG_CO2E	NUMBER		9	1	Embodied carbon A1-A3 product stage (manufacturing) kgCO2e	1
+PARAM	7442f641-99f2-57fb-ba17-7179157dd04c	CBN_A4_KG_CO2E	NUMBER		9	1	Embodied carbon A4 transport to site kgCO2e	1
+PARAM	7921cbb6-5509-5011-9880-e910a7e70a08	CBN_A5_KG_CO2E	NUMBER		9	1	Embodied carbon A5 construction-install kgCO2e	1
+PARAM	f2b69b7d-ec13-54b0-8fa0-3cef044d2a02	CBN_B6_KG_CO2E_YR	NUMBER		9	1	Operational carbon B6 energy annual kgCO2e/yr	1
+PARAM	8ec17879-48d2-59c2-a931-cc6e615a26fe	CBN_C1_KG_CO2E	NUMBER		9	1	End-of-life C1 deconstruction kgCO2e	1
+PARAM	899430fe-0ee2-5a8e-8ea9-f6050e2f266c	CBN_C2_KG_CO2E	NUMBER		9	1	End-of-life C2 transport to disposal kgCO2e	1
+PARAM	41ab6b2d-7cb4-5df8-b8c9-298516e37e69	CBN_C3_C4_KG_CO2E	NUMBER		9	1	End-of-life C3-C4 waste processing and disposal kgCO2e	1
+PARAM	3b894a39-cde3-5e9e-8074-bb6c46f29163	CLASH_TRIAGE_SEVERITY_NR	INTEGER		20	1	Clash triage severity 1 (lowest) to 5 (highest)	1
+PARAM	74014c76-011d-568c-bdf6-eb57e92c9108	CLASH_TRIAGE_SCORE	NUMBER		20	1	Clash triage weighted score 0 to 100	1
+PARAM	eea079dc-7f02-5f3c-b89a-89d07ce899eb	CLASH_TRIAGE_CATEGORY_TXT	TEXT		20	1	Clash triage category (STRUCTURAL / SERVICES / NON_CRITICAL)	1
+PARAM	a151544f-4c23-58f5-b024-4ca993f3ab72	CLASH_RESOLUTION_STATUS_TXT	TEXT		20	1	Clash resolution status (PENDING / APPLIED / ACCEPTED)	1
+PARAM	ec2a5f88-7506-5b73-afa1-2aacc13210a3	CLASH_RESOLUTION_ACTION_TXT	TEXT		20	1	Chosen resolution action (MOVE / REROUTE / ACCEPT)	1
+PARAM	5f481bdc-c860-5ab4-bcbb-cb91b1b4008b	ASBUILT_DEVIATION_MM	NUMBER		24	1	As-built vs as-designed deviation in millimetres	1
+PARAM	28a9229c-9cac-508d-ae82-a173c3ab7505	ASBUILT_CAPTURE_DATE_TXT	TEXT		24	1	ISO 8601 date when as-built data captured from Planscape mobile	1
+PARAM	b9a6bc92-77a7-5a43-8524-dacaf688f178	ACC_ISSUE_ID_TXT	TEXT		21	1	Autodesk Construction Cloud Issue GUID for bidirectional sync	1
+PARAM	4a80d4f1-f2c1-548b-a77b-2c632586baa2	ACC_SYNC_STATUS_TXT	TEXT		21	1	ACC sync status (SYNCED / PENDING / ERROR)	1
+PARAM	72c4ee3c-6614-57b3-8309-44fe00cb8103	IFC_PSET_OVERRIDE_TXT	TEXT		22	1	Manual IFC property set override pipe-delimited (Pset_Name=Value)	1
+PARAM	d4b84d5f-f0d3-5a69-8401-3d453665a34b	HEALTH_SCORE_LAST_NR	NUMBER		23	1	Last model health score 0 to 100	1
+PARAM	aae3fbc7-95f1-5619-b041-5e5669256223	HEALTH_SCORE_DATE_TXT	TEXT		23	1	ISO 8601 timestamp of last health score evaluation	1
+PARAM	f4fe5c91-af91-563a-b81b-ebb4fc428045	CST_LABOUR_CREW_TXT	TEXT		2	1	Labour crew name or role (e.g. PIPEFITTER_2P, ELECTRICIAN_LEAD) used by crew-aware labour takeoff	1
+PARAM	0f0fab76-bf7f-5c08-8193-964533b88ad9	CST_LABOUR_RATE_GBP	NUMBER		2	1	Labour rate in GBP per hour (override for UK projects)	1
+PARAM	8486f13f-f340-5937-a1a0-2052c085fe89	COMM_STATE_TXT	TEXT		25	1	Commissioning state (NOT_STARTED / PRE_COMM / FUNCTIONAL_TEST / WITNESSED / ACCEPTED / HANDED_OVER)	1
+PARAM	976ec939-fe4c-5af3-bdda-2edb342950ea	COMM_DATE_TXT	TEXT		25	1	ISO 8601 date of commissioning state change	1
+PARAM	65c612b4-4649-5a1b-a1b0-8c6d4d7aeb7a	COMM_OPERATIVE_TXT	TEXT		25	1	Commissioning operative name or ID who performed the test	1
+PARAM	e48f7316-380e-5e5a-b376-149eab440ad3	COMM_WITNESS_TXT	TEXT		25	1	Commissioning witness name or ID (client / CA representative)	1
+PARAM	6bafd748-d05f-5df4-bae9-ce3ed4ce34f4	COMM_NOTES_TXT	TEXT		25	1	Free-text commissioning notes captured from the QR workflow	1
 PARAM	d72513d3-2aed-5048-a949-b262fcd51a39	PRJ_ORG_PROJECT_CODE_TXT	TEXT		13	1	Project identifier code (alphanumeric) [template engine v1.1]	1
 PARAM	d9b568c8-0dcf-5226-add0-a6e3643589e8	PRJ_ORG_ORIGINATOR_CODE_TXT	TEXT		13	1	ISO 19650 originator code (default PLNS) [template engine v1.1]	1
 PARAM	f08b9a37-5e44-5074-a9e1-0a0f6418a305	PRJ_ORG_COMPANY_NAME_TXT	TEXT		13	1	Producing company name (default Planscape Limited) [template engine v1.1]	1
@@ -2672,9 +2671,12 @@ PARAM	a7c0b2e4-4d91-4a55-9c7e-aa0001000002	STING_DRAWING_PACKAGE_ID_TXT	TEXT		27
 PARAM	a7c0b2e4-4d91-4a55-9c7e-aa0001000003	STING_AUTO_PLACED_BOOL	YESNO		27	1	Flags views auto-placed onto sheets by the STING production engine [STING DT v137]	1
 PARAM	a7c0b2e4-4d91-4a55-9c7e-aa0001000004	STING_PRODUCTION_RULE_IDX_INT	INTEGER		27	1	ProductionRule index that produced this view [STING DT v137]	1
 PARAM	a7c0b2e4-4d91-4a55-9c7e-aa0001000005	STING_SHEET_SEQUENCE_INT	INTEGER		27	1	Production sheet sequence number [STING DT v137]	1
-PARAM	a8f3c1d2-4e56-7890-abcd-ef1234567801	HANDOVER_MODE_HANDOVER_BOOL	YESNO		25	1	Pattern selector — Handover / FM T4-T10 payload visible [STING Phase 165]	1
-PARAM	a8f3c1d2-4e56-7890-abcd-ef1234567802	HANDOVER_MODE_DC_BOOL	YESNO		25	1	Pattern selector — Design & Construction T4-T10 payload visible [STING Phase 165]	1
-PARAM	a8f3c1d2-4e56-7890-abcd-ef1234567803	HANDOVER_MODE_CUSTOM_BOOL	YESNO		25	1	Pattern selector — Custom (user-defined) T4-T10 payload visible [STING Phase 165]	1
+PARAM	a7c0b2e4-4d91-4a55-9c7e-aa0001000006	STING_DRAWING_TYPE_ID_TXT	TEXT		27	1	Drawing type profile id stamped on every view/sheet by DrawingTypeStamper (DrawingType.Id) [STING DT v113]	1
+PARAM	a7c0b2e4-4d91-4a55-9c7e-aa0001000007	STING_STYLE_LOCKED_BOOL	YESNO		27	1	When true prevents DrawingTypePresentation.Apply from re-applying the profile — set manually to lock a view's graphic state [STING DT v113]	1
+PARAM	a7c0b2e4-4d91-4a55-9c7e-aa0001000008	STING_PLACED_BY_SYMBOL_PLACER_BOOL	YESNO		27	1	Stamped by IsoSymbolPlacer on every detail item placed from STING_ISO_SYMBOLS_INDEX — prevents duplicate placement on re-run [STING v4 Fabrication]	1
+PARAM	a8f3c1d2-4e56-7890-abcd-ef1234567801	HANDOVER_MODE_HANDOVER_BOOL	TEXT		25	1	Pattern selector — Handover / FM T4-T10 payload visible [STING Phase 165] — TEXT not YESNO: Revit tag family labels can only bind TEXT parameters	1
+PARAM	a8f3c1d2-4e56-7890-abcd-ef1234567802	HANDOVER_MODE_DC_BOOL	TEXT		25	1	Pattern selector — Design & Construction T4-T10 payload visible [STING Phase 165] — TEXT not YESNO: Revit tag family labels can only bind TEXT parameters	1
+PARAM	a8f3c1d2-4e56-7890-abcd-ef1234567803	HANDOVER_MODE_CUSTOM_BOOL	TEXT		25	1	Pattern selector — Custom (user-defined) T4-T10 payload visible [STING Phase 165] — TEXT not YESNO: Revit tag family labels can only bind TEXT parameters	1
 PARAM	33188c51-0a4f-52e7-ad2a-37e68ca7ddda	PRJ_ORG_PROJECT_NAME_TXT	TEXT		13	1	Project name shown on the title block [STING Phase 171]	1
 PARAM	85e93a80-42bc-535e-a9e3-bcd76b7c07a0	PRJ_ORG_PROJECT_ADDRESS_TXT	TEXT		13	1	Project / site address shown on the title block [STING Phase 171]	1
 PARAM	0c7cd8c7-ae84-5f31-a3ac-cfeffff97954	PRJ_ORG_PROJECT_NUMBER_TXT	TEXT		13	1	Project number / job number shown on the title block [STING Phase 171]	1
@@ -2865,7 +2867,6 @@ PARAM	c8d4f6e2-2601-4d27-8c61-0e7a3f9c1001	ICT_HEALTHIOT_DEVICE_ID_TXT	TEXT		3	1
 PARAM	c8d4f6e2-2602-4d27-8c61-0e7a3f9c1002	ICT_HEALTHIOT_PROTOCOL_TXT	TEXT		3	1	IoT protocol BACNET/OPC-UA/MODBUS/REST/PROPRIETARY [H-20]	1
 PARAM	c8d4f6e2-2603-4d27-8c61-0e7a3f9c1003	ICT_HEALTHIOT_ENDPOINT_TXT	TEXT		3	1	IoT endpoint URI [H-20]	1
 PARAM	c8d4f6e2-2604-4d27-8c61-0e7a3f9c1004	ICT_HEALTHIOT_ALERT_BAND_TXT	TEXT		3	1	IoT alert band free-text [H-20]	1
-<<<<<<< HEAD
 PARAM	c7f5a2e1-9b3d-4e1c-8a2f-7d6b3e4c5a90	ELC_CDT_BEND_ANGLE_DEG	TEXT		4	1	Conduit bend angle in degrees: 11.25/22.5/30/45/60/90/120 [BS 7671:2018+A2:2022 §522.8]	1
 PARAM	d8e6b3f2-ac4e-5f2d-9b3e-8e7c4f5d6b01	ELC_CDT_BEND_COUNT_NR	TEXT		4	1	Number of bends in this conduit run (BS 7671 §522.8.5 limits to 3 between draw-in points)	1
 PARAM	e9f7c4f3-bd5f-6f3e-ac4f-9f8d5e6e7c12	ELC_CDT_RUN_LENGTH_M	TEXT		4	1	Conduit run length in metres (BS 7671 max ~6m between draw-in points)	1
@@ -2923,24 +2924,21 @@ PARAM	ab46d616-d864-572c-8d9d-5bb51ccaab79	PLM_VLV_WRAS_APPROVED_BOOL	YESNO		6	1
 PARAM	af8461f1-b314-5f60-8e8d-e38963de14f8	PLM_DEAD_LEG_LENGTH_M	TEXT		6	1	Dead-leg length m flagged by DeadLegDetector [HSG 274 Phase 178b]	1
 PARAM	98ab6e19-8d12-53c0-b388-8705f9413373	PLM_PRJ_PLUMBING_CODE_TXT	TEXT		1	1	Project plumbing-code toggle BS-UK / IPC-US / UPC-US [Phase 178b]	1
 PARAM	c3d5b6ee-0f2e-7283-9405-162718304a5b	ELC_CDT_PENETRATION_COUNT_NR	TEXT		4	1	Number of fire-rated barriers (floors / walls) this conduit crosses. Stamped by SlabPenetrationDetector each time a crossing is recorded. Drives the FRP penetration register schedule and JBAutoPlacer's avoid-collision logic (Wave J3).	1
-=======
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1001	PEN_FIRE_RATING_TXT	TEXT		33	1	Required fire rating of the penetration: FR30/FR60/FR90/FR120/blank for non-rated [BS 9999, BS 476-20, EN 1366-3]	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1002	PEN_SEALANT_TYPE_TXT	TEXT		33	1	Sealant system: INTUMESCENT/SILICONE/MORTAR/PILLOW/COLLAR/WRAP/NONE [BS 9999]	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1003	PEN_OD_MM	NUMBER		33	1	Penetrating member outside diameter (mm)	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1004	PEN_HOST_REF_TXT	TEXT		33	1	Host reference: FLR:<id> / WAL:<id> / BEM:<id>	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1005	PEN_HOST_TYPE_TXT	TEXT		33	1	Host element class: FLOOR/WALL/BEAM/CEILING/ROOF	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1006	PEN_MEMBER_ID_TXT	TEXT		33	1	Penetrating member element id (Pipe/Duct/Conduit/CableTray)	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1007	PEN_CERTIFICATION_TXT	TEXT		33	1	UL system / BS 476-20 / EN 1366-3 reference for the firestop assembly	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1008	PEN_INSTALL_STATUS_TXT	TEXT		33	1	Install status: DRAFT/INSTALLED/INSPECTED/SIGNED-OFF/REWORK	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1009	PEN_INSTALLER_TXT	TEXT		33	1	Installer name / company	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d100a	PEN_INSTALL_DATE	TEXT		33	1	Install date ISO 8601 (YYYY-MM-DD) - stamped by mobile commissioning sign-off	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d100b	PEN_INSPECTOR_TXT	TEXT		33	1	Inspector name / company	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d100c	PEN_INSPECTION_DATE	TEXT		33	1	Inspection date ISO 8601 (YYYY-MM-DD)	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d100d	PEN_CONTROL_NUMBER_TXT	TEXT		33	1	Project-unique penetration control number (FRP-NNNN). Bind to Mark for tag use.	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d100e	PEN_PFV_UUID_TXT	TEXT		33	1	Deterministic UUIDv5(host,member) - shared with sleeve schema for cross-pipeline idempotence	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d100f	PEN_BEAM_OFFSET_PCT	NUMBER		33	1	Beam-host only: distance from nearest support as %% of span (BS EN 1992 / AISC DG2 prefer >=10%%, ideally 20-33%%)	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1010	PEN_BEAM_DEPTH_RATIO	NUMBER		33	1	Beam-host only: penetration diameter / beam depth - AISC DG2 limit 0.7, BS EN 1992 prudent limit 0.4	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1011	PEN_STRUCTURAL_FLAG_TXT	TEXT		33	1	Beam-host only: STRUCT_OK / STRUCT_REVIEW / STRUCT_FAIL based on AISC DG2 + BS EN 1992 location/size rules	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1012	STING_PENETRATION_REF_TXT	TEXT		33	1	Stamped on each MEPCurve that crosses a fire-rated barrier. Format: HOST:<id>@<rating>#<control>	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1013	STING_PENETRATION_FIRE_RATING_TXT	TEXT		33	1	Mirror of host fire rating on the penetrating member - drives validator gates	1
->>>>>>> origin/claude/review-sting-equipment-aV6qM
+# ── Group 35: PEN_PENETRATION — detailed firestop / penetration sleeve parameters ──────────────
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1001	PEN_FIRE_RATING_TXT	TEXT		35	1	Required fire rating of the penetration: FR30/FR60/FR90/FR120/blank for non-rated [BS 9999, BS 476-20, EN 1366-3]	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1002	PEN_SEALANT_TYPE_TXT	TEXT		35	1	Sealant system: INTUMESCENT/SILICONE/MORTAR/PILLOW/COLLAR/WRAP/NONE [BS 9999]	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1003	PEN_OD_MM	NUMBER		35	1	Penetrating member outside diameter (mm)	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1004	PEN_HOST_REF_TXT	TEXT		35	1	Host reference: FLR:<id> / WAL:<id> / BEM:<id>	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1005	PEN_HOST_TYPE_TXT	TEXT		35	1	Host element class: FLOOR/WALL/BEAM/CEILING/ROOF	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1006	PEN_MEMBER_ID_TXT	TEXT		35	1	Penetrating member element id (Pipe/Duct/Conduit/CableTray)	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1007	PEN_CERTIFICATION_TXT	TEXT		35	1	UL system / BS 476-20 / EN 1366-3 reference for the firestop assembly	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1008	PEN_INSTALL_STATUS_TXT	TEXT		35	1	Install status: DRAFT/INSTALLED/INSPECTED/SIGNED-OFF/REWORK	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1009	PEN_INSTALLER_TXT	TEXT		35	1	Installer name / company	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d100a	PEN_INSTALL_DATE	TEXT		35	1	Install date ISO 8601 (YYYY-MM-DD) - stamped by mobile commissioning sign-off	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d100b	PEN_INSPECTOR_TXT	TEXT		35	1	Inspector name / company	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d100c	PEN_INSPECTION_DATE	TEXT		35	1	Inspection date ISO 8601 (YYYY-MM-DD)	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d100d	PEN_CONTROL_NUMBER_TXT	TEXT		35	1	Project-unique penetration control number (FRP-NNNN). Bind to Mark for tag use.	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d100e	PEN_PFV_UUID_TXT	TEXT		35	1	Deterministic UUIDv5(host,member) - shared with sleeve schema for cross-pipeline idempotence	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d100f	PEN_BEAM_OFFSET_PCT	NUMBER		35	1	Beam-host only: distance from nearest support as %% of span (BS EN 1992 / AISC DG2 prefer >=10%%, ideally 20-33%%)	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1010	PEN_BEAM_DEPTH_RATIO	NUMBER		35	1	Beam-host only: penetration diameter / beam depth - AISC DG2 limit 0.7, BS EN 1992 prudent limit 0.4	1
+PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1011	PEN_STRUCTURAL_FLAG_TXT	TEXT		35	1	Beam-host only: STRUCT_OK / STRUCT_REVIEW / STRUCT_FAIL based on AISC DG2 + BS EN 1992 location/size rules	1
