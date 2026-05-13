@@ -62,7 +62,7 @@ namespace StingTools.Commands.Electrical.Routing
         public List<string> Warnings { get; } = new List<string>();
     }
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class CableScheduleBuilderCommand : IExternalCommand
     {
@@ -103,6 +103,59 @@ namespace StingTools.Commands.Electrical.Routing
             catch (Exception ex) { StingLog.Warn($"audit: {ex.Message}"); }
 
             ShowResult(result);
+
+            // Phase 183: Materialize as a Revit ViewSchedule (optional — user-prompted).
+            // This block runs in its own Manual transaction so the ReadOnly outer attribute
+            // is not violated — we only enter here after ShowResult completes and the user
+            // explicitly opts in.
+            try
+            {
+                var dlgSched = new TaskDialog("STING Cable Schedule")
+                {
+                    MainContent = "Also create a Revit ViewSchedule named 'STING Cable Schedule'?",
+                    CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No
+                };
+                if (dlgSched.Show() == TaskDialogResult.Yes)
+                {
+                    using (var txSched = new Transaction(doc, "STING Cable Schedule View"))
+                    {
+                        txSched.Start();
+                        try
+                        {
+                            // Create a ViewSchedule for the Conduit category.
+                            var vs = ViewSchedule.CreateSchedule(doc,
+                                new ElementId(BuiltInCategory.OST_Conduit));
+                            vs.Name = "STING Cable Schedule";
+
+                            // Add fields: conduit diameter, curve length, mark, comments.
+                            var sfd = vs.Definition;
+                            foreach (SchedulableField sf in sfd.GetSchedulableFields())
+                            {
+                                try
+                                {
+                                    if (sf.ParameterId == new ElementId(BuiltInParameter.CONDUIT_DIAMETER_PARAM) ||
+                                        sf.ParameterId == new ElementId(BuiltInParameter.CURVE_ELEM_LENGTH)       ||
+                                        sf.ParameterId == new ElementId(BuiltInParameter.ALL_MODEL_MARK)          ||
+                                        sf.ParameterId == new ElementId(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS))
+                                    {
+                                        sfd.AddField(sf);
+                                    }
+                                }
+                                catch { }
+                            }
+                            txSched.Commit();
+                            StingLog.Info($"ViewSchedule '{vs.Name}' created (id={vs.Id.Value}).");
+                        }
+                        catch (Exception exSched)
+                        {
+                            txSched.RollBack();
+                            StingLog.Warn($"Phase 183 schedule create failed: {exSched.Message}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Phase 183 schedule: {ex.Message}"); }
+
             return Result.Succeeded;
         }
 
