@@ -3935,25 +3935,38 @@
       $('#walkSpeedUp')?.addEventListener('click',   (e) => { e.stopPropagation(); bumpSpeed(+0.25); });
       paintSpeed();
 
-      // Scroll wheel during walk mode adjusts speed instead of zoom.
-      // We listen at window level (capture) and only act when the
-      // walk button is .active so Orbit / Pan zoom keep their normal
-      // wheel-zoom behaviour. Form fields keep native scroll.
+      // Scroll wheel during walk mode:
+      //   • Plain scroll  → move the camera forward/backward along the
+      //     current look direction (one-step nudge sized to model scale).
+      //   • Shift+scroll  → adjust walk speed (the previous behaviour,
+      //     now behind a modifier so plain scroll can navigate freely).
+      // Side-panel content keeps native scroll in both cases.
       window.addEventListener('wheel', (ev) => {
         if (state.activeNav !== 'walk') return;
         const tgt = ev.target;
         if (tgt && /INPUT|TEXTAREA|SELECT/.test(tgt.tagName)) return;
-        // Skip when the scroll happens inside a scrollable side pane so
-        // coordinators can still scroll the issues table or model tree
-        // while walk mode is technically active.
+        // Scrollable side panes keep native behaviour.
         if (tgt && tgt.closest && (
             tgt.closest('.left-panel') ||
             tgt.closest('.right-panel') ||
             tgt.closest('.bottom-panel'))) return;
-        // Modifier-aware: plain scroll = 5% per notch (fine); shift = 25%.
-        const fine = ev.shiftKey ? 0.25 : 0.05;
-        const sign = ev.deltaY < 0 ? +1 : -1;
-        bumpSpeed(sign * fine);
+
+        if (ev.shiftKey) {
+          // Shift+scroll → adjust speed (coarse: 25% per notch).
+          const sign = ev.deltaY < 0 ? +1 : -1;
+          bumpSpeed(sign * 0.25);
+        } else {
+          // Plain scroll → step the camera forward/backward.
+          const V = window.STING_VIEWER;
+          if (V && V.camera && V.modelBounds) {
+            const sign = ev.deltaY < 0 ? 1 : -1;
+            const step = V.modelBounds.getSize(new THREE_.Vector3()).length() * 0.02
+                         * (window.__walkSpeedMul || 1.0);
+            const dir = new THREE_.Vector3();
+            V.camera.getWorldDirection(dir);
+            V.camera.position.addScaledVector(dir, sign * step);
+          }
+        }
         ev.preventDefault();
       }, { passive: false });
     }

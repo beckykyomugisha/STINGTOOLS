@@ -33,6 +33,8 @@
         if (--remaining === 0) {
           h.modelRoot = group;
           h.modelBounds = merged;
+          // fitCamera() now sets camera.up based on dominant vertical axis,
+          // so no separate up-axis sync is needed here.
           h.fitCamera();
           h.bridge.send('loaded', {
             elementCount: countMeshes(group),
@@ -204,11 +206,19 @@
       .addScaledVector(right, walkInput.right * speed);
     h.camera.position.addScaledVector(walkVelocity, dt);
     if (walkInput.lookX || walkInput.lookY) {
-      const e = new THREE.Euler().setFromQuaternion(h.camera.quaternion, 'YXZ');
-      e.y -= walkInput.lookX;
-      e.x -= walkInput.lookY;
-      e.x = Math.max(-1.4, Math.min(1.4, e.x));
-      h.camera.quaternion.setFromEuler(e);
+      // Rotate around the model's up axis (yaw) first, then around the
+      // camera's local right axis (pitch). This keeps look-left/right and
+      // look-up/down correct for both Y-up and Z-up models.
+      const yawQ = new THREE.Quaternion().setFromAxisAngle(walkUp, -walkInput.lookX);
+      h.camera.quaternion.premultiply(yawQ);
+      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(h.camera.quaternion);
+      const pitchQ = new THREE.Quaternion().setFromAxisAngle(right, -walkInput.lookY);
+      h.camera.quaternion.premultiply(pitchQ);
+      // Clamp pitch so the camera can't flip upside-down.
+      const up2 = walkUp.clone().applyQuaternion(h.camera.quaternion);
+      if (up2.dot(walkUp) < 0.05) {
+        h.camera.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(right, walkInput.lookY));
+      }
       walkInput.lookX = 0; walkInput.lookY = 0;
     }
   }

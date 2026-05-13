@@ -228,8 +228,9 @@
             <tr><td>G</td><td>Toggle ghosted view</td></tr>
             <tr><td colspan="2" style="font-weight:600;color:var(--accent);padding-top:8px">Navigation</td></tr>
             <tr><td>O / W</td><td>Orbit / Walk mode</td></tr>
-            <tr><td>Wheel (Walk)</td><td>Adjust walk speed (Shift = coarse)</td></tr>
-            <tr><td>+ / − (Walk)</td><td>Walk speed via on-screen wheel</td></tr>
+            <tr><td>Wheel (Walk)</td><td>Move forward / backward</td></tr>
+            <tr><td>Shift+Wheel (Walk)</td><td>Adjust walk speed (coarse)</td></tr>
+            <tr><td>+ / − (Walk)</td><td>Walk speed via on-screen widget</td></tr>
             <tr><td>Space</td><td>Reset camera</td></tr>
             <tr><td>1–7</td><td>Jump to level</td></tr>
             <tr><td colspan="2" style="font-weight:600;color:var(--accent);padding-top:8px">Coordination</td></tr>
@@ -747,7 +748,21 @@
     const centre = modelBounds.getCenter(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
     const dist = maxDim * 1.8;
-    camera.position.copy(centre).add(new THREE.Vector3(dist, dist * 0.8, dist));
+    // Sync camera.up to the model's dominant vertical axis so OrbitControls
+    // rotates correctly. Revit GLBs are often Z-up (the axis with the
+    // smallest horizontal span), while spec glTF/GLB is Y-up. Without this,
+    // dragging up on the canvas orbits sideways instead of overhead.
+    const ax = Math.abs(size.x), ay = Math.abs(size.y), az = Math.abs(size.z);
+    if (az <= ax && az <= ay) {
+      camera.up.set(0, 0, 1);
+      camera.position.copy(centre).add(new THREE.Vector3(dist, dist, dist * 0.8));
+    } else if (ay <= ax && ay <= az) {
+      camera.up.set(0, 1, 0);
+      camera.position.copy(centre).add(new THREE.Vector3(dist, dist * 0.8, dist));
+    } else {
+      camera.up.set(1, 0, 0);
+      camera.position.copy(centre).add(new THREE.Vector3(dist * 0.8, dist, dist));
+    }
     controls.target.copy(centre);
     controls.update();
   }
