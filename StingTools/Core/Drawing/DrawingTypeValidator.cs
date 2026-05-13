@@ -15,6 +15,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
+using StingTools.UI;
 
 namespace StingTools.Core.Drawing
 {
@@ -213,6 +214,10 @@ namespace StingTools.Core.Drawing
 
             // ── GAP-K: slot ViewType compatibility with profile.Purpose ──
             ValidateSlotPurposeAlignment(dt, r);
+
+            // ── GAP-L: live cross-check of declared slot labels vs. the slots
+            //    actually embedded in the title-block family loaded in the doc ──
+            ValidateTitleBlockSlotsVsFamily(doc, dt, r);
 
             return r;
         }
@@ -601,6 +606,63 @@ namespace StingTools.Core.Drawing
                  s.Equals("ISO",      StringComparison.OrdinalIgnoreCase)))
                 return true;
             return false;
+        }
+
+        /// <summary>
+        /// GAP-L: cross-check DrawingType.Slots[].Label values against the
+        /// slot definitions actually embedded in the declared title-block family
+        /// (via TB_VIEWPORT_SLOTS_JSON_TXT). Missing labels surface as Warnings
+        /// so authors fix the JSON before generation rather than getting a
+        /// silent fall-back-to-sheet-origin.
+        /// </summary>
+        private static void ValidateTitleBlockSlotsVsFamily(Document doc, DrawingType dt, ValidationReport r)
+        {
+            if (doc == null || dt == null || dt.Slots == null || dt.Slots.Count == 0) return;
+            if (string.IsNullOrWhiteSpace(dt.TitleBlockFamily)) return;
+            try
+            {
+                // Filter to only slots declared on the matching family.
+                var allSlots = TitleBlockSlotLoader.ReadAll(doc);
+                var familySlots = allSlots
+                    .Where(s => string.Equals(s.TitleBlockFamily, dt.TitleBlockFamily,
+                                              StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                if (familySlots.Count == 0)
+                {
+                    // The family is loaded but carries no slot JSON — the cross-
+                    // check cannot run. Surface as Info (not Warning) because
+                    // many pre-STING title blocks legitimately have no slot data.
+                    r.Add(ValidationSeverity.Info, "DT-SLT-01",
+                        $"Title block family '{dt.TitleBlockFamily}' has no slot definitions embedded " +
+                        "(TB_VIEWPORT_SLOTS_JSON_TXT not set) — slot-label cross-check skipped. " +
+                        "Embed slot JSON in the family to enable.",
+                        "Open the title-block family in Family Editor, add the shared parameter " +
+                        "TB_VIEWPORT_SLOTS_JSON_TXT, and populate it with a JSON array of slot objects.");
+                    return;
+                }
+
+                // Build a lookup set of live labels (case-insensitive).
+                var liveLabels = new HashSet<string>(
+                    familySlots.Select(s => s.Label ?? "").Where(l => l.Length > 0),
+                    StringComparer.OrdinalIgnoreCase);
+                var liveLabelList = string.Join(", ", liveLabels.OrderBy(l => l));
+
+                foreach (var slot in dt.Slots)
+                {
+                    if (string.IsNullOrWhiteSpace(slot?.Label)) continue;
+                    if (!liveLabels.Contains(slot.Label))
+                    {
+                        r.Add(ValidationSeverity.Warning, "DT-SLT-02",
+                            $"DrawingType slot label '{slot.Label}' not found in loaded family " +
+                            $"'{dt.TitleBlockFamily}' slots ({liveLabelList}). " +
+                            "Viewport placement will fall back to sheet origin.",
+                            $"Update the slot label to match one of: {liveLabelList}, or add the " +
+                            $"missing slot to the title-block family's TB_VIEWPORT_SLOTS_JSON_TXT.");
+                    }
+                }
+            }
+            catch { /* validator must never throw */ }
         }
     }
 }

@@ -195,12 +195,64 @@ namespace StingTools.Commands.Drawing
                 int routed = router.Values.Count(id => id != ElementId.InvalidElementId);
                 bool hasDefault = StingTools.Core.TitleBlockRouter.DefaultId != ElementId.InvalidElementId;
                 sb.AppendLine($"  Router: {routed} discipline override(s); default {(hasDefault ? "set" : "UNSET")} (run Project Setup Wizard to configure).");
+
+                // Parameter cardinality audit — dry-run Apply against every sheet
+                // that already exists in the project to surface "param declared but
+                // not on the family" mismatches without touching the model.
+                AppendParamCardinalitySummary(doc, lib, sb);
+
                 sb.AppendLine();
             }
             catch (Exception ex)
             {
                 sb.AppendLine($"Title-block readiness check failed: {ex.Message}");
             }
+        }
+
+        private static void AppendParamCardinalitySummary(Document doc, DrawingTypeLibrary lib, StringBuilder sb)
+        {
+            if (doc == null || lib == null) return;
+            try
+            {
+                // Collect all sheets that have a STING drawing-type stamp so we
+                // can run a dry-run Apply against each — giving us which declared
+                // param keys are absent from the loaded title-block family.
+                var sheets = new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewSheet))
+                    .Cast<ViewSheet>()
+                    .Where(s => !string.IsNullOrEmpty(StingTools.Core.Drawing.DrawingTypeStamper.Read(s)))
+                    .ToList();
+
+                if (sheets.Count == 0) return;
+
+                var dryRun = new StingTools.Core.Drawing.ApplyOptions { DryRun = true };
+                var allMissing = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
+                int totalDeclared = 0;
+
+                foreach (var sheet in sheets)
+                {
+                    var dtId = StingTools.Core.Drawing.DrawingTypeStamper.Read(sheet);
+                    var dt = DrawingTypeRegistry.Get(doc, dtId);
+                    if (dt == null) continue;
+                    try
+                    {
+                        var result = StingTools.Core.Drawing.TitleBlockParamApplier.Apply(
+                            doc, sheet, dt, tokens: null, options: dryRun);
+                        totalDeclared += result.ParametersDeclared;
+                        foreach (var m in result.ParametersMissing)
+                            allMissing.Add(m);
+                    }
+                    catch { /* per-sheet failure — continue */ }
+                }
+
+                if (allMissing.Count > 0)
+                {
+                    var sample = string.Join(", ", allMissing.OrderBy(k => k).Take(5));
+                    sb.AppendLine($"  TB params: {totalDeclared} declared, {allMissing.Count} not found on family: {sample}"
+                        + (allMissing.Count > 5 ? " …" : ""));
+                }
+            }
+            catch { /* cardinality audit must never surface an error in a read-only diagnostic */ }
         }
     }
 

@@ -234,6 +234,12 @@ namespace StingTools.Core.Drawing
         [JsonProperty("packageId", NullValueHandling = NullValueHandling.Ignore)]
         public string PackageId { get; set; }
 
+        /// <summary>Optional rules that override TitleBlockFamily/TitleBlockSymbolType
+        /// when specific context conditions are met. Evaluated in order; first match wins.
+        /// Serialized as "titleBlockVariantRules" in the JSON profile.</summary>
+        [JsonProperty("titleBlockVariantRules", NullValueHandling = NullValueHandling.Ignore)]
+        public List<TitleBlockVariantRule> TitleBlockVariantRules { get; set; }
+
         // Integrity hash used by the corporate-lock mechanism —
         // DrawingTypeRegistry writes it on load for corporate types and
         // compares on save to detect out-of-band edits.
@@ -259,6 +265,37 @@ namespace StingTools.Core.Drawing
         /// views minted under this profile, e.g. "(Opt: Façade-A)".</summary>
         [JsonProperty("tagSuffix", NullValueHandling = NullValueHandling.Ignore)]
         public string TagSuffix { get; set; }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    //  TITLE-BLOCK VARIANT RULE — Gap 3: BIM/NONBIM lifecycle selection
+    //
+    //  Each rule is a condition/override pair. DrawingDispatcher evaluates
+    //  the list in order (first match wins) and returns the winning
+    //  (family, symbol) pair via ResolveTitleBlockVariant().
+    // ─────────────────────────────────────────────────────────────────────
+
+    /// <summary>A condition/override pair that selects a title-block symbol variant
+    /// based on context (print mode, phase, discipline, etc.).</summary>
+    public sealed class TitleBlockVariantRule
+    {
+        /// <summary>Condition expression. Supported forms (all case-insensitive):
+        ///   "phase=TENDER"           — DrawingType.Phase matches
+        ///   "discipline=Electrical"  — DrawingType.Discipline matches (ISO single-letter or full name)
+        ///   "print.colourScheme=PresentationRich" — print context colour scheme
+        ///   "context=print"          — any print/export operation
+        ///   "context=screen"         — on-screen (model open, not exporting)
+        /// Multiple conditions separated by " AND " are all required.</summary>
+        [JsonProperty("when")]
+        public string When { get; set; }
+
+        /// <summary>Override the title-block family name (replaces DrawingType.TitleBlockFamily).</summary>
+        [JsonProperty("useFamily")]
+        public string UseFamily { get; set; }
+
+        /// <summary>Override the symbol type within the family (replaces DrawingType.TitleBlockSymbolType).</summary>
+        [JsonProperty("useSymbol")]
+        public string UseSymbol { get; set; }
     }
 
     // ─────────────────────────────────────────────────────────────────────
