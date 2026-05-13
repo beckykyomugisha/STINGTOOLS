@@ -28,9 +28,15 @@ export class RealtimeClient {
       .configureLogging(signalR.LogLevel.Warning)
       .build();
 
+    // C1 — clear any leftover handlers from a previous connect() call before
+    // registering new ones, so handlers don't accumulate across reconnect cycles.
+    this.connection.off('IssueCreated');
     this.connection.on('IssueCreated', p => { this.emit({ type: 'ISSUE_CREATED', payload: p }); this.fire('IssueCreated', p); });
+    this.connection.off('IssueUpdated');
     this.connection.on('IssueUpdated', p => { this.emit({ type: 'ISSUE_UPDATED', payload: p }); this.fire('IssueUpdated', p); });
+    this.connection.off('ComplianceChanged');
     this.connection.on('ComplianceChanged', p => { this.emit({ type: 'COMPLIANCE_CHANGED', payload: p }); this.fire('ComplianceChanged', p); });
+    this.connection.off('Notification');
     this.connection.on('Notification', p => { this.emit({ type: 'NOTIFICATION', payload: p }); this.fire('Notification', p); });
     // Generic events forwarded to named handlers — lets screens subscribe to
     // specific channels (CommentAdded, DocumentUpdated, TransmittalUpdated,
@@ -56,18 +62,32 @@ export class RealtimeClient {
       'AclChanged',
       'MemberRevoked',
     ]) {
+      // C1 — deregister before registering to prevent duplicate handlers.
+      this.connection.off(evName);
       this.connection.on(evName, (p: unknown) => this.fire(evName, p));
     }
 
     // Phase 177 — when the server pushes AclChanged for the active project,
     // drop the project subscription and re-join so SignalR rebuilds the
     // per-CDE-state subgroups against the new allow-list.
+    // C1 — AclChanged was already .off'd in the loop above; this second
+    // handler is intentionally added after so both the generic fire() path
+    // and this re-join path are registered on a clean slate.
     this.connection.on('AclChanged', async (p: { projectId?: string }) => {
       if (!p?.projectId || p.projectId !== this.currentProjectId) return;
       try {
         await this.connection?.invoke('LeaveProject', this.currentProjectId);
         await this.connection?.invoke('JoinProject', this.currentProjectId);
       } catch { /* reconnect path will retry */ }
+    });
+
+    // C2 — re-join the project group after an automatic reconnect so the client
+    // keeps receiving project-scoped push events without a manual disconnect/connect.
+    this.connection.onreconnected(() => {
+      const pid = this.currentProjectId;
+      if (pid) {
+        this.connection?.invoke('JoinProject', pid).catch(console.error);
+      }
     });
 
     await this.connection.start();
