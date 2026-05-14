@@ -1,0 +1,2829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StingTools — Professional User Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,300&family=Fraunces:ital,wght@0,300;0,600;0,700;1,300;1,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════
+   DESIGN SYSTEM
+   Aesthetic: Executive Corporate / Precision Instrument
+   Palette: Carbon black · Warm white · Refined gold
+   Typography: Fraunces (editorial) + Plus Jakarta Sans (UI)
+   ═══════════════════════════════════════════════════ */
+:root {
+  /* Core palette */
+  --bg:           #0C0E14;
+  --surface:      #131620;
+  --surface-2:    #1A1E2E;
+  --surface-3:    #1E2436;
+  --border:       rgba(255,255,255,0.06);
+  --border-gold:  rgba(196,155,79,0.3);
+  --border-strong:rgba(255,255,255,0.12);
+
+  /* Gold accent — warm, refined, not flashy */
+  --gold:         #C49B4F;
+  --gold-light:   #E8C97A;
+  --gold-dim:     #7A5C22;
+  --gold-bg:      rgba(196,155,79,0.08);
+  --gold-bg2:     rgba(196,155,79,0.14);
+
+  /* Status colours */
+  --green:        #2ECC9A;
+  --green-bg:     rgba(46,204,154,0.08);
+  --blue:         #5B8EF0;
+  --blue-bg:      rgba(91,142,240,0.08);
+  --amber:        #F0A53B;
+  --amber-bg:     rgba(240,165,59,0.08);
+  --rose:         #E85D7A;
+  --rose-bg:      rgba(232,93,122,0.08);
+  --violet:       #9B6EF0;
+  --violet-bg:    rgba(155,110,240,0.08);
+  --cyan:         #2EC4CC;
+  --cyan-bg:      rgba(46,196,204,0.08);
+
+  /* Text */
+  --text-1:  #F2EDE4;
+  --text-2:  #9FA8B8;
+  --text-3:  #5C6578;
+  --text-inv:#0C0E14;
+
+  /* Fonts */
+  --serif:  'Fraunces', Georgia, serif;
+  --sans:   'Plus Jakarta Sans', system-ui, sans-serif;
+  --mono:   'JetBrains Mono', monospace;
+
+  /* Layout */
+  --nav-w:  272px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 15px; scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text-1);
+  font-family: var(--sans);
+  font-weight: 400;
+  line-height: 1.7;
+  display: flex;
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 3px; }
+
+/* ═══════════════════════════
+   SIDEBAR
+   ═══════════════════════════ */
+#sidebar {
+  position: fixed;
+  top: 0; left: 0;
+  width: var(--nav-w);
+  height: 100vh;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  z-index: 200;
+  overflow-y: auto;
+}
+
+.sb-logo {
+  padding: 30px 24px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sb-logo-mark {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.sb-logo-icon {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dim) 100%);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.sb-brand {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 1.3rem;
+  letter-spacing: -0.01em;
+  color: var(--text-1);
+  line-height: 1;
+}
+
+.sb-brand em { font-style: italic; color: var(--gold); }
+
+.sb-version {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  color: var(--text-3);
+  letter-spacing: 0.05em;
+}
+
+.sb-section {
+  padding: 20px 0 4px;
+}
+
+.sb-label {
+  padding: 0 18px 6px;
+  font-family: var(--mono);
+  font-size: 0.63rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 500;
+}
+
+.sb-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 18px;
+  font-size: 0.83rem;
+  font-weight: 500;
+  color: var(--text-2);
+  text-decoration: none;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.sb-link:hover {
+  color: var(--text-1);
+  background: rgba(255,255,255,0.03);
+  border-left-color: var(--border-strong);
+}
+
+.sb-link.active {
+  color: var(--gold-light);
+  background: var(--gold-bg);
+  border-left-color: var(--gold);
+}
+
+.sb-icon {
+  width: 18px;
+  text-align: center;
+  font-size: 0.85rem;
+  opacity: 0.65;
+  flex-shrink: 0;
+}
+.sb-link.active .sb-icon { opacity: 1; }
+
+.sb-footer {
+  margin-top: auto;
+  padding: 16px 18px;
+  border-top: 1px solid var(--border);
+}
+
+.sb-footer-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--gold-bg);
+  border: 1px solid var(--border-gold);
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 0.67rem;
+  color: var(--gold);
+  letter-spacing: 0.04em;
+  width: 100%;
+  justify-content: center;
+}
+
+.sb-footer-badge::before {
+  content: '';
+  width: 5px; height: 5px;
+  background: var(--green);
+  border-radius: 50%;
+  animation: blink 2s ease-in-out infinite;
+}
+
+@keyframes blink { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+
+/* ═══════════════════════════
+   MAIN AREA
+   ═══════════════════════════ */
+#main {
+  margin-left: var(--nav-w);
+  flex: 1;
+  min-height: 100vh;
+}
+
+.page {
+  display: none;
+  animation: fadeUp 0.28s ease both;
+}
+.page.active { display: block; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ══ HERO ══ */
+.hero {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.hero-bg {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 70% 50% at 90% 10%, rgba(196,155,79,0.06) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 60% at 10% 90%, rgba(91,142,240,0.04) 0%, transparent 55%);
+  pointer-events: none;
+}
+
+.hero-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.013) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.013) 1px, transparent 1px);
+  background-size: 44px 44px;
+  pointer-events: none;
+}
+
+.hero-inner {
+  position: relative;
+  z-index: 1;
+  padding: 72px 64px 60px;
+  max-width: 1080px;
+}
+
+.hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border-gold);
+  background: var(--gold-bg);
+  color: var(--gold-light);
+  padding: 5px 14px;
+  border-radius: 100px;
+  font-family: var(--mono);
+  font-size: 0.69rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 24px;
+}
+
+.hero h1 {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 3.4rem;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  color: var(--text-1);
+  margin-bottom: 20px;
+  max-width: 700px;
+}
+
+.hero h1 em {
+  font-style: italic;
+  color: var(--gold);
+}
+
+.hero-sub {
+  font-size: 1.05rem;
+  color: var(--text-2);
+  max-width: 580px;
+  line-height: 1.65;
+  font-weight: 300;
+  margin-bottom: 36px;
+}
+
+.cta-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.btn-gold {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--gold);
+  color: var(--text-inv);
+  padding: 12px 26px;
+  border-radius: 7px;
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  border: none;
+  text-decoration: none;
+  transition: all 0.18s;
+  letter-spacing: 0.01em;
+}
+
+.btn-gold:hover {
+  background: var(--gold-light);
+  box-shadow: 0 6px 24px rgba(196,155,79,0.35);
+  transform: translateY(-1px);
+}
+
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  color: var(--text-1);
+  padding: 12px 26px;
+  border-radius: 7px;
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  border: 1px solid var(--border-strong);
+  text-decoration: none;
+  transition: all 0.18s;
+}
+
+.btn-outline:hover {
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(255,255,255,0.2);
+}
+
+/* ══ STATS BELT ══ */
+.stats-belt {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  border-top: 1px solid var(--border);
+}
+
+.stat-cell {
+  padding: 28px 20px;
+  border-right: 1px solid var(--border);
+  text-align: center;
+  position: relative;
+  background: var(--surface);
+}
+.stat-cell:last-child { border-right: none; }
+
+.stat-cell::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 40px; height: 2px;
+  background: var(--gold);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.stat-cell:hover::before { opacity: 1; }
+
+.stat-n {
+  font-family: var(--serif);
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--gold);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.stat-l {
+  font-size: 0.73rem;
+  color: var(--text-3);
+  margin-top: 5px;
+  font-family: var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.4;
+}
+
+/* ══ CONTENT WRAPPER ══ */
+.wrap {
+  max-width: 1060px;
+  padding: 56px 64px;
+}
+
+/* ══ SECTION TITLES ══ */
+.s-eyebrow {
+  font-family: var(--mono);
+  font-size: 0.67rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 8px;
+}
+
+.s-title {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 1.8rem;
+  letter-spacing: -0.02em;
+  color: var(--text-1);
+  line-height: 1.2;
+  margin-bottom: 10px;
+}
+
+.s-title em { font-style: italic; color: var(--gold); }
+
+.s-desc {
+  color: var(--text-2);
+  font-size: 0.92rem;
+  line-height: 1.7;
+  max-width: 680px;
+  margin-bottom: 36px;
+  font-weight: 300;
+}
+
+.rule { border: none; border-top: 1px solid var(--border); margin: 52px 0; }
+
+/* ══ CARD GRIDS ══ */
+.grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-bottom: 40px; }
+.grid-2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 16px; margin-bottom: 40px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 40px; }
+
+/* Feature card */
+.fcard {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px 22px;
+  transition: border-color 0.2s, transform 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.fcard::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+
+.fcard:hover {
+  border-color: var(--border-gold);
+  transform: translateY(-2px);
+}
+.fcard:hover::after { opacity: 1; }
+
+.fcard-icon {
+  width: 44px; height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  margin-bottom: 14px;
+  flex-shrink: 0;
+}
+
+.ic-gold   { background: var(--gold-bg2); }
+.ic-blue   { background: var(--blue-bg); }
+.ic-green  { background: var(--green-bg); }
+.ic-rose   { background: var(--rose-bg); }
+.ic-violet { background: var(--violet-bg); }
+.ic-cyan   { background: var(--cyan-bg); }
+.ic-amber  { background: var(--amber-bg); }
+
+.fcard-title {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 0.97rem;
+  color: var(--text-1);
+  margin-bottom: 7px;
+  letter-spacing: -0.01em;
+}
+
+.fcard-desc {
+  font-size: 0.83rem;
+  color: var(--text-2);
+  line-height: 1.62;
+  font-weight: 300;
+}
+
+/* ══ CALLOUT BOXES ══ */
+.cbox {
+  border-radius: 10px;
+  padding: 16px 20px;
+  display: flex;
+  gap: 13px;
+  margin: 20px 0;
+  font-size: 0.86rem;
+  line-height: 1.65;
+  align-items: flex-start;
+}
+
+.cbox-icon { font-size: 1.05rem; flex-shrink: 0; margin-top: 1px; }
+.cbox-body strong { font-weight: 600; }
+
+.cbox-blue   { background: var(--blue-bg);   border: 1px solid rgba(91,142,240,0.18);  color: #93B4F8; }
+.cbox-gold   { background: var(--gold-bg);   border: 1px solid var(--border-gold);      color: var(--gold-light); }
+.cbox-green  { background: var(--green-bg);  border: 1px solid rgba(46,204,154,0.18);  color: #7DDFC3; }
+.cbox-amber  { background: var(--amber-bg);  border: 1px solid rgba(240,165,59,0.18);  color: #F8C96E; }
+
+/* ══ TABLES ══ */
+.tbl-wrap { overflow-x: auto; margin: 20px 0 32px; }
+
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+
+.tbl thead th {
+  background: rgba(196,155,79,0.08);
+  color: var(--gold);
+  font-family: var(--mono);
+  font-size: 0.69rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 11px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-gold);
+  white-space: nowrap;
+}
+
+.tbl tbody td {
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-2);
+  vertical-align: top;
+  line-height: 1.55;
+}
+
+.tbl tbody tr:hover td { background: rgba(255,255,255,0.015); }
+.tbl tbody td strong { color: var(--text-1); font-weight: 600; }
+.tbl tbody td code {
+  background: var(--blue-bg);
+  color: #93B4F8;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 0.79em;
+}
+
+.tbl .check { color: var(--green); font-weight: 700; }
+.tbl .cross { color: var(--text-3); }
+.tbl .half  { color: var(--amber); }
+
+/* ══ WORKFLOW STEPS ══ */
+.steps { margin: 28px 0; }
+
+.step {
+  display: flex;
+  gap: 20px;
+}
+
+.step-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.step-num {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: var(--gold);
+  color: var(--text-inv);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.step-connector {
+  width: 1px;
+  flex: 1;
+  min-height: 20px;
+  background: linear-gradient(to bottom, var(--gold-dim), var(--border));
+  margin: 0 auto;
+}
+
+.step-body {
+  padding: 2px 0 32px;
+  flex: 1;
+  min-width: 0;
+}
+
+.step-title {
+  font-weight: 700;
+  font-size: 0.97rem;
+  color: var(--text-1);
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
+}
+
+.step-text {
+  font-size: 0.84rem;
+  color: var(--text-2);
+  line-height: 1.68;
+  font-weight: 300;
+}
+
+.step-text ul {
+  margin: 8px 0 0 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.step-text li { color: var(--text-2); }
+
+.cmd-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  padding: 3px 9px;
+  border-radius: 5px;
+  font-family: var(--mono);
+  font-size: 0.73rem;
+  color: var(--gold-light);
+  margin: 7px 4px 0 0;
+  white-space: nowrap;
+}
+
+.cmd-tag::before { content: '›'; color: var(--text-3); }
+
+/* ══ TAG DISPLAY ══ */
+.tag-visual {
+  background: var(--surface-2);
+  border: 1px solid var(--border-gold);
+  border-radius: 14px;
+  padding: 28px 28px 22px;
+  margin: 24px 0;
+  overflow-x: auto;
+}
+
+.tag-segs {
+  display: flex;
+  align-items: stretch;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  margin-bottom: 20px;
+}
+
+.tag-seg {
+  flex: 1;
+  padding: 12px 10px;
+  text-align: center;
+  background: var(--surface-3);
+  border-right: 1px solid var(--border);
+  min-width: 64px;
+}
+.tag-seg:last-child { border-right: none; }
+
+.tag-seg.lit {
+  background: linear-gradient(180deg, rgba(196,155,79,0.15) 0%, rgba(196,155,79,0.06) 100%);
+  border-right-color: var(--border-gold);
+}
+
+.seg-v {
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--gold-light);
+  line-height: 1;
+}
+
+.seg-l {
+  font-family: var(--mono);
+  font-size: 0.61rem;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-top: 4px;
+}
+
+.tag-examples {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 4px;
+}
+
+.tag-ex {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 0.82rem;
+}
+
+.tag-ex-code {
+  font-family: var(--mono);
+  background: var(--blue-bg);
+  color: #93B4F8;
+  padding: 3px 10px;
+  border-radius: 5px;
+  white-space: nowrap;
+  font-size: 0.8rem;
+}
+
+.tag-ex-desc { color: var(--text-3); font-size: 0.81rem; }
+
+/* ══ ADVANTAGE CARDS ══ */
+.adv-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2px;
+  background: var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  margin: 28px 0;
+}
+
+.adv-cell {
+  background: var(--surface-2);
+  padding: 28px 28px;
+  position: relative;
+}
+
+.adv-num {
+  font-family: var(--serif);
+  font-size: 3.5rem;
+  font-weight: 600;
+  color: rgba(196,155,79,0.1);
+  line-height: 1;
+  position: absolute;
+  top: 16px; right: 20px;
+  letter-spacing: -0.05em;
+}
+
+.adv-title {
+  font-weight: 700;
+  font-size: 1.0rem;
+  color: var(--text-1);
+  margin-bottom: 8px;
+  padding-right: 40px;
+  letter-spacing: -0.01em;
+}
+
+.adv-body {
+  font-size: 0.84rem;
+  color: var(--text-2);
+  line-height: 1.65;
+  font-weight: 300;
+}
+
+.adv-tag {
+  display: inline-block;
+  background: var(--gold-bg);
+  color: var(--gold);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+/* ══ ROI METER ══ */
+.roi-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin: 24px 0;
+}
+
+.roi-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  padding: 22px 22px;
+  position: relative;
+  overflow: hidden;
+}
+
+.roi-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+}
+
+.roi-card.gr::before { background: var(--green); }
+.roi-card.bl::before { background: var(--blue); }
+.roi-card.ro::before { background: var(--rose); }
+.roi-card.go::before { background: var(--gold); }
+
+.roi-figures {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.roi-was {
+  font-family: var(--serif);
+  font-size: 1.1rem;
+  color: var(--rose);
+  text-decoration: line-through;
+  opacity: 0.7;
+  font-style: italic;
+}
+
+.roi-arr { color: var(--text-3); font-size: 0.9rem; }
+
+.roi-now {
+  font-family: var(--serif);
+  font-size: 1.6rem;
+  color: var(--green);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.roi-lbl {
+  font-size: 0.82rem;
+  color: var(--text-2);
+  line-height: 1.5;
+  font-weight: 300;
+}
+
+.roi-lbl strong { color: var(--text-1); font-weight: 600; }
+
+/* ══ PERSONAS ══ */
+.persona-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin: 28px 0;
+}
+
+.persona {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 22px 18px;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+
+.persona:hover { border-color: var(--border-gold); }
+
+.persona-av {
+  width: 54px; height: 54px;
+  border-radius: 50%;
+  background: var(--surface-3);
+  border: 1px solid var(--border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  margin: 0 auto 12px;
+}
+
+.persona-role {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--text-1);
+  margin-bottom: 6px;
+}
+
+.persona-desc {
+  font-size: 0.79rem;
+  color: var(--text-2);
+  line-height: 1.55;
+  font-weight: 300;
+  margin-bottom: 12px;
+}
+
+.persona-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+}
+
+.chip {
+  background: var(--gold-bg);
+  color: var(--gold);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 0.67rem;
+  letter-spacing: 0.04em;
+}
+
+/* ══ COMPARISON TABLE ══ */
+.comp-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.comp-logo {
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--text-1);
+}
+
+.comp-sub {
+  font-size: 0.77rem;
+  color: var(--text-3);
+}
+
+/* ══ PRICING ══ */
+.pricing-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin: 28px 0;
+}
+
+.pc {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: transform 0.2s;
+}
+
+.pc:hover { transform: translateY(-3px); }
+
+.pc.featured {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px rgba(196,155,79,0.2);
+}
+
+.pc-head {
+  padding: 24px 22px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pc.featured .pc-head {
+  background: linear-gradient(180deg, rgba(196,155,79,0.1) 0%, transparent 100%);
+}
+
+.pc-tier {
+  font-family: var(--mono);
+  font-size: 0.67rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--gold);
+  margin-bottom: 10px;
+}
+
+.pc-price {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 2.1rem;
+  letter-spacing: -0.04em;
+  color: var(--text-1);
+  line-height: 1;
+}
+
+.pc-price .per {
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  color: var(--text-2);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.pc-body { padding: 18px 22px; }
+
+.pc-feat {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--text-2);
+  padding: 5px 0;
+  line-height: 1.5;
+}
+
+.pc-check { color: var(--green); flex-shrink: 0; font-size: 0.85rem; }
+.pc-cross { color: var(--text-3); flex-shrink: 0; font-size: 0.85rem; }
+
+/* ══ ACCORDION ══ */
+.acc { margin: 20px 0; }
+
+.acc-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.acc-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 18px;
+  cursor: pointer;
+  background: var(--surface-2);
+  user-select: none;
+  transition: background 0.15s;
+}
+
+.acc-hd:hover { background: rgba(255,255,255,0.025); }
+
+.acc-hd-left {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.acc-title {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--text-1);
+}
+
+.acc-badge {
+  font-family: var(--mono);
+  font-size: 0.67rem;
+  color: var(--gold);
+  background: var(--gold-bg);
+  padding: 2px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+}
+
+.acc-arrow {
+  color: var(--text-3);
+  font-size: 0.75rem;
+  transition: transform 0.2s;
+}
+
+.acc-item.open .acc-arrow { transform: rotate(180deg); }
+
+.acc-body {
+  display: none;
+  padding: 18px 18px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.acc-item.open .acc-body { display: block; }
+
+/* ══ CMD CHIPS ROW ══ */
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 12px 0;
+}
+
+.cmd-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  border-radius: 5px;
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  color: var(--text-2);
+}
+
+.cmd-chip .tab-lbl {
+  background: var(--gold-bg);
+  color: var(--gold);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+}
+
+/* ══ INLINE HELPERS ══ */
+.mono-tag {
+  display: inline-block;
+  background: var(--surface-3);
+  border: 1px solid var(--border-strong);
+  color: var(--gold-light);
+  padding: 1px 7px;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 0.8em;
+}
+
+h2.ch {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+  color: var(--text-1);
+  margin: 38px 0 12px;
+  line-height: 1.25;
+}
+h2.ch:first-child { margin-top: 0; }
+
+h3.ch3 {
+  font-weight: 700;
+  font-size: 1.0rem;
+  color: var(--text-1);
+  margin: 24px 0 8px;
+}
+
+p.p {
+  font-size: 0.9rem;
+  color: var(--text-2);
+  line-height: 1.72;
+  margin-bottom: 14px;
+  font-weight: 300;
+}
+
+p.p strong { color: var(--text-1); font-weight: 600; }
+
+/* ══ HIGHLIGHT STRIP ══ */
+.highlight-strip {
+  background: linear-gradient(135deg, var(--surface-2) 0%, var(--surface-3) 100%);
+  border: 1px solid var(--border-gold);
+  border-radius: 14px;
+  padding: 32px 36px;
+  margin: 32px 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.highlight-strip::before {
+  content: '';
+  position: absolute;
+  top: -40px; right: -40px;
+  width: 200px; height: 200px;
+  background: radial-gradient(circle, rgba(196,155,79,0.1) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.hs-title {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 1.35rem;
+  color: var(--text-1);
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
+}
+
+.hs-body {
+  font-size: 0.88rem;
+  color: var(--text-2);
+  line-height: 1.68;
+  font-weight: 300;
+}
+
+/* ══ WHY STING SECTION ══ */
+.why-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin: 28px 0;
+}
+
+.why-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  padding: 22px 22px 20px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.why-card:hover { border-color: var(--border-gold); }
+
+.why-card-num {
+  font-family: var(--serif);
+  font-size: 4rem;
+  font-weight: 600;
+  color: rgba(196,155,79,0.07);
+  position: absolute;
+  bottom: -8px; right: 10px;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  user-select: none;
+}
+
+.why-icon {
+  width: 38px; height: 38px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  margin-bottom: 12px;
+}
+
+.why-title {
+  font-weight: 700;
+  font-size: 0.97rem;
+  color: var(--text-1);
+  margin-bottom: 7px;
+}
+
+.why-body {
+  font-size: 0.83rem;
+  color: var(--text-2);
+  line-height: 1.63;
+  font-weight: 300;
+}
+
+/* ══ TOOL SHOWCASE ══ */
+.tool-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.tool-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  transition: border-color 0.18s;
+}
+
+.tool-row:hover { border-color: var(--border-gold); }
+
+.tool-row-icon {
+  width: 40px; height: 40px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.tool-row-content { flex: 1; min-width: 0; }
+
+.tool-row-name {
+  font-weight: 700;
+  font-size: 0.94rem;
+  color: var(--text-1);
+  margin-bottom: 3px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.star-badge {
+  background: var(--gold-bg2);
+  color: var(--gold);
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  padding: 1px 7px;
+  border-radius: 3px;
+  letter-spacing: 0.05em;
+}
+
+.tool-row-desc {
+  font-size: 0.82rem;
+  color: var(--text-2);
+  line-height: 1.55;
+  font-weight: 300;
+}
+
+.tool-row-tab {
+  font-family: var(--mono);
+  font-size: 0.67rem;
+  color: var(--text-3);
+  white-space: nowrap;
+  background: var(--surface-3);
+  padding: 3px 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+/* ══ MOBILE ══ */
+#nav-toggle {
+  display: none;
+  position: fixed;
+  bottom: 22px; right: 22px;
+  width: 48px; height: 48px;
+  background: var(--gold);
+  color: var(--text-inv);
+  border: none;
+  border-radius: 50%;
+  font-size: 1.3rem;
+  cursor: pointer;
+  z-index: 300;
+  box-shadow: 0 4px 20px rgba(196,155,79,0.4);
+}
+
+@media (max-width: 960px) {
+  #sidebar { transform: translateX(-100%); transition: transform 0.28s cubic-bezier(.4,0,.2,1); }
+  #sidebar.open { transform: translateX(0); }
+  #main { margin-left: 0; }
+  #nav-toggle { display: flex; align-items: center; justify-content: center; }
+  .hero-inner { padding: 44px 28px 36px; }
+  .hero h1 { font-size: 2.2rem; }
+  .wrap { padding: 36px 28px; }
+  .stats-belt { grid-template-columns: repeat(3,1fr); }
+  .grid-3, .persona-grid, .pricing-row { grid-template-columns: 1fr; }
+  .adv-grid, .roi-row, .why-grid, .grid-2 { grid-template-columns: 1fr; }
+}
+
+/* ══ UTILS ══ */
+.gold { color: var(--gold); }
+.green { color: var(--green); }
+.rose  { color: var(--rose); }
+.blue  { color: var(--blue); }
+.dim   { color: var(--text-3); }
+.mt16 { margin-top: 16px; }
+.mt32 { margin-top: 32px; }
+.mb16 { margin-bottom: 16px; }
+.mb32 { margin-bottom: 32px; }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════
+     SIDEBAR
+     ════════════════════════════════ -->
+<nav id="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-mark">
+      <div class="sb-logo-icon">⬡</div>
+      <div>
+        <div class="sb-brand"><em>Sting</em>Tools</div>
+      </div>
+    </div>
+    <div class="sb-version">v2.1 · ISO 19650 · Revit 2025–2027</div>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-label">Introduction</div>
+    <a class="sb-link active" onclick="go('overview')"><span class="sb-icon">⬡</span>Overview</a>
+    <a class="sb-link" onclick="go('why')"><span class="sb-icon">✦</span>Why StingTools</a>
+    <a class="sb-link" onclick="go('who')"><span class="sb-icon">◎</span>Who It's For</a>
+    <a class="sb-link" onclick="go('roi')"><span class="sb-icon">▲</span>Time &amp; Cost Savings</a>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-label">Platform</div>
+    <a class="sb-link" onclick="go('how')"><span class="sb-icon">⚙</span>How It Works</a>
+    <a class="sb-link" onclick="go('tools')"><span class="sb-icon">★</span>Standout Tools</a>
+    <a class="sb-link" onclick="go('tagging')"><span class="sb-icon">◈</span>ISO Tagging Engine</a>
+    <a class="sb-link" onclick="go('bim')"><span class="sb-icon">▣</span>BIM Coordination</a>
+    <a class="sb-link" onclick="go('docs')"><span class="sb-icon">◫</span>Documents &amp; Sheets</a>
+    <a class="sb-link" onclick="go('wf')"><span class="sb-icon">⚡</span>Workflow Automation</a>
+    <a class="sb-link" onclick="go('panel')"><span class="sb-icon">▤</span>Dock Panel Interface</a>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-label">Step-by-Step Guides</div>
+    <a class="sb-link" onclick="go('install')"><span class="sb-icon">①</span>Installation &amp; Setup</a>
+    <a class="sb-link" onclick="go('g-tagging')"><span class="sb-icon">②</span>Tagging Walkthrough</a>
+    <a class="sb-link" onclick="go('g-bim')"><span class="sb-icon">③</span>BIM Coordination</a>
+    <a class="sb-link" onclick="go('g-handover')"><span class="sb-icon">④</span>Handover &amp; COBie</a>
+    <a class="sb-link" onclick="go('g-daily')"><span class="sb-icon">⑤</span>Daily QA Routines</a>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-label">Reference</div>
+    <a class="sb-link" onclick="go('pricing')"><span class="sb-icon">◉</span>Plans &amp; Pricing</a>
+    <a class="sb-link" onclick="go('compare')"><span class="sb-icon">⊞</span>Competitor Comparison</a>
+    <a class="sb-link" onclick="go('glossary')"><span class="sb-icon">≡</span>Glossary</a>
+  </div>
+
+  <div class="sb-footer">
+    <div class="sb-footer-badge">StingTools v2.1 · Active</div>
+  </div>
+</nav>
+
+<button id="nav-toggle" onclick="toggleNav()">☰</button>
+
+<!-- ════════════════════════════════
+     MAIN
+     ════════════════════════════════ -->
+<main id="main">
+
+<!-- ═══════════════ OVERVIEW ═══════════════ -->
+<section class="page active" id="page-overview">
+  <div class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-inner">
+      <div class="hero-eyebrow">Complete User Guide · StingTools v2.1</div>
+      <h1>Professional BIM Management<br><em>Inside Autodesk Revit</em></h1>
+      <p class="hero-sub">
+        StingTools consolidates ISO 19650 asset tagging, BIM coordination, document management,
+        and project automation into one unified Revit plugin — eliminating the need for five separate tools
+        and cutting manual BIM admin by up to 97%.
+      </p>
+      <div class="cta-row">
+        <button class="btn-gold" onclick="go('g-tagging')">▶ Start the Guide</button>
+        <button class="btn-outline" onclick="go('why')">Why StingTools</button>
+        <button class="btn-outline" onclick="go('tools')">Standout Tools</button>
+      </div>
+    </div>
+    <div class="stats-belt">
+      <div class="stat-cell">
+        <div class="stat-n">540+</div>
+        <div class="stat-l">Commands Available</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-n">ISO<br><span style="font-size:1.4rem">19650</span></div>
+        <div class="stat-l">Full Compliance</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-n">6×</div>
+        <div class="stat-l">ROI vs Manual</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-n">97%</div>
+        <div class="stat-l">Time Reduction<br>on COBie Export</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-n">22</div>
+        <div class="stat-l">Sector Presets</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="s-eyebrow">What is StingTools</div>
+    <h2 class="s-title">One Plugin. <em>Everything</em> You Need.</h2>
+    <p class="s-desc">
+      StingTools is a compiled C# Revit plugin (.dll + .addin) that replaces three separate pyRevit extensions
+      with a single, fast, stable toolset. It loads as a dockable panel inside Revit and gives your team
+      instant access to professional-grade BIM infrastructure — no switching tools, no manual exports,
+      no spreadsheet workarounds.
+    </p>
+
+    <div class="grid-3">
+      <div class="fcard">
+        <div class="fcard-icon ic-gold">⬡</div>
+        <div class="fcard-title">ISO 19650 Asset Tagging</div>
+        <div class="fcard-desc">Automatically generate 8-segment asset tags for every element. Real-time detection, zero manual input, validated to standard.</div>
+      </div>
+      <div class="fcard">
+        <div class="fcard-icon ic-blue">▣</div>
+        <div class="fcard-title">BIM Project Coordination</div>
+        <div class="fcard-desc">Full BEP management, issue tracking, CDE lifecycle, BCF 2.1 integration, and a 13-tab coordination centre — all inside Revit.</div>
+      </div>
+      <div class="fcard">
+        <div class="fcard-icon ic-green">◫</div>
+        <div class="fcard-title">Document Management</div>
+        <div class="fcard-desc">ISO 19650 folder structures, transmittals, revision control, drawing registers, and sheet compliance audits automated.</div>
+      </div>
+      <div class="fcard">
+        <div class="fcard-icon ic-rose">⚡</div>
+        <div class="fcard-title">Workflow Automation</div>
+        <div class="fcard-desc">JSON workflow presets chain commands into one-click routines. Morning health check, weekly data drop, handover — all automated.</div>
+      </div>
+      <div class="fcard">
+        <div class="fcard-icon ic-violet">◈</div>
+        <div class="fcard-title">COBie V2.4 Export</div>
+        <div class="fcard-desc">22 sector presets covering healthcare, education, commercial, infrastructure. FM-ready 19-worksheet output in 15 minutes.</div>
+      </div>
+      <div class="fcard">
+        <div class="fcard-icon ic-cyan">⟳</div>
+        <div class="fcard-title">Excel Round-Trip</div>
+        <div class="fcard-desc">Export tag data to Excel, edit offline or share with the client, then re-import changes back into Revit with full validation.</div>
+      </div>
+    </div>
+
+    <hr class="rule">
+
+    <div class="highlight-strip">
+      <div class="hs-title">StingBIM — The Connected Platform</div>
+      <div class="hs-body">
+        StingTools (the Revit plugin) is part of the broader <strong>StingBIM platform</strong> — a cloud-connected ecosystem that adds real-time multi-user sync, a live web dashboard, REST API access, and the optional <strong>StingMIM</strong> module for facilities management, digital twin, and IoT integration. The plugin works fully offline and standalone; the platform adds enterprise-grade collaboration on top. See the Plans page for full details.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ WHY STINGTOOLS ═══════════════ -->
+<section class="page" id="page-why">
+  <div class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-inner">
+      <div class="hero-eyebrow">The Case for StingTools</div>
+      <h1>Why Choose <em>StingTools</em>?</h1>
+      <p class="hero-sub">
+        BIM teams waste thousands of hours on tasks that should be automated. StingTools eliminates manual tagging,
+        repetitive QA, error-prone COBie exports, and fragmented toolchains — permanently.
+      </p>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="s-eyebrow">The Core Problem</div>
+    <h2 class="s-title">BIM Teams Are <em>Buried</em> in Admin</h2>
+    <p class="s-desc">
+      Without StingTools, a typical BIM coordinator on a mid-size project spends 40+ hours per week on tasks that
+      should be automated: manually assigning asset tags, running compliance checks, preparing COBie spreadsheets,
+      chasing issue registers, and reformatting data for FM teams. This isn't BIM — it's data entry.
+    </p>
+
+    <div class="adv-grid">
+      <div class="adv-cell">
+        <div class="adv-num">01</div>
+        <div class="adv-tag">Unique</div>
+        <div class="adv-title">The Only ISO 19650 Native Tagger in Revit</div>
+        <div class="adv-body">No other Revit tool generates fully compliant 8-segment ISO 19650 asset tags automatically. Competitors require manual parameter entry, custom Dynamo scripts, or post-process spreadsheets. StingTools does it live, from the model, as you design.</div>
+      </div>
+      <div class="adv-cell">
+        <div class="adv-num">02</div>
+        <div class="adv-tag">Speed</div>
+        <div class="adv-title">Real-Time — No Batch Runs Required</div>
+        <div class="adv-body">The StingAutoTagger runs as a background Revit IUpdater. Every element placed is tagged instantly — discipline, location, zone, level, system, function, product, and sequence number — with zero user interaction required.</div>
+      </div>
+      <div class="adv-cell">
+        <div class="adv-num">03</div>
+        <div class="adv-tag">Coverage</div>
+        <div class="adv-title">540+ Commands, One Panel</div>
+        <div class="adv-body">No other Revit plugin consolidates asset tagging, BIM coordination, COBie export, document management, 4D scheduling, warnings management, and FM handover in a single interface. StingTools replaces five separate tools.</div>
+      </div>
+      <div class="adv-cell">
+        <div class="adv-num">04</div>
+        <div class="adv-tag">Intelligence</div>
+        <div class="adv-title">5-Layer Spatial Detection Intelligence</div>
+        <div class="adv-body">StingTools uses a multi-layer algorithm to auto-detect all 8 tag tokens from model geometry — reading room boundaries, grid intersections, linked model data, parameter lookups, and nearest-neighbour fallback. No manual coding needed.</div>
+      </div>
+      <div class="adv-cell">
+        <div class="adv-num">05</div>
+        <div class="adv-tag">Automation</div>
+        <div class="adv-title">One-Click Workflow Presets</div>
+        <div class="adv-body">The Workflow Engine chains 5–11 commands into named presets with conditional execution. A morning health check that used to take 45 minutes is a single button press. Daily QA, data drops, handover validation — all automated.</div>
+      </div>
+      <div class="adv-cell">
+        <div class="adv-num">06</div>
+        <div class="adv-tag">Value</div>
+        <div class="adv-title">6× Return on Investment</div>
+        <div class="adv-body">At $300/user/year (Premium), StingTools saves a 100-user team approximately $180,000/year in manual coordination labour. That's a 6× ROI from year one — before factoring in error reduction and improved client deliverable quality.</div>
+      </div>
+    </div>
+
+    <hr class="rule">
+
+    <div class="s-eyebrow">Advantages Over Other Approaches</div>
+    <h2 class="s-title">Compared to <em>Alternatives</em></h2>
+
+    <div class="why-grid">
+      <div class="why-card">
+        <div class="why-card-num">A</div>
+        <div class="why-icon ic-rose">🔧</div>
+        <div class="why-title">vs. Manual Parameter Entry</div>
+        <div class="why-body">Manual tagging in Revit properties takes 2–5 minutes per element with ~12% error rate. StingTools tags thousands of elements in seconds with under 0.5% error rate. A 200-element floor that takes one person a full day to tag manually is done in under a minute.</div>
+      </div>
+      <div class="why-card">
+        <div class="why-card-num">B</div>
+        <div class="why-icon ic-amber">📐</div>
+        <div class="why-title">vs. Dynamo Scripts</div>
+        <div class="why-body">Dynamo tagging scripts break on model changes, require Python expertise to maintain, and have no ISO 19650 validation. StingTools is a compiled plugin — it's stable, versioned, maintained, and includes full compliance checking out of the box.</div>
+      </div>
+      <div class="why-card">
+        <div class="why-card-num">C</div>
+        <div class="why-icon ic-blue">☁</div>
+        <div class="why-title">vs. Autodesk BIM 360 / ACC</div>
+        <div class="why-body">ACC at $1,284/user/year doesn't include ISO 19650 asset tagging, COBie export, or automatic tag generation. It's a document management platform. StingTools adds all of that at $300/user/year — and runs inside Revit, not in a browser.</div>
+      </div>
+      <div class="why-card">
+        <div class="why-card-num">D</div>
+        <div class="why-icon ic-violet">📊</div>
+        <div class="why-title">vs. COBie Spreadsheet Tools</div>
+        <div class="why-body">Third-party COBie tools require manual data population from Revit — a 2–3 day task per handover. StingTools reads directly from the tagged model and produces a validated 19-worksheet COBie V2.4 file in under 15 minutes, with 22 sector presets.</div>
+      </div>
+    </div>
+
+    <div class="cbox cbox-gold">
+      <span class="cbox-icon">✦</span>
+      <div class="cbox-body"><strong>Bottom line:</strong> StingTools is the only tool that combines ISO 19650 native tagging, automated BIM coordination, COBie export, document management, and FM handover in a single Revit plugin — at a fraction of competitor cost. No other tool does all of this.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ WHO IT'S FOR ═══════════════ -->
+<section class="page" id="page-who">
+  <div class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-inner">
+      <div class="hero-eyebrow">Target Audience</div>
+      <h1>Built for <em>BIM Professionals</em></h1>
+      <p class="hero-sub">StingTools is purpose-built for the professionals who need ISO 19650 compliance, serious BIM data management, and efficient project delivery without switching between five different tools.</p>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="persona-grid">
+      <div class="persona">
+        <div class="persona-av">👷</div>
+        <div class="persona-role">BIM Manager</div>
+        <div class="persona-desc">Sets up BEPs, manages compliance across all disciplines, runs coordination meetings, and tracks model health. Needs one view of the entire project's BIM status.</div>
+        <div class="persona-chips">
+          <span class="chip">BEP</span>
+          <span class="chip">Compliance</span>
+          <span class="chip">Coordination</span>
+        </div>
+      </div>
+      <div class="persona">
+        <div class="persona-av">🏗️</div>
+        <div class="persona-role">BIM Coordinator</div>
+        <div class="persona-desc">Runs daily QA routines, manages clash detection, maintains the issue register, and prepares data drops on schedule. StingTools automates the entire daily cycle.</div>
+        <div class="persona-chips">
+          <span class="chip">Daily QA</span>
+          <span class="chip">Issues</span>
+          <span class="chip">Data Drop</span>
+        </div>
+      </div>
+      <div class="persona">
+        <div class="persona-av">⚙️</div>
+        <div class="persona-role">MEP Designer</div>
+        <div class="persona-desc">Needs all placed equipment, ducts, and pipes automatically tagged with discipline, system, and location codes the moment they're placed — without stopping to fill in parameters.</div>
+        <div class="persona-chips">
+          <span class="chip">Auto-Tag</span>
+          <span class="chip">MEP</span>
+          <span class="chip">Real-Time</span>
+        </div>
+      </div>
+      <div class="persona">
+        <div class="persona-av">🏛️</div>
+        <div class="persona-role">Architect</div>
+        <div class="persona-desc">Manages sheet organisation, view templates, revision control, and produces ISO-compliant drawing registers and transmittals for formal issue.</div>
+        <div class="persona-chips">
+          <span class="chip">Sheets</span>
+          <span class="chip">Revisions</span>
+          <span class="chip">Templates</span>
+        </div>
+      </div>
+      <div class="persona">
+        <div class="persona-av">📋</div>
+        <div class="persona-role">Project Manager</div>
+        <div class="persona-desc">Needs compliance visibility, SLA tracking, and outstanding issue reports without opening Revit. The web dashboard and HTML export serve this need directly.</div>
+        <div class="persona-chips">
+          <span class="chip">Dashboard</span>
+          <span class="chip">Reports</span>
+          <span class="chip">SLA</span>
+        </div>
+      </div>
+      <div class="persona">
+        <div class="persona-av">🔧</div>
+        <div class="persona-role">Facilities Manager</div>
+        <div class="persona-desc">Receives a complete, validated COBie handover package with every asset tagged, located, and linked to maintenance schedules — generated directly from the Revit model.</div>
+        <div class="persona-chips">
+          <span class="chip">COBie</span>
+          <span class="chip">Handover</span>
+          <span class="chip">FM</span>
+        </div>
+      </div>
+    </div>
+
+    <hr class="rule">
+
+    <div class="s-eyebrow">Project Sectors</div>
+    <h2 class="s-title">Built for Every <em>Sector</em></h2>
+    <p class="s-desc">StingTools ships with sector-specific workflow presets and COBie export configurations pre-configured for major industry verticals.</p>
+
+    <div class="grid-3">
+      <div class="fcard">
+        <div class="fcard-icon ic-blue">🏥</div>
+        <div class="fcard-title">Healthcare</div>
+        <div class="fcard-desc">NHS/HTM compliance, medical gas tagging, infection zone classification, room data sheets, SFG20 maintenance schedules, and CAFM-ready handover.</div>
+      </div>
+      <div class="fcard">
+        <div class="fcard-icon ic-gold">🏫</div>
+        <div class="fcard-title">Education</div>
+        <div class="fcard-desc">DfE/BB103 schedules, room type tagging, area compliance, EPC data, and estate management handover packages for schools and universities.</div>
+      </div>
+      <div class="fcard">
+        <div class="fcard-icon ic-green">🏢</div>
+        <div class="fcard-title">Commercial</div>
+        <div class="fcard-desc">BREEAM evidence, tenant fit-out coordination, landlord/tenant boundary tagging, NABERS energy data, and occupancy scheduling.</div>
+      </div>
+      <div class="fcard">
+        <div class="fcard-icon ic-amber">🏘️</div>
+        <div class="fcard-title">Residential</div>
+        <div class="fcard-desc">NHBC warranty tracking, SAP energy ratings, unit numbering, sprinkler system tagging, and estate management exports for developers.</div>
+      </div>
+      <div class="fcard">
+        <div class="fcard-icon ic-violet">🛤️</div>
+        <div class="fcard-title">Infrastructure</div>
+        <div class="fcard-desc">IFC/PAS 55 linear asset tagging, chainage referencing, network structure classification, GIS data export, and asset condition surveys.</div>
+      </div>
+      <div class="fcard">
+        <div class="fcard-icon ic-rose">🏭</div>
+        <div class="fcard-title">Industrial</div>
+        <div class="fcard-desc">P&amp;ID integration, equipment criticality classification, ATEX zone tagging, process-linked maintenance data, and spare parts registers.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ ROI ═══════════════ -->
+<section class="page" id="page-roi">
+  <div class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-inner">
+      <div class="hero-eyebrow">Return on Investment</div>
+      <h1>Time &amp; Cost <em>Savings</em></h1>
+      <p class="hero-sub">Every hour your team spends on manual BIM admin is an hour not spent designing. StingTools eliminates the busywork — permanently — with automation built directly into Revit.</p>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="roi-row">
+      <div class="roi-card gr">
+        <div class="roi-figures"><div class="roi-was">40 hrs/wk</div><div class="roi-arr">→</div><div class="roi-now">2 hrs</div></div>
+        <div class="roi-lbl"><strong>Asset Tagging</strong> — per week, for a typical project team</div>
+      </div>
+      <div class="roi-card bl">
+        <div class="roi-figures"><div class="roi-was">3 days</div><div class="roi-arr">→</div><div class="roi-now">15 min</div></div>
+        <div class="roi-lbl"><strong>COBie Export</strong> — preparation time per handover package</div>
+      </div>
+      <div class="roi-card go">
+        <div class="roi-figures"><div class="roi-was">8 hrs</div><div class="roi-arr">→</div><div class="roi-now">5 min</div></div>
+        <div class="roi-lbl"><strong>Compliance Audit</strong> — full model ISO 19650 check</div>
+      </div>
+      <div class="roi-card ro">
+        <div class="roi-figures"><div class="roi-was">~12%</div><div class="roi-arr">→</div><div class="roi-now">&lt;0.5%</div></div>
+        <div class="roi-lbl"><strong>Tag Error Rate</strong> — before vs after StingTools</div>
+      </div>
+    </div>
+
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead>
+          <tr><th>Task</th><th>Without StingTools</th><th>With StingTools</th><th>Reduction</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Manual asset tagging</strong></td><td>40 hrs / week</td><td>2 hrs / week</td><td class="green">95%</td></tr>
+          <tr><td><strong>ISO 19650 compliance audit</strong></td><td>8 hrs / project</td><td>5 min</td><td class="green">99%</td></tr>
+          <tr><td><strong>COBie export preparation</strong></td><td>3 days / handover</td><td>15 min</td><td class="green">97%</td></tr>
+          <tr><td><strong>Tag error rate</strong></td><td>~12% errors</td><td>&lt;0.5%</td><td class="green">96%</td></tr>
+          <tr><td><strong>Clash / issue reporting</strong></td><td>2 hrs / round</td><td>15 min</td><td class="green">88%</td></tr>
+          <tr><td><strong>Drawing register production</strong></td><td>4 hrs / issue</td><td>5 min</td><td class="green">98%</td></tr>
+          <tr><td><strong>BEP creation</strong></td><td>1–2 days</td><td>30 min (wizard)</td><td class="green">94%</td></tr>
+          <tr><td><strong>Morning model health check</strong></td><td>45 min</td><td>3 min (automated)</td><td class="green">93%</td></tr>
+          <tr><td><strong>FM handover manual</strong></td><td>5–10 days</td><td>30 min</td><td class="green">97%</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="cbox cbox-green">
+      <span class="cbox-icon">▲</span>
+      <div class="cbox-body"><strong>Net ROI:</strong> StingTools Premium at $30,000/year (100 users) saves approximately <strong>$180,000/year</strong> in manual BIM coordination labour — a <strong>6× return on investment from year one</strong>. This figure does not include reduced rework costs from improved data accuracy.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ HOW IT WORKS ═══════════════ -->
+<section class="page" id="page-how">
+  <div class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-inner">
+      <div class="hero-eyebrow">Platform Architecture</div>
+      <h1>How <em>StingTools</em> Works</h1>
+      <p class="hero-sub">Understanding the engine behind the automation — from how tags are built in real time to how the platform connects to cloud and FM systems.</p>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <h2 class="ch">The StingBIM Ecosystem</h2>
+    <p class="p">StingTools is the Revit-facing component of the StingBIM platform. The architecture has three layers:</p>
+
+    <div class="grid-3 mb32">
+      <div class="fcard">
+        <div class="fcard-icon ic-gold">🔌</div>
+        <div class="fcard-title">Layer 1 — Revit Plugin</div>
+        <div class="fcard-desc">The <strong>StingTools.dll</strong> plugin lives inside Revit. It handles all tagging, coordination, document management, and workflow automation. Works fully offline. This is what you interact with daily.</div>
+      </div>
+      <div class="fcard">
+        <div class="fcard-icon ic-blue">☁</div>
+        <div class="fcard-title">Layer 2 — StingBIM Cloud</div>
+        <div class="fcard-desc">Optional cloud layer adds real-time sync across team members (SignalR), a web dashboard for non-Revit users, REST API for integrations, and team activity tracking. Professional &amp; Premium plans.</div>
+      </div>
+      <div class="fcard">
+        <div class="fcard-icon ic-green">🏗️</div>
+        <div class="fcard-title">Layer 3 — StingMIM (FM)</div>
+        <div class="fcard-desc">The optional <strong>Maintenance Information Management</strong> module extends the platform into FM operations: asset registry, digital twin sync, IoT sensor data, maintenance scheduling, and O&amp;M manuals.</div>
+      </div>
+    </div>
+
+    <h2 class="ch">How the Auto-Tagger Works</h2>
+    <p class="p">The StingAutoTagger is a background Revit <span class="mono-tag">IUpdater</span> — a type of event listener built into the Revit API. Here is the exact sequence when you place an element:</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-side"><div class="step-num">1</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Element Placed</div>
+          <div class="step-text">You place a mechanical fan coil unit in Revit. The <span class="mono-tag">IUpdater</span> fires on <span class="mono-tag">GetChangeTypeElementAddition()</span>. This happens in the same transaction as the placement — no delay.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-side"><div class="step-num">2</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Token Auto-Detection (5 Layers)</div>
+          <div class="step-text">The <span class="mono-tag">TokenAutoPopulator</span> runs through 5 detection layers for each token:
+            <ul>
+              <li><strong>DISC:</strong> Revit category → discipline lookup table → M (Mechanical)</li>
+              <li><strong>LOC:</strong> Spatial containment → linked model scope → BLD1</li>
+              <li><strong>ZONE:</strong> Room boundary test → zone parameter → grid region → Z01</li>
+              <li><strong>LVL:</strong> Host level → elevation mapping → L02</li>
+              <li><strong>SYS:</strong> MEP system name → family parameter → HVAC</li>
+              <li><strong>FUNC:</strong> Family type parameter → system function → SUP</li>
+              <li><strong>PROD:</strong> Family name pattern matching against 1,200-entry lookup → FCU</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-side"><div class="step-num">3</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Tag Assembly &amp; Sequence</div>
+          <div class="step-text">Tokens are combined into the ISO format: <span class="mono-tag">M-BLD1-Z01-L02-HVAC-SUP-FCU-0001</span>. The SEQ counter reads from the <span class="mono-tag">.sting_seq.json</span> sidecar file and auto-increments. Collision detection checks all 10,000 existing tags in O(1) time using a HashSet index.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-side"><div class="step-num">4</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Write to 36 Containers</div>
+          <div class="step-text">The completed tag is written to <span class="mono-tag">ASS_TAG_1_TXT</span> (the primary ISO tag) plus the relevant discipline-specific containers (e.g. <span class="mono-tag">M_TAG_TXT</span> for Mechanical). Only the 6–10 containers applicable to the element's category are written — not all 36 — for performance.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-side"><div class="step-num">5</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">TAG7 Narrative &amp; Visual Tag (Optional)</div>
+          <div class="step-text">If TAG7 is enabled, a human-readable narrative is assembled: <em>"Mechanical HVAC Fan Coil Unit on Level 2, Zone 1, Building 1"</em>. If visual tagging is on, a Revit <span class="mono-tag">IndependentTag</span> annotation is placed at the optimal collision-free position around the element.</div>
+        </div>
+      </div>
+    </div>
+
+    <h2 class="ch">Data Storage — The _bim_manager Folder</h2>
+    <p class="p">All BIM management data is stored locally in a <span class="mono-tag">_bim_manager/</span> folder placed automatically alongside your <span class="mono-tag">.rvt</span> file. This makes data portable — the folder travels with the model.</p>
+
+    <div class="cbox cbox-blue">
+      <span class="cbox-icon">ℹ</span>
+      <div class="cbox-body"><strong>Key files in _bim_manager/:</strong> issues.json (issue register), documents.json (document register), transmittals.json, snapshots/ (revision tag snapshots), .sting_seq.json (SEQ counters), .sting_warnings_baseline.json (warnings trend), .sting_compliance_trend.json (compliance history).</div>
+    </div>
+
+    <h2 class="ch">Thread Safety &amp; Stability</h2>
+    <p class="p">All commands — whether clicked in the dock panel or triggered by a workflow preset — are dispatched through a Revit <span class="mono-tag">IExternalEventHandler</span>. This guarantees that all Revit API calls execute on the main Revit thread, preventing crashes and ensuring worksharing compatibility. StingTools is a compiled C# plugin, not a script — it is stable, versioned, and does not require Python or pyRevit.</p>
+  </div>
+</section>
+
+<!-- ═══════════════ STANDOUT TOOLS ═══════════════ -->
+<section class="page" id="page-tools">
+  <div class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-inner">
+      <div class="hero-eyebrow">Market-Leading Capabilities</div>
+      <h1>The <em>Standout Tools</em></h1>
+      <p class="hero-sub">These are the commands and features that professionals cite as the biggest time savers and the clearest differentiators from any other Revit toolset available.</p>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="s-eyebrow">Core Differentiators</div>
+    <h2 class="s-title">Tools That <em>No One Else Has</em></h2>
+
+    <div class="tool-list">
+
+      <div class="tool-row">
+        <div class="tool-row-icon ic-gold">⬡</div>
+        <div class="tool-row-content">
+          <div class="tool-row-name">Real-Time ISO 19650 Auto-Tagger <span class="star-badge">★ UNIQUE</span></div>
+          <div class="tool-row-desc">Background IUpdater that tags every element the moment it's placed — 8 segments, fully compliant, zero user input. No other Revit plugin does this. Processes 22 element categories with discipline filter and workset safety checks for workshared models.</div>
+        </div>
+        <div class="tool-row-tab">CREATE tab</div>
+      </div>
+
+      <div class="tool-row">
+        <div class="tool-row-icon ic-violet">◈</div>
+        <div class="tool-row-content">
+          <div class="tool-row-name">Tag &amp; Combine — Full Pipeline One Click <span class="star-badge">★ FLAGSHIP</span></div>
+          <div class="tool-row-desc">Runs the complete tagging pipeline: auto-populate all tokens → assemble ISO tag → write 36 discipline containers → resolve collisions → validate compliance → generate report. One button from zero to fully tagged model.</div>
+        </div>
+        <div class="tool-row-tab">CREATE tab</div>
+      </div>
+
+      <div class="tool-row">
+        <div class="tool-row-icon ic-blue">▤</div>
+        <div class="tool-row-content">
+          <div class="tool-row-name">BIM Coordination Center <span class="star-badge">★ TOP TOOL</span></div>
+          <div class="tool-row-desc">A 13-tab unified dashboard inside Revit showing: model health score, tag completeness matrix, warning analysis, open issues with SLA countdown, CDE document status, workflow execution history, 4D schedule, team activity, and deliverable tracking. Full keyboard navigation.</div>
+        </div>
+        <div class="tool-row-tab">BIM tab</div>
+      </div>
+
+      <div class="tool-row">
+        <div class="tool-row-icon ic-green">⚡</div>
+        <div class="tool-row-content">
+          <div class="tool-row-name">Workflow Automation Engine <span class="star-badge">★ TOP TOOL</span></div>
+          <div class="tool-row-desc">JSON-based workflow presets chain 5–11 commands with conditional execution (skip step if compliance &gt;95%, skip if no stale elements, etc.). Includes Morning Health Check, Daily QA, Weekly Data Drop, Handover Readiness, End of Stage Gate, and 8 sector presets. Create custom presets with no coding.</div>
+        </div>
+        <div class="tool-row-tab">BIM tab</div>
+      </div>
+
+      <div class="tool-row">
+        <div class="tool-row-icon ic-amber">◫</div>
+        <div class="tool-row-content">
+          <div class="tool-row-name">COBie V2.4 Export Wizard <span class="star-badge">★ TOP TOOL</span></div>
+          <div class="tool-row-desc">Multi-page wizard with 22 sector presets that pre-configures all field mappings for your industry vertical. Generates a validated 19-worksheet COBie V2.4 spreadsheet directly from the tagged model. Streaming export for large models. COBie import (Component, Type, System, Job worksheets) closes the round-trip loop.</div>
+        </div>
+        <div class="tool-row-tab">BIM tab</div>
+      </div>
+
+      <div class="tool-row">
+        <div class="tool-row-icon ic-rose">⚠</div>
+        <div class="tool-row-content">
+          <div class="tool-row-name">Warnings Manager — 150+ Rules, 16 Auto-Fixes</div>
+          <div class="tool-row-desc">Classifies all Revit warnings by severity, type, and deliverable impact. 16 built-in auto-fix strategies resolve the most common warning types automatically. SLA tracking enforces response deadlines. Baseline system monitors warning trends over time with compliance fall detection.</div>
+        </div>
+        <div class="tool-row-tab">BIM tab</div>
+      </div>
+
+      <div class="tool-row">
+        <div class="tool-row-icon ic-cyan">◎</div>
+        <div class="tool-row-content">
+          <div class="tool-row-name">Smart Tag Placement Engine</div>
+          <div class="tool-row-desc">Scores 8 candidate positions (N/NE/E/SE/S/SW/W/NW) per element using collision detection, alignment scoring, and category-specific placement rules. Places annotation tags at the optimal position automatically with leader management. Learns from existing placements in the view.</div>
+        </div>
+        <div class="tool-row-tab">TAGS tab</div>
+      </div>
+
+      <div class="tool-row">
+        <div class="tool-row-icon ic-gold">🤖</div>
+        <div class="tool-row-content">
+          <div class="tool-row-name">AI-Assisted Element Selection</div>
+          <div class="tool-row-desc">8 AI selection modes: Predict Select (pattern-based), Similar Select (attribute matching), Chain Select (connected elements), Cluster Select (spatial density), Pattern Select (repeating arrangements), Boundary Select (perimeter elements), Outliers, and Dense cluster detection. Reduces manual selection from hours to seconds.</div>
+        </div>
+        <div class="tool-row-tab">SELECT tab</div>
+      </div>
+
+      <div class="tool-row">
+        <div class="tool-row-icon ic-blue">📊</div>
+        <div class="tool-row-content">
+          <div class="tool-row-name">Excel Round-Trip Bidirectional Sync</div>
+          <div class="tool-row-desc">Export all tag data to a structured Excel workbook, share with the client or QS for offline review and cost annotation, then import changes back into Revit with full column mapping validation. Closes the data loop without any manual re-entry.</div>
+        </div>
+        <div class="tool-row-tab">BIM tab</div>
+      </div>
+
+      <div class="tool-row">
+        <div class="tool-row-icon ic-violet">🔄</div>
+        <div class="tool-row-content">
+          <div class="tool-row-name">7-Page BEP Wizard</div>
+          <div class="tool-row-desc">Guided creation of a fully formatted BIM Execution Plan. Configure project metadata, information requirements (EIR/AIR mapping), discipline assignments, LOD/LOI matrix, coordination protocol, and clash detection process. Exports formatted PDF and machine-readable JSON for StingTools configuration in one step.</div>
+        </div>
+        <div class="tool-row-tab">BIM tab</div>
+      </div>
+
+      <div class="tool-row">
+        <div class="tool-row-icon ic-green">🏷️</div>
+        <div class="tool-row-content">
+          <div class="tool-row-name">Pre-Tag Audit — Dry Run Prediction</div>
+          <div class="tool-row-desc">Before committing a batch tag operation, run a full dry-run prediction showing exactly which tags will be assigned, which tokens will fall back to placeholders, predicted collision count, and spatial detection coverage — per discipline and per category. Catch problems before tagging thousands of elements.</div>
+        </div>
+        <div class="tool-row-tab">CREATE tab</div>
+      </div>
+
+      <div class="tool-row">
+        <div class="tool-row-icon ic-rose">📄</div>
+        <div class="tool-row-content">
+          <div class="tool-row-name">FM Handover Manual Generator</div>
+          <div class="tool-row-desc">Auto-generates a complete FM operations manual from the tagged model: full asset register per discipline, room data sheets with equipment schedules, O&amp;M information, SFG20/HTM maintenance schedules (healthcare), warranty tracking data, and spare parts registers (StingMIM module).</div>
+        </div>
+        <div class="tool-row-tab">DOCS tab</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ ISO TAGGING ═══════════════ -->
+<section class="page" id="page-tagging">
+  <div class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-inner">
+      <div class="hero-eyebrow">Core Feature</div>
+      <h1>ISO 19650 <em>Asset Tagging</em></h1>
+      <p class="hero-sub">The most comprehensive ISO 19650 tagging engine available inside Revit. Every element receives a unique, structured, validated 8-segment asset tag — automatically, in real time.</p>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <h2 class="ch">The 8-Segment Tag Format</h2>
+
+    <div class="tag-visual">
+      <div class="tag-segs">
+        <div class="tag-seg lit"><div class="seg-v">M</div><div class="seg-l">DISC</div></div>
+        <div class="tag-seg lit"><div class="seg-v">BLD1</div><div class="seg-l">LOC</div></div>
+        <div class="tag-seg lit"><div class="seg-v">Z01</div><div class="seg-l">ZONE</div></div>
+        <div class="tag-seg lit"><div class="seg-v">L02</div><div class="seg-l">LVL</div></div>
+        <div class="tag-seg lit"><div class="seg-v">HVAC</div><div class="seg-l">SYS</div></div>
+        <div class="tag-seg lit"><div class="seg-v">SUP</div><div class="seg-l">FUNC</div></div>
+        <div class="tag-seg lit"><div class="seg-v">AHU</div><div class="seg-l">PROD</div></div>
+        <div class="tag-seg lit"><div class="seg-v">0003</div><div class="seg-l">SEQ</div></div>
+      </div>
+      <div class="tag-examples">
+        <div class="tag-ex"><span class="tag-ex-code">E-BLD1-Z01-GF-LV-PWR-DB-0001</span><span class="tag-ex-desc">Electrical distribution board, ground floor</span></div>
+        <div class="tag-ex"><span class="tag-ex-code">P-BLD1-Z02-B1-SAN-SAN-FIX-0003</span><span class="tag-ex-desc">Plumbing sanitary fixture, basement zone 2</span></div>
+        <div class="tag-ex"><span class="tag-ex-code">FP-BLD1-Z01-L01-FP-FP-SPR-0001</span><span class="tag-ex-desc">Fire protection sprinkler, level 1</span></div>
+        <div class="tag-ex"><span class="tag-ex-code">A-BLD1-Z01-L03-ARC-FIT-DR-0012</span><span class="tag-ex-desc">Architectural door, level 3</span></div>
+        <div class="tag-ex"><span class="tag-ex-code">S-BLD1-Z01-GF-STR-STR-COL-0001</span><span class="tag-ex-desc">Structural column, ground floor</span></div>
+      </div>
+    </div>
+
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>#</th><th>Token</th><th>Meaning</th><th>Auto-Detection Method</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><strong>DISC</strong></td><td>Discipline (M / E / P / A / S / FP / LV…)</td><td>Revit category → discipline lookup table</td></tr>
+          <tr><td>2</td><td><strong>LOC</strong></td><td>Location / Building (BLD1 / EXT…)</td><td>Spatial containment → linked model scope</td></tr>
+          <tr><td>3</td><td><strong>ZONE</strong></td><td>Zone (Z01 / Z02 / Z03…)</td><td>Room boundary test → zone parameter → grid region</td></tr>
+          <tr><td>4</td><td><strong>LVL</strong></td><td>Level (GF / L01 / L02 / B1…)</td><td>Host level → elevation mapping → nearest level</td></tr>
+          <tr><td>5</td><td><strong>SYS</strong></td><td>System (HVAC / SAN / LV / STR…)</td><td>MEP system name → family parameter → category</td></tr>
+          <tr><td>6</td><td><strong>FUNC</strong></td><td>Function (SUP / EXT / RET / PWR…)</td><td>Family type parameter → system function</td></tr>
+          <tr><td>7</td><td><strong>PROD</strong></td><td>Product type (AHU / DB / FIX / COL…)</td><td>Family name pattern matching → 1,200-entry lookup</td></tr>
+          <tr><td>8</td><td><strong>SEQ</strong></td><td>Sequence number (0001–9999)</td><td>Auto-increment per DISC+LOC+ZONE+LVL+SYS+FUNC+PROD group</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ BIM MANAGEMENT ═══════════════ -->
+<section class="page" id="page-bim">
+  <div class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-inner">
+      <div class="hero-eyebrow">Core Feature</div>
+      <h1>BIM Project <em>Coordination</em></h1>
+      <p class="hero-sub">A complete ISO 19650 project coordination platform living entirely inside Revit — BEPs, issues, documents, transmittals, CDE lifecycle, and a 13-tab unified dashboard.</p>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="acc">
+      <div class="acc-item open">
+        <div class="acc-hd" onclick="acc(this)">
+          <div class="acc-hd-left"><span>📋</span><span class="acc-title">BIM Execution Plan (BEP)</span></div>
+          <div style="display:flex;gap:8px;align-items:center"><span class="acc-badge">BIM tab</span><span class="acc-arrow">▼</span></div>
+        </div>
+        <div class="acc-body">
+          <p class="p">Create, update, and export ISO 19650-compliant BEPs using the 7-page BEP Wizard. Configure project details, disciplines, information requirements, delivery milestones, and team responsibilities. Export to PDF or Word.</p>
+          <div class="chip-row"><span class="cmd-chip"><span class="tab-lbl">BIM</span>Create BEP</span><span class="cmd-chip"><span class="tab-lbl">BIM</span>Edit BEP</span><span class="cmd-chip"><span class="tab-lbl">BIM</span>Export BEP PDF</span><span class="cmd-chip"><span class="tab-lbl">BIM</span>BEP Compliance Check</span></div>
+        </div>
+      </div>
+      <div class="acc-item">
+        <div class="acc-hd" onclick="acc(this)">
+          <div class="acc-hd-left"><span>🚨</span><span class="acc-title">Issue Management — RFI / NCR / SI / Clash</span></div>
+          <div style="display:flex;gap:8px;align-items:center"><span class="acc-badge">BIM tab</span><span class="acc-arrow">▼</span></div>
+        </div>
+        <div class="acc-body">
+          <p class="p">Full issue lifecycle from creation to resolution. Assign severity, discipline, responsible party, and due dates. SLA timers enforce response deadlines. BCF 2.1 export/import for cross-platform coordination with Navisworks, Solibri, and BIMcollab.</p>
+          <div class="chip-row"><span class="cmd-chip"><span class="tab-lbl">BIM</span>Create Issue</span><span class="cmd-chip"><span class="tab-lbl">BIM</span>Issue Dashboard</span><span class="cmd-chip"><span class="tab-lbl">BIM</span>BCF 2.1 Export</span><span class="cmd-chip"><span class="tab-lbl">BIM</span>SLA Report</span></div>
+        </div>
+      </div>
+      <div class="acc-item">
+        <div class="acc-hd" onclick="acc(this)">
+          <div class="acc-hd-left"><span>📁</span><span class="acc-title">Document Management &amp; CDE Lifecycle</span></div>
+          <div style="display:flex;gap:8px;align-items:center"><span class="acc-badge">BIM tab</span><span class="acc-arrow">▼</span></div>
+        </div>
+        <div class="acc-body">
+          <p class="p">ISO 19650 CDE state machine with 4 lifecycle states: Work In Progress → Shared → Published → Archived. Automatic folder structure generation, document register, revision history tracking, and transmittal packages with cover sheets.</p>
+          <div class="chip-row"><span class="cmd-chip"><span class="tab-lbl">BIM</span>Document Register</span><span class="cmd-chip"><span class="tab-lbl">BIM</span>CDE Promote</span><span class="cmd-chip"><span class="tab-lbl">BIM</span>Create Transmittal</span><span class="cmd-chip"><span class="tab-lbl">BIM</span>CDE Folder Structure</span></div>
+        </div>
+      </div>
+      <div class="acc-item">
+        <div class="acc-hd" onclick="acc(this)">
+          <div class="acc-hd-left"><span>⚠</span><span class="acc-title">Warnings Management — 150+ Rules, 16 Auto-Fixes</span></div>
+          <div style="display:flex;gap:8px;align-items:center"><span class="acc-badge">BIM tab</span><span class="acc-arrow">▼</span></div>
+        </div>
+        <div class="acc-body">
+          <p class="p">150+ classification rules sort Revit warnings by severity and type. 16 auto-fix strategies resolve the most common warnings automatically. Baseline tracking monitors warning trends. Deliverable impact analysis flags warnings that block handover.</p>
+          <div class="chip-row"><span class="cmd-chip"><span class="tab-lbl">BIM</span>Warnings Dashboard</span><span class="cmd-chip"><span class="tab-lbl">BIM</span>Auto-Fix Warnings</span><span class="cmd-chip"><span class="tab-lbl">BIM</span>Save Baseline</span><span class="cmd-chip"><span class="tab-lbl">BIM</span>Warnings Trend</span></div>
+        </div>
+      </div>
+      <div class="acc-item">
+        <div class="acc-hd" onclick="acc(this)">
+          <div class="acc-hd-left"><span>📅</span><span class="acc-title">4D Scheduling &amp; 5D Cost Estimation</span></div>
+          <div style="display:flex;gap:8px;align-items:center"><span class="acc-badge">BIM tab</span><span class="acc-arrow">▼</span></div>
+        </div>
+        <div class="acc-body">
+          <p class="p">Auto-generate construction schedules from the tagged model. Link elements to time phases and cost rates. Export 4D schedule data and 5D cost estimates from the same tagged dataset used for COBie — no double-entry. Navisworks TimeLiner export supported.</p>
+          <div class="chip-row"><span class="cmd-chip"><span class="tab-lbl">BIM</span>Generate 4D Schedule</span><span class="cmd-chip"><span class="tab-lbl">BIM</span>5D Cost Estimate</span><span class="cmd-chip"><span class="tab-lbl">BIM</span>Navisworks Export</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ DOCS & SHEETS ═══════════════ -->
+<section class="page" id="page-docs">
+  <div class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-inner">
+      <div class="hero-eyebrow">Core Feature</div>
+      <h1>Documents, Sheets <em>&amp; Views</em></h1>
+      <p class="hero-sub">Organise, audit, and manage all project drawings from the DOCS tab. Sheet numbering, ISO compliance, viewport layout, batch printing, and FM handover manuals — automated.</p>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="grid-2">
+      <div class="fcard"><div class="fcard-icon ic-gold">📑</div><div class="fcard-title">Sheet Manager</div><div class="fcard-desc">Dual-panel sheet management with bulk operations. Rename, renumber, copy, and organise sheets by discipline prefix. ISO 19650 naming audit with 10 validation rules.</div></div>
+      <div class="fcard"><div class="fcard-icon ic-blue">🖼</div><div class="fcard-title">Auto Layout Viewports</div><div class="fcard-desc">Shelf-packing algorithm places viewports on sheets automatically, optimising space utilisation. Title blocks updated with project data automatically.</div></div>
+      <div class="fcard"><div class="fcard-icon ic-green">🖨</div><div class="fcard-title">Batch Print to PDF</div><div class="fcard-desc">Export all sheets, discipline sets, or selected sheets to PDF. Automatic ISO 19650 file naming. One operation, any scale.</div></div>
+      <div class="fcard"><div class="fcard-icon ic-rose">📋</div><div class="fcard-title">Drawing Register</div><div class="fcard-desc">Export a CSV drawing register with full ISO 19650 metadata: document number, title, revision, status, issue date, and compliance flags.</div></div>
+      <div class="fcard"><div class="fcard-icon ic-violet">🔄</div><div class="fcard-title">Revision Management</div><div class="fcard-desc">ISO 19650 revision sequences (S0-S7 / P01-P08 / C01+). Tag snapshots at each revision. Revision clouds auto-placed on changed elements.</div></div>
+      <div class="fcard"><div class="fcard-icon ic-cyan">📖</div><div class="fcard-title">FM Handover Manual</div><div class="fcard-desc">Auto-generate a complete FM operations manual from the tagged model — asset registers, O&amp;M data, maintenance schedules, and room data sheets.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ WORKFLOW AUTOMATION ═══════════════ -->
+<section class="page" id="page-wf">
+  <div class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-inner">
+      <div class="hero-eyebrow">Core Feature</div>
+      <h1>Workflow <em>Automation</em></h1>
+      <p class="hero-sub">The Workflow Engine chains multiple commands into named, conditional presets. One button press runs your entire morning routine, data drop preparation, or handover validation.</p>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Preset Name</th><th>Steps</th><th>Time Before</th><th>Time After</th><th>Primary Use Case</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Morning Health Check</strong></td><td>10 adaptive</td><td>~45 min</td><td>3 min</td><td>Daily startup routine</td></tr>
+          <tr><td><strong>Daily QA Sync</strong></td><td>13 steps</td><td>~90 min</td><td>5 min</td><td>Coordinator daily QA cycle</td></tr>
+          <tr><td><strong>Weekly Data Drop</strong></td><td>8 steps</td><td>~4 hrs</td><td>20 min</td><td>ISO 19650 information exchange</td></tr>
+          <tr><td><strong>Meeting Prep</strong></td><td>7 steps</td><td>~2 hrs</td><td>10 min</td><td>Pre-coordination meeting</td></tr>
+          <tr><td><strong>Clash Coordination</strong></td><td>5 steps</td><td>~1.5 hrs</td><td>8 min</td><td>Cross-discipline clash cycle</td></tr>
+          <tr><td><strong>Handover Readiness</strong></td><td>9 steps</td><td>~6 hrs</td><td>30 min</td><td>Pre-handover validation</td></tr>
+          <tr><td><strong>End of Stage Gate</strong></td><td>11 steps</td><td>~8 hrs</td><td>45 min</td><td>RIBA stage transition</td></tr>
+          <tr><td><strong>Quick Fix Cycle</strong></td><td>6 steps</td><td>~1 hr</td><td>5 min</td><td>Rapid quality improvement burst</td></tr>
+          <tr><td><strong>End of Day Sync</strong></td><td>8 steps</td><td>~1 hr</td><td>6 min</td><td>Daily close-out and sync</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 class="ch">Sector Workflow Presets</h2>
+    <div class="chip-row">
+      <span class="cmd-chip"><span class="tab-lbl">Sector</span>Healthcare NHS</span>
+      <span class="cmd-chip"><span class="tab-lbl">Sector</span>Education DfE</span>
+      <span class="cmd-chip"><span class="tab-lbl">Sector</span>Commercial BREEAM</span>
+      <span class="cmd-chip"><span class="tab-lbl">Sector</span>Residential NHBC</span>
+      <span class="cmd-chip"><span class="tab-lbl">Sector</span>Infrastructure IFC</span>
+      <span class="cmd-chip"><span class="tab-lbl">Sector</span>Industrial P&ID</span>
+      <span class="cmd-chip"><span class="tab-lbl">Sector</span>Data Centre TIA-942</span>
+      <span class="cmd-chip"><span class="tab-lbl">Sector</span>Hospitality</span>
+    </div>
+
+    <div class="cbox cbox-gold mt16">
+      <span class="cbox-icon">✦</span>
+      <div class="cbox-body">Custom workflow presets can be created as JSON files with no coding. Chain any StingTools commands with conditional logic — for example, skip tag validation if compliance is already above 95%, or skip stale retag if no stale elements are detected.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ DOCK PANEL ═══════════════ -->
+<section class="page" id="page-panel">
+  <div class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-inner">
+      <div class="hero-eyebrow">User Interface</div>
+      <h1>The <em>9-Tab Dock Panel</em></h1>
+      <p class="hero-sub">StingTools lives as a dockable panel on the right side of Revit. All 540+ commands are organised into 9 logical tabs — no hunting through menus, no switching applications.</p>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Tab</th><th>Primary Purpose</th><th>Key Commands</th></tr></thead>
+        <tbody>
+          <tr><td><strong class="gold">SELECT</strong></td><td>Element selection by category, state, spatial position; AI-assisted selection; bulk parameter write</td><td>AI Predict Select, Select by Category, Bulk Param Write, Colour by Parameter</td></tr>
+          <tr><td><strong class="gold">ORGANISE</strong></td><td>Tag arrangement, leader management, annotation colours, QA analysis, tag appearance</td><td>Arrange Tags, Toggle Leaders, Snap Elbows, Nudge Tags, Flip Tags</td></tr>
+          <tr><td><strong class="gold">DOCS</strong></td><td>Sheets, views, viewports, document automation, sheet manager, ISO compliance</td><td>Sheet Manager, Auto Layout, Batch Print, Drawing Register, FM Handover Manual</td></tr>
+          <tr><td><strong class="gold">TEMP</strong></td><td>Project templates, materials, families, schedules, shared parameters, initial setup</td><td>Master Setup, Load Parameters, Create Materials, Batch Schedules (168 definitions)</td></tr>
+          <tr><td><strong class="gold">CREATE</strong></td><td>All tagging commands: auto-tag, batch, validate, token writers, combine, legends, QA</td><td>Batch Tag, Tag New Only, Validate Tags, Resolve All Issues, Pre-Tag Audit</td></tr>
+          <tr><td><strong class="gold">VIEW</strong></td><td>View templates, template manager, discipline styles, presentation modes</td><td>Auto-Assign Templates, Template Compliance Score, View Styles</td></tr>
+          <tr><td><strong class="gold">MODEL</strong></td><td>Auto-modelling tools, DWG-to-BIM conversion, structural and MEP element creation</td><td>DWG to Walls, Auto MEP Routes, Structural Import, Model Creation Wizard</td></tr>
+          <tr><td><strong class="gold">BIM</strong></td><td>Full ISO 19650 BIM management: BEP, issues, documents, COBie, 4D/5D, coordination</td><td>BEP Wizard, Issue Tracker, COBie Export, Coordination Centre, Quick Workflows</td></tr>
+          <tr><td><strong class="gold">TAGS</strong></td><td>Tag Studio: visual placement, leader style, tag appearance, token tools, scale control</td><td>Smart Place Tags, 16-position Compass, Leader Elbow Style, Tag Style (128 combos)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ INSTALL ═══════════════ -->
+<section class="page" id="page-install">
+  <div class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-inner">
+      <div class="hero-eyebrow">Guide 1 — Getting Started</div>
+      <h1>Installation <em>&amp; Project Setup</em></h1>
+      <p class="hero-sub">From download to fully configured project. No Python, no pyRevit, no additional runtimes — StingTools installs as a standard Revit .addin file.</p>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <h2 class="ch">System Requirements</h2>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Component</th><th>Requirement</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Revit Version</strong></td><td>2025, 2026, or 2027</td></tr>
+          <tr><td><strong>Operating System</strong></td><td>Windows 10 / 11 (64-bit)</td></tr>
+          <tr><td><strong>Runtime</strong></td><td>.NET 8 (included with installer)</td></tr>
+          <tr><td><strong>RAM</strong></td><td>16 GB minimum, 32 GB recommended for large models</td></tr>
+          <tr><td><strong>Worksharing</strong></td><td>Fully supported — BIM 360, ACC, Revit Server, local</td></tr>
+          <tr><td><strong>Permissions</strong></td><td>Write access to <code>%AppData%\Autodesk\Revit\Addins</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 class="ch">Installation Steps</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-side"><div class="step-num">1</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Download the Installer</div>
+          <div class="step-text">Download <span class="mono-tag">StingTools_v2.1_Setup.exe</span> from your StingBIM account portal at <strong>stingbim.com/downloads</strong>. Choose the installer for your Revit version.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-side"><div class="step-num">2</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Run the Installer</div>
+          <div class="step-text">Double-click the installer and follow the setup wizard. It places <span class="mono-tag">StingTools.dll</span> and <span class="mono-tag">StingTools.addin</span> into the correct Revit Addins folder automatically.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-side"><div class="step-num">3</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Launch Revit &amp; Open the Panel</div>
+          <div class="step-text">Open Revit. You'll see the <strong>StingTools</strong> ribbon tab. Click <strong>Show Panel</strong> to open the dockable panel. It docks to the right side by default at 320 × 400 px minimum.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-side"><div class="step-num">4</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Activate Your Licence</div>
+          <div class="step-text">On first run, enter your licence key from your StingBIM account. Starter plan users skip this — the free tier activates automatically.<span class="cmd-tag">StingTools Ribbon → Activate</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-side"><div class="step-num">5</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Run Master Setup</div>
+          <div class="step-text">Open your Revit project. Navigate to the <span class="mono-tag">TEMP</span> tab and click <strong>Master Setup</strong>. This single command initialises the entire project: shared parameters, worksets, filters, schedules, and the <span class="mono-tag">_bim_manager/</span> data folder.
+          <span class="cmd-tag">TEMP → Master Setup</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-side"><div class="step-num">6</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Create the BEP</div>
+          <div class="step-text">Navigate to the <span class="mono-tag">BIM</span> tab and click <strong>Create BEP</strong>. The 7-page wizard walks through project metadata, disciplines, information requirements, LOD matrix, and coordination protocol. Export PDF at the end.
+          <span class="cmd-tag">BIM → Create BEP</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-side"><div class="step-num">7</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Enable the Auto-Tagger</div>
+          <div class="step-text">In the <span class="mono-tag">CREATE</span> tab, configure your discipline filter via <strong>Auto-Tagger Config</strong>, then click <strong>Toggle Auto-Tagger</strong>. For existing models, run <strong>Tag &amp; Combine</strong> first to tag all existing elements.
+          <span class="cmd-tag">CREATE → Auto-Tagger Config</span>
+          <span class="cmd-tag">CREATE → Toggle Auto-Tagger</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cbox cbox-green">
+      <span class="cbox-icon">✓</span>
+      <div class="cbox-body"><strong>Setup complete.</strong> The auto-tagger is running, the BEP is created, and StingTools is monitoring your model. Proceed to Guide 2: Tagging Walkthrough for depth on the tagging system.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ GUIDE: TAGGING ═══════════════ -->
+<section class="page" id="page-g-tagging">
+  <div class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-inner">
+      <div class="hero-eyebrow">Guide 2 — Step by Step</div>
+      <h1>Tagging <em>Walkthrough</em></h1>
+      <p class="hero-sub">A complete walkthrough of the tagging system — from first-time batch tagging to incremental updates, compliance validation, and visual annotation placement.</p>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <h2 class="ch">First-Time Tagging: Full Model</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-side"><div class="step-num">1</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Run a Pre-Tag Audit (Recommended)</div>
+          <div class="step-text">A dry run that predicts tag assignments without writing anything. The result panel shows: elements to be tagged per discipline, which tokens will fall back to placeholders, predicted collision count, and spatial detection coverage.<span class="cmd-tag">CREATE → Pre-Tag Audit</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-side"><div class="step-num">2</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Run Tag &amp; Combine</div>
+          <div class="step-text">The flagship one-click command: populate all tokens → assemble ISO tag → write all discipline containers → resolve SEQ collisions → report. A progress dialog shows ETA. Press Escape to cancel safely at any point.<span class="cmd-tag">CREATE → Tag &amp; Combine</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-side"><div class="step-num">3</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Validate Tags — Check Compliance</div>
+          <div class="step-text">Run Validate Tags for a 4-bucket compliance report: RESOLVED (green, all 8 segments valid) / COMPLETE_PLACEHOLDERS (amber) / INCOMPLETE (orange) / UNTAGGED (red). Results broken down by discipline, level, and category.<span class="cmd-tag">CREATE → Validate Tags</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-side"><div class="step-num">4</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Resolve All Issues — One Click</div>
+          <div class="step-text">Fixes all INCOMPLETE and most PLACEHOLDER tags automatically. Uses spatial re-detection with looser boundaries, type-level token inheritance, nearest-neighbour token copy, and generic code fallback where specific codes can't be determined.<span class="cmd-tag">CREATE → Resolve All Issues</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-side"><div class="step-num">5</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Review the Tag Completeness Dashboard</div>
+          <div class="step-text">Visual breakdown of tag coverage by discipline, level, category, and zone. Export as HTML or CSV for client reporting or BEP milestone records.<span class="cmd-tag">CREATE → Dashboard</span></div>
+        </div>
+      </div>
+    </div>
+
+    <h2 class="ch">Ongoing: Daily Incremental Tagging</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-side"><div class="step-num">1</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Tag New Only</div>
+          <div class="step-text">Skips already-tagged elements and processes only new additions. 10–100× faster than a full batch tag. Safe to run at any time without overwriting existing tags.<span class="cmd-tag">CREATE → Tag New Only</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-side"><div class="step-num">2</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Retag Stale Elements</div>
+          <div class="step-text">Elements whose geometry changes are automatically flagged as stale (STING_STALE_BOOL = 1) by the background StingStaleMarker. Run Retag Stale to refresh only those elements.<span class="cmd-tag">CREATE → Retag Stale</span></div>
+        </div>
+      </div>
+    </div>
+
+    <h2 class="ch">Visual Tag Annotation Placement</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-side"><div class="step-num">1</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Smart Place Tags</div>
+          <div class="step-text">Scores 8 candidate positions per element and places Revit IndependentTag annotations at the optimal collision-free position. Leaders added automatically when offset exceeds threshold.<span class="cmd-tag">TAGS → Smart Place Tags</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-side"><div class="step-num">2</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Arrange Tags &amp; Tidy Leaders</div>
+          <div class="step-text">Arrange Tags grid-aligns placed tags. Snap Leader Elbows tidies leader angles to 45° or 90°. Equalize Leader Lengths matches all leaders to the median length for a clean look.<span class="cmd-tag">ORGANISE → Arrange Tags</span><span class="cmd-tag">ORGANISE → Snap Elbows</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ GUIDE: BIM ═══════════════ -->
+<section class="page" id="page-g-bim">
+  <div class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-inner">
+      <div class="hero-eyebrow">Guide 3 — Step by Step</div>
+      <h1>BIM <em>Coordination Cycle</em></h1>
+      <p class="hero-sub">Running the full BIM coordination cycle — from morning health checks and warning management to issue resolution and weekly ISO 19650 data drops.</p>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <h2 class="ch">Opening the Coordination Centre</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-side"><div class="step-num">1</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Open Coordination Centre</div>
+          <div class="step-text">Navigate to the <span class="mono-tag">BIM</span> tab and click <strong>Coordination Centre</strong>. Keyboard shortcuts: F5 = Overview, Ctrl+Q = QA Dashboard, Ctrl+E = Export Report, number keys 1–9 = direct tab navigation.<span class="cmd-tag">BIM → Coordination Centre</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-side"><div class="step-num">2</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Review the 4-Factor Model Health Score</div>
+          <div class="step-text">The Overview tab shows: Tag Completeness %, Warning Count, Open Issues with SLA status, and CDE Compliance — each colour-coded RAG. A score below 80% on any factor indicates action required before a data drop.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-side"><div class="step-num">3</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Process the Warnings Backlog</div>
+          <div class="step-text">Go to the Warnings tab. Click <strong>Auto-Fix Warnings</strong> to resolve all automatically-fixable warnings. Review remaining warnings by severity and assign to responsible parties with due dates.<span class="cmd-tag">BIM → Auto-Fix Warnings</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-side"><div class="step-num">4</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Manage Open Issues</div>
+          <div class="step-text">Review open RFIs, NCRs, and clashes sorted by SLA deadline. Resolve or respond directly from the dashboard. Export unresolved issues as BCF 2.1 for sharing with Navisworks or BIMcollab users.<span class="cmd-tag">BIM → Issue Dashboard</span><span class="cmd-tag">BIM → BCF 2.1 Export</span></div>
+        </div>
+      </div>
+    </div>
+
+    <h2 class="ch">Weekly Data Drop — Step by Step</h2>
+    <div class="steps">
+      <div class="step"><div class="step-side"><div class="step-num">1</div><div class="step-connector"></div></div><div class="step-body"><div class="step-title">Tag New &amp; Retag Stale</div><div class="step-text">Ensure all elements are current before the exchange.<span class="cmd-tag">CREATE → Tag New Only</span><span class="cmd-tag">CREATE → Retag Stale</span></div></div></div>
+      <div class="step"><div class="step-side"><div class="step-num">2</div><div class="step-connector"></div></div><div class="step-body"><div class="step-title">Resolve All Compliance Issues</div><div class="step-text"><span class="cmd-tag">CREATE → Resolve All Issues</span></div></div></div>
+      <div class="step"><div class="step-side"><div class="step-num">3</div><div class="step-connector"></div></div><div class="step-body"><div class="step-title">Validate Tags to 95%+ Target</div><div class="step-text"><span class="cmd-tag">CREATE → Validate Tags</span></div></div></div>
+      <div class="step"><div class="step-side"><div class="step-num">4</div><div class="step-connector"></div></div><div class="step-body"><div class="step-title">Export COBie V2.4</div><div class="step-text"><span class="cmd-tag">BIM → COBie Export</span></div></div></div>
+      <div class="step"><div class="step-side"><div class="step-num">5</div><div class="step-connector"></div></div><div class="step-body"><div class="step-title">Excel Round-Trip Sync</div><div class="step-text"><span class="cmd-tag">BIM → Excel Export → Review → Excel Import</span></div></div></div>
+      <div class="step"><div class="step-side"><div class="step-num">6</div><div class="step-connector"></div></div><div class="step-body"><div class="step-title">Create Transmittal Package</div><div class="step-text"><span class="cmd-tag">BIM → Create Transmittal</span></div></div></div>
+      <div class="step"><div class="step-side"><div class="step-num">7</div><div class="step-connector"></div></div><div class="step-body"><div class="step-title">Promote to Shared in CDE</div><div class="step-text"><span class="cmd-tag">BIM → Document Management → CDE Promote</span></div></div></div>
+      <div class="step"><div class="step-side"><div class="step-num">8</div><div class="step-connector"></div></div><div class="step-body"><div class="step-title">Save Warnings Baseline</div><div class="step-text"><span class="cmd-tag">BIM → Save Warnings Baseline</span></div></div></div>
+    </div>
+
+    <div class="cbox cbox-gold">
+      <span class="cbox-icon">✦</span>
+      <div class="cbox-body">All 8 steps above are automated by the <strong>Weekly Data Drop</strong> workflow preset. Find it in BIM tab → Quick Workflows → Data Drop. One click runs the entire sequence.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ GUIDE: HANDOVER ═══════════════ -->
+<section class="page" id="page-g-handover">
+  <div class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-inner">
+      <div class="hero-eyebrow">Guide 4 — Step by Step</div>
+      <h1>Handover <em>&amp; COBie Export</em></h1>
+      <p class="hero-sub">Producing a complete FM-ready handover package — COBie V2.4, O&amp;M manuals, asset registers, and maintenance schedules — directly from your tagged Revit model in under 30 minutes.</p>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="cbox cbox-blue">
+      <span class="cbox-icon">ℹ</span>
+      <div class="cbox-body"><strong>COBie</strong> (Construction Operations Building information exchange) is the standard format for transferring built asset data to facilities management. StingTools produces fully validated COBie V2.4 spreadsheets from your tagged model. What used to take 3 days now takes under 15 minutes.</div>
+    </div>
+
+    <h2 class="ch">Pre-Handover Validation</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-side"><div class="step-num">1</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Run the Handover Readiness Preset</div>
+          <div class="step-text">From BIM tab Quick Workflows, click <strong>Handover</strong>. This 9-step preset validates tag completeness, checks all required COBie fields are populated, resolves outstanding issues, and generates the handover compliance report.<span class="cmd-tag">BIM → Quick Workflows → Handover</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-side"><div class="step-num">2</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Review COBie Readiness Report</div>
+          <div class="step-text">The report shows which of the 19 COBie worksheets have complete data and which have gaps. Common gaps: missing Warranty data, incomplete Space names, and unassigned Type classifications. Fix gaps before full export.</div>
+        </div>
+      </div>
+    </div>
+
+    <h2 class="ch">Running the COBie Export</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-side"><div class="step-num">3</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Open the COBie Export Wizard</div>
+          <div class="step-text"><span class="cmd-tag">BIM → COBie Export</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-side"><div class="step-num">4</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Select a Sector Preset</div>
+          <div class="step-text">Choose from 22 presets including Healthcare NHS/HTM, Education DfE/BB103, Commercial, Residential NHBC, Infrastructure, Data Centre TIA-942, and Generic. The preset pre-configures all worksheet field mappings for your FM system.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-side"><div class="step-num">5</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Configure Scope &amp; Run Export</div>
+          <div class="step-text">Select scope (full project or discipline-specific), output folder, and format. Enable streaming export for large models. Click Export. After generation, the built-in validator checks all required fields and reports any cells needing manual completion.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-side"><div class="step-num">6</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Generate the FM Handover Manual</div>
+          <div class="step-text">From DOCS tab, click <strong>FM Handover Manual</strong>. Auto-generates: complete asset register per discipline, room data sheets with equipment schedules, O&amp;M information, maintenance schedules, and warranty data.<span class="cmd-tag">DOCS → FM Handover Manual</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ GUIDE: DAILY QA ═══════════════ -->
+<section class="page" id="page-g-daily">
+  <div class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-inner">
+      <div class="hero-eyebrow">Guide 5 — Step by Step</div>
+      <h1><em>Daily QA</em> Routines</h1>
+      <p class="hero-sub">How to run your morning health check, midday modelling sync, and end-of-day close-out efficiently — using StingTools' built-in workflow presets.</p>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <h2 class="ch">Morning: Health Check (~3 minutes)</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-side"><div class="step-num">1</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Click Morning Check</div>
+          <div class="step-text">In BIM tab Quick Workflows, click <strong>Morning Check</strong>. Runs 10 adaptive steps: stale fix, warnings auto-fix, compliance check, dashboard update, issue SLA review, and baseline comparison.<span class="cmd-tag">BIM → Morning Check</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-side"><div class="step-num">2</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Review Results</div>
+          <div class="step-text">The result panel shows: stale elements fixed, warnings resolved, compliance % before and after, any new issues detected. If all RAG indicators are green, you're clear to model.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-side"><div class="step-num">3</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Action Any Amber / Red Items</div>
+          <div class="step-text">Compliance below 80% → open the Dashboard to identify which categories need attention. Warning spike → open Warnings Dashboard to investigate the cause and assign responsibility.</div>
+        </div>
+      </div>
+    </div>
+
+    <h2 class="ch">Midday: After a Modelling Session</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-side"><div class="step-num">1</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Tag New Elements</div>
+          <div class="step-text">Run Tag New Only after adding elements. The auto-tagger handles this in real time if enabled, but a manual run catches anything missed.<span class="cmd-tag">CREATE → Tag New Only</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-side"><div class="step-num">2</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Run Quick Fix Cycle</div>
+          <div class="step-text">Auto-fixes issues introduced by new elements and validates the result in one pass.<span class="cmd-tag">BIM → Quick Fix</span></div>
+        </div>
+      </div>
+    </div>
+
+    <h2 class="ch">End of Day: Sync &amp; Close</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-side"><div class="step-num">1</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Run End of Day Sync</div>
+          <div class="step-text">8-step preset: validate tags, export registers, save warnings baseline, trigger cloud sync if connected.<span class="cmd-tag">BIM → End of Day</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-side"><div class="step-num">2</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Synchronise with Central</div>
+          <div class="step-text">Use Revit's standard Sync with Central. StingTools' warnings baseline auto-saves on DocumentClosing, so the baseline is always current when you sync.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="highlight-strip mt32">
+      <div class="hs-title">The Daily Time Impact</div>
+      <div class="hs-body">Without StingTools, the morning + midday + end-of-day routines described above take approximately <strong>2.5 hours per day per coordinator</strong>. With StingTools workflow presets, the same work takes <strong>approximately 12 minutes</strong>. Across a 10-person coordination team over a 12-month project, that is over <strong>6,000 hours saved</strong> — equivalent to three full-time employees.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ PRICING ═══════════════ -->
+<section class="page" id="page-pricing">
+  <div class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-inner">
+      <div class="hero-eyebrow">Plans &amp; Pricing</div>
+      <h1>Transparent <em>Pricing</em></h1>
+      <p class="hero-sub">Starter is free. Upgrade when your team needs cloud sync, full COBie export, and advanced coordination features. All plans include the full Revit plugin.</p>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="pricing-row">
+      <div class="pc">
+        <div class="pc-head">
+          <div class="pc-tier">Starter</div>
+          <div class="pc-price">$0 <span class="per">/ month</span></div>
+          <div style="font-size:0.79rem;color:var(--text-3);margin-top:8px">Up to 5 users · 1 project</div>
+        </div>
+        <div class="pc-body">
+          <div class="pc-feat"><span class="pc-check">✓</span>Auto-tag, batch tag, validate</div>
+          <div class="pc-feat"><span class="pc-check">✓</span>6 universal tag containers</div>
+          <div class="pc-feat"><span class="pc-check">✓</span>Basic workflow presets</div>
+          <div class="pc-feat"><span class="pc-cross">✗</span>Cloud sync</div>
+          <div class="pc-feat"><span class="pc-cross">✗</span>COBie export</div>
+          <div class="pc-feat"><span class="pc-cross">✗</span>BEP generation</div>
+          <div class="pc-feat"><span class="pc-cross">✗</span>Issue management</div>
+        </div>
+      </div>
+      <div class="pc featured">
+        <div class="pc-head">
+          <div class="pc-tier">Professional · Most Popular</div>
+          <div class="pc-price">$15 <span class="per">/ user / month</span></div>
+          <div style="font-size:0.79rem;color:var(--text-3);margin-top:8px">Up to 25 users</div>
+        </div>
+        <div class="pc-body">
+          <div class="pc-feat"><span class="pc-check">✓</span>All 540+ commands</div>
+          <div class="pc-feat"><span class="pc-check">✓</span>All 53 discipline containers</div>
+          <div class="pc-feat"><span class="pc-check">✓</span>COBie export (5 presets)</div>
+          <div class="pc-feat"><span class="pc-check">✓</span>BEP generation</div>
+          <div class="pc-feat"><span class="pc-check">✓</span>Cloud sync</div>
+          <div class="pc-feat"><span class="pc-check">✓</span>REST API access</div>
+          <div class="pc-feat"><span class="pc-cross">✗</span>Real-time sync</div>
+          <div class="pc-feat"><span class="pc-cross">✗</span>Custom workflow presets</div>
+        </div>
+      </div>
+      <div class="pc">
+        <div class="pc-head">
+          <div class="pc-tier">Premium</div>
+          <div class="pc-price">$25 <span class="per">/ user / month</span></div>
+          <div style="font-size:0.79rem;color:var(--text-3);margin-top:8px">Unlimited users</div>
+        </div>
+        <div class="pc-body">
+          <div class="pc-feat"><span class="pc-check">✓</span>Everything in Professional</div>
+          <div class="pc-feat"><span class="pc-check">✓</span>Real-time sync (SignalR)</div>
+          <div class="pc-feat"><span class="pc-check">✓</span>COBie full — 22 presets</div>
+          <div class="pc-feat"><span class="pc-check">✓</span>Custom JSON workflows</div>
+          <div class="pc-feat"><span class="pc-check">✓</span>Document management CDE</div>
+          <div class="pc-feat"><span class="pc-check">✓</span>4D / 5D scheduling</div>
+          <div class="pc-feat"><span class="pc-check">✓</span>Excel round-trip</div>
+          <div class="pc-feat"><span class="pc-check">✓</span>Priority support — 4h SLA</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ COMPARISON ═══════════════ -->
+<section class="page" id="page-compare">
+  <div class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-inner">
+      <div class="hero-eyebrow">Competitor Comparison</div>
+      <h1>StingTools vs. <em>The Market</em></h1>
+      <p class="hero-sub">A direct comparison of capabilities and annual cost across the leading BIM management and coordination platforms.</p>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Capability</th><th>StingBIM</th><th>BIM 360 / ACC</th><th>Procore</th><th>Trimble</th><th>BIMcollab</th></tr></thead>
+        <tbody>
+          <tr><td><strong>ISO 19650 native asset tagging</strong></td><td class="check">✓ Full</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+          <tr><td><strong>8-segment auto-generated tags</strong></td><td class="check">✓</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+          <tr><td><strong>53 discipline tag containers</strong></td><td class="check">✓</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+          <tr><td><strong>COBie V2.4 — 22 sector presets</strong></td><td class="check">✓</td><td class="half">Manual</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+          <tr><td><strong>Real-time auto-tagging in Revit</strong></td><td class="check">✓</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+          <tr><td><strong>TAG7 rich asset narrative</strong></td><td class="check">✓</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+          <tr><td><strong>Workflow automation engine</strong></td><td class="check">✓ Full</td><td class="half">Limited</td><td class="check">✓</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+          <tr><td><strong>BCF 2.1 issue exchange</strong></td><td class="check">✓</td><td class="check">✓</td><td class="cross">✗</td><td class="check">✓</td><td class="check">✓</td></tr>
+          <tr><td><strong>4D / 5D scheduling</strong></td><td class="check">✓</td><td class="half">Add-on</td><td class="check">✓</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+          <tr><td><strong>FM / O&amp;M handover package</strong></td><td class="check">✓ (MIM)</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+          <tr><td><strong>Digital twin integration</strong></td><td class="check">✓ (MIM)</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+          <tr><td><strong>Revit-native plugin</strong></td><td class="check">✓</td><td class="check">✓</td><td class="half">Plugin</td><td class="check">✓</td><td class="check">✓</td></tr>
+          <tr><td><strong>Unlimited users on top plan</strong></td><td class="check">✓</td><td class="cross">✗</td><td class="check">✓</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+          <tr><td><strong>100-user annual cost</strong></td><td><strong class="check">$30,000</strong></td><td class="rose">$128,400</td><td class="rose">$50–100K+</td><td>$15,600</td><td>$36,000</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="cbox cbox-gold">
+      <span class="cbox-icon">✦</span>
+      <div class="cbox-body"><strong>The verdict:</strong> StingBIM Premium at $300/user/year is the only platform that combines ISO 19650 native tagging, automated COBie export, real-time auto-tagging, workflow automation, CDE document management, and FM handover — at 77% less than ACC and with capabilities that ACC simply does not have.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ GLOSSARY ═══════════════ -->
+<section class="page" id="page-glossary">
+  <div class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-inner">
+      <div class="hero-eyebrow">Reference</div>
+      <h1>Glossary <em>&amp; Key Terms</em></h1>
+      <p class="hero-sub">Definitions of key terms, abbreviations, and concepts used throughout StingTools and ISO 19650 BIM workflows.</p>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Term</th><th>Definition</th></tr></thead>
+        <tbody>
+          <tr><td><code>ASS_TAG_1_TXT</code></td><td>The primary ISO 19650 asset tag parameter stored on each Revit element. Contains the full 8-segment tag string. The definitive identifier for any asset in the model.</td></tr>
+          <tr><td><strong>Auto-Tagger</strong></td><td>The background Revit IUpdater that detects and assigns ISO tags to newly placed elements in real time. Toggle via CREATE tab. Processes 22 element categories with discipline filter and worksharing safety checks.</td></tr>
+          <tr><td><strong>BEP</strong></td><td>BIM Execution Plan. A formal document defining how BIM will be implemented on a specific project. Managed via the 7-page BEP Wizard in the BIM tab.</td></tr>
+          <tr><td><strong>BCF 2.1</strong></td><td>BIM Collaboration Format. Open standard for exchanging issues and clashes between BIM platforms (Revit, Navisworks, Solibri, BIMcollab).</td></tr>
+          <tr><td><strong>CDE</strong></td><td>Common Data Environment. The ISO 19650 information lifecycle with four states: Work In Progress → Shared → Published → Archived. Managed via Document Management in BIM tab.</td></tr>
+          <tr><td><strong>COBie</strong></td><td>Construction Operations Building information exchange. V2.4 is the current standard for transferring asset data to FM teams at handover. 19-worksheet spreadsheet format.</td></tr>
+          <tr><td><strong>DISC</strong></td><td>Discipline token. First segment of the ISO tag. Key codes: M (Mechanical), E (Electrical), P (Plumbing), A (Architectural), S (Structural), FP (Fire Protection), LV (Low Voltage / Security), G (General).</td></tr>
+          <tr><td><strong>ISO 19650</strong></td><td>International standard for managing information over the whole life cycle of a built asset using BIM. StingTools implements this standard natively.</td></tr>
+          <tr><td><strong>Stale Flag</strong></td><td>When an element's geometry changes after tagging, <span style="font-family:var(--mono);font-size:0.85em">STING_STALE_BOOL = 1</span> is set automatically by the background StingStaleMarker. Cleared by running Retag Stale.</td></tr>
+          <tr><td><strong>Tag Container</strong></td><td>A discipline-specific shared parameter holding a formatted version of the ISO tag for that discipline's FM or scheduling system. StingTools manages 36 containers across 22 disciplines in one write operation.</td></tr>
+          <tr><td><strong>TAG7</strong></td><td>The rich narrative parameter. Contains a human-readable description of the asset assembled from all token values: e.g. "Mechanical HVAC Air Handling Unit on Level 2, Zone 1, Building 1 — Ref: M-BLD1-Z01-L02-HVAC-SUP-AHU-0003".</td></tr>
+          <tr><td><strong>Token</strong></td><td>One of the 8 building blocks of an ISO 19650 tag: DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, SEQ. All 8 are auto-detected by StingTools using a 5-layer spatial intelligence algorithm.</td></tr>
+          <tr><td><strong>StingMIM</strong></td><td>The optional Maintenance Information Management module. Adds FM operations capabilities to the StingBIM platform: asset registry, digital twin sync, IoT sensor integration, maintenance scheduling, and O&amp;M manual generation.</td></tr>
+          <tr><td><strong>Workflow Preset</strong></td><td>A JSON-defined sequence of StingTools commands that execute in order with optional conditional logic. Built-in presets cover all major coordination cycles. Custom presets can be created without coding.</td></tr>
+          <tr><td><code>_bim_manager/</code></td><td>The data folder created by StingTools alongside the .rvt file. Contains all BIM management data: issues.json, documents.json, transmittals.json, snapshots/, .sting_seq.json, compliance trend data, and warning baselines.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<script>
+function go(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const pg = document.getElementById('page-' + id);
+  if (pg) { pg.classList.add('active'); window.scrollTo(0,0); }
+  document.querySelectorAll('.sb-link').forEach(l => {
+    l.classList.remove('active');
+    if ((l.getAttribute('onclick')||'').includes("'"+id+"'")) l.classList.add('active');
+  });
+  if (window.innerWidth < 960) document.getElementById('sidebar').classList.remove('open');
+}
+
+function acc(hd) {
+  const item = hd.closest('.acc-item');
+  const isOpen = item.classList.contains('open');
+  document.querySelectorAll('.acc-item.open').forEach(i => i.classList.remove('open'));
+  if (!isOpen) item.classList.add('open');
+}
+
+function toggleNav() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+document.addEventListener('click', e => {
+  const sb = document.getElementById('sidebar');
+  const btn = document.getElementById('nav-toggle');
+  if (window.innerWidth < 960 && sb.classList.contains('open'))
+    if (!sb.contains(e.target) && e.target !== btn) sb.classList.remove('open');
+});
+</script>
+</body>
+</html>
