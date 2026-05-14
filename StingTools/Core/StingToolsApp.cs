@@ -115,6 +115,10 @@ namespace StingTools.Core
                 // updater that never populated DirtyQueue.
                 LiveClashUpdater.Register(application);
 
+                // Register real-time plumbing pipe auto-sizer (IUpdater) — starts disabled.
+                // Enabled via Plumbing tab toggle; sizes newly placed pipes on-the-fly.
+                StingTools.Core.Plumbing.RealTimePipeSizer.Register(application);
+
                 // Subscribe DocumentChanged → drain LiveClashUpdater.DirtyQueue
                 // by raising LiveClashHandler.Event. Without this, edits queue
                 // forever and the live + scheduled clash paths never run after
@@ -1197,6 +1201,7 @@ namespace StingTools.Core
             StingPluginHooks.ClearAll();
             StingAutoTagger.Unregister();
             StingTag7NarrativeUpdater.Unregister();
+            StingTools.Core.Plumbing.RealTimePipeSizer.Unregister();
 
             // Phase 175 — unregister the SLD sync updater.
             try

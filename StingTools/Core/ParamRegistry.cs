@@ -687,6 +687,22 @@ namespace StingTools.Core
         public static string PLM_STD_SUPPLY        => Ext("PLM_STD_SUPPLY");
         public static string PLM_AUDIT_DATE        => Ext("PLM_AUDIT_DATE");
 
+        // ── Phase 179d — Plumbing network, pump, TMV, spool, real-time sizer ──
+        public static string PLM_PUMP_DUTY_HEAD_M   => Ext("PLM_PUMP_DUTY_HEAD_M");
+        public static string PLM_PUMP_DUTY_FLOW_LPS => Ext("PLM_PUMP_DUTY_FLOW_LPS");
+        public static string PLM_PUMP_MODEL         => Ext("PLM_PUMP_MODEL");
+        public static string PLM_PUMP_EFF_PCT       => Ext("PLM_PUMP_EFF_PCT");
+        public static string PLM_TMV_INLET_HOT_C    => Ext("PLM_TMV_INLET_HOT_C");
+        public static string PLM_TMV_INLET_COLD_C   => Ext("PLM_TMV_INLET_COLD_C");
+        public static string PLM_TMV_TEST_DATE      => Ext("PLM_TMV_TEST_DATE");
+        public static string PLM_TMV_NEXT_TEST      => Ext("PLM_TMV_NEXT_TEST");
+        public static string PLM_TMV_OVERDUE        => Ext("PLM_TMV_OVERDUE");
+        public static string PLM_VENT_PIPE_ID       => Ext("PLM_VENT_PIPE_ID");
+        public static string PLM_PIPE_REAL_SIZE     => Ext("PLM_PIPE_REAL_SIZE");
+        public static string PLM_PRESSURE_KPA       => Ext("PLM_PRESSURE_KPA");
+        public static string PLM_SPOOL_NR           => Ext("PLM_SPOOL_NR");
+        public static string PLM_NETWORK_NODE_TYPE  => Ext("PLM_NETWORK_NODE_TYPE");
+
         // ── COBie / Warranty / Asset fields ──
         public static string WARR_GUAR_PARTS  => Ext("WARR_GUAR_PARTS");
         public static string WARR_DUR_PARTS   => Ext("WARR_DUR_PARTS");
@@ -2409,6 +2425,21 @@ namespace StingTools.Core
             _extendedParams["PLM_STD_DRAIN"]    = "PLM_STD_DRAIN_TXT";
             _extendedParams["PLM_STD_SUPPLY"]   = "PLM_STD_SUPPLY_TXT";
             _extendedParams["PLM_AUDIT_DATE"]   = "PLM_AUDIT_DATE_TXT";
+            // Phase 179d — pump, TMV, vent, spool, real-time sizer
+            _extendedParams["PLM_PUMP_DUTY_HEAD_M"]   = "PLM_PUMP_DUTY_HEAD_M";
+            _extendedParams["PLM_PUMP_DUTY_FLOW_LPS"] = "PLM_PUMP_DUTY_FLOW_LPS";
+            _extendedParams["PLM_PUMP_MODEL"]         = "PLM_PUMP_MODEL_TXT";
+            _extendedParams["PLM_PUMP_EFF_PCT"]       = "PLM_PUMP_EFF_PCT";
+            _extendedParams["PLM_TMV_INLET_HOT_C"]    = "PLM_TMV_INLET_HOT_C";
+            _extendedParams["PLM_TMV_INLET_COLD_C"]   = "PLM_TMV_INLET_COLD_C";
+            _extendedParams["PLM_TMV_TEST_DATE"]      = "PLM_TMV_TEST_DATE_TXT";
+            _extendedParams["PLM_TMV_NEXT_TEST"]      = "PLM_TMV_NEXT_TEST_TXT";
+            _extendedParams["PLM_TMV_OVERDUE"]        = "PLM_TMV_OVERDUE_BOOL";
+            _extendedParams["PLM_VENT_PIPE_ID"]       = "PLM_VENT_PIPE_ID_TXT";
+            _extendedParams["PLM_PIPE_REAL_SIZE"]     = "PLM_PIPE_REAL_SIZE_BOOL";
+            _extendedParams["PLM_PRESSURE_KPA"]       = "PLM_PRESSURE_KPA";
+            _extendedParams["PLM_SPOOL_NR"]           = "PLM_SPOOL_NR_TXT";
+            _extendedParams["PLM_NETWORK_NODE_TYPE"]  = "PLM_NETWORK_NODE_TYPE_TXT";
             // Volume, length, head heights, function
             _extendedParams["ELE_VOLUME"] = "BLE_ELE_VOLUME_CU_M"; _extendedParams["ELE_LENGTH"] = "BLE_ELE_LENGTH_M";
             _extendedParams["DOOR_HEAD_HT"] = "BLE_DOOR_HEAD_HEIGHT_MM"; _extendedParams["DOOR_FUNC"] = "BLE_DOOR_FUNCTION_TXT";
