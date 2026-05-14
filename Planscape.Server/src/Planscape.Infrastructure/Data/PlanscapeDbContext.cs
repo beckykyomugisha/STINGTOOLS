@@ -506,6 +506,16 @@ public class PlanscapeDbContext : DbContext
             e.HasOne(a => a.Document).WithMany().HasForeignKey(a => a.DocumentId).OnDelete(DeleteBehavior.Cascade);
         });
 
+        // ── ModelMarkup — index idempotency key for offline-replay dedup ──
+        modelBuilder.Entity<ModelMarkup>(e =>
+        {
+            e.HasKey(m => m.Id);
+            e.HasIndex(m => m.ProjectId);
+            e.HasIndex(m => new { m.ProjectId, m.IdempotencyKey })
+                .HasFilter("\"IdempotencyKey\" IS NOT NULL");
+            e.Property(m => m.IdempotencyKey).HasMaxLength(128);
+        });
+
         // ── IssueAudioNote (Phase 178c T3-19 — DocumentId FK + new columns) ──
         modelBuilder.Entity<IssueAudioNote>(e =>
         {
