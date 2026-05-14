@@ -66,14 +66,14 @@ namespace StingTools.Core.Routing
                 try
                 {
                     foreach (var id in data.GetModifiedElementIds())
-                        affectedIds.Add(id.IntegerValue);
+                        affectedIds.Add(id.Value);
                 }
                 catch { /* GetModifiedElementIds can throw if doc is in bad state */ }
 
                 try
                 {
                     foreach (var id in data.GetDeletedElementIds())
-                        affectedIds.Add(id.IntegerValue);
+                        affectedIds.Add(id.Value);
                 }
                 catch { /* GetDeletedElementIds can throw if doc is in bad state */ }
 

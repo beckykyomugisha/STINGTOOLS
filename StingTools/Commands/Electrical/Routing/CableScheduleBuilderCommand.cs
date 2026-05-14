@@ -133,7 +133,7 @@ namespace StingTools.Commands.Electrical.Routing
                             {
                                 try
                                 {
-                                    if (sf.ParameterId == new ElementId(BuiltInParameter.CONDUIT_DIAMETER_PARAM) ||
+                                    if (sf.ParameterId == new ElementId(BuiltInParameter.RBS_CONDUIT_DIAMETER_PARAM) ||
                                         sf.ParameterId == new ElementId(BuiltInParameter.CURVE_ELEM_LENGTH)       ||
                                         sf.ParameterId == new ElementId(BuiltInParameter.ALL_MODEL_MARK)          ||
                                         sf.ParameterId == new ElementId(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS))

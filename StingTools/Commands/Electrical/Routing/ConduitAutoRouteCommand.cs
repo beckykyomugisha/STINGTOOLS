@@ -135,8 +135,8 @@ namespace StingTools.Commands.Electrical.Routing
                                     StingLog.Warn($"Conduit.Create: no ConduitType available for cable {cable.CircuitId}");
                                     continue;
                                 }
-                                var conduit = Conduit.Create(doc, resolvedConduitTypeId, levelId,
-                                    seg.Start, seg.End);
+                                var conduit = Conduit.Create(doc, resolvedConduitTypeId,
+                                    seg.Start, seg.End, levelId);
                                 if (conduit != null)
                                 {
                                     try

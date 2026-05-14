@@ -234,7 +234,7 @@ namespace StingTools.Core.Drawing
             {
                 try
                 {
-                    var ctx = StingTools.Core.Drawing.AnnotationConditionEvaluator.ConditionContext.FromView(doc, view, category);
+                    var ctx = StingTools.Core.Drawing.ConditionContext.FromView(doc, view, category);
                     if (!StingTools.Core.Drawing.AnnotationConditionEvaluator.Evaluate(rule.Condition, ctx))
                         return;
                 }
@@ -519,7 +519,7 @@ namespace StingTools.Core.Drawing
             {
                 try
                 {
-                    var ctx = StingTools.Core.Drawing.AnnotationConditionEvaluator.ConditionContext.FromView(doc, view, rule.Category);
+                    var ctx = StingTools.Core.Drawing.ConditionContext.FromView(doc, view, rule.Category);
                     if (!StingTools.Core.Drawing.AnnotationConditionEvaluator.Evaluate(rule.Condition, ctx))
                         return;
                 }
