@@ -258,6 +258,14 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
     <a class="sb-link" href="#template-engine">Template Engine v1.1</a>
     <a class="sb-link" href="#template-manager">Template Manager (18 cmds)</a>
     <a class="sb-link" href="#panel-schedules">Panel Schedules (9 cmds)</a>
+    <a class="sb-link" href="#electrical-workflows">Electrical Workflows</a>
+    <a class="sb-link sub" href="#elec-containment">Containment &amp; Conduit</a>
+    <a class="sb-link sub" href="#elec-schedules">Schedules &amp; Reports</a>
+    <a class="sb-link sub" href="#elec-tagging">Tagging &amp; Filters</a>
+    <a class="sb-link" href="#plumbing-workflows">Plumbing Workflows</a>
+    <a class="sb-link sub" href="#plumb-systems">Pipe Systems &amp; Sizing</a>
+    <a class="sb-link sub" href="#plumb-schedules">Fixture Schedules &amp; COBie</a>
+    <a class="sb-link sub" href="#plumb-tagging">Tagging &amp; Compliance</a>
     <a class="sb-link" href="#v4-mvp">v4 MVP — Placement/Routing/Fab</a>
     <a class="sb-link" href="#healthcare">Healthcare Pack</a>
     <a class="sb-link" href="#bim-management">BIM Management Centre</a>
@@ -1870,6 +1878,373 @@ ORG_AI_EXTRACT_ENABLED</pre>
     </div>
   </div>
 </section>
+<!-- ═══════════════ ELECTRICAL WORKFLOWS ═══════════════ -->
+<section class="section" id="electrical-workflows">
+  <div class="section-label">Discipline Workflow</div>
+  <h2 class="section-title">Electrical Workflows</h2>
+  <p class="section-desc">End-to-end electrical discipline coverage from containment modelling and panel schedule production through to BS 7671-compliant tagging, drawing publication, and COBie handover. StingTools consolidates what previously required three separate add-ins.</p>
+
+  <div class="grid-3">
+    <div class="card card-accent">
+      <div class="card-label">Containment &amp; Routing</div>
+      <div class="card-title">Conduits, Cable Trays &amp; Auto-Drop</div>
+      <div class="card-desc">Create conduit and cable-tray family types from CSV, auto-route drops to panels with the v4 AutoConduitDrop engine, and apply the <code>ELC_CDT_TAG</code> container to every run.</div>
+    </div>
+    <div class="card card-accent">
+      <div class="card-label">Panel Schedules</div>
+      <div class="card-title">9-Command Schedule Suite</div>
+      <div class="card-desc">Rule-based batch schedule creation, Excel round-trip (import/export), slot management (spares/spaces), and real-circuit detection via <code>PanelScheduleView.GetCircuitByCell</code>.</div>
+    </div>
+    <div class="card card-accent">
+      <div class="card-label">Standards</div>
+      <div class="card-title">BS 7671 · IEC 60364 · IET Wiring</div>
+      <div class="card-desc">27 AEC corporate filters covering LV distribution, HV switchgear, EV charging, emergency lighting, and UPS circuits. StandardsEngine checks circuits against BS 7671 table-based rules.</div>
+    </div>
+  </div>
+
+  <!-- ── containment ── -->
+  <section id="elec-containment">
+  <h3>Containment Modelling &amp; Conduit Routing</h3>
+  <p>StingTools ships CSV-driven type creation for conduit and cable-tray systems, and the v4 MVP adds a full auto-routing engine.</p>
+
+  <h4>Step-by-Step: Create Conduit &amp; Cable-Tray Types</h4>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div>
+      <div><div class="step-content-title">TEMP tab → Families → Cable Trays</div>
+        <div class="step-content-desc">Runs <code>Temp.CableTrays</code>. Reads <code>data/MR_PARAMETERS.txt</code> family definitions and creates all missing cable-tray system types (ladder, solid-bottom, ventilated, wire-mesh) with corporate widths and depths.</div></div></div>
+    <div class="step"><div class="step-num">2</div>
+      <div><div class="step-content-title">TEMP tab → Families → Conduits</div>
+        <div class="step-content-desc">Runs <code>Temp.Conduits</code>. Creates EMT, RMC, IMC, and PVC conduit types with standard nominal diameters (16 mm–100 mm) drawn from the MEP_MATERIALS.csv data file.</div></div></div>
+    <div class="step"><div class="step-num">3</div>
+      <div><div class="step-content-title">MODEL tab → Create Duct / Create Pipe → Conduit variant</div>
+        <div class="step-content-desc">Place individual conduit runs between two picked points. The <code>ModelCreateDuctCommand</code> engine handles conduit family resolution and auto-assigns the correct system type from the connected panel.</div></div></div>
+    <div class="step"><div class="step-num">4</div>
+      <div><div class="step-content-title">TAGS tab → Auto-Drop (v4 Routing)</div>
+        <div class="step-content-desc">Run <code>Routing_AutoDrop</code> to have the <code>AutoConduitDrop</code> engine automatically route conduit drops from selected equipment to the nearest panel. Engine respects existing routing rules in <code>STING_FAB_RULES.json</code>.</div></div></div>
+    <div class="step"><div class="step-num">5</div>
+      <div><div class="step-content-title">SELECT tab → Select Conduits → Auto Tag</div>
+        <div class="step-content-desc">Use <code>Select.Conduits</code> to select all conduits in the view, then fire <code>Tags.AutoTag</code>. The pipeline writes <code>ELC_CDT_TAG</code> (conduit container) and <code>ELC_EQP_TAG</code> (equipment container) to all connected elements simultaneously.</div></div></div>
+  </div>
+
+  <h4>Auto-Drop Engine (v4 Routing)</h4>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Command</th><th>Tag</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Auto Drop</strong></td><td><code>Routing_AutoDrop</code></td><td>Routes conduit/pipe/duct drops from selected equipment to the nearest upstream distribution point using the <code>DropEngineBase</code> → <code>AutoConduitDrop</code> class hierarchy.</td></tr>
+      <tr><td><strong>Generate Layout</strong></td><td><code>Routing_GenerateLayout</code></td><td>Creates a complete routing layout for all unrouted equipment on the active level — batches single-element drops into a single TransactionGroup.</td></tr>
+      <tr><td><strong>Validate Fills</strong></td><td><code>Routing_ValidateFills</code></td><td>Checks conduit/tray fill ratios against BS 7671 / NEC 300.17 maximum fill percentages and reports over-filled runs.</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="callout callout-blue">
+    <span class="callout-icon">🔌</span>
+    <div class="callout-text"><strong>Routing rules</strong> live in <code>StingTools/Data/Fabrication/STING_FAB_RULES.json</code> under the <code>Electrical</code> discipline block. Each rule specifies conduit family, minimum/maximum diameter, fill limit, and the upstream panel search radius.</div>
+  </div>
+  </section>
+
+  <!-- ── panel schedules ── -->
+  <section id="elec-schedules">
+  <h3>Panel Schedule Production Workflow</h3>
+  <p>The full panel schedule workflow from audit through to stamped drawing, Excel review, and re-audit. See also the <a href="#panel-schedules">Panel Schedules reference section</a> for the complete 9-command table.</p>
+
+  <div class="wf-block">
+    <div class="wf-header"><span class="wf-name">⚡ Complete Panel Schedule Production</span><span class="tag tag-violet">7 steps</span></div>
+    <div class="wf-steps">
+      <div class="wf-step"><strong>Step 1 — Audit:</strong> Run <code>Panel_Audit</code> (read-only). Identifies panels without schedules, template drift, and missing <code>ELC_PNL_*</code> parameters. Note all gaps before committing.</div>
+      <div class="wf-step"><strong>Step 2 — Batch Create:</strong> Run <code>Panel_BatchSchedules</code>. The registry evaluates 5 priority rules (Switchboard → 3-phase DB → 1-phase CU → Data Panel → catch-all) and calls <code>PanelScheduleView.CreateInstanceView</code> with the best-match template for each panel.</div>
+      <div class="wf-step"><strong>Step 3 — Fill Spares:</strong> Run <code>Panel_FillSparesAll</code>. Adds <code>AddSpare</code> markers to every empty slot across all panels in the project — uses a <code>TransactionGroup</code> so individual panel failures don't abort the batch.</div>
+      <div class="wf-step"><strong>Step 4 — Export to Excel:</strong> Run <code>Panel_ExportToExcel</code>. Produces one worksheet per panel (Header + Body + Summary rows) plus an INDEX worksheet. Engineers review circuit descriptions, loads, and wire sizes in Excel.</div>
+      <div class="wf-step"><strong>Step 5 — Review &amp; Edit in Excel:</strong> Engineers update circuit labels, load values, and spare designations directly in the worksheet. Cells corresponding to Revit-managed computed values (totals, breaker ratings) are left blank — the import guard preserves the Revit value.</div>
+      <div class="wf-step"><strong>Step 6 — Import from Excel:</strong> Run <code>Panel_ImportFromExcel</code>. Uses <code>TableSectionData.SetCellText</code> for editable Body cells. Empty-cell anti-erasure guard keeps Revit values intact. A load-delta diff report is shown before committing.</div>
+      <div class="wf-step"><strong>Step 7 — Re-Audit:</strong> Re-run <code>Panel_Audit</code> to confirm zero panels without schedules and zero template drift. The <code>WORKFLOW_PanelScheduleProduction.json</code> preset chains all 7 steps automatically.</div>
+    </div>
+  </div>
+
+  <h4>Template Matching Rules</h4>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Priority</th><th>Panel Type Match</th><th>Template Assigned</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Switchboard / Main Distribution Board</td><td>STING - Switchboard Schedule</td></tr>
+      <tr><td>2</td><td>3-phase distribution board</td><td>STING - 3Ph Distribution Schedule</td></tr>
+      <tr><td>3</td><td>1-phase consumer unit / MCB board</td><td>STING - 1Ph Consumer Unit Schedule</td></tr>
+      <tr><td>4</td><td>Data / comms / IT panel</td><td>STING - Data Panel Schedule</td></tr>
+      <tr><td>5</td><td>(catch-all)</td><td>globalFallback — first available template</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4>MEP Electrical Schedules (TEMP tab)</h4>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Schedule</th><th>Tag</th><th>Contents</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Panel Schedule</strong></td><td><code>Temp.MEPPanelSchedule</code></td><td>All electrical panels: name, voltage, phases, MCB rating, total load (kW), PF, diversity factor, spare slots.</td></tr>
+      <tr><td><strong>Fixture Schedule</strong></td><td><code>Temp.MEPFixtureSchedule</code></td><td>Electrical fixtures and devices: family, type, circuit, panel, load (W), mounting height, room, ISO tag.</td></tr>
+      <tr><td><strong>Device Schedule</strong></td><td><code>Temp.MEPDeviceSchedule</code></td><td>Switches, sockets, data outlets, emergency luminaires: location, circuit, DB reference, STING tag.</td></tr>
+      <tr><td><strong>Equipment Schedule</strong></td><td><code>Temp.MEPEquipmentSchedule</code></td><td>Electrical Equipment category: transformer, UPS, generator, MCC. Includes kVA rating, IP rating, earthing type.</td></tr>
+      <tr><td><strong>Sizing Check</strong></td><td><code>Temp.MEPSizingCheck</code></td><td>Validates cable sizing against connected load and voltage drop limits per BS 7671 Appendix 4.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4>Drawing Types for Electrical</h4>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Drawing Type ID</th><th>Sheet / Scale</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>elec-power-A1-1to100</code></td><td>A1 · 1:100</td><td>Power distribution plan — socket outlets, FCUs, DB locations, cable routes</td></tr>
+      <tr><td><code>elec-lighting-A1-1to100</code></td><td>A1 · 1:100</td><td>Lighting layout plan — luminaire positions, circuit groups, emergency escape routes</td></tr>
+      <tr><td><code>elec-fire-alarm-A1-1to100</code></td><td>A1 · 1:100</td><td>Fire alarm detection and suppression — detector zones, call points, sounders, FACPs</td></tr>
+      <tr><td><code>elec-panel-schedule-A3</code></td><td>A3 · NTS</td><td>Individual panel schedule sheet — stamped by BatchPanelSchedules, tracked by Browser Organizer</td></tr>
+      <tr><td><code>elec-riser-A2-1to100</code></td><td>A2 · 1:100</td><td>Electrical riser diagram — vertical distribution from main switchboard to sub-boards</td></tr>
+    </tbody>
+  </table></div>
+  </section>
+
+  <!-- ── tagging ── -->
+  <section id="elec-tagging">
+  <h3>Electrical Tagging &amp; Compliance</h3>
+
+  <h4>Electrical Tag Containers</h4>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Parameter</th><th>Category</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>ELC_EQP_TAG</code></td><td>Electrical Equipment</td><td>Transformers, switchgear, MCCs, UPS, generators — full 8-segment ISO tag</td></tr>
+      <tr><td><code>ELE_FIX_TAG</code></td><td>Electrical Fixtures</td><td>Sockets, switches, data outlets, FCUs — instance tag with circuit reference</td></tr>
+      <tr><td><code>LTG_FIX_TAG</code></td><td>Lighting Fixtures</td><td>Luminaires — tag includes lumen output code from family name PROD lookup</td></tr>
+      <tr><td><code>ELC_CDT_TAG</code></td><td>Conduits</td><td>Conduit runs — SYS derived from connected panel system type</td></tr>
+      <tr><td><code>ELC_CTR_TAG</code></td><td>Cable Trays</td><td>Cable tray runs — DISC=E, SYS inferred from primary cable category on tray</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4>Discipline Codes for Electrical Elements</h4>
+  <div class="table-wrap"><table>
+    <thead><tr><th>DISC</th><th>SYS code</th><th>FUNC code</th><th>Typical PROD codes</th></tr></thead>
+    <tbody>
+      <tr><td>E</td><td>LV</td><td>PWR</td><td>DB (distribution board), MSB (main switchboard), TXF (transformer)</td></tr>
+      <tr><td>E</td><td>LV</td><td>LTG</td><td>LUM (luminaire), EMG (emergency), EXT (exit sign)</td></tr>
+      <tr><td>E</td><td>FP</td><td>ALM</td><td>DET (detector), SND (sounder), CPT (call point), FACP (panel)</td></tr>
+      <tr><td>LV</td><td>COM</td><td>ICT</td><td>SW (switch), AP (access point), CAM (camera), SPK (speaker)</td></tr>
+      <tr><td>E</td><td>LV</td><td>EVC</td><td>EVCP (EV charge point), EVMS (management system)</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4>AEC Filters — Electrical Pack (27 filters)</h4>
+  <p>The corporate filter library (<code>STING_AEC_FILTERS.json</code>) includes 27 electrical filters aligned to BS 7671 / IEC 60364:</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Filter Name</th><th>Standard</th><th>Override Applied</th></tr></thead>
+    <tbody>
+      <tr><td>LV-distribution</td><td>BS 7671 Part 4</td><td>Yellow fill, black outline — primary distribution circuits</td></tr>
+      <tr><td>HV-switchgear</td><td>IEC 60364-4</td><td>Red fill — high voltage equipment, isolation warning</td></tr>
+      <tr><td>Emergency-lighting</td><td>BS EN 1838</td><td>Green fill — escape route and standby luminaires</td></tr>
+      <tr><td>UPS-circuits</td><td>BS 7671 §560</td><td>Purple outline — maintained supply circuits</td></tr>
+      <tr><td>EV-charging</td><td>BS 7671 §722</td><td>Cyan fill — EV infrastructure circuits</td></tr>
+      <tr><td>Fire-alarm</td><td>BS 5839-1</td><td>Red dashed outline — L1/L2/L3/M/P category zones</td></tr>
+      <tr><td>Data-comms</td><td>BS EN 50173</td><td>Blue fill — structured cabling and active equipment</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4>BS 7671 Standards Engine Checks</h4>
+  <div class="callout callout-blue">
+    <span class="callout-icon">⚡</span>
+    <div class="callout-text">The <code>StandardsEngine</code> (<code>Temp/StandardsEngine.cs</code>) implements BS 7671 18th Edition table checks: maximum voltage drop (3% lighting / 5% power), cable current ratings (Appendix 4 tables), circuit protective conductor sizing (Table 54.7), and RCD requirements (Reg 411.3.4). Results surface in the Panel Audit report and the Full Compliance Dashboard.</div>
+  </div>
+
+  <h4>Complete Electrical Discipline Workflow</h4>
+  <div class="wf-block">
+    <div class="wf-header"><span class="wf-name">⚡ Electrical Project Workflow — Full Sequence</span><span class="tag tag-yellow">12 steps</span></div>
+    <div class="wf-steps">
+      <div class="wf-step"><strong>1 — Setup:</strong> TEMP → Master Setup or Project Setup Wizard. Creates conduit/cable-tray types, loads <code>ELC_*</code> shared parameters, and seeds electrical drawing types.</div>
+      <div class="wf-step"><strong>2 — Model Electrical Equipment:</strong> MODEL tab → Place Fixture. Place panels, switchboards, luminaires, and devices. Each placement auto-tags with the full 9-step pipeline.</div>
+      <div class="wf-step"><strong>3 — Route Containment:</strong> TEMP → Conduits / Cable Trays creates types. MODEL → Create Duct (conduit variant) for manual routing, or TAGS → Auto Drop for automated routing.</div>
+      <div class="wf-step"><strong>4 — Apply Electrical Templates:</strong> VIEW → Template Manager → Auto-Assign. The 5-layer engine assigns <code>elec-power</code>, <code>elec-lighting</code>, or <code>elec-fire-alarm</code> drawing types based on view name and discipline.</div>
+      <div class="wf-step"><strong>5 — Create Electrical Filters:</strong> TEMP → Templates → Create Filters. Mints 27 electrical <code>ParameterFilterElement</code> objects into the project from the AEC filter library.</div>
+      <div class="wf-step"><strong>6 — Tag Electrical Elements:</strong> SELECT → Select Electrical / Select Conduits, then CREATE → Auto Tag. Populates all 5 electrical containers (<code>ELC_EQP_TAG</code>, <code>ELE_FIX_TAG</code>, <code>LTG_FIX_TAG</code>, <code>ELC_CDT_TAG</code>, <code>ELC_CTR_TAG</code>).</div>
+      <div class="wf-step"><strong>7 — Validate Fill Ratios:</strong> TAGS → Validate Fills. Checks conduit and cable-tray fill against BS 7671 and reports any over-filled runs with exact percentages.</div>
+      <div class="wf-step"><strong>8 — Panel Schedules:</strong> BIM → Panel Audit → Panel Batch Schedules → Fill Spares All. Stamps every panel with a schedule and the <code>elec-panel-schedule-A3</code> drawing type.</div>
+      <div class="wf-step"><strong>9 — MEP Schedules:</strong> TEMP → MEP Schedules → Panel / Fixture / Device / Equipment. Creates Revit schedules with all <code>ELC_PNL_*</code> parameters for coordination and client review.</div>
+      <div class="wf-step"><strong>10 — Excel Round-Trip:</strong> Panel Export to Excel → distribute to M&amp;E engineer → Import from Excel. Load-delta diff confirms changes before committing.</div>
+      <div class="wf-step"><strong>11 — Drawing Production:</strong> DOCS → Batch Sheets or Drawing Types → From Scope Boxes. Produces power, lighting, fire alarm, and riser drawing sheets with correct title block, scale, and viewport.</div>
+      <div class="wf-step"><strong>12 — COBie Handover:</strong> BIM → COBie Export with <code>HEALTHCARE_PRIVATE</code> or <code>MEP</code> preset. Electrical equipment assets export to COBie Facility/Floor/Space/Type/Component worksheets with <code>ELC_EQP_TAG</code> as the component key name.</div>
+    </div>
+  </div>
+  </section>
+</section>
+
+<!-- ═══════════════ PLUMBING WORKFLOWS ═══════════════ -->
+<section class="section" id="plumbing-workflows">
+  <div class="section-label">Discipline Workflow</div>
+  <h2 class="section-title">Plumbing &amp; Public Health Workflows</h2>
+  <p class="section-desc">Full public health engineering coverage — cold water (DCW), hot water (DHW), above-ground drainage (SAN), rainwater (RWD), and gas (GAS). Includes pipe system sizing via the Hardy Cross method, BS EN 806 compliance checks, WRAS material validation, fixture scheduling, and ISO 19650 asset tagging.</p>
+
+  <div class="grid-3">
+    <div class="card card-accent">
+      <div class="card-label">Pipe Systems</div>
+      <div class="card-title">Create, Route &amp; Size</div>
+      <div class="card-desc">464 MEP materials covering copper, CPVC, HDPE, stainless, and PP-R. Hardy Cross iterative flow balancing and Darcy-Weisbach pressure-drop sizing from the MEP Intelligence Engine.</div>
+    </div>
+    <div class="card card-accent">
+      <div class="card-label">Standards</div>
+      <div class="card-title">BS EN 806 · WRAS · BS EN 12056</div>
+      <div class="card-desc">18 AEC corporate filters covering DCW, DHW, sanitary drainage, rainwater, and medical gas. StandardsEngine checks pipe velocities (CIBSE Guide G), loading units (BS EN 806-3), and trap seal depths.</div>
+    </div>
+    <div class="card card-accent">
+      <div class="card-label">Handover</div>
+      <div class="card-title">COBie + O&amp;M + FM</div>
+      <div class="card-desc">Fixture schedules, maintenance job templates (SFG20 codes), spare parts database, and the FM Handover Manual with water-safety risk assessment sections per L8 / HTM 04-01.</div>
+    </div>
+  </div>
+
+  <!-- ── pipe systems ── -->
+  <section id="plumb-systems">
+  <h3>Pipe Systems, Materials &amp; Sizing</h3>
+
+  <h4>Step-by-Step: Model a Cold Water System</h4>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div>
+      <div><div class="step-content-title">TEMP → Materials → Create MEP Materials</div>
+        <div class="step-content-desc">Creates 464 MEP materials from <code>MEP_MATERIALS.csv</code>. For cold water: copper grade X (BS EN 1057), CPVC (BS EN ISO 15877), and HDPE (BS EN 12201) types are created with density, thermal conductivity, and roughness properties.</div></div></div>
+    <div class="step"><div class="step-num">2</div>
+      <div><div class="step-content-title">TEMP → Families → Pipes</div>
+        <div class="step-content-desc">Runs <code>Temp.Pipes</code> via <code>CompoundTypeCreator</code>. Creates pipe system types (DCW, DHW, HWS, SAN, RWD, GAS) with correct material, insulation, and colour-code per BS 1710 / CIBSE Guide G.</div></div></div>
+    <div class="step"><div class="step-num">3</div>
+      <div><div class="step-content-title">MODEL → Create Pipe</div>
+        <div class="step-content-desc">Places pipe runs between two picked points. The <code>ModelCreatePipeCommand</code> prompts for pipe system type, nominal bore, and insulation spec — assigns the correct Revit system type from the created DCW/DHW/SAN family.</div></div></div>
+    <div class="step"><div class="step-num">4</div>
+      <div><div class="step-content-title">TAGS → Auto Drop (v4 — AutoPipeDrop)</div>
+        <div class="step-content-desc">The <code>AutoPipeDrop</code> routing engine in the v4 MVP automatically routes pipe drops from selected plumbing fixtures to the nearest distribution header. Rules in <code>STING_FAB_RULES.json</code> (Pipe discipline block) specify fitting types, max run lengths, and slope requirements.</div></div></div>
+    <div class="step"><div class="step-num">5</div>
+      <div><div class="step-content-title">TEMP → Data Pipeline → Validate Template (pipe sizing check)</div>
+        <div class="step-content-desc">The <code>ValidateTemplateCommand</code> includes 45 checks — for plumbing this includes: pipe velocity vs CIBSE Guide G limits (DCW ≤ 3 m/s, HWS ≤ 1.5 m/s), minimum bore for fixture loading units (BS EN 806-3 Annex B), and pressure at terminal fittings ≥ 1 bar.</div></div></div>
+  </div>
+
+  <h4>MEP Intelligence Engine — Plumbing Calculations</h4>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Calculation</th><th>Method</th><th>Standard</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Pressure Drop</strong></td><td>Darcy-Weisbach with Colebrook-White friction factor</td><td>CIBSE Guide C, Table 4.9</td></tr>
+      <tr><td><strong>Flow Balancing</strong></td><td>Hardy Cross iterative method (16 correction iterations)</td><td>CIBSE Guide G §5.4</td></tr>
+      <tr><td><strong>Fitting Losses</strong></td><td>26 fitting types — equivalent length coefficients (K)</td><td>CIBSE Guide C, Table 4.12</td></tr>
+      <tr><td><strong>Vibro-Acoustic</strong></td><td>Flow-induced noise analysis at valves and tees</td><td>CIBSE TG6 §3.2</td></tr>
+      <tr><td><strong>Loading Units</strong></td><td>BS EN 806-3 Annex B probability-based design flow</td><td>BS EN 806-3:2006</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4>Pipe System Types — BS 1710 Colour Codes</h4>
+  <div class="table-wrap"><table>
+    <thead><tr><th>System</th><th>SYS Code</th><th>BS 1710 Band Colour</th><th>Pipe Material (Default)</th></tr></thead>
+    <tbody>
+      <tr><td>Cold Water (mains)</td><td>DCW</td><td>Green (auxiliary: Blue)</td><td>Copper BS EN 1057 / CPVC</td></tr>
+      <tr><td>Hot Water Supply</td><td>DHW</td><td>Green (auxiliary: Red)</td><td>Copper BS EN 1057</td></tr>
+      <tr><td>Hot Water Services circulation</td><td>HWS</td><td>Green (auxiliary: Red + White)</td><td>Copper / stainless press-fit</td></tr>
+      <tr><td>Sanitary above-ground drainage</td><td>SAN</td><td>Black</td><td>uPVC BS EN 1329 / HDPE</td></tr>
+      <tr><td>Rainwater / storm drainage</td><td>RWD</td><td>Black (auxiliary: Green)</td><td>uPVC / cast iron</td></tr>
+      <tr><td>Gas (natural / LPG)</td><td>GAS</td><td>Yellow ochre</td><td>Yellow PE / screwed steel BS 1387</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4>Auto-Slope Validation (v4 Validators)</h4>
+  <div class="callout callout-blue">
+    <span class="callout-icon">🔵</span>
+    <div class="callout-text">The v4 <strong>SlopeValidator</strong> checks every pipe segment's slope parameter (<code>PLM_SLOPE_PCT_V4</code>) against minimum values: SAN ≥ 1.8% (110 mm bore per BS EN 12056-2 Table 1), RWD ≥ 1%, gas horizontal ≥ 0.1%. Segments below the minimum are flagged in the Validate Fills report and in the Full Compliance Dashboard.</div>
+  </div>
+  </section>
+
+  <!-- ── schedules ── -->
+  <section id="plumb-schedules">
+  <h3>Fixture Schedules, COBie &amp; O&amp;M Handover</h3>
+
+  <h4>Plumbing MEP Schedules (TEMP tab)</h4>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Schedule</th><th>Tag</th><th>Contents</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Fixture Schedule</strong></td><td><code>Temp.MEPFixtureSchedule</code></td><td>All Plumbing Fixture elements: family, type, system, cold-water connection size, hot-water connection size, waste size, trap type, mounting height, room, STING tag (<code>PLM_EQP_TAG</code>).</td></tr>
+      <tr><td><strong>Equipment Schedule</strong></td><td><code>Temp.MEPEquipmentSchedule</code></td><td>Mechanical Equipment (cylinders, calorifiers, boosters, PRVs, TMVs): capacity (litres), max temperature, pressure rating, BS/EN reference.</td></tr>
+      <tr><td><strong>System Schedule</strong></td><td><code>Temp.MEPSystemSchedule</code></td><td>Pipe system summary: total pipe length per system type, peak design flow (L/s), static pressure, system volume (litres) for L8 risk assessment.</td></tr>
+      <tr><td><strong>Sizing Check</strong></td><td><code>Temp.MEPSizingCheck</code></td><td>Velocity and pressure-drop compliance per run — flags segments exceeding CIBSE Guide G limits with exact velocity (m/s) and pressure loss (Pa/m) values.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4>COBie Plumbing Handover</h4>
+  <p>The <code>HandoverExportCommands</code> generate a complete COBie V2.4 export with the following plumbing-specific sheets populated:</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>COBie Sheet</th><th>Plumbing Data</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Type</strong></td><td>Plumbing fixture and equipment types from <code>COBIE_TYPE_MAP.csv</code> — WC suites, washbasins, shower units, bath tubs, urinals, sinks, calorifiers, booster sets, TMVs, backflow preventers</td></tr>
+      <tr><td><strong>Component</strong></td><td>Each placed fixture with <code>PLM_EQP_TAG</code> as the ExternalIdentifier, room reference, installation date, and serial number</td></tr>
+      <tr><td><strong>System</strong></td><td>DCW, DHW, HWS, SAN, RWD, GAS systems with Uniclass 2015 code (e.g., <code>Ss_65</code> for cold water distribution) and CIBSE system code</td></tr>
+      <tr><td><strong>Job</strong></td><td>SFG20 PPM templates from <code>COBIE_JOB_TEMPLATES.csv</code>: annual service (calorifiers), 6-monthly flush (deadlegs), thermostatic valve testing (TMVs), backflow preventer test</td></tr>
+      <tr><td><strong>Spare</strong></td><td>Spare parts per fixture type from <code>COBIE_SPARE_PARTS.csv</code>: O-rings, cartridges, float valves, flush siphons, trap seals</td></tr>
+      <tr><td><strong>Document</strong></td><td>O&amp;M manual links, L8 risk assessment reference, commissioning sheets, test certificates — all 28 document types tagged with ISO 19650 CDE state</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4>FM Handover Manual — Water Safety Sections</h4>
+  <div class="callout callout-amber">
+    <span class="callout-icon">💧</span>
+    <div class="callout-text"><strong>Legionella Risk (L8 / HTM 04-01):</strong> The FM Handover Manual (<code>Docs.HandoverManualCommand</code>) generates a water safety section listing all cold-water storage, calorifiers, deadleg branches, and infrequently used outlets. System volume (from the MEP System Schedule) feeds the risk severity calculation — volumes over 300 L in cold water storage trigger a "routine monitoring required" flag per HSE ACoP L8 §2.7.</div>
+  </div>
+  </section>
+
+  <!-- ── tagging ── -->
+  <section id="plumb-tagging">
+  <h3>Plumbing Tagging &amp; Compliance</h3>
+
+  <h4>Plumbing Tag Containers</h4>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Parameter</th><th>Category</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>PLM_EQP_TAG</code></td><td>Plumbing Fixtures &amp; Mechanical Equipment</td><td>Full 8-segment ISO 19650 tag. DISC=P, SYS derived from connected Revit pipe system type (DCW/DHW/HWS/SAN/RWD/GAS).</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4>Discipline Codes for Plumbing Elements</h4>
+  <div class="table-wrap"><table>
+    <thead><tr><th>DISC</th><th>SYS</th><th>FUNC</th><th>Typical PROD codes</th></tr></thead>
+    <tbody>
+      <tr><td>P</td><td>DCW</td><td>DCW</td><td>WC (WC suite), WHB (washbasin), SNK (sink), URN (urinal), BWL (bowl urinal)</td></tr>
+      <tr><td>P</td><td>DHW</td><td>DHW</td><td>SHW (shower), BTH (bath), BID (bidet), TMV (thermostatic mixing valve)</td></tr>
+      <tr><td>P</td><td>HWS</td><td>HTG</td><td>CAL (calorifier), BST (booster set), PRV (pressure reducing valve), EXV (expansion vessel)</td></tr>
+      <tr><td>P</td><td>SAN</td><td>SAN</td><td>GUL (gully), AAV (air admittance valve), TRP (trap), IC (inspection chamber)</td></tr>
+      <tr><td>P</td><td>RWD</td><td>RWD</td><td>RWP (rainwater pipe), RWG (gutter), RHD (rainwater head), SOA (soakaway)</td></tr>
+      <tr><td>P</td><td>GAS</td><td>GAS</td><td>GVM (gas valve/meter), GRG (gas regulator), GBR (gas burner), GFT (gas fitting)</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4>AEC Filters — Plumbing Pack (18 filters)</h4>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Filter Name</th><th>Standard</th><th>Override</th></tr></thead>
+    <tbody>
+      <tr><td>Cold-water-DCW</td><td>BS EN 806 / WRAS</td><td>Green outline, blue fill — potable cold water service</td></tr>
+      <tr><td>Hot-water-DHW</td><td>BS EN 806-2</td><td>Green outline, red fill — hot water draw-off</td></tr>
+      <tr><td>Sanitary-SAN</td><td>BS EN 12056-2</td><td>Black outline — gravity drainage above-ground</td></tr>
+      <tr><td>Rainwater-RWD</td><td>BS EN 12056-3</td><td>Black outline, green band — storm and rainwater</td></tr>
+      <tr><td>Medical-gas</td><td>HTM 02-01</td><td>Colour-per-gas per BS EN ISO 7396-1 (O₂=white, N₂O=blue, CO₂=grey, VAC=yellow)</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4>BS EN 806 / WRAS Standards Engine Checks</h4>
+  <div class="callout callout-blue">
+    <span class="callout-icon">💧</span>
+    <div class="callout-text">The <code>StandardsEngine</code> checks: pipe velocity ≤ 3 m/s (DCW/DHW) per CIBSE Guide G §2.3, minimum water temperature 60 °C at calorifier and 50 °C at terminal for Legionella control (L8 / HSE), maximum pipe diameter transitions (no 2-step reduction), and WRAS-approved material flag on all pipes in the cold-water system. Results appear in the Full Compliance Dashboard and the BIM Coordination Centre QA tab.</div>
+  </div>
+
+  <h4>Complete Plumbing Discipline Workflow</h4>
+  <div class="wf-block">
+    <div class="wf-header"><span class="wf-name">💧 Plumbing &amp; PHE Project Workflow — Full Sequence</span><span class="tag tag-blue">11 steps</span></div>
+    <div class="wf-steps">
+      <div class="wf-step"><strong>1 — Setup:</strong> TEMP → Master Setup. Creates MEP materials (464 types), pipe system families (DCW/DHW/HWS/SAN/RWD/GAS), and binds all <code>PLM_*</code> shared parameters from <code>MR_PARAMETERS.txt</code>.</div>
+      <div class="wf-step"><strong>2 — Model Fixtures:</strong> MODEL → Place Fixture. Place WCs, basins, showers, sinks, and ME equipment (calorifiers, booster sets). Each element is auto-tagged with the 9-step pipeline — DISC=P, SYS derived from the Revit pipe system connection.</div>
+      <div class="wf-step"><strong>3 — Route Pipework:</strong> MODEL → Create Pipe. Manually route hot and cold water, drainage, and rainwater branches. Set system type (DCW/SAN etc.) and nominal bore at placement. Or use TAGS → Auto Drop (AutoPipeDrop) for automated branch routing.</div>
+      <div class="wf-step"><strong>4 — Apply Templates:</strong> VIEW → Template Manager → Auto-Assign. Assigns <code>plumb-drainage-A1-1to100</code> drawing type to drainage plans and <code>mep-plan-A1-1to100</code> to combined services plans.</div>
+      <div class="wf-step"><strong>5 — Create Plumbing Filters:</strong> TEMP → Templates → Create Filters. Creates 18 plumbing <code>ParameterFilterElement</code> objects (DCW, DHW, SAN, RWD, GAS, medical-gas) from the AEC filter library with BS 1710 colour overrides.</div>
+      <div class="wf-step"><strong>6 — Tag Plumbing Elements:</strong> SELECT → Select Plumbing → Auto Tag. All fixtures and equipment receive <code>PLM_EQP_TAG</code>. Pipe system SYS code is inferred from <code>GetMepSystemAwareSysCode</code> before falling back to the category map.</div>
+      <div class="wf-step"><strong>7 — Sizing &amp; Compliance:</strong> TEMP → Data Pipeline → Sizing Check. MEP Intelligence Engine runs Hardy Cross balancing and Darcy-Weisbach pressure drop. BS EN 806 / CIBSE Guide G limit checks run automatically and flag over-velocity segments.</div>
+      <div class="wf-step"><strong>8 — MEP Schedules:</strong> TEMP → MEP Schedules → Fixture / Equipment / System. Creates Revit schedules with connection sizes, trap types, system volumes, and all STING tag parameters for coordination review.</div>
+      <div class="wf-step"><strong>9 — Drawing Production:</strong> DOCS → Batch Sheets. Produces drainage plans, combined services plans, and schematic riser drawings with correct drawing type, title block, and viewport placement.</div>
+      <div class="wf-step"><strong>10 — Validate Slopes:</strong> TAGS → Validate Fills / Run All Validators (v4). The SlopeValidator checks every drainage branch against minimum falls (BS EN 12056-2). Failures listed by element ID and location.</div>
+      <div class="wf-step"><strong>11 — COBie &amp; FM Handover:</strong> BIM → COBie Export (MEP preset). Plumbing fixtures populate the Type/Component/System/Job/Spare/Document COBie worksheets. The FM Handover Manual auto-generates the water-safety L8 section, complete with system volumes, calorifier temperatures, and deadleg schedules.</div>
+    </div>
+  </div>
+  </section>
+</section>
+
 <!-- ═══════════════ v4 MVP ═══════════════ -->
 <section class="section" id="v4-mvp">
   <div class="section-label">Feature Module</div>
