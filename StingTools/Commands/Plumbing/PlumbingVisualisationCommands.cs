@@ -140,7 +140,7 @@ namespace StingTools.Commands.Plumbing
                 sb.AppendLine($"  Stacks / nodes drawn : {schResult.NodesDrawn}");
                 sb.AppendLine($"  Detail lines drawn   : {schResult.LinesDrawn}");
                 sb.AppendLine($"  Annotations placed   : {schResult.AnnotationsPlaced}");
-                sb.AppendLine($"  View ID              : {schResult.ViewId?.IntegerValue}");
+                sb.AppendLine($"  View ID              : {schResult.ViewId?.Value}");
 
                 if (schResult.Warnings.Any())
                 {
@@ -290,7 +290,7 @@ namespace StingTools.Commands.Plumbing
                             {
                                 zoneColor  = new Color(128, 0, 128);   // Purple
                                 cntPrvNeeded++;
-                                warnings.Add($"Pipe {pipe.Id.IntegerValue} pressure {pressureKpa:F0} kPa > 500 kPa — PRV required.");
+                                warnings.Add($"Pipe {pipe.Id.Value} pressure {pressureKpa:F0} kPa > 500 kPa — PRV required.");
                             }
                             else if (pressureKpa >= ThresholdMidKpa)
                             {
@@ -306,7 +306,7 @@ namespace StingTools.Commands.Plumbing
                             {
                                 zoneColor  = new Color(220, 30, 30);   // Red
                                 cntLow++;
-                                warnings.Add($"Pipe {pipe.Id.IntegerValue} pressure {pressureKpa:F0} kPa < 100 kPa — low pressure.");
+                                warnings.Add($"Pipe {pipe.Id.Value} pressure {pressureKpa:F0} kPa < 100 kPa — low pressure.");
                             }
 
                             // Build override
@@ -487,7 +487,7 @@ namespace StingTools.Commands.Plumbing
                     sb.AppendLine($"  {"Stack ID",-12}  {"DN mm",6}  {"DFU",8}  System");
                     foreach (var s in stackNodes.Take(20))
                     {
-                        sb.AppendLine($"  {s.Id?.IntegerValue,-12}  {s.DnMm,6}  {s.DfuAccumulated,8:F2}  {s.SystemName}");
+                        sb.AppendLine($"  {s.Id?.Value,-12}  {s.DnMm,6}  {s.DfuAccumulated,8:F2}  {s.SystemName}");
                     }
                     if (stackNodes.Count > 20)
                         sb.AppendLine($"  … {stackNodes.Count - 20} more stacks not shown.");
@@ -509,7 +509,7 @@ namespace StingTools.Commands.Plumbing
                     if (criticalPath.Count <= 5)
                     {
                         sb.AppendLine("  Pipe IDs: " +
-                            string.Join(" → ", criticalPath.Select(e => e.PipeId?.IntegerValue)));
+                            string.Join(" → ", criticalPath.Select(e => e.PipeId?.Value)));
                     }
                     sb.AppendLine();
                 }
@@ -584,7 +584,7 @@ namespace StingTools.Commands.Plumbing
                 var dist  = new Dictionary<long, double>();
                 var queue = new Queue<PipeNode>();
 
-                dist[start.Id.IntegerValue] = 0;
+                dist[start.Id.Value] = 0;
                 queue.Enqueue(start);
 
                 while (queue.Count > 0)
@@ -592,8 +592,8 @@ namespace StingTools.Commands.Plumbing
                     var node = queue.Dequeue();
                     foreach (var edge in node.Downstream)
                     {
-                        long toId = edge.To.Id.IntegerValue;
-                        double newDist = dist.GetValueOrDefault(node.Id.IntegerValue) + edge.ResistanceKpa;
+                        long toId = edge.To.Id.Value;
+                        double newDist = dist.GetValueOrDefault(node.Id.Value) + edge.ResistanceKpa;
                         if (!dist.ContainsKey(toId) || newDist < dist[toId])
                         {
                             dist[toId] = newDist;
@@ -605,13 +605,13 @@ namespace StingTools.Commands.Plumbing
 
                 // Reconstruct
                 var path = new List<PipeEdge>();
-                long cur = end.Id.IntegerValue;
+                long cur = end.Id.Value;
                 int  guard = 0;
                 while (prev.ContainsKey(cur) && guard < 500)
                 {
                     var edge = prev[cur];
                     path.Add(edge);
-                    cur = edge.From.Id.IntegerValue;
+                    cur = edge.From.Id.Value;
                     guard++;
                 }
                 path.Reverse();

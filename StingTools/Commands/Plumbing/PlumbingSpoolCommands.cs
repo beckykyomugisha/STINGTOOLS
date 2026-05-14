@@ -126,7 +126,7 @@ namespace StingTools.Commands.Plumbing
                         {
                             var ids = kvp.Value.Select(e => e.Id).ToList();
                             if (ids.Count > 0 && AssemblyInstance.IsValidNamingCategory(ctx.Doc,
-                                ctx.Doc.GetElement(ids[0])?.Category, ids))
+                                ctx.Doc.GetElement(ids[0])?.Category?.Id, ids))
                             {
                                 var assy = AssemblyInstance.Create(ctx.Doc, ids,
                                     ctx.Doc.GetElement(ids[0]).Category.Id);

@@ -248,7 +248,7 @@ namespace StingTools.Core.Plumbing
                 if (DateTime.TryParse(testDate, out var testDt))
                 {
                     string dueTxt = testDt.AddMonths(12).ToString("yyyy-MM-dd");
-                    TryWriteString(el, ParamRegistry.PLM_TMV_ANNUAL_DUE, dueTxt);
+                    TryWriteString(el, ParamRegistry.PLM_TMV_NEXT_TEST, dueTxt);
                 }
             }
             catch (Exception ex)

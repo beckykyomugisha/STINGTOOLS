@@ -281,29 +281,28 @@ namespace StingTools.Commands.Plumbing
 
         // ── helpers ───────────────────────────────────────────────────────────
 
-        private static Dictionary<string, object> BuildTokenDictionary(
+        private static TokenContext BuildTokenDictionary(
             Document doc,
             DeadLegResult deadLegs, TMVRegisterResult tmv,
             int fixtureCount, int dhwPipeCount, int tankCount)
         {
-            var pi = doc.ProjectInformation;
-            return new Dictionary<string, object>
-            {
-                ["ProjectName"]    = pi?.Name ?? "",
-                ["AssessmentDate"] = DateTime.Today.ToString("yyyy-MM-dd"),
-                ["Assessor"]       = pi?.Author ?? "",
-                ["ClientName"]     = ParameterHelpers.GetString(pi, "Client Name") ?? pi?.ClientName ?? "",
-                ["FixtureCount"]   = fixtureCount,
-                ["DhwPipeCount"]   = dhwPipeCount,
-                ["TankCount"]      = tankCount,
-                ["DeadLegScanned"] = deadLegs.PipesScanned,
-                ["DeadLegsHigh"]   = deadLegs.Findings.Count(f => f.LegLengthM > 0.45),
-                ["DeadLegsMedium"] = deadLegs.Findings.Count(f => f.LegLengthM > 0.30 && f.LegLengthM <= 0.45),
-                ["TmvTotal"]       = tmv.TotalTMVs,
-                ["TmvPass"]        = tmv.PassCount,
-                ["TmvFail"]        = tmv.FailCount,
-                ["TmvOverdue"]     = tmv.OverdueCount,
-            };
+            var pi  = doc.ProjectInformation;
+            var ctx = new TokenContext();
+            ctx.Project["ProjectName"]    = pi?.Name ?? "";
+            ctx.Project["AssessmentDate"] = DateTime.Today.ToString("yyyy-MM-dd");
+            ctx.Project["Assessor"]       = pi?.Author ?? "";
+            ctx.Project["ClientName"]     = ParameterHelpers.GetString(pi, "Client Name") ?? pi?.ClientName ?? "";
+            ctx.Project["FixtureCount"]   = fixtureCount;
+            ctx.Project["DhwPipeCount"]   = dhwPipeCount;
+            ctx.Project["TankCount"]      = tankCount;
+            ctx.Project["DeadLegScanned"] = deadLegs.PipesScanned;
+            ctx.Project["DeadLegsHigh"]   = deadLegs.Findings.Count(f => f.LegLengthM > 0.45);
+            ctx.Project["DeadLegsMedium"] = deadLegs.Findings.Count(f => f.LegLengthM > 0.30 && f.LegLengthM <= 0.45);
+            ctx.Project["TmvTotal"]       = tmv.TotalTMVs;
+            ctx.Project["TmvPass"]        = tmv.PassCount;
+            ctx.Project["TmvFail"]        = tmv.FailCount;
+            ctx.Project["TmvOverdue"]     = tmv.OverdueCount;
+            return ctx;
         }
 
         private static string BuildTextReport(
