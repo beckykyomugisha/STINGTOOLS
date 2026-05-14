@@ -1751,7 +1751,12 @@
       pane.innerHTML = '';
       pane.appendChild(el('div', { class: 'prop-section-label' }, guid ? `Clashes (${subset.length})` : 'Recent clashes'));
       subset.forEach(c => {
-        const card = el('div', { class: `coord-card ${c.type.toLowerCase()}` });
+        const card = el('div', {
+          class: `coord-card ${c.type.toLowerCase()}`,
+          'data-kind': 'clash',
+          title: 'Click to zoom · Double-click to isolate · Right-click for options',
+        });
+        card._clash = c;   // delegated context menu in setupRowContextMenu reads this
         card.innerHTML = `
           <div class="head"><span class="tag ${c.type === 'HARD' ? 'hard' : 'soft'}">${c.type}</span>
             <span style="color:var(--text-muted);font-size:11px">${c.overlap_mm}mm ${c.type === 'HARD' ? 'overlap' : 'clearance'}</span></div>
@@ -1768,6 +1773,12 @@
         card.addEventListener('click', (e) => {
           if (e.target.closest('button')) return;
           focusClash(c);
+        });
+        // Double-click → zoom + isolate the clashing pair (mirrors bottom-panel dblclick).
+        card.addEventListener('dblclick', (e) => {
+          if (e.target.closest('button')) return;
+          focusClash(c);
+          isolateClashPair(c);
         });
         $('button[data-act=view]', card).addEventListener('click', (e) => { e.stopPropagation(); focusClash(c); });
         $('button[data-act=issue]', card).addEventListener('click', (e) => { e.stopPropagation(); openIssueModal({ clash: c }); });
@@ -1921,6 +1932,20 @@
         if (!card || !card._photo) return;
         e.preventDefault();
         openPhotoRowMenu(menu, card._photo, e.clientX, e.clientY);
+      });
+      // Right-panel issue cards — same menu as bottom-panel rows.
+      $('#pane-issues')?.addEventListener('contextmenu', (e) => {
+        const card = e.target.closest('.coord-card[data-kind="issue"]');
+        if (!card || !card._issue) return;
+        e.preventDefault();
+        openIssueRowMenu(menu, card._issue, e.clientX, e.clientY);
+      });
+      // Right-panel clash cards — same menu as bottom-panel rows.
+      $('#pane-clashes')?.addEventListener('contextmenu', (e) => {
+        const card = e.target.closest('.coord-card[data-kind="clash"]');
+        if (!card || !card._clash) return;
+        e.preventDefault();
+        openClashRowMenu(menu, card._clash, e.clientX, e.clientY);
       });
       // Click anywhere else to dismiss.
       document.addEventListener('click', (e) => {
@@ -2426,7 +2451,12 @@
       pane.appendChild(el('div', { class: 'prop-section-label' }, guid ? `Linked issues (${subset.length})` : 'Recent issues'));
       subset.forEach(i => {
         const overdue = i.slaBreached || (i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'RESOLVED');
-        const card = el('div', { class: `coord-card priority-${i.priority || 'MEDIUM'} ${i.status === 'RESOLVED' ? 'resolved' : ''}` });
+        const card = el('div', {
+          class: `coord-card priority-${i.priority || 'MEDIUM'} ${i.status === 'RESOLVED' ? 'resolved' : ''}`,
+          'data-kind': 'issue',
+          title: 'Click to zoom · Double-click to open comments · Right-click for options',
+        });
+        card._issue = i;   // delegated context menu in setupRowContextMenu reads this
         card.innerHTML = `
           <div class="head">
             <span class="tag ${(i.status || 'NEW').toLowerCase()}">${i.status || 'NEW'}</span>
@@ -2446,6 +2476,13 @@
         card.addEventListener('click', (e) => {
           if (e.target.closest('button')) return;
           focusIssue(i);
+        });
+        // Double-click → zoom + open comments (mirrors bottom-panel dblclick).
+        card.addEventListener('dblclick', (e) => {
+          if (e.target.closest('button')) return;
+          focusIssue(i);
+          const tab = $$('.tab-bar .tab').find(t => t.dataset.tab === 'comments');
+          if (tab) tab.click();
         });
         $('button[data-act=view]', card)?.addEventListener('click', (e) => { e.stopPropagation(); focusIssue(i); });
         $('button[data-act=resolve]', card)?.addEventListener('click', (e) => { e.stopPropagation(); updateIssue(i.id, { status: 'RESOLVED' }); });
