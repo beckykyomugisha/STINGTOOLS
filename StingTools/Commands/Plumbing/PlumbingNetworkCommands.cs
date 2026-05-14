@@ -394,7 +394,7 @@ namespace StingTools.Commands.Plumbing
             var doc  = ctx.Doc;
             var view = ctx.UIDoc.ActiveView;
 
-            PipeNetworkGraph net;
+            PipeNetwork net;
             PlumbingSystemConfig cfg;
             try
             {
@@ -411,12 +411,15 @@ namespace StingTools.Commands.Plumbing
                 return Result.Failed;
             }
 
-            // Build a map: PipeId → pressure kPa from network edges
+            // Build a map: PipeId → residual pressure kPa from the downstream node of each edge
             var pressureMap = new Dictionary<long, double>();
             if (net.Edges != null)
             {
                 foreach (var edge in net.Edges)
-                    pressureMap[edge.PipeId.Value] = edge.PressureKpa;
+                {
+                    double kpa = edge.To?.PressureKpa ?? edge.From?.PressureKpa ?? 0.0;
+                    pressureMap[edge.PipeId.Value] = kpa;
+                }
             }
 
             // Find solid fill for colour overrides
@@ -486,7 +489,7 @@ namespace StingTools.Commands.Plumbing
             }
 
             // Critical path
-            var critPipes = net.CriticalPath ?? new List<PipeNetworkEdge>();
+            var critPipes = PipeNetworkBuilder.FindCriticalPath(net) ?? new List<PipeEdge>();
             double critLenM = critPipes.Sum(e => e.LengthM);
 
             var panel = StingResultPanel.Create("Network Pressure Analysis");
