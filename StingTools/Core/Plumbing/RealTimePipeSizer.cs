@@ -43,7 +43,7 @@ namespace StingTools.Core.Plumbing
         public string    GetUpdaterName()         => "STING Real-Time Pipe Sizer";
         public string    GetAdditionalInformation()
             => "Auto-sizes newly placed pipes from DFU/LU accumulation (optional).";
-        public ChangePriority GetChangePriority() => ChangePriority.MEPFixtureChanges;
+        public ChangePriority GetChangePriority() => ChangePriority.MEPAccessoriesFittingsSegmentsWires;
 
         public void Execute(UpdaterData data)
         {
@@ -77,10 +77,14 @@ namespace StingTools.Core.Plumbing
         /// <summary>
         /// Register the updater at application level (all documents).
         /// Safe to call multiple times — no-ops if already registered.
+        /// Accepts either UIControlledApplication (from OnStartup) or UIApplication
+        /// (from StingCommandHandler) — both paths share the same core logic.
         /// </summary>
-        public static void Register(UIControlledApplication app)
+        public static void Register(UIControlledApplication app) => RegisterCore();
+        public static void Register(UIApplication app)           => RegisterCore();
+
+        private static void RegisterCore()
         {
-            if (app == null) return;
             try
             {
                 if (UpdaterRegistry.IsUpdaterRegistered(_updaterId)) return;

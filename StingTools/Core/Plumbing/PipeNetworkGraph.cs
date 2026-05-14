@@ -537,8 +537,9 @@ namespace StingTools.Core.Plumbing
             {
                 if (el is Pipe p) return p.MEPSystem?.Name ?? "";
                 if (el is FamilyInstance fi)
-                    return fi.MEPModel?.GetMEPSystems()?.Cast<MEPSystem>()
-                           .FirstOrDefault()?.Name ?? "";
+                    return fi.MEPModel?.ConnectorManager?.Connectors?.Cast<Connector>()
+                           .Select(c => c.MEPSystem?.Name)
+                           .FirstOrDefault(n => n != null) ?? "";
             }
             catch { }
             return "";

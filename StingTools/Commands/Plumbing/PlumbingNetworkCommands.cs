@@ -365,9 +365,9 @@ namespace StingTools.Commands.Plumbing
             var panel = StingResultPanel.Create("Create Vents");
             panel.SetSubtitle($"Code: {(vents.FirstOrDefault()?.CodeUsed ?? "BS-UK")} · {dfuMap.FixturesScanned} fixtures");
             panel.AddSection("SUMMARY")
-                 .Metric("Vent pipes created", result.VentPipesCreated.ToString())
+                 .Metric("Vent pipes created", result.VentsCreated.ToString())
                  .Metric("AAVs placed",         result.AavsPlaced.ToString())
-                 .Metric("Skipped",             result.Skipped.ToString());
+                 .Metric("Skipped",             result.VentsSkipped.ToString());
 
             if (result.Warnings?.Count > 0)
             {

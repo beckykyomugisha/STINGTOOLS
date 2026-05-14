@@ -31,7 +31,7 @@ namespace StingTools.Commands.Plumbing
         public Result Execute(ExternalCommandData commandData,
                               ref string message, ElementSet elements)
         {
-            var ctx = new CommandExecutionContext(commandData);
+            var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx.Doc == null) { message = "No active document."; return Result.Failed; }
 
             try
@@ -214,7 +214,7 @@ namespace StingTools.Commands.Plumbing
         public Result Execute(ExternalCommandData commandData,
                               ref string message, ElementSet elements)
         {
-            var ctx = new CommandExecutionContext(commandData);
+            var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx.Doc == null) { message = "No active document."; return Result.Failed; }
 
             var view = ctx.UIDoc.ActiveView;
@@ -254,7 +254,7 @@ namespace StingTools.Commands.Plumbing
                     network = new PipeNetwork();
                 }
 
-                var cfg = PlumbingSystemConfig.LoadForDocument(ctx.Doc) ?? PlumbingSystemConfig.Defaults();
+                var cfg = PlumbingSystemConfig.Load(ctx.Doc) ?? PlumbingSystemConfig.Defaults();
                 double entryPressureKpa = cfg.SupplyPressureBarAtEntry * 100.0; // bar → kPa
 
                 // ── Propagate pressure through network ─────────────────────
@@ -285,31 +285,26 @@ namespace StingTools.Commands.Plumbing
 
                             // Determine zone colour
                             Color zoneColor;
-                            string zoneLabel;
 
                             if (pressureKpa > ThresholdHighKpa)
                             {
                                 zoneColor  = new Color(128, 0, 128);   // Purple
-                                zoneLabel  = "HIGH-PRV";
                                 cntPrvNeeded++;
                                 warnings.Add($"Pipe {pipe.Id.IntegerValue} pressure {pressureKpa:F0} kPa > 500 kPa — PRV required.");
                             }
                             else if (pressureKpa >= ThresholdMidKpa)
                             {
                                 zoneColor  = new Color(0, 180, 0);     // Green
-                                zoneLabel  = "ADEQUATE";
                                 cntHigh++;
                             }
                             else if (pressureKpa >= ThresholdLowKpa)
                             {
                                 zoneColor  = new Color(255, 140, 0);   // Amber/Orange
-                                zoneLabel  = "MEDIUM";
                                 cntMid++;
                             }
                             else
                             {
                                 zoneColor  = new Color(220, 30, 30);   // Red
-                                zoneLabel  = "LOW";
                                 cntLow++;
                                 warnings.Add($"Pipe {pipe.Id.IntegerValue} pressure {pressureKpa:F0} kPa < 100 kPa — low pressure.");
                             }
@@ -437,7 +432,7 @@ namespace StingTools.Commands.Plumbing
         public Result Execute(ExternalCommandData commandData,
                               ref string message, ElementSet elements)
         {
-            var ctx = new CommandExecutionContext(commandData);
+            var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx.Doc == null) { message = "No active document."; return Result.Failed; }
 
             try

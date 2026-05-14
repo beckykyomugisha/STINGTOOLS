@@ -310,7 +310,7 @@ namespace StingTools.Core.Plumbing
 
             // Test dates
             rec.LastTestDate      = ReadString(el, ParamRegistry.PLM_TMV_TEST_DATE);
-            rec.AnnualTestDueDate = ReadString(el, ParamRegistry.PLM_TMV_ANNUAL_DUE);
+            rec.AnnualTestDueDate = ReadString(el, ParamRegistry.PLM_TMV_NEXT_TEST);
 
             // If annual due not stored, compute from test date
             if (string.IsNullOrWhiteSpace(rec.AnnualTestDueDate)

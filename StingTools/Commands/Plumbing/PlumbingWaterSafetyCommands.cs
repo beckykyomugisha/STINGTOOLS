@@ -18,6 +18,7 @@ using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using Planscape.Docs.Templates;
 using StingTools.Core;
 using StingTools.Core.Plumbing;
 using StingTools.UI;
@@ -66,8 +67,8 @@ namespace StingTools.Commands.Plumbing
                 sb.AppendLine("ElementId,FamilyName,Room,TMVClass,InletHot_C,InletCold_C,Outlet_C,TestDate,AnnualDueDate,Pass");
                 foreach (var row in records)
                 {
-                    string testDateStr = ParseDateStr(row.LastTestDate, "yyyy-MM-dd");
-                    string dueDateStr  = ParseDateStr(row.AnnualTestDueDate, "yyyy-MM-dd");
+                    string testDateStr = WaterSafetyDateHelper.ParseDateStr(row.LastTestDate, "yyyy-MM-dd");
+                    string dueDateStr  = WaterSafetyDateHelper.ParseDateStr(row.AnnualTestDueDate, "yyyy-MM-dd");
                     sb.AppendLine(
                         $"{row.Id?.Value}," +
                         $"\"{row.FamilyName}\"," +
@@ -102,14 +103,14 @@ namespace StingTools.Commands.Plumbing
                 foreach (var row in records.Take(60))
                 {
                     string status  = row.WithinTolerance ? "PASS" : "FAIL";
-                    bool   overdue = ParseDate(row.AnnualTestDueDate) < DateTime.Today;
+                    bool   overdue = WaterSafetyDateHelper.ParseDate(row.AnnualTestDueDate) < DateTime.Today;
                     string overdueStr = overdue ? " · OVERDUE" : "";
                     panel.Text(
                         $"{row.Id?.Value}  {row.FamilyName,-28}  [{row.Class}]  " +
                         $"Room: {row.RoomName,-18}  " +
                         $"Hot {row.InletHotC:F0}°C  Cold {row.InletColdC:F0}°C  " +
                         $"Outlet {row.ActualOutletC:F0}°C  " +
-                        $"Test {ParseDateStr(row.LastTestDate, "yyyy-MM-dd")}  {status}{overdueStr}");
+                        $"Test {WaterSafetyDateHelper.ParseDateStr(row.LastTestDate, "yyyy-MM-dd")}  {status}{overdueStr}");
                 }
             }
             else
@@ -362,7 +363,7 @@ namespace StingTools.Commands.Plumbing
             sb.AppendLine($"  Total: {tmv.TotalTMVs}  Pass: {tmv.PassCount}  Fail: {tmv.FailCount}  Overdue: {tmv.OverdueCount}");
             foreach (var row in tmv.Records.Take(50))
             {
-                string testDateStr = ParseDateStr(row.LastTestDate, "yyyy-MM-dd");
+                string testDateStr = WaterSafetyDateHelper.ParseDateStr(row.LastTestDate, "yyyy-MM-dd");
                 sb.AppendLine($"  {row.Id?.Value}  {row.FamilyName}  {row.Class}  " +
                               $"Out {row.ActualOutletC:F0}°C  Test {testDateStr}  " +
                               $"{(row.WithinTolerance ? "PASS" : "FAIL - " + row.FailReason)}");
@@ -443,9 +444,9 @@ namespace StingTools.Commands.Plumbing
             foreach (var row in records.Where(r => !r.WithinTolerance))
                 redItems.Add($"TMV FAIL: {row.Id?.Value} {row.FamilyName} — {row.FailReason}");
 
-            var overdueRecords = records.Where(r => ParseDate(r.AnnualTestDueDate) < DateTime.Today).ToList();
+            var overdueRecords = records.Where(r => WaterSafetyDateHelper.ParseDate(r.AnnualTestDueDate) < DateTime.Today).ToList();
             foreach (var row in overdueRecords)
-                amberItems.Add($"TMV overdue: {row.Id?.Value} {row.FamilyName} (due {ParseDateStr(row.AnnualTestDueDate, "yyyy-MM-dd")})");
+                amberItems.Add($"TMV overdue: {row.Id?.Value} {row.FamilyName} (due {WaterSafetyDateHelper.ParseDateStr(row.AnnualTestDueDate, "yyyy-MM-dd")})");
 
             if (tmv.FailCount == 0 && tmv.OverdueCount == 0)
                 greenItems.Add($"All {tmv.TotalTMVs} TMVs passing and within test date.");

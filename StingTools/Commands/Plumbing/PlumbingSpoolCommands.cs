@@ -126,7 +126,7 @@ namespace StingTools.Commands.Plumbing
                         {
                             var ids = kvp.Value.Select(e => e.Id).ToList();
                             if (ids.Count > 0 && AssemblyInstance.IsValidNamingCategory(ctx.Doc,
-                                ctx.Doc.GetElement(ids[0])?.Category))
+                                ctx.Doc.GetElement(ids[0])?.Category, ids))
                             {
                                 var assy = AssemblyInstance.Create(ctx.Doc, ids,
                                     ctx.Doc.GetElement(ids[0]).Category.Id);
@@ -209,36 +209,39 @@ namespace StingTools.Commands.Plumbing
 
                 // Add fields: spool number, system, level, size, length
                 var fields = schedule.Definition.GetSchedulableFields();
-                var existingFields = schedule.Definition.GetFieldOrder()
-                    .Select(id => schedule.Definition.GetField(id).ParameterName)
+                var existingParamIds = schedule.Definition.GetFieldOrder()
+                    .Select(fid => schedule.Definition.GetField(fid).ParameterId)
                     .ToHashSet();
 
-                var desired = new[]
+                // Add standard built-in parameter fields by BIP identity
+                var desiredBips = new[]
                 {
-                    "Size",
-                    "Length",
-                    "System Name",
-                    "Reference Level"
+                    BuiltInParameter.RBS_CALCULATED_SIZE,
+                    BuiltInParameter.CURVE_ELEM_LENGTH,
+                    BuiltInParameter.RBS_SYSTEM_NAME_PARAM,
+                    BuiltInParameter.RBS_START_LEVEL_PARAM,
                 };
-
-                foreach (var fieldName in desired)
+                foreach (var bip in desiredBips)
                 {
-                    if (existingFields.Contains(fieldName)) continue;
-                    var sf = fields.FirstOrDefault(f =>
-                        string.Equals(f.GetSchedulableFieldName(), fieldName, StringComparison.OrdinalIgnoreCase));
-                    if (sf != null)
-                    {
-                        try { schedule.Definition.AddField(sf); } catch { }
-                    }
+                    var bipId = new ElementId(bip);
+                    if (existingParamIds.Contains(bipId)) continue;
+                    var sf = fields.FirstOrDefault(f => f.ParameterId == bipId);
+                    if (sf != null) { try { schedule.Definition.AddField(sf); } catch { } }
                 }
 
-                // Try to add PLM_SPOOL_NR shared param field
+                // Try to add PLM_SPOOL_NR shared param field by shared-parameter element name
                 try
                 {
                     var spoolField = fields.FirstOrDefault(f =>
-                        f.GetSchedulableFieldName().Contains("SPOOL") ||
-                        f.GetSchedulableFieldName().Contains("Spool"));
-                    if (spoolField != null && !existingFields.Contains(spoolField.GetSchedulableFieldName()))
+                    {
+                        try
+                        {
+                            var elem = ctx.Doc.GetElement(f.ParameterId);
+                            return elem?.Name?.IndexOf("SPOOL", StringComparison.OrdinalIgnoreCase) >= 0;
+                        }
+                        catch { return false; }
+                    });
+                    if (spoolField != null && !existingParamIds.Contains(spoolField.ParameterId))
                         schedule.Definition.AddField(spoolField);
                 }
                 catch { }

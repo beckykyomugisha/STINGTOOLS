@@ -430,7 +430,7 @@ namespace StingTools.Core.Plumbing
                 int floorCount = Math.Max(2, (int)Math.Ceiling(heightFt / (opts.LevelHeightMm * MmToFt)));
 
                 // Vent sizing (roughly half stack DN)
-                int ventDnMm = node.DnMm > 0 ? Math.Max(50, node.DnMm / 2) : 50;
+                int ventDnMm = node.DnMm > 0 ? Math.Max(50, (int)(node.DnMm / 2)) : 50;
 
                 var sl = new StackLayout
                 {
@@ -487,7 +487,7 @@ namespace StingTools.Core.Plumbing
                         {
                             FloorIndex   = f,
                             FixtureCount = 0,
-                            BranchDnMm   = Math.Max(50, node.DnMm / 2),
+                            BranchDnMm   = Math.Max(50, (int)(node.DnMm / 2)),
                             SlopePct     = 1.25,
                             FixtureLabel = "",
                             IsLeft       = f % 2 != 0
