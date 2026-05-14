@@ -85,17 +85,9 @@
         "tagStyle": "NOM",
         "tagColor": "BLACK",
         "colorScheme": "Discipline",
-        "segmentMask": "11111111",
         "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": false
-        }
+        "segmentMask": "11111111",
+        "patternMode": "DC"
       },
       "slots": [
         {
@@ -261,25 +253,10 @@
         "tagSize": "2.5",
         "tagStyle": "NOM",
         "tagColor": "BLACK",
-        "colorScheme": "System",
-        "segmentMask": "11111111",
+        "colorScheme": "Discipline",
         "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": false,
-          "E": true,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
+        "segmentMask": "11110001",
+        "patternMode": "DC"
       },
       "slots": [
         {
@@ -436,28 +413,21 @@
       },
       "tokenProfile": {
         "presentationMode": "Technical",
-        "paraDepth": 3,
-        "tagSize": "3",
+        "paraDepth": 2,
+        "tagSize": "2",
         "tagStyle": "NOM",
         "tagColor": "BLACK",
         "colorScheme": "Discipline",
-        "segmentMask": "11111111",
-        "displayMode": 5,
+        "displayMode": 3,
+        "segmentMask": "10001001",
         "patternMode": "DC",
         "sectionVisibility": {
           "A": true,
-          "B": true,
+          "B": false,
           "C": true,
           "D": false,
           "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
+          "F": true
         }
       },
       "slots": [
@@ -609,29 +579,21 @@
         "farClipMm": 8000
       },
       "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 3,
-        "tagSize": "2.5",
+        "presentationMode": "Compact",
+        "paraDepth": 1,
+        "tagSize": "2",
         "tagStyle": "NOM",
         "tagColor": "BLACK",
         "colorScheme": "Discipline",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
+        "displayMode": 1,
+        "segmentMask": "10000001",
         "sectionVisibility": {
           "A": true,
-          "B": true,
-          "C": true,
+          "B": false,
+          "C": false,
           "D": false,
           "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
+          "F": true
         }
       },
       "slots": [
@@ -798,29 +760,21 @@
         "farClipMm": 500
       },
       "tokenProfile": {
-        "presentationMode": "FullSpec",
-        "paraDepth": 5,
-        "tagSize": "3.5",
+        "presentationMode": "Technical",
+        "paraDepth": 2,
+        "tagSize": "2",
         "tagStyle": "NOM",
         "tagColor": "BLACK",
         "colorScheme": "Discipline",
-        "segmentMask": "11111111",
-        "displayMode": 4,
-        "patternMode": "DC",
+        "displayMode": 2,
+        "segmentMask": "00000011",
         "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
+          "A": false,
+          "B": false,
+          "C": false,
+          "D": false,
           "E": true,
-          "F": true,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
+          "F": true
         }
       },
       "slots": [
@@ -987,17 +941,9 @@
         "tagStyle": "NOM",
         "tagColor": "BLACK",
         "colorScheme": "Discipline",
-        "segmentMask": "11111111",
         "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": false
-        }
+        "segmentMask": "11111111",
+        "patternMode": "DC"
       },
       "slots": [
         {
@@ -1113,28 +1059,21 @@
       },
       "tokenProfile": {
         "presentationMode": "Technical",
-        "paraDepth": 3,
-        "tagSize": "3",
+        "paraDepth": 2,
+        "tagSize": "2",
         "tagStyle": "NOM",
         "tagColor": "BLACK",
         "colorScheme": "Discipline",
-        "segmentMask": "11111111",
-        "displayMode": 5,
+        "displayMode": 3,
+        "segmentMask": "10001001",
         "patternMode": "DC",
         "sectionVisibility": {
           "A": true,
-          "B": true,
+          "B": false,
           "C": true,
           "D": false,
           "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
+          "F": true
         }
       },
       "slots": [
@@ -1237,19 +1176,11 @@
         "paraDepth": 3,
         "tagSize": "2.5",
         "tagStyle": "NOM",
-        "tagColor": "BLUE",
+        "tagColor": "BLACK",
         "colorScheme": "Discipline",
-        "segmentMask": "11111111",
         "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": false
-        }
+        "segmentMask": "11111111",
+        "patternMode": "DC"
       },
       "slots": [
         {
@@ -1415,14 +1346,14 @@
         "marginMm": 100
       },
       "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 8,
-        "tagSize": "2.5",
+        "presentationMode": "FullSpec",
+        "paraDepth": 5,
+        "tagSize": "2",
         "tagStyle": "BOLD",
-        "tagColor": "RED",
-        "colorScheme": "Discipline",
-        "segmentMask": "11111111",
+        "tagColor": "BLACK",
+        "colorScheme": "System",
         "displayMode": 5,
+        "segmentMask": "11111111",
         "patternMode": "DC",
         "sectionVisibility": {
           "A": true,
@@ -1430,14 +1361,9 @@
           "C": true,
           "D": true,
           "E": true,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": true,
-          "T9": false,
-          "T10": false
+          "F": true,
+          "T4": true,
+          "T5": true
         }
       },
       "slots": [
@@ -1586,29 +1512,22 @@
         "marginMm": 300
       },
       "tokenProfile": {
-        "presentationMode": "FullSpec",
-        "paraDepth": 7,
-        "tagSize": "3",
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "2.5",
         "tagStyle": "BOLD",
         "tagColor": "BLACK",
         "colorScheme": "System",
-        "segmentMask": "10000101",
         "displayMode": 4,
+        "segmentMask": "10001011",
         "patternMode": "DC",
         "sectionVisibility": {
           "A": true,
-          "B": true,
-          "C": false,
+          "B": false,
+          "C": true,
           "D": false,
           "E": true,
-          "F": true,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": true,
-          "T8": false,
-          "T9": false,
-          "T10": false
+          "F": true
         }
       },
       "slots": [
@@ -1760,29 +1679,22 @@
         "marginMm": 300
       },
       "tokenProfile": {
-        "presentationMode": "FullSpec",
-        "paraDepth": 7,
-        "tagSize": "3",
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "2.5",
         "tagStyle": "BOLD",
         "tagColor": "BLACK",
         "colorScheme": "System",
-        "segmentMask": "10000101",
         "displayMode": 4,
+        "segmentMask": "10001011",
         "patternMode": "DC",
         "sectionVisibility": {
           "A": true,
-          "B": true,
-          "C": false,
+          "B": false,
+          "C": true,
           "D": false,
           "E": true,
-          "F": true,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": true,
-          "T8": false,
-          "T9": false,
-          "T10": false
+          "F": true
         }
       },
       "slots": [
@@ -1935,22 +1847,21 @@
         "marginMm": 200
       },
       "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 3,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "ORANGE",
-        "colorScheme": "Level",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
+        "presentationMode": "Compact",
+        "paraDepth": 2,
+        "tagSize": "2",
+        "tagStyle": "BOLD",
+        "tagColor": "RED",
+        "colorScheme": "System",
+        "displayMode": 2,
+        "segmentMask": "10000011",
         "sectionVisibility": {
           "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": false
+          "B": false,
+          "C": false,
+          "D": false,
+          "E": true,
+          "F": true
         }
       },
       "slots": [
@@ -2058,30 +1969,14 @@
         "kind": "None"
       },
       "tokenProfile": {
-        "presentationMode": "BOQ",
+        "presentationMode": "Compact",
         "paraDepth": 1,
         "tagSize": "2",
         "tagStyle": "NOM",
         "tagColor": "BLACK",
-        "colorScheme": "",
-        "segmentMask": "10000101",
-        "displayMode": 2,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": false,
-          "C": false,
-          "D": false,
-          "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
+        "colorScheme": "Discipline",
+        "displayMode": 1,
+        "segmentMask": "10000001"
       },
       "slots": [
         {
@@ -2143,30 +2038,14 @@
         "kind": "None"
       },
       "tokenProfile": {
-        "presentationMode": "BOQ",
+        "presentationMode": "Compact",
         "paraDepth": 1,
         "tagSize": "2",
         "tagStyle": "NOM",
         "tagColor": "BLACK",
-        "colorScheme": "",
-        "segmentMask": "10000101",
-        "displayMode": 2,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": false,
-          "C": false,
-          "D": false,
-          "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
+        "colorScheme": "Discipline",
+        "displayMode": 1,
+        "segmentMask": "10000001"
       },
       "slots": [
         {
@@ -2227,14 +2106,14 @@
         "marginMm": 200
       },
       "tokenProfile": {
-        "presentationMode": "FullSpec",
-        "paraDepth": 10,
-        "tagSize": "2.5",
+        "presentationMode": "BOQ",
+        "paraDepth": 4,
+        "tagSize": "2",
         "tagStyle": "NOM",
-        "tagColor": "PURPLE",
-        "colorScheme": "System",
-        "segmentMask": "11111111",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
         "displayMode": 5,
+        "segmentMask": "11111111",
         "patternMode": "HANDOVER",
         "sectionVisibility": {
           "A": true,
@@ -2244,12 +2123,7 @@
           "E": true,
           "F": true,
           "T4": true,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": true,
-          "T10": true
+          "T5": true
         }
       },
       "slots": [
@@ -2334,26 +2208,10 @@
         "paraDepth": 1,
         "tagSize": "2",
         "tagStyle": "NOM",
-        "tagColor": "GREY",
-        "colorScheme": "",
-        "segmentMask": "00000001",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
         "displayMode": 1,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": false,
-          "C": false,
-          "D": false,
-          "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
+        "segmentMask": "10000001"
       },
       "slots": [
         {
@@ -2415,29 +2273,14 @@
       },
       "tokenProfile": {
         "presentationMode": "Technical",
-        "paraDepth": 3,
-        "tagSize": "2",
+        "paraDepth": 2,
+        "tagSize": "2.5",
         "tagStyle": "NOM",
         "tagColor": "BLACK",
-        "colorScheme": "Zone",
-        "segmentMask": "11111111",
+        "colorScheme": "Discipline",
         "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": false,
-          "E": false,
-          "F": true,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
+        "segmentMask": "11100001",
+        "patternMode": "DC"
       },
       "slots": [
         {
@@ -2527,18 +2370,10 @@
         "tagSize": "2.5",
         "tagStyle": "NOM",
         "tagColor": "BLACK",
-        "colorScheme": "System",
-        "segmentMask": "11111111",
+        "colorScheme": "Discipline",
         "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": false
-        }
+        "segmentMask": "11111111",
+        "patternMode": "DC"
       },
       "slots": [
         {
@@ -2637,25 +2472,10 @@
         "tagSize": "2.5",
         "tagStyle": "NOM",
         "tagColor": "BLACK",
-        "colorScheme": "Status",
+        "colorScheme": "Discipline",
+        "displayMode": 5,
         "segmentMask": "11111111",
-        "displayMode": 4,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": true,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
+        "patternMode": "DC"
       },
       "slots": [
         {
@@ -2753,29 +2573,14 @@
       },
       "tokenProfile": {
         "presentationMode": "Technical",
-        "paraDepth": 4,
+        "paraDepth": 3,
         "tagSize": "2.5",
-        "tagStyle": "BOLD",
-        "tagColor": "RED",
-        "colorScheme": "System",
-        "segmentMask": "11111111",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
         "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": true,
-          "T4": true,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
+        "segmentMask": "11111111",
+        "patternMode": "DC"
       },
       "slots": [
         {
@@ -2873,25 +2678,10 @@
         "tagSize": "2.5",
         "tagStyle": "NOM",
         "tagColor": "BLACK",
-        "colorScheme": "Zone",
-        "segmentMask": "11111111",
+        "colorScheme": "Discipline",
         "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": false,
-          "E": false,
-          "F": true,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
+        "segmentMask": "11111111",
+        "patternMode": "DC"
       },
       "slots": [
         {
@@ -3000,29 +2790,21 @@
         "farClipMm": 6000
       },
       "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 3,
-        "tagSize": "3",
+        "presentationMode": "Compact",
+        "paraDepth": 2,
+        "tagSize": "2",
         "tagStyle": "NOM",
         "tagColor": "BLACK",
         "colorScheme": "Discipline",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
+        "displayMode": 3,
+        "segmentMask": "10001001",
         "sectionVisibility": {
           "A": true,
-          "B": true,
-          "C": true,
+          "B": false,
+          "C": false,
           "D": false,
           "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
+          "F": true
         }
       },
       "slots": [
@@ -3180,30 +2962,14 @@
         "kind": "None"
       },
       "tokenProfile": {
-        "presentationMode": "BOQ",
+        "presentationMode": "Compact",
         "paraDepth": 1,
         "tagSize": "2",
         "tagStyle": "NOM",
         "tagColor": "BLACK",
-        "colorScheme": "",
-        "segmentMask": "10000101",
-        "displayMode": 2,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": false,
-          "C": false,
-          "D": false,
-          "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
+        "colorScheme": "Discipline",
+        "displayMode": 1,
+        "segmentMask": "10000001"
       },
       "slots": [
         {
@@ -3264,29 +3030,14 @@
       },
       "tokenProfile": {
         "presentationMode": "Technical",
-        "paraDepth": 4,
+        "paraDepth": 3,
         "tagSize": "2.5",
-        "tagStyle": "BOLD",
+        "tagStyle": "NOM",
         "tagColor": "BLACK",
-        "colorScheme": "Material",
-        "segmentMask": "11111111",
+        "colorScheme": "Discipline",
         "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": true,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
+        "segmentMask": "11111111",
+        "patternMode": "DC"
       },
       "slots": [
         {
@@ -3393,29 +3144,21 @@
         "farClipMm": 500
       },
       "tokenProfile": {
-        "presentationMode": "FullSpec",
-        "paraDepth": 5,
-        "tagSize": "3.5",
+        "presentationMode": "Technical",
+        "paraDepth": 2,
+        "tagSize": "2",
         "tagStyle": "NOM",
         "tagColor": "BLACK",
         "colorScheme": "Discipline",
-        "segmentMask": "11111111",
-        "displayMode": 4,
-        "patternMode": "DC",
+        "displayMode": 2,
+        "segmentMask": "00000011",
         "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
+          "A": false,
+          "B": false,
+          "C": false,
+          "D": false,
           "E": true,
-          "F": true,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
+          "F": true
         }
       },
       "slots": [
@@ -3497,19 +3240,11 @@
         "paraDepth": 3,
         "tagSize": "2.5",
         "tagStyle": "NOM",
-        "tagColor": "BLUE",
-        "colorScheme": "System",
-        "segmentMask": "11111111",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
         "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": false
-        }
+        "segmentMask": "11111111",
+        "patternMode": "DC"
       },
       "slots": [
         {
@@ -3646,29 +3381,14 @@
       },
       "tokenProfile": {
         "presentationMode": "Technical",
-        "paraDepth": 5,
-        "tagSize": "3",
-        "tagStyle": "BOLD",
-        "tagColor": "BLUE",
-        "colorScheme": "System",
-        "segmentMask": "11111111",
+        "paraDepth": 3,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
         "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": true,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
+        "segmentMask": "11111111",
+        "patternMode": "DC"
       },
       "slots": [
         {
@@ -3813,19 +3533,11 @@
         "paraDepth": 3,
         "tagSize": "2.5",
         "tagStyle": "NOM",
-        "tagColor": "ORANGE",
-        "colorScheme": "System",
-        "segmentMask": "11111111",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
         "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": false
-        }
+        "segmentMask": "11111111",
+        "patternMode": "DC"
       },
       "slots": [
         {
@@ -3949,19 +3661,11 @@
         "paraDepth": 3,
         "tagSize": "2.5",
         "tagStyle": "NOM",
-        "tagColor": "ORANGE",
-        "colorScheme": "System",
-        "segmentMask": "11111111",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
         "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": false
-        }
+        "segmentMask": "11111111",
+        "patternMode": "DC"
       },
       "slots": [
         {
@@ -4075,29 +3779,14 @@
       },
       "tokenProfile": {
         "presentationMode": "Technical",
-        "paraDepth": 4,
+        "paraDepth": 3,
         "tagSize": "2.5",
-        "tagStyle": "BOLD",
-        "tagColor": "RED",
-        "colorScheme": "System",
-        "segmentMask": "11111111",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
         "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": true,
-          "T4": true,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
+        "segmentMask": "11111111",
+        "patternMode": "DC"
       },
       "slots": [
         {
@@ -4213,19 +3902,11 @@
         "paraDepth": 3,
         "tagSize": "2.5",
         "tagStyle": "NOM",
-        "tagColor": "GREEN",
-        "colorScheme": "System",
-        "segmentMask": "11111111",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
         "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": false
-        }
+        "segmentMask": "11111111",
+        "patternMode": "DC"
       },
       "slots": [
         {
@@ -4341,14 +4022,14 @@
         "marginMm": 150
       },
       "tokenProfile": {
-        "presentationMode": "FullSpec",
-        "paraDepth": 10,
-        "tagSize": "2.5",
+        "presentationMode": "BOQ",
+        "paraDepth": 4,
+        "tagSize": "2",
         "tagStyle": "NOM",
-        "tagColor": "PURPLE",
-        "colorScheme": "System",
-        "segmentMask": "11111111",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
         "displayMode": 5,
+        "segmentMask": "11111111",
         "patternMode": "HANDOVER",
         "sectionVisibility": {
           "A": true,
@@ -4358,12 +4039,7 @@
           "E": true,
           "F": true,
           "T4": true,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": true,
-          "T10": true
+          "T5": true
         }
       },
       "slots": [
@@ -4453,14 +4129,14 @@
         "marginMm": 100
       },
       "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 8,
-        "tagSize": "2.5",
+        "presentationMode": "FullSpec",
+        "paraDepth": 5,
+        "tagSize": "2",
         "tagStyle": "BOLD",
-        "tagColor": "RED",
-        "colorScheme": "Discipline",
-        "segmentMask": "11111111",
+        "tagColor": "BLACK",
+        "colorScheme": "System",
         "displayMode": 5,
+        "segmentMask": "11111111",
         "patternMode": "DC",
         "sectionVisibility": {
           "A": true,
@@ -4468,14 +4144,9 @@
           "C": true,
           "D": true,
           "E": true,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": true,
-          "T9": false,
-          "T10": false
+          "F": true,
+          "T4": true,
+          "T5": true
         }
       },
       "slots": [
@@ -4632,26 +4303,18 @@
         "presentationMode": "Presentation",
         "paraDepth": 2,
         "tagSize": "2.5",
-        "tagStyle": "ITALIC",
-        "tagColor": "GREY",
-        "colorScheme": "Mono",
-        "segmentMask": "00000101",
-        "displayMode": 6,
-        "patternMode": "DC",
+        "tagStyle": "NOM",
+        "tagColor": "BLUE",
+        "colorScheme": "Discipline",
+        "displayMode": 3,
+        "segmentMask": "10001001",
         "sectionVisibility": {
           "A": true,
           "B": false,
           "C": true,
           "D": false,
           "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
+          "F": true
         }
       },
       "slots": [
@@ -4789,26 +4452,18 @@
         "presentationMode": "Presentation",
         "paraDepth": 2,
         "tagSize": "2.5",
-        "tagStyle": "ITALIC",
-        "tagColor": "GREY",
-        "colorScheme": "Mono",
-        "segmentMask": "00000101",
-        "displayMode": 6,
-        "patternMode": "DC",
+        "tagStyle": "NOM",
+        "tagColor": "BLUE",
+        "colorScheme": "Discipline",
+        "displayMode": 3,
+        "segmentMask": "10001001",
         "sectionVisibility": {
           "A": true,
           "B": false,
           "C": true,
           "D": false,
           "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
+          "F": true
         }
       },
       "slots": [
@@ -4945,26 +4600,18 @@
         "presentationMode": "Presentation",
         "paraDepth": 2,
         "tagSize": "2.5",
-        "tagStyle": "ITALIC",
-        "tagColor": "GREY",
-        "colorScheme": "Mono",
-        "segmentMask": "00000101",
-        "displayMode": 2,
-        "patternMode": "DC",
+        "tagStyle": "NOM",
+        "tagColor": "BLUE",
+        "colorScheme": "Discipline",
+        "displayMode": 3,
+        "segmentMask": "10001001",
         "sectionVisibility": {
           "A": true,
           "B": false,
           "C": true,
           "D": false,
           "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
+          "F": true
         }
       },
       "slots": [
@@ -5039,26 +4686,18 @@
         "presentationMode": "Presentation",
         "paraDepth": 2,
         "tagSize": "2.5",
-        "tagStyle": "ITALIC",
-        "tagColor": "GREY",
-        "colorScheme": "Mono",
-        "segmentMask": "00000101",
-        "displayMode": 2,
-        "patternMode": "DC",
+        "tagStyle": "NOM",
+        "tagColor": "BLUE",
+        "colorScheme": "Discipline",
+        "displayMode": 3,
+        "segmentMask": "10001001",
         "sectionVisibility": {
           "A": true,
           "B": false,
           "C": true,
           "D": false,
           "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
+          "F": true
         }
       },
       "slots": [
@@ -5145,26 +4784,18 @@
         "presentationMode": "Presentation",
         "paraDepth": 2,
         "tagSize": "2.5",
-        "tagStyle": "ITALIC",
-        "tagColor": "GREY",
-        "colorScheme": "Mono",
-        "segmentMask": "00000101",
-        "displayMode": 2,
-        "patternMode": "DC",
+        "tagStyle": "NOM",
+        "tagColor": "BLUE",
+        "colorScheme": "Discipline",
+        "displayMode": 3,
+        "segmentMask": "10001001",
         "sectionVisibility": {
           "A": true,
           "B": false,
           "C": true,
           "D": false,
           "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
+          "F": true
         }
       },
       "slots": [
@@ -5253,29 +4884,13 @@
       },
       "tokenProfile": {
         "presentationMode": "Compact",
-        "paraDepth": 3,
-        "tagSize": "3",
-        "tagStyle": "BOLDITALIC",
+        "paraDepth": 1,
+        "tagSize": "2.5",
+        "tagStyle": "BOLD",
         "tagColor": "RED",
-        "colorScheme": "Discipline",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": true,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
+        "colorScheme": "RAG Status",
+        "displayMode": 1,
+        "segmentMask": "10000001"
       },
       "slots": [
         {
@@ -5366,29 +4981,13 @@
       },
       "tokenProfile": {
         "presentationMode": "Compact",
-        "paraDepth": 3,
-        "tagSize": "3",
-        "tagStyle": "BOLDITALIC",
+        "paraDepth": 1,
+        "tagSize": "2.5",
+        "tagStyle": "BOLD",
         "tagColor": "RED",
-        "colorScheme": "Discipline",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": true,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
+        "colorScheme": "RAG Status",
+        "displayMode": 1,
+        "segmentMask": "10000001"
       },
       "slots": [
         {
@@ -5472,29 +5071,13 @@
       },
       "tokenProfile": {
         "presentationMode": "Compact",
-        "paraDepth": 3,
-        "tagSize": "3",
-        "tagStyle": "BOLDITALIC",
+        "paraDepth": 1,
+        "tagSize": "2.5",
+        "tagStyle": "BOLD",
         "tagColor": "RED",
-        "colorScheme": "Discipline",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": true,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
+        "colorScheme": "RAG Status",
+        "displayMode": 1,
+        "segmentMask": "10000001"
       },
       "slots": [
         {
@@ -5595,29 +5178,14 @@
       },
       "tokenProfile": {
         "presentationMode": "Technical",
-        "paraDepth": 4,
-        "tagSize": "3",
-        "tagStyle": "BOLD",
+        "paraDepth": 3,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
         "tagColor": "BLACK",
         "colorScheme": "Discipline",
-        "segmentMask": "11111111",
         "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": true,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
+        "segmentMask": "11111111",
+        "patternMode": "DC"
       },
       "slots": [
         {
@@ -5695,21 +5263,13 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 3,
-        "tagSize": "3",
+        "tagSize": "2.5",
         "tagStyle": "NOM",
         "tagColor": "BLACK",
         "colorScheme": "Discipline",
+        "displayMode": 5,
         "segmentMask": "11111111",
-        "displayMode": 4,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": false
-        }
+        "patternMode": "DC"
       },
       "slots": [
         {
@@ -5791,29 +5351,14 @@
       },
       "tokenProfile": {
         "presentationMode": "Technical",
-        "paraDepth": 2,
+        "paraDepth": 3,
         "tagSize": "2.5",
-        "tagStyle": "BOLD",
-        "tagColor": "RED",
-        "colorScheme": "Status",
-        "segmentMask": "11111111",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
         "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": false,
-          "D": true,
-          "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
+        "segmentMask": "11111111",
+        "patternMode": "DC"
       },
       "slots": [
         {
@@ -5879,21 +5424,13 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 3,
-        "tagSize": "3",
+        "tagSize": "2.5",
         "tagStyle": "NOM",
         "tagColor": "BLACK",
         "colorScheme": "Discipline",
+        "displayMode": 5,
         "segmentMask": "11111111",
-        "displayMode": 4,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": false
-        }
+        "patternMode": "DC"
       },
       "slots": [
         {
@@ -5971,28 +5508,13 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 3,
-        "tagSize": "3",
+        "tagSize": "2.5",
         "tagStyle": "NOM",
         "tagColor": "BLACK",
-        "colorScheme": "Status",
+        "colorScheme": "Discipline",
+        "displayMode": 5,
         "segmentMask": "11111111",
-        "displayMode": 4,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": true,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
+        "patternMode": "DC"
       },
       "slots": [
         {
@@ -6057,28 +5579,20 @@
       },
       "tokenProfile": {
         "presentationMode": "Technical",
-        "paraDepth": 3,
-        "tagSize": "3.5",
+        "paraDepth": 2,
+        "tagSize": "2",
         "tagStyle": "NOM",
         "tagColor": "BLACK",
-        "colorScheme": "Status",
-        "segmentMask": "11111111",
-        "displayMode": 4,
-        "patternMode": "DC",
+        "colorScheme": "Discipline",
+        "displayMode": 2,
+        "segmentMask": "00000011",
         "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
+          "A": false,
+          "B": false,
+          "C": false,
+          "D": false,
           "E": true,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
+          "F": true
         }
       },
       "slots": [
@@ -6155,25 +5669,10 @@
         "tagSize": "2.5",
         "tagStyle": "NOM",
         "tagColor": "BLACK",
-        "colorScheme": "Function",
-        "segmentMask": "11111111",
-        "displayMode": 4,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": false,
-          "C": true,
-          "D": false,
-          "E": false,
-          "F": true,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
+        "colorScheme": "Discipline",
+        "displayMode": 5,
+        "segmentMask": "11100001",
+        "patternMode": "DC"
       },
       "slots": [
         {
@@ -6252,26 +5751,18 @@
         "presentationMode": "Presentation",
         "paraDepth": 2,
         "tagSize": "2.5",
-        "tagStyle": "ITALIC",
-        "tagColor": "GREY",
-        "colorScheme": "Mono",
-        "segmentMask": "00000101",
-        "displayMode": 2,
-        "patternMode": "DC",
+        "tagStyle": "NOM",
+        "tagColor": "BLUE",
+        "colorScheme": "Discipline",
+        "displayMode": 3,
+        "segmentMask": "10001001",
         "sectionVisibility": {
           "A": true,
           "B": false,
           "C": true,
           "D": false,
           "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
+          "F": true
         }
       },
       "slots": [
@@ -6396,21 +5887,20 @@
       },
       "tokenProfile": {
         "presentationMode": "Presentation",
-        "paraDepth": 3,
-        "tagSize": "3",
-        "tagStyle": "ITALIC",
-        "tagColor": "GREY",
-        "colorScheme": "Mono",
-        "segmentMask": "11111111",
-        "displayMode": 6,
-        "patternMode": "DC",
+        "paraDepth": 2,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLUE",
+        "colorScheme": "Discipline",
+        "displayMode": 3,
+        "segmentMask": "10001001",
         "sectionVisibility": {
           "A": true,
-          "B": true,
+          "B": false,
           "C": true,
           "D": false,
           "E": false,
-          "F": false
+          "F": true
         }
       },
       "slots": [
@@ -6512,22 +6002,15 @@
         ]
       },
       "tokenProfile": {
-        "presentationMode": "Presentation",
-        "paraDepth": 2,
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": false,
-          "D": false,
-          "E": false,
-          "F": false
-        },
+        "presentationMode": "Technical",
+        "paraDepth": 3,
         "tagSize": "2.5",
         "tagStyle": "NOM",
-        "tagColor": "BLUE",
+        "tagColor": "BLACK",
         "colorScheme": "Discipline",
-        "segmentMask": "10010101",
-        "displayMode": 4
+        "displayMode": 5,
+        "segmentMask": "11111111",
+        "patternMode": "DC"
       },
       "print": {
         "colourScheme": "PresentationRich",
@@ -6632,27 +6115,14 @@
       },
       "tokenProfile": {
         "presentationMode": "Technical",
-        "paraDepth": 5,
-        "categoryDepths": {
-          "Mechanical Equipment": 7,
-          "Air Terminals": 4,
-          "Pipe Fittings": 6,
-          "Duct Fittings": 6
-        },
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": true,
-          "F": true
-        },
-        "tagSize": "2",
-        "tagStyle": "BOLD",
+        "paraDepth": 3,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
         "tagColor": "BLACK",
-        "colorScheme": "System",
+        "colorScheme": "Discipline",
+        "displayMode": 5,
         "segmentMask": "11111111",
-        "displayMode": 5
+        "patternMode": "DC"
       },
       "print": {
         "colourScheme": "Monochrome",
@@ -6753,27 +6223,15 @@
         ]
       },
       "tokenProfile": {
-        "presentationMode": "FullSpec",
-        "paraDepth": 10,
-        "categoryDepths": {
-          "Pipe Fittings": 10,
-          "Duct Fittings": 10,
-          "Mechanical Equipment": 8
-        },
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": true,
-          "F": true
-        },
-        "tagSize": "2",
-        "tagStyle": "BOLD",
-        "tagColor": "RED",
-        "colorScheme": "System",
-        "segmentMask": "10001011",
-        "displayMode": 5
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "displayMode": 5,
+        "segmentMask": "11111111",
+        "patternMode": "DC"
       },
       "print": {
         "colourScheme": "Monochrome",
@@ -6824,26 +6282,18 @@
         "presentationMode": "Presentation",
         "paraDepth": 2,
         "tagSize": "2.5",
-        "tagStyle": "ITALIC",
-        "tagColor": "GREY",
-        "colorScheme": "Mono",
-        "segmentMask": "00000101",
-        "displayMode": 6,
-        "patternMode": "DC",
+        "tagStyle": "NOM",
+        "tagColor": "BLUE",
+        "colorScheme": "Discipline",
+        "displayMode": 3,
+        "segmentMask": "10001001",
         "sectionVisibility": {
           "A": true,
           "B": false,
           "C": true,
           "D": false,
           "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
+          "F": true
         }
       },
       "slots": [
@@ -6970,26 +6420,18 @@
         "presentationMode": "Presentation",
         "paraDepth": 2,
         "tagSize": "2.5",
-        "tagStyle": "ITALIC",
-        "tagColor": "GREY",
-        "colorScheme": "Mono",
-        "segmentMask": "00000101",
-        "displayMode": 6,
-        "patternMode": "DC",
+        "tagStyle": "NOM",
+        "tagColor": "BLUE",
+        "colorScheme": "Discipline",
+        "displayMode": 3,
+        "segmentMask": "10001001",
         "sectionVisibility": {
           "A": true,
           "B": false,
           "C": true,
           "D": false,
           "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
+          "F": true
         }
       },
       "slots": [
@@ -7114,26 +6556,18 @@
         "presentationMode": "Presentation",
         "paraDepth": 2,
         "tagSize": "2.5",
-        "tagStyle": "ITALIC",
-        "tagColor": "GREY",
-        "colorScheme": "Mono",
-        "segmentMask": "00000101",
-        "displayMode": 6,
-        "patternMode": "DC",
+        "tagStyle": "NOM",
+        "tagColor": "BLUE",
+        "colorScheme": "Discipline",
+        "displayMode": 3,
+        "segmentMask": "10001001",
         "sectionVisibility": {
           "A": true,
           "B": false,
           "C": true,
           "D": false,
           "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
+          "F": true
         }
       },
       "slots": [
@@ -7308,19 +6742,19 @@
         "marginMm": 300
       },
       "tokenProfile": {
-        "presentationMode": "FullSpec",
-        "paraDepth": 7,
-        "tagSize": "3",
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "2.5",
         "tagStyle": "BOLD",
         "tagColor": "BLACK",
         "colorScheme": "System",
-        "segmentMask": "10000101",
         "displayMode": 4,
+        "segmentMask": "10001011",
         "patternMode": "DC",
         "sectionVisibility": {
           "A": true,
-          "B": true,
-          "C": false,
+          "B": false,
+          "C": true,
           "D": false,
           "E": true,
           "F": true
@@ -7440,22 +6874,24 @@
         "marginMm": 200
       },
       "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 4,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "ORANGE",
+        "presentationMode": "FullSpec",
+        "paraDepth": 5,
+        "tagSize": "2",
+        "tagStyle": "BOLD",
+        "tagColor": "BLACK",
         "colorScheme": "System",
-        "segmentMask": "11111111",
         "displayMode": 5,
+        "segmentMask": "11111111",
         "patternMode": "DC",
         "sectionVisibility": {
           "A": true,
           "B": true,
           "C": true,
           "D": true,
-          "E": false,
-          "F": false
+          "E": true,
+          "F": true,
+          "T4": true,
+          "T5": true
         }
       },
       "slots": [
@@ -7598,7 +7034,16 @@
         "mode": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
+      "tokenProfile": {
+        "presentationMode": "Compact",
+        "paraDepth": 1,
+        "tagSize": "2",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "displayMode": 1,
+        "segmentMask": "10000001"
+      },
       "slots": [
         {
           "normX": 0.0,
@@ -7664,7 +7109,17 @@
         "mode": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 4,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "displayMode": 5,
+        "segmentMask": "11111111",
+        "patternMode": "DC"
+      },
       "slots": [
         {
           "label": "Main Plan",
@@ -7747,7 +7202,27 @@
         "mode": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
+      "tokenProfile": {
+        "presentationMode": "FullSpec",
+        "paraDepth": 5,
+        "tagSize": "2",
+        "tagStyle": "BOLD",
+        "tagColor": "BLACK",
+        "colorScheme": "System",
+        "displayMode": 5,
+        "segmentMask": "11111111",
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": true,
+          "F": true,
+          "T4": true,
+          "T5": true
+        }
+      },
       "slots": [
         {
           "normX": 0.0,
@@ -7829,7 +7304,17 @@
         "mode": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 4,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "displayMode": 5,
+        "segmentMask": "11111111",
+        "patternMode": "DC"
+      },
       "slots": [
         {
           "label": "Main Plan",
@@ -7912,7 +7397,24 @@
         "mode": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
+      "tokenProfile": {
+        "presentationMode": "Compact",
+        "paraDepth": 2,
+        "tagSize": "2",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "System",
+        "displayMode": 2,
+        "segmentMask": "10000011",
+        "sectionVisibility": {
+          "A": true,
+          "B": false,
+          "C": false,
+          "D": false,
+          "E": true,
+          "F": true
+        }
+      },
       "slots": [
         {
           "normX": 0.0,
@@ -7978,7 +7480,17 @@
         "mode": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 4,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "displayMode": 5,
+        "segmentMask": "11111111",
+        "patternMode": "DC"
+      },
       "slots": [
         {
           "label": "Main Plan",
@@ -8061,7 +7573,24 @@
         "mode": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
+      "tokenProfile": {
+        "presentationMode": "Compact",
+        "paraDepth": 2,
+        "tagSize": "2",
+        "tagStyle": "BOLD",
+        "tagColor": "RED",
+        "colorScheme": "System",
+        "displayMode": 2,
+        "segmentMask": "10000011",
+        "sectionVisibility": {
+          "A": true,
+          "B": false,
+          "C": false,
+          "D": false,
+          "E": true,
+          "F": true
+        }
+      },
       "slots": [
         {
           "normX": 0.0,
@@ -8127,7 +7656,17 @@
         "mode": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 4,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "displayMode": 5,
+        "segmentMask": "11111111",
+        "patternMode": "DC"
+      },
       "slots": [
         {
           "label": "Main Plan",
@@ -8210,7 +7749,17 @@
         "mode": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 4,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "displayMode": 5,
+        "segmentMask": "11111111",
+        "patternMode": "DC"
+      },
       "slots": [
         {
           "label": "Main Plan",
@@ -8293,7 +7842,17 @@
         "mode": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 4,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "displayMode": 5,
+        "segmentMask": "11111111",
+        "patternMode": "DC"
+      },
       "slots": [
         {
           "label": "Main Plan",
@@ -8376,7 +7935,17 @@
         "mode": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 4,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "displayMode": 5,
+        "segmentMask": "11111111",
+        "patternMode": "DC"
+      },
       "slots": [
         {
           "label": "Main Plan",
@@ -8459,7 +8028,17 @@
         "mode": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 4,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "displayMode": 5,
+        "segmentMask": "11111111",
+        "patternMode": "DC"
+      },
       "slots": [
         {
           "label": "Main Plan",
@@ -8542,7 +8121,17 @@
         "mode": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 4,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "displayMode": 5,
+        "segmentMask": "11111111",
+        "patternMode": "DC"
+      },
       "slots": [
         {
           "label": "Main Plan",
@@ -8625,7 +8214,17 @@
         "mode": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 4,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "displayMode": 5,
+        "segmentMask": "11111111",
+        "patternMode": "DC"
+      },
       "slots": [
         {
           "label": "Main Plan",
@@ -8708,7 +8307,24 @@
         "mode": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
+      "tokenProfile": {
+        "presentationMode": "Compact",
+        "paraDepth": 2,
+        "tagSize": "2",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "displayMode": 3,
+        "segmentMask": "10001001",
+        "sectionVisibility": {
+          "A": true,
+          "B": false,
+          "C": false,
+          "D": false,
+          "E": false,
+          "F": true
+        }
+      },
       "slots": [
         {
           "label": "Elevation N",
@@ -8807,7 +8423,17 @@
         "mode": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 4,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "displayMode": 5,
+        "segmentMask": "11110001",
+        "patternMode": "DC"
+      },
       "slots": [
         {
           "label": "Main Plan",
@@ -8890,7 +8516,17 @@
         "mode": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 4,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "displayMode": 5,
+        "segmentMask": "11111111",
+        "patternMode": "DC"
+      },
       "slots": [
         {
           "label": "Main Plan",
@@ -8973,7 +8609,17 @@
         "mode": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 4,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "displayMode": 5,
+        "segmentMask": "11111111",
+        "patternMode": "DC"
+      },
       "slots": [
         {
           "label": "Main Plan",
@@ -9056,7 +8702,17 @@
         "mode": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 4,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "displayMode": 5,
+        "segmentMask": "11111111",
+        "patternMode": "DC"
+      },
       "slots": [
         {
           "label": "Main Plan",
@@ -9139,7 +8795,17 @@
         "mode": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 4,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "displayMode": 5,
+        "segmentMask": "11111111",
+        "patternMode": "DC"
+      },
       "slots": [
         {
           "label": "Main Plan",
@@ -9222,7 +8888,17 @@
         "mode": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 4,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "displayMode": 5,
+        "segmentMask": "11111111",
+        "patternMode": "DC"
+      },
       "slots": [
         {
           "label": "Main Plan",
@@ -9305,7 +8981,24 @@
         "mode": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
+      "tokenProfile": {
+        "presentationMode": "Compact",
+        "paraDepth": 2,
+        "tagSize": "2",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "System",
+        "displayMode": 2,
+        "segmentMask": "10000011",
+        "sectionVisibility": {
+          "A": true,
+          "B": false,
+          "C": false,
+          "D": false,
+          "E": true,
+          "F": true
+        }
+      },
       "slots": [
         {
           "normX": 0.0,
@@ -9404,6 +9097,24 @@
         "Approved By": "",
         "Scale": "AS NOTED",
         "Discipline Label": "PLUMBING"
+      },
+      "tokenProfile": {
+        "presentationMode": "Compact",
+        "paraDepth": 2,
+        "tagSize": "2",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "System",
+        "displayMode": 2,
+        "segmentMask": "10000011",
+        "sectionVisibility": {
+          "A": true,
+          "B": false,
+          "C": false,
+          "D": false,
+          "E": true,
+          "F": true
+        }
       }
     },
     {
@@ -9460,6 +9171,24 @@
         "Approved By": "",
         "Scale": "AS NOTED",
         "Discipline Label": "PLUMBING"
+      },
+      "tokenProfile": {
+        "presentationMode": "Compact",
+        "paraDepth": 2,
+        "tagSize": "2",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "System",
+        "displayMode": 2,
+        "segmentMask": "10000011",
+        "sectionVisibility": {
+          "A": true,
+          "B": false,
+          "C": false,
+          "D": false,
+          "E": true,
+          "F": true
+        }
       }
     },
     {
@@ -9516,6 +9245,24 @@
         "Approved By": "",
         "Scale": "AS NOTED",
         "Discipline Label": "PLUMBING"
+      },
+      "tokenProfile": {
+        "presentationMode": "Compact",
+        "paraDepth": 2,
+        "tagSize": "2",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "System",
+        "displayMode": 2,
+        "segmentMask": "10000011",
+        "sectionVisibility": {
+          "A": true,
+          "B": false,
+          "C": false,
+          "D": false,
+          "E": true,
+          "F": true
+        }
       }
     },
     {
@@ -9573,6 +9320,17 @@
         "Approved By": "",
         "Scale": "1:100",
         "Discipline Label": "PLUMBING"
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "displayMode": 5,
+        "segmentMask": "11111111",
+        "patternMode": "DC"
       }
     },
     {
@@ -9630,6 +9388,17 @@
         "Approved By": "",
         "Scale": "1:100",
         "Discipline Label": "PLUMBING"
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "displayMode": 5,
+        "segmentMask": "11111111",
+        "patternMode": "DC"
       }
     },
     {
@@ -9687,6 +9456,17 @@
         "Approved By": "",
         "Scale": "1:500",
         "Discipline Label": "PLUMBING"
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 2,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "displayMode": 5,
+        "segmentMask": "11100001",
+        "patternMode": "DC"
       }
     },
     {
@@ -9743,6 +9523,24 @@
         "Approved By": "",
         "Scale": "AS NOTED",
         "Discipline Label": "PLUMBING"
+      },
+      "tokenProfile": {
+        "presentationMode": "Compact",
+        "paraDepth": 2,
+        "tagSize": "2",
+        "tagStyle": "BOLD",
+        "tagColor": "RED",
+        "colorScheme": "System",
+        "displayMode": 2,
+        "segmentMask": "10000011",
+        "sectionVisibility": {
+          "A": true,
+          "B": false,
+          "C": false,
+          "D": false,
+          "E": true,
+          "F": true
+        }
       }
     },
     {
@@ -9799,6 +9597,16 @@
         "Approved By": "",
         "Scale": "AS NOTED",
         "Discipline Label": "PLUMBING"
+      },
+      "tokenProfile": {
+        "presentationMode": "Compact",
+        "paraDepth": 1,
+        "tagSize": "2",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "displayMode": 1,
+        "segmentMask": "10000001"
       }
     },
     {
@@ -9856,6 +9664,17 @@
         "Approved By": "",
         "Scale": "1:50",
         "Discipline Label": "PLUMBING"
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "BLACK",
+        "colorScheme": "Discipline",
+        "displayMode": 5,
+        "segmentMask": "11111111",
+        "patternMode": "DC"
       }
     }
   ],
