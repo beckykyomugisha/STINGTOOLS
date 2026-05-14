@@ -293,10 +293,7 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
   <div class="hero-stats">
     <div class="hero-stat"><div class="hero-stat-num">1,106+</div><div class="hero-stat-label">IExternalCommands</div></div>
     <div class="hero-stat"><div class="hero-stat-num">9</div><div class="hero-stat-label">Dock Panel Tabs</div></div>
-    <div class="hero-stat"><div class="hero-stat-num">2,555</div><div class="hero-stat-label">Shared Parameters</div></div>
     <div class="hero-stat"><div class="hero-stat-num">199</div><div class="hero-stat-label">AEC Filters</div></div>
-    <div class="hero-stat"><div class="hero-stat-num">40</div><div class="hero-stat-label">Drawing Types</div></div>
-    <div class="hero-stat"><div class="hero-stat-num">128</div><div class="hero-stat-label">Tag Style Combos</div></div>
   </div>
   <div class="hero-badges">
     <span class="badge badge-gold">ISO 19650 Compliant</span>
@@ -2600,16 +2597,17 @@ ORG_AI_EXTRACT_ENABLED</pre>
         </table>
       </div>
 
-      <h3>Pricing Tiers</h3>
+      <h3>Seat Bundle Pricing (East Africa, USD)</h3>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>Tier</th><th>Users</th><th>Price</th><th>Features</th></tr></thead>
+          <thead><tr><th>Team</th><th>Monthly</th><th>Annual</th><th>Annual Saving</th></tr></thead>
           <tbody>
-            <tr><td><strong>Starter</strong></td><td>1</td><td>Free</td><td>1 project, local only, no cloud sync</td></tr>
-            <tr><td><strong>Professional</strong></td><td>1–5</td><td>$15/user/mo</td><td>5 projects, cloud sync, mobile app</td></tr>
-            <tr><td><strong>Premium</strong></td><td>6–100</td><td>$25/user/mo</td><td>Unlimited projects, priority support</td></tr>
-            <tr><td><strong>Enterprise</strong></td><td>100+</td><td>Custom</td><td>SSO, on-premises, dedicated support</td></tr>
-            <tr><td><strong>Planscape MIM</strong></td><td>Add-on</td><td>$10–17/user/mo</td><td>FM, IoT digital twin, COBie lifecycle</td></tr>
+            <tr><td><strong>3 users</strong></td><td>$85/mo</td><td>$850/yr</td><td>$170 (2 mo free)</td></tr>
+            <tr><td><strong>5 users</strong></td><td>$120/mo</td><td>$1,200/yr</td><td>$240 (2 mo free)</td></tr>
+            <tr><td><strong>6 users</strong></td><td>$150/mo</td><td>$1,500/yr</td><td>$300 (2 mo free)</td></tr>
+            <tr><td><strong>10 users</strong></td><td>$200/mo</td><td>$2,000/yr</td><td>$400 (2 mo free)</td></tr>
+            <tr><td><strong>15 users</strong></td><td>$250/mo</td><td>$2,500/yr</td><td>$500 (2 mo free)</td></tr>
+            <tr><td><strong>20 users</strong></td><td>$300/mo</td><td>$3,000/yr</td><td>$600 (2 mo free)</td></tr>
           </tbody>
         </table>
       </div>
@@ -2780,74 +2778,128 @@ npx expo start</pre>
 <section class="section" id="pricing">
   <div class="section-label">Commercial</div>
   <h2 class="section-title">Pricing &amp; Licensing</h2>
-  <p class="section-desc">StingTools uses a per-user monthly subscription model. All tiers include the full Revit plugin — the tier controls cloud sync, project limits, support, and platform integrations.</p>
+  <p class="section-desc">StingTools — East Africa Pricing (USD). Team-seat bundles with a flat monthly rate. Annual billing gives you <strong>2 months free</strong> (equivalent to 10 months paid).</p>
 
-  <div class="grid-4">
-    <div class="card" style="border-top:2px solid var(--text-muted)">
-      <div class="card-title">Starter</div>
-      <div style="font-size:24px;font-weight:800;color:var(--text-primary);margin:10px 0">Free</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px">
+
+    <div class="card" style="border-top:3px solid var(--accent-blue)">
+      <div class="card-label" style="color:var(--accent-blue)">3 Users</div>
+      <div style="font-size:30px;font-weight:800;color:var(--accent-blue);margin:8px 0">$85<span style="font-size:14px;font-weight:400;color:var(--text-muted)">/mo</span></div>
+      <div style="color:var(--text-muted);font-size:13px;margin-bottom:12px">$850/yr &nbsp;<span style="color:var(--accent-green);font-weight:600">Save $170</span></div>
       <div class="card-desc">
-        <ul style="list-style:none;padding:0;line-height:2">
-          <li>✅ 1 user</li>
-          <li>✅ 1 project (local)</li>
+        <ul style="list-style:none;padding:0;line-height:2;font-size:13px">
+          <li>✅ 3 named Revit seats</li>
           <li>✅ All 1,106+ commands</li>
-          <li>✅ ISO 19650 tagging</li>
-          <li>❌ Cloud sync</li>
-          <li>❌ Mobile app</li>
-          <li>❌ Planscape Server</li>
-        </ul>
-      </div>
-    </div>
-    <div class="card card-blue">
-      <div class="card-title">Professional</div>
-      <div style="font-size:24px;font-weight:800;color:var(--accent-blue);margin:10px 0">$15<span style="font-size:14px;font-weight:400;color:var(--text-muted)">/user/mo</span></div>
-      <div class="card-desc">
-        <ul style="list-style:none;padding:0;line-height:2">
-          <li>✅ 1–5 users</li>
-          <li>✅ 5 projects</li>
           <li>✅ Cloud sync</li>
           <li>✅ Mobile app</li>
-          <li>✅ BCF/COBie export</li>
-          <li>❌ SSO / on-premises</li>
-          <li>❌ Priority support</li>
+          <li>✅ ISO 19650 tagging</li>
         </ul>
       </div>
     </div>
-    <div class="card card-accent">
-      <div class="card-title">Premium</div>
-      <div style="font-size:24px;font-weight:800;color:var(--gold);margin:10px 0">$25<span style="font-size:14px;font-weight:400;color:var(--text-muted)">/user/mo</span></div>
+
+    <div class="card" style="border-top:3px solid var(--accent-blue)">
+      <div class="card-label" style="color:var(--accent-blue)">5 Users</div>
+      <div style="font-size:30px;font-weight:800;color:var(--accent-blue);margin:8px 0">$120<span style="font-size:14px;font-weight:400;color:var(--text-muted)">/mo</span></div>
+      <div style="color:var(--text-muted);font-size:13px;margin-bottom:12px">$1,200/yr &nbsp;<span style="color:var(--accent-green);font-weight:600">Save $240</span></div>
       <div class="card-desc">
-        <ul style="list-style:none;padding:0;line-height:2">
-          <li>✅ 6–100 users</li>
-          <li>✅ Unlimited projects</li>
+        <ul style="list-style:none;padding:0;line-height:2;font-size:13px">
+          <li>✅ 5 named Revit seats</li>
+          <li>✅ All commands</li>
+          <li>✅ Cloud sync</li>
+          <li>✅ Mobile app</li>
+          <li>✅ BCF / COBie export</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card" style="border-top:3px solid var(--gold)">
+      <div class="card-label" style="color:var(--gold)">6 Users</div>
+      <div style="font-size:30px;font-weight:800;color:var(--gold);margin:8px 0">$150<span style="font-size:14px;font-weight:400;color:var(--text-muted)">/mo</span></div>
+      <div style="color:var(--text-muted);font-size:13px;margin-bottom:12px">$1,500/yr &nbsp;<span style="color:var(--accent-green);font-weight:600">Save $300</span></div>
+      <div class="card-desc">
+        <ul style="list-style:none;padding:0;line-height:2;font-size:13px">
+          <li>✅ 6 named Revit seats</li>
+          <li>✅ All commands</li>
+          <li>✅ Cloud sync + mobile</li>
+          <li>✅ BCF / COBie export</li>
           <li>✅ Priority support</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card" style="border-top:3px solid var(--gold)">
+      <div class="card-label" style="color:var(--gold)">10 Users</div>
+      <div style="font-size:30px;font-weight:800;color:var(--gold);margin:8px 0">$200<span style="font-size:14px;font-weight:400;color:var(--text-muted)">/mo</span></div>
+      <div style="color:var(--text-muted);font-size:13px;margin-bottom:12px">$2,000/yr &nbsp;<span style="color:var(--accent-green);font-weight:600">Save $400</span></div>
+      <div class="card-desc">
+        <ul style="list-style:none;padding:0;line-height:2;font-size:13px">
+          <li>✅ 10 named Revit seats</li>
+          <li>✅ All commands</li>
+          <li>✅ Cloud sync + mobile</li>
           <li>✅ Platform integrations</li>
+          <li>✅ Priority support</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card card-accent" style="border-top:3px solid var(--accent-violet)">
+      <div class="card-label" style="color:var(--accent-violet)">15 Users</div>
+      <div style="font-size:30px;font-weight:800;color:var(--accent-violet);margin:8px 0">$250<span style="font-size:14px;font-weight:400;color:var(--text-muted)">/mo</span></div>
+      <div style="color:var(--text-muted);font-size:13px;margin-bottom:12px">$2,500/yr &nbsp;<span style="color:var(--accent-green);font-weight:600">Save $500</span></div>
+      <div class="card-desc">
+        <ul style="list-style:none;padding:0;line-height:2;font-size:13px">
+          <li>✅ 15 named Revit seats</li>
+          <li>✅ All commands</li>
+          <li>✅ Cloud sync + mobile</li>
           <li>✅ Healthcare pack</li>
           <li>✅ Advanced analytics</li>
-          <li>❌ SSO / on-premises</li>
         </ul>
       </div>
     </div>
-    <div class="card card-violet">
-      <div class="card-title">Enterprise</div>
-      <div style="font-size:24px;font-weight:800;color:var(--accent-violet);margin:10px 0">Custom</div>
+
+    <div class="card card-violet" style="border-top:3px solid var(--accent-violet)">
+      <div class="card-label" style="color:var(--accent-violet)">20 Users</div>
+      <div style="font-size:30px;font-weight:800;color:var(--accent-violet);margin:8px 0">$300<span style="font-size:14px;font-weight:400;color:var(--text-muted)">/mo</span></div>
+      <div style="color:var(--text-muted);font-size:13px;margin-bottom:12px">$3,000/yr &nbsp;<span style="color:var(--accent-green);font-weight:600">Save $600</span></div>
       <div class="card-desc">
-        <ul style="list-style:none;padding:0;line-height:2">
-          <li>✅ 100+ users</li>
-          <li>✅ SSO / SAML</li>
-          <li>✅ On-premises option</li>
+        <ul style="list-style:none;padding:0;line-height:2;font-size:13px">
+          <li>✅ 20 named Revit seats</li>
+          <li>✅ All commands</li>
+          <li>✅ Cloud sync + mobile</li>
+          <li>✅ Healthcare pack</li>
           <li>✅ Dedicated support</li>
-          <li>✅ Custom integrations</li>
-          <li>✅ SLA guarantees</li>
-          <li>✅ Training programme</li>
         </ul>
       </div>
     </div>
+
   </div>
 
-  <div class="callout callout-gold" style="border-left-color:var(--gold);margin-top:20px">
+  <!-- annual savings callout -->
+  <div class="callout callout-gold" style="border-left-color:var(--gold)">
+    <span class="callout-icon">🗓️</span>
+    <div class="callout-text"><strong>Annual billing = 2 months FREE.</strong> Pay for 10 months, get 12. Annual invoices are issued in USD and can be paid by bank transfer or mobile money. Month-to-month billing is available at the prices shown above with no lock-in.</div>
+  </div>
+
+  <!-- quick reference table -->
+  <div style="margin-top:24px">
+    <h3>Quick Reference</h3>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Team Size</th><th>Monthly</th><th>Annual (10 mo rate)</th><th>Annual Saving</th><th>Effective per seat/mo</th></tr></thead>
+      <tbody>
+        <tr><td><strong>3 users</strong></td><td>$85</td><td>$850</td><td>$170</td><td>$28.33</td></tr>
+        <tr><td><strong>5 users</strong></td><td>$120</td><td>$1,200</td><td>$240</td><td>$24.00</td></tr>
+        <tr><td><strong>6 users</strong></td><td>$150</td><td>$1,500</td><td>$300</td><td>$25.00</td></tr>
+        <tr><td><strong>10 users</strong></td><td>$200</td><td>$2,000</td><td>$400</td><td>$20.00</td></tr>
+        <tr><td><strong>15 users</strong></td><td>$250</td><td>$2,500</td><td>$500</td><td>$16.67</td></tr>
+        <tr><td><strong>20 users</strong></td><td>$300</td><td>$3,000</td><td>$600</td><td>$15.00</td></tr>
+      </tbody>
+    </table></div>
+    <p style="font-size:12px;color:var(--text-muted);margin-top:8px">Prices in USD. East Africa region. For teams larger than 20 users contact us for a custom quote.</p>
+  </div>
+
+  <div class="callout callout-blue" style="margin-top:20px">
     <span class="callout-icon">💊</span>
-    <div class="callout-text"><strong>Planscape MIM Add-on ($10–17/user/mo):</strong> Adds the full FM digital twin capability — IoT maintenance scheduling (ISO 15686), BACnet/OPC-UA live readback, COBie 2.4 FM handover lifecycle tracking, and the MIM mobile screens. Available on Professional tier and above.</div>
+    <div class="callout-text"><strong>Planscape MIM Add-on:</strong> Adds the full FM digital twin capability — IoT maintenance scheduling (ISO 15686), BACnet/OPC-UA live readback, COBie 2.4 FM handover lifecycle tracking, and MIM mobile screens. Contact us for add-on pricing on your team bundle.</div>
   </div>
 </section>
 
@@ -2881,7 +2933,7 @@ npx expo start</pre>
         <tr><td><strong>Document Templates (16)</strong></td><td><span class="tag tag-green">✅ MiniWord rendered</span></td><td><span class="tag tag-amber">⚡ Basic forms</span></td><td><span class="tag tag-muted">❌</span></td><td><span class="tag tag-amber">⚡ Basic forms</span></td><td><span class="tag tag-muted">❌</span></td></tr>
         <tr><td><strong>4D / 5D Scheduling</strong></td><td><span class="tag tag-green">✅ Full (MS Project import)</span></td><td><span class="tag tag-amber">⚡ 4D only (TimeLiner)</span></td><td><span class="tag tag-muted">❌</span></td><td><span class="tag tag-green">✅ Gantt + cost</span></td><td><span class="tag tag-amber">⚡ Basic</span></td></tr>
         <tr><td><strong>Mobile App</strong></td><td><span class="tag tag-green">✅ iOS + Android</span></td><td><span class="tag tag-green">✅ iOS + Android</span></td><td><span class="tag tag-green">✅ iOS + Android</span></td><td><span class="tag tag-green">✅ iOS + Android</span></td><td><span class="tag tag-amber">⚡ iOS + Android</span></td></tr>
-        <tr><td><strong>Price (per user)</strong></td><td><span class="tag tag-gold">From Free / $15/mo</span></td><td><span class="tag tag-red">$45–85/mo</span></td><td><span class="tag tag-amber">$18–38/mo</span></td><td><span class="tag tag-red">$375+/mo (project)</span></td><td><span class="tag tag-amber">$15–30/mo</span></td></tr>
+        <tr><td><strong>Price (per user)</strong></td><td><span class="tag tag-gold">From $85/mo (3 seats, EA)</span></td><td><span class="tag tag-red">$45–85/mo</span></td><td><span class="tag tag-amber">$18–38/mo</span></td><td><span class="tag tag-red">$375+/mo (project)</span></td><td><span class="tag tag-amber">$15–30/mo</span></td></tr>
       </tbody>
     </table>
   </div>
