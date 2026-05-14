@@ -5279,6 +5279,7 @@ namespace StingTools.Core
             { "M", "Mechanical" }, { "E", "Electrical" }, { "P", "Plumbing" },
             { "A", "Architectural" }, { "S", "Structural" }, { "FP", "Fire Protection" },
             { "LV", "Low Voltage" }, { "G", "Gas" }, { "GEN", "General" },
+            { "H", "Healthcare" }, { "MG", "Medical Gas" }, { "RP", "Radiation Protection" },
         };
 
         /// <summary>Full system name for human-readable narrative.</summary>
@@ -5294,6 +5295,16 @@ namespace StingTools.Core
             { "COM", "Communications" }, { "NCL", "Nurse Call Systems" },
             { "ARC", "Architectural Fabric" }, { "STR", "Structural Elements" },
             { "GEN", "General Services" },
+            // Healthcare Pack (Phase H-1)
+            { "MGS-O2", "Medical Oxygen Supply" }, { "MGS-AIR", "Medical Compressed Air" },
+            { "MGS-VAC", "Medical Vacuum" }, { "MGS-N2O", "Nitrous Oxide Supply" },
+            { "MGS-CO2", "Carbon Dioxide Supply" }, { "MGS-N2", "Nitrogen Supply" },
+            { "MGS-AGS", "Anaesthetic Gas Scavenging" },
+            { "EES-LS", "Essential Electrical Services (Life Safety)" },
+            { "EES-CR", "Essential Electrical Services (Critical)" },
+            { "EES-EB", "Essential Electrical Services (Enhanced)" },
+            { "LPS", "Lightning Protection System" },
+            { "CLN", "Clinical Environment" }, { "RAD", "Radiation Shielding" },
         };
 
         /// <summary>Full function description for human-readable narrative.</summary>
@@ -5312,6 +5323,12 @@ namespace StingTools.Core
             { "NCL", "Patient Nurse Call" }, { "SEC", "Security and Access Control" },
             { "FIT", "Finishes and Fitout" }, { "STR", "Primary Structure" },
             { "GEN", "General Purpose" },
+            // Healthcare Pack (Phase H-1)
+            { "AT", "Air Termination" }, { "DC", "Down Conductor" }, { "EB", "Equipotential Bond" },
+            { "EP", "Earth Pit" }, { "SPD", "Surge Protection Device" },
+            { "DIST", "Distribution" }, { "ISO", "Isolation" }, { "ALM", "Area Alarm" },
+            { "TU", "Terminal Unit" }, { "ZVB", "Zone Valve Box" },
+            { "AAP", "Area Alarm Panel" }, { "SHLD", "Shielding" }, { "ZONE", "Safety Zone" },
         };
 
         /// <summary>Full product type description for human-readable narrative.</summary>
@@ -6967,6 +6984,32 @@ namespace StingTools.Core
             else if (disc == "FP" || categoryName == "Sprinklers" || categoryName == "Fire Alarm Devices")
             {
                 AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING), "providing {0} minutes of fire resistance");
+            }
+            else if (disc == "H" || categoryName == "Rooms" && !string.IsNullOrEmpty(ParameterHelpers.GetString(el, "CLN_ROOM_CLASS_TXT")))
+            {
+                // Healthcare: Clinical Room
+                AppendNatural(tech, ParameterHelpers.GetString(el, "CLN_ROOM_CLASS_TXT"), "classified as a {0} clinical space");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "CLN_PRESS_REGIME_TXT"), "operating under {0} pressure regime");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "CLN_INFECT_CLASS_TXT"), "with infection control class {0}");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "CLN_HTM_REF_TXT"), "per {0}");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "CLN_ADB_CODE_TXT"), "ADB room code {0}");
+            }
+            else if (disc == "MG" || categoryName == "Pipes" && !string.IsNullOrEmpty(ParameterHelpers.GetString(el, "MGS_GAS_TYPE_TXT")))
+            {
+                // Healthcare: Medical Gas
+                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_GAS_TYPE_TXT"), "carrying {0} medical gas");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_DESIGN_FLOW_LS_NR"), "at a design flow of {0} L/s");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_DESIGN_PRESS_KPA_NR"), "at {0} kPa design pressure");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_OUTLET_COUNT_INT"), "serving {0} outlets");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_NFPA99_ZONE_TXT"), "in NFPA 99 zone {0}");
+            }
+            else if (disc == "RP" || !string.IsNullOrEmpty(ParameterHelpers.GetString(el, "RAD_LEAD_MM_NR")))
+            {
+                // Healthcare: Radiation Protection
+                AppendNatural(tech, ParameterHelpers.GetString(el, "RAD_LEAD_MM_NR"), "with {0} mm Pb shielding");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "RAD_MODALITY_TXT"), "protecting against {0}");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "RAD_WORKLOAD_WK_NR"), "workload {0} mA·min/wk");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "RAD_QE_NAME_TXT"), "certified by {0}");
             }
 
             return tech.Length > 0 ? tech.ToString() : "";
