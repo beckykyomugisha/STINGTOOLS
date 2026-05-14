@@ -1226,7 +1226,7 @@ namespace StingTools.Core.Symbols
         /// the caller can fall back to a plain project parameter.
         /// </summary>
         private static bool TryAddSharedParameter(Document fdoc, FamilyManager fm,
-            ParameterDefinition p, GroupTypeId groupTypeId,
+            ParameterDefinition p, ForgeTypeId groupTypeId,
             SymbolCreationResult result, string defId)
         {
             try
