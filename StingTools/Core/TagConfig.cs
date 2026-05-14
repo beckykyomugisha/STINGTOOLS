@@ -986,6 +986,14 @@ namespace StingTools.Core
         /// <summary>HC-001: Configurable proximity radius in feet for CopyTokensFromNearest. Default 10 ft.</summary>
         public static double ProximityRadiusFt { get; internal set; } = 10.0;
 
+        /// <summary>
+        /// Default collision mode for bulk commands that don't show an explicit user dialog
+        /// (TagAndCombine, StingAutoTagger). Loaded from project_config.json
+        /// <c>DEFAULT_COLLISION_MODE</c>: "skip" | "overwrite" | "increment" (default).
+        /// AutoTagCommand always shows its own dialog and ignores this setting.
+        /// </summary>
+        public static TagCollisionMode DefaultCollisionMode { get; internal set; } = TagCollisionMode.AutoIncrement;
+
         /// <summary>HC-003: Configurable batch size for ResolveAllIssues. Default 500.</summary>
         public static int ResolveBatchSize { get; internal set; } = 500;
 
@@ -1581,15 +1589,44 @@ namespace StingTools.Core
                         StingLog.Info($"TagConfig: loaded {DisciplineProfiles.Count} discipline profile(s): {string.Join(", ", DisciplineProfiles.Keys)}");
                 }
 
-                // HC-001: Configurable proximity radius for CopyTokensFromNearest
-                ProximityRadiusFt = 10.0; // default 10 ft
-                if (data.TryGetValue("PROXIMITY_RADIUS_FT", out object proxObj))
+                // HC-001: Configurable proximity radius for CopyTokensFromNearest.
+                // Revit internal coordinates are always in feet, so ProximityRadiusFt
+                // is the canonical internal unit.  Three config keys are accepted so
+                // metric-project teams can author the value in their natural units:
+                //   PROXIMITY_RADIUS_FT  — value is already in feet (legacy/default)
+                //   PROXIMITY_RADIUS_M   — value in metres  → converted to feet
+                //   PROXIMITY_RADIUS_MM  — value in millimetres → converted to feet
+                // All keys share the same 1–200 ft clamp after conversion.
+                ProximityRadiusFt = 10.0; // default 10 ft ≈ 3 m
+                double rawRadius = double.NaN;
+                double unitToFt = 1.0; // default: value already in feet
+                if (data.TryGetValue("PROXIMITY_RADIUS_FT", out object proxFt))
                 {
-                    if (proxObj is double pd) ProximityRadiusFt = pd;
-                    else if (proxObj is long pl) ProximityRadiusFt = pl;
-                    else if (double.TryParse(proxObj?.ToString(), out double pv)) ProximityRadiusFt = pv;
+                    if (proxFt is double pd) rawRadius = pd;
+                    else if (proxFt is long pl) rawRadius = pl;
+                    else double.TryParse(proxFt?.ToString(), out rawRadius);
+                    unitToFt = 1.0;
+                }
+                else if (data.TryGetValue("PROXIMITY_RADIUS_M", out object proxM))
+                {
+                    if (proxM is double pd) rawRadius = pd;
+                    else if (proxM is long pl) rawRadius = pl;
+                    else double.TryParse(proxM?.ToString(), out rawRadius);
+                    unitToFt = 3.28084; // 1 m = 3.28084 ft
+                }
+                else if (data.TryGetValue("PROXIMITY_RADIUS_MM", out object proxMm))
+                {
+                    if (proxMm is double pd) rawRadius = pd;
+                    else if (proxMm is long pl) rawRadius = pl;
+                    else double.TryParse(proxMm?.ToString(), out rawRadius);
+                    unitToFt = 0.00328084; // 1 mm = 0.00328084 ft
+                }
+                if (!double.IsNaN(rawRadius))
+                {
+                    ProximityRadiusFt = rawRadius * unitToFt;
                     if (ProximityRadiusFt < 1.0) ProximityRadiusFt = 1.0;
                     if (ProximityRadiusFt > 200.0) ProximityRadiusFt = 200.0;
+                    StingLog.Info($"TagConfig: ProximityRadiusFt = {ProximityRadiusFt:F2} ft (raw={rawRadius}, unitToFt={unitToFt})");
                 }
 
                 // HC-003: Configurable batch size for ResolveAllIssues
@@ -1600,6 +1637,21 @@ namespace StingTools.Core
                     else if (int.TryParse(bsObj?.ToString(), out int bi)) ResolveBatchSize = bi;
                     if (ResolveBatchSize < 50) ResolveBatchSize = 50;
                     if (ResolveBatchSize > 5000) ResolveBatchSize = 5000;
+                }
+
+                // DEFAULT_COLLISION_MODE: controls TagAndCombineCommand and StingAutoTagger bulk path.
+                // AutoTagCommand always shows its own dialog and ignores this setting.
+                DefaultCollisionMode = TagCollisionMode.AutoIncrement;
+                if (data.TryGetValue("DEFAULT_COLLISION_MODE", out object dcmObj))
+                {
+                    string dcmStr = dcmObj?.ToString()?.ToLowerInvariant() ?? "";
+                    DefaultCollisionMode = dcmStr switch
+                    {
+                        "skip"      => TagCollisionMode.Skip,
+                        "overwrite" => TagCollisionMode.Overwrite,
+                        _           => TagCollisionMode.AutoIncrement,
+                    };
+                    StingLog.Info($"TagConfig: DefaultCollisionMode = {DefaultCollisionMode}");
                 }
 
                 // TAG-STALE-WARN-01: Configurable threshold for auto-creating stale-element issues.
@@ -4037,6 +4089,14 @@ namespace StingTools.Core
         /// for each (DISC, SYS, LVL) group. Returns a dictionary that can be passed
         /// to BuildAndWriteTag so new tags continue from existing numbering.
         /// </summary>
+        /// <remarks>
+        /// <b>Obsolete</b>: Use <see cref="BuildTagIndexAndCounters"/> instead.
+        /// That method merges the sidecar <c>.sting_seq.json</c> counter store with
+        /// the live project scan so SEQ numbering survives Revit session boundaries.
+        /// Calling this method directly skips the sidecar, which can produce SEQ
+        /// collisions after the project has been reopened.
+        /// </remarks>
+        [Obsolete("Use BuildTagIndexAndCounters(doc) — it merges sidecar counters with the live scan, preventing SEQ collisions across sessions.")]
         public static Dictionary<string, int> GetExistingSequenceCounters(Document doc)
         {
             var maxSeq = new Dictionary<string, int>();
@@ -6387,11 +6447,16 @@ namespace StingTools.Core
 
             if (!string.IsNullOrEmpty(paraContainer) && !string.IsNullOrEmpty(tag7.PlainNarrative))
             {
-                string paraText = tag7.PlainNarrative;
-                // If warnings exist and are visible, append them to the paragraph
+                // Use a local StringBuilder to avoid intermediate string allocations when
+                // warnings are appended — one paraText per element across 1000-element batches
+                // was generating 1000 throwaway string objects.
+                var paraBuilder = new System.Text.StringBuilder(tag7.PlainNarrative);
                 if (!string.IsNullOrEmpty(warningText))
-                    paraText += " | WARNINGS: " + warningText;
-                if (ParameterHelpers.SetString(el, paraContainer, paraText, overwrite))
+                {
+                    paraBuilder.Append(" | WARNINGS: ");
+                    paraBuilder.Append(warningText);
+                }
+                if (ParameterHelpers.SetString(el, paraContainer, paraBuilder.ToString(), overwrite))
                     written++;
             }
 
