@@ -5,24 +5,80 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Planscape — model viewer</title>
 <style>
-  html, body { margin:0; padding:0; height:100%; background:#1a1a1a; color:#fff;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; overflow:hidden; }
-  #status { position:absolute; top:8px; left:8px; font-size:12px; opacity:0.8;
-    background:rgba(0,0,0,0.6); padding:4px 8px; border-radius:4px; z-index:10; }
-  canvas { display:block; }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: #1a1a1a; color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  canvas { display: block; }
+
+  /* ── Status bar (top-left) ── */
+  #status {
+    position: absolute; top: 8px; left: 8px; z-index: 20;
+    font-size: 12px; background: rgba(0,0,0,.65);
+    padding: 4px 10px; border-radius: 4px; pointer-events: none;
+    white-space: nowrap; max-width: 60vw; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* ── Nav toolbar (top-right) ── */
+  #toolbar {
+    position: absolute; top: 8px; right: 8px; z-index: 20;
+    display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end;
+  }
+  .nav-btn {
+    background: rgba(30,30,40,.85); border: 1px solid rgba(255,255,255,.18);
+    color: #ddd; font-size: 12px; padding: 5px 10px; border-radius: 5px;
+    cursor: pointer; user-select: none; transition: background .15s, color .15s;
+    white-space: nowrap;
+  }
+  .nav-btn:hover { background: rgba(70,120,200,.7); color: #fff; }
+  .nav-btn.active { background: rgba(60,130,220,.85); color: #fff; border-color: rgba(100,160,255,.6); }
+
+  /* ── Level selector (second row, hidden until levels found) ── */
+  #levelBar {
+    position: absolute; top: 44px; right: 8px; z-index: 20;
+    display: none; gap: 4px; flex-wrap: wrap; justify-content: flex-end;
+  }
+  .lvl-btn {
+    background: rgba(30,50,30,.85); border: 1px solid rgba(100,200,100,.3);
+    color: #8f8; font-size: 11px; padding: 3px 8px; border-radius: 4px;
+    cursor: pointer; user-select: none; transition: background .15s;
+    white-space: nowrap;
+  }
+  .lvl-btn:hover { background: rgba(50,120,50,.8); color: #fff; }
+  .lvl-btn.active { background: rgba(40,160,40,.8); color: #fff; }
+
+  /* ── Section slider (bottom, hidden by default) ── */
+  #sectionBar {
+    position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 20; display: none; align-items: center; gap: 8px;
+    background: rgba(0,0,0,.7); padding: 6px 14px; border-radius: 8px;
+  }
+  #sectionBar label { font-size: 12px; color: #aaa; }
+  #sectionSlider { width: 160px; }
 </style>
 </head>
 <body>
 <div id="status">Loading…</div>
-<!--
-  C1 — Web dashboard's model viewer. Three.js >= 0.150 ships the legacy
-  examples/js/ UMD builds as 'deprecated and removed'. The viewer used to
-  pull THREE.GLTFLoader / THREE.OrbitControls as globals from those files
-  but they 404 on the CDN, the IIFE crashed on 'new THREE.OrbitControls(…)',
-  and the page sat on its initial 'Loading…' text forever.
 
-  Switched to ES modules + an importmap so any modern three.js works.
--->
+<div id="toolbar">
+  <button class="nav-btn active" data-mode="orbit" title="Orbit — drag to rotate">◯ Orbit</button>
+  <button class="nav-btn"       data-mode="pan"   title="Pan — drag to translate">↖ Pan</button>
+  <button class="nav-btn"       data-mode="fit"   title="Fit model to screen (F)">⌖ Fit</button>
+  <button class="nav-btn"       data-mode="home"  title="Reset to opening view">⌂ Home</button>
+  <button class="nav-btn"       data-mode="level" title="Level the camera horizon">— Level</button>
+  <button class="nav-btn"       data-mode="top"   title="Top-down view">⬇ Top</button>
+  <button class="nav-btn"       data-mode="section" title="Toggle horizontal section cut">✂ Section</button>
+</div>
+
+<div id="levelBar"></div>
+
+<div id="sectionBar">
+  <label>Section height</label>
+  <input id="sectionSlider" type="range" min="0" max="100" value="100" />
+</div>
+
 <script type="importmap">
 {
   "imports": {
@@ -31,79 +87,323 @@
   }
 }
 </script>
+
 <script type="module">
 "use strict";
 import * as THREE        from "three";
 import { GLTFLoader }    from "three/addons/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { DRACOLoader }   from "three/addons/loaders/DRACOLoader.js";
 
+// ── URL params ──────────────────────────────────────────────────────────
 const params    = new URLSearchParams(location.search);
 const projectId = params.get("project");
 const modelId   = params.get("model");
 const token     = localStorage.getItem("planscape_token");
-const statusEl  = document.getElementById("status");
-function status(s) { statusEl.textContent = s; }
 
-if (!projectId || !modelId) { status("Missing project / model id."); }
-else {
-  status("Initialising scene…");
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x1a1a1a);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x404060, 0.9));
-  const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.01, 10000);
-  camera.position.set(10, 10, 10);
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+// ── DOM helpers ─────────────────────────────────────────────────────────
+const statusEl   = document.getElementById("status");
+const levelBar   = document.getElementById("levelBar");
+const sectionBar = document.getElementById("sectionBar");
+const slider     = document.getElementById("sectionSlider");
+const setStatus  = s => { statusEl.textContent = s; };
+
+if (!projectId || !modelId) { setStatus("Missing project / model id."); throw new Error(); }
+
+// ── Scene setup ─────────────────────────────────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1a1a);
+
+const hemi = new THREE.HemisphereLight(0xffffff, 0x334455, 0.9);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff8ee, 0.7);
+sun.position.set(1, 2, 1.5);
+scene.add(sun);
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.01, 50000);
+camera.position.set(30, 30, 30);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+
+window.addEventListener("resize", () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
-  document.body.appendChild(renderer.domElement);
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  window.addEventListener("resize", () => {
-    camera.aspect = innerWidth / innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(innerWidth, innerHeight);
-  });
+});
 
-  (function animate(){ requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); })();
+// ── Section plane ────────────────────────────────────────────────────────
+const clipPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0);
+let sectionActive = false;
+let modelMinZ = 0, modelMaxZ = 0;
 
-  status("Fetching metadata…");
-  let meta;
-  try {
-    const res = await fetch(`/api/projects/${projectId}/models/${modelId}`,
-      { headers: { Authorization: "Bearer " + token } });
-    if (!res.ok) throw new Error(await res.text());
-    meta = await res.json();
-  } catch (e) { status("Auth or metadata failed. " + e.message); }
+// ── Model state ───────────────────────────────────────────────────────────
+let modelGroup = null;
+let modelBounds = new THREE.Box3();
+let homePos = null, homeTarget = null, homeUp = null;
 
-  if (meta) {
-    status("Downloading model…");
-    // Pass the JWT via Authorization header rather than ?access_token=
-    // — keeps tokens out of URL bars, nginx access logs and browser
-    // history, and avoids relying on a path-specific allowlist on the
-    // server's JwtBearerEvents.OnMessageReceived handler.
-    const fileUrl = `/api/projects/${projectId}/models/${modelId}/file`;
-    const loader = new GLTFLoader();
-    loader.requestHeader = { "Authorization": "Bearer " + token };
-    loader.load(
-      fileUrl,
-      (gltf) => {
-        scene.add(gltf.scene);
-        const box = new THREE.Box3().setFromObject(gltf.scene);
-        const size = box.getSize(new THREE.Vector3());
-        const centre = box.getCenter(new THREE.Vector3());
-        const maxDim = Math.max(size.x, size.y, size.z) || 1;
-        camera.position.copy(centre).add(new THREE.Vector3(maxDim * 1.8, maxDim * 1.4, maxDim * 1.8));
-        camera.near = Math.max(maxDim / 1000, 0.01);
-        camera.far  = Math.max(maxDim * 100, 10000);
-        camera.updateProjectionMatrix();
-        controls.target.copy(centre);
-        controls.update();
-        status(`${meta.name} · ${(meta.fileSizeBytes/1024/1024).toFixed(1)} MB`);
-      },
-      (prog) => { if (prog.total > 0) status(`Loading ${Math.round(prog.loaded/prog.total*100)}%…`); },
-      (err)  => status("Load failed: " + (err?.message || String(err)))
-    );
+// ── fitCamera — smart axis detection ─────────────────────────────────────
+function fitCamera() {
+  if (!modelGroup || modelBounds.isEmpty()) return;
+  const size   = modelBounds.getSize(new THREE.Vector3());
+  const centre = modelBounds.getCenter(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z) || 1;
+  const dist   = maxDim * 1.8;
+
+  const ax = size.x, ay = size.y, az = size.z;
+
+  if (az <= ax && az <= ay) {
+    // Z-up (Revit native export). Place eye so the long horizontal axis
+    // reads left-right across the screen.
+    camera.up.set(0, 0, 1);
+    if (ax >= ay) {
+      // Long axis is X → look from south so X fills screen width.
+      camera.position.copy(centre).add(new THREE.Vector3(0, -dist * 0.8, dist * 0.6));
+    } else {
+      // Long axis is Y → look from west so Y fills screen width.
+      camera.position.copy(centre).add(new THREE.Vector3(-dist * 0.8, 0, dist * 0.6));
+    }
+  } else if (ay <= ax && ay <= az) {
+    // Y-up (glTF spec).
+    camera.up.set(0, 1, 0);
+    if (ax >= az) {
+      camera.position.copy(centre).add(new THREE.Vector3(0, dist * 0.6, -dist * 0.8));
+    } else {
+      camera.position.copy(centre).add(new THREE.Vector3(-dist * 0.8, dist * 0.6, 0));
+    }
+  } else {
+    // X-up (uncommon).
+    camera.up.set(1, 0, 0);
+    if (ay >= az) {
+      camera.position.copy(centre).add(new THREE.Vector3(dist * 0.6, 0, -dist * 0.8));
+    } else {
+      camera.position.copy(centre).add(new THREE.Vector3(dist * 0.6, -dist * 0.8, 0));
+    }
   }
+
+  controls.target.copy(centre);
+  camera.near = Math.max(maxDim / 2000, 0.01);
+  camera.far  = Math.max(maxDim * 150, 10000);
+  camera.updateProjectionMatrix();
+  controls.update();
+}
+
+// ── levelCamera — snap horizon ───────────────────────────────────────────
+function levelCamera() {
+  // Find the dominant up axis from camera.up, then straighten it.
+  const up = camera.up.clone();
+  const absX = Math.abs(up.x), absY = Math.abs(up.y), absZ = Math.abs(up.z);
+  if (absZ >= absX && absZ >= absY) camera.up.set(0, 0, up.z > 0 ? 1 : -1);
+  else if (absY >= absX)            camera.up.set(0, up.y > 0 ? 1 : -1, 0);
+  else                              camera.up.set(up.x > 0 ? 1 : -1, 0, 0);
+  controls.update();
+}
+
+// ── top-down view ─────────────────────────────────────────────────────────
+function topView() {
+  if (!modelGroup || modelBounds.isEmpty()) return;
+  const centre = modelBounds.getCenter(new THREE.Vector3());
+  const size   = modelBounds.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z) || 1;
+  camera.up.set(0, 1, 0);
+  camera.position.copy(centre).add(new THREE.Vector3(0, maxDim * 2.5, 0));
+  controls.target.copy(centre);
+  controls.update();
+}
+
+// ── section plane helpers ─────────────────────────────────────────────────
+function applySectionPlane(pct) {
+  const h = modelMinZ + (modelMaxZ - modelMinZ) * (pct / 100);
+  clipPlane.constant = h;
+}
+function enableSection(on) {
+  sectionActive = on;
+  renderer.clippingPlanes = on ? [clipPlane] : [];
+  sectionBar.style.display = on ? 'flex' : 'none';
+  if (on) applySectionPlane(+slider.value);
+}
+slider.addEventListener("input", () => applySectionPlane(+slider.value));
+
+// ── level buttons ─────────────────────────────────────────────────────────
+function buildLevelButtons(gltf) {
+  // Gather all nodes whose name looks like a floor/storey.
+  const lvlRx = /storey|floor|level|étage|piso|ebene|verdieping/i;
+  const levels = [];
+  gltf.scene.traverse(n => {
+    if (lvlRx.test(n.name) && n.name.length < 60) {
+      const b = new THREE.Box3().setFromObject(n);
+      if (!b.isEmpty()) levels.push({ name: n.name, box: b });
+    }
+  });
+  if (levels.length === 0) return;
+
+  levels.sort((a, b) => a.box.min.z - b.box.min.z);
+  levels.forEach(lvl => {
+    const btn = document.createElement("button");
+    btn.className = "lvl-btn";
+    btn.textContent = lvl.name.replace(/^.*?(storey|floor|level|étage|piso|ebene|verdieping)\s*/i, '').trim() || lvl.name;
+    btn.title = lvl.name;
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".lvl-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      // Isolate by cutting section to top of this level's bbox.
+      const top = lvl.box.max.z;
+      const pct = ((top - modelMinZ) / (modelMaxZ - modelMinZ)) * 100;
+      enableSection(true);
+      slider.value = Math.round(pct);
+      applySectionPlane(+slider.value);
+      document.querySelector('.nav-btn[data-mode="section"]').classList.add("active");
+      // Fit to that level.
+      const c = lvl.box.getCenter(new THREE.Vector3());
+      const s = lvl.box.getSize(new THREE.Vector3());
+      const d = Math.max(s.x, s.y, s.z) * 1.6;
+      camera.position.copy(c).add(new THREE.Vector3(0, -d * 0.8, d * 0.6));
+      controls.target.copy(c);
+      controls.update();
+    });
+    levelBar.appendChild(btn);
+  });
+  levelBar.style.display = "flex";
+}
+
+// ── Toolbar button handling ───────────────────────────────────────────────
+document.getElementById("toolbar").addEventListener("click", e => {
+  const btn = e.target.closest(".nav-btn");
+  if (!btn) return;
+  const mode = btn.dataset.mode;
+
+  // Toggle active highlight (except section which is a toggle)
+  if (mode !== "section") {
+    document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+  }
+
+  switch (mode) {
+    case "orbit":
+      controls.mouseButtons = {
+        LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN
+      };
+      break;
+    case "pan":
+      controls.mouseButtons = {
+        LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE
+      };
+      break;
+    case "fit":
+      fitCamera();
+      break;
+    case "home":
+      if (homePos) {
+        camera.position.copy(homePos);
+        camera.up.copy(homeUp);
+        controls.target.copy(homeTarget);
+        controls.update();
+      } else {
+        fitCamera();
+      }
+      break;
+    case "level":
+      levelCamera();
+      break;
+    case "top":
+      topView();
+      break;
+    case "section":
+      btn.classList.toggle("active");
+      enableSection(!sectionActive);
+      break;
+  }
+});
+
+// ── Keyboard shortcuts ────────────────────────────────────────────────────
+window.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT") return;
+  if (e.key === "f" || e.key === "F") fitCamera();
+  if (e.key === "h" || e.key === "H") document.querySelector('[data-mode="home"]').click();
+  if (e.key === "l" || e.key === "L") levelCamera();
+  if (e.key === "t" || e.key === "T") topView();
+});
+
+// ── Render loop ───────────────────────────────────────────────────────────
+(function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+})();
+
+// ── Load model ────────────────────────────────────────────────────────────
+setStatus("Fetching metadata…");
+let meta;
+try {
+  const res = await fetch(`/api/projects/${projectId}/models/${modelId}`,
+    { headers: { Authorization: "Bearer " + token } });
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  meta = await res.json();
+} catch (e) {
+  setStatus("Auth or metadata failed — try logging in again. " + e.message);
+}
+
+if (meta) {
+  setStatus(`Downloading ${meta.name} (${(meta.fileSizeBytes / 1024 / 1024).toFixed(1)} MB)…`);
+
+  const draco = new DRACOLoader();
+  draco.setDecoderPath("https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/gltf/");
+
+  const loader = new GLTFLoader();
+  loader.setDRACOLoader(draco);
+  loader.requestHeader = { Authorization: "Bearer " + token };
+
+  loader.load(
+    `/api/projects/${projectId}/models/${modelId}/file`,
+    gltf => {
+      modelGroup = gltf.scene;
+      scene.add(modelGroup);
+
+      // Compute world bounds.
+      modelBounds = new THREE.Box3().setFromObject(modelGroup);
+      const size   = modelBounds.getSize(new THREE.Vector3());
+      const centre = modelBounds.getCenter(new THREE.Vector3());
+
+      // Determine vertical axis for section plane.
+      // For Z-up (Revit): section along Z. For Y-up: section along Y.
+      const ax = size.x, ay = size.y, az = size.z;
+      if (az >= ax && az >= ay) {
+        // Z is tallest → Z-up model
+        clipPlane.normal.set(0, 0, -1);
+        modelMinZ = modelBounds.min.z;
+        modelMaxZ = modelBounds.max.z;
+      } else {
+        // Y-up model
+        clipPlane.normal.set(0, -1, 0);
+        modelMinZ = modelBounds.min.y;
+        modelMaxZ = modelBounds.max.y;
+      }
+
+      // Initial camera fit.
+      fitCamera();
+
+      // Save home position right after initial fit.
+      homePos    = camera.position.clone();
+      homeTarget = controls.target.clone();
+      homeUp     = camera.up.clone();
+
+      setStatus(`${meta.name} · ${(meta.fileSizeBytes / 1024 / 1024).toFixed(1)} MB`);
+
+      // Build level nav buttons from scene nodes.
+      buildLevelButtons(gltf);
+    },
+    prog => {
+      if (prog.total > 0)
+        setStatus(`Loading ${meta.name}… ${Math.round(prog.loaded / prog.total * 100)}%`);
+    },
+    err => setStatus("Load failed: " + (err?.message || String(err)))
+  );
 }
 </script>
 </body>
