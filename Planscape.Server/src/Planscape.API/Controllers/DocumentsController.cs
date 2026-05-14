@@ -84,7 +84,7 @@ public class DocumentsController : ControllerBase
         Planscape.Infrastructure.Services.OutboundWebhookDispatcher? webhooks = null)
     {
         _db = db;
-        _storage = storage;
+        _storage = storage!;
         _geofence = geofence;
         _thumbnails = thumbnails;
         _logger = logger;
@@ -984,50 +984,50 @@ public class DocumentsController : ControllerBase
         // Apply transition if requested. We bypass the strict ValidTransitions
         // table here because the plugin owns the source-of-truth lifecycle —
         // however role + approval gates still run.
-        if (!string.IsNullOrEmpty(req.NewCdeStatus) && req.NewCdeStatus != doc.CdeStatus)
+        if (!string.IsNullOrEmpty(req.NewCdeStatus) && req.NewCdeStatus != doc!.CdeStatus)
         {
-            var roleCheck = CheckTransitionRole(doc.CdeStatus, req.NewCdeStatus);
+            var roleCheck = CheckTransitionRole(doc!.CdeStatus, req.NewCdeStatus);
             if (roleCheck != null) return roleCheck;
 
-            var approvalCheck = await CheckApprovalGate(doc.CdeStatus, req.NewCdeStatus, doc.Id);
+            var approvalCheck = await CheckApprovalGate(doc!.CdeStatus, req.NewCdeStatus, doc!.Id);
             if (approvalCheck != null) return approvalCheck;
 
-            var oldState = doc.CdeStatus;
-            doc.CdeStatus = req.NewCdeStatus;
-            doc.SuitabilityCode = req.SuitabilityCode
-                ?? DefaultSuitability.GetValueOrDefault(req.NewCdeStatus, doc.SuitabilityCode);
-            if (!string.IsNullOrEmpty(req.Revision)) doc.Revision = req.Revision;
-            doc.UpdatedAt = DateTime.UtcNow;
+            var oldState = doc!.CdeStatus;
+            doc!.CdeStatus = req.NewCdeStatus;
+            doc!.SuitabilityCode = req.SuitabilityCode
+                ?? DefaultSuitability.GetValueOrDefault(req.NewCdeStatus, doc!.SuitabilityCode);
+            if (!string.IsNullOrEmpty(req.Revision)) doc!.Revision = req.Revision;
+            doc!.UpdatedAt = DateTime.UtcNow;
 
-            var history = !string.IsNullOrEmpty(doc.StatusHistoryJson)
-                ? JsonConvert.DeserializeObject<List<object>>(doc.StatusHistoryJson) ?? new()
+            var history = !string.IsNullOrEmpty(doc!.StatusHistoryJson)
+                ? JsonConvert.DeserializeObject<List<object>>(doc!.StatusHistoryJson) ?? new()
                 : new List<object>();
             history.Add(new
             {
                 timestamp = DateTime.UtcNow, oldState, newState = req.NewCdeStatus,
-                suitability = doc.SuitabilityCode,
+                suitability = doc!.SuitabilityCode,
                 user = userName, source = "plugin",
                 pluginAction = req.Action,
                 reason = req.Reason
             });
-            doc.StatusHistoryJson = JsonConvert.SerializeObject(history);
+            doc!.StatusHistoryJson = JsonConvert.SerializeObject(history);
         }
-        else if (!string.IsNullOrEmpty(req.Revision) && req.Revision != doc.Revision)
+        else if (!string.IsNullOrEmpty(req.Revision) && req.Revision != doc!.Revision)
         {
             // Pure revision bump (no state change) — common for ReIssue.
-            doc.Revision = req.Revision;
-            doc.UpdatedAt = DateTime.UtcNow;
+            doc!.Revision = req.Revision;
+            doc!.UpdatedAt = DateTime.UtcNow;
         }
 
         await _db.SaveChangesAsync();
         await _audit.LogAsync(isCreate ? "PLUGIN_CREATE" : "PLUGIN_TRANSITION",
-            "Document", doc.Id.ToString(),
+            "Document", doc!.Id.ToString(),
             JsonConvert.SerializeObject(new
             {
                 docNumber = req.DocNumber,
                 action    = req.Action,
-                state     = doc.CdeStatus,
-                revision  = doc.Revision
+                state     = doc!.CdeStatus,
+                revision  = doc!.Revision
             }));
 
         // Phase 177 — broadcast only to members whose ACL covers the new state.

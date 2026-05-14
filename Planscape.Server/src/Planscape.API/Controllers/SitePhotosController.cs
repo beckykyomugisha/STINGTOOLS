@@ -431,8 +431,8 @@ public class SitePhotosController : ControllerBase
         if (photo == null) return NotFound();
 
         // Prevent self-approval: the approver cannot approve their own photo
-        var callerId = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier)
-                      ?? User.FindFirstValue("sub");
+        var callerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                      ?? User.FindFirst("sub")?.Value;
         if (photo.CapturedByUserId.HasValue && photo.CapturedByUserId.ToString() == callerId)
             return BadRequest(new { error = "You cannot approve your own photo. Another approver must review it." });
 
@@ -479,8 +479,8 @@ public class SitePhotosController : ControllerBase
 
         // Prevent self-rejection: the photo owner cannot reject their own photo
         // (would allow reset to Internal and re-submit indefinitely without peer review)
-        var callerId = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier)
-                      ?? User.FindFirstValue("sub");
+        var callerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                      ?? User.FindFirst("sub")?.Value;
         if (photo.CapturedByUserId.HasValue && photo.CapturedByUserId.ToString() == callerId)
             return BadRequest(new { error = "You cannot reject your own photo." });
 
