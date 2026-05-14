@@ -162,8 +162,15 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             RequireSignedTokens = true,
             ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 },
-            ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "Planscape",
-            ValidAudience = builder.Configuration["Jwt:Audience"] ?? "Planscape.Client",
+            // A3 — require explicit Jwt:Issuer and Jwt:Audience in all environments.
+            // A silent "Planscape" / "Planscape.Client" fallback lets a
+            // misconfigured deployment accept tokens minted by any other
+            // instance using the same fallback string (e.g. staging → prod
+            // token replay). Throw at startup instead.
+            ValidIssuer = builder.Configuration["Jwt:Issuer"]
+                ?? throw new InvalidOperationException("Jwt:Issuer is required in configuration."),
+            ValidAudience = builder.Configuration["Jwt:Audience"]
+                ?? throw new InvalidOperationException("Jwt:Audience is required in configuration."),
             // IssuerSigningKeys (plural) lets us validate tokens signed with
             // either the current or the previous key during rotation.
             IssuerSigningKeys = signingKeys,

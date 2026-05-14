@@ -16,6 +16,10 @@ public class Tenant
     public int MaxProjects { get; set; } = 1;
     public long StorageLimitBytes { get; set; } = 500 * 1024 * 1024; // 500 MB
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    // F3 — track last modification time so the admin dashboard and audit trail
+    // can surface "last changed" without querying AuditLog on every page load.
+    // Auto-stamped by PlanscapeDbContext.SaveChangesAsync on every Modified entry.
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? TrialExpiresAt { get; set; }
     public bool IsActive { get; set; } = true;
     public string? StripeCustomerId { get; set; }

@@ -111,6 +111,10 @@ export async function enqueue(
   };
 
   const queue = await loadQueue();
+  if (queue.length >= MAX_QUEUE_SIZE) {
+    console.warn(`[OfflineQueue] Queue full (${MAX_QUEUE_SIZE}), dropping oldest action: ${queue[0].type}`);
+    queue.shift();
+  }
   queue.push(action);
   await saveQueue(queue);
   return action;
@@ -426,6 +430,7 @@ export interface SyncResult {
 }
 
 const MAX_RETRIES_PER_ACTION = 3;
+const MAX_QUEUE_SIZE = 200;
 
 /**
  * N-G17 — compute exponential-backoff delay in milliseconds.
@@ -437,8 +442,6 @@ function backoffMs(retryCount: number): number {
   const jitter = 1 + (Math.random() * 0.4 - 0.2);
   return Math.round(base * jitter);
 }
-
-const MAX_RETRIES_PER_ACTION = 3;
 
 /**
  * Attempt to sync all unsynced actions in FIFO order.
