@@ -83,7 +83,16 @@ The source file is never modified — the output is a copy. Paths are resolved r
 
 ### 5. Auto-registered swap candidates
 
-Each JSON spec now contains a `swapCandidates` array. After every build run, `BuildSeedFamiliesCommand` merges those entries into `STING_FAMILY_SWAP_REGISTRY.json` (stored in `<project>/_BIM_COORD/`). The merge is **additive** — existing entries you have manually curated are never removed; only new seed-declared candidates are appended or updated.
+Each JSON spec now contains a `swapCandidates` array. After every build run, `BuildSeedFamiliesCommand` merges those entries into `STING_FAMILY_SWAP_REGISTRY.json` (stored in `<project>/_BIM_COORD/`).
+
+**How the merge works (Phase 179 update):**
+
+- Every auto-registered candidate is tagged with `"source": "auto"` in the JSON.
+- Your manually curated entries (no `source` field, or `"source": "manual"`) are **never touched**.
+- On each rebuild, the merge performs a *prune pass* that removes stale `"source": "auto"` entries whose seed variant name no longer exists in the current JSON spec (e.g., you deleted a type variant). This keeps the registry from accumulating ghost candidates.
+- New auto-candidates are appended; existing auto-candidates are updated in place.
+
+In short: **manually curated entries survive forever; auto-entries mirror the current seed JSON exactly.**
 
 ```json
 "swapCandidates": [
@@ -98,6 +107,36 @@ Each JSON spec now contains a `swapCandidates` array. After every build run, `Bu
 ```
 
 To pre-populate a `familyPath`, set it to a path relative to the project's Families folder or an absolute network path. Setting `autoLoad: true` and a valid path lets **Swap to Manufacturer** run silently in batch mode without a file-picker dialog.
+
+---
+
+## What's new — Phase 179
+
+Six generator improvements that reduce the amount of manual work after each build run.
+
+### 1. Subcategory auto-applied
+
+The generator now creates and assigns the `STING_SEED` subcategory automatically. You no longer need to create it by hand in Family Editor. The subcategory is applied to every solid and 2D line element that the JSON geometry block creates. If you add new geometry manually after the build, assign it to `STING_SEED` yourself (Manage → Object Styles → Sub-objects).
+
+### 2. Line and arc styles applied at build time
+
+Previously the generator created 2D geometry with the default "Medium Lines" style. The JSON `geometry` block now accepts a `lineStyle` field. Built-in legal values are `"Thin Lines"`, `"Medium Lines"`, `"Wide Lines"`, `"<Overhead>"`, and any project-specific line style by exact name. All penetration seeds default to `"Medium Lines"` in their JSON.
+
+### 3. `IsShared` correctly honoured
+
+Earlier builds silently ignored the `"isShared": true` flag in the JSON parameter definitions, creating project-only parameters instead of shared ones. This is now fixed — every parameter marked `isShared: true` is created as a shared parameter bound through the STING shared parameter file. If you see a parameter listed without a GUID in *Family Types* → *Manage* → *Shared Parameters*, it was created before this fix; delete it from the family and rebuild.
+
+### 4. Domain and system-type validation
+
+The generator validates each connector's `domain` and `systemType` combination against Revit's legal matrix before writing the connector. If an illegal combination is detected (e.g., `domain: HVAC` + `systemType: Domestic Cold Water`), a warning appears in the build result dialog and the connector is left with a `None` system type rather than crashing the build.
+
+### 5. Formula syntax checking
+
+The `formulaBindings` array in each JSON spec (used to document formulas you must enter manually in Family Editor) is now syntax-checked at build time. If the formula uses a parameter name that is not in the seed's own `parameters` array, a warning is emitted. This catches typos in the JSON spec early — for example, if the formula references `PEN_CONTROL_NUMBER_TXT` but the seed doesn't declare that parameter, you'll see the warning before spending time in Family Editor.
+
+### 6. Rebuild result dialog improvements
+
+The result dialog now shows three totals: **Created**, **Skipped (finalized / protected)**, **Warnings**. The "Skipped" count replaces the old silent pass-through — you can see immediately how many seeds were protected rather than having to check the log.
 
 ---
 
@@ -846,6 +885,8 @@ Three inlet connectors (8 mm) + one outlet/vacuum connector (12 mm). In Family E
 
 > **This is the highest-priority seed to polish.** Every duct, pipe, cable, and cable-tray crossing a fire-rated element gets one of these. The Penetration Register is auto-generated from instances of this seed — the `PEN_CONTROL_NUMBER_TXT` field is the register's primary key.
 
+> **Full workflow guide:** [`docs/PENETRATION_WORKFLOW_GUIDE.md`](../../docs/PENETRATION_WORKFLOW_GUIDE.md) explains the complete 8-step process for non-BIM users — from detection and placement through to the A1 register sheet and COBie CSV export.
+
 ### 2D plan symbol
 - Concentric circles (Ø500 outer, Ø350 inner — auto-generated) with four short tick lines crossing the gap at 0°/90°/180°/270°. Reads as a sleeve-through.
 - For section view (Front elevation): add a 200 mm vertical bar with horizontal arrows pointing in/out (auto-generated from the JSON `section` block).
@@ -882,7 +923,9 @@ Replace the auto box with a conical sleeve: 80×80 mm at top narrowing to 60×60
 ## STING_SEED_FireDamper
 
 **Hosting:** Face-based · **Template:** `Metric Specialty Equipment face based.rft` · **Symbol size at 1:100:** 6 mm  
-**12 type variants** — BS EN 15650 / EN 1366-2 fire and combined fire/smoke dampers
+**13 type variants** — BS EN 15650 / EN 1366-2 fire and combined fire/smoke dampers
+
+> **Full workflow guide:** [`docs/PENETRATION_WORKFLOW_GUIDE.md`](../../docs/PENETRATION_WORKFLOW_GUIDE.md)
 
 ### 2D plan symbol
 - Auto-generated square with cross diagonals and centre cross reads as a fire damper. Keep.
@@ -922,12 +965,25 @@ Same as SpecialityEquipment — the fire damper register uses this as its key.
 - `ES` = Smoke only, no fire integrity
 - Suffix `300` (e.g., `EI60S300`) indicates leakage class — add when specified by the acoustic engineer.
 
+### Known gap — `FD_CURTAIN_FR60`
+
+The `FD_CURTAIN_FR60` type variant is present in the seed family and the drawing register table above, but `PenetrationProductSelector.MapDamperVariant` **cannot currently place it automatically**. Curtain fire dampers are only suitable where the host wall or floor has insufficient depth for a blade damper (typically < 75 mm), and that depth check requires a host-element parameter (`STING_WALL_DEPTH_MM` or similar) that is not yet exposed to the selector engine.
+
+**Until the selector is updated:**
+- Curtain dampers must be placed manually.
+- After placement, set `PEN_TYPE_VARIANT_TXT = FD_CURTAIN_FR60` on the instance by hand so the register and coverage audit treat it correctly.
+- The auto-tagger and register schedule work correctly on manually placed curtain dampers.
+
+**To enable automatic curtain-damper selection** (future work): add `STING_WALL_DEPTH_MM` as a calculated parameter on Wall types and plumb it into `PenetrationProductSelector.MapDamperVariant` via a depth-restriction check before the standard blade-damper variants.
+
 ---
 
 ## STING_SEED_AcousticSeal
 
 **Hosting:** Face-based · **Template:** `Metric Specialty Equipment face based.rft` · **Symbol size at 1:100:** 4 mm  
-**10 type variants** — Approved Document E, BS 8233, DW/144 acoustic penetration seals
+**11 type variants** — Approved Document E, BS 8233, DW/144 acoustic penetration seals
+
+> **Full workflow guide:** [`docs/PENETRATION_WORKFLOW_GUIDE.md`](../../docs/PENETRATION_WORKFLOW_GUIDE.md)
 
 ### 2D plan symbol
 - Auto-generated triple concentric circles read as an acoustic seal. Keep.
@@ -948,6 +1004,7 @@ Mark = PEN_CONTROL_NUMBER_TXT
 | `ACS_RW30` | `30` | `MINERAL_WOOL` | `50` | `Approved Doc E (Rw 30 dB)` |
 | `ACS_RW40` | `40` | `MINERAL_WOOL_PLUS_SEALANT` | `75` | `BS 8233 / Approved Doc E (Rw 40 dB)` |
 | `ACS_RW45` | `45` | `MINERAL_WOOL_PLUS_SEALANT` | `100` | `BS 8233 / Approved Doc E (Rw 45 dB)` |
+| `ACS_RW50` | `50` | `MINERAL_WOOL_PLUS_SEALANT_PLUS_PUTTY` | `125` | `BS 8233 (Rw 50 dB)` |
 | `ACS_RW55` | `55` | `MINERAL_WOOL_PLUS_SEALANT_PLUS_PUTTY` | `150` | `BS 8233 (Rw 55 dB)` |
 | `ACS_RW63` | `63` | `INTUMESCENT_PUTTY_PADS` | `200` | `BS 8233 (Rw 63 dB)` |
 | `ACS_DW144_DUCT` | `40` | `DW144_DUCT_WRAP` | `100` | `DW/144 duct acoustic seal` |
