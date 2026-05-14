@@ -1,3 +1,7 @@
+> **This document has been consolidated.** See `docs/guides/MEP_FOUNDATION_GUIDE.md` for the complete, up-to-date guide. The content below is kept for historical reference only.
+
+---
+
 # Placement Family Authoring & Setup Requirements (Phase 139.6)
 
 How every Revit family + project setting must be authored for the
