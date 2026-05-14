@@ -4,6 +4,7 @@ import { QueuedAction } from '../types';
 
 const QUEUE_KEY = 'planscape_offline_queue';
 const MAX_ATTEMPTS = 5;
+const MAX_QUEUE_SIZE = 200;
 
 type Processor = (action: QueuedAction) => Promise<void>;
 
@@ -19,13 +20,19 @@ export class OfflineQueue {
   private subscribeNetwork() {
     NetInfo.addEventListener(state => {
       if (state.isConnected && state.isInternetReachable) {
-        this.drain().catch(() => {});
+        this.drain().catch((err) => {
+          console.warn('[OfflineQueue] Drain failed:', err);
+        });
       }
     });
   }
 
   async enqueue(type: QueuedAction['type'], payload: unknown): Promise<void> {
     const queue = await this.load();
+    if (queue.length >= MAX_QUEUE_SIZE) {
+      console.warn(`[OfflineQueue] Queue full (${MAX_QUEUE_SIZE}), dropping oldest action: ${queue[0].type}`);
+      queue.shift();
+    }
     queue.push({
       id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       type,

@@ -237,6 +237,12 @@ public class AuthController : ControllerBase
         if (user == null || user.RefreshTokenExpiresAt < DateTime.UtcNow)
             return Unauthorized(new { message = "Invalid or expired refresh token" });
 
+        // A1 — explicit IsActive guard after user lookup. The DB query already
+        // filters on IsActive, but an account deactivated between the query and
+        // this point (race) would still reach here. Belt-and-braces check.
+        if (!user.IsActive)
+            return Unauthorized(new { error = "Account is deactivated." });
+
         // SEC-EA-08 — sliding inactivity check. If the refresh token has
         // been silent for more than RefreshInactivityWindow, force a
         // fresh login. The absolute 7-day cap from SEC-EA-03 still
@@ -635,6 +641,26 @@ public class AuthController : ControllerBase
             return Forbid();
         }
 
+        // A5 — verify the target tenant itself is active. The query above
+        // only checks that the *user* row is active; a suspended/deactivated
+        // tenant should prevent new sessions even when the membership row
+        // still exists.
+        if (target.Tenant != null && !target.Tenant.IsActive)
+            return Forbid();
+
+        // A2 — revoke the old refresh token before issuing a new one so a
+        // tenant switch doesn't leave the previous token valid. Burn the Redis
+        // activity key too so the old inactivity window can't be re-used.
+        if (!string.IsNullOrEmpty(target.RefreshToken))
+        {
+            var redisDb2 = _redis.GetDatabase();
+            // We stored the hash, not the raw token, so we can only delete by
+            // the stored hash key. Clear both DB column and Redis activity entry.
+            await redisDb2.KeyDeleteAsync(RefreshActivityKey(target.RefreshToken));
+            target.RefreshToken = null;
+            target.RefreshTokenExpiresAt = null;
+        }
+
         var token = GenerateJwt(target);
         var refreshToken = Guid.NewGuid().ToString("N");
         target.RefreshToken = HashRefreshToken(refreshToken);
@@ -643,6 +669,13 @@ public class AuthController : ControllerBase
         target.RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(7);
         target.LastLoginAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
+
+        // Seed activity tracking key for the new refresh token.
+        var redisDb3 = _redis.GetDatabase();
+        await redisDb3.StringSetAsync(
+            RefreshActivityKey(refreshToken),
+            DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+            TimeSpan.FromDays(7));
 
         return Ok(new AuthLoginResponse
         {
@@ -711,8 +744,11 @@ public class AuthController : ControllerBase
         // A DB leak therefore can't be replayed against /reset-password.
         var resetToken = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
         var resetHash = HashResetToken(resetToken);
+        // A4 — configurable reset-token window. Default 60 minutes when not set.
+        // Override via Auth:PasswordResetExpiryMinutes in appsettings / env vars.
+        var expiryMinutes = int.TryParse(_config["Auth:PasswordResetExpiryMinutes"], out var m) ? m : 60;
         user.RefreshToken = $"RESET:{resetHash}";
-        user.RefreshTokenExpiresAt = DateTime.UtcNow.AddHours(1);
+        user.RefreshTokenExpiresAt = DateTime.UtcNow.AddMinutes(expiryMinutes);
         await _db.SaveChangesAsync();
 
         // Send reset email
@@ -831,9 +867,14 @@ public class AuthController : ControllerBase
             new Claim("display_name", user.DisplayName)
         };
 
+        // A3 (GenerateJwt side) — use the same throw-on-missing pattern as
+        // Program.cs so tokens can never be minted with the wrong issuer/audience
+        // if config is absent (belt-and-braces: Program.cs throws at startup too).
+        var jwtIssuer   = _config["Jwt:Issuer"]   ?? throw new InvalidOperationException("Jwt:Issuer is required in configuration.");
+        var jwtAudience = _config["Jwt:Audience"] ?? throw new InvalidOperationException("Jwt:Audience is required in configuration.");
         var token = new JwtSecurityToken(
-            issuer: _config["Jwt:Issuer"] ?? "Planscape",
-            audience: _config["Jwt:Audience"] ?? "Planscape.Client",
+            issuer: jwtIssuer,
+            audience: jwtAudience,
             claims: claims,
             // SEC-EA-03 — short access-token lifetime; refresh + JTI
             // revocation handle long-running sessions instead.

@@ -25,6 +25,9 @@ public class ModelMarkup : ITenantScoped
     /// <summary>JSON-encoded polylines: [{ points: [[x,y,z],...], color, thickness }, ...]</summary>
     public string PolylinesJson { get; set; } = "[]";
 
+    /// <summary>Client-supplied idempotency key for replay-safe offline uploads.</summary>
+    public string? IdempotencyKey { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? DeletedAt { get; set; }
 }
