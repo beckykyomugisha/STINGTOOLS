@@ -327,7 +327,7 @@ namespace StingTools.Commands.Electrical
                 (int)BuiltInCategory.OST_LightingFixtures,
             };
 
-            int id = catId.IntegerValue;
+            int id = catId.Value;
             foreach (int c in electricalCategories)
                 if (c == id) return true;
             return false;

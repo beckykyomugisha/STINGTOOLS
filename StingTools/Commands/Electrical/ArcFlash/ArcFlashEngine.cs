@@ -169,7 +169,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
 
             double t    = clearingTimeMs / 1000.0;
             double Ibf  = faultKa;
-            double enc  = (enclosureType ?? "VCB").ToUpperInvariant();
+            string enc  = (enclosureType ?? "VCB").ToUpperInvariant();
 
             // Enclosure multiplier applied to the final energy value.
             double enclosureMultiplier = EnclosureEnergyMultiplier(enc);
@@ -227,7 +227,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
 
             double t   = clearingTimeMs / 1000.0;
             double Ibf = faultKa;
-            double enc = (enclosureType ?? "VCB").ToUpperInvariant();
+            string enc = (enclosureType ?? "VCB").ToUpperInvariant();
             double enclosureMultiplier = EnclosureEnergyMultiplier(enc);
             const double E_limit = 1.2; // cal/cm²
 

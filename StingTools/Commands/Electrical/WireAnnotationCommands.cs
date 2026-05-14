@@ -145,9 +145,9 @@ namespace StingTools.Commands.Electrical
                             double currentA = 0;
                             try
                             {
-                                foreach (Autodesk.Revit.DB.Connector c in conduit.get_ConnectorManager().Connectors)
+                                foreach (Autodesk.Revit.DB.Connector c in ((Autodesk.Revit.DB.MEPCurve)conduit).ConnectorManager.Connectors)
                                 {
-                                    foreach (Autodesk.Revit.DB.ConnectorElement cr in c.AllRefs)
+                                    foreach (Autodesk.Revit.DB.Connector cr in c.AllRefs)
                                     {
                                         if (cr.Owner is Autodesk.Revit.DB.Electrical.ElectricalSystem sys)
                                         {
