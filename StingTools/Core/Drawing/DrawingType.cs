@@ -526,6 +526,17 @@ namespace StingTools.Core.Drawing
         [JsonProperty("phaseOverride",         NullValueHandling = NullValueHandling.Ignore)] public string PhaseOverride { get; set; }
         [JsonProperty("required")]  public bool Required { get; set; } = true;
         [JsonProperty("slotIndex")] public int  SlotIndex { get; set; } = -1;
+
+        /// <summary>For Schedule-type rules: the built-in category name or Uniclass code
+        /// that the ViewSchedule should collect (e.g. "Doors", "Rooms", "Mechanical Equipment").
+        /// Leave null for non-schedule rules.</summary>
+        [JsonProperty("scheduleCategory", NullValueHandling = NullValueHandling.Ignore)]
+        public string ScheduleCategory { get; set; }
+
+        /// <summary>For Schedule-type rules: list of field names (parameter names) to
+        /// include as schedule columns, in order. Leave null to use profile defaults.</summary>
+        [JsonProperty("scheduleFields", NullValueHandling = NullValueHandling.Ignore)]
+        public List<string> ScheduleFields { get; set; }
     }
 
     // ─────────────────────────────────────────────────────────────────────

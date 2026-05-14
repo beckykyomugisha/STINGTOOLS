@@ -354,8 +354,81 @@ namespace StingTools.Core.Drawing
                         return ViewDrafting.Create(doc, vft.Id).Id;
 
                     case "Schedule":
-                        result.Warnings.Add("Schedule production rule requires scheduleCategory field — not yet implemented.");
-                        return ElementId.InvalidElementId;
+                    {
+                        var cat = rule.ScheduleCategory;
+                        if (string.IsNullOrWhiteSpace(cat))
+                        {
+                            StingTools.Core.StingLog.Warn($"DrawingProducer: Schedule rule on '{dt.Id}' has no scheduleCategory — skipping.");
+                            result.Warnings.Add($"Schedule rule on '{dt.Id}' has no scheduleCategory — skipping.");
+                            return ElementId.InvalidElementId;
+                        }
+
+                        // Resolve BuiltInCategory from the string name
+                        BuiltInCategory bic = BuiltInCategory.INVALID;
+                        foreach (BuiltInCategory b in Enum.GetValues(typeof(BuiltInCategory)))
+                        {
+                            try
+                            {
+                                var catEl = Category.GetCategory(doc, b);
+                                if (catEl != null && string.Equals(catEl.Name, cat, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    bic = b;
+                                    break;
+                                }
+                            }
+                            catch { }
+                        }
+
+                        if (bic == BuiltInCategory.INVALID)
+                        {
+                            StingTools.Core.StingLog.Warn($"DrawingProducer: scheduleCategory '{cat}' not recognised as a Revit category — skipping schedule creation.");
+                            result.Warnings.Add($"scheduleCategory '{cat}' not recognised — skipping.");
+                            return ElementId.InvalidElementId;
+                        }
+
+                        // Idempotent: find existing schedule with same category and STING stamp
+                        var bicCatId = Category.GetCategory(doc, bic)?.Id;
+                        if (bicCatId == null || bicCatId == ElementId.InvalidElementId)
+                        {
+                            StingTools.Core.StingLog.Warn($"DrawingProducer: could not resolve CategoryId for '{cat}'.");
+                            result.Warnings.Add($"Could not resolve CategoryId for '{cat}'.");
+                            return ElementId.InvalidElementId;
+                        }
+
+                        var existingSched = new FilteredElementCollector(doc)
+                            .OfClass(typeof(ViewSchedule))
+                            .Cast<ViewSchedule>()
+                            .FirstOrDefault(vs =>
+                                vs.Definition?.CategoryId?.Value == bicCatId.Value &&
+                                string.Equals(
+                                    StingTools.Core.ParameterHelpers.GetString(vs, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID),
+                                    dt.Id,
+                                    StringComparison.OrdinalIgnoreCase));
+                        if (existingSched != null)
+                            return existingSched.Id;
+
+                        // Create fresh schedule
+                        var schedule = ViewSchedule.CreateSchedule(doc, bicCatId);
+                        schedule.Name = $"STING - {dt.Name ?? dt.Id}";
+
+                        // Add declared fields if specified
+                        if (rule.ScheduleFields?.Count > 0)
+                        {
+                            var schedDef = schedule.Definition;
+                            var availableFields = schedDef.GetSchedulableFields();
+                            foreach (var fieldName in rule.ScheduleFields)
+                            {
+                                var sf = availableFields.FirstOrDefault(f =>
+                                    string.Equals(f.GetName(doc), fieldName, StringComparison.OrdinalIgnoreCase));
+                                if (sf != null)
+                                    schedDef.AddField(sf);
+                                else
+                                    result.Warnings.Add($"Schedule field '{fieldName}' not found for category '{cat}' — skipped.");
+                            }
+                        }
+
+                        return schedule.Id;
+                    }
 
                     default:
                         result.Warnings.Add($"CreateViewByType: unsupported '{rule.ViewType}'.");

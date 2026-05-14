@@ -389,6 +389,25 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "ARCHITECTURAL"
       }
     },
     {
@@ -544,6 +563,25 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:50",
+        "Discipline Label": "ARCHITECTURAL"
       }
     },
     {
@@ -714,6 +752,25 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "ARCHITECTURAL"
       }
     },
     {
@@ -885,6 +942,25 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:20",
+        "Discipline Label": "ARCHITECTURAL"
       }
     },
     {
@@ -991,7 +1067,26 @@
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
-      "viewStylePackId": "corp-structural-plan"
+      "viewStylePackId": "corp-structural-plan",
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "STRUCTURAL"
+      }
     },
     {
       "id": "struct-section-A1-1to50",
@@ -1098,7 +1193,26 @@
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
-      "viewStylePackId": "corp-structural-plan"
+      "viewStylePackId": "corp-structural-plan",
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:50",
+        "Discipline Label": "STRUCTURAL"
+      }
     },
     {
       "id": "mep-plan-A1-1to100",
@@ -1238,6 +1352,25 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "MECHANICAL"
       }
     },
     {
@@ -1397,6 +1530,25 @@
       },
       "print": {
         "halftoneLinks": true
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:50",
+        "Discipline Label": "MECHANICAL"
       }
     },
     {
@@ -1738,6 +1890,30 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:50",
+        "Discipline Label": "MECHANICAL",
+        "Spool Number": "{spool}",
+        "System Code": "{sys}",
+        "Level": "{lvl}",
+        "FAB Location": "WORKSHOP",
+        "FAB Status": "DRAFT"
       }
     },
     {
@@ -1844,6 +2020,25 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "ELECTRICAL"
       }
     },
     {
@@ -1910,7 +2105,27 @@
       "_apiCaveats": [
         "PanelScheduleSheetInstance.Create has been broken in Revit 2024-2026. STING creates the sheet + applies the title block + stamps the drawing-type id, but the user must drag the PanelScheduleView onto the sheet manually.",
         "The 'PanelSchedule' viewType in the slot is informational; STING tooling does not auto-place panel schedule views into slots."
-      ]
+      ],
+      "viewTemplateName": "",
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:50",
+        "Discipline Label": "ELECTRICAL"
+      }
     },
     {
       "id": "door-schedule-A2",
@@ -1971,6 +2186,26 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "viewTemplateName": "",
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "ARCHITECTURAL"
       }
     },
     {
@@ -2058,6 +2293,25 @@
         "colourScheme": "PresentationRich",
         "lineWeightScale": 0.9,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "{discipline}"
       }
     },
     {
@@ -2119,6 +2373,26 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "viewTemplateName": "STING - Presentation",
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "{discipline}"
       }
     },
     {
@@ -2208,6 +2482,25 @@
         "colourScheme": "PresentationRich",
         "lineWeightScale": 0.9,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:500",
+        "Discipline Label": "ARCHITECTURAL"
       }
     },
     {
@@ -2299,6 +2592,25 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "ARCHITECTURAL"
       }
     },
     {
@@ -2400,6 +2712,25 @@
         "colourScheme": "PresentationRich",
         "lineWeightScale": 0.9,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "ARCHITECTURAL"
       }
     },
     {
@@ -2497,6 +2828,25 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "ARCHITECTURAL"
       }
     },
     {
@@ -2604,6 +2954,25 @@
         "colourScheme": "PresentationRich",
         "lineWeightScale": 0.9,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "ARCHITECTURAL"
       }
     },
     {
@@ -2774,6 +3143,25 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:50",
+        "Discipline Label": "ARCHITECTURAL"
       }
     },
     {
@@ -2835,6 +3223,26 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "viewTemplateName": "",
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "ARCHITECTURAL"
       }
     },
     {
@@ -2940,7 +3348,26 @@
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
-      "viewStylePackId": "corp-structural-plan"
+      "viewStylePackId": "corp-structural-plan",
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "STRUCTURAL"
+      }
     },
     {
       "id": "struct-rebar-detail-A3-1to20",
@@ -3026,7 +3453,26 @@
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
-      "viewStylePackId": "corp-structural-plan"
+      "viewStylePackId": "corp-structural-plan",
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:20",
+        "Discipline Label": "STRUCTURAL"
+      }
     },
     {
       "id": "mep-hvac-duct-A1-1to100",
@@ -3159,6 +3605,25 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "MECHANICAL"
       }
     },
     {
@@ -3304,6 +3769,25 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:50",
+        "Discipline Label": "MECHANICAL"
       }
     },
     {
@@ -3421,6 +3905,25 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "ELECTRICAL"
       }
     },
     {
@@ -3531,6 +4034,25 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "ELECTRICAL"
       }
     },
     {
@@ -3647,6 +4169,25 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "ELECTRICAL"
       }
     },
     {
@@ -3760,6 +4301,25 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "PLUMBING"
       }
     },
     {
@@ -3853,6 +4413,25 @@
       },
       "print": {
         "halftoneLinks": true
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "{discipline}"
       }
     },
     {
@@ -3993,6 +4572,25 @@
       },
       "print": {
         "halftoneLinks": true
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:50",
+        "Discipline Label": "{discipline}"
       }
     },
     {
@@ -4298,6 +4896,25 @@
         "colourScheme": "PresentationRich",
         "halftoneLinks": false,
         "lineWeightScale": 0.7
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "{discipline}"
       }
     },
     {
@@ -4380,6 +4997,25 @@
         "colourScheme": "PresentationMono",
         "halftoneLinks": true,
         "lineWeightScale": 0.9
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "{discipline}"
       }
     },
     {
@@ -4466,6 +5102,25 @@
         "colourScheme": "PresentationRich",
         "halftoneLinks": false,
         "lineWeightScale": 0.7
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "{discipline}"
       }
     },
     {
@@ -4557,6 +5212,25 @@
         "colourScheme": "PresentationRich",
         "halftoneLinks": true,
         "lineWeightScale": 0.8
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:500",
+        "Discipline Label": "{discipline}"
       }
     },
     {
@@ -4645,6 +5319,25 @@
       "print": {
         "colourScheme": "ClarificationRed",
         "lineWeightScale": 1.0
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "{discipline}"
       }
     },
     {
@@ -4738,6 +5431,25 @@
       "print": {
         "colourScheme": "ClarificationRed",
         "lineWeightScale": 1.0
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:50",
+        "Discipline Label": "{discipline}"
       }
     },
     {
@@ -4839,6 +5551,25 @@
         "colourScheme": "PresentationRich",
         "halftoneLinks": false,
         "lineWeightScale": 0.8
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "{discipline}"
       }
     },
     {
@@ -4919,6 +5650,25 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:50",
+        "Discipline Label": "ARCHITECTURAL"
       }
     },
     {
@@ -4997,6 +5747,25 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:50",
+        "Discipline Label": "ARCHITECTURAL"
       }
     },
     {
@@ -5065,6 +5834,25 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "ARCHITECTURAL"
       }
     },
     {
@@ -5138,6 +5926,25 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:50",
+        "Discipline Label": "ARCHITECTURAL"
       }
     },
     {
@@ -5206,6 +6013,25 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:50",
+        "Discipline Label": "ARCHITECTURAL"
       }
     },
     {
@@ -5281,6 +6107,25 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:10",
+        "Discipline Label": "ARCHITECTURAL"
       }
     },
     {
@@ -5361,6 +6206,25 @@
         "colourScheme": "PresentationRich",
         "lineWeightScale": 0.9,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:200",
+        "Discipline Label": "ARCHITECTURAL"
       }
     },
     {
@@ -5436,6 +6300,25 @@
         "colourScheme": "PresentationRich",
         "lineWeightScale": 0.8,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "{discipline}"
       }
     },
     {
@@ -5548,7 +6431,26 @@
           "normW": 0.37,
           "normH": 0.9
         }
-      ]
+      ],
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "{discipline}"
+      }
     },
     {
       "id": "mep-plan-presentation",
@@ -5630,6 +6532,25 @@
         "colourScheme": "PresentationRich",
         "halftoneLinks": true,
         "lineWeightScale": 0.8
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "MECHANICAL"
       }
     },
     {
@@ -5736,6 +6657,25 @@
         "colourScheme": "Monochrome",
         "halftoneLinks": false,
         "lineWeightScale": 1.0
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "MECHANICAL"
       }
     },
     {
@@ -5838,6 +6778,25 @@
         "colourScheme": "Monochrome",
         "halftoneLinks": false,
         "lineWeightScale": 1.1
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:50",
+        "Discipline Label": "MECHANICAL"
       }
     },
     {
@@ -5851,7 +6810,7 @@
       "orientation": "Landscape",
       "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
       "detailLevel": "Coarse",
-      "viewTemplateName": null,
+      "viewTemplateName": "STING - Presentation",
       "viewportTypeName": null,
       "viewStylePackId": "pres-burgund-green",
       "sheetNumberPattern": "PRES-{disc}-{seq:D3}",
@@ -5964,6 +6923,25 @@
         "colourScheme": "PresentationRich",
         "halftoneLinks": true,
         "lineWeightScale": 1.0
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "AS NOTED",
+        "Discipline Label": "{discipline}"
       }
     },
     {
@@ -5978,7 +6956,7 @@
       "orientation": "Landscape",
       "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
       "detailLevel": "Coarse",
-      "viewTemplateName": null,
+      "viewTemplateName": "STING - Presentation",
       "viewportTypeName": null,
       "viewStylePackId": "pres-interior-sage",
       "sheetNumberPattern": "PRES-{disc}-{seq:D3}",
@@ -6091,6 +7069,25 @@
         "colourScheme": "PresentationRich",
         "halftoneLinks": true,
         "lineWeightScale": 1.0
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "AS NOTED",
+        "Discipline Label": "{discipline}"
       }
     },
     {
@@ -6246,6 +7243,26 @@
         "colourScheme": "PresentationRich",
         "halftoneLinks": true,
         "lineWeightScale": 1.0
+      },
+      "viewTemplateName": "STING - Presentation",
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "AS NOTED",
+        "Discipline Label": "{discipline}"
       }
     },
     {
@@ -6377,6 +7394,30 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:50",
+        "Discipline Label": "ELECTRICAL",
+        "Spool Number": "{spool}",
+        "System Code": "{sys}",
+        "Level": "{lvl}",
+        "FAB Location": "WORKSHOP",
+        "FAB Status": "DRAFT"
       }
     },
     {
@@ -6514,6 +7555,25 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:50",
+        "Discipline Label": "ELECTRICAL"
       }
     },
     {
@@ -6526,9 +7586,9 @@
       "paperSize": "A1",
       "orientation": "Portrait",
       "titleBlockFamily": "STING - Healthcare Title Block",
-      "scale": "NA",
+      "scale": 1,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Schedule",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "{disc}-RDS-{lvl}-{seq:D4}",
@@ -6547,7 +7607,25 @@
           "OST_GenericModel": "STING - Generic Tag"
         }
       },
-      "titleBlockParams": {},
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "AS NOTED",
+        "Discipline Label": "HEALTHCARE"
+      },
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
@@ -6612,7 +7690,25 @@
           "OST_GenericModel": "STING - Generic Tag"
         }
       },
-      "titleBlockParams": {},
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:50",
+        "Discipline Label": "HEALTHCARE"
+      },
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
@@ -6632,7 +7728,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 50,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-shielding",
       "sheetNumberPattern": "{disc}-COO-{lvl}-{seq:D3}",
@@ -6651,7 +7747,25 @@
           "OST_GenericModel": "STING - Generic Tag"
         }
       },
-      "titleBlockParams": {},
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:50",
+        "Discipline Label": "HEALTHCARE"
+      },
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
@@ -6716,7 +7830,25 @@
           "OST_GenericModel": "STING - Generic Tag"
         }
       },
-      "titleBlockParams": {},
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "HEALTHCARE"
+      },
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
@@ -6734,9 +7866,9 @@
       "paperSize": "A1",
       "orientation": "Landscape",
       "titleBlockFamily": "STING - Healthcare Title Block",
-      "scale": "NA",
+      "scale": 1,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Schematic",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-mgs",
       "sheetNumberPattern": "MG-SCH-{seq:D3}",
@@ -6755,7 +7887,25 @@
           "OST_GenericModel": "STING - Generic Tag"
         }
       },
-      "titleBlockParams": {},
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "AS NOTED",
+        "Discipline Label": "HEALTHCARE"
+      },
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
@@ -6820,7 +7970,25 @@
           "OST_GenericModel": "STING - Generic Tag"
         }
       },
-      "titleBlockParams": {},
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "HEALTHCARE"
+      },
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
@@ -6838,9 +8006,9 @@
       "paperSize": "A1",
       "orientation": "Portrait",
       "titleBlockFamily": "STING - Healthcare Title Block",
-      "scale": "NA",
+      "scale": 1,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Schematic",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-ees",
       "sheetNumberPattern": "E-EES-{seq:D3}",
@@ -6859,7 +8027,25 @@
           "OST_GenericModel": "STING - Generic Tag"
         }
       },
-      "titleBlockParams": {},
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "AS NOTED",
+        "Discipline Label": "HEALTHCARE"
+      },
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
@@ -6924,7 +8110,25 @@
           "OST_GenericModel": "STING - Generic Tag"
         }
       },
-      "titleBlockParams": {},
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:50",
+        "Discipline Label": "HEALTHCARE"
+      },
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
@@ -6989,7 +8193,25 @@
           "OST_GenericModel": "STING - Generic Tag"
         }
       },
-      "titleBlockParams": {},
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:50",
+        "Discipline Label": "HEALTHCARE"
+      },
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
@@ -7054,7 +8276,25 @@
           "OST_GenericModel": "STING - Generic Tag"
         }
       },
-      "titleBlockParams": {},
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:50",
+        "Discipline Label": "HEALTHCARE"
+      },
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
@@ -7119,7 +8359,25 @@
           "OST_GenericModel": "STING - Generic Tag"
         }
       },
-      "titleBlockParams": {},
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "HEALTHCARE"
+      },
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
@@ -7184,7 +8442,25 @@
           "OST_GenericModel": "STING - Generic Tag"
         }
       },
-      "titleBlockParams": {},
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:50",
+        "Discipline Label": "HEALTHCARE"
+      },
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
@@ -7249,7 +8525,25 @@
           "OST_GenericModel": "STING - Generic Tag"
         }
       },
-      "titleBlockParams": {},
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:50",
+        "Discipline Label": "HEALTHCARE"
+      },
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
@@ -7314,7 +8608,25 @@
           "OST_GenericModel": "STING - Generic Tag"
         }
       },
-      "titleBlockParams": {},
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:50",
+        "Discipline Label": "HEALTHCARE"
+      },
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
@@ -7395,7 +8707,25 @@
           "OST_GenericModel": "STING - Generic Tag"
         }
       },
-      "titleBlockParams": {},
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:20",
+        "Discipline Label": "HEALTHCARE"
+      },
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
@@ -7460,7 +8790,25 @@
           "OST_GenericModel": "STING - Generic Tag"
         }
       },
-      "titleBlockParams": {},
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:20",
+        "Discipline Label": "HEALTHCARE"
+      },
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
@@ -7525,7 +8873,25 @@
           "OST_GenericModel": "STING - Generic Tag"
         }
       },
-      "titleBlockParams": {},
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "HEALTHCARE"
+      },
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
@@ -7590,7 +8956,25 @@
           "OST_GenericModel": "STING - Generic Tag"
         }
       },
-      "titleBlockParams": {},
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "HEALTHCARE"
+      },
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
@@ -7655,7 +9039,25 @@
           "OST_GenericModel": "STING - Generic Tag"
         }
       },
-      "titleBlockParams": {},
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "HEALTHCARE"
+      },
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
@@ -7720,7 +9122,25 @@
           "OST_GenericModel": "STING - Generic Tag"
         }
       },
-      "titleBlockParams": {},
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "HEALTHCARE"
+      },
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
@@ -7785,7 +9205,25 @@
           "OST_GenericModel": "STING - Generic Tag"
         }
       },
-      "titleBlockParams": {},
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "HEALTHCARE"
+      },
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
@@ -7803,9 +9241,9 @@
       "paperSize": "A1",
       "orientation": "Landscape",
       "titleBlockFamily": "STING - Healthcare Title Block",
-      "scale": "NA",
+      "scale": 1,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Schematic",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-shielding",
       "sheetNumberPattern": "RP-NM-{seq:D3}",
@@ -7824,7 +9262,25 @@
           "OST_GenericModel": "STING - Generic Tag"
         }
       },
-      "titleBlockParams": {},
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "AS NOTED",
+        "Discipline Label": "HEALTHCARE"
+      },
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
@@ -7867,6 +9323,25 @@
       "print": {
         "colourScheme": "ByDiscipline",
         "lineWeightScale": 1.0
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "AS NOTED",
+        "Discipline Label": "PLUMBING"
       }
     },
     {
@@ -7904,6 +9379,25 @@
       "print": {
         "colourScheme": "ByDiscipline",
         "lineWeightScale": 1.0
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "AS NOTED",
+        "Discipline Label": "PLUMBING"
       }
     },
     {
@@ -7941,6 +9435,25 @@
       "print": {
         "colourScheme": "ByDiscipline",
         "lineWeightScale": 1.0
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "AS NOTED",
+        "Discipline Label": "PLUMBING"
       }
     },
     {
@@ -7979,6 +9492,25 @@
       "print": {
         "colourScheme": "ByDiscipline",
         "lineWeightScale": 1.0
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "PLUMBING"
       }
     },
     {
@@ -8017,6 +9549,25 @@
       "print": {
         "colourScheme": "ByDiscipline",
         "lineWeightScale": 1.0
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:100",
+        "Discipline Label": "PLUMBING"
       }
     },
     {
@@ -8055,6 +9606,25 @@
       "print": {
         "colourScheme": "ByDiscipline",
         "lineWeightScale": 1.0
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:500",
+        "Discipline Label": "PLUMBING"
       }
     },
     {
@@ -8092,6 +9662,25 @@
       "print": {
         "colourScheme": "ByDiscipline",
         "lineWeightScale": 1.0
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "AS NOTED",
+        "Discipline Label": "PLUMBING"
       }
     },
     {
@@ -8129,6 +9718,25 @@
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "AS NOTED",
+        "Discipline Label": "PLUMBING"
       }
     },
     {
@@ -8167,6 +9775,25 @@
       "print": {
         "colourScheme": "ByDiscipline",
         "lineWeightScale": 1.0
+      },
+      "titleBlockParams": {
+        "Client Name": "${ORG_CLIENT_NAME}",
+        "Project Name": "${PRJ_NAME}",
+        "Project Code": "${ORG_PROJECT_CODE}",
+        "Originator": "${ORG_ORIGINATOR_CODE}",
+        "Company": "${ORG_COMPANY_NAME}",
+        "Address": "${ORG_COMPANY_ADDRESS}",
+        "Phase / Stage": "${ORG_PHASE}",
+        "Drawing Title": "{name}",
+        "Discipline": "{disc}",
+        "Sheet Number": "{seq:D4}",
+        "Revision": "{rev}",
+        "Date": "{date:yyyy-MM-dd}",
+        "Drawn By": "${ORG_ORIGINATOR_CODE}",
+        "Checked By": "",
+        "Approved By": "",
+        "Scale": "1:50",
+        "Discipline Label": "PLUMBING"
       }
     }
   ],
