@@ -280,11 +280,54 @@ namespace StingTools.Core.Routing
         {
             try
             {
+                // Round pipe / conduit — prefer named diameter params.
                 var p = curve.LookupParameter("Diameter")
                      ?? curve.LookupParameter("Outside Diameter")
                      ?? curve.LookupParameter("Nominal Diameter");
                 if (p != null && p.StorageType == StorageType.Double)
-                    return p.AsDouble() * 304.8;
+                {
+                    double v = p.AsDouble() * 304.8;
+                    if (v > 0) return v;
+                }
+
+                // Connector fallback for round pipe/conduit where the
+                // family uses "Radius" instead of "Diameter".
+                var connMgr = curve.ConnectorManager;
+                if (connMgr != null)
+                {
+                    foreach (Connector c in connMgr.Connectors)
+                    {
+                        if (c.Shape == ConnectorProfileType.Round && c.Radius > 0)
+                            return c.Radius * 2.0 * 304.8;
+                    }
+                    // Rectangular duct — return the larger cross-section
+                    // dimension so PEN_OD_MM is never left as "0" for
+                    // rectangular penetrations.
+                    foreach (Connector c in connMgr.Connectors)
+                    {
+                        if (c.Shape == ConnectorProfileType.Rectangular)
+                        {
+                            double w = c.Width  * 304.8;
+                            double h = c.Height * 304.8;
+                            if (w > 0 || h > 0) return Math.Max(w, h);
+                        }
+                        if (c.Shape == ConnectorProfileType.Oval)
+                        {
+                            double w = c.Width  * 304.8;
+                            double h = c.Height * 304.8;
+                            if (w > 0 || h > 0) return Math.Max(w, h);
+                        }
+                    }
+                }
+
+                // Last resort: Width / Height params on rectangular duct family.
+                var wp = curve.LookupParameter("Width")
+                      ?? curve.LookupParameter("Duct Width");
+                var hp = curve.LookupParameter("Height")
+                      ?? curve.LookupParameter("Duct Height");
+                double wv = (wp != null && wp.StorageType == StorageType.Double) ? wp.AsDouble() * 304.8 : 0;
+                double hv = (hp != null && hp.StorageType == StorageType.Double) ? hp.AsDouble() * 304.8 : 0;
+                if (wv > 0 || hv > 0) return Math.Max(wv, hv);
             }
             catch { }
             return 0;
