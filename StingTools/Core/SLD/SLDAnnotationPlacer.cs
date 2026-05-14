@@ -12,6 +12,9 @@
 //         inferred from family name; {unit} derived from Rating content.
 // SLD-09: pole tick marks drawn across branch drop lines.
 // SLD-10: TextNoteType resolved by name ("STING SLD") or closest height.
+//
+// Alignment fix: annotation offset is now symSizeMm/2 + TextHeightMm so
+//   labels always clear the symbol body regardless of standard/font size.
 
 using System;
 using System.Collections.Generic;
@@ -40,6 +43,9 @@ namespace StingTools.Core.SLD
             var rules = SymbolStandardRegistry.GetAnnotationRules(standardId);
             // SLD-10: resolve once
             ElementId tntId = ResolveTextNoteType(doc, rules.TextHeightMm);
+            // Read symbol half-height so annotations clear the symbol body.
+            var std = SymbolStandardRegistry.GetStandard(standardId);
+            double symSizeMm = std?.SymbolSizeMm > 0 ? std.SymbolSizeMm : 8.0;
 
             var stack = new Stack<SLDNode>();
             stack.Push(root);
@@ -48,7 +54,7 @@ namespace StingTools.Core.SLD
                 var node = stack.Pop();
                 if (layout.SymbolPositions.TryGetValue(node.ElementId, out var pos))
                 {
-                    ElementId noteId = PlaceCircuitAnnotation(doc, view, node, pos, rules, tntId);
+                    ElementId noteId = PlaceCircuitAnnotation(doc, view, node, pos, rules, tntId, symSizeMm);
                     if (noteId != ElementId.InvalidElementId
                         && nodeToInstance != null
                         && nodeToInstance.TryGetValue(node.ElementId, out var instanceId))
@@ -66,15 +72,18 @@ namespace StingTools.Core.SLD
         /// was produced.
         /// </summary>
         public static ElementId PlaceCircuitAnnotation(Document doc, ViewDrafting view, SLDNode node,
-            XYZ position, AnnotationRules rules, ElementId textNoteTypeId = default)
+            XYZ position, AnnotationRules rules, ElementId textNoteTypeId = default,
+            double symSizeMm = 8.0)
         {
             try
             {
                 string label = BuildCircuitLabel(node, rules);
                 if (string.IsNullOrWhiteSpace(label)) return ElementId.InvalidElementId;
 
+                // Offset = half symbol height + one text height so the label clears the
+                // symbol body regardless of font size or standard symbol size.
                 XYZ textPos = OffsetForRule(position, rules.LabelPosition,
-                    Mm(rules.TextHeightMm * 1.5));
+                    Mm(symSizeMm / 2.0 + rules.TextHeightMm));
 
                 // SLD-10: use provided / resolved type, or fall back to first available
                 ElementId tntId = textNoteTypeId == default || textNoteTypeId == ElementId.InvalidElementId

@@ -10,6 +10,10 @@
 //         a new column starts so deep trees don't overflow the sheet.
 // SLD-06: busbar width computed from actual child symbol positions rather
 //         than a formula that ignores the true column extent.
+//
+// Alignment fix: busbar Y = pos.Y - symHalf (parent bottom edge / output
+//   connector). Branch lines now terminate at childPos.Y + symHalf (top
+//   of child symbol / input connector) so lines do not pierce symbol bodies.
 
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
@@ -40,7 +44,6 @@ namespace StingTools.Core.SLD
         // SLD-04 fallback values used when the standard has no settings.
         private const double DefaultSymbolSizeMm  = 8.0;
         private const double DefaultSpacingRatio  = 0.625; // spacingMm = sizeMm × ratio
-        private const double DefaultBusbarOffMm   = 4.0;
         private const double DefaultLevelOffMm    = 40.0;
         // SLD-05: maximum column height before wrapping to a new column.
         private const double MaxColumnHeightMm    = 500.0;
@@ -57,7 +60,7 @@ namespace StingTools.Core.SLD
             var std = SymbolStandardRegistry.GetStandard(standardId);
             double symSizeMm    = std?.SymbolSizeMm > 0 ? std.SymbolSizeMm : DefaultSymbolSizeMm;
             double spacingMm    = symSizeMm * DefaultSpacingRatio;
-            double busOff       = Mm(DefaultBusbarOffMm);
+            double symHalf      = Mm(symSizeMm / 2.0); // half-height of symbol in feet
             double levelDx      = Mm(DefaultLevelOffMm);
             double dy           = Mm(symSizeMm + spacingMm);
             double maxColHeight = Mm(MaxColumnHeightMm);
@@ -82,7 +85,10 @@ namespace StingTools.Core.SLD
 
                 if (node.IsPanel && node.Children.Count > 0)
                 {
-                    double busY = pos.Y - busOff;
+                    // Busbar hangs at the bottom edge of the parent symbol — power exits downward.
+                    // symHalf = half the symbol height so busbar aligns exactly with the
+                    // parent's output connector rather than an arbitrary offset.
+                    double busY = pos.Y - symHalf;
 
                     // SLD-06: place children first so their actual positions
                     // are available when computing busbar extent.
@@ -109,9 +115,13 @@ namespace StingTools.Core.SLD
                     {
                         if (layout.SymbolPositions.TryGetValue(child.ElementId, out var childPos))
                         {
-                            layout.BranchLines.Add((new XYZ(childPos.X, busY, 0), childPos));
+                            // Branch from busbar down to the TOP of the child symbol — not the
+                            // centre — so the line terminates at the input connector and does not
+                            // pierce through the symbol body.
+                            var childTop = new XYZ(childPos.X, childPos.Y + symHalf, 0);
+                            layout.BranchLines.Add((new XYZ(childPos.X, busY, 0), childTop));
                             layout.BranchLinesWithPoles.Add(
-                                (new XYZ(childPos.X, busY, 0), childPos, child.Poles));
+                                (new XYZ(childPos.X, busY, 0), childTop, child.Poles));
                         }
                     }
                 }
