@@ -255,7 +255,7 @@ namespace StingTools.Commands.Drawing
             try
             {
                 var result = TitleBlockRevisionSyncer.SyncAll(doc);
-                stats.RevisionsUpdated = result.SheetsUpdated;
+                stats.RevisionsUpdated = result.SheetsProcessed;
                 stats.Warnings.AddRange(result.Warnings.Select(w => $"[RevSync] {w}"));
             }
             catch (Exception ex)

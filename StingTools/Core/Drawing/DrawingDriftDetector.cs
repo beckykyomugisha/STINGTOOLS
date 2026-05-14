@@ -523,26 +523,9 @@ namespace StingTools.Core.Drawing
                         continue;
                     }
 
-                    // Compare against the profile-computed hash when we can derive one.
-                    // TitleBlockSpec.ComputeHash does not exist in the current codebase
-                    // (TitleBlockSpec is a POCO loader, not a hash factory). Guard the
-                    // comparison so we only flag it when the library provides the method.
-                    // If a future phase adds TitleBlockSpecRegistry.ComputeHash(dt) this
-                    // block will light up automatically.
-                    try
-                    {
-                        string expectedHash = TitleBlockSpecRegistry.ComputeHash(dt?.TitleBlockFamily);
-                        if (!string.IsNullOrEmpty(expectedHash)
-                            && !string.Equals(liveHash, expectedHash, StringComparison.Ordinal))
-                        {
-                            report.Drifts.Add(
-                                $"TITLEBLOCK_SPEC: spec hash mismatch — title block may have been re-authored");
-                        }
-                    }
-                    catch
-                    {
-                        // ComputeHash not available in this version — skip hash comparison.
-                    }
+                    // Hash-vs-expected comparison deferred: TitleBlockSpecRegistry does not
+                    // yet expose a ComputeHash factory.  The stamped hash is still written
+                    // (above) so a future phase can compare without a data migration.
                 }
             }
             catch (Exception ex)
