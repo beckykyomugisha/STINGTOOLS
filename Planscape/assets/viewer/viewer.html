@@ -754,14 +754,32 @@
     // dragging up on the canvas orbits sideways instead of overhead.
     const ax = Math.abs(size.x), ay = Math.abs(size.y), az = Math.abs(size.z);
     if (az <= ax && az <= ay) {
+      // Z-up model (Revit). Place camera perpendicular to the longest
+      // horizontal axis so that axis fills the screen width.
       camera.up.set(0, 0, 1);
-      camera.position.copy(centre).add(new THREE.Vector3(dist, dist, dist * 0.8));
+      if (ax >= ay) {
+        // Long axis is X → view from south (Y-) so X reads left-right.
+        camera.position.copy(centre).add(new THREE.Vector3(0, -dist * 0.8, dist * 0.6));
+      } else {
+        // Long axis is Y → view from west (X-) so Y reads left-right.
+        camera.position.copy(centre).add(new THREE.Vector3(-dist * 0.8, 0, dist * 0.6));
+      }
     } else if (ay <= ax && ay <= az) {
+      // Y-up model. Same logic for horizontal axes X and Z.
       camera.up.set(0, 1, 0);
-      camera.position.copy(centre).add(new THREE.Vector3(dist, dist * 0.8, dist));
+      if (ax >= az) {
+        camera.position.copy(centre).add(new THREE.Vector3(0, dist * 0.6, -dist * 0.8));
+      } else {
+        camera.position.copy(centre).add(new THREE.Vector3(-dist * 0.8, dist * 0.6, 0));
+      }
     } else {
+      // X-up model. Horizontal axes are Y and Z.
       camera.up.set(1, 0, 0);
-      camera.position.copy(centre).add(new THREE.Vector3(dist * 0.8, dist, dist));
+      if (ay >= az) {
+        camera.position.copy(centre).add(new THREE.Vector3(dist * 0.6, 0, -dist * 0.8));
+      } else {
+        camera.position.copy(centre).add(new THREE.Vector3(dist * 0.6, -dist * 0.8, 0));
+      }
     }
     controls.target.copy(centre);
     controls.update();

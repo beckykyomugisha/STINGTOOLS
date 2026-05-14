@@ -92,21 +92,27 @@
       const upAxis = pickUpAxis(sz);
       h.camera.up.set(upAxis.x, upAxis.y, upAxis.z);
       const eye = eyeFromBounds(h.modelBounds);
-      const c = h.modelBounds.getCenter(new THREE.Vector3());
-      // Position camera at floor + eye height along the chosen up axis.
+      // Keep the current camera's horizontal position; only snap the
+      // vertical component to floor + eye height so walk starts from
+      // wherever the user was looking, not at the bounding box centre.
       const floor = upAxis.x ? h.modelBounds.min.x
                   : upAxis.y ? h.modelBounds.min.y
                              : h.modelBounds.min.z;
-      const pos = c.clone();
+      const pos = h.camera.position.clone();
       if (upAxis.x) pos.x = floor + eye;
       else if (upAxis.y) pos.y = floor + eye;
       else pos.z = floor + eye;
       h.camera.position.copy(pos);
-      // Look towards a point one metre forward along an axis perpendicular
-      // to the up axis so the view starts roughly horizontal.
-      const lookAt = pos.clone();
-      if (upAxis.x) lookAt.y += 1; else lookAt.x += 1;
-      h.camera.lookAt(lookAt);
+      // Flatten the current look direction onto the floor plane so the
+      // initial walk view is horizontal but keeps the same heading.
+      const fwd = new THREE.Vector3();
+      h.camera.getWorldDirection(fwd);
+      const dot = fwd.dot(upAxis);
+      fwd.addScaledVector(upAxis, -dot);
+      if (fwd.lengthSq() > 0.01) {
+        fwd.normalize();
+        h.camera.lookAt(pos.clone().add(fwd));
+      }
       walkUp = upAxis;
       // Expose the active up-axis so coordination-viewer's scroll handler
       // can project forward movement onto the floor plane, matching WASD.
