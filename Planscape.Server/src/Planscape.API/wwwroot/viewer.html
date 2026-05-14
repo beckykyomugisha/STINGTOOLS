@@ -5,78 +5,103 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Planscape — model viewer</title>
 <style>
-  *, *::before, *::after { box-sizing: border-box; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
   html, body {
-    margin: 0; padding: 0; height: 100%; overflow: hidden;
-    background: #1a1a1a; color: #fff;
+    height: 100%; overflow: hidden;
+    background: #111; color: #fff;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  }
-  canvas { display: block; }
-
-  /* ── Status bar (top-left) ── */
-  #status {
-    position: absolute; top: 8px; left: 8px; z-index: 20;
-    font-size: 12px; background: rgba(0,0,0,.65);
-    padding: 4px 10px; border-radius: 4px; pointer-events: none;
-    white-space: nowrap; max-width: 60vw; overflow: hidden; text-overflow: ellipsis;
+    /* flex column: toolbar on top, canvas fills rest */
+    display: flex; flex-direction: column;
   }
 
-  /* ── Nav toolbar (top-right) ── */
+  /* ── Toolbar — full-width header, never overlaps canvas ── */
   #toolbar {
-    position: absolute; top: 8px; right: 8px; z-index: 20;
-    display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end;
+    flex: 0 0 auto;
+    display: flex; align-items: center; gap: 6px;
+    padding: 0 10px;
+    height: 40px;
+    background: #1e1e2a;
+    border-bottom: 1px solid #333;
+    overflow-x: auto; white-space: nowrap;
   }
-  .nav-btn {
-    background: rgba(30,30,40,.85); border: 1px solid rgba(255,255,255,.18);
-    color: #ddd; font-size: 12px; padding: 5px 10px; border-radius: 5px;
-    cursor: pointer; user-select: none; transition: background .15s, color .15s;
-    white-space: nowrap;
+  #toolbar .sep { width: 1px; height: 22px; background: #444; flex-shrink: 0; }
+  #status-inline {
+    flex: 1 1 auto; font-size: 12px; color: #999;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    min-width: 0;
   }
-  .nav-btn:hover { background: rgba(70,120,200,.7); color: #fff; }
-  .nav-btn.active { background: rgba(60,130,220,.85); color: #fff; border-color: rgba(100,160,255,.6); }
 
-  /* ── Level selector (second row, hidden until levels found) ── */
+  .nav-btn {
+    flex-shrink: 0;
+    background: transparent;
+    border: 1px solid #444; border-radius: 4px;
+    color: #ccc; font-size: 12px; padding: 4px 10px;
+    cursor: pointer; user-select: none;
+    transition: background .12s, color .12s, border-color .12s;
+  }
+  .nav-btn:hover  { background: #2a3a60; border-color: #5580cc; color: #fff; }
+  .nav-btn.active { background: #1e4a9e; border-color: #6699ff; color: #fff; }
+
+  /* ── Level selector row (hidden until levels found) ── */
   #levelBar {
-    position: absolute; top: 44px; right: 8px; z-index: 20;
-    display: none; gap: 4px; flex-wrap: wrap; justify-content: flex-end;
+    flex: 0 0 auto;
+    display: none; gap: 4px; padding: 4px 10px;
+    background: #181f18; border-bottom: 1px solid #2a3a2a;
+    overflow-x: auto; white-space: nowrap;
   }
   .lvl-btn {
-    background: rgba(30,50,30,.85); border: 1px solid rgba(100,200,100,.3);
-    color: #8f8; font-size: 11px; padding: 3px 8px; border-radius: 4px;
-    cursor: pointer; user-select: none; transition: background .15s;
-    white-space: nowrap;
+    flex-shrink: 0;
+    background: transparent; border: 1px solid #2a4a2a;
+    border-radius: 4px; color: #7c7; font-size: 11px; padding: 3px 8px;
+    cursor: pointer; user-select: none;
   }
-  .lvl-btn:hover { background: rgba(50,120,50,.8); color: #fff; }
-  .lvl-btn.active { background: rgba(40,160,40,.8); color: #fff; }
+  .lvl-btn:hover  { background: #1a401a; color: #afa; }
+  .lvl-btn.active { background: #154a15; border-color: #4a8a4a; color: #cfc; }
 
-  /* ── Section slider (bottom, hidden by default) ── */
+  /* ── Canvas wrapper fills remaining space ── */
+  #canvasWrap {
+    flex: 1 1 auto; position: relative; overflow: hidden;
+  }
+  #canvasWrap canvas { display: block; width: 100% !important; height: 100% !important; }
+
+  /* ── Section slider (bottom-centre, inside canvas wrap) ── */
   #sectionBar {
-    position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
-    z-index: 20; display: none; align-items: center; gap: 8px;
-    background: rgba(0,0,0,.7); padding: 6px 14px; border-radius: 8px;
+    display: none; position: absolute; bottom: 12px; left: 50%;
+    transform: translateX(-50%); z-index: 5;
+    align-items: center; gap: 8px;
+    background: rgba(0,0,0,.75); padding: 6px 14px; border-radius: 8px;
   }
   #sectionBar label { font-size: 12px; color: #aaa; }
   #sectionSlider { width: 160px; }
 </style>
 </head>
 <body>
-<div id="status">Loading…</div>
 
+<!-- ── Toolbar ─────────────────────────────────────────────────────── -->
 <div id="toolbar">
-  <button class="nav-btn active" data-mode="orbit" title="Orbit — drag to rotate">◯ Orbit</button>
-  <button class="nav-btn"       data-mode="pan"   title="Pan — drag to translate">↖ Pan</button>
-  <button class="nav-btn"       data-mode="fit"   title="Fit model to screen (F)">⌖ Fit</button>
-  <button class="nav-btn"       data-mode="home"  title="Reset to opening view">⌂ Home</button>
-  <button class="nav-btn"       data-mode="level" title="Level the camera horizon">— Level</button>
-  <button class="nav-btn"       data-mode="top"   title="Top-down view">⬇ Top</button>
-  <button class="nav-btn"       data-mode="section" title="Toggle horizontal section cut">✂ Section</button>
+  <button class="nav-btn active" data-mode="orbit" title="Orbit (drag to rotate)">◯ Orbit</button>
+  <button class="nav-btn"       data-mode="pan"   title="Pan (drag to translate)">↖ Pan</button>
+  <div class="sep"></div>
+  <button class="nav-btn"       data-mode="fit"   title="Fit model — F">⌖ Fit</button>
+  <button class="nav-btn"       data-mode="home"  title="Home view — H">⌂ Home</button>
+  <button class="nav-btn"       data-mode="top"   title="Top-down — T">⬇ Top</button>
+  <button class="nav-btn"       data-mode="level" title="Level horizon — L">— Level</button>
+  <div class="sep"></div>
+  <button class="nav-btn"       data-mode="section" title="Section cut toggle">✂ Section</button>
+  <div class="sep"></div>
+  <span id="status-inline">Loading…</span>
 </div>
 
+<!-- ── Level buttons (shown when storeys found in model) ── -->
 <div id="levelBar"></div>
 
-<div id="sectionBar">
-  <label>Section height</label>
-  <input id="sectionSlider" type="range" min="0" max="100" value="100" />
+<!-- ── Three.js canvas lives here ── -->
+<div id="canvasWrap">
+  <div id="sectionBar">
+    <label>Height</label>
+    <input id="sectionSlider" type="range" min="0" max="100" value="100" />
+  </div>
 </div>
 
 <script type="importmap">
@@ -95,60 +120,105 @@ import { GLTFLoader }    from "three/addons/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { DRACOLoader }   from "three/addons/loaders/DRACOLoader.js";
 
-// ── URL params ──────────────────────────────────────────────────────────
+// ── URL params ──────────────────────────────────────────────────────────────
 const params    = new URLSearchParams(location.search);
 const projectId = params.get("project");
 const modelId   = params.get("model");
 const token     = localStorage.getItem("planscape_token");
+const statusEl  = document.getElementById("status-inline");
+const setStatus = s => { statusEl.textContent = s; };
 
-// ── DOM helpers ─────────────────────────────────────────────────────────
-const statusEl   = document.getElementById("status");
-const levelBar   = document.getElementById("levelBar");
-const sectionBar = document.getElementById("sectionBar");
-const slider     = document.getElementById("sectionSlider");
-const setStatus  = s => { statusEl.textContent = s; };
+if (!projectId || !modelId) { setStatus("Missing project / model id."); throw 0; }
 
-if (!projectId || !modelId) { setStatus("Missing project / model id."); throw new Error(); }
+// ── Scene setup ─────────────────────────────────────────────────────────────
+const wrap = document.getElementById("canvasWrap");
 
-// ── Scene setup ─────────────────────────────────────────────────────────
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x1a1a1a);
+scene.background = new THREE.Color(0x141418);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x334466, 0.85));
+const sun = new THREE.DirectionalLight(0xfff4e0, 0.75);
+sun.position.set(1, 2, 1.5); scene.add(sun);
 
-const hemi = new THREE.HemisphereLight(0xffffff, 0x334455, 0.9);
-scene.add(hemi);
-const sun = new THREE.DirectionalLight(0xfff8ee, 0.7);
-sun.position.set(1, 2, 1.5);
-scene.add(sun);
-
-const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.01, 50000);
-camera.position.set(30, 30, 30);
+const camera = new THREE.PerspectiveCamera(50, wrap.clientWidth / wrap.clientHeight, 0.01, 50000);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setSize(innerWidth, innerHeight);
-document.body.appendChild(renderer.domElement);
+renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+wrap.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.08;
+controls.enableDamping = true; controls.dampingFactor = 0.08;
 
-window.addEventListener("resize", () => {
-  camera.aspect = innerWidth / innerHeight;
+new ResizeObserver(() => {
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  camera.aspect = w / h;
   camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
+  renderer.setSize(w, h);
+}).observe(wrap);
+
+// ── Section plane ────────────────────────────────────────────────────────────
+const clipPlane   = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0);
+let sectionActive = false;
+let secMin = 0, secMax = 1;
+const sectionBar = document.getElementById("sectionBar");
+const slider     = document.getElementById("sectionSlider");
+slider.addEventListener("input", () => {
+  const h = secMin + (secMax - secMin) * (+slider.value / 100);
+  clipPlane.constant = h;
 });
 
-// ── Section plane ────────────────────────────────────────────────────────
-const clipPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0);
-let sectionActive = false;
-let modelMinZ = 0, modelMaxZ = 0;
+// ── Model state ──────────────────────────────────────────────────────────────
+let modelGroup = null, modelBounds = new THREE.Box3();
+let homePos, homeTarget, homeUp;
+let isZUp = true;
 
-// ── Model state ───────────────────────────────────────────────────────────
-let modelGroup = null;
-let modelBounds = new THREE.Box3();
-let homePos = null, homeTarget = null, homeUp = null;
+// ── PCA — find the real long axis of the model footprint ─────────────────────
+// Samples up to 40k vertices and computes the covariance matrix on the
+// horizontal plane so fitCamera() can orient the camera perpendicular to
+// the building's actual long axis, regardless of how the GLB is rotated.
+function computeGroundPrincipalAxis(group, zUp) {
+  const MAX = 40000;
+  let total = 0;
+  group.traverse(n => { if (n.isMesh) total += n.geometry.attributes.position.count; });
+  const step = Math.max(1, Math.floor(total / MAX));
 
-// ── fitCamera — smart axis detection ─────────────────────────────────────
+  let xs = [], ys = [];
+  const tmp = new THREE.Vector3();
+  group.traverse(n => {
+    if (!n.isMesh) return;
+    const pos = n.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i += step) {
+      tmp.fromBufferAttribute(pos, i).applyMatrix4(n.matrixWorld);
+      xs.push(tmp.x);
+      ys.push(zUp ? tmp.y : tmp.z);
+    }
+  });
+
+  const N = xs.length;
+  if (N < 4) return null;
+
+  let mx = 0, my = 0;
+  for (let i = 0; i < N; i++) { mx += xs[i]; my += ys[i]; }
+  mx /= N; my /= N;
+
+  let cxx = 0, cxy = 0, cyy = 0;
+  for (let i = 0; i < N; i++) {
+    const dx = xs[i] - mx, dy = ys[i] - my;
+    cxx += dx * dx; cxy += dx * dy; cyy += dy * dy;
+  }
+  cxx /= N; cxy /= N; cyy /= N;
+
+  // Dominant eigenvector of 2×2 symmetric covariance matrix.
+  const disc = Math.sqrt(Math.max(0, ((cxx - cyy) * (cxx - cyy)) / 4 + cxy * cxy));
+  const lam1 = (cxx + cyy) / 2 + disc;
+  let ex, ey;
+  if (Math.abs(cxy) > 1e-12) { ex = lam1 - cyy; ey = cxy; }
+  else { ex = cxx >= cyy ? 1 : 0; ey = cxx >= cyy ? 0 : 1; }
+  const L = Math.sqrt(ex * ex + ey * ey);
+  return { x: ex / L, y: ey / L }; // unit vector along long axis
+}
+
+// ── fitCamera ────────────────────────────────────────────────────────────────
 function fitCamera() {
   if (!modelGroup || modelBounds.isEmpty()) return;
   const size   = modelBounds.getSize(new THREE.Vector3());
@@ -157,34 +227,31 @@ function fitCamera() {
   const dist   = maxDim * 1.8;
 
   const ax = size.x, ay = size.y, az = size.z;
+  isZUp = az <= ax && az <= ay; // shortest axis = up axis
 
-  if (az <= ax && az <= ay) {
-    // Z-up (Revit native export). Place eye so the long horizontal axis
-    // reads left-right across the screen.
+  if (isZUp) {
     camera.up.set(0, 0, 1);
-    if (ax >= ay) {
-      // Long axis is X → look from south so X fills screen width.
-      camera.position.copy(centre).add(new THREE.Vector3(0, -dist * 0.8, dist * 0.6));
-    } else {
-      // Long axis is Y → look from west so Y fills screen width.
-      camera.position.copy(centre).add(new THREE.Vector3(-dist * 0.8, 0, dist * 0.6));
-    }
+    // PCA gives long-axis direction in XY plane.
+    const pca = computeGroundPrincipalAxis(modelGroup, false /* X,Y coords */);
+    // Camera looks from the minor-axis direction (perpendicular to long axis).
+    const px = pca ? -pca.y : (ax >= ay ? 0 : -1);
+    const py = pca ?  pca.x : (ax >= ay ? -1 : 0);
+    camera.position.copy(centre).add(
+      new THREE.Vector3(px * dist * 0.85, py * dist * 0.85, dist * 0.55));
   } else if (ay <= ax && ay <= az) {
-    // Y-up (glTF spec).
+    // Y-up
     camera.up.set(0, 1, 0);
-    if (ax >= az) {
-      camera.position.copy(centre).add(new THREE.Vector3(0, dist * 0.6, -dist * 0.8));
-    } else {
-      camera.position.copy(centre).add(new THREE.Vector3(-dist * 0.8, dist * 0.6, 0));
-    }
+    const pca = computeGroundPrincipalAxis(modelGroup, true /* X,Z coords */);
+    const px = pca ? -pca.y : (ax >= az ? 0 : -1);
+    const pz = pca ?  pca.x : (ax >= az ? -1 : 0);
+    camera.position.copy(centre).add(
+      new THREE.Vector3(px * dist * 0.85, dist * 0.55, pz * dist * 0.85));
   } else {
-    // X-up (uncommon).
+    // X-up (rare)
     camera.up.set(1, 0, 0);
-    if (ay >= az) {
-      camera.position.copy(centre).add(new THREE.Vector3(dist * 0.6, 0, -dist * 0.8));
-    } else {
-      camera.position.copy(centre).add(new THREE.Vector3(dist * 0.6, -dist * 0.8, 0));
-    }
+    camera.position.copy(centre).add(
+      new THREE.Vector3(dist * 0.55, ay >= az ? 0 : -dist * 0.85,
+                        ay >= az ? -dist * 0.85 : 0));
   }
 
   controls.target.copy(centre);
@@ -194,91 +261,43 @@ function fitCamera() {
   controls.update();
 }
 
-// ── levelCamera — snap horizon ───────────────────────────────────────────
+// ── Other camera helpers ─────────────────────────────────────────────────────
+function homeCamera() {
+  if (homePos) {
+    camera.position.copy(homePos); camera.up.copy(homeUp);
+    controls.target.copy(homeTarget); controls.update();
+  } else fitCamera();
+}
+
 function levelCamera() {
-  // Find the dominant up axis from camera.up, then straighten it.
-  const up = camera.up.clone();
-  const absX = Math.abs(up.x), absY = Math.abs(up.y), absZ = Math.abs(up.z);
-  if (absZ >= absX && absZ >= absY) camera.up.set(0, 0, up.z > 0 ? 1 : -1);
-  else if (absY >= absX)            camera.up.set(0, up.y > 0 ? 1 : -1, 0);
-  else                              camera.up.set(up.x > 0 ? 1 : -1, 0, 0);
+  const u = camera.up;
+  const ax = Math.abs(u.x), ay = Math.abs(u.y), az = Math.abs(u.z);
+  if (az >= ax && az >= ay) camera.up.set(0, 0, u.z > 0 ? 1 : -1);
+  else if (ay >= ax)         camera.up.set(0, u.y > 0 ? 1 : -1, 0);
+  else                       camera.up.set(u.x > 0 ? 1 : -1, 0, 0);
   controls.update();
 }
 
-// ── top-down view ─────────────────────────────────────────────────────────
-function topView() {
+function topCamera() {
   if (!modelGroup || modelBounds.isEmpty()) return;
   const centre = modelBounds.getCenter(new THREE.Vector3());
   const size   = modelBounds.getSize(new THREE.Vector3());
-  const maxDim = Math.max(size.x, size.y, size.z) || 1;
-  camera.up.set(0, 1, 0);
-  camera.position.copy(centre).add(new THREE.Vector3(0, maxDim * 2.5, 0));
-  controls.target.copy(centre);
-  controls.update();
+  const d = Math.max(size.x, size.y, size.z) * 2.2;
+  const up = isZUp ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0);
+  camera.up.copy(up);
+  const eye = isZUp
+    ? centre.clone().add(new THREE.Vector3(0, 0, d))
+    : centre.clone().add(new THREE.Vector3(0, d, 0));
+  camera.position.copy(eye);
+  controls.target.copy(centre); controls.update();
 }
 
-// ── section plane helpers ─────────────────────────────────────────────────
-function applySectionPlane(pct) {
-  const h = modelMinZ + (modelMaxZ - modelMinZ) * (pct / 100);
-  clipPlane.constant = h;
-}
-function enableSection(on) {
-  sectionActive = on;
-  renderer.clippingPlanes = on ? [clipPlane] : [];
-  sectionBar.style.display = on ? 'flex' : 'none';
-  if (on) applySectionPlane(+slider.value);
-}
-slider.addEventListener("input", () => applySectionPlane(+slider.value));
-
-// ── level buttons ─────────────────────────────────────────────────────────
-function buildLevelButtons(gltf) {
-  // Gather all nodes whose name looks like a floor/storey.
-  const lvlRx = /storey|floor|level|étage|piso|ebene|verdieping/i;
-  const levels = [];
-  gltf.scene.traverse(n => {
-    if (lvlRx.test(n.name) && n.name.length < 60) {
-      const b = new THREE.Box3().setFromObject(n);
-      if (!b.isEmpty()) levels.push({ name: n.name, box: b });
-    }
-  });
-  if (levels.length === 0) return;
-
-  levels.sort((a, b) => a.box.min.z - b.box.min.z);
-  levels.forEach(lvl => {
-    const btn = document.createElement("button");
-    btn.className = "lvl-btn";
-    btn.textContent = lvl.name.replace(/^.*?(storey|floor|level|étage|piso|ebene|verdieping)\s*/i, '').trim() || lvl.name;
-    btn.title = lvl.name;
-    btn.addEventListener("click", () => {
-      document.querySelectorAll(".lvl-btn").forEach(b => b.classList.remove("active"));
-      btn.classList.add("active");
-      // Isolate by cutting section to top of this level's bbox.
-      const top = lvl.box.max.z;
-      const pct = ((top - modelMinZ) / (modelMaxZ - modelMinZ)) * 100;
-      enableSection(true);
-      slider.value = Math.round(pct);
-      applySectionPlane(+slider.value);
-      document.querySelector('.nav-btn[data-mode="section"]').classList.add("active");
-      // Fit to that level.
-      const c = lvl.box.getCenter(new THREE.Vector3());
-      const s = lvl.box.getSize(new THREE.Vector3());
-      const d = Math.max(s.x, s.y, s.z) * 1.6;
-      camera.position.copy(c).add(new THREE.Vector3(0, -d * 0.8, d * 0.6));
-      controls.target.copy(c);
-      controls.update();
-    });
-    levelBar.appendChild(btn);
-  });
-  levelBar.style.display = "flex";
-}
-
-// ── Toolbar button handling ───────────────────────────────────────────────
+// ── Toolbar ──────────────────────────────────────────────────────────────────
 document.getElementById("toolbar").addEventListener("click", e => {
   const btn = e.target.closest(".nav-btn");
   if (!btn) return;
   const mode = btn.dataset.mode;
 
-  // Toggle active highlight (except section which is a toggle)
   if (mode !== "section") {
     document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
@@ -286,75 +305,93 @@ document.getElementById("toolbar").addEventListener("click", e => {
 
   switch (mode) {
     case "orbit":
-      controls.mouseButtons = {
-        LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN
-      };
+      controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
       break;
     case "pan":
-      controls.mouseButtons = {
-        LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE
-      };
+      controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
       break;
-    case "fit":
-      fitCamera();
-      break;
-    case "home":
-      if (homePos) {
-        camera.position.copy(homePos);
-        camera.up.copy(homeUp);
-        controls.target.copy(homeTarget);
-        controls.update();
-      } else {
-        fitCamera();
-      }
-      break;
-    case "level":
-      levelCamera();
-      break;
-    case "top":
-      topView();
-      break;
+    case "fit":   fitCamera();   break;
+    case "home":  homeCamera();  break;
+    case "level": levelCamera(); break;
+    case "top":   topCamera();   break;
     case "section":
       btn.classList.toggle("active");
-      enableSection(!sectionActive);
+      sectionActive = !sectionActive;
+      renderer.clippingPlanes = sectionActive ? [clipPlane] : [];
+      sectionBar.style.display = sectionActive ? "flex" : "none";
+      if (sectionActive) {
+        const h = secMin + (secMax - secMin) * (+slider.value / 100);
+        clipPlane.constant = h;
+      }
       break;
   }
 });
 
-// ── Keyboard shortcuts ────────────────────────────────────────────────────
 window.addEventListener("keydown", e => {
   if (e.target.tagName === "INPUT") return;
-  if (e.key === "f" || e.key === "F") fitCamera();
-  if (e.key === "h" || e.key === "H") document.querySelector('[data-mode="home"]').click();
-  if (e.key === "l" || e.key === "L") levelCamera();
-  if (e.key === "t" || e.key === "T") topView();
+  ({ f: ()=>fitCamera(), h: ()=>homeCamera(), l: ()=>levelCamera(), t: ()=>topCamera() }
+  [e.key.toLowerCase()]?.());
 });
 
-// ── Render loop ───────────────────────────────────────────────────────────
-(function animate() {
-  requestAnimationFrame(animate);
-  controls.update();
-  renderer.render(scene, camera);
-})();
+// ── Level nav from scene nodes ────────────────────────────────────────────────
+function buildLevelButtons(gltf) {
+  const rx = /storey|floor|level|étage|piso|ebene/i;
+  const levels = [];
+  gltf.scene.traverse(n => {
+    if (rx.test(n.name) && n.name.length < 60) {
+      const b = new THREE.Box3().setFromObject(n);
+      if (!b.isEmpty()) levels.push({ name: n.name, box: b });
+    }
+  });
+  if (!levels.length) return;
+  levels.sort((a, b) => a.box.min.z - b.box.min.z);
+  const bar = document.getElementById("levelBar");
+  levels.forEach(lvl => {
+    const btn = document.createElement("button");
+    btn.className = "lvl-btn";
+    btn.textContent = lvl.name.replace(/^.*?(?:storey|floor|level)\s*/i, '') || lvl.name;
+    btn.title = lvl.name;
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".lvl-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      const top = lvl.box.max.z;
+      const pct = Math.round(((top - secMin) / (secMax - secMin)) * 100);
+      sectionActive = true;
+      renderer.clippingPlanes = [clipPlane];
+      sectionBar.style.display = "flex";
+      document.querySelector('[data-mode="section"]').classList.add("active");
+      slider.value = pct; clipPlane.constant = top;
+      const c = lvl.box.getCenter(new THREE.Vector3());
+      const s = lvl.box.getSize(new THREE.Vector3());
+      const d = Math.max(s.x, s.y, s.z) * 1.5;
+      camera.position.copy(c).add(new THREE.Vector3(0, -d * 0.8, d * 0.6));
+      controls.target.copy(c); controls.update();
+    });
+    bar.appendChild(btn);
+  });
+  bar.style.display = "flex";
+}
 
-// ── Load model ────────────────────────────────────────────────────────────
-setStatus("Fetching metadata…");
+// ── Render loop ───────────────────────────────────────────────────────────────
+(function loop() { requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); })();
+
+// ── Fetch metadata ────────────────────────────────────────────────────────────
+setStatus("Connecting…");
 let meta;
 try {
-  const res = await fetch(`/api/projects/${projectId}/models/${modelId}`,
+  const r = await fetch(`/api/projects/${projectId}/models/${modelId}`,
     { headers: { Authorization: "Bearer " + token } });
-  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
-  meta = await res.json();
+  if (!r.ok) throw new Error(`${r.status} — ${await r.text()}`);
+  meta = await r.json();
 } catch (e) {
-  setStatus("Auth or metadata failed — try logging in again. " + e.message);
+  setStatus("Login expired — go back to dashboard and log in again.  (" + e.message + ")");
 }
 
 if (meta) {
-  setStatus(`Downloading ${meta.name} (${(meta.fileSizeBytes / 1024 / 1024).toFixed(1)} MB)…`);
+  setStatus(`Downloading ${meta.name}…`);
 
   const draco = new DRACOLoader();
   draco.setDecoderPath("https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/gltf/");
-
   const loader = new GLTFLoader();
   loader.setDRACOLoader(draco);
   loader.requestHeader = { Authorization: "Bearer " + token };
@@ -365,44 +402,34 @@ if (meta) {
       modelGroup = gltf.scene;
       scene.add(modelGroup);
 
-      // Compute world bounds.
-      modelBounds = new THREE.Box3().setFromObject(modelGroup);
-      const size   = modelBounds.getSize(new THREE.Vector3());
-      const centre = modelBounds.getCenter(new THREE.Vector3());
+      // World AABB after all transforms applied.
+      modelGroup.updateMatrixWorld(true);
+      modelBounds.setFromObject(modelGroup);
+      const size = modelBounds.getSize(new THREE.Vector3());
 
       // Determine vertical axis for section plane.
-      // For Z-up (Revit): section along Z. For Y-up: section along Y.
       const ax = size.x, ay = size.y, az = size.z;
       if (az >= ax && az >= ay) {
-        // Z is tallest → Z-up model
+        // Z is tallest → Z-up
         clipPlane.normal.set(0, 0, -1);
-        modelMinZ = modelBounds.min.z;
-        modelMaxZ = modelBounds.max.z;
+        secMin = modelBounds.min.z; secMax = modelBounds.max.z;
       } else {
-        // Y-up model
+        // Y-up
         clipPlane.normal.set(0, -1, 0);
-        modelMinZ = modelBounds.min.y;
-        modelMaxZ = modelBounds.max.y;
+        secMin = modelBounds.min.y; secMax = modelBounds.max.y;
       }
 
-      // Initial camera fit.
       fitCamera();
 
-      // Save home position right after initial fit.
       homePos    = camera.position.clone();
       homeTarget = controls.target.clone();
       homeUp     = camera.up.clone();
 
       setStatus(`${meta.name} · ${(meta.fileSizeBytes / 1024 / 1024).toFixed(1)} MB`);
-
-      // Build level nav buttons from scene nodes.
       buildLevelButtons(gltf);
     },
-    prog => {
-      if (prog.total > 0)
-        setStatus(`Loading ${meta.name}… ${Math.round(prog.loaded / prog.total * 100)}%`);
-    },
-    err => setStatus("Load failed: " + (err?.message || String(err)))
+    p => { if (p.total > 0) setStatus(`${meta.name} · ${Math.round(p.loaded / p.total * 100)}%`); },
+    e => setStatus("Load failed: " + (e?.message || e))
   );
 }
 </script>
