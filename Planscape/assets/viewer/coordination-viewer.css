@@ -508,6 +508,7 @@ canvas { display: block; touch-action: none; }
 }
 .nav-btn:hover { background: var(--bg-panel-hover); color: var(--text-primary); }
 .nav-btn.active { background: var(--accent); color: white; }
+.nav-btn.flash  { background: var(--accent); color: white; transition: background 0.3s, color 0.3s; }
 
 /* Section control card */
 .section-card {

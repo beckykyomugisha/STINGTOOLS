@@ -3909,16 +3909,33 @@
       const defaultButtons = V.controls.mouseButtons
         ? Object.assign({}, V.controls.mouseButtons)
         : null;
+      // Brief visual flash for one-shot nav buttons (home / level / fit).
+      function flashNavBtn(btn) {
+        btn.classList.add('flash');
+        setTimeout(() => btn.classList.remove('flash'), 300);
+      }
       const navEl = $('#navControls');
       $$('.nav-btn').forEach(b => b.addEventListener('click', () => {
         const m = b.dataset.mode;
-        // "fit" is a one-shot action (fly the camera) rather than a
-        // persistent mode — flash the button but don't keep it active.
+        // One-shot actions: fire and return without changing active mode.
         if (m === 'fit') {
           if (state.selectedElementGuids.size) fitToSelection();
           else if (V.modelBounds && !V.modelBounds.isEmpty()) {
             flyTo(V.modelBounds.getCenter(new THREE_.Vector3()));
           }
+          flashNavBtn(b);
+          return;
+        }
+        if (m === 'home') {
+          // Reset to the default opening camera position (fitCamera).
+          if (V.fitCamera) V.fitCamera();
+          flashNavBtn(b);
+          return;
+        }
+        if (m === 'level') {
+          // Make the current view horizontal — zero pitch, keep heading.
+          if (V.levelCamera) V.levelCamera();
+          flashNavBtn(b);
           return;
         }
         $$('.nav-btn').forEach(x => x.classList.remove('active'));
