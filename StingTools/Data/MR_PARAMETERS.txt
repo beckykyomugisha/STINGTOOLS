@@ -35,12 +35,9 @@ GROUP	29	MGS_SYSTEMS
 GROUP	30	RAD_PROTECTION
 GROUP	31	CEQ_CLINICAL
 GROUP	32	LIG_BEHAVIOURAL
-<<<<<<< HEAD
-GROUP	33	Identity
-GROUP	34	Routing
-=======
 GROUP	33	PEN_PENETRATION
->>>>>>> origin/claude/review-sting-equipment-aV6qM
+GROUP	34	Identity
+GROUP	35	Routing
 *PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE
 PARAM	f8fe813a-44e9-5e47-9109-921171dc53b6	ASS_CAT_TXT	TEXT		1	1	Ass Cat Txt [ISO 19650-3:2020]	1
 PARAM	3c189e63-383c-5011-b7d9-873faed4e6c6	ASS_CST_QUANTITY_NR	TEXT		1	1	Ass Cst Quantity Nr [ISO 19650-3:2020]	1
@@ -2861,11 +2858,13 @@ PARAM	c8d4f6e2-2404-4d27-8c61-0e7a3f9bf004	ICT_RTLS_COVERAGE_M_NR	NUMBER		3	1	RT
 PARAM	c8d4f6e2-2501-4d27-8c61-0e7a3f9c0001	CLN_WASTE_CLASS_TXT	TEXT		28	1	Clinical waste class: HC1-General/HC2-Offensive/HC3-Infectious/HC4-Anatomical/HC5-Cytotoxic/HC6-Radioactive [H-30]	1
 PARAM	c8d4f6e2-2502-4d27-8c61-0e7a3f9c0002	CLN_WASTE_ROUTE_TXT	TEXT		28	1	Waste segregation route id [H-30]	1
 PARAM	c8d4f6e2-2503-4d27-8c61-0e7a3f9c0003	CLN_WASTE_BIN_BIM_ID_TXT	TEXT		28	1	IoT smart bin BIM element id [H-30]	1
+PARAM	c8d4f6e2-ff01-4d27-8c61-0e7a3f9cff01	CLN_TAG_7_PARA_CLINICAL_TXT	TEXT		28	1	Clinical room TAG7 paragraph container (pressure regime, infection class, ACH, ADB code, HTM ref) [ISO 19650-3:2020 / Phase H-1]	1
+PARAM	c8d4f6e2-ff02-4d27-8c61-0e7a3f9cff02	MGS_TAG_7_PARA_GAS_TXT	TEXT		29	1	Medical gas system TAG7 paragraph container (gas type, design flow, pressure, outlet count, NFPA 99 zone) [ISO 19650-3:2020 / Phase H-1]	1
+PARAM	c8d4f6e2-ff03-4d27-8c61-0e7a3f9cff03	RAD_TAG_7_PARA_SHIELD_TXT	TEXT		30	1	Radiation protection TAG7 paragraph container (lead mm, modality, workload, QE sign-off) [ISO 19650-3:2020 / Phase H-1]	1
 PARAM	c8d4f6e2-2601-4d27-8c61-0e7a3f9c1001	ICT_HEALTHIOT_DEVICE_ID_TXT	TEXT		3	1	Generic healthcare IoT device ID (consumed by IoTDeviceRegistry) [H-20]	1
 PARAM	c8d4f6e2-2602-4d27-8c61-0e7a3f9c1002	ICT_HEALTHIOT_PROTOCOL_TXT	TEXT		3	1	IoT protocol BACNET/OPC-UA/MODBUS/REST/PROPRIETARY [H-20]	1
 PARAM	c8d4f6e2-2603-4d27-8c61-0e7a3f9c1003	ICT_HEALTHIOT_ENDPOINT_TXT	TEXT		3	1	IoT endpoint URI [H-20]	1
 PARAM	c8d4f6e2-2604-4d27-8c61-0e7a3f9c1004	ICT_HEALTHIOT_ALERT_BAND_TXT	TEXT		3	1	IoT alert band free-text [H-20]	1
-<<<<<<< HEAD
 PARAM	c7f5a2e1-9b3d-4e1c-8a2f-7d6b3e4c5a90	ELC_CDT_BEND_ANGLE_DEG	TEXT		4	1	Conduit bend angle in degrees: 11.25/22.5/30/45/60/90/120 [BS 7671:2018+A2:2022 §522.8]	1
 PARAM	d8e6b3f2-ac4e-5f2d-9b3e-8e7c4f5d6b01	ELC_CDT_BEND_COUNT_NR	TEXT		4	1	Number of bends in this conduit run (BS 7671 §522.8.5 limits to 3 between draw-in points)	1
 PARAM	e9f7c4f3-bd5f-6f3e-ac4f-9f8d5e6e7c12	ELC_CDT_RUN_LENGTH_M	TEXT		4	1	Conduit run length in metres (BS 7671 max ~6m between draw-in points)	1
@@ -2923,7 +2922,6 @@ PARAM	ab46d616-d864-572c-8d9d-5bb51ccaab79	PLM_VLV_WRAS_APPROVED_BOOL	YESNO		6	1
 PARAM	af8461f1-b314-5f60-8e8d-e38963de14f8	PLM_DEAD_LEG_LENGTH_M	TEXT		6	1	Dead-leg length m flagged by DeadLegDetector [HSG 274 Phase 178b]	1
 PARAM	98ab6e19-8d12-53c0-b388-8705f9413373	PLM_PRJ_PLUMBING_CODE_TXT	TEXT		1	1	Project plumbing-code toggle BS-UK / IPC-US / UPC-US [Phase 178b]	1
 PARAM	c3d5b6ee-0f2e-7283-9405-162718304a5b	ELC_CDT_PENETRATION_COUNT_NR	TEXT		4	1	Number of fire-rated barriers (floors / walls) this conduit crosses. Stamped by SlabPenetrationDetector each time a crossing is recorded. Drives the FRP penetration register schedule and JBAutoPlacer's avoid-collision logic (Wave J3).	1
-=======
 PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1001	PEN_FIRE_RATING_TXT	TEXT		33	1	Required fire rating of the penetration: FR30/FR60/FR90/FR120/blank for non-rated [BS 9999, BS 476-20, EN 1366-3]	1
 PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1002	PEN_SEALANT_TYPE_TXT	TEXT		33	1	Sealant system: INTUMESCENT/SILICONE/MORTAR/PILLOW/COLLAR/WRAP/NONE [BS 9999]	1
 PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1003	PEN_OD_MM	NUMBER		33	1	Penetrating member outside diameter (mm)	1
@@ -2943,4 +2941,3 @@ PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1010	PEN_BEAM_DEPTH_RATIO	NUMBER		33	1	Bea
 PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1011	PEN_STRUCTURAL_FLAG_TXT	TEXT		33	1	Beam-host only: STRUCT_OK / STRUCT_REVIEW / STRUCT_FAIL based on AISC DG2 + BS EN 1992 location/size rules	1
 PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1012	STING_PENETRATION_REF_TXT	TEXT		33	1	Stamped on each MEPCurve that crosses a fire-rated barrier. Format: HOST:<id>@<rating>#<control>	1
 PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1013	STING_PENETRATION_FIRE_RATING_TXT	TEXT		33	1	Mirror of host fire rating on the penetrating member - drives validator gates	1
->>>>>>> origin/claude/review-sting-equipment-aV6qM
