@@ -508,6 +508,7 @@ canvas { display: block; touch-action: none; }
 }
 .nav-btn:hover { background: var(--bg-panel-hover); color: var(--text-primary); }
 .nav-btn.active { background: var(--accent); color: white; }
+.nav-btn.flash  { background: var(--accent); color: white; transition: background 0.3s, color 0.3s; }
 
 /* Section control card */
 .section-card {
@@ -1258,14 +1259,21 @@ tr.row-selected td { color: var(--text-primary); }
 .row-menu .item .hot { margin-left: auto; opacity: 0.45; font-family: var(--font-mono); font-size: 10px; }
 
 /* ── Walk speed slider in nav-controls ──────────────────────── */
+@keyframes speedPulse {
+  0%   { color: var(--accent); }
+  40%  { color: #fff; transform: scale(1.18); }
+  100% { color: var(--accent); transform: scale(1); }
+}
 .nav-controls .speed-wrap {
   display: inline-flex; align-items: center; gap: 4px;
   margin-left: 4px; padding: 2px 6px;
   background: var(--bg-canvas); border: 1px solid var(--border);
   border-radius: 999px; opacity: 0.45;
   transition: opacity 0.12s ease;
+  pointer-events: none;
 }
-.nav-controls.walking .speed-wrap { opacity: 1; }
+/* Only interactive in walk mode */
+.nav-controls.walking .speed-wrap { opacity: 1; pointer-events: auto; }
 .nav-controls .speed-wrap .lbl {
   font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em;
   color: var(--text-muted); padding: 0 2px;
@@ -1280,6 +1288,10 @@ tr.row-selected td { color: var(--text-primary); }
 .nav-controls .speed-wrap .val {
   min-width: 38px; text-align: center;
   font-family: var(--font-mono); font-size: 10px; color: var(--accent);
+  transition: color 0.12s;
+}
+.nav-controls .speed-wrap .val.bumped {
+  animation: speedPulse 0.3s ease forwards;
 }
 
 /* ── Inline prompt (replaces window.prompt) ──────────────── */
