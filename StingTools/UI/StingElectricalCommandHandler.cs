@@ -192,15 +192,14 @@ namespace StingTools.UI
 
                 // ── SLD ──────────────────────────────────────────────
                 case "SLD_Generate":
+                    RunCommand<StingTools.Commands.SLD.GenerateSLDCommand>(app); break;
                 case "SLD_Update":
-                    TryRunByTypeName("StingTools.Commands.SLD.SLDGeneratorCommand", app);
-                    break;
+                    RunCommand<StingTools.Commands.SLD.UpdateSLDCommand>(app); break;
                 case "SLD_Refresh":
                     /* fresh snapshot will run after Dispatch */
                     break;
                 case "SLD_Export":
-                    TryRunByTypeName("StingTools.Commands.SLD.SLDExportCommand", app);
-                    break;
+                    TaskDialog.Show("STING SLD", "SLD export is not yet implemented."); break;
                 case "SLD_ZoomTo":
                     ZoomToSelectedSld(app, doc);
                     break;
