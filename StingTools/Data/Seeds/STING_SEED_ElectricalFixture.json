@@ -1,10 +1,14 @@
 {
   "version": "1.0",
-  "standard": "STING SEED FAMILY — Electrical Fixtures (BS 7671, BS 1363)",
+  "standard": "STING SEED FAMILY — Electrical Fixtures (BS 7671, BS 1363, BS EN 60669, BS EN 61058)",
   "_notes": [
-    "Sockets / switches / outlets / FCUs / data points. Wall-based by",
-    "default since 95% of UK installations are wall-mounted; floor-box",
-    "variants can be swapped to a face-based real family later."
+    "Sockets / switches / data outlets / FCUs / isolators / EV chargers.",
+    "Wall-based / face-based by default. Each variant encodes gang count",
+    "in ELE_FIX_GANG_COUNT_INT and switching topology in ELE_FIX_WAY_CONFIG_TXT",
+    "so schedules can independently count gangs (quantity take-off) and",
+    "way configurations (circuit design). Floor-box variants use hosting=Standalone.",
+    "protectExisting:true — this seed ships a large polished variant set;",
+    "do not regenerate unless the JSON spec has been intentionally changed."
   ],
   "symbols": [
     {
@@ -17,187 +21,312 @@
       "isSeed": true,
       "hosting": "FaceBased",
       "symbolSize": 4.0,
+      "protectExisting": true,
       "parameters": [
-        {
-          "name": "STING_SEED_FAMILY_TXT",
-          "type": "Text",
-          "shared": true,
-          "isInstance": true,
-          "default": "STING_SEED_ElectricalFixture"
-        },
-        {
-          "name": "STING_DESIGN_REF_TXT",
-          "type": "Text",
-          "shared": true,
-          "isInstance": true,
-          "default": ""
-        },
-        {
-          "name": "STING_SWAP_HISTORY_TXT",
-          "type": "Text",
-          "shared": true,
-          "isInstance": true,
-          "default": ""
-        },
-        {
-          "name": "ASS_TAG_1",
-          "type": "Text",
-          "shared": true,
-          "isInstance": true
-        },
-        {
-          "name": "ASS_DISCIPLINE_COD_TXT",
-          "type": "Text",
-          "shared": true,
-          "isInstance": true,
-          "default": "E"
-        },
-        {
-          "name": "ASS_PRODCT_COD_TXT",
-          "type": "Text",
-          "shared": true,
-          "isInstance": true,
-          "default": "SOC"
-        },
-        {
-          "name": "ELE_FIX_TYPE_TXT",
-          "type": "Text",
-          "shared": true,
-          "isInstance": true,
-          "default": "SOCKET_2G"
-        },
-        {
-          "name": "ELE_FIX_RATING_A",
-          "type": "Text",
-          "shared": true,
-          "isInstance": false,
-          "default": "13"
-        },
-        {
-          "name": "ELE_FIX_IP_RATING_TXT",
-          "type": "Text",
-          "shared": true,
-          "isInstance": false,
-          "default": "IP21"
-        },
-        {
-          "name": "ELE_FIX_MOUNT_HEIGHT_MM",
-          "type": "Text",
-          "shared": true,
-          "isInstance": true,
-          "default": "1100"
-        },
-        {
-          "name": "ELC_CIRCUIT_GROUP_TXT",
-          "type": "Text",
-          "shared": true,
-          "isInstance": true,
-          "default": ""
-        }
+        { "name": "STING_SEED_FAMILY_TXT",   "type": "Text",    "shared": true, "isInstance": true,  "default": "STING_SEED_ElectricalFixture" },
+        { "name": "STING_DESIGN_REF_TXT",    "type": "Text",    "shared": true, "isInstance": true,  "default": "" },
+        { "name": "STING_SWAP_HISTORY_TXT",  "type": "Text",    "shared": true, "isInstance": true,  "default": "" },
+        { "name": "ASS_TAG_1",               "type": "Text",    "shared": true, "isInstance": true },
+        { "name": "ASS_DISCIPLINE_COD_TXT",  "type": "Text",    "shared": true, "isInstance": true,  "default": "E" },
+        { "name": "ASS_PRODCT_COD_TXT",      "type": "Text",    "shared": true, "isInstance": true,  "default": "SOC" },
+        { "name": "ELE_FIX_TYPE_TXT",        "type": "Text",    "shared": true, "isInstance": true,  "default": "SOCKET_2G" },
+        { "name": "ELE_FIX_GANG_COUNT_INT",  "type": "Integer", "shared": true, "isInstance": false, "default": "2" },
+        { "name": "ELE_FIX_WAY_CONFIG_TXT",  "type": "Text",    "shared": true, "isInstance": false, "default": "" },
+        { "name": "ELE_FIX_RATING_A",        "type": "Text",    "shared": true, "isInstance": false, "default": "13" },
+        { "name": "ELE_FIX_IP_RATING_TXT",   "type": "Text",    "shared": true, "isInstance": false, "default": "IP21" },
+        { "name": "ELE_FIX_MOUNT_HEIGHT_MM", "type": "Text",    "shared": true, "isInstance": true,  "default": "1100" },
+        { "name": "ELC_CIRCUIT_GROUP_TXT",   "type": "Text",    "shared": true, "isInstance": true,  "default": "" }
       ],
       "geometry": {
         "lines": [
-          {
-            "x1": -0.5,
-            "y1": -0.3,
-            "x2": 0.5,
-            "y2": -0.3
-          },
-          {
-            "x1": 0.5,
-            "y1": -0.3,
-            "x2": 0.5,
-            "y2": 0.3
-          },
-          {
-            "x1": 0.5,
-            "y1": 0.3,
-            "x2": -0.5,
-            "y2": 0.3
-          },
-          {
-            "x1": -0.5,
-            "y1": 0.3,
-            "x2": -0.5,
-            "y2": -0.3
-          },
-          {
-            "x1": -0.3,
-            "y1": -0.15,
-            "x2": -0.3,
-            "y2": 0.15
-          },
-          {
-            "x1": -0.15,
-            "y1": -0.15,
-            "x2": -0.15,
-            "y2": 0.15
-          },
-          {
-            "x1": 0.15,
-            "y1": -0.15,
-            "x2": 0.15,
-            "y2": 0.15
-          },
-          {
-            "x1": 0.3,
-            "y1": -0.15,
-            "x2": 0.3,
-            "y2": 0.15
-          }
+          { "x1": -0.5, "y1": -0.3, "x2":  0.5, "y2": -0.3 },
+          { "x1":  0.5, "y1": -0.3, "x2":  0.5, "y2":  0.3 },
+          { "x1":  0.5, "y1":  0.3, "x2": -0.5, "y2":  0.3 },
+          { "x1": -0.5, "y1":  0.3, "x2": -0.5, "y2": -0.3 },
+          { "x1": -0.3, "y1": -0.15, "x2": -0.3, "y2":  0.15 },
+          { "x1": -0.15,"y1": -0.15, "x2": -0.15,"y2":  0.15 },
+          { "x1":  0.15,"y1": -0.15, "x2":  0.15,"y2":  0.15 },
+          { "x1":  0.3, "y1": -0.15, "x2":  0.3, "y2":  0.15 }
         ]
       },
-      "solid3D": {
-        "type": "Box",
-        "widthMm": 150,
-        "depthMm": 35,
-        "heightMm": 85
-      },
+      "solid3D": { "type": "Box", "widthMm": 150, "depthMm": 35, "heightMm": 85 },
       "typeVariants": [
-        {
-          "name": "SOCKET_2G",
-          "params": {
-            "ELE_FIX_TYPE_TXT": "SOCKET_2G",
-            "ASS_PRODCT_COD_TXT": "SOC",
-            "ELE_FIX_RATING_A": "13"
-          }
-        },
+
+        { "_group": "── SOCKETS ─────────────────────────────────────────────────" },
+
         {
           "name": "SOCKET_1G",
-          "params": {
-            "ELE_FIX_TYPE_TXT": "SOCKET_1G",
-            "ASS_PRODCT_COD_TXT": "SOC",
-            "ELE_FIX_RATING_A": "13"
-          }
+          "params": { "ELE_FIX_TYPE_TXT": "SOCKET_1G", "ASS_PRODCT_COD_TXT": "SOC",
+                      "ELE_FIX_GANG_COUNT_INT": "1", "ELE_FIX_RATING_A": "13", "ELE_FIX_IP_RATING_TXT": "IP21" }
         },
         {
-          "name": "SWITCH_2G",
-          "params": {
-            "ELE_FIX_TYPE_TXT": "SWITCH_2G",
-            "ASS_PRODCT_COD_TXT": "SW"
-          }
+          "name": "SOCKET_2G",
+          "params": { "ELE_FIX_TYPE_TXT": "SOCKET_2G", "ASS_PRODCT_COD_TXT": "SOC",
+                      "ELE_FIX_GANG_COUNT_INT": "2", "ELE_FIX_RATING_A": "13", "ELE_FIX_IP_RATING_TXT": "IP21" }
         },
         {
-          "name": "DATA_OUTLET_2G",
-          "params": {
-            "ELE_FIX_TYPE_TXT": "DATA_OUTLET_2G",
-            "ASS_PRODCT_COD_TXT": "DAT"
-          }
+          "name": "SOCKET_3G",
+          "params": { "ELE_FIX_TYPE_TXT": "SOCKET_3G", "ASS_PRODCT_COD_TXT": "SOC",
+                      "ELE_FIX_GANG_COUNT_INT": "3", "ELE_FIX_RATING_A": "13", "ELE_FIX_IP_RATING_TXT": "IP21" }
         },
+        {
+          "name": "SOCKET_4G",
+          "params": { "ELE_FIX_TYPE_TXT": "SOCKET_4G", "ASS_PRODCT_COD_TXT": "SOC",
+                      "ELE_FIX_GANG_COUNT_INT": "4", "ELE_FIX_RATING_A": "13", "ELE_FIX_IP_RATING_TXT": "IP21" }
+        },
+        {
+          "name": "SOCKET_2G_SW",
+          "params": { "ELE_FIX_TYPE_TXT": "SOCKET_2G_SW", "ASS_PRODCT_COD_TXT": "SOC",
+                      "ELE_FIX_GANG_COUNT_INT": "2", "ELE_FIX_RATING_A": "13",
+                      "_note": "Switched socket — individual switch per outlet" }
+        },
+        {
+          "name": "SOCKET_2G_RCD",
+          "params": { "ELE_FIX_TYPE_TXT": "SOCKET_2G_RCD", "ASS_PRODCT_COD_TXT": "SOC",
+                      "ELE_FIX_GANG_COUNT_INT": "2", "ELE_FIX_RATING_A": "13",
+                      "_note": "RCD-protected BS 7671 §701 / outdoor circuit" }
+        },
+        {
+          "name": "SOCKET_1G_USB_AC",
+          "params": { "ELE_FIX_TYPE_TXT": "SOCKET_1G_USB_AC", "ASS_PRODCT_COD_TXT": "SOC",
+                      "ELE_FIX_GANG_COUNT_INT": "1", "ELE_FIX_RATING_A": "13",
+                      "_note": "13A + USB-A/C combination — bedside / office" }
+        },
+        {
+          "name": "SOCKET_2G_USB_AC",
+          "params": { "ELE_FIX_TYPE_TXT": "SOCKET_2G_USB_AC", "ASS_PRODCT_COD_TXT": "SOC",
+                      "ELE_FIX_GANG_COUNT_INT": "2", "ELE_FIX_RATING_A": "13",
+                      "_note": "13A twin + USB-A/C" }
+        },
+        {
+          "name": "SOCKET_2G_IP44",
+          "params": { "ELE_FIX_TYPE_TXT": "SOCKET_2G_IP44", "ASS_PRODCT_COD_TXT": "SOC",
+                      "ELE_FIX_GANG_COUNT_INT": "2", "ELE_FIX_RATING_A": "13",
+                      "ELE_FIX_IP_RATING_TXT": "IP44", "_note": "Wet-area rated (bathrooms, plant)" }
+        },
+        {
+          "name": "SOCKET_2G_IP65",
+          "params": { "ELE_FIX_TYPE_TXT": "SOCKET_2G_IP65", "ASS_PRODCT_COD_TXT": "SOC",
+                      "ELE_FIX_GANG_COUNT_INT": "2", "ELE_FIX_RATING_A": "13",
+                      "ELE_FIX_IP_RATING_TXT": "IP65", "_note": "Outdoor / exposed location" }
+        },
+        {
+          "name": "SHAVER_SUPPLY",
+          "params": { "ELE_FIX_TYPE_TXT": "SHAVER_SUPPLY", "ASS_PRODCT_COD_TXT": "SHA",
+                      "ELE_FIX_GANG_COUNT_INT": "1", "ELE_FIX_RATING_A": "0.5",
+                      "ELE_FIX_IP_RATING_TXT": "IP44", "_note": "BS EN 61558-2-5 shaver supply unit" }
+        },
+
+        { "_group": "── SWITCHES — 1-GANG ──────────────────────────────────────" },
+
+        {
+          "name": "SWITCH_1G_1W",
+          "params": { "ELE_FIX_TYPE_TXT": "SWITCH_1G_1W", "ASS_PRODCT_COD_TXT": "SW",
+                      "ELE_FIX_GANG_COUNT_INT": "1", "ELE_FIX_WAY_CONFIG_TXT": "1W",
+                      "_note": "1-gang 1-way — simple on/off (most common)" }
+        },
+        {
+          "name": "SWITCH_1G_2W",
+          "params": { "ELE_FIX_TYPE_TXT": "SWITCH_1G_2W", "ASS_PRODCT_COD_TXT": "SW",
+                      "ELE_FIX_GANG_COUNT_INT": "1", "ELE_FIX_WAY_CONFIG_TXT": "2W",
+                      "_note": "1-gang 2-way — one end of staircase / corridor pair" }
+        },
+        {
+          "name": "SWITCH_1G_INT",
+          "params": { "ELE_FIX_TYPE_TXT": "SWITCH_1G_INT", "ASS_PRODCT_COD_TXT": "SW",
+                      "ELE_FIX_GANG_COUNT_INT": "1", "ELE_FIX_WAY_CONFIG_TXT": "INT",
+                      "_note": "1-gang intermediate — mid-chain in 3+ switch run (BS EN 60669)" }
+        },
+        {
+          "name": "SWITCH_1G_DIM",
+          "params": { "ELE_FIX_TYPE_TXT": "SWITCH_1G_DIM", "ASS_PRODCT_COD_TXT": "DIM",
+                      "ELE_FIX_GANG_COUNT_INT": "1", "ELE_FIX_WAY_CONFIG_TXT": "DIM",
+                      "_note": "1-gang dimmer (leading or trailing edge)" }
+        },
+        {
+          "name": "SWITCH_1G_DP",
+          "params": { "ELE_FIX_TYPE_TXT": "SWITCH_1G_DP", "ASS_PRODCT_COD_TXT": "ISO",
+                      "ELE_FIX_GANG_COUNT_INT": "1", "ELE_FIX_WAY_CONFIG_TXT": "DP",
+                      "_note": "1-gang double-pole — shaver / bathroom local isolator" }
+        },
+
+        { "_group": "── SWITCHES — 2-GANG ──────────────────────────────────────" },
+
+        {
+          "name": "SWITCH_2G_1W",
+          "params": { "ELE_FIX_TYPE_TXT": "SWITCH_2G_1W", "ASS_PRODCT_COD_TXT": "SW",
+                      "ELE_FIX_GANG_COUNT_INT": "2", "ELE_FIX_WAY_CONFIG_TXT": "1W",
+                      "_note": "2-gang both 1-way (was legacy SWITCH_2G default)" }
+        },
+        {
+          "name": "SWITCH_2G_2W",
+          "params": { "ELE_FIX_TYPE_TXT": "SWITCH_2G_2W", "ASS_PRODCT_COD_TXT": "SW",
+                      "ELE_FIX_GANG_COUNT_INT": "2", "ELE_FIX_WAY_CONFIG_TXT": "2W",
+                      "_note": "2-gang both 2-way — double staircase / two separate pairs" }
+        },
+        {
+          "name": "SWITCH_2G_MIXED",
+          "params": { "ELE_FIX_TYPE_TXT": "SWITCH_2G_MIXED", "ASS_PRODCT_COD_TXT": "SW",
+                      "ELE_FIX_GANG_COUNT_INT": "2", "ELE_FIX_WAY_CONFIG_TXT": "1W+2W",
+                      "_note": "2-gang mixed: one 1-way + one 2-way on same plate" }
+        },
+        {
+          "name": "SWITCH_2G_DIM",
+          "params": { "ELE_FIX_TYPE_TXT": "SWITCH_2G_DIM", "ASS_PRODCT_COD_TXT": "DIM",
+                      "ELE_FIX_GANG_COUNT_INT": "2", "ELE_FIX_WAY_CONFIG_TXT": "DIM",
+                      "_note": "2-gang both dimmer — two independent dimmed circuits" }
+        },
+        {
+          "name": "SWITCH_2G_DP",
+          "params": { "ELE_FIX_TYPE_TXT": "SWITCH_2G_DP", "ASS_PRODCT_COD_TXT": "ISO",
+                      "ELE_FIX_GANG_COUNT_INT": "2", "ELE_FIX_WAY_CONFIG_TXT": "DP",
+                      "_note": "2-gang double-pole — two local isolators on one plate (wet rooms / kitchen)" }
+        },
+
+        { "_group": "── SWITCHES — 3-GANG ──────────────────────────────────────" },
+
+        {
+          "name": "SWITCH_3G_1W",
+          "params": { "ELE_FIX_TYPE_TXT": "SWITCH_3G_1W", "ASS_PRODCT_COD_TXT": "SW",
+                      "ELE_FIX_GANG_COUNT_INT": "3", "ELE_FIX_WAY_CONFIG_TXT": "1W",
+                      "_note": "3-gang all 1-way — hotel room / residential multi-light" }
+        },
+        {
+          "name": "SWITCH_3G_2W",
+          "params": { "ELE_FIX_TYPE_TXT": "SWITCH_3G_2W", "ASS_PRODCT_COD_TXT": "SW",
+                      "ELE_FIX_GANG_COUNT_INT": "3", "ELE_FIX_WAY_CONFIG_TXT": "2W",
+                      "_note": "3-gang all 2-way" }
+        },
+        {
+          "name": "SWITCH_3G_MIXED",
+          "params": { "ELE_FIX_TYPE_TXT": "SWITCH_3G_MIXED", "ASS_PRODCT_COD_TXT": "SW",
+                      "ELE_FIX_GANG_COUNT_INT": "3", "ELE_FIX_WAY_CONFIG_TXT": "2W+1W+1W",
+                      "_note": "3-gang mixed — corridor with local + two remote switches" }
+        },
+
+        { "_group": "── SWITCHES — 4-GANG ──────────────────────────────────────" },
+
+        {
+          "name": "SWITCH_4G_1W",
+          "params": { "ELE_FIX_TYPE_TXT": "SWITCH_4G_1W", "ASS_PRODCT_COD_TXT": "SW",
+                      "ELE_FIX_GANG_COUNT_INT": "4", "ELE_FIX_WAY_CONFIG_TXT": "1W",
+                      "_note": "4-gang all 1-way — large commercial plate" }
+        },
+        {
+          "name": "SWITCH_4G_2W",
+          "params": { "ELE_FIX_TYPE_TXT": "SWITCH_4G_2W", "ASS_PRODCT_COD_TXT": "SW",
+                      "ELE_FIX_GANG_COUNT_INT": "4", "ELE_FIX_WAY_CONFIG_TXT": "2W",
+                      "_note": "4-gang all 2-way" }
+        },
+        {
+          "name": "SWITCH_4G_MIXED",
+          "params": { "ELE_FIX_TYPE_TXT": "SWITCH_4G_MIXED", "ASS_PRODCT_COD_TXT": "SW",
+                      "ELE_FIX_GANG_COUNT_INT": "4", "ELE_FIX_WAY_CONFIG_TXT": "MIXED",
+                      "_note": "4-gang mixed configuration — maximum flexibility plate" }
+        },
+
+        { "_group": "── DATA / AV OUTLETS ────────────────────────────────────────" },
+
+        {
+          "name": "DATA_1G_RJ45",
+          "params": { "ELE_FIX_TYPE_TXT": "DATA_1G_RJ45", "ASS_PRODCT_COD_TXT": "DAT",
+                      "ELE_FIX_GANG_COUNT_INT": "1", "_note": "Single Cat6 RJ45" }
+        },
+        {
+          "name": "DATA_2G_RJ45",
+          "params": { "ELE_FIX_TYPE_TXT": "DATA_2G_RJ45", "ASS_PRODCT_COD_TXT": "DAT",
+                      "ELE_FIX_GANG_COUNT_INT": "2", "_note": "Twin Cat6 RJ45 (was DATA_OUTLET_2G)" }
+        },
+        {
+          "name": "DATA_2G_CAT6A",
+          "params": { "ELE_FIX_TYPE_TXT": "DATA_2G_CAT6A", "ASS_PRODCT_COD_TXT": "DAT",
+                      "ELE_FIX_GANG_COUNT_INT": "2", "_note": "Twin Cat6A — 10GbE" }
+        },
+        {
+          "name": "DATA_2G_COMBO",
+          "params": { "ELE_FIX_TYPE_TXT": "DATA_2G_COMBO", "ASS_PRODCT_COD_TXT": "DAT",
+                      "ELE_FIX_GANG_COUNT_INT": "2", "_note": "RJ45 + HDMI or RJ45 + USB-A AV combo" }
+        },
+        {
+          "name": "DATA_1G_FIBRE",
+          "params": { "ELE_FIX_TYPE_TXT": "DATA_1G_FIBRE", "ASS_PRODCT_COD_TXT": "DAT",
+                      "ELE_FIX_GANG_COUNT_INT": "1", "_note": "LC duplex fibre-to-desk outlet" }
+        },
+
+        { "_group": "── FLOOR BOXES ─────────────────────────────────────────────" },
+
         {
           "name": "FLOOR_BOX",
-          "params": {
-            "ELE_FIX_TYPE_TXT": "FLOOR_BOX",
-            "ELE_FIX_MOUNT_HEIGHT_MM": "0"
-          }
+          "params": { "ELE_FIX_TYPE_TXT": "FLOOR_BOX", "ASS_PRODCT_COD_TXT": "FLB",
+                      "ELE_FIX_MOUNT_HEIGHT_MM": "0", "ELE_FIX_GANG_COUNT_INT": "3",
+                      "ELE_FIX_RATING_A": "13" }
         },
         {
+          "name": "FLOOR_BOX_DATA",
+          "params": { "ELE_FIX_TYPE_TXT": "FLOOR_BOX_DATA", "ASS_PRODCT_COD_TXT": "FLB",
+                      "ELE_FIX_MOUNT_HEIGHT_MM": "0", "ELE_FIX_GANG_COUNT_INT": "3",
+                      "_note": "Floor box with mixed power + data modules" }
+        },
+
+        { "_group": "── SPECIALIST / OTHER ──────────────────────────────────────" },
+
+        {
           "name": "FCU",
-          "params": {
-            "ELE_FIX_TYPE_TXT": "FCU",
-            "ASS_PRODCT_COD_TXT": "FCU",
-            "ELE_FIX_RATING_A": "13"
-          }
+          "params": { "ELE_FIX_TYPE_TXT": "FCU", "ASS_PRODCT_COD_TXT": "FCU",
+                      "ELE_FIX_RATING_A": "13", "ELE_FIX_GANG_COUNT_INT": "1",
+                      "_note": "Fused connection unit (unfused or fused spur)" }
+        },
+        {
+          "name": "ISOLATOR_20A",
+          "params": { "ELE_FIX_TYPE_TXT": "ISOLATOR_20A", "ASS_PRODCT_COD_TXT": "ISO",
+                      "ELE_FIX_RATING_A": "20", "ELE_FIX_GANG_COUNT_INT": "1",
+                      "ELE_FIX_WAY_CONFIG_TXT": "DP", "_note": "20A double-pole isolator (shower circuit)" }
+        },
+        {
+          "name": "ISOLATOR_45A",
+          "params": { "ELE_FIX_TYPE_TXT": "ISOLATOR_45A", "ASS_PRODCT_COD_TXT": "ISO",
+                      "ELE_FIX_RATING_A": "45", "ELE_FIX_GANG_COUNT_INT": "1",
+                      "ELE_FIX_WAY_CONFIG_TXT": "DP", "_note": "45A double-pole isolator (cooker circuit)" }
+        },
+        {
+          "name": "EV_CHARGER_7KW",
+          "params": { "ELE_FIX_TYPE_TXT": "EV_CHARGER_7KW", "ASS_PRODCT_COD_TXT": "EVC",
+                      "ELE_FIX_RATING_A": "32", "ELE_FIX_GANG_COUNT_INT": "1",
+                      "ELE_FIX_MOUNT_HEIGHT_MM": "900",
+                      "_note": "7kW Mode 3 EV charge point — Type 2 socket (BS EN IEC 62196-2)" }
+        },
+        {
+          "name": "EV_CHARGER_22KW",
+          "params": { "ELE_FIX_TYPE_TXT": "EV_CHARGER_22KW", "ASS_PRODCT_COD_TXT": "EVC",
+                      "ELE_FIX_RATING_A": "32", "ELE_FIX_GANG_COUNT_INT": "1",
+                      "ELE_FIX_MOUNT_HEIGHT_MM": "900",
+                      "_note": "22kW 3-phase Mode 3 EV charge point" }
+        }
+      ],
+      "swapCandidates": [
+        {
+          "label": "Legrand Arteor 2G Socket",
+          "familyPath": "",
+          "variantPattern": "SOCKET_2G",
+          "typePattern": "",
+          "priority": 10,
+          "autoLoad": false
+        },
+        {
+          "label": "MK Logic Plus 2G Socket",
+          "familyPath": "",
+          "variantPattern": "SOCKET_2G",
+          "typePattern": "",
+          "priority": 20,
+          "autoLoad": false
+        },
+        {
+          "label": "Schneider Lisse 2-Way Switch",
+          "familyPath": "",
+          "variantPattern": "SWITCH_.*_2W",
+          "typePattern": "",
+          "priority": 10,
+          "autoLoad": false
         }
       ]
     }

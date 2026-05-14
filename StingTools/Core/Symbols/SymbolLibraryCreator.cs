@@ -23,14 +23,45 @@ using StingTools.Core;
 
 namespace StingTools.Core.Symbols
 {
+    /// <summary>
+    /// Controls which seeds the builder will (re-)create when
+    /// CreateAllFromFile is called.
+    /// </summary>
+    public enum SeedRebuildMode
+    {
+        /// <summary>
+        /// Default safe mode: skip any seed whose .rfa already exists on
+        /// disk or whose .sting-finalized sidecar is present. This protects
+        /// hand-polished families from accidental regeneration.
+        /// </summary>
+        MissingOnly,
+
+        /// <summary>
+        /// Regenerate every seed whose .sting-finalized sidecar is absent,
+        /// regardless of whether the .rfa file exists. Use after editing a
+        /// JSON spec to pick up parameter or variant changes without
+        /// destroying finalised families.
+        /// </summary>
+        RebuildUnfinalized,
+
+        /// <summary>
+        /// Regenerate ALL seeds including those marked as finalised. Only
+        /// use when intentionally discarding manual polish (e.g. the JSON
+        /// spec has a breaking change that requires a full rebuild). The
+        /// command prompts the user to confirm before entering this mode.
+        /// </summary>
+        RebuildAll,
+    }
+
     /// <summary>Aggregate result of a CreateAllFromFile run.</summary>
     public sealed class SymbolCreationResult
     {
-        public int Created { get; set; }
-        public int Existed { get; set; }
-        public int Failed { get; set; }
+        public int Created   { get; set; }
+        public int Existed   { get; set; }
+        public int Failed    { get; set; }
+        public int Protected { get; set; }
         public List<string> Warnings { get; } = new List<string>();
-        public List<string> Errors { get; } = new List<string>();
+        public List<string> Errors   { get; } = new List<string>();
         public List<string> CreatedRfaPaths { get; } = new List<string>();
     }
 
@@ -54,7 +85,8 @@ namespace StingTools.Core.Symbols
             Document hostDoc,
             string jsonPath,
             string outputFolder,
-            bool loadIntoProject)
+            bool loadIntoProject,
+            SeedRebuildMode rebuildMode = SeedRebuildMode.MissingOnly)
         {
             var result = new SymbolCreationResult();
             if (!File.Exists(jsonPath))
@@ -92,18 +124,70 @@ namespace StingTools.Core.Symbols
                     continue;
                 }
 
-                var rfaPath = Path.Combine(outputFolder, def.Id + ".rfa");
-                if (File.Exists(rfaPath))
+                var rfaPath   = Path.Combine(outputFolder, def.Id + ".rfa");
+                bool exists   = File.Exists(rfaPath);
+                bool finalized = IsFinalized(rfaPath);
+
+                // Protection decision ────────────────────────────────────────
+                // RebuildAll: skip only if the JSON spec itself says protect.
+                // RebuildUnfinalized: skip if finalised sidecar is present.
+                // MissingOnly (default): skip if .rfa exists (original behaviour).
+                bool skip = false;
+                if (rebuildMode == SeedRebuildMode.RebuildAll)
                 {
-                    result.Existed++;
-                    result.CreatedRfaPaths.Add(rfaPath);
-                    if (loadIntoProject) TryLoadFamily(hostDoc, rfaPath, result);
+                    if (def.ProtectExisting && exists)
+                    {
+                        result.Protected++;
+                        result.Warnings.Add($"{def.Id}: protectExisting=true — skipped even in RebuildAll mode.");
+                        skip = true;
+                    }
+                }
+                else if (rebuildMode == SeedRebuildMode.RebuildUnfinalized)
+                {
+                    if (finalized)
+                    {
+                        result.Protected++;
+                        result.Warnings.Add($"{def.Id}: .sting-finalized sidecar present — skipped.");
+                        skip = true;
+                    }
+                    else if (def.ProtectExisting && exists)
+                    {
+                        result.Protected++;
+                        result.Warnings.Add($"{def.Id}: protectExisting=true in JSON spec — skipped even in RebuildUnfinalized mode. Remove the flag or use RebuildAll to force.");
+                        skip = true;
+                    }
+                }
+                else // MissingOnly
+                {
+                    if (exists)
+                    {
+                        result.Existed++;
+                        result.CreatedRfaPaths.Add(rfaPath);
+                        if (loadIntoProject) TryLoadFamily(hostDoc, rfaPath, result);
+                        continue;
+                    }
+                }
+
+                if (skip)
+                {
+                    if (exists)
+                    {
+                        result.CreatedRfaPaths.Add(rfaPath);
+                        if (loadIntoProject) TryLoadFamily(hostDoc, rfaPath, result);
+                    }
                     continue;
                 }
 
+                // Build ───────────────────────────────────────────────────────
                 try
                 {
-                    string built = BuildOne(app, def, outputFolder, templateFolder, result);
+                    // Option A: augment a pre-built source family when the
+                    // JSON spec points at one and the file resolves.
+                    string sourcePath = ResolveSourceFamilyPath(def.SourceFamilyPath, jsonPath);
+                    string built = !string.IsNullOrEmpty(sourcePath)
+                        ? BuildFromSourceFamily(app, hostDoc, def, sourcePath, outputFolder, result)
+                        : BuildOne(app, def, outputFolder, templateFolder, result);
+
                     if (!string.IsNullOrEmpty(built))
                     {
                         result.Created++;
@@ -124,6 +208,170 @@ namespace StingTools.Core.Symbols
             }
 
             return result;
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // Sidecar helpers — finalization protection
+        // ─────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Returns the path of the .sting-finalized sidecar file that sits
+        /// alongside an .rfa. The sidecar's presence signals that the family
+        /// has been hand-polished and must not be regenerated.
+        /// </summary>
+        public static string GetSidecarPath(string rfaPath)
+            => rfaPath + ".sting-finalized";
+
+        /// <summary>Returns true if the .sting-finalized sidecar exists.</summary>
+        public static bool IsFinalized(string rfaPath)
+        {
+            try { return File.Exists(GetSidecarPath(rfaPath)); }
+            catch { return false; }
+        }
+
+        /// <summary>
+        /// Writes the .sting-finalized sidecar so future rebuild runs skip
+        /// this seed. Records the timestamp and a human note in the file
+        /// content for auditability.
+        /// </summary>
+        public static void MarkFinalized(string rfaPath, string note = null)
+        {
+            try
+            {
+                string content = $"Finalized: {DateTime.UtcNow:yyyy-MM-ddTHH:mm:ssZ}\n" +
+                                 $"Family: {Path.GetFileName(rfaPath)}\n" +
+                                 (string.IsNullOrEmpty(note) ? "" : $"Note: {note}\n");
+                File.WriteAllText(GetSidecarPath(rfaPath), content);
+            }
+            catch (Exception ex) { StingLog.Warn($"MarkFinalized {rfaPath}: {ex.Message}"); }
+        }
+
+        /// <summary>Removes the .sting-finalized sidecar, allowing future rebuilds.</summary>
+        public static void ClearFinalized(string rfaPath)
+        {
+            try
+            {
+                string sidecar = GetSidecarPath(rfaPath);
+                if (File.Exists(sidecar)) File.Delete(sidecar);
+            }
+            catch (Exception ex) { StingLog.Warn($"ClearFinalized {rfaPath}: {ex.Message}"); }
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // Source-family augmentation path (Option A)
+        // ─────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Resolves a sourceFamilyPath value from a JSON spec against the
+        /// spec file's directory and the Data/Seeds/Families/ subfolder.
+        /// Returns null when the path is empty or no file is found.
+        /// </summary>
+        private static string ResolveSourceFamilyPath(string declared, string jsonPath)
+        {
+            if (string.IsNullOrWhiteSpace(declared)) return null;
+            try
+            {
+                // 1. Absolute path
+                if (Path.IsPathRooted(declared) && File.Exists(declared)) return declared;
+                // 2. Relative to the JSON spec's directory
+                string specDir = Path.GetDirectoryName(jsonPath) ?? "";
+                string rel1 = Path.Combine(specDir, declared);
+                if (File.Exists(rel1)) return rel1;
+                // 3. Relative to Data/Seeds/ via StingToolsApp
+                string dataPath = StingTools.Core.StingToolsApp.DataPath ?? "";
+                string rel2 = Path.Combine(dataPath, declared);
+                if (File.Exists(rel2)) return rel2;
+                string rel3 = Path.Combine(dataPath, "Seeds", declared);
+                if (File.Exists(rel3)) return rel3;
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveSourceFamilyPath: {ex.Message}"); }
+            return null;
+        }
+
+        /// <summary>
+        /// Opens an existing finished .rfa, injects the STING parameter
+        /// scheme declared in <paramref name="def"/>, stamps the seed
+        /// identity, mints any missing type variants, and saves to the
+        /// seed output folder. Geometry generation is skipped — the
+        /// imported family supplies its own 2D/3D content.
+        /// </summary>
+        private static string BuildFromSourceFamily(Application app, Document hostDoc,
+            SymbolDefinition def, string sourcePath, string outputFolder, SymbolCreationResult result)
+        {
+            string outPath = Path.Combine(outputFolder, def.Id + ".rfa");
+            Document fdoc = null;
+            try
+            {
+                // Open the source .rfa in the family editor.
+                // Application.OpenDocumentFile opens any file including .rfa.
+                fdoc = app.OpenDocumentFile(sourcePath);
+                if (fdoc == null || !fdoc.IsFamilyDocument)
+                {
+                    result.Warnings.Add($"{def.Id}: sourceFamilyPath '{sourcePath}' did not open as a family document — falling back to generate-from-scratch.");
+                    return null;
+                }
+
+                // Validate category compatibility (warn, don't abort).
+                try
+                {
+                    string srcCat = fdoc.OwnerFamily?.FamilyCategory?.Name ?? "";
+                    if (!string.IsNullOrEmpty(def.Category) && !string.IsNullOrEmpty(srcCat)
+                        && !string.Equals(srcCat, def.Category, StringComparison.OrdinalIgnoreCase))
+                    {
+                        result.Warnings.Add($"{def.Id}: source family category '{srcCat}' differs from spec '{def.Category}' — parameters injected, verify in Family Editor.");
+                    }
+                }
+                catch (Exception ex) { result.Warnings.Add($"{def.Id}: category check failed — {ex.Message}"); }
+
+                using (var tx = new Transaction(fdoc, "STING Augment Source Family"))
+                {
+                    tx.Start();
+
+                    // Inject STING shared parameters declared in the spec.
+                    // AddParameters is idempotent — skips params already present.
+                    AddParameters(fdoc, def, result);
+
+                    // Connector injection: add any connectors declared in the
+                    // spec that don't already exist in the source family.
+                    bool hasSpecConnectors = (def.Connectors != null && def.Connectors.Count > 0)
+                        || (def.TypeVariants != null && def.TypeVariants.Exists(v => v?.Connectors?.Count > 0));
+                    if (hasSpecConnectors
+                        && !string.Equals(def.FamilyType, "GenericAnnotation", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Only add connectors that aren't already in the family.
+                        int existingCount = new FilteredElementCollector(fdoc)
+                            .OfClass(typeof(ConnectorElement))
+                            .GetElementCount();
+                        if (existingCount == 0)
+                            AddConnectors(fdoc, def, result);
+                        else
+                            result.Warnings.Add($"{def.Id}: source family already has {existingCount} connector(s) — spec connectors not added. Verify in Family Editor.");
+                    }
+
+                    // Seed stamp + type variant injection.
+                    if (def.IsSeed) TryAddSeedMarker(fdoc, def);
+                    if (def.TypeVariants != null && def.TypeVariants.Count > 0)
+                        AddTypeVariants(fdoc, def, result);
+                    if (def.FormulaBindings != null && def.FormulaBindings.Count > 0)
+                        AddFormulaBindings(fdoc, def, result);
+
+                    tx.Commit();
+                }
+
+                var saveAs = new SaveAsOptions { OverwriteExistingFile = true };
+                fdoc.SaveAs(outPath, saveAs);
+                result.Warnings.Add($"{def.Id}: built from source family '{Path.GetFileName(sourcePath)}'.");
+                return outPath;
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"{def.Id}: BuildFromSourceFamily failed ({ex.Message}) — falling back to generate-from-scratch.");
+                return null;
+            }
+            finally
+            {
+                try { fdoc?.Close(false); } catch (Exception ex) { StingLog.Warn($"BuildFromSourceFamily close {def.Id}: {ex.Message}"); }
+            }
         }
 
         // ─────────────────────────────────────────────────────────────────
@@ -162,6 +410,8 @@ namespace StingTools.Core.Symbols
                 {
                     tx.Start();
                     DrawGeometry(fdoc, def, result);
+                    if (!string.IsNullOrWhiteSpace(def.Subcategory))
+                        ApplySubcategory(fdoc, def, result);
                     AddParameters(fdoc, def, result);
                     bool hasSymbolConnectors  = def.Connectors != null && def.Connectors.Count > 0;
                     bool hasVariantConnectors = def.TypeVariants != null
@@ -340,14 +590,15 @@ namespace StingTools.Core.Symbols
                 XYZ p2 = new XYZ(Scale(l.X2, symMm), Scale(l.Y2, symMm), 0);
                 if (p1.DistanceTo(p2) < 1e-6) return;
                 Line line = Line.CreateBound(p1, p2);
-                if (fdoc.IsFamilyDocument)
+                // TODO-VERIFY-API: NewSymbolicCurve for family annotation; falls back to NewDetailCurve.
+                DetailCurve dc = fdoc.IsFamilyDocument
+                    ? fdoc.FamilyCreate.NewDetailCurve(view, line)
+                    : fdoc.Create.NewDetailCurve(view, line);
+                // Apply the declared line style when the JSON spec names one.
+                if (dc != null && !string.IsNullOrWhiteSpace(l.Style))
                 {
-                    // TODO-VERIFY-API: NewSymbolicCurve for family annotation; falls back to NewDetailCurve.
-                    fdoc.FamilyCreate.NewDetailCurve(view, line);
-                }
-                else
-                {
-                    fdoc.Create.NewDetailCurve(view, line);
+                    var gs = ResolveGraphicsStyle(fdoc, l.Style);
+                    if (gs != null) try { dc.LineStyle = gs; } catch { }
                 }
             }
             catch (Exception ex)
@@ -379,10 +630,15 @@ namespace StingTools.Core.Symbols
                     curve = Arc.Create(centre, r, startRad, endRad, XYZ.BasisX, XYZ.BasisY);
                 }
 
-                if (fdoc.IsFamilyDocument)
-                    fdoc.FamilyCreate.NewDetailCurve(view, curve);
-                else
-                    fdoc.Create.NewDetailCurve(view, curve);
+                DetailCurve dc = fdoc.IsFamilyDocument
+                    ? fdoc.FamilyCreate.NewDetailCurve(view, curve)
+                    : fdoc.Create.NewDetailCurve(view, curve);
+                // Apply the declared line style when the JSON spec names one.
+                if (dc != null && !string.IsNullOrWhiteSpace(a.Style))
+                {
+                    var gs = ResolveGraphicsStyle(fdoc, a.Style);
+                    if (gs != null) try { dc.LineStyle = gs; } catch { }
+                }
             }
             catch (Exception ex)
             {
@@ -410,9 +666,7 @@ namespace StingTools.Core.Symbols
                 if (curves.Count < 3) return;
 
                 var loop = CurveLoop.Create(curves);
-                ElementId frTypeId = new FilteredElementCollector(fdoc)
-                    .OfClass(typeof(FilledRegionType))
-                    .FirstElementId();
+                ElementId frTypeId = ResolveFilledRegionType(fdoc, fr.FillType);
                 if (frTypeId == ElementId.InvalidElementId)
                 {
                     result.Warnings.Add($"{id}: no FilledRegionType in template.");
@@ -433,9 +687,9 @@ namespace StingTools.Core.Symbols
             try
             {
                 XYZ origin = new XYZ(Scale(t.X, symMm), Scale(t.Y, symMm), 0);
-                ElementId textTypeId = new FilteredElementCollector(fdoc)
-                    .OfClass(typeof(TextNoteType))
-                    .FirstElementId();
+                // Resolve a TextNoteType that matches the requested height; create one
+                // by duplicating the template default when no exact match exists.
+                ElementId textTypeId = ResolveTextNoteType(fdoc, t.HeightMm);
                 if (textTypeId == ElementId.InvalidElementId)
                 {
                     result.Warnings.Add($"{id}: no TextNoteType in template.");
@@ -660,6 +914,7 @@ namespace StingTools.Core.Symbols
             if (!fdoc.IsFamilyDocument) return;
             var fm = fdoc.FamilyManager;
 
+            // Pass 1 — add any parameters not already present.
             foreach (var p in def.Parameters)
             {
                 if (string.IsNullOrWhiteSpace(p?.Name)) continue;
@@ -669,11 +924,39 @@ namespace StingTools.Core.Symbols
 
                     var groupTypeId = GroupTypeId.IdentityData; // TODO-VERIFY-API
                     var specTypeId  = ResolveSpecTypeId(p.Type);
+
+                    // When the JSON spec marks a parameter as shared, look it up
+                    // in MR_PARAMETERS.txt and add it as an ExternallyDefinedParameter
+                    // so the instance matches the shared-parameter GUID required by
+                    // tag families and the COBie/ISO 19650 schedule filters.
+                    // Falls back to a plain project parameter when not found in the file.
+                    if (p.IsShared && TryAddSharedParameter(fdoc, fm, p, groupTypeId, result, def.Id))
+                        continue;
+
                     fm.AddParameter(p.Name, groupTypeId, specTypeId, p.IsInstance);
                 }
                 catch (Exception ex)
                 {
                     result.Warnings.Add($"{def.Id}: param '{p.Name}' add failed — {ex.Message}");
+                }
+            }
+
+            // Pass 2 — apply "default" values declared in the JSON on the seed
+            // (template) type. AddTypeVariants duplicates from this type, so
+            // defaults propagate automatically; per-variant overrides applied
+            // later in SetVariantParam win over these seeds.
+            foreach (var p in def.Parameters)
+            {
+                if (string.IsNullOrWhiteSpace(p?.Name) || p.Default == null) continue;
+                try
+                {
+                    var fp = fm.get_Parameter(p.Name);
+                    if (fp != null && !fp.IsReadOnly && fm.CurrentType != null)
+                        SetVariantParam(fm, fp, p.Default);
+                }
+                catch (Exception ex)
+                {
+                    result.Warnings.Add($"{def.Id}: param '{p.Name}' default failed — {ex.Message}");
                 }
             }
         }
@@ -735,6 +1018,13 @@ namespace StingTools.Core.Symbols
                     SketchPlane sp = SketchPlane.Create(fdoc, plane);
 
                     Domain domain = ResolveDomain(c.Domain);
+                    // Pre-flight: reject bad domain/systemType pairings before the API
+                    // call produces a cryptic exception at runtime.
+                    if (!ValidateDomainSystemType(domain, c.SystemType, out string pairError))
+                    {
+                        result.Warnings.Add($"{def.Id} [{sourceLabel}]: connector skipped — {pairError}");
+                        continue;
+                    }
                     // TODO-VERIFY-API: Connector creation requires reference geometry in 2025.
                     // We create a small reference line at the connector origin perpendicular
                     // to the facing direction, then mint the connector against its endpoint.
@@ -786,6 +1076,239 @@ namespace StingTools.Core.Symbols
                     result.Warnings.Add($"{def.Id} [{sourceLabel}]: connector ({c.Domain}/{c.SystemType}) failed — {ex.Message}");
                 }
             }
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // Geometry helpers — style / fill-type / text-height resolution
+        // ─────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Finds a projection GraphicsStyle by name (case-insensitive).
+        /// Returns null when the style doesn't exist in the document.
+        /// </summary>
+        private static GraphicsStyle ResolveGraphicsStyle(Document fdoc, string styleName)
+        {
+            if (string.IsNullOrWhiteSpace(styleName)) return null;
+            return new FilteredElementCollector(fdoc)
+                .OfClass(typeof(GraphicsStyle))
+                .Cast<GraphicsStyle>()
+                .FirstOrDefault(gs => gs.GraphicsStyleType == GraphicsStyleType.Projection
+                    && string.Equals(gs.Name, styleName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// Finds a FilledRegionType by name; falls back to the first available
+        /// type when no name is specified or the name is not found.
+        /// </summary>
+        private static ElementId ResolveFilledRegionType(Document fdoc, string fillTypeName)
+        {
+            if (!string.IsNullOrWhiteSpace(fillTypeName))
+            {
+                var namedType = new FilteredElementCollector(fdoc)
+                    .OfClass(typeof(FilledRegionType))
+                    .Cast<FilledRegionType>()
+                    .FirstOrDefault(t => string.Equals(t.Name, fillTypeName, StringComparison.OrdinalIgnoreCase));
+                if (namedType != null) return namedType.Id;
+            }
+            return new FilteredElementCollector(fdoc).OfClass(typeof(FilledRegionType)).FirstElementId();
+        }
+
+        /// <summary>
+        /// Finds a TextNoteType whose TEXT_SIZE is within 0.01 mm of the
+        /// requested height; when no exact match exists, duplicates the first
+        /// type and sets its height. Falls back to the first type when
+        /// heightMm ≤ 0 or duplication fails.
+        /// </summary>
+        private static ElementId ResolveTextNoteType(Document fdoc, double heightMm)
+        {
+            if (heightMm > 0)
+            {
+                double targetFt = MmToFt(heightMm);
+                var types = new FilteredElementCollector(fdoc)
+                    .OfClass(typeof(TextNoteType))
+                    .Cast<TextNoteType>()
+                    .ToList();
+
+                var match = types.FirstOrDefault(tnt =>
+                {
+                    var p = tnt.get_Parameter(BuiltInParameter.TEXT_SIZE);
+                    return p != null && Math.Abs(p.AsDouble() - targetFt) < MmToFt(0.01);
+                });
+                if (match != null) return match.Id;
+
+                // Duplicate the first type and stamp the target height.
+                var first = types.FirstOrDefault();
+                if (first != null)
+                {
+                    try
+                    {
+                        var dup = first.Duplicate($"STING Text {heightMm}mm") as TextNoteType;
+                        if (dup != null)
+                        {
+                            dup.get_Parameter(BuiltInParameter.TEXT_SIZE)?.Set(targetFt);
+                            return dup.Id;
+                        }
+                    }
+                    catch { /* fall through to first-type fallback */ }
+                }
+            }
+            return new FilteredElementCollector(fdoc).OfClass(typeof(TextNoteType)).FirstElementId();
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // Subcategory
+        // ─────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Gets or creates the subcategory declared in the JSON spec and
+        /// assigns it to every CurveElement and FilledRegion in the family
+        /// document. The STING_SEED subcategory lets VG overrides in host
+        /// projects target all seed geometry independently of the host
+        /// element category.
+        /// </summary>
+        private static void ApplySubcategory(Document fdoc, SymbolDefinition def, SymbolCreationResult result)
+        {
+            if (!fdoc.IsFamilyDocument) return;
+            try
+            {
+                Category ownerCat = fdoc.OwnerFamily?.FamilyCategory;
+                if (ownerCat == null)
+                {
+                    result.Warnings.Add($"{def.Id}: subcategory '{def.Subcategory}' — could not resolve family category.");
+                    return;
+                }
+
+                Category subCat = ownerCat.SubCategories.Contains(def.Subcategory)
+                    ? ownerCat.SubCategories.get_Item(def.Subcategory)
+                    : fdoc.Settings.Categories.NewSubcategory(ownerCat, def.Subcategory);
+                if (subCat == null) return;
+
+                int assigned = 0;
+                foreach (var ce in new FilteredElementCollector(fdoc)
+                    .OfClass(typeof(CurveElement)).Cast<CurveElement>())
+                {
+                    try
+                    {
+                        var p = ce.get_Parameter(BuiltInParameter.FAMILY_ELEM_SUBCATEGORY);
+                        if (p != null && !p.IsReadOnly) { p.Set(subCat.Id); assigned++; }
+                    }
+                    catch { }
+                }
+                foreach (var fr in new FilteredElementCollector(fdoc)
+                    .OfClass(typeof(FilledRegion)).Cast<FilledRegion>())
+                {
+                    try
+                    {
+                        var p = fr.get_Parameter(BuiltInParameter.FAMILY_ELEM_SUBCATEGORY);
+                        if (p != null && !p.IsReadOnly) { p.Set(subCat.Id); assigned++; }
+                    }
+                    catch { }
+                }
+                if (assigned > 0)
+                    result.Warnings.Add($"{def.Id}: subcategory '{def.Subcategory}' assigned to {assigned} elements.");
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"{def.Id}: subcategory '{def.Subcategory}' failed — {ex.Message}");
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // Shared parameters
+        // ─────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Attempts to add a parameter as an ExternallyDefinedParameter by
+        /// looking it up in the STING shared-parameter file (MR_PARAMETERS.txt).
+        /// The application's SharedParametersFilename is saved and restored
+        /// around the call so other open family documents aren't affected.
+        /// Returns true and adds the parameter when found; returns false so
+        /// the caller can fall back to a plain project parameter.
+        /// </summary>
+        private static bool TryAddSharedParameter(Document fdoc, FamilyManager fm,
+            ParameterDefinition p, ForgeTypeId groupTypeId,
+            SymbolCreationResult result, string defId)
+        {
+            try
+            {
+                var app = fdoc.Application;
+                string stingFile = null;
+                try { stingFile = Path.Combine(StingToolsApp.DataPath ?? "", "MR_PARAMETERS.txt"); }
+                catch { }
+                if (string.IsNullOrEmpty(stingFile) || !File.Exists(stingFile)) return false;
+
+                string saved = app.SharedParametersFilename;
+                try
+                {
+                    app.SharedParametersFilename = stingFile;
+                    DefinitionFile defFile = app.OpenSharedParameterFile();
+                    if (defFile == null) return false;
+
+                    foreach (DefinitionGroup grp in defFile.Groups)
+                    {
+                        var extDef = grp.Definitions.get_Item(p.Name) as ExternalDefinition;
+                        if (extDef != null)
+                        {
+                            fm.AddParameter(extDef, groupTypeId, p.IsInstance);
+                            return true;
+                        }
+                    }
+                }
+                finally
+                {
+                    try { app.SharedParametersFilename = saved; } catch { }
+                }
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"{defId}: shared param '{p.Name}' lookup failed ({ex.Message}); falling back to project param.");
+            }
+            return false;
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // Connector validation
+        // ─────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Returns false with a descriptive error when the systemType string
+        /// is not compatible with the resolved domain. Called before
+        /// ConnectorElement.Create* to surface mismatches as human-readable
+        /// warnings rather than cryptic Revit API exceptions.
+        /// </summary>
+        private static bool ValidateDomainSystemType(Domain domain, string systemType, out string error)
+        {
+            error = null;
+            if (string.IsNullOrEmpty(systemType)) return true; // undefined is always accepted
+
+            var hvac = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                { "SupplyAir", "ReturnAir", "ExhaustAir", "OutsideAir", "UndefinedSystemType" };
+            var piping = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                { "DomesticColdWater", "DomesticHotWater", "Sanitary", "FireProtectionWet",
+                  "FireProtectionDry", "FireProtectionPreaction", "ChilledWaterSupply",
+                  "ChilledWaterReturn", "HotWaterSupply", "HotWaterReturn", "Hydronic",
+                  "UndefinedSystemType" };
+            var electrical = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                { "PowerCircuit", "PowerBalanced", "PowerUnBalanced", "Data", "FireAlarm",
+                  "Controls", "Communication", "Nurse", "Security", "Telephone",
+                  "UndefinedSystemType" };
+
+            switch (domain)
+            {
+                case Domain.DomainHvac:
+                    if (!hvac.Contains(systemType))
+                    { error = $"'{systemType}' is not valid for HVAC domain. Expected one of: {string.Join(", ", hvac)}"; return false; }
+                    break;
+                case Domain.DomainPiping:
+                    if (!piping.Contains(systemType))
+                    { error = $"'{systemType}' is not valid for Piping domain. Expected one of: {string.Join(", ", piping)}"; return false; }
+                    break;
+                case Domain.DomainElectrical:
+                    if (!electrical.Contains(systemType))
+                    { error = $"'{systemType}' is not valid for Electrical domain. Expected one of: {string.Join(", ", electrical)}"; return false; }
+                    break;
+            }
+            return true;
         }
 
         private static void SetConnectorSize(ConnectorElement ce, ConnectorDefinition c)
