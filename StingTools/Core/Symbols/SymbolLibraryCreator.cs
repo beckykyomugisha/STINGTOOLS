@@ -1249,7 +1249,7 @@ namespace StingTools.Core.Symbols
                         var extDef = grp.Definitions.get_Item(p.Name) as ExternalDefinition;
                         if (extDef != null)
                         {
-                            fm.AddExternallyDefinedParameter(extDef, groupTypeId, p.IsInstance);
+                            fm.AddParameter(extDef, groupTypeId, p.IsInstance);
                             return true;
                         }
                     }
