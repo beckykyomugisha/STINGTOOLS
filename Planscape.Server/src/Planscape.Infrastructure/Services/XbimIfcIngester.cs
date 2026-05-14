@@ -46,7 +46,9 @@ public class XbimIfcIngester : IIfcIngester
         // Open with default settings — xbim picks Esent on Windows,
         // in-memory on Linux. For property-only ingest we don't need
         // geometry, so we skip the (slow) geometric model load.
-        await using var model = IfcStore.Open(ifcPath, null, null, null, Xbim.IO.XbimDBAccess.Read);
+        // IfcStore implements IDisposable but not IAsyncDisposable, so use
+        // a plain using statement (no await) even though IngestAsync is async.
+        using var model = IfcStore.Open(ifcPath, null, null, null, Xbim.IO.XbimDBAccess.Read);
         ct.ThrowIfCancellationRequested();
 
         var schemaVersion = model.SchemaVersion switch
@@ -73,20 +75,27 @@ public class XbimIfcIngester : IIfcIngester
             var bag = new Dictionary<string, string>(StringComparer.Ordinal);
 
             // Direct attributes — always available.
-            if (element.GlobalId.Value is string g) bag["IfcGlobalId"] = g;
-            if (element.Name?.Value is string n) bag["IfcName"] = n;
-            if (element.Description?.Value is string d) bag["IfcDescription"] = d;
-            if (element.Tag?.Value is string t) bag["IfcTag"] = t;
+            // Use ToString() / null-coalescing rather than 'is string' or 'as string'
+            // patterns: xbim value types (IfcIdentifier, IfcLabel) are structs, so
+            // the 'as' operator would always return null and '?.' is disallowed on them.
+            var gid = element.GlobalId.ToString();
+            if (!string.IsNullOrEmpty(gid)) bag["IfcGlobalId"] = gid;
+            var elName = element.Name?.ToString();
+            if (!string.IsNullOrEmpty(elName)) bag["IfcName"] = elName;
+            var elDesc = element.Description?.ToString();
+            if (!string.IsNullOrEmpty(elDesc)) bag["IfcDescription"] = elDesc;
+            var elTag = element.Tag?.ToString();
+            if (!string.IsNullOrEmpty(elTag)) bag["IfcTag"] = elTag;
 
             // Property sets via the prebuilt index.
             if (propsByElement.TryGetValue(element.EntityLabel, out var pSets))
             {
                 foreach (var pset in pSets)
                 {
-                    var psetName = pset.Name?.Value as string ?? "Pset";
+                    var psetName = pset.Name?.ToString() ?? "Pset";
                     foreach (var prop in pset.HasProperties.OfType<IIfcPropertySingleValue>())
                     {
-                        var pname = prop.Name?.Value as string;
+                        var pname = prop.Name.ToString();
                         if (string.IsNullOrEmpty(pname)) continue;
                         var pvalue = prop.NominalValue?.Value?.ToString();
                         if (pvalue == null) continue;
@@ -98,9 +107,9 @@ public class XbimIfcIngester : IIfcIngester
             string? predefined = TryReadPredefinedType(element);
 
             elements.Add(new IfcElementProperties(
-                GlobalId: element.GlobalId.Value as string ?? "",
+                GlobalId: element.GlobalId.ToString() ?? "",
                 IfcType: ifcType,
-                Name: element.Name?.Value as string,
+                Name: element.Name?.ToString(),
                 PredefinedType: predefined,
                 Properties: bag));
         }

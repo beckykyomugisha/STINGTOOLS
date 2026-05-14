@@ -112,7 +112,7 @@ public class DailyPhotoDigestJob
                 if (!guest.OptIn) { skipped++; continue; }
                 var subject = $"{publishedToday.Count} new progress photos · {project.Name}";
                 var body    = ClientDigestHtml(project, publishedToday);
-                await _email.SendAsync(guest.Email, subject, body, ct);
+                await _email.SendNotificationAsync(guest.Email, subject, body, ct);
                 sent++;
             }
             _logger.LogInformation(
@@ -143,7 +143,7 @@ public class DailyPhotoDigestJob
                 if (!approver.OptIn) continue;
                 var subject = $"{pendingReviewCount} site photo{(pendingReviewCount == 1 ? "" : "s")} awaiting your review · {project.Name}";
                 var body    = ApproverNudgeHtml(project, pendingReviewCount, oldestPending);
-                await _email.SendAsync(approver.Email, subject, body, ct);
+                await _email.SendNotificationAsync(approver.Email, subject, body, ct);
             }
         }
     }
