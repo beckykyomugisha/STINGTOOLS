@@ -3921,15 +3921,25 @@
         const persisted = parseFloat(localStorage.getItem('planscape_walk_speed'));
         if (!isNaN(persisted) && persisted > 0) window.__walkSpeedMul = persisted;
       } catch (_) {}
-      function paintSpeed() {
+      function paintSpeed(animate) {
         const v = $('#walkSpeedVal');
-        if (v) v.textContent = window.__walkSpeedMul.toFixed(2).replace(/\.?0+$/, '') + '×';
+        if (!v) return;
+        v.textContent = window.__walkSpeedMul.toFixed(2).replace(/\.?0+$/, '') + '×';
+        if (animate) {
+          v.classList.remove('bumped');
+          // Force reflow so the animation restarts even on rapid bumps.
+          void v.offsetWidth;
+          v.classList.add('bumped');
+          v.addEventListener('animationend', () => v.classList.remove('bumped'), { once: true });
+        }
       }
       function bumpSpeed(delta) {
+        const prev = window.__walkSpeedMul;
         const next = Math.min(8, Math.max(0.1, window.__walkSpeedMul + delta));
         window.__walkSpeedMul = Math.round(next * 100) / 100;
+        if (window.__walkSpeedMul === prev) return; // already at limit, no paint
         try { localStorage.setItem('planscape_walk_speed', String(window.__walkSpeedMul)); } catch (_) {}
-        paintSpeed();
+        paintSpeed(true);
       }
       $('#walkSpeedDown')?.addEventListener('click', (e) => { e.stopPropagation(); bumpSpeed(-0.25); });
       $('#walkSpeedUp')?.addEventListener('click',   (e) => { e.stopPropagation(); bumpSpeed(+0.25); });
@@ -3952,11 +3962,13 @@
             tgt.closest('.bottom-panel'))) return;
 
         if (ev.shiftKey) {
-          // Shift+scroll → adjust speed (coarse: 25% per notch).
+          // Shift+scroll → adjust speed (fine: 10% per notch).
           const sign = ev.deltaY < 0 ? +1 : -1;
-          bumpSpeed(sign * 0.25);
+          bumpSpeed(sign * 0.1);
         } else {
-          // Plain scroll → step the camera forward/backward.
+          // Plain scroll → step the camera forward/backward, projected
+          // onto the floor plane so movement stays horizontal even when
+          // the camera is pitched up or down (matches WASD behaviour).
           const V = window.STING_VIEWER;
           if (V && V.camera && V.modelBounds) {
             const sign = ev.deltaY < 0 ? 1 : -1;
@@ -3964,6 +3976,13 @@
                          * (window.__walkSpeedMul || 1.0);
             const dir = new THREE_.Vector3();
             V.camera.getWorldDirection(dir);
+            // Project onto floor plane using the active walk-up axis.
+            const upArr = window.__walkUp;
+            if (upArr) {
+              const up = new THREE_.Vector3(upArr[0], upArr[1], upArr[2]);
+              dir.addScaledVector(up, -dir.dot(up));
+              if (dir.lengthSq() > 1e-6) dir.normalize();
+            }
             V.camera.position.addScaledVector(dir, sign * step);
           }
         }

@@ -108,10 +108,14 @@
       if (upAxis.x) lookAt.y += 1; else lookAt.x += 1;
       h.camera.lookAt(lookAt);
       walkUp = upAxis;
+      // Expose the active up-axis so coordination-viewer's scroll handler
+      // can project forward movement onto the floor plane, matching WASD.
+      window.__walkUp = upAxis.toArray();
       h.bridge.send('walkthrough', { active: true, upAxis: upAxis.toArray() });
     } else {
       detachWalkInput();
       walkVelocity.set(0, 0, 0);
+      window.__walkUp = null;
       h.bridge.send('walkthrough', { active: false });
     }
   };

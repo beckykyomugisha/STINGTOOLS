@@ -226,13 +226,13 @@ export default function DashboardScreen() {
           title="Open Issues"
           value={String(dashboard.openIssueCount)}
           color={dashboard.openIssueCount > 5 ? theme.colors.danger : theme.colors.accent}
-          onPress={() => router.push('/(tabs)/issues')}
+          onPress={() => router.replace('/(tabs)/issues')}
         />
         <KPICard
           title="Documents"
           value={String(dashboard.documentCount)}
           color={theme.colors.primary}
-          onPress={() => router.push('/(tabs)/documents')}
+          onPress={() => router.replace('/(tabs)/documents')}
         />
       </View>
 
@@ -272,7 +272,7 @@ export default function DashboardScreen() {
           {federation && (
             <TouchableOpacity
               style={styles.bimRow}
-              onPress={() => router.push('/(tabs)/models')}
+              onPress={() => router.replace('/(tabs)/models')}
               accessibilityLabel={`Federation status — ${federation.rag}`}
             >
               <View style={[styles.ragDot, { backgroundColor: ragToColor(federation.rag) }]} />
@@ -374,7 +374,7 @@ export default function DashboardScreen() {
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recent Issues</Text>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/issues')}>
+            <TouchableOpacity onPress={() => router.replace('/(tabs)/issues')}>
               <Text style={styles.seeAll}>See all</Text>
             </TouchableOpacity>
           </View>
