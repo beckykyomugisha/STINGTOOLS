@@ -461,7 +461,102 @@ public sealed class PlanscapeServerClient : IDisposable
         catch (Exception ex) { LastError = ex.Message; return null; }
     }
 
-    /// <summary>Create an issue on the server. Returns the new issue code, or null on failure.</summary>
+    /// <summary>Pull all issues from the server and merge them into the local
+    /// _bim_manager/issues.json so the BCC can see mobile-created issues.
+    /// Existing local-only issues (no server id) are preserved. Server
+    /// issues are upserted by their GUID. Returns the number merged.</summary>
+    public async Task<int> SyncIssuesFromServerAsync(Guid projectId, string issuesJsonPath)
+    {
+        var arr = await GetIssuesAsync(projectId, "ALL");
+        if (arr == null || arr.Count == 0) return 0;
+        try
+        {
+            // Load existing local array so we can upsert.
+            JArray local;
+            try { local = File.Exists(issuesJsonPath) ? JArray.Parse(File.ReadAllText(issuesJsonPath)) : new JArray(); }
+            catch { local = new JArray(); }
+
+            // Index local items by their server id (if present) for O(1) lookup.
+            var localById = new Dictionary<string, JObject>(StringComparer.OrdinalIgnoreCase);
+            foreach (JObject loc in local)
+            {
+                string lid = loc.Value<string>("server_id") ?? loc.Value<string>("id") ?? "";
+                if (!string.IsNullOrEmpty(lid)) localById[lid] = loc;
+            }
+
+            int merged = 0;
+            foreach (JObject srv in arr)
+            {
+                string sid = srv.Value<string>("id") ?? "";
+                if (string.IsNullOrEmpty(sid)) continue;
+
+                // Map server camelCase → local snake_case schema expected by BuildCoordData.
+                string assignee = srv.Value<string>("assignee") ?? "";
+                string createdDate = srv.Value<string>("createdAt") ?? srv.Value<string>("created_date") ?? "";
+
+                // Build element_ids JArray from server's linkedElementIds string.
+                var elemArr = new JArray();
+                string linkedRaw = srv.Value<string>("linkedElementIds") ?? "";
+                if (!string.IsNullOrWhiteSpace(linkedRaw) && linkedRaw.StartsWith("["))
+                {
+                    try { elemArr = JArray.Parse(linkedRaw); } catch { /* ignore */ }
+                }
+
+                var mapped = new JObject
+                {
+                    ["id"]               = sid,
+                    ["server_id"]        = sid,
+                    ["issue_id"]         = srv.Value<string>("issueCode") ?? sid,
+                    ["type"]             = srv.Value<string>("type") ?? "",
+                    ["type_description"] = srv.Value<string>("type") ?? "",
+                    ["priority"]         = srv.Value<string>("priority") ?? "MEDIUM",
+                    ["title"]            = srv.Value<string>("title") ?? "",
+                    ["description"]      = srv.Value<string>("description") ?? "",
+                    ["status"]           = srv.Value<string>("status") ?? "OPEN",
+                    ["assignee"]         = assignee,
+                    ["assigned_to"]      = assignee,
+                    ["discipline"]       = srv.Value<string>("discipline") ?? "",
+                    ["revision"]         = srv.Value<string>("revision") ?? "",
+                    ["raised_by"]        = srv.Value<string>("createdBy") ?? "",
+                    ["created_by"]       = srv.Value<string>("createdBy") ?? "",
+                    ["created_date"]     = createdDate,
+                    ["modified_date"]    = srv.Value<string>("updatedAt") ?? createdDate,
+                    ["date_due"]         = srv.Value<string>("dueDate") ?? "",
+                    ["date_closed"]      = srv.Value<string>("resolvedAt") ?? "",
+                    ["source"]           = srv.Value<string>("source") ?? "server",
+                    ["element_ids"]      = elemArr,
+                    ["model_id"]         = srv.Value<string>("modelId") ?? "",
+                    ["model_element_guid"] = srv.Value<string>("modelElementGuid") ?? "",
+                    ["latitude"]         = srv.Value<double?>("latitude"),
+                    ["longitude"]        = srv.Value<double?>("longitude"),
+                    ["linked_transmittals"] = new JArray(),
+                    ["comments"]         = new JArray()
+                };
+
+                if (localById.TryGetValue(sid, out var existing))
+                {
+                    // Replace in-place so local additions (comments, linked_transmittals) survive.
+                    if (existing["comments"] is JArray c && c.Count > 0) mapped["comments"] = c;
+                    if (existing["linked_transmittals"] is JArray lt && lt.Count > 0) mapped["linked_transmittals"] = lt;
+                    int idx = local.IndexOf(existing);
+                    local[idx] = mapped;
+                }
+                else
+                {
+                    local.Add(mapped);
+                    localById[sid] = mapped;
+                }
+                merged++;
+            }
+
+            File.WriteAllText(issuesJsonPath, local.ToString(Newtonsoft.Json.Formatting.Indented));
+            StingLog.Info($"SyncIssuesFromServer: merged {merged} issues into {issuesJsonPath}");
+            return merged;
+        }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"SyncIssuesFromServer: {ex.Message}"); return 0; }
+    }
+
+
     public async Task<string?> CreateIssueAsync(Guid projectId, string type, string title,
         string priority = "MEDIUM", string? assignee = null, string? discipline = null,
         List<long>? linkedElementIds = null,
