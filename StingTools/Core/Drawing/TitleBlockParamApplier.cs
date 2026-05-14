@@ -37,6 +37,11 @@ namespace StingTools.Core.Drawing
         /// <see cref="ApplyOptions.DryRun"/> is true; otherwise empty.</summary>
         public List<TitleBlockChange> Changes { get; } = new List<TitleBlockChange>();
         public List<string> Warnings { get; } = new List<string>();
+        /// <summary>Keys declared in DrawingType.TitleBlockParams that could not be
+        /// found on any title-block instance parameter (parameter name not on the family).</summary>
+        public List<string> ParametersMissing { get; } = new List<string>();
+        /// <summary>Total declared parameter keys across all title-block instances attempted.</summary>
+        public int ParametersDeclared { get; set; }
     }
 
     public sealed class TitleBlockChange
@@ -188,15 +193,20 @@ namespace StingTools.Core.Drawing
 
                 try
                 {
+                    r.ParametersDeclared++;
                     var p = tb.LookupParameter(paramName);
                     if (p == null)
                     {
                         r.Warnings.Add($"Title block has no parameter '{paramName}'.");
+                        if (!r.ParametersMissing.Contains(paramName, StringComparer.Ordinal))
+                            r.ParametersMissing.Add(paramName);
                         continue;
                     }
                     if (p.IsReadOnly)
                     {
                         r.Warnings.Add($"Parameter '{paramName}' is read-only.");
+                        if (!r.ParametersMissing.Contains(paramName, StringComparer.Ordinal))
+                            r.ParametersMissing.Add(paramName);
                         continue;
                     }
                     // Phase 169 — read live value first so we can skip-if-equal

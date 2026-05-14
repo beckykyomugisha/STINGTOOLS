@@ -1030,6 +1030,10 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Renumber" Tag="DrawingTypes_Renumber" Click="Cmd_Click" ToolTip="Phase 168 — Compact sheet-number gaps within each (DrawingType, package) bucket. Two-pass rename avoids collisions; locked sheets are skipped."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Doctor" Tag="DrawingTypes_Doctor" Click="Cmd_Click" ToolTip="Phase 168 — Audit the title-block layer: cross-stamps (CSV vs recipe), family swaps, missing TBs, stale syncs."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Migrate CSV" Tag="DrawingTypes_MigrateCsv" Click="Cmd_Click" ToolTip="Phase 168 — Export TITLE_BLOCK.csv as a recipe-ready JSON snippet (baseline + per-discipline deltas) ready to paste into the Drawing Types editor."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Migrate TB Params" Tag="DrawingTypes_MigrateParams" Click="Cmd_Click" ToolTip="One-time migration: copy PRJ_TB_* values from title blocks into PRJ_ORG_* on ProjectInformation, then re-stamp all sheets."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Audit TB Params" Tag="DrawingTypes_AuditLegacyParams" Click="Cmd_Click" ToolTip="Read-only audit: shows which PRJ_TB_* values would be migrated without writing anything."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sync Rev Strip" Tag="DrawingTypes_SyncRevisions" Click="Cmd_Click" ToolTip="Sync Revit Revision sequence into title-block revision-strip rows (PRJ_TB_REV_COL_n / DATE / DESC) on all STING-stamped sheets."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Re-Stamp Sheets" Tag="DrawingTypes_BulkReStamp" Click="Cmd_Click" ToolTip="Re-apply a DrawingType profile (scale / template / style pack / annotation) to selected sheets or all project sheets."/>
                                 </WrapPanel>
                                 <!-- Phase 137 — Production -->
                                 <Separator/>
@@ -1050,6 +1054,7 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Export Package" Tag="DrawingTypes_ExportPackage" Click="Cmd_Click" ToolTip="Phase 137 — export every sheet in a selected drawing package as PDFs in sequence order"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Sequence Package" Tag="DrawingTypes_SequencePackage" Click="Cmd_Click" ToolTip="Phase 137 — re-stamp STING_SHEET_SEQUENCE for a selected package, ordered by current sheet number"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Audit Packages" Tag="DrawingTypes_AuditPackages" Click="Cmd_Click" ToolTip="Phase 137 — list all drawing packages with sheet count, view count, and sequence-gap count"/>
+                                    <Button Style="{StaticResource ActionBtn}" Background="#1A6B2A" Foreground="White" FontWeight="Bold" Content="⚡ Produce &amp; Export" Tag="DrawingTypes_ProduceAndExport" Click="Cmd_Click" ToolTip="AUTO-2: One-click produce all plan views per level, sync styles and revisions, export every stamped sheet to PDF, and write a sheet register CSV."/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

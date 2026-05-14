@@ -288,39 +288,12 @@ namespace StingTools.Core.Drawing
             if (view.IsTemplate) return;
             if (DrawingTypeStamper.IsLocked(view)) return;
 
-            if (slot.Scale.HasValue && slot.Scale.Value > 0)
-            {
-                try
-                {
-                    view.Scale = slot.Scale.Value;
-                    if (result != null) result.ScaleApplied = true;
-                }
-                catch (Exception ex)
-                {
-                    result?.Warnings.Add($"Slot scale 1:{slot.Scale.Value} on {view.Id}: {ex.Message}");
-                }
-            }
+            // Correct order: template first, then per-slot scale/level overrides (slot wins).
+            // 1. Apply slot view template (if set)
+            // 2. Apply slot.Scale (override whatever the template set)
+            // 3. Apply slot.DetailLevel (override whatever the template set)
 
-            if (!string.IsNullOrWhiteSpace(slot.DetailLevel))
-            {
-                try
-                {
-                    ViewDetailLevel parsed;
-                    switch (slot.DetailLevel.Trim().ToLowerInvariant())
-                    {
-                        case "coarse": parsed = ViewDetailLevel.Coarse; break;
-                        case "fine":   parsed = ViewDetailLevel.Fine;   break;
-                        default:       parsed = ViewDetailLevel.Medium; break;
-                    }
-                    view.DetailLevel = parsed;
-                    if (result != null) result.DetailLevelApplied = true;
-                }
-                catch (Exception ex)
-                {
-                    result?.Warnings.Add($"Slot DetailLevel {slot.DetailLevel}: {ex.Message}");
-                }
-            }
-
+            // 1. View template — applied first so steps 2 & 3 can override it.
             if (!string.IsNullOrWhiteSpace(slot.ViewTemplate))
             {
                 try
@@ -339,6 +312,43 @@ namespace StingTools.Core.Drawing
                 catch (Exception ex)
                 {
                     result?.Warnings.Add($"Slot ViewTemplate: {ex.Message}");
+                }
+            }
+
+            // 2. Per-slot scale is applied AFTER template so it wins over template-controlled scale.
+            // If the template locks scale (IsTemplateParameterDisplayed = false for View.Scale),
+            // Revit will silently ignore this write — acceptable trade-off.
+            if (slot.Scale.HasValue && slot.Scale.Value > 0)
+            {
+                try
+                {
+                    view.Scale = slot.Scale.Value;
+                    if (result != null) result.ScaleApplied = true;
+                }
+                catch (Exception ex)
+                {
+                    result?.Warnings.Add($"Slot scale 1:{slot.Scale.Value} on {view.Id}: {ex.Message}");
+                }
+            }
+
+            // 3. Per-slot detail level — applied after template for the same reason as scale.
+            if (!string.IsNullOrWhiteSpace(slot.DetailLevel))
+            {
+                try
+                {
+                    ViewDetailLevel parsed;
+                    switch (slot.DetailLevel.Trim().ToLowerInvariant())
+                    {
+                        case "coarse": parsed = ViewDetailLevel.Coarse; break;
+                        case "fine":   parsed = ViewDetailLevel.Fine;   break;
+                        default:       parsed = ViewDetailLevel.Medium; break;
+                    }
+                    view.DetailLevel = parsed;
+                    if (result != null) result.DetailLevelApplied = true;
+                }
+                catch (Exception ex)
+                {
+                    result?.Warnings.Add($"Slot DetailLevel {slot.DetailLevel}: {ex.Message}");
                 }
             }
         }
@@ -400,25 +410,38 @@ namespace StingTools.Core.Drawing
                 catch (Exception ex) { r.Warnings.Add($"DetailLevel {dt.DetailLevel}: {ex.Message}"); }
             }
 
-            // View template ----------------------------------------------
+            // Template Priority (highest to lowest):
+            //   1. dt.ViewTemplateName — explicit user/corporate named template; applied if found.
+            //   2. Managed pack template (STING:{packId}:{ViewType}) — applied if dt.ViewTemplateName
+            //      is absent or not found in the project.
+            // Rationale: named templates carry user customisations that should not be silently
+            // discarded; managed templates are the fallback for new projects without existing templates.
+            //
             // C-1: cached lookup; FilteredElementCollector<View> only runs
             // on first miss per (docKey, templateName).
+            bool explicitTemplateApplied = false;
             if (!string.IsNullOrWhiteSpace(dt.ViewTemplateName))
             {
                 try
                 {
                     ElementId tplId = ResolveViewTemplate(doc, dt.ViewTemplateName);
-                    if (tplId != ElementId.InvalidElementId)
+                    if (tplId != null && tplId != ElementId.InvalidElementId)
                     {
                         view.ViewTemplateId = tplId;
                         r.TemplateApplied = true;
+                        explicitTemplateApplied = true;
                     }
                     else
                     {
-                        r.Warnings.Add($"View template '{dt.ViewTemplateName}' not found in project.");
+                        StingTools.Core.StingLog.Warn($"DrawingTypePresentation.Apply: viewTemplateName '{dt.ViewTemplateName}' not found in project — falling back to managed pack template.");
+                        r.Warnings.Add($"View template '{dt.ViewTemplateName}' not found in project; falling back to managed pack template.");
                     }
                 }
-                catch (Exception ex) { r.Warnings.Add($"ViewTemplate: {ex.Message}"); }
+                catch (Exception ex)
+                {
+                    StingTools.Core.StingLog.Warn($"DrawingTypePresentation.Apply: could not apply view template '{dt.ViewTemplateName}' — {ex.Message}");
+                    r.Warnings.Add($"ViewTemplate: {ex.Message}");
+                }
             }
 
             // Crop strategy (bonus) -------------------------------------
@@ -457,16 +480,22 @@ namespace StingTools.Core.Drawing
                         r.Warnings.AddRange(syncResult.Warnings);
                         if (templateId != ElementId.InvalidElementId)
                         {
-                            try
+                            r.ManagedTemplateId = templateId;
+                            r.ManagedTemplateCreated = !r.TemplateApplied;
+                            r.ManagedTemplateUpdated = true;
+                            r.PackApplied = true;
+
+                            // Only assign the managed template to the view when no explicit
+                            // dt.ViewTemplateName was resolved — explicit template wins (PACK-1).
+                            if (!explicitTemplateApplied)
                             {
-                                view.ViewTemplateId = templateId;
-                                r.ManagedTemplateId = templateId;
-                                r.ManagedTemplateCreated = !r.TemplateApplied;
-                                r.ManagedTemplateUpdated = true;
-                                r.PackApplied = true;
-                                r.TemplateApplied = true;
+                                try
+                                {
+                                    view.ViewTemplateId = templateId;
+                                    r.TemplateApplied = true;
+                                }
+                                catch (Exception ex) { r.Warnings.Add($"Assign managed template: {ex.Message}"); }
                             }
-                            catch (Exception ex) { r.Warnings.Add($"Assign managed template: {ex.Message}"); }
                         }
                         else
                         {

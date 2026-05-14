@@ -145,6 +145,7 @@ namespace StingTools.UI
             stack.Children.Add(BuildAssembliesCard());
             stack.Children.Add(BuildSheetsCard());
             stack.Children.Add(BuildSymbolsCard());
+            if (_res.TitleBlockFallbacks.Count > 0) stack.Children.Add(BuildTitleBlockFallbacksCard());
             if (_res.Warnings.Count > 0) stack.Children.Add(BuildWarningsCard());
 
             scroll.Content = stack;
@@ -294,6 +295,54 @@ namespace StingTools.UI
                 }
             }
             return Card("ISO 6412 symbols", body);
+        }
+
+        // Gap-6: surfaces which spools used a non-profile title-block family.
+        private UIElement BuildTitleBlockFallbacksCard()
+        {
+            var body = new StackPanel();
+            body.Children.Add(MetricRow("Total fallbacks", _res.TitleBlockFallbacks.Count.ToString(),
+                accent: AmberColor, bold: true));
+            body.Children.Add(new TextBlock
+            {
+                Text = $"Title-block fallbacks (first {Math.Min(10, _res.TitleBlockFallbacks.Count)}):",
+                FontSize = 11,
+                Foreground = new SolidColorBrush(SubtleColor),
+                Margin = new Thickness(0, 6, 0, 4),
+            });
+            foreach (var fb in _res.TitleBlockFallbacks.Take(10))
+            {
+                string sheetLabel = fb.SheetId >= 0 ? $"Sheet {fb.SheetId}" : "Sheet (pending)";
+                body.Children.Add(new TextBlock
+                {
+                    Text = $"• {sheetLabel}: wanted '{fb.ExpectedFamily}', used '{fb.UsedFamily}'",
+                    Foreground = new SolidColorBrush(FgColor),
+                    FontSize = 11,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 1, 0, 1),
+                });
+            }
+            if (_res.TitleBlockFallbacks.Count > 10)
+            {
+                body.Children.Add(new TextBlock
+                {
+                    Text = $"(+{_res.TitleBlockFallbacks.Count - 10} more — see StingTools.log for the full list)",
+                    Foreground = new SolidColorBrush(SubtleColor),
+                    FontSize = 11,
+                    FontStyle = FontStyles.Italic,
+                    Margin = new Thickness(0, 4, 0, 0),
+                });
+            }
+            body.Children.Add(new TextBlock
+            {
+                Text = "Load the expected title-block families or update the DrawingType profile to match the loaded family.",
+                Foreground = new SolidColorBrush(SubtleColor),
+                FontSize = 11,
+                FontStyle = FontStyles.Italic,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 6, 0, 0),
+            });
+            return Card("Title-block fallbacks (Gap-6)", body);
         }
 
         private UIElement BuildWarningsCard()
