@@ -76,8 +76,11 @@ namespace StingTools.Commands.Plumbing
                 {
                     try
                     {
+                        string sysName = (pumpEl as FamilyInstance)?.MEPModel?.ConnectorManager
+                            ?.Connectors?.Cast<Connector>()
+                            .Select(c => c.MEPSystem?.Name).FirstOrDefault(n => n != null) ?? "";
                         PumpDutyPoint duty = autoMode && network != null
-                            ? PumpSelector.CalculateDutyPoint(network, ctx.Doc, pumpEl)
+                            ? PumpSelector.CalculateDutyPoint(ctx.Doc, network, sysName)
                             : PumpSelector.CalculateDutyPointSimple(20.0, 5.0, 1.0);
 
                         var result = PumpSelector.SelectPump(duty, cataloguePath);
@@ -91,7 +94,7 @@ namespace StingTools.Commands.Plumbing
                         }
                         else
                         {
-                            report.Add($"--- {pumpEl.Name,-30} => no match for {duty.DesignFlowLps:F2} l/s @ {duty.DesignHeadM:F1} m");
+                            report.Add($"--- {pumpEl.Name,-30} => no match for {duty.FlowLps:F2} l/s @ {duty.HeadM:F1} m");
                             failed++;
                         }
                     }
@@ -165,8 +168,8 @@ namespace StingTools.Commands.Plumbing
             panel.AddSection("BOOSTER PUMP DUTY")
                  .Metric("Static head",          $"{staticHead:F1} m")
                  .Metric("Friction allowance",   $"{frictionHead:F1} m (15%)")
-                 .Metric("Design head (+20%)",   $"{duty.DesignHeadM:F1} m")
-                 .Metric("Design flow",          $"{duty.DesignFlowLps:F2} l/s")
+                 .Metric("Design head (+20%)",   $"{duty.HeadM:F1} m")
+                 .Metric("Design flow",          $"{duty.FlowLps:F2} l/s")
                  .Metric("Configuration",        "1D+1S (duty/standby)");
             if (selection.BestMatch != null)
             {
