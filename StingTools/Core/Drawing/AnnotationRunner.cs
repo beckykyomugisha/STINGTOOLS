@@ -139,6 +139,7 @@ namespace StingTools.Core.Drawing
             {
                 "AutoTag", "RoomTag", "SpaceTag", "AreaTag",
                 "MaterialTag", "KeynoteTag", "MultiCategoryTag",
+                "WireAnnotation",   // delegates to WireAnnotationEngine via reflection
             };
 
             // Phase 165 — Auto3DTag short-circuits to Tag3DCommand.PlaceTagsInView
@@ -206,6 +207,14 @@ namespace StingTools.Core.Drawing
 
             foreach (var rule in effective)
             {
+                // Short-circuit for WireAnnotation — doesn't use the category/tag-family path
+                if (string.Equals(rule.RuleType, "WireAnnotation", StringComparison.OrdinalIgnoreCase))
+                {
+                    try { ProcessWireAnnotationRule(doc, view, pack, rule, result); }
+                    catch (Exception ex) { result.Warnings.Add($"WireAnnotationRule: {ex.Message}"); }
+                    continue;
+                }
+
                 IEnumerable<string> categories = string.Equals(rule.Category, "*", StringComparison.Ordinal)
                     ? KnownTaggableCategories
                     : new[] { rule.Category };
@@ -220,6 +229,18 @@ namespace StingTools.Core.Drawing
 
         private static void ProcessOneTagRule(Document doc, View view, AnnotationRulePack pack, AutoAnnotationRule rule, string category, AnnotationResult result)
         {
+            // Evaluate rule condition if specified
+            if (!string.IsNullOrEmpty(rule.Condition))
+            {
+                try
+                {
+                    var ctx = StingTools.Core.Drawing.AnnotationConditionEvaluator.ConditionContext.FromView(doc, view, category);
+                    if (!StingTools.Core.Drawing.AnnotationConditionEvaluator.Evaluate(rule.Condition, ctx))
+                        return;
+                }
+                catch (Exception ex) { result.Warnings.Add($"Condition eval '{rule.Condition}': {ex.Message}"); }
+            }
+
             var catId = ResolveCategoryId(doc, category);
             if (catId == ElementId.InvalidElementId)
             {
@@ -493,6 +514,18 @@ namespace StingTools.Core.Drawing
         private static void DispatchDimRule(Document doc, View view, AnnotationRulePack pack,
             AutoAnnotationRule rule, AnnotationResult result)
         {
+            // Evaluate rule condition if specified
+            if (!string.IsNullOrEmpty(rule.Condition))
+            {
+                try
+                {
+                    var ctx = StingTools.Core.Drawing.AnnotationConditionEvaluator.ConditionContext.FromView(doc, view, rule.Category);
+                    if (!StingTools.Core.Drawing.AnnotationConditionEvaluator.Evaluate(rule.Condition, ctx))
+                        return;
+                }
+                catch (Exception ex) { result.Warnings.Add($"Condition eval '{rule.Condition}': {ex.Message}"); }
+            }
+
             switch ((rule.RuleType ?? "").Trim().ToLowerInvariant())
             {
                 case "autodim":
@@ -663,6 +696,61 @@ namespace StingTools.Core.Drawing
                     }
                 }
                 catch (Exception ex) { result.Warnings.Add($"Spot rules '{r.Category}': {ex.Message}"); }
+            }
+        }
+
+        // ── WireAnnotation rule ──
+
+        private static void ProcessWireAnnotationRule(Document doc, View view, AnnotationRulePack pack, AutoAnnotationRule rule, AnnotationResult result)
+        {
+            // Collect conduits in view
+            var conduits = new FilteredElementCollector(doc, view.Id)
+                .OfCategory(BuiltInCategory.OST_Conduit)
+                .WhereElementIsNotElementType()
+                .ToList();
+
+            if (conduits.Count == 0) return;
+            bool addTicks = rule.AddTickMarks;
+
+            foreach (var conduit in conduits)
+            {
+                try
+                {
+                    // Check if already annotated (skip if SkipIfTagged)
+                    if (rule.SkipIfTagged)
+                    {
+                        // Check Comments param for STING_WIRE_ANNOT prefix
+                        var cmtP = conduit.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
+                        if (cmtP != null && (cmtP.AsString() ?? "").StartsWith("STING_WIRE_ANNOT", StringComparison.Ordinal))
+                            continue;
+                    }
+
+                    // Use WireAnnotationEngine via reflection to call PlaceAnnotation
+                    // This avoids a hard assembly dependency while the engine is internal
+                    var engineType = Type.GetType("StingTools.Commands.Electrical.WireAnnotationEngine, StingTools");
+                    if (engineType == null)
+                    {
+                        result.Warnings.Add("WireAnnotationEngine type not found — WireAnnotation rule skipped.");
+                        return;
+                    }
+                    var readMethod = engineType.GetMethod("ReadWireData",
+                        System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+                    var placeMethod = engineType.GetMethod("PlaceAnnotation",
+                        System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+                    if (readMethod == null || placeMethod == null)
+                    {
+                        result.Warnings.Add("WireAnnotationEngine methods not found via reflection.");
+                        return;
+                    }
+                    var data = readMethod.Invoke(null, new object[] { conduit });
+                    if (data == null) continue;
+                    placeMethod.Invoke(null, new object[] { doc, view, conduit, data, addTicks });
+                    result.TagsPlaced++;
+                }
+                catch (Exception ex)
+                {
+                    result.Warnings.Add($"WireAnnotation conduit {conduit.Id}: {ex.Message}");
+                }
             }
         }
 

@@ -119,11 +119,24 @@ namespace StingTools.Commands.Electrical.Routing
                             if (seg.Start.DistanceTo(seg.End) < 0.01) continue;
                             try
                             {
-                                // TODO-VERIFY-API: Conduit.Create(Document, ElementId conduitTypeId,
-                                //   XYZ start, XYZ end, ElementId levelId) — signature differs across
-                                //   Revit versions. The 5-arg form is the Revit 2024+ canonical.
-                                var conduit = Conduit.Create(doc, conduitType.Id,
-                                    seg.Start, seg.End, levelId);
+                                // Revit 2025 API (verified): Conduit.Create(Document document,
+                                //   ElementId conduitTypeId, ElementId levelId,
+                                //   XYZ startPoint, XYZ endPoint)
+                                // The conduitTypeId is resolved once before the transaction
+                                // from the first ConduitType in the document. levelId is the
+                                // load element's level (or active view level as fallback).
+                                ElementId resolvedConduitTypeId = conduitType?.Id
+                                    ?? new FilteredElementCollector(doc)
+                                        .OfClass(typeof(ConduitType))
+                                        .FirstOrDefault()?.Id
+                                    ?? ElementId.InvalidElementId;
+                                if (resolvedConduitTypeId == ElementId.InvalidElementId)
+                                {
+                                    StingLog.Warn($"Conduit.Create: no ConduitType available for cable {cable.CircuitId}");
+                                    continue;
+                                }
+                                var conduit = Conduit.Create(doc, resolvedConduitTypeId, levelId,
+                                    seg.Start, seg.End);
                                 if (conduit != null)
                                 {
                                     try

@@ -119,7 +119,8 @@ namespace StingTools.Core.Drawing
     {
         /// <summary>
         /// AutoTag / AutoDim / GridDim / LevelAnnotation / RoomTag /
-        /// SpaceTag / AreaTag / MaterialTag / KeynoteTag / MultiCategoryTag.
+        /// SpaceTag / AreaTag / MaterialTag / KeynoteTag / MultiCategoryTag /
+        /// WireAnnotation.
         /// </summary>
         [JsonProperty("ruleType")] public string RuleType { get; set; } = "AutoTag";
 
@@ -139,6 +140,8 @@ namespace StingTools.Core.Drawing
         [JsonProperty("condition",   NullValueHandling = NullValueHandling.Ignore)] public string Condition { get; set; }
         [JsonProperty("enabled")] public bool Enabled { get; set; } = true;
         [JsonProperty("depth", NullValueHandling = NullValueHandling.Ignore)] public int? Depth { get; set; }
+        [JsonProperty("addTickMarks")] public bool AddTickMarks { get; set; } = true;
+        [JsonProperty("batchScope", NullValueHandling = NullValueHandling.Ignore)] public string BatchScope { get; set; } // "View" | "ActiveView" | "Selection" — defaults to "ActiveView"
     }
 
     public sealed class SpotAnnotationRule
