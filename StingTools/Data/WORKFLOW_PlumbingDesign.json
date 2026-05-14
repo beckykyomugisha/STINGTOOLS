@@ -6,7 +6,7 @@
   "steps": [
     {
       "id": 1, "name": "Save System Configuration",
-      "commandTag": "Plumbing_SaveSystemConfig",
+      "commandTag": "Plumb_SaveSystemConfig",
       "description": "Saves building type, plumbing code (BS-UK / IPC-US / AS-3500 / SANS-10252), materials, and velocity limits.",
       "allowSkip": true
     },
@@ -116,13 +116,13 @@
     },
     {
       "id": 19, "name": "Generate BOQ",
-      "commandTag": "Plumbing_GenerateBOQ",
+      "commandTag": "Plumb_BOQ",
       "description": "Exports plumbing Bill of Quantities to CSV: pipe lengths by DN/material, fittings, accessories, fixtures.",
       "allowSkip": true
     },
     {
       "id": 20, "name": "Full Plumbing Audit",
-      "commandTag": "Plumbing_FullAudit",
+      "commandTag": "Plumb_FullAudit",
       "description": "RAG dashboard: drainage compliance, supply pressures, slope adequacy, dead-legs, TMVs, material compatibility. Final sign-off gate.",
       "allowSkip": false
     }

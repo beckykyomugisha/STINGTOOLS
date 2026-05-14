@@ -258,7 +258,7 @@ namespace StingTools.Commands.Plumbing
                 double entryPressureKpa = cfg.SupplyPressureBarAtEntry * 100.0; // bar → kPa
 
                 // ── Propagate pressure through network ─────────────────────
-                PropagateNodePressures(network, entryPressureKpa);
+                PipeNetworkBuilder.AccumulatePressure(network, entryPressureKpa, 0.0);
 
                 // ── Find solid fill pattern ────────────────────────────────
                 ElementId solidFillId = FindSolidFillPatternId(ctx.Doc);
@@ -382,62 +382,6 @@ namespace StingTools.Commands.Plumbing
             }
         }
 
-        // ── Pressure propagation ──────────────────────────────────────────────
-
-        private static void PropagateNodePressures(PipeNetwork network, double entryKpa)
-        {
-            // Find termination / entry nodes and seed their pressure
-            var entryNodes = network.Nodes
-                .Where(n => n.Type == PipeNodeType.Termination || !n.Upstream.Any())
-                .ToList();
-
-            // If no clear entry, set all nodes to a static estimate
-            if (!entryNodes.Any())
-            {
-                foreach (var n in network.Nodes)
-                    n.PressureKpa = entryKpa * 0.7;
-                return;
-            }
-
-            // BFS from entry nodes, subtract static head (ρg·h) and friction loss per edge
-            const double RhoGKpaPerFt = 9.807 / 0.3048 * 0.001; // ≈ 0.03048 kPa/ft rise
-            var visited = new HashSet<long>();
-            var queue   = new Queue<PipeNode>();
-
-            foreach (var entry in entryNodes)
-            {
-                entry.PressureKpa = entryKpa;
-                queue.Enqueue(entry);
-                visited.Add(entry.Id.IntegerValue);
-            }
-
-            while (queue.Count > 0)
-            {
-                var node = queue.Dequeue();
-
-                foreach (var edge in node.Downstream)
-                {
-                    var next = edge.To;
-                    if (visited.Contains(next.Id.IntegerValue)) continue;
-
-                    // Static head: positive if rising (pressure drops)
-                    double dz     = next.Position.Z - node.Position.Z;  // feet
-                    double headKpa = dz * RhoGKpaPerFt;
-
-                    next.PressureKpa = node.PressureKpa - headKpa - edge.ResistanceKpa;
-                    visited.Add(next.Id.IntegerValue);
-                    queue.Enqueue(next);
-                }
-            }
-
-            // Any unvisited nodes — estimate from entry pressure
-            foreach (var n in network.Nodes)
-            {
-                if (!visited.Contains(n.Id.IntegerValue))
-                    n.PressureKpa = entryKpa * 0.5;
-            }
-        }
-
         private static double GetPipePressure(Pipe pipe, PipeNetwork network, double entryKpa)
         {
             try
@@ -447,13 +391,12 @@ namespace StingTools.Commands.Plumbing
                 if (param != null && param.AsDouble() > 0)
                     return param.AsDouble();
 
-                // Look up from network
-                long pipeIdInt = pipe.Id.IntegerValue;
-                var matchingNode = network.Nodes
-                    .FirstOrDefault(n => n.Id?.IntegerValue == pipeIdInt);
-
-                if (matchingNode != null)
-                    return Math.Max(0, matchingNode.PressureKpa);
+                // Look up pressure via the matching network edge (pipes are edges, not nodes)
+                long pipeIdVal = pipe.Id.Value;
+                var matchingEdge = network.Edges
+                    .FirstOrDefault(e => e.PipeId?.Value == pipeIdVal);
+                if (matchingEdge != null)
+                    return Math.Max(0, matchingEdge.To?.PressureKpa ?? matchingEdge.From?.PressureKpa ?? 0);
 
                 // Estimate from Z elevation (static head from entry)
                 double elev    = pipe.get_Parameter(BuiltInParameter.Z_OFFSET_VALUE)?.AsDouble() ?? 0;

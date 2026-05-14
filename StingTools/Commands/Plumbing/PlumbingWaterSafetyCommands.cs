@@ -3,6 +3,12 @@
 // Plumb_TMVEngine         — full TMV scan via TMVEngine, writeback, CSV export.
 // Plumb_LegionellaReport  — ACOP L8 Legionella risk assessment (docx or txt).
 // Plumb_WaterSafetyPlan   — combined RAG dashboard: dead legs + TMV + backflow.
+//
+// TMV data model (TMVEngine.cs):
+//   TMVRegisterResult  — TotalTMVs, PassCount, FailCount, OverdueCount, Records (List<TMVRecord>), Warnings
+//   TMVRecord          — Id (ElementId), FamilyName, RoomName, Class (TMVClass), InletHotC,
+//                        InletColdC, SetOutletC, ActualOutletC, LastTestDate (string),
+//                        AnnualTestDueDate (string), WithinTolerance, TestOverdue, FailReason
 
 using System;
 using System.Collections.Generic;
@@ -49,6 +55,8 @@ namespace StingTools.Commands.Plumbing
                 return Result.Failed;
             }
 
+            var records = result.Records;
+
             // ── CSV export ────────────────────────────────────────────────────
             string csvPath = null;
             try
@@ -56,19 +64,21 @@ namespace StingTools.Commands.Plumbing
                 csvPath = OutputLocationHelper.GetOutputPath(doc, "TMV_Register.csv");
                 var sb = new StringBuilder();
                 sb.AppendLine("ElementId,FamilyName,Room,TMVClass,InletHot_C,InletCold_C,Outlet_C,TestDate,AnnualDueDate,Pass");
-                foreach (var row in result.Rows ?? new List<TMVRow>())
+                foreach (var row in records)
                 {
+                    string testDateStr = ParseDateStr(row.LastTestDate, "yyyy-MM-dd");
+                    string dueDateStr  = ParseDateStr(row.AnnualTestDueDate, "yyyy-MM-dd");
                     sb.AppendLine(
-                        $"{row.ElementId.Value}," +
+                        $"{row.Id?.Value}," +
                         $"\"{row.FamilyName}\"," +
                         $"\"{row.RoomName}\"," +
-                        $"{row.TmvClass}," +
+                        $"{row.Class}," +
                         $"{row.InletHotC:F1}," +
                         $"{row.InletColdC:F1}," +
-                        $"{row.OutletC:F1}," +
-                        $"{row.TestDate:yyyy-MM-dd}," +
-                        $"{row.AnnualDueDate:yyyy-MM-dd}," +
-                        $"{(row.PassFail ? "PASS" : "FAIL")}");
+                        $"{row.ActualOutletC:F1}," +
+                        $"{testDateStr}," +
+                        $"{dueDateStr}," +
+                        $"{(row.WithinTolerance ? "PASS" : "FAIL")}");
                 }
                 File.WriteAllText(csvPath, sb.ToString(), Encoding.UTF8);
             }
@@ -81,25 +91,25 @@ namespace StingTools.Commands.Plumbing
             var panel = StingResultPanel.Create("TMV Engine Register");
             panel.SetSubtitle($"Scan: {DateTime.UtcNow:u}");
             panel.AddSection("SUMMARY")
-                 .Metric("TMVs total",   (result.Total).ToString())
-                 .Metric("Pass",         result.Pass.ToString())
-                 .Metric("Fail",         result.Fail.ToString())
-                 .Metric("Overdue",      result.Overdue.ToString());
+                 .Metric("TMVs total", result.TotalTMVs.ToString())
+                 .Metric("Pass",       result.PassCount.ToString())
+                 .Metric("Fail",       result.FailCount.ToString())
+                 .Metric("Overdue",    result.OverdueCount.ToString());
 
-            var rows = result.Rows ?? new List<TMVRow>();
-            if (rows.Count > 0)
+            if (records.Count > 0)
             {
                 panel.AddSection("REGISTER (first 60)");
-                foreach (var row in rows.Take(60))
+                foreach (var row in records.Take(60))
                 {
-                    string status = row.PassFail ? "PASS" : "FAIL";
-                    string overdue = row.AnnualDueDate < DateTime.Today ? " · OVERDUE" : "";
+                    string status  = row.WithinTolerance ? "PASS" : "FAIL";
+                    bool   overdue = ParseDate(row.AnnualTestDueDate) < DateTime.Today;
+                    string overdueStr = overdue ? " · OVERDUE" : "";
                     panel.Text(
-                        $"{row.ElementId.Value}  {row.FamilyName,-28}  [{row.TmvClass}]  " +
+                        $"{row.Id?.Value}  {row.FamilyName,-28}  [{row.Class}]  " +
                         $"Room: {row.RoomName,-18}  " +
                         $"Hot {row.InletHotC:F0}°C  Cold {row.InletColdC:F0}°C  " +
-                        $"Outlet {row.OutletC:F0}°C  " +
-                        $"Test {row.TestDate:yyyy-MM-dd}  {status}{overdue}");
+                        $"Outlet {row.ActualOutletC:F0}°C  " +
+                        $"Test {ParseDateStr(row.LastTestDate, "yyyy-MM-dd")}  {status}{overdueStr}");
                 }
             }
             else
@@ -108,12 +118,12 @@ namespace StingTools.Commands.Plumbing
             }
 
             // Show failures with reason
-            var failures = rows.Where(r => !r.PassFail).ToList();
+            var failures = records.Where(r => !r.WithinTolerance).ToList();
             if (failures.Count > 0)
             {
                 panel.AddSection("FAILURES");
                 foreach (var f in failures.Take(20))
-                    panel.Text($"⚠ {f.ElementId.Value}  {f.FamilyName}  Reason: {f.FailureReason}");
+                    panel.Text($"⚠ {f.Id?.Value}  {f.FamilyName}  Reason: {f.FailReason}");
             }
 
             if (csvPath != null)
@@ -128,7 +138,7 @@ namespace StingTools.Commands.Plumbing
     // Plumb_LegionellaReport
     // ─────────────────────────────────────────────────────────────────────────
 
-    [Transaction(TransactionMode.Manual)]
+    [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
     public class PlumbLegionellaReportCommand : IExternalCommand
     {
@@ -175,12 +185,12 @@ namespace StingTools.Commands.Plumbing
                 return Result.Failed;
             }
 
-            // ── identify high-risk points ────────────────────────────────────
-            var highRisk  = deadLegs.Findings.Where(f => f.LegLengthM > 0.45).ToList();
-            var mediumRisk = deadLegs.Findings.Where(f => f.LegLengthM > 0.30 && f.LegLengthM <= 0.45).ToList();
+            var records = tmvResult.Records;
 
-            // Fixtures without TMVs where required (simple check: if TMV total < DHW fixture count)
-            bool tmvShortfall = tmvResult.Total < (fixtureCount / 4); // rough heuristic
+            // ── identify high-risk points ────────────────────────────────────
+            var highRisk   = deadLegs.Findings.Where(f => f.LegLengthM > 0.45).ToList();
+            var mediumRisk = deadLegs.Findings.Where(f => f.LegLengthM > 0.30 && f.LegLengthM <= 0.45).ToList();
+            bool tmvShortfall = tmvResult.TotalTMVs < (fixtureCount / 4);
 
             // ── try to render a docx template ────────────────────────────────
             string outputPath = null;
@@ -226,16 +236,16 @@ namespace StingTools.Commands.Plumbing
             panel.SetSubtitle($"{doc.ProjectInformation?.Name}  ·  Assessed: {DateTime.Today:yyyy-MM-dd}");
 
             panel.AddSection("SYSTEM OVERVIEW")
-                 .Metric("Plumbing fixtures",    fixtureCount.ToString())
-                 .Metric("DHW/HWS pipes",        dhwPipeCount.ToString())
-                 .Metric("Tanks (mechanical eq.)",tankCount.ToString())
-                 .Metric("TMVs found",           tmvResult.Total.ToString())
-                 .Metric("TMVs overdue",         tmvResult.Overdue.ToString());
+                 .Metric("Plumbing fixtures",      fixtureCount.ToString())
+                 .Metric("DHW/HWS pipes",          dhwPipeCount.ToString())
+                 .Metric("Tanks (mechanical eq.)", tankCount.ToString())
+                 .Metric("TMVs found",             tmvResult.TotalTMVs.ToString())
+                 .Metric("TMVs overdue",           tmvResult.OverdueCount.ToString());
 
             panel.AddSection("DEAD-LEG REGISTER")
-                 .Metric("Pipes scanned",        deadLegs.PipesScanned.ToString())
-                 .Metric("Dead legs > 0.45 m",   highRisk.Count.ToString() + " (HIGH RISK)")
-                 .Metric("Dead legs 0.30–0.45 m", mediumRisk.Count.ToString() + " (MEDIUM)");
+                 .Metric("Pipes scanned",          deadLegs.PipesScanned.ToString())
+                 .Metric("Dead legs > 0.45 m",     highRisk.Count.ToString() + " (HIGH RISK)")
+                 .Metric("Dead legs 0.30–0.45 m",  mediumRisk.Count.ToString() + " (MEDIUM)");
 
             if (highRisk.Count > 0)
             {
@@ -245,10 +255,10 @@ namespace StingTools.Commands.Plumbing
             }
 
             panel.AddSection("TMV STATUS")
-                 .Metric("Total", tmvResult.Total.ToString())
-                 .Metric("Pass",  tmvResult.Pass.ToString())
-                 .Metric("Fail",  tmvResult.Fail.ToString())
-                 .Metric("Overdue", tmvResult.Overdue.ToString());
+                 .Metric("Total",   tmvResult.TotalTMVs.ToString())
+                 .Metric("Pass",    tmvResult.PassCount.ToString())
+                 .Metric("Fail",    tmvResult.FailCount.ToString())
+                 .Metric("Overdue", tmvResult.OverdueCount.ToString());
 
             if (tmvShortfall)
                 panel.Text("⚠ TMV count appears low relative to fixture count. Review DHW outlets.");
@@ -278,20 +288,20 @@ namespace StingTools.Commands.Plumbing
             var pi = doc.ProjectInformation;
             return new Dictionary<string, object>
             {
-                ["ProjectName"]       = pi?.Name ?? "",
-                ["AssessmentDate"]    = DateTime.Today.ToString("yyyy-MM-dd"),
-                ["Assessor"]          = pi?.Author ?? "",
-                ["ClientName"]        = ParameterHelpers.GetString(pi, "Client Name") ?? pi?.ClientName ?? "",
-                ["FixtureCount"]      = fixtureCount,
-                ["DhwPipeCount"]      = dhwPipeCount,
-                ["TankCount"]         = tankCount,
-                ["DeadLegScanned"]    = deadLegs.PipesScanned,
-                ["DeadLegsHigh"]      = deadLegs.Findings.Count(f => f.LegLengthM > 0.45),
-                ["DeadLegsMedium"]    = deadLegs.Findings.Count(f => f.LegLengthM > 0.30 && f.LegLengthM <= 0.45),
-                ["TmvTotal"]          = tmv.Total,
-                ["TmvPass"]           = tmv.Pass,
-                ["TmvFail"]           = tmv.Fail,
-                ["TmvOverdue"]        = tmv.Overdue,
+                ["ProjectName"]    = pi?.Name ?? "",
+                ["AssessmentDate"] = DateTime.Today.ToString("yyyy-MM-dd"),
+                ["Assessor"]       = pi?.Author ?? "",
+                ["ClientName"]     = ParameterHelpers.GetString(pi, "Client Name") ?? pi?.ClientName ?? "",
+                ["FixtureCount"]   = fixtureCount,
+                ["DhwPipeCount"]   = dhwPipeCount,
+                ["TankCount"]      = tankCount,
+                ["DeadLegScanned"] = deadLegs.PipesScanned,
+                ["DeadLegsHigh"]   = deadLegs.Findings.Count(f => f.LegLengthM > 0.45),
+                ["DeadLegsMedium"] = deadLegs.Findings.Count(f => f.LegLengthM > 0.30 && f.LegLengthM <= 0.45),
+                ["TmvTotal"]       = tmv.TotalTMVs,
+                ["TmvPass"]        = tmv.PassCount,
+                ["TmvFail"]        = tmv.FailCount,
+                ["TmvOverdue"]     = tmv.OverdueCount,
             };
         }
 
@@ -312,14 +322,14 @@ namespace StingTools.Commands.Plumbing
             sb.AppendLine();
 
             sb.AppendLine("── EXECUTIVE SUMMARY ─────────────────────────────────");
-            sb.AppendLine($"  Plumbing fixtures : {fixtureCount}");
-            sb.AppendLine($"  DHW/HWS pipes     : {dhwPipeCount}");
-            sb.AppendLine($"  Tanks             : {tankCount}");
-            sb.AppendLine($"  Dead legs > 0.45m : {highRisk.Count}  (HIGH RISK)");
-            sb.AppendLine($"  Dead legs 0.30–0.45m: {mediumRisk.Count}  (MEDIUM RISK)");
-            sb.AppendLine($"  TMVs found        : {tmv.Total}");
-            sb.AppendLine($"  TMV failures      : {tmv.Fail}");
-            sb.AppendLine($"  TMVs overdue      : {tmv.Overdue}");
+            sb.AppendLine($"  Plumbing fixtures    : {fixtureCount}");
+            sb.AppendLine($"  DHW/HWS pipes        : {dhwPipeCount}");
+            sb.AppendLine($"  Tanks                : {tankCount}");
+            sb.AppendLine($"  Dead legs > 0.45m    : {highRisk.Count}  (HIGH RISK)");
+            sb.AppendLine($"  Dead legs 0.30–0.45m : {mediumRisk.Count}  (MEDIUM RISK)");
+            sb.AppendLine($"  TMVs found           : {tmv.TotalTMVs}");
+            sb.AppendLine($"  TMV failures         : {tmv.FailCount}");
+            sb.AppendLine($"  TMVs overdue         : {tmv.OverdueCount}");
             sb.AppendLine();
 
             sb.AppendLine("── SYSTEM DESCRIPTION ────────────────────────────────");
@@ -349,12 +359,14 @@ namespace StingTools.Commands.Plumbing
             sb.AppendLine();
 
             sb.AppendLine("── TMV REGISTER ──────────────────────────────────────");
-            sb.AppendLine($"  Total: {tmv.Total}  Pass: {tmv.Pass}  Fail: {tmv.Fail}  Overdue: {tmv.Overdue}");
-            var tmvRows = tmv.Rows ?? new List<TMVRow>();
-            foreach (var row in tmvRows.Take(50))
-                sb.AppendLine($"  {row.ElementId.Value}  {row.FamilyName}  {row.TmvClass}  " +
-                              $"Out {row.OutletC:F0}°C  Test {row.TestDate:yyyy-MM-dd}  " +
-                              $"{(row.PassFail ? "PASS" : "FAIL" + " - " + row.FailureReason)}");
+            sb.AppendLine($"  Total: {tmv.TotalTMVs}  Pass: {tmv.PassCount}  Fail: {tmv.FailCount}  Overdue: {tmv.OverdueCount}");
+            foreach (var row in tmv.Records.Take(50))
+            {
+                string testDateStr = ParseDateStr(row.LastTestDate, "yyyy-MM-dd");
+                sb.AppendLine($"  {row.Id?.Value}  {row.FamilyName}  {row.Class}  " +
+                              $"Out {row.ActualOutletC:F0}°C  Test {testDateStr}  " +
+                              $"{(row.WithinTolerance ? "PASS" : "FAIL - " + row.FailReason)}");
+            }
             sb.AppendLine();
 
             sb.AppendLine("── CONTROL MEASURES (ACOP L8) ────────────────────────");
@@ -409,6 +421,8 @@ namespace StingTools.Commands.Plumbing
                 return Result.Failed;
             }
 
+            var records = tmv.Records;
+
             // ── classify findings ─────────────────────────────────────────────
             var redItems   = new List<string>();
             var amberItems = new List<string>();
@@ -426,15 +440,15 @@ namespace StingTools.Commands.Plumbing
                 greenItems.Add("No dead legs exceeding HSG 274 threshold detected.");
 
             // TMV
-            foreach (var row in (tmv.Rows ?? new List<TMVRow>()).Where(r => !r.PassFail))
-                redItems.Add($"TMV FAIL: {row.ElementId.Value} {row.FamilyName} — {row.FailureReason}");
+            foreach (var row in records.Where(r => !r.WithinTolerance))
+                redItems.Add($"TMV FAIL: {row.Id?.Value} {row.FamilyName} — {row.FailReason}");
 
-            var overdueRows = (tmv.Rows ?? new List<TMVRow>()).Where(r => r.AnnualDueDate < DateTime.Today).ToList();
-            foreach (var row in overdueRows)
-                amberItems.Add($"TMV overdue: {row.ElementId.Value} {row.FamilyName} (due {row.AnnualDueDate:yyyy-MM-dd})");
+            var overdueRecords = records.Where(r => ParseDate(r.AnnualTestDueDate) < DateTime.Today).ToList();
+            foreach (var row in overdueRecords)
+                amberItems.Add($"TMV overdue: {row.Id?.Value} {row.FamilyName} (due {ParseDateStr(row.AnnualTestDueDate, "yyyy-MM-dd")})");
 
-            if (tmv.Fail == 0 && tmv.Overdue == 0)
-                greenItems.Add($"All {tmv.Total} TMVs passing and within test date.");
+            if (tmv.FailCount == 0 && tmv.OverdueCount == 0)
+                greenItems.Add($"All {tmv.TotalTMVs} TMVs passing and within test date.");
 
             // Backflow risks from ClassifyAll
             foreach (var risk in backflowRisks ?? new List<BackflowRisk>())
@@ -464,15 +478,15 @@ namespace StingTools.Commands.Plumbing
                               + (crossConnections?.Count(c => c.NonPotableCategory >= FluidCategory.Category3) ?? 0);
 
             var panel = StingResultPanel.Create("Water Safety Plan — RAG Dashboard");
-            panel.SetSubtitle($"Dead legs: {deadLegs.LegsFlagged}  ·  TMVs: {tmv.Total}  ·  " +
+            panel.SetSubtitle($"Dead legs: {deadLegs.LegsFlagged}  ·  TMVs: {tmv.TotalTMVs}  ·  " +
                               $"Backflow findings (Cat3+): {backflowCount}");
 
             panel.AddSection("RAG SUMMARY")
                  .Metric("RED   (action required)", redItems.Count.ToString())
                  .Metric("AMBER (monitor / plan)",  amberItems.Count.ToString())
-                 .Metric("GREEN (compliant)",       greenItems.Count.ToString());
+                 .Metric("GREEN (compliant)",        greenItems.Count.ToString());
 
-            int maxShow = 20;
+            const int maxShow = 20;
             if (redItems.Count > 0)
             {
                 panel.AddSection("RED — IMMEDIATE ACTION");
@@ -499,5 +513,16 @@ namespace StingTools.Commands.Plumbing
             panel.Show();
             return Result.Succeeded;
         }
+    }
+
+    // ── Shared date-parsing helpers ───────────────────────────────────────────
+
+    internal static class WaterSafetyDateHelper
+    {
+        internal static DateTime ParseDate(string s) =>
+            DateTime.TryParse(s, out var d) ? d : DateTime.MinValue;
+
+        internal static string ParseDateStr(string s, string fmt) =>
+            DateTime.TryParse(s, out var d) ? d.ToString(fmt) : (s ?? "");
     }
 }

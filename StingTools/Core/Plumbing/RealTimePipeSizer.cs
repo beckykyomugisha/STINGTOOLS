@@ -19,6 +19,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Plumbing;
+using Autodesk.Revit.UI;
 using StingTools.Core;
 
 namespace StingTools.Core.Plumbing
@@ -74,28 +75,26 @@ namespace StingTools.Core.Plumbing
         // ── Static register / unregister / query ─────────────────────────
 
         /// <summary>
-        /// Register the updater against the Pipe category in the given document.
-        /// Safe to call multiple times — checks IsUpdaterRegistered first.
+        /// Register the updater at application level (all documents).
+        /// Safe to call multiple times — no-ops if already registered.
         /// </summary>
-        public static void Register(UpdaterRegistry registry, Document doc)
+        public static void Register(UIControlledApplication app)
         {
-            if (registry == null || doc == null) return;
+            if (app == null) return;
             try
             {
-                if (UpdaterRegistry.IsUpdaterRegistered(_updaterId, doc)) return;
+                if (UpdaterRegistry.IsUpdaterRegistered(_updaterId)) return;
 
                 var updater = new RealTimePipeSizer();
-                registry.RegisterUpdater(updater, doc, isOptional: true);
+                UpdaterRegistry.RegisterUpdater(updater, isOptional: true);
 
-                // Trigger on Pipe element addition
-                var addFilter = new ElementCategoryFilter(BuiltInCategory.OST_PipeCurves);
-                registry.AddTrigger(_updaterId, doc,
-                    addFilter, Element.GetChangeTypeElementAddition());
-
-                // Trigger on Pipe parameter changes (e.g. system type change)
-                registry.AddTrigger(_updaterId, doc,
-                    addFilter, Element.GetChangeTypeParameter(
-                        new Parameter[0]));  // any parameter
+                var pipeFilter = new ElementCategoryFilter(BuiltInCategory.OST_PipeCurves);
+                // Size on placement
+                UpdaterRegistry.AddTrigger(_updaterId, pipeFilter,
+                    Element.GetChangeTypeElementAddition());
+                // Re-size when system type or other parameters change
+                UpdaterRegistry.AddTrigger(_updaterId, pipeFilter,
+                    Element.GetChangeTypeAny());
 
                 StingLog.Info("RealTimePipeSizer registered.");
             }
@@ -106,15 +105,14 @@ namespace StingTools.Core.Plumbing
         }
 
         /// <summary>
-        /// Unregister the updater from the document.
+        /// Unregister the updater at application level.
         /// </summary>
-        public static void Unregister(UpdaterRegistry registry, Document doc)
+        public static void Unregister()
         {
-            if (registry == null || doc == null) return;
             try
             {
-                if (!UpdaterRegistry.IsUpdaterRegistered(_updaterId, doc)) return;
-                registry.UnregisterUpdater(_updaterId, doc);
+                if (!UpdaterRegistry.IsUpdaterRegistered(_updaterId)) return;
+                UpdaterRegistry.UnregisterUpdater(_updaterId);
                 StingLog.Info("RealTimePipeSizer unregistered.");
             }
             catch (Exception ex)
@@ -124,15 +122,14 @@ namespace StingTools.Core.Plumbing
         }
 
         /// <summary>
-        /// Returns true when the updater is currently registered and enabled for the document.
+        /// Returns true when the updater is currently registered and enabled.
+        /// The doc parameter is accepted for call-site compatibility but is not used.
         /// </summary>
-        public static bool IsRegistered(Document doc)
+        public static bool IsRegistered(Document doc = null)
         {
-            if (doc == null) return false;
             try
             {
-                return UpdaterRegistry.IsUpdaterRegistered(_updaterId, doc)
-                    && UpdaterRegistry.IsUpdaterEnabled(_updaterId, doc);
+                return UpdaterRegistry.IsUpdaterRegistered(_updaterId);
             }
             catch { return false; }
         }
@@ -172,10 +169,11 @@ namespace StingTools.Core.Plumbing
                     }
                     else if (isSupply && dfu > 0.001)
                     {
-                        // For supply, dfu represents LU; run a lightweight supply size estimate
+                        // Write accumulated loading units then the required pipe diameter
+                        TryWriteInt(pipe, ParamRegistry.PLM_SUP_LU_CW, (int)Math.Round(dfu));
                         int supDn = EstimateSupplyDnMm(dfu, pipe, code);
                         if (supDn > 0)
-                            TryWriteInt(pipe, ParamRegistry.PLM_SUP_LU_CW, (int)Math.Round(dfu));
+                            TryWriteInt(pipe, "PLM_SUP_DN_REQ", supDn);
                     }
 
                     // Stamp as STING-sized

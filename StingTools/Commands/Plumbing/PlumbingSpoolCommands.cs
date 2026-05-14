@@ -73,6 +73,22 @@ namespace StingTools.Commands.Plumbing
                 }
                 catch { }
             }
+            // Group fittings and accessories into the same spool groups
+            foreach (var el in fittings.Concat(accessories))
+            {
+                try
+                {
+                    string sys = el.get_Parameter(BuiltInParameter.RBS_PIPING_SYSTEM_TYPE_PARAM)
+                                   ?.AsValueString() ?? "Unknown";
+                    var lvlId  = el.LevelId;
+                    string lvl = (lvlId != null && lvlId != ElementId.InvalidElementId)
+                                 ? ctx.Doc.GetElement(lvlId)?.Name ?? "XX" : "XX";
+                    string key = $"{sys}|{lvl}";
+                    if (!groups.ContainsKey(key)) groups[key] = new List<Element>();
+                    groups[key].Add(el);
+                }
+                catch { }
+            }
 
             int spoolsCreated = 0, stamped = 0, failed = 0;
             var warnings = new List<string>();
@@ -171,10 +187,10 @@ namespace StingTools.Commands.Plumbing
                 .Cast<ViewSchedule>()
                 .FirstOrDefault(s => s.Name == ScheduleName);
 
+            ViewSchedule schedule = null;
             using (var tx = new Transaction(ctx.Doc, "STING Plumbing Spool Schedule"))
             {
                 tx.Start();
-                ViewSchedule schedule;
                 if (existing != null)
                 {
                     schedule = existing;
@@ -228,9 +244,13 @@ namespace StingTools.Commands.Plumbing
                 catch { }
 
                 tx.Commit();
+            }
 
-                // Activate the schedule view
-                ctx.UIDoc.ActiveView = schedule;
+            // Activate the schedule view outside the transaction
+            if (schedule != null)
+            {
+                try { ctx.UIDoc.ActiveView = schedule; }
+                catch (Exception ex) { StingLog.Warn($"Could not activate spool schedule view: {ex.Message}"); }
             }
 
             TaskDialog.Show("STING Plumbing — Spool Schedule",
