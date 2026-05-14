@@ -102,7 +102,7 @@ export default function InboxScreen() {
           <TouchableOpacity
             key={it.id}
             style={styles.row}
-            onPress={() => router.push(`/issue-detail?id=${it.id}`)}
+            onPress={() => router.push(`/issue-detail?id=${it.id}&projectId=${projectId}`)}
             accessibilityLabel={`Open issue ${it.issueCode}`}
           >
             <View style={[styles.priorityDot, { backgroundColor: getPriorityColor(it.priority) }]} />
@@ -169,7 +169,7 @@ export default function InboxScreen() {
           <TouchableOpacity
             key={it.id}
             style={styles.row}
-            onPress={() => router.push(`/issue-detail?id=${it.id}`)}
+            onPress={() => router.push(`/issue-detail?id=${it.id}&projectId=${projectId}`)}
             accessibilityLabel={`Open SLA-breached issue ${it.issueCode}`}
           >
             <View style={[styles.priorityDot, { backgroundColor: theme.colors.danger }]} />

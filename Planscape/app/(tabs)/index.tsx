@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { theme, getRAGColor, getPriorityColor } from '@/utils/theme';
 import {
@@ -44,6 +45,9 @@ export default function DashboardScreen() {
   // Phase 143 — BIM Coordinator surfaces. Both fetched best-effort.
   const [federation, setFederation] = useState<FederationStatus | null>(null);
   const [pendingConflicts, setPendingConflicts] = useState<number>(0);
+  // Project selector view mode — 'chip' (horizontal bar) or 'list' (card grid).
+  // Persisted so the user's preference survives cold-starts.
+  const [projectViewMode, setProjectViewMode] = useState<'chip' | 'list'>('chip');
 
   const loadData = useCallback(async (projectId?: string) => {
     try {
@@ -114,6 +118,13 @@ export default function DashboardScreen() {
     loadData();
   }, [loadData]);
 
+  // Restore persisted project view mode on first render.
+  useEffect(() => {
+    AsyncStorage.getItem('project_view_mode').then((v) => {
+      if (v === 'list' || v === 'chip') setProjectViewMode(v);
+    }).catch(() => {});
+  }, []);
+
   // D2 — refresh dashboard data whenever this tab is re-focused (e.g. returning
   // from Issues, Documents, or any other screen). The existing useEffect handles
   // the initial load; useFocusEffect covers every subsequent re-focus.
@@ -140,6 +151,12 @@ export default function DashboardScreen() {
   function onRefresh() {
     setRefreshing(true);
     loadData(activeProject?.id);
+  }
+
+  function toggleProjectViewMode() {
+    const next = projectViewMode === 'chip' ? 'list' : 'chip';
+    setProjectViewMode(next);
+    AsyncStorage.setItem('project_view_mode', next).catch(() => {});
   }
 
   if (loading) {
@@ -182,21 +199,80 @@ export default function DashboardScreen() {
       contentContainerStyle={styles.scroll}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.accent} />}
     >
-      {/* Project selector */}
+      {/* Project selector — chip bar or list view, toggled by the ⊞/≡ button */}
       {projects.length > 1 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.projectBar}>
-          {projects.map((p) => (
+        <View style={styles.projectSelectorWrap}>
+          {/* Header row: label + toggle button */}
+          <View style={styles.projectSelectorHeader}>
+            <Text style={styles.projectSelectorLabel}>
+              {projects.length} Projects
+            </Text>
             <TouchableOpacity
-              key={p.id}
-              style={[styles.projectChip, p.id === activeProject.id && styles.projectChipActive]}
-              onPress={() => { setLoading(true); loadData(p.id); }}
+              style={styles.viewToggleBtn}
+              onPress={toggleProjectViewMode}
+              accessibilityLabel={projectViewMode === 'chip' ? 'Switch to list view' : 'Switch to chip view'}
             >
-              <Text style={[styles.projectChipText, p.id === activeProject.id && styles.projectChipTextActive]}>
-                {p.code || p.name}
+              <Text style={styles.viewToggleIcon}>
+                {projectViewMode === 'chip' ? '≡' : '⬛'}
               </Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
+          </View>
+
+          {projectViewMode === 'chip' ? (
+            /* Horizontal chip bar — compact, good for ≤8 projects */
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.projectBar}>
+              {projects.map((p) => (
+                <TouchableOpacity
+                  key={p.id}
+                  style={[styles.projectChip, p.id === activeProject.id && styles.projectChipActive]}
+                  onPress={() => { setLoading(true); loadData(p.id); }}
+                  accessibilityLabel={`Switch to project ${p.name}`}
+                >
+                  <Text style={[styles.projectChipText, p.id === activeProject.id && styles.projectChipTextActive]}>
+                    {p.code || p.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          ) : (
+            /* List view — one card per row, name + code + description snippet */
+            <View style={styles.projectList}>
+              {projects.map((p) => {
+                const isActive = p.id === activeProject.id;
+                return (
+                  <TouchableOpacity
+                    key={p.id}
+                    style={[styles.projectListCard, isActive && styles.projectListCardActive]}
+                    onPress={() => { setLoading(true); loadData(p.id); }}
+                    accessibilityLabel={`Switch to project ${p.name}`}
+                  >
+                    <View style={styles.projectListCardLeft}>
+                      <View style={[styles.projectListBadge, isActive && styles.projectListBadgeActive]}>
+                        <Text style={[styles.projectListBadgeText, isActive && styles.projectListBadgeTextActive]}>
+                          {(p.code || p.name).slice(0, 4).toUpperCase()}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.projectListCardBody}>
+                      <Text style={[styles.projectListCardName, isActive && { color: theme.colors.primary }]} numberOfLines={1}>
+                        {p.name}
+                      </Text>
+                      {p.code ? (
+                        <Text style={styles.projectListCardCode}>{p.code}</Text>
+                      ) : null}
+                      {p.description ? (
+                        <Text style={styles.projectListCardDesc} numberOfLines={1}>{p.description}</Text>
+                      ) : null}
+                    </View>
+                    {isActive && (
+                      <Text style={styles.projectListCardCheck}>✓</Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+        </View>
       )}
 
       {/* Project header */}
@@ -226,13 +302,13 @@ export default function DashboardScreen() {
           title="Open Issues"
           value={String(dashboard.openIssueCount)}
           color={dashboard.openIssueCount > 5 ? theme.colors.danger : theme.colors.accent}
-          onPress={() => router.push('/(tabs)/issues')}
+          onPress={() => router.replace('/(tabs)/issues')}
         />
         <KPICard
           title="Documents"
           value={String(dashboard.documentCount)}
           color={theme.colors.primary}
-          onPress={() => router.push('/(tabs)/documents')}
+          onPress={() => router.replace('/(tabs)/documents')}
         />
       </View>
 
@@ -272,7 +348,7 @@ export default function DashboardScreen() {
           {federation && (
             <TouchableOpacity
               style={styles.bimRow}
-              onPress={() => router.push('/(tabs)/models')}
+              onPress={() => router.replace('/(tabs)/models')}
               accessibilityLabel={`Federation status — ${federation.rag}`}
             >
               <View style={[styles.ragDot, { backgroundColor: ragToColor(federation.rag) }]} />
@@ -374,7 +450,7 @@ export default function DashboardScreen() {
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recent Issues</Text>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/issues')}>
+            <TouchableOpacity onPress={() => router.replace('/(tabs)/issues')}>
               <Text style={styles.seeAll}>See all</Text>
             </TouchableOpacity>
           </View>
@@ -506,9 +582,40 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Project bar
-  projectBar: {
+  // Project selector wrapper
+  projectSelectorWrap: {
     marginBottom: theme.spacing.md,
+  },
+  projectSelectorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing.xs,
+  },
+  projectSelectorLabel: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  viewToggleBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  viewToggleIcon: {
+    fontSize: 16,
+    color: theme.colors.text,
+    lineHeight: 18,
+  },
+  // Project bar (chip mode)
+  projectBar: {
     flexGrow: 0,
   },
   projectChip: {
@@ -531,6 +638,72 @@ const styles = StyleSheet.create({
   },
   projectChipTextActive: {
     color: theme.colors.surface,
+  },
+  // Project list (list mode)
+  projectList: {
+    gap: theme.spacing.xs,
+  },
+  projectListCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    gap: theme.spacing.sm,
+  },
+  projectListCardActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primary + '12',
+  },
+  projectListCardLeft: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  projectListBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  projectListBadgeActive: {
+    backgroundColor: theme.colors.primary,
+  },
+  projectListBadgeText: {
+    fontSize: theme.fontSize.xs,
+    fontWeight: '800',
+    color: theme.colors.textSecondary,
+    letterSpacing: 0.5,
+  },
+  projectListBadgeTextActive: {
+    color: '#fff',
+  },
+  projectListCardBody: {
+    flex: 1,
+  },
+  projectListCardName: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  projectListCardCode: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    marginTop: 1,
+  },
+  projectListCardDesc: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
+  },
+  projectListCardCheck: {
+    fontSize: 16,
+    color: theme.colors.primary,
+    fontWeight: '700',
   },
 
   // Project header
