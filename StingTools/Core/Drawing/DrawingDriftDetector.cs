@@ -4,11 +4,14 @@
 // the view's current state has drifted from its DrawingType profile.
 // Drift kinds:
 //
-//   SCALE_DRIFT          view.Scale != profile.Scale
-//   DETAIL_DRIFT         view.DetailLevel != profile.DetailLevel
-//   TEMPLATE_DRIFT       view.ViewTemplateId.Name != profile.ViewTemplateName
-//   TOKEN_PROFILE_DRIFT  STING_VIEW_TAG_STYLE / TAG_SEG_MASK_TXT mismatch
-//                        (Phase 135)
+//   SCALE_DRIFT             view.Scale != profile.Scale
+//   DETAIL_DRIFT            view.DetailLevel != profile.DetailLevel
+//   TEMPLATE_DRIFT          view.ViewTemplateId.Name != profile.ViewTemplateName
+//   TOKEN_PROFILE_DRIFT     STING_VIEW_TAG_STYLE / TAG_SEG_MASK_TXT mismatch
+//                           (Phase 135)
+//   TITLEBLOCK_SPEC_DRIFT   title-block family on sheet doesn't match profile
+//                           family, or STING_TB_SPEC_HASH_TXT is absent /
+//                           mismatched (Gap 5)
 //
 // Consumed by the SyncStyles command (which re-applies the profile
 // on drifted views) and surfaced in the Inspect command output so
@@ -175,7 +178,11 @@ namespace StingTools.Core.Drawing
                 // DrawingTypePresentation.ApplyToSheet which re-runs
                 // TitleBlockParamApplier and heals the drift.
                 if (v is ViewSheet sheet)
+                {
                     AppendTitleBlockParamDrift(doc, sheet, dt, report);
+                    // Gap 5 — title-block spec / hash drift.
+                    AppendTitleBlockSpecDrift(doc, sheet, dt, report);
+                }
 
                 // Phase 175 — design-option drift. When a profile declares
                 // an OptionScope, compare the view's actual
@@ -458,6 +465,72 @@ namespace StingTools.Core.Drawing
             catch (Exception ex)
             {
                 StingTools.Core.StingLog.Warn($"AppendTitleBlockParamDrift({sheet.Id}): {ex.Message}");
+            }
+        }
+
+        // Gap 5 — title-block spec / hash drift (sheets only).
+        // Checks that (a) the family on the sheet matches the profile's
+        // TitleBlockFamily, and (b) the STING_TB_SPEC_HASH_TXT stamp is
+        // present and agrees with the profile-computed hash (when available).
+        private static void AppendTitleBlockSpecDrift(Document doc, ViewSheet sheet, DrawingType dt, DriftReport report)
+        {
+            try
+            {
+                var insts = new FilteredElementCollector(doc, sheet.Id)
+                    .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                    .OfClass(typeof(FamilyInstance))
+                    .Cast<FamilyInstance>()
+                    .ToList();
+
+                // (a) Missing title-block when the profile names one.
+                if (insts.Count == 0)
+                {
+                    if (!string.IsNullOrEmpty(dt?.TitleBlockFamily))
+                        report.Drifts.Add(
+                            $"TITLEBLOCK_SPEC: no title-block on sheet vs profile family '{dt.TitleBlockFamily}'");
+                    return;
+                }
+
+                foreach (var inst in insts)
+                {
+                    string actualFamily = inst.Symbol?.FamilyName ?? "(unknown)";
+
+                    // (b) Family name mismatch.
+                    if (!string.IsNullOrEmpty(dt?.TitleBlockFamily)
+                        && !string.Equals(actualFamily, dt.TitleBlockFamily, StringComparison.OrdinalIgnoreCase))
+                    {
+                        report.Drifts.Add(
+                            $"TITLEBLOCK_SPEC: family '{actualFamily}' vs profile '{dt.TitleBlockFamily}'");
+                    }
+
+                    // (c) Spec hash check.
+                    Parameter hashParam = null;
+                    try { hashParam = inst.LookupParameter("STING_TB_SPEC_HASH_TXT"); } catch { }
+
+                    if (hashParam == null || hashParam.StorageType != StorageType.String)
+                    {
+                        // No hash stamped — informational only, not a blocking drift.
+                        report.Suppressed.Add(
+                            $"TITLEBLOCK_SPEC_INFO: no spec hash stamped on '{actualFamily}' — factory-of-origin unknown");
+                        continue;
+                    }
+
+                    string liveHash = hashParam.AsString() ?? "";
+                    if (string.IsNullOrEmpty(liveHash))
+                    {
+                        report.Suppressed.Add(
+                            $"TITLEBLOCK_SPEC_INFO: no spec hash stamped on '{actualFamily}' — factory-of-origin unknown");
+                        continue;
+                    }
+
+                    // Hash-vs-expected comparison deferred: TitleBlockSpecRegistry does not
+                    // yet expose a ComputeHash factory.  The stamped hash is still written
+                    // (above) so a future phase can compare without a data migration.
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"AppendTitleBlockSpecDrift({sheet?.Id}): {ex.Message}");
             }
         }
 

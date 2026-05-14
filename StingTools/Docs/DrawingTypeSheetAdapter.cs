@@ -76,21 +76,22 @@ namespace StingTools.Docs
         /// </summary>
         public static ElementId ResolveTitleBlock(Document doc, DrawingType dt)
         {
-            if (doc == null || dt == null || string.IsNullOrWhiteSpace(dt.TitleBlockFamily))
-                return ElementId.InvalidElementId;
+            if (doc == null || dt == null) return ElementId.InvalidElementId;
+            var (tbFamily, tbSymbol) = DrawingDispatcher.ResolveTitleBlockVariant(dt);
+            if (string.IsNullOrWhiteSpace(tbFamily)) return ElementId.InvalidElementId;
             try
             {
                 var matches = new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_TitleBlocks)
                     .OfClass(typeof(FamilySymbol))
                     .Cast<FamilySymbol>()
-                    .Where(fs => string.Equals(fs.FamilyName, dt.TitleBlockFamily,
+                    .Where(fs => string.Equals(fs.FamilyName, tbFamily,
                                                StringComparison.OrdinalIgnoreCase))
                     .ToList();
-                if (!string.IsNullOrWhiteSpace(dt.TitleBlockSymbolType))
+                if (!string.IsNullOrWhiteSpace(tbSymbol))
                 {
                     var picked = matches.FirstOrDefault(fs =>
-                        string.Equals(fs.Name, dt.TitleBlockSymbolType,
+                        string.Equals(fs.Name, tbSymbol,
                                       StringComparison.OrdinalIgnoreCase));
                     if (picked != null) return picked.Id;
                 }

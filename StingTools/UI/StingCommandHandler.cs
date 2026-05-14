@@ -506,6 +506,11 @@ namespace StingTools.UI
                     case "DrawingTypes_HealTitleBlocks": RunCommand<Commands.Drawing.DrawingHealTitleBlocksCommand>(app); break;
                     case "DrawingTypes_Doctor":        RunCommand<Commands.Drawing.DrawingDoctorCommand>(app); break;
                     case "DrawingTypes_MigrateCsv":    RunCommand<Commands.Drawing.TitleBlockMigrateCsvToRecipeCommand>(app); break;
+                    case "DrawingTypes_MigrateParams":     RunCommand<Commands.Drawing.TitleBlockParamMigrateCommand>(app); break;
+                    case "DrawingTypes_AuditLegacyParams": RunCommand<Commands.Drawing.TitleBlockParamMigrateAuditCommand>(app); break;
+                    case "DrawingTypes_SyncRevisions": RunCommand<Commands.Drawing.TitleBlockRevisionSyncCommand>(app); break;
+                    case "DrawingTypes_BulkReStamp":      RunCommand<Commands.Drawing.BulkReStampDrawingTypeCommand>(app); break;
+                    case "DrawingTypes_ProduceAndExport": RunCommand<Commands.Drawing.DrawingProduceAndExportCommand>(app); break;
 
                     // ── Drawing Template Manager · Phase 137 — production engine ──
                     case "DrawingTypes_ProducePerLevel":           RunCommand<Commands.Drawing.ProduceViewsPerLevelCommand>(app); break;
