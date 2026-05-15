@@ -173,6 +173,12 @@ public class PlanscapeDbContext : DbContext
     // Phase 178c (T3-24) — Document revision history (per-CDE-transition snapshots).
     public DbSet<DocumentRevision> DocumentRevisions => Set<DocumentRevision>();
 
+    // Feature gap 2/3 — BOQ snapshots (cloud cost dashboard)
+    public DbSet<BoqSnapshot> BoqSnapshots => Set<BoqSnapshot>();
+    // Feature gap 6 — Primavera P6 live-link sync log
+    public DbSet<P6SyncLog> P6SyncLogs => Set<P6SyncLog>();
+    // Run: dotnet ef migrations add AddBoqSnapshotAndP6SyncLog
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
