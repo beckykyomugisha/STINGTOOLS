@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Hangfire;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -500,6 +501,17 @@ public class DocumentsController : ControllerBase
         _db.Documents.Add(doc);
         await _db.SaveChangesAsync();
         await _audit.LogAsync("CREATE", "Document", doc.Id.ToString(), "{\"versionNumber\":1}");
+
+        // GAP-F — Auto BOQ on IFC upload.
+        // Replace fire-and-forget Task.Run with a Hangfire job so failures are
+        // retried automatically (up to 3 attempts) and appear in the Hangfire
+        // dashboard rather than being silently lost.
+        if (Path.GetExtension(file.FileName).Equals(".ifc", StringComparison.OrdinalIgnoreCase))
+        {
+            var currentUserId = User.FindFirst("sub")?.Value ?? "system-ifc-import";
+            BackgroundJob.Enqueue<Planscape.API.BackgroundJobs.IfcBoqSeedJob>(
+                j => j.ExecuteAsync(doc.ProjectId, relativePath, currentUserId));
+        }
 
         // Create version 1 row
         _db.DocumentVersions.Add(new DocumentVersion
@@ -1066,6 +1078,30 @@ public class DocumentsController : ControllerBase
 
     private Guid GetTenantId() =>
         Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;
+
+    /// <summary>
+    /// Feature gap 5 — maps an IFC element type name to a STING discipline code
+    /// for grouping BOQ items in the auto-seeded snapshot.
+    /// </summary>
+    private static string MapIfcTypeToDiscipline(string ifcTypeName)
+    {
+        return ifcTypeName.ToUpperInvariant() switch
+        {
+            var t when t.Contains("WALL") || t.Contains("DOOR") || t.Contains("WINDOW")
+                    || t.Contains("SLAB") || t.Contains("STAIR") || t.Contains("RAMP")
+                    || t.Contains("ROOF") || t.Contains("COLUMN") || t.Contains("BEAM")
+                    || t.Contains("PLATE") || t.Contains("COVERING") => "A",
+            var t when t.Contains("DUCT") || t.Contains("AIRTERM") || t.Contains("DAMPER")
+                    || t.Contains("FAN")  || t.Contains("COIL")    || t.Contains("UNITHEATER") => "M",
+            var t when t.Contains("PIPE") || t.Contains("PUMP")   || t.Contains("VALVE")
+                    || t.Contains("FITTING") || t.Contains("TANK") => "P",
+            var t when t.Contains("CABLE") || t.Contains("JUNCTION") || t.Contains("SWITCH")
+                    || t.Contains("MOTOR") || t.Contains("LIGHT")  || t.Contains("OUTLET") => "E",
+            var t when t.Contains("FOOTING") || t.Contains("PILE")  || t.Contains("RETAINING") => "S",
+            var t when t.Contains("SPRINKLER") || t.Contains("FIRESUPP") => "FP",
+            _                                                              => "GEN",
+        };
+    }
 
     /// <summary>
     /// Phase 177 — return null when the document is within the caller's

@@ -881,6 +881,53 @@ public sealed class PlanscapeServerClient : IDisposable
         catch (Exception ex) { LastError = ex.Message; return false; }
     }
 
+    // ── BOQ Snapshot (feature gap 3) ──────────────────────────────────────────
+
+    /// <summary>
+    /// Pushes a BOQ snapshot to POST /api/projects/{projectId}/boq/snapshot.
+    /// <paramref name="dto"/> must be serialisable to JSON with fields:
+    /// totalEstimated, totalActual, disciplines[].
+    /// </summary>
+    public async Task<bool> PushBoqSnapshotAsync(Guid projectId, object dto)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/boq/snapshot", dto);
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
+    // ── P6 Live Link (feature gap 6) ──────────────────────────────────────────
+
+    /// <summary>Saves P6 connection settings via POST /api/projects/{id}/p6/configure.</summary>
+    public async Task<bool> ConfigureP6Async(Guid projectId, object settings)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/p6/configure", settings);
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
+    /// <summary>Triggers an immediate P6 sync via POST /api/projects/{id}/p6/sync.</summary>
+    public async Task<(bool ok, string status)> TriggerP6SyncAsync(Guid projectId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return (false, "Not authenticated.");
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/p6/sync", new { });
+            if (!resp.ok) return (false, resp.body);
+            var obj = JObject.Parse(resp.body);
+            string status = obj["status"]?.ToString() ?? "Sync triggered";
+            return (true, status);
+        }
+        catch (Exception ex) { LastError = ex.Message; return (false, ex.Message); }
+    }
+
     // ── MIM (Model Information Management) ────────────────────────────────────
 
     public async Task<JArray?> GetMimAssetsAsync(Guid projectId, int page = 1, int pageSize = 100)

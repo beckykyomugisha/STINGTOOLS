@@ -422,6 +422,191 @@ public class StaleWarningCleanupJob
 }
 
 /// <summary>
+/// GAP-A — Fire-once job triggered after a BOQ snapshot is pushed.
+/// Computes the cost variance vs the previous baseline snapshot.
+/// If the variance exceeds 10% a COST_ALERT BimIssue is raised and
+/// an updated compliance signal is broadcast via SignalR.
+/// </summary>
+public class BoqComplianceReCheckJob
+{
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ILogger<BoqComplianceReCheckJob> _logger;
+
+    public BoqComplianceReCheckJob(
+        IServiceScopeFactory scopeFactory,
+        ILogger<BoqComplianceReCheckJob> logger)
+    {
+        _scopeFactory = scopeFactory;
+        _logger       = logger;
+    }
+
+    [Hangfire.AutomaticRetry(Attempts = 3, OnAttemptsExceeded = Hangfire.AttemptsExceededAction.Delete)]
+    public async Task ExecuteAsync(Guid projectId, CancellationToken ct = default)
+    {
+        _logger.LogInformation("BoqComplianceReCheckJob started for project {ProjectId}", projectId);
+
+        using var scope = _scopeFactory.CreateScope();
+        var db           = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
+        var notifications = scope.ServiceProvider.GetService<INotificationService>();
+        db.BypassTenantFilter = true;
+
+        // Load the two most recent snapshots — latest + previous baseline.
+        var snapshots = await db.BoqSnapshots
+            .Where(s => s.ProjectId == projectId)
+            .OrderByDescending(s => s.CreatedAt)
+            .Take(2)
+            .ToListAsync(ct);
+
+        if (snapshots.Count < 2)
+        {
+            _logger.LogInformation("BoqComplianceReCheckJob: fewer than 2 snapshots for project {ProjectId}, skipping variance check.", projectId);
+            goto Broadcast;
+        }
+
+        var latest   = Newtonsoft.Json.JsonConvert.DeserializeObject<Core.Entities.BoqSnapshotDto>(snapshots[0].SnapshotJson) ?? new();
+        var baseline = Newtonsoft.Json.JsonConvert.DeserializeObject<Core.Entities.BoqSnapshotDto>(snapshots[1].SnapshotJson) ?? new();
+
+        if (baseline.TotalEstimated == 0)
+            goto Broadcast;
+
+        double variancePct = Math.Abs(latest.TotalEstimated - baseline.TotalEstimated) / baseline.TotalEstimated * 100;
+
+        if (variancePct > 10)
+        {
+            _logger.LogWarning(
+                "BoqComplianceReCheckJob: project {ProjectId} cost variance {Pct:F1}% exceeds 10% — raising COST_ALERT issue.",
+                projectId, variancePct);
+
+            // Determine severity from magnitude.
+            string severity = variancePct > 25 ? "CRITICAL" : variancePct > 15 ? "HIGH" : "MEDIUM";
+
+            var project = await db.Projects.FindAsync([projectId], ct);
+            var tenantId = project?.TenantId ?? Guid.Empty;
+
+            var issue = new Core.Entities.BimIssue
+            {
+                TenantId    = tenantId,
+                ProjectId   = projectId,
+                IssueCode   = $"COST-{DateTime.UtcNow:yyyyMMddHHmmss}",
+                Title       = $"Cost variance alert: {variancePct:F1}% change detected",
+                Description = $"BOQ snapshot variance of {variancePct:F1}% vs previous baseline. " +
+                              $"Previous estimated: {baseline.TotalEstimated:F2}, " +
+                              $"New estimated: {latest.TotalEstimated:F2}.",
+                Type        = "COST_ALERT",
+                Status      = "OPEN",
+                Priority    = severity,
+                CreatedAt   = DateTime.UtcNow,
+                CreatedBy   = "system/boq-compliance",
+                Assignee    = "system",
+            };
+            db.Issues.Add(issue);
+            await db.SaveChangesAsync(ct);
+        }
+
+        Broadcast:
+        // Broadcast updated compliance signal regardless of whether an issue was raised.
+        if (notifications != null)
+        {
+            _ = notifications.NotifyProjectAsync(projectId, "compliance_updated",
+                "BOQ Snapshot Updated",
+                "A new BOQ snapshot has been processed. Compliance data refreshed.",
+                new { projectId, source = "boq_snapshot" },
+                ct);
+        }
+
+        _logger.LogInformation("BoqComplianceReCheckJob completed for project {ProjectId}", projectId);
+    }
+}
+
+/// <summary>
+/// GAP-D — Dynamic per-project P6 scheduler (meta-scheduler).
+/// Registered as a Hangfire recurring job every 5 minutes.
+/// Replaces the single global */30 P6LiveLinkJob cron so each project can
+/// have its own effective PollIntervalMinutes without requiring per-project
+/// recurring jobs in Hangfire's job store.
+/// </summary>
+public class P6SchedulerJob
+{
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ILogger<P6SchedulerJob> _logger;
+
+    public P6SchedulerJob(IServiceScopeFactory scopeFactory, ILogger<P6SchedulerJob> logger)
+    {
+        _scopeFactory = scopeFactory;
+        _logger       = logger;
+    }
+
+    [Hangfire.AutomaticRetry(Attempts = 1, OnAttemptsExceeded = Hangfire.AttemptsExceededAction.Delete)]
+    [Hangfire.DisableConcurrentExecution(timeoutInSeconds: 300)]
+    public async Task ExecuteAsync(CancellationToken ct = default)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
+        db.BypassTenantFilter = true;
+
+        var now = DateTime.UtcNow;
+
+        // Load all projects that have P6 settings configured.
+        var projects = await db.Projects
+            .AsNoTracking()
+            .Where(p => p.ConfigJson != null && p.ConfigJson.Contains("\"p6\""))
+            .ToListAsync(ct);
+
+        _logger.LogInformation("P6SchedulerJob: checking {Count} P6-configured projects.", projects.Count);
+
+        foreach (var project in projects)
+        {
+            P6LiveLinkSettings? settings = null;
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(project.ConfigJson!);
+                if (doc.RootElement.TryGetProperty("p6", out var p6El))
+                {
+                    settings = System.Text.Json.JsonSerializer.Deserialize<P6LiveLinkSettings>(
+                        p6El.GetRawText(),
+                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "P6SchedulerJob: could not parse settings for project {Id}.", project.Id);
+                continue;
+            }
+
+            if (settings == null || string.IsNullOrWhiteSpace(settings.BaseUrl))
+                continue;
+
+            int pollInterval = settings.PollIntervalMinutes > 0 ? settings.PollIntervalMinutes : 30;
+
+            // Check the last sync time against the per-project poll interval.
+            var lastLog = await db.P6SyncLogs
+                .AsNoTracking()
+                .Where(l => l.ProjectId == project.Id)
+                .OrderByDescending(l => l.SyncedAt)
+                .FirstOrDefaultAsync(ct);
+
+            bool isDue = lastLog == null
+                || (now - lastLog.SyncedAt).TotalMinutes >= pollInterval;
+
+            if (!isDue) continue;
+
+            _logger.LogInformation(
+                "P6SchedulerJob: project {Id} is due (interval={Interval}m, lastSync={Last}). Enqueueing sync.",
+                project.Id, pollInterval, lastLog?.SyncedAt.ToString("u") ?? "never");
+
+            var capturedId       = project.Id;
+            var capturedTenantId = project.TenantId;
+            var capturedSettings = settings;
+
+            // Fire-once Hangfire job so the actual HTTP call runs outside
+            // this meta-scheduler's execution window.
+            BackgroundJob.Enqueue<P6LiveLinkService>(svc =>
+                svc.SyncAndPersistAsync(capturedId, capturedTenantId, capturedSettings, CancellationToken.None));
+        }
+    }
+}
+
+/// <summary>
 /// Runs every 30 minutes. Iterates active PlatformConnections, refreshes tokens
 /// if needed, syncs tagged elements to the external platform, and records results.
 /// </summary>
