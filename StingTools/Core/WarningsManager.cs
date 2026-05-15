@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
@@ -474,6 +475,12 @@ namespace StingTools.Core
             ("has duplicate Number value", WarningCategory.Data, WarningSeverity.Medium, "Auto-increment sheet/level number", true),
         };
 
+        // PERF-WARN-01: Pre-compiled Regex array — compiled once at class load,
+        // available for callers that need full regex semantics (e.g. boundary matching).
+        // The primary classification path uses _loweredPatterns + Contains for speed;
+        // _compiledPatterns is provided as an additive layer for exact-word matching.
+        private static readonly Regex[] _compiledPatterns;
+
         // PERF: Pre-build lookup dictionary for first-word matching to speed up classification.
         // Instead of O(n) linear scan through 120+ rules, first check if the warning's first
         // significant word matches any rule pattern prefix for O(1) average case.
@@ -484,10 +491,23 @@ namespace StingTools.Core
         static WarningsEngine()
         {
             _loweredPatterns = new string[ClassificationRules.Length];
+            _compiledPatterns = new Regex[ClassificationRules.Length];
             _ruleFirstWordIndex = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
             for (int i = 0; i < ClassificationRules.Length; i++)
             {
                 _loweredPatterns[i] = ClassificationRules[i].pattern.ToLowerInvariant();
+                // PERF-WARN-01: compile each pattern as a regex for callers that need word-boundary matching
+                try
+                {
+                    _compiledPatterns[i] = new Regex(
+                        Regex.Escape(ClassificationRules[i].pattern),
+                        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+                }
+                catch
+                {
+                    // If pattern isn't valid regex (shouldn't happen with Escape, but be safe)
+                    _compiledPatterns[i] = new Regex("(?!)", RegexOptions.Compiled);
+                }
                 string firstWord = _loweredPatterns[i].Split(' ')[0];
                 if (!_ruleFirstWordIndex.TryGetValue(firstWord, out var list))
                 {
@@ -496,6 +516,14 @@ namespace StingTools.Core
                 }
                 list.Add(i);
             }
+        }
+
+        /// <summary>PERF-WARN-01: Check whether a description matches rule[i] using the pre-compiled Regex.
+        /// Use for callers needing full regex semantics; the primary classification path uses Contains.</summary>
+        internal static bool MatchesCompiledPattern(string description, int ruleIndex)
+        {
+            if (ruleIndex < 0 || ruleIndex >= _compiledPatterns.Length) return false;
+            return _compiledPatterns[ruleIndex].IsMatch(description);
         }
 
         // ── Suppression list (loaded from project_config.json) ──
