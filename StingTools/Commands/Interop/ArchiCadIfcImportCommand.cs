@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -47,7 +48,7 @@ namespace StingTools.Commands.Interop
     //  4×4 homogeneous transform (column-major, right-handed, IFC convention)
     // =========================================================================
 
-    internal struct Mat4
+    public struct Mat4
     {
         // Column vectors: X, Y, Z, T (translation)
         public double Xx, Yx, Zx, Tx;
@@ -459,7 +460,25 @@ namespace StingTools.Commands.Interop
 
                         case "IFCFACETEDBREP":
                         case "IFCSHELLBASEDSURFACEMODEL":
+                        case "IFCOPENSHELL":
+                        case "IFCCLOSEDSHELL":
                             ExtractBrepFaces(el, item);
+                            break;
+
+                        case "IFCADVANCEDBREP":
+                        case "IFCADVANCEDBREPWITHVOIDS":
+                        case "IFCBSPLINESURFACE":
+                        case "IFCBSPLINESURFACEWITHKNOTS":
+                        case "IFCRATIONALBSPLINESURFACEWITHKNOTS":
+                        case "IFCSWEPTDISKSOLID":
+                        case "IFCSWEPTDISKSOLIDPOLYGONAL":
+                        case "IFCREVOLVEDAREASOLID":
+                        case "IFCSURFACECURVESWEPTAREASOLID":
+                        case "IFCTRIANGULATEDFACESET":
+                        case "IFCPOLYGONALFACESET":
+                            // Unsupported by the lightweight parser — collapse to an AABB
+                            // box so the element at least lands at the right place.
+                            ApplyReachableAabb(el, item.Id);
                             break;
 
                         case "IFCMAPPEDITEM":
@@ -537,6 +556,27 @@ namespace StingTools.Commands.Interop
             if (hy > el.BboxHalfY) el.BboxHalfY = hy;
         }
 
+        // Catch-all bbox for advanced brep / b-spline / swept-disk / triangulated-faceset
+        // primitives: walks the reachable point cloud and applies its AABB to the element.
+        // Coarse but ensures we never lose an element entirely.
+        private void ApplyReachableAabb(AcIfcElement el, int rootRef)
+        {
+            var pts = CollectReachableCartesianPoints(rootRef, 5000);
+            if (pts.Count < 2) return;
+            double minX=double.MaxValue, minY=double.MaxValue, minZ=double.MaxValue;
+            double maxX=double.MinValue, maxY=double.MinValue, maxZ=double.MinValue;
+            foreach (var p in pts)
+            {
+                if (p[0]<minX) minX=p[0]; if (p[0]>maxX) maxX=p[0];
+                if (p[1]<minY) minY=p[1]; if (p[1]>maxY) maxY=p[1];
+                if (p[2]<minZ) minZ=p[2]; if (p[2]>maxZ) maxZ=p[2];
+            }
+            double hx=(maxX-minX)/2.0, hy=(maxY-minY)/2.0, hz=(maxZ-minZ);
+            if (hx > el.BboxHalfX) el.BboxHalfX = hx;
+            if (hy > el.BboxHalfY) el.BboxHalfY = hy;
+            if (hz > el.Height)    el.Height    = hz;
+        }
+
         // Generic DFS over STEP refs collecting every IfcCartesianPoint reachable from
         // `rootRef`. Used by both curve bbox and brep AABB fallback.
         private List<double[]> CollectReachableCartesianPoints(int rootRef, int cap)
@@ -551,10 +591,36 @@ namespace StingTools.Commands.Interop
                 if (!seen.Add(id)) continue;
                 if (!_e.TryGetValue(id, out var ent)) continue;
                 if (ent.Type == "IFCCARTESIANPOINT") { result.Add(GetPoint(id)); continue; }
+                // Sample IfcCircle apex points so trimmed arcs contribute their bulge
+                // to the bbox, not just their chord endpoints.
+                if (ent.Type == "IFCCIRCLE")
+                {
+                    var ap = SplitArgs(ent.Raw);
+                    if (ap.Count > 1 && double.TryParse(ap[1].Trim(),
+                        NumberStyles.Float, CultureInfo.InvariantCulture, out double r))
+                    {
+                        int placRef = ExtractRef(ent.Raw, 0);
+                        var origin = ExtractAxis2DOrigin(placRef);
+                        // Push 4 cardinal apex points so the bbox covers the full arc envelope.
+                        result.Add(new[] { origin[0] + r, origin[1],     origin[2] });
+                        result.Add(new[] { origin[0] - r, origin[1],     origin[2] });
+                        result.Add(new[] { origin[0],     origin[1] + r, origin[2] });
+                        result.Add(new[] { origin[0],     origin[1] - r, origin[2] });
+                    }
+                    continue;
+                }
                 foreach (Match m in Regex.Matches(ent.Raw, @"#(\d+)"))
                     if (int.TryParse(m.Groups[1].Value, out int r)) stack.Push(r);
             }
             return result;
+        }
+
+        // Lightweight origin extraction for IfcAxis2Placement2D / 3D — for arc sampling only.
+        private double[] ExtractAxis2DOrigin(int placRef)
+        {
+            if (placRef <= 0 || !_e.TryGetValue(placRef, out var p)) return new double[3];
+            int locRef = ExtractRef(p.Raw, 0);
+            return locRef > 0 ? GetPoint(locRef) : new double[3];
         }
 
         // IfcFacetedBrep / IfcShellBasedSurfaceModel — tessellate faces into triangles.
@@ -905,6 +971,10 @@ namespace StingTools.Commands.Interop
 
         /// <summary>Scale only (no origin/rotation) — for lengths/heights.</summary>
         public double ScaleToRevit(double ifcLen) => ifcLen * _unitScale * M2ft;
+
+        /// <summary>AbsoluteElevM (already in metres) → Revit internal feet.</summary>
+        public double ElevMetresToRevitFt(double elevM)
+            => (elevM - _oz * _unitScale) * M2ft + _udz;
     }
 
     // =========================================================================
@@ -1223,10 +1293,19 @@ namespace StingTools.Commands.Interop
 
         private IList<GeometryObject>? BuildTessellatedShape(AcIfcElement el)
         {
+            // Try as a closed (manifold) shell first; if Revit rejects it we retry as an
+            // open shell which is permissive about self-intersection / non-manifold edges.
+            var open = TryBuildTessellated(el, closed: true);
+            if (open != null && open.Count > 0) return open;
+            return TryBuildTessellated(el, closed: false);
+        }
+
+        private IList<GeometryObject>? TryBuildTessellated(AcIfcElement el, bool closed)
+        {
             try
             {
                 var tsb = new TessellatedShapeBuilder();
-                tsb.OpenConnectedFaceSet(true);
+                tsb.OpenConnectedFaceSet(closed);
                 int added = 0;
                 foreach (var t in el.BrepTriangles)
                 {
@@ -1246,11 +1325,13 @@ namespace StingTools.Commands.Interop
                 tsb.Fallback = TessellatedShapeBuilderFallback.Mesh;
                 tsb.Build();
                 var result = tsb.GetBuildResult();
-                return result.GetGeometricalObjects();
+                var geom = result.GetGeometricalObjects();
+                return geom.Count > 0 ? geom : null;
             }
             catch (Exception ex)
             {
-                StingTools.Core.StingLog.Warn($"BrepTess {el.IfcType} '{el.Name}': {ex.Message}");
+                StingTools.Core.StingLog.Warn(
+                    $"BrepTess(closed={closed}) {el.IfcType} '{el.Name}': {ex.Message}");
                 return null;
             }
         }
@@ -1721,20 +1802,3 @@ namespace StingTools.Commands.Interop
     }
 }
 
-// ── ElevToRevit helper extension on ArchiCadCoordinateAligner ──────────────
-namespace StingTools.Commands.Interop
-{
-    public partial class ArchiCadCoordinateAligner
-    {
-        private const double M2ftConst = 3.28083989501312;
-        /// <summary>AbsoluteElevM (already in metres) → Revit internal feet.</summary>
-        public double ElevMetresToRevitFt(double elevM)
-        {
-            // Site origin in metres = _oz * _unitScale (both stored as IFC-units, _oz is IFC)
-            // But _oz is stored raw from Mat4.Tz which is in IFC units.
-            // elevM is in metres, so convert _oz to metres: _oz * _unitScale
-            double siteZm = _oz * _unitScale;
-            return (elevM - siteZm) * M2ftConst + _udz;
-        }
-    }
-}
