@@ -613,8 +613,8 @@ namespace StingTools.BIMManager
                 if (string.IsNullOrEmpty(name)) continue;
 
                 // Try matching task name to category
-                string matchedCat = null;
-                string matchedLevel = null;
+                string? matchedCat = null;
+                string? matchedLevel = null;
 
                 // Direct category match
                 foreach (string cat in knownCats)
@@ -691,7 +691,7 @@ namespace StingTools.BIMManager
         // ═══════════════════════════════════════════════════════════
 
         internal static JObject GenerateCostEstimate(Document doc,
-            Dictionary<string, (double rate, string unit)> costRates)
+            Dictionary<string, (double rate, string unit)>? costRates)
         {
             var estimate = new JObject();
             estimate["project_name"] = doc.ProjectInformation?.Name ?? "";
@@ -710,7 +710,7 @@ namespace StingTools.BIMManager
             // the QS made inline) over cost_rates_5d.csv / DefaultCostRates
             // so the cash-flow curve and 4D timeline stay consistent with
             // the BOQ Cost Manager's totals.
-            Dictionary<string, (double rate, string unit, string description)> boqRateMap = null;
+            Dictionary<string, (double rate, string unit, string description)>? boqRateMap = null;
             try { boqRateMap = StingTools.BOQ.BOQBccBridge.GetBOQCostRateTable(doc); }
             catch (Exception ex) { StingLog.Warn($"BOQ rate-table lookup: {ex.Message}"); }
 
@@ -891,8 +891,8 @@ namespace StingTools.BIMManager
             estimate["contingency"] = Math.Round(grandTotal * contingencyPct / 100.0, 2);
             estimate["overhead_profit_pct"] = overheadPct;
             estimate["overhead_profit"] = Math.Round(grandTotal * overheadPct / 100.0, 2);
-            estimate["grand_total"] = Math.Round(grandTotal + (double)estimate["preliminaries"]
-                + (double)estimate["contingency"] + (double)estimate["overhead_profit"], 2);
+            estimate["grand_total"] = Math.Round(grandTotal + (double)(estimate["preliminaries"] ?? 0.0)
+                + (double)(estimate["contingency"] ?? 0.0) + (double)(estimate["overhead_profit"] ?? 0.0), 2);
 
             // Breakdown by discipline
             var byDisc = lineItems.GroupBy(i => i["discipline"]?.ToString() ?? "?")
@@ -1053,7 +1053,7 @@ namespace StingTools.BIMManager
             var rates = new Dictionary<string, (double, string)>();
             try
             {
-                string[] headers = null;
+                string[]? headers = null;
                 foreach (string line in File.ReadLines(csvPath))
                 {
                     var parts = StingToolsApp.ParseCsvLine(line);
@@ -1467,7 +1467,7 @@ namespace StingTools.BIMManager
 
             // Check for custom rates
             string ratesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "cost_rates_5d.csv");
-            Dictionary<string, (double rate, string unit)> customRates = null;
+            Dictionary<string, (double rate, string unit)>? customRates = null;
             if (File.Exists(ratesPath))
                 customRates = Scheduling4DEngine.LoadCostRatesFromCSV(ratesPath);
 
@@ -1519,7 +1519,7 @@ namespace StingTools.BIMManager
             }
 
             // Report skipped elements
-            string warning = estimate["warning"]?.ToString();
+            string? warning = estimate["warning"]?.ToString();
             if (!string.IsNullOrEmpty(warning))
             {
                 report.AppendLine();
@@ -1798,7 +1798,7 @@ namespace StingTools.BIMManager
                 dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
                 var result = dlg.Show();
 
-                Phase targetPhase = null;
+                Phase? targetPhase = null;
                 switch (result)
                 {
                     case TaskDialogResult.CommandLink1: targetPhase = phases[0]; break;
@@ -1882,7 +1882,7 @@ namespace StingTools.BIMManager
 
                     var byDisc = phaseElements
                         .Where(e => TagConfig.DiscMap.ContainsKey(e.Category.Name))
-                        .GroupBy(e => TagConfig.DiscMap.TryGetValue(e.Category.Name, out string d) ? d : "?")
+                        .GroupBy(e => TagConfig.DiscMap.TryGetValue(e.Category.Name, out string? d) ? d : "?")
                         .OrderByDescending(g => g.Count());
 
                     foreach (var g in byDisc)
@@ -2277,7 +2277,7 @@ namespace StingTools.BIMManager
                     new XAttribute("created_by", "STING Tools"),
                     new XAttribute("version", "1.0")));
 
-            var root = xmlDoc.Root;
+            var root = xmlDoc.Root!;
             DateTime currentDate = projectStart;
             int taskId = 1;
 
@@ -2397,7 +2397,7 @@ namespace StingTools.BIMManager
                         if (!known.Contains(cat)) { skipped++; continue; }
 
                         // Look up rate: by category name first, then by PROD code
-                        CostRateEntry rate = null;
+                        CostRateEntry? rate = null;
                         if (costRates.TryGetValue(cat, out var catRate))
                             rate = catRate;
                         else
