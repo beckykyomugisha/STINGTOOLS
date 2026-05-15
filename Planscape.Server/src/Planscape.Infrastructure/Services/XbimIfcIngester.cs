@@ -23,6 +23,17 @@ namespace Planscape.Infrastructure.Services;
 /// Threading: not thread-safe per instance. Hangfire creates one
 /// scope per job invocation; that scope's DI graph gets a fresh
 /// ingester so concurrent ingest is safe across jobs.
+///
+/// ArchiCAD quantity set support (T4-27c): reads IIfcElementQuantity
+/// entities via IfcRelDefinesByProperties in addition to
+/// IIfcPropertySet. Quantities are emitted into the property bag
+/// under the key "{qsetName}.{quantityName}" so mapping rules with
+/// quantity_type:true can resolve them with the same lookup path as
+/// regular properties.
+///
+/// Source tagging: if the model contains any AC_Pset_RenovationInfo
+/// or AC_Pset_ElementID property set (ArchiCAD-specific), the
+/// IngestResult.Source is set to "archicad"; otherwise "ifc".
 /// </summary>
 public class XbimIfcIngester : IIfcIngester
 {
@@ -57,11 +68,13 @@ public class XbimIfcIngester : IIfcIngester
             _                        => model.SchemaVersion.ToString(),
         };
 
-        // Pre-build a cached map of (element id → property sets) so we
-        // don't repeatedly traverse the inverse relationship on every
-        // element. xbim's inverse traversal is correct but O(N) per
-        // probe; the prebuild collapses to O(N) total.
+        // Pre-build cached maps so we don't repeatedly traverse inverse
+        // relationships on every element. Both build in O(N) total.
         var propsByElement = BuildPropertyIndex(model);
+        var qtysByElement  = BuildQuantityIndex(model);
+
+        // Detect ArchiCAD-specific pset names to set Source field.
+        bool hasAcPsets = false;
 
         foreach (var element in model.Instances.OfType<IIfcElement>())
         {
@@ -74,9 +87,9 @@ public class XbimIfcIngester : IIfcIngester
 
             // Direct attributes — always available.
             if (element.GlobalId.Value is string g) bag["IfcGlobalId"] = g;
-            if (element.Name?.Value is string n) bag["IfcName"] = n;
+            if (element.Name?.Value is string n)    bag["IfcName"]    = n;
             if (element.Description?.Value is string d) bag["IfcDescription"] = d;
-            if (element.Tag?.Value is string t) bag["IfcTag"] = t;
+            if (element.Tag?.Value is string t)     bag["IfcTag"] = t;
 
             // Property sets via the prebuilt index.
             if (propsByElement.TryGetValue(element.EntityLabel, out var pSets))
@@ -84,6 +97,14 @@ public class XbimIfcIngester : IIfcIngester
                 foreach (var pset in pSets)
                 {
                     var psetName = pset.Name?.Value as string ?? "Pset";
+
+                    // Track ArchiCAD-specific psets for source detection.
+                    if (!hasAcPsets &&
+                        (psetName == "AC_Pset_RenovationInfo" || psetName == "AC_Pset_ElementID"))
+                    {
+                        hasAcPsets = true;
+                    }
+
                     foreach (var prop in pset.HasProperties.OfType<IIfcPropertySingleValue>())
                     {
                         var pname = prop.Name?.Value as string;
@@ -91,6 +112,38 @@ public class XbimIfcIngester : IIfcIngester
                         var pvalue = prop.NominalValue?.Value?.ToString();
                         if (pvalue == null) continue;
                         bag[$"{psetName}.{pname}"] = pvalue;
+                    }
+                }
+            }
+
+            // Quantity sets via the prebuilt quantity index.
+            // Quantities are stored as "{qsetName}.{quantityName}" so that
+            // mapping rules with quantity_type:true resolve with the same
+            // lookup path as regular pset properties.
+            if (qtysByElement.TryGetValue(element.EntityLabel, out var qSets))
+            {
+                foreach (var qset in qSets)
+                {
+                    var qsetName = qset.Name?.Value as string ?? "BaseQuantities";
+                    foreach (var qty in qset.Quantities.OfType<IIfcPhysicalSimpleQuantity>())
+                    {
+                        var qname = qty.Name?.Value as string;
+                        if (string.IsNullOrEmpty(qname)) continue;
+
+                        // Extract the numeric value from whichever quantity sub-type
+                        // is present (area, volume, length, weight, count, time).
+                        string? qvalue = qty switch
+                        {
+                            IIfcQuantityArea   qa => qa.AreaValue.ToString(),
+                            IIfcQuantityVolume qv => qv.VolumeValue.ToString(),
+                            IIfcQuantityLength ql => ql.LengthValue.ToString(),
+                            IIfcQuantityWeight qw => qw.WeightValue.ToString(),
+                            IIfcQuantityCount  qc => qc.CountValue.ToString(),
+                            IIfcQuantityTime   qt => qt.TimeValue.ToString(),
+                            _                     => null,
+                        };
+                        if (qvalue == null) continue;
+                        bag[$"{qsetName}.{qname}"] = qvalue;
                     }
                 }
             }
@@ -105,10 +158,20 @@ public class XbimIfcIngester : IIfcIngester
                 Properties: bag));
         }
 
+        // Warn if no quantity sets were found at all — ArchiCAD users
+        // need to enable "Export Quantity Sets (Qto)" in the IFC
+        // translator to populate cost extraction.
+        bool hasQuantities = qtysByElement.Count > 0;
+        if (!hasQuantities)
+        {
+            warnings.Add("No quantity sets found. Re-export from ArchiCAD with 'Export Quantity Sets (Qto)' enabled for cost extraction.");
+        }
+
         sw.Stop();
         _logger.LogInformation(
-            "XbimIfcIngester: {Path} → {Schema} {Count} elements in {Ms}ms",
-            ifcPath, schemaVersion, elements.Count, sw.ElapsedMilliseconds);
+            "XbimIfcIngester: {Path} → {Schema} {Count} elements in {Ms}ms (quantitySets={HasQty}, source={Source})",
+            ifcPath, schemaVersion, elements.Count, sw.ElapsedMilliseconds,
+            hasQuantities, hasAcPsets ? "archicad" : "ifc");
 
         return new IfcIngestResult(
             SchemaVersion: schemaVersion,
@@ -116,7 +179,9 @@ public class XbimIfcIngester : IIfcIngester
             CountsByType: countsByType,
             Elements: elements,
             Duration: sw.Elapsed,
-            Warnings: warnings.Count > 0 ? string.Join("; ", warnings) : null);
+            Warnings: warnings.Count > 0 ? string.Join("; ", warnings) : null,
+            Source: hasAcPsets ? "archicad" : "ifc",
+            HasQuantitySets: hasQuantities);
     }
 
     /// <summary>
@@ -135,6 +200,30 @@ public class XbimIfcIngester : IIfcIngester
             {
                 if (!index.TryGetValue(obj.EntityLabel, out var list))
                     index[obj.EntityLabel] = list = new List<IIfcPropertySet>();
+                list.Add(def);
+            }
+        }
+        return index;
+    }
+
+    /// <summary>
+    /// One pass over IfcRelDefinesByProperties to build a
+    /// (elementEntityLabel → list&lt;IfcElementQuantity&gt;) lookup.
+    /// IFC stores quantity sets as a subtype of IfcPropertySetDefinition
+    /// so they appear in the same relationship as regular property sets
+    /// but need to be cast to IIfcElementQuantity rather than IIfcPropertySet.
+    /// </summary>
+    private static Dictionary<int, List<IIfcElementQuantity>> BuildQuantityIndex(IModel model)
+    {
+        var index = new Dictionary<int, List<IIfcElementQuantity>>();
+        foreach (var rel in model.Instances.OfType<IIfcRelDefinesByProperties>())
+        {
+            var def = rel.RelatingPropertyDefinition as IIfcElementQuantity;
+            if (def == null) continue;
+            foreach (var obj in rel.RelatedObjects)
+            {
+                if (!index.TryGetValue(obj.EntityLabel, out var list))
+                    index[obj.EntityLabel] = list = new List<IIfcElementQuantity>();
                 list.Add(def);
             }
         }
