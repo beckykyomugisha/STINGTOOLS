@@ -113,9 +113,7 @@ namespace StingTools.BIMManager
                 }
 
                 var task = PlanscapeServerClient.Instance.PushBoqSnapshotAsync(projectId, dto);
-                task.GetAwaiter().GetResult();
-
-                bool ok = task.Result;
+                bool ok = task.GetAwaiter().GetResult();
 
                 if (!ok)
                 {

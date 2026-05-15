@@ -37,8 +37,11 @@ public class P6Controller : ControllerBase
     /// Save (or update) P6 live-link settings for a project.
     /// Settings are merged into the existing project.ConfigJson JSON under the
     /// "p6" key so other settings are preserved.
-    /// Password is stored as received — operators should configure TLS and
-    /// database-level encryption for the Settings column in production.
+    /// SECURITY: Password is stored as received (plain text in ConfigJson).
+    /// Production deployments MUST use column-level encryption (e.g. pgcrypto)
+    /// or a secrets manager (Vault, AWS Secrets Manager) rather than storing
+    /// P6 credentials in the ConfigJson column. TLS between the API and Postgres
+    /// is a minimum baseline but is not sufficient on its own.
     /// </summary>
     [HttpPost("configure")]
     public async Task<ActionResult> Configure(

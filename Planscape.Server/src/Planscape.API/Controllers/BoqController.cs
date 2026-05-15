@@ -76,7 +76,7 @@ public class BoqController : ControllerBase
     /// Returns the latest BOQ snapshot plus the 30-day trend (one row per day with a snapshot).
     /// </summary>
     [HttpGet("snapshot")]
-    public async Task<ActionResult> GetSnapshot(int projectId, CancellationToken ct)
+    public async Task<ActionResult> GetSnapshot(Guid projectId, CancellationToken ct)
     {
         if (!await ProjectInTenant(projectId, ct)) return Forbid();
 
@@ -127,7 +127,7 @@ public class BoqController : ControllerBase
 
     // ── Helpers ────────────────────────────────────────────────────────────
 
-    private async Task<bool> ProjectInTenant(int projectId, CancellationToken ct)
+    private async Task<bool> ProjectInTenant(Guid projectId, CancellationToken ct)
         => await _db.Projects.AnyAsync(p => p.Id == projectId && p.TenantId == GetTenantId(), ct);
 
     private Guid GetTenantId()
