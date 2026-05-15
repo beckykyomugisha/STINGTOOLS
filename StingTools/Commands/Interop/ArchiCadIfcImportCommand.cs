@@ -362,6 +362,42 @@ namespace StingTools.Commands.Interop
             }
         }
 
+        // ── Quantity sets (Change 1) ──────────────────────────────────────────
+        private void ResolveQuantitySets()
+        {
+            foreach (var e in _e.Values.Where(e => e.Type == "IFCELEMENTQUANTITY"))
+            {
+                HasQuantitySets = true;
+                string qsetName = ExtractString(e.Raw, 2); // arg 2 = Name
+                var props = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (int qref in ExtractRefList(e.Raw, 5)) // arg 5 = Quantities
+                {
+                    if (!_e.TryGetValue(qref, out var qv)) continue;
+                    string qName = ExtractString(qv.Raw, 0);
+                    if (string.IsNullOrEmpty(qName)) continue;
+                    string qVal = "";
+                    try
+                    {
+                        switch (qv.Type)
+                        {
+                            case "IFCQUANTITYLENGTH":
+                            case "IFCQUANTITYAREA":
+                            case "IFCQUANTITYVOLUME":
+                            case "IFCQUANTITYWEIGHT":
+                            case "IFCQUANTITYCOUNT":
+                                var qparts = SplitArgs(qv.Raw);
+                                if (qparts.Count > 2) qVal = qparts[2].Trim();
+                                break;
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"QuantityParse {qv.Type}: {ex.Message}"); }
+                    if (!string.IsNullOrEmpty(qVal))
+                        props[$"{qsetName}.{qName}"] = qVal;
+                }
+                _psets[e.Id] = props;
+            }
+        }
+
         private void ResolveRelDefinesByProperties()
         {
             foreach (var e in _e.Values.Where(e => e.Type == "IFCRELDEFINESBYPROPERTIES"))
@@ -376,6 +412,91 @@ namespace StingTools.Commands.Interop
                     list.Add(psetRef);
                 }
             }
+        }
+
+        // ── IfcRelDefinesByType (Change 2) ────────────────────────────────────
+        //  Merges type-level Psets onto each instance; instance values win.
+        private void ResolveRelDefinesByType()
+        {
+            try
+            {
+                // First, collect Pset references attached to each type object via
+                // IfcRelDefinesByProperties where the related object is a type object.
+                // Simpler: we gather directly from IfcRelDefinesByType entries.
+                foreach (var e in _e.Values.Where(e => e.Type == "IFCRELDEFINESBYTYPE"))
+                {
+                    var instanceRefs = ExtractRefList(e.Raw, 4); // arg 4 = RelatedObjects
+                    int typeRef      = ExtractRef(e.Raw, 5);     // arg 5 = RelatingType
+                    if (typeRef <= 0) continue;
+                    foreach (int eid in instanceRefs)
+                        _relDefByType[eid] = typeRef;
+                }
+
+                // Collect Psets that belong to type objects (via IfcRelDefinesByProperties
+                // where the related object is a type-class entity).
+                foreach (var e in _e.Values.Where(e => e.Type == "IFCRELDEFINESBYPROPERTIES"))
+                {
+                    int psetRef = ExtractRef(e.Raw, 5);
+                    if (!_psets.ContainsKey(psetRef)) continue;
+                    foreach (int eid in ExtractRefList(e.Raw, 4))
+                    {
+                        if (!_e.TryGetValue(eid, out var ent)) continue;
+                        // Type-class entities start with IfcWallType, IfcSlabType, etc.
+                        if (!ent.Type.EndsWith("TYPE", StringComparison.OrdinalIgnoreCase)
+                            && !ent.Type.EndsWith("STYLE", StringComparison.OrdinalIgnoreCase)) continue;
+                        if (!_typeObjPsets.TryGetValue(eid, out var tlist))
+                            _typeObjPsets[eid] = tlist = new();
+                        tlist.Add(psetRef);
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn("ResolveRelDefinesByType: " + ex.Message); }
+        }
+
+        // ── Material layer set (Change 6) ─────────────────────────────────────
+        private void ResolveRelAssociatesMaterial()
+        {
+            try
+            {
+                foreach (var e in _e.Values.Where(e => e.Type == "IFCRELASSOCIATESMATERIAL"))
+                {
+                    var elemRefs  = ExtractRefList(e.Raw, 4); // arg 4 = RelatedObjects
+                    int matRelRef = ExtractRef(e.Raw, 5);     // arg 5 = RelatingMaterial
+                    if (!_e.TryGetValue(matRelRef, out var matRel)) continue;
+
+                    int layerSetRef = -1;
+                    if (matRel.Type == "IFCMATERIALLAYERSETUSAGE")
+                        layerSetRef = ExtractRef(matRel.Raw, 0); // arg 0 = ForLayerSet
+                    else if (matRel.Type == "IFCMATERIALLAYERSET")
+                        layerSetRef = matRel.Id;
+
+                    if (layerSetRef <= 0 || !_e.TryGetValue(layerSetRef, out var layerSet)) continue;
+
+                    // IfcMaterialLayerSet: arg 0 = MaterialLayers (LIST of IfcMaterialLayer)
+                    double maxThick = -1;
+                    string matName = "";
+                    foreach (int layRef in ExtractRefList(layerSet.Raw, 0))
+                    {
+                        if (!_e.TryGetValue(layRef, out var layer) || layer.Type != "IFCMATERIALLAYER") continue;
+                        int matRef = ExtractRef(layer.Raw, 0); // arg 0 = Material (IfcMaterial)
+                        var thickParts = SplitArgs(layer.Raw);
+                        double thick = 0;
+                        if (thickParts.Count > 1)
+                            double.TryParse(thickParts[1].Trim(), NumberStyles.Float,
+                                CultureInfo.InvariantCulture, out thick);
+                        if (thick > maxThick)
+                        {
+                            maxThick = thick;
+                            if (_e.TryGetValue(matRef, out var mat))
+                                matName = ExtractString(mat.Raw, 0); // IfcMaterial.Name = arg 0
+                        }
+                    }
+                    if (!string.IsNullOrEmpty(matName))
+                        foreach (int eid in elemRefs)
+                            _predominantMaterial[eid] = matName;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn("ResolveRelAssociatesMaterial: " + ex.Message); }
         }
 
         private void ResolveRelContainedInSpatialStructure()
@@ -810,12 +931,36 @@ namespace StingTools.Commands.Interop
         {
             foreach (var el in Elements)
             {
+                // Merge type-object psets first (instance values will override below)
+                if (_relDefByType.TryGetValue(el.Id, out int typeId)
+                    && _typeObjPsets.TryGetValue(typeId, out var typePsetIds))
+                {
+                    foreach (int pid in typePsetIds)
+                    {
+                        if (!_psets.TryGetValue(pid, out var typeProps)) continue;
+                        foreach (var kv in typeProps)
+                            if (!el.Properties.ContainsKey(kv.Key)) // instance wins
+                                el.Properties[kv.Key] = kv.Value;
+                    }
+                }
+
+                // Merge instance psets (instance values override type values)
                 if (!_relDef.TryGetValue(el.Id, out var psetIds)) continue;
                 foreach (int pid in psetIds)
                 {
                     if (!_psets.TryGetValue(pid, out var props)) continue;
                     foreach (var kv in props) el.Properties[kv.Key] = kv.Value;
                 }
+            }
+        }
+
+        private void MergeMaterialLayerProperties()
+        {
+            foreach (var el in Elements)
+            {
+                if (!_predominantMaterial.TryGetValue(el.Id, out string? matName)) continue;
+                // Store as a synthetic property so the property mapper can write it
+                el.Properties["IfcMaterialLayer.PredominantMaterial"] = matName;
             }
         }
 
@@ -1470,10 +1615,39 @@ namespace StingTools.Commands.Interop
 
         public void Apply(Element revitEl, AcIfcElement src)
         {
+            // Post-process: write predominant material layer to STING param
+            ApplyMaterialLayer(revitEl, src);
+
             foreach (var m in _mappings)
             {
-                if (!src.Properties.TryGetValue($"{m.ArchiCadPset}.{m.ArchiCadProp}",
-                    out string? val) || string.IsNullOrWhiteSpace(val)) continue;
+                // Change 3: element-type filter
+                if (m.ElementTypes.Count > 0 &&
+                    !m.ElementTypes.Contains(src.IfcType, StringComparer.OrdinalIgnoreCase))
+                    continue;
+
+                // Change 4: scan_all_psets — when pset is empty or notes says scan_all_psets,
+                // search all psets for the first occurrence of the property name.
+                string? val = null;
+                bool scanAll = string.IsNullOrEmpty(m.ArchiCadPset)
+                    || m.Notes.IndexOf("scan_all_psets", StringComparison.OrdinalIgnoreCase) >= 0;
+
+                if (scanAll)
+                {
+                    // Iterate all properties looking for any key ending with ".<prop>"
+                    string suffix = "." + m.ArchiCadProp;
+                    foreach (var kv in src.Properties)
+                    {
+                        if (kv.Key.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)
+                            && !string.IsNullOrWhiteSpace(kv.Value))
+                        { val = kv.Value; break; }
+                    }
+                }
+                else
+                {
+                    src.Properties.TryGetValue($"{m.ArchiCadPset}.{m.ArchiCadProp}", out val);
+                }
+
+                if (string.IsNullOrWhiteSpace(val)) continue;
 
                 bool wrote = false;
                 if (!string.IsNullOrEmpty(m.StingParam))
@@ -1483,6 +1657,24 @@ namespace StingTools.Commands.Interop
                     wrote = Write(revitEl.get_Parameter(bip), val);
                 if (wrote) Written++;
             }
+        }
+
+        // Change 6: write predominant material layer to a STING parameter
+        private static void ApplyMaterialLayer(Element revitEl, AcIfcElement src)
+        {
+            if (!src.Properties.TryGetValue("IfcMaterialLayer.PredominantMaterial", out string? matName)
+                || string.IsNullOrEmpty(matName)) return;
+            try
+            {
+                // Try STING-specific parameters first, then fall back
+                var p = revitEl.LookupParameter("STING_MATERIAL_TXT")
+                     ?? revitEl.LookupParameter("MAT_FINISH_TXT")
+                     ?? revitEl.LookupParameter("ASS_SYSTEM_TYPE_TXT");
+                if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String
+                    && string.IsNullOrEmpty(p.AsString()))
+                    p.Set(matName);
+            }
+            catch (Exception ex) { StingLog.Warn("ApplyMaterialLayer: " + ex.Message); }
         }
 
         private static bool Write(Parameter? p, string val)
@@ -1648,6 +1840,13 @@ namespace StingTools.Commands.Interop
             result.PropsWritten= pm.Written;
             result.Warnings.AddRange(em.Warnings);
             tg.Assimilate();
+
+            // Change 5: warn when no IfcElementQuantity entities were found
+            if (!parser.HasQuantitySets)
+                result.Warnings.Insert(0,
+                    "⚠ No quantity sets found in this IFC file. Cost extraction and area/volume data " +
+                    "requires re-exporting from ArchiCAD with 'Export Quantity Sets (Qto)' enabled in " +
+                    "the IFC Translator settings. The default ArchiCAD translator does not export quantities.");
 
             foreach (string w in result.Warnings) StingLog.Warn("ArchiCAD: " + w);
 
