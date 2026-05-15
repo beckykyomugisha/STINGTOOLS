@@ -277,8 +277,10 @@ namespace StingTools.Commands.Electrical
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
         {
-            var uidoc = data.Application.ActiveUIDocument;
-            var doc   = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) { message = "No document open."; return Result.Failed; }
+            var uidoc = ctx.UIDoc;
+            var doc   = ctx.Doc;
 
             Reference picked;
             try { picked = uidoc.Selection.PickObject(ObjectType.Element, new ConduitSelectionFilter(),
@@ -321,8 +323,10 @@ namespace StingTools.Commands.Electrical
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
         {
-            var uidoc = data.Application.ActiveUIDocument;
-            var doc   = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) { message = "No document open."; return Result.Failed; }
+            var uidoc = ctx.UIDoc;
+            var doc   = ctx.Doc;
 
             // Prefer current selection; fall back to all conduits in view
             IList<Element> conduits;
@@ -387,8 +391,10 @@ namespace StingTools.Commands.Electrical
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
         {
-            var uidoc = data.Application.ActiveUIDocument;
-            var doc   = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) { message = "No document open."; return Result.Failed; }
+            var uidoc = ctx.UIDoc;
+            var doc   = ctx.Doc;
 
             var selIds = uidoc.Selection.GetElementIds();
             IList<Element> conduits = selIds.Count > 0
@@ -454,8 +460,10 @@ namespace StingTools.Commands.Electrical
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
         {
-            var uidoc = data.Application.ActiveUIDocument;
-            var doc   = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) { message = "No document open."; return Result.Failed; }
+            var uidoc = ctx.UIDoc;
+            var doc   = ctx.Doc;
 
             var selIds = uidoc.Selection.GetElementIds();
             IList<Element> conduits = selIds.Count > 0
@@ -545,8 +553,10 @@ namespace StingTools.Commands.Electrical
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
         {
-            var uidoc = data.Application.ActiveUIDocument;
-            var doc   = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) { message = "No document open."; return Result.Failed; }
+            var uidoc = ctx.UIDoc;
+            var doc   = ctx.Doc;
 
             Reference picked;
             try { picked = uidoc.Selection.PickObject(ObjectType.Element, new ConduitSelectionFilter(),
@@ -730,8 +740,10 @@ namespace StingTools.Commands.Electrical
 
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
         {
-            var uidoc = data.Application.ActiveUIDocument;
-            var doc   = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) { message = "No document open."; return Result.Failed; }
+            var uidoc = ctx.UIDoc;
+            var doc   = ctx.Doc;
 
             var selIds = uidoc.Selection.GetElementIds();
             IList<Element> conduits = selIds.Count > 0
@@ -781,7 +793,9 @@ namespace StingTools.Commands.Electrical
 
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
         {
-            var doc = data.Application.ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) { message = "No document open."; return Result.Failed; }
+            var doc = ctx.Doc;
             var conduits = new FilteredElementCollector(doc, doc.ActiveView.Id)
                 .OfCategory(BuiltInCategory.OST_Conduit)
                 .WhereElementIsNotElementType()
@@ -874,7 +888,9 @@ namespace StingTools.Commands.Electrical
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
         {
-            var doc = data.Application.ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) { message = "No document open."; return Result.Failed; }
+            var doc = ctx.Doc;
 
             // Collect all electrical equipment (panels) in project
             var panels = new FilteredElementCollector(doc)
