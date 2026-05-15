@@ -1650,3 +1650,46 @@ export function getPenetrationDashboard(projectId: string): Promise<{
 }> {
   return apiFetch(`/api/projects/${projectId}/penetrations/dashboard`);
 }
+
+// ── P6 Schedule / GAP-C ──────────────────────────────────────────────────────
+
+export interface P6StatusResponse {
+  lastSyncedAt:      string | null;
+  activitiesPolled:  number;
+  elementsUpdated:   number;
+  errorMessage:      string | null;
+  isConfigured:      boolean;
+}
+
+export interface P6SyncLogEntry {
+  syncedAt:         string;
+  activitiesPolled: number;
+  elementsUpdated:  number;
+  error:            string | null;
+}
+
+export async function getP6Status(projectId: string): Promise<P6StatusResponse> {
+  const raw = await apiFetch<{
+    lastSyncAt?:       string | null;
+    activitiesPolled?: number;
+    elementsUpdated?:  number;
+    error?:            string | null;
+    history?:          P6SyncLogEntry[];
+  }>(`/api/projects/${projectId}/p6/status`);
+  return {
+    lastSyncedAt:     raw.lastSyncAt ?? null,
+    activitiesPolled: raw.activitiesPolled ?? 0,
+    elementsUpdated:  raw.elementsUpdated  ?? 0,
+    errorMessage:     raw.error            ?? null,
+    isConfigured:     raw.lastSyncAt !== undefined,
+  };
+}
+
+export function getP6Logs(projectId: string): Promise<P6SyncLogEntry[]> {
+  return apiFetch(`/api/projects/${projectId}/p6/logs`);
+}
+
+export function triggerP6Sync(projectId: string): Promise<{ status: string }> {
+  return apiFetch(`/api/projects/${projectId}/p6/sync`, { method: 'POST' });
+}
+}

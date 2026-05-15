@@ -1,9 +1,11 @@
+using Hangfire;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.Services;
 using Planscape.Infrastructure.SignalR;
 using Newtonsoft.Json;
 using Planscape.API.Authorization;
@@ -66,6 +68,12 @@ public class BoqController : ControllerBase
                 totalActual    = dto.TotalActual,
                 createdAt      = snapshot.CreatedAt,
             }, ct);
+
+        // GAP-A — enqueue fire-once compliance re-check so cost variance is
+        // evaluated against the previous baseline and a COST_ALERT issue is
+        // raised when the delta exceeds 10%.
+        BackgroundJob.Enqueue<BoqComplianceReCheckJob>(
+            j => j.ExecuteAsync(projectId, CancellationToken.None));
 
         return CreatedAtAction(nameof(GetSnapshot), new { projectId }, snapshot);
     }

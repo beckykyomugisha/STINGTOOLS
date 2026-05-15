@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Planscape.Core.Entities;
+using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
 
 namespace Planscape.Infrastructure.Services;
@@ -58,13 +59,22 @@ public class P6LiveLinkService
 {
     private readonly ILogger<P6LiveLinkService> _logger;
     private readonly IServiceScopeFactory       _scopeFactory;
+    private readonly INotificationService?      _notifications;
+    private readonly IPushNotificationService?  _push;
+
+    // Milestone thresholds for push notifications (GAP-B)
+    private static readonly double[] MilestoneThresholds = { 25.0, 50.0, 75.0, 100.0 };
 
     public P6LiveLinkService(
         ILogger<P6LiveLinkService> logger,
-        IServiceScopeFactory       scopeFactory)
+        IServiceScopeFactory       scopeFactory,
+        INotificationService?      notifications = null,
+        IPushNotificationService?  push          = null)
     {
-        _logger       = logger;
-        _scopeFactory = scopeFactory;
+        _logger        = logger;
+        _scopeFactory  = scopeFactory;
+        _notifications = notifications;
+        _push          = push;
     }
 
     // ── Public entry point (called from Hangfire recurring job + manual trigger) ──
@@ -115,13 +125,30 @@ public class P6LiveLinkService
                 .ToListAsync(ct);
 
             int updated = 0;
+
+            // GAP-B — track which elements just completed and which crossed milestones.
+            var justCompleted = new List<TaggedElement>();
+            var milestoneCrossed = new List<(TaggedElement Element, double Milestone)>();
+
             foreach (var el in elements)
             {
                 if (el.P6ActivityId == null) continue;
                 if (!pctByActivity.TryGetValue(el.P6ActivityId, out double pct)) continue;
 
+                double previous = el.PercentComplete;
                 el.PercentComplete = pct;
                 updated++;
+
+                // Detect completion (reached 100%)
+                if (previous < 100.0 && pct >= 100.0)
+                    justCompleted.Add(el);
+
+                // Detect milestone crossings (25%, 50%, 75%, 100%)
+                foreach (var threshold in MilestoneThresholds)
+                {
+                    if (previous < threshold && pct >= threshold)
+                        milestoneCrossed.Add((el, threshold));
+                }
             }
 
             if (updated > 0)
@@ -131,6 +158,14 @@ public class P6LiveLinkService
             _logger.LogInformation(
                 "P6Sync project {Id}: {Polled} activities, {Updated} elements updated.",
                 projectId, log.ActivitiesPolled, log.ElementsUpdated);
+
+            // GAP-B — auto-resolve open issues linked to completed elements,
+            // and send push notifications for milestone crossings.
+            if (justCompleted.Count > 0 || milestoneCrossed.Count > 0)
+            {
+                await ProcessCompletionNotificationsAsync(
+                    db, projectId, justCompleted, milestoneCrossed, ct);
+            }
         }
         catch (Exception ex)
         {
@@ -141,9 +176,118 @@ public class P6LiveLinkService
         return log;
     }
 
+    // ── GAP-B helpers ────────────────────────────────────────────────────────
+
+    private async Task ProcessCompletionNotificationsAsync(
+        PlanscapeDbContext               db,
+        Guid                             projectId,
+        List<TaggedElement>              justCompleted,
+        List<(TaggedElement, double)>    milestoneCrossed,
+        CancellationToken                ct)
+    {
+        // Auto-resolve open issues linked to completed elements.
+        foreach (var el in justCompleted)
+        {
+            // Match by ElementId stored in issue Description (since there is no
+            // dedicated ActivityId FK on BimIssue — search on activity id string).
+            var activityId = el.P6ActivityId ?? "";
+            var openIssues = await db.Issues
+                .Where(i => i.ProjectId == projectId
+                         && (i.Status == "OPEN" || i.Status == "IN_PROGRESS")
+                         && (i.Description != null && i.Description.Contains(activityId)))
+                .ToListAsync(ct);
+
+            foreach (var issue in openIssues)
+            {
+                issue.Status     = "RESOLVED";
+                issue.ResolvedAt = DateTime.UtcNow;
+
+                _logger.LogInformation(
+                    "P6Sync: auto-resolving issue {Code} (linked to completed activity {ActivityId})",
+                    issue.IssueCode, activityId);
+
+                // Notify the issue assignee.
+                if (_notifications != null && issue.AssigneeUserId.HasValue)
+                {
+                    _ = _notifications.NotifyUserAsync(
+                        issue.AssigneeUserId.Value,
+                        $"Issue {issue.IssueCode} auto-resolved",
+                        $"P6 activity {activityId} reached 100% — issue marked resolved.",
+                        new { issueId = issue.Id, issueCode = issue.IssueCode, projectId },
+                        ct);
+                }
+            }
+        }
+
+        if (justCompleted.Count > 0)
+            await db.SaveChangesAsync(ct);
+
+        // Push milestone notifications to project PM role users.
+        if (milestoneCrossed.Count > 0 && _push != null)
+        {
+            var pmUserIds = await db.ProjectMembers
+                .AsNoTracking()
+                .Where(m => m.ProjectId == projectId && m.IsActive && m.ProjectRole == "PM")
+                .Select(m => m.UserId)
+                .Distinct()
+                .ToListAsync(ct);
+
+            foreach (var (el, milestone) in milestoneCrossed)
+            {
+                var body = $"Activity {el.P6ActivityId} reached {milestone}% complete.";
+                foreach (var uid in pmUserIds)
+                {
+                    _ = _push.SendToUserAsync(uid, new PushPayload
+                    {
+                        Title   = $"P6 Milestone: {milestone}%",
+                        Body    = body,
+                        Channel = "p6_milestone",
+                        Data    = new Dictionary<string, string>
+                        {
+                            ["type"]       = "p6_milestone",
+                            ["activityId"] = el.P6ActivityId ?? "",
+                            ["milestone"]  = milestone.ToString("F0"),
+                            ["projectId"]  = projectId.ToString(),
+                        }
+                    }, ct);
+                }
+            }
+        }
+    }
+
     // ── HTTP helper ──────────────────────────────────────────────────────────
 
+    // GAP-E — inline retry policy: 3 attempts, exponential back-off (2s, 4s, 8s).
+    // Polly is not referenced in this project, so we use a simple loop rather
+    // than adding a new NuGet dependency. Only HttpRequestException and 5xx
+    // status codes are retried; 4xx are treated as non-transient and thrown
+    // immediately.
     private async Task<List<P6Activity>> FetchActivitiesAsync(
+        P6LiveLinkSettings settings,
+        CancellationToken  ct)
+    {
+        const int maxAttempts = 3;
+        int attempt = 0;
+
+        while (true)
+        {
+            attempt++;
+            try
+            {
+                return await FetchActivitiesOnceAsync(settings, ct);
+            }
+            catch (HttpRequestException ex) when (attempt < maxAttempts)
+            {
+                int delayMs = (int)Math.Pow(2, attempt) * 1000; // 2s, 4s
+                _logger.LogWarning(ex,
+                    "P6 HTTP request failed (attempt {Attempt}/{Max}). Retrying in {Delay}ms.",
+                    attempt, maxAttempts, delayMs);
+                await Task.Delay(delayMs, ct);
+            }
+        }
+    }
+
+    private async Task<List<P6Activity>> FetchActivitiesOnceAsync(
         P6LiveLinkSettings settings,
         CancellationToken  ct)
     {
@@ -164,6 +308,13 @@ public class P6LiveLinkService
         string url    = $"activity?ProjectId={Uri.EscapeDataString(settings.ProjectId)}&Fields={fields}";
 
         var response = await http.GetAsync(url, ct);
+
+        // Retry on 5xx; throw immediately on 4xx (non-transient).
+        if ((int)response.StatusCode >= 500)
+        {
+            throw new HttpRequestException(
+                $"P6 API returned {(int)response.StatusCode} {response.ReasonPhrase}");
+        }
         response.EnsureSuccessStatusCode();
 
         string body = await response.Content.ReadAsStringAsync(ct);

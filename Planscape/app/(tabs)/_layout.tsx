@@ -108,6 +108,14 @@ export default function TabLayout() {
           tabBarIcon: ({ focused }) => <TabIcon label="📈" focused={focused} />,
         }}
       />
+      {/* GAP-C — Schedule / P6 Live Link */}
+      <Tabs.Screen
+        name="schedule"
+        options={{
+          title: 'Schedule',
+          tabBarIcon: ({ focused }) => <TabIcon label="📅" focused={focused} />,
+        }}
+      />
       <Tabs.Screen
         name="settings"
         options={{

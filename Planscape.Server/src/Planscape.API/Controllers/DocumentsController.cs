@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Hangfire;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -482,61 +483,15 @@ public class DocumentsController : ControllerBase
         await _db.SaveChangesAsync();
         await _audit.LogAsync("CREATE", "Document", doc.Id.ToString(), "{\"versionNumber\":1}");
 
-        // Feature gap 5 — Auto BOQ on IFC upload.
-        // If the uploaded file is an IFC, extract quantities and seed a BoqSnapshot.
+        // GAP-F — Auto BOQ on IFC upload.
+        // Replace fire-and-forget Task.Run with a Hangfire job so failures are
+        // retried automatically (up to 3 attempts) and appear in the Hangfire
+        // dashboard rather than being silently lost.
         if (Path.GetExtension(file.FileName).Equals(".ifc", StringComparison.OrdinalIgnoreCase))
         {
-            // Snapshot the buffer before the using-scope disposes memStream.
-            byte[] ifcBytes        = memStream.ToArray();
-            Guid   ifcProjectId    = doc.ProjectId;
-            Guid   ifcTenantId     = GetTenantId();
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    using var ifcStream = new MemoryStream(ifcBytes);
-                    var extractor = new IfcBoqExtractor();
-                    var items     = extractor.Extract(ifcStream);
-
-                    if (items.Count > 0)
-                    {
-                        // Group into disciplines using IfcElement type prefix
-                        var disciplineGroups = items
-                            .GroupBy(i => MapIfcTypeToDiscipline(i.ElementType))
-                            .Select(g => new BoqDisciplineRow
-                            {
-                                Discipline = g.Key,
-                                Items      = g.Count(),
-                                Estimated  = Math.Round(g.Sum(i => i.Value), 2),
-                                Actual     = 0,
-                            }).ToList();
-
-                        double totalEstimated = disciplineGroups.Sum(r => r.Estimated);
-                        var dto = new BoqSnapshotDto
-                        {
-                            TotalEstimated = totalEstimated,
-                            TotalActual    = 0,
-                            Disciplines    = disciplineGroups,
-                        };
-
-                        var snapshot = new BoqSnapshot
-                        {
-                            ProjectId       = ifcProjectId,
-                            TenantId        = ifcTenantId,
-                            CreatedAt       = DateTime.UtcNow,
-                            CreatedByUserId = "system-ifc-import",
-                            SnapshotJson    = JsonConvert.SerializeObject(dto),
-                        };
-                        _db.BoqSnapshots.Add(snapshot);
-                        await _db.SaveChangesAsync();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    // Non-fatal — IFC BOQ seeding is best-effort
-                    _logger.LogWarning(ex, "IFC BOQ extraction failed for project {ProjectId}: {Message}", ifcProjectId, ex.Message);
-                }
-            });
+            var currentUserId = User.FindFirst("sub")?.Value ?? "system-ifc-import";
+            BackgroundJob.Enqueue<Planscape.API.BackgroundJobs.IfcBoqSeedJob>(
+                j => j.ExecuteAsync(doc.ProjectId, relativePath, currentUserId));
         }
 
         // Create version 1 row

@@ -106,6 +106,31 @@ public class P6Controller : ControllerBase
         });
     }
 
+    // ── GET /api/projects/{projectId}/p6/logs ─────────────────────────────
+
+    /// <summary>GAP-C — Returns the last 20 P6 sync log rows ordered by SyncedAt desc.</summary>
+    [HttpGet("logs")]
+    public async Task<ActionResult> Logs(Guid projectId, CancellationToken ct)
+    {
+        if (!await ProjectInTenant(projectId, ct)) return Forbid();
+
+        var logs = await _db.P6SyncLogs
+            .AsNoTracking()
+            .Where(l => l.ProjectId == projectId)
+            .OrderByDescending(l => l.SyncedAt)
+            .Take(20)
+            .Select(l => new
+            {
+                syncedAt         = l.SyncedAt,
+                activitiesPolled = l.ActivitiesPolled,
+                elementsUpdated  = l.ElementsUpdated,
+                error            = l.ErrorMessage,
+            })
+            .ToListAsync(ct);
+
+        return Ok(logs);
+    }
+
     // ── POST /api/projects/{projectId}/p6/sync ─────────────────────────────
 
     /// <summary>Trigger an immediate P6 sync (Hangfire fire-and-forget).</summary>
