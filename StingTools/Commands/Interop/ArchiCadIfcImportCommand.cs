@@ -37,7 +37,7 @@ using StingTools.Core;
 //     the element location.
 //
 //  4. ELEMENT TYPE / PROPERTY FIDELITY
-//     JSON-driven ARCHICAD_IFC_MAPPING.json maps 34 IfcType/PredefinedType
+//     JSON-driven ARCHICAD_IFC_MAPPING.json maps 40 IfcType/PredefinedType
 //     combinations. ArchiCAD Psets are written to STING shared params + Revit
 //     built-ins via ArchiCadPropertyMapper.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -172,11 +172,13 @@ namespace StingTools.Commands.Interop
 
     public sealed class AcIfcPropMapping
     {
-        [JsonProperty("archicad_pset")]  public string ArchiCadPset { get; set; } = "";
-        [JsonProperty("archicad_prop")]  public string ArchiCadProp { get; set; } = "";
-        [JsonProperty("sting_param")]    public string StingParam   { get; set; } = "";
-        [JsonProperty("revit_builtin")]  public string RevitBuiltIn { get; set; } = "";
-        [JsonProperty("notes")]          public string Notes        { get; set; } = "";
+        [JsonProperty("archicad_pset")]   public string ArchiCadPset  { get; set; } = "";
+        [JsonProperty("archicad_prop")]   public string ArchiCadProp  { get; set; } = "";
+        [JsonProperty("sting_param")]     public string StingParam    { get; set; } = "";
+        [JsonProperty("revit_builtin")]   public string RevitBuiltIn  { get; set; } = "";
+        [JsonProperty("notes")]           public string Notes         { get; set; } = "";
+        /// <summary>When non-empty, mapping only applies to IFC elements whose IfcType is in this list.</summary>
+        [JsonProperty("element_types")]   public List<string> ElementTypes { get; set; } = new();
     }
 
     public sealed class AcIfcMappingConfig
@@ -209,6 +211,14 @@ namespace StingTools.Commands.Interop
         private readonly Dictionary<int, int>         _relContain= new();
         // element id → absolute world transform (cached during geometry extraction)
         private readonly Dictionary<int, Mat4>        _worldXf   = new();
+        // type-object id → list of pset ids (populated from IfcTypeObject relationships)
+        private readonly Dictionary<int, List<int>>   _typeObjPsets = new();
+        // element id → type-object id (populated from IfcRelDefinesByType)
+        private readonly Dictionary<int, int>         _relDefByType = new();
+        // element id → predominant material name from IfcMaterialLayerSet
+        private readonly Dictionary<int, string>      _predominantMaterial = new();
+        /// <summary>True if any IfcElementQuantity entities were found in the file.</summary>
+        public bool HasQuantitySets { get; private set; }
 
         // ── entry point ───────────────────────────────────────────────────────
         public static ArchiCadIfcParser ParseFile(string path)
@@ -257,10 +267,14 @@ namespace StingTools.Commands.Interop
             ResolveSite();
             ResolveStoreys();
             ResolvePropertySets();
+            ResolveQuantitySets();
             ResolveRelDefinesByProperties();
+            ResolveRelDefinesByType();
+            ResolveRelAssociatesMaterial();
             ResolveRelContainedInSpatialStructure();
             ResolveElements();
             MergePropertiesIntoElements();
+            MergeMaterialLayerProperties();
             AssignStoreyToElements();
         }
 
