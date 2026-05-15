@@ -1073,6 +1073,16 @@ namespace StingTools.UI
                 if (string.IsNullOrEmpty(data.HealthcareFacilityProfile))
                     data.HealthcareFacilityProfile = "FULL";
             }
+            // FOLDER-02: Free-text custom disciplines (comma-separated codes)
+            if (tbxCustomDisciplines != null && !string.IsNullOrWhiteSpace(tbxCustomDisciplines.Text))
+            {
+                foreach (string raw in tbxCustomDisciplines.Text.Split(','))
+                {
+                    string code = raw.Trim().ToUpperInvariant();
+                    if (!string.IsNullOrEmpty(code) && !data.Disciplines.Contains(code))
+                        data.Disciplines.Add(code);
+                }
+            }
 
             data.TitleBlockName = GetComboValue(cmbTitleBlock);
             if (data.TitleBlockName == "(Use first available)" || string.IsNullOrEmpty(data.TitleBlockName))

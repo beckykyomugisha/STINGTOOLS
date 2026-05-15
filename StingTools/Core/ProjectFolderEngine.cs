@@ -1879,6 +1879,10 @@ namespace StingTools.Core
         }
 
         // ══════════════════════════════════════════════════════════════════
+        //  FOLDER-04: FileSystemWatcher active-state guard
+        /// <summary>Returns true when the FileSystemWatcher is currently enabled.</summary>
+        public static bool IsWatcherActive => _watcher?.EnableRaisingEvents == true;
+
         //  INT-002: FileSystemWatcher for project folder monitoring
         // ══════════════════════════════════════════════════════════════════
 

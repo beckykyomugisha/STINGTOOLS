@@ -423,6 +423,18 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- FOLDER-02: Free-text additional disciplines -->
+                        <Border Style="{StaticResource WizGroupBox}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource WizSubHeader}" Text="Additional Disciplines"/>
+                                <TextBlock Text="Enter comma-separated discipline codes for any disciplines not listed above (e.g. RP, MG, CI, LS). Each code creates a named sub-folder under WIP, SHARED, and PUBLISHED."
+                                           FontSize="10" Foreground="#777" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                <TextBox x:Name="tbxCustomDisciplines"
+                                         Style="{StaticResource WizTextBox}"
+                                         ToolTip="Comma-separated codes, e.g.: RP, MG, CI"/>
+                            </StackPanel>
+                        </Border>
+
                         <!-- HC-08: Healthcare facility type — shown only when Healthcare discipline is checked -->
                         <Border x:Name="pnlHealthcareFacility" Style="{StaticResource WizGroupBox}" Visibility="Collapsed">
                             <StackPanel>

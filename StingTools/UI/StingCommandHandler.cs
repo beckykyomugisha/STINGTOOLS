@@ -2495,6 +2495,64 @@ namespace StingTools.UI
                     case "CDEPackage": RunCommand<BIMManager.CDEPackageCommand>(app); break;
                     case "Folder_CloudSync": RunCommand<BIMManager.FolderCloudSyncSettingsCommand>(app); break;
                     case "Folder_CloudMirrorNow": RunCommand<BIMManager.FolderCloudMirrorNowCommand>(app); break;
+                    case "Folder_ToggleWatcher":
+                    {
+                        // FOLDER-04: Toggle the FileSystemWatcher on/off.
+                        // When turned on, auto-classifies files dropped into 02_SHARED/
+                        // or 03_PUBLISHED/ by appending to document_register.json.
+                        var fwDoc = app.ActiveUIDocument?.Document;
+                        if (fwDoc == null) break;
+                        if (Core.ProjectFolderEngine.IsWatcherActive)
+                        {
+                            Core.ProjectFolderEngine.StopWatching();
+                            StingLog.Info("Folder watcher stopped by user.");
+                            Autodesk.Revit.UI.TaskDialog.Show("Folder Watcher", "Folder monitoring stopped.");
+                        }
+                        else
+                        {
+                            Core.ProjectFolderEngine.StartWatching(fwDoc, filePath =>
+                            {
+                                // Auto-classify new files in SHARED/PUBLISHED into document register
+                                try
+                                {
+                                    string normalised = filePath.Replace('\\', '/');
+                                    bool isShared    = normalised.Contains("/02_SHARED/")    || normalised.Contains("/SHARED/");
+                                    bool isPublished = normalised.Contains("/03_PUBLISHED/") || normalised.Contains("/PUBLISHED/");
+                                    if (!isShared && !isPublished) return;
+                                    if (!File.Exists(filePath)) return;
+                                    string cdeState = isPublished ? "PUBLISHED" : "SHARED";
+                                    string bimDir = Core.ProjectFolderEngine.GetDataPath(fwDoc);
+                                    string regPath = System.IO.Path.Combine(bimDir, "document_register.json");
+                                    var arr = File.Exists(regPath)
+                                        ? Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(regPath))
+                                        : new Newtonsoft.Json.Linq.JArray();
+                                    // Check not already in register
+                                    bool exists = arr.Any(d => string.Equals(d["file_path"]?.ToString(), filePath, StringComparison.OrdinalIgnoreCase));
+                                    if (!exists)
+                                    {
+                                        var entry = new Newtonsoft.Json.Linq.JObject
+                                        {
+                                            ["doc_id"]     = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper(),
+                                            ["title"]      = System.IO.Path.GetFileNameWithoutExtension(filePath),
+                                            ["file_path"]  = filePath,
+                                            ["cde_status"] = cdeState,
+                                            ["date"]       = DateTime.Now.ToString("yyyy-MM-dd"),
+                                            ["source"]     = "FolderWatcher",
+                                        };
+                                        arr.Add(entry);
+                                        File.WriteAllText(regPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                                        StingLog.Info($"FolderWatcher: auto-registered '{System.IO.Path.GetFileName(filePath)}' as {cdeState}");
+                                    }
+                                    // FOLDER-01: Mirror to cloud if configured
+                                    Core.ProjectFolderEngine.TryMirrorToCloud(fwDoc, filePath, cdeState);
+                                }
+                                catch (Exception wex) { StingLog.Warn($"FolderWatcher auto-classify: {wex.Message}"); }
+                            });
+                            StingLog.Info("Folder watcher started by user.");
+                            Autodesk.Revit.UI.TaskDialog.Show("Folder Watcher", "Folder monitoring started.\nFiles dropped into SHARED or PUBLISHED will be auto-registered.");
+                        }
+                        break;
+                    }
                     case "ValidateCDEHandover":
                     {
                         var doc = app.ActiveUIDocument?.Document;

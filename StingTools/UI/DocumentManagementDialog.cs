@@ -4107,6 +4107,14 @@ namespace StingTools.UI
             // Auto-generate transmittal when moving to SHARED or PUBLISHED
             ProjectFolderEngine.AutoLogTransmittal(doc, movedPaths, newCDE.ToUpperInvariant());
 
+            // FOLDER-01: Auto-mirror to cloud if AutoMirrorOnPublish is set
+            if (newCDE.Equals("SHARED", StringComparison.OrdinalIgnoreCase)
+                || newCDE.Equals("PUBLISHED", StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (string fp in movedPaths)
+                    ProjectFolderEngine.TryMirrorToCloud(doc, fp, newCDE.ToUpperInvariant());
+            }
+
             // OP-003: Sync document register with new CDE status
             try
             {
