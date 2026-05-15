@@ -8632,9 +8632,104 @@ namespace StingTools.UI
             tabCStack.Children.Add(cdeDg);
             tabC.Content = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = tabCStack };
 
+            // ══ Sub-tab 3D: Issue Workload (BIM-TEAM-WORKLOAD-01) ════════
+            var tabD = new System.Windows.Controls.TabItem { Header = "Issue Workload" };
+            var tabDStack = new StackPanel { Margin = new Thickness(8) };
+
+            // Build workload rows from TeamWorkloadEngine
+            var workloadRows = new List<TeamWorkloadEngine.WorkloadRow>();
+            try { workloadRows = TeamWorkloadEngine.Build(_doc); }
+            catch (Exception ex) { StingLog.Warn($"BCC workload tab: {ex.Message}"); }
+
+            if (workloadRows.Count == 0)
+            {
+                tabDStack.Children.Add(new TextBlock
+                {
+                    Text = "No open issues found in this project.\nCreate issues via the ISSUES tab to populate workload data.",
+                    FontSize = 12, Foreground = Brushes.Gray,
+                    Margin = new Thickness(0, 12, 0, 0),
+                    TextWrapping = TextWrapping.Wrap,
+                });
+            }
+            else
+            {
+                // KPI strip
+                int totalIssues = workloadRows.Sum(r => r.OpenTotal);
+                int totalCrit   = workloadRows.Sum(r => r.Critical);
+                int totalOver   = workloadRows.Sum(r => r.Overdue);
+                var wKpi = new UniformGrid { Columns = 4, Margin = new Thickness(0, 0, 0, 8) };
+                wKpi.Children.Add(MakeKPICard("ASSIGNEES",   workloadRows.Count.ToString(),  Br(CHeaderBg), "People with open issues"));
+                wKpi.Children.Add(MakeKPICard("OPEN TOTAL",  totalIssues.ToString(),          totalIssues > 20 ? Br(CRed) : Br(CGreen), "Open issues across team"));
+                wKpi.Children.Add(MakeKPICard("CRITICAL",    totalCrit.ToString(),            totalCrit > 0 ? Br(CRed) : Br(CGreen), "Critical-priority open issues"));
+                wKpi.Children.Add(MakeKPICard("OVERDUE",     totalOver.ToString(),            totalOver > 0 ? Br(CAmber) : Br(CGreen), "Past SLA deadline"));
+                tabDStack.Children.Add(wKpi);
+
+                // Sortable DataGrid
+                var wDg = new DataGrid
+                {
+                    AutoGenerateColumns  = false,
+                    CanUserAddRows       = false,
+                    CanUserDeleteRows    = false,
+                    IsReadOnly           = true,
+                    SelectionMode        = DataGridSelectionMode.Single,
+                    AlternatingRowBackground = Br(Color.FromRgb(38, 38, 40)),
+                    Background           = Br(Color.FromRgb(28, 28, 30)),
+                    RowBackground        = Br(Color.FromRgb(28, 28, 30)),
+                    Foreground           = Brushes.White,
+                    Margin               = new Thickness(0, 4, 0, 0),
+                    MaxHeight            = 420,
+                };
+                wDg.Columns.Add(new DataGridTextColumn { Header = "Assignee",  Binding = new Binding("Assignee"),  Width = new DataGridLength(160) });
+                wDg.Columns.Add(new DataGridTextColumn { Header = "Open",      Binding = new Binding("OpenTotal"), Width = new DataGridLength(55) });
+                wDg.Columns.Add(new DataGridTextColumn { Header = "Critical",  Binding = new Binding("Critical"),  Width = new DataGridLength(65) });
+                wDg.Columns.Add(new DataGridTextColumn { Header = "High",      Binding = new Binding("High"),      Width = new DataGridLength(55) });
+                wDg.Columns.Add(new DataGridTextColumn { Header = "Overdue",   Binding = new Binding("Overdue"),   Width = new DataGridLength(65) });
+                wDg.Columns.Add(new DataGridTextColumn { Header = "Oldest (d)",Binding = new Binding("OldestDays"),Width = new DataGridLength(80) });
+
+                wDg.ItemsSource = workloadRows.OrderByDescending(r => r.Critical * 3 + r.High * 2 + r.OpenTotal).ToList();
+
+                // Row style: red tint for Critical > 0
+                var rowStyle = new Style(typeof(DataGridRow));
+                rowStyle.Triggers.Add(new DataTrigger
+                {
+                    Binding = new Binding("Critical"), Value = 0
+                });
+                wDg.RowStyle = rowStyle;
+
+                tabDStack.Children.Add(wDg);
+
+                // Legend
+                tabDStack.Children.Add(new TextBlock
+                {
+                    Text = "Workload score = Critical×3 + High×2 + Open×1  |  Click column headers to sort",
+                    FontSize = 10, Foreground = Brushes.Gray, Margin = new Thickness(0, 4, 0, 0),
+                });
+            }
+
+            // Export button
+            var wExportBtn = new Button { Content = "Export CSV", Margin = new Thickness(0, 8, 0, 0), Padding = new Thickness(10, 4, 10, 4) };
+            wExportBtn.Click += (_, __) =>
+            {
+                try
+                {
+                    string rows2 = TeamWorkloadEngine.Build(_doc)
+                        .OrderByDescending(r => r.Critical * 3 + r.High * 2 + r.OpenTotal)
+                        .Select(r => $"{r.Assignee},{r.OpenTotal},{r.Critical},{r.High},{r.Overdue},{r.OldestDays}")
+                        .Aggregate("Assignee,Open,Critical,High,Overdue,OldestDays\n", (a, b) => a + b + "\n");
+                    string path = Path.Combine(OutputLocationHelper.GetOutputDirectory(_doc), $"team_workload_{DateTime.Now:yyyyMMdd}.csv");
+                    File.WriteAllText(path, rows2);
+                    TaskDialog.Show("STING — Team Workload", $"Exported to:\n{path}");
+                }
+                catch (Exception ex) { StingLog.Warn($"Workload export: {ex.Message}"); }
+            };
+            tabDStack.Children.Add(wExportBtn);
+
+            tabD.Content = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = tabDStack };
+
             tc.Items.Add(tabA);
             tc.Items.Add(tabB);
             tc.Items.Add(tabC);
+            tc.Items.Add(tabD);
             outerStack.Children.Add(tc);
 
             var sv = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
