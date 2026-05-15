@@ -1165,6 +1165,16 @@ app.MapHub<Planscape.Infrastructure.SignalR.CrdtHub>("/hubs/crdt");
                     ADD COLUMN IF NOT EXISTS ""DeletedAt""       timestamptz         NULL;
                 ALTER TABLE ""ModelMarkups""
                     ADD COLUMN IF NOT EXISTS ""DeletedAt""       timestamptz         NULL;
+                ALTER TABLE ""Tenants""
+                    ADD COLUMN IF NOT EXISTS ""UpdatedAt""       timestamptz         NOT NULL DEFAULT NOW(),
+                    ADD COLUMN IF NOT EXISTS ""BillingPlan""     text                NULL,
+                    ADD COLUMN IF NOT EXISTS ""TrialEndsAt""     timestamptz         NULL,
+                    ADD COLUMN IF NOT EXISTS ""TrialReminderSentDays"" text          NULL,
+                    ADD COLUMN IF NOT EXISTS ""BrandingJson""    text                NULL,
+                    ADD COLUMN IF NOT EXISTS ""KeywordExtensionsJson"" text          NULL,
+                    ADD COLUMN IF NOT EXISTS ""BimManagerRolesJson"" text            NULL,
+                    ADD COLUMN IF NOT EXISTS ""EnforceNaming""   boolean             NOT NULL DEFAULT false,
+                    ADD COLUMN IF NOT EXISTS ""CustomStateJson"" text                NULL;
             ";
             await fixCmd.ExecuteNonQueryAsync();
         }
