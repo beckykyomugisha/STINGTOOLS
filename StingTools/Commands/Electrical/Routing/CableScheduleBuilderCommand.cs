@@ -174,8 +174,9 @@ namespace StingTools.Commands.Electrical.Routing
                 try { el = doc.GetElement(new ElementId((long)id)); } catch { }
                 if (el == null) continue;
                 var loc = el.Location as LocationCurve;
-                double mm = loc?.Curve?.Length * 304.8 ?? 0;
-                if (mm <= 0) continue;
+                // Revit curve length is in internal feet; ×0.3048 converts directly to metres.
+                double lenM = (loc?.Curve?.Length ?? 0) * 0.3048;
+                if (lenM <= 0) continue;
 
                 string typeName = "Conduit";
                 try
@@ -190,7 +191,7 @@ namespace StingTools.Commands.Electrical.Routing
                 string key = $"{typeName}|{diam}";
                 if (!conduitsByKey.TryGetValue(key, out var entry))
                     entry = ($"{typeName} ⌀ {diam} mm", 0, 0);
-                entry = (entry.desc, entry.len + (mm / 1000.0), entry.qty + 1);
+                entry = (entry.desc, entry.len + lenM, entry.qty + 1);
                 conduitsByKey[key] = entry;
             }
             foreach (var kv in conduitsByKey.OrderBy(k => k.Key))
@@ -291,12 +292,15 @@ namespace StingTools.Commands.Electrical.Routing
             return total;
         }
 
-        // Gap 5 — create or refresh a Revit ViewSchedule on conduits
+        // Gap 5 — create or refresh a Revit ViewSchedule on conduits.
+        // When a schedule already exists we delete and recreate it — attempting to
+        // remove individual fields from an existing schedule is unreliable because
+        // Revit-managed fields throw on RemoveField and the API provides no bulk-clear.
         private static void CreateOrRefreshConduitSchedule(Document doc)
         {
             const string scheduleName = "STING Cable Schedule";
 
-            // Fields to include (ELC_WIRE_* shared params + built-in conduit fields)
+            // Fields to include (ELC_WIRE_* shared params + built-in conduit length)
             var paramNames = new[]
             {
                 "ELC_CIRCUIT_NR_TXT", "ELC_WIRE_PHASE_TXT", "ELC_WIRE_CORE_COUNT_INT",
@@ -305,45 +309,42 @@ namespace StingTools.Commands.Electrical.Routing
                 "ELC_WIRE_CIRCUIT_BREAKER_A", "ELC_WIRE_EARTH_CSA_MM2", "ELC_WIRE_CIRCUIT_TYPE_TXT"
             };
 
-            // Find existing or create new
-            ViewSchedule existing = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewSchedule))
-                .Cast<ViewSchedule>()
-                .FirstOrDefault(vs => vs.Name == scheduleName);
-
             using var tx = new Transaction(doc, "STING Create Cable Schedule View");
             tx.Start();
 
-            ViewSchedule sched;
+            // Delete existing schedule so we always start with a clean field set.
+            // (RemoveField on Revit-managed fields throws; deletion+recreation is safe.)
+            var existing = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSchedule))
+                .Cast<ViewSchedule>()
+                .FirstOrDefault(vs => vs.Name == scheduleName);
             if (existing != null)
             {
-                sched = existing;
-                // Clear existing fields and re-add so order is consistent
-                var def = sched.Definition;
-                var fieldIds = def.GetFieldOrder().ToList();
-                foreach (var fid in fieldIds)
-                    try { def.RemoveField(fid); } catch { }
-            }
-            else
-            {
-                sched = ViewSchedule.CreateSchedule(doc,
-                    new ElementId(BuiltInCategory.OST_Conduit));
-                sched.Name = scheduleName;
+                try { doc.Delete(existing.Id); }
+                catch (Exception ex) { StingLog.Warn($"Could not delete old cable schedule: {ex.Message}"); }
             }
 
-            // Add built-in length field
-            var schedDef = sched.Definition;
+            var sched = ViewSchedule.CreateSchedule(doc,
+                new ElementId(BuiltInCategory.OST_Conduit));
+            sched.Name = scheduleName;
+
+            var schedDef       = sched.Definition;
+            var allSchedulable = schedDef.GetSchedulableFields();
+
+            // Add built-in length field first
             try
             {
-                var lengthField = schedDef.GetSchedulableFields()
-                    .FirstOrDefault(f => f.ParameterId ==
-                        new ElementId(BuiltInParameter.CURVE_ELEM_LENGTH));
-                if (lengthField != null) schedDef.AddField(lengthField);
+                var lenFt = allSchedulable.FirstOrDefault(f =>
+                    f.ParameterId == new ElementId(BuiltInParameter.CURVE_ELEM_LENGTH));
+                if (lenFt != null) schedDef.AddField(lenFt);
             }
             catch { }
 
-            // Add ELC_WIRE_* shared param fields
-            var allSchedulable = schedDef.GetSchedulableFields();
+            // Add ELC_WIRE_* shared param fields — skip any already present
+            var alreadyAdded = new HashSet<ElementId>(schedDef.GetFieldOrder()
+                .Select(fid => schedDef.GetField(fid)?.ParameterId)
+                .Where(id => id != null));
+
             foreach (var paramName in paramNames)
             {
                 try
@@ -351,19 +352,30 @@ namespace StingTools.Commands.Electrical.Routing
                     var sf = allSchedulable.FirstOrDefault(f =>
                         f.GetSchedulableFieldType() == SchedulableFieldType.Instance
                         && doc.GetElement(f.ParameterId) is SharedParameterElement spe
-                        && spe.GetDefinition().Name == paramName);
-                    if (sf != null) schedDef.AddField(sf);
+                        && spe.GetDefinition().Name == paramName
+                        && !alreadyAdded.Contains(f.ParameterId));
+                    if (sf != null)
+                    {
+                        schedDef.AddField(sf);
+                        alreadyAdded.Add(sf.ParameterId);
+                    }
                 }
                 catch { }
             }
 
-            // Sort by circuit number
-            schedDef.ClearSortGroupFields();
+            // Sort by circuit number (first field = length; second = ELC_CIRCUIT_NR_TXT if present)
             try
             {
-                var circNrField = schedDef.GetField(0);
-                if (circNrField != null)
-                    schedDef.AddSortGroupField(new ScheduleSortGroupField(circNrField.FieldId));
+                var circNrFieldId = schedDef.GetFieldOrder()
+                    .Select(fid => schedDef.GetField(fid))
+                    .FirstOrDefault(f => f != null
+                        && doc.GetElement(f.ParameterId) is SharedParameterElement spe2
+                        && spe2.GetDefinition().Name == "ELC_CIRCUIT_NR_TXT");
+                if (circNrFieldId != null)
+                {
+                    schedDef.ClearSortGroupFields();
+                    schedDef.AddSortGroupField(new ScheduleSortGroupField(circNrFieldId.FieldId));
+                }
             }
             catch { }
 

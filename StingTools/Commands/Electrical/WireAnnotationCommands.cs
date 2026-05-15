@@ -532,18 +532,25 @@ namespace StingTools.Commands.Electrical
 
         // ── Gap 10: simple occupied-region registry for collision avoidance ──
 
-        // Per-view bounding-box registry so successive annotations in batch don't overlap.
-        // Cleared each time a batch run starts.
-        private static readonly Dictionary<ElementId, List<(XYZ min, XYZ max)>> _viewAnnotBoxes
-            = new Dictionary<ElementId, List<(XYZ, XYZ)>>();
+        // Keyed on (documentKey, viewId) so the cache never bleeds across documents.
+        // Cleared each time a batch run starts via ClearAnnotationBoxes.
+        private static readonly Dictionary<(string, long), List<(XYZ min, XYZ max)>> _viewAnnotBoxes
+            = new Dictionary<(string, long), List<(XYZ, XYZ)>>();
 
-        public static void ClearAnnotationBoxes(ElementId viewId)
-            => _viewAnnotBoxes.Remove(viewId);
+        private static string DocKey(Document doc)
+            => $"{doc?.Title}|{doc?.PathName}";
 
-        private static XYZ FindNonCollidingPoint(View view, XYZ preferredPt,
+        public static void ClearAnnotationBoxes(Document doc, ElementId viewId)
+        {
+            var key = (DocKey(doc), viewId.Value);
+            _viewAnnotBoxes.Remove(key);
+        }
+
+        private static XYZ FindNonCollidingPoint(Document doc, View view, XYZ preferredPt,
             XYZ perpDir, double offsetFt)
         {
-            if (!_viewAnnotBoxes.TryGetValue(view.Id, out var boxes) || boxes.Count == 0)
+            var key = (DocKey(doc), view.Id.Value);
+            if (!_viewAnnotBoxes.TryGetValue(key, out var boxes) || boxes.Count == 0)
                 return preferredPt;
 
             // Try 8 candidate offsets (±1×, ±2× offset, in both perp directions)
@@ -560,10 +567,11 @@ namespace StingTools.Commands.Electrical
             return preferredPt; // give up, use default
         }
 
-        private static void RegisterAnnotationBox(ElementId viewId, XYZ pt, double halfSideFt)
+        private static void RegisterAnnotationBox(Document doc, ElementId viewId, XYZ pt, double halfSideFt)
         {
-            if (!_viewAnnotBoxes.TryGetValue(viewId, out var boxes))
-                _viewAnnotBoxes[viewId] = boxes = new List<(XYZ, XYZ)>();
+            var key = (DocKey(doc), viewId.Value);
+            if (!_viewAnnotBoxes.TryGetValue(key, out var boxes))
+                _viewAnnotBoxes[key] = boxes = new List<(XYZ, XYZ)>();
             boxes.Add((new XYZ(pt.X - halfSideFt, pt.Y - halfSideFt, pt.Z),
                        new XYZ(pt.X + halfSideFt, pt.Y + halfSideFt, pt.Z)));
         }
@@ -610,8 +618,8 @@ namespace StingTools.Commands.Electrical
             double offsetFt = (style.LabelOffsetMm * style.ScaleFactor) / MmPerFt;
             // Gap 10: collision-aware label placement
             var preferredPt = mid + perpDir * offsetFt;
-            var annotPt = FindNonCollidingPoint(view, preferredPt, perpDir, offsetFt);
-            RegisterAnnotationBox(view.Id, annotPt, offsetFt * 0.5);
+            var annotPt = FindNonCollidingPoint(doc, view, preferredPt, perpDir, offsetFt);
+            RegisterAnnotationBox(doc, view.Id, annotPt, offsetFt * 0.5);
 
             // Prefer IndependentTag (tracks conduit, labels auto-update)
             var tagId = TryPlaceIndependentTag(doc, view, conduit, annotPt, conduit.UniqueId);
@@ -1034,7 +1042,7 @@ namespace StingTools.Commands.Electrical
                     .WhereElementIsNotElementType().ToList();
 
                 // Gap 10: reset collision registry for this batch
-                WireAnnotationEngine.ClearAnnotationBoxes(view.Id);
+                WireAnnotationEngine.ClearAnnotationBoxes(doc, view.Id);
 
                 if (conduits.Count == 0)
                 {

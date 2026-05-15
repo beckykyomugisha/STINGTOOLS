@@ -8967,21 +8967,10 @@ For live data, open BCC in Revit and re-export.</p></div>
 
         private static StingDockPanel FindDockPanelPage(UIApplication app)
         {
-            try
-            {
-                var pane = app.GetDockablePane(StingDockPanelProvider.PaneId);
-                // Revit doesn't expose the FrameworkElement directly; find via the
-                // HwndSource tree. On WPF this is accessible through the visual tree.
-                // Walk all top-level Windows (WPF) and look for StingDockPanel descendants.
-                foreach (System.Windows.Window w in System.Windows.Application.Current?.Windows
-                    ?? Enumerable.Empty<System.Windows.Window>())
-                {
-                    var found = FindVisualChild<StingDockPanel>(w);
-                    if (found != null) return found;
-                }
-            }
-            catch { }
-            return null;
+            // Use the static reference set by StingDockPanelProvider.SetupDockablePane —
+            // this is reliable in Revit where System.Windows.Application.Current may be
+            // null or its Windows collection may not contain Revit's HwndSource host.
+            return StingDockPanelProvider.Instance;
         }
 
         private static T FindVisualChild<T>(System.Windows.DependencyObject parent)

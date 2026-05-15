@@ -223,6 +223,7 @@ PARAM	492a3142-5d6e-47f8-6c7d-8e9fa0b1c2d3	ELC_WIRE_MAX_DEMAND_A	NUMBER		4	1	Max
 PARAM	5a3b4253-6e7f-4809-7d8e-9fa0b1c2d3e4	ELC_WIRE_CIRCUIT_BREAKER_A	NUMBER		4	1	Upstream overcurrent protective device rating in amperes [BS 7671 Section 433]	1
 PARAM	6b4c5364-7f80-4910-8e9f-a0b1c2d3e4f5	ELC_WIRE_EARTH_CSA_MM2	NUMBER		4	1	Earth/CPC conductor cross-sectional area in mm² [BS 7671 Section 543]	1
 PARAM	7c5d6475-8091-4a21-9fa0-b1c2d3e4f506	ELC_WIRE_ARMOURED_BOOL	YESNO		4	1	True if cable is SWA (steel wire armoured) or equivalent [BS 7671]	1
+PARAM	7c5d6475-8091-4a21-9fa0-b1c2d3e4f507	ELC_WIRE_ARMOUR_CONT_OK_BOOL	YESNO		4	1	Set to 1 when SWA armour continuity at both terminations has been verified per BS 7671 §543 [STING Gap 12]	1
 PARAM	8d6e7586-9102-4b32-a0b1-c2d3e4f50617	ELC_WIRE_FIRE_RATED_BOOL	YESNO		4	1	True if circuit requires fire-survival cable (e.g. MICC, FP200) [BS 9999 / BS 8519 / BS 7671 Ch.56]	1
 PARAM	9e7f8697-a213-4c43-b1c2-d3e4f5061728	ELC_WIRE_SHIELDED_BOOL	YESNO		4	1	True if cable is screened/shielded (data, fire-alarm, CCTV circuits) [BS 7671]	1
 PARAM	af809708-b324-4d54-c2d3-e4f507182839	ELC_WIRE_CIRCUIT_TYPE_TXT	TEXT		4	1	Circuit type: FINAL/SUB-MAIN/FEEDER/RING/RADIAL/MOTOR/EV/LIGHTING/POWER/DATA [BS 7671]	1
@@ -2648,6 +2649,9 @@ PARAM	aff8756c-b7b5-5c7a-aaab-65efe622a7d4	HVC_REFRIGERANT_CHARGE_KG_NR	NUMBER		
 PARAM	74d83fbc-1edc-5aa9-8edd-de412bfdf921	HVC_FACTORY_FLASH_TEST_DATE_TXT	TEXT		5	1	Factory flash test date for refrigerant equipment [BS EN 378-2:2016]	1
 PARAM	5ebe500d-983b-5a41-97ba-312b62882f28	HVC_FACTORY_QR_TXT	TEXT		5	1	Mechanical factory QR code label reference [ISO 19650-3:2020]	1
 PARAM	b04373ec-3a97-5c0e-a13b-b72450d52eff	ELC_PANEL_SCHEDULE_REF_TXT	TEXT		4	1	Electrical panel schedule document reference [BS 7671:2018+A2:2022]	1
+PARAM	b04373ec-3a97-5c0e-a13b-b72450d52f00	ELC_PANEL_MAIN_BREAKER_TXT	TEXT		4	1	Main incomer / MCCB rating label (e.g. "250A 65kA MCCB") used for TCC database lookup and selective coordination checks [BS 7671:2018 / STING Gap 13]	1
+PARAM	b04373ec-3a97-5c0e-a13b-b72450d52f01	ELC_SEL_COORD_OK	YESNO		4	1	Selective coordination check result stamp: 1 = passes BS 7671 §536 / NEC 240.87 criteria for this panel [STING Gap 13]	1
+PARAM	b04373ec-3a97-5c0e-a13b-b72450d52f02	ELC_PNL_NAME_TXT	TEXT		4	1	Source panel / distribution board name stamped on conduit by WireParamStampCommand (matches ElectricalSystem.BaseEquipment.Name) [STING Gap 1/2]	1
 PARAM	37ac83fc-80c9-5a43-a03b-6365d5424731	ELC_FAT_CERT_REF_TXT	TEXT		4	1	Factory Acceptance Test certificate reference [IEC 61439-1:2020]	1
 PARAM	a4257dba-e2fb-5890-96f8-80a14ad0d8c2	ELC_FACTORY_QR_TXT	TEXT		4	1	Electrical factory QR code label reference [ISO 19650-3:2020]	1
 PARAM	477afe7a-6b97-5de8-90c9-2786042dd5e9	PLM_PRESSURE_TEST_REF_TXT	TEXT		6	1	Hydrostatic pressure test certificate reference [BS EN 806-4:2010]	1

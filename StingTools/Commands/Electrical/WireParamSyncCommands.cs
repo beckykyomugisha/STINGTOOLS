@@ -36,7 +36,8 @@ namespace StingTools.Commands.Electrical
             {
                 var p = el?.LookupParameter(name);
                 if (p == null) return def;
-                if (p.StorageType == StorageType.Double) return p.AsDouble();
+                if (p.StorageType == StorageType.Double)  return p.AsDouble();
+                if (p.StorageType == StorageType.Integer) return p.AsInteger();
                 if (p.StorageType == StorageType.String
                     && double.TryParse(p.AsString(),
                         System.Globalization.NumberStyles.Float,
@@ -62,15 +63,16 @@ namespace StingTools.Commands.Electrical
     internal static class ConduitCircuitIndex
     {
         private static Dictionary<string, ElementId> _map = new Dictionary<string, ElementId>();
-        private static string _docPath = null;
+        // Cache key: "documentTitle|documentPath" to handle unsaved docs and path changes
+        private static string _docKey = null;
 
-        public static void Invalidate() { _map.Clear(); _docPath = null; }
+        public static void Invalidate() { _map.Clear(); _docKey = null; }
 
         public static ElementId Resolve(Document doc, Element conduit)
         {
-            // Reset cache if document changed
-            string docPath = doc.PathName ?? doc.Title;
-            if (docPath != _docPath) { _map.Clear(); _docPath = docPath; }
+            // Reset cache when document changes (key on both path and title for unsaved docs)
+            string docKey = $"{doc.Title}|{doc.PathName}";
+            if (docKey != _docKey) { _map.Clear(); _docKey = docKey; }
 
             if (_map.TryGetValue(conduit.UniqueId, out var cached)) return cached;
 
@@ -86,8 +88,10 @@ namespace StingTools.Commands.Electrical
                 var connMgr = (conduit as MEPCurve)?.ConnectorManager;
                 if (connMgr == null) return ElementId.InvalidElementId;
 
-                // BFS through connector graph up to depth 4 to find any ElectricalSystem
-                var visited = new HashSet<int>();
+                // BFS through connector graph up to depth 4 to find any ElectricalSystem.
+                // Key visited set on (ownerElementId, connectorId) — conn.Id is an int
+                // that is only unique within a single element's connector set, not globally.
+                var visited = new HashSet<(long, int)>();
                 var queue = new Queue<Connector>();
                 foreach (Connector c in connMgr.Connectors) queue.Enqueue(c);
 
@@ -99,8 +103,9 @@ namespace StingTools.Commands.Electrical
                     for (int i = 0; i < levelCount; i++)
                     {
                         var conn = queue.Dequeue();
-                        if (conn == null || visited.Contains(conn.Id)) continue;
-                        visited.Add(conn.Id);
+                        if (conn == null) continue;
+                        var visitKey = (conn.Owner?.Id.Value ?? -1L, conn.Id);
+                        if (!visited.Add(visitKey)) continue;
 
                         if (conn.IsConnected)
                         {
@@ -108,7 +113,8 @@ namespace StingTools.Commands.Electrical
                             {
                                 if (ref_.Owner is ElectricalSystem sys)
                                     return sys.Id;
-                                if (!visited.Contains(ref_.Id))
+                                var refKey = (ref_.Owner?.Id.Value ?? -1L, ref_.Id);
+                                if (!visited.Contains(refKey))
                                     queue.Enqueue(ref_);
                             }
                         }
@@ -169,13 +175,27 @@ namespace StingTools.Commands.Electrical
                         d.CircuitNumber = sys.CircuitNumber ?? "";
                         d.MaxDemandA   = sys.ApparentCurrent;
 
-                        // Phase + core count from system phase
+                        // Phase + core count derived from SystemType.
+                        // Revit ElectricalSystem does not expose a PolesNumber property;
+                        // phase count is encoded in ElectricalSystemType (Three-phase variants
+                        // include ThreePhase, ThreePhaseDelta, ThreePhaseWye, etc.).
+                        bool isThreePhase = sys.SystemType == ElectricalSystemType.ThreePhase
+                            || sys.SystemType == ElectricalSystemType.ThreePhaseDelta
+                            || sys.SystemType == ElectricalSystemType.ThreePhaseWye;
+
                         switch (sys.SystemType)
                         {
                             case ElectricalSystemType.PowerCircuit:
-                                d.Phase = sys.PolesNumber switch { 1 => "1Ø", 3 => "3Ø", _ => "3Ø" };
-                                // core count = phases + neutral + CPC
-                                d.CoreCount = sys.PolesNumber == 1 ? 2 : 4;
+                            case ElectricalSystemType.UPS:
+                                d.Phase = "1Ø";
+                                d.CoreCount = 2; // live + neutral + (CPC separate)
+                                d.CircuitType = string.IsNullOrEmpty(d.CircuitType) ? "Power" : d.CircuitType;
+                                break;
+                            case ElectricalSystemType.ThreePhase:
+                            case ElectricalSystemType.ThreePhaseDelta:
+                            case ElectricalSystemType.ThreePhaseWye:
+                                d.Phase = "3Ø";
+                                d.CoreCount = 4; // 3 phase + neutral (CPC separate)
                                 d.CircuitType = string.IsNullOrEmpty(d.CircuitType) ? "Power" : d.CircuitType;
                                 break;
                             case ElectricalSystemType.LightingCircuit:
@@ -223,8 +243,9 @@ namespace StingTools.Commands.Electrical
             if (!string.IsNullOrEmpty(d.CircuitNumber))
                 ParameterHelpers.SetString(conduit, "ELC_CIRCUIT_NR_TXT", d.CircuitNumber, true);
             if (!string.IsNullOrEmpty(d.PanelName))
-                ParameterHelpers.SetString(conduit, "ELC_WIRE_CIRCUIT_TYPE_TXT",
-                    string.IsNullOrEmpty(d.CircuitType) ? d.CircuitType : d.CircuitType, false);
+                ParameterHelpers.SetString(conduit, "ELC_PNL_NAME_TXT", d.PanelName, false);
+            if (!string.IsNullOrEmpty(d.CircuitType))
+                ParameterHelpers.SetString(conduit, "ELC_WIRE_CIRCUIT_TYPE_TXT", d.CircuitType, false);
             if (!string.IsNullOrEmpty(d.InstallMethod))
                 ParameterHelpers.SetString(conduit, "ELC_WIRE_INSTALL_METHOD_TXT", d.InstallMethod, false);
             if (d.MaxDemandA > 0)
@@ -465,10 +486,13 @@ namespace StingTools.Commands.Electrical
                     string mat      = ParameterHelpers.GetString(el, "ELC_WIRE_COND_MAT_TXT");
                     string phaseStr = ParameterHelpers.GetString(el, "ELC_WIRE_PHASE_TXT");
 
-                    // Derive kW from current (rough: P = I × V × PF)
+                    // Derive kW from current: 1-phase P = V × I × PF; 3-phase P = √3 × V × I × PF
                     double voltV = phaseStr?.Contains("3") == true ? 400 : 230;
                     int phases   = phaseStr?.Contains("3") == true ? 3 : 1;
-                    double kw    = demandA * voltV * 0.85 / 1000.0;
+                    double pf    = 0.85;
+                    double kw    = phases == 3
+                        ? Math.Sqrt(3.0) * voltV * demandA * pf / 1000.0
+                        : voltV * demandA * pf / 1000.0;
 
                     var input = new CableSizeInput
                     {
@@ -560,7 +584,7 @@ namespace StingTools.Commands.Electrical
 
             TaskDialog.Show("Home-Run Full",
                 $"Home-run arrow placed for run of {run.Count} segment(s).\n"
-                + $"Panel-side end: ({panelEndPt.X * 304.8:0} mm, {panelEndPt.Y * 304.8:0} mm)");
+                + $"Panel-side end: ({panelEndPt.X * MmPerFt:0} mm, {panelEndPt.Y * MmPerFt:0} mm)");
             return Result.Succeeded;
         }
 
@@ -600,6 +624,8 @@ namespace StingTools.Commands.Electrical
             return run;
         }
 
+        private const double MmPerFt = 304.8;
+
         private static void PlaceSimpleArrow(Document doc, View view, XYZ panelPt, Element conduit)
         {
             try
@@ -614,7 +640,7 @@ namespace StingTools.Commands.Electrical
                 XYZ rawDir  = (panelPt - loadEnd);
                 if (rawDir.GetLength() < 1e-6) rawDir = XYZ.BasisX;
                 XYZ dir     = rawDir.Normalize();
-                double shaftFt = 150.0 / 304.8;
+                double shaftFt = 150.0 / MmPerFt;
                 XYZ tip = loadEnd + dir * shaftFt;
 
                 void Draw(XYZ a, XYZ b)
@@ -629,7 +655,7 @@ namespace StingTools.Commands.Electrical
                 }
 
                 Draw(loadEnd, tip);
-                double headFt = 30.0 / 304.8;
+                double headFt = 30.0 / MmPerFt;
                 var perp = XYZ.BasisZ.CrossProduct(dir).Normalize();
                 double ang = Math.PI / 12.0;
                 Draw(tip, tip - dir * headFt + perp * (headFt * Math.Tan(ang)));
@@ -791,22 +817,28 @@ namespace StingTools.Commands.Electrical
                         + "from heat sources per BS 7671 §422.2.",
                         "BS 7671:2018 §422.2"));
 
-                // Rule SWA-1: Armoured cables — shielding continuity required at all terminations
+                // Rule SWA-1: Armoured cables — armour continuity confirmation required.
+                // ELC_WIRE_ARMOUR_CONT_OK_BOOL is the explicit armour-continuity sign-off flag;
+                // ELC_WIRE_SHIELDED_BOOL indicates EMC screening, which is a different property.
                 if (isSWA)
                 {
-                    bool shieldCont = ParameterHelpers.GetInt(el, "ELC_WIRE_SHIELDED_BOOL", 0) != 0;
-                    // If armoured but shielding not explicitly confirmed, warn
-                    if (!shieldCont)
+                    bool armourContConfirmed = ParameterHelpers.GetInt(el, "ELC_WIRE_ARMOUR_CONT_OK_BOOL", 0) != 0;
+                    if (!armourContConfirmed)
                         issues.Add(new RoutingIssue(el.Id,
-                            "SWA cable: confirm armour continuity at both terminations "
-                            + "(SWA armour ≡ CPC — continuity test required per BS 7671 §543).",
+                            "SWA cable: armour continuity at both terminations not confirmed "
+                            + "(set ELC_WIRE_ARMOUR_CONT_OK_BOOL=1 after test per BS 7671 §543).",
                             "BS 7671:2018 §543.3 / §522.8.1"));
                 }
 
-                // Rule SWA-2: Armoured with metallic conduit — bonding at entry required
-                if (isSWA && !string.IsNullOrEmpty(method))
+                // Rule SWA-2: Armoured cable entering metallic containment — bonding required.
+                // Only flag when the install method is metallic (A1, A2, B1, B2, C are enclosures/surface;
+                // restrict to A1/A2 where metallic conduit/trunking creates a second metallic path).
+                bool isMetallicContainment = string.Equals(method, "A1", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(method, "A2", StringComparison.OrdinalIgnoreCase);
+                if (isSWA && isMetallicContainment)
                     issues.Add(new RoutingIssue(el.Id,
-                        "Verify SWA cable armour bonded to metallic conduit / trunking at all entry points.",
+                        "SWA cable in metallic conduit/trunking (Method A1/A2): verify armour bonded "
+                        + "to metallic containment at all entry points.",
                         "BS 7671:2018 §542.2"));
             }
 

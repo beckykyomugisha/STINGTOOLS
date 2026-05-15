@@ -133,6 +133,7 @@ namespace StingTools.Commands.Electrical.Coordination
     public static class TccDatabaseLoader
     {
         private static TccDatabase _cache;
+        private static string _cachePath;
         private static DateTime _cacheTime;
         private static readonly object _lock = new object();
 
@@ -140,18 +141,25 @@ namespace StingTools.Commands.Electrical.Coordination
         {
             lock (_lock)
             {
-                if (_cache != null && (DateTime.Now - _cacheTime).TotalMinutes < 5) return _cache;
+                // Include the resolved path in the cache key so switching data files
+                // (e.g., different project override) invalidates the cache correctly.
+                string resolvedPath = string.IsNullOrEmpty(dataPath)
+                    ? StingToolsApp.FindDataFile("STING_TCC_DATABASE.json")
+                    : dataPath;
+                if (_cache != null
+                    && resolvedPath == _cachePath
+                    && (DateTime.Now - _cacheTime).TotalMinutes < 5)
+                    return _cache;
                 try
                 {
-                    string path = string.IsNullOrEmpty(dataPath)
-                        ? StingToolsApp.FindDataFile("STING_TCC_DATABASE.json")
-                        : dataPath;
-                    if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                    if (!string.IsNullOrEmpty(resolvedPath) && File.Exists(resolvedPath))
                     {
-                        _cache = JsonConvert.DeserializeObject<TccDatabase>(File.ReadAllText(path))
+                        _cache = JsonConvert.DeserializeObject<TccDatabase>(
+                                     File.ReadAllText(resolvedPath))
                                  ?? TccDatabase.BuildDefault();
                     }
                     else { _cache = TccDatabase.BuildDefault(); }
+                    _cachePath = resolvedPath;
                     _cacheTime = DateTime.Now;
                 }
                 catch (Exception ex)

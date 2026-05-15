@@ -44,9 +44,11 @@ namespace StingTools.Commands.Electrical.Coordination
                     var upCurve   = tcc.ResolveCurve(parent.Rating);
                     var downCurve = tcc.ResolveCurve(node.Rating);
 
-                    double maxFaultKa = Math.Max(maxFaultKaFallback,
-                        Math.Min(upDev.MaxFaultKa, downDev.MaxFaultKa));
-                    if (maxFaultKa <= 0) maxFaultKa = maxFaultKaFallback;
+                    // Use the more constraining (lower) device rating as the upper sample
+                    // bound — checking beyond a device's rated fault current is meaningless.
+                    // Only fall back to maxFaultKaFallback when device ratings are absent.
+                    double deviceLimit = Math.Min(upDev.MaxFaultKa, downDev.MaxFaultKa);
+                    double maxFaultKa  = deviceLimit > 0 ? deviceLimit : maxFaultKaFallback;
 
                     double step = maxFaultKa / Math.Max(1, sampleCount);
                     for (double f = step; f <= maxFaultKa; f += step)
