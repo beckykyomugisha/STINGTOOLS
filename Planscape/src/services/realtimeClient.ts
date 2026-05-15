@@ -50,6 +50,9 @@ export class RealtimeClient {
       'MeetingCreated',
       'MeetingUpdated',
       'PresenceChanged',
+      // BOQ — fired by BoqController.PushSnapshot and IfcBoqSeedJob when a
+      // new snapshot is persisted so the mobile cost dashboard auto-refreshes.
+      'BoqSnapshotUpdated',
       // Phase 177 — fired by the server when a member's per-folder ACL
       // changes; the client re-issues JoinProject below to rebuild
       // the per-CDE-state subgroup memberships against the new slice.

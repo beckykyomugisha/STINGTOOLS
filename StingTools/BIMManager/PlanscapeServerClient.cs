@@ -833,6 +833,26 @@ public sealed class PlanscapeServerClient : IDisposable
         catch (Exception ex) { LastError = ex.Message; return (false, ex.Message); }
     }
 
+    // ── P6 Writeback ──────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Integration gap F4 — Fetches all tagged elements that have a P6 activity id
+    /// so the plugin can write P6 actuals (percentComplete, actualStart, actualFinish)
+    /// back to Revit element parameters.
+    /// Returns a JArray of { elementUniqueId, p6ActivityId, percentComplete, actualStart, actualFinish }.
+    /// </summary>
+    public async Task<JArray?> GetP6ElementsAsync(Guid projectId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await GetAsync($"/api/projects/{projectId}/p6/elements");
+            if (!resp.ok) { LastError = resp.body; return null; }
+            return JArray.Parse(resp.body);
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
     // ── MIM (Model Information Management) ────────────────────────────────────
 
     public async Task<JArray?> GetMimAssetsAsync(Guid projectId, int page = 1, int pageSize = 100)

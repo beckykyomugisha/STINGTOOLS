@@ -3567,6 +3567,8 @@ namespace StingTools.UI
                     // Feature gap 6 — P6 Live Link
                     case "Schedule_P6Configure":    RunCommand<BIMManager.P6LiveLinkConfigCommand>(app); break;
                     case "Schedule_P6SyncNow":      RunCommand<BIMManager.P6SyncNowCommand>(app); break;
+                    // Integration gap F4 — P6 actuals writeback to Revit element parameters
+                    case "Schedule_P6Writeback":    RunCommand<BIMManager.P6WritebackCommand>(app); break;
                     case "SendMeetingInvites":     TaskDialog.Show("STING — Meeting Invites", "Invite generation requires email integration.\nConfigure SMTP settings in Settings > Notifications to enable automatic email invites.\n\nFor now, use the 'Copy List' button to get email addresses."); break;
                     case "ExportMeetingAnalytics":
                     {

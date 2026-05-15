@@ -127,13 +127,23 @@ export default function ScheduleScreen() {
     setSyncing(true);
     try {
       await triggerP6Sync(projectId);
-      Alert.alert('Sync Enqueued', 'P6 sync has been queued. Refresh in ~30 seconds.');
+      // The Hangfire job is now queued — the POST returns immediately.
+      // Keep the button disabled and show an informational alert.
+      Alert.alert(
+        'Sync Queued',
+        'P6 sync has been queued. Results will appear shortly.\n\nThe status will refresh automatically in 30 seconds.',
+      );
+      // Auto-refresh after ~30 seconds so the user sees results without
+      // needing to pull-to-refresh manually.
+      setTimeout(() => {
+        loadData();
+      }, 30_000);
     } catch (e) {
       Alert.alert('Sync Failed', e instanceof Error ? e.message : 'Could not trigger sync.');
     } finally {
       setSyncing(false);
     }
-  }, [projectId, syncing]);
+  }, [projectId, syncing, loadData]);
 
   if (loading) {
     return (

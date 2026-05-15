@@ -4,7 +4,7 @@
  * breakdown table. Fetches from GET /api/projects/{id}/boq/snapshot.
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { theme } from '@/utils/theme';
 import { getBoqSnapshot, listProjects } from '@/api/endpoints';
 import type { BoqDisciplineRow, BoqSnapshotResponse } from '@/api/endpoints';
+import { realtime } from '@/services/realtimeClient';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -111,6 +112,25 @@ export default function CostDashboardScreen() {
   }, [projectId]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Subscribe to SignalR BoqSnapshotUpdated so the dashboard refreshes automatically
+  // when the Revit plugin or an IFC import pushes a new snapshot.
+  useEffect(() => {
+    if (!projectId) return;
+
+    // Ensure the realtime connection is open for this project. If connect()
+    // has already been called by another screen the call is idempotent
+    // because the underlying SignalR HubConnection is a module-level singleton.
+    realtime.connect(projectId).catch(() => {/* ignore — dashboard refreshes on pull-to-refresh */});
+
+    const unsub = realtime.on('BoqSnapshotUpdated', () => {
+      loadData();
+    });
+
+    return () => {
+      unsub();
+    };
+  }, [projectId, loadData]);
 
   if (loading) {
     return (

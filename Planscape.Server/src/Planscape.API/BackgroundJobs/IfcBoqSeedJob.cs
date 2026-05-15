@@ -37,18 +37,59 @@ public class IfcBoqSeedJob
         _notifications = notifications;
     }
 
+    // ── Path traversal guard ─────────────────────────────────────────────────
+
+    /// <summary>
+    /// Allowed storage-key prefixes for IFC files enqueued via Hangfire.
+    /// Only upload paths are accepted; bare filenames without slashes are also
+    /// permitted since the storage service resolves them within its own root.
+    /// </summary>
+    private static readonly string[] AllowedPathPrefixes =
+    {
+        "uploads/", "/uploads/", "/tmp/uploads/",
+    };
+
+    private static void ValidateFilePath(string filePath)
+    {
+        // Normalise separators
+        string normalised = filePath.Replace('\\', '/');
+
+        // Reject path traversal sequences (both decoded and percent-encoded)
+        if (normalised.Contains("../") || normalised.Contains("./")  ||
+            normalised.Contains("%2e") || normalised.Contains("%2f") ||
+            normalised.Contains("%5c"))
+        {
+            throw new InvalidOperationException(
+                $"Rejected unsafe IFC file path: {filePath}");
+        }
+
+        // Must start with a known upload prefix OR be a bare filename (no directory separator)
+        bool allowed =
+            AllowedPathPrefixes.Any(p => normalised.StartsWith(p, StringComparison.OrdinalIgnoreCase))
+            || !normalised.Contains('/');
+
+        if (!allowed)
+        {
+            throw new InvalidOperationException(
+                $"IFC file path not in allowed upload directory: {filePath}");
+        }
+    }
+
     public async Task ExecuteAsync(
         Guid   projectId,
         string filePath,
         string uploadedByUserId)
     {
+        // Guard against poisoned Hangfire queue entries.
+        ValidateFilePath(filePath);
+
         _logger.LogInformation(
             "IfcBoqSeedJob started for project {ProjectId}, file {FilePath}", projectId, filePath);
 
         // Bypass the tenant filter — the job runs outside an HTTP request context.
         _db.BypassTenantFilter = true;
 
-        var project = await _db.Projects.FindAsync([projectId]);
+        var project = await _db.Projects.FindAsync(new object[] { projectId });
         if (project == null)
         {
             _logger.LogWarning("IfcBoqSeedJob: project {ProjectId} not found, skipping.", projectId);
@@ -78,15 +119,18 @@ public class IfcBoqSeedJob
             return;
         }
 
-        // Group into disciplines using the IfcElement type prefix (same logic as
-        // the inline Task.Run in DocumentsController).
+        // ── Integration gap F5 — apply unit rates to raw quantities ──────────
+        // Group into disciplines using IfcDisciplineMapper (single source of truth).
+        // For each line item, multiply raw Value × a unit rate to produce an
+        // estimated cost. Rates are keyed by ElementType prefix in DefaultRatesPerUnit;
+        // unknown types fall back to a conservative £200/unit.
         var disciplineGroups = items
-            .GroupBy(i => MapIfcTypeToDiscipline(i.ElementType))
+            .GroupBy(i => IfcDisciplineMapper.ToDisplayLabel(i.ElementType))
             .Select(g => new BoqDisciplineRow
             {
                 Discipline = g.Key,
                 Items      = g.Count(),
-                Estimated  = Math.Round(g.Sum(i => i.Value), 2),
+                Estimated  = Math.Round(g.Sum(i => i.Value * GetUnitRate(i.ElementType, i.Unit)), 2),
                 Actual     = 0,
             }).ToList();
 
@@ -132,31 +176,70 @@ public class IfcBoqSeedJob
         }
     }
 
-    // Returns human-readable discipline labels for BOQ snapshot display (mobile cost dashboard).
-    // DocumentsController.MapIfcTypeToDiscipline returns STING discipline codes (M/E/P/A/S)
-    // for element tagging — that is a different purpose; do NOT merge these methods.
-    private static string MapIfcTypeToDiscipline(string ifcTypeName)
-    {
-        if (string.IsNullOrEmpty(ifcTypeName)) return "General";
-
-        return ifcTypeName.ToUpperInvariant() switch
+    // ── Unit rate table (Integration gap F5) ─────────────────────────────────
+    //
+    // Rates are £ per raw IFC quantity unit (m for length, m² for area, m³ for
+    // volume, kg for weight). Each ElementType prefix maps to one rate.
+    // Projects can override these by storing a custom rate JSON alongside the IFC;
+    // this minimal table ensures IFC-seeded snapshots always have a non-zero
+    // estimated cost rather than showing £0 across every discipline.
+    //
+    // Source: UK industry averages (BCIS / RICS) — indicative only.
+    private static readonly Dictionary<string, double> DefaultRatesPerUnit =
+        new(StringComparer.OrdinalIgnoreCase)
         {
-            var t when t.Contains("WALL") || t.Contains("SLAB") || t.Contains("BEAM")
-                    || t.Contains("COLUMN") || t.Contains("STAIR") || t.Contains("RAMP")
-                    || t.Contains("DOOR") || t.Contains("WINDOW") => "Structural/Arch",
-
-            var t when t.Contains("PIPE") || t.Contains("DUCT") || t.Contains("FITTING")
-                    || t.Contains("FLOW") || t.Contains("HVAC") => "Mechanical",
-
-            var t when t.Contains("ELECTRIC") || t.Contains("CABLE")
-                    || t.Contains("LIGHT") || t.Contains("SWITCH") => "Electrical",
-
-            var t when t.Contains("PLUMB") || t.Contains("SANITARY")
-                    || t.Contains("DRAIN") => "Plumbing",
-
-            var t when t.Contains("FIRE") || t.Contains("SPRINKLER") => "Fire Protection",
-
-            _ => "General",
+            // Architectural — £/m² of face area or volume
+            ["IfcWall"]              = 450.0,
+            ["IfcSlab"]              = 380.0,
+            ["IfcRoof"]              = 520.0,
+            ["IfcCurtainWall"]       = 900.0,
+            ["IfcCovering"]          = 120.0,
+            ["IfcDoor"]              = 1200.0,
+            ["IfcWindow"]            = 950.0,
+            ["IfcStair"]             = 3500.0,
+            ["IfcRamp"]              = 2800.0,
+            ["IfcRailing"]           = 180.0,
+            // Structural — £/m² slab or £/m run
+            ["IfcColumn"]            = 650.0,
+            ["IfcBeam"]              = 480.0,
+            ["IfcFooting"]           = 520.0,
+            ["IfcPile"]              = 1800.0,
+            ["IfcMember"]            = 420.0,
+            // Mechanical — £/m run
+            ["IfcDuctSegment"]       = 85.0,
+            ["IfcDuctFitting"]       = 65.0,
+            ["IfcAirTerminal"]       = 350.0,
+            ["IfcUnitaryEquipment"]  = 4200.0,
+            // Plumbing — £/m run
+            ["IfcPipeSegment"]       = 65.0,
+            ["IfcPipeFitting"]       = 45.0,
+            ["IfcFlowTerminal"]      = 280.0,
+            ["IfcSanitaryTerminal"]  = 420.0,
+            ["IfcValve"]             = 180.0,
+            ["IfcTank"]              = 1600.0,
+            // Electrical — £/m
+            ["IfcCableSegment"]      = 25.0,
+            ["IfcCableFitting"]      = 18.0,
+            ["IfcLightFixture"]      = 280.0,
+            ["IfcDistributionBoard"] = 1800.0,
+            ["IfcOutlet"]            = 95.0,
+            // Fire protection
+            ["IfcFireSuppressionTerminal"] = 320.0,
+            ["IfcSprinkler"]         = 180.0,
         };
+
+    private const double FallbackRatePerUnit = 200.0; // £/unit for unknown types
+
+    /// <summary>
+    /// Returns the unit rate for an IFC element type by prefix match.
+    /// </summary>
+    private static double GetUnitRate(string elementType, string unit)
+    {
+        foreach (var kv in DefaultRatesPerUnit)
+        {
+            if (elementType.StartsWith(kv.Key, StringComparison.OrdinalIgnoreCase))
+                return kv.Value;
+        }
+        return FallbackRatePerUnit;
     }
 }

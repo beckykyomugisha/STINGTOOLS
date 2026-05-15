@@ -194,7 +194,7 @@ public class P6Controller : ControllerBase
     {
         if (!await ProjectInTenant(projectId, ct)) return Forbid();
 
-        var project = await _db.Projects.FindAsync([projectId], ct);
+        var project = await _db.Projects.FindAsync(new object[] { projectId }, ct);
         if (project == null) return NotFound();
 
         P6LiveLinkSettings? settings = null;
@@ -221,6 +221,35 @@ public class P6Controller : ControllerBase
             svc.SyncAndPersistAsync(capturedProjectId, capturedTenantId, capturedSettings, CancellationToken.None));
 
         return Ok(new { status = "Sync enqueued. Check GET /p6/status in ~30 seconds for results." });
+    }
+
+    // ── GET /api/projects/{projectId}/p6/elements ─────────────────────────
+
+    /// <summary>
+    /// Integration gap F4 — Returns all tagged elements for the project that
+    /// have a P6 activity id assigned, so the Revit plugin can write P6 actuals
+    /// (percentComplete, actualStart, actualFinish) back to element parameters.
+    /// Shape: [{ elementUniqueId, p6ActivityId, percentComplete, actualStart, actualFinish }]
+    /// </summary>
+    [HttpGet("elements")]
+    public async Task<ActionResult> GetElements(Guid projectId, CancellationToken ct)
+    {
+        if (!await ProjectInTenant(projectId, ct)) return Forbid();
+
+        var elements = await _db.TaggedElements
+            .AsNoTracking()
+            .Where(e => e.ProjectId == projectId && e.P6ActivityId != null)
+            .Select(e => new
+            {
+                elementUniqueId  = e.UniqueId,
+                p6ActivityId     = e.P6ActivityId,
+                percentComplete  = e.PercentComplete,
+                actualStart      = e.ActualStart,
+                actualFinish     = e.ActualFinish,
+            })
+            .ToListAsync(ct);
+
+        return Ok(elements);
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────

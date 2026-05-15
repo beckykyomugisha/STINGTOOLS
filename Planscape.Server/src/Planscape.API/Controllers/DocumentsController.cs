@@ -1059,29 +1059,7 @@ public class DocumentsController : ControllerBase
     private Guid GetTenantId() =>
         Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;
 
-    /// <summary>
-    /// Feature gap 5 — maps an IFC element type name to a STING discipline code
-    /// for grouping BOQ items in the auto-seeded snapshot.
-    /// </summary>
-    private static string MapIfcTypeToDiscipline(string ifcTypeName)
-    {
-        return ifcTypeName.ToUpperInvariant() switch
-        {
-            var t when t.Contains("WALL") || t.Contains("DOOR") || t.Contains("WINDOW")
-                    || t.Contains("SLAB") || t.Contains("STAIR") || t.Contains("RAMP")
-                    || t.Contains("ROOF") || t.Contains("COLUMN") || t.Contains("BEAM")
-                    || t.Contains("PLATE") || t.Contains("COVERING") => "A",
-            var t when t.Contains("DUCT") || t.Contains("AIRTERM") || t.Contains("DAMPER")
-                    || t.Contains("FAN")  || t.Contains("COIL")    || t.Contains("UNITHEATER") => "M",
-            var t when t.Contains("PIPE") || t.Contains("PUMP")   || t.Contains("VALVE")
-                    || t.Contains("FITTING") || t.Contains("TANK") => "P",
-            var t when t.Contains("CABLE") || t.Contains("JUNCTION") || t.Contains("SWITCH")
-                    || t.Contains("MOTOR") || t.Contains("LIGHT")  || t.Contains("OUTLET") => "E",
-            var t when t.Contains("FOOTING") || t.Contains("PILE")  || t.Contains("RETAINING") => "S",
-            var t when t.Contains("SPRINKLER") || t.Contains("FIRESUPP") => "FP",
-            _                                                              => "GEN",
-        };
-    }
+    // MapIfcTypeToDiscipline removed — use IfcDisciplineMapper.ToStingCode directly.
 
     /// <summary>
     /// Phase 177 — return null when the document is within the caller's
