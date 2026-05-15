@@ -238,6 +238,21 @@ namespace StingTools.UI
                     case "Healthcare_Dialysis":          RunCommand<Commands.Healthcare.Specialist.DialysisAuditCommand>(app); break;
                     case "Healthcare_Hbo":               RunCommand<Commands.Healthcare.Specialist.HboAuditCommand>(app); break;
 
+                    // ── Healthcare short-alias tags (HC_*) for the dockable-panel HEALTHCARE tab ──
+                    case "HC_RunAll":                   RunCommand<Commands.Healthcare.HealthcareRunAllValidatorsCommand>(app); break;
+                    case "HC_PressureAudit":            RunCommand<Commands.Healthcare.HealthcarePressureAuditCommand>(app); break;
+                    case "HC_MgpsVerify":               RunCommand<Commands.MedGas.MgasVerifyCommand>(app); break;
+                    case "HC_WaterFlush":               RunCommand<Commands.Healthcare.HealthcareWaterSafetyCommand>(app); break;
+                    case "HC_AntiLigatureAudit":        RunCommand<Commands.Healthcare.Specialist.AntiLigatureAuditCommand>(app); break;
+                    case "HC_RdsCompleteness":          RunCommand<Commands.Healthcare.HealthcareRdsCompletenessCommand>(app); break;
+                    case "HC_RadiationAudit":           RunCommand<Commands.Healthcare.HealthcareRadShieldAuditCommand>(app); break;
+                    case "HC_AdjacencyAudit":           RunCommand<Commands.Adjacency.AdjacencyAuditCommand>(app); break;
+                    case "HC_EesResilience":            RunCommand<Commands.Healthcare.HealthcareEesResilienceCommand>(app); break;
+                    case "HC_CommissioningChecklist":   RunCommand<Commands.Healthcare.HealthcareRunAllValidatorsCommand>(app); break;
+                    case "HC_Workflow":                 RunCommand<Core.WorkflowPresetCommand>(app); break;
+                    case "HC_FacilityConfig":           HandleHcFacilityConfig(app); break;
+                    case "HC_HbnAutoPopulate":          RunCommand<Commands.Healthcare.HbnRoomAutoPopulatorCommand>(app); break;
+
                     // ── Lightning Protection System (BS EN 62305) ──
                     case "LPS_ClassSetup":           RunCommand<Commands.Lightning.LpsClassSetupCommand>(app); break;
                     case "LPS_ComplianceCheck":      RunCommand<Commands.Lightning.LpsComplianceCheckCommand>(app); break;
@@ -8656,6 +8671,76 @@ For live data, open BCC in Revit and re-export.</p></div>
         // Handover or Custom mode — emits a soft warning if the active mode is
         // DC (no error: the data is preserved, just not rendered until mode
         // is switched).
+        // HC-12 — Facility Type picker: opens a small WPF ComboBox dialog and writes
+        // PRJ_ORG_HEALTH_PACK_PROFILE_TXT to ProjectInformation.
+        private static void HandleHcFacilityConfig(UIApplication app)
+        {
+            try
+            {
+                var doc = app?.ActiveUIDocument?.Document;
+                if (doc == null) return;
+
+                var profiles = new[] { "FULL", "ACUTE", "COMMUNITY", "DENTAL", "IMAGING-ONLY", "MENTAL-HEALTH" };
+
+                // Read current value
+                var pi   = doc.ProjectInformation;
+                var pCur = pi?.LookupParameter("PRJ_ORG_HEALTH_PACK_PROFILE_TXT");
+                string current = pCur?.AsString() ?? "";
+
+                // Show picker
+                var dlg = new System.Windows.Window
+                {
+                    Title             = "Healthcare Facility Type",
+                    Width             = 340,
+                    Height            = 160,
+                    WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
+                    ResizeMode        = System.Windows.ResizeMode.NoResize,
+                    Background        = System.Windows.Media.Brushes.WhiteSmoke,
+                };
+                var sp = new System.Windows.Controls.StackPanel { Margin = new System.Windows.Thickness(12) };
+                sp.Children.Add(new System.Windows.Controls.TextBlock
+                {
+                    Text = "Select healthcare facility type profile:",
+                    FontWeight = System.Windows.FontWeights.SemiBold,
+                    Margin = new System.Windows.Thickness(0, 0, 0, 8),
+                });
+                var combo = new System.Windows.Controls.ComboBox { Margin = new System.Windows.Thickness(0, 0, 0, 12) };
+                foreach (var p in profiles) combo.Items.Add(p);
+                combo.SelectedItem = current.Length > 0 && profiles.Contains(current) ? current : profiles[0];
+                sp.Children.Add(combo);
+                var btnOk = new System.Windows.Controls.Button
+                {
+                    Content = "Save",
+                    Width   = 80,
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+                };
+                bool confirmed = false;
+                btnOk.Click += (s, e) => { confirmed = true; dlg.Close(); };
+                sp.Children.Add(btnOk);
+                dlg.Content = sp;
+                dlg.ShowDialog();
+
+                if (!confirmed) return;
+                string chosen = combo.SelectedItem?.ToString() ?? "";
+                if (string.IsNullOrEmpty(chosen)) return;
+
+                using (var t = new Autodesk.Revit.DB.Transaction(doc, "STING Set Healthcare Facility Profile"))
+                {
+                    t.Start();
+                    Core.ParameterHelpers.SetString(pi, "PRJ_ORG_HEALTH_PACK_PROFILE_TXT", chosen, true);
+                    t.Commit();
+                }
+                Autodesk.Revit.UI.TaskDialog.Show("STING Healthcare",
+                    $"Healthcare facility type set to '{chosen}'.\n" +
+                    "Healthcare validators and workflows are now active for this project.");
+                Core.StingLog.Info($"HC_FacilityConfig: PRJ_ORG_HEALTH_PACK_PROFILE_TXT set to {chosen}");
+            }
+            catch (Exception ex)
+            {
+                Core.StingLog.Error("HandleHcFacilityConfig failed", ex);
+            }
+        }
+
         private static void WriteSystemBTier(UIApplication app, int tier)
         {
             UIDocument uidoc = app?.ActiveUIDocument;

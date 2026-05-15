@@ -5074,8 +5074,21 @@
                         <!-- WORKFLOWS (8 healthcare workflow JSONs) -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="WORKFLOW PRESETS"/>
                         <WrapPanel Style="{StaticResource ButtonWrap}">
-                            <Button Style="{StaticResource ActionBtn}" Content="List Workflows" Tag="ListWorkflowPresets" Click="Cmd_Click" ToolTip="Show every workflow preset; healthcare ones include HealthcareCommissioning, MgasVerification, PressureRegimeAudit, RdsIssue, HTM-04-01-Annual, AntiLigatureAudit, NFPA110-GeneratorTest, HTM-01-06-EndoReprocess."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Workflow Trend" Tag="WorkflowTrend"       Click="Cmd_Click" ToolTip="View healthcare workflow run-history trend (last 100 runs)."/>
+                            <Button Style="{StaticResource ActionBtn}" Content="List Workflows"     Tag="ListWorkflowPresets" Click="Cmd_Click" ToolTip="Show every workflow preset; healthcare ones include HealthcareCommissioning, MgasVerification, PressureRegimeAudit, RdsIssue, HTM-04-01-Annual, AntiLigatureAudit, NFPA110-GeneratorTest, HTM-01-06-EndoReprocess."/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Workflow Trend"     Tag="WorkflowTrend"       Click="Cmd_Click" ToolTip="View healthcare workflow run-history trend (last 100 runs)."/>
+                            <Button Style="{StaticResource TealBtn}"   Content="HC: Run All"        Tag="HC_RunAll"           Click="Cmd_Click" ToolTip="Run all 16 healthcare validators (alias for Healthcare_RunAllValidators)."/>
+                            <Button Style="{StaticResource ActionBtn}" Content="HC: Pressure"       Tag="HC_PressureAudit"    Click="Cmd_Click" ToolTip="HTM 03-01 / ASHRAE 170 — pressure regime audit (alias)."/>
+                            <Button Style="{StaticResource ActionBtn}" Content="HC: MGPS Verify"    Tag="HC_MgpsVerify"       Click="Cmd_Click" ToolTip="NFPA 99 §5.1.12 — 12-step MGPS verification (alias)."/>
+                            <Button Style="{StaticResource ActionBtn}" Content="HC: Water Flush"    Tag="HC_WaterFlush"       Click="Cmd_Click" ToolTip="HTM 04-01 — water safety audit (alias)."/>
+                            <Button Style="{StaticResource ActionBtn}" Content="HC: Anti-Lig"       Tag="HC_AntiLigatureAudit" Click="Cmd_Click" ToolTip="Anti-ligature audit (alias)."/>
+                            <Button Style="{StaticResource ActionBtn}" Content="HC: RDS Complete"   Tag="HC_RdsCompleteness"  Click="Cmd_Click" ToolTip="RDS completeness audit (alias)."/>
+                            <Button Style="{StaticResource ActionBtn}" Content="HC: Radiation"      Tag="HC_RadiationAudit"   Click="Cmd_Click" ToolTip="NCRP 147 radiation shielding audit (alias)."/>
+                            <Button Style="{StaticResource ActionBtn}" Content="HC: Adjacency"      Tag="HC_AdjacencyAudit"   Click="Cmd_Click" ToolTip="HBN adjacency / flow audit (alias)."/>
+                            <Button Style="{StaticResource ActionBtn}" Content="HC: EES Resilience" Tag="HC_EesResilience"    Click="Cmd_Click" ToolTip="NFPA 110 EES resilience audit (alias)."/>
+                            <Button Style="{StaticResource ActionBtn}" Content="HC: Commissioning"  Tag="HC_CommissioningChecklist" Click="Cmd_Click" ToolTip="Healthcare commissioning checklist — runs all validators as a commissioning sweep."/>
+                            <Button Style="{StaticResource ActionBtn}" Content="HC: Workflow"       Tag="HC_Workflow"         Click="Cmd_Click" ToolTip="Run HealthcareCommissioning workflow preset."/>
+                            <Button Style="{StaticResource BlueBtn}"   Content="HC: Facility Type"  Tag="HC_FacilityConfig"   Click="Cmd_Click" ToolTip="Pick and save healthcare facility type (FULL / ACUTE / COMMUNITY / DENTAL / IMAGING-ONLY / MENTAL-HEALTH)."/>
+                            <Button Style="{StaticResource ActionBtn}" Content="HC: HBN Auto-Pop"   Tag="HC_HbnAutoPopulate"  Click="Cmd_Click" ToolTip="Auto-populate HBN/HTM design parameters from room class for selected element."/>
                         </WrapPanel>
 
                     </StackPanel>
