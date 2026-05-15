@@ -465,6 +465,10 @@ namespace StingTools.UI
                         RunCommand<Commands.Electrical.HomeRunArrowCommand>(app); break;
                     case "Electrical_ClearWireAnnotations":
                         RunCommand<Commands.Electrical.ClearWireAnnotationsCommand>(app); break;
+                    case "Electrical_WireAnnotationStyle":
+                        RunCommand<Commands.Electrical.WireAnnotationStyleCommand>(app); break;
+                    case "Electrical_WireAnnotationRefreshStyle":
+                        RunCommand<Commands.Electrical.WireAnnotationRefreshStyleCommand>(app); break;
 
                     // ── v4 Phase D: hanger placement ──
                     case "Routing_PlaceHangers": RunCommand<Commands.Routing.PlaceHangersCommand>(app); break;
