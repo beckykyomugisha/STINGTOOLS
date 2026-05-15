@@ -378,8 +378,12 @@ public sealed class PlanscapeServerClient : IDisposable
         List<TagElementPayload> elements)
     {
         if (!await EnsureAuthenticatedAsync())
+        {
+            UI.StingDockPanel.LastInstance?.UpdateSyncStatus(UI.StingDockPanel.SyncState.Offline);
             return new SyncResult { Success = false, Error = LastError ?? "Not connected." };
+        }
 
+        UI.StingDockPanel.LastInstance?.UpdateSyncStatus(UI.StingDockPanel.SyncState.Syncing);
         try
         {
             var resp = await PostJsonAsync("/api/tagsync/sync", new
@@ -387,9 +391,15 @@ public sealed class PlanscapeServerClient : IDisposable
                 projectId, revitVersion, pluginVersion,
                 userName = ConnectedUser, elements
             });
-            if (!resp.ok) { LastError = $"Sync failed ({resp.status}): {resp.body}"; return new SyncResult { Success = false, Error = LastError }; }
+            if (!resp.ok)
+            {
+                LastError = $"Sync failed ({resp.status}): {resp.body}";
+                UI.StingDockPanel.LastInstance?.UpdateSyncStatus(UI.StingDockPanel.SyncState.Error, LastError);
+                return new SyncResult { Success = false, Error = LastError };
+            }
 
             var json = JObject.Parse(resp.body);
+            UI.StingDockPanel.LastInstance?.UpdateSyncStatus(UI.StingDockPanel.SyncState.Synced);
             return new SyncResult
             {
                 Success           = true,
@@ -400,7 +410,13 @@ public sealed class PlanscapeServerClient : IDisposable
                 RagStatus         = json["ragStatus"]?.Value<string>()      ?? "AMBER"
             };
         }
-        catch (Exception ex) { LastError = ex.Message; StingLog.Error("Planscape: Sync failed", ex); return new SyncResult { Success = false, Error = ex.Message }; }
+        catch (Exception ex)
+        {
+            LastError = ex.Message;
+            StingLog.Error("Planscape: Sync failed", ex);
+            UI.StingDockPanel.LastInstance?.UpdateSyncStatus(UI.StingDockPanel.SyncState.Error, ex.Message);
+            return new SyncResult { Success = false, Error = ex.Message };
+        }
     }
 
     // ────────────────────────────────────────────────────────────────────────────
@@ -1595,6 +1611,86 @@ public sealed class PlanscapeServerClient : IDisposable
             ".fbx"  => "application/octet-stream",
             _ => "application/octet-stream",
         };
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────
+    //  INT-10 — Mobile↔plugin issue coordination
+    // ────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Pull issues from the server and merge them into the local issues.json sidecar.
+    /// Server wins on conflict (last-write-wins by updatedAt).
+    /// Uses <paramref name="since"/> for incremental pull; pass null for a full refresh.
+    /// </summary>
+    public async Task<int> PullServerIssuesAsync(Autodesk.Revit.DB.Document doc, DateTime? since = null)
+    {
+        if (!IsConnected) return 0;
+        if (CurrentProjectId == Guid.Empty)
+        {
+            StingLog.Warn("PullServerIssues: no CurrentProjectId — skipping");
+            return 0;
+        }
+
+        try
+        {
+            var url = $"/api/projects/{CurrentProjectId}/issues";
+            if (since.HasValue)
+                url += $"?since={Uri.EscapeDataString(since.Value.ToString("o"))}";
+
+            var resp = await GetAsync(url).ConfigureAwait(false);
+            if (!resp.ok) { StingLog.Warn($"PullServerIssues: HTTP {resp.status}"); return 0; }
+
+            var json = JObject.Parse(resp.body);
+            var serverArr = (json["issues"] as JArray) ?? JArray.Parse(resp.body);
+
+            // Load local sidecar
+            var localPath = Path.Combine(Core.OutputLocationHelper.GetOutputDirectory(doc), "issues.json");
+            JArray local = new JArray();
+            if (File.Exists(localPath))
+            {
+                try { local = JArray.Parse(File.ReadAllText(localPath)); }
+                catch (Exception ex) { StingLog.Warn($"PullServerIssues: local parse failed — {ex.Message}"); }
+            }
+
+            // Merge by id — server entry wins when updatedAt is newer
+            var merged = new Dictionary<string, JObject>(StringComparer.OrdinalIgnoreCase);
+            foreach (var tok in local)
+            {
+                if (tok is JObject obj && obj["id"]?.ToString() is string id && !string.IsNullOrEmpty(id))
+                    merged[id] = obj;
+            }
+
+            int updated = 0;
+            foreach (var tok in serverArr)
+            {
+                if (tok is not JObject sv) continue;
+                var id = sv["id"]?.ToString();
+                if (string.IsNullOrEmpty(id)) continue;
+
+                if (merged.TryGetValue(id, out var lv))
+                {
+                    var svTime = sv["updatedAt"]?.Value<DateTime?>() ?? DateTime.MinValue;
+                    var lvTime = lv["updatedAt"]?.Value<DateTime?>() ?? DateTime.MinValue;
+                    if (svTime >= lvTime) { merged[id] = sv; updated++; }
+                }
+                else
+                {
+                    merged[id] = sv;
+                    updated++;
+                }
+            }
+
+            var result = new JArray(merged.Values.Cast<object>().ToArray());
+            Directory.CreateDirectory(Path.GetDirectoryName(localPath)!);
+            File.WriteAllText(localPath, result.ToString(Formatting.Indented));
+            StingLog.Info($"PullServerIssues: merged {updated} issue(s) from server into {localPath}");
+            return updated;
+        }
+        catch (Exception ex)
+        {
+            StingLog.Error("PullServerIssues failed", ex);
+            return 0;
+        }
     }
 }
 
