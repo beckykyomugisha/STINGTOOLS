@@ -300,8 +300,13 @@ public class P6LiveLinkService
             Timeout     = TimeSpan.FromSeconds(30),
         };
 
+        // Deobfuscate password stored as base64-XOR by P6Controller.ObfuscatePassword
+        string plainPassword = settings.Password;
+        try { plainPassword = Planscape.API.Controllers.P6Controller.DeobfuscatePassword(settings.Password, projectId); }
+        catch { /* not obfuscated (legacy plain-text) — use as-is */ }
+
         string credentials = Convert.ToBase64String(
-            Encoding.UTF8.GetBytes($"{settings.Username}:{settings.Password}"));
+            Encoding.UTF8.GetBytes($"{settings.Username}:{plainPassword}"));
         http.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", credentials);
 

@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -2652,7 +2653,7 @@ namespace StingTools.BIMManager
 
                 var phases = new List<object>();
                 foreach (Phase phase in new FilteredElementCollector(doc).OfClass(typeof(Phase)))
-                    phases.Add(new { id = phase.Id.IntegerValue, name = phase.Name });
+                    phases.Add(new { id = (long)phase.Id.Value, name = phase.Name });
 
                 var exportElements = new List<object>();
                 var allElements = new FilteredElementCollector(doc)
@@ -2679,7 +2680,7 @@ namespace StingTools.BIMManager
                         Parameter phaseParam = el.get_Parameter(BuiltInParameter.PHASE_CREATED);
                         if (phaseParam != null && phaseParam.HasValue)
                         {
-                            phaseId = phaseParam.AsElementId().IntegerValue;
+                            phaseId = (int)phaseParam.AsElementId().Value;
                         }
                     }
 
@@ -2693,7 +2694,7 @@ namespace StingTools.BIMManager
 
                     exportElements.Add(new
                     {
-                        id         = el.Id.IntegerValue,
+                        id         = (long)el.Id.Value,
                         phase      = phaseId,
                         category,
                         discipline = string.IsNullOrWhiteSpace(disc) ? "GEN" : disc,
@@ -2709,12 +2710,12 @@ namespace StingTools.BIMManager
                 }
 
                 // Write output
-                string outDir = OutputLocationHelper.GetBimCoordDirectory(doc);
+                string outDir = OutputLocationHelper.GetOutputDirectory(doc);
                 Directory.CreateDirectory(outDir);
                 string outFile = Path.Combine(outDir, "4d_viewer_export.json");
 
                 var payload = new { phases, elements = exportElements };
-                string json = JsonConvert.SerializeObject(payload, Formatting.Indented);
+                string json = JsonConvert.SerializeObject(payload, Newtonsoft.Json.Formatting.Indented);
                 File.WriteAllText(outFile, json, System.Text.Encoding.UTF8);
 
                 StingLog.Info($"ExportFor4DViewer: {exportElements.Count} elements → {outFile}");
