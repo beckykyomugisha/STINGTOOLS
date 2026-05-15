@@ -211,6 +211,34 @@ PARAM	e0d7b65b-2999-41ac-969b-27bf8db00ee4	ELC_TAG_7_PARA_COMM_TXT	TEXT		4	1	Com
 PARAM	e97f6a5b-3275-4f24-845c-bc4ff8b53362	ELC_TAG_7_PARA_TIEIN_TXT	TEXT		4	1	Electrical tie-in point paragraph container [ISO 19650-3:2020]	1
 PARAM	ff29a613-abb3-45ef-9577-2f311b14074d	ELC_VOLTAGE_V	TEXT		4	1	Device operating voltage in V [ISO 19650-1:2018]	1
 PARAM	bbfae061-d579-4366-a12e-4de7af3f28a0	ELC_WIRE_SIZE_TXT	TEXT		4	1	Wire size designation (2.5mm2, 4mm2, 10mm2) [ISO 19650-1:2018]	1
+PARAM	c1a2b3c4-d5e6-4f70-8a9b-0c1d2e3f4a5b	ELC_WIRE_CORE_COUNT_INT	INTEGER		4	1	Number of conductors/cores in the wire run (1-4). Drives slash-mark count on wire annotation tag. [BS 7671]	1
+PARAM	d2b3c4d5-e6f7-4081-9b0c-1d2e3f4a5b6c	ELC_WIRE_PHASE_TXT	TEXT		4	1	Phase designation: L1/L2/L3/N/PE/CPC/1P/3P [BS 7671 Appendix 7]	1
+PARAM	e3c4d5e6-f708-4192-0c1d-2e3f4a5b6c7d	ELC_WIRE_CSA_MM2_NUM	NUMBER		4	1	Conductor cross-sectional area in mm² (1.5/2.5/4/6/10/16/25/35/50/70/95/120) [BS 7671 Table 4D1A]	1
+PARAM	f4d5e6f7-0819-42a3-1d2e-3f4a5b6c7d8e	ELC_WIRE_COND_MAT_TXT	TEXT		4	1	Conductor material: Cu (copper) / Al (aluminium) [BS 7671]	1
+PARAM	05e6f708-192a-43b4-2e3f-4a5b6c7d8e9f	ELC_CIRCUIT_NR_TXT	TEXT		4	1	Circuit number as shown on distribution board schedule (e.g. B6, 1.3). Auto-derived from connected ElectricalSystem. [BS 7671 / ISO 19650]	1
+PARAM	16f70819-2a3b-44c5-3f4a-5b6c7d8e9fa0	ELC_WIRE_VD_PCT_NUM	NUMBER		4	1	Calculated voltage drop as percentage of nominal voltage [BS 7671 Appendix 12, limit 3% lighting / 5% power]	1
+PARAM	27081920-3b4c-45d6-4a5b-6c7d8e9fa0b1	ELC_WIRE_AMPACITY_A	NUMBER		4	1	Cable current-carrying capacity (ampacity) in amperes at design installation method [BS 7671 Table 4D1A/4D2A]	1
+PARAM	38192031-4c5d-46e7-5b6c-7d8e9fa0b1c2	ELC_WIRE_INSTALL_METHOD_TXT	TEXT		4	1	Installation method reference: A1/A2/B1/B2/C/D1/D2/E/F/G [BS 7671 Table 4A2 / IEC 60364-5-52]	1
+PARAM	492a3142-5d6e-47f8-6c7d-8e9fa0b1c2d3	ELC_WIRE_MAX_DEMAND_A	NUMBER		4	1	Maximum design demand current for the circuit in amperes [BS 7671 load assessment]	1
+PARAM	5a3b4253-6e7f-4809-7d8e-9fa0b1c2d3e4	ELC_WIRE_CIRCUIT_BREAKER_A	NUMBER		4	1	Upstream overcurrent protective device rating in amperes [BS 7671 Section 433]	1
+PARAM	6b4c5364-7f80-4910-8e9f-a0b1c2d3e4f5	ELC_WIRE_EARTH_CSA_MM2	NUMBER		4	1	Earth/CPC conductor cross-sectional area in mm² [BS 7671 Section 543]	1
+PARAM	7c5d6475-8091-4a21-9fa0-b1c2d3e4f506	ELC_WIRE_ARMOURED_BOOL	YESNO		4	1	True if cable is SWA (steel wire armoured) or equivalent [BS 7671]	1
+PARAM	7c5d6475-8091-4a21-9fa0-b1c2d3e4f507	ELC_WIRE_ARMOUR_CONT_OK_BOOL	YESNO		4	1	Set to 1 when SWA armour continuity at both terminations has been verified per BS 7671 §543 [STING Gap 12]	1
+PARAM	8d6e7586-9102-4b32-a0b1-c2d3e4f50617	ELC_WIRE_FIRE_RATED_BOOL	YESNO		4	1	True if circuit requires fire-survival cable (e.g. MICC, FP200) [BS 9999 / BS 8519 / BS 7671 Ch.56]	1
+PARAM	9e7f8697-a213-4c43-b1c2-d3e4f5061728	ELC_WIRE_SHIELDED_BOOL	YESNO		4	1	True if cable is screened/shielded (data, fire-alarm, CCTV circuits) [BS 7671]	1
+PARAM	af809708-b324-4d54-c2d3-e4f507182839	ELC_WIRE_CIRCUIT_TYPE_TXT	TEXT		4	1	Circuit type: FINAL/SUB-MAIN/FEEDER/RING/RADIAL/MOTOR/EV/LIGHTING/POWER/DATA [BS 7671]	1
+PARAM	b0918819-c435-4e65-d3e4-f50718293940	ELC_WIRE_ANNOT_SLASH_LEN_MM	NUMBER		4	1	Wire annotation slash/tick mark length in mm at model scale (default 6). Controls visual size of conductor-count slashes. [STING annotation style]	1
+PARAM	c1a29920-d546-4f76-e4f5-061829394a51	ELC_WIRE_ANNOT_SPACING_MM	NUMBER		4	1	Spacing between adjacent slash marks in mm along conduit (default 3). [STING annotation style]	1
+PARAM	d2b3aa31-e657-4087-f506-17283a4b5c62	ELC_WIRE_ANNOT_ANGLE_DEG	NUMBER		4	1	Angle of slash marks relative to conduit axis in degrees (default 60, range 30-90). [STING annotation style]	1
+PARAM	e3c4bb42-f768-4198-0617-28394b5c6d73	ELC_WIRE_ANNOT_OFFSET_MM	NUMBER		4	1	Perpendicular offset of label text from conduit centreline in mm (default 600). [STING annotation style]	1
+PARAM	f4d5cc53-0879-42a9-1728-394a5b6c7e84	ELC_WIRE_ANNOT_COLOR_CODE_INT	INTEGER		4	1	Annotation colour override: 0=auto (black), 1=red (overloaded/warning), 2=blue (neutral/data), 3=orange (review), 4=green (safe/spare). [STING annotation style]	1
+PARAM	05e6dd64-198a-43ba-283a-4a5b6c7d8f95	ELC_WIRE_ANNOT_LINE_WEIGHT_INT	INTEGER		4	1	Line weight index (1-16) for slash/tick marks. Default 3 (~0.25mm at 1:100). [STING annotation style]	1
+PARAM	16f7ee75-2a9b-44cb-394b-5b6c7d8e90a6	ELC_WIRE_ANNOT_SCALE_FACTOR	NUMBER		4	1	Scale multiplier applied to all annotation geometry (slash length, spacing, offset). 1.0=nominal, 0.5=half-size for congested drawings. [STING annotation style]	1
+PARAM	27088f86-3bac-45dc-4a5c-6c7d8e9fa1b7	ELC_WIRE_ANNOT_SHOW_VD_BOOL	YESNO		4	1	Show voltage drop percentage in wire annotation label. Default true when VD > 3%. [STING annotation style]	1
+PARAM	38199097-4cbd-46ed-5b6d-7d8e9fa0b2c8	ELC_WIRE_ANNOT_SHOW_FILL_BOOL	YESNO		4	1	Show conduit fill percentage in wire annotation label. Default true when fill > 40%. [STING annotation style]	1
+PARAM	492aa108-5dce-47fe-6c7e-8e9fa0b1c3d9	ELC_WIRE_ANNOT_SHOW_DIA_BOOL	YESNO		4	1	Show conduit diameter in wire annotation label. [STING annotation style]	1
+PARAM	5a3bb219-6edf-4800-7d8f-9fa0b1c2d4ea	ELC_WIRE_ANNOT_SHOW_AMPACITY_BOOL	YESNO		4	1	Show cable ampacity (Iz) and max demand (Ib) in wire annotation label. [STING annotation style]	1
+PARAM	6b4cc32a-7fe0-4911-8e90-a0b1c2d3e5fb	ELC_WIRE_ANNOT_COMPACT_BOOL	YESNO		4	1	Compact label mode: omits panel name and install method to fit tight drawings. [STING annotation style]	1
 PARAM	67f74e7b-256f-5611-bd11-1eb958f6e5b4	MNT_HGT_MM	TEXT		4	1	Elc Mnt Hgt Mm [ISO 19650-1:2018]	1
 PARAM	9df4b41b-3c97-5bbd-bce8-4e3ff9c5e0dc	ELC_PNL_CONNECTED_LOAD_KW	TEXT		4	1	Elc Pnl Connected Load Kw [ISO 19650-1:2018]	1
 PARAM	ea6fc977-0678-5a5c-b1b5-a19e9f3e17e0	ELC_PNL_DESIGNATION_NAME_TXT	TEXT		4	1	Elc Pnl Designation Name Txt [ISO 19650-1:2018]	1
@@ -2621,6 +2649,9 @@ PARAM	aff8756c-b7b5-5c7a-aaab-65efe622a7d4	HVC_REFRIGERANT_CHARGE_KG_NR	NUMBER		
 PARAM	74d83fbc-1edc-5aa9-8edd-de412bfdf921	HVC_FACTORY_FLASH_TEST_DATE_TXT	TEXT		5	1	Factory flash test date for refrigerant equipment [BS EN 378-2:2016]	1
 PARAM	5ebe500d-983b-5a41-97ba-312b62882f28	HVC_FACTORY_QR_TXT	TEXT		5	1	Mechanical factory QR code label reference [ISO 19650-3:2020]	1
 PARAM	b04373ec-3a97-5c0e-a13b-b72450d52eff	ELC_PANEL_SCHEDULE_REF_TXT	TEXT		4	1	Electrical panel schedule document reference [BS 7671:2018+A2:2022]	1
+PARAM	b04373ec-3a97-5c0e-a13b-b72450d52f00	ELC_PANEL_MAIN_BREAKER_TXT	TEXT		4	1	Main incomer / MCCB rating label (e.g. "250A 65kA MCCB") used for TCC database lookup and selective coordination checks [BS 7671:2018 / STING Gap 13]	1
+PARAM	b04373ec-3a97-5c0e-a13b-b72450d52f01	ELC_SEL_COORD_OK	YESNO		4	1	Selective coordination check result stamp: 1 = passes BS 7671 §536 / NEC 240.87 criteria for this panel [STING Gap 13]	1
+PARAM	b04373ec-3a97-5c0e-a13b-b72450d52f02	ELC_PNL_NAME_TXT	TEXT		4	1	Source panel / distribution board name stamped on conduit by WireParamStampCommand (matches ElectricalSystem.BaseEquipment.Name) [STING Gap 1/2]	1
 PARAM	37ac83fc-80c9-5a43-a03b-6365d5424731	ELC_FAT_CERT_REF_TXT	TEXT		4	1	Factory Acceptance Test certificate reference [IEC 61439-1:2020]	1
 PARAM	a4257dba-e2fb-5890-96f8-80a14ad0d8c2	ELC_FACTORY_QR_TXT	TEXT		4	1	Electrical factory QR code label reference [ISO 19650-3:2020]	1
 PARAM	477afe7a-6b97-5de8-90c9-2786042dd5e9	PLM_PRESSURE_TEST_REF_TXT	TEXT		6	1	Hydrostatic pressure test certificate reference [BS EN 806-4:2010]	1

@@ -40,15 +40,21 @@ namespace StingTools.Commands.Electrical.Coordination
                 var downDev = tcc.Resolve(node.Rating);
                 if (upDev != null && downDev != null)
                 {
-                    double maxFaultKa = Math.Max(maxFaultKaFallback,
-                        Math.Min(upDev.MaxFaultKa, downDev.MaxFaultKa));
-                    if (maxFaultKa <= 0) maxFaultKa = maxFaultKaFallback;
+                    // Gap 14: resolve full curves for log-log interpolation
+                    var upCurve   = tcc.ResolveCurve(parent.Rating);
+                    var downCurve = tcc.ResolveCurve(node.Rating);
+
+                    // Use the more constraining (lower) device rating as the upper sample
+                    // bound — checking beyond a device's rated fault current is meaningless.
+                    // Only fall back to maxFaultKaFallback when device ratings are absent.
+                    double deviceLimit = Math.Min(upDev.MaxFaultKa, downDev.MaxFaultKa);
+                    double maxFaultKa  = deviceLimit > 0 ? deviceLimit : maxFaultKaFallback;
 
                     double step = maxFaultKa / Math.Max(1, sampleCount);
                     for (double f = step; f <= maxFaultKa; f += step)
                     {
-                        double upMs = upDev.ClearingTimeMs(f);
-                        double downMs = downDev.ClearingTimeMs(f);
+                        double upMs = upDev.ClearingTimeMs(f, upCurve);
+                        double downMs = downDev.ClearingTimeMs(f, downCurve);
                         if (upMs > 0 && upMs <= downMs)
                         {
                             violations.Add(new CoordViolation
