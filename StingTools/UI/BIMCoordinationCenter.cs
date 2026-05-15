@@ -8010,7 +8010,161 @@ namespace StingTools.UI
             actGrid.Children.Add(col1); actGrid.Children.Add(col2); actGrid.Children.Add(col3);
             root.Children.Add(actGrid);
 
+            // TPL-FOLLOW-04: Recipient matrix sub-section
+            root.Children.Add(BuildRecipientMatrixSection());
+
             return sv;
+        }
+
+        // ── TPL-FOLLOW-04: Recipient matrix sub-section ──────────────────────
+
+        private UIElement BuildRecipientMatrixSection()
+        {
+            var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+            var section = new StackPanel { Margin = new Thickness(0, 8, 0, 0) };
+            section.Children.Add(MakeSectionHeader("RECIPIENT MATRIX"));
+            section.Children.Add(new TextBlock
+            {
+                Text = "Distribution groups and their assigned deliverable types. " +
+                       "Edit in: _BIM_COORD/distribution_groups.json",
+                FontSize = 10,
+                Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)),
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 8),
+            });
+
+            try
+            {
+                if (doc == null)
+                {
+                    section.Children.Add(new TextBlock { Text = "No active document.", Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)), FontSize = 11 });
+                    return section;
+                }
+                string bimDir = BIMManager.BIMManagerEngine.GetBIMManagerDir(doc);
+                string groupsPath = System.IO.Path.Combine(bimDir, "distribution_groups.json");
+                if (!System.IO.File.Exists(groupsPath))
+                {
+                    section.Children.Add(new TextBlock { Text = "No distribution_groups.json found. Run 'Create Transmittal' to seed the file.", Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)), FontSize = 11 });
+                    return section;
+                }
+
+                var groups = Newtonsoft.Json.JsonConvert.DeserializeObject<
+                    List<Docs.Workflow.DistributionGroup>>(System.IO.File.ReadAllText(groupsPath))
+                    ?? new List<Docs.Workflow.DistributionGroup>();
+
+                if (groups.Count == 0)
+                {
+                    section.Children.Add(new TextBlock { Text = "Distribution groups list is empty.", Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)), FontSize = 11 });
+                    return section;
+                }
+
+                // Build grid: rows = groups, columns = deliverable types / suitabilities
+                // Collect all unique suitabilities across groups
+                var allSuitabilities = new System.Collections.Generic.SortedSet<string>();
+                foreach (var g in groups)
+                    foreach (var s in g.AppliesSuitabilities ?? new List<string>())
+                        allSuitabilities.Add(s);
+
+                var matrixGrid = new Grid();
+                matrixGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(160) });  // group name
+                foreach (var _ in allSuitabilities)
+                    matrixGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50, GridUnitType.Star) });
+
+                // Header row
+                matrixGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                var hdrGroup = new TextBlock { Text = "Group", FontWeight = FontWeights.SemiBold, FontSize = 11, Margin = new Thickness(2) };
+                Grid.SetRow(hdrGroup, 0); Grid.SetColumn(hdrGroup, 0);
+                matrixGrid.Children.Add(hdrGroup);
+
+                int suitCol = 1;
+                foreach (string suit in allSuitabilities)
+                {
+                    var hdrSuit = new TextBlock
+                    {
+                        Text = suit, FontWeight = FontWeights.SemiBold, FontSize = 10,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        Margin = new Thickness(2),
+                        ToolTip = suit,
+                        Foreground = Br(Color.FromRgb(0xB0, 0xBE, 0xC5)),
+                    };
+                    Grid.SetRow(hdrSuit, 0); Grid.SetColumn(hdrSuit, suitCol++);
+                    matrixGrid.Children.Add(hdrSuit);
+                }
+
+                // Data rows
+                int row = 1;
+                foreach (var grp in groups)
+                {
+                    matrixGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                    Color rowBg = row % 2 == 0 ? CCardBg : CHeaderBg;
+
+                    var grpCell = new Border { Background = Br(rowBg), Padding = new Thickness(4, 3, 4, 3) };
+                    var grpSp = new StackPanel();
+                    grpSp.Children.Add(new TextBlock { Text = grp.Name ?? "Unnamed", FontSize = 11, FontWeight = FontWeights.SemiBold });
+                    if (!string.IsNullOrEmpty(grp.Description))
+                        grpSp.Children.Add(new TextBlock { Text = grp.Description, FontSize = 9, Foreground = Br(Color.FromRgb(0x90, 0xA4, 0xAE)) });
+                    grpCell.Child = grpSp;
+                    Grid.SetRow(grpCell, row); Grid.SetColumn(grpCell, 0);
+                    matrixGrid.Children.Add(grpCell);
+
+                    var grpSuits = new System.Collections.Generic.HashSet<string>(grp.AppliesSuitabilities ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+                    int c = 1;
+                    foreach (string suit in allSuitabilities)
+                    {
+                        bool receives = grpSuits.Contains(suit);
+                        var cell = new Border { Background = Br(rowBg), Padding = new Thickness(2) };
+                        var tick = new TextBlock
+                        {
+                            Text = receives ? "✓" : "–",
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            FontSize = receives ? 13 : 11,
+                            Foreground = receives ? Br(CGreen) : Br(Color.FromRgb(0x55, 0x55, 0x55)),
+                            FontWeight = receives ? FontWeights.Bold : FontWeights.Normal,
+                        };
+                        cell.Child = tick;
+                        Grid.SetRow(cell, row); Grid.SetColumn(cell, c++);
+                        matrixGrid.Children.Add(cell);
+                    }
+                    row++;
+                }
+
+                var matrixBorder = new Border
+                {
+                    BorderBrush = Br(Color.FromRgb(0x42, 0x42, 0x42)),
+                    BorderThickness = new Thickness(1),
+                    Margin = new Thickness(0, 0, 0, 12),
+                    Child = matrixGrid,
+                };
+                section.Children.Add(matrixBorder);
+
+                // Quick-edit button
+                var editBtn = new Button
+                {
+                    Content = "⟶  Edit Distribution Groups",
+                    Style = (Style)Application.Current.Resources["MaterialDesignRaisedButton"],
+                    Margin = new Thickness(0, 0, 0, 8),
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    Padding = new Thickness(10, 4, 10, 4),
+                    ToolTip = groupsPath,
+                };
+                editBtn.Click += (s, e) =>
+                {
+                    try { System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{groupsPath}\""); }
+                    catch (Exception ex) { StingLog.Warn($"Open groups file: {ex.Message}"); }
+                };
+                section.Children.Add(editBtn);
+            }
+            catch (Exception ex)
+            {
+                section.Children.Add(new TextBlock
+                {
+                    Text = $"Recipient matrix load error: {ex.Message}",
+                    Foreground = Br(CRed), FontSize = 10, TextWrapping = TextWrapping.Wrap,
+                });
+                StingLog.Warn($"BuildRecipientMatrixSection: {ex.Message}");
+            }
+
+            return section;
         }
 
         // ════════════════════════════════════════════════════════════════
