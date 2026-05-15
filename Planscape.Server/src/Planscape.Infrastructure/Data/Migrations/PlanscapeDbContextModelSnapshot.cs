@@ -201,6 +201,10 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.Property<DateTime>("CreatedAt")
                     .HasColumnType("timestamp with time zone");
 
+                b.Property<DateTime>("UpdatedAt")
+                    .HasDefaultValueSql("now()")
+                    .HasColumnType("timestamp with time zone");
+
                 b.Property<string>("DeviceId")
                     .HasMaxLength(120)
                     .HasColumnType("character varying(120)");
@@ -276,6 +280,8 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.HasIndex("ProjectId", "Status");
 
                 b.HasIndex("ProjectId", "AssigneeUserId");
+
+                b.HasIndex("UpdatedAt");
 
                 b.ToTable("Issues");
             });
