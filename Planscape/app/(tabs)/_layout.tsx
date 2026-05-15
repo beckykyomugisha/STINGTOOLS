@@ -107,6 +107,13 @@ export default function TabLayout() {
           tabBarIcon: ({ focused }) => <TabIcon label="⚙" focused={focused} />,
         }}
       />
+      <Tabs.Screen
+        name="ifc"
+        options={{
+          title: 'IFC',
+          tabBarIcon: ({ focused }) => <TabIcon label="🗄" focused={focused} />,
+        }}
+      />
       {/*
         Phase 94 — issue-detail is routable via router.push('/issue-detail?id=<id>')
         but hidden from the bottom tab bar (`href: null`). Tab bar stays visible

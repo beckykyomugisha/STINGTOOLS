@@ -153,6 +153,63 @@ public class IfcIngestController : ControllerBase
     }
 
     /// <summary>
+    /// GET /api/projects/{projectId}/ifc/cost-report
+    ///
+    /// Returns a summary of IFC-sourced elements grouped by category and
+    /// source. Full cost breakdown (CST_* parameters) requires a re-ingest
+    /// with quantity sets enabled — a descriptive note is included in the
+    /// response when those columns are not yet available.
+    /// </summary>
+    [HttpGet("cost-report")]
+    public async Task<ActionResult> CostReport(Guid projectId, CancellationToken ct)
+    {
+        var tenantId = GetTenantId();
+        var project = await _db.Projects
+            .FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId, ct);
+        if (project == null) return NotFound("Project not found");
+        if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
+
+        // IFC-sourced elements are those where Source is not null.
+        var elements = await _db.TaggedElements
+            .Where(t => t.ProjectId == projectId && t.Source != null)
+            .Select(t => new { t.CategoryName, t.Source })
+            .ToListAsync(ct);
+
+        if (elements.Count == 0)
+        {
+            return Ok(new
+            {
+                totalElements = 0,
+                byCategory    = Array.Empty<object>(),
+                bySource      = Array.Empty<object>(),
+                note          = "No IFC-sourced elements found. Run POST /ifc/ingest first.",
+                generatedAt   = DateTime.UtcNow,
+            });
+        }
+
+        var byCategory = elements
+            .GroupBy(e => e.CategoryName ?? "Unknown")
+            .Select(g => new { category = g.Key, count = g.Count() })
+            .OrderByDescending(x => x.count)
+            .ToList();
+
+        var bySource = elements
+            .GroupBy(e => e.Source ?? "unknown")
+            .Select(g => new { source = g.Key, count = g.Count() })
+            .OrderByDescending(x => x.count)
+            .ToList();
+
+        return Ok(new
+        {
+            totalElements = elements.Count,
+            byCategory,
+            bySource,
+            note        = "Cost breakdown requires CST_* parameter columns — run IFC ingest with quantity sets enabled",
+            generatedAt = DateTime.UtcNow,
+        });
+    }
+
+    /// <summary>
     /// Persist the parsed elements as TaggedElement rows so the rest
     /// of the platform can read IFC properties via existing tag /
     /// search / compliance pipelines. Upserts by (ProjectId, UniqueId)

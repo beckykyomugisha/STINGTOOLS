@@ -186,6 +186,23 @@ export function lookupElement(
   );
 }
 
+/**
+ * IFC / ArchiCAD source filtering — returns tagged elements for a project,
+ * optionally filtered by authoring source. The `source` param maps to the
+ * `X-Source` header written by the plugin sync layer:
+ *   "archicad" | "ifc" | "revit"
+ * Omit `source` (or pass undefined) to return all elements.
+ */
+export function listIfcElements(
+  projectId: string,
+  source?: string,
+): Promise<TaggedElement[]> {
+  const params = new URLSearchParams();
+  if (source) params.set('source', source);
+  const qs = params.toString();
+  return apiFetch(`/api/projects/${projectId}/tagged-elements${qs ? `?${qs}` : ''}`);
+}
+
 // ── Project Members (NEW-MOB-13) ──
 
 /**

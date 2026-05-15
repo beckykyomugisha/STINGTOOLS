@@ -217,6 +217,10 @@ namespace StingTools.Commands.Interop
         private readonly Dictionary<int, int>         _relDefByType = new();
         // element id → predominant material name from IfcMaterialLayerSet
         private readonly Dictionary<int, string>      _predominantMaterial = new();
+        // element id → comma-separated layer composition string e.g. "Brick(150mm), Insulation(50mm)"
+        private readonly Dictionary<int, string>      _layerComposition    = new();
+        // element/space id → zone name from IfcZone (via IfcRelAssignsToGroup)
+        private readonly Dictionary<int, string>      _zoneAssignment      = new();
         /// <summary>True if any IfcElementQuantity entities were found in the file.</summary>
         public bool HasQuantitySets { get; private set; }
 
@@ -272,6 +276,7 @@ namespace StingTools.Commands.Interop
             ResolveRelDefinesByType();
             ResolveRelAssociatesMaterial();
             ResolveRelContainedInSpatialStructure();
+            ResolveZoneAssignments();
             ResolveElements();
             MergePropertiesIntoElements();
             MergeMaterialLayerProperties();
@@ -475,6 +480,7 @@ namespace StingTools.Commands.Interop
                     // IfcMaterialLayerSet: arg 0 = MaterialLayers (LIST of IfcMaterialLayer)
                     double maxThick = -1;
                     string matName = "";
+                    var layerParts = new List<string>();
                     foreach (int layRef in ExtractRefList(layerSet.Raw, 0))
                     {
                         if (!_e.TryGetValue(layRef, out var layer) || layer.Type != "IFCMATERIALLAYER") continue;
@@ -484,16 +490,30 @@ namespace StingTools.Commands.Interop
                         if (thickParts.Count > 1)
                             double.TryParse(thickParts[1].Trim(), NumberStyles.Float,
                                 CultureInfo.InvariantCulture, out thick);
+                        string layerMatName = "";
+                        if (_e.TryGetValue(matRef, out var mat))
+                            layerMatName = ExtractString(mat.Raw, 0); // IfcMaterial.Name = arg 0
+                        if (!string.IsNullOrEmpty(layerMatName))
+                        {
+                            // thickness is in IFC length units; convert to mm for the label
+                            double thickMm = thick * UnitScale * 1000.0;
+                            layerParts.Add($"{layerMatName}({(int)Math.Round(thickMm)}mm)");
+                        }
                         if (thick > maxThick)
                         {
                             maxThick = thick;
-                            if (_e.TryGetValue(matRef, out var mat))
-                                matName = ExtractString(mat.Raw, 0); // IfcMaterial.Name = arg 0
+                            matName = layerMatName;
                         }
                     }
                     if (!string.IsNullOrEmpty(matName))
                         foreach (int eid in elemRefs)
                             _predominantMaterial[eid] = matName;
+                    if (layerParts.Count > 0)
+                    {
+                        string composition = string.Join(", ", layerParts);
+                        foreach (int eid in elemRefs)
+                            _layerComposition[eid] = composition;
+                    }
                 }
             }
             catch (Exception ex) { StingLog.Warn("ResolveRelAssociatesMaterial: " + ex.Message); }
@@ -508,6 +528,24 @@ namespace StingTools.Commands.Interop
                 foreach (int eid in elemRefs)
                     _relContain[eid] = spatialRef;
             }
+        }
+
+        private void ResolveZoneAssignments()
+        {
+            try
+            {
+                foreach (var e in _e.Values.Where(e => e.Type == "IFCRELASSIGNSTOGROUP"))
+                {
+                    int groupRef = ExtractRef(e.Raw, 6); // arg 6 = RelatingGroup
+                    if (!_e.TryGetValue(groupRef, out var group) || group.Type != "IFCZONE") continue;
+                    // IfcZone inherits IfcRoot: arg 0=GlobalId, arg 1=OwnerHistory, arg 2=Name
+                    string zoneName = ExtractString(group.Raw, 2);
+                    if (string.IsNullOrEmpty(zoneName)) continue;
+                    foreach (int objId in ExtractRefList(e.Raw, 4)) // arg 4 = RelatedObjects
+                        _zoneAssignment[objId] = zoneName;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn("ResolveZoneAssignments: " + ex.Message); }
         }
 
         // ── Elements (geometry extraction) ────────────────────────────────────
@@ -958,9 +996,18 @@ namespace StingTools.Commands.Interop
         {
             foreach (var el in Elements)
             {
-                if (!_predominantMaterial.TryGetValue(el.Id, out string? matName)) continue;
-                // Store as a synthetic property so the property mapper can write it
-                el.Properties["IfcMaterialLayer.PredominantMaterial"] = matName;
+                if (_predominantMaterial.TryGetValue(el.Id, out string? matName)
+                    && !string.IsNullOrEmpty(matName))
+                    // Store as a synthetic property so the property mapper can write it
+                    el.Properties["IfcMaterialLayer.PredominantMaterial"] = matName;
+
+                if (_layerComposition.TryGetValue(el.Id, out string? composition)
+                    && !string.IsNullOrEmpty(composition))
+                    el.Properties["IfcMaterialLayer.LayerComposition"] = composition;
+
+                if (_zoneAssignment.TryGetValue(el.Id, out string? zoneName)
+                    && !string.IsNullOrEmpty(zoneName))
+                    el.Properties["IfcZone.Name"] = zoneName;
             }
         }
 
@@ -1662,17 +1709,39 @@ namespace StingTools.Commands.Interop
         // Change 6: write predominant material layer to a STING parameter
         private static void ApplyMaterialLayer(Element revitEl, AcIfcElement src)
         {
-            if (!src.Properties.TryGetValue("IfcMaterialLayer.PredominantMaterial", out string? matName)
-                || string.IsNullOrEmpty(matName)) return;
             try
             {
-                // Try STING-specific parameters first, then fall back
-                var p = revitEl.LookupParameter("STING_MATERIAL_TXT")
-                     ?? revitEl.LookupParameter("MAT_FINISH_TXT")
-                     ?? revitEl.LookupParameter("ASS_SYSTEM_TYPE_TXT");
-                if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String
-                    && string.IsNullOrEmpty(p.AsString()))
-                    p.Set(matName);
+                // Write predominant material
+                if (src.Properties.TryGetValue("IfcMaterialLayer.PredominantMaterial", out string? matName)
+                    && !string.IsNullOrEmpty(matName))
+                {
+                    var p = revitEl.LookupParameter("STING_MATERIAL_TXT")
+                         ?? revitEl.LookupParameter("MAT_FINISH_TXT")
+                         ?? revitEl.LookupParameter("ASS_SYSTEM_TYPE_TXT");
+                    if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String
+                        && string.IsNullOrEmpty(p.AsString()))
+                        p.Set(matName);
+                }
+
+                // Write full layer composition string
+                if (src.Properties.TryGetValue("IfcMaterialLayer.LayerComposition", out string? composition)
+                    && !string.IsNullOrEmpty(composition))
+                {
+                    var pc = revitEl.LookupParameter("MAT_LAYER_COMPOSITION_TXT");
+                    if (pc != null && !pc.IsReadOnly && pc.StorageType == StorageType.String
+                        && string.IsNullOrEmpty(pc.AsString()))
+                        pc.Set(composition);
+                }
+
+                // Write zone name to ASS_ZONE_TXT if empty
+                if (src.Properties.TryGetValue("IfcZone.Name", out string? zoneName)
+                    && !string.IsNullOrEmpty(zoneName))
+                {
+                    var pz = revitEl.LookupParameter("ASS_ZONE_TXT");
+                    if (pz != null && !pz.IsReadOnly && pz.StorageType == StorageType.String
+                        && string.IsNullOrEmpty(pz.AsString()))
+                        pz.Set(zoneName);
+                }
             }
             catch (Exception ex) { StingLog.Warn("ApplyMaterialLayer: " + ex.Message); }
         }
