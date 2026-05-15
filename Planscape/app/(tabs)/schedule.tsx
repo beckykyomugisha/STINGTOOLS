@@ -152,6 +152,16 @@ export default function ScheduleScreen() {
     );
   }
 
+  if (status && !status.isConfigured) {
+    return (
+      <View style={styles.centred}>
+        <Text style={styles.notConfiguredText}>
+          P6 live link is not configured — contact your BIM manager.
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <FlatList
       refreshControl={
@@ -202,6 +212,12 @@ const styles = StyleSheet.create({
     color: theme.colors.danger,
     textAlign: 'center',
     fontSize: 14,
+  },
+  notConfiguredText: {
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    fontSize: 14,
+    paddingHorizontal: 24,
   },
   listContainer: {
     backgroundColor: theme.colors.background,

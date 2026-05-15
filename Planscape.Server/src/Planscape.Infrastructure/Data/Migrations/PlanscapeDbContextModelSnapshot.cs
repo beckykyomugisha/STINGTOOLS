@@ -256,6 +256,9 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.Property<DateTime?>("ResolvedAt")
                     .HasColumnType("timestamp with time zone");
 
+                b.Property<string>("ResolvedBy")
+                    .HasColumnType("text");
+
                 b.Property<string>("Revision")
                     .HasColumnType("text");
 

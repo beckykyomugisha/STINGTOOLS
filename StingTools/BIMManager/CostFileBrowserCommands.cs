@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.IO;
 using System.Linq;
@@ -33,7 +34,6 @@ namespace StingTools.BIMManager
                     return Result.Cancelled;
                 }
 
-                // Show current override (if any)
                 string? currentOverridePath = LoadOverridePath(doc);
                 string currentInfo = currentOverridePath != null
                     ? $"Current override:\n{currentOverridePath}\n\n"
@@ -60,13 +60,12 @@ namespace StingTools.BIMManager
                     return Result.Succeeded;
                 }
 
-                // Open file dialog
                 var ofd = new OpenFileDialog
                 {
-                    Title             = "Select Cost Rate CSV",
-                    Filter            = "CSV files (*.csv)|*.csv|All files (*.*)|*.*",
-                    CheckFileExists   = true,
-                    Multiselect       = false,
+                    Title           = "Select Cost Rate CSV",
+                    Filter          = "CSV files (*.csv)|*.csv|All files (*.*)|*.*",
+                    CheckFileExists = true,
+                    Multiselect     = false,
                 };
                 if (currentOverridePath != null && File.Exists(currentOverridePath))
                     ofd.InitialDirectory = Path.GetDirectoryName(currentOverridePath);
@@ -76,7 +75,6 @@ namespace StingTools.BIMManager
 
                 string chosenPath = ofd.FileName;
 
-                // Validate CSV headers
                 string? validationError = ValidateCsvHeaders(chosenPath);
                 if (validationError != null)
                 {
@@ -87,7 +85,6 @@ namespace StingTools.BIMManager
                     return Result.Failed;
                 }
 
-                // Save override
                 SaveOverride(doc, chosenPath);
 
                 StingLog.Info($"CostFileBrowser: override set to '{chosenPath}'");
@@ -108,7 +105,6 @@ namespace StingTools.BIMManager
 
         // ── Helpers ──────────────────────────────────────────────────────────
 
-        /// <summary>Validates that the CSV file has at least MAT_CODE, RATE, and UNIT columns.</summary>
         private static string? ValidateCsvHeaders(string path)
         {
             try
@@ -135,7 +131,6 @@ namespace StingTools.BIMManager
             }
         }
 
-        /// <summary>Returns the override path from the project's _BIM_COORD folder, or null.</summary>
         public static string? LoadOverridePath(Document doc)
         {
             string overrideFile = GetOverrideFilePath(doc);
@@ -159,7 +154,7 @@ namespace StingTools.BIMManager
                 path    = csvPath,
                 updated = DateTime.UtcNow.ToString("O"),
             };
-            File.WriteAllText(overrideFile, JsonConvert.SerializeObject(payload, Formatting.Indented));
+            File.WriteAllText(overrideFile, JsonConvert.SerializeObject(payload, Newtonsoft.Json.Formatting.Indented));
         }
 
         private static void ClearOverride(Document doc)
@@ -171,7 +166,7 @@ namespace StingTools.BIMManager
 
         private static string GetOverrideFilePath(Document doc)
         {
-            string projDir = OutputLocationHelper.GetBimCoordDirectory(doc);
+            string projDir = OutputLocationHelper.GetOutputDirectory(doc);
             return Path.Combine(projDir, "cost_rates_override.json");
         }
     }

@@ -412,6 +412,11 @@ public class IssuesController : ControllerBase
             if (req.Status is "RESOLVED" or "CLOSED")
                 issue.ResolvedAt = DateTime.UtcNow;
         }
+        if (req.ResolvedBy != null && req.ResolvedBy != issue.ResolvedBy)
+        {
+            diff["ResolvedBy"] = new { from = issue.ResolvedBy, to = req.ResolvedBy };
+            issue.ResolvedBy = req.ResolvedBy;
+        }
         if (req.Priority != null && req.Priority != issue.Priority)
         {
             diff["Priority"] = new { from = issue.Priority, to = req.Priority };
@@ -1096,5 +1101,8 @@ public record UpdateIssueRequest(
     string? Description,
     // ── Additive fields below this line ───────────────────────────────────
     // Replace the watcher list (null = leave unchanged; empty array = clear).
-    Guid[]? WatcherUserIds);
+    Guid[]? WatcherUserIds,
+    // Who resolved the issue (display name or system identifier).
+    // Null = leave unchanged.
+    string? ResolvedBy);
 public record LinkAttachmentRequest(Guid DocumentId);
