@@ -25,7 +25,9 @@ class BridgeConfig:
 
     # Behaviour
     write_back_to_archicad: bool = True
-    watch_interval_s: int = 300     # seconds between syncs in watch mode
+    verify_write_back: bool = True   # re-read AC after write to confirm
+    watch_interval_s: int = 300      # seconds between syncs in watch mode
+    ifc_drop_dir: str = ""           # folder to watch for IFC files
 
     @classmethod
     def from_env(cls) -> "BridgeConfig":
@@ -38,5 +40,7 @@ class BridgeConfig:
             planscape_password=os.getenv("STING_PLANSCAPE_PASSWORD", ""),
             planscape_project_id=os.getenv("STING_PLANSCAPE_PROJECT_ID", ""),
             write_back_to_archicad=os.getenv("STING_WRITE_BACK", "1") not in ("0", "false", "no"),
+            verify_write_back=os.getenv("STING_VERIFY_WRITE_BACK", "1") not in ("0", "false", "no"),
             watch_interval_s=int(os.getenv("STING_WATCH_INTERVAL", "300")),
+            ifc_drop_dir=os.getenv("STING_IFC_DROP_DIR", ""),
         )

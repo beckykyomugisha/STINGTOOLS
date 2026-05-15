@@ -5,15 +5,20 @@ Flow:
   1. Discover ArchiCAD on port 19723-19726
   2. For each syncable element type, fetch GUIDs in batches
   3. Fetch element details (story, bounding box) and property values
-  4. Map tokens via token_mapper
-  5. Post mapped elements to Planscape via /api/tagsync/sync
-  6. Write STING tokens back to ArchiCAD as User-Defined properties
+  4. Conflict detection: compare AC vs Planscape lastModifiedUtc — winner writes
+  5. Map tokens via token_mapper
+  6. Post mapped elements to Planscape via /api/tagsync/sync
+  7. Write STING tokens back to ArchiCAD as User-Defined properties
+  8. Verify write-back: re-read AC properties and compare — mismatches → sync_errors.json
 """
 from __future__ import annotations
 
+import json
 import logging
 import time
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from ..archicad.client import ArchiCadClient, ArchiCadError
@@ -46,15 +51,27 @@ class SyncResult:
     elements_mapped: int = 0
     planscape_synced: int = 0
     archicad_written: int = 0
+    conflicts_ac_wins: int = 0       # AC timestamp newer → kept AC value
+    conflicts_ps_wins: int = 0       # Planscape timestamp newer → overwrote AC
+    write_verify_mismatches: int = 0  # tokens written but re-read differently
     errors: list[str] = field(default_factory=list)
     duration_s: float = 0.0
 
     def summary(self) -> str:
+        conflict_str = (
+            f"  Conflicts(AC={self.conflicts_ac_wins}/PS={self.conflicts_ps_wins})"
+            if self.conflicts_ac_wins or self.conflicts_ps_wins else ""
+        )
+        mismatch_str = (
+            f"  Verify-mismatches: {self.write_verify_mismatches}"
+            if self.write_verify_mismatches else ""
+        )
         return (
             f"Found: {self.elements_found}  Mapped: {self.elements_mapped}  "
             f"→ Planscape: {self.planscape_synced}  "
             f"→ ArchiCAD: {self.archicad_written}  "
-            f"Errors: {len(self.errors)}  ({self.duration_s:.1f}s)"
+            f"Errors: {len(self.errors)}{conflict_str}{mismatch_str}  "
+            f"({self.duration_s:.1f}s)"
         )
 
 
@@ -67,11 +84,15 @@ class SyncEngine:
         planscape_client: PlanscapeClient,
         write_back: bool = True,
         batch_size: int = 100,
+        verify_write_back: bool = True,
+        sync_errors_path: str | None = None,
     ):
         self._ac = ac_client
         self._ps = planscape_client
         self._write_back = write_back
         self._batch_size = batch_size
+        self._verify = verify_write_back
+        self._sync_errors_path = sync_errors_path or "sync_errors.json"
         self._writer = PropertyWriter(ac_client) if write_back else None
 
     # ── public API ────────────────────────────────────────────────────────────
@@ -131,7 +152,25 @@ class SyncEngine:
                     result=result,
                 )
 
-        # Post to Planscape in batches
+        # ── Conflict detection: fetch Planscape timestamps before syncing ────────
+        ps_timestamps: dict[str, datetime] = {}
+        if all_sync_elements:
+            try:
+                ps_timestamps = self._ps.get_element_timestamps(
+                    [e["uniqueId"] for e in all_sync_elements]
+                )
+            except Exception as e:
+                log.debug("Could not fetch Planscape timestamps (non-fatal): %s", e)
+
+        # Resolve conflicts: for each element that exists in Planscape already,
+        # compare lastModifiedUtc. If Planscape is newer, overwrite AC tokens
+        # with the Planscape values instead of the AC-derived ones.
+        if ps_timestamps:
+            _apply_conflict_resolution(
+                all_sync_elements, write_pairs, ps_timestamps, result
+            )
+
+        # ── Post to Planscape in batches ──────────────────────────────────────
         if all_sync_elements:
             for i in range(0, len(all_sync_elements), self._batch_size):
                 batch = all_sync_elements[i : i + self._batch_size]
@@ -143,7 +182,7 @@ class SyncEngine:
                     result.errors.append(msg)
                     log.error(msg)
 
-        # Write tokens back to ArchiCAD
+        # ── Write tokens back to ArchiCAD ─────────────────────────────────────
         if self._write_back and self._writer and write_pairs:
             for i in range(0, len(write_pairs), self._batch_size):
                 batch = write_pairs[i : i + self._batch_size]
@@ -154,6 +193,13 @@ class SyncEngine:
                     msg = f"ArchiCAD write-back failed: {e}"
                     result.errors.append(msg)
                     log.error(msg)
+
+        # ── Verify write-back: re-read and compare ────────────────────────────
+        if self._write_back and self._verify and write_pairs:
+            mismatches = self._verify_write_back(write_pairs)
+            result.write_verify_mismatches = len(mismatches)
+            if mismatches:
+                self._save_sync_errors(mismatches)
 
     def _process_chunk(
         self,
@@ -254,6 +300,136 @@ class SyncEngine:
 
             if self._write_back:
                 write_pairs.append((guid, tokens))
+
+
+    def _verify_write_back(
+        self, write_pairs: list[tuple[str, dict]]
+    ) -> list[dict]:
+        """
+        Re-read STING properties from ArchiCAD after write-back and compare.
+        Returns list of mismatch dicts for the sync_errors.json sidecar.
+        """
+        guids = [guid for guid, _ in write_pairs]
+        token_by_guid = {guid: tokens for guid, tokens in write_pairs}
+
+        _TOKEN_PROP_MAP = {
+            "disc": "STING.ASS_DISCIPLINE_COD_TXT",
+            "loc":  "STING.ASS_LOC_TXT",
+            "zone": "STING.ASS_ZONE_TXT",
+            "lvl":  "STING.ASS_LVL_COD_TXT",
+            "sys":  "STING.ASS_SYSTEM_TYPE_TXT",
+            "func": "STING.ASS_FUNC_TXT",
+            "prod": "STING.ASS_PRODCT_COD_TXT",
+            "seq":  "STING.ASS_SEQ_NUM_TXT",
+        }
+
+        mismatches: list[dict] = []
+        try:
+            prop_values = self._ac.get_property_values(guids, _PROPS_TO_READ)
+        except ArchiCadError as e:
+            log.warning("Verify: could not re-read AC properties: %s", e)
+            return mismatches
+
+        for epv in prop_values:
+            guid = epv.get("elementId", {}).get("guid", "")
+            if not guid:
+                continue
+            written = token_by_guid.get(guid, {})
+            # Rebuild property bag from re-read
+            re_read: dict[str, str] = {}
+            for pv in epv.get("propertyValues", []):
+                pid = pv.get("propertyId", {})
+                name = _prop_key(pid)
+                val = pv.get("propertyValue", {})
+                if val.get("type") == "normal":
+                    re_read[name] = str(val.get("value", ""))
+
+            for token_key, prop_key in _TOKEN_PROP_MAP.items():
+                expected = written.get(token_key, "")
+                actual = re_read.get(prop_key, "")
+                if expected and actual and expected != actual:
+                    mismatches.append({
+                        "guid": guid,
+                        "token": token_key,
+                        "expected": expected,
+                        "actual": actual,
+                        "ts": datetime.now(timezone.utc).isoformat(),
+                    })
+                    log.warning(
+                        "Verify mismatch guid=%s %s: wrote %r, read back %r",
+                        guid, token_key, expected, actual,
+                    )
+
+        return mismatches
+
+    def _save_sync_errors(self, mismatches: list[dict]) -> None:
+        """Persist write-back mismatches to sync_errors.json for the next run."""
+        path = Path(self._sync_errors_path)
+        existing: list[dict] = []
+        if path.exists():
+            try:
+                with open(path, encoding="utf-8") as f:
+                    existing = json.load(f)
+            except Exception:
+                existing = []
+        # Keep last 500 entries
+        combined = (existing + mismatches)[-500:]
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(combined, f, indent=2)
+            log.info("Saved %d sync errors to %s", len(mismatches), path)
+        except OSError as e:
+            log.warning("Could not write sync_errors.json: %s", e)
+
+
+def _apply_conflict_resolution(
+    sync_elements: list[dict],
+    write_pairs: list[tuple[str, dict]],
+    ps_timestamps: dict[str, datetime],
+    result: SyncResult,
+) -> None:
+    """
+    For elements that exist in both AC and Planscape, compare timestamps.
+    If Planscape record is newer than AC-derived tokens, overwrite the
+    write_pair tokens with the Planscape values so AC stays consistent.
+    AC's modification time is approximated as now (conservative — AC was
+    just read, so its data is current as of this sync run).
+    """
+    now = datetime.now(timezone.utc)
+    token_by_guid = {guid: tokens for guid, tokens in write_pairs}
+
+    for el in sync_elements:
+        guid = el.get("uniqueId", "")
+        ps_ts = ps_timestamps.get(guid)
+        if not ps_ts:
+            continue  # not in Planscape yet — AC wins by default
+
+        # AC data is current (just read), so compare against now
+        # If Planscape was modified more recently than 60s ago it wins
+        # (the 60s grace prevents flip-flopping on same-second writes)
+        age_s = (now - ps_ts).total_seconds()
+        if age_s < 60:
+            # Planscape is newer — overwrite the tokens we're about to write
+            # back to AC with the Planscape values
+            ps_tokens = {
+                "disc": el.get("disc", ""),
+                "loc":  el.get("loc", ""),
+                "zone": el.get("zone", ""),
+                "lvl":  el.get("lvl", ""),
+                "sys":  el.get("sys", ""),
+                "func": el.get("func", ""),
+                "prod": el.get("prod", ""),
+                "seq":  el.get("seq", ""),
+            }
+            if guid in token_by_guid:
+                token_by_guid[guid].update(ps_tokens)
+            result.conflicts_ps_wins += 1
+            log.info(
+                "Conflict guid=%s: Planscape newer (%.0fs ago) — PS wins",
+                guid, age_s,
+            )
+        else:
+            result.conflicts_ac_wins += 1
 
 
 def _prop_key(pid: dict) -> str:

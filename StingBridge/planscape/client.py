@@ -96,6 +96,53 @@ class PlanscapeClient:
         resp.raise_for_status()
         return resp.json()
 
+    def get_element_timestamps(self, guids: list[str]) -> dict[str, datetime]:
+        """
+        Fetch lastModifiedUtc for a list of element GUIDs from Planscape.
+        Returns {guid: datetime} for elements that exist in the project.
+        Falls back gracefully — returns {} on any error.
+        """
+        if not self._token or not self.project_id or not guids:
+            return {}
+        try:
+            resp = self._session.post(
+                f"{self.base_url}/api/projects/{self.project_id}/tagsync/timestamps",
+                json={"guids": guids},
+                timeout=_TIMEOUT,
+            )
+            if resp.status_code == 404:
+                # Endpoint not yet deployed — silently skip conflict detection
+                return {}
+            resp.raise_for_status()
+            raw: dict[str, str] = resp.json()
+            result: dict[str, datetime] = {}
+            for guid, ts_str in raw.items():
+                try:
+                    result[guid] = datetime.fromisoformat(
+                        ts_str.replace("Z", "+00:00")
+                    )
+                except (ValueError, TypeError):
+                    pass
+            return result
+        except Exception as e:
+            log.debug("get_element_timestamps failed (non-fatal): %s", e)
+            return {}
+
+    def upload_model(self, project_id: str, glb_path) -> dict:
+        """Upload a GLB file to Planscape /api/projects/{id}/models."""
+        import mimetypes
+        from pathlib import Path
+        path = Path(glb_path)
+        mime = mimetypes.guess_type(str(path))[0] or "model/gltf-binary"
+        with open(path, "rb") as f:
+            resp = self._session.post(
+                f"{self.base_url}/api/projects/{project_id}/models",
+                files={"file": (path.name, f, mime)},
+                timeout=120,
+            )
+        resp.raise_for_status()
+        return resp.json()
+
     def get_compliance(self) -> dict:
         """GET latest compliance snapshot for the project."""
         resp = self._session.get(
