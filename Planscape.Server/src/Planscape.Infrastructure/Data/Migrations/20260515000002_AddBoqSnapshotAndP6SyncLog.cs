@@ -101,6 +101,18 @@ public partial class AddBoqSnapshotAndP6SyncLog : Migration
             type: "double precision",
             nullable: true);
 
+        migrationBuilder.AddColumn<string>(
+            name: "ActualStart",
+            table: "TaggedElements",
+            type: "text",
+            nullable: true);
+
+        migrationBuilder.AddColumn<string>(
+            name: "ActualFinish",
+            table: "TaggedElements",
+            type: "text",
+            nullable: true);
+
         migrationBuilder.CreateIndex(
             name: "IX_TaggedElements_P6ActivityId",
             table: "TaggedElements",
@@ -114,13 +126,10 @@ public partial class AddBoqSnapshotAndP6SyncLog : Migration
             name: "IX_TaggedElements_P6ActivityId",
             table: "TaggedElements");
 
-        migrationBuilder.DropColumn(
-            name: "P6ActivityId",
-            table: "TaggedElements");
-
-        migrationBuilder.DropColumn(
-            name: "PercentComplete",
-            table: "TaggedElements");
+        migrationBuilder.DropColumn(name: "ActualStart",      table: "TaggedElements");
+        migrationBuilder.DropColumn(name: "ActualFinish",     table: "TaggedElements");
+        migrationBuilder.DropColumn(name: "P6ActivityId",     table: "TaggedElements");
+        migrationBuilder.DropColumn(name: "PercentComplete",  table: "TaggedElements");
 
         migrationBuilder.DropTable(name: "P6SyncLogs");
         migrationBuilder.DropTable(name: "BoqSnapshots");

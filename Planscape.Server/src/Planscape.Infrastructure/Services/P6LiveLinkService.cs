@@ -151,10 +151,13 @@ public class P6LiveLinkService
                 return log;
             }
 
-            // Build lookup: P6ActivityId → % complete
-            var pctByActivity = activities
+            // Build lookup: P6ActivityId → (PercentComplete, ActualStart, ActualFinish)
+            var activityData = activities
                 .Where(a => a.ActivityId != null)
-                .ToDictionary(a => a.ActivityId!, a => a.PercentComplete);
+                .ToDictionary(
+                    a => a.ActivityId!,
+                    a => (Pct: a.PercentComplete, Start: a.ActualStartDate, Finish: a.ActualFinishDate));
+
 
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
@@ -178,20 +181,22 @@ public class P6LiveLinkService
             foreach (var el in elements)
             {
                 if (el.P6ActivityId == null) continue;
-                if (!pctByActivity.TryGetValue(el.P6ActivityId, out double pct)) continue;
+                if (!activityData.TryGetValue(el.P6ActivityId, out var data)) continue;
 
-                double previous = el.PercentComplete;
-                el.PercentComplete = pct;
+                double previous    = el.PercentComplete ?? 0.0;
+                el.PercentComplete = data.Pct;
+                if (data.Start  != null) el.ActualStart  = data.Start;
+                if (data.Finish != null) el.ActualFinish = data.Finish;
                 updated++;
 
                 // Detect completion (reached 100%)
-                if (previous < 100.0 && pct >= 100.0)
+                if (previous < 100.0 && data.Pct >= 100.0)
                     justCompleted.Add(el);
 
                 // Detect milestone crossings (25%, 50%, 75%, 100%)
                 foreach (var threshold in MilestoneThresholds)
                 {
-                    if (previous < threshold && pct >= threshold)
+                    if (previous < threshold && data.Pct >= threshold)
                         milestoneCrossed.Add((el, threshold));
                 }
             }
