@@ -652,6 +652,7 @@ namespace StingTools.UI
                     case "SetTagCatLineWeight": RunCommand<Tags.SetTagCategoryLineWeightCommand>(app); break;
                     case "Tag3D": RunCommand<Tags.Tag3DCommand>(app); break;
                     case "RepairDuplicateSeq": RunCommand<Tags.RepairDuplicateSeqCommand>(app); break;
+                    case "Tags_MigrateStyleCode": RunCommand<Tags.MigrateTagStyleCodeCommand>(app); break;
 
                     // ── Rich TAG7 display ──
                     case "RichTagNote": RunCommand<Tags.RichTagNoteCommand>(app); break;

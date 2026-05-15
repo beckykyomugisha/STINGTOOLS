@@ -1564,6 +1564,7 @@ PARAM	d2e3f4a5-b6c7-4d8e-9f0a-1b2c3d4e5f6b	STING_CLUSTER_LABEL	TEXT		17	1	Cluste
 PARAM	a1b2c3d4-5032-4a01-b001-000000000150	STING_CLUSTER_MEMBER_POS_TXT	TEXT		17	1	Cluster member bounding box centers (pipe-delimited)	1
 PARAM	d0e1f2a3-b4c5-4d6e-8f7a-8b9c0d1e2f3a	STING_DISPLAY_MODE	INTEGER		17	1	Display mode (1=SEQ, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ, 5=Full)	1
 PARAM	e1f2a3b4-c5d6-4e7f-8a9b-0c1d2e3f4a5b	STING_TAG_POS	INTEGER		17	1	Tag position (1-16 compass positions)	1
+PARAM	d4e5f6a7-b8c9-4d0e-af12-345678901bcd	TAG_STYLE_CODE_TXT	TEXT		17	1	TAG-01: Single tag style code replaces 128 BOOL params (e.g. 2BOLD_BLUE). Backwards-compatible with BOOL matrix.	1
 PARAM	e2f3a4b5-c6d7-4e8f-9a0b-1c2d3e4f5a6c	STING_VIEW_TAG_STYLE	TEXT		17	1	View-level tag style routing (Discipline/Monochrome/Warm/Cool)	1
 PARAM	f3a4b5c6-d7e8-4f9a-0b1c-2d3e4f5a6b7d	TAG_SEG_MASK_TXT	TEXT		17	1	Token segment visibility mask (8-char format e.g. 10110101)	1
 PARAM	a1b2c3d4-5033-4a01-b001-000000000151	TAG_STYLE_SIZE_INT	INTEGER		17	1	Tag text size index (2/2.5/3/3.5)	1
