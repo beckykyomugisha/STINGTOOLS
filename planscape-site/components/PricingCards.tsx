@@ -98,6 +98,27 @@ const plans: Plan[] = [
   },
 ];
 
+const pluginPlan: Plan = {
+  name: 'StingTools Plugin',
+  price: '$15',
+  priceUnit: '/firm/month',
+  subtext: 'The full Revit plugin, locally. No cloud, no subscription platform needed.',
+  features: [
+    { text: 'Full Revit 2025/2026/2027 plugin', included: true },
+    { text: 'ISO 19650 tagging suite', included: true },
+    { text: 'IFC 4 export + property sets', included: true },
+    { text: 'Drawing automation & sheet manager', included: true },
+    { text: 'Unlimited Revit users (local)', included: true },
+    { text: 'No internet required', included: true },
+    { text: 'Cloud sync', included: false },
+    { text: 'Mobile app', included: false },
+    { text: 'Multi-user collaboration', included: false },
+  ],
+  cta: 'Start 30-Day Trial',
+  ctaSub: 'No credit card required',
+  ctaStyle: 'outline',
+};
+
 export default function PricingCards() {
   return (
     <section id="pricing" className="bg-white px-6 py-24">
@@ -116,11 +137,67 @@ export default function PricingCards() {
             Simple, transparent pricing
           </h2>
           <p className="mt-2 text-lg text-muted">
-            Start free. Scale as your team grows.
+            Plugin only, or plugin + cloud. You choose.
           </p>
         </motion.div>
 
-        <div className="mt-16 grid grid-cols-1 gap-6 lg:grid-cols-4 lg:gap-8">
+        {/* StingTools Plugin — standalone option */}
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-60px' }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+          className="mt-14"
+        >
+          <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted">
+            Plugin only — no cloud required
+          </p>
+          <div className="relative flex flex-col rounded-2xl border border-slate-200 bg-slate-50 p-8 lg:flex-row lg:items-center lg:gap-12">
+            <div className="lg:w-64">
+              <h3 className="text-xl font-bold text-navy">{pluginPlan.name}</h3>
+              <div className="mt-3 flex items-baseline gap-1">
+                <span className="text-5xl font-extrabold text-navy">{pluginPlan.price}</span>
+                <span className="text-base text-muted">{pluginPlan.priceUnit}</span>
+              </div>
+              <p className="mt-2 text-sm text-slate-600">{pluginPlan.subtext}</p>
+              <a
+                href="#"
+                className="mt-6 block rounded-lg border border-navy px-5 py-3 text-center text-sm font-semibold text-navy transition-colors hover:bg-navy hover:text-white"
+              >
+                {pluginPlan.cta}
+              </a>
+              {pluginPlan.ctaSub && (
+                <p className="mt-2 text-center text-xs text-muted">{pluginPlan.ctaSub}</p>
+              )}
+            </div>
+            <div className="mt-6 border-t border-slate-200 pt-6 lg:mt-0 lg:flex-1 lg:border-l lg:border-t-0 lg:pl-12 lg:pt-0">
+              <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {pluginPlan.features.map((f) => (
+                  <li
+                    key={f.text}
+                    className={`flex items-center gap-2 text-sm ${
+                      f.included ? 'text-slate-700' : 'text-slate-400 line-through'
+                    }`}
+                  >
+                    {f.included ? (
+                      <Check size={15} className="shrink-0 text-success" />
+                    ) : (
+                      <X size={15} className="shrink-0 text-slate-300" />
+                    )}
+                    {f.text}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Planscape Cloud plans */}
+        <div className="mt-10">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted">
+            Plugin + cloud — team collaboration
+          </p>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-4 lg:gap-8">
           {plans.map((p, i) => {
             const isPro = p.highlighted;
             return (
@@ -202,6 +279,7 @@ export default function PricingCards() {
               </motion.div>
             );
           })}
+          </div>
         </div>
 
         <p className="mx-auto mt-8 max-w-2xl text-center text-sm text-muted">

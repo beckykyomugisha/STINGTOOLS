@@ -117,16 +117,18 @@ public enum MimTier
 /// </summary>
 public enum BillingPlan
 {
-    /// <summary>Free 30-day trial; converts to Small on expiry unless cancelled.</summary>
+    /// <summary>Free 30-day trial; converts to PluginOnly on expiry unless cancelled.</summary>
     Trial = 0,
-    /// <summary>$35/mo — up to 6 users (1 author + 5 coordinators) · 5 projects · 10 GB</summary>
-    Studio = 1,
-    /// <summary>$55/mo — up to 12 users (1 author + 11 coordinators) · 10 projects · 25 GB</summary>
-    Practice = 2,
-    /// <summary>$90/mo — up to 20 users (1 author + 19 coordinators) · unlimited projects · 50 GB</summary>
-    Network = 3,
+    /// <summary>$15/mo — Revit plugin only, local storage, no cloud sync.</summary>
+    PluginOnly = 1,
+    /// <summary>$35/mo — plugin + cloud · up to 6 users · 5 projects · 10 GB</summary>
+    Studio = 2,
+    /// <summary>$55/mo — plugin + cloud · up to 12 users · 10 projects · 25 GB</summary>
+    Practice = 3,
+    /// <summary>$90/mo — plugin + cloud · up to 20 users · unlimited projects · 50 GB</summary>
+    Network = 4,
     /// <summary>Custom — unlimited seats + projects; SSO · SLA · on-prem option</summary>
-    Enterprise = 4,
+    Enterprise = 5,
 }
 
 public enum BillingCycle
@@ -146,7 +148,8 @@ public static class BillingPlanLimits
 
     public static Limits For(BillingPlan plan) => plan switch
     {
-        BillingPlan.Trial      => new Limits(1,  5,           3,          10_000,      0m),
+        BillingPlan.Trial      => new Limits(1,  0,           1,           5_000,      0m),
+        BillingPlan.PluginOnly => new Limits(1,  0, int.MaxValue,               0,     15m),
         BillingPlan.Studio     => new Limits(1,  5,           5,          10_000,      35m),
         BillingPlan.Practice   => new Limits(1, 11,          10,          25_000,      55m),
         BillingPlan.Network    => new Limits(1, 19, int.MaxValue,          50_000,      90m),
@@ -157,7 +160,7 @@ public static class BillingPlanLimits
     /// <summary>Map a legacy LicenseTier onto the new BillingPlan for migrations.</summary>
     public static BillingPlan FromLegacyTier(LicenseTier tier) => tier switch
     {
-        LicenseTier.Starter      => BillingPlan.Trial,
+        LicenseTier.Starter      => BillingPlan.PluginOnly,
         LicenseTier.Professional => BillingPlan.Studio,
         LicenseTier.Premium      => BillingPlan.Practice,
         LicenseTier.Enterprise   => BillingPlan.Enterprise,
