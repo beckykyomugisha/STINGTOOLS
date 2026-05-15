@@ -392,3 +392,431 @@ After any parameter changes (re-routing, circuit changes, load updates): re-run 
 5. **Arc flash** — panel families must be category `OST_ElectricalEquipment` and circuit-connected for fault current to be readable.
 6. **SWA bonding** — SWA-2 rule flags any SWA cable in metallic containment (method A1/A2). Set `ELC_WIRE_ARMOUR_CONT_OK_BOOL = 1` after confirming both-end bonding and continuity test.
 7. **View-scale auto-factor** — applies only when no per-conduit `ELC_WIRE_ANNOT_SCALE_FACTOR` override is present and the project JSON `ScaleFactor = 1.0`. Setting a non-1.0 project default disables the auto-factor globally.
+
+---
+
+## Family Editor Authoring Guide
+
+This section covers how to author the Revit families that the STING wire annotation system reads from and writes to. There are three family types involved:
+
+| Family type | Category | Used for |
+|---|---|---|
+| **Conduit** (system family) | `OST_Conduit` | The element STING reads/writes all ELC_WIRE_* parameters on |
+| **Conduit fitting** (system family) | `OST_ConduitFitting` | Bends, tees, unions — inherits conduit parameters automatically |
+| **Electrical equipment** (loadable) | `OST_ElectricalEquipment` | Distribution panels, MCCs — STING reads circuit data and writes `ELC_SEL_COORD_OK`, arc flash labels |
+
+STING places annotations as native Revit elements (detail lines + text notes with the STING_WIRE_ANN comment marker) directly in the project view. It does **not** use tag families for wire annotations. However, if you want to display ELC_WIRE_* parameters in schedules or independent tags, you need shared parameters bound to the conduit category, which is handled by **Load Params** — no Family Editor work required for conduits.
+
+The Family Editor work described here is for **electrical equipment panels** where STING reads circuit source data and writes results.
+
+---
+
+### Part A — Conduit Type Setup (no Family Editor required)
+
+Conduit is a Revit system family edited through the project, not the Family Editor. Correct setup is essential for STING to read diameter, fill, and routing method.
+
+#### A1 — Create conduit types
+
+1. Open the project → **Systems tab → Conduit → Conduit Types** (or Project Browser → Families → Conduit Types).
+2. Duplicate "Standard" for each conduit specification your project uses:
+
+| Suggested type name | Use |
+|---|---|
+| `EMT — 20mm` | Electrical metallic tubing |
+| `EMT — 25mm` | |
+| `PVC — 20mm` | Non-metallic surface conduit (method C) |
+| `PVC — 25mm` | |
+| `FP — 20mm` | Fire-resistant conduit for fire-rated cables |
+| `SWA-Containment — 32mm` | Dedicated metallic containment for SWA cables |
+
+3. For each type, set **Nominal Diameter** to the correct size. STING reads `BuiltInParameter.RBS_CONDUIT_DIAMETER_PARAM` which returns the conduit nominal/outer diameter — this is a system parameter set by the type, not a shared parameter.
+
+#### A2 — Set conduit fill threshold
+
+The IET Wiring Matters guidance recommends a maximum cable fill of 40% for three or more cables in conduit. STING reads `ELC_CDT_CBL_FILL_PCT` (a shared parameter you populate manually or via formula) and flags fill > `FillAlarmPct` (default 40%) in the annotation with a ⚠ symbol.
+
+To populate fill automatically: use a Revit formula on a shared parameter that computes `(sum of cable areas / conduit bore area) × 100`. This is project-specific and is not automated by STING.
+
+#### A3 — Bind ELC_WIRE_* to conduit type (not instance)
+
+Some parameters (e.g. `ELC_WIRE_INSTALL_METHOD_TXT`) are more naturally set per conduit type than per instance. To bind a parameter to the conduit type instead of the instance:
+
+1. Manage → **Project Parameters** → Add.
+2. Shared parameter → browse to `MR_PARAMETERS.txt` → find the parameter.
+3. Categories: select **Conduits**.
+4. Instance / Type toggle: select **Type**.
+5. Click OK.
+
+Type-level values are inherited by all instances of that type, so setting `ELC_WIRE_INSTALL_METHOD_TXT = B1` on the type "EMT — 25mm" automatically marks all conduit runs of that type as method B1.
+
+---
+
+### Part B — Electrical Equipment (Panel) Family Authoring
+
+This is the main Family Editor section. The goal is a panel family that:
+- Has the correct Revit electrical connectors (so `ElectricalSystem` data flows)
+- Exposes the STING ELC_WIRE_* and ELC_PANEL_* shared parameters
+- Has correct geometry dimensions for visual representation and annotation clearance
+- Uses correct line styles and subcategory colours for drawings
+
+#### B1 — Start from the correct template
+
+1. **File → New → Family**.
+2. Template: select **`Metric Electrical Equipment.rft`** (located in `ProgramData\Autodesk\RVT 202x\Family Templates\English_I\`).
+3. This template sets category to `Electrical Equipment` and creates a default electrical connector.
+
+Do **not** use a generic model template — STING uses `FilteredElementCollector` on `OST_ElectricalEquipment` and the family must be in that category for circuit-connection and coordination stamp to work.
+
+#### B2 — Set family category and subcategory
+
+1. **Family Category and Parameters** (Manage tab → Family Category and Parameters):
+   - Category: **Electrical Equipment** ✓ (already set by template)
+   - Part Type: **None** (panels are not parts)
+   - Shared: ☐ (do not make the family shared unless it will be nested)
+   - Room Calculation Point: ☑ (ensures panels register in the correct room for spatial tagging)
+   - Work Plane-Based: ☐ (panels mount to walls, not work planes)
+   - Always Vertical: ☑
+
+2. Add subcategories (Manage → **Object Styles → Model Objects tab → New**):
+
+| Subcategory | Line colour | Line weight | Use |
+|---|---|---|---|
+| `Enclosure` | RGB 0,0,0 (black) | 3 (medium) | Main enclosure outline |
+| `Door` | RGB 0,0,0 | 2 | Door swing / cover plate |
+| `Busbar` | RGB 180,0,0 (dark red) | 1 | Internal busbar representation |
+| `Breakers` | RGB 0,0,180 (dark blue) | 1 | MCB/MCCB representations |
+| `Connector` | RGB 0,128,0 (green) | 1 | Electrical connector visibility |
+| `Text` | RGB 0,0,0 | 1 | Panel annotation text in 3D views |
+
+Assign geometry to subcategories by selecting it in the canvas → Properties → Subcategory dropdown.
+
+#### B3 — Reference planes and parametric dimensions
+
+Build the geometry parametrically so that a single family covers multiple physical sizes.
+
+**Reference planes to add** (Annotate → Reference Plane):
+
+| Name | Direction | Purpose |
+|---|---|---|
+| `Width L` | Vertical, left | Left edge of enclosure |
+| `Width R` | Vertical, right | Right edge |
+| `Height T` | Horizontal, top | Top edge |
+| `Height B` | Horizontal, bottom | Bottom edge |
+| `Depth F` | Toward viewer | Front face |
+| `Depth R` | Away from viewer | Rear face / wall face |
+| `Cable Entry` | Horizontal | Bottom cable entry zone (typ. 200 mm from bottom) |
+| `Busbar CL` | Vertical, centre | Busbar centreline |
+
+**Dimensions and parameters** (Annotate → Aligned Dimension, then label each with a parameter):
+
+| Dimension | Parameter name | Type | Formula | Default |
+|---|---|---|---|---|
+| Width L to Width R | `Width` | Length | — | 600 mm |
+| Height B to Height T | `Height` | Length | — | 800 mm |
+| Depth F to Depth R | `Depth` | Length | — | 250 mm |
+| Height B to Cable Entry | `CableEntryHeight` | Length | — | 200 mm |
+| Width L to Busbar CL | `BusbarOffset` | Length | `Width / 2` | 300 mm |
+
+All dimensions should be **Instance** parameters unless they are fixed by the enclosure type — if you are making a single-size family, make them Type parameters.
+
+#### B4 — Geometry modelling
+
+All geometry is created in the **Front** view (elevation) using **Extrusion** or **Solid Blend**, then given depth via the `Depth` parameter.
+
+**Main enclosure:**
+1. Front view → Annotate → Extrusion.
+2. Draw a rectangle snapping to `Width L`, `Width R`, `Height B`, `Height T` planes.
+3. Extrusion end = `Depth` parameter (lock it).
+4. Properties → Subcategory = `Enclosure`.
+5. Material = `<By Category>` (driven by project material settings).
+
+**Door / cover plate:**
+1. Draw a second rectangle 5 mm inside the enclosure on all sides (use equality constraint or individual offsets).
+2. Extrusion depth = 3 mm.
+3. Subcategory = `Door`.
+4. Visibility: tick "Front/Back" only (hide in plan).
+
+**Cable entry zone** (symbolic representation):
+1. Annotate → Symbolic Line.
+2. Draw a dashed horizontal line at the `Cable Entry` reference plane across the full width.
+3. Set line style to `Hidden` (or a custom `Cable Entry` line style).
+4. This makes the gland entry zone visible on elevation drawings.
+
+**Breaker slots** (optional schematic):
+1. In the **Right** elevation view, draw equally-spaced rectangle extrusions between `CableEntryHeight` and `Height T − 50 mm`.
+2. Divide into N slots; lock slot height to `(Height − CableEntryHeight − 50) / N` via a parameter.
+3. Subcategory = `Breakers`. Visibility: show in Front and 3D only.
+
+#### B5 — Electrical connector
+
+The connector defines what Revit's ElectricalSystem can connect to. STING reads circuit data from the system, so the connector must match the actual supply.
+
+1. **Annotate → Electrical Connector** (only available in the Family Editor for electrical families).
+2. Place on the `Depth R` reference plane (rear face, where conduits enter).
+3. In the connector properties:
+
+| Property | Value | Notes |
+|---|---|---|
+| Connector Description | `Supply` | Label shown in system browser |
+| System Type | `Power — Balanced` | For 3-phase DBs; use `Power — Unbalanced` for 1-phase boards |
+| Phase | `Three Phase` or `Single Phase` | Must match the supply |
+| Voltage | `400` (3Ø) or `230` (1Ø) | In volts |
+| Apparent Load | Formula: `LoadKva * 1000` | Links to a family parameter; see below |
+| Max Current | Formula: `RatedCurrentA` | In amperes |
+| Number of Poles | `3` (3Ø) or `1` (1Ø) | |
+| Power Factor | `0.85` | |
+| Balanced Load | ☑ | For balanced 3-phase loads |
+
+4. Create family parameters to drive the connector:
+
+| Parameter name | Type | Instance/Type | Default |
+|---|---|---|---|
+| `LoadKva` | Number | Type | 0 |
+| `RatedCurrentA` | Number | Type | 0 |
+
+Link these to the connector fields by clicking the small formula icon next to each field in the connector properties.
+
+#### B6 — Add shared parameters
+
+This is how STING reads and writes data on the panel family instances in the project.
+
+Shared parameters are added at the **project** level (Manage → Shared Parameters), not in the Family Editor. However, the parameters must also be accessible from the family's **instance** properties so that the Properties palette shows them in context. The correct approach:
+
+1. In the Family Editor → **Create → Family Types** (or Manage → Project Parameters within family context):
+   - Do **not** add STING shared parameters here. Adding them inside the family creates family-local parameters that are not accessible via Revit API `LookupParameter` by GUID on project instances.
+2. Close and load the family into the project.
+3. In the **project**, bind shared parameters: **Manage → Shared Parameters** → load `MR_PARAMETERS.txt` → select the ELC_PNL_* and ELC_WIRE_* parameters → bind to **Electrical Equipment** category.
+4. All instances of the loaded panel family will now show those parameters in Properties.
+
+Parameters STING reads from / writes to electrical equipment:
+
+| Parameter | Type | Read/Write | Populated by |
+|---|---|---|---|
+| `ELC_PNL_NAME_TXT` | TEXT | Read | Set manually (panel reference designation) |
+| `ELC_PANEL_MAIN_BREAKER_TXT` | TEXT | Read | Set manually (e.g. `"400A 65kA ACB"`) |
+| `ELC_SEL_COORD_OK` | YESNO | **Write** | Written by Crd-Stmp command |
+| `ELC_FAULT_KA_NUM` | NUMBER | Read | Set manually from protection study |
+| `ELC_WIRE_PHASE_TXT` | TEXT | Read | Set manually or derived from connector |
+
+#### B7 — Annotation text and label visibility
+
+For panel families that display their designation label in 2D views:
+
+1. In the Family Editor → Front view → Annotate → **Label**.
+2. Add a label linked to `ELC_PNL_NAME_TXT` (which is a shared parameter — you must first bind it to the family via Manage → Project Parameters within the family before labelling).
+3. Text type settings:
+
+| Setting | Value |
+|---|---|
+| Font | Arial (or corporate standard) |
+| Size | 2.5 mm (visible in 1:50 views) |
+| Bold | ✓ (for panel designations) |
+| Colour | Black (RGB 0,0,0) |
+
+4. Visibility: tick **Plan/RCP** and **Front/Back** — the label should be visible in plan and elevation but hidden in section and 3D.
+5. Align the label to the `Busbar CL` reference plane, centred horizontally.
+
+#### B8 — Text type for arc flash labels
+
+STING places arc flash labels as project-level `TextNote` elements (not family geometry). The text type used is resolved by name — STING looks for a type named `STING - Arc Flash Warning`. If not found it falls back to the first available text type.
+
+To create the correct type:
+
+1. In the project (not the family): **Annotate → Text → Text Type dropdown → Edit Type → Duplicate**.
+2. Name: `STING - Arc Flash Warning`.
+3. Settings:
+
+| Setting | Value | Rationale |
+|---|---|---|
+| Font | Arial | Universally available |
+| Text Size | 3.0 mm | Legible at 1:50; large enough for safety labels |
+| Bold | ✓ | Warning label convention |
+| Colour | RGB 200,0,0 | Red — safety warning |
+| Background | Opaque | Ensures the label is readable over geometry |
+| Show Border | ✓ | Box around arc flash label |
+| Leader Arrowhead | Arrow Filled 15° | |
+| Tab Size | 10 mm | |
+
+#### B9 — Dimensions and clearance modelling
+
+Add clearance zones as **reference-plane-only** (no solid geometry) so they appear in clash detection without adding visual clutter:
+
+| Zone | Dimension | Reference standard |
+|---|---|---|
+| Front operational clearance | Min. 1,000 mm (LV) / 1,800 mm (HV) | BS EN 61439-1 / IET On-Site Guide |
+| Side cable access | Min. 600 mm | BS EN 61439 |
+| Top cable access | Min. 300 mm | |
+| Rear maintenance | Min. 600 mm | |
+
+1. Create reference planes at each clearance offset from the enclosure face.
+2. Name them (right-click → Name): `Clearance Front`, `Clearance Left`, etc.
+3. Add a Yes/No parameter `ShowClearances` (Instance). Use the Visibility parameter on each clearance plane: assign `ShowClearances` to them.
+4. In the project, turn on `ShowClearances = Yes` only in coordination views; leave `No` for production drawings.
+
+---
+
+### Part C — Complete Shared Parameter List for Wire Annotation
+
+The following table lists every shared parameter that the wire annotation system reads or writes. All must be in group 4 (Electrical) in `MR_PARAMETERS.txt` and bound to the **Conduits** (or **Electrical Equipment**) category before use.
+
+#### Conduit parameters (bind to category: Conduits)
+
+| Parameter name | Storage type | R/W | Source | Purpose |
+|---|---|---|---|---|
+| `ELC_WIRE_PHASE_TXT` | TEXT | W | W-Stamp | Phase: "1Ø" or "3Ø" |
+| `ELC_WIRE_CORE_COUNT_INT` | INTEGER | W | W-Stamp | Number of cores / slash count (0–4) |
+| `ELC_CIRCUIT_NR_TXT` | TEXT | W | W-Stamp | Circuit number from ElectricalSystem |
+| `ELC_PNL_NAME_TXT` | TEXT | W | W-Stamp | Source panel name |
+| `ELC_WIRE_CIRCUIT_TYPE_TXT` | TEXT | W | W-Stamp | "Power" / "Lighting" / "UPS" |
+| `ELC_WIRE_COND_MAT_TXT` | TEXT | W | W-Stamp | "Cu" or "Al" (defaults to "Cu") |
+| `ELC_WIRE_MAX_DEMAND_A` | NUMBER | W | W-Stamp | Apparent current from ElectricalSystem (A) |
+| `ELC_WIRE_INSTALL_METHOD_TXT` | TEXT | R | Manual | IEC 60364-5-52 method: A1/A2/B1/B2/C/E/F |
+| `ELC_WIRE_CSA_MM2_NUM` | NUMBER | W | Csz-Sync | Selected cable cross-section area (mm²) |
+| `ELC_WIRE_AMPACITY_A` | NUMBER | W | Csz-Sync | Derated current rating (A) |
+| `ELC_WIRE_CIRCUIT_BREAKER_A` | NUMBER | W | Csz-Sync | Proposed circuit breaker rating (A) |
+| `ELC_WIRE_VD_PCT_NUM` | NUMBER | W | VD-Sync | Voltage drop percentage |
+| `ELC_WIRE_EARTH_CSA_MM2` | NUMBER | W | CPC-Sz | Protective conductor cross-section (mm²) |
+| `ELC_WIRE_FIRE_RATED_BOOL` | YESNO | R | Manual | 1 = fire-survival cable (MICC / FP200) |
+| `ELC_WIRE_ARMOURED_BOOL` | YESNO | R | Manual | 1 = SWA / SWBA / AWA armoured |
+| `ELC_WIRE_SHIELDED_BOOL` | YESNO | R | Manual | 1 = screened cable (EMC / data) |
+| `ELC_WIRE_ARMOUR_CONT_OK_BOOL` | YESNO | R | Manual | 1 = armour continuity tested at both ends |
+| `ELC_CDT_CBL_FILL_PCT` | NUMBER | R | Manual/Formula | Cable fill percentage (IET: alarm at 40%) |
+| `ELC_WIRE_ANNOT_SLASH_LEN_MM` | NUMBER | R | Per-conduit | Override slash length (mm) |
+| `ELC_WIRE_ANNOT_SPACING_MM` | NUMBER | R | Per-conduit | Override spacing between slashes (mm) |
+| `ELC_WIRE_ANNOT_ANGLE_DEG` | NUMBER | R | Per-conduit | Override slash angle (30–90°) |
+| `ELC_WIRE_ANNOT_OFFSET_MM` | NUMBER | R | Per-conduit | Override label perpendicular offset (mm) |
+| `ELC_WIRE_ANNOT_SCALE_FACTOR` | NUMBER | R | Per-conduit | Override global scale multiplier |
+| `ELC_WIRE_ANNOT_LINE_WEIGHT_INT` | INTEGER | R | Per-conduit | Override line weight (1–16) |
+| `ELC_WIRE_ANNOT_COLOR_CODE_INT` | INTEGER | R | Per-conduit | Override colour (0=auto/1=red/2=blue/3=orange/4=green) |
+| `ELC_WIRE_ANNOT_SHOW_VD_BOOL` | YESNO | R | Per-conduit | Override: show VD% suffix |
+| `ELC_WIRE_ANNOT_SHOW_FILL_BOOL` | YESNO | R | Per-conduit | Override: show fill% |
+| `ELC_WIRE_ANNOT_SHOW_DIA_BOOL` | YESNO | R | Per-conduit | Override: show conduit OD |
+| `ELC_WIRE_ANNOT_SHOW_AMPACITY_BOOL` | YESNO | R | Per-conduit | Override: show Iz (ampacity) |
+| `ELC_WIRE_ANNOT_COMPACT_BOOL` | YESNO | R | Per-conduit | Override: compact label (omit panel, type, method) |
+
+#### Electrical equipment parameters (bind to category: Electrical Equipment)
+
+| Parameter name | Storage type | R/W | Source | Purpose |
+|---|---|---|---|---|
+| `ELC_PNL_NAME_TXT` | TEXT | R | Manual | Panel reference designation (e.g. "DB-L01-A") |
+| `ELC_PANEL_MAIN_BREAKER_TXT` | TEXT | R | Manual | Main incomer rating for TCC lookup |
+| `ELC_SEL_COORD_OK` | YESNO | W | Crd-Stmp | Selective coordination result |
+| `ELC_FAULT_KA_NUM` | NUMBER | R | Manual | Prospective fault current at panel (kA) |
+
+#### Conduit OD — no shared parameter needed
+
+Conduit outer diameter is read from the Revit built-in `BuiltInParameter.RBS_CONDUIT_DIAMETER_PARAM`. This is a system parameter populated automatically from the conduit type nominal diameter. You do not need to create a shared parameter for it.
+
+---
+
+### Part D — Line Styles for Wire Annotation Graphics
+
+STING creates slash marks and home-run arrows as **DetailCurve** elements using Revit's graphic override API (`OverrideGraphicSettings`). The line style of the detail curve is overridden in the view so you do not need custom line styles. However, having the correct project line styles improves visual consistency when annotation is exported to PDF or printed.
+
+Recommended line styles (create via Manage → Additional Settings → Line Styles → New):
+
+| Line style name | Colour | Weight | Pattern | Use |
+|---|---|---|---|---|
+| `STING-Wire-Slash` | RGB 0,0,0 | 3 | Solid | Wire slash marks (standard circuit) |
+| `STING-Wire-Slash-FR` | RGB 200,100,0 (orange) | 3 | Solid | Fire-rated circuit slashes |
+| `STING-Wire-Slash-SWA` | RGB 0,0,200 (blue) | 3 | Solid | Armoured circuit slashes |
+| `STING-Wire-Slash-Alarm` | RGB 200,0,0 (red) | 4 | Solid | VD or fill alarm |
+| `STING-Wire-HomeRun` | RGB 0,0,0 | 2 | Solid | Home-run arrow shaft |
+| `STING-Wire-HomeRun-Head` | RGB 0,0,0 | 3 | Solid | Home-run arrowhead |
+
+Note: STING currently drives colour via `OverrideGraphicSettings.SetProjectionLineColor` applied directly to the `DetailCurve` element, so the line style colour is overridden in view. The line styles above are useful for schedules and filters that target slash elements by line style, or if you export to DWG and need correct layer assignment.
+
+---
+
+### Part E — Text Types for Wire Labels
+
+STING creates wire annotation labels as `TextNote` elements. It resolves the text type by looking for types with the following names (first match wins, then falls back to the first available type):
+
+| TextNote type name | Used for |
+|---|---|
+| `STING - Wire Annotation` | Standard circuit label |
+| `STING - Wire Annotation Small` | Compact label in congested areas |
+| `STING - Arc Flash Warning` | Arc flash hazard label (red, bold) |
+
+To create these types:
+
+1. **Annotate → Text → Edit Type → Duplicate** for each.
+2. Settings for `STING - Wire Annotation`:
+
+| Setting | Value |
+|---|---|
+| Font | Arial |
+| Size | 2.0 mm (at 1:100) |
+| Bold | ☐ |
+| Italic | ☐ |
+| Underline | ☐ |
+| Width Factor | 1.0 |
+| Color | Black |
+| Background | Transparent |
+| Show Border | ☐ |
+| Leader Arrowhead | Arrow Filled 30° |
+
+3. Settings for `STING - Wire Annotation Small`:
+   - Same as above except Size = 1.5 mm. Used automatically by STING when `CompactLabel = true`.
+
+4. Settings for `STING - Arc Flash Warning`:
+   - Font: Arial, Size: 3.0 mm, Bold: ✓, Color: RGB 200,0,0, Background: Opaque, Show Border: ✓.
+
+**View-scale relationship**: TextNote sizes are in paper-space mm. A 2.0 mm note in a 1:100 view represents a 200 mm-tall label in model space. STING's slash marks are in model space (mm) and are scaled by `ScaleFactor` and the view-scale auto-factor. The label offset (`LabelOffsetMm`, default 600 mm model space) keeps the text a fixed model-space distance from the conduit centreline — this means the label position relative to the conduit stays constant regardless of view scale, which is the correct behaviour.
+
+---
+
+### Part F — Conduit Fittings
+
+Conduit fittings (bends, tees, couplings) are loadable families in category `OST_ConduitFitting`. STING does not annotate fittings directly — slashes and labels are placed only on conduit run segments. However, fitting families must be configured correctly so that BFS graph traversal (used by HR-Full) can cross them.
+
+#### F1 — Connector requirements for BFS traversal
+
+The BFS in `WireHomeRunFullCommand` and `ConduitCircuitIndex` traverses `ConnectorManager.Connectors` on each element and follows `Connector.AllRefs` to reach connected elements. For fittings to be traversable:
+
+1. Each fitting must have exactly the right number of connectors: 2 for bend/coupling, 3 for tee, 4 for cross.
+2. Connector type: **Conduit**.
+3. Connector radius: must match the conduit nominal radius so Revit's routing engine joins them. Set via a formula: `NominalDiameter / 2`.
+4. All connectors must be placed on reference planes and the planes must be constrained to the fitting geometry — otherwise connector positions detach when the fitting is resized.
+
+#### F2 — Family template
+
+Use `Metric Conduit Fitting.rft`. This template pre-sets the category and includes basic connector geometry.
+
+1. New → Family → `Metric Conduit Fitting.rft`.
+2. The template includes a 90° bend geometry. Modify as needed.
+3. For the connector radius parameter: create a shared parameter `NominalDiameter` (Length type, Type parameter) and add the formula `NominalDiameter / 2` to the connector radius field.
+4. Load into project: the conduit routing engine will auto-use the fitting when you draw conduit.
+
+---
+
+### Part G — Authoring Checklist
+
+Use this checklist before loading a new panel or conduit fitting family into a production project:
+
+**Panel family:**
+- [ ] Category = `Electrical Equipment`
+- [ ] Room Calculation Point = ✓
+- [ ] Electrical connector present with correct System Type, Phase, and Voltage
+- [ ] `LoadKva` and `RatedCurrentA` parameters linked to connector
+- [ ] Geometry assigned to subcategories (`Enclosure`, `Door`, `Breakers`, `Busbar`)
+- [ ] Clearance reference planes created and named
+- [ ] `ShowClearances` visibility parameter wired to clearance planes
+- [ ] Family loaded into project and shared parameters bound at project level
+- [ ] `ELC_PNL_NAME_TXT`, `ELC_PANEL_MAIN_BREAKER_TXT`, `ELC_FAULT_KA_NUM` visible in Properties palette after loading
+- [ ] Verify: W-Stamp picks up `ElectricalSystem.BaseEquipment.Name` = panel name
+
+**Conduit type:**
+- [ ] Nominal Diameter set correctly (STING reads `RBS_CONDUIT_DIAMETER_PARAM`)
+- [ ] `ELC_WIRE_INSTALL_METHOD_TXT` set at type level where appropriate
+- [ ] Conduit is circuit-connected before running W-Stamp
+
+**Text types in project:**
+- [ ] `STING - Wire Annotation` exists (2.0 mm, Arial, transparent background)
+- [ ] `STING - Wire Annotation Small` exists (1.5 mm, Arial, transparent background)
+- [ ] `STING - Arc Flash Warning` exists (3.0 mm, Arial, red, opaque, bordered)
+
+**Shared parameters bound:**
+- [ ] All ELC_WIRE_* parameters bound to Conduits category
+- [ ] ELC_PNL_NAME_TXT, ELC_PANEL_MAIN_BREAKER_TXT, ELC_SEL_COORD_OK, ELC_FAULT_KA_NUM bound to Electrical Equipment category
+- [ ] Verify binding: select a conduit → Properties palette → scroll to group 4 (Electrical) and confirm STING parameters appear
