@@ -604,6 +604,9 @@ namespace StingTools.Model
         private CheckBox _chkRunFoundationSizing;
         private ComboBox _cboSoilClass;
         private TextBox _txtColumnLoad_Gk, _txtColumnLoad_Qk;
+        // DWG-STRUCT-DEEP-6b: Connection synthesis controls
+        private CheckBox _chkSynthesizeConnections;
+        private TextBox _txtConnectionShear_kN, _txtConnectionMoment_kNm;
         private CheckBox _chkPerCategoryNumbering;
         // Per-category numbering state — keyed by NumberingCategories[] index. Snapshot of
         // the visible UI state for the previously-selected category, captured on category
@@ -1824,6 +1827,59 @@ namespace StingTools.Model
             ec7Section.Child = ec7Stack;
             stack.Children.Add(ec7Section);
 
+            // DWG-STRUCT-DEEP-6b: Connection detail synthesis section
+            var connSection = new Border
+            {
+                BorderBrush = System.Windows.Media.Brushes.DimGray,
+                BorderThickness = new Thickness(0, 1, 0, 0),
+                Padding = new Thickness(0, 8, 0, 0),
+                Margin = new Thickness(0, 8, 0, 0),
+            };
+            var connStack = new StackPanel();
+            connStack.Children.Add(new TextBlock
+            {
+                Text = "CONNECTION DETAIL SYNTHESIS (DWG-STRUCT-DEEP-6b)",
+                FontSize = 11, FontWeight = FontWeights.Bold,
+                Foreground = System.Windows.Media.Brushes.Goldenrod,
+                Margin = new Thickness(0, 0, 0, 4),
+            });
+            _chkSynthesizeConnections = new CheckBox
+            {
+                Content = "Synthesize connection detail elements at detected beam/column junctions",
+                IsChecked = false,
+                Margin = new Thickness(0, 2, 0, 4),
+                ToolTip = "Places plate outlines, bolt-grid crosses, weld lines and text callouts in the active view for every detected junction.",
+            };
+            connStack.Children.Add(_chkSynthesizeConnections);
+
+            var connGrid = new Grid();
+            connGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            connGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+            connGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            connGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+            connGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            void AddConnLabel(string text, int col)
+            {
+                var lbl = new TextBlock { Text = text, FontSize = 11, Margin = new Thickness(4, 3, 6, 2), VerticalAlignment = VerticalAlignment.Center };
+                Grid.SetRow(lbl, 0); Grid.SetColumn(lbl, col);
+                connGrid.Children.Add(lbl);
+            }
+
+            AddConnLabel("Shear demand Vd (kN):", 0);
+            _txtConnectionShear_kN = new TextBox { Text = "200", Width = 80, Margin = new Thickness(0, 2, 8, 2), ToolTip = "Characteristic shear demand per connection (kN). Used to size bolt groups." };
+            Grid.SetRow(_txtConnectionShear_kN, 0); Grid.SetColumn(_txtConnectionShear_kN, 1);
+            connGrid.Children.Add(_txtConnectionShear_kN);
+
+            AddConnLabel("Moment demand Md (kNm):", 2);
+            _txtConnectionMoment_kNm = new TextBox { Text = "50", Width = 80, Margin = new Thickness(0, 2, 0, 2), ToolTip = "Characteristic moment demand for end-plate connections (kNm, 0 for simple shear)." };
+            Grid.SetRow(_txtConnectionMoment_kNm, 0); Grid.SetColumn(_txtConnectionMoment_kNm, 3);
+            connGrid.Children.Add(_txtConnectionMoment_kNm);
+
+            connStack.Children.Add(connGrid);
+            connSection.Child = connStack;
+            stack.Children.Add(connSection);
+
             return section;
         }
 
@@ -2678,6 +2734,13 @@ namespace StingTools.Model
                 }
             }
 
+            // DWG-STRUCT-DEEP-6b: Connection detail synthesis knobs
+            config.SynthesizeConnectionDetails = _chkSynthesizeConnections?.IsChecked == true;
+            if (double.TryParse(_txtConnectionShear_kN?.Text, out double connShear) && connShear > 0)
+                config.ConnectionShearDemand_kN = connShear;
+            if (double.TryParse(_txtConnectionMoment_kNm?.Text, out double connMom) && connMom >= 0)
+                config.ConnectionMomentDemand_kNm = connMom;
+
             // DWG-STRUCT-DEEP-5: EC7 foundation sizing knobs
             config.RunFoundationSizing = _chkRunFoundationSizing?.IsChecked == true;
             if (_cboSoilClass != null && _cboSoilClass.SelectedIndex >= 0)
@@ -3022,6 +3085,15 @@ namespace StingTools.Model
         public bool CreateNewTypes_Beam { get; set; } = true;
         public bool CreateNewTypes_Foundation { get; set; } = true;
         public bool CreateNewTypes_Slab { get; set; } = true;
+
+        // DWG-STRUCT-DEEP-6b: Connection detail synthesis
+        /// <summary>When true, ConnectionDetailSynthesizer.SynthesizeAll() is called after junction
+        /// detection and detail-line elements are created in the active view.</summary>
+        public bool SynthesizeConnectionDetails { get; set; } = false;
+        /// <summary>Characteristic shear demand per connection (kN) used for connection sizing.</summary>
+        public double ConnectionShearDemand_kN { get; set; } = 200;
+        /// <summary>Characteristic moment demand per moment connection (kNm).</summary>
+        public double ConnectionMomentDemand_kNm { get; set; } = 50;
 
         // DWG-STRUCT-DEEP-5: EC7 foundation sizing
         /// <summary>Soil class used for EC7 bearing capacity lookup when sizing pad foundations.</summary>

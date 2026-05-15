@@ -1522,6 +1522,47 @@ namespace StingTools.Model
                     }
                 }
 
+                // DWG-STRUCT-DEEP-6b: Connection detail synthesis
+                if (config?.SynthesizeConnectionDetails == true)
+                {
+                    try
+                    {
+                        var activeView = _doc.ActiveView;
+                        if (activeView != null &&
+                            (activeView.ViewType == ViewType.Detail
+                             || activeView.ViewType == ViewType.DraftingView
+                             || activeView.ViewType == ViewType.FloorPlan
+                             || activeView.ViewType == ViewType.Section))
+                        {
+                            // Detect junctions from the extraction result already computed in this run
+                            // Re-extract to get junction list (importInstance is the param of RunFullPipelineWithConfig)
+                            var connExtract = ExtractAll(importInstance, config);
+                            var junctions = DetectJunctions(connExtract);
+                            using (var txConn = new Transaction(_doc, "STING STRUCT: Connection Details"))
+                            {
+                                txConn.Start();
+                                var synResults = ConnectionDetailSynthesizer.SynthesizeAll(
+                                    _doc, junctions, activeView,
+                                    config.ConnectionShearDemand_kN,
+                                    config.ConnectionMomentDemand_kNm);
+                                foreach (var sr in synResults)
+                                    totalResult.Warnings.AddRange(sr.Warnings);
+                                txConn.Commit();
+                                StingLog.Info($"ConnectionDetailSynthesizer: {synResults.Count} connections synthesized in {activeView.Name}");
+                            }
+                        }
+                        else
+                        {
+                            totalResult.Warnings.Add("Connection synthesis: active view is not a Detail/Plan/Section — skipping.");
+                        }
+                    }
+                    catch (Exception cex)
+                    {
+                        totalResult.Warnings.Add($"Connection synthesis failed: {cex.Message}");
+                        StingLog.Warn($"ConnectionDetailSynthesizer: {cex.Message}");
+                    }
+                }
+
                 sw.Stop();
                 totalResult.Duration = sw.Elapsed;
 
