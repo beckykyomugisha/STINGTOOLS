@@ -19,42 +19,65 @@ type Plan = {
 
 const plans: Plan[] = [
   {
-    name: 'Starter',
-    price: '$0',
-    priceUnit: '/month',
-    subtext: 'For individual BIM coordinators exploring the platform.',
+    name: 'Small',
+    price: '$35',
+    priceUnit: '/firm/month',
+    subtext: 'For small practices just getting started with BIM coordination.',
     features: [
-      { text: '1 user, 1 project', included: true },
-      { text: 'Revit plugin — full tagging suite', included: true },
-      { text: 'Local file storage only', included: true },
+      { text: 'Up to 6 users (1 author + 5 coordinators)', included: true },
+      { text: 'Up to 5 active projects', included: true },
+      { text: 'Full Revit plugin suite', included: true },
+      { text: 'Cloud sync & real-time dashboard', included: true },
+      { text: 'Issue tracker (BCF 2.1)', included: true },
       { text: 'ISO 19650 compliance dashboard', included: true },
-      { text: 'Cloud sync', included: false },
-      { text: 'Multi-user collaboration', included: false },
-      { text: 'API access', included: false },
+      { text: 'Mobile app (iOS & Android)', included: true },
+      { text: 'SSO / SAML', included: false },
+      { text: 'On-premise deployment', included: false },
     ],
-    cta: 'Get Started Free',
+    cta: 'Start 30-Day Trial',
+    ctaSub: 'No credit card required',
     ctaStyle: 'outline',
   },
   {
-    name: 'Professional',
-    price: '$15',
-    priceUnit: '/user/month',
-    subtext: 'For AEC practices running active BIM projects.',
+    name: 'Medium',
+    price: '$55',
+    priceUnit: '/firm/month',
+    subtext: 'For growing practices managing multiple live projects.',
     features: [
-      { text: 'Up to 5 users', included: true },
-      { text: 'Up to 5 projects', included: true },
+      { text: 'Up to 12 users (1 author + 11 coordinators)', included: true },
+      { text: 'Up to 10 active projects', included: true },
       { text: 'Full Revit plugin suite', included: true },
       { text: 'Cloud sync & real-time dashboard', included: true },
       { text: 'Issue tracker (BCF 2.1)', included: true },
       { text: 'Document control (CDE)', included: true },
-      { text: 'Email & Slack notifications', included: true },
+      { text: 'Email & in-app notifications', included: true },
       { text: 'SSO / SAML', included: false },
       { text: 'On-premise deployment', included: false },
     ],
-    cta: 'Start 14-Day Trial',
+    cta: 'Start 30-Day Trial',
     ctaSub: 'No credit card required',
     highlighted: true,
     ctaStyle: 'primary',
+  },
+  {
+    name: 'Large',
+    price: '$90',
+    priceUnit: '/firm/month',
+    subtext: 'For established firms coordinating across multiple disciplines.',
+    features: [
+      { text: 'Up to 20 users (1 author + 19 coordinators)', included: true },
+      { text: 'Unlimited active projects', included: true },
+      { text: 'Full Revit plugin suite', included: true },
+      { text: 'Cloud sync & real-time dashboard', included: true },
+      { text: 'Issue tracker + Document control (CDE)', included: true },
+      { text: 'Email & in-app notifications', included: true },
+      { text: 'Priority support', included: true },
+      { text: 'SSO / SAML', included: false },
+      { text: 'On-premise deployment', included: false },
+    ],
+    cta: 'Start 30-Day Trial',
+    ctaSub: 'No credit card required',
+    ctaStyle: 'outline',
   },
   {
     name: 'Enterprise',
@@ -67,7 +90,7 @@ const plans: Plan[] = [
       { text: 'Dedicated implementation support', included: true },
       { text: 'SLA guarantees', included: true },
       { text: 'Custom integrations (ACC, Procore, Aconex)', included: true },
-      { text: 'Africa regional pricing available', included: true },
+      { text: 'NGO / Government 15% discount', included: true },
       { text: 'World Bank / AfDB BIM compliance package', included: true },
     ],
     cta: 'Talk to Sales',
@@ -97,7 +120,7 @@ export default function PricingCards() {
           </p>
         </motion.div>
 
-        <div className="mt-16 grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
+        <div className="mt-16 grid grid-cols-1 gap-6 lg:grid-cols-4 lg:gap-8">
           {plans.map((p, i) => {
             const isPro = p.highlighted;
             return (
@@ -182,8 +205,9 @@ export default function PricingCards() {
         </div>
 
         <p className="mx-auto mt-8 max-w-2xl text-center text-sm text-muted">
-          All plans include the full Revit 2025/2026/2027 plugin. Billing in
-          USD. Africa regional pricing available on request.
+          All plans include the full Revit 2025/2026/2027 plugin and offline-first mobile app.
+          Pay annually — get 1 month free. Invoiced in USD, UGX, KES, TZS, NGN, RWF, or ZAR.
+          NGO &amp; government: 15% discount.
         </p>
       </div>
     </section>

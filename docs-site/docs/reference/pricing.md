@@ -4,16 +4,16 @@ Planscape is priced per firm, not per seat — small teams and growing teams are
 
 ## Plans
 
-| Plan | Monthly | Includes |
-|---|---|---|
-| **Studio** | $30 | 1 author + 10 coordinators · 3 projects · 5 GB storage |
-| **Practice** | $80 | 1 author + 25 coordinators · 10 projects · 25 GB storage |
-| **Network** | $150 | 3 authors + 35 coordinators · 10 projects · 50 GB storage |
-| **Enterprise** | Custom | SSO · contractual SLA · on-prem option · audit replay · DPA |
+| Plan | Monthly | Annual (1 month free) | Includes |
+|---|---|---|---|
+| **Small** | $35 | $385 | Up to 6 users · 5 projects · 10 GB storage |
+| **Medium** | $55 | $605 | Up to 12 users · 10 projects · 25 GB storage |
+| **Large** | $90 | $990 | Up to 20 users · unlimited projects · 50 GB storage |
+| **Enterprise** | Custom | Custom | SSO · contractual SLA · on-prem option · audit replay · DPA |
 
-**Authors** are users who can sync Revit models from the plugin. **Coordinators** are users who use the web dashboard and the mobile app — viewing models, raising issues, transitioning documents, signing off gates.
+All plans include 1 author (Revit sync) seat and the remainder as coordinator seats. **Authors** sync Revit models from the plugin. **Coordinators** use the web dashboard and mobile app — viewing models, raising issues, transitioning documents, signing off gates.
 
-A 30-day free trial is available on Studio, Practice, and Network with no payment details required.
+A 30-day free trial is available on all plans with no payment details required. NGO and government organisations receive a 15% discount.
 
 ## What's included in every plan
 
@@ -32,16 +32,16 @@ We invoice in your chosen currency at signup, with no FX spread. Indicative pric
 
 | Plan | UGX | KES | TZS |
 |---|---|---|---|
-| Studio | ~UGX 110,000 | ~KES 3,900 | ~TZS 75,000 |
-| Practice | ~UGX 295,000 | ~KES 10,400 | ~TZS 200,000 |
-| Network | ~UGX 555,000 | ~KES 19,500 | ~TZS 375,000 |
+| Small | ~UGX 130,000 | ~KES 4,600 | ~TZS 88,000 |
+| Medium | ~UGX 203,000 | ~KES 7,200 | ~TZS 138,000 |
+| Large | ~UGX 332,000 | ~KES 11,700 | ~TZS 225,000 |
 
 NGN, RWF, and ZAR are also supported via Flutterwave. USD, EUR, GBP via Stripe. Exact local-currency amounts are displayed at checkout, locked for the billing cycle, and can be paid by mobile money (MTN, Airtel, M-Pesa), bank transfer, or card.
 
 ## Billing FAQ
 
 **When am I charged?**
-On signup (after the trial), then monthly on the same date. Annual billing is available with a 10% discount.
+On signup (after the 30-day trial), then monthly on the same date. Annual billing gives you 1 month free — pay for 11 months, use for 12.
 
 **How do I add a payment method?**
 **Settings → Billing → Add payment method**. Mobile money, bank transfer, and card are all supported.
