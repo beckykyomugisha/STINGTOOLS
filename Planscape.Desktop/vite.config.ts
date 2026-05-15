@@ -5,7 +5,7 @@ import { resolve } from 'path'
 export default defineConfig({
   main: {
     build: {
-      outDir: 'dist-electron/main',
+      outDir: 'out/main',
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'src/main/index.ts')
@@ -16,7 +16,7 @@ export default defineConfig({
   },
   preload: {
     build: {
-      outDir: 'dist-electron/preload',
+      outDir: 'out/preload',
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'src/preload/index.ts')
@@ -27,7 +27,7 @@ export default defineConfig({
   renderer: {
     root: resolve(__dirname, 'src/renderer'),
     build: {
-      outDir: resolve(__dirname, 'dist/renderer')
+      outDir: resolve(__dirname, 'out/renderer')
     },
     plugins: [react()],
     resolve: {
