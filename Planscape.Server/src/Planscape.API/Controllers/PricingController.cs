@@ -23,22 +23,27 @@ public class PricingController : ControllerBase
         {
             plans = new[]
             {
-                Render(BillingPlan.Studio,   "Studio",   "Solo studio · 1 author + 10 coordinators · 3 projects",  highlight: false),
-                Render(BillingPlan.Practice, "Practice", "Small practice · 1 author + 25 coordinators · 10 projects", highlight: false),
-                Render(BillingPlan.Network,  "Network",  "Mid-size firm · 3 authors + 35 coordinators · 10 projects", highlight: true),
-                Render(BillingPlan.Enterprise, "Enterprise", "≥100 seats · SSO · SLA · on-prem option", highlight: false, custom: true),
+                Render(BillingPlan.Studio,    "Small",      "Small firm · up to 6 users · 5 projects",                 highlight: false),
+                Render(BillingPlan.Practice,  "Medium",     "Growing practice · up to 12 users · 10 projects",         highlight: true),
+                Render(BillingPlan.Network,   "Large",      "Established firm · up to 20 users · unlimited projects",  highlight: false),
+                Render(BillingPlan.Enterprise,"Enterprise", "≥20 seats · SSO · SLA · on-prem option",                  highlight: false, custom: true),
             },
             mim = new
             {
                 name = "MIM Add-on",
                 description = "Asset lifecycle + handover module for FM phase",
-                priceUsd = 12,
+                priceUsd = 10,
                 cycle = "monthly",
             },
             annualDiscount = new
             {
-                description = "Pay yearly, get 2 months free",
-                multiplierMonthsPerYear = 10,
+                description = "Pay annually — get 1 month free (pay 11, use 12)",
+                multiplierMonthsPerYear = 11,
+            },
+            ngoDiscount = new
+            {
+                description = "NGO and government organisations",
+                discountPct = 15,
             },
             currencies = new
             {
@@ -47,11 +52,11 @@ public class PricingController : ControllerBase
             },
             comparison = new[]
             {
-                new { vs = "Autodesk Construction Cloud", price = "$40-80/seat/mo", planscape = "$4.50/seat at Network" },
-                new { vs = "Procore",                     price = "$375-549+/mo",   planscape = "$80-150/firm" },
-                new { vs = "Trimble Connect",             price = "$20-40/seat",    planscape = "$4.50/seat" },
-                new { vs = "BIM Track",                   price = "$40-55/seat",    planscape = "issue-tracking + viewer + plugin" },
-                new { vs = "Dalux",                       price = "$30-50/seat",    planscape = "offline-first parity" },
+                new { vs = "Autodesk Construction Cloud", price = "$40-80/seat/mo",    planscape = "$35-90/firm (not per seat)" },
+                new { vs = "Procore",                     price = "$375-549+/mo",      planscape = "$35-90/firm" },
+                new { vs = "Trimble Connect",             price = "$20-40/seat",       planscape = "flat firm pricing" },
+                new { vs = "BIM Track",                   price = "$40-55/seat",       planscape = "issue-tracking + viewer + plugin included" },
+                new { vs = "Dalux",                       price = "$30-50/seat",       planscape = "offline-first + local currency billing" },
             },
         });
     }
@@ -90,12 +95,12 @@ public class PricingController : ControllerBase
 <body>
 <header>
   <h1>Pricing built for East African firms</h1>
-  <p class=""lead"">Per-firm, per-month, USD. Pay annually and get two months free. Invoiced in your local currency via Flutterwave (UGX/KES/TZS/RWF/NGN/ZAR/ZMW) or in USD/EUR/GBP via Stripe.</p>
+  <p class=""lead"">Per-firm, per-month, USD. Pay annually and get 1 month free. NGO &amp; government: 15% discount. Invoiced in your local currency via Flutterwave (UGX/KES/TZS/RWF/NGN/ZAR/ZMW) or in USD/EUR/GBP via Stripe.</p>
 </header>
 <section class=""grid"">
-  {Card("Studio",   s, "For solo studios just getting started.",         featured: false, plan: "Studio")}
-  {Card("Practice", p, "Small practice with one author and a field team.", featured: false, plan: "Practice")}
-  {Card("Network",  n, "Mid-size firm. The default we recommend.",      featured: true,  plan: "Network", pill: "Most popular")}
+  {Card("Small",   s, "Up to 6 users · 5 projects. Start here.",                featured: false, plan: "Studio")}
+  {Card("Medium",  p, "Up to 12 users · 10 projects. Most popular.",           featured: true,  plan: "Practice", pill: "Most popular")}
+  {Card("Large",   n, "Up to 20 users · unlimited projects.",                  featured: false, plan: "Network")}
   {EnterpriseCard()}
 </section>
 <footer>
@@ -166,7 +171,7 @@ public class PricingController : ControllerBase
   {pillHtml}
   <div class=""name"">{name}</div>
   <div class=""price"">${l.MonthlyUsd:0}<span class=""cycle""> / firm / mo</span></div>
-  <div class=""cycle"">Pay annually = ${l.MonthlyUsd * 10:0} / year</div>
+  <div class=""cycle"">Pay annually = ${l.MonthlyUsd * 11:0} / year (1 month free)</div>
   <ul class=""feat"">{feats}</ul>
   <a class=""{ctaClass}"" href=""/signup?plan={plan}"">Start 30-day trial</a>
 </article>";

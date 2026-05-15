@@ -117,15 +117,15 @@ public enum MimTier
 /// </summary>
 public enum BillingPlan
 {
-    /// <summary>Free 30-day trial; converts to Studio on expiry unless cancelled.</summary>
+    /// <summary>Free 30-day trial; converts to Small on expiry unless cancelled.</summary>
     Trial = 0,
-    /// <summary>$30/mo — 1 author + 10 coordinators · 3 projects · 5 GB</summary>
+    /// <summary>$35/mo — up to 6 users (1 author + 5 coordinators) · 5 projects · 10 GB</summary>
     Studio = 1,
-    /// <summary>$80/mo — 1 author + 25 coordinators · 10 projects · 25 GB</summary>
+    /// <summary>$55/mo — up to 12 users (1 author + 11 coordinators) · 10 projects · 25 GB</summary>
     Practice = 2,
-    /// <summary>$150/mo — 3 authors + 35 coordinators · 10 projects · 50 GB</summary>
+    /// <summary>$90/mo — up to 20 users (1 author + 19 coordinators) · unlimited projects · 50 GB</summary>
     Network = 3,
-    /// <summary>≥$3,500/mo — custom; SLA + dedicated support + on-prem option</summary>
+    /// <summary>Custom — unlimited seats + projects; SSO · SLA · on-prem option</summary>
     Enterprise = 4,
 }
 
@@ -146,11 +146,11 @@ public static class BillingPlanLimits
 
     public static Limits For(BillingPlan plan) => plan switch
     {
-        BillingPlan.Trial      => new Limits(1, 25, 3,  5_000, 0m),
-        BillingPlan.Studio     => new Limits(1, 10, 3,  5_000, 30m),
-        BillingPlan.Practice   => new Limits(1, 25, 10, 25_000, 80m),
-        BillingPlan.Network    => new Limits(3, 35, 10, 50_000, 150m),
-        BillingPlan.Enterprise => new Limits(int.MaxValue, int.MaxValue, int.MaxValue, long.MaxValue, 3_500m),
+        BillingPlan.Trial      => new Limits(1,  5,           3,          10_000,      0m),
+        BillingPlan.Studio     => new Limits(1,  5,           5,          10_000,      35m),
+        BillingPlan.Practice   => new Limits(1, 11,          10,          25_000,      55m),
+        BillingPlan.Network    => new Limits(1, 19, int.MaxValue,          50_000,      90m),
+        BillingPlan.Enterprise => new Limits(int.MaxValue, int.MaxValue, int.MaxValue, long.MaxValue, 0m),
         _ => new Limits(1, 5, 1, 500, 0m),
     };
 
