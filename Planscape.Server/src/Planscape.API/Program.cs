@@ -378,9 +378,11 @@ if (!string.IsNullOrEmpty(builder.Configuration["Smtp:Host"])
 else
     builder.Services.AddSingleton<Planscape.Core.Interfaces.IEmailService, Planscape.Infrastructure.Services.NullEmailService>();
 
-// Feature gap 6 — P6 live link service + Hangfire job
+// Feature gap 6 — P6 live link service + Hangfire scheduler
 builder.Services.AddScoped<Planscape.Infrastructure.Services.P6LiveLinkService>();
-builder.Services.AddScoped<Planscape.Infrastructure.Services.P6LiveLinkJob>();
+// NOTE: P6LiveLinkJob is superseded by P6SchedulerJob (GAP-D). It is NOT
+// registered here to avoid an unused scoped registration. The recurring job
+// is removed in the app-startup section below via RecurringJob.RemoveIfExists.
 // GAP-A — BOQ compliance re-check (fire-once, triggered from BoqController)
 builder.Services.AddScoped<Planscape.Infrastructure.Services.BoqComplianceReCheckJob>();
 // GAP-D — per-project P6 dynamic scheduler (meta-scheduler, runs every 5 min)

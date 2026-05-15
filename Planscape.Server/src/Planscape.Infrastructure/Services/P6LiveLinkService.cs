@@ -255,12 +255,19 @@ public class P6LiveLinkService
                 // Notify the issue assignee.
                 if (_notifications != null && issue.AssigneeUserId.HasValue)
                 {
-                    _ = _notifications.NotifyUserAsync(
-                        issue.AssigneeUserId.Value,
-                        $"Issue {issue.IssueCode} auto-resolved",
-                        $"P6 activity {activityId} reached 100% — issue marked resolved.",
-                        new { issueId = issue.Id, issueCode = issue.IssueCode, projectId },
-                        ct);
+                    try
+                    {
+                        await _notifications.NotifyUserAsync(
+                            issue.AssigneeUserId.Value,
+                            $"Issue {issue.IssueCode} auto-resolved",
+                            $"P6 activity {activityId} reached 100% — issue marked resolved.",
+                            new { issueId = issue.Id, issueCode = issue.IssueCode, projectId },
+                            ct);
+                    }
+                    catch (Exception notifyEx)
+                    {
+                        _logger.LogWarning(notifyEx, "P6Sync: notification failed for issue {Code}.", issue.IssueCode);
+                    }
                 }
             }
         }
@@ -283,19 +290,28 @@ public class P6LiveLinkService
                 var body = $"Activity {el.P6ActivityId} reached {milestone}% complete.";
                 foreach (var uid in pmUserIds)
                 {
-                    _ = _push.SendToUserAsync(uid, new PushPayload
+                    try
                     {
-                        Title   = $"P6 Milestone: {milestone}%",
-                        Body    = body,
-                        Channel = "p6_milestone",
-                        Data    = new Dictionary<string, string>
+                        await _push.SendToUserAsync(uid, new PushPayload
                         {
-                            ["type"]       = "p6_milestone",
-                            ["activityId"] = el.P6ActivityId ?? "",
-                            ["milestone"]  = milestone.ToString("F0"),
-                            ["projectId"]  = projectId.ToString(),
-                        }
-                    }, ct);
+                            Title   = $"P6 Milestone: {milestone}%",
+                            Body    = body,
+                            Channel = "p6_milestone",
+                            Data    = new Dictionary<string, string>
+                            {
+                                ["type"]       = "p6_milestone",
+                                ["activityId"] = el.P6ActivityId ?? "",
+                                ["milestone"]  = milestone.ToString("F0"),
+                                ["projectId"]  = projectId.ToString(),
+                            }
+                        }, ct);
+                    }
+                    catch (Exception pushEx)
+                    {
+                        _logger.LogWarning(pushEx,
+                            "P6Sync: push notification failed for user {UserId}, milestone {Milestone}%.",
+                            uid, milestone);
+                    }
                 }
             }
         }
@@ -450,10 +466,12 @@ public class P6LiveLinkJob
         var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
         db.BypassTenantFilter = true;
 
-        // Load all projects that have P6 settings stored
+        // Load only active projects that have P6 settings stored.
+        // Archived / handed-over projects are excluded to avoid unnecessary P6 API calls.
         var projects = await db.Projects
             .AsNoTracking()
-            .Where(p => p.ConfigJson != null && p.ConfigJson.Contains("\"p6\""))
+            .Where(p => p.Status == ProjectStatus.Active
+                     && p.ConfigJson != null && p.ConfigJson.Contains("\"p6\""))
             .ToListAsync(ct);
 
         _logger.LogInformation("P6LiveLinkJob: {Count} projects with P6 config.", projects.Count);

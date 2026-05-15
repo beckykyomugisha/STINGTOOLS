@@ -44,9 +44,10 @@ namespace StingTools.BIMManager
                 // If a cost-file override is configured via CostFileBrowserCommand, the
                 // AutoCost5DCommand will have already applied those rates to elements,
                 // so reading STING_5D_COST_RATE_NUM here picks up the overridden values.
+                // Enumerate lazily — FilteredElementCollector implements IEnumerable<Element>
+                // so ToElements() (which allocates a full IList) is unnecessary here.
                 var collector = new FilteredElementCollector(doc)
-                    .WhereElementIsNotElementType()
-                    .ToElements();
+                    .WhereElementIsNotElementType();
 
                 var disciplineTotals = new Dictionary<string, (int items, double estimated, double actual)>(StringComparer.OrdinalIgnoreCase);
                 double grandEstimated = 0.0;

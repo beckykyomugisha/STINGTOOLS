@@ -2656,9 +2656,10 @@ namespace StingTools.BIMManager
                     phases.Add(new { id = (long)phase.Id.Value, name = phase.Name });
 
                 var exportElements = new List<object>();
+                // Use lazy ElementId enumeration + on-demand Element fetch to avoid
+                // loading every element into memory when most have no bounding box.
                 var allElements = new FilteredElementCollector(doc)
-                    .WhereElementIsNotElementType()
-                    .ToElements();
+                    .WhereElementIsNotElementType();
 
                 foreach (var el in allElements)
                 {

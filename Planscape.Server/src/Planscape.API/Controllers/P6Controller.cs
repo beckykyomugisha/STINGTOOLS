@@ -50,6 +50,22 @@ public class P6Controller : ControllerBase
     {
         if (!await ProjectInTenant(projectId, ct)) return Forbid();
 
+        // SSRF guard: BaseUrl must be an absolute HTTPS URI (or HTTP for on-prem dev
+        // environments, but not file://, ftp://, internal loop-back, etc.).
+        if (!string.IsNullOrWhiteSpace(settings.BaseUrl))
+        {
+            if (!Uri.TryCreate(settings.BaseUrl, UriKind.Absolute, out var parsedUri)
+                || (parsedUri.Scheme != Uri.UriSchemeHttps && parsedUri.Scheme != Uri.UriSchemeHttp))
+            {
+                return BadRequest(new { error = "BaseUrl must be an absolute http:// or https:// URL." });
+            }
+            // Reject loopback addresses to prevent SSRF against internal services.
+            if (parsedUri.IsLoopback)
+            {
+                return BadRequest(new { error = "BaseUrl must not point to a loopback address." });
+            }
+        }
+
         var project = await _db.Projects.FindAsync(new object[] { projectId }, ct);
         if (project == null) return NotFound();
 

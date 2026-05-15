@@ -132,7 +132,9 @@ public class IfcBoqSeedJob
         }
     }
 
-    // Mirror of DocumentsController.MapIfcTypeToDiscipline — kept in sync manually.
+    // Returns human-readable discipline labels for BOQ snapshot display (mobile cost dashboard).
+    // DocumentsController.MapIfcTypeToDiscipline returns STING discipline codes (M/E/P/A/S)
+    // for element tagging — that is a different purpose; do NOT merge these methods.
     private static string MapIfcTypeToDiscipline(string ifcTypeName)
     {
         if (string.IsNullOrEmpty(ifcTypeName)) return "General";
