@@ -2818,6 +2818,8 @@
                                             ToolTip="Configure Primavera P6 live link — enter P6 URL, credentials, and project ID"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="P6 Sync Now" Tag="Schedule_P6SyncNow" Click="Cmd_Click"
                                             ToolTip="Trigger an immediate P6 activity sync — updates element % complete from Primavera P6"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="P6 Writeback" Tag="Schedule_P6Writeback" Click="Cmd_Click"
+                                            ToolTip="Write P6 actuals (% complete, actual start/finish) back to Revit element parameters for 4D viewer"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

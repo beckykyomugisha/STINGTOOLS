@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -52,6 +50,22 @@ public class P6Controller : ControllerBase
     {
         if (!await ProjectInTenant(projectId, ct)) return Forbid();
 
+        // SSRF guard: BaseUrl must be an absolute HTTPS URI (or HTTP for on-prem dev
+        // environments, but not file://, ftp://, internal loop-back, etc.).
+        if (!string.IsNullOrWhiteSpace(settings.BaseUrl))
+        {
+            if (!Uri.TryCreate(settings.BaseUrl, UriKind.Absolute, out var parsedUri)
+                || (parsedUri.Scheme != Uri.UriSchemeHttps && parsedUri.Scheme != Uri.UriSchemeHttp))
+            {
+                return BadRequest(new { error = "BaseUrl must be an absolute http:// or https:// URL." });
+            }
+            // Reject loopback addresses to prevent SSRF against internal services.
+            if (parsedUri.IsLoopback)
+            {
+                return BadRequest(new { error = "BaseUrl must not point to a loopback address." });
+            }
+        }
+
         var project = await _db.Projects.FindAsync(new object[] { projectId }, ct);
         if (project == null) return NotFound();
 
@@ -80,26 +94,16 @@ public class P6Controller : ControllerBase
 
     // ── Password obfuscation helpers ──────────────────────────────────────────
 
-    /// <summary>XOR-masks the password bytes against a key derived from projectId.
-    /// Not encryption — but prevents plain-text credentials in the DB column at rest.
-    /// Layer proper column encryption (pgcrypto) on top for production.</summary>
+    /// <summary>
+    /// Delegates to <see cref="P6PasswordHelper"/> in Planscape.Infrastructure
+    /// so the same logic is shared with <see cref="P6LiveLinkService"/> without
+    /// a circular project reference.
+    /// </summary>
     internal static string ObfuscatePassword(string password, Guid projectId)
-    {
-        byte[] key   = projectId.ToByteArray(); // 16 bytes
-        byte[] plain = Encoding.UTF8.GetBytes(password);
-        for (int i = 0; i < plain.Length; i++)
-            plain[i] ^= key[i % key.Length];
-        return Convert.ToBase64String(plain);
-    }
+        => P6PasswordHelper.ObfuscatePassword(password, projectId);
 
     internal static string DeobfuscatePassword(string obfuscated, Guid projectId)
-    {
-        byte[] key   = projectId.ToByteArray();
-        byte[] data  = Convert.FromBase64String(obfuscated);
-        for (int i = 0; i < data.Length; i++)
-            data[i] ^= key[i % key.Length];
-        return Encoding.UTF8.GetString(data);
-    }
+        => P6PasswordHelper.DeobfuscatePassword(obfuscated, projectId);
 
     // ── GET /api/projects/{projectId}/p6/status ────────────────────────────
 
@@ -190,7 +194,7 @@ public class P6Controller : ControllerBase
     {
         if (!await ProjectInTenant(projectId, ct)) return Forbid();
 
-        var project = await _db.Projects.FindAsync([projectId], ct);
+        var project = await _db.Projects.FindAsync(new object[] { projectId }, ct);
         if (project == null) return NotFound();
 
         P6LiveLinkSettings? settings = null;
@@ -217,6 +221,35 @@ public class P6Controller : ControllerBase
             svc.SyncAndPersistAsync(capturedProjectId, capturedTenantId, capturedSettings, CancellationToken.None));
 
         return Ok(new { status = "Sync enqueued. Check GET /p6/status in ~30 seconds for results." });
+    }
+
+    // ── GET /api/projects/{projectId}/p6/elements ─────────────────────────
+
+    /// <summary>
+    /// Integration gap F4 — Returns all tagged elements for the project that
+    /// have a P6 activity id assigned, so the Revit plugin can write P6 actuals
+    /// (percentComplete, actualStart, actualFinish) back to element parameters.
+    /// Shape: [{ elementUniqueId, p6ActivityId, percentComplete, actualStart, actualFinish }]
+    /// </summary>
+    [HttpGet("elements")]
+    public async Task<ActionResult> GetElements(Guid projectId, CancellationToken ct)
+    {
+        if (!await ProjectInTenant(projectId, ct)) return Forbid();
+
+        var elements = await _db.TaggedElements
+            .AsNoTracking()
+            .Where(e => e.ProjectId == projectId && e.P6ActivityId != null)
+            .Select(e => new
+            {
+                elementUniqueId  = e.UniqueId,
+                p6ActivityId     = e.P6ActivityId,
+                percentComplete  = e.PercentComplete,
+                actualStart      = e.ActualStart,
+                actualFinish     = e.ActualFinish,
+            })
+            .ToListAsync(ct);
+
+        return Ok(elements);
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────

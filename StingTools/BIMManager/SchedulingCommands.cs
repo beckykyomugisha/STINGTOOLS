@@ -2656,9 +2656,10 @@ namespace StingTools.BIMManager
                     phases.Add(new { id = (long)phase.Id.Value, name = phase.Name });
 
                 var exportElements = new List<object>();
+                // Use lazy ElementId enumeration + on-demand Element fetch to avoid
+                // loading every element into memory when most have no bounding box.
                 var allElements = new FilteredElementCollector(doc)
-                    .WhereElementIsNotElementType()
-                    .ToElements();
+                    .WhereElementIsNotElementType();
 
                 foreach (var el in allElements)
                 {
@@ -2669,9 +2670,11 @@ namespace StingTools.BIMManager
                     string category = ParameterHelpers.GetCategoryName(el);
                     if (string.IsNullOrWhiteSpace(disc) && string.IsNullOrWhiteSpace(category)) continue;
 
-                    // Phase dates from STING params first, then Revit phase
-                    string weekStart = ParameterHelpers.GetString(el, "ASS_PHASE_START_DT");
-                    string weekEnd   = ParameterHelpers.GetString(el, "ASS_PHASE_END_DT");
+                    // Phase dates from STING params first, then Revit phase.
+                    // Real parameter names per MR_PARAMETERS.txt group 17:
+                    //   STING_4D_START_DATE_TXT / STING_4D_END_DATE_TXT
+                    string weekStart = ParameterHelpers.GetString(el, "STING_4D_START_DATE_TXT");
+                    string weekEnd   = ParameterHelpers.GetString(el, "STING_4D_END_DATE_TXT");
 
                     int phaseId = 0;
                     if (string.IsNullOrWhiteSpace(weekStart) || string.IsNullOrWhiteSpace(weekEnd))
@@ -2843,6 +2846,106 @@ namespace StingTools.BIMManager
                     result = tb.Text.Trim();
             });
             return result;
+        }
+    }
+
+    /// <summary>
+    /// Integration gap F4 — Writes P6 actuals back to Revit element parameters.
+    /// Calls GET /api/projects/{id}/p6/elements to retrieve all elements with P6
+    /// activity ids, then writes STING_4D_START_DATE_TXT, STING_4D_END_DATE_TXT,
+    /// and STING_P6_PCT_TXT to the matching Revit elements by UniqueId.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class P6WritebackCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var doc = commandData.Application.ActiveUIDocument?.Document;
+                if (doc == null) { TaskDialog.Show("STING — P6 Writeback", "No active document."); return Result.Cancelled; }
+
+                if (!PlanscapeServerClient.Instance.IsConnected)
+                {
+                    TaskDialog.Show("STING — P6 Writeback", "Please log in to Planscape first.");
+                    return Result.Cancelled;
+                }
+
+                Guid projectId = PlanscapeServerClient.Instance.CurrentProjectId;
+                if (projectId == Guid.Empty)
+                {
+                    TaskDialog.Show("STING — P6 Writeback", "No Planscape project linked.");
+                    return Result.Cancelled;
+                }
+
+                var p6Elements = PlanscapeServerClient.Instance.GetP6ElementsAsync(projectId)
+                    .GetAwaiter().GetResult();
+
+                if (p6Elements == null || p6Elements.Count == 0)
+                {
+                    TaskDialog.Show("STING — P6 Writeback",
+                        "No elements with P6 activity ids found on the server.\n\n" +
+                        "Run P6 Sync Now first to pull activity data from Primavera P6.");
+                    return Result.Succeeded;
+                }
+
+                // Build UniqueId → element map for fast lookup
+                var uniqueIdMap = new Dictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
+                var collector = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType();
+                foreach (Element el in collector)
+                {
+                    if (!string.IsNullOrEmpty(el.UniqueId))
+                        uniqueIdMap[el.UniqueId] = el.Id;
+                }
+
+                int updated = 0, notFound = 0;
+
+                using (var t = new Transaction(doc, "STING P6 Writeback"))
+                {
+                    t.Start();
+                    foreach (var token in p6Elements)
+                    {
+                        string? uniqueId = token["elementUniqueId"]?.ToString();
+                        if (string.IsNullOrEmpty(uniqueId)) continue;
+
+                        if (!uniqueIdMap.TryGetValue(uniqueId, out var elemId))
+                        {
+                            notFound++;
+                            continue;
+                        }
+
+                        var el = doc.GetElement(elemId);
+                        if (el == null) { notFound++; continue; }
+
+                        string actualStart  = token["actualStart"]?.ToString()  ?? "";
+                        string actualFinish = token["actualFinish"]?.ToString() ?? "";
+                        double pct          = (double)(token["percentComplete"] ?? 0.0);
+
+                        ParameterHelpers.SetString(el, "STING_4D_START_DATE_TXT", actualStart,  overwrite: true);
+                        ParameterHelpers.SetString(el, "STING_4D_END_DATE_TXT",   actualFinish, overwrite: true);
+                        ParameterHelpers.SetString(el, "STING_P6_PCT_TXT",        pct.ToString("F1"), overwrite: true);
+
+                        updated++;
+                    }
+                    t.Commit();
+                }
+
+                StingLog.Info($"P6WritebackCommand: {updated} elements updated, {notFound} not found in model.");
+                TaskDialog.Show("STING — P6 Writeback",
+                    $"P6 writeback complete.\n\n" +
+                    $"Elements updated: {updated}\n" +
+                    $"Not found in model: {notFound}\n\n" +
+                    "Parameters written: STING_4D_START_DATE_TXT, STING_4D_END_DATE_TXT, STING_P6_PCT_TXT");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("P6WritebackCommand", ex);
+                TaskDialog.Show("STING — P6 Writeback", $"Error: {ex.Message}");
+                return Result.Failed;
+            }
         }
     }
 

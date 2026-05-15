@@ -213,6 +213,10 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.Property<DateTime>("CreatedAt")
                     .HasColumnType("timestamp with time zone");
 
+                b.Property<DateTime>("UpdatedAt")
+                    .HasDefaultValueSql("now()")
+                    .HasColumnType("timestamp with time zone");
+
                 b.Property<string>("DeviceId")
                     .HasMaxLength(120)
                     .HasColumnType("character varying(120)");
@@ -289,7 +293,76 @@ namespace Planscape.Infrastructure.Data.Migrations
 
                 b.HasIndex("ProjectId", "AssigneeUserId");
 
+                b.HasIndex("UpdatedAt");
+
                 b.ToTable("Issues");
+            });
+
+            modelBuilder.Entity("Planscape.Core.Entities.BoqSnapshot", b =>
+            {
+                b.Property<int>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("integer")
+                    .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+                b.Property<DateTime>("CreatedAt")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<string>("CreatedByUserId")
+                    .IsRequired()
+                    .HasColumnType("text");
+
+                b.Property<Guid>("ProjectId")
+                    .HasColumnType("uuid");
+
+                b.Property<string>("SnapshotJson")
+                    .IsRequired()
+                    .HasColumnType("text");
+
+                b.Property<Guid>("TenantId")
+                    .HasColumnType("uuid");
+
+                b.HasKey("Id");
+
+                b.HasIndex("ProjectId");
+
+                b.HasIndex("TenantId");
+
+                b.ToTable("BoqSnapshots");
+            });
+
+            modelBuilder.Entity("Planscape.Core.Entities.P6SyncLog", b =>
+            {
+                b.Property<int>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("integer")
+                    .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+                b.Property<int>("ActivitiesPolled")
+                    .HasColumnType("integer");
+
+                b.Property<int>("ElementsUpdated")
+                    .HasColumnType("integer");
+
+                b.Property<string>("ErrorMessage")
+                    .HasColumnType("text");
+
+                b.Property<Guid>("ProjectId")
+                    .HasColumnType("uuid");
+
+                b.Property<DateTime>("SyncedAt")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<Guid>("TenantId")
+                    .HasColumnType("uuid");
+
+                b.HasKey("Id");
+
+                b.HasIndex("ProjectId");
+
+                b.HasIndex("TenantId");
+
+                b.ToTable("P6SyncLogs");
             });
 
             modelBuilder.Entity("Planscape.Core.Entities.ComplianceSnapshot", b =>
@@ -1033,6 +1106,18 @@ namespace Planscape.Infrastructure.Data.Migrations
                     .IsRequired()
                     .HasColumnType("text");
 
+                b.Property<string>("ActualFinish")
+                    .HasColumnType("text");
+
+                b.Property<string>("ActualStart")
+                    .HasColumnType("text");
+
+                b.Property<string>("P6ActivityId")
+                    .HasColumnType("text");
+
+                b.Property<double?>("PercentComplete")
+                    .HasColumnType("double precision");
+
                 b.Property<string>("Sys")
                     .IsRequired()
                     .HasColumnType("text");
@@ -1095,6 +1180,8 @@ namespace Planscape.Infrastructure.Data.Migrations
                     .IsUnique();
 
                 b.HasIndex("ProjectId", "LastModifiedUtc");
+
+                b.HasIndex("P6ActivityId");
 
                 b.ToTable("TaggedElements");
             });
@@ -1787,6 +1874,28 @@ namespace Planscape.Infrastructure.Data.Migrations
                     .IsRequired();
 
                 b.Navigation("Asset");
+            });
+
+            modelBuilder.Entity("Planscape.Core.Entities.BoqSnapshot", b =>
+            {
+                b.HasOne("Planscape.Core.Entities.Project", "Project")
+                    .WithMany()
+                    .HasForeignKey("ProjectId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.Navigation("Project");
+            });
+
+            modelBuilder.Entity("Planscape.Core.Entities.P6SyncLog", b =>
+            {
+                b.HasOne("Planscape.Core.Entities.Project", "Project")
+                    .WithMany()
+                    .HasForeignKey("ProjectId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.Navigation("Project");
             });
 
             // ── Collection navigations ──

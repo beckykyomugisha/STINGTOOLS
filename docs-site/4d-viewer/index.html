@@ -344,13 +344,16 @@ function weekLabel(w) {
 
 function elementColor(el, currentWeek) {
   if (el._wStart === null || el._wEnd === null) return 'rgba(226,232,240,0.18)'; // no schedule
-  if (currentWeek < el._wStart)                return '#4a5568';  // not started — grey
-  if (currentWeek > el._wEnd)                  return '#48bb78';  // complete — green
-  if (currentWeek === el._wEnd && currentWeek < el._wEnd)
-                                                return '#fc8181';  // overdue
-  // currentWeek > el._wEnd means overdue
-  if (currentWeek > el._wEnd + 1)              return '#fc8181';  // overdue — red
-  return '#f6ad55';                                                // in progress — orange
+  if (currentWeek < el._wStart)  return '#4a5568';  // not started — dark grey
+  if (currentWeek <= el._wEnd)   return '#f6ad55';  // in progress — orange
+  // currentWeek > el._wEnd
+  // "overdue" = in-progress element whose end week has passed without completion.
+  // We treat any element that was still in-progress on its end week as complete
+  // (no separate "overdue" signal without actual-vs-planned data). Use green for
+  // completed and red only when percent-complete data is present but < 100.
+  if (typeof el.percentComplete === 'number' && el.percentComplete < 100)
+                                 return '#fc8181';  // overdue (P6 data says incomplete)
+  return '#48bb78';                                 // complete — green
 }
 
 function renderPlan() {

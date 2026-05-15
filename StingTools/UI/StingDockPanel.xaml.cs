@@ -1010,8 +1010,60 @@ namespace StingTools.UI
         }
 
         /// <summary>
-        /// Push the latest sync status into the header chip. Safe to call from any thread.
+        // ── INT-07 ────────────────────────────────────────────────────────────────
+
+        public enum SyncState { Offline, Syncing, Synced, Error }
+
+        private static readonly SolidColorBrush _syncGreenBrush =
+            FZ(Color.FromRgb(46, 204, 113));
+        private static readonly SolidColorBrush _syncBlueBrush =
+            FZ(Color.FromRgb(52, 152, 219));
+        private static readonly SolidColorBrush _syncOrangeBrush =
+            FZ(Color.FromRgb(230, 126, 34));
+        private static readonly SolidColorBrush _syncGreyBrush =
+            FZ(Color.FromRgb(127, 140, 141));
+
+        /// <summary>
+        /// Updates the SyncStatusChip label and colour. Safe to call from any thread.
         /// </summary>
+        public void UpdateSyncStatus(SyncState state, string? errorDetail = null)
+        {
+            void Apply()
+            {
+                try
+                {
+                    if (bdrSync == null || txtSync == null) return;
+                    switch (state)
+                    {
+                        case SyncState.Syncing:
+                            txtSync.Text = "⟳ Syncing…";
+                            bdrSync.Background = _syncBlueBrush;
+                            break;
+                        case SyncState.Synced:
+                            txtSync.Text = "● Synced";
+                            bdrSync.Background = _syncGreenBrush;
+                            break;
+                        case SyncState.Error:
+                            txtSync.Text = "⚠ Sync error";
+                            bdrSync.Background = _syncOrangeBrush;
+                            if (!string.IsNullOrEmpty(errorDetail))
+                                bdrSync.ToolTip = errorDetail;
+                            break;
+                        default: // Offline
+                            txtSync.Text = "◌ Offline";
+                            bdrSync.Background = _syncGreyBrush;
+                            break;
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    Core.StingLog.Warn($"UpdateSyncStatus failed: {ex.Message}");
+                }
+            }
+            if (Dispatcher.CheckAccess()) Apply();
+            else Dispatcher.BeginInvoke(new System.Action(Apply));
+        }
+
         public void RefreshSyncIndicator()
         {
             void Apply()

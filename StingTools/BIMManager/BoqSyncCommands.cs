@@ -37,10 +37,17 @@ namespace StingTools.BIMManager
                     return Result.Cancelled;
                 }
 
-                // Collect all elements with BOQ cost/quantity params
+                // Collect all elements with 5D cost/quantity params.
+                // Parameter names per MR_PARAMETERS.txt (group 17):
+                //   STING_5D_COST_RATE_NUM  — unit cost rate (populated by AutoCost5DCommand)
+                //   CST_QTY_MEASURED        — measured quantity (area/length/volume/count)
+                // If a cost-file override is configured via CostFileBrowserCommand, the
+                // AutoCost5DCommand will have already applied those rates to elements,
+                // so reading STING_5D_COST_RATE_NUM here picks up the overridden values.
+                // Enumerate lazily — FilteredElementCollector implements IEnumerable<Element>
+                // so ToElements() (which allocates a full IList) is unnecessary here.
                 var collector = new FilteredElementCollector(doc)
-                    .WhereElementIsNotElementType()
-                    .ToElements();
+                    .WhereElementIsNotElementType();
 
                 var disciplineTotals = new Dictionary<string, (int items, double estimated, double actual)>(StringComparer.OrdinalIgnoreCase);
                 double grandEstimated = 0.0;
@@ -49,18 +56,24 @@ namespace StingTools.BIMManager
 
                 foreach (var el in collector)
                 {
-                    Parameter costParam = el.LookupParameter("BOQ_UNIT_COST_NUM");
-                    Parameter qtyParam  = el.LookupParameter("BOQ_QUANTITY_NUM");
+                    Parameter costParam = el.LookupParameter("STING_5D_COST_RATE_NUM");
+                    Parameter qtyParam  = el.LookupParameter("CST_QTY_MEASURED");
 
                     if (costParam == null || !costParam.HasValue) continue;
                     if (qtyParam  == null || !qtyParam.HasValue)  continue;
 
                     double unitCost  = GetDoubleValue(costParam);
-                    double qty       = GetDoubleValue(qtyParam);
+                    // CST_QTY_MEASURED is a TEXT param storing a numeric string
+                    double qty = 0;
+                    if (qtyParam.StorageType == StorageType.String)
+                        double.TryParse(qtyParam.AsString(), System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture, out qty);
+                    else
+                        qty = GetDoubleValue(qtyParam);
                     double estimated = unitCost * qty;
 
-                    // Actual cost — use BOQ_ACTUAL_COST_NUM if present, else same as estimated
-                    Parameter actualParam = el.LookupParameter("BOQ_ACTUAL_COST_NUM");
+                    // Actual cost — use CST_TOTAL_MATERIAL_COST if present, else same as estimated
+                    Parameter actualParam = el.LookupParameter("CST_TOTAL_MATERIAL_COST");
                     double actual = actualParam != null && actualParam.HasValue
                         ? GetDoubleValue(actualParam)
                         : estimated;
@@ -82,8 +95,8 @@ namespace StingTools.BIMManager
                 if (totalItems == 0)
                 {
                     TaskDialog.Show("STING — BOQ Sync",
-                        "No elements found with BOQ_UNIT_COST_NUM and BOQ_QUANTITY_NUM parameters.\n\n" +
-                        "Run 'BOQ Cost Manager' first to populate cost data.");
+                        "No elements found with STING_5D_COST_RATE_NUM and CST_QTY_MEASURED parameters.\n\n" +
+                        "Run '5D Cost' (BIM → 5D Auto Cost) first to populate cost data.");
                     return Result.Cancelled;
                 }
 

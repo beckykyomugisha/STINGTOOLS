@@ -1708,4 +1708,17 @@ export function getP6Logs(projectId: string): Promise<P6SyncLogEntry[]> {
 export function triggerP6Sync(projectId: string): Promise<{ status: string }> {
   return apiFetch(`/api/projects/${projectId}/p6/sync`, { method: 'POST' });
 }
+
+// ── P6 writeback element list (integration gap F4) ───────────────────────────
+
+export interface P6ElementActuals {
+  elementUniqueId: string;
+  p6ActivityId:    string;
+  percentComplete: number;
+  actualStart:     string | null;
+  actualFinish:    string | null;
+}
+
+export function getP6Elements(projectId: string): Promise<P6ElementActuals[]> {
+  return apiFetch(`/api/projects/${projectId}/p6/elements`);
 }

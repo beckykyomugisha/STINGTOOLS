@@ -16,6 +16,51 @@ using Planscape.Infrastructure.Data;
 
 namespace Planscape.Infrastructure.Services;
 
+// ── Password obfuscation helper (shared between P6Controller and P6LiveLinkService) ──
+
+/// <summary>
+/// XOR-based password obfuscation keyed on a project-specific GUID.
+/// Lives in Planscape.Infrastructure so both the API layer (P6Controller)
+/// and the service layer (P6LiveLinkService) can call it without a
+/// circular project reference.
+/// </summary>
+public static class P6PasswordHelper
+{
+    public static string ObfuscatePassword(string password, string keyHint)
+    {
+        byte[] key   = DeriveKey(keyHint);
+        byte[] plain = System.Text.Encoding.UTF8.GetBytes(password);
+        for (int i = 0; i < plain.Length; i++)
+            plain[i] ^= key[i % key.Length];
+        return Convert.ToBase64String(plain);
+    }
+
+    public static string DeobfuscatePassword(string obfuscated, string keyHint)
+    {
+        byte[] key  = DeriveKey(keyHint);
+        byte[] data = Convert.FromBase64String(obfuscated);
+        for (int i = 0; i < data.Length; i++)
+            data[i] ^= key[i % key.Length];
+        return System.Text.Encoding.UTF8.GetString(data);
+    }
+
+    // ── Guid overloads so P6Controller can still use projectId as the key ──
+
+    public static string ObfuscatePassword(string password, Guid projectId)
+        => ObfuscatePassword(password, projectId.ToString());
+
+    public static string DeobfuscatePassword(string obfuscated, Guid projectId)
+        => DeobfuscatePassword(obfuscated, projectId.ToString());
+
+    private static byte[] DeriveKey(string hint)
+    {
+        // Return the raw GUID bytes when hint is a valid GUID (16 bytes),
+        // otherwise UTF-8 encode to produce a byte array of arbitrary length.
+        if (Guid.TryParse(hint, out var g)) return g.ToByteArray();
+        return System.Text.Encoding.UTF8.GetBytes(hint);
+    }
+}
+
 // ── Settings POCO (stored as JSON in project settings) ─────────────────────
 
 /// <summary>
@@ -97,7 +142,7 @@ public class P6LiveLinkService
 
         try
         {
-            var activities = await FetchActivitiesAsync(settings, ct);
+            var activities = await FetchActivitiesAsync(projectId, settings, ct);
             log.ActivitiesPolled = activities.Count;
 
             if (activities.Count == 0)
@@ -106,10 +151,13 @@ public class P6LiveLinkService
                 return log;
             }
 
-            // Build lookup: P6ActivityId → % complete
-            var pctByActivity = activities
+            // Build lookup: P6ActivityId → (PercentComplete, ActualStart, ActualFinish)
+            var activityData = activities
                 .Where(a => a.ActivityId != null)
-                .ToDictionary(a => a.ActivityId!, a => a.PercentComplete);
+                .ToDictionary(
+                    a => a.ActivityId!,
+                    a => (Pct: a.PercentComplete, Start: a.ActualStartDate, Finish: a.ActualFinishDate));
+
 
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
@@ -133,20 +181,22 @@ public class P6LiveLinkService
             foreach (var el in elements)
             {
                 if (el.P6ActivityId == null) continue;
-                if (!pctByActivity.TryGetValue(el.P6ActivityId, out double pct)) continue;
+                if (!activityData.TryGetValue(el.P6ActivityId, out var data)) continue;
 
-                double previous = el.PercentComplete;
-                el.PercentComplete = pct;
+                double previous    = el.PercentComplete ?? 0.0;
+                el.PercentComplete = data.Pct;
+                if (data.Start  != null) el.ActualStart  = data.Start;
+                if (data.Finish != null) el.ActualFinish = data.Finish;
                 updated++;
 
                 // Detect completion (reached 100%)
-                if (previous < 100.0 && pct >= 100.0)
+                if (previous < 100.0 && data.Pct >= 100.0)
                     justCompleted.Add(el);
 
                 // Detect milestone crossings (25%, 50%, 75%, 100%)
                 foreach (var threshold in MilestoneThresholds)
                 {
-                    if (previous < threshold && pct >= threshold)
+                    if (previous < threshold && data.Pct >= threshold)
                         milestoneCrossed.Add((el, threshold));
                 }
             }
@@ -210,12 +260,19 @@ public class P6LiveLinkService
                 // Notify the issue assignee.
                 if (_notifications != null && issue.AssigneeUserId.HasValue)
                 {
-                    _ = _notifications.NotifyUserAsync(
-                        issue.AssigneeUserId.Value,
-                        $"Issue {issue.IssueCode} auto-resolved",
-                        $"P6 activity {activityId} reached 100% — issue marked resolved.",
-                        new { issueId = issue.Id, issueCode = issue.IssueCode, projectId },
-                        ct);
+                    try
+                    {
+                        await _notifications.NotifyUserAsync(
+                            issue.AssigneeUserId.Value,
+                            $"Issue {issue.IssueCode} auto-resolved",
+                            $"P6 activity {activityId} reached 100% — issue marked resolved.",
+                            new { issueId = issue.Id, issueCode = issue.IssueCode, projectId },
+                            ct);
+                    }
+                    catch (Exception notifyEx)
+                    {
+                        _logger.LogWarning(notifyEx, "P6Sync: notification failed for issue {Code}.", issue.IssueCode);
+                    }
                 }
             }
         }
@@ -238,19 +295,28 @@ public class P6LiveLinkService
                 var body = $"Activity {el.P6ActivityId} reached {milestone}% complete.";
                 foreach (var uid in pmUserIds)
                 {
-                    _ = _push.SendToUserAsync(uid, new PushPayload
+                    try
                     {
-                        Title   = $"P6 Milestone: {milestone}%",
-                        Body    = body,
-                        Channel = "p6_milestone",
-                        Data    = new Dictionary<string, string>
+                        await _push.SendToUserAsync(uid, new PushPayload
                         {
-                            ["type"]       = "p6_milestone",
-                            ["activityId"] = el.P6ActivityId ?? "",
-                            ["milestone"]  = milestone.ToString("F0"),
-                            ["projectId"]  = projectId.ToString(),
-                        }
-                    }, ct);
+                            Title   = $"P6 Milestone: {milestone}%",
+                            Body    = body,
+                            Channel = "p6_milestone",
+                            Data    = new Dictionary<string, string>
+                            {
+                                ["type"]       = "p6_milestone",
+                                ["activityId"] = el.P6ActivityId ?? "",
+                                ["milestone"]  = milestone.ToString("F0"),
+                                ["projectId"]  = projectId.ToString(),
+                            }
+                        }, ct);
+                    }
+                    catch (Exception pushEx)
+                    {
+                        _logger.LogWarning(pushEx,
+                            "P6Sync: push notification failed for user {UserId}, milestone {Milestone}%.",
+                            uid, milestone);
+                    }
                 }
             }
         }
@@ -264,6 +330,7 @@ public class P6LiveLinkService
     // status codes are retried; 4xx are treated as non-transient and thrown
     // immediately.
     private async Task<List<P6Activity>> FetchActivitiesAsync(
+        Guid               planscapeProjectId,
         P6LiveLinkSettings settings,
         CancellationToken  ct)
     {
@@ -275,7 +342,7 @@ public class P6LiveLinkService
             attempt++;
             try
             {
-                return await FetchActivitiesOnceAsync(settings, ct);
+                return await FetchActivitiesOnceAsync(planscapeProjectId, settings, ct);
             }
             catch (HttpRequestException ex) when (attempt < maxAttempts)
             {
@@ -289,6 +356,7 @@ public class P6LiveLinkService
     }
 
     private async Task<List<P6Activity>> FetchActivitiesOnceAsync(
+        Guid               planscapeProjectId,
         P6LiveLinkSettings settings,
         CancellationToken  ct)
     {
@@ -300,9 +368,10 @@ public class P6LiveLinkService
             Timeout     = TimeSpan.FromSeconds(30),
         };
 
-        // Deobfuscate password stored as base64-XOR by P6Controller.ObfuscatePassword
+        // Deobfuscate password stored as base64-XOR by P6PasswordHelper.ObfuscatePassword.
+        // The key is the Planscape project GUID (same key used at Configure time).
         string plainPassword = settings.Password;
-        try { plainPassword = Planscape.API.Controllers.P6Controller.DeobfuscatePassword(settings.Password, projectId); }
+        try { plainPassword = P6PasswordHelper.DeobfuscatePassword(settings.Password, planscapeProjectId); }
         catch { /* not obfuscated (legacy plain-text) — use as-is */ }
 
         string credentials = Convert.ToBase64String(
@@ -402,10 +471,12 @@ public class P6LiveLinkJob
         var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
         db.BypassTenantFilter = true;
 
-        // Load all projects that have P6 settings stored
+        // Load only active projects that have P6 settings stored.
+        // Archived / handed-over projects are excluded to avoid unnecessary P6 API calls.
         var projects = await db.Projects
             .AsNoTracking()
-            .Where(p => p.ConfigJson != null && p.ConfigJson.Contains("\"p6\""))
+            .Where(p => p.Status == ProjectStatus.Active
+                     && p.ConfigJson != null && p.ConfigJson.Contains("\"p6\""))
             .ToListAsync(ct);
 
         _logger.LogInformation("P6LiveLinkJob: {Count} projects with P6 config.", projects.Count);
