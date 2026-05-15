@@ -378,6 +378,10 @@ if (!string.IsNullOrEmpty(builder.Configuration["Smtp:Host"])
 else
     builder.Services.AddSingleton<Planscape.Core.Interfaces.IEmailService, Planscape.Infrastructure.Services.NullEmailService>();
 
+// Feature gap 6 — P6 live link service + Hangfire job
+builder.Services.AddScoped<Planscape.Infrastructure.Services.P6LiveLinkService>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.P6LiveLinkJob>();
+
 // ── Push Notifications ──
 // Supports both raw FCM tokens (via Firebase Project) and ExponentPushToken[…]
 // tokens issued by the Expo/EAS runtime. ExpoPushService is always registered —
@@ -1171,6 +1175,10 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.ClamAvScannerJob>(
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PlatformSyncJob>(
     "platform-sync", j => j.ExecuteAsync(CancellationToken.None),
     "*/30 * * * *", new RecurringJobOptions { QueueName = "platform-sync" });
+// Feature gap 6 — Primavera P6 live link: poll every 30 minutes for projects that have P6 configured.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.P6LiveLinkJob>(
+    "p6-live-link", j => j.ExecuteAsync(CancellationToken.None),
+    "*/30 * * * *", new RecurringJobOptions { QueueName = "default" });
 // BACKUP-01 — nightly 02:15 UTC Postgres dump. Runs only when Backup:Enabled=true.
 // Phase 178b — moved to "heavy" queue (worker-only). pg_dump on a
 // 50 GB tenant database is many minutes of disk + CPU; running it on

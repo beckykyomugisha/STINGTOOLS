@@ -56,6 +56,37 @@ export function getProjectDashboard(projectId: string): Promise<DashboardData> {
   return apiFetch(`/api/projects/${projectId}/dashboard`);
 }
 
+// ── BOQ / Cost Dashboard (feature gap 2) ──
+
+export interface BoqDisciplineRow {
+  discipline: string;
+  items:      number;
+  estimated:  number;
+  actual:     number;
+}
+
+export interface BoqTrendPoint {
+  date:           string;
+  totalEstimated: number;
+  totalActual:    number;
+}
+
+export interface BoqSnapshotResponse {
+  latest: {
+    id:             number;
+    createdAt:      string;
+    createdBy:      string;
+    totalEstimated: number;
+    totalActual:    number;
+    disciplines:    BoqDisciplineRow[];
+  } | null;
+  trend: BoqTrendPoint[];
+}
+
+export function getBoqSnapshot(projectId: string): Promise<BoqSnapshotResponse> {
+  return apiFetch(`/api/projects/${projectId}/boq/snapshot`);
+}
+
 // ── Compliance ──
 
 export function getLatestCompliance(projectId: string): Promise<ComplianceSnapshot> {

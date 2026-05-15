@@ -100,6 +100,14 @@ export default function TabLayout() {
           tabBarIcon: ({ focused }) => <TabIcon label="📷" focused={focused} />,
         }}
       />
+      {/* Feature gap 2 — Cost Dashboard */}
+      <Tabs.Screen
+        name="cost-dashboard"
+        options={{
+          title: 'Costs',
+          tabBarIcon: ({ focused }) => <TabIcon label="📈" focused={focused} />,
+        }}
+      />
       <Tabs.Screen
         name="settings"
         options={{

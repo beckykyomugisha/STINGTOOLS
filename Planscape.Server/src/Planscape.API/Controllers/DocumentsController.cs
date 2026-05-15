@@ -482,6 +482,63 @@ public class DocumentsController : ControllerBase
         await _db.SaveChangesAsync();
         await _audit.LogAsync("CREATE", "Document", doc.Id.ToString(), "{\"versionNumber\":1}");
 
+        // Feature gap 5 — Auto BOQ on IFC upload.
+        // If the uploaded file is an IFC, extract quantities and seed a BoqSnapshot.
+        if (Path.GetExtension(file.FileName).Equals(".ifc", StringComparison.OrdinalIgnoreCase))
+        {
+            // Snapshot the buffer before the using-scope disposes memStream.
+            byte[] ifcBytes        = memStream.ToArray();
+            Guid   ifcProjectId    = doc.ProjectId;
+            Guid   ifcTenantId     = GetTenantId();
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    using var ifcStream = new MemoryStream(ifcBytes);
+                    var extractor = new IfcBoqExtractor();
+                    var items     = extractor.Extract(ifcStream);
+
+                    if (items.Count > 0)
+                    {
+                        // Group into disciplines using IfcElement type prefix
+                        var disciplineGroups = items
+                            .GroupBy(i => MapIfcTypeToDiscipline(i.ElementType))
+                            .Select(g => new BoqDisciplineRow
+                            {
+                                Discipline = g.Key,
+                                Items      = g.Count(),
+                                Estimated  = Math.Round(g.Sum(i => i.Value), 2),
+                                Actual     = 0,
+                            }).ToList();
+
+                        double totalEstimated = disciplineGroups.Sum(r => r.Estimated);
+                        var dto = new BoqSnapshotDto
+                        {
+                            TotalEstimated = totalEstimated,
+                            TotalActual    = 0,
+                            Disciplines    = disciplineGroups,
+                        };
+
+                        var snapshot = new BoqSnapshot
+                        {
+                            ProjectId       = ifcProjectId,
+                            TenantId        = ifcTenantId,
+                            CreatedAt       = DateTime.UtcNow,
+                            CreatedByUserId = "system-ifc-import",
+                            SnapshotJson    = JsonConvert.SerializeObject(dto),
+                        };
+                        _db.BoqSnapshots.Add(snapshot);
+                        await _db.SaveChangesAsync();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Non-fatal — IFC BOQ seeding is best-effort
+                    Console.Error.WriteLine($"IFC BOQ extraction failed: {ex.Message}");
+                }
+            });
+        }
+
         // Create version 1 row
         _db.DocumentVersions.Add(new DocumentVersion
         {
@@ -1046,6 +1103,30 @@ public class DocumentsController : ControllerBase
 
     private Guid GetTenantId() =>
         Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;
+
+    /// <summary>
+    /// Feature gap 5 — maps an IFC element type name to a STING discipline code
+    /// for grouping BOQ items in the auto-seeded snapshot.
+    /// </summary>
+    private static string MapIfcTypeToDiscipline(string ifcTypeName)
+    {
+        return ifcTypeName.ToUpperInvariant() switch
+        {
+            var t when t.Contains("WALL") || t.Contains("DOOR") || t.Contains("WINDOW")
+                    || t.Contains("SLAB") || t.Contains("STAIR") || t.Contains("RAMP")
+                    || t.Contains("ROOF") || t.Contains("COLUMN") || t.Contains("BEAM")
+                    || t.Contains("PLATE") || t.Contains("COVERING") => "A",
+            var t when t.Contains("DUCT") || t.Contains("AIRTERM") || t.Contains("DAMPER")
+                    || t.Contains("FAN")  || t.Contains("COIL")    || t.Contains("UNITHEATER") => "M",
+            var t when t.Contains("PIPE") || t.Contains("PUMP")   || t.Contains("VALVE")
+                    || t.Contains("FITTING") || t.Contains("TANK") => "P",
+            var t when t.Contains("CABLE") || t.Contains("JUNCTION") || t.Contains("SWITCH")
+                    || t.Contains("MOTOR") || t.Contains("LIGHT")  || t.Contains("OUTLET") => "E",
+            var t when t.Contains("FOOTING") || t.Contains("PILE")  || t.Contains("RETAINING") => "S",
+            var t when t.Contains("SPRINKLER") || t.Contains("FIRESUPP") => "FP",
+            _                                                              => "GEN",
+        };
+    }
 
     /// <summary>
     /// Phase 177 — return null when the document is within the caller's

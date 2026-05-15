@@ -7,9 +7,9 @@ namespace Planscape.Core.Entities;
 public class P6SyncLog : ITenantScoped
 {
     public int      Id               { get; set; }
-    public int      ProjectId        { get; set; }
+    public Guid     ProjectId        { get; set; }
     public Project  Project          { get; set; } = null!;
-    public int      TenantId         { get; set; }
+    public Guid     TenantId         { get; set; }
     public DateTime SyncedAt         { get; set; } = DateTime.UtcNow;
     public int      ActivitiesPolled { get; set; }
     public int      ElementsUpdated  { get; set; }

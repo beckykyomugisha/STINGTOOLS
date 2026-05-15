@@ -7,10 +7,10 @@ namespace Planscape.Core.Entities;
 /// </summary>
 public class BoqSnapshot : ITenantScoped
 {
-    public int Id { get; set; }
-    public int ProjectId { get; set; }
+    public int  Id        { get; set; }
+    public Guid ProjectId { get; set; }
     public Project Project { get; set; } = null!;
-    public int TenantId { get; set; }
+    public Guid TenantId  { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     /// <summary>
     /// The user who pushed this snapshot, or "system-ifc-import" for auto-seeded snapshots.

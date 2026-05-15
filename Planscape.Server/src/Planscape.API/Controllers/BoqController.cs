@@ -16,7 +16,7 @@ namespace Planscape.API.Controllers;
 /// GET  /api/projects/{id}/boq/snapshot  — latest snapshot + 30-day trend
 /// </summary>
 [ApiController]
-[Route("api/projects/{projectId:int}/boq")]
+[Route("api/projects/{projectId}/boq")]
 [Authorize]
 [ProjectAccess]
 public class BoqController : ControllerBase
@@ -38,7 +38,7 @@ public class BoqController : ControllerBase
     /// </summary>
     [HttpPost("snapshot")]
     public async Task<ActionResult<BoqSnapshot>> PushSnapshot(
-        int projectId,
+        Guid projectId,
         [FromBody] BoqSnapshotDto dto,
         CancellationToken ct)
     {
@@ -130,9 +130,9 @@ public class BoqController : ControllerBase
     private async Task<bool> ProjectInTenant(int projectId, CancellationToken ct)
         => await _db.Projects.AnyAsync(p => p.Id == projectId && p.TenantId == GetTenantId(), ct);
 
-    private int GetTenantId()
+    private Guid GetTenantId()
     {
         var claim = User.FindFirst("tenant_id")?.Value;
-        return int.TryParse(claim, out var id) ? id : 0;
+        return Guid.TryParse(claim, out var id) ? id : Guid.Empty;
     }
 }

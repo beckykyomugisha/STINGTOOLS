@@ -2628,4 +2628,273 @@ namespace StingTools.BIMManager
         }
     }
 
+    // ════════════════════════════════════════════════════════════════════════════
+    //  Feature gap 4 — 4D Viewer Export
+    //  Exports elements with phase dates to a JSON file loadable by the
+    //  docs-site/4d-viewer/index.html static viewer.
+    // ════════════════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ExportFor4DViewerCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var uidoc = commandData.Application.ActiveUIDocument;
+                var doc   = uidoc?.Document;
+                if (doc == null)
+                {
+                    TaskDialog.Show("STING — 4D Viewer Export", "No active document.");
+                    return Result.Cancelled;
+                }
+
+                var phases = new List<object>();
+                foreach (Phase phase in new FilteredElementCollector(doc).OfClass(typeof(Phase)))
+                    phases.Add(new { id = phase.Id.IntegerValue, name = phase.Name });
+
+                var exportElements = new List<object>();
+                var allElements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .ToElements();
+
+                foreach (var el in allElements)
+                {
+                    BoundingBoxXYZ? bb = el.get_BoundingBox(null);
+                    if (bb == null) continue;
+
+                    string disc     = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                    string category = ParameterHelpers.GetCategoryName(el);
+                    if (string.IsNullOrWhiteSpace(disc) && string.IsNullOrWhiteSpace(category)) continue;
+
+                    // Phase dates from STING params first, then Revit phase
+                    string weekStart = ParameterHelpers.GetString(el, "ASS_PHASE_START_DT");
+                    string weekEnd   = ParameterHelpers.GetString(el, "ASS_PHASE_END_DT");
+
+                    int phaseId = 0;
+                    if (string.IsNullOrWhiteSpace(weekStart) || string.IsNullOrWhiteSpace(weekEnd))
+                    {
+                        // Fallback to Revit phase
+                        Parameter phaseParam = el.get_Parameter(BuiltInParameter.PHASE_CREATED);
+                        if (phaseParam != null && phaseParam.HasValue)
+                        {
+                            phaseId = phaseParam.AsElementId().IntegerValue;
+                        }
+                    }
+
+                    // Convert internal feet to mm for the viewer
+                    double x = (bb.Min.X + bb.Max.X) / 2.0 * 304.8;
+                    double y = (bb.Min.Y + bb.Max.Y) / 2.0 * 304.8;
+                    double z = (bb.Min.Z + bb.Max.Z) / 2.0 * 304.8;
+                    double w = Math.Abs(bb.Max.X - bb.Min.X) * 304.8;
+                    double h = Math.Abs(bb.Max.Y - bb.Min.Y) * 304.8;
+                    double d = Math.Abs(bb.Max.Z - bb.Min.Z) * 304.8;
+
+                    exportElements.Add(new
+                    {
+                        id         = el.Id.IntegerValue,
+                        phase      = phaseId,
+                        category,
+                        discipline = string.IsNullOrWhiteSpace(disc) ? "GEN" : disc,
+                        weekStart  = string.IsNullOrWhiteSpace(weekStart) ? null : weekStart,
+                        weekEnd    = string.IsNullOrWhiteSpace(weekEnd)   ? null : weekEnd,
+                        x = Math.Round(x, 1),
+                        y = Math.Round(y, 1),
+                        z = Math.Round(z, 1),
+                        width  = Math.Round(w, 1),
+                        height = Math.Round(h, 1),
+                        depth  = Math.Round(d, 1),
+                    });
+                }
+
+                // Write output
+                string outDir = OutputLocationHelper.GetBimCoordDirectory(doc);
+                Directory.CreateDirectory(outDir);
+                string outFile = Path.Combine(outDir, "4d_viewer_export.json");
+
+                var payload = new { phases, elements = exportElements };
+                string json = JsonConvert.SerializeObject(payload, Formatting.Indented);
+                File.WriteAllText(outFile, json, System.Text.Encoding.UTF8);
+
+                StingLog.Info($"ExportFor4DViewer: {exportElements.Count} elements → {outFile}");
+                TaskDialog.Show("STING — 4D Viewer Export",
+                    $"Export complete.\n\n" +
+                    $"Elements: {exportElements.Count}\n" +
+                    $"File: {outFile}\n\n" +
+                    "Open docs-site/4d-viewer/index.html in a browser and load this file.");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("ExportFor4DViewerCommand", ex);
+                TaskDialog.Show("STING — 4D Viewer Export", $"Error: {ex.Message}");
+                return Result.Failed;
+            }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  Feature gap 6 — Primavera P6 Live Link
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Opens a TaskDialog to collect P6 connection settings and saves them
+    /// to the Planscape server via POST /api/projects/{id}/p6/configure.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class P6LiveLinkConfigCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var doc = commandData.Application.ActiveUIDocument?.Document;
+                if (doc == null) { TaskDialog.Show("STING — P6 Config", "No active document."); return Result.Cancelled; }
+
+                if (!PlanscapeServerClient.Instance.IsLoggedIn)
+                {
+                    TaskDialog.Show("STING — P6 Config", "Please log in to Planscape first (BIM → Planscape).");
+                    return Result.Cancelled;
+                }
+
+                Guid projectId = PlanscapeServerClient.Instance.CurrentProjectId;
+                if (projectId == Guid.Empty)
+                {
+                    TaskDialog.Show("STING — P6 Config", "No Planscape project linked. Link a project via BIM → Planscape.");
+                    return Result.Cancelled;
+                }
+
+                // Collect settings via input prompts
+                // Revit has no multi-input dialog — use sequential prompts
+                string baseUrl  = PromptString("P6 Base URL (e.g. https://p6.company.com/p6ws/restapi):");
+                if (string.IsNullOrWhiteSpace(baseUrl)) return Result.Cancelled;
+
+                string username = PromptString("P6 Username:");
+                if (string.IsNullOrWhiteSpace(username)) return Result.Cancelled;
+
+                string password = PromptString("P6 Password:");
+                if (string.IsNullOrWhiteSpace(password)) return Result.Cancelled;
+
+                string p6ProjectId = PromptString("P6 Project ID:");
+                if (string.IsNullOrWhiteSpace(p6ProjectId)) return Result.Cancelled;
+
+                var settings = new
+                {
+                    baseUrl,
+                    username,
+                    password,
+                    projectId   = p6ProjectId,
+                    pollIntervalMinutes = 30,
+                };
+
+                bool ok = PlanscapeServerClient.Instance.ConfigureP6Async(projectId, settings)
+                    .GetAwaiter().GetResult();
+
+                if (!ok)
+                {
+                    TaskDialog.Show("STING — P6 Config", "Failed to save P6 settings. Check connection.");
+                    return Result.Failed;
+                }
+
+                StingLog.Info($"P6LiveLinkConfig: configured for project {projectId}");
+                TaskDialog.Show("STING — P6 Config",
+                    "P6 live-link configured.\n\n" +
+                    $"Base URL: {baseUrl}\n" +
+                    $"P6 Project: {p6ProjectId}\n" +
+                    $"Poll interval: 30 minutes\n\n" +
+                    "Use 'P6 Sync Now' to trigger an immediate sync.");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("P6LiveLinkConfigCommand", ex);
+                TaskDialog.Show("STING — P6 Config", $"Error: {ex.Message}");
+                return Result.Failed;
+            }
+        }
+
+        private static string PromptString(string prompt)
+        {
+            // Revit 2025 has no built-in text input — use a minimal WPF dialog
+            string result = "";
+            System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+            {
+                var win = new System.Windows.Window
+                {
+                    Title           = "STING — P6 Configuration",
+                    Width           = 480,
+                    Height          = 160,
+                    WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
+                    ResizeMode      = System.Windows.ResizeMode.NoResize,
+                };
+                var sp    = new System.Windows.Controls.StackPanel { Margin = new System.Windows.Thickness(12) };
+                var lbl   = new System.Windows.Controls.TextBlock { Text = prompt, Margin = new System.Windows.Thickness(0, 0, 0, 6) };
+                var tb    = new System.Windows.Controls.TextBox { Margin = new System.Windows.Thickness(0, 0, 0, 10) };
+                var ok    = new System.Windows.Controls.Button { Content = "OK", Width = 80, IsDefault = true };
+                ok.Click += (_, _) => win.DialogResult = true;
+                sp.Children.Add(lbl);
+                sp.Children.Add(tb);
+                sp.Children.Add(ok);
+                win.Content = sp;
+                if (win.ShowDialog() == true)
+                    result = tb.Text.Trim();
+            });
+            return result;
+        }
+    }
+
+    /// <summary>
+    /// Triggers an immediate P6 activity sync via POST /api/projects/{id}/p6/sync.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class P6SyncNowCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var doc = commandData.Application.ActiveUIDocument?.Document;
+                if (doc == null) { TaskDialog.Show("STING — P6 Sync", "No active document."); return Result.Cancelled; }
+
+                if (!PlanscapeServerClient.Instance.IsLoggedIn)
+                {
+                    TaskDialog.Show("STING — P6 Sync", "Please log in to Planscape first.");
+                    return Result.Cancelled;
+                }
+
+                Guid projectId = PlanscapeServerClient.Instance.CurrentProjectId;
+                if (projectId == Guid.Empty)
+                {
+                    TaskDialog.Show("STING — P6 Sync", "No Planscape project linked.");
+                    return Result.Cancelled;
+                }
+
+                var (ok, status) = PlanscapeServerClient.Instance.TriggerP6SyncAsync(projectId)
+                    .GetAwaiter().GetResult();
+
+                if (!ok)
+                {
+                    TaskDialog.Show("STING — P6 Sync", $"Sync request failed: {status}");
+                    return Result.Failed;
+                }
+
+                StingLog.Info($"P6SyncNow: triggered for project {projectId} — {status}");
+                TaskDialog.Show("STING — P6 Sync",
+                    $"P6 sync triggered.\n\nStatus: {status}\n\n" +
+                    "Activity data will be fetched from P6 and element % complete values updated on the server.\n" +
+                    "Check BIM Coordination Center → 4D tab for results.");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("P6SyncNowCommand", ex);
+                TaskDialog.Show("STING — P6 Sync", $"Error: {ex.Message}");
+                return Result.Failed;
+            }
+        }
+    }
+
 }
