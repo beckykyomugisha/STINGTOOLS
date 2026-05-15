@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -80,26 +78,16 @@ public class P6Controller : ControllerBase
 
     // ── Password obfuscation helpers ──────────────────────────────────────────
 
-    /// <summary>XOR-masks the password bytes against a key derived from projectId.
-    /// Not encryption — but prevents plain-text credentials in the DB column at rest.
-    /// Layer proper column encryption (pgcrypto) on top for production.</summary>
+    /// <summary>
+    /// Delegates to <see cref="P6PasswordHelper"/> in Planscape.Infrastructure
+    /// so the same logic is shared with <see cref="P6LiveLinkService"/> without
+    /// a circular project reference.
+    /// </summary>
     internal static string ObfuscatePassword(string password, Guid projectId)
-    {
-        byte[] key   = projectId.ToByteArray(); // 16 bytes
-        byte[] plain = Encoding.UTF8.GetBytes(password);
-        for (int i = 0; i < plain.Length; i++)
-            plain[i] ^= key[i % key.Length];
-        return Convert.ToBase64String(plain);
-    }
+        => P6PasswordHelper.ObfuscatePassword(password, projectId);
 
     internal static string DeobfuscatePassword(string obfuscated, Guid projectId)
-    {
-        byte[] key   = projectId.ToByteArray();
-        byte[] data  = Convert.FromBase64String(obfuscated);
-        for (int i = 0; i < data.Length; i++)
-            data[i] ^= key[i % key.Length];
-        return Encoding.UTF8.GetString(data);
-    }
+        => P6PasswordHelper.DeobfuscatePassword(obfuscated, projectId);
 
     // ── GET /api/projects/{projectId}/p6/status ────────────────────────────
 

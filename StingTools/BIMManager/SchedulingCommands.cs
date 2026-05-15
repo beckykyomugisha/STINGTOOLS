@@ -2669,9 +2669,11 @@ namespace StingTools.BIMManager
                     string category = ParameterHelpers.GetCategoryName(el);
                     if (string.IsNullOrWhiteSpace(disc) && string.IsNullOrWhiteSpace(category)) continue;
 
-                    // Phase dates from STING params first, then Revit phase
-                    string weekStart = ParameterHelpers.GetString(el, "ASS_PHASE_START_DT");
-                    string weekEnd   = ParameterHelpers.GetString(el, "ASS_PHASE_END_DT");
+                    // Phase dates from STING params first, then Revit phase.
+                    // Real parameter names per MR_PARAMETERS.txt group 17:
+                    //   STING_4D_START_DATE_TXT / STING_4D_END_DATE_TXT
+                    string weekStart = ParameterHelpers.GetString(el, "STING_4D_START_DATE_TXT");
+                    string weekEnd   = ParameterHelpers.GetString(el, "STING_4D_END_DATE_TXT");
 
                     int phaseId = 0;
                     if (string.IsNullOrWhiteSpace(weekStart) || string.IsNullOrWhiteSpace(weekEnd))

@@ -16,6 +16,51 @@ using Planscape.Infrastructure.Data;
 
 namespace Planscape.Infrastructure.Services;
 
+// ── Password obfuscation helper (shared between P6Controller and P6LiveLinkService) ──
+
+/// <summary>
+/// XOR-based password obfuscation keyed on a project-specific GUID.
+/// Lives in Planscape.Infrastructure so both the API layer (P6Controller)
+/// and the service layer (P6LiveLinkService) can call it without a
+/// circular project reference.
+/// </summary>
+public static class P6PasswordHelper
+{
+    public static string ObfuscatePassword(string password, string keyHint)
+    {
+        byte[] key   = DeriveKey(keyHint);
+        byte[] plain = System.Text.Encoding.UTF8.GetBytes(password);
+        for (int i = 0; i < plain.Length; i++)
+            plain[i] ^= key[i % key.Length];
+        return Convert.ToBase64String(plain);
+    }
+
+    public static string DeobfuscatePassword(string obfuscated, string keyHint)
+    {
+        byte[] key  = DeriveKey(keyHint);
+        byte[] data = Convert.FromBase64String(obfuscated);
+        for (int i = 0; i < data.Length; i++)
+            data[i] ^= key[i % key.Length];
+        return System.Text.Encoding.UTF8.GetString(data);
+    }
+
+    // ── Guid overloads so P6Controller can still use projectId as the key ──
+
+    public static string ObfuscatePassword(string password, Guid projectId)
+        => ObfuscatePassword(password, projectId.ToString());
+
+    public static string DeobfuscatePassword(string obfuscated, Guid projectId)
+        => DeobfuscatePassword(obfuscated, projectId.ToString());
+
+    private static byte[] DeriveKey(string hint)
+    {
+        // Return the raw GUID bytes when hint is a valid GUID (16 bytes),
+        // otherwise UTF-8 encode to produce a byte array of arbitrary length.
+        if (Guid.TryParse(hint, out var g)) return g.ToByteArray();
+        return System.Text.Encoding.UTF8.GetBytes(hint);
+    }
+}
+
 // ── Settings POCO (stored as JSON in project settings) ─────────────────────
 
 /// <summary>
@@ -97,7 +142,7 @@ public class P6LiveLinkService
 
         try
         {
-            var activities = await FetchActivitiesAsync(settings, ct);
+            var activities = await FetchActivitiesAsync(projectId, settings, ct);
             log.ActivitiesPolled = activities.Count;
 
             if (activities.Count == 0)
@@ -264,6 +309,7 @@ public class P6LiveLinkService
     // status codes are retried; 4xx are treated as non-transient and thrown
     // immediately.
     private async Task<List<P6Activity>> FetchActivitiesAsync(
+        Guid               planscapeProjectId,
         P6LiveLinkSettings settings,
         CancellationToken  ct)
     {
@@ -275,7 +321,7 @@ public class P6LiveLinkService
             attempt++;
             try
             {
-                return await FetchActivitiesOnceAsync(settings, ct);
+                return await FetchActivitiesOnceAsync(planscapeProjectId, settings, ct);
             }
             catch (HttpRequestException ex) when (attempt < maxAttempts)
             {
@@ -289,6 +335,7 @@ public class P6LiveLinkService
     }
 
     private async Task<List<P6Activity>> FetchActivitiesOnceAsync(
+        Guid               planscapeProjectId,
         P6LiveLinkSettings settings,
         CancellationToken  ct)
     {
@@ -300,9 +347,10 @@ public class P6LiveLinkService
             Timeout     = TimeSpan.FromSeconds(30),
         };
 
-        // Deobfuscate password stored as base64-XOR by P6Controller.ObfuscatePassword
+        // Deobfuscate password stored as base64-XOR by P6PasswordHelper.ObfuscatePassword.
+        // The key is the Planscape project GUID (same key used at Configure time).
         string plainPassword = settings.Password;
-        try { plainPassword = Planscape.API.Controllers.P6Controller.DeobfuscatePassword(settings.Password, projectId); }
+        try { plainPassword = P6PasswordHelper.DeobfuscatePassword(settings.Password, planscapeProjectId); }
         catch { /* not obfuscated (legacy plain-text) — use as-is */ }
 
         string credentials = Convert.ToBase64String(

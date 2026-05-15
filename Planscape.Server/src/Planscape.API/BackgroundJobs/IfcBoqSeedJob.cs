@@ -5,6 +5,7 @@ using Newtonsoft.Json;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.Services;
 
 namespace Planscape.API.BackgroundJobs;
 
@@ -22,15 +23,18 @@ public class IfcBoqSeedJob
     private readonly PlanscapeDbContext _db;
     private readonly IFileStorageService _storage;
     private readonly ILogger<IfcBoqSeedJob> _logger;
+    private readonly INotificationService? _notifications;
 
     public IfcBoqSeedJob(
         PlanscapeDbContext   db,
         IFileStorageService  storage,
-        ILogger<IfcBoqSeedJob> logger)
+        ILogger<IfcBoqSeedJob> logger,
+        INotificationService? notifications = null)
     {
-        _db      = db;
-        _storage = storage;
-        _logger  = logger;
+        _db            = db;
+        _storage       = storage;
+        _logger        = logger;
+        _notifications = notifications;
     }
 
     public async Task ExecuteAsync(
@@ -113,6 +117,19 @@ public class IfcBoqSeedJob
             "IfcBoqSeedJob: seeded BoqSnapshot {SnapshotId} for project {ProjectId} " +
             "({Items} items, estimated {Total:F2})",
             snapshot.Id, projectId, items.Count, totalEstimated);
+
+        // Broadcast to connected mobile clients so the cost dashboard auto-refreshes
+        // (same signal as BoqController.PushSnapshot sends after a plugin push).
+        if (_notifications != null)
+        {
+            _ = _notifications.NotifyProjectAsync(
+                projectId,
+                "boq_snapshot_updated",
+                "BOQ Snapshot Seeded",
+                $"IFC BOQ extraction complete — {items.Count} items, estimated {totalEstimated:F2}.",
+                new { projectId, source = "ifc_import", snapshotId = snapshot.Id },
+                CancellationToken.None);
+        }
     }
 
     // Mirror of DocumentsController.MapIfcTypeToDiscipline — kept in sync manually.

@@ -1695,4 +1695,3 @@ export function getP6Logs(projectId: string): Promise<P6SyncLogEntry[]> {
 export function triggerP6Sync(projectId: string): Promise<{ status: string }> {
   return apiFetch(`/api/projects/${projectId}/p6/sync`, { method: 'POST' });
 }
-}
