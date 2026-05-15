@@ -65,12 +65,27 @@ class IFCDropHandler:
         }
 
         self._emit(f"Opening {path.name}…")
+        model = None
         try:
             model = ifcopenshell.open(str(path))
         except Exception as exc:
             result["errors"].append(f"IFC open failed: {exc}")
             return result
 
+        try:
+            result = self._process_model(model, path, result)
+        finally:
+            # Explicitly release the model to avoid a known ifcopenshell
+            # KeyError crash in __del__ during garbage collection.
+            try:
+                del model
+            except Exception:
+                pass
+
+        return result
+
+    def _process_model(self, model, path: Path, result: dict) -> dict:
+        """Inner pipeline — called with model already open."""
         # ── Extract elements ──────────────────────────────────────────────────
         self._emit("Extracting elements…")
         elements = _extract_elements(model)
