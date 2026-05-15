@@ -456,9 +456,17 @@ namespace StingTools.Commands.Interop
 
                         case "IFCFACETEDBREP":
                         case "IFCSHELLBASEDSURFACEMODEL":
+                            ExtractBrepPoints(el, item);
+                            break;
+
+                        case "IFCMAPPEDITEM":
+                            // arg 0 = MappingSource (IfcRepresentationMap),
+                            // arg 1 = MappingTarget (IfcCartesianTransformationOperator, ignored — small offset)
+                            ExtractMappedItem(el, item);
+                            break;
+
                         case "IFCPOLYGONALBOUNDEDHALFSPACE":
-                            // Use bounding box of the element's insertion point as fallback;
-                            // full tessellation is out of scope for the STEP-only parser.
+                            // Boolean clipping primitive — skip
                             break;
                     }
                 }
@@ -488,6 +496,119 @@ namespace StingTools.Commands.Interop
                     el.BboxHalfX /= 2; el.BboxHalfY /= 2;
                 }
             }
+            else if (area.Type == "IFCARBITRARYCLOSEDPROFILEDEF"
+                  || area.Type == "IFCARBITRARYPROFILEDEFWITHVOIDS")
+            {
+                // arg 2 = OuterCurve (IfcPolyline | IfcCompositeCurve)
+                int outerRef = ExtractRef(area.Raw, 2);
+                ApplyPolylineBbox(el, outerRef);
+            }
+            else if (area.Type == "IFCCIRCLEPROFILEDEF")
+            {
+                // arg 3 = Radius
+                var ap = SplitArgs(area.Raw);
+                if (ap.Count > 3 && double.TryParse(ap[3].Trim(),
+                    NumberStyles.Float, CultureInfo.InvariantCulture, out double r) && r > 0)
+                { el.BboxHalfX = r; el.BboxHalfY = r; }
+            }
+        }
+
+        // Walk an IfcPolyline / IfcCompositeCurve and update half-extents from its points.
+        private void ApplyPolylineBbox(AcIfcElement el, int curveRef)
+        {
+            if (!_e.TryGetValue(curveRef, out var c)) return;
+            var ptRefs = new List<int>();
+            if (c.Type == "IFCPOLYLINE")
+                ptRefs.AddRange(ExtractRefList(c.Raw, 0));
+            // (IfcCompositeCurve handling is omitted — rare in ArchiCAD output.)
+
+            if (ptRefs.Count == 0) return;
+            double minX = double.MaxValue, maxX = double.MinValue;
+            double minY = double.MaxValue, maxY = double.MinValue;
+            foreach (int pr in ptRefs)
+            {
+                var p = GetPoint(pr);
+                if (p[0] < minX) minX = p[0]; if (p[0] > maxX) maxX = p[0];
+                if (p[1] < minY) minY = p[1]; if (p[1] > maxY) maxY = p[1];
+            }
+            double hx = (maxX - minX) / 2.0;
+            double hy = (maxY - minY) / 2.0;
+            if (hx > el.BboxHalfX) el.BboxHalfX = hx;
+            if (hy > el.BboxHalfY) el.BboxHalfY = hy;
+        }
+
+        // IfcFacetedBrep / IfcShellBasedSurfaceModel — walk outer shell faces to find every
+        // IfcCartesianPoint, then take the AABB. We don't tessellate; we just bound.
+        private void ExtractBrepPoints(AcIfcElement el, AcIfcEntity brep)
+        {
+            var seen = new HashSet<int>();
+            var stack = new Stack<int>();
+            stack.Push(brep.Id);
+            double minX=double.MaxValue, minY=double.MaxValue, minZ=double.MaxValue;
+            double maxX=double.MinValue, maxY=double.MinValue, maxZ=double.MinValue;
+            int found = 0;
+
+            while (stack.Count > 0)
+            {
+                int id = stack.Pop();
+                if (!seen.Add(id)) continue;
+                if (!_e.TryGetValue(id, out var ent)) continue;
+
+                if (ent.Type == "IFCCARTESIANPOINT")
+                {
+                    var p = GetPoint(id); found++;
+                    if (p[0]<minX) minX=p[0]; if (p[0]>maxX) maxX=p[0];
+                    if (p[1]<minY) minY=p[1]; if (p[1]>maxY) maxY=p[1];
+                    if (p[2]<minZ) minZ=p[2]; if (p[2]>maxZ) maxZ=p[2];
+                    continue;
+                }
+                // Push every entity reference we can find in the raw args.
+                foreach (Match m in Regex.Matches(ent.Raw, @"#(\d+)"))
+                    if (int.TryParse(m.Groups[1].Value, out int r)) stack.Push(r);
+                if (seen.Count > 5000) break; // safety cap on pathological breps
+            }
+
+            if (found < 2) return;
+            double hx = (maxX-minX)/2.0, hy=(maxY-minY)/2.0, hz=(maxZ-minZ);
+            if (hx > el.BboxHalfX) el.BboxHalfX = hx;
+            if (hy > el.BboxHalfY) el.BboxHalfY = hy;
+            if (hz > el.Height)    el.Height    = hz;
+        }
+
+        // IfcMappedItem: arg 0 = IfcRepresentationMap (MappingOrigin + MappedRepresentation).
+        // The mapped representation is a full IfcShapeRepresentation we can recurse into,
+        // applying the mapping origin as an extra local placement.
+        private void ExtractMappedItem(AcIfcElement el, AcIfcEntity mapped)
+        {
+            int mapRef = ExtractRef(mapped.Raw, 0);
+            if (!_e.TryGetValue(mapRef, out var map) || map.Type != "IFCREPRESENTATIONMAP") return;
+            int originRef = ExtractRef(map.Raw, 0); // IfcAxis2Placement3D
+            int repRef    = ExtractRef(map.Raw, 1); // IfcShapeRepresentation
+
+            // Compose the mapped origin onto the element's world transform so points
+            // extracted below land in true world space.
+            Mat4 saved = el.WorldTransform;
+            Mat4 mapXf = ResolveAxis2Placement3D(originRef);
+            el.WorldTransform = Mat4.Compose(saved, mapXf);
+
+            // Walk items of the mapped representation directly (it's a shape rep, not a
+            // product-definition-shape, so its items live at arg 3).
+            if (_e.TryGetValue(repRef, out var sr))
+            {
+                foreach (int itemRef in ExtractRefList(sr.Raw, 3))
+                {
+                    if (!_e.TryGetValue(itemRef, out var item)) continue;
+                    switch (item.Type)
+                    {
+                        case "IFCEXTRUDEDAREASOLID": ExtractExtrudedSolid(el, item); break;
+                        case "IFCBOUNDINGBOX":       ExtractBoundingBox(el, item); break;
+                        case "IFCFACETEDBREP":
+                        case "IFCSHELLBASEDSURFACEMODEL": ExtractBrepPoints(el, item); break;
+                    }
+                }
+            }
+
+            el.WorldTransform = saved;
         }
 
         private void ExtractBoundingBox(AcIfcElement el, AcIfcEntity bbox)
@@ -654,16 +775,21 @@ namespace StingTools.Commands.Interop
 
         private readonly double _unitScale;         // IFC units → metres
         private readonly double _ox, _oy, _oz;     // site origin in IFC units
-        private readonly double _cosR, _sinR;       // inverse site rotation
+        // Inverse of the site rotation as a full 3×3 (rows of original R-transpose)
+        private readonly double _rxx, _rxy, _rxz;
+        private readonly double _ryx, _ryy, _ryz;
+        private readonly double _rzx, _rzy, _rzz;
         private double _udx, _udy, _udz;           // user manual override in Revit feet
 
         public ArchiCadCoordinateAligner(Mat4 siteXf, double unitScale)
         {
             _unitScale = unitScale;
             _ox = siteXf.Tx; _oy = siteXf.Ty; _oz = siteXf.Tz;
-            // Inverse rotation: transpose the rotation block (orthonormal matrix)
-            _cosR = siteXf.Xx;   // == cos(angle)
-            _sinR = siteXf.Xy;   // == sin(angle)  (for pure Z-rotation)
+            // R is orthonormal → R⁻¹ = Rᵀ. Take the transpose of the 3×3 rotation
+            // block so we can handle arbitrary 3D site orientation, not just Z-spin.
+            _rxx = siteXf.Xx; _rxy = siteXf.Xy; _rxz = siteXf.Xz;
+            _ryx = siteXf.Yx; _ryy = siteXf.Yy; _ryz = siteXf.Yz;
+            _rzx = siteXf.Zx; _rzy = siteXf.Zy; _rzz = siteXf.Zz;
         }
 
         public void SetUserOffset(double dx, double dy, double dz)
@@ -674,13 +800,16 @@ namespace StingTools.Commands.Interop
         {
             // 1. Remove site origin
             double lx = ifcX - _ox, ly = ifcY - _oy, lz = ifcZ - _oz;
-            // 2. Apply inverse site rotation (transpose of R)
-            double rx =  _cosR * lx + _sinR * ly;
-            double ry = -_sinR * lx + _cosR * ly;
+            // 2. Apply inverse site rotation (Rᵀ · v). For column-major Mat4 the
+            //    forward rotation is (Xx,Xy,Xz)=col0 etc.; its transpose has rows
+            //    = those columns, so the inverse-rotated vector is:
+            double rx = _rxx * lx + _rxy * ly + _rxz * lz;
+            double ry = _ryx * lx + _ryy * ly + _ryz * lz;
+            double rz = _rzx * lx + _rzy * ly + _rzz * lz;
             // 3. IFC units → metres → Revit feet
             return new XYZ(rx * _unitScale * M2ft + _udx,
                            ry * _unitScale * M2ft + _udy,
-                           lz * _unitScale * M2ft + _udz);
+                           rz * _unitScale * M2ft + _udz);
         }
 
         public XYZ ToRevit(double[] pt) => ToRevit(pt[0], pt[1], pt[2]);
