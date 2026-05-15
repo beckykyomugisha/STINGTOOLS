@@ -469,6 +469,36 @@ namespace StingTools.UI
                         RunCommand<Commands.Electrical.WireAnnotationStyleCommand>(app); break;
                     case "Electrical_WireAnnotationRefreshStyle":
                         RunCommand<Commands.Electrical.WireAnnotationRefreshStyleCommand>(app); break;
+                    // Gap 1: stamp single conduit wire params from connected ElectricalSystem
+                    case "Electrical_WireParamStamp":
+                        RunCommand<Commands.Electrical.WireParamStampCommand>(app); break;
+                    // Gap 2: batch stamp all conduits in view / selection
+                    case "Electrical_BatchWireParamPopulate":
+                        RunCommand<Commands.Electrical.BatchWireParamPopulateCommand>(app); break;
+                    // Gap 3: VD calculation write-back
+                    case "Electrical_WireVDSync":
+                        RunCommand<Commands.Electrical.WireVDSyncCommand>(app); break;
+                    // Gap 4: cable sizer write-back
+                    case "Electrical_WireCableSizerSync":
+                        RunCommand<Commands.Electrical.WireCableSizerSyncCommand>(app); break;
+                    // Gap 5: cable schedule view + CSV
+                    case "Electrical_CableScheduleBuild":
+                        RunCommand<Commands.Electrical.Routing.CableScheduleBuilderCommand>(app); break;
+                    // Gap 9: full run home-run traversal via BFS
+                    case "Electrical_HomeRunFull":
+                        RunCommand<Commands.Electrical.WireHomeRunFullCommand>(app); break;
+                    // Gap 11: CPC sizing per BS 7671 Table 54.7
+                    case "Electrical_WireCpcSizer":
+                        RunCommand<Commands.Electrical.WireCpcSizerCommand>(app); break;
+                    // Gap 12: fire-rated / armoured routing validation
+                    case "Electrical_WireRoutingValidation":
+                        RunCommand<Commands.Electrical.WireRoutingValidationCommand>(app); break;
+                    // Gap 13: write ELC_SEL_COORD_OK from selective coordination check
+                    case "Electrical_WireCoordStamp":
+                        RunCommand<Commands.Electrical.WireCoordStampCommand>(app); break;
+                    // Gap 7: save wire style from dock panel inline controls
+                    case "Electrical_WireSaveStyle":
+                        HandleWireSaveStyleFromPanel(app); break;
 
                     // ── v4 Phase D: hanger placement ──
                     case "Routing_PlaceHangers": RunCommand<Commands.Routing.PlaceHangersCommand>(app); break;
@@ -8872,6 +8902,137 @@ For live data, open BCC in Revit and re-export.</p></div>
                 StingTools.Core.StingLog.Warn($"WriteModeBool {paramName} failed: {ex.Message}");
             }
             return false;
+        }
+
+        // Gap 7: save wire style from dock panel inline controls via the WireAnnotationStyleCommand.
+        // The inline TextBox/CheckBox controls in the dock panel are read at the time the user
+        // clicks "Save style to project JSON". We obtain the dock-panel Page via the active
+        // Revit window's child visual tree and read the named elements directly.
+        private void HandleWireSaveStyleFromPanel(UIApplication app)
+        {
+            var doc = app?.ActiveUIDocument?.Document;
+            if (doc == null) { TaskDialog.Show("Wire Style", "No document open."); return; }
+
+            try
+            {
+                // Walk the WPF visual tree to find the StingDockPanel Page
+                StingDockPanel panelPage = FindDockPanelPage(app);
+                if (panelPage == null)
+                {
+                    // Fallback: open the full style dialog
+                    RunCommand<Commands.Electrical.WireAnnotationStyleCommand>(app);
+                    return;
+                }
+
+                double slashLen    = ReadTextBox(panelPage, "tbWireSlashLen",    6.0);
+                double slashGap    = ReadTextBox(panelPage, "tbWireSlashGap",    3.0);
+                double slashAngle  = ReadTextBox(panelPage, "tbWireSlashAngle",  60.0);
+                double scaleFactor = ReadTextBox(panelPage, "tbWireScaleFactor", 1.0);
+                int    lineWeight  = (int)ReadTextBox(panelPage, "tbWireLineWeight", 3.0);
+                double labelOffset = ReadTextBox(panelPage, "tbWireLabelOffset", 600.0);
+                int    colorCode   = ReadCombo(panelPage,   "cbWireColorCode");
+                bool   showVD      = ReadCheck(panelPage,   "chkWireShowVD",   true);
+                bool   showFill    = ReadCheck(panelPage,   "chkWireShowFill",  true);
+                bool   compact     = ReadCheck(panelPage,   "chkWireCompact",   false);
+
+                var style = new Commands.Electrical.WireAnnotationStyle
+                {
+                    SlashLengthMm   = slashLen,
+                    SlashSpacingMm  = slashGap,
+                    SlashAngleDeg   = Math.Max(30, Math.Min(90, slashAngle)),
+                    ScaleFactor     = scaleFactor > 0 ? scaleFactor : 1.0,
+                    SlashLineWeight = Math.Max(1, Math.Min(16, lineWeight)),
+                    LabelOffsetMm   = labelOffset > 0 ? labelOffset : 600,
+                    ColorCode       = colorCode,
+                    AutoColor       = colorCode == 0,
+                    ShowVoltDrop    = showVD,
+                    ShowFill        = showFill,
+                    CompactLabel    = compact,
+                };
+
+                Commands.Electrical.WireAnnotationStyleStore.Save(doc, style);
+                TaskDialog.Show("Wire Style Saved",
+                    $"Project defaults saved to STING_WIRE_ANNOT_STYLE.json:\n"
+                    + $"  Slash {slashLen:0.#} mm  gap {slashGap:0.#} mm  angle {slashAngle:0}°\n"
+                    + $"  Weight {lineWeight}  offset {labelOffset:0} mm  colour code {colorCode}\n\n"
+                    + "Run 'W-Rfsh' to apply to existing annotations in the active view.");
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn("HandleWireSaveStyleFromPanel: " + ex.Message);
+                // Fallback gracefully to full editor dialog
+                RunCommand<Commands.Electrical.WireAnnotationStyleCommand>(app);
+            }
+        }
+
+        private static StingDockPanel FindDockPanelPage(UIApplication app)
+        {
+            try
+            {
+                var pane = app.GetDockablePane(StingDockPanelProvider.PaneId);
+                // Revit doesn't expose the FrameworkElement directly; find via the
+                // HwndSource tree. On WPF this is accessible through the visual tree.
+                // Walk all top-level Windows (WPF) and look for StingDockPanel descendants.
+                foreach (System.Windows.Window w in System.Windows.Application.Current?.Windows
+                    ?? Enumerable.Empty<System.Windows.Window>())
+                {
+                    var found = FindVisualChild<StingDockPanel>(w);
+                    if (found != null) return found;
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        private static T FindVisualChild<T>(System.Windows.DependencyObject parent)
+            where T : System.Windows.DependencyObject
+        {
+            if (parent == null) return null;
+            int count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < count; i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+                if (child is T t) return t;
+                var result = FindVisualChild<T>(child);
+                if (result != null) return result;
+            }
+            return null;
+        }
+
+        private static double ReadTextBox(System.Windows.FrameworkElement root, string name, double def)
+        {
+            try
+            {
+                if (root.FindName(name) is System.Windows.Controls.TextBox tb
+                    && double.TryParse(tb.Text,
+                        System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out double v))
+                    return v;
+            }
+            catch { }
+            return def;
+        }
+
+        private static int ReadCombo(System.Windows.FrameworkElement root, string name)
+        {
+            try
+            {
+                if (root.FindName(name) is System.Windows.Controls.ComboBox cb)
+                    return cb.SelectedIndex;
+            }
+            catch { }
+            return 0;
+        }
+
+        private static bool ReadCheck(System.Windows.FrameworkElement root, string name, bool def)
+        {
+            try
+            {
+                if (root.FindName(name) is System.Windows.Controls.CheckBox chk)
+                    return chk.IsChecked ?? def;
+            }
+            catch { }
+            return def;
         }
     }
 }

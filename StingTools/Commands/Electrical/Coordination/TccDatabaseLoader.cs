@@ -32,6 +32,14 @@ namespace StingTools.Commands.Electrical.Coordination
 
         public TccEntry Resolve(string ratingLabel, int poles) => Resolve(ratingLabel);
 
+        /// <summary>Gap 14 — resolve full TCC curve for log-log interpolation.</summary>
+        public TccCurve ResolveCurve(string ratingLabel)
+        {
+            if (string.IsNullOrEmpty(ratingLabel) || Curves == null) return null;
+            return Curves.FirstOrDefault(c =>
+                string.Equals(c.DeviceLabel, ratingLabel, StringComparison.OrdinalIgnoreCase));
+        }
+
         public static TccDatabase BuildDefault() => new TccDatabase
         {
             DefaultClearingMs = 100,
@@ -59,17 +67,55 @@ namespace StingTools.Commands.Electrical.Coordination
         [JsonProperty("maxFaultKa")]         public double MaxFaultKa         { get; set; }
 
         /// <summary>
-        /// Linear ramp between an instantaneous-trip floor (the table's 10× In
-        /// value) and a long-time pickup ceiling (300 ms) over the rated fault
-        /// range. Production hardening should swap this for log-log
-        /// interpolation against <see cref="TccCurve.Points"/>.
+        /// Gap 14 — Log-log interpolation from TccCurve.Points when available;
+        /// falls back to the previous linear-ramp formula for entries without curve data.
+        /// Log-log interpolation matches the TCC graphical presentation used by
+        /// manufacturers (x = log10(kA), y = log10(ms)), which is linear on a
+        /// log-log plot.
         /// </summary>
-        public double ClearingTimeMs(double faultKa)
+        public double ClearingTimeMs(double faultKa, TccCurve curve = null)
         {
+            // Prefer full log-log curve if supplied
+            if (curve?.Points != null && curve.Points.Count >= 2)
+                return LogLogInterpolate(curve.Points, faultKa);
+
+            // Fallback: linear ramp (original behaviour)
             if (MaxFaultKa <= MinFaultKa) return ClearingMs_At_10xIn;
             double ratio = Math.Min(1.0, Math.Max(0.0,
                 (faultKa - MinFaultKa) / (MaxFaultKa - MinFaultKa)));
             return Math.Max(ClearingMs_At_10xIn, 300.0 * (1.0 - ratio));
+        }
+
+        /// <summary>
+        /// Log-log interpolation between TccPoint pairs.
+        /// Points must be sorted ascending by FaultKa.
+        /// </summary>
+        public static double LogLogInterpolate(IList<TccPoint> pts, double faultKa)
+        {
+            if (pts == null || pts.Count == 0) return 100;
+            if (faultKa <= pts[0].FaultKa) return pts[0].ClearingMs;
+            if (faultKa >= pts[pts.Count - 1].FaultKa) return pts[pts.Count - 1].ClearingMs;
+
+            for (int i = 0; i < pts.Count - 1; i++)
+            {
+                var lo = pts[i]; var hi = pts[i + 1];
+                if (faultKa >= lo.FaultKa && faultKa <= hi.FaultKa)
+                {
+                    // log-log interpolation: ln(y) = ln(y0) + t*(ln(y1)-ln(y0))
+                    // where t = (ln(x)-ln(x0))/(ln(x1)-ln(x0))
+                    if (lo.FaultKa <= 0 || hi.FaultKa <= 0 ||
+                        lo.ClearingMs <= 0 || hi.ClearingMs <= 0)
+                        return lo.ClearingMs; // guard against zeros
+                    double logX0 = Math.Log(lo.FaultKa);
+                    double logX1 = Math.Log(hi.FaultKa);
+                    double logX  = Math.Log(faultKa);
+                    double t = (logX - logX0) / (logX1 - logX0);
+                    double logY = Math.Log(lo.ClearingMs)
+                                + t * (Math.Log(hi.ClearingMs) - Math.Log(lo.ClearingMs));
+                    return Math.Exp(logY);
+                }
+            }
+            return pts[pts.Count - 1].ClearingMs;
         }
     }
 

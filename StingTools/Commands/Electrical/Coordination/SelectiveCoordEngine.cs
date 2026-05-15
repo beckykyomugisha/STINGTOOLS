@@ -40,6 +40,10 @@ namespace StingTools.Commands.Electrical.Coordination
                 var downDev = tcc.Resolve(node.Rating);
                 if (upDev != null && downDev != null)
                 {
+                    // Gap 14: resolve full curves for log-log interpolation
+                    var upCurve   = tcc.ResolveCurve(parent.Rating);
+                    var downCurve = tcc.ResolveCurve(node.Rating);
+
                     double maxFaultKa = Math.Max(maxFaultKaFallback,
                         Math.Min(upDev.MaxFaultKa, downDev.MaxFaultKa));
                     if (maxFaultKa <= 0) maxFaultKa = maxFaultKaFallback;
@@ -47,8 +51,8 @@ namespace StingTools.Commands.Electrical.Coordination
                     double step = maxFaultKa / Math.Max(1, sampleCount);
                     for (double f = step; f <= maxFaultKa; f += step)
                     {
-                        double upMs = upDev.ClearingTimeMs(f);
-                        double downMs = downDev.ClearingTimeMs(f);
+                        double upMs = upDev.ClearingTimeMs(f, upCurve);
+                        double downMs = downDev.ClearingTimeMs(f, downCurve);
                         if (upMs > 0 && upMs <= downMs)
                         {
                             violations.Add(new CoordViolation

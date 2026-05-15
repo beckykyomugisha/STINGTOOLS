@@ -508,6 +508,66 @@ namespace StingTools.Commands.Electrical
             };
         }
 
+        // ── Gap 6: view-scale → auto ScaleFactor ────────────────────────────
+
+        /// <summary>
+        /// When the conduit has no per-element ELC_WIRE_ANNOT_SCALE_FACTOR set
+        /// (i.e. style.ScaleFactor is still the project default of 1.0), auto-derive
+        /// a scale multiplier from the active view's annotation scale so slashes and
+        /// labels stay legible across plan/detail/site scales.
+        ///   1:50  → 0.5×   1:100 → 1.0×   1:200 → 2.0×   1:500 → 5.0×
+        /// The formula is simply: multiplier = viewScale / 100.
+        /// </summary>
+        public static double ViewScaleFactor(View view)
+        {
+            if (view == null) return 1.0;
+            try
+            {
+                int scale = view.Scale; // e.g. 100 for 1:100
+                if (scale > 0) return scale / 100.0;
+            }
+            catch { }
+            return 1.0;
+        }
+
+        // ── Gap 10: simple occupied-region registry for collision avoidance ──
+
+        // Per-view bounding-box registry so successive annotations in batch don't overlap.
+        // Cleared each time a batch run starts.
+        private static readonly Dictionary<ElementId, List<(XYZ min, XYZ max)>> _viewAnnotBoxes
+            = new Dictionary<ElementId, List<(XYZ, XYZ)>>();
+
+        public static void ClearAnnotationBoxes(ElementId viewId)
+            => _viewAnnotBoxes.Remove(viewId);
+
+        private static XYZ FindNonCollidingPoint(View view, XYZ preferredPt,
+            XYZ perpDir, double offsetFt)
+        {
+            if (!_viewAnnotBoxes.TryGetValue(view.Id, out var boxes) || boxes.Count == 0)
+                return preferredPt;
+
+            // Try 8 candidate offsets (±1×, ±2× offset, in both perp directions)
+            double[] multipliers = { 1, -1, 2, -2, 3, -3, 4, -4 };
+            foreach (var m in multipliers)
+            {
+                var candidate = preferredPt + perpDir * (offsetFt * m);
+                double r = offsetFt * 0.4; // rough annotation radius
+                bool collides = boxes.Any(b =>
+                    candidate.X + r > b.min.X && candidate.X - r < b.max.X &&
+                    candidate.Y + r > b.min.Y && candidate.Y - r < b.max.Y);
+                if (!collides) return candidate;
+            }
+            return preferredPt; // give up, use default
+        }
+
+        private static void RegisterAnnotationBox(ElementId viewId, XYZ pt, double halfSideFt)
+        {
+            if (!_viewAnnotBoxes.TryGetValue(viewId, out var boxes))
+                _viewAnnotBoxes[viewId] = boxes = new List<(XYZ, XYZ)>();
+            boxes.Add((new XYZ(pt.X - halfSideFt, pt.Y - halfSideFt, pt.Z),
+                       new XYZ(pt.X + halfSideFt, pt.Y + halfSideFt, pt.Z)));
+        }
+
         // ── Placement ────────────────────────────────────────────────────────
 
         public static ElementId PlaceAnnotation(Document doc, View view,
@@ -517,6 +577,24 @@ namespace StingTools.Commands.Electrical
                 return ElementId.InvalidElementId;
             var lc = conduit.Location as LocationCurve;
             if (lc?.Curve == null) return ElementId.InvalidElementId;
+
+            // Gap 6: if no per-conduit scale override, apply view-scale auto-factor
+            // (only when style came directly from project defaults ScaleFactor == 1.0)
+            var effectiveStyle = style;
+            bool hasConduitOverride = conduit.LookupParameter("ELC_WIRE_ANNOT_SCALE_FACTOR")
+                ?.AsDouble() > 0;
+            if (!hasConduitOverride && Math.Abs(style.ScaleFactor - 1.0) < 1e-6)
+            {
+                double vsf = ViewScaleFactor(view);
+                if (Math.Abs(vsf - 1.0) > 0.05)
+                {
+                    // Clone via JSON to avoid mutating caller's style object
+                    effectiveStyle = JsonConvert.DeserializeObject<WireAnnotationStyle>(
+                        JsonConvert.SerializeObject(style)) ?? WireAnnotationStyle.Default();
+                    effectiveStyle.ScaleFactor = vsf;
+                }
+            }
+            style = effectiveStyle;
 
             var curve   = lc.Curve;
             var p0      = curve.GetEndPoint(0);
@@ -530,7 +608,10 @@ namespace StingTools.Commands.Electrical
             var perpDir = perpRaw.GetLength() < 1e-6 ? XYZ.BasisX : perpRaw.Normalize();
 
             double offsetFt = (style.LabelOffsetMm * style.ScaleFactor) / MmPerFt;
-            var annotPt = mid + perpDir * offsetFt;
+            // Gap 10: collision-aware label placement
+            var preferredPt = mid + perpDir * offsetFt;
+            var annotPt = FindNonCollidingPoint(view, preferredPt, perpDir, offsetFt);
+            RegisterAnnotationBox(view.Id, annotPt, offsetFt * 0.5);
 
             // Prefer IndependentTag (tracks conduit, labels auto-update)
             var tagId = TryPlaceIndependentTag(doc, view, conduit, annotPt, conduit.UniqueId);
@@ -951,6 +1032,9 @@ namespace StingTools.Commands.Electrical
                 var conduits = new FilteredElementCollector(doc, view.Id)
                     .OfCategory(BuiltInCategory.OST_Conduit)
                     .WhereElementIsNotElementType().ToList();
+
+                // Gap 10: reset collision registry for this batch
+                WireAnnotationEngine.ClearAnnotationBoxes(view.Id);
 
                 if (conduits.Count == 0)
                 {

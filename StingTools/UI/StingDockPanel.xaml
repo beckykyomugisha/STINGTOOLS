@@ -4649,22 +4649,141 @@
                                                 </StackPanel>
                                             </Border>
 
+                                            <TextBlock Text="WIRE ANNOTATION" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <!-- Gap 7: wire annotation buttons + inline style controls -->
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <!-- Annotation placement -->
+                                                    <WrapPanel Margin="0,2,0,2">
+                                                        <Button Style="{StaticResource CatBtn}" Content="W-Ann"
+                                                                Tag="Electrical_WireAnnotate" Click="Cmd_Click"
+                                                                ToolTip="Place wire annotation on a picked conduit (BS 7671 format)"/>
+                                                        <Button Style="{StaticResource CatBtn}" Content="W-Batch"
+                                                                Tag="Electrical_WireAnnotateBatch" Click="Cmd_Click"
+                                                                ToolTip="Annotate all conduits in active view with wire specifications"/>
+                                                        <Button Style="{StaticResource CatBtn}" Content="H-Run"
+                                                                Tag="Electrical_HomeRunArrow" Click="Cmd_Click"
+                                                                ToolTip="Place home-run arrow on picked conduit pointing toward panel"/>
+                                                        <Button Style="{StaticResource CatBtn}" Content="HR-Full"
+                                                                Tag="Electrical_HomeRunFull" Click="Cmd_Click"
+                                                                ToolTip="BFS full-run home-run arrow — traverses all connected conduit segments to find the correct panel-side end"/>
+                                                        <Button Style="{StaticResource CatBtn}" Content="W-Clr"
+                                                                Tag="Electrical_ClearWireAnnotations" Click="Cmd_Click"
+                                                                ToolTip="Remove all STING wire annotations from active view"/>
+                                                        <Button Style="{StaticResource CatBtn}" Content="W-Styl"
+                                                                Tag="Electrical_WireAnnotationStyle" Click="Cmd_Click"
+                                                                ToolTip="Open project-level wire annotation style editor (JSON)"/>
+                                                        <Button Style="{StaticResource CatBtn}" Content="W-Rfsh"
+                                                                Tag="Electrical_WireAnnotationRefreshStyle" Click="Cmd_Click"
+                                                                ToolTip="Re-apply current project style to all wire annotations in active view"/>
+                                                    </WrapPanel>
+                                                    <!-- Wire data sync (Gap 1-4) -->
+                                                    <TextBlock Text="Wire data sync" FontSize="9" FontWeight="SemiBold" Margin="0,4,0,2"/>
+                                                    <WrapPanel Margin="0,0,0,2">
+                                                        <Button Style="{StaticResource CatBtn}" Content="W-Stamp"
+                                                                Tag="Electrical_WireParamStamp" Click="Cmd_Click"
+                                                                ToolTip="Stamp ELC_WIRE_* params on picked conduit from connected ElectricalSystem (Gap 1)"/>
+                                                        <Button Style="{StaticResource CatBtn}" Content="W-Batch♻"
+                                                                Tag="Electrical_BatchWireParamPopulate" Click="Cmd_Click"
+                                                                ToolTip="Batch stamp all conduits in view/selection from their circuits (Gap 2)"/>
+                                                        <Button Style="{StaticResource CatBtn}" Content="VD-Sync"
+                                                                Tag="Electrical_WireVDSync" Click="Cmd_Click"
+                                                                ToolTip="Run VoltageDropEngine and write VD% to conduits (Gap 3)"/>
+                                                        <Button Style="{StaticResource CatBtn}" Content="Csz-Sync"
+                                                                Tag="Electrical_WireCableSizerSync" Click="Cmd_Click"
+                                                                ToolTip="Run CableSizerEngine and write CSA / Iz / method to conduits (Gap 4)"/>
+                                                        <Button Style="{StaticResource CatBtn}" Content="CPC-Sz"
+                                                                Tag="Electrical_WireCpcSizer" Click="Cmd_Click"
+                                                                ToolTip="Size CPC/Earth per BS 7671 Table 54.7 and write ELC_WIRE_EARTH_CSA_MM2 (Gap 11)"/>
+                                                    </WrapPanel>
+                                                    <!-- Routing validation (Gap 12) + coordination (Gap 13) -->
+                                                    <WrapPanel Margin="0,0,0,2">
+                                                        <Button Style="{StaticResource CatBtn}" Content="Rt-Val"
+                                                                Tag="Electrical_WireRoutingValidation" Click="Cmd_Click"
+                                                                ToolTip="Validate fire-rated / SWA routing rules (BS 9999 / BS 7671 §422/543) — read-only audit (Gap 12)"/>
+                                                        <Button Style="{StaticResource CatBtn}" Content="Crd-Stmp"
+                                                                Tag="Electrical_WireCoordStamp" Click="Cmd_Click"
+                                                                ToolTip="Write ELC_SEL_COORD_OK on panels from selective coordination check (Gap 13)"/>
+                                                        <Button Style="{StaticResource CatBtn}" Content="Cbl-Sched"
+                                                                Tag="Electrical_CableScheduleBuild" Click="Cmd_Click"
+                                                                ToolTip="Build cable BOM CSV + create STING Cable Schedule view on conduit category (Gap 5)"/>
+                                                    </WrapPanel>
+                                                    <!-- Inline style controls (Gap 7) -->
+                                                    <TextBlock Text="Slash style (project defaults)" FontSize="9" FontWeight="SemiBold" Margin="0,6,0,2"/>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                        </Grid.RowDefinitions>
+                                                        <!-- Row 0: length + spacing -->
+                                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,1">
+                                                            <TextBlock Text="Len mm:" VerticalAlignment="Center" FontSize="9" Width="42"/>
+                                                            <TextBox x:Name="tbWireSlashLen" Width="36" Height="18" FontSize="9" Text="6"
+                                                                     ToolTip="Slash mark length in mm (default 6). Applied to project defaults on save."/>
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,1">
+                                                            <TextBlock Text="Gap mm:" VerticalAlignment="Center" FontSize="9" Width="42"/>
+                                                            <TextBox x:Name="tbWireSlashGap" Width="36" Height="18" FontSize="9" Text="3"
+                                                                     ToolTip="Gap between slashes in mm (default 3)."/>
+                                                        </StackPanel>
+                                                        <!-- Row 1: angle + scale -->
+                                                        <StackPanel Grid.Column="0" Grid.Row="1" Orientation="Horizontal" Margin="0,1">
+                                                            <TextBlock Text="Angle°:" VerticalAlignment="Center" FontSize="9" Width="42"/>
+                                                            <TextBox x:Name="tbWireSlashAngle" Width="36" Height="18" FontSize="9" Text="60"
+                                                                     ToolTip="Slash angle off conduit axis in degrees (30–90). 60° = BS 7671 convention."/>
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" Margin="0,1">
+                                                            <TextBlock Text="Scale×:" VerticalAlignment="Center" FontSize="9" Width="42"/>
+                                                            <TextBox x:Name="tbWireScaleFactor" Width="36" Height="18" FontSize="9" Text="1.0"
+                                                                     ToolTip="Scale multiplier (1.0 = nominal; auto from view scale when 1.0)."/>
+                                                        </StackPanel>
+                                                        <!-- Row 2: weight + offset -->
+                                                        <StackPanel Grid.Column="0" Grid.Row="2" Orientation="Horizontal" Margin="0,1">
+                                                            <TextBlock Text="Wt:" VerticalAlignment="Center" FontSize="9" Width="42"/>
+                                                            <TextBox x:Name="tbWireLineWeight" Width="36" Height="18" FontSize="9" Text="3"
+                                                                     ToolTip="Line weight 1–16 (default 3 ≈ 0.25 mm at 1:100)."/>
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="1" Grid.Row="2" Orientation="Horizontal" Margin="0,1">
+                                                            <TextBlock Text="Offset mm:" VerticalAlignment="Center" FontSize="9" Width="42"/>
+                                                            <TextBox x:Name="tbWireLabelOffset" Width="36" Height="18" FontSize="9" Text="600"
+                                                                     ToolTip="Label perpendicular offset from conduit in mm (default 600)."/>
+                                                        </StackPanel>
+                                                        <!-- Row 3: colour code + label flags -->
+                                                        <StackPanel Grid.Column="0" Grid.Row="3" Orientation="Horizontal" Margin="0,1">
+                                                            <TextBlock Text="Colour:" VerticalAlignment="Center" FontSize="9" Width="42"/>
+                                                            <ComboBox x:Name="cbWireColorCode" Width="72" Height="18" FontSize="9"
+                                                                      ToolTip="0=auto, 1=red, 2=blue, 3=orange, 4=green">
+                                                                <ComboBoxItem Content="0 auto" IsSelected="True"/>
+                                                                <ComboBoxItem Content="1 red"/>
+                                                                <ComboBoxItem Content="2 blue"/>
+                                                                <ComboBoxItem Content="3 orange"/>
+                                                                <ComboBoxItem Content="4 green"/>
+                                                            </ComboBox>
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="1" Grid.Row="3" Orientation="Vertical" Margin="0,1">
+                                                            <CheckBox x:Name="chkWireShowVD"   Content="VD%"      IsChecked="True"  FontSize="8" Margin="0,1" ToolTip="Show voltage drop in label"/>
+                                                            <CheckBox x:Name="chkWireShowFill" Content="Fill%"    IsChecked="True"  FontSize="8" Margin="0,1" ToolTip="Show conduit fill in label"/>
+                                                            <CheckBox x:Name="chkWireCompact"  Content="Compact"  IsChecked="False" FontSize="8" Margin="0,1" ToolTip="Compact label (omit panel and install method)"/>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                    <!-- Save style button -->
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Save style to project JSON"
+                                                            Tag="Electrical_WireSaveStyle" Click="Cmd_Click"
+                                                            HorizontalAlignment="Stretch" Height="24" Margin="0,4,0,1"
+                                                            ToolTip="Save the above style values to STING_WIRE_ANNOT_STYLE.json (project _BIM_COORD folder). They become the new project-level defaults for all wire annotations."/>
+                                                </StackPanel>
+                                            </Border>
+
                                             <TextBlock Text="QA" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
                                             <Border Style="{StaticResource GroupBorder}">
                                                 <StackPanel>
                                                     <Button Style="{StaticResource ActionBtn}" Content="Live fill calc"        Tag="Mep_FillLiveCalc" Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Recompute conduit + tray fill% from current cable cross section"/>
-                                                    <Button Style="{StaticResource CatBtn}" Content="W-Ann"
-                                                            Tag="Electrical_WireAnnotate" Click="Cmd_Click"
-                                                            ToolTip="Place wire annotation on a picked conduit (BS 7671 format)"/>
-                                                    <Button Style="{StaticResource CatBtn}" Content="W-Batch"
-                                                            Tag="Electrical_WireAnnotateBatch" Click="Cmd_Click"
-                                                            ToolTip="Annotate all conduits in active view with wire specifications"/>
-                                                    <Button Style="{StaticResource CatBtn}" Content="H-Run"
-                                                            Tag="Electrical_HomeRunArrow" Click="Cmd_Click"
-                                                            ToolTip="Place home-run arrow on picked conduit pointing toward panel"/>
-                                                    <Button Style="{StaticResource CatBtn}" Content="W-Clr"
-                                                            Tag="Electrical_ClearWireAnnotations" Click="Cmd_Click"
-                                                            ToolTip="Remove all STING wire annotations from active view"/>
                                                     <Button Style="{StaticResource ActionBtn}" Content="System naming audit"    Tag="Mep_NamingAudit"  Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Audit MEP system names against CIBSE / BSRIA / Uniclass 2015 prefix set"/>
                                                 </StackPanel>
                                             </Border>

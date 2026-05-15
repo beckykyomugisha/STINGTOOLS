@@ -18,8 +18,9 @@
 //   * StingResultPanel — interactive read-only view in Revit.
 //   * CSV file at <project>/_BIM_COORD/cable_schedule.csv — one row per
 //     BOM line, columns matching SAP / standard estimating tools.
-//   * Optional Revit schedule view (TODO Phase 183) once we map the
-//     three rollups onto a single MEP system schedule.
+//   * Revit conduit-schedule view: "STING Cable Schedule" ViewSchedule
+//     created / refreshed on the conduit category, showing the ELC_WIRE_*
+//     shared parameters stamped by WireParamStampCommand.
 //
 // Invocation: WorkflowEngine tag "Cable_BuildSchedule"; UI button on
 // the electrical command handler.
@@ -62,7 +63,7 @@ namespace StingTools.Commands.Electrical.Routing
         public List<string> Warnings { get; } = new List<string>();
     }
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class CableScheduleBuilderCommand : IExternalCommand
     {
@@ -101,6 +102,10 @@ namespace StingTools.Commands.Electrical.Routing
             try { ActionAuditLog.Record("Cable_BuildSchedule",
                 $"cables={result.TotalCables} conduits={result.TotalConduits} boxes={result.TotalBoxes}"); }
             catch (Exception ex) { StingLog.Warn($"audit: {ex.Message}"); }
+
+            // Gap 5 — create / refresh Revit conduit schedule view
+            try { CreateOrRefreshConduitSchedule(doc); }
+            catch (Exception ex) { StingLog.Warn($"CableSchedule view: {ex.Message}"); }
 
             ShowResult(result);
             return Result.Succeeded;
@@ -284,6 +289,86 @@ namespace StingTools.Commands.Electrical.Routing
                 }
             }
             return total;
+        }
+
+        // Gap 5 — create or refresh a Revit ViewSchedule on conduits
+        private static void CreateOrRefreshConduitSchedule(Document doc)
+        {
+            const string scheduleName = "STING Cable Schedule";
+
+            // Fields to include (ELC_WIRE_* shared params + built-in conduit fields)
+            var paramNames = new[]
+            {
+                "ELC_CIRCUIT_NR_TXT", "ELC_WIRE_PHASE_TXT", "ELC_WIRE_CORE_COUNT_INT",
+                "ELC_WIRE_CSA_MM2_NUM", "ELC_WIRE_COND_MAT_TXT", "ELC_WIRE_AMPACITY_A",
+                "ELC_WIRE_VD_PCT_NUM", "ELC_WIRE_INSTALL_METHOD_TXT", "ELC_WIRE_MAX_DEMAND_A",
+                "ELC_WIRE_CIRCUIT_BREAKER_A", "ELC_WIRE_EARTH_CSA_MM2", "ELC_WIRE_CIRCUIT_TYPE_TXT"
+            };
+
+            // Find existing or create new
+            ViewSchedule existing = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSchedule))
+                .Cast<ViewSchedule>()
+                .FirstOrDefault(vs => vs.Name == scheduleName);
+
+            using var tx = new Transaction(doc, "STING Create Cable Schedule View");
+            tx.Start();
+
+            ViewSchedule sched;
+            if (existing != null)
+            {
+                sched = existing;
+                // Clear existing fields and re-add so order is consistent
+                var def = sched.Definition;
+                var fieldIds = def.GetFieldOrder().ToList();
+                foreach (var fid in fieldIds)
+                    try { def.RemoveField(fid); } catch { }
+            }
+            else
+            {
+                sched = ViewSchedule.CreateSchedule(doc,
+                    new ElementId(BuiltInCategory.OST_Conduit));
+                sched.Name = scheduleName;
+            }
+
+            // Add built-in length field
+            var schedDef = sched.Definition;
+            try
+            {
+                var lengthField = schedDef.GetSchedulableFields()
+                    .FirstOrDefault(f => f.ParameterId ==
+                        new ElementId(BuiltInParameter.CURVE_ELEM_LENGTH));
+                if (lengthField != null) schedDef.AddField(lengthField);
+            }
+            catch { }
+
+            // Add ELC_WIRE_* shared param fields
+            var allSchedulable = schedDef.GetSchedulableFields();
+            foreach (var paramName in paramNames)
+            {
+                try
+                {
+                    var sf = allSchedulable.FirstOrDefault(f =>
+                        f.GetSchedulableFieldType() == SchedulableFieldType.Instance
+                        && doc.GetElement(f.ParameterId) is SharedParameterElement spe
+                        && spe.GetDefinition().Name == paramName);
+                    if (sf != null) schedDef.AddField(sf);
+                }
+                catch { }
+            }
+
+            // Sort by circuit number
+            schedDef.ClearSortGroupFields();
+            try
+            {
+                var circNrField = schedDef.GetField(0);
+                if (circNrField != null)
+                    schedDef.AddSortGroupField(new ScheduleSortGroupField(circNrField.FieldId));
+            }
+            catch { }
+
+            tx.Commit();
+            StingLog.Info($"Cable schedule view '{scheduleName}' created/refreshed.");
         }
 
         private static void WriteCsv(string path, CableScheduleResult r)
