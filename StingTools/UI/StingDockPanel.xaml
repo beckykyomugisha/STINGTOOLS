@@ -1547,6 +1547,7 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="Tasks" Tag="TaskAssignment" Click="Cmd_Click" ToolTip="Assign tasks to team members with workset checkout"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Notify Prefs" Tag="NotificationPrefs" Click="Cmd_Click" ToolTip="Configure per-user notification preferences"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="IFC Export" Tag="IFCExport" Click="Cmd_Click" ToolTip="Automated IFC 2x3/4 export with STING property sets"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="ArchiCAD Import" Tag="ArchiCadIfcImport" Click="Cmd_Click" ToolTip="Import ArchiCAD IFC with perfect coordinate alignment, level matching and property mapping" FontWeight="Bold"/>
                                 <Button Style="{StaticResource GreenBtn}" Content="COBie" Tag="COBieExport" Click="Cmd_Click" ToolTip="Export COBie spreadsheet for FM handover"/>
                                 <Button Style="{StaticResource GreenBtn}" Content="JSON" Tag="JSONExport" Click="Cmd_Click" ToolTip="Export element data as JSON for data interchange"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Tag Format" Tag="ConfigureTagFormat" Click="Cmd_Click" ToolTip="Configure tag separator, padding, segment order"/>
