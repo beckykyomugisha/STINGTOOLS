@@ -154,6 +154,8 @@ namespace StingTools.Commands.Interop
         // Each entry is a flat array of 9 doubles = (x0,y0,z0, x1,y1,z1, x2,y2,z2).
         public List<double[]> BrepTriangles { get; } = new();
         public Dictionary<string, string> Properties { get; } = new(StringComparer.OrdinalIgnoreCase);
+        /// <summary>True when geometry was resolved via AABB fallback (BRep was unsupported).</summary>
+        public bool GeometryIsAabbFallback { get; set; }
     }
 
     // =========================================================================
@@ -277,10 +279,13 @@ namespace StingTools.Commands.Interop
             ResolveRelAssociatesMaterial();
             ResolveRelContainedInSpatialStructure();
             ResolveZoneAssignments();
+            ResolveRelVoidsElement();
             ResolveElements();
             MergePropertiesIntoElements();
             MergeMaterialLayerProperties();
             AssignStoreyToElements();
+            PopulateStingTokens();
+            ValidateDataQuality();
         }
 
         // ── IFC unit scale ────────────────────────────────────────────────────
@@ -548,6 +553,178 @@ namespace StingTools.Commands.Interop
             catch (Exception ex) { StingLog.Warn("ResolveZoneAssignments: " + ex.Message); }
         }
 
+        // ── Opening host relationships (IfcRelVoidsElement) ──────────────────
+        private void ResolveRelVoidsElement()
+        {
+            try
+            {
+                foreach (var e in _e.Values.Where(e => e.Type == "IFCRELVOIDSELEMENT"))
+                {
+                    int hostRef    = ExtractRef(e.Raw, 4); // arg 4 = RelatingBuildingElement
+                    int openingRef = ExtractRef(e.Raw, 5); // arg 5 = RelatedOpeningElement
+                    if (hostRef > 0 && openingRef > 0)
+                        _openingHost[openingRef] = hostRef;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn("ResolveRelVoidsElement: " + ex.Message); }
+        }
+
+        // ── STING token auto-population from parsed IFC data ─────────────────
+        //  Runs after all merges so every element's Properties bag is complete.
+        //  Writes synthetic "STING.*" keys that ArchiCadPropertyMapper can then
+        //  write to the corresponding Revit shared-parameter at apply time.
+        private static readonly Dictionary<string,string> _renovMap =
+            new(StringComparer.OrdinalIgnoreCase)
+            {
+                { "New",                "NEW"         },
+                { "Existing",           "EXISTING"    },
+                { "Demolished",         "DEMOLISHED"  },
+                { "ToBeReconstructed",  "NEW"         },
+                { "ToBeRetrofitted",    "EXISTING"    },
+                { "ToBeRemoved",        "DEMOLISHED"  },
+                { "ToBeReplaced",       "DEMOLISHED"  },
+                { "Temporary",          "TEMPORARY"   },
+            };
+
+        private void PopulateStingTokens()
+        {
+            var storeyById = Storeys.ToDictionary(s => s.Id, s => s);
+
+            foreach (var el in Elements)
+            {
+                // ── STING.STATUS from AC_Pset_RenovationInfo.RenovationStatus ──
+                if (el.Properties.TryGetValue("AC_Pset_RenovationInfo.RenovationStatus", out string? renovRaw)
+                    && !string.IsNullOrEmpty(renovRaw))
+                {
+                    if (_renovMap.TryGetValue(renovRaw.Trim('.'), out string? status))
+                        el.Properties["STING.STATUS"] = status;
+                    else
+                        el.Properties["STING.STATUS"] = "EXISTING";
+                }
+                else if (!el.Properties.ContainsKey("STING.STATUS"))
+                {
+                    el.Properties["STING.STATUS"] = "NEW";
+                }
+
+                // ── STING.LVL from storey name ────────────────────────────────
+                if (el.StoreyId > 0 && storeyById.TryGetValue(el.StoreyId, out var storey))
+                {
+                    el.Properties["STING.LVL"] = DeriveLevel(storey.Name, storey.AbsoluteElevM);
+                }
+
+                // ── STING.ZONE from IfcZone assignment ───────────────────────
+                if (el.Properties.TryGetValue("IfcZone.Name", out string? zone)
+                    && !string.IsNullOrEmpty(zone)
+                    && !el.Properties.ContainsKey("STING.ZONE"))
+                {
+                    el.Properties["STING.ZONE"] = SanitiseZoneCode(zone);
+                }
+
+                // ── STING.DISC from IfcType ───────────────────────────────────
+                if (!el.Properties.ContainsKey("STING.DISC"))
+                    el.Properties["STING.DISC"] = DeriveDisc(el.IfcType);
+
+                // ── Opening host reference ────────────────────────────────────
+                if (_openingHost.TryGetValue(el.Id, out int hostId))
+                    el.Properties["STING.HOST_ELEMENT_ID"] = hostId.ToString();
+            }
+        }
+
+        // Convert storey name to a short STING level code (GF / L01 / B1 / RFT / …)
+        private static string DeriveLevel(string storeyName, double elevM)
+        {
+            string n = storeyName.Trim().ToUpperInvariant();
+
+            if (n.Contains("GROUND") || n is "GF" or "EG" or "RDC" or "0" or "00")
+                return "GF";
+            if (n.Contains("ROOF") || n.StartsWith("RF") || n.StartsWith("ROOF"))
+                return "RF";
+            if (n.StartsWith("B") && n.Length <= 3
+                && int.TryParse(n[1..], out int bNum))
+                return $"B{bNum}";
+            // Try to pull a number out of the name
+            var digits = System.Text.RegularExpressions.Regex.Match(n, @"(\d+)");
+            if (digits.Success)
+            {
+                int lvlNum = int.Parse(digits.Groups[1].Value);
+                if (elevM < -0.5) return $"B{lvlNum}";
+                return $"L{lvlNum:D2}";
+            }
+            return storeyName.Length > 6 ? storeyName[..6].ToUpperInvariant() : storeyName.ToUpperInvariant();
+        }
+
+        private static string SanitiseZoneCode(string zone)
+        {
+            // Strip common prefixes like "Zone ", "Z-", and trim to ≤6 chars
+            string s = System.Text.RegularExpressions.Regex.Replace(zone.Trim(), @"^(Zone\s*|Z[-_])", "",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            s = System.Text.RegularExpressions.Regex.Replace(s, @"[^A-Za-z0-9_]", "");
+            if (s.Length == 0) return zone.Length > 4 ? zone[..4].ToUpperInvariant() : zone.ToUpperInvariant();
+            return s.Length > 6 ? s[..6].ToUpperInvariant() : s.ToUpperInvariant();
+        }
+
+        private static string DeriveDisc(string ifcType)
+        {
+            string t = ifcType.ToUpperInvariant();
+            if (t.Contains("STRUCT") || t is "IFCCOLUMN" or "IFCBEAM" or "IFCPILE"
+                or "IFCFOOTING" or "IFCREINFORCINGBAR" or "IFCMEMBER" or "IFCPLATE")
+                return "S";
+            if (t.Contains("PIPE") || t.Contains("PUMP") || t.Contains("VALVE")
+                || t.Contains("SANITARY") || t.Contains("WASTE"))
+                return "P";
+            if (t.Contains("DUCT") || t.Contains("AIR") || t.Contains("FAN")
+                || t.Contains("CHILLER") || t.Contains("BOILER") || t.Contains("HVAC")
+                || t.Contains("HEATEXCHANGER") || t.Contains("HUMIDIFIER"))
+                return "M";
+            if (t.Contains("ELECTRIC") || t.Contains("LIGHT") || t.Contains("DISTRIBUTION"))
+                return "E";
+            if (t is "IFCWALL" or "IFCWALLSTANDARDCASE" or "IFCSLAB" or "IFCROOF"
+                or "IFCCOVERING" or "IFCSTAIR" or "IFCRAMP" or "IFCRAILING"
+                or "IFCDOOR" or "IFCWINDOW" or "IFCSPACE" or "IFCFURNITURE"
+                or "IFCFURNISHINGELEMENT" or "IFCBUILDINGELEMENT")
+                return "A";
+            return "A";
+        }
+
+        // ── Data quality validation ───────────────────────────────────────────
+        private void ValidateDataQuality()
+        {
+            // Duplicate GlobalId detection
+            var seen = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (var el in Elements)
+            {
+                if (string.IsNullOrEmpty(el.GlobalId)) continue;
+                if (seen.TryGetValue(el.GlobalId, out int prevId))
+                    Warnings.Add($"Duplicate GlobalId {el.GlobalId} on #${el.Id} and #{prevId}");
+                else
+                    seen[el.GlobalId] = el.Id;
+            }
+
+            // Coordinate sanity check (IFC units — if any element is >100 km from origin, warn)
+            const double MaxReasonableM = 100_000;
+            foreach (var el in Elements)
+            {
+                double d = Math.Sqrt(el.InsertionPoint[0]*el.InsertionPoint[0]
+                         + el.InsertionPoint[1]*el.InsertionPoint[1]);
+                if (d * UnitScale > MaxReasonableM)
+                {
+                    Warnings.Add($"Element #{el.Id} ({el.IfcType}) is {d*UnitScale/1000:F1} km from origin — check coordinate system");
+                    break; // one warning is enough
+                }
+            }
+
+            // Geometry fallback count
+            int aabbCount = Elements.Count(e => e.GeometryIsAabbFallback);
+            if (aabbCount > 0)
+                Warnings.Add($"{aabbCount} element(s) used AABB geometry fallback (AdvancedBrep / TriangulatedFaceSet / SweptDisk not supported by the lightweight parser — geometry will be approximate bounding boxes).");
+
+            // Warn when mandatory ArchiCAD psets are missing entirely
+            bool hasRenovPset = Elements.Any(e => e.Properties.Keys
+                .Any(k => k.StartsWith("AC_Pset_RenovationInfo.", StringComparison.OrdinalIgnoreCase)));
+            if (!hasRenovPset && Elements.Count > 0)
+                Warnings.Add("AC_Pset_RenovationInfo not found — renovation status will default to NEW. Enable 'Export renovation status properties' in ArchiCAD IFC Translator.");
+        }
+
         // ── Elements (geometry extraction) ────────────────────────────────────
         private static readonly HashSet<string> ElementTypes = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -555,8 +732,19 @@ namespace StingTools.Commands.Interop
             "IFCDOOR","IFCWINDOW","IFCROOF","IFCCOVERING","IFCSPACE","IFCFURNISHINGELEMENT",
             "IFCFLOWSEGMENT","IFCFLOWTERMINAL","IFCFLOWFITTING","IFCFLOWMOVINGDEVICE",
             "IFCFLOWCONTROLLER","IFCSTAIR","IFCSTAIRFLIGHT","IFCRAMP","IFCRAILING",
-            "IFCPLATE","IFCOPENINGELEMENT","IFCPILE","IFCFOOTING","IFCREINFORCINGBAR"
+            "IFCPLATE","IFCOPENINGELEMENT","IFCPILE","IFCFOOTING","IFCREINFORCINGBAR",
+            // Expanded: ArchiCAD frequently emits these types
+            "IFCBUILDINGELEMENT","IFCPROXY","IFCGEOGRAPHICELEMENT","IFCANNOTATION",
+            "IFCASSET","IFCBUILDINGSTOREY","IFCFURNITURE","IFCMECHANICALFASTENER",
+            "IFCPIPESEGMENT","IFCPIPEFITTING","IFCDUCTFITTING","IFCDUCTSEGMENT",
+            "IFCAIRTERMINAL","IFCLIGHTFIXTURE","IFCELECTRICDISTRIBUTIONBOARD",
+            "IFCELECTRICAPPLIANCE","IFCSANITARYTERMINAL","IFCWASTETERMINAL",
+            "IFCBURNER","IFCPUMP","IFCFAN","IFCVALVE","IFCFILTER","IFCHUMIDIFIER",
+            "IFCCHILLER","IFCBOILER","IFCHEATEXCHANGER","IFCSYSTEMFURNITUREELEMENT"
         };
+
+        // element id → host wall id (via IfcRelVoidsElement for openings/doors/windows)
+        private readonly Dictionary<int, int> _openingHost = new();
 
         private void ResolveElements()
         {
@@ -652,6 +840,7 @@ namespace StingTools.Commands.Interop
                             // Unsupported by the lightweight parser — collapse to an AABB
                             // box so the element at least lands at the right place.
                             ApplyReachableAabb(el, item.Id);
+                            el.GeometryIsAabbFallback = true;
                             break;
 
                         case "IFCMAPPEDITEM":
@@ -1742,6 +1931,49 @@ namespace StingTools.Commands.Interop
                         && string.IsNullOrEmpty(pz.AsString()))
                         pz.Set(zoneName);
                 }
+
+                // ── Write STING token params from PopulateStingTokens() results ──
+
+                // STING.ZONE → ASS_ZONE_TXT
+                if (src.Properties.TryGetValue("STING.ZONE", out string? stingZone)
+                    && !string.IsNullOrEmpty(stingZone))
+                {
+                    var p = revitEl.LookupParameter("ASS_ZONE_TXT");
+                    if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String
+                        && string.IsNullOrEmpty(p.AsString()))
+                        p.Set(stingZone);
+                }
+
+                // STING.LVL → ASS_LVL_COD_TXT
+                if (src.Properties.TryGetValue("STING.LVL", out string? stingLvl)
+                    && !string.IsNullOrEmpty(stingLvl))
+                {
+                    var p = revitEl.LookupParameter("ASS_LVL_COD_TXT");
+                    if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String
+                        && string.IsNullOrEmpty(p.AsString()))
+                        p.Set(stingLvl);
+                }
+
+                // STING.STATUS → ASS_STATUS_TXT / STATUS_TXT
+                if (src.Properties.TryGetValue("STING.STATUS", out string? stingStatus)
+                    && !string.IsNullOrEmpty(stingStatus))
+                {
+                    var p = revitEl.LookupParameter("ASS_STATUS_TXT")
+                         ?? revitEl.LookupParameter("STATUS_TXT");
+                    if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String
+                        && string.IsNullOrEmpty(p.AsString()))
+                        p.Set(stingStatus);
+                }
+
+                // STING.DISC → ASS_DISCIPLINE_COD_TXT
+                if (src.Properties.TryGetValue("STING.DISC", out string? stingDisc)
+                    && !string.IsNullOrEmpty(stingDisc))
+                {
+                    var p = revitEl.LookupParameter("ASS_DISCIPLINE_COD_TXT");
+                    if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String
+                        && string.IsNullOrEmpty(p.AsString()))
+                        p.Set(stingDisc);
+                }
             }
             catch (Exception ex) { StingLog.Warn("ApplyMaterialLayer: " + ex.Message); }
         }
@@ -1774,13 +2006,14 @@ namespace StingTools.Commands.Interop
 
     public sealed class ArchiCadImportResult
     {
-        public int    Total           { get; set; }
-        public int    Native          { get; set; }
-        public int    Direct          { get; set; }
-        public int    Skipped         { get; set; }
-        public int    LevelsMatched   { get; set; }
-        public int    LevelsCreated   { get; set; }
-        public int    PropsWritten    { get; set; }
+        public int    Total              { get; set; }
+        public int    Native             { get; set; }
+        public int    Direct             { get; set; }
+        public int    Skipped            { get; set; }
+        public int    LevelsMatched      { get; set; }
+        public int    LevelsCreated      { get; set; }
+        public int    PropsWritten       { get; set; }
+        public int    GeometryFallbacks  { get; set; }
         public double UnitScale       { get; set; }
         public double SiteOx          { get; set; }
         public double SiteOy          { get; set; }
@@ -1803,6 +2036,8 @@ namespace StingTools.Commands.Interop
             sb.AppendLine($"Levels matched    : {LevelsMatched}");
             sb.AppendLine($"Levels created    : {LevelsCreated}");
             sb.AppendLine($"Properties written: {PropsWritten}");
+            if (GeometryFallbacks > 0)
+                sb.AppendLine($"  Geometry fallback : {GeometryFallbacks} elements used AABB (approx)");
             if (Warnings.Count > 0)
             {
                 sb.AppendLine($"\nWarnings ({Warnings.Count}):");
@@ -1903,10 +2138,11 @@ namespace StingTools.Commands.Interop
                 t.Commit();
             }
 
-            result.Native      = em.CreatedNative;
-            result.Direct      = em.CreatedDirect;
-            result.Skipped     = em.Skipped;
-            result.PropsWritten= pm.Written;
+            result.Native             = em.CreatedNative;
+            result.Direct             = em.CreatedDirect;
+            result.Skipped            = em.Skipped;
+            result.PropsWritten       = pm.Written;
+            result.GeometryFallbacks  = parser.Elements.Count(e => e.GeometryIsAabbFallback);
             result.Warnings.AddRange(em.Warnings);
             tg.Assimilate();
 
