@@ -2493,6 +2493,8 @@ namespace StingTools.UI
                     // Platform Integration (12 commands)
                     case "ACCPublish": RunCommand<BIMManager.ACCPublishCommand>(app); break;
                     case "CDEPackage": RunCommand<BIMManager.CDEPackageCommand>(app); break;
+                    case "Folder_CloudSync": RunCommand<BIMManager.FolderCloudSyncSettingsCommand>(app); break;
+                    case "Folder_CloudMirrorNow": RunCommand<BIMManager.FolderCloudMirrorNowCommand>(app); break;
                     case "ValidateCDEHandover":
                     {
                         var doc = app.ActiveUIDocument?.Document;

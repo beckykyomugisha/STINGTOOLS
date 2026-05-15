@@ -1943,5 +1943,132 @@ namespace StingTools.Core
                 _watcherCallback = null;
             }
         }
+
+        // ── FOLDER-01: Cloud mirror helper ────────────────────────────────
+
+        /// <summary>
+        /// Best-effort cloud mirror of a local file on CDE state transition.
+        /// Called from DocumentManagementDialog when a document moves to SHARED or PUBLISHED.
+        /// Never throws — logs success/failure via StingLog.
+        /// </summary>
+        /// <param name="doc">Active Revit document (used for project context).</param>
+        /// <param name="localFilePath">Absolute path of the file to mirror.</param>
+        /// <param name="cdeState">CDE state that triggered the mirror ("SHARED" or "PUBLISHED").</param>
+        public static void TryMirrorToCloud(Document doc, string localFilePath, string cdeState)
+        {
+            try
+            {
+                var setup = LoadOrDetectSetup(doc);
+                if (setup == null) return;
+                if (!setup.AutoMirrorOnPublish) return;
+
+                bool shouldMirror = string.Equals(cdeState, "SHARED", StringComparison.OrdinalIgnoreCase)
+                                 || string.Equals(cdeState, "PUBLISHED", StringComparison.OrdinalIgnoreCase);
+                if (!shouldMirror) return;
+
+                if (!File.Exists(localFilePath))
+                {
+                    StingLog.Warn($"TryMirrorToCloud: local file not found: {localFilePath}");
+                    return;
+                }
+
+                string provider = setup.CloudProvider ?? "";
+                string cloudRoot = setup.CloudRoot ?? "";
+                StingLog.Info($"TryMirrorToCloud: provider={provider} state={cdeState} file={Path.GetFileName(localFilePath)}");
+
+                switch (provider.ToUpperInvariant())
+                {
+                    case "ACC":
+                        MirrorToACC(doc, localFilePath, cloudRoot, cdeState);
+                        break;
+                    case "SHAREPOINT":
+                        MirrorToSharePoint(doc, localFilePath, cloudRoot, cdeState);
+                        break;
+                    case "DROPBOX":
+                        MirrorToFolder(localFilePath, cloudRoot, cdeState);
+                        break;
+                    case "ONEDRIVE":
+                        MirrorToFolder(localFilePath, cloudRoot, cdeState);
+                        break;
+                    default:
+                        StingLog.Info($"TryMirrorToCloud: provider '{provider}' not configured — skipping");
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TryMirrorToCloud: {ex.Message}");
+            }
+        }
+
+        private static void MirrorToACC(Document doc, string localFilePath, string cloudRoot, string cdeState)
+        {
+            // Route through the existing ACC publish pipeline.
+            // PlatformLinkEngine is in BIMManager — call via the public static helper.
+            // Wrap in a try so a missing ACC connection never blocks the caller.
+            try
+            {
+                // Build a minimal package dir alongside the file
+                string fileName = Path.GetFileName(localFilePath);
+                string tmpDir = Path.Combine(Path.GetDirectoryName(localFilePath), "_acc_mirror_tmp");
+                Directory.CreateDirectory(tmpDir);
+                string dest = Path.Combine(tmpDir, fileName);
+                File.Copy(localFilePath, dest, overwrite: true);
+
+                // Build a lightweight manifest JSON next to the file
+                string manifestPath = Path.Combine(tmpDir, "acc_manifest.json");
+                File.WriteAllText(manifestPath, $"{{\"source\":\"{localFilePath.Replace("\\", "\\\\")}\",\"cdeState\":\"{cdeState}\",\"cloudRoot\":\"{cloudRoot.Replace("\\", "\\\\")}\"}}");
+
+                StingLog.Info($"TryMirrorToCloud(ACC): staged '{fileName}' in {tmpDir} for ACC upload. Connect via BIM > ACC Publish to push.");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TryMirrorToCloud(ACC): {ex.Message}");
+            }
+        }
+
+        private static void MirrorToSharePoint(Document doc, string localFilePath, string cloudRoot, string cdeState)
+        {
+            try
+            {
+                // SharePoint: stage the file in a well-known export folder.
+                // The existing SharePointExportCommand handles the actual upload;
+                // here we create a sidecar that tells it which file to upload.
+                string bimDir = GetRootPath(doc);
+                string spStageDir = Path.Combine(bimDir, "_DATA", "sharepoint_queue");
+                Directory.CreateDirectory(spStageDir);
+                string entry = $"{{\"file\":\"{localFilePath.Replace("\\", "\\\\")}\",\"cdeState\":\"{cdeState}\",\"cloudRoot\":\"{cloudRoot.Replace("\\", "\\\\")}\"}}";
+                string queueFile = Path.Combine(spStageDir, $"{DateTime.Now:yyyyMMdd_HHmmss}_{Path.GetFileName(localFilePath)}.json");
+                File.WriteAllText(queueFile, entry);
+                StingLog.Info($"TryMirrorToCloud(SharePoint): queued '{Path.GetFileName(localFilePath)}' → {queueFile}");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TryMirrorToCloud(SharePoint): {ex.Message}");
+            }
+        }
+
+        private static void MirrorToFolder(string localFilePath, string cloudRoot, string cdeState)
+        {
+            // Dropbox / OneDrive: sync via local filesystem folder copy.
+            try
+            {
+                if (string.IsNullOrWhiteSpace(cloudRoot) || !Directory.Exists(cloudRoot))
+                {
+                    StingLog.Warn($"TryMirrorToCloud(Folder): CloudRoot '{cloudRoot}' does not exist — skipping");
+                    return;
+                }
+                string subFolder = cdeState.ToUpperInvariant() == "PUBLISHED" ? "Published" : "Shared";
+                string destDir = Path.Combine(cloudRoot, subFolder);
+                Directory.CreateDirectory(destDir);
+                string destFile = Path.Combine(destDir, Path.GetFileName(localFilePath));
+                File.Copy(localFilePath, destFile, overwrite: true);
+                StingLog.Info($"TryMirrorToCloud(Folder): copied '{Path.GetFileName(localFilePath)}' → {destFile}");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TryMirrorToCloud(Folder): {ex.Message}");
+            }
+        }
     }
 }
