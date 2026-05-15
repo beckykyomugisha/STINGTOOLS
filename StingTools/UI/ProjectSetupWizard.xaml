@@ -419,6 +419,26 @@
                                 <CheckBox x:Name="chkDiscFire" Style="{StaticResource WizCheck}" Content="[FP] Fire Protection"/>
                                 <CheckBox x:Name="chkDiscLV" Style="{StaticResource WizCheck}" Content="[LV] Low Voltage (comms, data, security, nurse call)"/>
                                 <CheckBox x:Name="chkDiscGen" Style="{StaticResource WizCheck}" Content="[G] Generic (specialty, medical equipment)"/>
+                                <CheckBox x:Name="chkDiscHealthcare" Style="{StaticResource WizCheck}" Content="[H] Healthcare / Clinical (activates Healthcare Pack)" Checked="ChkDiscHealthcare_Changed" Unchecked="ChkDiscHealthcare_Changed"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- HC-08: Healthcare facility type — shown only when Healthcare discipline is checked -->
+                        <Border x:Name="pnlHealthcareFacility" Style="{StaticResource WizGroupBox}" Visibility="Collapsed">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource WizSubHeader}" Text="Healthcare Facility Type"/>
+                                <TextBlock Text="Select the healthcare facility type profile. This gates which validators and compliance rules are active."
+                                           FontSize="10" Foreground="#777" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                <ComboBox x:Name="cmbHealthcareFacilityType" Style="{StaticResource WizCombo}">
+                                    <ComboBoxItem Content="FULL"         IsSelected="True"/>
+                                    <ComboBoxItem Content="ACUTE"/>
+                                    <ComboBoxItem Content="COMMUNITY"/>
+                                    <ComboBoxItem Content="DENTAL"/>
+                                    <ComboBoxItem Content="IMAGING-ONLY"/>
+                                    <ComboBoxItem Content="MENTAL-HEALTH"/>
+                                </ComboBox>
+                                <TextBlock Text="This writes PRJ_ORG_HEALTH_PACK_PROFILE_TXT to ProjectInformation on finish."
+                                           FontSize="9" Foreground="#999" Margin="0,4,0,0"/>
                             </StackPanel>
                         </Border>
 
