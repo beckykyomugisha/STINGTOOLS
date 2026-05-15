@@ -191,7 +191,7 @@ public class IfcIngestController : ControllerBase
             // scan_all_psets: search for ".{property_name}" suffix anywhere.
             var props = el.Properties;
 
-            string ResolveParam(string paramName)
+            string? ResolveParam(string paramName)
             {
                 var entries = mapping.Where(m => m.StingParam == paramName);
                 foreach (var m in entries)
@@ -201,17 +201,17 @@ public class IfcIngestController : ControllerBase
                         var suffix = $".{m.PropertyName}";
                         var hit = props.Keys
                             .FirstOrDefault(k => k.EndsWith(suffix, StringComparison.Ordinal));
-                        if (hit != null && props.TryGetValue(hit, out var sv)) return sv;
+                        if (hit != null && props.TryGetValue(hit, out var sv) && !string.IsNullOrEmpty(sv)) return sv;
                     }
                     else
                     {
                         // quantity_type and standard pset entries both use
                         // the same "pset_name.property_name" bag key.
                         var key = $"{m.PsetName}.{m.PropertyName}";
-                        if (props.TryGetValue(key, out var pv)) return pv;
+                        if (props.TryGetValue(key, out var pv) && !string.IsNullOrEmpty(pv)) return pv;
                     }
                 }
-                return "";
+                return null;
             }
 
             var tag1 = ResolveParam("ASS_TAG_1")
