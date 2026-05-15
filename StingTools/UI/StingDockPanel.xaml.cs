@@ -1026,7 +1026,7 @@ namespace StingTools.UI
         /// <summary>
         /// Updates the SyncStatusChip label and colour. Safe to call from any thread.
         /// </summary>
-        public void UpdateSyncStatus(SyncState state, string? errorDetail = null)
+        public void UpdateSyncStatus(SyncState state, string errorDetail = null)
         {
             void Apply()
             {
