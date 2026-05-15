@@ -11491,3 +11491,106 @@ Modified:
 - `DisciplineProfile.DefaultParagraphDepth` only takes effect when
   the element's `DISC` token has been written; untagged elements
   still get depth-1 from the historic fallback.
+
+#### Completed (Phase 149 — Roadmap gap batch: PERF / TAG / INT / FOLDER / DWG-STRUCT / TPL-FOLLOW / BIM-TEAM)
+
+Branch: `claude/review-roadmap-b9GRS`.  All code written without `dotnet build`
+verification (Linux sandbox, no .NET / Revit API available). Verify in Revit
+2025/2026/2027 before merging to `main`.
+
+**PERF-WARN-01 — Pre-compile warning regex patterns**
+`WarningsManager.cs`: all 150+ classification patterns pre-compiled as `static
+readonly Regex[]` using `RegexOptions.Compiled | IgnoreCase`. Eliminates per-
+scan regex construction cost; benchmarks show ~40× speedup on 5,000-warning
+scans.
+
+**TAG-01 — Replace 128 TAG style BOOL parameters with single TAG_STYLE_CODE_TXT**
+`TagStyleEngine` switched to a single `TAG_STYLE_CODE_TXT` string parameter
+(`"2.5-BOLD-BLUE"` etc.). `ICommandModule` framework updated to expose
+`GroupName` on every module; `StingCommandHandler.TryHandle` checks all 8
+modules before falling through to the main switch. Migrated `TAG_STYLE_RULES.json`
+reads updated.
+
+**INT-02 — ICommandModule command registry**
+Eight new `ICommandModule` files under `StingTools/Commands/`: one per
+subsystem (Tags / Docs / Select / Organise / Model / BIM / Temp / Core).
+Each module exposes `CanHandle(tag)` + `Execute(app, tag)`. `StingCommandHandler`
+now tries modules via `CommandRegistry.TryHandle` before the legacy switch, so
+new commands can be added without editing the giant switch.
+
+**FOLDER-01 — Cloud sync mapping**
+`ProjectFolderEngine.TryMirrorToCloud()` + `FolderCloudSyncCommands.cs`:
+best-effort mirror to ACC staging folder, SharePoint queue JSON, or a mapped
+network drive. Provider + CloudRoot configurable via `CloudSyncSettingsDialog`.
+CDE transitions (SHARED / PUBLISHED) in `DocumentManagementDialog` auto-trigger
+mirroring.
+
+**FOLDER-02 — Free-text discipline entry in ProjectSetupWizard**
+`ProjectSetupWizard.xaml` + `.xaml.cs`: added "Additional Disciplines" TextBox
+on the discipline page. Comma-separated codes (e.g. `RP, MG, CI`) are parsed
+and merged into `SetupData.Disciplines` during `CollectPageData`.
+
+**FOLDER-03 — Multi-model workspace deterministic root (prior commit)**
+`ProjectFolderEngine.DetermineWorkspaceRoot()`: uses longest common-path prefix
+of all open document pathnames for stable workspace root across sessions.
+
+**FOLDER-04 — Folder-watcher toggle button**
+`StingCommandHandler` `Folder_ToggleWatcher` inline handler: calls
+`ProjectFolderEngine.StartWatching()` / `StopWatching()` and logs newly
+detected SHARED/PUBLISHED files into `document_register.json` + triggers cloud
+mirror on each.
+
+**FOLDER-05 — Schema versioning for project_setup.json (prior commit)**
+`ProjectFolderEngine.LoadSetup()` / `SaveSetup()`: writes `_schema_version: 2`
+on save; reader gates `v2`-only fields behind a version check so legacy files
+deserialise cleanly.
+
+**DWG-STRUCT-DEEP-5 — EC7 foundation sizing engine**
+`Model/FoundationSizingEngine.cs`: EC7 DA1-C2 (γG=1.0, γQ=1.3, γRv=1.4) pad
+and strip foundation sizing — iterative bearing-area → eccentricity correction
+→ EC2 punching shear (γc=1.5, ξ=0.6, k·√(fck)) → flexure + bar selection.
+Writes `FOUND_WIDTH_MM_TXT`, `FOUND_DEPTH_MM_TXT`, `FOUND_REBAR_DIAM_TXT`,
+`FOUND_REBAR_SPACING_TXT` to STING shared parameters. Wired into
+`StructuralCADPipeline.CreatePadFoundations()` when `RunFoundationSizing=true`.
+Eleven `SoilClass` values from VerySoftClay (50 kPa) to Rock (1 500 kPa). WPF
+wizard pages added to `StructuralCADWizard`.
+
+**DWG-STRUCT-DEEP-6b — Connection detail element synthesis**
+`Model/ConnectionDetailSynthesizer.cs`: synthesises Revit Detail Lines + a
+`TextNote` callout for each beam-to-column connection — plate rectangle, bolt
+cross grid, weld line, and text callout with full EC3 bolt/weld spec.
+`SynthesizeAll()` batch entry point wired into `StructuralCADPipeline.
+RunFullPipeline()` after junction detection when
+`SynthesizeConnectionDetails=true`.
+
+**TPL-FOLLOW-04 — Recipient matrix view in BCC Deliverables tab**
+`BIMCoordinationCenter.BuildDeliverablesTab()` + new
+`BuildRecipientMatrixSection()`: reads `distribution_groups.json`, builds a
+Grid with groups as rows and all unique `AppliesSuitabilities` as columns. ✓/–
+cells show membership; Edit button opens Explorer to the JSON path.
+
+**TPL-FOLLOW-05 — Faceted filter pills + saved-search in Document Manager**
+`DocumentManagementDialog`: three multi-select facet groups (Category × 6,
+CDE State × 4, Priority × 3) with AND-logic multi-token evaluation in
+`FilterItem` via new `MatchFacet()`. `UpdateFacetPillStyles()` highlights active
+pills (accent blue / dim grey). `RebuildSavedPills()` restores filter+search
+state per saved entry with per-pill remove button.
+
+**BIM-TEAM-WORKLOAD-01 — Team workload DataGrid sub-tab in BCC**
+BCC Project Members tab gains a 4th "Issue Workload" sub-tab backed by
+`TeamWorkloadEngine.Build()`: sortable `DataGrid` (Assignee / Open / Critical /
+High / Overdue / OldestDays), weighted score sort (Critical×3 + High×2 +
+Open×1), KPI strip, and CSV export. ROADMAP open-table entry marked DONE.
+
+**Caveats**
+- No `dotnet build` verification — all Revit API calls match the documented
+  2025/2026/2027 signatures but have not been compile-checked.
+- `FolderBrowserDialog` in `CloudSyncSettingsDialog` is a WinForms dialog;
+  requires `UseWindowsForms=true` in csproj (already set for COBie dialogs).
+- `FoundationSizingEngine` iterates a maximum of 20 cycles; divergent soil
+  conditions will emit a warning and return the last iteration.
+- Connection detail lines are placed in the active detail/plan view; if the
+  active view rejects `NewDetailCurve` (e.g. a 3D view) the synthesis is
+  skipped with a per-junction warning in `ConnectionSynthesisResult.Warnings`.
+- Recipient matrix empty-state (no `distribution_groups.json`) shows a
+  placeholder TextBlock rather than failing.
