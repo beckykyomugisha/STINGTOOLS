@@ -82,6 +82,29 @@ public class P6Controller : ControllerBase
     {
         if (!await ProjectInTenant(projectId, ct)) return Forbid();
 
+        var project = await _db.Projects
+            .AsNoTracking()
+            .Where(p => p.Id == projectId)
+            .Select(p => p.ConfigJson)
+            .FirstOrDefaultAsync(ct);
+
+        // Compute isConfigured directly from the stored settings so a newly
+        // configured project that has never synced still reports true.
+        bool isConfigured = false;
+        if (!string.IsNullOrEmpty(project))
+        {
+            try
+            {
+                var dict = JsonConvert.DeserializeObject<Dictionary<string, object?>>(project);
+                if (dict != null && dict.TryGetValue("p6", out var p6Obj) && p6Obj != null)
+                {
+                    var p6Settings = JsonConvert.DeserializeObject<P6LiveLinkSettings>(p6Obj.ToString() ?? "{}");
+                    isConfigured = p6Settings != null && !string.IsNullOrWhiteSpace(p6Settings.BaseUrl);
+                }
+            }
+            catch { /* malformed JSON — treat as unconfigured */ }
+        }
+
         var logs = await _db.P6SyncLogs
             .AsNoTracking()
             .Where(l => l.ProjectId == projectId)
@@ -92,6 +115,7 @@ public class P6Controller : ControllerBase
         var last = logs.FirstOrDefault();
         return Ok(new
         {
+            isConfigured,
             lastSyncAt       = last?.SyncedAt,
             activitiesPolled = last?.ActivitiesPolled ?? 0,
             elementsUpdated  = last?.ElementsUpdated  ?? 0,

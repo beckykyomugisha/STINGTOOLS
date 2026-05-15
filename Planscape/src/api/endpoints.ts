@@ -1670,6 +1670,7 @@ export interface P6SyncLogEntry {
 
 export async function getP6Status(projectId: string): Promise<P6StatusResponse> {
   const raw = await apiFetch<{
+    isConfigured?:     boolean;
     lastSyncAt?:       string | null;
     activitiesPolled?: number;
     elementsUpdated?:  number;
@@ -1677,11 +1678,13 @@ export async function getP6Status(projectId: string): Promise<P6StatusResponse> 
     history?:          P6SyncLogEntry[];
   }>(`/api/projects/${projectId}/p6/status`);
   return {
+    // Use the explicit server-computed field so a newly configured project
+    // that has never synced still shows as configured.
+    isConfigured:     raw.isConfigured ?? false,
     lastSyncedAt:     raw.lastSyncAt ?? null,
     activitiesPolled: raw.activitiesPolled ?? 0,
     elementsUpdated:  raw.elementsUpdated  ?? 0,
     errorMessage:     raw.error            ?? null,
-    isConfigured:     raw.lastSyncAt !== undefined,
   };
 }
 

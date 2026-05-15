@@ -199,8 +199,9 @@ public class P6LiveLinkService
 
             foreach (var issue in openIssues)
             {
-                issue.Status     = "RESOLVED";
-                issue.ResolvedAt = DateTime.UtcNow;
+                issue.Status      = "RESOLVED";
+                issue.ResolvedAt  = DateTime.UtcNow;
+                issue.ResolvedBy  = "p6-auto-resolve";
 
                 _logger.LogInformation(
                     "P6Sync: auto-resolving issue {Code} (linked to completed activity {ActivityId})",
@@ -340,7 +341,8 @@ public class P6LiveLinkService
     {
         public List<P6Activity>? Data { get; set; }
     }
-}
+
+    // ── Convenience wrapper ──────────────────────────────────────────────────
 
     /// <summary>
     /// Convenience wrapper called by <see cref="P6Controller.SyncNow"/>
@@ -362,6 +364,7 @@ public class P6LiveLinkService
         db.P6SyncLogs.Add(log);
         await db.SaveChangesAsync(ct);
     }
+}
 
 // ── Hangfire job ─────────────────────────────────────────────────────────────
 

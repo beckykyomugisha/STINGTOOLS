@@ -25,6 +25,7 @@ public class BimIssue : ITenantScoped
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? DueDate { get; set; }
     public DateTime? ResolvedAt { get; set; }
+    public string? ResolvedBy { get; set; }
     public string? Discipline { get; set; }
     public string? Revision { get; set; }
     public string? LinkedElementIds { get; set; } // JSON array of Revit element IDs
