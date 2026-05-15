@@ -6161,6 +6161,28 @@ namespace StingTools.UI
                     priCb.SelectedIndex = 2;
                     priRow.Children.Add(priCb);
                     sp.Children.Add(priRow);
+                    // HC-14: Category picker — includes Healthcare sub-categories.
+                    var catRow = MakeCtxRow("Category:");
+                    var catCb = new System.Windows.Controls.ComboBox { Width = 200 };
+                    foreach (var cat in new[] { "General", "Architectural", "Structural", "MEP", "Electrical", "Plumbing", "Fire", "Safety", "Coordination", "Clash",
+                        "Healthcare" })
+                        catCb.Items.Add(new ComboBoxItem { Content = cat, Tag = cat });
+                    catCb.SelectedIndex = 0;
+                    catRow.Children.Add(catCb);
+                    sp.Children.Add(catRow);
+                    // HC-14: Healthcare sub-category — shown only when "Healthcare" is selected.
+                    var hcSubRow = MakeCtxRow("HC Sub-Category:");
+                    var hcSubCb = new System.Windows.Controls.ComboBox { Width = 200 };
+                    foreach (var sub in new[] { "Infection-Control", "MGPS-Defect", "Anti-Lig-Failure", "Calibration-Due", "RDS-Drift" })
+                        hcSubCb.Items.Add(new ComboBoxItem { Content = sub, Tag = sub });
+                    hcSubCb.SelectedIndex = 0;
+                    hcSubRow.Visibility = System.Windows.Visibility.Collapsed;
+                    sp.Children.Add(hcSubRow);
+                    catCb.SelectionChanged += (s, e) =>
+                    {
+                        bool isHc = (catCb.SelectedItem as ComboBoxItem)?.Tag?.ToString() == "Healthcare";
+                        hcSubRow.Visibility = isHc ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+                    };
                     var titleRow = MakeCtxRow("Title:");
                     var titleBox = new System.Windows.Controls.TextBox { Width = 340 };
                     titleRow.Children.Add(titleBox);
@@ -6244,6 +6266,11 @@ namespace StingTools.UI
                         StingCommandHandler.SetExtraParam("IssueTitle", titleBox.Text);
                         StingCommandHandler.SetExtraParam("Assignees", string.Join(",", assignChecks2.Where(c => c.IsChecked == true).Select(c => c.Content?.ToString() ?? "")));
                         StingCommandHandler.SetExtraParam("NotifyRecipients", string.Join(",", notifyChecks.Where(c => c.IsChecked == true).Select(c => c.Content?.ToString() ?? "")));
+                        // HC-14: Pass category + optional healthcare sub-category.
+                        string issueCat = (catCb.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "General";
+                        StingCommandHandler.SetExtraParam("IssueCategory", issueCat);
+                        if (issueCat == "Healthcare")
+                            StingCommandHandler.SetExtraParam("IssueHcSubCategory", (hcSubCb.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "");
                         DispatchAction("RaiseIssue");
                     };
                     sp.Children.Add(raiseBtn);
