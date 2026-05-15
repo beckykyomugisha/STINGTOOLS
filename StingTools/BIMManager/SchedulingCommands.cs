@@ -2753,7 +2753,7 @@ namespace StingTools.BIMManager
                 var doc = commandData.Application.ActiveUIDocument?.Document;
                 if (doc == null) { TaskDialog.Show("STING — P6 Config", "No active document."); return Result.Cancelled; }
 
-                if (!PlanscapeServerClient.Instance.IsLoggedIn)
+                if (!PlanscapeServerClient.Instance.IsConnected)
                 {
                     TaskDialog.Show("STING — P6 Config", "Please log in to Planscape first (BIM → Planscape).");
                     return Result.Cancelled;
@@ -2859,7 +2859,7 @@ namespace StingTools.BIMManager
                 var doc = commandData.Application.ActiveUIDocument?.Document;
                 if (doc == null) { TaskDialog.Show("STING — P6 Sync", "No active document."); return Result.Cancelled; }
 
-                if (!PlanscapeServerClient.Instance.IsLoggedIn)
+                if (!PlanscapeServerClient.Instance.IsConnected)
                 {
                     TaskDialog.Show("STING — P6 Sync", "Please log in to Planscape first.");
                     return Result.Cancelled;

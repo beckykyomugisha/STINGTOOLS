@@ -534,7 +534,7 @@ public class DocumentsController : ControllerBase
                 catch (Exception ex)
                 {
                     // Non-fatal — IFC BOQ seeding is best-effort
-                    Console.Error.WriteLine($"IFC BOQ extraction failed: {ex.Message}");
+                    _logger.LogWarning(ex, "IFC BOQ extraction failed for project {ProjectId}: {Message}", ifcProjectId, ex.Message);
                 }
             });
         }

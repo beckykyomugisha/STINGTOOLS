@@ -30,7 +30,7 @@ namespace StingTools.BIMManager
                 }
 
                 // Ensure logged in
-                if (!PlanscapeServerClient.Instance.IsLoggedIn)
+                if (!PlanscapeServerClient.Instance.IsConnected)
                 {
                     TaskDialog.Show("STING — BOQ Sync",
                         "Not connected to Planscape server.\nPlease log in via BIM → Planscape.");

@@ -133,10 +133,12 @@ public class P6Controller : ControllerBase
             return BadRequest(new { error = "P6 live link is not configured for this project. Call POST /p6/configure first." });
 
         // Enqueue as a Hangfire fire-and-forget job so the HTTP call returns immediately.
+        // Use SyncAndPersistAsync so the resulting P6SyncLog is saved and visible in GET /p6/status.
         var capturedProjectId = projectId;
         var capturedSettings  = settings;
+        var capturedTenantId  = GetTenantId();
         BackgroundJob.Enqueue<P6LiveLinkService>(svc =>
-            svc.SyncProjectAsync(capturedProjectId, capturedSettings, CancellationToken.None));
+            svc.SyncAndPersistAsync(capturedProjectId, capturedTenantId, capturedSettings, CancellationToken.None));
 
         return Ok(new { status = "Sync enqueued. Check GET /p6/status in ~30 seconds for results." });
     }

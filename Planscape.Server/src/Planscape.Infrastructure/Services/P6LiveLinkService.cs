@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -106,16 +107,13 @@ public class P6LiveLinkService
             // Disable tenant filter so the background job can cross tenants safely.
             db.BypassTenantFilter = true;
 
-            // Load elements for this project that have a P6 activity id
+            // Load elements for this project that have a P6 activity id.
+            // Filter by projectId at DB level to avoid cross-tenant data exposure.
             var elements = await db.TaggedElements
-                .Where(e => e.ProjectId == Guid.Empty // placeholder — real FK is int in some builds
-                         || true)                     // load all for project; filter below
+                .Where(e => e.ProjectId == projectId)
                 .Where(e => e.P6ActivityId != null && e.P6ActivityId != "")
                 .ToListAsync(ct);
 
-            // Filter to the correct project via RevitElementId proximity — the
-            // real FK type depends on the migration; we filter in-memory to be safe.
-            // (TaggedElement.ProjectId is Guid in this codebase.)
             int updated = 0;
             foreach (var el in elements)
             {
@@ -193,6 +191,27 @@ public class P6LiveLinkService
     }
 }
 
+    /// <summary>
+    /// Convenience wrapper called by <see cref="P6Controller.SyncNow"/>
+    /// via Hangfire fire-and-forget. Runs the sync and persists the
+    /// resulting <see cref="P6SyncLog"/> row so it appears in GET /p6/status.
+    /// </summary>
+    public async Task SyncAndPersistAsync(
+        Guid               projectId,
+        Guid               tenantId,
+        P6LiveLinkSettings settings,
+        CancellationToken  ct = default)
+    {
+        var log = await SyncProjectAsync(projectId, settings, ct);
+        log.TenantId = tenantId;
+
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
+        db.BypassTenantFilter = true;
+        db.P6SyncLogs.Add(log);
+        await db.SaveChangesAsync(ct);
+    }
+
 // ── Hangfire job ─────────────────────────────────────────────────────────────
 
 /// <summary>
@@ -216,6 +235,8 @@ public class P6LiveLinkJob
         _logger       = logger;
     }
 
+    [Hangfire.AutomaticRetry(Attempts = 2, OnAttemptsExceeded = Hangfire.AttemptsExceededAction.Delete)]
+    [Hangfire.DisableConcurrentExecution(timeoutInSeconds: 1800)]
     public async Task ExecuteAsync(CancellationToken ct = default)
     {
         using var scope = _scopeFactory.CreateScope();
