@@ -70,8 +70,10 @@ public class XbimIfcIngester : IIfcIngester
 
         // Pre-build cached maps so we don't repeatedly traverse inverse
         // relationships on every element. Both build in O(N) total.
-        var propsByElement = BuildPropertyIndex(model);
-        var qtysByElement  = BuildQuantityIndex(model);
+        var propsByElement  = BuildPropertyIndex(model);
+        var qtysByElement   = BuildQuantityIndex(model);
+        var spatialAncestors = BuildSpatialAncestorIndex(model);
+        var openingAreaByHost = BuildOpeningAreaIndex(model, qtysByElement);
 
         // Detect ArchiCAD-specific pset names to set Source field.
         bool hasAcPsets = false;
@@ -90,6 +92,14 @@ public class XbimIfcIngester : IIfcIngester
             if (element.Name?.Value is string n)    bag["IfcName"]    = n;
             if (element.Description?.Value is string d) bag["IfcDescription"] = d;
             if (element.Tag?.Value is string t)     bag["IfcTag"] = t;
+
+            // Spatial hierarchy (building / storey / space)
+            if (spatialAncestors.TryGetValue(element.EntityLabel, out var ancestors))
+            {
+                if (ancestors.Building  != null) bag["IfcHierarchy.Building"]  = ancestors.Building;
+                if (ancestors.Storey    != null) bag["IfcHierarchy.Storey"]    = ancestors.Storey;
+                if (ancestors.Space     != null) bag["IfcHierarchy.Space"]     = ancestors.Space;
+            }
 
             // Property sets via the prebuilt index.
             if (propsByElement.TryGetValue(element.EntityLabel, out var pSets))
@@ -147,6 +157,9 @@ public class XbimIfcIngester : IIfcIngester
                     }
                 }
             }
+
+            // Derived quantities: net area = gross - openings; cost total = rate × qty
+            ComputeDerivedQuantities(element.EntityLabel, bag, openingAreaByHost);
 
             string? predefined = TryReadPredefinedType(element);
 
@@ -241,5 +254,163 @@ public class XbimIfcIngester : IIfcIngester
         if (prop == null) return null;
         var v = prop.GetValue(element);
         return v?.ToString();
+    }
+
+    // ── Spatial ancestor record ───────────────────────────────────────────────
+
+    private sealed record SpatialAncestors(string? Building, string? Storey, string? Space);
+
+    /// <summary>
+    /// One pass over IfcRelContainedInSpatialStructure + IfcRelAggregates to build
+    /// a (elementEntityLabel → SpatialAncestors) map that carries building/storey/space
+    /// names for every element.
+    /// </summary>
+    private static Dictionary<int, SpatialAncestors> BuildSpatialAncestorIndex(IModel model)
+    {
+        // id → parent id via IfcRelAggregates
+        var parentOf = new Dictionary<int, int>();
+        foreach (var rel in model.Instances.OfType<IIfcRelAggregates>())
+        {
+            int parentLabel = rel.RelatingObject.EntityLabel;
+            foreach (var child in rel.RelatedObjects)
+                parentOf[child.EntityLabel] = parentLabel;
+        }
+
+        // element id → direct spatial container (storey or space) via IfcRelContainedInSpatialStructure
+        var directContainer = new Dictionary<int, int>();
+        foreach (var rel in model.Instances.OfType<IIfcRelContainedInSpatialStructure>())
+        {
+            int containerLabel = rel.RelatingStructure.EntityLabel;
+            foreach (var el in rel.RelatedElements)
+                directContainer[el.EntityLabel] = containerLabel;
+        }
+
+        // Helper: walk up the aggregation chain, returning the Name of the first
+        // entity that matches the predicate.
+        string? WalkUp(int startLabel, Func<IPersistEntity, string?> extract)
+        {
+            int cur = startLabel;
+            int guard = 20;
+            while (guard-- > 0)
+            {
+                var ent = model.Instances[cur];
+                if (ent == null) break;
+                var name = extract(ent);
+                if (name != null) return name;
+                if (!parentOf.TryGetValue(cur, out int parent)) break;
+                cur = parent;
+            }
+            return null;
+        }
+
+        var result = new Dictionary<int, SpatialAncestors>();
+        foreach (var rel in model.Instances.OfType<IIfcRelContainedInSpatialStructure>())
+        {
+            int containerLabel = rel.RelatingStructure.EntityLabel;
+            string? storey   = WalkUp(containerLabel, e => e is IIfcBuildingStorey bs ? bs.Name?.Value as string : null);
+            string? building = WalkUp(containerLabel, e => e is IIfcBuilding   bld ? bld.Name?.Value as string : null);
+            // space = direct container when it's an IfcSpace
+            string? space = rel.RelatingStructure is IIfcSpace sp
+                ? sp.Name?.Value as string : null;
+
+            var ancestors = new SpatialAncestors(building, storey, space);
+            foreach (var el in rel.RelatedElements)
+                result[el.EntityLabel] = ancestors;
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// One pass to build a (hostElementLabel → total opening area m²) map for
+    /// net area derivation. Uses IfcRelVoidsElement + BaseQuantities.
+    /// </summary>
+    private static Dictionary<int, double> BuildOpeningAreaIndex(
+        IModel model,
+        Dictionary<int, List<IIfcElementQuantity>> qtysByElement)
+    {
+        var result = new Dictionary<int, double>();
+
+        // IfcRelVoidsElement: arg RelatingBuildingElement = host, RelatedOpeningElement = opening
+        foreach (var rel in model.Instances.OfType<IIfcRelVoidsElement>())
+        {
+            int hostLabel    = rel.RelatingBuildingElement.EntityLabel;
+            int openingLabel = rel.RelatedOpeningElement.EntityLabel;
+
+            if (!qtysByElement.TryGetValue(openingLabel, out var qsets)) continue;
+            foreach (var qset in qsets)
+            {
+                foreach (var qty in qset.Quantities.OfType<IIfcQuantityArea>())
+                {
+                    double area = (double)qty.AreaValue;
+                    result[hostLabel] = result.GetValueOrDefault(hostLabel) + area;
+                }
+            }
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Derives net area / volume / cost total from already-populated bag and
+    /// the opening-area index, writing DerivedQty.* keys.
+    /// </summary>
+    private static void ComputeDerivedQuantities(
+        int entityLabel,
+        Dictionary<string, string> bag,
+        Dictionary<int, double> openingAreaByHost)
+    {
+        static bool TryQty(Dictionary<string, string> b, string key, out double val)
+        {
+            val = 0;
+            return b.TryGetValue(key, out string? s)
+                && double.TryParse(s, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out val);
+        }
+
+        double openingArea = openingAreaByHost.GetValueOrDefault(entityLabel);
+
+        // Net side area
+        if (TryQty(bag, "Qto_WallBaseQuantities.GrossSideArea", out double grossSide)
+            || TryQty(bag, "BaseQuantities.GrossSideArea", out grossSide))
+        {
+            double net = Math.Max(0, grossSide - openingArea);
+            bag["DerivedQty.NetSideArea_m2"] = net.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        // Net floor area
+        if (TryQty(bag, "Qto_SlabBaseQuantities.GrossArea", out double grossFloor)
+            || TryQty(bag, "Qto_SpaceBaseQuantities.GrossFloorArea", out grossFloor)
+            || TryQty(bag, "BaseQuantities.GrossArea", out grossFloor))
+        {
+            bag["DerivedQty.NetFloorArea_m2"] = grossFloor.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        // Net volume
+        if (TryQty(bag, "Qto_WallBaseQuantities.GrossVolume", out double grossVol)
+            || TryQty(bag, "Qto_SlabBaseQuantities.GrossVolume", out grossVol)
+            || TryQty(bag, "BaseQuantities.GrossVolume", out grossVol))
+        {
+            double voidVol = 0;
+            if (openingArea > 0
+                && (TryQty(bag, "Qto_WallBaseQuantities.Width", out double width)
+                    || TryQty(bag, "BaseQuantities.Width", out width)))
+                voidVol = openingArea * width;
+            bag["DerivedQty.NetVolume_m3"] = Math.Max(0, grossVol - voidVol)
+                .ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        // Cost total
+        if (bag.TryGetValue("CST_UNIT_RATE_TXT", out string? rateStr)
+            && double.TryParse(rateStr, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out double rate)
+            && rate > 0)
+        {
+            double? qty = TryQty(bag, "DerivedQty.NetFloorArea_m2", out double fa) ? fa
+                        : TryQty(bag, "DerivedQty.NetSideArea_m2",  out double sa) ? sa
+                        : TryQty(bag, "DerivedQty.NetVolume_m3",    out double vo) ? vo
+                        : (double?)null;
+            if (qty.HasValue && qty.Value > 0)
+                bag["DerivedQty.CostTotal"] = (rate * qty.Value)
+                    .ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+        }
     }
 }

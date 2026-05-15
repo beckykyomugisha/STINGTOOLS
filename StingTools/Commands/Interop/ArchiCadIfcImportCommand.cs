@@ -223,6 +223,12 @@ namespace StingTools.Commands.Interop
         private readonly Dictionary<int, string>      _layerComposition    = new();
         // element/space id → zone name from IfcZone (via IfcRelAssignsToGroup)
         private readonly Dictionary<int, string>      _zoneAssignment      = new();
+        // spatial id → parent spatial id (building→storey→space via IfcRelAggregates)
+        private readonly Dictionary<int, int>         _spatialParent       = new();
+        // spatial id → name (for building/storey/space name lookup)
+        private readonly Dictionary<int, string>      _spatialName         = new();
+        // element id → enclosing IfcSpace id (from IfcRelContainedInSpatialStructure for spaces)
+        private readonly Dictionary<int, int>         _elementSpace        = new();
         /// <summary>True if any IfcElementQuantity entities were found in the file.</summary>
         public bool HasQuantitySets { get; private set; }
 
@@ -277,6 +283,7 @@ namespace StingTools.Commands.Interop
             ResolveRelDefinesByProperties();
             ResolveRelDefinesByType();
             ResolveRelAssociatesMaterial();
+            ResolveRelAggregates();
             ResolveRelContainedInSpatialStructure();
             ResolveZoneAssignments();
             ResolveRelVoidsElement();
@@ -284,6 +291,8 @@ namespace StingTools.Commands.Interop
             MergePropertiesIntoElements();
             MergeMaterialLayerProperties();
             AssignStoreyToElements();
+            AssignSpatialHierarchy();
+            ComputeDerivedQuantities();
             PopulateStingTokens();
             ValidateDataQuality();
         }
@@ -553,6 +562,202 @@ namespace StingTools.Commands.Interop
             catch (Exception ex) { StingLog.Warn("ResolveZoneAssignments: " + ex.Message); }
         }
 
+        // ── Spatial containment hierarchy (IfcRelAggregates) ─────────────────
+        //  Builds building→storey→zone→space parent chain so we can walk UP from
+        //  any element and emit IfcHierarchy.Building / Storey / Space properties.
+        private static readonly HashSet<string> _spatialEntityTypes = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "IFCBUILDING","IFCBUILDINGSTOREY","IFCSPACE","IFCZONE",
+            "IFCSITE","IFCPROJECT","IFCEXTERNALSPATIALELEMENT"
+        };
+
+        private void ResolveRelAggregates()
+        {
+            try
+            {
+                foreach (var e in _e.Values.Where(e => _spatialEntityTypes.Contains(e.Type)))
+                foreach (var e in _e.Values.Where(e => SpatialTypes.Contains(e.Type)))
+                    _spatialName[e.Id] = ExtractString(e.Raw, 2); // arg 2 = Name on all IfcRoot subclasses
+
+                // IfcRelAggregates: arg 4 = RelatingObject (parent), arg 5 = RelatedObjects (children)
+                foreach (var e in _e.Values.Where(e => e.Type == "IFCRELAGGREGATES"))
+                {
+                    int parentRef = ExtractRef(e.Raw, 4);
+                    if (parentRef <= 0) continue;
+                    foreach (int childRef in ExtractRefList(e.Raw, 5))
+                        _spatialParent[childRef] = parentRef;
+                }
+
+                // Also map IfcSpace membership from IfcRelContainedInSpatialStructure
+                // where the relating structure is an IfcSpace (elements inside rooms).
+                foreach (var e in _e.Values.Where(e => e.Type == "IFCRELCONTAINEDINSPATIALSTRUCTURE"))
+                {
+                    int spatialRef = ExtractRef(e.Raw, 5);
+                    if (!_e.TryGetValue(spatialRef, out var spatial)) continue;
+                    if (!spatial.Type.Equals("IFCSPACE", StringComparison.OrdinalIgnoreCase)) continue;
+                    foreach (int eid in ExtractRefList(e.Raw, 4))
+                        _elementSpace[eid] = spatialRef;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn("ResolveRelAggregates: " + ex.Message); }
+        }
+
+        // Walk the _spatialParent chain from a given id, collecting ancestors by IFC type.
+        private string? WalkToType(int startId, string targetType)
+        {
+            int cur = startId;
+            int safety = 20;
+            while (cur > 0 && safety-- > 0)
+            {
+                if (_e.TryGetValue(cur, out var ent)
+                    && ent.Type.Equals(targetType, StringComparison.OrdinalIgnoreCase))
+                    return _spatialName.TryGetValue(cur, out string? n) ? n : null;
+                if (!_spatialParent.TryGetValue(cur, out int parent)) break;
+                cur = parent;
+            }
+            return null;
+        }
+
+        // ── Assign building/storey/space hierarchy to element Properties ──────
+        private void AssignSpatialHierarchy()
+        {
+            foreach (var el in Elements)
+            {
+                // Start from the direct spatial container (storey from _relContain)
+                int spatialBase = _relContain.TryGetValue(el.Id, out int s) ? s : 0;
+
+                // Building name
+                string? bldName = spatialBase > 0 ? WalkToType(spatialBase, "IFCBUILDING") : null;
+                if (!string.IsNullOrEmpty(bldName))
+                    el.Properties["IfcHierarchy.Building"] = bldName!;
+
+                // Storey name (already set via el.StoreyId; use _spatialName for consistency)
+                if (el.StoreyId > 0 && _spatialName.TryGetValue(el.StoreyId, out string? storeyName)
+                    && !string.IsNullOrEmpty(storeyName))
+                    el.Properties["IfcHierarchy.Storey"] = storeyName;
+
+                // Enclosing space / room name
+                if (_elementSpace.TryGetValue(el.Id, out int spaceId)
+                    && _spatialName.TryGetValue(spaceId, out string? spaceName)
+                    && !string.IsNullOrEmpty(spaceName))
+                {
+                    el.Properties["IfcHierarchy.Space"] = spaceName;
+                    // Also expose space's psets for room-level data (e.g. AC_Pset_ZoneCategory)
+                    if (_relDef.TryGetValue(spaceId, out var spacePsets))
+                    {
+                        foreach (int pid in spacePsets)
+                        {
+                            if (!_psets.TryGetValue(pid, out var spaceProps)) continue;
+                            foreach (var kv in spaceProps)
+                                if (!el.Properties.ContainsKey(kv.Key))
+                                    el.Properties[kv.Key] = kv.Value;
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Derived quantity calculations ─────────────────────────────────────
+        //  Computes net quantities by subtracting opening areas/volumes from gross,
+        //  and derives cost totals from quantity × unit rate when both are present.
+        private void ComputeDerivedQuantities()
+        {
+            // Build opening area index: host wall id → total area of all its openings
+            // We use the opening elements' gross area from their BaseQuantities psets.
+            var openingAreaByHost = new Dictionary<int, double>();
+            foreach (var el in Elements.Where(e =>
+                e.IfcType.Equals("IFCOPENINGELEMENT", StringComparison.OrdinalIgnoreCase)))
+            {
+                if (!_openingHost.TryGetValue(el.Id, out int hostId)) continue;
+                // Try several quantity key patterns ArchiCAD uses
+                double area = TryGetQuantityM2(el, "Qto_OpeningElementBaseQuantities.Area")
+                           ?? TryGetQuantityM2(el, "BaseQuantities.CrossSectionArea")
+                           ?? TryGetQuantityM2(el, "BaseQuantities.Area")
+                           ?? 0.0;
+                if (area > 0)
+                    openingAreaByHost[hostId] = openingAreaByHost.GetValueOrDefault(hostId) + area;
+            }
+
+            foreach (var el in Elements)
+            {
+                // ── Net side area for walls ────────────────────────────────────
+                double? grossSide = TryGetQuantityM2(el, "Qto_WallBaseQuantities.GrossSideArea")
+                                 ?? TryGetQuantityM2(el, "BaseQuantities.GrossSideArea");
+                if (grossSide.HasValue && openingAreaByHost.TryGetValue(el.Id, out double oArea) && oArea > 0)
+                {
+                    double net = Math.Max(0, grossSide.Value - oArea);
+                    el.Properties["DerivedQty.NetSideArea_m2"] = net.ToString("F4", CultureInfo.InvariantCulture);
+                }
+
+                // ── Net floor area for slabs/spaces ───────────────────────────
+                double? grossFloor = TryGetQuantityM2(el, "Qto_SlabBaseQuantities.GrossArea")
+                                  ?? TryGetQuantityM2(el, "Qto_SpaceBaseQuantities.GrossFloorArea")
+                                  ?? TryGetQuantityM2(el, "BaseQuantities.GrossArea");
+                if (grossFloor.HasValue)
+                {
+                    // Net = Gross for floors/spaces (openings don't subtract floor area)
+                    el.Properties["DerivedQty.NetFloorArea_m2"] = grossFloor.Value.ToString("F4", CultureInfo.InvariantCulture);
+                }
+
+                // ── Net volume ────────────────────────────────────────────────
+                double? grossVol = TryGetQuantityM3(el, "Qto_WallBaseQuantities.GrossVolume")
+                                ?? TryGetQuantityM3(el, "Qto_SlabBaseQuantities.GrossVolume")
+                                ?? TryGetQuantityM3(el, "BaseQuantities.GrossVolume");
+                if (grossVol.HasValue)
+                {
+                    // Approximate void volume as opening area × average wall thickness
+                    double voidVol = 0;
+                    if (openingAreaByHost.TryGetValue(el.Id, out double oa))
+                    {
+                        double? thick = TryGetQuantityM(el, "Qto_WallBaseQuantities.Width")
+                                     ?? TryGetQuantityM(el, "BaseQuantities.Width");
+                        if (thick.HasValue && thick.Value > 0)
+                            voidVol = oa * thick.Value;
+                    }
+                    double netVol = Math.Max(0, grossVol.Value - voidVol);
+                    el.Properties["DerivedQty.NetVolume_m3"] = netVol.ToString("F4", CultureInfo.InvariantCulture);
+                }
+
+                // ── Cost total = unit rate × primary quantity ─────────────────
+                if (el.Properties.TryGetValue("CST_UNIT_RATE_TXT", out string? rateStr)
+                    && double.TryParse(rateStr, NumberStyles.Float, CultureInfo.InvariantCulture, out double rate)
+                    && rate > 0)
+                {
+                    // Pick the best quantity for costing: floor area > side area > volume
+                    double? qty = grossFloor ?? grossSide ?? grossVol;
+                    if (qty.HasValue && qty.Value > 0)
+                    {
+                        double total = rate * qty.Value;
+                        el.Properties["DerivedQty.CostTotal"] = total.ToString("F2", CultureInfo.InvariantCulture);
+                    }
+                }
+            }
+        }
+
+        // Helper: parse a named quantity (area in m²) from an element's merged properties.
+        // The key is "QsetName.QuantityName". UnitScale converts IFC units → metres.
+        private double? TryGetQuantityM2(AcIfcElement el, string key)
+        {
+            if (!el.Properties.TryGetValue(key, out string? v)) return null;
+            if (!double.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out double raw)) return null;
+            // IFC areas are in length-unit² → multiply by UnitScale²
+            return raw * UnitScale * UnitScale;
+        }
+
+        private double? TryGetQuantityM3(AcIfcElement el, string key)
+        {
+            if (!el.Properties.TryGetValue(key, out string? v)) return null;
+            if (!double.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out double raw)) return null;
+            return raw * UnitScale * UnitScale * UnitScale;
+        }
+
+        private double? TryGetQuantityM(AcIfcElement el, string key)
+        {
+            if (!el.Properties.TryGetValue(key, out string? v)) return null;
+            if (!double.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out double raw)) return null;
+            return raw * UnitScale;
+        }
+
         // ── Opening host relationships (IfcRelVoidsElement) ──────────────────
         private void ResolveRelVoidsElement()
         {
@@ -723,6 +928,20 @@ namespace StingTools.Commands.Interop
                 .Any(k => k.StartsWith("AC_Pset_RenovationInfo.", StringComparison.OrdinalIgnoreCase)));
             if (!hasRenovPset && Elements.Count > 0)
                 Warnings.Add("AC_Pset_RenovationInfo not found — renovation status will default to NEW. Enable 'Export renovation status properties' in ArchiCAD IFC Translator.");
+
+            // Spatial hierarchy coverage
+            int withHierarchy = Elements.Count(e => e.Properties.ContainsKey("IfcHierarchy.Storey"));
+            if (withHierarchy == 0 && Elements.Count > 0)
+                Warnings.Add("No IfcRelAggregates hierarchy found — building/storey/space structure unavailable. Check ArchiCAD IFC export includes spatial structure.");
+
+            // Derived quantity coverage
+            int withNetArea = Elements.Count(e => e.Properties.ContainsKey("DerivedQty.NetSideArea_m2")
+                                                || e.Properties.ContainsKey("DerivedQty.NetFloorArea_m2"));
+            int withCostTotal = Elements.Count(e => e.Properties.ContainsKey("DerivedQty.CostTotal"));
+            if (HasQuantitySets && withNetArea > 0)
+                StingLog.Info($"ArchiCAD: derived net quantities for {withNetArea} elements; cost totals for {withCostTotal} elements.");
+            else if (HasQuantitySets && withNetArea == 0)
+                Warnings.Add("Quantity sets found but no net area/volume derivation was possible — check Qto pset names match expected Qto_WallBaseQuantities / Qto_SlabBaseQuantities patterns.");
         }
 
         // ── Elements (geometry extraction) ────────────────────────────────────
@@ -1932,6 +2151,44 @@ namespace StingTools.Commands.Interop
                         pz.Set(zoneName);
                 }
 
+                // ── Spatial hierarchy properties ──────────────────────────────
+                if (src.Properties.TryGetValue("IfcHierarchy.Space", out string? spaceName)
+                    && !string.IsNullOrEmpty(spaceName))
+                {
+                    var p = revitEl.LookupParameter("ASS_ROOM_TXT")
+                         ?? revitEl.LookupParameter("ROOM_NAME_TXT");
+                    if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String
+                        && string.IsNullOrEmpty(p.AsString()))
+                        p.Set(spaceName);
+                }
+
+                if (src.Properties.TryGetValue("IfcHierarchy.Building", out string? bldName)
+                    && !string.IsNullOrEmpty(bldName))
+                {
+                    var p = revitEl.LookupParameter("ASS_LOC_TXT")
+                         ?? revitEl.LookupParameter("BLD_NAME_TXT");
+                    if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String
+                        && string.IsNullOrEmpty(p.AsString()))
+                        p.Set(bldName);
+                }
+
+                // ── Derived quantity properties ────────────────────────────────
+                if (src.Properties.TryGetValue("DerivedQty.NetSideArea_m2", out string? netArea))
+                {
+                    var p = revitEl.LookupParameter("STING_NET_AREA_M2_TXT")
+                         ?? revitEl.LookupParameter("NET_AREA_TXT");
+                    if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String)
+                        p.Set(netArea);
+                }
+
+                if (src.Properties.TryGetValue("DerivedQty.CostTotal", out string? costTotal))
+                {
+                    var p = revitEl.LookupParameter("CST_TOTAL_TXT")
+                         ?? revitEl.LookupParameter("STING_COST_TOTAL_TXT");
+                    if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String)
+                        p.Set(costTotal);
+                }
+
                 // ── Write STING token params from PopulateStingTokens() results ──
 
                 // STING.ZONE → ASS_ZONE_TXT
@@ -2013,7 +2270,10 @@ namespace StingTools.Commands.Interop
         public int    LevelsMatched      { get; set; }
         public int    LevelsCreated      { get; set; }
         public int    PropsWritten       { get; set; }
-        public int    GeometryFallbacks  { get; set; }
+        public int    GeometryFallbacks   { get; set; }
+        public int    WithHierarchy       { get; set; }
+        public int    WithDerivedQty      { get; set; }
+        public int    WithCostTotal       { get; set; }
         public double UnitScale       { get; set; }
         public double SiteOx          { get; set; }
         public double SiteOy          { get; set; }
@@ -2038,6 +2298,10 @@ namespace StingTools.Commands.Interop
             sb.AppendLine($"Properties written: {PropsWritten}");
             if (GeometryFallbacks > 0)
                 sb.AppendLine($"  Geometry fallback : {GeometryFallbacks} elements used AABB (approx)");
+            if (WithHierarchy > 0)
+                sb.AppendLine($"Spatial hierarchy : {WithHierarchy} elements have building/storey/space");
+            if (WithDerivedQty > 0)
+                sb.AppendLine($"Derived quantities: {WithDerivedQty} elements (net area/vol); {WithCostTotal} with cost totals");
             if (Warnings.Count > 0)
             {
                 sb.AppendLine($"\nWarnings ({Warnings.Count}):");
@@ -2143,15 +2407,25 @@ namespace StingTools.Commands.Interop
             result.Skipped            = em.Skipped;
             result.PropsWritten       = pm.Written;
             result.GeometryFallbacks  = parser.Elements.Count(e => e.GeometryIsAabbFallback);
+            result.WithHierarchy      = parser.Elements.Count(e => e.Properties.ContainsKey("IfcHierarchy.Storey"));
+            result.WithDerivedQty     = parser.Elements.Count(e => e.Properties.ContainsKey("DerivedQty.NetSideArea_m2")
+                                                                 || e.Properties.ContainsKey("DerivedQty.NetFloorArea_m2"));
+            result.WithCostTotal      = parser.Elements.Count(e => e.Properties.ContainsKey("DerivedQty.CostTotal"));
             result.Warnings.AddRange(em.Warnings);
             tg.Assimilate();
 
-            // Change 5: warn when no IfcElementQuantity entities were found
+            // Warn + write an ArchiCAD translator override file when no Qto sets were found
             if (!parser.HasQuantitySets)
+            {
+                string qtoGuide = WriteQtoTranslatorGuide(ifcPath);
                 result.Warnings.Insert(0,
-                    "⚠ No quantity sets found in this IFC file. Cost extraction and area/volume data " +
-                    "requires re-exporting from ArchiCAD with 'Export Quantity Sets (Qto)' enabled in " +
-                    "the IFC Translator settings. The default ArchiCAD translator does not export quantities.");
+                    "⚠ No quantity sets (Qto) found. Cost extraction and area/volume data are unavailable. " +
+                    "To fix: in ArchiCAD open File → Interoperability → IFC → IFC Translator, select your " +
+                    "translator, click Edit, go to 'Properties of IFC Elements' tab, enable " +
+                    "'Export Quantity Sets (Qto)' checkbox, and re-export. " +
+                    (string.IsNullOrEmpty(qtoGuide) ? "" :
+                        $"A step-by-step guide has been written to: {qtoGuide}"));
+            }
 
             foreach (string w in result.Warnings) StingLog.Warn("ArchiCAD: " + w);
 
@@ -2171,6 +2445,57 @@ namespace StingTools.Commands.Interop
             if (!File.Exists(path)) return null;
             try { return JsonConvert.DeserializeObject<AcIfcMappingConfig>(File.ReadAllText(path)); }
             catch (Exception ex) { StingLog.Error("ArchiCAD config load", ex); return null; }
+        }
+
+        /// <summary>
+        /// Writes an ArchiCAD-specific Qto-enable guide file next to the IFC export.
+        /// Returns the path written, or empty string if it could not be written.
+        /// </summary>
+        private static string WriteQtoTranslatorGuide(string ifcPath)
+        {
+            try
+            {
+                string dir  = Path.GetDirectoryName(ifcPath) ?? "";
+                string name = Path.GetFileNameWithoutExtension(ifcPath);
+                string guidePath = Path.Combine(dir, $"{name}_ENABLE_QTO_GUIDE.txt");
+                File.WriteAllText(guidePath, @"HOW TO ENABLE QUANTITY SETS (Qto) IN ARCHICAD IFC TRANSLATOR
+==============================================================
+
+Without Qto, STING cannot extract wall areas, slab volumes, or compute
+cost estimates from this ArchiCAD model. Follow these steps once:
+
+ARCHICAD 25 / 26 / 27
+1. Open File → Interoperability → IFC → IFC Translator Settings...
+2. Select the translator you use for export (e.g. 'Design Transfer View').
+3. Click 'Duplicate' to make a project-specific copy (name it e.g. 'STING Export').
+4. Click 'Edit...' and go to the 'Properties of IFC Elements' tab.
+5. Tick the checkbox: 'Export Quantity Sets (Qto)' (may be labelled
+   'Export Base Quantities' in older versions).
+6. Click OK → Save.
+7. Re-export the model using the new 'STING Export' translator.
+8. Re-import into STING using the new .ifc file.
+
+ARCHICAD 24 AND EARLIER
+Steps are the same; the checkbox is under
+File → Interoperability → IFC → IFC Translator → Edit → 'Quantities' tab.
+
+VERIFYING THE FIX
+Open the .ifc file in a text editor and search for 'IFCELEMENTQUANTITY'.
+You should find entries like:
+  #1234= IFCELEMENTQUANTITY('...',..,'Qto_WallBaseQuantities',...,(...));
+
+QUANTITIES STING USES
+  Qto_WallBaseQuantities.GrossSideArea / NetSideArea / Width / GrossVolume
+  Qto_SlabBaseQuantities.GrossArea / GrossVolume / Width
+  Qto_SpaceBaseQuantities.GrossFloorArea / NetFloorArea / GrossVolume
+  Qto_OpeningElementBaseQuantities.Area
+  BaseQuantities.Area / Volume (ArchiCAD fallback names)
+
+If you need help, see: https://help.graphisoft.com/AC/27/INT/ArchiCAD-27_Help/020_Interoperability/020_Interoperability-14.htm
+");
+                return guidePath;
+            }
+            catch { return ""; }
         }
 
         private static string PickFile()
