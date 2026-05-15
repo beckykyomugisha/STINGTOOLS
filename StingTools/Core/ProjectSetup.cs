@@ -44,6 +44,18 @@ namespace StingTools.Core
         public DateTime CreatedDate { get; set; } = DateTime.Now;
         public DateTime LastModified { get; set; } = DateTime.Now;
 
+        // ── FOLDER-01: Cloud sync mapping ──────────────────────────────────
+        /// <summary>Cloud root path or folder id in the cloud provider.</summary>
+        public string CloudRoot { get; set; } = "";
+        /// <summary>Cloud provider identifier: "ACC" | "SharePoint" | "Dropbox" | "OneDrive" | ""</summary>
+        public string CloudProvider { get; set; } = "";
+        /// <summary>When true, automatically mirror files to the cloud on SHARED/PUBLISHED transitions.</summary>
+        public bool AutoMirrorOnPublish { get; set; } = false;
+
+        // ── FOLDER-05: Schema versioning ──────────────────────────────────
+        /// <summary>Schema version for migration — increment on breaking changes to project_setup.json.</summary>
+        public int SchemaVersion { get; set; } = 1;
+
         // ── Default discipline folder names ────────────────────────────────
         public static readonly List<string> DefaultBimDisciplines = new()
         {
@@ -211,6 +223,18 @@ namespace StingTools.Core
                 if (setup.Disciplines == null) setup.Disciplines = new List<string>();
                 if (setup.CustomFolders == null) setup.CustomFolders = new List<FolderDef>();
                 if (setup.HiddenFolders == null) setup.HiddenFolders = new List<string>();
+                // FOLDER-05: Schema migration — run upgrades then re-save
+                bool migrated = false;
+                if (setup.SchemaVersion < 1)
+                {
+                    // v0 → v1: set defaults for new fields
+                    if (string.IsNullOrEmpty(setup.CloudProvider)) setup.CloudProvider = "";
+                    if (string.IsNullOrEmpty(setup.CloudRoot)) setup.CloudRoot = "";
+                    setup.SchemaVersion = 1;
+                    migrated = true;
+                    StingLog.Info($"ProjectSetup.Load: migrated schema v0 → v1 for {dataPath}");
+                }
+                if (migrated) setup.Save(dataPath);
                 return setup;
             }
             catch (Exception ex)

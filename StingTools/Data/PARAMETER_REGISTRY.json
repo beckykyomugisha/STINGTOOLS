@@ -2922,6 +2922,116 @@
           "description": "MEP Sleeve TAG7 paragraph container"
         }
       ]
+    },
+    {
+      "group": "Healthcare Clinical",
+      "group_code": "CLN",
+      "categories": [
+        "Rooms",
+        "Spaces",
+        "MEP Spaces"
+      ],
+      "params": [
+        {
+          "param_name": "CLN_EQP_TAG",
+          "guid": "c1a00001-0000-4c1a-0000-000000000001",
+          "description": "Clinical equipment ISO 19650 tag container"
+        },
+        {
+          "param_name": "CLN_ROOM_TAG",
+          "guid": "c1a00001-0000-4c1a-0000-000000000002",
+          "description": "Clinical room ISO 19650 tag container"
+        },
+        {
+          "param_name": "CLN_TAG_7_PARA_TXT",
+          "guid": "c1a00001-0000-4c1a-0000-000000000003",
+          "description": "Clinical TAG7 paragraph container"
+        }
+      ]
+    },
+    {
+      "group": "Medical Gas Systems",
+      "group_code": "MGS",
+      "categories": [
+        "Pipe Fittings",
+        "Pipes",
+        "Mechanical Equipment"
+      ],
+      "params": [
+        {
+          "param_name": "MGS_EQP_TAG",
+          "guid": "4d677001-0000-4d67-0000-000000000001",
+          "description": "Medical gas system ISO 19650 tag container"
+        },
+        {
+          "param_name": "MGS_TAG_7_PARA_TXT",
+          "guid": "4d677001-0000-4d67-0000-000000000002",
+          "description": "Medical gas TAG7 paragraph container"
+        }
+      ]
+    },
+    {
+      "group": "Radiation Protection",
+      "group_code": "RAD",
+      "categories": [
+        "Walls",
+        "Floors",
+        "Ceilings",
+        "Rooms"
+      ],
+      "params": [
+        {
+          "param_name": "RAD_EQP_TAG",
+          "guid": "12ad0001-0000-12ad-0000-000000000001",
+          "description": "Radiation protection ISO 19650 tag container"
+        },
+        {
+          "param_name": "RAD_TAG_7_PARA_TXT",
+          "guid": "12ad0001-0000-12ad-0000-000000000002",
+          "description": "Radiation protection TAG7 paragraph container"
+        }
+      ]
+    },
+    {
+      "group": "Clinical Equipment",
+      "group_code": "CEQ",
+      "categories": [
+        "Medical Equipment",
+        "Specialty Equipment"
+      ],
+      "params": [
+        {
+          "param_name": "CEQ_EQP_TAG",
+          "guid": "ceq00001-0000-4ceq-0000-000000000001",
+          "description": "Clinical equipment (CEQ) ISO 19650 tag container"
+        },
+        {
+          "param_name": "CEQ_TAG_7_PARA_TXT",
+          "guid": "ceq00001-0000-4ceq-0000-000000000002",
+          "description": "Clinical equipment TAG7 paragraph container"
+        }
+      ]
+    },
+    {
+      "group": "Anti-ligature / Behavioural",
+      "group_code": "LIG",
+      "categories": [
+        "Casework",
+        "Specialty Equipment",
+        "Generic Models"
+      ],
+      "params": [
+        {
+          "param_name": "LIG_FIT_TAG",
+          "guid": "11900001-0000-1190-0000-000000000001",
+          "description": "Anti-ligature fitting ISO 19650 tag container"
+        },
+        {
+          "param_name": "LIG_TAG_7_PARA_TXT",
+          "guid": "11900001-0000-1190-0000-000000000002",
+          "description": "Anti-ligature TAG7 paragraph container"
+        }
+      ]
     }
   ],
   "extended_params": {

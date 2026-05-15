@@ -233,6 +233,39 @@ namespace StingTools.Core
                     return setup;
                 }
 
+                // FOLDER-06: Multi-model workspace — check sibling .rvt files with same project code prefix.
+                // Sort alphabetically so the first (lowest name) is always the root anchor.
+                try
+                {
+                    string rvtCode = DetectProjectCode(doc);
+                    string prefix8 = rvtCode.Length >= 8 ? rvtCode.Substring(0, 8) : rvtCode;
+                    var siblings = Directory.GetFiles(projDir, "*.rvt")
+                        .Where(f => !string.Equals(f, doc.PathName, StringComparison.OrdinalIgnoreCase))
+                        .OrderBy(f => f)
+                        .ToList();
+                    foreach (var sibling in siblings)
+                    {
+                        string sibName = Path.GetFileNameWithoutExtension(sibling);
+                        string sibPre8 = sibName.Length >= 8 ? sibName.Substring(0, 8) : sibName;
+                        if (string.Equals(sibPre8, prefix8, StringComparison.OrdinalIgnoreCase))
+                        {
+                            // These models share a project — root is anchored to first alphabetically
+                            string rootSibling = siblings[0];
+                            string rootDir = Path.GetDirectoryName(rootSibling);
+                            string rootCode = SanitizeCode(Path.GetFileNameWithoutExtension(rootSibling));
+                            string sharedData = Path.Combine(rootDir, rootCode, "_data");
+                            var sharedSetup = ProjectSetup.Load(sharedData);
+                            if (sharedSetup != null)
+                            {
+                                StingLog.Info($"LoadOrDetectSetup: {Path.GetFileName(doc.PathName)} shares root with {Path.GetFileName(rootSibling)} → {sharedData}");
+                                _setupCache[docKey] = sharedSetup;
+                                return sharedSetup;
+                            }
+                        }
+                    }
+                }
+                catch (Exception exSib) { StingLog.Warn($"LoadOrDetectSetup sibling scan: {exSib.Message}"); }
+
                 // Also search any sibling folder containing _data/project_setup.json
                 try
                 {
