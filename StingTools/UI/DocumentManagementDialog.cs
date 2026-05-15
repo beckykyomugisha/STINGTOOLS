@@ -138,6 +138,14 @@ namespace StingTools.UI
         // GAP-BIM-010: Persist dialog state across reopens (tab, filter, search)
         private static int _lastTabIndex = 0;
 
+        // TPL-FOLLOW-05: Faceted filter state — active set of facet keys
+        private static readonly System.Collections.Generic.HashSet<string> _activeFacets
+            = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // Saved searches: list of (name, filterToken, searchText) triplets persisted in-memory
+        private static readonly List<(string Name, string Filter, string Search)> _savedSearches
+            = new List<(string, string, string)>();
+        private static WrapPanel _facetPillsPanel;    // updated dynamically
+
         // ══════════════════════════════════════════════════════════════════
         //  SHOW
         // ══════════════════════════════════════════════════════════════════
@@ -984,47 +992,141 @@ namespace StingTools.UI
             panel.Children.Add(searchBar);
 
             // Quick filter buttons
+            // TPL-FOLLOW-05: Faceted filter pills + saved-search bar
             var filterBar = new Border
             {
                 Background = BrBlueGrey,
-                Padding = new Thickness(8, 3, 8, 3),
+                Padding = new Thickness(8, 4, 8, 4),
                 BorderBrush = BrBorder,
-                BorderThickness = new Thickness(0, 0, 0, 1)
+                BorderThickness = new Thickness(0, 0, 0, 1),
             };
-            var filterWrap = new WrapPanel();
-            foreach (var (label, filter, brush) in new (string, string, SolidColorBrush)[]
+            var filterStack = new StackPanel();
+
+            // Row 1: facet group pills
+            var facetGroups = new (string GroupLabel, (string Label, string Token, SolidColorBrush Brush)[])[]
             {
-                ("All",       "ALL",           BrFgDark),
-                ("Docs",      "CAT:DOCUMENT",  BrAccent),
-                ("Issues",    "CAT:ISSUE",     BrOrange),
-                ("Revisions", "CAT:REVISION",  BrPurple),
-                ("Clashes",   "CAT:CLASH",     BrRed),
-                ("Handover",  "CAT:HANDOVER",  BrTeal),
-                ("WIP",       "CDE:WIP",       BrFgSub),
-                ("Shared",    "CDE:SHARED",    BrGreen),
-                ("Published", "CDE:PUBLISHED", BrGreen),
-                ("Overdue",   "OVERDUE",       BrRed),
-                ("Critical",  "PRIORITY:CRITICAL", BrRed),
-            })
+                ("Category", new[]
+                {
+                    ("All",       "ALL",           BrFgDark),
+                    ("Docs",      "CAT:DOCUMENT",  BrAccent),
+                    ("Issues",    "CAT:ISSUE",     BrOrange),
+                    ("Revisions", "CAT:REVISION",  BrPurple),
+                    ("Clashes",   "CAT:CLASH",     BrRed),
+                    ("Handover",  "CAT:HANDOVER",  BrTeal),
+                }),
+                ("CDE State", new[]
+                {
+                    ("WIP",       "CDE:WIP",       BrFgSub),
+                    ("Shared",    "CDE:SHARED",    BrGreen),
+                    ("Published", "CDE:PUBLISHED", BrGreen),
+                    ("Archive",   "CDE:ARCHIVE",   BrFgSub),
+                }),
+                ("Priority", new[]
+                {
+                    ("Overdue",   "OVERDUE",           BrRed),
+                    ("Critical",  "PRIORITY:CRITICAL", BrRed),
+                    ("High",      "PRIORITY:HIGH",     BrOrange),
+                }),
+            };
+
+            _facetPillsPanel = new WrapPanel { Margin = new Thickness(0, 0, 0, 2) };
+
+            foreach (var (groupLabel, pills) in facetGroups)
             {
-                var btn = new Button
+                // Group label separator
+                _facetPillsPanel.Children.Add(new TextBlock
                 {
-                    Content = label, Tag = filter,
-                    Padding = new Thickness(7, 2, 7, 2),
-                    Margin = new Thickness(2), FontSize = 10,
-                    Background = Brushes.White, Foreground = brush,
-                    BorderBrush = brush, BorderThickness = new Thickness(1),
-                    Cursor = Cursors.Hand
-                };
-                btn.Click += (s, e) =>
+                    Text = groupLabel + ":",
+                    FontSize = 9,
+                    Foreground = BrFgSub,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(6, 0, 3, 0),
+                });
+                foreach (var (label, token, brush) in pills)
                 {
-                    _currentFilter = filter;
-                    _view?.Refresh();
-                    UpdateCounts();
-                };
-                filterWrap.Children.Add(btn);
+                    string tok = token; // capture
+                    bool isReset = tok == "ALL";
+                    var btn = new Button
+                    {
+                        Content = label,
+                        Tag = tok,
+                        Padding = new Thickness(7, 2, 7, 2),
+                        Margin = new Thickness(2), FontSize = 10,
+                        Background = Brushes.White,
+                        Foreground = brush,
+                        BorderBrush = brush,
+                        BorderThickness = new Thickness(1),
+                        Cursor = Cursors.Hand,
+                        ToolTip = isReset ? "Clear all facets" : $"Toggle filter: {tok}",
+                    };
+                    btn.Click += (s, e) =>
+                    {
+                        if (isReset)
+                        {
+                            _activeFacets.Clear();
+                            _currentFilter = "ALL";
+                        }
+                        else if (_activeFacets.Contains(tok))
+                        {
+                            _activeFacets.Remove(tok);
+                            _currentFilter = _activeFacets.Count == 0 ? "ALL" : string.Join("|", _activeFacets);
+                        }
+                        else
+                        {
+                            _activeFacets.Add(tok);
+                            _currentFilter = string.Join("|", _activeFacets);
+                        }
+                        UpdateFacetPillStyles();
+                        _view?.Refresh();
+                        UpdateCounts();
+                    };
+                    _facetPillsPanel.Children.Add(btn);
+                }
             }
-            filterBar.Child = filterWrap;
+
+            filterStack.Children.Add(_facetPillsPanel);
+
+            // Row 2: saved-search bar
+            var savedRow = new DockPanel { Margin = new Thickness(0, 2, 0, 0) };
+            var savedLabel = new TextBlock
+            {
+                Text = "Saved:",
+                FontSize = 9,
+                Foreground = BrFgSub,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(4, 0, 4, 0),
+            };
+            DockPanel.SetDock(savedLabel, Dock.Left);
+            savedRow.Children.Add(savedLabel);
+
+            var savedPillsWrap = new WrapPanel();
+            var saveBtn = new Button
+            {
+                Content = "⊕ Save current",
+                Padding = new Thickness(5, 1, 5, 1),
+                Margin = new Thickness(2, 0, 4, 0),
+                FontSize = 9,
+                Background = BrBlueGrey,
+                Foreground = BrAccent,
+                BorderBrush = BrAccent,
+                BorderThickness = new Thickness(1),
+                Cursor = Cursors.Hand,
+                ToolTip = "Save current filter + search as a named saved search",
+            };
+            saveBtn.Click += (s, e) =>
+            {
+                string name = Microsoft.VisualBasic.Interaction.InputBox(
+                    "Name for this saved search:", "Save Search", $"Search {DateTime.Now:HH:mm}");
+                if (string.IsNullOrWhiteSpace(name)) return;
+                _savedSearches.Add((name, _currentFilter, _searchText));
+                RebuildSavedPills(savedPillsWrap);
+            };
+            savedPillsWrap.Children.Add(saveBtn);
+            RebuildSavedPills(savedPillsWrap);
+            savedRow.Children.Add(savedPillsWrap);
+            filterStack.Children.Add(savedRow);
+
+            filterBar.Child = filterStack;
             DockPanel.SetDock(filterBar, Dock.Top);
             panel.Children.Add(filterBar);
 
@@ -4940,7 +5042,122 @@ namespace StingTools.UI
             if (_currentFilter == "TIME:OLDER")
                 return !string.IsNullOrEmpty(item.Date) && !IsThisMonth(item.Date);
 
+            // ── Multi-facet: token1|token2|token3 — ALL active facets must pass (AND logic) ──
+            if (_currentFilter.Contains('|'))
+            {
+                foreach (string facet in _currentFilter.Split('|'))
+                {
+                    if (string.IsNullOrWhiteSpace(facet)) continue;
+                    if (!MatchFacet(item, facet)) return false;
+                }
+                return true;
+            }
+
             return true;
+        }
+
+        /// <summary>Evaluates a single facet token against an item.</summary>
+        private static bool MatchFacet(DocItemVM item, string facet)
+        {
+            if (facet == "ALL") return true;
+            if (facet.StartsWith("CAT:"))      return Eq(item.Category, facet.Substring(4));
+            if (facet.StartsWith("CDE:"))      return Eq(item.CDE, facet.Substring(4));
+            if (facet.StartsWith("STATUS:"))   return Eq(item.Status, facet.Substring(7));
+            if (facet.StartsWith("PRIORITY:")) return item.Category == "ISSUE" && Eq(item.Priority, facet.Substring(9));
+            if (facet.StartsWith("DISC:"))     return Eq(item.Discipline, facet.Substring(5));
+            if (facet.StartsWith("FOLDER:"))   return Eq(item.FolderId, facet.Substring(7));
+            return true; // Unknown facet — pass through
+        }
+
+        /// <summary>
+        /// Refreshes the visual active/inactive state of all pill buttons
+        /// in <see cref="_facetPillsPanel"/>.
+        /// </summary>
+        private static void UpdateFacetPillStyles()
+        {
+            if (_facetPillsPanel == null) return;
+            foreach (UIElement el in _facetPillsPanel.Children)
+            {
+                if (el is Button btn && btn.Tag is string tok)
+                {
+                    bool active = _activeFacets.Contains(tok)
+                               || (tok == "ALL" && _activeFacets.Count == 0);
+                    btn.Background = active
+                        ? new SolidColorBrush(Color.FromRgb(0, 120, 215))   // accent blue
+                        : new SolidColorBrush(Color.FromRgb(55, 55, 60));   // inactive dark
+                    btn.Foreground = new SolidColorBrush(Colors.White);
+                    btn.Opacity    = active ? 1.0 : 0.65;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Rebuilds the saved-search pills in the supplied <paramref name="panel"/>.
+        /// Each pill restores the filter + search state and is labelled with the saved name.
+        /// </summary>
+        private static void RebuildSavedPills(WrapPanel panel)
+        {
+            if (panel == null) return;
+            panel.Children.Clear();
+            foreach (var (Name, Filter, Search) in _savedSearches)
+            {
+                string capturedFilter = Filter;
+                string capturedSearch = Search;
+                string capturedName   = Name;
+
+                var pill = new Button
+                {
+                    Content    = capturedName,
+                    Margin     = new Thickness(2),
+                    Padding    = new Thickness(6, 2, 6, 2),
+                    Background = new SolidColorBrush(Color.FromRgb(70, 50, 100)),
+                    Foreground = new SolidColorBrush(Colors.White),
+                    BorderThickness = new Thickness(0),
+                    FontSize   = 10,
+                    Cursor     = Cursors.Hand,
+                    ToolTip    = $"Filter: {capturedFilter}  Search: \"{capturedSearch}\"",
+                };
+
+                pill.Click += (_, __) =>
+                {
+                    _currentFilter = capturedFilter;
+                    _searchText    = capturedSearch;
+                    _activeFacets.Clear();
+                    // Re-parse facets so pills light up correctly
+                    if (!string.IsNullOrEmpty(capturedFilter) && capturedFilter != "ALL")
+                    {
+                        foreach (string f in capturedFilter.Split('|'))
+                            if (!string.IsNullOrWhiteSpace(f))
+                                _activeFacets.Add(f);
+                    }
+                    UpdateFacetPillStyles();
+                    _view?.Refresh();
+                };
+
+                // ✕ remove button
+                var remove = new Button
+                {
+                    Content    = "✕",
+                    Margin     = new Thickness(1, 2, 4, 2),
+                    Padding    = new Thickness(3, 1, 3, 1),
+                    Background = Brushes.Transparent,
+                    Foreground = new SolidColorBrush(Color.FromRgb(200, 80, 80)),
+                    BorderThickness = new Thickness(0),
+                    FontSize   = 9,
+                    Cursor     = Cursors.Hand,
+                    ToolTip    = $"Remove saved search \"{capturedName}\"",
+                };
+                remove.Click += (_, __) =>
+                {
+                    _savedSearches.RemoveAll(x => x.Name == capturedName);
+                    RebuildSavedPills(panel);
+                };
+
+                var sp = new StackPanel { Orientation = Orientation.Horizontal };
+                sp.Children.Add(pill);
+                sp.Children.Add(remove);
+                panel.Children.Add(sp);
+            }
         }
 
         // ══════════════════════════════════════════════════════════════════
