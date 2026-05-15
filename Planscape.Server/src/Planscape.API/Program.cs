@@ -1143,6 +1143,31 @@ app.MapHub<Planscape.Infrastructure.SignalR.CrdtHub>("/hubs/crdt");
                 db.Database.GetService<Microsoft.EntityFrameworkCore.Storage.IDatabaseCreator>();
             creator.CreateTables();
         }
+        else
+        {
+            // Schema drift fixup: apply ADD COLUMN IF NOT EXISTS for columns added
+            // after the initial CreateTables(). Safe and idempotent on every restart.
+            await using var fixCmd = conn.CreateCommand();
+            fixCmd.CommandText = @"
+                ALTER TABLE ""Users""
+                    ADD COLUMN IF NOT EXISTS ""IsDeleted""       boolean             NOT NULL DEFAULT false,
+                    ADD COLUMN IF NOT EXISTS ""DeletedAt""       timestamptz         NULL,
+                    ADD COLUMN IF NOT EXISTS ""DeletedByUserId"" uuid                NULL;
+                ALTER TABLE ""IssueComments""
+                    ADD COLUMN IF NOT EXISTS ""DeletedAt""       timestamptz         NULL,
+                    ADD COLUMN IF NOT EXISTS ""DeletedByUserId"" uuid                NULL,
+                    ADD COLUMN IF NOT EXISTS ""IsDeleted""       boolean             NOT NULL DEFAULT false;
+                ALTER TABLE ""SceneNodes""
+                    ADD COLUMN IF NOT EXISTS ""DeletedAt""       timestamptz         NULL;
+                ALTER TABLE ""ProjectModels""
+                    ADD COLUMN IF NOT EXISTS ""DeletedAt""       timestamptz         NULL;
+                ALTER TABLE ""DocumentMarkups""
+                    ADD COLUMN IF NOT EXISTS ""DeletedAt""       timestamptz         NULL;
+                ALTER TABLE ""ModelMarkups""
+                    ADD COLUMN IF NOT EXISTS ""DeletedAt""       timestamptz         NULL;
+            ";
+            await fixCmd.ExecuteNonQueryAsync();
+        }
     }
     else
     {
