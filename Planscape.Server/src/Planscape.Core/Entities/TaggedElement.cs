@@ -54,10 +54,9 @@ public class TaggedElement : ITenantScoped
     public DateTime SyncedAt { get; set; } = DateTime.UtcNow;
     public string SyncedBy { get; set; } = "";
 
-    // P6 live-link — % complete written back from Primavera P6 polling.
-    public double? PercentComplete { get; set; }
-    /// <summary>Primavera P6 activity ID linked to this element (ASS_P6_ACTIVITY_ID_TXT).</summary>
-    public string? P6ActivityId    { get; set; }
+    // Source identification — set by the IFC ingester to track the authoring tool.
+    // Added for ArchiCAD source identification.
+    public string? Source { get; set; } // "archicad" | "ifc" | "revit" | null
 
     // Optimistic-concurrency / last-write-wins support for bidirectional sync.
     // LastModifiedUtc is the client-supplied wall-clock modification time; the
