@@ -967,6 +967,11 @@ if (exposeMetrics)
 // ── Health check ── (NEW-SRV-22)
 // Returns sub-check results so mobile can detect partial degradation.
 // Status codes: 200 healthy, 503 degraded (any sub-check failed).
+// DOWNLOADS — redirect /downloads → /downloads/ so the static
+// index.html is served by UseDefaultFiles without a trailing slash.
+app.MapGet("/downloads", () => Results.Redirect("/downloads/"))
+    .AllowAnonymous();
+
 // HEALTH-01 — Separate probes for orchestrator/mobile consumption.
 // /health/live  → process is running (K8s liveness, mobile ping)
 // /health/ready → process is accepting traffic (K8s readiness, probes)
