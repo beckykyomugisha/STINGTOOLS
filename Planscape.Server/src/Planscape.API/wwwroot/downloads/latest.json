@@ -1,0 +1,8 @@
+{
+  "version": "1.0.0",
+  "releaseDate": "2026-05-15",
+  "releaseNotes": "Initial release. Folder watching, ISO 19650 mirror, StingBridge integration.",
+  "windows": { "filename": "Planscape-Desktop-Setup-1.0.0.exe", "size": "0", "available": false },
+  "mac": { "filename": "Planscape-Desktop-1.0.0.dmg", "size": "0", "available": false },
+  "linux": { "filename": "Planscape-Desktop-1.0.0.AppImage", "size": "0", "available": false }
+}
