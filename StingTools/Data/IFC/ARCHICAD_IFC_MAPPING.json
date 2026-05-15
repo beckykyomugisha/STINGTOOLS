@@ -1,0 +1,460 @@
+{
+  "version": "1.0",
+  "description": "ArchiCAD IFC \u2192 Revit element and property mapping for STING ArchiCAD Import",
+  "type_mappings": [
+    {
+      "ifc_type": "IFCWALL",
+      "predefined_type": "",
+      "revit_category": "OST_Walls",
+      "revit_family_hint": "",
+      "use_direct_shape": false,
+      "notes": "Standard wall"
+    },
+    {
+      "ifc_type": "IFCWALLSTANDARDCASE",
+      "predefined_type": "",
+      "revit_category": "OST_Walls",
+      "revit_family_hint": "",
+      "use_direct_shape": false,
+      "notes": "Parametric wall"
+    },
+    {
+      "ifc_type": "IFCSLAB",
+      "predefined_type": "FLOOR",
+      "revit_category": "OST_Floors",
+      "revit_family_hint": "",
+      "use_direct_shape": false
+    },
+    {
+      "ifc_type": "IFCSLAB",
+      "predefined_type": "ROOF",
+      "revit_category": "OST_Roofs",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCSLAB",
+      "predefined_type": "CEILING",
+      "revit_category": "OST_Ceilings",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCSLAB",
+      "predefined_type": "BASESLAB",
+      "revit_category": "OST_Floors",
+      "revit_family_hint": "",
+      "use_direct_shape": false
+    },
+    {
+      "ifc_type": "IFCSLAB",
+      "predefined_type": "",
+      "revit_category": "OST_Floors",
+      "revit_family_hint": "",
+      "use_direct_shape": false
+    },
+    {
+      "ifc_type": "IFCCOLUMN",
+      "predefined_type": "",
+      "revit_category": "OST_StructuralColumns",
+      "revit_family_hint": "Column",
+      "use_direct_shape": false
+    },
+    {
+      "ifc_type": "IFCBEAM",
+      "predefined_type": "",
+      "revit_category": "OST_StructuralFraming",
+      "revit_family_hint": "Beam",
+      "use_direct_shape": false
+    },
+    {
+      "ifc_type": "IFCMEMBER",
+      "predefined_type": "BEAM",
+      "revit_category": "OST_StructuralFraming",
+      "revit_family_hint": "Beam",
+      "use_direct_shape": false
+    },
+    {
+      "ifc_type": "IFCMEMBER",
+      "predefined_type": "COLUMN",
+      "revit_category": "OST_StructuralColumns",
+      "revit_family_hint": "Column",
+      "use_direct_shape": false
+    },
+    {
+      "ifc_type": "IFCMEMBER",
+      "predefined_type": "",
+      "revit_category": "OST_StructuralFraming",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCDOOR",
+      "predefined_type": "",
+      "revit_category": "OST_Doors",
+      "revit_family_hint": "Single-Flush",
+      "use_direct_shape": false
+    },
+    {
+      "ifc_type": "IFCWINDOW",
+      "predefined_type": "",
+      "revit_category": "OST_Windows",
+      "revit_family_hint": "Fixed",
+      "use_direct_shape": false
+    },
+    {
+      "ifc_type": "IFCROOF",
+      "predefined_type": "",
+      "revit_category": "OST_Roofs",
+      "revit_family_hint": "",
+      "use_direct_shape": true,
+      "notes": "ArchiCAD roofs have complex geometry \u2014 DirectShape preserves it perfectly"
+    },
+    {
+      "ifc_type": "IFCSPACE",
+      "predefined_type": "",
+      "revit_category": "OST_Rooms",
+      "revit_family_hint": "",
+      "use_direct_shape": false
+    },
+    {
+      "ifc_type": "IFCCOVERING",
+      "predefined_type": "CEILING",
+      "revit_category": "OST_Ceilings",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCCOVERING",
+      "predefined_type": "FLOORING",
+      "revit_category": "OST_Floors",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCCOVERING",
+      "predefined_type": "",
+      "revit_category": "OST_GenericModel",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCRAILING",
+      "predefined_type": "",
+      "revit_category": "OST_StairsRailing",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCSTAIR",
+      "predefined_type": "",
+      "revit_category": "OST_Stairs",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCSTAIRFLIGHT",
+      "predefined_type": "",
+      "revit_category": "OST_Stairs",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCRAMP",
+      "predefined_type": "",
+      "revit_category": "OST_Ramps",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCPLATE",
+      "predefined_type": "",
+      "revit_category": "OST_StructuralFraming",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCFOOTING",
+      "predefined_type": "",
+      "revit_category": "OST_StructuralFoundation",
+      "revit_family_hint": "",
+      "use_direct_shape": false
+    },
+    {
+      "ifc_type": "IFCPILE",
+      "predefined_type": "",
+      "revit_category": "OST_StructuralFoundation",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCREINFORCINGBAR",
+      "predefined_type": "",
+      "revit_category": "OST_Rebar",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCFURNISHINGELEMENT",
+      "predefined_type": "",
+      "revit_category": "OST_Furniture",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCOPENINGELEMENT",
+      "predefined_type": "",
+      "revit_category": "OST_GenericModel",
+      "revit_family_hint": "",
+      "use_direct_shape": true,
+      "notes": "Openings are embedded in walls \u2014 DirectShape marks location"
+    },
+    {
+      "ifc_type": "IFCFLOWSEGMENT",
+      "predefined_type": "",
+      "revit_category": "OST_DuctCurves",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCFLOWTERMINAL",
+      "predefined_type": "",
+      "revit_category": "OST_MechanicalEquipment",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCFLOWFITTING",
+      "predefined_type": "",
+      "revit_category": "OST_DuctFitting",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    }
+  ],
+  "property_mappings": [
+    {
+      "archicad_pset": "Pset_WallCommon",
+      "archicad_prop": "Reference",
+      "sting_param": "ASS_PRODCT_COD_TXT",
+      "revit_builtin": "ALL_MODEL_TYPE_MARK",
+      "notes": "Wall type reference code"
+    },
+    {
+      "archicad_pset": "Pset_WallCommon",
+      "archicad_prop": "FireRating",
+      "sting_param": "STING_FIRE_RATING_TXT",
+      "revit_builtin": "ALL_MODEL_INSTANCE_COMMENTS",
+      "notes": "Fire rating"
+    },
+    {
+      "archicad_pset": "Pset_WallCommon",
+      "archicad_prop": "IsExternal",
+      "sting_param": "",
+      "revit_builtin": "WALL_ATTR_ROOM_BOUNDING",
+      "notes": ""
+    },
+    {
+      "archicad_pset": "Pset_WallCommon",
+      "archicad_prop": "ThermalTransmittance",
+      "sting_param": "PER_U_VALUE_W_M",
+      "revit_builtin": "",
+      "notes": "U-value W/m\u00b2K"
+    },
+    {
+      "archicad_pset": "Pset_WallCommon",
+      "archicad_prop": "AcousticRating",
+      "sting_param": "",
+      "revit_builtin": "ALL_MODEL_INSTANCE_COMMENTS",
+      "notes": "dB rating"
+    },
+    {
+      "archicad_pset": "Pset_SlabCommon",
+      "archicad_prop": "Reference",
+      "sting_param": "ASS_PRODCT_COD_TXT",
+      "revit_builtin": "ALL_MODEL_TYPE_MARK",
+      "notes": ""
+    },
+    {
+      "archicad_pset": "Pset_SlabCommon",
+      "archicad_prop": "FireRating",
+      "sting_param": "STING_FIRE_RATING_TXT",
+      "revit_builtin": "",
+      "notes": ""
+    },
+    {
+      "archicad_pset": "Pset_SlabCommon",
+      "archicad_prop": "ThermalTransmittance",
+      "sting_param": "PER_U_VALUE_W_M",
+      "revit_builtin": "",
+      "notes": ""
+    },
+    {
+      "archicad_pset": "Pset_ColumnCommon",
+      "archicad_prop": "Reference",
+      "sting_param": "ASS_PRODCT_COD_TXT",
+      "revit_builtin": "ALL_MODEL_TYPE_MARK",
+      "notes": ""
+    },
+    {
+      "archicad_pset": "Pset_ColumnCommon",
+      "archicad_prop": "LoadBearing",
+      "sting_param": "",
+      "revit_builtin": "STRUCTURAL_BEND_DIR_PARAM",
+      "notes": ""
+    },
+    {
+      "archicad_pset": "Pset_BeamCommon",
+      "archicad_prop": "Reference",
+      "sting_param": "ASS_PRODCT_COD_TXT",
+      "revit_builtin": "ALL_MODEL_TYPE_MARK",
+      "notes": ""
+    },
+    {
+      "archicad_pset": "Pset_DoorCommon",
+      "archicad_prop": "Reference",
+      "sting_param": "ASS_PRODCT_COD_TXT",
+      "revit_builtin": "ALL_MODEL_TYPE_MARK",
+      "notes": ""
+    },
+    {
+      "archicad_pset": "Pset_DoorCommon",
+      "archicad_prop": "FireRating",
+      "sting_param": "STING_FIRE_RATING_TXT",
+      "revit_builtin": "",
+      "notes": ""
+    },
+    {
+      "archicad_pset": "Pset_DoorCommon",
+      "archicad_prop": "SecurityRating",
+      "sting_param": "",
+      "revit_builtin": "ALL_MODEL_INSTANCE_COMMENTS",
+      "notes": ""
+    },
+    {
+      "archicad_pset": "Pset_WindowCommon",
+      "archicad_prop": "Reference",
+      "sting_param": "ASS_PRODCT_COD_TXT",
+      "revit_builtin": "ALL_MODEL_TYPE_MARK",
+      "notes": ""
+    },
+    {
+      "archicad_pset": "Pset_WindowCommon",
+      "archicad_prop": "FireRating",
+      "sting_param": "STING_FIRE_RATING_TXT",
+      "revit_builtin": "",
+      "notes": ""
+    },
+    {
+      "archicad_pset": "Pset_WindowCommon",
+      "archicad_prop": "GlazingAreaFraction",
+      "sting_param": "",
+      "revit_builtin": "",
+      "notes": ""
+    },
+    {
+      "archicad_pset": "Pset_SpaceCommon",
+      "archicad_prop": "Reference",
+      "sting_param": "ASS_ZONE_TXT",
+      "revit_builtin": "ROOM_NUMBER",
+      "notes": "Room number"
+    },
+    {
+      "archicad_pset": "Pset_SpaceCommon",
+      "archicad_prop": "Category",
+      "sting_param": "ASS_FUNC_TXT",
+      "revit_builtin": "",
+      "notes": ""
+    },
+    {
+      "archicad_pset": "Pset_SpaceCommon",
+      "archicad_prop": "NetPlannedArea",
+      "sting_param": "",
+      "revit_builtin": "ROOM_AREA",
+      "notes": "m\u00b2"
+    },
+    {
+      "archicad_pset": "Pset_SpaceCommon",
+      "archicad_prop": "OccupancyType",
+      "sting_param": "",
+      "revit_builtin": "ROOM_OCCUPANCY",
+      "notes": ""
+    },
+    {
+      "archicad_pset": "ArchiCAD_PropertyGroup_General",
+      "archicad_prop": "BuildingMaterialName",
+      "sting_param": "",
+      "revit_builtin": "ALL_MODEL_TYPE_COMMENTS",
+      "notes": ""
+    },
+    {
+      "archicad_pset": "ArchiCAD_PropertyGroup_General",
+      "archicad_prop": "ID",
+      "sting_param": "ASS_SEQ_NUM_TXT",
+      "revit_builtin": "ALL_MODEL_MARK",
+      "notes": "ArchiCAD element ID"
+    },
+    {
+      "archicad_pset": "ArchiCAD_PropertyGroup_General",
+      "archicad_prop": "Layer",
+      "sting_param": "ASS_LOC_TXT",
+      "revit_builtin": "",
+      "notes": "ArchiCAD layer \u2192 STING location"
+    },
+    {
+      "archicad_pset": "ArchiCAD_PropertyGroup_General",
+      "archicad_prop": "Renovation Status",
+      "sting_param": "ASS_STATUS_TXT",
+      "revit_builtin": "",
+      "notes": "Existing/New/Demolished"
+    },
+    {
+      "archicad_pset": "ArchiCAD_PropertyGroup_Classification",
+      "archicad_prop": "Uniclass 2015 Pr",
+      "sting_param": "ASS_UNICLASS_2015_TXT",
+      "revit_builtin": "",
+      "notes": "Uniclass 2015 Product"
+    },
+    {
+      "archicad_pset": "ArchiCAD_PropertyGroup_Classification",
+      "archicad_prop": "Uniclass 2015 Ss",
+      "sting_param": "ASS_UNICLASS_2015_TXT",
+      "revit_builtin": "",
+      "notes": "Uniclass 2015 System"
+    },
+    {
+      "archicad_pset": "ArchiCAD_PropertyGroup_Classification",
+      "archicad_prop": "NBS Code",
+      "sting_param": "RGL_UNBS_STD_TXT",
+      "revit_builtin": "",
+      "notes": ""
+    },
+    {
+      "archicad_pset": "Pset_EnvironmentalImpactValues",
+      "archicad_prop": "GlobalWarmingPotential",
+      "sting_param": "CBN_A1_A3_KG_CO2E",
+      "revit_builtin": "",
+      "notes": "kg CO\u2082e"
+    },
+    {
+      "archicad_pset": "Pset_ManufacturerTypeInformation",
+      "archicad_prop": "Manufacturer",
+      "sting_param": "ASS_MANUFACTURER_TXT",
+      "revit_builtin": "ALL_MODEL_MANUFACTURER",
+      "notes": ""
+    },
+    {
+      "archicad_pset": "Pset_ManufacturerTypeInformation",
+      "archicad_prop": "ModelReference",
+      "sting_param": "ASS_MODEL_REF_TXT",
+      "revit_builtin": "ALL_MODEL_MODEL",
+      "notes": ""
+    },
+    {
+      "archicad_pset": "Pset_ManufacturerTypeInformation",
+      "archicad_prop": "ProductCode",
+      "sting_param": "ASS_PRODCT_COD_TXT",
+      "revit_builtin": "ALL_MODEL_INSTANCE_COMMENTS",
+      "notes": ""
+    }
+  ]
+}

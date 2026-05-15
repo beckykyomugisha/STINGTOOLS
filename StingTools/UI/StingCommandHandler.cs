@@ -3346,6 +3346,8 @@ namespace StingTools.UI
                     case "AutoBatchDWG": RunCommand<ExLink.BatchDWGExportCommand>(app); break;
                     case "AutoBatchNWC": RunCommand<ExLink.BatchNWCExportCommand>(app); break;
                     case "AutoBatchIFC": RunCommand<ExLink.BatchIFCExportCommand>(app); break;
+                    case "ArchiCadIfcImport": RunCommand<StingTools.Commands.Interop.ArchiCadIfcImportCommand>(app); break;
+
                     case "AutoModelAudit": RunCommand<ExLink.AutomationModelAuditCommand>(app); break;
                     case "AutoModelCompact": RunCommand<ExLink.AutomationModelCompactCommand>(app); break;
                     case "AutoBackupCleanup": RunCommand<ExLink.AutomationBackupCleanupCommand>(app); break;
