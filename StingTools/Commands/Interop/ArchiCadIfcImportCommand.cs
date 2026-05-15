@@ -149,6 +149,9 @@ namespace StingTools.Commands.Interop
         public double BboxHalfX       { get; set; }
         public double BboxHalfY       { get; set; }
         public double Height          { get; set; }   // IFC units
+        // Tessellated triangles in IFC WORLD space (pre-transformed through WorldTransform).
+        // Each entry is a flat array of 9 doubles = (x0,y0,z0, x1,y1,z1, x2,y2,z2).
+        public List<double[]> BrepTriangles { get; } = new();
         public Dictionary<string, string> Properties { get; } = new(StringComparer.OrdinalIgnoreCase);
     }
 
@@ -456,7 +459,7 @@ namespace StingTools.Commands.Interop
 
                         case "IFCFACETEDBREP":
                         case "IFCSHELLBASEDSURFACEMODEL":
-                            ExtractBrepPoints(el, item);
+                            ExtractBrepFaces(el, item);
                             break;
 
                         case "IFCMAPPEDITEM":
@@ -513,66 +516,148 @@ namespace StingTools.Commands.Interop
             }
         }
 
-        // Walk an IfcPolyline / IfcCompositeCurve and update half-extents from its points.
+        // Walk any IfcCurve (Polyline / CompositeCurve / TrimmedCurve / …) and update the
+        // element's planar half-extents from every IfcCartesianPoint reachable from it.
+        // For curves whose extent is parametric (arcs / b-splines) the points still bound
+        // the swept profile sufficiently for a fallback box, and full tessellation is the
+        // job of ExtractBrepFaces.
         private void ApplyPolylineBbox(AcIfcElement el, int curveRef)
         {
-            if (!_e.TryGetValue(curveRef, out var c)) return;
-            var ptRefs = new List<int>();
-            if (c.Type == "IFCPOLYLINE")
-                ptRefs.AddRange(ExtractRefList(c.Raw, 0));
-            // (IfcCompositeCurve handling is omitted — rare in ArchiCAD output.)
-
-            if (ptRefs.Count == 0) return;
-            double minX = double.MaxValue, maxX = double.MinValue;
-            double minY = double.MaxValue, maxY = double.MinValue;
-            foreach (int pr in ptRefs)
+            var pts = CollectReachableCartesianPoints(curveRef, 2000);
+            if (pts.Count == 0) return;
+            double minX=double.MaxValue, maxX=double.MinValue;
+            double minY=double.MaxValue, maxY=double.MinValue;
+            foreach (var p in pts)
             {
-                var p = GetPoint(pr);
-                if (p[0] < minX) minX = p[0]; if (p[0] > maxX) maxX = p[0];
-                if (p[1] < minY) minY = p[1]; if (p[1] > maxY) maxY = p[1];
+                if (p[0]<minX) minX=p[0]; if (p[0]>maxX) maxX=p[0];
+                if (p[1]<minY) minY=p[1]; if (p[1]>maxY) maxY=p[1];
             }
-            double hx = (maxX - minX) / 2.0;
-            double hy = (maxY - minY) / 2.0;
+            double hx=(maxX-minX)/2.0, hy=(maxY-minY)/2.0;
             if (hx > el.BboxHalfX) el.BboxHalfX = hx;
             if (hy > el.BboxHalfY) el.BboxHalfY = hy;
         }
 
-        // IfcFacetedBrep / IfcShellBasedSurfaceModel — walk outer shell faces to find every
-        // IfcCartesianPoint, then take the AABB. We don't tessellate; we just bound.
-        private void ExtractBrepPoints(AcIfcElement el, AcIfcEntity brep)
+        // Generic DFS over STEP refs collecting every IfcCartesianPoint reachable from
+        // `rootRef`. Used by both curve bbox and brep AABB fallback.
+        private List<double[]> CollectReachableCartesianPoints(int rootRef, int cap)
         {
+            var result = new List<double[]>();
             var seen = new HashSet<int>();
             var stack = new Stack<int>();
-            stack.Push(brep.Id);
-            double minX=double.MaxValue, minY=double.MaxValue, minZ=double.MaxValue;
-            double maxX=double.MinValue, maxY=double.MinValue, maxZ=double.MinValue;
-            int found = 0;
-
-            while (stack.Count > 0)
+            stack.Push(rootRef);
+            while (stack.Count > 0 && seen.Count < cap)
             {
                 int id = stack.Pop();
                 if (!seen.Add(id)) continue;
                 if (!_e.TryGetValue(id, out var ent)) continue;
-
-                if (ent.Type == "IFCCARTESIANPOINT")
-                {
-                    var p = GetPoint(id); found++;
-                    if (p[0]<minX) minX=p[0]; if (p[0]>maxX) maxX=p[0];
-                    if (p[1]<minY) minY=p[1]; if (p[1]>maxY) maxY=p[1];
-                    if (p[2]<minZ) minZ=p[2]; if (p[2]>maxZ) maxZ=p[2];
-                    continue;
-                }
-                // Push every entity reference we can find in the raw args.
+                if (ent.Type == "IFCCARTESIANPOINT") { result.Add(GetPoint(id)); continue; }
                 foreach (Match m in Regex.Matches(ent.Raw, @"#(\d+)"))
                     if (int.TryParse(m.Groups[1].Value, out int r)) stack.Push(r);
-                if (seen.Count > 5000) break; // safety cap on pathological breps
+            }
+            return result;
+        }
+
+        // IfcFacetedBrep / IfcShellBasedSurfaceModel — tessellate faces into triangles.
+        // Polygons are fan-triangulated (ArchiCAD output is reliably planar+simple).
+        // Each triangle is pushed into el.BrepTriangles in IFC WORLD space so the
+        // mapper can hand them straight to TessellatedShapeBuilder.
+        // Falls back to AABB-only if no faces are found.
+        private void ExtractBrepFaces(AcIfcElement el, AcIfcEntity brep)
+        {
+            // IfcFacetedBrep.Outer = arg 0 (IfcClosedShell);
+            // IfcShellBasedSurfaceModel.SbsmBoundary = arg 0 (SET of IfcShell)
+            var shellIds = new List<int>();
+            int single = ExtractRef(brep.Raw, 0);
+            if (single > 0) shellIds.Add(single);
+            shellIds.AddRange(ExtractRefList(brep.Raw, 0));
+            shellIds = shellIds.Distinct().ToList();
+
+            int triCount = 0;
+            double minX=double.MaxValue, minY=double.MaxValue, minZ=double.MaxValue;
+            double maxX=double.MinValue, maxY=double.MinValue, maxZ=double.MinValue;
+
+            foreach (int shellId in shellIds)
+            {
+                if (!_e.TryGetValue(shellId, out var shell)) continue;
+                if (shell.Type != "IFCCLOSEDSHELL" && shell.Type != "IFCOPENSHELL") continue;
+
+                // CfsFaces = arg 0 (LIST of IfcFace)
+                foreach (int faceId in ExtractRefList(shell.Raw, 0))
+                {
+                    if (!_e.TryGetValue(faceId, out var face)) continue;
+                    // IfcFace.Bounds = arg 0 (SET of IfcFaceBound)
+                    foreach (int fbId in ExtractRefList(face.Raw, 0))
+                    {
+                        if (!_e.TryGetValue(fbId, out var fb)) continue;
+                        // IfcFaceBound.Bound = arg 0 (IfcLoop), arg 1 = Orientation
+                        int loopId = ExtractRef(fb.Raw, 0);
+                        bool orient = !ExtractString(fb.Raw, 1).Equals(".F.", StringComparison.OrdinalIgnoreCase);
+                        if (!_e.TryGetValue(loopId, out var loop) || loop.Type != "IFCPOLYLOOP") continue;
+
+                        // IfcPolyLoop.Polygon = arg 0 (LIST of IfcCartesianPoint)
+                        var ringRefs = ExtractRefList(loop.Raw, 0);
+                        if (ringRefs.Count < 3) continue;
+
+                        // Transform ring vertices to world space once.
+                        var ring = new List<double[]>(ringRefs.Count);
+                        foreach (int pr in ringRefs)
+                        {
+                            var lp = GetPoint(pr);
+                            var w = el.WorldTransform.TransformPoint(lp[0], lp[1], lp[2]);
+                            ring.Add(w);
+                            if (w[0]<minX) minX=w[0]; if (w[0]>maxX) maxX=w[0];
+                            if (w[1]<minY) minY=w[1]; if (w[1]>maxY) maxY=w[1];
+                            if (w[2]<minZ) minZ=w[2]; if (w[2]>maxZ) maxZ=w[2];
+                        }
+                        if (!orient) ring.Reverse();
+
+                        // Fan triangulation around ring[0].
+                        for (int i = 1; i < ring.Count - 1; i++)
+                        {
+                            el.BrepTriangles.Add(new[]
+                            {
+                                ring[0][0], ring[0][1], ring[0][2],
+                                ring[i][0], ring[i][1], ring[i][2],
+                                ring[i+1][0], ring[i+1][1], ring[i+1][2],
+                            });
+                            triCount++;
+                            if (triCount > 50000) break; // safety cap
+                        }
+                        if (triCount > 50000) break;
+                    }
+                    if (triCount > 50000) break;
+                }
+                if (triCount > 50000) break;
             }
 
-            if (found < 2) return;
-            double hx = (maxX-minX)/2.0, hy=(maxY-minY)/2.0, hz=(maxZ-minZ);
-            if (hx > el.BboxHalfX) el.BboxHalfX = hx;
-            if (hy > el.BboxHalfY) el.BboxHalfY = hy;
-            if (hz > el.Height)    el.Height    = hz;
+            // Update AABB so even if Revit rejects the tessellation we have a sensible
+            // fallback box. The values stored here are in element-local space, so we
+            // re-base around the element's local origin.
+            if (triCount > 0)
+            {
+                var origin = el.WorldTransform.TranslationOnly();
+                double hx = Math.Max(maxX-origin[0], origin[0]-minX);
+                double hy = Math.Max(maxY-origin[1], origin[1]-minY);
+                double hz = Math.Max(maxZ-origin[2], origin[2]-minZ);
+                if (hx > el.BboxHalfX) el.BboxHalfX = hx;
+                if (hy > el.BboxHalfY) el.BboxHalfY = hy;
+                if (hz > el.Height)    el.Height    = hz;
+                return;
+            }
+
+            // No faces decoded — fall back to point-cloud AABB.
+            var pts = CollectReachableCartesianPoints(brep.Id, 5000);
+            if (pts.Count < 2) return;
+            foreach (var p in pts)
+            {
+                if (p[0]<minX) minX=p[0]; if (p[0]>maxX) maxX=p[0];
+                if (p[1]<minY) minY=p[1]; if (p[1]>maxY) maxY=p[1];
+                if (p[2]<minZ) minZ=p[2]; if (p[2]>maxZ) maxZ=p[2];
+            }
+            double bx=(maxX-minX)/2.0, by=(maxY-minY)/2.0, bz=(maxZ-minZ);
+            if (bx > el.BboxHalfX) el.BboxHalfX = bx;
+            if (by > el.BboxHalfY) el.BboxHalfY = by;
+            if (bz > el.Height)    el.Height    = bz;
         }
 
         // IfcMappedItem: arg 0 = IfcRepresentationMap (MappingOrigin + MappedRepresentation).
@@ -603,7 +688,7 @@ namespace StingTools.Commands.Interop
                         case "IFCEXTRUDEDAREASOLID": ExtractExtrudedSolid(el, item); break;
                         case "IFCBOUNDINGBOX":       ExtractBoundingBox(el, item); break;
                         case "IFCFACETEDBREP":
-                        case "IFCSHELLBASEDSURFACEMODEL": ExtractBrepPoints(el, item); break;
+                        case "IFCSHELLBASEDSURFACEMODEL": ExtractBrepFaces(el, item); break;
                     }
                 }
             }
@@ -1117,14 +1202,57 @@ namespace StingTools.Commands.Interop
             DirectShape ds = DirectShape.CreateElement(_doc, new ElementId(bic));
             ds.Name = string.IsNullOrEmpty(el.Name) ? el.IfcType : el.Name;
 
-            // Build a box solid at the insertion point
-            var solid = BuildBoxSolid(el);
-            if (solid != null)
-                ds.SetShape(new List<GeometryObject> { solid });
+            // Prefer real tessellation when we parsed brep faces; fall back to a box.
+            IList<GeometryObject>? shape = null;
+            if (el.BrepTriangles.Count > 0)
+                shape = BuildTessellatedShape(el);
+
+            if (shape == null || shape.Count == 0)
+            {
+                var solid = BuildBoxSolid(el);
+                shape = solid != null ? new List<GeometryObject> { solid } : null;
+            }
+
+            if (shape != null && shape.Count > 0)
+                ds.SetShape(shape);
 
             Stamp(ds, el);
             CreatedDirect++;
             return ds;
+        }
+
+        private IList<GeometryObject>? BuildTessellatedShape(AcIfcElement el)
+        {
+            try
+            {
+                var tsb = new TessellatedShapeBuilder();
+                tsb.OpenConnectedFaceSet(true);
+                int added = 0;
+                foreach (var t in el.BrepTriangles)
+                {
+                    XYZ a = _c.ToRevit(t[0], t[1], t[2]);
+                    XYZ b = _c.ToRevit(t[3], t[4], t[5]);
+                    XYZ c = _c.ToRevit(t[6], t[7], t[8]);
+                    if (a.DistanceTo(b) < 1e-6 || b.DistanceTo(c) < 1e-6 || a.DistanceTo(c) < 1e-6)
+                        continue; // skip degenerate
+                    tsb.AddFace(new TessellatedFace(
+                        new List<XYZ> { a, b, c }, ElementId.InvalidElementId));
+                    added++;
+                }
+                tsb.CloseConnectedFaceSet();
+                if (added == 0) return null;
+
+                tsb.Target = TessellatedShapeBuilderTarget.AnyGeometry;
+                tsb.Fallback = TessellatedShapeBuilderFallback.Mesh;
+                tsb.Build();
+                var result = tsb.GetBuildResult();
+                return result.GetGeometricalObjects();
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"BrepTess {el.IfcType} '{el.Name}': {ex.Message}");
+                return null;
+            }
         }
 
         private Solid? BuildBoxSolid(AcIfcElement el)
