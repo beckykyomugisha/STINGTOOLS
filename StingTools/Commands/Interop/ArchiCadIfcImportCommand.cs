@@ -513,9 +513,10 @@ namespace StingTools.Commands.Interop
                 var ap = SplitArgs(area.Raw);
                 if (ap.Count > 4)
                 {
-                    double.TryParse(ap[3].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out el.BboxHalfX);
-                    double.TryParse(ap[4].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out el.BboxHalfY);
-                    el.BboxHalfX /= 2; el.BboxHalfY /= 2;
+                    double bx = 0, by = 0;
+                    double.TryParse(ap[3].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out bx);
+                    double.TryParse(ap[4].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out by);
+                    el.BboxHalfX = bx / 2; el.BboxHalfY = by / 2;
                 }
             }
             else if (area.Type == "IFCARBITRARYCLOSEDPROFILEDEF"
@@ -1009,21 +1010,21 @@ namespace StingTools.Commands.Interop
                 if (best != null && Math.Abs(best.Elevation - targetFt) <= ToleranceFt)
                 {
                     _map[s.Id] = best.Id;
-                    s.RevitLevelId = best.Id.IntegerValue;
+                    s.RevitLevelId = best.Id.Value;
                 }
                 else if (createMissing)
                 {
                     Level created = Level.Create(_doc, targetFt);
                     created.Name = $"AC_{s.Name}";
                     _map[s.Id] = created.Id;
-                    s.RevitLevelId = created.Id.IntegerValue;
+                    s.RevitLevelId = created.Id.Value;
                     s.WasCreated = true;
                     revitLevels.Add(created);
                 }
                 else
                 {
                     warnings.Add($"No Revit level for '{s.Name}' at {s.AbsoluteElevM:F3} m");
-                    if (best != null) { _map[s.Id] = best.Id; s.RevitLevelId = best.Id.IntegerValue; }
+                    if (best != null) { _map[s.Id] = best.Id; s.RevitLevelId = best.Id.Value; }
                 }
             }
         }
