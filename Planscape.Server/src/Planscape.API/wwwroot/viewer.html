@@ -721,6 +721,17 @@
           modelRoot.rotation.x = -Math.PI / 2;
           modelRoot.updateMatrixWorld(true);
         }
+
+        // ── Origin recentre (Revit survey/shared coordinates) ──────────
+        // Revit exports real-world coordinates (e.g. X=52 396 m). At that
+        // distance from origin, floating-point precision breaks clipping
+        // planes and OrbitControls zoom. Translate the model root so its
+        // bounding-box centre sits at (0,0,0) before adding to the scene.
+        const centreBox = new THREE.Box3().setFromObject(modelRoot);
+        const centreOffset = centreBox.getCenter(new THREE.Vector3()).negate();
+        modelRoot.position.add(centreOffset);
+        modelRoot.updateMatrixWorld(true);
+
         assignElementIds(modelRoot);
         scene.add(modelRoot);
         modelBounds.setFromObject(modelRoot);
