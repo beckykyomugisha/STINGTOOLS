@@ -1094,6 +1094,8 @@ app.MapHub<TagSyncHub>("/hubs/tagsync");
 app.MapHub<NotificationHub>("/hubs/notifications");
 // S6.3 — CRDT relay for collaborative pin / issue editing.
 app.MapHub<Planscape.Infrastructure.SignalR.CrdtHub>("/hubs/crdt");
+// HC-22 — Healthcare real-time hub (pressure cascade, MGPS alarms, anti-ligature alerts).
+app.MapHub<Planscape.Infrastructure.SignalR.HealthcareHub>("/hubs/healthcare");
 
 // ── Database schema + seed ──
 {
