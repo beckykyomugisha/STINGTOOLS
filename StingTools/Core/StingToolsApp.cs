@@ -211,6 +211,19 @@ namespace StingTools.Core
                                     ? UI.StingDockPanel.SyncState.Synced
                                     : UI.StingDockPanel.SyncState.Error;
                                 panel.UpdateSyncStatus(state, result.ErrorMessage);
+
+                                // INT-10 — pull server issues on every successful background sync
+                                // so locally-created mobile issues appear in the plugin's sidecar.
+                                if (result.Success)
+                                {
+                                    try
+                                    {
+                                        var doc = _lastActiveDoc;
+                                        if (doc != null)
+                                            _ = BIMManager.PlanscapeServerClient.Instance.PullServerIssuesAsync(doc);
+                                    }
+                                    catch (Exception pullEx) { StingLog.Warn($"INT-10 PullServerIssues: {pullEx.Message}"); }
+                                }
                             };
                         }
                     }
