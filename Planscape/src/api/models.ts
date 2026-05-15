@@ -96,3 +96,10 @@ export async function uploadModel(
   }
   return res.json();
 }
+
+export async function fetchHeatmap(projectId: string): Promise<{
+  elements: Array<{ guid: string; disc: string; isComplete: boolean; missingTokens: string[] }>;
+}> {
+  const { apiClient } = await import("./client");
+  return apiClient.get(`/api/projects/${projectId}/models/heatmap`);
+}

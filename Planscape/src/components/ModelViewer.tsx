@@ -45,6 +45,12 @@ export interface ModelViewerHandle {
   finishArea: () => void;
   // Volume of the currently highlighted element's AABB.
   measureSelectionVolume: () => void;
+  // Compliance heatmap — colour meshes by STING tag completeness.
+  setHeatmap: (elements: Array<{ guid: string; isComplete: boolean; disc?: string }>, mode?: 'rag' | 'disc') => void;
+  clearHeatmap: () => void;
+  // BCF viewpoints.
+  saveViewpoint: (meta?: Record<string, unknown>) => void;
+  loadViewpoint: (viewpoint: BcfViewpoint) => void;
 }
 
 interface ModelViewerProps {
@@ -72,6 +78,7 @@ interface ModelViewerProps {
   onWalkthrough?: (e: { active: boolean }) => void;
   onLodChanged?: (e: { level: number; avgFps: number }) => void;
   onToolChanged?: (tool: ViewerTool) => void;
+  onViewpoint?: (vp: BcfViewpoint) => void;
   onError?: (err: string) => void;
 }
 
@@ -81,6 +88,13 @@ export interface PickEvent {
   name?: string;
   meta?: ElementMap[string] | null;
 }
+export interface BcfViewpoint {
+  camera: { eye: number[]; look: number[]; up: number[]; dir: number[]; fov: number };
+  selectedGuids?: string[];
+  timestamp?: string;
+  [key: string]: unknown;
+}
+
 export interface PlaceIssueEvent {
   guid: string;
   point: [number, number, number];
@@ -165,6 +179,11 @@ export const ModelViewer = React.forwardRef<ModelViewerHandle, ModelViewerProps>
       addAreaPoint: (point) => send({ type: "addAreaPoint", payload: { point } }),
       finishArea: () => send({ type: "finishArea" }),
       measureSelectionVolume: () => send({ type: "measureVolume" }),
+      setHeatmap: (elements, mode = "rag") =>
+        send({ type: "setHeatmap", payload: { elements, mode } }),
+      clearHeatmap: () => send({ type: "clearHeatmap" }),
+      saveViewpoint: (meta) => send({ type: "saveViewpoint", payload: meta }),
+      loadViewpoint: (vp) => send({ type: "loadViewpoint", payload: vp }),
     }));
 
     function onMessage(ev: WebViewMessageEvent) {
@@ -182,6 +201,7 @@ export const ModelViewer = React.forwardRef<ModelViewerHandle, ModelViewerProps>
         case "walkthrough":  props.onWalkthrough?.(msg.payload); break;
         case "lodChanged":   props.onLodChanged?.(msg.payload); break;
         case "toolChanged":  props.onToolChanged?.(msg.payload?.tool); break;
+        case "viewpoint":    props.onViewpoint?.(msg.payload); break;
       }
     }
 

@@ -233,6 +233,52 @@ public class ModelsController : ControllerBase
         return NoContent();
     }
 
+    // ── Compliance heatmap ─────────────────────────────────────────────
+    /// <summary>
+    /// Returns STING tag completeness per element GUID for the project so
+    /// the 3D viewer can colour each mesh red/amber/green.
+    ///
+    /// GET /api/projects/{projectId}/models/heatmap
+    /// Response: { elements: [{ guid, disc, isComplete, missingTokens[] }] }
+    /// </summary>
+    [HttpGet("/api/projects/{projectId:guid}/models/heatmap")]
+    public async Task<ActionResult> GetHeatmap(Guid projectId, CancellationToken ct)
+    {
+        if (!await ProjectInTenant(projectId, ct)) return Forbid();
+
+        var elements = await _db.TaggedElements.AsNoTracking()
+            .Where(e => e.ProjectId == projectId)
+            .Select(e => new
+            {
+                e.UniqueId,
+                e.Disc, e.Loc, e.Zone, e.Lvl, e.Sys, e.Func, e.Prod, e.Seq,
+                e.IsComplete,
+            })
+            .ToListAsync(ct);
+
+        var result = elements.Select(e =>
+        {
+            var missing = new List<string>();
+            if (string.IsNullOrEmpty(e.Disc)) missing.Add("disc");
+            if (string.IsNullOrEmpty(e.Loc))  missing.Add("loc");
+            if (string.IsNullOrEmpty(e.Zone)) missing.Add("zone");
+            if (string.IsNullOrEmpty(e.Lvl))  missing.Add("lvl");
+            if (string.IsNullOrEmpty(e.Sys))  missing.Add("sys");
+            if (string.IsNullOrEmpty(e.Func)) missing.Add("func");
+            if (string.IsNullOrEmpty(e.Prod)) missing.Add("prod");
+            if (string.IsNullOrEmpty(e.Seq))  missing.Add("seq");
+            return new
+            {
+                guid = e.UniqueId,
+                disc = e.Disc,
+                isComplete = e.IsComplete,
+                missingTokens = missing,
+            };
+        });
+
+        return Ok(new { projectId, elements = result });
+    }
+
     // ── Federation status (Phase 143) ──────────────────────────────────
 
     /// <summary>
