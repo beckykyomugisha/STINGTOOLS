@@ -338,6 +338,10 @@ builder.Services.AddScoped<Planscape.API.Services.IAuditService, Planscape.API.S
 // so Hangfire activates a fresh DbContext per job invocation).
 builder.Services.AddScoped<Planscape.API.BackgroundJobs.MaintenanceTaskSchedulerJob>();
 
+// Clash detection — AABB overlap between SceneNodes of different disciplines.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IClashDetectionJob,
+                           Planscape.Infrastructure.Services.ClashDetectionJob>();
+
 // ── Platform Connectors ──
 builder.Services.AddSingleton<Planscape.Core.Interfaces.IPlatformConnector, Planscape.Infrastructure.Services.AccConnector>();
 builder.Services.AddSingleton<Planscape.Core.Interfaces.IPlatformConnector, Planscape.Infrastructure.Services.ProcoreConnector>();

@@ -160,6 +160,7 @@ public class PlanscapeDbContext : DbContext
     // S5.1 — scene-index chunks (one row per discipline/level/system slice
     // of a federated ProjectModel; mobile streams these on demand).
     public DbSet<SceneNode> SceneNodes => Set<SceneNode>();
+    public DbSet<ClashRecord> ClashRecords => Set<ClashRecord>();
     // S6.1 — voice notes on issues.
     public DbSet<IssueAudioNote> IssueAudioNotes => Set<IssueAudioNote>();
     // S6.2 — 3D markup polylines anchored to a model / project.
@@ -880,6 +881,32 @@ public class PlanscapeDbContext : DbContext
             e.Property(x => x.AnchorKind).HasMaxLength(20).IsRequired();
             e.Property(x => x.SchemaJson).HasColumnType("jsonb");
             e.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── ClashRecord — AABB clash detection between SceneNodes ──
+        modelBuilder.Entity<ClashRecord>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.Status });
+            e.HasIndex(x => new { x.ProjectId, x.ClashHash }).IsUnique();
+            e.HasIndex(x => x.TenantId);
+            e.Property(x => x.ClashHash).HasMaxLength(64).IsRequired();
+            e.Property(x => x.ElementAGuid).HasMaxLength(80).IsRequired();
+            e.Property(x => x.ElementBGuid).HasMaxLength(80).IsRequired();
+            e.Property(x => x.ElementAName).HasMaxLength(400);
+            e.Property(x => x.ElementBName).HasMaxLength(400);
+            e.Property(x => x.ElementAType).HasMaxLength(80);
+            e.Property(x => x.ElementBType).HasMaxLength(80);
+            e.Property(x => x.DisciplineA).HasMaxLength(8);
+            e.Property(x => x.DisciplineB).HasMaxLength(8);
+            e.Property(x => x.LevelCode).HasMaxLength(40);
+            e.Property(x => x.ZoneCode).HasMaxLength(40);
+            e.Property(x => x.AssignedTo).HasMaxLength(200);
+            e.Property(x => x.ResolutionNote).HasMaxLength(2000);
+            e.Property(x => x.BcfTopicGuid).HasMaxLength(80);
+            e.Property(x => x.DetectedByJobId).HasMaxLength(80);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Issue).WithMany().HasForeignKey(x => x.IssueId).OnDelete(DeleteBehavior.SetNull);
         });
     }
 

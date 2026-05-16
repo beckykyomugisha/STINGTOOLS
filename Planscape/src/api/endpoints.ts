@@ -1632,3 +1632,180 @@ export interface SpatialStructure { levels: SpatialLevel[]; zones: SpatialZone[]
 export function getSpatialStructure(projectId: string): Promise<SpatialStructure> {
   return apiFetch<SpatialStructure>(`/api/projects/${projectId}/spatial`);
 }
+
+// ───── Clash detection (Planscape.Server ClashesController) ─────
+
+export type ClashStatus = 'NEW' | 'ACKNOWLEDGED' | 'RESOLVED' | 'CLOSED' | 'DISMISSED';
+export type ClashSeverity = 'INFO' | 'MINOR' | 'MAJOR' | 'CRITICAL';
+export type ClashKind = 'HARD' | 'SOFT' | 'CLEARANCE';
+
+export interface ClashRecord {
+  id: string;
+  projectId: string;
+  clashHash: string;
+  kind: ClashKind;
+  severity: ClashSeverity;
+  status: ClashStatus;
+  modelAId: string;
+  elementAGuid: string;
+  elementAName?: string;
+  elementAType?: string;
+  disciplineA?: string;
+  modelBId: string;
+  elementBGuid: string;
+  elementBName?: string;
+  elementBType?: string;
+  disciplineB?: string;
+  distanceMm: number;
+  centreX: number;
+  centreY: number;
+  centreZ: number;
+  overlapVolumeMm3: number;
+  levelCode?: string;
+  zoneCode?: string;
+  assignedTo?: string;
+  resolutionNote?: string;
+  issueId?: string;
+  bcfTopicGuid?: string;
+  detectedAt: string;
+  acknowledgedAt?: string;
+  resolvedAt?: string;
+  closedAt?: string;
+}
+
+export interface ClashListResponse {
+  summary: {
+    total: number;
+    byStatus: Array<{ status: string; count: number }>;
+    bySeverity: Array<{ severity: string; count: number }>;
+  };
+  page: number;
+  pageSize: number;
+  items: ClashRecord[];
+}
+
+export interface ClashDetectionResult {
+  scannedPairs: number;
+  clashesFound: number;
+  clashesNew: number;
+  clashesUpdated: number;
+  criticalClashes: number;
+  duration: string;
+}
+
+export async function listClashes(
+  projectId: string,
+  opts: { status?: ClashStatus; severity?: ClashSeverity; discipline?: string; page?: number; pageSize?: number } = {},
+): Promise<ClashListResponse> {
+  const params = new URLSearchParams();
+  if (opts.status) params.append('status', opts.status);
+  if (opts.severity) params.append('severity', opts.severity);
+  if (opts.discipline) params.append('discipline', opts.discipline);
+  params.append('page', String(opts.page ?? 1));
+  params.append('pageSize', String(opts.pageSize ?? 50));
+  return apiFetch<ClashListResponse>(`/api/projects/${projectId}/clashes?${params}`);
+}
+
+export async function getClash(projectId: string, clashId: string): Promise<ClashRecord> {
+  return apiFetch<ClashRecord>(`/api/projects/${projectId}/clashes/${clashId}`);
+}
+
+export async function runClashDetection(projectId: string): Promise<ClashDetectionResult> {
+  return apiFetch<ClashDetectionResult>(`/api/projects/${projectId}/clashes/run`, { method: 'POST' });
+}
+
+export async function updateClash(
+  projectId: string,
+  clashId: string,
+  body: { status?: ClashStatus; assignedTo?: string; resolutionNote?: string },
+): Promise<ClashRecord> {
+  return apiFetch<ClashRecord>(`/api/projects/${projectId}/clashes/${clashId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function promoteClashToIssue(projectId: string, clashId: string): Promise<any> {
+  return apiFetch<any>(`/api/projects/${projectId}/clashes/${clashId}/promote-to-issue`, {
+    method: 'POST',
+  });
+}
+
+// ───── IFC alignment reports ─────
+
+export interface IfcAlignmentFinding {
+  severity: 'INFO' | 'WARN' | 'FAIL';
+  code: string;
+  message: string;
+  fixHint?: string;
+}
+
+export interface IfcAlignmentReport {
+  id: string;
+  projectModelId: string;
+  schemaVersion?: string;
+  ifcSiteGuid?: string;
+  lengthUnit?: string;
+  trueNorthDegrees?: number;
+  surveyEasting?: number;
+  surveyNorthing?: number;
+  surveyElevation?: number;
+  hasMapConversion: boolean;
+  hasProjectedCrs: boolean;
+  crsName?: string;
+  verdict: 'PASS' | 'WARN' | 'FAIL';
+  findingsJson: string;
+  validatedAt: string;
+}
+
+export async function listAlignmentReports(projectId: string): Promise<{
+  count: number;
+  passed: number;
+  warned: number;
+  failed: number;
+  reports: IfcAlignmentReport[];
+}> {
+  return apiFetch(`/api/projects/${projectId}/alignment`);
+}
+
+export async function getAlignmentForModel(projectId: string, modelId: string): Promise<IfcAlignmentReport> {
+  return apiFetch<IfcAlignmentReport>(`/api/projects/${projectId}/alignment/model/${modelId}`);
+}
+
+// ───── Federation manifest ─────
+
+export interface FederationManifest {
+  projectId: string;
+  generatedAt: string;
+  models: Array<{
+    id: string;
+    name: string;
+    discipline: string;
+    format: string;
+    uploadedAt: string;
+    elementCount?: number;
+    bounds?: { min: number[]; max: number[] };
+    units: string;
+    revision?: string;
+  }>;
+  chunks: Array<{
+    id: string;
+    sourceModelId: string;
+    discipline: string;
+    level?: string;
+    system?: string;
+    storagePath: string;
+    contentHash: string;
+    sizeBytes: number;
+    vertexCount: number;
+    aabb: { min: number[]; max: number[] };
+    compression: string;
+  }>;
+  disciplines: Array<{ code: string; modelCount: number; chunkCount: number }>;
+  bounds: { min: (number | null)[]; max: (number | null)[] };
+  alignment: { reported: number; passed: number; warned: number; failed: number };
+}
+
+export async function getFederationManifest(projectId: string): Promise<FederationManifest> {
+  return apiFetch<FederationManifest>(`/api/projects/${projectId}/federation/manifest`);
+}
