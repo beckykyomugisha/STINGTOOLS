@@ -270,11 +270,7 @@ namespace StingTools.Core.SLD
                     var fam = SymbolConceptRegistry.GetAnnotationFamilyName(node.ConceptId, standard);
                     if (!string.IsNullOrEmpty(fam))
                     {
-                        var sym = new FilteredElementCollector(doc)
-                            .OfClass(typeof(FamilySymbol))
-                            .Cast<FamilySymbol>()
-                            .FirstOrDefault(s => string.Equals(s.Name, fam,
-                                StringComparison.OrdinalIgnoreCase));
+                        var sym = FindOrLoadFamilySymbol(doc, fam);
                         if (sym != null)
                         {
                             if (!sym.IsActive) sym.Activate();
@@ -292,6 +288,14 @@ namespace StingTools.Core.SLD
                             }
                             catch (Exception ex) { StingLog.Warn($"PlaceSymbols inst: {ex.Message}"); }
                         }
+                        else
+                        {
+                            StingLog.Warn($"PlaceSymbols: family '{fam}' not found for concept " +
+                                $"'{node.ConceptId}' (standard '{standard}'). " +
+                                "Run Seeds_Build to create and load SLD symbol families.");
+                            result.Warnings.Add($"Symbol family '{fam}' not loaded — " +
+                                "run Seeds_Build workflow step.");
+                        }
                     }
                 }
             }
@@ -299,6 +303,60 @@ namespace StingTools.Core.SLD
 
             foreach (var c in node.Children)
                 PlaceSymbols(doc, view, c, layout, standard, result, nodeToInstance);
+        }
+
+        /// <summary>
+        /// Finds a FamilySymbol by name in the document. When not found, attempts
+        /// to load the matching .rfa from the project's _BIM_COORD/symbols/ folder
+        /// (created by BuildSeedFamiliesCommand). Returns null when unavailable.
+        /// </summary>
+        private static FamilySymbol FindOrLoadFamilySymbol(Document doc, string symbolName)
+        {
+            // Fast path — already loaded.
+            var sym = new FilteredElementCollector(doc)
+                .OfClass(typeof(FamilySymbol))
+                .Cast<FamilySymbol>()
+                .FirstOrDefault(s => string.Equals(s.Name, symbolName,
+                    StringComparison.OrdinalIgnoreCase));
+            if (sym != null) return sym;
+
+            // Fallback — try to load from _BIM_COORD/symbols/ alongside the .rvt.
+            try
+            {
+                if (string.IsNullOrEmpty(doc.PathName)) return null;
+                string symbolsDir = System.IO.Path.Combine(
+                    System.IO.Path.GetDirectoryName(doc.PathName),
+                    "_BIM_COORD", "symbols");
+                if (!System.IO.Directory.Exists(symbolsDir)) return null;
+
+                // Try exact match first, then case-insensitive.
+                string rfaPath = System.IO.Path.Combine(symbolsDir, symbolName + ".rfa");
+                if (!System.IO.File.Exists(rfaPath))
+                {
+                    rfaPath = System.IO.Directory.EnumerateFiles(symbolsDir, "*.rfa")
+                        .FirstOrDefault(f => string.Equals(
+                            System.IO.Path.GetFileNameWithoutExtension(f),
+                            symbolName, StringComparison.OrdinalIgnoreCase));
+                }
+                if (rfaPath == null || !System.IO.File.Exists(rfaPath)) return null;
+
+                if (doc.LoadFamily(rfaPath, out Family loaded))
+                {
+                    StingLog.Info($"PlaceSymbols: auto-loaded '{rfaPath}'");
+                    return loaded?.GetFamilySymbolIds()
+                        .Select(id => doc.GetElement(id) as FamilySymbol)
+                        .FirstOrDefault(s => s != null &&
+                            string.Equals(s.Name, symbolName, StringComparison.OrdinalIgnoreCase))
+                        ?? loaded?.GetFamilySymbolIds()
+                            .Select(id => doc.GetElement(id) as FamilySymbol)
+                            .FirstOrDefault(s => s != null);
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"FindOrLoadFamilySymbol '{symbolName}': {ex.Message}");
+            }
+            return null;
         }
 
         private static ElementId ResolveStampedLabelId(FamilyInstance symbol)

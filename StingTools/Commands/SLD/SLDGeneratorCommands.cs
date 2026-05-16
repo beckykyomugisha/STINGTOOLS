@@ -3,6 +3,9 @@
 // Phase 179:
 //  - GenerateSLDCommand / UpdateSLDCommand read layout + annotation options
 //    from StingElectricalCommandHandler static fields (set by UI panel sliders
+//  - SLDSwitchStandardCommand: writes STING_VIEW_SYMBOL_STANDARD on the active
+//    SLD view and triggers a full rebuild so the new standard's symbol families
+//    and annotation rules take effect immediately.
 //    and checkboxes) and pass them through to SLDGenerator.
 //  - SLDSyncToggleCommand no longer tells users to restart Revit — the updater
 //    re-reads project_config.json on every Execute() call; no restart needed.
@@ -281,6 +284,117 @@ namespace StingTools.Commands.SLD
                 + $"Already stamped     : {alreadyStamped}\n"
                 + $"Newly stamped       : {stamped}\n"
                 + $"Unmatched (no note) : {unmatched}");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Switches the symbol standard on an existing STING SLD view and triggers a
+    /// full rebuild so the new standard's symbol families and annotation rules
+    /// take effect immediately. Writes <c>STING_VIEW_SYMBOL_STANDARD</c> on the
+    /// view so the resolver picks it up at layer 2 of the 6-level chain.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SLDSwitchStandardCommand : IExternalCommand
+    {
+        private static readonly string[] KnownStandards =
+            { "IEC", "IEEE", "BS", "NFPA", "CIBSE" };
+
+        public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) { msg = "No active document."; return Result.Failed; }
+            var doc = ctx.Doc;
+
+            // Collect all STING SLD views.
+            var sldViews = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewDrafting)).Cast<ViewDrafting>()
+                .Where(v => v.Name?.StartsWith("STING - SLD",
+                    StringComparison.OrdinalIgnoreCase) == true)
+                .ToList();
+            if (sldViews.Count == 0)
+            {
+                TaskDialog.Show("STING - Switch Standard",
+                    "No STING SLD view found. Generate one first.");
+                return Result.Cancelled;
+            }
+
+            // Show standard picker.
+            string current = SymbolStandardResolver.ResolveForDocument(doc);
+            var td = new TaskDialog("STING - Switch Symbol Standard")
+            {
+                MainInstruction = $"Current project standard: {current}",
+                MainContent = "Select the target symbol standard.\n\n" +
+                    "• IEC — IEC 60617 (default, European)\n" +
+                    "• IEEE — IEEE/ANSI 315 (North American)\n" +
+                    "• BS — BS 1553 (British)\n" +
+                    "• NFPA — NFPA 170/72 (fire/life-safety)\n" +
+                    "• CIBSE — CIBSE (UK building services)",
+                CommonButtons = TaskDialogCommonButtons.Cancel
+            };
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "IEC — IEC 60617");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "IEEE — IEEE/ANSI 315");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "BS — BS 1553");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "NFPA — NFPA 170/72");
+            var dlgResult = td.Show();
+            if (dlgResult == TaskDialogResult.Cancel) return Result.Cancelled;
+
+            string newStandard = dlgResult switch
+            {
+                TaskDialogResult.CommandLink1 => "IEC",
+                TaskDialogResult.CommandLink2 => "IEEE",
+                TaskDialogResult.CommandLink3 => "BS",
+                TaskDialogResult.CommandLink4 => "NFPA",
+                _                             => current
+            };
+            if (string.Equals(newStandard, current, StringComparison.OrdinalIgnoreCase))
+            {
+                TaskDialog.Show("STING - Switch Standard", "Standard unchanged.");
+                return Result.Cancelled;
+            }
+
+            int rebuilt = 0;
+            using (var tx = new Transaction(doc, "STING Switch SLD Standard"))
+            {
+                tx.Start();
+                // Write project-level default and per-view override.
+                SymbolStandardResolver.SetProjectStandard(doc, newStandard);
+                foreach (var view in sldViews)
+                {
+                    SymbolStandardResolver.SetViewStandard(view, newStandard);
+                    rebuilt++;
+                }
+                tx.Commit();
+            }
+
+            // Full rebuild each SLD view with the new standard.
+            var layoutOpts = StingTools.UI.StingElectricalCommandHandler.CurrentSLDLayoutOptions;
+            var annotOpts  = StingTools.UI.StingElectricalCommandHandler.CurrentSLDAnnotationOptions;
+            int errors = 0;
+            foreach (var view in sldViews)
+            {
+                try
+                {
+                    using (var tx = new Transaction(doc, $"STING Rebuild SLD - {view.Name}"))
+                    {
+                        tx.Start();
+                        SLDGenerator.UpdateSLD(doc, view, ElementId.InvalidElementId,
+                            layoutOpts, annotOpts);
+                        tx.Commit();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    errors++;
+                    StingLog.Warn($"SLDSwitchStandard rebuild '{view.Name}': {ex.Message}");
+                }
+            }
+
+            TaskDialog.Show("STING - Switch Standard",
+                $"Standard switched from '{current}' → '{newStandard}'.\n" +
+                $"Views rebuilt: {rebuilt - errors}/{rebuilt}" +
+                (errors > 0 ? $"\nErrors: {errors} (see StingTools.log)" : ""));
             return Result.Succeeded;
         }
     }

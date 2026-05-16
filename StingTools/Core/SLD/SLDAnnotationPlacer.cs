@@ -109,6 +109,15 @@ namespace StingTools.Core.SLD
 
         // ── Label builder ────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Builds the annotation label for a circuit node.
+        /// Per-standard defaults from <paramref name="rules"/> are merged with UI
+        /// overrides from <paramref name="opts"/>: if the standard mandates a field
+        /// (e.g. IEC 60364 fault level) it shows even when the UI checkbox is off,
+        /// unless the user explicitly has it as the only controlling flag.
+        /// Merge rule: show = rules flag OR opts flag (either can enable; there is
+        /// no explicit suppress — hide comes from both being false).
+        /// </summary>
         private static string BuildCircuitLabel(SLDNode node, AnnotationRules rules,
             SLDAnnotationOptions opts)
         {
@@ -116,12 +125,19 @@ namespace StingTools.Core.SLD
 
             var lines = new List<string>();
 
+            // Merge per-standard defaults with live UI options (OR semantics).
+            bool showLoad    = opts.ShowLoads    || rules.ShowLoad;
+            bool showCsa     = opts.ShowCsaMm2   || rules.ShowCsaMm2;
+            bool showVd      = opts.ShowVdPct    || rules.ShowVdPct;
+            bool showFault   = opts.ShowFaultKa  || rules.ShowFaultKa;
+
             // Circuit reference.
             string circuit = string.IsNullOrEmpty(node.CircuitRef) ? ""
                 : $"{rules.CircuitRefPrefix}{node.CircuitRef}{rules.CircuitRefSuffix}";
             if (!string.IsNullOrEmpty(circuit)) lines.Add(circuit);
 
-            // Rating / poles — controlled by opts.ShowRatings.
+            // Rating / poles — controlled by opts.ShowRatings (no per-standard override;
+            // ratings are always meaningful so the UI flag is the sole gate).
             if (opts.ShowRatings && !(string.IsNullOrEmpty(node.Rating) && node.Poles == 0))
             {
                 string fmt = (rules.RatingFormat ?? "{rating}{unit}")
@@ -132,9 +148,9 @@ namespace StingTools.Core.SLD
                 if (!string.IsNullOrWhiteSpace(fmt)) lines.Add(fmt.Trim());
             }
 
-            // Load — controlled by opts.ShowLoads.
+            // Load (apparent power kVA) — standard default OR UI checkbox.
             // RBS_ELEC_APPARENT_LOAD stores VA; LoadKW holds VA/1000 = kVA.
-            if (opts.ShowLoads && node.LoadKW > 0)
+            if (showLoad && node.LoadKW > 0)
             {
                 string loadLine = (rules.LoadFormat ?? "{load}kVA")
                     .Replace("{load}", node.LoadKW.ToString("F1",
@@ -142,16 +158,16 @@ namespace StingTools.Core.SLD
                 lines.Add(loadLine);
             }
 
-            // Cable CSA — controlled by opts.ShowCsaMm2.
-            if (opts.ShowCsaMm2 && !string.IsNullOrEmpty(node.CsaMm2))
+            // Cable CSA — standard default OR UI checkbox.
+            if (showCsa && !string.IsNullOrEmpty(node.CsaMm2))
             {
                 string csaLine = (rules.CsaFormat ?? "{csa}mm²")
                     .Replace("{csa}", node.CsaMm2);
                 lines.Add(csaLine);
             }
 
-            // Voltage drop % — controlled by opts.ShowVdPct.
-            if (opts.ShowVdPct && node.VdPct > 0)
+            // Voltage drop % — standard default OR UI checkbox.
+            if (showVd && node.VdPct > 0)
             {
                 string vdLine = (rules.VdFormat ?? "VD {vd}%")
                     .Replace("{vd}", node.VdPct.ToString("F1",
@@ -159,8 +175,8 @@ namespace StingTools.Core.SLD
                 lines.Add(vdLine);
             }
 
-            // Fault level — controlled by opts.ShowFaultKa.
-            if (opts.ShowFaultKa && !string.IsNullOrEmpty(node.FaultKa))
+            // Fault level — standard default OR UI checkbox.
+            if (showFault && !string.IsNullOrEmpty(node.FaultKa))
             {
                 string faultLine = (rules.FaultFormat ?? "Iₖ {fault}kA")
                     .Replace("{fault}", node.FaultKa);

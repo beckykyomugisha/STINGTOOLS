@@ -1,16 +1,17 @@
 {
   "id": "SLDProduction",
   "name": "SLD Production Workflow",
-  "description": "Validates the electrical hierarchy, generates (or refreshes) all STING SLD drafting views, and stamps each view with the correct DrawingType so Browser Organizer and drift detection pick them up. Run this after any significant panel or circuit change. SLD_Generate only fires when no STING SLD view exists yet; SLD_Update fires when at least one exists. Both are optional so the workflow completes cleanly on models with no electrical hierarchy.",
-  "version": "1.0",
+  "description": "Ensures SLD symbol families are loaded, validates the electrical hierarchy, then generates or refreshes all STING SLD drafting views and stamps each view with the correct DrawingType so Browser Organizer and drift detection pick them up. Run this after any significant panel or circuit change.",
+  "version": "1.1",
   "phase": 179,
   "rollback_on_failure": false,
   "steps": [
-    { "commandTag": "SLD_Validate",      "label": "Validate electrical hierarchy",          "optional": false },
-    { "commandTag": "SLD_Generate",      "label": "Generate SLD view(s)",                  "optional": true,
+    { "commandTag": "Seeds_Build",        "label": "Load SLD symbol families (idempotent)",   "optional": true  },
+    { "commandTag": "SLD_Validate",       "label": "Validate electrical hierarchy",           "optional": false },
+    { "commandTag": "SLD_Generate",       "label": "Generate SLD view(s)",                   "optional": true,
       "condition": "no_sld_view_exists" },
-    { "commandTag": "SLD_Update",        "label": "Refresh existing SLD view(s)",           "optional": true,
-      "condition": "sld_view_exists" },
-    { "commandTag": "DrawingTypes_Reload","label": "Reload DrawingType registry (stamp)",   "optional": true  }
+    { "commandTag": "SLD_Update",         "label": "Refresh existing SLD view(s)",            "optional": true,
+      "condition": "sld_view_exists"    },
+    { "commandTag": "DrawingTypes_Reload","label": "Reload DrawingType registry (stamp)",    "optional": true  }
   ]
 }

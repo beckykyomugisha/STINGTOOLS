@@ -1915,6 +1915,7 @@ namespace StingTools.Core
                 case "SLD_MigrateLabels":    return new Commands.SLD.MigrateSLDLabelIdsCommand();
                 case "SLD_RiserDiagram":     return new Commands.SLD.SLDRiserDiagramCommand();
                 case "SLD_UpdateRiser":      return new Commands.SLD.SLDUpdateRiserCommand();
+                case "SLD_SwitchStandard":   return new Commands.SLD.SLDSwitchStandardCommand();
 
                 // Drawing Types commands (used by WORKFLOW_SLDProduction step 4)
                 case "DrawingTypes_Reload":  return new Commands.Drawing.DrawingTypesReloadCommand();

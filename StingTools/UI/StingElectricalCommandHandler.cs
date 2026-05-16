@@ -207,6 +207,8 @@ namespace StingTools.UI
                     RunCommand<StingTools.Commands.SLD.SLDSyncToggleCommand>(app); break;
                 case "SLD_MigrateLabels":
                     RunCommand<StingTools.Commands.SLD.MigrateSLDLabelIdsCommand>(app); break;
+                case "SLD_SwitchStandard":
+                    RunCommand<StingTools.Commands.SLD.SLDSwitchStandardCommand>(app); break;
                 case "SLD_Refresh":
                     /* fresh snapshot will run after Dispatch */
                     break;

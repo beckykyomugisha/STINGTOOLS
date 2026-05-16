@@ -299,10 +299,16 @@ namespace StingTools.Core.SLD
         /// specific tokens first so "RCBO" wins over "RCD" wins over "MCB".
         /// A frame-size heuristic (≥125 A → MCCB) handles generic family names.
         /// </summary>
+        /// <summary>
+        /// Keyword-based family-name → concept mapper. Checks longest/most-specific
+        /// tokens first so "RCBO" wins over "RCD" wins over "MCB".
+        /// A frame-size heuristic (≥125 A → MCCB) handles generic family names.
+        /// </summary>
         private static string InferConceptFromFamily(string familyName, string rating)
         {
             string u = (familyName ?? "").ToUpperInvariant();
 
+            // ── Protective devices (most-specific first) ─────────────────────
             if (u.Contains("MCCB") || u.Contains("MOULDED") || u.Contains("MOLDED"))
                 return "SLD_MCCB";
             if (u.Contains("RCBO"))
@@ -311,16 +317,58 @@ namespace StingTools.Core.SLD
                 return "SLD_RCD";
             if (u.Contains("MCB"))
                 return "SLD_MCB";
+            if (u.Contains("ACB") || u.Contains("AIRBREAKER") || u.Contains("AIR BREAKER")
+                || u.Contains("AIR CIRCUIT"))
+                return "SLD_ACB";
+
+            // ── Surge / power quality ────────────────────────────────────────
+            if (u.Contains("SPD") || u.Contains("SURGE") || u.Contains("TRANSIENT")
+                || u.Contains("LIGHTNING ARRESTER"))
+                return "SLD_SPD";
+
+            // ── Variable speed / soft start ──────────────────────────────────
+            if (u.Contains("VFD") || u.Contains("VSD") || u.Contains("VARIABLESPEED")
+                || u.Contains("VARIABLE SPEED") || u.Contains("VARIABLE FREQ")
+                || u.Contains("INVERTER") || u.Contains("DRIVE"))
+                return "SLD_VSD";
+            if (u.Contains("SOFTSTART") || u.Contains("SOFT START")
+                || u.Contains("SOFT-START"))
+                return "SLD_SOFT_STARTER";
+
+            // ── Starters ─────────────────────────────────────────────────────
             if (u.Contains("STAR") && u.Contains("DELTA"))
                 return "SLD_STAR_DELTA_STARTER";
-            if (u.Contains("DOL") || (u.Contains("STARTER") && !u.Contains("STAR")))
+            if (u.Contains("DOL") || (u.Contains("STARTER") && !u.Contains("STAR")
+                && !u.Contains("VSD") && !u.Contains("SOFT")))
                 return "SLD_DOL_STARTER";
+
+            // ── Contactors / switching ───────────────────────────────────────
+            if (u.Contains("CONTACTOR"))
+                return "SLD_CONTACTOR";
+
+            // ── Isolation / switching ────────────────────────────────────────
             if (u.Contains("ISOLAT") || u.Contains("SWITCH-FUSE") || u.Contains("SWITCHFUSE"))
                 return "SLD_ISOLATOR";
             if (u.Contains("FUSE") && !u.Contains("SWITCH"))
                 return "SLD_FUSE";
 
-            // Frame-size heuristic: rated ≥125 A → assume MCCB.
+            // ── Generation / UPS ─────────────────────────────────────────────
+            if (u.Contains("GENERATOR") || u.Contains("GENSET") || u.Contains("GEN SET")
+                || u.Contains("ALTERNATOR"))
+                return "SLD_GENERATOR";
+            if (u.Contains("UPS") || u.Contains("UNINTERRUPTIBLE"))
+                return "SLD_UPS";
+
+            // ── Motors ───────────────────────────────────────────────────────
+            if (u.Contains("MOTOR") || u.Contains("PUMP") || u.Contains("FAN"))
+            {
+                if (u.Contains("1PH") || u.Contains("1-PH") || u.Contains("SINGLE PHASE")
+                    || u.Contains("SINGLEPHASE"))
+                    return "SLD_MOTOR_1PH";
+                return "SLD_MOTOR_3PH";
+            }
+
+            // ── Frame-size heuristic: rated ≥125 A → assume MCCB ────────────
             if (!string.IsNullOrEmpty(rating))
             {
                 string numStr = rating.Replace("A", "").Replace("a", "").Trim();
