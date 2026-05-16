@@ -1,3 +1,5 @@
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.SignalR;
 using Planscape.API.Middleware;
