@@ -44,7 +44,7 @@ public class XbimIfcIngester : IIfcIngester
         _logger = logger;
     }
 
-    public async Task<IfcIngestResult> IngestAsync(string ifcPath, CancellationToken ct)
+    public Task<IfcIngestResult> IngestAsync(string ifcPath, CancellationToken ct)
     {
         if (!File.Exists(ifcPath))
             throw new FileNotFoundException("IFC file not found", ifcPath);
@@ -186,7 +186,7 @@ public class XbimIfcIngester : IIfcIngester
             ifcPath, schemaVersion, elements.Count, sw.ElapsedMilliseconds,
             hasQuantities, hasAcPsets ? "archicad" : "ifc");
 
-        return new IfcIngestResult(
+        return Task.FromResult(new IfcIngestResult(
             SchemaVersion: schemaVersion,
             ElementCount: elements.Count,
             CountsByType: countsByType,
@@ -194,7 +194,7 @@ public class XbimIfcIngester : IIfcIngester
             Duration: sw.Elapsed,
             Warnings: warnings.Count > 0 ? string.Join("; ", warnings) : null,
             Source: hasAcPsets ? "archicad" : "ifc",
-            HasQuantitySets: hasQuantities);
+            HasQuantitySets: hasQuantities));
     }
 
     /// <summary>
