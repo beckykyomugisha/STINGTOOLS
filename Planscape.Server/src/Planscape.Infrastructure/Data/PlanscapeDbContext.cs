@@ -922,6 +922,23 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(r => new { r.ProjectId, r.ProjectModelId });
             e.HasIndex(r => r.TenantId);
         });
+
+        // ── ClashAutomationRule — per-project automation rules for new clashes ──
+        modelBuilder.Entity<ClashAutomationRule>(e =>
+        {
+            e.HasKey(r => r.Id);
+            e.HasIndex(r => new { r.ProjectId, r.Priority });
+            e.HasIndex(r => r.TenantId);
+            e.Property(r => r.Name).HasMaxLength(200).IsRequired();
+            e.Property(r => r.DisciplineA).HasMaxLength(8);
+            e.Property(r => r.DisciplineB).HasMaxLength(8);
+            e.Property(r => r.LevelCode).HasMaxLength(40);
+            e.Property(r => r.AutoAssignTo).HasMaxLength(200);
+            e.Property(r => r.IssuePriority).HasMaxLength(20);
+            e.Property(r => r.NotifyUsers).HasMaxLength(2000);
+            e.Property(r => r.CreatedBy).HasMaxLength(200);
+            e.HasOne(r => r.Project).WithMany().HasForeignKey(r => r.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
     }
 
     private void ApplyTenantQueryFilters(ModelBuilder modelBuilder)
