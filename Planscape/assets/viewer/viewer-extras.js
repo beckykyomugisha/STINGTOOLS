@@ -59,8 +59,70 @@
   };
 
   ext.getFederationModels = function () {
-    return federationModels.map(m => ({ label: m.label, discipline: m.discipline, visible: m.group.visible }));
+    return federationModels.map(m => ({
+      label: m.label, discipline: m.discipline,
+      visible: m.group.visible,
+      opacity: m._opacity ?? 1,
+    }));
   };
+
+  // ── Per-model opacity (federation overlay fade) ───────────────────────
+  // Sets opacity for every mesh in the labelled sub-group. Stash the
+  // original material once so we can restore opaque rendering cleanly.
+  ext.setModelOpacity = function (label, opacity) {
+    const entry = federationModels.find(m => m.label === label || m.label === String(label));
+    if (!entry) return;
+    const a = Math.max(0, Math.min(1, opacity));
+    entry._opacity = a;
+    entry.group.traverse(o => {
+      if (!o.isMesh || !o.material) return;
+      // Materials may be shared across meshes; clone on first dim so we
+      // don't bleed transparency into other federated models.
+      if (!o.userData._opacityClone) {
+        o.material = o.material.clone();
+        o.userData._opacityClone = true;
+      }
+      o.material.transparent = a < 1;
+      o.material.opacity = a;
+      o.material.depthWrite = a >= 0.99;
+      o.material.needsUpdate = true;
+    });
+  };
+
+  // ── Solo / isolate one model (hide all others) ────────────────────────
+  // Pass null/undefined to clear and re-show everything.
+  ext.setModelSolo = function (label) {
+    if (label == null) {
+      federationModels.forEach(m => { m.group.visible = true; });
+      return;
+    }
+    federationModels.forEach(m => {
+      m.group.visible = (m.label === label || m.label === String(label));
+    });
+  };
+
+  // ── Isolate by element guid set ────────────────────────────────────────
+  // Hide every mesh whose userData.elementGuid is NOT in the given set.
+  // Used by coordination-viewer's tree multi-select and clash-pair focus.
+  let _isolatedSet = null;
+  ext.setIsolatedGuids = function (guids) {
+    const h = host(); if (!h || !h.modelRoot) return;
+    _isolatedSet = (guids && guids.length) ? new Set(guids) : null;
+    h.modelRoot.traverse(o => {
+      if (!o.isMesh) return;
+      if (_isolatedSet == null) {
+        // Restore original visibility flag stored on first isolation.
+        if (o.userData._origVisible != null) {
+          o.visible = o.userData._origVisible;
+          delete o.userData._origVisible;
+        }
+        return;
+      }
+      if (o.userData._origVisible == null) o.userData._origVisible = o.visible;
+      o.visible = _isolatedSet.has(o.userData.elementGuid);
+    });
+  };
+  ext.clearIsolation = function () { ext.setIsolatedGuids(null); };
 
   // ── Multi-plane section management ───────────────────────────────────
   // Each entry: { plane: THREE.Plane, axis, offset (0..1), id }
@@ -625,4 +687,281 @@
 
   function countMeshes(o) { let n = 0; o.traverse(x => { if (x.isMesh) n++; }); return n; }
   function bbToArray(b) { return [b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z]; }
+
+  // ── Camera presets — orthogonal & iso views ───────────────────────────
+  // preset ∈ { top, bottom, front, back, left, right, iso, home }.
+  // Frames the model bounds with a fresh camera position + lookAt.
+  ext.setCameraPreset = function (preset) {
+    const h = host(); if (!h || h.modelBounds.isEmpty()) return;
+    const c = h.modelBounds.getCenter(new THREE.Vector3());
+    const sz = h.modelBounds.getSize(new THREE.Vector3());
+    const d = Math.max(sz.x, sz.y, sz.z) * 1.8 || 10;
+    const presets = {
+      top:    [0,  d, 0],
+      bottom: [0, -d, 0],
+      front:  [0, 0,  d],
+      back:   [0, 0, -d],
+      left:   [-d, 0, 0],
+      right:  [ d, 0, 0],
+      iso:    [d * 0.85, d * 0.85, d * 0.85],
+      home:   [d * 0.85, d * 0.85, d * 0.85],
+    };
+    const off = presets[preset] || presets.iso;
+    h.camera.position.set(c.x + off[0], c.y + off[1], c.z + off[2]);
+    h.controls.target.copy(c);
+    // Orthogonal presets need a clean Y-up unless we'd be aligned with it
+    // (top/bottom) — then flip up to +Z so the camera doesn't gimbal-lock.
+    h.camera.up.set(0, 1, 0);
+    if (preset === 'top' || preset === 'bottom') h.camera.up.set(0, 0, 1);
+    h.controls.update();
+    h.bridge.send('cameraPreset', { preset });
+  };
+
+  // ── Camera bookmark slots — quick recall (1..4) ───────────────────────
+  const cameraBookmarks = {};
+  ext.saveCameraBookmark = function (slot) {
+    const h = host(); if (!h) return;
+    cameraBookmarks[slot] = {
+      pos: h.camera.position.toArray(),
+      target: h.controls.target.toArray(),
+      up: h.camera.up.toArray(),
+    };
+    h.bridge.send('bookmarkSaved', { slot, slots: Object.keys(cameraBookmarks).map(Number) });
+  };
+  ext.restoreCameraBookmark = function (slot) {
+    const h = host(); if (!h) return;
+    const b = cameraBookmarks[slot]; if (!b) return;
+    h.camera.position.fromArray(b.pos);
+    h.controls.target.fromArray(b.target);
+    h.camera.up.fromArray(b.up);
+    h.controls.update();
+    h.bridge.send('bookmarkRestored', { slot });
+  };
+
+  // ── Render mode — shaded / wireframe / x-ray / ghost ──────────────────
+  // Centralised so the View menu, coordination layer, and saved-view
+  // restore path all converge on one implementation.
+  let _renderMode = 'shaded';
+  ext.setRenderMode = function (mode) {
+    const h = host(); if (!h || !h.modelRoot) return;
+    _renderMode = mode;
+    h.modelRoot.traverse(o => {
+      if (!o.isMesh || !o.material) return;
+      if (!o.userData._renderClone) {
+        o.material = o.material.clone();
+        o.userData._renderClone = true;
+        o.userData._origOpacity = o.material.opacity ?? 1;
+        o.userData._origTransparent = o.material.transparent ?? false;
+      }
+      const m = o.material;
+      m.wireframe = (mode === 'wireframe');
+      if (mode === 'xray') {
+        m.transparent = true;
+        m.opacity = 0.25;
+        m.depthWrite = false;
+      } else if (mode === 'ghost') {
+        m.transparent = true;
+        m.opacity = 0.55;
+        m.depthWrite = true;
+      } else {
+        m.transparent = o.userData._origTransparent;
+        m.opacity = o.userData._origOpacity ?? 1;
+        m.depthWrite = true;
+      }
+      m.needsUpdate = true;
+    });
+    h.bridge.send('renderMode', { mode });
+  };
+  ext.getRenderMode = function () { return _renderMode; };
+
+  // ── Edge silhouette overlay (wireframe-on-shaded) ─────────────────────
+  // Adds thin edge lines on top of shaded geometry — dramatically improves
+  // depth perception on small mobile screens. Toggleable to spare GPU on
+  // large models.
+  let _edgeGroup = null;
+  ext.setEdgeOverlay = function (enabled) {
+    const h = host(); if (!h || !h.modelRoot) return;
+    if (_edgeGroup) { h.scene.remove(_edgeGroup); _edgeGroup = null; }
+    if (!enabled) return;
+    _edgeGroup = new THREE.Group();
+    _edgeGroup.userData.skipRaycast = true;
+    const mat = new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35 });
+    h.modelRoot.traverse(o => {
+      if (!o.isMesh || !o.visible) return;
+      try {
+        const edges = new THREE.EdgesGeometry(o.geometry, 30);
+        const line = new THREE.LineSegments(edges, mat);
+        line.applyMatrix4(o.matrixWorld);
+        _edgeGroup.add(line);
+      } catch (_) {}
+    });
+    h.scene.add(_edgeGroup);
+  };
+
+  // ── Section caps — fill cut surfaces for visual closure ───────────────
+  // Renders a translucent quad on each section plane sized to model bounds.
+  // Pure visualisation — does NOT participate in clipping itself.
+  let _sectionCapsGroup = null;
+  ext.setSectionCaps = function (enabled) {
+    const h = host(); if (!h) return;
+    if (_sectionCapsGroup) { h.scene.remove(_sectionCapsGroup); _sectionCapsGroup = null; }
+    if (!enabled || sectionPlaneEntries.length === 0) return;
+    _sectionCapsGroup = new THREE.Group();
+    const size = h.modelBounds.getSize(new THREE.Vector3());
+    const cap = Math.max(size.x, size.y, size.z) * 1.2;
+    const center = h.modelBounds.getCenter(new THREE.Vector3());
+    sectionPlaneEntries.forEach(e => {
+      const geom = new THREE.PlaneGeometry(cap, cap);
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0xE8912D, side: THREE.DoubleSide,
+        transparent: true, opacity: 0.18,
+        depthWrite: false,
+      });
+      const mesh = new THREE.Mesh(geom, mat);
+      // Orient the plane geometry so its normal matches the clipping plane.
+      const n = e.plane.normal;
+      mesh.lookAt(n.x, n.y, n.z);
+      // Position: project model centre onto the plane.
+      const cToP = e.plane.distanceToPoint(center);
+      mesh.position.copy(center).addScaledVector(n, -cToP);
+      mesh.userData.skipRaycast = true;
+      _sectionCapsGroup.add(mesh);
+    });
+    h.scene.add(_sectionCapsGroup);
+  };
+  ext.refreshSectionCaps = function () {
+    // Re-render caps if they're enabled and plane set changed.
+    if (_sectionCapsGroup) ext.setSectionCaps(true);
+  };
+
+  // ── Coordinate readout — broadcast XYZ under cursor on pointermove ────
+  // Off by default (expensive raycast on every move). Coordinator UI
+  // turns it on while the Coordinates chip is visible.
+  let _coordEnabled = false;
+  let _coordListener = null;
+  ext.setCoordReadout = function (enabled) {
+    const h = host(); if (!h) return;
+    if (enabled && !_coordEnabled) {
+      _coordEnabled = true;
+      const rc = new THREE.Raycaster();
+      const v2 = new THREE.Vector2();
+      let lastEmit = 0;
+      _coordListener = (e) => {
+        const now = performance.now();
+        if (now - lastEmit < 50) return;        // throttle to 20 Hz
+        lastEmit = now;
+        const rect = h.renderer.domElement.getBoundingClientRect();
+        v2.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        v2.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        rc.setFromCamera(v2, h.camera);
+        const targets = h.modelRoot ? [h.modelRoot] : [];
+        const hits = rc.intersectObjects(targets, true);
+        if (!hits.length) { h.bridge.send('coord', { hit: false }); return; }
+        h.bridge.send('coord', { hit: true, point: hits[0].point.toArray() });
+      };
+      h.renderer.domElement.addEventListener('pointermove', _coordListener);
+    } else if (!enabled && _coordEnabled) {
+      _coordEnabled = false;
+      if (_coordListener) h.renderer.domElement.removeEventListener('pointermove', _coordListener);
+      _coordListener = null;
+      h.bridge.send('coord', { hit: false, off: true });
+    }
+  };
+
+  // ── Cumulative path measurement ───────────────────────────────────────
+  // Sequence of picks, sum of segment lengths. finish() emits the total +
+  // every leg so the host can render a polyline + breakdown.
+  let _pathPoints = [];
+  let _pathGroup = null;
+  ext.startCumulativeMeasure = function () {
+    const h = host(); if (!h) return;
+    if (_pathGroup) h.scene.remove(_pathGroup);
+    _pathGroup = new THREE.Group();
+    h.scene.add(_pathGroup);
+    _pathPoints = [];
+  };
+  ext.addCumulativePoint = function (point) {
+    const h = host(); if (!h || !_pathGroup) return;
+    const p = new THREE.Vector3(point[0], point[1], point[2]);
+    _pathPoints.push(p);
+    addMarker(_pathGroup, p, 0x0078D4);
+    if (_pathPoints.length >= 2) {
+      const a = _pathPoints[_pathPoints.length - 2];
+      drawSegment(_pathGroup, a, p, 0x0078D4);
+      const seg = a.distanceTo(p);
+      const total = _pathPoints.reduce((acc, _, i) => i ? acc + _pathPoints[i - 1].distanceTo(_pathPoints[i]) : 0, 0);
+      h.bridge.send('measurePath', { segment: seg, total, points: _pathPoints.map(v => v.toArray()) });
+    }
+  };
+  ext.finishCumulativeMeasure = function () {
+    const h = host(); if (!h) return;
+    const total = _pathPoints.reduce((acc, _, i) => i ? acc + _pathPoints[i - 1].distanceTo(_pathPoints[i]) : 0, 0);
+    h.bridge.send('measurePathFinal', { total, points: _pathPoints.map(v => v.toArray()) });
+    _pathPoints = [];
+  };
+  ext.clearCumulativeMeasure = function () {
+    const h = host(); if (!h) return;
+    if (_pathGroup) { h.scene.remove(_pathGroup); _pathGroup = null; }
+    _pathPoints = [];
+  };
+
+  // ── Full view-state snapshot ──────────────────────────────────────────
+  // Captures everything that makes a saved view *visually* reproducible:
+  // camera, render mode, exploded state, section planes/box, per-model
+  // visibility + opacity, isolated guid set, edge overlay, caps.
+  ext.captureViewState = function () {
+    const h = host(); if (!h) return null;
+    return {
+      version: 1,
+      camera: {
+        pos: h.camera.position.toArray(),
+        target: h.controls.target.toArray(),
+        up: h.camera.up.toArray(),
+        fov: h.camera.fov,
+      },
+      renderMode: _renderMode,
+      sectionPlanes: sectionPlaneEntries.map(e => ({ id: e.id, axis: e.axis, offset: e.offset })),
+      sectionBoxFaces: sectionBoxPlaneIds.slice(),
+      federation: federationModels.map(m => ({
+        label: m.label,
+        visible: m.group.visible,
+        opacity: m._opacity ?? 1,
+      })),
+      isolated: _isolatedSet ? Array.from(_isolatedSet) : null,
+      edgeOverlay: !!_edgeGroup,
+      sectionCaps: !!_sectionCapsGroup,
+    };
+  };
+
+  ext.restoreViewState = function (s) {
+    const h = host(); if (!h || !s) return;
+    // Camera first — section planes use bounds, not camera, so order is safe.
+    if (s.camera) {
+      h.camera.position.fromArray(s.camera.pos);
+      h.controls.target.fromArray(s.camera.target);
+      h.camera.up.fromArray(s.camera.up);
+      if (s.camera.fov) { h.camera.fov = s.camera.fov; h.camera.updateProjectionMatrix(); }
+      h.controls.update();
+    }
+    // Sections: replace whole set so id reuse stays consistent.
+    sectionPlaneEntries = [];
+    sectionBoxPlaneIds = [];
+    (s.sectionPlanes || []).forEach(p => {
+      if (typeof p.axis === 'string' && p.axis.startsWith('box')) return; // re-added below
+      ext.addSectionPlaneAxis(p.axis, p.offset);
+    });
+    syncClippingPlanes();
+    // Federation visibility + opacity.
+    (s.federation || []).forEach(f => {
+      ext.setModelVisible(f.label, f.visible !== false);
+      if (f.opacity != null) ext.setModelOpacity(f.label, f.opacity);
+    });
+    // Isolated set.
+    ext.setIsolatedGuids(s.isolated || null);
+    // Render mode last so material clones happen after federation changes.
+    if (s.renderMode && s.renderMode !== _renderMode) ext.setRenderMode(s.renderMode);
+    ext.setEdgeOverlay(!!s.edgeOverlay);
+    ext.setSectionCaps(!!s.sectionCaps);
+    h.bridge.send('viewStateRestored', { keys: Object.keys(s) });
+  };
 })();

@@ -400,7 +400,16 @@
         '#vWire':      () => setRenderMode('wire'),
         '#vXray':      () => setRenderMode('xray'),
         '#vGhost':     () => setRenderMode('ghost'),
-        '#vExplode':   () => toggleExplodedView()
+        '#vEdges':     () => toggleEdgeOverlay(),
+        '#vCaps':      () => toggleSectionCaps(),
+        '#vCoords':    () => toggleCoordReadout(),
+        '#vExplode':   () => toggleExplodedView(),
+        '#vTop':       () => setCameraPreset('top'),
+        '#vFront':     () => setCameraPreset('front'),
+        '#vSide':      () => setCameraPreset('right'),
+        '#vIso':       () => setCameraPreset('iso'),
+        '#vBmSave':    () => saveBookmark(1),
+        '#vBmRestore': () => restoreBookmark(1),
       });
       bindMenu('#btnIssues', '#menuIssues', {
         '#iCreate': () => openIssueModal(),
@@ -3779,6 +3788,18 @@
                      : 'replace';
           selectElementByGuid(payload.guid, mode);
         }
+        // Live XYZ readout — push values into the coord chip if it's visible.
+        if (type === 'coord' && payload) {
+          const chip = document.getElementById('coordChip');
+          if (chip && chip.style.display !== 'none') {
+            if (payload.hit && payload.point) {
+              const [x, y, z] = payload.point;
+              chip.textContent = `X ${x.toFixed(0)}  Y ${y.toFixed(0)}  Z ${z.toFixed(0)}`;
+            } else if (payload.off !== true) {
+              chip.textContent = 'XYZ —';
+            }
+          }
+        }
         // R13 — engine emits pinTap for any pin in pinMeta. Coord pins
         // tagged with __coord = 'issue' / 'clash' route into our focus
         // handlers; legacy pins (priority-only payload) keep working
@@ -4022,6 +4043,65 @@
       state.explodeFactor = state.explodeFactor > 0 ? 0 : 1;
       extras.setExplodeFactor(state.explodeFactor);
       toast(state.explodeFactor > 0 ? 'Exploded view — click View → Explode to collapse' : 'Exploded view: collapsed');
+    }
+
+    // Edge-silhouette overlay — wireframe-on-shaded for depth perception.
+    function toggleEdgeOverlay() {
+      const extras = window.STING_VIEWER_EXTRAS;
+      if (!extras || !extras.setEdgeOverlay) return;
+      state.edgeOverlay = !state.edgeOverlay;
+      extras.setEdgeOverlay(state.edgeOverlay);
+      toast(state.edgeOverlay ? 'Edge overlay ON' : 'Edge overlay OFF');
+    }
+
+    // Section caps — translucent fill at every clipping plane.
+    function toggleSectionCaps() {
+      const extras = window.STING_VIEWER_EXTRAS;
+      if (!extras || !extras.setSectionCaps) return;
+      state.sectionCaps = !state.sectionCaps;
+      extras.setSectionCaps(state.sectionCaps);
+      toast(state.sectionCaps ? 'Section caps ON' : 'Section caps OFF');
+    }
+
+    // Live XYZ readout — coordinator hovers cursor; coords stream into a chip.
+    function toggleCoordReadout() {
+      const extras = window.STING_VIEWER_EXTRAS;
+      if (!extras || !extras.setCoordReadout) return;
+      state.coordReadout = !state.coordReadout;
+      extras.setCoordReadout(state.coordReadout);
+      let chip = document.getElementById('coordChip');
+      if (!chip) {
+        chip = document.createElement('div');
+        chip.id = 'coordChip';
+        chip.style.cssText = 'position:absolute;right:12px;top:48px;background:rgba(15,18,24,0.85);border:1px solid #2a3140;border-radius:6px;padding:6px 10px;font:11px ui-monospace,monospace;color:#cdd6e3;z-index:60;pointer-events:none;display:none;';
+        chip.textContent = 'XYZ —';
+        (document.getElementById('viewerCanvas') || document.body).appendChild(chip);
+      }
+      chip.style.display = state.coordReadout ? 'block' : 'none';
+      toast(state.coordReadout ? 'Coordinates readout ON' : 'Coordinates readout OFF');
+    }
+
+    // Camera presets — orthogonal + iso through the extras layer so the
+    // walk-mode up-axis fix-up runs consistently.
+    function setCameraPreset(preset) {
+      const extras = window.STING_VIEWER_EXTRAS;
+      if (!extras || !extras.setCameraPreset) return;
+      extras.setCameraPreset(preset);
+      toast('View: ' + preset);
+    }
+
+    // Camera bookmark slots — captured in extras, persisted only in-session.
+    function saveBookmark(slot) {
+      const extras = window.STING_VIEWER_EXTRAS;
+      if (!extras || !extras.saveCameraBookmark) return;
+      extras.saveCameraBookmark(slot);
+      toast(`Bookmark ${slot} saved — View → Restore to recall`);
+    }
+    function restoreBookmark(slot) {
+      const extras = window.STING_VIEWER_EXTRAS;
+      if (!extras || !extras.restoreCameraBookmark) return;
+      extras.restoreCameraBookmark(slot);
+      toast(`Bookmark ${slot} restored`);
     }
 
     function setupSectionCard() {

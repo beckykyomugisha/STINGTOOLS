@@ -63,6 +63,35 @@ export interface ModelViewerHandle {
   measureSelectionVolume: () => void;
   // Select a mesh by its elementGuid, highlight it, and zoom the camera in.
   selectAndZoom: (guid: string) => void;
+  // Per-model opacity (federation overlay fade, 0..1).
+  setModelOpacity: (label: string, opacity: number) => void;
+  // Solo a single federation model (hide all others). Pass null to clear.
+  setModelSolo: (label: string | null) => void;
+  // Isolate a set of element GUIDs (hide everything else). Empty/null clears.
+  setIsolatedGuids: (guids: string[] | null) => void;
+  clearIsolation: () => void;
+  // Snap camera to an orthogonal or iso preset.
+  setCameraPreset: (preset: 'top' | 'bottom' | 'front' | 'back' | 'left' | 'right' | 'iso' | 'home') => void;
+  // Camera bookmark slots (1..4) — save current position, jump to it later.
+  saveCameraBookmark: (slot: number) => void;
+  restoreCameraBookmark: (slot: number) => void;
+  // Render mode — applies to whole modelRoot.
+  setRenderMode: (mode: 'shaded' | 'wireframe' | 'xray' | 'ghost') => void;
+  // Edge silhouette overlay (wireframe-on-shaded depth perception).
+  setEdgeOverlay: (enabled: boolean) => void;
+  // Section caps — fill cut surfaces of active section planes.
+  setSectionCaps: (enabled: boolean) => void;
+  // Stream cursor-XYZ on pointermove (heavy — enable only while UI consumes).
+  setCoordReadout: (enabled: boolean) => void;
+  // Multi-segment path measurement (cumulative distance).
+  startCumulativeMeasure: () => void;
+  addCumulativePoint: (point: [number, number, number]) => void;
+  finishCumulativeMeasure: () => void;
+  clearCumulativeMeasure: () => void;
+  // Full view-state snapshot — captures camera + sections + visibility + render mode.
+  // The result arrives back via the `onViewState` callback.
+  captureViewState: () => void;
+  restoreViewState: (state: object) => void;
 }
 
 interface ModelViewerProps {
@@ -96,6 +125,15 @@ interface ModelViewerProps {
   onExplodeFactor?: (e: { factor: number }) => void;
   onMarkupUpdated?: (e: { count: number }) => void;
   onMarkupCleared?: () => void;
+  onCoord?: (e: { hit: boolean; point?: [number, number, number]; off?: boolean }) => void;
+  onMeasurePath?: (e: { segment: number; total: number; points: number[][] }) => void;
+  onMeasurePathFinal?: (e: { total: number; points: number[][] }) => void;
+  onCameraPreset?: (e: { preset: string }) => void;
+  onBookmarkSaved?: (e: { slot: number; slots: number[] }) => void;
+  onBookmarkRestored?: (e: { slot: number }) => void;
+  onRenderMode?: (e: { mode: string }) => void;
+  onViewState?: (state: object) => void;
+  onViewStateRestored?: (e: { keys: string[] }) => void;
   onError?: (err: string) => void;
 }
 
@@ -207,6 +245,32 @@ export const ModelViewer = React.forwardRef<ModelViewerHandle, ModelViewerProps>
       finishArea: () => send({ type: "finishArea" }),
       measureSelectionVolume: () => send({ type: "measureVolume" }),
       selectAndZoom: (guid) => send({ type: "selectAndZoom", payload: { guid } }),
+      setModelOpacity: (label, opacity) =>
+        send({ type: "setModelOpacity", payload: { label, opacity } }),
+      setModelSolo: (label) => send({ type: "setModelSolo", payload: { label } }),
+      setIsolatedGuids: (guids) =>
+        send({ type: "setIsolatedGuids", payload: { guids } }),
+      clearIsolation: () => send({ type: "clearIsolation" }),
+      setCameraPreset: (preset) =>
+        send({ type: "setCameraPreset", payload: { preset } }),
+      saveCameraBookmark: (slot) =>
+        send({ type: "saveCameraBookmark", payload: { slot } }),
+      restoreCameraBookmark: (slot) =>
+        send({ type: "restoreCameraBookmark", payload: { slot } }),
+      setRenderMode: (mode) => send({ type: "setRenderMode", payload: { mode } }),
+      setEdgeOverlay: (enabled) =>
+        send({ type: "setEdgeOverlay", payload: { enabled } }),
+      setSectionCaps: (enabled) =>
+        send({ type: "setSectionCaps", payload: { enabled } }),
+      setCoordReadout: (enabled) =>
+        send({ type: "setCoordReadout", payload: { enabled } }),
+      startCumulativeMeasure: () => send({ type: "startCumulativeMeasure" }),
+      addCumulativePoint: (point) =>
+        send({ type: "addCumulativePoint", payload: { point } }),
+      finishCumulativeMeasure: () => send({ type: "finishCumulativeMeasure" }),
+      clearCumulativeMeasure: () => send({ type: "clearCumulativeMeasure" }),
+      captureViewState: () => send({ type: "captureViewState" }),
+      restoreViewState: (state) => send({ type: "restoreViewState", payload: state }),
     }));
 
     function onMessage(ev: WebViewMessageEvent) {
@@ -230,6 +294,15 @@ export const ModelViewer = React.forwardRef<ModelViewerHandle, ModelViewerProps>
         case "explodeFactor":        props.onExplodeFactor?.(msg.payload); break;
         case "markupUpdated":        props.onMarkupUpdated?.(msg.payload); break;
         case "markupCleared":        props.onMarkupCleared?.(); break;
+        case "coord":                props.onCoord?.(msg.payload); break;
+        case "measurePath":          props.onMeasurePath?.(msg.payload); break;
+        case "measurePathFinal":     props.onMeasurePathFinal?.(msg.payload); break;
+        case "cameraPreset":         props.onCameraPreset?.(msg.payload); break;
+        case "bookmarkSaved":        props.onBookmarkSaved?.(msg.payload); break;
+        case "bookmarkRestored":     props.onBookmarkRestored?.(msg.payload); break;
+        case "renderMode":           props.onRenderMode?.(msg.payload); break;
+        case "viewState":            props.onViewState?.(msg.payload); break;
+        case "viewStateRestored":    props.onViewStateRestored?.(msg.payload); break;
       }
     }
 

@@ -538,7 +538,19 @@
   <div class="menu-item" id="vWire">▦ Wireframe</div>
   <div class="menu-item" id="vXray">◌ X-Ray</div>
   <div class="menu-item" id="vGhost">◑ Ghosted</div>
+  <div class="menu-sep"></div>
+  <div class="menu-item" id="vEdges">┃ Edge overlay</div>
+  <div class="menu-item" id="vCaps">▤ Section caps</div>
+  <div class="menu-item" id="vCoords">⌖ Coordinates readout</div>
   <div class="menu-item" id="vExplode">⊕ Exploded view</div>
+  <div class="menu-sep"></div>
+  <div class="menu-item" id="vTop">⬆ Top</div>
+  <div class="menu-item" id="vFront">⬛ Front</div>
+  <div class="menu-item" id="vSide">▶ Side</div>
+  <div class="menu-item" id="vIso">◆ Iso</div>
+  <div class="menu-sep"></div>
+  <div class="menu-item" id="vBmSave">⭐ Save bookmark 1</div>
+  <div class="menu-item" id="vBmRestore">↺ Restore bookmark 1</div>
 </div>
 <div class="menu" id="menuIssues">
   <div class="menu-item" id="iCreate">＋ Create issue</div>
@@ -985,6 +997,27 @@
         case 'addAreaPoint':           return p.point ? x.addAreaPoint(p.point) : undefined;
         case 'finishArea':             return x.finishArea();
         case 'measureVolume':          return x.measureSelectionVolume();
+        case 'setModelOpacity':        return x.setModelOpacity(p.label, p.opacity);
+        case 'setModelSolo':           return x.setModelSolo(p.label ?? null);
+        case 'setIsolatedGuids':       return x.setIsolatedGuids(p.guids || null);
+        case 'clearIsolation':         return x.clearIsolation();
+        case 'setCameraPreset':        return x.setCameraPreset(p.preset || 'iso');
+        case 'saveCameraBookmark':     return x.saveCameraBookmark(p.slot);
+        case 'restoreCameraBookmark':  return x.restoreCameraBookmark(p.slot);
+        case 'setRenderMode':          return x.setRenderMode(p.mode || 'shaded');
+        case 'setEdgeOverlay':         return x.setEdgeOverlay(!!p.enabled);
+        case 'setSectionCaps':         return x.setSectionCaps(!!p.enabled);
+        case 'setCoordReadout':        return x.setCoordReadout(!!p.enabled);
+        case 'startCumulativeMeasure': return x.startCumulativeMeasure();
+        case 'addCumulativePoint':     return p.point ? x.addCumulativePoint(p.point) : undefined;
+        case 'finishCumulativeMeasure':return x.finishCumulativeMeasure();
+        case 'clearCumulativeMeasure': return x.clearCumulativeMeasure();
+        case 'captureViewState': {
+          const s = x.captureViewState();
+          if (s) window.STING_VIEWER.bridge.send('viewState', s);
+          return;
+        }
+        case 'restoreViewState':       return x.restoreViewState(p);
       }
     }
     return _origHandle(cmd);
