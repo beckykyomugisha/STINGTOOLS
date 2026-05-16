@@ -341,6 +341,9 @@ builder.Services.AddScoped<Planscape.API.BackgroundJobs.MaintenanceTaskScheduler
 // Clash detection — AABB overlap between SceneNodes of different disciplines.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.IClashDetectionJob,
                            Planscape.Infrastructure.Services.ClashDetectionJob>();
+// Clash automation — auto-issue / push / webhook triggers for new clashes.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IClashAutomationService,
+                           Planscape.Infrastructure.Services.ClashAutomationService>();
 
 // ── Platform Connectors ──
 builder.Services.AddSingleton<Planscape.Core.Interfaces.IPlatformConnector, Planscape.Infrastructure.Services.AccConnector>();
