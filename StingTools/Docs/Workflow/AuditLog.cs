@@ -62,10 +62,22 @@ namespace Planscape.Docs.Workflow
 
                     if (!_writers.TryGetValue(path, out var writer))
                     {
-                        var fs = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read);
-                        writer = new StreamWriter(fs, new UTF8Encoding(false)) { AutoFlush = true };
-                        _streams[path] = fs;
-                        _writers[path] = writer;
+                        // Exception-safe creation: if StreamWriter construction or
+                        // dictionary insertion throws, the FileStream is disposed
+                        // rather than leaking the OS file handle until Shutdown.
+                        FileStream fs = null;
+                        try
+                        {
+                            fs = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read);
+                            writer = new StreamWriter(fs, new UTF8Encoding(false)) { AutoFlush = true };
+                            _streams[path] = fs;
+                            _writers[path] = writer;
+                            fs = null; // ownership transferred to the cache
+                        }
+                        finally
+                        {
+                            if (fs != null) try { fs.Dispose(); } catch (Exception fsEx) { StingLog.Warn($"AuditLog cleanup: {fsEx.Message}"); }
+                        }
                     }
                     writer.WriteLine(line);
                 }

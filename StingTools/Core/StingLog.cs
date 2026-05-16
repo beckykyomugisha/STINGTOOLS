@@ -146,6 +146,30 @@ namespace StingTools.Core
             Info($"Cache stats — DrawingTypeRegistry:   {fmt(_dtRegistryHits, _dtRegistryMisses)}");
         }
 
+        // ── Rate-limited logging ──────────────────────────────────────
+        // IUpdater Execute methods, foreach loops over thousands of elements, and
+        // FilteredElementCollector iterations can fire the same warning thousands of
+        // times in one batch. WarnRateLimited(key, msg) emits the first 5 occurrences
+        // and every 100th thereafter, with a count suffix so the log shows scale.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, int> _rateLimitCounters
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, int>();
+
+        /// <summary>
+        /// Emit a Warn line that throttles itself by <paramref name="key"/>.
+        /// First 5 occurrences and every 100th thereafter are logged; intermediate
+        /// occurrences are silently dropped. Use for catch blocks inside hot loops
+        /// or IUpdater handlers.
+        /// </summary>
+        public static void WarnRateLimited(string key, string message)
+        {
+            int n = _rateLimitCounters.AddOrUpdate(key ?? "", 1, (_, old) => old + 1);
+            if (n <= 5 || n % 100 == 0)
+                Warn($"{message} [{key} occurrence #{n}]");
+        }
+
+        /// <summary>Reset rate-limit counters between long-lived sessions. Diagnostic only.</summary>
+        public static void ResetRateLimits() => _rateLimitCounters.Clear();
+
         /// <summary>E-1: reset all cache hit/miss counters (use sparingly — diagnostics only).</summary>
         public static void ResetCacheStats()
         {
@@ -213,8 +237,21 @@ namespace StingTools.Core
                 // FileStream immediately. Combined with FileStream.Flush(flushToDisk: true)
                 // below, this guarantees log entries survive native Revit crashes that
                 // kill the process without running finalizers or flush callbacks.
-                var stream = new FileStream(LogPath, FileMode.Append, FileAccess.Write, FileShare.Read);
-                _writer = new StreamWriter(stream) { AutoFlush = true };
+                //
+                // Exception-safe construction: if StreamWriter throws between
+                // FileStream creation and _writer assignment, dispose the
+                // FileStream rather than leaking its file handle.
+                FileStream stream = null;
+                try
+                {
+                    stream = new FileStream(LogPath, FileMode.Append, FileAccess.Write, FileShare.Read);
+                    _writer = new StreamWriter(stream) { AutoFlush = true };
+                    stream = null; // ownership transferred to _writer
+                }
+                finally
+                {
+                    if (stream != null) try { stream.Dispose(); } catch { /* best effort */ }
+                }
             }
         }
 
