@@ -538,6 +538,7 @@
   <div class="menu-item" id="vWire">▦ Wireframe</div>
   <div class="menu-item" id="vXray">◌ X-Ray</div>
   <div class="menu-item" id="vGhost">◑ Ghosted</div>
+  <div class="menu-item" id="vExplode">⊕ Exploded view</div>
 </div>
 <div class="menu" id="menuIssues">
   <div class="menu-item" id="iCreate">＋ Create issue</div>
@@ -966,13 +967,24 @@
     const p = (cmd && cmd.payload) || {};
     if (x) {
       switch (cmd.type) {
-        case 'loadFederation':    return x.loadFederation(p.sources || []);
-        case 'setSectionPlane':   return x.setSectionPlane(p);
-        case 'setWalkthrough':    return x.setWalkthrough(!!p.enabled);
-        case 'startArea':         return x.startArea();
-        case 'addAreaPoint':      return p.point ? x.addAreaPoint(p.point) : undefined;
-        case 'finishArea':        return x.finishArea();
-        case 'measureVolume':     return x.measureSelectionVolume();
+        case 'loadFederation':        return x.loadFederation(p.sources || []);
+        case 'setSectionPlane':        return x.setSectionPlane(p);
+        case 'addSectionPlaneAxis':    return x.addSectionPlaneAxis(p.axis, p.offset);
+        case 'updateSectionPlane':     return x.updateSectionPlane(p.id, p.offset);
+        case 'removeSectionPlane':     return x.removeSectionPlane(p.id);
+        case 'clearSectionPlanes':     return x.clearSectionPlanes();
+        case 'setSectionBox':          return x.setSectionBox(p);
+        case 'updateSectionBoxFace':   return x.updateSectionBoxFace(p.faceIndex, p.offsetMm);
+        case 'clearSectionBox':        return x.clearSectionBox();
+        case 'setModelVisible':        return x.setModelVisible(p.label, p.visible);
+        case 'setExplodeFactor':       return x.setExplodeFactor(p.factor ?? 0);
+        case 'startMarkup':            return x.startMarkup(p.mode || null);
+        case 'clearMarkup':            return x.clearMarkup();
+        case 'setWalkthrough':         return x.setWalkthrough(!!p.enabled);
+        case 'startArea':              return x.startArea();
+        case 'addAreaPoint':           return p.point ? x.addAreaPoint(p.point) : undefined;
+        case 'finishArea':             return x.finishArea();
+        case 'measureVolume':          return x.measureSelectionVolume();
       }
     }
     return _origHandle(cmd);

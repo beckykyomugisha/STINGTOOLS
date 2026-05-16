@@ -344,6 +344,8 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.IClashDetectionJob,
 // Clash automation — auto-issue / push / webhook triggers for new clashes.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.IClashAutomationService,
                            Planscape.Infrastructure.Services.ClashAutomationService>();
+// Daily clash scan job — Hangfire activates a fresh scope per invocation.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.DailyClashScanJob>();
 
 // ── Platform Connectors ──
 builder.Services.AddSingleton<Planscape.Core.Interfaces.IPlatformConnector, Planscape.Infrastructure.Services.AccConnector>();
@@ -1237,6 +1239,13 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DunningJob>(
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.FlutterwaveRenewalJob>(
     "fw-renewals", j => j.ExecuteAsync(CancellationToken.None),
     "30 5 * * *", new RecurringJobOptions { QueueName = "default" });
+
+// Daily clash detection — 01:00 UTC. Runs on the "default" queue; clash
+// detection is CPU-bound (AABB pairwise) but short-lived. Route to "heavy"
+// if large projects routinely exceed the concurrency window.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DailyClashScanJob>(
+    "daily-clash-scan", j => j.ExecuteAsync(CancellationToken.None),
+    "0 1 * * *", new RecurringJobOptions { QueueName = "default" });
 
 // S3.2 — outbox dispatcher (every minute). Drains OutboxMessages with
 // at-least-once + exponential-backoff retry; dead-letters after 6 attempts.
