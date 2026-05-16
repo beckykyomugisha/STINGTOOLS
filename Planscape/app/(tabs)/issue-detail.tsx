@@ -1348,6 +1348,14 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.md,
     fontWeight: '600',
   },
+  actionButtonModel: {
+    backgroundColor: theme.colors.primary + 'CC',
+  },
+  actionButtonModelText: {
+    color: theme.colors.surface,
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+  },
 
   // MODEL-VIEWER — inline 3D context.
   viewerSection: {
