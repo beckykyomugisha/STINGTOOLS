@@ -1619,3 +1619,16 @@ export function getPenetrationDashboard(projectId: string): Promise<{
 }> {
   return apiFetch(`/api/projects/${projectId}/penetrations/dashboard`);
 }
+
+// ── Spatial structure (building levels + zones) for capture photo dropdowns ──
+// GET /api/projects/{projectId}/spatial
+// Returns ISO 19650-aligned level and zone codes for the project.
+// Later phase: populated from IfcBuildingStorey elements in uploaded IFC models.
+
+export interface SpatialLevel { code: string; label: string; }
+export interface SpatialZone  { code: string; label: string; }
+export interface SpatialStructure { levels: SpatialLevel[]; zones: SpatialZone[]; }
+
+export function getSpatialStructure(projectId: string): Promise<SpatialStructure> {
+  return apiFetch<SpatialStructure>(`/api/projects/${projectId}/spatial`);
+}
