@@ -313,66 +313,21 @@ export default function IssueDetailScreen() {
   }, [issue, project, showResolvedSiblings]);
 
   /**
-   * Zoom to element — after the embedded ModelViewer reports ready and the
-   * issue carries a modelElementGuid, select and fit-zoom to that element.
-   * Uses the `clearHighlight` + injected JS path because the public handle
-   * only exposes `fit()` (whole-model fit).  We inject a `selectByGuid`
-   * call that the viewer's existing scene-traversal supports via userData.
+   * Zoom to element — once the embedded ModelViewer reports ready and the
+   * issue carries a modelElementGuid, fit the whole model for context then
+   * targeted-zoom to the matching mesh via the viewer handle's
+   * `selectAndZoom` command (wired through to viewer.html, which traverses
+   * the scene by elementGuid and frames the AABB).
    */
   useEffect(() => {
     if (!viewerReady || !issue?.modelElementGuid || !viewerRef.current) return;
-    // Inject JS to traverse the scene, find the mesh whose elementGuid
-    // matches, highlight it, and fit the camera to its bounding box.
-    // The viewer exposes `window.__viewer` with a `highlightedMesh` getter
-    // and the `scene` / `camera` / `controls` / `modelBounds` globals.
-    const guid = issue.modelElementGuid;
-    const js = `
-      (function() {
-        try {
-          var target = null;
-          if (window.scene) {
-            window.scene.traverse(function(obj) {
-              if (obj.userData && obj.userData.elementGuid === '${guid}') target = obj;
-            });
-          }
-          if (target) {
-            // Compute bounding box and fit camera
-            var box = new THREE.Box3().setFromObject(target);
-            if (!box.isEmpty()) {
-              var size = box.getSize(new THREE.Vector3());
-              var centre = box.getCenter(new THREE.Vector3());
-              var maxDim = Math.max(size.x, size.y, size.z);
-              var dist = maxDim * 2.5;
-              if (window.camera && window.controls) {
-                camera.position.copy(centre).add(new THREE.Vector3(dist, dist * 0.8, dist));
-                controls.target.copy(centre);
-                controls.update();
-              }
-              // Highlight using the existing highlight() function if available
-              if (typeof highlight === 'function') highlight(target);
-            }
-          }
-        } catch(e) {}
-      })();
-      true;
-    `;
-    // Use the handle's internal `send` via injectJavaScript — we reach the
-    // WebView through the ref's underlying implementation.  Since the handle
-    // doesn't expose `injectJavaScript` directly, we use `fit()` for a
-    // coarse camera reset then fire the element-specific JS separately.
-    // The `fit()` call ensures the model is at least visible before our
-    // targeted zoom runs.
+    // Two-step zoom: whole-model fit (for context), then targeted zoom.
     viewerRef.current.fit();
-    // Give the viewer a tick to process the fit, then inject the targeted zoom.
-    setTimeout(() => {
-      // Access via the ref's forwarded webRef isn't public, so we use a
-      // second fit() to trigger the ready pipeline and rely on our injected
-      // JS running via a second injectJavaScript call.  The real injection
-      // path goes through the ModelViewer's `send()` helper — we build an
-      // equivalent `load` noop to stay on that path.
-      // For now call fit() so at minimum the whole model is in frame; the
-      // element-specific JS below is additive best-effort.
-    }, 80);
+    // Give the renderer one frame to commit the fit before the targeted zoom.
+    const t = setTimeout(() => {
+      viewerRef.current?.selectAndZoom(issue.modelElementGuid!);
+    }, 120);
+    return () => clearTimeout(t);
   }, [viewerReady, issue?.modelElementGuid]);
 
   /**

@@ -89,51 +89,15 @@ export default function ModelViewerScreen() {
 
   // Zoom-to-element — when the screen is launched from an issue detail via
   // /models/[id]?highlightElement=<guid>&issueId=<id>, wait for the viewer to
-  // report ready then select and fit the camera to the target element.
+  // report ready then fit the whole model for context and select+zoom to the
+  // target via the viewer handle's `selectAndZoom` command.
   useEffect(() => {
-    if (!viewerReady || !highlightElement) return;
-    // `fit()` resets the camera to the whole model first so the user has
-    // context, then we immediately try to fit to the specific element.
-    viewerRef.current?.fit();
-    // Inject JS to traverse the scene and zoom to the matching mesh.
-    // THREE is available as a global inside the viewer WebView.
-    const guid = highlightElement;
-    const js = `
-      (function() {
-        try {
-          var target = null;
-          if (window.scene) {
-            window.scene.traverse(function(obj) {
-              if (obj.userData && obj.userData.elementGuid === '${guid}') target = obj;
-            });
-          }
-          if (target) {
-            var box = new THREE.Box3().setFromObject(target);
-            if (!box.isEmpty()) {
-              var size = box.getSize(new THREE.Vector3());
-              var centre = box.getCenter(new THREE.Vector3());
-              var maxDim = Math.max(size.x, size.y, size.z);
-              var dist = maxDim * 2.5;
-              if (window.camera && window.controls) {
-                camera.position.copy(centre).add(new THREE.Vector3(dist, dist * 0.8, dist));
-                controls.target.copy(centre);
-                controls.update();
-              }
-              if (typeof highlight === 'function') highlight(target);
-            }
-          }
-        } catch(e) { console.warn('[viewer] zoom-to-element failed', e); }
-      })();
-      true;
-    `;
-    // Inject through the viewer's internal WebView reference by using the
-    // handle's `fit` then a second pass via a load noop — but since the
-    // public handle doesn't expose injectJavaScript, we rely on `fit()` as
-    // a coarse first-pass and accept that the element highlight is
-    // best-effort (the viewer doesn't yet expose a selectByGuid command).
-    // The user still lands on the correct model with the pins visible.
-    // TODO: expose a `selectByGuid` command in ModelViewerHandle when the
-    // viewer HTML gains that message-type handler.
+    if (!viewerReady || !highlightElement || !viewerRef.current) return;
+    viewerRef.current.fit();
+    const t = setTimeout(() => {
+      viewerRef.current?.selectAndZoom(highlightElement);
+    }, 120);
+    return () => clearTimeout(t);
   }, [viewerReady, highlightElement]);
 
   function onPick(e: PickEvent) {

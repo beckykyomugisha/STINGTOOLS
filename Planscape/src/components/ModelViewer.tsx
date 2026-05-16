@@ -45,6 +45,8 @@ export interface ModelViewerHandle {
   finishArea: () => void;
   // Volume of the currently highlighted element's AABB.
   measureSelectionVolume: () => void;
+  // Select a mesh by its elementGuid, highlight it, and zoom the camera in.
+  selectAndZoom: (guid: string) => void;
 }
 
 interface ModelViewerProps {
@@ -165,6 +167,7 @@ export const ModelViewer = React.forwardRef<ModelViewerHandle, ModelViewerProps>
       addAreaPoint: (point) => send({ type: "addAreaPoint", payload: { point } }),
       finishArea: () => send({ type: "finishArea" }),
       measureSelectionVolume: () => send({ type: "measureVolume" }),
+      selectAndZoom: (guid) => send({ type: "selectAndZoom", payload: { guid } }),
     }));
 
     function onMessage(ev: WebViewMessageEvent) {
