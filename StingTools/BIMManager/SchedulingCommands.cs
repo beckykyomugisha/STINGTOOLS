@@ -576,7 +576,9 @@ namespace StingTools.BIMManager
                     if (upper.StartsWith("PT") && upper.Contains("H"))
                     {
                         string hoursPart = upper.Replace("PT", "").Split('H')[0];
-                        if (double.TryParse(hoursPart, out double hours))
+                        // InvariantCulture: ISO 8601 PTnH duration always uses "." as decimal
+                        if (double.TryParse(hoursPart, System.Globalization.NumberStyles.Float,
+                                System.Globalization.CultureInfo.InvariantCulture, out double hours))
                             return Math.Max(1, (int)Math.Ceiling(hours / 8.0));
                     }
                     else if (upper.Contains("D"))

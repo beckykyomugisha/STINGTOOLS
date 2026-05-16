@@ -39,8 +39,10 @@ namespace StingTools.V6
                 if (string.IsNullOrWhiteSpace(raw) || raw.StartsWith("#")) continue;
                 var cols = StingToolsApp.ParseCsvLine(raw);
                 if (cols == null || cols.Length < 6) continue;
-                if (!double.TryParse(cols[3], out var hpu)) continue;
-                double gph = 0; double.TryParse(cols[5], out gph);
+                // InvariantCulture: CSV uses "." as the decimal separator everywhere.
+                var inv = System.Globalization.CultureInfo.InvariantCulture;
+                if (!double.TryParse(cols[3], System.Globalization.NumberStyles.Float, inv, out var hpu)) continue;
+                double gph = 0; double.TryParse(cols[5], System.Globalization.NumberStyles.Float, inv, out gph);
                 list.Add(new Rate
                 {
                     Category = cols[0].Trim(),
