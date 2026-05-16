@@ -475,6 +475,10 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.ModelDerivativeJob>
 // ONNX models without dragging the dependency into the API process.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.RedactPublishedPhotoJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.DailyPhotoDigestJob>();
+// Gap 1 — server-side audio transcription stub (STT provider wired later).
+builder.Services.AddScoped<Planscape.Infrastructure.Services.AudioTranscriptionJob>();
+// Gap 3 — periodic retry for SitePhotos whose redaction failed.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.RetryFailedRedactionJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoPipeline.IPhotoRedactionPipeline,
     Planscape.Infrastructure.Services.PhotoPipeline.SkiaPhotoRedactionPipeline>();
 
@@ -1311,6 +1315,14 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DataErasureJob>(
 RecurringJob.AddOrUpdate<Planscape.API.BackgroundJobs.MaintenanceTaskSchedulerJob>(
     "maintenance-task-scheduler", j => j.ExecuteAsync(),
     "0 6 * * *", new RecurringJobOptions { QueueName = "default" });
+
+// Gap 3 — retry site-photo redactions that failed due to transient errors.
+// Runs every 4 hours; capped at 50 photos per run to avoid queue floods.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.RetryFailedRedactionJob>(
+    "retry-failed-redactions",
+    j => j.RunAsync(CancellationToken.None),
+    "0 */4 * * *",
+    new RecurringJobOptions { QueueName = "photo-redaction" });
 
 // Seed the well-known 'planscape' platform tenant idempotently on startup
 // so /api/platform/revenue + SlaBurnRateJob alerts find their target.
