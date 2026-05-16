@@ -322,7 +322,11 @@ def _extract_elements(model) -> list[dict]:
     elements: list[dict] = []
 
     for ifc_class, sting_type in _IFC_TO_STING_TYPE.items():
-        for el in model.by_type(ifc_class):
+        try:
+            instances = model.by_type(ifc_class)
+        except RuntimeError:
+            continue  # class not present in this IFC schema version (e.g. IFC2X3 vs IFC4)
+        for el in instances:
             if not el.GlobalId:
                 continue
 
