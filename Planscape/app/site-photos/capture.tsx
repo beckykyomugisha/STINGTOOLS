@@ -472,9 +472,9 @@ export default function CaptureSitePhotoScreen() {
         {/* T3-7 — Voice-to-text dictation alongside the caption. The
             recording is queued as ATTACH_AUDIO; if this capture has an
             anchor issue id we link it directly, otherwise it queues under
-            "__pending__" and surfaces in conflict triage if the receiver
-            endpoint isn't there yet.
-            TODO-SERVER: receiver endpoint stubbed in endpoints.ts. */}
+            "__pending__" and surfaces in conflict triage.
+            The /audio-notes server endpoint is live; ATTACH_AUDIO actions
+            replay cleanly via replayAction in offlineQueue.ts. */}
         <AudioRecorder
           projectId={projectId}
           issueId={params.anchorIssueId}
