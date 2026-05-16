@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Hangfire;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -8,6 +9,7 @@ using Planscape.API.Services;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.Services;
 using Planscape.Infrastructure.SignalR;
 using Planscape.API.Authorization;
 
@@ -30,6 +32,7 @@ public class IssuesController : ControllerBase
     private readonly IAuditService _audit;
     private readonly IHubContext<NotificationHub> _notifHub;
     private readonly Planscape.Infrastructure.Services.OutboundWebhookDispatcher? _webhooks;
+    private readonly IBackgroundJobClient _backgroundJobs;
 
     private static readonly Dictionary<string, int> SLAHours = new()
     {
@@ -50,6 +53,7 @@ public class IssuesController : ControllerBase
         ILogger<IssuesController> logger,
         IAuditService audit,
         IHubContext<NotificationHub> notifHub,
+        IBackgroundJobClient backgroundJobs,
         Planscape.Infrastructure.Services.OutboundWebhookDispatcher? webhooks = null)
     {
         _db = db;
@@ -61,6 +65,7 @@ public class IssuesController : ControllerBase
         _logger = logger;
         _audit = audit;
         _notifHub = notifHub;
+        _backgroundJobs = backgroundJobs;
         _webhooks = webhooks;
     }
 
@@ -1006,6 +1011,98 @@ public class IssuesController : ControllerBase
     {
         int hours = SLAHours.GetValueOrDefault(priority, 168);
         return DateTime.UtcNow.AddHours(hours);
+    }
+
+    // ── Audio Notes (S6.1 / Gap 1) ──────────────────────────────────────────
+
+    /// <summary>
+    /// Upload a voice note for an issue. Accepts m4a/mp4/aac/wav/webm/ogg.
+    /// Enqueues a server-side transcription job after persisting the file.
+    /// </summary>
+    // POST /api/projects/{projectId}/issues/{issueId}/audio-notes
+    [HttpPost("{issueId:guid}/audio-notes")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(50 * 1024 * 1024)]
+    public async Task<IActionResult> CaptureAudioNote(
+        Guid projectId, Guid issueId,
+        IFormFile file,
+        [FromForm] int durationSec,
+        [FromForm] string? idempotencyKey)
+    {
+        var tenantId = GetTenantId();
+        var issue = await _db.Issues
+            .FirstOrDefaultAsync(i => i.Id == issueId && i.ProjectId == projectId && i.Project!.TenantId == tenantId);
+        if (issue == null) return NotFound();
+        if (file == null || file.Length == 0) return BadRequest(new { message = "Audio file required" });
+        if (file.Length > 50 * 1024 * 1024) return BadRequest(new { message = "Audio file must be ≤ 50 MB" });
+
+        // Idempotency: skip if already processed
+        if (!string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            var exists = await _db.IssueAudioNotes
+                .AnyAsync(a => a.IdempotencyKey == idempotencyKey && a.IssueId == issueId);
+            if (exists) return Ok(new { message = "already_processed" });
+        }
+
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (ext is not (".m4a" or ".mp4" or ".aac" or ".wav" or ".webm" or ".ogg"))
+            return BadRequest(new { message = "Unsupported audio format" });
+
+        var safeName = $"audio_{issueId:N}_{DateTime.UtcNow:yyyyMMddHHmmss}{ext}";
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
+        var tenantSlug = project!.Code; // used as the first path segment in SaveAsync
+
+        await using var stream = file.OpenReadStream();
+        var storagePath = await _storage.SaveAsync(tenantSlug, $"{project.Code}/audio-notes", safeName, stream);
+
+        var uploaderName = User.FindFirst("display_name")?.Value ?? "Unknown";
+        var note = new IssueAudioNote
+        {
+            TenantId = tenantId,
+            IssueId = issueId,
+            StoragePath = storagePath,
+            DurationSeconds = durationSec,
+            FileSizeBytes = file.Length,
+            MimeType = file.ContentType ?? "audio/mp4",
+            CreatedBy = uploaderName,
+            IdempotencyKey = idempotencyKey,
+            CreatedAt = DateTime.UtcNow,
+        };
+        _db.IssueAudioNotes.Add(note);
+        await _db.SaveChangesAsync();
+
+        // Enqueue transcription job (fire-and-forget)
+        _backgroundJobs.Enqueue<AudioTranscriptionJob>(j => j.TranscribeAsync(note.Id, CancellationToken.None));
+
+        return Ok(new { id = note.Id, status = "Pending", storagePath });
+    }
+
+    // ── Attachment Direct Download (Gap 2) ───────────────────────────────────
+
+    /// <summary>
+    /// Stream the raw file for an attachment directly (for download or inline
+    /// preview). Returns the stored file with its original Content-Type.
+    /// </summary>
+    // GET /api/projects/{projectId}/issues/{issueId}/attachments/{attachmentId}/file
+    [HttpGet("{issueId:guid}/attachments/{attachmentId:guid}/file")]
+    public async Task<IActionResult> DownloadAttachment(Guid projectId, Guid issueId, Guid attachmentId)
+    {
+        var tenantId = GetTenantId();
+        var att = await _db.IssueAttachments
+            .Include(a => a.Document)
+            .Include(a => a.Issue)
+            .FirstOrDefaultAsync(a => a.Id == attachmentId
+                && a.IssueId == issueId
+                && a.Issue!.ProjectId == projectId
+                && a.Issue.Project!.TenantId == tenantId);
+        if (att?.Document == null) return NotFound();
+
+        var stream = await _storage.GetAsync(att.Document.FilePath, ct: default);
+        if (stream == null) return NotFound(new { message = "File not found in storage" });
+
+        var contentType = att.Document.ContentType ?? "application/octet-stream";
+        Response.Headers["Content-Disposition"] = $"inline; filename=\"{att.Document.FileName}\"";
+        return File(stream, contentType);
     }
 
     private Guid GetTenantId() =>

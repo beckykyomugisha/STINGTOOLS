@@ -495,11 +495,14 @@ public class PlanscapeDbContext : DbContext
         {
             e.HasKey(n => n.Id);
             e.HasIndex(n => n.IssueId);
+            e.HasIndex(n => new { n.IssueId, n.IdempotencyKey }).IsUnique()
+                .HasFilter("\"IdempotencyKey\" IS NOT NULL"); // partial: only unique when supplied
             e.HasOne(n => n.Document).WithMany().HasForeignKey(n => n.DocumentId).OnDelete(DeleteBehavior.SetNull);
             e.Property(n => n.StoragePath).HasMaxLength(500).IsRequired();
             e.Property(n => n.Language).HasMaxLength(8);
             e.Property(n => n.MimeType).HasMaxLength(40).IsRequired();
             e.Property(n => n.CreatedBy).HasMaxLength(120);
+            e.Property(n => n.IdempotencyKey).HasMaxLength(100);
         });
 
         // ── DocumentRecord ──

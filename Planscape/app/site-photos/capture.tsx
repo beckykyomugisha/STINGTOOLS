@@ -39,6 +39,7 @@ import {
 } from '@/components/site-photos/classifier';
 import { captureSitePhoto } from '@/api/endpoints';
 import { enqueue, persistPhotoForQueue, queuedPhotoStats } from '@/utils/offlineQueue';
+import { computePairKey } from '@/services/imageService';
 import { AudioRecorder } from '@/components/AudioRecorder';
 import type { SitePhotoCaptureMeta, SitePhotoReason } from '@/types/api';
 
@@ -84,6 +85,7 @@ export default function CaptureSitePhotoScreen() {
   const [zoneCode, setZoneCode] = useState('');
   const [saving, setSaving] = useState(false);
   const [queuedHint, setQueuedHint] = useState<string | null>(null);
+  const [pairKey, setPairKey] = useState<string | null>(null);
 
   const cameraRef = useRef<CameraView | null>(null);
 
@@ -160,6 +162,10 @@ export default function CaptureSitePhotoScreen() {
       };
       setShot(taken);
 
+      // Compute perceptual hash for duplicate-detection (pairKey) — fire and
+      // forget on the capture path; failure is non-fatal.
+      computePairKey(pic.uri).then(setPairKey).catch(() => setPairKey(null));
+
       // Run classifier and pre-select the reason chip.
       const ctx = paramsContext(params.context);
       const classifier = classifyCapture({
@@ -220,6 +226,7 @@ export default function CaptureSitePhotoScreen() {
           fileName: `site-photo-${Date.now()}.jpg`,
           contentType: 'image/jpeg',
           meta: { ...meta, queuedClient: false },
+          pairKey: pairKey ?? undefined,
         });
         Alert.alert(
           'Photo saved',
@@ -239,6 +246,7 @@ export default function CaptureSitePhotoScreen() {
           fileName: `site-photo-${Date.now()}.jpg`,
           mimeType: 'image/jpeg',
           meta: { ...meta, queuedClient: true },
+          pairKey: pairKey ?? undefined,
         });
         Alert.alert(
           'Saved offline',
@@ -256,6 +264,7 @@ export default function CaptureSitePhotoScreen() {
           fileName: `site-photo-${Date.now()}.jpg`,
           mimeType: 'image/jpeg',
           meta: { ...meta, queuedClient: true },
+          pairKey: pairKey ?? undefined,
         });
         Alert.alert(
           'Upload failed — queued for retry',
