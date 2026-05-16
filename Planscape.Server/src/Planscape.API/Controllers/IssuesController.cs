@@ -1097,10 +1097,22 @@ public class IssuesController : ControllerBase
                 && a.Issue.Project!.TenantId == tenantId);
         if (att?.Document == null) return NotFound();
 
-        var stream = await _storage.GetAsync(att.Document.FilePath, ct: default);
+        var filePath = att.Document.FilePath;
+        if (string.IsNullOrEmpty(filePath)) return NotFound(new { message = "File path not recorded" });
+
+        var stream = await _storage.GetAsync(filePath, ct: default);
         if (stream == null) return NotFound(new { message = "File not found in storage" });
 
-        var contentType = att.Document.ContentType ?? "application/octet-stream";
+        // DocumentRecord has no ContentType property — derive from extension
+        var ext = Path.GetExtension(att.Document.FileName).ToLowerInvariant();
+        var contentType = ext switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".pdf" => "application/pdf",
+            ".webp" => "image/webp",
+            _ => "application/octet-stream",
+        };
         Response.Headers["Content-Disposition"] = $"inline; filename=\"{att.Document.FileName}\"";
         return File(stream, contentType);
     }
