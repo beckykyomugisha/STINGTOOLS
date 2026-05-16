@@ -24,24 +24,23 @@ log = logging.getLogger(__name__)
 
 
 def _patch_ifcopenshell_del() -> None:
-    """
-    Patch ifcopenshell.file.__del__ to swallow the KeyError that fires when
-    the C++ file handle is freed before Python GC runs __del__.
+    pass  # patching now happens per-model in _patch_model_del()
 
-    We resolve the class by opening a tiny in-memory IFC model so we get the
-    actual runtime class (avoids the import ambiguity between the file module
-    and the file class that exists in ifcopenshell 0.7+).
+
+def _patch_model_del(model) -> None:
+    """
+    Patch __del__ on the exact runtime class of this model instance.
+    Called immediately after ifcopenshell.open() so the class is known.
+    Swallows the KeyError that fires when the C++ handle is freed before
+    Python GC runs __del__ (upstream ifcopenshell bug).
     """
     try:
-        import ifcopenshell  # type: ignore
-
-        # Probe: open a minimal in-memory model to get the real file class.
-        probe = ifcopenshell.file(schema="IFC4")
-        file_cls = type(probe)
-        del probe
-
+        file_cls = type(model)
         _orig_del = getattr(file_cls, "__del__", None)
         if _orig_del is None:
+            return
+        # Guard: only patch once per class
+        if getattr(file_cls, "_sting_del_patched", False):
             return
 
         def _safe_del(self):
@@ -51,7 +50,8 @@ def _patch_ifcopenshell_del() -> None:
                 pass
 
         file_cls.__del__ = _safe_del
-        log.debug("ifcopenshell __del__ patched successfully")
+        file_cls._sting_del_patched = True
+        log.debug("ifcopenshell %s.__del__ patched", file_cls.__name__)
     except Exception as e:
         log.debug("ifcopenshell __del__ patch skipped: %s", e)
 
@@ -104,6 +104,7 @@ class IFCDropHandler:
             result["errors"].append(f"IFC open failed: {exc}")
             return result
 
+        _patch_model_del(model)  # suppress upstream __del__ KeyError
         result = self._process_model(model, path, result)
         return result
 
