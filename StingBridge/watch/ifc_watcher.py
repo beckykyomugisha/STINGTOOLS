@@ -23,6 +23,29 @@ from typing import Callable
 log = logging.getLogger(__name__)
 
 
+def _patch_ifcopenshell_del() -> None:
+    """
+    Patch ifcopenshell.file.__del__ to swallow the KeyError that fires when
+    the C++ file handle is freed before Python GC runs __del__.
+    This is a known upstream bug; the patch is safe because the only thing
+    __del__ does is remove the entry from an internal dict — which we let it
+    do, silently ignoring the case where the key is already gone.
+    """
+    try:
+        import ifcopenshell.file as _ifc_file_mod  # type: ignore
+        _orig_del = _ifc_file_mod.file.__del__
+
+        def _safe_del(self):
+            try:
+                _orig_del(self)
+            except (KeyError, Exception):
+                pass
+
+        _ifc_file_mod.file.__del__ = _safe_del
+    except Exception:
+        pass  # ifcopenshell not installed or API changed — ignore
+
+
 class IFCDropHandler:
     """
     Handles a single IFC file: parses it with IfcOpenShell, maps STING
@@ -70,16 +93,6 @@ class IFCDropHandler:
         except Exception as exc:
             result["errors"].append(f"IFC open failed: {exc}")
             return result
-
-        # Patch the known ifcopenshell __del__ KeyError (upstream bug:
-        # the C++ file handle is freed before Python GC runs __del__).
-        # Replacing __del__ with a no-op on this instance silences the
-        # "Exception ignored" noise without affecting behaviour.
-        try:
-            import types
-            model.__class__.__del__ = types.MethodType(lambda self: None, model)
-        except Exception:
-            pass
 
         result = self._process_model(model, path, result)
         return result
@@ -486,6 +499,7 @@ def watch_drop_folder(
     except ImportError:
         raise RuntimeError("watchdog is not installed. Run: pip install watchdog")
 
+    _patch_ifcopenshell_del()  # suppress upstream __del__ KeyError before any model opens
     handler = IFCDropHandler(planscape_client, config, on_progress)
     ev_handler = _IFCEventHandler(handler)
 
