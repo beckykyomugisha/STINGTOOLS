@@ -780,6 +780,11 @@ builder.Services.AddRateLimiter(options =>
 var corsOrigins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? new[]
 {
     "http://localhost:3000",
+    "http://localhost:8081",
+    "http://localhost:8082",
+    "http://localhost:8083",
+    "http://localhost:8084",
+    "http://localhost:8085",
     "http://localhost:19000",
     "http://localhost:19001",
     "http://localhost:19002",
