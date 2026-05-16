@@ -294,15 +294,21 @@ namespace StingTools.Tags
                 {
                     Element typeForDepth = null;
                     try { typeForDepth = doc.GetElement(el.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                    int depth = TagConfig.ReadActiveParagraphDepth(typeForDepth, el);
-                    for (int tier = 4; tier <= 10; tier++)
+                    // Null guard: GetTypeId() can return InvalidElementId for view-specific elements
+                    // and family-less instances; skip tier check rather than crashing in
+                    // ReadActiveParagraphDepth, but let the TAG_2-6 container check below still run.
+                    if (typeForDepth != null)
                     {
-                        if (depth < tier) continue;
-                        tierEnabledCounts[tier] = tierEnabledCounts[tier] + 1;
-                        string need = tierRequired[tier - 4];
-                        string val = ParameterHelpers.GetString(el, need);
-                        if (string.IsNullOrEmpty(val))
-                            tierEmptyCounts[tier] = tierEmptyCounts[tier] + 1;
+                        int depth = TagConfig.ReadActiveParagraphDepth(typeForDepth, el);
+                        for (int tier = 4; tier <= 10; tier++)
+                        {
+                            if (depth < tier) continue;
+                            tierEnabledCounts[tier] = tierEnabledCounts[tier] + 1;
+                            string need = tierRequired[tier - 4];
+                            string val = ParameterHelpers.GetString(el, need);
+                            if (string.IsNullOrEmpty(val))
+                                tierEmptyCounts[tier] = tierEmptyCounts[tier] + 1;
+                        }
                     }
                 }
                 catch (Exception ex)

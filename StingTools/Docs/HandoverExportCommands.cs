@@ -1622,8 +1622,10 @@ namespace StingTools.Docs
                         string seq = ParameterHelpers.GetString(el, ParamRegistry.SEQ);
                         string status = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
                         string rev = ParameterHelpers.GetString(el, ParamRegistry.REV);
-                        string serial = ParameterHelpers.GetString(el, "ASS_SERIAL_NR_TXT");
-                        string installDate = ParameterHelpers.GetString(el, "ASS_INSTALLATION_DATE_TXT");
+                        string serial = ParameterHelpers.GetString(el, ParamRegistry.SERIAL_NR);
+                        string installDate = ParameterHelpers.GetString(el, ParamRegistry.INSTALL_DATE);
+                        // ASS_CST_TOTAL_UGX_NR has no public ParamRegistry constant yet;
+                        // hardcoded by design until the cost-tracking params get promoted.
                         string costStr = ParameterHelpers.GetString(el, "ASS_CST_TOTAL_UGX_NR");
                         string gridRef = ParameterHelpers.GetString(el, ParamRegistry.GRID_REF);
 

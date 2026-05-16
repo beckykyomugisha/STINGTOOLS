@@ -2665,7 +2665,8 @@ namespace StingTools.Commands.Lightning
                     }
                     catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     string installDate = ParameterHelpers.GetString(fi, LpsParams.TEST_DATE_TXT);
-                    string serial = ParameterHelpers.GetString(fi, "ASS_SERIAL_TXT");
+                    // Fix: was "ASS_SERIAL_TXT" which does not exist; canonical is ASS_SERIAL_NR_TXT.
+                    string serial = ParameterHelpers.GetString(fi, Core.ParamRegistry.SERIAL_NR);
                     if (string.IsNullOrEmpty(serial)) serial = ParameterHelpers.GetString(fi, LpsParams.CERT_REF_TXT);
                     string status = ParameterHelpers.GetString(fi, LpsParams.COMPLIANCE_STATUS_TXT);
                     string lpsZone = ParameterHelpers.GetString(fi, "ELC_LPS_ZONE_TXT");

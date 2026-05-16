@@ -83,11 +83,15 @@ namespace StingTools.Docs
                 W(w, "address", pi.Address);
                 W(w, "status",  pi.Status);
                 w.WriteStartElement("orgParams");
+                // Use ParamRegistry constants so a registry rename can never drift
+                // the export schema. Pre-existing strings here had the typos
+                // "PRJ_ORG_PROJECT_COD_TXT" / "_ORIGINATOR_COD_TXT" (missing the E),
+                // which meant LookupParameter silently returned null on every export.
                 foreach (string p in new[]
                 {
-                    "PRJ_ORG_PROJECT_COD_TXT", "PRJ_ORG_ORIGINATOR_COD_TXT",
-                    "PRJ_ORG_COMPANY_NAME_TXT", "PRJ_ORG_CLIENT_NAME_TXT",
-                    "PRJ_ORG_PHASE_TXT", "PRJ_ORG_CLASS_TXT",
+                    ParamRegistry.ORG_PROJECT_CODE, ParamRegistry.ORG_ORIGINATOR_CODE,
+                    ParamRegistry.ORG_COMPANY_NAME, ParamRegistry.ORG_CLIENT_NAME,
+                    ParamRegistry.ORG_PHASE, ParamRegistry.ORG_CLASS,
                 })
                 {
                     var par = pi.LookupParameter(p);

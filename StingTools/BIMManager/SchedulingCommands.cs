@@ -2417,17 +2417,12 @@ namespace StingTools.BIMManager
                         double overhead = subtotal * 0.08;    // 8% overhead & profit
                         double grandTotal = subtotal + prelims + contingency + overhead;
 
-                        // Write cost parameters to element
-                        ParameterHelpers.SetString(el, "ASS_COST_RATE_TXT",
-                            $"{rate.UnitRate:F2}/{rate.Unit}", overwrite: true);
-                        ParameterHelpers.SetString(el, "ASS_COST_QTY_TXT",
-                            $"{qty:F2} {rate.Unit}", overwrite: true);
-                        ParameterHelpers.SetString(el, "ASS_COST_SUBTOTAL_TXT",
-                            $"{subtotal:F2}", overwrite: true);
-                        ParameterHelpers.SetString(el, "ASS_COST_TOTAL_TXT",
-                            $"{grandTotal:F2}", overwrite: true);
-                        ParameterHelpers.SetString(el, "ASS_COST_SOURCE_TXT",
-                            $"cost_rates_5d.csv:{cat}", overwrite: true);
+                        // Legacy ASS_COST_RATE_TXT / _QTY_TXT / _SUBTOTAL_TXT / _TOTAL_TXT /
+                        // _SOURCE_TXT writes removed: these parameter names do not exist
+                        // in MR_PARAMETERS.txt or PARAMETER_REGISTRY.json — every SetString
+                        // silently failed because LookupParameter returned null, and no
+                        // reader anywhere in the codebase consumed them. The Phase 91
+                        // BOQ-aligned CST_* writes below are the authoritative cost data.
 
                         // ── Phase 91 gap closures (G1 / G2 / G3 / G9) ──
                         // Populate the BOQ-aligned parameters that the BOQ panel,

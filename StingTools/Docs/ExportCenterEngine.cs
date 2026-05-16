@@ -248,11 +248,15 @@ namespace StingTools.Docs
 
             t["ProjectName"]   = pi?.Name ?? "";
             t["ProjectNumber"] = pi?.Number ?? "";
-            t["ProjectCode"]   = ReadProjectInfo(pi, "PRJ_ORG_PROJECT_COD_TXT") ?? pi?.Number ?? "";
-            t["Originator"]    = ReadProjectInfo(pi, "PRJ_ORG_ORIGINATOR_COD_TXT") ?? "";
+            // Use ParamRegistry constants. The previous hardcoded strings used
+            // "PRJ_ORG_PROJECT_COD_TXT" / "_ORIGINATOR_COD_TXT" (missing the E),
+            // so the parameter was never actually found and the fallback to
+            // pi.Number / "" was always taken.
+            t["ProjectCode"]   = ReadProjectInfo(pi, ParamRegistry.ORG_PROJECT_CODE) ?? pi?.Number ?? "";
+            t["Originator"]    = ReadProjectInfo(pi, ParamRegistry.ORG_ORIGINATOR_CODE) ?? "";
             t["OriginatorCode"]= t["Originator"];
-            t["CompanyName"]   = ReadProjectInfo(pi, "PRJ_ORG_COMPANY_NAME_TXT") ?? "";
-            t["ClientName"]    = ReadProjectInfo(pi, "PRJ_ORG_CLIENT_NAME_TXT") ?? pi?.ClientName ?? "";
+            t["CompanyName"]   = ReadProjectInfo(pi, ParamRegistry.ORG_COMPANY_NAME) ?? "";
+            t["ClientName"]    = ReadProjectInfo(pi, ParamRegistry.ORG_CLIENT_NAME) ?? pi?.ClientName ?? "";
 
             if (view is ViewSheet sheet)
             {
