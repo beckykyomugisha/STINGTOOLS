@@ -23,7 +23,11 @@ import { getToken } from "@/api/client";
 import type { ModelMeta, ElementMap, ModelPin } from "@/types/models";
 
 export default function ModelViewerScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, highlightElement, issueId } = useLocalSearchParams<{
+    id: string;
+    highlightElement?: string;
+    issueId?: string;
+  }>();
   const router = useRouter();
   const projectId = useProjectStore((s) => s.activeProjectId);
   const viewerRef = useRef<ModelViewerHandle>(null);
@@ -35,6 +39,7 @@ export default function ModelViewerScreen() {
   const [error, setError] = useState<string | null>(null);
   const [walkActive, setWalkActive] = useState(false);
   const [sectionEnabled, setSectionEnabled] = useState(false);
+  const [viewerReady, setViewerReady] = useState(false);
 
   useEffect(() => {
     if (!projectId || !id) return;
