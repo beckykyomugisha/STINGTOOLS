@@ -24,36 +24,57 @@ log = logging.getLogger(__name__)
 
 
 def _patch_ifcopenshell_del() -> None:
-    pass  # patching now happens per-model in _patch_model_del()
-
-
-def _patch_model_del(model) -> None:
     """
-    Patch __del__ on the exact runtime class of this model instance.
-    Called immediately after ifcopenshell.open() so the class is known.
-    Swallows the KeyError that fires when the C++ handle is freed before
-    Python GC runs __del__ (upstream ifcopenshell bug).
+    Silence the KeyError in ifcopenshell.file.__del__ that fires when the
+    C++ file handle is freed before Python GC runs __del__.
+
+    Root cause: temporary file objects created inside ifcopenshell.open()
+    are freed on the C++ side before Python GC calls __del__, leaving a
+    stale key in the internal file_dict.  The fix must happen BEFORE open()
+    is called so the patch covers those temporaries.
+
+    ifcopenshell/__init__.py does `from .file import file`, so
+    `ifcopenshell.file` IS the class, not the submodule.  We patch __del__
+    on that class directly.
     """
     try:
-        file_cls = type(model)
-        _orig_del = getattr(file_cls, "__del__", None)
-        if _orig_del is None:
-            return
-        # Guard: only patch once per class
-        if getattr(file_cls, "_sting_del_patched", False):
+        import ifcopenshell as _ifc  # type: ignore
+        # ifcopenshell.file is the class (re-exported from ifcopenshell/file.py)
+        file_cls = _ifc.file
+        if not isinstance(file_cls, type):
+            # Unexpected — fall through to submodule path
+            raise AttributeError("ifcopenshell.file is not a class")
+    except Exception:
+        try:
+            import importlib
+            _mod = importlib.import_module("ifcopenshell.file")
+            file_cls = getattr(_mod, "file", None)
+            if file_cls is None or not isinstance(file_cls, type):
+                log.warning("ifcopenshell.file class not found — __del__ patch skipped")
+                return
+        except Exception as e:
+            log.warning("ifcopenshell __del__ patch failed: %s", e)
             return
 
-        def _safe_del(self):
-            try:
-                _orig_del(self)
-            except Exception:
-                pass
+    if getattr(file_cls, "_sting_del_patched", False):
+        return  # already patched
 
+    _orig_del = getattr(file_cls, "__del__", None)
+    if _orig_del is None:
+        return
+
+    def _safe_del(self, _orig=_orig_del):
+        try:
+            _orig(self)
+        except Exception:
+            pass  # swallow KeyError from stale C++ pointer
+
+    try:
         file_cls.__del__ = _safe_del
         file_cls._sting_del_patched = True
-        log.debug("ifcopenshell %s.__del__ patched", file_cls.__name__)
-    except Exception as e:
-        log.debug("ifcopenshell __del__ patch skipped: %s", e)
+        log.debug("ifcopenshell %s.__del__ patched OK", file_cls.__name__)
+    except (TypeError, AttributeError) as e:
+        log.debug("ifcopenshell __del__ patch not applicable: %s", e)
 
 
 class IFCDropHandler:
@@ -97,6 +118,7 @@ class IFCDropHandler:
             "errors": [],
         }
 
+            _patch_ifcopenshell_del()  # must run before open() to cover internal temporaries
         self._emit(f"Opening {path.name}…")
         try:
             model = ifcopenshell.open(str(path))
@@ -104,7 +126,6 @@ class IFCDropHandler:
             result["errors"].append(f"IFC open failed: {exc}")
             return result
 
-        _patch_model_del(model)  # suppress upstream __del__ KeyError
         result = self._process_model(model, path, result)
         return result
 
