@@ -35,12 +35,9 @@ GROUP	29	MGS_SYSTEMS
 GROUP	30	RAD_PROTECTION
 GROUP	31	CEQ_CLINICAL
 GROUP	32	LIG_BEHAVIOURAL
-<<<<<<< HEAD
-GROUP	33	Identity
-GROUP	34	Routing
-=======
 GROUP	33	PEN_PENETRATION
->>>>>>> origin/claude/review-sting-equipment-aV6qM
+GROUP	34	Routing
+GROUP	35	STING_IDENTITY
 *PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE
 PARAM	f8fe813a-44e9-5e47-9109-921171dc53b6	ASS_CAT_TXT	TEXT		1	1	Ass Cat Txt [ISO 19650-3:2020]	1
 PARAM	3c189e63-383c-5011-b7d9-873faed4e6c6	ASS_CST_QUANTITY_NR	TEXT		1	1	Ass Cst Quantity Nr [ISO 19650-3:2020]	1
@@ -1568,6 +1565,8 @@ PARAM	d0e1f2a3-b4c5-4d6e-8f7a-8b9c0d1e2f3a	STING_DISPLAY_MODE	INTEGER		17	1	Disp
 PARAM	e1f2a3b4-c5d6-4e7f-8a9b-0c1d2e3f4a5b	STING_TAG_POS	INTEGER		17	1	Tag position (1-16 compass positions)	1
 PARAM	e2f3a4b5-c6d7-4e8f-9a0b-1c2d3e4f5a6c	STING_VIEW_TAG_STYLE	TEXT		17	1	View-level tag style routing (Discipline/Monochrome/Warm/Cool)	1
 PARAM	f3a4b5c6-d7e8-4f9a-0b1c-2d3e4f5a6b7d	TAG_SEG_MASK_TXT	TEXT		17	1	Token segment visibility mask (8-char format e.g. 10110101)	1
+PARAM	b6c7d8e9-f0a1-4b2c-d3e4-f5a6b7c8d9e0	TAG_CLUSTER_KEY_TXT	TEXT		17	1	Cluster grouping key written to tag type and element for spatial clustering [STING SmartTagPlacement]	1
+PARAM	c7d8e9f0-a1b2-4c3d-e4f5-a6b7c8d9e0f1	TAG_FAMILY_HINT_TXT	TEXT		17	1	Preferred tag family name hint for Smart Tag Placement engine [STING SmartTagPlacement]	1
 PARAM	a1b2c3d4-5033-4a01-b001-000000000151	TAG_STYLE_SIZE_INT	INTEGER		17	1	Tag text size index (2/2.5/3/3.5)	1
 PARAM	a1b2c3d4-5034-4a01-b001-000000000152	TAG_STYLE_WEIGHT_INT	INTEGER		17	1	Tag text weight index	1
 PARAM	a1b2c3d4-5035-4a01-b001-000000000153	TAG_BOX_COLOR_R_INT	INTEGER		17	1	Tag box fill color red channel (0-255)	1
@@ -2693,6 +2692,11 @@ PARAM	1b2c3d4e-5f6a-4b7c-8d9e-0f1a2b3c4d5e	STING_SYMBOL_LIBRARY_VERSION	TEXT		27
 PARAM	a6b7c8d9-eafb-4acc-5d6e-7f8a9bacdbec	STING_MATCH_REF_TXT	TEXT		27	1	Paired sheet reference written on match-line + caption tags [STING Phase 168]	1
 PARAM	a7b8c9da-fbac-4bcd-6e7f-8a9bacdbecfd	STING_MATCH_LINE_GUID_TXT	TEXT		27	1	Stable match-line pair identifier — pairs DetailCurve + caption tag for in-place updates [STING Phase 168]	1
 PARAM	a8b9cadb-acbd-4cde-7f8a-9bacdbecfdae	STING_MATCH_DIR_TXT	TEXT		27	1	Match-line direction encoding — VERTICAL / HORIZONTAL / DOGLEG [STING Phase 168]	1
+PARAM	c1d2e3f4-a5b6-4c7d-8e9f-a0b1c2d3e4f5	STING_DRAWING_TYPE_ID_TXT	TEXT		27	1	Drawing Type registry id stamped on every view/sheet produced by DrawingTypePresentation.Apply [STING DT Week 3]	1
+PARAM	d2e3f4a5-b6c7-4d8e-9f0a-b1c2d3e4f5a6	STING_STYLE_LOCKED_BOOL	INTEGER		27	1	Set to 1 to prevent SyncStyles from overwriting manual graphic customisation [STING DT Week 4]	1
+PARAM	e3f4a5b6-c7d8-4e9f-a0b1-c2d3e4f5a6b7	STING_PACK_ID_TXT	TEXT		27	1	ViewStylePack id stamped on managed view templates for drift detection [STING Phase 137]	1
+PARAM	f4a5b6c7-d8e9-4f0a-b1c2-d3e4f5a6b7c8	STING_PACK_CHECKSUM_TXT	TEXT		27	1	SHA-256 checksum of pack JSON stamped on managed view templates; mismatch triggers re-apply [STING Phase 137]	1
+PARAM	a5b6c7d8-e9f0-4a1b-c2d3-e4f5a6b7c8d9	STING_CDE_STATE_TXT	TEXT		27	1	CDE workflow state: WIP / SHARED / PUBLISHED / ARCHIVED (mirrors CDEState enum) [STING Template Engine v1.1]	1
 # ── Lightning Protection System tag containers (BS EN 62305) ───────────────
 PARAM	e1c5f9d4-1001-5111-9111-100000000001	ELC_LPS_AIRTERM_TAG_TXT	TEXT		4	1	LPS air-terminal / finial tag — full ISO 19650 tag for rod, mesh node, or strike termination [BS EN 62305-3 §5.2]	1
 PARAM	e1c5f9d4-1002-5111-9111-100000000002	ELC_LPS_DOWNCOND_TAG_TXT	TEXT		4	1	LPS down-conductor tag — full tag for descent conductors connecting air terminals to earth [BS EN 62305-3 §5.3]	1
@@ -2867,7 +2871,6 @@ PARAM	c8d4f6e2-2601-4d27-8c61-0e7a3f9c1001	ICT_HEALTHIOT_DEVICE_ID_TXT	TEXT		3	1
 PARAM	c8d4f6e2-2602-4d27-8c61-0e7a3f9c1002	ICT_HEALTHIOT_PROTOCOL_TXT	TEXT		3	1	IoT protocol BACNET/OPC-UA/MODBUS/REST/PROPRIETARY [H-20]	1
 PARAM	c8d4f6e2-2603-4d27-8c61-0e7a3f9c1003	ICT_HEALTHIOT_ENDPOINT_TXT	TEXT		3	1	IoT endpoint URI [H-20]	1
 PARAM	c8d4f6e2-2604-4d27-8c61-0e7a3f9c1004	ICT_HEALTHIOT_ALERT_BAND_TXT	TEXT		3	1	IoT alert band free-text [H-20]	1
-<<<<<<< HEAD
 PARAM	c7f5a2e1-9b3d-4e1c-8a2f-7d6b3e4c5a90	ELC_CDT_BEND_ANGLE_DEG	TEXT		4	1	Conduit bend angle in degrees: 11.25/22.5/30/45/60/90/120 [BS 7671:2018+A2:2022 §522.8]	1
 PARAM	d8e6b3f2-ac4e-5f2d-9b3e-8e7c4f5d6b01	ELC_CDT_BEND_COUNT_NR	TEXT		4	1	Number of bends in this conduit run (BS 7671 §522.8.5 limits to 3 between draw-in points)	1
 PARAM	e9f7c4f3-bd5f-6f3e-ac4f-9f8d5e6e7c12	ELC_CDT_RUN_LENGTH_M	TEXT		4	1	Conduit run length in metres (BS 7671 max ~6m between draw-in points)	1
@@ -2879,9 +2882,9 @@ PARAM	e5f60718-3091-b03f-f2b1-e131a1a01067	STING_SLAB_ROUTING_FLAG	TEXT		34	1	Sl
 PARAM	f6071829-41a2-c150-038c-f242b2b12178	STING_PENETRATION_REF_TXT	TEXT		34	1	Identifier stamped on a conduit / pipe / duct that crosses a fire-rated floor or wall. Format: FLR:<id>@<rating>. Drives FRP_PENETRATION family placement + register schedule.	1
 PARAM	07182a3a-52b3-d261-149d-035303c23289	STING_PENETRATION_FIRE_RATING_TXT	TEXT		34	1	Required fire rating at the penetration point — copied from the host floor / wall (BS 9999 / BS 476). Empty defaults to FR60 typical floor rating.	1
 PARAM	18293b4b-63c4-e372-25ae-146414d34390	STING_FIRE_RATING_TXT	TEXT		34	1	Fire rating of the host wall / floor — FR30 / FR60 / FR90 / FR120. Read by SlabPenetrationDetector to stamp the required rating on every penetration.	1
-PARAM	abc4d5e6-7f8a-9b0c-1d2e-3f4a5b6c7d8e	STING_SEED_FAMILY_TXT	TEXT		33	1	Seed family identifier (e.g. STING_SEED_LightingFixture). Stamped by SymbolLibraryCreator on every seed; SwapToManufacturerCommand reads it to find replacement candidates in STING_FAMILY_SWAP_REGISTRY.json.	1
-PARAM	bcd5e6f7-8a9b-0c1d-2e3f-4a5b6c7d8e9f	STING_DESIGN_REF_TXT	TEXT		33	1	Original seed identity preserved when an instance is swapped to a manufacturer family. Lets schedules + audits trace which design intent every real fixture replaces.	1
-PARAM	cde6f708-9b0c-1d2e-3f4a-5b6c7d8e9fa0	STING_SWAP_HISTORY_TXT	TEXT		33	1	Swap audit trail: pipe-delimited entries timestamp|operator|sourceFamily|destFamily. Append-only; SwapToManufacturerCommand prepends one entry per swap.	1
+PARAM	abc4d5e6-7f8a-9b0c-1d2e-3f4a5b6c7d8e	STING_SEED_FAMILY_TXT	TEXT		35	1	Seed family identifier (e.g. STING_SEED_LightingFixture). Stamped by SymbolLibraryCreator on every seed; SwapToManufacturerCommand reads it to find replacement candidates in STING_FAMILY_SWAP_REGISTRY.json.	1
+PARAM	bcd5e6f7-8a9b-0c1d-2e3f-4a5b6c7d8e9f	STING_DESIGN_REF_TXT	TEXT		35	1	Original seed identity preserved when an instance is swapped to a manufacturer family. Lets schedules + audits trace which design intent every real fixture replaces.	1
+PARAM	cde6f708-9b0c-1d2e-3f4a-5b6c7d8e9fa0	STING_SWAP_HISTORY_TXT	TEXT		35	1	Swap audit trail: pipe-delimited entries timestamp|operator|sourceFamily|destFamily. Append-only; SwapToManufacturerCommand prepends one entry per swap.	1
 PARAM	def7081a-9ac1-2d3e-4f50-6172839405a6	ELC_JB_TYPE_TXT	TEXT		4	1	Junction box type: PULL_BOX / DRAW_IN_BOX / ADAPTABLE_BOX / TEE_BOX. Drives type-variant selection for the JB seed.	1
 PARAM	ef8192ab-cdb2-3e4f-5061-7283940516b7	ELC_JB_SIZE_MM	TEXT		4	1	Trade-size of the junction box in W x D x H millimetres. Default 100x100x60.	1
 PARAM	f0a293bc-decb-4f50-6172-839405162718	ELC_JB_AUTO_PLACED_BOOL	TEXT		4	1	True (1) when the box was auto-placed by JunctionBoxAutoPlacer at a bend-count or run-length break-point. False (0) for manually-placed boxes.	1
@@ -2925,7 +2928,12 @@ PARAM	ab46d616-d864-572c-8d9d-5bb51ccaab79	PLM_VLV_WRAS_APPROVED_BOOL	YESNO		6	1
 PARAM	af8461f1-b314-5f60-8e8d-e38963de14f8	PLM_DEAD_LEG_LENGTH_M	TEXT		6	1	Dead-leg length m flagged by DeadLegDetector [HSG 274 Phase 178b]	1
 PARAM	98ab6e19-8d12-53c0-b388-8705f9413373	PLM_PRJ_PLUMBING_CODE_TXT	TEXT		1	1	Project plumbing-code toggle BS-UK / IPC-US / UPC-US [Phase 178b]	1
 PARAM	c3d5b6ee-0f2e-7283-9405-162718304a5b	ELC_CDT_PENETRATION_COUNT_NR	TEXT		4	1	Number of fire-rated barriers (floors / walls) this conduit crosses. Stamped by SlabPenetrationDetector each time a crossing is recorded. Drives the FRP penetration register schedule and JBAutoPlacer's avoid-collision logic (Wave J3).	1
-=======
+PARAM	d4e5f6a7-b8c9-4d0e-f1a2-b3c4d5e6f7a8	ELC_SYS_TXT	TEXT		4	1	Electrical system type label written by NativeParamMapper and FabricationScope (mirrors ASS_SYSTEM_TYPE_TXT for ELC elements)	1
+PARAM	e5f6a7b8-c9d0-4e1f-a2b3-c4d5e6f7a8b9	ELC_CBL_SIZE_TXT	TEXT		4	1	Cable trade size string (e.g. 16mm²/4C XLPE) — read by MepDesignCommands cable sizing checks	1
+PARAM	f6a7b8c9-d0e1-4f2a-b3c4-d5e6f7a8b9c0	ELC_CABLE_SEG_CLASS_TXT	TEXT		4	1	Cable segregation class per BS 7671 §528 / CENELEC 50174 (e.g. CAT1/CAT2/CAT3) stamped on cable tray/conduit by CableSegregationValidator	1
+PARAM	a7b8c9d0-e1f2-4a3b-c4d5-e6f7a8b9c0d1	ELC_CDT_CABLE_MANIFEST_TXT	TEXT		4	1	Pipe-separated manifest of cable ids pulled through this conduit run (populated by cable routing engine)	1
+PARAM	b8c9d0e1-f2a3-4b4c-d5e6-f7a8b9c0d1e2	MEC_SYS_TXT	TEXT		5	1	Mechanical system type label (mirrors ASS_SYSTEM_TYPE_TXT for mechanical elements)	1
+PARAM	c9d0e1f2-a3b4-4c5d-e6f7-a8b9c0d1e2f3	PLM_SYS_TXT	TEXT		6	1	Plumbing system type label (mirrors ASS_SYSTEM_TYPE_TXT for plumbing elements)	1
 PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1001	PEN_FIRE_RATING_TXT	TEXT		33	1	Required fire rating of the penetration: FR30/FR60/FR90/FR120/blank for non-rated [BS 9999, BS 476-20, EN 1366-3]	1
 PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1002	PEN_SEALANT_TYPE_TXT	TEXT		33	1	Sealant system: INTUMESCENT/SILICONE/MORTAR/PILLOW/COLLAR/WRAP/NONE [BS 9999]	1
 PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1003	PEN_OD_MM	NUMBER		33	1	Penetrating member outside diameter (mm)	1
@@ -2943,6 +2951,3 @@ PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d100e	PEN_PFV_UUID_TXT	TEXT		33	1	Determini
 PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d100f	PEN_BEAM_OFFSET_PCT	NUMBER		33	1	Beam-host only: distance from nearest support as %% of span (BS EN 1992 / AISC DG2 prefer >=10%%, ideally 20-33%%)	1
 PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1010	PEN_BEAM_DEPTH_RATIO	NUMBER		33	1	Beam-host only: penetration diameter / beam depth - AISC DG2 limit 0.7, BS EN 1992 prudent limit 0.4	1
 PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1011	PEN_STRUCTURAL_FLAG_TXT	TEXT		33	1	Beam-host only: STRUCT_OK / STRUCT_REVIEW / STRUCT_FAIL based on AISC DG2 + BS EN 1992 location/size rules	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1012	STING_PENETRATION_REF_TXT	TEXT		33	1	Stamped on each MEPCurve that crosses a fire-rated barrier. Format: HOST:<id>@<rating>#<control>	1
-PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1013	STING_PENETRATION_FIRE_RATING_TXT	TEXT		33	1	Mirror of host fire rating on the penetrating member - drives validator gates	1
->>>>>>> origin/claude/review-sting-equipment-aV6qM
