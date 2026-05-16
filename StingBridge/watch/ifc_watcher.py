@@ -377,11 +377,12 @@ def _write_tokens_to_ifc(model, token_map: dict[str, dict], src_path: Path) -> P
     """
     Write STING tokens back into the IFC model as an IfcPropertySet
     named "STING_TOKENS" on each element, then save to <name>_sting.ifc.
+    Uses direct entity creation to avoid the owner history requirement of
+    the ifcopenshell.api pset helpers.
     """
-    import ifcopenshell.api  # type: ignore
+    import ifcopenshell  # type: ignore
+    import ifcopenshell.guid  # type: ignore
     import ifcopenshell.util.element as ifc_util  # type: ignore
-
-    owner_history = model.by_type("IfcOwnerHistory")[0] if model.by_type("IfcOwnerHistory") else None
 
     _TOKEN_LABELS: dict[str, str] = {
         "disc": "ASS_DISCIPLINE_COD_TXT",
@@ -413,20 +414,29 @@ def _write_tokens_to_ifc(model, token_map: dict[str, dict], src_path: Path) -> P
                         _update_pset_properties(model, pdef, tokens, _TOKEN_LABELS)
                         break
         else:
-            # Create new pset
-            ifcopenshell.api.run(
-                "pset.add_pset",
-                model,
-                product=el,
-                name="STING_TOKENS",
-            )
-            # Re-fetch and populate
-            for pset in el.IsDefinedBy:
-                if hasattr(pset, "RelatingPropertyDefinition"):
-                    pdef = pset.RelatingPropertyDefinition
-                    if hasattr(pdef, "Name") and pdef.Name == "STING_TOKENS":
-                        _update_pset_properties(model, pdef, tokens, _TOKEN_LABELS)
-                        break
+            # Create pset directly without owner history requirement
+            props_to_add = [
+                model.create_entity(
+                    "IfcPropertySingleValue",
+                    Name=_TOKEN_LABELS[k],
+                    NominalValue=model.create_entity("IfcLabel", wrappedValue=str(v)),
+                )
+                for k, v in tokens.items()
+                if k in _TOKEN_LABELS and v
+            ]
+            if props_to_add:
+                pset = model.create_entity(
+                    "IfcPropertySet",
+                    GlobalId=ifcopenshell.guid.new(),
+                    Name="STING_TOKENS",
+                    HasProperties=props_to_add,
+                )
+                model.create_entity(
+                    "IfcRelDefinesByProperties",
+                    GlobalId=ifcopenshell.guid.new(),
+                    RelatedObjects=[el],
+                    RelatingPropertyDefinition=pset,
+                )
 
     out_path = src_path.with_name(src_path.stem + "_sting.ifc")
     model.write(str(out_path))
