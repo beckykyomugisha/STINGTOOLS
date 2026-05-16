@@ -72,7 +72,10 @@ public class ModelChecksController : ControllerBase
     public async Task<ActionResult> UpdateRuleSet(Guid projectId, Guid id, [FromBody] CreateRuleSetRequest req)
     {
         var tenantId = GetTenantId();
-        var ruleSet = await _db.ModelCheckRuleSets.FirstOrDefaultAsync(s => s.Id == id && s.TenantId == tenantId);
+        // Scope to project: a user can only update rule sets belonging to their project or tenant-wide ones.
+        var ruleSet = await _db.ModelCheckRuleSets.FirstOrDefaultAsync(
+            s => s.Id == id && s.TenantId == tenantId
+              && (s.ProjectId == null || s.ProjectId == projectId));
         if (ruleSet is null) return NotFound();
 
         ruleSet.Name      = req.Name;
@@ -102,7 +105,8 @@ public class ModelChecksController : ControllerBase
     {
         var tenantId = GetTenantId();
         var ruleSet = await _db.ModelCheckRuleSets
-            .FirstOrDefaultAsync(s => s.Id == ruleSetId && s.TenantId == tenantId);
+            .FirstOrDefaultAsync(s => s.Id == ruleSetId && s.TenantId == tenantId
+                                   && (s.ProjectId == null || s.ProjectId == projectId));
         if (ruleSet is null) return NotFound("RuleSet not found.");
 
         var rule = new ModelCheckRule

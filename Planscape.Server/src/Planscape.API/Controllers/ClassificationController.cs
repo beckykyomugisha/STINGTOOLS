@@ -75,7 +75,10 @@ public class ClassificationController : ControllerBase
             var parent = await _db.ClassificationCodes
                 .FirstOrDefaultAsync(c => c.SystemId == systemId && c.Code == parentCode);
             if (parent is null) return NotFound();
-            query = query.Where(c => c.Path.StartsWith(parent.Path + ".") || c.ParentCodeId == parent.Id);
+            // Use ParentCodeId for direct children and path prefix for deeper descendants.
+            // The prefix includes a trailing dot to avoid "A.B" matching "A.BC".
+            var prefix = parent.Path + ".";
+            query = query.Where(c => c.Path.StartsWith(prefix) || c.ParentCodeId == parent.Id);
         }
 
         if (!string.IsNullOrEmpty(search))

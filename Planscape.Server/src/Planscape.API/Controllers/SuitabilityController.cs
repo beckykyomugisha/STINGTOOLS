@@ -69,27 +69,33 @@ public class SuitabilityController : ControllerBase
         [FromBody] SuitabilityTransitionRequest req)
     {
         var tenantId = GetTenantId();
+        // Explicit Include avoids a lazy-load when accessing d.Project!.TenantId.
         var document = await _db.Documents
+            .Include(d => d.Project)
             .FirstOrDefaultAsync(d => d.Id == documentId && d.ProjectId == projectId
                                    && d.Project!.TenantId == tenantId);
         if (document is null) return NotFound("Document not found.");
 
-        // Find applicable rule (project-specific first, then tenant-wide)
+        // Find applicable rule (project-specific first, then tenant-wide; break ties by Id).
         var rule = await _db.SuitabilityTransitionRules
             .Where(r => r.TenantId == tenantId && r.Enabled
-                     && r.FromCode == req.FromCode && r.ToCode == req.ToCode
+                     && r.FromCode == (SuitabilityCode)req.FromCode
+                     && r.ToCode   == (SuitabilityCode)req.ToCode
                      && (r.ProjectId == projectId || r.ProjectId == null))
             .OrderBy(r => r.ProjectId == null ? 1 : 0) // project-specific wins
+            .ThenBy(r => r.Id)
             .FirstOrDefaultAsync();
 
         if (rule is null)
             return BadRequest($"No transition rule found from code {req.FromCode} to {req.ToCode}.");
 
-        // Role check
+        // Role check — trim each entry to handle "Admin, User" (leading space) formatting.
         if (!string.IsNullOrEmpty(rule.AllowedRoles))
         {
             var userRole = User.FindFirst("role")?.Value ?? "";
-            var allowed  = rule.AllowedRoles.Split(',', StringSplitOptions.RemoveEmptyEntries);
+            var allowed  = rule.AllowedRoles
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(r => r.Trim());
             if (!allowed.Contains(userRole, StringComparer.OrdinalIgnoreCase))
                 return Forbid();
         }
@@ -145,12 +151,17 @@ public class SuitabilityController : ControllerBase
     {
         var tenantId = GetTenantId();
         var document = await _db.Documents
+            .Include(d => d.Project)
             .FirstOrDefaultAsync(d => d.Id == documentId && d.ProjectId == projectId
                                    && d.Project!.TenantId == tenantId);
         if (document is null) return NotFound();
 
         if (!Enum.TryParse<SuitabilityCode>(document.SuitabilityCode ?? "S0", out var current))
+        {
+            _logger.LogWarning("Unknown suitability code '{Code}' on document {Id}, defaulting to S0",
+                document.SuitabilityCode, documentId);
             current = SuitabilityCode.S0;
+        }
 
         var nextRules = await _db.SuitabilityTransitionRules
             .Where(r => r.TenantId == tenantId && r.Enabled

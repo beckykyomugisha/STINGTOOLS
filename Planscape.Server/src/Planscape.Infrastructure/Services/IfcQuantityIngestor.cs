@@ -44,6 +44,16 @@ public class IfcQuantityIngestor : IIfcQuantityIngestor
 
         int created = 0, updated = 0, skipped = 0, missed = 0;
 
+        // Batch-load existing draft lines for this model to avoid per-element round-trips.
+        var incomingGlobalIds = elements.Select(e => e.GlobalId).Distinct().ToHashSet();
+        var existingLines = await _db.QuantityLines
+            .Where(q => q.ProjectModelId == projectModelId && q.BaselineId == null
+                     && q.IfcGlobalId != null && incomingGlobalIds.Contains(q.IfcGlobalId!))
+            .ToListAsync(ct);
+        var existingLookup = existingLines
+            .GroupBy(q => (q.IfcGlobalId!, q.TakeoffRuleId ?? Guid.Empty))
+            .ToDictionary(g => g.Key, g => g.First());
+
         foreach (var el in elements)
         {
             var matched = rules.Where(r => MatchesRule(r, el)).ToList();
@@ -58,11 +68,7 @@ public class IfcQuantityIngestor : IIfcQuantityIngestor
                 var description  = _descBuilder.BuildFromRule(rule, el.Properties);
                 var sectionCode  = rule.ClassificationCode.Code;
 
-                var existing = await _db.QuantityLines.FirstOrDefaultAsync(
-                    q => q.ProjectModelId == projectModelId
-                      && q.IfcGlobalId == el.GlobalId
-                      && q.TakeoffRuleId == rule.Id
-                      && q.BaselineId == null, ct);
+                existingLookup.TryGetValue((el.GlobalId, rule.Id), out var existing);
 
                 if (existing is not null)
                 {

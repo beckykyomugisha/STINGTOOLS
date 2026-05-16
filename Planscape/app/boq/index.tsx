@@ -34,7 +34,7 @@ export default function BoqScreen() {
     if (!silent) setLoading(true);
     setError(null);
     try {
-      const data = await apiFetch<BoqDocument[]>(`/api/projects/${projectId}/boq`);
+      const data = await apiFetch<BoqDocument[]>(`/api/projects/${projectId}/boq/documents`);
       setDocs(data ?? []);
     } catch (e: any) {
       setError(e?.message ?? "Failed to load BOQ documents");

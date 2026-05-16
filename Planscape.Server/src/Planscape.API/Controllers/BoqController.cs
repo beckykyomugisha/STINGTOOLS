@@ -196,50 +196,92 @@ public class BoqController : ControllerBase
             .FirstOrDefaultAsync(b => b.Id == baselineId && b.ProjectId == projectId && b.TenantId == tenantId);
         if (baseline is null) return NotFound();
         if (req.Count == 0) return BadRequest("No lines provided.");
+        if (baseline.LockedAt.HasValue) return Conflict("Baseline is locked and cannot be modified.");
 
-        var lines = req.Select(r => new QuantityLine
+        // Validate numeric ranges — negative quantities are invalid for standard lines.
+        var invalid = req.Where(r => r.NetQuantity < 0 || r.WastePercent < 0 || r.WastePercent > 100).ToList();
+        if (invalid.Count > 0)
+            return BadRequest($"{invalid.Count} line(s) have invalid NetQuantity or WastePercent.");
+
+        // True upsert: if a line with the same IfcGlobalId already exists on this baseline, update it.
+        var incomingGlobalIds = req
+            .Where(r => !string.IsNullOrEmpty(r.IfcGlobalId))
+            .Select(r => r.IfcGlobalId!)
+            .ToHashSet();
+
+        var existingByGuid = await _db.QuantityLines
+            .Where(l => l.BaselineId == baselineId && l.TenantId == tenantId
+                     && incomingGlobalIds.Contains(l.IfcGlobalId!))
+            .ToDictionaryAsync(l => l.IfcGlobalId!);
+
+        int created = 0, updated = 0;
+        foreach (var r in req)
         {
-            TenantId             = tenantId,
-            ProjectId            = projectId,
-            BaselineId           = baselineId,
-            ClassificationCodeId = r.ClassificationCodeId,
-            TakeoffRuleId        = r.TakeoffRuleId,
-            WorkPackageId        = r.WorkPackageId,
-            ProjectModelId       = r.ProjectModelId,
-            IfcGlobalId          = r.IfcGlobalId,
-            IfcType              = r.IfcType ?? "",
-            RevitElementId       = long.TryParse(r.RevitElementId, out var revitId) ? revitId : (long?)null,
-            Level                = r.Level ?? "",
-            Zone                 = r.Zone ?? "",
-            SectionCode          = r.SectionCode ?? "",
-            ItemDescription      = r.ItemDescription ?? "",
-            Unit                 = r.Unit ?? "m2",
-            NetQuantity          = r.NetQuantity,
-            WastePercent         = (double)r.WastePercent,
-            Quantity             = r.NetQuantity * (1 + r.WastePercent / 100.0),
-            UnitRate             = r.UnitRate,
-            LineTotal            = r.UnitRate.HasValue
-                                    ? (decimal)(r.NetQuantity * (1 + r.WastePercent / 100.0)) * r.UnitRate.Value
-                                    : null,
-            Currency             = r.Currency ?? "GBP",
-            LineKind             = r.LineKind ?? "Measured",
-            PricingBasis         = r.PricingBasis ?? "Remeasure",
-            EmbodiedCarbonPerUnit = r.EmbodiedCarbonPerUnit,
-            EmbodiedCarbonTotal  = r.EmbodiedCarbonPerUnit.HasValue
-                                    ? r.EmbodiedCarbonPerUnit * r.NetQuantity : null,
-        }).ToList();
+            var grossQty  = r.NetQuantity * (1 + r.WastePercent / 100.0);
+            var lineTotal = r.UnitRate.HasValue ? (decimal)grossQty * r.UnitRate.Value : (decimal?)null;
 
-        _db.QuantityLines.AddRange(lines);
-
-        // Update baseline total
-        var existingTotal = await _db.QuantityLines
-            .Where(l => l.BaselineId == baselineId && l.LineTotal.HasValue)
-            .SumAsync(l => l.LineTotal!.Value);
-        var newTotal = lines.Where(l => l.LineTotal.HasValue).Sum(l => l.LineTotal!.Value);
-        baseline.TotalValue = existingTotal + newTotal;
+            if (!string.IsNullOrEmpty(r.IfcGlobalId) && existingByGuid.TryGetValue(r.IfcGlobalId, out var existing))
+            {
+                // Update existing line.
+                existing.NetQuantity          = r.NetQuantity;
+                existing.WastePercent         = r.WastePercent;
+                existing.Quantity             = grossQty;
+                existing.UnitRate             = r.UnitRate ?? existing.UnitRate;
+                existing.LineTotal            = lineTotal ?? existing.LineTotal;
+                existing.Level                = r.Level ?? existing.Level;
+                existing.Zone                 = r.Zone ?? existing.Zone;
+                existing.SectionCode          = r.SectionCode ?? existing.SectionCode;
+                existing.ItemDescription      = r.ItemDescription ?? existing.ItemDescription;
+                existing.EmbodiedCarbonPerUnit = r.EmbodiedCarbonPerUnit ?? existing.EmbodiedCarbonPerUnit;
+                existing.EmbodiedCarbonTotal  = existing.EmbodiedCarbonPerUnit.HasValue
+                    ? existing.EmbodiedCarbonPerUnit * existing.NetQuantity : null;
+                existing.UpdatedAt            = DateTime.UtcNow;
+                updated++;
+            }
+            else
+            {
+                _db.QuantityLines.Add(new QuantityLine
+                {
+                    TenantId             = tenantId,
+                    ProjectId            = projectId,
+                    BaselineId           = baselineId,
+                    ClassificationCodeId = r.ClassificationCodeId,
+                    TakeoffRuleId        = r.TakeoffRuleId,
+                    WorkPackageId        = r.WorkPackageId,
+                    ProjectModelId       = r.ProjectModelId,
+                    IfcGlobalId          = r.IfcGlobalId,
+                    IfcType              = r.IfcType ?? "",
+                    RevitElementId       = long.TryParse(r.RevitElementId, out var revitId) ? revitId : (long?)null,
+                    Level                = r.Level ?? "",
+                    Zone                 = r.Zone ?? "",
+                    SectionCode          = r.SectionCode ?? "",
+                    ItemDescription      = r.ItemDescription ?? "",
+                    Unit                 = r.Unit ?? "m2",
+                    NetQuantity          = r.NetQuantity,
+                    WastePercent         = r.WastePercent,
+                    Quantity             = grossQty,
+                    UnitRate             = r.UnitRate,
+                    LineTotal            = lineTotal,
+                    Currency             = r.Currency ?? "GBP",
+                    LineKind             = r.LineKind ?? "Measured",
+                    PricingBasis         = r.PricingBasis ?? "Remeasure",
+                    EmbodiedCarbonPerUnit = r.EmbodiedCarbonPerUnit,
+                    EmbodiedCarbonTotal  = r.EmbodiedCarbonPerUnit.HasValue
+                                           ? r.EmbodiedCarbonPerUnit * r.NetQuantity : null,
+                });
+                created++;
+            }
+        }
 
         await _db.SaveChangesAsync();
-        return Ok(new { created = lines.Count, baselineTotal = baseline.TotalValue });
+
+        // Recompute baseline total from all persisted lines (authoritative, avoids double-count on re-calls).
+        baseline.TotalValue = await _db.QuantityLines
+            .Where(l => l.BaselineId == baselineId && l.LineTotal.HasValue)
+            .SumAsync(l => l.LineTotal ?? 0m);
+        await _db.SaveChangesAsync();
+
+        return Ok(new { created, updated, baselineTotal = baseline.TotalValue });
     }
 
     // ── BOQ Variations ────────────────────────────────────────────────────

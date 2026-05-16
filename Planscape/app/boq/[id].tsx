@@ -50,7 +50,7 @@ export default function BoqDetailScreen() {
     if (!projectId || !id) return;
     setLoading(true); setError(null);
     try {
-      const data = await apiFetch<BoqDetail>(`/api/projects/${projectId}/boq/${id}`);
+      const data = await apiFetch<BoqDetail>(`/api/projects/${projectId}/boq/documents/${id}`);
       setDetail(data);
     } catch (e: any) {
       setError(e?.message ?? "Failed to load BOQ");

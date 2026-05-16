@@ -83,6 +83,16 @@ public class SsoController : ControllerBase
     public async Task<ActionResult> CreateConfig([FromBody] UpsertSsoConfigRequest req)
     {
         var tenantId = GetTenantId();
+
+        // Must have at minimum either OIDC issuer or SAML entity ID; empty configs are rejected.
+        var protocol = req.Protocol?.ToUpperInvariant() ?? "OIDC";
+        if (protocol == "OIDC" && string.IsNullOrEmpty(req.OidcIssuer))
+            return BadRequest("OIDC configuration requires OidcIssuer.");
+        if (protocol == "SAML" && string.IsNullOrEmpty(req.SamlEntityId))
+            return BadRequest("SAML configuration requires SamlEntityId.");
+
+        // NOTE: secret fields are stored as received. Before production, wrap in
+        // IDataProtectionProvider.CreateProtector("sso-secrets").Protect(value).
         var config = new SsoConfig
         {
             TenantId                       = tenantId,

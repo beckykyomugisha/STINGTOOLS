@@ -60,11 +60,16 @@ public class OfflineManifestController : ControllerBase
         var toAdd    = new List<MobileOfflineModelManifest>();
         var staleDelta = new List<Guid>();
 
+        // Batch-load all scene nodes in one query to avoid N+1 round-trips.
+        var incomingNodeIdList = req.Entries.Select(e => e.SceneNodeId).Distinct().ToList();
+        var sceneNodeHashMap = await _db.SceneNodes
+            .Where(s => incomingNodeIdList.Contains(s.Id))
+            .ToDictionaryAsync(s => s.Id, s => s.ContentHash ?? "");
+
         foreach (var entry in req.Entries)
         {
-            // Determine if the server's scene node hash differs
-            var sceneNode = await _db.SceneNodes.FindAsync(entry.SceneNodeId);
-            var serverHash = sceneNode?.ContentHash ?? "";
+            sceneNodeHashMap.TryGetValue(entry.SceneNodeId, out var serverHash);
+            serverHash ??= "";
             var isStale    = !string.IsNullOrEmpty(serverHash) && serverHash != entry.ContentHash;
 
             if (existingMap.TryGetValue(entry.SceneNodeId, out var row))

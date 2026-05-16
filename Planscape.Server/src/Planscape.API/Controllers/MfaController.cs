@@ -91,12 +91,17 @@ public class MfaController : ControllerBase
     {
         var userId   = GetUserId();
         var tenantId = GetTenantId();
+        // Enrollment must exist AND must not yet be verified (LastVerifiedAt == null = pending).
         var enrollment = await _db.MfaEnrollments
-            .FirstOrDefaultAsync(e => e.Id == enrollmentId && e.UserId == userId && e.TenantId == tenantId);
+            .FirstOrDefaultAsync(e => e.Id == enrollmentId && e.UserId == userId
+                                   && e.TenantId == tenantId && e.RevokedAt == null);
         if (enrollment is null) return NotFound();
+        if (enrollment.LastVerifiedAt.HasValue)
+            return Conflict("Enrollment already verified. Revoke and re-enroll to replace.");
 
-        // Production: validate req.Code against enrollment.SecretEncrypted using Otp.NET
-        var isValid = req.Code?.Length == 6; // stub
+        // Production: validate req.Code against enrollment.SecretEncrypted via Otp.NET
+        // (add Otp.NET NuGet, decrypt secret, call Totp.ComputeTotp + verify window ±1 step).
+        var isValid = req.Code?.Length == 6; // scaffold stub — replace before production
         var challenge = new MfaChallenge
         {
             TenantId      = tenantId,
@@ -105,7 +110,8 @@ public class MfaController : ControllerBase
             Method        = "TOTP",
             Succeeded     = isValid,
             ClientIp      = HttpContext.Connection.RemoteIpAddress?.ToString(),
-            UserAgent     = Request.Headers.UserAgent.ToString(),
+            // Store a truncated UA (max 200 chars) to reduce fingerprinting surface.
+            UserAgent     = Request.Headers.UserAgent.ToString()[..Math.Min(200, Request.Headers.UserAgent.ToString().Length)],
             FailureReason = isValid ? null : "InvalidCode",
         };
         _db.MfaChallenges.Add(challenge);
@@ -113,18 +119,25 @@ public class MfaController : ControllerBase
         if (isValid)
         {
             enrollment.LastVerifiedAt = DateTime.UtcNow;
-            // Generate recovery codes
-            var codes = Enumerable.Range(0, 10)
+            // Recovery codes: store as SHA-256 hashes so a DB dump cannot be used directly.
+            // Client receives plaintext once; server stores the hash.
+            var plainCodes = Enumerable.Range(0, 10)
                 .Select(_ => Guid.NewGuid().ToString("N")[..8].ToUpperInvariant())
                 .ToList();
             enrollment.RecoveryCodesJson = System.Text.Json.JsonSerializer.Serialize(
-                codes.Select(c => new { Code = c, Used = false }));
+                plainCodes.Select(c => new
+                {
+                    Hash = Convert.ToHexString(
+                        System.Security.Cryptography.SHA256.HashData(
+                            System.Text.Encoding.UTF8.GetBytes(c))),
+                    Used = false
+                }));
         }
 
         await _db.SaveChangesAsync();
 
         if (!isValid) return BadRequest("Invalid TOTP code.");
-        return Ok(new { message = "MFA enrolled and verified." });
+        return Ok(new { message = "MFA enrolled and verified. Save your recovery codes securely." });
     }
 
     [HttpDelete("enrollments/{enrollmentId}")]

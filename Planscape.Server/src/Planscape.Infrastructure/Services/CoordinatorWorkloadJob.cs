@@ -26,7 +26,10 @@ public class CoordinatorWorkloadJob
     public async Task RunAsync(CancellationToken ct = default)
     {
         var now       = DateTime.UtcNow;
-        var monday    = now.Date.AddDays(-(int)now.DayOfWeek + 1);
+        // ISO week: Monday = 1. Sunday (DayOfWeek=0) maps to 7 via the modulo.
+        var monday    = now.DayOfWeek == DayOfWeek.Sunday
+                        ? now.Date.AddDays(-6)
+                        : now.Date.AddDays(1 - (int)now.DayOfWeek);
         var weekAgo   = monday.AddDays(-7);
         var tomorrow  = now.AddDays(1);
 
@@ -45,24 +48,30 @@ public class CoordinatorWorkloadJob
                     w => w.UserId == c.UserId && w.WeekStarting == monday, ct))
                 continue;
 
+            // All status comparisons use uppercase to match controller conventions.
             var openIssues  = await _db.Issues.CountAsync(
-                i => i.AssigneeUserId == c.UserId && i.Status != "Closed", ct);
+                i => i.AssigneeUserId == c.UserId && i.Status != "CLOSED", ct);
             var critical    = await _db.Issues.CountAsync(
-                i => i.AssigneeUserId == c.UserId && i.Status != "Closed"
+                i => i.AssigneeUserId == c.UserId && i.Status != "CLOSED"
                   && i.Priority == "CRITICAL", ct);
             var major       = await _db.Issues.CountAsync(
-                i => i.AssigneeUserId == c.UserId && i.Status != "Closed"
+                i => i.AssigneeUserId == c.UserId && i.Status != "CLOSED"
                   && i.Priority == "HIGH", ct);
             var overdue     = await _db.Issues.CountAsync(
-                i => i.AssigneeUserId == c.UserId && i.Status != "Closed"
+                i => i.AssigneeUserId == c.UserId && i.Status != "CLOSED"
                   && i.DueDate.HasValue && i.DueDate < now, ct);
             var resolved    = await _db.Issues.CountAsync(
                 i => i.AssigneeUserId == c.UserId
                   && i.UpdatedAt >= weekAgo && i.Status == "CLOSED", ct);
             var created     = await _db.Issues.CountAsync(
                 i => i.AssigneeUserId == c.UserId && i.CreatedAt >= weekAgo, ct);
+            // Model check findings: scoped to projects where this user is coordinator.
+            var userProjectIds = await _db.ProjectMembers
+                .Where(m => m.UserId == c.UserId && m.TenantId == c.TenantId)
+                .Select(m => m.ProjectId)
+                .ToListAsync(ct);
             var findings    = await _db.ModelCheckResults.CountAsync(
-                r => r.Status == "Open", ct); // simplified — no per-user assignment on results
+                r => userProjectIds.Contains(r.ProjectId) && r.Status == "Open", ct);
             var approvals   = await _db.DocumentApprovals.CountAsync(
                 a => a.RequestedBy == c.UserId.ToString() && a.Status == "PENDING", ct);
 

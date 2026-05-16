@@ -38,6 +38,7 @@ public class DashboardController : ControllerBase
         var tenantId = GetTenantId();
         var cutoff   = from ?? DateTime.UtcNow.AddDays(-days);
         var end      = to ?? DateTime.UtcNow;
+        if (cutoff > end) return BadRequest("'from' must be before 'to'.");
 
         var snapshots = await _db.KpiSnapshots
             .Where(s => s.ProjectId == projectId && s.TenantId == tenantId
@@ -111,8 +112,10 @@ public class DashboardController : ControllerBase
         IQueryable<CoordinatorWorkload> query;
         if (weekOf.HasValue)
         {
-            // Round to Monday
-            var monday = weekOf.Value.AddDays(-(int)weekOf.Value.DayOfWeek + 1);
+            // Round back to the Monday of the given week (ISO: Mon=1, Sun=0 treated as 7).
+            var monday = weekOf.Value.DayOfWeek == DayOfWeek.Sunday
+                         ? weekOf.Value.Date.AddDays(-6)
+                         : weekOf.Value.Date.AddDays(1 - (int)weekOf.Value.DayOfWeek);
             query = _db.CoordinatorWorkloads
                 .Where(w => w.TenantId == tenantId && w.WeekStarting == monday);
         }

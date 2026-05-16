@@ -9,6 +9,16 @@ namespace Planscape.Infrastructure.Services;
 /// </summary>
 public class Nrm2DescriptionBuilder
 {
+    // Compiled once — safe to use from multiple threads (Regex is thread-safe after compilation).
+    private static readonly System.Text.RegularExpressions.Regex _tokenRx =
+        new(@"\{\{(\w+)\}\}", System.Text.RegularExpressions.RegexOptions.Compiled);
+    private static readonly System.Text.RegularExpressions.Regex _doubleCommaRx =
+        new(@",\s*,", System.Text.RegularExpressions.RegexOptions.Compiled);
+    private static readonly System.Text.RegularExpressions.Regex _trailingCommaRx =
+        new(@",\s*$", System.Text.RegularExpressions.RegexOptions.Compiled);
+    private static readonly System.Text.RegularExpressions.Regex _multiSpaceRx =
+        new(@"\s{2,}", System.Text.RegularExpressions.RegexOptions.Compiled);
+
     private static readonly Dictionary<string, string[]> _fallbackChain = new(StringComparer.OrdinalIgnoreCase)
     {
         ["material"]      = new[] { "Pset_MaterialProperties:Name", "Material", "BaseMaterial" },
@@ -29,30 +39,28 @@ public class Nrm2DescriptionBuilder
     {
         if (string.IsNullOrWhiteSpace(template)) return template;
 
-        var result = System.Text.RegularExpressions.Regex.Replace(
-            template,
-            @"\{\{(\w+)\}\}",
-            m =>
-            {
-                var key = m.Groups[1].Value;
+        var result = _tokenRx.Replace(template, m =>
+        {
+            var key = m.Groups[1].Value;
 
-                // Direct match first
-                if (properties.TryGetValue(key, out var direct) && !string.IsNullOrEmpty(direct))
-                    return direct;
+            // Direct match (case-insensitive via OrdinalIgnoreCase lookup).
+            if (properties.TryGetValue(key, out var direct) && !string.IsNullOrEmpty(direct))
+                return direct;
 
-                // Fallback chain
-                if (_fallbackChain.TryGetValue(key, out var chain))
-                    foreach (var alias in chain)
-                        if (properties.TryGetValue(alias, out var v) && !string.IsNullOrEmpty(v))
-                            return v;
+            // Fallback chain for well-known NRM2 token names.
+            if (_fallbackChain.TryGetValue(key, out var chain))
+                foreach (var alias in chain)
+                    // Try exact key and TitleCase variant of incoming properties.
+                    if (properties.TryGetValue(alias, out var v) && !string.IsNullOrEmpty(v))
+                        return v;
 
-                return string.Empty;
-            });
+            return string.Empty;
+        });
 
-        // Collapse multiple spaces / trailing commas left by missing tokens
-        result = System.Text.RegularExpressions.Regex.Replace(result, @",\s*,", ",");
-        result = System.Text.RegularExpressions.Regex.Replace(result, @",\s*$", "");
-        result = System.Text.RegularExpressions.Regex.Replace(result, @"\s{2,}", " ").Trim();
+        // Collapse artefacts left by missing tokens (double commas, trailing commas, excess spaces).
+        result = _doubleCommaRx.Replace(result, ",");
+        result = _trailingCommaRx.Replace(result, "");
+        result = _multiSpaceRx.Replace(result, " ").Trim();
         return result;
     }
 

@@ -35,16 +35,20 @@ public class KpiSnapshotJob
         _log.LogInformation("KpiSnapshotJob: computing {Count} project snapshots for {Date}",
             projects.Count, today);
 
+        // Save per-project so a failure on one doesn't discard others already computed.
         foreach (var p in projects)
         {
-            try { await ComputeSnapshotAsync(p.TenantId, p.Id, today, weekAgo, ct); }
+            try
+            {
+                await ComputeSnapshotAsync(p.TenantId, p.Id, today, weekAgo, ct);
+                await _db.SaveChangesAsync(ct);
+            }
             catch (Exception ex)
             {
                 _log.LogError(ex, "KpiSnapshotJob failed for project {ProjectId}", p.Id);
+                _db.ChangeTracker.Clear(); // discard any partial state for this project
             }
         }
-
-        await _db.SaveChangesAsync(ct);
     }
 
     private async Task ComputeSnapshotAsync(Guid tenantId, Guid projectId,
@@ -55,14 +59,15 @@ public class KpiSnapshotJob
                 s => s.ProjectId == projectId && s.SnapshotDate == today, ct))
             return;
 
+        // Filter by TenantId directly (avoid navigation-property join that may lazy-load).
         var issuesOpen    = await _db.Issues.CountAsync(
-            i => i.ProjectId == projectId && i.Project!.TenantId == tenantId
-              && i.Status != "Closed", ct);
+            i => i.ProjectId == projectId && i.TenantId == tenantId
+              && i.Status != "CLOSED", ct);
         var issuesOverdue = await _db.Issues.CountAsync(
-            i => i.ProjectId == projectId && i.Project!.TenantId == tenantId
-              && i.Status != "Closed" && i.DueDate.HasValue && i.DueDate < DateTime.UtcNow, ct);
+            i => i.ProjectId == projectId && i.TenantId == tenantId
+              && i.Status != "CLOSED" && i.DueDate.HasValue && i.DueDate < DateTime.UtcNow, ct);
         var issuesCreated = await _db.Issues.CountAsync(
-            i => i.ProjectId == projectId && i.Project!.TenantId == tenantId
+            i => i.ProjectId == projectId && i.TenantId == tenantId
               && i.CreatedAt >= weekAgo, ct);
 
         var clashesOpen     = await _db.ClashRecords.CountAsync(
@@ -72,9 +77,9 @@ public class KpiSnapshotJob
               && c.Status == "Open" && (int)c.Severity >= 2, ct);
 
         var docsTotal     = await _db.Documents.CountAsync(
-            d => d.ProjectId == projectId && d.Project!.TenantId == tenantId, ct);
+            d => d.ProjectId == projectId && d.TenantId == tenantId, ct);
         var docsPublished = await _db.Documents.CountAsync(
-            d => d.ProjectId == projectId && d.Project!.TenantId == tenantId
+            d => d.ProjectId == projectId && d.TenantId == tenantId
               && d.CdeStatus == "PUBLISHED", ct);
 
         var modelFindings = await _db.ModelCheckResults.CountAsync(
