@@ -482,46 +482,53 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Project bar
-  projectBar: {
-    marginBottom: theme.spacing.md,
-    flexGrow: 0,
-  },
-  projectChip: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.lg,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.xs + 2,
-    marginRight: theme.spacing.sm,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  projectChipActive: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
-  },
-  projectChipText: {
-    fontSize: theme.fontSize.sm,
-    fontWeight: '600',
-    color: theme.colors.text,
-  },
-  projectChipTextActive: {
-    color: theme.colors.surface,
-  },
-
-  // Project header
-  projectHeader: {
+  // No-active-project prompt
+  noProjectIcon: {
+    fontSize: 48,
     marginBottom: theme.spacing.md,
   },
-  projectName: {
-    fontSize: theme.fontSize.xxl,
+  noProjectTitle: {
+    fontSize: theme.fontSize.xl,
     fontWeight: '700',
     color: theme.colors.text,
+    marginBottom: theme.spacing.sm,
   },
-  projectCode: {
-    fontSize: theme.fontSize.sm,
+  noProjectSub: {
+    fontSize: theme.fontSize.md,
     color: theme.colors.textSecondary,
-    marginTop: 2,
+    textAlign: 'center',
+    marginBottom: theme.spacing.lg,
+    maxWidth: 280,
+  },
+  goToProjectsBtn: {
+    backgroundColor: theme.colors.accent,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.sm,
+  },
+  goToProjectsBtnText: {
+    color: theme.colors.surface,
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+  },
+
+  // Breadcrumb — active project name + tap to go back to list
+  breadcrumb: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  breadcrumbChevron: {
+    fontSize: theme.fontSize.xl,
+    color: theme.colors.accent,
+    marginRight: theme.spacing.xs,
+    lineHeight: 22,
+  },
+  breadcrumbProject: {
+    flex: 1,
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.accent,
+    fontWeight: '600',
   },
 
   // Compliance gauge
