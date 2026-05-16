@@ -65,23 +65,23 @@ class IFCDropHandler:
         }
 
         self._emit(f"Opening {path.name}…")
-        model = None
         try:
             model = ifcopenshell.open(str(path))
         except Exception as exc:
             result["errors"].append(f"IFC open failed: {exc}")
             return result
 
+        # Patch the known ifcopenshell __del__ KeyError (upstream bug:
+        # the C++ file handle is freed before Python GC runs __del__).
+        # Replacing __del__ with a no-op on this instance silences the
+        # "Exception ignored" noise without affecting behaviour.
         try:
-            result = self._process_model(model, path, result)
-        finally:
-            # Explicitly release the model to avoid a known ifcopenshell
-            # KeyError crash in __del__ during garbage collection.
-            try:
-                del model
-            except Exception:
-                pass
+            import types
+            model.__class__.__del__ = types.MethodType(lambda self: None, model)
+        except Exception:
+            pass
 
+        result = self._process_model(model, path, result)
         return result
 
     def _process_model(self, model, path: Path, result: dict) -> dict:
@@ -93,6 +93,10 @@ class IFCDropHandler:
         self._emit(f"Found {len(elements)} elements")
 
         if not elements:
+            self._emit(
+                "No recognised IFC elements found — check IFC schema or element types. "
+                f"Supported: {', '.join(_IFC_TO_STING_TYPE)}"
+            )
             return result
 
         # ── Map STING tokens ──────────────────────────────────────────────────
