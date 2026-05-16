@@ -321,7 +321,7 @@ namespace StingTools.Core.Symbols
         [JsonProperty("csaFormat")]          public string CsaFormat { get; set; } = "{csa}mm²";
         [JsonProperty("vdFormat")]           public string VdFormat { get; set; } = "VD {vd}%";
         [JsonProperty("faultFormat")]        public string FaultFormat { get; set; } = "Iₖ {fault}kA";
-        [JsonProperty("loadFormat")]         public string LoadFormat { get; set; } = "{load}kW";
+        [JsonProperty("loadFormat")]         public string LoadFormat { get; set; } = "{load}kVA";
     }
 
     public sealed class MixedStandardProfilesFile

@@ -117,7 +117,7 @@ namespace StingTools.Commands.SLD
 
                     if (opts.ShowLoadingPct && node.LoadKW > 0)
                         TextNote.Create(doc, view.Id, new XYZ(x + w / 2, y - h * 0.45, 0),
-                            $"{node.LoadKW:F1}kW", ts.Id);
+                            $"{node.LoadKW:F1}kVA", ts.Id);
                 }
             }
             catch (Exception ex) { StingLog.Warn($"DrawBox: {ex.Message}"); }

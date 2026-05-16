@@ -133,9 +133,10 @@ namespace StingTools.Core.SLD
             }
 
             // Load — controlled by opts.ShowLoads.
+            // RBS_ELEC_APPARENT_LOAD stores VA; LoadKW holds VA/1000 = kVA.
             if (opts.ShowLoads && node.LoadKW > 0)
             {
-                string loadLine = (rules.LoadFormat ?? "{load}kW")
+                string loadLine = (rules.LoadFormat ?? "{load}kVA")
                     .Replace("{load}", node.LoadKW.ToString("F1",
                         System.Globalization.CultureInfo.InvariantCulture));
                 lines.Add(loadLine);

@@ -197,8 +197,16 @@ namespace StingTools.UI
                 // ── SLD ──────────────────────────────────────────────
                 case "SLD_Generate":
                     RunCommand<StingTools.Commands.SLD.GenerateSLDCommand>(app); break;
+                case "SLD_GenerateOptions":
+                    RunCommand<StingTools.Commands.SLD.GenerateSLDWithOptionsCommand>(app); break;
                 case "SLD_Update":
                     RunCommand<StingTools.Commands.SLD.UpdateSLDCommand>(app); break;
+                case "SLD_Validate":
+                    RunCommand<StingTools.Commands.SLD.SLDValidateCommand>(app); break;
+                case "SLD_SyncToggle":
+                    RunCommand<StingTools.Commands.SLD.SLDSyncToggleCommand>(app); break;
+                case "SLD_MigrateLabels":
+                    RunCommand<StingTools.Commands.SLD.MigrateSLDLabelIdsCommand>(app); break;
                 case "SLD_Refresh":
                     /* fresh snapshot will run after Dispatch */
                     break;
