@@ -261,6 +261,66 @@ namespace StingTools.Commands.Symbols
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────
+    // Fix 7 — Compound symbol command (tag: Symbols_CreateCompound)
+    // ─────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Fix 7 — Creates compound annotation families from concept definitions
+    /// that declare compoundComponents or compoundRungs. Each compound is
+    /// assembled from the component .rfa files already created by the symbol
+    /// library build (CreateSymbolLibraryCommand or a batch command), nested
+    /// inside a new GenericAnnotation family document, and saved as
+    /// {conceptId}_compound.rfa in the same output folder.
+    ///
+    /// The command tag is "Symbols_CreateCompound". Wiring into
+    /// WorkflowEngine.ResolveCommand and StingElectricalCommandHandler is
+    /// handled by the main session after both agents complete.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CreateCompoundSymbolsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) { TaskDialog.Show("STING - Compound Symbols", "No document open."); return Result.Failed; }
+
+            string conceptsPath = StingToolsApp.FindDataFile("Symbols/STING_SYMBOL_CONCEPTS.json")
+                ?? StingToolsApp.FindDataFile("STING_SYMBOL_CONCEPTS.json");
+            if (string.IsNullOrEmpty(conceptsPath) || !File.Exists(conceptsPath))
+            {
+                TaskDialog.Show("STING - Compound Symbols",
+                    "STING_SYMBOL_CONCEPTS.json not found in data directory.\n" +
+                    "Ensure the data files are correctly deployed alongside StingTools.dll.");
+                return Result.Failed;
+            }
+
+            // Output folder mirrors the primary symbol library output so component
+            // .rfa files are found by the compound builder without extra configuration.
+            string outRoot   = SymbolBatchHelper.ResolveOutputRoot(ctx.Doc);
+            string outFolder = Path.Combine(outRoot, "SLD");  // Compound SLD symbols live in SLD sub-folder.
+            Directory.CreateDirectory(outFolder);
+
+            SymbolCreationResult r;
+            try
+            {
+                r = SymbolLibraryCreator.CreateCompoundSymbols(
+                    ctx.Doc, conceptsPath, outFolder, loadIntoProject: true);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("CreateCompoundSymbolsCommand", ex);
+                msg = ex.Message;
+                return Result.Failed;
+            }
+
+            TaskDialog.Show("STING - Compound Symbols",
+                SymbolBatchHelper.FormatReport("Compound Symbols", r));
+            return Result.Succeeded;
+        }
+    }
+
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
     public class InspectSymbolLibraryCommand : IExternalCommand
