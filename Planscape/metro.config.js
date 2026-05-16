@@ -22,4 +22,15 @@ config.resolver.assetExts = [
   "ifc",
 ];
 
+// Web shims for native-only modules.
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (platform === 'web' && moduleName === 'react-native-pdf') {
+    return {
+      filePath: require.resolve('./src/shims/react-native-pdf.web.tsx'),
+      type: 'sourceFile',
+    };
+  }
+  return context.resolveRequest(context, moduleName, platform);
+};
+
 module.exports = config;
