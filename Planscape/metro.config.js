@@ -30,6 +30,12 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
       type: 'sourceFile',
     };
   }
+  if (platform === 'web' && moduleName === 'expo-secure-store') {
+    return {
+      filePath: require.resolve('./src/shims/expo-secure-store.web.ts'),
+      type: 'sourceFile',
+    };
+  }
   return context.resolveRequest(context, moduleName, platform);
 };
 
