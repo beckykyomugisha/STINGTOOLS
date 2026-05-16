@@ -526,6 +526,16 @@ namespace StingTools.UI
                     case "AecFilters_Inspect": RunCommand<Commands.Drawing.AecFiltersInspectCommand>(app); break;
                     case "AecFilters_Reload":  RunCommand<Commands.Drawing.AecFiltersReloadCommand>(app); break;
 
+                    // ── Phase 113 Week 3 — Browser organizer diagnostic ──
+                    case "DrawingTypes_BrowserOrganize": RunCommand<Commands.Drawing.DrawingBrowserOrganizerCommand>(app); break;
+
+                    // ── Phase 113 Week 4 — Sync/ForceResync direct class entry points ──
+                    // Primary tags use inline implementations; these are secondary aliases
+                    // that invoke the standalone class directly for workflow/scripting use.
+                    case "DrawingTypes_SyncStylesDirect":    RunCommand<Commands.Drawing.DrawingSyncStylesCommand>(app);    break;
+                    case "DrawingTypes_ForceResync":         RunCommand<Commands.Drawing.DrawingForceResyncCommand>(app);   break;
+                    case "DrawingTypes_ScopeBoxesDirect":    RunCommand<Commands.Drawing.GenerateFromScopeBoxesCommand>(app); break;
+
                     // ── Phase 168 / 169 — Match-line subsystem ──
                     case "MatchLine_Generate":       RunCommand<Commands.Drawing.MatchLineGenerateCommand>(app); break;
                     case "MatchLine_Sync":           RunCommand<Commands.Drawing.MatchLineSyncCommand>(app); break;
@@ -2515,6 +2525,7 @@ namespace StingTools.UI
                     }
                     case "BCFExport": RunCommand<BIMManager.BCFExportCommand>(app); break;
                     case "BCFImport": RunCommand<BIMManager.BCFImportCommand>(app); break;
+                    case "BCFSync":   RunCommand<BIMManager.BCFSyncCommand>(app);   break;
                     case "PlatformSync":
                         // Route to Planscape server sync if connected; otherwise local delta sync
                         if (BIMManager.PlanscapeServerClient.Instance.IsConnected)
@@ -2546,6 +2557,7 @@ namespace StingTools.UI
                     case "RevisionExport": RunCommand<BIMManager.RevisionExportCommand>(app); break;
                     case "BulkRevisionStamp": RunCommand<BIMManager.BulkRevisionStampCommand>(app); break;
                     case "AutoRevisionOnTagChange": RunCommand<BIMManager.AutoRevisionOnTagChangeCommand>(app); break;
+                    case "RevisionCloudAudit":      RunCommand<BIMManager.RevisionCloudAuditCommand>(app);      break;
 
                     // Revision Management — Enhanced
                     case "RevisionApprovalWorkflow": RunCommand<BIMManager.RevisionApprovalWorkflowCommand>(app); break;
@@ -3557,6 +3569,7 @@ namespace StingTools.UI
                     case "PlanscapeHTML":           PlanscapeExportHtml(app); break;
                     case "PlanscapeHTMLDashboard":  PlanscapeExportHtml(app); break;              // Phase 78 alias
                     case "PlanscapeConnect":        RunCommand<BIMManager.PlanscapeConnectCommand>(app); break;
+                    case "PlanscapeOnboarding":     RunCommand<BIMManager.PluginOnboardingWizardCommand>(app); break;
                     case "PlanscapeDisconnect":     BIMManager.PlanscapeServerClient.Instance.Disconnect();
                                                    TaskDialog.Show("Planscape", "Disconnected from Planscape server."); break;
                     case "PlanscapeSyncNow":        BIMManager.PlatformSyncCommand.SyncToPlanscapeServer(app); break;

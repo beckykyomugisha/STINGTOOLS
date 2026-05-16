@@ -7,20 +7,33 @@ button-tag dispatcher in `StingTools/UI/StingCommandHandler.cs`.
 - **Wired in `StingCommandHandler.cs`**: 1,162
 - **Not in dock-panel dispatcher**: **126**
 
-> **Phase 177 update**: 13 of the original 23 Category C commands are now
-> wired — 5 AVF heatmap commands (tags `Heatmap_*`), 5 V6 commands (tags
-> `V6_*`), and 3 AEC filter commands (tags `AecFilters_*` with XAML buttons
-> added to the Drawing Types section of the DOCS tab). Counts below reflect
-> the **original** triage; update when the remaining 10 are resolved.
+> **Phase 177 update (complete)**: All 23 original Category C commands have been
+> resolved. Summary:
+>
+> - **Wired with new tags + XAML buttons** (10): 5 AVF heatmap (`Heatmap_*`), 5 V6
+>   (`V6_*`), 3 AEC filter (`AecFilters_*`), `DrawingBrowserOrganizerCommand`
+>   (`DrawingTypes_BrowserOrganize`), `BCFSyncCommand` (`BCFSync`),
+>   `RevisionCloudAuditCommand` (`RevisionCloudAudit`),
+>   `PluginOnboardingWizardCommand` (`PlanscapeOnboarding`)
+> - **Wired with secondary alias tags only** (3): `DrawingSyncStylesCommand`
+>   (`DrawingTypes_SyncStylesDirect`), `DrawingForceResyncCommand`
+>   (`DrawingTypes_ForceResync`), `GenerateFromScopeBoxesCommand`
+>   (`DrawingTypes_ScopeBoxesDirect`) — primary tags already had inline
+>   implementations and XAML buttons
+> - **Left as dead code** (3): `BatchPrintSheetsCommand`,
+>   `ClashDetectionCommand` (Temp variant), `PanelScheduleCommand` (Temp
+>   variant) — their dispatcher tags already route to newer commands; old
+>   classes compile harmlessly and can be deleted in a future cleanup sprint
+>   once confirmed no external tooling imports them directly
 
 ## Counts
 
 | Category | Count |
 |---|---|
 | **A** — Wired via alternative entry points (NOT dead) | **103** |
-| **A'** — Newly wired in Phase 177 (AVF heatmap + V6 + AEC filters) | **13** |
+| **A'** — Newly wired in Phase 177 | **20** |
 | **B** — V4 MVP deferred (intentionally not wired) | **0** |
-| **C** — Genuinely dead (no references anywhere) | **10** |
+| **C** — Superseded dead code (compiler-visible, runtime-unreachable) | **3** |
 | **Total** | **126** |
 
 > Category B is zero because every V4 MVP command under
