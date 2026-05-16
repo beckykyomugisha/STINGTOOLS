@@ -161,6 +161,10 @@ public class PlanscapeDbContext : DbContext
     // of a federated ProjectModel; mobile streams these on demand).
     public DbSet<SceneNode> SceneNodes => Set<SceneNode>();
     public DbSet<ClashRecord> ClashRecords => Set<ClashRecord>();
+    // IFC alignment / georeferencing validation reports — written by
+    // IfcAlignmentValidator at upload time. Surfaces cross-software
+    // coordination drift (ArchiCAD vs Revit unit / CRS / IfcSite GUID).
+    public DbSet<IfcAlignmentReport> IfcAlignmentReports => Set<IfcAlignmentReport>();
     // S6.1 — voice notes on issues.
     public DbSet<IssueAudioNote> IssueAudioNotes => Set<IssueAudioNote>();
     // S6.2 — 3D markup polylines anchored to a model / project.
@@ -907,6 +911,13 @@ public class PlanscapeDbContext : DbContext
             e.Property(x => x.DetectedByJobId).HasMaxLength(80);
             e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.Issue).WithMany().HasForeignKey(x => x.IssueId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ── IfcAlignmentReport — per-model IFC alignment validation results ──
+        modelBuilder.Entity<IfcAlignmentReport>(e =>
+        {
+            e.HasIndex(r => new { r.ProjectId, r.ProjectModelId });
+            e.HasIndex(r => r.TenantId);
         });
     }
 
