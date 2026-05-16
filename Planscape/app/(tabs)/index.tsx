@@ -11,14 +11,13 @@ import {
 import { useRouter } from 'expo-router';
 import { theme, getRAGColor, getPriorityColor } from '@/utils/theme';
 import {
-  listProjects,
   getProjectDashboard,
   getMyActions,
   getFederationStatus,
   listSyncConflicts,
   type FederationStatus,
 } from '@/api/endpoints';
-import type { DashboardData, Project, BimIssue } from '@/types/api';
+import type { DashboardData, BimIssue } from '@/types/api';
 import { useProjectStore } from '@/stores/projectStore';
 import { useInboxStore } from '@/stores/inboxStore';
 import { SitePhotoFab } from '@/components/SitePhotoFab';

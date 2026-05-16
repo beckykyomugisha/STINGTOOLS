@@ -28,8 +28,6 @@ export default function TabLayout() {
   // update live when pushes arrive / are tapped. Using separate selectors
   // keeps re-renders narrow (a dashboard-only push won't re-render issues).
   const issuesUnread = useNotificationStore((s) => s.byFeature.issues ?? 0);
-  const docsUnread = useNotificationStore((s) => s.byFeature.documents ?? 0);
-  const dashUnread = useNotificationStore((s) => s.byFeature.dashboard ?? 0);
 
   useEffect(() => {
     // TENANT-SWITCH — one call on tab-layout mount populates the store. The
@@ -58,16 +56,26 @@ export default function TabLayout() {
         },
       }}
     >
+      {/*
+        Tab 1 — Projects home. Renders the project list/grid (app/projects/index.tsx
+        is the content; tapping a row goes to app/projects/[id].tsx). The tab bar
+        item stays focused on "Projects" throughout the project list → project
+        dashboard → feature screen journey because those sub-screens push onto
+        the stack rather than switching tabs.
+      */}
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dashboard',
-          tabBarIcon: ({ focused }) => <TabIcon label="📊" focused={focused} />,
-          // Phase 96 — compliance/SLA pushes bump the dashboard badge.
-          tabBarBadge: dashUnread > 0 ? (dashUnread > 99 ? '99+' : dashUnread) : undefined,
-          tabBarBadgeStyle: { backgroundColor: theme.colors.danger, color: '#fff', fontSize: 10 },
+          title: 'Projects',
+          tabBarIcon: ({ focused }) => <TabIcon label="🏗" focused={focused} />,
         }}
       />
+
+      {/*
+        Tab 2 — Issues. The most-used feature in the field; deserves a dedicated
+        tab so coordinators can jump directly without opening a project first.
+        Badge driven by push notifications (Phase 96).
+      */}
       <Tabs.Screen
         name="issues"
         options={{
@@ -77,22 +85,11 @@ export default function TabLayout() {
           tabBarBadgeStyle: { backgroundColor: theme.colors.danger, color: '#fff', fontSize: 10 },
         }}
       />
-      <Tabs.Screen
-        name="documents"
-        options={{
-          title: 'Documents',
-          tabBarIcon: ({ focused }) => <TabIcon label="📄" focused={focused} />,
-          tabBarBadge: docsUnread > 0 ? (docsUnread > 99 ? '99+' : docsUnread) : undefined,
-          tabBarBadgeStyle: { backgroundColor: theme.colors.danger, color: '#fff', fontSize: 10 },
-        }}
-      />
-      <Tabs.Screen
-        name="models"
-        options={{
-          title: 'Models',
-          tabBarIcon: ({ focused }) => <TabIcon label="🧊" focused={focused} />,
-        }}
-      />
+
+      {/*
+        Tab 3 — QR / barcode scanner. On-site entry point for element lookup,
+        issue pre-fill from a scanned asset tag, or punchlist check-in.
+      */}
       <Tabs.Screen
         name="scanner"
         options={{
@@ -100,17 +97,51 @@ export default function TabLayout() {
           tabBarIcon: ({ focused }) => <TabIcon label="📷" focused={focused} />,
         }}
       />
+
+      {/*
+        Tab 4 — My Actions inbox. Aggregates issues assigned to me, meeting
+        action items, and pending document approvals so a BIM/Construction
+        Manager lands here at morning stand-up without hunting through tabs.
+      */}
+      <Tabs.Screen
+        name="inbox"
+        options={{
+          title: 'My Actions',
+          tabBarIcon: ({ focused }) => <TabIcon label="📋" focused={focused} />,
+        }}
+      />
+
+      {/*
+        Hidden screens — still routable via router.push() but absent from the
+        tab bar. Documents, Models, and Settings are accessible from inside the
+        project dashboard (app/projects/[id].tsx navigation grid).
+      */}
+      <Tabs.Screen
+        name="documents"
+        options={{
+          href: null,
+          title: 'Documents',
+        }}
+      />
+      <Tabs.Screen
+        name="models"
+        options={{
+          href: null,
+          title: 'Models',
+        }}
+      />
       <Tabs.Screen
         name="settings"
         options={{
+          href: null,
           title: 'Settings',
-          tabBarIcon: ({ focused }) => <TabIcon label="⚙" focused={focused} />,
         }}
       />
+
       {/*
         Phase 94 — issue-detail is routable via router.push('/issue-detail?id=<id>')
         but hidden from the bottom tab bar (`href: null`). Tab bar stays visible
-        while coordinators drill into an issue so they can bounce to Dashboard or
+        while coordinators drill into an issue so they can bounce to Issues or
         Scanner without popping the stack.
       */}
       <Tabs.Screen
