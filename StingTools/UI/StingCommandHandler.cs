@@ -519,6 +519,13 @@ namespace StingTools.UI
                     case "DrawingTypes_AuditPackages":
                     case "DrawingTypes_PackageAudit":              RunCommand<Commands.Drawing.DrawingPackageAuditCommand>(app); break;
 
+                    // ── Phase 166 — AEC corporate filter library (199 filters) ──
+                    // Wired retroactively: CLAUDE.md Phase 166 documents these as
+                    // implemented but no dispatch tag was added at the time.
+                    case "AecFilters_Create":  RunCommand<Commands.Drawing.AecFiltersCreateCommand>(app); break;
+                    case "AecFilters_Inspect": RunCommand<Commands.Drawing.AecFiltersInspectCommand>(app); break;
+                    case "AecFilters_Reload":  RunCommand<Commands.Drawing.AecFiltersReloadCommand>(app); break;
+
                     // ── Phase 168 / 169 — Match-line subsystem ──
                     case "MatchLine_Generate":       RunCommand<Commands.Drawing.MatchLineGenerateCommand>(app); break;
                     case "MatchLine_Sync":           RunCommand<Commands.Drawing.MatchLineSyncCommand>(app); break;
