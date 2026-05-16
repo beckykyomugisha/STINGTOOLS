@@ -10,6 +10,16 @@
 //  - SLDNode gains CsaMm2, VdPct, FaultKa fields for BS 7671 annotation.
 //  - SymbolConceptForElement() infers MCB/MCCB/RCBO/RCD/isolator concept from
 //    the family name when STING_SYMBOL_ID is not stamped.
+//
+// Phase 179 S1–S6 additions:
+//  S1 - SLDNode gains SystemVoltageV + VoltageTier; ReadElementParams reads
+//       RBS_ELEC_VOLTAGE_PARAM and assigns LV/MV/HV tier.
+//  S2 - SLDNode gains SecondaryParentId + FeedType; BuildHierarchyAll does a
+//       second pass to detect dual-source nodes; FindDualSourceNodes helper.
+//  S4 - SLDNode gains RouteRef; ReadElementParams reads ELC_CONDUIT_REF /
+//       ELC_CABLE_ROUTE_REF.
+//  S6 - SLDNode gains RuntimeMin; ReadElementParams reads RUNTIME_MIN for UPS
+//       equipment.
 
 using System;
 using System.Collections.Generic;
@@ -32,6 +42,18 @@ namespace StingTools.Core.SLD
         public string CsaMm2 { get; set; }
         public double VdPct { get; set; }
         public string FaultKa { get; set; }
+        // Phase 179 S1 — Voltage level differentiation.
+        public double SystemVoltageV { get; set; }
+        /// <summary>"LV" ≤1000 V, "MV" 1001–36000 V, "HV" >36000 V</summary>
+        public string VoltageTier { get; set; }
+        // Phase 179 S2 — Dual-source / ATS traversal.
+        public ElementId SecondaryParentId { get; set; }
+        /// <summary>"Normal", "Emergency", "Both"</summary>
+        public string FeedType { get; set; }
+        // Phase 179 S4 — Cable route reference.
+        public string RouteRef { get; set; }
+        // Phase 179 S6 — UPS autonomy time (minutes).
+        public double RuntimeMin { get; set; }
         public SLDNode Parent { get; set; }
         public List<SLDNode> Children { get; set; } = new List<SLDNode>();
         public int HierarchyLevel { get; set; }
@@ -91,6 +113,64 @@ namespace StingTools.Core.SLD
                     .Where(e => !loadIds.Contains(e.Id.Value))
                     .Select(r => BuildNode(r, null, 0, allSystems, doc))
                     .ToList();
+
+                if (roots.Count > 0)
+                {
+                    // S2 — Second pass: detect dual-source nodes.
+                    // For each element that appears as BaseEquipment on more than one
+                    // ElectricalSystem whose own BaseEquipment is different, flag as dual-source.
+                    try
+                    {
+                        // Map elementId → list of distinct system BaseEquipment IDs that feed it.
+                        var feedersToEquipment = new Dictionary<long, HashSet<long>>();
+                        foreach (var sys in allSystems)
+                        {
+                            try
+                            {
+                                if (sys.BaseEquipment == null) continue;
+                                long baseId = sys.BaseEquipment.Id.Value;
+                                foreach (Element el in sys.Elements)
+                                {
+                                    long elId = el.Id.Value;
+                                    if (!feedersToEquipment.ContainsKey(elId))
+                                        feedersToEquipment[elId] = new HashSet<long>();
+                                    feedersToEquipment[elId].Add(baseId);
+                                }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"S2 dual-source scan: {ex.Message}"); }
+                        }
+
+                        // Walk all built nodes and stamp SecondaryParentId / FeedType.
+                        void StampDualSource(SLDNode n)
+                        {
+                            try
+                            {
+                                if (feedersToEquipment.TryGetValue(n.ElementId.Value, out var parentIds)
+                                    && parentIds.Count > 1)
+                                {
+                                    // Use the second distinct parent as the secondary.
+                                    long primaryId   = n.Parent?.ElementId.Value ?? 0L;
+                                    long secondaryId = parentIds.FirstOrDefault(p => p != primaryId);
+                                    if (secondaryId != 0L)
+                                        n.SecondaryParentId = new ElementId(secondaryId);
+
+                                    string feedType = GetParamString(n.RevitElement, "ELC_FEED_TYPE_TXT");
+                                    n.FeedType = string.IsNullOrEmpty(feedType) ? "Both" : feedType;
+                                }
+                                else
+                                {
+                                    string feedType = GetParamString(n.RevitElement, "ELC_FEED_TYPE_TXT");
+                                    n.FeedType = string.IsNullOrEmpty(feedType) ? "Normal" : feedType;
+                                }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"StampDualSource node: {ex.Message}"); }
+                            foreach (var c in n.Children) StampDualSource(c);
+                        }
+
+                        foreach (var root in roots) StampDualSource(root);
+                    }
+                    catch (Exception ex) { StingLog.Warn($"BuildHierarchyAll dual-source pass: {ex.Message}"); }
+                }
 
                 return roots.Count > 0 ? roots : null;
             }
@@ -242,8 +322,8 @@ namespace StingTools.Core.SLD
         }
 
         /// <summary>
-        /// Reads element-level STING engineering params (CSA, VD, fault level)
-        /// directly from the FamilyInstance shared parameters.
+        /// Reads element-level STING engineering params (CSA, VD, fault level,
+        /// voltage tier, cable route, UPS runtime) directly from the FamilyInstance.
         /// </summary>
         private static void ReadElementParams(FamilyInstance fi, SLDNode node)
         {
@@ -261,6 +341,56 @@ namespace StingTools.Core.SLD
                         System.Globalization.NumberStyles.Any,
                         System.Globalization.CultureInfo.InvariantCulture, out double vd))
                     node.VdPct = vd;
+
+                // S1 — Voltage level: read RBS_ELEC_VOLTAGE_PARAM (stored in Revit internal
+                // units, i.e. volts).  Values < 50 are assumed to be in kV and converted.
+                try
+                {
+                    var voltParam = fi.get_Parameter(BuiltInParameter.RBS_ELEC_VOLTAGE_PARAM);
+                    if (voltParam != null)
+                    {
+                        double rawV = voltParam.AsDouble();
+                        if (rawV > 0)
+                        {
+                            // Convert: if suspiciously small (<50) treat as kV.
+                            double volts = rawV < 50.0 ? rawV * 1000.0 : rawV;
+                            node.SystemVoltageV = volts;
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"ReadElementParams voltage: {ex.Message}"); }
+
+                // Assign VoltageTier from threshold; default 400 V / LV.
+                if (node.SystemVoltageV <= 0) node.SystemVoltageV = 400.0;
+                node.VoltageTier = node.SystemVoltageV <= 1000.0 ? "LV"
+                                 : node.SystemVoltageV <= 36000.0 ? "MV"
+                                 : "HV";
+
+                // S4 — Cable route reference.
+                string route = GetParamString(fi, "ELC_CONDUIT_REF");
+                if (string.IsNullOrEmpty(route))
+                    route = GetParamString(fi, "ELC_CABLE_ROUTE_REF");
+                if (!string.IsNullOrEmpty(route)) node.RouteRef = route;
+
+                // S6 — UPS autonomy time: only for UPS equipment.
+                string familyName = fi.Symbol?.Family?.Name ?? "";
+                bool isUps = familyName.IndexOf("UPS", StringComparison.OrdinalIgnoreCase) >= 0
+                          || string.Equals(node.ConceptId, "SLD_UPS", StringComparison.OrdinalIgnoreCase);
+                if (isUps)
+                {
+                    try
+                    {
+                        var rtParam = fi.LookupParameter("RUNTIME_MIN");
+                        if (rtParam != null)
+                        {
+                            double rt = rtParam.StorageType == StorageType.Integer
+                                ? rtParam.AsInteger()
+                                : rtParam.AsDouble();
+                            if (rt > 0) node.RuntimeMin = rt;
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"ReadElementParams runtime: {ex.Message}"); }
+                }
             }
             catch (Exception ex) { StingLog.Warn($"ReadElementParams: {ex.Message}"); }
         }
@@ -378,6 +508,29 @@ namespace StingTools.Core.SLD
             }
 
             return null;
+        }
+
+        // ── S2 helper ────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Returns all nodes in the hierarchy where FeedType is not "Normal",
+        /// i.e. nodes that receive Emergency or dual-source feeds.
+        /// </summary>
+        public static List<SLDNode> FindDualSourceNodes(SLDNode root)
+        {
+            var result = new List<SLDNode>();
+            if (root == null) return result;
+            var stack = new Stack<SLDNode>();
+            stack.Push(root);
+            while (stack.Count > 0)
+            {
+                var n = stack.Pop();
+                if (!string.IsNullOrEmpty(n.FeedType)
+                    && !string.Equals(n.FeedType, "Normal", StringComparison.OrdinalIgnoreCase))
+                    result.Add(n);
+                foreach (var c in n.Children) stack.Push(c);
+            }
+            return result;
         }
 
         // ── Param helpers ────────────────────────────────────────────────────

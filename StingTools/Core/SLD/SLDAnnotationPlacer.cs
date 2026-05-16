@@ -8,12 +8,19 @@
 // Phase 179: accepts SLDAnnotationOptions so UI checkboxes (ShowVdPct,
 // ShowFaultKa, ShowCsaMm2, ShowLoads) drive label content; BuildCircuitLabel
 // now emits all populated BS 7671 / IEC 60364 fields.
+//
+// Phase 179 S1–S6 additions:
+//  S1 - BuildCircuitLabel appends non-standard voltage value line.
+//  S4 - BuildCircuitLabel appends "via <RouteRef>" line.
+//  S5 - StampDiscriminationBadges() places SEL / ! badges near device labels.
+//  S6 - BuildCircuitLabel appends UPS runtime line.
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 using StingTools.Core.Symbols;
+using StingTools.Commands.Electrical.Coordination;
 
 namespace StingTools.Core.SLD
 {
@@ -183,6 +190,23 @@ namespace StingTools.Core.SLD
                 lines.Add(faultLine);
             }
 
+            // S1 — Non-standard voltage: append only when voltage is populated and
+            // does not match the common nominal values (230 V or 400 V).
+            if (node.SystemVoltageV > 0
+                && Math.Abs(node.SystemVoltageV - 230.0) > 1.0
+                && Math.Abs(node.SystemVoltageV - 400.0) > 1.0)
+            {
+                lines.Add($"{node.SystemVoltageV:F0}V");
+            }
+
+            // S4 — Cable / conduit route reference.
+            if (!string.IsNullOrEmpty(node.RouteRef))
+                lines.Add($"via {node.RouteRef}");
+
+            // S6 — UPS autonomy time.
+            if (node.RuntimeMin > 0)
+                lines.Add($"{node.RuntimeMin:F0}min");
+
             // Element name label.
             if (!string.IsNullOrEmpty(node.Label)) lines.Add(node.Label);
 
@@ -216,6 +240,132 @@ namespace StingTools.Core.SLD
             {
                 StingLog.Warn($"SLDAnnotationPlacer.StampLabelId: {ex.Message}");
             }
+        }
+
+        // ── S5 — Discrimination badges ───────────────────────────────────────
+
+        /// <summary>
+        /// S5 — Stamps SEL (selective) or ! (violation) badges near each
+        /// protective-device annotation on the SLD view.
+        ///
+        /// <para>Logic:</para>
+        /// <list type="bullet">
+        ///   <item>A set of "violating" device labels is built from
+        ///     <paramref name="violations"/> (both upstream and downstream names).</item>
+        ///   <item>Walking the node tree from <paramref name="root"/>: nodes whose
+        ///     label appears in the violation set receive a "!" badge.  Nodes whose
+        ///     label is NOT in the violation set AND whose parent's label is ALSO not
+        ///     in the violation set receive a "SEL" badge (the pair is selectively
+        ///     coordinated).</item>
+        ///   <item>Badges are placed as small TextNotes offset −boxHeight × 0.6 below
+        ///     the symbol centre so they appear beneath the main circuit label.</item>
+        ///   <item>When <paramref name="violations"/> is empty the method is a no-op
+        ///     (no badges written, no transactions started).</item>
+        /// </list>
+        /// </summary>
+        public static void StampDiscriminationBadges(
+            Document doc,
+            ViewDrafting view,
+            SLDNode root,
+            IEnumerable<CoordViolation> violations,
+            IDictionary<ElementId, ElementId> nodeToInstance)
+        {
+            if (doc == null || view == null || root == null) return;
+            var violationList = violations?.ToList() ?? new List<CoordViolation>();
+            if (violationList.Count == 0) return;   // no-op on empty list
+
+            try
+            {
+                // Build set of device labels involved in a violation (upstream or downstream).
+                var violatingLabels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var v in violationList)
+                {
+                    if (!string.IsNullOrEmpty(v.UpstreamDevice))
+                        violatingLabels.Add(v.UpstreamDevice);
+                    if (!string.IsNullOrEmpty(v.DownstreamDevice))
+                        violatingLabels.Add(v.DownstreamDevice);
+                }
+
+                // Retrieve first available TextNoteType once.
+                ElementId tnt = new FilteredElementCollector(doc)
+                    .OfClass(typeof(TextNoteType))
+                    .FirstElementId();
+                if (tnt == ElementId.InvalidElementId)
+                {
+                    StingLog.Warn("StampDiscriminationBadges: no TextNoteType in document.");
+                    return;
+                }
+
+                // Badge offset: 0.6 × symbol height (in feet; use 8 mm default).
+                double badgeOffsetFt = Mm(8.0) * 0.6;
+
+                using (var tx = new Transaction(doc, "STING SLD Discrimination Badges"))
+                {
+                    tx.Start();
+                    StampBadgesRecursive(doc, view, root, tnt, badgeOffsetFt,
+                        violatingLabels, nodeToInstance);
+                    tx.Commit();
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"StampDiscriminationBadges: {ex.Message}");
+            }
+        }
+
+        private static void StampBadgesRecursive(
+            Document doc, ViewDrafting view, SLDNode node,
+            ElementId tnt, double badgeOffsetFt,
+            HashSet<string> violatingLabels,
+            IDictionary<ElementId, ElementId> nodeToInstance)
+        {
+            if (node == null) return;
+            try
+            {
+                // Only badge nodes that have a placed symbol instance.
+                if (nodeToInstance != null
+                    && nodeToInstance.ContainsKey(node.ElementId)
+                    && !string.IsNullOrEmpty(node.Label))
+                {
+                    // Determine badge text.
+                    bool isViolation = violatingLabels.Contains(node.Label);
+                    bool parentViolation = node.Parent != null
+                        && !string.IsNullOrEmpty(node.Parent.Label)
+                        && violatingLabels.Contains(node.Parent.Label);
+
+                    string badge = isViolation ? "!"
+                                 : (!parentViolation ? "SEL" : null);
+
+                    if (!string.IsNullOrEmpty(badge))
+                    {
+                        // Get position from the placed FamilyInstance.
+                        var instanceId = nodeToInstance[node.ElementId];
+                        var inst = doc.GetElement(instanceId) as FamilyInstance;
+                        if (inst?.Location is LocationPoint lp)
+                        {
+                            var badgePos = new XYZ(lp.Point.X,
+                                                   lp.Point.Y - badgeOffsetFt,
+                                                   lp.Point.Z);
+                            try
+                            {
+                                TextNote.Create(doc, view.Id, badgePos, badge, tnt);
+                            }
+                            catch (Exception ex)
+                            {
+                                StingLog.Warn($"StampBadgesRecursive TextNote: {ex.Message}");
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"StampBadgesRecursive node '{node?.Label}': {ex.Message}");
+            }
+
+            foreach (var child in node.Children)
+                StampBadgesRecursive(doc, view, child, tnt, badgeOffsetFt,
+                    violatingLabels, nodeToInstance);
         }
     }
 }

@@ -10,12 +10,22 @@
 //  - DrawingType stamp written on every generated view so Browser Organizer
 //    and drift detection can classify it.
 //  - UpdateSLD / FullRebuild propagate options through.
+//
+// Phase 179 S1–S5 additions:
+//  S1 - PlaceSymbols stamps STING_VOLTAGE_TIER on each FamilyInstance.
+//       PlaceBusbarsAndBranches now stamps STING_BUS_VOLTAGE_TIER on the view.
+//       Line-weight variance by tier is deferred to ViewStylePack (see comment).
+//  S2 - PlaceSymbols stamps STING_FEED_TYPE on emergency/dual-source nodes.
+//       DrawEmergencyFeedNotation() draws dashed notation for dual-source links.
+//  S3 - DrawBusCouplerNotation() draws BC/NOP markers between adjacent roots.
+//  S5 - StampDiscriminationBadges() called after all annotations are placed.
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 using StingTools.Core.Symbols;
+using StingTools.Commands.Electrical.Coordination;
 
 namespace StingTools.Core.SLD
 {
@@ -26,6 +36,8 @@ namespace StingTools.Core.SLD
         public int SymbolsPlaced { get; set; }
         public int CircuitsShown { get; set; }
         public string Warning { get; set; }
+        /// <summary>Accumulated non-fatal warnings from symbol placement / annotation.</summary>
+        public List<string> Warnings { get; set; } = new List<string>();
     }
 
     public static class SLDGenerator
@@ -66,6 +78,9 @@ namespace StingTools.Core.SLD
                     var nodeToInstance = new Dictionary<ElementId, ElementId>();
                     double xOffset = 0;
 
+                    // Collect per-root layout for S3 bus-coupler notation.
+                    var rootLayouts = new List<(SLDNode root, SLDLayout layout)>();
+
                     foreach (var root in roots)
                     {
                         var baseLayout = SLDLayoutEngine.CalculateLayout(root, standardId, layoutOpts);
@@ -76,9 +91,25 @@ namespace StingTools.Core.SLD
                         SLDAnnotationPlacer.PlaceAllAnnotations(doc, view, root, layout,
                             standardId, nodeToInstance, annotOpts);
 
+                        // S2 — Emergency feed notation for dual-source nodes.
+                        DrawEmergencyFeedNotation(doc, view, root, layout, nodeToInstance,
+                            layoutOpts.SymbolHeightMm / 304.8, layoutOpts.LevelOffsetMm / 304.8);
+
+                        rootLayouts.Add((root, layout));
+
                         if (layout.TotalWidth > 0)
                             xOffset += layout.TotalWidth + layoutOpts.RootGapMm / 304.8;
                     }
+
+                    // S1 — Stamp dominant voltage tier on the view for busbar line-weight
+                    // resolution by ViewStylePack (actual DetailCurve line-weight variation
+                    // requires a GraphicsStyle lookup which is deferred to ViewStylePack binding;
+                    // the view parameter gives the pack enough context to apply the right style).
+                    StampBusTierOnView(doc, view, roots);
+
+                    // S3 — Bus coupler / tie-breaker notation between adjacent roots.
+                    DrawBusCouplerNotation(doc, view, rootLayouts,
+                        layoutOpts.SymbolHeightMm / 304.8, layoutOpts.LevelOffsetMm / 304.8);
 
                     StampViewStandard(view, standardId);
                     StampDrawingType(view);
@@ -87,6 +118,15 @@ namespace StingTools.Core.SLD
                     result.Success = true;
                     result.SLDView = view;
                 }
+
+                // S5 — Discrimination badges: called AFTER the main transaction commits so
+                // StampDiscriminationBadges can open its own transaction safely.
+                // Passes empty violations list here — callers that run SelectiveCoordEngine
+                // should call StampDiscriminationBadges directly with real violations.
+                SLDAnnotationPlacer.StampDiscriminationBadges(doc, result.SLDView,
+                    roots.FirstOrDefault(),
+                    Enumerable.Empty<CoordViolation>(),
+                    new Dictionary<ElementId, ElementId>());
             }
             catch (Exception ex)
             {
@@ -282,6 +322,15 @@ namespace StingTools.Core.SLD
                                     StampParam(inst, "STING_SYMBOL_ID", node.ConceptId);
                                     StampParam(inst, "STING_SLD_ELEMENT_ID",
                                         node.ElementId.Value.ToString());
+                                    // S1 — Voltage tier stamp.
+                                    StampParam(inst, "STING_VOLTAGE_TIER", node.VoltageTier ?? "LV");
+                                    // S2 — Feed type stamp (Emergency / Both nodes only).
+                                    if (!string.IsNullOrEmpty(node.FeedType)
+                                        && !string.Equals(node.FeedType, "Normal",
+                                            StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        StampParam(inst, "STING_FEED_TYPE", node.FeedType);
+                                    }
                                     result.SymbolsPlaced++;
                                     nodeToInstance?[node.ElementId] = inst.Id;
                                 }
@@ -426,6 +475,219 @@ namespace StingTools.Core.SLD
                 if (p != null && !p.IsReadOnly) p.Set(value ?? "");
             }
             catch (Exception ex) { StingLog.Warn($"StampParam {name}: {ex.Message}"); }
+        }
+
+        // ── S1 — Stamp dominant voltage tier on the view ─────────────────────
+
+        /// <summary>
+        /// S1 — Writes <c>STING_BUS_VOLTAGE_TIER</c> on the view as a view-scoped
+        /// parameter. The dominant tier is the highest tier found across all root
+        /// nodes (HV > MV > LV). ViewStylePack binding uses this to select the
+        /// correct busbar line-weight style; actual DetailCurve line-weight variation
+        /// requires a GraphicsStyle lookup which is deferred to the pack.
+        /// </summary>
+        private static void StampBusTierOnView(Document doc, ViewDrafting view, List<SLDNode> roots)
+        {
+            try
+            {
+                if (roots == null || roots.Count == 0) return;
+
+                // Walk all root nodes to find dominant tier.
+                string dominantTier = "LV";
+                var stack = new Stack<SLDNode>();
+                foreach (var r in roots) stack.Push(r);
+                while (stack.Count > 0)
+                {
+                    var n = stack.Pop();
+                    string t = n.VoltageTier ?? "LV";
+                    if (t == "HV") { dominantTier = "HV"; break; }
+                    if (t == "MV" && dominantTier != "HV") dominantTier = "MV";
+                    foreach (var c in n.Children) stack.Push(c);
+                }
+
+                var p = view.LookupParameter("STING_BUS_VOLTAGE_TIER");
+                if (p != null && !p.IsReadOnly) p.Set(dominantTier);
+            }
+            catch (Exception ex) { StingLog.Warn($"StampBusTierOnView: {ex.Message}"); }
+        }
+
+        // ── S2 — Emergency feed notation ─────────────────────────────────────
+
+        /// <summary>
+        /// S2 — For each dual-source node in the subtree, draws a dashed
+        /// detail curve from the secondary parent's symbol centre to this node's
+        /// symbol centre, plus a small "E" TextNote at the midpoint.
+        /// No-op when the node has no secondary parent or the secondary parent
+        /// has no position in <paramref name="nodeToInstance"/>.
+        /// </summary>
+        private static void DrawEmergencyFeedNotation(Document doc, ViewDrafting view,
+            SLDNode root, SLDLayout layout,
+            IDictionary<ElementId, ElementId> nodeToInstance,
+            double boxHFt, double levelOffsetFt)
+        {
+            if (doc == null || view == null || root == null || layout == null) return;
+            try
+            {
+                var dualNodes = SLDCircuitTraverser.FindDualSourceNodes(root);
+                if (dualNodes == null || dualNodes.Count == 0) return;
+
+                ElementId tnt = new FilteredElementCollector(doc)
+                    .OfClass(typeof(TextNoteType))
+                    .FirstElementId();
+
+                foreach (var node in dualNodes)
+                {
+                    try
+                    {
+                        // Need position for this node and its secondary parent.
+                        if (node.SecondaryParentId == null
+                            || node.SecondaryParentId == ElementId.InvalidElementId)
+                            continue;
+
+                        if (!layout.SymbolPositions.TryGetValue(node.ElementId, out var nodePos))
+                            continue;
+
+                        // Try to find secondary parent position in layout.
+                        if (!layout.SymbolPositions.TryGetValue(
+                                node.SecondaryParentId, out var secPos))
+                            continue;
+
+                        // Draw dashed detail curve (the "dashed" quality is set via
+                        // line-style; use the first available dash line style).
+                        var dashLine = Line.CreateBound(secPos, nodePos);
+                        if (dashLine.Length < 1e-6) continue;
+
+                        var curve = doc.Create.NewDetailCurve(view, dashLine);
+
+                        // Attempt to apply a dashed line style.
+                        try
+                        {
+                            var dashStyle = new FilteredElementCollector(doc)
+                                .OfClass(typeof(GraphicsStyle))
+                                .Cast<GraphicsStyle>()
+                                .FirstOrDefault(gs =>
+                                    gs.GraphicsStyleType == GraphicsStyleType.Projection
+                                    && (gs.Name.IndexOf("Dash", StringComparison.OrdinalIgnoreCase) >= 0
+                                     || gs.Name.IndexOf("Hidden", StringComparison.OrdinalIgnoreCase) >= 0));
+                            if (dashStyle != null && curve != null)
+                                curve.LineStyle = dashStyle;
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"DrawEmergencyFeedNotation line style: {ex.Message}");
+                        }
+
+                        // Place "E" label at midpoint.
+                        if (tnt != ElementId.InvalidElementId)
+                        {
+                            var mid = new XYZ(
+                                (secPos.X + nodePos.X) / 2.0,
+                                (secPos.Y + nodePos.Y) / 2.0 + boxHFt * 0.3,
+                                0);
+                            try { TextNote.Create(doc, view.Id, mid, "E", tnt); }
+                            catch (Exception ex)
+                            {
+                                StingLog.Warn($"DrawEmergencyFeedNotation E label: {ex.Message}");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"DrawEmergencyFeedNotation node '{node?.Label}': {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DrawEmergencyFeedNotation: {ex.Message}");
+            }
+        }
+
+        // ── S3 — Bus coupler / tie-breaker notation ───────────────────────────
+
+        /// <summary>
+        /// S3 — Between each adjacent pair of root distribution boards, draws a
+        /// dashed detail curve connecting the right edge of the left board's busbar
+        /// to the left edge of the right board's busbar, with a "BC/NOP" TextNote
+        /// at the midpoint (Bus Coupler / Normally Open Point).
+        /// </summary>
+        private static void DrawBusCouplerNotation(Document doc, ViewDrafting view,
+            List<(SLDNode root, SLDLayout layout)> rootLayouts,
+            double boxHFt, double levelOffsetFt)
+        {
+            if (doc == null || view == null || rootLayouts == null || rootLayouts.Count < 2) return;
+            try
+            {
+                ElementId tnt = new FilteredElementCollector(doc)
+                    .OfClass(typeof(TextNoteType))
+                    .FirstElementId();
+
+                for (int i = 0; i < rootLayouts.Count - 1; i++)
+                {
+                    try
+                    {
+                        var (rootA, layoutA) = rootLayouts[i];
+                        var (rootB, layoutB) = rootLayouts[i + 1];
+
+                        if (!layoutA.SymbolPositions.TryGetValue(rootA.ElementId, out var posA))
+                            continue;
+                        if (!layoutB.SymbolPositions.TryGetValue(rootB.ElementId, out var posB))
+                            continue;
+
+                        // Right edge of rootA's top node = posA.X + half of levelOffset.
+                        // Left edge of rootB's top node = posB.X - half of levelOffset.
+                        double halfLevel = levelOffsetFt * 0.5;
+                        var ptA = new XYZ(posA.X + halfLevel, posA.Y - boxHFt * 0.5, 0);
+                        var ptB = new XYZ(posB.X - halfLevel, posB.Y - boxHFt * 0.5, 0);
+
+                        if (ptA.DistanceTo(ptB) < 1e-6) continue;
+
+                        // Draw dashed coupler line.
+                        var couplerLine = Line.CreateBound(ptA, ptB);
+                        var curve = doc.Create.NewDetailCurve(view, couplerLine);
+
+                        // Apply dashed line style if available.
+                        try
+                        {
+                            var dashStyle = new FilteredElementCollector(doc)
+                                .OfClass(typeof(GraphicsStyle))
+                                .Cast<GraphicsStyle>()
+                                .FirstOrDefault(gs =>
+                                    gs.GraphicsStyleType == GraphicsStyleType.Projection
+                                    && (gs.Name.IndexOf("Dash", StringComparison.OrdinalIgnoreCase) >= 0
+                                     || gs.Name.IndexOf("Hidden", StringComparison.OrdinalIgnoreCase) >= 0));
+                            if (dashStyle != null && curve != null)
+                                curve.LineStyle = dashStyle;
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"DrawBusCouplerNotation line style: {ex.Message}");
+                        }
+
+                        // Place "BC/NOP" label at midpoint.
+                        if (tnt != ElementId.InvalidElementId)
+                        {
+                            var mid = new XYZ(
+                                (ptA.X + ptB.X) / 2.0,
+                                ptA.Y + boxHFt * 0.4,
+                                0);
+                            try { TextNote.Create(doc, view.Id, mid, "BC/NOP", tnt); }
+                            catch (Exception ex)
+                            {
+                                StingLog.Warn($"DrawBusCouplerNotation TextNote: {ex.Message}");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"DrawBusCouplerNotation pair {i}/{i + 1}: {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DrawBusCouplerNotation: {ex.Message}");
+            }
         }
     }
 }
