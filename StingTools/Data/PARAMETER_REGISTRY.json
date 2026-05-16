@@ -1,6 +1,6 @@
 {
   "version": "5.7",
-  "description": "STING Tools master parameter registry v5.7 \u2014 single source of truth for all parameter names, GUIDs, containers, bindings, and warning thresholds (TXT/CSV aligned at 2555 params, 26 groups)",
+  "description": "STING Tools master parameter registry v5.7 — single source of truth for all parameter names, GUIDs, containers, bindings, and warning thresholds (TXT/CSV aligned at 2555 params, 26 groups)",
   "tag_format": {
     "separator": "-",
     "num_pad": 4,
@@ -1313,7 +1313,7 @@
     {
       "param_name": "TAG_BOX_COLOR_R_INT",
       "guid": "d5a1b2c3-5001-4e05-a1c1-500000000001",
-      "description": "Tag bounding box fill color \u2014 Red channel (0-255)",
+      "description": "Tag bounding box fill color — Red channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1321,7 +1321,7 @@
     {
       "param_name": "TAG_BOX_COLOR_G_INT",
       "guid": "d5a1b2c3-5002-4e05-a1c1-500000000002",
-      "description": "Tag bounding box fill color \u2014 Green channel (0-255)",
+      "description": "Tag bounding box fill color — Green channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1329,7 +1329,7 @@
     {
       "param_name": "TAG_BOX_COLOR_B_INT",
       "guid": "d5a1b2c3-5003-4e05-a1c1-500000000003",
-      "description": "Tag bounding box fill color \u2014 Blue channel (0-255)",
+      "description": "Tag bounding box fill color — Blue channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1352,7 +1352,7 @@
     {
       "param_name": "TAG_LEADER_COLOR_R_INT",
       "guid": "d5a1b2c3-5006-4e05-a1c1-500000000006",
-      "description": "Tag leader line color \u2014 Red channel (0-255)",
+      "description": "Tag leader line color — Red channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1360,7 +1360,7 @@
     {
       "param_name": "TAG_LEADER_COLOR_G_INT",
       "guid": "d5a1b2c3-5007-4e05-a1c1-500000000007",
-      "description": "Tag leader line color \u2014 Green channel (0-255)",
+      "description": "Tag leader line color — Green channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1368,7 +1368,7 @@
     {
       "param_name": "TAG_LEADER_COLOR_B_INT",
       "guid": "d5a1b2c3-5008-4e05-a1c1-500000000008",
-      "description": "Tag leader line color \u2014 Blue channel (0-255)",
+      "description": "Tag leader line color — Blue channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -2104,7 +2104,7 @@
           "separator": "-",
           "prefix": "",
           "suffix": "",
-          "description": "Multi-line top \u2014 DISC-LOC-ZONE-LVL (top line of a 2-line tag family layout: place TAG_5 above TAG_6)"
+          "description": "Multi-line top — DISC-LOC-ZONE-LVL (top line of a 2-line tag family layout: place TAG_5 above TAG_6)"
         },
         {
           "param_name": "ASS_TAG_6_TXT",
@@ -2113,7 +2113,7 @@
           "separator": "-",
           "prefix": "",
           "suffix": "",
-          "description": "Multi-line bottom \u2014 SYS-FUNC-PROD-SEQ (bottom line of a 2-line tag family layout: place below TAG_5)"
+          "description": "Multi-line bottom — SYS-FUNC-PROD-SEQ (bottom line of a 2-line tag family layout: place below TAG_5)"
         },
         {
           "param_name": "ASS_TAG_7_TXT",
@@ -2122,7 +2122,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "Comprehensive descriptive narrative \u2014 AI-assembled asset profile with embedded markup tokens for rich rendering"
+          "description": "Comprehensive descriptive narrative — AI-assembled asset profile with embedded markup tokens for rich rendering"
         },
         {
           "param_name": "ASS_TAG_7A_TXT",
@@ -2131,7 +2131,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section A: Identity Header \u2014 asset name, product, manufacturer, model (styled as BOLD in tag families)"
+          "description": "TAG7 Section A: Identity Header — asset name, product, manufacturer, model (styled as BOLD in tag families)"
         },
         {
           "param_name": "ASS_TAG_7B_TXT",
@@ -2140,7 +2140,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section B: System & Function Context \u2014 full system/function descriptions (styled as ITALIC in tag families)"
+          "description": "TAG7 Section B: System & Function Context — full system/function descriptions (styled as ITALIC in tag families)"
         },
         {
           "param_name": "ASS_TAG_7C_TXT",
@@ -2149,7 +2149,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section C: Spatial Context \u2014 room, department, grid reference"
+          "description": "TAG7 Section C: Spatial Context — room, department, grid reference"
         },
         {
           "param_name": "ASS_TAG_7D_TXT",
@@ -2158,7 +2158,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section D: Lifecycle & Status \u2014 status, revision, origin, maintenance"
+          "description": "TAG7 Section D: Lifecycle & Status — status, revision, origin, maintenance"
         },
         {
           "param_name": "ASS_TAG_7E_TXT",
@@ -2167,7 +2167,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section E: Technical Specifications \u2014 discipline-specific MEP/BLE performance data"
+          "description": "TAG7 Section E: Technical Specifications — discipline-specific MEP/BLE performance data"
         },
         {
           "param_name": "ASS_TAG_7F_TXT",
@@ -2176,7 +2176,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section F: Classification & Reference \u2014 Uniformat, OmniClass, keynote, cost, ISO tag"
+          "description": "TAG7 Section F: Classification & Reference — Uniformat, OmniClass, keynote, cost, ISO tag"
         },
         {
           "param_name": "ASS_TAG_MULTILINE_TXT",
@@ -2185,7 +2185,7 @@
           "separator": "\\n",
           "prefix": "",
           "suffix": "",
-          "description": "Single-parameter multi-line tag (DISC\\nLOC\\nZONE\\n\u2026\\nSEQ) for tag families that bind ONE Label to ONE parameter and want auto line-breaking. Separator is the literal two-char string \"\\n\"; AssembleContainer.ResolveSeparator turns it into an actual LF at write time so Revit Label engines render it as a line break."
+          "description": "Single-parameter multi-line tag (DISC\\nLOC\\nZONE\\n…\\nSEQ) for tag families that bind ONE Label to ONE parameter and want auto line-breaking. Separator is the literal two-char string \"\\n\"; AssembleContainer.ResolveSeparator turns it into an actual LF at write time so Revit Label engines render it as a line break."
         }
       ]
     },
@@ -3005,6 +3005,61 @@
         "key": "PRJ_COMMENTS",
         "param_name": "PRJ_COMMENTS_TXT",
         "description": "Project/instance comments"
+      },
+      {
+        "key": "ITEM_CODE",
+        "param_name": "ASS_ITEM_CODE_TXT",
+        "guid": "d2e3f4a5-b6c7-4d8e-9f0a-1b2c3d4e5f6a",
+        "description": "Asset item code / stock reference for procurement and spares",
+        "categories": [
+          "*"
+        ]
+      },
+      {
+        "key": "SYSTEMS",
+        "param_name": "ASS_SYSTEMS_TXT",
+        "guid": "e3f4a5b6-c7d8-4e9f-a0b1-2c3d4e5f6a7b",
+        "description": "Pipe/duct/circuit system memberships (pipe system names, semicolon-separated)",
+        "categories": [
+          "Pipes",
+          "Ducts",
+          "Conduits",
+          "Cable Trays"
+        ]
+      },
+      {
+        "key": "TERM_CAPPED",
+        "param_name": "ASS_TERM_CAPPED_BOOL",
+        "guid": "f4a5b6c7-d8e9-4f0a-b1c2-3d4e5f6a7b8c",
+        "description": "Termination capped/blanked flag (connectivity validator — open end with intentional cap)",
+        "categories": [
+          "Pipes",
+          "Ducts",
+          "Conduits"
+        ]
+      },
+      {
+        "key": "TERM_REASON",
+        "param_name": "ASS_TERM_REASON_TXT",
+        "guid": "a5b6c7d8-e9f0-4a1b-c2d3-4e5f6a7b8c9d",
+        "description": "Reason an open termination is intentional (e.g. future-connection, cap, valve)",
+        "categories": [
+          "Pipes",
+          "Ducts",
+          "Conduits"
+        ]
+      },
+      {
+        "key": "TRACE_SEQ",
+        "param_name": "ASS_TRACE_SEQ_NR",
+        "guid": "b6c7d8e9-f0a1-4b2c-d3e4-5f6a7b8c9d0e",
+        "description": "Routing trace sequence index within a network path (AutoDrop engine output)",
+        "categories": [
+          "Pipes",
+          "Ducts",
+          "Conduits",
+          "Cable Trays"
+        ]
       }
     ],
     "spatial": [
@@ -3021,12 +3076,12 @@
       {
         "key": "ROOM_AREA",
         "param_name": "ASS_ROOM_AREA_SQ_M",
-        "description": "Room area (m\u00b2)"
+        "description": "Room area (m²)"
       },
       {
         "key": "ROOM_VOLUME",
         "param_name": "ASS_ROOM_VOLUME_CU_M",
-        "description": "Room volume (m\u00b3)"
+        "description": "Room volume (m³)"
       },
       {
         "key": "DEPT",
@@ -3152,7 +3207,7 @@
       {
         "key": "ELE_AREA",
         "param_name": "BLE_ELE_AREA_SQ_M",
-        "description": "Element area (m\u00b2)"
+        "description": "Element area (m²)"
       },
       {
         "key": "CEILING_HEIGHT",
@@ -3298,6 +3353,24 @@
         "categories": [
           "Stairs"
         ]
+      },
+      {
+        "key": "CBL_TRAY_WIDTH",
+        "param_name": "BLE_CBL_TRAY_WIDTH_MM",
+        "guid": "a3c1d2e4-5f67-4b89-9a0b-1c2d3e4f5a6b",
+        "description": "Cable tray internal width in mm [ISO 19650-1:2018]",
+        "categories": [
+          "Cable Trays"
+        ]
+      },
+      {
+        "key": "CBL_TRAY_DEPTH",
+        "param_name": "BLE_CBL_TRAY_DEPTH_MM",
+        "guid": "b4d2e3f5-6a78-5c9a-ab1c-2d3e4f5a6b7c",
+        "description": "Cable tray internal depth / height in mm [ISO 19650-1:2018]",
+        "categories": [
+          "Cable Trays"
+        ]
       }
     ],
     "electrical": [
@@ -3393,27 +3466,233 @@
           "Cable Trays"
         ]
       },
-      { "key": "ELC_PNL_FAULT_KA",      "param_name": "ELC_PNL_SHORT_CIRCUIT_RATING_KA", "description": "Calculated fault current at panel (kA) — reuses Phase 175 short-circuit param [STING Phase 178]", "categories": ["Electrical Equipment"] },
-      { "key": "ELC_PNL_AIC_KA",        "param_name": "ELC_PNL_AIC_RATING_KA",            "guid": "f1d6e7c8-1001-5178-9178-100000000001", "description": "Standardised AIC tier in kA stamped to the panel for breaker / switchgear specification [STING Phase 178]", "categories": ["Electrical Equipment"] },
-      { "key": "ELC_FEEDER_CSA",        "param_name": "ELC_FEEDER_CSA_MM2",               "guid": "f1d6e7c8-1002-5178-9178-100000000002", "description": "Calculated / proposed feeder cable cross-sectional area (mm²) — distinct from circuit cable size [STING Phase 178]", "categories": ["Electrical Equipment"] },
-      { "key": "ELC_FEEDER_RATING_A",   "param_name": "ELC_FEEDER_RATING_A",              "guid": "f1d6e7c8-1003-5178-9178-100000000003", "description": "Calculated feeder breaker / fuse rating in amperes — the upstream protective device rating [STING Phase 178]", "categories": ["Electrical Equipment"] },
-      { "key": "ELC_CKT_VD_PCT",        "param_name": "ELC_VLT_DROP_PCT",                 "description": "Calculated voltage drop % — reuses existing Phase 175 param [STING Phase 178]", "categories": ["Electrical Circuits"] },
-      { "key": "ELC_CKT_CSA_MM2",       "param_name": "ELC_CBL_SZ_MM",                    "description": "Assigned cable CSA — reuses existing Phase 175 param [STING Phase 178]", "categories": ["Electrical Circuits", "Wires"] },
-      { "key": "ELC_CONDUIT_FILL_PCT",  "param_name": "ELC_CDT_CBL_FILL_PCT",             "description": "Calculated conduit fill % — reuses existing Phase 175 param [STING Phase 178]", "categories": ["Conduits"] },
-      { "key": "ELC_EMERG_COVERED",     "param_name": "ELC_EMERG_COVERED_BOOL",           "guid": "f1d6e7c8-1004-5178-9178-100000000004", "description": "Room has emergency lighting coverage (1=true, 0=false) [BS 5266-1 / BS 9999 / STING Phase 178]", "categories": ["Rooms"] },
-      { "key": "ELC_LPD_W_M2",          "param_name": "ELC_LPD_W_PER_M2",                 "guid": "f1d6e7c8-1005-5178-9178-100000000005", "description": "Calculated lighting power density (W/m²) [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178]", "categories": ["Rooms"] },
-      { "key": "ELC_LPD_LIMIT_W_M2",    "param_name": "ELC_LPD_LIMIT_W_PER_M2",           "guid": "f1d6e7c8-1006-5178-9178-100000000006", "description": "Standard LPD limit for the room type (W/m²) [STING Phase 178]", "categories": ["Rooms"] },
-      { "key": "ELC_LPD_STATUS",        "param_name": "ELC_LPD_STATUS_TXT",               "guid": "f1d6e7c8-1007-5178-9178-100000000007", "description": "LPD compliance status (PASS / FAIL / WARNING / UNCHECKED) [STING Phase 178]", "categories": ["Rooms"] },
-      { "key": "ELC_ARC_FLASH_IE",      "param_name": "ELC_ARC_FLASH_IE_CAL_CM2",         "guid": "a2e7f8d9-1001-5179-9179-100000000001", "description": "Calculated incident energy in cal/cm² at the working distance [IEEE 1584-2018 / NFPA 70E / STING Phase 179]", "categories": ["Electrical Equipment"] },
-      { "key": "ELC_ARC_FLASH_BD",      "param_name": "ELC_ARC_FLASH_BOUNDARY_MM",        "guid": "a2e7f8d9-1002-5179-9179-100000000002", "description": "Arc flash boundary distance in mm [IEEE 1584-2018 / STING Phase 179]", "categories": ["Electrical Equipment"] },
-      { "key": "ELC_ARC_FLASH_PPE",     "param_name": "ELC_ARC_FLASH_PPE_CAT",            "guid": "a2e7f8d9-1003-5179-9179-100000000003", "description": "NFPA 70E Table 130.5(G) PPE category 0–4 (-1 = exceeds Cat 4) [STING Phase 179]", "categories": ["Electrical Equipment"] },
-      { "key": "ELC_ARC_FLASH_WD",      "param_name": "ELC_ARC_FLASH_WORK_DIST_MM",       "guid": "a2e7f8d9-1004-5179-9179-100000000004", "description": "Working distance from the arc source in mm [STING Phase 179]", "categories": ["Electrical Equipment"] },
-      { "key": "ELC_ARC_FLASH_LABEL",   "param_name": "ELC_ARC_FLASH_LABEL_TXT",          "guid": "a2e7f8d9-1005-5179-9179-100000000005", "description": "Formatted NFPA 70E arc flash warning label text [STING Phase 179]", "categories": ["Electrical Equipment"] },
-      { "key": "ELC_SEL_COORD_OK",      "param_name": "ELC_SEL_COORD_VERIFIED_BOOL",      "guid": "a2e7f8d9-1006-5179-9179-100000000006", "description": "Selective coordination check result (1=passes, 0=fails) [BS 7671 / NEC 240.87 / STING Phase 179]", "categories": ["Electrical Equipment"] },
-      { "key": "ELC_BUSBAR_CSA",        "param_name": "ELC_BUSBAR_CSA_MM2",               "guid": "a2e7f8d9-1007-5179-9179-100000000007", "description": "Busbar trunking conductor cross-sectional area (mm²) [BS EN 60439-1 / STING Phase 179]", "categories": ["Electrical Equipment", "Cable Trays"] },
-      { "key": "ELC_BUSBAR_RATING",     "param_name": "ELC_BUSBAR_RATING_A",              "guid": "a2e7f8d9-1008-5179-9179-100000000008", "description": "Busbar trunking continuous current rating (A) [BS EN 60439-1 / STING Phase 179]", "categories": ["Electrical Equipment", "Cable Trays"] },
-      { "key": "ELC_BUSBAR_FILL",       "param_name": "ELC_BUSBAR_FILL_PCT",              "guid": "a2e7f8d9-1009-5179-9179-100000000009", "description": "Busbar trunking duct fill % [STING Phase 179]", "categories": ["Cable Trays"] },
-      { "key": "ELC_CONDUIT_ROUTE",     "param_name": "ELC_CONDUIT_ROUTE_TXT",            "guid": "a2e7f8d9-100a-5179-9179-10000000000a", "description": "Auto-routed conduit path identifier (AUTO:<circuit-id>) [STING Phase 179]", "categories": ["Conduits"] }
+      {
+        "key": "ELC_PNL_FAULT_KA",
+        "param_name": "ELC_PNL_SHORT_CIRCUIT_RATING_KA",
+        "description": "Calculated fault current at panel (kA) — reuses Phase 175 short-circuit param [STING Phase 178]",
+        "categories": [
+          "Electrical Equipment"
+        ]
+      },
+      {
+        "key": "ELC_PNL_AIC_KA",
+        "param_name": "ELC_PNL_AIC_RATING_KA",
+        "guid": "f1d6e7c8-1001-5178-9178-100000000001",
+        "description": "Standardised AIC tier in kA stamped to the panel for breaker / switchgear specification [STING Phase 178]",
+        "categories": [
+          "Electrical Equipment"
+        ]
+      },
+      {
+        "key": "ELC_FEEDER_CSA",
+        "param_name": "ELC_FEEDER_CSA_MM2",
+        "guid": "f1d6e7c8-1002-5178-9178-100000000002",
+        "description": "Calculated / proposed feeder cable cross-sectional area (mm²) — distinct from circuit cable size [STING Phase 178]",
+        "categories": [
+          "Electrical Equipment"
+        ]
+      },
+      {
+        "key": "ELC_FEEDER_RATING_A",
+        "param_name": "ELC_FEEDER_RATING_A",
+        "guid": "f1d6e7c8-1003-5178-9178-100000000003",
+        "description": "Calculated feeder breaker / fuse rating in amperes — the upstream protective device rating [STING Phase 178]",
+        "categories": [
+          "Electrical Equipment"
+        ]
+      },
+      {
+        "key": "ELC_CKT_VD_PCT",
+        "param_name": "ELC_VLT_DROP_PCT",
+        "description": "Calculated voltage drop % — reuses existing Phase 175 param [STING Phase 178]",
+        "categories": [
+          "Electrical Circuits"
+        ]
+      },
+      {
+        "key": "ELC_CKT_CSA_MM2",
+        "param_name": "ELC_CBL_SZ_MM",
+        "description": "Assigned cable CSA — reuses existing Phase 175 param [STING Phase 178]",
+        "categories": [
+          "Electrical Circuits",
+          "Wires"
+        ]
+      },
+      {
+        "key": "ELC_CONDUIT_FILL_PCT",
+        "param_name": "ELC_CDT_CBL_FILL_PCT",
+        "description": "Calculated conduit fill % — reuses existing Phase 175 param [STING Phase 178]",
+        "categories": [
+          "Conduits"
+        ]
+      },
+      {
+        "key": "ELC_EMERG_COVERED",
+        "param_name": "ELC_EMERG_COVERED_BOOL",
+        "guid": "f1d6e7c8-1004-5178-9178-100000000004",
+        "description": "Room has emergency lighting coverage (1=true, 0=false) [BS 5266-1 / BS 9999 / STING Phase 178]",
+        "categories": [
+          "Rooms"
+        ]
+      },
+      {
+        "key": "ELC_LPD_W_M2",
+        "param_name": "ELC_LPD_W_PER_M2",
+        "guid": "f1d6e7c8-1005-5178-9178-100000000005",
+        "description": "Calculated lighting power density (W/m²) [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178]",
+        "categories": [
+          "Rooms"
+        ]
+      },
+      {
+        "key": "ELC_LPD_LIMIT_W_M2",
+        "param_name": "ELC_LPD_LIMIT_W_PER_M2",
+        "guid": "f1d6e7c8-1006-5178-9178-100000000006",
+        "description": "Standard LPD limit for the room type (W/m²) [STING Phase 178]",
+        "categories": [
+          "Rooms"
+        ]
+      },
+      {
+        "key": "ELC_LPD_STATUS",
+        "param_name": "ELC_LPD_STATUS_TXT",
+        "guid": "f1d6e7c8-1007-5178-9178-100000000007",
+        "description": "LPD compliance status (PASS / FAIL / WARNING / UNCHECKED) [STING Phase 178]",
+        "categories": [
+          "Rooms"
+        ]
+      },
+      {
+        "key": "ELC_ARC_FLASH_IE",
+        "param_name": "ELC_ARC_FLASH_IE_CAL_CM2",
+        "guid": "a2e7f8d9-1001-5179-9179-100000000001",
+        "description": "Calculated incident energy in cal/cm² at the working distance [IEEE 1584-2018 / NFPA 70E / STING Phase 179]",
+        "categories": [
+          "Electrical Equipment"
+        ]
+      },
+      {
+        "key": "ELC_ARC_FLASH_BD",
+        "param_name": "ELC_ARC_FLASH_BOUNDARY_MM",
+        "guid": "a2e7f8d9-1002-5179-9179-100000000002",
+        "description": "Arc flash boundary distance in mm [IEEE 1584-2018 / STING Phase 179]",
+        "categories": [
+          "Electrical Equipment"
+        ]
+      },
+      {
+        "key": "ELC_ARC_FLASH_PPE",
+        "param_name": "ELC_ARC_FLASH_PPE_CAT",
+        "guid": "a2e7f8d9-1003-5179-9179-100000000003",
+        "description": "NFPA 70E Table 130.5(G) PPE category 0–4 (-1 = exceeds Cat 4) [STING Phase 179]",
+        "categories": [
+          "Electrical Equipment"
+        ]
+      },
+      {
+        "key": "ELC_ARC_FLASH_WD",
+        "param_name": "ELC_ARC_FLASH_WORK_DIST_MM",
+        "guid": "a2e7f8d9-1004-5179-9179-100000000004",
+        "description": "Working distance from the arc source in mm [STING Phase 179]",
+        "categories": [
+          "Electrical Equipment"
+        ]
+      },
+      {
+        "key": "ELC_ARC_FLASH_LABEL",
+        "param_name": "ELC_ARC_FLASH_LABEL_TXT",
+        "guid": "a2e7f8d9-1005-5179-9179-100000000005",
+        "description": "Formatted NFPA 70E arc flash warning label text [STING Phase 179]",
+        "categories": [
+          "Electrical Equipment"
+        ]
+      },
+      {
+        "key": "ELC_SEL_COORD_OK",
+        "param_name": "ELC_SEL_COORD_VERIFIED_BOOL",
+        "guid": "a2e7f8d9-1006-5179-9179-100000000006",
+        "description": "Selective coordination check result (1=passes, 0=fails) [BS 7671 / NEC 240.87 / STING Phase 179]",
+        "categories": [
+          "Electrical Equipment"
+        ]
+      },
+      {
+        "key": "ELC_BUSBAR_CSA",
+        "param_name": "ELC_BUSBAR_CSA_MM2",
+        "guid": "a2e7f8d9-1007-5179-9179-100000000007",
+        "description": "Busbar trunking conductor cross-sectional area (mm²) [BS EN 60439-1 / STING Phase 179]",
+        "categories": [
+          "Electrical Equipment",
+          "Cable Trays"
+        ]
+      },
+      {
+        "key": "ELC_BUSBAR_RATING",
+        "param_name": "ELC_BUSBAR_RATING_A",
+        "guid": "a2e7f8d9-1008-5179-9179-100000000008",
+        "description": "Busbar trunking continuous current rating (A) [BS EN 60439-1 / STING Phase 179]",
+        "categories": [
+          "Electrical Equipment",
+          "Cable Trays"
+        ]
+      },
+      {
+        "key": "ELC_BUSBAR_FILL",
+        "param_name": "ELC_BUSBAR_FILL_PCT",
+        "guid": "a2e7f8d9-1009-5179-9179-100000000009",
+        "description": "Busbar trunking duct fill % [STING Phase 179]",
+        "categories": [
+          "Cable Trays"
+        ]
+      },
+      {
+        "key": "ELC_CONDUIT_ROUTE",
+        "param_name": "ELC_CONDUIT_ROUTE_TXT",
+        "guid": "a2e7f8d9-100a-5179-9179-10000000000a",
+        "description": "Auto-routed conduit path identifier (AUTO:<circuit-id>) [STING Phase 179]",
+        "categories": [
+          "Conduits"
+        ]
+      },
+      {
+        "key": "ELC_SYS",
+        "param_name": "ELC_SYS_TXT",
+        "guid": "d4e5f6a7-b8c9-4d0e-f1a2-b3c4d5e6f7a8",
+        "description": "Electrical system code (LV/MV/HV/ELV/EES/UPS)",
+        "categories": [
+          "Electrical Equipment",
+          "Electrical Fixtures"
+        ]
+      },
+      {
+        "key": "ELC_CBL_SIZE",
+        "param_name": "ELC_CBL_SIZE_TXT",
+        "guid": "e5f6a7b8-c9d0-4e1f-a2b3-c4d5e6f7a8b9",
+        "description": "Cable conductor cross-section designation (e.g. 4x16mm2) [BS 7671]",
+        "categories": [
+          "Conduits",
+          "Cable Trays"
+        ]
+      },
+      {
+        "key": "ELC_CABLE_SEG_CLASS",
+        "param_name": "ELC_CABLE_SEG_CLASS_TXT",
+        "guid": "f6a7b8c9-d0e1-4f2a-b3c4-d5e6f7a8b9c0",
+        "description": "Cable segment classification (fire-rated: PH30/PH60/PH120) [BS EN 50200]",
+        "categories": [
+          "Conduits",
+          "Cable Trays"
+        ]
+      },
+      {
+        "key": "ELC_CDT_CABLE_MANIFEST",
+        "param_name": "ELC_CDT_CABLE_MANIFEST_TXT",
+        "guid": "a7b8c9d0-e1f2-4a3b-c4d5-e6f7a8b9c0d1",
+        "description": "JSON manifest of cables routed through this conduit run (AutoDrop output)",
+        "categories": [
+          "Conduits"
+        ]
+      }
     ],
     "lighting": [
       {
@@ -3436,22 +3715,150 @@
         "param_name": "LTG_FIX_LAMP_TYPE_TXT",
         "description": "Lamp type"
       },
-      { "key": "ELC_PHOTO_LUX",          "param_name": "ELC_PHOTO_LUX_CALC",            "guid": "a2e7f8d9-100b-5179-9179-10000000000b", "description": "Calculated maintained illuminance at the workplane in lux [CIBSE LG7 / DIALux import / STING Phase 179]", "categories": ["Rooms"] },
-      { "key": "ELC_PHOTO_UGR",          "param_name": "ELC_PHOTO_UGR_CALC",            "guid": "a2e7f8d9-100c-5179-9179-10000000000c", "description": "Calculated Unified Glare Rating per the room geometry [CIE 117 / CIBSE LG7 / STING Phase 179]", "categories": ["Rooms"] },
-      { "key": "ELC_PHOTO_FILE_PATH",    "param_name": "ELC_PHOTO_FILE_PATH_TXT",       "guid": "b3f8a9da-1801-5180-9180-100000000001", "description": "Absolute / project-relative path to the IES / LDT / GLDF photometric file bound to this fixture [STING Phase 180]", "categories": ["Lighting Fixtures"] },
-      { "key": "ELC_PHOTO_LUMENS",       "param_name": "ELC_PHOTO_LUMENS_NR",           "guid": "b3f8a9da-1802-5180-9180-100000000002", "description": "Total luminous flux from the bound photometric file (lm) [IESNA LM-63 / EULUMDAT / STING Phase 180]", "categories": ["Lighting Fixtures"] },
-      { "key": "ELC_PHOTO_WATTS",        "param_name": "ELC_PHOTO_WATTS_NR",            "guid": "b3f8a9da-1803-5180-9180-100000000003", "description": "Total power draw from the bound photometric file (W) [STING Phase 180]", "categories": ["Lighting Fixtures"] },
-      { "key": "ELC_PHOTO_EFFICACY",     "param_name": "ELC_PHOTO_EFFICACY_LM_W",       "guid": "b3f8a9da-1804-5180-9180-100000000004", "description": "Calculated luminous efficacy (lm / W) [STING Phase 180]", "categories": ["Lighting Fixtures"] },
-      { "key": "ELC_PHOTO_BEAM_ANGLE",   "param_name": "ELC_PHOTO_BEAM_ANGLE_DEG",      "guid": "b3f8a9da-1805-5180-9180-100000000005", "description": "Beam angle in degrees (50 % peak intensity envelope) [STING Phase 180]", "categories": ["Lighting Fixtures"] },
-      { "key": "ELC_PHOTO_CCT",          "param_name": "ELC_PHOTO_CCT_K",               "guid": "b3f8a9da-1806-5180-9180-100000000006", "description": "Correlated colour temperature in Kelvin [STING Phase 180]", "categories": ["Lighting Fixtures"] },
-      { "key": "ELC_PHOTO_CRI",          "param_name": "ELC_PHOTO_CRI_NR",              "guid": "b3f8a9da-1807-5180-9180-100000000007", "description": "Colour Rendering Index Ra [CIE 13.3 / STING Phase 180]", "categories": ["Lighting Fixtures"] },
-      { "key": "ELC_PHOTO_SYMMETRY",     "param_name": "ELC_PHOTO_SYMMETRY_TXT",        "guid": "b3f8a9da-1808-5180-9180-100000000008", "description": "Photometric symmetry (rotational / axial / quadrant / none) per LM-63 / EULUMDAT [STING Phase 180]", "categories": ["Lighting Fixtures"] },
-      { "key": "ELC_PHOTO_LUX_DIALUX",   "param_name": "ELC_PHOTO_LUX_DIALUX_NR",       "guid": "c4a9badb-1811-5181-9181-100000000001", "description": "Calculated illuminance from a DIALux evo IFC import [STING Phase 181]", "categories": ["Rooms"] },
-      { "key": "ELC_PHOTO_LUX_ELUMTOOLS","param_name": "ELC_PHOTO_LUX_ELUMTOOLS_NR",    "guid": "c4a9badb-1812-5181-9181-100000000002", "description": "Calculated illuminance from ElumTools shared parameters [STING Phase 181]", "categories": ["Rooms"] },
-      { "key": "ELC_PHOTO_LUX_RELUX",    "param_name": "ELC_PHOTO_LUX_RELUX_NR",        "guid": "c4a9badb-1813-5181-9181-100000000003", "description": "Calculated illuminance from a Relux IFC import [STING Phase 181]", "categories": ["Rooms"] },
-      { "key": "ELC_PHOTO_UNIFORMITY",   "param_name": "ELC_PHOTO_UNIFORMITY_NR",       "guid": "c4a9badb-1814-5181-9181-100000000004", "description": "Uniformity ratio (Emin / Eavg) per BS EN 12464-1 [STING Phase 181]", "categories": ["Rooms"] },
-      { "key": "ELC_PHOTO_LAST_ENGINE",  "param_name": "ELC_PHOTO_LAST_ENGINE_TXT",     "guid": "c4a9badb-1815-5181-9181-100000000005", "description": "Engine ID that wrote the most recent photometric result (DIALux / ElumTools / Relux / Estimate) [STING Phase 181]", "categories": ["Rooms"] },
-      { "key": "ELC_PHOTO_LAST_CALC_DATE","param_name": "ELC_PHOTO_LAST_CALC_DATE_TXT", "guid": "c4a9badb-1816-5181-9181-100000000006", "description": "ISO 8601 date stamp of the most recent photometric calculation [STING Phase 181]", "categories": ["Rooms"] }
+      {
+        "key": "ELC_PHOTO_LUX",
+        "param_name": "ELC_PHOTO_LUX_CALC",
+        "guid": "a2e7f8d9-100b-5179-9179-10000000000b",
+        "description": "Calculated maintained illuminance at the workplane in lux [CIBSE LG7 / DIALux import / STING Phase 179]",
+        "categories": [
+          "Rooms"
+        ]
+      },
+      {
+        "key": "ELC_PHOTO_UGR",
+        "param_name": "ELC_PHOTO_UGR_CALC",
+        "guid": "a2e7f8d9-100c-5179-9179-10000000000c",
+        "description": "Calculated Unified Glare Rating per the room geometry [CIE 117 / CIBSE LG7 / STING Phase 179]",
+        "categories": [
+          "Rooms"
+        ]
+      },
+      {
+        "key": "ELC_PHOTO_FILE_PATH",
+        "param_name": "ELC_PHOTO_FILE_PATH_TXT",
+        "guid": "b3f8a9da-1801-5180-9180-100000000001",
+        "description": "Absolute / project-relative path to the IES / LDT / GLDF photometric file bound to this fixture [STING Phase 180]",
+        "categories": [
+          "Lighting Fixtures"
+        ]
+      },
+      {
+        "key": "ELC_PHOTO_LUMENS",
+        "param_name": "ELC_PHOTO_LUMENS_NR",
+        "guid": "b3f8a9da-1802-5180-9180-100000000002",
+        "description": "Total luminous flux from the bound photometric file (lm) [IESNA LM-63 / EULUMDAT / STING Phase 180]",
+        "categories": [
+          "Lighting Fixtures"
+        ]
+      },
+      {
+        "key": "ELC_PHOTO_WATTS",
+        "param_name": "ELC_PHOTO_WATTS_NR",
+        "guid": "b3f8a9da-1803-5180-9180-100000000003",
+        "description": "Total power draw from the bound photometric file (W) [STING Phase 180]",
+        "categories": [
+          "Lighting Fixtures"
+        ]
+      },
+      {
+        "key": "ELC_PHOTO_EFFICACY",
+        "param_name": "ELC_PHOTO_EFFICACY_LM_W",
+        "guid": "b3f8a9da-1804-5180-9180-100000000004",
+        "description": "Calculated luminous efficacy (lm / W) [STING Phase 180]",
+        "categories": [
+          "Lighting Fixtures"
+        ]
+      },
+      {
+        "key": "ELC_PHOTO_BEAM_ANGLE",
+        "param_name": "ELC_PHOTO_BEAM_ANGLE_DEG",
+        "guid": "b3f8a9da-1805-5180-9180-100000000005",
+        "description": "Beam angle in degrees (50 % peak intensity envelope) [STING Phase 180]",
+        "categories": [
+          "Lighting Fixtures"
+        ]
+      },
+      {
+        "key": "ELC_PHOTO_CCT",
+        "param_name": "ELC_PHOTO_CCT_K",
+        "guid": "b3f8a9da-1806-5180-9180-100000000006",
+        "description": "Correlated colour temperature in Kelvin [STING Phase 180]",
+        "categories": [
+          "Lighting Fixtures"
+        ]
+      },
+      {
+        "key": "ELC_PHOTO_CRI",
+        "param_name": "ELC_PHOTO_CRI_NR",
+        "guid": "b3f8a9da-1807-5180-9180-100000000007",
+        "description": "Colour Rendering Index Ra [CIE 13.3 / STING Phase 180]",
+        "categories": [
+          "Lighting Fixtures"
+        ]
+      },
+      {
+        "key": "ELC_PHOTO_SYMMETRY",
+        "param_name": "ELC_PHOTO_SYMMETRY_TXT",
+        "guid": "b3f8a9da-1808-5180-9180-100000000008",
+        "description": "Photometric symmetry (rotational / axial / quadrant / none) per LM-63 / EULUMDAT [STING Phase 180]",
+        "categories": [
+          "Lighting Fixtures"
+        ]
+      },
+      {
+        "key": "ELC_PHOTO_LUX_DIALUX",
+        "param_name": "ELC_PHOTO_LUX_DIALUX_NR",
+        "guid": "c4a9badb-1811-5181-9181-100000000001",
+        "description": "Calculated illuminance from a DIALux evo IFC import [STING Phase 181]",
+        "categories": [
+          "Rooms"
+        ]
+      },
+      {
+        "key": "ELC_PHOTO_LUX_ELUMTOOLS",
+        "param_name": "ELC_PHOTO_LUX_ELUMTOOLS_NR",
+        "guid": "c4a9badb-1812-5181-9181-100000000002",
+        "description": "Calculated illuminance from ElumTools shared parameters [STING Phase 181]",
+        "categories": [
+          "Rooms"
+        ]
+      },
+      {
+        "key": "ELC_PHOTO_LUX_RELUX",
+        "param_name": "ELC_PHOTO_LUX_RELUX_NR",
+        "guid": "c4a9badb-1813-5181-9181-100000000003",
+        "description": "Calculated illuminance from a Relux IFC import [STING Phase 181]",
+        "categories": [
+          "Rooms"
+        ]
+      },
+      {
+        "key": "ELC_PHOTO_UNIFORMITY",
+        "param_name": "ELC_PHOTO_UNIFORMITY_NR",
+        "guid": "c4a9badb-1814-5181-9181-100000000004",
+        "description": "Uniformity ratio (Emin / Eavg) per BS EN 12464-1 [STING Phase 181]",
+        "categories": [
+          "Rooms"
+        ]
+      },
+      {
+        "key": "ELC_PHOTO_LAST_ENGINE",
+        "param_name": "ELC_PHOTO_LAST_ENGINE_TXT",
+        "guid": "c4a9badb-1815-5181-9181-100000000005",
+        "description": "Engine ID that wrote the most recent photometric result (DIALux / ElumTools / Relux / Estimate) [STING Phase 181]",
+        "categories": [
+          "Rooms"
+        ]
+      },
+      {
+        "key": "ELC_PHOTO_LAST_CALC_DATE",
+        "param_name": "ELC_PHOTO_LAST_CALC_DATE_TXT",
+        "guid": "c4a9badb-1816-5181-9181-100000000006",
+        "description": "ISO 8601 date stamp of the most recent photometric calculation [STING Phase 181]",
+        "categories": [
+          "Rooms"
+        ]
+      }
     ],
     "hvac": [
       {
@@ -3520,6 +3927,28 @@
           "Duct Insulations",
           "Pipe Insulations"
         ]
+      },
+      {
+        "key": "MEC_SYS",
+        "param_name": "MEC_SYS_TXT",
+        "guid": "b8c9d0e1-f2a3-4b4c-d5e6-f7a8b9c0d1e2",
+        "description": "Mechanical system code (HVAC/VRF/CRAC/CW/CHW/DX)",
+        "categories": [
+          "Mechanical Equipment",
+          "Air Terminals",
+          "Ducts"
+        ]
+      },
+      {
+        "key": "HVC_DCT_INSULATION_THK",
+        "param_name": "HVC_DCT_INSULATION_THK_MM",
+        "guid": "c9e0f1a2-b3c4-4d5e-f6a7-b8c9d0e1f2a3",
+        "description": "Duct insulation thickness in mm (CIBSE Guide B3 / BS EN 13180)",
+        "categories": [
+          "Duct Insulations",
+          "Ducts",
+          "Flex Ducts"
+        ]
       }
     ],
     "plumbing": [
@@ -3564,6 +3993,83 @@
         "description": "Plumbing equipment design pressure in kPa",
         "categories": [
           "Plumbing Equipment"
+        ]
+      },
+      {
+        "key": "PLM_SYS",
+        "param_name": "PLM_SYS_TXT",
+        "guid": "c9d0e1f2-a3b4-4c5d-e6f7-a8b9c0d1e2f3",
+        "description": "Plumbing system code (DCW/DHW/HWS/SAN/RWD/GAS)",
+        "categories": [
+          "Pipe Fittings",
+          "Pipes",
+          "Plumbing Equipment",
+          "Plumbing Fixtures"
+        ]
+      }
+    ],
+    "system_params": [
+      {
+        "key": "DRAWING_TYPE_ID",
+        "param_name": "STING_DRAWING_TYPE_ID_TXT",
+        "guid": "c1d2e3f4-a5b6-4c7d-8e9f-a0b1c2d3e4f5",
+        "description": "Drawing Type profile ID stamped on views and sheets by DrawingTypePresentation.Apply [Phase 113]",
+        "categories": [
+          "*"
+        ]
+      },
+      {
+        "key": "STYLE_LOCKED",
+        "param_name": "STING_STYLE_LOCKED_BOOL",
+        "guid": "d2e3f4a5-b6c7-4d8e-9f0a-b1c2d3e4f5a6",
+        "description": "Lock flag preventing DrawingSyncStyles from re-applying a profile to this view/sheet",
+        "categories": [
+          "*"
+        ]
+      },
+      {
+        "key": "PACK_ID",
+        "param_name": "STING_PACK_ID_TXT",
+        "guid": "e3f4a5b6-c7d8-4e9f-a0b1-c2d3e4f5a6b7",
+        "description": "ViewStylePack ID stamped on managed Revit view templates by ManagedTemplateSyncer [Phase 137]",
+        "categories": [
+          "*"
+        ]
+      },
+      {
+        "key": "PACK_CHECKSUM",
+        "param_name": "STING_PACK_CHECKSUM_TXT",
+        "guid": "f4a5b6c7-d8e9-4f0a-b1c2-d3e4f5a6b7c8",
+        "description": "SHA-256 checksum of the ViewStylePack JSON used to detect template drift [Phase 137]",
+        "categories": [
+          "*"
+        ]
+      },
+      {
+        "key": "CDE_STATE",
+        "param_name": "STING_CDE_STATE_TXT",
+        "guid": "a5b6c7d8-e9f0-4a1b-c2d3-e4f5a6b7c8d9",
+        "description": "ISO 19650-2 CDE state code (WIP/SHARED/PUBLISHED/ARCHIVED) for views and sheets",
+        "categories": [
+          "*"
+        ]
+      },
+      {
+        "key": "CLUSTER_KEY",
+        "param_name": "TAG_CLUSTER_KEY_TXT",
+        "guid": "b6c7d8e9-f0a1-4b2c-d3e4-f5a6b7c8d9e0",
+        "description": "Cluster grouping key for SmartTagPlacement band alignment (auto-assigned)",
+        "categories": [
+          "*"
+        ]
+      },
+      {
+        "key": "FAMILY_HINT",
+        "param_name": "TAG_FAMILY_HINT_TXT",
+        "guid": "c7d8e9f0-a1b2-4c3d-e4f5-a6b7c8d9e0f1",
+        "description": "Tag family override hint written by TagStyleEngineCommands to force a specific annotation family",
+        "categories": [
+          "*"
         ]
       }
     ],
@@ -6033,7 +6539,7 @@
         "key": "COMM_DATE",
         "param_name": "COMM_DATE_TXT",
         "guid": "5753b5aa-0004-4000-8000-000000000002",
-        "description": "Commissioning date (ISO 8601) \u2014 when state was last stamped",
+        "description": "Commissioning date (ISO 8601) — when state was last stamped",
         "categories": [
           "ALL"
         ],
@@ -6043,7 +6549,7 @@
         "key": "COMM_OPERATIVE",
         "param_name": "COMM_OPERATIVE_TXT",
         "guid": "5753b5aa-0004-4000-8000-000000000003",
-        "description": "Commissioning operative \u2014 name / ID of engineer who stamped the asset",
+        "description": "Commissioning operative — name / ID of engineer who stamped the asset",
         "categories": [
           "ALL"
         ],
@@ -6083,7 +6589,7 @@
         "key": "CBN_A1_A3",
         "param_name": "CBN_A1_A3_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000001",
-        "description": "Product stage carbon A1-A3 (kgCO2e) \u2014 cradle-to-gate embodied",
+        "description": "Product stage carbon A1-A3 (kgCO2e) — cradle-to-gate embodied",
         "categories": [
           "ALL"
         ],
@@ -6093,7 +6599,7 @@
         "key": "CBN_A4",
         "param_name": "CBN_A4_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000002",
-        "description": "Transport stage carbon A4 (kgCO2e) \u2014 factory-to-site haulage",
+        "description": "Transport stage carbon A4 (kgCO2e) — factory-to-site haulage",
         "categories": [
           "ALL"
         ],
@@ -6103,7 +6609,7 @@
         "key": "CBN_B6",
         "param_name": "CBN_B6_KG_CO2E_YR",
         "guid": "5753b5aa-0006-4000-8000-000000000003",
-        "description": "Operational energy carbon B6 (kgCO2e/yr) \u2014 annual in-use emissions",
+        "description": "Operational energy carbon B6 (kgCO2e/yr) — annual in-use emissions",
         "categories": [
           "ALL"
         ],
@@ -6143,7 +6649,7 @@
         "key": "CLASH_TRIAGE_SEV",
         "param_name": "CLASH_TRIAGE_SEVERITY_NR",
         "guid": "5753b5aa-0008-4000-8000-000000000001",
-        "description": "Clash triage severity (0-5) \u2014 higher = more blocking",
+        "description": "Clash triage severity (0-5) — higher = more blocking",
         "categories": [
           "ALL"
         ],
@@ -6173,7 +6679,7 @@
         "key": "ASBUILT_DEV",
         "param_name": "ASBUILT_DEVIATION_MM",
         "guid": "5753b5aa-0009-4000-8000-000000000001",
-        "description": "As-built deviation (mm) \u2014 delta vs design position from reality capture",
+        "description": "As-built deviation (mm) — delta vs design position from reality capture",
         "categories": [
           "ALL"
         ],
@@ -6183,7 +6689,7 @@
         "key": "ASBUILT_DATE",
         "param_name": "ASBUILT_CAPTURE_DATE_TXT",
         "guid": "5753b5aa-0009-4000-8000-000000000002",
-        "description": "As-built capture date (ISO 8601) \u2014 when reality-capture snapshot was taken",
+        "description": "As-built capture date (ISO 8601) — when reality-capture snapshot was taken",
         "categories": [
           "ALL"
         ],
@@ -6193,7 +6699,7 @@
         "key": "HEALTH_SCORE",
         "param_name": "HEALTH_SCORE_LAST_NR",
         "guid": "5753b5aa-0009-4000-8000-000000000003",
-        "description": "Model health score (0-100) \u2014 last computed compliance / data quality rating",
+        "description": "Model health score (0-100) — last computed compliance / data quality rating",
         "categories": [
           "ALL"
         ],
@@ -6203,7 +6709,7 @@
         "key": "IFC_PSET_OVERRIDE",
         "param_name": "IFC_PSET_OVERRIDE_TXT",
         "guid": "5753b5aa-000a-4000-8000-000000000001",
-        "description": "IFC PSet override \u2014 custom IFC property set / value mapping for export",
+        "description": "IFC PSet override — custom IFC property set / value mapping for export",
         "categories": [
           "ALL"
         ],
@@ -6213,7 +6719,7 @@
         "key": "ACC_ISSUE_ID",
         "param_name": "ACC_ISSUE_ID_TXT",
         "guid": "5753b5aa-000a-4000-8000-000000000002",
-        "description": "ACC Issue ID \u2014 Autodesk Construction Cloud Issue round-trip reference",
+        "description": "ACC Issue ID — Autodesk Construction Cloud Issue round-trip reference",
         "categories": [
           "ALL"
         ],
@@ -6233,7 +6739,7 @@
         "key": "COMM_WITNESS",
         "param_name": "COMM_WITNESS_TXT",
         "guid": "5753b5aa-0004-4000-8000-000000000010",
-        "description": "Commissioning witness \u2014 name / ID of client/third-party observer",
+        "description": "Commissioning witness — name / ID of client/third-party observer",
         "categories": [
           "ALL"
         ],
@@ -6253,7 +6759,7 @@
         "key": "CST_INSTALL_HRS",
         "param_name": "CST_INSTALL_HRS",
         "guid": "5753b5aa-0005-4000-8000-000000000010",
-        "description": "Installation labour hours (N-G12) \u2014 estimated man-hours for install",
+        "description": "Installation labour hours (N-G12) — estimated man-hours for install",
         "categories": [
           "ALL"
         ],
@@ -6263,7 +6769,7 @@
         "key": "CST_LABOUR_CREW",
         "param_name": "CST_LABOUR_CREW_TXT",
         "guid": "5753b5aa-0005-4000-8000-000000000011",
-        "description": "Labour crew identifier \u2014 crew code assigned to install",
+        "description": "Labour crew identifier — crew code assigned to install",
         "categories": [
           "ALL"
         ],
@@ -6273,7 +6779,7 @@
         "key": "CST_LABOUR_RATE_GBP",
         "param_name": "CST_LABOUR_RATE_GBP",
         "guid": "5753b5aa-0005-4000-8000-000000000012",
-        "description": "Labour rate (GBP/hr) \u2014 override for cost roll-up",
+        "description": "Labour rate (GBP/hr) — override for cost roll-up",
         "categories": [
           "ALL"
         ],
@@ -6283,7 +6789,7 @@
         "key": "CBN_A5",
         "param_name": "CBN_A5_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000010",
-        "description": "Construction stage carbon A5 (kgCO2e) \u2014 site installation emissions",
+        "description": "Construction stage carbon A5 (kgCO2e) — site installation emissions",
         "categories": [
           "ALL"
         ],
@@ -6293,7 +6799,7 @@
         "key": "CBN_C1",
         "param_name": "CBN_C1_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000011",
-        "description": "End-of-life carbon C1 (kgCO2e) \u2014 demolition energy",
+        "description": "End-of-life carbon C1 (kgCO2e) — demolition energy",
         "categories": [
           "ALL"
         ],
@@ -6303,7 +6809,7 @@
         "key": "CBN_C2",
         "param_name": "CBN_C2_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000012",
-        "description": "End-of-life carbon C2 (kgCO2e) \u2014 transport to waste processing",
+        "description": "End-of-life carbon C2 (kgCO2e) — transport to waste processing",
         "categories": [
           "ALL"
         ],
@@ -6313,7 +6819,7 @@
         "key": "CBN_C3_C4",
         "param_name": "CBN_C3_C4_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000013",
-        "description": "End-of-life carbon C3-C4 (kgCO2e) \u2014 waste processing + disposal",
+        "description": "End-of-life carbon C3-C4 (kgCO2e) — waste processing + disposal",
         "categories": [
           "ALL"
         ],
@@ -6323,7 +6829,7 @@
         "key": "CLASH_TRIAGE_SCORE",
         "param_name": "CLASH_TRIAGE_SCORE",
         "guid": "5753b5aa-0008-4000-8000-000000000010",
-        "description": "Clash triage composite score (0-100) \u2014 weighted severity x business impact",
+        "description": "Clash triage composite score (0-100) — weighted severity x business impact",
         "categories": [
           "ALL"
         ],
@@ -6333,7 +6839,7 @@
         "key": "CLASH_RES_ACTION",
         "param_name": "CLASH_RESOLUTION_ACTION_TXT",
         "guid": "5753b5aa-0008-4000-8000-000000000011",
-        "description": "Clash resolution action \u2014 remediation action taken or planned",
+        "description": "Clash resolution action — remediation action taken or planned",
         "categories": [
           "ALL"
         ],
@@ -7145,7 +7651,7 @@
       "guid": "2e3596c7-f913-5c86-9c2b-547f6375ca3c",
       "description": "Room minimum area compliance",
       "threshold": "7.0",
-      "unit": "m\u00b2",
+      "unit": "m²",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -7235,7 +7741,7 @@
       "guid": "cc3fc151-264e-5c9e-88fe-add4e5c4e52f",
       "description": "U-value thermal transmittance check",
       "threshold": "0.30",
-      "unit": "W/m\u00b2K",
+      "unit": "W/m²K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -7425,7 +7931,7 @@
       "guid": "18e66013-b783-5748-9389-06897dd57a86",
       "description": "Vertical circulation structural load check",
       "threshold": "5.0",
-      "unit": "kN/m\u00b2",
+      "unit": "kN/m²",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -7455,7 +7961,7 @@
       "guid": "43c8ea79-cafd-5da0-9e6f-e228b85efb39",
       "description": "U-value thermal transmittance check",
       "threshold": "0.30",
-      "unit": "W/m\u00b2K",
+      "unit": "W/m²K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -7595,7 +8101,7 @@
       "guid": "573be7bf-3821-5434-b6f6-783e1c83ef87",
       "description": "Fire safety device coverage limit",
       "threshold": "12.0",
-      "unit": "m\u00b2",
+      "unit": "m²",
       "severity": "CRITICAL",
       "param_type": "TEXT",
       "binding": "universal"
@@ -7605,7 +8111,7 @@
       "guid": "f8855ea2-6eee-5cd7-a0c7-fdcd787ced84",
       "description": "Sprinkler coverage area limit",
       "threshold": "12.0",
-      "unit": "m\u00b2",
+      "unit": "m²",
       "severity": "CRITICAL",
       "param_type": "TEXT",
       "binding": "universal"
@@ -7735,7 +8241,7 @@
       "guid": "4b0595c4-908f-58fc-821c-b1cacc438418",
       "description": "Space lighting power density limit",
       "threshold": "10",
-      "unit": "W/m\u00b2",
+      "unit": "W/m²",
       "severity": "MEDIUM",
       "param_type": "TEXT",
       "binding": "universal"
@@ -7795,7 +8301,7 @@
       "guid": "88990dc2-2aca-5179-8407-6511d3e36248",
       "description": "Embodied carbon footprint limit per unit",
       "threshold": "500",
-      "unit": "kgCO\u2082e/m\u00b2",
+      "unit": "kgCO₂e/m²",
       "severity": "MEDIUM",
       "param_type": "TEXT",
       "binding": "universal"
@@ -7805,7 +8311,7 @@
       "guid": "5de3531a-bb17-52f6-a946-97320b6fdc89",
       "description": "Floor U-value thermal transmittance limit",
       "threshold": "0.30",
-      "unit": "W/m\u00b2K",
+      "unit": "W/m²K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -7815,7 +8321,7 @@
       "guid": "04fbb073-cde7-55dd-b056-f67d22e26437",
       "description": "Roof U-value thermal transmittance limit",
       "threshold": "0.30",
-      "unit": "W/m\u00b2K",
+      "unit": "W/m²K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -7825,7 +8331,7 @@
       "guid": "f6b023a0-c2eb-59f8-8fd7-d05f64aa6f7b",
       "description": "Wall U-value thermal transmittance limit",
       "threshold": "0.30",
-      "unit": "W/m\u00b2K",
+      "unit": "W/m²K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -7835,7 +8341,7 @@
       "guid": "698beeb9-f4f0-5c0c-a998-dbe92cb657b0",
       "description": "VOC emissions limit for indoor air quality",
       "threshold": "250",
-      "unit": "\u00b5g/m\u00b3",
+      "unit": "µg/m³",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"

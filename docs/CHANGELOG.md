@@ -2,6 +2,110 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 177 — Code-quality sweep: locale safety, null-guard fixes, parameter registry alignment)
+
+Branch: `claude/review-codebase-FlVmh`. Twelve commits. Touched 20+ source files
+and both parameter registries. Zero new features — all correctness and
+silent-failure fixes. Verified with `dotnet build` (build-free sandbox; verified
+by grep and Python parsing).
+
+##### InvariantCulture gaps sealed
+
+Every `double.TryParse` / `float.TryParse` call in a **data path** — rule JSON
+comparisons, Excel round-trips, Revit parameter string reads, structural notation
+parsing — was checked and converted to use `CultureInfo.InvariantCulture`. UI
+`TextBox` parses intentionally left on thread culture so users can type with their
+locale's decimal separator.
+
+| File | Lines fixed |
+|---|---|
+| `BIMManager/QualityAssuranceCommands.cs` | `greater_than` / `less_than` rule operators (2 sites) |
+| `BIMManager/Phase148Engine.cs` | `compliance_pct` JSON field (1 site) |
+| `UI/StingCommandHandler.cs` | Numeric filter conditions `>` / `<` / `>=` / `<=` (4 sites) |
+| `BIMManager/ExcelLinkCommands.cs` | Excel StorageType.Double import branch (1 site) |
+| `Model/ExcelStructuralEngine.cs` | Bar-spacing notation, column NxN split, ClosedXML cell fallback (3 sites) |
+| `Model/StructuralTypeFactory.cs` | Section-name regex captures UB/UC/W (2 sites) |
+| `Commands/Healthcare/Specialist/PharmacyUspAuditCommand.cs` | `GetD` string-param fallback (1 site) |
+| `Commands/Healthcare/Specialist/HybridOrCheckCommand.cs` | `AreaSqM` string-param fallback (1 site) |
+
+##### Null-guard / safe-parse fixes
+
+- **`Phase148Engine.cs` line 376**: `int.Parse(row.OldestDays)` replaced with
+  `int.TryParse` — `OldestDays` is populated from JSON and could be empty or
+  malformed, causing an unhandled exception on the Revit main thread.
+
+##### Parameter-name typo fixes (25+ parameters, prior commit)
+
+`BLE_ELEMENT_AREA_NR` → `BLE_ELE_AREA_SQ_M`, `BLE_CBL_TRAY_WIDTH_NR` →
+`BLE_CBL_TRAY_WIDTH_MM`, `BLE_CBL_TRAY_DEPTH_NR` → `BLE_CBL_TRAY_DEPTH_MM`
+across `DataPipelineCommands.cs` and `MaterialManagerDialog.cs`. All
+`LookupParameter()` call-sites now use names that actually exist in the registry.
+
+##### MR_PARAMETERS.txt conflict resolution + new entries
+
+The Phase 174 branch consolidation (`-X ours`) left **three unresolved conflict
+blocks** in `MR_PARAMETERS.txt` that would silently corrupt Revit shared-parameter
+loading. All three were resolved:
+
+- `GROUP 33` collision (remote `PEN_PENETRATION` vs HEAD `Identity`) — resolved by
+  keeping `PEN_PENETRATION` as group 33, adding `GROUP 35 = STING_IDENTITY` for
+  the identity-tracking params, and reassigning `STING_SEED_FAMILY_TXT` /
+  `STING_DESIGN_REF_TXT` / `STING_SWAP_HISTORY_TXT` to group 35.
+- Stray `=======` marker between groups 33 and 34 — removed.
+- Duplicate `STING_PENETRATION_REF_TXT` / `STING_PENETRATION_FIRE_RATING_TXT`
+  (both HEAD and remote versions preserved) — group-33 duplicates dropped, keeping
+  the group-34 versions with better descriptions.
+
+**21 net-new params registered** (new `PARAM` lines with fresh UUIDs):
+
+| Group | Params added |
+|---|---|
+| GROUP 2 (BLE) | `BLE_CBL_TRAY_WIDTH_MM`, `BLE_CBL_TRAY_DEPTH_MM` |
+| GROUP 27 (STING_DRAWING) | `STING_DRAWING_TYPE_ID_TXT`, `STING_STYLE_LOCKED_BOOL`, `STING_PACK_ID_TXT`, `STING_PACK_CHECKSUM_TXT`, `STING_CDE_STATE_TXT` |
+| GROUP 17 (STINGTags_ISO19650) | `TAG_CLUSTER_KEY_TXT`, `TAG_FAMILY_HINT_TXT` |
+| GROUP 4 (ELC_PWR) | `ELC_SYS_TXT`, `ELC_CBL_SIZE_TXT`, `ELC_CABLE_SEG_CLASS_TXT`, `ELC_CDT_CABLE_MANIFEST_TXT` |
+| GROUP 5 (HVC_SYSTEMS) | `MEC_SYS_TXT`, `HVC_DCT_INSULATION_THK_MM` |
+| GROUP 6 (PLM_DRN) | `PLM_SYS_TXT` |
+| GROUP 1 (ASS_MNG) | `ASS_ITEM_CODE_TXT`, `ASS_SYSTEMS_TXT`, `ASS_TERM_CAPPED_BOOL`, `ASS_TERM_REASON_TXT`, `ASS_TRACE_SEQ_NR` |
+
+##### PARAMETER_REGISTRY.json alignment
+
+All 21 new params added to the matching sections of `PARAMETER_REGISTRY.json`
+(`ble_dimensional`, `electrical`, `hvac`, `plumbing`, `identity`, and new
+`system_params` subsection). A new `system_params` section was inserted before
+`paragraph_containers` to hold Drawing Template Manager + tag-engine system params
+(`STING_DRAWING_TYPE_ID_TXT`, `STING_STYLE_LOCKED_BOOL`, `STING_PACK_ID_TXT`,
+`STING_PACK_CHECKSUM_TXT`, `STING_CDE_STATE_TXT`, `TAG_CLUSTER_KEY_TXT`,
+`TAG_FAMILY_HINT_TXT`). Total registry entries: 462 → 483. JSON validated clean
+with no duplicate param names or GUIDs.
+
+##### ParamRegistry.cs cable-tray aliases
+
+`_extendedParams["CBL_TRAY_WIDTH"] = "BLE_CBL_TRAY_WIDTH_MM"` and
+`_extendedParams["CBL_TRAY_DEPTH"] = "BLE_CBL_TRAY_DEPTH_MM"` added so short-key
+lookups in `DataPipelineCommands` and `MaterialManagerDialog` resolve correctly at
+runtime without another string-literal rename.
+
+##### Hot-path log rate-limiting (prior commit)
+
+`StingLog.WarnRateLimited(key, message)` added — emits first 5 then every 100th
+call with the same `key`. Applied to `StingAutoTagger.Execute` and
+`StingStaleMarker.Execute` (IUpdater hot paths) and 3 tight `foreach` loops in
+`ParameterHelpers.cs` that were flooding the log file on projects with many
+elements.
+
+##### Caveats
+
+- The 21 new UUIDs in `MR_PARAMETERS.txt` and `PARAMETER_REGISTRY.json` are newly
+  generated for this session. They will become stable once bound to a Revit project;
+  do not regenerate them.
+- Built without `dotnet build` verification (Linux sandbox). No Revit API call sites
+  were changed — all fixes are pure C# / JSON / data-file edits.
+- Three resource-leak fixes in `ParameterHelpers.cs` (IDisposable collectors not
+  disposed in exception paths) were also applied in the same commit batch.
+
+---
+
 #### Completed (Phase 179 — Plumbing panel enhancement: 8 tabs · 27 commands · 10 engines)
 
 Lifts the STING Plumbing Center from the Phase 178c 6-tab / 8-button
