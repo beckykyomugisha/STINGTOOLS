@@ -28,7 +28,11 @@ namespace StingTools.Commands.Symbols
     {
         public static readonly (string File, string Folder, string Label)[] AllBatches = new[]
         {
-            ("STING_SLD_SYMBOLS.json",       "SLD",        "Single Line Diagram"),
+            ("STING_SLD_SYMBOLS.json",       "SLD/IEC",    "Single Line Diagram (IEC 60617)"),
+            ("STING_SLD_SYMBOLS_IEEE.json",  "SLD/IEEE",   "Single Line Diagram (IEEE 315)"),
+            ("STING_SLD_SYMBOLS_BS.json",    "SLD/BS",     "Single Line Diagram (BS EN 60617)"),
+            ("STING_SLD_SYMBOLS_NFPA.json",  "SLD/NFPA",   "Single Line Diagram (NFPA 70)"),
+            ("STING_SLD_SYMBOLS_CIBSE.json", "SLD/CIBSE",  "Building Services (CIBSE)"),
             ("STING_LIGHTING_SYMBOLS.json",  "Lighting",   "Lighting"),
             ("STING_FP_SYMBOLS.json",        "FireProt",   "Fire Protection"),
             ("STING_MEP_SYMBOLS.json",       "HVAC",       "HVAC / Mechanical"),
@@ -141,8 +145,64 @@ namespace StingTools.Commands.Symbols
         {
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) { TaskDialog.Show("STING - Symbols", "No document open."); return Result.Failed; }
-            var r = SymbolBatchHelper.RunBatch(ctx.Doc, "STING_SLD_SYMBOLS.json", "SLD");
+            var r = SymbolBatchHelper.RunBatch(ctx.Doc, "STING_SLD_SYMBOLS.json", "SLD/IEC");
             TaskDialog.Show("STING - SLD Symbols", SymbolBatchHelper.FormatReport("SLD Symbols (IEC 60617)", r));
+            return Result.Succeeded;
+        }
+    }
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CreateSLDSymbolsIEEECommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) { TaskDialog.Show("STING - Symbols", "No document open."); return Result.Failed; }
+            var r = SymbolBatchHelper.RunBatch(ctx.Doc, "STING_SLD_SYMBOLS_IEEE.json", "SLD/IEEE");
+            TaskDialog.Show("STING - SLD Symbols (IEEE)", SymbolBatchHelper.FormatReport("SLD Symbols (IEEE 315)", r));
+            return Result.Succeeded;
+        }
+    }
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CreateSLDSymbolsBSCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) { TaskDialog.Show("STING - Symbols", "No document open."); return Result.Failed; }
+            var r = SymbolBatchHelper.RunBatch(ctx.Doc, "STING_SLD_SYMBOLS_BS.json", "SLD/BS");
+            TaskDialog.Show("STING - SLD Symbols (BS)", SymbolBatchHelper.FormatReport("SLD Symbols (BS EN 60617)", r));
+            return Result.Succeeded;
+        }
+    }
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CreateSLDSymbolsNFPACommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) { TaskDialog.Show("STING - Symbols", "No document open."); return Result.Failed; }
+            var r = SymbolBatchHelper.RunBatch(ctx.Doc, "STING_SLD_SYMBOLS_NFPA.json", "SLD/NFPA");
+            TaskDialog.Show("STING - SLD Symbols (NFPA)", SymbolBatchHelper.FormatReport("SLD Symbols (NFPA 70)", r));
+            return Result.Succeeded;
+        }
+    }
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CreateCIBSESymbolsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) { TaskDialog.Show("STING - Symbols", "No document open."); return Result.Failed; }
+            var r = SymbolBatchHelper.RunBatch(ctx.Doc, "STING_SLD_SYMBOLS_CIBSE.json", "SLD/CIBSE");
+            TaskDialog.Show("STING - CIBSE Symbols", SymbolBatchHelper.FormatReport("Building Services (CIBSE)", r));
             return Result.Succeeded;
         }
     }

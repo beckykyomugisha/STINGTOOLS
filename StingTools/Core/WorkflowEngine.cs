@@ -1504,6 +1504,10 @@ namespace StingTools.Core
                 case "Seeds_Build":              return new Commands.Symbols.BuildSeedFamiliesCommand();
                 case "Seeds_SwapToManufacturer": return new Commands.Symbols.SwapToManufacturerCommand();
                 case "Symbols_CreateCompound":   return new Commands.Symbols.CreateCompoundSymbolsCommand();
+                case "Symbols_CreateSLD_IEEE":   return new Commands.Symbols.CreateSLDSymbolsIEEECommand();
+                case "Symbols_CreateSLD_BS":     return new Commands.Symbols.CreateSLDSymbolsBSCommand();
+                case "Symbols_CreateSLD_NFPA":   return new Commands.Symbols.CreateSLDSymbolsNFPACommand();
+                case "Symbols_CreateCIBSE":      return new Commands.Symbols.CreateCIBSESymbolsCommand();
                 case "Validation_BS7671":       return new Commands.Electrical.ElectricalStandardsValidatorCommand();
                 case "Circuit_AssignAuto":      return new Commands.Electrical.BatchAssignCircuitsCommand();
                 case "Lite_CreateSchedule":     return new Commands.Electrical.ElecLightingScheduleCommand();
