@@ -7,13 +7,20 @@ button-tag dispatcher in `StingTools/UI/StingCommandHandler.cs`.
 - **Wired in `StingCommandHandler.cs`**: 1,162
 - **Not in dock-panel dispatcher**: **126**
 
+> **Phase 177 update**: 13 of the original 23 Category C commands are now
+> wired — 5 AVF heatmap commands (tags `Heatmap_*`), 5 V6 commands (tags
+> `V6_*`), and 3 AEC filter commands (tags `AecFilters_*` with XAML buttons
+> added to the Drawing Types section of the DOCS tab). Counts below reflect
+> the **original** triage; update when the remaining 10 are resolved.
+
 ## Counts
 
 | Category | Count |
 |---|---|
 | **A** — Wired via alternative entry points (NOT dead) | **103** |
+| **A'** — Newly wired in Phase 177 (AVF heatmap + V6 + AEC filters) | **13** |
 | **B** — V4 MVP deferred (intentionally not wired) | **0** |
-| **C** — Genuinely dead (no references anywhere) | **23** |
+| **C** — Genuinely dead (no references anywhere) | **10** |
 | **Total** | **126** |
 
 > Category B is zero because every V4 MVP command under

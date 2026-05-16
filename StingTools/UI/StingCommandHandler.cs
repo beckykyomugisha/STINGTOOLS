@@ -1599,6 +1599,20 @@ namespace StingTools.UI
                     case "ColorByVariable": RunCommand<Tags.ColorByVariableCommand>(app); break;
                     case "SetBoxColor": RunCommand<Tags.SetBoxColorCommand>(app); break;
 
+                    // ── AVF Heatmap visualisations ──
+                    case "Heatmap_Compliance": RunCommand<Commands.Visualization.VisualiseComplianceHeatmapCommand>(app); break;
+                    case "Heatmap_Fill":       RunCommand<Commands.Visualization.VisualiseFillHeatmapCommand>(app);       break;
+                    case "Heatmap_Carbon":     RunCommand<Commands.Visualization.VisualiseCarbonHeatmapCommand>(app);     break;
+                    case "Heatmap_Acoustic":   RunCommand<Commands.Visualization.VisualiseAcousticHeatmapCommand>(app);   break;
+                    case "Heatmap_Clear":      RunCommand<Commands.Visualization.ClearHeatmapCommand>(app);               break;
+
+                    // ── V6 feature commands ──
+                    case "V6_LabourHoursApply":  RunCommand<V6.ApplyLabourHoursCommand>(app); break;
+                    case "V6_LabourHoursExport": RunCommand<V6.ExportLabourHoursCommand>(app); break;
+                    case "V6_HealthDashboard":   RunCommand<V6.HealthDashboardExportHtmlCommand>(app); break;
+                    case "V6_QRAdvance":         RunCommand<V6.QRAdvanceCommissioningCommand>(app); break;
+                    case "V6_QRReport":          RunCommand<V6.QRCommissioningReportCommand>(app); break;
+
                     // ════════════════════════════════════════════════════════
                     // MODEL TAB — Auto-Modeling Engine
                     // ════════════════════════════════════════════════════════
