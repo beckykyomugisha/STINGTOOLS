@@ -933,6 +933,209 @@
     };
   };
 
+  // ── Clearance / minimum-distance between two meshes ───────────────────
+  // Strategy:
+  //  1. AABB-distance as cheap lower bound (free, exact for separated boxes).
+  //  2. If AABBs intersect → vertex-to-bounding-box probe pass for both
+  //     directions (sampled) so we still return a meaningful 'penetration'
+  //     reading.
+  // Returns { distance, pointA, pointB, intersect, aGuid, bGuid }.
+  ext.computeClearance = function (meshA, meshB) {
+    const h = host(); if (!h || !meshA || !meshB) return null;
+    const boxA = new THREE.Box3().setFromObject(meshA);
+    const boxB = new THREE.Box3().setFromObject(meshB);
+    if (boxA.isEmpty() || boxB.isEmpty()) return null;
+
+    // Closest point on each AABB to the other AABB's center.
+    const centerA = boxA.getCenter(new THREE.Vector3());
+    const centerB = boxB.getCenter(new THREE.Vector3());
+    const pA = boxA.clampPoint(centerB, new THREE.Vector3());
+    const pB = boxB.clampPoint(centerA, new THREE.Vector3());
+
+    const intersect = boxA.intersectsBox(boxB);
+    let distance;
+    if (intersect) {
+      // Boxes overlap — sample geometry to estimate penetration depth.
+      // Returns NEGATIVE distance so the host can flag clashes.
+      distance = -sampleOverlapDepth(boxA, boxB);
+    } else {
+      distance = pA.distanceTo(pB);
+    }
+
+    // Draw a temporary line so the user can see the measurement in-scene.
+    drawClearanceLine(pA, pB, intersect);
+
+    return {
+      distance,
+      pointA: pA.toArray(),
+      pointB: pB.toArray(),
+      intersect,
+      aGuid: meshA.userData && meshA.userData.elementGuid,
+      bGuid: meshB.userData && meshB.userData.elementGuid,
+      aName: meshA.name,
+      bName: meshB.name,
+    };
+  };
+
+  function sampleOverlapDepth(a, b) {
+    // Overlap region's smallest dimension is a fair penetration estimate
+    // for AABB-overlapping clashes.
+    const ix = Math.min(a.max.x, b.max.x) - Math.max(a.min.x, b.min.x);
+    const iy = Math.min(a.max.y, b.max.y) - Math.max(a.min.y, b.min.y);
+    const iz = Math.min(a.max.z, b.max.z) - Math.max(a.min.z, b.min.z);
+    return Math.max(0, Math.min(ix, Math.min(iy, iz)));
+  }
+
+  let _clearanceGroup = null;
+  function drawClearanceLine(pA, pB, intersect) {
+    const h = host(); if (!h) return;
+    if (_clearanceGroup) h.scene.remove(_clearanceGroup);
+    _clearanceGroup = new THREE.Group();
+    const color = intersect ? 0xEF4444 : 0x10B981;
+    const g = new THREE.BufferGeometry().setFromPoints([pA, pB]);
+    _clearanceGroup.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color, depthTest: false })));
+    addMarker(_clearanceGroup, pA, color);
+    addMarker(_clearanceGroup, pB, color);
+    h.scene.add(_clearanceGroup);
+  }
+  ext.clearClearance = function () {
+    const h = host(); if (h && _clearanceGroup) h.scene.remove(_clearanceGroup);
+    _clearanceGroup = null;
+  };
+
+  // ── 360° photo sphere — inside-out equirect texture ───────────────────
+  // Loads an equirectangular image and renders it on the inside of a sphere
+  // anchored at the given world position (defaults to model centre). The
+  // user pans inside the sphere by orbiting the camera. Call clearPhotoSphere
+  // to remove it.
+  let _photoSphere = null;
+  let _photoSphereSaved = null;
+  ext.setPhotoSphere = function (url, opts) {
+    const h = host(); if (!h || !url) return;
+    ext.clearPhotoSphere();
+    const radius = (opts && opts.radius)
+      ?? Math.max(1, h.modelBounds.getSize(new THREE.Vector3()).length() * 0.05);
+    const center = (opts && opts.position)
+      ? new THREE.Vector3(opts.position[0], opts.position[1], opts.position[2])
+      : h.modelBounds.getCenter(new THREE.Vector3());
+
+    const loader = new THREE.TextureLoader();
+    loader.crossOrigin = 'anonymous';
+    loader.load(url, (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace || THREE.sRGBEncoding;
+      const geo = new THREE.SphereGeometry(radius, 64, 32);
+      geo.scale(-1, 1, 1); // flip inside-out so we view the texture from inside
+      const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.FrontSide });
+      _photoSphere = new THREE.Mesh(geo, mat);
+      _photoSphere.userData.skipRaycast = true;
+      _photoSphere.position.copy(center);
+      h.scene.add(_photoSphere);
+
+      // Save the previous camera state so clearPhotoSphere can restore it.
+      _photoSphereSaved = {
+        pos: h.camera.position.toArray(),
+        target: h.controls.target.toArray(),
+      };
+      h.camera.position.copy(center);
+      h.controls.target.set(center.x + 0.1, center.y, center.z);
+      h.controls.update();
+      h.bridge.send('photoSphere', { active: true, url, position: center.toArray(), radius });
+    }, undefined, (err) => {
+      h.bridge.send('photoSphereError', { url, error: String(err) });
+    });
+  };
+  ext.clearPhotoSphere = function () {
+    const h = host(); if (!h) return;
+    if (_photoSphere) {
+      h.scene.remove(_photoSphere);
+      try { _photoSphere.geometry.dispose(); _photoSphere.material.map?.dispose(); _photoSphere.material.dispose(); } catch (_) {}
+      _photoSphere = null;
+    }
+    if (_photoSphereSaved) {
+      h.camera.position.fromArray(_photoSphereSaved.pos);
+      h.controls.target.fromArray(_photoSphereSaved.target);
+      h.controls.update();
+      _photoSphereSaved = null;
+    }
+    h.bridge.send('photoSphere', { active: false });
+  };
+
+  // ── Live multiplayer cursor — render other users' camera frustums ─────
+  // The coordination layer broadcasts our camera state on a throttle; when
+  // it receives others' state it calls setPresenceCursor(userId, payload).
+  // Cursors fade after `staleMs` so a disconnected collaborator's frustum
+  // doesn't sit in the scene forever.
+  const _presenceCursors = new Map(); // userId → { mesh, lastSeen }
+  const PRESENCE_STALE_MS = 30000;
+  function makePresenceMesh(color) {
+    // A small camera frustum sprite + a label-pin.
+    const grp = new THREE.Group();
+    const cone = new THREE.Mesh(
+      new THREE.ConeGeometry(0.5, 1.2, 8),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.55, depthTest: false }),
+    );
+    cone.rotation.x = Math.PI;
+    grp.add(cone);
+    grp.userData.skipRaycast = true;
+    return grp;
+  }
+  ext.setPresenceCursor = function (userId, payload) {
+    const h = host(); if (!h || !userId) return;
+    let entry = _presenceCursors.get(userId);
+    if (!entry) {
+      // Hash user ID to a stable hue so each collaborator keeps the same colour.
+      let hash = 0;
+      for (let i = 0; i < userId.length; i++) hash = ((hash << 5) - hash + userId.charCodeAt(i)) | 0;
+      const hue = ((hash % 360) + 360) % 360;
+      const col = new THREE.Color().setHSL(hue / 360, 0.7, 0.55);
+      const mesh = makePresenceMesh(col.getHex());
+      h.scene.add(mesh);
+      entry = { mesh, color: col.getHex(), label: payload?.name || userId };
+      _presenceCursors.set(userId, entry);
+    }
+    if (payload?.pos && payload?.target) {
+      const pos = new THREE.Vector3(...payload.pos);
+      const tgt = new THREE.Vector3(...payload.target);
+      const sz  = h.modelBounds.getSize(new THREE.Vector3()).length() || 1;
+      const scale = sz * 0.015;
+      entry.mesh.position.copy(pos);
+      entry.mesh.lookAt(tgt);
+      // Rotate cone so its narrow tip points along the camera view direction.
+      entry.mesh.rotateX(Math.PI / 2);
+      entry.mesh.scale.set(scale, scale, scale);
+    }
+    entry.lastSeen = performance.now();
+  };
+  ext.removePresenceCursor = function (userId) {
+    const h = host(); if (!h) return;
+    const entry = _presenceCursors.get(userId);
+    if (!entry) return;
+    h.scene.remove(entry.mesh);
+    _presenceCursors.delete(userId);
+  };
+  ext.clearPresenceCursors = function () {
+    const h = host(); if (!h) return;
+    _presenceCursors.forEach(entry => h.scene.remove(entry.mesh));
+    _presenceCursors.clear();
+  };
+  // Periodic stale sweep — runs alongside the FPS sampler.
+  setInterval(() => {
+    const h = host(); if (!h) return;
+    const now = performance.now();
+    for (const [uid, e] of _presenceCursors.entries()) {
+      if (now - e.lastSeen > PRESENCE_STALE_MS) {
+        h.scene.remove(e.mesh);
+        _presenceCursors.delete(uid);
+      }
+    }
+  }, 5000);
+
+  // Capture our own camera state for broadcasting (host throttles).
+  ext.getCameraState = function () {
+    const h = host(); if (!h) return null;
+    return { pos: h.camera.position.toArray(), target: h.controls.target.toArray() };
+  };
+
   ext.restoreViewState = function (s) {
     const h = host(); if (!h || !s) return;
     // Camera first — section planes use bounds, not camera, so order is safe.

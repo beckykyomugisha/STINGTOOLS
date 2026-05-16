@@ -92,6 +92,23 @@ export interface ModelViewerHandle {
   // The result arrives back via the `onViewState` callback.
   captureViewState: () => void;
   restoreViewState: (state: object) => void;
+  // Pick snap — vertex / edge midpoint / face center / none.
+  setPickSnap: (mode: 'none' | 'vertex' | 'midpoint' | 'face') => void;
+  // Clearance: switch tool to 'clearance', user picks 2 elements; result
+  // arrives via onMeasureClearance. cancelClearance resets the pending pick.
+  cancelClearance: () => void;
+  clearClearance: () => void;
+  // 360° photo sphere — load an equirectangular photo at an anchor point.
+  // position is optional (defaults to model centre).
+  setPhotoSphere: (opts: { url: string; position?: [number, number, number]; radius?: number }) => void;
+  clearPhotoSphere: () => void;
+  // Live multiplayer presence cursors.
+  setPresenceCursor: (userId: string, payload: { pos: [number, number, number]; target: [number, number, number]; name?: string }) => void;
+  removePresenceCursor: (userId: string) => void;
+  clearPresenceCursors: () => void;
+  // Returns current camera state via onCameraState — used for broadcasting
+  // our position to other collaborators.
+  getCameraState: () => void;
 }
 
 interface ModelViewerProps {
@@ -134,6 +151,19 @@ interface ModelViewerProps {
   onRenderMode?: (e: { mode: string }) => void;
   onViewState?: (state: object) => void;
   onViewStateRestored?: (e: { keys: string[] }) => void;
+  onMeasureClearance?: (e: {
+    distance: number;             // negative ⇒ AABBs overlap (penetration depth)
+    pointA: [number, number, number];
+    pointB: [number, number, number];
+    intersect: boolean;
+    aGuid?: string; bGuid?: string;
+    aName?: string; bName?: string;
+  }) => void;
+  onMeasureClearancePending?: (e: { count: number }) => void;
+  onPhotoSphere?: (e: { active: boolean; url?: string; position?: number[]; radius?: number }) => void;
+  onPhotoSphereError?: (e: { url: string; error: string }) => void;
+  onCameraState?: (e: { pos: [number, number, number]; target: [number, number, number] }) => void;
+  onPickSnapChanged?: (e: { mode: string }) => void;
   onError?: (err: string) => void;
 }
 
@@ -271,6 +301,17 @@ export const ModelViewer = React.forwardRef<ModelViewerHandle, ModelViewerProps>
       clearCumulativeMeasure: () => send({ type: "clearCumulativeMeasure" }),
       captureViewState: () => send({ type: "captureViewState" }),
       restoreViewState: (state) => send({ type: "restoreViewState", payload: state }),
+      setPickSnap: (mode) => send({ type: "setPickSnap", payload: { mode } }),
+      cancelClearance: () => send({ type: "cancelClearance" }),
+      clearClearance: () => send({ type: "clearClearance" }),
+      setPhotoSphere: (opts) => send({ type: "setPhotoSphere", payload: opts }),
+      clearPhotoSphere: () => send({ type: "clearPhotoSphere" }),
+      setPresenceCursor: (userId, payload) =>
+        send({ type: "setPresenceCursor", payload: { userId, ...payload } }),
+      removePresenceCursor: (userId) =>
+        send({ type: "removePresenceCursor", payload: { userId } }),
+      clearPresenceCursors: () => send({ type: "clearPresenceCursors" }),
+      getCameraState: () => send({ type: "getCameraState" }),
     }));
 
     function onMessage(ev: WebViewMessageEvent) {
@@ -303,6 +344,12 @@ export const ModelViewer = React.forwardRef<ModelViewerHandle, ModelViewerProps>
         case "renderMode":           props.onRenderMode?.(msg.payload); break;
         case "viewState":            props.onViewState?.(msg.payload); break;
         case "viewStateRestored":    props.onViewStateRestored?.(msg.payload); break;
+        case "measureClearance":         props.onMeasureClearance?.(msg.payload); break;
+        case "measureClearancePending":  props.onMeasureClearancePending?.(msg.payload); break;
+        case "photoSphere":          props.onPhotoSphere?.(msg.payload); break;
+        case "photoSphereError":     props.onPhotoSphereError?.(msg.payload); break;
+        case "cameraState":          props.onCameraState?.(msg.payload); break;
+        case "pickSnap":             props.onPickSnapChanged?.(msg.payload); break;
       }
     }
 
