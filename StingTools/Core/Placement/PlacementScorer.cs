@@ -1113,7 +1113,7 @@ namespace StingTools.Core.Placement
                 if (probe.X >= bb.Min.X && probe.X <= bb.Max.X && probe.Y >= bb.Min.Y && probe.Y <= bb.Max.Y) return normal;
                 return normal.Negate();
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
+            catch (Exception ex) { StingLog.Warn($"[PlacementScorer] ComputeInwardFromWall: {ex.Message}"); return null; }
         }
 
         private XYZ ComputeInward(Line line, Room room)
@@ -1134,7 +1134,7 @@ namespace StingTools.Core.Placement
                     var deriv = curve.ComputeDerivatives(0.5, true);
                     tangent = deriv?.BasisX ?? (curve.GetEndPoint(1) - curve.GetEndPoint(0));
                 }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); tangent = curve.GetEndPoint(1) - curve.GetEndPoint(0); }
+                catch (Exception ex) { StingLog.Warn($"[PlacementScorer] Curve ComputeDerivatives: {ex.Message}"); tangent = curve.GetEndPoint(1) - curve.GetEndPoint(0); }
                 if (tangent.GetLength() < 1e-9) return XYZ.BasisY;
                 tangent = tangent.Normalize();
                 XYZ normal = new XYZ(-tangent.Y, tangent.X, 0);
@@ -1145,7 +1145,7 @@ namespace StingTools.Core.Placement
                 if (probe.X >= bb.Min.X && probe.X <= bb.Max.X && probe.Y >= bb.Min.Y && probe.Y <= bb.Max.Y) return normal;
                 return normal.Negate();
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return XYZ.BasisY; }
+            catch (Exception ex) { StingLog.Warn($"[PlacementScorer] ComputeInwardFromCurve: {ex.Message}"); return XYZ.BasisY; }
         }
 
         private void Fallback(Room room, double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
@@ -1236,7 +1236,7 @@ namespace StingTools.Core.Placement
                 double t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / den;
                 return new XYZ(x1 + t * (x2 - x1), y1 + t * (y2 - y1), p1.Z);
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
+            catch (Exception ex) { StingLog.Warn($"[PlacementScorer] LineIntersect computation: {ex.Message}"); return null; }
         }
 
         private void EmitColumnFaceAnchor(Room room, PlacementRule rule, double anchorZ,
@@ -1360,7 +1360,7 @@ namespace StingTools.Core.Placement
             {
                 string dept = "";
                 try { dept = room.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT)?.AsString() ?? ""; }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                catch (Exception ex) { StingLog.Warn($"[PlacementScorer] Read ROOM_DEPARTMENT: {ex.Message}"); }
                 if (!RegexAllow(rule.RoomDepartmentFilter, dept)) return false;
             }
 
@@ -1373,7 +1373,7 @@ namespace StingTools.Core.Placement
                     if (room.LevelId != null && room.LevelId != ElementId.InvalidElementId)
                         lvlName = (_doc.GetElement(room.LevelId) as Level)?.Name ?? "";
                 }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                catch (Exception ex) { StingLog.Warn($"[PlacementScorer] LevelFilter resolve room level: {ex.Message}"); }
                 if (!RegexAllow(rule.LevelFilter, lvlName)) return false;
             }
 
@@ -1388,7 +1388,7 @@ namespace StingTools.Core.Placement
                     // to the legacy parameter so the same code path covers
                     // Revit 2025/2026/2027.
                     ElementId phaseId = ElementId.InvalidElementId;
-                    try { phaseId = room.CreatedPhaseId; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    try { phaseId = room.CreatedPhaseId; } catch (Exception ex) { StingLog.Warn($"[PlacementScorer] Read room.CreatedPhaseId: {ex.Message}"); }
                     if (phaseId == null || phaseId == ElementId.InvalidElementId)
                     {
                         var phaseParam = room.get_Parameter(BuiltInParameter.ROOM_PHASE_ID);
@@ -1399,7 +1399,7 @@ namespace StingTools.Core.Placement
                         && _doc.GetElement(phaseId) is Phase ph)
                         phaseName = ph.Name ?? "";
                 }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                catch (Exception ex) { StingLog.Warn($"[PlacementScorer] PhaseFilter resolve phase name: {ex.Message}"); }
                 if (!RegexAllow(rule.PhaseFilter, phaseName)) return false;
             }
 
@@ -1416,7 +1416,7 @@ namespace StingTools.Core.Placement
                         if (ws != null) wsName = ws.Name ?? "";
                     }
                 }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                catch (Exception ex) { StingLog.Warn($"[PlacementScorer] WorksetFilter resolve workset name: {ex.Message}"); }
                 if (!RegexAllow(rule.WorksetFilter, wsName)) return false;
             }
 
@@ -1424,7 +1424,7 @@ namespace StingTools.Core.Placement
             if (rule.MinAreaM2 > 0 || rule.MaxAreaM2 > 0)
             {
                 double areaFt2 = 0;
-                try { areaFt2 = room.Area; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { areaFt2 = room.Area; } catch (Exception ex) { StingLog.Warn($"[PlacementScorer] Read room.Area for area gate: {ex.Message}"); }
                 double areaM2 = areaFt2 * 0.3048 * 0.3048;
                 if (rule.MinAreaM2 > 0 && areaM2 < rule.MinAreaM2) return false;
                 if (rule.MaxAreaM2 > 0 && areaM2 > rule.MaxAreaM2) return false;
