@@ -338,6 +338,52 @@ namespace StingTools.UI
                 case "Photo_DesignReview":
                     RunCommand<StingTools.Commands.Electrical.Photometric.PhotometricDesignReviewCommand>(app); break;
 
+                // ── Phase 179 — schematics (D1-D5) ───────────────────────────
+                case "FireAlarm_Schematic":
+                    RunCommand<StingTools.Commands.Electrical.Schematics.FireAlarmSchematicCommand>(app); break;
+                case "Earthing_Diagram":
+                    RunCommand<StingTools.Commands.Electrical.Schematics.EarthingDiagramCommand>(app); break;
+                case "Panel_DoorDiagram":
+                    RunCommand<StingTools.Commands.Electrical.Schematics.PanelDoorDiagramCommand>(app); break;
+                case "LPS_Schematic":
+                    RunCommand<StingTools.Commands.Electrical.Schematics.LPSSchematicCommand>(app); break;
+                case "MGPS_Schematic":
+                    RunCommand<StingTools.Commands.Electrical.Schematics.MGPSSchematicCommand>(app); break;
+
+                // ── Phase 179 — validation (V1-V3) ───────────────────────────
+                case "Elec_IPSValidate":
+                    RunCommand<StingTools.Commands.Electrical.Validation.IPSValidationCommand>(app); break;
+                case "Elec_ATEXCheck":
+                    RunCommand<StingTools.Commands.Electrical.Validation.ATEXClassificationCommand>(app); break;
+                case "Elec_DualSourceValidate":
+                    RunCommand<StingTools.Commands.Electrical.Validation.DualSourceValidationCommand>(app); break;
+
+                // ── Phase 179 — interactivity (I1-I3) ────────────────────────
+                case "Elec_CircuitFilter":
+                    RunCommand<StingTools.Commands.Electrical.CircuitViewFilterCommand>(app); break;
+                case "Elec_CircuitTrace":
+                    RunCommand<StingTools.Commands.Electrical.CircuitTracingCommand>(app); break;
+                case "Elec_HomeRunAnnotate":
+                    RunCommand<StingTools.Commands.Electrical.HomeRunPlanAnnotationCommand>(app); break;
+
+                // ── Phase 179 — calculation import (E1-E4) ───────────────────
+                case "Elec_AmtechImport":
+                    RunCommand<StingTools.Commands.Electrical.Import.AmtechImportCommand>(app); break;
+                case "Elec_EasyPowerImport":
+                    RunCommand<StingTools.Commands.Electrical.Import.EasyPowerImportCommand>(app); break;
+                case "Elec_TrimbleImport":
+                    RunCommand<StingTools.Commands.Electrical.Import.TrimbleImportCommand>(app); break;
+                case "Elec_CalcSeed":
+                    RunCommand<StingTools.Commands.Electrical.Import.ElecCalcSeedCommand>(app); break;
+
+                // ── Phase 179 — placement (F4-F6) ─────────────────────────────
+                case "Placement_PVArray":
+                    RunCommand<StingTools.Commands.Placement.PVArrayPlacementCommand>(app); break;
+                case "Placement_EVCharger":
+                    RunCommand<StingTools.Commands.Placement.EVChargerLayoutCommand>(app); break;
+                case "Placement_MedGasOutlets":
+                    RunCommand<StingTools.Commands.Placement.MedGasOutletPlacementCommand>(app); break;
+
                 default:
                     StingLog.Info($"ElectricalCommandHandler: unknown tag '{tag}'");
                     break;

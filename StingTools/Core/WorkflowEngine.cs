@@ -1921,6 +1921,34 @@ namespace StingTools.Core
                 case "DrawingTypes_Reload":  return new Commands.Drawing.DrawingTypesReloadCommand();
                 case "DrawingTypes_Inspect": return new Commands.Drawing.DrawingTypesInspectCommand();
 
+                // Phase 179 — schematic generators (D1-D5)
+                case "FireAlarm_Schematic":  return new Commands.Electrical.Schematics.FireAlarmSchematicCommand();
+                case "Earthing_Diagram":     return new Commands.Electrical.Schematics.EarthingDiagramCommand();
+                case "Panel_DoorDiagram":    return new Commands.Electrical.Schematics.PanelDoorDiagramCommand();
+                case "LPS_Schematic":        return new Commands.Electrical.Schematics.LPSSchematicCommand();
+                case "MGPS_Schematic":       return new Commands.Electrical.Schematics.MGPSSchematicCommand();
+
+                // Phase 179 — electrical validation (V1-V3)
+                case "Elec_IPSValidate":      return new Commands.Electrical.Validation.IPSValidationCommand();
+                case "Elec_ATEXCheck":        return new Commands.Electrical.Validation.ATEXClassificationCommand();
+                case "Elec_DualSourceValidate": return new Commands.Electrical.Validation.DualSourceValidationCommand();
+
+                // Phase 179 — circuit interactivity (I1-I3)
+                case "Elec_CircuitFilter":    return new Commands.Electrical.CircuitViewFilterCommand();
+                case "Elec_CircuitTrace":     return new Commands.Electrical.CircuitTracingCommand();
+                case "Elec_HomeRunAnnotate":  return new Commands.Electrical.HomeRunPlanAnnotationCommand();
+
+                // Phase 179 — calculation imports (E1-E4)
+                case "Elec_AmtechImport":     return new Commands.Electrical.Import.AmtechImportCommand();
+                case "Elec_EasyPowerImport":  return new Commands.Electrical.Import.EasyPowerImportCommand();
+                case "Elec_TrimbleImport":    return new Commands.Electrical.Import.TrimbleImportCommand();
+                case "Elec_CalcSeed":         return new Commands.Electrical.Import.ElecCalcSeedCommand();
+
+                // Phase 179 — specialist placement (F4-F6)
+                case "Placement_PVArray":      return new Commands.Placement.PVArrayPlacementCommand();
+                case "Placement_EVCharger":    return new Commands.Placement.EVChargerLayoutCommand();
+                case "Placement_MedGasOutlets": return new Commands.Placement.MedGasOutletPlacementCommand();
+
                 default: return null;
             }
         }
