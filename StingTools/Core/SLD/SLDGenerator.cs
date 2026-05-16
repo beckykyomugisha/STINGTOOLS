@@ -319,17 +319,20 @@ namespace StingTools.Core.SLD
                                 var inst = doc.Create.NewFamilyInstance(pos, sym, view);
                                 if (inst != null)
                                 {
-                                    StampParam(inst, "STING_SYMBOL_ID", node.ConceptId);
+                                    StampParam(inst, "STING_SYMBOL_ID", node.ConceptId,
+                                        result.Warnings);
                                     StampParam(inst, "STING_SLD_ELEMENT_ID",
-                                        node.ElementId.Value.ToString());
+                                        node.ElementId.Value.ToString(), result.Warnings);
                                     // S1 — Voltage tier stamp.
-                                    StampParam(inst, "STING_VOLTAGE_TIER", node.VoltageTier ?? "LV");
+                                    StampParam(inst, "STING_VOLTAGE_TIER",
+                                        node.VoltageTier ?? "LV", result.Warnings);
                                     // S2 — Feed type stamp (Emergency / Both nodes only).
                                     if (!string.IsNullOrEmpty(node.FeedType)
                                         && !string.Equals(node.FeedType, "Normal",
                                             StringComparison.OrdinalIgnoreCase))
                                     {
-                                        StampParam(inst, "STING_FEED_TYPE", node.FeedType);
+                                        StampParam(inst, "STING_FEED_TYPE", node.FeedType,
+                                            result.Warnings);
                                     }
                                     result.SymbolsPlaced++;
                                     nodeToInstance?[node.ElementId] = inst.Id;
@@ -469,12 +472,42 @@ namespace StingTools.Core.SLD
 
         private static void StampParam(Element el, string name, string value)
         {
+            StampParam(el, name, value, null);
+        }
+
+        /// <summary>
+        /// Stamps a string parameter on <paramref name="el"/>.
+        /// When the parameter is missing, read-only, or throws, a warning is appended
+        /// to <paramref name="warnings"/> (if non-null) and to the log. Never throws.
+        /// </summary>
+        private static void StampParam(Element el, string name, string value,
+            List<string> warnings)
+        {
             try
             {
-                var p = el.LookupParameter(name);
-                if (p != null && !p.IsReadOnly) p.Set(value ?? "");
+                var p = el?.LookupParameter(name);
+                if (p == null)
+                {
+                    string msg = $"STING stamp failed: {name} on element {el?.Id} — parameter not found";
+                    StingLog.Warn(msg);
+                    warnings?.Add(msg);
+                    return;
+                }
+                if (p.IsReadOnly)
+                {
+                    string msg = $"STING stamp failed: {name} on element {el?.Id} — parameter is read-only";
+                    StingLog.Warn(msg);
+                    warnings?.Add(msg);
+                    return;
+                }
+                p.Set(value ?? "");
             }
-            catch (Exception ex) { StingLog.Warn($"StampParam {name}: {ex.Message}"); }
+            catch (Exception ex)
+            {
+                string msg = $"STING stamp failed: {name} on element {el?.Id} — {ex.Message}";
+                StingLog.Warn(msg);
+                warnings?.Add(msg);
+            }
         }
 
         // ── S1 — Stamp dominant voltage tier on the view ─────────────────────
