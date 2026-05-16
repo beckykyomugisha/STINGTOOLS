@@ -919,7 +919,6 @@ app.UseSerilogRequestLogging();
 // Exposed at /metrics in Prometheus exposition format. Scrape once per 15-30s.
 app.UseHttpMetrics();
 app.UseRateLimiter();
-app.UseCors("Dashboard");
 app.UseCors("Mobile");
 // S3.8 — rewrite /api/v1/* → /api/* before routing so existing
 // controllers serve both. Older /api/* paths get a Deprecation
