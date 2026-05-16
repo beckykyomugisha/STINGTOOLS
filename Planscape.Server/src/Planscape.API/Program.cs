@@ -489,6 +489,14 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoPipeline.IPhot
 builder.Services.AddScoped<Planscape.Core.Interfaces.IIfcIngester,
     Planscape.Infrastructure.Services.XbimIfcIngester>();
 
+// IFC alignment / georeferencing validator — inspects the IFC header
+// for project units, IfcMapConversion, IfcProjectedCRS, and IfcSite
+// GUIDs at upload time. Surfaces cross-software coordination drift
+// (ArchiCAD vs Revit) before models federate. Scoped because it
+// writes to the same PlanscapeDbContext as the upload controller.
+builder.Services.AddScoped<Planscape.Core.Interfaces.IIfcAlignmentValidator,
+    Planscape.Infrastructure.Services.IfcAlignmentValidator>();
+
 if (isWorker)
 {
     // Phase 178b — Worker container loads YuNet (ONNX, ~225 KB) for
