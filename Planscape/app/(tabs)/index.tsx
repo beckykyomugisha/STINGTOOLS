@@ -100,7 +100,7 @@ export default function DashboardScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeProject?.id, setActiveInStore]);
+  }, [setActiveInStore]);
 
   useEffect(() => {
     loadData();
