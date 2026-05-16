@@ -52,7 +52,7 @@ namespace StingTools.Commands.Healthcare.Specialist
                 var p = room.LookupParameter("Area") ?? room.LookupParameter("ASS_ROOM_AREA_SQ_M");
                 if (p == null || !p.HasValue) return 0;
                 if (p.StorageType == StorageType.Double) return p.AsDouble() * 0.092903; // ft² → m² when native
-                if (p.StorageType == StorageType.String && double.TryParse(p.AsString(), out var v)) return v;
+                if (p.StorageType == StorageType.String && double.TryParse(p.AsString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v)) return v;
             } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }

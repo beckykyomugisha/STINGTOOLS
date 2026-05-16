@@ -2265,6 +2265,7 @@ namespace StingTools.Core
             _extendedParams["WINDOW_HEIGHT"] = "BLE_WINDOW_HEIGHT_MM";
             _extendedParams["WINDOW_SILL"] = "BLE_WINDOW_SILL_HEIGHT_FROM_FLR_MM";
             _extendedParams["FLR_THICKNESS"] = "BLE_FLR_THICKNESS_MM"; _extendedParams["ELE_AREA"] = "BLE_ELE_AREA_SQ_M";
+            _extendedParams["CBL_TRAY_WIDTH"] = "BLE_CBL_TRAY_WIDTH_MM"; _extendedParams["CBL_TRAY_DEPTH"] = "BLE_CBL_TRAY_DEPTH_MM";
             _extendedParams["CEILING_HEIGHT"] = "BLE_CEILING_HEIGHT_MM"; _extendedParams["ROOF_SLOPE"] = "BLE_ROOF_SLOPE_DEG";
             _extendedParams["STAIR_TREAD"] = "BLE_STAIR_GOING_MM"; _extendedParams["STAIR_RISE"] = "BLE_STAIR_RISE_MM";
             _extendedParams["STAIR_WIDTH"] = "BLE_STAIR_WIDTH_MM"; _extendedParams["RAMP_SLOPE"] = "BLE_RAMP_SLOPE_PCT";

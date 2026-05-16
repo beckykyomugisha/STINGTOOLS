@@ -54,7 +54,7 @@ namespace StingTools.Commands.Healthcare.Specialist
             try { var p = el.LookupParameter(n); if (p?.HasValue!=true) return null;
                   if (p.StorageType==StorageType.Double) return p.AsDouble();
                   if (p.StorageType==StorageType.Integer) return (double)p.AsInteger();
-                  if (p.StorageType==StorageType.String && double.TryParse(p.AsString(), out var v)) return v;
+                  if (p.StorageType==StorageType.String && double.TryParse(p.AsString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v)) return v;
                   return null; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
     }

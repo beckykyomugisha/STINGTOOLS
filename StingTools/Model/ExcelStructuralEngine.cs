@@ -257,7 +257,7 @@ namespace StingTools.Model
             while (j < barPart.Length && !char.IsDigit(barPart[j])) j++;
             string type = barPart.Substring(0, j);
             if (!int.TryParse(barPart.Substring(j), out int size)) return null;
-            if (!double.TryParse(spacePart, out double spacing)) return null;
+            if (!double.TryParse(spacePart, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double spacing)) return null;
 
             return new LinkSpec { SizeMm = size, SpacingMm = spacing, Type = type };
         }
@@ -931,8 +931,8 @@ namespace StingTools.Model
                         if (row.Size.Contains("x"))
                         {
                             var parts = row.Size.Split('x');
-                            double.TryParse(parts[0], out widthMm);
-                            double.TryParse(parts[1], out depthMm);
+                            double.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out widthMm);
+                            double.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out depthMm);
                         }
 
                         // Find or create column type
@@ -1125,7 +1125,7 @@ namespace StingTools.Model
                 {
                     var cell = ws.Cell(row, col);
                     if (cell.TryGetValue(out double val)) return val;
-                    if (double.TryParse(cell.GetString().Trim(), out val)) return val;
+                    if (double.TryParse(cell.GetString().Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out val)) return val;
                 }
             }
             return defaultVal;
