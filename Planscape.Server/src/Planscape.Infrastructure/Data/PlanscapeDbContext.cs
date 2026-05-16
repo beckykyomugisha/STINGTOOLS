@@ -161,6 +161,9 @@ public class PlanscapeDbContext : DbContext
     // of a federated ProjectModel; mobile streams these on demand).
     public DbSet<SceneNode> SceneNodes => Set<SceneNode>();
     public DbSet<ClashRecord> ClashRecords => Set<ClashRecord>();
+    // Per-project automation rules for clash detection results — auto-issue,
+    // push notification, and webhook fan-out triggers fire on new clashes.
+    public DbSet<ClashAutomationRule> ClashAutomationRules => Set<ClashAutomationRule>();
     // IFC alignment / georeferencing validation reports — written by
     // IfcAlignmentValidator at upload time. Surfaces cross-software
     // coordination drift (ArchiCAD vs Revit unit / CRS / IfcSite GUID).
