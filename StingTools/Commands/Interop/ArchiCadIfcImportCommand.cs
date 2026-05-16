@@ -576,7 +576,6 @@ namespace StingTools.Commands.Interop
             try
             {
                 foreach (var e in _e.Values.Where(e => _spatialEntityTypes.Contains(e.Type)))
-                foreach (var e in _e.Values.Where(e => SpatialTypes.Contains(e.Type)))
                     _spatialName[e.Id] = ExtractString(e.Raw, 2); // arg 2 = Name on all IfcRoot subclasses
 
                 // IfcRelAggregates: arg 4 = RelatingObject (parent), arg 5 = RelatedObjects (children)
