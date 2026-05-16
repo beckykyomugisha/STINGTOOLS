@@ -1,10 +1,13 @@
-// StingTools — SLD annotation placer (Phase 175)
+// StingTools — SLD annotation placer (Phase 175 + Phase 179 enhancements)
 //
-// Draws busbars, branch lines, and per-symbol rating/circuit labels on
-// a generated SLD drafting view, using the active standard's
-// AnnotationRules. PlaceCircuitAnnotation returns the new TextNote's
-// ElementId so the generator can stamp it onto the corresponding symbol
-// instance via STING_SYMBOL_LABEL_ID for direct fast-path lookup later.
+// Draws busbars, branch lines, and per-symbol labels on a generated SLD
+// drafting view. PlaceCircuitAnnotation returns the new TextNote's ElementId
+// so the generator can stamp it via STING_SYMBOL_LABEL_ID for fast-path
+// lookup during incremental updates.
+//
+// Phase 179: accepts SLDAnnotationOptions so UI checkboxes (ShowVdPct,
+// ShowFaultKa, ShowCsaMm2, ShowLoads) drive label content; BuildCircuitLabel
+// now emits all populated BS 7671 / IEC 60364 fields.
 
 using System;
 using System.Collections.Generic;
@@ -20,19 +23,19 @@ namespace StingTools.Core.SLD
         private static double Mm(double mm) => mm / MmPerFoot;
 
         /// <summary>
-        /// Place a label TextNote for every node in <paramref name="root"/>'s
-        /// tree. When <paramref name="nodeToInstance"/> maps a node to a
-        /// placed FamilyInstance, the new TextNote's ElementId is also
-        /// stamped onto that instance via <c>STING_SYMBOL_LABEL_ID</c>
-        /// so <c>SLDGenerator.TryUpdateSingleNode</c> can find it
-        /// directly without a spatial search.
+        /// Place a label TextNote for every node in the tree.
+        /// When <paramref name="nodeToInstance"/> maps a node to its placed
+        /// FamilyInstance, the TextNote's ElementId is also stamped onto that
+        /// instance via <c>STING_SYMBOL_LABEL_ID</c> for O(1) fast-path refresh.
         /// </summary>
         public static void PlaceAllAnnotations(Document doc, ViewDrafting view, SLDNode root,
             SLDLayout layout, string standardId,
-            IDictionary<ElementId, ElementId> nodeToInstance = null)
+            IDictionary<ElementId, ElementId> nodeToInstance = null,
+            SLDAnnotationOptions annotOpts = null)
         {
             if (doc == null || view == null || root == null || layout == null) return;
             var rules = SymbolStandardRegistry.GetAnnotationRules(standardId);
+            annotOpts = annotOpts ?? SLDAnnotationOptions.Default;
 
             var stack = new Stack<SLDNode>();
             stack.Push(root);
@@ -41,7 +44,7 @@ namespace StingTools.Core.SLD
                 var node = stack.Pop();
                 if (layout.SymbolPositions.TryGetValue(node.ElementId, out var pos))
                 {
-                    ElementId noteId = PlaceCircuitAnnotation(doc, view, node, pos, rules);
+                    ElementId noteId = PlaceCircuitAnnotation(doc, view, node, pos, rules, annotOpts);
                     if (noteId != ElementId.InvalidElementId
                         && nodeToInstance != null
                         && nodeToInstance.TryGetValue(node.ElementId, out var instanceId))
@@ -54,17 +57,16 @@ namespace StingTools.Core.SLD
         }
 
         /// <summary>
-        /// Place a single rating/circuit label and return its
-        /// <see cref="ElementId"/>. Returns
-        /// <see cref="ElementId.InvalidElementId"/> when no label was
-        /// produced (no host data, missing TextNoteType, etc.).
+        /// Place a single circuit label TextNote and return its ElementId.
+        /// Returns <see cref="ElementId.InvalidElementId"/> when no label is produced.
         /// </summary>
         public static ElementId PlaceCircuitAnnotation(Document doc, ViewDrafting view, SLDNode node,
-            XYZ position, AnnotationRules rules)
+            XYZ position, AnnotationRules rules, SLDAnnotationOptions annotOpts = null)
         {
+            annotOpts = annotOpts ?? SLDAnnotationOptions.Default;
             try
             {
-                string label = BuildCircuitLabel(node, rules);
+                string label = BuildCircuitLabel(node, rules, annotOpts);
                 if (string.IsNullOrWhiteSpace(label)) return ElementId.InvalidElementId;
 
                 XYZ textPos = OffsetForRule(position, rules.LabelPosition,
@@ -78,7 +80,7 @@ namespace StingTools.Core.SLD
             }
             catch (Exception ex)
             {
-                StingTools.Core.StingLog.Warn($"PlaceCircuitAnnotation {node?.ConceptId}: {ex.Message}");
+                StingLog.Warn($"PlaceCircuitAnnotation {node?.ConceptId}: {ex.Message}");
                 return ElementId.InvalidElementId;
             }
         }
@@ -101,26 +103,76 @@ namespace StingTools.Core.SLD
             }
             catch (Exception ex)
             {
-                StingTools.Core.StingLog.Warn($"PlaceBusbarsAndBranches: {ex.Message}");
+                StingLog.Warn($"PlaceBusbarsAndBranches: {ex.Message}");
             }
         }
 
-        // ── helpers ─────────────────────────────────────────────────────
+        // ── Label builder ────────────────────────────────────────────────────
 
-        private static string BuildCircuitLabel(SLDNode node, AnnotationRules rules)
+        private static string BuildCircuitLabel(SLDNode node, AnnotationRules rules,
+            SLDAnnotationOptions opts)
         {
             if (node == null || rules == null) return "";
-            string fmt = (rules.RatingFormat ?? "{rating}{unit}")
-                .Replace("{poles}", node.Poles > 0 ? node.Poles.ToString() : "")
-                .Replace("{rating}", node.Rating ?? "")
-                .Replace("{curve}", "")
-                .Replace("{unit}", "");
+
+            var lines = new List<string>();
+
+            // Circuit reference.
             string circuit = string.IsNullOrEmpty(node.CircuitRef) ? ""
                 : $"{rules.CircuitRefPrefix}{node.CircuitRef}{rules.CircuitRefSuffix}";
-            return string.Join("\n",
-                new[] { circuit, fmt, node.Label }
-                .Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
+            if (!string.IsNullOrEmpty(circuit)) lines.Add(circuit);
+
+            // Rating / poles — controlled by opts.ShowRatings.
+            if (opts.ShowRatings && !(string.IsNullOrEmpty(node.Rating) && node.Poles == 0))
+            {
+                string fmt = (rules.RatingFormat ?? "{rating}{unit}")
+                    .Replace("{poles}", node.Poles > 0 ? $"{node.Poles}P " : "")
+                    .Replace("{rating}", node.Rating ?? "")
+                    .Replace("{curve}", "")
+                    .Replace("{unit}", "");
+                if (!string.IsNullOrWhiteSpace(fmt)) lines.Add(fmt.Trim());
+            }
+
+            // Load — controlled by opts.ShowLoads.
+            if (opts.ShowLoads && node.LoadKW > 0)
+            {
+                string loadLine = (rules.LoadFormat ?? "{load}kW")
+                    .Replace("{load}", node.LoadKW.ToString("F1",
+                        System.Globalization.CultureInfo.InvariantCulture));
+                lines.Add(loadLine);
+            }
+
+            // Cable CSA — controlled by opts.ShowCsaMm2.
+            if (opts.ShowCsaMm2 && !string.IsNullOrEmpty(node.CsaMm2))
+            {
+                string csaLine = (rules.CsaFormat ?? "{csa}mm²")
+                    .Replace("{csa}", node.CsaMm2);
+                lines.Add(csaLine);
+            }
+
+            // Voltage drop % — controlled by opts.ShowVdPct.
+            if (opts.ShowVdPct && node.VdPct > 0)
+            {
+                string vdLine = (rules.VdFormat ?? "VD {vd}%")
+                    .Replace("{vd}", node.VdPct.ToString("F1",
+                        System.Globalization.CultureInfo.InvariantCulture));
+                lines.Add(vdLine);
+            }
+
+            // Fault level — controlled by opts.ShowFaultKa.
+            if (opts.ShowFaultKa && !string.IsNullOrEmpty(node.FaultKa))
+            {
+                string faultLine = (rules.FaultFormat ?? "Iₖ {fault}kA")
+                    .Replace("{fault}", node.FaultKa);
+                lines.Add(faultLine);
+            }
+
+            // Element name label.
+            if (!string.IsNullOrEmpty(node.Label)) lines.Add(node.Label);
+
+            return string.Join("\n", lines.Where(l => !string.IsNullOrWhiteSpace(l))).Trim();
         }
+
+        // ── Geometry helpers ─────────────────────────────────────────────────
 
         private static XYZ OffsetForRule(XYZ pos, string rule, double off)
         {
@@ -145,7 +197,7 @@ namespace StingTools.Core.SLD
             }
             catch (Exception ex)
             {
-                StingTools.Core.StingLog.Warn($"SLDAnnotationPlacer.StampLabelId: {ex.Message}");
+                StingLog.Warn($"SLDAnnotationPlacer.StampLabelId: {ex.Message}");
             }
         }
     }

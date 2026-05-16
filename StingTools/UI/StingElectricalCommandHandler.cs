@@ -42,6 +42,10 @@ namespace StingTools.UI
         public static Autodesk.Revit.DB.ElementId CurrentSheetPlacementSheetId;
         public static StingTools.Commands.SLD.RiserOptions CurrentRiserOptions
             = new StingTools.Commands.SLD.RiserOptions { Layout = "Horizontal", ShowFaultKa = true, ShowFeederCsa = true, ShowLoadingPct = true };
+        public static StingTools.Core.SLD.SLDLayoutOptions CurrentSLDLayoutOptions
+            = StingTools.Core.SLD.SLDLayoutOptions.Default;
+        public static StingTools.Core.SLD.SLDAnnotationOptions CurrentSLDAnnotationOptions
+            = StingTools.Core.SLD.SLDAnnotationOptions.Default;
         public static string CurrentLpdStandard = "ASHRAE_90_1_2019";
         public static double CurrentLpdCustomLimit = 0;
 
@@ -192,9 +196,9 @@ namespace StingTools.UI
 
                 // ── SLD ──────────────────────────────────────────────
                 case "SLD_Generate":
+                    RunCommand<StingTools.Commands.SLD.GenerateSLDCommand>(app); break;
                 case "SLD_Update":
-                    TryRunByTypeName("StingTools.Commands.SLD.SLDGeneratorCommand", app);
-                    break;
+                    RunCommand<StingTools.Commands.SLD.UpdateSLDCommand>(app); break;
                 case "SLD_Refresh":
                     /* fresh snapshot will run after Dispatch */
                     break;

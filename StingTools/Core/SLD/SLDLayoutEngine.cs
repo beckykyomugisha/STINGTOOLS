@@ -1,14 +1,48 @@
-// StingTools — SLD layout engine (Phase 175)
+// StingTools — SLD layout engine (Phase 175 + Phase 179 enhancements)
 //
 // Pure layout — turns a hierarchy of SLDNodes into XYZ symbol positions
 // plus busbar / branch line geometry. All coordinates output in Revit
 // internal feet.
+//
+// Phase 179: SLDLayoutOptions and SLDAnnotationOptions make every
+// formerly-hardcoded constant configurable; multi-root support via
+// SLDLayout.Offset; UI sliders in StingElectricalPanel are now wired.
 
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
 
 namespace StingTools.Core.SLD
 {
+    /// <summary>
+    /// Layout geometry constants, all editable at generation time.
+    /// </summary>
+    public sealed class SLDLayoutOptions
+    {
+        public double SymbolHeightMm  { get; set; } = 8.0;
+        public double SymbolSpacingMm { get; set; } = 5.0;
+        public double BusbarOffsetMm  { get; set; } = 4.0;
+        public double LevelOffsetMm   { get; set; } = 40.0;
+        /// <summary>Horizontal gap between separate distribution hierarchies (multi-root).</summary>
+        public double RootGapMm       { get; set; } = 80.0;
+
+        public static SLDLayoutOptions Default => new SLDLayoutOptions();
+    }
+
+    /// <summary>
+    /// Controls which engineering data columns appear on SLD annotations.
+    /// Values here override what the standard's AnnotationRules declare.
+    /// </summary>
+    public sealed class SLDAnnotationOptions
+    {
+        public bool ShowRatings  { get; set; } = true;
+        public bool ShowLoads    { get; set; } = true;
+        public bool ShowVdPct    { get; set; }
+        public bool ShowFaultKa  { get; set; }
+        public bool ShowCsaMm2   { get; set; }
+
+        public static SLDAnnotationOptions Default => new SLDAnnotationOptions();
+    }
+
     public sealed class SLDLayout
     {
         public Dictionary<ElementId, XYZ> SymbolPositions { get; set; }
@@ -18,29 +52,50 @@ namespace StingTools.Core.SLD
         public List<(XYZ from, XYZ to)> BranchLines { get; set; }
             = new List<(XYZ, XYZ)>();
         public XYZ ViewOrigin { get; set; } = XYZ.Zero;
-        public double TotalWidth { get; set; }
+        public double TotalWidth  { get; set; }
         public double TotalHeight { get; set; }
+
+        /// <summary>
+        /// Returns a new layout with all positions and segment endpoints
+        /// shifted by (dx, dy, 0). Used to place multiple root hierarchies
+        /// side-by-side in a single SLD view without coordinate collisions.
+        /// </summary>
+        public SLDLayout Offset(double dx, double dy)
+        {
+            var out_ = new SLDLayout
+            {
+                TotalWidth  = TotalWidth,
+                TotalHeight = TotalHeight,
+                ViewOrigin  = new XYZ(ViewOrigin.X + dx, ViewOrigin.Y + dy, 0),
+            };
+            foreach (var kv in SymbolPositions)
+                out_.SymbolPositions[kv.Key] = new XYZ(kv.Value.X + dx, kv.Value.Y + dy, 0);
+            foreach (var s in BusbarSegments)
+                out_.BusbarSegments.Add((new XYZ(s.from.X + dx, s.from.Y + dy, 0),
+                                         new XYZ(s.to.X   + dx, s.to.Y   + dy, 0)));
+            foreach (var s in BranchLines)
+                out_.BranchLines.Add((new XYZ(s.from.X + dx, s.from.Y + dy, 0),
+                                      new XYZ(s.to.X   + dx, s.to.Y   + dy, 0)));
+            return out_;
+        }
     }
 
     public static class SLDLayoutEngine
     {
         private const double MmPerFoot = 304.8;
-        private const double SymbolHeightMm  = 8.0;
-        private const double SymbolSpacingMm = 5.0;
-        private const double BusbarOffsetMm  = 4.0;
-        private const double LevelOffsetMm   = 40.0;
         private static double Mm(double mm) => mm / MmPerFoot;
 
-        public static SLDLayout CalculateLayout(SLDNode root, string standardId)
+        public static SLDLayout CalculateLayout(SLDNode root, string standardId,
+            SLDLayoutOptions opts = null)
         {
+            opts = opts ?? SLDLayoutOptions.Default;
             var layout = new SLDLayout();
             if (root == null) return layout;
 
-            double dy = Mm(SymbolHeightMm + SymbolSpacingMm);
-            double busOff = Mm(BusbarOffsetMm);
-            double levelDx = Mm(LevelOffsetMm);
+            double dy      = Mm(opts.SymbolHeightMm + opts.SymbolSpacingMm);
+            double busOff  = Mm(opts.BusbarOffsetMm);
+            double levelDx = Mm(opts.LevelOffsetMm);
 
-            // Per-level Y cursor.
             var yByLevel = new Dictionary<int, double>();
 
             void Place(SLDNode node)
@@ -55,30 +110,27 @@ namespace StingTools.Core.SLD
                 {
                     double busY = pos.Y - busOff;
                     var busFrom = new XYZ(pos.X - Mm(10), busY, 0);
-                    var busTo   = new XYZ(pos.X + Mm(10) + node.Children.Count * Mm(SymbolSpacingMm), busY, 0);
+                    var busTo   = new XYZ(pos.X + Mm(10) + node.Children.Count * Mm(opts.SymbolSpacingMm), busY, 0);
                     layout.BusbarSegments.Add((busFrom, busTo));
 
                     foreach (var child in node.Children)
                     {
                         Place(child);
                         if (layout.SymbolPositions.TryGetValue(child.ElementId, out var childPos))
-                        {
                             layout.BranchLines.Add((new XYZ(childPos.X, busY, 0), childPos));
-                        }
                     }
                 }
             }
 
             Place(root);
 
-            // View bounds (rough): max X + 2 levelDx, max accumulated Y.
             double maxX = 0, maxY = 0;
             foreach (var p in layout.SymbolPositions.Values)
             {
                 if (p.X > maxX) maxX = p.X;
                 if (-p.Y > maxY) maxY = -p.Y;
             }
-            layout.TotalWidth = maxX + levelDx;
+            layout.TotalWidth  = maxX + levelDx;
             layout.TotalHeight = maxY + dy;
             return layout;
         }
