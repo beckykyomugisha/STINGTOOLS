@@ -559,6 +559,12 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.SlaBurnRateJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.DataErasureJob>();
 // Idempotent platform-tenant seeder ('planscape' slug). Runs once on boot.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PlatformTenantSeeder>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.Nrm2DescriptionBuilder>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IIfcQuantityIngestor, Planscape.Infrastructure.Services.IfcQuantityIngestor>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.ISuitabilityStateMachine, Planscape.Infrastructure.Services.SuitabilityStateMachine>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IModelCheckerService, Planscape.Infrastructure.Services.ModelCheckerService>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.KpiSnapshotJob>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.CoordinatorWorkloadJob>();
 
 // P7 + P8 — IFC→glTF converter + thumbnail generator. Null defaults keep the
 // system running without a converter installed; swap the registration to
@@ -1282,6 +1288,14 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DataErasureJob>(
 RecurringJob.AddOrUpdate<Planscape.API.BackgroundJobs.MaintenanceTaskSchedulerJob>(
     "maintenance-task-scheduler", j => j.ExecuteAsync(),
     "0 6 * * *", new RecurringJobOptions { QueueName = "default" });
+
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.KpiSnapshotJob>(
+    "kpi-snapshot", j => j.RunAsync(CancellationToken.None),
+    "0 2 * * *", new RecurringJobOptions { QueueName = "default" });
+
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.CoordinatorWorkloadJob>(
+    "coordinator-workload", j => j.RunAsync(CancellationToken.None),
+    "0 3 * * 1", new RecurringJobOptions { QueueName = "default" });
 
 // Seed the well-known 'planscape' platform tenant idempotently on startup
 // so /api/platform/revenue + SlaBurnRateJob alerts find their target.

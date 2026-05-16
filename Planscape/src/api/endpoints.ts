@@ -1945,3 +1945,53 @@ export interface FederationManifest {
 export async function getFederationManifest(projectId: string): Promise<FederationManifest> {
   return apiFetch<FederationManifest>(`/api/projects/${projectId}/federation/manifest`);
 }
+
+// ───── BOQ ─────
+
+export interface BoqDocument {
+  id: string;
+  name: string;
+  clientName?: string;
+  status: string;
+  currency: string;
+  totalNet?: number;
+  totalGross?: number;
+  lockedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function listBoqDocuments(projectId: string): Promise<BoqDocument[]> {
+  return apiFetch(`/api/projects/${projectId}/boq`);
+}
+
+export function getBoqDocument(projectId: string, boqId: string): Promise<BoqDocument> {
+  return apiFetch(`/api/projects/${projectId}/boq/${boqId}`);
+}
+
+// ───── Model Checks ─────
+
+export interface ModelCheckRun {
+  id: string;
+  ruleSetId: string;
+  ruleSetName?: string;
+  status: string;
+  startedAt: string;
+  completedAt?: string;
+  totalElementsChecked: number;
+  totalRulesEvaluated: number;
+  findingsCount: number;
+  criticalCount: number;
+  majorCount: number;
+  minorCount: number;
+  infoCount: number;
+  triggeredBy?: string;
+}
+
+export function listModelCheckRuns(projectId: string): Promise<ModelCheckRun[]> {
+  return apiFetch(`/api/projects/${projectId}/model-checks/runs`);
+}
+
+export function getModelCheckRun(projectId: string, runId: string): Promise<ModelCheckRun> {
+  return apiFetch(`/api/projects/${projectId}/model-checks/runs/${runId}`);
+}
