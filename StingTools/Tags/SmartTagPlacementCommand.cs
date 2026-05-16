@@ -317,7 +317,7 @@ namespace StingTools.Tags
             try
             {
                 Element type = null;
-                try { type = host.Document.GetElement(host.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { type = host.Document.GetElement(host.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] ReadTagPriority GetTypeId({host?.Id?.Value}): {ex.Message}"); }
                 var p = type?.LookupParameter("TAG_PRIORITY_INT");
                 if (p != null && p.HasValue && p.StorageType == StorageType.Integer)
                 {
@@ -340,12 +340,12 @@ namespace StingTools.Tags
             try
             {
                 Element type = null;
-                try { type = host.Document.GetElement(host.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { type = host.Document.GetElement(host.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] ReadTagClusterKey GetTypeId({host?.Id?.Value}): {ex.Message}"); }
                 return type?.LookupParameter("TAG_CLUSTER_KEY_TXT")?.AsString()
                     ?? host.LookupParameter("TAG_CLUSTER_KEY_TXT")?.AsString()
                     ?? "";
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
+            catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] ReadTagClusterKey lookup: {ex.Message}"); return ""; }
         }
 
         /// <summary>
@@ -358,12 +358,12 @@ namespace StingTools.Tags
             try
             {
                 Element type = null;
-                try { type = host.Document.GetElement(host.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { type = host.Document.GetElement(host.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] ReadTagFamilyHint GetTypeId({host?.Id?.Value}): {ex.Message}"); }
                 return type?.LookupParameter("TAG_FAMILY_HINT_TXT")?.AsString()
                     ?? host.LookupParameter("TAG_FAMILY_HINT_TXT")?.AsString()
                     ?? "";
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
+            catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] ReadTagFamilyHint lookup: {ex.Message}"); return ""; }
         }
 
         /// <summary>
@@ -377,12 +377,12 @@ namespace StingTools.Tags
             try
             {
                 Element type = null;
-                try { type = host.Document.GetElement(host.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { type = host.Document.GetElement(host.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] ReadTagScaleRange GetTypeId({host?.Id?.Value}): {ex.Message}"); }
                 int mn = ReadIntInternal(type, "TAG_DISPLAY_SCALE_MIN_INT");
                 int mx = ReadIntInternal(type, "TAG_DISPLAY_SCALE_MAX_INT");
                 return (mn, mx);
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return (0, 0); }
+            catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] ReadTagScaleRange lookup: {ex.Message}"); return (0, 0); }
         }
 
         private static int ReadIntInternal(Element el, string paramName)
@@ -394,7 +394,7 @@ namespace StingTools.Tags
                 if (p == null || !p.HasValue || p.StorageType != StorageType.Integer) return 0;
                 return p.AsInteger();
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
+            catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] ReadIntInternal({paramName}): {ex.Message}"); return 0; }
         }
 
         private static double ReadAnchorMm(Element host, string paramName)
@@ -402,7 +402,7 @@ namespace StingTools.Tags
             try
             {
                 Element type = null;
-                try { type = host.Document.GetElement(host.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { type = host.Document.GetElement(host.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] ReadAnchorMm GetTypeId({host?.Id?.Value}): {ex.Message}"); }
                 var p = type?.LookupParameter(paramName) ?? host.LookupParameter(paramName);
                 if (p == null || !p.HasValue) return 0;
                 if (p.StorageType == StorageType.Double) return p.AsDouble() * 304.8;  // feet → mm
@@ -446,7 +446,7 @@ namespace StingTools.Tags
                 XYZ head = tag?.TagHeadPosition;
                 if (head == null) return new Box2D(0, 0, 0, 0);
                 string text = "";
-                try { text = tag.TagText ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { text = tag.TagText ?? ""; } catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] Read tag.TagText for box estimate: {ex.Message}"); }
                 int chars = Math.Max(8, text.Length);
                 // Tag text width ~ tagWidth * chars/8 (calibrated to 8-char base width).
                 double estW = Math.Max(tagWidth, tagWidth * chars / 8.0);
@@ -455,7 +455,7 @@ namespace StingTools.Tags
                     head.X - estW / 2.0, head.Y - estH / 2.0,
                     head.X + estW / 2.0, head.Y + estH / 2.0);
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return new Box2D(0, 0, 0, 0); }
+            catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] EstimateTagBoxFallback: {ex.Message}"); return new Box2D(0, 0, 0, 0); }
         }
 
         public static double GetModelOffset(View view, double baseOffset = 0.01)
@@ -504,7 +504,7 @@ namespace StingTools.Tags
                 if (cat.IndexOf("Fixture", StringComparison.OrdinalIgnoreCase) >= 0)   return "FIXTURES";
                 return null;
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
+            catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] MultiplierKeyForCategory: {ex.Message}"); return null; }
         }
 
         /// <summary>Get element center point in view coordinates.</summary>
@@ -845,7 +845,7 @@ namespace StingTools.Tags
                 var bic = (BuiltInCategory)cat.Id.Value;
                 return TagFamilyConfig.GetFamilyName(bic);
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return $"{TagFamilyConfig.FamilyPrefix} - {cat.Name} Tag"; }
+            catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] GetStingFamilyName BIC cast: {ex.Message}"); return $"{TagFamilyConfig.FamilyPrefix} - {cat.Name} Tag"; }
         }
 
         // ── View crop box helper ─────────────────────────────────────
@@ -859,7 +859,7 @@ namespace StingTools.Tags
                 if (crop == null) return null;
                 return Box2D.FromBoundingBox(crop);
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
+            catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] GetViewCropBox: {ex.Message}"); return null; }
         }
 
         // ── Performance: suppress annotation regen ───────────────────
@@ -951,12 +951,12 @@ namespace StingTools.Tags
             // GAP-N: route through Stamper.Read so a template-controlled
             // pack=…|cs=… stamp doesn't leak into the registry lookup.
             try { dtId = StingTools.Core.Drawing.DrawingTypeStamper.Read(view); }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
+            catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] DrawingTypeStamper.Read: {ex.Message}"); return 0; }
             if (string.IsNullOrWhiteSpace(dtId)) return 0;
 
             StingTools.Core.Drawing.DrawingType dt;
             try { dt = StingTools.Core.Drawing.DrawingTypeRegistry.Get(doc, dtId); }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
+            catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] DrawingTypeRegistry.Get({dtId}): {ex.Message}"); return 0; }
             if (dt == null) return 0;
             string disc = dt.Discipline;
             if (string.IsNullOrWhiteSpace(disc) || disc == "*") return 0;
@@ -975,7 +975,7 @@ namespace StingTools.Tags
                     }
                     return !string.Equals(elDisc, disc, StringComparison.OrdinalIgnoreCase);
                 }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
+                catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] DrawingType discipline filter: {ex.Message}"); return false; }
             });
             return before - elements.Count;
         }
@@ -1390,7 +1390,7 @@ namespace StingTools.Tags
                             if (tag != null) placed++;
                             else skipped++;
                         }
-                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); skipped++; }
+                        catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] IndependentTag.Create on linked view: {ex.Message}"); skipped++; }
                     }
                 }
                 catch (Exception ex)
@@ -1609,7 +1609,7 @@ namespace StingTools.Tags
                         useLeader, orient, tagPos);
                     if (tag != null) placed++;
                 }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); skipped++; }
+                catch (Exception ex) { StingLog.Warn($"[PlacementPreset] IndependentTag.Create from preset: {ex.Message}"); skipped++; }
             }
 
             return (placed, skipped);
@@ -1660,7 +1660,7 @@ namespace StingTools.Tags
             var tags = new FilteredElementCollector(doc, view.Id)
                 .OfClass(typeof(IndependentTag))
                 .Cast<IndependentTag>()
-                .OrderBy(t => { try { return t.TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0.0; } })
+                .OrderBy(t => { try { return t.TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"[AlignTagBands] Read TagHeadPosition.Y for sort: {ex.Message}"); return 0.0; } })
                 .ToList();
 
             if (tags.Count < 2) return 0;
@@ -1670,8 +1670,8 @@ namespace StingTools.Tags
             for (int i = 1; i < tags.Count; i++)
             {
                 double prevY, thisY;
-                try { prevY = tags[i - 1].TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); prevY = 0; }
-                try { thisY = tags[i].TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); thisY = 0; }
+                try { prevY = tags[i - 1].TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"[AlignTagBands] Read prev TagHeadPosition.Y: {ex.Message}"); prevY = 0; }
+                try { thisY = tags[i].TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"[AlignTagBands] Read this TagHeadPosition.Y: {ex.Message}"); thisY = 0; }
 
                 if (Math.Abs(thisY - prevY) <= tagHeightEstimate * 1.2)
                     current.Add(tags[i]);
@@ -1686,7 +1686,7 @@ namespace StingTools.Tags
             int moved = 0;
             foreach (var group in groups)
             {
-                var ys = group.Select(t => { try { return t.TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0.0; } })
+                var ys = group.Select(t => { try { return t.TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"[AlignTagBands] Read group TagHeadPosition.Y: {ex.Message}"); return 0.0; } })
                     .OrderBy(y => y).ToList();
                 double medianY = ys[ys.Count / 2];
                 foreach (var tag in group)
@@ -2649,7 +2649,7 @@ namespace StingTools.Tags
                 .Where(f =>
                 {
                     try { return f.FamilyCategory?.CategoryType == CategoryType.Annotation; }
-                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
+                    catch (Exception ex) { StingLog.Warn($"[BatchTagTextSize] Read FamilyCategory.CategoryType: {ex.Message}"); return false; }
                 })
                 .OrderBy(f => f.Name)
                 .ToList();
@@ -2988,7 +2988,7 @@ namespace StingTools.Tags
             }
 
             var typeIds = new HashSet<ElementId>(
-                scope.Select(e => { try { return e.GetTypeId(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ElementId.InvalidElementId; } })
+                scope.Select(e => { try { return e.GetTypeId(); } catch (Exception ex) { StingLog.Warn($"[SwitchTagPosition] Element.GetTypeId: {ex.Message}"); return ElementId.InvalidElementId; } })
                     .Where(id => id != ElementId.InvalidElementId));
 
             int updated = 0;
@@ -3422,7 +3422,7 @@ namespace StingTools.Tags
                                 {
                                     elbowPos = tag.GetLeaderEnd(hostRef);
                                 }
-                                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); elbowPos = elemCenter; }
+                                catch (Exception ex) { StingLog.Warn($"[AdjustElbows] tag.GetLeaderEnd: {ex.Message}"); elbowPos = elemCenter; }
                                 break;
                         }
 

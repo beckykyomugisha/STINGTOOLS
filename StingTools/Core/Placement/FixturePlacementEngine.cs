@@ -125,7 +125,7 @@ namespace StingTools.Core.Placement
                         ? "(unknown)"
                         : dt.ToString("yyyy-MM-dd HH:mm:ss");
                 }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); _buildStamp = "(unknown)"; }
+                catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Read assembly build stamp: {ex.Message}"); _buildStamp = "(unknown)"; }
                 return _buildStamp;
             }
         }
@@ -189,7 +189,7 @@ namespace StingTools.Core.Placement
                     foreach (var w in vw)
                         if (!string.IsNullOrEmpty(w)) result.Warnings.Add(w);
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Collect rule-loader validation warnings: {ex.Message}"); }
 
             // Phase 139.27 (N-05) — accessibility / mounting-height validation
             // against STING_HEIGHT_STANDARDS.json. Silent until 139.27.
@@ -559,11 +559,11 @@ namespace StingTools.Core.Placement
                         foreach (var id in result.PlacedIds)
                         {
                             Element el = null;
-                            try { el = doc.GetElement(id); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                            try { el = doc.GetElement(id); } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Post-commit GetElement({id.Value}): {ex.Message}"); }
                             if (el == null) { rolledBack++; continue; }
                             alive.Add(id);
                             string cat = "(uncategorised)";
-                            try { cat = el.Category?.Name ?? "(uncategorised)"; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                            try { cat = el.Category?.Name ?? "(uncategorised)"; } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Read placed element category: {ex.Message}"); }
                             perCategoryAlive[cat] = perCategoryAlive.TryGetValue(cat, out var n) ? n + 1 : 1;
                         }
                         if (rolledBack > 0)
@@ -761,11 +761,11 @@ namespace StingTools.Core.Placement
                 if (!string.IsNullOrEmpty(rule.CatalogueRef) || !string.IsNullOrEmpty(rule.ManufacturerCode))
                 {
                     bool resolved = false;
-                    try { resolved = ManufacturerCatalogueRegistry.GetForRule(rule) != null; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    try { resolved = ManufacturerCatalogueRegistry.GetForRule(rule) != null; } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] ManufacturerCatalogueRegistry.GetForRule: {ex.Message}"); }
                     if (!resolved && diagRoom != null) diagRoom.ManufacturerMisses++;
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Manufacturer-catalogue check: {ex.Message}"); }
 
             // Phase 139.18 — warn once per (rule, family) when a wall- or
             // ceiling-anchored rule resolves to an un-hosted family. The
@@ -798,7 +798,7 @@ namespace StingTools.Core.Placement
                     }
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] FamilyPlacementType host-hint check: {ex.Message}"); }
 
             if (!symbol.IsActive)
             {
@@ -824,7 +824,7 @@ namespace StingTools.Core.Placement
                     foreach (var lst in state.PlacedByRule.Values)
                         if (lst != null) existingNearby.AddRange(lst);
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Collect existing PlacedByRule for dedup: {ex.Message}"); }
             double dedupFt = Math.Max(rule.ToleranceMm, 25.0) * MmToFt;
             double dedupSq = dedupFt * dedupFt;
 
@@ -880,7 +880,7 @@ namespace StingTools.Core.Placement
                         XYZ p = (fi.Location as LocationPoint)?.Point;
                         if (p != null)
                             StingLog.Info($"FixturePlacementEngine: placed '{rule.MergeKey}' at ({p.X:F2},{p.Y:F2},{p.Z:F2}) host={(fi.Host?.GetType().Name ?? "<none>")}.");
-                    } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Log placement XYZ diagnostic: {ex.Message}"); }
                     // Pack 123 / Gap E — stamp provenance so BOQ / cleanup /
                     // audit can identify auto-created fixtures. Centre's
                     // "Stamp provenance" checkbox flips PlaceFixturesOptions.
@@ -941,7 +941,7 @@ namespace StingTools.Core.Placement
                     if (rule.PerAreaM2 > 0)
                     {
                         double areaM2 = 0;
-                        try { areaM2 = room.Area * 0.3048 * 0.3048; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        try { areaM2 = room.Area * 0.3048 * 0.3048; } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Read room.Area for density calc: {ex.Message}"); }
                         if (areaM2 > 0) byArea = Math.Max(1, (int)Math.Ceiling(areaM2 / rule.PerAreaM2));
                     }
                     if (rule.PerOccupant > 0)
@@ -1041,7 +1041,7 @@ namespace StingTools.Core.Placement
             }
             var symbol = ResolveSymbol(doc, rule.CategoryFilter, rule, perCategorySymbol, result);
             if (symbol == null) return;
-            if (!symbol.IsActive) { try { symbol.Activate(); doc.Regenerate(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return; } }
+            if (!symbol.IsActive) { try { symbol.Activate(); doc.Regenerate(); } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] CoPlace symbol.Activate: {ex.Message}"); return; } }
             try
             {
                 var pf = PlacementHostPreflight.Place(doc, symbol, room, at, rule);
@@ -1055,7 +1055,7 @@ namespace StingTools.Core.Placement
                 OrientPlacedInstance(doc, pf.Placed, rule, room);
                 if (StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance)
                 {
-                    try { StingTools.Core.Storage.StingProvenanceSchema.Stamp(pf.Placed, "FixturePlacementEngine.CoPlace", rule.MergeKey ?? ""); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    try { StingTools.Core.Storage.StingProvenanceSchema.Stamp(pf.Placed, "FixturePlacementEngine.CoPlace", rule.MergeKey ?? ""); } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] CoPlace provenance stamp: {ex.Message}"); }
                 }
                 result.PlacedIds.Add(pf.Placed.Id);
                 result.CountsByRule[rule.MergeKey] = result.CountsByRule.TryGetValue(rule.MergeKey, out var n) ? n + 1 : 1;
@@ -1119,7 +1119,7 @@ namespace StingTools.Core.Placement
                 // collector pre-filters by category index (Revit's native
                 // index lookup) instead of walking every FamilySymbol.
                 BuiltInCategory bic = BuiltInCategory.INVALID;
-                try { bic = ResolveBuiltInCategoryByName(doc, categoryName); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { bic = ResolveBuiltInCategoryByName(doc, categoryName); } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] ResolveBuiltInCategoryByName({categoryName}): {ex.Message}"); }
                 FilteredElementCollector collector = (bic != BuiltInCategory.INVALID)
                     ? new FilteredElementCollector(doc).OfCategory(bic).OfClass(typeof(FamilySymbol))
                     : new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol));
@@ -1387,7 +1387,7 @@ namespace StingTools.Core.Placement
                     }
                     if (room != null && room.IsPointInRoom(probe)) roomOnPositiveNormal = true;
                 }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Room-side test for facing flip: {ex.Message}"); }
 
                 XYZ inward = roomOnPositiveNormal ? wallNormal : wallNormal.Negate();
 
@@ -1578,7 +1578,7 @@ namespace StingTools.Core.Placement
                     if (int.TryParse(s, out int v)) return v;
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] ReadRoomIntParam: {ex.Message}"); }
             return 0;
         }
 
@@ -1589,7 +1589,7 @@ namespace StingTools.Core.Placement
                 var p = room.get_Parameter(BuiltInParameter.ROOM_NAME);
                 return p?.AsString() ?? room.Name ?? "";
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
+            catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] SafeRoomName lookup: {ex.Message}"); return ""; }
         }
 
         // Phase 139.4 — resolve a Document.Settings.Categories entry to its
@@ -1605,8 +1605,8 @@ namespace StingTools.Core.Placement
         {
             if (doc == null || string.IsNullOrEmpty(categoryName)) return BuiltInCategory.INVALID;
             string path = "", title = "";
-            try { path = doc.PathName ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            try { title = doc.Title ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            try { path = doc.PathName ?? ""; } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Read doc.PathName for BIC cache key: {ex.Message}"); }
+            try { title = doc.Title ?? ""; } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Read doc.Title for BIC cache key: {ex.Message}"); }
             string key = path + "|" + title;
             Dictionary<string, BuiltInCategory> map;
             lock (_bicByNameLock)
@@ -1625,7 +1625,7 @@ namespace StingTools.Core.Placement
                                 if (bic != BuiltInCategory.INVALID)
                                     map[c.Name] = bic;
                             }
-                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                            catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Category.Id -> BuiltInCategory cast: {ex.Message}"); }
                         }
                     }
                     catch (Exception ex) { StingLog.Warn($"ResolveBuiltInCategoryByName: {ex.Message}"); }
@@ -1671,7 +1671,7 @@ namespace StingTools.Core.Placement
             foreach (var id in result.PlacedIds)
             {
                 FamilyInstance fi = null;
-                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] StampNoggin GetElement({id.Value}): {ex.Message}"); }
                 if (fi == null) continue;
                 XYZ p = (fi.Location as LocationPoint)?.Point;
                 if (p == null) continue;
@@ -1755,12 +1755,12 @@ namespace StingTools.Core.Placement
             foreach (var id in result.PlacedIds)
             {
                 FamilyInstance fi = null;
-                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] StructuralAudit GetElement({id.Value}): {ex.Message}"); }
                 if (fi == null) continue;
                 XYZ p = (fi.Location as LocationPoint)?.Point;
                 if (p == null) continue;
                 bool nearStructure = false;
-                try { nearStructure = sa.IsNearJunction(p, clearanceFt); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { nearStructure = sa.IsNearJunction(p, clearanceFt); } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] StructuralAwareness.IsNearJunction: {ex.Message}"); }
                 if (!nearStructure) continue;
                 conflicts++;
                 if (conflicts <= 10)
@@ -1848,7 +1848,7 @@ namespace StingTools.Core.Placement
                 }
             }
 
-            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] ComplianceScan.InvalidateCache: {ex.Message}"); }
             return totalRouted;
         }
 
@@ -1915,7 +1915,7 @@ namespace StingTools.Core.Placement
             foreach (var id in result.PlacedIds)
             {
                 FamilyInstance fi = null;
-                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] AutoJoin GetElement({id.Value}): {ex.Message}"); }
                 if (fi == null) continue;
                 var mgr = fi.MEPModel?.ConnectorManager;
                 if (mgr == null) continue;
@@ -1923,7 +1923,7 @@ namespace StingTools.Core.Placement
                 {
                     if (c == null || c.IsConnected) continue;
                     string sysKey = "?";
-                    try { sysKey = c.Domain.ToString() + ":" + (c.MEPSystem?.Name ?? c.Description ?? c.Owner?.Category?.Name ?? ""); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    try { sysKey = c.Domain.ToString() + ":" + (c.MEPSystem?.Name ?? c.Description ?? c.Owner?.Category?.Name ?? ""); } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Build connector sysKey: {ex.Message}"); }
                     if (!openConns.TryGetValue(sysKey, out var list))
                     {
                         list = new List<(Connector, ElementId)>();
@@ -2063,7 +2063,7 @@ namespace StingTools.Core.Placement
                 double sb = b.Shape == ConnectorProfileType.Round ? b.Radius * 2 : Math.Max(b.Width, b.Height);
                 return Math.Abs(sa - sb) < 1e-3;
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return true; }
+            catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] SameSize connector compare: {ex.Message}"); return true; }
         }
 
         /// <summary>
@@ -2117,7 +2117,7 @@ namespace StingTools.Core.Placement
                         var pW = sym?.LookupParameter("Width") ?? sym?.get_Parameter(BuiltInParameter.DOOR_WIDTH);
                         if (pW != null && pW.StorageType == StorageType.Double) widthFt = Math.Max(0.5, pW.AsDouble());
                     }
-                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Read door Width parameter: {ex.Message}"); }
                     doors.Add(new DoorEnvelope
                     {
                         Id      = fi.Id,
@@ -2137,7 +2137,7 @@ namespace StingTools.Core.Placement
             foreach (var id in result.PlacedIds)
             {
                 FamilyInstance fi = null;
-                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] DoorSwingAudit GetElement({id.Value}): {ex.Message}"); }
                 if (fi == null) continue;
                 XYZ p = (fi.Location as LocationPoint)?.Point;
                 if (p == null) continue;
@@ -2209,7 +2209,7 @@ namespace StingTools.Core.Placement
                 double cosToOpen   = v.Normalize().DotProduct(openDir.Normalize());
                 return cosToClosed > 0 && cosToOpen > 0;
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
+            catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] PointInsideSweptArc geometry: {ex.Message}"); return false; }
         }
 
         /// <summary>
@@ -2235,12 +2235,12 @@ namespace StingTools.Core.Placement
             foreach (var id in result.PlacedIds)
             {
                 FamilyInstance fi = null;
-                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] CableBundleAudit GetElement({id.Value}): {ex.Message}"); }
                 if (fi == null) continue;
                 XYZ p = (fi.Location as LocationPoint)?.Point;
                 if (p == null) continue;
                 string cat = "(uncategorised)";
-                try { cat = fi.Category?.Name ?? "(uncategorised)"; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { cat = fi.Category?.Name ?? "(uncategorised)"; } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] CableBundleAudit category read: {ex.Message}"); }
                 if (!byCategory.TryGetValue(cat, out var list))
                 {
                     list = new List<(ElementId, XYZ)>();

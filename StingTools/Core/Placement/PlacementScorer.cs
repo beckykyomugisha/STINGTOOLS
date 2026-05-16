@@ -466,7 +466,7 @@ namespace StingTools.Core.Placement
                     : null;
                 levelName = lvl?.Name ?? "";
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"[PlacementScorer] Resolve room level name: {ex.Message}"); }
             double levelBias = PlacementParamReader.LevelHintBias(hints.LevelHint, levelName);
             // Level-hint bias is 0.1..1.0; multiply into the composite so a
             // strong mismatch suppresses the candidate and a strong match
@@ -514,7 +514,7 @@ namespace StingTools.Core.Placement
                     return el;
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"[PlacementScorer] ResolveSampleInstanceForRule collect: {ex.Message}"); }
             return null;
         }
 
@@ -789,7 +789,7 @@ namespace StingTools.Core.Placement
                 return GeometryCreationUtilities.CreateExtrusionGeometry(
                     new List<CurveLoop> { loop }, XYZ.BasisZ, 2 * radiusFt);
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
+            catch (Exception ex) { StingLog.Warn($"[PlacementScorer] CreateExtrusionGeometry for coverage box: {ex.Message}"); return null; }
         }
 
         private double ComputeSpacingScore(XYZ pt, IList<XYZ> placed, double minSpacingMm)
@@ -884,7 +884,7 @@ namespace StingTools.Core.Placement
                                     if (host is Wall w) entry.Wall = w;
                                 }
                             }
-                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                            catch (Exception ex) { StingLog.Warn($"[PlacementScorer] Boundary segment host wall resolve: {ex.Message}"); }
                             if (entry.Curve != null) cache.Segments.Add(entry);
                         }
                     }
@@ -922,8 +922,8 @@ namespace StingTools.Core.Placement
             {
                 if (fi == null) continue;
                 Room from = null, to = null;
-                try { from = fi.FromRoom; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                try { to = fi.ToRoom; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { from = fi.FromRoom; } catch (Exception ex) { StingLog.Warn($"[PlacementScorer] Read door.FromRoom: {ex.Message}"); }
+                try { to = fi.ToRoom; } catch (Exception ex) { StingLog.Warn($"[PlacementScorer] Read door.ToRoom: {ex.Message}"); }
                 if (from == null && to == null)
                 {
                     keep.Add(fi); // unknown spatial context — keep, fall through
@@ -945,7 +945,7 @@ namespace StingTools.Core.Placement
                     if (el is FamilyInstance fi) list.Add(fi);
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"[PlacementScorer] CollectInsts ({cat}) collector: {ex.Message}"); }
             return list;
         }
 
@@ -1029,7 +1029,7 @@ namespace StingTools.Core.Placement
                     // fallback is room-centroid → door direction so the
                     // 300 mm offset never goes into thin air.
                     XYZ facing = null;
-                    try { facing = door.FacingOrientation; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    try { facing = door.FacingOrientation; } catch (Exception ex) { StingLog.Warn($"[PlacementScorer] Read door.FacingOrientation: {ex.Message}"); }
                     if (facing != null && !facing.IsZeroLength())
                     {
                         along = new XYZ(-facing.Y, facing.X, 0);
@@ -1083,7 +1083,7 @@ namespace StingTools.Core.Placement
                 var lc = w?.Location as LocationCurve;
                 if (lc?.Curve is Line ln) return (ln.GetEndPoint(1) - ln.GetEndPoint(0)).Normalize();
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"[PlacementScorer] WallTangent location/curve read: {ex.Message}"); }
             return null;
         }
 
@@ -1102,7 +1102,7 @@ namespace StingTools.Core.Placement
                     var deriv = lc.Curve.ComputeDerivatives(0.5, true);
                     tangent = deriv?.BasisX ?? (lc.Curve.GetEndPoint(1) - lc.Curve.GetEndPoint(0));
                 }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); tangent = lc.Curve.GetEndPoint(1) - lc.Curve.GetEndPoint(0); }
+                catch (Exception ex) { StingLog.Warn($"[PlacementScorer] Wall curve ComputeDerivatives: {ex.Message}"); tangent = lc.Curve.GetEndPoint(1) - lc.Curve.GetEndPoint(0); }
                 if (tangent.GetLength() < 1e-9) return null;
                 tangent = tangent.Normalize();
                 XYZ normal = new XYZ(-tangent.Y, tangent.X, 0);
@@ -1156,7 +1156,7 @@ namespace StingTools.Core.Placement
                 if (loc?.Point != null)
                     points.Add(new XYZ(loc.Point.X + offsetXFt, loc.Point.Y + offsetYFt, anchorZ));
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"[PlacementScorer] Fallback room location point read: {ex.Message}"); }
         }
 
         // ── PC-09 — additional anchor types ──────────────────────────
