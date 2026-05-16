@@ -34,7 +34,6 @@ import {
   Platform,
   RefreshControl,
   Linking,
-  Platform,
 } from 'react-native';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
 import NetInfo from '@react-native-community/netinfo';
