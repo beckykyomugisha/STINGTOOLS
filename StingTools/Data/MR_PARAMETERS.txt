@@ -1540,6 +1540,11 @@ PARAM	a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d	ASS_LOC_SOURCE_TXT	TEXT		1	1	LOC dete
 PARAM	a2b3c4d5-e6f7-4a8b-9c0d-1e2f3a4b5c6e	ASS_ZONE_SOURCE_TXT	TEXT		1	1	ZONE detection source (Department/Room/Manual)	1
 PARAM	a3b4c5d6-e7f8-4a9b-0c1d-2e3f4a5b6c7f	ASS_SYS_DETECT_LAYER_INT	TEXT		1	1	SYS detection layer (1=MEP API, 2=Connector, 3=Proximity, 4=Category)	1
 PARAM	c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f	ASS_PROD_DETECT_TXT	TEXT		1	1	PROD code detection source	1
+PARAM	d2e3f4a5-b6c7-4d8e-9f0a-1b2c3d4e5f6a	ASS_ITEM_CODE_TXT	TEXT		1	1	Manufacturer/PCF item code or P&ID line number — used by PcfExporter and BOQ schedules	1
+PARAM	e3f4a5b6-c7d8-4e9f-a0b1-2c3d4e5f6a7b	ASS_SYSTEMS_TXT	TEXT		1	1	Comma-separated list of system names this asset serves — written by ProjectSetupCommand from ProjectInformation	1
+PARAM	f4a5b6c7-d8e9-4f0a-b1c2-3d4e5f6a7b8c	ASS_TERM_CAPPED_BOOL	INTEGER		1	1	1 when a pipe/duct end-cap is confirmed capped (TerminationValidator) — drives QA dashboard	1
+PARAM	a5b6c7d8-e9f0-4a1b-c2d3-4e5f6a7b8c9d	ASS_TERM_REASON_TXT	TEXT		1	1	Reason end-cap is uncapped (TerminationValidator) — e.g. OPEN_END / MISSING_CAP / FUTURE_CONN	1
+PARAM	b6c7d8e9-f0a1-4b2c-d3e4-5f6a7b8c9d0e	ASS_TRACE_SEQ_NR	TEXT		1	1	Sequence number written by MepSystemTracerCommand during pipe/duct network trace (1-based walk order)	1
 PARAM	c2d3e4f5-a6b7-4c8d-9e0f-1a2b3c4d5e6a	ASS_PROD_PATTERN_SRC_TXT	TEXT		1	1	PROD pattern match source family name	1
 PARAM	c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7b	ASS_TYPE_LOC_OVERRIDE_TXT	TEXT		1	1	Type-level LOC override value	1
 PARAM	c4d5e6f7-a8b9-4cad-1e2f-3a4b5c6d7e8c	ASS_TYPE_ZONE_OVERRIDE_TXT	TEXT		1	1	Type-level ZONE override value	1
@@ -2933,6 +2938,7 @@ PARAM	e5f6a7b8-c9d0-4e1f-a2b3-c4d5e6f7a8b9	ELC_CBL_SIZE_TXT	TEXT		4	1	Cable trad
 PARAM	f6a7b8c9-d0e1-4f2a-b3c4-d5e6f7a8b9c0	ELC_CABLE_SEG_CLASS_TXT	TEXT		4	1	Cable segregation class per BS 7671 §528 / CENELEC 50174 (e.g. CAT1/CAT2/CAT3) stamped on cable tray/conduit by CableSegregationValidator	1
 PARAM	a7b8c9d0-e1f2-4a3b-c4d5-e6f7a8b9c0d1	ELC_CDT_CABLE_MANIFEST_TXT	TEXT		4	1	Pipe-separated manifest of cable ids pulled through this conduit run (populated by cable routing engine)	1
 PARAM	b8c9d0e1-f2a3-4b4c-d5e6-f7a8b9c0d1e2	MEC_SYS_TXT	TEXT		5	1	Mechanical system type label (mirrors ASS_SYSTEM_TYPE_TXT for mechanical elements)	1
+PARAM	c9e0f1a2-b3c4-4d5e-f6a7-b8c9d0e1f2a3	HVC_DCT_INSULATION_THK_MM	TEXT		5	1	Duct insulation thickness in mm — read by HangerPlacementEngine to offset cleat position clear of insulation [STING Hanger Phase]	1
 PARAM	c9d0e1f2-a3b4-4c5d-e6f7-a8b9c0d1e2f3	PLM_SYS_TXT	TEXT		6	1	Plumbing system type label (mirrors ASS_SYSTEM_TYPE_TXT for plumbing elements)	1
 PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1001	PEN_FIRE_RATING_TXT	TEXT		33	1	Required fire rating of the penetration: FR30/FR60/FR90/FR120/blank for non-rated [BS 9999, BS 476-20, EN 1366-3]	1
 PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1002	PEN_SEALANT_TYPE_TXT	TEXT		33	1	Sealant system: INTUMESCENT/SILICONE/MORTAR/PILLOW/COLLAR/WRAP/NONE [BS 9999]	1
