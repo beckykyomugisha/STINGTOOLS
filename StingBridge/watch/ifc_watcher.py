@@ -118,7 +118,7 @@ class IFCDropHandler:
             "errors": [],
         }
 
-            _patch_ifcopenshell_del()  # must run before open() to cover internal temporaries
+        _patch_ifcopenshell_del()  # must run before open() to cover internal temporaries
         self._emit(f"Opening {path.name}…")
         try:
             model = ifcopenshell.open(str(path))
