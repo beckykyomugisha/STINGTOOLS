@@ -27,23 +27,33 @@ def _patch_ifcopenshell_del() -> None:
     """
     Patch ifcopenshell.file.__del__ to swallow the KeyError that fires when
     the C++ file handle is freed before Python GC runs __del__.
-    This is a known upstream bug; the patch is safe because the only thing
-    __del__ does is remove the entry from an internal dict — which we let it
-    do, silently ignoring the case where the key is already gone.
+
+    We resolve the class by opening a tiny in-memory IFC model so we get the
+    actual runtime class (avoids the import ambiguity between the file module
+    and the file class that exists in ifcopenshell 0.7+).
     """
     try:
-        import ifcopenshell.file as _ifc_file_mod  # type: ignore
-        _orig_del = _ifc_file_mod.file.__del__
+        import ifcopenshell  # type: ignore
+
+        # Probe: open a minimal in-memory model to get the real file class.
+        probe = ifcopenshell.file(schema="IFC4")
+        file_cls = type(probe)
+        del probe
+
+        _orig_del = getattr(file_cls, "__del__", None)
+        if _orig_del is None:
+            return
 
         def _safe_del(self):
             try:
                 _orig_del(self)
-            except (KeyError, Exception):
+            except Exception:
                 pass
 
-        _ifc_file_mod.file.__del__ = _safe_del
-    except Exception:
-        pass  # ifcopenshell not installed or API changed — ignore
+        file_cls.__del__ = _safe_del
+        log.debug("ifcopenshell __del__ patched successfully")
+    except Exception as e:
+        log.debug("ifcopenshell __del__ patch skipped: %s", e)
 
 
 class IFCDropHandler:
