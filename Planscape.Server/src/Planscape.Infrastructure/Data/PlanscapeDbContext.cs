@@ -97,6 +97,8 @@ public class PlanscapeDbContext : DbContext
     public DbSet<ComplianceSnapshot> ComplianceSnapshots => Set<ComplianceSnapshot>();
     public DbSet<SeqCounter> SeqCounters => Set<SeqCounter>();
     public DbSet<Meeting> Meetings => Set<Meeting>();
+    public DbSet<MeetingAttendee> MeetingAttendees => Set<MeetingAttendee>();
+    public DbSet<MeetingAgendaItem> MeetingAgendaItems => Set<MeetingAgendaItem>();
     public DbSet<MeetingActionItem> MeetingActionItems => Set<MeetingActionItem>();
     public DbSet<Transmittal> Transmittals => Set<Transmittal>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
@@ -606,15 +608,55 @@ public class PlanscapeDbContext : DbContext
         modelBuilder.Entity<Meeting>(e =>
         {
             e.HasKey(m => m.Id);
-            e.HasOne(m => m.Project).WithMany().HasForeignKey(m => m.ProjectId);
+            e.HasOne(m => m.Project).WithMany().HasForeignKey(m => m.ProjectId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(m => new { m.ProjectId, m.ScheduledAt });
+            e.HasIndex(m => new { m.ProjectId, m.Status });
+            e.Property(m => m.Title).HasMaxLength(400);
+            e.Property(m => m.MeetingType).HasMaxLength(40);
+            e.Property(m => m.Status).HasMaxLength(20);
+            e.Property(m => m.Location).HasMaxLength(400);
+            e.Property(m => m.MeetingUrl).HasMaxLength(2000);
+            e.Property(m => m.CreatedBy).HasMaxLength(200);
+        });
+
+        // ── MeetingAttendee ──
+        modelBuilder.Entity<MeetingAttendee>(e =>
+        {
+            e.HasKey(a => a.Id);
+            e.HasOne(a => a.Meeting).WithMany(m => m.Attendees).HasForeignKey(a => a.MeetingId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(a => a.User).WithMany().HasForeignKey(a => a.UserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasIndex(a => a.MeetingId);
+            e.HasIndex(a => a.UserId);
+            e.Property(a => a.Name).HasMaxLength(200).IsRequired();
+            e.Property(a => a.Email).HasMaxLength(320);
+            e.Property(a => a.Company).HasMaxLength(200);
+            e.Property(a => a.Discipline).HasMaxLength(8);
+            e.Property(a => a.Role).HasMaxLength(20);
+            e.Property(a => a.AttendanceStatus).HasMaxLength(20);
+        });
+
+        // ── MeetingAgendaItem ──
+        modelBuilder.Entity<MeetingAgendaItem>(e =>
+        {
+            e.HasKey(a => a.Id);
+            e.HasOne(a => a.Meeting).WithMany(m => m.AgendaItems).HasForeignKey(a => a.MeetingId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(a => new { a.MeetingId, a.OrderIndex });
+            e.Property(a => a.Title).HasMaxLength(400).IsRequired();
+            e.Property(a => a.Presenter).HasMaxLength(200);
+            e.Property(a => a.Status).HasMaxLength(20);
         });
 
         // ── MeetingActionItem ──
         modelBuilder.Entity<MeetingActionItem>(e =>
         {
             e.HasKey(a => a.Id);
-            e.HasOne(a => a.Meeting).WithMany(m => m.ActionItems).HasForeignKey(a => a.MeetingId);
+            e.HasOne(a => a.Meeting).WithMany(m => m.ActionItems).HasForeignKey(a => a.MeetingId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(a => a.AssigneeUser).WithMany().HasForeignKey(a => a.AssigneeUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasIndex(a => a.MeetingId);
+            e.HasIndex(a => new { a.MeetingId, a.Status });
+            e.Property(a => a.Assignee).HasMaxLength(200);
+            e.Property(a => a.Priority).HasMaxLength(20);
+            e.Property(a => a.Status).HasMaxLength(20);
         });
 
         // ── Transmittal ──

@@ -487,51 +487,187 @@ export function sendTransmittal(projectId: string, id: string): Promise<Transmit
   return apiFetch(`/api/projects/${projectId}/transmittals/${id}/send`, { method: 'POST' });
 }
 
-// Meetings
-export function listMeetings(projectId: string): Promise<Meeting[]> {
-  return apiFetch(`/api/projects/${projectId}/meetings`);
+// ── Meetings ────────────────────────────────────────────────────────────────
+
+export interface MeetingAttendee {
+  id: string;
+  meetingId: string;
+  userId?: string | null;
+  name: string;
+  email?: string | null;
+  company?: string | null;
+  discipline?: string | null;
+  /** CHAIR | SECRETARY | ATTENDEE | NOTIFIED */
+  role: string;
+  /** INVITED | CONFIRMED | ATTENDED | ABSENT | APOLOGY */
+  attendanceStatus: string;
+  createdAt: string;
 }
-// Phase 96 — create meeting, log minutes, action items
+
+export interface MeetingAgendaItem {
+  id: string;
+  meetingId: string;
+  orderIndex: number;
+  title: string;
+  description?: string | null;
+  durationMinutes?: number | null;
+  presenter?: string | null;
+  outcome?: string | null;
+  decision?: string | null;
+  /** PENDING | DISCUSSED | DEFERRED | RESOLVED */
+  status: string;
+  createdAt: string;
+}
+
+export interface MeetingActionItem {
+  id: string;
+  meetingId?: string;
+  meetingTitle?: string;
+  description: string;
+  notes?: string | null;
+  assignee?: string | null;
+  assigneeUserId?: string | null;
+  dueDate?: string | null;
+  /** CRITICAL | HIGH | MEDIUM | LOW */
+  priority?: string;
+  /** OPEN | IN_PROGRESS | COMPLETE | ESCALATED | CLOSED */
+  status?: string;
+  linkedIssueId?: string | null;
+  isOverdue?: boolean;
+}
+
+export function listMeetings(projectId: string, params?: { status?: string }): Promise<Meeting[]> {
+  const qs = params?.status ? `?status=${params.status}` : '';
+  return apiFetch(`/api/projects/${projectId}/meetings${qs}`);
+}
+
+export function getMeeting(projectId: string, meetingId: string): Promise<Meeting> {
+  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}`);
+}
+
 export function createMeeting(projectId: string, body: {
-  title: string; meetingType?: string; scheduledAt: string;
-  agendaJson?: string; attendeesJson?: string;
+  title: string;
+  meetingType?: string;
+  scheduledAt: string;
+  durationMinutes?: number;
+  location?: string;
+  meetingUrl?: string;
+  recurrenceRule?: string;
+  notifiedUserIds?: string[];
+  attendees?: Array<{ name: string; email?: string; role?: string }>;
+  agendaItems?: Array<{ title: string; durationMinutes?: number; presenter?: string }>;
 }): Promise<Meeting> {
   return apiFetch(`/api/projects/${projectId}/meetings`, { method: 'POST', body: JSON.stringify(body) });
 }
-export function logMeetingMinutes(projectId: string, meetingId: string, minutes: string): Promise<Meeting> {
-  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/minutes`, {
-    method: 'PUT', body: JSON.stringify({ minutes }),
+
+export function updateMeeting(projectId: string, meetingId: string, body: {
+  title?: string;
+  meetingType?: string;
+  scheduledAt?: string;
+  durationMinutes?: number;
+  location?: string;
+  meetingUrl?: string;
+  status?: string;
+  recurrenceRule?: string;
+  notifiedUserIds?: string[];
+}): Promise<Meeting> {
+  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}`, {
+    method: 'PUT', body: JSON.stringify(body),
   });
 }
-export interface MeetingActionItem {
-  id: string;
-  description: string;
-  assignee?: string | null;
-  dueDate?: string | null;
-  status?: string;
-  linkedIssueId?: string | null;
-  /** Phase 96 — server projection now includes this so mobile can tick
-   *  actions off without a parent-meeting lookup. */
-  meetingId?: string;
-  meetingTitle?: string;
-  isOverdue?: boolean;
+
+export function logMeetingMinutes(projectId: string, meetingId: string, minutes: string, status?: string): Promise<Meeting> {
+  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/minutes`, {
+    method: 'PUT', body: JSON.stringify({ minutes, status }),
+  });
 }
+
+// ── Attendees ───────────────────────────────────────────────────────────────
+
+export function listMeetingAttendees(projectId: string, meetingId: string): Promise<MeetingAttendee[]> {
+  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/attendees`);
+}
+
+export function addMeetingAttendee(projectId: string, meetingId: string, body: {
+  name?: string; email?: string; userId?: string; company?: string;
+  discipline?: string; role?: string;
+}): Promise<MeetingAttendee> {
+  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/attendees`, {
+    method: 'POST', body: JSON.stringify(body),
+  });
+}
+
+export function updateMeetingAttendee(projectId: string, meetingId: string, attendeeId: string, body: {
+  attendanceStatus?: string; role?: string;
+}): Promise<MeetingAttendee> {
+  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/attendees/${attendeeId}`, {
+    method: 'PUT', body: JSON.stringify(body),
+  });
+}
+
+export function deleteMeetingAttendee(projectId: string, meetingId: string, attendeeId: string): Promise<void> {
+  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/attendees/${attendeeId}`, {
+    method: 'DELETE',
+  });
+}
+
+// ── Agenda ──────────────────────────────────────────────────────────────────
+
+export function addMeetingAgendaItem(projectId: string, meetingId: string, body: {
+  title: string; description?: string; durationMinutes?: number; presenter?: string;
+}): Promise<MeetingAgendaItem> {
+  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/agenda`, {
+    method: 'POST', body: JSON.stringify(body),
+  });
+}
+
+export function updateMeetingAgendaItem(projectId: string, meetingId: string, itemId: string, body: {
+  title?: string; outcome?: string; decision?: string; status?: string;
+  durationMinutes?: number; presenter?: string;
+}): Promise<MeetingAgendaItem> {
+  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/agenda/${itemId}`, {
+    method: 'PUT', body: JSON.stringify(body),
+  });
+}
+
+export function deleteMeetingAgendaItem(projectId: string, meetingId: string, itemId: string): Promise<void> {
+  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/agenda/${itemId}`, {
+    method: 'DELETE',
+  });
+}
+
+// ── Action Items ─────────────────────────────────────────────────────────────
+
 export function addMeetingAction(projectId: string, meetingId: string, body: {
-  description: string; assignee?: string; dueDate?: string;
+  description: string; assignee?: string; assigneeEmail?: string;
+  assigneeUserId?: string; dueDate?: string; priority?: string; notes?: string;
 }): Promise<MeetingActionItem> {
   return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/actions`, {
     method: 'POST', body: JSON.stringify(body),
   });
 }
+
 export function updateMeetingAction(projectId: string, meetingId: string, actionId: string, body: {
-  status?: string; assignee?: string; linkedIssueId?: string;
+  status?: string; assignee?: string; assigneeEmail?: string; assigneeUserId?: string;
+  linkedIssueId?: string; dueDate?: string; priority?: string; notes?: string;
 }): Promise<MeetingActionItem> {
   return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/actions/${actionId}`, {
     method: 'PUT', body: JSON.stringify(body),
   });
 }
+
 export function listOpenMeetingActions(projectId: string): Promise<MeetingActionItem[]> {
   return apiFetch(`/api/projects/${projectId}/meetings/actions/open`);
+}
+
+// ── Export ───────────────────────────────────────────────────────────────────
+
+export function getMeetingIcsUrl(projectId: string, meetingId: string): string {
+  return `/api/projects/${projectId}/meetings/${meetingId}/export/ics`;
+}
+
+export function exportMeetingMinutesDoc(projectId: string, meetingId: string): Promise<{ documentId: string }> {
+  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/export/minutes`, { method: 'POST' });
 }
 
 // Workflow runs
