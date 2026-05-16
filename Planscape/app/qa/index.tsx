@@ -28,8 +28,7 @@ import {
   listIssues,
 } from '@/api/endpoints';
 import { useProjectStore } from '@/stores/projectStore';
-import type { DashboardData, BimIssue } from '@/types/api';
-import type { WarningRecord } from '@/types/api';
+import type { DashboardData, BimIssue, WarningRecord } from '@/types/api';
 
 // ─── Warning category labels ──────────────────────────────────────────────────
 

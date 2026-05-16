@@ -327,6 +327,9 @@ export default function DashboardScreen() {
         {/* T3-6 — Punchlist mode entry point. Lives next to Diary/Meetings
             so on-site supervisors find it on the same row of muscle memory. */}
         <QuickAction label="Punchlist" emoji="🎯" onPress={() => router.push('/punchlist' as any)} />
+        {/* BCC parity — Team roster and QA dashboard shortcut buttons. */}
+        <QuickAction label="Team" emoji="👥" onPress={() => router.push('/members' as any)} />
+        <QuickAction label="QA" emoji="✅" onPress={() => router.push('/qa' as any)} />
       </View>
 
       {/* Discipline breakdown */}

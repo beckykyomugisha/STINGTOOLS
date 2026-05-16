@@ -93,7 +93,6 @@ interface MemberStats {
 
 export default function MembersScreen() {
   const projectId = useProjectStore((s) => s.active?.id);
-  const projectName = useProjectStore((s) => s.active?.name);
 
   const [members, setMembers] = useState<ProjectMemberRow[]>([]);
   const [stats, setStats] = useState<Record<string, MemberStats>>({});
