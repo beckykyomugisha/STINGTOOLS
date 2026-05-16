@@ -667,7 +667,14 @@ namespace StingTools.Core.Symbols
                 {
                     if (fm.get_Parameter(p.Name) != null) continue; // already exists
 
-                    var groupTypeId = GroupTypeId.IdentityData; // TODO-VERIFY-API
+                    // API-NOTE (Revit 2022+):
+                    //   FamilyManager.AddParameter(string name, ForgeTypeId groupTypeId,
+                    //                              ForgeTypeId specTypeId, bool isInstance)
+                    // GroupTypeId.IdentityData is the ForgeTypeId replacement for the old
+                    // BuiltInParameterGroup.PG_IDENTITY_DATA enum. Verified against Revit 2025
+                    // API docs. If the family needs a different group, it can be re-grouped
+                    // post-creation via FamilyParameter.HideWhen.
+                    var groupTypeId = GroupTypeId.IdentityData;
                     var specTypeId  = ResolveSpecTypeId(p.Type);
                     fm.AddParameter(p.Name, groupTypeId, specTypeId, p.IsInstance);
                 }

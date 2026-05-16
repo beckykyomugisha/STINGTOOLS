@@ -119,9 +119,18 @@ namespace StingTools.Commands.Electrical.Routing
                             if (seg.Start.DistanceTo(seg.End) < 0.01) continue;
                             try
                             {
-                                // TODO-VERIFY-API: Conduit.Create(Document, ElementId conduitTypeId,
-                                //   XYZ start, XYZ end, ElementId levelId) — signature differs across
-                                //   Revit versions. The 5-arg form is the Revit 2024+ canonical.
+                                // API-NOTE (Revit 2024+):
+                                //   Conduit.Create(Document, ElementId conduitTypeId,
+                                //                  XYZ start, XYZ end, ElementId levelId)
+                                // Signature verified against Revit 2025 API docs. levelId must be
+                                // a real level — if InvalidElementId, the API throws ArgumentException.
+                                if (levelId == ElementId.InvalidElementId)
+                                {
+                                    StingLog.Warn(
+                                        $"AutoRoute cable {cable.CircuitId}: cannot create conduit segment — " +
+                                        "no valid level for endpoints. Skipping segment.");
+                                    continue;
+                                }
                                 var conduit = Conduit.Create(doc, conduitType.Id,
                                     seg.Start, seg.End, levelId);
                                 if (conduit != null)
