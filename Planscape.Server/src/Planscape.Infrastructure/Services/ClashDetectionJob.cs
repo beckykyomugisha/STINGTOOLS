@@ -29,10 +29,14 @@ public sealed record ClashDetectionResult(
 public sealed class ClashDetectionJob : IClashDetectionJob
 {
     private readonly PlanscapeDbContext _db;
+    private readonly IClashAutomationService _automation;
     private readonly ILogger<ClashDetectionJob> _logger;
 
-    public ClashDetectionJob(PlanscapeDbContext db, ILogger<ClashDetectionJob> logger)
-    { _db = db; _logger = logger; }
+    public ClashDetectionJob(
+        PlanscapeDbContext db,
+        IClashAutomationService automation,
+        ILogger<ClashDetectionJob> logger)
+    { _db = db; _automation = automation; _logger = logger; }
 
     public async Task<ClashDetectionResult> RunAsync(Guid projectId, Guid tenantId, CancellationToken ct)
     {
@@ -45,6 +49,10 @@ public sealed class ClashDetectionJob : IClashDetectionJob
 
         // Group by discipline — only pair across disciplines (intra-discipline overlaps are expected)
         var byDisc = nodes.GroupBy(n => n.Discipline).ToList();
+
+        // Track the ids of new clashes so the automation service can post-process them
+        // (auto-issue, push notifications, webhook fan-out) after the main save commits.
+        var newClashIds = new List<Guid>();
 
         int scanned = 0, found = 0, created = 0, updated = 0, critical = 0;
 
@@ -83,7 +91,7 @@ public sealed class ClashDetectionJob : IClashDetectionJob
 
                         if (existing == null)
                         {
-                            _db.ClashRecords.Add(new ClashRecord
+                            var clash = new ClashRecord
                             {
                                 TenantId = tenantId,
                                 ProjectId = projectId,
@@ -101,7 +109,9 @@ public sealed class ClashDetectionJob : IClashDetectionJob
                                 CentreX = cx, CentreY = cy, CentreZ = cz,
                                 OverlapVolumeMm3 = volume,
                                 LevelCode = a.LevelCode ?? b.LevelCode,
-                            });
+                            };
+                            _db.ClashRecords.Add(clash);
+                            newClashIds.Add(clash.Id);
                             created++;
                             if (severity == ClashSeverity.Critical) critical++;
                         }
@@ -120,6 +130,24 @@ public sealed class ClashDetectionJob : IClashDetectionJob
         }
 
         await _db.SaveChangesAsync(ct);
+
+        // Fire automation rules over the newly-created clashes — auto-issue,
+        // push notifications, webhook fan-out. Best-effort: any failure here
+        // logs but does NOT roll back the detection run, since the clash
+        // records themselves are the authoritative output.
+        if (newClashIds.Count > 0)
+        {
+            try
+            {
+                await _automation.ProcessNewClashesAsync(projectId, tenantId, newClashIds, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Clash automation post-processing failed for project {ProjectId} — clashes still saved, automation skipped",
+                    projectId);
+            }
+        }
+
         sw.Stop();
 
         _logger.LogInformation("Clash detection: project {ProjectId} — {Scanned} pairs scanned, {Found} clashes, {Created} new, {Critical} critical in {Duration}ms",
