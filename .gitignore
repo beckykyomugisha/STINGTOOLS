@@ -61,3 +61,6 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+# IFC drop folder — runtime files, not source
+IFC_DROP/
