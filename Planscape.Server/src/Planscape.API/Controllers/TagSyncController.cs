@@ -107,7 +107,7 @@ public class TagSyncController : ControllerBase
                 }
                 else
                 {
-                    var entity = new TaggedElement { ProjectId = project.Id };
+                    var entity = new TaggedElement { ProjectId = project.Id, TenantId = tenantId };
                     MapDtoToEntity(dto, entity, request.UserName);
                     entity.Version = 1;
                     entity.LastModifiedUtc = dto.LastModifiedUtc ?? DateTime.UtcNow;
