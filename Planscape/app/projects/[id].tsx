@@ -296,7 +296,7 @@ export default function ProjectDashboardScreen() {
           <NavSection title="COORDINATION">
             <NavTile label="Issues" emoji="⚠" onPress={() => nav('/(tabs)/issues')} />
             <NavTile label="Warnings" emoji="🔔" onPress={() => nav('/warnings')} />
-            <NavTile label="Clashes" emoji="💥" onPress={() => nav('/conflicts')} />
+            <NavTile label="Clashes" emoji="💥" onPress={() => nav('/clashes')} />
             <NavTile label="Transmittals" emoji="📤" onPress={() => nav('/transmittals')} />
             <NavTile label="Meetings" emoji="📅" onPress={() => nav('/meetings')} />
           </NavSection>

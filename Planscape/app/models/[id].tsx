@@ -18,7 +18,7 @@ import {
 } from "@/components/ModelViewer";
 import { useProjectStore } from "@/stores/projectStore";
 import { getModel, modelFileUrl, fetchElementMap } from "@/api/models";
-import { listIssues } from "@/api/endpoints";
+import { listIssues, getAlignmentForModel, type IfcAlignmentReport, type IfcAlignmentFinding } from "@/api/endpoints";
 import { getToken } from "@/api/client";
 import type { ModelMeta, ElementMap, ModelPin } from "@/types/models";
 
@@ -40,6 +40,8 @@ export default function ModelViewerScreen() {
   const [walkActive, setWalkActive] = useState(false);
   const [sectionEnabled, setSectionEnabled] = useState(false);
   const [viewerReady, setViewerReady] = useState(false);
+  const [alignment, setAlignment] = useState<IfcAlignmentReport | null>(null);
+  const [alignmentExpanded, setAlignmentExpanded] = useState(false);
 
   useEffect(() => {
     if (!projectId || !id) return;
@@ -85,6 +87,12 @@ export default function ModelViewerScreen() {
         setError(String(err));
       }
     })();
+  }, [projectId, id]);
+
+  // Fetch IFC alignment report for this model (if available).
+  useEffect(() => {
+    if (!projectId || !id) return;
+    getAlignmentForModel(projectId, id).then(setAlignment).catch(() => setAlignment(null));
   }, [projectId, id]);
 
   // Zoom-to-element — when the screen is launched from an issue detail via
@@ -170,6 +178,44 @@ export default function ModelViewerScreen() {
         />
         <ExtraToolbar viewerRef={viewerRef} walkActive={walkActive} sectionEnabled={sectionEnabled}
           setSectionEnabled={setSectionEnabled} />
+        {alignment && (
+          <TouchableOpacity
+            style={{
+              position: 'absolute', top: 60, right: 12,
+              backgroundColor: alignment.verdict === 'PASS' ? '#4CAF50' : alignment.verdict === 'WARN' ? '#FF9800' : '#F44336',
+              paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14,
+            }}
+            onPress={() => setAlignmentExpanded(!alignmentExpanded)}
+          >
+            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 11 }}>IFC: {alignment.verdict}</Text>
+          </TouchableOpacity>
+        )}
+        {alignmentExpanded && alignment && (() => {
+          let findings: IfcAlignmentFinding[] = [];
+          try { findings = JSON.parse(alignment.findingsJson); } catch { findings = []; }
+          return (
+            <View style={{ position: 'absolute', top: 100, right: 12, left: 12, backgroundColor: 'rgba(0,0,0,0.85)', padding: 12, borderRadius: 8 }}>
+              <Text style={{ color: '#fff', fontWeight: '700', marginBottom: 6 }}>IFC Alignment: {alignment.verdict}</Text>
+              <Text style={{ color: '#ccc', fontSize: 12 }}>Schema: {alignment.schemaVersion ?? '?'} · Unit: {alignment.lengthUnit ?? '?'}</Text>
+              {alignment.trueNorthDegrees != null && (
+                <Text style={{ color: '#ccc', fontSize: 12 }}>True north: {alignment.trueNorthDegrees.toFixed(2)}°</Text>
+              )}
+              {(alignment.surveyEasting != null || alignment.surveyNorthing != null || alignment.surveyElevation != null) && (
+                <Text style={{ color: '#ccc', fontSize: 12 }}>
+                  Survey: E {alignment.surveyEasting ?? '?'} · N {alignment.surveyNorthing ?? '?'} · El {alignment.surveyElevation ?? '?'}
+                </Text>
+              )}
+              {alignment.crsName && <Text style={{ color: '#ccc', fontSize: 12 }}>CRS: {alignment.crsName}</Text>}
+              {findings.map((f, i) => (
+                <View key={i} style={{ marginTop: 8, borderLeftWidth: 3, borderLeftColor: f.severity === 'FAIL' ? '#F44336' : f.severity === 'WARN' ? '#FF9800' : '#2196F3', paddingLeft: 8 }}>
+                  <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>{f.severity} · {f.code}</Text>
+                  <Text style={{ color: '#ddd', fontSize: 11, marginTop: 2 }}>{f.message}</Text>
+                  {f.fixHint && <Text style={{ color: '#aaa', fontSize: 10, marginTop: 2, fontStyle: 'italic' }}>Fix: {f.fixHint}</Text>}
+                </View>
+              ))}
+            </View>
+          );
+        })()}
       </View>
     </>
   );
