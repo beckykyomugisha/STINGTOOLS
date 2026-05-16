@@ -940,11 +940,17 @@ namespace StingTools.Temp
                                 ParameterHelpers.GetString(el, "ASS_MODEL_NR_TXT")).Trim();
                     case "location":
                     case "level":                 return ParameterHelpers.GetString(el, ParamRegistry.LVL);
-                    case "width":                 return FirstNonEmpty(el, "BLE_DOOR_WIDTH_NR", "BLE_WINDOW_WIDTH_NR", "BLE_CBL_TRAY_WIDTH_NR", "BLE_WALL_LENGTH_NR");
-                    case "height":                return FirstNonEmpty(el, "BLE_WALL_HEIGHT_NR", "BLE_DOOR_HEIGHT_NR", "BLE_WINDOW_HEIGHT_NR");
-                    case "thickness":             return FirstNonEmpty(el, "BLE_WALL_THICKNESS_NR", "BLE_FLOOR_THICKNESS_NR");
-                    case "depth":                 return FirstNonEmpty(el, "BLE_CBL_TRAY_DEPTH_NR", "BLE_FLOOR_THICKNESS_NR");
-                    case "sill_height":           return ParameterHelpers.GetString(el, "BLE_WINDOW_SILL_HEIGHT_NR");
+                    // Fix: BLE dimension parameters use _MM (millimetres) or _DEG suffix in
+                    // MR_PARAMETERS.txt — the old _NR suffix names did not exist, so every
+                    // FirstNonEmpty call here always returned "" and downstream dimensions
+                    // were never populated. BLE_CBL_TRAY_*_NR have no canonical equivalent
+                    // in the registry yet — left in place so a future param addition can
+                    // wire them up without touching this site again.
+                    case "width":                 return FirstNonEmpty(el, "BLE_DOOR_WIDTH_MM", "BLE_WINDOW_WIDTH_MM", "BLE_CBL_TRAY_WIDTH_NR", "BLE_WALL_LENGTH_MM");
+                    case "height":                return FirstNonEmpty(el, "BLE_WALL_HEIGHT_MM", "BLE_DOOR_HEIGHT_MM", "BLE_WINDOW_HEIGHT_MM");
+                    case "thickness":             return FirstNonEmpty(el, "BLE_WALL_THICKNESS_MM", "BLE_FLR_THICKNESS_MM");
+                    case "depth":                 return FirstNonEmpty(el, "BLE_CBL_TRAY_DEPTH_NR", "BLE_FLR_THICKNESS_MM");
+                    case "sill_height":           return ParameterHelpers.GetString(el, "BLE_WINDOW_SILL_HEIGHT_FROM_FLR_MM");
                     case "size":
                     case "diameter":              return ParameterHelpers.GetString(el, "ASS_SIZE_TXT");
                     case "airflow":               return ParameterHelpers.GetString(el, "HVC_AIRFLOW_LS_NR");
@@ -970,7 +976,7 @@ namespace StingTools.Temp
                     case "standard":              return "✓"; // engine always supplies via workmanship table
                     case "dimensions":
                         // Considered resolvable if width+height, or size
-                        return (!string.IsNullOrEmpty(FirstNonEmpty(el, "BLE_DOOR_WIDTH_NR", "BLE_WINDOW_WIDTH_NR")) ||
+                        return (!string.IsNullOrEmpty(FirstNonEmpty(el, "BLE_DOOR_WIDTH_MM", "BLE_WINDOW_WIDTH_MM")) ||
                                 !string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_SIZE_TXT"))) ? "✓" : "";
                 }
             }
