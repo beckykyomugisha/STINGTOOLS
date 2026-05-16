@@ -36,6 +36,24 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
       type: 'sourceFile',
     };
   }
+  if (platform === 'web' && moduleName === 'expo-notifications') {
+    return {
+      filePath: require.resolve('./src/shims/expo-notifications.web.ts'),
+      type: 'sourceFile',
+    };
+  }
+  if (platform === 'web' && moduleName === 'expo-device') {
+    return {
+      filePath: require.resolve('./src/shims/expo-device.web.ts'),
+      type: 'sourceFile',
+    };
+  }
+  if (platform === 'web' && moduleName === 'expo-application') {
+    return {
+      filePath: require.resolve('./src/shims/expo-application.web.ts'),
+      type: 'sourceFile',
+    };
+  }
   return context.resolveRequest(context, moduleName, platform);
 };
 
