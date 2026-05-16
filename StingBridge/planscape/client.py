@@ -175,7 +175,13 @@ class PlanscapeClient:
         segments = [disc, loc, zone, lvl, sys, func, prod, seq]
         tag1 = "-".join(s for s in segments if s)
 
+        # RevitElementId is a non-nullable long on the server. For IFC elements
+        # that have no integer element ID, derive a stable int64 from the GUID.
+        import hashlib as _hl
+        revit_id = int(_hl.md5(guid.encode()).hexdigest()[:15], 16) & 0x7FFF_FFFF_FFFF_FFFF
+
         d: dict[str, Any] = {
+            "revitElementId": revit_id,
             "uniqueId": guid,
             "disc": disc,
             "loc": loc,
