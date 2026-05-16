@@ -1503,6 +1503,7 @@ namespace StingTools.Core
                 case "Cable_BuildSchedule":      return new Commands.Electrical.Routing.CableScheduleBuilderCommand();
                 case "Seeds_Build":              return new Commands.Symbols.BuildSeedFamiliesCommand();
                 case "Seeds_SwapToManufacturer": return new Commands.Symbols.SwapToManufacturerCommand();
+                case "Symbols_CreateCompound":   return new Commands.Symbols.CreateCompoundSymbolsCommand();
                 case "Validation_BS7671":       return new Commands.Electrical.ElectricalStandardsValidatorCommand();
                 case "Circuit_AssignAuto":      return new Commands.Electrical.BatchAssignCircuitsCommand();
                 case "Lite_CreateSchedule":     return new Commands.Electrical.ElecLightingScheduleCommand();

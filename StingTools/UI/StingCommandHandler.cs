@@ -430,6 +430,9 @@ namespace StingTools.UI
                     case "Symbols_FixDrift":       RunCommand<Commands.Symbols.FixSymbolDriftCommand>(app); break;
                     case "Symbols_BatchHeal":      RunCommand<Commands.Symbols.BatchHealAllSymbolsCommand>(app); break;
 
+                    // ── Phase 180: Compound symbol factory ──
+                    case "Symbols_CreateCompound": RunCommand<Commands.Symbols.CreateCompoundSymbolsCommand>(app); break;
+
                     // ── Phase 175: SLD Generator ──
                     case "SLD_Generate":           RunCommand<Commands.SLD.GenerateSLDCommand>(app); break;
                     case "SLD_GenerateOptions":    RunCommand<Commands.SLD.GenerateSLDWithOptionsCommand>(app); break;
