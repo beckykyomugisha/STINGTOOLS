@@ -494,7 +494,7 @@ class _IFCEventHandler:
         if getattr(event, "is_directory", False):
             return
         src = getattr(event, "src_path", "")
-        if src.lower().endswith(".ifc"):
+        if src.lower().endswith(".ifc") and "_sting" not in Path(src).stem:
             self._pending[src] = time.monotonic()
 
     def start_drainer(self) -> None:
