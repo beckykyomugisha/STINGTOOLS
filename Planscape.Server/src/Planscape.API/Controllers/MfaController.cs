@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using OtpNet;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
 
@@ -18,11 +20,14 @@ public class MfaController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
     private readonly ILogger<MfaController> _logger;
+    private readonly IDataProtector _protector;
 
-    public MfaController(PlanscapeDbContext db, ILogger<MfaController> logger)
+    public MfaController(PlanscapeDbContext db, ILogger<MfaController> logger,
+        IDataProtectionProvider dpProvider)
     {
         _db = db;
         _logger = logger;
+        _protector = dpProvider.CreateProtector("mfa-totp-secrets");
     }
 
     private Guid GetTenantId() =>
@@ -59,29 +64,31 @@ public class MfaController : ControllerBase
         var userId   = GetUserId();
         var tenantId = GetTenantId();
 
-        // Production: generate TOTP secret, return QR URI, don't persist until confirmed
-        // For scaffold: create enrollment in "pending" state
-        var secret = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(20));
+        // Generate a 20-byte TOTP secret; encode as base32 (standard for OTP URIs).
+        var rawKey     = System.Security.Cryptography.RandomNumberGenerator.GetBytes(20);
+        var base32Secret = Base32Encoding.ToString(rawKey);
         var enrollment = new MfaEnrollment
         {
-            TenantId        = tenantId,
-            UserId          = userId,
-            Method          = "TOTP",
-            SecretEncrypted = secret, // TODO: encrypt with IDataProtectionProvider
-            DeviceLabel     = req.DeviceLabel,
+            TenantId          = tenantId,
+            UserId            = userId,
+            Method            = "TOTP",
+            SecretEncrypted   = _protector.Protect(base32Secret),
+            DeviceLabel       = req.DeviceLabel,
             RecoveryCodesJson = "[]",
         };
         _db.MfaEnrollments.Add(enrollment);
         await _db.SaveChangesAsync();
 
-        // In production: derive otpauth:// URI from secret for QR display
+        var issuerLabel  = Uri.EscapeDataString("Planscape");
+        var accountLabel = Uri.EscapeDataString(User.Identity!.Name ?? userId.ToString());
+        var otpAuthUri   = $"otpauth://totp/{issuerLabel}:{accountLabel}?secret={base32Secret}&issuer={issuerLabel}&algorithm=SHA1&digits=6&period=30";
+
         return Ok(new
         {
             enrollment.Id,
             enrollment.DeviceLabel,
-            // Secret returned only during enrollment, never again
-            Secret    = "base32-secret-stub",
-            OtpAuthUri = $"otpauth://totp/Planscape:{User.Identity!.Name}?secret=STUB&issuer=Planscape",
+            Secret    = base32Secret,   // returned once only; client renders QR code from OtpAuthUri
+            OtpAuthUri = otpAuthUri,
             Message   = "Verify with a TOTP code to activate enrollment."
         });
     }
@@ -99,9 +106,23 @@ public class MfaController : ControllerBase
         if (enrollment.LastVerifiedAt.HasValue)
             return Conflict("Enrollment already verified. Revoke and re-enroll to replace.");
 
-        // Production: validate req.Code against enrollment.SecretEncrypted via Otp.NET
-        // (add Otp.NET NuGet, decrypt secret, call Totp.ComputeTotp + verify window ±1 step).
-        var isValid = req.Code?.Length == 6; // scaffold stub — replace before production
+        // Decrypt the stored secret then verify the submitted TOTP code.
+        // VerificationWindow(2, 2) accepts codes from ±2 time steps (±60 s clock drift).
+        bool isValid = false;
+        if (req.Code?.Length == 6 && enrollment.SecretEncrypted is not null)
+        {
+            try
+            {
+                var base32Secret = _protector.Unprotect(enrollment.SecretEncrypted);
+                var secretBytes  = Base32Encoding.ToBytes(base32Secret);
+                var totp         = new Totp(secretBytes);
+                isValid = totp.VerifyTotp(req.Code, out _, new VerificationWindow(2, 2));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "TOTP verification failed to decrypt secret for enrollment {Id}", enrollmentId);
+            }
+        }
         var challenge = new MfaChallenge
         {
             TenantId      = tenantId,

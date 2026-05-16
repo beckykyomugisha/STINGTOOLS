@@ -272,6 +272,11 @@ builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationH
     Planscape.Infrastructure.Authorization.SecurityOfficerOrAdminHandler>();
 
 // ── Services ──
+// DataProtection is used by SsoController and MfaController to encrypt
+// secrets at rest. Keys are persisted to the configured key ring
+// (configure builder.Services.AddDataProtection().PersistKeysTo*() for
+// production multi-pod deployments; default stores keys in-process).
+builder.Services.AddDataProtection();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<Planscape.Core.Interfaces.ITenantContext, Planscape.Infrastructure.Services.TenantContext>();
 // STORAGE-01 — Storage:Provider = "S3" | "Local" (default). S3 covers AWS, MinIO, R2, Spaces.

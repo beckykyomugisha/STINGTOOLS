@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
@@ -117,7 +118,88 @@ public class IfcQuantityIngestor : IIfcQuantityIngestor
             && !string.Equals(rule.IfcType, el.IfcType, StringComparison.OrdinalIgnoreCase))
             return false;
 
-        // PropertyFiltersJson evaluation deferred — require exact IfcType match for now
+        if (!string.IsNullOrWhiteSpace(rule.PropertyFiltersJson))
+        {
+            try
+            {
+                var filters = JsonSerializer.Deserialize<PropertyFilter[]>(
+                    rule.PropertyFiltersJson,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                if (filters is not null)
+                    foreach (var f in filters)
+                        if (!EvaluateFilter(f, el.Properties))
+                            return false;
+            }
+            catch (JsonException)
+            {
+                // Malformed JSON in the rule — treat as no filter (don't silently drop elements).
+            }
+        }
+
         return true;
     }
+
+    private static bool EvaluateFilter(PropertyFilter f, IReadOnlyDictionary<string, string> props)
+    {
+        if (string.IsNullOrEmpty(f.Prop)) return true;
+
+        // Resolve value: prefer "Pset.Prop" fully-qualified key, then bare "Prop" key.
+        string? rawValue = null;
+        if (!string.IsNullOrEmpty(f.Pset))
+            props.TryGetValue($"{f.Pset}.{f.Prop}", out rawValue);
+        if (rawValue is null)
+            props.TryGetValue(f.Prop, out rawValue);
+
+        // JsonElement.ToString() returns the value without JSON delimiters for strings/numbers/bools.
+        var filterValue = f.Value is System.Text.Json.JsonElement je
+            ? je.ValueKind == System.Text.Json.JsonValueKind.String
+                ? je.GetString() ?? ""
+                : je.GetRawText()
+            : f.Value?.ToString() ?? "";
+
+        var op = (f.Op ?? "eq").ToLowerInvariant() switch
+        {
+            "=" or "==" => "eq",
+            "!=" or "<>" => "neq",
+            ">" => "gt",
+            "<" => "lt",
+            ">=" => "gte",
+            "<=" => "lte",
+            var x => x,
+        };
+
+        // Numeric comparison when both sides parse as doubles.
+        if ((op == "gt" || op == "lt" || op == "gte" || op == "lte")
+            && double.TryParse(rawValue, out var dActual)
+            && double.TryParse(filterValue, out var dFilter))
+        {
+            return op switch
+            {
+                "gt"  => dActual >  dFilter,
+                "lt"  => dActual <  dFilter,
+                "gte" => dActual >= dFilter,
+                "lte" => dActual <= dFilter,
+                _     => true,
+            };
+        }
+
+        // String comparisons (case-insensitive).
+        return op switch
+        {
+            "eq"         => string.Equals(rawValue, filterValue, StringComparison.OrdinalIgnoreCase),
+            "neq"        => !string.Equals(rawValue, filterValue, StringComparison.OrdinalIgnoreCase),
+            "contains"   => rawValue?.Contains(filterValue, StringComparison.OrdinalIgnoreCase) ?? false,
+            "startswith" => rawValue?.StartsWith(filterValue, StringComparison.OrdinalIgnoreCase) ?? false,
+            "endswith"   => rawValue?.EndsWith(filterValue, StringComparison.OrdinalIgnoreCase) ?? false,
+            "exists"     => rawValue is not null,
+            _            => true,   // unknown operator — don't reject the element
+        };
+    }
+
+    private sealed record PropertyFilter(
+        string? Pset,
+        string Prop,
+        string? Op,
+        object? Value);
 }

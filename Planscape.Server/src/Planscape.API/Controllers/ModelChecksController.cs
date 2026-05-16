@@ -1,8 +1,10 @@
+using Hangfire;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.Services;
 
 namespace Planscape.API.Controllers;
 
@@ -17,11 +19,14 @@ public class ModelChecksController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
     private readonly ILogger<ModelChecksController> _logger;
+    private readonly IBackgroundJobClient _jobClient;
 
-    public ModelChecksController(PlanscapeDbContext db, ILogger<ModelChecksController> logger)
+    public ModelChecksController(PlanscapeDbContext db, ILogger<ModelChecksController> logger,
+        IBackgroundJobClient jobClient)
     {
         _db = db;
         _logger = logger;
+        _jobClient = jobClient;
     }
 
     private Guid GetTenantId() =>
@@ -216,10 +221,12 @@ public class ModelChecksController : ControllerBase
         _db.ModelCheckRuns.Add(run);
         await _db.SaveChangesAsync();
 
-        // In production this would enqueue a Hangfire job:
-        // BackgroundJob.Enqueue<IModelCheckerService>(s => s.ExecuteRunAsync(run.Id, default));
+        var jobId = _jobClient.Enqueue<IModelCheckerService>(
+            s => s.ExecuteRunAsync(run.Id, CancellationToken.None));
 
-        _logger.LogInformation("Model check run {RunId} queued for rule set {RuleSetId}", run.Id, req.RuleSetId);
+        _logger.LogInformation(
+            "Model check run {RunId} enqueued as Hangfire job {JobId} for rule set {RuleSetId}",
+            run.Id, jobId, req.RuleSetId);
         return AcceptedAtAction(nameof(GetRun), new { projectId, runId = run.Id }, run);
     }
 

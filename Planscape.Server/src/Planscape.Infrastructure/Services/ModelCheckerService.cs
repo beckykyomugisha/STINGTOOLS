@@ -9,6 +9,12 @@ public interface IModelCheckerService
     Task<ModelCheckRunSummary> RunAsync(Guid tenantId, Guid projectId,
         Guid ruleSetId, Guid? projectModelId, string triggeredBy,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Execute a pre-created <see cref="ModelCheckRun"/> (status must be "Queued").
+    /// Called by the Hangfire background job enqueued from <c>ModelChecksController.TriggerRun</c>.
+    /// </summary>
+    Task ExecuteRunAsync(Guid runId, CancellationToken ct = default);
 }
 
 public record ModelCheckRunSummary(Guid RunId, int TotalChecked,
@@ -74,6 +80,51 @@ public class ModelCheckerService : IModelCheckerService
 
         return new ModelCheckRunSummary(run.Id, elements.Count, open, critical,
             DateTime.UtcNow - started);
+    }
+
+    public async Task ExecuteRunAsync(Guid runId, CancellationToken ct = default)
+    {
+        var run = await _db.ModelCheckRuns.FirstOrDefaultAsync(r => r.Id == runId, ct)
+            ?? throw new InvalidOperationException($"ModelCheckRun {runId} not found.");
+
+        run.Status    = "Running";
+        run.StartedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+
+        try
+        {
+            var rules = await _db.ModelCheckRules
+                .Where(r => r.RuleSetId == run.RuleSetId && r.Enabled)
+                .ToListAsync(ct);
+
+            var elements = await _db.TaggedElements
+                .Where(e => e.ProjectId == run.ProjectId)
+                .ToListAsync(ct);
+
+            var findings = new List<ModelCheckResult>();
+            foreach (var rule in rules)
+                findings.AddRange(EvaluateRule(rule, elements, run.Id, run.TenantId, run.ProjectId));
+
+            _db.ModelCheckResults.AddRange(findings);
+
+            run.Status               = "Completed";
+            run.CompletedAt          = DateTime.UtcNow;
+            run.FindingsCount        = findings.Count;
+            run.CriticalCount        = findings.Count(f => f.Severity == "Critical" && f.Status == "Open");
+            run.MajorCount           = findings.Count(f => f.Severity == "Major");
+            run.MinorCount           = findings.Count(f => f.Severity == "Minor");
+            run.InfoCount            = findings.Count(f => f.Severity == "Info");
+            run.TotalElementsChecked = elements.Count;
+            run.TotalRulesEvaluated  = rules.Count;
+        }
+        catch (Exception ex)
+        {
+            run.Status       = "Failed";
+            run.CompletedAt  = DateTime.UtcNow;
+            run.ErrorMessage = ex.Message;
+        }
+
+        await _db.SaveChangesAsync(ct);
     }
 
     private IEnumerable<ModelCheckResult> EvaluateRule(

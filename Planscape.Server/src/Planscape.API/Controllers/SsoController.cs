@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
@@ -20,12 +21,21 @@ public class SsoController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
     private readonly ILogger<SsoController> _logger;
+    private readonly IDataProtector _protector;
 
-    public SsoController(PlanscapeDbContext db, ILogger<SsoController> logger)
+    public SsoController(PlanscapeDbContext db, ILogger<SsoController> logger,
+        IDataProtectionProvider dpProvider)
     {
         _db = db;
         _logger = logger;
+        _protector = dpProvider.CreateProtector("sso-secrets");
     }
+
+    private string? Protect(string? value) =>
+        value is null ? null : _protector.Protect(value);
+
+    private string? Unprotect(string? cipher) =>
+        cipher is null ? null : _protector.Unprotect(cipher);
 
     private Guid GetTenantId() =>
         Guid.Parse(User.FindFirst("tenantId")?.Value
@@ -91,8 +101,6 @@ public class SsoController : ControllerBase
         if (protocol == "SAML" && string.IsNullOrEmpty(req.SamlEntityId))
             return BadRequest("SAML configuration requires SamlEntityId.");
 
-        // NOTE: secret fields are stored as received. Before production, wrap in
-        // IDataProtectionProvider.CreateProtector("sso-secrets").Protect(value).
         var config = new SsoConfig
         {
             TenantId                       = tenantId,
@@ -103,7 +111,7 @@ public class SsoController : ControllerBase
             RequireSso                     = req.RequireSso ?? false,
             OidcIssuer                     = req.OidcIssuer,
             OidcClientId                   = req.OidcClientId,
-            OidcClientSecretEncrypted      = req.OidcClientSecret, // TODO: encrypt via IDataProtectionProvider
+            OidcClientSecretEncrypted      = Protect(req.OidcClientSecret),
             OidcAuthorizationEndpoint      = req.OidcAuthorizationEndpoint,
             OidcTokenEndpoint              = req.OidcTokenEndpoint,
             OidcUserInfoEndpoint           = req.OidcUserInfoEndpoint,
@@ -113,11 +121,11 @@ public class SsoController : ControllerBase
             SamlSsoUrl                     = req.SamlSsoUrl,
             SamlSloUrl                     = req.SamlSloUrl,
             SamlIdpCertificate             = req.SamlIdpCertificate,
-            SamlSpCertificateEncrypted     = req.SamlSpCertificate, // TODO: encrypt
+            SamlSpCertificateEncrypted     = Protect(req.SamlSpCertificate),
             AttributeMapJson               = req.AttributeMapJson,
             GroupRoleMapJson               = req.GroupRoleMapJson,
             ScimEndpoint                   = req.ScimEndpoint,
-            ScimBearerTokenEncrypted       = req.ScimBearerToken, // TODO: encrypt
+            ScimBearerTokenEncrypted       = Protect(req.ScimBearerToken),
             CreatedBy                      = User.Identity?.Name,
         };
         _db.SsoConfigs.Add(config);
@@ -139,7 +147,7 @@ public class SsoController : ControllerBase
         config.RequireSso   = req.RequireSso ?? config.RequireSso;
 
         if (req.OidcClientSecret is not null)
-            config.OidcClientSecretEncrypted = req.OidcClientSecret; // TODO: encrypt
+            config.OidcClientSecretEncrypted = Protect(req.OidcClientSecret);
 
         config.OidcIssuer                = req.OidcIssuer ?? config.OidcIssuer;
         config.OidcClientId              = req.OidcClientId ?? config.OidcClientId;
@@ -153,12 +161,12 @@ public class SsoController : ControllerBase
         config.SamlSsoUrl   = req.SamlSsoUrl   ?? config.SamlSsoUrl;
         config.SamlSloUrl   = req.SamlSloUrl   ?? config.SamlSloUrl;
         if (req.SamlIdpCertificate is not null) config.SamlIdpCertificate = req.SamlIdpCertificate;
-        if (req.SamlSpCertificate  is not null) config.SamlSpCertificateEncrypted = req.SamlSpCertificate;
+        if (req.SamlSpCertificate  is not null) config.SamlSpCertificateEncrypted = Protect(req.SamlSpCertificate);
 
         config.AttributeMapJson = req.AttributeMapJson ?? config.AttributeMapJson;
         config.GroupRoleMapJson = req.GroupRoleMapJson ?? config.GroupRoleMapJson;
         config.ScimEndpoint     = req.ScimEndpoint     ?? config.ScimEndpoint;
-        if (req.ScimBearerToken is not null) config.ScimBearerTokenEncrypted = req.ScimBearerToken;
+        if (req.ScimBearerToken is not null) config.ScimBearerTokenEncrypted = Protect(req.ScimBearerToken);
 
         config.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
