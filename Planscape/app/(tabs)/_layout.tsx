@@ -57,16 +57,18 @@ export default function TabLayout() {
       }}
     >
       {/*
-        Tab 1 — Projects home. Renders the project list/grid (app/projects/index.tsx
-        is the content; tapping a row goes to app/projects/[id].tsx). The tab bar
-        item stays focused on "Projects" throughout the project list → project
-        dashboard → feature screen journey because those sub-screens push onto
-        the stack rather than switching tabs.
+        Tab 1 — Projects home. Points to app/projects/ (the project list/grid).
+        The (tabs)/index.tsx file contains the active-project dashboard that
+        users land on after selecting a project. The tab bar uses href to link
+        directly to /projects so users always see the project list first; after
+        picking a project and navigating to the dashboard, the tab bar item
+        remains selected because /projects/[id] is a child of the projects route.
       */}
       <Tabs.Screen
         name="index"
         options={{
           title: 'Projects',
+          href: '/projects',
           tabBarIcon: ({ focused }) => <TabIcon label="🏗" focused={focused} />,
         }}
       />
@@ -102,11 +104,14 @@ export default function TabLayout() {
         Tab 4 — My Actions inbox. Aggregates issues assigned to me, meeting
         action items, and pending document approvals so a BIM/Construction
         Manager lands here at morning stand-up without hunting through tabs.
+        The content lives in app/inbox/ (its own Stack navigator) outside of
+        (tabs)/; we point href to that route rather than creating a duplicate.
       */}
       <Tabs.Screen
-        name="inbox"
+        name="myactions"
         options={{
           title: 'My Actions',
+          href: '/inbox',
           tabBarIcon: ({ focused }) => <TabIcon label="📋" focused={focused} />,
         }}
       />

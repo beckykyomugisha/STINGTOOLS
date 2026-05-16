@@ -20,7 +20,7 @@
  *      offline they queue as an ATTACH_PHOTO action via offlineQueue.
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -34,7 +34,6 @@ import {
   Platform,
   RefreshControl,
   Linking,
-  Platform,
 } from 'react-native';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
 import NetInfo from '@react-native-community/netinfo';
@@ -53,7 +52,7 @@ import {
 } from '@/api/endpoints';
 import { apiFetch, getToken } from '@/api/client';
 import { getModel, modelFileUrl } from '@/api/models';
-import { ModelViewer } from '@/components/ModelViewer';
+import { ModelViewer, type ModelViewerHandle } from '@/components/ModelViewer';
 import type { BimIssue, IssueAttachment, Project, ProjectMember, IssueActivityEntry } from '@/types/api';
 import type { ModelMeta, ModelPin } from '@/types/models';
 import { theme, getPriorityColor } from '@/utils/theme';
@@ -88,6 +87,8 @@ export default function IssueDetailScreen() {
   // coordinators see 3D context without leaving the detail screen. The viewer
   // WebView can't forward an Authorization header, so the geometry URL gets
   // the JWT appended as ?access_token=...; same pattern as app/models/[id].tsx.
+  const viewerRef = useRef<ModelViewerHandle>(null);
+  const [viewerReady, setViewerReady] = useState(false);
   const [viewerMeta, setViewerMeta] = useState<ModelMeta | null>(null);
   const [viewerModelUrl, setViewerModelUrl] = useState<string | undefined>(undefined);
   const [viewerPins, setViewerPins] = useState<ModelPin[]>([]);
