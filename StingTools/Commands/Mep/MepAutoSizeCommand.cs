@@ -139,7 +139,7 @@ namespace StingTools.Commands.Mep
                         System.Globalization.CultureInfo.InvariantCulture,
                         out double v)) return v;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
 
@@ -271,7 +271,7 @@ namespace StingTools.Commands.Mep
                         System.Globalization.NumberStyles.Any,
                         System.Globalization.CultureInfo.InvariantCulture,
                         out double v)) return v; }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
         private static double ReadBuiltInFlowCfm(Element el)
@@ -294,7 +294,7 @@ namespace StingTools.Commands.Mep
                 p.Set(mm * MmToFt);
                 return true;
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
         private static void ShowResult(MepSizeResult r, string subtitle)
         {
@@ -378,7 +378,7 @@ namespace StingTools.Commands.Mep
                         System.Globalization.NumberStyles.Any,
                         System.Globalization.CultureInfo.InvariantCulture,
                         out double v)) return v; }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
         private static bool WriteDouble(Element el, string param, double valueInternal)
@@ -386,7 +386,7 @@ namespace StingTools.Commands.Mep
             try { var p = el.LookupParameter(param);
                   if (p == null || p.IsReadOnly || p.StorageType != StorageType.Double) return false;
                   p.Set(valueInternal); return true; }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
         private static void ShowResult(MepSizeResult r, string subtitle)
         {

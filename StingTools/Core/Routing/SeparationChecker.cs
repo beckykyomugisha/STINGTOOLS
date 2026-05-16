@@ -94,7 +94,7 @@ namespace StingTools.Core.Routing
                     approxDist = dropCurve.Project(otherMid)?.XYZPoint?.DistanceTo(otherMid)
                                  ?? double.MaxValue;
                 }
-                catch { approxDist = double.MaxValue; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); approxDist = double.MaxValue; }
                 if (approxDist > searchRadiusFt) continue;
 
                 string otherService = InferService(other);
@@ -147,7 +147,7 @@ namespace StingTools.Core.Routing
                 int catId = (int)(el.Category?.Id?.Value ?? -1);
                 if (CategoryServiceMap.TryGetValue(catId, out var svc)) return svc;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return "UNKNOWN";
         }
 
@@ -187,14 +187,14 @@ namespace StingTools.Core.Routing
             {
                 double t = i / (double)samples;
                 XYZ pa;
-                try { pa = a.Evaluate(t, true); } catch { continue; }
+                try { pa = a.Evaluate(t, true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                 double d;
                 try
                 {
                     var proj = b.Project(pa);
                     d = proj?.XYZPoint?.DistanceTo(pa) ?? double.MaxValue;
                 }
-                catch { continue; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                 if (d < best) best = d;
             }
             return best;

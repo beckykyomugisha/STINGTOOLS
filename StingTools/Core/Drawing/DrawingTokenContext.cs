@@ -106,7 +106,7 @@ namespace StingTools.Core.Drawing
                     default:                  return p.AsValueString() ?? string.Empty;
                 }
             }
-            catch { return string.Empty; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return string.Empty; }
         }
     }
 }

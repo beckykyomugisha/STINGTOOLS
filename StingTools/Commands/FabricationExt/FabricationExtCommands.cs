@@ -71,7 +71,7 @@ namespace StingTools.Commands.FabricationExt
                     if (string.IsNullOrEmpty(el.LookupParameter("HVC_DCT_SEAM_TYPE_TXT")?.AsString())) missingSeam++;
                     if (string.IsNullOrEmpty(el.LookupParameter("HVC_DCT_MAT_TXT")?.AsString())) missingMat++;
                 }
-            } catch { }
+            } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             FabP.B("FAB-04 Duct seam + gauge audit", "SMACNA DW/144 + BS EN 1506")
                 .AddSection("INVENTORY")
                 .Metric("Ducts in model", ducts.ToString())
@@ -157,7 +157,7 @@ namespace StingTools.Commands.FabricationExt
             try {
                 foreach (var el in new FilteredElementCollector(ctx.Doc).OfClass(typeof(AssemblyInstance)))
                     spools++;
-            } catch { }
+            } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             FabP.B("FAB-08 Spool weight + CoG", "Crane lift planning")
                 .AddSection("INVENTORY")
                 .Metric("Assemblies", spools.ToString())

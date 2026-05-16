@@ -1199,10 +1199,7 @@ namespace StingTools.Docs
                         viewsWithoutScopeBox++;
                     }
                 }
-                catch
-                {
-                    viewsWithoutScopeBox++;
-                }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); viewsWithoutScopeBox++; }
             }
 
             // Action selection

@@ -293,7 +293,7 @@ namespace StingTools.Tags
                 try
                 {
                     Element typeForDepth = null;
-                    try { typeForDepth = doc.GetElement(el.GetTypeId()); } catch { }
+                    try { typeForDepth = doc.GetElement(el.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     int depth = TagConfig.ReadActiveParagraphDepth(typeForDepth, el);
                     for (int tier = 4; tier <= 10; tier++)
                     {

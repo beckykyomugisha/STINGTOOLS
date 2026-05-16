@@ -48,14 +48,14 @@ namespace StingTools.Commands.Healthcare.Specialist
         }
         private static string Get(Element el, string n) {
             try { var p = el.LookupParameter(n); return p?.HasValue==true && p.StorageType==StorageType.String ? (p.AsString()??"") : ""; }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
         private static double? GetD(Element el, string n) {
             try { var p = el.LookupParameter(n); if (p?.HasValue!=true) return null;
                   if (p.StorageType==StorageType.Double) return p.AsDouble();
                   if (p.StorageType==StorageType.Integer) return (double)p.AsInteger();
                   if (p.StorageType==StorageType.String && double.TryParse(p.AsString(), out var v)) return v;
-                  return null; } catch { return null; }
+                  return null; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
     }
 }

@@ -116,7 +116,7 @@ namespace StingTools.Commands.Fabrication
                 if (e?.Location is LocationCurve lc && lc.Curve != null)
                     return lc.Curve.Length * 304.8;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
 
@@ -131,7 +131,7 @@ namespace StingTools.Commands.Fabrication
         }
 
         private static string Read(Element e, string p)
-        { try { return e?.LookupParameter(p)?.AsString() ?? ""; } catch { return ""; } }
+        { try { return e?.LookupParameter(p)?.AsString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; } }
 
         // ── Rules loader (mirrors AssemblyGrouper.LoadRules) ──────
 

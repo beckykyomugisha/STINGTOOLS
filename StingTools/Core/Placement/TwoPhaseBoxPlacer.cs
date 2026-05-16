@@ -95,7 +95,7 @@ namespace StingTools.Core.Placement
                     result?.Warnings.Add($"TwoPhase: no first-fix box family matched '{rule.BoxFamilyTypeRegex}' for rule {rule.MergeKey}.");
                     continue;
                 }
-                if (!symbol.IsActive) { try { symbol.Activate(); doc.Regenerate(); } catch { continue; } }
+                if (!symbol.IsActive) { try { symbol.Activate(); doc.Regenerate(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; } }
 
                 foreach (var room in rooms)
                 {
@@ -122,7 +122,7 @@ namespace StingTools.Core.Placement
                                 if (doc.IsWorkshared && pf.Placed.WorksetId != null)
                                     wsTag = "|ws=" + pf.Placed.WorksetId.IntegerValue;
                             }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                             string composite = guid + wsTag;
                             string paramName = string.IsNullOrEmpty(rule.BoxLocationIdParam)
                                 ? ParamRegistry.BOX_LOCATION_ID : rule.BoxLocationIdParam;
@@ -182,7 +182,7 @@ namespace StingTools.Core.Placement
             var roomBboxes = new Dictionary<ElementId, BoundingBoxXYZ>();
             foreach (var rm in rooms)
             {
-                try { roomBboxes[rm.Id] = rm.get_BoundingBox(null); } catch { }
+                try { roomBboxes[rm.Id] = rm.get_BoundingBox(null); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             var indexByRoom = new Dictionary<ElementId, List<KeyValuePair<string, XYZ>>>();
             foreach (var rm in rooms) indexByRoom[rm.Id] = new List<KeyValuePair<string, XYZ>>();
@@ -207,7 +207,7 @@ namespace StingTools.Core.Placement
                     result?.Warnings.Add($"TwoPhase.SecondFix: no device family for rule {rule.MergeKey} (cat='{rule.CategoryFilter}').");
                     continue;
                 }
-                if (!symbol.IsActive) { try { symbol.Activate(); doc.Regenerate(); } catch { continue; } }
+                if (!symbol.IsActive) { try { symbol.Activate(); doc.Regenerate(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; } }
 
                 double toleranceFt = Math.Max(rule.ToleranceMm, 50.0) * MmToFt;
 
@@ -282,7 +282,7 @@ namespace StingTools.Core.Placement
                     foreach (var id in roomIds) if (doc.GetElement(id) is Room r && r.Area > 0.0) rooms.Add(r);
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return rooms;
         }
 
@@ -292,7 +292,7 @@ namespace StingTools.Core.Placement
             System.Text.RegularExpressions.Regex rx;
             try { rx = new System.Text.RegularExpressions.Regex(rule.BoxFamilyTypeRegex,
                        System.Text.RegularExpressions.RegexOptions.IgnoreCase); }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
 
             try
             {
@@ -306,7 +306,7 @@ namespace StingTools.Core.Placement
                         return fs;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
         }
 
@@ -322,7 +322,7 @@ namespace StingTools.Core.Placement
             {
                 try { typeRx = new System.Text.RegularExpressions.Regex(rule.FamilyTypeRegex,
                             System.Text.RegularExpressions.RegexOptions.IgnoreCase); }
-                catch { typeRx = null; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); typeRx = null; }
             }
 
             try
@@ -344,7 +344,7 @@ namespace StingTools.Core.Placement
                 cache[rule.CategoryFilter] = first;
                 return first;
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         private static Phase ResolvePhase(Document doc, string phaseName)
@@ -357,7 +357,7 @@ namespace StingTools.Core.Placement
                     if (el is Phase p && string.Equals(p.Name, phaseName, StringComparison.OrdinalIgnoreCase))
                         return p;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
         }
 
@@ -370,7 +370,7 @@ namespace StingTools.Core.Placement
                 var bb = room.get_BoundingBox(null);
                 return FastBboxContains(bb, pt, slackFt);
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
 
         // Bbox-only containment using a pre-fetched BoundingBoxXYZ. Cheaper

@@ -74,7 +74,7 @@ namespace StingTools.UI
         {
             // Publish the UIApplication so ParameterHelpers.GetApp() can fall
             // back to it for commands dispatched with null ExternalCommandData.
-            try { StingCommandHandler.SetCurrentApp(app); } catch { }
+            try { StingCommandHandler.SetCurrentApp(app); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             string tag;
             lock (_lock) tag = _pendingTag;
@@ -98,14 +98,14 @@ namespace StingTools.UI
             catch (Exception ex)
             {
                 StingLog.Error($"ElectricalCommandHandler [{tag}]", ex);
-                try { TaskDialog.Show("STING Electrical", $"Command failed: {ex.Message}"); } catch { }
+                try { TaskDialog.Show("STING Electrical", $"Command failed: {ex.Message}"); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
 
             // After every command, push a fresh snapshot so the panel grids stay in sync.
             try { PushSnapshot(doc); }
             catch (Exception ex) { StingLog.Warn($"PushSnapshot: {ex.Message}"); }
 
-            try { _panel?.UpdateStatus("Ready"); } catch { }
+            try { _panel?.UpdateStatus("Ready"); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         private void SnapshotInputs()
@@ -537,7 +537,7 @@ namespace StingTools.UI
                 System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
                 {
                     var dlg = new CircuitWizardDialog(app);
-                    try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch { }
+                    try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     dlg.ShowDialog();
                 });
             }

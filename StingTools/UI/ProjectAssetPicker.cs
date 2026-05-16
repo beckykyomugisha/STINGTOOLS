@@ -195,7 +195,7 @@ namespace StingTools.UI
                     result.Add(c.Name);
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return result.OrderBy(s => s).ToList();
         }
 
@@ -220,7 +220,7 @@ namespace StingTools.UI
                     result.Add(c.Name);
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return result.OrderBy(s => s).ToList();
         }
 

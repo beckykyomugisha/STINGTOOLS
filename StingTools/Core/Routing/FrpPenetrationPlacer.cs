@@ -512,7 +512,7 @@ namespace StingTools.Core.Routing
                 var s = ParameterHelpers.GetString(existing, "PEN_CONTROL_NUMBER_TXT");
                 if (!string.IsNullOrEmpty(s)) return s;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return MintControlNumber();
         }
 
@@ -534,7 +534,7 @@ namespace StingTools.Core.Routing
                 g[8] = (byte)((g[8] & 0x3F) | 0x80);
                 return new Guid(g).ToString();
             }
-            catch { return Guid.NewGuid().ToString(); }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return Guid.NewGuid().ToString(); }
         }
 
         private static bool StampMemberFallback(Document doc, PenetrationRecord rec)

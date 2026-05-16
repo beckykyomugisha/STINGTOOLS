@@ -962,7 +962,7 @@ namespace StingTools.Tags
             {
                 StingLog.Error("SwapCategoryCommand", ex);
                 message = ex.Message;
-                try { famDoc?.Close(false); } catch { }
+                try { famDoc?.Close(false); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 return Result.Failed;
             }
         }
@@ -1031,7 +1031,7 @@ namespace StingTools.Tags
             {
                 StingLog.Error("InjectAutomationPackCommand", ex);
                 message = ex.Message;
-                try { famDoc?.Close(false); } catch { }
+                try { famDoc?.Close(false); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 return Result.Failed;
             }
         }
@@ -1153,7 +1153,7 @@ namespace StingTools.Tags
                 if (p?.Definition == null) continue;
                 string v;
                 try { v = p.AsValueString() ?? p.AsString() ?? (p.StorageType == StorageType.Integer ? p.AsInteger().ToString() : ""); }
-                catch { v = ""; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); v = ""; }
                 sb.AppendLine($"  {p.Definition.Name,-40}  {v}");
             }
 

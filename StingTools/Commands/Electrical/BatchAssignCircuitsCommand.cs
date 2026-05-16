@@ -275,7 +275,7 @@ namespace StingTools.Commands.Electrical
             try { ActionAuditLog.Record("Circuit_AssignAuto",
                 $"applied={applied} failed={failed} skipped={wouldSkip}"); }
             catch (Exception ex) { StingLog.Warn($"audit: {ex.Message}"); }
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             ShowResult(plan, doc, applied, failed, dryRun: false);
             return Result.Succeeded;
@@ -384,7 +384,7 @@ namespace StingTools.Commands.Electrical
                 ConnectedVa = sum;
                 NominalVoltage = SafePanelVoltage(fi);
                 LevelId = fi.LevelId ?? ElementId.InvalidElementId;
-                try { Location = (fi.Location as LocationPoint)?.Point; } catch { }
+                try { Location = (fi.Location as LocationPoint)?.Point; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                 // Pre-existing group tag from a prior run lets a re-run remain
                 // stable: panels already accumulating a group keep getting that
@@ -422,7 +422,7 @@ namespace StingTools.Commands.Electrical
 
             private static string SafeName(FamilyInstance fi)
             {
-                try { return fi.Name ?? fi.Id.ToString(); } catch { return fi.Id.ToString(); }
+                try { return fi.Name ?? fi.Id.ToString(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return fi.Id.ToString(); }
             }
 
             private static int SafeReadInt(Element el, string param, int fallback)
@@ -433,7 +433,7 @@ namespace StingTools.Commands.Electrical
                     if (p != null && p.StorageType == StorageType.Integer) return p.AsInteger();
                     if (p != null && p.StorageType == StorageType.Double) return (int)Math.Round(p.AsDouble());
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 return fallback;
             }
 
@@ -452,7 +452,7 @@ namespace StingTools.Commands.Electrical
                         return v;
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 return 0;
             }
         }
@@ -461,22 +461,22 @@ namespace StingTools.Commands.Electrical
 
         private static FamilyInstance SafeBaseEquipment(ElectricalSystem s)
         {
-            try { return s?.BaseEquipment as FamilyInstance; } catch { return null; }
+            try { return s?.BaseEquipment as FamilyInstance; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         private static double SafeApparentVA(ElectricalSystem s)
         {
-            try { return s?.ApparentLoad ?? 0; } catch { return 0; }
+            try { return s?.ApparentLoad ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         private static int SafePoles(ElectricalSystem s)
         {
-            try { return s?.PolesNumber ?? 1; } catch { return 1; }
+            try { return s?.PolesNumber ?? 1; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 1; }
         }
 
         private static double SafeCircuitVoltage(ElectricalSystem s)
         {
-            try { return s?.Voltage ?? 0; } catch { return 0; }
+            try { return s?.Voltage ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         private static bool VoltageCompatible(double a, double b, AssignmentConfig cfg = null)
@@ -509,7 +509,7 @@ namespace StingTools.Commands.Electrical
                 string manual = ParameterHelpers.GetString(sys, "ELC_CIRCUIT_GROUP_TXT");
                 if (!string.IsNullOrEmpty(manual)) return manual;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             // Probe first load for the manual override.
             Element firstLoad = null;
@@ -522,15 +522,15 @@ namespace StingTools.Commands.Electrical
                     if (!string.IsNullOrEmpty(fromLoad)) return fromLoad;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             // Rule-based resolution against the project config.
             if (cfg?.GroupingRules == null) return "";
             string roomName = TryReadCircuitRoomName(doc, sys);
             string sysName = "";
-            try { sysName = sys.Name ?? ""; } catch { }
+            try { sysName = sys.Name ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             string category = "";
-            try { category = firstLoad?.Category?.Name ?? ""; } catch { }
+            try { category = firstLoad?.Category?.Name ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             foreach (var rule in cfg.GroupingRules)
             {
@@ -557,7 +557,7 @@ namespace StingTools.Commands.Electrical
                         return room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? room.Name ?? "";
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return "";
         }
 
@@ -571,7 +571,7 @@ namespace StingTools.Commands.Electrical
                     if (lvl != null) return lvl.Name ?? "";
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return "";
         }
 

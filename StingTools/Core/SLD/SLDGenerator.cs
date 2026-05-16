@@ -151,7 +151,7 @@ namespace StingTools.Core.SLD
                                 foreach (Element e in s.Elements)
                                     if (e.Id == changedElementId) return true;
                             }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                             return false;
                         }).ToList();
                     if (systems.Count > 0)

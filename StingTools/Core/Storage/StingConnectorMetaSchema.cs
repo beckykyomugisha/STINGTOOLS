@@ -73,7 +73,7 @@ namespace StingTools.Core.Storage
                 if (entity == null || !entity.IsValid()) return null;
                 IList<string> typesList;
                 try { typesList = entity.Get<IList<string>>(FieldTypes) ?? new List<string>(); }
-                catch { typesList = new List<string>(); }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); typesList = new List<string>(); }
                 return new ConnectorMeta
                 {
                     Types            = typesList,

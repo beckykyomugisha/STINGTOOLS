@@ -165,7 +165,7 @@ namespace StingTools.Core.Routing
         private static string FindFile(string relative)
         {
             try { return Core.StingToolsApp.FindDataFile(relative); }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         /// <summary>

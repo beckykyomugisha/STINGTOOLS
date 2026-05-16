@@ -101,7 +101,7 @@ namespace StingTools.Core.Drawing.Dimensioning
                 var sysCode = p.LookupParameter("ASS_SYSTEM_TYPE_TXT")?.AsString();
                 if (!string.IsNullOrEmpty(sysCode) && DrainageHints.Contains(sysCode)) return true;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
         }
 
@@ -117,7 +117,7 @@ namespace StingTools.Core.Drawing.Dimensioning
                     if (v > 0) return v * mmToFt;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             string mat = "";
             try
@@ -131,7 +131,7 @@ namespace StingTools.Core.Drawing.Dimensioning
                     mat = typeName;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             mat = (mat ?? "").ToUpperInvariant();
 
             double mm =
@@ -167,7 +167,7 @@ namespace StingTools.Core.Drawing.Dimensioning
                 if (elev != null) return elev.Id;
                 return all.FirstOrDefault()?.Id ?? ElementId.InvalidElementId;
             }
-            catch { return ElementId.InvalidElementId; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ElementId.InvalidElementId; }
         }
 
         private static void EmitInvertSpot(Document doc, View view, Pipe pipe,
@@ -182,7 +182,7 @@ namespace StingTools.Core.Drawing.Dimensioning
             // and Approved Document H reference for clearances) sits one
             // wall-thickness lower.
             double radius = 0;
-            try { radius = pipe.Diameter * 0.5; } catch { }
+            try { radius = pipe.Diameter * 0.5; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             double wallFt = GetWallThicknessFt(pipe);
             var invert = new XYZ(midPt.X, midPt.Y, midPt.Z - radius - wallFt);
 
@@ -198,7 +198,7 @@ namespace StingTools.Core.Drawing.Dimensioning
                 var sd = doc.Create.NewSpotElevation(view, cref, invert, bend, end, refPt, hasLeader: true);
                 if (sd != null && spotTypeId != ElementId.InvalidElementId)
                 {
-                    try { sd.ChangeTypeId(spotTypeId); } catch { }
+                    try { sd.ChangeTypeId(spotTypeId); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
                 if (sd != null) result.SpotsPlaced++;
             }

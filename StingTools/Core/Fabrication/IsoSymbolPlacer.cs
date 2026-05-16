@@ -147,7 +147,7 @@ namespace StingTools.Core.Fabrication
                         int purged = 0;
                         foreach (var sid in stampedIds)
                         {
-                            try { doc.Delete(sid); purged++; } catch { }
+                            try { doc.Delete(sid); purged++; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         }
                         result.SymbolsReplaced += purged;
                         existingByMember.Clear();
@@ -289,10 +289,10 @@ namespace StingTools.Core.Fabrication
                 if (lc?.Curve != null)
                 {
                     try { return lc.Curve.Evaluate(0.5, true); }
-                    catch { return lc.Curve.GetEndPoint(0); }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return lc.Curve.GetEndPoint(0); }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
         }
 
@@ -310,7 +310,7 @@ namespace StingTools.Core.Fabrication
                 XYZ delta  = world - origin;
                 return new UV(delta.DotProduct(right), delta.DotProduct(up));
             }
-            catch { return new UV(0, 0); }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return new UV(0, 0); }
         }
 
         private static XYZ UvToXyz(View view, UV uv)
@@ -469,7 +469,7 @@ namespace StingTools.Core.Fabrication
                         return (last - first).Normalize();
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
         }
 
@@ -595,7 +595,7 @@ namespace StingTools.Core.Fabrication
                 famName = (fi?.Symbol?.FamilyName ?? "").ToUpperInvariant();
                 symName = (fi?.Symbol?.Name ?? "").ToUpperInvariant();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             string haystack = $"{memberName} {famName} {symName}";
             // Normalise non-alphanumeric to underscore so token matching
@@ -714,7 +714,7 @@ namespace StingTools.Core.Fabrication
 
             if (_missingFamiliesLogged.Add(famName))
                 StingLog.Warn($"IsoSymbolPlacer: family not found -> {famName}");
-            try { result?.MissingFamilies?.Add(famName); } catch { }
+            try { result?.MissingFamilies?.Add(famName); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
         }
 
@@ -829,19 +829,19 @@ namespace StingTools.Core.Fabrication
             {
                 if (firstWrite)
                 {
-                    try { Core.Branding.BrandTokens.StampCsvHeader(w, doc, "iso_symbols_audit"); } catch { }
+                    try { Core.Branding.BrandTokens.StampCsvHeader(w, doc, "iso_symbols_audit"); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     w.WriteLine("assembly_id,assembly_name,view_id,view_name,member_id,member_category,member_name,family_name,symbol_code,family_file,resolved");
                 }
                 string assyName = "";
-                try { assyName = (doc.GetElement(ai.GetTypeId()) as AssemblyType)?.Name ?? ""; } catch { }
+                try { assyName = (doc.GetElement(ai.GetTypeId()) as AssemblyType)?.Name ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 string viewName = "";
-                try { viewName = view?.Name ?? ""; } catch { }
+                try { viewName = view?.Name ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 foreach (var r in resolutions)
                 {
                     string memCat = (r.Member?.Category?.Name ?? "").Replace(',', ';');
                     string memNm  = (r.Member?.Name ?? "").Replace(',', ';');
                     string famNm  = "";
-                    try { famNm = ((r.Member as FamilyInstance)?.Symbol?.FamilyName ?? "").Replace(',', ';'); } catch { }
+                    try { famNm = ((r.Member as FamilyInstance)?.Symbol?.FamilyName ?? "").Replace(',', ';'); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     string code   = (r.Entry?.SymbolCode  ?? "").Replace(',', ';');
                     string ff     = (r.Entry?.FamilyFile  ?? "").Replace(',', ';');
                     string resolved = r.Entry == null ? "0" : "1";

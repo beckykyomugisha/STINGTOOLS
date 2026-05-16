@@ -1517,7 +1517,7 @@ namespace StingTools.Commands.Lightning
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             Background = new SolidColorBrush(Color.FromRgb(248, 248, 250));
             Build();
-            try { StingWindowHelper.ApplyOwner(this); } catch { }
+            try { StingWindowHelper.ApplyOwner(this); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         private void Build()
@@ -1785,7 +1785,7 @@ namespace StingTools.Commands.Lightning
                         return t[field]?.Value<double>() ?? fallback;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return fallback;
         }
 
@@ -2267,12 +2267,12 @@ namespace StingTools.Commands.Lightning
             Autodesk.Revit.DB.Color col, FillPatternElement solidFill, int transparency)
         {
             var ogs = new OverrideGraphicSettings();
-            try { ogs.SetSurfaceForegroundPatternId(solidFill.Id); } catch { }
-            try { ogs.SetSurfaceForegroundPatternColor(col); } catch { }
-            try { ogs.SetCutForegroundPatternId(solidFill.Id); } catch { }
-            try { ogs.SetCutForegroundPatternColor(col); } catch { }
-            try { ogs.SetProjectionLineColor(col); } catch { }
-            try { ogs.SetSurfaceTransparency(Math.Max(0, Math.Min(100, transparency))); } catch { }
+            try { ogs.SetSurfaceForegroundPatternId(solidFill.Id); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            try { ogs.SetSurfaceForegroundPatternColor(col); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            try { ogs.SetCutForegroundPatternId(solidFill.Id); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            try { ogs.SetCutForegroundPatternColor(col); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            try { ogs.SetProjectionLineColor(col); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            try { ogs.SetSurfaceTransparency(Math.Max(0, Math.Min(100, transparency))); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return ogs;
         }
     }
@@ -2663,14 +2663,14 @@ namespace StingTools.Commands.Lightning
                         var pt = (fi.Location as LocationPoint)?.Point;
                         if (pt != null) room = doc.GetRoomAtPoint(pt)?.Name ?? "";
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     string installDate = ParameterHelpers.GetString(fi, LpsParams.TEST_DATE_TXT);
                     string serial = ParameterHelpers.GetString(fi, "ASS_SERIAL_TXT");
                     if (string.IsNullOrEmpty(serial)) serial = ParameterHelpers.GetString(fi, LpsParams.CERT_REF_TXT);
                     string status = ParameterHelpers.GetString(fi, LpsParams.COMPLIANCE_STATUS_TXT);
                     string lpsZone = ParameterHelpers.GetString(fi, "ELC_LPS_ZONE_TXT");
                     string lvl = "";
-                    try { lvl = (doc.GetElement(fi.LevelId) as Level)?.Name ?? ""; } catch { }
+                    try { lvl = (doc.GetElement(fi.LevelId) as Level)?.Name ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     DateTime? installDt = null;
                     if (DateTime.TryParse(installDate, out var dt0)) installDt = dt0;
 

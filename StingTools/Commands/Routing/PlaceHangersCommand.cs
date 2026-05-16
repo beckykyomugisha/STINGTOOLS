@@ -241,7 +241,7 @@ namespace StingTools.Commands.Routing
                 var p = el.LookupParameter(param);
                 if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String) p.Set(val ?? "");
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
         private static void TrySetDouble(Element el, string param, double val)
         {
@@ -253,7 +253,7 @@ namespace StingTools.Commands.Routing
                 else if (p.StorageType == StorageType.String)
                     p.Set(val.ToString("F1", System.Globalization.CultureInfo.InvariantCulture));
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
         private static void TrySetInt(Element el, string param, int val)
         {
@@ -264,7 +264,7 @@ namespace StingTools.Commands.Routing
                 if (p.StorageType == StorageType.Integer) p.Set(val);
                 else if (p.StorageType == StorageType.String) p.Set(val.ToString());
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         // ----- Result UI ----------------------------------------------------

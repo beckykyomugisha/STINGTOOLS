@@ -166,7 +166,7 @@ namespace StingTools.Commands.Electrical.Routing
             foreach (long id in allConduitIds)
             {
                 Element el = null;
-                try { el = doc.GetElement(new ElementId((long)id)); } catch { }
+                try { el = doc.GetElement(new ElementId((long)id)); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (el == null) continue;
                 var loc = el.Location as LocationCurve;
                 double mm = loc?.Curve?.Length * 304.8 ?? 0;
@@ -178,7 +178,7 @@ namespace StingTools.Commands.Electrical.Routing
                     var t = doc.GetElement(el.GetTypeId());
                     if (t != null) typeName = t.Name ?? typeName;
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 string diam = ParameterHelpers.GetString(el, "Diameter")
                     ?? ParameterHelpers.GetString(el, "Outside Diameter")
                     ?? "?";
@@ -216,7 +216,7 @@ namespace StingTools.Commands.Electrical.Routing
             foreach (long id in allBoxIds)
             {
                 Element el = null;
-                try { el = doc.GetElement(new ElementId((long)id)); } catch { }
+                try { el = doc.GetElement(new ElementId((long)id)); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (el == null) continue;
 
                 string famName = "JB";
@@ -229,7 +229,7 @@ namespace StingTools.Commands.Electrical.Routing
                         typeName = fi.Symbol?.Name ?? typeName;
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 string jbType = ParameterHelpers.GetString(el, "ELC_JB_TYPE_TXT") ?? typeName;
                 string jbSize = ParameterHelpers.GetString(el, "ELC_JB_SIZE_MM") ?? "";
                 string jbIp   = ParameterHelpers.GetString(el, "ELC_JB_IP_RATING_TXT") ?? "";
@@ -280,7 +280,7 @@ namespace StingTools.Commands.Electrical.Routing
                         var loc = el?.Location as LocationCurve;
                         if (loc?.Curve != null) total += loc.Curve.Length * 0.3048; // ft → m
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
             }
             return total;

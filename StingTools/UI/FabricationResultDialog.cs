@@ -70,7 +70,7 @@ namespace StingTools.UI
                 var helper = new System.Windows.Interop.WindowInteropHelper(this);
                 helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             Content = BuildLayout();
         }
@@ -419,7 +419,7 @@ namespace StingTools.UI
             {
                 DialogResult = true;
                 var dlg = new FabricationWorkspaceDialog(_doc);
-                try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch { }
+                try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 dlg.ShowDialog();
             }
             catch (Exception ex)

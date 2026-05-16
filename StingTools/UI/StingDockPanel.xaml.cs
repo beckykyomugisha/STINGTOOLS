@@ -713,7 +713,7 @@ namespace StingTools.UI
                 var cb = FindVisualChild<CheckBox>(root, name);
                 if (cb != null) return cb.IsChecked == true;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return def;
         }
 
@@ -726,7 +726,7 @@ namespace StingTools.UI
                 var rb = FindVisualChild<System.Windows.Controls.RadioButton>(root, name);
                 if (rb != null) return rb.IsChecked == true;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return def;
         }
 
@@ -738,7 +738,7 @@ namespace StingTools.UI
                 var rb = FindVisualChild<RadioButton>(root, name);
                 if (rb != null) return rb.IsChecked == true;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return def;
         }
 
@@ -751,7 +751,7 @@ namespace StingTools.UI
                 var named = LogicalTreeHelper.FindLogicalNode(parent, name) as T;
                 if (named != null) return named;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
         }
 
@@ -817,7 +817,7 @@ namespace StingTools.UI
                     if (tb != null && double.TryParse(tb.Text, out var mm) && mm > 0)
                         StingTools.Commands.Routing.AutoDropOptions.MaxSearchRadiusMm = mm;
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                 try
                 {
@@ -825,21 +825,21 @@ namespace StingTools.UI
                     if (cb != null && cb.SelectedItem is ComboBoxItem ci && ci.Content is string s)
                         StingTools.Commands.Routing.AutoDropOptions.ConduitInstallMethod = s;
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 try
                 {
                     var cb = FindVisualChild<ComboBox>(root, "cboRtDuctSeam");
                     if (cb != null && cb.SelectedItem is ComboBoxItem ci && ci.Content is string s)
                         StingTools.Commands.Routing.AutoDropOptions.DuctSeamType = ExtractSeamCode(s);
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 try
                 {
                     var cb = FindVisualChild<ComboBox>(root, "cboRtPipeHanger");
                     if (cb != null && cb.SelectedItem is ComboBoxItem ci && ci.Content is string s)
                         StingTools.Commands.Routing.AutoDropOptions.PipeHangerType = s;
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             catch (Exception ex) { StingLog.Warn($"SetV4RoutingOptions failed: {ex.Message}"); }
         }

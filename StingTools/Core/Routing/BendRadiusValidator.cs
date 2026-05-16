@@ -194,7 +194,7 @@ namespace StingTools.Core.Routing
                             return v;
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             return 0;
         }
@@ -209,7 +209,7 @@ namespace StingTools.Core.Routing
                 if (p != null && p.StorageType == StorageType.Double)
                     return p.AsDouble() * 304.8;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
 
@@ -225,7 +225,7 @@ namespace StingTools.Core.Routing
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
         }
     }

@@ -120,7 +120,7 @@ namespace StingTools.Tags
             if (result == TaskDialogResult.CommandLink1)
             {
                 try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", projectDir) { UseShellExecute = true })?.Dispose(); }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
 
             return Result.Succeeded;

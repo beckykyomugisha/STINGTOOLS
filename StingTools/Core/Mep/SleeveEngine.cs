@@ -434,7 +434,7 @@ namespace StingTools.Core.Mep
                 foreach (var hint in suspendedHints)
                     if (name.Contains(hint) || fam.Contains(hint)) return true;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
         }
 
@@ -451,7 +451,7 @@ namespace StingTools.Core.Mep
                 var p = typeEl.get_Parameter(BuiltInParameter.FIRE_RATING);
                 return p?.AsString() ?? "";
             }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
 
         private static double ProbeDiameterMm(Element el)
@@ -462,10 +462,10 @@ namespace StingTools.Core.Mep
                 if (el is Autodesk.Revit.DB.Electrical.Conduit c) return c.Diameter * FtToMm;
                 if (el is Autodesk.Revit.DB.Mechanical.Duct d)
                 {
-                    try { if (d.Diameter > 0) return d.Diameter * FtToMm; } catch { }
+                    try { if (d.Diameter > 0) return d.Diameter * FtToMm; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
         private static double ProbeWidthMm(Element el)
@@ -475,7 +475,7 @@ namespace StingTools.Core.Mep
                 if (el is Autodesk.Revit.DB.Mechanical.Duct d && d.Width > 0) return d.Width * FtToMm;
                 if (el is Autodesk.Revit.DB.Electrical.CableTray ct) return ct.Width * FtToMm;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
         private static double ProbeHeightMm(Element el)
@@ -485,7 +485,7 @@ namespace StingTools.Core.Mep
                 if (el is Autodesk.Revit.DB.Mechanical.Duct d && d.Height > 0) return d.Height * FtToMm;
                 if (el is Autodesk.Revit.DB.Electrical.CableTray ct) return ct.Height * FtToMm;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
         private static double ProbeHostThicknessMm(Element host)
@@ -496,10 +496,10 @@ namespace StingTools.Core.Mep
                 if (host is Floor f)
                 {
                     try { return f.get_Parameter(BuiltInParameter.FLOOR_ATTR_THICKNESS_PARAM)?.AsDouble() * FtToMm ?? 0; }
-                    catch { return 0; }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
 
@@ -515,7 +515,7 @@ namespace StingTools.Core.Mep
                 string seed = $"{cand.Host?.UniqueId}|{cand.MepElement?.UniqueId}";
                 return DeterministicGuid(seed);
             }
-            catch { return Guid.NewGuid().ToString(); }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return Guid.NewGuid().ToString(); }
         }
 
         private static string DeterministicGuid(string seed)
@@ -537,7 +537,7 @@ namespace StingTools.Core.Mep
         {
             try { var p = el.LookupParameter(param);
                   if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String) p.Set(val ?? ""); }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
         private static void TrySetInt(Element el, string param, int val)
         {
@@ -548,7 +548,7 @@ namespace StingTools.Core.Mep
                 if (p.StorageType == StorageType.Integer) p.Set(val);
                 else if (p.StorageType == StorageType.String) p.Set(val.ToString());
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
         private static void TrySetDouble(Element el, string param, double val)
         {
@@ -560,7 +560,7 @@ namespace StingTools.Core.Mep
                 else if (p.StorageType == StorageType.String)
                     p.Set(val.ToString("F1", System.Globalization.CultureInfo.InvariantCulture));
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
     }
 }

@@ -48,7 +48,7 @@ namespace StingTools.Commands.Fabrication
             foreach (var el in elementsInScope)
             {
                 string sysName = "UNKNOWN";
-                try { sysName = (el as Pipe)?.MEPSystem?.Name ?? "UNKNOWN"; } catch { }
+                try { sysName = (el as Pipe)?.MEPSystem?.Name ?? "UNKNOWN"; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (!bySystem.TryGetValue(sysName, out var list))
                 {
                     list = new List<ElementId>();

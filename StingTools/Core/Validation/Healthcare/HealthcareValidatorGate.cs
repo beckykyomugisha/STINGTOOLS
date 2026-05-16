@@ -38,7 +38,7 @@ namespace StingTools.Core.Validation.Healthcare
                 var p = doc?.ProjectInformation?.LookupParameter("PRJ_ORG_HEALTH_PACK_PROFILE_TXT");
                 if (p?.HasValue == true && p.StorageType == StorageType.String)
                     profile = (p.AsString() ?? "FULL").Trim().ToUpperInvariant();
-            } catch { }
+            } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             if (profile == "FULL" || string.IsNullOrEmpty(profile))
                 return new HashSet<string>(_allValidators, StringComparer.OrdinalIgnoreCase);
 

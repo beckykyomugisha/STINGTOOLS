@@ -338,7 +338,7 @@ namespace StingTools.Core
                 // back to a copy + delete so callers never end up with a
                 // missing destination. If even copy fails let it propagate.
                 File.Copy(tmp, path, true);
-                try { File.Delete(tmp); } catch { }
+                try { File.Delete(tmp); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
         }
 

@@ -225,7 +225,7 @@ namespace StingTools.Commands.Routing
                 var p = d.get_Parameter(BuiltInParameter.RBS_DUCT_FLOW_PARAM);
                 if (p != null) return p.AsDouble() * 0.028316846592;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
     }

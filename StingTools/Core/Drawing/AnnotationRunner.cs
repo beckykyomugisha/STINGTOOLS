@@ -104,7 +104,7 @@ namespace StingTools.Core.Drawing
             if (doc == null || view == null || drawingType?.Annotation == null) return stats;
 
             var pack = drawingType.Annotation;
-            try { pack.MigrateFromLegacy(); } catch { }
+            try { pack.MigrateFromLegacy(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             // Scale-aware density modifier — when the view is coarser than
             // DenseUntilScale, skip per-element tagging.
@@ -251,7 +251,7 @@ namespace StingTools.Core.Drawing
                         .SelectMany(t =>
                         {
                             try { return t.GetTaggedLocalElementIds(); }
-                            catch { return Enumerable.Empty<ElementId>(); }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return Enumerable.Empty<ElementId>(); }
                         }));
                 elements = elements.Where(e => !tagged.Contains(e.Id)).ToList();
             }
@@ -268,7 +268,7 @@ namespace StingTools.Core.Drawing
                         if (bb == null) return false;
                         return (bb.Max - bb.Min).GetLength() >= minFt;
                     }
-                    catch { return false; }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
                 }).ToList();
             }
 
@@ -279,7 +279,7 @@ namespace StingTools.Core.Drawing
                     var largest = elements.OrderByDescending(e =>
                     {
                         try { var bb = e.get_BoundingBox(view); return bb == null ? 0 : (bb.Max - bb.Min).GetLength(); }
-                        catch { return 0; }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
                     }).FirstOrDefault();
                     elements = largest != null ? new List<Element> { largest } : new List<Element>();
                     break;
@@ -324,7 +324,7 @@ namespace StingTools.Core.Drawing
                 if (depth > 0)
                 {
                     try { StingTools.Core.ParameterHelpers.SetInt(el, $"TAG_PARA_STATE_{depth}_BOOL", 1); }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
             }
         }
@@ -397,7 +397,7 @@ namespace StingTools.Core.Drawing
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return ElementId.InvalidElementId;
         }
 
@@ -525,7 +525,7 @@ namespace StingTools.Core.Drawing
         private static void RunDecorativeAnnotation(Document doc, View view, AnnotationRulePack pack, AnnotationRunOptions opts, AnnotationResult result)
         {
             BoundingBoxXYZ outline = null;
-            try { outline = view.CropBox; } catch { }
+            try { outline = view.CropBox; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             if (outline == null)
             {
                 try
@@ -540,7 +540,7 @@ namespace StingTools.Core.Drawing
                         };
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             if (outline == null) return;
 
@@ -579,7 +579,7 @@ namespace StingTools.Core.Drawing
             {
                 var sym = FindFamilySymbolByName(doc, familyName);
                 if (sym == null) { result.Warnings.Add($"Decorative family '{familyName}' not found — skipped."); return; }
-                if (!sym.IsActive) { try { sym.Activate(); } catch { } }
+                if (!sym.IsActive) { try { sym.Activate(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } }
                 var inset = (sizeMm ?? 0) / 304.8;
                 var pt = ResolvePositionPoint(outline, position, inset);
                 doc.Create.NewFamilyInstance(pt, sym, view);
@@ -655,7 +655,7 @@ namespace StingTools.Core.Drawing
                                 : doc.Create.NewSpotElevation(view, faceRef, origin, bend, end, refPt, hasLeader);
                             if (symbolId != ElementId.InvalidElementId && sd != null)
                             {
-                                try { sd.ChangeTypeId(symbolId); } catch { }
+                                try { sd.ChangeTypeId(symbolId); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                             }
                             result.SpotsPlaced++;
                         }
@@ -682,7 +682,7 @@ namespace StingTools.Core.Drawing
                     if (string.Equals(c.Name, key, StringComparison.OrdinalIgnoreCase))
                         return c.Id;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return ElementId.InvalidElementId;
         }
     }

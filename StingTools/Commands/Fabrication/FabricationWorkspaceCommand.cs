@@ -39,7 +39,7 @@ namespace StingTools.Commands.Fabrication
                     var helper = new System.Windows.Interop.WindowInteropHelper(dlg);
                     helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 dlg.ShowDialog();
                 return Result.Succeeded;
             }

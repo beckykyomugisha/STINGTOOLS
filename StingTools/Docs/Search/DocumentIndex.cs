@@ -117,7 +117,7 @@ namespace Planscape.Docs.Search
             else
             {
                 try { q = parser.Parse(query); }
-                catch { q = new TermQuery(new Term("fulltext", query.ToLowerInvariant())); }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); q = new TermQuery(new Term("fulltext", query.ToLowerInvariant())); }
             }
 
             var booleanQ = new BooleanQuery { { q, Occur.MUST } };

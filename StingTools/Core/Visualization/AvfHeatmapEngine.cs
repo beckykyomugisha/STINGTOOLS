@@ -62,7 +62,7 @@ namespace StingTools.Core.Visualization
             Document doc = view.Document;
 
             SpatialFieldManager sfm = null;
-            try { sfm = SpatialFieldManager.GetSpatialFieldManager(view); } catch { }
+            try { sfm = SpatialFieldManager.GetSpatialFieldManager(view); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             if (sfm == null)
             {
                 try { sfm = SpatialFieldManager.CreateSpatialFieldManager(view, 1); }

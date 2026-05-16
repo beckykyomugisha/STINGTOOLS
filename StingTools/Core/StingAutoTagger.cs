@@ -524,10 +524,10 @@ namespace StingTools.Core
                 // IsWorkshared walks the document state.
                 string currentUser = null;
                 bool isWorkshared = false;
-                try { isWorkshared = doc.IsWorkshared; } catch { }
+                try { isWorkshared = doc.IsWorkshared; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (isWorkshared)
                 {
-                    try { currentUser = doc.Application.Username; } catch { }
+                    try { currentUser = doc.Application.Username; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
 
                 foreach (ElementId id in addedIds)

@@ -130,7 +130,7 @@ namespace StingTools.Core.Mep
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
     }

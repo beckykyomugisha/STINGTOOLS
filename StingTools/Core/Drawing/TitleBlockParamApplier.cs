@@ -435,7 +435,7 @@ namespace StingTools.Core.Drawing
             {
                 if (string.IsNullOrWhiteSpace(kv.Key)) continue;
                 try { result[kv.Key] = ResolveTemplate(doc, kv.Value ?? "", tokens, unresolved) ?? ""; }
-                catch { result[kv.Key] = ""; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); result[kv.Key] = ""; }
             }
             return result;
         }
@@ -687,7 +687,7 @@ namespace StingTools.Core.Drawing
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
         }
 
@@ -710,7 +710,7 @@ namespace StingTools.Core.Drawing
                         return el?.Name ?? "";
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return "";
         }
 
@@ -738,7 +738,7 @@ namespace StingTools.Core.Drawing
                     }
                 }
             }
-            catch { val = null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); val = null; }
             if (_piCache != null) _piCache[name] = val;
             return val;
         }
@@ -753,7 +753,7 @@ namespace StingTools.Core.Drawing
                     .Cast<FamilyInstance>()
                     .ToList();
             }
-            catch { return new List<FamilyInstance>(); }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return new List<FamilyInstance>(); }
         }
     }
 }

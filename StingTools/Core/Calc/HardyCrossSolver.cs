@@ -278,7 +278,7 @@ namespace StingTools.Core.Calc
                 if (p.StorageType == StorageType.Double) { p.Set(value); return true; }
                 if (p.StorageType == StorageType.String) { p.Set(value.ToString("F4")); return true; }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
         }
     }

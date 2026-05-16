@@ -2553,7 +2553,7 @@ namespace StingTools.BIMManager
                                     {
                                         return s.GetAllPlacedViews().Contains(ownerViewId);
                                     }
-                                    catch { return false; }
+                                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
                                 });
                             if (viewSheet != null)
                                 sheetKey = $"{viewSheet.SheetNumber} - {viewSheet.Name}";
@@ -2593,7 +2593,7 @@ namespace StingTools.BIMManager
                 {
                     int count = cloudsByRevision.TryGetValue(rev.Id, out var cList) ? cList.Count : 0;
                     string revNum = "";
-                    try { revNum = rev.RevisionNumber; } catch { revNum = "—"; }
+                    try { revNum = rev.RevisionNumber; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); revNum = "—"; }
                     string status = rev.Issued ? "Issued" : "Draft";
                     sb.AppendLine($"  [{revNum}] {rev.Description ?? "(no description)"}: {count} clouds ({status})");
                 }

@@ -1150,7 +1150,7 @@ namespace StingTools.Core
                 string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                 if (string.IsNullOrEmpty(tag1)) continue;
 
-                string FromReg(string p) { try { return ParameterHelpers.GetString(el, p); } catch { return ""; } }
+                string FromReg(string p) { try { return ParameterHelpers.GetString(el, p); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; } }
 
                 results.Add(new Planscape.Shared.Models.TagElementSync
                 {

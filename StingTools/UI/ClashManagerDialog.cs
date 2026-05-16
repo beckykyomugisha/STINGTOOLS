@@ -81,7 +81,7 @@ namespace StingTools.UI
                     var projDir = Path.GetDirectoryName(_doc?.PathName ?? "") ?? Path.GetTempPath();
                     return Path.Combine(projDir, "_BIM_COORD", "clashes.json");
                 }
-                catch { return Path.Combine(Path.GetTempPath(), "clashes.json"); }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return Path.Combine(Path.GetTempPath(), "clashes.json"); }
             }
         }
 
@@ -264,7 +264,7 @@ namespace StingTools.UI
                 if (ids.Count > 0)
                 {
                     _uidoc.Selection.SetElementIds(ids);
-                    try { _uidoc.ShowElements(ids); } catch { }
+                    try { _uidoc.ShowElements(ids); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
             }
             catch (Exception ex)

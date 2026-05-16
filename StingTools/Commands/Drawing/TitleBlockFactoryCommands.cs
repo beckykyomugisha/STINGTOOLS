@@ -157,7 +157,7 @@ namespace StingTools.Commands.Drawing
             if (!string.IsNullOrEmpty(p) && File.Exists(p)) return p;
             // Fallback to whatever Revit currently has open.
             try { return uiApp.Application.SharedParametersFilename; }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         public static void ShowReport(string id, TitleBlockBuildResult r)
@@ -312,7 +312,7 @@ namespace StingTools.Commands.Drawing
             string dir = null;
             if (!string.IsNullOrEmpty(r.SavedPath))
             {
-                try { dir = Path.GetDirectoryName(r.SavedPath); } catch { }
+                try { dir = Path.GetDirectoryName(r.SavedPath); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             if (string.IsNullOrEmpty(dir))
             {
@@ -322,10 +322,10 @@ namespace StingTools.Commands.Drawing
                     if (!string.IsNullOrEmpty(asm))
                         dir = Path.GetDirectoryName(asm);
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             if (string.IsNullOrEmpty(dir)) return null;
-            try { Directory.CreateDirectory(dir); } catch { }
+            try { Directory.CreateDirectory(dir); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             // Sanitise the family id for filesystem use, then append a
             // timestamp so successive builds don't overwrite each other.

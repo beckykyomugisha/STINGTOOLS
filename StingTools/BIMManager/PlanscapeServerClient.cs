@@ -222,7 +222,7 @@ public sealed class PlanscapeServerClient : IDisposable
             _accessToken  = "";
             _refreshToken = "";
             _tokenExpiry  = DateTime.MinValue;
-            try { _http?.DefaultRequestHeaders.Authorization = null; } catch { }
+            try { _http?.DefaultRequestHeaders.Authorization = null; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             DeletePersistedSession();
             throw new InvalidOperationException(
                 "Planscape session expired. Please log in again from the BIM tab.");
@@ -256,7 +256,7 @@ public sealed class PlanscapeServerClient : IDisposable
         DeletePersistedSession();
 
         // C2 — stop the real-time listener (fire-and-forget; we don't await in a sync method).
-        _ = Task.Run(async () => { try { await PlanscapeRealtimeClient.Instance.StopAsync(); } catch { } });
+        _ = Task.Run(async () => { try { await PlanscapeRealtimeClient.Instance.StopAsync(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } });
 
         StingLog.Info("Planscape: Disconnected.");
     }
@@ -524,7 +524,7 @@ public sealed class PlanscapeServerClient : IDisposable
                 t => t["counterKey"]?.Value<string>() ?? "",
                 t => t["currentValue"]?.Value<int>() ?? 0);
         }
-        catch { return new Dictionary<string, int>(); }
+        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return new Dictionary<string, int>(); }
     }
 
     // ────────────────────────────────────────────────────────────────────────────
@@ -571,7 +571,7 @@ public sealed class PlanscapeServerClient : IDisposable
                     json["email"]?.Value<string>()      ?? "",
                     json["projectId"]?.Value<string>()  ?? "");
         }
-        catch { return ("", "", ""); }
+        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ("", "", ""); }
     }
 
     // ────────────────────────────────────────────────────────────────────────────
@@ -854,7 +854,7 @@ public sealed class PlanscapeServerClient : IDisposable
                 var body = JObject.Parse(resp.body);
                 return body["created"]?.Value<int>() ?? 0;
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
         catch (Exception ex) { LastError = ex.Message; return -1; }
     }
@@ -875,7 +875,7 @@ public sealed class PlanscapeServerClient : IDisposable
                 var body = JObject.Parse(resp.body);
                 return body["created"]?.Value<int>() ?? 0;
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
         catch (Exception ex) { LastError = ex.Message; return -1; }
     }

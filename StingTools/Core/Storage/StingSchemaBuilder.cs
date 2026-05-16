@@ -126,7 +126,7 @@ namespace StingTools.Core.Storage
                 if (p != null && p.HasValue && p.StorageType == StorageType.Integer)
                     return p.AsInteger() != 0;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
         }
 

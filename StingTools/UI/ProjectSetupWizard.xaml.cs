@@ -408,7 +408,7 @@ namespace StingTools.UI
                 Parameter p = lv.get_Parameter(BuiltInParameter.LEVEL_IS_BUILDING_STORY);
                 if (p != null) return p.AsInteger() != 0;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return true;
         }
 
@@ -432,10 +432,7 @@ namespace StingTools.UI
                 while (deg < -180) deg += 360;
                 return Math.Round(deg, 1);
             }
-            catch
-            {
-                return 0.0;
-            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0.0; }
         }
 
         // ── Step indicators ──────────────────────────────────────────

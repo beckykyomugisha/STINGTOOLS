@@ -108,7 +108,7 @@ namespace StingTools.Core.Mep
             string catName = el.Category.Name ?? "";
             BuiltInCategory bic;
             try { bic = (BuiltInCategory)el.Category.Id.Value; }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
 
             string shortCat;
             switch (bic)
@@ -158,13 +158,13 @@ namespace StingTools.Core.Mep
                 if (el is Autodesk.Revit.DB.Mechanical.Duct d)
                 {
                     double sz = Math.Max(d.Width, d.Height);
-                    if (sz <= 0) try { sz = d.Diameter; } catch { }
+                    if (sz <= 0) try { sz = d.Diameter; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     return sz * 304.8;
                 }
                 if (el is Autodesk.Revit.DB.Electrical.Conduit c)    return c.Diameter * 304.8;
                 if (el is Autodesk.Revit.DB.Electrical.CableTray ct) return ct.Width    * 304.8;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
 
@@ -176,7 +176,7 @@ namespace StingTools.Core.Mep
                     return (d.Width > 0 && d.Height > 0) ? "rectangular" : "round";
                 if (el is Autodesk.Revit.DB.Electrical.CableTray) return "rectangular";
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return "round";
         }
     }

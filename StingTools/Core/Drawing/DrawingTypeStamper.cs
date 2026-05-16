@@ -71,7 +71,7 @@ namespace StingTools.Core.Drawing
                 // FIX-2: a freshly-stamped view changes the set of views the
                 // drift detector should scan. Invalidate the per-doc reverse
                 // index so the next Scan() includes this view.
-                try { DrawingDriftDetector.InvalidateCache(el.Document); } catch { }
+                try { DrawingDriftDetector.InvalidateCache(el.Document); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 return true;
             }
             catch (Exception ex)
@@ -102,7 +102,7 @@ namespace StingTools.Core.Drawing
                     return null;
                 return raw;
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         /// <summary>
@@ -118,7 +118,7 @@ namespace StingTools.Core.Drawing
                 var p = el.LookupParameter(PARAM_DRAWING_TYPE_ID);
                 return p?.StorageType == StorageType.String ? p.AsString() : null;
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         public static bool IsLocked(Element el)
@@ -131,7 +131,7 @@ namespace StingTools.Core.Drawing
                     && p.StorageType == StorageType.Integer
                     && p.AsInteger() != 0;
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
 
         public static void SetLocked(Element el, bool locked)
@@ -181,7 +181,7 @@ namespace StingTools.Core.Drawing
                 // every batch generator inside its own transaction.
                 return true;
             }
-            catch { return true; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return true; }
         }
     }
 }

@@ -112,7 +112,7 @@ namespace StingTools.Commands.Mep
                 var p = el.get_Parameter(BuiltInParameter.RBS_CONDUIT_DIAMETER_PARAM);
                 if (p != null && p.StorageType == StorageType.Double) return p.AsDouble() * 304.8;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
         private static double ReadDouble(Element el, string param)
@@ -126,7 +126,7 @@ namespace StingTools.Commands.Mep
                         System.Globalization.NumberStyles.Any,
                         System.Globalization.CultureInfo.InvariantCulture,
                         out double v)) return v; }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
         private static bool WriteDouble(Element el, string param, double val)
@@ -137,7 +137,7 @@ namespace StingTools.Commands.Mep
                   if (p.StorageType == StorageType.String)  { p.Set($"{val:F1}"); return true; }
                   if (p.StorageType == StorageType.Integer) { p.Set((int)Math.Round(val)); return true; }
                   return false; }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
         private static void ShowReport(int inspected, int updated, int skipped, List<string> warnings)
         {

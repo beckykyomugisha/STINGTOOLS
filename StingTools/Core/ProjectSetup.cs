@@ -247,7 +247,7 @@ namespace StingTools.Core
             string rvtDir = Path.GetDirectoryName(rvtPath);
             if (string.IsNullOrEmpty(rvtDir)) return null;
             try { return Path.GetFullPath(Path.Combine(rvtDir, RootPath)); }
-            catch { return Path.Combine(rvtDir, RootPath); }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return Path.Combine(rvtDir, RootPath); }
         }
 
         /// <summary>Look up a folder definition by ID (case-insensitive).</summary>

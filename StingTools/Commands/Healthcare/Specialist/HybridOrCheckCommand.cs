@@ -45,7 +45,7 @@ namespace StingTools.Commands.Healthcare.Specialist
         }
         private static string Get(Element el, string n) {
             try { var p = el.LookupParameter(n); return p?.HasValue==true && p.StorageType==StorageType.String ? (p.AsString()??"") : ""; }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
         private static double AreaSqM(Element room) {
             try {
@@ -53,7 +53,7 @@ namespace StingTools.Commands.Healthcare.Specialist
                 if (p == null || !p.HasValue) return 0;
                 if (p.StorageType == StorageType.Double) return p.AsDouble() * 0.092903; // ft² → m² when native
                 if (p.StorageType == StorageType.String && double.TryParse(p.AsString(), out var v)) return v;
-            } catch { }
+            } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
     }

@@ -100,7 +100,7 @@ namespace StingTools.Core
             long key = id.Value;
 
             Element el;
-            try { el = doc.GetElement(id); } catch { return; }
+            try { el = doc.GetElement(id); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return; }
             if (el == null) return;
 
             CascadeKind kind = ClassifyCascade(el);
@@ -143,7 +143,7 @@ namespace StingTools.Core
                 if (el.LevelId != null && el.LevelId != ElementId.InvalidElementId)
                     return CascadeKind.ElementLevelChanged;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return CascadeKind.None;
         }
 

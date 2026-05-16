@@ -196,7 +196,7 @@ namespace StingTools.Commands.Drawing
                                 tb.Symbol = targetSym;
                                 var modeParam = tb.LookupParameter("STING_SHEET_BIM_MODE_TXT");
                                 if (modeParam != null && !modeParam.IsReadOnly)
-                                    try { modeParam.Set("BIM"); } catch { }
+                                    try { modeParam.Set("BIM"); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                                 migrated++;
                                 report.AppendLine($"  ✓ {sheet.SheetNumber}  →  {targetName}");
                             }
@@ -241,7 +241,7 @@ namespace StingTools.Commands.Drawing
                         candidates.Add(Path.Combine(dir, "Families", "TitleBlocks", name + ".rfa"));
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             try
             {
                 var asm = StingToolsApp.AssemblyPath;
@@ -252,7 +252,7 @@ namespace StingTools.Commands.Drawing
                         candidates.Add(Path.Combine(d, "Families", "TitleBlocks", name + ".rfa"));
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             foreach (var c in candidates)
             {
                 if (!File.Exists(c)) continue;

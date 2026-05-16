@@ -71,7 +71,7 @@ namespace StingTools.Core.Routing
                     case PipeSystemType.OtherPipe:            break;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return ServiceId;
         }
 

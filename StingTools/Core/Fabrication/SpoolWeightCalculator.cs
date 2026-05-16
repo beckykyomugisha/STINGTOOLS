@@ -170,7 +170,7 @@ namespace StingTools.Core.Fabrication
                 if (el is Autodesk.Revit.DB.Electrical.Conduit)            return DensityKgM3["STEEL"];
                 if (el is Autodesk.Revit.DB.Electrical.CableTray)          return DensityKgM3["GI_SHEET"];
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 7850; // steel default
         }
     }

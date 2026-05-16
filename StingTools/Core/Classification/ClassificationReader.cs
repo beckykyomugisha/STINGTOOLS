@@ -35,7 +35,7 @@ namespace StingTools.Core.Classification
             var c = new ClassificationInfo();
             if (el == null) return c;
             Element type = null;
-            try { type = el.Document.GetElement(el.GetTypeId()); } catch { }
+            try { type = el.Document.GetElement(el.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             c.UniclassProduct = TypeFirst(el, type, "UNICLASS_PR_TXT");
             c.UniclassSystem  = TypeFirst(el, type, "UNICLASS_SS_TXT");
@@ -66,7 +66,7 @@ namespace StingTools.Core.Classification
             if (!string.IsNullOrEmpty(c.UniclassElement)) return ("EF:"   + c.UniclassElement, "Uniclass.Ef",  c.UniclassElement);
 
             Element type = null;
-            try { type = el?.Document?.GetElement(el.GetTypeId()); } catch { }
+            try { type = el?.Document?.GetElement(el.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             string omni = type?.LookupParameter("STING_OMNICLASS_23")?.AsString() ?? "";
             if (!string.IsNullOrEmpty(omni)) return ("OMNI:" + omni, "OmniClass23", omni);
 
@@ -90,7 +90,7 @@ namespace StingTools.Core.Classification
                 if (!string.IsNullOrEmpty(t)) return t;
                 return instance?.LookupParameter(name)?.AsString() ?? "";
             }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
 
         private static string InstanceFirst(Element instance, Element type, string name)
@@ -101,7 +101,7 @@ namespace StingTools.Core.Classification
                 if (!string.IsNullOrEmpty(i)) return i;
                 return type?.LookupParameter(name)?.AsString() ?? "";
             }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
     }
 }

@@ -37,12 +37,12 @@ namespace StingTools.Core.Visualization
             foreach (var id in _hostIds)
             {
                 Element host;
-                try { host = doc.GetElement(id); } catch { continue; }
+                try { host = doc.GetElement(id); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                 if (host == null) continue;
 
                 XYZ centre;
                 try { centre = TagPlacementEngine.GetElementCenter(host, _view); }
-                catch { continue; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                 if (centre == null) continue;
 
                 // Pack 4 anchor-aware offsets → the preview honours the same

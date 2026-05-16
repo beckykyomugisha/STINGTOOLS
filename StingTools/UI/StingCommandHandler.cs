@@ -475,7 +475,7 @@ namespace StingTools.UI
                         var doc = app?.ActiveUIDocument?.Document;
                         if (doc == null) { TaskDialog.Show("STING v4", "Open a project first."); break; }
                         var dlg = new UI.ShopDrawingOptionsDialog(doc);
-                        try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch { }
+                        try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         if (dlg.ShowDialog() == true)
                         {
                             Commands.Fabrication.FabricationOptions.ShopDrawing = dlg.Result;
@@ -3765,7 +3765,7 @@ namespace StingTools.UI
                 var uidoc = app?.ActiveUIDocument;
                 if (uidoc?.Document == null) { TaskDialog.Show("STING v4", "Open a project first."); return; }
                 var dlg = new UI.FabricationWorkspaceDialog(uidoc.Document);
-                try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch { }
+                try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 dlg.ShowDialog();
             }
             catch (Exception ex)
@@ -8407,7 +8407,7 @@ namespace StingTools.UI
             var doc = uidoc.Document;
             var elems = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
-                .Where(e => { try { var p = e.LookupParameter("ASS_TAG_1_TXT"); return p != null && (p.AsString() ?? "").Contains(issueId); } catch { return false; } })
+                .Where(e => { try { var p = e.LookupParameter("ASS_TAG_1_TXT"); return p != null && (p.AsString() ?? "").Contains(issueId); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; } })
                 .Take(20).ToList();
             if (elems.Count > 0)
             {
@@ -8447,7 +8447,7 @@ namespace StingTools.UI
             var doc = uidoc.Document;
             var elems = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
-                .Where(e => { try { var p = e.LookupParameter("ASS_TAG_1_TXT"); return p != null && (p.AsString() ?? "").Contains(issueId); } catch { return false; } })
+                .Where(e => { try { var p = e.LookupParameter("ASS_TAG_1_TXT"); return p != null && (p.AsString() ?? "").Contains(issueId); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; } })
                 .Take(50).ToList();
             if (elems.Count > 0) uidoc.Selection.SetElementIds(elems.Select(e => e.Id).ToList());
         }
@@ -8477,7 +8477,7 @@ namespace StingTools.UI
             var paramName = Core.ParamRegistry.DISC ?? "ASS_MNG_DISC";
             var elems = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
-                .Where(e => { try { var p = e.LookupParameter(paramName); return p != null && (p.AsString() ?? "") == discCode; } catch { return false; } })
+                .Where(e => { try { var p = e.LookupParameter(paramName); return p != null && (p.AsString() ?? "") == discCode; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; } })
                 .Take(200).ToList();
             if (elems.Count > 0) uidoc.Selection.SetElementIds(elems.Select(e => e.Id).ToList());
         }

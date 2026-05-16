@@ -106,7 +106,7 @@ namespace StingTools.Core.Fabrication
         private static string MakeCacheKey(Document doc)
         {
             try { return $"{doc.PathName}|{doc.CreationGUID}"; }
-            catch { return doc.PathName ?? Guid.NewGuid().ToString(); }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return doc.PathName ?? Guid.NewGuid().ToString(); }
         }
     }
 }

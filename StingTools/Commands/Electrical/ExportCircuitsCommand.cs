@@ -28,7 +28,7 @@ namespace StingTools.Commands.Electrical
                 var projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? Path.GetTempPath();
                 outDir = Path.Combine(projDir, "_BIM_COORD", "electrical");
             }
-            catch { outDir = Path.Combine(Path.GetTempPath(), "STING", "electrical"); }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); outDir = Path.Combine(Path.GetTempPath(), "STING", "electrical"); }
 
             CircuitExportResult res;
             try { res = CircuitScheduleExporter.Export(doc, outDir); }

@@ -162,7 +162,7 @@ namespace StingTools.Commands.Fabrication
             }
 
             // Clear record so Undo can't be pressed twice by mistake.
-            try { File.Delete(ResolvePath(doc)); } catch { }
+            try { File.Delete(ResolvePath(doc)); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return removed;
         }
     }
@@ -267,7 +267,7 @@ namespace StingTools.Commands.Fabrication
                     var p = el?.LookupParameter("ASS_TAG_MODIFIED_DT");
                     sb.Append(p?.AsString() ?? "");
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 sb.Append('|');
             }
             using (var sha = System.Security.Cryptography.SHA256.Create())

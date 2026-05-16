@@ -139,7 +139,7 @@ namespace StingTools.Core.Calc
             // SpoolWeightCalculator for the shell, then add content
             // mass for water-filled piping at full-bore.
             double totalWeightKg = 0;
-            try { totalWeightKg = Fabrication.SpoolWeightCalculator.WeightKg(doc, new[] { el.Id }); } catch { }
+            try { totalWeightKg = Fabrication.SpoolWeightCalculator.WeightKg(doc, new[] { el.Id }); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             double contentKg = ComputeContentMassKg(el, runLenMm);
             double insulationKg = ComputeInsulationMassKg(el, runLenMm);
             double perMetreKg = (totalWeightKg + contentKg + insulationKg) / Math.Max(0.1, runLenMm / 1000.0);
@@ -149,7 +149,7 @@ namespace StingTools.Core.Calc
                 double t = (nHangers == 1) ? 0.5 : (double)i / (nHangers - 1);
                 XYZ pt;
                 try { pt = curve.Evaluate(t, true); }
-                catch { continue; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
 
                 var cand = new HangerCandidate
                 {
@@ -198,7 +198,7 @@ namespace StingTools.Core.Calc
                     return areaM2 * (runLengthMm / 1000.0) * 1000.0; // ρ_water = 1000 kg/m³
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
 
@@ -230,7 +230,7 @@ namespace StingTools.Core.Calc
                 double thkM = thkMm / 1000.0;
                 return Math.PI * dM * thkM * (runLengthMm / 1000.0) * 30.0;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
 
@@ -253,7 +253,7 @@ namespace StingTools.Core.Calc
                 double size = Math.Max(d1.Width, d1.Height) * FtToMm;
                 if (size <= 0)
                 {
-                    try { size = d1.Diameter * FtToMm; } catch { }
+                    try { size = d1.Diameter * FtToMm; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
                 string mat = ReadParam(d1, "HVC_DCT_MAT_TXT", "GI_SHEET").ToUpperInvariant();
                 return new HangerSpacingQuery
@@ -384,7 +384,7 @@ namespace StingTools.Core.Calc
                     _ => def,
                 };
             }
-            catch { return def; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return def; }
         }
     }
 }

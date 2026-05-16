@@ -38,7 +38,7 @@ namespace StingTools.Commands.DesignOptions
                 {
                     if (doc.GetElement(id) is View v && !v.IsTemplate) targets.Add(v);
                 }
-            } catch { }
+            } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             if (targets.Count == 0 && uidoc.ActiveView != null && !uidoc.ActiveView.IsTemplate)
                 targets.Add(uidoc.ActiveView);
 
@@ -112,7 +112,7 @@ namespace StingTools.Commands.DesignOptions
             {
                 foreach (var id in uidoc.Selection.GetElementIds())
                     if (doc.GetElement(id) is View v && !v.IsTemplate) targets.Add(v);
-            } catch { }
+            } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             if (targets.Count == 0 && uidoc.ActiveView != null && !uidoc.ActiveView.IsTemplate)
                 targets.Add(uidoc.ActiveView);
             if (targets.Count == 0) return Result.Cancelled;

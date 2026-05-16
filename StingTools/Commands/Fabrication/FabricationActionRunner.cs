@@ -99,8 +99,8 @@ namespace StingTools.Commands.Fabrication
             {
                 var el = doc.GetElement(id);
                 if (!(el is Autodesk.Revit.DB.Plumbing.Pipe p)) continue;
-                double diaFt; try { diaFt = p.Diameter; } catch { diaFt = 0; }
-                double lenFt; try { lenFt = ((p.Location as LocationCurve)?.Curve?.Length) ?? 0; } catch { lenFt = 0; }
+                double diaFt; try { diaFt = p.Diameter; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); diaFt = 0; }
+                double lenFt; try { lenFt = ((p.Location as LocationCurve)?.Curve?.Length) ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); lenFt = 0; }
                 rows.Add(new CutListRow
                 {
                     ElementId = id.Value,
@@ -170,7 +170,7 @@ namespace StingTools.Commands.Fabrication
             int n = 0;
             using (var w = new StreamWriter(path, false))
             {
-                try { Core.Branding.BrandTokens.StampCsvHeader(w, doc, "pipe_weld_map"); } catch { }
+                try { Core.Branding.BrandTokens.StampCsvHeader(w, doc, "pipe_weld_map"); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 w.WriteLine("element_id,category,name,weld_type,size_mm,schedule");
                 foreach (var r in rows.Where(r => r.Include))
                 {
@@ -253,7 +253,7 @@ namespace StingTools.Commands.Fabrication
                 return $"Incremental run: nothing changed ({groups.Count} groups up-to-date).";
             var keepIds = changed.SelectMany(g => g.Ids).Distinct().ToList();
             var res = FabricationEngine.GenerateFabricationPackage(doc, keepIds);
-            try { FabricationUndoManager.Record(doc, res); } catch { }
+            try { FabricationUndoManager.Record(doc, res); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             FabricationIncrementalTracker.RecordHashes(doc, changed);
             return $"Incremental: rebuilt {changed.Count} group(s), skipped {skipped} unchanged; " +
                    $"{res.AssemblyIds.Count} assemblies / {res.SheetIds.Count} sheets.";
@@ -287,7 +287,7 @@ namespace StingTools.Commands.Fabrication
                 .GroupBy(e =>
                 {
                     try { return (e as Autodesk.Revit.DB.Plumbing.Pipe)?.MEPSystem?.Name ?? "UNKNOWN"; }
-                    catch { return "UNKNOWN"; }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return "UNKNOWN"; }
                 })
                 .Select(g => new PcfSystemRow
                 {
@@ -400,7 +400,7 @@ namespace StingTools.Commands.Fabrication
         // ── Helpers ───────────────────────────────────────────
 
         private static string ReadString(Element el, string param)
-        { try { return el?.LookupParameter(param)?.AsString() ?? ""; } catch { return ""; } }
+        { try { return el?.LookupParameter(param)?.AsString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; } }
 
         private static string Csv(string s) => (s ?? "").Replace(',', ';').Replace('\n', ' ').Replace('\r', ' ');
 

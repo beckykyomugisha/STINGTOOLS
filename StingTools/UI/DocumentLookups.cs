@@ -123,7 +123,7 @@ namespace StingTools.UI
                         return f.FamilyCategory != null
                             && f.FamilyCategory.CategoryType == CategoryType.Annotation;
                     }
-                    catch { return false; }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
                 })
                 .Select(f => f.Name));
 

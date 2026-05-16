@@ -284,7 +284,7 @@ namespace StingTools.Commands.Symbols
                                 { fam = ff; break; }
                             }
                         }
-                        catch { fam = null; }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); fam = null; }
                         if (fam == null)
                         {
                             warnings.Add($"Connector audit: family '{id}' is not loaded — skipped.");
@@ -302,7 +302,7 @@ namespace StingTools.Commands.Symbols
                                     .OfClass(typeof(Autodesk.Revit.DB.ConnectorElement))
                                     .GetElementCount();
                             }
-                            finally { try { fdoc.Close(false); } catch { } }
+                            finally { try { fdoc.Close(false); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } }
                         }
                         catch (Exception ex) { warnings.Add($"Connector audit: '{id}' — open family failed: {ex.Message}"); continue; }
 

@@ -142,7 +142,7 @@ namespace StingTools.Commands.Fabrication
                 foreach (var f in fields)
                 {
                     string name = "";
-                    try { name = f.GetName(doc); } catch { continue; }
+                    try { name = f.GetName(doc); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                     if (string.Equals(name, paramName, StringComparison.OrdinalIgnoreCase))
                     {
                         sd.AddField(f);

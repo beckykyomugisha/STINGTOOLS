@@ -446,7 +446,7 @@ namespace StingTools.Commands.MepDesign
                                 else skipped++;
                             }
                         }
-                        catch { skipped++; }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); skipped++; }
                     }
                     tx.Commit();
                 }
@@ -475,7 +475,7 @@ namespace StingTools.Commands.MepDesign
             try { var p = el?.get_Parameter(bip);
                   if (p == null || p.StorageType != StorageType.Double) return 0;
                   return p.AsDouble(); }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
     }
 }

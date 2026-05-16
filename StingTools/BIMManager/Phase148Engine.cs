@@ -899,7 +899,7 @@ namespace StingTools.BIMManager
                 var p = el.get_Parameter(bip);
                 return p?.HasValue == true ? p.AsDouble() : 0.0;
             }
-            catch { return 0.0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0.0; }
         }
     }
 }
@@ -1259,7 +1259,7 @@ namespace StingTools.BIMManager
                 var p = el.get_Parameter(bip);
                 return p?.HasValue == true ? p.AsElementId() : ElementId.InvalidElementId;
             }
-            catch { return ElementId.InvalidElementId; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ElementId.InvalidElementId; }
         }
     }
 }

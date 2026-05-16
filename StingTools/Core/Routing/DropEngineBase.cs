@@ -250,7 +250,7 @@ namespace StingTools.Core.Routing
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return n;
         }
 
@@ -297,11 +297,11 @@ namespace StingTools.Core.Routing
                     if (prop != null) cm = prop.GetValue(el) as ConnectorManager;
                 }
             }
-            catch { cm = null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); cm = null; }
             if (cm == null) yield break;
 
             ConnectorSet set;
-            try { set = cm.Connectors; } catch { yield break; }
+            try { set = cm.Connectors; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); yield break; }
             if (set == null) yield break;
 
             foreach (Connector c in set)
@@ -323,12 +323,12 @@ namespace StingTools.Core.Routing
             foreach (var c in GetAllConnectors(el))
             {
                 bool isConnected;
-                try { isConnected = c.IsConnected; } catch { continue; }
+                try { isConnected = c.IsConnected; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                 if (isConnected) continue;
                 if (anyFree == null) anyFree = c;
                 if (ConnectorDomain == Domain.DomainUndefined) return c;
                 Domain d;
-                try { d = c.Domain; } catch { d = Domain.DomainUndefined; }
+                try { d = c.Domain; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); d = Domain.DomainUndefined; }
                 if (d == ConnectorDomain) return c;
             }
             return anyFree;
@@ -372,7 +372,7 @@ namespace StingTools.Core.Routing
                 // the documented "design-intent" connection path.
                 a.ConnectTo(b);
                 bool ok = false;
-                try { ok = a.IsConnected && b.IsConnected; } catch { ok = false; }
+                try { ok = a.IsConnected && b.IsConnected; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); ok = false; }
                 if (ok) result.ConnectedCount++;
                 return ok;
             }
@@ -480,18 +480,18 @@ namespace StingTools.Core.Routing
             foreach (var c in GetAllConnectors(el))
             {
                 bool connected;
-                try { connected = c.IsConnected; } catch { continue; }
+                try { connected = c.IsConnected; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                 if (connected) continue;
                 if (ConnectorDomain == Domain.DomainUndefined) { list.Add(c); continue; }
                 Domain d;
-                try { d = c.Domain; } catch { d = Domain.DomainUndefined; }
+                try { d = c.Domain; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); d = Domain.DomainUndefined; }
                 if (d == ConnectorDomain) list.Add(c);
             }
             // Stable order: by connector id so re-runs produce the same
             // sequence of drops (matters for SEQ-based naming downstream).
             list.Sort((a, b) =>
             {
-                try { return a.Id.CompareTo(b.Id); } catch { return 0; }
+                try { return a.Id.CompareTo(b.Id); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
             });
             return list;
         }
@@ -507,7 +507,7 @@ namespace StingTools.Core.Routing
         {
             if (fixtureEl == null || fxConn == null) return false;
             XYZ origin;
-            try { origin = fxConn.Origin; } catch { origin = null; }
+            try { origin = fxConn.Origin; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); origin = null; }
             if (origin == null && fixtureEl.Location is LocationPoint lp && lp.Point != null)
                 origin = lp.Point;
             if (origin == null) { result.SkippedCount++; return false; }
@@ -619,7 +619,7 @@ namespace StingTools.Core.Routing
             XYZ origin = null;
             if (fxConn != null)
             {
-                try { origin = fxConn.Origin; } catch { origin = null; }
+                try { origin = fxConn.Origin; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); origin = null; }
             }
             if (origin == null && fixtureEl.Location is LocationPoint lp && lp.Point != null)
                 origin = lp.Point;

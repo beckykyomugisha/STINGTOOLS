@@ -344,7 +344,7 @@ namespace StingTools.Core.Drawing
             if (doc == null || string.IsNullOrEmpty(dt?.ViewStylePackId)) return;
             ViewStylePack pack;
             try { pack = ViewStylePackRegistry.Get(doc, dt.ViewStylePackId); }
-            catch { return; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return; }
             if (pack == null || !pack.IsManaged) return;
 
             // PERF-05: prefer the per-batch snapshot when ValidateAll is the
@@ -362,7 +362,7 @@ namespace StingTools.Core.Drawing
                         $"Pack '{pack.Id}' is managed but no 'STING - ' seed templates exist; the syncer may fall back to a non-STING seed view.",
                         "Create at least one STING- prefixed template to seed managed templates from.");
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             if (!string.IsNullOrEmpty(pack.PhaseFilter))
             {
@@ -381,7 +381,7 @@ namespace StingTools.Core.Drawing
                             $"Pack '{pack.Id}' references PhaseFilter '{pack.PhaseFilter}' which does not exist.",
                             "Create the phase filter or update the pack.");
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
         }
 
@@ -397,7 +397,7 @@ namespace StingTools.Core.Drawing
                         string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase) ||
                         string.Equals(s.FamilyName, name, StringComparison.OrdinalIgnoreCase));
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         /// <summary>

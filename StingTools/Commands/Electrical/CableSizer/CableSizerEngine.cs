@@ -88,7 +88,7 @@ namespace StingTools.Commands.Electrical.CableSizer
                 var v = tables["correctionFactors"]?["installMethods"]?[method];
                 if (v != null) return v.Value<double>();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return method switch
             {
                 "A1" => 0.77, "A2" => 0.77, "B1" => 0.88, "B2" => 0.88,
@@ -106,7 +106,7 @@ namespace StingTools.Commands.Electrical.CableSizer
                 var v = tables["correctionFactors"]?["insulation"]?[insulation];
                 if (v != null) return v.Value<double>();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return insulation switch
             {
                 "PVC70" => 1.0, "XLPE90" => 1.18, "LSOH90" => 1.18,
@@ -258,7 +258,7 @@ namespace StingTools.Commands.Electrical.CableSizer
                 var v = tables["conduitInternalArea_mm2"]?[conduitKey];
                 if (v != null) conduitArea = v.Value<double>();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             double total = 0;
             foreach (var (csa, qty) in wires)
             {
@@ -300,7 +300,7 @@ namespace StingTools.Commands.Electrical.CableSizer
                 var v = tables?["wireOuterArea_mm2"]?[key];
                 if (v != null) return v.Value<double>();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             // Fallback: rough geometric approximation including insulation.
             return csaMm2 * 1.6 + 6.0;
         }

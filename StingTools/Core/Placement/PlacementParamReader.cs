@@ -41,7 +41,7 @@ namespace StingTools.Core.Placement
             var h = new PlacementHints();
             if (el == null) return h;
             Element type = null;
-            try { type = el.Document.GetElement(el.GetTypeId()); } catch { }
+            try { type = el.Document.GetElement(el.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             Element primary = type ?? el;
 
             h.HostType        = ReadString(primary, "PLACE_HOST_TYPE_TXT");
@@ -81,7 +81,7 @@ namespace StingTools.Core.Placement
         private static string ReadString(Element el, string name)
         {
             try { return el?.LookupParameter(name)?.AsString() ?? ""; }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
 
         private static double ReadLengthMm(Element el, string name)
@@ -104,14 +104,11 @@ namespace StingTools.Core.Placement
                         return UnitUtils.ConvertFromInternalUnits(
                             p.AsDouble(), UnitTypeId.Millimeters);
                     }
-                    catch
-                    {
-                        return p.AsDouble() * 304.8;
-                    }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return p.AsDouble() * 304.8; }
                 }
                 if (p.StorageType == StorageType.Integer) return p.AsInteger();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
 
@@ -124,7 +121,7 @@ namespace StingTools.Core.Placement
                 if (p.StorageType == StorageType.Double) return p.AsDouble();
                 if (p.StorageType == StorageType.Integer) return p.AsInteger();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
     }

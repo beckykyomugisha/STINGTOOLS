@@ -72,13 +72,13 @@ namespace StingTools.Commands.Electrical.Routing
                                     s.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_NUMBER)?.AsString() ?? "",
                                     cable.CircuitId, StringComparison.OrdinalIgnoreCase));
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         if (sys == null) continue;
 
                         Element loadEl = null;
                         Element panelEl = null;
-                        try { loadEl = sys.Elements?.Cast<Element>().FirstOrDefault(); } catch { }
-                        try { panelEl = sys.BaseEquipment; } catch { }
+                        try { loadEl = sys.Elements?.Cast<Element>().FirstOrDefault(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        try { panelEl = sys.BaseEquipment; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         if (loadEl == null || panelEl == null) continue;
 
                         var startPt = (loadEl.Location as LocationPoint)?.Point;
@@ -143,7 +143,7 @@ namespace StingTools.Commands.Electrical.Routing
                                                 System.Globalization.CultureInfo.InvariantCulture),
                                             overwrite: true);
                                     }
-                                    catch { }
+                                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                                     routeIds.Add(conduit.Id.Value);
                                 }
                             }
@@ -160,7 +160,7 @@ namespace StingTools.Commands.Electrical.Routing
                 tx.Commit();
             }
             try { manifest.Save(doc); } catch (Exception ex) { StingLog.Warn($"Manifest save: {ex.Message}"); }
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             // Wave F1 — junction box auto-placement. Runs BEFORE slab
             // penetration so any JB-induced split also gets penetration

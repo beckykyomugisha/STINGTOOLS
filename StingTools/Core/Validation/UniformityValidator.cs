@@ -96,7 +96,7 @@ namespace StingTools.Core.Validation
         {
             foreach (var r in rooms)
             {
-                try { if (r.IsPointInRoom(pt)) return r; } catch { }
+                try { if (r.IsPointInRoom(pt)) return r; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             return null;
         }
@@ -168,7 +168,7 @@ namespace StingTools.Core.Validation
                 if (p.StorageType == StorageType.Integer) return p.AsInteger();
                 if (p.StorageType == StorageType.String && double.TryParse(p.AsString(), out var d)) return d;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return fallback;
         }
     }

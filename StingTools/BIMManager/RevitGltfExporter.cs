@@ -142,7 +142,7 @@ namespace StingTools.BIMManager
                 if (c != null && _current != null)
                     _current.Rgb = new[] { (int)c.Red, (int)c.Green, (int)c.Blue };
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         public void OnPolymesh(PolymeshTopology poly)
@@ -378,7 +378,7 @@ namespace StingTools.BIMManager
                 if (r == 0 && g == 0 && b == 0) return new[] { 200, 200, 200 };
                 return new[] { r, g, b };
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         private static void Pad4(MemoryStream s, BinaryWriter w)

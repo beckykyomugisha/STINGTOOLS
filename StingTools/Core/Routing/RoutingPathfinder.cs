@@ -232,7 +232,7 @@ namespace StingTools.Core.Routing
                 if (p.StorageType == StorageType.String) return p.AsString();
                 if (p.StorageType == StorageType.Integer) return p.AsInteger() == 1 ? "ALLOW" : "DENY";
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
         }
     }

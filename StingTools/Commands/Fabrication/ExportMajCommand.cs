@@ -126,10 +126,7 @@ namespace StingTools.Commands.Fabrication
                     ? Path.Combine(projDir, "_BIM_COORD", "fab")
                     : Path.Combine(Path.GetTempPath(), "STING", "fab");
             }
-            catch
-            {
-                baseDir = Path.Combine(Path.GetTempPath(), "STING", "fab");
-            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); baseDir = Path.Combine(Path.GetTempPath(), "STING", "fab"); }
             string stamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
             return Path.Combine(baseDir, $"sting_fabjob_{stamp}.maj");
         }

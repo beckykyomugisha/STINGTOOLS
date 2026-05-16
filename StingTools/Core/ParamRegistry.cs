@@ -1214,7 +1214,7 @@ namespace StingTools.Core
                     else                                        resolved = TagMode.DC;
                 }
             }
-            catch { resolved = TagMode.DC; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); resolved = TagMode.DC; }
 
             _modeCache[key] = resolved;
             return resolved;
@@ -1275,7 +1275,7 @@ namespace StingTools.Core
                 }
                 if (p.StorageType == StorageType.Integer) return p.AsInteger() != 0;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
         }
 
@@ -1302,7 +1302,7 @@ namespace StingTools.Core
                     return true;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
         }
 
@@ -3144,7 +3144,7 @@ namespace StingTools.Core
                 _allowedGroupsSetCache = set;
                 return set;
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         /// <summary>

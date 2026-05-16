@@ -201,7 +201,7 @@ namespace StingTools.Core
                 var jo = Newtonsoft.Json.Linq.JObject.Parse(System.IO.File.ReadAllText(cfgPath));
                 return (string)jo["HANDOVER_MODE"];
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         private static bool ElementHasTag7(Element el)

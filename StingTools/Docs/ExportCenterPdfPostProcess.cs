@@ -173,7 +173,7 @@ namespace StingTools.Docs
                 var lvl = v?.GenLevel ?? null;
                 return lvl?.Name ?? "";
             }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
 
         private static string ResolveTemplate(string template, View v, string disc, string level)
@@ -204,7 +204,7 @@ namespace StingTools.Docs
                         Convert.ToByte(hex.Substring(4, 2), 16));
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return XColor.FromArgb(rDef, gDef, bDef);
         }
     }

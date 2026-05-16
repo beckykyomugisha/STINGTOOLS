@@ -88,7 +88,7 @@ namespace StingTools.Core.Drawing
         {
             if (string.IsNullOrWhiteSpace(packId)) return null;
             try { return ViewStylePackRegistry.Get(doc, packId); }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         /// <summary>
@@ -225,9 +225,9 @@ namespace StingTools.Core.Drawing
             {
                 if (_resolvedCache.ContainsKey(docKey)) _resolvedCache.Remove(docKey);
             }
-            try { DrawingTypePresentation.InvalidateViewTemplateCache(doc); } catch { }
-            try { DrawingTypePresentation.InvalidatePackCache(doc); }       catch { }
-            try { DrawingDriftDetector.InvalidateCache(doc); }              catch { }
+            try { DrawingTypePresentation.InvalidateViewTemplateCache(doc); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            try { DrawingTypePresentation.InvalidatePackCache(doc); }       catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            try { DrawingDriftDetector.InvalidateCache(doc); }              catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         public static IReadOnlyList<DrawingRoutingRule> ListRouting(Document doc)
@@ -654,7 +654,7 @@ namespace StingTools.Core.Drawing
         {
             if (doc == null) return "__null__";
             try { return string.IsNullOrEmpty(doc.PathName) ? doc.Title : doc.PathName; }
-            catch { return "__unknown__"; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return "__unknown__"; }
         }
     }
 }

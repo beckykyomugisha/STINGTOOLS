@@ -27,7 +27,9 @@ namespace StingTools.Core
 
         // PERF-R1: Static cached arrays to avoid per-element allocations in hot scan loop
         // DI-001 FIX: Use mutable field so separator refreshes on cache invalidation
-        private static string[] _separatorArray;
+        // volatile: ensures InvalidateCache()'s null write and the scan's local-capture read
+        // see a consistent view across threads without requiring a full lock on each scan iteration.
+        private static volatile string[] _separatorArray;
         private static readonly string[] _tokenKeys = { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };
 
         /// <summary>
@@ -777,7 +779,7 @@ namespace StingTools.Core
                 string p = ProjectFolderEngine.GetDataPath(doc, "compliance_trend.json");
                 if (!string.IsNullOrEmpty(p)) return p;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             if (doc == null || string.IsNullOrEmpty(doc.PathName)) return null;
             return System.IO.Path.ChangeExtension(doc.PathName, ".sting_compliance_trend.json");
         }

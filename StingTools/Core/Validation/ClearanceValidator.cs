@@ -153,12 +153,12 @@ namespace StingTools.Core.Validation
             try
             {
                 Element type = null;
-                try { type = el.Document.GetElement(el.GetTypeId()); } catch { }
+                try { type = el.Document.GetElement(el.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 double fromType = ReadLengthParam(type, paramName);
                 if (fromType > 0) return fromType;
                 return ReadLengthParam(el, paramName);
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         private static double ReadLengthParam(Element el, string paramName)
@@ -179,7 +179,7 @@ namespace StingTools.Core.Validation
                         System.Globalization.CultureInfo.InvariantCulture,
                         out double v)) return v;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
 

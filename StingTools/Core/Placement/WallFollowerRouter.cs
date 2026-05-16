@@ -267,7 +267,7 @@ namespace StingTools.Core.Placement
                 var first = new FilteredElementCollector(_doc).OfClass(t).FirstElementId();
                 return first ?? ElementId.InvalidElementId;
             }
-            catch { return ElementId.InvalidElementId; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ElementId.InvalidElementId; }
         }
 
         private ElementId ResolveSystemType(string segmentCategory)
@@ -284,7 +284,7 @@ namespace StingTools.Core.Placement
                 var first = new FilteredElementCollector(_doc).OfClass(t).FirstElementId();
                 return first ?? ElementId.InvalidElementId;
             }
-            catch { return ElementId.InvalidElementId; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ElementId.InvalidElementId; }
         }
 
         private void TryStampRouteRuleId(ElementId id, string ruleId)

@@ -160,7 +160,7 @@ namespace StingTools.Core.Calc
                     sys.Contains("FOUL"))
                     return true;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
         }
 
@@ -309,7 +309,7 @@ namespace StingTools.Core.Calc
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
         }
     }

@@ -147,14 +147,14 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                         {
                             StingLog.Error($"Create circuit {proposal.ProposedLabel}: {ex.Message}", ex);
                             failed.Add($"{proposal.ProposedLabel}: {ex.Message}");
-                            try { if (tx.HasStarted()) tx.RollBack(); } catch { }
+                            try { if (tx.HasStarted()) tx.RollBack(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         }
                     }
                 }
                 tg.Assimilate();
             }
 
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             string failTail = failed.Count == 0
                 ? ""
                 : "\n\nFailed:\n  " + string.Join("\n  ", failed.Take(8))

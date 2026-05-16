@@ -32,10 +32,7 @@ namespace StingTools.Core
             {
                 return (GetAsyncKeyState(VK_ESCAPE) & 0x8001) != 0;
             }
-            catch
-            {
-                return false;
-            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
     }
 
@@ -205,8 +202,8 @@ namespace StingTools.Core
                         {
                             // Rotate: rename current to .old (overwrite previous .old)
                             string oldPath = path + ".old";
-                            try { if (File.Exists(oldPath)) File.Delete(oldPath); } catch { }
-                            try { File.Move(path, oldPath); } catch { }
+                            try { if (File.Exists(oldPath)) File.Delete(oldPath); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                            try { File.Move(path, oldPath); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         }
                     }
                 }
@@ -239,7 +236,7 @@ namespace StingTools.Core
         {
             lock (Lock)
             {
-                try { _writer?.Flush(); } catch { } // LG-07: Final flush before shutdown
+                try { _writer?.Flush(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } // LG-07: Final flush before shutdown
                 DisposeWriter();
             }
         }

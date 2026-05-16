@@ -48,7 +48,7 @@ namespace StingTools.Commands.Electrical.Export
                 .ToList();
 
             string outDir = OutputLocationHelper.GetOutputDirectory(doc);
-            try { outDir = Path.Combine(outDir, "electrical"); Directory.CreateDirectory(outDir); } catch { }
+            try { outDir = Path.Combine(outDir, "electrical"); Directory.CreateDirectory(outDir); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             string outPath = Path.Combine(outDir, $"STING_DIALux_{DateTime.Now:yyyyMMdd-HHmm}.ifc");
 
             var lines = new List<string>
@@ -145,7 +145,7 @@ namespace StingTools.Commands.Electrical.Export
             double watts = ParseDouble(ParameterHelpers.GetString(symbol ?? fix, ParamRegistry.ELC_PHOTO_WATTS));
             if (watts <= 0) watts = ParseDouble(ParameterHelpers.GetString(fix, ParamRegistry.LTG_WATTAGE));
             if (watts <= 0)
-                try { watts = fix.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD)?.AsDouble() ?? 0; } catch { }
+                try { watts = fix.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD)?.AsDouble() ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             double lumens = ParseDouble(ParameterHelpers.GetString(symbol ?? fix, ParamRegistry.ELC_PHOTO_LUMENS));
             if (lumens <= 0) lumens = ParseDouble(ParameterHelpers.GetString(fix, ParamRegistry.LTG_LUMENS));
@@ -213,7 +213,7 @@ namespace StingTools.Commands.Electrical.Export
                 return Newtonsoft.Json.JsonConvert.DeserializeObject<List<RoundTripEntry>>(
                     File.ReadAllText(logPath)) ?? new List<RoundTripEntry>();
             }
-            catch { return new List<RoundTripEntry>(); }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return new List<RoundTripEntry>(); }
         }
 
         public static string ResolveLogPath(Document doc)
@@ -226,7 +226,7 @@ namespace StingTools.Commands.Electrical.Export
                     : Path.GetDirectoryName(projectFile);
                 return Path.Combine(projectDir ?? "", "_BIM_COORD", "dialux_roundtrips.json");
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         // ── helpers ─────────────────────────────────────────────────────

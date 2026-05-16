@@ -670,7 +670,7 @@ namespace StingTools.UI
             {
                 foreach (Phase p in _doc.Phases) phase.Items.Add(p.Name);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             phase.SelectedIndex = 0;
             phase.SelectionChanged += (_, __) =>
                 _profile.Ifc.PhaseName = phase.SelectedIndex == 0 ? null : phase.SelectedItem?.ToString();
@@ -1068,7 +1068,7 @@ namespace StingTools.UI
                         || (r.PaperSize ?? "").IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0;
                 };
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         private void ApplySavedSetSelection()
@@ -1124,7 +1124,7 @@ namespace StingTools.UI
                     ? (Brush)new BrushConverter().ConvertFromString("#1F2A3A")
                     : Brushes.DarkOrange;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         // ── Header button handlers ──────────────────────────────────────────────
@@ -1321,7 +1321,7 @@ namespace StingTools.UI
                     !string.IsNullOrEmpty(_profile.Output.LocalFolder) &&
                     Directory.Exists(_profile.Output.LocalFolder))
                 {
-                    try { System.Diagnostics.Process.Start("explorer.exe", _profile.Output.LocalFolder); } catch { }
+                    try { System.Diagnostics.Process.Start("explorer.exe", _profile.Output.LocalFolder); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
             }
             finally
@@ -1438,7 +1438,7 @@ namespace StingTools.UI
                         row.Revision = r.SequenceNumber.ToString();
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             // Paper size — heuristic: read sheet's title block instance width.
             try
@@ -1453,7 +1453,7 @@ namespace StingTools.UI
                     row.PaperSize = ClassifyPaperSize(w, h);
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             // CDE — read STING_CDE_STATE_TXT if present, else "-"
             try
@@ -1461,7 +1461,7 @@ namespace StingTools.UI
                 var p = s.LookupParameter("STING_CDE_STATE_TXT");
                 row.CdeStatus = p != null && p.HasValue ? p.AsString() : "-";
             }
-            catch { row.CdeStatus = "-"; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); row.CdeStatus = "-"; }
 
             return row;
         }

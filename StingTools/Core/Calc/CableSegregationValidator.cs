@@ -97,7 +97,7 @@ namespace StingTools.Core.Calc
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             // Heuristic classification.
             try
@@ -115,7 +115,7 @@ namespace StingTools.Core.Calc
                 if (sysName.Contains("POWER") ||
                     sysName.Contains("LIGHT"))              return CableSegClass.Power;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return CableSegClass.Unknown;
         }
 
@@ -248,14 +248,14 @@ namespace StingTools.Core.Calc
             {
                 double t = i / (double)samples;
                 XYZ pa;
-                try { pa = a.Evaluate(t, true); } catch { continue; }
+                try { pa = a.Evaluate(t, true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                 double d;
                 try
                 {
                     var proj = b.Project(pa);
                     d = proj?.XYZPoint?.DistanceTo(pa) ?? double.MaxValue;
                 }
-                catch { continue; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                 if (d < best) best = d;
             }
             return best;
