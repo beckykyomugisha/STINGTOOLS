@@ -117,7 +117,7 @@ public class XbimIfcIngester : IIfcIngester
 
                     foreach (var prop in pset.HasProperties.OfType<IIfcPropertySingleValue>())
                     {
-                        var pname = prop.Name.Value;
+                        var pname = prop.Name.Value?.ToString();
                         if (string.IsNullOrEmpty(pname)) continue;
                         var pvalue = prop.NominalValue?.Value?.ToString();
                         if (pvalue == null) continue;
@@ -137,7 +137,7 @@ public class XbimIfcIngester : IIfcIngester
                     var qsetName = qset.Name?.Value as string ?? "BaseQuantities";
                     foreach (var qty in qset.Quantities.OfType<IIfcPhysicalSimpleQuantity>())
                     {
-                        var qname = qty.Name.Value;
+                        var qname = qty.Name.Value?.ToString();
                         if (string.IsNullOrEmpty(qname)) continue;
 
                         // Extract the numeric value from whichever quantity sub-type
