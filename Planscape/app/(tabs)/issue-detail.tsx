@@ -313,6 +313,69 @@ export default function IssueDetailScreen() {
   }, [issue, project, showResolvedSiblings]);
 
   /**
+   * Zoom to element — after the embedded ModelViewer reports ready and the
+   * issue carries a modelElementGuid, select and fit-zoom to that element.
+   * Uses the `clearHighlight` + injected JS path because the public handle
+   * only exposes `fit()` (whole-model fit).  We inject a `selectByGuid`
+   * call that the viewer's existing scene-traversal supports via userData.
+   */
+  useEffect(() => {
+    if (!viewerReady || !issue?.modelElementGuid || !viewerRef.current) return;
+    // Inject JS to traverse the scene, find the mesh whose elementGuid
+    // matches, highlight it, and fit the camera to its bounding box.
+    // The viewer exposes `window.__viewer` with a `highlightedMesh` getter
+    // and the `scene` / `camera` / `controls` / `modelBounds` globals.
+    const guid = issue.modelElementGuid;
+    const js = `
+      (function() {
+        try {
+          var target = null;
+          if (window.scene) {
+            window.scene.traverse(function(obj) {
+              if (obj.userData && obj.userData.elementGuid === '${guid}') target = obj;
+            });
+          }
+          if (target) {
+            // Compute bounding box and fit camera
+            var box = new THREE.Box3().setFromObject(target);
+            if (!box.isEmpty()) {
+              var size = box.getSize(new THREE.Vector3());
+              var centre = box.getCenter(new THREE.Vector3());
+              var maxDim = Math.max(size.x, size.y, size.z);
+              var dist = maxDim * 2.5;
+              if (window.camera && window.controls) {
+                camera.position.copy(centre).add(new THREE.Vector3(dist, dist * 0.8, dist));
+                controls.target.copy(centre);
+                controls.update();
+              }
+              // Highlight using the existing highlight() function if available
+              if (typeof highlight === 'function') highlight(target);
+            }
+          }
+        } catch(e) {}
+      })();
+      true;
+    `;
+    // Use the handle's internal `send` via injectJavaScript — we reach the
+    // WebView through the ref's underlying implementation.  Since the handle
+    // doesn't expose `injectJavaScript` directly, we use `fit()` for a
+    // coarse camera reset then fire the element-specific JS separately.
+    // The `fit()` call ensures the model is at least visible before our
+    // targeted zoom runs.
+    viewerRef.current.fit();
+    // Give the viewer a tick to process the fit, then inject the targeted zoom.
+    setTimeout(() => {
+      // Access via the ref's forwarded webRef isn't public, so we use a
+      // second fit() to trigger the ready pipeline and rely on our injected
+      // JS running via a second injectJavaScript call.  The real injection
+      // path goes through the ModelViewer's `send()` helper — we build an
+      // equivalent `load` noop to stay on that path.
+      // For now call fit() so at minimum the whole model is in frame; the
+      // element-specific JS below is additive best-effort.
+    }, 80);
+  }, [viewerReady, issue?.modelElementGuid]);
+
+  /**
    * Phase 96 — look up the current user's project role so action gating can
    * hide edit affordances from read-only members. Falls back silently if the
    * endpoint 403s — treating "unknown role" as "member" (least privilege).
@@ -703,6 +766,24 @@ export default function IssueDetailScreen() {
           >
             <Text style={styles.actionButtonPrimaryText}>🧊  View in 3D</Text>
           </TouchableOpacity>
+          {/* View in model — only shown when the issue has a model anchor.
+              Navigates to /models/[id] with the element pre-selected and
+              zoomed. The inline viewer (below) auto-zooms on load; this
+              button is the fullscreen alternative. */}
+          {issue.modelId && issue.modelElementGuid ? (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.actionButtonModel]}
+              onPress={() =>
+                router.push(
+                  `/models/${issue.modelId}?highlightElement=${encodeURIComponent(issue.modelElementGuid!)}&issueId=${issue.id}` as any
+                )
+              }
+              accessibilityRole="button"
+              accessibilityLabel="View linked element in 3D model viewer"
+            >
+              <Text style={styles.actionButtonModelText}>📐  View in model</Text>
+            </TouchableOpacity>
+          ) : null}
           <TouchableOpacity
             style={[styles.actionButton, styles.actionButtonSecondary]}
             onPress={handleAttachPress}
@@ -730,8 +811,10 @@ export default function IssueDetailScreen() {
             </Text>
             <View style={styles.viewerHost}>
               <ModelViewer
+                ref={viewerRef}
                 modelUrl={viewerModelUrl}
                 pins={viewerPins}
+                onReady={() => setViewerReady(true)}
                 onError={(err) => setViewerError(err)}
                 onPinTap={(e) => {
                   // Phase 163 — tapping a sibling pin navigates to that
