@@ -213,8 +213,7 @@ namespace StingTools.UI
                     /* fresh snapshot will run after Dispatch */
                     break;
                 case "SLD_Export":
-                    TryRunByTypeName("StingTools.Commands.SLD.SLDExportCommand", app);
-                    break;
+                    TaskDialog.Show("STING SLD", "SLD export is not yet implemented."); break;
                 case "SLD_ZoomTo":
                     ZoomToSelectedSld(app, doc);
                     break;

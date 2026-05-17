@@ -70,7 +70,8 @@ namespace StingTools.Commands.SLD
                     double x = vertical ? j * (boxW + hSpacing) : i * (boxW + hSpacing);
                     double y = vertical ? -i * (boxH + vSpacing) : -j * (boxH + vSpacing);
                     var node = col[j];
-                    if (node.ElementId != null) positions[node.ElementId.Value] = new XYZ(x, y, 0);
+                    if (node.ElementId != null && node.ElementId != ElementId.InvalidElementId)
+                        positions[node.ElementId.Value] = new XYZ(x, y, 0);
                     DrawBox(doc, view, x, y, boxW, boxH, node, opts);
                 }
             }
@@ -127,6 +128,12 @@ namespace StingTools.Commands.SLD
             StingTools.Core.SLD.SLDNode root, Dictionary<long, XYZ> positions,
             double boxW, double boxH)
         {
+            // Resolve TextNoteType once for CSA labels
+            var ts = (opts.ShowFeederCsa)
+                ? new FilteredElementCollector(doc)
+                      .OfClass(typeof(TextNoteType)).Cast<TextNoteType>().FirstOrDefault()
+                : null;
+
             void Walk(StingTools.Core.SLD.SLDNode n)
             {
                 if (n == null) return;
@@ -135,13 +142,33 @@ namespace StingTools.Commands.SLD
                     try
                     {
                         if (n.ElementId != null && c.ElementId != null
+                            && n.ElementId != ElementId.InvalidElementId
+                            && c.ElementId != ElementId.InvalidElementId
                             && positions.TryGetValue(n.ElementId.Value, out var pa)
                             && positions.TryGetValue(c.ElementId.Value, out var pb))
                         {
                             var start = new XYZ(pa.X + boxW, pa.Y + boxH / 2, 0);
                             var end   = new XYZ(pb.X,        pb.Y + boxH / 2, 0);
                             if (start.DistanceTo(end) > 1e-6)
+                            {
                                 doc.Create.NewDetailCurve(view, Line.CreateBound(start, end));
+
+                                // SLD-11: annotate feeder cable CSA on the connection line
+                                if (opts.ShowFeederCsa && c.RevitElement != null && ts != null)
+                                {
+                                    string csa = ParameterHelpers.GetString(
+                                        c.RevitElement, ParamRegistry.ELC_CKT_CSA_MM2);
+                                    if (string.IsNullOrEmpty(csa))
+                                        csa = ParameterHelpers.GetString(c.RevitElement, "ELC_CDT_CSA_MM2");
+                                    if (!string.IsNullOrEmpty(csa))
+                                    {
+                                        // Place label mid-line, slightly above
+                                        double mx = (start.X + end.X) * 0.5;
+                                        double my = (start.Y + end.Y) * 0.5 + boxH * 0.08;
+                                        TextNote.Create(doc, view.Id, new XYZ(mx, my, 0), csa, ts.Id);
+                                    }
+                                }
+                            }
                         }
                     }
                     catch (Exception ex) { StingLog.Warn($"DrawFeeder: {ex.Message}"); }

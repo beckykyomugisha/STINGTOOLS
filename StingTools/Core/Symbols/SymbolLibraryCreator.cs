@@ -33,14 +33,45 @@ using StingTools.Core;
 
 namespace StingTools.Core.Symbols
 {
+    /// <summary>
+    /// Controls which seeds the builder will (re-)create when
+    /// CreateAllFromFile is called.
+    /// </summary>
+    public enum SeedRebuildMode
+    {
+        /// <summary>
+        /// Default safe mode: skip any seed whose .rfa already exists on
+        /// disk or whose .sting-finalized sidecar is present. This protects
+        /// hand-polished families from accidental regeneration.
+        /// </summary>
+        MissingOnly,
+
+        /// <summary>
+        /// Regenerate every seed whose .sting-finalized sidecar is absent,
+        /// regardless of whether the .rfa file exists. Use after editing a
+        /// JSON spec to pick up parameter or variant changes without
+        /// destroying finalised families.
+        /// </summary>
+        RebuildUnfinalized,
+
+        /// <summary>
+        /// Regenerate ALL seeds including those marked as finalised. Only
+        /// use when intentionally discarding manual polish (e.g. the JSON
+        /// spec has a breaking change that requires a full rebuild). The
+        /// command prompts the user to confirm before entering this mode.
+        /// </summary>
+        RebuildAll,
+    }
+
     /// <summary>Aggregate result of a CreateAllFromFile run.</summary>
     public sealed class SymbolCreationResult
     {
-        public int Created { get; set; }
-        public int Existed { get; set; }
-        public int Failed { get; set; }
+        public int Created   { get; set; }
+        public int Existed   { get; set; }
+        public int Failed    { get; set; }
+        public int Protected { get; set; }
         public List<string> Warnings { get; } = new List<string>();
-        public List<string> Errors { get; } = new List<string>();
+        public List<string> Errors   { get; } = new List<string>();
         public List<string> CreatedRfaPaths { get; } = new List<string>();
     }
 
@@ -83,7 +114,8 @@ namespace StingTools.Core.Symbols
             Document hostDoc,
             string jsonPath,
             string outputFolder,
-            bool loadIntoProject)
+            bool loadIntoProject,
+            SeedRebuildMode rebuildMode = SeedRebuildMode.MissingOnly)
         {
             var result = new SymbolCreationResult();
             if (!File.Exists(jsonPath))
@@ -139,15 +171,61 @@ namespace StingTools.Core.Symbols
                     continue;
                 }
 
-                var rfaPath = Path.Combine(outputFolder, def.Id + ".rfa");
-                if (File.Exists(rfaPath))
+                var rfaPath   = Path.Combine(outputFolder, def.Id + ".rfa");
+                bool exists   = File.Exists(rfaPath);
+                bool finalized = IsFinalized(rfaPath);
+
+                // Protection decision ────────────────────────────────────────
+                // RebuildAll: skip only if the JSON spec itself says protect.
+                // RebuildUnfinalized: skip if finalised sidecar is present.
+                // MissingOnly (default): skip if .rfa exists (original behaviour).
+                bool skip = false;
+                if (rebuildMode == SeedRebuildMode.RebuildAll)
                 {
-                    result.Existed++;
-                    result.CreatedRfaPaths.Add(rfaPath);
-                    if (loadIntoProject) TryLoadFamily(hostDoc, rfaPath, result);
+                    if (def.ProtectExisting && exists)
+                    {
+                        result.Protected++;
+                        result.Warnings.Add($"{def.Id}: protectExisting=true — skipped even in RebuildAll mode.");
+                        skip = true;
+                    }
+                }
+                else if (rebuildMode == SeedRebuildMode.RebuildUnfinalized)
+                {
+                    if (finalized)
+                    {
+                        result.Protected++;
+                        result.Warnings.Add($"{def.Id}: .sting-finalized sidecar present — skipped.");
+                        skip = true;
+                    }
+                    else if (def.ProtectExisting && exists)
+                    {
+                        result.Protected++;
+                        result.Warnings.Add($"{def.Id}: protectExisting=true in JSON spec — skipped even in RebuildUnfinalized mode. Remove the flag or use RebuildAll to force.");
+                        skip = true;
+                    }
+                }
+                else // MissingOnly
+                {
+                    if (exists)
+                    {
+                        result.Existed++;
+                        result.CreatedRfaPaths.Add(rfaPath);
+                        if (loadIntoProject) TryLoadFamily(hostDoc, rfaPath, result);
+                        continue;
+                    }
+                }
+
+                if (skip)
+                {
+                    if (exists)
+                    {
+                        result.CreatedRfaPaths.Add(rfaPath);
+                        if (loadIntoProject) TryLoadFamily(hostDoc, rfaPath, result);
+                    }
                     continue;
                 }
 
+                // Build ───────────────────────────────────────────────────────
                 try
                 {
                     string built = BuildOne(app, def, outputFolder, templateFolder, std, result);
@@ -171,6 +249,170 @@ namespace StingTools.Core.Symbols
             }
 
             return result;
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // Sidecar helpers — finalization protection
+        // ─────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Returns the path of the .sting-finalized sidecar file that sits
+        /// alongside an .rfa. The sidecar's presence signals that the family
+        /// has been hand-polished and must not be regenerated.
+        /// </summary>
+        public static string GetSidecarPath(string rfaPath)
+            => rfaPath + ".sting-finalized";
+
+        /// <summary>Returns true if the .sting-finalized sidecar exists.</summary>
+        public static bool IsFinalized(string rfaPath)
+        {
+            try { return File.Exists(GetSidecarPath(rfaPath)); }
+            catch { return false; }
+        }
+
+        /// <summary>
+        /// Writes the .sting-finalized sidecar so future rebuild runs skip
+        /// this seed. Records the timestamp and a human note in the file
+        /// content for auditability.
+        /// </summary>
+        public static void MarkFinalized(string rfaPath, string note = null)
+        {
+            try
+            {
+                string content = $"Finalized: {DateTime.UtcNow:yyyy-MM-ddTHH:mm:ssZ}\n" +
+                                 $"Family: {Path.GetFileName(rfaPath)}\n" +
+                                 (string.IsNullOrEmpty(note) ? "" : $"Note: {note}\n");
+                File.WriteAllText(GetSidecarPath(rfaPath), content);
+            }
+            catch (Exception ex) { StingLog.Warn($"MarkFinalized {rfaPath}: {ex.Message}"); }
+        }
+
+        /// <summary>Removes the .sting-finalized sidecar, allowing future rebuilds.</summary>
+        public static void ClearFinalized(string rfaPath)
+        {
+            try
+            {
+                string sidecar = GetSidecarPath(rfaPath);
+                if (File.Exists(sidecar)) File.Delete(sidecar);
+            }
+            catch (Exception ex) { StingLog.Warn($"ClearFinalized {rfaPath}: {ex.Message}"); }
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // Source-family augmentation path (Option A)
+        // ─────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Resolves a sourceFamilyPath value from a JSON spec against the
+        /// spec file's directory and the Data/Seeds/Families/ subfolder.
+        /// Returns null when the path is empty or no file is found.
+        /// </summary>
+        private static string ResolveSourceFamilyPath(string declared, string jsonPath)
+        {
+            if (string.IsNullOrWhiteSpace(declared)) return null;
+            try
+            {
+                // 1. Absolute path
+                if (Path.IsPathRooted(declared) && File.Exists(declared)) return declared;
+                // 2. Relative to the JSON spec's directory
+                string specDir = Path.GetDirectoryName(jsonPath) ?? "";
+                string rel1 = Path.Combine(specDir, declared);
+                if (File.Exists(rel1)) return rel1;
+                // 3. Relative to Data/Seeds/ via StingToolsApp
+                string dataPath = StingTools.Core.StingToolsApp.DataPath ?? "";
+                string rel2 = Path.Combine(dataPath, declared);
+                if (File.Exists(rel2)) return rel2;
+                string rel3 = Path.Combine(dataPath, "Seeds", declared);
+                if (File.Exists(rel3)) return rel3;
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveSourceFamilyPath: {ex.Message}"); }
+            return null;
+        }
+
+        /// <summary>
+        /// Opens an existing finished .rfa, injects the STING parameter
+        /// scheme declared in <paramref name="def"/>, stamps the seed
+        /// identity, mints any missing type variants, and saves to the
+        /// seed output folder. Geometry generation is skipped — the
+        /// imported family supplies its own 2D/3D content.
+        /// </summary>
+        private static string BuildFromSourceFamily(Application app, Document hostDoc,
+            SymbolDefinition def, string sourcePath, string outputFolder, SymbolCreationResult result)
+        {
+            string outPath = Path.Combine(outputFolder, def.Id + ".rfa");
+            Document fdoc = null;
+            try
+            {
+                // Open the source .rfa in the family editor.
+                // Application.OpenDocumentFile opens any file including .rfa.
+                fdoc = app.OpenDocumentFile(sourcePath);
+                if (fdoc == null || !fdoc.IsFamilyDocument)
+                {
+                    result.Warnings.Add($"{def.Id}: sourceFamilyPath '{sourcePath}' did not open as a family document — falling back to generate-from-scratch.");
+                    return null;
+                }
+
+                // Validate category compatibility (warn, don't abort).
+                try
+                {
+                    string srcCat = fdoc.OwnerFamily?.FamilyCategory?.Name ?? "";
+                    if (!string.IsNullOrEmpty(def.Category) && !string.IsNullOrEmpty(srcCat)
+                        && !string.Equals(srcCat, def.Category, StringComparison.OrdinalIgnoreCase))
+                    {
+                        result.Warnings.Add($"{def.Id}: source family category '{srcCat}' differs from spec '{def.Category}' — parameters injected, verify in Family Editor.");
+                    }
+                }
+                catch (Exception ex) { result.Warnings.Add($"{def.Id}: category check failed — {ex.Message}"); }
+
+                using (var tx = new Transaction(fdoc, "STING Augment Source Family"))
+                {
+                    tx.Start();
+
+                    // Inject STING shared parameters declared in the spec.
+                    // AddParameters is idempotent — skips params already present.
+                    AddParameters(fdoc, def, result);
+
+                    // Connector injection: add any connectors declared in the
+                    // spec that don't already exist in the source family.
+                    bool hasSpecConnectors = (def.Connectors != null && def.Connectors.Count > 0)
+                        || (def.TypeVariants != null && def.TypeVariants.Exists(v => v?.Connectors?.Count > 0));
+                    if (hasSpecConnectors
+                        && !string.Equals(def.FamilyType, "GenericAnnotation", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Only add connectors that aren't already in the family.
+                        int existingCount = new FilteredElementCollector(fdoc)
+                            .OfClass(typeof(ConnectorElement))
+                            .GetElementCount();
+                        if (existingCount == 0)
+                            AddConnectors(fdoc, def, result);
+                        else
+                            result.Warnings.Add($"{def.Id}: source family already has {existingCount} connector(s) — spec connectors not added. Verify in Family Editor.");
+                    }
+
+                    // Seed stamp + type variant injection.
+                    if (def.IsSeed) TryAddSeedMarker(fdoc, def);
+                    if (def.TypeVariants != null && def.TypeVariants.Count > 0)
+                        AddTypeVariants(fdoc, def, result);
+                    if (def.FormulaBindings != null && def.FormulaBindings.Count > 0)
+                        AddFormulaBindings(fdoc, def, result);
+
+                    tx.Commit();
+                }
+
+                var saveAs = new SaveAsOptions { OverwriteExistingFile = true };
+                fdoc.SaveAs(outPath, saveAs);
+                result.Warnings.Add($"{def.Id}: built from source family '{Path.GetFileName(sourcePath)}'.");
+                return outPath;
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"{def.Id}: BuildFromSourceFamily failed ({ex.Message}) — falling back to generate-from-scratch.");
+                return null;
+            }
+            finally
+            {
+                try { fdoc?.Close(false); } catch (Exception ex) { StingLog.Warn($"BuildFromSourceFamily close {def.Id}: {ex.Message}"); }
+            }
         }
 
         // ─────────────────────────────────────────────────────────────────
@@ -433,7 +675,12 @@ namespace StingTools.Core.Symbols
                 XYZ p2 = new XYZ(Scale(l.X2, symMm), Scale(l.Y2, symMm), 0);
                 if (p1.DistanceTo(p2) < 1e-6) return;
                 Line line = Line.CreateBound(p1, p2);
-                if (fdoc.IsFamilyDocument)
+                // TODO-VERIFY-API: NewSymbolicCurve for family annotation; falls back to NewDetailCurve.
+                DetailCurve dc = fdoc.IsFamilyDocument
+                    ? fdoc.FamilyCreate.NewDetailCurve(view, line)
+                    : fdoc.Create.NewDetailCurve(view, line);
+                // Apply the declared line style when the JSON spec names one.
+                if (dc != null && !string.IsNullOrWhiteSpace(l.Style))
                 {
                     // Fix 1a — GenericAnnotation families use NewSymbolicCurve;
                     // model families use NewModelCurve.
@@ -580,9 +827,7 @@ namespace StingTools.Core.Symbols
                 if (curves.Count < 3) return;
 
                 var loop = CurveLoop.Create(curves);
-                ElementId frTypeId = new FilteredElementCollector(fdoc)
-                    .OfClass(typeof(FilledRegionType))
-                    .FirstElementId();
+                ElementId frTypeId = ResolveFilledRegionType(fdoc, fr.FillType);
                 if (frTypeId == ElementId.InvalidElementId)
                 {
                     result.Warnings.Add($"{id}: no FilledRegionType in template.");
@@ -900,6 +1145,7 @@ namespace StingTools.Core.Symbols
             if (!fdoc.IsFamilyDocument) return;
             var fm = fdoc.FamilyManager;
 
+            // Pass 1 — add any parameters not already present.
             foreach (var p in def.Parameters)
             {
                 if (string.IsNullOrWhiteSpace(p?.Name)) continue;
@@ -910,11 +1156,39 @@ namespace StingTools.Core.Symbols
                     // Fix 1b — GroupTypeId is correct; SpecTypeId usage verified for 2025.
                     var groupTypeId = GroupTypeId.IdentityData;
                     var specTypeId  = ResolveSpecTypeId(p.Type);
+
+                    // When the JSON spec marks a parameter as shared, look it up
+                    // in MR_PARAMETERS.txt and add it as an ExternallyDefinedParameter
+                    // so the instance matches the shared-parameter GUID required by
+                    // tag families and the COBie/ISO 19650 schedule filters.
+                    // Falls back to a plain project parameter when not found in the file.
+                    if (p.IsShared && TryAddSharedParameter(fdoc, fm, p, groupTypeId, result, def.Id))
+                        continue;
+
                     fm.AddParameter(p.Name, groupTypeId, specTypeId, p.IsInstance);
                 }
                 catch (Exception ex)
                 {
                     result.Warnings.Add($"{def.Id}: param '{p.Name}' add failed — {ex.Message}");
+                }
+            }
+
+            // Pass 2 — apply "default" values declared in the JSON on the seed
+            // (template) type. AddTypeVariants duplicates from this type, so
+            // defaults propagate automatically; per-variant overrides applied
+            // later in SetVariantParam win over these seeds.
+            foreach (var p in def.Parameters)
+            {
+                if (string.IsNullOrWhiteSpace(p?.Name) || p.Default == null) continue;
+                try
+                {
+                    var fp = fm.get_Parameter(p.Name);
+                    if (fp != null && !fp.IsReadOnly && fm.CurrentType != null)
+                        SetVariantParam(fm, fp, p.Default);
+                }
+                catch (Exception ex)
+                {
+                    result.Warnings.Add($"{def.Id}: param '{p.Name}' default failed — {ex.Message}");
                 }
             }
         }

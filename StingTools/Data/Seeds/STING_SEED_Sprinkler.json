@@ -1,6 +1,11 @@
 {
   "version": "1.0",
   "standard": "STING SEED FAMILY — Sprinklers (BS EN 12845, BS 9251, LPC Rules)",
+  "_notes": [
+    "10 type variants: pendant (standard / residential / extended-coverage /",
+    "fast-response), upright, sidewall, concealed, high-temp 93C,",
+    "attic head (upright-style for warm roof voids), open head deluge."
+  ],
   "symbols": [
     {
       "id": "STING_SEED_Sprinkler",
@@ -10,6 +15,7 @@
       "discipline": "FireProtection",
       "subcategory": "STING_SEED",
       "isSeed": true,
+      "protectExisting": true,
       "hosting": "CeilingBased",
       "symbolSize": 4.0,
       "parameters": [
@@ -62,6 +68,13 @@
           "default": "PENDANT"
         },
         {
+          "name": "FLS_SPR_RESPONSE_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "STANDARD"
+        },
+        {
           "name": "FLS_SPR_K_FACTOR",
           "type": "Text",
           "shared": true,
@@ -105,39 +118,13 @@
       ],
       "geometry": {
         "arcs": [
-          {
-            "cx": 0,
-            "cy": 0,
-            "r": 0.4,
-            "startDeg": 0,
-            "endDeg": 360
-          }
+          { "cx": 0, "cy": 0, "r": 0.4, "startDeg": 0, "endDeg": 360 }
         ],
         "lines": [
-          {
-            "x1": -0.5,
-            "y1": 0.0,
-            "x2": -0.4,
-            "y2": 0.0
-          },
-          {
-            "x1": 0.4,
-            "y1": 0.0,
-            "x2": 0.5,
-            "y2": 0.0
-          },
-          {
-            "x1": 0.0,
-            "y1": -0.5,
-            "x2": 0.0,
-            "y2": -0.4
-          },
-          {
-            "x1": 0.0,
-            "y1": 0.4,
-            "x2": 0.0,
-            "y2": 0.5
-          }
+          { "x1": -0.5, "y1": 0.0, "x2": -0.4, "y2": 0.0 },
+          { "x1": 0.4, "y1": 0.0, "x2": 0.5, "y2": 0.0 },
+          { "x1": 0.0, "y1": -0.5, "x2": 0.0, "y2": -0.4 },
+          { "x1": 0.0, "y1": 0.4, "x2": 0.0, "y2": 0.5 }
         ]
       },
       "solid3D": {
@@ -146,15 +133,71 @@
         "depthMm": 50,
         "heightMm": 80
       },
+      "swapCandidates": [
+        {
+          "label": "Viking / Victaulic Pendant Sprinkler",
+          "familyPath": "",
+          "variantPattern": "PENDANT*",
+          "priority": 1,
+          "autoLoad": false
+        },
+        {
+          "label": "Tyco / Central Concealed Sprinkler",
+          "familyPath": "",
+          "variantPattern": "CONCEALED",
+          "priority": 2,
+          "autoLoad": false
+        }
+      ],
       "typeVariants": [
+        {
+          "_group": "--- PENDANT ---"
+        },
         {
           "name": "PENDANT",
           "params": {
             "FLS_SPR_TYPE_TXT": "PENDANT",
             "ASS_PRODCT_COD_TXT": "SPR",
             "FLS_SPR_K_FACTOR": "80",
-            "FLS_SPR_TEMP_C": "68"
+            "FLS_SPR_TEMP_C": "68",
+            "FLS_SPR_RESPONSE_TXT": "STANDARD"
           }
+        },
+        {
+          "name": "PENDANT_FAST_RESPONSE",
+          "params": {
+            "FLS_SPR_TYPE_TXT": "PENDANT",
+            "ASS_PRODCT_COD_TXT": "SPR-FR",
+            "FLS_SPR_K_FACTOR": "80",
+            "FLS_SPR_TEMP_C": "68",
+            "FLS_SPR_RESPONSE_TXT": "FAST_RESPONSE"
+          }
+        },
+        {
+          "name": "PENDANT_RESIDENTIAL",
+          "params": {
+            "FLS_SPR_TYPE_TXT": "PENDANT_RESIDENTIAL",
+            "ASS_PRODCT_COD_TXT": "SPR-R",
+            "FLS_SPR_K_FACTOR": "42",
+            "FLS_SPR_TEMP_C": "57",
+            "FLS_SPR_RESPONSE_TXT": "FAST_RESPONSE",
+            "FLS_SPR_HAZARD_TXT": "LH",
+            "FLS_SPR_COVER_M2": "9"
+          }
+        },
+        {
+          "name": "PENDANT_EXTENDED_COVERAGE",
+          "params": {
+            "FLS_SPR_TYPE_TXT": "PENDANT_EC",
+            "ASS_PRODCT_COD_TXT": "SPR-EC",
+            "FLS_SPR_K_FACTOR": "115",
+            "FLS_SPR_TEMP_C": "68",
+            "FLS_SPR_RESPONSE_TXT": "STANDARD",
+            "FLS_SPR_COVER_M2": "20"
+          }
+        },
+        {
+          "_group": "--- UPRIGHT ---"
         },
         {
           "name": "UPRIGHT",
@@ -162,8 +205,24 @@
             "FLS_SPR_TYPE_TXT": "UPRIGHT",
             "ASS_PRODCT_COD_TXT": "SPR",
             "FLS_SPR_K_FACTOR": "80",
-            "FLS_SPR_TEMP_C": "68"
+            "FLS_SPR_TEMP_C": "68",
+            "FLS_SPR_RESPONSE_TXT": "STANDARD"
           }
+        },
+        {
+          "name": "ATTIC_HEAD_UPRIGHT",
+          "params": {
+            "FLS_SPR_TYPE_TXT": "ATTIC_HEAD",
+            "ASS_PRODCT_COD_TXT": "SPR-AT",
+            "FLS_SPR_K_FACTOR": "80",
+            "FLS_SPR_TEMP_C": "93",
+            "FLS_SPR_RESPONSE_TXT": "STANDARD",
+            "FLS_SPR_HAZARD_TXT": "LH",
+            "FLS_SPR_COVER_M2": "14"
+          }
+        },
+        {
+          "_group": "--- SIDEWALL ---"
         },
         {
           "name": "SIDEWALL",
@@ -171,8 +230,12 @@
             "FLS_SPR_TYPE_TXT": "SIDEWALL",
             "ASS_PRODCT_COD_TXT": "SPR",
             "FLS_SPR_K_FACTOR": "80",
-            "FLS_SPR_TEMP_C": "68"
+            "FLS_SPR_TEMP_C": "68",
+            "FLS_SPR_RESPONSE_TXT": "STANDARD"
           }
+        },
+        {
+          "_group": "--- CONCEALED ---"
         },
         {
           "name": "CONCEALED",
@@ -180,7 +243,35 @@
             "FLS_SPR_TYPE_TXT": "CONCEALED",
             "ASS_PRODCT_COD_TXT": "SPR",
             "FLS_SPR_K_FACTOR": "80",
-            "FLS_SPR_TEMP_C": "68"
+            "FLS_SPR_TEMP_C": "68",
+            "FLS_SPR_RESPONSE_TXT": "STANDARD"
+          }
+        },
+        {
+          "_group": "--- HIGH-TEMP ---"
+        },
+        {
+          "name": "STANDARD_RESPONSE_93C",
+          "params": {
+            "FLS_SPR_TYPE_TXT": "PENDANT",
+            "ASS_PRODCT_COD_TXT": "SPR-HT",
+            "FLS_SPR_K_FACTOR": "80",
+            "FLS_SPR_TEMP_C": "93",
+            "FLS_SPR_RESPONSE_TXT": "STANDARD"
+          }
+        },
+        {
+          "_group": "--- OPEN HEAD (DELUGE) ---"
+        },
+        {
+          "name": "OPEN_HEAD_DELUGE",
+          "params": {
+            "FLS_SPR_TYPE_TXT": "OPEN_HEAD_DELUGE",
+            "ASS_PRODCT_COD_TXT": "DLG",
+            "FLS_SPR_K_FACTOR": "115",
+            "FLS_SPR_TEMP_C": "0",
+            "FLS_SPR_RESPONSE_TXT": "STANDARD",
+            "FLS_SPR_HAZARD_TXT": "HH"
           }
         }
       ]

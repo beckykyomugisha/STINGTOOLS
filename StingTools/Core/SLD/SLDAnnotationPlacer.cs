@@ -76,13 +76,18 @@ namespace StingTools.Core.SLD
                 string label = BuildCircuitLabel(node, rules, annotOpts);
                 if (string.IsNullOrWhiteSpace(label)) return ElementId.InvalidElementId;
 
+                // Offset = half symbol height + one text height so the label clears the
+                // symbol body regardless of font size or standard symbol size.
                 XYZ textPos = OffsetForRule(position, rules.LabelPosition,
-                    Mm(rules.TextHeightMm * 1.5));
-                var tnt = new FilteredElementCollector(doc)
-                    .OfClass(typeof(TextNoteType))
-                    .FirstElementId();
-                if (tnt == ElementId.InvalidElementId) return ElementId.InvalidElementId;
-                var note = TextNote.Create(doc, view.Id, textPos, label, tnt);
+                    Mm(symSizeMm / 2.0 + rules.TextHeightMm));
+
+                // SLD-10: use provided / resolved type, or fall back to first available
+                ElementId tntId = textNoteTypeId == default || textNoteTypeId == ElementId.InvalidElementId
+                    ? ResolveTextNoteType(doc, rules.TextHeightMm)
+                    : textNoteTypeId;
+                if (tntId == ElementId.InvalidElementId) return ElementId.InvalidElementId;
+
+                var note = TextNote.Create(doc, view.Id, textPos, label, tntId);
                 return note?.Id ?? ElementId.InvalidElementId;
             }
             catch (Exception ex)
@@ -92,20 +97,56 @@ namespace StingTools.Core.SLD
             }
         }
 
-        public static void PlaceBusbarsAndBranches(Document doc, ViewDrafting view, SLDLayout layout)
+        /// <summary>
+        /// Draw busbar and branch-drop lines. Uses the standard's line
+        /// weights and draws pole tick marks on each branch. (SLD-07, SLD-09)
+        /// </summary>
+        public static void PlaceBusbarsAndBranches(Document doc, ViewDrafting view,
+            SLDLayout layout, string standardId = null)
         {
             if (doc == null || view == null || layout == null) return;
             try
             {
+                // SLD-07: look up line styles that match the standard's weights
+                var std = SymbolStandardRegistry.GetStandard(standardId ?? "IEC");
+                int busWeight    = std?.LineWeightSymbol     > 0 ? std.LineWeightSymbol     : 3;
+                int branchWeight = std?.LineWeightConnection > 0 ? std.LineWeightConnection : 1;
+
+                GraphicsStyle busStyle    = FindLineStyleByWeight(doc, busWeight);
+                GraphicsStyle branchStyle = FindLineStyleByWeight(doc, branchWeight);
+
                 foreach (var seg in layout.BusbarSegments)
                 {
                     if (seg.from.DistanceTo(seg.to) < 1e-6) continue;
-                    doc.Create.NewDetailCurve(view, Line.CreateBound(seg.from, seg.to));
+                    var curve = doc.Create.NewDetailCurve(view, Line.CreateBound(seg.from, seg.to));
+                    if (curve != null && busStyle != null)
+                        try { curve.LineStyle = busStyle; } catch { }
                 }
-                foreach (var seg in layout.BranchLines)
+
+                // SLD-09: draw branch lines with pole tick marks
+                if (layout.BranchLinesWithPoles.Count > 0)
                 {
-                    if (seg.from.DistanceTo(seg.to) < 1e-6) continue;
-                    doc.Create.NewDetailCurve(view, Line.CreateBound(seg.from, seg.to));
+                    foreach (var seg in layout.BranchLinesWithPoles)
+                    {
+                        if (seg.from.DistanceTo(seg.to) < 1e-6) continue;
+                        var curve = doc.Create.NewDetailCurve(view,
+                            Line.CreateBound(seg.from, seg.to));
+                        if (curve != null && branchStyle != null)
+                            try { curve.LineStyle = branchStyle; } catch { }
+                        DrawPoleTickMarks(doc, view, seg.from, seg.to, seg.poles);
+                    }
+                }
+                else
+                {
+                    // Fallback: use legacy BranchLines (no poles available)
+                    foreach (var seg in layout.BranchLines)
+                    {
+                        if (seg.from.DistanceTo(seg.to) < 1e-6) continue;
+                        var curve = doc.Create.NewDetailCurve(view,
+                            Line.CreateBound(seg.from, seg.to));
+                        if (curve != null && branchStyle != null)
+                            try { curve.LineStyle = branchStyle; } catch { }
+                    }
                 }
             }
             catch (Exception ex)

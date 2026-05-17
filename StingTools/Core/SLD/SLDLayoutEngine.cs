@@ -10,6 +10,7 @@
 
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
+using StingTools.Core.Symbols;
 
 namespace StingTools.Core.SLD
 {
@@ -51,6 +52,10 @@ namespace StingTools.Core.SLD
             = new List<(XYZ, XYZ)>();
         public List<(XYZ from, XYZ to)> BranchLines { get; set; }
             = new List<(XYZ, XYZ)>();
+        // Carry pole count alongside each branch line so the annotation placer
+        // can draw tick marks without re-walking the node tree.
+        public List<(XYZ from, XYZ to, int poles)> BranchLinesWithPoles { get; set; }
+            = new List<(XYZ, XYZ, int)>();
         public XYZ ViewOrigin { get; set; } = XYZ.Zero;
         public double TotalWidth  { get; set; }
         public double TotalHeight { get; set; }
@@ -101,7 +106,12 @@ namespace StingTools.Core.SLD
             void Place(SLDNode node)
             {
                 if (!yByLevel.TryGetValue(node.HierarchyLevel, out var curY)) curY = 0;
-                double x = node.HierarchyLevel * levelDx;
+                if (!colByLevel.TryGetValue(node.HierarchyLevel, out var col)) col = 0;
+
+                // SLD-05: wrap to a new column when height limit is exceeded
+                if (curY >= maxColHeight) { col++; curY = 0; colByLevel[node.HierarchyLevel] = col; }
+
+                double x = node.HierarchyLevel * levelDx + col * colWidth;
                 var pos = new XYZ(x, -curY, 0);
                 layout.SymbolPositions[node.ElementId] = pos;
                 yByLevel[node.HierarchyLevel] = curY + dy;
@@ -115,10 +125,13 @@ namespace StingTools.Core.SLD
 
                     foreach (var child in node.Children)
                     {
-                        Place(child);
                         if (layout.SymbolPositions.TryGetValue(child.ElementId, out var childPos))
                             layout.BranchLines.Add((new XYZ(childPos.X, busY, 0), childPos));
                     }
+                }
+                else if (!node.IsPanel)
+                {
+                    // Leaf node — no busbar, children are already placed inline above
                 }
             }
 
