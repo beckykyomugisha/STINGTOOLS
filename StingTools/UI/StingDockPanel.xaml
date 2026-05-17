@@ -4667,6 +4667,15 @@
                                                     <Button Style="{StaticResource CatBtn}" Content="W-Clr"
                                                             Tag="Electrical_ClearWireAnnotations" Click="Cmd_Click"
                                                             ToolTip="Remove all STING wire annotations from active view"/>
+                                                    <Button Style="{StaticResource CatBtn}" Content="W-Refresh"
+                                                            Tag="Electrical_RefreshWireAnnotations" Click="Cmd_Click"
+                                                            ToolTip="Detect and refresh stale wire annotations in the active view"/>
+                                                    <Button Style="{StaticResource CatBtn}" Content="H-Run Batch"
+                                                            Tag="Electrical_HomeRunArrowBatch" Click="Cmd_Click"
+                                                            ToolTip="Place home-run arrows for all conduits in the active view"/>
+                                                    <Button Style="{StaticResource CatBtn}" Content="Pnl Reconcile"
+                                                            Tag="Electrical_PanelWireReconcile" Click="Cmd_Click"
+                                                            ToolTip="Audit wire annotations against actual panel schedule circuits"/>
                                                     <Button Style="{StaticResource ActionBtn}" Content="System naming audit"    Tag="Mep_NamingAudit"  Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Audit MEP system names against CIBSE / BSRIA / Uniclass 2015 prefix set"/>
                                                 </StackPanel>
                                             </Border>
