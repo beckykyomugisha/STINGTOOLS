@@ -588,7 +588,7 @@ namespace StingTools.Core.Placement
                 }
                 catch (Exception ex2)
                 {
-                    StingLog.Warn($"PlacementScorer: wall-intersect {wallId} failed: {ex.Message}");
+                    StingLog.Warn($"PlacementScorer: wall-intersect {wallId} failed: {ex2.Message}");
                 }
             }
             return false;

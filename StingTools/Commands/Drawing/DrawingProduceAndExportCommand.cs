@@ -307,7 +307,7 @@ namespace StingTools.Commands.Drawing
                 }
                 catch (Exception ex2)
                 {
-                    stats.Warnings.Add($"PDF [{sheet.SheetNumber}]: {ex.Message}");
+                    stats.Warnings.Add($"PDF [{sheet.SheetNumber}]: {ex2.Message}");
                 }
             }
         }

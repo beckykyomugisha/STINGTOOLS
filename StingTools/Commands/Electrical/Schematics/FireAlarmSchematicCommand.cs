@@ -128,7 +128,7 @@ namespace StingTools.Commands.Electrical.Schematics
                         }
                         catch (Exception ex2)
                         {
-                            StingLog.Warn($"FireAlarmSchematic: drop line dev {devIdx}: {ex.Message}");
+                            StingLog.Warn($"FireAlarmSchematic: drop line dev {devIdx}: {ex2.Message}");
                         }
 
                         // Device symbol: small circle approximated as a tiny box.

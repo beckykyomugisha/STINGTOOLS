@@ -498,7 +498,7 @@ namespace StingTools.Temp
                             }
                             catch (Exception ex2)
                             {
-                                StingLog.Warn($"VGConsistent scoring: {ex.Message}");
+                                StingLog.Warn($"VGConsistent scoring: {ex2.Message}");
                                 earned = weight * 0.5; // partial credit on error
                             }
                         }
@@ -2470,7 +2470,7 @@ namespace StingTools.Temp
                             }
                             catch (Exception ex2)
                             {
-                                StingLog.Warn($"VG filter '{kvp.Key}' on '{target.Name}': {ex.Message}");
+                                StingLog.Warn($"VG filter '{kvp.Key}' on '{target.Name}': {ex2.Message}");
                             }
                         }
 
@@ -2584,14 +2584,14 @@ namespace StingTools.Temp
                         }
                         catch (Exception ex3)
                         {
-                            StingLog.Warn($"VG scheme on '{target.Name}': {ex.Message}");
+                            StingLog.Warn($"VG scheme on '{target.Name}': {ex3.Message}");
                         }
 
                         viewsConfigured++;
                     }
                     catch (Exception ex2)
                     {
-                        StingLog.Warn($"VG override '{target.Name}': {ex.Message}");
+                        StingLog.Warn($"VG override '{target.Name}': {ex2.Message}");
                     }
                 }
 
@@ -2686,9 +2686,9 @@ namespace StingTools.Temp
             {
                 try { ctx.App.Application.SharedParametersFilename = originalSpfPath ?? ""; }
                 catch (Exception ex2) { StingLog.Warn($"Restore SharedParametersFilename: {ex2.Message}"); }
-                StingLog.Error("Failed to open shared parameter file", ex);
+                StingLog.Error("Failed to open shared parameter file", ex2);
                 TaskDialog.Show("Batch Add Family Params",
-                    $"Error opening parameter file: {ex.Message}");
+                    $"Error opening parameter file: {ex2.Message}");
                 return Result.Failed;
             }
 
@@ -2836,7 +2836,7 @@ namespace StingTools.Temp
                     }
                     catch (Exception ex3)
                     {
-                        StingLog.Warn($"Bind '{paramName}': {ex.Message}");
+                        StingLog.Warn($"Bind '{paramName}': {ex3.Message}");
                         totalFailed += paramGroup.Count();
                     }
                 }
@@ -3448,7 +3448,7 @@ namespace StingTools.Temp
                 }
                 catch (Exception ex2)
                 {
-                    StingLog.Warn($"GetAllFamilyParams failed for {rfaFileName}: {ex.Message}");
+                    StingLog.Warn($"GetAllFamilyParams failed for {rfaFileName}: {ex2.Message}");
                     paramList = new List<string>(universalParams);
                 }
 
@@ -3576,8 +3576,8 @@ namespace StingTools.Temp
                 catch (Exception ex3)
                 {
                     failed++;
-                    StingLog.Error($"ProcessStingTagFamilies: {rfaFileName} failed", ex);
-                    perFamily.Add($"[FAIL] {rfaFileName} — {ex.Message}");
+                    StingLog.Error($"ProcessStingTagFamilies: {rfaFileName} failed", ex3);
+                    perFamily.Add($"[FAIL] {rfaFileName} — {ex3.Message}");
                     try { famDoc?.Close(false); } catch (Exception ex22) { StingLog.Warn($"Close after failure: {ex22.Message}"); }
                 }
             }
@@ -3852,7 +3852,7 @@ namespace StingTools.Temp
                     }
                     catch (Exception ex2)
                     {
-                        StingLog.Warn($"Template schedule '{fullName}': {ex.Message}");
+                        StingLog.Warn($"Template schedule '{fullName}': {ex2.Message}");
                         skipped++;
                     }
                 }
@@ -3965,7 +3965,7 @@ namespace StingTools.Temp
                                         }
                                         catch (Exception ex2)
                                         {
-                                            StingLog.Warn($"TPL instance creation ({sourceTable}): {ex.Message}");
+                                            StingLog.Warn($"TPL instance creation ({sourceTable}): {ex2.Message}");
                                         }
                                     }
                                 }
@@ -3989,8 +3989,8 @@ namespace StingTools.Temp
                 }
                 catch (Exception ex2)
                 {
-                    StingLog.Warn($"TPL_SCHEDULE_METADATA.csv integration: {ex.Message}");
-                    tplNote = $"\nTPL metadata error: {ex.Message}";
+                    StingLog.Warn($"TPL_SCHEDULE_METADATA.csv integration: {ex2.Message}");
+                    tplNote = $"\nTPL metadata error: {ex2.Message}";
                 }
             }
             else
@@ -4480,8 +4480,8 @@ namespace StingTools.Temp
                 catch (Exception ex2)
                 {
                     if (tx.HasStarted()) tx.RollBack();
-                    StingLog.Error("Clone Template failed", ex);
-                    TaskDialog.Show("Clone Template", $"Clone failed: {ex.Message}");
+                    StingLog.Error("Clone Template failed", ex2);
+                    TaskDialog.Show("Clone Template", $"Clone failed: {ex2.Message}");
                     return Result.Failed;
                 }
             }
@@ -4617,7 +4617,7 @@ namespace StingTools.Temp
                         }
                         catch (Exception ex2)
                         {
-                            report.AppendLine($"  {kvp.Key} — FAILED: {ex.Message}");
+                            report.AppendLine($"  {kvp.Key} — FAILED: {ex2.Message}");
                         }
                     }
                     if (phaseCancelled)

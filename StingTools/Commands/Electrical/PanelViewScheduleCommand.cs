@@ -99,7 +99,7 @@ namespace StingTools.Commands.Electrical
                             catch (Exception ex2) { StingLog.Warn($"Viewport.Create: {ex2.Message}"); }
                         }
                     }
-                    catch (Exception ex) { StingLog.Warn($"PanelViewSchedule {panel.Name}: {ex.Message}"); skipped++; }
+                    catch (Exception ex2) { StingLog.Warn($"PanelViewSchedule {panel.Name}: {ex2.Message}"); skipped++; }
                 }
                 tx.Commit();
             }

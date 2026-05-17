@@ -179,10 +179,10 @@ namespace StingTools.BIMManager
                         catch (Exception ex2) { StingLog.Warn($"SyncLock cleanup: {ex2.Message}"); }
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
-                    StingLog.Error($"SyncToCentral: {ex.Message}", ex);
-                    return CollaborationResult.Failed($"Sync failed: {ex.Message}");
+                    StingLog.Error($"SyncToCentral: {ex2.Message}", ex);
+                    return CollaborationResult.Failed($"Sync failed: {ex2.Message}");
                 }
             }
         }

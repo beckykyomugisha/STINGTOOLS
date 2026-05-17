@@ -12,7 +12,7 @@
 //   5. FamilyElementVisibility — 3D geometry IsShownInCoarse=false/Medium=true/Fine=true
 //      so families present symbolic curves at coarse/medium and real geometry at fine.
 //   6. Symbolic curve view-type isolation — plan curves restricted to plan/RCP via
-//      FamilyElementVisibilityType.CurvesInPlanViews; elevation curves to CurvesInFrontBack;
+//      FamilyElementVisibilityType.Plan; elevation curves to CurvesInFrontBack;
 //      side elevation curves to CurvesInLeftRight.
 //   7. Side elevation symbol  — YZ-plane bounding box, wired to STING_LOD_MEDIUM_VISIBLE.
 //   8. JSON-driven symbol geometry — IEC 60617 / ANSI IEEE 315 normalised shapes
@@ -364,7 +364,7 @@ namespace StingTools.Core
 
                 // CurvesInPlanViews → only visible in plan/RCP views
                 FamilyElementVisibilityType? vtVis = setViewTypeVis
-                    ? FamilyElementVisibilityType.CurvesInPlanViews
+                    ? FamilyElementVisibilityType.Plan
                     : (FamilyElementVisibilityType?)null;
 
                 return CreateRectangleCurves(famDoc, sp,
@@ -392,7 +392,7 @@ namespace StingTools.Core
 
                 // CurvesInFrontBack → only visible in front/back elevation views
                 FamilyElementVisibilityType? vtVis = setViewTypeVis
-                    ? FamilyElementVisibilityType.CurvesInFrontBack
+                    ? FamilyElementVisibilityType.FrontBack
                     : (FamilyElementVisibilityType?)null;
 
                 return CreateRectangleCurves(famDoc, sp,
@@ -420,7 +420,7 @@ namespace StingTools.Core
 
                 // CurvesInLeftRight → only visible in left/right elevation views
                 FamilyElementVisibilityType? vtVis = setViewTypeVis
-                    ? FamilyElementVisibilityType.CurvesInLeftRight
+                    ? FamilyElementVisibilityType.LeftRight
                     : (FamilyElementVisibilityType?)null;
 
                 // In YZ plane: Y axis = horizontal, Z axis = vertical; X always 0
@@ -580,7 +580,7 @@ namespace StingTools.Core
             }
 
             FamilyElementVisibilityType? vtVis = setViewTypeVis
-                ? FamilyElementVisibilityType.CurvesInPlanViews
+                ? FamilyElementVisibilityType.Plan
                 : (FamilyElementVisibilityType?)null;
 
             string catKey = bic.ToString();
@@ -732,7 +732,7 @@ namespace StingTools.Core
             }
 
             FamilyElementVisibilityType? vtVis = setViewTypeVis
-                ? FamilyElementVisibilityType.CurvesInFrontBack
+                ? FamilyElementVisibilityType.FrontBack
                 : (FamilyElementVisibilityType?)null;
 
             string catKey  = bic.ToString();
@@ -1163,7 +1163,7 @@ namespace StingTools.Core
                 if (sp == null) return false;
 
                 FamilyElementVisibilityType? vtVis = setViewTypeVis
-                    ? FamilyElementVisibilityType.CurvesInPlanViews
+                    ? FamilyElementVisibilityType.Plan
                     : (FamilyElementVisibilityType?)null;
 
                 int count = 0;
@@ -1256,7 +1256,7 @@ namespace StingTools.Core
                 if (sp == null) { result.Warnings.Add("CreateSchematicPlanSymbol: no sketch plane"); return; }
 
                 FamilyElementVisibilityType? vtVis = setViewTypeVis
-                    ? FamilyElementVisibilityType.CurvesInPlanViews
+                    ? FamilyElementVisibilityType.Plan
                     : (FamilyElementVisibilityType?)null;
 
                 int curves = 0;

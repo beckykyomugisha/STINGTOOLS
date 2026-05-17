@@ -179,9 +179,7 @@ namespace StingTools.Commands.Electrical
                         // Revit ElectricalSystem does not expose a PolesNumber property;
                         // phase count is encoded in ElectricalSystemType (Three-phase variants
                         // include ThreePhase, ThreePhaseDelta, ThreePhaseWye, etc.).
-                        bool isThreePhase = sys.SystemType == ElectricalSystemType.ThreePhase
-                            || sys.SystemType == ElectricalSystemType.ThreePhaseDelta
-                            || sys.SystemType == ElectricalSystemType.ThreePhaseWye;
+                        bool isThreePhase = sys.SystemType == ElectricalSystemType.ThreePhase;
 
                         switch (sys.SystemType)
                         {
@@ -192,8 +190,6 @@ namespace StingTools.Commands.Electrical
                                 d.CircuitType = string.IsNullOrEmpty(d.CircuitType) ? "Power" : d.CircuitType;
                                 break;
                             case ElectricalSystemType.ThreePhase:
-                            case ElectricalSystemType.ThreePhaseDelta:
-                            case ElectricalSystemType.ThreePhaseWye:
                                 d.Phase = "3Ø";
                                 d.CoreCount = 4; // 3 phase + neutral (CPC separate)
                                 d.CircuitType = string.IsNullOrEmpty(d.CircuitType) ? "Power" : d.CircuitType;

@@ -395,7 +395,7 @@ namespace StingTools.Core.SLD
                     catch (Exception ex2) { StingLog.Warn($"ReadElementParams runtime: {ex2.Message}"); }
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"ReadElementParams: {ex.Message}"); }
+            catch (Exception ex2) { StingLog.Warn($"ReadElementParams: {ex2.Message}"); }
         }
 
         // ── Symbol concept resolution ────────────────────────────────────────

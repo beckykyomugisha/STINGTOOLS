@@ -74,7 +74,7 @@ namespace StingTools.Commands.Mep
             {
                 try { issues.Add(BuildIssue(doc, fi)); }
                 catch (Exception ex2)
-                { StingLog.Warn($"Sleeve BCF build {fi?.Id}: {ex.Message}"); }
+                { StingLog.Warn($"Sleeve BCF build {fi?.Id}: {ex2.Message}"); }
             }
 
             string outDir, path;

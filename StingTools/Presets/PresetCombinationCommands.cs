@@ -67,7 +67,7 @@ namespace StingTools.Presets
                         }
                         catch (Exception ex2)
                         {
-                            StingLog.Warn($"Preset step {step.CommandTag} failed: {ex.Message}");
+                            StingLog.Warn($"Preset step {step.CommandTag} failed: {ex2.Message}");
                             if (!step.Optional) failed++;
                             else skipped++;
                         }

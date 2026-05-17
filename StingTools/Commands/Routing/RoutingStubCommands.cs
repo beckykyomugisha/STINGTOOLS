@@ -105,7 +105,7 @@ namespace StingTools.Commands.Routing
                             }
                             catch (Exception ex2)
                             {
-                                StingLog.Warn($"GenerateLayoutCommand: DetailCurve draw failed at seg {i}: {ex.Message}");
+                                StingLog.Warn($"GenerateLayoutCommand: DetailCurve draw failed at seg {i}: {ex2.Message}");
                             }
                         }
                     }
@@ -114,8 +114,8 @@ namespace StingTools.Commands.Routing
                 catch (Exception ex2)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
-                    StingLog.Error("GenerateLayoutCommand: transaction failed", ex);
-                    message = ex.Message;
+                    StingLog.Error("GenerateLayoutCommand: transaction failed", ex2);
+                    message = ex2.Message;
                     return Result.Failed;
                 }
             }

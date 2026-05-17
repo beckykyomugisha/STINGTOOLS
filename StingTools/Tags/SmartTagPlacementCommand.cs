@@ -1287,7 +1287,7 @@ namespace StingTools.Tags
                 catch (Exception ex4)
                 {
                     sb.OtherException++; skipped++;
-                    StingLog.Warn($"Tag placement failed for {elem.Id}: {ex.Message}");
+                    StingLog.Warn($"Tag placement failed for {elem.Id}: {ex4.Message}");
                 }
             }
 
@@ -1746,10 +1746,21 @@ namespace StingTools.Tags
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex2)
             {
-                StingLog.Warn($"AdjustLeaderElbow: {ex.Message}");
+                StingLog.Warn($"AdjustLeaderElbow: {ex2.Message}");
             }
+        }
+
+        private static Box2D EstimateTagBoxFallback(IndependentTag tag, View view, double tagWidth, double tagHeight)
+        {
+            try
+            {
+                var pos = tag.TagHeadPosition;
+                if (pos == null) return new Box2D(0, 0, 0, 0);
+                return Box2D.EstimateTag(pos, tagWidth, tagHeight);
+            }
+            catch { return new Box2D(0, 0, 0, 0); }
         }
     }
 
@@ -2270,7 +2281,7 @@ namespace StingTools.Tags
                 }
                 catch (Exception ex2)
                 {
-                    StingLog.Error($"RemoveAnnotationTags: batch delete failed, falling back to one-by-one", ex);
+                    StingLog.Error($"RemoveAnnotationTags: batch delete failed, falling back to one-by-one", ex2);
                     // Fallback: delete individually
                     foreach (var id in idsToDelete)
                     {

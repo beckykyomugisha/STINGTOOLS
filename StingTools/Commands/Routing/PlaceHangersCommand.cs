@@ -122,8 +122,8 @@ namespace StingTools.Commands.Routing
                 catch (Exception ex2)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
-                    StingLog.Error("PlaceHangersCommand transaction", ex);
-                    message = ex.Message;
+                    StingLog.Error("PlaceHangersCommand transaction", ex2);
+                    message = ex2.Message;
                     return Result.Failed;
                 }
             }

@@ -494,7 +494,7 @@ namespace StingTools.Docs
                     }
                     catch (Exception ex2)
                     {
-                        StingLog.Error($"Failed to create sheet '{row.SheetNumber}': {ex.Message}");
+                        StingLog.Error($"Failed to create sheet '{row.SheetNumber}': {ex2.Message}");
                         errors++;
                     }
                 }

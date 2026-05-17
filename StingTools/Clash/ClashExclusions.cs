@@ -50,7 +50,7 @@ namespace StingTools.Core.Clash
                     // silently fell back to empty, then the next Save() would
                     // overwrite the user's approved-clash list with a blank file.
                     // Log loudly so the corruption is visible + user-diagnosable.
-                    StingTools.Core.StingLog.Warn($"ClashExclusions.Load({path}) failed: {ex.Message}. Treating as empty.");
+                    StingTools.Core.StingLog.Warn($"ClashExclusions.Load({path}) failed: {ex2.Message}. Treating as empty.");
                 }
             }
             return new ClashExclusions { Path = path };

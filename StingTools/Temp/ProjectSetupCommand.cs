@@ -951,7 +951,7 @@ namespace StingTools.Temp
                 }
                 catch (Exception ex2)
                 {
-                    StingLog.Warn($"Could not set FIRE_RATING: {ex.Message}");
+                    StingLog.Warn($"Could not set FIRE_RATING: {ex2.Message}");
                 }
             }
 
@@ -972,7 +972,7 @@ namespace StingTools.Temp
                 }
                 catch (Exception ex2)
                 {
-                    StingLog.Warn($"Could not set ELC_VOLTAGE: {ex.Message}");
+                    StingLog.Warn($"Could not set ELC_VOLTAGE: {ex2.Message}");
                 }
             }
         }

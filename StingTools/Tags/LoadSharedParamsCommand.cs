@@ -253,7 +253,7 @@ namespace StingTools.Tags
                 }
                 catch (Exception ex2)
                 {
-                    StingLog.Error("CleanMaterialBindings (no-bind path) failed", ex);
+                    StingLog.Error("CleanMaterialBindings (no-bind path) failed", ex2);
                 }
 
                 var earlyMsg = new StringBuilder();
@@ -426,13 +426,13 @@ namespace StingTools.Tags
                     }
                     catch (Exception ex3)
                     {
-                        StingLog.Error($"Group '{groupName}' transaction failed", ex);
+                        StingLog.Error($"Group '{groupName}' transaction failed", ex3);
                         if (tx.HasStarted() && !tx.HasEnded())
                             tx.RollBack();
 
                         skipped += defs.Count;
                         if (errors.Count < 10)
-                            errors.Add($"Group '{groupName}': {ex.Message}");
+                            errors.Add($"Group '{groupName}': {ex3.Message}");
                     }
                 }
             }
@@ -893,7 +893,7 @@ namespace StingTools.Tags
                         {
                             removeFailed++;
                             if (removeFailed <= 5)
-                                StingLog.Warn($"Remove mat from '{name}': {ex.Message}");
+                                StingLog.Warn($"Remove mat from '{name}': {ex2.Message}");
                         }
                     }
 
@@ -935,7 +935,7 @@ namespace StingTools.Tags
                         {
                             addFailed++;
                             if (addFailed <= 5)
-                                StingLog.Warn($"Add mat to '{name}': {ex.Message}");
+                                StingLog.Warn($"Add mat to '{name}': {ex2.Message}");
                         }
                     }
 
@@ -943,7 +943,7 @@ namespace StingTools.Tags
                 }
                 catch (Exception ex2)
                 {
-                    StingLog.Error("CleanMaterialBindings batch tx failed", ex);
+                    StingLog.Error("CleanMaterialBindings batch tx failed", ex2);
                     if (tx.HasStarted() && !tx.HasEnded())
                         tx.RollBack();
                 }

@@ -1698,7 +1698,7 @@ namespace StingTools.BIMManager
                     {
                         if (trans.HasStarted())
                             trans.RollBack();
-                        throw new InvalidOperationException($"Transaction failed: {ex.Message}", ex);
+                        throw new InvalidOperationException($"Transaction failed: {ex2.Message}", ex2);
                     }
                 }
 
@@ -1807,7 +1807,7 @@ namespace StingTools.BIMManager
                                 }
                                 catch (Exception ex2)
                                 {
-                                    StingLog.Warn($"ExcelLink tag rebuild failed for {eid}: {ex.Message}");
+                                    StingLog.Warn($"ExcelLink tag rebuild failed for {eid}: {ex2.Message}");
                                 }
                             }
                             rebuildTrans.Commit();
@@ -1818,7 +1818,7 @@ namespace StingTools.BIMManager
                         catch (Exception ex2)
                         {
                             if (rebuildTrans.HasStarted()) rebuildTrans.RollBack();
-                            StingLog.Error("ExcelLink tag rebuild transaction failed", ex);
+                            StingLog.Error("ExcelLink tag rebuild transaction failed", ex2);
                         }
                     }
                 }
@@ -2124,7 +2124,7 @@ namespace StingTools.BIMManager
                     {
                         if (trans.HasStarted())
                             trans.RollBack();
-                        throw new InvalidOperationException($"Transaction failed: {ex.Message}", ex);
+                        throw new InvalidOperationException($"Transaction failed: {ex2.Message}", ex2);
                     }
                 }
 
@@ -2233,7 +2233,7 @@ namespace StingTools.BIMManager
                                 }
                                 catch (Exception ex2)
                                 {
-                                    StingLog.Warn($"ExcelLink RoundTrip tag rebuild failed for {eid}: {ex.Message}");
+                                    StingLog.Warn($"ExcelLink RoundTrip tag rebuild failed for {eid}: {ex2.Message}");
                                 }
                             }
                             rebuildTrans.Commit();
@@ -2244,7 +2244,7 @@ namespace StingTools.BIMManager
                         catch (Exception ex2)
                         {
                             if (rebuildTrans.HasStarted()) rebuildTrans.RollBack();
-                            StingLog.Error("ExcelLink RoundTrip tag rebuild failed", ex);
+                            StingLog.Error("ExcelLink RoundTrip tag rebuild failed", ex2);
                         }
                     }
                 }

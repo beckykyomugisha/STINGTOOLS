@@ -20,7 +20,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Drawing;
-using StingTools.Core.Validation;
+using ValidationSeverity = StingTools.Core.Drawing.ValidationSeverity;
 
 namespace StingTools.Commands.Drawing
 {
@@ -227,7 +227,7 @@ namespace StingTools.Commands.Drawing
 
                 if (sheets.Count == 0) return;
 
-                var dryRun = new StingTools.Core.Drawing.ApplyOptions { DryRun = true };
+                var dryRun = new DrawingTypePresentation.ApplyOptions { DryRun = true };
                 var allMissing = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
                 int totalDeclared = 0;
 

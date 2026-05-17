@@ -260,7 +260,7 @@ namespace StingTools.Temp
                                 }
                                 catch (Exception ex2)
                                 {
-                                    StingLog.Warn($"Appearance asset duplication for '{matName}' failed (sharing base asset): {ex.Message} / retry: {ex2.Message}");
+                                    StingLog.Warn($"Appearance asset duplication for '{matName}' failed (sharing base asset): {ex2.Message} / retry: {ex2.Message}");
                                     newMat.AppearanceAssetId = baseMat.AppearanceAssetId;
                                 }
                             }

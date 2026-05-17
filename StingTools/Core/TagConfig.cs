@@ -6656,7 +6656,7 @@ namespace StingTools.Core
                 }
                 catch (Exception ex2)
                 {
-                    StingLog.Warn("WriteTag7All paragraph clear pass failed: " + ex.Message);
+                    StingLog.Warn("WriteTag7All paragraph clear pass failed: " + ex2.Message);
                 }
             }
 

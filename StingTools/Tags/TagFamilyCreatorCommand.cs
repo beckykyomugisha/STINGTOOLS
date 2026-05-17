@@ -993,7 +993,7 @@ namespace StingTools.Tags
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
             if (confirm.Show() == TaskDialogResult.Cancel)
                 return Result.Cancelled;
-            bool skipExistingOnDisk = (choice == TaskDialogResult.CommandLink1);
+            bool skipExistingOnDisk = false; // default: recreate all families
 
             string outputDir = outputDirEarly;
             report.AppendLine($"STING Tag Family Creation Report");

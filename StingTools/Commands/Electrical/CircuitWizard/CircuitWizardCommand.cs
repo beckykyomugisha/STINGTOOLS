@@ -163,10 +163,10 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                             tx.Commit();
                             created++;
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
-                            StingLog.Error($"Create circuit {proposal.ProposedLabel}: {ex.Message}", ex);
-                            failed.Add($"{proposal.ProposedLabel}: {ex.Message}");
+                            StingLog.Error($"Create circuit {proposal.ProposedLabel}: {ex2.Message}", ex);
+                            failed.Add($"{proposal.ProposedLabel}: {ex2.Message}");
                             try { if (tx.HasStarted()) tx.RollBack(); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                         }
                     }
@@ -174,7 +174,7 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                 tg.Assimilate();
             }
 
-            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
             string failTail = failed.Count == 0
                 ? ""
                 : "\n\nFailed:\n  " + string.Join("\n  ", failed.Take(8))

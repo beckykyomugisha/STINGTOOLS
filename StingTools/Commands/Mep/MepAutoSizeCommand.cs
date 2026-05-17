@@ -109,7 +109,7 @@ namespace StingTools.Commands.Mep
                         catch (Exception ex3)
                         {
                             res.Skipped++;
-                            res.Warnings.Add($"size {p.Id}: {ex.Message}");
+                            res.Warnings.Add($"size {p.Id}: {ex2.Message}");
                         }
                     }
                     tx.Commit();
@@ -117,7 +117,7 @@ namespace StingTools.Commands.Mep
                 catch (Exception ex3)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
-                    res.Warnings.Add($"Pipe sizing fatal: {ex.Message}");
+                    res.Warnings.Add($"Pipe sizing fatal: {ex3.Message}");
                 }
             }
         Done:
@@ -244,7 +244,7 @@ namespace StingTools.Commands.Mep
                         catch (Exception ex2)
                         {
                             res.Skipped++;
-                            res.Warnings.Add($"size {d.Id}: {ex.Message}");
+                            res.Warnings.Add($"size {d.Id}: {ex2.Message}");
                         }
                     }
                     tx.Commit();
@@ -352,7 +352,7 @@ namespace StingTools.Commands.Mep
                         catch (Exception ex2)
                         {
                             res.Skipped++;
-                            res.Warnings.Add($"size {c.Id}: {ex.Message}");
+                            res.Warnings.Add($"size {c.Id}: {ex2.Message}");
                         }
                     }
                     tx.Commit();

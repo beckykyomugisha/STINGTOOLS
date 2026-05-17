@@ -358,7 +358,7 @@ namespace StingTools.Core.Drawing
                 try { newView.Name = templateName + "_(2)"; }
                 catch (Exception ex2)
                 {
-                    result.Warnings.Add($"ManagedTemplateSyncer: rename failed — {ex.Message}");
+                    result.Warnings.Add($"ManagedTemplateSyncer: rename failed — {ex2.Message}");
                     return ElementId.InvalidElementId;
                 }
             }

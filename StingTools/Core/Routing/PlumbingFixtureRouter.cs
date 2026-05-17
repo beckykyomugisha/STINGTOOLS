@@ -574,7 +574,7 @@ namespace StingTools.Core.Routing
                         {
                             var sys = p.MEPSystem as PipingSystem;
                             return sys != null &&
-                                   string.Equals(sys.Abbreviation, systemAbbrev,
+                                   string.Equals(sys.Name, systemAbbrev,
                                                   StringComparison.OrdinalIgnoreCase);
                         }
                         catch { return false; }
@@ -619,7 +619,7 @@ namespace StingTools.Core.Routing
                         {
                             var sys = p.MEPSystem as PipingSystem;
                             if (sys == null) return false;
-                            string abbr = sys.Abbreviation ?? "";
+                            string abbr = sys.Name ?? "";
                             return abbr.IndexOf("SS",    StringComparison.OrdinalIgnoreCase) >= 0
                                 || abbr.IndexOf("SOIL",  StringComparison.OrdinalIgnoreCase) >= 0
                                 || abbr.IndexOf("WASTE", StringComparison.OrdinalIgnoreCase) >= 0

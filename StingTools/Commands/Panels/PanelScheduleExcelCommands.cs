@@ -400,7 +400,7 @@ namespace StingTools.Commands.Panels
                                 catch (Exception ex8)
                                 {
                                     rejected++;
-                                    StingLog.Warn($"{psv.Name}[{r},{c}] SetCellText '{newVal}': {ex.Message}");
+                                    StingLog.Warn($"{psv.Name}[{r},{c}] SetCellText '{newVal}': {ex8.Message}");
                                 }
                             }
                         }

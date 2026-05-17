@@ -27,6 +27,7 @@ using StingTools.Core.Placement;
 using StingTools.Core.Routing;
 using StingTools.Core.Validation;
 using StingTools.Core.Visualization;
+using ValidationSeverity = StingTools.Core.Validation.ValidationSeverity;
 
 namespace StingTools.UI.PlacementCenter
 {
